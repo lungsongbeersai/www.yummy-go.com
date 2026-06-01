@@ -107,9 +107,7 @@ export function TableNextStepPanel({
   selectedTable: PosTable | null;
   showCreateEmployeeOrderAction?: boolean;
 }) {
-  const { t } = useTranslation();
-
-  return selectedTable ? (
+  return (
     <SelectedTableCartPanel
       allZones={allZones}
       cart={cart}
@@ -119,11 +117,6 @@ export function TableNextStepPanel({
       onCartRefresh={onCartRefresh}
       onTableActionComplete={onTableActionComplete}
     />
-  ) : (
-    <Card className="flex h-full min-h-0 flex-col items-center justify-center gap-3 rounded-none border-0 border-l border-white/20 bg-transparent p-5 text-center text-white shadow-none">
-      <p className="text-base font-black">{t("pos.selectTableToContinue")}</p>
-      <p className="text-sm text-white/70">{t("pos.openTableHint")}</p>
-    </Card>
   );
 }
 
@@ -147,7 +140,7 @@ export function SelectedTableCartPanel({
   allZones: PosZone[];
   cart: CartOrder | CartOrder[] | null;
   loading: boolean;
-  table: PosTable;
+  table: PosTable | null;
   variant?: "side" | "sheet";
   showCreateEmployeeOrderAction?: boolean;
   onCartRefresh: () => Promise<void>;
@@ -167,21 +160,25 @@ export function SelectedTableCartPanel({
   const applyBillDiscount = usePosStore((state) => state.applyBillDiscount);
   const executeKitchen = usePrinterStore((state) => state.executeKitchen);
   const showToast = useToastStore((state) => state.show);
-  const orders = useMemo(() => cartOrders(cart), [cart]);
+  const selectedTable = table?.table_uuid ? table : null;
+  const hasSelectedTable = Boolean(selectedTable);
+  const tableUuid = selectedTable?.table_uuid ?? "";
+  const displayCart = hasSelectedTable ? cart : null;
+  const orders = useMemo(() => cartOrders(displayCart), [displayCart]);
   const newOrderItems = useMemo(
-    () => visibleCartItems(cart).filter(isNewOrderCartItem),
-    [cart],
+    () => visibleCartItems(displayCart).filter(isNewOrderCartItem),
+    [displayCart],
   );
   const historyItems = useMemo(
-    () => visibleCartItems(cart).filter(isOrderHistoryCartItem),
-    [cart],
+    () => visibleCartItems(displayCart).filter(isOrderHistoryCartItem),
+    [displayCart],
   );
-  const summary = useMemo(() => cartSummary(cart), [cart]);
+  const summary = useMemo(() => cartSummary(displayCart), [displayCart]);
   const confirmGroups = useMemo(() => newOrderConfirmGroups(orders), [orders]);
   const preferredTab: CartTab =
     newOrderItems.length || !historyItems.length ? "new" : "history";
   const [activeTab, setActiveTab] = useState<CartTab>(preferredTab);
-  const previousTableUuidRef = useRef(table.table_uuid);
+  const previousTableUuidRef = useRef(tableUuid);
   const [updatingItemUuid, setUpdatingItemUuid] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [confirmAllProgress, setConfirmAllProgress] =
@@ -248,7 +245,11 @@ export function SelectedTableCartPanel({
     ? cartItemActionUuid(itemActionTarget.item)
     : null;
   const cartActionsLocked = Boolean(
-    updatingItemUuid || confirming || actingItemUuid || billDiscountPending,
+    !hasSelectedTable ||
+      updatingItemUuid ||
+      confirming ||
+      actingItemUuid ||
+      billDiscountPending,
   );
   const canConfirm =
     Boolean(user?.uuid) && confirmGroups.length > 0 && !cartActionsLocked;
@@ -287,8 +288,8 @@ export function SelectedTableCartPanel({
 
   useEffect(() => {
     setActiveTab((current) => {
-      if (previousTableUuidRef.current !== table.table_uuid) {
-        previousTableUuidRef.current = table.table_uuid;
+      if (previousTableUuidRef.current !== tableUuid) {
+        previousTableUuidRef.current = tableUuid;
         return preferredTab;
       }
       if (current === "history" && !historyItems.length) return "new";
@@ -300,7 +301,7 @@ export function SelectedTableCartPanel({
     historyItems.length,
     newOrderItems.length,
     preferredTab,
-    table.table_uuid,
+    tableUuid,
   ]);
 
   useEffect(() => {
@@ -318,7 +319,7 @@ export function SelectedTableCartPanel({
     setPaymentContext(null);
     setSplitSelectedItemUuids(new Set());
     setConfirmAllProgress(null);
-  }, [table.table_uuid]);
+  }, [tableUuid]);
 
   useEffect(() => {
     if (activeTab === "history") return;
@@ -576,6 +577,8 @@ export function SelectedTableCartPanel({
   }
 
   function openBillDiscountDialog() {
+    if (!hasSelectedTable) return;
+
     const order = orders.find((entry) => optionalString(entry.order_uuid));
     const value = optionalNumber(order?.order_discount_value);
     setBillDiscountDraft({
@@ -636,7 +639,12 @@ export function SelectedTableCartPanel({
   }
 
   async function saveBillDiscount() {
-    if (!currentOrderUuid || billDiscountValue === null || billDiscountPending)
+    if (
+      !hasSelectedTable ||
+      !currentOrderUuid ||
+      billDiscountValue === null ||
+      billDiscountPending
+    )
       return;
 
     setBillDiscountPending(true);
@@ -682,6 +690,8 @@ export function SelectedTableCartPanel({
   }
 
   function openFullPayment() {
+    if (!hasSelectedTable) return;
+
     setPaymentContext({
       kind: "full",
       orders,
@@ -721,6 +731,8 @@ export function SelectedTableCartPanel({
   }
 
   function requestSelectedSplitPayment() {
+    if (!hasSelectedTable) return;
+
     if (!splitSelection) {
       showToast({ title: t("pos.splitPaymentSelectRequired"), tone: "error" });
       return;
@@ -736,6 +748,8 @@ export function SelectedTableCartPanel({
   }
 
   function handleTabChange(value: string) {
+    if (!hasSelectedTable) return;
+
     const nextTab = value as CartTab;
     if (nextTab === activeTab) return;
 
@@ -753,7 +767,13 @@ export function SelectedTableCartPanel({
   }
 
   async function openCustomerDisplayScreen() {
-    const payload = buildCustomerDisplayPayload({ cart, summary, table });
+    if (!selectedTable) return;
+
+    const payload = buildCustomerDisplayPayload({
+      cart: displayCart,
+      summary,
+      table: selectedTable,
+    });
 
     try {
       if (window.electronAPI) {
@@ -787,12 +807,24 @@ export function SelectedTableCartPanel({
   }
 
   function openEmployeeOrderPage() {
+    if (!selectedTable) return;
+
     const params = new URLSearchParams({
-      table_uuid: table.table_uuid,
-      table_name: table.table_name,
+      table_uuid: selectedTable.table_uuid,
+      table_name: selectedTable.table_name,
     });
 
     router.replace(`/sale/order-customer?${params.toString()}`);
+  }
+
+  function openTableActions() {
+    if (!hasSelectedTable) return;
+    setTableActionsOpen(true);
+  }
+
+  function openTableQr() {
+    if (!hasSelectedTable) return;
+    setTableQrOpen(true);
   }
 
   async function handlePaymentCompleted() {
@@ -834,7 +866,9 @@ export function SelectedTableCartPanel({
               >
                 <ReceiptText className="size-5 shrink-0" />
                 <span className="truncate">
-                  {t("nav.table")}: {table.table_name}
+                  {selectedTable
+                    ? `${t("nav.table")}: ${selectedTable.table_name}`
+                    : t("pos.selectTableToContinue")}
                 </span>
               </p>
               {invoice ? (
@@ -857,12 +891,14 @@ export function SelectedTableCartPanel({
             <CartTabTrigger
               active={activeTab === "new"}
               count={newOrderItems.length}
+              disabled={!hasSelectedTable}
               label={t("pos.newOrder")}
               value="new"
             />
             <CartTabTrigger
               active={activeTab === "history"}
               count={historyItems.length}
+              disabled={!hasSelectedTable}
               label={t("pos.orderHistory")}
               value="history"
             />
@@ -934,6 +970,7 @@ export function SelectedTableCartPanel({
 
         <CardFooter className="block shrink-0 border-t border-white/15 bg-transparent px-3 py-2 text-white">
           <CartSummaryDock
+            actionsDisabled={!hasSelectedTable}
             billDiscountValueLabel={billDiscountValueLabel}
             canConfirm={canConfirm}
             canApplyBillDiscount={
@@ -955,37 +992,41 @@ export function SelectedTableCartPanel({
             onCreateEmployeeOrder={
               showCreateEmployeeOrderAction ? openEmployeeOrderPage : undefined
             }
-            onCreateTableQr={() => setTableQrOpen(true)}
+            onCreateTableQr={openTableQr}
             onCustomerDisplay={() => void openCustomerDisplayScreen()}
             onPayBill={openFullPayment}
             onPaySplitSelection={requestSelectedSplitPayment}
-            onTableActions={() => setTableActionsOpen(true)}
+            onTableActions={openTableActions}
           />
         </CardFooter>
       </Tabs>
-      <TableActionsOverlay
-        branchUuid={user?.branch_uuid}
-        fallbackZones={allZones}
-        language={language}
-        open={tableActionsOpen}
-        table={table}
-        variant={variant}
-        onCompleted={onTableActionComplete}
-        onOpenChange={setTableActionsOpen}
-      />
-      <TableQrDialog
-        open={tableQrOpen}
-        table={table}
-        onOpenChange={setTableQrOpen}
-      />
-      {paymentContext ? (
+      {selectedTable ? (
+        <TableActionsOverlay
+          branchUuid={user?.branch_uuid}
+          fallbackZones={allZones}
+          language={language}
+          open={tableActionsOpen}
+          table={selectedTable}
+          variant={variant}
+          onCompleted={onTableActionComplete}
+          onOpenChange={setTableActionsOpen}
+        />
+      ) : null}
+      {selectedTable ? (
+        <TableQrDialog
+          open={tableQrOpen}
+          table={selectedTable}
+          onOpenChange={setTableQrOpen}
+        />
+      ) : null}
+      {selectedTable && paymentContext ? (
         <PaymentDialog
           open
           orders={paymentContext.orders}
           paymentKind={paymentContext.kind}
           splitBillItemUuids={paymentContext.splitBillItemUuids ?? []}
           summary={paymentContext.summary}
-          table={table}
+          table={selectedTable}
           onCompleted={handlePaymentCompleted}
           onOpenChange={(nextOpen) => {
             if (!nextOpen) setPaymentContext(null);

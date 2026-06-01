@@ -121,6 +121,47 @@ html {
   --ring: 160 74% 28%;
 }
 
+.login-light-zone {
+  --background: 210 38% 98%;
+  --foreground: 224 42% 11%;
+  --card: 0 0% 100%;
+  --card-foreground: 224 42% 11%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 224 42% 11%;
+  --muted: 210 26% 93%;
+  --muted-foreground: 215 13% 42%;
+  --accent: 210 26% 93%;
+  --accent-foreground: 224 42% 11%;
+  --primary: 160 74% 28%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 205 78% 94%;
+  --secondary-foreground: 211 47% 22%;
+  --destructive: 0 72% 45%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 214 28% 87%;
+  --input: 214 28% 87%;
+  --ring: 160 74% 28%;
+  color-scheme: light;
+}
+
+.login-light-zone .login-input-group,
+.login-light-zone .login-input-group [data-slot="input-group-addon"] {
+  background: #ffffff !important;
+}
+
+.login-light-zone .login-input-group input {
+  background: transparent !important;
+}
+
+.login-light-zone input:-webkit-autofill,
+.login-light-zone input:-webkit-autofill:hover,
+.login-light-zone input:-webkit-autofill:focus,
+.login-light-zone input:-webkit-autofill:active {
+  box-shadow: 0 0 0 1000px #ffffff inset !important;
+  -webkit-text-fill-color: hsl(var(--foreground)) !important;
+  caret-color: hsl(var(--foreground));
+}
+
 html.data-screen-scroll-lock,
 body.data-screen-scroll-lock {
   height: 100%;

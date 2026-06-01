@@ -31,16 +31,22 @@
     "toggleTheme": "ປ່ຽນຮູບແບບສີ"
   },
   "auth": {
-    "accessWorkspace": "ເຂົ້າໃຊ້ພື້ນທີ່ Yummy Go ຂອງທ່ານ.",
+    "accessWorkspace": "ປ້ອນຂໍ້ມູນຂອງທ່ານເພື່ອເຂົ້າສູ່ລະບົບ",
     "cleanInterface": "ອິນເຕີເຟດ POS Pro ທີ່ສະອາດ",
+    "continueWithGoogle": "ທົດລອງໃຊ້",
     "email": "ອີເມວ",
+    "forgotPassword": "ລືມລະຫັດຜ່ານ?",
     "heroBody": "POS, ສັ່ງຜ່ານ QR, ເຄື່ອງພິມ, ຕັ້ງຄ່າ ແລະ dashboard ຢູ່ໃນບ່ອນດຽວ.",
     "heroTitle": "ການບໍລິການໄວຕ້ອງມີຊອບແວທີ່ນິ່ງ.",
+    "hidePassword": "ເຊື່ອງລະຫັດຜ່ານ",
     "loginFailed": "ເຂົ້າລະບົບບໍ່ສຳເລັດ",
+    "or": "ຫຼື",
     "password": "ລະຫັດຜ່ານ",
     "rememberMe": "ຈື່ຂ້ອຍໄວ້",
+    "showPassword": "ສະແດງລະຫັດຜ່ານ",
     "signIn": "ເຂົ້າລະບົບ",
     "signingIn": "ກຳລັງເຂົ້າລະບົບ...",
+    "unavailable": "ຍັງບໍ່ພ້ອມໃຊ້ງານ",
     "welcomeBack": "ຍິນດີຕ້ອນຮັບກັບຄືນ"
   },
   "common": {
@@ -460,7 +466,7 @@
     "tableActions": "ຈັດການໂຕະ",
     "tableActionsDescription": "ຍ້າຍ ຫຼື ລວມອໍເດີສຳລັບ {{table}}.",
     "createTableQr": "ສ້າງ QR ໂຕະ",
-    "createEmployeeOrder": "ສັ່ງອໍເດີ້",
+    "createEmployeeOrder": "ສັ່ງຫານທີ່ນີ້",
     "customerDisplayScreen": "ຈໍລູກຄ້າ",
     "copyQrLink": "ສຳເນົາລິ້ງ",
     "displayOpened": "ເປີດຈໍລູກຄ້າແລ້ວ",

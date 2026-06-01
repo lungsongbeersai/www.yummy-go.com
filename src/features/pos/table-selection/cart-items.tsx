@@ -20,18 +20,21 @@ import { cartItemActionUuid, cartItemDisplayName, cartItemMedia, cartItemName, c
 export function CartTabTrigger({
   active,
   count,
+  disabled = false,
   label,
   value
 }: {
   active: boolean;
   count: number;
+  disabled?: boolean;
   label: string;
   value: CartTab;
 }) {
   return (
     <TabsTrigger
       value={value}
-      className="h-full min-w-0 gap-1.5 rounded-lg px-2.5 text-[13px] font-black text-white/80 transition-colors data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm"
+      disabled={disabled}
+      className="h-full min-w-0 gap-1.5 rounded-lg px-2.5 text-[13px] font-black text-white/80 transition-colors data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
     >
       <span className="min-w-0 truncate">{label}</span>
       <Badge

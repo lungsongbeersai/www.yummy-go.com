@@ -889,7 +889,7 @@ function BillCardMetric({
 function KipIcon() {
   return (
     <span aria-hidden="true" className="inline-flex size-4 items-center justify-center text-sm font-black leading-none">
-      â‚­
+      ₭
     </span>
   );
 }

@@ -430,7 +430,7 @@ export function TableSettingsPage() {
         </TableCell>
         <TableCell>
           <Badge className={chargeActive ? "border-primary/25 bg-primary/10 text-primary" : undefined}>
-            {chargeActive ? `${t("common.active")} Â· ${serviceChargeRateLabel}` : t("common.inactive")}
+            {chargeActive ? `${t("common.active")} · ${serviceChargeRateLabel}` : t("common.inactive")}
           </Badge>
         </TableCell>
         <TableCell className="text-right">
@@ -526,7 +526,7 @@ export function TableSettingsPage() {
             label={t("fields.charge_status")}
             value={
               <Badge className={chargeActive ? "border-primary/25 bg-primary/10 text-primary" : undefined}>
-                {chargeActive ? `${t("common.active")} Â· ${serviceChargeRateLabel}` : t("common.inactive")}
+                {chargeActive ? `${t("common.active")} · ${serviceChargeRateLabel}` : t("common.inactive")}
               </Badge>
             }
           />
@@ -697,7 +697,7 @@ function TableFormDialog({
     ? t("common.loading")
     : serviceCharge.active
       ? serviceCharge.percentLabel
-      : `${t("common.inactive")} Â· ${serviceCharge.percentLabel}`;
+      : `${t("common.inactive")} · ${serviceCharge.percentLabel}`;
 
   useEffect(() => {
     setZoneUuid(value(editing, "zone_uuid_fk"));

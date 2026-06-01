@@ -26,10 +26,13 @@ import {
   getProductBlockedState,
   getProductModalMode,
   getRenderedMenuSections,
+  isCanceledCartItem,
+  isServedCartItem,
   hasMoreMenuToRender,
   maxAvailableQty,
   normalizePublicSearchHistory,
   promotionQuantity,
+  statusSectionLabel,
   totalCartQty,
   visibleProductCountForCategory,
   withCategoryPathVisibleCounts,
@@ -136,6 +139,19 @@ describe("public POS product helpers", () => {
       getProductModalMode(normalStatus, prodItem({ type_group: "lunch set" })),
     ).toBe("set");
     expect(getProductModalMode(normalStatus, prodItem())).toBe("normal");
+  });
+
+  it("returns readable Lao and English status section labels", () => {
+    expect(statusSectionLabel(PUBLIC_MENU_KIND.PROMOTION, "la")).toBe(
+      "ໂປຣໂມຊັນ",
+    );
+    expect(statusSectionLabel(PUBLIC_MENU_KIND.SET, "la")).toBe("ເຊັດອາຫານ");
+    expect(statusSectionLabel(PUBLIC_MENU_KIND.NORMAL, "la")).toBe("ທົ່ວໄປ");
+    expect(statusSectionLabel(PUBLIC_MENU_KIND.PROMOTION, "en")).toBe(
+      "Promotion",
+    );
+    expect(statusSectionLabel(PUBLIC_MENU_KIND.SET, "en")).toBe("Set");
+    expect(statusSectionLabel(PUBLIC_MENU_KIND.NORMAL, "en")).toBe("Normal");
   });
 });
 
@@ -415,6 +431,15 @@ describe("public POS cart helpers", () => {
     expect(getCartItemStatus(canceledItem, t).label).toBe(
       "pos.cartStatusCanceled",
     );
+  });
+
+  it("detects readable Lao cart status labels", () => {
+    expect(
+      isCanceledCartItem({ detail: { order_it_status_text: "ຍົກເລີກ" } }),
+    ).toBe(true);
+    expect(
+      isServedCartItem({ detail: { order_it_status_text: "ເສີບແລ້ວ" } }),
+    ).toBe(true);
   });
 
   it("builds confirm kitchen payload from the first order with confirmable draft items", () => {

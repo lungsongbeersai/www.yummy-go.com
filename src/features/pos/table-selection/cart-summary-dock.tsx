@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 import { cartSummary, positiveNumber } from "./utils";
 
 export function CartSummaryDock({
+  actionsDisabled = false,
   billDiscountValueLabel,
   canApplyBillDiscount,
   canConfirm,
@@ -42,6 +43,7 @@ export function CartSummaryDock({
   summary,
   taxLabel
 }: {
+  actionsDisabled?: boolean;
   billDiscountValueLabel?: string | null;
   canApplyBillDiscount: boolean;
   canConfirm: boolean;
@@ -80,12 +82,13 @@ export function CartSummaryDock({
   const primaryIsSplit = splitSelectedCount > 0 && Boolean(onPaySplitSelection);
   const primaryIsConfirm = !primaryIsSplit && newOrderCount > 0;
   const showConfirmCue = primaryIsConfirm && canConfirm && !confirming;
-  const primaryDisabled = primaryIsConfirm ? !canConfirm : primaryIsSplit ? !canPaySplitSelection : !canPay;
+  const primaryDisabled = actionsDisabled || (primaryIsConfirm ? !canConfirm : primaryIsSplit ? !canPaySplitSelection : !canPay);
   const primaryLabel = primaryIsConfirm ? t("pos.confirmOrderAction") : primaryIsSplit ? t("pos.splitPayment") : t("pos.payBill");
   const PrimaryIcon = primaryIsConfirm ? Check : primaryIsSplit ? SplitSquareHorizontal : CreditCard;
   const handlePrimaryAction = primaryIsConfirm ? onConfirm : primaryIsSplit && onPaySplitSelection ? onPaySplitSelection : onPayBill;
   const primaryBadgeCount = primaryIsSplit ? splitSelectedCount : showConfirmCue ? newOrderCount : 0;
   const splitSelectedTotalLabel = primaryIsSplit ? money(splitSelectedTotal) : null;
+  const disabledButtonClass = "disabled:cursor-not-allowed disabled:opacity-65 disabled:hover:bg-primary-foreground/95";
 
   return (
     <div className="pos-soft-light-zone relative flex flex-col gap-2 text-primary-foreground">
@@ -114,8 +117,10 @@ export function CartSummaryDock({
           variant="ghost"
           className={cn(
             "h-12 w-full min-w-0 justify-center rounded-lg bg-primary-foreground/95 px-3 text-primary shadow-sm hover:bg-primary-foreground/90",
+            disabledButtonClass,
             !compact && "h-[52px]"
           )}
+          disabled={actionsDisabled}
           onClick={onCreateEmployeeOrder}
         >
           <ShoppingCart data-icon="inline-start" />
@@ -129,7 +134,8 @@ export function CartSummaryDock({
             <Button
               type="button"
               aria-label={t("nav.manage")}
-              className={cn("min-w-0 rounded-lg bg-primary-foreground/95 px-2 text-primary shadow-sm hover:bg-primary-foreground/90", compact ? "h-12" : "h-[52px]")}
+              className={cn("min-w-0 rounded-lg bg-primary-foreground/95 px-2 text-primary shadow-sm hover:bg-primary-foreground/90", disabledButtonClass, compact ? "h-12" : "h-[52px]")}
+              disabled={actionsDisabled}
             >
               <MoreHorizontal data-icon="inline-start" />
             </Button>
@@ -139,7 +145,7 @@ export function CartSummaryDock({
               {t("common.actions")}
             </DropdownMenuLabel>
             <DropdownMenuGroup>
-              <DropdownMenuItem disabled={!canApplyBillDiscount || discountPending} onSelect={onBillDiscount}>
+              <DropdownMenuItem disabled={actionsDisabled || !canApplyBillDiscount || discountPending} onSelect={onBillDiscount}>
                 {discountPending ? <Spinner data-icon="inline-start" /> : <BadgePercent data-icon="inline-start" />}
                 <span className="min-w-0 flex-1 truncate">{t("pos.billDiscount")}</span>
                 {billDiscountValueLabel ? (
@@ -148,16 +154,16 @@ export function CartSummaryDock({
                   </Badge>
                 ) : null}
               </DropdownMenuItem>
-              <DropdownMenuItem onSelect={onTableActions}>
+              <DropdownMenuItem disabled={actionsDisabled} onSelect={onTableActions}>
                 <Shuffle data-icon="inline-start" />
                 <span>{t("pos.tableActions")}</span>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={onCreateTableQr}>
+              <DropdownMenuItem disabled={actionsDisabled} onSelect={onCreateTableQr}>
                 <QrCode data-icon="inline-start" />
                 <span>{t("pos.createTableQr")}</span>
               </DropdownMenuItem>
-              <DropdownMenuItem onSelect={onCustomerDisplay}>
+              <DropdownMenuItem disabled={actionsDisabled} onSelect={onCustomerDisplay}>
                 <Monitor data-icon="inline-start" />
                 <span>{t("pos.customerDisplayScreen")}</span>
               </DropdownMenuItem>
@@ -171,6 +177,7 @@ export function CartSummaryDock({
           className={cn(
             "relative min-w-0 overflow-hidden rounded-lg bg-primary px-3 text-primary-foreground shadow-sm hover:bg-primary/90",
             compact ? "h-12" : "h-[52px]",
+            "disabled:cursor-not-allowed disabled:opacity-65 disabled:hover:bg-primary",
             primaryBadgeCount > 0 && "pr-8",
             showConfirmCue && "pr-8 ring-2 ring-primary-foreground/55 ring-offset-2 ring-offset-primary/40 shadow-lg hover:scale-[1.02] hover:brightness-110"
           )}
