@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install *)",
+      "Bash(npx tsc *)",
+      "Bash(npx shadcn@latest add tooltip)",
+      "Bash(echo \"exit=$?\")",
+      "Bash(sed -n '2441,3100p' 'D:/Project/restaurant/New-yummy-go.com/POSTMAN/yummy-go.com.postman_collection.json')",
+      "Read(//tmp/**)",
+      "Bash(npx shadcn@latest add sonner)",
+      "PowerShell(Join-Path *)",
+      "Bash(echo \"EXIT=$?\")",
+      "Read(//c/Users/silav/.claude/skills/**)",
+      "Read(//c/Users/silav/.claude/plugins/**)"
+    ]
+  }
+}
