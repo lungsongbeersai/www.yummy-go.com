@@ -33,14 +33,20 @@
   "auth": {
     "accessWorkspace": "Access your Yummy Go workspace.",
     "cleanInterface": "Clean POS Pro interface",
+    "continueWithGoogle": "Continue with Google",
     "email": "Email",
+    "forgotPassword": "Forgot password?",
     "heroBody": "POS, QR ordering, printers, settings, and dashboard in one focused workspace.",
     "heroTitle": "Fast service needs calm software.",
+    "hidePassword": "Hide password",
     "loginFailed": "Login failed",
+    "or": "or",
     "password": "Password",
     "rememberMe": "Remember me",
+    "showPassword": "Show password",
     "signIn": "Sign in",
     "signingIn": "Signing in...",
+    "unavailable": "Not available yet",
     "welcomeBack": "Welcome back"
   },
   "common": {

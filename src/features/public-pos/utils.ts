@@ -162,10 +162,10 @@ export function hasRemoteProductImage(product: CateProductItem | ProdItem) {
 export function statusSectionLabel(statusKind: PublicMenuKind, lang: string) {
   const isEnglish = lang === "en";
   if (statusKind === PUBLIC_MENU_KIND.PROMOTION)
-    return isEnglish ? "Promotion" : "à»‚àº›àº£à»‚àº¡àºŠàº±àº™";
+    return isEnglish ? "Promotion" : "ໂປຣໂມຊັນ";
   if (statusKind === PUBLIC_MENU_KIND.SET)
-    return isEnglish ? "Set" : "à»€àºŠàº±àº”àº­àº²àº«àº²àº™";
-  return isEnglish ? "Normal" : "àº—àº»à»ˆàº§à»„àº›";
+    return isEnglish ? "Set" : "ເຊັດອາຫານ";
+  return isEnglish ? "Normal" : "ທົ່ວໄປ";
 }
 
 export function orderCateUuidsByMenu(
@@ -971,7 +971,7 @@ export function isCanceledCartItem(item: CartItem) {
       "cancel",
       "canceled",
       "cancelled",
-      "àºàº»àºà»€àº¥àºµàº",
+      "ຍົກເລີກ",
     ])
   );
 }
@@ -980,7 +980,7 @@ export function isServedCartItem(item: CartItem) {
   const text = normalizedStatusText(item);
   return (
     getCartItemStatusCode(item) === 4 ||
-    statusTextIncludes(text, ["served", "à»€àºªàºµàºš"])
+    statusTextIncludes(text, ["served", "ເສີບ"])
   );
 }
 
