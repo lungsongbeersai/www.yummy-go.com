@@ -2,7 +2,7 @@ name: Deploy Next SSR (systemd)
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   workflow_dispatch: {}
 
 jobs:
