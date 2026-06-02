@@ -143,10 +143,12 @@ export interface AckPayload { print_job_uuid: string; results: AckResultItem[] }
 export interface PendingPrintItem extends ApiEntity {
   print_job_item_uuid: string;
   can_print: boolean;
+  skip_without_print?: boolean;
   error?: string | null;
-  job: PrintJob;
-  ack_success_payload: AckPayload;
-  ack_failed_payload: AckPayload;
+  job: PrintJob | null;
+  ack_success_payload: AckPayload | null;
+  ack_failed_payload: AckPayload | null;
+  ack_skipped_payload?: AckPayload | null;
 }
 export interface PendingPrintJobData extends ApiEntity { print_job_uuid: string; print_items: PendingPrintItem[] }
 export type PendingPrintJobsResponse = ApiDataResponse<PendingPrintJobData[]>;
@@ -366,20 +368,33 @@ export async function executeKitchenPrintJobs(input: ExecuteKitchenPrintInput): 
     .filter((item) => !item.can_print || isPrintJobForAgent(item.job, localAgent));
   let successCount = 0;
   let failedCount = 0;
+  let skippedCount = 0;
 
   for (const item of items) {
     try {
+      if (item.skip_without_print && item.ack_skipped_payload) {
+        await ackPrintJob(item.ack_skipped_payload);
+        skippedCount++;
+        continue;
+      }
+
       if (!item.can_print) throw new ServiceError(item.error || "Item cannot print", 400);
+      if (!item.job || !item.ack_success_payload) throw new ServiceError("Print job payload missing", 400);
+
       await printOps(item.job, localAgent);
       await ackPrintJob(item.ack_success_payload);
       successCount++;
     } catch (error) {
+      if (!item.ack_failed_payload) {
+        failedCount++;
+        continue;
+      }
       await ackPrintJob(failPayload(item.ack_failed_payload, getPrinterErrorMessage(error)));
       failedCount++;
     }
     input.onProgress?.({
       total: items.length,
-      completed: successCount + failedCount,
+      completed: successCount + failedCount + skippedCount,
       successCount,
       failedCount,
       phase: "printing"
