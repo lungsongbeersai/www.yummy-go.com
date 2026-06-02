@@ -487,7 +487,7 @@ export interface ConfirmOrderItemServedInput { order_it_uuid: string }
 export interface CancelOrderItemInput { order_it_uuid: string }
 export interface CreateTableQRRequest extends ApiEntity { table_uuid: string; login_uuid_fk: string; lang?: string }
 export interface CreateTableQRResponse extends TableQRResponse {}
-export interface PrintInvoiceRequest extends ApiEntity { order_uuid: string; login_uuid_fk?: string; lang?: string }
+export interface PrintInvoiceRequest extends ApiEntity { order_uuid: string; order_item_uuids?: string[]; login_uuid_fk?: string; lang?: string }
 export interface PrintInvoiceJob extends ApiEntity {}
 export interface PrintInvoicePrintJob extends ApiEntity {}
 export interface PrintInvoiceResponse extends ApiEntity {

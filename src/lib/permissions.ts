@@ -36,6 +36,14 @@ export function canManageLocationSettings(status: number | null | undefined) {
   return roleStatus(status) === ROLE_STATUS.SUPER_ADMIN;
 }
 
+export function canManagePermissionMenu(status: number | null | undefined) {
+  return roleStatus(status) === ROLE_STATUS.SUPER_ADMIN;
+}
+
+export function canManageStorePermissions(status: number | null | undefined) {
+  return roleStatus(status) === ROLE_STATUS.SUPER_ADMIN;
+}
+
 export function canViewSettingModule(slug: string, status: number | null | undefined) {
   if (slug === "store" || slug === "branch") return canViewStoreBranch(status);
   return true;

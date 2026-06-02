@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { type CSSProperties, useEffect, useRef, useState } from "react";
 import { BarChart3, CalendarDays } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
@@ -25,14 +25,54 @@ import { useDailySalesReportWorkflow } from "./use-daily-sales-report-workflow";
 export function DailySalesReportPage() {
   const { t } = useTranslation();
   const exportReportRef = useRef<HTMLDivElement>(null);
+  const filterRef = useRef<HTMLDivElement>(null);
+  const [filterHeight, setFilterHeight] = useState(0);
   const report = useDailySalesReportWorkflow(exportReportRef);
+  const layoutStyle = {
+    "--daily-sales-filter-height": `${filterHeight}px`,
+  } as CSSProperties;
   const canApplyFilters = Boolean(
     report.draftFilters.branchUuid || report.defaultBranchUuid,
   );
 
+  useEffect(() => {
+    const node = filterRef.current;
+    if (!node) return;
+
+    let frameId = 0;
+    const updateHeight = () => {
+      window.cancelAnimationFrame(frameId);
+      frameId = window.requestAnimationFrame(() => {
+        const nextHeight = Math.ceil(node.getBoundingClientRect().height);
+        setFilterHeight((currentHeight) =>
+          currentHeight === nextHeight ? currentHeight : nextHeight,
+        );
+      });
+    };
+
+    updateHeight();
+    window.addEventListener("resize", updateHeight);
+
+    if (typeof ResizeObserver === "undefined") {
+      return () => {
+        window.cancelAnimationFrame(frameId);
+        window.removeEventListener("resize", updateHeight);
+      };
+    }
+
+    const observer = new ResizeObserver(updateHeight);
+    observer.observe(node);
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+      window.removeEventListener("resize", updateHeight);
+      observer.disconnect();
+    };
+  }, []);
+
   return (
     <>
-      <div className="h-full min-h-0 overflow-y-auto">
+      <div className="h-full min-h-0 overflow-y-auto" style={layoutStyle}>
         <div className="mx-auto flex w-full max-w-[1500px] flex-col gap-4 p-4 lg:p-6">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>
@@ -53,7 +93,10 @@ export function DailySalesReportPage() {
             </Badge>
           </div>
 
-          <div className="sticky top-0 z-30 -mx-4 bg-background/95 px-4 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/85 lg:-mx-6 lg:px-6">
+          <div
+            ref={filterRef}
+            className="sticky top-0 z-30 -mx-4 bg-background/95 px-4 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/85 lg:-mx-6 lg:px-6"
+          >
             <div className="sm:hidden">
               <MobileReportFilterSummary
                 branchLabel={report.activeBranchLabel}
@@ -125,6 +168,19 @@ export function DailySalesReportPage() {
               onPrintReport: () => void report.printReport(),
               onRefresh: () => void report.load(),
             }}
+            footer={
+              <ReportPagination
+                canGoBack={report.canGoBack}
+                canGoNext={report.canGoNext}
+                page={report.page}
+                rangeLabel={report.paginationRangeLabel}
+                totalPages={report.totalPages}
+                onBack={() =>
+                  report.setPage((current) => Math.max(1, current - 1))
+                }
+                onNext={() => report.setPage((current) => current + 1)}
+              />
+            }
             loading={report.loading}
             rowsLength={report.rows.length}
           >
@@ -150,17 +206,6 @@ export function DailySalesReportPage() {
                 onToggleRows={report.toggleReportRows}
               />
             )}
-            <ReportPagination
-              canGoBack={report.canGoBack}
-              canGoNext={report.canGoNext}
-              page={report.page}
-              rangeLabel={report.paginationRangeLabel}
-              totalPages={report.totalPages}
-              onBack={() =>
-                report.setPage((current) => Math.max(1, current - 1))
-              }
-              onNext={() => report.setPage((current) => current + 1)}
-            />
           </ReportTableCard>
         </div>
       </div>

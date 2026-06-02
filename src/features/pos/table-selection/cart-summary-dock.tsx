@@ -175,11 +175,17 @@ export function CartSummaryDock({
           type="button"
           aria-label={splitSelectedTotalLabel ? `${primaryLabel} ${splitSelectedTotalLabel}` : primaryLabel}
           className={cn(
-            "relative min-w-0 overflow-hidden rounded-lg bg-primary px-3 text-primary-foreground shadow-sm hover:bg-primary/90",
+            "relative min-w-0 overflow-hidden rounded-lg px-3 shadow-sm",
             compact ? "h-12" : "h-[52px]",
-            "disabled:cursor-not-allowed disabled:opacity-65 disabled:hover:bg-primary",
+            primaryDisabled
+              ? "bg-white text-primary hover:bg-white/90 disabled:hover:bg-white"
+              : "bg-primary text-primary-foreground hover:bg-primary/90 disabled:hover:bg-primary",
+            "disabled:cursor-not-allowed disabled:opacity-65",
             primaryBadgeCount > 0 && "pr-8",
-            showConfirmCue && "pr-8 ring-2 ring-primary-foreground/55 ring-offset-2 ring-offset-primary/40 shadow-lg hover:scale-[1.02] hover:brightness-110"
+            showConfirmCue &&
+              (primaryDisabled
+                ? "pr-8 ring-2 ring-primary/35 ring-offset-2 ring-offset-white/40 shadow-lg hover:scale-[1.02] hover:brightness-105"
+                : "pr-8 ring-2 ring-primary-foreground/55 ring-offset-2 ring-offset-primary/40 shadow-lg hover:scale-[1.02] hover:brightness-110")
           )}
           disabled={primaryDisabled}
           onClick={handlePrimaryAction}
@@ -187,12 +193,22 @@ export function CartSummaryDock({
           {showConfirmCue ? (
             <span
               aria-hidden="true"
-              className="pointer-events-none absolute inset-y-[-45%] left-0 z-0 w-1/3 bg-gradient-to-r from-transparent via-primary-foreground/35 to-transparent"
+              className={cn(
+                "pointer-events-none absolute inset-y-[-45%] left-0 z-0 w-1/3 bg-gradient-to-r from-transparent to-transparent",
+                primaryDisabled ? "via-primary/20" : "via-primary-foreground/35"
+              )}
               style={{ animation: "confirm-button-shine 1.9s ease-in-out infinite" }}
             />
           ) : null}
           {primaryBadgeCount > 0 ? (
-            <Badge className="absolute right-1.5 top-1.5 z-10 min-w-6 justify-center rounded-full border-primary-foreground/30 bg-primary-foreground px-1.5 py-0.5 text-[10px] font-black text-primary shadow-sm">
+            <Badge
+              className={cn(
+                "absolute right-1.5 top-1.5 z-10 min-w-6 justify-center rounded-full px-1.5 py-0.5 text-[10px] font-black shadow-sm",
+                primaryDisabled
+                  ? "border-primary/30 bg-primary text-primary-foreground"
+                  : "border-primary-foreground/30 bg-primary-foreground text-primary"
+              )}
+            >
               {primaryBadgeCount}
             </Badge>
           ) : null}

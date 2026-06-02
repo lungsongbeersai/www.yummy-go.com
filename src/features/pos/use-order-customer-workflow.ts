@@ -70,6 +70,7 @@ export function useOrderCustomerWorkflow({
   const [loadingProductUuid, setLoadingProductUuid] = useState("");
   const [productSheetOpen, setProductSheetOpen] = useState(false);
   const [cartSheetOpen, setCartSheetOpen] = useState(false);
+  const [newOrderFocusKey, setNewOrderFocusKey] = useState(0);
   const [selectedListProduct, setSelectedListProduct] =
     useState<CateProductItem | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<ProdItem | null>(null);
@@ -267,14 +268,15 @@ export function useOrderCustomerWorkflow({
           userUuid: user?.uuid ?? "",
         }),
       );
-      await loadCart();
+      await loadCartStore({ table_uuid: initialTableUuid, lang: language });
+      setNewOrderFocusKey((key) => key + 1);
       showToast({ title: t("pos.orderCreated"), tone: "success" });
     },
     [
       createOrder,
       initialTableUuid,
       language,
-      loadCart,
+      loadCartStore,
       showToast,
       t,
       user?.branch_uuid,
@@ -440,6 +442,7 @@ export function useOrderCustomerWorkflow({
     loadingTables,
     menuBySort,
     modalUnitPrice,
+    newOrderFocusKey,
     note,
     openOrAddProduct,
     openTablesPage,

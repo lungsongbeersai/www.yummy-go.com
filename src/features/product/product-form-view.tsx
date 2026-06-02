@@ -216,6 +216,130 @@ export function ProductFormView({ form }: { form: ProductFormWorkflow }) {
             <CardHeader className="flex-row items-start justify-start gap-3">
               <ProductFormSectionNumber value="1" />
               <div className="min-w-0">
+                <CardTitle>{t("product.sections.image")}</CardTitle>
+                <p className="mt-1 text-xs text-muted-foreground">{t("product.sections.imageHint")}</p>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="flex flex-col gap-4 p-4 lg:p-5">
+              <Field>
+                <FieldLabel>{t("product.imageMode")}</FieldLabel>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {imageModeChoices.map((choice) => {
+                    const active = prodStatusImge === choice.value;
+                    return (
+                      <button
+                        key={choice.value}
+                        type="button"
+                        className={choiceCardClass(active)}
+                        aria-pressed={active}
+                        onClick={() => setProdStatusImge(choice.value)}
+                      >
+                        <span className={choiceMarkClass(active)}>
+                          <Check className="size-3" />
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block truncate text-sm font-black">{choice.label}</span>
+                          <span className="mt-1 block text-xs leading-5 text-muted-foreground">{choice.hint}</span>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </Field>
+              </div>
+            {prodStatusImge === "1" ? (
+              <SettingsImageCropPanel
+                crop={crop}
+                description={t("settings.storeBranch.cropHint")}
+                emptyLabel={t("fields.prod_image")}
+                existingSrc={existingSrc}
+                fileSupportText={t("settings.storeBranch.imageSupport")}
+                fieldId="prod-image"
+                horizontalLabel={t("settings.storeBranch.horizontal")}
+                previewMaxClassName="max-w-44 sm:max-w-52"
+                removeLabel={t("settings.storeBranch.cancelImage")}
+                saving={saving}
+                selectedFile={selectedImage}
+                title={t("settings.storeBranch.cropImage")}
+                uploadLabel={t("settings.storeBranch.uploadImage")}
+                verticalLabel={t("settings.storeBranch.vertical")}
+                zoomLabel={t("settings.storeBranch.zoom")}
+                onCropChange={setCrop}
+                onFileChange={setSelectedImage}
+              />
+            ) : (
+              <div className="flex flex-col gap-3 p-4 lg:p-5">
+                <Field>
+                  <FieldLabel htmlFor="prod-color-choice">{t("product.color")}</FieldLabel>
+                  <Select
+                    value={colorChoice}
+                    onValueChange={(value) => {
+                      setColorChoice(value);
+                      if (value === CUSTOM_COLOR_VALUE) return;
+                      const selected = colors.find((color) => color.color_uuid === value);
+                      const code = selected ? colorCode(selected) : "";
+                      if (code) setColorValue(code);
+                    }}
+                  >
+                    <SelectTrigger id="prod-color-choice" className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent position="popper">
+                      <SelectGroup>
+                        {validColors.map((color) => {
+                          const code = colorCode(color);
+                          return (
+                            <SelectItem key={color.color_uuid} value={color.color_uuid}>
+                              <span className="flex min-w-0 items-center gap-2">
+                                <span
+                                  className="size-3 shrink-0 rounded-full border border-border"
+                                  style={{ backgroundColor: code }}
+                                />
+                                <span className="truncate">{colorLabel(color)}</span>
+                                <span className="text-muted-foreground">{code}</span>
+                              </span>
+                            </SelectItem>
+                          );
+                        })}
+                        <SelectItem value={CUSTOM_COLOR_VALUE}>{t("settings.customFlag")}</SelectItem>
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="prod-color">{t("fields.color_code")}</FieldLabel>
+                  <div className="grid gap-3 sm:grid-cols-[auto_minmax(0,1fr)]">
+                    <Input
+                      id="prod-color-picker"
+                      type="color"
+                      className="size-10 shrink-0 cursor-pointer p-1"
+                      value={isHexColor(colorValue) ? colorValue : DEFAULT_COLOR}
+                      onChange={(event) => {
+                        setColorChoice(CUSTOM_COLOR_VALUE);
+                        setColorValue(event.target.value);
+                      }}
+                    />
+                    <Input
+                      id="prod-color"
+                      placeholder="#000000"
+                      value={colorValue}
+                      onChange={(event) => {
+                        setColorChoice(CUSTOM_COLOR_VALUE);
+                        setColorValue(event.target.value);
+                      }}
+                    />
+                  </div>
+                </Field>
+              </div>
+            )}
+          </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex-row items-start justify-start gap-3">
+              <ProductFormSectionNumber value="2" />
+              <div className="min-w-0">
                 <CardTitle>{t("product.sections.general")}</CardTitle>
                 <p className="mt-1 text-xs text-muted-foreground">{t("product.sections.generalHint")}</p>
               </div>
@@ -349,130 +473,6 @@ export function ProductFormView({ form }: { form: ProductFormWorkflow }) {
                 </Field>
               ) : null}
             </FieldGroup>
-          </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex-row items-start justify-start gap-3">
-              <ProductFormSectionNumber value="2" />
-              <div className="min-w-0">
-                <CardTitle>{t("product.sections.image")}</CardTitle>
-                <p className="mt-1 text-xs text-muted-foreground">{t("product.sections.imageHint")}</p>
-              </div>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="flex flex-col gap-4 p-4 lg:p-5">
-              <Field>
-                <FieldLabel>{t("product.imageMode")}</FieldLabel>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {imageModeChoices.map((choice) => {
-                    const active = prodStatusImge === choice.value;
-                    return (
-                      <button
-                        key={choice.value}
-                        type="button"
-                        className={choiceCardClass(active)}
-                        aria-pressed={active}
-                        onClick={() => setProdStatusImge(choice.value)}
-                      >
-                        <span className={choiceMarkClass(active)}>
-                          <Check className="size-3" />
-                        </span>
-                        <span className="min-w-0">
-                          <span className="block truncate text-sm font-black">{choice.label}</span>
-                          <span className="mt-1 block text-xs leading-5 text-muted-foreground">{choice.hint}</span>
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </Field>
-              </div>
-            {prodStatusImge === "1" ? (
-              <SettingsImageCropPanel
-                crop={crop}
-                description={t("settings.storeBranch.cropHint")}
-                emptyLabel={t("fields.prod_image")}
-                existingSrc={existingSrc}
-                fileSupportText={t("settings.storeBranch.imageSupport")}
-                fieldId="prod-image"
-                horizontalLabel={t("settings.storeBranch.horizontal")}
-                previewMaxClassName="max-w-44 sm:max-w-52"
-                removeLabel={t("settings.storeBranch.cancelImage")}
-                saving={saving}
-                selectedFile={selectedImage}
-                title={t("settings.storeBranch.cropImage")}
-                uploadLabel={t("settings.storeBranch.uploadImage")}
-                verticalLabel={t("settings.storeBranch.vertical")}
-                zoomLabel={t("settings.storeBranch.zoom")}
-                onCropChange={setCrop}
-                onFileChange={setSelectedImage}
-              />
-            ) : (
-              <div className="flex flex-col gap-3 p-4 lg:p-5">
-                <Field>
-                  <FieldLabel htmlFor="prod-color-choice">{t("product.color")}</FieldLabel>
-                  <Select
-                    value={colorChoice}
-                    onValueChange={(value) => {
-                      setColorChoice(value);
-                      if (value === CUSTOM_COLOR_VALUE) return;
-                      const selected = colors.find((color) => color.color_uuid === value);
-                      const code = selected ? colorCode(selected) : "";
-                      if (code) setColorValue(code);
-                    }}
-                  >
-                    <SelectTrigger id="prod-color-choice" className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent position="popper">
-                      <SelectGroup>
-                        {validColors.map((color) => {
-                          const code = colorCode(color);
-                          return (
-                            <SelectItem key={color.color_uuid} value={color.color_uuid}>
-                              <span className="flex min-w-0 items-center gap-2">
-                                <span
-                                  className="size-3 shrink-0 rounded-full border border-border"
-                                  style={{ backgroundColor: code }}
-                                />
-                                <span className="truncate">{colorLabel(color)}</span>
-                                <span className="text-muted-foreground">{code}</span>
-                              </span>
-                            </SelectItem>
-                          );
-                        })}
-                        <SelectItem value={CUSTOM_COLOR_VALUE}>{t("settings.customFlag")}</SelectItem>
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="prod-color">{t("fields.color_code")}</FieldLabel>
-                  <div className="grid gap-3 sm:grid-cols-[auto_minmax(0,1fr)]">
-                    <Input
-                      id="prod-color-picker"
-                      type="color"
-                      className="size-10 shrink-0 cursor-pointer p-1"
-                      value={isHexColor(colorValue) ? colorValue : DEFAULT_COLOR}
-                      onChange={(event) => {
-                        setColorChoice(CUSTOM_COLOR_VALUE);
-                        setColorValue(event.target.value);
-                      }}
-                    />
-                    <Input
-                      id="prod-color"
-                      placeholder="#000000"
-                      value={colorValue}
-                      onChange={(event) => {
-                        setColorChoice(CUSTOM_COLOR_VALUE);
-                        setColorValue(event.target.value);
-                      }}
-                    />
-                  </div>
-                </Field>
-              </div>
-            )}
           </CardContent>
           </Card>
 

@@ -64,28 +64,35 @@ export function ReportSummaryCards({
 export function ReportTableCard({
   actions,
   children,
+  footer,
   loading,
   rowsLength,
 }: {
   actions: ReportTableActionsProps;
   children: ReactNode;
+  footer: ReactNode;
   loading: boolean;
   rowsLength: number;
 }) {
   const { t } = useTranslation();
 
   return (
-    <Card className="min-h-0 overflow-hidden border-border bg-card shadow-sm">
+    <Card className="min-h-0 overflow-hidden border-border bg-card shadow-sm md:sticky md:top-[calc(var(--daily-sales-filter-height)_+_0.75rem)] md:flex md:max-h-[calc(100dvh_-_var(--app-shell-header-height)_-_var(--daily-sales-filter-height)_-_1.5rem)] md:flex-col">
       <ReportTableActions {...actions} />
-      <CardContent className="p-0">
+      <CardContent className="flex min-h-0 flex-1 flex-col p-0">
         {loading ? (
-          <div className="p-4">
+          <div className="p-4 md:min-h-[320px]">
             <LoadingState label={t("report.loading")} variant="table" />
           </div>
         ) : rowsLength ? (
-          children
+          <>
+            <div className="min-h-0 md:flex-1 md:overflow-auto md:overscroll-x-contain md:overscroll-y-auto">
+              {children}
+            </div>
+            <div className="shrink-0 bg-card">{footer}</div>
+          </>
         ) : (
-          <div className="p-4">
+          <div className="p-4 md:min-h-[320px]">
             <EmptyState
               title={t("report.noData")}
               description={t("report.adjustFilters")}
@@ -140,7 +147,7 @@ function ReportTableActions({
   const isDetail = typePage === "detail";
 
   return (
-    <CardHeader className="flex flex-col gap-2 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+    <CardHeader className="flex shrink-0 flex-col gap-2 border-b border-border bg-card px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0">
         <CardTitle className="flex min-w-0 items-center gap-2 text-base font-black">
           {typePage === "summary" ? <ReceiptText /> : <FileText />}

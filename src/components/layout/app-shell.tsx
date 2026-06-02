@@ -165,7 +165,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return [home, ...trail];
   }, [menuItems, pathname]);
   const immersiveScreen = pathname === "/sales/open-table-sale" || pathname === "/sale/order-customer";
-  const fixedDataScreen = immersiveScreen || pathname.startsWith("/setting/") || pathname === "/printer" || pathname === "/product" || pathname === "/report/daily-sales" || pathname === "/sales/sales-list";
+  const fixedDataScreen = immersiveScreen || pathname.startsWith("/setting/") || pathname === "/permission-store" || pathname === "/printer" || pathname === "/product" || pathname === "/report/daily-sales" || pathname === "/report/best-selling-products" || pathname === "/sales/sales-list";
   const [openMenus, setOpenMenus] = useState<Set<string>>(() => new Set(activeMenuTitles(menuItems, pathname)));
 
   useEffect(() => {

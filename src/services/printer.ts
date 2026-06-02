@@ -33,6 +33,13 @@ export interface AgentInfo extends ApiEntity {
   host: string;
   port: number;
 }
+interface AgentInfoResponse extends ApiEntity {
+  ok?: boolean;
+  data?: AgentInfo;
+  agent?: AgentInfo;
+  error?: string;
+  message?: string;
+}
 export interface PrinterCategory extends ApiEntity {
   cate_uuid: string;
   cate_name?: string;
@@ -223,11 +230,14 @@ export const buildTestJob = (data: BuildTestJobRequest) =>
 
 export async function checkPrinterAgentConnection(agentUrl = AGENT_URL) {
   try {
-    const { data } = await axios.get<AgentInfo>(`${printerAgentBase(AGENT_URL, agentUrl)}/agent/info`, {
+    const { data } = await axios.get<AgentInfo | AgentInfoResponse>(`${printerAgentBase(AGENT_URL, agentUrl)}/agent/info`, {
       headers: { "x-agent-secret": AGENT_SECRET },
       timeout: 5000
     });
-    return { ok: true, agent: data };
+    const response = data as AgentInfoResponse;
+    assertAgentOk(response, "Printer agent unavailable");
+    const agent: AgentInfo = response.data ?? response.agent ?? (data as AgentInfo);
+    return { ok: true, agent };
   } catch (error) {
     return { ok: false, error: getPrinterErrorMessage(error) };
   }

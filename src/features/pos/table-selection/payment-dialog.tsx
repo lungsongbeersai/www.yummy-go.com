@@ -244,9 +244,11 @@ export function PaymentDialog({
     customerUuid,
     isSplitPayment ? splitBillItemUuids : undefined,
   );
+  const hasPrintableSplitItems =
+    !isSplitPayment || splitBillItemUuids.length > 0;
   const canPrintInvoice =
-    !isSplitPayment &&
     Boolean(orderUuid && user?.uuid) &&
+    hasPrintableSplitItems &&
     !processing &&
     !invoicePrinting;
   const selectedTab =
@@ -696,6 +698,7 @@ export function PaymentDialog({
     try {
       const response = await printInvoice({
         order_uuid: orderUuid,
+        ...(isSplitPayment ? { order_item_uuids: splitBillItemUuids } : {}),
         lang: toApiLanguage(language),
         login_uuid_fk: user.uuid,
       });

@@ -2,8 +2,22 @@
 
 import { create } from "zustand";
 import { DEFAULT_PAGE_LIMIT, PAGE_LIMIT_ALL_BATCH, isAllPageLimit } from "@/lib/pagination";
-import { getDailySalesReport, type DailySalesReportResponse, type FetchDailySalesReportParams } from "@/services/report";
+import {
+  getBestSellingProductsReport,
+  getDailySalesReport,
+  type BestSellingProductsReportResponse,
+  type FetchBestSellingProductsReportParams,
+  type DailySalesReportResponse,
+  type FetchDailySalesReportParams
+} from "@/services/report";
 import type { ApiEntity, PageLimit } from "@/services/shared/types";
+import {
+  mergeBestSellingProductGroups,
+  normalizeBestSellingProductsReportResponse,
+  type BestSellingProductGroup,
+  type BestSellingProductItem,
+  type BestSellingProductsPagination
+} from "@/stores/report-store/best-selling-normalizers";
 import {
   createDailySalesBillGroups,
   normalizeDailySalesReportResponse,
@@ -14,7 +28,9 @@ import {
 import { errorMessage } from "@/stores/store-utils";
 
 export { createDailySalesBillGroups, normalizeDailySalesReportResponse };
+export { mergeBestSellingProductGroups, normalizeBestSellingProductsReportResponse };
 export type { DailySalesBillGroup };
+export type { BestSellingProductGroup, BestSellingProductItem, BestSellingProductsPagination };
 
 interface DailySalesReportState {
   billGroups: DailySalesBillGroup[];
@@ -105,6 +121,108 @@ export const useDailySalesReportStore = create<DailySalesReportState>((set) => (
       response: null,
       rows: [],
       summaryCards: {},
+      total: 0,
+      totalPages: 1
+    })
+}));
+
+interface BestSellingProductsReportState {
+  error: string | null;
+  filters: ApiEntity;
+  groups: BestSellingProductGroup[];
+  limit: PageLimit;
+  loading: boolean;
+  page: number;
+  pagination: BestSellingProductsPagination;
+  response: BestSellingProductsReportResponse | null;
+  rows: BestSellingProductItem[];
+  summary: ApiEntity;
+  total: number;
+  totalPages: number;
+  load: (params: FetchBestSellingProductsReportParams) => Promise<BestSellingProductsReportResponse>;
+  reset: () => void;
+}
+
+const defaultBestSellingPagination: BestSellingProductsPagination = {
+  limit: DEFAULT_PAGE_LIMIT,
+  page: 1,
+  total: 0,
+  totalPages: 1
+};
+
+export const useBestSellingProductsReportStore = create<BestSellingProductsReportState>((set) => ({
+  error: null,
+  filters: {},
+  groups: [],
+  limit: DEFAULT_PAGE_LIMIT,
+  loading: false,
+  page: 1,
+  pagination: defaultBestSellingPagination,
+  response: null,
+  rows: [],
+  summary: {},
+  total: 0,
+  totalPages: 1,
+  load: async (params) => {
+    set({ error: null, loading: true });
+    try {
+      const loadAll = isAllPageLimit(params.limit);
+      const requestParams = loadAll ? { ...params, limit: PAGE_LIMIT_ALL_BATCH, page: 1 } : params;
+      const response = await getBestSellingProductsReport(requestParams);
+      const normalized = normalizeBestSellingProductsReportResponse(response, requestParams.limit, requestParams.page);
+      const allGroups = [...normalized.groups];
+
+      if (loadAll) {
+        for (let nextPage = 2; nextPage <= normalized.pagination.totalPages; nextPage += 1) {
+          const nextResponse = await getBestSellingProductsReport({ ...requestParams, page: nextPage });
+          const nextNormalized = normalizeBestSellingProductsReportResponse(nextResponse, requestParams.limit, nextPage);
+          allGroups.push(...nextNormalized.groups);
+        }
+      }
+
+      const groups = loadAll ? mergeBestSellingProductGroups(allGroups) : normalized.groups;
+      const rows = groups.flatMap((group) => group.items).sort((left, right) => left.rank - right.rank);
+      const total = loadAll ? rows.length : normalized.pagination.total;
+      const pagination: BestSellingProductsPagination = {
+        ...normalized.pagination,
+        limit: params.limit,
+        page: loadAll ? 1 : normalized.pagination.page,
+        total,
+        totalPages: loadAll ? 1 : normalized.pagination.totalPages
+      };
+
+      set({
+        filters: normalized.filters,
+        groups,
+        limit: params.limit,
+        loading: false,
+        page: pagination.page,
+        pagination,
+        response,
+        rows,
+        summary: normalized.summary,
+        total,
+        totalPages: pagination.totalPages
+      });
+
+      return response;
+    } catch (error) {
+      set({ error: errorMessage(error), loading: false });
+      throw error;
+    }
+  },
+  reset: () =>
+    set({
+      error: null,
+      filters: {},
+      groups: [],
+      limit: DEFAULT_PAGE_LIMIT,
+      loading: false,
+      page: 1,
+      pagination: defaultBestSellingPagination,
+      response: null,
+      rows: [],
+      summary: {},
       total: 0,
       totalPages: 1
     })

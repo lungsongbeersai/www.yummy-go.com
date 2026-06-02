@@ -131,6 +131,7 @@ export function SelectedTableCartPanel({
   allZones,
   cart,
   loading,
+  newOrderFocusKey = 0,
   table,
   variant = "side",
   showCreateEmployeeOrderAction = true,
@@ -140,6 +141,7 @@ export function SelectedTableCartPanel({
   allZones: PosZone[];
   cart: CartOrder | CartOrder[] | null;
   loading: boolean;
+  newOrderFocusKey?: number;
   table: PosTable | null;
   variant?: "side" | "sheet";
   showCreateEmployeeOrderAction?: boolean;
@@ -179,6 +181,7 @@ export function SelectedTableCartPanel({
     newOrderItems.length || !historyItems.length ? "new" : "history";
   const [activeTab, setActiveTab] = useState<CartTab>(preferredTab);
   const previousTableUuidRef = useRef(tableUuid);
+  const previousNewOrderFocusKeyRef = useRef(newOrderFocusKey);
   const [updatingItemUuid, setUpdatingItemUuid] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [confirmAllProgress, setConfirmAllProgress] =
@@ -303,6 +306,18 @@ export function SelectedTableCartPanel({
     preferredTab,
     tableUuid,
   ]);
+
+  useEffect(() => {
+    if (!hasSelectedTable) return;
+    if (previousNewOrderFocusKeyRef.current === newOrderFocusKey) return;
+
+    previousNewOrderFocusKeyRef.current = newOrderFocusKey;
+
+    setActiveTab("new");
+    setSplitSelectedItemUuids((current) =>
+      current.size ? new Set() : current,
+    );
+  }, [hasSelectedTable, newOrderFocusKey]);
 
   useEffect(() => {
     setItemActionTarget(null);

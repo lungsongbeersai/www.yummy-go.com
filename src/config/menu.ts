@@ -8,7 +8,7 @@ import {
   Utensils
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { STORE_BRANCH_VIEW_STATUSES } from "@/lib/permissions";
+import { ROLE_STATUS, STORE_BRANCH_VIEW_STATUSES } from "@/lib/permissions";
 
 export type MenuItem = {
   is_header?: boolean;
@@ -22,6 +22,7 @@ export type MenuItem = {
 
 const disabledReportItems: MenuItem[] = [
   { path: "/report/daily-sales", title: "daily_sales_report" },
+  { path: "/report/best-selling-products", title: "best_selling_products_report" },
   { path: "/report/monthly-sales", title: "monthly_sales_report", disabled: true },
   { path: "/report/bill-sales-summary", title: "bill_sales_summary", disabled: true },
   { path: "/report/stock", title: "stock_report_menu", disabled: true },
@@ -70,7 +71,9 @@ const Menu: MenuItem[] = [
       { path: "/setting/currency", title: "currency" },
       { path: "/setting/exchange", title: "exchange_rate" },
       { path: "/setting/customer", title: "customer" },
-      { path: "/setting/user", title: "user" }
+      { path: "/setting/user", title: "user" },
+      { path: "/setting/permission-menu", title: "permission_menu", allowedStatus: [ROLE_STATUS.SUPER_ADMIN] },
+      { path: "/permission-store", title: "permission_store", allowedStatus: [ROLE_STATUS.SUPER_ADMIN] }
     ]
   }
 ];

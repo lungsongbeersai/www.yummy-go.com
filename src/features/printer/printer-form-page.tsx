@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { Save } from "lucide-react";
@@ -9,11 +16,31 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Field, FieldDescription, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+  FieldLegend,
+  FieldSet,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
-import { AGENT_URL, parseInterfaceValue, type AgentInfo, type Printer, type SearchPrinterResult } from "@/services/printer";
+import {
+  AGENT_URL,
+  parseInterfaceValue,
+  type AgentInfo,
+  type Printer,
+  type SearchPrinterResult,
+} from "@/services/printer";
 import type { Category } from "@/services/category";
 import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
 import { usePrinterStore } from "@/stores/printer-store";
@@ -34,7 +61,9 @@ function safeId(prefix: string, value: string) {
 }
 
 function toggleValue(values: string[], value: string) {
-  return values.includes(value) ? values.filter((item) => item !== value) : [...values, value];
+  return values.includes(value)
+    ? values.filter((item) => item !== value)
+    : [...values, value];
 }
 
 function textValue(value: unknown) {
@@ -51,7 +80,10 @@ function categoryLabel(category: Category, language: string) {
 function categoryUuids(printer: Printer | null) {
   if (!printer) return [];
   if (printer.cate_uuid_fk.length) return printer.cate_uuid_fk;
-  return printer.categories?.map((category) => category.cate_uuid).filter(Boolean) ?? [];
+  return (
+    printer.categories?.map((category) => category.cate_uuid).filter(Boolean) ??
+    []
+  );
 }
 
 function CheckboxOptionList({
@@ -61,7 +93,7 @@ function CheckboxOptionList({
   name,
   options,
   selected,
-  onToggle
+  onToggle,
 }: {
   description: string;
   emptyLabel: string;
@@ -82,7 +114,11 @@ function CheckboxOptionList({
           {options.map((option) => {
             const id = safeId(name, option.value);
             return (
-              <Field key={option.value} orientation="horizontal" className="rounded-md border border-border p-3">
+              <Field
+                key={option.value}
+                orientation="horizontal"
+                className="rounded-md border border-border p-3"
+              >
                 <Checkbox
                   id={id}
                   checked={selected.includes(option.value)}
@@ -120,25 +156,35 @@ export function PrinterFormPage() {
   const discoverPrinters = usePrinterStore((state) => state.discover);
   const checkAgent = usePrinterStore((state) => state.checkAgent);
   const savePrinter = usePrinterStore((state) => state.save);
-  const categories = (useReferenceStore((state) => state.options.categories) ?? EMPTY_CATEGORIES) as Category[];
+  const categories = (useReferenceStore((state) => state.options.categories) ??
+    EMPTY_CATEGORIES) as Category[];
   const loadCategories = useReferenceStore((state) => state.loadCategories);
 
   const language = i18n.language;
   const storeUuid = authStoreUuid(user);
   const editing = useMemo(
-    () => printers.find((printer) => printer.print_config_uuid === printConfigUuid) ?? null,
-    [printConfigUuid, printers]
+    () =>
+      printers.find(
+        (printer) => printer.print_config_uuid === printConfigUuid,
+      ) ?? null,
+    [printConfigUuid, printers],
   );
   const roleOptions = useMemo(
-    () => roles.map((role) => ({ label: role.role_name, value: role.role_code })).filter((role) => role.value),
-    [roles]
+    () =>
+      roles
+        .map((role) => ({ label: role.role_name, value: role.role_code }))
+        .filter((role) => role.value),
+    [roles],
   );
   const categoryOptions = useMemo(
     () =>
       categories
-        .map((category) => ({ label: categoryLabel(category, language), value: category.cate_uuid }))
+        .map((category) => ({
+          label: categoryLabel(category, language),
+          value: category.cate_uuid,
+        }))
         .filter((category) => category.value),
-    [categories, language]
+    [categories, language],
   );
 
   const [connectType, setConnectType] = useState<ConnectType>("tcp");
@@ -172,16 +218,26 @@ export function PrinterFormPage() {
         loadPrinters({ login_uuid_fk: user.uuid }),
         loadRoles(language),
         storeUuid ? loadCategories(language, storeUuid) : Promise.resolve([]),
-        checkAgent()
+        checkAgent(),
       ]);
     } catch (error) {
       showToast({
         title: t("printer.loadFailed"),
         description: error instanceof Error ? error.message : "",
-        tone: "error"
+        tone: "error",
       });
     }
-  }, [checkAgent, language, loadCategories, loadPrinters, loadRoles, showToast, storeUuid, t, user?.uuid]);
+  }, [
+    checkAgent,
+    language,
+    loadCategories,
+    loadPrinters,
+    loadRoles,
+    showToast,
+    storeUuid,
+    t,
+    user?.uuid,
+  ]);
 
   useEffect(() => {
     void loadFormData();
@@ -191,12 +247,18 @@ export function PrinterFormPage() {
     if (isEditing && !editing) return;
 
     const parsed = parseInterfaceValue(editing?.interface_value ?? "");
-    const nextConnectType = editing ? (editing.connect_type === "usb" ? "usb" : "tcp") : "tcp";
+    const nextConnectType = editing
+      ? editing.connect_type === "usb"
+        ? "usb"
+        : "tcp"
+      : "tcp";
     setConnectType(nextConnectType);
     setDisplayName(editing?.printer_name ?? "");
-    setInterfaceValue(nextConnectType === "usb" ? editing?.interface_value ?? "" : "");
-    setIp(nextConnectType === "tcp" ? parsed.ip ?? "" : "");
-    setPort(String(nextConnectType === "tcp" ? parsed.port ?? 9100 : 9100));
+    setInterfaceValue(
+      nextConnectType === "usb" ? (editing?.interface_value ?? "") : "",
+    );
+    setIp(nextConnectType === "tcp" ? (parsed.ip ?? "") : "");
+    setPort(String(nextConnectType === "tcp" ? (parsed.port ?? 9100) : 9100));
     setPaperWidth(String(editing?.paper_width_mm ?? 80));
     setSelectedRoles(editing?.role_codes ?? []);
     setSelectedCategories(categoryUuids(editing));
@@ -225,31 +287,38 @@ export function PrinterFormPage() {
     Boolean(agentName.trim()) &&
     Boolean(deviceCode.trim()) &&
     selectedRoles.length > 0 &&
-    (connectType === "usb" ? Boolean(interfaceValue.trim()) : Boolean(ip.trim()));
+    (connectType === "usb"
+      ? Boolean(interfaceValue.trim())
+      : Boolean(ip.trim()));
 
-  const searchUsbDevices = useCallback(async (showSuccess = true) => {
-    setUsbSearchError("");
-    setUsbSearchComplete(false);
-    try {
-      const result = await discoverPrinters("usb");
-      setUsbSearchComplete(true);
-      if (showSuccess) {
+  const searchUsbDevices = useCallback(
+    async (showSuccess = true) => {
+      setUsbSearchError("");
+      setUsbSearchComplete(false);
+      try {
+        const result = await discoverPrinters("usb");
+        setUsbSearchComplete(true);
+        if (showSuccess) {
+          showToast({
+            title: t("printer.printerSearchComplete"),
+            description: t("printer.deviceCount", { count: result.length }),
+            tone: "success",
+          });
+        }
+      } catch (error) {
         showToast({
-          title: t("printer.printerSearchComplete"),
-          description: t("printer.deviceCount", { count: result.length }),
-          tone: "success"
+          title: t("printer.searchFailed"),
+          description: error instanceof Error ? error.message : "",
+          tone: "error",
         });
+        setUsbSearchError(
+          error instanceof Error ? error.message : t("printer.searchFailed"),
+        );
+        setUsbSearchComplete(true);
       }
-    } catch (error) {
-      showToast({
-        title: t("printer.searchFailed"),
-        description: error instanceof Error ? error.message : "",
-        tone: "error"
-      });
-      setUsbSearchError(error instanceof Error ? error.message : t("printer.searchFailed"));
-      setUsbSearchComplete(true);
-    }
-  }, [discoverPrinters, showToast, t]);
+    },
+    [discoverPrinters, showToast, t],
+  );
 
   useEffect(() => {
     if (connectType !== "usb") {
@@ -276,7 +345,9 @@ export function PrinterFormPage() {
   })();
 
   function selectDevice(interfaceValue: string) {
-    const printer = found.find((item) => item.interface_value === interfaceValue);
+    const printer = found.find(
+      (item) => item.interface_value === interfaceValue,
+    );
     if (!printer) return;
     setSelectedDevice(interfaceValue);
     setConnectType("usb");
@@ -304,7 +375,7 @@ export function PrinterFormPage() {
         agent_url: agentUrl.trim(),
         agent_id: agentId.trim(),
         agent_name: agentName.trim(),
-        device_code: deviceCode.trim()
+        device_code: deviceCode.trim(),
       });
       showToast({ title: t("printer.saved"), tone: "success" });
       router.push("/printer");
@@ -312,7 +383,7 @@ export function PrinterFormPage() {
       showToast({
         title: t("printer.saveFailed"),
         description: error instanceof Error ? error.message : "",
-        tone: "error"
+        tone: "error",
       });
     }
   }
@@ -323,8 +394,12 @@ export function PrinterFormPage() {
       <Card>
         <CardHeader>
           <div>
-            <CardTitle>{isEditing ? t("printer.edit") : t("printer.add")}</CardTitle>
-            <p className="mt-1 text-sm text-muted-foreground">{t("printer.formHint")}</p>
+            <CardTitle>
+              {isEditing ? t("printer.edit") : t("printer.add")}
+            </CardTitle>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {t("printer.formHint")}
+            </p>
           </div>
           {isEditing ? <Badge>{t("actions.edit")}</Badge> : null}
         </CardHeader>
@@ -332,13 +407,19 @@ export function PrinterFormPage() {
           <form onSubmit={submit} className="flex flex-col gap-4">
             <FieldSet className="gap-4 rounded-lg border border-border bg-card p-4">
               <div>
-                <FieldLegend className="mb-1 text-sm font-black">{t("printer.connection")}</FieldLegend>
-                <FieldDescription>{t("printer.connectionHint")}</FieldDescription>
+                <FieldLegend className="mb-1 text-sm font-black">
+                  {t("printer.connection")}
+                </FieldLegend>
+                <FieldDescription>
+                  {t("printer.connectionHint")}
+                </FieldDescription>
               </div>
 
               <FieldGroup className="grid gap-4 md:grid-cols-2">
                 <Field>
-                  <FieldLabel htmlFor="printer-display-name">{t("fields.displayName")}</FieldLabel>
+                  <FieldLabel htmlFor="printer-display-name">
+                    {t("fields.displayName")}
+                  </FieldLabel>
                   <Input
                     id="printer-display-name"
                     value={displayName}
@@ -348,15 +429,26 @@ export function PrinterFormPage() {
                   />
                 </Field>
                 <Field>
-                  <FieldLabel htmlFor="printer-connect-type">{t("fields.connectType")}</FieldLabel>
-                  <Select value={connectType} onValueChange={(value) => setConnectType(value as ConnectType)}>
+                  <FieldLabel htmlFor="printer-connect-type">
+                    {t("fields.connectType")}
+                  </FieldLabel>
+                  <Select
+                    value={connectType}
+                    onValueChange={(value) =>
+                      setConnectType(value as ConnectType)
+                    }
+                  >
                     <SelectTrigger id="printer-connect-type" className="w-full">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent position="popper">
                       <SelectGroup>
-                        <SelectItem value="usb">{t("printer.usbPrinter")}</SelectItem>
-                        <SelectItem value="tcp">{t("printer.tcpPrinter")}</SelectItem>
+                        <SelectItem value="usb">
+                          {t("printer.usbPrinter")}
+                        </SelectItem>
+                        <SelectItem value="tcp">
+                          {t("printer.tcpPrinter")}
+                        </SelectItem>
                       </SelectGroup>
                     </SelectContent>
                   </Select>
@@ -365,24 +457,44 @@ export function PrinterFormPage() {
                 {connectType === "usb" ? (
                   <>
                     <Field>
-                      <FieldLabel htmlFor="printer-usb-device">{t("printer.selectedPrinter")}</FieldLabel>
-                      <Select value={selectedDevice} disabled={!found.length || searching || saving} onValueChange={selectDevice}>
-                        <SelectTrigger id="printer-usb-device" className="w-full">
-                          <SelectValue placeholder={searching ? t("printer.searchingUsb") : t("printer.selectUsbPrinter")} />
+                      <FieldLabel htmlFor="printer-usb-device">
+                        {t("printer.selectedPrinter")}
+                      </FieldLabel>
+                      <Select
+                        value={selectedDevice}
+                        disabled={!found.length || searching || saving}
+                        onValueChange={selectDevice}
+                      >
+                        <SelectTrigger
+                          id="printer-usb-device"
+                          className="w-full"
+                        >
+                          <SelectValue
+                            placeholder={
+                              searching
+                                ? t("printer.searchingUsb")
+                                : t("printer.selectUsbPrinter")
+                            }
+                          />
                         </SelectTrigger>
                         <SelectContent position="popper">
                           <SelectGroup>
                             {found.map((printer: SearchPrinterResult) => (
-                              <SelectItem key={printer.interface_value} value={printer.interface_value}>
+                              <SelectItem
+                                key={printer.interface_value}
+                                value={printer.interface_value}
+                              >
                                 {printer.name}
                               </SelectItem>
                             ))}
                           </SelectGroup>
                         </SelectContent>
                       </Select>
-                      <FieldDescription>{usbSelectDescription}</FieldDescription>
+                      <FieldDescription>
+                        {usbSelectDescription}
+                      </FieldDescription>
                     </Field>
-                    <Field>
+                    {/* <Field>
                       <FieldLabel htmlFor="printer-interface-value">{t("fields.interfaceValue")}</FieldLabel>
                       <Input
                         id="printer-interface-value"
@@ -392,12 +504,14 @@ export function PrinterFormPage() {
                         required
                         onChange={(event) => setInterfaceValue(event.target.value)}
                       />
-                    </Field>
+                    </Field> */}
                   </>
                 ) : (
                   <>
                     <Field>
-                      <FieldLabel htmlFor="printer-ip">{t("fields.ip")}</FieldLabel>
+                      <FieldLabel htmlFor="printer-ip">
+                        {t("fields.ip")}
+                      </FieldLabel>
                       <Input
                         id="printer-ip"
                         value={ip}
@@ -408,7 +522,9 @@ export function PrinterFormPage() {
                       />
                     </Field>
                     <Field>
-                      <FieldLabel htmlFor="printer-port">{t("fields.port")}</FieldLabel>
+                      <FieldLabel htmlFor="printer-port">
+                        {t("fields.port")}
+                      </FieldLabel>
                       <Input
                         id="printer-port"
                         value={port}
@@ -422,7 +538,9 @@ export function PrinterFormPage() {
                 )}
 
                 <Field>
-                  <FieldLabel htmlFor="printer-paper-width">{t("fields.paperWidth")}</FieldLabel>
+                  <FieldLabel htmlFor="printer-paper-width">
+                    {t("fields.paperWidth")}
+                  </FieldLabel>
                   <Input
                     id="printer-paper-width"
                     value={paperWidth}
@@ -442,7 +560,9 @@ export function PrinterFormPage() {
               name="printer-role"
               options={roleOptions}
               selected={selectedRoles}
-              onToggle={(value) => setSelectedRoles((current) => toggleValue(current, value))}
+              onToggle={(value) =>
+                setSelectedRoles((current) => toggleValue(current, value))
+              }
             />
 
             <CheckboxOptionList
@@ -452,15 +572,26 @@ export function PrinterFormPage() {
               name="printer-category"
               options={categoryOptions}
               selected={selectedCategories}
-              onToggle={(value) => setSelectedCategories((current) => toggleValue(current, value))}
+              onToggle={(value) =>
+                setSelectedCategories((current) => toggleValue(current, value))
+              }
             />
 
             <div className="flex flex-wrap items-center justify-end gap-2">
-              <Button type="button" variant="outline" disabled={saving} onClick={() => router.push("/printer")}>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={saving}
+                onClick={() => router.push("/printer")}
+              >
                 {t("actions.cancel")}
               </Button>
               <Button disabled={saving || loading || !canSubmit} type="submit">
-                {saving ? <Spinner data-icon="inline-start" /> : <Save data-icon="inline-start" />}
+                {saving ? (
+                  <Spinner data-icon="inline-start" />
+                ) : (
+                  <Save data-icon="inline-start" />
+                )}
                 {saving ? t("common.processing") : t("actions.save")}
               </Button>
             </div>

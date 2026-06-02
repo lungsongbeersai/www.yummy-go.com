@@ -63,14 +63,14 @@ export function SummaryReportTable({
   );
 
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto md:overflow-visible">
       <Table
         className={cn(
           "text-[13px]",
           typePage === "summary" ? "min-w-[1500px]" : "min-w-[1880px]",
         )}
       >
-        <TableHeader className="sticky top-0 z-10 bg-background/95 shadow-sm backdrop-blur">
+        <TableHeader className="sticky top-0 z-20 bg-background/95 shadow-sm backdrop-blur">
           <TableRow>
             <TableHead className="w-[52px] whitespace-nowrap bg-background/95 text-center">
               <IndeterminateCheckbox
@@ -179,9 +179,9 @@ export function DetailBillTable({
   );
 
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto md:overflow-visible">
       <Table className="min-w-[2580px] text-[13px]">
-        <TableHeader className="sticky top-0 z-10 bg-background/95 shadow-sm backdrop-blur">
+        <TableHeader className="sticky top-0 z-20 bg-background/95 shadow-sm backdrop-blur">
           <TableRow>
             <TableHead className="w-[52px] whitespace-nowrap bg-background/95 text-center">
               <IndeterminateCheckbox

@@ -58,6 +58,7 @@ export function OrderCustomerView({
     loadingProductUuid,
     loadingTables,
     modalUnitPrice,
+    newOrderFocusKey,
     note,
     openOrAddProduct,
     openTablesPage,
@@ -242,6 +243,7 @@ export function OrderCustomerView({
               allZones={zones}
               cart={cart}
               loading={loadingCart}
+              newOrderFocusKey={newOrderFocusKey}
               showCreateEmployeeOrderAction={false}
               table={selectedTable}
               onCartRefresh={loadCart}
@@ -273,6 +275,7 @@ export function OrderCustomerView({
             allZones={zones}
             cart={cart}
             loading={loadingCart}
+            newOrderFocusKey={newOrderFocusKey}
             showCreateEmployeeOrderAction={false}
             table={selectedTable}
             variant="sheet"
