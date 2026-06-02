@@ -33,6 +33,13 @@ export interface AgentInfo extends ApiEntity {
   host: string;
   port: number;
 }
+interface AgentInfoResponse extends ApiEntity {
+  ok?: boolean;
+  data?: AgentInfo;
+  agent?: AgentInfo;
+  error?: string;
+  message?: string;
+}
 export interface PrinterCategory extends ApiEntity {
   cate_uuid: string;
   cate_name?: string;
@@ -112,6 +119,10 @@ export interface BuildTestJobRequest extends ApiEntity {
 export interface PrintJob extends ApiEntity {
   agent_url?: string;
   agent_id?: string;
+  agent_name?: string;
+  device_code?: string | null;
+  printer_name?: string | null;
+  print_config_uuid?: string | null;
   lang: string;
   paper_width_mm: number;
   interface_value: string;
@@ -148,6 +159,8 @@ export interface DefaultCategoryGroup extends ApiEntity {}
 export interface DefaultCategoryByRoleResponse extends ApiEntity {}
 export interface TableQRPrintJob extends ApiEntity {
   agent_url?: string;
+  agent_id?: string;
+  device_code?: string | null;
   document_type?: string;
   lang?: string;
   ops?: Record<string, unknown>[];
@@ -221,33 +234,83 @@ export const deletePrinter = (print_config_uuid: string) =>
 export const buildTestJob = (data: BuildTestJobRequest) =>
   apiRequest<BuildTestJobResponse>("post", "/api/v1/printer/build-test-job", { data });
 
+function textValue(value: unknown) {
+  return String(value ?? "").trim();
+}
+
+function getAgentFromPayload(payload: AgentInfoResponse | AgentInfo | null | undefined) {
+  const maybe = payload as AgentInfoResponse | null | undefined;
+  const agent = maybe?.data ?? maybe?.agent ?? payload;
+  if (!agent || typeof agent !== "object") return null;
+  return textValue((agent as AgentInfo).agent_id) ? (agent as AgentInfo) : null;
+}
+
+async function getLocalAgentInfo() {
+  const { data } = await axios.get<AgentInfoResponse | AgentInfo>(`${printerAgentBase(AGENT_URL)}/agent/info`, {
+    headers: { "x-agent-secret": AGENT_SECRET },
+    timeout: 5000
+  });
+  assertAgentOk(data as AgentInfoResponse, "Printer agent not ready");
+
+  const agent = getAgentFromPayload(data);
+  if (!agent) throw new ServiceError("Local printer agent identity missing", 500);
+  return agent;
+}
+
+function isPrintJobForAgent(job: PrintJob | TableQRPrintJob | null | undefined, agent: AgentInfo) {
+  const jobAgentId = textValue(job?.agent_id);
+  const localAgentId = textValue(agent.agent_id);
+  if (!jobAgentId || !localAgentId || jobAgentId !== localAgentId) return false;
+
+  const jobDeviceCode = textValue(job?.device_code);
+  const localDeviceCode = textValue(agent.device_code);
+  if (localDeviceCode && (!jobDeviceCode || jobDeviceCode !== localDeviceCode)) return false;
+
+  return true;
+}
+
+function assertPrintJobForAgent(job: PrintJob | TableQRPrintJob, agent: AgentInfo) {
+  if (!textValue(job.agent_id)) {
+    throw new ServiceError("Print job missing agent_id", 409);
+  }
+  if (!isPrintJobForAgent(job, agent)) {
+    throw new ServiceError("Print job belongs to another agent", 409);
+  }
+}
+
 export async function checkPrinterAgentConnection(agentUrl = AGENT_URL) {
   try {
-    const { data } = await axios.get<AgentInfo>(`${printerAgentBase(AGENT_URL, agentUrl)}/agent/info`, {
+    const { data } = await axios.get<AgentInfoResponse | AgentInfo>(`${printerAgentBase(AGENT_URL, agentUrl)}/agent/info`, {
       headers: { "x-agent-secret": AGENT_SECRET },
       timeout: 5000
     });
-    return { ok: true, agent: data };
+    return { ok: true, agent: getAgentFromPayload(data) };
   } catch (error) {
     return { ok: false, error: getPrinterErrorMessage(error) };
   }
 }
 
-export async function printOps(job: PrintJob) {
-  const { data } = await axios.post<PrintOpsAgentResponse>(`${printerAgentBase(AGENT_URL, job.agent_url)}/print-ops`, job, {
+export async function printOps(job: PrintJob, localAgent?: AgentInfo) {
+  const agent = localAgent ?? await getLocalAgentInfo();
+  assertPrintJobForAgent(job, agent);
+
+  const { data } = await axios.post<PrintOpsAgentResponse>(`${printerAgentBase(AGENT_URL)}/print-ops`, job, {
     headers: { "x-agent-secret": AGENT_SECRET },
     timeout: 10000
   });
   assertAgentOk(data, "Print failed");
 }
 
-export async function printTableQRJob(job: TableQRPrintJob, printEndpoint?: string) {
+export async function printTableQRJob(job: TableQRPrintJob, _printEndpoint?: string) {
   if (Array.isArray(job.ops) && job.ops.length) {
     await printOps(job as PrintJob);
     return;
   }
 
-  const { data } = await axios.post<PrintOpsAgentResponse>(printEndpoint ?? `${printerAgentBase(AGENT_URL, job.agent_url)}/print-ops`, job, {
+  const agent = await getLocalAgentInfo();
+  assertPrintJobForAgent(job, agent);
+
+  const { data } = await axios.post<PrintOpsAgentResponse>(`${printerAgentBase(AGENT_URL)}/print-ops`, job, {
     headers: { "x-agent-secret": AGENT_SECRET },
     timeout: 10000
   });
@@ -297,14 +360,17 @@ export async function executeKitchenPrintJobs(input: ExecuteKitchenPrintInput): 
 
   input.onProgress?.({ total: 0, completed: 0, successCount: 0, failedCount: 0, phase: "fetching" });
   const pending = await getPendingPrintJobs(jobUuid, loginUuid);
-  const items = pending.flatMap((job) => job.print_items ?? []);
+  const localAgent = await getLocalAgentInfo();
+  const items = pending
+    .flatMap((job) => job.print_items ?? [])
+    .filter((item) => !item.can_print || isPrintJobForAgent(item.job, localAgent));
   let successCount = 0;
   let failedCount = 0;
 
   for (const item of items) {
     try {
       if (!item.can_print) throw new ServiceError(item.error || "Item cannot print", 400);
-      await printOps(item.job);
+      await printOps(item.job, localAgent);
       await ackPrintJob(item.ack_success_payload);
       successCount++;
     } catch (error) {
