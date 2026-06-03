@@ -9,11 +9,19 @@ import type {
   CancelableBillDetail,
   CancelableBillsResponse,
   CancelableDateOption,
+  CancelledBillsResponse,
+  FetchCancelledBillsParams,
   FetchCancelableBillsParams
 } from "@/services/cancel";
 import type { PageLimit } from "@/services/shared/types";
-import { normalizeCancelableBillsResponse } from "@/stores/cancel-store/helpers";
+import {
+  normalizeCancelableBillsResponse,
+  normalizeCancelledBillsResponse,
+  type CancelHistoryBill
+} from "@/stores/cancel-store/helpers";
 import { errorMessage } from "@/stores/store-utils";
+
+export type { CancelHistoryBill };
 
 interface CancelState {
   bills: CancelableBill[];
@@ -28,10 +36,20 @@ interface CancelState {
   selectedBill: CancelableBillDetail | null;
   total: number;
   totalPages: number;
+  historyBills: CancelHistoryBill[];
+  historyError: string | null;
+  historyLimit: PageLimit;
+  historyLoading: boolean;
+  historyPage: number;
+  historyResponse: CancelledBillsResponse | null;
+  historyTotal: number;
+  historyTotalPages: number;
   cancelBill: (input: CancelBillInput) => ReturnType<typeof cancelService.cancelBill>;
   clearSelectedBill: () => void;
   load: (params: FetchCancelableBillsParams) => Promise<CancelableBillsResponse>;
+  loadHistory: (params: FetchCancelledBillsParams) => Promise<CancelledBillsResponse>;
   reset: () => void;
+  resetHistory: () => void;
 }
 
 const initialState = {
@@ -46,7 +64,26 @@ const initialState = {
   response: null,
   selectedBill: null,
   total: 0,
-  totalPages: 1
+  totalPages: 1,
+  historyBills: [],
+  historyError: null,
+  historyLimit: DEFAULT_PAGE_LIMIT,
+  historyLoading: false,
+  historyPage: 1,
+  historyResponse: null,
+  historyTotal: 0,
+  historyTotalPages: 1
+};
+
+const initialHistoryState = {
+  historyBills: [],
+  historyError: null,
+  historyLimit: DEFAULT_PAGE_LIMIT,
+  historyLoading: false,
+  historyPage: 1,
+  historyResponse: null,
+  historyTotal: 0,
+  historyTotalPages: 1
 };
 
 export const useCancelStore = create<CancelState>((set) => ({
@@ -83,5 +120,22 @@ export const useCancelStore = create<CancelState>((set) => ({
       throw error;
     }
   },
-  reset: () => set(initialState)
+  loadHistory: async (params) => {
+    set({ historyError: null, historyLoading: true });
+    try {
+      const response = await cancelService.fetchCancelledBills(params);
+      const normalized = normalizeCancelledBillsResponse(response, params);
+      set({
+        ...normalized,
+        historyLoading: false,
+        historyResponse: response
+      });
+      return response;
+    } catch (error) {
+      set({ historyError: errorMessage(error), historyLoading: false });
+      throw error;
+    }
+  },
+  reset: () => set(initialState),
+  resetHistory: () => set(initialHistoryState)
 }));

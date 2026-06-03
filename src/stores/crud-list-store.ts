@@ -15,6 +15,10 @@ interface CrudListStoreConfig<
   remove: (id: string) => Promise<void>;
 }
 
+export interface CrudListLoadOptions {
+  background?: boolean;
+}
+
 export interface CrudListState<
   Row extends ApiEntity,
   SaveInput extends ApiEntity,
@@ -24,11 +28,13 @@ export interface CrudListState<
   total: number;
   totalPages: number;
   search: string;
+  hasLoaded: boolean;
   loading: boolean;
+  refreshing: boolean;
   saving: boolean;
   error: string | null;
   setSearch: (search: string) => void;
-  load: (params?: Params) => Promise<Row[]>;
+  load: (params?: Params, options?: CrudListLoadOptions) => Promise<Row[]>;
   save: (input: SaveInput) => Promise<Row>;
   remove: (id: string) => Promise<void>;
   reset: () => void;
@@ -44,12 +50,15 @@ export function createCrudListStore<
     total: 0,
     totalPages: 1,
     search: "",
+    hasLoaded: false,
     loading: false,
+    refreshing: false,
     saving: false,
     error: null,
     setSearch: (search) => set({ search }),
-    load: async (params = {} as Params) => {
-      set({ loading: true, error: null });
+    load: async (params = {} as Params, options) => {
+      const background = Boolean(options?.background && get().hasLoaded);
+      set({ error: null, loading: !background, refreshing: background });
       try {
         const result = await list({ ...params, search: params.search ?? get().search } as Params);
         const rows = Array.isArray(result.data) ? result.data : [];
@@ -57,11 +66,13 @@ export function createCrudListStore<
           rows,
           total: Number(result.total ?? rows.length),
           totalPages: Number(result.totalPages ?? result.total_page ?? 1),
-          loading: false
+          hasLoaded: true,
+          loading: false,
+          refreshing: false
         });
         return rows;
       } catch (error) {
-        set({ error: errorMessage(error), loading: false });
+        set({ error: errorMessage(error), loading: false, refreshing: false });
         throw error;
       }
     },
@@ -95,7 +106,9 @@ export function createCrudListStore<
         total: 0,
         totalPages: 1,
         search: "",
+        hasLoaded: false,
         loading: false,
+        refreshing: false,
         saving: false,
         error: null
       })

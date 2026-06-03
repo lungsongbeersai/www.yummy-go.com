@@ -23,7 +23,7 @@ import { useHasTableSidePanel } from "./table-selection/hooks/use-has-table-side
 import { useSelectedTableCart } from "./table-selection/hooks/use-selected-table-cart";
 import { useTableAlerts } from "./table-selection/hooks/use-table-alerts";
 
-const headerIconButtonClass = "relative size-[40px] rounded-full border border-primary-foreground/20 bg-primary-foreground/10 px-0 text-primary-foreground shadow-sm backdrop-blur-sm hover:bg-primary-foreground/20 hover:text-primary-foreground";
+const headerIconButtonClass = "relative size-[40px] rounded-full border border-primary-foreground/20 bg-primary-foreground/10 px-0 text-primary-foreground shadow-sm backdrop-blur-sm hover:bg-primary-foreground/20 hover:text-primary-foreground dark:border-white/20 dark:bg-white/10 dark:text-white dark:hover:bg-white/20 dark:hover:text-white";
 
 export function TableSelectionPage() {
   const { t } = useTranslation();
@@ -118,14 +118,14 @@ export function TableSelectionPage() {
 
   return (
     <div className="relative h-full min-h-0 overflow-hidden bg-[url('/pos/background_wide.webp')] bg-cover bg-top">
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-primary/45" />
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-primary/45 dark:bg-black/55" />
       <div className="relative grid h-full min-h-0 overflow-hidden xl:grid-cols-[minmax(0,1fr)_clamp(340px,24vw,420px)]">
         <section className="flex min-h-0 min-w-0 flex-col xl:border-r xl:border-border/60">
           <header className="relative flex h-[72px] shrink-0 items-center justify-between overflow-hidden px-3 text-primary-foreground shadow-sm sm:h-[80px] sm:px-4">
-            <Button aria-label={t("actions.back")} className="relative size-[44px] rounded-full border border-primary-foreground/20 bg-primary-foreground/10 px-0 text-primary-foreground shadow-sm backdrop-blur-sm hover:bg-primary-foreground/20" type="button" variant="ghost" onClick={() => router.replace("/")}>
+            <Button aria-label={t("actions.back")} className="relative size-[44px] rounded-full border border-primary-foreground/20 bg-primary-foreground/10 px-0 text-primary-foreground shadow-sm backdrop-blur-sm hover:bg-primary-foreground/20 dark:border-white/20 dark:bg-white/10 dark:text-white dark:hover:bg-white/20 dark:hover:text-white" type="button" variant="ghost" onClick={() => router.replace("/")}>
               <ChevronLeft />
             </Button>
-            <p className="absolute left-1/2 top-1/2 max-w-[220px] -translate-x-1/2 -translate-y-1/2 whitespace-nowrap text-[20px] font-black leading-none tracking-wide text-primary-foreground sm:text-[28px]">{formatClock(now)}</p>
+            <p className="absolute left-1/2 top-1/2 max-w-[220px] -translate-x-1/2 -translate-y-1/2 whitespace-nowrap text-[20px] font-black leading-none tracking-wide text-primary-foreground dark:text-white sm:text-[28px]">{formatClock(now)}</p>
             <div className="relative flex min-w-0 items-center gap-1.5">
               <NotificationMenu triggerClassName={cn(headerIconButtonClass, "hidden min-[430px]:inline-flex")} triggerVariant="ghost" />
               <LanguageSwitch className={cn(headerIconButtonClass, "hidden min-[500px]:inline-flex")} contentAlign="end" showShort={false} size="icon" variant="ghost" />
@@ -142,7 +142,7 @@ export function TableSelectionPage() {
         </section>
       </div>
       <Sheet open={mobileSheetOpen} onOpenChange={setMobileSheetOpen}>
-        <SheetContent side="bottom" className="h-[calc(100dvh-8px)] max-h-none gap-0 overflow-hidden rounded-t-2xl border-primary/20 bg-[url('/pos/background_wide.webp')] bg-cover bg-top p-0 text-primary-foreground">
+        <SheetContent side="bottom" className="h-[calc(100dvh-8px)] max-h-none gap-0 overflow-hidden rounded-t-2xl border-primary/20 bg-[url('/pos/background_wide.webp')] bg-cover bg-top p-0 text-primary-foreground dark:border-primary/30">
           <SheetTitle className="sr-only">{selectedTable ? t("nav.table") + " " + selectedTable.table_name : t("pos.tables")}</SheetTitle>
           {selectedTable ? (
             <SelectedTableCartPanel allZones={zones} cart={activeCart} loading={panelLoadingCart} table={selectedTable} variant="sheet" onCartRefresh={() => refreshSelectedCart({ showLoading: false }).then(() => undefined)} onTableActionComplete={refreshTablesAndSelectedCart} />

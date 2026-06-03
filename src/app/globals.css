@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:is(.dark *));
+
 :root {
   --background: 210 38% 98%;
   --foreground: 224 42% 11%;
@@ -119,6 +121,26 @@ html {
   --border: 214 28% 87%;
   --input: 214 28% 87%;
   --ring: 160 74% 28%;
+}
+
+.dark .pos-dark-zone {
+  --background: 220 26% 8%;
+  --foreground: 210 28% 94%;
+  --card: 220 24% 11%;
+  --card-foreground: 210 28% 94%;
+  --popover: 220 24% 11%;
+  --popover-foreground: 210 28% 94%;
+  --muted: 218 18% 17%;
+  --muted-foreground: 215 14% 68%;
+  --accent: 218 18% 17%;
+  --accent-foreground: 210 28% 94%;
+  --primary: 151 68% 43%;
+  --primary-foreground: 155 50% 8%;
+  --secondary: 216 23% 17%;
+  --secondary-foreground: 210 28% 94%;
+  --border: 218 18% 20%;
+  --input: 218 18% 20%;
+  --ring: 151 68% 43%;
 }
 
 .login-light-zone {

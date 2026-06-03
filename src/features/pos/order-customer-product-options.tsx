@@ -73,7 +73,7 @@ export function ProductOptionsOverlay({
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent
           side="bottom"
-          className="pos-soft-light-zone flex h-[calc(100dvh-8px)] max-h-none flex-col gap-0 overflow-hidden rounded-t-2xl border-border bg-background p-0 text-foreground"
+          className="pos-soft-light-zone pos-dark-zone flex h-[calc(100dvh-8px)] max-h-none flex-col gap-0 overflow-hidden rounded-t-2xl border-border bg-background p-0 text-foreground"
         >
           <SheetHeader className="sr-only">
             <SheetTitle>{title}</SheetTitle>
@@ -87,7 +87,7 @@ export function ProductOptionsOverlay({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="pos-soft-light-zone flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden border-border bg-background p-0 text-foreground sm:max-w-[720px]">
+      <DialogContent className="pos-soft-light-zone pos-dark-zone flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden border-border bg-background p-0 text-foreground sm:max-w-[720px]">
         <DialogHeader className="sr-only">
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
@@ -138,6 +138,8 @@ export function ProductOptionsForm({
   const details = (product.details ?? []).filter(isDetailAvailable);
   const toppings = (product.toppings ?? []).filter(isToppingAvailable);
   const total = modalUnitPrice * qty;
+  const setMode = mode === "set";
+  const canSubmit = !setMode || details.length > 0;
   const modeLabel = productModeLabel(mode, product, t);
   const actionLabel = productActionLabel(
     getProductActionState(listProduct, activeSort),
@@ -167,7 +169,28 @@ export function ProductOptionsForm({
           />
 
           <FieldGroup className="gap-4">
-            {details.length > 1 ? (
+            {setMode && details.length ? (
+              <Field>
+                <ProductSectionHeader
+                  label={t("pos.product")}
+                  meta={`${details.length}`}
+                />
+                <div className="flex flex-col gap-2">
+                  {details.map((detail) => (
+                    <ProductOptionRow
+                      key={detail.pro_detail_uuid}
+                      active
+                      readOnly
+                      label={detail.size_name || t("pos.product")}
+                      price={money(productPriceFromDetail(detail))}
+                      icon={<Check data-icon="inline-start" />}
+                    />
+                  ))}
+                </div>
+              </Field>
+            ) : null}
+
+            {!setMode && details.length > 1 ? (
               <Field>
                 <ProductSectionHeader
                   label={t("pos.chooseSize")}
@@ -285,6 +308,7 @@ export function ProductOptionsForm({
       </div>
 
       <ProductOptionsFooter
+        canSubmit={canSubmit}
         saving={saving}
         selectedToppings={selectedToppings}
         total={total}
@@ -384,6 +408,7 @@ function ProductOptionRow({
   icon,
   label,
   price,
+  readOnly,
   onClick,
 }: {
   active: boolean;
@@ -391,34 +416,52 @@ function ProductOptionRow({
   icon?: ReactNode;
   label: string;
   price: string;
-  onClick: () => void;
+  readOnly?: boolean;
+  onClick?: () => void;
 }) {
-  return (
-    <Button
-      type="button"
-      variant="outline"
-      className={cn(
-        "h-auto min-h-12 w-full justify-between gap-3 rounded-lg border-border bg-card px-3 py-2 text-left hover:border-primary/30 hover:bg-primary/5",
-        active &&
-          "border-primary bg-primary/10 text-primary shadow-sm hover:bg-primary/15",
-      )}
-      disabled={disabled}
-      onClick={onClick}
-    >
+  const content = (
+    <>
       <span className="flex min-w-0 items-center gap-2">
         {icon ? <span className="shrink-0">{icon}</span> : null}
         <span className="min-w-0 truncate text-sm font-black">{label}</span>
       </span>
       <span className="shrink-0 text-sm font-black tabular-nums">{price}</span>
+    </>
+  );
+  const className = cn(
+    "h-auto min-h-12 w-full justify-between gap-3 rounded-lg border-border bg-card px-3 py-2 text-left hover:border-primary/30 hover:bg-primary/5",
+    active &&
+      "border-primary bg-primary/10 text-primary shadow-sm hover:bg-primary/15",
+  );
+
+  if (readOnly) {
+    return (
+      <div className={cn(className, "flex cursor-default hover:border-primary hover:bg-primary/10")}>
+        {content}
+      </div>
+    );
+  }
+
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      className={className}
+      disabled={disabled}
+      onClick={onClick}
+    >
+      {content}
     </Button>
   );
 }
 
 function ProductOptionsFooter({
+  canSubmit,
   saving,
   selectedToppings,
   total,
 }: {
+  canSubmit: boolean;
   saving: boolean;
   selectedToppings: ProdTopping[];
   total: number;
@@ -437,7 +480,7 @@ function ProductOptionsFooter({
       <Button
         type="submit"
         className="h-12 min-w-[150px] rounded-lg bg-primary text-base font-black text-primary-foreground shadow-sm hover:bg-primary/90"
-        disabled={saving}
+        disabled={saving || !canSubmit}
       >
         {saving ? (
           <Spinner data-icon="inline-start" />

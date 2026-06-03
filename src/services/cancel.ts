@@ -12,6 +12,17 @@ export interface FetchCancelableBillsParams {
   selected_order_uuid?: string;
 }
 
+export type CancelHistoryOrder = "ASC" | "DESC";
+
+export interface FetchCancelledBillsParams {
+  branch_uuid_fk: string;
+  end_date: string;
+  limit: PageLimit;
+  orderBy: CancelHistoryOrder;
+  page: number;
+  start_date: string;
+}
+
 export interface CancelableBill extends ApiEntity {
   can_cancel?: boolean | number | string;
   is_selected?: boolean | number | string;
@@ -39,6 +50,40 @@ export interface CancelableBillsResponse extends ApiEntity {
   total_page?: number;
 }
 
+export interface CancelledBill extends ApiEntity {
+  branch_name?: string;
+  branch_name_eng?: string;
+  branch_uuid_fk?: string;
+  order_balance?: number | string;
+  order_cancel_reason?: string;
+  order_cancelled_at?: string;
+  order_date?: string;
+  order_discount_amount?: number | string;
+  order_grand_total?: number | string;
+  order_invoice?: string;
+  order_paid_total?: number | string;
+  order_qty?: number | string;
+  order_service_amount?: number | string;
+  order_subtotal?: number | string;
+  order_total?: number | string;
+  order_uuid?: string;
+  order_vat_amount?: number | string;
+  status_code?: string;
+  status_name?: string;
+  table_id?: number | string;
+  table_name_eng?: string;
+  table_name_la?: string;
+  table_uuid_fk?: string;
+}
+
+export interface CancelledBillsResponse extends ApiEntity {
+  data?: CancelledBill[];
+  limit?: number;
+  page?: number;
+  total?: number;
+  totalPages?: number;
+}
+
 export interface CancelBillInput {
   order_cancel_reason: string;
   order_uuid: string;
@@ -52,6 +97,14 @@ export function fetchCancelableBills(params: FetchCancelableBillsParams) {
       ...params,
       lang: toApiLanguage(params.lang)
     }
+  });
+}
+
+export function fetchCancelledBills(params: FetchCancelledBillsParams) {
+  if (!params.branch_uuid_fk) throw new ServiceError("branch_uuid_fk is required", 400);
+
+  return apiRequest<CancelledBillsResponse>("get", "/api/v1/cancel/fetch_cancel_bills", {
+    params: { ...params }
   });
 }
 

@@ -20,6 +20,7 @@ import {
   getModalUnitPrice,
   getProductBlockedState,
   getProductModalMode,
+  isDetailAvailable,
   nextMenuCategoryUuid,
   normalizeProdItem,
   orderCustomerUrl,
@@ -29,6 +30,7 @@ import {
   toggleToppingUuid,
   type MenuBySort,
   type ProductCardEntry,
+  type ProductModalMode,
 } from "./order-customer-utils";
 import { optionalString, visibleCartItems } from "./table-selection/utils";
 
@@ -247,12 +249,16 @@ export function useOrderCustomerWorkflow({
   const submitProductOrder = useCallback(
     async ({
       detail,
+      mode,
       noteText,
+      product,
       quantity,
       toppings,
     }: {
       detail: ProdDetail;
+      mode?: ProductModalMode;
       noteText: string;
+      product?: ProdItem | null;
       quantity: number;
       toppings: ProdTopping[];
     }) => {
@@ -261,7 +267,9 @@ export function useOrderCustomerWorkflow({
           branchUuid: user?.branch_uuid ?? "",
           detail,
           lang: language,
+          mode,
           noteText,
+          product,
           quantity,
           tableUuid: initialTableUuid,
           toppings,
@@ -384,12 +392,21 @@ export function useOrderCustomerWorkflow({
   }
 
   async function submitSelectedProduct() {
-    if (!selectedProduct || !selectedDetail || saving) return;
+    if (!selectedProduct || saving) return;
+
+    const setDetails =
+      productMode === "set"
+        ? selectedProduct.details.filter(isDetailAvailable)
+        : [];
+    const detail = productMode === "set" ? setDetails[0] : selectedDetail;
+    if (!detail) return;
 
     try {
       await submitProductOrder({
-        detail: selectedDetail,
+        detail,
+        mode: productMode,
         noteText: note,
+        product: selectedProduct,
         quantity: qty,
         toppings: selectedToppings,
       });

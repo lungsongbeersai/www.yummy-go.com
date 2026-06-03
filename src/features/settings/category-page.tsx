@@ -514,7 +514,9 @@ export function CategorySettingsPage() {
   const total = useCategoryStore((state) => state.total);
   const storeTotalPages = useCategoryStore((state) => state.totalPages);
   const search = useCategoryStore((state) => state.search);
+  const hasLoaded = useCategoryStore((state) => state.hasLoaded);
   const loading = useCategoryStore((state) => state.loading);
+  const refreshing = useCategoryStore((state) => state.refreshing);
   const saving = useCategoryStore((state) => state.saving);
   const setSearch = useCategoryStore((state) => state.setSearch);
   const loadRows = useCategoryStore((state) => state.load);
@@ -560,8 +562,10 @@ export function CategorySettingsPage() {
   const dragEnabled = allRowsLoaded && rows.length > 1;
   const pageStart = rows.length ? (page - 1) * pageSize + 1 : 0;
   const pageEnd = rows.length ? pageStart + rows.length - 1 : 0;
-  const canGoBack = page > 1 && !loading;
-  const canGoNext = page < totalPages && !loading;
+  const fullLoading = loading && !hasLoaded;
+  const pagingBusy = loading || refreshing;
+  const canGoBack = page > 1 && !pagingBusy;
+  const canGoNext = page < totalPages && !pagingBusy;
   const ids = useMemo(() => rows.map((row) => value(row, "cate_uuid")).filter(Boolean), [rows]);
   const allSelected = ids.length > 0 && ids.every((id) => selectedRows.has(id));
   const sensors = useSensors(
@@ -679,7 +683,7 @@ export function CategorySettingsPage() {
       showToast({ title: t("settings.saved"), tone: "success" });
       setDialogOpen(false);
       setEditing(null);
-      await loadRows(requestParams);
+      await loadRows(requestParams, { background: true });
     } catch (error) {
       showToast({
         title: t("settings.saveFailed"),
@@ -701,7 +705,7 @@ export function CategorySettingsPage() {
         next.delete(id);
         return next;
       });
-      await loadRows(requestParams);
+      await loadRows(requestParams, { background: true });
     } catch (error) {
       showToast({
         title: t("settings.deleteFailed"),
@@ -732,7 +736,7 @@ export function CategorySettingsPage() {
           .filter((item) => item.cate_uuid)
       });
       showToast({ title: t("category.sorted"), tone: "success" });
-      await loadRows(requestParams);
+      await loadRows(requestParams, { background: true });
     } catch (error) {
       setDisplayRows(previousRows);
       showToast({
@@ -900,7 +904,7 @@ export function CategorySettingsPage() {
             />
           ) : undefined
         }
-        loading={loading}
+        loading={fullLoading}
         loadingLabel={t("settings.loading", { title })}
         mobileList={mobileList}
         summary={`${t("common.showingRange", { start: pageStart, end: pageEnd, total })} - ${t("common.page", { current: page, total: totalPages })}`}

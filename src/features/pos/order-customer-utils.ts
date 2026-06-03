@@ -8,6 +8,7 @@ import {
   type CateProductItem,
   type CateWithProducts,
   type CreateOrderInput,
+  type CreateOrderItem,
   type CreateOrderTopping,
   type PosTable,
   type ProdDetail,
@@ -449,31 +450,8 @@ export function getPromoLabel(
   return t("pos.promotion");
 }
 
-export function buildStaffOrderInput({
-  branchUuid,
-  detail,
-  lang,
-  noteText,
-  quantity,
-  tableUuid,
-  toppings,
-  userUuid,
-}: {
-  branchUuid: string;
-  detail: ProdDetail;
-  lang: string;
-  noteText: string;
-  quantity: number;
-  tableUuid: string;
-  toppings: ProdTopping[];
-  userUuid: string;
-}): CreateOrderInput {
-  const detailId = optionalString(detail.pro_detail_uuid);
-  if (!detailId) throw new Error("pro_detail_uuid is required");
-  if (!branchUuid) throw new Error("branch_uuid_fk is required");
-  if (!userUuid) throw new Error("order_created_by is required");
-
-  const orderToppings = toppings
+function buildStaffOrderToppings(toppings: ProdTopping[]) {
+  return toppings
     .map((topping) => {
       const uuid = toppingUuid(topping);
       if (!uuid) return null;
@@ -483,6 +461,74 @@ export function buildStaffOrderInput({
       } satisfies CreateOrderTopping;
     })
     .filter((topping): topping is CreateOrderTopping => Boolean(topping));
+}
+
+export function buildStaffOrderItems({
+  detail,
+  mode = "normal",
+  noteText,
+  product,
+  quantity,
+  toppings,
+}: {
+  detail: ProdDetail;
+  mode?: ProductModalMode;
+  noteText: string;
+  product?: ProdItem | null;
+  quantity: number;
+  toppings: ProdTopping[];
+}) {
+  const details =
+    mode === "set"
+      ? (product?.details ?? []).filter(isDetailAvailable)
+      : [detail];
+  if (!details.length) throw new Error("pro_detail_uuid is required");
+
+  const note = noteText.trim() || undefined;
+  const orderToppings = buildStaffOrderToppings(toppings);
+
+  return details.map((itemDetail, index) => {
+    const detailId = optionalString(itemDetail.pro_detail_uuid);
+    if (!detailId) throw new Error("pro_detail_uuid is required");
+
+    const item: CreateOrderItem = {
+      prod_detail_uuid_fk: detailId,
+      order_it_qty:
+        mode === "set" ? defaultOrderQty(itemDetail) * quantity : quantity,
+      order_it_status: 1,
+      order_it_note: note,
+    };
+
+    if (index === 0) item.toppings = orderToppings;
+    return item;
+  });
+}
+
+export function buildStaffOrderInput({
+  branchUuid,
+  detail,
+  lang,
+  mode = "normal",
+  noteText,
+  product,
+  quantity,
+  tableUuid,
+  toppings,
+  userUuid,
+}: {
+  branchUuid: string;
+  detail: ProdDetail;
+  lang: string;
+  mode?: ProductModalMode;
+  noteText: string;
+  product?: ProdItem | null;
+  quantity: number;
+  tableUuid: string;
+  toppings: ProdTopping[];
+  userUuid: string;
+}): CreateOrderInput {
+  if (!branchUuid) throw new Error("branch_uuid_fk is required");
+  if (!userUuid) throw new Error("order_created_by is required");
 
   return {
     table_uuid_fk: tableUuid,
@@ -493,15 +539,14 @@ export function buildStaffOrderInput({
     order_channel: OrderChannelEnum.DINE_IN,
     order_service_rate: 0,
     order_vat_rate: 0,
-    items: [
-      {
-        prod_detail_uuid_fk: detailId,
-        order_it_qty: quantity,
-        order_it_status: 1,
-        order_it_note: noteText.trim() || undefined,
-        toppings: orderToppings,
-      },
-    ],
+    items: buildStaffOrderItems({
+      detail,
+      mode,
+      noteText,
+      product,
+      quantity,
+      toppings,
+    }),
   };
 }
 

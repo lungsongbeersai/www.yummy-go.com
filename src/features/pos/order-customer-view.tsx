@@ -91,6 +91,7 @@ export function OrderCustomerView({
 
   return (
     <div className="relative h-full min-h-0 overflow-hidden bg-[url('/pos/background_wide.webp')] bg-cover bg-top text-foreground">
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-primary/45 dark:bg-black/55" />
       <div className="relative grid h-full min-h-0 overflow-hidden md:grid-cols-[136px_minmax(0,1fr)] xl:grid-cols-[136px_minmax(0,1fr)_clamp(340px,24vw,420px)]">
         <EmployeeCategorySidebar
           categories={categories}
@@ -196,7 +197,7 @@ export function OrderCustomerView({
             </div>
           </header>
 
-          <div className="pos-soft-light-zone min-h-0 flex-1 overflow-y-auto bg-background p-3 text-foreground sm:p-4 lg:p-5">
+          <div className="pos-soft-light-zone pos-dark-zone min-h-0 flex-1 overflow-y-auto bg-background p-3 text-foreground sm:p-4 lg:p-5">
             {loadingMenu ? (
               <ProductGridSkeleton />
             ) : activeProducts.length ? (
@@ -268,7 +269,7 @@ export function OrderCustomerView({
       <Sheet open={cartSheetOpen} onOpenChange={setCartSheetOpen}>
         <SheetContent
           side="bottom"
-          className="h-[calc(100dvh-8px)] max-h-none gap-0 overflow-hidden rounded-t-2xl border-white/20 bg-[url('/pos/background_wide.webp')] bg-cover bg-top p-0 text-white"
+          className="h-[calc(100dvh-8px)] max-h-none gap-0 overflow-hidden rounded-t-2xl border-white/20 bg-[url('/pos/background_wide.webp')] bg-cover bg-top p-0 text-white dark:border-primary/30"
         >
           <SheetTitle className="sr-only">{t("pos.currentCart")}</SheetTitle>
           <SelectedTableCartPanel

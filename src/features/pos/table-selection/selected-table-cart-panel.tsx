@@ -865,7 +865,7 @@ export function SelectedTableCartPanel({
       >
         <CardHeader
           className={cn(
-            "relative block shrink-0 overflow-hidden border-b border-white/10 px-4 pb-3 pt-4 text-white",
+            "relative block shrink-0 overflow-hidden border-b border-white/10 px-4 pb-3 pt-4 text-white dark:bg-black/25",
             variant === "sheet" && "px-4 pb-2.5 pt-3 pr-12",
           )}
         >
@@ -920,11 +920,11 @@ export function SelectedTableCartPanel({
           </TabsList>
         </CardHeader>
 
-        <CardContent className="pos-soft-light-zone relative min-h-0 flex-1 overflow-hidden bg-background p-0 text-foreground">
+        <CardContent className="pos-soft-light-zone pos-dark-zone relative min-h-0 flex-1 overflow-hidden bg-background p-0 text-foreground">
           {loading ? (
             <CartPanelLoading />
           ) : (
-            <div className="h-full min-h-0 overflow-y-auto bg-muted/35">
+            <div className="h-full min-h-0 overflow-y-auto bg-muted/35 dark:bg-background">
               <TabsContent value="new">
                 <CartTabItems
                   editable
@@ -983,7 +983,7 @@ export function SelectedTableCartPanel({
           )}
         </CardContent>
 
-        <CardFooter className="block shrink-0 border-t border-white/15 bg-transparent px-3 py-2 text-white">
+        <CardFooter className="block shrink-0 border-t border-white/15 bg-transparent px-3 py-2 text-white dark:bg-black/25">
           <CartSummaryDock
             actionsDisabled={!hasSelectedTable}
             billDiscountValueLabel={billDiscountValueLabel}

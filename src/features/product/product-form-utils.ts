@@ -593,7 +593,11 @@ export function requiredFieldErrorKeys(state: RequiredProductFormState) {
     !state.cateUuidFk ? "nav.category" : null,
     !state.uniteUuidFk ? "nav.unit" : null,
     !state.details.length ? "product.sections.details" : null,
-    state.details.some((row) => !row.size_uuid_fk) ? "fields.size" : null,
+    state.details.some((row) => !row.size_uuid_fk)
+      ? state.statusSortFk === "2"
+        ? "pos.product"
+        : "fields.size"
+      : null,
     state.details.some((row) => row.pro_detail_bprice.trim() === "")
       ? "fields.bprice"
       : null,

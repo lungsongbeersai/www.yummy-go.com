@@ -5,10 +5,13 @@ import { DEFAULT_PAGE_LIMIT, PAGE_LIMIT_ALL_BATCH, isAllPageLimit } from "@/lib/
 import {
   getBestSellingProductsReport,
   getDailySalesReport,
+  getPaymentMethodsReport,
   type BestSellingProductsReportResponse,
   type FetchBestSellingProductsReportParams,
   type DailySalesReportResponse,
-  type FetchDailySalesReportParams
+  type FetchDailySalesReportParams,
+  type FetchPaymentMethodsReportParams,
+  type PaymentMethodsReportResponse
 } from "@/services/report";
 import type { ApiEntity, PageLimit } from "@/services/shared/types";
 import {
@@ -25,12 +28,21 @@ import {
   type DailySalesBillGroup,
   type SummaryCards
 } from "@/stores/report-store/normalizers";
+import {
+  normalizePaymentMethodsReportResponse,
+  type PaymentMethodOption,
+  type PaymentMethodReportRow,
+  type PaymentMethodSummaryCard,
+  type PaymentMethodsPagination
+} from "@/stores/report-store/payment-method-normalizers";
 import { errorMessage } from "@/stores/store-utils";
 
 export { createDailySalesBillGroups, normalizeDailySalesReportResponse };
 export { mergeBestSellingProductGroups, normalizeBestSellingProductsReportResponse };
+export { normalizePaymentMethodsReportResponse };
 export type { DailySalesBillGroup };
 export type { BestSellingProductGroup, BestSellingProductItem, BestSellingProductsPagination };
+export type { PaymentMethodOption, PaymentMethodReportRow, PaymentMethodSummaryCard, PaymentMethodsPagination };
 
 interface DailySalesReportState {
   billGroups: DailySalesBillGroup[];
@@ -223,6 +235,114 @@ export const useBestSellingProductsReportStore = create<BestSellingProductsRepor
       response: null,
       rows: [],
       summary: {},
+      total: 0,
+      totalPages: 1
+    })
+}));
+
+interface PaymentMethodsReportState {
+  cards: PaymentMethodSummaryCard[];
+  error: string | null;
+  limit: PageLimit;
+  loading: boolean;
+  page: number;
+  pagination: PaymentMethodsPagination;
+  paymentMethods: PaymentMethodOption[];
+  reportName: string;
+  reportTotal: ApiEntity;
+  response: PaymentMethodsReportResponse | null;
+  rows: PaymentMethodReportRow[];
+  summaryCards: ApiEntity;
+  total: number;
+  totalPages: number;
+  load: (params: FetchPaymentMethodsReportParams) => Promise<PaymentMethodsReportResponse>;
+  reset: () => void;
+}
+
+const defaultPaymentMethodsPagination: PaymentMethodsPagination = {
+  limit: DEFAULT_PAGE_LIMIT,
+  page: 1,
+  total: 0,
+  totalPages: 1
+};
+
+export const usePaymentMethodsReportStore = create<PaymentMethodsReportState>((set) => ({
+  cards: [],
+  error: null,
+  limit: DEFAULT_PAGE_LIMIT,
+  loading: false,
+  page: 1,
+  pagination: defaultPaymentMethodsPagination,
+  paymentMethods: [],
+  reportName: "",
+  reportTotal: {},
+  response: null,
+  rows: [],
+  summaryCards: {},
+  total: 0,
+  totalPages: 1,
+  load: async (params) => {
+    set({ error: null, loading: true });
+    try {
+      const loadAll = isAllPageLimit(params.limit);
+      const requestParams = loadAll ? { ...params, limit: PAGE_LIMIT_ALL_BATCH, page: 1 } : params;
+      const response = await getPaymentMethodsReport(requestParams);
+      const normalized = normalizePaymentMethodsReportResponse(response, requestParams.limit, requestParams.page);
+      const allRows = [...normalized.rows];
+
+      if (loadAll) {
+        for (let nextPage = 2; nextPage <= normalized.pagination.totalPages; nextPage += 1) {
+          const nextResponse = await getPaymentMethodsReport({ ...requestParams, page: nextPage });
+          const nextNormalized = normalizePaymentMethodsReportResponse(nextResponse, requestParams.limit, nextPage);
+          allRows.push(...nextNormalized.rows);
+        }
+      }
+
+      const total = loadAll ? allRows.length : normalized.pagination.total;
+      const pagination: PaymentMethodsPagination = {
+        ...normalized.pagination,
+        limit: params.limit,
+        page: loadAll ? 1 : normalized.pagination.page,
+        total,
+        totalPages: loadAll ? 1 : normalized.pagination.totalPages
+      };
+
+      set({
+        cards: normalized.cards,
+        limit: params.limit,
+        loading: false,
+        page: pagination.page,
+        pagination,
+        paymentMethods: normalized.paymentMethods,
+        reportName: normalized.reportName,
+        reportTotal: normalized.reportTotal,
+        response,
+        rows: allRows,
+        summaryCards: normalized.summaryCards,
+        total,
+        totalPages: pagination.totalPages
+      });
+
+      return response;
+    } catch (error) {
+      set({ error: errorMessage(error), loading: false });
+      throw error;
+    }
+  },
+  reset: () =>
+    set({
+      cards: [],
+      error: null,
+      limit: DEFAULT_PAGE_LIMIT,
+      loading: false,
+      page: 1,
+      pagination: defaultPaymentMethodsPagination,
+      paymentMethods: [],
+      reportName: "",
+      reportTotal: {},
+      response: null,
+      rows: [],
+      summaryCards: {},
       total: 0,
       totalPages: 1
     })

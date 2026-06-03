@@ -52,6 +52,7 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
     updateDetail,
     removeDetail,
   } = form;
+  const detailItemLabel = statusSortFk === "2" ? t("pos.product") : t("fields.size");
 
   return (          <Card>
             <CardHeader className="flex-col items-stretch gap-3 md:flex-row md:items-start">
@@ -91,7 +92,7 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
               const selectedSize = sizeOptions.find((size) => sizeUuid(size) === row.size_uuid_fk);
               const selectedSizeLabel = selectedSize
                 ? entityLabel(selectedSize, "size_name_eng", "size_name_la", language, sizeName(selectedSize) || row.size_uuid_fk)
-                : t("fields.size");
+                : detailItemLabel;
               const canEditDetailStock = statusSortFk === "2";
               const rowStockMode = binaryFlag(row.pro_detail_stock, "1");
               const rowStockLabel =
@@ -119,10 +120,10 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
                 </div>
                 <FieldGroup className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                   <Field>
-                    <FieldLabel>{t("fields.size")}</FieldLabel>
+                    <FieldLabel>{detailItemLabel}</FieldLabel>
                     <Select key={sizeOptions.length ? "ready" : "loading"} value={row.size_uuid_fk} onValueChange={(value) => updateDetail(row.id, { size_uuid_fk: value })}>
                       <SelectTrigger className="w-full">
-                        <SelectValue placeholder={t("fields.size")} />
+                        <SelectValue placeholder={detailItemLabel} />
                       </SelectTrigger>
                       <SelectContent position="popper">
                         <SelectGroup>

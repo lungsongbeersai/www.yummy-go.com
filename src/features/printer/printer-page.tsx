@@ -4,10 +4,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
-import { Plus, Power, PowerOff, Printer as PrinterIcon, RefreshCcw, Search } from "lucide-react";
+import { icons as mdiIcons } from "@iconify-json/mdi";
+import { Icon as IconifyIcon, addCollection } from "@iconify/react";
+import { Download, Plus, Power, PowerOff, Printer as PrinterIcon, RefreshCcw, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -27,6 +30,12 @@ import { useToastStore } from "@/stores/toast-store";
 const EMPTY_CATEGORIES: Category[] = [];
 const TYPE_ALL = "all";
 const STATUS_ALL = "all";
+const AGENT_PLATFORM_ICONS: Record<string, string> = {
+  windows: "mdi:microsoft-windows",
+  macos: "mdi:apple"
+};
+
+addCollection(mdiIcons);
 
 type PrinterTableRow = Printer & { row_number: number };
 
@@ -68,6 +77,36 @@ function BadgeList({
   );
 }
 
+function PrinterStatusBadge({ active, label }: { active: boolean; label: string }) {
+  const Icon = active ? Power : PowerOff;
+
+  return (
+    <Badge
+      className={cn(
+        "gap-1.5 rounded-full px-2.5 py-1 font-black whitespace-nowrap",
+        active
+          ? "border-primary/30 bg-primary/10 text-primary"
+          : "border-destructive/30 bg-destructive/10 text-destructive"
+      )}
+    >
+      <Icon className="size-3.5 shrink-0" />
+      {label}
+    </Badge>
+  );
+}
+
+function agentDownloadUrl(file: { download_url?: string }) {
+  return typeof file.download_url === "string" ? file.download_url.trim() : "";
+}
+
+function AgentPlatformIcon({ platform }: { platform: string }) {
+  const icon = AGENT_PLATFORM_ICONS[platform.trim().toLowerCase()];
+
+  if (!icon) return <Download aria-hidden="true" />;
+
+  return <IconifyIcon aria-hidden="true" icon={icon} className="size-4" />;
+}
+
 export function PrinterPage() {
   const { i18n, t } = useTranslation();
   const router = useRouter();
@@ -77,9 +116,12 @@ export function PrinterPage() {
   const roles = usePrinterStore((state) => state.roles);
   const agentStatus = usePrinterStore((state) => state.agentStatus);
   const agentError = usePrinterStore((state) => state.agentError);
+  const agentFiles = usePrinterStore((state) => state.agentFiles);
   const loading = usePrinterStore((state) => state.loading);
+  const loadingAgentFiles = usePrinterStore((state) => state.loadingAgentFiles);
   const printing = usePrinterStore((state) => state.printing);
   const loadPrinters = usePrinterStore((state) => state.loadPrinters);
+  const loadAgentFiles = usePrinterStore((state) => state.loadAgentFiles);
   const loadRoles = usePrinterStore((state) => state.loadRoles);
   const checkAgent = usePrinterStore((state) => state.checkAgent);
   const testPrinterAction = usePrinterStore((state) => state.test);
@@ -93,6 +135,7 @@ export function PrinterPage() {
   const [searchText, setSearchText] = useState("");
   const [typeFilter, setTypeFilter] = useState(TYPE_ALL);
   const [statusFilter, setStatusFilter] = useState(STATUS_ALL);
+  const [agentFilesFailed, setAgentFilesFailed] = useState(false);
 
   const language = i18n.language;
   const storeUuid = authStoreUuid(user);
@@ -105,6 +148,16 @@ export function PrinterPage() {
         ])
       ),
     [printers, roles]
+  );
+  const statusLabels = useMemo(() => {
+    return {
+      active: t("printer.enabledStatus"),
+      inactive: t("printer.disabledStatus")
+    };
+  }, [t]);
+  const activeAgentFiles = useMemo(
+    () => agentFiles.filter((file) => Number(file.file_status) === 1 && agentDownloadUrl(file)),
+    [agentFiles]
   );
   const filteredRows = useMemo(() => {
     const query = searchText.trim().toLowerCase();
@@ -141,7 +194,7 @@ export function PrinterPage() {
     if (!user?.uuid) return;
     try {
       await Promise.all([
-        loadPrinters({ login_uuid_fk: user.uuid }),
+        loadPrinters({ login_uuid_fk: user.uuid, lang: language }),
         loadRoles(language),
         storeUuid ? loadCategories(language, storeUuid) : Promise.resolve([]),
         checkAgent()
@@ -158,6 +211,22 @@ export function PrinterPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  const loadAgentFilesOnOpen = useCallback(
+    (open: boolean) => {
+      if (!open || agentFiles.length || loadingAgentFiles) return;
+      setAgentFilesFailed(false);
+      void loadAgentFiles().catch((error) => {
+        setAgentFilesFailed(true);
+        showToast({
+          title: t("printer.agentFilesLoadFailed"),
+          description: error instanceof Error ? error.message : "",
+          tone: "error"
+        });
+      });
+    },
+    [agentFiles.length, loadAgentFiles, loadingAgentFiles, showToast, t]
+  );
 
   async function remove(row: Printer) {
     try {
@@ -195,11 +264,12 @@ export function PrinterPage() {
   }
 
   async function togglePrinter(row: Printer) {
-    if (!row.print_config_uuid || togglingUuid) return;
+    if (!row.print_config_uuid || togglingUuid || !user?.uuid) return;
     const wasActive = row.is_active;
     setTogglingUuid(row.print_config_uuid);
     try {
       await toggleActive(row.print_config_uuid);
+      await loadPrinters({ login_uuid_fk: user.uuid, lang: language });
       showToast({
         title: wasActive ? t("printer.disableSuccess") : t("printer.activateSuccess"),
         tone: "success"
@@ -225,10 +295,54 @@ export function PrinterPage() {
             {t("printer.agentStatus")}: {agentError ?? t(`printer.status.${agentStatus}`)}
           </p>
         </div>
-        <Link className={cn(buttonVariants({ size: "sm" }), "shadow-sm")} href="/printer/form">
-          <Plus data-icon="inline-start" />
-          {t("actions.add")} {t("printer.title")}
-        </Link>
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <DropdownMenu onOpenChange={loadAgentFilesOnOpen}>
+            <DropdownMenuTrigger asChild>
+              <Button className="shadow-sm" size="sm" type="button" variant="outline">
+                {loadingAgentFiles ? <Spinner data-icon="inline-start" /> : <Download data-icon="inline-start" />}
+                {t("printer.downloadAgent")}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-80">
+              <DropdownMenuGroup>
+                {loadingAgentFiles ? (
+                  <DropdownMenuItem disabled>
+                    <Spinner />
+                    {t("printer.loadingAgentFiles")}
+                  </DropdownMenuItem>
+                ) : agentFilesFailed ? (
+                  <DropdownMenuItem disabled>{t("printer.agentFilesLoadFailed")}</DropdownMenuItem>
+                ) : activeAgentFiles.length ? (
+                  activeAgentFiles.map((file) => {
+                    const platformKey = file.file_platform.trim().toLowerCase();
+                    const platformLabel = t(`printer.agentPlatform.${platformKey}`, {
+                      defaultValue: file.file_platform || t("printer.agent")
+                    });
+                    const url = agentDownloadUrl(file);
+
+                    return (
+                      <DropdownMenuItem key={file.agent_file_uuid} asChild>
+                        <a href={url} target="_blank" rel="noreferrer" download={file.file_name}>
+                          <AgentPlatformIcon platform={file.file_platform} />
+                          <span className="flex min-w-0 flex-col">
+                            <span className="truncate font-semibold">{platformLabel}</span>
+                            <span className="truncate text-xs text-muted-foreground">{file.file_name}</span>
+                          </span>
+                        </a>
+                      </DropdownMenuItem>
+                    );
+                  })
+                ) : (
+                  <DropdownMenuItem disabled>{t("printer.noAgentFiles")}</DropdownMenuItem>
+                )}
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Link className={cn(buttonVariants({ size: "sm" }), "shadow-sm")} href="/printer/form">
+            <Plus data-icon="inline-start" />
+            {t("actions.add")} {t("printer.title")}
+          </Link>
+        </div>
       </div>
 
       <Card className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-none border-x-0 border-b-0">
@@ -283,8 +397,8 @@ export function PrinterPage() {
                 <SelectContent position="popper">
                   <SelectGroup>
                     <SelectItem value={STATUS_ALL}>{t("printer.allStatuses")}</SelectItem>
-                    <SelectItem value="active">{t("common.active")}</SelectItem>
-                    <SelectItem value="inactive">{t("common.inactive")}</SelectItem>
+                    <SelectItem value="active">{statusLabels.active}</SelectItem>
+                    <SelectItem value="inactive">{statusLabels.inactive}</SelectItem>
                   </SelectGroup>
                 </SelectContent>
               </Field>
@@ -365,7 +479,14 @@ export function PrinterPage() {
                   {
                     key: "is_active",
                     label: t("common.status"),
-                    render: (row) => <Badge>{row.is_active ? t("common.active") : t("common.inactive")}</Badge>
+                    className: "min-w-32 whitespace-nowrap",
+                    headClassName: "min-w-32",
+                    render: (row) => (
+                      <PrinterStatusBadge
+                        active={row.is_active}
+                        label={row.is_active ? statusLabels.active : statusLabels.inactive}
+                      />
+                    )
                   }
                 ]}
                 actions={[

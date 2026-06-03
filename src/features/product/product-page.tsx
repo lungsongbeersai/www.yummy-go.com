@@ -686,7 +686,9 @@ export function ProductPage() {
                 <ChevronRight className="shrink-0 text-primary" />
                 <div className="min-w-0">
                   <p className="truncate text-sm font-bold">{detailLabel(detail, index, language)}</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">{t("fields.size")}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {isFoodSet ? t("pos.product") : t("fields.size")}
+                  </p>
                 </div>
               </div>
               <div className="min-w-0">
@@ -853,6 +855,7 @@ export function ProductPage() {
     const notificationOn = binaryFlag(row.prod_notification, "2") === "1";
     const details = productDetails(row);
     const expanded = details.length > 0 && !collapsedProducts.has(row.prod_uuid);
+    const isFoodSet = String(statusSortFk) === "2";
     const totalStock = details.length ? totalStockQty(row) : 0;
     const orderPoint = productOrderPoint(row);
 
@@ -925,7 +928,9 @@ export function ProductPage() {
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-bold">{detailLabel(detail, index, language)}</p>
-                      <p className="text-xs text-muted-foreground">{t("fields.size")}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {isFoodSet ? t("pos.product") : t("fields.size")}
+                      </p>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-muted-foreground">{t("product.detailEnabledStatus")}</span>
@@ -934,10 +939,10 @@ export function ProductPage() {
                   </div>
                   <div className="mt-3 grid gap-2 sm:grid-cols-3">
                     <DetailMetric label={t("fields.bprice")} value={money(detail.pro_detail_bprice)} />
-                    <DetailMetric label={String(statusSortFk) === "2" ? t("product.setPrice") : t("fields.sprice")} value={String(statusSortFk) === "2" ? money(row.prod_set_price) : money(detail.pro_detail_sprice)} />
+                    <DetailMetric label={isFoodSet ? t("product.setPrice") : t("fields.sprice")} value={isFoodSet ? money(row.prod_set_price) : money(detail.pro_detail_sprice)} />
                     <DetailMetric label={t("fields.qtyStock")} value={String(detailStockQty(detail))} />
                     <div className="sm:col-span-3">
-                      {String(statusSortFk) === "2"
+                      {isFoodSet
                         ? renderStockSelect(detail, true, row.prod_uuid)
                         : renderStockStatus(detail, true)}
                     </div>

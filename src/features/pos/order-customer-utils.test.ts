@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildStaffOrderItems,
   buildStaffOrderInput,
   canDirectAddFromList,
   defaultOrderQty,
@@ -211,10 +212,59 @@ describe("order customer helpers", () => {
           prod_detail_uuid_fk: "detail-1",
           order_it_qty: 2,
           order_it_note: "less spicy",
-      toppings: [{ prod_topping_uuid_fk: "top-1", topping_qty: 1 }],
+          toppings: [{ prod_topping_uuid_fk: "top-1", topping_qty: 1 }],
         },
       ],
     });
+  });
+
+  it("builds staff set order items from every available product detail", () => {
+    const setProduct: ProdItem = {
+      ...normalizeProdItem(null, product({ status_sort_fk: ProductSortStatus.SET })),
+      prod_set_price: 220000,
+      type_group: "Set",
+      details: [
+        detail({ pro_detail_uuid: "beer", price: 0, pro_detail_sprice: 0 }),
+        detail({
+          pro_detail_uuid: "ice",
+          default_qty: 2,
+          price: 0,
+          pro_detail_sprice: 0,
+        }),
+        detail({
+          pro_detail_uuid: "disabled",
+          pro_detail_enabled: 2,
+          price: 0,
+          pro_detail_sprice: 0,
+        }),
+      ],
+    };
+
+    const items = buildStaffOrderItems({
+      detail: setProduct.details[0],
+      mode: "set",
+      noteText: " cold ",
+      product: setProduct,
+      quantity: 3,
+      toppings: [topping()],
+    });
+
+    expect(items).toHaveLength(2);
+    expect(items).toEqual([
+      {
+        prod_detail_uuid_fk: "beer",
+        order_it_qty: 3,
+        order_it_status: 1,
+        order_it_note: "cold",
+        toppings: [{ prod_topping_uuid_fk: "top-1", topping_qty: 1 }],
+      },
+      {
+        prod_detail_uuid_fk: "ice",
+        order_it_qty: 6,
+        order_it_status: 1,
+        order_it_note: "cold",
+      },
+    ]);
   });
 
   it("maps product option sheet topping selection predictably", () => {

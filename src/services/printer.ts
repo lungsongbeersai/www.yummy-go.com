@@ -61,6 +61,7 @@ export interface Printer extends ApiEntity {
   agent_name?: string;
   paper_width_mm: number;
   is_active: boolean;
+  is_active_label?: string;
   created_at?: string;
   updated_at?: string;
   font_size?: number;
@@ -69,6 +70,13 @@ export interface Printer extends ApiEntity {
   cate_uuid_fk: string[];
 }
 export interface PrinterRole extends ApiEntity { role_code: string; role_name: string }
+export interface AgentFile extends ApiEntity {
+  agent_file_uuid: string;
+  file_name: string;
+  file_platform: string;
+  file_status: number;
+  download_url: string;
+}
 interface SearchPrintersResponse extends ApiEntity {
   ok?: boolean;
   mode?: "usb" | "network";
@@ -79,6 +87,7 @@ interface SearchPrintersResponse extends ApiEntity {
 }
 export type FetchPrinterResponse = ApiListResponse<Printer>;
 export type PrinterRolesResponse = ApiDataResponse<PrinterRole[]>;
+export type AgentFilesResponse = ApiListResponse<AgentFile>;
 export interface SavePrinterInput extends ApiEntity {
   print_config_uuid?: string;
   login_uuid_fk: string;
@@ -180,7 +189,7 @@ export async function searchPrinters(mode: "usb" | "network" = "usb") {
 
 export async function getPrinters(params: FetchPrintersParams) {
   const result = await apiRequest<FetchPrinterResponse>("get", "/api/v1/printer/fetch", {
-    params: { login_uuid_fk: params.login_uuid_fk }
+    params: { login_uuid_fk: params.login_uuid_fk, lang: toApiLanguage(params.lang) }
   });
   return (result.data ?? []).map((item) => mapPrinter(item));
 }
@@ -196,6 +205,11 @@ export async function getPrinterRoles(lang = "la") {
   const result = await apiRequest<PrinterRolesResponse>("get", "/api/v1/printer/roles", {
     params: { lang: toApiLanguage(lang) }
   });
+  return result.data ?? [];
+}
+
+export async function getAgentFiles() {
+  const result = await apiRequest<AgentFilesResponse>("get", "/api/v1/agent/fetch");
   return result.data ?? [];
 }
 

@@ -9,6 +9,35 @@ export function agentBase(defaultAgentUrl: string, agentUrl?: string) {
   return (agentUrl?.trim() || defaultAgentUrl).replace(/\/+$/, "");
 }
 
+function stringValue(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function activeLabel(item: Record<string, unknown>) {
+  const keys = [
+    "is_active_label",
+    "is_active_text",
+    "is_active_name",
+    "active_label",
+    "active_text",
+    "active_name",
+    "print_config_active_text",
+    "print_config_status_text",
+    "print_config_status_name",
+    "printer_status_text",
+    "printer_status_name",
+    "status_text",
+    "status_name"
+  ];
+
+  for (const key of keys) {
+    const label = stringValue(item[key]);
+    if (label) return label;
+  }
+
+  return undefined;
+}
+
 export function mapPrinter(item: Record<string, unknown>): Printer {
   return {
     ...item,
@@ -26,6 +55,7 @@ export function mapPrinter(item: Record<string, unknown>): Printer {
     agent_name: item.agent_name === undefined ? undefined : String(item.agent_name),
     paper_width_mm: Number(item.paper_width_mm ?? 80),
     is_active: Boolean(item.is_active),
+    is_active_label: activeLabel(item),
     created_at: item.created_at === undefined ? undefined : String(item.created_at),
     updated_at: item.updated_at === undefined ? undefined : String(item.updated_at),
     font_size: item.font_size === undefined ? undefined : Number(item.font_size),

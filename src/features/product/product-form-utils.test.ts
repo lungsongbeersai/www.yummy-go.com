@@ -165,6 +165,23 @@ describe("product form validation and payload helpers", () => {
     ]);
   });
 
+  it("uses the product label for missing food set detail options", () => {
+    expect(
+      requiredFieldErrors(
+        {
+          prodNameLa: "Set",
+          cateUuidFk: "cate-1",
+          uniteUuidFk: "unit-1",
+          details: [detail({ size_uuid_fk: "" })],
+          statusSortFk: "2",
+          prodToppingStatus: TOPPING_NONE,
+          selectedToppings: [],
+        },
+        t,
+      ),
+    ).toEqual(["pos.product"]);
+  });
+
   it("builds the save product API payload without changing the contract", () => {
     const payload = buildSaveProductPayload({
       branchUuid: "branch-1",

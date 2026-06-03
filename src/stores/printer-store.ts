@@ -7,6 +7,7 @@ import {
   checkPrinterAgentConnection,
   deletePrinter,
   executeKitchenPrintJobs,
+  getAgentFiles,
   fetchPrinterCategoryRole,
   getCategoryRoles,
   getDefaultCategoryByRole,
@@ -23,6 +24,7 @@ import {
   searchPrinters,
   togglePrinterActive,
   type AckPayload,
+  type AgentFile,
   type AgentInfo,
   type BuildTestJobRequest,
   type CategoryRole,
@@ -48,6 +50,7 @@ type AgentStatus = "unchecked" | "connected" | "offline";
 interface PrinterState {
   printers: Printer[];
   options: Printer[];
+  agentFiles: AgentFile[];
   found: SearchPrinterResult[];
   roles: PrinterRole[];
   categoryRoles: CategoryRole[];
@@ -58,12 +61,14 @@ interface PrinterState {
   agentStatus: AgentStatus;
   agentError: string | null;
   loading: boolean;
+  loadingAgentFiles: boolean;
   searching: boolean;
   saving: boolean;
   printing: boolean;
   error: string | null;
   loadPrinters: (params: FetchPrintersParams) => Promise<Printer[]>;
   loadOptions: (loginUuid: string, lang?: string) => Promise<Printer[]>;
+  loadAgentFiles: () => Promise<AgentFile[]>;
   discover: (mode?: "usb" | "network") => Promise<SearchPrinterResult[]>;
   checkAgent: (agentUrl?: string) => Promise<boolean>;
   loadRoles: (lang?: string) => Promise<PrinterRole[]>;
@@ -89,6 +94,7 @@ interface PrinterState {
 export const usePrinterStore = create<PrinterState>((set) => ({
   printers: [],
   options: [],
+  agentFiles: [],
   found: [],
   roles: [],
   categoryRoles: [],
@@ -99,6 +105,7 @@ export const usePrinterStore = create<PrinterState>((set) => ({
   agentStatus: "unchecked",
   agentError: null,
   loading: false,
+  loadingAgentFiles: false,
   searching: false,
   saving: false,
   printing: false,
@@ -118,6 +125,17 @@ export const usePrinterStore = create<PrinterState>((set) => ({
     const options = await getPrinterOptions(loginUuid, lang);
     set({ options });
     return options;
+  },
+  loadAgentFiles: async () => {
+    set({ loadingAgentFiles: true, error: null });
+    try {
+      const agentFiles = await getAgentFiles();
+      set({ agentFiles, loadingAgentFiles: false });
+      return agentFiles;
+    } catch (error) {
+      set({ error: errorMessage(error), loadingAgentFiles: false });
+      throw error;
+    }
   },
   discover: async (mode = "usb") => {
     set({ searching: true, error: null });
@@ -253,6 +271,7 @@ export const usePrinterStore = create<PrinterState>((set) => ({
     set({
       printers: [],
       options: [],
+      agentFiles: [],
       found: [],
       roles: [],
       categoryRoles: [],
@@ -263,6 +282,7 @@ export const usePrinterStore = create<PrinterState>((set) => ({
       agentStatus: "unchecked",
       agentError: null,
       loading: false,
+      loadingAgentFiles: false,
       searching: false,
       saving: false,
       printing: false,

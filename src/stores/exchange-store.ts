@@ -11,7 +11,7 @@ import {
   type FetchExchangesParams,
   type SaveExchangeInput
 } from "@/services/exchange";
-import type { CrudListState } from "@/stores/crud-list-store";
+import type { CrudListLoadOptions, CrudListState } from "@/stores/crud-list-store";
 import { errorMessage } from "@/stores/store-utils";
 
 interface ExchangeState extends CrudListState<
@@ -30,13 +30,16 @@ export const useExchangeStore = create<ExchangeState>((set, get) => ({
   total: 0,
   totalPages: 1,
   search: "",
+  hasLoaded: false,
   loading: false,
+  refreshing: false,
   loadingAll: false,
   saving: false,
   error: null,
   setSearch: (search) => set({ search }),
-  load: async (params = {}) => {
-    set({ loading: true, error: null });
+  load: async (params = {}, options?: CrudListLoadOptions) => {
+    const background = Boolean(options?.background && get().hasLoaded);
+    set({ error: null, loading: !background, refreshing: background });
     try {
       const result = await getExchanges({ ...params, search: params.search ?? get().search });
       const rows = Array.isArray(result.data) ? result.data : [];
@@ -44,11 +47,13 @@ export const useExchangeStore = create<ExchangeState>((set, get) => ({
         rows,
         total: Number(result.total ?? rows.length),
         totalPages: Number(result.totalPages ?? result.total_page ?? 1),
-        loading: false
+        hasLoaded: true,
+        loading: false,
+        refreshing: false
       });
       return rows;
     } catch (error) {
-      set({ error: errorMessage(error), loading: false });
+      set({ error: errorMessage(error), loading: false, refreshing: false });
       throw error;
     }
   },
@@ -96,7 +101,9 @@ export const useExchangeStore = create<ExchangeState>((set, get) => ({
       total: 0,
       totalPages: 1,
       search: "",
+      hasLoaded: false,
       loading: false,
+      refreshing: false,
       loadingAll: false,
       saving: false,
       error: null

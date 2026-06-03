@@ -6,6 +6,9 @@ import type { ApiEntity, PageLimit } from "@/services/shared/types";
 export type DailySalesReportType = "summary" | "detail";
 export type DailySalesReportOrder = "ASC" | "DESC";
 export type DailySalesPaymentMethod = "cash" | "transfer" | "debt" | "mixed";
+export type PaymentMethodReportOrder = "ASC" | "DESC";
+export const PAYMENT_METHOD_REPORT_FILTER_OPTIONS = ["all", "cash", "transfer", "debt"] as const;
+export type PaymentMethodReportFilter = (typeof PAYMENT_METHOD_REPORT_FILTER_OPTIONS)[number];
 export const BEST_SELLING_PRODUCTS_SORT_OPTIONS = [
   "qty",
   "total",
@@ -21,6 +24,13 @@ export function isBestSellingProductsSortBy(value: unknown): value is BestSellin
   );
 }
 
+export function isPaymentMethodReportFilter(value: unknown): value is PaymentMethodReportFilter {
+  return (
+    typeof value === "string" &&
+    PAYMENT_METHOD_REPORT_FILTER_OPTIONS.includes(value as PaymentMethodReportFilter)
+  );
+}
+
 export interface FetchDailySalesReportParams {
   branch_uuid_fk: string;
   date_from: string;
@@ -31,6 +41,17 @@ export interface FetchDailySalesReportParams {
   page: number;
   payment_method?: DailySalesPaymentMethod;
   type_page: DailySalesReportType;
+}
+
+export interface FetchPaymentMethodsReportParams {
+  branch_uuid_fk: string;
+  date_from: string;
+  date_to: string;
+  lang?: string;
+  limit: PageLimit;
+  orderBy: PaymentMethodReportOrder;
+  page: number;
+  payment_method: PaymentMethodReportFilter;
 }
 
 export interface DailySalesReportResponse extends ApiEntity {
@@ -45,6 +66,22 @@ export interface DailySalesReportResponse extends ApiEntity {
   totalPage?: number;
   totalPages?: number;
   total_page?: number;
+}
+
+export interface PaymentMethodsReportResponse extends ApiEntity {
+  card_summary?: unknown;
+  dashboard_cards?: unknown;
+  data?: unknown;
+  limit?: number;
+  message?: string;
+  page?: number;
+  payment_methods?: unknown;
+  report_name?: string;
+  report_total?: unknown;
+  status?: string;
+  summary_cards?: unknown;
+  total?: number;
+  totalPages?: number;
 }
 
 export interface FetchBestSellingProductsReportParams {
@@ -78,6 +115,19 @@ export function getDailySalesReport(params: FetchDailySalesReportParams) {
   if (payment_method) query.payment_method = payment_method;
 
   return apiRequest<DailySalesReportResponse>("get", "/api/v1/report/sale_report", {
+    params: query
+  });
+}
+
+export function getPaymentMethodsReport(params: FetchPaymentMethodsReportParams) {
+  if (!params.branch_uuid_fk) throw new ServiceError("branch_uuid_fk is required", 400);
+  const query: Record<string, unknown> = {
+    ...params,
+    limit: isAllPageLimit(params.limit) ? PAGE_LIMIT_ALL_BATCH : params.limit,
+    lang: toApiLanguage(params.lang)
+  };
+
+  return apiRequest<PaymentMethodsReportResponse>("get", "/api/v1/report/payment_methods", {
     params: query
   });
 }
