@@ -27,11 +27,11 @@ export interface AgentInfo extends ApiEntity {
   agent_name: string;
   store_code?: string | null;
   branch_code?: string | null;
-  device_code: string;
-  hostname: string;
-  platform: string;
-  host: string;
-  port: number;
+  device_code?: string | null;
+  hostname?: string;
+  platform?: string;
+  host?: string;
+  port?: number;
 }
 interface AgentInfoResponse extends ApiEntity {
   ok?: boolean;
@@ -229,10 +229,10 @@ export async function savePrinter(input: SavePrinterInput) {
     connect_type: input.connect_type,
     paper_width_mm: input.paper_width_mm,
     role_codes: input.role_codes,
-    agent_url: input.agent_url,
+    agent_url: input.agent_url || AGENT_URL,
     agent_id: input.agent_id,
     agent_name: input.agent_name,
-    device_code: input.device_code,
+    device_code: input.device_code || input.agent_id,
     cate_uuid_fk: input.cate_uuid_fk ?? []
   };
   const data =
@@ -254,11 +254,20 @@ function textValue(value: unknown) {
   return String(value ?? "").trim();
 }
 
-function getAgentFromPayload(payload: AgentInfoResponse | AgentInfo | null | undefined) {
+function getAgentFromPayload(payload: AgentInfoResponse | AgentInfo | null | undefined): AgentInfo | null {
   const maybe = payload as AgentInfoResponse | null | undefined;
   const agent = maybe?.data ?? maybe?.agent ?? payload;
   if (!agent || typeof agent !== "object") return null;
-  return textValue((agent as AgentInfo).agent_id) ? (agent as AgentInfo) : null;
+  const record = agent as AgentInfo;
+  const agentId = textValue(record.agent_id);
+  if (!agentId) return null;
+  return {
+    ...record,
+    agent_id: agentId,
+    agent_name: textValue(record.agent_name),
+    device_code: textValue(record.device_code) || undefined,
+    platform: textValue(record.platform)
+  };
 }
 
 async function getLocalAgentInfo() {
@@ -296,11 +305,15 @@ function assertPrintJobForAgent(job: PrintJob | TableQRPrintJob, agent: AgentInf
 
 export async function checkPrinterAgentConnection(agentUrl = AGENT_URL) {
   try {
-    const { data } = await axios.get<AgentInfo>(`${printerAgentBase(AGENT_URL, agentUrl)}/agent/info`, {
+    const { data } = await axios.get<AgentInfoResponse | AgentInfo>(`${printerAgentBase(AGENT_URL, agentUrl)}/agent/info`, {
       headers: { "x-agent-secret": AGENT_SECRET },
       timeout: 5000
     });
-    return { ok: true, agent: data };
+    assertAgentOk(data as AgentInfoResponse, "Printer agent not ready");
+
+    const agent = getAgentFromPayload(data);
+    if (!agent) throw new ServiceError("Local printer agent identity missing", 500);
+    return { ok: true, agent };
   } catch (error) {
     return { ok: false, error: getPrinterErrorMessage(error) };
   }

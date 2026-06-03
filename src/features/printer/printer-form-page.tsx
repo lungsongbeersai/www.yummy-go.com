@@ -263,7 +263,7 @@ export function PrinterFormPage() {
     setSelectedRoles(editing?.role_codes ?? []);
     setSelectedCategories(categoryUuids(editing));
     setSelectedDevice("");
-    setAgentUrl(editing?.agent_url ?? AGENT_URL);
+    setAgentUrl(textValue(editing?.agent_url) || AGENT_URL);
     setAgentId(editing?.agent_id ?? "");
     setAgentName(editing?.agent_name ?? "");
     setDeviceCode(editing?.device_code ?? "");
@@ -280,15 +280,15 @@ export function PrinterFormPage() {
     setDeviceCode((value) => value || nextDeviceCode);
   }, [agent, isEditing]);
 
-  const canSubmit =
-    Boolean(displayName.trim()) &&
+  const hasAgentIdentity =
     Boolean(agentUrl.trim()) &&
     Boolean(agentId.trim()) &&
-    Boolean(agentName.trim()) &&
-    Boolean(deviceCode.trim()) &&
+    Boolean(agentName.trim());
+  const canSubmit =
+    Boolean(displayName.trim()) &&
     selectedRoles.length > 0 &&
     (connectType === "usb"
-      ? Boolean(interfaceValue.trim())
+      ? Boolean(interfaceValue.trim()) && hasAgentIdentity
       : Boolean(ip.trim()));
 
   const searchUsbDevices = useCallback(
@@ -372,10 +372,10 @@ export function PrinterFormPage() {
         paper_width_mm: Number(paperWidth || 80),
         role_codes: selectedRoles,
         cate_uuid_fk: selectedCategories,
-        agent_url: agentUrl.trim(),
+        agent_url: agentUrl.trim() || AGENT_URL,
         agent_id: agentId.trim(),
         agent_name: agentName.trim(),
-        device_code: deviceCode.trim(),
+        device_code: deviceCode.trim() || agentId.trim(),
       });
       showToast({ title: t("printer.saved"), tone: "success" });
       router.push("/printer");
