@@ -2,7 +2,7 @@ name: Deploy Next SSR (systemd)
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   workflow_dispatch: {}
 
 jobs:
@@ -91,7 +91,7 @@ jobs:
 
           APP_DIR="/var/www/front-end/yummy-go/www.yummy-go.com"
           SERVICE="yummy-go-fe.service"
-          PORT="3001"
+          PORT="3002"
 
           cd "$APP_DIR"
 
@@ -126,7 +126,7 @@ jobs:
             fi
 
             npm rebuild lightningcss || true
-            npm run build:web
+            npm run build
             test -s .next/BUILD_ID
           '
 
