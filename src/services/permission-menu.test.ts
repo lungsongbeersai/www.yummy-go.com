@@ -105,6 +105,51 @@ describe("permission menu service helpers", () => {
     });
   });
 
+  it("keeps manually entered paths in create payloads", () => {
+    expect(
+      buildCreateMainMenuPayload({
+        menu_path: "/",
+        menu_title_eng: "Home",
+        menu_title_la: "Home LA"
+      }).menu_path
+    ).toBe("/");
+    expect(
+      buildCreateMainMenuPayload({
+        menu_path: "sale",
+        menu_title_eng: "Sale",
+        menu_title_la: "Sale LA"
+      }).menu_path
+    ).toBe("sale");
+    expect(
+      buildCreateSubMenuPayload({
+        menu_id: "menu-sale",
+        sub_path: "/saleorder",
+        sub_title_eng: "Sale order",
+        sub_title_la: "Sale order LA"
+      }).sub_path
+    ).toBe("/saleorder");
+  });
+
+  it("keeps ids in create payloads for backend upsert updates", () => {
+    expect(
+      buildCreateMainMenuPayload({
+        menu_id: "menu-1",
+        menu_path: "sale",
+        menu_title_eng: "Sale",
+        menu_title_la: "Sale LA"
+      }).menu_id
+    ).toBe("menu-1");
+    expect(
+      buildCreateSubMenuPayload({
+        menu_id: "menu-1",
+        sub_id: "sub-1",
+        sub_path: "/saleorder",
+        sub_title_eng: "Sale order",
+        sub_title_la: "Sale order LA"
+      }).sub_id
+    ).toBe("sub-1");
+  });
+
   it("builds sort payloads using backend items wrappers", () => {
     expect(buildMainMenuSortPayload([{ menu_id: "menu-a" }, { menu_id: "menu-b" }])).toEqual({
       items: [

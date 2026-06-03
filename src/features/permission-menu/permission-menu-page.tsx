@@ -19,7 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { SettingsModuleShell } from "@/features/settings/settings-shell";
 import { canManagePermissionMenu } from "@/lib/permissions";
-import type { PermissionMainMenu } from "@/services/permission-menu";
+import type { PermissionMainMenu, PermissionSubMenu } from "@/services/permission-menu";
 import { useAuthStore } from "@/stores/auth-store";
 import { usePermissionMenuStore } from "@/stores/permission-menu-store";
 import { useToastStore } from "@/stores/toast-store";
@@ -32,6 +32,35 @@ import {
   menuSubmenus,
   type PermissionMenuDeleteTarget
 } from "./permission-menu-utils";
+
+function editText(value: string | undefined, fallback: string) {
+  const next = value?.trim();
+  return next || fallback;
+}
+
+function mainFormFromMenu(menu: PermissionMainMenu): MainFormState {
+  const fallbackTitle = menu.menu_title || "";
+  return {
+    menu_badge: String(menu.menu_badge || 2),
+    menu_icon: menu.menu_icon || MAIN_FORM_INITIAL.menu_icon,
+    menu_id: menu.menu_id,
+    menu_path: menu.menu_path || "",
+    menu_status: String(menu.menu_status || 1),
+    menu_title_eng: editText(menu.menu_title_eng, fallbackTitle),
+    menu_title_la: editText(menu.menu_title_la, fallbackTitle)
+  };
+}
+
+function subFormFromSubmenu(submenu: PermissionSubMenu): SubFormState {
+  const fallbackTitle = submenu.sub_title || "";
+  return {
+    sub_id: submenu.sub_id,
+    sub_path: submenu.sub_path || "",
+    sub_status: String(submenu.sub_status ?? 1),
+    sub_title_eng: editText(submenu.sub_title_eng, fallbackTitle),
+    sub_title_la: editText(submenu.sub_title_la, fallbackTitle)
+  };
+}
 
 export function PermissionMenuPage() {
   const { i18n, t } = useTranslation();
@@ -119,11 +148,12 @@ export function PermissionMenuPage() {
   }
 
   async function saveMain() {
+    const editing = Boolean(mainForm.menu_id);
     try {
       await createMain(mainForm, language);
       setMainDialogOpen(false);
       setMainForm(MAIN_FORM_INITIAL);
-      showToast({ title: t("permissionMenu.mainSaved"), tone: "success" });
+      showToast({ title: t(editing ? "permissionMenu.mainUpdated" : "permissionMenu.mainSaved"), tone: "success" });
     } catch (error) {
       showToast({
         description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
@@ -135,11 +165,12 @@ export function PermissionMenuPage() {
 
   async function saveSub() {
     if (!subDialogMenu) return;
+    const editing = Boolean(subForm.sub_id);
     try {
       await createSub({ ...subForm, menu_id: subDialogMenu.menu_id }, language);
       setSubDialogMenu(null);
       setSubForm(SUB_FORM_INITIAL);
-      showToast({ title: t("permissionMenu.subSaved"), tone: "success" });
+      showToast({ title: t(editing ? "permissionMenu.subUpdated" : "permissionMenu.subSaved"), tone: "success" });
     } catch (error) {
       showToast({
         description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
@@ -219,6 +250,26 @@ export function PermissionMenuPage() {
     setExpandedMenus(expanded ? new Set(menuIds(menus)) : new Set());
   }
 
+  function openCreateMainDialog() {
+    setMainForm(MAIN_FORM_INITIAL);
+    setMainDialogOpen(true);
+  }
+
+  function openEditMainDialog(menu: PermissionMainMenu) {
+    setMainForm(mainFormFromMenu(menu));
+    setMainDialogOpen(true);
+  }
+
+  function openCreateSubDialog(menu: PermissionMainMenu) {
+    setSubForm(SUB_FORM_INITIAL);
+    setSubDialogMenu(menu);
+  }
+
+  function openEditSubDialog(menu: PermissionMainMenu, submenu: PermissionSubMenu) {
+    setSubForm(subFormFromSubmenu(submenu));
+    setSubDialogMenu(menu);
+  }
+
   const allExpanded = menus.length > 0 && menus.every((menu) => expandedMenus.has(menu.menu_id));
   const expandToggleAction = menus.length ? (
     <div className="flex flex-wrap gap-2">
@@ -240,9 +291,11 @@ export function PermissionMenuPage() {
       expandedMenus={expandedMenus}
       menus={menus}
       sensors={sensors}
-      onAddSub={setSubDialogMenu}
+      onAddSub={openCreateSubDialog}
       onDeleteMain={(menu) => setDeleteTarget({ menu, type: "main" })}
       onDeleteSub={(menu, submenu) => setDeleteTarget({ menu, submenu, type: "sub" })}
+      onEditMain={openEditMainDialog}
+      onEditSub={openEditSubDialog}
       onReorderMain={reorderMain}
       onReorderSub={reorderSub}
       onToggleExpanded={toggleExpanded}
@@ -288,7 +341,7 @@ export function PermissionMenuPage() {
             </Button>
           </div>
         }
-        onAdd={() => setMainDialogOpen(true)}
+        onAdd={openCreateMainDialog}
       />
       <MainMenuDialog
         form={mainForm}

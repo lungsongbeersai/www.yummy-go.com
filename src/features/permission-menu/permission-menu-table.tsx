@@ -16,6 +16,7 @@ import {
   FileText,
   GripVertical,
   Menu,
+  Pencil,
   Plus,
   Trash2
 } from "lucide-react";
@@ -55,6 +56,8 @@ export function PermissionMenuTable({
   onAddSub,
   onDeleteMain,
   onDeleteSub,
+  onEditMain,
+  onEditSub,
   onReorderMain,
   onReorderSub,
   onToggleExpanded
@@ -66,6 +69,8 @@ export function PermissionMenuTable({
   onAddSub: (menu: PermissionMainMenu) => void;
   onDeleteMain: (menu: PermissionMainMenu) => void;
   onDeleteSub: (menu: PermissionMainMenu, submenu: PermissionSubMenu) => void;
+  onEditMain: (menu: PermissionMainMenu) => void;
+  onEditSub: (menu: PermissionMainMenu, submenu: PermissionSubMenu) => void;
   onReorderMain: (event: DragEndEvent) => void;
   onReorderSub: (menu: PermissionMainMenu, event: DragEndEvent) => void;
   onToggleExpanded: (menuId: string) => void;
@@ -107,6 +112,8 @@ export function PermissionMenuTable({
                   onAddSub={() => onAddSub(menu)}
                   onDelete={() => onDeleteMain(menu)}
                   onDeleteSub={(submenu) => onDeleteSub(menu, submenu)}
+                  onEdit={() => onEditMain(menu)}
+                  onEditSub={(submenu) => onEditSub(menu, submenu)}
                   onReorderSub={(event) => onReorderSub(menu, event)}
                   onToggleExpanded={() => onToggleExpanded(menu.menu_id)}
                 />
@@ -128,6 +135,8 @@ function SortableMainMenuRows({
   onAddSub,
   onDelete,
   onDeleteSub,
+  onEdit,
+  onEditSub,
   onReorderSub,
   onToggleExpanded
 }: {
@@ -139,6 +148,8 @@ function SortableMainMenuRows({
   onAddSub: () => void;
   onDelete: () => void;
   onDeleteSub: (submenu: PermissionSubMenu) => void;
+  onEdit: () => void;
+  onEditSub: (submenu: PermissionSubMenu) => void;
   onReorderSub: (event: DragEndEvent) => void;
   onToggleExpanded: () => void;
 }) {
@@ -217,7 +228,7 @@ function SortableMainMenuRows({
           </Badge>
         </TableCell>
         <TableCell className="text-right">
-          <MainMenuRowActions busy={busy} onAddSub={onAddSub} onDelete={onDelete} />
+          <MainMenuRowActions busy={busy} onAddSub={onAddSub} onDelete={onDelete} onEdit={onEdit} />
         </TableCell>
       </TableRow>
       {expanded ? (
@@ -256,6 +267,7 @@ function SortableMainMenuRows({
                             index={subIndex}
                             submenu={submenu}
                             onDelete={() => onDeleteSub(submenu)}
+                            onEdit={() => onEditSub(submenu)}
                           />
                         ))}
                       </TableBody>
@@ -279,12 +291,14 @@ function SortableSubMenuRow({
   busy,
   index,
   submenu,
-  onDelete
+  onDelete,
+  onEdit
 }: {
   busy: boolean;
   index: number;
   submenu: PermissionSubMenu;
   onDelete: () => void;
+  onEdit: () => void;
 }) {
   const { t } = useTranslation();
   const { attributes, isDragging, listeners, setNodeRef, transform, transition } = useSortable({
@@ -331,7 +345,7 @@ function SortableSubMenuRow({
         </Badge>
       </TableCell>
       <TableCell className="text-right">
-        <SubMenuRowActions busy={busy} onDelete={onDelete} />
+        <SubMenuRowActions busy={busy} onDelete={onDelete} onEdit={onEdit} />
       </TableCell>
     </TableRow>
   );
@@ -340,11 +354,13 @@ function SortableSubMenuRow({
 function MainMenuRowActions({
   busy,
   onAddSub,
-  onDelete
+  onDelete,
+  onEdit
 }: {
   busy: boolean;
   onAddSub: () => void;
   onDelete: () => void;
+  onEdit: () => void;
 }) {
   const { t } = useTranslation();
 
@@ -357,6 +373,10 @@ function MainMenuRowActions({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
         <DropdownMenuGroup>
+          <DropdownMenuItem disabled={busy} onSelect={onEdit}>
+            <Pencil aria-hidden />
+            {t("actions.edit")}
+          </DropdownMenuItem>
           <DropdownMenuItem disabled={busy} onSelect={onAddSub}>
             <Plus aria-hidden />
             {t("permissionMenu.addSub")}
@@ -376,10 +396,12 @@ function MainMenuRowActions({
 
 function SubMenuRowActions({
   busy,
-  onDelete
+  onDelete,
+  onEdit
 }: {
   busy: boolean;
   onDelete: () => void;
+  onEdit: () => void;
 }) {
   const { t } = useTranslation();
 
@@ -391,6 +413,13 @@ function SubMenuRowActions({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-44">
+        <DropdownMenuGroup>
+          <DropdownMenuItem disabled={busy} onSelect={onEdit}>
+            <Pencil aria-hidden />
+            {t("actions.edit")}
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+        <DropdownMenuSeparator />
         <DropdownMenuGroup>
           <DropdownMenuItem disabled={busy} variant="destructive" onSelect={onDelete}>
             <Trash2 aria-hidden />

@@ -34,6 +34,7 @@ export function MainMenuDialog({
   onSave: () => void;
 }) {
   const { t } = useTranslation();
+  const editing = Boolean(form.menu_id);
   const canSave = Boolean(
     form.menu_title_la.trim() && form.menu_title_eng.trim() && form.menu_path.trim()
   ) && !saving;
@@ -48,8 +49,10 @@ export function MainMenuDialog({
           }}
         >
           <SettingsDialogHeader>
-            <DialogTitle>{t("permissionMenu.createMain")}</DialogTitle>
-            <DialogDescription>{t("permissionMenu.mainFormDescription")}</DialogDescription>
+            <DialogTitle>{t(editing ? "permissionMenu.editMain" : "permissionMenu.createMain")}</DialogTitle>
+            <DialogDescription>
+              {t(editing ? "permissionMenu.mainEditDescription" : "permissionMenu.mainFormDescription")}
+            </DialogDescription>
           </SettingsDialogHeader>
           <SettingsDialogBody>
             <FieldGroup className="gap-4">
@@ -171,6 +174,7 @@ export function SubMenuDialog({
 }) {
   const { t } = useTranslation();
   const open = Boolean(menu);
+  const editing = Boolean(form.sub_id);
   const canSave = Boolean(
     form.sub_title_la.trim() && form.sub_title_eng.trim() && form.sub_path.trim() && menu?.menu_id
   ) && !saving;
@@ -185,9 +189,11 @@ export function SubMenuDialog({
           }}
         >
           <SettingsDialogHeader>
-            <DialogTitle>{t("permissionMenu.createSub")}</DialogTitle>
+            <DialogTitle>{t(editing ? "permissionMenu.editSub" : "permissionMenu.createSub")}</DialogTitle>
             <DialogDescription>
-              {t("permissionMenu.subFormDescription", { title: menu?.menu_title ?? "" })}
+              {t(editing ? "permissionMenu.subEditDescription" : "permissionMenu.subFormDescription", {
+                title: menu?.menu_title ?? ""
+              })}
             </DialogDescription>
           </SettingsDialogHeader>
           <SettingsDialogBody>

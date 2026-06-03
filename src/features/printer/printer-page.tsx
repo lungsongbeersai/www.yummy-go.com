@@ -120,10 +120,9 @@ export function PrinterPage() {
   const loading = usePrinterStore((state) => state.loading);
   const loadingAgentFiles = usePrinterStore((state) => state.loadingAgentFiles);
   const printing = usePrinterStore((state) => state.printing);
-  const loadPrinters = usePrinterStore((state) => state.loadPrinters);
+  const loadPrintersForLocalAgent = usePrinterStore((state) => state.loadPrintersForLocalAgent);
   const loadAgentFiles = usePrinterStore((state) => state.loadAgentFiles);
   const loadRoles = usePrinterStore((state) => state.loadRoles);
-  const checkAgent = usePrinterStore((state) => state.checkAgent);
   const testPrinterAction = usePrinterStore((state) => state.test);
   const toggleActive = usePrinterStore((state) => state.toggleActive);
   const removePrinter = usePrinterStore((state) => state.remove);
@@ -194,10 +193,9 @@ export function PrinterPage() {
     if (!user?.uuid) return;
     try {
       await Promise.all([
-        loadPrinters({ login_uuid_fk: user.uuid, lang: language }),
+        loadPrintersForLocalAgent({ login_uuid_fk: user.uuid, lang: language }),
         loadRoles(language),
         storeUuid ? loadCategories(language, storeUuid) : Promise.resolve([]),
-        checkAgent()
       ]);
     } catch (error) {
       showToast({
@@ -206,7 +204,7 @@ export function PrinterPage() {
         tone: "error"
       });
     }
-  }, [checkAgent, language, loadCategories, loadPrinters, loadRoles, showToast, storeUuid, t, user?.uuid]);
+  }, [language, loadCategories, loadPrintersForLocalAgent, loadRoles, showToast, storeUuid, t, user?.uuid]);
 
   useEffect(() => {
     void load();
@@ -269,7 +267,7 @@ export function PrinterPage() {
     setTogglingUuid(row.print_config_uuid);
     try {
       await toggleActive(row.print_config_uuid);
-      await loadPrinters({ login_uuid_fk: user.uuid, lang: language });
+      await loadPrintersForLocalAgent({ login_uuid_fk: user.uuid, lang: language });
       showToast({
         title: wasActive ? t("printer.disableSuccess") : t("printer.activateSuccess"),
         tone: "success"

@@ -30,6 +30,7 @@ import {
   type CategoryRole,
   type DefaultCategoryByRoleInput,
   type ExecuteKitchenPrintInput,
+  type FetchPrintersForLocalAgentParams,
   type FetchPrintersParams,
   type PendingPrintJobData,
   type PrintJob,
@@ -46,6 +47,11 @@ import {
 import { errorMessage } from "@/stores/store-utils";
 
 type AgentStatus = "unchecked" | "connected" | "offline";
+const AGENT_IDENTITY_MISSING = "Local printer agent identity missing";
+
+function textValue(value: unknown) {
+  return String(value ?? "").trim();
+}
 
 interface PrinterState {
   printers: Printer[];
@@ -67,6 +73,7 @@ interface PrinterState {
   printing: boolean;
   error: string | null;
   loadPrinters: (params: FetchPrintersParams) => Promise<Printer[]>;
+  loadPrintersForLocalAgent: (params: FetchPrintersForLocalAgentParams) => Promise<Printer[]>;
   loadOptions: (loginUuid: string, lang?: string) => Promise<Printer[]>;
   loadAgentFiles: () => Promise<AgentFile[]>;
   discover: (mode?: "usb" | "network") => Promise<SearchPrinterResult[]>;
@@ -114,6 +121,42 @@ export const usePrinterStore = create<PrinterState>((set) => ({
     set({ loading: true, error: null });
     try {
       const printers = await getPrinters(params);
+      set({ printers, loading: false });
+      return printers;
+    } catch (error) {
+      set({ error: errorMessage(error), loading: false });
+      throw error;
+    }
+  },
+  loadPrintersForLocalAgent: async (params) => {
+    set({ loading: true, error: null });
+
+    const result = await checkPrinterAgentConnection();
+    const agent = result.ok ? result.agent : null;
+    const agentId = textValue(agent?.agent_id);
+    const deviceCode = textValue(agent?.device_code);
+
+    if (!result.ok || !agentId || !deviceCode) {
+      const error = result.ok ? AGENT_IDENTITY_MISSING : result.error;
+      set({
+        printers: [],
+        agent,
+        agentStatus: "offline",
+        agentError: error,
+        error,
+        loading: false
+      });
+      return [];
+    }
+
+    set({ agent, agentStatus: "connected", agentError: null });
+
+    try {
+      const printers = await getPrinters({
+        ...params,
+        agent_id: agentId,
+        device_code: deviceCode
+      });
       set({ printers, loading: false });
       return printers;
     } catch (error) {

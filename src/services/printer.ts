@@ -85,7 +85,17 @@ interface SearchPrintersResponse extends ApiEntity {
   error?: string;
   message?: string;
 }
-export type FetchPrinterResponse = ApiListResponse<Printer>;
+interface FetchPrinterPayload extends ApiEntity {
+  login_uuid_fk?: string;
+  branch_uuid_fk?: string;
+  agent_id?: string;
+  device_code?: string;
+  total?: number;
+  data?: Printer[];
+}
+export interface FetchPrinterResponse extends Omit<ApiListResponse<Printer>, "data"> {
+  data: Printer[] | FetchPrinterPayload;
+}
 export type PrinterRolesResponse = ApiDataResponse<PrinterRole[]>;
 export type AgentFilesResponse = ApiListResponse<AgentFile>;
 export interface SavePrinterInput extends ApiEntity {
@@ -146,7 +156,12 @@ export interface PrinterCategoryItem extends ApiEntity { cate_uuid: string }
 export interface PrinterCategoryRole extends ApiEntity { print_config_uuid: string; categories: PrinterCategoryItem[] }
 export interface ResolvedPrinter extends Printer {}
 export interface SaveCategoryPrinterInput extends ApiEntity { login_uuid_fk: string; cate_uuid_fk: string[]; print_config_uuid_fk: string }
-export interface FetchPrintersParams extends FetchParams { login_uuid_fk: string }
+export interface FetchPrintersParams extends FetchParams {
+  login_uuid_fk: string;
+  agent_id: string;
+  device_code: string;
+}
+export interface FetchPrintersForLocalAgentParams extends FetchParams { login_uuid_fk: string }
 export interface AckResultItem { print_job_item_uuid: string; status: "success" | "failed"; reason?: string }
 export interface AckPayload { print_job_uuid: string; results: AckResultItem[] }
 export interface PendingPrintItem extends ApiEntity {
@@ -197,9 +212,14 @@ export async function searchPrinters(mode: "usb" | "network" = "usb") {
 
 export async function getPrinters(params: FetchPrintersParams) {
   const result = await apiRequest<FetchPrinterResponse>("get", "/api/v1/printer/fetch", {
-    params: { login_uuid_fk: params.login_uuid_fk, lang: toApiLanguage(params.lang) }
+    params: {
+      login_uuid_fk: params.login_uuid_fk,
+      agent_id: params.agent_id,
+      device_code: params.device_code,
+      lang: toApiLanguage(params.lang)
+    }
   });
-  return (result.data ?? []).map((item) => mapPrinter(item));
+  return printerRowsFromFetchResponse(result).map((item) => mapPrinter(item));
 }
 
 export async function getPrinterOptions(login_uuid_fk: string, lang = "la") {
@@ -254,6 +274,11 @@ function textValue(value: unknown) {
   return String(value ?? "").trim();
 }
 
+function printerRowsFromFetchResponse(result: FetchPrinterResponse) {
+  if (Array.isArray(result.data)) return result.data;
+  return Array.isArray(result.data?.data) ? result.data.data : [];
+}
+
 function getAgentFromPayload(payload: AgentInfoResponse | AgentInfo | null | undefined): AgentInfo | null {
   const maybe = payload as AgentInfoResponse | null | undefined;
   const agent = maybe?.data ?? maybe?.agent ?? payload;
@@ -303,7 +328,11 @@ function assertPrintJobForAgent(job: PrintJob | TableQRPrintJob, agent: AgentInf
   }
 }
 
-export async function checkPrinterAgentConnection(agentUrl = AGENT_URL) {
+export type CheckPrinterAgentConnectionResult =
+  | { ok: true; agent: AgentInfo }
+  | { ok: false; error: string };
+
+export async function checkPrinterAgentConnection(agentUrl = AGENT_URL): Promise<CheckPrinterAgentConnectionResult> {
   try {
     const { data } = await axios.get<AgentInfoResponse | AgentInfo>(`${printerAgentBase(AGENT_URL, agentUrl)}/agent/info`, {
       headers: { "x-agent-secret": AGENT_SECRET },

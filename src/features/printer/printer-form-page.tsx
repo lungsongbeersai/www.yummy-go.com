@@ -151,10 +151,11 @@ export function PrinterFormPage() {
   const loading = usePrinterStore((state) => state.loading);
   const searching = usePrinterStore((state) => state.searching);
   const saving = usePrinterStore((state) => state.saving);
-  const loadPrinters = usePrinterStore((state) => state.loadPrinters);
+  const loadPrintersForLocalAgent = usePrinterStore(
+    (state) => state.loadPrintersForLocalAgent,
+  );
   const loadRoles = usePrinterStore((state) => state.loadRoles);
   const discoverPrinters = usePrinterStore((state) => state.discover);
-  const checkAgent = usePrinterStore((state) => state.checkAgent);
   const savePrinter = usePrinterStore((state) => state.save);
   const categories = (useReferenceStore((state) => state.options.categories) ??
     EMPTY_CATEGORIES) as Category[];
@@ -215,10 +216,9 @@ export function PrinterFormPage() {
     if (!user?.uuid) return;
     try {
       await Promise.all([
-        loadPrinters({ login_uuid_fk: user.uuid }),
+        loadPrintersForLocalAgent({ login_uuid_fk: user.uuid, lang: language }),
         loadRoles(language),
         storeUuid ? loadCategories(language, storeUuid) : Promise.resolve([]),
-        checkAgent(),
       ]);
     } catch (error) {
       showToast({
@@ -228,10 +228,9 @@ export function PrinterFormPage() {
       });
     }
   }, [
-    checkAgent,
     language,
     loadCategories,
-    loadPrinters,
+    loadPrintersForLocalAgent,
     loadRoles,
     showToast,
     storeUuid,

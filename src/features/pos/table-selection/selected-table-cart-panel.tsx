@@ -17,6 +17,7 @@ import { Tabs, TabsContent, TabsList } from "@/components/ui/tabs";
 import {
   CUSTOMER_DISPLAY_CHANNEL,
   CUSTOMER_DISPLAY_STORAGE_KEY,
+  type CustomerDisplayPayload,
 } from "@/features/customer-display/customer-display-sync";
 import { cn } from "@/lib/utils";
 import type { CartItem, CartOrder, PosTable, PosZone } from "@/services/pos";
@@ -38,6 +39,13 @@ import {
   CartPanelLoading,
   ConfirmAllLoadingDialog,
 } from "./cart-dialogs";
+import { CustomerDisplayPickerDialog } from "./customer-display-picker-dialog";
+import {
+  CUSTOMER_DISPLAY_TARGET_STORAGE_KEY,
+  customerDisplayIdFromStorage,
+  defaultCustomerDisplayId,
+  displayIsConnected,
+} from "./customer-display-picker-utils";
 import { CartSummaryDock } from "./cart-summary-dock";
 import { CartTabItems, CartTabTrigger } from "./cart-items";
 import type { PaymentDialogProps } from "./payment-dialog";
@@ -206,6 +214,19 @@ export function SelectedTableCartPanel({
   const [billDiscountPending, setBillDiscountPending] = useState(false);
   const [tableActionsOpen, setTableActionsOpen] = useState(false);
   const [tableQrOpen, setTableQrOpen] = useState(false);
+  const [customerDisplayOpen, setCustomerDisplayOpen] = useState(false);
+  const [customerDisplayInfo, setCustomerDisplayInfo] =
+    useState<ElectronDisplayInfo | null>(null);
+  const [customerDisplayError, setCustomerDisplayError] = useState<string | null>(
+    null,
+  );
+  const [customerDisplayLoading, setCustomerDisplayLoading] = useState(false);
+  const [customerDisplayOpening, setCustomerDisplayOpening] = useState(false);
+  const [customerDisplayPayload, setCustomerDisplayPayload] =
+    useState<CustomerDisplayPayload | null>(null);
+  const [selectedCustomerDisplayId, setSelectedCustomerDisplayId] = useState<
+    number | null
+  >(null);
   const [paymentContext, setPaymentContext] = useState<PaymentContext | null>(
     null,
   );
@@ -781,6 +802,51 @@ export function SelectedTableCartPanel({
     });
   }
 
+  function openBrowserCustomerDisplayScreen(payload: CustomerDisplayPayload) {
+    window.localStorage.setItem(
+      CUSTOMER_DISPLAY_STORAGE_KEY,
+      JSON.stringify(payload),
+    );
+    const channel =
+      typeof BroadcastChannel === "undefined"
+        ? null
+        : new BroadcastChannel(CUSTOMER_DISPLAY_CHANNEL);
+    window.open("/customer-display", "_blank", "noopener,noreferrer");
+    channel?.postMessage(payload);
+    window.setTimeout(() => {
+      channel?.postMessage(payload);
+      channel?.close();
+    }, 600);
+  }
+
+  async function refreshCustomerDisplayScreens(preferCurrent = true) {
+    if (!window.electronAPI) return null;
+
+    setCustomerDisplayLoading(true);
+    setCustomerDisplayError(null);
+    try {
+      const info = await window.electronAPI.getDisplays();
+      setCustomerDisplayInfo(info);
+      setSelectedCustomerDisplayId((current) => {
+        const stored = customerDisplayIdFromStorage(
+          window.localStorage.getItem(CUSTOMER_DISPLAY_TARGET_STORAGE_KEY),
+        );
+        const preferred =
+          preferCurrent && displayIsConnected(info, current)
+            ? current
+            : stored;
+        return defaultCustomerDisplayId(info, preferred);
+      });
+      return info;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+      setCustomerDisplayError(message);
+      return null;
+    } finally {
+      setCustomerDisplayLoading(false);
+    }
+  }
+
   async function openCustomerDisplayScreen() {
     if (!selectedTable) return;
 
@@ -790,34 +856,82 @@ export function SelectedTableCartPanel({
       table: selectedTable,
     });
 
-    try {
-      if (window.electronAPI) {
-        await window.electronAPI.openDisplay();
-        window.electronAPI.sendToDisplay(payload);
-      } else {
-        window.localStorage.setItem(
-          CUSTOMER_DISPLAY_STORAGE_KEY,
-          JSON.stringify(payload),
-        );
-        const channel =
-          typeof BroadcastChannel === "undefined"
-            ? null
-            : new BroadcastChannel(CUSTOMER_DISPLAY_CHANNEL);
-        window.open("/customer-display", "_blank", "noopener,noreferrer");
-        channel?.postMessage(payload);
-        window.setTimeout(() => {
-          channel?.postMessage(payload);
-          channel?.close();
-        }, 600);
+    if (!window.electronAPI) {
+      try {
+        openBrowserCustomerDisplayScreen(payload);
+        showToast({ title: t("pos.displayOpened"), tone: "success" });
+      } catch (error) {
+        showToast({
+          title: t("pos.displayOpenFailed"),
+          description: error instanceof Error ? error.message : "",
+          tone: "error",
+        });
       }
+      return;
+    }
 
+    setCustomerDisplayPayload(payload);
+    setCustomerDisplayOpen(true);
+    await refreshCustomerDisplayScreens(false);
+  }
+
+  async function openSelectedCustomerDisplayScreen() {
+    if (!customerDisplayPayload || selectedCustomerDisplayId === null || !window.electronAPI) return;
+
+    setCustomerDisplayOpening(true);
+    setCustomerDisplayError(null);
+    try {
+      const result = await window.electronAPI.openDisplay(selectedCustomerDisplayId);
+      const displayId = result.displayId ?? selectedCustomerDisplayId;
+      window.localStorage.setItem(CUSTOMER_DISPLAY_TARGET_STORAGE_KEY, String(displayId));
+      setSelectedCustomerDisplayId(displayId);
+      window.electronAPI.sendToDisplay(customerDisplayPayload);
+      setCustomerDisplayInfo(await window.electronAPI.getDisplays());
+      setCustomerDisplayOpen(false);
       showToast({ title: t("pos.displayOpened"), tone: "success" });
     } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+      setCustomerDisplayError(message);
       showToast({
         title: t("pos.displayOpenFailed"),
-        description: error instanceof Error ? error.message : "",
+        description: message,
         tone: "error",
       });
+    } finally {
+      setCustomerDisplayOpening(false);
+    }
+  }
+
+  async function closeCustomerDisplayScreen() {
+    if (!window.electronAPI) return;
+
+    setCustomerDisplayOpening(true);
+    setCustomerDisplayError(null);
+    try {
+      await window.electronAPI.closeDisplay();
+      const info = await window.electronAPI.getDisplays();
+      setCustomerDisplayInfo(info);
+      setSelectedCustomerDisplayId((current) =>
+        defaultCustomerDisplayId(
+          info,
+          displayIsConnected(info, current)
+            ? current
+            : customerDisplayIdFromStorage(
+                window.localStorage.getItem(CUSTOMER_DISPLAY_TARGET_STORAGE_KEY),
+              ),
+        )
+      );
+      showToast({ title: t("pos.displayClosed"), tone: "success" });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+      setCustomerDisplayError(message);
+      showToast({
+        title: t("pos.displayCloseFailed"),
+        description: message,
+        tone: "error",
+      });
+    } finally {
+      setCustomerDisplayOpening(false);
     }
   }
 
@@ -1034,6 +1148,19 @@ export function SelectedTableCartPanel({
           onOpenChange={setTableQrOpen}
         />
       ) : null}
+      <CustomerDisplayPickerDialog
+        displayInfo={customerDisplayInfo}
+        error={customerDisplayError}
+        loading={customerDisplayLoading}
+        open={customerDisplayOpen}
+        opening={customerDisplayOpening}
+        selectedDisplayId={selectedCustomerDisplayId}
+        onCloseCustomerDisplay={() => void closeCustomerDisplayScreen()}
+        onOpenChange={setCustomerDisplayOpen}
+        onOpenSelectedDisplay={() => void openSelectedCustomerDisplayScreen()}
+        onRefresh={() => void refreshCustomerDisplayScreens()}
+        onSelectedDisplayChange={setSelectedCustomerDisplayId}
+      />
       {selectedTable && paymentContext ? (
         <PaymentDialog
           open

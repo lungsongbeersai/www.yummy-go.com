@@ -94,6 +94,7 @@ export function buildProjectRouteOptions() {
 export const PROJECT_ROUTE_OPTIONS = buildProjectRouteOptions();
 
 export const MAIN_FORM_INITIAL = {
+  menu_id: "",
   menu_badge: "2",
   menu_icon: "file-text",
   menu_path: "",
@@ -103,6 +104,7 @@ export const MAIN_FORM_INITIAL = {
 };
 
 export const SUB_FORM_INITIAL = {
+  sub_id: "",
   sub_path: "",
   sub_status: "1",
   sub_title_eng: "",

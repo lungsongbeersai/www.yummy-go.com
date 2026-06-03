@@ -18,7 +18,7 @@ import {
 } from "@/features/settings/settings-shell";
 import { cn } from "@/lib/utils";
 import { NAV_ICON_OPTIONS, PROJECT_ROUTE_OPTIONS, type PickerOption } from "./permission-menu-options";
-import { iconOption, optionLabel, pathOption } from "./permission-menu-utils";
+import { iconOption, optionLabel } from "./permission-menu-utils";
 
 interface ResolvedIconOption extends PickerOption {
   label: string;
@@ -220,84 +220,84 @@ export function PathPicker({
 }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
-  const selected = value ? pathOption(value) : null;
-  const SelectedIcon = selected?.icon ?? FileText;
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          aria-expanded={open}
-          aria-haspopup="listbox"
-          className="min-h-10 w-full justify-between py-2"
-          disabled={disabled}
-          id={id}
-          role="combobox"
-          type="button"
-          variant="outline"
+    <div className="flex min-w-0 items-center gap-2">
+      <Input
+        aria-autocomplete="list"
+        autoComplete="off"
+        disabled={disabled}
+        id={id}
+        name={id}
+        placeholder={t("permissionMenu.manualPathPlaceholder")}
+        spellCheck={false}
+        value={value}
+        onChange={(event) => onValueChange(event.target.value)}
+      />
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            aria-expanded={open}
+            aria-haspopup="listbox"
+            aria-label={t("permissionMenu.openPathSuggestions")}
+            disabled={disabled}
+            role="combobox"
+            size="iconSm"
+            type="button"
+            variant="outline"
+          >
+            <ChevronsUpDown aria-hidden />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent
+          align="end"
+          className="w-80 max-w-[calc(100vw-2rem)] overflow-hidden p-0"
+          portalled={false}
+          side="bottom"
+          sideOffset={6}
+          onTouchMove={(event) => event.stopPropagation()}
+          onWheel={(event) => event.stopPropagation()}
         >
-          <span className="flex min-w-0 items-center gap-2 text-left">
-            {selected ? <SelectedIcon aria-hidden /> : null}
-            <span className="min-w-0">
-              <span className={cn("block truncate", !selected && "text-muted-foreground")}>
-                {selected ? optionLabel(selected, t) : t("permissionMenu.selectPath")}
-              </span>
-              {selected ? (
-                <span className="block truncate font-mono text-xs text-muted-foreground">{selected.value}</span>
-              ) : null}
-            </span>
-          </span>
-          <ChevronsUpDown className="opacity-50" data-icon="inline-end" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent
-        align="start"
-        className="w-[var(--radix-popover-trigger-width)] overflow-hidden p-0"
-        portalled={false}
-        side="bottom"
-        sideOffset={6}
-        onTouchMove={(event) => event.stopPropagation()}
-        onWheel={(event) => event.stopPropagation()}
-      >
-        <Command
-          className="[&_[data-slot=command-input-wrapper]]:h-9 [&_[data-slot=command-input]]:h-9 [&_[data-slot=command-item]]:py-2"
-          filter={(optionValue, search) => (optionValue.includes(search.toLowerCase()) ? 1 : 0)}
-        >
-          <CommandInput
-            aria-label={t("permissionMenu.searchPath")}
-            autoComplete="off"
-            name="permission_path_search"
-            placeholder={t("permissionMenu.searchPath")}
-            spellCheck={false}
-          />
-          <CommandList className="max-h-60 overscroll-contain">
-            <CommandEmpty>{t("permissionMenu.noPathsFound")}</CommandEmpty>
-            <CommandGroup>
-              {PROJECT_ROUTE_OPTIONS.map((option) => {
-                const Icon = option.icon ?? FileText;
-                const label = optionLabel(option, t);
-                return (
-                  <CommandItem
-                    key={option.value}
-                    value={`${option.value} ${label}`.toLowerCase()}
-                    onSelect={() => {
-                      onValueChange(option.value);
-                      setOpen(false);
-                    }}
-                  >
-                    <Icon aria-hidden />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate font-semibold">{label}</span>
-                      <span className="block truncate font-mono text-xs text-muted-foreground">{option.value}</span>
-                    </span>
-                    <Check className={cn("ml-auto", option.value === value ? "opacity-100" : "opacity-0")} />
-                  </CommandItem>
-                );
-              })}
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
+          <Command
+            className="[&_[data-slot=command-input-wrapper]]:h-9 [&_[data-slot=command-input]]:h-9 [&_[data-slot=command-item]]:py-2"
+            filter={(optionValue, search) => (optionValue.includes(search.toLowerCase()) ? 1 : 0)}
+          >
+            <CommandInput
+              aria-label={t("permissionMenu.searchPath")}
+              autoComplete="off"
+              name="permission_path_search"
+              placeholder={t("permissionMenu.searchPath")}
+              spellCheck={false}
+            />
+            <CommandList className="max-h-60 overscroll-contain">
+              <CommandEmpty>{t("permissionMenu.noPathsFound")}</CommandEmpty>
+              <CommandGroup heading={t("permissionMenu.routeSuggestions")}>
+                {PROJECT_ROUTE_OPTIONS.map((option) => {
+                  const Icon = option.icon ?? FileText;
+                  const label = optionLabel(option, t);
+                  return (
+                    <CommandItem
+                      key={option.value}
+                      value={`${option.value} ${label}`.toLowerCase()}
+                      onSelect={() => {
+                        onValueChange(option.value);
+                        setOpen(false);
+                      }}
+                    >
+                      <Icon aria-hidden />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-semibold">{label}</span>
+                        <span className="block truncate font-mono text-xs text-muted-foreground">{option.value}</span>
+                      </span>
+                      <Check className={cn("ml-auto", option.value === value ? "opacity-100" : "opacity-0")} />
+                    </CommandItem>
+                  );
+                })}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+    </div>
   );
 }

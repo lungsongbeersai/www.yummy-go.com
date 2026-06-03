@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, screen } from "electron";
+import { app, BrowserWindow, ipcMain, screen, type Display } from "electron";
 import { spawn, type ChildProcess } from "child_process";
 import path from "path";
 
@@ -6,6 +6,7 @@ let mainWindow: BrowserWindow | null = null;
 let customerWindow: BrowserWindow | null = null;
 let nextProcess: ChildProcess | null = null;
 let customerReady = false;
+let activeCustomerDisplayId: number | null = null;
 const pendingMessages: unknown[] = [];
 
 const isDev = process.env.NODE_ENV !== "production" && !app.isPackaged;
@@ -40,10 +41,38 @@ function createMainWindow() {
   });
 }
 
+function displayInfo(display: Display, primary: Display) {
+  const active = activeCustomerDisplayId === display.id;
+  return {
+    id: display.id,
+    isActive: active,
+    isPrimary: display.id === primary.id,
+    label: `${display.bounds.width} x ${display.bounds.height}`,
+    scaleFactor: display.scaleFactor,
+    width: display.bounds.width,
+    height: display.bounds.height,
+    x: display.bounds.x,
+    y: display.bounds.y
+  };
+}
+
+function displaySnapshot() {
+  const displays = screen.getAllDisplays();
+  const primary = screen.getPrimaryDisplay();
+
+  return {
+    activeCustomerDisplayId,
+    count: displays.length,
+    hasSecondary: displays.length > 1,
+    primary: displayInfo(primary, primary),
+    displays: displays.map((display) => displayInfo(display, primary))
+  };
+}
+
 function openCustomerDisplay(targetDisplayId?: number) {
   const displays = screen.getAllDisplays();
   const primary = screen.getPrimaryDisplay();
-  const target = targetDisplayId
+  const target = typeof targetDisplayId === "number"
     ? displays.find((display) => display.id === targetDisplayId) ?? primary
     : displays.find((display) => display.id !== primary.id) ?? primary;
 
@@ -55,7 +84,9 @@ function openCustomerDisplay(targetDisplayId?: number) {
   customerReady = false;
   pendingMessages.length = 0;
 
-  customerWindow = new BrowserWindow({
+  activeCustomerDisplayId = target.id;
+
+  const nextWindow = new BrowserWindow({
     width: target.bounds.width,
     height: target.bounds.height,
     x: target.bounds.x,
@@ -70,32 +101,43 @@ function openCustomerDisplay(targetDisplayId?: number) {
       nodeIntegration: false
     }
   });
+  customerWindow = nextWindow;
 
-  void customerWindow.loadURL(`${BASE_URL}/customer-display`);
-  customerWindow.once("ready-to-show", () => {
-    customerWindow?.show();
-    customerWindow?.setFullScreen(true);
+  void nextWindow.loadURL(`${BASE_URL}/customer-display`);
+  nextWindow.once("ready-to-show", () => {
+    if (customerWindow !== nextWindow || nextWindow.isDestroyed()) return;
+    nextWindow.show();
+    nextWindow.setFullScreen(true);
   });
-  customerWindow.on("closed", () => {
+  nextWindow.on("closed", () => {
+    if (customerWindow !== nextWindow) return;
     customerWindow = null;
     customerReady = false;
+    activeCustomerDisplayId = null;
     pendingMessages.length = 0;
   });
+
+  return {
+    displayId: target.id,
+    ok: true
+  };
 }
 
 function closeCustomerDisplay() {
   customerWindow?.close();
   customerWindow = null;
+  activeCustomerDisplayId = null;
+  customerReady = false;
+  pendingMessages.length = 0;
 }
 
 function setupIpc() {
   ipcMain.handle("pos:open-display", (_event, targetDisplayId?: number) => {
-    openCustomerDisplay(targetDisplayId);
-    return true;
+    return openCustomerDisplay(targetDisplayId);
   });
   ipcMain.handle("pos:close-display", () => {
     closeCustomerDisplay();
-    return true;
+    return { ok: true };
   });
   ipcMain.on("pos:send-to-display", (_event, data: unknown) => {
     if (!customerWindow || customerWindow.isDestroyed()) return;
@@ -110,19 +152,7 @@ function setupIpc() {
     pendingMessages.length = 0;
   });
   ipcMain.handle("pos:get-displays", () => {
-    const displays = screen.getAllDisplays();
-    const primary = screen.getPrimaryDisplay();
-    return {
-      count: displays.length,
-      hasSecondary: displays.length > 1,
-      primary: { id: primary.id, width: primary.bounds.width, height: primary.bounds.height },
-      displays: displays.map((display) => ({
-        id: display.id,
-        isPrimary: display.id === primary.id,
-        width: display.bounds.width,
-        height: display.bounds.height
-      }))
-    };
+    return displaySnapshot();
   });
 }
 
@@ -155,12 +185,12 @@ app.whenReady().then(async () => {
   await startNextServer();
   createMainWindow();
 
-  if (screen.getAllDisplays().length > 1) openCustomerDisplay();
-  screen.on("display-added", () => {
-    if (screen.getAllDisplays().length > 1) openCustomerDisplay();
-  });
   screen.on("display-removed", () => {
-    if (screen.getAllDisplays().length <= 1) closeCustomerDisplay();
+    if (!activeCustomerDisplayId) return;
+    const activeStillConnected = screen
+      .getAllDisplays()
+      .some((display) => display.id === activeCustomerDisplayId);
+    if (!activeStillConnected) closeCustomerDisplay();
   });
 });
 
