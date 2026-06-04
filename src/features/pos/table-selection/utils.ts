@@ -1,5 +1,5 @@
 import { money } from "@/lib/format";
-import type { CustomerDisplayPayload } from "@/features/customer-display/customer-display-sync";
+import type { CustomerDisplayPayload } from "@/features/customer-display/shared/customer-display-sync";
 import {
   ProductImageStatus,
   TableStatus,

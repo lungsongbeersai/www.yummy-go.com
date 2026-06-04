@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { SETTINGS } from "@/features/settings/settings-config";
+import { SETTINGS } from "@/features/settings/shared/settings-config";
 import { canViewSettingModule } from "@/lib/permissions";
 import { useAuthStore } from "@/stores/auth-store";
 

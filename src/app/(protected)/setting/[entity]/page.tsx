@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
-import { SettingsEntityRoute } from "@/features/settings/settings-entity-route";
-import { SETTINGS } from "@/features/settings/settings-config";
+import { SettingsEntityRoute } from "@/features/settings/shared/settings-entity-route";
+import { SETTINGS } from "@/features/settings/shared/settings-config";
 
 interface PageProps {
   params: Promise<{ entity: string }>;

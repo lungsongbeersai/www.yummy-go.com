@@ -31,6 +31,7 @@
   --sidebar-border: 214 28% 87%;
   --sidebar-ring: 148 84% 32%;
   --app: 211 44% 98%;
+  --pos-system-bottom-safe-area: env(safe-area-inset-bottom, 0px);
 }
 
 .dark {
@@ -103,6 +104,12 @@ html {
   min-height: 100%;
 }
 
+@media (pointer: coarse) {
+  :root {
+    --pos-system-bottom-safe-area: max(env(safe-area-inset-bottom, 0px), 2.25rem);
+  }
+}
+
 .pos-soft-light-zone {
   --background: 210 38% 98%;
   --foreground: 224 42% 11%;
@@ -141,6 +148,14 @@ html {
   --border: 218 18% 20%;
   --input: 218 18% 20%;
   --ring: 151 68% 43%;
+}
+
+.pos-safe-bottom-padding {
+  padding-bottom: calc(0.5rem + var(--pos-system-bottom-safe-area));
+}
+
+.pos-safe-bottom-offset {
+  bottom: calc(1rem + var(--pos-system-bottom-safe-area));
 }
 
 .login-light-zone {

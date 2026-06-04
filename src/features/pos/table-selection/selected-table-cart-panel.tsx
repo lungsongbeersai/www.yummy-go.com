@@ -18,7 +18,7 @@ import {
   CUSTOMER_DISPLAY_CHANNEL,
   CUSTOMER_DISPLAY_STORAGE_KEY,
   type CustomerDisplayPayload,
-} from "@/features/customer-display/customer-display-sync";
+} from "@/features/customer-display/shared/customer-display-sync";
 import { cn } from "@/lib/utils";
 import type { CartItem, CartOrder, PosTable, PosZone } from "@/services/pos";
 import type { PrintProgress } from "@/services/printer";
@@ -1269,7 +1269,7 @@ export function SelectedTableCartPanel({
           )}
         </CardContent>
 
-        <CardFooter className="block shrink-0 border-t border-white/15 bg-transparent px-3 py-2 text-white dark:bg-black/25">
+        <CardFooter className="pos-safe-bottom-padding block shrink-0 border-t border-white/15 bg-transparent px-3 pt-2 text-white dark:bg-black/25">
           <CartSummaryDock
             actionsDisabled={!hasSelectedTable}
             billDiscountValueLabel={billDiscountValueLabel}

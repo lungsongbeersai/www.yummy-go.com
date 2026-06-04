@@ -1,4 +1,4 @@
-import { QRRedirect } from "@/features/public-pos/qr-redirect";
+import { QRRedirect } from "@/features/public-pos/route/qr-redirect";
 
 interface PageProps {
   params: Promise<{ token: string }>;

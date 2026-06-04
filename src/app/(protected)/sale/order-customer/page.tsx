@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { OrderCustomerPage } from "@/features/pos/order-customer-page";
+import { OrderCustomerPage } from "@/features/pos/order-customer/order-customer-page";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 

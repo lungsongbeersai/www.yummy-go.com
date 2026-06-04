@@ -1,4 +1,4 @@
-import { CurrencySettingsPage } from "@/features/settings/currency-page";
+import { CurrencySettingsPage } from "@/features/settings/currency/currency-page";
 
 export default function Page() {
   return <CurrencySettingsPage />;

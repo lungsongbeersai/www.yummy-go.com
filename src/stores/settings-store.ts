@@ -1,7 +1,7 @@
 "use client";
 
 import { create } from "zustand";
-import type { SettingConfig } from "@/features/settings/settings-config";
+import type { SettingConfig } from "@/features/settings/shared/settings-config";
 import type { FetchParams } from "@/services/shared/types";
 import { errorMessage } from "@/stores/store-utils";
 
