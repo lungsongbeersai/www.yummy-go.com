@@ -3,6 +3,7 @@ import type { CartOrder, PosTable } from "@/services/pos";
 import {
   billDiscountButtonValue,
   buildCustomerDisplayPayload,
+  cartDisplaySummary,
   cartSummary,
   discountDraftValue,
   newOrderConfirmGroups,
@@ -44,9 +45,11 @@ function cartOrder(overrides: Partial<CartOrder> = {}): CartOrder {
       },
     ],
     totals: {
-      order_grand_total: 28000,
+      order_grand_total: 29500,
+      order_service_amount: 700,
       order_subtotal: 32000,
       order_discount_amount: 4000,
+      order_vat_amount: 800,
     },
     ...overrides,
   } as CartOrder;
@@ -77,7 +80,9 @@ describe("table selection utils", () => {
   });
 
   it("builds split payment selection for one order", () => {
-    const selection = splitPaymentSelection([cartOrder()], new Set(["item-1"]));
+    const cart = cartOrder();
+    const fullSummary = cartSummary(cart);
+    const selection = splitPaymentSelection([cart], new Set(["item-1"]));
     expect(selection?.orderUuid).toBe("order-1");
     expect(selection?.itemUuids).toEqual(["item-1"]);
     expect(selection?.summary).toMatchObject({
@@ -85,6 +90,10 @@ describe("table selection utils", () => {
       itemDiscount: 4000,
       grandTotal: 20000,
     });
+    expect(cartDisplaySummary(fullSummary, selection?.summary).grandTotal).toBe(
+      20000,
+    );
+    expect(cartDisplaySummary(fullSummary, null)).toBe(fullSummary);
   });
 
   it("builds customer display payload", () => {
@@ -98,9 +107,12 @@ describe("table selection utils", () => {
 
     expect(payload).toMatchObject({
       table_name: "A1",
+      grand_total: 29500,
+      service: 700,
       subtotal: 32000,
-      total: 28000,
+      total: 29500,
       updated_at: "2026-05-29T00:00:00.000Z",
+      vat: 800,
     });
     expect(payload.items).toHaveLength(2);
     expect(payload.items[0]).toMatchObject({

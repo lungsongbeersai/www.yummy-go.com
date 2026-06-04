@@ -28,6 +28,7 @@ import {
 export type CustomerDisplayPickerMode = "browser-fallback" | "browser-window-management" | "electron";
 
 export function CustomerDisplayPickerDialog({
+  canCloseCustomerDisplay,
   displayInfo,
   browserDisplayInfo,
   error,
@@ -46,6 +47,7 @@ export function CustomerDisplayPickerDialog({
   onSelectedBrowserScreenChange,
   onSelectedDisplayChange
 }: {
+  canCloseCustomerDisplay: boolean;
   displayInfo: ElectronDisplayInfo | null;
   browserDisplayInfo: BrowserCustomerDisplayInfo | null;
   error: string | null;
@@ -71,6 +73,7 @@ export function CustomerDisplayPickerDialog({
   const isBrowserFallbackMode = mode === "browser-fallback";
   const isBrowserWindowManagementMode = mode === "browser-window-management";
   const isElectronMode = mode === "electron";
+  const closeDisabled = opening || !canCloseCustomerDisplay;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -265,15 +268,25 @@ export function CustomerDisplayPickerDialog({
 
         <DialogFooter className="border-t border-border bg-card/95 px-4 py-3 sm:px-6">
           {isBrowserFallbackMode ? (
-            <Button type="button" disabled={opening} onClick={onOpenBrowserDisplay}>
-              {opening ? <Spinner data-icon="inline-start" /> : <ExternalLink data-icon="inline-start" />}
-              {t("pos.customerDisplayOpenBrowserTab")}
-            </Button>
+            <>
+              <Button type="button" variant="outline" disabled={closeDisabled} onClick={onCloseCustomerDisplay}>
+                <X data-icon="inline-start" />
+                {t("pos.customerDisplayCloseScreen")}
+              </Button>
+              <Button type="button" disabled={opening} onClick={onOpenBrowserDisplay}>
+                {opening ? <Spinner data-icon="inline-start" /> : <ExternalLink data-icon="inline-start" />}
+                {t("pos.customerDisplayOpenBrowserTab")}
+              </Button>
+            </>
           ) : isBrowserWindowManagementMode ? (
             <>
               <Button type="button" variant="outline" disabled={loading || opening} onClick={onRefresh}>
                 <RefreshCcw className={loading ? "animate-spin" : undefined} data-icon="inline-start" />
                 {t("pos.customerDisplayRefreshScreens")}
+              </Button>
+              <Button type="button" variant="outline" disabled={closeDisabled} onClick={onCloseCustomerDisplay}>
+                <X data-icon="inline-start" />
+                {t("pos.customerDisplayCloseScreen")}
               </Button>
               <Button
                 type="button"
@@ -290,12 +303,10 @@ export function CustomerDisplayPickerDialog({
                 <RefreshCcw className={loading ? "animate-spin" : undefined} data-icon="inline-start" />
                 {t("pos.customerDisplayRefreshScreens")}
               </Button>
-              {activeDisplay ? (
-                <Button type="button" variant="outline" disabled={opening} onClick={onCloseCustomerDisplay}>
-                  <X data-icon="inline-start" />
-                  {t("pos.customerDisplayCloseScreen")}
-                </Button>
-              ) : null}
+              <Button type="button" variant="outline" disabled={closeDisabled} onClick={onCloseCustomerDisplay}>
+                <X data-icon="inline-start" />
+                {t("pos.customerDisplayCloseScreen")}
+              </Button>
               <Button
                 type="button"
                 disabled={loading || opening || selectedDisplayId === null}

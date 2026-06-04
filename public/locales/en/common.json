@@ -587,6 +587,7 @@
     "noteUpdated": "Note updated",
     "payBill": "Pay bill",
     "paySelected": "Pay selected",
+    "fullBill": "Full bill",
     "splitPayment": "Split payment",
     "confirmSplitPayment": "Confirm split payment",
     "confirmSplitPaymentDescription": "Create a split bill for {{count}} selected items totaling {{amount}}, then open payment?",

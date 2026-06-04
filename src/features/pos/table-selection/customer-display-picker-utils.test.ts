@@ -3,7 +3,9 @@ import {
   activeCustomerDisplay,
   browserCustomerDisplayPosition,
   browserCustomerDisplayWindowFeatures,
+  browserCustomerDisplayWindowIsActive,
   browserDisplayIsConnected,
+  closeBrowserCustomerDisplayWindow,
   customerDisplayIdFromStorage,
   customerDisplayPosition,
   customerDisplayResolution,
@@ -165,5 +167,20 @@ describe("customer display picker helpers", () => {
     expect(browserCustomerDisplayPosition(info.screens[1])).toBe("x 1920, y 0");
     expect(browserCustomerDisplayWindowFeatures(info.screens[1])).toContain("left=1920");
     expect(browserCustomerDisplayWindowFeatures()).toContain("width=1200");
+  });
+
+  it("tracks and closes browser customer display popup windows", () => {
+    const popup = {
+      closed: false,
+      close() {
+        this.closed = true;
+      }
+    };
+
+    expect(browserCustomerDisplayWindowIsActive(popup)).toBe(true);
+    expect(closeBrowserCustomerDisplayWindow(popup)).toBe(true);
+    expect(browserCustomerDisplayWindowIsActive(popup)).toBe(false);
+    expect(closeBrowserCustomerDisplayWindow(popup)).toBe(false);
+    expect(browserCustomerDisplayWindowIsActive(null)).toBe(false);
   });
 });

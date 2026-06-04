@@ -589,6 +589,7 @@
     "confirmAllProgress": "{{completed}} / {{total}} ຂັ້ນຕອນ",
     "payBill": "ຈ່າຍເງິນ",
     "paySelected": "ຈ່າຍລາຍການທີ່ເລືອກ",
+    "fullBill": "ບິນເຕັມ",
     "splitPayment": "ແຍກຈ່າຍ",
     "confirmSplitPayment": "ຢືນຢັນແຍກຈ່າຍ",
     "confirmSplitPaymentDescription": "ສ້າງບິນແຍກສຳລັບ {{count}} ລາຍການ ຍອດ {{amount}} ແລ້ວເປີດຊຳລະເງິນບໍ?",

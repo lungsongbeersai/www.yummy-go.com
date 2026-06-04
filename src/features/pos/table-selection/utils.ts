@@ -742,6 +742,13 @@ export function splitPaymentSelection(
   return null;
 }
 
+export function cartDisplaySummary(
+  fullSummary: ReturnType<typeof cartSummary>,
+  splitSummary?: ReturnType<typeof cartSummary> | null,
+) {
+  return splitSummary ?? fullSummary;
+}
+
 export function buildCustomerDisplayPayload({
   cart,
   now = new Date(),

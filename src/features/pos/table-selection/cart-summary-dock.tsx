@@ -40,6 +40,7 @@ export function CartSummaryDock({
   serviceLabel,
   splitSelectedCount = 0,
   splitSelectedTotal = 0,
+  fullSummary = null,
   summary,
   taxLabel
 }: {
@@ -64,22 +65,26 @@ export function CartSummaryDock({
   serviceLabel: string;
   splitSelectedCount?: number;
   splitSelectedTotal?: number;
+  fullSummary?: ReturnType<typeof cartSummary> | null;
   summary: ReturnType<typeof cartSummary>;
   taxLabel: string;
 }) {
   const { t } = useTranslation();
+  const primaryIsSplit = splitSelectedCount > 0 && Boolean(onPaySplitSelection);
   const discountTotal = positiveNumber(summary.orderDiscount);
   const serviceTotal = positiveNumber(summary.serviceTotal);
   const vatTotal = positiveNumber(summary.tax, summary.vatTotal, summary.orderVat);
   const discountMetaValue = discountTotal !== null ? `-${money(discountTotal)}` : billDiscountValueLabel ?? null;
   const discountRateLabel = billDiscountValueLabel?.trim().endsWith("%") ? billDiscountValueLabel.trim() : null;
   const discountLabel = discountRateLabel ? `${t("pos.billDiscount")} (${discountRateLabel})` : t("pos.billDiscount");
+  const summaryTitle = primaryIsSplit ? t("pos.paySelected") : t("pos.grandTotal");
+  const fullBillTotalLabel = primaryIsSplit && fullSummary ? money(fullSummary.grandTotal) : null;
   const summaryDetailRows = [
+    fullBillTotalLabel !== null ? { key: "full-bill", label: t("pos.fullBill"), value: fullBillTotalLabel } : null,
     discountMetaValue !== null ? { key: "discount", label: discountLabel, value: discountMetaValue } : null,
     serviceTotal !== null ? { key: "service", label: serviceLabel, value: money(serviceTotal) } : null,
     vatTotal !== null ? { key: "vat", label: taxLabel, value: money(vatTotal) } : null
   ].filter((item): item is { key: string; label: string; value: string } => Boolean(item));
-  const primaryIsSplit = splitSelectedCount > 0 && Boolean(onPaySplitSelection);
   const primaryIsConfirm = !primaryIsSplit && newOrderCount > 0;
   const showConfirmCue = primaryIsConfirm && canConfirm && !confirming;
   const primaryDisabled = actionsDisabled || (primaryIsConfirm ? !canConfirm : primaryIsSplit ? !canPaySplitSelection : !canPay);
@@ -94,7 +99,7 @@ export function CartSummaryDock({
     <div className="pos-soft-light-zone relative flex flex-col gap-2 text-primary-foreground">
       <div className={cn("min-w-0 px-3 text-white", compact ? "py-2.5" : "py-3")}>
         <div className="flex min-w-0 items-start justify-between gap-3">
-          <span className="shrink-0 text-xs font-bold leading-5 text-white/75">{t("pos.grandTotal")}</span>
+          <span className="shrink-0 text-xs font-bold leading-5 text-white/75">{summaryTitle}</span>
           <span className={cn("min-w-0 text-right font-black tabular-nums", compact ? "text-2xl leading-7" : "text-[28px] leading-8")}>
             {money(summary.grandTotal)}
           </span>

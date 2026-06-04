@@ -41,6 +41,11 @@ export type BrowserCustomerDisplayInfo = {
   screens: BrowserCustomerDisplayScreen[];
 };
 
+export type BrowserCustomerDisplayWindowLike = {
+  close: () => void;
+  closed: boolean;
+};
+
 export function customerDisplayIdFromStorage(value: string | null | undefined) {
   if (!value) return null;
   const displayId = Number(value);
@@ -189,4 +194,19 @@ export function browserCustomerDisplayWindowFeatures(screen?: BrowserCustomerDis
     "resizable=yes",
     "scrollbars=no"
   ].join(",");
+}
+
+export function browserCustomerDisplayWindowIsActive(
+  popup: Pick<BrowserCustomerDisplayWindowLike, "closed"> | null | undefined
+) {
+  return Boolean(popup && !popup.closed);
+}
+
+export function closeBrowserCustomerDisplayWindow(
+  popup: BrowserCustomerDisplayWindowLike | null | undefined
+) {
+  if (!popup || popup.closed) return false;
+
+  popup.close();
+  return true;
 }
