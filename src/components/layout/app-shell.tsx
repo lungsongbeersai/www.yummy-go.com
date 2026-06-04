@@ -68,6 +68,8 @@ import { useAuthStore, type AuthUser } from "@/stores/auth-store";
 
 type BreadcrumbTrailItem = RouteBreadcrumbItem;
 
+const POS_ANDROID_SYSTEM_SCREEN_CLASS = "pos-android-system-screen";
+
 function menuKey(title: string) {
   return `nav.${title}`;
 }
@@ -180,6 +182,26 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [fixedDataScreen]);
 
   useEffect(() => {
+    const isAndroid = /android/i.test(window.navigator.userAgent);
+    const shouldReserveAndroidSystemBar = immersiveScreen && isAndroid;
+    const root = document.documentElement;
+    const body = document.body;
+
+    if (shouldReserveAndroidSystemBar) {
+      root.classList.add(POS_ANDROID_SYSTEM_SCREEN_CLASS);
+      body.classList.add(POS_ANDROID_SYSTEM_SCREEN_CLASS);
+    } else {
+      root.classList.remove(POS_ANDROID_SYSTEM_SCREEN_CLASS);
+      body.classList.remove(POS_ANDROID_SYSTEM_SCREEN_CLASS);
+    }
+
+    return () => {
+      root.classList.remove(POS_ANDROID_SYSTEM_SCREEN_CLASS);
+      body.classList.remove(POS_ANDROID_SYSTEM_SCREEN_CLASS);
+    };
+  }, [immersiveScreen]);
+
+  useEffect(() => {
     const activeTitles = activeMenuTitles(menuItems, pathname);
     if (!activeTitles.length) return;
     setOpenMenus((current) => {
@@ -205,7 +227,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <SidebarProvider
       open={!collapsed}
       onOpenChange={(open) => setCollapsed(!open)}
-      className={cn("app-shell flex-col text-foreground", fixedDataScreen ? "h-screen overflow-hidden" : "min-h-screen")}
+      className={cn(
+        "app-shell flex-col text-foreground",
+        fixedDataScreen
+          ? immersiveScreen
+            ? "h-[100dvh] overflow-hidden"
+            : "h-screen overflow-hidden"
+          : "min-h-screen"
+      )}
       data-fixed-screen={fixedDataScreen ? "true" : "false"}
       data-sidebar-state={collapsed ? "collapsed" : "expanded"}
     >

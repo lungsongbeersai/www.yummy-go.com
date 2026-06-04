@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { cookies } from "next/headers";
 import { Noto_Sans_Lao } from "next/font/google";
 import { SpeedInsights } from "@vercel/speed-insights/next";
@@ -21,6 +21,10 @@ export const metadata: Metadata = {
     icon: "/brand/icon.png",
     apple: "/brand/icon.png"
   }
+};
+
+export const viewport: Viewport = {
+  viewportFit: "cover",
 };
 
 const themeBootstrapScript = `
