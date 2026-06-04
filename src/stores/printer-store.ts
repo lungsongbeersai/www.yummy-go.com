@@ -85,7 +85,7 @@ interface PrinterState {
   buildTest: (data: BuildTestJobRequest) => ReturnType<typeof buildTestJob>;
   test: (data: BuildTestJobRequest) => Promise<void>;
   print: (job: PrintJob) => Promise<void>;
-  printTableQr: (job: TableQRPrintJob, endpoint?: string) => Promise<void>;
+  printTableQr: (job: TableQRPrintJob) => Promise<void>;
   loadCategoryRoles: (loginUuid: string) => Promise<CategoryRole[]>;
   saveCategoryRole: (input: SaveCategoryRoleInput) => Promise<void>;
   loadPrinterCategoryRole: (loginUuid: string, printerUuid: string, lang?: string) => Promise<PrinterCategoryRole | null>;
@@ -284,7 +284,7 @@ export const usePrinterStore = create<PrinterState>((set) => ({
       throw error;
     }
   },
-  printTableQr: (job, endpoint) => printTableQRJob(job, endpoint),
+  printTableQr: (job) => printTableQRJob(job),
   loadCategoryRoles: async (loginUuid) => {
     const categoryRoles = await getCategoryRoles(loginUuid);
     set({ categoryRoles });

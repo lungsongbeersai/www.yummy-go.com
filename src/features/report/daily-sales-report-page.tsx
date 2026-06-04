@@ -8,6 +8,7 @@ import {
   ReportError,
   ReportPagination,
   ReportSummaryCards,
+  ReportSummaryToggle,
   ReportTableCard,
 } from "./daily-sales-report-components";
 import { ReportExportSurface } from "./daily-sales-report-export-surface";
@@ -22,11 +23,14 @@ import {
 } from "./daily-sales-report-tables";
 import { useDailySalesReportWorkflow } from "./use-daily-sales-report-workflow";
 
+const SUMMARY_CARDS_ID = "daily-sales-summary-cards";
+
 export function DailySalesReportPage() {
   const { t } = useTranslation();
   const exportReportRef = useRef<HTMLDivElement>(null);
   const filterRef = useRef<HTMLDivElement>(null);
   const [filterHeight, setFilterHeight] = useState(0);
+  const [summaryVisible, setSummaryVisible] = useState(false);
   const report = useDailySalesReportWorkflow(exportReportRef);
   const layoutStyle = {
     "--daily-sales-filter-height": `${filterHeight}px`,
@@ -87,10 +91,17 @@ export function DailySalesReportPage() {
                 {t("report.dailySalesDescription")}
               </p>
             </div>
-            <Badge className="w-fit rounded-full px-3 py-1">
-              <CalendarDays data-icon="inline-start" />
-              {report.appliedFilters.dateFrom} - {report.appliedFilters.dateTo}
-            </Badge>
+            <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+              <Badge className="w-fit rounded-full px-3 py-1">
+                <CalendarDays data-icon="inline-start" />
+                {report.appliedFilters.dateFrom} - {report.appliedFilters.dateTo}
+              </Badge>
+              <ReportSummaryToggle
+                controlsId={SUMMARY_CARDS_ID}
+                expanded={summaryVisible}
+                onToggle={() => setSummaryVisible((visible) => !visible)}
+              />
+            </div>
           </div>
 
           <div
@@ -142,11 +153,13 @@ export function DailySalesReportPage() {
           ) : null}
           {report.error ? <ReportError message={report.error} /> : null}
 
-          <ReportSummaryCards
-            cards={report.cards}
-            reportTotal={report.reportTotal}
-            summaryCards={report.summaryCards}
-          />
+          <div id={SUMMARY_CARDS_ID} hidden={!summaryVisible}>
+            <ReportSummaryCards
+              cards={report.cards}
+              reportTotal={report.reportTotal}
+              summaryCards={report.summaryCards}
+            />
+          </div>
 
           <ReportTableCard
             actions={{

@@ -6,7 +6,8 @@ import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { icons as mdiIcons } from "@iconify-json/mdi";
 import { Icon as IconifyIcon, addCollection } from "@iconify/react";
-import { Download, Plus, Power, PowerOff, Printer as PrinterIcon, RefreshCcw, Search } from "lucide-react";
+import { AlertTriangle, Download, Plus, Power, PowerOff, Printer as PrinterIcon, RefreshCcw, Search } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -341,6 +342,22 @@ export function PrinterPage() {
             {t("actions.add")} {t("printer.title")}
           </Link>
         </div>
+      </div>
+
+      <div className="shrink-0 px-4 pb-3 lg:px-5">
+        <Alert className="border-primary/20 bg-primary/5">
+          <AlertTriangle className="text-primary" />
+          <AlertTitle className="font-black">{t("printer.laoFontNoticeTitle")}</AlertTitle>
+          <AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <span>{t("printer.laoFontNoticeDescription")}</span>
+            <Button asChild size="sm" variant="outline" className="w-full shrink-0 bg-background sm:w-auto">
+              <a href="/downloads/laoscript8.msi" download>
+                <Download data-icon="inline-start" />
+                {t("printer.downloadLaoFont")}
+              </a>
+            </Button>
+          </AlertDescription>
+        </Alert>
       </div>
 
       <Card className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-none border-x-0 border-b-0">

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { Ban, CalendarClock, Check, ChevronLeft, ChevronRight, ReceiptText, RefreshCcw, SlidersHorizontal, Table2 } from "lucide-react";
+import { Ban, CalendarClock, Check, ChevronLeft, ChevronRight, Printer, ReceiptText, RefreshCcw, SlidersHorizontal, Table2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { EmptyState } from "@/components/common/empty-state";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -16,14 +16,24 @@ import { Sheet, SheetClose, SheetContent, SheetDescription, SheetFooter, SheetHe
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  openLocalInvoicePrintWindow,
+  type InvoicePrintData,
+  type InvoicePrintItem,
+  type InvoicePrintTopping
+} from "@/features/pos/print/invoice-print-window";
 import { dateTime, money } from "@/lib/format";
+import { toApiLanguage } from "@/lib/language";
 import { DEFAULT_PAGE_LIMIT, pageLimitNumber } from "@/lib/pagination";
 import { cn } from "@/lib/utils";
 import type { CancelableBill, CancelableBillDetail, CancelableDateOption } from "@/services/cancel";
+import { getPrintInvoiceJob } from "@/services/pos";
 import type { ApiEntity, PageLimit, SortOrder } from "@/services/shared/types";
 import { useAppStore } from "@/stores/app-store";
-import { useAuthStore } from "@/stores/auth-store";
+import { useAuthStore, type AuthUser } from "@/stores/auth-store";
 import { useCancelStore } from "@/stores/cancel-store";
+import { usePosStore } from "@/stores/pos-store";
+import { usePrinterStore } from "@/stores/printer-store";
 import { useToastStore } from "@/stores/toast-store";
 
 type BillSource = CancelableBill | CancelableBillDetail | null | undefined;
@@ -62,6 +72,19 @@ function textValue(value: unknown, fallback = "-") {
   return isPresent(value) ? String(value) : fallback;
 }
 
+function cleanText(value: unknown) {
+  const text = String(value ?? "").trim();
+  return text && text !== "-" ? text : "";
+}
+
+function firstText(...values: unknown[]) {
+  for (const value of values) {
+    const text = cleanText(value);
+    if (text) return text;
+  }
+  return "";
+}
+
 function readValue(row: BillSource | ApiEntity, keys: string[]) {
   if (!isRecord(row)) return undefined;
   for (const key of keys) {
@@ -83,6 +106,11 @@ function firstNumber(...values: unknown[]) {
     if (number !== null) return number;
   }
   return null;
+}
+
+function positiveNumber(...values: unknown[]) {
+  const number = firstNumber(...values);
+  return number !== null && number > 0 ? number : null;
 }
 
 function moneyOrDash(value: unknown) {
@@ -147,6 +175,14 @@ function billTable(...sources: BillSource[]) {
 
 function billDate(...sources: BillSource[]) {
   return dateTime(textValue(readFromBillSections(sources, dateKeys, ["order", "self"]), ""));
+}
+
+function billDateValue(...sources: BillSource[]) {
+  const value = readFromBillSections(sources, dateKeys, ["order", "self"]);
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
+
+  const date = new Date(String(value ?? ""));
+  return Number.isNaN(date.getTime()) ? new Date() : date;
 }
 
 function billTotal(...sources: BillSource[]) {
@@ -273,6 +309,121 @@ function billItemsDiscountTotal(bill: BillSource) {
   return items.reduce((sum, item) => sum + (itemDiscountAmount(item) ?? 0), 0);
 }
 
+function billCashier(bill: BillSource, user: AuthUser) {
+  return firstText(
+    readFromBillSections([bill], ["cashier_name", "cashier", "user_name", "login_name"], ["payment", "self", "order"]),
+    ...billItems(bill).map(itemCashier),
+    user.email?.split("@")[0],
+    user.email,
+    "-"
+  );
+}
+
+function billCustomer(bill: BillSource) {
+  return firstText(
+    readFromBillSections([bill], ["customer_name", "customer", "member_code", "customer_phone"], ["payment", "self", "order"])
+  ) || null;
+}
+
+function salesListInvoicePrintLabels(
+  translate: (key: string, options?: Record<string, unknown>) => string,
+  bill: BillSource
+) {
+  const serviceRate = billRateLabel(bill, "service_charge");
+  const vatRate = billRateLabel(bill, "vat");
+
+  return {
+    address: translate("fields.branch_address"),
+    cashier: translate("pos.invoicePrintStaff"),
+    customer: translate("pos.customer"),
+    date: translate("pos.invoicePrintDate"),
+    discount: translate("pos.invoicePrintDiscount"),
+    invoice: translate("pos.invoicePrintNumber"),
+    price: translate("pos.price"),
+    service: serviceRate ? `${translate("salesList.serviceCharge")} (${serviceRate})` : translate("pos.serviceTotal"),
+    subtotal: translate("pos.invoicePrintTotalAmount"),
+    table: translate("pos.invoicePrintTable"),
+    thankYou: translate("pos.invoicePrintThankYou"),
+    title: translate("pos.invoicePrintTitle"),
+    topping: translate("pos.toppingTotal"),
+    total: translate("pos.invoicePrintAmountToPay"),
+    vat: vatRate ? `${translate("pos.vat")} (${vatRate})` : translate("pos.vat")
+  };
+}
+
+function salesListInvoicePrintItems(
+  bill: BillSource,
+  translate: (key: string, options?: Record<string, unknown>) => string
+): InvoicePrintItem[] {
+  return billItems(bill).map((item) => {
+    const qty = optionalNumber(readValue(item, ["qty", "quantity", "order_it_qty", "sale_qty"])) ?? 0;
+    const displayTotal = optionalNumber(readValue(item, ["line_total", "net_total", "total", "base_line_total", "gross_total"])) ?? 0;
+    const itemDiscount = itemDiscountAmount(item) ?? 0;
+    const originalLineTotal = itemDiscount > 0 ? displayTotal + itemDiscount : null;
+    const explicitUnitPrice = optionalNumber(readValue(item, ["price", "unit_price", "base_price", "pro_detail_sprice"]));
+    const unitPrice = explicitUnitPrice ?? (qty > 0 ? displayTotal / qty : null);
+    const size = itemSize(item);
+    const toppings: InvoicePrintTopping[] = itemToppings(item).map((topping) => ({
+      name: textValue(readValue(topping, ["topping_name", "prod_topping_name", "product_name", "name"]), translate("salesList.toppings")),
+      qty: optionalNumber(readValue(topping, ["topping_qty", "qty", "quantity"])),
+      total: positiveNumber(readValue(topping, ["topping_total", "total", "line_total", "topping_price"]))
+    }));
+
+    return {
+      displayTotal,
+      hasItemDiscount: originalLineTotal !== null && originalLineTotal > displayTotal,
+      name: size ? `${itemName(item)} (${size})` : itemName(item),
+      originalLineTotal,
+      qty,
+      toppingLabel: translate("pos.toppingTotal"),
+      toppingTotal: positiveNumber(itemToppingTotal(item)),
+      toppings,
+      unitPrice
+    };
+  });
+}
+
+function buildSalesListInvoicePrintData({
+  bill,
+  translate,
+  user
+}: {
+  bill: BillSource;
+  translate: (key: string, options?: Record<string, unknown>) => string;
+  user: AuthUser;
+}): InvoicePrintData {
+  const billDiscount = billDiscountAmount(bill);
+  const grandTotal = billNumber(bill, totalKeys, ["totals", "self", "order"]);
+  const orderTotal = billNumber(bill, ["order_total", "total"], ["totals", "self", "order"]);
+  const service = billNumber(bill, ["amount", "service_charge_amount", "order_service_amount", "service_amount"], ["service_charge", "totals", "self", "order"]);
+  const subtotal = billNumber(bill, ["order_subtotal", "subtotal"], ["totals", "self", "order"]);
+  const vat = billNumber(bill, ["amount", "vat_amount", "order_vat_amount", "vat_total"], ["vat", "totals", "self", "order"]);
+
+  return {
+    branchAddress: firstText(readFromBillSections([bill], ["branch_address", "address"], ["order", "self"]), user.branch_address),
+    branchName: firstText(readFromBillSections([bill], branchKeys, ["order", "self"]), user.branch_name),
+    branchTel: firstText(readFromBillSections([bill], ["branch_tel", "branch_phone", "tel", "phone"], ["order", "self"]), user.branch_tel),
+    cashier: billCashier(bill, user),
+    customer: billCustomer(bill),
+    discount: positiveNumber(billDiscount) ?? 0,
+    invoice: firstText(readFromBillSections([bill], invoiceKeys, ["order", "self"])) || null,
+    items: salesListInvoicePrintItems(bill, translate),
+    labels: salesListInvoicePrintLabels(translate, bill),
+    contentWidthMm: 72.1,
+    paperHeightMm: 210,
+    paperWidthMm: 80,
+    printedAt: billDateValue(bill),
+    qrUrl: null,
+    service: positiveNumber(service) ?? 0,
+    storeName: firstText(user.store_name, user.branch_name, readFromBillSections([bill], branchKeys, ["order", "self"])),
+    subtotal: subtotal ?? orderTotal ?? 0,
+    tableName: firstText(readFromBillSections([bill], tableKeys, ["order", "self"])),
+    title: translate("pos.invoicePrintTitle"),
+    total: grandTotal ?? orderTotal ?? 0,
+    vat: positiveNumber(vat) ?? 0
+  };
+}
+
 function statusClass(source: BillSource) {
   const status = billStatus(source).toLowerCase();
   if (status.includes("cancel") || status.includes("void") || status === "0") {
@@ -327,6 +478,8 @@ export function SalesListPage() {
   const cancelBill = useCancelStore((state) => state.cancelBill);
   const clearSelectedBill = useCancelStore((state) => state.clearSelectedBill);
   const resetBills = useCancelStore((state) => state.reset);
+  const printInvoice = usePosStore((state) => state.printInvoice);
+  const print = usePrinterStore((state) => state.print);
   const showToast = useToastStore((state) => state.show);
   const branchUuid = user?.branch_uuid ?? "";
 
@@ -339,14 +492,18 @@ export function SalesListPage() {
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
   const [reasonTouched, setReasonTouched] = useState(false);
+  const [receiptPrintingOrderUuid, setReceiptPrintingOrderUuid] = useState("");
 
   const selectedListBill = useMemo(
     () => bills.find((bill) => billIsSelected(bill, selectedOrderUuid) || billUuid(bill) === selectedOrderUuid),
     [bills, selectedOrderUuid]
   );
   const detailSource = selectedBill ?? selectedListBill ?? null;
+  const detailOrderUuid = billUuid(detailSource);
   const detailCanCancel = billCanCancel(selectedBill, selectedListBill);
-  const cancelOrderUuid = billUuid(detailSource);
+  const cancelOrderUuid = detailOrderUuid;
+  const canReprintReceipt = Boolean(detailOrderUuid && user?.uuid && !receiptPrintingOrderUuid);
+  const reprintingReceipt = Boolean(detailOrderUuid && receiptPrintingOrderUuid === detailOrderUuid);
   const rowsRange = pageBounds(page, limit, bills.length, total);
   const safeTotalPages = Math.max(1, totalPages);
   const canGoBack = page > 1 && !loading;
@@ -456,6 +613,69 @@ export function SalesListPage() {
     }
   }
 
+  async function reprintReceipt() {
+    const orderUuid = billUuid(detailSource);
+    if (!orderUuid || !user?.uuid || receiptPrintingOrderUuid) return;
+
+    const fallbackData = buildSalesListInvoicePrintData({
+      bill: detailSource,
+      translate: (key, options) => String(t(key, options)),
+      user
+    });
+
+    setReceiptPrintingOrderUuid(orderUuid);
+    try {
+      const response = await printInvoice({
+        order_uuid: orderUuid,
+        lang: toApiLanguage(language),
+        login_uuid_fk: user.uuid
+      });
+      const job = getPrintInvoiceJob(response);
+
+      if (!job) {
+        await showReprintReceiptFallback(fallbackData, t("salesList.reprintReceiptMissingJob"));
+        return;
+      }
+
+      try {
+        await print(job);
+      } catch (printError) {
+        await showReprintReceiptFallback(
+          fallbackData,
+          printError instanceof Error ? printError.message : ""
+        );
+        return;
+      }
+
+      showToast({ title: t("salesList.reprintReceiptSuccess"), tone: "success" });
+    } catch (printError) {
+      await showReprintReceiptFallback(
+        fallbackData,
+        printError instanceof Error ? printError.message : ""
+      );
+    } finally {
+      setReceiptPrintingOrderUuid("");
+    }
+  }
+
+  async function showReprintReceiptFallback(data: InvoicePrintData, description: string) {
+    const opened = await openLocalInvoicePrintWindow(data);
+    if (opened) {
+      showToast({
+        title: t("salesList.reprintReceiptFallback"),
+        description,
+        tone: "info"
+      });
+      return;
+    }
+
+    showToast({
+      title: t("salesList.reprintReceiptFailed"),
+      description: t("salesList.reprintReceiptPopupBlocked"),
+      tone: "error"
+    });
+  }
+
   if (!branchUuid) {
     return (
       <div className="flex h-full min-h-0 flex-col overflow-hidden">
@@ -505,18 +725,24 @@ export function SalesListPage() {
         <SalesBillDetailPanel
           bill={detailSource}
           canCancel={detailCanCancel}
+          canReprintReceipt={canReprintReceipt}
           loading={detailLoading}
+          reprintingReceipt={reprintingReceipt}
           onCancel={openCancelDialog}
+          onReprintReceipt={() => void reprintReceipt()}
         />
       </div>
 
       <SalesBillMobileSheet
         bill={detailSource}
         canCancel={detailCanCancel}
+        canReprintReceipt={canReprintReceipt}
         loading={detailLoading}
         open={mobileDetailOpen}
+        reprintingReceipt={reprintingReceipt}
         onCancel={openCancelDialog}
         onOpenChange={setMobileDetailOpen}
+        onReprintReceipt={() => void reprintReceipt()}
       />
 
       <CancelBillDialog
@@ -897,17 +1123,31 @@ function KipIcon() {
 function SalesBillDetailPanel({
   bill,
   canCancel,
+  canReprintReceipt,
   loading,
-  onCancel
+  reprintingReceipt,
+  onCancel,
+  onReprintReceipt
 }: {
   bill: BillSource;
   canCancel: boolean;
+  canReprintReceipt: boolean;
   loading: boolean;
+  reprintingReceipt: boolean;
   onCancel: () => void;
+  onReprintReceipt: () => void;
 }) {
   return (
     <aside className="hidden min-h-0 flex-col overflow-hidden rounded-lg border border-border bg-card md:flex">
-      <SalesBillDetailContent bill={bill} canCancel={canCancel} loading={loading} onCancel={onCancel} />
+      <SalesBillDetailContent
+        bill={bill}
+        canCancel={canCancel}
+        canReprintReceipt={canReprintReceipt}
+        loading={loading}
+        reprintingReceipt={reprintingReceipt}
+        onCancel={onCancel}
+        onReprintReceipt={onReprintReceipt}
+      />
     </aside>
   );
 }
@@ -915,17 +1155,23 @@ function SalesBillDetailPanel({
 function SalesBillMobileSheet({
   bill,
   canCancel,
+  canReprintReceipt,
   loading,
   open,
+  reprintingReceipt,
   onCancel,
-  onOpenChange
+  onOpenChange,
+  onReprintReceipt
 }: {
   bill: BillSource;
   canCancel: boolean;
+  canReprintReceipt: boolean;
   loading: boolean;
   open: boolean;
+  reprintingReceipt: boolean;
   onCancel: () => void;
   onOpenChange: (open: boolean) => void;
+  onReprintReceipt: () => void;
 }) {
   const { t } = useTranslation();
 
@@ -937,7 +1183,16 @@ function SalesBillMobileSheet({
           <SheetDescription>{bill ? billDate(bill) : t("salesList.selectBillHint")}</SheetDescription>
         </SheetHeader>
         <div className="min-h-0 overflow-y-auto">
-          <SalesBillDetailContent bill={bill} canCancel={canCancel} loading={loading} onCancel={onCancel} embedded />
+          <SalesBillDetailContent
+            bill={bill}
+            canCancel={canCancel}
+            canReprintReceipt={canReprintReceipt}
+            loading={loading}
+            reprintingReceipt={reprintingReceipt}
+            onCancel={onCancel}
+            onReprintReceipt={onReprintReceipt}
+            embedded
+          />
         </div>
       </SheetContent>
     </Sheet>
@@ -947,15 +1202,21 @@ function SalesBillMobileSheet({
 function SalesBillDetailContent({
   bill,
   canCancel,
+  canReprintReceipt,
   embedded = false,
   loading,
-  onCancel
+  reprintingReceipt,
+  onCancel,
+  onReprintReceipt
 }: {
   bill: BillSource;
   canCancel: boolean;
+  canReprintReceipt: boolean;
   embedded?: boolean;
   loading: boolean;
+  reprintingReceipt: boolean;
   onCancel: () => void;
+  onReprintReceipt: () => void;
 }) {
   const { t } = useTranslation();
 
@@ -972,7 +1233,15 @@ function SalesBillDetailContent({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className={cn("shrink-0 px-4 py-3", !embedded && "border-b border-border")}>
-        <DetailTitleRow bill={bill} canCancel={canCancel} loading={loading} onCancel={onCancel} />
+        <DetailTitleRow
+          bill={bill}
+          canCancel={canCancel}
+          canReprintReceipt={canReprintReceipt}
+          loading={loading}
+          reprintingReceipt={reprintingReceipt}
+          onCancel={onCancel}
+          onReprintReceipt={onReprintReceipt}
+        />
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-4 sm:px-4">
         <DetailSummaryStrip bill={bill} />
@@ -990,13 +1259,19 @@ function SalesBillDetailContent({
 function DetailTitleRow({
   bill,
   canCancel,
+  canReprintReceipt,
   loading,
-  onCancel
+  reprintingReceipt,
+  onCancel,
+  onReprintReceipt
 }: {
   bill: BillSource;
   canCancel: boolean;
+  canReprintReceipt: boolean;
   loading: boolean;
+  reprintingReceipt: boolean;
   onCancel: () => void;
+  onReprintReceipt: () => void;
 }) {
   const { t } = useTranslation();
   const branch = billBranch(bill);
@@ -1023,10 +1298,16 @@ function DetailTitleRow({
           <p className="mt-1 whitespace-nowrap text-lg font-black tabular-nums">{grandTotal}</p>
         </div>
       </div>
-      <Button className="w-full shrink-0" disabled={!bill || !canCancel || loading} size="sm" type="button" variant="danger" onClick={onCancel}>
-        <Ban data-icon="inline-start" />
-        {t("salesList.cancelBill")}
-      </Button>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <Button className="w-full min-w-0" disabled={!canReprintReceipt || reprintingReceipt || loading} size="sm" type="button" variant="outline" onClick={onReprintReceipt}>
+          {reprintingReceipt ? <Spinner data-icon="inline-start" /> : <Printer data-icon="inline-start" />}
+          <span className="truncate">{reprintingReceipt ? t("salesList.reprintingReceipt") : t("salesList.reprintReceipt")}</span>
+        </Button>
+        <Button className="w-full min-w-0 shrink-0" disabled={!bill || !canCancel || loading} size="sm" type="button" variant="danger" onClick={onCancel}>
+          <Ban data-icon="inline-start" />
+          <span className="truncate">{t("salesList.cancelBill")}</span>
+        </Button>
+      </div>
     </div>
   );
 }

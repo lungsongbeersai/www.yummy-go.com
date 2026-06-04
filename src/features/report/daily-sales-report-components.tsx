@@ -5,6 +5,8 @@ import {
   ChevronDown,
   ChevronRight,
   Download,
+  Eye,
+  EyeOff,
   FileSpreadsheet,
   FileText,
   Printer,
@@ -58,6 +60,40 @@ export function ReportSummaryCards({
         );
       })}
     </section>
+  );
+}
+
+export function ReportSummaryToggle({
+  controlsId,
+  expanded,
+  onToggle,
+}: {
+  controlsId: string;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  const { t } = useTranslation();
+  const label = expanded ? t("report.hideSummary") : t("report.showSummary");
+
+  return (
+    <div className="flex">
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="h-9 whitespace-nowrap"
+        aria-controls={controlsId}
+        aria-expanded={expanded}
+        onClick={onToggle}
+      >
+        {expanded ? (
+          <EyeOff data-icon="inline-start" aria-hidden="true" />
+        ) : (
+          <Eye data-icon="inline-start" aria-hidden="true" />
+        )}
+        {label}
+      </Button>
+    </div>
   );
 }
 

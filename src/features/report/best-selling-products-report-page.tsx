@@ -14,14 +14,17 @@ import {
   BestSellingTableCard,
   MobileBestSellingFilterSummary
 } from "./best-selling-products-report-components";
-import { ReportError, ReportPagination } from "./daily-sales-report-components";
+import { ReportError, ReportPagination, ReportSummaryToggle } from "./daily-sales-report-components";
 import { useBestSellingProductsReportWorkflow } from "./use-best-selling-products-report-workflow";
+
+const SUMMARY_CARDS_ID = "best-selling-summary-cards";
 
 export function BestSellingProductsReportPage() {
   const { t } = useTranslation();
   const exportReportRef = useRef<HTMLDivElement>(null);
   const filterRef = useRef<HTMLDivElement>(null);
   const [filterHeight, setFilterHeight] = useState(0);
+  const [summaryVisible, setSummaryVisible] = useState(false);
   const report = useBestSellingProductsReportWorkflow(exportReportRef);
   const layoutStyle = {
     "--best-selling-filter-height": `${filterHeight}px`
@@ -77,10 +80,17 @@ export function BestSellingProductsReportPage() {
                 {t("report.bestSelling.description")}
               </p>
             </div>
-            <Badge className="w-fit rounded-full px-3 py-1">
-              <CalendarDays data-icon="inline-start" />
-              {report.appliedFilters.dateFrom} - {report.appliedFilters.dateTo}
-            </Badge>
+            <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+              <Badge className="w-fit rounded-full px-3 py-1">
+                <CalendarDays data-icon="inline-start" />
+                {report.appliedFilters.dateFrom} - {report.appliedFilters.dateTo}
+              </Badge>
+              <ReportSummaryToggle
+                controlsId={SUMMARY_CARDS_ID}
+                expanded={summaryVisible}
+                onToggle={() => setSummaryVisible((visible) => !visible)}
+              />
+            </div>
           </div>
 
           <div
@@ -132,7 +142,9 @@ export function BestSellingProductsReportPage() {
           {report.groupError ? <ReportError message={report.groupError} /> : null}
           {report.error ? <ReportError message={report.error} /> : null}
 
-          <BestSellingSummaryCards cards={report.summaryCards} summary={report.summary} />
+          <div id={SUMMARY_CARDS_ID} hidden={!summaryVisible}>
+            <BestSellingSummaryCards cards={report.summaryCards} summary={report.summary} />
+          </div>
 
           <BestSellingTableCard
             exportDisabled={report.exportDisabled}

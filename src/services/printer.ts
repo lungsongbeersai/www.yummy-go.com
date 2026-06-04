@@ -359,7 +359,7 @@ export async function printOps(job: PrintJob, localAgent?: AgentInfo) {
   assertAgentOk(data, "Print failed");
 }
 
-export async function printTableQRJob(job: TableQRPrintJob, _printEndpoint?: string) {
+export async function printTableQRJob(job: TableQRPrintJob) {
   if (Array.isArray(job.ops) && job.ops.length) {
     await printOps(job as PrintJob);
     return;

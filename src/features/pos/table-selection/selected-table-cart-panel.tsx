@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { ReceiptText } from "lucide-react";
@@ -39,12 +39,22 @@ import {
   CartPanelLoading,
   ConfirmAllLoadingDialog,
 } from "./cart-dialogs";
-import { CustomerDisplayPickerDialog } from "./customer-display-picker-dialog";
 import {
+  CustomerDisplayPickerDialog,
+  type CustomerDisplayPickerMode,
+} from "./customer-display-picker-dialog";
+import {
+  BROWSER_CUSTOMER_DISPLAY_TARGET_STORAGE_KEY,
   CUSTOMER_DISPLAY_TARGET_STORAGE_KEY,
+  browserCustomerDisplayWindowFeatures,
+  browserDisplayIsConnected,
   customerDisplayIdFromStorage,
+  defaultBrowserCustomerDisplayKey,
   defaultCustomerDisplayId,
   displayIsConnected,
+  normalizeBrowserCustomerDisplayInfo,
+  type BrowserCustomerDisplayInfo,
+  type BrowserCustomerDisplayScreen,
 } from "./customer-display-picker-utils";
 import { CartSummaryDock } from "./cart-summary-dock";
 import { CartTabItems, CartTabTrigger } from "./cart-items";
@@ -215,8 +225,14 @@ export function SelectedTableCartPanel({
   const [tableActionsOpen, setTableActionsOpen] = useState(false);
   const [tableQrOpen, setTableQrOpen] = useState(false);
   const [customerDisplayOpen, setCustomerDisplayOpen] = useState(false);
+  const [customerDisplayMode, setCustomerDisplayMode] =
+    useState<CustomerDisplayPickerMode>("browser-fallback");
   const [customerDisplayInfo, setCustomerDisplayInfo] =
     useState<ElectronDisplayInfo | null>(null);
+  const [browserDisplayInfo, setBrowserDisplayInfo] =
+    useState<BrowserCustomerDisplayInfo | null>(null);
+  const [browserScreenDetails, setBrowserScreenDetails] =
+    useState<ScreenDetails | null>(null);
   const [customerDisplayError, setCustomerDisplayError] = useState<string | null>(
     null,
   );
@@ -226,6 +242,9 @@ export function SelectedTableCartPanel({
     useState<CustomerDisplayPayload | null>(null);
   const [selectedCustomerDisplayId, setSelectedCustomerDisplayId] = useState<
     number | null
+  >(null);
+  const [selectedBrowserScreenKey, setSelectedBrowserScreenKey] = useState<
+    string | null
   >(null);
   const [paymentContext, setPaymentContext] = useState<PaymentContext | null>(
     null,
@@ -310,6 +329,33 @@ export function SelectedTableCartPanel({
     billDiscountMaxAmount,
   );
 
+  const applyBrowserDisplayInfo = useCallback(
+    (details: ScreenDetails, preferCurrent = true) => {
+      const info = normalizeBrowserCustomerDisplayInfo(
+        {
+          currentScreen: details.currentScreen,
+          screens: details.screens,
+        },
+        Boolean(window.screen.isExtended),
+      );
+
+      setBrowserDisplayInfo(info);
+      setSelectedBrowserScreenKey((current) => {
+        const stored = window.localStorage.getItem(
+          BROWSER_CUSTOMER_DISPLAY_TARGET_STORAGE_KEY,
+        );
+        const preferred =
+          preferCurrent && browserDisplayIsConnected(info, current)
+            ? current
+            : stored;
+        return defaultBrowserCustomerDisplayKey(info, preferred);
+      });
+
+      return info;
+    },
+    [],
+  );
+
   useEffect(() => {
     setActiveTab((current) => {
       if (previousTableUuidRef.current !== tableUuid) {
@@ -386,6 +432,29 @@ export function SelectedTableCartPanel({
       return changed ? next : current;
     });
   }, [splitEligibleItems]);
+
+  useEffect(() => {
+    if (
+      !customerDisplayOpen ||
+      customerDisplayMode !== "browser-window-management" ||
+      !browserScreenDetails
+    )
+      return;
+
+    const handleScreensChange = () => {
+      applyBrowserDisplayInfo(browserScreenDetails, true);
+    };
+
+    browserScreenDetails.addEventListener("screenschange", handleScreensChange);
+    return () => {
+      browserScreenDetails.removeEventListener("screenschange", handleScreensChange);
+    };
+  }, [
+    applyBrowserDisplayInfo,
+    browserScreenDetails,
+    customerDisplayMode,
+    customerDisplayOpen,
+  ]);
 
   async function changeCartItemQty(item: CartItem, change: 1 | -1) {
     const itemUuid = cartItemUuid(item);
@@ -802,7 +871,10 @@ export function SelectedTableCartPanel({
     });
   }
 
-  function openBrowserCustomerDisplayScreen(payload: CustomerDisplayPayload) {
+  function openBrowserCustomerDisplayScreen(
+    payload: CustomerDisplayPayload,
+    targetScreen?: BrowserCustomerDisplayScreen | null,
+  ) {
     window.localStorage.setItem(
       CUSTOMER_DISPLAY_STORAGE_KEY,
       JSON.stringify(payload),
@@ -811,7 +883,19 @@ export function SelectedTableCartPanel({
       typeof BroadcastChannel === "undefined"
         ? null
         : new BroadcastChannel(CUSTOMER_DISPLAY_CHANNEL);
-    window.open("/customer-display", "_blank", "noopener,noreferrer");
+
+    const openedWindow = window.open(
+      "/customer-display",
+      "yummy-go-customer-display",
+      browserCustomerDisplayWindowFeatures(targetScreen),
+    );
+
+    if (!openedWindow) {
+      channel?.close();
+      throw new Error(t("pos.customerDisplayPopupBlocked"));
+    }
+
+    openedWindow.focus();
     channel?.postMessage(payload);
     window.setTimeout(() => {
       channel?.postMessage(payload);
@@ -819,9 +903,45 @@ export function SelectedTableCartPanel({
     }, 600);
   }
 
-  async function refreshCustomerDisplayScreens(preferCurrent = true) {
-    if (!window.electronAPI) return null;
+  async function refreshBrowserCustomerDisplayScreens(preferCurrent = true) {
+    if (!window.getScreenDetails) {
+      setCustomerDisplayMode("browser-fallback");
+      setBrowserDisplayInfo(null);
+      setBrowserScreenDetails(null);
+      setSelectedBrowserScreenKey(null);
+      setCustomerDisplayLoading(false);
+      return null;
+    }
 
+    setCustomerDisplayMode("browser-window-management");
+    setCustomerDisplayLoading(true);
+    setCustomerDisplayError(null);
+    try {
+      const details = await window.getScreenDetails();
+      setBrowserScreenDetails(details);
+      return applyBrowserDisplayInfo(details, preferCurrent);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+      setCustomerDisplayMode("browser-fallback");
+      setBrowserDisplayInfo(null);
+      setBrowserScreenDetails(null);
+      setSelectedBrowserScreenKey(null);
+      setCustomerDisplayError(message);
+      return null;
+    } finally {
+      setCustomerDisplayLoading(false);
+    }
+  }
+
+  async function refreshCustomerDisplayScreens(preferCurrent = true) {
+    if (!window.electronAPI) {
+      return refreshBrowserCustomerDisplayScreens(preferCurrent);
+    }
+
+    setCustomerDisplayMode("electron");
+    setBrowserDisplayInfo(null);
+    setBrowserScreenDetails(null);
+    setSelectedBrowserScreenKey(null);
     setCustomerDisplayLoading(true);
     setCustomerDisplayError(null);
     try {
@@ -856,23 +976,75 @@ export function SelectedTableCartPanel({
       table: selectedTable,
     });
 
+    setCustomerDisplayPayload(payload);
+    setCustomerDisplayError(null);
+    setCustomerDisplayInfo(null);
+    setBrowserDisplayInfo(null);
+    setBrowserScreenDetails(null);
+    setSelectedCustomerDisplayId(null);
+    setSelectedBrowserScreenKey(null);
+    setCustomerDisplayOpen(true);
+
     if (!window.electronAPI) {
-      try {
-        openBrowserCustomerDisplayScreen(payload);
-        showToast({ title: t("pos.displayOpened"), tone: "success" });
-      } catch (error) {
-        showToast({
-          title: t("pos.displayOpenFailed"),
-          description: error instanceof Error ? error.message : "",
-          tone: "error",
-        });
-      }
+      await refreshBrowserCustomerDisplayScreens(false);
       return;
     }
 
-    setCustomerDisplayPayload(payload);
-    setCustomerDisplayOpen(true);
+    setCustomerDisplayMode("electron");
     await refreshCustomerDisplayScreens(false);
+  }
+
+  function openBrowserCustomerDisplayFromDialog() {
+    if (!customerDisplayPayload) return;
+
+    setCustomerDisplayOpening(true);
+    setCustomerDisplayError(null);
+    try {
+      openBrowserCustomerDisplayScreen(customerDisplayPayload);
+      setCustomerDisplayOpen(false);
+      showToast({ title: t("pos.displayOpened"), tone: "success" });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+      setCustomerDisplayError(message);
+      showToast({
+        title: t("pos.displayOpenFailed"),
+        description: message,
+        tone: "error",
+      });
+    } finally {
+      setCustomerDisplayOpening(false);
+    }
+  }
+
+  function openSelectedBrowserCustomerDisplayScreen() {
+    if (!customerDisplayPayload || !browserDisplayInfo || !selectedBrowserScreenKey) return;
+
+    const targetScreen = browserDisplayInfo.screens.find(
+      (screen) => screen.key === selectedBrowserScreenKey,
+    );
+    if (!targetScreen) return;
+
+    setCustomerDisplayOpening(true);
+    setCustomerDisplayError(null);
+    try {
+      window.localStorage.setItem(
+        BROWSER_CUSTOMER_DISPLAY_TARGET_STORAGE_KEY,
+        selectedBrowserScreenKey,
+      );
+      openBrowserCustomerDisplayScreen(customerDisplayPayload, targetScreen);
+      setCustomerDisplayOpen(false);
+      showToast({ title: t("pos.displayOpened"), tone: "success" });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+      setCustomerDisplayError(message);
+      showToast({
+        title: t("pos.displayOpenFailed"),
+        description: message,
+        tone: "error",
+      });
+    } finally {
+      setCustomerDisplayOpening(false);
+    }
   }
 
   async function openSelectedCustomerDisplayScreen() {
@@ -1149,16 +1321,22 @@ export function SelectedTableCartPanel({
         />
       ) : null}
       <CustomerDisplayPickerDialog
+        browserDisplayInfo={browserDisplayInfo}
         displayInfo={customerDisplayInfo}
         error={customerDisplayError}
         loading={customerDisplayLoading}
+        mode={customerDisplayMode}
         open={customerDisplayOpen}
         opening={customerDisplayOpening}
+        selectedBrowserScreenKey={selectedBrowserScreenKey}
         selectedDisplayId={selectedCustomerDisplayId}
         onCloseCustomerDisplay={() => void closeCustomerDisplayScreen()}
+        onOpenBrowserDisplay={openBrowserCustomerDisplayFromDialog}
         onOpenChange={setCustomerDisplayOpen}
+        onOpenSelectedBrowserDisplay={openSelectedBrowserCustomerDisplayScreen}
         onOpenSelectedDisplay={() => void openSelectedCustomerDisplayScreen()}
         onRefresh={() => void refreshCustomerDisplayScreens()}
+        onSelectedBrowserScreenChange={setSelectedBrowserScreenKey}
         onSelectedDisplayChange={setSelectedCustomerDisplayId}
       />
       {selectedTable && paymentContext ? (

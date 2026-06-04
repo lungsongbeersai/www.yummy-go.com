@@ -1,9 +1,18 @@
 import { contextBridge, ipcRenderer } from "electron";
 
+type ElectronOpenDisplayResult = {
+  displayId: number;
+  ok: boolean;
+};
+
+type ElectronCloseDisplayResult = {
+  ok: boolean;
+};
+
 contextBridge.exposeInMainWorld("electronAPI", {
-  openDisplay: (targetDisplayId?: number): Promise<boolean> =>
+  openDisplay: (targetDisplayId?: number): Promise<ElectronOpenDisplayResult> =>
     ipcRenderer.invoke("pos:open-display", targetDisplayId),
-  closeDisplay: (): Promise<boolean> => ipcRenderer.invoke("pos:close-display"),
+  closeDisplay: (): Promise<ElectronCloseDisplayResult> => ipcRenderer.invoke("pos:close-display"),
   sendToDisplay: (data: unknown) => {
     ipcRenderer.send("pos:send-to-display", data);
   },

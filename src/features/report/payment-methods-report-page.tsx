@@ -14,14 +14,17 @@ import {
   PaymentMethodsTable,
   PaymentMethodsTableCard
 } from "./payment-methods-report-components";
-import { ReportError, ReportPagination } from "./daily-sales-report-components";
+import { ReportError, ReportPagination, ReportSummaryToggle } from "./daily-sales-report-components";
 import { usePaymentMethodsReportWorkflow } from "./use-payment-methods-report-workflow";
+
+const SUMMARY_CARDS_ID = "payment-methods-summary-cards";
 
 export function PaymentMethodsReportPage() {
   const { t } = useTranslation();
   const exportReportRef = useRef<HTMLDivElement>(null);
   const filterRef = useRef<HTMLDivElement>(null);
   const [filterHeight, setFilterHeight] = useState(0);
+  const [summaryVisible, setSummaryVisible] = useState(false);
   const report = usePaymentMethodsReportWorkflow(exportReportRef);
   const layoutStyle = {
     "--payment-method-filter-height": `${filterHeight}px`
@@ -73,10 +76,17 @@ export function PaymentMethodsReportPage() {
               <h1 className="text-2xl font-black tracking-normal text-foreground">{report.reportTitle}</h1>
               <p className="text-sm text-muted-foreground">{t("report.paymentMethodsReport.description")}</p>
             </div>
-            <Badge className="w-fit rounded-full px-3 py-1">
-              <CalendarDays data-icon="inline-start" />
-              {report.appliedFilters.dateFrom} - {report.appliedFilters.dateTo}
-            </Badge>
+            <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+              <Badge className="w-fit rounded-full px-3 py-1">
+                <CalendarDays data-icon="inline-start" />
+                {report.appliedFilters.dateFrom} - {report.appliedFilters.dateTo}
+              </Badge>
+              <ReportSummaryToggle
+                controlsId={SUMMARY_CARDS_ID}
+                expanded={summaryVisible}
+                onToggle={() => setSummaryVisible((visible) => !visible)}
+              />
+            </div>
           </div>
 
           <div
@@ -124,7 +134,9 @@ export function PaymentMethodsReportPage() {
           {report.branchError ? <ReportError message={report.branchError} /> : null}
           {report.error ? <ReportError message={report.error} /> : null}
 
-          <PaymentMethodsSummaryCards cards={report.cards} reportTotal={report.reportTotal} />
+          <div id={SUMMARY_CARDS_ID} hidden={!summaryVisible}>
+            <PaymentMethodsSummaryCards cards={report.cards} reportTotal={report.reportTotal} />
+          </div>
 
           <PaymentMethodsTableCard
             exportDisabled={report.exportDisabled}

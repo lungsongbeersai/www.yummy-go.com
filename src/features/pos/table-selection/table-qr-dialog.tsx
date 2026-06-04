@@ -135,7 +135,7 @@ export function TableQrDialog({
     try {
       if (printJob) {
         try {
-          await printTableQr(printJob, tableQrPrintEndpoint(response));
+          await printTableQr(printJob);
           showToast({ title: t("pos.printQr"), tone: "success" });
           return;
         } catch (error) {
@@ -362,10 +362,6 @@ function tableQrPrintJob(response: CreateTableQRResponse | null) {
   }
 
   return null;
-}
-
-function tableQrPrintEndpoint(response: CreateTableQRResponse | null) {
-  return optionalString(response?.next_action?.print_endpoint, response?.print_endpoint) ?? undefined;
 }
 
 function tableQrTargetBaseUrl() {
