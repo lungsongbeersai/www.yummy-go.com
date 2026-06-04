@@ -5,6 +5,7 @@ import {
   SplitSquareHorizontal,
 } from "lucide-react";
 import { money } from "@/lib/format";
+import { toLanguage } from "@/lib/language";
 import type { InvoicePrintData } from "@/features/pos/print/invoice-print-window";
 import type { Customer } from "@/services/customer";
 import type { Exchange } from "@/services/exchange";
@@ -127,12 +128,28 @@ export const orderChannelOptions: Array<{
   { value: OrderChannelEnum.DELIVERY, labelKey: "pos.orderChannelDelivery" },
 ];
 
-export const CUSTOMER_AUTO_SEARCH_TERMS = ["??????", "customer", "Customer"];
 export const CUSTOMER_SEARCH_LIMIT = 20;
 export const CUSTOMER_SEARCH_DEBOUNCE_MS = 300;
 
 export function customerUuidOf(customer: Customer) {
   return optionalString(customer.customer_uuid) ?? "";
+}
+
+export function defaultCustomerSearchTerm(language?: string | null) {
+  return toLanguage(language) === "en" ? "customer" : "ລູກຄ້າທົ່ວໄປ";
+}
+
+export function defaultCustomerFromRows(customers: Customer[], term: string) {
+  const target = term.trim().toLowerCase();
+  if (!target) return null;
+
+  return (
+    customers.find(
+      (customer) =>
+        optionalString(customer.customer_name)?.trim().toLowerCase() ===
+        target,
+    ) ?? null
+  );
 }
 
 export function customerLabel(customer: Customer) {

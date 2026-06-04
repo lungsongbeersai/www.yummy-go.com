@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   KeyboardSensor,
@@ -10,11 +10,10 @@ import {
   type DragEndEvent
 } from "@dnd-kit/core";
 import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
-import { ChevronsDownUp, ChevronsUpDown, RefreshCcw } from "lucide-react";
+import { RefreshCcw } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { LoadingState } from "@/components/common/loading-state";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { SettingsModuleShell } from "@/features/settings/shared/settings-shell";
@@ -25,11 +24,13 @@ import { usePermissionMenuStore } from "@/stores/permission-menu-store";
 import { useToastStore } from "@/stores/toast-store";
 import { MainMenuDialog, SubMenuDialog } from "./permission-menu-dialogs";
 import { MAIN_FORM_INITIAL, SUB_FORM_INITIAL, type MainFormState, type SubFormState } from "./permission-menu-options";
-import { PermissionMenuTable } from "./permission-menu-table";
+import { PermissionMenuBuilder } from "./permission-menu-builder";
 import {
-  defaultExpandedMenuIds,
-  menuIds,
+  filterPermissionMenus,
+  movePermissionItem,
   menuSubmenus,
+  resolveSelectedPermissionMenuId,
+  type PermissionMenuMoveDirection,
   type PermissionMenuDeleteTarget
 } from "./permission-menu-utils";
 
@@ -73,7 +74,6 @@ export function PermissionMenuPage() {
   const refreshing = usePermissionMenuStore((state) => state.refreshing);
   const saving = usePermissionMenuStore((state) => state.saving);
   const sorting = usePermissionMenuStore((state) => state.sorting);
-  const total = usePermissionMenuStore((state) => state.total);
   const load = usePermissionMenuStore((state) => state.load);
   const createMain = usePermissionMenuStore((state) => state.createMain);
   const createSub = usePermissionMenuStore((state) => state.createSub);
@@ -86,18 +86,19 @@ export function PermissionMenuPage() {
   const [mainForm, setMainForm] = useState<MainFormState>(MAIN_FORM_INITIAL);
   const [subForm, setSubForm] = useState<SubFormState>(SUB_FORM_INITIAL);
   const [deleteTarget, setDeleteTarget] = useState<PermissionMenuDeleteTarget | null>(null);
-  const [expandedMenus, setExpandedMenus] = useState<Set<string>>(() => new Set());
-  const expandedInitializedRef = useRef(false);
-  const knownMenuIdsRef = useRef<Set<string>>(new Set());
+  const [mainSearch, setMainSearch] = useState("");
+  const [selectedMenuId, setSelectedMenuId] = useState("");
   const allowed = canManagePermissionMenu(user?.status);
   const language = i18n.language;
   const fullLoading = loading && !hasLoaded;
   const backgroundLoading = refreshing || (loading && hasLoaded);
   const busy = saving || sorting || fullLoading || backgroundLoading;
-  const submenuTotal = useMemo(
-    () => menus.reduce((sum, menu) => sum + menu.sub_detail.length, 0),
-    [menus]
+  const visibleMenus = useMemo(() => filterPermissionMenus(menus, mainSearch), [mainSearch, menus]);
+  const selectedMenu = useMemo(
+    () => menus.find((menu) => menu.menu_id === selectedMenuId) ?? null,
+    [menus, selectedMenuId]
   );
+  const searchActive = mainSearch.trim().length > 0;
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
@@ -114,25 +115,7 @@ export function PermissionMenuPage() {
   }, [allowed, language]);
 
   useEffect(() => {
-    const nextKnownMenuIds = new Set(menus.map((menu) => menu.menu_id));
-    const previousKnownMenuIds = knownMenuIdsRef.current;
-    const shouldInitialize = !expandedInitializedRef.current;
-    setExpandedMenus((current) => {
-      const next = new Set(Array.from(current).filter((menuId) => nextKnownMenuIds.has(menuId)));
-      const defaultExpanded = defaultExpandedMenuIds(menus);
-
-      if (shouldInitialize) {
-        defaultExpanded.forEach((menuId) => next.add(menuId));
-      } else {
-        defaultExpanded.forEach((menuId) => {
-          if (!previousKnownMenuIds.has(menuId)) next.add(menuId);
-        });
-      }
-
-      return next;
-    });
-    expandedInitializedRef.current = true;
-    knownMenuIdsRef.current = nextKnownMenuIds;
+    setSelectedMenuId((current) => resolveSelectedPermissionMenuId(menus, current));
   }, [menus]);
 
   async function refresh() {
@@ -201,6 +184,7 @@ export function PermissionMenuPage() {
   }
 
   async function reorderMain(event: DragEndEvent) {
+    if (searchActive) return;
     const { active, over } = event;
     if (!over || active.id === over.id) return;
     const oldIndex = menus.findIndex((menu) => menu.menu_id === active.id);
@@ -208,6 +192,42 @@ export function PermissionMenuPage() {
     if (oldIndex < 0 || newIndex < 0) return;
     try {
       await sortMain(arrayMove(menus, oldIndex, newIndex), language);
+      showToast({ title: t("permissionMenu.sortSaved"), tone: "success" });
+    } catch (error) {
+      showToast({
+        description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
+        title: t("permissionMenu.sortFailed"),
+        tone: "error"
+      });
+    }
+  }
+
+  async function moveMain(menuId: string, direction: PermissionMenuMoveDirection) {
+    if (searchActive) return;
+    const nextMenus = movePermissionItem(menus, menuId, direction, (menu) => menu.menu_id);
+    if (nextMenus === menus) return;
+    try {
+      await sortMain(nextMenus, language);
+      showToast({ title: t("permissionMenu.sortSaved"), tone: "success" });
+    } catch (error) {
+      showToast({
+        description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
+        title: t("permissionMenu.sortFailed"),
+        tone: "error"
+      });
+    }
+  }
+
+  async function moveSub(
+    menu: PermissionMainMenu,
+    subId: string,
+    direction: PermissionMenuMoveDirection
+  ) {
+    const submenus = menuSubmenus(menu);
+    const nextSubmenus = movePermissionItem(submenus, subId, direction, (submenu) => submenu.sub_id);
+    if (nextSubmenus === submenus) return;
+    try {
+      await sortSub(menu.menu_id, nextSubmenus, language);
       showToast({ title: t("permissionMenu.sortSaved"), tone: "success" });
     } catch (error) {
       showToast({
@@ -237,19 +257,6 @@ export function PermissionMenuPage() {
     }
   }
 
-  function toggleExpanded(menuId: string) {
-    setExpandedMenus((current) => {
-      const next = new Set(current);
-      if (next.has(menuId)) next.delete(menuId);
-      else next.add(menuId);
-      return next;
-    });
-  }
-
-  function setAllExpanded(expanded: boolean) {
-    setExpandedMenus(expanded ? new Set(menuIds(menus)) : new Set());
-  }
-
   function openCreateMainDialog() {
     setMainForm(MAIN_FORM_INITIAL);
     setMainDialogOpen(true);
@@ -270,35 +277,29 @@ export function PermissionMenuPage() {
     setSubDialogMenu(menu);
   }
 
-  const allExpanded = menus.length > 0 && menus.every((menu) => expandedMenus.has(menu.menu_id));
-  const expandToggleAction = menus.length ? (
-    <div className="flex flex-wrap gap-2">
-      <Button
-        size="xs"
-        type="button"
-        variant="outline"
-        onClick={() => setAllExpanded(!allExpanded)}
-      >
-        {allExpanded ? <ChevronsDownUp data-icon="inline-start" /> : <ChevronsUpDown data-icon="inline-start" />}
-        {allExpanded ? t("permissionMenu.collapseAll") : t("permissionMenu.expandAll")}
-      </Button>
-    </div>
-  ) : null;
-
   const menuList = (
-    <PermissionMenuTable
+    <PermissionMenuBuilder
       busy={busy}
-      expandedMenus={expandedMenus}
+      mainSearch={mainSearch}
       menus={menus}
+      searchActive={searchActive}
+      selectedMenu={selectedMenu}
+      selectedMenuId={selectedMenuId}
       sensors={sensors}
+      sorting={sorting}
+      visibleMenus={visibleMenus}
+      onAddMain={openCreateMainDialog}
       onAddSub={openCreateSubDialog}
       onDeleteMain={(menu) => setDeleteTarget({ menu, type: "main" })}
       onDeleteSub={(menu, submenu) => setDeleteTarget({ menu, submenu, type: "sub" })}
       onEditMain={openEditMainDialog}
       onEditSub={openEditSubDialog}
+      onMoveMain={moveMain}
+      onMoveSub={moveSub}
       onReorderMain={reorderMain}
       onReorderSub={reorderSub}
-      onToggleExpanded={toggleExpanded}
+      onSearchChange={setMainSearch}
+      onSelectMenu={setSelectedMenuId}
     />
   );
 
@@ -307,41 +308,21 @@ export function PermissionMenuPage() {
   return (
     <>
       <SettingsModuleShell
-        addLabel={t("permissionMenu.addMain")}
-        cardTitle={t("permissionMenu.mainMenus")}
+        cardTitle={t("permissionMenu.builderTitle")}
         description={t("permissionMenu.description")}
         emptyDescription={t("permissionMenu.emptyDescription")}
         emptyTitle={t("permissionMenu.emptyTitle")}
+        headerActions={
+          <Button disabled={loading || refreshing} size="sm" type="button" variant="outline" onClick={refresh}>
+            {loading || refreshing ? <Spinner data-icon="inline-start" /> : <RefreshCcw data-icon="inline-start" />}
+            {t("actions.refresh")}
+          </Button>
+        }
+        hideCardHeader
         loading={fullLoading}
         loadingLabel={t("permissionMenu.loading")}
         table={menuList}
         title={t("permissionMenu.title")}
-        toolbarStart={expandToggleAction}
-        toolbar={
-          <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex min-w-0 flex-wrap items-center gap-2">
-              <Badge className="border-primary/20 bg-primary/10 text-primary">
-                {t("permissionMenu.kicker")}
-              </Badge>
-              <Badge>
-                {t("permissionMenu.summary", {
-                  main: total || menus.length,
-                  sub: submenuTotal
-                })}
-              </Badge>
-              {sorting ? (
-                <Badge className="border-primary/30 bg-primary/10 text-primary">
-                  {t("permissionMenu.savingSort")}
-                </Badge>
-              ) : null}
-            </div>
-            <Button className="w-full sm:w-auto" disabled={loading || refreshing} size="sm" type="button" variant="outline" onClick={refresh}>
-              {loading || refreshing ? <Spinner data-icon="inline-start" /> : <RefreshCcw data-icon="inline-start" />}
-              {t("actions.refresh")}
-            </Button>
-          </div>
-        }
-        onAdd={openCreateMainDialog}
       />
       <MainMenuDialog
         form={mainForm}

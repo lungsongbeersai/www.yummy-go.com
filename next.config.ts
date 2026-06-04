@@ -37,6 +37,11 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: "https",
+        hostname: "plc-files.sgp1.vultrobjects.com",
+        pathname: "/api.yummy-go.com/products/**"
+      },
+      {
+        protocol: "https",
         hostname: "api.yummy-go.com",
         pathname: "/uploaded/**"
       },

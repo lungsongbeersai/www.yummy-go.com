@@ -74,7 +74,6 @@ import { money } from "@/lib/format";
 import { toApiLanguage, toLanguage } from "@/lib/language";
 import { cn } from "@/lib/utils";
 import { getBranchQrUrl } from "@/services/branch";
-import type { Customer } from "@/services/customer";
 import {
   OrderChannelEnum,
   type CartOrder,
@@ -85,11 +84,11 @@ import {
 } from "@/services/pos";
 import { useAppStore } from "@/stores/app-store";
 import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
-import { useCustomerStore } from "@/stores/customer-store";
 import { useExchangeStore } from "@/stores/exchange-store";
 import { usePosStore } from "@/stores/pos-store";
 import { usePrinterStore } from "@/stores/printer-store";
 import { useToastStore } from "@/stores/toast-store";
+import { usePaymentCustomers } from "./hooks/use-payment-customers";
 import { PaymentStat, PosNumpad, TenderRow } from "./payment-dialog-components";
 import { cartOrderInvoice, cartSummary, optionalString } from "./utils";
 import {
@@ -100,13 +99,9 @@ import {
   currencyAllowsDecimal,
   currencyMoney,
   currencyOptionLabel,
-  CUSTOMER_AUTO_SEARCH_TERMS,
-  CUSTOMER_SEARCH_DEBOUNCE_MS,
-  CUSTOMER_SEARCH_LIMIT,
   customerLabel,
   customerMeta,
   customerUuidOf,
-  dedupeCustomers,
   defaultCurrencyInput,
   displayCaretFromRawCaret,
   exchangeCurrencyOptions,
@@ -130,7 +125,6 @@ import {
   tenderInputLak,
   tenderInputValue,
   tenderLabel,
-  withSelectedCustomer,
   type InvoicePrintData,
   type PaymentKind,
   type PaymentTab,
@@ -162,7 +156,6 @@ export function PaymentDialog({
   const { t } = useTranslation();
   const language = useAppStore((state) => state.language);
   const user = useAuthStore((state) => state.user);
-  const loadCustomers = useCustomerStore((state) => state.load);
   const exchanges = useExchangeStore((state) => state.allRows);
   const loadExchangeRates = useExchangeStore((state) => state.loadAll);
   const exchangeRatesLoading = useExchangeStore((state) => state.loadingAll);
@@ -172,20 +165,23 @@ export function PaymentDialog({
   const print = usePrinterStore((state) => state.print);
   const showToast = useToastStore((state) => state.show);
   const activeAmountInputRef = useRef<HTMLInputElement>(null);
+  const {
+    customerOpen,
+    customerOptions,
+    customerSearch,
+    customerSearchLoading,
+    customerUuid,
+    handleCustomerOpenChange,
+    handleCustomerSelect,
+    selectedCustomerOption,
+    setCustomerSearch,
+  } = usePaymentCustomers({ language, open, user });
   const [activeTab, setActiveTab] = useState<PaymentTab>("cash");
   const [activeSplitField, setActiveSplitField] =
     useState<SplitTenderField>("cash");
   const [cashInput, setCashInput] = useState("");
   const [splitCashInput, setSplitCashInput] = useState("");
   const [splitTransferInput, setSplitTransferInput] = useState("");
-  const [customerUuid, setCustomerUuid] = useState("");
-  const [customerOpen, setCustomerOpen] = useState(false);
-  const [customerSearch, setCustomerSearch] = useState("");
-  const [customerOptions, setCustomerOptions] = useState<Customer[]>([]);
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
-    null,
-  );
-  const [customerSearchLoading, setCustomerSearchLoading] = useState(false);
   const [orderChannel, setOrderChannel] = useState<OrderChannel>(
     OrderChannelEnum.DINE_IN,
   );
@@ -253,12 +249,6 @@ export function PaymentDialog({
     !invoicePrinting;
   const selectedTab =
     paymentTabs.find((tab) => tab.value === activeTab) ?? paymentTabs[0];
-  const selectedCustomerOption =
-    selectedCustomer ??
-    customerOptions.find(
-      (customer) => customerUuidOf(customer) === customerUuid,
-    ) ??
-    null;
   const activeInputValue = activeTenderField
     ? tenderInputValue(
         activeTenderField,
@@ -297,12 +287,6 @@ export function PaymentDialog({
     setCashInput(defaultAmount);
     setSplitCashInput("");
     setSplitTransferInput(defaultAmount);
-    setCustomerUuid("");
-    setCustomerOpen(false);
-    setCustomerSearch("");
-    setCustomerOptions([]);
-    setSelectedCustomer(null);
-    setCustomerSearchLoading(false);
     setOrderChannel(OrderChannelEnum.DINE_IN);
     setCurrencyValue(LAK_CURRENCY_VALUE);
     setDueDate("");
@@ -331,63 +315,6 @@ export function PaymentDialog({
 
     return () => window.clearTimeout(timer);
   }, [activeTab, activeTenderField, activeSplitField, open]);
-
-  useEffect(() => {
-    if (!open || !customerOpen) return;
-
-    const storeUuid = authStoreUuid(user);
-    if (!storeUuid) {
-      setCustomerOptions(selectedCustomer ? [selectedCustomer] : []);
-      setCustomerSearchLoading(false);
-      return;
-    }
-
-    let cancelled = false;
-    const query = customerSearch.trim();
-    const terms = query ? [query] : CUSTOMER_AUTO_SEARCH_TERMS;
-    const debounceMs = query ? CUSTOMER_SEARCH_DEBOUNCE_MS : 0;
-    const timer = window.setTimeout(() => {
-      void (async () => {
-        setCustomerSearchLoading(true);
-        try {
-          const results = await Promise.allSettled(
-            terms.map((search) =>
-              loadCustomers({
-                store_uuid_fk: storeUuid,
-                page: 1,
-                limit: CUSTOMER_SEARCH_LIMIT,
-                search,
-                lang: toApiLanguage(language),
-              }),
-            ),
-          );
-          if (cancelled) return;
-
-          const rows = results.flatMap((result) =>
-            result.status === "fulfilled" ? result.value : [],
-          );
-          setCustomerOptions(
-            withSelectedCustomer(dedupeCustomers(rows), selectedCustomer),
-          );
-        } finally {
-          if (!cancelled) setCustomerSearchLoading(false);
-        }
-      })();
-    }, debounceMs);
-
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-    };
-  }, [
-    customerOpen,
-    customerSearch,
-    language,
-    loadCustomers,
-    open,
-    selectedCustomer,
-    user,
-  ]);
 
   function handleCurrencyChange(value: string) {
     const option =
@@ -590,20 +517,6 @@ export function PaymentDialog({
       event.preventDefault();
       requestSubmit();
     }
-  }
-
-  function handleCustomerOpenChange(nextOpen: boolean) {
-    setCustomerOpen(nextOpen);
-    if (nextOpen) setCustomerSearch("");
-    else setCustomerSearchLoading(false);
-  }
-
-  function handleCustomerSelect(customer: Customer) {
-    const uuid = customerUuidOf(customer);
-    if (!uuid) return;
-    setCustomerUuid(uuid);
-    setSelectedCustomer(customer);
-    setCustomerOpen(false);
   }
 
   function requestSubmit() {

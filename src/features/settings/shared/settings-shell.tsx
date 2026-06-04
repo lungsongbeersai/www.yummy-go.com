@@ -51,6 +51,8 @@ export interface SettingsModuleShellProps {
   description: string;
   addLabel?: string;
   cardTitle: string;
+  headerActions?: ReactNode;
+  hideCardHeader?: boolean;
   summary?: string;
   toolbarStart?: ReactNode;
   toolbar?: ReactNode;
@@ -112,6 +114,8 @@ export function SettingsModuleShell({
   emptyDescription,
   emptyTitle,
   footer,
+  headerActions,
+  hideCardHeader,
   loading,
   loadingLabel,
   mobileList,
@@ -125,17 +129,25 @@ export function SettingsModuleShell({
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
-      <SettingsModuleHeader addLabel={addLabel} description={description} title={title} onAdd={onAdd} />
+      <SettingsModuleHeader
+        addLabel={addLabel}
+        description={description}
+        headerActions={headerActions}
+        title={title}
+        onAdd={onAdd}
+      />
       <Card className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-none border-x-0 border-b-0">
-        <CardHeader className="flex shrink-0 flex-col items-stretch justify-start gap-3 px-3 py-2.5 sm:px-4 sm:py-3 lg:px-5">
-          <div className="flex min-w-0 flex-col gap-3">
-            <div className="min-w-0">
-              <CardTitle>{cardTitle}</CardTitle>
+        {hideCardHeader ? null : (
+          <CardHeader className="flex shrink-0 flex-col items-stretch justify-start gap-3 px-3 py-2.5 sm:px-4 sm:py-3 lg:px-5">
+            <div className="flex min-w-0 flex-col gap-3">
+              <div className="min-w-0">
+                <CardTitle>{cardTitle}</CardTitle>
+              </div>
+              {toolbarStart}
             </div>
-            {toolbarStart}
-          </div>
-          {toolbar ? <div className="min-w-0">{toolbar}</div> : null}
-        </CardHeader>
+            {toolbar ? <div className="min-w-0">{toolbar}</div> : null}
+          </CardHeader>
+        )}
         <CardContent className="flex min-h-0 flex-1 flex-col p-0">
           {loading ? (
             <div className="min-h-0 flex-1 p-4">
@@ -167,11 +179,13 @@ export function SettingsModuleShell({
 export function SettingsModuleHeader({
   addLabel,
   description,
+  headerActions,
   onAdd,
   title
 }: {
   addLabel?: string;
   description: string;
+  headerActions?: ReactNode;
   onAdd?: () => void;
   title: string;
 }) {
@@ -184,11 +198,16 @@ export function SettingsModuleHeader({
         <h1 className="mt-1 text-xl font-black">{title}</h1>
         <p className="mt-0.5 hidden max-w-2xl truncate text-xs text-muted-foreground sm:block">{description}</p>
       </div>
-      {onAdd && addLabel ? (
-        <Button className="max-w-[52vw] shrink-0" size="sm" onClick={onAdd}>
-          <Plus data-icon="inline-start" />
-          <span className="min-w-0 truncate">{addLabel}</span>
-        </Button>
+      {(onAdd && addLabel) || headerActions ? (
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+          {headerActions}
+          {onAdd && addLabel ? (
+            <Button className="max-w-[52vw] shrink-0" size="sm" onClick={onAdd}>
+              <Plus data-icon="inline-start" />
+              <span className="min-w-0 truncate">{addLabel}</span>
+            </Button>
+          ) : null}
+        </div>
       ) : null}
     </div>
   );

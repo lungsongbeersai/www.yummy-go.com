@@ -6,6 +6,8 @@ import {
   amountInput,
   buildInvoicePrintData,
   currencyMoney,
+  defaultCustomerFromRows,
+  defaultCustomerSearchTerm,
   defaultCurrencyInput,
   displayCaretFromRawCaret,
   exchangeCurrencyOptions,
@@ -71,6 +73,32 @@ const translate = (key: string, options?: Record<string, unknown>) =>
   options?.percent ? `${key}:${options.percent}` : key;
 
 describe("payment dialog helpers", () => {
+  it("finds default customer terms by language and exact name", () => {
+    const laoCustomer = {
+      customer_uuid: "default-la",
+      customer_name: " ລູກຄ້າທົ່ວໄປ ",
+    } as Customer;
+    const englishCustomer = {
+      customer_uuid: "default-en",
+      customer_name: "Customer",
+    } as Customer;
+    const similarCustomer = {
+      customer_uuid: "similar",
+      customer_name: "customer1",
+    } as Customer;
+
+    expect(defaultCustomerSearchTerm("la")).toBe("ລູກຄ້າທົ່ວໄປ");
+    expect(defaultCustomerSearchTerm("eng")).toBe("customer");
+    expect(defaultCustomerSearchTerm("en")).toBe("customer");
+    expect(defaultCustomerFromRows([similarCustomer], "customer")).toBeNull();
+    expect(defaultCustomerFromRows([similarCustomer, englishCustomer], "customer")).toBe(
+      englishCustomer,
+    );
+    expect(
+      defaultCustomerFromRows([laoCustomer], defaultCustomerSearchTerm("la")),
+    ).toBe(laoCustomer);
+  });
+
   it("calculates payment amounts and validation", () => {
     const cash = paymentAmounts("cash", 50000, "40000", "", "", 1);
     expect(cash.balance).toBe(10000);

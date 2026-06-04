@@ -111,7 +111,7 @@ html {
 }
 
 .pos-android-system-screen {
-  --pos-system-bottom-safe-area: max(env(safe-area-inset-bottom, 0px), 3.25rem);
+  --pos-system-bottom-safe-area: max(env(safe-area-inset-bottom, 0px), 1.5rem);
 }
 
 .pos-soft-light-zone {
