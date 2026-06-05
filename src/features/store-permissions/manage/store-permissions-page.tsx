@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef, useState, type ComponentProps } from "react";
 import { useRouter } from "next/navigation";
-import { RefreshCcw, Save, ShieldCheck } from "lucide-react";
+import { RefreshCcw, RotateCcw, Save, Search, ShieldCheck } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { EmptyState } from "@/components/common/empty-state";
 import { LoadingState } from "@/components/common/loading-state";
@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { canManageStorePermissions } from "@/lib/permissions";
@@ -34,15 +35,49 @@ function totalSubmenus(roleTree: StorePermissionRoleTree | null) {
   return roleTree?.menus.reduce((sum, menu) => sum + menu.sub_detail.length, 0) ?? 0;
 }
 
+function savedSubmenus(role: StorePermissionRoleTree) {
+  return role.menus.reduce((sum, menu) => sum + menu.sub_detail.length, 0);
+}
+
+function matchesSearch(value: string | undefined, query: string) {
+  return String(value ?? "").toLowerCase().includes(query);
+}
+
+function filteredMenus(roleTree: StorePermissionRoleTree | null, search: string) {
+  if (!roleTree) return [];
+  const query = search.trim().toLowerCase();
+  if (!query) return roleTree.menus;
+  return roleTree.menus.filter((menu) => {
+    if (matchesSearch(menu.menu_title, query) || matchesSearch(menu.menu_path, query)) return true;
+    return menu.sub_detail.some((submenu) =>
+      matchesSearch(submenu.sub_title, query) || matchesSearch(submenu.sub_path, query)
+    );
+  });
+}
+
 function menuSelection(menu: StorePermissionMenu, checked: Set<string>) {
   const submenus = menuSubmenus(menu);
   const selected = submenus.filter((submenu) => checked.has(submenu.sub_id)).length;
   return {
     allChecked: Boolean(submenus.length && selected === submenus.length),
+    someChecked: selected > 0,
     selected,
     submenus,
     total: submenus.length
   };
+}
+
+function PermissionCheckbox({
+  indeterminate,
+  ...props
+}: ComponentProps<typeof Checkbox> & { indeterminate?: boolean }) {
+  const ref = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (ref.current) ref.current.indeterminate = Boolean(indeterminate);
+  }, [indeterminate]);
+
+  return <Checkbox ref={ref} {...props} />;
 }
 
 export function StorePermissionsPage() {
@@ -51,9 +86,12 @@ export function StorePermissionsPage() {
   const user = useAuthStore((state) => state.user);
   const showToast = useToastStore((state) => state.show);
   const checkedSubIds = useStorePermissionsStore((state) => state.checkedSubIds);
+  const dirty = useStorePermissionsStore((state) => state.dirty);
   const loadingOptions = useStorePermissionsStore((state) => state.loadingOptions);
+  const loadingSaved = useStorePermissionsStore((state) => state.loadingSaved);
   const loadingTree = useStorePermissionsStore((state) => state.loadingTree);
   const roles = useStorePermissionsStore((state) => state.roles);
+  const savedList = useStorePermissionsStore((state) => state.savedList);
   const saving = useStorePermissionsStore((state) => state.saving);
   const selectedRoleId = useStorePermissionsStore((state) => state.selectedRoleId);
   const selectedStoreUuid = useStorePermissionsStore((state) => state.selectedStoreUuid);
@@ -61,39 +99,46 @@ export function StorePermissionsPage() {
   const tree = useStorePermissionsStore((state) => state.tree);
   const loadOptions = useStorePermissionsStore((state) => state.loadOptions);
   const loadTree = useStorePermissionsStore((state) => state.loadTree);
+  const resetChanges = useStorePermissionsStore((state) => state.resetChanges);
   const savePermissions = useStorePermissionsStore((state) => state.save);
   const setRole = useStorePermissionsStore((state) => state.setRole);
   const setStore = useStorePermissionsStore((state) => state.setStore);
   const toggleMenu = useStorePermissionsStore((state) => state.toggleMenu);
   const toggleSubmenu = useStorePermissionsStore((state) => state.toggleSubmenu);
+  const [permissionSearch, setPermissionSearch] = useState("");
   const allowed = canManageStorePermissions(user?.status);
+  const userStatus = Number(user?.status ?? 0);
   const language = i18n.language;
   const roleTree = useMemo(() => currentRoleTree(tree, selectedRoleId), [selectedRoleId, tree]);
+  const visibleMenus = useMemo(() => filteredMenus(roleTree, permissionSearch), [permissionSearch, roleTree]);
   const checkedSet = useMemo(() => new Set(checkedSubIds), [checkedSubIds]);
   const total = totalSubmenus(roleTree);
   const selectedCount = checkedSubIds.length;
-  const loading = loadingOptions || loadingTree;
-  const canSave = Boolean(selectedStoreUuid && selectedRoleId && tree) && !saving && !loading;
+  const loading = loadingOptions || loadingTree || loadingSaved;
+  const selectedRole = roles.find((role) => role.roles_id === selectedRoleId);
+  const selectedStore = stores.find((store) => store.store_uuid === selectedStoreUuid);
+  const canReset = dirty && !saving && !loading;
+  const canSave = Boolean(selectedStoreUuid && selectedRoleId && tree && dirty) && !saving && !loading;
 
   useEffect(() => {
     if (!allowed) router.replace("/");
   }, [allowed, router]);
 
   useEffect(() => {
-    if (!allowed) return;
+    if (!allowed || !userStatus) return;
     void loadPermissionOptions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allowed, language]);
+  }, [allowed, language, userStatus]);
 
   useEffect(() => {
-    if (!allowed || !selectedStoreUuid || !selectedRoleId) return;
+    if (!allowed || !userStatus || !selectedStoreUuid || !selectedRoleId) return;
     void loadPermissionTree();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allowed, language, selectedRoleId, selectedStoreUuid]);
+  }, [allowed, language, selectedRoleId, selectedStoreUuid, userStatus]);
 
   async function loadPermissionOptions() {
     try {
-      await loadOptions(language);
+      await loadOptions(userStatus, language);
     } catch (error) {
       showToast({
         description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
@@ -105,8 +150,8 @@ export function StorePermissionsPage() {
 
   async function refresh() {
     try {
-      await loadOptions(language);
-      await loadTree(language);
+      await loadOptions(userStatus, language);
+      await loadTree(userStatus, language);
     } catch (error) {
       showToast({
         description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
@@ -118,7 +163,7 @@ export function StorePermissionsPage() {
 
   async function loadPermissionTree() {
     try {
-      await loadTree(language);
+      await loadTree(userStatus, language);
     } catch (error) {
       showToast({
         description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
@@ -131,7 +176,7 @@ export function StorePermissionsPage() {
   async function save() {
     if (!canSave) return;
     try {
-      await savePermissions(language);
+      await savePermissions(userStatus, language);
       showToast({ title: t("storePermissions.saved"), tone: "success" });
     } catch (error) {
       showToast({
@@ -155,9 +200,13 @@ export function StorePermissionsPage() {
           </p>
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
-          <Button disabled={loading} size="sm" type="button" variant="outline" onClick={refresh}>
+          <Button disabled={saving || loading} size="sm" type="button" variant="outline" onClick={refresh}>
             {loading ? <Spinner data-icon="inline-start" /> : <RefreshCcw data-icon="inline-start" />}
             {t("actions.refresh")}
+          </Button>
+          <Button disabled={!canReset} size="sm" type="button" variant="outline" onClick={resetChanges}>
+            <RotateCcw data-icon="inline-start" />
+            {t("storePermissions.resetChanges")}
           </Button>
           <Button disabled={!canSave} size="sm" type="button" onClick={save}>
             {saving ? <Spinner data-icon="inline-start" /> : <Save data-icon="inline-start" />}
@@ -172,15 +221,26 @@ export function StorePermissionsPage() {
             <div className="min-w-0">
               <CardTitle>{t("storePermissions.cardTitle")}</CardTitle>
               <p className="mt-1 text-xs text-muted-foreground">
-                {t("storePermissions.summary", { selected: selectedCount, total })}
+                {selectedStore?.store_name
+                  ? t("storePermissions.storeRoleContext", {
+                    role: selectedRole?.role_name ?? "-",
+                    store: selectedStore.store_name
+                  })
+                  : t("storePermissions.assignmentHint")}
               </p>
             </div>
-            <Badge className="shrink-0 border-primary/30 bg-primary/10 text-primary">
-              <ShieldCheck />
-              {t("storePermissions.plcOnly")}
-            </Badge>
+            <div className="flex shrink-0 flex-wrap justify-end gap-2">
+              <Badge className="border-primary/30 bg-primary/10 text-primary">
+                <ShieldCheck />
+                {t("storePermissions.selectedSummary", { selected: selectedCount, total })}
+              </Badge>
+              <Badge className={dirty ? "border-primary/30 bg-primary/10 text-primary" : undefined}>
+                {dirty ? t("storePermissions.unsavedChanges") : t("storePermissions.noChanges")}
+              </Badge>
+            </div>
           </div>
-          <FieldGroup className="grid gap-3 md:grid-cols-2">
+
+          <FieldGroup className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(16rem,0.9fr)]">
             <Field className="gap-2">
               <FieldLabel htmlFor="permission-store-select">{t("storePermissions.store")}</FieldLabel>
               <Select
@@ -203,6 +263,7 @@ export function StorePermissionsPage() {
               </Select>
               <FieldDescription>{t("storePermissions.storeHint")}</FieldDescription>
             </Field>
+
             <Field className="gap-2">
               <FieldLabel htmlFor="permission-role-select">{t("storePermissions.role")}</FieldLabel>
               <Select
@@ -225,8 +286,26 @@ export function StorePermissionsPage() {
               </Select>
               <FieldDescription>{t("storePermissions.roleHint")}</FieldDescription>
             </Field>
+
+            <Field className="gap-2">
+              <FieldLabel htmlFor="permission-search">{t("storePermissions.searchPermissions")}</FieldLabel>
+              <div className="flex min-w-0 items-center gap-2 rounded-md border border-input bg-background px-2.5 shadow-sm transition-colors focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50">
+                <Search aria-hidden className="shrink-0 text-muted-foreground" />
+                <Input
+                  id="permission-search"
+                  autoComplete="off"
+                  className="h-9 border-0 bg-transparent p-0 shadow-none focus-visible:ring-0"
+                  disabled={loading || saving}
+                  placeholder={t("storePermissions.searchPlaceholder")}
+                  value={permissionSearch}
+                  onChange={(event) => setPermissionSearch(event.target.value)}
+                />
+              </div>
+              <FieldDescription>{t("storePermissions.searchHint")}</FieldDescription>
+            </Field>
           </FieldGroup>
         </CardHeader>
+
         <CardContent className="flex min-h-0 flex-1 flex-col p-0">
           {loading ? (
             <div className="min-h-0 flex-1 p-4">
@@ -240,24 +319,43 @@ export function StorePermissionsPage() {
               />
             </div>
           ) : roleTree?.menus.length ? (
-            <div className="min-h-0 flex-1 overflow-auto">
-              <Alert className="m-4 mb-0">
-                <ShieldCheck />
-                <AlertTitle>{t("storePermissions.assignmentTitle")}</AlertTitle>
-                <AlertDescription>{t("storePermissions.assignmentHint")}</AlertDescription>
-              </Alert>
-              <div className="flex min-h-full flex-col pt-4">
-                {roleTree.menus.map((menu) => (
-                  <PermissionMenuGroup
-                    key={menu.menu_id}
-                    checkedSet={checkedSet}
-                    menu={menu}
-                    saving={saving}
-                    onToggleMenu={toggleMenu}
-                    onToggleSubmenu={toggleSubmenu}
-                  />
-                ))}
-              </div>
+            <div className="grid min-h-0 flex-1 lg:grid-cols-[20rem_minmax(0,1fr)]">
+              <SavedPermissionsOverview
+                roles={savedList?.roles ?? []}
+                selectedRoleId={selectedRoleId}
+              />
+              <section className="flex min-h-0 min-w-0 flex-col">
+                <div className="shrink-0 border-b border-border px-4 py-3 lg:px-5">
+                  <Alert>
+                    <ShieldCheck />
+                    <AlertTitle>{t("storePermissions.assignmentTitle")}</AlertTitle>
+                    <AlertDescription>
+                      {t("storePermissions.editorHint", { role: selectedRole?.role_name ?? "-" })}
+                    </AlertDescription>
+                  </Alert>
+                </div>
+                <div className="min-h-0 flex-1 overflow-y-auto p-4 lg:p-5">
+                  {visibleMenus.length ? (
+                    <div className="flex flex-col gap-3">
+                      {visibleMenus.map((menu) => (
+                        <PermissionMenuGroup
+                          key={menu.menu_id}
+                          checkedSet={checkedSet}
+                          menu={menu}
+                          saving={saving}
+                          onToggleMenu={toggleMenu}
+                          onToggleSubmenu={toggleSubmenu}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <EmptyState
+                      description={t("storePermissions.noSearchResultsDescription")}
+                      title={t("storePermissions.noSearchResults")}
+                    />
+                  )}
+                </div>
+              </section>
             </div>
           ) : (
             <div className="flex min-h-72 flex-1 items-center justify-center p-4">
@@ -270,6 +368,72 @@ export function StorePermissionsPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+function SavedPermissionsOverview({
+  roles,
+  selectedRoleId
+}: {
+  roles: StorePermissionRoleTree[];
+  selectedRoleId: number | null;
+}) {
+  const { t } = useTranslation();
+
+  return (
+    <aside className="flex min-h-0 min-w-0 flex-col border-b border-border bg-muted/20 lg:border-b-0 lg:border-r">
+      <div className="shrink-0 border-b border-border px-4 py-3">
+        <h2 className="text-sm font-black">{t("storePermissions.savedOverview")}</h2>
+        <p className="mt-0.5 text-xs text-muted-foreground">{t("storePermissions.savedOverviewHint")}</p>
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto p-3">
+        {roles.length ? (
+          <div className="flex flex-col gap-2">
+            {roles.map((role) => {
+              const selected = role.role_id === selectedRoleId;
+              const count = savedSubmenus(role);
+              return (
+                <div
+                  key={role.role_id}
+                  className={cn(
+                    "rounded-md border border-border bg-background p-3 shadow-sm",
+                    selected && "border-primary/40 bg-primary/5 ring-2 ring-primary/10"
+                  )}
+                >
+                  <div className="flex min-w-0 items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-black">{role.role_name || role.roles_name || "-"}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {t("storePermissions.savedRoleSummary", { count })}
+                      </p>
+                    </div>
+                    {selected ? (
+                      <Badge className="shrink-0 border-primary/20 bg-primary/10 text-primary">
+                        {t("storePermissions.editing")}
+                      </Badge>
+                    ) : null}
+                  </div>
+                  {role.menus.length ? (
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                      {role.menus.map((menu) => (
+                        <Badge key={menu.menu_id} className="max-w-full truncate">
+                          {menu.menu_title || "-"}
+                        </Badge>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <EmptyState
+            description={t("storePermissions.noSavedRolesDescription")}
+            title={t("storePermissions.noSavedRoles")}
+          />
+        )}
+      </div>
+    </aside>
   );
 }
 
@@ -288,16 +452,19 @@ function PermissionMenuGroup({
 }) {
   const { t } = useTranslation();
   const selection = menuSelection(menu, checkedSet);
+  const indeterminate = selection.someChecked && !selection.allChecked;
 
   return (
-    <section className="border-t border-border bg-card">
-      <div className="grid gap-3 px-4 py-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start lg:px-5">
+    <section className="overflow-hidden rounded-md border border-border bg-card shadow-sm">
+      <div className="grid gap-3 px-4 py-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
         <label className="flex min-w-0 cursor-pointer items-start gap-3">
-          <Checkbox
+          <PermissionCheckbox
+            aria-checked={indeterminate ? "mixed" : selection.allChecked}
+            aria-label={t("storePermissions.toggleMenu", { title: menu.menu_title })}
             checked={selection.allChecked}
             className="mt-1"
             disabled={saving || !selection.total}
-            aria-label={t("storePermissions.toggleMenu", { title: menu.menu_title })}
+            indeterminate={indeterminate}
             onChange={(event) => onToggleMenu(menu.menu_id, event.target.checked)}
           />
           <div className="min-w-0 flex-1">
@@ -317,22 +484,22 @@ function PermissionMenuGroup({
         </label>
       </div>
 
-      <div className="border-t border-border bg-muted/30 px-4 py-3 lg:px-5">
+      <div className="border-t border-border bg-muted/30 px-4 py-3">
         {selection.submenus.length ? (
           <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
             {selection.submenus.map((submenu) => (
               <label
                 key={submenu.sub_id}
                 className={cn(
-                  "flex min-w-0 cursor-pointer items-start gap-3 rounded-md border border-border bg-background px-3 py-2 shadow-sm",
+                  "flex min-w-0 cursor-pointer items-start gap-3 rounded-md border border-border bg-background px-3 py-2 shadow-sm transition-colors",
                   checkedSet.has(submenu.sub_id) && "border-primary/30 bg-primary/5"
                 )}
               >
                 <Checkbox
+                  aria-label={submenu.sub_title}
                   checked={checkedSet.has(submenu.sub_id)}
                   className="mt-1"
                   disabled={saving}
-                  aria-label={submenu.sub_title}
                   onChange={(event) => onToggleSubmenu(submenu.sub_id, event.target.checked)}
                 />
                 <div className="min-w-0 flex-1">

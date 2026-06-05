@@ -3,6 +3,7 @@ import { toApiLanguage } from "@/lib/language";
 import { requiredText } from "@/services/shared/validators";
 
 const ENDPOINTS = {
+  fetch: "/api/v1/permission/fetch",
   roles: "/api/v1/permission/roles",
   save: "/api/v1/permission/save",
   stores: "/api/v1/permission/stores",
@@ -13,7 +14,7 @@ interface PermissionListResponse<T> {
   status: string;
   message: string | null;
   total?: number;
-  data?: T[];
+  data?: T[] | T;
 }
 
 interface PermissionDataResponse<T> {
@@ -42,6 +43,8 @@ export interface StorePermissionSubMenu {
   sub_sort: number;
   sub_status: number;
   sub_title: string;
+  sub_title_eng?: string;
+  sub_title_la?: string;
 }
 
 export interface StorePermissionMenu {
@@ -86,13 +89,13 @@ type RawStore = Partial<StorePermissionStore>;
 type RawRole = Partial<StorePermissionRole>;
 type RawSubMenu = Partial<StorePermissionSubMenu>;
 type RawMenu = Partial<Omit<StorePermissionMenu, "sub_detail">> & {
-  sub_detail?: RawSubMenu[];
+  sub_detail?: RawSubMenu[] | string | null;
 };
 type RawRoleTree = Partial<Omit<StorePermissionRoleTree, "menus">> & {
-  menus?: RawMenu[];
+  menus?: RawMenu[] | null;
 };
 type RawTree = Partial<Omit<StorePermissionTree, "roles">> & {
-  roles?: RawRoleTree[];
+  roles?: RawRoleTree[] | null;
 };
 
 function text(value: unknown, fallback = "") {
@@ -117,6 +120,11 @@ function requiredNumber(value: unknown, field: string) {
   return next;
 }
 
+function responseRows<T>(data: T[] | T | null | undefined): T[] {
+  if (Array.isArray(data)) return data;
+  return data ? [data] : [];
+}
+
 function normalizeStore(store: RawStore): StorePermissionStore {
   return {
     store_name: text(store.store_name),
@@ -132,13 +140,18 @@ function normalizeRole(role: RawRole): StorePermissionRole {
 }
 
 function normalizeSubMenu(submenu: RawSubMenu): StorePermissionSubMenu {
+  const titleLa = text(submenu.sub_title_la);
+  const titleEng = text(submenu.sub_title_eng);
+
   return {
     checked: booleanValue(submenu.checked),
     sub_id: text(submenu.sub_id),
     sub_path: text(submenu.sub_path),
     sub_sort: numberValue(submenu.sub_sort),
     sub_status: numberValue(submenu.sub_status, 1),
-    sub_title: text(submenu.sub_title)
+    sub_title: text(submenu.sub_title, titleLa || titleEng),
+    sub_title_eng: titleEng,
+    sub_title_la: titleLa
   };
 }
 
@@ -184,31 +197,42 @@ function normalizeTree(tree: RawTree): StorePermissionTree {
 
 export function checkedSubmenuIds(tree: StorePermissionTree | null) {
   if (!tree) return [];
-  return tree.roles.flatMap((role) =>
+  const ids = tree.roles.flatMap((role) =>
     role.menus.flatMap((menu) =>
       menu.sub_detail.filter((submenu) => submenu.checked).map((submenu) => submenu.sub_id)
     )
   );
+  return Array.from(new Set(ids.filter(Boolean)));
 }
 
-export async function fetchStorePermissionStores(lang?: string) {
+export async function fetchStorePermissionStores(storeStatus: number, lang?: string) {
   const result = await apiRequest<PermissionListResponse<StorePermissionStore>>(
     "get",
     ENDPOINTS.stores,
-    { params: { lang: toApiLanguage(lang), store_status: 1 } },
+    {
+      params: {
+        lang: toApiLanguage(lang),
+        store_status: requiredNumber(storeStatus, "store_status")
+      }
+    },
     "Failed to fetch stores"
   );
-  return (result.data ?? []).map(normalizeStore).filter((store) => store.store_uuid);
+  return responseRows(result.data).map(normalizeStore).filter((store) => store.store_uuid);
 }
 
-export async function fetchStorePermissionRoles(lang?: string) {
+export async function fetchStorePermissionRoles(loginStatus: number, lang?: string) {
   const result = await apiRequest<PermissionListResponse<StorePermissionRole>>(
     "get",
     ENDPOINTS.roles,
-    { params: { lang: toApiLanguage(lang), login_status: 1 } },
+    {
+      params: {
+        lang: toApiLanguage(lang),
+        login_status: requiredNumber(loginStatus, "login_status")
+      }
+    },
     "Failed to fetch roles"
   );
-  return (result.data ?? []).map(normalizeRole).filter((role) => role.roles_id);
+  return responseRows(result.data).map(normalizeRole).filter((role) => role.roles_id);
 }
 
 export async function fetchStorePermissionTree(
@@ -228,7 +252,28 @@ export async function fetchStorePermissionTree(
     },
     "Failed to fetch permission tree"
   );
-  const first = result.data?.[0];
+  const first = responseRows(result.data)[0];
+  return first ? normalizeTree(first) : null;
+}
+
+export async function fetchStorePermissionSavedList(
+  companyUuid: string,
+  viewerRoleId: number,
+  lang?: string
+) {
+  const result = await apiRequest<PermissionListResponse<StorePermissionTree>>(
+    "get",
+    ENDPOINTS.fetch,
+    {
+      params: {
+        company_uuid_fk: requiredText(companyUuid, "company_uuid_fk"),
+        lang: toApiLanguage(lang),
+        role_id: requiredNumber(viewerRoleId, "role_id")
+      }
+    },
+    "Failed to fetch saved permission list"
+  );
+  const first = responseRows(result.data)[0];
   return first ? normalizeTree(first) : null;
 }
 

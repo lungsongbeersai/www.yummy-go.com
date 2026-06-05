@@ -3,34 +3,53 @@
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { useTranslation } from "react-i18next";
-import { CheckCircle2, ImageIcon, KeyRound, MapPin, Plus } from "lucide-react";
+import { Building2, CheckCircle2, KeyRound, MapPin, Plus, QrCode, Store } from "lucide-react";
+import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Field, FieldDescription, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
+import { Dialog, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
+import { Field, FieldDescription, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
-import { ConfirmDialog } from "@/components/common/confirm-dialog";
-import { EmptyState } from "@/components/common/empty-state";
-import { LoadingState } from "@/components/common/loading-state";
-import { SETTINGS, type SettingConfig } from "@/features/settings/shared/settings-config";
+import { SETTINGS } from "@/features/settings/shared/settings-config";
 import { DEFAULT_CROP, SettingsImageCropPanel, cropImageFile, type CropState } from "@/features/settings/shared/settings-image-crop";
 import {
-  SettingsModuleHeader,
+  SettingsDialogBody,
+  SettingsDialogContent,
+  SettingsDialogFooter,
+  SettingsDialogForm,
+  SettingsDialogHeader,
   SettingsMobileCard,
   SettingsMobileList,
   SettingsMobileMeta,
   SettingsMobileMetaGrid,
+  SettingsModuleShell,
   SettingsPaginationFooter,
   SettingsRowActions,
   SettingsTableScroll,
   SettingsToolbar
 } from "@/features/settings/shared/settings-shell";
+import {
+  branchChargeSummary,
+  branchVatSummary,
+  buildBranchPayload,
+  buildStorePayload,
+  isStoreActive,
+  isStorePlc,
+  missingBranchField,
+  missingStoreField,
+  storeBranchId,
+  storeBranchMediaKey,
+  storeBranchName,
+  storeBranchNumber,
+  storeBranchValue,
+  type StoreBranchKind
+} from "@/features/settings/store-branch/store-branch-utils";
 import { DEFAULT_PAGE_LIMIT, PAGE_LIMIT_OPTIONS } from "@/lib/pagination";
 import { canCreateStoreBranch, canDeleteStoreBranch, canEditStoreBranch } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
@@ -41,7 +60,6 @@ import { useReferenceStore } from "@/stores/reference-store";
 import { useSettingsStore } from "@/stores/settings-store";
 import { useToastStore } from "@/stores/toast-store";
 
-type EntityKind = "store" | "branch";
 type Row = Record<string, unknown>;
 
 interface StoreBranchLabels {
@@ -51,14 +69,18 @@ interface StoreBranchLabels {
   addStore: string;
   address: string;
   branch: string;
+  branchDetails: string;
   branchHint: string;
   branchInfo: string;
   branchList: string;
+  branchNameRequired: string;
   cancel: string;
+  cancelImage: string;
   charge: string;
   chargePercent: string;
   closed: string;
-  cancelImage: string;
+  contactDetails: string;
+  contactHint: string;
   cropHint: string;
   cropImage: string;
   current: string;
@@ -66,6 +88,7 @@ interface StoreBranchLabels {
   deleteConfirm: string;
   deleteFailed: string;
   email: string;
+  emailPlaceholder: string;
   general: string;
   horizontal: string;
   imageLoadFailed: string;
@@ -74,10 +97,13 @@ interface StoreBranchLabels {
   name: string;
   nameEn: string;
   nameLa: string;
+  noBranch: string;
   noStore: string;
   open: string;
   phone: string;
   plc: string;
+  refreshBranch: string;
+  refreshStore: string;
   resetFailed: string;
   resetPassword: string;
   save: string;
@@ -87,12 +113,16 @@ interface StoreBranchLabels {
   savingTitle: string;
   selectAll: string;
   selectRecord: string;
-  showing: string;
   store: string;
+  storeDetails: string;
+  storeEmailRequired: string;
   storeHint: string;
   storeInfo: string;
   storeList: string;
+  storeNameRequired: string;
+  storeRequired: string;
   taxBilling: string;
+  taxBillingHint: string;
   type: string;
   uploadImage: string;
   vertical: string;
@@ -100,6 +130,11 @@ interface StoreBranchLabels {
   vatPercent: string;
   zoom: string;
 }
+
+const LIST_PAGE = 1;
+const LIST_LIMIT: PageLimit = DEFAULT_PAGE_LIMIT;
+const EMPTY_ROWS: Row[] = [];
+
 function useStoreBranchLabels(): StoreBranchLabels {
   const { t } = useTranslation();
 
@@ -110,14 +145,18 @@ function useStoreBranchLabels(): StoreBranchLabels {
     addStore: t("settings.storeBranch.addStore"),
     address: t("fields.branch_address"),
     branch: t("nav.branch"),
+    branchDetails: t("settings.storeBranch.branchDetails"),
     branchHint: t("settings.storeBranch.branchHint"),
     branchInfo: t("settings.storeBranch.branchInfo"),
     branchList: t("settings.storeBranch.branchList"),
+    branchNameRequired: t("settings.storeBranch.branchNameRequired"),
     cancel: t("actions.cancel"),
+    cancelImage: t("settings.storeBranch.cancelImage"),
     charge: t("settings.storeBranch.charge"),
     chargePercent: t("settings.storeBranch.chargePercent"),
     closed: t("settings.storeBranch.closed"),
-    cancelImage: t("settings.storeBranch.cancelImage"),
+    contactDetails: t("settings.storeBranch.contactDetails"),
+    contactHint: t("settings.storeBranch.contactHint"),
     cropHint: t("settings.storeBranch.cropHint"),
     cropImage: t("settings.storeBranch.cropImage"),
     current: t("settings.storeBranch.current"),
@@ -125,6 +164,7 @@ function useStoreBranchLabels(): StoreBranchLabels {
     deleteConfirm: t("settings.deleteConfirm"),
     deleteFailed: t("settings.deleteFailed"),
     email: t("fields.email"),
+    emailPlaceholder: t("settings.emailPlaceholder"),
     general: t("settings.storeBranch.general"),
     horizontal: t("settings.storeBranch.horizontal"),
     imageLoadFailed: t("settings.storeBranch.imageLoadFailed"),
@@ -133,10 +173,13 @@ function useStoreBranchLabels(): StoreBranchLabels {
     name: t("fields.name"),
     nameEn: t("fields.nameEn"),
     nameLa: t("fields.nameLa"),
+    noBranch: t("settings.storeBranch.noBranch"),
     noStore: t("settings.storeBranch.noStore"),
     open: t("settings.storeBranch.open"),
     phone: t("fields.phone"),
     plc: t("settings.storeBranch.plc"),
+    refreshBranch: t("settings.storeBranch.refreshingBranchList"),
+    refreshStore: t("settings.storeBranch.refreshingStoreList"),
     resetFailed: t("settings.storeBranch.resetFailed"),
     resetPassword: t("settings.storeBranch.resetPassword"),
     save: t("actions.save"),
@@ -146,12 +189,16 @@ function useStoreBranchLabels(): StoreBranchLabels {
     savingTitle: t("settings.storeBranch.savingTitle"),
     selectAll: t("common.selectAll"),
     selectRecord: t("settings.storeBranch.selectRecord"),
-    showing: t("common.showing"),
     store: t("nav.store"),
+    storeDetails: t("settings.storeBranch.storeDetails"),
+    storeEmailRequired: t("settings.storeBranch.storeEmailRequired"),
     storeHint: t("settings.storeBranch.storeHint"),
     storeInfo: t("settings.storeBranch.storeInfo"),
     storeList: t("settings.storeBranch.storeList"),
+    storeNameRequired: t("settings.storeBranch.storeNameRequired"),
+    storeRequired: t("settings.storeRequired"),
     taxBilling: t("settings.storeBranch.taxBilling"),
+    taxBillingHint: t("settings.storeBranch.taxBillingHint"),
     type: t("settings.storeBranch.type"),
     uploadImage: t("settings.storeBranch.uploadImage"),
     vertical: t("settings.storeBranch.vertical"),
@@ -159,40 +206,6 @@ function useStoreBranchLabels(): StoreBranchLabels {
     vatPercent: t("settings.storeBranch.vatPercent"),
     zoom: t("settings.storeBranch.zoom")
   };
-}
-
-const LIST_PAGE = 1;
-const LIST_LIMIT: PageLimit = DEFAULT_PAGE_LIMIT;
-const EMPTY_ROWS: Row[] = [];
-
-function value(row: Row | null, key: string, fallback = "") {
-  const raw = row?.[key];
-  if (raw === null || raw === undefined || raw === "") return fallback;
-  return String(raw);
-}
-
-function numberValue(row: Row | null, key: string, fallback = 0) {
-  const raw = row?.[key];
-  const parsed = Number(raw);
-  return Number.isFinite(parsed) && raw !== "" && raw !== undefined && raw !== null ? parsed : fallback;
-}
-
-function displayName(row: Row, kind: EntityKind) {
-  if (kind === "store") {
-    return value(row, "store_name", value(row, "store_name_la", value(row, "store_name_eng", "-")));
-  }
-  return value(row, "branch_name", value(row, "branch_name_la", value(row, "branch_name_eng", "-")));
-}
-
-function imageUrl(row: Row | null, kind: EntityKind) {
-  if (!row) return "";
-  const references = useReferenceStore.getState();
-  if (kind === "store") return references.storeLogoUrl(value(row, "store_logo"));
-  return references.branchQrUrl(value(row, "branch_qr"));
-}
-
-function rowId(row: Row, config: SettingConfig) {
-  return value(row, config.idKey);
 }
 
 function StatusBadge({ active, labels }: { active: boolean; labels: StoreBranchLabels }) {
@@ -203,20 +216,99 @@ function StatusBadge({ active, labels }: { active: boolean; labels: StoreBranchL
   );
 }
 
-function MediaPreview({ alt, src, kind }: { alt: string; src: string; kind: EntityKind }) {
+function StoreTypeBadge({ labels, row }: { labels: StoreBranchLabels; row: Row }) {
+  return <Badge>{isStorePlc(row) ? labels.plc : labels.general}</Badge>;
+}
+
+function SummaryBadge({
+  active,
+  activeLabel,
+  inactiveLabel,
+  label,
+  percentLabel
+}: {
+  active: boolean;
+  activeLabel: string;
+  inactiveLabel: string;
+  label: string;
+  percentLabel: string;
+}) {
   return (
-    <div className="grid size-11 shrink-0 place-items-center overflow-hidden rounded-md border border-border bg-muted">
-      {src ? (
-        <Image src={src} alt={alt} width={44} height={44} unoptimized className="size-full object-cover" />
-      ) : (
-        <ImageIcon className="size-4 text-muted-foreground" />
-      )}
-      <span className="sr-only">{kind}</span>
+    <Badge className={cn("max-w-full justify-start gap-1", active ? "border-primary/25 bg-primary/10 text-primary" : "border-border bg-muted text-muted-foreground")}>
+      <span className="truncate">{label}</span>
+      <span className="tabular-nums" translate="no">
+        {active ? activeLabel : inactiveLabel} / {percentLabel}
+      </span>
+    </Badge>
+  );
+}
+
+function BranchTaxBadges({ labels, row }: { labels: StoreBranchLabels; row: Row }) {
+  const vat = branchVatSummary(row);
+  const charge = branchChargeSummary(row);
+
+  return (
+    <div className="flex min-w-0 flex-col items-start gap-1">
+      <SummaryBadge active={vat.active} activeLabel={labels.active} inactiveLabel={labels.inactive} label={labels.vat} percentLabel={vat.percentLabel} />
+      <SummaryBadge
+        active={charge.active}
+        activeLabel={labels.active}
+        inactiveLabel={labels.inactive}
+        label={labels.charge}
+        percentLabel={charge.percentLabel}
+      />
     </div>
   );
 }
 
-export function StoreBranchSettingsPage({ kind }: { kind: EntityKind }) {
+function MediaPreview({ alt, src, kind }: { alt: string; src: string; kind: StoreBranchKind }) {
+  return (
+    <div className="grid size-11 shrink-0 place-items-center overflow-hidden rounded-md border border-border bg-muted">
+      {src ? (
+        <Image src={src} alt={alt} width={44} height={44} unoptimized className="size-full object-cover" />
+      ) : kind === "store" ? (
+        <Store aria-hidden className="size-4 text-muted-foreground" />
+      ) : (
+        <QrCode aria-hidden className="size-4 text-muted-foreground" />
+      )}
+    </div>
+  );
+}
+
+function EntityIdentity({
+  activeId,
+  imageUrl,
+  kind,
+  labels,
+  row
+}: {
+  activeId?: string;
+  imageUrl: (row: Row, kind: StoreBranchKind) => string;
+  kind: StoreBranchKind;
+  labels: StoreBranchLabels;
+  row: Row;
+}) {
+  const id = storeBranchId(row, kind);
+  const name = storeBranchName(row, kind);
+  const subtitle = kind === "store" ? storeBranchValue(row, "store_email", "-") : storeBranchValue(row, "branch_tel", "-");
+
+  return (
+    <div className="flex min-w-0 items-center gap-3">
+      <MediaPreview alt={name} kind={kind} src={imageUrl(row, kind)} />
+      <div className="min-w-0">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <p className="min-w-0 truncate font-black">{name}</p>
+          {id && id === activeId ? <Badge className="border-primary/25 bg-primary/10 text-primary">{labels.current}</Badge> : null}
+        </div>
+        <p className="mt-0.5 truncate text-xs text-muted-foreground" translate="no">
+          {subtitle}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+export function StoreBranchSettingsPage({ kind }: { kind: StoreBranchKind }) {
   const { t } = useTranslation();
   const config = SETTINGS[kind];
   const language = useAppStore((state) => state.language);
@@ -226,10 +318,14 @@ export function StoreBranchSettingsPage({ kind }: { kind: EntityKind }) {
   const updateUser = useAuthStore((state) => state.updateUser);
   const showToast = useToastStore((state) => state.show);
   const resetPassword = useReferenceStore((state) => state.resetPassword);
+  const storeLogoUrl = useReferenceStore((state) => state.storeLogoUrl);
+  const branchQrUrl = useReferenceStore((state) => state.branchQrUrl);
   const entity = useSettingsStore((state) => state.entities[config.slug]);
   const rows = entity?.rows ?? EMPTY_ROWS;
   const search = entity?.search ?? "";
+  const hasLoaded = entity?.hasLoaded ?? false;
   const loading = entity?.loading ?? false;
+  const refreshing = entity?.refreshing ?? false;
   const saving = entity?.saving ?? false;
   const setSearch = useSettingsStore((state) => state.setSearch);
   const loadEntity = useSettingsStore((state) => state.load);
@@ -247,26 +343,40 @@ export function StoreBranchSettingsPage({ kind }: { kind: EntityKind }) {
   const canDelete = canDeleteStoreBranch(user?.status);
   const canEdit = canEditStoreBranch(user?.status);
   const scope = useMemo(() => config.scope?.(user) ?? {}, [config, user]);
+  const scopeKey = useMemo(() => JSON.stringify(scope), [scope]);
   const visibleRows = useMemo(() => {
-    if (kind === "store" && !canCreate) return rows.filter((row) => value(row, "store_uuid") === storeUuid);
-    if (kind === "branch" && !canCreate) return rows.filter((row) => value(row, "branch_uuid") === user?.branch_uuid);
+    if (kind === "store" && !canCreate) return rows.filter((row) => storeBranchValue(row, "store_uuid") === storeUuid);
+    if (kind === "branch" && !canCreate) return rows.filter((row) => storeBranchValue(row, "branch_uuid") === user?.branch_uuid);
     return rows;
   }, [canCreate, kind, rows, storeUuid, user?.branch_uuid]);
   const activeId = kind === "store" ? storeUuid : user?.branch_uuid;
   const title = kind === "store" ? labels.store : labels.branch;
   const description = kind === "store" ? labels.storeHint : labels.branchHint;
+  const listTitle = kind === "store" ? labels.storeList : labels.branchList;
   const requestParams = useMemo(
     () => ({ page, limit, orderBy, lang: language, search, ...scope }),
     [language, limit, orderBy, page, scope, search]
   );
-  const total = Number(entity?.total ?? visibleRows.length);
-  const totalPages = Math.max(1, Number(entity?.totalPages ?? 1));
-  const pageStart = visibleRows.length ? (page - 1) * (Number(limit) || visibleRows.length) + 1 : 0;
+  const pageSize = limit === "All" ? visibleRows.length || Number(LIST_LIMIT) : Number(limit ?? LIST_LIMIT);
+  const total = canCreate ? Number(entity?.total ?? visibleRows.length) : visibleRows.length;
+  const totalPages = canCreate ? Math.max(1, Number(entity?.totalPages || Math.ceil(total / pageSize) || 1)) : 1;
+  const pageStart = visibleRows.length ? (page - 1) * pageSize + 1 : 0;
   const pageEnd = visibleRows.length ? pageStart + visibleRows.length - 1 : 0;
-  const canGoBack = page > 1 && !loading;
-  const canGoNext = page < totalPages && !loading;
-  const visibleIds = useMemo(() => visibleRows.map((row) => rowId(row, config)).filter(Boolean), [config, visibleRows]);
+  const fullLoading = loading && !hasLoaded;
+  const backgroundLoading = refreshing || (loading && hasLoaded);
+  const pagingBusy = loading || refreshing;
+  const canGoBack = page > 1 && !pagingBusy;
+  const canGoNext = page < totalPages && !pagingBusy;
+  const visibleIds = useMemo(() => visibleRows.map((row) => storeBranchId(row, kind)).filter(Boolean), [kind, visibleRows]);
   const allSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedRows.has(id));
+  const imageUrl = useMemo(
+    () => (row: Row, rowKind: StoreBranchKind) => {
+      const key = storeBranchMediaKey(row, rowKind);
+      if (!key) return "";
+      return rowKind === "store" ? storeLogoUrl(key) : branchQrUrl(key);
+    },
+    [branchQrUrl, storeLogoUrl]
+  );
 
   useEffect(() => {
     setSelectedRows((current) => {
@@ -275,23 +385,20 @@ export function StoreBranchSettingsPage({ kind }: { kind: EntityKind }) {
       let changed = false;
       const next = new Set<string>();
       current.forEach((id) => {
-        if (allowed.has(id)) {
-          next.add(id);
-        } else {
-          changed = true;
-        }
+        if (allowed.has(id)) next.add(id);
+        else changed = true;
       });
       return changed ? next : current;
     });
   }, [visibleIds]);
 
-  async function load() {
+  async function load(background = hasLoaded) {
     try {
-      await loadEntity(config, requestParams);
+      await loadEntity(config, requestParams, { background });
     } catch (error) {
       showToast({
         title: t("settings.loadFailed", { title }),
-        description: error instanceof Error ? error.message : undefined,
+        description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
         tone: "error"
       });
     }
@@ -300,7 +407,7 @@ export function StoreBranchSettingsPage({ kind }: { kind: EntityKind }) {
   useEffect(() => {
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [config.slug, language, JSON.stringify(scope), page, limit, orderBy]);
+  }, [config.slug, language, scopeKey, page, limit, orderBy]);
 
   function resetForm() {
     setEditing(null);
@@ -320,29 +427,16 @@ export function StoreBranchSettingsPage({ kind }: { kind: EntityKind }) {
   }
 
   function applyFilters() {
-    if (page === 1) {
-      void load();
-    } else {
-      setPage(1);
-    }
-  }
-
-  function goBack() {
-    setPage((current) => Math.max(1, current - 1));
-  }
-
-  function goNext() {
-    setPage((current) => Math.min(totalPages, current + 1));
+    if (page === 1) void load(true);
+    else setPage(1);
   }
 
   function toggleSelected(id: string, checked: boolean) {
+    if (!id) return;
     setSelectedRows((current) => {
       const next = new Set(current);
-      if (checked) {
-        next.add(id);
-      } else {
-        next.delete(id);
-      }
+      if (checked) next.add(id);
+      else next.delete(id);
       return next;
     });
   }
@@ -351,49 +445,69 @@ export function StoreBranchSettingsPage({ kind }: { kind: EntityKind }) {
     setSelectedRows(checked ? new Set(visibleIds) : new Set());
   }
 
+  function missingFieldDescription(field: ReturnType<typeof missingStoreField> | ReturnType<typeof missingBranchField>) {
+    if (field === "store") return labels.storeRequired;
+    if (field === "email") return labels.storeEmailRequired;
+    if (field === "name") return kind === "store" ? labels.storeNameRequired : labels.branchNameRequired;
+    return t("toasts.pleaseTryAgain");
+  }
+
   async function handleSave(formData: FormData) {
-    const input: Row = { ...scope };
-    const id = editing ? rowId(editing, config) : "";
+    const id = editing ? storeBranchId(editing, kind) : "";
     if (!id && !canCreate) return;
     if (id && !canEdit) return;
-    if (id) input[config.idKey] = id;
 
-    if (kind === "store") {
-      input.store_name_la = formData.get("store_name_la") ?? "";
-      input.store_name_eng = formData.get("store_name_eng") ?? "";
-      input.store_email = formData.get("store_email") ?? "";
-      input.store_status = Number(formData.get("store_status") ?? 2);
-      input.store_active = Number(formData.get("store_active") ?? 1);
-      const logo = formData.get("store_logo");
-      if (logo instanceof File && logo.size) input.store_logo = logo;
-    } else {
-      input.branch_name = formData.get("branch_name") ?? "";
-      input.branch_tel = formData.get("branch_tel") ?? "";
-      input.branch_email = formData.get("branch_email") ?? "";
-      input.branch_address = formData.get("branch_address") ?? "";
-      input.vat_status = Number(formData.get("vat_status") ?? 2);
-      input.vat_name = Number(formData.get("vat_name") ?? 0);
-      input.charge_status = Number(formData.get("charge_status") ?? 2);
-      input.charge_name = Number(formData.get("charge_name") ?? 0);
-      const qr = formData.get("branch_qr");
-      if (qr instanceof File && qr.size) input.branch_qr = qr;
+    const logo = formData.get("store_logo");
+    const qr = formData.get("branch_qr");
+    const input =
+      kind === "store"
+        ? buildStorePayload({
+            active: String(formData.get("store_active") ?? "1"),
+            editing,
+            email: String(formData.get("store_email") ?? ""),
+            logo: logo instanceof File && logo.size ? logo : null,
+            nameEng: String(formData.get("store_name_eng") ?? ""),
+            nameLa: String(formData.get("store_name_la") ?? ""),
+            status: String(formData.get("store_status") ?? "2")
+          })
+        : buildBranchPayload({
+            address: String(formData.get("branch_address") ?? ""),
+            chargePercent: String(formData.get("charge_name") ?? ""),
+            chargeStatus: String(formData.get("charge_status") ?? "2"),
+            editing,
+            email: String(formData.get("branch_email") ?? ""),
+            name: String(formData.get("branch_name") ?? ""),
+            qr: qr instanceof File && qr.size ? qr : null,
+            storeUuid: storeUuid,
+            tel: String(formData.get("branch_tel") ?? ""),
+            vatPercent: String(formData.get("vat_name") ?? ""),
+            vatStatus: String(formData.get("vat_status") ?? "2")
+          });
+    const missing =
+      kind === "store"
+        ? missingStoreField({ email: String(input.store_email ?? ""), nameLa: String(input.store_name_la ?? "") })
+        : missingBranchField({ name: String(input.branch_name ?? ""), storeUuid: String(input.store_uuid_fk ?? "") });
+
+    if (missing) {
+      showToast({ title: labels.saveFailed, description: missingFieldDescription(missing), tone: "error" });
+      return;
     }
 
     try {
       await saveEntity(config, input);
-      const nextRows = await loadEntity(config, requestParams);
-      const updated = id ? nextRows.find((row) => rowId(row, config) === id) : null;
+      const nextRows = await loadEntity(config, requestParams, { background: true });
+      const updated = id ? nextRows.find((row) => storeBranchId(row, kind) === id) : null;
       if (updated && kind === "store" && id === storeUuid) {
         updateUser({
-          store_logo: value(updated, "store_logo"),
-          store_name: displayName(updated, "store")
+          store_logo: storeBranchValue(updated, "store_logo"),
+          store_name: storeBranchName(updated, "store")
         });
       }
       if (updated && kind === "branch" && id === user?.branch_uuid) {
         updateUser({
-          branch_address: value(updated, "branch_address"),
-          branch_name: displayName(updated, "branch"),
-          branch_tel: value(updated, "branch_tel")
+          branch_address: storeBranchValue(updated, "branch_address"),
+          branch_name: storeBranchName(updated, "branch"),
+          branch_tel: storeBranchValue(updated, "branch_tel")
         });
       }
       showToast({ title: labels.saved, tone: "success" });
@@ -401,35 +515,37 @@ export function StoreBranchSettingsPage({ kind }: { kind: EntityKind }) {
     } catch (error) {
       showToast({
         title: labels.saveFailed,
-        description: error instanceof Error ? error.message : undefined,
+        description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
         tone: "error"
       });
     }
   }
 
   async function handleDelete(row: Row) {
-    const id = rowId(row, config);
+    const id = storeBranchId(row, kind);
     if (!canDelete || !id || id === activeId) return;
     try {
       await removeEntity(config, id);
-      if (editing && rowId(editing, config) === id) resetForm();
+      await loadEntity(config, requestParams, { background: true });
+      if (editing && storeBranchId(editing, kind) === id) resetForm();
       setDeleteTarget(null);
       setSelectedRows((current) => {
         const next = new Set(current);
         next.delete(id);
         return next;
       });
+      showToast({ title: t("settings.deleted"), tone: "success" });
     } catch (error) {
       showToast({
         title: labels.deleteFailed,
-        description: error instanceof Error ? error.message : undefined,
+        description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
         tone: "error"
       });
     }
   }
 
   async function handleResetPassword(row: Row) {
-    const email = value(row, "store_email");
+    const email = storeBranchValue(row, "store_email");
     if (!email) return;
     try {
       await resetPassword(email);
@@ -437,68 +553,182 @@ export function StoreBranchSettingsPage({ kind }: { kind: EntityKind }) {
     } catch (error) {
       showToast({
         title: labels.resetFailed,
-        description: error instanceof Error ? error.message : undefined,
+        description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
         tone: "error"
       });
     }
   }
 
+  const rowActions = (row: Row) => {
+    const id = storeBranchId(row, kind);
+    const isCurrent = id === activeId;
+    return (
+      <SettingsRowActions
+        row={row}
+        editDisabled={!canEdit || saving}
+        deleteDisabled={!canDelete || isCurrent || saving}
+        actions={
+          kind === "store"
+            ? [
+                {
+                  label: labels.resetPassword,
+                  icon: <KeyRound aria-hidden />,
+                  disabled: !canEdit || saving,
+                  onSelect: (nextRow) => void handleResetPassword(nextRow)
+                }
+              ]
+            : undefined
+        }
+        onEdit={openEditForm}
+        onDelete={setDeleteTarget}
+      />
+    );
+  };
+
+  const table = visibleRows.length ? (
+    <SettingsTableScroll>
+      <Table className={kind === "store" ? "min-w-[940px]" : "min-w-[1080px]"}>
+        <TableHeader className="sticky top-0 z-10 bg-muted/95 backdrop-blur">
+          <TableRow>
+            <TableHead className="w-10 px-2">
+              <Checkbox aria-label={labels.selectAll} checked={allSelected} onChange={(event) => toggleAllSelected(event.target.checked)} />
+            </TableHead>
+            <TableHead className="w-px whitespace-nowrap px-2 text-center">{t("fields.no")}</TableHead>
+            <TableHead>{kind === "store" ? labels.store : labels.branch}</TableHead>
+            {kind === "store" ? (
+              <>
+                <TableHead>{labels.email}</TableHead>
+                <TableHead>{labels.type}</TableHead>
+                <TableHead>{labels.active}</TableHead>
+              </>
+            ) : (
+              <>
+                <TableHead>{labels.phone}</TableHead>
+                <TableHead>{labels.email}</TableHead>
+                <TableHead>{labels.address}</TableHead>
+                <TableHead>{labels.taxBilling}</TableHead>
+              </>
+            )}
+            <TableHead className="w-16 text-right">{labels.actions}</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {visibleRows.map((row, rowIndex) => {
+            const id = storeBranchId(row, kind);
+            const name = storeBranchName(row, kind);
+            const selected = selectedRows.has(id);
+            const rowNumber = pageStart + rowIndex;
+
+            return (
+              <TableRow key={id || rowIndex} className="h-14" data-state={selected ? "selected" : undefined}>
+                <TableCell className="w-10 px-2">
+                  <Checkbox aria-label={t("common.selectRow", { name })} checked={selected} onChange={(event) => toggleSelected(id, event.target.checked)} />
+                </TableCell>
+                <TableCell className="w-px whitespace-nowrap px-2 text-center text-sm font-black tabular-nums text-muted-foreground">
+                  {rowNumber}
+                </TableCell>
+                <TableCell className="max-w-[28rem]">
+                  <EntityIdentity activeId={activeId} imageUrl={imageUrl} kind={kind} labels={labels} row={row} />
+                </TableCell>
+                {kind === "store" ? (
+                  <>
+                    <TableCell className="max-w-[18rem] text-muted-foreground">
+                      <span className="block truncate" translate="no">
+                        {storeBranchValue(row, "store_email", "-")}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <StoreTypeBadge labels={labels} row={row} />
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge active={isStoreActive(row)} labels={labels} />
+                    </TableCell>
+                  </>
+                ) : (
+                  <>
+                    <TableCell className="max-w-[10rem] text-muted-foreground">
+                      <span className="block truncate" translate="no">
+                        {storeBranchValue(row, "branch_tel", "-")}
+                      </span>
+                    </TableCell>
+                    <TableCell className="max-w-[16rem] text-muted-foreground">
+                      <span className="block truncate" translate="no">
+                        {storeBranchValue(row, "branch_email", "-")}
+                      </span>
+                    </TableCell>
+                    <TableCell className="max-w-[22rem] text-muted-foreground">
+                      <span className="flex min-w-0 items-center gap-1">
+                        <MapPin aria-hidden className="size-3.5 shrink-0" />
+                        <span className="truncate">{storeBranchValue(row, "branch_address", "-")}</span>
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <BranchTaxBadges labels={labels} row={row} />
+                    </TableCell>
+                  </>
+                )}
+                <TableCell className="text-right">{rowActions(row)}</TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+    </SettingsTableScroll>
+  ) : null;
+
   const mobileList = visibleRows.length ? (
     <SettingsMobileList>
       {visibleRows.map((row, rowIndex) => {
-        const id = rowId(row, config);
-        const isCurrent = id === activeId;
-        const active = kind === "store" ? numberValue(row, "store_active", 1) === 1 : true;
+        const id = storeBranchId(row, kind);
         const selected = selectedRows.has(id);
         const rowNumber = pageStart + rowIndex;
-        const name = displayName(row, kind);
+        const name = storeBranchName(row, kind);
+        const current = id === activeId;
         return (
           <SettingsMobileCard
             key={id || rowIndex}
-            actions={
-              <SettingsRowActions
-                row={row}
-                editDisabled={!canEdit}
-                deleteDisabled={!canDelete || isCurrent}
-                actions={
-                  kind === "store"
-                    ? [
-                        {
-                          label: labels.resetPassword,
-                          icon: <KeyRound />,
-                          disabled: !canEdit,
-                          onSelect: (nextRow) => void handleResetPassword(nextRow)
-                        }
-                      ]
-                    : undefined
-                }
-                onEdit={openEditForm}
-                onDelete={setDeleteTarget}
-              />
-            }
+            actions={rowActions(row)}
             badges={
               <>
-                <Badge className="shrink-0">{rowNumber}</Badge>
-                {isCurrent ? <Badge className="border-primary/25 bg-primary/10 text-primary">{labels.current}</Badge> : null}
-                <StatusBadge active={active} labels={labels} />
+                <Badge className="shrink-0 tabular-nums">{rowNumber}</Badge>
+                {current ? <Badge className="border-primary/25 bg-primary/10 text-primary">{labels.current}</Badge> : null}
+                {kind === "store" ? <StatusBadge active={isStoreActive(row)} labels={labels} /> : null}
               </>
             }
             checked={selected}
             leading={<MediaPreview alt={name} kind={kind} src={imageUrl(row, kind)} />}
             selectLabel={t("common.selectRow", { name })}
             selected={selected}
-            subtitle={<span className="block truncate">{kind === "branch" ? value(row, "branch_tel", "-") : value(row, "store_email", "-")}</span>}
+            subtitle={
+              <span className="block truncate" translate="no">
+                {kind === "store" ? storeBranchValue(row, "store_email", "-") : storeBranchValue(row, "branch_tel", "-")}
+              </span>
+            }
             title={name}
             onCheckedChange={(checked) => toggleSelected(id, checked)}
           >
             <SettingsMobileMetaGrid>
-              <SettingsMobileMeta label={labels.email} value={kind === "store" ? value(row, "store_email", "-") : value(row, "branch_email", "-")} />
               {kind === "store" ? (
-                <SettingsMobileMeta label={labels.type} value={numberValue(row, "store_status", 2) === 1 ? labels.plc : labels.general} />
+                <>
+                  <SettingsMobileMeta label={labels.email} value={<span translate="no">{storeBranchValue(row, "store_email", "-")}</span>} />
+                  <SettingsMobileMeta label={labels.type} value={isStorePlc(row) ? labels.plc : labels.general} />
+                  <SettingsMobileMeta label={labels.active} value={isStoreActive(row) ? labels.open : labels.closed} />
+                </>
               ) : (
-                <SettingsMobileMeta label={labels.address} value={value(row, "branch_address", "-")} />
+                <>
+                  <SettingsMobileMeta label={labels.phone} value={<span translate="no">{storeBranchValue(row, "branch_tel", "-")}</span>} />
+                  <SettingsMobileMeta label={labels.email} value={<span translate="no">{storeBranchValue(row, "branch_email", "-")}</span>} />
+                  <SettingsMobileMeta label={labels.address} value={storeBranchValue(row, "branch_address", "-")} />
+                  <SettingsMobileMeta
+                    label={labels.vat}
+                    value={`${branchVatSummary(row).active ? labels.active : labels.inactive} / ${branchVatSummary(row).percentLabel}`}
+                  />
+                  <SettingsMobileMeta
+                    label={labels.charge}
+                    value={`${branchChargeSummary(row).active ? labels.active : labels.inactive} / ${branchChargeSummary(row).percentLabel}`}
+                  />
+                </>
               )}
-              <SettingsMobileMeta label={labels.active} value={active ? labels.open : labels.closed} />
             </SettingsMobileMetaGrid>
           </SettingsMobileCard>
         );
@@ -506,171 +736,101 @@ export function StoreBranchSettingsPage({ kind }: { kind: EntityKind }) {
     </SettingsMobileList>
   ) : null;
 
+  const toolbar = (
+    <SettingsToolbar
+      state={{
+        search,
+        limit,
+        orderBy,
+        limitOptions: PAGE_LIMIT_OPTIONS,
+        selectedCount: selectedRows.size,
+        onApply: applyFilters,
+        onLimit: (nextLimit) => {
+          setLimit(nextLimit);
+          setPage(1);
+        },
+        onOrder: (nextOrder) => {
+          setOrderBy(nextOrder);
+          setPage(1);
+        },
+        onSearch: (nextSearch) => setSearch(config.slug, nextSearch)
+      }}
+    />
+  );
+
+  const listSurface = (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="shrink-0 border-b border-border bg-card/95 px-3 py-2.5 backdrop-blur sm:px-4 lg:px-5">
+        <div className="flex min-w-0 flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
+          <div className="min-w-0">
+            <p className="text-sm font-black">{listTitle}</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {t("common.showingRange", { start: pageStart, end: pageEnd, total })} - {t("common.page", { current: page, total: totalPages })}
+            </p>
+          </div>
+          <div className="min-w-0 xl:max-w-[48rem]">{toolbar}</div>
+        </div>
+        {backgroundLoading ? (
+          <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+            <Spinner aria-hidden />
+            {kind === "store" ? labels.refreshStore : labels.refreshBranch}
+          </div>
+        ) : null}
+      </div>
+      {visibleRows.length ? (
+        <>
+          <div className="hidden min-h-0 flex-1 md:flex">{table}</div>
+          <div className="min-h-0 flex-1 overflow-y-auto md:hidden">{mobileList}</div>
+        </>
+      ) : (
+        <div className="flex min-h-72 flex-1 items-center justify-center p-4">
+          <Empty className="max-w-md border border-dashed bg-muted/20">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                {kind === "store" ? <Store aria-hidden /> : <Building2 aria-hidden />}
+              </EmptyMedia>
+              <EmptyTitle>{kind === "store" ? labels.noStore : labels.noBranch}</EmptyTitle>
+              <EmptyDescription>{labels.selectRecord}</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        </div>
+      )}
+    </div>
+  );
+
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden">
-      <SettingsModuleHeader
+    <>
+      <SettingsModuleShell
         addLabel={kind === "store" ? labels.addStore : labels.addBranch}
+        cardTitle={listTitle}
         description={description}
+        footer={
+          visibleRows.length ? (
+            <SettingsPaginationFooter
+              canGoBack={canGoBack}
+              canGoNext={canGoNext}
+              page={page}
+              pageEnd={pageEnd}
+              pageStart={pageStart}
+              total={total}
+              totalPages={totalPages}
+              onBack={() => setPage((current) => Math.max(1, current - 1))}
+              onNext={() => setPage((current) => Math.min(totalPages, current + 1))}
+            />
+          ) : undefined
+        }
+        hideCardHeader
+        loading={fullLoading}
+        loadingLabel={t("settings.loading", { title })}
+        table={listSurface}
         title={title}
         onAdd={canCreate ? openCreateForm : undefined}
       />
-
-      <Card className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-none border-x-0 border-b-0">
-        <CardHeader className="flex shrink-0 flex-col items-stretch justify-start gap-3 px-3 py-2.5 sm:px-4 sm:py-3 lg:px-5">
-          <div className="flex min-w-0 flex-col gap-3">
-            <div className="min-w-0">
-              <CardTitle>{kind === "store" ? labels.storeList : labels.branchList}</CardTitle>
-            </div>
-          </div>
-          <div className="min-w-0">
-            <SettingsToolbar
-              state={{
-                search,
-                limit,
-                orderBy,
-                limitOptions: PAGE_LIMIT_OPTIONS,
-                selectedCount: selectedRows.size,
-                onApply: applyFilters,
-                onLimit: (nextLimit) => {
-                  setLimit(nextLimit);
-                  setPage(1);
-                },
-                onOrder: (nextOrder) => {
-                  setOrderBy(nextOrder);
-                  setPage(1);
-                },
-                onSearch: (nextSearch) => setSearch(config.slug, nextSearch)
-              }}
-            />
-          </div>
-        </CardHeader>
-        <CardContent className="flex min-h-0 flex-1 flex-col p-0">
-          {loading ? (
-            <div className="min-h-0 flex-1 p-4">
-              <LoadingState variant="table" />
-            </div>
-          ) : visibleRows.length ? (
-            <>
-              <div className="hidden min-h-0 flex-1 md:flex">
-                <SettingsTableScroll>
-                  <Table className="min-w-[940px]">
-                  <TableHeader className="sticky top-0 z-10 bg-muted/95 backdrop-blur">
-                    <TableRow>
-                    <TableHead className="w-10 px-2">
-                      <Checkbox
-                        aria-label={labels.selectAll}
-                        checked={allSelected}
-                        onChange={(event) => toggleAllSelected(event.target.checked)}
-                      />
-                    </TableHead>
-                    <TableHead className="w-px whitespace-nowrap px-2 text-center">{t("fields.no")}</TableHead>
-                    <TableHead>{kind === "store" ? labels.store : labels.branch}</TableHead>
-                    <TableHead>{labels.email}</TableHead>
-                    <TableHead>{labels.type}</TableHead>
-                    <TableHead>{labels.active}</TableHead>
-                    <TableHead className="w-16 text-right">{labels.actions}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {visibleRows.map((row, rowIndex) => {
-                    const id = rowId(row, config);
-                    const isCurrent = id === activeId;
-                    const active = kind === "store" ? numberValue(row, "store_active", 1) === 1 : true;
-                    const selected = selectedRows.has(id);
-                    const rowNumber = pageStart + rowIndex;
-
-                    return (
-                      <TableRow key={id} data-state={selected ? "selected" : undefined}>
-                        <TableCell className="w-10 px-2">
-                          <Checkbox
-                            aria-label={`${labels.selectAll} ${displayName(row, kind)}`}
-                            checked={selected}
-                            onChange={(event) => toggleSelected(id, event.target.checked)}
-                          />
-                        </TableCell>
-                        <TableCell className="w-px whitespace-nowrap px-2 text-center text-sm font-black text-muted-foreground">
-                          {rowNumber}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex min-w-0 items-center gap-3">
-                            <MediaPreview alt={displayName(row, kind)} kind={kind} src={imageUrl(row, kind)} />
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-2">
-                                <p className="truncate font-black">{displayName(row, kind)}</p>
-                                {isCurrent ? <Badge className="border-primary/25 bg-primary/10 text-primary">{labels.current}</Badge> : null}
-                              </div>
-                              <p className="mt-1 truncate text-xs text-muted-foreground">
-                                {kind === "branch" ? value(row, "branch_tel", "-") : value(row, "store_email", "-")}
-                              </p>
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">{kind === "store" ? value(row, "store_email", "-") : value(row, "branch_email", "-")}</TableCell>
-                        <TableCell>
-                          {kind === "store" ? (
-                            <Badge>{numberValue(row, "store_status", 2) === 1 ? labels.plc : labels.general}</Badge>
-                          ) : (
-                            <span className="inline-flex max-w-[18rem] items-center gap-1 truncate text-muted-foreground">
-                              <MapPin className="size-3.5 shrink-0" />
-                              <span className="truncate">{value(row, "branch_address", "-")}</span>
-                            </span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <StatusBadge active={active} labels={labels} />
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <SettingsRowActions
-                            row={row}
-                            editDisabled={!canEdit}
-                            deleteDisabled={!canDelete || isCurrent}
-                            actions={
-                              kind === "store"
-                                ? [
-                                    {
-                                      label: labels.resetPassword,
-                                      icon: <KeyRound />,
-                                      disabled: !canEdit,
-                                      onSelect: (nextRow) => void handleResetPassword(nextRow)
-                                    }
-                                  ]
-                                : undefined
-                            }
-                            onEdit={openEditForm}
-                            onDelete={setDeleteTarget}
-                          />
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                  </TableBody>
-                </Table>
-                </SettingsTableScroll>
-              </div>
-              <div className="min-h-0 flex-1 overflow-y-auto md:hidden">{mobileList}</div>
-              <SettingsPaginationFooter
-                canGoBack={canGoBack}
-                canGoNext={canGoNext}
-                page={page}
-                pageEnd={pageEnd}
-                pageStart={pageStart}
-                total={total}
-                totalPages={totalPages}
-                onBack={goBack}
-                onNext={goNext}
-              />
-            </>
-          ) : (
-            <div className="flex min-h-0 flex-1 items-center justify-center p-4">
-              <EmptyState title={kind === "store" ? labels.noStore : labels.branchList} description={labels.selectRecord} />
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
       <EntityFormDialog
+        activeStoreUuid={storeUuid}
         canEdit={canEdit}
         editing={editing}
+        imageUrl={(row, rowKind) => imageUrl(row, rowKind)}
         kind={kind}
         labels={labels}
         open={dialogOpen}
@@ -681,6 +841,7 @@ export function StoreBranchSettingsPage({ kind }: { kind: EntityKind }) {
       <ConfirmDialog
         cancelLabel={labels.cancel}
         confirmLabel={labels.delete}
+        confirmPending={saving}
         description={labels.deleteConfirm}
         open={Boolean(deleteTarget)}
         title={labels.delete}
@@ -691,13 +852,15 @@ export function StoreBranchSettingsPage({ kind }: { kind: EntityKind }) {
           if (!nextOpen) setDeleteTarget(null);
         }}
       />
-    </div>
+    </>
   );
 }
 
 function EntityFormDialog({
+  activeStoreUuid,
   canEdit,
   editing,
+  imageUrl,
   kind,
   labels,
   onCancel,
@@ -705,9 +868,11 @@ function EntityFormDialog({
   open,
   saving
 }: {
+  activeStoreUuid: string;
   canEdit: boolean;
   editing: Row | null;
-  kind: EntityKind;
+  imageUrl: (row: Row, rowKind: StoreBranchKind) => string;
+  kind: StoreBranchKind;
   labels: StoreBranchLabels;
   onCancel: () => void;
   onSubmit: (formData: FormData) => Promise<void>;
@@ -721,22 +886,12 @@ function EntityFormDialog({
         if (!nextOpen && !saving) onCancel();
       }}
     >
-      <DialogContent
-        className="!flex h-[calc(100dvh-1rem)] max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-5xl flex-col gap-0 overflow-hidden p-0 sm:h-auto sm:max-h-[calc(100dvh-2rem)] sm:w-[calc(100vw-2rem)] sm:max-w-5xl"
-        showCloseButton={!saving}
-      >
-        <DialogHeader className="border-b border-border px-4 py-3 pr-12">
-          <DialogTitle className="flex items-center gap-2">
-            <span className="grid size-8 place-items-center rounded-md bg-primary/10 text-primary">
-              {editing ? <CheckCircle2 className="size-4" /> : <Plus className="size-4" />}
-            </span>
-            {kind === "store" ? labels.storeInfo : labels.branchInfo}
-          </DialogTitle>
-          <DialogDescription>{editing ? displayName(editing, kind) : labels.selectRecord}</DialogDescription>
-        </DialogHeader>
+      <SettingsDialogContent className="sm:max-w-5xl" showCloseButton={!saving}>
         <EntityForm
+          activeStoreUuid={activeStoreUuid}
           canEdit={canEdit}
           editing={editing}
+          imageUrl={imageUrl}
           kind={kind}
           labels={labels}
           saving={saving}
@@ -744,17 +899,17 @@ function EntityFormDialog({
           onSubmit={onSubmit}
         />
         {saving ? <FormSavingOverlay labels={labels} onCancel={onCancel} /> : null}
-      </DialogContent>
+      </SettingsDialogContent>
     </Dialog>
   );
 }
 
 function FormSavingOverlay({ labels, onCancel }: { labels: StoreBranchLabels; onCancel: () => void }) {
   return (
-    <div className="absolute inset-0 z-20 grid place-items-center bg-background/90 p-4 backdrop-blur-sm" role="status" aria-live="polite">
+    <div className="absolute inset-0 grid place-items-center bg-background/90 p-4 backdrop-blur-sm" role="status" aria-live="polite">
       <div className="flex w-full max-w-md flex-col items-center gap-4 rounded-xl border border-border bg-card p-6 text-center shadow-xl">
         <div className="grid size-10 place-items-center rounded-lg bg-muted text-primary">
-          <Spinner className="size-5" />
+          <Spinner />
         </div>
         <div className="flex flex-col gap-2">
           <p className="text-base font-black">{labels.savingTitle}</p>
@@ -775,7 +930,7 @@ function FormSelectField({
   name,
   onValueChange,
   options,
-  value: currentValue
+  value
 }: {
   disabled?: boolean;
   id: string;
@@ -788,8 +943,8 @@ function FormSelectField({
   return (
     <Field className="gap-2">
       <FieldLabel htmlFor={id}>{label}</FieldLabel>
-      <input name={name} type="hidden" value={currentValue} />
-      <Select disabled={disabled} value={currentValue} onValueChange={onValueChange}>
+      <input name={name} type="hidden" value={value} readOnly />
+      <Select disabled={disabled} value={value} onValueChange={onValueChange}>
         <SelectTrigger id={id} className="w-full">
           <SelectValue />
         </SelectTrigger>
@@ -808,40 +963,68 @@ function FormSelectField({
 }
 
 function EntityForm({
+  activeStoreUuid,
   canEdit,
   editing,
+  imageUrl,
   kind,
   labels,
   onCancel,
   onSubmit,
   saving
 }: {
+  activeStoreUuid: string;
   canEdit: boolean;
   editing: Row | null;
-  kind: EntityKind;
+  imageUrl: (row: Row, rowKind: StoreBranchKind) => string;
+  kind: StoreBranchKind;
   labels: StoreBranchLabels;
   onCancel: () => void;
   onSubmit: (formData: FormData) => Promise<void>;
   saving: boolean;
 }) {
-  const recordKey = `${kind}-${editing ? value(editing, `${kind}_uuid`) : "new"}`;
+  const recordKey = `${kind}-${editing ? storeBranchId(editing, kind) : "new"}`;
   const imageFieldName = kind === "store" ? "store_logo" : "branch_qr";
   const disabled = !canEdit || saving;
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [crop, setCrop] = useState<CropState>(DEFAULT_CROP);
-  const [storeStatus, setStoreStatus] = useState(() => String(numberValue(editing, "store_status", 2)));
-  const [storeActive, setStoreActive] = useState(() => String(numberValue(editing, "store_active", 1)));
-  const [vatStatus, setVatStatus] = useState(() => String(numberValue(editing, "vat_status", 2)));
-  const [chargeStatus, setChargeStatus] = useState(() => String(numberValue(editing, "charge_status", 2)));
+  const [storeNameLa, setStoreNameLa] = useState("");
+  const [storeNameEng, setStoreNameEng] = useState("");
+  const [storeEmail, setStoreEmail] = useState("");
+  const [branchName, setBranchName] = useState("");
+  const [branchTel, setBranchTel] = useState("");
+  const [branchEmail, setBranchEmail] = useState("");
+  const [branchAddress, setBranchAddress] = useState("");
+  const [storeStatus, setStoreStatus] = useState("2");
+  const [storeActive, setStoreActive] = useState("1");
+  const [vatStatus, setVatStatus] = useState("2");
+  const [vatPercent, setVatPercent] = useState("0");
+  const [chargeStatus, setChargeStatus] = useState("2");
+  const [chargePercent, setChargePercent] = useState("0");
   const formHint = kind === "store" ? labels.storeHint : labels.branchHint;
+  const existingSrc = editing ? imageUrl(editing, kind) : "";
+  const canSubmit =
+    !disabled &&
+    (kind === "store"
+      ? !missingStoreField({ email: storeEmail, nameLa: storeNameLa })
+      : !missingBranchField({ name: branchName, storeUuid: activeStoreUuid }));
 
   useEffect(() => {
     setSelectedImage(null);
     setCrop(DEFAULT_CROP);
-    setStoreStatus(String(numberValue(editing, "store_status", 2)));
-    setStoreActive(String(numberValue(editing, "store_active", 1)));
-    setVatStatus(String(numberValue(editing, "vat_status", 2)));
-    setChargeStatus(String(numberValue(editing, "charge_status", 2)));
+    setStoreNameLa(storeBranchValue(editing, "store_name_la", storeBranchValue(editing, "store_name")));
+    setStoreNameEng(storeBranchValue(editing, "store_name_eng"));
+    setStoreEmail(storeBranchValue(editing, "store_email"));
+    setBranchName(storeBranchValue(editing, "branch_name"));
+    setBranchTel(storeBranchValue(editing, "branch_tel"));
+    setBranchEmail(storeBranchValue(editing, "branch_email"));
+    setBranchAddress(storeBranchValue(editing, "branch_address"));
+    setStoreStatus(String(storeBranchNumber(editing, "store_status", 2)));
+    setStoreActive(String(storeBranchNumber(editing, "store_active", 1)));
+    setVatStatus(String(storeBranchNumber(editing, "vat_status", 2)));
+    setVatPercent(String(storeBranchNumber(editing, "vat_name", 0)));
+    setChargeStatus(String(storeBranchNumber(editing, "charge_status", 2)));
+    setChargePercent(String(storeBranchNumber(editing, "charge_name", 0)));
   }, [editing, recordKey]);
 
   async function handleSubmit(formData: FormData) {
@@ -849,110 +1032,149 @@ function EntityForm({
       const croppedFile = await cropImageFile(selectedImage, crop, labels.imageLoadFailed);
       formData.set(imageFieldName, croppedFile);
     }
-
     await onSubmit(formData);
   }
 
   return (
-    <form
-      key={recordKey}
-      action={handleSubmit}
-      className="flex min-h-0 flex-auto flex-col overflow-hidden sm:max-h-[calc(100dvh-7rem)]"
-    >
-      <div className="min-h-0 flex-1 overflow-y-auto lg:grid lg:grid-cols-[21rem_minmax(0,1fr)] lg:overflow-hidden">
-        <SettingsImageCropPanel
-          crop={crop}
-          className="shrink-0 lg:overflow-y-auto"
-          description={labels.cropHint}
-          disabled={!canEdit}
-          emptyLabel={kind === "store" ? labels.store : labels.branch}
-          existingSrc={imageUrl(editing, kind)}
-          fileSupportText={labels.imageSupport}
-          fieldId={`${recordKey}-${imageFieldName}`}
-          horizontalLabel={labels.horizontal}
-          previewMaxClassName="max-w-[10rem] sm:max-w-56 lg:max-w-none"
-          removeLabel={labels.cancelImage}
-          saving={saving}
-          selectedFile={selectedImage}
-          sideBorderAt="lg"
-          title={labels.cropImage}
-          uploadLabel={labels.uploadImage}
-          verticalLabel={labels.vertical}
-          zoomLabel={labels.zoom}
-          onCropChange={setCrop}
-          onFileChange={setSelectedImage}
-        />
+    <SettingsDialogForm key={recordKey} action={handleSubmit} className="sm:max-h-[calc(100dvh-2rem)]">
+      <SettingsDialogHeader>
+        <DialogTitle className="flex items-center gap-2">
+          <span className="grid size-8 place-items-center rounded-md bg-primary/10 text-primary">
+            {editing ? <CheckCircle2 aria-hidden /> : <Plus aria-hidden />}
+          </span>
+          {kind === "store" ? labels.storeInfo : labels.branchInfo}
+        </DialogTitle>
+        <DialogDescription>{formHint}</DialogDescription>
+      </SettingsDialogHeader>
 
-        <div className="min-h-0 p-4 lg:overflow-y-auto">
-          <div className="flex flex-col gap-4 pb-1">
+      <SettingsDialogBody className="p-0 sm:p-0">
+        <div className="grid min-h-full gap-4 p-4 lg:grid-cols-[20rem_minmax(0,1fr)] lg:p-5">
+          <SettingsImageCropPanel
+            crop={crop}
+            className="rounded-lg border border-border lg:max-h-[calc(100dvh-12rem)] lg:overflow-y-auto"
+            description={labels.cropHint}
+            disabled={!canEdit}
+            emptyLabel={kind === "store" ? labels.store : labels.branch}
+            existingSrc={existingSrc}
+            fileSupportText={labels.imageSupport}
+            fieldId={`${recordKey}-${imageFieldName}`}
+            horizontalLabel={labels.horizontal}
+            previewMaxClassName="max-w-[10rem] sm:max-w-56 lg:max-w-none"
+            removeLabel={labels.cancelImage}
+            saving={saving}
+            selectedFile={selectedImage}
+            sideBorderAt="lg"
+            title={labels.cropImage}
+            uploadLabel={labels.uploadImage}
+            verticalLabel={labels.vertical}
+            zoomLabel={labels.zoom}
+            onCropChange={setCrop}
+            onFileChange={setSelectedImage}
+          />
+
+          <FieldGroup className="min-w-0 gap-4">
             <FieldSet className="gap-4 rounded-lg border border-border bg-card p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <FieldLegend className="mb-1 text-sm font-black">{labels.general}</FieldLegend>
-                  <FieldDescription className="text-xs">{formHint}</FieldDescription>
-                </div>
-                <Badge>{kind === "store" ? labels.store : labels.branch}</Badge>
-              </div>
-
-              <div className="grid gap-3 md:grid-cols-2">
-                {kind === "branch" ? (
-                  <Field className="gap-2 md:col-span-2">
+              <Field>
+                <FieldLegend>{kind === "store" ? labels.storeDetails : labels.branchDetails}</FieldLegend>
+                <FieldDescription>{formHint}</FieldDescription>
+              </Field>
+              {kind === "store" ? (
+                <FieldGroup className="grid gap-4 sm:grid-cols-2">
+                  <Field>
+                    <FieldLabel htmlFor={`${recordKey}-name-la`}>{labels.nameLa}</FieldLabel>
+                    <Input
+                      id={`${recordKey}-name-la`}
+                      name="store_name_la"
+                      autoComplete="organization"
+                      disabled={disabled}
+                      required
+                      value={storeNameLa}
+                      onChange={(event) => setStoreNameLa(event.target.value)}
+                    />
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor={`${recordKey}-name-en`}>{labels.nameEn}</FieldLabel>
+                    <Input
+                      id={`${recordKey}-name-en`}
+                      name="store_name_eng"
+                      autoComplete="organization"
+                      disabled={disabled}
+                      value={storeNameEng}
+                      onChange={(event) => setStoreNameEng(event.target.value)}
+                    />
+                  </Field>
+                  <Field className="sm:col-span-2">
+                    <FieldLabel htmlFor={`${recordKey}-email`}>{labels.email}</FieldLabel>
+                    <Input
+                      id={`${recordKey}-email`}
+                      name="store_email"
+                      autoComplete="email"
+                      disabled={disabled}
+                      placeholder={labels.emailPlaceholder}
+                      required
+                      spellCheck={false}
+                      translate="no"
+                      type="email"
+                      value={storeEmail}
+                      onChange={(event) => setStoreEmail(event.target.value)}
+                    />
+                  </Field>
+                </FieldGroup>
+              ) : (
+                <FieldGroup className="grid gap-4 sm:grid-cols-2">
+                  <Field className="sm:col-span-2">
                     <FieldLabel htmlFor={`${recordKey}-branch-name`}>{labels.name}</FieldLabel>
                     <Input
                       id={`${recordKey}-branch-name`}
-                      disabled={disabled}
                       name="branch_name"
-                      defaultValue={value(editing, "branch_name")}
+                      autoComplete="organization"
+                      disabled={disabled}
                       required
+                      value={branchName}
+                      onChange={(event) => setBranchName(event.target.value)}
                     />
                   </Field>
-                ) : (
-                  <>
-                    <Field className="gap-2">
-                      <FieldLabel htmlFor={`${recordKey}-name-la`}>{labels.nameLa}</FieldLabel>
-                      <Input
-                        id={`${recordKey}-name-la`}
-                        disabled={disabled}
-                        name="store_name_la"
-                        defaultValue={value(editing, "store_name_la", value(editing, "store_name"))}
-                        required
-                      />
-                    </Field>
-                    <Field className="gap-2">
-                      <FieldLabel htmlFor={`${recordKey}-name-en`}>{labels.nameEn}</FieldLabel>
-                      <Input
-                        id={`${recordKey}-name-en`}
-                        disabled={disabled}
-                        name="store_name_eng"
-                        defaultValue={value(editing, "store_name_eng")}
-                      />
-                    </Field>
-                  </>
-                )}
-                <Field className="gap-2">
-                  <FieldLabel htmlFor={`${recordKey}-email`}>{labels.email}</FieldLabel>
-                  <Input
-                    id={`${recordKey}-email`}
-                    disabled={disabled}
-                    name={`${kind}_email`}
-                    type="email"
-                    defaultValue={value(editing, `${kind}_email`)}
-                    placeholder="abc@gmail.com"
-                    required={kind === "store"}
-                  />
-                </Field>
-
-                {kind === "branch" ? (
-                  <Field className="gap-2">
+                  <Field>
                     <FieldLabel htmlFor={`${recordKey}-phone`}>{labels.phone}</FieldLabel>
                     <Input
                       id={`${recordKey}-phone`}
-                      disabled={disabled}
                       name="branch_tel"
-                      defaultValue={value(editing, "branch_tel")}
+                      autoComplete="tel"
+                      disabled={disabled}
+                      inputMode="tel"
+                      spellCheck={false}
+                      translate="no"
+                      type="tel"
+                      value={branchTel}
+                      onChange={(event) => setBranchTel(event.target.value)}
                     />
                   </Field>
-                ) : (
+                  <Field>
+                    <FieldLabel htmlFor={`${recordKey}-branch-email`}>{labels.email}</FieldLabel>
+                    <Input
+                      id={`${recordKey}-branch-email`}
+                      name="branch_email"
+                      autoComplete="email"
+                      disabled={disabled}
+                      placeholder={labels.emailPlaceholder}
+                      spellCheck={false}
+                      translate="no"
+                      type="email"
+                      value={branchEmail}
+                      onChange={(event) => setBranchEmail(event.target.value)}
+                    />
+                  </Field>
+                </FieldGroup>
+              )}
+            </FieldSet>
+
+            {kind === "store" ? (
+              <FieldSet className="gap-4 rounded-lg border border-border bg-card p-4">
+                <Field>
+                  <FieldLegend>{labels.contactDetails}</FieldLegend>
+                  <FieldDescription>{labels.contactHint}</FieldDescription>
+                </Field>
+                <FieldGroup className="grid gap-4 sm:grid-cols-2">
                   <FormSelectField
                     disabled={disabled}
                     id={`${recordKey}-store-status`}
@@ -965,9 +1187,6 @@ function EntityForm({
                       { label: labels.general, value: "2" }
                     ]}
                   />
-                )}
-
-                {kind === "store" ? (
                   <FormSelectField
                     disabled={disabled}
                     id={`${recordKey}-store-active`}
@@ -980,82 +1199,109 @@ function EntityForm({
                       { label: labels.closed, value: "2" }
                     ]}
                   />
-                ) : null}
-              </div>
-            </FieldSet>
-
-            {kind === "branch" ? (
-              <FieldSet className="gap-4 rounded-lg border border-border bg-card p-4">
-                <FieldLegend className="mb-0 text-sm font-black">{labels.taxBilling}</FieldLegend>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <Field className="gap-2 sm:col-span-2">
+                </FieldGroup>
+              </FieldSet>
+            ) : (
+              <>
+                <FieldSet className="gap-4 rounded-lg border border-border bg-card p-4">
+                  <Field>
+                    <FieldLegend>{labels.contactDetails}</FieldLegend>
+                    <FieldDescription>{labels.contactHint}</FieldDescription>
+                  </Field>
+                  <Field>
                     <FieldLabel htmlFor={`${recordKey}-address`}>{labels.address}</FieldLabel>
                     <Textarea
                       id={`${recordKey}-address`}
-                      disabled={disabled}
                       name="branch_address"
-                      defaultValue={value(editing, "branch_address")}
-                    />
-                  </Field>
-                  <FormSelectField
-                    disabled={disabled}
-                    id={`${recordKey}-vat-status`}
-                    label={labels.vat}
-                    name="vat_status"
-                    value={vatStatus}
-                    onValueChange={setVatStatus}
-                    options={[
-                      { label: labels.active, value: "1" },
-                      { label: labels.inactive, value: "2" }
-                    ]}
-                  />
-                  <Field className="gap-2">
-                    <FieldLabel htmlFor={`${recordKey}-vat-percent`}>{labels.vatPercent}</FieldLabel>
-                    <Input
-                      id={`${recordKey}-vat-percent`}
+                      autoComplete="street-address"
                       disabled={disabled}
-                      name="vat_name"
-                      type="number"
-                      defaultValue={value(editing, "vat_name", "0")}
+                      value={branchAddress}
+                      onChange={(event) => setBranchAddress(event.target.value)}
                     />
                   </Field>
-                  <FormSelectField
-                    disabled={disabled}
-                    id={`${recordKey}-charge-status`}
-                    label={labels.charge}
-                    name="charge_status"
-                    value={chargeStatus}
-                    onValueChange={setChargeStatus}
-                    options={[
-                      { label: labels.active, value: "1" },
-                      { label: labels.inactive, value: "2" }
-                    ]}
-                  />
-                  <Field className="gap-2">
-                    <FieldLabel htmlFor={`${recordKey}-charge-percent`}>{labels.chargePercent}</FieldLabel>
-                    <Input
-                      id={`${recordKey}-charge-percent`}
-                      disabled={disabled}
-                      name="charge_name"
-                      type="number"
-                      defaultValue={value(editing, "charge_name", "0")}
-                    />
-                  </Field>
-                </div>
-              </FieldSet>
-            ) : null}
-          </div>
-        </div>
-      </div>
+                </FieldSet>
 
-      <div className="flex shrink-0 flex-col-reverse gap-2 border-t border-border bg-card/95 px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur sm:flex-row sm:justify-end [&>button]:w-full sm:[&>button]:w-auto">
+                <FieldSet className="gap-4 rounded-lg border border-border bg-card p-4">
+                  <Field>
+                    <FieldLegend>{labels.taxBilling}</FieldLegend>
+                    <FieldDescription>{labels.taxBillingHint}</FieldDescription>
+                  </Field>
+                  <FieldGroup className="grid gap-4 sm:grid-cols-2">
+                    <FormSelectField
+                      disabled={disabled}
+                      id={`${recordKey}-vat-status`}
+                      label={labels.vat}
+                      name="vat_status"
+                      value={vatStatus}
+                      onValueChange={setVatStatus}
+                      options={[
+                        { label: labels.active, value: "1" },
+                        { label: labels.inactive, value: "2" }
+                      ]}
+                    />
+                    <Field>
+                      <FieldLabel htmlFor={`${recordKey}-vat-percent`}>{labels.vatPercent}</FieldLabel>
+                      <Input
+                        id={`${recordKey}-vat-percent`}
+                        name="vat_name"
+                        autoComplete="off"
+                        disabled={disabled}
+                        inputMode="decimal"
+                        min="0"
+                        step="0.01"
+                        translate="no"
+                        type="number"
+                        value={vatPercent}
+                        onChange={(event) => setVatPercent(event.target.value)}
+                      />
+                    </Field>
+                    <FormSelectField
+                      disabled={disabled}
+                      id={`${recordKey}-charge-status`}
+                      label={labels.charge}
+                      name="charge_status"
+                      value={chargeStatus}
+                      onValueChange={setChargeStatus}
+                      options={[
+                        { label: labels.active, value: "1" },
+                        { label: labels.inactive, value: "2" }
+                      ]}
+                    />
+                    <Field>
+                      <FieldLabel htmlFor={`${recordKey}-charge-percent`}>{labels.chargePercent}</FieldLabel>
+                      <Input
+                        id={`${recordKey}-charge-percent`}
+                        name="charge_name"
+                        autoComplete="off"
+                        disabled={disabled}
+                        inputMode="decimal"
+                        min="0"
+                        step="0.01"
+                        translate="no"
+                        type="number"
+                        value={chargePercent}
+                        onChange={(event) => setChargePercent(event.target.value)}
+                      />
+                    </Field>
+                  </FieldGroup>
+                </FieldSet>
+              </>
+            )}
+          </FieldGroup>
+        </div>
+      </SettingsDialogBody>
+
+      <input name={kind === "store" ? "store_uuid" : "branch_uuid"} type="hidden" value={storeBranchId(editing, kind)} readOnly />
+      {kind === "branch" ? <input name="store_uuid_fk" type="hidden" value={activeStoreUuid} readOnly /> : null}
+      <SettingsDialogFooter>
         <Button disabled={saving} type="button" variant="outline" onClick={onCancel}>
           {labels.cancel}
         </Button>
-        <Button disabled={disabled} type="submit">
-          {labels.save}
+        <Button disabled={!canSubmit} type="submit">
+          {saving ? <Spinner data-icon="inline-start" /> : null}
+          {saving ? labels.savingTitle : labels.save}
         </Button>
-      </div>
-    </form>
+      </SettingsDialogFooter>
+    </SettingsDialogForm>
   );
 }

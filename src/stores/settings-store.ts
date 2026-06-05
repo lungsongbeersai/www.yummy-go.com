@@ -10,16 +10,22 @@ interface SettingsEntityState {
   total: number;
   totalPages: number;
   search: string;
+  hasLoaded: boolean;
   loading: boolean;
+  refreshing: boolean;
   saving: boolean;
   error: string | null;
+}
+
+interface SettingsLoadOptions {
+  background?: boolean;
 }
 
 interface SettingsState {
   entities: Record<string, SettingsEntityState>;
   getEntity: (slug: string) => SettingsEntityState;
   setSearch: (slug: string, search: string) => void;
-  load: (config: SettingConfig, params?: FetchParams) => Promise<Record<string, unknown>[]>;
+  load: (config: SettingConfig, params?: FetchParams, options?: SettingsLoadOptions) => Promise<Record<string, unknown>[]>;
   save: (config: SettingConfig, input: Record<string, unknown>) => Promise<unknown>;
   remove: (config: SettingConfig, id: string) => Promise<void>;
   reset: (slug?: string) => void;
@@ -30,7 +36,9 @@ const emptyEntity = (): SettingsEntityState => ({
   total: 0,
   totalPages: 0,
   search: "",
+  hasLoaded: false,
   loading: false,
+  refreshing: false,
   saving: false,
   error: null
 });
@@ -51,10 +59,15 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   getEntity: (slug) => get().entities[slug] ?? emptyEntity(),
   setSearch: (slug, search) =>
     set((state) => ({ entities: patchEntity(state, slug, { search }) })),
-  load: async (config, params = {}) => {
+  load: async (config, params = {}, options) => {
     const current = get().getEntity(config.slug);
+    const background = Boolean(options?.background && current.hasLoaded);
     set((state) => ({
-      entities: patchEntity(state, config.slug, { loading: true, error: null })
+      entities: patchEntity(state, config.slug, {
+        error: null,
+        loading: !background,
+        refreshing: background
+      })
     }));
     try {
       const result = await config.list({ ...params, search: params.search ?? current.search });
@@ -63,8 +76,10 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         entities: patchEntity(state, config.slug, {
           rows,
           total: Number(result.total ?? rows.length),
-          totalPages: Number(result.totalPages ?? 1),
-          loading: false
+          totalPages: Number(result.totalPages ?? result.total_page ?? 1),
+          hasLoaded: true,
+          loading: false,
+          refreshing: false
         })
       }));
       return rows;
@@ -72,7 +87,8 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       set((state) => ({
         entities: patchEntity(state, config.slug, {
           error: errorMessage(error),
-          loading: false
+          loading: false,
+          refreshing: false
         })
       }));
       throw error;

@@ -103,6 +103,15 @@ describe("permission menu service helpers", () => {
       sub_title_eng: "Sale report",
       sub_title_la: "Sale report LA"
     });
+    expect(
+      buildCreateSubMenuPayload({
+        menu_id: "menu-1",
+        sub_path: "/report/plc",
+        sub_status: "2",
+        sub_title_eng: "PLC report",
+        sub_title_la: "PLC report LA"
+      }).sub_status
+    ).toBe(2);
   });
 
   it("keeps manually entered paths in create payloads", () => {

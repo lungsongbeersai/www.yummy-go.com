@@ -69,7 +69,7 @@ export function resolveSelectedPermissionMenuId(
 }
 
 export function statusLabel(status: number, t: PermissionMenuTranslate) {
-  return status === 1 ? t("common.active") : t("common.inactive");
+  return status === 2 ? t("permissionMenu.subStatusPlcOnly") : t("permissionMenu.subStatusAllUsers");
 }
 
 export function menuStatusLabel(status: number, t: PermissionMenuTranslate) {
@@ -79,7 +79,7 @@ export function menuStatusLabel(status: number, t: PermissionMenuTranslate) {
 export function statusClass(status: number) {
   return status === 1
     ? "border-primary/30 bg-primary/10 text-primary"
-    : "border-destructive/20 bg-destructive/10 text-destructive";
+    : "border-border bg-secondary text-secondary-foreground";
 }
 
 export function optionLabel(option: PickerOption, t: PermissionMenuTranslate) {

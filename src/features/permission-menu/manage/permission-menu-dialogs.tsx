@@ -235,7 +235,7 @@ export function SubMenuDialog({
                 <FieldDescription>{t("permissionMenu.pathHint")}</FieldDescription>
               </Field>
               <Field>
-                <FieldLabel htmlFor="permission-sub-status">{t("permissionMenu.fields.status")}</FieldLabel>
+                <FieldLabel htmlFor="permission-sub-status">{t("permissionMenu.fields.subStatus")}</FieldLabel>
                 <Select
                   value={form.sub_status}
                   onValueChange={(value) => setForm({ ...form, sub_status: value })}
@@ -245,11 +245,12 @@ export function SubMenuDialog({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectGroup>
-                      <SelectItem value="1">{t("common.active")}</SelectItem>
-                      <SelectItem value="0">{t("common.inactive")}</SelectItem>
+                      <SelectItem value="1">{t("permissionMenu.subStatusAllUsers")}</SelectItem>
+                      <SelectItem value="2">{t("permissionMenu.subStatusPlcOnly")}</SelectItem>
                     </SelectGroup>
                   </SelectContent>
                 </Select>
+                <FieldDescription>{t("permissionMenu.subStatusHint")}</FieldDescription>
               </Field>
             </FieldGroup>
           </SettingsDialogBody>

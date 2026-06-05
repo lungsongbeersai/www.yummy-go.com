@@ -3,6 +3,7 @@
 import { create } from "zustand";
 import {
   checkedSubmenuIds,
+  fetchStorePermissionSavedList,
   fetchStorePermissionRoles,
   fetchStorePermissionStores,
   fetchStorePermissionTree,
@@ -15,19 +16,24 @@ import { errorMessage } from "@/stores/store-utils";
 
 interface StorePermissionsState {
   checkedSubIds: string[];
+  dirty: boolean;
   error: string | null;
   loadingOptions: boolean;
+  loadingSaved: boolean;
   loadingTree: boolean;
   roles: StorePermissionRole[];
+  savedCheckedSubIds: string[];
+  savedList: StorePermissionTree | null;
   saving: boolean;
   selectedRoleId: number | null;
   selectedStoreUuid: string;
   stores: StorePermissionStore[];
   tree: StorePermissionTree | null;
-  loadOptions: (lang?: string) => Promise<void>;
-  loadTree: (lang?: string) => Promise<void>;
+  loadOptions: (userStatus: number, lang?: string) => Promise<void>;
+  loadTree: (viewerRoleId: number, lang?: string) => Promise<void>;
   reset: () => void;
-  save: (lang?: string) => Promise<void>;
+  resetChanges: () => void;
+  save: (viewerRoleId: number, lang?: string) => Promise<void>;
   setRole: (roleId: number) => void;
   setStore: (storeUuid: string) => void;
   toggleMenu: (menuId: string, checked: boolean) => void;
@@ -36,6 +42,20 @@ interface StorePermissionsState {
 
 function selectedSet(ids: string[]) {
   return new Set(ids);
+}
+
+function normalizeIds(ids: string[]) {
+  return Array.from(new Set(ids.map(String).filter(Boolean))).sort();
+}
+
+function sameIds(left: string[], right: string[]) {
+  const a = normalizeIds(left);
+  const b = normalizeIds(right);
+  return a.length === b.length && a.every((id, index) => id === b[index]);
+}
+
+function storeStatusForUser(status: number) {
+  return Number(status) === 1 ? 1 : 2;
 }
 
 function allSubmenuIds(tree: StorePermissionTree | null, menuId: string) {
@@ -49,21 +69,25 @@ function allSubmenuIds(tree: StorePermissionTree | null, menuId: string) {
 
 export const useStorePermissionsStore = create<StorePermissionsState>((set, get) => ({
   checkedSubIds: [],
+  dirty: false,
   error: null,
   loadingOptions: false,
+  loadingSaved: false,
   loadingTree: false,
   roles: [],
+  savedCheckedSubIds: [],
+  savedList: null,
   saving: false,
   selectedRoleId: null,
   selectedStoreUuid: "",
   stores: [],
   tree: null,
-  loadOptions: async (lang) => {
+  loadOptions: async (userStatus, lang) => {
     set({ error: null, loadingOptions: true });
     try {
       const [stores, roles] = await Promise.all([
-        fetchStorePermissionStores(lang),
-        fetchStorePermissionRoles(lang)
+        fetchStorePermissionStores(storeStatusForUser(userStatus), lang),
+        fetchStorePermissionRoles(userStatus, lang)
       ]);
       const currentStore = get().selectedStoreUuid;
       const currentRole = get().selectedRoleId;
@@ -75,6 +99,15 @@ export const useStorePermissionsStore = create<StorePermissionsState>((set, get)
         : roles[0]?.roles_id ?? null;
 
       set({
+        ...(selectedStoreUuid !== currentStore || selectedRoleId !== currentRole
+          ? {
+            checkedSubIds: [],
+            dirty: false,
+            savedCheckedSubIds: [],
+            savedList: null,
+            tree: null
+          }
+          : {}),
         loadingOptions: false,
         roles,
         selectedRoleId,
@@ -86,42 +119,65 @@ export const useStorePermissionsStore = create<StorePermissionsState>((set, get)
       throw error;
     }
   },
-  loadTree: async (lang) => {
+  loadTree: async (viewerRoleId, lang) => {
     const { selectedRoleId, selectedStoreUuid } = get();
     if (!selectedStoreUuid || !selectedRoleId) {
-      set({ checkedSubIds: [], tree: null });
+      set({
+        checkedSubIds: [],
+        dirty: false,
+        savedCheckedSubIds: [],
+        savedList: null,
+        tree: null
+      });
       return;
     }
 
-    set({ error: null, loadingTree: true });
+    set({ error: null, loadingSaved: true, loadingTree: true });
     try {
-      const tree = await fetchStorePermissionTree(selectedStoreUuid, selectedRoleId, lang);
+      const [tree, savedList] = await Promise.all([
+        fetchStorePermissionTree(selectedStoreUuid, selectedRoleId, lang),
+        fetchStorePermissionSavedList(selectedStoreUuid, viewerRoleId, lang)
+      ]);
+      const savedCheckedSubIds = checkedSubmenuIds(tree);
       set({
-        checkedSubIds: checkedSubmenuIds(tree),
+        checkedSubIds: savedCheckedSubIds,
+        dirty: false,
+        loadingSaved: false,
         loadingTree: false,
+        savedCheckedSubIds,
+        savedList,
         tree
       });
     } catch (error) {
-      set({ error: errorMessage(error), loadingTree: false });
+      set({ error: errorMessage(error), loadingSaved: false, loadingTree: false });
       throw error;
     }
   },
   reset: () =>
     set({
       checkedSubIds: [],
+      dirty: false,
       error: null,
       loadingOptions: false,
+      loadingSaved: false,
       loadingTree: false,
       roles: [],
+      savedCheckedSubIds: [],
+      savedList: null,
       saving: false,
       selectedRoleId: null,
       selectedStoreUuid: "",
       stores: [],
       tree: null
     }),
-  save: async (lang) => {
-    const { checkedSubIds, selectedRoleId, selectedStoreUuid } = get();
-    if (!selectedStoreUuid || !selectedRoleId) return;
+  resetChanges: () =>
+    set((state) => ({
+      checkedSubIds: state.savedCheckedSubIds,
+      dirty: false
+    })),
+  save: async (viewerRoleId, lang) => {
+    const { checkedSubIds, dirty, selectedRoleId, selectedStoreUuid } = get();
+    if (!selectedStoreUuid || !selectedRoleId || !dirty) return;
 
     set({ error: null, saving: true });
     try {
@@ -130,15 +186,41 @@ export const useStorePermissionsStore = create<StorePermissionsState>((set, get)
         role_id: selectedRoleId,
         sub_id_list: checkedSubIds
       });
-      set({ saving: false });
-      await get().loadTree(lang);
+      const [tree, savedList] = await Promise.all([
+        fetchStorePermissionTree(selectedStoreUuid, selectedRoleId, lang),
+        fetchStorePermissionSavedList(selectedStoreUuid, viewerRoleId, lang)
+      ]);
+      const savedCheckedSubIds = checkedSubmenuIds(tree);
+      set({
+        checkedSubIds: savedCheckedSubIds,
+        dirty: false,
+        savedCheckedSubIds,
+        savedList,
+        saving: false,
+        tree
+      });
     } catch (error) {
       set({ error: errorMessage(error), saving: false });
       throw error;
     }
   },
-  setRole: (roleId) => set({ checkedSubIds: [], selectedRoleId: roleId, tree: null }),
-  setStore: (storeUuid) => set({ checkedSubIds: [], selectedStoreUuid: storeUuid, tree: null }),
+  setRole: (roleId) =>
+    set({
+      checkedSubIds: [],
+      dirty: false,
+      savedCheckedSubIds: [],
+      selectedRoleId: roleId,
+      tree: null
+    }),
+  setStore: (storeUuid) =>
+    set({
+      checkedSubIds: [],
+      dirty: false,
+      savedCheckedSubIds: [],
+      savedList: null,
+      selectedStoreUuid: storeUuid,
+      tree: null
+    }),
   toggleMenu: (menuId, checked) =>
     set((state) => {
       const ids = allSubmenuIds(state.tree, menuId);
@@ -147,13 +229,21 @@ export const useStorePermissionsStore = create<StorePermissionsState>((set, get)
         if (checked) next.add(id);
         else next.delete(id);
       });
-      return { checkedSubIds: Array.from(next) };
+      const checkedSubIds = Array.from(next);
+      return {
+        checkedSubIds,
+        dirty: !sameIds(checkedSubIds, state.savedCheckedSubIds)
+      };
     }),
   toggleSubmenu: (subId, checked) =>
     set((state) => {
       const next = selectedSet(state.checkedSubIds);
       if (checked) next.add(subId);
       else next.delete(subId);
-      return { checkedSubIds: Array.from(next) };
+      const checkedSubIds = Array.from(next);
+      return {
+        checkedSubIds,
+        dirty: !sameIds(checkedSubIds, state.savedCheckedSubIds)
+      };
     })
 }));

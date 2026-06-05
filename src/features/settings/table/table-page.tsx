@@ -2,13 +2,14 @@
 
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { CircleHelp, ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown, Map as MapIcon, Table2 } from "lucide-react";
+import { ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown, CircleHelp, Map as MapIcon, Table2 } from "lucide-react";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogDescription, DialogTitle } from "@/components/ui/dialog";
-import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
+import { Field, FieldDescription, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -16,8 +17,6 @@ import { Spinner } from "@/components/ui/spinner";
 import { Table as DataTable, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
-  SettingsModuleShell,
-  SettingsPaginationFooter,
   SettingsDialogBody,
   SettingsDialogContent,
   SettingsDialogFooter,
@@ -27,13 +26,32 @@ import {
   SettingsMobileList,
   SettingsMobileMeta,
   SettingsMobileMetaGrid,
+  SettingsModuleShell,
+  SettingsPaginationFooter,
   SettingsRowActions,
   SettingsTableScroll,
   SettingsToolbar
 } from "@/features/settings/shared/settings-shell";
+import {
+  branchServiceCharge,
+  buildGroupedTableRows,
+  buildTablePayload,
+  flattenTableRows,
+  groupTableRows,
+  isZoneGroup,
+  missingTableField,
+  serviceChargeSummary,
+  tableChargeActive,
+  tableId,
+  tableName,
+  tableSeats,
+  tableStatus,
+  tableValue,
+  zoneLabel
+} from "@/features/settings/table/table-utils";
 import { DEFAULT_PAGE_LIMIT, PAGE_LIMIT_OPTIONS } from "@/lib/pagination";
-import type { ApiEntity, PageLimit, SortOrder } from "@/services/shared/types";
-import type { FetchTablesParams, SaveTableInput, Table as DiningTable, TableListRow, ZoneGroup } from "@/services/table";
+import type { FetchTablesParams, Table as DiningTable } from "@/services/table";
+import type { PageLimit, SortOrder } from "@/services/shared/types";
 import type { Zone } from "@/services/zone";
 import { useAppStore } from "@/stores/app-store";
 import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
@@ -45,100 +63,50 @@ import { useToastStore } from "@/stores/toast-store";
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT: PageLimit = DEFAULT_PAGE_LIMIT;
 
-function value(row: ApiEntity | null, key: string, fallback = "") {
-  const raw = row?.[key];
-  if (raw === null || raw === undefined || raw === "") return fallback;
-  return String(raw);
+function StatusBadge({ status }: { status: number }) {
+  const { t } = useTranslation();
+  if (!status) return <span className="text-muted-foreground">-</span>;
+  return <Badge>{status === 2 ? t("common.busy") : t("common.free")}</Badge>;
 }
 
-function tableId(row: DiningTable) {
-  return value(row, "table_uuid");
+function ChargeBadge({
+  active,
+  label
+}: {
+  active: boolean;
+  label: string;
+}) {
+  return (
+    <Badge className={active ? "border-primary/25 bg-primary/10 text-primary" : "border-border bg-background text-muted-foreground"}>
+      {label}
+    </Badge>
+  );
 }
 
-function tableName(row: DiningTable) {
-  return value(row, "table_name", value(row, "table_name_la", value(row, "table_name_eng", "-")));
+function TableIcon() {
+  return (
+    <span className="grid size-9 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
+      <Table2 aria-hidden />
+    </span>
+  );
 }
 
-function tableSeats(row: DiningTable) {
-  return value(row, "table_qty", value(row, "number_of_seats", "-"));
-}
-
-function numberValue(row: ApiEntity | null | undefined, key: string, fallback = 0) {
-  const raw = row?.[key];
-  const parsed = Number(raw);
-  return Number.isFinite(parsed) && raw !== "" && raw !== undefined && raw !== null ? parsed : fallback;
-}
-
-function formatPercent(value: number) {
-  return Number.isInteger(value) ? String(value) : value.toFixed(2).replace(/0+$/, "").replace(/\.$/, "");
-}
-
-function branchServiceCharge(row: ApiEntity | null | undefined) {
-  const active = numberValue(row, "charge_status", 2) === 1;
-  const percent = active ? Math.max(0, numberValue(row, "charge_name", 0)) : 0;
-
-  return {
-    active,
-    percent,
-    percentLabel: `${formatPercent(percent)}%`
-  };
-}
-
-function zoneLabel(row: ApiEntity | null) {
-  return value(row, "zone_name", value(row, "zone_name_la", value(row, "zone_name_eng", "-")));
-}
-
-interface TableGroup {
-  zoneId: string;
+function TableIdentity({
+  row,
+  zoneName
+}: {
+  row: DiningTable;
   zoneName: string;
-  totalTables?: number;
-  tables: DiningTable[];
-}
-
-type ZoneGroupWithTables = ZoneGroup & { tables: DiningTable[] };
-
-function isZoneGroup(row: TableListRow): row is ZoneGroupWithTables {
-  return Array.isArray((row as ZoneGroup).tables);
-}
-
-function flattenTableRows(rows: TableListRow[]): DiningTable[] {
-  return rows.flatMap((row) => {
-    if (!isZoneGroup(row)) return [row];
-    return row.tables.map((table) => ({
-      ...table,
-      zone_uuid_fk: value(table, "zone_uuid_fk", value(row, "zone_uuid")),
-      zone_name: value(table, "zone_name", zoneLabel(row))
-    }));
-  });
-}
-
-function groupTableRows(rows: TableListRow[], zoneById: Map<string, Zone>): TableGroup[] {
-  const groups = new Map<string, TableGroup>();
-  rows.forEach((row) => {
-    if (isZoneGroup(row)) {
-      const zoneId = value(row, "zone_uuid") || "__unknown__";
-      const zoneName = zoneLabel(row);
-      groups.set(zoneId, {
-        zoneId,
-        zoneName,
-        totalTables: Number(row.total_tables ?? row.tables.length),
-        tables: row.tables.map((table) => ({
-          ...table,
-          zone_uuid_fk: value(table, "zone_uuid_fk", zoneId),
-          zone_name: value(table, "zone_name", zoneName)
-        }))
-      });
-      return;
-    }
-
-    const zoneId = value(row, "zone_uuid_fk") || "__unknown__";
-    const zone = zoneById.get(zoneId);
-    const group = groups.get(zoneId) ?? { zoneId, zoneName: zone ? zoneLabel(zone) : zoneLabel(row), tables: [] };
-    group.tables.push(row);
-    group.totalTables = group.tables.length;
-    groups.set(zoneId, group);
-  });
-  return Array.from(groups.values());
+}) {
+  return (
+    <div className="flex min-w-0 items-center gap-3">
+      <TableIcon />
+      <div className="min-w-0">
+        <p className="truncate font-black">{tableName(row)}</p>
+        <p className="truncate text-xs text-muted-foreground">{zoneName}</p>
+      </div>
+    </div>
+  );
 }
 
 export function TableSettingsPage() {
@@ -156,7 +124,9 @@ export function TableSettingsPage() {
   const total = useTableStore((state) => state.total);
   const storeTotalPages = useTableStore((state) => state.totalPages);
   const search = useTableStore((state) => state.search);
+  const hasLoaded = useTableStore((state) => state.hasLoaded);
   const loading = useTableStore((state) => state.loading);
+  const refreshing = useTableStore((state) => state.refreshing);
   const saving = useTableStore((state) => state.saving);
   const setSearch = useTableStore((state) => state.setSearch);
   const loadRows = useTableStore((state) => state.load);
@@ -182,7 +152,7 @@ export function TableSettingsPage() {
   const zoneById = useMemo(() => {
     const map = new Map<string, Zone>();
     zoneOptions.forEach((zone) => {
-      const id = value(zone, "zone_uuid");
+      const id = tableValue(zone, "zone_uuid");
       if (id) map.set(id, zone);
     });
     return map;
@@ -191,7 +161,7 @@ export function TableSettingsPage() {
   const tableGroups = useMemo(() => groupTableRows(storeRows, zoneById), [storeRows, zoneById]);
   const currentBranch = useMemo(() => {
     if (branchStoreUuid !== storeUuid) return null;
-    return branches.find((branch) => value(branch, "branch_uuid") === branchUuid) ?? null;
+    return branches.find((branch) => tableValue(branch, "branch_uuid") === branchUuid) ?? null;
   }, [branches, branchStoreUuid, branchUuid, storeUuid]);
   const serviceCharge = useMemo(() => branchServiceCharge(currentBranch), [currentBranch]);
   const serviceChargeRateLabel = branchLoading && !currentBranch ? t("common.loading") : serviceCharge.percentLabel;
@@ -201,18 +171,15 @@ export function TableSettingsPage() {
   const totalPages = Math.max(1, Number(storeTotalPages || Math.ceil(displayTotal / pageSize) || 1));
   const pageStart = rows.length ? (page - 1) * pageSize + 1 : 0;
   const pageEnd = rows.length ? pageStart + rows.length - 1 : 0;
-  const canGoBack = page > 1 && !loading;
-  const canGoNext = page < totalPages && !loading;
+  const fullLoading = loading && !hasLoaded;
+  const backgroundLoading = refreshing || (loading && hasLoaded);
+  const pagingBusy = loading || refreshing;
+  const canGoBack = page > 1 && !pagingBusy;
+  const canGoNext = page < totalPages && !pagingBusy;
   const ids = useMemo(() => rows.map(tableId).filter(Boolean), [rows]);
   const allSelected = ids.length > 0 && ids.every((id) => selectedRows.has(id));
   const allCollapsed = tableGroups.length > 0 && tableGroups.every((group) => collapsedZones.has(group.zoneId));
-  const groupedTableRows = useMemo(() => {
-    let rowNumber = pageStart;
-    return tableGroups.map((group) => ({
-      ...group,
-      rows: group.tables.map((row) => ({ row, rowNumber: rowNumber++ }))
-    }));
-  }, [pageStart, tableGroups]);
+  const groupedTableRows = useMemo(() => buildGroupedTableRows(tableGroups, pageStart), [pageStart, tableGroups]);
 
   async function load() {
     if (!branchUuid) {
@@ -220,7 +187,7 @@ export function TableSettingsPage() {
       return;
     }
     try {
-      await loadRows(requestParams);
+      await loadRows(requestParams, { background: hasLoaded });
     } catch (error) {
       showToast({
         title: t("settings.loadFailed", { title }),
@@ -327,6 +294,10 @@ export function TableSettingsPage() {
     });
   }
 
+  function setAllZonesCollapsed(collapsed: boolean) {
+    setCollapsedZones(collapsed ? new Set(tableGroups.map((group) => group.zoneId)) : new Set());
+  }
+
   function openCreate() {
     if (!branchUuid) {
       showToast({ title: t("settings.saveFailed"), description: t("settings.branchRequired"), tone: "error" });
@@ -345,30 +316,32 @@ export function TableSettingsPage() {
     setDialogOpen(true);
   }
 
+  function missingFieldDescription(field: ReturnType<typeof missingTableField>) {
+    if (field === "branch") return t("settings.branchRequired");
+    if (field === "zone") return t("settings.tableZoneRequired");
+    if (field === "name") return t("settings.tableNameRequired");
+    return t("toasts.pleaseTryAgain");
+  }
+
   async function save(formData: FormData) {
-    if (!branchUuid) {
-      showToast({ title: t("settings.saveFailed"), description: t("settings.branchRequired"), tone: "error" });
+    const zoneUuid = String(formData.get("zone_uuid_fk") ?? "").trim();
+    const nameLa = String(formData.get("table_name_la") ?? "").trim();
+    const nameEng = String(formData.get("table_name_eng") ?? "").trim();
+    const seats = String(formData.get("table_qty") ?? "").trim();
+    const chargeStatus = String(formData.get("charge_status") ?? "2").trim();
+    const missing = missingTableField({ branchUuid, nameLa, zoneUuid });
+
+    if (missing) {
+      showToast({ title: t("settings.saveFailed"), description: missingFieldDescription(missing), tone: "error" });
       return;
     }
 
-    const input: SaveTableInput = {
-      branch_uuid_fk: branchUuid,
-      zone_uuid_fk: formData.get("zone_uuid_fk") ?? "",
-      table_name_la: formData.get("table_name_la") ?? "",
-      table_name_eng: formData.get("table_name_eng") ?? "",
-      charge_status: Number(formData.get("charge_status") ?? 2)
-    };
-    const seats = formData.get("table_qty");
-    if (seats !== null && seats !== "") input.table_qty = Number(seats);
-    const id = value(editing, "table_uuid");
-    if (id) input.table_uuid = id;
-
     try {
-      await saveRow(input);
+      await saveRow(buildTablePayload({ branchUuid, chargeStatus, editing, nameEng, nameLa, seats, zoneUuid }));
       showToast({ title: t("settings.saved"), tone: "success" });
       setDialogOpen(false);
       setEditing(null);
-      await loadRows(requestParams);
+      await loadRows(requestParams, { background: true });
     } catch (error) {
       showToast({
         title: t("settings.saveFailed"),
@@ -390,7 +363,7 @@ export function TableSettingsPage() {
         next.delete(id);
         return next;
       });
-      await loadRows(requestParams);
+      await loadRows(requestParams, { background: true });
     } catch (error) {
       showToast({
         title: t("settings.deleteFailed"),
@@ -400,38 +373,33 @@ export function TableSettingsPage() {
     }
   }
 
+  function tableZoneName(row: DiningTable) {
+    const relatedZone = zoneById.get(tableValue(row, "zone_uuid_fk"));
+    return relatedZone ? zoneLabel(relatedZone) : zoneLabel(row);
+  }
+
   function renderTableRow(row: DiningTable, rowNumber: number) {
     const id = tableId(row);
     const selected = selectedRows.has(id);
-    const relatedZone = zoneById.get(value(row, "zone_uuid_fk"));
-    const status = Number(row.table_status ?? 0);
-    const chargeActive = Number(row.charge_status ?? 2) === 1;
+    const status = tableStatus(row);
+    const chargeActive = tableChargeActive(row);
+    const chargeLabel = chargeActive ? `${t("common.active")} / ${serviceChargeRateLabel}` : t("common.inactive");
 
     return (
-      <TableRow key={id || rowNumber} data-state={selected ? "selected" : undefined}>
+      <TableRow key={id || rowNumber} className="h-14" data-state={selected ? "selected" : undefined}>
         <TableCell className="w-10 px-2">
           <Checkbox aria-label={t("common.selectRow", { name: tableName(row) })} checked={selected} onChange={(event) => toggleSelected(id, event.target.checked)} />
         </TableCell>
-        <TableCell className="w-px whitespace-nowrap px-2 text-center text-sm font-black text-muted-foreground">{rowNumber}</TableCell>
-        <TableCell>
-          <div className="flex min-w-0 items-center gap-3">
-            <span className="grid size-9 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
-              <Table2 />
-            </span>
-            <div className="min-w-0">
-              <p className="truncate font-black">{tableName(row)}</p>
-              <p className="truncate text-xs text-muted-foreground">{relatedZone ? zoneLabel(relatedZone) : zoneLabel(row)}</p>
-            </div>
-          </div>
+        <TableCell className="w-px whitespace-nowrap px-2 text-center text-sm font-black tabular-nums text-muted-foreground">{rowNumber}</TableCell>
+        <TableCell className="max-w-[28rem]">
+          <TableIdentity row={row} zoneName={tableZoneName(row)} />
         </TableCell>
-        <TableCell className="text-muted-foreground">{tableSeats(row)}</TableCell>
+        <TableCell className="text-muted-foreground tabular-nums" translate="no">{tableSeats(row)}</TableCell>
         <TableCell>
-          {status ? <Badge>{status === 2 ? t("common.busy") : t("common.free")}</Badge> : <span className="text-muted-foreground">-</span>}
+          <StatusBadge status={status} />
         </TableCell>
         <TableCell>
-          <Badge className={chargeActive ? "border-primary/25 bg-primary/10 text-primary" : undefined}>
-            {chargeActive ? `${t("common.active")} · ${serviceChargeRateLabel}` : t("common.inactive")}
-          </Badge>
+          <ChargeBadge active={chargeActive} label={chargeLabel} />
         </TableCell>
         <TableCell className="text-right">
           <SettingsRowActions row={row} onEdit={openEdit} onDelete={setDeleteTarget} />
@@ -461,18 +429,20 @@ export function TableSettingsPage() {
             const collapsed = collapsedZones.has(group.zoneId);
             return (
               <Fragment key={group.zoneId}>
-                <TableRow className="bg-muted/40 hover:bg-muted/60">
+                <TableRow className="bg-muted/35 hover:bg-muted/50">
                   <TableCell colSpan={7} className="px-2 py-0">
                     <Button
+                      aria-expanded={!collapsed}
+                      aria-label={collapsed ? t("settings.expandZone", { zone: group.zoneName }) : t("settings.collapseZone", { zone: group.zoneName })}
+                      className="h-auto w-full justify-start px-2 py-2 text-left font-bold"
                       type="button"
                       variant="ghost"
-                      className="h-auto w-full justify-start px-2 py-2 text-left font-bold"
                       onClick={() => toggleZoneCollapse(group.zoneId)}
                     >
-                      {collapsed ? <ChevronRight /> : <ChevronDown />}
-                      <MapIcon />
+                      {collapsed ? <ChevronRight data-icon="inline-start" /> : <ChevronDown data-icon="inline-start" />}
+                      <MapIcon data-icon="inline-start" />
                       <span className="min-w-0 flex-1 truncate">{group.zoneName}</span>
-                      <Badge className="bg-primary/10 text-primary">{group.totalTables ?? group.tables.length}</Badge>
+                      <Badge className="bg-primary/10 text-primary tabular-nums">{group.totalTables ?? group.tables.length}</Badge>
                     </Button>
                   </TableCell>
                 </TableRow>
@@ -492,48 +462,36 @@ export function TableSettingsPage() {
       </DataTable>
     </SettingsTableScroll>
   ) : null;
+
   function renderTableMobileCard(row: DiningTable, rowNumber: number) {
     const id = tableId(row);
     const selected = selectedRows.has(id);
-    const relatedZone = zoneById.get(value(row, "zone_uuid_fk"));
-    const status = Number(row.table_status ?? 0);
-    const chargeActive = Number(row.charge_status ?? 2) === 1;
+    const status = tableStatus(row);
+    const chargeActive = tableChargeActive(row);
+    const chargeLabel = chargeActive ? `${t("common.active")} / ${serviceChargeRateLabel}` : t("common.inactive");
 
     return (
       <SettingsMobileCard
         key={id || rowNumber}
         actions={<SettingsRowActions row={row} onEdit={openEdit} onDelete={setDeleteTarget} />}
-        badges={<Badge className="shrink-0">{rowNumber}</Badge>}
+        badges={<Badge className="shrink-0 tabular-nums">{rowNumber}</Badge>}
         checked={selected}
-        leading={
-          <span className="grid size-9 place-items-center rounded-md bg-primary/10 text-primary">
-            <Table2 />
-          </span>
-        }
+        leading={<TableIcon />}
         selectLabel={t("common.selectRow", { name: tableName(row) })}
         selected={selected}
-        subtitle={<span className="block truncate">{relatedZone ? zoneLabel(relatedZone) : zoneLabel(row)}</span>}
+        subtitle={<span className="block truncate">{tableZoneName(row)}</span>}
         title={tableName(row)}
         onCheckedChange={(checked) => toggleSelected(id, checked)}
       >
         <SettingsMobileMetaGrid>
-          <SettingsMobileMeta label={t("fields.table_qty")} value={tableSeats(row)} />
-          <SettingsMobileMeta
-            label={t("fields.table_status")}
-            value={status ? <Badge>{status === 2 ? t("common.busy") : t("common.free")}</Badge> : "-"}
-          />
-          <SettingsMobileMeta
-            label={t("fields.charge_status")}
-            value={
-              <Badge className={chargeActive ? "border-primary/25 bg-primary/10 text-primary" : undefined}>
-                {chargeActive ? `${t("common.active")} · ${serviceChargeRateLabel}` : t("common.inactive")}
-              </Badge>
-            }
-          />
+          <SettingsMobileMeta label={t("fields.table_qty")} value={<span className="tabular-nums" translate="no">{tableSeats(row)}</span>} />
+          <SettingsMobileMeta label={t("fields.table_status")} value={<StatusBadge status={status} />} />
+          <SettingsMobileMeta label={t("fields.charge_status")} value={<ChargeBadge active={chargeActive} label={chargeLabel} />} />
         </SettingsMobileMetaGrid>
       </SettingsMobileCard>
     );
   }
+
   const mobileList = tableGroups.length ? (
     <SettingsMobileList>
       {groupedTableRows.map((group) => {
@@ -541,15 +499,17 @@ export function TableSettingsPage() {
         return (
           <div key={group.zoneId} className="flex flex-col gap-2">
             <Button
+              aria-expanded={!collapsed}
+              aria-label={collapsed ? t("settings.expandZone", { zone: group.zoneName }) : t("settings.collapseZone", { zone: group.zoneName })}
+              className="min-h-11 justify-start px-3 text-left"
               type="button"
               variant="outline"
-              className="min-h-11 justify-start px-3 text-left"
               onClick={() => toggleZoneCollapse(group.zoneId)}
             >
               {collapsed ? <ChevronRight data-icon="inline-start" /> : <ChevronDown data-icon="inline-start" />}
               <MapIcon data-icon="inline-start" />
               <span className="min-w-0 flex-1 truncate">{group.zoneName}</span>
-              <Badge className="bg-primary/10 text-primary">{group.totalTables ?? group.tables.length}</Badge>
+              <Badge className="bg-primary/10 text-primary tabular-nums">{group.totalTables ?? group.tables.length}</Badge>
             </Button>
             {collapsed ? null : group.rows.length ? (
               group.rows.map(({ row, rowNumber }) => renderTableMobileCard(row, rowNumber))
@@ -564,19 +524,82 @@ export function TableSettingsPage() {
     </SettingsMobileList>
   ) : null;
 
+  const toolbar = (
+    <SettingsToolbar
+      state={{
+        search,
+        limit,
+        orderBy,
+        limitOptions: PAGE_LIMIT_OPTIONS,
+        selectedCount: selectedRows.size,
+        onApply: applyFilters,
+        onLimit: (nextLimit) => {
+          setLimit(nextLimit);
+          setPage(1);
+        },
+        onOrder: (nextOrder) => {
+          setOrderBy(nextOrder);
+          setPage(1);
+        },
+        onSearch: setSearch
+      }}
+    />
+  );
+
   const groupToggleAction = tableGroups.length ? (
-    <div className="flex flex-wrap gap-2">
-      <Button
-        size="xs"
-        type="button"
-        variant="outline"
-        onClick={() => setCollapsedZones(allCollapsed ? new Set() : new Set(tableGroups.map((group) => group.zoneId)))}
-      >
-        {allCollapsed ? <ChevronsUpDown data-icon="inline-start" /> : <ChevronsDownUp data-icon="inline-start" />}
-        {allCollapsed ? t("actions.expandAll") : t("actions.collapseAll")}
-      </Button>
-    </div>
+    <Button
+      size="xs"
+      type="button"
+      variant="outline"
+      onClick={() => setAllZonesCollapsed(!allCollapsed)}
+    >
+      {allCollapsed ? <ChevronsUpDown data-icon="inline-start" /> : <ChevronsDownUp data-icon="inline-start" />}
+      {allCollapsed ? t("actions.expandAll") : t("actions.collapseAll")}
+    </Button>
   ) : null;
+
+  const listSurface = (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="shrink-0 border-b border-border bg-card/95 px-3 py-2.5 backdrop-blur sm:px-4 lg:px-5">
+        <div className="flex min-w-0 flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
+          <div className="min-w-0">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <p className="text-sm font-black">{t("settings.tableList")}</p>
+              {groupToggleAction}
+            </div>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {t("common.showingRange", { start: pageStart, end: pageEnd, total: displayTotal })} - {t("common.page", { current: page, total: totalPages })}
+            </p>
+          </div>
+          <div className="min-w-0 xl:max-w-[48rem]">{toolbar}</div>
+        </div>
+        {backgroundLoading ? (
+          <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+            <Spinner aria-hidden />
+            {t("settings.refreshingTableList")}
+          </div>
+        ) : null}
+      </div>
+      {tableGroups.length ? (
+        <>
+          <div className="hidden min-h-0 flex-1 md:flex">{table}</div>
+          <div className="min-h-0 flex-1 overflow-y-auto md:hidden">{mobileList}</div>
+        </>
+      ) : (
+        <div className="flex min-h-72 flex-1 items-center justify-center p-4">
+          <Empty className="max-w-md border border-dashed bg-muted/20">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <Table2 aria-hidden />
+              </EmptyMedia>
+              <EmptyTitle>{t("settings.noRecords", { title: title.toLowerCase() })}</EmptyTitle>
+              <EmptyDescription>{t("empty.adjustSearch")}</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <>
@@ -601,39 +624,15 @@ export function TableSettingsPage() {
             />
           ) : undefined
         }
-        loading={loading}
+        hideCardHeader
+        loading={fullLoading}
         loadingLabel={t("settings.loading", { title })}
-        mobileList={mobileList}
-        summary={`${t("common.showingRange", { start: pageStart, end: pageEnd, total: displayTotal })} - ${t("common.page", { current: page, total: totalPages })}`}
-        table={table}
+        table={listSurface}
         title={title}
-        toolbarStart={groupToggleAction}
-        toolbar={
-          <SettingsToolbar
-            state={{
-              search,
-              limit,
-              orderBy,
-              limitOptions: PAGE_LIMIT_OPTIONS,
-              selectedCount: selectedRows.size,
-              onApply: applyFilters,
-              onLimit: (nextLimit) => {
-                setLimit(nextLimit);
-                setPage(1);
-              },
-              onOrder: (nextOrder) => {
-                setOrderBy(nextOrder);
-                setPage(1);
-              },
-              onSearch: setSearch
-            }}
-          />
-        }
         onAdd={openCreate}
       />
       <TableFormDialog
         branchUuid={branchUuid}
-        description={description}
         editing={editing}
         open={dialogOpen}
         saving={saving}
@@ -651,6 +650,7 @@ export function TableSettingsPage() {
       <ConfirmDialog
         cancelLabel={t("actions.cancel")}
         confirmLabel={t("actions.delete")}
+        confirmPending={saving}
         description={t("settings.deleteConfirm")}
         open={Boolean(deleteTarget)}
         title={t("actions.delete")}
@@ -667,7 +667,6 @@ export function TableSettingsPage() {
 
 function TableFormDialog({
   branchUuid,
-  description,
   editing,
   onOpenChange,
   onSubmit,
@@ -679,7 +678,6 @@ function TableFormDialog({
   zones
 }: {
   branchUuid: string;
-  description: string;
   editing: DiningTable | null;
   onOpenChange: (open: boolean) => void;
   onSubmit: (formData: FormData) => Promise<void>;
@@ -692,112 +690,156 @@ function TableFormDialog({
 }) {
   const { t } = useTranslation();
   const [zoneUuid, setZoneUuid] = useState("");
+  const [tableNameLa, setTableNameLa] = useState("");
   const [chargeStatus, setChargeStatus] = useState("2");
-  const serviceChargeSummary = serviceChargeLoading
-    ? t("common.loading")
-    : serviceCharge.active
-      ? serviceCharge.percentLabel
-      : `${t("common.inactive")} · ${serviceCharge.percentLabel}`;
+  const formKey = tableId(editing) || "new-table";
+  const serviceChargeText = serviceChargeSummary({
+    activeLabel: t("common.active"),
+    inactiveLabel: t("common.inactive"),
+    loading: serviceChargeLoading,
+    loadingLabel: t("common.loading"),
+    serviceCharge
+  });
 
   useEffect(() => {
-    setZoneUuid(value(editing, "zone_uuid_fk"));
-    setChargeStatus(value(editing, "charge_status", "2"));
+    setZoneUuid(tableValue(editing, "zone_uuid_fk"));
+    setTableNameLa(tableValue(editing, "table_name_la", tableValue(editing, "table_name")));
+    setChargeStatus(tableValue(editing, "charge_status", "2"));
   }, [editing, open]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <SettingsDialogContent>
-        <SettingsDialogForm action={onSubmit}>
+      <SettingsDialogContent className="sm:max-w-3xl">
+        <SettingsDialogForm key={formKey} action={onSubmit}>
           <SettingsDialogHeader>
             <DialogTitle>{editing ? t("settings.editRecord") : t("settings.newRecord")}: {title}</DialogTitle>
-            <DialogDescription>{description}</DialogDescription>
+            <DialogDescription>{t("settings.tableFormHint")}</DialogDescription>
           </SettingsDialogHeader>
           <SettingsDialogBody>
             <FieldGroup>
-              <Field>
-                <FieldLabel>{t("settings.tableFormHint")}</FieldLabel>
-                <FieldDescription>{t("settings.selectZone")}</FieldDescription>
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="zone_uuid_fk">{t("nav.zone")}</FieldLabel>
-                <input name="zone_uuid_fk" type="hidden" value={zoneUuid} />
-                <Select required value={zoneUuid} onValueChange={setZoneUuid}>
-                  <SelectTrigger id="zone_uuid_fk" className="w-full">
-                    <SelectValue placeholder={t("settings.selectZone")} />
-                  </SelectTrigger>
-                  <SelectContent position="popper">
-                    <SelectGroup>
-                      {zones.map((zone) => {
-                        const uuid = value(zone, "zone_uuid");
-                        return (
-                          <SelectItem key={uuid} value={uuid}>
-                            {zoneLabel(zone)}
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </Field>
-              <div className="grid gap-3 sm:grid-cols-2">
+              <FieldSet className="gap-4 rounded-lg border border-border bg-card p-4">
                 <Field>
-                  <FieldLabel htmlFor="table_name_la">{t("fields.table_name_la")}</FieldLabel>
-                  <Input id="table_name_la" name="table_name_la" defaultValue={value(editing, "table_name_la", value(editing, "table_name"))} required />
+                  <FieldLegend>{t("settings.tableDetails")}</FieldLegend>
+                  <FieldDescription>{t("settings.tableDetailsHint")}</FieldDescription>
+                </Field>
+                <FieldGroup className="grid gap-4 sm:grid-cols-2">
+                  <Field>
+                    <FieldLabel htmlFor="table_name_la">{t("fields.table_name_la")}</FieldLabel>
+                    <Input
+                      id="table_name_la"
+                      name="table_name_la"
+                      autoComplete="off"
+                      disabled={saving}
+                      required
+                      value={tableNameLa}
+                      onChange={(event) => setTableNameLa(event.target.value)}
+                    />
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="table_name_eng">{t("fields.table_name_eng")}</FieldLabel>
+                    <Input
+                      id="table_name_eng"
+                      name="table_name_eng"
+                      autoComplete="off"
+                      defaultValue={tableValue(editing, "table_name_eng")}
+                      disabled={saving}
+                    />
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="table_qty">{t("fields.table_qty")}</FieldLabel>
+                    <Input
+                      id="table_qty"
+                      name="table_qty"
+                      autoComplete="off"
+                      defaultValue={tableValue(editing, "table_qty", tableValue(editing, "number_of_seats"))}
+                      disabled={saving}
+                      inputMode="numeric"
+                      min={0}
+                      step={1}
+                      type="number"
+                    />
+                  </Field>
+                </FieldGroup>
+              </FieldSet>
+
+              <FieldSet className="gap-4 rounded-lg border border-border bg-card p-4">
+                <Field>
+                  <FieldLegend>{t("settings.tableZoneSection")}</FieldLegend>
+                  <FieldDescription>{t("settings.tableZoneHint")}</FieldDescription>
                 </Field>
                 <Field>
-                  <FieldLabel htmlFor="table_name_eng">{t("fields.table_name_eng")}</FieldLabel>
-                  <Input id="table_name_eng" name="table_name_eng" defaultValue={value(editing, "table_name_eng")} />
+                  <FieldLabel htmlFor="zone_uuid_fk">{t("nav.zone")}</FieldLabel>
+                  <input name="zone_uuid_fk" type="hidden" value={zoneUuid} />
+                  <Select disabled={saving} required value={zoneUuid} onValueChange={setZoneUuid}>
+                    <SelectTrigger id="zone_uuid_fk" className="w-full">
+                      <SelectValue placeholder={t("settings.selectZone")} />
+                    </SelectTrigger>
+                    <SelectContent position="popper">
+                      <SelectGroup>
+                        {zones.map((zone) => {
+                          const uuid = tableValue(zone, "zone_uuid");
+                          if (!uuid) return null;
+                          return (
+                            <SelectItem key={uuid} value={uuid}>
+                              {zoneLabel(zone)}
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
                 </Field>
+              </FieldSet>
+
+              <FieldSet className="gap-4 rounded-lg border border-border bg-card p-4">
                 <Field>
-                  <FieldLabel htmlFor="table_qty">{t("fields.table_qty")}</FieldLabel>
-                  <Input id="table_qty" min={0} name="table_qty" type="number" defaultValue={value(editing, "table_qty", value(editing, "number_of_seats"))} />
+                  <div className="flex min-w-0 items-center gap-2">
+                    <FieldLegend>{t("settings.tableServiceChargeSection")}</FieldLegend>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          aria-label={t("settings.tableChargeTooltip")}
+                          className="size-6 rounded-full text-muted-foreground hover:bg-muted"
+                          disabled={saving}
+                          size="iconSm"
+                          type="button"
+                          variant="ghost"
+                        >
+                          <CircleHelp aria-hidden />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-64" side="top">
+                        {t("settings.tableChargeTooltip")}
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                  <FieldDescription>{t("settings.tableChargeHint")}</FieldDescription>
                 </Field>
-              </div>
-              <Field>
-                <div className="flex min-w-0 items-center gap-2">
-                  <FieldLabel>{t("fields.charge_status")}</FieldLabel>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        aria-label={t("settings.tableChargeTooltip")}
-                        type="button"
-                        size="iconSm"
-                        variant="ghost"
-                        className="size-6 rounded-full text-muted-foreground hover:bg-muted"
-                      >
-                        <CircleHelp />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent className="max-w-64" side="top">
-                      {t("settings.tableChargeTooltip")}
-                    </TooltipContent>
-                  </Tooltip>
-                </div>
-                <FieldDescription>{t("settings.tableChargeHint")}</FieldDescription>
                 <div className="flex min-w-0 flex-wrap items-center gap-2 rounded-md border border-border bg-muted/25 px-3 py-2 text-sm">
                   <span className="font-bold text-muted-foreground">{t("settings.tableBranchCharge")}</span>
-                  <Badge className={serviceCharge.active ? "border-primary/25 bg-primary/10 text-primary" : "border-border bg-background text-muted-foreground"}>
-                    {serviceChargeSummary}
-                  </Badge>
+                  <ChargeBadge active={serviceCharge.active} label={serviceChargeText} />
                 </div>
-                <input name="charge_status" type="hidden" value={chargeStatus} />
-                <RadioGroup className="grid gap-2 sm:grid-cols-2" value={chargeStatus} onValueChange={setChargeStatus}>
-                  <label
-                    className="flex cursor-pointer items-center gap-3 rounded-md border border-border bg-card p-3 text-sm font-medium has-data-[state=checked]:border-primary has-data-[state=checked]:bg-primary/5"
-                    htmlFor="charge_status_2"
-                  >
-                    <RadioGroupItem id="charge_status_2" value="2" />
-                    {t("common.inactive")}
-                  </label>
-                  <label
-                    className="flex cursor-pointer items-center gap-3 rounded-md border border-border bg-card p-3 text-sm font-medium has-data-[state=checked]:border-primary has-data-[state=checked]:bg-primary/5"
-                    htmlFor="charge_status_1"
-                  >
-                    <RadioGroupItem id="charge_status_1" value="1" />
-                    {t("common.active")}
-                  </label>
-                </RadioGroup>
-              </Field>
+                <Field>
+                  <FieldLabel>{t("fields.charge_status")}</FieldLabel>
+                  <input name="charge_status" type="hidden" value={chargeStatus} />
+                  <RadioGroup className="grid gap-2 sm:grid-cols-2" value={chargeStatus} onValueChange={setChargeStatus}>
+                    <label
+                      className="flex min-h-11 cursor-pointer items-center gap-3 rounded-md border border-border bg-card p-3 text-sm font-medium has-data-[state=checked]:border-primary has-data-[state=checked]:bg-primary/5"
+                      htmlFor="charge_status_2"
+                    >
+                      <RadioGroupItem id="charge_status_2" disabled={saving} value="2" />
+                      {t("common.inactive")}
+                    </label>
+                    <label
+                      className="flex min-h-11 cursor-pointer items-center gap-3 rounded-md border border-border bg-card p-3 text-sm font-medium has-data-[state=checked]:border-primary has-data-[state=checked]:bg-primary/5"
+                      htmlFor="charge_status_1"
+                    >
+                      <RadioGroupItem id="charge_status_1" disabled={saving} value="1" />
+                      {t("common.active")}
+                    </label>
+                  </RadioGroup>
+                </Field>
+              </FieldSet>
             </FieldGroup>
           </SettingsDialogBody>
           <input name="branch_uuid_fk" type="hidden" value={branchUuid} readOnly />
@@ -805,7 +847,7 @@ function TableFormDialog({
             <Button disabled={saving} type="button" variant="outline" onClick={() => onOpenChange(false)}>
               {t("actions.cancel")}
             </Button>
-            <Button disabled={saving || !branchUuid || !zoneUuid} type="submit">
+            <Button disabled={saving || !branchUuid || !zoneUuid || !tableNameLa.trim()} type="submit">
               {saving ? <Spinner data-icon="inline-start" /> : null}
               {saving ? t("common.processing") : t("actions.save")}
             </Button>

@@ -33,7 +33,7 @@ export interface SettingConfig {
   idKey: string;
   columns: Array<{ key: string; label: string }>;
   fields: SettingField[];
-  list: (params: FetchParams) => Promise<{ data: Record<string, unknown>[]; total?: number; totalPages?: number }>;
+  list: (params: FetchParams) => Promise<{ data: Record<string, unknown>[]; total?: number; totalPages?: number; total_page?: number }>;
   save: (input: Record<string, unknown>) => Promise<unknown>;
   remove: (id: string) => Promise<unknown>;
   scope?: (user: AuthUser | null) => Record<string, unknown>;
