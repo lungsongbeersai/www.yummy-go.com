@@ -5,11 +5,10 @@ import { useTranslation } from "react-i18next";
 import { useUrlPagination } from "@/hooks/use-url-pagination";
 import { pageLimitSize } from "@/lib/pagination";
 import type { UrlPaginationState } from "@/lib/url-pagination";
-import { getPaymentMethodsReport } from "@/services/report";
 import { useAppStore } from "@/stores/app-store";
 import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
 import { useBranchStore } from "@/stores/branch-store";
-import { normalizePaymentMethodsReportResponse, usePaymentMethodsReportStore } from "@/stores/report-store";
+import { usePaymentMethodsReportStore } from "@/stores/report-store";
 import { useToastStore } from "@/stores/toast-store";
 import { branchOptionFromRow, selectedBranchLabel } from "../daily-sales/daily-sales-report-utils";
 import type { PaymentMethodsExportAction, PaymentMethodsExportData, PaymentMethodsReportFilters } from "./payment-methods-report-types";
@@ -19,7 +18,6 @@ import {
   exportSummaryRows,
   localDateInputValue,
   paymentMethodOptions,
-  paymentMethodsExportLimit,
   paymentMethodsFileBaseName,
   selectedPaymentMethodLabel,
   waitForPaint
@@ -46,6 +44,7 @@ export function usePaymentMethodsReportWorkflow(exportReportRef: RefObject<HTMLD
   const total = usePaymentMethodsReportStore((state) => state.total);
   const totalPages = usePaymentMethodsReportStore((state) => state.totalPages);
   const loadReport = usePaymentMethodsReportStore((state) => state.load);
+  const loadExportData = usePaymentMethodsReportStore((state) => state.loadExportData);
   const showToast = useToastStore((state) => state.show);
   const today = useMemo(() => localDateInputValue(), []);
 
@@ -198,32 +197,15 @@ export function usePaymentMethodsReportWorkflow(exportReportRef: RefObject<HTMLD
   const fetchExportData = useCallback(async (): Promise<PaymentMethodsExportData> => {
     if (!branchUuid) throw new Error(t("report.branchRequired"));
 
-    const baseParams = {
+    return loadExportData({
       branch_uuid_fk: branchUuid,
       date_from: appliedFilters.dateFrom,
       date_to: appliedFilters.dateTo,
       lang: language,
-      limit: paymentMethodsExportLimit,
       orderBy: appliedFilters.orderBy,
       payment_method: appliedFilters.paymentMethod
-    };
-    const firstResponse = await getPaymentMethodsReport({ ...baseParams, page: 1 });
-    const firstData = normalizePaymentMethodsReportResponse(firstResponse, paymentMethodsExportLimit, 1);
-    const allRows = [...firstData.rows];
-
-    for (let nextPage = 2; nextPage <= firstData.pagination.totalPages; nextPage += 1) {
-      const response = await getPaymentMethodsReport({ ...baseParams, page: nextPage });
-      const normalized = normalizePaymentMethodsReportResponse(response, paymentMethodsExportLimit, nextPage);
-      allRows.push(...normalized.rows);
-    }
-
-    return {
-      cards: firstData.cards,
-      reportName: firstData.reportName,
-      reportTotal: firstData.reportTotal,
-      rows: allRows
-    };
-  }, [appliedFilters, branchUuid, language, t]);
+    });
+  }, [appliedFilters, branchUuid, language, loadExportData, t]);
 
   async function exportExcel() {
     if (exportDisabled) return;

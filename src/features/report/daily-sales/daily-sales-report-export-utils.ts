@@ -1,13 +1,10 @@
-import type { DailySalesReportResponse } from "@/services/report";
 import type { ApiEntity } from "@/services/shared/types";
 import {
   createDailySalesBillGroups,
-  normalizeDailySalesReportResponse,
   type DailySalesBillGroup,
 } from "@/stores/report-store";
 import type {
   ReportColumn,
-  ReportExportData,
   ReportFilters,
   SummaryCardConfig,
   SummaryCards,
@@ -33,7 +30,6 @@ export function waitForPaint() {
     requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
   });
 }
-
 export function exportCellValue(row: ApiEntity, column: ReportColumn) {
   const value = readValue(row, column.keys);
   if (column.kind === "image")
@@ -71,7 +67,6 @@ export function exportTableRows(rows: ApiEntity[], columns: ReportColumn[]) {
     return output;
   });
 }
-
 export function exportBillRows(
   groups: DailySalesBillGroup[],
   t: (key: string) => string,
@@ -204,18 +199,4 @@ export function selectedDetailBillGroups(
     if (selectedItems.length === group.items.length) return [group];
     return createDailySalesBillGroups(selectedItems);
   });
-}
-
-export function exportDataFromResponse(
-  response: DailySalesReportResponse,
-): ReportExportData {
-  const normalized = normalizeDailySalesReportResponse(response);
-
-  return {
-    billGroups: normalized.billGroups,
-    grandTotalByDate: normalized.grandTotalByDate,
-    reportTotal: normalized.reportTotal,
-    rows: normalized.rows,
-    summaryCards: normalized.summaryCards,
-  };
 }

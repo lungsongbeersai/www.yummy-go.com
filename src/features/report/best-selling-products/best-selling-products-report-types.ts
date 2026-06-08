@@ -1,6 +1,6 @@
 import type { BestSellingProductsSortBy } from "@/services/report";
-import type { ApiEntity, PageLimit } from "@/services/shared/types";
-import type { BestSellingProductGroup, BestSellingProductItem } from "@/stores/report-store";
+import type { PageLimit } from "@/services/shared/types";
+import type { BestSellingProductsReportExportData } from "@/stores/report-store";
 
 export type BestSellingProductsFilters = {
   branchUuid: string;
@@ -32,8 +32,4 @@ export type BestSellingMetricConfig = {
 
 export type BestSellingExportAction = "excel" | "pdf" | "print";
 
-export type BestSellingExportData = {
-  groups: BestSellingProductGroup[];
-  rows: BestSellingProductItem[];
-  summary: ApiEntity;
-};
+export type BestSellingExportData = BestSellingProductsReportExportData;

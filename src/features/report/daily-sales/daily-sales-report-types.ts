@@ -4,7 +4,7 @@ import type {
   DailySalesReportType,
 } from "@/services/report";
 import type { ApiEntity, PageLimit } from "@/services/shared/types";
-import type { DailySalesBillGroup } from "@/stores/report-store";
+import type { DailySalesReportExportData } from "@/stores/report-store";
 
 export type ReportPaymentMethodFilter = DailySalesPaymentMethod | "all";
 
@@ -42,12 +42,6 @@ export type SummaryCards = ApiEntity | ApiEntity[];
 
 export type ReportExportAction = "excel" | "pdf" | "print";
 
-export type ReportExportData = {
-  billGroups: DailySalesBillGroup[];
-  grandTotalByDate: ApiEntity[];
-  reportTotal: ApiEntity;
-  rows: ApiEntity[];
-  summaryCards: SummaryCards;
-};
+export type ReportExportData = DailySalesReportExportData;
 
 export type DetailPaginationBasis = "bills" | "lines";

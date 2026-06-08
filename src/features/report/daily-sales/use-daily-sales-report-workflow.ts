@@ -11,18 +11,17 @@ import { useTranslation } from "react-i18next";
 import { useUrlPagination } from "@/hooks/use-url-pagination";
 import { pageLimitSize } from "@/lib/pagination";
 import type { UrlPaginationState } from "@/lib/url-pagination";
-import { getDailySalesReport } from "@/services/report";
 import type { ApiEntity } from "@/services/shared/types";
 import { useAppStore } from "@/stores/app-store";
 import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
 import { useBranchStore } from "@/stores/branch-store";
 import {
   createDailySalesBillGroups,
-  normalizeDailySalesReportResponse,
   useDailySalesReportStore,
 } from "@/stores/report-store";
 import { useToastStore } from "@/stores/toast-store";
 import type {
+  ReportExportData,
   ReportExportAction,
   ReportFilters,
 } from "./daily-sales-report-types";
@@ -34,7 +33,6 @@ import {
 import {
   dateTotalsFromGroups,
   exportBillRows,
-  exportDataFromResponse,
   exportDateTotalRows,
   exportSummaryRows,
   exportTableRows,
@@ -45,15 +43,11 @@ import {
 import {
   branchOptionFromRow,
   detailPaginationBasis,
-  exportLimit,
-  firstOptionalNumber,
   localDateInputValue,
   paymentMethodParam,
   reportRecordId,
   reportTotalFromBillGroups,
   reportTotalFromRows,
-  responseRoot,
-  responseTotalPages,
   selectedBranchLabel,
 } from "./daily-sales-report-utils";
 
@@ -85,6 +79,7 @@ export function useDailySalesReportWorkflow(
   const total = useDailySalesReportStore((state) => state.total);
   const totalPages = useDailySalesReportStore((state) => state.totalPages);
   const loadReport = useDailySalesReportStore((state) => state.load);
+  const loadExportData = useDailySalesReportStore((state) => state.loadExportData);
   const showToast = useToastStore((state) => state.show);
   const today = useMemo(() => localDateInputValue(), []);
 
@@ -103,9 +98,7 @@ export function useDailySalesReportWorkflow(
     () => new Set(),
   );
   const [exporting, setExporting] = useState<ReportExportAction | null>(null);
-  const [exportData, setExportData] = useState<ReturnType<
-    typeof exportDataFromResponse
-  > | null>(null);
+  const [exportData, setExportData] = useState<ReportExportData | null>(null);
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
   const [selectedRecordIds, setSelectedRecordIds] = useState<Set<string>>(
     () => new Set(),
@@ -407,39 +400,17 @@ export function useDailySalesReportWorkflow(
   const fetchExportData = useCallback(async () => {
     if (!branchUuid) throw new Error(t("report.branchRequired"));
 
-    const baseParams = {
+    const data = await loadExportData({
       branch_uuid_fk: branchUuid,
       date_from: appliedFilters.dateFrom,
       date_to: appliedFilters.dateTo,
       lang: language,
-      limit: exportLimit,
       orderBy: appliedFilters.orderBy,
       payment_method: paymentMethodParam(appliedFilters.paymentMethod),
       type_page: appliedFilters.typePage,
-    };
-    const firstResponse = await getDailySalesReport({ ...baseParams, page: 1 });
-    const firstRoot = responseRoot(firstResponse);
-    const firstData = exportDataFromResponse(firstResponse);
-    const totalRows =
-      firstOptionalNumber(
-        firstRoot.total,
-        firstRoot.total_rows,
-        firstRoot.count,
-        firstRoot.report_count,
-      ) ?? firstData.rows.length;
-    const pageCount = responseTotalPages(firstRoot, totalRows, exportLimit, 1);
-    const allRows = [...firstData.rows];
-    const allBillGroups = [...firstData.billGroups];
-
-    for (let nextPage = 2; nextPage <= pageCount; nextPage += 1) {
-      const response = await getDailySalesReport({
-        ...baseParams,
-        page: nextPage,
-      });
-      const normalized = normalizeDailySalesReportResponse(response);
-      allRows.push(...normalized.rows);
-      allBillGroups.push(...normalized.billGroups);
-    }
+    });
+    const allRows = data.rows;
+    const allBillGroups = data.billGroups;
 
     const billGroupsForExport =
       selectedRecordIds.size && appliedFilters.typePage === "detail"
@@ -462,21 +433,21 @@ export function useDailySalesReportWorkflow(
         ? reportTotalFromBillGroups(billGroupsForExport)
         : selectedRecordIds.size
           ? reportTotalFromRows(rowsForExport, appliedFilters.typePage)
-          : firstData.reportTotal;
+          : data.reportTotal;
 
     return {
-      ...firstData,
+      ...data,
       billGroups: billGroupsForExport,
       grandTotalByDate: selectedRecordIds.size
         ? dateTotalsFromGroups(billGroupsForExport)
-        : firstData.grandTotalByDate,
+        : data.grandTotalByDate,
       reportTotal: selectedReportTotal,
       rows: rowsForExport,
       summaryCards: selectedRecordIds.size
         ? selectedReportTotal
-        : firstData.summaryCards,
+        : data.summaryCards,
     };
-  }, [appliedFilters, branchUuid, language, selectedRecordIds, t]);
+  }, [appliedFilters, branchUuid, language, loadExportData, selectedRecordIds, t]);
 
   async function exportExcel() {
     if (exportDisabled) return;

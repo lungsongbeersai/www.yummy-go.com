@@ -1,25 +1,30 @@
 "use client";
 
-import { useDeferredValue, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { Check, CircleSlash2, Search, X, type LucideIcon } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import type { StoreApi, UseBoundStore } from "zustand";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
-import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Textarea } from "@/components/ui/textarea";
-import { CurrencyFlag, currencyFlagOptions, type CurrencyFlagOption } from "@/features/settings/shared/currency-flag";
 import {
-  SettingsModuleShell,
-  SettingsPaginationFooter,
+  ColorCodeBadge,
+  ColorSwatch,
+  OptionFormFields,
+  type OptionColumn,
+  type OptionField
+} from "@/features/settings/shared/option-settings-fields";
+import {
+  optionPageRange,
+  optionPageSize,
+  optionTotalPages,
+  optionValue
+} from "@/features/settings/shared/option-settings-utils";
+import {
   SettingsDialogBody,
   SettingsDialogContent,
   SettingsDialogFooter,
@@ -29,77 +34,33 @@ import {
   SettingsMobileList,
   SettingsMobileMeta,
   SettingsMobileMetaGrid,
+  SettingsModuleShell,
+  SettingsPaginationFooter,
   SettingsRowActions,
   SettingsTableScroll,
   SettingsToolbar
 } from "@/features/settings/shared/settings-shell";
+import { useOptionRowSelection } from "@/features/settings/shared/use-option-row-selection";
 import { useUrlPagination } from "@/hooks/use-url-pagination";
-import { DEFAULT_PAGE_LIMIT } from "@/lib/pagination";
 import type { UrlPaginationState } from "@/lib/url-pagination";
-import { cn } from "@/lib/utils";
-import type { ApiEntity, FetchParams, PageLimit, SortOrder } from "@/services/shared/types";
-import type { CrudListState } from "@/stores/crud-list-store";
-import { authStoreUuid, useAuthStore, type AuthUser } from "@/stores/auth-store";
+import type { ApiEntity, FetchParams, SortOrder } from "@/services/shared/types";
 import { useAppStore } from "@/stores/app-store";
+import { authStoreUuid, useAuthStore, type AuthUser } from "@/stores/auth-store";
+import type { CrudListState } from "@/stores/crud-list-store";
 import { useToastStore } from "@/stores/toast-store";
-
-const DEFAULT_LIMIT: PageLimit = DEFAULT_PAGE_LIMIT;
-const HEX_COLOR = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
-const HEX_PICKER_COLOR = /^#[0-9a-fA-F]{6}$/;
-
-type FlagGroup = "all" | "asean" | "majorCurrency" | "europe" | "middleAfrica" | "americas" | "asiaPacific" | "other";
-type DirectFlagGroup = Exclude<FlagGroup, "all" | "other">;
-
-const FLAG_GROUPS: Array<{ value: FlagGroup; labelKey: string }> = [
-  { value: "all", labelKey: "settings.flagGroups.all" },
-  { value: "asean", labelKey: "settings.flagGroups.asean" },
-  { value: "majorCurrency", labelKey: "settings.flagGroups.majorCurrency" },
-  { value: "europe", labelKey: "settings.flagGroups.europe" },
-  { value: "middleAfrica", labelKey: "settings.flagGroups.middleAfrica" },
-  { value: "americas", labelKey: "settings.flagGroups.americas" },
-  { value: "asiaPacific", labelKey: "settings.flagGroups.asiaPacific" },
-  { value: "other", labelKey: "settings.flagGroups.other" }
-];
-
-const DIRECT_FLAG_GROUPS: DirectFlagGroup[] = ["asean", "majorCurrency", "europe", "middleAfrica", "americas", "asiaPacific"];
-
-const FLAG_GROUP_CODES: Record<DirectFlagGroup, Set<string>> = {
-  asean: new Set(["LA", "TH", "VN", "MM", "KH", "SG", "MY", "ID", "PH", "BN", "TL"]),
-  majorCurrency: new Set(["US", "EU", "GB", "JP", "CN", "KR", "IN", "RU", "TR", "AU", "CA", "CH", "HK", "TW", "SA", "AE", "BR", "MX", "ZA", "NG"]),
-  europe: new Set([
-    "AD", "AL", "AM", "AT", "AX", "AZ", "BA", "BE", "BG", "BY", "CH", "CY", "CZ", "DE", "DK", "EE", "ES", "FI", "FO", "FR", "GB", "GE", "GG", "GI", "GR", "HR", "HU", "IE", "IM", "IS", "IT", "JE", "LI", "LT", "LU", "LV", "MC", "MD", "ME", "MK", "MT", "NL", "NO", "PL", "PT", "RO", "RS", "RU", "SE", "SI", "SJ", "SK", "SM", "UA", "VA", "EU"
-  ]),
-  middleAfrica: new Set([
-    "AE", "AF", "AO", "BF", "BH", "BI", "BJ", "BW", "CD", "CF", "CG", "CI", "CM", "CV", "DJ", "DZ", "EG", "EH", "ER", "ET", "GA", "GH", "GM", "GN", "GQ", "GW", "IL", "IO", "IQ", "IR", "JO", "KE", "KM", "KW", "LB", "LR", "LS", "LY", "MA", "MG", "ML", "MR", "MU", "MW", "MZ", "NA", "NE", "NG", "OM", "PK", "PS", "QA", "RE", "RW", "SA", "SC", "SD", "SH", "SL", "SN", "SO", "SS", "ST", "SY", "SZ", "TD", "TF", "TG", "TN", "TZ", "UG", "YE", "YT", "ZA", "ZM", "ZW"
-  ]),
-  americas: new Set([
-    "AG", "AI", "AR", "AS", "AW", "BB", "BL", "BM", "BO", "BQ", "BR", "BS", "BZ", "CA", "CL", "CO", "CR", "CU", "CW", "DM", "DO", "EC", "FK", "GD", "GF", "GL", "GP", "GS", "GT", "GU", "GY", "HN", "HT", "JM", "KN", "KY", "LC", "MF", "MQ", "MS", "MX", "NI", "PA", "PE", "PM", "PR", "PY", "SR", "SV", "SX", "TC", "TT", "UM", "US", "UY", "VC", "VE", "VG", "VI"
-  ]),
-  asiaPacific: new Set([
-    "AQ", "AU", "BD", "BT", "CC", "CK", "CN", "CX", "FJ", "FM", "GU", "HK", "HM", "ID", "IN", "JP", "KG", "KI", "KP", "KR", "KZ", "LK", "MH", "MN", "MO", "MP", "MV", "MY", "NC", "NF", "NP", "NR", "NU", "NZ", "PF", "PG", "PH", "PN", "PW", "SB", "SG", "TH", "TJ", "TK", "TM", "TO", "TV", "TW", "UZ", "VN", "VU", "WF", "WS"
-  ])
-};
 
 type OptionStore<Row extends ApiEntity, SaveInput extends ApiEntity, Params extends FetchParams> =
   UseBoundStore<StoreApi<CrudListState<Row, SaveInput, Params>>>;
 
-interface OptionField<Row extends ApiEntity> {
-  name: string;
-  label: string;
-  required?: boolean;
-  type?: "text" | "number" | "email" | "password" | "textarea" | "color-code" | "flag-code" | "select";
-  fallbackKey?: keyof Row & string;
-  options?: Array<{ label: string; value: string }>;
+export interface OptionSaveArgs<Row extends ApiEntity> {
+  editing: Row | null;
+  formData: FormData;
+  scope: Record<string, unknown>;
+  storeUuid: string;
+  user: AuthUser | null;
 }
 
-interface OptionColumn<Row extends ApiEntity> {
-  key: keyof Row & string;
-  label: string;
-  className?: string;
-  render?: (row: Row) => ReactNode;
-}
-
-interface OptionSettingsPageProps<
+export interface OptionSettingsPageProps<
   Row extends ApiEntity,
   SaveInput extends ApiEntity,
   Params extends FetchParams
@@ -108,242 +69,51 @@ interface OptionSettingsPageProps<
   itemLabel: string;
   title: string;
   description: string;
+  listTitle: string;
   idKey: keyof Row & string;
   nameKey: keyof Row & string;
   nameFallbackKey?: keyof Row & string;
   nameLaKey?: keyof Row & string;
   nameEngKey?: keyof Row & string;
   colorKey?: keyof Row & string;
-  cardTitle?: string;
   dialogContentClassName?: string;
+  fields: OptionField<Row>[];
+  columns: OptionColumn<Row>[];
   icon: LucideIcon;
+  initialPagination: UrlPaginationState;
+  store: OptionStore<Row, SaveInput, Params>;
+  buildInput?: (args: OptionSaveArgs<Row>) => SaveInput;
+  formDescription?: string;
+  formTitle?: string;
+  getName?: (row: Row) => string;
+  getSubtitle?: (row: Row) => ReactNode;
+  refreshLabel?: string;
+  renderBadges?: (row: Row) => ReactNode;
   renderLeading?: (row: Row) => ReactNode;
   requiredScopeKey?: string;
   requiredScopeMessage?: string;
-  tableClassName?: string;
-  fields: OptionField<Row>[];
-  columns: OptionColumn<Row>[];
-  initialPagination: UrlPaginationState;
   scope?: (storeUuid: string, user: AuthUser | null) => Record<string, unknown>;
-  store: OptionStore<Row, SaveInput, Params>;
+  tableClassName?: string;
+  validateInput?: (args: OptionSaveArgs<Row>) => string | null;
 }
 
-function value(row: ApiEntity | null, key: string, fallback = "") {
-  const raw = row?.[key];
-  if (raw === null || raw === undefined || raw === "") return fallback;
-  return String(raw);
-}
-
-function colorStyle(color: string): CSSProperties | undefined {
-  const trimmed = color.trim();
-  return HEX_COLOR.test(trimmed) ? { backgroundColor: trimmed } : undefined;
-}
-
-function pickerColor(color: string) {
-  const trimmed = color.trim();
-  if (HEX_PICKER_COLOR.test(trimmed)) return trimmed;
-  if (/^#[0-9a-fA-F]{3}$/.test(trimmed)) {
-    return `#${trimmed[1]}${trimmed[1]}${trimmed[2]}${trimmed[2]}${trimmed[3]}${trimmed[3]}`;
-  }
-  return "#000000";
-}
-
-function ColorSwatch({ value: color, large = false }: { value: string; large?: boolean }) {
-  return (
-    <span
-      className={large ? "size-9 shrink-0 rounded-md border border-border bg-muted" : "size-5 shrink-0 rounded border border-border bg-muted"}
-      style={colorStyle(color)}
-      aria-hidden
-    />
-  );
-}
-
-function ColorCodeInput({
-  defaultValue,
-  id,
-  name,
-  required
-}: {
-  defaultValue: string;
-  id: string;
-  name: string;
-  required?: boolean;
-}) {
-  const [code, setCode] = useState(defaultValue);
-  const { t } = useTranslation();
-
-  useEffect(() => {
-    setCode(defaultValue);
-  }, [defaultValue]);
-
-  return (
-    <div className="flex items-center gap-2">
-      <Input
-        aria-label={t("fields.color_picker")}
-        className="size-10 shrink-0 cursor-pointer p-1"
-        type="color"
-        value={pickerColor(code)}
-        onChange={(event) => setCode(event.target.value)}
-      />
-      <Input
-        id={id}
-        name={name}
-        value={code}
-        placeholder="#000000"
-        required={required}
-        onChange={(event) => setCode(event.target.value)}
-      />
-    </div>
-  );
-}
-
-function flagGroup(option: CurrencyFlagOption): FlagGroup {
-  if (option.custom) return "other";
-  for (const group of DIRECT_FLAG_GROUPS) {
-    if (FLAG_GROUP_CODES[group].has(option.code)) return group;
-  }
-  return "other";
-}
-
-function FlagPicker({
-  defaultValue,
-  id,
-  name,
-  required
-}: {
-  defaultValue: string;
-  id: string;
-  name: string;
-  required?: boolean;
-}) {
-  const { t } = useTranslation();
-  const language = useAppStore((state) => state.language);
-  const options = useMemo(() => currencyFlagOptions(language, defaultValue), [defaultValue, language]);
-  const [activeGroup, setActiveGroup] = useState<FlagGroup>("all");
-  const [search, setSearch] = useState("");
-  const deferredSearch = useDeferredValue(search);
-  const [code, setCode] = useState(defaultValue.trim().toUpperCase() || options[0]?.code || "");
-  const selected = options.find((option) => option.code === code) ?? options[0];
-  const groupOptions = useMemo(
-    () => (activeGroup === "all" ? options : options.filter((option) => flagGroup(option) === activeGroup)),
-    [activeGroup, options]
-  );
-  const filteredOptions = useMemo(() => {
-    const query = deferredSearch.trim().toLowerCase();
-    if (!query) return groupOptions;
-    return groupOptions.filter((option) => option.searchText.includes(query));
-  }, [deferredSearch, groupOptions]);
-
-  useEffect(() => {
-    setCode(defaultValue.trim().toUpperCase() || options[0]?.code || "");
-    setActiveGroup("all");
-    setSearch("");
-  }, [defaultValue, options]);
-
-  return (
-    <div className="flex min-w-0 flex-col gap-3">
-      <input aria-required={required} id={id} name={name} type="hidden" value={code} />
-      <div className="grid gap-3 lg:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]">
-        <div className="flex min-w-0 items-center gap-3 rounded-lg border border-border bg-muted/30 p-3">
-          <CurrencyFlag className="size-12 rounded-md" code={selected?.code ?? code} label={selected?.label ?? code} />
-          <div className="min-w-0">
-            <p className="text-xs font-medium text-muted-foreground">{t("settings.selectedFlag")}</p>
-            <p className="truncate text-sm font-semibold text-foreground">{selected?.label || t("settings.selectFlag")}</p>
-            <p className="mt-1 truncate text-xs text-muted-foreground">{selected?.code || code || "-"}</p>
-          </div>
-        </div>
-
-        <div className="flex min-w-0 flex-col gap-2.5 rounded-lg border border-border bg-card p-3">
-          <div className="flex min-w-0 items-center justify-between gap-3">
-            <span className="min-w-0 truncate text-sm font-medium text-muted-foreground">
-              {t(FLAG_GROUPS.find((group) => group.value === activeGroup)?.labelKey ?? "settings.flagGroups.all")}
-            </span>
-            <Badge className="h-6 min-w-14 justify-center rounded-md bg-primary/10 px-2.5 text-primary">
-              {filteredOptions.length} / {groupOptions.length}
-            </Badge>
-          </div>
-          <div className="flex min-w-0 items-center gap-2 rounded-md border border-input bg-background px-2.5 transition-colors focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50">
-            <span className="grid size-7 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
-              <Search aria-hidden className="size-4" />
-            </span>
-            <Input
-              className="h-10 min-w-0 flex-1 border-0 bg-transparent p-0 shadow-none focus-visible:ring-0"
-              placeholder={t("settings.searchFlags")}
-              type="text"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-            />
-            {search ? (
-              <Button aria-label="Clear search" size="iconSm" type="button" variant="ghost" onClick={() => setSearch("")}>
-                <X aria-hidden />
-              </Button>
-            ) : null}
-          </div>
-        </div>
-      </div>
-
-      <div className="flex gap-2 overflow-x-auto pb-1">
-        {FLAG_GROUPS.map((group) => {
-          const isActive = activeGroup === group.value;
-          return (
-            <Button
-              key={group.value}
-              className="shrink-0"
-              size="sm"
-              type="button"
-              variant={isActive ? "default" : "outline"}
-              onClick={() => setActiveGroup(group.value)}
-            >
-              {t(group.labelKey)}
-            </Button>
-          );
-        })}
-      </div>
-
-      <div className="max-h-[20rem] overflow-y-auto rounded-lg border border-border bg-background p-2">
-        {filteredOptions.length ? (
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {filteredOptions.map((option) => {
-              const isActive = option.code === code;
-              return (
-                <Button
-                  key={option.code}
-                  aria-selected={isActive}
-                  className={cn(
-                    "h-auto min-h-14 justify-start gap-3 px-3 py-2 text-left shadow-sm",
-                    isActive && "border-primary bg-primary/10 text-foreground ring-2 ring-primary/15"
-                  )}
-                  role="option"
-                  title={`${option.code} ${option.label}`}
-                  type="button"
-                  variant="outline"
-                  onClick={() => setCode(option.code)}
-                >
-                  <CurrencyFlag className={cn("size-9 rounded-md", isActive && "ring-1 ring-primary/25")} code={option.code} label={option.label} />
-                  <span className="min-w-0 flex-1 text-left">
-                    <span className="block truncate text-sm font-medium">{option.label}</span>
-                    <span className="mt-1 block truncate text-xs text-muted-foreground">{option.code}</span>
-                  </span>
-                  {option.custom ? <span className="hidden text-xs text-muted-foreground lg:inline">{t("settings.customFlag")}</span> : null}
-                  {isActive ? <Check aria-hidden /> : null}
-                </Button>
-              );
-            })}
-          </div>
-        ) : (
-          <Empty className="min-h-40 border border-dashed bg-muted/30 p-6">
-            <EmptyHeader>
-              <EmptyMedia variant="icon" className="bg-primary/10 text-primary">
-                <CircleSlash2 aria-hidden />
-              </EmptyMedia>
-              <EmptyTitle>{t("settings.noFlagsFound")}</EmptyTitle>
-              <EmptyDescription>{t("settings.tryDifferentFlagSearch")}</EmptyDescription>
-            </EmptyHeader>
-          </Empty>
-        )}
-      </div>
-    </div>
-  );
+function defaultInput<Row extends ApiEntity, SaveInput extends ApiEntity>({
+  editing,
+  fields,
+  formData,
+  idKey,
+  scope
+}: OptionSaveArgs<Row> & {
+  fields: OptionField<Row>[];
+  idKey: keyof Row & string;
+}): SaveInput {
+  const input: Record<string, unknown> = { ...scope };
+  fields.forEach((field) => {
+    input[field.name] = formData.get(field.name) ?? "";
+  });
+  const id = optionValue(editing, idKey);
+  if (id) input[idKey] = id;
+  return input as SaveInput;
 }
 
 export function OptionSettingsPage<
@@ -351,28 +121,36 @@ export function OptionSettingsPage<
   SaveInput extends ApiEntity,
   Params extends FetchParams
 >({
+  buildInput,
   colorKey,
-  cardTitle,
   columns,
   description,
   dialogContentClassName,
   fields,
+  formDescription,
+  formTitle,
+  getName,
+  getSubtitle,
   icon: Icon,
   idKey,
   initialPagination,
   itemLabel,
-  nameFallbackKey,
+  listTitle,
   nameEngKey,
+  nameFallbackKey,
   nameKey,
   nameLaKey,
+  refreshLabel,
+  renderBadges,
   renderLeading,
   requiredScopeKey,
   requiredScopeMessage,
   scope: getScope,
   slug,
   store,
-  tableClassName = "min-w-[820px]",
-  title
+  tableClassName = "min-w-[860px]",
+  title,
+  validateInput
 }: OptionSettingsPageProps<Row, SaveInput, Params>) {
   const { t } = useTranslation();
   const language = useAppStore((state) => state.language);
@@ -383,7 +161,9 @@ export function OptionSettingsPage<
   const total = store((state) => state.total);
   const storeTotalPages = store((state) => state.totalPages);
   const search = store((state) => state.search);
+  const hasLoaded = store((state) => state.hasLoaded);
   const loading = store((state) => state.loading);
+  const refreshing = store((state) => state.refreshing);
   const saving = store((state) => state.saving);
   const setSearch = store((state) => state.setSearch);
   const loadRows = store((state) => state.load);
@@ -394,7 +174,6 @@ export function OptionSettingsPage<
   const [editing, setEditing] = useState<Row | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Row | null>(null);
-  const [selectedRows, setSelectedRows] = useState<Set<string>>(() => new Set());
 
   const scope = useMemo(() => getScope?.(storeUuid, user) ?? {}, [getScope, storeUuid, user]);
   const scopeKey = JSON.stringify(scope);
@@ -403,14 +182,16 @@ export function OptionSettingsPage<
     () => ({ search, page, limit, orderBy, lang: language, ...scope }) as Params,
     [language, limit, orderBy, page, scope, search]
   );
-  const pageSize = limit === "All" ? rows.length || Number(DEFAULT_LIMIT) : Number(limit ?? DEFAULT_LIMIT);
-  const totalPages = Math.max(1, Number(storeTotalPages || Math.ceil(total / pageSize) || 1));
-  const pageStart = rows.length ? (page - 1) * pageSize + 1 : 0;
-  const pageEnd = rows.length ? pageStart + rows.length - 1 : 0;
-  const canGoBack = page > 1 && !loading;
-  const canGoNext = page < totalPages && !loading;
-  const ids = useMemo(() => rows.map((row) => value(row, idKey)).filter(Boolean), [idKey, rows]);
-  const allSelected = ids.length > 0 && ids.every((id) => selectedRows.has(id));
+  const pageSize = optionPageSize(limit, rows.length);
+  const totalPages = optionTotalPages(storeTotalPages, total, pageSize);
+  const { start: pageStart, end: pageEnd } = optionPageRange(rows.length, page, pageSize);
+  const fullLoading = loading && !hasLoaded;
+  const backgroundLoading = refreshing || (loading && hasLoaded);
+  const pagingBusy = loading || refreshing;
+  const canGoBack = page > 1 && !pagingBusy;
+  const canGoNext = page < totalPages && !pagingBusy;
+  const rowId = useCallback((row: Row) => optionValue(row, idKey), [idKey]);
+  const { allSelected, removeSelected, selectedRows, toggleAll, toggleSelected } = useOptionRowSelection(rows, rowId);
 
   function requiredScopeDescription() {
     return requiredScopeMessage ?? t("settings.branchRequired");
@@ -423,7 +204,7 @@ export function OptionSettingsPage<
     }
 
     try {
-      await loadRows(requestParams);
+      await loadRows(requestParams, { background: hasLoaded });
     } catch (error) {
       showToast({
         title: t("settings.loadFailed", { title }),
@@ -438,31 +219,18 @@ export function OptionSettingsPage<
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [language, page, limit, orderBy, scopeKey]);
 
-  useEffect(() => {
-    setSelectedRows((current) => {
-      if (!current.size) return current;
-      const allowed = new Set(ids);
-      let changed = false;
-      const next = new Set<string>();
-      current.forEach((id) => {
-        if (allowed.has(id)) next.add(id);
-        else changed = true;
-      });
-      return changed ? next : current;
-    });
-  }, [ids]);
-
   function optionName(row: Row) {
-    return value(row, nameKey, value(row, nameFallbackKey ?? "", value(row, nameLaKey ?? "", value(row, nameEngKey ?? "", "-"))));
+    return getName?.(row) ?? optionValue(row, nameKey, optionValue(row, nameFallbackKey ?? "", optionValue(row, nameLaKey ?? "", optionValue(row, nameEngKey ?? "", "-"))));
   }
 
   function optionSubtitle(row: Row) {
+    if (getSubtitle) return getSubtitle(row);
     if (colorKey) {
-      const color = value(row, colorKey);
+      const color = optionValue(row, colorKey);
       return color && color !== optionName(row) ? color : "";
     }
     if (!nameLaKey && !nameEngKey) return "";
-    return `${value(row, nameLaKey ?? "", "-")} / ${value(row, nameEngKey ?? "", "-")}`;
+    return `${optionValue(row, nameLaKey ?? "", "-")} / ${optionValue(row, nameEngKey ?? "", "-")}`;
   }
 
   function applyFilters() {
@@ -470,26 +238,11 @@ export function OptionSettingsPage<
     else resetPage();
   }
 
-  function toggleSelected(id: string, checked: boolean) {
-    if (!id) return;
-    setSelectedRows((current) => {
-      const next = new Set(current);
-      if (checked) next.add(id);
-      else next.delete(id);
-      return next;
-    });
-  }
-
-  function toggleAll(checked: boolean) {
-    setSelectedRows(checked ? new Set(ids) : new Set());
-  }
-
   function openCreate() {
     if (missingRequiredScope) {
       showToast({ title: t("settings.saveFailed"), description: requiredScopeDescription(), tone: "error" });
       return;
     }
-
     setEditing(null);
     setDialogOpen(true);
   }
@@ -505,19 +258,20 @@ export function OptionSettingsPage<
       return;
     }
 
-    const input: Record<string, unknown> = { ...scope };
-    fields.forEach((field) => {
-      input[field.name] = formData.get(field.name) ?? "";
-    });
-    const id = value(editing, idKey);
-    if (id) input[idKey] = id;
+    const args = { editing, formData, scope, storeUuid, user };
+    const validationMessage = validateInput?.(args) ?? null;
+    if (validationMessage) {
+      showToast({ title: t("settings.saveFailed"), description: validationMessage, tone: "error" });
+      return;
+    }
 
     try {
-      await saveRow(input as SaveInput);
+      const input = buildInput?.(args) ?? defaultInput<Row, SaveInput>({ ...args, fields, idKey });
+      await saveRow(input);
       showToast({ title: t("settings.saved"), tone: "success" });
       setDialogOpen(false);
       setEditing(null);
-      await loadRows(requestParams);
+      await loadRows(requestParams, { background: true });
     } catch (error) {
       showToast({
         title: t("settings.saveFailed"),
@@ -528,18 +282,15 @@ export function OptionSettingsPage<
   }
 
   async function remove(row: Row) {
-    const id = value(row, idKey);
+    const id = rowId(row);
     if (!id) return;
+
     try {
       await removeRow(id);
       showToast({ title: t("settings.deleted"), tone: "success" });
       setDeleteTarget(null);
-      setSelectedRows((current) => {
-        const next = new Set(current);
-        next.delete(id);
-        return next;
-      });
-      await loadRows(requestParams);
+      removeSelected(id);
+      await loadRows(requestParams, { background: true });
     } catch (error) {
       showToast({
         title: t("settings.deleteFailed"),
@@ -547,6 +298,16 @@ export function OptionSettingsPage<
         tone: "error"
       });
     }
+  }
+
+  function leading(row: Row) {
+    if (colorKey) return <ColorSwatch value={optionValue(row, colorKey)} large />;
+    if (renderLeading) return renderLeading(row);
+    return (
+      <span className="grid size-9 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
+        <Icon aria-hidden />
+      </span>
+    );
   }
 
   const table = rows.length ? (
@@ -557,7 +318,7 @@ export function OptionSettingsPage<
             <TableHead className="w-10 px-2">
               <Checkbox aria-label={t("common.selectAll")} checked={allSelected} onChange={(event) => toggleAll(event.target.checked)} />
             </TableHead>
-            <TableHead className="w-px whitespace-nowrap px-2 text-center">#</TableHead>
+            <TableHead className="w-px whitespace-nowrap px-2 text-center">{t("fields.no")}</TableHead>
             <TableHead>{itemLabel}</TableHead>
             {columns.map((column) => (
               <TableHead key={column.key}>{column.label}</TableHead>
@@ -567,35 +328,28 @@ export function OptionSettingsPage<
         </TableHeader>
         <TableBody>
           {rows.map((row, index) => {
-            const id = value(row, idKey);
+            const id = rowId(row);
+            const name = optionName(row);
             const selected = selectedRows.has(id);
             const subtitle = optionSubtitle(row);
             return (
-              <TableRow key={id || index} data-state={selected ? "selected" : undefined}>
+              <TableRow key={id || index} className="h-14" data-state={selected ? "selected" : undefined}>
                 <TableCell className="w-10 px-2">
-                  <Checkbox aria-label={t("common.selectRow", { name: optionName(row) })} checked={selected} onChange={(event) => toggleSelected(id, event.target.checked)} />
+                  <Checkbox aria-label={t("common.selectRow", { name })} checked={selected} onChange={(event) => toggleSelected(id, event.target.checked)} />
                 </TableCell>
-                <TableCell className="w-px whitespace-nowrap px-2 text-center text-sm font-black text-muted-foreground">{pageStart + index}</TableCell>
-                <TableCell>
+                <TableCell className="w-px whitespace-nowrap px-2 text-center text-sm font-black tabular-nums text-muted-foreground">{pageStart + index}</TableCell>
+                <TableCell className="max-w-[28rem]">
                   <div className="flex min-w-0 items-center gap-3">
-                    {colorKey ? (
-                      <ColorSwatch value={value(row, colorKey)} large />
-                    ) : renderLeading ? (
-                      renderLeading(row)
-                    ) : (
-                      <span className="grid size-9 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
-                        <Icon className="size-4" />
-                      </span>
-                    )}
+                    {leading(row)}
                     <div className="min-w-0">
-                      <p className="truncate font-black">{optionName(row)}</p>
-                      {subtitle ? <p className="truncate text-xs text-muted-foreground">{subtitle}</p> : null}
+                      <p className="truncate font-black">{name}</p>
+                      {subtitle ? <p className="mt-0.5 truncate text-xs text-muted-foreground">{subtitle}</p> : null}
                     </div>
                   </div>
                 </TableCell>
                 {columns.map((column) => (
                   <TableCell key={column.key} className={column.className}>
-                    {column.render ? column.render(row) : value(row, column.key, "-")}
+                    {column.render ? column.render(row) : optionValue(row, column.key, "-")}
                   </TableCell>
                 ))}
                 <TableCell className="text-right">
@@ -608,37 +362,30 @@ export function OptionSettingsPage<
       </Table>
     </SettingsTableScroll>
   ) : null;
+
   const mobileList = rows.length ? (
     <SettingsMobileList>
       {rows.map((row, index) => {
-        const id = value(row, idKey);
+        const id = rowId(row);
+        const name = optionName(row);
         const selected = selectedRows.has(id);
         const subtitle = optionSubtitle(row);
         return (
           <SettingsMobileCard
             key={id || index}
             actions={<SettingsRowActions row={row} onEdit={openEdit} onDelete={setDeleteTarget} />}
+            badges={renderBadges?.(row)}
             checked={selected}
-            leading={
-              colorKey ? (
-                <ColorSwatch value={value(row, colorKey)} large />
-              ) : renderLeading ? (
-                renderLeading(row)
-              ) : (
-                <span className="grid size-9 place-items-center rounded-md bg-primary/10 text-primary">
-                  <Icon />
-                </span>
-              )
-            }
-            selectLabel={t("common.selectRow", { name: optionName(row) })}
+            leading={leading(row)}
+            selectLabel={t("common.selectRow", { name })}
             selected={selected}
             subtitle={subtitle ? <span className="block truncate">{subtitle}</span> : undefined}
-            title={optionName(row)}
+            title={name}
             onCheckedChange={(checked) => toggleSelected(id, checked)}
           >
             <SettingsMobileMetaGrid>
               {columns.map((column) => (
-                <SettingsMobileMeta key={column.key} label={column.label} value={column.render ? column.render(row) : value(row, column.key, "-")} />
+                <SettingsMobileMeta key={column.key} label={column.label} value={column.render ? column.render(row) : optionValue(row, column.key, "-")} />
               ))}
             </SettingsMobileMetaGrid>
           </SettingsMobileCard>
@@ -647,11 +394,69 @@ export function OptionSettingsPage<
     </SettingsMobileList>
   ) : null;
 
+  const toolbar = (
+    <SettingsToolbar
+      state={{
+        search,
+        limit,
+        orderBy,
+        selectedCount: selectedRows.size,
+        onApply: applyFilters,
+        onLimit: changeLimit,
+        onOrder: (nextOrder) => {
+          setOrderBy(nextOrder);
+          setPage(1);
+        },
+        onSearch: setSearch
+      }}
+    />
+  );
+
+  const listSurface = (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="shrink-0 border-b border-border bg-card/95 px-3 py-2.5 backdrop-blur sm:px-4 lg:px-5">
+        <div className="flex min-w-0 flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
+          <div className="min-w-0">
+            <p className="text-sm font-black">{listTitle}</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {t("common.showingRange", { start: pageStart, end: pageEnd, total })} - {t("common.page", { current: page, total: totalPages })}
+            </p>
+          </div>
+          <div className="min-w-0 xl:max-w-[48rem]">{toolbar}</div>
+        </div>
+        {backgroundLoading ? (
+          <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+            <Spinner aria-hidden />
+            {refreshLabel ?? t("settings.loading", { title })}
+          </div>
+        ) : null}
+      </div>
+      {rows.length ? (
+        <>
+          <div className="hidden min-h-0 flex-1 md:flex">{table}</div>
+          <div className="min-h-0 flex-1 overflow-y-auto md:hidden">{mobileList}</div>
+        </>
+      ) : (
+        <div className="flex min-h-72 flex-1 items-center justify-center p-4">
+          <Empty className="max-w-md border border-dashed bg-muted/20">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <Icon aria-hidden />
+              </EmptyMedia>
+              <EmptyTitle>{t("settings.noRecords", { title: title.toLowerCase() })}</EmptyTitle>
+              <EmptyDescription>{t("empty.adjustSearch")}</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <>
       <SettingsModuleShell
         addLabel={`${t("actions.add")} ${itemLabel}`}
-        cardTitle={cardTitle ?? title}
+        cardTitle={listTitle}
         description={description}
         emptyDescription={t("empty.adjustSearch")}
         emptyTitle={t("settings.noRecords", { title: title.toLowerCase() })}
@@ -670,34 +475,16 @@ export function OptionSettingsPage<
             />
           ) : undefined
         }
-        loading={loading}
+        hideCardHeader
+        loading={fullLoading}
         loadingLabel={t("settings.loading", { title })}
-        mobileList={mobileList}
-        summary={`${t("common.showingRange", { start: pageStart, end: pageEnd, total })} - ${t("common.page", { current: page, total: totalPages })}`}
-        table={table}
+        table={listSurface}
         title={title}
-        toolbar={
-          <SettingsToolbar
-            state={{
-              search,
-              limit,
-              orderBy,
-              selectedCount: selectedRows.size,
-              onApply: applyFilters,
-              onLimit: changeLimit,
-              onOrder: (nextOrder) => {
-                setOrderBy(nextOrder);
-                setPage(1);
-              },
-              onSearch: setSearch
-            }}
-          />
-        }
         onAdd={openCreate}
       />
       <OptionFormDialog
+        description={formDescription ?? description}
         dialogContentClassName={dialogContentClassName}
-        description={description}
         editing={editing}
         fields={fields}
         idKey={idKey}
@@ -705,6 +492,7 @@ export function OptionSettingsPage<
         saving={saving}
         slug={slug}
         title={title}
+        formTitle={formTitle ?? title}
         onOpenChange={(nextOpen) => {
           if (saving) return;
           setDialogOpen(nextOpen);
@@ -715,6 +503,7 @@ export function OptionSettingsPage<
       <ConfirmDialog
         cancelLabel={t("actions.cancel")}
         confirmLabel={t("actions.delete")}
+        confirmPending={saving}
         description={t("settings.deleteConfirm")}
         open={Boolean(deleteTarget)}
         title={t("actions.delete")}
@@ -730,10 +519,11 @@ export function OptionSettingsPage<
 }
 
 function OptionFormDialog<Row extends ApiEntity>({
-  dialogContentClassName,
   description,
+  dialogContentClassName,
   editing,
   fields,
+  formTitle,
   idKey,
   onOpenChange,
   onSubmit,
@@ -742,10 +532,11 @@ function OptionFormDialog<Row extends ApiEntity>({
   slug,
   title
 }: {
-  dialogContentClassName?: string;
   description: string;
+  dialogContentClassName?: string;
   editing: Row | null;
   fields: OptionField<Row>[];
+  formTitle: string;
   idKey: keyof Row & string;
   onOpenChange: (open: boolean) => void;
   onSubmit: (formData: FormData) => Promise<void>;
@@ -755,84 +546,27 @@ function OptionFormDialog<Row extends ApiEntity>({
   title: string;
 }) {
   const { t } = useTranslation();
-  const [selectValues, setSelectValues] = useState<Record<string, string>>({});
-
-  useEffect(() => {
-    const nextValues: Record<string, string> = {};
-    fields.forEach((field) => {
-      if (field.type === "select") {
-        nextValues[field.name] = value(editing, field.name, value(editing, field.fallbackKey ?? "", field.options?.[0]?.value ?? ""));
-      }
-    });
-    setSelectValues(nextValues);
-  }, [editing, fields, open]);
+  const formKey = optionValue(editing, idKey) || `new-${slug}`;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <SettingsDialogContent className={dialogContentClassName}>
-        <SettingsDialogForm action={onSubmit}>
+      <SettingsDialogContent className={dialogContentClassName ?? "sm:max-w-2xl"}>
+        <SettingsDialogForm key={formKey} action={onSubmit}>
           <SettingsDialogHeader>
             <DialogTitle>{editing ? t("settings.editRecord") : t("settings.newRecord")}: {title}</DialogTitle>
             <DialogDescription>{description}</DialogDescription>
           </SettingsDialogHeader>
           <SettingsDialogBody>
-          <FieldGroup>
-            <Field>
-              <FieldLabel>{title}</FieldLabel>
-              <FieldDescription>{description}</FieldDescription>
-            </Field>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {fields.map((field) => {
-                const fieldId = `${slug}-${field.name}`;
-                const defaultValue = value(editing, field.name, value(editing, field.fallbackKey ?? ""));
-                return (
-                  <Field key={field.name} className={field.type === "textarea" || field.type === "flag-code" ? "sm:col-span-2" : undefined}>
-                    <FieldLabel htmlFor={fieldId}>{field.label}</FieldLabel>
-                    {field.type === "color-code" ? (
-                      <ColorCodeInput id={fieldId} name={field.name} defaultValue={defaultValue} required={field.required} />
-                    ) : field.type === "flag-code" ? (
-                      <FlagPicker id={fieldId} name={field.name} defaultValue={defaultValue} required={field.required} />
-                    ) : field.type === "textarea" ? (
-                      <Textarea id={fieldId} name={field.name} defaultValue={defaultValue} required={field.required} />
-                    ) : field.type === "select" ? (
-                      <>
-                        <input name={field.name} type="hidden" value={selectValues[field.name] ?? ""} />
-                        <Select
-                          required={field.required}
-                          value={selectValues[field.name] ?? ""}
-                          onValueChange={(nextValue) => setSelectValues((current) => ({ ...current, [field.name]: nextValue }))}
-                        >
-                          <SelectTrigger id={fieldId} className="w-full">
-                            <SelectValue placeholder={field.label} />
-                          </SelectTrigger>
-                          <SelectContent position="popper">
-                            <SelectGroup>
-                              {field.options?.map((option) => (
-                                <SelectItem key={option.value} value={option.value}>
-                                  {option.label}
-                                </SelectItem>
-                              ))}
-                            </SelectGroup>
-                          </SelectContent>
-                        </Select>
-                      </>
-                    ) : (
-                      <Input
-                        id={fieldId}
-                        name={field.name}
-                        type={field.type ?? "text"}
-                        defaultValue={defaultValue}
-                        placeholder={field.type === "email" ? "abc@gmail.com" : undefined}
-                        required={field.required}
-                      />
-                    )}
-                  </Field>
-                );
-              })}
-            </div>
-          </FieldGroup>
+            <OptionFormFields
+              description={description}
+              editing={editing}
+              fields={fields}
+              saving={saving}
+              slug={slug}
+              title={formTitle}
+            />
           </SettingsDialogBody>
-          <input name={idKey} type="hidden" value={value(editing, idKey)} readOnly />
+          <input name={idKey} type="hidden" value={optionValue(editing, idKey)} readOnly />
           <SettingsDialogFooter>
             <Button disabled={saving} type="button" variant="outline" onClick={() => onOpenChange(false)}>
               {t("actions.cancel")}
@@ -848,4 +582,4 @@ function OptionFormDialog<Row extends ApiEntity>({
   );
 }
 
-export { ColorSwatch, value as optionValue };
+export { ColorCodeBadge, ColorSwatch, optionValue };

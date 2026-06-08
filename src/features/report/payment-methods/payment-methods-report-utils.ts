@@ -1,5 +1,4 @@
 import { money } from "@/lib/format";
-import { PAGE_LIMIT_ALL_BATCH } from "@/lib/pagination";
 import { PAYMENT_METHOD_REPORT_FILTER_OPTIONS, type PaymentMethodReportFilter } from "@/services/report";
 import type { ApiEntity } from "@/services/shared/types";
 import type { PaymentMethodOption, PaymentMethodReportRow } from "@/stores/report-store";
@@ -63,8 +62,6 @@ const rowMetricDefinitions = [
   { field: "changeAmount", key: "change_amount", kind: "money", labelKey: "report.paymentMethodsReport.columns.changeAmount" },
   { field: "cancelledTotal", key: "cancelled_total", kind: "money", labelKey: "report.paymentMethodsReport.columns.cancelledTotal" }
 ] as const satisfies readonly RowMetricDefinition[];
-
-export const paymentMethodsExportLimit = PAGE_LIMIT_ALL_BATCH;
 
 function isPresent(value: unknown) {
   return value !== null && value !== undefined && value !== "";

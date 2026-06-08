@@ -1,10 +1,6 @@
 import { money } from "@/lib/format";
-import { PAGE_LIMIT_ALL_BATCH } from "@/lib/pagination";
 import { getProductImageUrl } from "@/services/product";
-import type {
-  DailySalesReportResponse,
-  DailySalesReportType,
-} from "@/services/report";
+import type { DailySalesReportType } from "@/services/report";
 import type { ApiEntity } from "@/services/shared/types";
 import {
   createDailySalesBillGroups,
@@ -18,7 +14,6 @@ import type {
   SummaryCards,
 } from "./daily-sales-report-types";
 
-export const exportLimit = PAGE_LIMIT_ALL_BATCH;
 export const reportImageKeys = [
   "prod_image",
   "product_image",
@@ -134,28 +129,6 @@ export function firstOptionalNumber(...values: unknown[]) {
     if (Number.isFinite(number)) return number;
   }
   return null;
-}
-
-export function responseRoot(response: DailySalesReportResponse) {
-  return isRecord(response.data) ? response.data : response;
-}
-
-export function responseTotalPages(
-  root: ApiEntity,
-  total: number,
-  limit: number,
-  page: number,
-) {
-  const explicit = firstOptionalNumber(
-    root.totalPages,
-    root.total_pages,
-    root.total_page,
-    root.totalPage,
-  );
-  if (explicit !== null) return Math.max(1, explicit);
-  return total > 0 && limit > 0
-    ? Math.max(1, Math.ceil(total / limit))
-    : Math.max(1, page);
 }
 
 export function summaryCardValue(

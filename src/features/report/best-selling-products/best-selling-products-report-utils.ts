@@ -1,5 +1,4 @@
 import { money } from "@/lib/format";
-import { PAGE_LIMIT_ALL_BATCH } from "@/lib/pagination";
 import { BEST_SELLING_PRODUCTS_SORT_OPTIONS } from "@/services/report";
 import type { ApiEntity } from "@/services/shared/types";
 import type { BestSellingProductGroup, BestSellingProductItem } from "@/stores/report-store";
@@ -11,7 +10,6 @@ import type {
 } from "./best-selling-products-report-types";
 
 export const ALL_GROUPS_VALUE = "all";
-export const bestSellingExportLimit = PAGE_LIMIT_ALL_BATCH;
 
 type SummaryMetricDefinition = Omit<BestSellingMetricConfig, "label"> & {
   keys: string[];

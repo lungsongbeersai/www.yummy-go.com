@@ -39,7 +39,7 @@ import {
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import { Field, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
+import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@/components/ui/input-group";
 import {
   Select,
   SelectContent,
@@ -48,9 +48,11 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useUrlPagination } from "@/hooks/use-url-pagination";
 import { money } from "@/lib/format";
 import { PAGE_LIMIT_OPTIONS, pageLimitSize } from "@/lib/pagination";
@@ -583,8 +585,8 @@ export function ProductPage({ initialPagination }: { initialPagination: UrlPagin
   }
 
   function stockSummaryLabel(summary: ProductStockSummary) {
-    if (summary === "deduct") return t("product.stockBulk.allDeduct");
-    if (summary === "noDeduct") return t("product.stockBulk.allNoDeduct");
+    if (summary === "deduct") return t("product.stockMode.deduct");
+    if (summary === "noDeduct") return t("product.stockMode.noDeduct");
     return t("product.stockBulk.mixed");
   }
 
@@ -600,7 +602,7 @@ export function ProductPage({ initialPagination }: { initialPagination: UrlPagin
     const pending = pendingKeys.has(notificationKey);
 
     return (
-      <div className="flex items-center justify-center gap-2">
+      <div className="flex min-w-0 items-center gap-2">
         {pending ? <Spinner /> : <Bell className="text-muted-foreground" />}
         <Badge className={enabled ? "bg-primary/10 text-primary" : "bg-secondary text-secondary-foreground"}>
           {enabled ? t("product.notification.on") : t("product.notification.off")}
@@ -609,7 +611,7 @@ export function ProductPage({ initialPagination }: { initialPagination: UrlPagin
     );
   }
 
-  function renderStockSummaryStatus(row: ProductTableRow, compact = false) {
+  function renderStockSummaryStatus(row: ProductTableRow) {
     const details = productDetails(row);
     const pendingKey: ProductStatusKey = `stock-all:${row.prod_uuid}`;
     const pending = pendingKeys.has(pendingKey);
@@ -617,8 +619,8 @@ export function ProductPage({ initialPagination }: { initialPagination: UrlPagin
 
     if (!details.length) {
       return (
-        <div className={cn("min-w-0", compact && "flex flex-col gap-1")}>
-          <p className="font-mono text-sm font-bold">-</p>
+        <div className="flex min-w-0 flex-col gap-1">
+          <p className="font-mono text-sm font-bold tabular-nums">-</p>
           <Badge className="bg-muted text-muted-foreground">{t("common.noData")}</Badge>
         </div>
       );
@@ -628,17 +630,31 @@ export function ProductPage({ initialPagination }: { initialPagination: UrlPagin
     const currentModeClass = pendingMode ? bulkStockModeClass(pendingMode) : stockSummaryClass(summary);
 
     return (
-      <div className={cn("min-w-0", compact && "flex flex-col gap-1")}>
-        <p className="font-mono text-sm font-bold">{totalStockQty(row)}</p>
-        <div className="mt-1 flex flex-wrap items-center gap-2">
+      <div className="flex min-w-0 flex-col gap-1">
+        <p className="font-mono text-sm font-bold tabular-nums">{totalStockQty(row)}</p>
+        <div className="flex flex-wrap items-center gap-1.5">
           <Badge className={currentModeClass}>
             {pending ? <Spinner data-icon="inline-start" /> : null}
             {pendingMode ? bulkStockModeLabel(pendingMode) : stockSummaryLabel(summary)}
           </Badge>
+        </div>
+      </div>
+    );
+  }
+
+  function renderProductStatusBadges(row: ProductTableRow) {
+    const details = productDetails(row);
+
+    return (
+      <div className="flex min-w-0 flex-col items-start gap-1.5">
+        {renderNotificationStatus(row)}
+        {details.length ? (
           <Badge className="bg-primary/10 text-primary">
             {details.length} {t("product.sections.details")}
           </Badge>
-        </div>
+        ) : (
+          <Badge className="bg-muted text-muted-foreground">{t("common.noData")}</Badge>
+        )}
       </div>
     );
   }
@@ -782,66 +798,86 @@ export function ProductPage({ initialPagination }: { initialPagination: UrlPagin
         transition={detailMotion.transition}
         className="origin-top transform-gpu bg-muted/15 will-change-transform hover:bg-muted/15"
       >
-        <TableCell colSpan={8} className="px-4 py-3">
-          <div>
-            <div className="overflow-hidden rounded-lg border border-border bg-background shadow-sm">
-              <div className="border-b border-border bg-muted/20 p-3">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Boxes className="text-primary" />
-                    <p className="text-sm font-black">{t("product.sections.details")}</p>
-                    <Badge>{details.length}</Badge>
-                  </div>
-                  <p className="mt-1 truncate text-xs text-muted-foreground">
-                    {productName(row, language)}
-                  </p>
+        <TableCell colSpan={7} className="px-4 py-3">
+          <div className="overflow-hidden rounded-md border border-border bg-background shadow-sm">
+            <div className="flex min-w-0 items-center justify-between gap-3 border-b border-border bg-muted/20 px-3 py-2">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Boxes className="text-primary" />
+                  <p className="text-sm font-black">{t("product.sections.details")}</p>
+                  <Badge>{details.length}</Badge>
                 </div>
+                <p className="mt-0.5 truncate text-xs text-muted-foreground">{productName(row, language)}</p>
               </div>
-              <div className="grid gap-2 p-3 lg:grid-cols-2 xl:grid-cols-3">
+              <Badge className={stockSummaryClass(detailStockSummary(details))}>
+                {stockSummaryLabel(detailStockSummary(details))}
+              </Badge>
+            </div>
+            <div className="overflow-x-auto">
+              <Table className={cn(isPromotion ? "min-w-[920px]" : "min-w-[720px]")}>
+                <TableHeader className="bg-background">
+                  <TableRow>
+                    <TableHead className="min-w-56">{isFoodSet ? t("pos.product") : t("fields.size")}</TableHead>
+                    <TableHead className="w-32">{t("fields.bprice")}</TableHead>
+                    <TableHead className="w-32">{isFoodSet ? t("product.setPrice") : t("fields.sprice")}</TableHead>
+                    <TableHead className="w-28">{t("fields.qtyStock")}</TableHead>
+                    <TableHead className="w-44">{t("product.stockBulk.label")}</TableHead>
+                    <TableHead className="w-36">{t("product.detailEnabledStatus")}</TableHead>
+                    {isPromotion ? <TableHead className="min-w-56">{t("product.promotionTime.label")}</TableHead> : null}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                 {details.map((detail, index) => {
                   const detailUuid = productDetailUuid(detail) || `${row.prod_uuid}-${index}`;
+                  const enabled = binaryFlag(detail.pro_detail_enabled, "1") === "1";
                   return (
-                    <div key={detailUuid} className="rounded-md border border-border bg-card p-3">
-                      <div className="flex items-start justify-between gap-3">
+                    <TableRow key={detailUuid} className="hover:bg-muted/20">
+                      <TableCell>
                         <div className="min-w-0">
                           <p className="truncate text-sm font-black">{detailLabel(detail, index, language)}</p>
-                          <p className="mt-0.5 text-xs text-muted-foreground">
-                            {isFoodSet ? t("pos.product") : t("fields.size")}
-                          </p>
+                          <p className="mt-0.5 text-xs text-muted-foreground">#{index + 1}</p>
                         </div>
-                        <div className="flex shrink-0 items-center gap-2">
-                          <span className="text-xs text-muted-foreground">{t("product.detailEnabledStatus")}</span>
-                          {renderEnabledSwitch(detail)}
-                        </div>
-                      </div>
-                      <div className="mt-3 grid gap-3 sm:grid-cols-3">
-                        <DetailMetric label={t("fields.bprice")} value={money(detail.pro_detail_bprice)} />
-                        <DetailMetric
-                          label={isFoodSet ? t("product.setPrice") : t("fields.sprice")}
-                          value={isFoodSet ? money(row.prod_set_price) : money(detail.pro_detail_sprice)}
-                        />
-                        <DetailMetric label={t("fields.qtyStock")} value={String(detailStockQty(detail))} />
-                      </div>
-                      <div className="mt-3">
+                      </TableCell>
+                      <TableCell className="font-mono text-sm font-semibold tabular-nums">
+                        {money(detail.pro_detail_bprice)}
+                      </TableCell>
+                      <TableCell className="font-mono text-sm font-semibold tabular-nums">
+                        {isFoodSet ? money(row.prod_set_price) : money(detail.pro_detail_sprice)}
+                      </TableCell>
+                      <TableCell className="font-mono text-sm font-semibold tabular-nums">
+                        {detailStockQty(detail)}
+                      </TableCell>
+                      <TableCell>
                         {isFoodSet ? renderStockSelect(detail, true, row.prod_uuid) : renderStockStatus(detail, true)}
-                      </div>
-                      {isPromotion ? (
-                        <div className="mt-3 rounded-md bg-muted/30 p-2 text-xs text-muted-foreground">
-                          <p className="truncate">
-                            {t("product.buyQty")}: {String(detail.pro_detail_cus_qtyBuy ?? 0)} / {t("product.freeQty")}: {String(detail.pro_detail_cus_qtyFree ?? 0)}
-                          </p>
-                          <p className="truncate">
-                            {shortDate(detail.pro_detail_sDate)} - {shortDate(detail.pro_detail_eDate)}
-                          </p>
-                          <p className="truncate">
-                            {shortTime(detail.pro_detail_sTime)} - {shortTime(detail.pro_detail_eTime)}
-                          </p>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          {renderEnabledSwitch(detail)}
+                          <span className="text-xs text-muted-foreground">
+                            {enabled ? t("common.active") : t("common.inactive")}
+                          </span>
                         </div>
+                      </TableCell>
+                      {isPromotion ? (
+                        <TableCell>
+                          <div className="min-w-0 text-xs text-muted-foreground">
+                            <p className="truncate">
+                              {t("product.buyQty")}: {String(detail.pro_detail_cus_qtyBuy ?? 0)} / {t("product.freeQty")}: {String(detail.pro_detail_cus_qtyFree ?? 0)}
+                            </p>
+                            <p className="truncate">
+                              {shortDate(detail.pro_detail_sDate)} - {shortDate(detail.pro_detail_eDate)}
+                            </p>
+                            <p className="truncate">
+                              {shortTime(detail.pro_detail_sTime)} - {shortTime(detail.pro_detail_eTime)}
+                            </p>
+                          </div>
+                        </TableCell>
                       ) : null}
-                    </div>
+                    </TableRow>
                   );
                 })}
-              </div>
+                </TableBody>
+              </Table>
             </div>
           </div>
         </TableCell>
@@ -852,7 +888,7 @@ export function ProductPage({ initialPagination }: { initialPagination: UrlPagin
   function renderDesktopTable() {
     return (
       <div className="relative hidden min-h-0 flex-1 overflow-auto md:block">
-        <Table className="min-w-[1080px]">
+        <Table className="min-w-[1020px]">
           <TableHeader className="sticky top-0 z-40 bg-background shadow-sm [&_th]:sticky [&_th]:top-0 [&_th]:z-40 [&_th]:border-b [&_th]:border-border [&_th]:bg-background [&_th]:shadow-sm">
             <TableRow>
               <TableHead className="w-10 px-2">
@@ -862,24 +898,26 @@ export function ProductPage({ initialPagination }: { initialPagination: UrlPagin
                   onChange={(event) => toggleAllSelected(event.target.checked)}
                 />
               </TableHead>
-              <TableHead className="w-20 text-center">
-                <Button
-                  type="button"
-                  size="iconSm"
-                  variant="ghost"
-                  aria-label={allDetailsExpanded ? t("actions.collapseAll") : t("actions.expandAll")}
-                  aria-expanded={allDetailsExpanded}
-                  disabled={!detailProductIds.length}
-                  onClick={toggleAllDetails}
-                >
-                  <ChevronsUpDown />
-                </Button>
+              <TableHead className="min-w-[24rem]">
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    size="iconSm"
+                    variant="ghost"
+                    aria-label={allDetailsExpanded ? t("actions.collapseAll") : t("actions.expandAll")}
+                    aria-expanded={allDetailsExpanded}
+                    disabled={!detailProductIds.length}
+                    onClick={toggleAllDetails}
+                  >
+                    <ChevronsUpDown />
+                  </Button>
+                  <span>{t("fields.prod_name")}</span>
+                </div>
               </TableHead>
-              <TableHead className="min-w-72">{t("fields.prod_name")}</TableHead>
               <TableHead className="min-w-48">{t("nav.category")} / {t("product.type")}</TableHead>
               <TableHead className="min-w-44">{t("fields.prod_price")}</TableHead>
-              <TableHead className="min-w-52">{t("fields.qtyStock")}</TableHead>
-              <TableHead className="w-40 text-center">{t("product.notification.label")}</TableHead>
+              <TableHead className="min-w-56">{t("fields.qtyStock")}</TableHead>
+              <TableHead className="min-w-44">{t("common.status")}</TableHead>
               <TableHead className="w-16 text-right">{t("common.actions")}</TableHead>
             </TableRow>
           </TableHeader>
@@ -906,8 +944,8 @@ export function ProductPage({ initialPagination }: { initialPagination: UrlPagin
                       onChange={(event) => toggleSelected(row.prod_uuid, event.target.checked)}
                     />
                   </TableCell>
-                  <TableCell className="text-center">
-                    <div className="flex items-center justify-center gap-1">
+                  <TableCell>
+                    <div className="flex min-w-0 items-center gap-3">
                       <Button
                         type="button"
                         size="iconSm"
@@ -928,16 +966,15 @@ export function ProductPage({ initialPagination }: { initialPagination: UrlPagin
                           <Package />
                         )}
                       </Button>
-                      <span className="font-mono text-xs font-black text-muted-foreground">{row.row_number}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex min-w-0 items-center gap-3">
                       <ProductMedia row={row} />
                       <div className="min-w-0">
-                        <p className="truncate font-black">{productName(row, language)}</p>
-                        <p className="truncate text-xs text-muted-foreground">{row.prod_code || "-"}</p>
-                        <p className="truncate text-xs text-muted-foreground">{unitName(row, language)}</p>
+                        <div className="flex min-w-0 items-center gap-2">
+                          <p className="truncate font-black">{productName(row, language)}</p>
+                          <Badge className="shrink-0 bg-muted text-muted-foreground">{row.row_number}</Badge>
+                        </div>
+                        <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                          {row.prod_code || "-"} / {unitName(row, language)}
+                        </p>
                       </div>
                     </div>
                   </TableCell>
@@ -953,16 +990,12 @@ export function ProductPage({ initialPagination }: { initialPagination: UrlPagin
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div className="min-w-0">
+                    <div className="flex min-w-0 flex-col gap-1">
                       {renderStockSummaryStatus(row)}
-                      <div className="mt-1 flex flex-wrap items-center gap-2">
-                        {orderPoint > 0 ? <Badge>{t("product.orderPoint")}: {orderPoint}</Badge> : null}
-                      </div>
+                      {orderPoint > 0 ? <Badge>{t("product.orderPoint")}: {orderPoint}</Badge> : null}
                     </div>
                   </TableCell>
-                  <TableCell>
-                    {renderNotificationStatus(row)}
-                  </TableCell>
+                  <TableCell>{renderProductStatusBadges(row)}</TableCell>
                   <TableCell className="text-right">{renderActions(row)}</TableCell>
                 </TableRow>
               ];
@@ -985,6 +1018,7 @@ export function ProductPage({ initialPagination }: { initialPagination: UrlPagin
   function renderMobileProduct(row: ProductTableRow) {
     const details = productDetails(row);
     const expanded = details.length > 0 && !collapsedProducts.has(row.prod_uuid);
+    const isPromotion = String(statusSortFk) === "3";
     const isFoodSet = String(statusSortFk) === "2";
     const orderPoint = productOrderPoint(row);
     const selected = selectedRows.has(row.prod_uuid);
@@ -1007,7 +1041,13 @@ export function ProductPage({ initialPagination }: { initialPagination: UrlPagin
             <div className="flex min-w-0 items-start justify-between gap-2">
               <div className="min-w-0">
                 <p className="truncate font-black">{productName(row, language)}</p>
-                <p className="truncate text-xs text-muted-foreground">{row.prod_code || "-"}</p>
+                <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                  {row.prod_code || "-"} / {unitName(row, language)}
+                </p>
+                <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                  <Badge className="bg-muted text-muted-foreground">{categoryName(row, language)}</Badge>
+                  <Badge className="bg-primary/10 text-primary">{activeStatusLabel}</Badge>
+                </div>
               </div>
               <div className="flex shrink-0 items-center gap-1">
                 <Badge>{row.row_number}</Badge>
@@ -1017,28 +1057,27 @@ export function ProductPage({ initialPagination }: { initialPagination: UrlPagin
           </div>
         </div>
 
-        <div className="mt-3 grid gap-2 rounded-md border border-border bg-muted/15 p-3 text-xs sm:grid-cols-2">
-          <div className="min-w-0">
-            <p className="text-muted-foreground">{t("nav.category")} / {t("product.type")}</p>
-            <p className="mt-0.5 truncate font-semibold">{categoryName(row, language)}</p>
-            <Badge className="mt-1 bg-primary/10 text-primary">{activeStatusLabel}</Badge>
-          </div>
-          <div className="min-w-0">
+        <Separator className="my-3" />
+
+        <div className="grid gap-2 text-xs sm:grid-cols-3">
+          <div className="min-w-0 rounded-md bg-muted/15 p-2">
             <p className="text-muted-foreground">{t("fields.prod_price")}</p>
-            <p className="mt-0.5 font-mono font-semibold">{productPriceLabel(row)}</p>
+            <p className="mt-0.5 truncate font-mono font-semibold tabular-nums">{productPriceLabel(row)}</p>
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 rounded-md bg-muted/15 p-2">
             <p className="text-muted-foreground">{t("fields.qtyStock")}</p>
-            <div className="mt-0.5">{renderStockSummaryStatus(row, true)}</div>
+            <div className="mt-0.5">{renderStockSummaryStatus(row)}</div>
             {orderPoint > 0 ? <p className="mt-0.5 text-muted-foreground">{t("product.orderPoint")}: {orderPoint}</p> : null}
           </div>
-          <div className="flex flex-col gap-1">
+          <div className="min-w-0 rounded-md bg-muted/15 p-2">
             <span className="text-muted-foreground">{t("product.notification.label")}</span>
-            <div className="flex justify-start">{renderNotificationStatus(row)}</div>
+            <div className="mt-0.5">{renderProductStatusBadges(row)}</div>
           </div>
         </div>
 
-        <div className="mt-3 flex flex-col gap-2 border-t border-border pt-3">
+        <Separator className="my-3" />
+
+        <div className="flex flex-col gap-2">
           <Button
             type="button"
             size="sm"
@@ -1073,31 +1112,33 @@ export function ProductPage({ initialPagination }: { initialPagination: UrlPagin
               >
                 <div className="flex flex-col gap-2">
                   {details.map((detail, index) => (
-                    <div key={productDetailUuid(detail) || String(index)} className="rounded-md border border-border bg-muted/25 p-3">
-                      <div className="flex items-start justify-between gap-2">
+                    <div key={productDetailUuid(detail) || String(index)} className="rounded-md border border-border bg-background p-2.5">
+                      <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <p className="truncate text-sm font-bold">{detailLabel(detail, index, language)}</p>
                           <p className="text-xs text-muted-foreground">
                             {isFoodSet ? t("pos.product") : t("fields.size")}
                           </p>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground">{t("product.detailEnabledStatus")}</span>
+                        <div className="flex shrink-0 items-center gap-2">
                           {renderEnabledSwitch(detail)}
+                          <Badge className={binaryFlag(detail.pro_detail_enabled, "1") === "1" ? "bg-primary/10 text-primary" : "bg-secondary text-secondary-foreground"}>
+                            {binaryFlag(detail.pro_detail_enabled, "1") === "1" ? t("common.active") : t("common.inactive")}
+                          </Badge>
                         </div>
                       </div>
-                      <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                      <div className="mt-2 grid grid-cols-3 gap-2">
                         <DetailMetric label={t("fields.bprice")} value={money(detail.pro_detail_bprice)} />
                         <DetailMetric label={isFoodSet ? t("product.setPrice") : t("fields.sprice")} value={isFoodSet ? money(row.prod_set_price) : money(detail.pro_detail_sprice)} />
                         <DetailMetric label={t("fields.qtyStock")} value={String(detailStockQty(detail))} />
-                        <div className="sm:col-span-3">
-                          {isFoodSet
-                            ? renderStockSelect(detail, true, row.prod_uuid)
-                            : renderStockStatus(detail, true)}
-                        </div>
                       </div>
-                      {String(statusSortFk) === "3" ? (
-                        <div className="mt-3 rounded-md bg-background/70 p-2 text-xs text-muted-foreground">
+                      <div className="mt-2">
+                        {isFoodSet
+                          ? renderStockSelect(detail, true, row.prod_uuid)
+                          : renderStockStatus(detail, true)}
+                      </div>
+                      {isPromotion ? (
+                        <div className="mt-2 rounded-md bg-muted/20 p-2 text-xs text-muted-foreground">
                           <p>
                             {t("product.buyQty")}: {String(detail.pro_detail_cus_qtyBuy ?? 0)} / {t("product.freeQty")}: {String(detail.pro_detail_cus_qtyFree ?? 0)}
                           </p>
@@ -1134,38 +1175,40 @@ export function ProductPage({ initialPagination }: { initialPagination: UrlPagin
       </div>
 
       <Card className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-none border-x-0 border-b-0">
-        <CardHeader className="shrink-0 border-t border-border/70 bg-muted/15 px-4 py-2.5 lg:px-5">
-          <div className="flex w-full flex-col gap-2 xl:flex-row xl:items-end xl:justify-between">
-            <section className="grid min-w-0 gap-2 md:grid-cols-[minmax(18rem,26rem)_minmax(12rem,20rem)_minmax(7rem,9rem)]">
+        <CardHeader className="shrink-0 border-t border-border/70 bg-muted/10 px-4 py-3 lg:px-5">
+          <div className="grid w-full gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(22rem,30rem)] xl:items-end">
+            <section className="grid min-w-0 gap-2 md:grid-cols-[minmax(18rem,1fr)_minmax(12rem,18rem)_minmax(7rem,9rem)]">
               <Field className="gap-1">
                 <FieldLabel htmlFor="product-search-filter" className="text-xs font-bold text-muted-foreground">
                   {t("actions.search")}
                 </FieldLabel>
-                <div className="flex min-w-0">
-                  <div className="relative min-w-0 flex-1">
-                    <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                      id="product-search-filter"
-                      className="h-9 rounded-r-none border-r-0 pl-9 text-sm focus-visible:z-10"
-                      value={search}
-                      placeholder={t("product.searchProducts")}
-                      onChange={(event) => setSearch(event.target.value)}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter") applyFilters();
-                      }}
-                    />
-                  </div>
-                  <Button
-                    className="h-9 shrink-0 rounded-l-none px-3 sm:px-4"
-                    size="sm"
-                    variant="outline"
-                    disabled={loading}
-                    onClick={applyFilters}
-                  >
-                    {loading ? <Spinner data-icon="inline-start" /> : <Search data-icon="inline-start" />}
-                    {t("actions.search")}
-                  </Button>
-                </div>
+                <InputGroup className="h-10 bg-background">
+                  <InputGroupAddon>
+                    <Search />
+                  </InputGroupAddon>
+                  <InputGroupInput
+                    id="product-search-filter"
+                    name="product-search-filter"
+                    value={search}
+                    placeholder={t("product.searchProducts")}
+                    onChange={(event) => setSearch(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") applyFilters();
+                    }}
+                  />
+                  <InputGroupAddon align="inline-end">
+                    <InputGroupButton
+                      size="sm"
+                      variant="ghost"
+                      disabled={loading}
+                      aria-label={t("actions.search")}
+                      onClick={applyFilters}
+                    >
+                      {loading ? <Spinner data-icon="inline-start" /> : <Search data-icon="inline-start" />}
+                      <span className="hidden sm:inline">{t("actions.search")}</span>
+                    </InputGroupButton>
+                  </InputGroupAddon>
+                </InputGroup>
               </Field>
               <Field className="gap-1">
                 <FieldLabel htmlFor="product-category-filter" className="text-xs font-bold text-muted-foreground">
@@ -1176,7 +1219,7 @@ export function ProductPage({ initialPagination }: { initialPagination: UrlPagin
                   disabled={categoryLoading}
                   onValueChange={changeCategory}
                 >
-                  <SelectTrigger id="product-category-filter" className="h-9 w-full">
+                  <SelectTrigger id="product-category-filter" className="h-10 w-full bg-background">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent position="popper" align="end">
@@ -1201,7 +1244,7 @@ export function ProductPage({ initialPagination }: { initialPagination: UrlPagin
                   {t("common.rowsPerPage")}
                 </FieldLabel>
                 <Select value={String(pageLimit)} onValueChange={changePageLimit}>
-                  <SelectTrigger id="product-limit-filter" className="h-9 w-full">
+                  <SelectTrigger id="product-limit-filter" className="h-10 w-full bg-background">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent position="popper" align="end">
@@ -1216,28 +1259,31 @@ export function ProductPage({ initialPagination }: { initialPagination: UrlPagin
                 </Select>
               </Field>
             </section>
-            <section className="flex w-full min-w-0 justify-start xl:w-[30rem] xl:shrink-0 xl:justify-end">
+            <section className="flex w-full min-w-0 justify-start xl:justify-end">
               <Field className="w-full min-w-0 gap-1">
                 <FieldLabel className="text-xs font-bold text-muted-foreground">{t("product.type")}</FieldLabel>
-                <div role="tablist" aria-label={t("product.type")} className="grid h-9 w-full max-w-xl grid-cols-3 gap-1 rounded-md border border-border bg-background/70 p-1 xl:max-w-none">
+                <ToggleGroup
+                  type="single"
+                  value={statusSortFk}
+                  aria-label={t("product.type")}
+                  className="grid h-10 w-full max-w-xl grid-cols-3 rounded-md border border-border bg-background p-1 xl:max-w-none"
+                  onValueChange={(value) => {
+                    if (value) changeStatusSort(value);
+                  }}
+                >
                   {statusTabs.map((tab) => {
-                    const active = tab.value === statusSortFk;
                     return (
-                      <Button
+                      <ToggleGroupItem
                         key={tab.value}
-                        type="button"
-                        role="tab"
-                        aria-selected={active}
-                        size="xs"
-                        variant={active ? "default" : "ghost"}
-                        className="h-7 min-w-0 px-2 text-xs shadow-none"
-                        onClick={() => changeStatusSort(tab.value)}
+                        value={tab.value}
+                        size="sm"
+                        className="h-8 min-w-0 px-2 text-xs data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
                       >
                         <span className="truncate">{tab.label}</span>
-                      </Button>
+                      </ToggleGroupItem>
                     );
                   })}
-                </div>
+                </ToggleGroup>
               </Field>
             </section>
           </div>

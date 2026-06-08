@@ -1,6 +1,10 @@
 import type { PaymentMethodReportFilter, PaymentMethodReportOrder } from "@/services/report";
 import type { PageLimit } from "@/services/shared/types";
-import type { PaymentMethodReportRow, PaymentMethodSummaryCard } from "@/stores/report-store";
+import type {
+  PaymentMethodReportRow,
+  PaymentMethodSummaryCard,
+  PaymentMethodsReportExportData
+} from "@/stores/report-store";
 
 export type PaymentMethodsReportFilters = {
   branchUuid: string;
@@ -32,9 +36,4 @@ export type PaymentMethodsSummaryCard = PaymentMethodSummaryCard;
 
 export type PaymentMethodsExportAction = "excel" | "pdf" | "print";
 
-export type PaymentMethodsExportData = {
-  cards: PaymentMethodsSummaryCard[];
-  reportName: string;
-  reportTotal: Record<string, unknown>;
-  rows: PaymentMethodReportRow[];
-};
+export type PaymentMethodsExportData = PaymentMethodsReportExportData;

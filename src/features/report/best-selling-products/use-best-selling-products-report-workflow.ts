@@ -5,18 +5,16 @@ import { useTranslation } from "react-i18next";
 import { useUrlPagination } from "@/hooks/use-url-pagination";
 import { pageLimitSize } from "@/lib/pagination";
 import type { UrlPaginationState } from "@/lib/url-pagination";
-import { getBestSellingProductsReport } from "@/services/report";
 import { useAppStore } from "@/stores/app-store";
 import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
 import { useBranchStore } from "@/stores/branch-store";
-import { useBestSellingProductsReportStore, mergeBestSellingProductGroups, normalizeBestSellingProductsReportResponse } from "@/stores/report-store";
+import { useBestSellingProductsReportStore } from "@/stores/report-store";
 import { useGroupStore } from "@/stores/group-store";
 import { useToastStore } from "@/stores/toast-store";
 import { branchOptionFromRow, selectedBranchLabel } from "../daily-sales/daily-sales-report-utils";
 import type { BestSellingExportAction, BestSellingExportData, BestSellingProductsFilters } from "./best-selling-products-report-types";
 import {
   ALL_GROUPS_VALUE,
-  bestSellingExportLimit,
   bestSellingFileBaseName,
   bestSellingSortLabel,
   bestSellingSummaryConfigs,
@@ -53,6 +51,7 @@ export function useBestSellingProductsReportWorkflow(exportReportRef: RefObject<
   const total = useBestSellingProductsReportStore((state) => state.total);
   const totalPages = useBestSellingProductsReportStore((state) => state.totalPages);
   const loadReport = useBestSellingProductsReportStore((state) => state.load);
+  const loadExportData = useBestSellingProductsReportStore((state) => state.loadExportData);
   const showToast = useToastStore((state) => state.show);
   const today = useMemo(() => localDateInputValue(), []);
 
@@ -216,32 +215,15 @@ export function useBestSellingProductsReportWorkflow(exportReportRef: RefObject<
   const fetchExportData = useCallback(async (): Promise<BestSellingExportData> => {
     if (!branchUuid) throw new Error(t("report.branchRequired"));
 
-    const baseParams = {
+    return loadExportData({
       branch_uuid_fk: branchUuid,
       date_from: appliedFilters.dateFrom,
       date_to: appliedFilters.dateTo,
       group_uuid_fk: groupParam(appliedFilters.groupUuid),
       lang: language,
-      limit: bestSellingExportLimit,
       sort_by: appliedFilters.sortBy
-    };
-    const firstResponse = await getBestSellingProductsReport({ ...baseParams, page: 1 });
-    const firstData = normalizeBestSellingProductsReportResponse(firstResponse, bestSellingExportLimit, 1);
-    const allGroups = [...firstData.groups];
-
-    for (let nextPage = 2; nextPage <= firstData.pagination.totalPages; nextPage += 1) {
-      const response = await getBestSellingProductsReport({ ...baseParams, page: nextPage });
-      const normalized = normalizeBestSellingProductsReportResponse(response, bestSellingExportLimit, nextPage);
-      allGroups.push(...normalized.groups);
-    }
-
-    const mergedGroups = mergeBestSellingProductGroups(allGroups);
-    return {
-      groups: mergedGroups,
-      rows: mergedGroups.flatMap((group) => group.items).sort((left, right) => left.rank - right.rank),
-      summary: firstData.summary
-    };
-  }, [appliedFilters, branchUuid, language, t]);
+    });
+  }, [appliedFilters, branchUuid, language, loadExportData, t]);
 
   async function exportExcel() {
     if (exportDisabled) return;

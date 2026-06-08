@@ -36,6 +36,17 @@ import {
   type PaymentMethodsPagination
 } from "@/stores/report-store/payment-method-normalizers";
 import { errorMessage } from "@/stores/store-utils";
+import {
+  loadBestSellingProductsReportExportData,
+  loadDailySalesReportExportData,
+  loadPaymentMethodsReportExportData,
+  type BestSellingProductsReportExportData,
+  type BestSellingProductsReportExportParams,
+  type DailySalesReportExportData,
+  type DailySalesReportExportParams,
+  type PaymentMethodsReportExportData,
+  type PaymentMethodsReportExportParams
+} from "@/stores/report-store/export-loaders";
 
 export { createDailySalesBillGroups, normalizeDailySalesReportResponse };
 export { mergeBestSellingProductGroups, normalizeBestSellingProductsReportResponse };
@@ -43,6 +54,11 @@ export { normalizePaymentMethodsReportResponse };
 export type { DailySalesBillGroup };
 export type { BestSellingProductGroup, BestSellingProductItem, BestSellingProductsPagination };
 export type { PaymentMethodOption, PaymentMethodReportRow, PaymentMethodSummaryCard, PaymentMethodsPagination };
+export type {
+  BestSellingProductsReportExportData,
+  DailySalesReportExportData,
+  PaymentMethodsReportExportData
+};
 
 interface DailySalesReportState {
   billGroups: DailySalesBillGroup[];
@@ -57,6 +73,7 @@ interface DailySalesReportState {
   summaryCards: SummaryCards;
   total: number;
   totalPages: number;
+  loadExportData: (params: DailySalesReportExportParams) => Promise<DailySalesReportExportData>;
   load: (params: FetchDailySalesReportParams) => Promise<DailySalesReportResponse>;
   reset: () => void;
 }
@@ -74,6 +91,7 @@ export const useDailySalesReportStore = create<DailySalesReportState>((set) => (
   summaryCards: {},
   total: 0,
   totalPages: 1,
+  loadExportData: loadDailySalesReportExportData,
   load: async (params) => {
     set({ error: null, loading: true });
     try {
@@ -151,6 +169,9 @@ interface BestSellingProductsReportState {
   summary: ApiEntity;
   total: number;
   totalPages: number;
+  loadExportData: (
+    params: BestSellingProductsReportExportParams
+  ) => Promise<BestSellingProductsReportExportData>;
   load: (params: FetchBestSellingProductsReportParams) => Promise<BestSellingProductsReportResponse>;
   reset: () => void;
 }
@@ -175,6 +196,7 @@ export const useBestSellingProductsReportStore = create<BestSellingProductsRepor
   summary: {},
   total: 0,
   totalPages: 1,
+  loadExportData: loadBestSellingProductsReportExportData,
   load: async (params) => {
     set({ error: null, loading: true });
     try {
@@ -255,6 +277,7 @@ interface PaymentMethodsReportState {
   summaryCards: ApiEntity;
   total: number;
   totalPages: number;
+  loadExportData: (params: PaymentMethodsReportExportParams) => Promise<PaymentMethodsReportExportData>;
   load: (params: FetchPaymentMethodsReportParams) => Promise<PaymentMethodsReportResponse>;
   reset: () => void;
 }
@@ -281,6 +304,7 @@ export const usePaymentMethodsReportStore = create<PaymentMethodsReportState>((s
   summaryCards: {},
   total: 0,
   totalPages: 1,
+  loadExportData: loadPaymentMethodsReportExportData,
   load: async (params) => {
     set({ error: null, loading: true });
     try {
