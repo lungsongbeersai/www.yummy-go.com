@@ -15,6 +15,7 @@ Build this project with clean, short, maintainable code.
 - Write clean code with simple names and clear structure.
 - Keep code short, readable, and easy to change.
 - Avoid over-engineering and unnecessary abstractions.
+- If there is a suitable library, install it directly. Do not custom-build it yourself.
 - Reuse existing components, hooks, utilities, and patterns.
 - Prefer small components with one clear responsibility.
 - Use TypeScript types instead of `any` whenever possible.

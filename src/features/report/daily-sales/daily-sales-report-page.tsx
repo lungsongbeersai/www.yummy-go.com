@@ -4,6 +4,7 @@ import { type CSSProperties, useEffect, useRef, useState } from "react";
 import { BarChart3, CalendarDays } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
+import type { UrlPaginationState } from "@/lib/url-pagination";
 import {
   ReportError,
   ReportPagination,
@@ -25,13 +26,13 @@ import { useDailySalesReportWorkflow } from "./use-daily-sales-report-workflow";
 
 const SUMMARY_CARDS_ID = "daily-sales-summary-cards";
 
-export function DailySalesReportPage() {
+export function DailySalesReportPage({ initialPagination }: { initialPagination: UrlPaginationState }) {
   const { t } = useTranslation();
   const exportReportRef = useRef<HTMLDivElement>(null);
   const filterRef = useRef<HTMLDivElement>(null);
   const [filterHeight, setFilterHeight] = useState(0);
   const [summaryVisible, setSummaryVisible] = useState(false);
-  const report = useDailySalesReportWorkflow(exportReportRef);
+  const report = useDailySalesReportWorkflow(exportReportRef, initialPagination);
   const layoutStyle = {
     "--daily-sales-filter-height": `${filterHeight}px`,
   } as CSSProperties;

@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
-import { DEFAULT_PAGE_LIMIT, pageLimitSize } from "@/lib/pagination";
+import { useUrlPagination } from "@/hooks/use-url-pagination";
+import { pageLimitSize } from "@/lib/pagination";
+import type { UrlPaginationState } from "@/lib/url-pagination";
 import { getPaymentMethodsReport } from "@/services/report";
 import { useAppStore } from "@/stores/app-store";
 import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
@@ -23,7 +25,7 @@ import {
   waitForPaint
 } from "./payment-methods-report-utils";
 
-export function usePaymentMethodsReportWorkflow(exportReportRef: RefObject<HTMLDivElement | null>) {
+export function usePaymentMethodsReportWorkflow(exportReportRef: RefObject<HTMLDivElement | null>, initialPagination: UrlPaginationState) {
   const { t } = useTranslation();
   const user = useAuthStore((state) => state.user);
   const language = useAppStore((state) => state.language);
@@ -51,7 +53,7 @@ export function usePaymentMethodsReportWorkflow(exportReportRef: RefObject<HTMLD
     branchUuid: user?.branch_uuid ?? "",
     dateFrom: today,
     dateTo: today,
-    limit: DEFAULT_PAGE_LIMIT,
+    limit: initialPagination.limit,
     orderBy: "DESC",
     paymentMethod: "all"
   });
@@ -59,7 +61,7 @@ export function usePaymentMethodsReportWorkflow(exportReportRef: RefObject<HTMLD
   const [exporting, setExporting] = useState<PaymentMethodsExportAction | null>(null);
   const [exportData, setExportData] = useState<PaymentMethodsExportData | null>(null);
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
-  const [page, setPage] = useState(1);
+  const { changeLimit, page, setPage } = useUrlPagination({ initialPagination });
 
   const storeUuid = authStoreUuid(user);
   const userBranchUuid = user?.branch_uuid ?? "";
@@ -171,7 +173,7 @@ export function usePaymentMethodsReportWorkflow(exportReportRef: RefObject<HTMLD
     if (nextFilters.branchUuid) setSelectedBranch(nextFilters.branchUuid);
     setDraftFilters(nextFilters);
     setAppliedFilters(nextFilters);
-    setPage(1);
+    changeLimit(nextFilters.limit);
   }
 
   function openMobileFilters() {
@@ -189,7 +191,7 @@ export function usePaymentMethodsReportWorkflow(exportReportRef: RefObject<HTMLD
     if (nextFilters.branchUuid) setSelectedBranch(nextFilters.branchUuid);
     setDraftFilters(nextFilters);
     setAppliedFilters(nextFilters);
-    setPage(1);
+    changeLimit(nextFilters.limit);
     setMobileFilterOpen(false);
   }
 

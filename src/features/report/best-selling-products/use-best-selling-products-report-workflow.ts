@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
-import { DEFAULT_PAGE_LIMIT, pageLimitSize } from "@/lib/pagination";
+import { useUrlPagination } from "@/hooks/use-url-pagination";
+import { pageLimitSize } from "@/lib/pagination";
+import type { UrlPaginationState } from "@/lib/url-pagination";
 import { getBestSellingProductsReport } from "@/services/report";
 import { useAppStore } from "@/stores/app-store";
 import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
@@ -28,7 +30,7 @@ import {
   waitForPaint
 } from "./best-selling-products-report-utils";
 
-export function useBestSellingProductsReportWorkflow(exportReportRef: RefObject<HTMLDivElement | null>) {
+export function useBestSellingProductsReportWorkflow(exportReportRef: RefObject<HTMLDivElement | null>, initialPagination: UrlPaginationState) {
   const { t } = useTranslation();
   const user = useAuthStore((state) => state.user);
   const language = useAppStore((state) => state.language);
@@ -59,14 +61,14 @@ export function useBestSellingProductsReportWorkflow(exportReportRef: RefObject<
     dateFrom: today,
     dateTo: today,
     groupUuid: ALL_GROUPS_VALUE,
-    limit: DEFAULT_PAGE_LIMIT,
+    limit: initialPagination.limit,
     sortBy: "qty"
   });
   const [appliedFilters, setAppliedFilters] = useState<BestSellingProductsFilters>(draftFilters);
   const [exporting, setExporting] = useState<BestSellingExportAction | null>(null);
   const [exportData, setExportData] = useState<BestSellingExportData | null>(null);
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
-  const [page, setPage] = useState(1);
+  const { changeLimit, page, setPage } = useUrlPagination({ initialPagination });
 
   const storeUuid = authStoreUuid(user);
   const userBranchUuid = user?.branch_uuid ?? "";
@@ -189,7 +191,7 @@ export function useBestSellingProductsReportWorkflow(exportReportRef: RefObject<
     if (nextFilters.branchUuid) setSelectedBranch(nextFilters.branchUuid);
     setDraftFilters(nextFilters);
     setAppliedFilters(nextFilters);
-    setPage(1);
+    changeLimit(nextFilters.limit);
   }
 
   function openMobileFilters() {
@@ -207,7 +209,7 @@ export function useBestSellingProductsReportWorkflow(exportReportRef: RefObject<
     if (nextFilters.branchUuid) setSelectedBranch(nextFilters.branchUuid);
     setDraftFilters(nextFilters);
     setAppliedFilters(nextFilters);
-    setPage(1);
+    changeLimit(nextFilters.limit);
     setMobileFilterOpen(false);
   }
 

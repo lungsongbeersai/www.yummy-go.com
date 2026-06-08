@@ -31,7 +31,9 @@ import {
   SettingsTableScroll,
   SettingsToolbar
 } from "@/features/settings/shared/settings-shell";
+import { useUrlPagination } from "@/hooks/use-url-pagination";
 import { DEFAULT_PAGE_LIMIT, PAGE_LIMIT_OPTIONS } from "@/lib/pagination";
+import type { UrlPaginationState } from "@/lib/url-pagination";
 import type { Currency } from "@/services/currency";
 import type { Exchange, FetchExchangesParams } from "@/services/exchange";
 import type { PageLimit, SortOrder } from "@/services/shared/types";
@@ -54,7 +56,6 @@ import {
   missingExchangeField
 } from "./exchange-utils";
 
-const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT: PageLimit = DEFAULT_PAGE_LIMIT;
 const ORDER_OPTIONS: Array<{ labelKey: "asc" | "desc"; value: SortOrder }> = [
   { labelKey: "asc", value: "ASC" },
@@ -121,7 +122,7 @@ function CurrencyIdentity({
   );
 }
 
-export function ExchangeSettingsPage() {
+export function ExchangeSettingsPage({ initialPagination }: { initialPagination: UrlPaginationState }) {
   const { t } = useTranslation();
   const language = useAppStore((state) => state.language);
   const user = useAuthStore((state) => state.user);
@@ -140,8 +141,7 @@ export function ExchangeSettingsPage() {
   const saveRow = useExchangeStore((state) => state.save);
   const removeRow = useExchangeStore((state) => state.remove);
   const loadCurrencyOptions = useReferenceStore((state) => state.loadCurrencies);
-  const [page, setPage] = useState(DEFAULT_PAGE);
-  const [limit, setLimit] = useState<PageLimit>(DEFAULT_LIMIT);
+  const { changeLimit, limit, page, resetPage, setPage } = useUrlPagination({ initialPagination });
   const [orderBy, setOrderBy] = useState<SortOrder>("ASC");
   const [editing, setEditing] = useState<Exchange | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -232,7 +232,7 @@ export function ExchangeSettingsPage() {
 
   function applyFilters() {
     if (page === 1) void load();
-    else setPage(1);
+    else resetPage();
   }
 
   function toggleSelected(id: string, checked: boolean) {
@@ -417,10 +417,7 @@ export function ExchangeSettingsPage() {
         orderOptions: ORDER_OPTIONS.map((option) => ({ label: t(`common.${option.labelKey}`), value: option.value })),
         selectedCount: selectedRows.size,
         onApply: applyFilters,
-        onLimit: (nextLimit) => {
-          setLimit(nextLimit);
-          setPage(1);
-        },
+        onLimit: changeLimit,
         onOrder: (nextOrder) => {
           setOrderBy(nextOrder);
           setPage(1);

@@ -10,7 +10,7 @@ import {
 } from "@/features/settings/shared/settings-image-crop";
 import type { Category } from "@/services/category";
 import type { Color } from "@/services/color";
-import { getProductImageUrl, type Product } from "@/services/product";
+import { getProductImageUrl } from "@/services/product";
 import type { Size } from "@/services/size";
 import type { Topping } from "@/services/topping";
 import type { Unit } from "@/services/unit";
@@ -45,10 +45,11 @@ import {
   categoryUuid,
   colorCode,
   detailFromProduct,
-  detailSizeUuid,
   detailStockSummary,
   emptyDetail,
+  filterSizeOptionsByText,
   findOptionByText,
+  findSizeUuidByName,
   findToppingUuidByName,
   generateProdCode,
   hasEditableProductData,
@@ -59,6 +60,7 @@ import {
   normalizedText,
   productCategoryUuid,
   productColorValue,
+  productFormSizeOptions,
   productHasToppings,
   productHydrationKey,
   productImageStatus,
@@ -69,6 +71,7 @@ import {
   rawProductImage,
   requiredFieldErrors as getRequiredFieldErrors,
   selectedToppingBadges as buildSelectedToppingBadges,
+  sizeName,
   sizeUuid,
   textValues,
   toppingUuid,
@@ -89,10 +92,15 @@ export function useProductFormWorkflow() {
   const rows = useProductStore((state) => state.rows);
   const productLoading = useProductStore((state) => state.loading);
   const productSizesByStatus = useProductStore((state) => state.sizesByStatus);
+  const productSizesByStatusStatus = useProductStore(
+    (state) => state.sizesByStatusStatus,
+  );
   const saving = useProductStore((state) => state.saving);
   const saveProduct = useProductStore((state) => state.save);
   const loadProducts = useProductStore((state) => state.load);
   const loadSizesByStatus = useProductStore((state) => state.loadSizesByStatus);
+  const createSizeForStatus = useProductStore((state) => state.createSizeForStatus);
+  const deleteSizeForStatus = useProductStore((state) => state.deleteSizeForStatus);
   const updateDetailsStock = useProductStore((state) => state.updateDetailsStock);
   const categories = (useReferenceStore((state) => state.options.categories) ?? EMPTY_CATEGORIES) as Category[];
   const colors = (useReferenceStore((state) => state.options.colors) ?? EMPTY_COLORS) as Color[];
@@ -143,6 +151,14 @@ export function useProductFormWorkflow() {
   const [editingToppingUuid, setEditingToppingUuid] = useState("");
   const [deletingToppingUuid, setDeletingToppingUuid] = useState("");
   const [hiddenToppingUuids, setHiddenToppingUuids] = useState<string[]>([]);
+  const [setOptionDialogOpen, setSetOptionDialogOpen] = useState(false);
+  const [setOptionDetailId, setSetOptionDetailId] = useState("");
+  const [setOptionNameLa, setSetOptionNameLa] = useState("");
+  const [setOptionNameEng, setSetOptionNameEng] = useState("");
+  const [setOptionSearch, setSetOptionSearch] = useState("");
+  const [editingSetOptionUuid, setEditingSetOptionUuid] = useState("");
+  const [deletingSetOptionUuid, setDeletingSetOptionUuid] = useState("");
+  const [setOptionSaving, setSetOptionSaving] = useState(false);
 
   useEffect(() => {
     if (!storeUuid) return;
@@ -297,6 +313,118 @@ export function useProductFormWorkflow() {
     setDetails((current) => (current.length <= 1 ? current : current.filter((row) => row.id !== id)));
   }
 
+  function resetSetOptionForm() {
+    setEditingSetOptionUuid("");
+    setSetOptionNameLa("");
+    setSetOptionNameEng("");
+  }
+
+  function handleSetOptionDialogOpen(open: boolean) {
+    setSetOptionDialogOpen(open);
+    if (!open) {
+      setSetOptionDetailId("");
+      setSetOptionSearch("");
+      setDeletingSetOptionUuid("");
+      resetSetOptionForm();
+    }
+  }
+
+  function openSetOptionDialog(detailId: string) {
+    setSetOptionDetailId(detailId);
+    resetSetOptionForm();
+    setSetOptionDialogOpen(true);
+    if (storeUuid) {
+      void loadSizesByStatus(storeUuid, 2, language).catch((error) => {
+        showToast({
+          title: t("settings.loadFailed", { title: t("settings.modules.size.title") }),
+          description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
+          tone: "error"
+        });
+      });
+    }
+  }
+
+  function editSetOption(size: SizeSelectOption) {
+    const uuid = sizeUuid(size);
+    if (!uuid) return;
+    setEditingSetOptionUuid(uuid);
+    setSetOptionNameLa(String(size.size_name_la ?? sizeName(size) ?? ""));
+    setSetOptionNameEng(String(size.size_name_eng ?? ""));
+  }
+
+  async function saveSetOptionFromDialog() {
+    const nameLa = setOptionNameLa.trim();
+    const nameEng = setOptionNameEng.trim() || nameLa;
+
+    if (!storeUuid) {
+      showToast({ title: t("settings.saveFailed"), description: t("settings.branchRequired"), tone: "error" });
+      return;
+    }
+
+    if (statusSortFk !== "2" || !setOptionDetailId) {
+      showToast({ title: t("settings.saveFailed"), description: t("toasts.pleaseTryAgain"), tone: "error" });
+      return;
+    }
+
+    if (!nameLa) {
+      showToast({ title: t("settings.saveFailed"), description: t("fields.nameLa"), tone: "error" });
+      return;
+    }
+
+    setSetOptionSaving(true);
+    try {
+      const saved = await createSizeForStatus({
+        size_uuid: editingSetOptionUuid,
+        size_name_la: nameLa,
+        size_name_eng: nameEng,
+        store_uuid_fk: storeUuid,
+        status_sort_fk: 2
+      });
+      const refreshed = await loadSizesByStatus(storeUuid, 2, language);
+      const savedUuid = editingSetOptionUuid || sizeUuid(saved) || findSizeUuidByName(refreshed, nameLa, nameEng);
+
+      if (!savedUuid) {
+        throw new Error(t("toasts.pleaseTryAgain"));
+      }
+
+      if (!editingSetOptionUuid) updateDetail(setOptionDetailId, { size_uuid_fk: savedUuid });
+      showToast({ title: editingSetOptionUuid ? t("settings.saved") : t("product.setProductOptionSaved"), tone: "success" });
+      resetSetOptionForm();
+    } catch (error) {
+      showToast({
+        title: t("settings.saveFailed"),
+        description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
+        tone: "error"
+      });
+    } finally {
+      setSetOptionSaving(false);
+    }
+  }
+
+  async function deleteSetOptionFromDialog(uuid: string) {
+    if (!uuid || !storeUuid) return;
+
+    setSetOptionSaving(true);
+    try {
+      await deleteSizeForStatus(uuid);
+      setDetails((current) =>
+        current.map((row) => (row.size_uuid_fk === uuid ? { ...row, size_uuid_fk: "" } : row))
+      );
+      if (editingSetOptionUuid === uuid) resetSetOptionForm();
+      await loadSizesByStatus(storeUuid, 2, language);
+      showToast({ title: t("settings.deleted"), tone: "success" });
+    } catch (error) {
+      showToast({
+        title: t("settings.deleteFailed"),
+        description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
+        tone: "error"
+      });
+    } finally {
+      setDeletingSetOptionUuid("");
+      setSetOptionSaving(false);
+    }
+  }
+
   function toggleTopping(uuid: string, checked: boolean) {
     setSelectedToppings((current) => {
       if (checked) {
@@ -408,6 +536,7 @@ export function useProductFormWorkflow() {
     setDetails((current) => normalizeDetailsForStatus(current, value, statusSortFk));
     setStatusSortFk(value);
     if (value !== "2") setProdSetPrice("0");
+    if (value !== "2") handleSetOptionDialogOpen(false);
   }
 
   function showSaveError(description: string) {
@@ -527,17 +656,30 @@ export function useProductFormWorkflow() {
     [editing, uniteUuidFk, units]
   );
   const sizeOptions = useMemo<SizeSelectOption[]>(() => {
-    const baseSizes: SizeSelectOption[] = productSizesByStatus.length ? productSizesByStatus : sizes;
-    const rows = baseSizes.filter((size) => sizeUuid(size));
-    const seen = new Set(rows.map((size) => sizeUuid(size)));
-    const missing = details
-      .map((detail) => detail.size_uuid_fk)
-      .filter((uuid) => uuid && !seen.has(uuid))
-      .map((uuid) => editing?.details?.find((detail) => detailSizeUuid(detail) === uuid))
-      .filter((detail): detail is NonNullable<Product["details"]>[number] => Boolean(detail));
-
-    return missing.length ? [...rows, ...missing] : rows;
-  }, [details, editing?.details, productSizesByStatus, sizes]);
+    return productFormSizeOptions({
+      statusSortFk,
+      sizesByStatus: productSizesByStatus,
+      sizesByStatusStatus: productSizesByStatusStatus,
+      sizes,
+      details,
+      editingDetails: editing?.details,
+    });
+  }, [
+    details,
+    editing?.details,
+    productSizesByStatus,
+    productSizesByStatusStatus,
+    sizes,
+    statusSortFk,
+  ]);
+  const setOptionOptions = useMemo<SizeSelectOption[]>(
+    () => productSizesByStatus.filter((size) => sizeUuid(size)),
+    [productSizesByStatus]
+  );
+  const filteredSetOptionOptions = useMemo(
+    () => filterSizeOptionsByText(setOptionOptions, setOptionSearch),
+    [setOptionOptions, setOptionSearch]
+  );
   const detailStockState = useMemo(() => detailStockSummary(details), [details]);
   const nextDetailStockMode = nextBulkStockMode(detailStockState);
   const detailStockStateLabel =
@@ -695,6 +837,8 @@ export function useProductFormWorkflow() {
     categoryOptions,
     unitOptions,
     sizeOptions,
+    setOptionOptions,
+    filteredSetOptionOptions,
     nextDetailStockMode,
     detailStockStateLabel,
     detailStockStateClass,
@@ -754,6 +898,18 @@ export function useProductFormWorkflow() {
     editingToppingUuid,
     deletingToppingUuid,
     setDeletingToppingUuid,
+    setOptionDialogOpen,
+    handleSetOptionDialogOpen,
+    setOptionNameLa,
+    setSetOptionNameLa,
+    setOptionNameEng,
+    setSetOptionNameEng,
+    setOptionSearch,
+    setSetOptionSearch,
+    editingSetOptionUuid,
+    deletingSetOptionUuid,
+    setDeletingSetOptionUuid,
+    setOptionSaving,
     language,
     storeUuid,
     saving,
@@ -770,6 +926,11 @@ export function useProductFormWorkflow() {
     editTopping,
     saveToppingFromDialog,
     deleteToppingFromDialog,
+    openSetOptionDialog,
+    resetSetOptionForm,
+    editSetOption,
+    saveSetOptionFromDialog,
+    deleteSetOptionFromDialog,
     changeStatusSort,
   };
 }

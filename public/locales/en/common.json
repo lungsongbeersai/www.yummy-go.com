@@ -1026,6 +1026,7 @@
   },
   "product": {
     "addDetail": "Add detail",
+    "addSetProductOption": "Add set product",
     "branchRequired": "A branch must be selected first",
     "buyQty": "Buy",
     "choiceHints": {
@@ -1061,6 +1062,7 @@
     "menuStock": "Menu and stock",
     "newProduct": "New product",
     "noProducts": "No products",
+    "noSetProductOptions": "No set products",
     "notification": {
       "label": "Notification",
       "off": "Notifications off",
@@ -1090,6 +1092,11 @@
     "searchProducts": "Search products",
     "searchToppings": "Search toppings",
     "setPrice": "Set price",
+    "searchSetProductOptions": "Search set products",
+    "setProductOptions": "Set products",
+    "setProductOptionFormHint": "Enter the product name used as an item inside this food set.",
+    "setProductOptionHint": "Create a product option for this food set, then select it in this row automatically.",
+    "setProductOptionSaved": "Set product added",
     "imageMode": "Image mode",
     "startDate": "Start date",
     "startTime": "Start time",

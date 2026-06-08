@@ -4,6 +4,7 @@ import { type CSSProperties, useEffect, useRef, useState } from "react";
 import { CalendarDays, Trophy } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
+import type { UrlPaginationState } from "@/lib/url-pagination";
 import {
   BestSellingExportSurface,
   BestSellingFilterBar,
@@ -19,13 +20,13 @@ import { useBestSellingProductsReportWorkflow } from "./use-best-selling-product
 
 const SUMMARY_CARDS_ID = "best-selling-summary-cards";
 
-export function BestSellingProductsReportPage() {
+export function BestSellingProductsReportPage({ initialPagination }: { initialPagination: UrlPaginationState }) {
   const { t } = useTranslation();
   const exportReportRef = useRef<HTMLDivElement>(null);
   const filterRef = useRef<HTMLDivElement>(null);
   const [filterHeight, setFilterHeight] = useState(0);
   const [summaryVisible, setSummaryVisible] = useState(false);
-  const report = useBestSellingProductsReportWorkflow(exportReportRef);
+  const report = useBestSellingProductsReportWorkflow(exportReportRef, initialPagination);
   const layoutStyle = {
     "--best-selling-filter-height": `${filterHeight}px`
   } as CSSProperties;

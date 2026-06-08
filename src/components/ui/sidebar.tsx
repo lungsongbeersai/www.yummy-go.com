@@ -87,6 +87,10 @@ export function SidebarProvider({
     [isMobile, open, openMobile, setOpen, toggleSidebar]
   );
 
+  React.useEffect(() => {
+    if (!isMobile && openMobile) setOpenMobile(false);
+  }, [isMobile, openMobile]);
+
   return (
     <SidebarContext.Provider value={contextValue}>
       <TooltipProvider delayDuration={0}>
@@ -122,67 +126,66 @@ export function Sidebar({
   const { isMobile, state, openMobile, setOpenMobile } = useSidebar();
   const collapsed = collapsible === "icon" && state === "collapsed";
 
-  if (isMobile) {
-    return (
-      <Sheet open={openMobile} onOpenChange={setOpenMobile}>
-        <SheetContent
-          side={side}
-          data-slot="sidebar"
-          data-sidebar="sidebar"
-          data-mobile="true"
-          showCloseButton={false}
-          style={{ "--sidebar-width": "18rem" } as React.CSSProperties}
-          className="w-[var(--sidebar-width)] gap-0 bg-sidebar p-0 text-sidebar-foreground"
-        >
-          <SheetHeader className="sr-only">
-            <SheetTitle>Sidebar</SheetTitle>
-            <SheetDescription>Navigation menu</SheetDescription>
-          </SheetHeader>
-          <div data-state="expanded" className="group/sidebar flex h-full w-full flex-col">
-            {children}
-          </div>
-        </SheetContent>
-      </Sheet>
-    );
-  }
-
   return (
-    <div
-      data-slot="sidebar"
-      data-state={state}
-      data-collapsible={collapsed ? collapsible : ""}
-      data-side={side}
-      className="group/sidebar peer hidden text-sidebar-foreground md:block"
-    >
+    <>
+      {isMobile ? (
+        <Sheet open={openMobile} onOpenChange={setOpenMobile}>
+          <SheetContent
+            side={side}
+            data-slot="sidebar"
+            data-sidebar="sidebar"
+            data-mobile="true"
+            showCloseButton={false}
+            style={{ "--sidebar-width": "18rem" } as React.CSSProperties}
+            className="w-[var(--sidebar-width)] gap-0 bg-sidebar p-0 text-sidebar-foreground"
+          >
+            <SheetHeader className="sr-only">
+              <SheetTitle>Sidebar</SheetTitle>
+              <SheetDescription>Navigation menu</SheetDescription>
+            </SheetHeader>
+            <div data-state="expanded" className="group/sidebar flex h-full w-full flex-col">
+              {children}
+            </div>
+          </SheetContent>
+        </Sheet>
+      ) : null}
       <div
-        data-slot="sidebar-gap"
-        className={cn(
-          "relative shrink-0 bg-transparent transition-[width] duration-200 ease-linear",
-          collapsed ? "w-[var(--sidebar-width-icon)]" : "w-[var(--sidebar-width)]",
-          collapsible === "offcanvas" && collapsed && "w-0"
-        )}
-      />
-      <div
-        data-slot="sidebar-container"
-        className={cn(
-          "fixed top-[var(--app-shell-header-height)] z-30 hidden h-[calc(100dvh_-_var(--app-shell-header-height))] transition-[left,right,width] duration-200 ease-linear md:flex",
-          side === "left" ? "left-0" : "right-0",
-          collapsed ? "w-[var(--sidebar-width-icon)]" : "w-[var(--sidebar-width)]",
-          collapsible === "offcanvas" && collapsed && side === "left" && "-left-[var(--sidebar-width)]",
-          collapsible === "offcanvas" && collapsed && side === "right" && "-right-[var(--sidebar-width)]",
-          className
-        )}
-        {...props}
+        data-slot="sidebar"
+        data-state={state}
+        data-collapsible={collapsed ? collapsible : ""}
+        data-side={side}
+        className="group/sidebar peer hidden text-sidebar-foreground md:block"
       >
         <div
-          data-slot="sidebar-inner"
-          data-sidebar="sidebar"
-          className="flex h-full w-full flex-col bg-sidebar"
+          data-slot="sidebar-gap"
+          className={cn(
+            "relative shrink-0 bg-transparent transition-[width] duration-200 ease-linear",
+            collapsed ? "w-[var(--sidebar-width-icon)]" : "w-[var(--sidebar-width)]",
+            collapsible === "offcanvas" && collapsed && "w-0"
+          )}
+        />
+        <div
+          data-slot="sidebar-container"
+          className={cn(
+            "fixed top-[var(--app-shell-header-height)] z-30 hidden h-[calc(100dvh_-_var(--app-shell-header-height))] transition-[left,right,width] duration-200 ease-linear md:flex",
+            side === "left" ? "left-0" : "right-0",
+            collapsed ? "w-[var(--sidebar-width-icon)]" : "w-[var(--sidebar-width)]",
+            collapsible === "offcanvas" && collapsed && side === "left" && "-left-[var(--sidebar-width)]",
+            collapsible === "offcanvas" && collapsed && side === "right" && "-right-[var(--sidebar-width)]",
+            className
+          )}
+          {...props}
         >
-          {children}
+          <div
+            data-slot="sidebar-inner"
+            data-sidebar="sidebar"
+            className="flex h-full w-full flex-col bg-sidebar"
+          >
+            {children}
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
 

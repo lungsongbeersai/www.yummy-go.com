@@ -50,8 +50,10 @@ import {
   storeBranchValue,
   type StoreBranchKind
 } from "@/features/settings/store-branch/store-branch-utils";
+import { useUrlPagination } from "@/hooks/use-url-pagination";
 import { DEFAULT_PAGE_LIMIT, PAGE_LIMIT_OPTIONS } from "@/lib/pagination";
 import { canCreateStoreBranch, canDeleteStoreBranch, canEditStoreBranch } from "@/lib/permissions";
+import type { UrlPaginationState } from "@/lib/url-pagination";
 import { cn } from "@/lib/utils";
 import type { PageLimit, SortOrder } from "@/services/shared/types";
 import { useAppStore } from "@/stores/app-store";
@@ -131,7 +133,6 @@ interface StoreBranchLabels {
   zoom: string;
 }
 
-const LIST_PAGE = 1;
 const LIST_LIMIT: PageLimit = DEFAULT_PAGE_LIMIT;
 const EMPTY_ROWS: Row[] = [];
 
@@ -308,7 +309,7 @@ function EntityIdentity({
   );
 }
 
-export function StoreBranchSettingsPage({ kind }: { kind: StoreBranchKind }) {
+export function StoreBranchSettingsPage({ initialPagination, kind }: { initialPagination: UrlPaginationState; kind: StoreBranchKind }) {
   const { t } = useTranslation();
   const config = SETTINGS[kind];
   const language = useAppStore((state) => state.language);
@@ -335,8 +336,7 @@ export function StoreBranchSettingsPage({ kind }: { kind: StoreBranchKind }) {
   const [deleteTarget, setDeleteTarget] = useState<Row | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedRows, setSelectedRows] = useState<Set<string>>(() => new Set());
-  const [page, setPage] = useState(LIST_PAGE);
-  const [limit, setLimit] = useState<PageLimit>(LIST_LIMIT);
+  const { changeLimit, limit, page, resetPage, setPage } = useUrlPagination({ initialPagination });
   const [orderBy, setOrderBy] = useState<SortOrder>("ASC");
 
   const canCreate = canCreateStoreBranch(user?.status);
@@ -428,7 +428,7 @@ export function StoreBranchSettingsPage({ kind }: { kind: StoreBranchKind }) {
 
   function applyFilters() {
     if (page === 1) void load(true);
-    else setPage(1);
+    else resetPage();
   }
 
   function toggleSelected(id: string, checked: boolean) {
@@ -745,10 +745,7 @@ export function StoreBranchSettingsPage({ kind }: { kind: StoreBranchKind }) {
         limitOptions: PAGE_LIMIT_OPTIONS,
         selectedCount: selectedRows.size,
         onApply: applyFilters,
-        onLimit: (nextLimit) => {
-          setLimit(nextLimit);
-          setPage(1);
-        },
+        onLimit: changeLimit,
         onOrder: (nextOrder) => {
           setOrderBy(nextOrder);
           setPage(1);

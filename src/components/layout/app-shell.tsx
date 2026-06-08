@@ -238,7 +238,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       data-fixed-screen={fixedDataScreen ? "true" : "false"}
       data-sidebar-state={collapsed ? "collapsed" : "expanded"}
     >
-      {!immersiveScreen ? <AppHeader breadcrumbs={breadcrumbs} logout={logout} user={user} /> : null}
+      {!immersiveScreen ? (
+        <AppHeader breadcrumbs={breadcrumbs} collapsed={collapsed} logout={logout} user={user} />
+      ) : null}
       <div className="app-shell-body flex min-h-0 w-full flex-1 overflow-hidden">
         {!immersiveScreen ? (
           <AppSidebar
@@ -266,10 +268,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
 function AppHeader({
   breadcrumbs,
+  collapsed,
   logout,
   user
 }: {
   breadcrumbs: BreadcrumbTrailItem[];
+  collapsed: boolean;
   logout: () => void;
   user: AuthUser | null;
 }) {
@@ -284,16 +288,35 @@ function AppHeader({
   return (
     <header className="app-header sticky top-0 z-40 flex h-[var(--app-shell-header-height)] w-full items-center justify-between gap-2 border-b border-border px-2 sm:px-4 lg:gap-4 lg:px-6">
       <div className="flex min-w-0 flex-1 items-center gap-2 md:gap-4">
-        <Link href="/" className="hidden min-w-0 items-center gap-3 md:flex">
-          <Avatar className="size-[50px] rounded-md">
-            <AvatarImage src={logoSrc} alt={branchTitle} />
-            <AvatarFallback className="rounded-md font-black">{userInitials(user)}</AvatarFallback>
-          </Avatar>
-          <div className="hidden min-w-0 flex-col sm:flex">
-            <span className="truncate text-base font-black text-primary">{branchTitle}</span>
-            <span className="truncate text-xs text-muted-foreground">{address}</span>
-          </div>
-        </Link>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Link
+              href="/"
+              title={`${branchTitle} - ${address}`}
+              className={cn(
+                "hidden min-w-0 shrink-0 items-center md:flex",
+                collapsed
+                  ? "w-[var(--sidebar-width-icon)] max-w-[var(--sidebar-width-icon)] justify-center"
+                  : "w-[var(--sidebar-width)] max-w-[var(--sidebar-width)] gap-3"
+              )}
+            >
+              <Avatar className="size-[50px] shrink-0 rounded-md">
+                <AvatarImage src={logoSrc} alt={branchTitle} />
+                <AvatarFallback className="rounded-md font-black">{userInitials(user)}</AvatarFallback>
+              </Avatar>
+              <div className={cn("min-w-0 flex-1 flex-col overflow-hidden", collapsed ? "hidden" : "hidden sm:flex")}>
+                <span className="truncate text-base font-black text-primary">{branchTitle}</span>
+                <span className="truncate text-xs text-muted-foreground">{address}</span>
+              </div>
+            </Link>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" align="start" className="max-w-96">
+            <div className="flex min-w-0 flex-col gap-1">
+              <span className="font-bold">{branchTitle}</span>
+              <span className="break-words text-xs leading-5 opacity-80">{address}</span>
+            </div>
+          </TooltipContent>
+        </Tooltip>
 
         <Separator orientation="vertical" className="hidden h-12 md:block" />
 

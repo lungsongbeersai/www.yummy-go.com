@@ -27,7 +27,9 @@ import {
   SettingsTableScroll,
   SettingsToolbar
 } from "@/features/settings/shared/settings-shell";
+import { useUrlPagination } from "@/hooks/use-url-pagination";
 import { DEFAULT_PAGE_LIMIT } from "@/lib/pagination";
+import type { UrlPaginationState } from "@/lib/url-pagination";
 import type { SettingConfig } from "@/features/settings/shared/settings-config";
 import type { PageLimit, SortOrder } from "@/services/shared/types";
 import { useAppStore } from "@/stores/app-store";
@@ -36,7 +38,6 @@ import { useSettingsStore } from "@/stores/settings-store";
 import { useToastStore } from "@/stores/toast-store";
 
 const EMPTY_ROWS: Record<string, unknown>[] = [];
-const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT: PageLimit = DEFAULT_PAGE_LIMIT;
 
 function value(row: Record<string, unknown> | null, key: string, fallback = "") {
@@ -50,7 +51,7 @@ function isIdentifierKey(key: string) {
   return normalized === "id" || normalized.endsWith("_id") || normalized.includes("uuid");
 }
 
-export function SettingsEntityPage({ config }: { config: SettingConfig }) {
+export function SettingsEntityPage({ config, initialPagination }: { config: SettingConfig; initialPagination: UrlPaginationState }) {
   const { t } = useTranslation();
   const user = useAuthStore((state) => state.user);
   const language = useAppStore((state) => state.language);
@@ -66,8 +67,7 @@ export function SettingsEntityPage({ config }: { config: SettingConfig }) {
   const loadEntity = useSettingsStore((state) => state.load);
   const saveEntity = useSettingsStore((state) => state.save);
   const removeEntity = useSettingsStore((state) => state.remove);
-  const [page, setPage] = useState(DEFAULT_PAGE);
-  const [limit, setLimit] = useState<PageLimit>(DEFAULT_LIMIT);
+  const { changeLimit, limit, page, resetPage, setPage } = useUrlPagination({ initialPagination });
   const [orderBy, setOrderBy] = useState<SortOrder>("ASC");
   const [editing, setEditing] = useState<Record<string, unknown> | null>(null);
   const [open, setOpen] = useState(false);
@@ -121,7 +121,7 @@ export function SettingsEntityPage({ config }: { config: SettingConfig }) {
 
   function applyFilters() {
     if (page === 1) void load();
-    else setPage(1);
+    else resetPage();
   }
 
   function toggleSelected(id: string, checked: boolean) {
@@ -313,10 +313,7 @@ export function SettingsEntityPage({ config }: { config: SettingConfig }) {
               orderBy,
               selectedCount: selectedRows.size,
               onApply: applyFilters,
-              onLimit: (nextLimit) => {
-                setLimit(nextLimit);
-                setPage(1);
-              },
+              onLimit: changeLimit,
               onOrder: (nextOrder) => {
                 setOrderBy(nextOrder);
                 setPage(1);

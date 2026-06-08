@@ -28,8 +28,10 @@ import {
   SettingsTableScroll,
   SettingsToolbar
 } from "@/features/settings/shared/settings-shell";
+import { useUrlPagination } from "@/hooks/use-url-pagination";
 import { buildGroupPayload, groupId, groupName, groupValue, missingGroupField } from "@/features/settings/group/group-utils";
 import { DEFAULT_PAGE_LIMIT, PAGE_LIMIT_OPTIONS } from "@/lib/pagination";
+import type { UrlPaginationState } from "@/lib/url-pagination";
 import type { FetchGroupsParams, Group } from "@/services/group";
 import type { PageLimit, SortOrder } from "@/services/shared/types";
 import { useAppStore } from "@/stores/app-store";
@@ -37,7 +39,6 @@ import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
 import { useGroupStore } from "@/stores/group-store";
 import { useToastStore } from "@/stores/toast-store";
 
-const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT: PageLimit = DEFAULT_PAGE_LIMIT;
 
 function GroupIcon() {
@@ -66,7 +67,7 @@ function GroupIdentity({ row }: { row: Group }) {
   );
 }
 
-export function GroupSettingsPage() {
+export function GroupSettingsPage({ initialPagination }: { initialPagination: UrlPaginationState }) {
   const { t } = useTranslation();
   const language = useAppStore((state) => state.language);
   const user = useAuthStore((state) => state.user);
@@ -84,8 +85,7 @@ export function GroupSettingsPage() {
   const loadRows = useGroupStore((state) => state.load);
   const saveRow = useGroupStore((state) => state.save);
   const removeRow = useGroupStore((state) => state.remove);
-  const [page, setPage] = useState(DEFAULT_PAGE);
-  const [limit, setLimit] = useState<PageLimit>(DEFAULT_LIMIT);
+  const { changeLimit, limit, page, resetPage, setPage } = useUrlPagination({ initialPagination });
   const [orderBy, setOrderBy] = useState<SortOrder>("ASC");
   const [editing, setEditing] = useState<Group | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -143,7 +143,7 @@ export function GroupSettingsPage() {
 
   function applyFilters() {
     if (page === 1) void load();
-    else setPage(1);
+    else resetPage();
   }
 
   function toggleSelected(id: string, checked: boolean) {
@@ -313,10 +313,7 @@ export function GroupSettingsPage() {
         limitOptions: PAGE_LIMIT_OPTIONS,
         selectedCount: selectedRows.size,
         onApply: applyFilters,
-        onLimit: (nextLimit) => {
-          setLimit(nextLimit);
-          setPage(1);
-        },
+        onLimit: changeLimit,
         onOrder: (nextOrder) => {
           setOrderBy(nextOrder);
           setPage(1);

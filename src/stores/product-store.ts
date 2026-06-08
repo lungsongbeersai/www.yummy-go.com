@@ -19,6 +19,7 @@ import {
   type SizeOption,
   type StatusSort
 } from "@/services/product";
+import { deleteSize, saveSizeForStatus, type SaveSizeForStatusInput } from "@/services/size";
 import type { PageLimit } from "@/services/shared/types";
 import { errorMessage } from "@/stores/store-utils";
 import {
@@ -34,6 +35,7 @@ interface ProductState {
   rows: Product[];
   statusSorts: StatusSort[];
   sizesByStatus: SizeOption[];
+  sizesByStatusStatus: number | null;
   total: number;
   totalPages: number;
   search: string;
@@ -48,6 +50,8 @@ interface ProductState {
   load: (params?: FetchProductsParams) => Promise<Product[]>;
   loadStatusSorts: (lang?: string) => Promise<StatusSort[]>;
   loadSizesByStatus: (storeUuid: string, statusSort: number, lang?: string) => Promise<SizeOption[]>;
+  createSizeForStatus: (input: SaveSizeForStatusInput) => Promise<SizeOption>;
+  deleteSizeForStatus: (sizeUuid: string) => Promise<void>;
   save: (input: SaveProductInput) => Promise<Product>;
   remove: (prodUuid: string) => Promise<void>;
   updateDetailEnabled: (detailUuid: string, enabled: number) => Promise<void>;
@@ -61,10 +65,13 @@ interface ProductState {
   reset: () => void;
 }
 
+let sizesByStatusRequestId = 0;
+
 export const useProductStore = create<ProductState>((set, get) => ({
   rows: [],
   statusSorts: [],
   sizesByStatus: [],
+  sizesByStatusStatus: null,
   total: 0,
   totalPages: 0,
   search: "",
@@ -104,10 +111,20 @@ export const useProductStore = create<ProductState>((set, get) => ({
     return statusSorts;
   },
   loadSizesByStatus: async (storeUuid, statusSort, lang) => {
+    const requestedStatus = Number(statusSort);
+    const requestId = ++sizesByStatusRequestId;
+    set({ sizesByStatusStatus: null });
     const sizesByStatus = await getSizesByStatus(storeUuid, statusSort, lang);
-    set({ sizesByStatus });
+    if (requestId === sizesByStatusRequestId) {
+      set({ sizesByStatus, sizesByStatusStatus: requestedStatus });
+    }
     return sizesByStatus;
   },
+  createSizeForStatus: async (input) => {
+    const size = await saveSizeForStatus(input);
+    return size as SizeOption;
+  },
+  deleteSizeForStatus: (sizeUuid) => deleteSize(sizeUuid),
   save: async (input) => {
     set({ saving: true, error: null });
     try {
@@ -223,6 +240,7 @@ export const useProductStore = create<ProductState>((set, get) => ({
       rows: [],
       statusSorts: [],
       sizesByStatus: [],
+      sizesByStatusStatus: null,
       total: 0,
       totalPages: 0,
       search: "",

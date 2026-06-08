@@ -4,6 +4,7 @@ import { type CSSProperties, useEffect, useRef, useState } from "react";
 import { CalendarDays, CreditCard } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
+import type { UrlPaginationState } from "@/lib/url-pagination";
 import {
   MobilePaymentMethodsFilterSummary,
   PaymentMethodsExportSurface,
@@ -19,13 +20,13 @@ import { usePaymentMethodsReportWorkflow } from "./use-payment-methods-report-wo
 
 const SUMMARY_CARDS_ID = "payment-methods-summary-cards";
 
-export function PaymentMethodsReportPage() {
+export function PaymentMethodsReportPage({ initialPagination }: { initialPagination: UrlPaginationState }) {
   const { t } = useTranslation();
   const exportReportRef = useRef<HTMLDivElement>(null);
   const filterRef = useRef<HTMLDivElement>(null);
   const [filterHeight, setFilterHeight] = useState(0);
   const [summaryVisible, setSummaryVisible] = useState(false);
-  const report = usePaymentMethodsReportWorkflow(exportReportRef);
+  const report = usePaymentMethodsReportWorkflow(exportReportRef, initialPagination);
   const layoutStyle = {
     "--payment-method-filter-height": `${filterHeight}px`
   } as CSSProperties;

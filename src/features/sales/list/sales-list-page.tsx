@@ -22,9 +22,11 @@ import {
   type InvoicePrintItem,
   type InvoicePrintTopping
 } from "@/features/pos/print/invoice-print-window";
+import { useUrlPagination } from "@/hooks/use-url-pagination";
 import { dateTime, money } from "@/lib/format";
 import { toApiLanguage } from "@/lib/language";
-import { DEFAULT_PAGE_LIMIT, pageLimitNumber } from "@/lib/pagination";
+import { pageLimitNumber } from "@/lib/pagination";
+import type { UrlPaginationState } from "@/lib/url-pagination";
 import { cn } from "@/lib/utils";
 import type { CancelableBill, CancelableBillDetail, CancelableDateOption } from "@/services/cancel";
 import { getPrintInvoiceJob } from "@/services/pos";
@@ -39,7 +41,7 @@ import { useToastStore } from "@/stores/toast-store";
 type BillSource = CancelableBill | CancelableBillDetail | null | undefined;
 
 const INITIAL_DATE_SELECT = "today";
-const SALES_LIST_LIMIT_OPTIONS: number[] = [20, 50, 100, 200];
+const SALES_LIST_LIMIT_OPTIONS: PageLimit[] = [20, 50, 100, 200];
 const orderOptions: SortOrder[] = ["DESC", "ASC"];
 
 const invoiceKeys = ["order_invoice", "invoice_number", "invoice_no", "invoice", "bill_no", "order_no"];
@@ -461,7 +463,7 @@ function shouldOpenMobileDetail() {
   return window.matchMedia("(max-width: 767px)").matches;
 }
 
-export function SalesListPage() {
+export function SalesListPage({ initialPagination }: { initialPagination: UrlPaginationState }) {
   const { t } = useTranslation();
   const language = useAppStore((state) => state.language);
   const user = useAuthStore((state) => state.user);
@@ -484,9 +486,11 @@ export function SalesListPage() {
   const branchUuid = user?.branch_uuid ?? "";
 
   const [dateSelect, setDateSelect] = useState(INITIAL_DATE_SELECT);
-  const [limit, setLimit] = useState<PageLimit>(DEFAULT_PAGE_LIMIT);
   const [orderBy, setOrderBy] = useState<SortOrder>("DESC");
-  const [page, setPage] = useState(1);
+  const { changeLimit, goToPage, limit, page, resetPage } = useUrlPagination({
+    initialPagination,
+    limitOptions: SALES_LIST_LIMIT_OPTIONS
+  });
   const [selectedOrderUuid, setSelectedOrderUuid] = useState("");
   const [mobileDetailOpen, setMobileDetailOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
@@ -548,8 +552,8 @@ export function SalesListPage() {
   }, [load]);
 
   useEffect(() => {
-    if (!loading && page > safeTotalPages) setPage(safeTotalPages);
-  }, [loading, page, safeTotalPages]);
+    if (!loading && page > safeTotalPages) goToPage(safeTotalPages);
+  }, [goToPage, loading, page, safeTotalPages]);
 
   function resetSelection() {
     setMobileDetailOpen(false);
@@ -559,19 +563,18 @@ export function SalesListPage() {
 
   function updateDate(value: string) {
     setDateSelect(value);
-    setPage(1);
+    resetPage();
     resetSelection();
   }
 
   function updateLimit(value: string) {
-    setLimit(Number(value));
-    setPage(1);
+    changeLimit(Number(value));
     resetSelection();
   }
 
   function updateOrder(value: SortOrder) {
     setOrderBy(value);
-    setPage(1);
+    resetPage();
     resetSelection();
   }
 
@@ -603,7 +606,7 @@ export function SalesListPage() {
       resetSelection();
       await load("");
       const nextTotalPages = useCancelStore.getState().totalPages;
-      if (page > nextTotalPages) setPage(Math.max(1, nextTotalPages));
+      if (page > nextTotalPages) goToPage(Math.max(1, nextTotalPages));
     } catch (cancelError) {
       showToast({
         title: t("salesList.cancelFailed"),
@@ -717,8 +720,8 @@ export function SalesListPage() {
             pageStart={rowsRange.start}
             total={total}
             totalPages={safeTotalPages}
-            onBack={() => setPage((current) => Math.max(1, current - 1))}
-            onNext={() => setPage((current) => Math.min(safeTotalPages, current + 1))}
+            onBack={() => goToPage(page - 1)}
+            onNext={() => goToPage(Math.min(safeTotalPages, page + 1))}
           />
         </section>
 

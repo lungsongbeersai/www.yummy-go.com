@@ -1026,6 +1026,7 @@
   },
   "product": {
     "addDetail": "ເພີ່ມລາຍລະອຽດ",
+    "addSetProductOption": "ເພີ່ມ ສິນຄ້າ",
     "branchRequired": "ຕ້ອງເລືອກສາຂາກ່ອນ",
     "buyQty": "ຊື້",
     "choiceHints": {
@@ -1061,6 +1062,7 @@
     "menuStock": "ເມນູ ແລະ ສະຕັອກ",
     "newProduct": "ເພີ່ມສິນຄ້າ",
     "noProducts": "ບໍ່ມີສິນຄ້າ",
+    "noSetProductOptions": "ບໍ່ມີສິນຄ້າໃນຊຸດ",
     "notification": {
       "label": "ການແຈ້ງເຕືອນ",
       "off": "ປິດແຈ້ງເຕືອນ",
@@ -1090,6 +1092,11 @@
     "searchProducts": "ຄົ້ນຫາສິນຄ້າ",
     "searchToppings": "ຄົ້ນຫາທ້ອບປິ້ງ",
     "setPrice": "ລາຄາຊຸດ",
+    "searchSetProductOptions": "ຄົ້ນຫາສິນຄ້າໃນຊຸດ",
+    "setProductOptions": "ສິນຄ້າໃນຊຸດ",
+    "setProductOptionFormHint": "ໃສ່ຊື່ສິນຄ້າທີ່ຈະໃຊ້ເປັນລາຍການໃນຊຸດ.",
+    "setProductOptionHint": "ສ້າງລາຍການສິນຄ້າສໍາລັບຊຸດອາຫານ ແລ້ວລະບົບຈະເລືອກໃນແຖວນີ້ອັດຕະໂນມັດ.",
+    "setProductOptionSaved": "ເພີ່ມສິນຄ້າແລ້ວ",
     "imageMode": "ຮູບແບບຮູບ/ສີ",
     "startDate": "ວັນທີເລີ່ມ",
     "startTime": "ເວລາເລີ່ມ",

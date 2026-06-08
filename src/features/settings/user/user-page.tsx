@@ -26,7 +26,9 @@ import {
   SettingsTableScroll,
   SettingsToolbar
 } from "@/features/settings/shared/settings-shell";
+import { useUrlPagination } from "@/hooks/use-url-pagination";
 import { DEFAULT_PAGE_LIMIT, PAGE_LIMIT_OPTIONS } from "@/lib/pagination";
+import type { UrlPaginationState } from "@/lib/url-pagination";
 import { cn } from "@/lib/utils";
 import type { ApiEntity, PageLimit, SortOrder } from "@/services/shared/types";
 import type { FetchUsersParams, Role, SaveUserInput, User } from "@/services/user";
@@ -36,7 +38,6 @@ import { useReferenceStore } from "@/stores/reference-store";
 import { useToastStore } from "@/stores/toast-store";
 import { useUserStore } from "@/stores/user-store";
 
-const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT: PageLimit = DEFAULT_PAGE_LIMIT;
 const ORDER_OPTIONS: Array<{ labelKey: "asc" | "desc"; value: SortOrder }> = [
   { labelKey: "asc", value: "asc" },
@@ -147,7 +148,7 @@ function UserIdentity({
   );
 }
 
-export function UserSettingsPage() {
+export function UserSettingsPage({ initialPagination }: { initialPagination: UrlPaginationState }) {
   const { t } = useTranslation();
   const language = useAppStore((state) => state.language);
   const user = useAuthStore((state) => state.user);
@@ -171,8 +172,7 @@ export function UserSettingsPage() {
   const loadRoles = useReferenceStore((state) => state.loadRoles);
   const userProfileUrl = useReferenceStore((state) => state.userProfileUrl);
   const [roles, setRoles] = useState<Role[]>([]);
-  const [page, setPage] = useState(DEFAULT_PAGE);
-  const [limit, setLimit] = useState<PageLimit>(DEFAULT_LIMIT);
+  const { changeLimit, limit, page, resetPage, setPage } = useUrlPagination({ initialPagination });
   const [orderBy, setOrderBy] = useState<SortOrder>("asc");
   const [editing, setEditing] = useState<User | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -267,7 +267,7 @@ export function UserSettingsPage() {
 
   function applyFilters() {
     if (page === 1) void load();
-    else setPage(1);
+    else resetPage();
   }
 
   function toggleSelected(id: string, checked: boolean) {
@@ -497,10 +497,7 @@ export function UserSettingsPage() {
         orderOptions: ORDER_OPTIONS.map((option) => ({ label: t(`common.${option.labelKey}`), value: option.value })),
         selectedCount: selectedRows.size,
         onApply: applyFilters,
-        onLimit: (nextLimit) => {
-          setLimit(nextLimit);
-          setPage(1);
-        },
+        onLimit: changeLimit,
         onOrder: (nextOrder) => {
           setOrderBy(nextOrder);
           setPage(1);

@@ -4,11 +4,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useTranslation } from "react-i18next";
 import {
   Bell,
   Boxes,
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
   ChevronsUpDown,
@@ -25,11 +25,16 @@ import { LoadingState } from "@/components/common/loading-state";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
@@ -46,8 +51,10 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useUrlPagination } from "@/hooks/use-url-pagination";
 import { money } from "@/lib/format";
 import { PAGE_LIMIT_OPTIONS, pageLimitSize } from "@/lib/pagination";
+import { samePageLimit, type UrlPaginationState } from "@/lib/url-pagination";
 import { cn } from "@/lib/utils";
 import type { Category } from "@/services/category";
 import { getProductImageUrl, type Product, type ProductDetail, type StatusSort } from "@/services/product";
@@ -67,6 +74,7 @@ const ALL_CATEGORIES_VALUE = "__all_categories__";
 const EMPTY_CATEGORIES: Category[] = [];
 const HEX_COLOR = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
 const UUID_PATTERN = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+const MotionTableRow = motion.create(TableRow);
 
 function binaryFlag(value: unknown, fallback: "1" | "2" = "2") {
   return String(value ?? fallback) === "1" ? "1" : "2";
@@ -239,9 +247,10 @@ function DetailMetric({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function ProductPage() {
+export function ProductPage({ initialPagination }: { initialPagination: UrlPaginationState }) {
   const { t } = useTranslation();
   const router = useRouter();
+  const reduceMotion = useReducedMotion();
   const user = useAuthStore((state) => state.user);
   const storeUuid = authStoreUuid(user);
   const language = useAppStore((state) => state.language);
@@ -252,7 +261,7 @@ export function ProductPage() {
   const statusSorts = useProductStore((state) => state.statusSorts);
   const search = useProductStore((state) => state.search);
   const cateUuidFk = useProductStore((state) => state.cateUuidFk);
-  const pageLimit = useProductStore((state) => state.pageLimit);
+  const storePageLimit = useProductStore((state) => state.pageLimit);
   const loading = useProductStore((state) => state.loading);
   const setSearch = useProductStore((state) => state.setSearch);
   const setCateUuidFk = useProductStore((state) => state.setCateUuidFk);
@@ -271,8 +280,24 @@ export function ProductPage() {
   const [collapsedProducts, setCollapsedProducts] = useState<Set<string>>(() => new Set());
   const [pendingKeys, setPendingKeys] = useState<Set<ProductStatusKey>>(() => new Set());
   const [pendingBulkStockModes, setPendingBulkStockModes] = useState<Record<string, ProductStockModeValue>>({});
+  const [selectedRows, setSelectedRows] = useState<Set<string>>(() => new Set());
   const [statusSortFk, setStatusSortFk] = useState(DEFAULT_STATUS_SORT);
-  const [page, setPage] = useState(1);
+  const {
+    changeLimit,
+    goToPage,
+    limit: pageLimit,
+    page,
+    resetPage,
+  } = useUrlPagination({ initialPagination });
+  const detailMotion = useMemo(
+    () => ({
+      initial: reduceMotion ? { opacity: 1, y: 0, scale: 1 } : { opacity: 0, y: -4, scale: 0.985 },
+      animate: { opacity: 1, y: 0, scale: 1 },
+      exit: reduceMotion ? { opacity: 1, y: 0, scale: 1 } : { opacity: 0, y: -4, scale: 0.985 },
+      transition: { duration: reduceMotion ? 0 : 0.14, ease: "easeOut" as const }
+    }),
+    [reduceMotion]
+  );
 
   const statusTabs = useMemo(() => {
     const fallbackTabs = [
@@ -308,6 +333,11 @@ export function ProductPage() {
     () => filteredRows.filter((row) => productDetails(row).length > 0).map((row) => row.prod_uuid),
     [filteredRows]
   );
+  const visibleProductIds = useMemo(
+    () => filteredRows.map((row) => row.prod_uuid).filter(Boolean),
+    [filteredRows]
+  );
+  const allSelected = visibleProductIds.length > 0 && visibleProductIds.every((id) => selectedRows.has(id));
   const allDetailsExpanded = detailProductIds.length > 0 && detailProductIds.every((id) => !collapsedProducts.has(id));
   const canGoBack = page > 1 && !loading;
   const canGoNext = page < Math.max(1, totalPages) && !loading;
@@ -356,6 +386,10 @@ export function ProductPage() {
   }, [language, loadCategories, showToast, storeUuid, t]);
 
   useEffect(() => {
+    if (!samePageLimit(storePageLimit, pageLimit)) setPageLimit(pageLimit);
+  }, [pageLimit, setPageLimit, storePageLimit]);
+
+  useEffect(() => {
     void load();
     // Search is applied by Enter/Search so typing does not refetch every character.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -365,33 +399,41 @@ export function ProductPage() {
     const visible = new Set(detailProductIds);
     setCollapsedProducts((current) => {
       const next = new Set([...current].filter((id) => visible.has(id)));
-      return next;
+      return next.size === current.size ? current : next;
     });
   }, [detailProductIds]);
 
+  useEffect(() => {
+    const visible = new Set(visibleProductIds);
+    setSelectedRows((current) => {
+      const next = new Set([...current].filter((id) => visible.has(id)));
+      return next.size === current.size ? current : next;
+    });
+  }, [visibleProductIds]);
+
   function applyFilters() {
     if (page === 1) void load();
-    else setPage(1);
+    else resetPage();
   }
 
   function changeStatusSort(value: string) {
     if (value === statusSortFk) return;
     setStatusSortFk(value);
-    setPage(1);
+    resetPage();
   }
 
   function changeCategory(value: string) {
     const nextCategory = value === ALL_CATEGORIES_VALUE ? "" : value;
     if (nextCategory === cateUuidFk) return;
     setCateUuidFk(nextCategory);
-    setPage(1);
+    resetPage();
   }
 
   function changePageLimit(value: string) {
     const nextLimit = value === "All" ? "All" : Number(value);
     if ((nextLimit !== "All" && !Number.isFinite(nextLimit)) || nextLimit === pageLimit) return;
     setPageLimit(nextLimit);
-    setPage(1);
+    changeLimit(nextLimit);
   }
 
   function toggleProductDetails(prodUuid: string) {
@@ -412,12 +454,42 @@ export function ProductPage() {
     });
   }
 
+  function toggleSelected(id: string, checked: boolean) {
+    if (!id) return;
+    setSelectedRows((current) => {
+      const next = new Set(current);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+
+  function toggleAllSelected(checked: boolean) {
+    setSelectedRows((current) => {
+      const next = new Set(current);
+      visibleProductIds.forEach((id) => {
+        if (checked) next.add(id);
+        else next.delete(id);
+      });
+      return next;
+    });
+  }
+
+  function clearSelection() {
+    setSelectedRows(new Set());
+  }
+
   async function remove(row: Product) {
     try {
       await removeProduct(row.prod_uuid);
       showToast({ title: t("product.deleted"), tone: "success" });
       setDeleteTarget(null);
-      if (rows.length === 1 && page > 1) setPage((current) => current - 1);
+      setSelectedRows((current) => {
+        const next = new Set(current);
+        next.delete(row.prod_uuid);
+        return next;
+      });
+      if (rows.length === 1 && page > 1) goToPage(page - 1);
     } catch (error) {
       showToast({
         title: t("settings.deleteFailed"),
@@ -510,29 +582,6 @@ export function ProductPage() {
     return mode === 1 ? "bg-primary/10 text-primary" : "bg-secondary text-secondary-foreground";
   }
 
-  function renderBulkStockButton(row: ProductTableRow, mode: ProductStockModeValue, activeMode: ProductStockModeValue | null) {
-    const pendingKey: ProductStatusKey = `stock-all:${row.prod_uuid}`;
-    const pending = pendingKeys.has(pendingKey);
-    const pendingMode = pendingBulkStockModes[row.prod_uuid];
-    const isActive = activeMode === mode;
-    const isPendingTarget = pending && pendingMode === mode;
-
-    return (
-      <Button
-        type="button"
-        size="sm"
-        variant={isActive || isPendingTarget ? "default" : "ghost"}
-        className={cn("h-8 min-w-0 justify-center px-3 text-xs shadow-none", !isActive && !isPendingTarget ? "text-muted-foreground" : "")}
-        disabled={pending}
-        aria-pressed={isActive}
-        onClick={() => updateAllDetailStockModes(row, mode)}
-      >
-        {isPendingTarget ? <Spinner data-icon="inline-start" /> : null}
-        <span className="truncate">{bulkStockModeLabel(mode)}</span>
-      </Button>
-    );
-  }
-
   function stockSummaryLabel(summary: ProductStockSummary) {
     if (summary === "deduct") return t("product.stockBulk.allDeduct");
     if (summary === "noDeduct") return t("product.stockBulk.allNoDeduct");
@@ -545,7 +594,65 @@ export function ProductPage() {
     return "bg-muted text-muted-foreground";
   }
 
+  function renderNotificationStatus(row: Product) {
+    const notificationKey: ProductStatusKey = `notification:${row.prod_uuid}`;
+    const enabled = binaryFlag(row.prod_notification, "2") === "1";
+    const pending = pendingKeys.has(notificationKey);
+
+    return (
+      <div className="flex items-center justify-center gap-2">
+        {pending ? <Spinner /> : <Bell className="text-muted-foreground" />}
+        <Badge className={enabled ? "bg-primary/10 text-primary" : "bg-secondary text-secondary-foreground"}>
+          {enabled ? t("product.notification.on") : t("product.notification.off")}
+        </Badge>
+      </div>
+    );
+  }
+
+  function renderStockSummaryStatus(row: ProductTableRow, compact = false) {
+    const details = productDetails(row);
+    const pendingKey: ProductStatusKey = `stock-all:${row.prod_uuid}`;
+    const pending = pendingKeys.has(pendingKey);
+    const pendingMode = pendingBulkStockModes[row.prod_uuid];
+
+    if (!details.length) {
+      return (
+        <div className={cn("min-w-0", compact && "flex flex-col gap-1")}>
+          <p className="font-mono text-sm font-bold">-</p>
+          <Badge className="bg-muted text-muted-foreground">{t("common.noData")}</Badge>
+        </div>
+      );
+    }
+
+    const summary = detailStockSummary(details);
+    const currentModeClass = pendingMode ? bulkStockModeClass(pendingMode) : stockSummaryClass(summary);
+
+    return (
+      <div className={cn("min-w-0", compact && "flex flex-col gap-1")}>
+        <p className="font-mono text-sm font-bold">{totalStockQty(row)}</p>
+        <div className="mt-1 flex flex-wrap items-center gap-2">
+          <Badge className={currentModeClass}>
+            {pending ? <Spinner data-icon="inline-start" /> : null}
+            {pendingMode ? bulkStockModeLabel(pendingMode) : stockSummaryLabel(summary)}
+          </Badge>
+          <Badge className="bg-primary/10 text-primary">
+            {details.length} {t("product.sections.details")}
+          </Badge>
+        </div>
+      </div>
+    );
+  }
+
   function renderActions(row: ProductTableRow) {
+    const details = productDetails(row);
+    const stockSummary = detailStockSummary(details);
+    const activeStockMode = bulkStockActiveMode(stockSummary);
+    const stockPendingKey: ProductStatusKey = `stock-all:${row.prod_uuid}`;
+    const stockPending = pendingKeys.has(stockPendingKey);
+    const notificationKey: ProductStatusKey = `notification:${row.prod_uuid}`;
+    const notificationPending = pendingKeys.has(notificationKey);
+    const notificationOn = binaryFlag(row.prod_notification, "2") === "1";
+
     return (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -553,12 +660,44 @@ export function ProductPage() {
             <MoreHorizontal />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-44">
+        <DropdownMenuContent align="end" className="w-64">
           <DropdownMenuGroup>
             <DropdownMenuItem onSelect={() => router.push(`/product/form?prod_uuid=${encodeURIComponent(row.prod_uuid)}`)}>
               <Pencil />
               {t("actions.edit")}
             </DropdownMenuItem>
+          </DropdownMenuGroup>
+          <DropdownMenuSeparator />
+          <DropdownMenuGroup>
+            <DropdownMenuLabel className="text-xs text-muted-foreground">{t("product.notification.label")}</DropdownMenuLabel>
+            <DropdownMenuCheckboxItem
+              checked={notificationOn}
+              disabled={notificationPending}
+              onCheckedChange={(checked) => updateNotification(row, checked === true)}
+            >
+              {notificationPending ? <Spinner /> : <Bell />}
+              {notificationOn ? t("product.notification.on") : t("product.notification.off")}
+            </DropdownMenuCheckboxItem>
+          </DropdownMenuGroup>
+          <DropdownMenuSeparator />
+          <DropdownMenuGroup>
+            <DropdownMenuLabel className="flex items-center gap-2 text-xs text-muted-foreground">
+              {stockPending ? <Spinner /> : <Boxes />}
+              {t("product.stockBulk.label")}
+            </DropdownMenuLabel>
+            <DropdownMenuRadioGroup
+              value={activeStockMode ? String(activeStockMode) : ""}
+              onValueChange={(value) => {
+                if (value === "1" || value === "2") updateAllDetailStockModes(row, Number(value) as ProductStockModeValue);
+              }}
+            >
+              <DropdownMenuRadioItem value="1" disabled={!details.length || stockPending}>
+                {t("product.stockMode.deduct")}
+              </DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="2" disabled={!details.length || stockPending}>
+                {t("product.stockMode.noDeduct")}
+              </DropdownMenuRadioItem>
+            </DropdownMenuRadioGroup>
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
@@ -610,50 +749,6 @@ export function ProductPage() {
     );
   }
 
-  function renderBulkStockControl(row: ProductTableRow, compact = false) {
-    const details = productDetails(row);
-    const summary = detailStockSummary(details);
-    const pendingKey: ProductStatusKey = `stock-all:${row.prod_uuid}`;
-    const pending = pendingKeys.has(pendingKey);
-    const activeMode = bulkStockActiveMode(summary);
-    const pendingMode = pendingBulkStockModes[row.prod_uuid];
-    const currentModeClass = activeMode ? bulkStockModeClass(activeMode) : stockSummaryClass(summary);
-
-    return (
-      <div
-        className={cn(
-          "flex min-w-0 gap-3 rounded-md border px-3 py-2 transition-colors",
-          compact ? "flex-col" : "items-center justify-between",
-          pending ? "border-primary/50 bg-primary/10 ring-1 ring-primary/20" : "border-border bg-background/80"
-        )}
-      >
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <p className="text-xs font-black text-foreground">{t("product.stockBulk.label")}</p>
-            {pending ? (
-              <span className="inline-flex items-center gap-1 text-xs font-semibold text-primary">
-                <Spinner />
-                {t("common.processing")}
-              </span>
-            ) : null}
-          </div>
-          <div className="mt-1 flex flex-wrap items-center gap-2">
-            <Badge className={currentModeClass}>
-              {pendingMode ? bulkStockModeLabel(pendingMode) : stockSummaryLabel(summary)}
-            </Badge>
-            <span className="text-xs text-muted-foreground">
-              {details.length} {t("product.sections.details")}
-            </span>
-          </div>
-        </div>
-        <div className={cn("grid min-w-0 grid-cols-2 gap-1 rounded-md border border-border bg-muted/20 p-1", compact ? "w-full" : "w-[24rem] shrink-0")}>
-          {renderBulkStockButton(row, 1, activeMode)}
-          {renderBulkStockButton(row, 2, activeMode)}
-        </div>
-      </div>
-    );
-  }
-
   function renderEnabledSwitch(detail: ProductDetail) {
     const detailUuid = productDetailUuid(detail);
     const stockKey: ProductStatusKey = `stock:${detailUuid}`;
@@ -671,70 +766,103 @@ export function ProductPage() {
     );
   }
 
-  function renderDetailRows(row: ProductTableRow) {
-    return productDetails(row).map((detail, index) => {
-      const detailUuid = productDetailUuid(detail) || `${row.prod_uuid}-${index}`;
-      const isPromotion = String(statusSortFk) === "3";
-      const isFoodSet = String(statusSortFk) === "2";
-      const qty = detailStockQty(detail);
+  function renderDetailPanel(row: ProductTableRow) {
+    const details = productDetails(row);
+    const isPromotion = String(statusSortFk) === "3";
+    const isFoodSet = String(statusSortFk) === "2";
 
-      return (
-        <TableRow key={detailUuid} className="border-l-4 border-l-primary/50 bg-muted/20 hover:bg-muted/35">
-          <TableCell colSpan={7} className="px-4 py-2.5">
-            <div className="grid min-w-[940px] grid-cols-[minmax(10rem,1.2fr)_minmax(10rem,0.9fr)_minmax(14rem,1.2fr)_minmax(7rem,0.7fr)_minmax(13rem,1fr)_auto] items-center gap-4">
-              <div className="flex min-w-0 items-center gap-2">
-                <ChevronRight className="shrink-0 text-primary" />
+    if (!details.length) return null;
+
+    return (
+      <MotionTableRow
+        key={`${row.prod_uuid}-details`}
+        initial={detailMotion.initial}
+        animate={detailMotion.animate}
+        exit={{ ...detailMotion.exit, pointerEvents: "none" }}
+        transition={detailMotion.transition}
+        className="origin-top transform-gpu bg-muted/15 will-change-transform hover:bg-muted/15"
+      >
+        <TableCell colSpan={8} className="px-4 py-3">
+          <div>
+            <div className="overflow-hidden rounded-lg border border-border bg-background shadow-sm">
+              <div className="border-b border-border bg-muted/20 p-3">
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-bold">{detailLabel(detail, index, language)}</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    {isFoodSet ? t("pos.product") : t("fields.size")}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Boxes className="text-primary" />
+                    <p className="text-sm font-black">{t("product.sections.details")}</p>
+                    <Badge>{details.length}</Badge>
+                  </div>
+                  <p className="mt-1 truncate text-xs text-muted-foreground">
+                    {productName(row, language)}
                   </p>
                 </div>
               </div>
-              <div className="min-w-0">
-                {isFoodSet ? renderStockSelect(detail, false, row.prod_uuid) : renderStockStatus(detail, true)}
-              </div>
-              <div className="grid min-w-0 grid-cols-2 gap-3">
-                <DetailMetric label={t("fields.bprice")} value={money(detail.pro_detail_bprice)} />
-                <DetailMetric
-                  label={isFoodSet ? t("product.setPrice") : t("fields.sprice")}
-                  value={isFoodSet ? money(row.prod_set_price) : money(detail.pro_detail_sprice)}
-                />
-              </div>
-              <DetailMetric label={t("fields.qtyStock")} value={String(qty)} />
-              <div className="min-w-0">
-                {isPromotion ? (
-                  <div className="min-w-0 text-xs text-muted-foreground">
-                    <p className="truncate">
-                      {t("product.buyQty")}: {String(detail.pro_detail_cus_qtyBuy ?? 0)} / {t("product.freeQty")}: {String(detail.pro_detail_cus_qtyFree ?? 0)}
-                    </p>
-                    <p className="truncate">
-                      {shortDate(detail.pro_detail_sDate)} - {shortDate(detail.pro_detail_eDate)}
-                    </p>
-                    <p className="truncate">
-                      {shortTime(detail.pro_detail_sTime)} - {shortTime(detail.pro_detail_eTime)}
-                    </p>
-                  </div>
-                ) : null}
-              </div>
-              <div className="flex items-center justify-end gap-2">
-                <span className="text-xs text-muted-foreground">{t("product.detailEnabledStatus")}</span>
-                {renderEnabledSwitch(detail)}
+              <div className="grid gap-2 p-3 lg:grid-cols-2 xl:grid-cols-3">
+                {details.map((detail, index) => {
+                  const detailUuid = productDetailUuid(detail) || `${row.prod_uuid}-${index}`;
+                  return (
+                    <div key={detailUuid} className="rounded-md border border-border bg-card p-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-black">{detailLabel(detail, index, language)}</p>
+                          <p className="mt-0.5 text-xs text-muted-foreground">
+                            {isFoodSet ? t("pos.product") : t("fields.size")}
+                          </p>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-2">
+                          <span className="text-xs text-muted-foreground">{t("product.detailEnabledStatus")}</span>
+                          {renderEnabledSwitch(detail)}
+                        </div>
+                      </div>
+                      <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                        <DetailMetric label={t("fields.bprice")} value={money(detail.pro_detail_bprice)} />
+                        <DetailMetric
+                          label={isFoodSet ? t("product.setPrice") : t("fields.sprice")}
+                          value={isFoodSet ? money(row.prod_set_price) : money(detail.pro_detail_sprice)}
+                        />
+                        <DetailMetric label={t("fields.qtyStock")} value={String(detailStockQty(detail))} />
+                      </div>
+                      <div className="mt-3">
+                        {isFoodSet ? renderStockSelect(detail, true, row.prod_uuid) : renderStockStatus(detail, true)}
+                      </div>
+                      {isPromotion ? (
+                        <div className="mt-3 rounded-md bg-muted/30 p-2 text-xs text-muted-foreground">
+                          <p className="truncate">
+                            {t("product.buyQty")}: {String(detail.pro_detail_cus_qtyBuy ?? 0)} / {t("product.freeQty")}: {String(detail.pro_detail_cus_qtyFree ?? 0)}
+                          </p>
+                          <p className="truncate">
+                            {shortDate(detail.pro_detail_sDate)} - {shortDate(detail.pro_detail_eDate)}
+                          </p>
+                          <p className="truncate">
+                            {shortTime(detail.pro_detail_sTime)} - {shortTime(detail.pro_detail_eTime)}
+                          </p>
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })}
               </div>
             </div>
-          </TableCell>
-        </TableRow>
-      );
-    });
+          </div>
+        </TableCell>
+      </MotionTableRow>
+    );
   }
 
   function renderDesktopTable() {
     return (
       <div className="relative hidden min-h-0 flex-1 overflow-auto md:block">
-        <Table className="min-w-[1120px]">
+        <Table className="min-w-[1080px]">
           <TableHeader className="sticky top-0 z-40 bg-background shadow-sm [&_th]:sticky [&_th]:top-0 [&_th]:z-40 [&_th]:border-b [&_th]:border-border [&_th]:bg-background [&_th]:shadow-sm">
             <TableRow>
-              <TableHead className="w-24 text-center">
+              <TableHead className="w-10 px-2">
+                <Checkbox
+                  aria-label={t("common.selectAll")}
+                  checked={allSelected}
+                  onChange={(event) => toggleAllSelected(event.target.checked)}
+                />
+              </TableHead>
+              <TableHead className="w-20 text-center">
                 <Button
                   type="button"
                   size="iconSm"
@@ -760,12 +888,24 @@ export function ProductPage() {
               const details = productDetails(row);
               const hasDetails = details.length > 0;
               const expanded = hasDetails && !collapsedProducts.has(row.prod_uuid);
-              const notificationKey: ProductStatusKey = `notification:${row.prod_uuid}`;
-              const notificationOn = binaryFlag(row.prod_notification, "2") === "1";
-              const totalStock = hasDetails ? totalStockQty(row) : 0;
+              const selected = selectedRows.has(row.prod_uuid);
               const orderPoint = productOrderPoint(row);
               const rowsToRender = [
-                <TableRow key={row.prod_uuid} className="bg-card [&>td]:py-2.5" data-state={expanded ? "selected" : undefined}>
+                <TableRow
+                  key={row.prod_uuid}
+                  className={cn(
+                    "bg-card data-[state=selected]:bg-primary/5 [&>td]:py-3",
+                    expanded && "border-l-4 border-l-primary/50"
+                  )}
+                  data-state={selected ? "selected" : undefined}
+                >
+                  <TableCell className="w-10 px-2">
+                    <Checkbox
+                      aria-label={t("common.selectRow", { name: productName(row, language) })}
+                      checked={selected}
+                      onChange={(event) => toggleSelected(row.prod_uuid, event.target.checked)}
+                    />
+                  </TableCell>
                   <TableCell className="text-center">
                     <div className="flex items-center justify-center gap-1">
                       <Button
@@ -777,7 +917,16 @@ export function ProductPage() {
                         disabled={!hasDetails}
                         onClick={() => toggleProductDetails(row.prod_uuid)}
                       >
-                        {hasDetails ? expanded ? <ChevronDown /> : <ChevronRight /> : <Package />}
+                        {hasDetails ? (
+                          <ChevronRight
+                            className={cn(
+                              "transition-transform duration-150 ease-out motion-reduce:transition-none",
+                              expanded && "rotate-90"
+                            )}
+                          />
+                        ) : (
+                          <Package />
+                        )}
                       </Button>
                       <span className="font-mono text-xs font-black text-muted-foreground">{row.row_number}</span>
                     </div>
@@ -805,42 +954,25 @@ export function ProductPage() {
                   </TableCell>
                   <TableCell>
                     <div className="min-w-0">
-                      <p className="font-mono text-sm font-bold">{hasDetails ? totalStock : "-"}</p>
+                      {renderStockSummaryStatus(row)}
                       <div className="mt-1 flex flex-wrap items-center gap-2">
-                        {hasDetails ? (
-                          <Badge className="bg-primary/10 text-primary">
-                            {details.length} {t("product.sections.details")}
-                          </Badge>
-                        ) : null}
                         {orderPoint > 0 ? <Badge>{t("product.orderPoint")}: {orderPoint}</Badge> : null}
                       </div>
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div className="flex items-center justify-center gap-2">
-                      <Bell className="text-muted-foreground" />
-                      <Switch
-                        checked={notificationOn}
-                        disabled={pendingKeys.has(notificationKey)}
-                        size="sm"
-                        aria-label={t("product.notification.label")}
-                        onCheckedChange={(nextChecked) => updateNotification(row, nextChecked)}
-                      />
-                    </div>
+                    {renderNotificationStatus(row)}
                   </TableCell>
                   <TableCell className="text-right">{renderActions(row)}</TableCell>
                 </TableRow>
               ];
 
-              if (expanded && hasDetails) {
+              if (hasDetails) {
                 rowsToRender.push(
-                  <TableRow key={`${row.prod_uuid}-stock-bulk`} className="border-l-4 border-l-primary/50 bg-primary/5 hover:bg-primary/10">
-                    <TableCell colSpan={7} className="px-4 py-3">
-                      {renderBulkStockControl(row)}
-                    </TableCell>
-                  </TableRow>
+                  <AnimatePresence key={`${row.prod_uuid}-details-presence`} initial={false}>
+                    {expanded ? renderDetailPanel(row) : null}
+                  </AnimatePresence>
                 );
-                rowsToRender.push(...renderDetailRows(row));
               }
               return rowsToRender;
             })}
@@ -851,17 +983,25 @@ export function ProductPage() {
   }
 
   function renderMobileProduct(row: ProductTableRow) {
-    const notificationKey: ProductStatusKey = `notification:${row.prod_uuid}`;
-    const notificationOn = binaryFlag(row.prod_notification, "2") === "1";
     const details = productDetails(row);
     const expanded = details.length > 0 && !collapsedProducts.has(row.prod_uuid);
     const isFoodSet = String(statusSortFk) === "2";
-    const totalStock = details.length ? totalStockQty(row) : 0;
     const orderPoint = productOrderPoint(row);
+    const selected = selectedRows.has(row.prod_uuid);
 
     return (
-      <div key={row.prod_uuid} className="overflow-hidden rounded-lg border border-border bg-card p-3 shadow-sm">
+      <div
+        key={row.prod_uuid}
+        className="overflow-hidden rounded-lg border border-border bg-card p-3 shadow-sm data-[state=selected]:border-primary/60 data-[state=selected]:bg-primary/5"
+        data-state={selected ? "selected" : undefined}
+      >
         <div className="flex min-w-0 items-start gap-3">
+          <Checkbox
+            aria-label={t("common.selectRow", { name: productName(row, language) })}
+            checked={selected}
+            className="mt-1"
+            onChange={(event) => toggleSelected(row.prod_uuid, event.target.checked)}
+          />
           <ProductMedia row={row} className="size-16" />
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 items-start justify-between gap-2">
@@ -869,7 +1009,10 @@ export function ProductPage() {
                 <p className="truncate font-black">{productName(row, language)}</p>
                 <p className="truncate text-xs text-muted-foreground">{row.prod_code || "-"}</p>
               </div>
-              <Badge className="shrink-0">{row.row_number}</Badge>
+              <div className="flex shrink-0 items-center gap-1">
+                <Badge>{row.row_number}</Badge>
+                {renderActions(row)}
+              </div>
             </div>
           </div>
         </div>
@@ -886,18 +1029,12 @@ export function ProductPage() {
           </div>
           <div className="min-w-0">
             <p className="text-muted-foreground">{t("fields.qtyStock")}</p>
-            <p className="mt-0.5 font-mono font-semibold">{details.length ? totalStock : "-"}</p>
+            <div className="mt-0.5">{renderStockSummaryStatus(row, true)}</div>
             {orderPoint > 0 ? <p className="mt-0.5 text-muted-foreground">{t("product.orderPoint")}: {orderPoint}</p> : null}
           </div>
-          <div className="flex items-center justify-between gap-2">
+          <div className="flex flex-col gap-1">
             <span className="text-muted-foreground">{t("product.notification.label")}</span>
-            <Switch
-              checked={notificationOn}
-              disabled={pendingKeys.has(notificationKey)}
-              size="sm"
-              aria-label={t("product.notification.label")}
-              onCheckedChange={(nextChecked) => updateNotification(row, nextChecked)}
-            />
+            <div className="flex justify-start">{renderNotificationStatus(row)}</div>
           </div>
         </div>
 
@@ -915,66 +1052,69 @@ export function ProductPage() {
               <Boxes data-icon="inline-start" />
               {t("product.sections.details")} ({details.length})
             </span>
-            {expanded ? <ChevronDown data-icon="inline-end" /> : <ChevronRight data-icon="inline-end" />}
+            <ChevronRight
+              data-icon="inline-end"
+              className={cn(
+                "transition-transform duration-150 ease-out motion-reduce:transition-none",
+                expanded && "rotate-90"
+              )}
+            />
           </Button>
 
-          {expanded && details.length ? (
-            <div className="flex flex-col gap-2">
-              <div className="rounded-md border border-border bg-background/70 p-3">
-                {renderBulkStockControl(row, true)}
-              </div>
-              {details.map((detail, index) => (
-                <div key={productDetailUuid(detail) || String(index)} className="rounded-md border border-border bg-muted/25 p-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-bold">{detailLabel(detail, index, language)}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {isFoodSet ? t("pos.product") : t("fields.size")}
-                      </p>
+          <AnimatePresence initial={false}>
+            {expanded ? (
+              <motion.div
+                key={`${row.prod_uuid}-mobile-details`}
+                initial={detailMotion.initial}
+                animate={detailMotion.animate}
+                exit={{ ...detailMotion.exit, pointerEvents: "none" }}
+                transition={detailMotion.transition}
+                className="origin-top transform-gpu will-change-transform"
+              >
+                <div className="flex flex-col gap-2">
+                  {details.map((detail, index) => (
+                    <div key={productDetailUuid(detail) || String(index)} className="rounded-md border border-border bg-muted/25 p-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-bold">{detailLabel(detail, index, language)}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {isFoodSet ? t("pos.product") : t("fields.size")}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground">{t("product.detailEnabledStatus")}</span>
+                          {renderEnabledSwitch(detail)}
+                        </div>
+                      </div>
+                      <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                        <DetailMetric label={t("fields.bprice")} value={money(detail.pro_detail_bprice)} />
+                        <DetailMetric label={isFoodSet ? t("product.setPrice") : t("fields.sprice")} value={isFoodSet ? money(row.prod_set_price) : money(detail.pro_detail_sprice)} />
+                        <DetailMetric label={t("fields.qtyStock")} value={String(detailStockQty(detail))} />
+                        <div className="sm:col-span-3">
+                          {isFoodSet
+                            ? renderStockSelect(detail, true, row.prod_uuid)
+                            : renderStockStatus(detail, true)}
+                        </div>
+                      </div>
+                      {String(statusSortFk) === "3" ? (
+                        <div className="mt-3 rounded-md bg-background/70 p-2 text-xs text-muted-foreground">
+                          <p>
+                            {t("product.buyQty")}: {String(detail.pro_detail_cus_qtyBuy ?? 0)} / {t("product.freeQty")}: {String(detail.pro_detail_cus_qtyFree ?? 0)}
+                          </p>
+                          <p>
+                            {shortDate(detail.pro_detail_sDate)} - {shortDate(detail.pro_detail_eDate)}
+                          </p>
+                          <p>
+                            {shortTime(detail.pro_detail_sTime)} - {shortTime(detail.pro_detail_eTime)}
+                          </p>
+                        </div>
+                      ) : null}
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground">{t("product.detailEnabledStatus")}</span>
-                      {renderEnabledSwitch(detail)}
-                    </div>
-                  </div>
-                  <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                    <DetailMetric label={t("fields.bprice")} value={money(detail.pro_detail_bprice)} />
-                    <DetailMetric label={isFoodSet ? t("product.setPrice") : t("fields.sprice")} value={isFoodSet ? money(row.prod_set_price) : money(detail.pro_detail_sprice)} />
-                    <DetailMetric label={t("fields.qtyStock")} value={String(detailStockQty(detail))} />
-                    <div className="sm:col-span-3">
-                      {isFoodSet
-                        ? renderStockSelect(detail, true, row.prod_uuid)
-                        : renderStockStatus(detail, true)}
-                    </div>
-                  </div>
-                  {String(statusSortFk) === "3" ? (
-                    <div className="mt-3 rounded-md bg-background/70 p-2 text-xs text-muted-foreground">
-                      <p>
-                        {t("product.buyQty")}: {String(detail.pro_detail_cus_qtyBuy ?? 0)} / {t("product.freeQty")}: {String(detail.pro_detail_cus_qtyFree ?? 0)}
-                      </p>
-                      <p>
-                        {shortDate(detail.pro_detail_sDate)} - {shortDate(detail.pro_detail_eDate)}
-                      </p>
-                      <p>
-                        {shortTime(detail.pro_detail_sTime)} - {shortTime(detail.pro_detail_eTime)}
-                      </p>
-                    </div>
-                  ) : null}
+                  ))}
                 </div>
-              ))}
-            </div>
-          ) : null}
-        </div>
-
-        <div className="mt-3 grid grid-cols-2 gap-2">
-          <Button type="button" size="sm" variant="outline" onClick={() => router.push(`/product/form?prod_uuid=${encodeURIComponent(row.prod_uuid)}`)}>
-            <Pencil data-icon="inline-start" />
-            {t("actions.edit")}
-          </Button>
-          <Button type="button" size="sm" variant="danger" onClick={() => setDeleteTarget(row)}>
-            <Trash2 data-icon="inline-start" />
-            {t("actions.delete")}
-          </Button>
+              </motion.div>
+            ) : null}
+          </AnimatePresence>
         </div>
       </div>
     );
@@ -1109,6 +1249,29 @@ export function ProductPage() {
             </div>
           ) : filteredRows.length ? (
             <>
+              {selectedRows.size ? (
+                <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border bg-primary/5 px-4 py-2 text-sm">
+                  <Badge className="bg-primary/10 text-primary">
+                    {t("common.selectedCount", { count: selectedRows.size })}
+                  </Badge>
+                  <Button type="button" size="xs" variant="ghost" onClick={clearSelection}>
+                    {t("actions.clear")}
+                  </Button>
+                </div>
+              ) : null}
+              <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-3 py-2 md:hidden">
+                <label className="flex min-w-0 items-center gap-2 text-sm font-semibold">
+                  <Checkbox
+                    aria-label={t("common.selectAll")}
+                    checked={allSelected}
+                    onChange={(event) => toggleAllSelected(event.target.checked)}
+                  />
+                  <span className="truncate">{t("common.selectAll")}</span>
+                </label>
+                <span className="shrink-0 text-xs text-muted-foreground">
+                  {t("common.showingRange", { start: pageStart, end: pageEnd, total: total || rows.length })}
+                </span>
+              </div>
               {renderDesktopTable()}
               <div className="min-h-0 flex-1 overflow-y-auto p-3 md:hidden">
                 <div className="flex flex-col gap-2">
@@ -1118,14 +1281,14 @@ export function ProductPage() {
               <div className="flex shrink-0 flex-col gap-2 border-t border-border px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
                 <span>{t("common.showingRange", { start: pageStart, end: pageEnd, total: total || rows.length })}</span>
                 <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:flex">
-                  <Button className="min-w-0" disabled={!canGoBack} size="xs" type="button" variant="outline" onClick={() => setPage((current) => Math.max(1, current - 1))}>
+                  <Button className="min-w-0" disabled={!canGoBack} size="xs" type="button" variant="outline" onClick={() => goToPage(page - 1)}>
                     <ChevronLeft data-icon="inline-start" />
                     {t("actions.back")}
                   </Button>
                   <Badge className="h-7 px-2 text-xs">
                     {t("common.page", { current: page, total: Math.max(1, totalPages) })}
                   </Badge>
-                  <Button className="min-w-0" disabled={!canGoNext} size="xs" type="button" variant="outline" onClick={() => setPage((current) => Math.min(Math.max(1, totalPages), current + 1))}>
+                  <Button className="min-w-0" disabled={!canGoNext} size="xs" type="button" variant="outline" onClick={() => goToPage(Math.min(Math.max(1, totalPages), page + 1))}>
                     {t("common.nextPage")}
                     <ChevronRight data-icon="inline-end" />
                   </Button>

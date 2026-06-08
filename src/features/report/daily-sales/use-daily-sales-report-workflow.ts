@@ -8,7 +8,9 @@ import {
   type RefObject,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { DEFAULT_PAGE_LIMIT, pageLimitSize } from "@/lib/pagination";
+import { useUrlPagination } from "@/hooks/use-url-pagination";
+import { pageLimitSize } from "@/lib/pagination";
+import type { UrlPaginationState } from "@/lib/url-pagination";
 import { getDailySalesReport } from "@/services/report";
 import type { ApiEntity } from "@/services/shared/types";
 import { useAppStore } from "@/stores/app-store";
@@ -57,6 +59,7 @@ import {
 
 export function useDailySalesReportWorkflow(
   exportReportRef: RefObject<HTMLDivElement | null>,
+  initialPagination: UrlPaginationState,
 ) {
   const { t } = useTranslation();
   const user = useAuthStore((state) => state.user);
@@ -89,7 +92,7 @@ export function useDailySalesReportWorkflow(
     branchUuid: user?.branch_uuid ?? "",
     dateFrom: today,
     dateTo: today,
-    limit: DEFAULT_PAGE_LIMIT,
+    limit: initialPagination.limit,
     orderBy: "DESC",
     paymentMethod: "all",
     typePage: "summary",
@@ -107,7 +110,7 @@ export function useDailySalesReportWorkflow(
   const [selectedRecordIds, setSelectedRecordIds] = useState<Set<string>>(
     () => new Set(),
   );
-  const [page, setPage] = useState(1);
+  const { changeLimit, page, setPage } = useUrlPagination({ initialPagination });
 
   const storeUuid = authStoreUuid(user);
   const userBranchUuid = user?.branch_uuid ?? "";
@@ -325,7 +328,7 @@ export function useDailySalesReportWorkflow(
     if (nextFilters.branchUuid) setSelectedBranch(nextFilters.branchUuid);
     setDraftFilters(nextFilters);
     setAppliedFilters(nextFilters);
-    setPage(1);
+    changeLimit(nextFilters.limit);
   }
 
   function openMobileFilters() {
@@ -345,7 +348,7 @@ export function useDailySalesReportWorkflow(
     if (nextFilters.branchUuid) setSelectedBranch(nextFilters.branchUuid);
     setDraftFilters(nextFilters);
     setAppliedFilters(nextFilters);
-    setPage(1);
+    changeLimit(nextFilters.limit);
     setMobileFilterOpen(false);
   }
 

@@ -9,10 +9,13 @@ import {
   detailFromProduct,
   detailStockSummary,
   emptyDetail,
+  filterSizeOptionsByText,
+  findSizeUuidByName,
   findToppingUuidByName,
   isHexColor,
   normalizeDetailsForStatus,
   productColorValue,
+  productFormSizeOptions,
   productHasToppings,
   productHydrationKey,
   productImageStatus,
@@ -138,6 +141,63 @@ describe("product form detail helpers", () => {
       ]),
     ).toBe("mixed");
   });
+
+  it("clears previous size selections when switching to food set", () => {
+    const normalized = normalizeDetailsForStatus(
+      [detail({ size_uuid_fk: "regular-size" })],
+      "2",
+      "1",
+    );
+
+    expect(normalized[0]?.size_uuid_fk).toBe("");
+    expect(
+      normalizeDetailsForStatus(
+        [detail({ size_uuid_fk: "set-option" })],
+        "2",
+        "2",
+      )[0]?.size_uuid_fk,
+    ).toBe("set-option");
+  });
+
+  it("does not show status 1 sizes for food set detail options", () => {
+    const statusOneSize = {
+      size_uuid: "regular-size",
+      size_name_la: "Regular",
+      size_name_eng: "Regular",
+    };
+    const statusTwoSize = {
+      size_uuid: "set-option",
+      size_name_la: "Set A",
+      size_name_eng: "Set A",
+    };
+    const base = {
+      statusSortFk: "2" as const,
+      sizes: [statusOneSize],
+      details: [detail({ size_uuid_fk: "" })],
+    };
+
+    expect(
+      productFormSizeOptions({
+        ...base,
+        sizesByStatus: [],
+        sizesByStatusStatus: null,
+      }),
+    ).toEqual([]);
+    expect(
+      productFormSizeOptions({
+        ...base,
+        sizesByStatus: [statusOneSize],
+        sizesByStatusStatus: 1,
+      }),
+    ).toEqual([]);
+    expect(
+      productFormSizeOptions({
+        ...base,
+        sizesByStatus: [statusTwoSize],
+        sizesByStatusStatus: 2,
+      }),
+    ).toEqual([statusTwoSize]);
+  });
 });
 
 describe("product form validation and payload helpers", () => {
@@ -225,5 +285,30 @@ describe("product form validation and payload helpers", () => {
         "egg",
       ),
     ).toBe("top-1");
+  });
+
+  it("matches saved set product options by localized size names", () => {
+    expect(
+      findSizeUuidByName(
+        [
+          { size_uuid: "size-1", size_name_la: "ຊຸດ A", size_name_eng: "Set A" },
+          { size_uuid: "size-2", size_name_la: "ຊຸດ B", size_name_eng: "Set B" },
+        ],
+        "ຊຸດ B",
+        ""
+      )
+    ).toBe("size-2");
+  });
+
+  it("filters set product options by localized size names", () => {
+    expect(
+      filterSizeOptionsByText(
+        [
+          { size_uuid: "size-1", size_name_la: "ຊຸດ A", size_name_eng: "Set A" },
+          { size_uuid: "size-2", size_name_la: "ຊຸດ B", size_name_eng: "Set B" },
+        ],
+        "set b"
+      )
+    ).toEqual([{ size_uuid: "size-2", size_name_la: "ຊຸດ B", size_name_eng: "Set B" }]);
   });
 });

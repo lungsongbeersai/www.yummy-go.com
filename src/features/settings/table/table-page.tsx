@@ -32,6 +32,7 @@ import {
   SettingsTableScroll,
   SettingsToolbar
 } from "@/features/settings/shared/settings-shell";
+import { useUrlPagination } from "@/hooks/use-url-pagination";
 import {
   branchServiceCharge,
   buildGroupedTableRows,
@@ -50,6 +51,7 @@ import {
   zoneLabel
 } from "@/features/settings/table/table-utils";
 import { DEFAULT_PAGE_LIMIT, PAGE_LIMIT_OPTIONS } from "@/lib/pagination";
+import type { UrlPaginationState } from "@/lib/url-pagination";
 import type { FetchTablesParams, Table as DiningTable } from "@/services/table";
 import type { PageLimit, SortOrder } from "@/services/shared/types";
 import type { Zone } from "@/services/zone";
@@ -60,7 +62,6 @@ import { useReferenceStore } from "@/stores/reference-store";
 import { useTableStore } from "@/stores/table-store";
 import { useToastStore } from "@/stores/toast-store";
 
-const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT: PageLimit = DEFAULT_PAGE_LIMIT;
 
 function StatusBadge({ status }: { status: number }) {
@@ -109,7 +110,7 @@ function TableIdentity({
   );
 }
 
-export function TableSettingsPage() {
+export function TableSettingsPage({ initialPagination }: { initialPagination: UrlPaginationState }) {
   const { t } = useTranslation();
   const language = useAppStore((state) => state.language);
   const user = useAuthStore((state) => state.user);
@@ -133,8 +134,7 @@ export function TableSettingsPage() {
   const saveRow = useTableStore((state) => state.save);
   const removeRow = useTableStore((state) => state.remove);
   const loadZoneOptions = useReferenceStore((state) => state.loadZones);
-  const [page, setPage] = useState(DEFAULT_PAGE);
-  const [limit, setLimit] = useState<PageLimit>(DEFAULT_LIMIT);
+  const { changeLimit, limit, page, resetPage, setPage } = useUrlPagination({ initialPagination });
   const [orderBy, setOrderBy] = useState<SortOrder>("ASC");
   const [editing, setEditing] = useState<DiningTable | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -268,7 +268,7 @@ export function TableSettingsPage() {
 
   function applyFilters() {
     if (page === 1) void load();
-    else setPage(1);
+    else resetPage();
   }
 
   function toggleSelected(id: string, checked: boolean) {
@@ -533,10 +533,7 @@ export function TableSettingsPage() {
         limitOptions: PAGE_LIMIT_OPTIONS,
         selectedCount: selectedRows.size,
         onApply: applyFilters,
-        onLimit: (nextLimit) => {
-          setLimit(nextLimit);
-          setPage(1);
-        },
+        onLimit: changeLimit,
         onOrder: (nextOrder) => {
           setOrderBy(nextOrder);
           setPage(1);

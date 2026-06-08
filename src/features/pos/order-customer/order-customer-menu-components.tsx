@@ -282,7 +282,7 @@ export const EmployeeCategorySidebar = memo(function EmployeeCategorySidebar({
                       type="button"
                       variant="ghost"
                       className={cn(
-                        "h-20 w-full flex-col gap-1 rounded-lg border border-transparent bg-transparent px-2 text-white/85 hover:bg-white/15 hover:text-white",
+                        "h-20 w-full flex-col gap-1 rounded-lg border border-white/20 bg-white/[0.08] px-2 text-white/85 hover:border-white/45 hover:bg-white/15 hover:text-white focus-visible:ring-white/60",
                         active &&
                           "border-white bg-white text-primary shadow-lg hover:bg-white hover:text-primary",
                       )}

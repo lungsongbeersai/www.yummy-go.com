@@ -36,6 +36,7 @@ export function buildSizePayload({
     store_uuid_fk: storeUuid,
     size_uuid: sizeId(editing),
     size_name_la: nameLa.trim(),
-    size_name_eng: nameEng.trim()
+    size_name_eng: nameEng.trim(),
+    status_sort_fk: 1
   };
 }

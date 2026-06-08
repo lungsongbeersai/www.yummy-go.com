@@ -33,7 +33,9 @@ import {
   SettingsTableScroll,
   SettingsToolbar
 } from "@/features/settings/shared/settings-shell";
+import { useUrlPagination } from "@/hooks/use-url-pagination";
 import { DEFAULT_PAGE_LIMIT } from "@/lib/pagination";
+import type { UrlPaginationState } from "@/lib/url-pagination";
 import { cn } from "@/lib/utils";
 import type { ApiEntity, FetchParams, PageLimit, SortOrder } from "@/services/shared/types";
 import type { CrudListState } from "@/stores/crud-list-store";
@@ -41,7 +43,6 @@ import { authStoreUuid, useAuthStore, type AuthUser } from "@/stores/auth-store"
 import { useAppStore } from "@/stores/app-store";
 import { useToastStore } from "@/stores/toast-store";
 
-const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT: PageLimit = DEFAULT_PAGE_LIMIT;
 const HEX_COLOR = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
 const HEX_PICKER_COLOR = /^#[0-9a-fA-F]{6}$/;
@@ -122,6 +123,7 @@ interface OptionSettingsPageProps<
   tableClassName?: string;
   fields: OptionField<Row>[];
   columns: OptionColumn<Row>[];
+  initialPagination: UrlPaginationState;
   scope?: (storeUuid: string, user: AuthUser | null) => Record<string, unknown>;
   store: OptionStore<Row, SaveInput, Params>;
 }
@@ -357,6 +359,7 @@ export function OptionSettingsPage<
   fields,
   icon: Icon,
   idKey,
+  initialPagination,
   itemLabel,
   nameFallbackKey,
   nameEngKey,
@@ -386,8 +389,7 @@ export function OptionSettingsPage<
   const loadRows = store((state) => state.load);
   const saveRow = store((state) => state.save);
   const removeRow = store((state) => state.remove);
-  const [page, setPage] = useState(DEFAULT_PAGE);
-  const [limit, setLimit] = useState<PageLimit>(DEFAULT_LIMIT);
+  const { changeLimit, limit, page, resetPage, setPage } = useUrlPagination({ initialPagination });
   const [orderBy, setOrderBy] = useState<SortOrder>("ASC");
   const [editing, setEditing] = useState<Row | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -465,7 +467,7 @@ export function OptionSettingsPage<
 
   function applyFilters() {
     if (page === 1) void load();
-    else setPage(1);
+    else resetPage();
   }
 
   function toggleSelected(id: string, checked: boolean) {
@@ -682,10 +684,7 @@ export function OptionSettingsPage<
               orderBy,
               selectedCount: selectedRows.size,
               onApply: applyFilters,
-              onLimit: (nextLimit) => {
-                setLimit(nextLimit);
-                setPage(1);
-              },
+              onLimit: changeLimit,
               onOrder: (nextOrder) => {
                 setOrderBy(nextOrder);
                 setPage(1);

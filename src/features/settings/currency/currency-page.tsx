@@ -31,7 +31,9 @@ import {
   SettingsTableScroll,
   SettingsToolbar
 } from "@/features/settings/shared/settings-shell";
+import { useUrlPagination } from "@/hooks/use-url-pagination";
 import { DEFAULT_PAGE_LIMIT, PAGE_LIMIT_OPTIONS } from "@/lib/pagination";
+import type { UrlPaginationState } from "@/lib/url-pagination";
 import { cn } from "@/lib/utils";
 import type { Currency, FetchCurrenciesParams } from "@/services/currency";
 import type { PageLimit, SortOrder } from "@/services/shared/types";
@@ -49,7 +51,6 @@ import {
   missingCurrencyField
 } from "@/features/settings/currency/currency-utils";
 
-const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT: PageLimit = DEFAULT_PAGE_LIMIT;
 const ORDER_OPTIONS: Array<{ labelKey: "asc" | "desc"; value: SortOrder }> = [
   { labelKey: "asc", value: "ASC" },
@@ -139,7 +140,7 @@ function CurrencyIdentity({ row }: { row: Currency }) {
   );
 }
 
-export function CurrencySettingsPage() {
+export function CurrencySettingsPage({ initialPagination }: { initialPagination: UrlPaginationState }) {
   const { t } = useTranslation();
   const language = useAppStore((state) => state.language);
   const showToast = useToastStore((state) => state.show);
@@ -155,8 +156,7 @@ export function CurrencySettingsPage() {
   const loadRows = useCurrencyStore((state) => state.load);
   const saveRow = useCurrencyStore((state) => state.save);
   const removeRow = useCurrencyStore((state) => state.remove);
-  const [page, setPage] = useState(DEFAULT_PAGE);
-  const [limit, setLimit] = useState<PageLimit>(DEFAULT_LIMIT);
+  const { changeLimit, limit, page, resetPage, setPage } = useUrlPagination({ initialPagination });
   const [orderBy, setOrderBy] = useState<SortOrder>("ASC");
   const [editing, setEditing] = useState<Currency | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -220,7 +220,7 @@ export function CurrencySettingsPage() {
 
   function applyFilters() {
     if (page === 1) void load();
-    else setPage(1);
+    else resetPage();
   }
 
   function toggleSelected(id: string, checked: boolean) {
@@ -401,10 +401,7 @@ export function CurrencySettingsPage() {
         orderOptions: ORDER_OPTIONS.map((option) => ({ label: t(`common.${option.labelKey}`), value: option.value })),
         selectedCount: selectedRows.size,
         onApply: applyFilters,
-        onLimit: (nextLimit) => {
-          setLimit(nextLimit);
-          setPage(1);
-        },
+        onLimit: changeLimit,
         onOrder: (nextOrder) => {
           setOrderBy(nextOrder);
           setPage(1);

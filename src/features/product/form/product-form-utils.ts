@@ -15,6 +15,7 @@ import type {
   DetailStockSummary,
   ProductSavePayloadState,
   RequiredProductFormState,
+  SizeSelectOption,
   StatusSortFk,
   ToppingSelection,
 } from "./product-form-types";
@@ -56,6 +57,7 @@ export const TOPPING_NAME_KEYS = [
   "prod_topping_name_la",
   "prod_topping_name_eng",
 ];
+export const SIZE_NAME_KEYS = ["size_name", "size_name_la", "size_name_eng"];
 export const EMPTY_PROMOTION_FIELDS = {
   pro_detail_cus_qtyBuy: "0",
   pro_detail_cus_qtyFree: "0",
@@ -223,7 +225,7 @@ export function productUnitName(
 export function sizeName(
   row: { [key: string]: unknown } | null | undefined,
 ) {
-  return firstText(row, ["size_name", "size_name_la", "size_name_eng"]);
+  return firstText(row, SIZE_NAME_KEYS);
 }
 
 export function productToppingName(
@@ -290,6 +292,32 @@ export function findToppingUuidByName(
   return toppingUuid(match);
 }
 
+export function findSizeUuidByName(
+  rows: Array<{ [key: string]: unknown }>,
+  nameLa: string,
+  nameEng: string,
+) {
+  const names = new Set(
+    [normalizedText(nameLa), normalizedText(nameEng)].filter(Boolean),
+  );
+  if (!names.size) return "";
+  const match = rows.find((row) =>
+    textValues(row, SIZE_NAME_KEYS).some((value) => names.has(value)),
+  );
+  return sizeUuid(match);
+}
+
+export function filterSizeOptionsByText<T extends { [key: string]: unknown }>(
+  rows: T[],
+  search: string,
+) {
+  const query = normalizedText(search);
+  if (!query) return rows;
+  return rows.filter((row) =>
+    textValues(row, SIZE_NAME_KEYS).some((value) => value.includes(query)),
+  );
+}
+
 export function sizeUuid(
   row: { [key: string]: unknown } | null | undefined,
 ) {
@@ -331,6 +359,44 @@ export function includeSelectedOption<T extends { [key: string]: unknown }>(
     return validRows;
   }
   return selected ? [...validRows, selected as T] : validRows;
+}
+
+export interface ProductFormSizeOptionsInput {
+  statusSortFk: StatusSortFk;
+  sizesByStatus: SizeSelectOption[];
+  sizesByStatusStatus: number | null;
+  sizes: SizeSelectOption[];
+  details: DetailRow[];
+  editingDetails?: Product["details"];
+}
+
+export function productFormSizeOptions({
+  statusSortFk,
+  sizesByStatus,
+  sizesByStatusStatus,
+  sizes,
+  details,
+  editingDetails,
+}: ProductFormSizeOptionsInput): SizeSelectOption[] {
+  const currentStatus = Number(statusSortFk);
+  const statusRows =
+    sizesByStatusStatus === currentStatus ? sizesByStatus : [];
+  const baseSizes =
+    statusSortFk === "2" ? statusRows : statusRows.length ? statusRows : sizes;
+  const rows = baseSizes.filter((size) => sizeUuid(size));
+  const seen = new Set(rows.map((size) => sizeUuid(size)));
+  const missing = details
+    .map((detail) => detail.size_uuid_fk)
+    .filter((uuid) => uuid && !seen.has(uuid))
+    .map((uuid) =>
+      editingDetails?.find((detail) => detailSizeUuid(detail) === uuid),
+    )
+    .filter(
+      (detail): detail is NonNullable<Product["details"]>[number] =>
+        Boolean(detail),
+    );
+
+  return missing.length ? [...rows, ...missing] : rows;
 }
 
 export function hasEditableProductData(
@@ -460,6 +526,8 @@ export function normalizeDetailsForStatus(
   return sourceRows.map((row) => {
     const base = {
       ...row,
+      size_uuid_fk:
+        targetStatus === "2" && sourceStatus !== "2" ? "" : row.size_uuid_fk,
       pro_detail_stock: row.pro_detail_stock || "1",
       pro_detail_enabled: row.pro_detail_enabled || "1",
       pro_detail_bprice: row.pro_detail_bprice || "0",

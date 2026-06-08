@@ -14,7 +14,9 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useUrlPagination } from "@/hooks/use-url-pagination";
 import { dateTime } from "@/lib/format";
+import type { UrlPaginationState } from "@/lib/url-pagination";
 import { cn } from "@/lib/utils";
 import type { CancelHistoryOrder } from "@/services/cancel";
 import type { PageLimit } from "@/services/shared/types";
@@ -32,7 +34,7 @@ import {
   type CancelHistoryFilters
 } from "./cancel-history-utils";
 
-export function CancelHistoryPage() {
+export function CancelHistoryPage({ initialPagination }: { initialPagination: UrlPaginationState }) {
   const { t } = useTranslation();
   const filterRef = useRef<HTMLDivElement>(null);
   const [filterHeight, setFilterHeight] = useState(0);
@@ -48,10 +50,19 @@ export function CancelHistoryPage() {
   const showToast = useToastStore((state) => state.show);
   const branchUuid = user?.branch_uuid ?? "";
   const branchLabel = user?.branch_name || branchUuid || "-";
-  const [draftFilters, setDraftFilters] = useState<CancelHistoryFilters>(() => defaultCancelHistoryFilters(branchUuid));
-  const [appliedFilters, setAppliedFilters] = useState<CancelHistoryFilters>(() => defaultCancelHistoryFilters(branchUuid));
+  const [draftFilters, setDraftFilters] = useState<CancelHistoryFilters>(() => ({
+    ...defaultCancelHistoryFilters(branchUuid),
+    limit: initialPagination.limit
+  }));
+  const [appliedFilters, setAppliedFilters] = useState<CancelHistoryFilters>(() => ({
+    ...defaultCancelHistoryFilters(branchUuid),
+    limit: initialPagination.limit
+  }));
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
-  const [page, setPage] = useState(1);
+  const { changeLimit, goToPage, page, resetPage } = useUrlPagination({
+    initialPagination,
+    limitOptions: CANCEL_HISTORY_LIMIT_OPTIONS
+  });
   const safeTotalPages = Math.max(1, totalPages);
   const range = cancelHistoryRange(responsePage || page, appliedFilters.limit, bills.length, total);
   const rangeLabel = t("cancelHistory.range", { end: range.end, start: range.start, total });
@@ -65,9 +76,9 @@ export function CancelHistoryPage() {
   useEffect(() => {
     setDraftFilters((current) => (current.branchUuid === branchUuid ? current : { ...current, branchUuid }));
     setAppliedFilters((current) => (current.branchUuid === branchUuid ? current : { ...current, branchUuid }));
-    setPage(1);
+    resetPage();
     if (!branchUuid) resetHistory();
-  }, [branchUuid, resetHistory]);
+  }, [branchUuid, resetHistory, resetPage]);
 
   useEffect(() => {
     const node = filterRef.current;
@@ -131,8 +142,8 @@ export function CancelHistoryPage() {
   }, [load]);
 
   useEffect(() => {
-    if (!loading && page > safeTotalPages) setPage(safeTotalPages);
-  }, [loading, page, safeTotalPages]);
+    if (!loading && page > safeTotalPages) goToPage(safeTotalPages);
+  }, [goToPage, loading, page, safeTotalPages]);
 
   function patchDraft(patch: Partial<CancelHistoryFilters>) {
     setDraftFilters((current) => ({ ...current, ...patch, branchUuid }));
@@ -141,7 +152,7 @@ export function CancelHistoryPage() {
   function applyFilters() {
     if (!canApply) return;
     setAppliedFilters({ ...draftFilters, branchUuid });
-    setPage(1);
+    changeLimit(draftFilters.limit);
   }
 
   function applyMobileFilters() {
@@ -217,8 +228,8 @@ export function CancelHistoryPage() {
               page={page}
               rangeLabel={rangeLabel}
               totalPages={safeTotalPages}
-              onBack={() => setPage((current) => Math.max(1, current - 1))}
-              onNext={() => setPage((current) => current + 1)}
+              onBack={() => goToPage(page - 1)}
+              onNext={() => goToPage(page + 1)}
             />
           }
           loading={loading}

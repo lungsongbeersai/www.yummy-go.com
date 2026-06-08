@@ -46,8 +46,10 @@ import {
   type LocationRow
 } from "@/features/settings/location/location-utils";
 import { useDropdownButtonLoading } from "@/hooks/use-dropdown-button-loading";
+import { useUrlPagination } from "@/hooks/use-url-pagination";
 import { DEFAULT_PAGE_LIMIT, PAGE_LIMIT_OPTIONS } from "@/lib/pagination";
 import { canManageLocationSettings } from "@/lib/permissions";
+import type { UrlPaginationState } from "@/lib/url-pagination";
 import type { PageLimit, SortOrder } from "@/services/shared/types";
 import { useAppStore } from "@/stores/app-store";
 import { useAuthStore } from "@/stores/auth-store";
@@ -74,7 +76,6 @@ const LOCATION_CONFIG = {
   }
 } as const;
 
-const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT: PageLimit = DEFAULT_PAGE_LIMIT;
 
 function LocationIcon({ kind }: { kind: LocationKind }) {
@@ -186,7 +187,7 @@ function ProvinceCombobox({
   );
 }
 
-export function LocationSettingsPage({ kind }: { kind: LocationKind }) {
+export function LocationSettingsPage({ initialPagination, kind }: { initialPagination: UrlPaginationState; kind: LocationKind }) {
   const { t } = useTranslation();
   const config = LOCATION_CONFIG[kind];
   const language = useAppStore((state) => state.language);
@@ -216,8 +217,7 @@ export function LocationSettingsPage({ kind }: { kind: LocationKind }) {
   const loadDistricts = useDistrictStore((state) => state.load);
   const saveDistrict = useDistrictStore((state) => state.save);
   const removeDistrict = useDistrictStore((state) => state.remove);
-  const [page, setPage] = useState(DEFAULT_PAGE);
-  const [limit, setLimit] = useState<PageLimit>(DEFAULT_LIMIT);
+  const { changeLimit, limit, page, resetPage, setPage } = useUrlPagination({ initialPagination });
   const [orderBy, setOrderBy] = useState<SortOrder>("ASC");
   const [editing, setEditing] = useState<Row | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -320,7 +320,7 @@ export function LocationSettingsPage({ kind }: { kind: LocationKind }) {
 
   function applyFilters() {
     if (page === 1) void load(hasLoaded);
-    else setPage(1);
+    else resetPage();
   }
 
   function toggleSelected(id: string, checked: boolean) {
@@ -640,10 +640,7 @@ export function LocationSettingsPage({ kind }: { kind: LocationKind }) {
         ],
         selectedCount: selectedRows.size,
         onApply: applyFilters,
-        onLimit: (nextLimit) => {
-          setLimit(nextLimit);
-          setPage(1);
-        },
+        onLimit: changeLimit,
         onOrder: (nextOrder) => {
           setOrderBy(nextOrder);
           setPage(1);

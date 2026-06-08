@@ -14,7 +14,8 @@ describe("size utils", () => {
       store_uuid_fk: "store-1",
       size_uuid: "",
       size_name_la: "ນ້ອຍ",
-      size_name_eng: "Small"
+      size_name_eng: "Small",
+      status_sort_fk: 1
     });
   });
 
@@ -30,7 +31,8 @@ describe("size utils", () => {
       store_uuid_fk: "store-1",
       size_uuid: "size-1",
       size_name_la: "ກາງ",
-      size_name_eng: "Medium"
+      size_name_eng: "Medium",
+      status_sort_fk: 1
     });
   });
 

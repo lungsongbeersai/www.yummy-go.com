@@ -28,8 +28,10 @@ import {
   SettingsTableScroll,
   SettingsToolbar
 } from "@/features/settings/shared/settings-shell";
+import { useUrlPagination } from "@/hooks/use-url-pagination";
 import { buildUnitPayload, missingUnitField, unitId, unitName, unitValue } from "@/features/settings/unit/unit-utils";
 import { DEFAULT_PAGE_LIMIT, PAGE_LIMIT_OPTIONS } from "@/lib/pagination";
+import type { UrlPaginationState } from "@/lib/url-pagination";
 import type { FetchUnitsParams, Unit } from "@/services/unit";
 import type { PageLimit, SortOrder } from "@/services/shared/types";
 import { useAppStore } from "@/stores/app-store";
@@ -37,7 +39,6 @@ import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
 import { useToastStore } from "@/stores/toast-store";
 import { useUnitStore } from "@/stores/unit-store";
 
-const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT: PageLimit = DEFAULT_PAGE_LIMIT;
 
 function UnitIcon() {
@@ -66,7 +67,7 @@ function UnitIdentity({ row }: { row: Unit }) {
   );
 }
 
-export function UnitSettingsPage() {
+export function UnitSettingsPage({ initialPagination }: { initialPagination: UrlPaginationState }) {
   const { t } = useTranslation();
   const language = useAppStore((state) => state.language);
   const user = useAuthStore((state) => state.user);
@@ -84,8 +85,7 @@ export function UnitSettingsPage() {
   const loadRows = useUnitStore((state) => state.load);
   const saveRow = useUnitStore((state) => state.save);
   const removeRow = useUnitStore((state) => state.remove);
-  const [page, setPage] = useState(DEFAULT_PAGE);
-  const [limit, setLimit] = useState<PageLimit>(DEFAULT_LIMIT);
+  const { changeLimit, limit, page, resetPage, setPage } = useUrlPagination({ initialPagination });
   const [orderBy, setOrderBy] = useState<SortOrder>("ASC");
   const [editing, setEditing] = useState<Unit | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -143,7 +143,7 @@ export function UnitSettingsPage() {
 
   function applyFilters() {
     if (page === 1) void load();
-    else setPage(1);
+    else resetPage();
   }
 
   function toggleSelected(id: string, checked: boolean) {
@@ -312,10 +312,7 @@ export function UnitSettingsPage() {
         limitOptions: PAGE_LIMIT_OPTIONS,
         selectedCount: selectedRows.size,
         onApply: applyFilters,
-        onLimit: (nextLimit) => {
-          setLimit(nextLimit);
-          setPage(1);
-        },
+        onLimit: changeLimit,
         onOrder: (nextOrder) => {
           setOrderBy(nextOrder);
           setPage(1);
