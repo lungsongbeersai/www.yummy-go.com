@@ -88,6 +88,11 @@ export function CustomerDisplayPickerDialog({
 
         <div className="min-h-0 overflow-y-auto px-4 py-4 sm:px-6">
           <div className="flex flex-col gap-3">
+            <Alert>
+              <AlertTitle>{t("pos.customerDisplayPickerHelpTitle")}</AlertTitle>
+              <AlertDescription>{t("pos.customerDisplayPickerHelp")}</AlertDescription>
+            </Alert>
+
             {isBrowserFallbackMode ? (
               <Alert>
                 <AlertTitle>{t("pos.customerDisplayBrowserMode")}</AlertTitle>
@@ -185,6 +190,11 @@ export function CustomerDisplayPickerDialog({
                             <Badge className={display.isPrimary ? "border-border bg-muted text-muted-foreground" : undefined}>
                               {display.isPrimary ? t("pos.customerDisplayPrimary") : t("pos.customerDisplaySecondary")}
                             </Badge>
+                            {!display.isPrimary ? (
+                              <Badge className="border-primary/20 bg-primary/10 text-primary">
+                                {t("pos.customerDisplayRecommended")}
+                              </Badge>
+                            ) : null}
                             {display.id === activeDisplay?.id ? (
                               <Badge className="border-primary/20 bg-primary/10 text-primary">
                                 {t("pos.customerDisplayActive")}
@@ -210,6 +220,7 @@ export function CustomerDisplayPickerDialog({
                 {browserScreens.map((screen, index) => {
                   const selected = selectedBrowserScreenKey === screen.key;
                   const radioId = `customer-browser-display-${index}`;
+                  const isStaffScreen = screen.isPrimary || screen.isCurrent;
 
                   return (
                     <Field
@@ -234,9 +245,14 @@ export function CustomerDisplayPickerDialog({
                             <span className="truncate text-sm font-black">
                               {screen.label || t("pos.customerDisplayScreenNumber", { count: index + 1 })}
                             </span>
-                            <Badge className={screen.isPrimary ? "border-border bg-muted text-muted-foreground" : undefined}>
-                              {screen.isPrimary ? t("pos.customerDisplayPrimary") : t("pos.customerDisplaySecondary")}
+                            <Badge className={isStaffScreen ? "border-border bg-muted text-muted-foreground" : undefined}>
+                              {isStaffScreen ? t("pos.customerDisplayPrimary") : t("pos.customerDisplaySecondary")}
                             </Badge>
+                            {!isStaffScreen ? (
+                              <Badge className="border-primary/20 bg-primary/10 text-primary">
+                                {t("pos.customerDisplayRecommended")}
+                              </Badge>
+                            ) : null}
                             <Badge className="border-border bg-muted text-muted-foreground">
                               {screen.isInternal ? t("pos.customerDisplayInternal") : t("pos.customerDisplayExternal")}
                             </Badge>
@@ -266,7 +282,7 @@ export function CustomerDisplayPickerDialog({
           </div>
         </div>
 
-        <DialogFooter className="border-t border-border bg-card/95 px-4 py-3 sm:px-6">
+        <DialogFooter className="border-t border-border bg-card/95 px-4 py-3 sm:px-6 [&>button]:w-full sm:[&>button]:w-auto">
           {isBrowserFallbackMode ? (
             <>
               <Button type="button" variant="outline" disabled={closeDisabled} onClick={onCloseCustomerDisplay}>
