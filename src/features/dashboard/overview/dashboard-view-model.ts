@@ -211,23 +211,27 @@ export function createDashboardModel(data: unknown, filters: DashboardFilters): 
   const requestParams = asRow(dashboard.request_params);
   const salesTrendSource = rowsAtPath(dashboard, section.chart_source_key);
   const paymentTrendSource = rowsAtPath(dashboard, section.payment_chart_source_key);
-  const paymentSource = asRows(section.payment_lines).length
-    ? asRows(section.payment_lines)
-    : asRows(charts.monthly_sales_pie);
-  const channelSource = asRows(charts.order_channel_chart).length
-    ? asRows(charts.order_channel_chart)
-    : asRows(asRow(dashboard.order_channel_summary).channels);
-  const productSource = asRows(charts.top_selling_products_chart).length
-    ? asRows(charts.top_selling_products_chart)
-    : asRows(dashboard.top_selling_products);
+  const paymentLines = asRows(section.payment_lines);
+  const monthlySalesPieRows = asRows(charts.monthly_sales_pie);
+  const orderChannelRows = asRows(charts.order_channel_chart);
+  const orderChannelFallbackRows = asRows(asRow(dashboard.order_channel_summary).channels);
+  const topSellingProductRows = asRows(charts.top_selling_products_chart);
+  const topSellingProductFallbackRows = asRows(dashboard.top_selling_products);
+  const monthlyDailySalesRows = asRows(charts.monthly_daily_sales);
+  const revenueTrendRows = asRows(charts.revenue_trend);
+  const monthlyDailyPaymentRows = asRows(charts.monthly_daily_payments);
+  const accountingSummaryRows = asRows(section.accounting_summary);
+  const paymentSource = paymentLines.length ? paymentLines : monthlySalesPieRows;
+  const channelSource = orderChannelRows.length ? orderChannelRows : orderChannelFallbackRows;
+  const productSource = topSellingProductRows.length ? topSellingProductRows : topSellingProductFallbackRows;
   const trendSource = salesTrendSource.length
     ? salesTrendSource
-    : asRows(charts.monthly_daily_sales).length
-      ? asRows(charts.monthly_daily_sales)
-      : asRows(charts.revenue_trend);
+    : monthlyDailySalesRows.length
+      ? monthlyDailySalesRows
+      : revenueTrendRows;
 
   return {
-    accountingRows: accountingRows(asRows(section.accounting_summary)),
+    accountingRows: accountingRows(accountingSummaryRows),
     channelRows: breakdownRows(channelSource, "revenue_total"),
     dashboard,
     filters: asRow(dashboard.filters),
@@ -235,7 +239,7 @@ export function createDashboardModel(data: unknown, filters: DashboardFilters): 
     kpis: asRow(dashboard.kpis),
     paymentRows: breakdownRows(paymentSource),
     paymentTrendRows: normalizeTrendRows(
-      paymentTrendSource.length ? paymentTrendSource : asRows(charts.monthly_daily_payments)
+      paymentTrendSource.length ? paymentTrendSource : monthlyDailyPaymentRows
     ),
     productRows: productRows(productSource, numberFrom(requestParams, "top") || Number(filters.top) || productSource.length),
     requestParams,

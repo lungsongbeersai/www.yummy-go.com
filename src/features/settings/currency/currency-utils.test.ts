@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildCurrencyPayload,
+  currencyStatusBadgeClass,
   currencyStatusLabel,
   missingCurrencyField
 } from "@/features/settings/currency/currency-utils";
@@ -49,5 +50,11 @@ describe("currency utils", () => {
     expect(currencyStatusLabel("1", "Active", "Inactive")).toBe("Active");
     expect(currencyStatusLabel("2", "Active", "Inactive")).toBe("Inactive");
     expect(currencyStatusLabel("", "Active", "Inactive")).toBe("Active");
+  });
+
+  it("maps status badge classes with numeric fallback", () => {
+    expect(currencyStatusBadgeClass("1")).toContain("text-primary");
+    expect(currencyStatusBadgeClass("2")).toContain("text-muted-foreground");
+    expect(currencyStatusBadgeClass("")).toContain("text-primary");
   });
 });

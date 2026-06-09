@@ -80,7 +80,7 @@ export function LoginClient() {
         </section>
 
         <section className="flex min-h-screen items-center justify-center px-4 py-16 sm:px-6 lg:px-12">
-          <Card className="w-full max-w-[28rem] rounded-[22px] border border-slate-200/80 bg-white/95 shadow-[0_24px_70px_-42px_rgba(15,23,42,0.5)] backdrop-blur">
+          <Card className="w-full max-w-md rounded-[22px] border border-slate-200/80 bg-white/95 shadow-[0_24px_70px_-42px_rgba(15,23,42,0.5)] backdrop-blur">
             <CardContent className="px-6 py-8 sm:px-8 sm:py-9">
               <div className="mb-7 text-center">
                 <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full border border-slate-200 bg-white shadow-[0_16px_36px_-26px_rgba(15,23,42,0.55)]">

@@ -5,39 +5,22 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import {
   DEFAULT_CROP,
-  cropImageFile,
   type CropState,
 } from "@/features/settings/shared/settings-image-crop";
-import type { Category } from "@/services/category";
-import type { Color } from "@/services/color";
 import { getProductImageUrl } from "@/services/product";
-import type { Size } from "@/services/size";
-import type { Topping } from "@/services/topping";
-import type { Unit } from "@/services/unit";
 import { useAppStore } from "@/stores/app-store";
 import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
-import { useProductStore } from "@/stores/product-store";
-import { useReferenceStore } from "@/stores/reference-store";
 import { useToastStore } from "@/stores/toast-store";
-import { useToppingStore } from "@/stores/topping-store";
 import type {
   BinaryFlag,
-  DetailRow,
   SizeSelectOption,
   StatusSortFk,
-  ToppingSelection,
 } from "./product-form-types";
 import {
   CATEGORY_NAME_KEYS,
   CUSTOM_COLOR_VALUE,
   DEFAULT_COLOR,
-  EMPTY_CATEGORIES,
-  EMPTY_COLORS,
-  EMPTY_SIZES,
-  EMPTY_TOPPINGS,
-  EMPTY_UNITS,
   TOPPING_HAS,
-  TOPPING_NAME_KEYS,
   TOPPING_NONE,
   UNIT_NAME_KEYS,
   binaryFlag,
@@ -45,38 +28,28 @@ import {
   categoryUuid,
   colorCode,
   detailFromProduct,
-  detailStockSummary,
-  emptyDetail,
-  filterSizeOptionsByText,
   findOptionByText,
-  findSizeUuidByName,
-  findToppingUuidByName,
   generateProdCode,
   hasEditableProductData,
   includeSelectedOption,
   isHexColor,
   nextBulkStockMode,
   normalizeDetailsForStatus,
-  normalizedText,
   productCategoryUuid,
   productColorValue,
   productFormSizeOptions,
-  productHasToppings,
   productHydrationKey,
   productImageStatus,
-  productToppingName,
-  productToppingUuid,
-  productToppingsFromRows,
   productUnitUuid,
   rawProductImage,
   requiredFieldErrors as getRequiredFieldErrors,
-  selectedToppingBadges as buildSelectedToppingBadges,
-  sizeName,
-  sizeUuid,
-  textValues,
-  toppingUuid,
   unitUuid,
 } from "./product-form-utils";
+import { useProductFormDetails } from "./use-product-form-details";
+import { useProductImageWorkflow } from "./use-product-form-image";
+import { useProductFormReferenceData } from "./use-product-form-reference-data";
+import { useProductSetOptionsWorkflow } from "./use-product-set-options-workflow";
+import { useProductToppingsWorkflow } from "./use-product-toppings-workflow";
 
 export function useProductFormWorkflow() {
   const { t } = useTranslation();
@@ -89,32 +62,29 @@ export function useProductFormWorkflow() {
   const user = useAuthStore((state) => state.user);
   const storeUuid = authStoreUuid(user);
   const showToast = useToastStore((state) => state.show);
-  const rows = useProductStore((state) => state.rows);
-  const productLoading = useProductStore((state) => state.loading);
-  const productSizesByStatus = useProductStore((state) => state.sizesByStatus);
-  const productSizesByStatusStatus = useProductStore(
-    (state) => state.sizesByStatusStatus,
-  );
-  const saving = useProductStore((state) => state.saving);
-  const saveProduct = useProductStore((state) => state.save);
-  const loadProducts = useProductStore((state) => state.load);
-  const loadSizesByStatus = useProductStore((state) => state.loadSizesByStatus);
-  const createSizeForStatus = useProductStore((state) => state.createSizeForStatus);
-  const deleteSizeForStatus = useProductStore((state) => state.deleteSizeForStatus);
-  const updateDetailsStock = useProductStore((state) => state.updateDetailsStock);
-  const categories = (useReferenceStore((state) => state.options.categories) ?? EMPTY_CATEGORIES) as Category[];
-  const colors = (useReferenceStore((state) => state.options.colors) ?? EMPTY_COLORS) as Color[];
-  const units = (useReferenceStore((state) => state.options.units) ?? EMPTY_UNITS) as Unit[];
-  const sizes = (useReferenceStore((state) => state.options.sizes) ?? EMPTY_SIZES) as Size[];
-  const toppings = (useReferenceStore((state) => state.options.toppings) ?? EMPTY_TOPPINGS) as Topping[];
-  const loadCategories = useReferenceStore((state) => state.loadCategories);
-  const loadColors = useReferenceStore((state) => state.loadColors);
-  const loadUnits = useReferenceStore((state) => state.loadUnits);
-  const loadSizes = useReferenceStore((state) => state.loadSizes);
-  const loadToppings = useReferenceStore((state) => state.loadToppings);
-  const createToppingRow = useToppingStore((state) => state.save);
-  const deleteToppingRow = useToppingStore((state) => state.remove);
-  const toppingSaving = useToppingStore((state) => state.saving);
+  const [statusSortFk, setStatusSortFk] = useState<StatusSortFk>("1");
+  const {
+    categories,
+    colors,
+    createSizeForStatus,
+    createToppingRow,
+    deleteSizeForStatus,
+    deleteToppingRow,
+    loadProducts,
+    loadSizesByStatus,
+    loadToppings,
+    productLoading,
+    productSizesByStatus,
+    productSizesByStatusStatus,
+    rows,
+    saveProduct,
+    saving,
+    sizes,
+    toppingSaving,
+    toppings,
+    units,
+    updateDetailsStock
+  } = useProductFormReferenceData({ language, showToast, statusSortFk, storeUuid, t });
 
   const editing = useMemo(
     () => (isEditing ? rows.find((row) => row.prod_uuid === prodUuid) ?? null : null),
@@ -130,63 +100,104 @@ export function useProductFormWorkflow() {
   const [uniteUuidFk, setUniteUuidFk] = useState("");
   const [prodOrderPoint, setProdOrderPoint] = useState("5");
   const [prodNotification, setProdNotification] = useState<BinaryFlag>("2");
-  const [statusSortFk, setStatusSortFk] = useState<StatusSortFk>("1");
   const [prodSetPrice, setProdSetPrice] = useState("0");
   const [prodStatusImge, setProdStatusImge] = useState<BinaryFlag>("2");
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
-  const [selectedImagePreview, setSelectedImagePreview] = useState("");
   const [crop, setCrop] = useState<CropState>(DEFAULT_CROP);
   const [colorValue, setColorValue] = useState(DEFAULT_COLOR);
   const [colorChoice, setColorChoice] = useState(CUSTOM_COLOR_VALUE);
-  const [details, setDetails] = useState<DetailRow[]>(() => [emptyDetail("1")]);
-  const [bulkStockSaving, setBulkStockSaving] = useState(false);
-  const [prodToppingStatus, setProdToppingStatus] = useState<BinaryFlag>(TOPPING_NONE);
-  const [selectedToppings, setSelectedToppings] = useState<ToppingSelection[]>([]);
+  const {
+    bulkStockSaving,
+    detailStockState,
+    details,
+    setDetails,
+    addDetail,
+    updateDetail,
+    updateAllDetailStockModes,
+    removeDetail
+  } = useProductFormDetails({ isEditing, showToast, statusSortFk, t, updateDetailsStock });
+  const {
+    deletingSetOptionUuid,
+    editingSetOptionUuid,
+    filteredSetOptionOptions,
+    handleSetOptionDialogOpen,
+    openSetOptionDialog,
+    resetSetOptionForm,
+    setDeletingSetOptionUuid,
+    setOptionDialogOpen,
+    setOptionNameEng,
+    setOptionNameLa,
+    setOptionOptions,
+    setOptionSaving,
+    setOptionSearch,
+    setSetOptionNameEng,
+    setSetOptionNameLa,
+    setSetOptionSearch,
+    editSetOption,
+    saveSetOptionFromDialog,
+    deleteSetOptionFromDialog
+  } = useProductSetOptionsWorkflow({
+    createSizeForStatus,
+    deleteSizeForStatus,
+    language,
+    loadSizesByStatus,
+    productSizesByStatus,
+    setDetails,
+    showToast,
+    statusSortFk,
+    storeUuid,
+    t,
+    updateDetail
+  });
+  const {
+    deletingToppingUuid,
+    editingToppingUuid,
+    filteredToppingOptions,
+    newToppingNameEng,
+    newToppingNameLa,
+    newToppingPrice,
+    prodToppingStatus,
+    selectedToppingBadges,
+    selectedToppingMap,
+    selectedToppings,
+    setDeletingToppingUuid,
+    setNewToppingNameEng,
+    setNewToppingNameLa,
+    setNewToppingPrice,
+    setProdToppingStatus,
+    setToppingDialogOpen,
+    setToppingSearch,
+    toppingDialogOpen,
+    toppingOptions,
+    toppingSearch,
+    toggleTopping,
+    updateToppingPrice,
+    resetNewToppingForm,
+    editTopping,
+    saveToppingFromDialog,
+    deleteToppingFromDialog
+  } = useProductToppingsWorkflow({
+    createToppingRow,
+    deleteToppingRow,
+    editing,
+    editingHydrationKey,
+    language,
+    loadToppings,
+    showToast,
+    storeUuid,
+    t,
+    toppings
+  });
   const [editLoadKey, setEditLoadKey] = useState("");
-  const [toppingDialogOpen, setToppingDialogOpen] = useState(false);
-  const [newToppingNameLa, setNewToppingNameLa] = useState("");
-  const [newToppingNameEng, setNewToppingNameEng] = useState("");
-  const [newToppingPrice, setNewToppingPrice] = useState("0");
-  const [toppingSearch, setToppingSearch] = useState("");
-  const [editingToppingUuid, setEditingToppingUuid] = useState("");
-  const [deletingToppingUuid, setDeletingToppingUuid] = useState("");
-  const [hiddenToppingUuids, setHiddenToppingUuids] = useState<string[]>([]);
-  const [setOptionDialogOpen, setSetOptionDialogOpen] = useState(false);
-  const [setOptionDetailId, setSetOptionDetailId] = useState("");
-  const [setOptionNameLa, setSetOptionNameLa] = useState("");
-  const [setOptionNameEng, setSetOptionNameEng] = useState("");
-  const [setOptionSearch, setSetOptionSearch] = useState("");
-  const [editingSetOptionUuid, setEditingSetOptionUuid] = useState("");
-  const [deletingSetOptionUuid, setDeletingSetOptionUuid] = useState("");
-  const [setOptionSaving, setSetOptionSaving] = useState(false);
-
-  useEffect(() => {
-    if (!storeUuid) return;
-    void Promise.all([
-      loadCategories(language, storeUuid),
-      loadColors(),
-      loadUnits(language, storeUuid),
-      loadSizes(language, storeUuid),
-      loadToppings(language, storeUuid)
-    ]).catch((error) => {
-      showToast({
-        title: t("settings.loadFailed", { title: t("product.title") }),
-        description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
-        tone: "error"
-      });
-    });
-  }, [language, loadCategories, loadColors, loadSizes, loadToppings, loadUnits, showToast, storeUuid, t]);
-
-  useEffect(() => {
-    if (!storeUuid) return;
-    void loadSizesByStatus(storeUuid, Number(statusSortFk), language).catch((error) => {
-      showToast({
-        title: t("settings.loadFailed", { title: t("settings.modules.size.title") }),
-        description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
-        tone: "error"
-      });
-    });
-  }, [language, loadSizesByStatus, showToast, statusSortFk, storeUuid, t]);
+  const rawExistingImage = rawProductImage(editing);
+  const { productImagePayload, selectedImagePreview } = useProductImageWorkflow({
+    colorValue,
+    crop,
+    imageLoadFailedLabel: t("settings.storeBranch.imageLoadFailed"),
+    prodStatusImge,
+    rawExistingImage,
+    selectedImage
+  });
 
   useEffect(() => {
     const matched = colors.find((color) => colorCode(color).toLowerCase() === colorValue.toLowerCase());
@@ -227,17 +238,6 @@ export function useProductFormWorkflow() {
   }, [editLoadKey, editing, isEditing, language, loadProducts, prodUuid, showToast, t, user?.branch_uuid]);
 
   useEffect(() => {
-    if (!selectedImage) {
-      setSelectedImagePreview("");
-      return;
-    }
-
-    const url = URL.createObjectURL(selectedImage);
-    setSelectedImagePreview(url);
-    return () => URL.revokeObjectURL(url);
-  }, [selectedImage]);
-
-  useEffect(() => {
     if (!editing) return;
     setProdCode(String(editing.prod_code ?? generateProdCode()));
     setProdNameLa(String(editing.prod_name_la ?? editing.prod_name ?? ""));
@@ -258,279 +258,10 @@ export function useProductFormWorkflow() {
     }
     setSelectedImage(null);
     setCrop(DEFAULT_CROP);
-    setProdToppingStatus(productHasToppings(editing) ? TOPPING_HAS : TOPPING_NONE);
     if (editing.details?.length) {
       setDetails(editing.details.map((detail) => detailFromProduct(detail, nextStatus)));
     }
-    setSelectedToppings(productToppingsFromRows(editing.toppings, toppings));
-  }, [editing, editingHydrationKey, toppings]);
-
-  function addDetail() {
-    setDetails((current) => [...current, emptyDetail(statusSortFk)]);
-  }
-
-  function updateDetail(id: string, patch: Partial<DetailRow>) {
-    setDetails((current) => current.map((row) => (row.id === id ? { ...row, ...patch } : row)));
-  }
-
-  async function updateAllDetailStockModes(nextStockMode: BinaryFlag) {
-    const previousDetails = details;
-    const nextDetails = previousDetails.map((row) => ({ ...row, pro_detail_stock: nextStockMode }));
-    const stockModes = previousDetails
-      .map((row) => ({
-        pro_detail_uuid: row.pro_detail_uuid.trim(),
-        pro_detail_stock: Number(nextStockMode)
-      }))
-      .filter((row) => row.pro_detail_uuid);
-
-    setDetails(nextDetails);
-
-    if (!isEditing || !stockModes.length) return;
-
-    setBulkStockSaving(true);
-    try {
-      await updateDetailsStock(stockModes);
-      showToast({ title: t("product.saved"), tone: "success" });
-    } catch (error) {
-      const previousStockById = new Map(previousDetails.map((row) => [row.id, row.pro_detail_stock]));
-      setDetails((current) =>
-        current.map((row) => ({
-          ...row,
-          pro_detail_stock: previousStockById.get(row.id) ?? row.pro_detail_stock
-        }))
-      );
-      showToast({
-        title: t("settings.saveFailed"),
-        description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
-        tone: "error"
-      });
-    } finally {
-      setBulkStockSaving(false);
-    }
-  }
-
-  function removeDetail(id: string) {
-    setDetails((current) => (current.length <= 1 ? current : current.filter((row) => row.id !== id)));
-  }
-
-  function resetSetOptionForm() {
-    setEditingSetOptionUuid("");
-    setSetOptionNameLa("");
-    setSetOptionNameEng("");
-  }
-
-  function handleSetOptionDialogOpen(open: boolean) {
-    setSetOptionDialogOpen(open);
-    if (!open) {
-      setSetOptionDetailId("");
-      setSetOptionSearch("");
-      setDeletingSetOptionUuid("");
-      resetSetOptionForm();
-    }
-  }
-
-  function openSetOptionDialog(detailId: string) {
-    setSetOptionDetailId(detailId);
-    resetSetOptionForm();
-    setSetOptionDialogOpen(true);
-    if (storeUuid) {
-      void loadSizesByStatus(storeUuid, 2, language).catch((error) => {
-        showToast({
-          title: t("settings.loadFailed", { title: t("settings.modules.size.title") }),
-          description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
-          tone: "error"
-        });
-      });
-    }
-  }
-
-  function editSetOption(size: SizeSelectOption) {
-    const uuid = sizeUuid(size);
-    if (!uuid) return;
-    setEditingSetOptionUuid(uuid);
-    setSetOptionNameLa(String(size.size_name_la ?? sizeName(size) ?? ""));
-    setSetOptionNameEng(String(size.size_name_eng ?? ""));
-  }
-
-  async function saveSetOptionFromDialog() {
-    const nameLa = setOptionNameLa.trim();
-    const nameEng = setOptionNameEng.trim() || nameLa;
-
-    if (!storeUuid) {
-      showToast({ title: t("settings.saveFailed"), description: t("settings.branchRequired"), tone: "error" });
-      return;
-    }
-
-    if (statusSortFk !== "2" || !setOptionDetailId) {
-      showToast({ title: t("settings.saveFailed"), description: t("toasts.pleaseTryAgain"), tone: "error" });
-      return;
-    }
-
-    if (!nameLa) {
-      showToast({ title: t("settings.saveFailed"), description: t("fields.nameLa"), tone: "error" });
-      return;
-    }
-
-    setSetOptionSaving(true);
-    try {
-      const saved = await createSizeForStatus({
-        size_uuid: editingSetOptionUuid,
-        size_name_la: nameLa,
-        size_name_eng: nameEng,
-        store_uuid_fk: storeUuid,
-        status_sort_fk: 2
-      });
-      const refreshed = await loadSizesByStatus(storeUuid, 2, language);
-      const savedUuid = editingSetOptionUuid || sizeUuid(saved) || findSizeUuidByName(refreshed, nameLa, nameEng);
-
-      if (!savedUuid) {
-        throw new Error(t("toasts.pleaseTryAgain"));
-      }
-
-      if (!editingSetOptionUuid) updateDetail(setOptionDetailId, { size_uuid_fk: savedUuid });
-      showToast({ title: editingSetOptionUuid ? t("settings.saved") : t("product.setProductOptionSaved"), tone: "success" });
-      resetSetOptionForm();
-    } catch (error) {
-      showToast({
-        title: t("settings.saveFailed"),
-        description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
-        tone: "error"
-      });
-    } finally {
-      setSetOptionSaving(false);
-    }
-  }
-
-  async function deleteSetOptionFromDialog(uuid: string) {
-    if (!uuid || !storeUuid) return;
-
-    setSetOptionSaving(true);
-    try {
-      await deleteSizeForStatus(uuid);
-      setDetails((current) =>
-        current.map((row) => (row.size_uuid_fk === uuid ? { ...row, size_uuid_fk: "" } : row))
-      );
-      if (editingSetOptionUuid === uuid) resetSetOptionForm();
-      await loadSizesByStatus(storeUuid, 2, language);
-      showToast({ title: t("settings.deleted"), tone: "success" });
-    } catch (error) {
-      showToast({
-        title: t("settings.deleteFailed"),
-        description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
-        tone: "error"
-      });
-    } finally {
-      setDeletingSetOptionUuid("");
-      setSetOptionSaving(false);
-    }
-  }
-
-  function toggleTopping(uuid: string, checked: boolean) {
-    setSelectedToppings((current) => {
-      if (checked) {
-        if (current.some((row) => row.topping_uuid_fk === uuid)) return current;
-        return [...current, { topping_uuid_fk: uuid, topping_price: "0" }];
-      }
-      return current.filter((row) => row.topping_uuid_fk !== uuid);
-    });
-  }
-
-  function updateToppingPrice(uuid: string, price: string) {
-    setSelectedToppings((current) =>
-      current.map((row) => (row.topping_uuid_fk === uuid ? { ...row, topping_price: price } : row))
-    );
-  }
-
-  function resetNewToppingForm() {
-    setEditingToppingUuid("");
-    setNewToppingNameLa("");
-    setNewToppingNameEng("");
-    setNewToppingPrice("0");
-  }
-
-  function selectSavedTopping(uuid: string, price: string, forceSelect: boolean) {
-    if (!uuid) return;
-    if (forceSelect) setProdToppingStatus(TOPPING_HAS);
-
-    setSelectedToppings((current) => {
-      const nextPrice = price.trim() || "0";
-      const exists = current.some((row) => row.topping_uuid_fk === uuid);
-      if (!forceSelect && !exists) return current;
-      if (exists) {
-        return current.map((row) => (row.topping_uuid_fk === uuid ? { ...row, topping_price: nextPrice } : row));
-      }
-      return [...current, { topping_uuid_fk: uuid, topping_price: nextPrice }];
-    });
-  }
-
-  function editTopping(topping: Topping) {
-    const uuid = toppingUuid(topping);
-    if (!uuid) return;
-
-    setEditingToppingUuid(uuid);
-    setNewToppingNameLa(String(topping.topping_name_la ?? productToppingName(topping) ?? ""));
-    setNewToppingNameEng(String(topping.topping_name_eng ?? ""));
-    setNewToppingPrice(selectedToppingMap.get(uuid)?.topping_price ?? "0");
-  }
-
-  async function saveToppingFromDialog() {
-    const nameLa = newToppingNameLa.trim();
-    const nameEng = newToppingNameEng.trim() || nameLa;
-
-    if (!storeUuid) {
-      showToast({ title: t("settings.saveFailed"), description: t("settings.branchRequired"), tone: "error" });
-      return;
-    }
-
-    if (!nameLa) {
-      showToast({ title: t("settings.saveFailed"), description: t("fields.nameLa"), tone: "error" });
-      return;
-    }
-
-    try {
-      const saved = await createToppingRow({
-        ...(editingToppingUuid ? { topping_uuid: editingToppingUuid } : {}),
-        store_uuid_fk: storeUuid,
-        topping_name_la: nameLa,
-        topping_name_eng: nameEng
-      });
-      const refreshed = await loadToppings(language, storeUuid);
-      const savedUuid = editingToppingUuid || toppingUuid(saved) || findToppingUuidByName(refreshed, nameLa, nameEng);
-
-      setHiddenToppingUuids((current) => current.filter((uuid) => uuid !== savedUuid));
-      selectSavedTopping(savedUuid, newToppingPrice, !editingToppingUuid);
-
-      showToast({ title: t("settings.saved"), tone: "success" });
-      resetNewToppingForm();
-    } catch (error) {
-      showToast({
-        title: t("settings.saveFailed"),
-        description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
-        tone: "error"
-      });
-    }
-  }
-
-  async function deleteToppingFromDialog(uuid: string) {
-    if (!uuid) return;
-
-    try {
-      await deleteToppingRow(uuid);
-      setHiddenToppingUuids((current) => (current.includes(uuid) ? current : [...current, uuid]));
-      setSelectedToppings((current) => current.filter((row) => row.topping_uuid_fk !== uuid));
-      if (editingToppingUuid === uuid) resetNewToppingForm();
-      if (storeUuid) await loadToppings(language, storeUuid);
-      showToast({ title: t("settings.deleted"), tone: "success" });
-    } catch (error) {
-      showToast({
-        title: t("settings.deleteFailed"),
-        description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
-        tone: "error"
-      });
-    } finally {
-      setDeletingToppingUuid("");
-    }
-  }
+  }, [editing, editingHydrationKey, setDetails]);
 
   function changeStatusSort(value: StatusSortFk) {
     setDetails((current) => normalizeDetailsForStatus(current, value, statusSortFk));
@@ -556,12 +287,6 @@ export function useProductFormWorkflow() {
       },
       t
     );
-  }
-
-  async function productImagePayload() {
-    if (prodStatusImge === "2") return colorValue;
-    if (selectedImage) return cropImageFile(selectedImage, crop, t("settings.storeBranch.imageLoadFailed"));
-    return rawExistingImage && !rawExistingImage.startsWith("#") ? rawExistingImage : undefined;
   }
 
   async function submit() {
@@ -625,7 +350,6 @@ export function useProductFormWorkflow() {
   const waitingForEditData = isEditing && !editDataReady;
   const saveDisabled = saving || bulkStockSaving || waitingForEditData;
   const saveButtonLabel = waitingForEditData ? t("product.loading") : saving ? t("common.processing") : saveLabel;
-  const rawExistingImage = rawProductImage(editing);
   const existingImage = String(editing?.prod_image ?? "");
   const existingSrc =
     existingImage && !existingImage.startsWith("#")
@@ -643,10 +367,6 @@ export function useProductFormWorkflow() {
   const imageLabel = prodStatusImge === "1" ? t("product.statusImge.image") : t("product.statusImge.color");
   const toppingCount = prodToppingStatus === TOPPING_HAS ? selectedToppings.length : 0;
   const validColors = useMemo(() => colors.filter((color) => isHexColor(colorCode(color))), [colors]);
-  const selectedToppingMap = useMemo(
-    () => new Map(selectedToppings.map((row) => [row.topping_uuid_fk, row])),
-    [selectedToppings]
-  );
   const categoryOptions = useMemo(
     () => includeSelectedOption(categories, editing, cateUuidFk, categoryUuid),
     [categories, cateUuidFk, editing]
@@ -672,15 +392,6 @@ export function useProductFormWorkflow() {
     sizes,
     statusSortFk,
   ]);
-  const setOptionOptions = useMemo<SizeSelectOption[]>(
-    () => productSizesByStatus.filter((size) => sizeUuid(size)),
-    [productSizesByStatus]
-  );
-  const filteredSetOptionOptions = useMemo(
-    () => filterSizeOptionsByText(setOptionOptions, setOptionSearch),
-    [setOptionOptions, setOptionSearch]
-  );
-  const detailStockState = useMemo(() => detailStockSummary(details), [details]);
   const nextDetailStockMode = nextBulkStockMode(detailStockState);
   const detailStockStateLabel =
     detailStockState === "deduct"
@@ -696,28 +407,6 @@ export function useProductFormWorkflow() {
         : "bg-muted text-muted-foreground";
   const detailStockActionLabel =
     detailStockState === "deduct" ? t("product.stockBulk.noDeductAll") : t("product.stockBulk.deductAll");
-  const toppingOptions = useMemo(() => {
-    const hidden = new Set(hiddenToppingUuids);
-    const rows = toppings.filter((topping) => {
-      const uuid = toppingUuid(topping);
-      return uuid && !hidden.has(uuid);
-    });
-    const seen = new Set(rows.map((topping) => toppingUuid(topping)));
-    const missing =
-      editing?.toppings?.filter((topping) => {
-        const uuid = productToppingUuid(topping, rows);
-        return uuid && !seen.has(uuid) && !hidden.has(uuid);
-      }) ?? [];
-
-    return missing.length ? [...rows, ...(missing as Topping[])] : rows;
-  }, [editing?.toppings, hiddenToppingUuids, toppings]);
-  const filteredToppingOptions = useMemo(() => {
-    const query = normalizedText(toppingSearch);
-    if (!query) return toppingOptions;
-    return toppingOptions.filter((topping) =>
-      textValues(topping, TOPPING_NAME_KEYS).some((value) => value.includes(query))
-    );
-  }, [toppingOptions, toppingSearch]);
   const productTypeChoices = [
     {
       value: "1" as const,
@@ -765,10 +454,6 @@ export function useProductFormWorkflow() {
       : statusSortFk === "3"
         ? t("product.detailModeHints.promotion")
         : t("product.detailModeHints.general");
-  const selectedToppingBadges = useMemo(
-    () => buildSelectedToppingBadges(selectedToppings, toppingOptions, language),
-    [language, selectedToppings, toppingOptions]
-  );
   const hasValidDetails =
     details.length > 0 &&
     details.every(
@@ -801,26 +486,6 @@ export function useProductFormWorkflow() {
     const uuid = findOptionByText(unitOptions, editing, UNIT_NAME_KEYS, unitUuid);
     if (uuid) setUniteUuidFk(uuid);
   }, [editing, unitOptions, uniteUuidFk]);
-
-  useEffect(() => {
-    if (!editing?.toppings?.length || !toppingOptions.length) return;
-
-    const resolved = editing.toppings
-      .map((row) => ({
-        topping_uuid_fk: productToppingUuid(row, toppingOptions),
-        topping_price: String(row.topping_price ?? 0)
-      }))
-      .filter((row) => row.topping_uuid_fk);
-
-    if (!resolved.length) return;
-
-    setSelectedToppings((current) => {
-      const selectedIds = new Set(current.map((row) => row.topping_uuid_fk));
-      const missing = resolved.filter((row) => !selectedIds.has(row.topping_uuid_fk));
-      if (!current.length) return resolved;
-      return missing.length ? [...current, ...missing] : current;
-    });
-  }, [editing, toppingOptions]);
 
   return {
     t,

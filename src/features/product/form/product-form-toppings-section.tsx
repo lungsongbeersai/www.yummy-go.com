@@ -273,7 +273,7 @@ export function ProductFormToppingsSection({ form }: { form: ProductFormWorkflow
                       onChange={(event) => setToppingSearch(event.target.value)}
                     />
                   </div>
-                  <div className="max-h-80 space-y-2 overflow-y-auto pr-1">
+                  <div className="flex max-h-80 flex-col gap-2 overflow-y-auto pr-1">
                     {filteredToppingOptions.map((topping) => {
                       const uuid = toppingUuid(topping);
                       const label = entityLabel(
@@ -311,7 +311,7 @@ export function ProductFormToppingsSection({ form }: { form: ProductFormWorkflow
                             aria-label={t("actions.edit")}
                             onClick={() => editTopping(topping)}
                           >
-                            <Pencil className="size-4" />
+                            <Pencil />
                           </Button>
                           <Button
                             type="button"
@@ -322,7 +322,7 @@ export function ProductFormToppingsSection({ form }: { form: ProductFormWorkflow
                             disabled={toppingSaving}
                             onClick={() => setDeletingToppingUuid(uuid)}
                           >
-                            <Trash2 className="size-4" />
+                            <Trash2 />
                           </Button>
                         </div>
                       );

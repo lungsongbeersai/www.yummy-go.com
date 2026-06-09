@@ -123,7 +123,7 @@ export function CartSummaryDock({
           className={cn(
             "h-12 w-full min-w-0 justify-center rounded-lg bg-primary-foreground/95 px-3 text-primary shadow-sm hover:bg-primary-foreground/90",
             disabledButtonClass,
-            !compact && "h-[52px]"
+            !compact && "h-13"
           )}
           disabled={actionsDisabled}
           onClick={onCreateEmployeeOrder}
@@ -139,7 +139,7 @@ export function CartSummaryDock({
             <Button
               type="button"
               aria-label={t("nav.manage")}
-              className={cn("min-w-0 rounded-lg bg-primary-foreground/95 px-2 text-primary shadow-sm hover:bg-primary-foreground/90", disabledButtonClass, compact ? "h-12" : "h-[52px]")}
+              className={cn("min-w-0 rounded-lg bg-primary-foreground/95 px-2 text-primary shadow-sm hover:bg-primary-foreground/90", disabledButtonClass, compact ? "h-12" : "h-13")}
               disabled={actionsDisabled}
             >
               <MoreHorizontal data-icon="inline-start" />
@@ -181,7 +181,7 @@ export function CartSummaryDock({
           aria-label={splitSelectedTotalLabel ? `${primaryLabel} ${splitSelectedTotalLabel}` : primaryLabel}
           className={cn(
             "relative min-w-0 overflow-hidden rounded-lg px-3 shadow-sm",
-            compact ? "h-12" : "h-[52px]",
+            compact ? "h-12" : "h-13",
             primaryDisabled
               ? "bg-white text-primary hover:bg-white/90 disabled:hover:bg-white"
               : "bg-primary text-primary-foreground hover:bg-primary/90 disabled:hover:bg-primary",
@@ -199,7 +199,7 @@ export function CartSummaryDock({
             <span
               aria-hidden="true"
               className={cn(
-                "pointer-events-none absolute inset-y-[-45%] left-0 z-0 w-1/3 bg-gradient-to-r from-transparent to-transparent",
+                "pointer-events-none absolute inset-y-[-45%] left-0 z-0 w-1/3 bg-linear-to-r from-transparent to-transparent",
                 primaryDisabled ? "via-primary/20" : "via-primary-foreground/35"
               )}
               style={{ animation: "confirm-button-shine 1.9s ease-in-out infinite" }}

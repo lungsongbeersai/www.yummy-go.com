@@ -1,21 +1,4 @@
 import type { AuthUser } from "@/stores/auth-store";
-import type { FetchParams } from "@/services/shared/types";
-import * as branch from "@/services/branch";
-import * as category from "@/services/category";
-import * as color from "@/services/color";
-import * as currency from "@/services/currency";
-import * as customer from "@/services/customer";
-import * as district from "@/services/district";
-import * as exchange from "@/services/exchange";
-import * as group from "@/services/group";
-import * as province from "@/services/province";
-import * as size from "@/services/size";
-import * as store from "@/services/store";
-import * as table from "@/services/table";
-import * as topping from "@/services/topping";
-import * as unite from "@/services/unit";
-import * as user from "@/services/user";
-import * as zone from "@/services/zone";
 
 export type FieldType = "text" | "number" | "email" | "password" | "textarea";
 
@@ -33,9 +16,6 @@ export interface SettingConfig {
   idKey: string;
   columns: Array<{ key: string; label: string }>;
   fields: SettingField[];
-  list: (params: FetchParams) => Promise<{ data: Record<string, unknown>[]; total?: number; totalPages?: number; total_page?: number }>;
-  save: (input: Record<string, unknown>) => Promise<unknown>;
-  remove: (id: string) => Promise<unknown>;
   scope?: (user: AuthUser | null) => Record<string, unknown>;
 }
 
@@ -56,10 +36,7 @@ export const SETTINGS: Record<string, SettingConfig> = {
       { name: "store_email", label: "Email", type: "email", required: true },
       { name: "store_status", label: "Status", type: "number" },
       { name: "store_active", label: "Active", type: "number" }
-    ],
-    list: store.getStores,
-    save: store.saveStore,
-    remove: store.deleteStore
+    ]
   },
   branch: {
     slug: "branch",
@@ -72,9 +49,6 @@ export const SETTINGS: Record<string, SettingConfig> = {
       { name: "branch_tel", label: "Phone" },
       { name: "branch_address", label: "Address", type: "textarea" }
     ],
-    list: branch.getBranches,
-    save: branch.saveBranch,
-    remove: branch.deleteBranch,
     scope: storeScope
   },
   province: {
@@ -83,10 +57,7 @@ export const SETTINGS: Record<string, SettingConfig> = {
     description: "Province master data.",
     idKey: "province_uuid",
     columns: [{ key: "province_name", label: "Name" }, { key: "province_name_la", label: "LA" }, { key: "province_name_eng", label: "EN" }],
-    fields: [{ name: "province_name_la", label: "Name LA", required: true }, { name: "province_name_eng", label: "Name EN" }],
-    list: province.getProvinces,
-    save: province.saveProvince,
-    remove: province.deleteProvince
+    fields: [{ name: "province_name_la", label: "Name LA", required: true }, { name: "province_name_eng", label: "Name EN" }]
   },
   district: {
     slug: "district",
@@ -94,10 +65,7 @@ export const SETTINGS: Record<string, SettingConfig> = {
     description: "District master data.",
     idKey: "district_uuid",
     columns: [{ key: "district_name", label: "Name" }, { key: "province_uuid_fk", label: "Province" }],
-    fields: [{ name: "province_uuid_fk", label: "Province", required: true }, { name: "district_name_la", label: "Name LA", required: true }, { name: "district_name_eng", label: "Name EN" }],
-    list: district.getDistricts,
-    save: district.saveDistrict,
-    remove: district.deleteDistrict
+    fields: [{ name: "province_uuid_fk", label: "Province", required: true }, { name: "district_name_la", label: "Name LA", required: true }, { name: "district_name_eng", label: "Name EN" }]
   },
   topping: {
     slug: "topping",
@@ -106,9 +74,6 @@ export const SETTINGS: Record<string, SettingConfig> = {
     idKey: "topping_uuid",
     columns: [{ key: "topping_name", label: "Name" }],
     fields: [{ name: "topping_name_la", label: "Name LA", required: true }, { name: "topping_name_eng", label: "Name EN" }],
-    list: topping.getToppings,
-    save: topping.saveTopping,
-    remove: topping.deleteTopping,
     scope: storeScope
   },
   group: {
@@ -118,9 +83,6 @@ export const SETTINGS: Record<string, SettingConfig> = {
     idKey: "group_uuid",
     columns: [{ key: "group_name", label: "Name" }, { key: "group_name_la", label: "LA" }],
     fields: [{ name: "group_name_la", label: "Name LA", required: true }, { name: "group_name_eng", label: "Name EN" }],
-    list: group.getGroups,
-    save: group.saveGroup,
-    remove: group.deleteGroup,
     scope: storeScope
   },
   category: {
@@ -130,9 +92,6 @@ export const SETTINGS: Record<string, SettingConfig> = {
     idKey: "cate_uuid",
     columns: [{ key: "cate_name", label: "Name" }, { key: "group_uuid_fk", label: "Group" }],
     fields: [{ name: "group_uuid_fk", label: "Group" }, { name: "cate_name_la", label: "Name LA", required: true }, { name: "cate_name_eng", label: "Name EN" }, { name: "cate_icon", label: "Icon" }],
-    list: category.getCategories,
-    save: category.saveCategory,
-    remove: category.deleteCategory,
     scope: storeScope
   },
   unit: {
@@ -142,9 +101,6 @@ export const SETTINGS: Record<string, SettingConfig> = {
     idKey: "unite_uuid",
     columns: [{ key: "unite_name", label: "Name" }, { key: "unite_name_la", label: "LA" }],
     fields: [{ name: "unite_name_la", label: "Name LA", required: true }, { name: "unite_name_eng", label: "Name EN" }],
-    list: unite.getUnits,
-    save: unite.saveUnit,
-    remove: unite.deleteUnit,
     scope: storeScope
   },
   unite: {
@@ -154,9 +110,6 @@ export const SETTINGS: Record<string, SettingConfig> = {
     idKey: "unite_uuid",
     columns: [{ key: "unite_name", label: "Name" }],
     fields: [{ name: "unite_name_la", label: "Name LA", required: true }, { name: "unite_name_eng", label: "Name EN" }],
-    list: unite.getUnits,
-    save: unite.saveUnit,
-    remove: unite.deleteUnit,
     scope: storeScope
   },
   size: {
@@ -166,9 +119,6 @@ export const SETTINGS: Record<string, SettingConfig> = {
     idKey: "size_uuid",
     columns: [{ key: "size_name", label: "Name" }, { key: "size_name_la", label: "LA" }],
     fields: [{ name: "size_name_la", label: "Name LA", required: true }, { name: "size_name_eng", label: "Name EN" }],
-    list: size.getSizes,
-    save: size.saveSize,
-    remove: size.deleteSize,
     scope: storeScope
   },
   color: {
@@ -177,10 +127,7 @@ export const SETTINGS: Record<string, SettingConfig> = {
     description: "Product color swatches.",
     idKey: "color_uuid",
     columns: [{ key: "color_code", label: "Code" }],
-    fields: [{ name: "color_code", label: "Color code", required: true }],
-    list: color.getColors,
-    save: color.saveColor,
-    remove: color.deleteColor
+    fields: [{ name: "color_code", label: "Color code", required: true }]
   },
   zone: {
     slug: "zone",
@@ -189,9 +136,6 @@ export const SETTINGS: Record<string, SettingConfig> = {
     idKey: "zone_uuid",
     columns: [{ key: "zone_name", label: "Name" }, { key: "zone_name_la", label: "LA" }],
     fields: [{ name: "zone_name_la", label: "Name LA", required: true }, { name: "zone_name_eng", label: "Name EN" }],
-    list: zone.getZones,
-    save: zone.saveZone,
-    remove: zone.deleteZone,
     scope: branchScope
   },
   table: {
@@ -207,9 +151,6 @@ export const SETTINGS: Record<string, SettingConfig> = {
       { name: "table_qty", label: "Seats", type: "number" },
       { name: "charge_status", label: "Service charge", type: "number" }
     ],
-    list: table.getTables,
-    save: table.saveTable,
-    remove: table.deleteTable,
     scope: branchScope
   },
   currency: {
@@ -218,10 +159,7 @@ export const SETTINGS: Record<string, SettingConfig> = {
     description: "Accepted currencies.",
     idKey: "currency_uuid",
     columns: [{ key: "currency_name", label: "Name" }, { key: "currency_icon", label: "Icon" }, { key: "currency_status", label: "Status" }],
-    fields: [{ name: "currency_name", label: "Name", required: true }, { name: "currency_icon", label: "Icon" }, { name: "currency_status", label: "Status", type: "number" }],
-    list: currency.getCurrencies,
-    save: currency.saveCurrency,
-    remove: currency.deleteCurrency
+    fields: [{ name: "currency_name", label: "Name", required: true }, { name: "currency_icon", label: "Icon" }, { name: "currency_status", label: "Status", type: "number" }]
   },
   exchange: {
     slug: "exchange",
@@ -230,9 +168,6 @@ export const SETTINGS: Record<string, SettingConfig> = {
     idKey: "ex_uuid",
     columns: [{ key: "currency_uuid_fk", label: "Currency" }, { key: "ex_price", label: "Rate" }, { key: "ex_status", label: "Status" }],
     fields: [{ name: "currency_uuid_fk", label: "Currency", required: true }, { name: "ex_price", label: "Rate", type: "number", required: true }, { name: "ex_status", label: "Status", type: "number" }],
-    list: exchange.getExchanges,
-    save: exchange.saveExchange,
-    remove: exchange.deleteExchange,
     scope: storeScope
   },
   customer: {
@@ -253,9 +188,6 @@ export const SETTINGS: Record<string, SettingConfig> = {
       { name: "customer_status", label: "Status", type: "number" },
       { name: "customer_address", label: "Address", type: "textarea" }
     ],
-    list: customer.getCustomers,
-    save: customer.saveCustomer,
-    remove: customer.deleteCustomer,
     scope: storeScope
   },
   user: {
@@ -275,9 +207,6 @@ export const SETTINGS: Record<string, SettingConfig> = {
       { name: "roles_id_fk", label: "Role", type: "number" },
       { name: "login_active", label: "Active", type: "number" }
     ],
-    list: user.getUsers,
-    save: user.saveUser,
-    remove: user.deleteUser,
     scope: (u) => ({ ...storeScope(u), ...branchScope(u), ...loginScope(u) })
   }
 };

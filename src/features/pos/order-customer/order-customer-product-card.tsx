@@ -72,7 +72,7 @@ export const EmployeeProductCard = memo(function EmployeeProductCard({
       : actionLabel;
 
   return (
-    <Card className="group flex min-h-[260px] min-w-0 flex-col overflow-hidden rounded-lg border-border/80 bg-card text-card-foreground shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-primary/45 hover:shadow-md sm:min-h-[304px]">
+    <Card className="group flex min-h-65 min-w-0 flex-col overflow-hidden rounded-lg border-border/80 bg-card text-card-foreground shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-primary/45 hover:shadow-md sm:min-h-76">
       <div className="relative aspect-square overflow-hidden bg-muted bg-cover bg-center">
         <ProductMediaView
           alt={product.prod_name}
@@ -306,7 +306,7 @@ export function ProductGridSkeleton() {
       {Array.from({ length: 10 }).map((_, index) => (
         <Card
           key={index}
-          className="min-h-[260px] overflow-hidden rounded-lg border-border bg-card sm:min-h-[304px]"
+          className="min-h-65 overflow-hidden rounded-lg border-border bg-card sm:min-h-76"
         >
           <Skeleton className="aspect-square w-full rounded-none bg-muted" />
           <CardContent className="flex flex-col gap-2 p-2.5 sm:gap-2.5 sm:p-3">

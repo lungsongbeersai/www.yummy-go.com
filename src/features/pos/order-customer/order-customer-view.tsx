@@ -215,7 +215,7 @@ export function OrderCustomerView({
                 ))}
               </div>
             ) : (
-              <Empty className="min-h-[420px] rounded-xl border border-dashed bg-background text-foreground">
+              <Empty className="min-h-105 rounded-xl border border-dashed bg-background text-foreground">
                 <EmptyHeader>
                   <EmptyMedia variant="icon">
                     <Utensils />

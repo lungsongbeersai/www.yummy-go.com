@@ -1,152 +1,42 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { UsersRound } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
-import { Field, FieldDescription, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Spinner } from "@/components/ui/spinner";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { DEFAULT_CROP, SettingsImageCropPanel, cropImageFile, type CropState } from "@/features/settings/shared/settings-image-crop";
+import {
+  DEFAULT_CROP,
+  cropImageFile,
+  type CropState
+} from "@/features/settings/shared/settings-image-crop";
 import {
   SettingsModuleShell,
   SettingsPaginationFooter,
-  SettingsMobileCard,
-  SettingsMobileMeta,
-  SettingsMobileMetaGrid,
-  SettingsRowActions,
-  SettingsTableScroll,
   SettingsToolbar
 } from "@/features/settings/shared/settings-shell";
 import { useUrlPagination } from "@/hooks/use-url-pagination";
 import { DEFAULT_PAGE_LIMIT, PAGE_LIMIT_OPTIONS } from "@/lib/pagination";
 import type { UrlPaginationState } from "@/lib/url-pagination";
-import { cn } from "@/lib/utils";
-import type { ApiEntity, PageLimit, SortOrder } from "@/services/shared/types";
-import type { FetchUsersParams, Role, SaveUserInput, User } from "@/services/user";
+import type { PageLimit, SortOrder } from "@/services/shared/types";
+import type { FetchUsersParams, Role, User } from "@/services/user";
 import { useAppStore } from "@/stores/app-store";
 import { useAuthStore } from "@/stores/auth-store";
 import { useReferenceStore } from "@/stores/reference-store";
 import { useToastStore } from "@/stores/toast-store";
 import { useUserStore } from "@/stores/user-store";
+import { UserFormDialog } from "./user-form-dialog";
+import { UserListSurface } from "./user-list";
+import {
+  buildUserSaveInput,
+  isProtectedUser,
+  userId,
+  userValue
+} from "./user-utils";
 
 const DEFAULT_LIMIT: PageLimit = DEFAULT_PAGE_LIMIT;
 const ORDER_OPTIONS: Array<{ labelKey: "asc" | "desc"; value: SortOrder }> = [
   { labelKey: "asc", value: "asc" },
   { labelKey: "desc", value: "desc" }
 ];
-
-function value(row: ApiEntity | null | undefined, key: string, fallback = "") {
-  const raw = row?.[key];
-  if (raw === null || raw === undefined || raw === "") return fallback;
-  return String(raw);
-}
-
-function userId(row: User | null | undefined) {
-  return value(row, "login_uuid");
-}
-
-function roleId(row: Role | User | null | undefined) {
-  return value(row, "roles_id_fk", value(row, "roles_id", value(row, "role_id")));
-}
-
-function roleName(row: Role | User | null | undefined) {
-  return value(row, "roles_name", value(row, "role_name", value(row, "roles_name_la", value(row, "roles_name_eng", "-"))));
-}
-
-function branchName(row: ApiEntity | null | undefined) {
-  return value(row, "branch_name", value(row, "branch_name_la", value(row, "branch_name_eng", "-")));
-}
-
-function isProtectedUser(row: User) {
-  const raw = row.btn_disabled ?? row.btn_disible;
-  if (raw === null || raw === undefined) return false;
-  const status = String(raw).trim().toLowerCase();
-  return Boolean(status) && status !== "null";
-}
-
-function initials(email: string) {
-  const name = email.split("@")[0]?.trim() || email.trim();
-  return (name.slice(0, 2) || "U").toUpperCase();
-}
-
-function UserAvatar({
-  email,
-  src
-}: {
-  email: string;
-  src: string;
-}) {
-  return (
-    <Avatar size="lg">
-      {src ? <AvatarImage alt={email} src={src} /> : null}
-      <AvatarFallback>{initials(email)}</AvatarFallback>
-    </Avatar>
-  );
-}
-
-function activeLabel(status: string, active: string, inactive: string) {
-  return Number(status || 1) === 1 ? active : inactive;
-}
-
-function activeBadgeClass(status: string) {
-  return Number(status || 1) === 1
-    ? "border-primary/25 bg-primary/10 text-primary"
-    : "border-muted-foreground/20 bg-muted text-muted-foreground";
-}
-
-function UserBadges({
-  currentRow,
-  protectedRow
-}: {
-  currentRow: boolean;
-  protectedRow: boolean;
-}) {
-  const { t } = useTranslation();
-
-  return (
-    <>
-      {currentRow ? (
-        <Badge className="shrink-0 border-primary/25 bg-primary/10 text-primary">
-          {t("settings.currentUser")}
-        </Badge>
-      ) : null}
-      {protectedRow ? <Badge className="shrink-0">{t("settings.protectedUser")}</Badge> : null}
-    </>
-  );
-}
-
-function UserIdentity({
-  currentRow,
-  email,
-  protectedRow,
-  src
-}: {
-  currentRow: boolean;
-  email: string;
-  protectedRow: boolean;
-  src: string;
-}) {
-  return (
-    <div className="flex min-w-0 items-center gap-3">
-      <UserAvatar email={email} src={src} />
-      <div className="min-w-0">
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <p className="min-w-0 truncate font-black" translate="no">{email}</p>
-          <UserBadges currentRow={currentRow} protectedRow={protectedRow} />
-        </div>
-      </div>
-    </div>
-  );
-}
 
 export function UserSettingsPage({ initialPagination }: { initialPagination: UrlPaginationState }) {
   const { t } = useTranslation();
@@ -178,6 +68,8 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
   const [selectedRows, setSelectedRows] = useState<Set<string>>(() => new Set());
+  const [selectedProfileImage, setSelectedProfileImage] = useState<File | null>(null);
+  const [crop, setCrop] = useState<CropState>(DEFAULT_CROP);
 
   const title = t("settings.modules.user.title");
   const description = t("settings.modules.user.description");
@@ -265,6 +157,11 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
     });
   }, [ids]);
 
+  useEffect(() => {
+    setSelectedProfileImage(null);
+    setCrop(DEFAULT_CROP);
+  }, [dialogOpen, editing]);
+
   function applyFilters() {
     if (page === 1) void load();
     else resetPage();
@@ -322,18 +219,18 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
       return;
     }
 
-    const input: SaveUserInput = {
-      branch_uuid_fk: branchUuid,
-      roles_id_fk: Number(selectedRoleId),
-      login_email: String(formData.get("login_email") ?? "").trim(),
-      login_active: Number(formData.get("login_active") ?? 1)
-    };
-    if (id) input.login_uuid = id;
-    if (password) input.login_password = password;
-    if (profile instanceof File && profile.size) input.login_profile = profile;
-
     try {
-      await saveRow(input);
+      await saveRow(
+        buildUserSaveInput({
+          active: String(formData.get("login_active") ?? 1),
+          branchUuid,
+          editing,
+          email: String(formData.get("login_email") ?? ""),
+          password,
+          profile,
+          selectedRoleId
+        })
+      );
       showToast({ title: t("settings.saved"), tone: "success" });
       setDialogOpen(false);
       setEditing(null);
@@ -345,6 +242,14 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
         tone: "error"
       });
     }
+  }
+
+  async function submitUserForm(formData: FormData) {
+    if (selectedProfileImage) {
+      const croppedFile = await cropImageFile(selectedProfileImage, crop, t("settings.storeBranch.imageLoadFailed"));
+      formData.set("login_profile", croppedFile);
+    }
+    await save(formData);
   }
 
   async function remove(row: User) {
@@ -371,122 +276,6 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
     }
   }
 
-  const table = rows.length ? (
-    <SettingsTableScroll>
-      <Table className="min-w-[1040px]">
-        <TableHeader className="sticky top-0 z-10 bg-muted/95 backdrop-blur">
-          <TableRow>
-            <TableHead className="w-10 px-2">
-              <Checkbox aria-label={t("common.selectAll")} checked={allSelected} onChange={(event) => toggleAll(event.target.checked)} />
-            </TableHead>
-            <TableHead className="w-px whitespace-nowrap px-2 text-center">{t("fields.no")}</TableHead>
-            <TableHead>{t("nav.user")}</TableHead>
-            <TableHead>{t("fields.roles_name")}</TableHead>
-            <TableHead>{t("nav.branch")}</TableHead>
-            <TableHead>{t("fields.login_active")}</TableHead>
-            <TableHead className="w-16 text-right">{t("common.actions")}</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map((row, index) => {
-            const id = userId(row);
-            const email = value(row, "login_email", "-");
-            const selected = selectedRows.has(id);
-            const protectedRow = isProtectedUser(row);
-            const currentRow = Boolean(currentLoginUuid && id === currentLoginUuid);
-            return (
-              <TableRow
-                key={id || index}
-                className={cn("h-14", currentRow && "bg-primary/5")}
-                data-state={selected ? "selected" : undefined}
-              >
-                <TableCell className="w-10 px-2">
-                  <Checkbox aria-label={t("common.selectRow", { name: email })} checked={selected} onChange={(event) => toggleSelected(id, event.target.checked)} />
-                </TableCell>
-                <TableCell className="w-px whitespace-nowrap px-2 text-center text-sm font-black text-muted-foreground">{pageStart + index}</TableCell>
-                <TableCell className="max-w-[28rem]">
-                  <UserIdentity
-                    currentRow={currentRow}
-                    email={email}
-                    protectedRow={protectedRow}
-                    src={userProfileUrl(value(row, "login_profile"))}
-                  />
-                </TableCell>
-                <TableCell className="max-w-72 truncate text-muted-foreground">{roleName(row)}</TableCell>
-                <TableCell className="max-w-72 truncate text-muted-foreground">{branchName(row)}</TableCell>
-                <TableCell>
-                  <Badge className={activeBadgeClass(value(row, "login_active", "1"))}>
-                    {activeLabel(value(row, "login_active", "1"), t("common.active"), t("common.inactive"))}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-right">
-                  <SettingsRowActions
-                    row={row}
-                    editDisabled={protectedRow}
-                    deleteDisabled={protectedRow}
-                    onEdit={openEdit}
-                    onDelete={setDeleteTarget}
-                  />
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
-    </SettingsTableScroll>
-  ) : null;
-  const mobileList = rows.length ? (
-    <div className="flex min-h-full flex-col gap-2 p-3">
-      {rows.map((row, index) => {
-        const id = userId(row);
-        const email = value(row, "login_email", "-");
-        const selected = selectedRows.has(id);
-        const protectedRow = isProtectedUser(row);
-        const currentRow = Boolean(currentLoginUuid && id === currentLoginUuid);
-        const active = value(row, "login_active", "1");
-        return (
-          <SettingsMobileCard
-            key={id || index}
-            actions={
-              <SettingsRowActions
-                row={row}
-                editDisabled={protectedRow}
-                deleteDisabled={protectedRow}
-                onEdit={openEdit}
-                onDelete={setDeleteTarget}
-              />
-            }
-            badges={
-              <>
-                <UserBadges currentRow={currentRow} protectedRow={protectedRow} />
-              </>
-            }
-            checked={selected}
-            className={currentRow ? "bg-primary/5" : undefined}
-            leading={<UserAvatar email={email} src={userProfileUrl(value(row, "login_profile"))} />}
-            selectLabel={t("common.selectRow", { name: email })}
-            selected={selected}
-            title={<span translate="no">{email}</span>}
-            onCheckedChange={(checked) => toggleSelected(id, checked)}
-          >
-            <SettingsMobileMetaGrid>
-              <SettingsMobileMeta label={t("fields.roles_name")} value={roleName(row)} />
-              <SettingsMobileMeta label={t("nav.branch")} value={branchName(row)} />
-              <SettingsMobileMeta
-                label={t("fields.login_active")}
-                value={
-                  <Badge className={activeBadgeClass(active)}>
-                    {activeLabel(active, t("common.active"), t("common.inactive"))}
-                  </Badge>
-                }
-              />
-            </SettingsMobileMetaGrid>
-          </SettingsMobileCard>
-        );
-      })}
-    </div>
-  ) : null;
-
   const toolbar = (
     <SettingsToolbar
       state={{
@@ -508,43 +297,25 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
   );
 
   const listSurface = (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <div className="shrink-0 border-b border-border bg-card/95 px-3 py-2.5 backdrop-blur sm:px-4 lg:px-5">
-        <div className="flex min-w-0 flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
-          <div className="min-w-0">
-            <p className="text-sm font-black">{t("settings.userList")}</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              {t("common.showingRange", { start: pageStart, end: pageEnd, total })} - {t("common.page", { current: page, total: totalPages })}
-            </p>
-          </div>
-          <div className="min-w-0 xl:max-w-[48rem]">{toolbar}</div>
-        </div>
-        {backgroundLoading ? (
-          <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-            <Spinner aria-hidden />
-            {t("settings.refreshingList")}
-          </div>
-        ) : null}
-      </div>
-      {rows.length ? (
-        <>
-          <div className="hidden min-h-0 flex-1 md:flex">{table}</div>
-          <div className="min-h-0 flex-1 overflow-y-auto md:hidden">{mobileList}</div>
-        </>
-      ) : (
-        <div className="flex min-h-72 flex-1 items-center justify-center p-4">
-          <Empty className="max-w-md border border-dashed bg-muted/20">
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <UsersRound aria-hidden />
-              </EmptyMedia>
-              <EmptyTitle>{t("settings.noRecords", { title: title.toLowerCase() })}</EmptyTitle>
-              <EmptyDescription>{t("empty.adjustSearch")}</EmptyDescription>
-            </EmptyHeader>
-          </Empty>
-        </div>
-      )}
-    </div>
+    <UserListSurface
+      allSelected={allSelected}
+      backgroundLoading={backgroundLoading}
+      currentLoginUuid={currentLoginUuid}
+      page={page}
+      pageEnd={pageEnd}
+      pageStart={pageStart}
+      profileUrl={userProfileUrl}
+      rows={rows}
+      selectedRows={selectedRows}
+      title={title}
+      toolbar={toolbar}
+      total={total}
+      totalPages={totalPages}
+      onDelete={setDeleteTarget}
+      onEdit={openEdit}
+      onToggleAll={toggleAll}
+      onToggleSelected={toggleSelected}
+    />
   );
 
   return (
@@ -578,21 +349,25 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
         onAdd={openCreate}
       />
       <UserFormDialog
+        crop={crop}
         currentBranchName={loginBranchName}
         currentBranchUuid={branchUuid}
         editing={editing}
         loggedRoleId={loggedRoleId}
         open={dialogOpen}
+        profileSrc={editing ? userProfileUrl(userValue(editing, "login_profile")) : ""}
         roleOptions={roles}
         saving={saving}
+        selectedProfileImage={selectedProfileImage}
         title={title}
-        profileSrc={editing ? userProfileUrl(value(editing, "login_profile")) : ""}
+        onCropChange={setCrop}
+        onFileChange={setSelectedProfileImage}
         onOpenChange={(nextOpen) => {
           if (saving) return;
           setDialogOpen(nextOpen);
           if (!nextOpen) setEditing(null);
         }}
-        onSubmit={save}
+        onSubmit={submitUserForm}
       />
       <ConfirmDialog
         cancelLabel={t("actions.cancel")}
@@ -609,209 +384,5 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
         }}
       />
     </>
-  );
-}
-
-function UserFormDialog({
-  currentBranchName,
-  currentBranchUuid,
-  editing,
-  loggedRoleId,
-  onOpenChange,
-  onSubmit,
-  open,
-  profileSrc,
-  roleOptions,
-  saving,
-  title
-}: {
-  currentBranchName: string;
-  currentBranchUuid: string;
-  editing: User | null;
-  loggedRoleId: number;
-  onOpenChange: (open: boolean) => void;
-  onSubmit: (formData: FormData) => Promise<void>;
-  open: boolean;
-  profileSrc: string;
-  roleOptions: Role[];
-  saving: boolean;
-  title: string;
-}) {
-  const { t } = useTranslation();
-  const [selectedRoleId, setSelectedRoleId] = useState("");
-  const [loginActive, setLoginActive] = useState("1");
-  const [selectedProfileImage, setSelectedProfileImage] = useState<File | null>(null);
-  const [crop, setCrop] = useState<CropState>(DEFAULT_CROP);
-
-  const roles = useMemo(() => {
-    const editingRoleId = roleId(editing);
-    if (!editingRoleId || roleOptions.some((role) => roleId(role) === editingRoleId)) return roleOptions;
-    return [{ roles_id_fk: editingRoleId, roles_name: roleName(editing) }, ...roleOptions] as Role[];
-  }, [editing, roleOptions]);
-
-  useEffect(() => {
-    setSelectedRoleId(roleId(editing) || String(loggedRoleId || ""));
-    setLoginActive(value(editing, "login_active", "1"));
-    setSelectedProfileImage(null);
-    setCrop(DEFAULT_CROP);
-  }, [editing, loggedRoleId, open]);
-
-  async function handleSubmit(formData: FormData) {
-    if (selectedProfileImage) {
-      const croppedFile = await cropImageFile(selectedProfileImage, crop, t("settings.storeBranch.imageLoadFailed"));
-      formData.set("login_profile", croppedFile);
-    }
-    await onSubmit(formData);
-  }
-
-  const formKey = userId(editing) || "new";
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className="!flex h-[calc(100dvh-1rem)] max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-5xl flex-col gap-0 overflow-hidden p-0 sm:h-auto sm:max-h-[calc(100dvh-2rem)] sm:w-[calc(100vw-2rem)] sm:max-w-5xl"
-        showCloseButton={!saving}
-      >
-        <DialogHeader className="border-b border-border px-4 py-3 pr-12 sm:px-5">
-          <DialogTitle>{editing ? t("settings.editRecord") : t("settings.newRecord")}: {title}</DialogTitle>
-          <DialogDescription>{t("settings.userDialogDescription")}</DialogDescription>
-        </DialogHeader>
-        <form key={formKey} action={handleSubmit} className="flex min-h-0 flex-auto flex-col overflow-hidden sm:max-h-[calc(100dvh-8rem)]">
-          <div className="min-h-0 flex-1 overflow-y-auto lg:grid lg:grid-cols-[19rem_minmax(0,1fr)] lg:overflow-hidden">
-            <div className="border-b border-border bg-muted/20 lg:min-h-0 lg:border-b-0 lg:border-r">
-              <SettingsImageCropPanel
-                crop={crop}
-                className="shrink-0 lg:overflow-y-auto"
-                description={t("settings.profileImageHint")}
-                emptyLabel={t("fields.login_profile")}
-                existingSrc={profileSrc}
-                fileSupportText={t("settings.storeBranch.imageSupport")}
-                fieldId="login_profile"
-                horizontalLabel={t("settings.storeBranch.horizontal")}
-                previewMaxClassName="max-w-[10rem] sm:max-w-56 lg:max-w-none"
-                removeLabel={t("settings.storeBranch.cancelImage")}
-                saving={saving}
-                selectedFile={selectedProfileImage}
-                title={t("settings.userProfileSection")}
-                uploadLabel={t("settings.storeBranch.uploadImage")}
-                verticalLabel={t("settings.storeBranch.vertical")}
-                zoomLabel={t("settings.storeBranch.zoom")}
-                onCropChange={setCrop}
-                onFileChange={setSelectedProfileImage}
-              />
-            </div>
-            <div className="min-h-0 p-4 lg:overflow-y-auto lg:p-5">
-              <FieldGroup className="gap-4 pb-1">
-                <FieldSet className="gap-4 rounded-lg border border-border bg-card p-4">
-                  <div className="min-w-0">
-                    <FieldLegend className="mb-1 text-sm font-black">{t("settings.userAccountSection")}</FieldLegend>
-                    <FieldDescription>{t("settings.userFormHint")}</FieldDescription>
-                  </div>
-
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <Field>
-                      <FieldLabel htmlFor="login_email">{t("fields.login_email")}</FieldLabel>
-                      <Input
-                        autoComplete="email"
-                        disabled={saving}
-                        id="login_email"
-                        name="login_email"
-                        defaultValue={value(editing, "login_email")}
-                        placeholder={t("settings.emailPlaceholder")}
-                        required
-                        spellCheck={false}
-                        translate="no"
-                        type="email"
-                      />
-                    </Field>
-                    <Field>
-                      <FieldLabel htmlFor="login_password">{t("fields.login_password")}</FieldLabel>
-                      <Input
-                        autoComplete="new-password"
-                        disabled={saving}
-                        id="login_password"
-                        name="login_password"
-                        required={!editing}
-                        type="password"
-                      />
-                      <FieldDescription>
-                        {editing ? t("settings.passwordEditHint") : t("settings.passwordCreateHint")}
-                      </FieldDescription>
-                    </Field>
-                  </div>
-                </FieldSet>
-
-                <FieldSet className="gap-4 rounded-lg border border-border bg-card p-4">
-                  <div className="min-w-0">
-                    <FieldLegend className="mb-1 text-sm font-black">{t("settings.userAccessSection")}</FieldLegend>
-                    <FieldDescription>{t("settings.branchFromLogin")}</FieldDescription>
-                  </div>
-
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <Field>
-                      <FieldLabel htmlFor="branch_uuid_fk">{t("nav.branch")}</FieldLabel>
-                      <input name="branch_uuid_fk" type="hidden" value={currentBranchUuid} />
-                      <Input
-                        aria-readonly
-                        id="branch_uuid_fk"
-                        name="branch_name_readonly"
-                        readOnly
-                        value={currentBranchName || "-"}
-                      />
-                    </Field>
-                    <Field>
-                      <FieldLabel htmlFor="roles_id_fk">{t("fields.roles_id_fk")}</FieldLabel>
-                      <input name="roles_id_fk" type="hidden" value={selectedRoleId} />
-                      <Select disabled={saving} required value={selectedRoleId} onValueChange={setSelectedRoleId}>
-                        <SelectTrigger id="roles_id_fk" className="w-full">
-                          <SelectValue placeholder={t("settings.selectRole")} />
-                        </SelectTrigger>
-                        <SelectContent position="popper">
-                          <SelectGroup>
-                            {roles.map((role) => {
-                              const id = roleId(role);
-                              if (!id) return null;
-                              return (
-                                <SelectItem key={id} value={id}>
-                                  {roleName(role)}
-                                </SelectItem>
-                              );
-                            })}
-                          </SelectGroup>
-                        </SelectContent>
-                      </Select>
-                    </Field>
-                    <Field>
-                      <FieldLabel htmlFor="login_active">{t("fields.login_active")}</FieldLabel>
-                      <input name="login_active" type="hidden" value={loginActive} />
-                      <Select disabled={saving} required value={loginActive} onValueChange={setLoginActive}>
-                        <SelectTrigger id="login_active" className="w-full">
-                          <SelectValue placeholder={t("fields.login_active")} />
-                        </SelectTrigger>
-                        <SelectContent position="popper">
-                          <SelectGroup>
-                            <SelectItem value="1">{t("common.active")}</SelectItem>
-                            <SelectItem value="2">{t("common.inactive")}</SelectItem>
-                          </SelectGroup>
-                        </SelectContent>
-                      </Select>
-                    </Field>
-                  </div>
-                </FieldSet>
-              </FieldGroup>
-            </div>
-          </div>
-          <DialogFooter className="shrink-0 border-t border-border bg-card/95 px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur [&>button]:w-full sm:[&>button]:w-auto">
-            <Button disabled={saving} type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              {t("actions.cancel")}
-            </Button>
-            <Button disabled={saving || !currentBranchUuid || !selectedRoleId} type="submit">
-              {saving ? <Spinner data-icon="inline-start" /> : null}
-              {saving ? t("common.processing") : t("actions.save")}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
   );
 }

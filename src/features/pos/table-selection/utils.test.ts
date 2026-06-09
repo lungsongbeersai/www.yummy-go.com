@@ -7,6 +7,7 @@ import {
   cartSummary,
   discountDraftValue,
   newOrderConfirmGroups,
+  pruneSelectedItemUuids,
   splitPaymentSelection,
 } from "./utils";
 
@@ -94,6 +95,15 @@ describe("table selection utils", () => {
       20000,
     );
     expect(cartDisplaySummary(fullSummary, null)).toBe(fullSummary);
+  });
+
+  it("prunes split selections that are no longer eligible", () => {
+    const current = new Set(["item-1", "item-2"]);
+    const unchanged = pruneSelectedItemUuids(current, ["item-1", "item-2"]);
+    const pruned = pruneSelectedItemUuids(current, ["item-1", null]);
+
+    expect(unchanged).toBe(current);
+    expect([...pruned]).toEqual(["item-1"]);
   });
 
   it("builds customer display payload", () => {

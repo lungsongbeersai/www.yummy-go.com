@@ -177,7 +177,7 @@ export function PermissionMenuBuilder({
         </div>
       </section>
 
-      <section className="flex min-h-[24rem] min-w-0 flex-1 flex-col">
+      <section className="flex min-h-96 min-w-0 flex-1 flex-col">
         {selectedMenu ? (
           <SelectedMenuPanel
             busy={busy}
@@ -243,7 +243,7 @@ function SelectedMenuPanel({
             </span>
             <div className="min-w-0">
               <p className="text-xs font-bold text-muted-foreground">{t("permissionMenu.selectedMenu")}</p>
-              <h2 className="mt-0.5 break-words text-lg font-black">{menu.menu_title || "-"}</h2>
+              <h2 className="mt-0.5 wrap-break-word text-lg font-black">{menu.menu_title || "-"}</h2>
               <div className="mt-2 flex min-w-0 flex-wrap items-center gap-2">
                 <Badge>{badgeLabel(menu.menu_badge, t)}</Badge>
                 <Badge className={cn("shrink-0", statusClass(menu.menu_status))}>
@@ -255,7 +255,7 @@ function SelectedMenuPanel({
                   </Badge>
                 ) : null}
               </div>
-              <p className="mt-2 max-w-full break-words font-mono text-xs text-muted-foreground" translate="no">
+              <p className="mt-2 max-w-full wrap-break-word font-mono text-xs text-muted-foreground" translate="no">
                 {menu.menu_path || "-"}
               </p>
             </div>
@@ -468,7 +468,7 @@ function SortableSubMenuCard({
             {statusLabel(submenu.sub_status, t)}
           </Badge>
         </div>
-        <p className="mt-1 break-words font-mono text-xs text-muted-foreground" translate="no">
+        <p className="mt-1 wrap-break-word font-mono text-xs text-muted-foreground" translate="no">
           {submenu.sub_path || "-"}
         </p>
       </div>

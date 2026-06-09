@@ -151,7 +151,7 @@ export function IconPickerButton({
                 </div>
               </div>
             </div>
-            <div className="max-h-[22rem] overflow-y-auto rounded-lg border border-border bg-background p-2">
+            <div className="max-h-88 overflow-y-auto rounded-lg border border-border bg-background p-2">
               {filteredOptions.length ? (
                 <div aria-label={t("permissionMenu.selectIcon")} className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3" role="listbox">
                   {filteredOptions.map((option) => {
@@ -259,7 +259,7 @@ export function PathPicker({
           onWheel={(event) => event.stopPropagation()}
         >
           <Command
-            className="[&_[data-slot=command-input-wrapper]]:h-9 [&_[data-slot=command-input]]:h-9 [&_[data-slot=command-item]]:py-2"
+            className="**:data-[slot=command-input-wrapper]:h-9 **:data-[slot=command-input]:h-9 **:data-[slot=command-item]:py-2"
             filter={(optionValue, search) => (optionValue.includes(search.toLowerCase()) ? 1 : 0)}
           >
             <CommandInput

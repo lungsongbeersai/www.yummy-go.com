@@ -1,19 +1,18 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useShallow } from "zustand/react/shallow";
 import { Card, CardContent } from "@/components/ui/card";
 import { LoadingState } from "@/components/common/loading-state";
 import {
+  DashboardChartGridFallback,
   DashboardFilterBar,
   DashboardFooter,
   DashboardHeader,
   DashboardHeroStrip,
-  DashboardOperationsGrid,
-  DashboardProductsParetoGrid,
   // DashboardQueryBar,
-  DashboardRevenueAccountingGrid,
   ErrorBanner,
   type DashboardCopy
 } from "@/features/dashboard/overview/components/dashboard-widgets";
@@ -118,6 +117,30 @@ function filtersFromRequestParams(params: Record<string, unknown>): DashboardFil
 function filtersKey(filters: DashboardFilters) {
   return [filters.summary_range, filters.report_year, filters.report_month, filters.top].join("|");
 }
+
+const DashboardRevenueAccountingGrid = dynamic(
+  () => import("./components/dashboard-chart-widgets").then((module) => module.DashboardRevenueAccountingGrid),
+  {
+    loading: () => <DashboardChartGridFallback variant="revenue" />,
+    ssr: false
+  }
+);
+
+const DashboardOperationsGrid = dynamic(
+  () => import("./components/dashboard-chart-widgets").then((module) => module.DashboardOperationsGrid),
+  {
+    loading: () => <DashboardChartGridFallback variant="operations" />,
+    ssr: false
+  }
+);
+
+const DashboardProductsParetoGrid = dynamic(
+  () => import("./components/dashboard-chart-widgets").then((module) => module.DashboardProductsParetoGrid),
+  {
+    loading: () => <DashboardChartGridFallback variant="products" />,
+    ssr: false
+  }
+);
 
 export function DashboardPage() {
   const { t } = useTranslation();

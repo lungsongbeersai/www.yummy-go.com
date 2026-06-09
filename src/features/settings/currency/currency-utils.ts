@@ -26,6 +26,12 @@ export function currencyStatusLabel(status: string, activeLabel: string, inactiv
   return Number(status || 1) === 1 ? activeLabel : inactiveLabel;
 }
 
+export function currencyStatusBadgeClass(status: string) {
+  return Number(status || 1) === 1
+    ? "border-primary/25 bg-primary/10 text-primary"
+    : "border-muted-foreground/20 bg-muted text-muted-foreground";
+}
+
 export type CurrencyMissingField = "name" | "flag" | "status" | null;
 
 export function missingCurrencyField({

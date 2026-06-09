@@ -282,7 +282,7 @@ export const EmployeeCategorySidebar = memo(function EmployeeCategorySidebar({
                       type="button"
                       variant="ghost"
                       className={cn(
-                        "h-20 w-full flex-col gap-1 rounded-lg border border-white/20 bg-white/[0.08] px-2 text-white/85 hover:border-white/45 hover:bg-white/15 hover:text-white focus-visible:ring-white/60",
+                        "h-20 w-full flex-col gap-1 rounded-lg border border-white/20 bg-white/8 px-2 text-white/85 hover:border-white/45 hover:bg-white/15 hover:text-white focus-visible:ring-white/60",
                         active &&
                           "border-white bg-white text-primary shadow-lg hover:bg-white hover:text-primary",
                       )}
@@ -332,7 +332,7 @@ export const EmployeeCategoryRail = memo(function EmployeeCategoryRail({
                 variant="ghost"
                 size="sm"
                 className={cn(
-                  "h-11 max-w-[190px] rounded-2xl border border-white/15 bg-black/20 px-3 text-sm font-black text-white hover:border-white/45 hover:bg-white/10 hover:text-white",
+                  "h-11 max-w-47.5 rounded-2xl border border-white/15 bg-black/20 px-3 text-sm font-black text-white hover:border-white/45 hover:bg-white/10 hover:text-white",
                   active &&
                     "border-white bg-white text-primary hover:bg-white hover:text-primary",
                 )}

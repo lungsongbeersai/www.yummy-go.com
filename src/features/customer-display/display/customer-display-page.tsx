@@ -157,7 +157,7 @@ export function CustomerDisplayPage() {
                   <Badge className="rounded-full px-3 py-1 font-black">{t("pos.paymentTransfer")}</Badge>
                 </div>
 
-                <div className="mt-5 grid min-h-[18rem] place-items-center rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div className="mt-5 grid min-h-72 place-items-center rounded-xl border border-slate-200 bg-slate-50 p-4">
                   {payment?.qrUrl ? (
                     <Image
                       alt={t("pos.branchQr")}

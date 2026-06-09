@@ -3,6 +3,7 @@
 import { useTranslation } from "react-i18next";
 import { ChefHat, Loader2, Search, Utensils } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PRODUCT_GRID_CLASS } from "@/features/public-pos/order/constants";
 
@@ -129,9 +130,7 @@ export function PublicPosLoadingScreen() {
               </p>
             </div>
           </div>
-          <div className="h-1.5 overflow-hidden rounded-full bg-emerald-100 dark:bg-muted">
-            <div className="h-full w-2/3 animate-pulse rounded-full bg-primary" />
-          </div>
+          <Progress className="h-1.5 bg-emerald-100 dark:bg-muted" value={66} />
         </CardHeader>
 
         <CardContent className="grid gap-4 p-4">

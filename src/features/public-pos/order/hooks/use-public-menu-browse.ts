@@ -1,7 +1,7 @@
 "use client";
 
 import type { TFunction } from "i18next";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   type PublicMenuByKind,
   PUBLIC_MENU_KIND,
@@ -15,13 +15,11 @@ import {
   PRODUCT_RENDER_CHUNK,
   RAIL_RENDER_CHUNK,
 } from "@/features/public-pos/order/constants";
+import { usePublicMenuBrowseModel } from "@/features/public-pos/order/hooks/use-public-menu-browse-model";
+import { usePublicMenuCategoryLoader } from "@/features/public-pos/order/hooks/use-public-menu-category-loader";
 import { usePublicCategoryScroll } from "@/features/public-pos/order/hooks/use-public-category-scroll";
 import {
-  flattenStatusProducts,
   getCategoryPathUuids,
-  getRenderedMenuSections,
-  hasMoreMenuToRender,
-  hasRemoteProductImage,
   orderCateUuidsByMenu,
   visibleProductCountForCategory,
   withCategoryPathVisibleCounts,
@@ -74,96 +72,33 @@ export function usePublicMenuBrowse({
   const initialLoadKey = useRef("");
   const lastCategoryOrderKey = useRef("");
   const renderSentinelRef = useRef<HTMLDivElement | null>(null);
-
-  const promotionMenu = menuByKind[PUBLIC_MENU_KIND.PROMOTION];
-  const setMenu = menuByKind[PUBLIC_MENU_KIND.SET];
-  const normalMenu = menuByKind[PUBLIC_MENU_KIND.NORMAL];
-  const menuCategories = normalMenu.categories;
-  const categoryTabs = normalMenu.categoryTabs;
-  const selectedCateUuid = normalMenu.selectedCateUuid;
-  const defaultCateUuid = normalMenu.defaultCateUuid;
-  const loadedCateUuids = normalMenu.loadedCateUuids;
-  const loadingCateUuids = normalMenu.loadingCateUuids;
-  const visibleCategoryTabs = categoryTabs;
-
-  const categoryOrderKey = useMemo(
-    () => menuCategories.map((category) => category.cate_uuid).join(":"),
-    [menuCategories],
-  );
-  const promotionProducts = useMemo(
-    () =>
-      flattenStatusProducts(
-        promotionMenu.categories,
-        PUBLIC_MENU_KIND.PROMOTION,
-      ),
-    [promotionMenu.categories],
-  );
-  const setProducts = useMemo(
-    () => flattenStatusProducts(setMenu.categories, PUBLIC_MENU_KIND.SET),
-    [setMenu.categories],
-  );
-  const hasPromotionImage = promotionProducts.some(({ product }) =>
-    hasRemoteProductImage(product),
-  );
-  const hasSetImage = setProducts.some(({ product }) =>
-    hasRemoteProductImage(product),
-  );
-  const hasAnyNormalProducts = menuCategories.some(
-    (category) => (category.products?.length ?? 0) > 0,
-  );
-  const hasAnyProducts = Boolean(
-    promotionProducts.length || setProducts.length || hasAnyNormalProducts,
-  );
-  const menuCategoryByUuid = useMemo(
-    () =>
-      new Map(menuCategories.map((category) => [category.cate_uuid, category])),
-    [menuCategories],
-  );
-  const firstLoadedCateUuid =
-    selectedCateUuid || defaultCateUuid || menuCategories[0]?.cate_uuid || "";
-  const renderedMenuSections = useMemo(
-    () =>
-      getRenderedMenuSections({
-        renderedCateUuids,
-        categoryByUuid: menuCategoryByUuid,
-        visibleProductCountByCate,
-        loadedCateUuids,
-        loadingCateUuids,
-        productRenderChunk: PRODUCT_RENDER_CHUNK,
-      }),
-    [
-      loadedCateUuids,
-      loadingCateUuids,
-      menuCategoryByUuid,
-      renderedCateUuids,
-      visibleProductCountByCate,
-    ],
-  );
-  const hasMoreRenderedMenu = useMemo(
-    () =>
-      hasMoreMenuToRender({
-        collapsedCateUuids,
-        loadedCateUuids,
-        menuCategories,
-        categoryByUuid: menuCategoryByUuid,
-        renderedCateUuids,
-        visibleProductCountByCate,
-      }),
-    [
-      collapsedCateUuids,
-      loadedCateUuids,
-      menuCategories,
-      menuCategoryByUuid,
-      renderedCateUuids,
-      visibleProductCountByCate,
-    ],
-  );
-  const hasScrollJumpPendingContent = useMemo(
-    () =>
-      hasMoreRenderedMenu ||
-      renderedCateUuids.some((cateUuid) => loadingCateUuids.includes(cateUuid)),
-    [hasMoreRenderedMenu, loadingCateUuids, renderedCateUuids],
-  );
+  const {
+    categoryOrderKey,
+    defaultCateUuid,
+    firstLoadedCateUuid,
+    hasAnyProducts,
+    hasMoreRenderedMenu,
+    hasPromotionImage,
+    hasScrollJumpPendingContent,
+    hasSetImage,
+    loadedCateUuids,
+    loadingCateUuids,
+    menuCategories,
+    menuCategoryByUuid,
+    normalMenu,
+    promotionMenu,
+    promotionProducts,
+    selectedCateUuid,
+    setMenu,
+    setProducts,
+    visibleCategoryTabs,
+    renderedMenuSections,
+  } = usePublicMenuBrowseModel({
+    collapsedCateUuids,
+    menuByKind,
+    renderedCateUuids,
+    visibleProductCountByCate,
+  });
   const {
     activeCateUuid,
     activeValue,
@@ -185,6 +120,17 @@ export function usePublicMenuBrowse({
     setSelectedCateUuid,
     visibleCategoryTabs,
   });
+  const { ensureNormalCategoryProducts, loadNormalCategoryProductsSafely } =
+    usePublicMenuCategoryLoader({
+      lang,
+      loadNormalCategoryProducts,
+      loadedCateUuids,
+      loadingCateUuids,
+      submittedSearch,
+      t,
+      toast,
+      token,
+    });
 
   const ensureCategoryRendered = useCallback(
     (cateUuid: string) => {
@@ -244,51 +190,6 @@ export function usePublicMenuBrowse({
       menuCategoryByUuid,
       renderedCateUuids,
     ],
-  );
-
-  const loadNormalCategoryProductsSafely = useCallback(
-    async (cateUuid: string) => {
-      if (
-        !cateUuid ||
-        loadedCateUuids.includes(cateUuid) ||
-        loadingCateUuids.includes(cateUuid)
-      ) {
-        return;
-      }
-
-      try {
-        await loadNormalCategoryProducts({
-          t: token,
-          lang,
-          search: submittedSearch,
-          cate_uuid: cateUuid,
-        });
-      } catch (error) {
-        toast({
-          title: t("pos.productLoadFailed"),
-          description: error instanceof Error ? error.message : undefined,
-          tone: "error",
-        });
-        throw error;
-      }
-    },
-    [
-      lang,
-      loadNormalCategoryProducts,
-      loadedCateUuids,
-      loadingCateUuids,
-      submittedSearch,
-      t,
-      toast,
-      token,
-    ],
-  );
-
-  const ensureNormalCategoryProducts = useCallback(
-    (cateUuid: string) => {
-      void loadNormalCategoryProductsSafely(cateUuid).catch(() => undefined);
-    },
-    [loadNormalCategoryProductsSafely],
   );
 
   const revealNextMenuChunk = useCallback(() => {

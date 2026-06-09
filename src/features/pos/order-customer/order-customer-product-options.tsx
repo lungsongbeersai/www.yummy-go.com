@@ -87,7 +87,7 @@ export function ProductOptionsOverlay({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="pos-soft-light-zone pos-dark-zone flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden border-border bg-background p-0 text-foreground sm:max-w-[720px]">
+      <DialogContent className="pos-soft-light-zone pos-dark-zone flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden border-border bg-background p-0 text-foreground sm:max-w-180">
         <DialogHeader className="sr-only">
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
@@ -259,7 +259,7 @@ export function ProductOptionsForm({
 
             <Field>
               <ProductSectionHeader label={t("pos.qty")} meta={`${qty}`} />
-              <div className="grid max-w-[220px] grid-cols-[44px_minmax(0,1fr)_44px] items-center gap-2">
+              <div className="grid max-w-55 grid-cols-[44px_minmax(0,1fr)_44px] items-center gap-2">
                 <Button
                   type="button"
                   variant="outline"
@@ -368,7 +368,7 @@ function ProductDetailSummary({
             </span>
           </div>
         </div>
-        <div className="col-span-2 flex min-w-0 items-end justify-between gap-3 rounded-lg border border-primary/15 bg-primary/5 px-3 py-2 sm:col-span-1 sm:min-w-[170px] sm:flex-col sm:items-end sm:justify-center">
+        <div className="col-span-2 flex min-w-0 items-end justify-between gap-3 rounded-lg border border-primary/15 bg-primary/5 px-3 py-2 sm:col-span-1 sm:min-w-42.5 sm:flex-col sm:items-end sm:justify-center">
           <p className="shrink-0 text-xs font-bold leading-4 text-primary/75">
             {t("common.total")}
           </p>
@@ -479,7 +479,7 @@ function ProductOptionsFooter({
       </div>
       <Button
         type="submit"
-        className="h-12 min-w-[150px] rounded-lg bg-primary text-base font-black text-primary-foreground shadow-sm hover:bg-primary/90"
+        className="h-12 min-w-37.5 rounded-lg bg-primary text-base font-black text-primary-foreground shadow-sm hover:bg-primary/90"
         disabled={saving || !canSubmit}
       >
         {saving ? (

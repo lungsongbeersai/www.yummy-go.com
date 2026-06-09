@@ -2,9 +2,12 @@ import { describe, expect, it } from "vitest";
 import { categoryIconName, normalizeCategoryIconValue } from "@/features/settings/category/category-icons";
 import {
   buildCategoryPayload,
+  categoryId,
   categoryName,
+  categoryValue,
   groupLabel,
-  missingCategoryField
+  missingCategoryField,
+  rowStoreUuid
 } from "@/features/settings/category/category-utils";
 
 describe("category utils", () => {
@@ -69,5 +72,17 @@ describe("category utils", () => {
     expect(categoryName(null)).toBe("-");
     expect(groupLabel({ group_uuid: "group-1", group_name: "Group", group_name_la: "LA" })).toBe("Group");
     expect(groupLabel({ group_uuid: "group-1", group_name_la: "LA", group_name_eng: "EN" })).toBe("LA");
+  });
+
+  it("uses value and id fallbacks", () => {
+    expect(categoryValue({ cate_uuid: "category-1", cate_name: "" }, "cate_name", "-")).toBe("-");
+    expect(categoryValue({ cate_uuid: "category-1", cate_name: "Name" }, "cate_name", "-")).toBe("Name");
+    expect(categoryId({ cate_uuid: "category-1" })).toBe("category-1");
+    expect(categoryId(null)).toBe("");
+  });
+
+  it("reads the store uuid from the first row only", () => {
+    expect(rowStoreUuid([{ cate_uuid: "category-1", store_uuid_fk: "store-1" }])).toBe("store-1");
+    expect(rowStoreUuid([])).toBe("");
   });
 });

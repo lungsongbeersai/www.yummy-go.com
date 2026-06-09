@@ -3,6 +3,7 @@
 import { create } from "zustand";
 import type { SettingConfig } from "@/features/settings/shared/settings-config";
 import type { FetchParams } from "@/services/shared/types";
+import { getSettingsStoreAdapter } from "@/stores/settings-store-adapters";
 import { errorMessage } from "@/stores/store-utils";
 
 interface SettingsEntityState {
@@ -60,6 +61,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   setSearch: (slug, search) =>
     set((state) => ({ entities: patchEntity(state, slug, { search }) })),
   load: async (config, params = {}, options) => {
+    const adapter = getSettingsStoreAdapter(config.slug);
     const current = get().getEntity(config.slug);
     const background = Boolean(options?.background && current.hasLoaded);
     set((state) => ({
@@ -70,7 +72,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       })
     }));
     try {
-      const result = await config.list({ ...params, search: params.search ?? current.search });
+      const result = await adapter.list({ ...params, search: params.search ?? current.search });
       const rows = Array.isArray(result.data) ? result.data : [];
       set((state) => ({
         entities: patchEntity(state, config.slug, {
@@ -95,11 +97,12 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     }
   },
   save: async (config, input) => {
+    const adapter = getSettingsStoreAdapter(config.slug);
     set((state) => ({
       entities: patchEntity(state, config.slug, { saving: true, error: null })
     }));
     try {
-      const result = await config.save(input);
+      const result = await adapter.save(input);
       set((state) => ({
         entities: patchEntity(state, config.slug, { saving: false })
       }));
@@ -115,11 +118,12 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     }
   },
   remove: async (config, id) => {
+    const adapter = getSettingsStoreAdapter(config.slug);
     set((state) => ({
       entities: patchEntity(state, config.slug, { saving: true, error: null })
     }));
     try {
-      await config.remove(id);
+      await adapter.remove(id);
       set((state) => ({
         entities: patchEntity(state, config.slug, {
           rows: get().getEntity(config.slug).rows.filter((row) => String(row[config.idKey] ?? "") !== id),

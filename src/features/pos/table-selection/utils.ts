@@ -742,6 +742,27 @@ export function splitPaymentSelection(
   return null;
 }
 
+export function pruneSelectedItemUuids(
+  selectedItemUuids: Set<string>,
+  eligibleItemUuids: Array<string | null | undefined>,
+) {
+  const eligibleUuids = new Set(
+    eligibleItemUuids.filter((uuid): uuid is string => Boolean(uuid)),
+  );
+  let changed = false;
+  const next = new Set<string>();
+
+  selectedItemUuids.forEach((uuid) => {
+    if (eligibleUuids.has(uuid)) {
+      next.add(uuid);
+    } else {
+      changed = true;
+    }
+  });
+
+  return changed ? next : selectedItemUuids;
+}
+
 export function cartDisplaySummary(
   fullSummary: ReturnType<typeof cartSummary>,
   splitSummary?: ReturnType<typeof cartSummary> | null,

@@ -22,7 +22,7 @@ export function ConfirmAllLoadingDialog({ progress }: { progress: ConfirmAllProg
   return (
     <Dialog open={Boolean(progress)} onOpenChange={() => undefined}>
       <DialogContent
-        className="sm:max-w-[420px]"
+        className="sm:max-w-105"
         showCloseButton={false}
         onEscapeKeyDown={(event) => event.preventDefault()}
         onInteractOutside={(event) => event.preventDefault()}
@@ -32,7 +32,7 @@ export function ConfirmAllLoadingDialog({ progress }: { progress: ConfirmAllProg
             <Spinner />
           </div>
           <DialogTitle className="text-base font-black">{t("pos.confirmAllTitle")}</DialogTitle>
-          <DialogDescription className="max-w-[300px] text-center">
+          <DialogDescription className="max-w-75 text-center">
             {progress?.label ?? t("common.processing")}
           </DialogDescription>
         </DialogHeader>
@@ -159,7 +159,7 @@ export function CartDiscountDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[380px]">
+      <DialogContent className="sm:max-w-95">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{t("pos.discountDialogDescription")}</DialogDescription>
@@ -179,7 +179,7 @@ export function CartDiscountDialog({
                 <span className="ml-1 text-base font-black text-muted-foreground">{displaySuffix}</span>
               </p>
             </div>
-            <div className="w-[128px] shrink-0">
+            <div className="w-32 shrink-0">
               <label className="mb-1.5 block text-xs font-bold text-muted-foreground">{t("pos.discountType")}</label>
               <Select
                 value={draft.type}

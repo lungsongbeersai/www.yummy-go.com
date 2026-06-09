@@ -122,7 +122,7 @@ function CartPanelEmpty() {
   const { t } = useTranslation();
 
   return (
-    <Empty className="min-h-[240px] flex-1 border-0 bg-background p-8">
+    <Empty className="min-h-60 flex-1 border-0 bg-background p-8">
       <EmptyHeader>
         <EmptyMedia variant="icon" className="size-16 rounded-full bg-primary/10 text-primary">
           <ShoppingBag />
@@ -277,7 +277,7 @@ function CartItemRow({
           <div className="flex min-w-0 items-start justify-between gap-2">
             <div className="min-w-0">
               <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-                <p className="min-w-0 break-words text-[15px] font-black leading-5 text-foreground">{title}</p>
+                <p className="min-w-0 wrap-break-word text-[15px] font-black leading-5 text-foreground">{title}</p>
                 {statusText ? (
                   <Badge className="h-6 rounded-md border-transparent bg-secondary px-2 text-[11px] font-black text-secondary-foreground shadow-none">{statusText}</Badge>
                 ) : statusValue !== null ? (
@@ -286,7 +286,7 @@ function CartItemRow({
               </div>
             </div>
             <div className="flex shrink-0 items-start gap-1">
-              <p className="max-w-[112px] truncate text-right text-[15px] font-black leading-5 text-foreground tabular-nums">{money(total)}</p>
+              <p className="max-w-28 truncate text-right text-[15px] font-black leading-5 text-foreground tabular-nums">{money(total)}</p>
               <CartItemActionMenu
                 canCancel={canCancel}
                 canDelete={canDelete}
@@ -382,7 +382,7 @@ function CartDetailRow({
   return (
     <div
       className={cn(
-        "flex min-w-0 items-start justify-between gap-2 text-[11px] font-bold leading-[18px] sm:text-xs",
+        "flex min-w-0 items-start justify-between gap-2 text-[11px] font-bold leading-4.5 sm:text-xs",
         tone === "price" && "text-foreground/75",
         tone === "promo" && "text-primary",
         tone === "discount" && "text-destructive",
@@ -394,7 +394,7 @@ function CartDetailRow({
     >
       <span className="flex min-w-0 items-start gap-1.5">
         {icon ? <span className="mt-0.5 flex size-3.5 shrink-0 items-center justify-center [&_svg]:size-3.5">{icon}</span> : null}
-        <span className="min-w-0 break-words">{children}</span>
+        <span className="min-w-0 wrap-break-word">{children}</span>
       </span>
       {right ? (
         <span
