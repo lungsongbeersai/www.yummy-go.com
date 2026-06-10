@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { CircleHelp } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { FormattedNumberInput } from "@/components/common/formatted-number-input";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Field, FieldDescription, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
@@ -111,16 +112,14 @@ export function TableFormDialog({
                   </Field>
                   <Field>
                     <FieldLabel htmlFor="table_qty">{t("fields.table_qty")}</FieldLabel>
-                    <Input
+                    <FormattedNumberInput
                       id="table_qty"
                       name="table_qty"
                       autoComplete="off"
                       defaultValue={tableValue(editing, "table_qty", tableValue(editing, "number_of_seats"))}
                       disabled={saving}
-                      inputMode="numeric"
                       min={0}
                       step={1}
-                      type="number"
                     />
                   </Field>
                 </FieldGroup>

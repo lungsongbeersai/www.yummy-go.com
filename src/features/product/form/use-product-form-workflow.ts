@@ -20,6 +20,7 @@ import {
   CATEGORY_NAME_KEYS,
   CUSTOM_COLOR_VALUE,
   DEFAULT_COLOR,
+  EMPTY_PRODUCT_FORM_DEFAULTS,
   TOPPING_HAS,
   TOPPING_NONE,
   UNIT_NAME_KEYS,
@@ -28,28 +29,55 @@ import {
   categoryUuid,
   colorCode,
   detailFromProduct,
+  emptyDetail,
   findOptionByText,
   generateProdCode,
   hasEditableProductData,
   includeSelectedOption,
   isHexColor,
+  mergeProductFormToppingPrices,
   nextBulkStockMode,
   normalizeDetailsForStatus,
   productCategoryUuid,
   productColorValue,
+  productFormDefaultsForOptions,
   productFormSizeOptions,
   productHydrationKey,
   productImageStatus,
   productUnitUuid,
+  readProductFormDefaults,
   rawProductImage,
   requiredFieldErrors as getRequiredFieldErrors,
   unitUuid,
+  writeProductFormDefaults,
 } from "./product-form-utils";
 import { useProductFormDetails } from "./use-product-form-details";
 import { useProductImageWorkflow } from "./use-product-form-image";
 import { useProductFormReferenceData } from "./use-product-form-reference-data";
 import { useProductSetOptionsWorkflow } from "./use-product-set-options-workflow";
 import { useProductToppingsWorkflow } from "./use-product-toppings-workflow";
+
+type ProductFormSaveNotice = "idle" | "saving" | "saved";
+
+const SAVE_NOTICE_CLEAR_DELAY_MS = 6000;
+
+function browserProductFormStorage() {
+  if (typeof window === "undefined") return null;
+  return window.localStorage;
+}
+
+function scrollProductFormToTop() {
+  if (typeof window === "undefined") return;
+
+  window.requestAnimationFrame(() => {
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    window.scrollTo({
+      top: 0,
+      left: 0,
+      behavior: reducedMotion ? "auto" : "smooth",
+    });
+  });
+}
 
 export function useProductFormWorkflow() {
   const { t } = useTranslation();
@@ -106,6 +134,8 @@ export function useProductFormWorkflow() {
   const [crop, setCrop] = useState<CropState>(DEFAULT_CROP);
   const [colorValue, setColorValue] = useState(DEFAULT_COLOR);
   const [colorChoice, setColorChoice] = useState(CUSTOM_COLOR_VALUE);
+  const [storedDefaults, setStoredDefaults] = useState(EMPTY_PRODUCT_FORM_DEFAULTS);
+  const [saveNotice, setSaveNotice] = useState<ProductFormSaveNotice>("idle");
   const {
     bulkStockSaving,
     detailStockState,
@@ -160,6 +190,7 @@ export function useProductFormWorkflow() {
     selectedToppingBadges,
     selectedToppingMap,
     selectedToppings,
+    resetToppingSelection,
     setDeletingToppingUuid,
     setNewToppingNameEng,
     setNewToppingNameLa,
@@ -178,6 +209,7 @@ export function useProductFormWorkflow() {
     deleteToppingFromDialog
   } = useProductToppingsWorkflow({
     createToppingRow,
+    defaultToppingPrices: storedDefaults.toppingPrices,
     deleteToppingRow,
     editing,
     editingHydrationKey,
@@ -198,6 +230,27 @@ export function useProductFormWorkflow() {
     rawExistingImage,
     selectedImage
   });
+
+  useEffect(() => {
+    if (!storeUuid) {
+      setStoredDefaults(EMPTY_PRODUCT_FORM_DEFAULTS);
+      return;
+    }
+
+    const storage = browserProductFormStorage();
+    if (!storage) return;
+    setStoredDefaults(readProductFormDefaults(storage, storeUuid));
+  }, [storeUuid]);
+
+  useEffect(() => {
+    if (saveNotice !== "saved") return;
+
+    const timeoutId = window.setTimeout(() => {
+      setSaveNotice("idle");
+    }, SAVE_NOTICE_CLEAR_DELAY_MS);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [saveNotice]);
 
   useEffect(() => {
     const matched = colors.find((color) => colorCode(color).toLowerCase() === colorValue.toLowerCase());
@@ -271,6 +324,7 @@ export function useProductFormWorkflow() {
   }
 
   function showSaveError(description: string) {
+    setSaveNotice("idle");
     showToast({ title: t("settings.saveFailed"), description, tone: "error" });
   }
 
@@ -290,6 +344,8 @@ export function useProductFormWorkflow() {
   }
 
   async function submit() {
+    setSaveNotice("saving");
+
     if (isEditing && !prodUuid) return showSaveError("prod_uuid is required");
     if (isEditing && !editing) return showSaveError(t("product.loadFailed"));
     if (isEditing && !editDataReady) return showSaveError(productLoading ? t("product.loading") : t("product.loadFailed"));
@@ -334,9 +390,31 @@ export function useProductFormWorkflow() {
       if (isEditing) payload.prod_uuid = updateProdUuid;
 
       await saveProduct(payload);
+      const nextDefaults = {
+        cateUuidFk,
+        uniteUuidFk,
+        toppingPrices: mergeProductFormToppingPrices(
+          storedDefaults.toppingPrices,
+          selectedToppings
+        )
+      };
+      const storage = browserProductFormStorage();
+      if (storeUuid && storage) {
+        writeProductFormDefaults(storage, storeUuid, nextDefaults);
+      }
+      setStoredDefaults(nextDefaults);
+
       showToast({ title: t("product.saved"), tone: "success" });
-      router.push("/product");
+      if (isEditing) {
+        router.push("/product");
+        return;
+      }
+
+      resetCreateForm(nextDefaults);
+      scrollProductFormToTop();
+      setSaveNotice("saved");
     } catch (error) {
+      setSaveNotice("idle");
       showToast({
         title: t("settings.saveFailed"),
         description: error instanceof Error ? error.message : "",
@@ -345,11 +423,42 @@ export function useProductFormWorkflow() {
     }
   }
 
+  function resetCreateForm(defaults = storedDefaults) {
+    setProdCode(generateProdCode());
+    setProdNameLa("");
+    setProdNameEng("");
+    setCateUuidFk(defaults.cateUuidFk);
+    setUniteUuidFk(defaults.uniteUuidFk);
+    setProdOrderPoint("5");
+    setProdNotification("2");
+    setStatusSortFk("1");
+    setProdSetPrice("0");
+    setProdStatusImge("2");
+    setSelectedImage(null);
+    setCrop(DEFAULT_CROP);
+    setColorValue(DEFAULT_COLOR);
+    setDetails([emptyDetail("1")]);
+    resetToppingSelection();
+    handleSetOptionDialogOpen(false);
+    resetSetOptionForm();
+    setSetOptionSearch("");
+    setDeletingSetOptionUuid("");
+  }
+
   const title = isEditing ? t("product.edit") : t("product.formTitle");
   const saveLabel = isEditing ? t("actions.save") : t("product.saveProduct");
   const waitingForEditData = isEditing && !editDataReady;
-  const saveDisabled = saving || bulkStockSaving || waitingForEditData;
-  const saveButtonLabel = waitingForEditData ? t("product.loading") : saving ? t("common.processing") : saveLabel;
+  const savingProduct = saveNotice === "saving" || saving;
+  const saveDisabled = savingProduct || bulkStockSaving || waitingForEditData;
+  const saveButtonLabel = waitingForEditData
+    ? t("product.loading")
+    : savingProduct
+      ? t("product.saving")
+      : saveNotice === "saved"
+        ? t("product.saved")
+      : bulkStockSaving
+        ? t("common.processing")
+        : saveLabel;
   const existingImage = String(editing?.prod_image ?? "");
   const existingSrc =
     existingImage && !existingImage.startsWith("#")
@@ -374,6 +483,10 @@ export function useProductFormWorkflow() {
   const unitOptions = useMemo(
     () => includeSelectedOption(units, editing, uniteUuidFk, unitUuid),
     [editing, uniteUuidFk, units]
+  );
+  const availableStoredDefaults = useMemo(
+    () => productFormDefaultsForOptions(storedDefaults, categoryOptions, unitOptions),
+    [categoryOptions, storedDefaults, unitOptions]
   );
   const sizeOptions = useMemo<SizeSelectOption[]>(() => {
     return productFormSizeOptions({
@@ -475,21 +588,41 @@ export function useProductFormWorkflow() {
   const completedChecks = requiredChecks.filter((item) => item.done).length;
   const readyToSave = completedChecks === requiredChecks.length && !saveDisabled;
 
-  useEffect(() => {
-    if (!editing || cateUuidFk || !categoryOptions.length) return;
-    const uuid = findOptionByText(categoryOptions, editing, CATEGORY_NAME_KEYS, categoryUuid);
-    if (uuid) setCateUuidFk(uuid);
-  }, [categoryOptions, cateUuidFk, editing]);
+  const editingCategoryUuid = useMemo(() => {
+    if (!editing) return "";
+    return productCategoryUuid(editing) || findOptionByText(categoryOptions, editing, CATEGORY_NAME_KEYS, categoryUuid);
+  }, [categoryOptions, editing]);
+  const editingUnitUuid = useMemo(() => {
+    if (!editing) return "";
+    return productUnitUuid(editing) || findOptionByText(unitOptions, editing, UNIT_NAME_KEYS, unitUuid);
+  }, [editing, unitOptions]);
 
   useEffect(() => {
-    if (!editing || uniteUuidFk || !unitOptions.length) return;
-    const uuid = findOptionByText(unitOptions, editing, UNIT_NAME_KEYS, unitUuid);
-    if (uuid) setUniteUuidFk(uuid);
-  }, [editing, unitOptions, uniteUuidFk]);
+    if (!editing || cateUuidFk || !editingCategoryUuid) return;
+    setCateUuidFk(editingCategoryUuid);
+  }, [cateUuidFk, editing, editingCategoryUuid]);
+
+  useEffect(() => {
+    if (!editing || uniteUuidFk || !editingUnitUuid) return;
+    setUniteUuidFk(editingUnitUuid);
+  }, [editing, editingUnitUuid, uniteUuidFk]);
+
+  useEffect(() => {
+    if (isEditing && (!editing || editingCategoryUuid)) return;
+    if (cateUuidFk || !availableStoredDefaults.cateUuidFk) return;
+    setCateUuidFk(availableStoredDefaults.cateUuidFk);
+  }, [availableStoredDefaults.cateUuidFk, cateUuidFk, editing, editingCategoryUuid, isEditing]);
+
+  useEffect(() => {
+    if (isEditing && (!editing || editingUnitUuid)) return;
+    if (uniteUuidFk || !availableStoredDefaults.uniteUuidFk) return;
+    setUniteUuidFk(availableStoredDefaults.uniteUuidFk);
+  }, [availableStoredDefaults.uniteUuidFk, editing, editingUnitUuid, isEditing, uniteUuidFk]);
 
   return {
     t,
     title,
+    saveNotice,
     saveDisabled,
     saveButtonLabel,
     existingSrc,
@@ -577,7 +710,7 @@ export function useProductFormWorkflow() {
     setOptionSaving,
     language,
     storeUuid,
-    saving,
+    saving: savingProduct,
     toppingSaving,
     colors,
     submit,

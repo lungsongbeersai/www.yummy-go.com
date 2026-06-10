@@ -87,7 +87,7 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
   const reasonInvalid = reasonTouched && !cancelReason.trim();
 
   const safeDateOptions = useMemo<CancelableDateOption[]>(() => {
-    const options = dateOptions.length ? dateOptions : [{ date_select: INITIAL_DATE_SELECT, label: t("salesList.today") }];
+    const options = dateOptions.length ? dateOptions : [{ date_select: INITIAL_DATE_SELECT, label: t("cancelSale.today") }];
     const selectedExists = options.some((option) => dateOptionValue(option) === dateSelect);
     return selectedExists ? options : [{ date_select: dateSelect, label: dateSelect }, ...options];
   }, [dateOptions, dateSelect, t]);
@@ -110,7 +110,7 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
         });
       } catch (loadError) {
         showToast({
-          title: t("salesList.loadFailed"),
+          title: t("cancelSale.loadFailed"),
           description: loadError instanceof Error ? loadError.message : "",
           tone: "error"
         });
@@ -171,7 +171,7 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
 
     try {
       await cancelBill({ order_uuid: cancelOrderUuid, order_cancel_reason: reason });
-      showToast({ title: t("salesList.cancelSuccess"), tone: "success" });
+      showToast({ title: t("cancelSale.cancelSuccess"), tone: "success" });
       setCancelOpen(false);
       setCancelReason("");
       setReasonTouched(false);
@@ -181,7 +181,7 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
       if (page > nextTotalPages) goToPage(Math.max(1, nextTotalPages));
     } catch (cancelError) {
       showToast({
-        title: t("salesList.cancelFailed"),
+        title: t("cancelSale.cancelFailed"),
         description: cancelError instanceof Error ? cancelError.message : "",
         tone: "error"
       });
@@ -208,7 +208,7 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
       const job = getPrintInvoiceJob(response);
 
       if (!job) {
-        await showReprintReceiptFallback(fallbackData, t("salesList.reprintReceiptMissingJob"));
+        await showReprintReceiptFallback(fallbackData, t("cancelSale.reprintReceiptMissingJob"));
         return;
       }
 
@@ -222,7 +222,7 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
         return;
       }
 
-      showToast({ title: t("salesList.reprintReceiptSuccess"), tone: "success" });
+      showToast({ title: t("cancelSale.reprintReceiptSuccess"), tone: "success" });
     } catch (printError) {
       await showReprintReceiptFallback(
         fallbackData,
@@ -237,7 +237,7 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
     const opened = await openLocalInvoicePrintWindow(data);
     if (opened) {
       showToast({
-        title: t("salesList.reprintReceiptFallback"),
+        title: t("cancelSale.reprintReceiptFallback"),
         description,
         tone: "info"
       });
@@ -245,8 +245,8 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
     }
 
     showToast({
-      title: t("salesList.reprintReceiptFailed"),
-      description: t("salesList.reprintReceiptPopupBlocked"),
+      title: t("cancelSale.reprintReceiptFailed"),
+      description: t("cancelSale.reprintReceiptPopupBlocked"),
       tone: "error"
     });
   }
@@ -256,7 +256,7 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
       <div className="flex h-full min-h-0 flex-col overflow-hidden">
         <SalesListHeader loading={false} onRefresh={() => undefined} />
         <div className="flex min-h-0 flex-1 items-center justify-center p-4">
-          <EmptyState title={t("salesList.branchRequired")} description={t("salesList.branchRequiredDescription")} />
+          <EmptyState title={t("cancelSale.branchRequired")} description={t("cancelSale.branchRequiredDescription")} />
         </div>
       </div>
     );

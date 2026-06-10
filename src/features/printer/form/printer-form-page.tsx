@@ -15,7 +15,7 @@ import { BackButton } from "@/components/common/back-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Checkbox, type CheckboxProps } from "@/components/ui/checkbox";
 import {
   Field,
   FieldDescription,
@@ -66,6 +66,24 @@ function toggleValue(values: string[], value: string) {
     : [...values, value];
 }
 
+function toggleAllValues(
+  values: string[],
+  options: CheckboxOption[],
+  checked: boolean,
+) {
+  const optionValues = options.map((option) => option.value);
+  if (checked) {
+    const selected = new Set(values);
+    return [
+      ...values,
+      ...optionValues.filter((value) => !selected.has(value)),
+    ];
+  }
+
+  const optionSet = new Set(optionValues);
+  return values.filter((value) => !optionSet.has(value));
+}
+
 function textValue(value: unknown) {
   return value === null || value === undefined ? "" : String(value);
 }
@@ -86,23 +104,56 @@ function categoryUuids(printer: Printer | null) {
   );
 }
 
+function IndeterminateCheckbox({
+  indeterminate = false,
+  ...props
+}: CheckboxProps & { indeterminate?: boolean }) {
+  const checkboxRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (checkboxRef.current) {
+      checkboxRef.current.indeterminate = indeterminate;
+    }
+  }, [indeterminate]);
+
+  return (
+    <Checkbox
+      ref={checkboxRef}
+      aria-checked={indeterminate ? "mixed" : props.checked ? "true" : "false"}
+      {...props}
+    />
+  );
+}
+
 function CheckboxOptionList({
   description,
   emptyLabel,
   legend,
   name,
   options,
+  selectAllLabel,
   selected,
   onToggle,
+  onToggleAll,
 }: {
   description: string;
   emptyLabel: string;
   legend: string;
   name: string;
   options: CheckboxOption[];
+  selectAllLabel: string;
   selected: string[];
   onToggle: (value: string) => void;
+  onToggleAll: (checked: boolean) => void;
 }) {
+  const optionValues = options.map((option) => option.value);
+  const selectedCount = optionValues.filter((value) =>
+    selected.includes(value),
+  ).length;
+  const allSelected = selectedCount === options.length;
+  const someSelected = selectedCount > 0 && !allSelected;
+  const selectAllId = safeId(name, "select-all");
+
   return (
     <FieldSet className="gap-4 rounded-lg border border-border bg-card p-4">
       <div>
@@ -111,6 +162,20 @@ function CheckboxOptionList({
       </div>
       {options.length ? (
         <div className="grid gap-2 sm:grid-cols-2">
+          <Field
+            orientation="horizontal"
+            className="rounded-md border border-border bg-muted/30 p-3 sm:col-span-2"
+          >
+            <IndeterminateCheckbox
+              id={selectAllId}
+              checked={allSelected}
+              indeterminate={someSelected}
+              onChange={(event) => onToggleAll(event.currentTarget.checked)}
+            />
+            <FieldLabel htmlFor={selectAllId} className="font-black">
+              {selectAllLabel}
+            </FieldLabel>
+          </Field>
           {options.map((option) => {
             const id = safeId(name, option.value);
             return (
@@ -558,9 +623,15 @@ export function PrinterFormPage() {
               emptyLabel={t("printer.noRoles")}
               name="printer-role"
               options={roleOptions}
+              selectAllLabel={t("common.selectAll")}
               selected={selectedRoles}
               onToggle={(value) =>
                 setSelectedRoles((current) => toggleValue(current, value))
+              }
+              onToggleAll={(checked) =>
+                setSelectedRoles((current) =>
+                  toggleAllValues(current, roleOptions, checked),
+                )
               }
             />
 
@@ -570,9 +641,15 @@ export function PrinterFormPage() {
               emptyLabel={t("printer.noCategories")}
               name="printer-category"
               options={categoryOptions}
+              selectAllLabel={t("common.selectAll")}
               selected={selectedCategories}
               onToggle={(value) =>
                 setSelectedCategories((current) => toggleValue(current, value))
+              }
+              onToggleAll={(checked) =>
+                setSelectedCategories((current) =>
+                  toggleAllValues(current, categoryOptions, checked),
+                )
               }
             />
 

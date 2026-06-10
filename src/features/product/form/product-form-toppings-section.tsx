@@ -2,6 +2,7 @@
 
 import { Check, Pencil, Plus, RefreshCcw, Save, Search, Trash2 } from "lucide-react";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
+import { FormattedNumberInput } from "@/components/common/formatted-number-input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -172,11 +173,10 @@ export function ProductFormToppingsSection({ form }: { form: ProductFormWorkflow
                         </div>
                         {selected ? (
                           <Field className="mt-3 gap-2">
-                            <Input
-                              type="number"
+                            <FormattedNumberInput
                               min={0}
                               value={selected.topping_price}
-                              onChange={(event) => updateToppingPrice(uuid, event.target.value)}
+                              onValueChange={(value) => updateToppingPrice(uuid, value)}
                             />
                           </Field>
                         ) : null}
@@ -245,12 +245,11 @@ export function ProductFormToppingsSection({ form }: { form: ProductFormWorkflow
                     </Field>
                     <Field>
                       <FieldLabel htmlFor="new-topping-price">{t("fields.topping_price")}</FieldLabel>
-                      <Input
+                      <FormattedNumberInput
                         id="new-topping-price"
-                        type="number"
                         min={0}
                         value={newToppingPrice}
-                        onChange={(event) => setNewToppingPrice(event.target.value)}
+                        onValueChange={setNewToppingPrice}
                       />
                     </Field>
                   </FieldGroup>

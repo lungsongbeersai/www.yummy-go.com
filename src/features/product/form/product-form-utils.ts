@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { numberFromFormatted } from "@/lib/number-format";
 import type { Category } from "@/services/category";
 import type { Color } from "@/services/color";
 import type {
@@ -33,6 +34,13 @@ export const EMPTY_COLORS: Color[] = [];
 export const EMPTY_SIZES: Size[] = [];
 export const EMPTY_TOPPINGS: Topping[] = [];
 export const EMPTY_UNITS: Unit[] = [];
+export const PRODUCT_FORM_DEFAULTS_STORAGE_PREFIX =
+  "yummy-go-product-form-defaults";
+export const EMPTY_PRODUCT_FORM_DEFAULTS: ProductFormDefaults = {
+  cateUuidFk: "",
+  uniteUuidFk: "",
+  toppingPrices: {},
+};
 export const CATEGORY_NAME_KEYS = [
   "cate_name",
   "cate_name_la",
@@ -370,6 +378,120 @@ export interface ProductFormSizeOptionsInput {
   editingDetails?: Product["details"];
 }
 
+export interface ProductFormDefaults {
+  cateUuidFk: string;
+  uniteUuidFk: string;
+  toppingPrices: Record<string, string>;
+}
+
+export interface ProductFormDefaultsStorage {
+  getItem: (key: string) => string | null;
+  setItem: (key: string, value: string) => void;
+}
+
+function objectRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+export function productFormDefaultsStorageKey(storeUuid: string) {
+  return `${PRODUCT_FORM_DEFAULTS_STORAGE_PREFIX}:${storeUuid.trim()}`;
+}
+
+export function normalizeProductFormDefaults(value: unknown): ProductFormDefaults {
+  const raw = objectRecord(value);
+  const toppingPrices = objectRecord(raw.toppingPrices);
+
+  return {
+    cateUuidFk: String(raw.cateUuidFk ?? "").trim(),
+    uniteUuidFk: String(raw.uniteUuidFk ?? "").trim(),
+    toppingPrices: Object.fromEntries(
+      Object.entries(toppingPrices)
+        .map(([uuid, price]) => [
+          uuid.trim(),
+          String(price ?? "").trim() || "0",
+        ])
+        .filter(([uuid]) => uuid),
+    ),
+  };
+}
+
+export function parseProductFormDefaults(value: string | null | undefined) {
+  if (!value) return EMPTY_PRODUCT_FORM_DEFAULTS;
+
+  try {
+    return normalizeProductFormDefaults(JSON.parse(value));
+  } catch {
+    return EMPTY_PRODUCT_FORM_DEFAULTS;
+  }
+}
+
+export function readProductFormDefaults(
+  storage: ProductFormDefaultsStorage,
+  storeUuid: string,
+) {
+  const key = productFormDefaultsStorageKey(storeUuid);
+  try {
+    return parseProductFormDefaults(storage.getItem(key));
+  } catch {
+    return EMPTY_PRODUCT_FORM_DEFAULTS;
+  }
+}
+
+export function writeProductFormDefaults(
+  storage: ProductFormDefaultsStorage,
+  storeUuid: string,
+  defaults: ProductFormDefaults,
+) {
+  const key = productFormDefaultsStorageKey(storeUuid);
+  try {
+    storage.setItem(key, JSON.stringify(normalizeProductFormDefaults(defaults)));
+  } catch {
+    // Ignore restricted storage failures; the form should still save normally.
+  }
+}
+
+export function productFormDefaultsForOptions(
+  defaults: ProductFormDefaults,
+  categoryOptions: Category[],
+  unitOptions: Unit[],
+) {
+  return {
+    ...defaults,
+    cateUuidFk: categoryOptions.some(
+      (category) => categoryUuid(category) === defaults.cateUuidFk,
+    )
+      ? defaults.cateUuidFk
+      : "",
+    uniteUuidFk: unitOptions.some((unit) => unitUuid(unit) === defaults.uniteUuidFk)
+      ? defaults.uniteUuidFk
+      : "",
+  };
+}
+
+export function productFormToppingDefaultPrice(
+  defaults: Pick<ProductFormDefaults, "toppingPrices">,
+  toppingUuidValue: string,
+  fallback = "0",
+) {
+  const price = defaults.toppingPrices[toppingUuidValue]?.trim();
+  return price || fallback;
+}
+
+export function mergeProductFormToppingPrices(
+  current: Record<string, string>,
+  selectedToppings: ToppingSelection[],
+) {
+  const next = { ...current };
+  selectedToppings.forEach((row) => {
+    const uuid = row.topping_uuid_fk.trim();
+    if (!uuid) return;
+    next[uuid] = row.topping_price.trim() || "0";
+  });
+  return next;
+}
+
 export function productFormSizeOptions({
   statusSortFk,
   sizesByStatus,
@@ -605,8 +727,8 @@ export function buildDetailPayload(
   const base = {
     ...(detailUuid ? { pro_detail_uuid: detailUuid } : {}),
     size_uuid_fk: row.size_uuid_fk,
-    pro_detail_bprice: Number(row.pro_detail_bprice || 0),
-    pro_detail_qty_stock: Number(row.pro_detail_qty_stock || 0),
+    pro_detail_bprice: numberFromFormatted(row.pro_detail_bprice),
+    pro_detail_qty_stock: numberFromFormatted(row.pro_detail_qty_stock),
     pro_detail_stock: Number(row.pro_detail_stock),
     pro_detail_enabled: Number(row.pro_detail_enabled),
   };
@@ -614,7 +736,7 @@ export function buildDetailPayload(
   if (statusSortFk === "1") {
     return {
       ...base,
-      pro_detail_sprice: Number(row.pro_detail_sprice || 0),
+      pro_detail_sprice: numberFromFormatted(row.pro_detail_sprice),
     };
   }
 
@@ -627,9 +749,9 @@ export function buildDetailPayload(
 
   return {
     ...base,
-    pro_detail_sprice: Number(row.pro_detail_sprice || 0),
-    pro_detail_cus_qtyBuy: Number(row.pro_detail_cus_qtyBuy || 0),
-    pro_detail_cus_qtyFree: Number(row.pro_detail_cus_qtyFree || 0),
+    pro_detail_sprice: numberFromFormatted(row.pro_detail_sprice),
+    pro_detail_cus_qtyBuy: numberFromFormatted(row.pro_detail_cus_qtyBuy),
+    pro_detail_cus_qtyFree: numberFromFormatted(row.pro_detail_cus_qtyFree),
     pro_detail_status: Number(row.pro_detail_status),
     pro_detail_sDate: row.pro_detail_sDate,
     pro_detail_eDate: row.pro_detail_eDate,
@@ -713,7 +835,7 @@ export function buildSaveProductPayload(
     prod_notification: Number(state.prodNotification),
     status_sort_fk: Number(state.statusSortFk),
     prod_set_price:
-      state.statusSortFk === "2" ? Number(state.prodSetPrice || 0) : 0,
+      state.statusSortFk === "2" ? numberFromFormatted(state.prodSetPrice) : 0,
     prod_status_imge: Number(state.prodStatusImge),
     prod_image: state.prodImage,
     branch_uuid_fk: state.branchUuid,
@@ -725,7 +847,7 @@ export function buildSaveProductPayload(
       state.prodToppingStatus === TOPPING_HAS
         ? state.selectedToppings.map((row) => ({
             topping_uuid_fk: row.topping_uuid_fk,
-            topping_price: Number(row.topping_price || 0),
+            topping_price: numberFromFormatted(row.topping_price),
           }))
         : [],
   };

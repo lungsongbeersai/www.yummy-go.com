@@ -2,6 +2,7 @@
 
 import { Info, Layers3, Pencil, Plus, RefreshCcw, Save, Search, Trash2 } from "lucide-react";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
+import { FormattedNumberInput } from "@/components/common/formatted-number-input";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -203,31 +204,28 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
                   </Field>
                   <Field>
                     <FieldLabel>{t("fields.bprice")}</FieldLabel>
-                    <Input
-                      type="number"
+                    <FormattedNumberInput
                       min={0}
                       value={row.pro_detail_bprice}
-                      onChange={(event) => updateDetail(row.id, { pro_detail_bprice: event.target.value })}
+                      onValueChange={(value) => updateDetail(row.id, { pro_detail_bprice: value })}
                     />
                   </Field>
                   {statusSortFk !== "2" ? (
                     <Field>
                       <FieldLabel>{t("fields.sprice")}</FieldLabel>
-                      <Input
-                        type="number"
+                      <FormattedNumberInput
                         min={0}
                         value={row.pro_detail_sprice}
-                        onChange={(event) => updateDetail(row.id, { pro_detail_sprice: event.target.value })}
+                        onValueChange={(value) => updateDetail(row.id, { pro_detail_sprice: value })}
                       />
                     </Field>
                   ) : null}
                   <Field>
                     <FieldLabel>{t("fields.qtyStock")}</FieldLabel>
-                    <Input
-                      type="number"
+                    <FormattedNumberInput
                       min={0}
                       value={row.pro_detail_qty_stock}
-                      onChange={(event) => updateDetail(row.id, { pro_detail_qty_stock: event.target.value })}
+                      onValueChange={(value) => updateDetail(row.id, { pro_detail_qty_stock: value })}
                     />
                   </Field>
                   <Field>
@@ -277,20 +275,18 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
                     <>
                       <Field>
                         <FieldLabel>{t("product.buyQty")}</FieldLabel>
-                        <Input
-                          type="number"
+                        <FormattedNumberInput
                           min={0}
                           value={row.pro_detail_cus_qtyBuy}
-                          onChange={(event) => updateDetail(row.id, { pro_detail_cus_qtyBuy: event.target.value })}
+                          onValueChange={(value) => updateDetail(row.id, { pro_detail_cus_qtyBuy: value })}
                         />
                       </Field>
                       <Field>
                         <FieldLabel>{t("product.freeQty")}</FieldLabel>
-                        <Input
-                          type="number"
+                        <FormattedNumberInput
                           min={0}
                           value={row.pro_detail_cus_qtyFree}
-                          onChange={(event) => updateDetail(row.id, { pro_detail_cus_qtyFree: event.target.value })}
+                          onValueChange={(value) => updateDetail(row.id, { pro_detail_cus_qtyFree: value })}
                         />
                       </Field>
                       <Field>

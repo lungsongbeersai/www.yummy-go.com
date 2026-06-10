@@ -109,8 +109,8 @@ export function SalesBillMobileSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="max-h-[88dvh] gap-0 overflow-hidden rounded-t-lg p-0 md:hidden">
         <SheetHeader className="border-b border-border px-4 py-3 pr-12 text-left">
-          <SheetTitle>{bill ? billInvoice(bill) : t("salesList.billDetail")}</SheetTitle>
-          <SheetDescription>{bill ? billDate(bill) : t("salesList.selectBillHint")}</SheetDescription>
+          <SheetTitle>{bill ? billInvoice(bill) : t("cancelSale.billDetail")}</SheetTitle>
+          <SheetDescription>{bill ? billDate(bill) : t("cancelSale.selectBillHint")}</SheetDescription>
         </SheetHeader>
         <div className="min-h-0 overflow-y-auto">
           <SalesBillDetailContent
@@ -155,7 +155,7 @@ function SalesBillDetailContent({
   if (!bill) {
     return (
       <div className="flex min-h-72 flex-1 items-center justify-center p-4">
-        <EmptyState title={t("salesList.noSelection")} description={t("salesList.selectBillHint")} />
+        <EmptyState title={t("cancelSale.noSelection")} description={t("cancelSale.selectBillHint")} />
       </div>
     );
   }
@@ -224,18 +224,18 @@ function DetailTitleRow({
           <p className="mt-1 truncate text-xs text-muted-foreground">{branch}</p>
         </div>
         <div className="shrink-0 text-right">
-          <p className="text-xs font-bold uppercase text-muted-foreground">{t("salesList.grandTotal")}</p>
+          <p className="text-xs font-bold uppercase text-muted-foreground">{t("cancelSale.grandTotal")}</p>
           <p className="mt-1 whitespace-nowrap text-lg font-black tabular-nums">{grandTotal}</p>
         </div>
       </div>
       <div className="grid gap-2 sm:grid-cols-2">
         <Button className="w-full min-w-0" disabled={!canReprintReceipt || reprintingReceipt || loading} size="sm" type="button" variant="outline" onClick={onReprintReceipt}>
           {reprintingReceipt ? <Spinner data-icon="inline-start" /> : <Printer data-icon="inline-start" />}
-          <span className="truncate">{reprintingReceipt ? t("salesList.reprintingReceipt") : t("salesList.reprintReceipt")}</span>
+          <span className="truncate">{reprintingReceipt ? t("cancelSale.reprintingReceipt") : t("cancelSale.reprintReceipt")}</span>
         </Button>
         <Button className="w-full min-w-0 shrink-0" disabled={!bill || !canCancel || loading} size="sm" type="button" variant="danger" onClick={onCancel}>
           <Ban data-icon="inline-start" />
-          <span className="truncate">{t("salesList.cancelBill")}</span>
+          <span className="truncate">{t("cancelSale.cancelBill")}</span>
         </Button>
       </div>
     </div>
@@ -252,9 +252,9 @@ function DetailSummaryStrip({ bill }: { bill: BillSource }) {
 
   return (
     <div className="mt-4 grid grid-cols-2 overflow-hidden rounded-lg border border-border bg-muted/35 text-sm">
-      <DetailStat label={t("salesList.orderQty")} value={String(orderQty ?? "-")} />
-      <DetailStat label={t("salesList.total")} value={moneyOrDash(orderTotal)} />
-      <DetailStat label={t("salesList.paidTotal")} value={moneyOrDash(paidTotal)} />
+      <DetailStat label={t("cancelSale.orderQty")} value={String(orderQty ?? "-")} />
+      <DetailStat label={t("cancelSale.total")} value={moneyOrDash(orderTotal)} />
+      <DetailStat label={t("cancelSale.paidTotal")} value={moneyOrDash(paidTotal)} />
       <DetailStat label={t("common.balance")} value={moneyOrDash(balance)} />
     </div>
   );
@@ -275,7 +275,7 @@ function DetailItemsReceipt({ bill }: { bill: BillSource }) {
 
   return (
     <section className="flex flex-col gap-2">
-      <DetailSectionTitle>{t("salesList.items")}</DetailSectionTitle>
+      <DetailSectionTitle>{t("cancelSale.items")}</DetailSectionTitle>
       {items.length ? (
         <div className="flex flex-col overflow-hidden rounded-lg border border-border">
           {items.map((item, index) => (
@@ -283,7 +283,7 @@ function DetailItemsReceipt({ bill }: { bill: BillSource }) {
           ))}
         </div>
       ) : (
-        <EmptyState title={t("salesList.noItems")} description={t("salesList.noItemsDescription")} />
+        <EmptyState title={t("cancelSale.noItems")} description={t("cancelSale.noItemsDescription")} />
       )}
     </section>
   );
@@ -294,7 +294,7 @@ function DetailItemLine({ item, index }: { item: ApiEntity; index: number }) {
   const cashier = itemCashier(item);
   const discount = itemDiscountRecord(item);
   const discountAmount = itemDiscountAmount(item);
-  const discountText = discountLabel(discount, t("salesList.itemDiscount"));
+  const discountText = discountLabel(discount, t("cancelSale.itemDiscount"));
   const note = itemNote(item);
   const size = itemSize(item);
   const toppings = itemToppings(item);
@@ -306,7 +306,7 @@ function DetailItemLine({ item, index }: { item: ApiEntity; index: number }) {
         <div className="min-w-0">
           <p className="break-words text-sm font-black">{itemName(item)}</p>
           <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-            {size ? <span>{t("salesList.size")}: {size}</span> : null}
+            {size ? <span>{t("cancelSale.size")}: {size}</span> : null}
             <span>{itemQty(item)} x {itemPrice(item)}</span>
             <Badge className={statusClass(item)}>{itemStatus(item)}</Badge>
           </div>
@@ -315,11 +315,11 @@ function DetailItemLine({ item, index }: { item: ApiEntity; index: number }) {
       </div>
 
       {discountAmount && discountAmount > 0 ? <ReceiptSubRow label={discountText} value={`-${money(discountAmount)}`} tone="destructive" /> : null}
-      {toppingTotal && toppingTotal > 0 ? <ReceiptSubRow label={t("salesList.toppings")} value={`+${money(toppingTotal)}`} /> : null}
+      {toppingTotal && toppingTotal > 0 ? <ReceiptSubRow label={t("cancelSale.toppings")} value={`+${money(toppingTotal)}`} /> : null}
       {toppings.length ? (
         <div className="flex flex-col gap-1 rounded-md bg-muted/45 px-2 py-2 text-xs">
           {toppings.map((topping, toppingIndex) => {
-            const name = textValue(readValue(topping, ["topping_name", "prod_topping_name", "product_name", "name"]), `${t("salesList.toppings")} ${toppingIndex + 1}`);
+            const name = textValue(readValue(topping, ["topping_name", "prod_topping_name", "product_name", "name"]), `${t("cancelSale.toppings")} ${toppingIndex + 1}`);
             const qty = textValue(readValue(topping, ["topping_qty", "qty", "quantity"]), "1");
             const total = moneyOrDash(readValue(topping, ["topping_total", "total", "line_total", "topping_price"]));
             return (
@@ -331,8 +331,8 @@ function DetailItemLine({ item, index }: { item: ApiEntity; index: number }) {
           })}
         </div>
       ) : null}
-      {note ? <ReceiptSubRow label={t("salesList.note")} value={note} /> : null}
-      {cashier ? <ReceiptSubRow label={t("salesList.cashier")} value={cashier} /> : null}
+      {note ? <ReceiptSubRow label={t("cancelSale.note")} value={note} /> : null}
+      {cashier ? <ReceiptSubRow label={t("cancelSale.cashier")} value={cashier} /> : null}
     </div>
   );
 }
@@ -360,15 +360,15 @@ function DetailTotals({ bill }: { bill: BillSource }) {
 
   return (
     <section className="flex flex-col gap-2">
-      <DetailSectionTitle>{t("salesList.billBreakdown")}</DetailSectionTitle>
+      <DetailSectionTitle>{t("cancelSale.billBreakdown")}</DetailSectionTitle>
       <div className="overflow-hidden rounded-lg border border-border">
-        <ReceiptTotalRow label={t("salesList.total")} value={moneyOrDash(orderTotal)} />
-        {itemDiscount && itemDiscount > 0 ? <ReceiptTotalRow label={t("salesList.itemDiscount")} value={`-${money(itemDiscount)}`} tone="destructive" /> : null}
-        <ReceiptTotalRow label={t("salesList.subtotal")} value={moneyOrDash(subtotal)} />
-        {billDiscount && billDiscount > 0 ? <ReceiptTotalRow label={billDiscountLabel(bill, t("salesList.billDiscount"))} value={`-${money(billDiscount)}`} tone="destructive" /> : null}
-        {service && service > 0 ? <ReceiptTotalRow label={serviceRate ? `${t("salesList.serviceCharge")} (${serviceRate})` : t("salesList.serviceCharge")} value={money(service)} /> : null}
-        {vat && vat > 0 ? <ReceiptTotalRow label={vatRate ? `${t("salesList.vat")} (${vatRate})` : t("salesList.vat")} value={money(vat)} /> : null}
-        <ReceiptTotalRow emphasis label={t("salesList.grandTotal")} value={moneyOrDash(grandTotal)} />
+        <ReceiptTotalRow label={t("cancelSale.total")} value={moneyOrDash(orderTotal)} />
+        {itemDiscount && itemDiscount > 0 ? <ReceiptTotalRow label={t("cancelSale.itemDiscount")} value={`-${money(itemDiscount)}`} tone="destructive" /> : null}
+        <ReceiptTotalRow label={t("cancelSale.subtotal")} value={moneyOrDash(subtotal)} />
+        {billDiscount && billDiscount > 0 ? <ReceiptTotalRow label={billDiscountLabel(bill, t("cancelSale.billDiscount"))} value={`-${money(billDiscount)}`} tone="destructive" /> : null}
+        {service && service > 0 ? <ReceiptTotalRow label={serviceRate ? `${t("cancelSale.serviceCharge")} (${serviceRate})` : t("cancelSale.serviceCharge")} value={money(service)} /> : null}
+        {vat && vat > 0 ? <ReceiptTotalRow label={vatRate ? `${t("cancelSale.vat")} (${vatRate})` : t("cancelSale.vat")} value={money(vat)} /> : null}
+        <ReceiptTotalRow emphasis label={t("cancelSale.grandTotal")} value={moneyOrDash(grandTotal)} />
       </div>
     </section>
   );
@@ -385,13 +385,13 @@ function DetailPayment({ bill }: { bill: BillSource }) {
 
   return (
     <section className="flex flex-col gap-2">
-      <DetailSectionTitle>{t("salesList.payment")}</DetailSectionTitle>
+      <DetailSectionTitle>{t("cancelSale.payment")}</DetailSectionTitle>
       <div className="overflow-hidden rounded-lg border border-border">
-        <ReceiptTotalRow label={t("salesList.cashReceived")} value={moneyOrDash(cash)} />
-        <ReceiptTotalRow label={t("salesList.transferReceived")} value={moneyOrDash(transfer)} />
-        <ReceiptTotalRow label={t("salesList.paidTotal")} value={moneyOrDash(paidTotal)} />
+        <ReceiptTotalRow label={t("cancelSale.cashReceived")} value={moneyOrDash(cash)} />
+        <ReceiptTotalRow label={t("cancelSale.transferReceived")} value={moneyOrDash(transfer)} />
+        <ReceiptTotalRow label={t("cancelSale.paidTotal")} value={moneyOrDash(paidTotal)} />
         <ReceiptTotalRow label={t("common.balance")} value={moneyOrDash(balance ?? debt)} />
-        <ReceiptTotalRow label={t("salesList.change")} value={moneyOrDash(change)} />
+        <ReceiptTotalRow label={t("cancelSale.change")} value={moneyOrDash(change)} />
       </div>
     </section>
   );

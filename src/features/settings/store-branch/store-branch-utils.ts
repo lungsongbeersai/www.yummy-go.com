@@ -1,3 +1,4 @@
+import { stripNumberFormat } from "@/lib/number-format";
 import type { SaveBranchInput } from "@/services/branch";
 import type { ApiEntity } from "@/services/shared/types";
 import type { SaveStoreInput } from "@/services/store";
@@ -142,5 +143,5 @@ export function buildBranchPayload({
 }
 
 function percentOrZero(value: string) {
-  return value.trim() || "0";
+  return stripNumberFormat(value, { decimal: true }) || "0";
 }

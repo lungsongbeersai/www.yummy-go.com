@@ -16,6 +16,7 @@ export * from "@/stores/public-pos-store";
 export * from "@/stores/reference-store";
 export * from "@/stores/report-store";
 export * from "@/stores/settings-store";
+export * from "@/stores/sidebar-menu-store";
 export * from "@/stores/size-store";
 export * from "@/stores/store-permissions-store";
 export * from "@/stores/topping-store";

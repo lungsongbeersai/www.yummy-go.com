@@ -34,6 +34,8 @@ interface StorePermissionsState {
   reset: () => void;
   resetChanges: () => void;
   save: (viewerRoleId: number, lang?: string) => Promise<void>;
+  clearAllSubmenus: () => void;
+  selectAllSubmenus: () => void;
   setRole: (roleId: number) => void;
   setStore: (storeUuid: string) => void;
   toggleMenu: (menuId: string, checked: boolean) => void;
@@ -65,6 +67,12 @@ function allSubmenuIds(tree: StorePermissionTree | null, menuId: string) {
       .filter((menu) => menu.menu_id === menuId)
       .flatMap((menu) => menu.sub_detail.map((submenu) => submenu.sub_id))
   );
+}
+
+function roleSubmenuIds(tree: StorePermissionTree | null, roleId: number | null) {
+  if (!tree || !roleId) return [];
+  const role = tree.roles.find((item) => item.role_id === roleId) ?? tree.roles[0];
+  return role?.menus.flatMap((menu) => menu.sub_detail.map((submenu) => submenu.sub_id)) ?? [];
 }
 
 export const useStorePermissionsStore = create<StorePermissionsState>((set, get) => ({
@@ -204,6 +212,19 @@ export const useStorePermissionsStore = create<StorePermissionsState>((set, get)
       throw error;
     }
   },
+  clearAllSubmenus: () =>
+    set((state) => ({
+      checkedSubIds: [],
+      dirty: !sameIds([], state.savedCheckedSubIds)
+    })),
+  selectAllSubmenus: () =>
+    set((state) => {
+      const checkedSubIds = roleSubmenuIds(state.tree, state.selectedRoleId);
+      return {
+        checkedSubIds,
+        dirty: !sameIds(checkedSubIds, state.savedCheckedSubIds)
+      };
+    }),
   setRole: (roleId) =>
     set({
       checkedSubIds: [],

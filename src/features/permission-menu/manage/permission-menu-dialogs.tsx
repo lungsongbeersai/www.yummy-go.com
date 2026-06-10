@@ -45,7 +45,7 @@ export function MainMenuDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <SettingsDialogContent>
+      <SettingsDialogContent className="sm:max-w-2xl">
         <SettingsDialogForm
           onSubmit={(event) => {
             event.preventDefault();
@@ -58,10 +58,10 @@ export function MainMenuDialog({
               {t(editing ? "permissionMenu.mainEditDescription" : "permissionMenu.mainFormDescription")}
             </DialogDescription>
           </SettingsDialogHeader>
-          <SettingsDialogBody>
+          <SettingsDialogBody className="overscroll-contain">
             <FieldGroup className="gap-4">
               <div className="grid gap-4 sm:grid-cols-2">
-                <Field>
+                <Field className="gap-2">
                   <FieldLabel htmlFor="permission-main-title-la">{t("permissionMenu.fields.menuTitleLa")}</FieldLabel>
                   <Input
                     autoComplete="off"
@@ -73,7 +73,7 @@ export function MainMenuDialog({
                     onChange={(event) => setForm({ ...form, menu_title_la: event.target.value })}
                   />
                 </Field>
-                <Field>
+                <Field className="gap-2">
                   <FieldLabel htmlFor="permission-main-title-eng">{t("permissionMenu.fields.menuTitleEng")}</FieldLabel>
                   <Input
                     autoComplete="off"
@@ -86,7 +86,7 @@ export function MainMenuDialog({
                   />
                 </Field>
               </div>
-              <Field>
+              <Field className="gap-2">
                 <FieldLabel htmlFor="permission-main-path">{t("permissionMenu.fields.menuPath")}</FieldLabel>
                 <PathPicker
                   id="permission-main-path"
@@ -97,7 +97,7 @@ export function MainMenuDialog({
                 <FieldDescription>{t("permissionMenu.pathHint")}</FieldDescription>
               </Field>
               <div className="grid gap-4 sm:grid-cols-2">
-                <Field>
+                <Field className="gap-2">
                   <FieldLabel htmlFor="permission-main-icon">{t("permissionMenu.fields.menuIcon")}</FieldLabel>
                   <IconPickerButton
                     id="permission-main-icon"
@@ -107,7 +107,7 @@ export function MainMenuDialog({
                   />
                   <FieldDescription>{t("permissionMenu.iconHint")}</FieldDescription>
                 </Field>
-                <Field>
+                <Field className="gap-2">
                   <FieldLabel htmlFor="permission-main-badge">{t("permissionMenu.fields.menuBadge")}</FieldLabel>
                   <Select
                     value={form.menu_badge}
@@ -130,23 +130,25 @@ export function MainMenuDialog({
                   <FieldDescription>{t("permissionMenu.badgeHint")}</FieldDescription>
                 </Field>
               </div>
-              <Field data-disabled={!badgeVisible}>
-                <FieldLabel htmlFor="permission-main-badge-text">
-                  {t("permissionMenu.fields.menuBadgeText")}
-                </FieldLabel>
-                <Input
-                  autoComplete="off"
-                  disabled={saving || !badgeVisible}
-                  id="permission-main-badge-text"
-                  name="menu_badge_text"
-                  placeholder={t("permissionMenu.badgeTextPlaceholder")}
-                  required={badgeVisible}
-                  value={form.menu_badge_text}
-                  onChange={(event) => setForm({ ...form, menu_badge_text: event.target.value })}
-                />
-                <FieldDescription>{t("permissionMenu.badgeTextHint")}</FieldDescription>
-              </Field>
-              <Field>
+              {badgeVisible ? (
+                <Field className="gap-2">
+                  <FieldLabel htmlFor="permission-main-badge-text">
+                    {t("permissionMenu.fields.menuBadgeText")}
+                  </FieldLabel>
+                  <Input
+                    autoComplete="off"
+                    disabled={saving}
+                    id="permission-main-badge-text"
+                    name="menu_badge_text"
+                    placeholder={t("permissionMenu.badgeTextPlaceholder")}
+                    required
+                    value={form.menu_badge_text}
+                    onChange={(event) => setForm({ ...form, menu_badge_text: event.target.value })}
+                  />
+                  <FieldDescription>{t("permissionMenu.badgeTextHint")}</FieldDescription>
+                </Field>
+              ) : null}
+              <Field className="gap-2">
                 <FieldLabel htmlFor="permission-main-status">{t("permissionMenu.fields.menuStatus")}</FieldLabel>
                 <Select
                   value={form.menu_status}

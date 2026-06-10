@@ -44,7 +44,7 @@ export function SalesListContent({
       {error ? (
         <div className="p-3">
           <Alert variant="destructive">
-            <AlertTitle>{t("salesList.loadFailed")}</AlertTitle>
+            <AlertTitle>{t("cancelSale.loadFailed")}</AlertTitle>
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         </div>
@@ -53,7 +53,7 @@ export function SalesListContent({
         <SalesBillCardList bills={bills} selectedOrderUuid={selectedOrderUuid} onSelect={onSelect} />
       ) : (
         <div className="flex min-h-72 items-center justify-center p-4">
-          <EmptyState title={t("salesList.noBills")} description={t("salesList.noBillsDescription")} />
+          <EmptyState title={t("cancelSale.noBills")} description={t("cancelSale.noBillsDescription")} />
         </div>
       )}
     </div>
@@ -73,7 +73,7 @@ function SalesBillCardList({
 
   return (
     <div className="h-full min-h-0 overflow-y-auto p-2 sm:p-3">
-      <div aria-label={t("salesList.title")} className="grid grid-cols-[repeat(auto-fill,minmax(min(16rem,100%),1fr))] gap-2 pb-3 xl:gap-3" role="listbox">
+      <div aria-label={t("cancelSale.title")} className="grid grid-cols-[repeat(auto-fill,minmax(min(16rem,100%),1fr))] gap-2 pb-3 xl:gap-3" role="listbox">
         {bills.map((bill) => (
           <SalesBillCard
             key={billUuid(bill) || billInvoice(bill)}
@@ -125,7 +125,7 @@ function SalesBillCard({
         <CardContent className="flex min-w-0 flex-1 flex-col p-0">
           <div className="relative flex min-h-[94px] flex-1 flex-col items-center justify-center px-4 py-4 text-center sm:min-h-[104px]">
             <span aria-hidden="true" className={cn("absolute right-3 top-3 size-3 rounded-full border-[3px] border-background shadow-sm", statusDotClass(bill))} />
-            <p className="text-xs font-black uppercase leading-none text-muted-foreground">{t("salesList.invoice")}</p>
+            <p className="text-xs font-black uppercase leading-none text-muted-foreground">{t("cancelSale.invoice")}</p>
             <p className="mt-2 max-w-full truncate text-[28px] font-black leading-none tracking-normal text-foreground tabular-nums sm:text-[34px]">
               {invoice}
             </p>
@@ -135,11 +135,11 @@ function SalesBillCard({
           </div>
 
           <div className="grid grid-cols-2 border-t border-border bg-muted/45 text-xs">
-            <BillCardMetric className="border-b border-r border-border" icon={<Table2 />} label={t("salesList.table")} value={billTable(bill)} />
-            <BillCardMetric className="border-b border-border" icon={<CalendarClock />} label={t("salesList.date")} value={billDate(bill)} valueClassName="tabular-nums" />
-            <BillCardMetric className="border-r border-border" icon={<KipIcon />} label={t("salesList.total")} value={billTotal(bill)} valueClassName="font-black tabular-nums" />
+            <BillCardMetric className="border-b border-r border-border" icon={<Table2 />} label={t("cancelSale.table")} value={billTable(bill)} />
+            <BillCardMetric className="border-b border-border" icon={<CalendarClock />} label={t("cancelSale.date")} value={billDate(bill)} valueClassName="tabular-nums" />
+            <BillCardMetric className="border-r border-border" icon={<KipIcon />} label={t("cancelSale.total")} value={billTotal(bill)} valueClassName="font-black tabular-nums" />
             <div className="flex min-h-9 min-w-0 items-center justify-between gap-2 px-3 py-2">
-              <span className="min-w-0 truncate text-muted-foreground">{t("salesList.cancelable")}</span>
+              <span className="min-w-0 truncate text-muted-foreground">{t("cancelSale.cancelable")}</span>
               <span className="shrink-0">
                 <CancelableBadge canCancel={billCanCancel(bill)} compact />
               </span>

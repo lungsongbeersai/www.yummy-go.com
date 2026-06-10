@@ -1,6 +1,6 @@
 import type { MenuItem } from "@/config/menu";
 
-export type RouteBreadcrumbItem = Pick<MenuItem, "disabled" | "path" | "title">;
+export type RouteBreadcrumbItem = Pick<MenuItem, "disabled" | "label" | "path" | "title">;
 
 export const routeBreadcrumbs: Record<string, RouteBreadcrumbItem[]> = {
   "/product/form": [
@@ -13,6 +13,14 @@ export const routeBreadcrumbs: Record<string, RouteBreadcrumbItem[]> = {
   ],
   "/sale/counter-checkout": [{ path: "/sale/counter-checkout", title: "counter_checkout" }],
   "/sale/order-customer": [{ path: "/sale/order-customer", title: "customer_order" }],
+  "/sales/cancel-sale": [
+    { disabled: true, title: "sales" },
+    { path: "/sales/cancel-sale", title: "cancel_sale" }
+  ],
+  "/sales/sales-list": [
+    { disabled: true, title: "sales" },
+    { path: "/sales/sales-list", title: "sales_list" }
+  ],
   "/setting/manage-menu": [{ path: "/setting/manage-menu", title: "manage_menu" }],
   "/setting/unite": [{ path: "/setting/unite", title: "unit" }],
   "/setting/manage-access-permissions": [

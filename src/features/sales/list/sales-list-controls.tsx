@@ -29,8 +29,8 @@ export function SalesListHeader({ loading, onRefresh }: { loading: boolean; onRe
         </div>
         <div className="min-w-0">
           <div className="text-xs font-bold uppercase text-muted-foreground">{t("nav.sales")}</div>
-          <h1 className="truncate text-xl font-black leading-tight">{t("salesList.title")}</h1>
-          <p className="hidden max-w-2xl truncate text-xs text-muted-foreground md:block">{t("salesList.subtitle")}</p>
+          <h1 className="truncate text-xl font-black leading-tight">{t("cancelSale.title")}</h1>
+          <p className="hidden max-w-2xl truncate text-xs text-muted-foreground md:block">{t("cancelSale.subtitle")}</p>
         </div>
       </div>
       <Button disabled={loading} size="sm" type="button" variant="outline" onClick={onRefresh}>
@@ -64,7 +64,7 @@ export function SalesListToolbar({
   function renderDateSelect(id: string, triggerClassName: string) {
     return (
       <Select value={dateSelect} onValueChange={onDateChange}>
-        <SelectTrigger id={id} aria-label={t("salesList.dateFilter")} className={cn("w-full font-semibold", triggerClassName)}>
+        <SelectTrigger id={id} aria-label={t("cancelSale.dateFilter")} className={cn("w-full font-semibold", triggerClassName)}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent position="popper">

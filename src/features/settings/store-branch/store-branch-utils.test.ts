@@ -79,17 +79,21 @@ describe("store branch utils", () => {
     expect(
       buildBranchPayload({
         address: "",
-        chargePercent: "",
+        chargePercent: "1,234.50",
         chargeStatus: "2",
         editing: { branch_uuid: "branch-1", branch_name: "Old" },
         email: "",
         name: "Branch",
         storeUuid: "store-1",
         tel: "",
-        vatPercent: "",
+        vatPercent: "7,500.25",
         vatStatus: "2"
-      }).branch_uuid
-    ).toBe("branch-1");
+      })
+    ).toMatchObject({
+      branch_uuid: "branch-1",
+      vat_name: 7500.25,
+      charge_name: 1234.5
+    });
   });
 
   it("detects missing required fields", () => {

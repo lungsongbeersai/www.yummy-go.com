@@ -2,6 +2,8 @@
 
 import { Bell, Check, ImageIcon, Layers3, RefreshCcw, Save, Utensils } from "lucide-react";
 import { BackButton } from "@/components/common/back-button";
+import { FormattedNumberInput } from "@/components/common/formatted-number-input";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -50,6 +52,7 @@ export function ProductFormView({ form }: { form: ProductFormWorkflow }) {
   const {
     t,
     title,
+    saveNotice,
     saveDisabled,
     saveButtonLabel,
     existingSrc,
@@ -114,6 +117,23 @@ export function ProductFormView({ form }: { form: ProductFormWorkflow }) {
           {prodToppingStatus === TOPPING_HAS ? <Badge>{t("common.selectedCount", { count: toppingCount })}</Badge> : null}
         </div>
       </div>
+
+      {saveNotice !== "idle" ? (
+        <Alert
+          role="status"
+          aria-live="polite"
+          className={cn(saveNotice === "saved" && "border-primary/30 bg-primary/5")}
+        >
+          {saveNotice === "saving" ? (
+            <Spinner role="presentation" aria-hidden="true" />
+          ) : (
+            <Check aria-hidden="true" />
+          )}
+          <AlertDescription className={cn("font-medium", saveNotice === "saved" && "text-primary")}>
+            {saveNotice === "saving" ? t("product.saving") : t("product.savedNext")}
+          </AlertDescription>
+        </Alert>
+      ) : null}
 
       <form
         onSubmit={(event) => {
@@ -204,7 +224,13 @@ export function ProductFormView({ form }: { form: ProductFormWorkflow }) {
                 </div>
               </div>
               <Button type="submit" disabled={saveDisabled} className="w-full">
-                {saveDisabled ? <Spinner data-icon="inline-start" /> : <Save data-icon="inline-start" />}
+                {saveNotice === "saved" ? (
+                  <Check data-icon="inline-start" />
+                ) : saveDisabled ? (
+                  <Spinner data-icon="inline-start" />
+                ) : (
+                  <Save data-icon="inline-start" />
+                )}
                 {saveButtonLabel}
               </Button>
             </CardContent>
@@ -463,12 +489,11 @@ export function ProductFormView({ form }: { form: ProductFormWorkflow }) {
               {statusSortFk === "2" ? (
                 <Field className="md:col-span-2">
                   <FieldLabel htmlFor="prod-set-price">{t("product.setPrice")}</FieldLabel>
-                  <Input
+                  <FormattedNumberInput
                     id="prod-set-price"
-                    type="number"
                     min={0}
                     value={prodSetPrice}
-                    onChange={(event) => setProdSetPrice(event.target.value)}
+                    onValueChange={setProdSetPrice}
                   />
                 </Field>
               ) : null}
@@ -482,7 +507,13 @@ export function ProductFormView({ form }: { form: ProductFormWorkflow }) {
 
           <div className="flex justify-end">
             <Button type="submit" disabled={saveDisabled}>
-              {saveDisabled ? <Spinner data-icon="inline-start" /> : <Save data-icon="inline-start" />}
+              {saveNotice === "saved" ? (
+                <Check data-icon="inline-start" />
+              ) : saveDisabled ? (
+                <Spinner data-icon="inline-start" />
+              ) : (
+                <Save data-icon="inline-start" />
+              )}
               {saveButtonLabel}
             </Button>
           </div>

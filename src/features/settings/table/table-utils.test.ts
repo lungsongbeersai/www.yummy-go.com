@@ -96,6 +96,20 @@ describe("table utils", () => {
     });
   });
 
+  it("strips formatted table seats before save", () => {
+    expect(
+      buildTablePayload({
+        branchUuid: "branch-1",
+        chargeStatus: "1",
+        editing: null,
+        nameEng: "Hall",
+        nameLa: "Hall",
+        seats: "1,200",
+        zoneUuid: "zone-1"
+      }).table_qty
+    ).toBe(1200);
+  });
+
   it("detects missing required fields", () => {
     expect(missingTableField({ branchUuid: "", nameLa: "A1", zoneUuid: "zone-1" })).toBe("branch");
     expect(missingTableField({ branchUuid: "branch-1", nameLa: "A1", zoneUuid: "" })).toBe("zone");

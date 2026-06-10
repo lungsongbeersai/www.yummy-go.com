@@ -1,5 +1,5 @@
-import { SalesListPage } from "@/features/sales/sales-list/sales-list-page";
-import { SALES_LIST_LIMIT_OPTIONS } from "@/features/sales/sales-list/sales-list-utils";
+import { SalesListPage } from "@/features/sales/list/sales-list-page";
+import { SALES_LIST_LIMIT_OPTIONS } from "@/features/sales/list/sales-list-utils";
 import { parseUrlPagination, type UrlSearchParamsRecord } from "@/lib/url-pagination";
 
 type SearchParams = Promise<UrlSearchParamsRecord>;

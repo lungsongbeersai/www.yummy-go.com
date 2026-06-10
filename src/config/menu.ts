@@ -15,6 +15,10 @@ export type MenuItem = {
   title: string;
   path?: string;
   icon?: LucideIcon;
+  iconName?: string;
+  label?: string;
+  badgeText?: string;
+  source?: "permission-api" | "static";
   children?: MenuItem[];
   allowedStatus?: number[];
   disabled?: boolean;
@@ -42,6 +46,7 @@ const Menu: MenuItem[] = [
     children: [
       { path: "/sales/open-table-sale", title: "open_table_sale" },
       { path: "/sales/sales-list", title: "sales_list" },
+      { path: "/sales/cancel-sale", title: "cancel_sale" },
       { path: "/sales/cancel-history", title: "cancel_history" }
     ]
   },

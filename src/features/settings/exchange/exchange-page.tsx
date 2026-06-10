@@ -4,13 +4,13 @@ import { useEffect, useMemo, useState } from "react";
 import { Coins } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
+import { FormattedNumberInput } from "@/components/common/formatted-number-input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Field, FieldDescription, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -622,18 +622,17 @@ function ExchangeFormDialog({
                 <FieldGroup className="grid gap-4 sm:grid-cols-2">
                   <Field>
                     <FieldLabel htmlFor="ex_price">{t("fields.ex_price")}</FieldLabel>
-                    <Input
+                    <FormattedNumberInput
+                      decimal
                       id="ex_price"
                       name="ex_price"
                       autoComplete="off"
                       disabled={saving}
-                      inputMode="decimal"
                       min={0}
                       required
                       step="any"
-                      type="number"
                       value={exPrice}
-                      onChange={(event) => setExPrice(event.target.value)}
+                      onValueChange={setExPrice}
                     />
                   </Field>
                   <Field>

@@ -42,6 +42,18 @@ describe("exchange settings utils", () => {
     });
   });
 
+  it("strips formatted exchange rates before save", () => {
+    expect(
+      buildExchangePayload({
+        currencyUuid: "currency-1",
+        editing: null,
+        price: "21,000.50",
+        status: "1",
+        storeUuid: "store-1"
+      }).ex_price
+    ).toBe("21000.50");
+  });
+
   it("detects missing required fields before save", () => {
     expect(missingExchangeField({ currencyUuid: "currency-1", price: "10", storeUuid: "" })).toBe("store");
     expect(missingExchangeField({ currencyUuid: "", price: "10", storeUuid: "store-1" })).toBe("currency");

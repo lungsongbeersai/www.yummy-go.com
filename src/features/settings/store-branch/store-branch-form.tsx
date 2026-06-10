@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { CheckCircle2, Plus } from "lucide-react";
+import { FormattedNumberInput } from "@/components/common/formatted-number-input";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Field, FieldDescription, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
@@ -412,18 +413,17 @@ function EntityForm({
                     />
                     <Field>
                       <FieldLabel htmlFor={`${recordKey}-vat-percent`}>{labels.vatPercent}</FieldLabel>
-                      <Input
+                      <FormattedNumberInput
+                        decimal
                         id={`${recordKey}-vat-percent`}
                         name="vat_name"
                         autoComplete="off"
                         disabled={disabled}
-                        inputMode="decimal"
                         min="0"
                         step="0.01"
                         translate="no"
-                        type="number"
                         value={vatPercent}
-                        onChange={(event) => setVatPercent(event.target.value)}
+                        onValueChange={setVatPercent}
                       />
                     </Field>
                     <FormSelectField
@@ -440,18 +440,17 @@ function EntityForm({
                     />
                     <Field>
                       <FieldLabel htmlFor={`${recordKey}-charge-percent`}>{labels.chargePercent}</FieldLabel>
-                      <Input
+                      <FormattedNumberInput
+                        decimal
                         id={`${recordKey}-charge-percent`}
                         name="charge_name"
                         autoComplete="off"
                         disabled={disabled}
-                        inputMode="decimal"
                         min="0"
                         step="0.01"
                         translate="no"
-                        type="number"
                         value={chargePercent}
-                        onChange={(event) => setChargePercent(event.target.value)}
+                        onValueChange={setChargePercent}
                       />
                     </Field>
                   </FieldGroup>

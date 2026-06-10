@@ -1,3 +1,4 @@
+import { stripNumberFormat } from "@/lib/number-format";
 import type { ApiEntity } from "@/services/shared/types";
 import type { SaveTableInput, Table as DiningTable, TableListRow, ZoneGroup } from "@/services/table";
 import type { Zone } from "@/services/zone";
@@ -174,7 +175,7 @@ export function buildTablePayload({
     table_name_eng: nameEng.trim(),
     charge_status: Number(chargeStatus || 2)
   };
-  const trimmedSeats = seats.trim();
+  const trimmedSeats = stripNumberFormat(seats);
   if (trimmedSeats) payload.table_qty = Number(trimmedSeats);
   return payload;
 }

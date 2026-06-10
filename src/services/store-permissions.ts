@@ -87,7 +87,9 @@ export interface StorePermissionSaveInput {
 
 type RawStore = Partial<StorePermissionStore>;
 type RawRole = Partial<StorePermissionRole>;
-type RawSubMenu = Partial<StorePermissionSubMenu>;
+type RawSubMenu = Partial<Omit<StorePermissionSubMenu, "checked">> & {
+  checked?: unknown;
+};
 type RawMenu = Partial<Omit<StorePermissionMenu, "sub_detail">> & {
   sub_detail?: RawSubMenu[] | string | null;
 };
@@ -108,10 +110,11 @@ function numberValue(value: unknown, fallback = 0) {
   return Number.isFinite(next) ? next : fallback;
 }
 
-function booleanValue(value: unknown) {
+export function storePermissionCheckedValue(value: unknown) {
   if (typeof value === "boolean") return value;
   if (typeof value === "number") return value === 1;
-  return String(value ?? "").toLowerCase() === "true";
+  const normalized = String(value ?? "").trim().toLowerCase();
+  return normalized === "1" || normalized === "true";
 }
 
 function requiredNumber(value: unknown, field: string) {
@@ -144,7 +147,7 @@ function normalizeSubMenu(submenu: RawSubMenu): StorePermissionSubMenu {
   const titleEng = text(submenu.sub_title_eng);
 
   return {
-    checked: booleanValue(submenu.checked),
+    checked: storePermissionCheckedValue(submenu.checked),
     sub_id: text(submenu.sub_id),
     sub_path: text(submenu.sub_path),
     sub_sort: numberValue(submenu.sub_sort),
@@ -183,7 +186,7 @@ function normalizeRoleTree(role: RawRoleTree): StorePermissionRoleTree {
   };
 }
 
-function normalizeTree(tree: RawTree): StorePermissionTree {
+export function normalizeStorePermissionTree(tree: RawTree): StorePermissionTree {
   return {
     company_uuid_fk: text(tree.company_uuid_fk),
     roles: Array.isArray(tree.roles) ? tree.roles.map(normalizeRoleTree) : [],
@@ -203,6 +206,14 @@ export function checkedSubmenuIds(tree: StorePermissionTree | null) {
     )
   );
   return Array.from(new Set(ids.filter(Boolean)));
+}
+
+export function buildStorePermissionSavePayload(input: StorePermissionSaveInput): StorePermissionSaveInput {
+  return {
+    company_uuid_fk: requiredText(input.company_uuid_fk, "company_uuid_fk"),
+    role_id: requiredNumber(input.role_id, "role_id"),
+    sub_id_list: Array.isArray(input.sub_id_list) ? input.sub_id_list.map(String).filter(Boolean) : []
+  };
 }
 
 export async function fetchStorePermissionStores(storeStatus: number, lang?: string) {
@@ -253,7 +264,7 @@ export async function fetchStorePermissionTree(
     "Failed to fetch permission tree"
   );
   const first = responseRows(result.data)[0];
-  return first ? normalizeTree(first) : null;
+  return first ? normalizeStorePermissionTree(first) : null;
 }
 
 export async function fetchStorePermissionSavedList(
@@ -274,15 +285,11 @@ export async function fetchStorePermissionSavedList(
     "Failed to fetch saved permission list"
   );
   const first = responseRows(result.data)[0];
-  return first ? normalizeTree(first) : null;
+  return first ? normalizeStorePermissionTree(first) : null;
 }
 
 export async function saveStorePermissions(input: StorePermissionSaveInput) {
-  const payload: StorePermissionSaveInput = {
-    company_uuid_fk: requiredText(input.company_uuid_fk, "company_uuid_fk"),
-    role_id: requiredNumber(input.role_id, "role_id"),
-    sub_id_list: Array.isArray(input.sub_id_list) ? input.sub_id_list.map(String).filter(Boolean) : []
-  };
+  const payload = buildStorePermissionSavePayload(input);
 
   await apiRequest<PermissionDataResponse<unknown>>(
     "post",
