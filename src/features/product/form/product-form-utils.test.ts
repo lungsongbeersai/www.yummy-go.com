@@ -12,7 +12,12 @@ import {
   filterSizeOptionsByText,
   findSizeUuidByName,
   findToppingUuidByName,
+  mergeProductFormToppingPrices,
+  parseProductFormDefaults,
   isHexColor,
+  productFormDefaultsForOptions,
+  productFormDefaultsStorageKey,
+  productFormToppingDefaultPrice,
   normalizeDetailsForStatus,
   productColorValue,
   productFormSizeOptions,
@@ -73,6 +78,90 @@ describe("product form image and hydration helpers", () => {
     expect(productHydrationKey(product)).toContain("prod-1");
     expect(productHydrationKey(product)).toContain("detail-1:size-1");
     expect(productHasToppings(product)).toBe(true);
+  });
+});
+
+describe("product form saved defaults helpers", () => {
+  it("builds storage keys per store and parses saved defaults safely", () => {
+    expect(productFormDefaultsStorageKey("store-1")).toBe(
+      "yummy-go-product-form-defaults:store-1",
+    );
+
+    expect(parseProductFormDefaults("bad json")).toEqual({
+      cateUuidFk: "",
+      uniteUuidFk: "",
+      toppingPrices: {},
+    });
+
+    expect(
+      parseProductFormDefaults(
+        JSON.stringify({
+          cateUuidFk: " cate-1 ",
+          uniteUuidFk: "unit-1",
+          toppingPrices: {
+            " top-1 ": 15,
+            "top-2": "",
+            "": "10",
+          },
+        }),
+      ),
+    ).toEqual({
+      cateUuidFk: "cate-1",
+      uniteUuidFk: "unit-1",
+      toppingPrices: {
+        "top-1": "15",
+        "top-2": "0",
+      },
+    });
+  });
+
+  it("uses saved category and unit only when options still exist", () => {
+    const defaults = {
+      cateUuidFk: "missing-cate",
+      uniteUuidFk: "unit-1",
+      toppingPrices: {},
+    };
+
+    expect(
+      productFormDefaultsForOptions(
+        defaults,
+        [{ cate_uuid: "cate-1" }],
+        [{ unite_uuid: "unit-1" }],
+      ),
+    ).toEqual({
+      cateUuidFk: "",
+      uniteUuidFk: "unit-1",
+      toppingPrices: {},
+    });
+  });
+
+  it("normalizes topping price defaults and keeps the latest selected prices", () => {
+    expect(
+      productFormToppingDefaultPrice(
+        { toppingPrices: { "top-1": "12" } },
+        "top-1",
+      ),
+    ).toBe("12");
+    expect(
+      productFormToppingDefaultPrice(
+        { toppingPrices: { "top-1": "" } },
+        "top-1",
+      ),
+    ).toBe("0");
+
+    expect(
+      mergeProductFormToppingPrices(
+        { "top-1": "5", "top-2": "8" },
+        [
+          { topping_uuid_fk: "top-1", topping_price: "9" },
+          { topping_uuid_fk: "top-3", topping_price: "" },
+        ],
+      ),
+    ).toEqual({
+      "top-1": "9",
+      "top-2": "8",
+      "top-3": "0",
+    });
   });
 });
 
@@ -269,6 +358,49 @@ describe("product form validation and payload helpers", () => {
       toppings: [],
     });
     expect(payload.details?.[0]).toMatchObject({ pro_detail_sprice: 12000 });
+  });
+
+  it("strips formatted numeric strings before building product payloads", () => {
+    expect(
+      buildDetailPayload(
+        detail({
+          pro_detail_bprice: "1,000",
+          pro_detail_sprice: "2,500",
+          pro_detail_qty_stock: "10,000",
+          pro_detail_cus_qtyBuy: "1,200",
+          pro_detail_cus_qtyFree: "300",
+        }),
+        "3",
+      ),
+    ).toMatchObject({
+      pro_detail_bprice: 1000,
+      pro_detail_sprice: 2500,
+      pro_detail_qty_stock: 10000,
+      pro_detail_cus_qtyBuy: 1200,
+      pro_detail_cus_qtyFree: 300,
+    });
+
+    const payload = buildSaveProductPayload({
+      branchUuid: "branch-1",
+      prodCode: "P-1",
+      prodNameLa: "Set",
+      prodNameEng: "",
+      cateUuidFk: "cate-1",
+      uniteUuidFk: "unit-1",
+      prodOrderPoint: "5",
+      prodNotification: "2",
+      statusSortFk: "2",
+      prodSetPrice: "99,000",
+      prodStatusImge: "2",
+      prodImage: "#10b981",
+      details: [detail({ pro_detail_bprice: "10,000" })],
+      prodToppingStatus: TOPPING_HAS,
+      selectedToppings: [{ topping_uuid_fk: "top-1", topping_price: "5,500" }],
+    });
+
+    expect(payload.prod_set_price).toBe(99000);
+    expect(payload.toppings?.[0]?.topping_price).toBe(5500);
+    expect(payload.details?.[0]?.pro_detail_bprice).toBe(10000);
   });
 
   it("matches saved toppings by localized names", () => {

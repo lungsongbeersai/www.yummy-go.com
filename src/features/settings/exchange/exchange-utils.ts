@@ -1,3 +1,4 @@
+import { stripNumberFormat } from "@/lib/number-format";
 import type { Currency } from "@/services/currency";
 import type { Exchange, SaveExchangeInput } from "@/services/exchange";
 import type { ApiEntity } from "@/services/shared/types";
@@ -77,7 +78,7 @@ export function buildExchangePayload({
   const input: SaveExchangeInput = {
     store_uuid_fk: storeUuid,
     currency_uuid_fk: currencyUuid,
-    ex_price: price,
+    ex_price: stripNumberFormat(price, { decimal: true }),
     ex_status: Number(status || 1)
   };
   const id = exchangeId(editing);

@@ -8,8 +8,8 @@ export function CancelableBadge({ canCancel, compact = false }: { canCancel: boo
   const { t } = useTranslation();
 
   return canCancel ? (
-    <Badge className={cn("border-primary/20 bg-primary/10 text-primary", compact && "px-1.5 text-[11px]")}>{t("salesList.canCancel")}</Badge>
+    <Badge className={cn("border-primary/20 bg-primary/10 text-primary", compact && "px-1.5 text-[11px]")}>{t("cancelSale.canCancel")}</Badge>
   ) : (
-    <Badge className={cn("border-border bg-muted text-muted-foreground", compact && "px-1.5 text-[11px]")}>{t("salesList.cannotCancel")}</Badge>
+    <Badge className={cn("border-border bg-muted text-muted-foreground", compact && "px-1.5 text-[11px]")}>{t("cancelSale.cannotCancel")}</Badge>
   );
 }

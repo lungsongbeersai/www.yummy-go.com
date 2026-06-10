@@ -1,27 +1,7 @@
-import {
-  BarChart3,
-  CircleDollarSign,
-  ClipboardList,
-  FileText,
-  Home,
-  Layers,
-  LayoutGrid,
-  MapPin,
-  Package,
-  Palette,
-  Printer,
-  Ruler,
-  Settings,
-  ShoppingCart,
-  Store,
-  Table2,
-  Tags,
-  Users,
-  Utensils,
-  type LucideIcon
-} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import ProjectMenu, { type MenuItem } from "@/config/menu";
 import { routeBreadcrumbs, type RouteBreadcrumbItem } from "@/config/route-breadcrumbs";
+import { DEFAULT_MENU_ICON_OPTION, MENU_ICON_OPTIONS } from "@/lib/menu-icons";
 
 export interface PickerOption {
   icon?: LucideIcon;
@@ -29,34 +9,9 @@ export interface PickerOption {
   value: string;
 }
 
-export const NAV_ICON_OPTIONS: PickerOption[] = [
-  { icon: Home, labelKey: "permissionMenu.icons.home", value: "home" },
-  { icon: ShoppingCart, labelKey: "permissionMenu.icons.shoppingCart", value: "shopping-cart" },
-  { icon: Utensils, labelKey: "permissionMenu.icons.utensils", value: "utensils" },
-  { icon: Package, labelKey: "permissionMenu.icons.package", value: "package" },
-  { icon: Printer, labelKey: "permissionMenu.icons.printer", value: "printer" },
-  { icon: BarChart3, labelKey: "permissionMenu.icons.report", value: "bar-chart-3" },
-  { icon: Settings, labelKey: "permissionMenu.icons.settings", value: "settings" },
-  { icon: Store, labelKey: "permissionMenu.icons.store", value: "store" },
-  { icon: Users, labelKey: "permissionMenu.icons.users", value: "users" },
-  { icon: Tags, labelKey: "permissionMenu.icons.tags", value: "tags" },
-  { icon: Palette, labelKey: "permissionMenu.icons.palette", value: "palette" },
-  { icon: Table2, labelKey: "permissionMenu.icons.table", value: "table" },
-  { icon: MapPin, labelKey: "permissionMenu.icons.location", value: "map-pin" },
-  { icon: CircleDollarSign, labelKey: "permissionMenu.icons.currency", value: "circle-dollar-sign" },
-  { icon: Ruler, labelKey: "permissionMenu.icons.size", value: "ruler" },
-  { icon: Layers, labelKey: "permissionMenu.icons.layers", value: "layers" },
-  { icon: LayoutGrid, labelKey: "permissionMenu.icons.grid", value: "layout-grid" },
-  { icon: ClipboardList, labelKey: "permissionMenu.icons.list", value: "clipboard-list" },
-  { icon: FileText, labelKey: "permissionMenu.icons.file", value: "file-text" },
-  { icon: FileText, labelKey: "permissionMenu.icons.fileLegacy", value: "fa fa-file" }
-];
+export const NAV_ICON_OPTIONS: PickerOption[] = MENU_ICON_OPTIONS;
 
-export const DEFAULT_NAV_ICON_OPTION = NAV_ICON_OPTIONS.find((option) => option.value === "file-text") ?? {
-  icon: FileText,
-  labelKey: "permissionMenu.icons.file",
-  value: "file-text"
-};
+export const DEFAULT_NAV_ICON_OPTION: PickerOption = DEFAULT_MENU_ICON_OPTION;
 
 function navLabelKey(title: string) {
   return title.includes(".") ? title : `nav.${title}`;

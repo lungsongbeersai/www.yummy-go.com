@@ -4,10 +4,13 @@ import { create } from "zustand";
 import { DEFAULT_PAGE_LIMIT, PAGE_LIMIT_ALL_BATCH, isAllPageLimit } from "@/lib/pagination";
 import {
   getBestSellingProductsReport,
+  getDailySaleItems,
   getDailySalesReport,
   getPaymentMethodsReport,
   type BestSellingProductsReportResponse,
+  type DailySaleItemsResponse,
   type FetchBestSellingProductsReportParams,
+  type FetchDailySaleItemsParams,
   type DailySalesReportResponse,
   type FetchDailySalesReportParams,
   type FetchPaymentMethodsReportParams,
@@ -35,6 +38,11 @@ import {
   type PaymentMethodSummaryCard,
   type PaymentMethodsPagination
 } from "@/stores/report-store/payment-method-normalizers";
+import {
+  normalizeDailySaleItemsResponse,
+  type DailySaleItemsBillGroup,
+  type DailySaleItemsPagination
+} from "@/stores/report-store/daily-sale-items-normalizers";
 import { errorMessage } from "@/stores/store-utils";
 import {
   loadBestSellingProductsReportExportData,
@@ -50,8 +58,10 @@ import {
 
 export { createDailySalesBillGroups, normalizeDailySalesReportResponse };
 export { mergeBestSellingProductGroups, normalizeBestSellingProductsReportResponse };
+export { normalizeDailySaleItemsResponse };
 export { normalizePaymentMethodsReportResponse };
 export type { DailySalesBillGroup };
+export type { DailySaleItemsBillGroup, DailySaleItemsPagination };
 export type { BestSellingProductGroup, BestSellingProductItem, BestSellingProductsPagination };
 export type { PaymentMethodOption, PaymentMethodReportRow, PaymentMethodSummaryCard, PaymentMethodsPagination };
 export type {
@@ -151,6 +161,102 @@ export const useDailySalesReportStore = create<DailySalesReportState>((set) => (
       response: null,
       rows: [],
       summaryCards: {},
+      total: 0,
+      totalPages: 1
+    })
+}));
+
+interface DailySaleItemsReportState {
+  bills: DailySaleItemsBillGroup[];
+  error: string | null;
+  limit: PageLimit;
+  loading: boolean;
+  page: number;
+  pagination: DailySaleItemsPagination;
+  reportTotal: ApiEntity;
+  response: DailySaleItemsResponse | null;
+  rows: ApiEntity[];
+  total: number;
+  totalPages: number;
+  load: (params: FetchDailySaleItemsParams) => Promise<DailySaleItemsResponse>;
+  reset: () => void;
+}
+
+const defaultDailySaleItemsPagination: DailySaleItemsPagination = {
+  limit: DEFAULT_PAGE_LIMIT,
+  page: 1,
+  total: 0,
+  totalPages: 1
+};
+
+export const useDailySaleItemsStore = create<DailySaleItemsReportState>((set) => ({
+  bills: [],
+  error: null,
+  limit: DEFAULT_PAGE_LIMIT,
+  loading: false,
+  page: 1,
+  pagination: defaultDailySaleItemsPagination,
+  reportTotal: {},
+  response: null,
+  rows: [],
+  total: 0,
+  totalPages: 1,
+  load: async (params) => {
+    set({ error: null, loading: true });
+    try {
+      const loadAll = isAllPageLimit(params.limit);
+      const requestParams = loadAll ? { ...params, limit: PAGE_LIMIT_ALL_BATCH, page: 1 } : params;
+      const response = await getDailySaleItems(requestParams);
+      const normalized = normalizeDailySaleItemsResponse(response, requestParams);
+      const allBills = [...normalized.bills];
+
+      if (loadAll) {
+        for (let nextPage = 2; nextPage <= normalized.pagination.totalPages; nextPage += 1) {
+          const nextResponse = await getDailySaleItems({ ...requestParams, page: nextPage });
+          const nextNormalized = normalizeDailySaleItemsResponse(nextResponse, { ...requestParams, page: nextPage });
+          allBills.push(...nextNormalized.bills);
+        }
+      }
+
+      const total = loadAll ? allBills.length : normalized.pagination.total;
+      const pagination: DailySaleItemsPagination = {
+        ...normalized.pagination,
+        limit: params.limit,
+        page: loadAll ? 1 : normalized.pagination.page,
+        total,
+        totalPages: loadAll ? 1 : normalized.pagination.totalPages
+      };
+
+      set({
+        bills: allBills,
+        limit: params.limit,
+        loading: false,
+        page: pagination.page,
+        pagination,
+        reportTotal: normalized.reportTotal,
+        response,
+        rows: allBills.flatMap((bill) => bill.items),
+        total,
+        totalPages: pagination.totalPages
+      });
+
+      return response;
+    } catch (error) {
+      set({ error: errorMessage(error), loading: false });
+      throw error;
+    }
+  },
+  reset: () =>
+    set({
+      bills: [],
+      error: null,
+      limit: DEFAULT_PAGE_LIMIT,
+      loading: false,
+      page: 1,
+      pagination: defaultDailySaleItemsPagination,
+      reportTotal: {},
+      response: null,
+      rows: [],
       total: 0,
       totalPages: 1
     })

@@ -61,10 +61,12 @@ import { NotificationMenu } from "@/components/layout/notification-menu";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import sideMenu, { type MenuItem } from "@/config/menu";
 import { routeBreadcrumbs, type RouteBreadcrumbItem } from "@/config/route-breadcrumbs";
+import { sidebarPermissionMenuItemsToMenuItems } from "@/services/sidebar-menu";
 import { getStoreLogoUrl } from "@/services/store";
 import { getUserProfileUrl } from "@/services/user";
 import { useAppStore } from "@/stores/app-store";
-import { useAuthStore, type AuthUser } from "@/stores/auth-store";
+import { authStoreUuid, useAuthStore, type AuthUser } from "@/stores/auth-store";
+import { useSidebarMenuStore } from "@/stores/sidebar-menu-store";
 
 type BreadcrumbTrailItem = RouteBreadcrumbItem;
 
@@ -72,6 +74,10 @@ const POS_ANDROID_SYSTEM_SCREEN_CLASS = "pos-android-system-screen";
 
 function menuKey(title: string) {
   return `nav.${title}`;
+}
+
+function menuItemLabel(item: Pick<MenuItem, "label" | "title">, t: (key: string) => string) {
+  return item.label || t(menuKey(item.title));
 }
 
 function isAllowed(item: MenuItem, userStatus?: number) {
@@ -116,7 +122,10 @@ function findBreadcrumbs(
 ): BreadcrumbTrailItem[] | null {
   for (const item of items) {
     if (item.is_header) continue;
-    const nextTrail = [...trail, { disabled: item.disabled, path: item.path, title: item.title }];
+    const nextTrail = [
+      ...trail,
+      { disabled: item.disabled, label: item.label, path: item.path, title: item.title }
+    ];
     if (isExactRoute(pathname, item.path)) return nextTrail;
     if (item.children?.length) {
       const match = findBreadcrumbs(item.children, pathname, nextTrail);
@@ -127,11 +136,11 @@ function findBreadcrumbs(
 }
 
 function resolveBreadcrumbs(items: MenuItem[], pathname: string): BreadcrumbTrailItem[] | null {
-  const routeTrail = routeBreadcrumbs[pathname];
-  if (routeTrail) return routeTrail;
-
   const exact = findBreadcrumbs(items, pathname);
   if (exact) return exact;
+
+  const routeTrail = routeBreadcrumbs[pathname];
+  if (routeTrail) return routeTrail;
 
   const segments = pathname.split("/").filter(Boolean);
   for (let i = segments.length - 1; i > 0; i -= 1) {
@@ -154,11 +163,21 @@ function userInitials(user: AuthUser | null) {
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const { i18n } = useTranslation();
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
   const collapsed = useAppStore((state) => state.collapsed);
   const setCollapsed = useAppStore((state) => state.setCollapsed);
-  const menuItems = useMemo(() => filterMenu(sideMenu, user?.status), [user?.status]);
+  const sidebarItems = useSidebarMenuStore((state) => state.items);
+  const clearSidebarMenu = useSidebarMenuStore((state) => state.clearActive);
+  const loadSidebarMenu = useSidebarMenuStore((state) => state.load);
+  const storeUuid = authStoreUuid(user);
+  const staticMenuItems = useMemo(() => filterMenu(sideMenu, user?.status), [user?.status]);
+  const permissionMenuItems = useMemo(
+    () => sidebarPermissionMenuItemsToMenuItems(sidebarItems),
+    [sidebarItems]
+  );
+  const menuItems = permissionMenuItems.length ? permissionMenuItems : staticMenuItems;
   const breadcrumbs = useMemo(() => {
     const home: BreadcrumbTrailItem = { path: "/", title: "dashboard" };
     const trail = resolveBreadcrumbs(menuItems, pathname);
@@ -167,8 +186,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return [home, ...trail];
   }, [menuItems, pathname]);
   const immersiveScreen = pathname === "/sales/open-table-sale" || pathname === "/sale/order-customer";
-  const fixedDataScreen = immersiveScreen || pathname.startsWith("/setting/") || pathname === "/printer" || pathname === "/product" || pathname === "/report/daily-sales" || pathname === "/report/best-selling-products" || pathname === "/report/payment-methods" || pathname === "/sales/sales-list" || pathname === "/sales/cancel-history";
+  const fixedDataScreen = immersiveScreen || pathname.startsWith("/setting/") || pathname === "/printer" || pathname === "/product" || pathname === "/report/daily-sales" || pathname === "/report/best-selling-products" || pathname === "/report/payment-methods" || pathname === "/sales/sales-list" || pathname === "/sales/cancel-sale" || pathname === "/sales/cancel-history";
   const [openMenus, setOpenMenus] = useState<Set<string>>(() => new Set(activeMenuTitles(menuItems, pathname)));
+
+  useEffect(() => {
+    if (!storeUuid || typeof user?.status !== "number") {
+      clearSidebarMenu();
+      return;
+    }
+    void loadSidebarMenu(storeUuid, user.status, i18n.language);
+  }, [clearSidebarMenu, i18n.language, loadSidebarMenu, storeUuid, user?.status]);
 
   useEffect(() => {
     if (!fixedDataScreen) return;
@@ -279,7 +306,8 @@ function AppHeader({
 }) {
   const { t } = useTranslation();
   const router = useRouter();
-  const pageTitle = t(menuKey(breadcrumbs[breadcrumbs.length - 1]?.title ?? "dashboard"));
+  const currentBreadcrumb = breadcrumbs[breadcrumbs.length - 1] ?? { title: "dashboard" };
+  const pageTitle = menuItemLabel(currentBreadcrumb, t);
   const logoSrc = user?.store_logo ? getStoreLogoUrl(user.store_logo) : "/brand/icon.png";
   const profileSrc = user?.profile ? getUserProfileUrl(user.profile) : "";
   const branchTitle = user?.branch_name || user?.store_name || "Yummy Go";
@@ -413,7 +441,7 @@ function AppSidebar({
   }
 
   function renderLeaf(item: MenuItem) {
-    const title = t(menuKey(item.title));
+    const title = menuItemLabel(item, t);
     const active = routeIsActive(pathname, item.path);
     const Icon = item.icon;
 
@@ -429,7 +457,12 @@ function AppSidebar({
           <SidebarMenuButton asChild isActive={active} tooltip={title}>
             <Link href={item.path} onClick={closeMobile}>
               {Icon ? <Icon /> : null}
-              <span>{title}</span>
+              <span className="min-w-0 flex-1 truncate">{title}</span>
+              {item.badgeText && !collapsed ? (
+                <SidebarMenuBadge className="max-w-16 truncate" translate="no">
+                  {item.badgeText}
+                </SidebarMenuBadge>
+              ) : null}
             </Link>
           </SidebarMenuButton>
         )}
@@ -438,7 +471,7 @@ function AppSidebar({
   }
 
   function renderChild(item: MenuItem) {
-    const title = t(menuKey(item.title));
+    const title = menuItemLabel(item, t);
     const active = routeIsActive(pathname, item.path);
 
     return (
@@ -462,7 +495,7 @@ function AppSidebar({
   }
 
   function renderDropdownChild(item: MenuItem) {
-    const title = t(menuKey(item.title));
+    const title = menuItemLabel(item, t);
 
     if (item.disabled || !item.path) {
       return (
@@ -485,14 +518,14 @@ function AppSidebar({
     if (item.is_header) {
       return (
         <SidebarGroupLabel key={item.title}>
-          {t(menuKey(item.title))}
+          {menuItemLabel(item, t)}
         </SidebarGroupLabel>
       );
     }
 
     if (!item.children?.length) return renderLeaf(item);
 
-    const title = t(menuKey(item.title));
+    const title = menuItemLabel(item, t);
     const active = hasActiveRoute(item, pathname);
     const open = openMenus.has(item.title);
     const Icon = item.icon;
@@ -534,8 +567,13 @@ function AppSidebar({
           onClick={() => toggleMenu(item.title)}
         >
           {Icon ? <Icon /> : null}
-          <span>{title}</span>
-          <ChevronDown className={cn("ml-auto transition-transform", open && "rotate-180")} />
+          <span className="min-w-0 flex-1 truncate">{title}</span>
+          {item.badgeText ? (
+            <SidebarMenuBadge className="max-w-16 truncate" translate="no">
+              {item.badgeText}
+            </SidebarMenuBadge>
+          ) : null}
+          <ChevronDown className={cn("shrink-0 transition-transform", open && "rotate-180")} />
         </SidebarMenuButton>
         {open ? (
           <SidebarMenuSub>
@@ -585,7 +623,7 @@ function AppBreadcrumb({ breadcrumbs }: { breadcrumbs: BreadcrumbTrailItem[] }) 
   const overflow = middle.length > 1;
 
   function renderItem(item: BreadcrumbTrailItem, current: boolean) {
-    const title = t(menuKey(item.title));
+    const title = menuItemLabel(item, t);
     if (current || item.disabled || !item.path) {
       return <BreadcrumbPage className="truncate font-semibold">{title}</BreadcrumbPage>;
     }
@@ -614,7 +652,7 @@ function AppBreadcrumb({ breadcrumbs }: { breadcrumbs: BreadcrumbTrailItem[] }) 
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start">
                   {middle.map((item) => {
-                    const title = t(menuKey(item.title));
+                    const title = menuItemLabel(item, t);
                     if (item.disabled || !item.path) {
                       return (
                         <DropdownMenuItem key={`${item.title}-disabled`} disabled>

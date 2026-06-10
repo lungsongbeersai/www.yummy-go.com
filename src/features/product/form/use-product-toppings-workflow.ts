@@ -16,6 +16,7 @@ import {
   productToppingName,
   productToppingUuid,
   productToppingsFromRows,
+  productFormToppingDefaultPrice,
   selectedToppingBadges as buildSelectedToppingBadges,
   textValues,
   toppingUuid
@@ -23,6 +24,7 @@ import {
 
 interface ProductToppingsWorkflowOptions {
   createToppingRow: (input: SaveToppingInput) => Promise<Topping>;
+  defaultToppingPrices: Record<string, string>;
   deleteToppingRow: (uuid: string) => Promise<void>;
   editing: Product | null;
   editingHydrationKey: string;
@@ -36,6 +38,7 @@ interface ProductToppingsWorkflowOptions {
 
 export function useProductToppingsWorkflow({
   createToppingRow,
+  defaultToppingPrices,
   deleteToppingRow,
   editing,
   editingHydrationKey,
@@ -118,7 +121,16 @@ export function useProductToppingsWorkflow({
     setSelectedToppings((current) => {
       if (checked) {
         if (current.some((row) => row.topping_uuid_fk === uuid)) return current;
-        return [...current, { topping_uuid_fk: uuid, topping_price: "0" }];
+        return [
+          ...current,
+          {
+            topping_uuid_fk: uuid,
+            topping_price: productFormToppingDefaultPrice(
+              { toppingPrices: defaultToppingPrices },
+              uuid,
+            ),
+          },
+        ];
       }
       return current.filter((row) => row.topping_uuid_fk !== uuid);
     });
@@ -135,6 +147,14 @@ export function useProductToppingsWorkflow({
     setNewToppingNameLa("");
     setNewToppingNameEng("");
     setNewToppingPrice("0");
+  }
+
+  function resetToppingSelection() {
+    setProdToppingStatus(TOPPING_NONE);
+    setSelectedToppings([]);
+    setToppingSearch("");
+    setToppingDialogOpen(false);
+    resetNewToppingForm();
   }
 
   function selectSavedTopping(uuid: string, price: string, forceSelect: boolean) {
@@ -244,6 +264,7 @@ export function useProductToppingsWorkflow({
     toppingSearch,
     toggleTopping,
     updateToppingPrice,
+    resetToppingSelection,
     resetNewToppingForm,
     editTopping,
     saveToppingFromDialog,

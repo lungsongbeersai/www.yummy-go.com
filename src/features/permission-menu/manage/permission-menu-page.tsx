@@ -19,12 +19,14 @@ import { Spinner } from "@/components/ui/spinner";
 import { SettingsModuleShell } from "@/features/settings/shared/settings-shell";
 import { canManagePermissionMenu } from "@/lib/permissions";
 import type { PermissionMainMenu, PermissionSubMenu } from "@/services/permission-menu";
-import { useAuthStore } from "@/stores/auth-store";
+import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
 import { usePermissionMenuStore } from "@/stores/permission-menu-store";
+import { useSidebarMenuStore } from "@/stores/sidebar-menu-store";
 import { useToastStore } from "@/stores/toast-store";
 import { MainMenuDialog, SubMenuDialog } from "./permission-menu-dialogs";
 import { MAIN_FORM_INITIAL, SUB_FORM_INITIAL, type MainFormState, type SubFormState } from "./permission-menu-options";
 import { PermissionMenuBuilder } from "./permission-menu-builder";
+import { refreshPermissionSidebarMenu } from "./permission-menu-sidebar-refresh";
 import {
   filterPermissionMenus,
   movePermissionItem,
@@ -69,6 +71,7 @@ export function PermissionMenuPage() {
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
   const showToast = useToastStore((state) => state.show);
+  const loadSidebarMenu = useSidebarMenuStore((state) => state.load);
   const hasLoaded = usePermissionMenuStore((state) => state.hasLoaded);
   const menus = usePermissionMenuStore((state) => state.menus);
   const loading = usePermissionMenuStore((state) => state.loading);
@@ -90,6 +93,7 @@ export function PermissionMenuPage() {
   const [mainSearch, setMainSearch] = useState("");
   const [selectedMenuId, setSelectedMenuId] = useState("");
   const allowed = canManagePermissionMenu(user?.status);
+  const storeUuid = authStoreUuid(user);
   const language = i18n.language;
   const fullLoading = loading && !hasLoaded;
   const backgroundLoading = refreshing || (loading && hasLoaded);
@@ -131,10 +135,20 @@ export function PermissionMenuPage() {
     }
   }
 
+  function refreshSidebarMenu() {
+    void refreshPermissionSidebarMenu({
+      language,
+      loadSidebarMenu,
+      status: user?.status,
+      storeUuid
+    });
+  }
+
   async function saveMain() {
     const editing = Boolean(mainForm.menu_id);
     try {
       await createMain(mainForm, language);
+      refreshSidebarMenu();
       setMainDialogOpen(false);
       setMainForm(MAIN_FORM_INITIAL);
       showToast({ title: t(editing ? "permissionMenu.mainUpdated" : "permissionMenu.mainSaved"), tone: "success" });
@@ -152,6 +166,7 @@ export function PermissionMenuPage() {
     const editing = Boolean(subForm.sub_id);
     try {
       await createSub({ ...subForm, menu_id: subDialogMenu.menu_id }, language);
+      refreshSidebarMenu();
       setSubDialogMenu(null);
       setSubForm(SUB_FORM_INITIAL);
       showToast({ title: t(editing ? "permissionMenu.subUpdated" : "permissionMenu.subSaved"), tone: "success" });
@@ -169,9 +184,11 @@ export function PermissionMenuPage() {
     try {
       if (deleteTarget.type === "main") {
         await deleteMain(deleteTarget.menu.menu_id, language);
+        refreshSidebarMenu();
         showToast({ title: t("permissionMenu.mainDeleted"), tone: "success" });
       } else {
         await deleteSub(deleteTarget.submenu.sub_id, language);
+        refreshSidebarMenu();
         showToast({ title: t("permissionMenu.subDeleted"), tone: "success" });
       }
       setDeleteTarget(null);
@@ -193,6 +210,7 @@ export function PermissionMenuPage() {
     if (oldIndex < 0 || newIndex < 0) return;
     try {
       await sortMain(arrayMove(menus, oldIndex, newIndex), language);
+      refreshSidebarMenu();
       showToast({ title: t("permissionMenu.sortSaved"), tone: "success" });
     } catch (error) {
       showToast({
@@ -209,6 +227,7 @@ export function PermissionMenuPage() {
     if (nextMenus === menus) return;
     try {
       await sortMain(nextMenus, language);
+      refreshSidebarMenu();
       showToast({ title: t("permissionMenu.sortSaved"), tone: "success" });
     } catch (error) {
       showToast({
@@ -229,6 +248,7 @@ export function PermissionMenuPage() {
     if (nextSubmenus === submenus) return;
     try {
       await sortSub(menu.menu_id, nextSubmenus, language);
+      refreshSidebarMenu();
       showToast({ title: t("permissionMenu.sortSaved"), tone: "success" });
     } catch (error) {
       showToast({
@@ -248,6 +268,7 @@ export function PermissionMenuPage() {
     if (oldIndex < 0 || newIndex < 0) return;
     try {
       await sortSub(menu.menu_id, arrayMove(submenus, oldIndex, newIndex), language);
+      refreshSidebarMenu();
       showToast({ title: t("permissionMenu.sortSaved"), tone: "success" });
     } catch (error) {
       showToast({

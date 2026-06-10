@@ -227,6 +227,10 @@ export function PrinterPage() {
     [agentFiles.length, loadAgentFiles, loadingAgentFiles, showToast, t]
   );
 
+  function showLaoFontDownloadToast() {
+    showToast({ title: t("printer.laoFontDownloadStarted"), tone: "success" });
+  }
+
   async function remove(row: Printer) {
     try {
       await removePrinter(row.print_config_uuid);
@@ -351,7 +355,7 @@ export function PrinterPage() {
           <AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <span>{t("printer.laoFontNoticeDescription")}</span>
             <Button asChild size="sm" variant="outline" className="w-full shrink-0 bg-background sm:w-auto">
-              <a href="/downloads/laoscript8.msi" download>
+              <a href="/downloads/laoscript8.msi" download onClick={showLaoFontDownloadToast}>
                 <Download data-icon="inline-start" />
                 {t("printer.downloadLaoFont")}
               </a>
