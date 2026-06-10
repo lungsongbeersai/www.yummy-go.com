@@ -37,6 +37,7 @@ import type { PermissionMainMenu, PermissionSubMenu } from "@/services/permissio
 import {
   badgeLabel,
   iconOption,
+  menuBadgeText,
   menuIds,
   menuStatusLabel,
   menuSubmenus,
@@ -120,7 +121,7 @@ export function PermissionMenuBuilder({
               aria-label={t("permissionMenu.searchMain")}
               autoComplete="off"
               className="h-9 min-w-0 flex-1 border-0 bg-transparent p-0 shadow-none focus-visible:ring-0"
-              name="permission_menu_main_search"
+              name="manage_menu_main_search"
               placeholder={t("permissionMenu.searchMainPlaceholder")}
               spellCheck={false}
               value={mainSearch}
@@ -245,7 +246,7 @@ function SelectedMenuPanel({
               <p className="text-xs font-bold text-muted-foreground">{t("permissionMenu.selectedMenu")}</p>
               <h2 className="mt-0.5 wrap-break-word text-lg font-black">{menu.menu_title || "-"}</h2>
               <div className="mt-2 flex min-w-0 flex-wrap items-center gap-2">
-                <Badge>{badgeLabel(menu.menu_badge, t)}</Badge>
+                <Badge>{badgeLabel(menu.menu_badge, t, menu.menu_badge_text)}</Badge>
                 <Badge className={cn("shrink-0", statusClass(menu.menu_status))}>
                   {menuStatusLabel(menu.menu_status, t)}
                 </Badge>
@@ -351,6 +352,7 @@ function SortableMainMenuCard({
   const sortDisabled = busy || searchActive;
   const selectedIcon = iconOption(menu.menu_icon);
   const SelectedIcon = selectedIcon.icon ?? FileText;
+  const badgeText = menuBadgeText(menu.menu_badge, menu.menu_badge_text);
   const { attributes, isDragging, listeners, setNodeRef, transform, transition } = useSortable({
     disabled: sortDisabled,
     id: menu.menu_id
@@ -394,7 +396,14 @@ function SortableMainMenuCard({
           <SelectedIcon aria-hidden />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-black">{menu.menu_title || "-"}</span>
+          <span className="flex min-w-0 items-center gap-2">
+            <span className="truncate text-sm font-black">{menu.menu_title || "-"}</span>
+            {badgeText ? (
+              <Badge className="max-w-20 shrink-0 truncate px-1.5 text-[10px]" translate="no">
+                {badgeText}
+              </Badge>
+            ) : null}
+          </span>
           <span className="mt-1 block truncate font-mono text-xs text-muted-foreground" translate="no">
             {menu.menu_path || "-"}
           </span>

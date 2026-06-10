@@ -74,8 +74,8 @@ const Menu: MenuItem[] = [
       { path: "/setting/exchange", title: "exchange_rate" },
       { path: "/setting/customer", title: "customer" },
       { path: "/setting/user", title: "user" },
-      { path: "/setting/permission-menu", title: "permission_menu", allowedStatus: [ROLE_STATUS.SUPER_ADMIN] },
-      { path: "/permission-store", title: "permission_store", allowedStatus: [ROLE_STATUS.SUPER_ADMIN] }
+      { path: "/setting/manage-menu", title: "manage_menu", allowedStatus: [ROLE_STATUS.SUPER_ADMIN] },
+      { path: "/setting/manage-access-permissions", title: "manage_access_permissions" }
     ]
   }
 ];

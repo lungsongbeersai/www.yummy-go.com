@@ -32,7 +32,11 @@ import {
   type ProductCardEntry,
   type ProductModalMode,
 } from "./order-customer-utils";
-import { optionalString, visibleCartItems } from "../table-selection/utils";
+import {
+  cartForTable,
+  optionalString,
+  visibleCartItems,
+} from "../table-selection/utils";
 
 export type OrderCustomerWorkflowInput = {
   initialTableUuid: string;
@@ -91,11 +95,18 @@ export function useOrderCustomerWorkflow({
     [initialTableName, initialTableUuid, zones],
   );
 
+  const selectedCart = useMemo(
+    () => cartForTable(cart, initialTableUuid),
+    [cart, initialTableUuid],
+  );
   const activeProducts = useMemo(
     () => flattenProducts(menuBySort[activeSort]),
     [activeSort, menuBySort],
   );
-  const cartCount = useMemo(() => visibleCartItems(cart).length, [cart]);
+  const cartCount = useMemo(
+    () => visibleCartItems(selectedCart).length,
+    [selectedCart],
+  );
   const selectedDetail = useMemo(
     () =>
       (selectedProduct?.details ?? []).find(
@@ -445,7 +456,7 @@ export function useOrderCustomerWorkflow({
   return {
     activeProducts,
     activeSort,
-    cart,
+    cart: selectedCart,
     cartCount,
     cartSheetOpen,
     categories,

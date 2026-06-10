@@ -7,7 +7,7 @@ import {
 } from "@/features/permission-menu/manage/permission-menu-options";
 import type { PermissionMainMenu, PermissionSubMenu } from "@/services/permission-menu";
 
-export type PermissionMenuTranslate = (key: string) => string;
+export type PermissionMenuTranslate = (key: string, options?: Record<string, unknown>) => string;
 
 export type PermissionMenuDeleteTarget =
   | { menu: PermissionMainMenu; type: "main" }
@@ -33,6 +33,7 @@ export function filterPermissionMenus(menus: PermissionMainMenu[], search: strin
       menu.menu_title_la,
       menu.menu_path,
       menu.menu_icon,
+      menu.menu_badge_text,
       ...submenus
     ]
       .join(" ")
@@ -99,8 +100,15 @@ export function pathOption(value: string) {
   return fallbackOption(value, PROJECT_ROUTE_OPTIONS, { icon: FileText, value });
 }
 
-export function badgeLabel(value: number | string, t: PermissionMenuTranslate) {
+export function badgeLabel(value: number | string, t: PermissionMenuTranslate, badgeText?: string) {
+  const text = menuBadgeText(value, badgeText);
+  if (Number(value) === 1 && text) return t("permissionMenu.badgeTextValue", { text });
   return Number(value) === 1 ? t("permissionMenu.badgeShow") : t("permissionMenu.badgeHide");
+}
+
+export function menuBadgeText(value: number | string, badgeText?: string) {
+  const text = String(badgeText ?? "").trim();
+  return Number(value) === 1 ? text : "";
 }
 
 export function menuIds(menus: PermissionMainMenu[]) {

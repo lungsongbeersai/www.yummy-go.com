@@ -79,7 +79,7 @@ function ProductDetailPanel({
             </Badge>
           </div>
           <div className="overflow-x-auto">
-            <Table className={cn(isPromotion ? "min-w-[920px]" : "min-w-[720px]")}>
+            <Table className={cn(isPromotion ? "min-w-230" : "min-w-180")}>
               <TableHeader className="bg-background">
                 <TableRow>
                   <TableHead className="min-w-56">
@@ -166,7 +166,7 @@ function ProductDetailPanel({
 export function ProductListTable({ workflow }: { workflow: ProductListWorkflow }) {
   return (
     <div className="relative hidden min-h-0 flex-1 overflow-auto md:block">
-      <Table className="min-w-[1020px]">
+      <Table className="min-w-255">
         <TableHeader className="sticky top-0 z-40 bg-background shadow-sm [&_th]:sticky [&_th]:top-0 [&_th]:z-40 [&_th]:border-b [&_th]:border-border [&_th]:bg-background [&_th]:shadow-sm">
           <TableRow>
             <TableHead className="w-10 px-2">

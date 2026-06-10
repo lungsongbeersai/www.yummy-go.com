@@ -105,7 +105,7 @@ export function ProductOrderSheetContent({
         <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
           {loading && !product ? (
             <div className="grid gap-3">
-              <Skeleton className="aspect-[16/9] w-full rounded-lg" />
+              <Skeleton className="aspect-video w-full rounded-lg" />
               <Skeleton className="h-10 w-full" />
               <Skeleton className="h-20 w-full" />
             </div>

@@ -80,7 +80,7 @@ export const ProductCard = memo(function ProductCard({
     <Card
       className={cn(
         "overflow-hidden border-emerald-100 bg-white shadow-sm shadow-emerald-950/5 transition dark:border-border dark:bg-background",
-        variant === "rail" ? "w-[142px] flex-none sm:w-[160px]" : "",
+        variant === "rail" ? "w-35.5 flex-none sm:w-40" : "",
         isBlocked
           ? "opacity-85"
           : "active:scale-[0.99] hover:border-primary/35 hover:shadow-md",
@@ -108,7 +108,7 @@ export const ProductCard = memo(function ProductCard({
         <CardContent
           className={cn(
             "flex flex-1 flex-col gap-1.5 p-2",
-            variant === "rail" ? "min-h-[86px]" : "min-h-[92px]",
+            variant === "rail" ? "min-h-21.5" : "min-h-23",
           )}
         >
           <div className="min-w-0 flex-1">

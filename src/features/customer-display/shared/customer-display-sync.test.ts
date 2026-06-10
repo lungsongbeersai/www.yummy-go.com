@@ -159,4 +159,40 @@ describe("customer display sync", () => {
 
     expect(messages).toEqual([payload]);
   });
+
+  it("can publish one payload to browser and electron targets", () => {
+    const storage = new Map<string, string>();
+    const browserMessages: unknown[] = [];
+    const electronMessages: unknown[] = [];
+
+    class FakeBroadcastChannel {
+      postMessage(data: unknown) {
+        browserMessages.push(data);
+      }
+
+      close() {}
+    }
+
+    publishCustomerDisplayPayload(payload, {
+      browser: true,
+      electron: true,
+      target: {
+        BroadcastChannel: FakeBroadcastChannel,
+        electronAPI: {
+          sendToDisplay(data) {
+            electronMessages.push(data);
+          }
+        },
+        localStorage: {
+          setItem(key, value) {
+            storage.set(key, value);
+          }
+        }
+      }
+    });
+
+    expect(storage.get(CUSTOMER_DISPLAY_STORAGE_KEY)).toBe(JSON.stringify(payload));
+    expect(browserMessages).toEqual([payload]);
+    expect(electronMessages).toEqual([payload]);
+  });
 });

@@ -154,7 +154,7 @@ export function ProductBrowseContent({
                         <PublicCategoryIcon icon={category.cate_icon} />
                       )}
 
-                      <span className="min-w-0 max-w-[7.5rem] truncate sm:max-w-[10rem]">
+                      <span className="min-w-0 max-w-30 truncate sm:max-w-40">
                         {category.cate_name}
                       </span>
                     </TabsTrigger>

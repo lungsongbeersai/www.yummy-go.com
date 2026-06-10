@@ -26,7 +26,7 @@ export function RailSkeleton() {
         {Array.from({ length: 3 }).map((_, index) => (
           <div
             key={index}
-            className="w-[142px] flex-none overflow-hidden rounded-lg border border-emerald-100 bg-white dark:border-border dark:bg-background sm:w-[160px]"
+            className="w-35.5 flex-none overflow-hidden rounded-lg border border-emerald-100 bg-white dark:border-border dark:bg-background sm:w-40"
           >
             <Skeleton className="aspect-[1.05/1] w-full" />
             <div className="grid gap-1.5 p-2">

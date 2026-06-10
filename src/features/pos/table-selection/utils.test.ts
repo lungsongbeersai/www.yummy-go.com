@@ -4,6 +4,7 @@ import {
   billDiscountButtonValue,
   buildCustomerDisplayPayload,
   cartDisplaySummary,
+  cartForTable,
   cartSummary,
   discountDraftValue,
   newOrderConfirmGroups,
@@ -78,6 +79,31 @@ describe("table selection utils", () => {
     expect(newOrderConfirmGroups([cartOrder()])).toEqual([
       { orderUuid: "order-1", itemUuids: ["item-2"] },
     ]);
+  });
+
+  it("keeps cart data only for the selected table", () => {
+    const currentTableCart = cartOrder({
+      order_uuid: "order-current",
+      table_uuid_fk: "table-1",
+    });
+    const otherTableCart = cartOrder({
+      order_uuid: "order-other",
+      table_uuid_fk: "table-2",
+    });
+
+    expect(cartForTable(currentTableCart, "table-1")).toBe(currentTableCart);
+    expect(cartForTable(otherTableCart, "table-1")).toBeNull();
+    expect(cartForTable([otherTableCart, currentTableCart], "table-1")).toEqual([
+      currentTableCart,
+    ]);
+  });
+
+  it("preserves legacy cart data when the API does not include table ids", () => {
+    const legacyCart = cartOrder();
+
+    expect(cartForTable(legacyCart, "table-1")).toBe(legacyCart);
+    expect(cartForTable([legacyCart], "table-1")).toEqual([legacyCart]);
+    expect(cartForTable(legacyCart, "")).toBeNull();
   });
 
   it("builds split payment selection for one order", () => {

@@ -225,7 +225,7 @@ export function TableActionsOverlay({
             ))}
           </div>
         ) : (
-          <Empty className="min-h-[220px] border-0">
+          <Empty className="min-h-55 border-0">
             <EmptyHeader>
               <EmptyMedia variant="icon" className="bg-muted text-muted-foreground">
                 {mode === "move" ? <ArrowRightLeft /> : <Merge />}
@@ -276,7 +276,7 @@ export function TableActionsOverlay({
         </Sheet>
       ) : (
         <Dialog open={open} onOpenChange={updateOpen}>
-          <DialogContent className="flex max-h-[min(760px,calc(100dvh-2rem))] flex-col gap-0 overflow-hidden p-0 sm:max-w-[760px]">
+          <DialogContent className="flex max-h-[min(760px,calc(100dvh-2rem))] flex-col gap-0 overflow-hidden p-0 sm:max-w-190">
             <DialogHeader className="shrink-0 border-b border-border p-4 pr-12">
               <DialogTitle className="text-lg font-black">{t("pos.tableActions")}</DialogTitle>
               <DialogDescription>{t("pos.tableActionsDescription", { table: table.table_name })}</DialogDescription>
@@ -314,7 +314,7 @@ function TableActionTabTooltip({ description, rule }: { description: string; rul
           <CircleHelp aria-hidden="true" />
         </span>
       </TooltipTrigger>
-      <TooltipContent side="bottom" sideOffset={8} className="max-w-[280px] text-left leading-5">
+      <TooltipContent side="bottom" sideOffset={8} className="max-w-70 text-left leading-5">
         <span className="flex flex-col gap-1">
           <span className="font-bold">{description}</span>
           <span>{rule}</span>
@@ -375,7 +375,7 @@ function TableActionsLoading() {
   return (
     <div className="grid gap-2 sm:grid-cols-2">
       {Array.from({ length: 6 }).map((_, index) => (
-        <Skeleton key={index} className="h-[82px] rounded-lg" />
+        <Skeleton key={index} className="h-20.5 rounded-lg" />
       ))}
     </div>
   );

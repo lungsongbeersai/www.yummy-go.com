@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { PermissionMainMenu } from "@/services/permission-menu";
 import {
+  badgeLabel,
   filterPermissionMenus,
+  menuBadgeText,
   movePermissionItem,
   resolveSelectedPermissionMenuId
 } from "./permission-menu-utils";
@@ -10,10 +12,12 @@ function menu(
   menu_id: string,
   menu_title: string,
   menu_path: string,
-  sub_detail: PermissionMainMenu["sub_detail"] = []
+  sub_detail: PermissionMainMenu["sub_detail"] = [],
+  menu_badge_text = ""
 ): PermissionMainMenu {
   return {
     menu_badge: 2,
+    menu_badge_text,
     menu_icon: "file-text",
     menu_id,
     menu_path,
@@ -40,8 +44,11 @@ const menus: PermissionMainMenu[] = [
       sub_title_la: "Order"
     }
   ]),
-  menu("main-3", "Report", "/report", [])
+  menu("main-3", "Report", "/report", [], "News")
 ];
+
+const t = (key: string, options?: Record<string, unknown>) =>
+  key === "permissionMenu.badgeTextValue" ? `Badge: ${String(options?.text ?? "")}` : key;
 
 describe("permission menu utils", () => {
   it("preserves selected menu id when it still exists", () => {
@@ -71,10 +78,23 @@ describe("permission menu utils", () => {
   it("filters by menu and submenu content", () => {
     expect(filterPermissionMenus(menus, "sale").map((item) => item.menu_id)).toEqual(["main-2"]);
     expect(filterPermissionMenus(menus, "saleorder").map((item) => item.menu_id)).toEqual(["main-2"]);
+    expect(filterPermissionMenus(menus, "news").map((item) => item.menu_id)).toEqual(["main-3"]);
     expect(filterPermissionMenus(menus, "  ").map((item) => item.menu_id)).toEqual([
       "main-1",
       "main-2",
       "main-3"
     ]);
+  });
+
+  it("uses badge text when the badge is visible", () => {
+    expect(badgeLabel(1, t, "News")).toBe("Badge: News");
+    expect(badgeLabel(1, t, "")).toBe("permissionMenu.badgeShow");
+    expect(badgeLabel(2, t, "News")).toBe("permissionMenu.badgeHide");
+  });
+
+  it("returns only visible menu badge text", () => {
+    expect(menuBadgeText(1, " News ")).toBe("News");
+    expect(menuBadgeText(2, "News")).toBe("");
+    expect(menuBadgeText(1, "   ")).toBe("");
   });
 });

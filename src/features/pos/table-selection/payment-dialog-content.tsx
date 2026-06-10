@@ -489,7 +489,7 @@ export function PaymentDialogContent({
                   </div>
                 ) : activeTab === "transfer" ? (
                   <div className="grid h-full min-h-0 place-items-center rounded-lg border border-border bg-card p-3 sm:p-4">
-                    <div className="grid w-full max-w-[520px] gap-3">
+                    <div className="grid w-full max-w-130 gap-3">
                       <div className="grid min-h-0 place-items-center rounded-lg border border-border bg-muted/30 p-3">
                         {branchQrUrl ? (
                           <Image
@@ -602,7 +602,7 @@ export function PaymentDialogContent({
                   />
                 </div>
 
-                <div className="grid content-end gap-1.5 md:w-[260px] lg:w-auto">
+                <div className="grid content-end gap-1.5 md:w-65 lg:w-auto">
                   {validation ? (
                     <p
                       role="alert"

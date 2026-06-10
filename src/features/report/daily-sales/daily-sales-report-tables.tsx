@@ -67,7 +67,7 @@ export function SummaryReportTable({
       <Table
         className={cn(
           "text-[13px]",
-          typePage === "summary" ? "min-w-[1500px]" : "min-w-[1880px]",
+          typePage === "summary" ? "min-w-375" : "min-w-[1880px]",
         )}
       >
         <TableHeader className="sticky top-0 z-20 bg-background/95 shadow-sm backdrop-blur">

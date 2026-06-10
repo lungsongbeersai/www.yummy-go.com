@@ -23,6 +23,7 @@ describe("permission menu service helpers", () => {
         },
         {
           menu_badge: 1,
+          menu_badge_text: "News",
           menu_icon: "settings",
           menu_id: "menu-1",
           menu_path: "/setting",
@@ -54,9 +55,11 @@ describe("permission menu service helpers", () => {
     expect(tree.menus.map((menu) => menu.menu_id)).toEqual(["menu-1", "menu-2"]);
     expect(tree.menus[0]).toMatchObject({
       menu_badge: 1,
+      menu_badge_text: "News",
       menu_icon: "settings",
       menu_title: "Settings LA"
     });
+    expect(tree.menus[1].menu_badge_text).toBe("");
     expect(tree.menus[0].sub_detail.map((submenu) => submenu.sub_id)).toEqual(["sub-1", "sub-2"]);
     expect(tree.menus[0].sub_detail[0]).toMatchObject({
       menu_id: "menu-1",
@@ -69,6 +72,7 @@ describe("permission menu service helpers", () => {
     expect(
       buildCreateMainMenuPayload({
         menu_badge: "1",
+        menu_badge_text: "News",
         menu_icon: "fa fa-file",
         menu_path: "/report",
         menu_status: "2",
@@ -77,6 +81,7 @@ describe("permission menu service helpers", () => {
       })
     ).toEqual({
       menu_badge: 1,
+      menu_badge_text: "News",
       menu_icon: "fa fa-file",
       menu_id: "",
       menu_path: "/report",
@@ -84,6 +89,18 @@ describe("permission menu service helpers", () => {
       menu_title_eng: "Report",
       menu_title_la: "Report LA"
     });
+  });
+
+  it("clears badge text when menu badge is hidden", () => {
+    expect(
+      buildCreateMainMenuPayload({
+        menu_badge: "2",
+        menu_badge_text: "News",
+        menu_path: "/report",
+        menu_title_eng: "Report",
+        menu_title_la: "Report LA"
+      }).menu_badge_text
+    ).toBe("");
   });
 
   it("builds create submenu payload with two-language titles", () => {

@@ -43,6 +43,7 @@ function mainFormFromMenu(menu: PermissionMainMenu): MainFormState {
   const fallbackTitle = menu.menu_title || "";
   return {
     menu_badge: String(menu.menu_badge || 2),
+    menu_badge_text: menu.menu_badge_text || "",
     menu_icon: menu.menu_icon || MAIN_FORM_INITIAL.menu_icon,
     menu_id: menu.menu_id,
     menu_path: menu.menu_path || "",

@@ -13,7 +13,7 @@ import {
   RefreshCcw,
   SlidersHorizontal,
   Trophy,
-  type LucideIcon
+  type LucideIcon,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { EmptyState } from "@/components/common/empty-state";
@@ -29,7 +29,7 @@ import {
   SelectGroup,
   SelectItem,
   SelectTrigger,
-  SelectValue
+  SelectValue,
 } from "@/components/ui/select";
 import {
   Sheet,
@@ -38,19 +38,32 @@ import {
   SheetDescription,
   SheetFooter,
   SheetHeader,
-  SheetTitle
+  SheetTitle,
 } from "@/components/ui/sheet";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { PAGE_LIMIT_OPTIONS } from "@/lib/pagination";
 import { cn } from "@/lib/utils";
-import { isBestSellingProductsSortBy, type BestSellingProductsSortBy } from "@/services/report";
-import type { BestSellingProductGroup, BestSellingProductItem } from "@/stores/report-store";
+import {
+  isBestSellingProductsSortBy,
+  type BestSellingProductsSortBy,
+} from "@/services/report";
+import type {
+  BestSellingProductGroup,
+  BestSellingProductItem,
+} from "@/stores/report-store";
 import type {
   BestSellingExportAction,
   BestSellingOption,
   BestSellingProductsFilters,
-  BestSellingSummaryCardConfig
+  BestSellingSummaryCardConfig,
 } from "./best-selling-products-report-types";
 import {
   bestSellingGroupMetricConfigs,
@@ -60,14 +73,14 @@ import {
   bestSellingSortOptions,
   displayMetric,
   formatNumber,
-  summaryValue
+  summaryValue,
 } from "./best-selling-products-report-utils";
 
 const bestSellingSortIcons: Record<BestSellingProductsSortBy, LucideIcon> = {
   date_asc: CalendarArrowUp,
   date_desc: CalendarArrowDown,
   qty: ListOrdered,
-  total: CircleDollarSign
+  total: CircleDollarSign,
 };
 
 type FilterProps = {
@@ -85,7 +98,7 @@ type FilterProps = {
 
 export function BestSellingSummaryCards({
   cards,
-  summary
+  summary,
 }: {
   cards: BestSellingSummaryCardConfig[];
   summary: Record<string, unknown>;
@@ -95,9 +108,14 @@ export function BestSellingSummaryCards({
       {cards.map((card) => {
         const value = summaryValue(summary, card.keys);
         return (
-          <Card key={card.label} className="overflow-hidden border-border bg-card shadow-sm">
+          <Card
+            key={card.label}
+            className="overflow-hidden border-border bg-card shadow-sm"
+          >
             <CardContent className="p-4">
-              <p className="truncate text-xs font-black uppercase text-muted-foreground">{card.label}</p>
+              <p className="truncate text-xs font-black uppercase text-muted-foreground">
+                {card.label}
+              </p>
               <p className="mt-2 truncate text-xl font-black tabular-nums text-foreground">
                 {displayMetric(value, card.kind)}
               </p>
@@ -119,7 +137,7 @@ export function BestSellingFilterBar({
   groupOptions,
   loading,
   onApply,
-  onDraftChange
+  onDraftChange,
 }: FilterProps) {
   const { t } = useTranslation();
 
@@ -136,8 +154,15 @@ export function BestSellingFilterBar({
           idPrefix="best-selling"
           onDraftChange={onDraftChange}
         />
-        <Button type="button" className="h-9 min-w-28" disabled={loading || !canApply} onClick={onApply}>
-          {loading ? <RefreshCcw className="animate-spin" data-icon="inline-start" /> : null}
+        <Button
+          type="button"
+          className="h-9 min-w-28"
+          disabled={loading || !canApply}
+          onClick={onApply}
+        >
+          {loading ? (
+            <RefreshCcw className="animate-spin" data-icon="inline-start" />
+          ) : null}
           {t("report.apply")}
         </Button>
       </CardContent>
@@ -157,7 +182,7 @@ export function BestSellingFilterSheet({
   open,
   onApply,
   onDraftChange,
-  onOpenChange
+  onOpenChange,
 }: FilterProps & {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -166,9 +191,14 @@ export function BestSellingFilterSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="max-h-[88dvh] gap-0 overflow-hidden rounded-t-xl p-0 sm:hidden">
+      <SheetContent
+        side="bottom"
+        className="max-h-[88dvh] gap-0 overflow-hidden rounded-t-xl p-0 sm:hidden"
+      >
         <SheetHeader className="shrink-0 border-b border-border px-4 py-3 pr-12 text-left">
-          <SheetTitle className="text-base font-black">{t("report.filters.currentFilters")}</SheetTitle>
+          <SheetTitle className="text-base font-black">
+            {t("report.filters.currentFilters")}
+          </SheetTitle>
           <SheetDescription>{t("report.bestSelling.title")}</SheetDescription>
         </SheetHeader>
         <div className="min-h-0 overflow-y-auto p-4">
@@ -185,14 +215,20 @@ export function BestSellingFilterSheet({
             />
           </div>
         </div>
-        <SheetFooter className="grid-cols-2 gap-2 border-t border-border bg-card/95 px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur [display:grid]">
+        <SheetFooter className="grid-cols-2 gap-2 border-t border-border bg-card/95 px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur grid">
           <SheetClose asChild>
             <Button type="button" variant="outline">
               {t("actions.close")}
             </Button>
           </SheetClose>
-          <Button type="button" disabled={loading || !canApply} onClick={onApply}>
-            {loading ? <RefreshCcw className="animate-spin" data-icon="inline-start" /> : null}
+          <Button
+            type="button"
+            disabled={loading || !canApply}
+            onClick={onApply}
+          >
+            {loading ? (
+              <RefreshCcw className="animate-spin" data-icon="inline-start" />
+            ) : null}
             {t("report.apply")}
           </Button>
         </SheetFooter>
@@ -206,7 +242,7 @@ export function MobileBestSellingFilterSummary({
   filters,
   groupLabel,
   onOpen,
-  sortByLabel
+  sortByLabel,
 }: {
   branchLabel: string;
   filters: BestSellingProductsFilters;
@@ -227,10 +263,10 @@ export function MobileBestSellingFilterSummary({
             </span>
           </div>
           <div className="mt-1 flex min-w-0 flex-wrap gap-1">
-            <Badge className="h-6 max-w-[11rem] truncate border-border bg-muted px-2 text-[11px] text-muted-foreground">
+            <Badge className="h-6 max-w-44 truncate border-border bg-muted px-2 text-[11px] text-muted-foreground">
               {branchLabel}
             </Badge>
-            <Badge className="h-6 max-w-[10rem] truncate border-border bg-muted px-2 text-[11px] text-muted-foreground">
+            <Badge className="h-6 max-w-40 truncate border-border bg-muted px-2 text-[11px] text-muted-foreground">
               {groupLabel}
             </Badge>
             <Badge className="h-6 px-2 text-[11px]">{sortByLabel}</Badge>
@@ -239,7 +275,12 @@ export function MobileBestSellingFilterSummary({
             </Badge>
           </div>
         </div>
-        <Button type="button" size="sm" className="h-9 shrink-0 px-3" onClick={onOpen}>
+        <Button
+          type="button"
+          size="sm"
+          className="h-9 shrink-0 px-3"
+          onClick={onOpen}
+        >
           <SlidersHorizontal data-icon="inline-start" />
           {t("report.filters.openFilters")}
         </Button>
@@ -256,7 +297,7 @@ function BestSellingFilterFields({
   groupLoading,
   groupOptions,
   idPrefix,
-  onDraftChange
+  onDraftChange,
 }: {
   branchLoading: boolean;
   branchLocked: boolean;
@@ -277,7 +318,10 @@ function BestSellingFilterFields({
   return (
     <>
       <Field className="gap-1.5">
-        <FieldLabel htmlFor={`${idPrefix}-branch`} className="text-xs font-bold text-muted-foreground">
+        <FieldLabel
+          htmlFor={`${idPrefix}-branch`}
+          className="text-xs font-bold text-muted-foreground"
+        >
           {t("nav.branch")}
         </FieldLabel>
         <Select
@@ -300,7 +344,10 @@ function BestSellingFilterFields({
         </Select>
       </Field>
       <Field className="gap-1.5">
-        <FieldLabel htmlFor={`${idPrefix}-date-from`} className="text-xs font-bold text-muted-foreground">
+        <FieldLabel
+          htmlFor={`${idPrefix}-date-from`}
+          className="text-xs font-bold text-muted-foreground"
+        >
           {t("report.filters.dateFrom")}
         </FieldLabel>
         <Input
@@ -311,7 +358,10 @@ function BestSellingFilterFields({
         />
       </Field>
       <Field className="gap-1.5">
-        <FieldLabel htmlFor={`${idPrefix}-date-to`} className="text-xs font-bold text-muted-foreground">
+        <FieldLabel
+          htmlFor={`${idPrefix}-date-to`}
+          className="text-xs font-bold text-muted-foreground"
+        >
           {t("report.filters.dateTo")}
         </FieldLabel>
         <Input
@@ -322,7 +372,10 @@ function BestSellingFilterFields({
         />
       </Field>
       <Field className="gap-1.5">
-        <FieldLabel htmlFor={`${idPrefix}-group`} className="text-xs font-bold text-muted-foreground">
+        <FieldLabel
+          htmlFor={`${idPrefix}-group`}
+          className="text-xs font-bold text-muted-foreground"
+        >
           {t("report.bestSelling.filters.group")}
         </FieldLabel>
         <Select
@@ -362,7 +415,11 @@ function BestSellingFilterFields({
           {sortOptions.map((option) => {
             const Icon = bestSellingSortIcons[option.value];
             return (
-              <ToggleGroupItem key={option.value} value={option.value} className="min-w-0 justify-center px-2">
+              <ToggleGroupItem
+                key={option.value}
+                value={option.value}
+                className="min-w-0 justify-center px-2"
+              >
                 <Icon />
                 <span className="truncate">{option.label}</span>
               </ToggleGroupItem>
@@ -371,12 +428,17 @@ function BestSellingFilterFields({
         </ToggleGroup>
       </Field>
       <Field className="gap-1.5">
-        <FieldLabel htmlFor={`${idPrefix}-limit`} className="text-xs font-bold text-muted-foreground">
+        <FieldLabel
+          htmlFor={`${idPrefix}-limit`}
+          className="text-xs font-bold text-muted-foreground"
+        >
           {t("common.rowsPerPage")}
         </FieldLabel>
         <Select
           value={String(draftFilters.limit)}
-          onValueChange={(value) => patch({ limit: value === "All" ? "All" : Number(value) })}
+          onValueChange={(value) =>
+            patch({ limit: value === "All" ? "All" : Number(value) })
+          }
         >
           <SelectTrigger id={`${idPrefix}-limit`} className="w-full">
             <SelectValue />
@@ -423,23 +485,32 @@ export function BestSellingTableCard({
   onExportExcel,
   onExportPdf,
   onPrintReport,
-  onRefresh
+  onRefresh,
 }: TableCardProps) {
   const { t } = useTranslation();
 
   return (
-    <Card className="min-h-0 overflow-hidden border-border bg-card shadow-sm md:sticky md:top-[calc(var(--best-selling-filter-height)_+_0.75rem)] md:flex md:max-h-[calc(100dvh_-_var(--app-shell-header-height)_-_var(--best-selling-filter-height)_-_1.5rem)] md:flex-col">
+    <Card className="min-h-0 overflow-hidden border-border bg-card shadow-sm md:sticky md:top-[calc(var(--best-selling-filter-height)+0.75rem)] md:flex md:max-h-[calc(100dvh-var(--app-shell-header-height)-var(--best-selling-filter-height)-1.5rem)] md:flex-col">
       <CardHeader className="shrink-0 flex flex-col gap-2 border-b border-border bg-card px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <CardTitle className="flex min-w-0 items-center gap-2 text-base font-black">
             <Trophy />
-            <span className="truncate">{t("report.bestSelling.tableTitle")}</span>
+            <span className="truncate">
+              {t("report.bestSelling.tableTitle")}
+            </span>
           </CardTitle>
           <p className="text-sm text-muted-foreground">{rangeLabel}</p>
           <Badge className="mt-2 h-7 w-fit px-2 text-xs">{sortByLabel}</Badge>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button type="button" variant="outline" size="sm" className="h-9" disabled={exportDisabled} onClick={onExportExcel}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-9"
+            disabled={exportDisabled}
+            onClick={onExportExcel}
+          >
             {exporting === "excel" ? (
               <RefreshCcw className="animate-spin" data-icon="inline-start" />
             ) : (
@@ -447,7 +518,14 @@ export function BestSellingTableCard({
             )}
             {t("report.exportExcel")}
           </Button>
-          <Button type="button" variant="outline" size="sm" className="h-9" disabled={exportDisabled} onClick={onExportPdf}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-9"
+            disabled={exportDisabled}
+            onClick={onExportPdf}
+          >
             {exporting === "pdf" ? (
               <RefreshCcw className="animate-spin" data-icon="inline-start" />
             ) : (
@@ -455,7 +533,14 @@ export function BestSellingTableCard({
             )}
             {t("report.exportPdf")}
           </Button>
-          <Button type="button" variant="outline" size="sm" className="h-9" disabled={exportDisabled} onClick={onPrintReport}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-9"
+            disabled={exportDisabled}
+            onClick={onPrintReport}
+          >
             {exporting === "print" ? (
               <RefreshCcw className="animate-spin" data-icon="inline-start" />
             ) : (
@@ -463,16 +548,29 @@ export function BestSellingTableCard({
             )}
             {t("report.print")}
           </Button>
-          <Button type="button" variant="outline" size="sm" className="h-9" disabled={loading || Boolean(exporting)} onClick={onRefresh}>
-            <RefreshCcw className={loading ? "animate-spin" : undefined} data-icon="inline-start" />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-9"
+            disabled={loading || Boolean(exporting)}
+            onClick={onRefresh}
+          >
+            <RefreshCcw
+              className={loading ? "animate-spin" : undefined}
+              data-icon="inline-start"
+            />
             {t("actions.refresh")}
           </Button>
         </div>
       </CardHeader>
       <CardContent className="flex min-h-0 flex-1 flex-col p-0">
         {loading ? (
-          <div className="p-4 md:min-h-[320px]">
-            <LoadingState label={t("report.bestSelling.loading")} variant="table" />
+          <div className="p-4 md:min-h-80">
+            <LoadingState
+              label={t("report.bestSelling.loading")}
+              variant="table"
+            />
           </div>
         ) : rowsLength ? (
           <>
@@ -482,8 +580,11 @@ export function BestSellingTableCard({
             <div className="shrink-0 bg-card">{footer}</div>
           </>
         ) : (
-          <div className="p-4 md:min-h-[320px]">
-            <EmptyState title={t("report.bestSelling.noData")} description={t("report.bestSelling.adjustFilters")} />
+          <div className="p-4 md:min-h-80">
+            <EmptyState
+              title={t("report.bestSelling.noData")}
+              description={t("report.bestSelling.adjustFilters")}
+            />
           </div>
         )}
       </CardContent>
@@ -491,33 +592,40 @@ export function BestSellingTableCard({
   );
 }
 
-export function BestSellingProductsTable({ groups }: { groups: BestSellingProductGroup[] }) {
+export function BestSellingProductsTable({
+  groups,
+}: {
+  groups: BestSellingProductGroup[];
+}) {
   const { t } = useTranslation();
   const productMetrics = bestSellingProductMetricConfigs(t);
   const groupMetrics = bestSellingGroupMetricConfigs(t);
 
   return (
     <div className="hidden min-w-0 md:block">
-      <Table className="min-w-[1880px] text-[13px]">
+      <Table className="min-w-470 text-[13px]">
         <TableHeader className="sticky top-0 z-20 bg-background/95 shadow-sm backdrop-blur">
           <TableRow>
-            <TableHead className="w-[90px] whitespace-nowrap bg-background/95 text-center">
+            <TableHead className="w-22.5 whitespace-nowrap bg-background/95 text-center">
               {t("report.bestSelling.columns.rank")}
             </TableHead>
-            <TableHead className="min-w-[260px] whitespace-nowrap bg-background/95">
+            <TableHead className="min-w-65 whitespace-nowrap bg-background/95">
               {t("report.bestSelling.columns.product")}
             </TableHead>
-            <TableHead className="min-w-[140px] whitespace-nowrap bg-background/95">
+            <TableHead className="min-w-35 whitespace-nowrap bg-background/95">
               {t("report.bestSelling.columns.productCode")}
             </TableHead>
-            <TableHead className="min-w-[140px] whitespace-nowrap bg-background/95">
+            <TableHead className="min-w-35 whitespace-nowrap bg-background/95">
               {t("report.bestSelling.columns.category")}
             </TableHead>
-            <TableHead className="min-w-[160px] whitespace-nowrap bg-background/95">
+            <TableHead className="min-w-40 whitespace-nowrap bg-background/95">
               {t("report.bestSelling.columns.group")}
             </TableHead>
             {productMetrics.map((metric) => (
-              <TableHead key={metric.key} className="min-w-[130px] whitespace-nowrap bg-background/95 text-right">
+              <TableHead
+                key={metric.key}
+                className="min-w-32.5 whitespace-nowrap bg-background/95 text-right"
+              >
                 {metric.label}
               </TableHead>
             ))}
@@ -529,26 +637,42 @@ export function BestSellingProductsTable({ groups }: { groups: BestSellingProduc
               <TableRow className="border-b border-border/80 bg-muted/25 hover:bg-muted/25">
                 <TableCell colSpan={5} className="py-3">
                   <div className="min-w-0">
-                    <p className="truncate font-black text-foreground">{group.name}</p>
+                    <p className="truncate font-black text-foreground">
+                      {group.name}
+                    </p>
                     <p className="text-xs text-muted-foreground">
                       {t("report.bestSelling.groupSummary", {
                         products: group.productCount,
-                        qty: formatNumber(group.qtyTotal)
+                        qty: formatNumber(group.qtyTotal),
                       })}
                     </p>
                   </div>
                 </TableCell>
                 {productMetrics.map((metric) => {
-                  const groupMetric = groupMetrics.find((item) => item.key === metric.key);
+                  const groupMetric = groupMetrics.find(
+                    (item) => item.key === metric.key,
+                  );
                   return (
-                    <TableCell key={metric.key} className="whitespace-nowrap text-right font-black tabular-nums">
-                      {groupMetric ? displayMetric(group[groupMetric.field], groupMetric.kind) : "-"}
+                    <TableCell
+                      key={metric.key}
+                      className="whitespace-nowrap text-right font-black tabular-nums"
+                    >
+                      {groupMetric
+                        ? displayMetric(
+                            group[groupMetric.field],
+                            groupMetric.kind,
+                          )
+                        : "-"}
                     </TableCell>
                   );
                 })}
               </TableRow>
               {group.items.map((item, index) => (
-                <BestSellingProductRow key={item.id} item={item} index={index} />
+                <BestSellingProductRow
+                  key={item.id}
+                  item={item}
+                  index={index}
+                />
               ))}
             </Fragment>
           ))}
@@ -558,23 +682,47 @@ export function BestSellingProductsTable({ groups }: { groups: BestSellingProduc
   );
 }
 
-function BestSellingProductRow({ item, index }: { item: BestSellingProductItem; index: number }) {
+function BestSellingProductRow({
+  item,
+  index,
+}: {
+  item: BestSellingProductItem;
+  index: number;
+}) {
   const { t } = useTranslation();
   const metrics = bestSellingProductMetrics(item, t);
 
   return (
-    <TableRow className={cn("border-b border-border/80", index % 2 === 1 && "bg-muted/15")}>
+    <TableRow
+      className={cn(
+        "border-b border-border/80",
+        index % 2 === 1 && "bg-muted/15",
+      )}
+    >
       <TableCell className="whitespace-nowrap text-center">
-        <Badge className="h-7 min-w-10 justify-center px-2 text-xs tabular-nums">#{item.rank}</Badge>
+        <Badge className="h-7 min-w-10 justify-center px-2 text-xs tabular-nums">
+          #{item.rank}
+        </Badge>
       </TableCell>
-      <TableCell className="max-w-[360px] whitespace-normal py-3">
-        <p className="font-semibold leading-snug text-foreground">{item.productName}</p>
+      <TableCell className="max-w-90 whitespace-normal py-3">
+        <p className="font-semibold leading-snug text-foreground">
+          {item.productName}
+        </p>
       </TableCell>
-      <TableCell className="whitespace-nowrap text-muted-foreground">{item.productCode}</TableCell>
-      <TableCell className="whitespace-nowrap text-muted-foreground">{item.categoryName}</TableCell>
-      <TableCell className="whitespace-nowrap text-muted-foreground">{item.groupName}</TableCell>
+      <TableCell className="whitespace-nowrap text-muted-foreground">
+        {item.productCode}
+      </TableCell>
+      <TableCell className="whitespace-nowrap text-muted-foreground">
+        {item.categoryName}
+      </TableCell>
+      <TableCell className="whitespace-nowrap text-muted-foreground">
+        {item.groupName}
+      </TableCell>
       {metrics.map((metric) => (
-        <TableCell key={metric.key} className="whitespace-nowrap text-right font-black tabular-nums">
+        <TableCell
+          key={metric.key}
+          className="whitespace-nowrap text-right font-black tabular-nums"
+        >
           {displayMetric(metric.value, metric.kind)}
         </TableCell>
       ))}
@@ -582,41 +730,65 @@ function BestSellingProductRow({ item, index }: { item: BestSellingProductItem; 
   );
 }
 
-export function BestSellingProductsMobileList({ groups }: { groups: BestSellingProductGroup[] }) {
+export function BestSellingProductsMobileList({
+  groups,
+}: {
+  groups: BestSellingProductGroup[];
+}) {
   const { t } = useTranslation();
 
   return (
     <div className="flex flex-col gap-3 p-3 md:hidden">
       {groups.map((group) => (
-        <section key={group.id} className="rounded-md border border-border bg-background">
+        <section
+          key={group.id}
+          className="rounded-md border border-border bg-background"
+        >
           <div className="border-b border-border bg-muted/25 p-3">
             <div className="min-w-0">
               <h3 className="truncate text-sm font-black">{group.name}</h3>
               <p className="text-xs text-muted-foreground">
                 {t("report.bestSelling.groupSummary", {
                   products: group.productCount,
-                  qty: formatNumber(group.qtyTotal)
+                  qty: formatNumber(group.qtyTotal),
                 })}
               </p>
             </div>
             <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
               {bestSellingGroupMetrics(group, t).map((metric) => (
-                <MetricPill key={metric.key} label={metric.label} value={metric.value} kind={metric.kind} />
+                <MetricPill
+                  key={metric.key}
+                  label={metric.label}
+                  value={metric.value}
+                  kind={metric.kind}
+                />
               ))}
             </div>
           </div>
           <div className="flex flex-col">
             {group.items.map((item) => (
-              <div key={item.id} className="flex items-start gap-3 border-b border-border/70 p-3 last:border-b-0">
-                <Badge className="h-7 min-w-10 justify-center px-2 text-xs tabular-nums">#{item.rank}</Badge>
+              <div
+                key={item.id}
+                className="flex items-start gap-3 border-b border-border/70 p-3 last:border-b-0"
+              >
+                <Badge className="h-7 min-w-10 justify-center px-2 text-xs tabular-nums">
+                  #{item.rank}
+                </Badge>
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold leading-snug text-foreground">{item.productName}</p>
+                  <p className="text-sm font-semibold leading-snug text-foreground">
+                    {item.productName}
+                  </p>
                   <p className="mt-1 text-xs text-muted-foreground">
                     {item.productCode} / {item.categoryName} / {item.groupName}
                   </p>
                   <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
                     {bestSellingProductMetrics(item, t).map((metric) => (
-                      <MetricPill key={metric.key} label={metric.label} value={metric.value} kind={metric.kind} />
+                      <MetricPill
+                        key={metric.key}
+                        label={metric.label}
+                        value={metric.value}
+                        kind={metric.kind}
+                      />
                     ))}
                   </div>
                 </div>
@@ -632,7 +804,7 @@ export function BestSellingProductsMobileList({ groups }: { groups: BestSellingP
 function MetricPill({
   kind,
   label,
-  value
+  value,
 }: {
   kind: "money" | "number";
   label: string;
@@ -640,8 +812,12 @@ function MetricPill({
 }) {
   return (
     <div className="min-w-0 rounded-md border border-border bg-muted/20 px-2 py-1">
-      <p className="truncate text-[11px] font-bold text-muted-foreground">{label}</p>
-      <p className="truncate font-black tabular-nums text-foreground">{displayMetric(value, kind)}</p>
+      <p className="truncate text-[11px] font-bold text-muted-foreground">
+        {label}
+      </p>
+      <p className="truncate font-black tabular-nums text-foreground">
+        {displayMetric(value, kind)}
+      </p>
     </div>
   );
 }
@@ -655,7 +831,7 @@ export function BestSellingExportSurface({
   rowsLabel,
   sortByLabel,
   summary,
-  title
+  title,
 }: {
   cards: BestSellingSummaryCardConfig[];
   containerRef: RefObject<HTMLDivElement | null>;
@@ -687,7 +863,9 @@ export function BestSellingExportSurface({
         {cards.map((card) => (
           <div key={card.label} className="report-print-card">
             <p>{card.label}</p>
-            <strong>{displayMetric(summaryValue(summary, card.keys), card.kind)}</strong>
+            <strong>
+              {displayMetric(summaryValue(summary, card.keys), card.kind)}
+            </strong>
           </div>
         ))}
       </div>
@@ -698,7 +876,9 @@ export function BestSellingExportSurface({
             <tr>
               <th>{t("fields.no")}</th>
               <th>{t("report.bestSelling.columns.group")}</th>
-              <th className="is-right">{t("report.bestSelling.cards.productCount")}</th>
+              <th className="is-right">
+                {t("report.bestSelling.cards.productCount")}
+              </th>
               {groupMetrics.map((metric) => (
                 <th key={metric.key} className="is-right">
                   {metric.label}

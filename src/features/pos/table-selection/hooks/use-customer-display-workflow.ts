@@ -70,34 +70,6 @@ export function useCustomerDisplayWorkflow(
     return active;
   }, []);
 
-  const publishPayloadToActiveDisplay = useCallback(
-    (payload: CustomerDisplayPayload) => {
-      if (mode === "electron") {
-        if (!activeCustomerDisplay(displayInfo)) return false;
-
-        publishCustomerDisplayPayload(payload, {
-          browser: false,
-          electron: true,
-        });
-        return true;
-      }
-
-      if (!browserCustomerDisplayWindowIsActive(browserWindowRef.current)) {
-        if (browserActive) {
-          syncBrowserActive();
-        }
-        return false;
-      }
-
-      publishCustomerDisplayPayload(payload, {
-        browser: true,
-        electron: false,
-      });
-      return true;
-    },
-    [browserActive, displayInfo, mode, syncBrowserActive],
-  );
-
   const applyBrowserDisplayInfo = useCallback(
     (details: ScreenDetails, preferCurrent = true) => {
       const info = normalizeBrowserCustomerDisplayInfo(
@@ -162,11 +134,14 @@ export function useCustomerDisplayWorkflow(
     if (!currentPayload) return;
 
     try {
-      publishPayloadToActiveDisplay(currentPayload);
+      publishCustomerDisplayPayload(currentPayload, {
+        browser: true,
+        electron: Boolean(window.electronAPI),
+      });
     } catch {
       // Realtime sync should never interrupt POS cart workflows.
     }
-  }, [currentPayload, publishPayloadToActiveDisplay]);
+  }, [currentPayload]);
 
   function openBrowserDisplay(
     payload: CustomerDisplayPayload,

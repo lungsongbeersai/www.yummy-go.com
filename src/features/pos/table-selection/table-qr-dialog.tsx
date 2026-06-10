@@ -223,7 +223,7 @@ export function TableQrDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[calc(100dvh-2rem)] gap-0 overflow-hidden p-0 sm:max-w-[520px]">
+      <DialogContent className="max-h-[calc(100dvh-2rem)] gap-0 overflow-hidden p-0 sm:max-w-130">
         <DialogHeader className="px-5 pb-3 pt-5 pr-12">
           <DialogTitle className="text-xl font-black leading-6">{t("pos.createTableQr")}</DialogTitle>
           <DialogDescription>{t("pos.tableQrDescription", { table: table.table_name })}</DialogDescription>
@@ -232,11 +232,11 @@ export function TableQrDialog({
         <div className="flex min-h-0 flex-col gap-4 overflow-y-auto px-5 pb-5">
           <div className="grid place-items-center rounded-2xl border border-border bg-muted/30 p-4 shadow-inner">
             {pending ? (
-              <Skeleton className="size-[232px] rounded-xl sm:size-[260px]" />
+              <Skeleton className="size-58 rounded-xl sm:size-65" />
             ) : previewUrl ? (
-              <Image src={previewUrl} alt={`${table.table_name} QR`} width={260} height={260} unoptimized className="size-[232px] rounded-xl bg-background object-contain p-2 shadow-sm sm:size-[260px]" />
+              <Image src={previewUrl} alt={`${table.table_name} QR`} width={260} height={260} unoptimized className="size-58 rounded-xl bg-background object-contain p-2 shadow-sm sm:size-65" />
             ) : (
-              <div className="grid size-[232px] place-items-center rounded-xl bg-muted text-muted-foreground sm:size-[260px]">
+              <div className="grid size-58 place-items-center rounded-xl bg-muted text-muted-foreground sm:size-65">
                 <QrCodeIcon />
               </div>
             )}

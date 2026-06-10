@@ -13,8 +13,10 @@ export const routeBreadcrumbs: Record<string, RouteBreadcrumbItem[]> = {
   ],
   "/sale/counter-checkout": [{ path: "/sale/counter-checkout", title: "counter_checkout" }],
   "/sale/order-customer": [{ path: "/sale/order-customer", title: "customer_order" }],
-  "/setting/permission-menu": [{ path: "/setting/permission-menu", title: "permission_menu" }],
+  "/setting/manage-menu": [{ path: "/setting/manage-menu", title: "manage_menu" }],
   "/setting/unite": [{ path: "/setting/unite", title: "unit" }],
-  "/permission-store": [{ path: "/permission-store", title: "permission_store" }],
+  "/setting/manage-access-permissions": [
+    { path: "/setting/manage-access-permissions", title: "manage_access_permissions" }
+  ],
   "/profile": [{ path: "/profile", title: "profile" }]
 };

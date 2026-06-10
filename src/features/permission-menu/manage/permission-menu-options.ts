@@ -96,6 +96,7 @@ export const PROJECT_ROUTE_OPTIONS = buildProjectRouteOptions();
 export const MAIN_FORM_INITIAL = {
   menu_id: "",
   menu_badge: "2",
+  menu_badge_text: "",
   menu_icon: "file-text",
   menu_path: "",
   menu_status: "1",

@@ -70,7 +70,7 @@ export function TableListSection({
           </div>
           <div className="relative min-w-0 w-full min-[900px]:w-[320px]">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input className="h-[42px] rounded-full border-border bg-muted/35 pl-9 shadow-none" value={search} placeholder={t("actions.search")} onChange={(event) => onSearchChange(event.target.value)} />
+            <Input className="h-10.5 rounded-full border-border bg-muted/35 pl-9 shadow-none" value={search} placeholder={t("actions.search")} onChange={(event) => onSearchChange(event.target.value)} />
           </div>
         </div>
       </div>
@@ -110,7 +110,7 @@ function ZoneChip({ active, label, onClick }: { active: boolean; label: string; 
       size="sm"
       variant={active ? "default" : "outline"}
       className={cn(
-        "h-[40px] shrink-0 rounded-full px-3.5 font-black shadow-sm transition",
+        "h-10 shrink-0 rounded-full px-3.5 font-black shadow-sm transition",
         active ? "shadow-primary/20" : "border-border bg-card hover:border-primary/30 hover:bg-primary/5"
       )}
       onClick={onClick}
@@ -140,7 +140,7 @@ function StatusChip({
       size="sm"
       variant={active ? "default" : "outline"}
       className={cn(
-        "h-[40px] shrink-0 rounded-full px-3.5 font-black shadow-sm transition",
+        "h-10 shrink-0 rounded-full px-3.5 font-black shadow-sm transition",
         active ? "shadow-primary/20" : "border-border bg-card hover:border-primary/30 hover:bg-primary/5"
       )}
       onClick={onClick}
@@ -202,7 +202,7 @@ function TableCard({
         className="h-auto w-full items-stretch justify-start rounded-none p-0 text-left hover:bg-transparent"
         onClick={() => onOpen(table)}
       >
-        <CardContent className="flex min-h-[128px] w-full flex-col p-0 sm:min-h-[168px] xl:min-h-[178px]">
+        <CardContent className="flex min-h-32 w-full flex-col p-0 sm:min-h-42 xl:min-h-44.5">
           <div
             className={cn(
               "relative flex flex-1 flex-col items-center justify-center px-2 py-4 sm:px-4 sm:py-6",
@@ -232,7 +232,7 @@ function TableCard({
           </div>
           <div
             className={cn(
-              "flex h-[34px] items-center gap-1.5 border-t px-3 text-xs text-muted-foreground sm:h-[40px] sm:px-4",
+              "flex h-8.5 items-center gap-1.5 border-t px-3 text-xs text-muted-foreground sm:h-10 sm:px-4",
               footerToneClass
             )}
           >

@@ -74,7 +74,7 @@ export const StatusRailSection = memo(function StatusRailSection({
       {visibleProducts.length ? (
         <div
           ref={railRef}
-          className="-mx-2 overflow-x-auto px-2 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="-mx-2 overflow-x-auto px-2 pb-1 scrollbar-none [&::-webkit-scrollbar]:hidden"
         >
           <div className="flex w-max gap-2.5">
             {visibleProducts.map(({ product, cateUuid, statusKind }) => (
@@ -93,7 +93,7 @@ export const StatusRailSection = memo(function StatusRailSection({
             {visibleProducts.length < products.length ? (
               <button
                 type="button"
-                className="grid h-[230px] w-14 flex-none place-items-center rounded-lg border border-emerald-100 bg-white text-primary shadow-sm shadow-emerald-950/5 dark:border-border dark:bg-background"
+                className="grid h-57.5 w-14 flex-none place-items-center rounded-lg border border-emerald-100 bg-white text-primary shadow-sm shadow-emerald-950/5 dark:border-border dark:bg-background"
                 onClick={() =>
                   onRevealMore(
                     products[0]?.statusKind ?? PUBLIC_MENU_KIND.NORMAL,

@@ -116,7 +116,7 @@ function BottomNavButton({
         />
       ) : null}
       <span className="relative grid h-5 place-items-center text-current">
-        <span className="[&_svg]:size-[18px] [&_svg]:stroke-[2.05]">
+        <span className="[&_svg]:size-4.5 [&_svg]:stroke-[2.05]">
           {icon}
         </span>
         {badge && badge > 0 ? (

@@ -37,6 +37,7 @@ export interface PermissionMainMenu {
   menu_title_eng?: string;
   menu_title_la?: string;
   menu_badge: number;
+  menu_badge_text: string;
   menu_status: number;
   menu_sort: number;
   sub_detail: PermissionSubMenu[];
@@ -54,6 +55,7 @@ export interface CreateMainMenuInput {
   menu_title_eng: string;
   menu_title_la: string;
   menu_badge?: number | string;
+  menu_badge_text?: string;
   menu_status?: number | string;
 }
 
@@ -115,6 +117,7 @@ export function normalizePermissionMainMenu(menu: RawPermissionMainMenu): Permis
 
   return {
     menu_badge: permissionMenuBadgeValue(menu.menu_badge),
+    menu_badge_text: text(menu.menu_badge_text),
     menu_icon: text(menu.menu_icon, "fa fa-file"),
     menu_id: menuId,
     menu_path: text(menu.menu_path),
@@ -141,9 +144,12 @@ export function normalizePermissionMenuTreeResponse(
 }
 
 export function buildCreateMainMenuPayload(input: CreateMainMenuInput) {
+  const menuBadge = permissionMenuBadgeValue(input.menu_badge);
+
   return {
     menu_id: text(input.menu_id),
-    menu_badge: permissionMenuBadgeValue(input.menu_badge),
+    menu_badge: menuBadge,
+    menu_badge_text: menuBadge === 1 ? text(input.menu_badge_text) : "",
     menu_icon: text(input.menu_icon, "fa fa-file"),
     menu_path: requiredText(input.menu_path, "menu_path"),
     menu_status: numberValue(input.menu_status, 1),

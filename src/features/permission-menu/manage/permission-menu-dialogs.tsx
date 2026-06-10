@@ -35,8 +35,12 @@ export function MainMenuDialog({
 }) {
   const { t } = useTranslation();
   const editing = Boolean(form.menu_id);
+  const badgeVisible = form.menu_badge === "1";
   const canSave = Boolean(
-    form.menu_title_la.trim() && form.menu_title_eng.trim() && form.menu_path.trim()
+    form.menu_title_la.trim()
+    && form.menu_title_eng.trim()
+    && form.menu_path.trim()
+    && (!badgeVisible || form.menu_badge_text.trim())
   ) && !saving;
 
   return (
@@ -107,7 +111,11 @@ export function MainMenuDialog({
                   <FieldLabel htmlFor="permission-main-badge">{t("permissionMenu.fields.menuBadge")}</FieldLabel>
                   <Select
                     value={form.menu_badge}
-                    onValueChange={(value) => setForm({ ...form, menu_badge: value })}
+                    onValueChange={(value) => setForm({
+                      ...form,
+                      menu_badge: value,
+                      menu_badge_text: value === "1" ? form.menu_badge_text : ""
+                    })}
                   >
                     <SelectTrigger id="permission-main-badge" className="w-full" disabled={saving}>
                       <SelectValue />
@@ -122,6 +130,22 @@ export function MainMenuDialog({
                   <FieldDescription>{t("permissionMenu.badgeHint")}</FieldDescription>
                 </Field>
               </div>
+              <Field data-disabled={!badgeVisible}>
+                <FieldLabel htmlFor="permission-main-badge-text">
+                  {t("permissionMenu.fields.menuBadgeText")}
+                </FieldLabel>
+                <Input
+                  autoComplete="off"
+                  disabled={saving || !badgeVisible}
+                  id="permission-main-badge-text"
+                  name="menu_badge_text"
+                  placeholder={t("permissionMenu.badgeTextPlaceholder")}
+                  required={badgeVisible}
+                  value={form.menu_badge_text}
+                  onChange={(event) => setForm({ ...form, menu_badge_text: event.target.value })}
+                />
+                <FieldDescription>{t("permissionMenu.badgeTextHint")}</FieldDescription>
+              </Field>
               <Field>
                 <FieldLabel htmlFor="permission-main-status">{t("permissionMenu.fields.menuStatus")}</FieldLabel>
                 <Select

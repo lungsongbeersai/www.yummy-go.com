@@ -264,6 +264,28 @@ export function cartOrders(cart: CartOrder | CartOrder[] | null) {
   return Array.isArray(cart) ? cart : [cart];
 }
 
+export function cartForTable(
+  cart: CartOrder | CartOrder[] | null,
+  tableUuid: string,
+) {
+  if (!cart || !tableUuid) return null;
+
+  const orders = cartOrders(cart);
+  const hasTableScopedOrders = orders.some((order) =>
+    optionalString(order.table_uuid_fk, order.table_uuid),
+  );
+
+  if (!hasTableScopedOrders) return cart;
+
+  const matchingOrders = orders.filter(
+    (order) =>
+      optionalString(order.table_uuid_fk, order.table_uuid) === tableUuid,
+  );
+
+  if (!matchingOrders.length) return null;
+  return Array.isArray(cart) ? matchingOrders : matchingOrders[0];
+}
+
 export function cartItemName(item: CartItem) {
   return String(
     item.prod_name ?? item.title ?? item.product_name ?? item.name ?? "-",

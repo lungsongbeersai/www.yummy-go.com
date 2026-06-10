@@ -130,7 +130,7 @@ export function ReportFilterSheet({
             />
           </div>
         </div>
-        <SheetFooter className="grid-cols-2 gap-2 border-t border-border bg-card/95 px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur [display:grid]">
+        <SheetFooter className="grid-cols-2 gap-2 border-t border-border bg-card/95 px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur grid">
           <SheetClose asChild>
             <Button type="button" variant="outline">
               {t("actions.close")}
@@ -191,10 +191,10 @@ export function MobileReportFilterSummary({
             </span>
           </div>
           <div className="mt-1 flex min-w-0 flex-wrap gap-1">
-            <Badge className="h-6 max-w-[11rem] truncate border-border bg-muted px-2 text-[11px] text-muted-foreground">
+            <Badge className="h-6 max-w-44 truncate border-border bg-muted px-2 text-[11px] text-muted-foreground">
               {branchLabel}
             </Badge>
-            <Badge className="h-6 max-w-[8rem] truncate px-2 text-[11px]">
+            <Badge className="h-6 max-w-32 truncate px-2 text-[11px]">
               {typeLabel}
             </Badge>
             <Badge className="h-6 border-border bg-muted px-2 text-[11px] text-muted-foreground">

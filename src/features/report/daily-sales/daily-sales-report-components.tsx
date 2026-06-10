@@ -113,11 +113,11 @@ export function ReportTableCard({
   const { t } = useTranslation();
 
   return (
-    <Card className="min-h-0 overflow-hidden border-border bg-card shadow-sm md:sticky md:top-[calc(var(--daily-sales-filter-height)_+_0.75rem)] md:flex md:max-h-[calc(100dvh_-_var(--app-shell-header-height)_-_var(--daily-sales-filter-height)_-_1.5rem)] md:flex-col">
+    <Card className="min-h-0 overflow-hidden border-border bg-card shadow-sm md:sticky md:top-[calc(var(--daily-sales-filter-height)+0.75rem)] md:flex md:max-h-[calc(100dvh-var(--app-shell-header-height)-var(--daily-sales-filter-height)-1.5rem)] md:flex-col">
       <ReportTableActions {...actions} />
       <CardContent className="flex min-h-0 flex-1 flex-col p-0">
         {loading ? (
-          <div className="p-4 md:min-h-[320px]">
+          <div className="p-4 md:min-h-80">
             <LoadingState label={t("report.loading")} variant="table" />
           </div>
         ) : rowsLength ? (
@@ -128,7 +128,7 @@ export function ReportTableCard({
             <div className="shrink-0 bg-card">{footer}</div>
           </>
         ) : (
-          <div className="p-4 md:min-h-[320px]">
+          <div className="p-4 md:min-h-80">
             <EmptyState
               title={t("report.noData")}
               description={t("report.adjustFilters")}

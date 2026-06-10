@@ -11,6 +11,7 @@ export const STORE_BRANCH_VIEW_STATUSES: number[] = [
   ROLE_STATUS.SUPER_ADMIN,
   ROLE_STATUS.HEAD_OFFICE_ADMIN
 ];
+const STORE_PERMISSION_MANAGE_STATUSES: number[] = Object.values(ROLE_STATUS);
 
 function roleStatus(status: number | null | undefined) {
   return Number(status ?? 0);
@@ -41,7 +42,7 @@ export function canManagePermissionMenu(status: number | null | undefined) {
 }
 
 export function canManageStorePermissions(status: number | null | undefined) {
-  return roleStatus(status) === ROLE_STATUS.SUPER_ADMIN;
+  return STORE_PERMISSION_MANAGE_STATUSES.includes(roleStatus(status));
 }
 
 export function canViewSettingModule(slug: string, status: number | null | undefined) {
