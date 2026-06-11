@@ -84,8 +84,6 @@ export function createDefaultFilters(date = new Date()): DashboardFilters {
   };
 }
 
-export const defaultFilters = createDefaultFilters();
-
 const tones: Tone[] = ["primary", "sky", "amber", "rose", "violet", "slate"];
 
 export function asRow(value: unknown): Row {
