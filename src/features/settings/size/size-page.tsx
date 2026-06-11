@@ -3,7 +3,7 @@
 import { Ruler } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { OptionSettingsPage, type OptionSaveArgs } from "@/features/settings/shared/option-settings-page";
-import { buildSizePayload, missingSizeField, sizeId, sizeName, sizeValue } from "@/features/settings/size/size-utils";
+import { buildSizePayload, missingSizeField, sizeName, sizeValue } from "@/features/settings/size/size-utils";
 import type { UrlPaginationState } from "@/lib/url-pagination";
 import type { FetchSizesParams, SaveSizeInput, Size } from "@/services/size";
 import { useSizeStore } from "@/stores/size-store";
@@ -45,7 +45,6 @@ export function SizeSettingsPage({ initialPagination }: { initialPagination: Url
       formDescription={t("settings.sizeFormHint")}
       formTitle={t("settings.sizeDetails")}
       getName={sizeName}
-      getSubtitle={(row) => sizeId(row)}
       icon={Ruler}
       idKey="size_uuid"
       initialPagination={initialPagination}

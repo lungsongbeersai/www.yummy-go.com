@@ -4,7 +4,6 @@ import { create } from "zustand";
 import {
   ackPrintJob,
   buildTestJob,
-  checkPrinterAgentConnection,
   deletePrinter,
   executeKitchenPrintJobs,
   getAgentFiles,
@@ -17,6 +16,7 @@ import {
   getPrinters,
   printOps,
   printTableQRJob,
+  resolvePrinterDeviceIdentity,
   resolvePrintersByCategory,
   saveCategoryPrinter,
   saveCategoryRole,
@@ -47,7 +47,6 @@ import {
 import { errorMessage } from "@/stores/store-utils";
 
 type AgentStatus = "unchecked" | "connected" | "offline";
-const AGENT_IDENTITY_MISSING = "Local printer agent identity missing";
 
 function textValue(value: unknown) {
   return String(value ?? "").trim();
@@ -78,6 +77,7 @@ interface PrinterState {
   loadAgentFiles: () => Promise<AgentFile[]>;
   discover: (mode?: "usb" | "network") => Promise<SearchPrinterResult[]>;
   checkAgent: (agentUrl?: string) => Promise<boolean>;
+  resolveDeviceIdentity: (agentUrl?: string) => Promise<AgentInfo>;
   loadRoles: (lang?: string) => Promise<PrinterRole[]>;
   save: (input: SavePrinterInput) => Promise<Printer>;
   remove: (printConfigUuid: string) => Promise<void>;
@@ -131,13 +131,13 @@ export const usePrinterStore = create<PrinterState>((set) => ({
   loadPrintersForLocalAgent: async (params) => {
     set({ loading: true, error: null });
 
-    const result = await checkPrinterAgentConnection();
+    const result = await resolvePrinterDeviceIdentity();
     const agent = result.ok ? result.agent : null;
     const agentId = textValue(agent?.agent_id);
     const deviceCode = textValue(agent?.device_code);
 
     if (!result.ok || !agentId || !deviceCode) {
-      const error = result.ok ? AGENT_IDENTITY_MISSING : result.error;
+      const error = result.ok ? "Printer device identity missing" : result.error;
       set({
         printers: [],
         agent,
@@ -198,13 +198,23 @@ export const usePrinterStore = create<PrinterState>((set) => ({
     }
   },
   checkAgent: async (agentUrl) => {
-    const result = await checkPrinterAgentConnection(agentUrl);
+    const result = await resolvePrinterDeviceIdentity(agentUrl);
     set({
       agent: result.ok ? result.agent ?? null : null,
       agentStatus: result.ok ? "connected" : "offline",
       agentError: result.ok ? null : result.error ?? null
     });
     return result.ok;
+  },
+  resolveDeviceIdentity: async (agentUrl) => {
+    const result = await resolvePrinterDeviceIdentity(agentUrl);
+    set({
+      agent: result.ok ? result.agent ?? null : null,
+      agentStatus: result.ok ? "connected" : "offline",
+      agentError: result.ok ? null : result.error ?? null
+    });
+    if (!result.ok) throw new Error(result.error);
+    return result.agent;
   },
   loadRoles: async (lang) => {
     const roles = await getPrinterRoles(lang);

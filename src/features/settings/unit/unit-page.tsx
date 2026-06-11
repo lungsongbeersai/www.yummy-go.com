@@ -3,7 +3,7 @@
 import { Box } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { OptionSettingsPage, type OptionSaveArgs } from "@/features/settings/shared/option-settings-page";
-import { buildUnitPayload, missingUnitField, unitId, unitName, unitValue } from "@/features/settings/unit/unit-utils";
+import { buildUnitPayload, missingUnitField, unitName, unitValue } from "@/features/settings/unit/unit-utils";
 import type { UrlPaginationState } from "@/lib/url-pagination";
 import type { FetchUnitsParams, SaveUnitInput, Unit } from "@/services/unit";
 import { useUnitStore } from "@/stores/unit-store";
@@ -45,7 +45,6 @@ export function UnitSettingsPage({ initialPagination }: { initialPagination: Url
       formDescription={t("settings.unitFormHint")}
       formTitle={t("settings.unitDetails")}
       getName={unitName}
-      getSubtitle={(row) => unitId(row)}
       icon={Box}
       idKey="unite_uuid"
       initialPagination={initialPagination}

@@ -104,8 +104,7 @@ function CurrencyIdentity({
 }) {
   const name = currencyName(row, currencyById);
   const icon = currencyIcon(row, currencyById);
-  const id = currencyId(row);
-  const meta = [icon !== "-" ? icon : "", id].filter(Boolean).join(" / ");
+  const meta = icon !== "-" ? icon : "";
 
   return (
     <div className="flex min-w-0 items-center gap-3">
@@ -374,7 +373,6 @@ export function ExchangeSettingsPage({ initialPagination }: { initialPagination:
         const id = exchangeId(row);
         const selected = selectedRows.has(id);
         const icon = currencyIcon(row, currencyById);
-        const currencyUuid = currencyId(row);
         return (
           <SettingsMobileCard
             key={id || index}
@@ -391,7 +389,7 @@ export function ExchangeSettingsPage({ initialPagination }: { initialPagination:
             selected={selected}
             subtitle={
               <span className="block truncate" translate="no">
-                {[icon !== "-" ? icon : "", currencyUuid].filter(Boolean).join(" / ")}
+                {icon !== "-" ? icon : "-"}
               </span>
             }
             title={currencyName(row, currencyById)}

@@ -3,7 +3,7 @@
 import { Palette } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ColorCodeBadge, OptionSettingsPage, type OptionSaveArgs } from "@/features/settings/shared/option-settings-page";
-import { buildColorPayload, colorCode, colorId, colorName, missingColorField } from "@/features/settings/color/color-utils";
+import { buildColorPayload, colorCode, colorName, missingColorField } from "@/features/settings/color/color-utils";
 import type { UrlPaginationState } from "@/lib/url-pagination";
 import type { Color, FetchColorsParams, SaveColorInput } from "@/services/color";
 import { useColorStore } from "@/stores/color-store";
@@ -36,7 +36,6 @@ export function ColorSettingsPage({ initialPagination }: { initialPagination: Ur
       formDescription={t("settings.colorFormHint")}
       formTitle={t("settings.colorDetails")}
       getName={colorName}
-      getSubtitle={(row) => [colorCode(row), colorId(row)].filter(Boolean).join(" / ") || "-"}
       icon={Palette}
       idKey="color_uuid"
       initialPagination={initialPagination}

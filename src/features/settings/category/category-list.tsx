@@ -339,13 +339,6 @@ function CategoryMobileList({
             }
             selectLabel={t("common.selectRow", { name })}
             selected={selected}
-            subtitle={
-              id ? (
-                <span className="block truncate" translate="no">
-                  {id}
-                </span>
-              ) : undefined
-            }
             title={name}
             onCheckedChange={(checked) => onToggleSelected(id, checked)}
           >
