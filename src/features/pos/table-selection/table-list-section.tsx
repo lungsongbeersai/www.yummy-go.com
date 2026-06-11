@@ -192,7 +192,7 @@ function TableCard({
       className={cn(
         "overflow-hidden rounded-xl bg-card shadow-sm transition hover:border-primary/70 hover:shadow-md",
         cardToneClass,
-        selected && "ring-2 ring-primary ring-offset-2 ring-offset-background"
+        selected && "border-primary/90 bg-primary/10 shadow-lg shadow-primary/15 ring-2 ring-primary ring-offset-2 ring-offset-background"
       )}
     >
       <Button
@@ -209,6 +209,17 @@ function TableCard({
               bodyToneClass
             )}
           >
+            {selected ? (
+              <Badge
+                className={cn(
+                  "absolute left-2 z-10 max-w-[calc(100%-4rem)] gap-1 rounded-full border-primary/30 bg-primary px-2 py-0.5 text-[10px] font-black text-primary-foreground shadow-sm [&_svg]:size-3 [&_svg]:shrink-0 sm:left-3",
+                  hasUpdate ? "top-5" : "top-2 sm:top-3"
+                )}
+              >
+                <Check aria-hidden="true" />
+                <span className="truncate">{t("pos.selectedTable")}</span>
+              </Badge>
+            ) : null}
             {hasUpdate ? (
               <Badge className="absolute left-1/2 top-0 h-4 -translate-x-1/2 rounded-b-[10px] rounded-t-none border-transparent bg-destructive px-3 py-0 text-[9px] font-bold leading-4 tracking-wide text-destructive-foreground shadow-none">
                 NEW

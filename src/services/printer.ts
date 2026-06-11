@@ -8,14 +8,30 @@ import {
   getPrinterErrorMessage,
   getRoleColor,
   mapPrinter,
-  parseInterfaceValue
+  parseInterfaceValue,
+  tcpInterfaceValue
 } from "@/services/printer/helpers";
+import {
+  BROWSER_PRINTER_AGENT_ID,
+  BROWSER_PRINTER_AGENT_URL,
+  getBrowserPrinterIdentity,
+  isBrowserPrinterAgentId
+} from "@/services/printer/browser-device";
 import type { ApiDataResponse, ApiEntity, ApiListResponse, FetchParams } from "@/services/shared/types";
 import type { ConfirmToKitchenPendingQuery, ConfirmToKitchenPrintJob } from "@/services/pos";
 
 export const AGENT_URL = process.env.NEXT_PUBLIC_PRINTER_AGENT_URL ?? "http://127.0.0.1:7777";
 const AGENT_SECRET = process.env.NEXT_PUBLIC_PRINTER_AGENT_SECRET ?? "";
-export { getPrinterErrorMessage, getRoleColor, parseInterfaceValue };
+const PRINTER_IDENTITY_MISSING = "Printer device identity missing";
+export {
+  BROWSER_PRINTER_AGENT_ID,
+  BROWSER_PRINTER_AGENT_URL,
+  getPrinterErrorMessage,
+  getRoleColor,
+  isBrowserPrinterAgentId,
+  parseInterfaceValue,
+  tcpInterfaceValue
+};
 
 export interface SearchPrinterResult extends ApiEntity {
   name: string;
@@ -144,12 +160,18 @@ export interface PrintJob extends ApiEntity {
   print_config_uuid?: string | null;
   lang: string;
   paper_width_mm: number;
+  print_client?: string;
   interface_value: string;
   printer_type: string;
   ops: Record<string, unknown>[];
 }
 export interface PrintOpsAgentResponse extends ApiEntity { ok: boolean; error?: string; message?: string }
 export interface BuildTestJobResponse extends ApiEntity { data: { printer: ApiEntity; job: PrintJob } }
+interface MobileEscposRenderResponse extends ApiEntity {
+  data?: {
+    escpos_base64?: string | null;
+  } | null;
+}
 export interface CategoryRole extends ApiEntity { cate_uuid: string; role_codes: string[] }
 export interface SaveCategoryRoleInput extends ApiEntity { login_uuid_fk: string; cate_uuid_fk: string; role_codes: string[] }
 export interface PrinterCategoryItem extends ApiEntity { cate_uuid: string }
@@ -190,6 +212,7 @@ export interface TableQRPrintJob extends ApiEntity {
   document_type?: string;
   lang?: string;
   ops?: Record<string, unknown>[];
+  print_client?: string;
   qr_url?: string;
   table_name?: string;
 }
@@ -242,6 +265,12 @@ export async function getAgentFiles() {
 }
 
 export async function savePrinter(input: SavePrinterInput) {
+  const port = Number(input.port ?? 9100);
+  const tcpPort = Number.isFinite(port) && port > 0 ? port : 9100;
+  const interfaceValue =
+    input.connect_type === "tcp"
+      ? textValue(input.interface_value) || tcpInterfaceValue(input.ip, tcpPort)
+      : textValue(input.interface_value);
   const base = {
     print_config_uuid: input.print_config_uuid ?? "",
     login_uuid_fk: input.login_uuid_fk,
@@ -257,8 +286,8 @@ export async function savePrinter(input: SavePrinterInput) {
   };
   const data =
     input.connect_type === "tcp"
-      ? { ...base, ip: input.ip, port: input.port ?? 9100 }
-      : { ...base, interface_value: input.interface_value ?? "" };
+      ? { ...base, ip: input.ip, port: tcpPort, interface_value: interfaceValue }
+      : { ...base, interface_value: interfaceValue };
   const result = await apiRequest<SavePrinterResponse>("post", "/api/v1/printer/create", { data });
   return mapPrinter(result.data);
 }
@@ -269,6 +298,17 @@ export const deletePrinter = (print_config_uuid: string) =>
   apiRequest("delete", "/api/v1/printer/delete", { data: { print_config_uuid } });
 export const buildTestJob = (data: BuildTestJobRequest) =>
   apiRequest<BuildTestJobResponse>("post", "/api/v1/printer/build-test-job", { data });
+
+export async function renderMobileEscpos(job: PrintJob | TableQRPrintJob) {
+  const result = await apiRequest<MobileEscposRenderResponse>(
+    "post",
+    "/api/v1/printer/mobile/render-escpos",
+    { data: job }
+  );
+  const escposBase64 = textValue(result.data?.escpos_base64);
+  if (!escposBase64) throw new ServiceError("Mobile render response missing escpos_base64", 500);
+  return escposBase64;
+}
 
 function textValue(value: unknown) {
   return String(value ?? "").trim();
@@ -289,7 +329,7 @@ function getAgentFromPayload(payload: AgentInfoResponse | AgentInfo | null | und
   return {
     ...record,
     agent_id: agentId,
-    agent_name: textValue(record.agent_name),
+    agent_name: textValue(record.agent_name) || agentId,
     device_code: textValue(record.device_code) || undefined,
     platform: textValue(record.platform)
   };
@@ -343,6 +383,26 @@ export async function checkPrinterAgentConnection(agentUrl = AGENT_URL): Promise
     const agent = getAgentFromPayload(data);
     if (!agent) throw new ServiceError("Local printer agent identity missing", 500);
     return { ok: true, agent };
+  } catch (error) {
+    return { ok: false, error: getPrinterErrorMessage(error) };
+  }
+}
+
+function hasPrinterDeviceIdentity(agent: AgentInfo | null | undefined) {
+  return Boolean(textValue(agent?.agent_id) && textValue(agent?.device_code));
+}
+
+export async function resolvePrinterDeviceIdentity(agentUrl = AGENT_URL): Promise<CheckPrinterAgentConnectionResult> {
+  try {
+    const result = await checkPrinterAgentConnection(agentUrl);
+    if (!result.ok) {
+      return { ok: true, agent: await getBrowserPrinterIdentity() };
+    }
+    if (!hasPrinterDeviceIdentity(result.agent)) {
+      return { ok: false, error: PRINTER_IDENTITY_MISSING };
+    }
+
+    return result;
   } catch (error) {
     return { ok: false, error: getPrinterErrorMessage(error) };
   }
@@ -418,10 +478,18 @@ export async function executeKitchenPrintJobs(input: ExecuteKitchenPrintInput): 
 
   input.onProgress?.({ total: 0, completed: 0, successCount: 0, failedCount: 0, phase: "fetching" });
   const pending = await getPendingPrintJobs(jobUuid, loginUuid);
-  const localAgent = await getLocalAgentInfo();
-  const items = pending
-    .flatMap((job) => job.print_items ?? [])
-    .filter((item) => !item.can_print || isPrintJobForAgent(item.job, localAgent));
+  const printItems = pending.flatMap((job) => job.print_items ?? []);
+  let localAgent: AgentInfo | null = null;
+
+  if (printItems.some((item) => item.can_print && item.job)) {
+    localAgent = await getLocalAgentInfo();
+  }
+
+  const items = printItems.filter((item) => {
+    if (!item.can_print) return true;
+    if (!item.job) return false;
+    return localAgent ? isPrintJobForAgent(item.job, localAgent) : false;
+  });
   let successCount = 0;
   let failedCount = 0;
   let skippedCount = 0;
@@ -437,7 +505,7 @@ export async function executeKitchenPrintJobs(input: ExecuteKitchenPrintInput): 
       if (!item.can_print) throw new ServiceError(item.error || "Item cannot print", 400);
       if (!item.job || !item.ack_success_payload) throw new ServiceError("Print job payload missing", 400);
 
-      await printOps(item.job, localAgent);
+      await printOps(item.job, localAgent ?? undefined);
       await ackPrintJob(item.ack_success_payload);
       successCount++;
     } catch (error) {

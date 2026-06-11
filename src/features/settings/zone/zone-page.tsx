@@ -3,7 +3,7 @@
 import { Map } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { OptionSettingsPage, type OptionSaveArgs } from "@/features/settings/shared/option-settings-page";
-import { buildZonePayload, missingZoneField, zoneId, zoneName, zoneValue } from "@/features/settings/zone/zone-utils";
+import { buildZonePayload, missingZoneField, zoneName, zoneValue } from "@/features/settings/zone/zone-utils";
 import type { UrlPaginationState } from "@/lib/url-pagination";
 import type { FetchZonesParams, SaveZoneInput, Zone } from "@/services/zone";
 import { useZoneStore } from "@/stores/zone-store";
@@ -45,7 +45,6 @@ export function ZoneSettingsPage({ initialPagination }: { initialPagination: Url
       formDescription={t("settings.zoneFormHint")}
       formTitle={t("settings.zoneDetails")}
       getName={zoneName}
-      getSubtitle={(row) => zoneId(row)}
       icon={Map}
       idKey="zone_uuid"
       initialPagination={initialPagination}

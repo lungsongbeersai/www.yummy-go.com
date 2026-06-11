@@ -459,6 +459,7 @@
     "statusText": "Status text",
     "sumGrandTotal": "Sum grand total",
     "tableSelectionNewOrder": "New order",
+    "selectedTable": "Selected",
     "tableActions": "Table actions",
     "tableActionsDescription": "Move or join orders for {{table}}.",
     "createTableQr": "Create table QR",

@@ -347,11 +347,6 @@ function LocationTableRow({
           <div className="min-w-0">
             <p className="truncate font-black">{name}</p>
             {kind === "district" ? <p className="truncate text-xs text-muted-foreground">{laoName} / {englishName}</p> : null}
-            {id ? (
-              <p className="mt-0.5 truncate text-xs text-muted-foreground" translate="no">
-                {id}
-              </p>
-            ) : null}
           </div>
         </div>
       </TableCell>
@@ -514,11 +509,6 @@ function LocationMobileCard({
           <span className="block truncate">
             {locationValue(row, `${kind}_name_la`, "-")} / {locationValue(row, `${kind}_name_eng`, "-")}
           </span>
-          {id ? (
-            <span className="block truncate" translate="no">
-              {id}
-            </span>
-          ) : null}
         </span>
       }
       title={name}

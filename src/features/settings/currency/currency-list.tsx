@@ -222,7 +222,7 @@ function CurrencyMobileList({
             selected={selected}
             subtitle={
               <span className="block truncate" translate="no">
-                {id || "-"}
+                {icon !== "-" ? icon : "-"}
               </span>
             }
             title={name}

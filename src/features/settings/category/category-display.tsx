@@ -4,7 +4,6 @@ import { Badge } from "@/components/ui/badge";
 import type { Category } from "@/services/category";
 import { CategoryIcon } from "./category-icon-picker";
 import {
-  categoryId,
   categoryName,
   categoryValue
 } from "./category-utils";
@@ -18,7 +17,6 @@ export function CategoryCodeBadge({ iconValue }: { iconValue: string }) {
 }
 
 export function CategoryIdentity({ row }: { row: Category }) {
-  const id = categoryId(row);
   const iconValue = categoryValue(row, "cate_icon");
 
   return (
@@ -31,11 +29,6 @@ export function CategoryIdentity({ row }: { row: Category }) {
         <p className="mt-0.5 truncate text-xs text-muted-foreground">
           {categoryValue(row, "cate_name_la", "-")} / {categoryValue(row, "cate_name_eng", "-")}
         </p>
-        {id ? (
-          <p className="mt-0.5 truncate text-xs text-muted-foreground" translate="no">
-            {id}
-          </p>
-        ) : null}
       </div>
     </div>
   );

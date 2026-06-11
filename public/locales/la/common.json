@@ -471,6 +471,7 @@
     "statusText": "ຂໍ້ຄວາມສະຖານະ",
     "sumGrandTotal": "ຍອດລວມສະຫຼຸບ",
     "tableSelectionNewOrder": "ອໍເດີ້ໃໝ່",
+    "selectedTable": "ເລືອກແລ້ວ",
     "tableActions": "ຈັດການໂຕະ",
     "tableActionsDescription": "ຍ້າຍ ຫຼື ລວມອໍເດີສຳລັບ {{table}}.",
     "createTableQr": "ສ້າງ QR ໂຕະ",

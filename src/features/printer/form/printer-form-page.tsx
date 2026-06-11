@@ -36,7 +36,10 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import {
   AGENT_URL,
+  BROWSER_PRINTER_AGENT_URL,
+  isBrowserPrinterAgentId,
   parseInterfaceValue,
+  tcpInterfaceValue,
   type AgentInfo,
   type Printer,
   type SearchPrinterResult,
@@ -222,6 +225,9 @@ export function PrinterFormPage() {
   const loadRoles = usePrinterStore((state) => state.loadRoles);
   const discoverPrinters = usePrinterStore((state) => state.discover);
   const savePrinter = usePrinterStore((state) => state.save);
+  const resolveDeviceIdentity = usePrinterStore(
+    (state) => state.resolveDeviceIdentity,
+  );
   const categories = (useReferenceStore((state) => state.options.categories) ??
     EMPTY_CATEGORIES) as Category[];
   const loadCategories = useReferenceStore((state) => state.loadCategories);
@@ -270,8 +276,12 @@ export function PrinterFormPage() {
   const [usbSearchError, setUsbSearchError] = useState("");
   const autoUsbSearchDone = useRef(false);
 
-  const fillAgent = useCallback((nextAgent: AgentInfo) => {
-    setAgentUrl(AGENT_URL);
+  const fillAgent = useCallback((nextAgent: AgentInfo, nextAgentUrl = AGENT_URL) => {
+    setAgentUrl(
+      isBrowserPrinterAgentId(nextAgent.agent_id)
+        ? BROWSER_PRINTER_AGENT_URL
+        : nextAgentUrl,
+    );
     setAgentId(textValue(nextAgent.agent_id));
     setAgentName(textValue(nextAgent.agent_name));
     setDeviceCode(textValue(nextAgent.device_code));
@@ -347,7 +357,8 @@ export function PrinterFormPage() {
   const hasAgentIdentity =
     Boolean(agentUrl.trim()) &&
     Boolean(agentId.trim()) &&
-    Boolean(agentName.trim());
+    Boolean(agentName.trim()) &&
+    Boolean(deviceCode.trim());
   const canSubmit =
     Boolean(displayName.trim()) &&
     selectedRoles.length > 0 &&
@@ -417,7 +428,7 @@ export function PrinterFormPage() {
     setConnectType("usb");
     setDisplayName(textValue(printer.name));
     setInterfaceValue(textValue(printer.interface_value));
-    if (agent) fillAgent(agent);
+    if (agent) fillAgent(agent, agentUrl.trim() || AGENT_URL);
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -425,21 +436,37 @@ export function PrinterFormPage() {
     if (!user?.uuid || !canSubmit) return;
 
     try {
+      const identity = await resolveDeviceIdentity(agentUrl.trim() || AGENT_URL);
+      const nextAgentId = textValue(identity.agent_id).trim();
+      const nextAgentName = textValue(identity.agent_name).trim();
+      const nextDeviceCode = textValue(identity.device_code).trim();
+      const nextPort = Number(port || 9100);
+      const nextInterfaceValue =
+        connectType === "tcp"
+          ? tcpInterfaceValue(ip.trim(), nextPort)
+          : interfaceValue.trim();
+
+      const nextAgentUrl = isBrowserPrinterAgentId(nextAgentId)
+        ? BROWSER_PRINTER_AGENT_URL
+        : agentUrl.trim() || AGENT_URL;
+
+      fillAgent(identity, nextAgentUrl);
+
       await savePrinter({
         print_config_uuid: printConfigUuid,
         login_uuid_fk: user.uuid,
         display_name: displayName.trim(),
         connect_type: connectType,
         ip: ip.trim(),
-        port: Number(port || 9100),
-        interface_value: interfaceValue.trim(),
+        port: nextPort,
+        interface_value: nextInterfaceValue,
         paper_width_mm: Number(paperWidth || 80),
         role_codes: selectedRoles,
         cate_uuid_fk: selectedCategories,
-        agent_url: agentUrl.trim() || AGENT_URL,
-        agent_id: agentId.trim(),
-        agent_name: agentName.trim(),
-        device_code: deviceCode.trim() || agentId.trim(),
+        agent_url: nextAgentUrl,
+        agent_id: nextAgentId,
+        agent_name: nextAgentName,
+        device_code: nextDeviceCode,
       });
       showToast({ title: t("printer.saved"), tone: "success" });
       router.push("/printer");

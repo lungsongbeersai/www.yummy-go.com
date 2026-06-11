@@ -3,7 +3,7 @@
 import { Layers } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { OptionSettingsPage, type OptionSaveArgs } from "@/features/settings/shared/option-settings-page";
-import { buildGroupPayload, groupId, groupName, groupValue, missingGroupField } from "@/features/settings/group/group-utils";
+import { buildGroupPayload, groupName, groupValue, missingGroupField } from "@/features/settings/group/group-utils";
 import type { UrlPaginationState } from "@/lib/url-pagination";
 import type { FetchGroupsParams, Group, SaveGroupInput } from "@/services/group";
 import { useGroupStore } from "@/stores/group-store";
@@ -45,7 +45,6 @@ export function GroupSettingsPage({ initialPagination }: { initialPagination: Ur
       formDescription={t("settings.groupFormHint")}
       formTitle={t("settings.groupDetails")}
       getName={groupName}
-      getSubtitle={(row) => groupId(row)}
       icon={Layers}
       idKey="group_uuid"
       initialPagination={initialPagination}

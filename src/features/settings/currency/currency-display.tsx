@@ -6,7 +6,6 @@ import { CurrencyFlag } from "@/features/settings/shared/currency-flag";
 import type { Currency } from "@/services/currency";
 import {
   currencyIcon,
-  currencyId,
   currencyName,
   currencyStatusBadgeClass,
   currencyStatusLabel
@@ -33,7 +32,6 @@ export function CurrencyCodeBadge({ code }: { code: string }) {
 export function CurrencyIdentity({ row }: { row: Currency }) {
   const name = currencyName(row);
   const icon = currencyIcon(row);
-  const id = currencyId(row);
 
   return (
     <div className="flex min-w-0 items-center gap-3">
@@ -41,7 +39,7 @@ export function CurrencyIdentity({ row }: { row: Currency }) {
       <div className="min-w-0">
         <p className="truncate font-black">{name}</p>
         <p className="mt-0.5 truncate text-xs text-muted-foreground" translate="no">
-          {[icon !== "-" ? icon : "", id].filter(Boolean).join(" / ") || "-"}
+          {icon !== "-" ? icon : "-"}
         </p>
       </div>
     </div>

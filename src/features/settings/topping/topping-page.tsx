@@ -3,7 +3,7 @@
 import { Utensils } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { OptionSettingsPage, type OptionSaveArgs } from "@/features/settings/shared/option-settings-page";
-import { buildToppingPayload, missingToppingField, toppingId, toppingName, toppingValue } from "@/features/settings/topping/topping-utils";
+import { buildToppingPayload, missingToppingField, toppingName, toppingValue } from "@/features/settings/topping/topping-utils";
 import type { UrlPaginationState } from "@/lib/url-pagination";
 import type { FetchToppingsParams, SaveToppingInput, Topping } from "@/services/topping";
 import { useToppingStore } from "@/stores/topping-store";
@@ -45,7 +45,6 @@ export function ToppingSettingsPage({ initialPagination }: { initialPagination: 
       formDescription={t("settings.toppingFormHint")}
       formTitle={t("settings.toppingDetails")}
       getName={toppingName}
-      getSubtitle={(row) => toppingId(row)}
       icon={Utensils}
       idKey="topping_uuid"
       initialPagination={initialPagination}
