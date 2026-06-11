@@ -176,7 +176,7 @@ export interface CategoryRole extends ApiEntity { cate_uuid: string; role_codes:
 export interface SaveCategoryRoleInput extends ApiEntity { login_uuid_fk: string; cate_uuid_fk: string; role_codes: string[] }
 export interface PrinterCategoryItem extends ApiEntity { cate_uuid: string }
 export interface PrinterCategoryRole extends ApiEntity { print_config_uuid: string; categories: PrinterCategoryItem[] }
-export interface ResolvedPrinter extends Printer {}
+export interface ResolvedPrinter extends Printer { }
 export interface SaveCategoryPrinterInput extends ApiEntity { login_uuid_fk: string; cate_uuid_fk: string[]; print_config_uuid_fk: string }
 export interface FetchPrintersParams extends FetchParams {
   login_uuid_fk: string;
@@ -198,13 +198,13 @@ export interface PendingPrintItem extends ApiEntity {
 }
 export interface PendingPrintJobData extends ApiEntity { print_job_uuid: string; print_items: PendingPrintItem[] }
 export type PendingPrintJobsResponse = ApiDataResponse<PendingPrintJobData[]>;
-export interface AckAppliedItem extends ApiEntity {}
-export interface AckResponse extends ApiEntity {}
+export interface AckAppliedItem extends ApiEntity { }
+export interface AckResponse extends ApiEntity { }
 export interface KitchenPrintResult { successCount: number; failedCount: number; total: number }
 export interface DefaultCategoryByRoleInput extends ApiEntity { login_uuid_fk: string; role_codes: string[]; lang?: string }
-export interface DefaultCategoryGroupDetail extends ApiEntity {}
-export interface DefaultCategoryGroup extends ApiEntity {}
-export interface DefaultCategoryByRoleResponse extends ApiEntity {}
+export interface DefaultCategoryGroupDetail extends ApiEntity { }
+export interface DefaultCategoryGroup extends ApiEntity { }
+export interface DefaultCategoryByRoleResponse extends ApiEntity { }
 export interface TableQRPrintJob extends ApiEntity {
   agent_url?: string;
   agent_id?: string;
@@ -423,9 +423,31 @@ export async function printWithLocalAgent(job: PrintJob | TableQRPrintJob, local
   assertAgentOk(data, "Print failed");
 }
 
-export async function dispatchPrintJob(job: PrintJob | TableQRPrintJob, localAgent?: AgentInfo) {
+// export async function dispatchPrintJob(job: PrintJob | TableQRPrintJob, localAgent?: AgentInfo) {
+//   if (isBrowserDevicePrintJob(job)) {
+//     await renderMobileEscpos(job);
+//     return;
+//   }
+
+//   await printWithLocalAgent(job, localAgent);
+// }
+
+export async function dispatchPrintJob(
+  job: PrintJob | TableQRPrintJob,
+  localAgent?: AgentInfo,
+) {
   if (isBrowserDevicePrintJob(job)) {
-    await renderMobileEscpos(job);
+    const escposBase64 = await renderMobileEscpos(job);
+
+    const { printMobileEscposOverTcp } = await import(
+      "@/services/printer/mobile-tcp"
+    );
+
+    await printMobileEscposOverTcp({
+      interface_value: textValue(job.interface_value),
+      escpos_base64: escposBase64,
+    });
+
     return;
   }
 
