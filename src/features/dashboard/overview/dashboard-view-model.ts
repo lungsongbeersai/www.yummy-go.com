@@ -1,10 +1,8 @@
 export type Row = Record<string, unknown>;
 
 export type DashboardFilters = {
-  summary_range: string;
-  report_year: string;
-  report_month: string;
-  top: string;
+  end_date: string;
+  start_date: string;
 };
 
 export type SelectOption = {
@@ -70,12 +68,19 @@ export type DashboardModel = {
 
 export type Tone = "primary" | "sky" | "amber" | "rose" | "violet" | "slate";
 
-export function createDefaultFilters(): DashboardFilters {
+export function toDateInputValue(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+export function createDefaultFilters(date = new Date()): DashboardFilters {
+  const today = toDateInputValue(date);
+
   return {
-    summary_range: "",
-    report_year: "",
-    report_month: "",
-    top: ""
+    end_date: today,
+    start_date: today
   };
 }
 
@@ -203,7 +208,7 @@ function normalizeTrendRows(rows: Row[]): TrendPoint[] {
   }));
 }
 
-export function createDashboardModel(data: unknown, filters: DashboardFilters): DashboardModel {
+export function createDashboardModel(data: unknown, _filters: DashboardFilters, top = "10"): DashboardModel {
   const dashboard = asRow(data);
   const charts = asRow(dashboard.charts);
   const section = asRow(asRow(dashboard.dashboard_sections).rank_1_sales_payment_summary);
@@ -241,7 +246,7 @@ export function createDashboardModel(data: unknown, filters: DashboardFilters): 
     paymentTrendRows: normalizeTrendRows(
       paymentTrendSource.length ? paymentTrendSource : monthlyDailyPaymentRows
     ),
-    productRows: productRows(productSource, numberFrom(requestParams, "top") || Number(filters.top) || productSource.length),
+    productRows: productRows(productSource, numberFrom(requestParams, "top") || Number(top) || productSource.length),
     requestParams,
     section,
     tableSummary: asRow(tables.summary),

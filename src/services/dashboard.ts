@@ -7,10 +7,9 @@ export interface DashboardSelectOption extends ApiEntity { label?: string; value
 export interface DashboardParameterOptions extends ApiEntity {}
 export interface DashboardRequestParams extends ApiEntity {
   branch_uuid_fk: string;
+  end_date?: string;
   lang?: string;
-  summary_range?: string;
-  report_year?: string | number;
-  report_month?: string | number;
+  start_date?: string;
   top?: string | number;
 }
 export interface DashboardMainTotal extends ApiEntity {}
@@ -52,10 +51,7 @@ export function getExecutiveDashboard(params: FetchExecutiveDashboardParams) {
   return apiRequest<ExecutiveDashboardResponse>("get", "/api/v1/dashboard/executive", {
     params: {
       ...params,
-      lang: toApiLanguage(String(params.lang ?? "la")),
-      ...(params.report_month && {
-        report_month: String(params.report_month).padStart(2, "0")
-      })
+      lang: toApiLanguage(String(params.lang ?? "la"))
     }
   });
 }

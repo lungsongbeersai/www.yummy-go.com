@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { FileText, ShoppingCart } from "lucide-react";
 import {
   buildSidebarPermissionMenuParams,
   normalizeSidebarPermissionMenuResponse,
@@ -83,13 +82,13 @@ describe("sidebar menu service helpers", () => {
 
     expect(menus.map((menu) => menu.title)).toEqual(["sales", "settings"]);
     expect(menus[0]).toMatchObject({
-      iconName: "shopping-cart",
+      iconName: "mdi:cart-outline",
       label: "Sales",
       path: "/sale"
     });
     expect(menus[1]).toMatchObject({
       badgeText: "News",
-      iconName: "file-text",
+      iconName: "mdi:file-document-outline",
       label: "Settings",
       path: "/setting"
     });
@@ -183,17 +182,17 @@ describe("sidebar menu service helpers", () => {
     ]);
   });
 
-  it("resolves serializable menu icons to runtime components", () => {
+  it("keeps serializable menu icon names for runtime rendering", () => {
     const [sales, fallback] = sidebarPermissionMenuItemsToMenuItems([
       {
-        iconName: "shopping-cart",
+        iconName: "mdi:cart-outline",
         label: "Sales",
         path: "/sale",
         source: "permission-api",
         title: "sales"
       },
       {
-        iconName: "file-text",
+        iconName: "mdi:file-document-outline",
         label: "Fallback",
         path: "/fallback",
         source: "permission-api",
@@ -201,7 +200,9 @@ describe("sidebar menu service helpers", () => {
       }
     ]);
 
-    expect(sales?.icon).toBe(ShoppingCart);
-    expect(fallback?.icon).toBe(FileText);
+    expect(sales?.icon).toBeUndefined();
+    expect(sales?.iconName).toBe("mdi:cart-outline");
+    expect(fallback?.icon).toBeUndefined();
+    expect(fallback?.iconName).toBe("mdi:file-document-outline");
   });
 });

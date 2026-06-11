@@ -310,6 +310,14 @@ export async function renderMobileEscpos(job: PrintJob | TableQRPrintJob) {
   return escposBase64;
 }
 
+export async function sendMobileBackendPrintJob(job: PrintJob | TableQRPrintJob) {
+  await apiRequest<MobileEscposRenderResponse>(
+    "post",
+    "/api/v1/printer/mobile/render-escpos",
+    { data: job }
+  );
+}
+
 function textValue(value: unknown) {
   return String(value ?? "").trim();
 }
@@ -425,7 +433,7 @@ export async function printWithLocalAgent(job: PrintJob | TableQRPrintJob, local
 
 export async function dispatchPrintJob(job: PrintJob | TableQRPrintJob, localAgent?: AgentInfo) {
   if (isBrowserDevicePrintJob(job)) {
-    await renderMobileEscpos(job);
+    await sendMobileBackendPrintJob(job);
     return;
   }
 

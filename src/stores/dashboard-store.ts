@@ -18,9 +18,8 @@ function dashboardParamsKey(params: FetchExecutiveDashboardParams) {
   return [
     params.branch_uuid_fk,
     params.lang ?? "",
-    params.summary_range ?? "",
-    params.report_year ?? "",
-    params.report_month ?? "",
+    params.start_date ?? "",
+    params.end_date ?? "",
     params.top ?? ""
   ].join("|");
 }

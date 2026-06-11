@@ -20,7 +20,7 @@ import {
   asRow,
   branchLabel,
   createDashboardModel,
-  defaultFilters,
+  createDefaultFilters,
   optionList,
   selectedLabel,
   text,
@@ -58,6 +58,7 @@ const dashboardCopyKeys = [
   "discount",
   "discountRate",
   "driveRevenue",
+  "endDate",
   "export",
   "insights",
   "lang",
@@ -82,6 +83,7 @@ const dashboardCopyKeys = [
   "reset",
   "revenue",
   "shareOfQty",
+  "startDate",
   "tableLoad",
   "tables",
   "tableStatus",
@@ -107,15 +109,13 @@ function createDashboardCopy(t: (key: string) => unknown): DashboardCopy {
 
 function filtersFromRequestParams(params: Record<string, unknown>): DashboardFilters {
   return {
-    summary_range: text(params.summary_range, ""),
-    report_year: text(params.report_year, ""),
-    report_month: text(params.report_month, ""),
-    top: text(params.top, "")
+    end_date: text(params.end_date, ""),
+    start_date: text(params.start_date, "")
   };
 }
 
 function filtersKey(filters: DashboardFilters) {
-  return [filters.summary_range, filters.report_year, filters.report_month, filters.top].join("|");
+  return [filters.start_date, filters.end_date].join("|");
 }
 
 const DashboardRevenueAccountingGrid = dynamic(
@@ -174,17 +174,18 @@ export function DashboardPage() {
     }))
   );
   const copy = useMemo(() => createDashboardCopy(t), [t]);
-  const [filters, setFilters] = useState<DashboardFilters>(() => ({ ...defaultFilters }));
-  const [appliedFilters, setAppliedFilters] = useState<DashboardFilters>(() => ({ ...defaultFilters }));
+  const [filters, setFilters] = useState<DashboardFilters>(() => createDefaultFilters());
+  const [appliedFilters, setAppliedFilters] = useState<DashboardFilters>(() => createDefaultFilters());
+  const [top, setTop] = useState("10");
   const storeUuid = authStoreUuid(user);
 
-  const model = useMemo(() => createDashboardModel(data, appliedFilters), [appliedFilters, data]);
-  const rangeOptions = useMemo(() => optionList(model.dashboard, "summary_range").map((option) => (
-    option.value === "month" ? { ...option, label: copy.thisMonth } : option
-  )), [copy.thisMonth, model.dashboard]);
-  const yearOptions = useMemo(() => optionList(model.dashboard, "report_year"), [model.dashboard]);
-  const monthOptions = useMemo(() => optionList(model.dashboard, "report_month"), [model.dashboard]);
-  const topOptions = useMemo(() => optionList(model.dashboard, "top"), [model.dashboard]);
+  const model = useMemo(() => createDashboardModel(data, appliedFilters, top), [appliedFilters, data, top]);
+  const topOptions = useMemo(() => {
+    const options = optionList(model.dashboard, "top");
+    return options.length
+      ? options
+      : ["5", "10", "20", "50"].map((value) => ({ label: value, value }));
+  }, [model.dashboard]);
   const activeBranchUuid = branchStoreUuid === storeUuid && selectedBranchUuid
     ? selectedBranchUuid
     : user?.branch_uuid || "";
@@ -207,22 +208,26 @@ export function DashboardPage() {
     [activeBranchUuid, branchOptions]
   );
   const periodLabel = useMemo(
-    () => selectedLabel(rangeOptions, text(model.requestParams.summary_range, appliedFilters.summary_range)),
-    [appliedFilters.summary_range, model.requestParams, rangeOptions]
+    () => {
+      const start = text(model.requestParams.start_date, appliedFilters.start_date);
+      const end = text(model.requestParams.end_date, appliedFilters.end_date);
+      if (!start && !end) return "";
+      return start === end ? start : `${start} - ${end}`;
+    },
+    [appliedFilters.end_date, appliedFilters.start_date, model.requestParams]
   );
   const productSummary = useMemo(() => asRow(model.dashboard.product_summary), [model.dashboard]);
   const responseFilters = useMemo(() => filtersFromRequestParams(model.requestParams), [model.requestParams]);
   const responseFilterKey = filtersKey(responseFilters);
 
-  const load = useCallback(async (targetFilters: DashboardFilters) => {
+  const load = useCallback(async (targetFilters: DashboardFilters, targetTop: string) => {
     if (!activeBranchUuid) return;
     const params = {
       branch_uuid_fk: activeBranchUuid,
+      end_date: targetFilters.end_date,
       lang: language,
-      ...(targetFilters.report_month && { report_month: targetFilters.report_month }),
-      ...(targetFilters.report_year && { report_year: targetFilters.report_year }),
-      ...(targetFilters.summary_range && { summary_range: targetFilters.summary_range }),
-      ...(targetFilters.top && { top: targetFilters.top })
+      start_date: targetFilters.start_date,
+      top: targetTop
     };
 
     try {
@@ -241,13 +246,13 @@ export function DashboardPage() {
   }, [filters]);
 
   const handleReset = useCallback(() => {
-    setFilters({ ...defaultFilters });
-    setAppliedFilters({ ...defaultFilters });
+    const nextFilters = createDefaultFilters();
+    setFilters(nextFilters);
+    setAppliedFilters(nextFilters);
   }, []);
 
-  const handleTopChange = useCallback((top: string) => {
-    setFilters((current) => ({ ...current, top }));
-    setAppliedFilters((current) => ({ ...current, top }));
+  const handleTopChange = useCallback((value: string) => {
+    setTop(value);
   }, []);
 
   useEffect(() => {
@@ -256,8 +261,8 @@ export function DashboardPage() {
   }, [loadBranches, storeUuid, user?.branch_uuid]);
 
   useEffect(() => {
-    void load(appliedFilters);
-  }, [appliedFilters, load]);
+    void load(appliedFilters, top);
+  }, [appliedFilters, load, top]);
 
   useEffect(() => {
     if (!data || !responseFilterKey.replaceAll("|", "")) return;
@@ -276,9 +281,6 @@ export function DashboardPage() {
         copy={copy}
         filters={filters}
         loading={loading}
-        monthOptions={monthOptions}
-        rangeOptions={rangeOptions}
-        yearOptions={yearOptions}
         onApply={handleApply}
         onBranchChange={setSelectedBranch}
         onFilterChange={handleFilterChange}
@@ -314,7 +316,7 @@ export function DashboardPage() {
         copy={copy}
         loading={loading}
         products={model.productRows}
-        top={filters.top}
+        top={top}
         topOptions={topOptions}
         onTopChange={handleTopChange}
       />

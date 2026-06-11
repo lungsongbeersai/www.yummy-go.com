@@ -116,6 +116,7 @@
     "discount": "Discount",
     "discountRate": "Discount rate",
     "driveRevenue": "Drive 80%",
+    "endDate": "End date",
     "export": "Export",
     "failed": "Failed to load dashboard",
     "insights": "Insights",
@@ -140,6 +141,7 @@
     "reportMonth": "Report month",
     "reset": "Reset",
     "shareOfQty": "Share of qty",
+    "startDate": "Start date",
     "tableLoad": "Current table load",
     "tables": "tables",
     "tableStatus": "Table status",
@@ -900,6 +902,7 @@
       "iconHint": "Choose the icon shown in the navigation.",
       "iconDialogDescription": "Pick the icon that will appear in the navigation menu.",
       "iconDialogTitle": "Choose navigation icon",
+      "iconResultsCount": "Showing {{shown}} of {{total}}",
       "icons": {
         "currency": "Currency",
         "file": "File",
@@ -923,6 +926,7 @@
         "utensils": "Utensils"
       },
       "kicker": "PLC only",
+      "loadMoreIcons": "Load more icons",
       "loadFailed": "Menu load failed",
       "loading": "Loading menu permissions",
       "mainDeleted": "Main menu deleted",

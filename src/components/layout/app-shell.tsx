@@ -56,6 +56,7 @@ import {
   useSidebar
 } from "@/components/ui/sidebar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { MenuIcon } from "@/components/common/menu-icon";
 import { LanguageSwitch } from "@/components/layout/language-switch";
 import { NotificationMenu } from "@/components/layout/notification-menu";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
@@ -443,20 +444,20 @@ function AppSidebar({
   function renderLeaf(item: MenuItem) {
     const title = menuItemLabel(item, t);
     const active = routeIsActive(pathname, item.path);
-    const Icon = item.icon;
+    const icon = <SidebarItemIcon item={item} />;
 
     return (
       <SidebarMenuItem key={item.path ?? item.title}>
         {item.disabled || !item.path ? (
           <SidebarMenuButton disabled tooltip={title}>
-            {Icon ? <Icon /> : null}
+            {icon}
             <span>{title}</span>
             {!collapsed ? <SidebarMenuBadge>{t("nav.coming_soon")}</SidebarMenuBadge> : null}
           </SidebarMenuButton>
         ) : (
           <SidebarMenuButton asChild isActive={active} tooltip={title}>
             <Link href={item.path} onClick={closeMobile}>
-              {Icon ? <Icon /> : null}
+              {icon}
               <span className="min-w-0 flex-1 truncate">{title}</span>
               {item.badgeText && !collapsed ? (
                 <SidebarMenuBadge className="max-w-16 truncate" translate="no">
@@ -528,7 +529,7 @@ function AppSidebar({
     const title = menuItemLabel(item, t);
     const active = hasActiveRoute(item, pathname);
     const open = openMenus.has(item.title);
-    const Icon = item.icon;
+    const icon = <SidebarItemIcon item={item} />;
 
     if (collapsed) {
       return (
@@ -541,7 +542,7 @@ function AppSidebar({
                 isActive={active}
                 tooltip={title}
               >
-                {Icon ? <Icon /> : null}
+                {icon}
                 <span>{title}</span>
                 <ChevronRight
                   aria-hidden="true"
@@ -566,7 +567,7 @@ function AppSidebar({
           isActive={active}
           onClick={() => toggleMenu(item.title)}
         >
-          {Icon ? <Icon /> : null}
+          {icon}
           <span className="min-w-0 flex-1 truncate">{title}</span>
           {item.badgeText ? (
             <SidebarMenuBadge className="max-w-16 truncate" translate="no">
@@ -613,6 +614,13 @@ function AppSidebar({
       <SidebarRail />
     </Sidebar>
   );
+}
+
+function SidebarItemIcon({ item }: { item: MenuItem }) {
+  const Icon = item.icon;
+  if (Icon) return <Icon />;
+  if (item.iconName) return <MenuIcon value={item.iconName} />;
+  return null;
 }
 
 function AppBreadcrumb({ breadcrumbs }: { breadcrumbs: BreadcrumbTrailItem[] }) {

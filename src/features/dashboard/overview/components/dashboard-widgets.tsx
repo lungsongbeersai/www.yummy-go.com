@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Field, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -42,13 +43,10 @@ type FilterBarProps = {
   copy: DashboardCopy;
   filters: DashboardFilters;
   loading: boolean;
-  monthOptions: SelectOption[];
   onApply: () => void;
   onBranchChange: (value: string) => void;
   onFilterChange: (patch: Partial<DashboardFilters>) => void;
   onReset: () => void;
-  rangeOptions: SelectOption[];
-  yearOptions: SelectOption[];
 };
 
 const SelectControl = memo(function SelectControl({
@@ -81,6 +79,34 @@ const SelectControl = memo(function SelectControl({
           </SelectGroup>
         </SelectContent>
       </Select>
+    </Field>
+  );
+});
+
+const DateControl = memo(function DateControl({
+  label,
+  name,
+  onChange,
+  value
+}: {
+  label: string;
+  name: string;
+  onChange: (value: string) => void;
+  value: string;
+}) {
+  return (
+    <Field className="dashboard-filter-field min-w-0 gap-1.5">
+      <FieldLabel className="text-[11px] font-bold text-muted-foreground" htmlFor={name}>
+        {label}
+      </FieldLabel>
+      <Input
+        id={name}
+        name={name}
+        type="date"
+        value={value}
+        className="h-9 font-mono text-[13px] font-semibold"
+        onChange={(event) => onChange(event.target.value)}
+      />
     </Field>
   );
 });
@@ -174,31 +200,14 @@ export const DashboardFilterBar = memo(function DashboardFilterBar({
   copy,
   filters,
   loading,
-  monthOptions,
   onApply,
   onBranchChange,
   onFilterChange,
-  onReset,
-  rangeOptions,
-  yearOptions
+  onReset
 }: FilterBarProps) {
   return (
     <Card className="dashboard-filter-card border-border bg-card shadow-sm">
       <CardContent className="dashboard-filter-content">
-        <div className="dashboard-range-segment">
-          {rangeOptions.map((option) => (
-            <Button
-              key={option.value}
-              size="sm"
-              type="button"
-              variant={filters.summary_range === option.value ? "outline" : "ghost"}
-              className="h-8 px-3"
-              onClick={() => onFilterChange({ summary_range: option.value })}
-            >
-              {option.label}
-            </Button>
-          ))}
-        </div>
         <div className="dashboard-filter-selects">
           <SelectControl
             disabled={branchLoading || !branchOptions.length}
@@ -207,17 +216,17 @@ export const DashboardFilterBar = memo(function DashboardFilterBar({
             value={activeBranchUuid}
             onChange={onBranchChange}
           />
-          <SelectControl
-            label={copy.year}
-            options={yearOptions}
-            value={filters.report_year}
-            onChange={(value) => onFilterChange({ report_year: value })}
+          <DateControl
+            label={copy.startDate}
+            name="dashboard-start-date"
+            value={filters.start_date}
+            onChange={(value) => onFilterChange({ start_date: value })}
           />
-          <SelectControl
-            label={copy.month}
-            options={monthOptions}
-            value={filters.report_month}
-            onChange={(value) => onFilterChange({ report_month: value })}
+          <DateControl
+            label={copy.endDate}
+            name="dashboard-end-date"
+            value={filters.end_date}
+            onChange={(value) => onFilterChange({ end_date: value })}
           />
         </div>
         <div className="dashboard-filter-actions">
@@ -257,9 +266,8 @@ export const DashboardQueryBar = memo(function DashboardQueryBar({
   const [copied, setCopied] = useState(false);
   const params = [
     ["branch_uuid_fk", text(requestParams.branch_uuid_fk, activeBranchUuid)],
-    ["summary_range", text(requestParams.summary_range, "")],
-    ["report_year", text(requestParams.report_year, "")],
-    ["report_month", text(requestParams.report_month, "")],
+    ["start_date", text(requestParams.start_date, "")],
+    ["end_date", text(requestParams.end_date, "")],
     ["lang", text(requestParams.lang, "")],
     ["top", text(requestParams.top, "")]
   ].filter(([, value]) => value);
@@ -453,8 +461,7 @@ export const DashboardFooter = memo(function DashboardFooter({
   const cutoff = numberFrom(filtersMeta, "business_cutoff_hour");
   const details = [
     cutoff ? `${copy.cutoff} ${cutoff}:00` : "",
-    text(requestParams.summary_range, ""),
-    text(requestParams.report_month, "")
+    [text(requestParams.start_date, ""), text(requestParams.end_date, "")].filter(Boolean).join(" - ")
   ].filter(Boolean);
 
   return (

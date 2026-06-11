@@ -38,6 +38,7 @@ import {
   renderMobileEscpos,
   resolvePrinterDeviceIdentity,
   savePrinter,
+  sendMobileBackendPrintJob,
   type PrintJob
 } from "@/services/printer";
 
@@ -100,6 +101,23 @@ describe("printer service dispatch", () => {
 
     await dispatchPrintJob(job);
 
+    expect(apiMocks.apiRequest).toHaveBeenCalledWith(
+      "post",
+      "/api/v1/printer/mobile/render-escpos",
+      { data: job }
+    );
+    expect(axiosMocks.get).not.toHaveBeenCalled();
+    expect(axiosMocks.post).not.toHaveBeenCalled();
+  });
+
+  it("trusts backend mobile print success even without escpos_base64", async () => {
+    const job = printJob({
+      agent_id: BROWSER_PRINTER_AGENT_ID,
+      device_code: "android-phone-web-device-1"
+    });
+    apiMocks.apiRequest.mockResolvedValue({ status: "success", message: "success", data: {} });
+
+    await expect(dispatchPrintJob(job)).resolves.toBeUndefined();
     expect(apiMocks.apiRequest).toHaveBeenCalledWith(
       "post",
       "/api/v1/printer/mobile/render-escpos",
@@ -445,6 +463,22 @@ describe("printer API payloads", () => {
     apiMocks.apiRequest.mockResolvedValue({ data: { escpos_base64: "BASE64" } });
 
     await expect(renderMobileEscpos(job)).resolves.toBe("BASE64");
+    expect(apiMocks.apiRequest).toHaveBeenCalledWith(
+      "post",
+      "/api/v1/printer/mobile/render-escpos",
+      { data: job }
+    );
+  });
+
+  it("can send browser mobile jobs to backend without reading escpos_base64", async () => {
+    const job = printJob({
+      agent_id: BROWSER_PRINTER_AGENT_ID,
+      device_code: "android-phone-web-device-1",
+      print_client: "mobile_wifi"
+    });
+    apiMocks.apiRequest.mockResolvedValue({ status: "success", message: "success", data: {} });
+
+    await expect(sendMobileBackendPrintJob(job)).resolves.toBeUndefined();
     expect(apiMocks.apiRequest).toHaveBeenCalledWith(
       "post",
       "/api/v1/printer/mobile/render-escpos",

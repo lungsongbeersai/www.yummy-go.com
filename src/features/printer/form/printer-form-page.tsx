@@ -481,7 +481,11 @@ export function PrinterFormPage() {
 
   return (
     <div className="flex flex-col gap-5">
-      <BackButton fallbackHref="/printer" label={t("printer.title")} />
+      <BackButton
+        fallbackHref="/printer"
+        label={t("printer.title")}
+        className="self-start"
+      />
       <Card>
         <CardHeader>
           <div>

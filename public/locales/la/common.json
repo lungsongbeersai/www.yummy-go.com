@@ -114,6 +114,7 @@
     "discount": "ສ່ວນຫຼຸດ",
     "discountRate": "ອັດຕາສ່ວນຫຼຸດ",
     "driveRevenue": "ສ້າງ 80%",
+    "endDate": "ວັນທີສິ້ນສຸດ",
     "export": "ສົ່ງອອກ",
     "insights": "ຂໍ້ມູນສໍາຄັນ",
     "lang": "ພາສາ",
@@ -136,6 +137,7 @@
     "reportMonth": "ເດືອນລາຍງານ",
     "reset": "ລ້າງ",
     "shareOfQty": "ສັດສ່ວນຈໍານວນ",
+    "startDate": "ວັນທີເລີ່ມຕົ້ນ",
     "tableLoad": "ສະຖານະໂຕະປັດຈຸບັນ",
     "tables": "ໂຕະ",
     "tableStatus": "ສະຖານະໂຕະ",
@@ -900,6 +902,7 @@
     "iconHint": "ເລືອກໄອຄອນທີ່ສະແດງໃນເມນູ.",
     "iconDialogDescription": "ເລືອກໄອຄອນທີ່ຈະສະແດງໃນເມນູນຳທາງ.",
     "iconDialogTitle": "ເລືອກໄອຄອນເມນູ",
+    "iconResultsCount": "ສະແດງ {{shown}} ຈາກ {{total}}",
     "icons": {
       "currency": "ສະກຸນເງິນ",
       "file": "ໄຟລ໌",
@@ -923,6 +926,7 @@
       "utensils": "ອາຫານ"
     },
     "kicker": "ສຳລັບ PLC ເທົ່ານັ້ນ",
+    "loadMoreIcons": "ໂຫຼດໄອຄອນເພີ່ມ",
     "loadFailed": "ໂຫຼດເມນູບໍ່ສຳເລັດ",
     "loading": "ກຳລັງໂຫຼດສິດທິເມນູ",
     "mainDeleted": "ລຶບເມນູຫຼັກແລ້ວ",

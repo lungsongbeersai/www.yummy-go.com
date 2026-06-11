@@ -28,6 +28,7 @@ import {
   EmptyMedia,
   EmptyTitle
 } from "@/components/ui/empty";
+import { MenuIcon } from "@/components/common/menu-icon";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -232,7 +233,6 @@ function SelectedMenuPanel({
   const { t } = useTranslation();
   const submenus = menuSubmenus(menu);
   const selectedIcon = iconOption(menu.menu_icon);
-  const SelectedIcon = selectedIcon.icon ?? FileText;
 
   return (
     <>
@@ -240,7 +240,7 @@ function SelectedMenuPanel({
         <div className="flex min-w-0 flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
           <div className="flex min-w-0 items-start gap-3">
             <span className="grid size-11 shrink-0 place-items-center rounded-md bg-primary/10 text-primary [&_svg]:size-5">
-              <SelectedIcon aria-hidden />
+              <MenuIcon value={selectedIcon.value} />
             </span>
             <div className="min-w-0">
               <p className="text-xs font-bold text-muted-foreground">{t("permissionMenu.selectedMenu")}</p>
@@ -351,7 +351,6 @@ function SortableMainMenuCard({
   const { t } = useTranslation();
   const sortDisabled = busy || searchActive;
   const selectedIcon = iconOption(menu.menu_icon);
-  const SelectedIcon = selectedIcon.icon ?? FileText;
   const badgeText = menuBadgeText(menu.menu_badge, menu.menu_badge_text);
   const { attributes, isDragging, listeners, setNodeRef, transform, transition } = useSortable({
     disabled: sortDisabled,
@@ -393,7 +392,7 @@ function SortableMainMenuCard({
         onClick={() => onSelect(menu.menu_id)}
       >
         <span className="grid size-9 shrink-0 place-items-center rounded-md bg-primary/10 text-primary [&_svg]:size-4">
-          <SelectedIcon aria-hidden />
+          <MenuIcon value={selectedIcon.value} />
         </span>
         <span className="min-w-0 flex-1">
           <span className="flex min-w-0 items-center gap-2">

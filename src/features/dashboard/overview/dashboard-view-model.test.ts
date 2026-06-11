@@ -105,8 +105,15 @@ describe("dashboard view model", () => {
     ]);
   });
 
-  it("uses request top first and then filter top for product row limits", () => {
-    const filters = { ...createDefaultFilters(), top: "2" };
+  it("creates current-date default filters", () => {
+    expect(createDefaultFilters(new Date(2026, 5, 11, 12))).toEqual({
+      end_date: "2026-06-11",
+      start_date: "2026-06-11"
+    });
+  });
+
+  it("uses request top first and then report top for product row limits", () => {
+    const filters = createDefaultFilters(new Date(2026, 5, 11, 12));
     const products = [
       { prod_name: "A", prod_uuid: "a", qty_total: 10, revenue_total: 100 },
       { prod_name: "B", prod_uuid: "b", qty_total: 9, revenue_total: 90 },
@@ -122,7 +129,8 @@ describe("dashboard view model", () => {
           top: "1"
         }
       }),
-      filters
+      filters,
+      "2"
     );
     const filterTopModel = createDashboardModel(
       dashboardData({
@@ -131,7 +139,8 @@ describe("dashboard view model", () => {
         },
         request_params: {}
       }),
-      filters
+      filters,
+      "2"
     );
 
     expect(requestTopModel.productRows).toHaveLength(1);
