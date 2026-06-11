@@ -436,22 +436,43 @@ export async function dispatchPrintJob(
   job: PrintJob | TableQRPrintJob,
   localAgent?: AgentInfo,
 ) {
+  console.log("[printer] dispatchPrintJob", {
+    agent_id: job.agent_id,
+    device_code: job.device_code,
+    interface_value: textValue(job.interface_value),
+    isBrowserJob: isBrowserDevicePrintJob(job),
+  });
+
   if (isBrowserDevicePrintJob(job)) {
+    console.log("[printer] mobile branch: render start");
+
     const escposBase64 = await renderMobileEscpos(job);
+
+    console.log("[printer] mobile branch: render success", {
+      base64Length: escposBase64.length,
+    });
 
     const { printMobileEscposOverTcp } = await import(
       "@/services/printer/mobile-tcp"
     );
+
+    console.log("[printer] mobile branch: tcp print start");
 
     await printMobileEscposOverTcp({
       interface_value: textValue(job.interface_value),
       escpos_base64: escposBase64,
     });
 
+    console.log("[printer] mobile branch: tcp print success");
+
     return;
   }
 
+  console.log("[printer] desktop branch: local agent print start");
+
   await printWithLocalAgent(job, localAgent);
+
+  console.log("[printer] desktop branch: local agent print success");
 }
 
 export async function printOps(job: PrintJob, localAgent?: AgentInfo) {

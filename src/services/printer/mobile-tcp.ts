@@ -29,7 +29,13 @@ export async function printMobileEscposOverTcp({
     interface_value?: string;
     escpos_base64: string;
 }) {
+    console.log("[mobile-tcp] start", {
+        interface_value,
+        base64Length: escpos_base64?.length,
+    });
+
     if (!Capacitor.isNativePlatform()) {
+        console.error("[mobile-tcp] not native platform");
         throw new ServiceError(
             "Mobile TCP printing works only inside the Capacitor app.",
             501,
@@ -38,26 +44,42 @@ export async function printMobileEscposOverTcp({
 
     const { host, port } = parseTcpInterface(interface_value);
 
-    if (!escpos_base64) {
-        throw new ServiceError("Mobile ESC/POS data missing", 500);
-    }
+    console.log("[mobile-tcp] parsed tcp", { host, port });
 
     const mod = await import("@deedarb/capacitor-tcp-socket");
+
+    console.log("[mobile-tcp] plugin loaded", Object.keys(mod));
+
     const TcpSocket = mod.TcpSocket;
+
+    console.log("[mobile-tcp] connect start");
 
     const connected = await TcpSocket.connect({
         ipAddress: host,
         port,
     });
 
+    console.log("[mobile-tcp] connect success", connected);
+
     const client = connected.client;
 
     try {
+        console.log("[mobile-tcp] send start");
+
         await TcpSocket.send({
             client,
             data: escpos_base64,
         });
+
+        console.log("[mobile-tcp] send success");
+    } catch (error) {
+        console.error("[mobile-tcp] send failed", error);
+        throw error;
     } finally {
-        await TcpSocket.disconnect({ client }).catch(() => undefined);
+        console.log("[mobile-tcp] disconnect start");
+        await TcpSocket.disconnect({ client }).catch((error) => {
+            console.error("[mobile-tcp] disconnect failed", error);
+        });
+        console.log("[mobile-tcp] disconnect done");
     }
 }
