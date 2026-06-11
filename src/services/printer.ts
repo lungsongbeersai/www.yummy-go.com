@@ -368,6 +368,10 @@ function assertPrintJobForAgent(job: PrintJob | TableQRPrintJob, agent: AgentInf
   }
 }
 
+function isBrowserDevicePrintJob(job: PrintJob | TableQRPrintJob | null | undefined) {
+  return isBrowserPrinterAgentId(job?.agent_id) && textValue(job?.device_code).includes("-web-");
+}
+
 export type CheckPrinterAgentConnectionResult =
   | { ok: true; agent: AgentInfo }
   | { ok: false; error: string };
@@ -408,7 +412,7 @@ export async function resolvePrinterDeviceIdentity(agentUrl = AGENT_URL): Promis
   }
 }
 
-export async function printOps(job: PrintJob, localAgent?: AgentInfo) {
+export async function printWithLocalAgent(job: PrintJob | TableQRPrintJob, localAgent?: AgentInfo) {
   const agent = localAgent ?? await getLocalAgentInfo();
   assertPrintJobForAgent(job, agent);
 
@@ -419,20 +423,21 @@ export async function printOps(job: PrintJob, localAgent?: AgentInfo) {
   assertAgentOk(data, "Print failed");
 }
 
-export async function printTableQRJob(job: TableQRPrintJob) {
-  if (Array.isArray(job.ops) && job.ops.length) {
-    await printOps(job as PrintJob);
+export async function dispatchPrintJob(job: PrintJob | TableQRPrintJob, localAgent?: AgentInfo) {
+  if (isBrowserDevicePrintJob(job)) {
+    await renderMobileEscpos(job);
     return;
   }
 
-  const agent = await getLocalAgentInfo();
-  assertPrintJobForAgent(job, agent);
+  await printWithLocalAgent(job, localAgent);
+}
 
-  const { data } = await axios.post<PrintOpsAgentResponse>(`${printerAgentBase(AGENT_URL)}/print-ops`, job, {
-    headers: { "x-agent-secret": AGENT_SECRET },
-    timeout: 10000
-  });
-  assertAgentOk(data, "Print failed");
+export async function printOps(job: PrintJob, localAgent?: AgentInfo) {
+  await printWithLocalAgent(job, localAgent);
+}
+
+export async function printTableQRJob(job: TableQRPrintJob) {
+  await dispatchPrintJob(job);
 }
 
 export async function getCategoryRoles(login_uuid_fk: string) {
@@ -479,15 +484,26 @@ export async function executeKitchenPrintJobs(input: ExecuteKitchenPrintInput): 
   input.onProgress?.({ total: 0, completed: 0, successCount: 0, failedCount: 0, phase: "fetching" });
   const pending = await getPendingPrintJobs(jobUuid, loginUuid);
   const printItems = pending.flatMap((job) => job.print_items ?? []);
+  const hasBrowserJobs = printItems.some((item) =>
+    item.can_print && item.job && isBrowserDevicePrintJob(item.job)
+  );
+  const needsLocalAgent = printItems.some((item) =>
+    item.can_print && item.job && !isBrowserDevicePrintJob(item.job)
+  );
   let localAgent: AgentInfo | null = null;
 
-  if (printItems.some((item) => item.can_print && item.job)) {
-    localAgent = await getLocalAgentInfo();
+  if (needsLocalAgent) {
+    try {
+      localAgent = await getLocalAgentInfo();
+    } catch (error) {
+      if (!hasBrowserJobs) throw error;
+    }
   }
 
   const items = printItems.filter((item) => {
     if (!item.can_print) return true;
     if (!item.job) return false;
+    if (isBrowserDevicePrintJob(item.job)) return true;
     return localAgent ? isPrintJobForAgent(item.job, localAgent) : false;
   });
   let successCount = 0;
@@ -505,7 +521,7 @@ export async function executeKitchenPrintJobs(input: ExecuteKitchenPrintInput): 
       if (!item.can_print) throw new ServiceError(item.error || "Item cannot print", 400);
       if (!item.job || !item.ack_success_payload) throw new ServiceError("Print job payload missing", 400);
 
-      await printOps(item.job, localAgent ?? undefined);
+      await dispatchPrintJob(item.job, localAgent ?? undefined);
       await ackPrintJob(item.ack_success_payload);
       successCount++;
     } catch (error) {

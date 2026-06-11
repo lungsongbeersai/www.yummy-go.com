@@ -5,6 +5,7 @@ import {
   ackPrintJob,
   buildTestJob,
   deletePrinter,
+  dispatchPrintJob,
   executeKitchenPrintJobs,
   getAgentFiles,
   fetchPrinterCategoryRole,
@@ -14,7 +15,6 @@ import {
   getPrinterOptions,
   getPrinterRoles,
   getPrinters,
-  printOps,
   printTableQRJob,
   resolvePrinterDeviceIdentity,
   resolvePrintersByCategory,
@@ -277,7 +277,7 @@ export const usePrinterStore = create<PrinterState>((set) => ({
     set({ printing: true, error: null });
     try {
       const result = await buildTestJob(input);
-      await printOps(result.data.job);
+      await dispatchPrintJob(result.data.job);
       set({ printing: false });
     } catch (error) {
       set({ error: errorMessage(error), printing: false });
@@ -287,7 +287,7 @@ export const usePrinterStore = create<PrinterState>((set) => ({
   print: async (job) => {
     set({ printing: true, error: null });
     try {
-      await printOps(job);
+      await dispatchPrintJob(job);
       set({ printing: false });
     } catch (error) {
       set({ error: errorMessage(error), printing: false });
