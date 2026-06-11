@@ -30,9 +30,11 @@ vi.mock("axios", () => ({
 import {
   BROWSER_PRINTER_AGENT_ID,
   BROWSER_PRINTER_AGENT_URL,
+  dispatchPrintJob,
   executeKitchenPrintJobs,
   getPrinters,
   printOps,
+  printTableQRJob,
   renderMobileEscpos,
   resolvePrinterDeviceIdentity,
   savePrinter,
@@ -89,6 +91,24 @@ describe("printer service dispatch", () => {
     );
   });
 
+  it("prints browser device jobs through the backend mobile render endpoint", async () => {
+    const job = printJob({
+      agent_id: BROWSER_PRINTER_AGENT_ID,
+      device_code: "android-phone-web-device-1"
+    });
+    apiMocks.apiRequest.mockResolvedValue({ data: { escpos_base64: "BASE64" } });
+
+    await dispatchPrintJob(job);
+
+    expect(apiMocks.apiRequest).toHaveBeenCalledWith(
+      "post",
+      "/api/v1/printer/mobile/render-escpos",
+      { data: job }
+    );
+    expect(axiosMocks.get).not.toHaveBeenCalled();
+    expect(axiosMocks.post).not.toHaveBeenCalled();
+  });
+
   it("rejects jobs that belong to another device", async () => {
     axiosMocks.get.mockResolvedValue({
       data: { agent_id: "agent-1", agent_name: "Local", device_code: "device-1" }
@@ -98,6 +118,23 @@ describe("printer service dispatch", () => {
       "belongs to another agent"
     );
     expect(axiosMocks.post).not.toHaveBeenCalled();
+  });
+
+  it("falls back to local agent validation when browser device_code is missing", async () => {
+    const job = printJob({
+      agent_id: BROWSER_PRINTER_AGENT_ID,
+      device_code: "device-1"
+    });
+    axiosMocks.get.mockResolvedValue({
+      data: { agent_id: "agent-1", agent_name: "Local", device_code: "device-1" }
+    });
+
+    await expect(dispatchPrintJob(job)).rejects.toThrow("belongs to another agent");
+    expect(apiMocks.apiRequest).not.toHaveBeenCalledWith(
+      "post",
+      "/api/v1/printer/mobile/render-escpos",
+      expect.anything()
+    );
   });
 
   it("prints matching kitchen jobs and acks success", async () => {
@@ -140,6 +177,138 @@ describe("printer service dispatch", () => {
     ).resolves.toEqual({ successCount: 1, failedCount: 0, total: 1 });
 
     expect(ackPayloads).toEqual([successAck]);
+  });
+
+  it("keeps printOps local-agent only for legacy direct calls", async () => {
+    const job = printJob({
+      agent_id: BROWSER_PRINTER_AGENT_ID,
+      device_code: "android-phone-web-device-1"
+    });
+    axiosMocks.get.mockResolvedValue({
+      data: { agent_id: "agent-1", agent_name: "Local", device_code: "device-1" }
+    });
+
+    await expect(printOps(job)).rejects.toThrow("belongs to another agent");
+    expect(apiMocks.apiRequest).not.toHaveBeenCalledWith(
+      "post",
+      "/api/v1/printer/mobile/render-escpos",
+      expect.anything()
+    );
+  });
+
+  it("routes browser table QR jobs through the backend mobile render endpoint", async () => {
+    const job = {
+      agent_id: BROWSER_PRINTER_AGENT_ID,
+      device_code: "android-phone-web-device-1",
+      document_type: "table_qr",
+      ops: [{ type: "text", text: "Table QR" }]
+    };
+    apiMocks.apiRequest.mockResolvedValue({ data: { escpos_base64: "BASE64" } });
+
+    await printTableQRJob(job);
+
+    expect(apiMocks.apiRequest).toHaveBeenCalledWith(
+      "post",
+      "/api/v1/printer/mobile/render-escpos",
+      { data: job }
+    );
+    expect(axiosMocks.get).not.toHaveBeenCalled();
+    expect(axiosMocks.post).not.toHaveBeenCalled();
+  });
+
+  it("acks browser kitchen jobs after backend render success without checking the local agent", async () => {
+    const ackPayloads: unknown[] = [];
+    const job = printJob({
+      agent_id: BROWSER_PRINTER_AGENT_ID,
+      device_code: "android-phone-web-device-1"
+    });
+    apiMocks.apiRequest.mockImplementation(async (method, url, options) => {
+      if (method === "get" && url === "/api/v1/printer/jobs/pending") {
+        return {
+          data: [
+            {
+              print_job_uuid: "job-1",
+              print_items: [
+                {
+                  ack_failed_payload: failedAck,
+                  ack_success_payload: successAck,
+                  can_print: true,
+                  job,
+                  print_job_item_uuid: "item-1"
+                }
+              ]
+            }
+          ]
+        };
+      }
+      if (method === "post" && url === "/api/v1/printer/mobile/render-escpos") {
+        return { data: { escpos_base64: "BASE64" } };
+      }
+      if (method === "post" && url === "/api/v1/printer/jobs/ack") {
+        ackPayloads.push(options?.data);
+        return {};
+      }
+      throw new Error(`Unexpected request ${method} ${url}`);
+    });
+
+    await expect(
+      executeKitchenPrintJobs({
+        pending_query: { print_job_uuid: "job-1", login_uuid_fk: "login-1" }
+      })
+    ).resolves.toEqual({ successCount: 1, failedCount: 0, total: 1 });
+
+    expect(axiosMocks.get).not.toHaveBeenCalled();
+    expect(ackPayloads).toEqual([successAck]);
+  });
+
+  it("acks failed browser kitchen jobs when backend render fails", async () => {
+    const ackPayloads: AckPayload[] = [];
+    const job = printJob({
+      agent_id: BROWSER_PRINTER_AGENT_ID,
+      device_code: "android-phone-web-device-1"
+    });
+    apiMocks.apiRequest.mockImplementation(async (method, url, options) => {
+      if (method === "get" && url === "/api/v1/printer/jobs/pending") {
+        return {
+          data: [
+            {
+              print_job_uuid: "job-1",
+              print_items: [
+                {
+                  ack_failed_payload: failedAck,
+                  ack_success_payload: successAck,
+                  can_print: true,
+                  job,
+                  print_job_item_uuid: "item-1"
+                }
+              ]
+            }
+          ]
+        };
+      }
+      if (method === "post" && url === "/api/v1/printer/mobile/render-escpos") {
+        throw new Error("render failed");
+      }
+      if (method === "post" && url === "/api/v1/printer/jobs/ack") {
+        ackPayloads.push(options?.data);
+        return {};
+      }
+      throw new Error(`Unexpected request ${method} ${url}`);
+    });
+
+    await expect(
+      executeKitchenPrintJobs({
+        pending_query: { print_job_uuid: "job-1", login_uuid_fk: "login-1" }
+      })
+    ).resolves.toEqual({ successCount: 0, failedCount: 1, total: 1 });
+
+    expect(axiosMocks.get).not.toHaveBeenCalled();
+    expect(ackPayloads).toEqual([
+      {
+        print_job_uuid: "job-1",
+        results: [{ print_job_item_uuid: "item-1", status: "failed", reason: "render failed" }]
+      }
+    ]);
   });
 });
 
