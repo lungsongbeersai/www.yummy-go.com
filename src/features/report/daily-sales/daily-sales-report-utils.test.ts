@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { DailySalesBillGroup } from "@/stores/report-store";
-import { reportColumns, summaryConfigs } from "./daily-sales-report-columns";
+import {
+  reportColumns,
+  reportDetailItemColumns,
+  summaryConfigs,
+} from "./daily-sales-report-columns";
 import {
   dateTotalsFromGroups,
   exportSummaryRows,
@@ -9,10 +13,13 @@ import {
   selectedDetailBillGroups,
 } from "./daily-sales-report-export-utils";
 import {
+  billSummaryMetrics,
   detailPaginationBasis,
   firstNumber,
   formatDate,
+  hasDisplayValue,
   isCancelledRow,
+  paymentMethodParam,
   readValue,
   reportImageColor,
   reportImageSrc,
@@ -33,6 +40,7 @@ function billGroup(
   return {
     amountTotal: 100_000,
     baseTotal: 90_000,
+    branchName: "Branch",
     cancelled: false,
     cashierName: "Cashier",
     changeAmount: 1_000,
@@ -73,6 +81,11 @@ function billGroup(
 }
 
 describe("daily sales report basic helpers", () => {
+  it("keeps the all payment filter because the API expects it", () => {
+    expect(paymentMethodParam("all")).toBe("all");
+    expect(paymentMethodParam("cash")).toBe("cash");
+  });
+
   it("reads fallback values and formats dates safely", () => {
     const row = { invoice_no: "INV-9", total: "12000" };
 
@@ -102,6 +115,16 @@ describe("daily sales report basic helpers", () => {
       reportRecordId({ invoice_no: "INV", product_name: "Tea", qty: 1 }),
     ).toContain("line:INV:Tea");
   });
+
+  it("detects display values for hide-empty logic", () => {
+    expect(hasDisplayValue("active")).toBe(true);
+    expect(hasDisplayValue("paid")).toBe(true);
+    expect(hasDisplayValue("")).toBe(false);
+    expect(hasDisplayValue(null)).toBe(false);
+    expect(hasDisplayValue(undefined)).toBe(false);
+    expect(hasDisplayValue("  ")).toBe(false);
+    expect(hasDisplayValue("-")).toBe(false);
+  });
 });
 
 describe("daily sales report totals and selection", () => {
@@ -126,6 +149,66 @@ describe("daily sales report totals and selection", () => {
     expect(detailTotal.lines_count).toBe(2);
     expect(detailTotal.qty_total).toBe(3);
     expect(detailTotal.topping_total).toBe(10);
+  });
+
+  it("detects status data presence for hide-empty logic", () => {
+    const itemsWithStatus = [
+      { status_name: "paid", product_name: "Noodle" },
+      { status: "active", product_name: "Tea" },
+    ];
+    const itemsWithoutStatus = [
+      { product_name: "Noodle" },
+      { product_name: "Tea" },
+    ];
+    const itemsWithEmptyStatus = [
+      { status_name: "", product_name: "Noodle" },
+      { status: "-", product_name: "Tea" },
+    ];
+
+    expect(
+      itemsWithStatus.some((item) =>
+        hasDisplayValue(
+          readValue(item, [
+            "status_name",
+            "status_text",
+            "status",
+            "status_code",
+            "order_status_text",
+            "order_it_status_text",
+          ]),
+        ),
+      ),
+    ).toBe(true);
+
+    expect(
+      itemsWithoutStatus.some((item) =>
+        hasDisplayValue(
+          readValue(item, [
+            "status_name",
+            "status_text",
+            "status",
+            "status_code",
+            "order_status_text",
+            "order_it_status_text",
+          ]),
+        ),
+      ),
+    ).toBe(false);
+
+    expect(
+      itemsWithEmptyStatus.some((item) =>
+        hasDisplayValue(
+          readValue(item, [
+            "status_name",
+            "status_text",
+            "status",
+            "status_code",
+            "order_status_text",
+            "order_it_status_text",
+          ]),
+        ),
+      ),
+    ).toBe(false);
   });
 
   it("calculates bill group totals and date totals", () => {
@@ -167,6 +250,57 @@ describe("daily sales report totals and selection", () => {
 });
 
 describe("daily sales report export helpers", () => {
+  it("orders detail item columns to match the detail API shape", () => {
+    expect(reportDetailItemColumns(t).map((column) => column.header)).toEqual([
+      "report.columns.productImage",
+      "report.columns.productName",
+      "report.columns.salePrice",
+      "report.columns.toppingTotal",
+      "report.columns.amount",
+      "report.columns.quantity",
+      "report.columns.itemDiscount",
+      "report.columns.lineTotal",
+    ]);
+  });
+
+  it("uses sale_price for detail item price before amount", () => {
+    const itemColumns = reportDetailItemColumns(t);
+    const salePriceColumn = itemColumns.find(
+      (column) => column.header === "report.columns.salePrice",
+    );
+    const amountColumn = itemColumns.find(
+      (column) => column.header === "report.columns.amount",
+    );
+
+    expect(salePriceColumn).toBeDefined();
+    expect(amountColumn).toBeDefined();
+    expect(
+      exportTableRows(
+        [{ amount: 65_000, product_name: "Burger", sale_price: 60_000 }],
+        [salePriceColumn, amountColumn].filter(
+          (column): column is NonNullable<typeof column> => Boolean(column),
+        ),
+      )[0],
+    ).toMatchObject({
+      "report.columns.amount": 65_000,
+      "report.columns.salePrice": 60_000,
+    });
+  });
+
+  it("uses only API summary fields for expanded bill metrics", () => {
+    expect(
+      billSummaryMetrics(t, billGroup({ serviceChargeAmount: 14_000 })).map(
+        (metric) => metric.label,
+      ),
+    ).toEqual([
+      "report.cards.orderTotal",
+      "report.cards.toppingTotal",
+      "report.cards.discountAmount",
+      "report.cards.vatAmount",
+      "report.cards.netTotal",
+    ]);
+  });
+
   it("builds summary/export table rows and filenames", () => {
     const filters: ReportFilters = {
       branchUuid: "branch-1",

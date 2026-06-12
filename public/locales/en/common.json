@@ -1365,6 +1365,7 @@
       "vatAmount": "VAT amount"
     },
     "columns": {
+      "amount": "Amount",
       "basePrice": "Base price",
       "cashierName": "Cashier",
       "cashReceived": "Cash received",
@@ -1383,6 +1384,7 @@
       "productName": "Product",
       "quantity": "Qty",
       "saleDate": "Sale date",
+      "salePrice": "Sale price",
       "serviceCharge": "Service charge",
       "size": "Size",
       "status": "Status",

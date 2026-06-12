@@ -70,28 +70,39 @@ export function exportTableRows(rows: ApiEntity[], columns: ReportColumn[]) {
 export function exportBillRows(
   groups: DailySalesBillGroup[],
   t: (key: string) => string,
+  includeStatus = true,
 ) {
-  return groups.map((group, index) => ({
-    [t("fields.no")]: index + 1,
-    [t("report.columns.invoiceNumber")]: group.invoiceNumber,
-    [t("report.columns.saleDate")]: group.saleDate,
-    [t("report.columns.tableName")]: group.tableName,
-    [t("report.columns.paymentType")]: group.paymentType,
-    [t("report.billItems")]: group.itemCount,
-    [t("report.cards.orderTotal")]: group.amountTotal,
-    [t("report.cards.toppingTotal")]: group.toppingTotal,
-    [t("report.cards.discountAmount")]: group.discountBillAmount,
-    [t("report.cards.itemDiscountAmount")]: group.itemDiscountAmount,
-    [t("report.cards.serviceCharge")]: group.serviceChargeAmount,
-    [t("report.cards.vatAmount")]: group.vatAmount,
-    [t("report.cards.netTotal")]: group.lineTotal,
-    [t("report.cards.receiveCash")]: group.receiveCashAmount,
-    [t("report.cards.receiveTransfer")]: group.receiveTransferAmount,
-    [t("report.cards.debtAmount")]: group.debtAmount,
-    [t("report.cards.changeAmount")]: group.changeAmount,
-    [t("report.columns.cashierName")]: group.cashierName,
-    [t("report.columns.status")]: group.status,
-  }));
+  const allItems = groups.flatMap((group) => group.items);
+  const hasStatusData = allItems.some((item) => {
+    const value = readValue(item, [
+      "status_name",
+      "status_text",
+      "status",
+      "status_code",
+      "order_status_text",
+      "order_it_status_text",
+    ]);
+    return value !== null && value !== undefined && value !== "";
+  });
+
+  return groups.map((group, index) => {
+    const row: Record<string, string | number> = {
+      [t("fields.no")]: index + 1,
+      [t("report.columns.invoiceNumber")]: group.invoiceNumber,
+      [t("report.columns.saleDate")]: group.saleDate,
+      [t("report.columns.tableName")]: group.tableName,
+      [t("report.columns.paymentType")]: group.paymentType,
+      [t("report.columns.cashierName")]: group.cashierName,
+      [t("report.billItems")]: group.itemCount,
+      [t("report.cards.netTotal")]: group.lineTotal,
+    };
+
+    if (includeStatus && hasStatusData) {
+      row[t("report.columns.status")] = group.status;
+    }
+
+    return row;
+  });
 }
 
 export function exportDateTotalRows(
@@ -126,18 +137,6 @@ export function exportDateTotalRows(
     [t("report.cards.netTotal")]: firstNumber(
       readValue(row, ["total", "net_total", "grand_total"]),
     ),
-    [t("report.cards.receiveCash")]: firstNumber(
-      readValue(row, ["receive_cash", "cash_received"]),
-    ),
-    [t("report.cards.receiveTransfer")]: firstNumber(
-      readValue(row, ["receive_transfer", "transfer_received"]),
-    ),
-    [t("report.cards.debtAmount")]: firstNumber(
-      readValue(row, ["debt_amount", "debt_total"]),
-    ),
-    [t("report.cards.changeAmount")]: firstNumber(
-      readValue(row, ["change_amount", "change_total"]),
-    ),
   }));
 }
 
@@ -149,13 +148,9 @@ export function dateTotalsFromGroups(groups: DailySalesBillGroup[]) {
     const current = byDate.get(date) ?? {
       amount: 0,
       bills_count: 0,
-      change_amount: 0,
       date,
-      debt_amount: 0,
       discount_bill: 0,
       item_discount: 0,
-      receive_cash: 0,
-      receive_transfer: 0,
       service_charge: 0,
       topping_total: 0,
       total: 0,
@@ -173,13 +168,6 @@ export function dateTotalsFromGroups(groups: DailySalesBillGroup[]) {
     current.service_charge =
       firstNumber(current.service_charge) + group.serviceChargeAmount;
     current.total = firstNumber(current.total) + group.lineTotal;
-    current.receive_cash =
-      firstNumber(current.receive_cash) + group.receiveCashAmount;
-    current.receive_transfer =
-      firstNumber(current.receive_transfer) + group.receiveTransferAmount;
-    current.debt_amount = firstNumber(current.debt_amount) + group.debtAmount;
-    current.change_amount =
-      firstNumber(current.change_amount) + group.changeAmount;
     current.vat = firstNumber(current.vat) + group.vatAmount;
     byDate.set(date, current);
   });

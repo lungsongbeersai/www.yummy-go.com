@@ -26,6 +26,10 @@ import type {
   ReportFilters,
 } from "./daily-sales-report-types";
 import {
+  hasDisplayValue,
+  readValue,
+} from "./daily-sales-report-utils";
+import {
   reportColumns,
   reportDetailItemColumns,
   summaryConfigs,
@@ -185,7 +189,25 @@ export function useDailySalesReportWorkflow(
     () => reportColumns(t, appliedFilters.typePage),
     [appliedFilters.typePage, t],
   );
-  const detailItemColumns = useMemo(() => reportDetailItemColumns(t), [t]);
+  const detailItemColumns = useMemo(() => {
+    const allItems = billGroups.flatMap((group) => group.items);
+    const hasStatusData = allItems.some((item) =>
+      hasDisplayValue(
+        readValue(item, [
+          "status_name",
+          "status_text",
+          "status",
+          "status_code",
+          "order_status_text",
+          "order_it_status_text",
+        ]),
+      ),
+    );
+    const columns = reportDetailItemColumns(t);
+    return hasStatusData
+      ? columns
+      : columns.filter((col) => col.kind !== "status");
+  }, [billGroups, t]);
   const cards = useMemo(
     () => summaryConfigs(t, appliedFilters.typePage),
     [appliedFilters.typePage, t],
@@ -285,6 +307,7 @@ export function useDailySalesReportWorkflow(
         orderBy: appliedFilters.orderBy,
         page,
         payment_method: paymentMethodParam(appliedFilters.paymentMethod),
+        payment_type: paymentMethodParam(appliedFilters.paymentMethod),
         type_page: appliedFilters.typePage,
       });
     } catch (error) {
@@ -407,6 +430,7 @@ export function useDailySalesReportWorkflow(
       lang: language,
       orderBy: appliedFilters.orderBy,
       payment_method: paymentMethodParam(appliedFilters.paymentMethod),
+      payment_type: paymentMethodParam(appliedFilters.paymentMethod),
       type_page: appliedFilters.typePage,
     });
     const allRows = data.rows;
@@ -477,7 +501,9 @@ export function useDailySalesReportWorkflow(
         );
         XLSX.utils.book_append_sheet(
           workbook,
-          XLSX.utils.json_to_sheet(exportBillRows(data.billGroups, t)),
+          XLSX.utils.json_to_sheet(
+            exportBillRows(data.billGroups, t, true),
+          ),
           "Bills",
         );
         XLSX.utils.book_append_sheet(workbook, rowsSheet, "Items");

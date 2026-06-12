@@ -66,8 +66,8 @@ export function BestSellingProductsReportPage({ initialPagination }: { initialPa
 
   return (
     <>
-      <div className="h-full min-h-0 overflow-y-auto" style={layoutStyle}>
-        <div className="mx-auto flex w-full max-w-375 flex-col gap-4 p-4 lg:p-6">
+      <div className="h-full min-h-0 min-w-0 overflow-x-hidden overflow-y-auto" style={layoutStyle}>
+        <div className="mx-auto flex w-full min-w-0 max-w-full flex-col gap-4 p-3 sm:p-4 lg:p-6 2xl:max-w-375">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <div className="flex items-center gap-2 text-sm font-bold text-primary">
@@ -96,7 +96,7 @@ export function BestSellingProductsReportPage({ initialPagination }: { initialPa
 
           <div
             ref={filterRef}
-            className="sticky top-0 z-30 -mx-4 bg-background/95 px-4 py-2 backdrop-blur supports-backdrop-filter:bg-background/85 lg:-mx-6 lg:px-6"
+            className="sticky top-0 z-30 -mx-3 bg-background/95 px-3 py-2 backdrop-blur supports-backdrop-filter:bg-background/85 sm:-mx-4 sm:px-4 lg:-mx-6 lg:px-6"
           >
             <div className="sm:hidden">
               <MobileBestSellingFilterSummary

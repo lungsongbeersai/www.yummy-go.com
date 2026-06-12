@@ -143,6 +143,109 @@ describe("best selling products report normalizers", () => {
     });
   });
 
+  it("normalizes the current API shape with report summary and pagination", () => {
+    const normalized = normalizeBestSellingProductsReportResponse({
+      status: "success",
+      message: "success",
+      lang: "la",
+      report: {
+        date_from: "2026-06-02",
+        date_to: "2026-06-02",
+        branch_uuid_fk: "branch-1",
+        group_uuid_fk: null,
+        summary: {
+          qty: 57,
+          subtotal: 3603996,
+          item_discount: 0,
+          bill_discount_share: 0,
+          charge: 252280,
+          vat: 385628,
+          final_total: 4241904
+        }
+      },
+      pagination: {
+        page: 1,
+        limit: 10,
+        total: 22,
+        totalPages: 3
+      },
+      filters: {
+        branch_uuid_fk: "branch-1",
+        group_uuid_fk: null,
+        cate_uuid: null,
+        search: "",
+        sort_by: "date_asc"
+      },
+      data: [
+        {
+          branch_uuid_fk: "branch-1",
+          branch_name: "Branch",
+          groups: [
+            {
+              group_uuid_fk: "group-1",
+              group_name: "Drinks",
+              summary: {
+                qty: 26,
+                subtotal: 2625000,
+                item_discount: 0,
+                bill_discount_share: 0,
+                charge: 183750.19,
+                vat: 280875.28,
+                final_total: 3089625.46
+              },
+              items: [
+                {
+                  rank: 1,
+                  cate_uuid: "cate-1",
+                  cate_name: "Beer",
+                  prod_code: "P-5395725241",
+                  product_name: "Product",
+                  sale_price: 200000,
+                  qty: 5,
+                  subtotal: 1000000,
+                  item_discount: 0,
+                  bill_discount_share: 0,
+                  charge: 70000,
+                  vat: 107000,
+                  final_total: 1177000
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    });
+
+    expect(normalized.summary).toMatchObject({
+      charge: 252280,
+      final_total: 4241904,
+      qty: 57,
+      subtotal: 3603996,
+      vat: 385628
+    });
+    expect(normalized.pagination).toMatchObject({
+      limit: 10,
+      page: 1,
+      total: 22,
+      totalPages: 3
+    });
+    expect(normalized.filters).toMatchObject({ group_uuid_fk: null, sort_by: "date_asc" });
+    expect(normalized.groups[0]).toMatchObject({
+      charge: 183750.19,
+      finalTotal: 3089625.46,
+      id: "group-1",
+      name: "Drinks",
+      qtyTotal: 26
+    });
+    expect(normalized.rows[0]).toMatchObject({
+      categoryName: "Beer",
+      finalTotal: 1177000,
+      productCode: "P-5395725241",
+      productName: "Product",
+      salePrice: 200000
+    });
+  });
+
   it("falls back to calculated pagination when totalPages is missing", () => {
     const normalized = normalizeBestSellingProductsReportResponse(
       {

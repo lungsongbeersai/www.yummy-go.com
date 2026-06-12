@@ -1212,7 +1212,7 @@
     "apply": "ຄົ້ນຫາ",
     "billItems": "ລາຍການ",
     "billsCountLabel": "{{count}} ບິນ",
-    "billsPerPage": "ບິນຕໍ່ໜ້າ",
+    "billsPerPage": "ສະແດງ",
     "billsPerPageValue": "{{count}} ບິນ/ໜ້າ",
     "branchRequired": "ບັນຊີນີ້ບໍ່ມີຂໍ້ມູນສາຂາ.",
     "bestSelling": {
@@ -1299,6 +1299,13 @@
         "total": "ສະຫຼຸບລວມ",
         "value": "ຄ່າ"
       },
+      "groups": {
+        "amount": "ຍອດຂາຍ",
+        "bills": "ບິນ & ລາຍການ",
+        "discount": "ສ່ວນຫຼຸດ",
+        "payment": "ການຊຳລະ",
+        "tax": "ຄ່າບໍລິການ & VAT"
+      },
       "loadFailed": "ໂຫຼດລາຍງານວິທີຊຳລະບໍ່ສຳເລັດ",
       "loading": "ກຳລັງໂຫຼດລາຍງານວິທີຊຳລະ",
       "noData": "ບໍ່ມີຂໍ້ມູນລາຍງານວິທີຊຳລະ",
@@ -1365,6 +1372,7 @@
       "vatAmount": "ຍອດ VAT"
     },
     "columns": {
+      "amount": "ລາຄາລວມທ້ອບປິ້ງ",
       "basePrice": "ລາຄາຂາຍ",
       "cashierName": "ພະນັກງານເກັບເງິນ",
       "cashReceived": "ຮັບເງິນສົດ",
@@ -1383,6 +1391,7 @@
       "productName": "ສິນຄ້າ",
       "quantity": "ຈໍານວນ",
       "saleDate": "ວັນທີຂາຍ",
+      "salePrice": "ລາຄາຂາຍ",
       "serviceCharge": "ຄ່າບໍລິການ",
       "size": "ຂະໜາດ",
       "status": "ສະຖານະ",

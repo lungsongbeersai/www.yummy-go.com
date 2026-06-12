@@ -7,6 +7,7 @@ export type SummaryCards = ApiEntity | ApiEntity[];
 export interface DailySalesBillGroup {
   amountTotal: number;
   baseTotal: number;
+  branchName: string;
   cashierName: string;
   changeAmount: number;
   cancelled: boolean;
@@ -71,37 +72,14 @@ function numericValue(value: unknown) {
   return Number.isFinite(number) ? number : 0;
 }
 
-function serviceChargeValue(sources: ApiEntity[], itemDiscountAmount = 0) {
-  const explicit = optionalNumber(
+function serviceChargeValue(sources: ApiEntity[]) {
+  return numericValue(
     readAnyValue(sources, [
       "service_charge",
       "service_charge_amount",
       "service_total",
-      "sum_service_total"
-    ])
-  );
-  if (explicit !== null) return explicit;
-
-  const amount = optionalNumber(
-    readAnyValue(sources, ["amount", "order_total", "total_order", "gross_total"])
-  );
-  const total = optionalNumber(
-    readAnyValue(sources, ["total", "net_total", "grand_total"])
-  );
-  const toppingTotal = numericValue(
-    readAnyValue(sources, ["topping_total", "topping_line_total", "sum_topping_total"])
-  );
-  const discountBill = numericValue(
-    readAnyValue(sources, ["discount_bill", "discount_amount", "discount_total"])
-  );
-  const vat = numericValue(
-    readAnyValue(sources, ["vat", "vat_amount", "vat_total"])
-  );
-
-  if (amount === null || total === null) return 0;
-  return Math.max(
-    0,
-    total - amount - toppingTotal + discountBill + itemDiscountAmount - vat
+      "sum_service_total",
+    ]),
   );
 }
 
@@ -193,6 +171,7 @@ function normalizeNewDetailBill(row: ApiEntity, parent: ApiEntity, index: number
   const saleDate = textValue(readValue(title, ["date", "sale_date", "business_date", "created_at"]), "-");
   const tableName = textValue(readValue(title, ["table_name", "table_name_la", "table_name_eng"]), "-");
   const cashierName = textValue(readValue(title, ["cashier_name", "login_name", "user_name"]), "-");
+  const branchName = textValue(readValue(parent, ["branch_name", "branch_name_la", "branch_name_eng"]), "-");
   const paymentType = textValue(readValue(title, ["payment_method", "payment_type", "payment_name", "payment_type_name"]), "-");
   const status = textValue(readValue(row, ["status_name", "status_text", "status", "status_code"]), "-");
   const billSources = [summary, title, row];
@@ -223,6 +202,7 @@ function normalizeNewDetailBill(row: ApiEntity, parent: ApiEntity, index: number
   return {
     amountTotal: numericValue(readAnyValue(billSources, ["amount", "order_total", "total_order", "gross_total"])),
     baseTotal: numericValue(readAnyValue(billSources, ["amount", "base_total", "base_line_total"])),
+    branchName,
     cashierName,
     changeAmount: numericValue(readAnyValue(billSources, ["change_amount", "change_total"])),
     cancelled: isCancelledReportRow(row),
@@ -239,7 +219,7 @@ function normalizeNewDetailBill(row: ApiEntity, parent: ApiEntity, index: number
     receiveCashAmount: numericValue(readAnyValue(billSources, ["receive_cash", "cash_received", "cash_amount", "cash_total"])),
     receiveTransferAmount: numericValue(readAnyValue(billSources, ["receive_transfer", "transfer_received", "transfer_amount", "transfer_total"])),
     saleDate,
-    serviceChargeAmount: serviceChargeValue(billSources, itemDiscountAmount),
+    serviceChargeAmount: serviceChargeValue(billSources),
     status,
     tableName,
     toppingTotal: numericValue(readAnyValue(billSources, ["topping_total", "topping_line_total", "sum_topping_total"])),
@@ -298,6 +278,7 @@ export function createDailySalesBillGroups(rows: ApiEntity[]) {
       groups.set(id, {
         amountTotal: numericValue(readValue(row, ["amount", "order_total", "total_order", "gross_total"])) || rowBaseTotal(row),
         baseTotal: rowBaseTotal(row),
+        branchName: textValue(readValue(row, ["branch_name", "branch_name_la", "branch_name_eng"]), "-"),
         cashierName: textValue(readValue(row, ["cashier_name", "login_name", "user_name"]), "-"),
         changeAmount: numericValue(readValue(row, ["change_amount", "change_total"])),
         cancelled,

@@ -24,6 +24,8 @@ import type { ReportColumn } from "./daily-sales-report-types";
 import {
   firstNumber,
   formatDate,
+  billSummaryMetrics,
+  hasDisplayValue,
   isCancelledRow,
   isZeroColumnValue,
   readValue,
@@ -63,7 +65,7 @@ export function SummaryReportTable({
   );
 
   return (
-    <div className="overflow-x-auto md:overflow-visible">
+    <div className="w-full min-w-0 overflow-x-auto">
       <Table
         className={cn(
           "text-[13px]",
@@ -168,7 +170,6 @@ export function DetailBillTable({
   onToggleRows: (rows: ApiEntity[], selected: boolean) => void;
 }) {
   const { t } = useTranslation();
-  const parentColumnCount = 20;
   const visibleItems = groups.flatMap((group) => group.items);
   const visibleItemIds = visibleItems.map(reportRecordId);
   const allVisibleSelected =
@@ -178,9 +179,24 @@ export function DetailBillTable({
     selectedRecordIds.has(id),
   );
 
+  const allItems = groups.flatMap((group) => group.items);
+  const hasStatusData = allItems.some((item) =>
+    hasDisplayValue(
+      readValue(item, [
+        "status_name",
+        "status_text",
+        "status",
+        "status_code",
+        "order_status_text",
+        "order_it_status_text",
+      ]),
+    ),
+  );
+  const parentColumnCount = hasStatusData ? 10 : 9;
+
   return (
-    <div className="overflow-x-auto md:overflow-visible">
-      <Table className="min-w-[2580px] text-[13px]">
+    <div className="w-full min-w-0 overflow-x-auto">
+      <Table className="min-w-[1100px] text-[13px]">
         <TableHeader className="sticky top-0 z-20 bg-background/95 shadow-sm backdrop-blur">
           <TableRow>
             <TableHead className="w-[52px] whitespace-nowrap bg-background/95 text-center">
@@ -208,48 +224,20 @@ export function DetailBillTable({
             <TableHead className="min-w-[130px] whitespace-nowrap bg-background/95">
               {t("report.columns.paymentType")}
             </TableHead>
+            <TableHead className="min-w-[160px] whitespace-nowrap bg-background/95">
+              {t("report.columns.cashierName")}
+            </TableHead>
             <TableHead className="min-w-[94px] whitespace-nowrap bg-background/95 text-right">
               {t("report.billItems")}
-            </TableHead>
-            <TableHead className="min-w-[126px] whitespace-nowrap bg-background/95 text-right">
-              {t("report.cards.orderTotal")}
-            </TableHead>
-            <TableHead className="min-w-[126px] whitespace-nowrap bg-background/95 text-right">
-              {t("report.cards.toppingTotal")}
-            </TableHead>
-            <TableHead className="min-w-[128px] whitespace-nowrap bg-background/95 text-right">
-              {t("report.cards.discountAmount")}
-            </TableHead>
-            <TableHead className="min-w-[128px] whitespace-nowrap bg-background/95 text-right">
-              {t("report.cards.itemDiscountAmount")}
-            </TableHead>
-            <TableHead className="min-w-[130px] whitespace-nowrap bg-background/95 text-right">
-              {t("report.cards.serviceCharge")}
-            </TableHead>
-            <TableHead className="min-w-[112px] whitespace-nowrap bg-background/95 text-right">
-              {t("report.cards.vatAmount")}
             </TableHead>
             <TableHead className="min-w-[132px] whitespace-nowrap bg-background/95 text-right">
               {t("report.cards.netTotal")}
             </TableHead>
-            <TableHead className="min-w-[132px] whitespace-nowrap bg-background/95 text-right">
-              {t("report.cards.receiveCash")}
-            </TableHead>
-            <TableHead className="min-w-[132px] whitespace-nowrap bg-background/95 text-right">
-              {t("report.cards.receiveTransfer")}
-            </TableHead>
-            <TableHead className="min-w-[124px] whitespace-nowrap bg-background/95 text-right">
-              {t("report.cards.debtAmount")}
-            </TableHead>
-            <TableHead className="min-w-[124px] whitespace-nowrap bg-background/95 text-right">
-              {t("report.cards.changeAmount")}
-            </TableHead>
-            <TableHead className="min-w-[160px] whitespace-nowrap bg-background/95">
-              {t("report.columns.cashierName")}
-            </TableHead>
-            <TableHead className="min-w-[118px] whitespace-nowrap bg-background/95">
-              {t("report.columns.status")}
-            </TableHead>
+            {hasStatusData ? (
+              <TableHead className="min-w-[118px] whitespace-nowrap bg-background/95">
+                {t("report.columns.status")}
+              </TableHead>
+            ) : null}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -321,42 +309,34 @@ export function DetailBillTable({
                   <TableCell className="whitespace-nowrap">
                     {group.paymentType}
                   </TableCell>
+                  <TableCell className="max-w-[220px] whitespace-normal leading-snug">
+                    {group.cashierName}
+                  </TableCell>
                   <TableCell className="whitespace-nowrap text-right tabular-nums">
                     <Badge className="h-7 px-2 text-xs">
                       {group.itemCount.toLocaleString("en-US")}
                     </Badge>
                   </TableCell>
-                  <MoneyCell value={group.amountTotal} />
-                  <MoneyCell value={group.toppingTotal} />
-                  <MoneyCell value={group.discountBillAmount} />
-                  <MoneyCell value={group.itemDiscountAmount} />
-                  <MoneyCell value={group.serviceChargeAmount} />
-                  <MoneyCell value={group.vatAmount} />
                   <MoneyCell value={group.lineTotal} strong />
-                  <MoneyCell value={group.receiveCashAmount} />
-                  <MoneyCell value={group.receiveTransferAmount} />
-                  <MoneyCell value={group.debtAmount} />
-                  <MoneyCell value={group.changeAmount} />
-                  <TableCell className="max-w-[220px] whitespace-normal leading-snug">
-                    {group.cashierName}
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap">
-                    <Badge
-                      className={
-                        group.cancelled
-                          ? "border-destructive/25 bg-destructive/10 text-destructive"
-                          : statusClass(statusRow, group.status)
-                      }
-                    >
-                      {group.status}
-                    </Badge>
-                  </TableCell>
+                  {hasStatusData ? (
+                    <TableCell className="whitespace-nowrap">
+                      <Badge
+                        className={
+                          group.cancelled
+                            ? "border-destructive/25 bg-destructive/10 text-destructive"
+                            : statusClass(statusRow, group.status)
+                        }
+                      >
+                        {group.status}
+                      </Badge>
+                    </TableCell>
+                  ) : null}
                 </TableRow>
                 {expanded ? (
                   <TableRow className="border-b border-border/80 bg-muted/20 hover:bg-muted/20">
                     <TableCell colSpan={parentColumnCount} className="p-0">
                       <div className="border-l-4 border-l-primary/20 px-4 py-3">
-                        <Table className="min-w-[1040px] text-[13px]">
+                        <Table className="min-w-[1160px] text-[13px]">
                           <TableHeader className="bg-muted/60">
                             <TableRow>
                               <TableHead className="w-[52px] whitespace-nowrap bg-muted/60 text-center">
@@ -437,6 +417,16 @@ export function DetailBillTable({
                             })}
                           </TableBody>
                         </Table>
+                        <div className="mt-3 grid gap-2 text-xs sm:grid-cols-2 xl:grid-cols-5">
+                          {billSummaryMetrics(t, group).map((metric) => (
+                            <BillMetric
+                              key={metric.label}
+                              label={metric.label}
+                              strong={metric.strong}
+                              value={metric.value}
+                            />
+                          ))}
+                        </div>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -630,6 +620,31 @@ function MoneyCell({
     >
       {money(value)}
     </TableCell>
+  );
+}
+
+function BillMetric({
+  label,
+  strong = false,
+  value,
+}: {
+  label: string;
+  strong?: boolean;
+  value: number;
+}) {
+  return (
+    <div className="min-w-0 rounded-md border border-border bg-card px-3 py-2">
+      <p className="truncate font-medium text-muted-foreground">{label}</p>
+      <p
+        className={cn(
+          "mt-1 truncate tabular-nums text-foreground",
+          strong ? "font-black" : "font-bold",
+          value === 0 && "text-muted-foreground",
+        )}
+      >
+        {money(value)}
+      </p>
+    </div>
   );
 }
 

@@ -12,7 +12,8 @@ import {
   bestSellingSortOptions,
   exportGroupRows,
   exportProductRows,
-  exportSummaryRows
+  exportSummaryRows,
+  groupParam
 } from "./best-selling-products-report-utils";
 import type { BestSellingProductsFilters } from "./best-selling-products-report-types";
 import type { BestSellingProductGroup, BestSellingProductItem } from "@/stores/report-store";
@@ -46,6 +47,12 @@ describe("best selling products report sort helpers", () => {
       { label: "report.bestSelling.sortOptions.date_asc", value: "date_asc" },
       { label: "report.bestSelling.sortOptions.date_desc", value: "date_desc" }
     ]);
+  });
+
+  it("keeps all group filter because the API expects group_uuid_fk=all", () => {
+    expect(groupParam("all")).toBe("all");
+    expect(groupParam("group-1")).toBe("group-1");
+    expect(groupParam("")).toBe("all");
   });
 
   it("uses date sort values in export filenames", () => {

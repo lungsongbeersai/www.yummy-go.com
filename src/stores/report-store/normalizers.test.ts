@@ -104,7 +104,7 @@ describe("daily sales report normalizers", () => {
       itemDiscountAmount: 0,
       lineTotal: 78,
       paymentType: "cash",
-      serviceChargeAmount: 5,
+      serviceChargeAmount: 0,
       tableName: "T03",
       vatAmount: 7
     });
@@ -114,6 +114,149 @@ describe("daily sales report normalizers", () => {
       invoice_number: "100626-0003",
       line_total: 66,
       product_name: "Missing product"
+    });
+  });
+
+  it("normalizes the current daily sales detail API shape", () => {
+    const normalized = normalizeDailySalesReportResponse({
+      status: "success",
+      message: "success",
+      lang: "la",
+      page: 1,
+      limit: 20,
+      total: 25,
+      totalPages: 2,
+      date_from: "2026-06-01",
+      date_to: "2026-06-12",
+      type_page: "detail",
+      payment_method: "all",
+      payment_type: "all",
+      report_total: {
+        bills_count: 25,
+        amount: 14691726,
+        topping_total: 111000,
+        discount_bill: 301256,
+        item_discount: 181960,
+        service_charge: 994597,
+        vat: 1520312,
+        total: 16723419,
+        receive_cash: 14928865,
+        receive_transfer: 1561950,
+        debt_amount: 337799,
+        change_amount: 105196,
+        cancelled_count: 0,
+        active_count: 25
+      },
+      data: [
+        {
+          branch_name: "Branch 1",
+          branch_uuid_fk: "9c1390bd-e316-4235-8901-79acfe19f514",
+          items: [
+            {
+              title: {
+                date: "2026-06-12",
+                invoice: "120626-0001",
+                table_name: "01",
+                cashier_name: "silavongsonedodo@gmail.com",
+                payment_method: "cash"
+              },
+              details: [
+                {
+                  product_name: "Fish set",
+                  prod_image: "https://example.test/product.jpg",
+                  prod_status_imge: 1,
+                  sale_price: 200000,
+                  topping_total: 0,
+                  amount: 200000,
+                  qty: 1,
+                  discount: 0,
+                  total: 200000,
+                  toppings: []
+                }
+              ],
+              summary: {
+                amount: 200000,
+                topping_total: 0,
+                discount_bill: 0,
+                vat: 21400,
+                total: 235400
+              }
+            },
+            {
+              title: {
+                date: "2026-06-10",
+                invoice: "100626-0002",
+                table_name: "T01",
+                cashier_name: "silavongsonedodo@gmail.com",
+                payment_method: "debt"
+              },
+              details: [
+                {
+                  product_name: "Pepsi",
+                  sale_price: 35000,
+                  topping_total: 0,
+                  amount: 35000,
+                  qty: 6,
+                  discount: 0,
+                  total: 210000,
+                  toppings: []
+                },
+                {
+                  product_name: "Chicken",
+                  sale_price: 60000,
+                  topping_total: 5000,
+                  amount: 65000,
+                  qty: 2,
+                  discount: 130000,
+                  total: 0,
+                  toppings: [{ qty: 1, name: "", price: 5000, total: 5000 }]
+                }
+              ],
+              summary: {
+                amount: 396000,
+                topping_total: 10000,
+                discount_bill: 133000,
+                vat: 14231,
+                total: 156541
+              }
+            }
+          ]
+        }
+      ]
+    });
+
+    expect(normalized.reportTotal).toMatchObject({
+      bills_count: 25,
+      amount: 14691726,
+      total: 16723419,
+      receive_cash: 14928865,
+      receive_transfer: 1561950
+    });
+    expect(normalized.billGroups).toHaveLength(2);
+    expect(normalized.rows).toHaveLength(3);
+    expect(normalized.billGroups[0]).toMatchObject({
+      amountTotal: 200000,
+      branchName: "Branch 1",
+      invoiceNumber: "120626-0001",
+      lineTotal: 235400,
+      paymentType: "cash",
+      serviceChargeAmount: 0,
+      vatAmount: 21400
+    });
+    expect(normalized.billGroups[1]).toMatchObject({
+      discountBillAmount: 133000,
+      itemCount: 2,
+      itemDiscountAmount: 130000,
+      lineTotal: 156541,
+      toppingTotal: 10000
+    });
+    expect(normalized.rows[2]).toMatchObject({
+      branch_name: "Branch 1",
+      invoice_number: "100626-0002",
+      line_total: 0,
+      payment_method: "debt",
+      product_name: "Chicken",
+      topping_total: 5000
     });
   });
 

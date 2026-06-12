@@ -278,11 +278,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             toggleMenu={toggleMenu}
           />
         ) : null}
-        <SidebarInset className={cn(fixedDataScreen ? "h-full overflow-hidden" : "min-h-0")}>
+        <SidebarInset className={cn("min-w-0", fixedDataScreen ? "h-full overflow-hidden" : "min-h-0")}>
           <main
             className={cn(
               fixedDataScreen
-                ? "h-full min-h-0 w-full max-w-none overflow-hidden"
+                ? "h-full min-h-0 min-w-0 w-full max-w-none overflow-hidden"
                 : "mx-auto w-full max-w-[1500px] p-4 lg:p-6"
             )}
           >

@@ -31,7 +31,7 @@ export const paymentMethodOptions: ReportPaymentMethodFilter[] = [
 const HEX_COLOR_PATTERN = /^#(?:[0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
 
 export function paymentMethodParam(paymentMethod: ReportPaymentMethodFilter) {
-  return paymentMethod === "all" ? undefined : paymentMethod;
+  return paymentMethod;
 }
 
 export function branchOptionLabel(branch: ApiEntity, language: string) {
@@ -588,4 +588,33 @@ export function reportTotalFromBillGroups(
 export function isZeroColumnValue(row: ApiEntity, column: ReportColumn) {
   if (column.kind !== "money" && column.kind !== "number") return false;
   return firstNumber(readValue(row, column.keys)) === 0;
+}
+
+export function billSummaryMetrics(
+  t: (key: string) => string,
+  group: DailySalesBillGroup,
+) {
+  return [
+    {
+      label: t("report.cards.orderTotal"),
+      value: group.amountTotal,
+    },
+    {
+      label: t("report.cards.toppingTotal"),
+      value: group.toppingTotal,
+    },
+    {
+      label: t("report.cards.discountAmount"),
+      value: group.discountBillAmount,
+    },
+    {
+      label: t("report.cards.vatAmount"),
+      value: group.vatAmount,
+    },
+    {
+      label: t("report.cards.netTotal"),
+      strong: true,
+      value: group.lineTotal,
+    },
+  ];
 }

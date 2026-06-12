@@ -142,8 +142,8 @@ export function BestSellingFilterBar({
   const { t } = useTranslation();
 
   return (
-    <Card className="border-border bg-card shadow-sm">
-      <CardContent className="grid gap-3 p-4 lg:grid-cols-4 lg:items-end 2xl:grid-cols-[repeat(6,minmax(0,1fr))_auto]">
+    <Card className="min-w-0 border-border bg-card shadow-sm">
+      <CardContent className="grid min-w-0 gap-3 p-3 sm:p-4 lg:grid-cols-4 lg:items-end 2xl:grid-cols-[repeat(6,minmax(0,1fr))_auto]">
         <BestSellingFilterFields
           branchLoading={branchLoading}
           branchLocked={branchLocked}
@@ -317,7 +317,7 @@ function BestSellingFilterFields({
 
   return (
     <>
-      <Field className="gap-1.5">
+      <Field className="min-w-0 gap-1.5">
         <FieldLabel
           htmlFor={`${idPrefix}-branch`}
           className="text-xs font-bold text-muted-foreground"
@@ -343,7 +343,7 @@ function BestSellingFilterFields({
           </SelectContent>
         </Select>
       </Field>
-      <Field className="gap-1.5">
+      <Field className="min-w-0 gap-1.5">
         <FieldLabel
           htmlFor={`${idPrefix}-date-from`}
           className="text-xs font-bold text-muted-foreground"
@@ -357,7 +357,7 @@ function BestSellingFilterFields({
           onChange={(event) => patch({ dateFrom: event.target.value })}
         />
       </Field>
-      <Field className="gap-1.5">
+      <Field className="min-w-0 gap-1.5">
         <FieldLabel
           htmlFor={`${idPrefix}-date-to`}
           className="text-xs font-bold text-muted-foreground"
@@ -371,7 +371,7 @@ function BestSellingFilterFields({
           onChange={(event) => patch({ dateTo: event.target.value })}
         />
       </Field>
-      <Field className="gap-1.5">
+      <Field className="min-w-0 gap-1.5">
         <FieldLabel
           htmlFor={`${idPrefix}-group`}
           className="text-xs font-bold text-muted-foreground"
@@ -397,7 +397,7 @@ function BestSellingFilterFields({
           </SelectContent>
         </Select>
       </Field>
-      <Field className="gap-1.5">
+      <Field className="min-w-0 gap-1.5">
         <FieldLabel className="text-xs font-bold text-muted-foreground">
           {t("report.bestSelling.filters.sortBy")}
         </FieldLabel>
@@ -427,7 +427,7 @@ function BestSellingFilterFields({
           })}
         </ToggleGroup>
       </Field>
-      <Field className="gap-1.5">
+      <Field className="min-w-0 gap-1.5">
         <FieldLabel
           htmlFor={`${idPrefix}-limit`}
           className="text-xs font-bold text-muted-foreground"
@@ -490,9 +490,9 @@ export function BestSellingTableCard({
   const { t } = useTranslation();
 
   return (
-    <Card className="min-h-0 overflow-hidden border-border bg-card shadow-sm md:sticky md:top-[calc(var(--best-selling-filter-height)+0.75rem)] md:flex md:max-h-[calc(100dvh-var(--app-shell-header-height)-var(--best-selling-filter-height)-1.5rem)] md:flex-col">
-      <CardHeader className="shrink-0 flex flex-col gap-2 border-b border-border bg-card px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0">
+    <Card className="min-h-0 min-w-0 overflow-hidden border-border bg-card shadow-sm md:sticky md:top-[calc(var(--best-selling-filter-height)+0.75rem)] md:flex md:max-h-[calc(100dvh-var(--app-shell-header-height)-var(--best-selling-filter-height)-1.5rem)] md:flex-col">
+      <CardHeader className="flex min-w-0 shrink-0 flex-col gap-2 border-b border-border bg-card px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
+        <div className="min-w-0 flex-1">
           <CardTitle className="flex min-w-0 items-center gap-2 text-base font-black">
             <Trophy />
             <span className="truncate">
@@ -502,7 +502,7 @@ export function BestSellingTableCard({
           <p className="text-sm text-muted-foreground">{rangeLabel}</p>
           <Badge className="mt-2 h-7 w-fit px-2 text-xs">{sortByLabel}</Badge>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-2 sm:justify-end">
           <Button
             type="button"
             variant="outline"
@@ -574,7 +574,7 @@ export function BestSellingTableCard({
           </div>
         ) : rowsLength ? (
           <>
-            <div className="min-h-0 md:flex-1 md:overflow-auto md:overscroll-x-contain md:overscroll-y-auto">
+            <div className="min-h-0 min-w-0 overflow-auto overscroll-x-contain overscroll-y-auto md:flex-1">
               {children}
             </div>
             <div className="shrink-0 bg-card">{footer}</div>
@@ -602,7 +602,7 @@ export function BestSellingProductsTable({
   const groupMetrics = bestSellingGroupMetricConfigs(t);
 
   return (
-    <div className="hidden min-w-0 md:block">
+    <div className="hidden w-full min-w-0 overflow-x-auto md:block">
       <Table className="min-w-470 text-[13px]">
         <TableHeader className="sticky top-0 z-20 bg-background/95 shadow-sm backdrop-blur">
           <TableRow>

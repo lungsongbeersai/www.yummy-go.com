@@ -5,7 +5,7 @@ import type { ApiEntity, PageLimit } from "@/services/shared/types";
 
 export type DailySalesReportType = "summary" | "detail";
 export type DailySalesReportOrder = "ASC" | "DESC";
-export type DailySalesPaymentMethod = "cash" | "transfer" | "debt" | "mixed";
+export type DailySalesPaymentMethod = "all" | "cash" | "transfer" | "debt" | "mixed";
 export type DailySaleItemsOrder = "ASC" | "DESC";
 export type PaymentMethodReportOrder = "ASC" | "DESC";
 export const PAYMENT_METHOD_REPORT_FILTER_OPTIONS = ["all", "cash", "transfer", "debt"] as const;
@@ -39,8 +39,9 @@ export interface FetchDailySalesReportParams {
   lang?: string;
   limit: PageLimit;
   orderBy: DailySalesReportOrder;
-  page: number;
   payment_method?: DailySalesPaymentMethod;
+  payment_type?: DailySalesPaymentMethod;
+  page: number;
   type_page: DailySalesReportType;
 }
 
@@ -177,13 +178,13 @@ export interface BestSellingProductsReportResponse extends ApiEntity {
 
 export function getDailySalesReport(params: FetchDailySalesReportParams) {
   if (!params.branch_uuid_fk) throw new ServiceError("branch_uuid_fk is required", 400);
-  const { payment_method, ...rest } = params;
   const query: Record<string, unknown> = {
-    ...rest,
+    ...params,
     limit: isAllPageLimit(params.limit) ? PAGE_LIMIT_ALL_BATCH : params.limit,
     lang: toApiLanguage(params.lang)
   };
-  if (payment_method) query.payment_method = payment_method;
+  query.payment_method = params.payment_method ?? "all";
+  query.payment_type = params.payment_type ?? params.payment_method ?? "all";
 
   return apiRequest<DailySalesReportResponse>("get", "/api/v1/report/sale_report", {
     params: query
@@ -221,13 +222,12 @@ export function getPaymentMethodsReport(params: FetchPaymentMethodsReportParams)
 
 export function getBestSellingProductsReport(params: FetchBestSellingProductsReportParams) {
   if (!params.branch_uuid_fk) throw new ServiceError("branch_uuid_fk is required", 400);
-  const { group_uuid_fk, ...rest } = params;
   const query: Record<string, unknown> = {
-    ...rest,
+    ...params,
+    group_uuid_fk: params.group_uuid_fk || "all",
     limit: isAllPageLimit(params.limit) ? PAGE_LIMIT_ALL_BATCH : params.limit,
     lang: toApiLanguage(params.lang)
   };
-  if (group_uuid_fk) query.group_uuid_fk = group_uuid_fk;
 
   return apiRequest<BestSellingProductsReportResponse>("get", "/api/v1/best_selling/best_selling_products", {
     params: query
