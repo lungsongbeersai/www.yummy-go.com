@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">YummyGo</string>
+    <string name="title_activity_main">YummyGo</string>
+    <string name="package_name">com.yummygo.app</string>
+    <string name="custom_url_scheme">com.yummygo.app</string>
+</resources>
