@@ -90,6 +90,19 @@ export function textValue(value: unknown, fallback = "-") {
   return isPresent(value) ? String(value) : fallback;
 }
 
+export function displayTextValue(value: unknown, fallback = "") {
+  const text = textValue(value, "").trim();
+  return text && text !== "-" ? text : fallback;
+}
+
+export function hasDisplayValue(value: unknown) {
+  return Boolean(displayTextValue(value));
+}
+
+export function hasColumnData(rows: ApiEntity[], column: ReportColumn) {
+  return rows.some((row) => hasDisplayValue(readValue(row, column.keys)));
+}
+
 export function normalizeKey(value: unknown) {
   return String(value ?? "")
     .trim()

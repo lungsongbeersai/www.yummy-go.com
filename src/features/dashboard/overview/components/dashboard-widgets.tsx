@@ -4,10 +4,14 @@ import { memo, useState } from "react";
 import {
   AlertTriangle,
   ArrowRight,
+  Banknote,
   Code2,
   Copy,
+  CreditCard,
   Download,
-  RefreshCcw
+  ReceiptText,
+  RefreshCcw,
+  WalletCards
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -20,13 +24,15 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import type {
   DashboardFilters,
+  DashboardWarning,
+  PaymentSummary,
+  PaymentSummaryCard,
   Row,
   SelectOption,
   TrendPoint
 } from "@/features/dashboard/overview/dashboard-view-model";
 import {
   asRow,
-  formatCompactKip,
   formatKip,
   formatNumber,
   formatPercent,
@@ -35,6 +41,14 @@ import {
 } from "@/features/dashboard/overview/dashboard-view-model";
 
 export type DashboardCopy = Record<string, string>;
+
+const paymentSummaryIconMap = {
+  cash: Banknote,
+  debt: WalletCards,
+  payment_total: ReceiptText,
+  transfer: CreditCard
+};
+const moneyUnits = new Set(["k", "kip", "kib", "lak", "₭", "ກີບ"]);
 
 type FilterBarProps = {
   activeBranchUuid: string;
@@ -111,12 +125,13 @@ const DateControl = memo(function DateControl({
   );
 });
 
-function compactMoney(value: unknown) {
-  return `${formatCompactKip(value)} ₭`;
+function isMoneyUnit(unit: string) {
+  return moneyUnits.has(unit.trim().toLowerCase());
 }
 
 function formatApiMoney(value: unknown, unit: string) {
-  return unit ? `${formatNumber(value)} ${unit}` : formatKip(value);
+  if (!unit || isMoneyUnit(unit)) return formatKip(value);
+  return `${formatNumber(value)} ${unit}`;
 }
 
 function SparkPreview({ primary, values }: { primary?: boolean; values: number[] }) {
@@ -243,6 +258,93 @@ export const DashboardFilterBar = memo(function DashboardFilterBar({
   );
 });
 
+function paymentSummaryTone(card: PaymentSummaryCard) {
+  const key = card.key.toLowerCase();
+
+  if (card.important || key.includes("payment_total") || key.includes("total")) return "dashboard-payment-card-total";
+  if (key.includes("debt") || key.includes("balance")) return "dashboard-payment-card-debt";
+  if (key.includes("transfer")) return "dashboard-payment-card-transfer";
+  return "dashboard-payment-card-cash";
+}
+
+function paymentSummaryIcon(card: PaymentSummaryCard) {
+  const key = card.key.toLowerCase();
+  if (card.important || key.includes("payment_total") || key.includes("total")) return paymentSummaryIconMap.payment_total;
+  if (key.includes("debt") || key.includes("balance")) return paymentSummaryIconMap.debt;
+  if (key.includes("transfer")) return paymentSummaryIconMap.transfer;
+  return paymentSummaryIconMap.cash;
+}
+
+function warningMessage(copy: DashboardCopy, warning: DashboardWarning) {
+  return warning.copyKey && copy[warning.copyKey] ? copy[warning.copyKey] : warning.value;
+}
+
+export const DashboardPaymentSummaryStrip = memo(function DashboardPaymentSummaryStrip({
+  cards,
+  copy,
+  paymentSummary,
+  warnings = []
+}: {
+  cards: PaymentSummaryCard[];
+  copy: DashboardCopy;
+  paymentSummary: PaymentSummary;
+  warnings?: DashboardWarning[];
+}) {
+  const mixedWarning = !paymentSummary.hasMixedSplitColumns && (paymentSummary.mixedTotal > 0 || paymentSummary.unallocatedMixedTotal > 0)
+    ? copy.paymentSplitWarning
+    : "";
+  const warningMessages = warnings
+    .map((warning) => warningMessage(copy, warning))
+    .filter((message) => message && message !== mixedWarning);
+  const mixedDetails = [
+    paymentSummary.mixedTotal ? `${copy.mixedPayment}: ${formatKip(paymentSummary.mixedTotal)}` : "",
+    paymentSummary.unallocatedMixedTotal ? `${copy.unallocatedMixedPayment}: ${formatKip(paymentSummary.unallocatedMixedTotal)}` : ""
+  ].filter(Boolean);
+  const messages = [mixedWarning, ...warningMessages].filter(Boolean);
+
+  if (!cards.length && !mixedDetails.length && !messages.length) return null;
+
+  return (
+    <div className="dashboard-payment-summary-stack">
+      <div aria-label={copy.paymentSplit} className="dashboard-payment-summary-grid">
+        {cards.map((card) => {
+          const Icon = paymentSummaryIcon(card);
+
+          return (
+            <Card key={card.key} className={cn("dashboard-payment-card", paymentSummaryTone(card))}>
+              <CardContent className="dashboard-payment-card-content">
+                <div className="dashboard-payment-card-icon" aria-hidden="true">
+                  <Icon />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-xs font-semibold text-muted-foreground">{card.label}</p>
+                  <p className={cn("mt-1 break-words font-mono font-semibold leading-tight", card.important ? "text-2xl" : "text-xl")}>
+                    {formatKip(card.value)}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+      {/* {mixedDetails.length || messages.length ? (
+        <Alert className="dashboard-payment-mixed-alert">
+          <AlertTriangle />
+          <AlertTitle>{copy.mixedPayment}</AlertTitle>
+          <AlertDescription>
+            {mixedDetails.map((detail) => (
+              <span key={detail} className="font-mono font-semibold">{detail}</span>
+            ))}
+            {messages.map((message) => (
+              <span key={message}>{message}</span>
+            ))}
+          </AlertDescription>
+        </Alert>
+      ) : null} */}
+    </div>
+  );
+});
+
 export const ErrorBanner = memo(function ErrorBanner({ message }: { message: string }) {
   return (
     <Card>
@@ -306,7 +408,7 @@ export const DashboardWarningBanner = memo(function DashboardWarningBanner({
   warnings
 }: {
   copy: DashboardCopy;
-  warnings: Array<{ key: string; value: string }>;
+  warnings: DashboardWarning[];
 }) {
   if (!warnings.length) return null;
 
@@ -316,7 +418,7 @@ export const DashboardWarningBanner = memo(function DashboardWarningBanner({
       <AlertTitle className="font-black">{copy.warnings}</AlertTitle>
       <AlertDescription className="dashboard-warning-body flex flex-col gap-1 text-foreground">
         {warnings.map((warning) => (
-          <span key={warning.key}>{warning.value}</span>
+          <span key={warning.key}>{warningMessage(copy, warning)}</span>
         ))}
       </AlertDescription>
     </Alert>
@@ -368,22 +470,33 @@ export const DashboardHeroStrip = memo(function DashboardHeroStrip({
       value: formatKip(numberFrom(kpis, "discount_total"))
     },
     {
+      detail: `${copy.collectionRate}: ${formatPercent(numberFrom(kpis, "collection_rate"))}`,
+      label: copy.paidTotal,
+      value: formatKip(numberFrom(kpis, "paid_total"))
+    },
+    {
+      detail: `${copy.unpaidRate}: ${formatPercent(numberFrom(kpis, "unpaid_rate"))}`,
+      label: copy.balance,
+      rose: true,
+      value: formatKip(numberFrom(kpis, "balance_total"))
+    },
+    {
       detail: `${copy.cancelRate}: ${formatPercent(numberFrom(kpis, "cancel_rate"))}`,
       label: copy.cancellations,
       rose: true,
-      value: `${formatNumber(cancelledCount)} / ${compactMoney(cancelledTotal)}`
+      value: `${formatNumber(cancelledCount)} / ${formatKip(cancelledTotal)}`
     }
   ];
 
   return (
     <Card className="dashboard-hero-card overflow-hidden">
-      <div className="dashboard-hero-grid grid divide-y divide-border md:grid-cols-2 md:divide-x md:divide-y-0 xl:grid-cols-[1.6fr_repeat(4,1fr)]">
+      <div className="dashboard-hero-grid grid md:grid-cols-2 xl:grid-cols-[1.45fr_repeat(3,minmax(0,1fr))]">
         {metrics.map((metric) => (
           <div
             key={metric.label}
             className={cn(
               "dashboard-hero-kpi min-w-0 p-4",
-              metric.primary && "dashboard-hero-kpi-primary relative overflow-hidden bg-primary text-primary-foreground",
+              metric.primary && "dashboard-hero-kpi-primary relative overflow-hidden bg-primary text-primary-foreground xl:row-span-2",
               !metric.primary && "bg-card"
             )}
           >

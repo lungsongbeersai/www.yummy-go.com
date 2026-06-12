@@ -12,6 +12,7 @@ import {
   DashboardFooter,
   DashboardHeader,
   DashboardHeroStrip,
+  DashboardPaymentSummaryStrip,
   // DashboardQueryBar,
   ErrorBanner,
   type DashboardCopy
@@ -47,6 +48,7 @@ const dashboardCopyKeys = [
   "cancellations",
   "cash",
   "channels",
+  "collectionRate",
   "copied",
   "copyQuery",
   "cumulativePercent",
@@ -60,30 +62,38 @@ const dashboardCopyKeys = [
   "driveRevenue",
   "endDate",
   "export",
+  "highestRevenueProduct",
   "insights",
   "lang",
   "ledger",
   "mainChannel",
   "mixed",
+  "mixedPayment",
   "month",
   "noData",
   "occupied",
   "occupancy",
   "orderChannels",
+  "orderShare",
   "orders",
   "paid",
+  "paidTotal",
   "pareto",
   "paretoHint",
+  "paymentSplitWarning",
   "paymentSplit",
   "payments",
+  "peakDay",
   "products",
   "productsSold",
   "qty",
   "reportMonth",
   "reset",
   "revenue",
+  "revenueShare",
   "shareOfQty",
   "startDate",
+  "serviceCharge",
   "tableLoad",
   "tables",
   "tableStatus",
@@ -95,6 +105,9 @@ const dashboardCopyKeys = [
   "totalBills",
   "trackedTotal",
   "transfer",
+  "unallocatedMixedPayment",
+  "unpaidRate",
+  "vat",
   "waiting",
   "warnings",
   "watchProduct",
@@ -286,6 +299,12 @@ export function DashboardPage() {
         onFilterChange={handleFilterChange}
         onReset={handleReset}
       />
+      <DashboardPaymentSummaryStrip
+        cards={model.paymentSummaryCards}
+        copy={copy}
+        paymentSummary={model.paymentSummary}
+        warnings={model.warnings}
+      />
       {/* <DashboardQueryBar activeBranchUuid={activeBranchUuid} copy={copy} requestParams={model.requestParams} /> */}
 
       {branchError ? <ErrorBanner message={branchError} /> : null}
@@ -303,12 +322,15 @@ export function DashboardPage() {
         copy={copy}
         paymentRows={model.paymentRows}
         paymentTrendRows={model.paymentTrendRows}
+        peakRevenueDay={model.peakRevenueDay}
         trendRows={model.trendRows}
       />
       <DashboardOperationsGrid
         channelRows={model.channelRows}
         copy={copy}
+        highestRevenueProduct={model.highestRevenueProduct}
         insights={model.insights}
+        mainOrderChannel={model.mainOrderChannel}
         productSummary={productSummary}
         tableSummary={model.tableSummary}
       />

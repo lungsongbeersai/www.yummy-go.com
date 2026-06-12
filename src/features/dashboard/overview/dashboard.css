@@ -254,6 +254,109 @@
   color: var(--dashboard-ink);
 }
 
+.dashboard-payment-summary-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  margin-top: -0.25rem;
+}
+
+.dashboard-payment-summary-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.dashboard-payment-card {
+  overflow: hidden;
+  border-color: var(--dashboard-line);
+  border-radius: 12px;
+  background: var(--dashboard-surface);
+  box-shadow: var(--dashboard-shadow-sm);
+}
+
+.dashboard-payment-card-content {
+  display: flex;
+  min-height: 5rem;
+  align-items: center;
+  gap: 0.875rem;
+  padding: 0.875rem 1rem;
+}
+
+.dashboard-payment-card-icon {
+  display: grid;
+  width: 2.5rem;
+  height: 2.5rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 0.75rem;
+  background: var(--dashboard-surface-2);
+  color: var(--dashboard-green);
+}
+
+.dashboard-payment-card-icon svg {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.dashboard-payment-card-total {
+  border-color: hsl(var(--primary) / 0.18);
+  background: linear-gradient(135deg, var(--dashboard-green-tint), var(--dashboard-surface));
+}
+
+.dashboard-payment-card-total .dashboard-payment-card-icon,
+.dashboard-payment-card-cash .dashboard-payment-card-icon {
+  background: var(--dashboard-green-tint);
+  color: var(--dashboard-green);
+}
+
+.dashboard-payment-card-transfer .dashboard-payment-card-icon {
+  background: var(--dashboard-surface-2);
+  color: var(--dashboard-green);
+}
+
+.dashboard-payment-card-debt {
+  border-color: hsl(var(--destructive) / 0.2);
+}
+
+.dashboard-payment-card-debt .dashboard-payment-card-icon {
+  background: var(--dashboard-rose-soft);
+  color: var(--dashboard-rose);
+}
+
+.dashboard-payment-card-debt .dashboard-payment-card-content p:last-child {
+  color: var(--dashboard-rose);
+}
+
+.dashboard-payment-mixed-alert {
+  display: flex;
+  align-items: center;
+  grid-template-columns: none;
+  border-color: hsl(38 92% 48% / 0.4);
+  border-radius: 10px;
+  background: var(--dashboard-amber-soft);
+  color: var(--dashboard-amber);
+  padding: 0.7rem 0.9rem;
+}
+
+.dashboard-payment-mixed-alert [data-slot="alert-title"] {
+  min-width: max-content;
+  color: var(--dashboard-ink);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.dashboard-payment-mixed-alert [data-slot="alert-description"] {
+  display: flex;
+  flex: 1;
+  grid-column: auto;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 1rem;
+  color: var(--dashboard-ink);
+  font-size: 0.76rem;
+}
+
 .dashboard-hero-card {
   overflow: hidden;
   border-radius: 12px;
@@ -264,7 +367,12 @@
 }
 
 .dashboard-hero-kpi {
+  border-top: 1px solid hsl(var(--border));
   padding: 1.125rem 1.125rem 1rem;
+}
+
+.dashboard-hero-kpi:first-child {
+  border-top: 0;
 }
 
 .dashboard-hero-kpi-primary {
@@ -356,6 +464,34 @@
   height: 2.2rem;
 }
 
+@media (min-width: 768px) and (max-width: 1279px) {
+  .dashboard-hero-kpi {
+    border-top: 0;
+  }
+
+  .dashboard-hero-kpi:nth-child(n + 3) {
+    border-top: 1px solid hsl(var(--border));
+  }
+
+  .dashboard-hero-kpi:nth-child(2n) {
+    border-left: 1px solid hsl(var(--border));
+  }
+}
+
+@media (min-width: 1280px) {
+  .dashboard-hero-kpi {
+    border-top: 0;
+  }
+
+  .dashboard-hero-kpi:nth-child(n + 2) {
+    border-left: 1px solid hsl(var(--border));
+  }
+
+  .dashboard-hero-kpi:nth-child(n + 5) {
+    border-top: 1px solid hsl(var(--border));
+  }
+}
+
 .dashboard-revenue-grid,
 .dashboard-operations-grid,
 .dashboard-products-grid {
@@ -425,21 +561,6 @@
   background: var(--dashboard-green-tint) !important;
 }
 
-.dashboard-pay-tile {
-  border-radius: 8px;
-  background: var(--dashboard-surface-2);
-}
-
-.dashboard-pay-tile:first-child {
-  border-color: hsl(var(--primary) / 0.18);
-  background: var(--dashboard-green-tint);
-}
-
-.dashboard-pay-tile:last-child {
-  border-color: hsl(var(--destructive) / 0.18);
-  background: var(--dashboard-rose-soft);
-}
-
 .dashboard-channel-content {
   align-items: center;
 }
@@ -447,6 +568,22 @@
 .dashboard-channel-row {
   gap: 0.625rem;
   font-size: 0.78rem;
+}
+
+.dashboard-channel-share {
+  display: flex;
+  min-width: 8.25rem;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.15rem;
+  font-family: var(--font-geist-mono, ui-monospace), "Noto Sans Lao", monospace;
+  font-size: 0.7rem;
+  color: var(--dashboard-muted);
+}
+
+.dashboard-channel-share span:last-child {
+  color: var(--dashboard-ink);
+  font-weight: 700;
 }
 
 .dashboard-insight-tile {
@@ -491,6 +628,15 @@
   background: var(--dashboard-surface-2);
 }
 
+.dashboard-product-avatar {
+  border: 1px solid var(--dashboard-line);
+  background: var(--dashboard-surface-2);
+}
+
+.dashboard-product-avatar img {
+  object-fit: cover;
+}
+
 .dashboard-products-actions {
   min-width: max-content;
 }
@@ -530,6 +676,14 @@
     grid-template-columns: minmax(14rem, 1fr) repeat(2, minmax(9rem, 0.55fr));
   }
 
+  .dashboard-payment-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dashboard-payment-card-total {
+    grid-column: 1 / -1;
+  }
+
   .dashboard-hero-grid {
     min-height: auto;
   }
@@ -547,6 +701,27 @@
 
   .dashboard-filter-selects {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .dashboard-payment-summary-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .dashboard-payment-card-total {
+    grid-column: auto;
+  }
+
+  .dashboard-payment-card-content {
+    min-height: 4.6rem;
+  }
+
+  .dashboard-channel-row {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .dashboard-channel-share {
+    grid-column: 2;
+    align-items: flex-start;
   }
 
   .dashboard-filter-field {
