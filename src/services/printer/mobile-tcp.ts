@@ -1,6 +1,33 @@
 import { Capacitor } from "@capacitor/core";
 import { ServiceError } from "@/lib/api";
 
+type TcpClient = string | number;
+
+type TcpSocketConnectPayload = {
+    ipAddress: string;
+    port: number;
+};
+
+type TcpSocketConnectResult = {
+    client: TcpClient;
+};
+
+type TcpSocketSendPayload = {
+    client: TcpClient;
+    data: string;
+    encoding?: "utf8" | "base64";
+};
+
+type TcpSocketDisconnectPayload = {
+    client: TcpClient;
+};
+
+type TcpSocketApi = {
+    connect: (payload: TcpSocketConnectPayload) => Promise<TcpSocketConnectResult>;
+    send: (payload: TcpSocketSendPayload) => Promise<unknown>;
+    disconnect: (payload: TcpSocketDisconnectPayload) => Promise<unknown>;
+};
+
 function parseTcpInterface(interfaceValue?: string) {
     const value = String(interfaceValue ?? "").trim();
 
@@ -40,8 +67,8 @@ async function sendBase64InChunks({
     chunkSize = 4096,
     delayMs = 80,
 }: {
-    TcpSocket: any;
-    client: string | number;
+    TcpSocket: TcpSocketApi;
+    client: TcpClient;
     base64: string;
     chunkSize?: number;
     delayMs?: number;
@@ -52,7 +79,6 @@ async function sendBase64InChunks({
         throw new ServiceError("Missing ESC/POS base64 data", 400);
     }
 
-    // base64 chunk size ควรหาร 4 ลงตัว
     const safeChunkSize = Math.max(4, chunkSize - (chunkSize % 4));
     const totalChunks = Math.ceil(cleanBase64.length / safeChunkSize);
 
@@ -78,7 +104,7 @@ async function sendBase64InChunks({
             client,
             data: chunk,
             encoding: "base64",
-        } as any);
+        });
 
         await sleep(delayMs);
     }
@@ -122,7 +148,7 @@ export async function printMobileEscposOverTcp({
 
     console.log("[mobile-tcp] plugin loaded", Object.keys(mod));
 
-    const TcpSocket = mod.TcpSocket;
+    const TcpSocket = mod.TcpSocket as unknown as TcpSocketApi;
 
     console.log("[mobile-tcp] connect start");
 
@@ -142,12 +168,6 @@ export async function printMobileEscposOverTcp({
             byteEstimate: Math.floor((cleanBase64.length * 3) / 4),
         });
 
-        /*
-          สำคัญ:
-          backend render ใบเสร็จเป็น ESC/POS raster แล้วส่งกลับมาเป็น base64
-          มือถือจึงต้องส่งเป็น binary/base64 encoding ไม่ใช่ utf8 string
-          และใบเสร็จ/invoice ยาว ควรส่งเป็น chunk เพื่อไม่ให้ printer/socket รับไม่ทัน
-        */
         await sendBase64InChunks({
             TcpSocket,
             client,
@@ -158,7 +178,6 @@ export async function printMobileEscposOverTcp({
 
         console.log("[mobile-tcp] send success");
 
-        // ให้ printer มีเวลารับ buffer สุดท้ายก่อน disconnect
         await sleep(500);
     } catch (error) {
         console.error("[mobile-tcp] send failed", error);
@@ -166,7 +185,7 @@ export async function printMobileEscposOverTcp({
     } finally {
         console.log("[mobile-tcp] disconnect start");
 
-        await TcpSocket.disconnect({ client }).catch((error) => {
+        await TcpSocket.disconnect({ client }).catch((error: unknown) => {
             console.error("[mobile-tcp] disconnect failed", error);
         });
 
