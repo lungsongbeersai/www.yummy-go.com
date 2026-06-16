@@ -100,6 +100,7 @@ describe("report export loaders", () => {
         branch_uuid_fk: "branch-1",
         date_from: "2026-06-08",
         date_to: "2026-06-08",
+        group_uuid_fk: "all",
         sort_by: "qty"
       },
       async (params) => {
@@ -108,9 +109,9 @@ describe("report export loaders", () => {
       }
     );
 
-    expect(requests.map((request) => [request.limit, request.page])).toEqual([
-      [PAGE_LIMIT_ALL_BATCH, 1],
-      [PAGE_LIMIT_ALL_BATCH, 2]
+    expect(requests.map((request) => [request.group_uuid_fk, request.limit, request.page])).toEqual([
+      ["all", PAGE_LIMIT_ALL_BATCH, 1],
+      ["all", PAGE_LIMIT_ALL_BATCH, 2]
     ]);
     expect(data.groups).toHaveLength(1);
     expect(data.groups[0]).toMatchObject({ finalTotal: 30, name: "Drinks", qtyTotal: 3 });

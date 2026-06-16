@@ -107,7 +107,17 @@ export const getTableQR = (table_uuid: string) =>
   });
 
 export const confirmToKitchen = (input: ConfirmToKitchenInput) =>
-  apiRequest<ConfirmToKitchenResponse>("patch", "/api/v1/pos/confirm_to_kitchen", { data: input });
+  apiRequest<ConfirmToKitchenResponse>("patch", "/api/v1/pos/confirm_to_kitchen", {
+    data: {
+      order_uuid: input.order_uuid,
+      login_uuid_fk: input.login_uuid_fk,
+      order_item_uuids: input.order_item_uuids,
+      lang: langParam(input.lang),
+      device_code: input.device_code,
+      agent_id: input.agent_id,
+      print_mode: input.print_mode
+    }
+  });
 
 export const confirmOrderItemServed = (input: ConfirmOrderItemServedInput) =>
   apiRequest<{ status: string; message: string }>("patch", "/api/v1/pos/confirm_order_item_served", {
@@ -139,7 +149,15 @@ export const createTableQR = (params: CreateTableQRRequest) =>
 
 export const printInvoice = (params: PrintInvoiceRequest) =>
   apiRequest<PrintInvoiceResponse>("post", "/api/v1/pos/print_invoice", {
-    data: { ...params, lang: langParam(params.lang) }
+    data: {
+      login_uuid_fk: params.login_uuid_fk,
+      order_uuid: params.order_uuid,
+      lang: langParam(params.lang),
+      document_type: params.document_type ?? "invoice",
+      device_code: params.device_code,
+      agent_id: params.agent_id,
+      print_mode: params.print_mode
+    }
   });
 
 export function cartOrdersToHistory(orders: CartOrder[]): OrderHistory[] {

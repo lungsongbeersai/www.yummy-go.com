@@ -1,6 +1,7 @@
 "use client";
 
 import { create } from "zustand";
+import { resolvePrinterDeviceIdentity } from "@/services/printer";
 import * as posService from "@/services/pos";
 import type {
   BillDiscountInput,
@@ -198,7 +199,18 @@ export const usePosStore = create<PosState>((set) => ({
     return tableQr;
   },
   confirmKitchen: async (input) => {
-    const lastKitchenConfirm = await posService.confirmToKitchen(input);
+    const identity = await resolvePrinterDeviceIdentity();
+    if (!identity.ok) throw new Error(identity.error);
+
+    const lastKitchenConfirm = await posService.confirmToKitchen({
+      order_uuid: input.order_uuid,
+      login_uuid_fk: input.login_uuid_fk,
+      order_item_uuids: input.order_item_uuids,
+      lang: input.lang,
+      device_code: input.device_code ?? identity.agent.device_code ?? undefined,
+      agent_id: input.agent_id ?? identity.agent.agent_id,
+      print_mode: input.print_mode ?? "agent"
+    });
     set({ lastKitchenConfirm });
     return lastKitchenConfirm;
   },
@@ -206,12 +218,28 @@ export const usePosStore = create<PosState>((set) => ({
   cancelItem: (input) => posService.cancelOrderItem(input),
   updateNote: (input) => posService.updateOrderNote(input),
   createPayment: async (input) => {
-    const lastPayment = await posService.createPayment(input);
+    const identity = await resolvePrinterDeviceIdentity();
+    if (!identity.ok) throw new Error(identity.error);
+
+    const lastPayment = await posService.createPayment({
+      ...input,
+      device_code: input.device_code ?? identity.agent.device_code ?? undefined,
+      agent_id: input.agent_id ?? identity.agent.agent_id,
+      print_mode: input.print_mode ?? "windows_agent"
+    });
     set({ lastPayment });
     return lastPayment;
   },
   splitBill: async (input) => {
-    const lastSplitBill = await posService.splitBill(input);
+    const identity = await resolvePrinterDeviceIdentity();
+    if (!identity.ok) throw new Error(identity.error);
+
+    const lastSplitBill = await posService.splitBill({
+      ...input,
+      device_code: input.device_code ?? identity.agent.device_code ?? undefined,
+      agent_id: input.agent_id ?? identity.agent.agent_id,
+      print_mode: input.print_mode ?? "windows_agent"
+    });
     set({ lastSplitBill });
     return lastSplitBill;
   },
@@ -221,7 +249,18 @@ export const usePosStore = create<PosState>((set) => ({
     return tableQr;
   },
   printInvoice: async (params) => {
-    const lastInvoice = await posService.printInvoice(params);
+    const identity = await resolvePrinterDeviceIdentity();
+    if (!identity.ok) throw new Error(identity.error);
+
+    const lastInvoice = await posService.printInvoice({
+      login_uuid_fk: params.login_uuid_fk,
+      order_uuid: params.order_uuid,
+      lang: params.lang,
+      document_type: "invoice",
+      device_code: params.device_code ?? identity.agent.device_code ?? undefined,
+      agent_id: params.agent_id ?? identity.agent.agent_id,
+      print_mode: params.print_mode ?? "agent"
+    });
     set({ lastInvoice });
     return lastInvoice;
   },

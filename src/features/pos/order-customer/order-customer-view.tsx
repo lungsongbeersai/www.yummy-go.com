@@ -61,6 +61,7 @@ export function OrderCustomerView({
     newOrderFocusKey,
     note,
     openOrAddProduct,
+    openCartSheet,
     openTablesPage,
     productMode,
     productSheetOpen,
@@ -183,7 +184,7 @@ export function OrderCustomerView({
                   type="button"
                   variant="ghost"
                   className="hidden border border-white/25 bg-white/15 text-white shadow-sm hover:bg-white/25 hover:text-white sm:inline-flex xl:hidden"
-                  onClick={() => setCartSheetOpen(true)}
+                  onClick={() => void openCartSheet()}
                 >
                   <ShoppingCart data-icon="inline-start" />
                   <span className="hidden sm:inline">
@@ -257,7 +258,7 @@ export function OrderCustomerView({
       <Button
         type="button"
         className="pos-safe-bottom-offset fixed right-4 h-12 rounded-full border border-white/20 bg-black/45 px-4 text-white shadow-lg hover:bg-white/10 sm:hidden"
-        onClick={() => setCartSheetOpen(true)}
+        onClick={() => void openCartSheet()}
       >
         <ShoppingCart data-icon="inline-start" />
         {t("pos.currentCart")}
@@ -266,7 +267,16 @@ export function OrderCustomerView({
         </Badge>
       </Button>
 
-      <Sheet open={cartSheetOpen} onOpenChange={setCartSheetOpen}>
+      <Sheet
+        open={cartSheetOpen}
+        onOpenChange={(nextOpen) => {
+          if (nextOpen) {
+            void openCartSheet();
+            return;
+          }
+          setCartSheetOpen(false);
+        }}
+      >
         <SheetContent
           side="bottom"
           className="h-[calc(100dvh-8px)] max-h-none gap-0 overflow-hidden rounded-t-2xl border-white/20 bg-[url('/pos/background_wide.webp')] bg-cover bg-top p-0 text-white dark:border-primary/30"

@@ -1,8 +1,10 @@
 "use client";
 
-import { type ReactNode, type RefObject } from "react";
+import { type ReactNode, type RefObject, useState } from "react";
 import {
   CalendarDays,
+  ChevronDown,
+  ChevronUp,
   CreditCard,
   Download,
   FileSpreadsheet,
@@ -460,44 +462,119 @@ export function PaymentMethodsTableCard({
   );
 }
 
+// Column group definitions for the desktop table
+type ColumnGroup = {
+  key: string;
+  labelKey: string;
+  colorClass: string;
+  fields: Array<keyof PaymentMethodReportRow>;
+};
+
+const COLUMN_GROUPS: ColumnGroup[] = [
+  {
+    key: "bills",
+    labelKey: "report.paymentMethodsReport.groups.bills",
+    colorClass: "text-blue-500",
+    fields: ["billsCount", "activeCount", "cancelledCount", "itemsCount", "qtyTotal"]
+  },
+  {
+    key: "amount",
+    labelKey: "report.paymentMethodsReport.groups.amount",
+    colorClass: "text-emerald-500",
+    fields: ["amount", "toppingTotal"]
+  },
+  {
+    key: "discount",
+    labelKey: "report.paymentMethodsReport.groups.discount",
+    colorClass: "text-amber-500",
+    fields: ["itemDiscount", "discountBill", "discountTotal"]
+  },
+  {
+    key: "tax",
+    labelKey: "report.paymentMethodsReport.groups.tax",
+    colorClass: "text-purple-500",
+    fields: ["serviceCharge", "vat", "total"]
+  },
+  {
+    key: "payment",
+    labelKey: "report.paymentMethodsReport.groups.payment",
+    colorClass: "text-rose-500",
+    fields: ["receiveCash", "receiveTransfer", "debtAmount", "changeAmount", "cancelledTotal"]
+  }
+];
+
 export function PaymentMethodsTable({ rows }: { rows: PaymentMethodReportRow[] }) {
   const { t } = useTranslation();
-  const metrics = paymentMethodRowMetricConfigs(t);
+  const allMetrics = paymentMethodRowMetricConfigs(t);
+  // Map field -> metric config for quick lookup
+  const metricByField = Object.fromEntries(allMetrics.map((m) => [m.field, m]));
 
   return (
     <div className="hidden min-w-0 md:block">
-      <Table className="min-w-[2380px] text-[13px]">
+      <Table className="min-w-[1800px] text-[13px]">
         <TableHeader className="sticky top-0 z-20 bg-background/95 shadow-sm backdrop-blur">
-          <TableRow>
-            <TableHead className="w-[90px] whitespace-nowrap bg-background/95 text-center">
-              {t("report.paymentMethodsReport.columns.rank")}
-            </TableHead>
-            <TableHead className="min-w-[180px] whitespace-nowrap bg-background/95">
-              {t("report.paymentMethodsReport.columns.paymentMethod")}
-            </TableHead>
-            <TableHead className="min-w-[140px] whitespace-nowrap bg-background/95">
-              {t("report.paymentMethodsReport.columns.paymentMethodCode")}
-            </TableHead>
-            {metrics.map((metric) => (
-              <TableHead key={metric.key} className="min-w-[126px] whitespace-nowrap bg-background/95 text-right">
-                {metric.label}
+          {/* Group header row */}
+          <TableRow className="border-b-0">
+            <TableHead className="w-[60px] border-b border-border bg-background/95" />
+            <TableHead className="min-w-[200px] border-b border-border bg-background/95" />
+            {COLUMN_GROUPS.map((group) => (
+              <TableHead
+                key={group.key}
+                colSpan={group.fields.length}
+                className={`border-b border-border bg-background/95 text-center text-[11px] font-black uppercase tracking-widest ${group.colorClass}`}
+              >
+                {t(group.labelKey, { defaultValue: group.key })}
               </TableHead>
             ))}
+          </TableRow>
+          {/* Column header row */}
+          <TableRow>
+            <TableHead className="w-[60px] whitespace-nowrap bg-background/95 text-center">
+              {t("report.paymentMethodsReport.columns.rank")}
+            </TableHead>
+            <TableHead className="min-w-[200px] whitespace-nowrap bg-background/95">
+              {t("report.paymentMethodsReport.columns.paymentMethod")}
+            </TableHead>
+            {COLUMN_GROUPS.flatMap((group) =>
+              group.fields.map((field) => {
+                const metric = metricByField[field];
+                return (
+                  <TableHead
+                    key={field}
+                    className="min-w-[110px] whitespace-nowrap bg-background/95 text-right text-[12px]"
+                  >
+                    {metric?.label ?? field}
+                  </TableHead>
+                );
+              })
+            )}
           </TableRow>
         </TableHeader>
         <TableBody>
           {rows.map((row, index) => (
-            <TableRow key={`${row.paymentMethodCode}-${row.rank}`} className={index % 2 === 1 ? "bg-muted/15" : undefined}>
+            <TableRow
+              key={`${row.paymentMethodCode}-${row.rank}`}
+              className={index % 2 === 1 ? "bg-muted/15" : undefined}
+            >
               <TableCell className="whitespace-nowrap text-center">
-                <Badge className="h-7 min-w-10 justify-center px-2 text-xs tabular-nums">#{row.rank}</Badge>
+                <Badge className="h-6 min-w-9 justify-center px-1.5 text-xs tabular-nums">#{row.rank}</Badge>
               </TableCell>
-              <TableCell className="whitespace-nowrap font-black">{row.paymentMethodName}</TableCell>
-              <TableCell className="whitespace-nowrap text-muted-foreground">{row.paymentMethodCode}</TableCell>
-              {metrics.map((metric) => (
-                <TableCell key={metric.key} className="whitespace-nowrap text-right font-black tabular-nums">
-                  {displayMetric(row[metric.field], metric.kind)}
-                </TableCell>
-              ))}
+              <TableCell className="whitespace-nowrap">
+                <div>
+                  <p className="font-black">{row.paymentMethodName}</p>
+                  <p className="text-[11px] text-muted-foreground">{row.paymentMethodCode}</p>
+                </div>
+              </TableCell>
+              {COLUMN_GROUPS.flatMap((group) =>
+                group.fields.map((field) => {
+                  const metric = metricByField[field];
+                  return (
+                    <TableCell key={field} className="whitespace-nowrap text-right tabular-nums">
+                      {metric ? displayMetric(row[field], metric.kind) : String(row[field] ?? "-")}
+                    </TableCell>
+                  );
+                })
+              )}
             </TableRow>
           ))}
         </TableBody>
@@ -506,29 +583,170 @@ export function PaymentMethodsTable({ rows }: { rows: PaymentMethodReportRow[] }
   );
 }
 
+// Mobile section group definitions
+type MobileSectionGroup = {
+  key: string;
+  labelKey: string;
+  bgClass: string;
+  borderClass: string;
+  textClass: string;
+  fields: Array<keyof PaymentMethodReportRow>;
+};
+
+const MOBILE_GROUPS: MobileSectionGroup[] = [
+  {
+    key: "bills",
+    labelKey: "report.paymentMethodsReport.groups.bills",
+    bgClass: "bg-blue-500/8",
+    borderClass: "border-blue-500/20",
+    textClass: "text-blue-600 dark:text-blue-400",
+    fields: ["billsCount", "activeCount", "cancelledCount", "itemsCount", "qtyTotal"]
+  },
+  {
+    key: "amount",
+    labelKey: "report.paymentMethodsReport.groups.amount",
+    bgClass: "bg-emerald-500/8",
+    borderClass: "border-emerald-500/20",
+    textClass: "text-emerald-600 dark:text-emerald-400",
+    fields: ["amount", "toppingTotal"]
+  },
+  {
+    key: "discount",
+    labelKey: "report.paymentMethodsReport.groups.discount",
+    bgClass: "bg-amber-500/8",
+    borderClass: "border-amber-500/20",
+    textClass: "text-amber-600 dark:text-amber-400",
+    fields: ["itemDiscount", "discountBill", "discountTotal"]
+  },
+  {
+    key: "tax",
+    labelKey: "report.paymentMethodsReport.groups.tax",
+    bgClass: "bg-purple-500/8",
+    borderClass: "border-purple-500/20",
+    textClass: "text-purple-600 dark:text-purple-400",
+    fields: ["serviceCharge", "vat", "total"]
+  },
+  {
+    key: "payment",
+    labelKey: "report.paymentMethodsReport.groups.payment",
+    bgClass: "bg-rose-500/8",
+    borderClass: "border-rose-500/20",
+    textClass: "text-rose-600 dark:text-rose-400",
+    fields: ["receiveCash", "receiveTransfer", "debtAmount", "changeAmount", "cancelledTotal"]
+  }
+];
+
 export function PaymentMethodsMobileList({ rows }: { rows: PaymentMethodReportRow[] }) {
   const { t } = useTranslation();
+  const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
+  const allMetrics = paymentMethodRowMetricConfigs(t);
+  const metricByField = Object.fromEntries(allMetrics.map((m) => [m.field, m]));
+
+  function toggleExpand(key: string) {
+    setExpandedKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
 
   return (
     <div className="flex flex-col gap-3 p-3 md:hidden">
-      {rows.map((row) => (
-        <section key={`${row.paymentMethodCode}-${row.rank}`} className="rounded-md border border-border bg-background">
-          <div className="border-b border-border bg-muted/25 p-3">
-            <div className="flex items-center justify-between gap-2">
-              <div className="min-w-0">
-                <h3 className="truncate text-sm font-black">{row.paymentMethodName}</h3>
-                <p className="text-xs text-muted-foreground">{row.paymentMethodCode}</p>
+      {rows.map((row) => {
+        const key = `${row.paymentMethodCode}-${row.rank}`;
+        const expanded = expandedKeys.has(key);
+        return (
+          <section key={key} className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+            {/* Card header */}
+            <div className="flex items-center justify-between gap-3 bg-muted/30 px-4 py-3">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <Badge className="h-6 min-w-9 shrink-0 justify-center px-1.5 text-xs tabular-nums">#{row.rank}</Badge>
+                  <h3 className="truncate text-sm font-black">{row.paymentMethodName}</h3>
+                </div>
+                <p className="mt-0.5 text-xs text-muted-foreground">{row.paymentMethodCode}</p>
               </div>
-              <Badge className="h-7 min-w-10 justify-center px-2 text-xs tabular-nums">#{row.rank}</Badge>
+              <div className="shrink-0 text-right">
+                <p className="text-[11px] font-bold text-muted-foreground">{t("report.paymentMethodsReport.columns.total")}</p>
+                <p className="text-base font-black tabular-nums text-foreground">{displayMetric(row.total, "money")}</p>
+              </div>
             </div>
-          </div>
-          <div className="grid grid-cols-2 gap-2 p-3 text-xs">
-            {paymentMethodRowMetrics(row, t).map((metric) => (
-              <MetricPill key={metric.key} label={metric.label} value={metric.value} kind={metric.kind} />
-            ))}
-          </div>
-        </section>
-      ))}
+
+            {/* Quick stats always visible */}
+            <div className="grid grid-cols-3 divide-x divide-border border-b border-border">
+              <div className="px-3 py-2 text-center">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                  {t("report.paymentMethodsReport.columns.billsCount")}
+                </p>
+                <p className="text-sm font-black tabular-nums">{row.billsCount}</p>
+              </div>
+              <div className="px-3 py-2 text-center">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                  {t("report.paymentMethodsReport.columns.amount")}
+                </p>
+                <p className="text-sm font-black tabular-nums">{displayMetric(row.amount, "money")}</p>
+              </div>
+              <div className="px-3 py-2 text-center">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                  {t("report.paymentMethodsReport.columns.receiveCash")}
+                </p>
+                <p className="text-sm font-black tabular-nums">{displayMetric(row.receiveCash, "money")}</p>
+              </div>
+            </div>
+
+            {/* Expand toggle */}
+            <button
+              type="button"
+              className="flex w-full items-center justify-center gap-1.5 border-b border-border py-2 text-[11px] font-bold text-muted-foreground transition-colors hover:bg-muted/20"
+              onClick={() => toggleExpand(key)}
+            >
+              {expanded ? (
+                <>
+                  <ChevronUp className="size-3.5" />
+                  {t("actions.showLess", { defaultValue: "ຫຍໍ້ລາຍລະອຽດ" })}
+                </>
+              ) : (
+                <>
+                  <ChevronDown className="size-3.5" />
+                  {t("actions.showMore", { defaultValue: "ລາຍລະອຽດທັງໝົດ" })}
+                </>
+              )}
+            </button>
+
+            {/* Expanded detail grouped by category */}
+            {expanded && (
+              <div className="divide-y divide-border">
+                {MOBILE_GROUPS.map((group) => (
+                  <div key={group.key} className={`p-3 ${group.bgClass}`}>
+                    <p className={`mb-2 text-[10px] font-black uppercase tracking-widest ${group.textClass}`}>
+                      {t(group.labelKey, { defaultValue: group.key })}
+                    </p>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {group.fields.map((field) => {
+                        const metric = metricByField[field];
+                        return (
+                          <div
+                            key={field}
+                            className={`min-w-0 rounded-lg border px-2.5 py-1.5 ${group.borderClass} bg-background/60`}
+                          >
+                            <p className="truncate text-[10px] font-bold text-muted-foreground">
+                              {metric?.label ?? field}
+                            </p>
+                            <p className="truncate text-xs font-black tabular-nums text-foreground">
+                              {metric ? displayMetric(row[field], metric.kind) : String(row[field] ?? "-")}
+                            </p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        );
+      })}
     </div>
   );
 }
@@ -543,9 +761,9 @@ function MetricPill({
   value: unknown;
 }) {
   return (
-    <div className="min-w-0 rounded-md border border-border bg-muted/20 px-2 py-1">
-      <p className="truncate text-[11px] font-bold text-muted-foreground">{label}</p>
-      <p className="truncate font-black tabular-nums text-foreground">{displayMetric(value, kind)}</p>
+    <div className="min-w-0 rounded-md border border-border bg-muted/20 px-2 py-1.5">
+      <p className="truncate text-[10px] font-bold uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="truncate text-xs font-black tabular-nums text-foreground">{displayMetric(value, kind)}</p>
     </div>
   );
 }

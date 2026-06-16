@@ -15,12 +15,12 @@ import {
   YAxis
 } from "recharts";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import type { DashboardCopy } from "./dashboard-widgets";
@@ -35,7 +35,6 @@ import type {
 } from "@/features/dashboard/overview/dashboard-view-model";
 import {
   asRow,
-  formatCompactKip,
   formatKip,
   formatNumber,
   formatPercent,
@@ -86,10 +85,6 @@ const chartColors = [
   "hsl(var(--muted-foreground))",
   "hsl(var(--primary) / 0.42)"
 ];
-
-function compactMoney(value: unknown) {
-  return `${formatCompactKip(value)} ₭`;
-}
 
 function paymentLabel(rows: BreakdownRow[], terms: string[], fallback: string) {
   const match = rows.find((row) => {
@@ -196,7 +191,7 @@ function DashboardRevenueChart({
       <ComposedChart data={chartRows} margin={{ bottom: 0, left: 0, right: 0, top: 14 }}>
         <CartesianGrid vertical={false} strokeDasharray="2 4" />
         <XAxis dataKey="label" axisLine={false} tickLine={false} minTickGap={16} />
-        <YAxis axisLine={false} tickLine={false} tickFormatter={isOrders ? (value) => formatNumber(value) : formatCompactKip} width={42} />
+        <YAxis axisLine={false} tickLine={false} tickFormatter={isOrders ? (value) => formatNumber(value) : formatKip} width={isOrders ? 42 : 96} />
         <Tooltip content={<ChartTooltipContent valueFormatter={(value, name) => name === copy.orders ? formatNumber(value) : formatKip(value)} />} />
         {mode === "payments" ? (
           <>
@@ -219,24 +214,17 @@ export const DashboardRevenueAccountingGrid = memo(function DashboardRevenueAcco
   copy,
   paymentRows,
   paymentTrendRows,
+  peakRevenueDay,
   trendRows
 }: {
   accountingRows: AccountingRow[];
   copy: DashboardCopy;
   paymentRows: BreakdownRow[];
   paymentTrendRows: TrendPoint[];
+  peakRevenueDay: TrendPoint | null;
   trendRows: TrendPoint[];
 }) {
   const [chartMode, setChartMode] = useState<RevenueChartMode>("revenue");
-  const paymentTiles = paymentRows.map((row) => ({
-    className: row.key.toLowerCase().includes("debt") || row.key.toLowerCase().includes("balance")
-      ? "bg-destructive/10 text-destructive"
-      : row.key.toLowerCase().includes("cash")
-        ? "bg-primary/10 text-primary"
-        : "text-primary",
-    label: row.label,
-    value: row.value
-  }));
   const legendItems = [
     { className: "bg-primary", label: paymentLabel(paymentRows, ["cash"], copy.cash) },
     { className: "bg-primary/60", label: paymentLabel(paymentRows, ["transfer"], copy.transfer) },
@@ -308,20 +296,14 @@ export const DashboardRevenueAccountingGrid = memo(function DashboardRevenueAcco
           ) : (
             <EmptyPanel label={copy.noData} />
           )}
-
-          {paymentTiles.length ? (
-            <>
-              <Separator className="my-4" />
-              <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{copy.paymentSplit}</p>
-              <div className="grid gap-2 sm:grid-cols-3 xl:grid-cols-1 2xl:grid-cols-3">
-                {paymentTiles.map((tile) => (
-                  <div key={tile.label} className={cn("dashboard-pay-tile rounded-md border border-border bg-muted/30 p-3", tile.className)}>
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{tile.label}</p>
-                    <p className="mt-1 font-mono text-lg font-semibold">{compactMoney(tile.value)}</p>
-                  </div>
-                ))}
-              </div>
-            </>
+          {peakRevenueDay ? (
+            <div className="mt-3 border-t border-dashed pt-3">
+              <MiniFact
+                label={copy.peakDay}
+                title={peakRevenueDay.date}
+                value={`${formatKip(peakRevenueDay.revenue)} / ${formatNumber(peakRevenueDay.orders)} ${copy.orders}`}
+              />
+            </div>
           ) : null}
         </CardContent>
       </Card>
@@ -360,24 +342,28 @@ function ChannelDonutPanel({ copy, rows }: { copy: DashboardCopy; rows: Breakdow
                 </PieChart>
               </ChartContainer>
               <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                <p className="font-mono text-xl font-semibold">{formatPercent(main?.percent ?? 0)}</p>
+                <p className="font-mono text-xl font-semibold">{formatPercent(main?.revenuePercent || main?.percent || 0)}</p>
                 <p className="max-w-28 truncate text-xs text-muted-foreground">{main?.label ?? copy.channels}</p>
               </div>
             </div>
             <div className="flex flex-col gap-3">
               {rows.map((row, index) => (
-                <div key={row.key} className="dashboard-channel-row grid grid-cols-[auto_1fr_auto_auto] items-center gap-2 text-sm">
+                <div key={row.key} className="dashboard-channel-row grid grid-cols-[auto_1fr_auto] items-center gap-2 text-sm">
                   <span className="size-2.5 rounded-sm" style={{ backgroundColor: chartColors[index % chartColors.length] }} />
                   <div className="min-w-0">
                     <p className="truncate font-semibold">{row.label}</p>
-                    <p className="font-mono text-xs text-muted-foreground">{formatKip(row.value)}</p>
+                    <p className="font-mono text-xs text-muted-foreground">
+                      {formatNumber(row.count ?? 0)} {copy.orders} / {formatKip(row.value)}
+                    </p>
                   </div>
-                  <span className="font-mono text-xs text-muted-foreground">{formatNumber(row.count ?? 0)}</span>
-                  <span className="font-mono font-semibold">{formatPercent(row.percent)}</span>
+                  <div className="dashboard-channel-share">
+                    <span>{copy.orderShare}: {formatPercent(row.orderPercent)}</span>
+                    <span>{copy.revenueShare}: {formatPercent(row.revenuePercent || row.percent)}</span>
+                  </div>
                 </div>
               ))}
               <p className="border-t pt-3 text-xs text-muted-foreground">
-                {main ? `${copy.mainChannel}: ${main.label} / ${formatPercent(main.percent)}` : copy.noData}
+                {main ? `${copy.mainChannel}: ${main.label} / ${copy.revenueShare} ${formatPercent(main.revenuePercent || main.percent)}` : copy.noData}
               </p>
             </div>
           </>
@@ -434,11 +420,25 @@ function TableStatusPanel({ copy, summary }: { copy: DashboardCopy; summary: Row
   );
 }
 
-function InsightCardsPanel({ copy, insights, productSummary }: { copy: DashboardCopy; insights: Row; productSummary: Row }) {
+function InsightCardsPanel({
+  copy,
+  highestRevenueProduct,
+  insights,
+  mainOrderChannel,
+  productSummary
+}: {
+  copy: DashboardCopy;
+  highestRevenueProduct: ProductRow | null;
+  insights: Row;
+  mainOrderChannel: BreakdownRow | null;
+  productSummary: Row;
+}) {
   const bestProduct = asRow(insights.best_selling_product);
   const watchProduct = asRow(insights.watch_product);
   const cancelledBill = asRow(insights.cancelled_bill);
   const lowestProduct = asRow(productSummary.lowest_selling_product);
+  const watchQty = numberFrom(watchProduct, "qty_total") || numberFrom(lowestProduct, "qty_total");
+  const watchRevenue = numberFrom(watchProduct, "revenue_total") || numberFrom(lowestProduct, "revenue_total");
   const cards = [
     {
       className: "border-primary/20 bg-primary/10 text-primary",
@@ -446,11 +446,23 @@ function InsightCardsPanel({ copy, insights, productSummary }: { copy: Dashboard
       name: text(bestProduct.prod_name),
       value: `${formatNumber(numberFrom(bestProduct, "qty_total"))} ${copy.productsSold} / ${formatKip(numberFrom(bestProduct, "revenue_total"))}`
     },
+    mainOrderChannel ? {
+      className: "border-primary/20 bg-card text-primary",
+      label: copy.mainChannel,
+      name: mainOrderChannel.label,
+      value: `${formatNumber(mainOrderChannel.count ?? 0)} ${copy.orders} / ${formatKip(mainOrderChannel.value)} / ${copy.orderShare} ${formatPercent(mainOrderChannel.orderPercent)} / ${copy.revenueShare} ${formatPercent(mainOrderChannel.revenuePercent)}`
+    } : null,
+    highestRevenueProduct ? {
+      className: "border-primary/20 bg-muted text-primary",
+      label: copy.highestRevenueProduct,
+      name: highestRevenueProduct.name,
+      value: `${formatNumber(highestRevenueProduct.qty)} ${copy.productsSold} / ${formatKip(highestRevenueProduct.revenue)}`
+    } : null,
     {
       className: "border-primary/20 bg-muted text-muted-foreground",
       label: copy.watchProduct,
       name: text(watchProduct.prod_name, text(lowestProduct.prod_name)),
-      value: `${formatNumber(numberFrom(watchProduct, "qty_total") || numberFrom(lowestProduct, "qty_total"))} ${copy.productsSold}`
+      value: `${formatNumber(watchQty)} ${copy.productsSold} / ${formatKip(watchRevenue)}`
     },
     {
       className: "border-destructive/25 bg-destructive/10 text-destructive",
@@ -458,7 +470,7 @@ function InsightCardsPanel({ copy, insights, productSummary }: { copy: Dashboard
       name: `${formatNumber(numberFrom(cancelledBill, "count"))} ${copy.orders}`,
       value: formatKip(numberFrom(cancelledBill, "total"))
     }
-  ];
+  ].filter((card): card is { className: string; label: string; name: string; value: string } => Boolean(card));
 
   return (
     <Card className="dashboard-card dashboard-insight-card overflow-hidden">
@@ -481,13 +493,17 @@ function InsightCardsPanel({ copy, insights, productSummary }: { copy: Dashboard
 export const DashboardOperationsGrid = memo(function DashboardOperationsGrid({
   channelRows,
   copy,
+  highestRevenueProduct,
   insights,
+  mainOrderChannel,
   productSummary,
   tableSummary
 }: {
   channelRows: BreakdownRow[];
   copy: DashboardCopy;
+  highestRevenueProduct: ProductRow | null;
   insights: Row;
+  mainOrderChannel: BreakdownRow | null;
   productSummary: Row;
   tableSummary: Row;
 }) {
@@ -495,7 +511,13 @@ export const DashboardOperationsGrid = memo(function DashboardOperationsGrid({
     <div className="dashboard-operations-grid grid gap-4 xl:grid-cols-3">
       <ChannelDonutPanel copy={copy} rows={channelRows} />
       <TableStatusPanel copy={copy} summary={tableSummary} />
-      <InsightCardsPanel copy={copy} insights={insights} productSummary={productSummary} />
+      <InsightCardsPanel
+        copy={copy}
+        highestRevenueProduct={highestRevenueProduct}
+        insights={insights}
+        mainOrderChannel={mainOrderChannel}
+        productSummary={productSummary}
+      />
     </div>
   );
 });
@@ -567,9 +589,19 @@ function ProductsTablePanel({
                   <TableRow key={`${product.key}-${index}`}>
                     <TableCell className={cn("font-mono font-semibold text-muted-foreground", index < 3 && "text-primary")}>#{product.rank}</TableCell>
                     <TableCell>
-                      <div className="min-w-0">
-                        <span className="truncate font-semibold">{product.name}</span>
-                        {product.size ? <Badge className="ml-2">{product.size}</Badge> : null}
+                      <div className="dashboard-product-cell flex min-w-0 items-center gap-3">
+                        <Avatar className="dashboard-product-avatar rounded-md" size="lg">
+                          {product.hasImage ? <AvatarImage alt={product.name} src={product.image} /> : null}
+                          <AvatarFallback>{product.name.slice(0, 1)}</AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0">
+                          <p className="truncate font-semibold">{product.name}</p>
+                          {product.size ? (
+                            <div className="mt-1 flex flex-wrap items-center gap-1">
+                              <Badge>{product.size}</Badge>
+                            </div>
+                          ) : null}
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell className="text-right font-mono">{formatNumber(product.qty)}</TableCell>
@@ -641,7 +673,7 @@ function ParetoPanel({ copy, products }: { copy: DashboardCopy; products: Produc
               <ComposedChart data={data} margin={{ bottom: 48, left: 0, right: 0, top: 16 }}>
                 <CartesianGrid vertical={false} strokeDasharray="2 4" />
                 <XAxis dataKey="label" angle={-30} textAnchor="end" height={62} interval={0} tickLine={false} axisLine={false} tick={{ fontSize: 10 }} />
-                <YAxis yAxisId="money" axisLine={false} tickLine={false} tickFormatter={metric === "revenue" ? formatCompactKip : formatNumber} width={42} />
+                <YAxis yAxisId="money" axisLine={false} tickLine={false} tickFormatter={metric === "revenue" ? formatKip : formatNumber} width={metric === "revenue" ? 96 : 42} />
                 <YAxis yAxisId="percent" orientation="right" axisLine={false} tickLine={false} tickFormatter={(value) => `${value}%`} width={36} />
                 <Tooltip content={<ChartTooltipContent valueFormatter={(value, name) => name === copy.cumulativePercent ? `${formatNumber(value, 1)}%` : metricFormatter(value)} />} />
                 <Bar yAxisId="money" dataKey={metric === "revenue" ? "revenue" : "qty"} fill="var(--color-value)" radius={[2, 2, 0, 0]} />

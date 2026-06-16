@@ -1,5 +1,6 @@
 import { apiRequest } from "@/lib/api";
 import { toApiLanguage } from "@/lib/language";
+import { normalizeMenuIconName } from "@/lib/menu-icons";
 import { requiredText } from "@/services/shared/validators";
 import type { ApiDataResponse, ApiListResponse, ApiMessageResponse } from "@/services/shared/types";
 
@@ -118,7 +119,7 @@ export function normalizePermissionMainMenu(menu: RawPermissionMainMenu): Permis
   return {
     menu_badge: permissionMenuBadgeValue(menu.menu_badge),
     menu_badge_text: text(menu.menu_badge_text),
-    menu_icon: text(menu.menu_icon, "fa fa-file"),
+    menu_icon: normalizeMenuIconName(menu.menu_icon),
     menu_id: menuId,
     menu_path: text(menu.menu_path),
     menu_sort: numberValue(menu.menu_sort),
@@ -150,7 +151,7 @@ export function buildCreateMainMenuPayload(input: CreateMainMenuInput) {
     menu_id: text(input.menu_id),
     menu_badge: menuBadge,
     menu_badge_text: menuBadge === 1 ? text(input.menu_badge_text) : "",
-    menu_icon: text(input.menu_icon, "fa fa-file"),
+    menu_icon: normalizeMenuIconName(input.menu_icon),
     menu_path: requiredText(input.menu_path, "menu_path"),
     menu_status: numberValue(input.menu_status, 1),
     menu_title_eng: requiredText(input.menu_title_eng, "menu_title_eng"),

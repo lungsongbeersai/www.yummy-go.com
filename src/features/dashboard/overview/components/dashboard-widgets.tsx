@@ -4,28 +4,35 @@ import { memo, useState } from "react";
 import {
   AlertTriangle,
   ArrowRight,
+  Banknote,
   Code2,
   Copy,
+  CreditCard,
   Download,
-  RefreshCcw
+  ReceiptText,
+  RefreshCcw,
+  WalletCards
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Field, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import type {
   DashboardFilters,
+  DashboardWarning,
+  PaymentSummary,
+  PaymentSummaryCard,
   Row,
   SelectOption,
   TrendPoint
 } from "@/features/dashboard/overview/dashboard-view-model";
 import {
   asRow,
-  formatCompactKip,
   formatKip,
   formatNumber,
   formatPercent,
@@ -35,6 +42,14 @@ import {
 
 export type DashboardCopy = Record<string, string>;
 
+const paymentSummaryIconMap = {
+  cash: Banknote,
+  debt: WalletCards,
+  payment_total: ReceiptText,
+  transfer: CreditCard
+};
+const moneyUnits = new Set(["k", "kip", "kib", "lak", "₭", "ກີບ"]);
+
 type FilterBarProps = {
   activeBranchUuid: string;
   branchLoading: boolean;
@@ -42,13 +57,10 @@ type FilterBarProps = {
   copy: DashboardCopy;
   filters: DashboardFilters;
   loading: boolean;
-  monthOptions: SelectOption[];
   onApply: () => void;
   onBranchChange: (value: string) => void;
   onFilterChange: (patch: Partial<DashboardFilters>) => void;
   onReset: () => void;
-  rangeOptions: SelectOption[];
-  yearOptions: SelectOption[];
 };
 
 const SelectControl = memo(function SelectControl({
@@ -85,12 +97,41 @@ const SelectControl = memo(function SelectControl({
   );
 });
 
-function compactMoney(value: unknown) {
-  return `${formatCompactKip(value)} ₭`;
+const DateControl = memo(function DateControl({
+  label,
+  name,
+  onChange,
+  value
+}: {
+  label: string;
+  name: string;
+  onChange: (value: string) => void;
+  value: string;
+}) {
+  return (
+    <Field className="dashboard-filter-field min-w-0 gap-1.5">
+      <FieldLabel className="text-[11px] font-bold text-muted-foreground" htmlFor={name}>
+        {label}
+      </FieldLabel>
+      <Input
+        id={name}
+        name={name}
+        type="date"
+        value={value}
+        className="h-9 font-mono text-[13px] font-semibold"
+        onChange={(event) => onChange(event.target.value)}
+      />
+    </Field>
+  );
+});
+
+function isMoneyUnit(unit: string) {
+  return moneyUnits.has(unit.trim().toLowerCase());
 }
 
 function formatApiMoney(value: unknown, unit: string) {
-  return unit ? `${formatNumber(value)} ${unit}` : formatKip(value);
+  if (!unit || isMoneyUnit(unit)) return formatKip(value);
+  return `${formatNumber(value)} ${unit}`;
 }
 
 function SparkPreview({ primary, values }: { primary?: boolean; values: number[] }) {
@@ -174,31 +215,14 @@ export const DashboardFilterBar = memo(function DashboardFilterBar({
   copy,
   filters,
   loading,
-  monthOptions,
   onApply,
   onBranchChange,
   onFilterChange,
-  onReset,
-  rangeOptions,
-  yearOptions
+  onReset
 }: FilterBarProps) {
   return (
     <Card className="dashboard-filter-card border-border bg-card shadow-sm">
       <CardContent className="dashboard-filter-content">
-        <div className="dashboard-range-segment">
-          {rangeOptions.map((option) => (
-            <Button
-              key={option.value}
-              size="sm"
-              type="button"
-              variant={filters.summary_range === option.value ? "outline" : "ghost"}
-              className="h-8 px-3"
-              onClick={() => onFilterChange({ summary_range: option.value })}
-            >
-              {option.label}
-            </Button>
-          ))}
-        </div>
         <div className="dashboard-filter-selects">
           <SelectControl
             disabled={branchLoading || !branchOptions.length}
@@ -207,17 +231,17 @@ export const DashboardFilterBar = memo(function DashboardFilterBar({
             value={activeBranchUuid}
             onChange={onBranchChange}
           />
-          <SelectControl
-            label={copy.year}
-            options={yearOptions}
-            value={filters.report_year}
-            onChange={(value) => onFilterChange({ report_year: value })}
+          <DateControl
+            label={copy.startDate}
+            name="dashboard-start-date"
+            value={filters.start_date}
+            onChange={(value) => onFilterChange({ start_date: value })}
           />
-          <SelectControl
-            label={copy.month}
-            options={monthOptions}
-            value={filters.report_month}
-            onChange={(value) => onFilterChange({ report_month: value })}
+          <DateControl
+            label={copy.endDate}
+            name="dashboard-end-date"
+            value={filters.end_date}
+            onChange={(value) => onFilterChange({ end_date: value })}
           />
         </div>
         <div className="dashboard-filter-actions">
@@ -231,6 +255,93 @@ export const DashboardFilterBar = memo(function DashboardFilterBar({
         </div>
       </CardContent>
     </Card>
+  );
+});
+
+function paymentSummaryTone(card: PaymentSummaryCard) {
+  const key = card.key.toLowerCase();
+
+  if (card.important || key.includes("payment_total") || key.includes("total")) return "dashboard-payment-card-total";
+  if (key.includes("debt") || key.includes("balance")) return "dashboard-payment-card-debt";
+  if (key.includes("transfer")) return "dashboard-payment-card-transfer";
+  return "dashboard-payment-card-cash";
+}
+
+function paymentSummaryIcon(card: PaymentSummaryCard) {
+  const key = card.key.toLowerCase();
+  if (card.important || key.includes("payment_total") || key.includes("total")) return paymentSummaryIconMap.payment_total;
+  if (key.includes("debt") || key.includes("balance")) return paymentSummaryIconMap.debt;
+  if (key.includes("transfer")) return paymentSummaryIconMap.transfer;
+  return paymentSummaryIconMap.cash;
+}
+
+function warningMessage(copy: DashboardCopy, warning: DashboardWarning) {
+  return warning.copyKey && copy[warning.copyKey] ? copy[warning.copyKey] : warning.value;
+}
+
+export const DashboardPaymentSummaryStrip = memo(function DashboardPaymentSummaryStrip({
+  cards,
+  copy,
+  paymentSummary,
+  warnings = []
+}: {
+  cards: PaymentSummaryCard[];
+  copy: DashboardCopy;
+  paymentSummary: PaymentSummary;
+  warnings?: DashboardWarning[];
+}) {
+  const mixedWarning = !paymentSummary.hasMixedSplitColumns && (paymentSummary.mixedTotal > 0 || paymentSummary.unallocatedMixedTotal > 0)
+    ? copy.paymentSplitWarning
+    : "";
+  const warningMessages = warnings
+    .map((warning) => warningMessage(copy, warning))
+    .filter((message) => message && message !== mixedWarning);
+  const mixedDetails = [
+    paymentSummary.mixedTotal ? `${copy.mixedPayment}: ${formatKip(paymentSummary.mixedTotal)}` : "",
+    paymentSummary.unallocatedMixedTotal ? `${copy.unallocatedMixedPayment}: ${formatKip(paymentSummary.unallocatedMixedTotal)}` : ""
+  ].filter(Boolean);
+  const messages = [mixedWarning, ...warningMessages].filter(Boolean);
+
+  if (!cards.length && !mixedDetails.length && !messages.length) return null;
+
+  return (
+    <div className="dashboard-payment-summary-stack">
+      <div aria-label={copy.paymentSplit} className="dashboard-payment-summary-grid">
+        {cards.map((card) => {
+          const Icon = paymentSummaryIcon(card);
+
+          return (
+            <Card key={card.key} className={cn("dashboard-payment-card", paymentSummaryTone(card))}>
+              <CardContent className="dashboard-payment-card-content">
+                <div className="dashboard-payment-card-icon" aria-hidden="true">
+                  <Icon />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-xs font-semibold text-muted-foreground">{card.label}</p>
+                  <p className={cn("mt-1 break-words font-mono font-semibold leading-tight", card.important ? "text-2xl" : "text-xl")}>
+                    {formatKip(card.value)}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+      {/* {mixedDetails.length || messages.length ? (
+        <Alert className="dashboard-payment-mixed-alert">
+          <AlertTriangle />
+          <AlertTitle>{copy.mixedPayment}</AlertTitle>
+          <AlertDescription>
+            {mixedDetails.map((detail) => (
+              <span key={detail} className="font-mono font-semibold">{detail}</span>
+            ))}
+            {messages.map((message) => (
+              <span key={message}>{message}</span>
+            ))}
+          </AlertDescription>
+        </Alert>
+      ) : null} */}
+    </div>
   );
 });
 
@@ -257,9 +368,8 @@ export const DashboardQueryBar = memo(function DashboardQueryBar({
   const [copied, setCopied] = useState(false);
   const params = [
     ["branch_uuid_fk", text(requestParams.branch_uuid_fk, activeBranchUuid)],
-    ["summary_range", text(requestParams.summary_range, "")],
-    ["report_year", text(requestParams.report_year, "")],
-    ["report_month", text(requestParams.report_month, "")],
+    ["start_date", text(requestParams.start_date, "")],
+    ["end_date", text(requestParams.end_date, "")],
     ["lang", text(requestParams.lang, "")],
     ["top", text(requestParams.top, "")]
   ].filter(([, value]) => value);
@@ -298,7 +408,7 @@ export const DashboardWarningBanner = memo(function DashboardWarningBanner({
   warnings
 }: {
   copy: DashboardCopy;
-  warnings: Array<{ key: string; value: string }>;
+  warnings: DashboardWarning[];
 }) {
   if (!warnings.length) return null;
 
@@ -308,7 +418,7 @@ export const DashboardWarningBanner = memo(function DashboardWarningBanner({
       <AlertTitle className="font-black">{copy.warnings}</AlertTitle>
       <AlertDescription className="dashboard-warning-body flex flex-col gap-1 text-foreground">
         {warnings.map((warning) => (
-          <span key={warning.key}>{warning.value}</span>
+          <span key={warning.key}>{warningMessage(copy, warning)}</span>
         ))}
       </AlertDescription>
     </Alert>
@@ -360,22 +470,33 @@ export const DashboardHeroStrip = memo(function DashboardHeroStrip({
       value: formatKip(numberFrom(kpis, "discount_total"))
     },
     {
+      detail: `${copy.collectionRate}: ${formatPercent(numberFrom(kpis, "collection_rate"))}`,
+      label: copy.paidTotal,
+      value: formatKip(numberFrom(kpis, "paid_total"))
+    },
+    {
+      detail: `${copy.unpaidRate}: ${formatPercent(numberFrom(kpis, "unpaid_rate"))}`,
+      label: copy.balance,
+      rose: true,
+      value: formatKip(numberFrom(kpis, "balance_total"))
+    },
+    {
       detail: `${copy.cancelRate}: ${formatPercent(numberFrom(kpis, "cancel_rate"))}`,
       label: copy.cancellations,
       rose: true,
-      value: `${formatNumber(cancelledCount)} / ${compactMoney(cancelledTotal)}`
+      value: `${formatNumber(cancelledCount)} / ${formatKip(cancelledTotal)}`
     }
   ];
 
   return (
     <Card className="dashboard-hero-card overflow-hidden">
-      <div className="dashboard-hero-grid grid divide-y divide-border md:grid-cols-2 md:divide-x md:divide-y-0 xl:grid-cols-[1.6fr_repeat(4,1fr)]">
+      <div className="dashboard-hero-grid grid md:grid-cols-2 xl:grid-cols-[1.45fr_repeat(3,minmax(0,1fr))]">
         {metrics.map((metric) => (
           <div
             key={metric.label}
             className={cn(
               "dashboard-hero-kpi min-w-0 p-4",
-              metric.primary && "dashboard-hero-kpi-primary relative overflow-hidden bg-primary text-primary-foreground",
+              metric.primary && "dashboard-hero-kpi-primary relative overflow-hidden bg-primary text-primary-foreground xl:row-span-2",
               !metric.primary && "bg-card"
             )}
           >
@@ -453,8 +574,7 @@ export const DashboardFooter = memo(function DashboardFooter({
   const cutoff = numberFrom(filtersMeta, "business_cutoff_hour");
   const details = [
     cutoff ? `${copy.cutoff} ${cutoff}:00` : "",
-    text(requestParams.summary_range, ""),
-    text(requestParams.report_month, "")
+    [text(requestParams.start_date, ""), text(requestParams.end_date, "")].filter(Boolean).join(" - ")
   ].filter(Boolean);
 
   return (

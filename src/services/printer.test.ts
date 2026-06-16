@@ -30,14 +30,17 @@ vi.mock("axios", () => ({
 import {
   BROWSER_PRINTER_AGENT_ID,
   BROWSER_PRINTER_AGENT_URL,
+  ackPrintJob,
   dispatchPrintJob,
   executeKitchenPrintJobs,
+  getPendingPrintJobs,
   getPrinters,
   printOps,
   printTableQRJob,
   renderMobileEscpos,
   resolvePrinterDeviceIdentity,
   savePrinter,
+  sendMobileBackendPrintJob,
   type PrintJob
 } from "@/services/printer";
 
@@ -100,6 +103,23 @@ describe("printer service dispatch", () => {
 
     await dispatchPrintJob(job);
 
+    expect(apiMocks.apiRequest).toHaveBeenCalledWith(
+      "post",
+      "/api/v1/printer/mobile/render-escpos",
+      { data: job }
+    );
+    expect(axiosMocks.get).not.toHaveBeenCalled();
+    expect(axiosMocks.post).not.toHaveBeenCalled();
+  });
+
+  it("trusts backend mobile print success even without escpos_base64", async () => {
+    const job = printJob({
+      agent_id: BROWSER_PRINTER_AGENT_ID,
+      device_code: "android-phone-web-device-1"
+    });
+    apiMocks.apiRequest.mockResolvedValue({ status: "success", message: "success", data: {} });
+
+    await expect(dispatchPrintJob(job)).resolves.toBeUndefined();
     expect(apiMocks.apiRequest).toHaveBeenCalledWith(
       "post",
       "/api/v1/printer/mobile/render-escpos",
@@ -176,7 +196,16 @@ describe("printer service dispatch", () => {
       })
     ).resolves.toEqual({ successCount: 1, failedCount: 0, total: 1 });
 
-    expect(ackPayloads).toEqual([successAck]);
+    expect(ackPayloads).toEqual([{ ...successAck, login_uuid_fk: "login-1" }]);
+    expect(apiMocks.apiRequest).toHaveBeenCalledWith("get", "/api/v1/printer/jobs/pending", {
+      params: {
+        print_job_uuid: "job-1",
+        login_uuid_fk: "login-1",
+        device_code: "device-1",
+        agent_id: "agent-1",
+        print_mode: "windows_agent"
+      }
+    });
   });
 
   it("keeps printOps local-agent only for legacy direct calls", async () => {
@@ -257,8 +286,8 @@ describe("printer service dispatch", () => {
       })
     ).resolves.toEqual({ successCount: 1, failedCount: 0, total: 1 });
 
-    expect(axiosMocks.get).not.toHaveBeenCalled();
-    expect(ackPayloads).toEqual([successAck]);
+    expect(axiosMocks.get).toHaveBeenCalledTimes(1);
+    expect(ackPayloads).toEqual([{ ...successAck, login_uuid_fk: "login-1" }]);
   });
 
   it("acks failed browser kitchen jobs when backend render fails", async () => {
@@ -302,13 +331,70 @@ describe("printer service dispatch", () => {
       })
     ).resolves.toEqual({ successCount: 0, failedCount: 1, total: 1 });
 
-    expect(axiosMocks.get).not.toHaveBeenCalled();
+    expect(axiosMocks.get).toHaveBeenCalledTimes(1);
     expect(ackPayloads).toEqual([
       {
         print_job_uuid: "job-1",
+        login_uuid_fk: "login-1",
         results: [{ print_job_item_uuid: "item-1", status: "failed", reason: "render failed" }]
       }
     ]);
+  });
+});
+
+describe("printer ack jobs", () => {
+  beforeEach(() => {
+    apiMocks.apiRequest.mockReset();
+    axiosMocks.get.mockReset();
+    axiosMocks.post.mockReset();
+  });
+
+  it("posts ack payload with login_uuid_fk", async () => {
+    apiMocks.apiRequest.mockResolvedValue({});
+
+    await ackPrintJob({
+      login_uuid_fk: "login-1",
+      print_job_uuid: "job-1",
+      results: [{ print_job_item_uuid: "item-1", status: "success" }]
+    });
+
+    expect(apiMocks.apiRequest).toHaveBeenCalledWith("post", "/api/v1/printer/jobs/ack", {
+      data: {
+        login_uuid_fk: "login-1",
+        print_job_uuid: "job-1",
+        results: [{ print_job_item_uuid: "item-1", status: "success" }]
+      }
+    });
+  });
+});
+
+describe("printer pending jobs", () => {
+  beforeEach(() => {
+    apiMocks.apiRequest.mockReset();
+    axiosMocks.get.mockReset();
+    axiosMocks.post.mockReset();
+  });
+
+  it("fetches pending jobs scoped by printer identity fields", async () => {
+    apiMocks.apiRequest.mockResolvedValue({ data: [] });
+
+    await getPendingPrintJobs({
+      print_job_uuid: "job-1",
+      login_uuid_fk: "login-1",
+      device_code: "INCLUDE",
+      agent_id: "include-f8e4f9",
+      print_mode: "windows_agent"
+    });
+
+    expect(apiMocks.apiRequest).toHaveBeenCalledWith("get", "/api/v1/printer/jobs/pending", {
+      params: {
+        print_job_uuid: "job-1",
+        login_uuid_fk: "login-1",
+        device_code: "INCLUDE",
+        agent_id: "include-f8e4f9",
+        print_mode: "windows_agent"
+      }
+    });
   });
 });
 
@@ -445,6 +531,22 @@ describe("printer API payloads", () => {
     apiMocks.apiRequest.mockResolvedValue({ data: { escpos_base64: "BASE64" } });
 
     await expect(renderMobileEscpos(job)).resolves.toBe("BASE64");
+    expect(apiMocks.apiRequest).toHaveBeenCalledWith(
+      "post",
+      "/api/v1/printer/mobile/render-escpos",
+      { data: job }
+    );
+  });
+
+  it("can send browser mobile jobs to backend without reading escpos_base64", async () => {
+    const job = printJob({
+      agent_id: BROWSER_PRINTER_AGENT_ID,
+      device_code: "android-phone-web-device-1",
+      print_client: "mobile_wifi"
+    });
+    apiMocks.apiRequest.mockResolvedValue({ status: "success", message: "success", data: {} });
+
+    await expect(sendMobileBackendPrintJob(job)).resolves.toBeUndefined();
     expect(apiMocks.apiRequest).toHaveBeenCalledWith(
       "post",
       "/api/v1/printer/mobile/render-escpos",

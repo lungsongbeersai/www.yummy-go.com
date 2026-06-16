@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { Check, ChevronsUpDown, CircleSlash2, FileText, Search, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { MenuIcon } from "@/components/common/menu-icon";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -16,14 +17,16 @@ import {
   SettingsDialogFooter,
   SettingsDialogHeader
 } from "@/features/settings/shared/settings-shell";
+import {
+  MENU_ICON_LETTER_FILTERS,
+  MENU_ICON_RESULT_LIMIT,
+  buildMenuIconOptions,
+  normalizeMenuIconName,
+  type MenuIconLetterFilter
+} from "@/lib/menu-icons";
 import { cn } from "@/lib/utils";
-import { NAV_ICON_OPTIONS, PROJECT_ROUTE_OPTIONS, type PickerOption } from "./permission-menu-options";
+import { PROJECT_ROUTE_OPTIONS } from "./permission-menu-options";
 import { iconOption, optionLabel } from "./permission-menu-utils";
-
-interface ResolvedIconOption extends PickerOption {
-  label: string;
-  searchText: string;
-}
 
 export function IconPickerButton({
   disabled,
@@ -39,31 +42,30 @@ export function IconPickerButton({
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [activeLetter, setActiveLetter] = useState<MenuIconLetterFilter>("all");
+  const [visibleLimit, setVisibleLimit] = useState(MENU_ICON_RESULT_LIMIT);
+  const deferredSearch = useDeferredValue(search);
   const selected = iconOption(value);
-  const SelectedIcon = selected.icon ?? FileText;
-  const selectedLabel = optionLabel(selected, t);
-  const options = useMemo<ResolvedIconOption[]>(
-    () =>
-      NAV_ICON_OPTIONS.map((option) => {
-        const label = optionLabel(option, t);
-        return {
-          ...option,
-          label,
-          searchText: [option.value, label].join(" ").toLowerCase()
-        };
-      }),
-    [t]
+  const iconResults = useMemo(
+    () => buildMenuIconOptions({ letter: activeLetter, limit: visibleLimit, search: deferredSearch }),
+    [activeLetter, deferredSearch, visibleLimit]
   );
-  const filteredOptions = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    if (!query) return options;
-    return options.filter((option) => option.searchText.includes(query));
-  }, [options, search]);
+  const hasMoreIcons = iconResults.options.length < iconResults.filteredTotal;
+
+  useEffect(() => {
+    setVisibleLimit(MENU_ICON_RESULT_LIMIT);
+  }, [activeLetter, search]);
 
   function selectIcon(nextValue: string) {
-    onValueChange(nextValue);
+    onValueChange(normalizeMenuIconName(nextValue));
     setSearch("");
     setOpen(false);
+  }
+
+  function resetPickerFilters() {
+    setActiveLetter("all");
+    setSearch("");
+    setVisibleLimit(MENU_ICON_RESULT_LIMIT);
   }
 
   return (
@@ -78,13 +80,13 @@ export function IconPickerButton({
         onClick={() => setOpen(true)}
       >
         <span className="grid size-12 shrink-0 place-items-center rounded-md bg-primary/10 text-primary [&_svg]:size-7">
-          <SelectedIcon aria-hidden />
+          <MenuIcon value={selected.value} />
         </span>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-xs font-medium text-muted-foreground">
             {t("permissionMenu.selectedIcon")}
           </span>
-          <span className="mt-1 block truncate text-sm font-black text-foreground">{selectedLabel}</span>
+          <span className="mt-1 block truncate text-sm font-black text-foreground">{selected.label}</span>
           <span className="mt-1 block truncate font-mono text-xs text-muted-foreground">{selected.value}</span>
         </span>
         <span className="shrink-0 text-xs font-bold text-primary">{t("permissionMenu.changeIcon")}</span>
@@ -93,7 +95,7 @@ export function IconPickerButton({
         open={open}
         onOpenChange={(nextOpen) => {
           setOpen(nextOpen);
-          if (!nextOpen) setSearch("");
+          if (!nextOpen) resetPickerFilters();
         }}
       >
         <SettingsDialogContent className="sm:max-w-3xl">
@@ -105,11 +107,11 @@ export function IconPickerButton({
             <div className="grid gap-3 lg:grid-cols-[minmax(0,18rem)_minmax(0,1fr)]">
               <div className="flex min-w-0 items-center gap-3 rounded-lg border border-border bg-muted/30 p-3">
                 <span className="grid size-14 shrink-0 place-items-center rounded-md bg-primary/10 text-primary [&_svg]:size-8">
-                  <SelectedIcon aria-hidden />
+                  <MenuIcon value={selected.value} />
                 </span>
                 <div className="min-w-0">
                   <p className="text-xs font-medium text-muted-foreground">{t("permissionMenu.selectedIcon")}</p>
-                  <p className="truncate text-sm font-semibold text-foreground">{selectedLabel}</p>
+                  <p className="truncate text-sm font-semibold text-foreground">{selected.label}</p>
                   <p className="mt-1 truncate font-mono text-xs text-muted-foreground">{selected.value}</p>
                 </div>
               </div>
@@ -119,7 +121,10 @@ export function IconPickerButton({
                     {t("permissionMenu.selectIcon")}
                   </span>
                   <Badge className="h-6 min-w-14 justify-center rounded-md bg-primary/10 px-2.5 text-primary">
-                    {filteredOptions.length} / {options.length}
+                    {t("permissionMenu.iconResultsCount", {
+                      shown: iconResults.options.length,
+                      total: iconResults.filteredTotal
+                    })}
                   </Badge>
                 </div>
                 <div className="flex min-w-0 items-center gap-2 rounded-md border border-input bg-background px-2.5 transition-colors focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50">
@@ -151,37 +156,70 @@ export function IconPickerButton({
                 </div>
               </div>
             </div>
+            <div className="flex gap-1 overflow-x-auto pb-1">
+              {MENU_ICON_LETTER_FILTERS.map((letter) => {
+                const label = letter === "all" ? t("common.all") : letter;
+                const active = activeLetter === letter;
+
+                return (
+                  <Button
+                    key={letter}
+                    aria-pressed={active}
+                    className="h-8 min-w-8 shrink-0 px-2"
+                    size="sm"
+                    type="button"
+                    variant={active ? "default" : "outline"}
+                    onClick={() => setActiveLetter(letter)}
+                  >
+                    {label}
+                  </Button>
+                );
+              })}
+            </div>
             <div className="max-h-88 overflow-y-auto rounded-lg border border-border bg-background p-2">
-              {filteredOptions.length ? (
-                <div aria-label={t("permissionMenu.selectIcon")} className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3" role="listbox">
-                  {filteredOptions.map((option) => {
-                    const isActive = option.value === value;
-                    const Icon = option.icon ?? FileText;
-                    return (
-                      <Button
-                        key={option.value}
-                        aria-selected={isActive}
-                        className={cn(
-                          "h-auto min-h-20 justify-start gap-3 px-3 py-2 text-left shadow-sm",
-                          isActive && "border-primary bg-primary/10 text-foreground ring-2 ring-primary/15"
-                        )}
-                        role="option"
-                        title={option.label}
-                        type="button"
-                        variant="outline"
-                        onClick={() => selectIcon(option.value)}
-                      >
-                        <span className={cn("grid size-12 shrink-0 place-items-center rounded-md bg-primary/10 text-primary [&_svg]:size-8", isActive && "ring-1 ring-primary/25")}>
-                          <Icon aria-hidden />
-                        </span>
-                        <span className="min-w-0 flex-1 text-left">
-                          <span className="block truncate text-sm font-medium">{option.label}</span>
-                          <span className="mt-1 block truncate font-mono text-xs text-muted-foreground">{option.value}</span>
-                        </span>
-                        {isActive ? <Check aria-hidden /> : null}
-                      </Button>
-                    );
-                  })}
+              {iconResults.options.length ? (
+                <div className="flex flex-col gap-2">
+                  <div aria-label={t("permissionMenu.selectIcon")} className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3" role="listbox">
+                    {iconResults.options.map((option) => {
+                      const isActive = option.value === selected.value;
+                      return (
+                        <Button
+                          key={option.value}
+                          aria-selected={isActive}
+                          className={cn(
+                            "h-auto min-h-20 justify-start gap-3 px-3 py-2 text-left shadow-sm",
+                            isActive && "border-primary bg-primary/10 text-foreground ring-2 ring-primary/15"
+                          )}
+                          disabled={disabled}
+                          role="option"
+                          title={option.label}
+                          type="button"
+                          variant="outline"
+                          onClick={() => selectIcon(option.value)}
+                        >
+                          <span className={cn("grid size-12 shrink-0 place-items-center rounded-md bg-primary/10 text-primary [&_svg]:size-8", isActive && "ring-1 ring-primary/25")}>
+                            <MenuIcon value={option.value} />
+                          </span>
+                          <span className="min-w-0 flex-1 text-left">
+                            <span className="block truncate text-sm font-medium">{option.label}</span>
+                            <span className="mt-1 block truncate font-mono text-xs text-muted-foreground">{option.value}</span>
+                          </span>
+                          {isActive ? <Check aria-hidden /> : null}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                  {hasMoreIcons ? (
+                    <Button
+                      className="self-center"
+                      disabled={disabled}
+                      type="button"
+                      variant="outline"
+                      onClick={() => setVisibleLimit((current) => current + MENU_ICON_RESULT_LIMIT)}
+                    >
+                      {t("permissionMenu.loadMoreIcons")}
+                    </Button>
+                  ) : null}
                 </div>
               ) : (
                 <Empty className="min-h-40 border border-dashed bg-muted/30 p-6">

@@ -235,7 +235,7 @@ export function selectedOptionLabel(options: BestSellingOption[], value: string,
 }
 
 export function groupParam(groupUuid: string) {
-  return groupUuid === ALL_GROUPS_VALUE ? undefined : groupUuid;
+  return groupUuid || ALL_GROUPS_VALUE;
 }
 
 export function bestSellingSortLabel(sortBy: BestSellingProductsFilters["sortBy"], t: (key: string) => string) {

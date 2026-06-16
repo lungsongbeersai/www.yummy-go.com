@@ -113,7 +113,7 @@ export function ReportTableCard({
   const { t } = useTranslation();
 
   return (
-    <Card className="min-h-0 overflow-hidden border-border bg-card shadow-sm md:sticky md:top-[calc(var(--daily-sales-filter-height)+0.75rem)] md:flex md:max-h-[calc(100dvh-var(--app-shell-header-height)-var(--daily-sales-filter-height)-1.5rem)] md:flex-col">
+    <Card className="min-h-0 min-w-0 overflow-hidden border-border bg-card shadow-sm md:sticky md:top-[calc(var(--daily-sales-filter-height)+0.75rem)] md:flex md:max-h-[calc(100dvh-var(--app-shell-header-height)-var(--daily-sales-filter-height)-1.5rem)] md:flex-col">
       <ReportTableActions {...actions} />
       <CardContent className="flex min-h-0 flex-1 flex-col p-0">
         {loading ? (
@@ -122,7 +122,7 @@ export function ReportTableCard({
           </div>
         ) : rowsLength ? (
           <>
-            <div className="min-h-0 md:flex-1 md:overflow-auto md:overscroll-x-contain md:overscroll-y-auto">
+            <div className="min-h-0 min-w-0 overflow-auto overscroll-x-contain overscroll-y-auto md:flex-1">
               {children}
             </div>
             <div className="shrink-0 bg-card">{footer}</div>
@@ -183,8 +183,8 @@ function ReportTableActions({
   const isDetail = typePage === "detail";
 
   return (
-    <CardHeader className="flex shrink-0 flex-col gap-2 border-b border-border bg-card px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-      <div className="min-w-0">
+    <CardHeader className="flex min-w-0 shrink-0 flex-col gap-2 border-b border-border bg-card px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
+      <div className="min-w-0 flex-1">
         <CardTitle className="flex min-w-0 items-center gap-2 text-base font-black">
           {typePage === "summary" ? <ReceiptText /> : <FileText />}
           <span className="truncate">
@@ -228,7 +228,7 @@ function ReportTableActions({
           ) : null}
         </div>
       </div>
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex min-w-0 flex-wrap items-center gap-2 sm:justify-end">
         {isDetail && billGroupsLength ? (
           <Button
             type="button"

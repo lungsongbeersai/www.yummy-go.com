@@ -1,17 +1,13 @@
 import type { LucideIcon } from "lucide-react";
 import ProjectMenu, { type MenuItem } from "@/config/menu";
 import { routeBreadcrumbs, type RouteBreadcrumbItem } from "@/config/route-breadcrumbs";
-import { DEFAULT_MENU_ICON_OPTION, MENU_ICON_OPTIONS } from "@/lib/menu-icons";
+import { DEFAULT_MENU_ICON } from "@/lib/menu-icons";
 
 export interface PickerOption {
   icon?: LucideIcon;
   labelKey?: string;
   value: string;
 }
-
-export const NAV_ICON_OPTIONS: PickerOption[] = MENU_ICON_OPTIONS;
-
-export const DEFAULT_NAV_ICON_OPTION: PickerOption = DEFAULT_MENU_ICON_OPTION;
 
 function navLabelKey(title: string) {
   return title.includes(".") ? title : `nav.${title}`;
@@ -52,7 +48,7 @@ export const MAIN_FORM_INITIAL = {
   menu_id: "",
   menu_badge: "2",
   menu_badge_text: "",
-  menu_icon: "file-text",
+  menu_icon: DEFAULT_MENU_ICON,
   menu_path: "",
   menu_status: "1",
   menu_title_eng: "",

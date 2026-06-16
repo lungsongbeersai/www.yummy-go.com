@@ -1,6 +1,6 @@
 import type { MenuItem } from "@/config/menu";
 import { apiRequest, ServiceError } from "@/lib/api";
-import { normalizeMenuIconName, resolveMenuIcon } from "@/lib/menu-icons";
+import { normalizeMenuIconName } from "@/lib/menu-icons";
 import { toApiLanguage } from "@/lib/language";
 import { requiredText } from "@/services/shared/validators";
 
@@ -199,7 +199,6 @@ export function sidebarPermissionMenuItemsToMenuItems(
     badgeText: item.badgeText,
     children: item.children?.length ? sidebarPermissionMenuItemsToMenuItems(item.children) : undefined,
     disabled: item.disabled,
-    icon: item.iconName ? resolveMenuIcon(item.iconName) : undefined,
     iconName: item.iconName,
     label: item.label,
     path: item.path,

@@ -336,6 +336,11 @@ export function useOrderCustomerWorkflow({
     ]);
   }
 
+  async function openCartSheet() {
+    setCartSheetOpen(true);
+    await loadCart();
+  }
+
   async function selectCategory(cateUuid: string) {
     setSearch("");
     await loadMenu({ cateUuid, query: "" });
@@ -473,6 +478,7 @@ export function useOrderCustomerWorkflow({
     newOrderFocusKey,
     note,
     openOrAddProduct,
+    openCartSheet,
     openTablesPage,
     productMode,
     productSheetOpen,

@@ -131,16 +131,37 @@ export function summaryConfigs(
     {
       label: t("report.cards.orderTotal"),
       kind: "money",
-      keys: ["order_total", "total_order", "gross_total", "sum_order_total"],
+      keys: [
+        "amount",
+        "order_total",
+        "total_order",
+        "gross_total",
+        "sum_order_total",
+      ],
+    },
+    {
+      label: t("report.cards.toppingTotal"),
+      kind: "money",
+      keys: ["topping_total", "topping_line_total", "sum_topping_total"],
     },
     {
       label: t("report.cards.discountAmount"),
       kind: "money",
       keys: [
+        "discount_bill",
         "discount_amount",
         "discount_total",
         "order_discount_amount",
         "sum_discount_total",
+      ],
+    },
+    {
+      label: t("report.cards.itemDiscountAmount"),
+      kind: "money",
+      keys: [
+        "item_discount",
+        "item_discount_amount",
+        "order_item_discount_amount",
       ],
     },
     {
@@ -156,12 +177,13 @@ export function summaryConfigs(
     {
       label: t("report.cards.vatAmount"),
       kind: "money",
-      keys: ["vat_amount", "vat_total", "order_vat_amount", "sum_vat_total"],
+      keys: ["vat", "vat_amount", "vat_total", "order_vat_amount", "sum_vat_total"],
     },
     {
       label: t("report.cards.netTotal"),
       kind: "money",
       keys: [
+        "total",
         "net_total",
         "grand_total",
         "order_grand_total",
@@ -356,15 +378,29 @@ export function reportColumns(
       header: t("report.columns.orderTotal"),
       kind: "money",
       align: "right",
-      keys: ["order_total", "total_order", "gross_total"],
+      keys: ["amount", "order_total", "total_order", "gross_total"],
+      minWidth: "min-w-[126px]",
+    },
+    {
+      header: t("report.columns.toppingTotal"),
+      kind: "money",
+      align: "right",
+      keys: ["topping_total", "topping_line_total", "sum_topping_total"],
       minWidth: "min-w-[126px]",
     },
     {
       header: t("report.columns.discount"),
       kind: "money",
       align: "right",
-      keys: ["discount", "discount_amount", "discount_total"],
+      keys: ["discount_bill", "discount", "discount_amount", "discount_total"],
       minWidth: "min-w-[118px]",
+    },
+    {
+      header: t("report.columns.itemDiscount"),
+      kind: "money",
+      align: "right",
+      keys: ["item_discount", "item_discount_amount", "order_it_discount_amount"],
+      minWidth: "min-w-[128px]",
     },
     {
       header: t("report.columns.serviceCharge"),
@@ -384,7 +420,7 @@ export function reportColumns(
       header: t("report.columns.netTotal"),
       kind: "money",
       align: "right",
-      keys: ["net_total", "grand_total", "order_grand_total"],
+      keys: ["total", "net_total", "grand_total", "order_grand_total"],
       minWidth: "min-w-[130px]",
     },
     {
@@ -454,16 +490,30 @@ export function reportDetailItemColumns(
       wide: true,
     },
     {
-      header: t("report.columns.price"),
+      header: t("report.columns.salePrice"),
       kind: "money",
       align: "right",
       keys: [
-        "price",
         "sale_price",
+        "price",
         "unit_price",
         "base_price",
         "pro_detail_sprice",
       ],
+      minWidth: "min-w-[126px]",
+    },
+    {
+      header: t("report.columns.toppingTotal"),
+      kind: "money",
+      align: "right",
+      keys: ["topping_total", "topping_unit_total", "topping_line_total"],
+      minWidth: "min-w-[126px]",
+    },
+    {
+      header: t("report.columns.amount"),
+      kind: "money",
+      align: "right",
+      keys: ["amount", "line_amount", "gross_amount"],
       minWidth: "min-w-[126px]",
     },
     {
@@ -472,13 +522,6 @@ export function reportDetailItemColumns(
       align: "right",
       keys: ["qty", "quantity", "order_it_qty"],
       minWidth: "min-w-[84px]",
-    },
-    {
-      header: t("report.columns.toppingTotal"),
-      kind: "money",
-      align: "right",
-      keys: ["topping_total", "topping_unit_total", "topping_line_total"],
-      minWidth: "min-w-[126px]",
     },
     {
       header: t("report.columns.itemDiscount"),
@@ -498,19 +541,6 @@ export function reportDetailItemColumns(
       align: "right",
       keys: ["total", "line_total", "net_total"],
       minWidth: "min-w-[128px]",
-    },
-    {
-      header: t("report.columns.status"),
-      kind: "status",
-      keys: [
-        "status_name",
-        "status_text",
-        "status",
-        "status_code",
-        "order_status_text",
-        "order_it_status_text",
-      ],
-      minWidth: "min-w-[118px]",
     },
   ];
 }

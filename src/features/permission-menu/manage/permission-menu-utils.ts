@@ -1,10 +1,9 @@
 import { FileText } from "lucide-react";
 import {
-  DEFAULT_NAV_ICON_OPTION,
-  NAV_ICON_OPTIONS,
   PROJECT_ROUTE_OPTIONS,
   type PickerOption
 } from "@/features/permission-menu/manage/permission-menu-options";
+import { menuIconLabel, normalizeMenuIconName } from "@/lib/menu-icons";
 import type { PermissionMainMenu, PermissionSubMenu } from "@/services/permission-menu";
 
 export type PermissionMenuTranslate = (key: string, options?: Record<string, unknown>) => string;
@@ -93,7 +92,11 @@ export function fallbackOption(value: string, options: PickerOption[], fallback:
 }
 
 export function iconOption(value: string) {
-  return fallbackOption(value, NAV_ICON_OPTIONS, DEFAULT_NAV_ICON_OPTION);
+  const normalizedValue = normalizeMenuIconName(value);
+  return {
+    label: menuIconLabel(normalizedValue),
+    value: normalizedValue
+  };
 }
 
 export function pathOption(value: string) {

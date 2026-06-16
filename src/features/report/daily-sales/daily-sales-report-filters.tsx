@@ -60,8 +60,8 @@ export function ReportFilterBar({
   const { t } = useTranslation();
 
   return (
-    <Card className="border-border bg-card shadow-sm">
-      <CardContent className="grid gap-3 p-4 lg:grid-cols-4 lg:items-end 2xl:grid-cols-[repeat(7,minmax(0,1fr))_auto]">
+    <Card className="min-w-0 border-border bg-card shadow-sm">
+      <CardContent className="grid min-w-0 gap-3 p-3 sm:p-4 lg:grid-cols-4 lg:items-end 2xl:grid-cols-[repeat(7,minmax(0,1fr))_auto]">
         <ReportFilterFields
           branchLoading={branchLoading}
           branchLocked={branchLocked}
@@ -247,7 +247,7 @@ function ReportFilterFields({
 
   return (
     <>
-      <Field className="gap-1.5">
+      <Field className="min-w-0 gap-1.5">
         <FieldLabel
           htmlFor={`${idPrefix}-branch`}
           className="text-xs font-bold text-muted-foreground"
@@ -273,7 +273,7 @@ function ReportFilterFields({
           </SelectContent>
         </Select>
       </Field>
-      <Field className="gap-1.5">
+      <Field className="min-w-0 gap-1.5">
         <FieldLabel
           htmlFor={`${idPrefix}-date-from`}
           className="text-xs font-bold text-muted-foreground"
@@ -287,7 +287,7 @@ function ReportFilterFields({
           onChange={(event) => patch({ dateFrom: event.target.value })}
         />
       </Field>
-      <Field className="gap-1.5">
+      <Field className="min-w-0 gap-1.5">
         <FieldLabel
           htmlFor={`${idPrefix}-date-to`}
           className="text-xs font-bold text-muted-foreground"
@@ -301,7 +301,7 @@ function ReportFilterFields({
           onChange={(event) => patch({ dateTo: event.target.value })}
         />
       </Field>
-      <Field className="gap-1.5">
+      <Field className="min-w-0 gap-1.5">
         <FieldLabel className="text-xs font-bold text-muted-foreground">
           {t("report.filters.typePage")}
         </FieldLabel>
@@ -324,7 +324,7 @@ function ReportFilterFields({
           ))}
         </div>
       </Field>
-      <Field className="gap-1.5">
+      <Field className="min-w-0 gap-1.5">
         <FieldLabel
           htmlFor={`${idPrefix}-payment-method`}
           className="text-xs font-bold text-muted-foreground"
@@ -353,7 +353,7 @@ function ReportFilterFields({
           </SelectContent>
         </Select>
       </Field>
-      <Field className="gap-1.5">
+      <Field className="min-w-0 gap-1.5">
         <FieldLabel
           htmlFor={`${idPrefix}-limit`}
           className="text-xs font-bold text-muted-foreground"
@@ -384,7 +384,7 @@ function ReportFilterFields({
           </SelectContent>
         </Select>
       </Field>
-      <Field className="gap-1.5">
+      <Field className="min-w-0 gap-1.5">
         <FieldLabel
           htmlFor={`${idPrefix}-order`}
           className="text-xs font-bold text-muted-foreground"

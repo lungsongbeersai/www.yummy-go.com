@@ -56,7 +56,7 @@ describe("permission menu service helpers", () => {
     expect(tree.menus[0]).toMatchObject({
       menu_badge: 1,
       menu_badge_text: "News",
-      menu_icon: "settings",
+      menu_icon: "mdi:cog",
       menu_title: "Settings LA"
     });
     expect(tree.menus[1].menu_badge_text).toBe("");
@@ -82,7 +82,7 @@ describe("permission menu service helpers", () => {
     ).toEqual({
       menu_badge: 1,
       menu_badge_text: "News",
-      menu_icon: "fa fa-file",
+      menu_icon: "mdi:file-document-outline",
       menu_id: "",
       menu_path: "/report",
       menu_status: 2,
