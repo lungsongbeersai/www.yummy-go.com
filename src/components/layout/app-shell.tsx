@@ -187,6 +187,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return [home, ...trail];
   }, [menuItems, pathname]);
   const immersiveScreen = pathname === "/sales/open-table-sale" || pathname === "/sale/order-customer";
+  const dashboardScreen = pathname === "/";
   const fixedDataScreen = immersiveScreen || pathname.startsWith("/setting/") || pathname === "/printer" || pathname === "/product" || pathname === "/report/daily-sales" || pathname === "/report/best-selling-products" || pathname === "/report/payment-methods" || pathname === "/sales/sales-list" || pathname === "/sales/cancel-sale" || pathname === "/sales/cancel-history";
   const [openMenus, setOpenMenus] = useState<Set<string>>(() => new Set(activeMenuTitles(menuItems, pathname)));
 
@@ -264,12 +265,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           : "min-h-screen"
       )}
       data-fixed-screen={fixedDataScreen ? "true" : "false"}
+      data-dashboard-screen={dashboardScreen ? "true" : "false"}
       data-sidebar-state={collapsed ? "collapsed" : "expanded"}
     >
       {!immersiveScreen ? (
         <AppHeader breadcrumbs={breadcrumbs} collapsed={collapsed} logout={logout} user={user} />
       ) : null}
-      <div className="app-shell-body flex min-h-0 w-full flex-1 overflow-hidden">
+      <div className={cn("app-shell-body flex min-h-0 w-full flex-1", dashboardScreen && !fixedDataScreen ? "overflow-visible" : "overflow-hidden")}>
         {!immersiveScreen ? (
           <AppSidebar
             menuItems={menuItems}

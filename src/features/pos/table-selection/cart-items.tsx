@@ -15,7 +15,7 @@ import { money } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { CartItem } from "@/services/pos";
 import type { CartItemAction, CartTab } from "./types";
-import { cartItemActionUuid, cartItemDisplayName, cartItemMedia, cartItemName, cartItemQty, cartItemStatus, cartItemTotal, cartItemUuid, differentNumber, formatPlainValue, formatPositiveMoneyValue, formatQuantityValue, formatRate, isServedCartItem, optionalBoolean, optionalNumber, optionalString, positiveNumber, type CartItemMedia } from "./utils";
+import { cartItemActionUuid, cartItemDisplayName, cartItemMedia, cartItemName, cartItemQty, cartItemStatus, cartItemTotal, cartItemUuid, differentNumber, formatPlainValue, formatPositiveMoneyValue, formatQuantityValue, formatRate, isCanceledCartItem, isServedCartItem, optionalBoolean, optionalNumber, optionalString, positiveNumber, type CartItemMedia } from "./utils";
 
 export function CartTabTrigger({
   active,
@@ -229,9 +229,10 @@ function CartItemRow({
     discountAmount !== null ||
     note
   );
+  const isCanceled = isCanceledCartItem(item);
   const canDelete = statusValue === 1;
-  const canCancel = !editable && statusValue !== 0 && statusValue !== 1;
-  const canConfirmServed = !editable && statusValue !== 0 && statusValue !== 1 && !isServedCartItem(item);
+  const canCancel = !editable && statusValue !== 0 && statusValue !== 1 && !isCanceled;
+  const canConfirmServed = !editable && statusValue !== 0 && statusValue !== 1 && !isCanceled && !isServedCartItem(item);
   const splitSelectable = Boolean(splitEligible && itemUuid && onToggleSplitItem);
   const splitEnabled = splitSelectable && !splitSelectionDisabled;
 
@@ -244,6 +245,7 @@ function CartItemRow({
     <div
       className={cn(
         "border-b border-border/80 bg-background px-3 py-2.5 transition-colors last:border-b-0 hover:bg-muted/20 sm:px-4",
+        isCanceled && "bg-destructive/5 hover:bg-destructive/10",
         splitSelectable && !splitEnabled && "cursor-not-allowed opacity-60",
         splitSelected && "border-l-4 border-l-primary bg-primary/5 hover:bg-primary/10"
       )}
@@ -279,14 +281,28 @@ function CartItemRow({
               <div className="flex min-w-0 flex-wrap items-center gap-1.5">
                 <p className="min-w-0 wrap-break-word text-[15px] font-black leading-5 text-foreground">{title}</p>
                 {statusText ? (
-                  <Badge className="h-6 rounded-md border-transparent bg-secondary px-2 text-[11px] font-black text-secondary-foreground shadow-none">{statusText}</Badge>
+                  <Badge
+                    className={cn(
+                      "h-6 rounded-md border-transparent px-2 text-[11px] font-black shadow-none",
+                      isCanceled ? "bg-destructive text-destructive-foreground" : "bg-secondary text-secondary-foreground"
+                    )}
+                  >
+                    {statusText}
+                  </Badge>
                 ) : statusValue !== null ? (
-                  <Badge className="h-6 rounded-md px-2 text-[11px] font-black shadow-none">{formatPlainValue(statusValue)}</Badge>
+                  <Badge
+                    className={cn(
+                      "h-6 rounded-md px-2 text-[11px] font-black shadow-none",
+                      isCanceled && "bg-destructive text-destructive-foreground"
+                    )}
+                  >
+                    {formatPlainValue(statusValue)}
+                  </Badge>
                 ) : null}
               </div>
             </div>
             <div className="flex shrink-0 items-start gap-1">
-              <p className="max-w-28 truncate text-right text-[15px] font-black leading-5 text-foreground tabular-nums">{money(total)}</p>
+              <p className={cn("max-w-28 truncate text-right text-[15px] font-black leading-5 text-foreground tabular-nums", isCanceled && "text-destructive")}>{money(total)}</p>
               <CartItemActionMenu
                 canCancel={canCancel}
                 canDelete={canDelete}

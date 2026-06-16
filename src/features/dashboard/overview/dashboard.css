@@ -76,8 +76,6 @@
 }
 
 .dashboard-filter-card {
-  position: sticky;
-  top: calc(4rem + 0.75rem);
   z-index: 15;
   border-radius: 12px;
   background: hsl(var(--card) / 0.94);
@@ -665,10 +663,6 @@
     max-width: 100%;
   }
 
-  .dashboard-filter-card {
-    top: calc(4rem + 0.5rem);
-  }
-
   .dashboard-filter-content {
     grid-template-columns: minmax(0, 1fr) max-content;
   }
@@ -691,11 +685,15 @@
   }
 }
 
-@media (max-width: 767px) {
-  .dashboard-filter-card {
-    top: calc(4rem + 0.25rem);
+@media (min-width: 1024px) {
+  .dashboard-filter-slot {
+    position: sticky;
+    z-index: 35;
+    top: calc(var(--app-shell-header-height) + 0.75rem);
   }
+}
 
+@media (max-width: 767px) {
   .dashboard-filter-content {
     grid-template-columns: minmax(0, 1fr);
     gap: 0.5rem;

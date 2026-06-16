@@ -603,6 +603,7 @@
     "deleteItemConfirm": "Delete this item?",
     "itemActionFailed": "Item action failed",
     "itemActionSuccess": "Item updated",
+    "itemCancelSuccess": "Item canceled",
     "itemDiscount": "Item discount",
     "noItemActions": "No item actions",
     "notePlaceholder": "Add note",

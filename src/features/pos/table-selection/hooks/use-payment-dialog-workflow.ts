@@ -212,16 +212,6 @@ export function usePaymentDialogWorkflow({
       setCurrencyValue(LAK_CURRENCY_VALUE);
   }, [currencyOptions, currencyValue]);
 
-  useEffect(() => {
-    if (!open || !activeTenderField || activeTab === "arrears") return;
-    const timer = window.setTimeout(() => {
-      activeAmountInputRef.current?.focus();
-      activeAmountInputRef.current?.select();
-    }, 0);
-
-    return () => window.clearTimeout(timer);
-  }, [activeTab, activeTenderField, activeSplitField, open]);
-
   function handleCurrencyChange(value: string) {
     const option =
       currencyOptions.find((item) => item.value === value) ??

@@ -115,7 +115,7 @@ export function PosNumpad({
     "h-full min-h-9 min-w-0 rounded-md px-2 text-xs font-black min-[430px]:min-h-10 sm:min-h-11 sm:text-sm";
 
   return (
-    <div className="grid h-full min-h-0 grid-cols-4 grid-rows-4 gap-1.5 min-[430px]:gap-2">
+    <div className="grid min-h-48 grid-cols-4 grid-rows-4 gap-1.5 min-[430px]:min-h-56 min-[430px]:gap-2 lg:h-full lg:min-h-0">
       {["7", "8", "9"].map((value) => (
         <Button
           key={value}

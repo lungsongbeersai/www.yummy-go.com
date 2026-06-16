@@ -100,6 +100,10 @@ describe("daily sales report basic helpers", () => {
     expect(statusClass({ status_name: "Cancelled" }, "paid")).toContain(
       "destructive",
     );
+    expect(statusClass({}, "Cancelled bill")).toContain("bg-destructive");
+    expect(statusClass({}, "ຊຳລະແລ້ວ")).toContain("text-primary");
+    expect(statusClass({}, "ໜີ້ຄ້າງ")).toContain("amber");
+    expect(statusClass({}, "Pending payment")).toContain("sky");
     expect(reportImageColor({ prod_image: "color:#10b981" })).toBe("#10b981");
     expect(reportImageSrc({ prod_image: "noodle.png" })).toBe(
       "/uploaded/products/noodle.png",

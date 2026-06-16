@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { CartOrder, PosTable } from "@/services/pos";
+import type { CartItem, CartOrder, PosTable } from "@/services/pos";
 import {
   billDiscountButtonValue,
   buildCustomerDisplayPayload,
@@ -7,6 +7,7 @@ import {
   cartForTable,
   cartSummary,
   discountDraftValue,
+  isCanceledCartItem,
   newOrderConfirmGroups,
   pruneSelectedItemUuids,
   splitPaymentSelection,
@@ -79,6 +80,12 @@ describe("table selection utils", () => {
     expect(newOrderConfirmGroups([cartOrder()])).toEqual([
       { orderUuid: "order-1", itemUuids: ["item-2"] },
     ]);
+  });
+
+  it("detects canceled cart items from status code and text", () => {
+    expect(isCanceledCartItem({ detail: { order_it_status: 9 } } as CartItem)).toBe(true);
+    expect(isCanceledCartItem({ detail: { order_it_status_text: "ຍົກເລີກ" } } as CartItem)).toBe(true);
+    expect(isCanceledCartItem({ detail: { order_it_status_text: "sent" } } as CartItem)).toBe(false);
   });
 
   it("keeps cart data only for the selected table", () => {

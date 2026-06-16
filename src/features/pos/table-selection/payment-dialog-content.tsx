@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import Image from "next/image";
 import {
   Check,
@@ -79,6 +80,40 @@ import {
   paymentTabs,
 } from "./payment-dialog-utils";
 
+const DEFAULT_PAYMENT_DIALOG_HEIGHT = "100dvh";
+
+function usePaymentDialogHeight(open: boolean) {
+  const [height, setHeight] = useState(DEFAULT_PAYMENT_DIALOG_HEIGHT);
+
+  useEffect(() => {
+    if (!open || typeof window === "undefined") {
+      setHeight(DEFAULT_PAYMENT_DIALOG_HEIGHT);
+      return;
+    }
+
+    const viewport = window.visualViewport;
+    const updateHeight = () => {
+      const nextHeight = viewport?.height ?? window.innerHeight;
+      setHeight(`${Math.max(320, Math.floor(nextHeight))}px`);
+    };
+
+    updateHeight();
+    viewport?.addEventListener("resize", updateHeight);
+    viewport?.addEventListener("scroll", updateHeight);
+    window.addEventListener("resize", updateHeight);
+    window.addEventListener("orientationchange", updateHeight);
+
+    return () => {
+      viewport?.removeEventListener("resize", updateHeight);
+      viewport?.removeEventListener("scroll", updateHeight);
+      window.removeEventListener("resize", updateHeight);
+      window.removeEventListener("orientationchange", updateHeight);
+    };
+  }, [open]);
+
+  return height;
+}
+
 export function PaymentDialogContent({
   workflow,
 }: {
@@ -147,6 +182,14 @@ export function PaymentDialogContent({
     selectedCustomerOption,
     setCustomerSearch,
   } = customers;
+  const dialogHeight = usePaymentDialogHeight(workflow.open);
+  const dialogStyle = useMemo(
+    () =>
+      ({
+        "--pos-payment-dialog-height": dialogHeight,
+      }) as CSSProperties,
+    [dialogHeight],
+  );
 
   return (
     <>
@@ -155,8 +198,10 @@ export function PaymentDialogContent({
         onOpenChange={(nextOpen) => !processing && onOpenChange(nextOpen)}
       >
         <DialogContent
-          className="grid h-dvh max-h-dvh w-full max-w-[100vw] grid-rows-[auto_minmax(0,1fr)] gap-0 overflow-hidden rounded-none border-0 bg-background p-0 sm:h-[calc(100dvh-1rem)] sm:max-h-[calc(100dvh-1rem)] sm:max-w-[calc(100vw-1rem)] sm:rounded-lg sm:border xl:max-w-7xl"
+          className="!left-0 !top-0 grid h-[var(--pos-payment-dialog-height)] max-h-[var(--pos-payment-dialog-height)] w-full max-w-[100vw] !translate-x-0 !translate-y-0 grid-rows-[auto_minmax(0,1fr)] gap-0 overflow-hidden rounded-none border-0 bg-background p-0 sm:!left-[50%] sm:!top-[50%] sm:h-[calc(100dvh-1rem)] sm:max-h-[calc(100dvh-1rem)] sm:max-w-[calc(100vw-1rem)] sm:!translate-x-[-50%] sm:!translate-y-[-50%] sm:rounded-lg sm:border xl:max-w-7xl"
+          style={dialogStyle}
           onKeyDown={handleDialogKeyDown}
+          onOpenAutoFocus={(event) => event.preventDefault()}
         >
           <DialogHeader className="shrink-0 border-b border-border bg-card px-3 py-1.5 pr-12 text-left sm:px-4 sm:py-3">
             <div className="flex min-w-0 items-center justify-between gap-3">
@@ -190,14 +235,14 @@ export function PaymentDialogContent({
 
           <Tabs
             value={activeTab}
-            className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden bg-muted/30 md:grid-cols-[280px_minmax(0,1fr)] md:grid-rows-[minmax(0,1fr)_auto] lg:grid-cols-[300px_minmax(0,1fr)_320px] lg:grid-rows-1 xl:grid-cols-[320px_minmax(0,1fr)_360px]"
+            className="grid min-h-0 grid-rows-[auto_auto_auto] overflow-y-auto bg-muted/30 overscroll-contain md:grid-cols-[280px_minmax(0,1fr)] md:grid-rows-[auto_auto] lg:grid-cols-[300px_minmax(0,1fr)_320px] lg:grid-rows-1 lg:overflow-hidden xl:grid-cols-[320px_minmax(0,1fr)_360px]"
             onValueChange={handlePaymentTabChange}
           >
             <aside
-              className="min-h-0 border-b border-border bg-background p-1.5 sm:p-3 md:border-b-0 md:border-r lg:p-4"
+              className="min-h-0 border-b border-border bg-background p-2 sm:p-3 md:border-b-0 md:border-r lg:p-4"
               data-pos-keypad-ignore="true"
             >
-              <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-1.5 md:gap-3">
+              <div className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-1.5 lg:h-full md:gap-3">
                 <TabsList className="grid h-auto grid-cols-4 gap-1 rounded-lg bg-muted p-1 md:grid-cols-2 md:gap-1.5 md:p-1.5">
                   {paymentTabs.map((tab) => {
                     const Icon = tab.icon;
@@ -217,10 +262,10 @@ export function PaymentDialogContent({
                   })}
                 </TabsList>
 
-                <div className="min-h-0 overflow-hidden">
-                  <FieldGroup className="grid grid-cols-2 gap-1.5 md:grid-cols-1 md:gap-3">
+                <div className="min-h-0 lg:overflow-hidden">
+                  <FieldGroup className="grid grid-cols-1 gap-2 min-[560px]:grid-cols-2 md:grid-cols-1 md:gap-3">
                     <Field
-                      className="col-span-2 gap-1 md:col-span-1 md:gap-1.5"
+                      className="gap-1 min-[560px]:col-span-2 md:col-span-1 md:gap-1.5"
                       data-invalid={!customerUuid}
                     >
                       <FieldLabel className="sr-only min-[430px]:not-sr-only min-[430px]:truncate">
@@ -401,11 +446,11 @@ export function PaymentDialogContent({
               </div>
             </aside>
 
-            <section className="min-h-0 overflow-hidden p-1.5 sm:p-3 lg:p-4">
-              <div className="h-full min-h-0">
+            <section className="min-h-0 p-2 sm:p-3 lg:overflow-hidden lg:p-4">
+              <div className="min-h-0 lg:h-full">
                 {activeTenderField ? (
-                  <div className="grid h-full min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] gap-1.5 sm:gap-3">
-                    <div className="rounded-lg border border-border bg-card p-2 sm:p-3 lg:p-4">
+                  <div className="grid min-h-0 gap-2 sm:gap-3 lg:h-full lg:grid-rows-[auto_auto_minmax(0,1fr)]">
+                    <div className="rounded-lg border border-border bg-card p-3 lg:p-4">
                       <Field className="gap-1 min-[430px]:gap-1.5">
                         <FieldLabel htmlFor="payment-active-amount">
                           {activeTenderLabel} ({selectedCurrency.code})
@@ -415,7 +460,7 @@ export function PaymentDialogContent({
                           id="payment-active-amount"
                           inputMode={allowDecimalAmount ? "decimal" : "numeric"}
                           value={activeInputDisplayValue}
-                          className="h-10 text-right text-2xl font-black tabular-nums min-[430px]:h-12 sm:h-14 sm:text-3xl lg:h-16 xl:text-4xl"
+                          className="h-11 text-right text-xl font-black tabular-nums min-[430px]:h-12 min-[430px]:text-2xl sm:h-14 sm:text-3xl lg:h-16 xl:text-4xl"
                           onChange={handleActiveAmountChange}
                         />
                         <FieldDescription className="hidden text-xs min-[430px]:block sm:text-sm">
@@ -449,13 +494,13 @@ export function PaymentDialogContent({
                       ) : null}
                     </div>
 
-                    <div className="grid grid-cols-4 gap-1.5 min-[430px]:gap-2">
+                    <div className="grid grid-cols-2 gap-2 min-[520px]:grid-cols-4">
                       {quickAmounts.map((amount) => (
                         <Button
                           key={amount}
                           type="button"
                           variant="outline"
-                          className="h-9 min-w-0 px-2 font-black tabular-nums min-[430px]:h-10 sm:h-11 lg:h-12"
+                          className="h-10 min-w-0 px-2 font-black tabular-nums sm:h-11 lg:h-12"
                           onPointerDown={(event) => event.preventDefault()}
                           onClick={() => {
                             const value = formatCurrencyInput(
@@ -488,7 +533,7 @@ export function PaymentDialogContent({
                     />
                   </div>
                 ) : activeTab === "transfer" ? (
-                  <div className="grid h-full min-h-0 place-items-center rounded-lg border border-border bg-card p-3 sm:p-4">
+                  <div className="grid min-h-0 place-items-center rounded-lg border border-border bg-card p-3 sm:p-4 lg:h-full">
                     <div className="grid w-full max-w-130 gap-3">
                       <div className="grid min-h-0 place-items-center rounded-lg border border-border bg-muted/30 p-3">
                         {branchQrUrl ? (
@@ -521,7 +566,7 @@ export function PaymentDialogContent({
                     </div>
                   </div>
                 ) : (
-                  <div className="grid h-full min-h-0 rounded-lg border border-border bg-card p-3 sm:p-4">
+                  <div className="grid min-h-0 rounded-lg border border-border bg-card p-3 sm:p-4 lg:h-full">
                     <div className="grid min-h-0 content-start gap-3">
                       <div className="flex items-center gap-2">
                         <Clock3 />
@@ -562,11 +607,11 @@ export function PaymentDialogContent({
             </section>
 
             <aside
-              className="min-h-0 border-t border-border bg-background p-1.5 sm:p-3 md:col-span-2 lg:col-span-1 lg:border-l lg:border-t-0 lg:p-4"
+              className="min-h-0 border-t border-border bg-background p-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] sm:p-3 md:col-span-2 md:pb-3 lg:col-span-1 lg:border-l lg:border-t-0 lg:p-4"
               data-pos-keypad-ignore="true"
             >
-              <div className="grid h-full min-h-0 grid-rows-[minmax(0,1fr)_auto] gap-1.5 md:grid-cols-[minmax(0,1fr)_auto] md:grid-rows-1 lg:grid-cols-1 lg:grid-rows-[minmax(0,1fr)_auto]">
-                <div className="grid min-h-0 grid-cols-3 gap-1.5 lg:grid-cols-1 lg:content-start lg:gap-3">
+              <div className="grid min-h-0 gap-2 md:grid-cols-[minmax(0,1fr)_auto] md:grid-rows-1 lg:h-full lg:grid-cols-1 lg:grid-rows-[minmax(0,1fr)_auto]">
+                <div className="grid min-h-0 grid-cols-1 gap-2 min-[520px]:grid-cols-3 lg:grid-cols-1 lg:content-start lg:gap-3">
                   <div className="hidden rounded-lg border border-border bg-muted/30 p-3 lg:grid lg:gap-1">
                     <p className="truncate text-xs font-semibold text-muted-foreground">
                       {t("nav.table")}
@@ -602,7 +647,7 @@ export function PaymentDialogContent({
                   />
                 </div>
 
-                <div className="grid content-end gap-1.5 md:w-65 lg:w-auto">
+                <div className="grid content-end gap-2 md:w-65 lg:w-auto">
                   {validation ? (
                     <p
                       role="alert"
@@ -620,7 +665,7 @@ export function PaymentDialogContent({
                   <Button
                     type="button"
                     variant="secondary"
-                    className="h-10 font-black sm:h-12"
+                    className="h-11 font-black sm:h-12"
                     disabled={!canPrintInvoice}
                     onClick={() => void handlePrintInvoice()}
                   >
@@ -631,11 +676,11 @@ export function PaymentDialogContent({
                     )}
                     {t("pos.printInvoice")}
                   </Button>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 gap-2 min-[430px]:grid-cols-2">
                     <Button
                       type="button"
                       variant="outline"
-                      className="h-10 sm:h-12"
+                      className="h-11 sm:h-12"
                       disabled={processing}
                       onClick={() => onOpenChange(false)}
                     >
@@ -643,7 +688,7 @@ export function PaymentDialogContent({
                     </Button>
                     <Button
                       type="button"
-                      className="h-10 font-black sm:h-12"
+                      className="h-11 font-black sm:h-12"
                       disabled={Boolean(validation) || processing}
                       onClick={requestSubmit}
                     >

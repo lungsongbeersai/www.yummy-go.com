@@ -287,18 +287,22 @@ export function DashboardPage() {
   return (
     <div className="dashboard-screen flex flex-col gap-4">
       <DashboardHeader activeBranchLabel={activeBranchLabel} copy={copy} filtersMeta={model.filters} section={model.section} />
-      <DashboardFilterBar
-        activeBranchUuid={activeBranchUuid}
-        branchLoading={branchLoading}
-        branchOptions={branchOptions}
-        copy={copy}
-        filters={filters}
-        loading={loading}
-        onApply={handleApply}
-        onBranchChange={setSelectedBranch}
-        onFilterChange={handleFilterChange}
-        onReset={handleReset}
-      />
+      <div className="dashboard-filter-slot">
+        <div className="dashboard-filter-lock">
+          <DashboardFilterBar
+            activeBranchUuid={activeBranchUuid}
+            branchLoading={branchLoading}
+            branchOptions={branchOptions}
+            copy={copy}
+            filters={filters}
+            loading={loading}
+            onApply={handleApply}
+            onBranchChange={setSelectedBranch}
+            onFilterChange={handleFilterChange}
+            onReset={handleReset}
+          />
+        </div>
+      </div>
       <DashboardPaymentSummaryStrip
         cards={model.paymentSummaryCards}
         copy={copy}

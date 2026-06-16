@@ -512,13 +512,14 @@ export function useSelectedTableCartPanelWorkflow({
 
     setActingItemUuid(actionTargetUuid);
     try {
+      const successKey = itemActionTarget.action === "delete" ? "pos.itemActionSuccess" : "pos.itemCancelSuccess";
       if (itemActionTarget.action === "delete") {
         await deleteItem(actionTargetUuid);
       } else {
         await cancelItem({ order_it_uuid: actionTargetUuid });
       }
       await onCartRefresh();
-      showToast({ title: t("pos.itemActionSuccess"), tone: "success" });
+      showToast({ title: t(successKey), tone: "success" });
       setItemActionTarget(null);
     } catch (error) {
       showToast({

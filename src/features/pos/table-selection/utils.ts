@@ -422,6 +422,16 @@ export function isServedCartItem(item: CartItem) {
   return cartItemStatus(item) === 4 || statusText === "served";
 }
 
+export function isCanceledCartItem(item: CartItem) {
+  const statusText = optionalString(
+    item.detail?.order_it_status_text,
+  )?.toLowerCase();
+  return (
+    cartItemStatus(item) === 9 ||
+    Boolean(statusText && ["cancel", "canceled", "cancelled", "ຍົກເລີກ"].some((value) => statusText.includes(value)))
+  );
+}
+
 export function cartItems(cart: CartOrder | CartOrder[] | null) {
   return cartOrders(cart).flatMap((order) => order.items ?? []);
 }

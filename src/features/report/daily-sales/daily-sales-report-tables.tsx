@@ -321,11 +321,12 @@ export function DetailBillTable({
                   {hasStatusData ? (
                     <TableCell className="whitespace-nowrap">
                       <Badge
-                        className={
+                        className={statusClass(
                           group.cancelled
-                            ? "border-destructive/25 bg-destructive/10 text-destructive"
-                            : statusClass(statusRow, group.status)
-                        }
+                            ? { ...statusRow, cancelled: true }
+                            : statusRow,
+                          group.status,
+                        )}
                       >
                         {group.status}
                       </Badge>

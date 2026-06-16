@@ -239,7 +239,7 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
 
   return (
     <div className="h-full min-h-0 overflow-y-auto bg-muted/20 xl:overflow-hidden">
-      <div className="mx-auto flex w-full max-w-[1500px] flex-col gap-3 p-3 lg:p-4 xl:h-full xl:min-h-0">
+      <div className="mx-auto flex w-full max-w-[1500px] flex-col gap-2 p-2 sm:gap-3 sm:p-3 lg:p-4 xl:h-full xl:min-h-0">
         <SalesListHeader
           appliedFilters={appliedFilters}
           branchLabel={branchLabel}
@@ -274,7 +274,7 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
         ) : null}
         {error ? <SalesListError title={t("salesList.loadFailed")} description={error} /> : null}
 
-        <div className="grid gap-3 xl:min-h-0 xl:flex-1 xl:grid-cols-[minmax(20rem,27rem)_minmax(0,1fr)]">
+        <div className="grid min-w-0 gap-2 sm:gap-3 xl:min-h-0 xl:flex-1 xl:grid-cols-[minmax(20rem,27rem)_minmax(0,1fr)]">
           <SalesBillListPanel
             bills={bills}
             canGoBack={canGoBack}
@@ -630,7 +630,7 @@ function SalesBillListPanel({
   const { t } = useTranslation();
 
   return (
-    <Card className="min-h-[28rem] overflow-hidden border-border bg-card shadow-sm xl:flex xl:min-h-0 xl:flex-col">
+    <Card className="min-h-0 overflow-hidden border-border bg-card shadow-sm xl:flex xl:min-h-0 xl:flex-col">
       <CardHeader className="shrink-0 border-b border-border px-4 py-3">
         <div className="min-w-0">
           <CardTitle className="flex items-center gap-2 text-base font-black">
@@ -741,14 +741,14 @@ function SalesBillDetailPanel({
   const { t } = useTranslation();
 
   return (
-    <Card className="min-h-[32rem] overflow-hidden border-border bg-card shadow-sm xl:flex xl:min-h-0 xl:flex-col">
+    <Card className="min-h-0 overflow-hidden border-border bg-card shadow-sm xl:flex xl:min-h-0 xl:flex-col">
       {!bill ? (
         <div className="flex min-h-96 flex-1 items-center justify-center p-4">
           <EmptyState title={t("salesList.noSelection")} description={t("salesList.selectBillHint")} />
         </div>
       ) : (
         <>
-          <CardHeader className="shrink-0 flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-start sm:justify-between">
+          <CardHeader className="shrink-0 flex-col gap-3 border-b border-border px-3 py-3 sm:flex-row sm:items-start sm:justify-between sm:px-4">
             <div className="min-w-0">
               <CardTitle className="truncate text-lg font-black">{bill.invoiceNumber}</CardTitle>
               <div className="mt-2 flex min-w-0 flex-wrap items-center gap-2 text-sm text-muted-foreground">
@@ -770,7 +770,7 @@ function SalesBillDetailPanel({
             <Button
               type="button"
               variant="outline"
-              className="shrink-0"
+              className="w-full shrink-0 sm:w-auto"
               disabled={!textValue(readValue(bill.raw, ["order_uuid"]), "") || Boolean(printingBillId) || loading}
               onClick={() => onReprint(bill)}
             >
@@ -779,8 +779,8 @@ function SalesBillDetailPanel({
             </Button>
           </CardHeader>
           <CardContent className="flex min-h-0 flex-1 flex-col p-0">
-            <div className="min-h-0 flex-1 overflow-auto p-4">
-              <SalesListItemTable items={bill.items} />
+            <div className="min-h-0 flex-1 p-3 sm:p-4 xl:overflow-auto">
+              <SalesListItems items={bill.items} />
             </div>
             <SelectedBillSummary bill={bill} />
           </CardContent>
@@ -790,7 +790,7 @@ function SalesBillDetailPanel({
   );
 }
 
-function SalesListItemTable({ items }: { items: ApiEntity[] }) {
+function SalesListItems({ items }: { items: ApiEntity[] }) {
   const { t } = useTranslation();
 
   if (!items.length) {
@@ -798,8 +798,18 @@ function SalesListItemTable({ items }: { items: ApiEntity[] }) {
   }
 
   return (
-    <div className="overflow-x-auto rounded-md border border-border bg-card">
-      <Table className="min-w-[940px] text-[13px]">
+    <>
+      <div className="flex flex-col overflow-hidden rounded-md border border-border bg-card md:hidden">
+        {items.map((item, index) => (
+          <SalesListItemCard
+            key={textValue(readValue(item, ["__report_record_id", "order_item_uuid"]), String(index))}
+            item={item}
+            index={index}
+          />
+        ))}
+      </div>
+      <div className="hidden overflow-x-auto rounded-md border border-border bg-card md:block">
+        <Table className="min-w-[940px] text-[13px]">
         <TableHeader className="bg-muted/60">
           <TableRow>
             <TableHead className="w-[64px] whitespace-nowrap text-center">{t("fields.no")}</TableHead>
@@ -833,7 +843,61 @@ function SalesListItemTable({ items }: { items: ApiEntity[] }) {
             </TableRow>
           ))}
         </TableBody>
-      </Table>
+        </Table>
+      </div>
+    </>
+  );
+}
+
+function SalesListItemCard({ index, item }: { index: number; item: ApiEntity }) {
+  const { t } = useTranslation();
+  const code = textValue(readValue(item, ["prod_code", "product_code"]), "");
+  const note = itemNote(item);
+  const discount = firstNumber(item, ["discount_total", "discount_amount", "item_discount_amount"]);
+  const toppings = firstNumber(item, ["topping_total", "topping_unit_total"]);
+
+  return (
+    <div className={cn("flex flex-col gap-2 px-3 py-3", index > 0 && "border-t border-border")}>
+      <div className="flex min-w-0 items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="break-words text-sm font-black">{itemProductName(item)}</p>
+          {code ? <p className="mt-1 truncate text-xs text-muted-foreground">{code}</p> : null}
+        </div>
+        <p className="shrink-0 text-right text-sm font-black tabular-nums">
+          {moneyValue(firstNumber(item, ["total", "line_total", "net_total"]))}
+        </p>
+      </div>
+      <div className="grid grid-cols-2 gap-2 rounded-md bg-muted/35 px-3 py-2 text-xs">
+        <CompactMetric label={t("fields.no")} value={String(index + 1)} />
+        <CompactMetric label={t("salesList.qty")} value={firstNumber(item, ["qty", "quantity"]).toLocaleString("en-US")} />
+        <CompactMetric label={t("salesList.price")} value={moneyValue(firstNumber(item, ["sale_price", "price", "unit_price"]))} />
+        <CompactMetric label={t("salesList.amount")} value={moneyValue(firstNumber(item, ["amount", "line_amount"]))} />
+        {toppings > 0 ? <CompactMetric label={t("salesList.toppings")} value={moneyValue(toppings)} /> : null}
+        {discount > 0 ? <CompactMetric label={t("salesList.discount")} value={`-${moneyValue(discount)}`} tone="destructive" /> : null}
+      </div>
+      {note ? (
+        <div className="flex min-w-0 justify-between gap-3 text-xs">
+          <span className="shrink-0 font-semibold text-muted-foreground">{t("salesList.note")}</span>
+          <span className="min-w-0 break-words text-right text-muted-foreground">{note}</span>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function CompactMetric({
+  label,
+  tone,
+  value
+}: {
+  label: string;
+  tone?: "destructive";
+  value: string;
+}) {
+  return (
+    <div className="min-w-0">
+      <p className="truncate font-semibold text-muted-foreground">{label}</p>
+      <p className={cn("mt-0.5 truncate font-black tabular-nums", tone === "destructive" && "text-destructive")}>{value}</p>
     </div>
   );
 }
@@ -852,14 +916,14 @@ function SelectedBillSummary({ bill }: { bill: DailySaleItemsBillGroup }) {
   ];
 
   return (
-    <div className="shrink-0 border-t border-border bg-card px-4 py-3">
+    <div className="shrink-0 border-t border-border bg-card px-3 py-3 sm:px-4">
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm font-black">{t("salesList.billSummary")}</p>
         <p className="text-lg font-black tabular-nums text-primary">{money(bill.lineTotal)}</p>
       </div>
-      <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-3 grid grid-cols-2 gap-2 lg:grid-cols-4">
         {metrics.map((metric) => (
-          <div key={metric.label} className="rounded-md border border-border bg-muted/35 px-3 py-2">
+          <div key={metric.label} className="min-w-0 rounded-md border border-border bg-muted/35 px-3 py-2">
             <p className="truncate text-xs font-bold text-muted-foreground">{metric.label}</p>
             <p className="mt-1 truncate text-sm font-black tabular-nums">{money(metric.value)}</p>
           </div>

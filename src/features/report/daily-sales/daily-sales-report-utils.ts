@@ -260,19 +260,39 @@ export function isCancelledRow(row: ApiEntity) {
 
 export function statusClass(row: ApiEntity, value: unknown) {
   if (isCancelledRow(row)) {
-    return "border-destructive/25 bg-destructive/10 text-destructive";
+    return "border-destructive bg-destructive text-destructive-foreground shadow-sm";
   }
   const status = textValue(value, "").toLowerCase();
   if (status.includes("cancel") || status.includes("void") || status === "0") {
-    return "border-destructive/20 bg-destructive/10 text-destructive";
+    return "border-destructive bg-destructive text-destructive-foreground shadow-sm";
   }
   if (
     status.includes("active") ||
     status.includes("paid") ||
     status.includes("success") ||
+    status.includes("complete") ||
+    status.includes("ຊຳລະແລ້ວ") ||
     status === "1"
   ) {
-    return "border-primary/20 bg-primary/10 text-primary";
+    return "border-primary/35 bg-primary/15 text-primary";
+  }
+  if (
+    status.includes("debt") ||
+    status.includes("unpaid") ||
+    status.includes("balance") ||
+    status.includes("ໜີ້") ||
+    status.includes("ຄ້າງ")
+  ) {
+    return "border-amber-500/40 bg-amber-500/15 text-amber-700 dark:text-amber-300";
+  }
+  if (
+    status.includes("pending") ||
+    status.includes("waiting") ||
+    status.includes("wait") ||
+    status.includes("ລໍ") ||
+    status.includes("ຖ້າ")
+  ) {
+    return "border-sky-500/40 bg-sky-500/15 text-sky-700 dark:text-sky-300";
   }
   return "border-border bg-muted text-muted-foreground";
 }

@@ -171,9 +171,7 @@ export const DashboardHeader = memo(function DashboardHeader({
   const rangeMode = text(filtersMeta.range_mode, "");
   const rangeDays = numberFrom(filtersMeta, "days_in_month");
   const updatedAt = text(filtersMeta.updated_at, "");
-  const sectionType = text(section.section_type, "");
   const metaItems = [
-    sectionType,
     businessStart && businessEnd ? `${businessStart} - ${businessEnd}` : "",
     [rangeMode, rangeDays ? `${formatNumber(rangeDays)} ${copy.days}` : ""].filter(Boolean).join(" "),
     updatedAt
@@ -306,17 +304,27 @@ export const DashboardPaymentSummaryStrip = memo(function DashboardPaymentSummar
 
   return (
     <div className="dashboard-payment-summary-stack">
-      <div aria-label={copy.paymentSplit} className="flex overflow-hidden rounded-xl border border-border">
+      <div
+        aria-label={copy.paymentSplit}
+        className="overflow-hidden rounded-xl border border-border grid grid-cols-2 md:flex"
+      >
         {cards.map((card, index) => {
           const Icon = paymentSummaryIcon(card);
+          const isLastInRow = (index + 1) % 2 === 0;
+          const isLastItem = index === cards.length - 1;
+          const isBottomRow = index >= cards.length - (cards.length % 2 === 0 ? 2 : 1);
 
           return (
             <div
               key={card.key}
               className={cn(
-                "flex-1",
-                index < cards.length - 1 && "border-r border-border",
-                paymentSummaryTone(card)
+                "flex-1 min-w-0",
+                paymentSummaryTone(card),
+                // mobile: border-r ທຸກ col ຍົກເວັ້ນ col ຂວາ, border-b ທຸກ row ຍົກເວັ້ນ row ສຸດທ້າຍ
+                !isLastInRow && !isLastItem && "border-r border-border",
+                !isBottomRow && "border-b border-border md:border-b-0",
+                // desktop: border-r ທຸກ item ຍົກເວັ້ນ item ສຸດທ້າຍ
+                !isLastItem && "md:border-r md:border-border"
               )}
             >
               <CardContent className="dashboard-payment-card-content">
