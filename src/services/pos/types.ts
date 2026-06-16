@@ -382,6 +382,9 @@ export interface PaymentInput extends ApiEntity {
   note?: string;
   lang?: string;
   login_uuid_fk: string;
+  device_code?: string;
+  agent_id?: string;
+  print_mode?: string;
 }
 export interface PaymentRecord extends ApiEntity {
   payment_uuid?: string;
@@ -442,6 +445,9 @@ export interface SplitBillInput extends ApiEntity {
   note: string;
   lang: "la" | "en";
   login_uuid_fk: string;
+  device_code?: string;
+  agent_id?: string;
+  print_mode?: string;
 }
 export interface SplitBillOrderSummary extends ApiEntity {}
 export interface SplitBillTotals extends ApiEntity {}
@@ -463,7 +469,15 @@ export interface SplitBillResponse extends ApiEntity {
   source_order?: CartOrder;
   data?: SplitBillResponseData;
 }
-export interface ConfirmToKitchenInput { order_uuid: string; login_uuid_fk: string; order_item_uuids?: string[] }
+export interface ConfirmToKitchenInput {
+  order_uuid: string;
+  login_uuid_fk: string;
+  order_item_uuids?: string[];
+  lang?: string;
+  device_code?: string;
+  agent_id?: string;
+  print_mode?: string;
+}
 export interface ConfirmSummary extends ApiEntity {}
 export interface ConfirmToKitchenPrintJob extends ApiEntity {
   print_job_uuid: string;
@@ -472,7 +486,13 @@ export interface ConfirmToKitchenPrintJob extends ApiEntity {
   requested_total?: number;
 }
 export interface ConfirmToKitchenNextAction extends ApiEntity {}
-export interface ConfirmToKitchenPendingQuery { print_job_uuid: string; login_uuid_fk: string }
+export interface ConfirmToKitchenPendingQuery {
+  print_job_uuid: string;
+  login_uuid_fk: string;
+  device_code?: string;
+  agent_id?: string;
+  print_mode?: string;
+}
 export interface ConfirmToKitchenAckTemplate extends ApiEntity {}
 export interface ConfirmPartialItem extends ApiEntity {}
 export interface ConfirmToKitchenResponse extends ApiEntity {
@@ -487,7 +507,15 @@ export interface ConfirmOrderItemServedInput { order_it_uuid: string }
 export interface CancelOrderItemInput { order_it_uuid: string }
 export interface CreateTableQRRequest extends ApiEntity { table_uuid: string; login_uuid_fk: string; lang?: string }
 export interface CreateTableQRResponse extends TableQRResponse {}
-export interface PrintInvoiceRequest extends ApiEntity { order_uuid: string; order_item_uuids?: string[]; login_uuid_fk?: string; lang?: string }
+export interface PrintInvoiceRequest extends ApiEntity {
+  order_uuid: string;
+  login_uuid_fk: string;
+  lang?: string;
+  document_type?: "invoice";
+  device_code?: string;
+  agent_id?: string;
+  print_mode?: string;
+}
 export interface PrintInvoiceJob extends ApiEntity {}
 export interface PrintInvoicePrintJob extends ApiEntity {}
 export interface PrintInvoiceResponse extends ApiEntity {

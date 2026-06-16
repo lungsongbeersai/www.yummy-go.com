@@ -517,7 +517,6 @@ export function usePaymentDialogWorkflow({
     try {
       const response = await printInvoice({
         order_uuid: orderUuid,
-        ...(isSplitPayment ? { order_item_uuids: splitBillItemUuids } : {}),
         lang: toApiLanguage(language),
         login_uuid_fk: user.uuid,
       });

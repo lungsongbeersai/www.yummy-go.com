@@ -276,7 +276,16 @@ export const usePrinterStore = create<PrinterState>((set) => ({
   test: async (input) => {
     set({ printing: true, error: null });
     try {
-      const result = await buildTestJob(input);
+      const identity = await resolvePrinterDeviceIdentity();
+      if (!identity.ok) throw new Error(identity.error);
+
+      const result = await buildTestJob({
+        ...input,
+        device_code: input.device_code ?? identity.agent.device_code ?? undefined,
+        agent_id: input.agent_id ?? identity.agent.agent_id,
+        agent_name: input.agent_name ?? identity.agent.agent_name,
+        print_mode: input.print_mode ?? "windows_agent"
+      });
       await dispatchPrintJob(result.data.job);
       set({ printing: false });
     } catch (error) {
@@ -314,7 +323,10 @@ export const usePrinterStore = create<PrinterState>((set) => ({
   },
   getDefaultCategoryByRole: (input) => getDefaultCategoryByRole(input),
   loadPendingJobs: async (printJobUuid, loginUuid) => {
-    const pendingJobs = await getPendingPrintJobs(printJobUuid, loginUuid);
+    const pendingJobs = await getPendingPrintJobs({
+      print_job_uuid: printJobUuid,
+      login_uuid_fk: loginUuid
+    });
     set({ pendingJobs });
     return pendingJobs;
   },
