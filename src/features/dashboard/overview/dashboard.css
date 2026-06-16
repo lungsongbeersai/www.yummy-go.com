@@ -66,7 +66,7 @@
   letter-spacing: -0.01em;
 }
 
-.dashboard-head-actions > button {
+.dashboard-head-actions>button {
   height: 2.5rem;
   border-radius: 0.55rem;
 }
@@ -195,8 +195,8 @@
   padding: 0.5rem 0.75rem;
 }
 
-.dashboard-query-content > .inline-flex,
-.dashboard-query-content > .shrink-0:first-child {
+.dashboard-query-content>.inline-flex,
+.dashboard-query-content>.shrink-0:first-child {
   border-color: hsl(var(--primary) / 0.2);
   border-radius: 999px;
   background: var(--dashboard-green-tint);
@@ -206,7 +206,7 @@
   text-transform: uppercase;
 }
 
-.dashboard-query-content > .shrink-0:first-child svg {
+.dashboard-query-content>.shrink-0:first-child svg {
   width: 0.85rem;
   height: 0.85rem;
 }
@@ -277,21 +277,23 @@
 
 .dashboard-payment-card-content {
   display: flex;
-  min-height: 5rem;
-  align-items: center;
-  gap: 0.875rem;
-  padding: 0.875rem 1rem;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem;
 }
 
 .dashboard-payment-card-icon {
-  display: grid;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 2.5rem;
   height: 2.5rem;
-  flex: 0 0 auto;
-  place-items: center;
-  border-radius: 0.75rem;
-  background: var(--dashboard-surface-2);
-  color: var(--dashboard-green);
+  border-radius: 9999px;
+  background: hsl(var(--primary) / 0.1);
+  color: hsl(var(--primary));
+  margin-top: 0.25rem;
 }
 
 .dashboard-payment-card-icon svg {
@@ -750,7 +752,7 @@
     align-items: stretch;
   }
 
-  .dashboard-page-head > div:last-child {
+  .dashboard-page-head>div:last-child {
     justify-content: flex-start;
   }
 

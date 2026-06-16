@@ -54,6 +54,7 @@ export type AccountingRow = {
 };
 
 export type PaymentSummaryCard = {
+  subLabel: import("react").JSX.Element;
   important: boolean;
   key: string;
   label: string;

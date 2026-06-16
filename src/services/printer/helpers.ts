@@ -53,6 +53,7 @@ export function mapPrinter(item: Record<string, unknown>): Printer {
     agent_url: item.agent_url === undefined ? undefined : String(item.agent_url),
     agent_id: item.agent_id === undefined ? undefined : String(item.agent_id),
     agent_name: item.agent_name === undefined ? undefined : String(item.agent_name),
+    print_mode: item.print_mode === undefined ? undefined : String(item.print_mode),
     paper_width_mm: Number(item.paper_width_mm ?? 80),
     is_active: Boolean(item.is_active),
     is_active_label: activeLabel(item),

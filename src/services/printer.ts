@@ -75,6 +75,7 @@ export interface Printer extends ApiEntity {
   agent_url?: string;
   agent_id?: string;
   agent_name?: string;
+  print_mode?: string;
   paper_width_mm: number;
   is_active: boolean;
   is_active_label?: string;
@@ -181,7 +182,7 @@ export interface ResolvedPrinter extends Printer { }
 export interface SaveCategoryPrinterInput extends ApiEntity { login_uuid_fk: string; cate_uuid_fk: string[]; print_config_uuid_fk: string }
 export interface FetchPrintersParams extends FetchParams {
   login_uuid_fk: string;
-  // agent_id: string;
+  agent_id?: string;
   device_code: string;
 }
 export interface FetchPrintersForLocalAgentParams extends FetchParams { login_uuid_fk: string }
@@ -204,6 +205,21 @@ export interface PendingPrintJobsParams {
   login_uuid_fk: string;
   device_code?: string;
   agent_id?: string;
+  print_mode?: string;
+}
+export interface PrinterDeviceContextParams {
+  login_uuid_fk: string;
+  device_code?: string;
+  agent_id?: string;
+  agent_name?: string;
+  print_mode?: string;
+  print_config_uuid?: string;
+  lang?: string;
+}
+export interface PrinterDeviceContext {
+  device_code?: string;
+  agent_id?: string;
+  agent_name?: string;
   print_mode?: string;
 }
 export interface AckAppliedItem extends ApiEntity { }
@@ -248,12 +264,37 @@ export async function getPrinters(params: FetchPrintersParams) {
   const result = await apiRequest<FetchPrinterResponse>("get", "/api/v1/printer/fetch", {
     params: {
       login_uuid_fk: params.login_uuid_fk,
-      agent_id: params.agent_id,
       device_code: params.device_code,
       lang: toApiLanguage(params.lang)
     }
   });
   return printerRowsFromFetchResponse(result).map((item) => mapPrinter(item));
+}
+
+export async function resolvePrinterDeviceContext(params: PrinterDeviceContextParams): Promise<PrinterDeviceContext> {
+  const identity = await resolvePrinterDeviceIdentity();
+  if (!identity.ok) throw new Error(identity.error);
+
+  const deviceCode = textValue(params.device_code) || textValue(identity.agent.device_code);
+  if (!deviceCode) throw new ServiceError("device_code required", 400);
+
+  const printers = await getPrinters({
+    login_uuid_fk: params.login_uuid_fk,
+    device_code: deviceCode,
+    lang: params.lang
+  });
+  const printer =
+    printers.find((item) => params.print_config_uuid && item.print_config_uuid === params.print_config_uuid) ??
+    printers.find((item) => textValue(item.agent_id) === textValue(params.agent_id)) ??
+    printers.find((item) => item.is_active) ??
+    printers[0];
+
+  return {
+    device_code: textValue(printer?.device_code) || textValue(params.device_code) || deviceCode,
+    agent_id: textValue(printer?.agent_id) || textValue(params.agent_id) || undefined,
+    agent_name: textValue(printer?.agent_name) || textValue(params.agent_name) || undefined,
+    print_mode: textValue(printer?.print_mode) || textValue(params.print_mode) || undefined
+  };
 }
 
 export async function getPrinterOptions(login_uuid_fk: string, lang = "la") {
@@ -540,15 +581,19 @@ export async function executeKitchenPrintJobs(input: ExecuteKitchenPrintInput): 
   if (!jobUuid || !loginUuid) return { successCount: 0, failedCount: 0, total: 0 };
 
   input.onProgress?.({ total: 0, completed: 0, successCount: 0, failedCount: 0, phase: "fetching" });
-  const identity = await resolvePrinterDeviceIdentity();
-  if (!identity.ok) throw new Error(identity.error);
+  const printer = await resolvePrinterDeviceContext({
+    login_uuid_fk: loginUuid,
+    device_code: input.pending_query?.device_code ?? input.device_code,
+    agent_id: input.pending_query?.agent_id ?? input.agent_id,
+    print_mode: input.pending_query?.print_mode ?? input.print_mode
+  });
 
   const pending = await getPendingPrintJobs({
     print_job_uuid: jobUuid,
     login_uuid_fk: loginUuid,
-    device_code: input.pending_query?.device_code ?? input.device_code ?? identity.agent.device_code ?? undefined,
-    agent_id: input.pending_query?.agent_id ?? input.agent_id ?? identity.agent.agent_id,
-    print_mode: input.pending_query?.print_mode ?? input.print_mode ?? "windows_agent"
+    device_code: printer.device_code,
+    agent_id: printer.agent_id,
+    print_mode: printer.print_mode
   });
   const printItems = pending.flatMap((job) => job.print_items ?? []);
   const hasBrowserJobs = printItems.some((item) =>

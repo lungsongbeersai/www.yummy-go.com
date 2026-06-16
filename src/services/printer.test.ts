@@ -38,6 +38,7 @@ import {
   printOps,
   printTableQRJob,
   renderMobileEscpos,
+  resolvePrinterDeviceContext,
   resolvePrinterDeviceIdentity,
   savePrinter,
   sendMobileBackendPrintJob,
@@ -66,6 +67,28 @@ const failedAck: AckPayload = {
   print_job_uuid: "job-1",
   results: [{ print_job_item_uuid: "item-1", status: "failed" }]
 };
+
+function printerFetchResponse(overrides: Record<string, unknown> = {}) {
+  return {
+    data: [
+      {
+        agent_id: "agent-1",
+        agent_name: "Local",
+        device_code: "device-1",
+        print_config_uuid: "printer-1",
+        printer_name: "Kitchen",
+        connect_type: "tcp",
+        interface_value: "tcp://192.168.1.20:9100",
+        paper_width_mm: 80,
+        is_active: true,
+        print_mode: "mobile_wifi",
+        role_codes: ["kitchen"],
+        cate_uuid_fk: [],
+        ...overrides
+      }
+    ]
+  };
+}
 
 describe("printer service dispatch", () => {
   beforeEach(() => {
@@ -165,6 +188,9 @@ describe("printer service dispatch", () => {
     });
     axiosMocks.post.mockResolvedValue({ data: { ok: true } });
     apiMocks.apiRequest.mockImplementation(async (method, url, options) => {
+      if (method === "get" && url === "/api/v1/printer/fetch") {
+        return printerFetchResponse();
+      }
       if (method === "get" && url === "/api/v1/printer/jobs/pending") {
         return {
           data: [
@@ -203,7 +229,7 @@ describe("printer service dispatch", () => {
         login_uuid_fk: "login-1",
         device_code: "device-1",
         agent_id: "agent-1",
-        print_mode: "windows_agent"
+        print_mode: "mobile_wifi"
       }
     });
   });
@@ -252,6 +278,13 @@ describe("printer service dispatch", () => {
       device_code: "android-phone-web-device-1"
     });
     apiMocks.apiRequest.mockImplementation(async (method, url, options) => {
+      if (method === "get" && url === "/api/v1/printer/fetch") {
+        return printerFetchResponse({
+          agent_id: BROWSER_PRINTER_AGENT_ID,
+          agent_name: "Android Phone",
+          device_code: "android-phone-web-device-1"
+        });
+      }
       if (method === "get" && url === "/api/v1/printer/jobs/pending") {
         return {
           data: [
@@ -297,6 +330,13 @@ describe("printer service dispatch", () => {
       device_code: "android-phone-web-device-1"
     });
     apiMocks.apiRequest.mockImplementation(async (method, url, options) => {
+      if (method === "get" && url === "/api/v1/printer/fetch") {
+        return printerFetchResponse({
+          agent_id: BROWSER_PRINTER_AGENT_ID,
+          agent_name: "Android Phone",
+          device_code: "android-phone-web-device-1"
+        });
+      }
       if (method === "get" && url === "/api/v1/printer/jobs/pending") {
         return {
           data: [
@@ -453,12 +493,11 @@ describe("printer API payloads", () => {
     apiMocks.apiRequest.mockReset();
   });
 
-  it("fetches printers scoped by login, agent_id, and device_code", async () => {
+  it("fetches printers scoped by login and device_code", async () => {
     apiMocks.apiRequest.mockResolvedValue({ data: [] });
 
     await getPrinters({
       login_uuid_fk: "login-1",
-      agent_id: BROWSER_PRINTER_AGENT_ID,
       device_code: "android-phone-web-device-1",
       lang: "en"
     });
@@ -469,12 +508,39 @@ describe("printer API payloads", () => {
       {
         params: {
           login_uuid_fk: "login-1",
-          agent_id: BROWSER_PRINTER_AGENT_ID,
           device_code: "android-phone-web-device-1",
           lang: "eng"
         }
       }
     );
+  });
+
+  it("resolves printer device context from fetched printer settings", async () => {
+    axiosMocks.get.mockResolvedValue({
+      data: { agent_id: "local-agent", agent_name: "Local", device_code: "INCLUDE" }
+    });
+    apiMocks.apiRequest.mockResolvedValue(
+      printerFetchResponse({
+        agent_id: "include-f8e4f9",
+        agent_name: "Include Agent",
+        device_code: "INCLUDE",
+        print_mode: "mobile_wifi"
+      })
+    );
+
+    await expect(resolvePrinterDeviceContext({ login_uuid_fk: "login-1" })).resolves.toEqual({
+      device_code: "INCLUDE",
+      agent_id: "include-f8e4f9",
+      agent_name: "Include Agent",
+      print_mode: "mobile_wifi"
+    });
+    expect(apiMocks.apiRequest).toHaveBeenCalledWith("get", "/api/v1/printer/fetch", {
+      params: {
+        login_uuid_fk: "login-1",
+        device_code: "INCLUDE",
+        lang: "la"
+      }
+    });
   });
 
   it("creates TCP printers with browser identity and tcp interface_value", async () => {

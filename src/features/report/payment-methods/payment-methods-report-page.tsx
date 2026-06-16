@@ -67,7 +67,7 @@ export function PaymentMethodsReportPage({ initialPagination }: { initialPaginat
   return (
     <>
       <div className="h-full min-h-0 overflow-y-auto" style={layoutStyle}>
-        <div className="mx-auto flex w-full max-w-[1500px] flex-col gap-4 p-4 lg:p-6">
+        <div className="mx-auto flex w-full max-w-375 flex-col gap-4 p-4 lg:p-6">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <div className="flex items-center gap-2 text-sm font-bold text-primary">
@@ -92,9 +92,9 @@ export function PaymentMethodsReportPage({ initialPagination }: { initialPaginat
 
           <div
             ref={filterRef}
-            className="sticky top-0 z-30 -mx-4 bg-background/95 px-4 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/85 lg:-mx-6 lg:px-6"
+            className="sticky top-0 z-30 -mx-4 bg-background/95 px-4 py-2 backdrop-blur supports-backdrop-filter:bg-background/85 lg:-mx-6 lg:px-6"
           >
-            <div className="sm:hidden">
+            <div className="xl:hidden">
               <MobilePaymentMethodsFilterSummary
                 branchLabel={report.activeBranchLabel}
                 filters={report.appliedFilters}
@@ -102,7 +102,7 @@ export function PaymentMethodsReportPage({ initialPagination }: { initialPaginat
                 onOpen={report.openMobileFilters}
               />
             </div>
-            <div className="hidden sm:block">
+            <div className="hidden xl:block">
               <PaymentMethodsFilterBar
                 branchLoading={report.branchLoading}
                 branchLocked={!report.canSelectBranch}

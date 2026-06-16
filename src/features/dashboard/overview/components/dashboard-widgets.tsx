@@ -306,41 +306,34 @@ export const DashboardPaymentSummaryStrip = memo(function DashboardPaymentSummar
 
   return (
     <div className="dashboard-payment-summary-stack">
-      <div aria-label={copy.paymentSplit} className="dashboard-payment-summary-grid">
-        {cards.map((card) => {
+      <div aria-label={copy.paymentSplit} className="flex overflow-hidden rounded-xl border border-border">
+        {cards.map((card, index) => {
           const Icon = paymentSummaryIcon(card);
 
           return (
-            <Card key={card.key} className={cn("dashboard-payment-card", paymentSummaryTone(card))}>
+            <div
+              key={card.key}
+              className={cn(
+                "flex-1",
+                index < cards.length - 1 && "border-r border-border",
+                paymentSummaryTone(card)
+              )}
+            >
               <CardContent className="dashboard-payment-card-content">
                 <div className="dashboard-payment-card-icon" aria-hidden="true">
                   <Icon />
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-xs font-semibold text-muted-foreground">{card.label}</p>
-                  <p className={cn("mt-1 break-words font-mono font-semibold leading-tight", card.important ? "text-2xl" : "text-xl")}>
+                  <p className={cn("mt-1 wrap-break-word font-mono font-semibold leading-tight", card.important ? "text-2xl" : "text-xl")}>
                     {formatKip(card.value)}
                   </p>
                 </div>
               </CardContent>
-            </Card>
+            </div>
           );
         })}
       </div>
-      {/* {mixedDetails.length || messages.length ? (
-        <Alert className="dashboard-payment-mixed-alert">
-          <AlertTriangle />
-          <AlertTitle>{copy.mixedPayment}</AlertTitle>
-          <AlertDescription>
-            {mixedDetails.map((detail) => (
-              <span key={detail} className="font-mono font-semibold">{detail}</span>
-            ))}
-            {messages.map((message) => (
-              <span key={message}>{message}</span>
-            ))}
-          </AlertDescription>
-        </Alert>
-      ) : null} */}
     </div>
   );
 });
