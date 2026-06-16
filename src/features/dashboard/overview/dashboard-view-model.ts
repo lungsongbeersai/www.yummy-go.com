@@ -1,3 +1,5 @@
+import { Fragment, createElement } from "react";
+
 export type Row = Record<string, unknown>;
 
 export type DashboardFilters = {
@@ -60,6 +62,8 @@ export type PaymentSummaryCard = {
   label: string;
   value: number;
 };
+
+const emptyPaymentSummarySubLabel = createElement(Fragment);
 
 export type PaymentSummary = {
   cashTotal: number;
@@ -231,6 +235,7 @@ function paymentSummaryCards(rows: Row[], fallbackRows: BreakdownRow[]): Payment
       important: false,
       key: row.key,
       label: row.label,
+      subLabel: emptyPaymentSummarySubLabel,
       value: row.value
     }));
   }
@@ -239,6 +244,7 @@ function paymentSummaryCards(rows: Row[], fallbackRows: BreakdownRow[]): Payment
     important: Boolean(row.important),
     key: text(row.key, text(row.label)),
     label: text(row.label),
+    subLabel: emptyPaymentSummarySubLabel,
     value: numberFrom(row, "value")
   }));
 }
