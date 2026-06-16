@@ -109,7 +109,7 @@ export function DailySalesReportPage({ initialPagination }: { initialPagination:
             ref={filterRef}
             className="sticky top-0 z-30 -mx-3 bg-background/95 px-3 py-2 backdrop-blur supports-backdrop-filter:bg-background/85 sm:-mx-4 sm:px-4 lg:-mx-6 lg:px-6"
           >
-            <div className="sm:hidden">
+            <div className="xl:hidden">
               <MobileReportFilterSummary
                 branchLabel={report.activeBranchLabel}
                 detailPaginationBasis={report.detailPageBasis}
@@ -117,7 +117,7 @@ export function DailySalesReportPage({ initialPagination }: { initialPagination:
                 onOpen={report.openMobileFilters}
               />
             </div>
-            <div className="hidden sm:block">
+            <div className="hidden xl:block">
               <ReportFilterBar
                 branchLoading={report.branchLoading}
                 branchLocked={!report.canSelectBranch}

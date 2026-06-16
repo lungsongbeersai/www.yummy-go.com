@@ -315,6 +315,7 @@
     "daily_sales_report": "Daily sales report",
     "best_selling_products_report": "Best selling products",
     "payment_methods_report": "Payment method report",
+    "category_sales_report": "Sales report by category",
     "dashboard": "Dashboard",
     "discount_report": "Discount report",
     "district": "District",
@@ -1305,6 +1306,40 @@
       "rowsLabel": "{{count}} payment method row(s)",
       "title": "Payment method report",
       "totalSummary": "Total summary"
+    },
+    "categorySales": {
+      "adjustFilters": "Adjust the date range, branch, payment method, or order.",
+      "cards": {
+        "categories": "Categories"
+      },
+      "columns": {
+        "amount": "Amount",
+        "billCount": "Bills",
+        "category": "Category",
+        "discountBill": "Bill discount",
+        "discountTotal": "Discount total",
+        "group": "Group",
+        "itemDiscount": "Item discount",
+        "itemsCount": "Items",
+        "qtyTotal": "Qty",
+        "rank": "Rank",
+        "salePercent": "Sales %",
+        "serviceCharge": "Service charge",
+        "toppingTotal": "Topping total",
+        "total": "Total",
+        "vat": "VAT"
+      },
+      "description": "Review sales totals grouped by product category for the selected branch, date range, and payment method.",
+      "export": {
+        "metric": "Metric",
+        "value": "Value"
+      },
+      "groupSummary": "{{categories}} category(s), {{qty}} sold",
+      "loadFailed": "Failed to load category sales report",
+      "loading": "Loading category sales report",
+      "noData": "No category sales report data",
+      "rowsLabel": "{{count}} category row(s)",
+      "title": "Sales report by category"
     },
     "clearSelection": "Clear selection",
     "collapseBill": "Collapse bill",

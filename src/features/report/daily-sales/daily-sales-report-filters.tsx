@@ -109,7 +109,7 @@ export function ReportFilterSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
-        className="max-h-[88dvh] gap-0 overflow-hidden rounded-t-xl p-0 sm:hidden"
+        className="max-h-[88dvh] gap-0 overflow-hidden rounded-t-xl p-0 xl:hidden"
       >
         <SheetHeader className="shrink-0 border-b border-border px-4 py-3 pr-12 text-left">
           <SheetTitle className="text-base font-black">

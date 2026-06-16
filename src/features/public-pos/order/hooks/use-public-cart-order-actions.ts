@@ -29,6 +29,7 @@ interface UsePublicCartOrderActionsParams {
   createOrder: PublicPosState["createOrder"];
   deleteItem: PublicPosState["deleteItem"];
   ensureCartLoaded: PublicPosState["ensureCartLoaded"];
+  loadCart: PublicPosState["loadCart"];
   lang: string;
   loadProductItem: PublicPosState["loadProductItem"];
   loadingItem: boolean;
@@ -54,6 +55,7 @@ export function usePublicCartOrderActions({
   createOrder,
   deleteItem,
   ensureCartLoaded,
+  loadCart,
   lang,
   loadProductItem,
   loadingItem,
@@ -112,7 +114,7 @@ export function usePublicCartOrderActions({
     confirming,
     confirmKitchen,
     deleteItem,
-    ensureCartLoaded,
+    loadCart,
     lang,
     t,
     toast,

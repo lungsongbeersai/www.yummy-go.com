@@ -315,6 +315,7 @@
     "daily_sales_report": "ລາຍງານຂາຍປະຈຳວັນ",
     "best_selling_products_report": "ສິນຄ້າຂາຍດີ",
     "payment_methods_report": "ລາຍງານວິທີຊຳລະ",
+    "category_sales_report": "ລາຍງານຍອດຂາຍຕາມໝວດໝູ່",
     "dashboard": "ໜ້າຫຼັກ",
     "discount_report": "ລາຍງານສ່ວນຫຼຸດ",
     "district": "ເມືອງ",
@@ -1312,6 +1313,40 @@
       "rowsLabel": "{{count}} ແຖວວິທີຊຳລະ",
       "title": "ລາຍງານວິທີຊຳລະ",
       "totalSummary": "ສະຫຼຸບລວມ"
+    },
+    "categorySales": {
+      "adjustFilters": "ປັບຊ່ວງວັນທີ, ສາຂາ, ວິທີຊຳລະ ຫຼື ການຈັດລຽງ.",
+      "cards": {
+        "categories": "ໝວດໝູ່"
+      },
+      "columns": {
+        "amount": "ຍອດຂາຍ",
+        "billCount": "ບິນ",
+        "category": "ໝວດໝູ່",
+        "discountBill": "ສ່ວນຫຼຸດບິນ",
+        "discountTotal": "ສ່ວນຫຼຸດລວມ",
+        "group": "ກຸ່ມ",
+        "itemDiscount": "ສ່ວນຫຼຸດລາຍການ",
+        "itemsCount": "ລາຍການ",
+        "qtyTotal": "ຈໍານວນ",
+        "rank": "ອັນດັບ",
+        "salePercent": "% ຍອດຂາຍ",
+        "serviceCharge": "ຄ່າບໍລິການ",
+        "toppingTotal": "ທ້ອບປິ້ງ",
+        "total": "ຍອດລວມ",
+        "vat": "VAT"
+      },
+      "description": "ກວດເບິ່ງຍອດຂາຍແຍກຕາມໝວດໝູ່ສິນຄ້າ ສໍາລັບສາຂາ, ຊ່ວງວັນທີ ແລະ ວິທີຊຳລະທີ່ເລືອກ.",
+      "export": {
+        "metric": "ຕົວຊີ້ວັດ",
+        "value": "ຄ່າ"
+      },
+      "groupSummary": "{{categories}} ໝວດໝູ່, ຂາຍ {{qty}}",
+      "loadFailed": "ໂຫຼດລາຍງານຍອດຂາຍຕາມໝວດໝູ່ບໍ່ສໍາເລັດ",
+      "loading": "ກໍາລັງໂຫຼດລາຍງານຍອດຂາຍຕາມໝວດໝູ່",
+      "noData": "ບໍ່ມີຂໍ້ມູນລາຍງານຍອດຂາຍຕາມໝວດໝູ່",
+      "rowsLabel": "{{count}} ແຖວໝວດໝູ່",
+      "title": "ລາຍງານຍອດຂາຍຕາມໝວດໝູ່"
     },
     "clearSelection": "ລ້າງການເລືອກ",
     "collapseBill": "ພັບບິນ",

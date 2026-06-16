@@ -16,6 +16,7 @@ import {
   getPrinterRoles,
   getPrinters,
   printTableQRJob,
+  resolvePrinterDeviceContext,
   resolvePrinterDeviceIdentity,
   resolvePrintersByCategory,
   saveCategoryPrinter,
@@ -276,15 +277,14 @@ export const usePrinterStore = create<PrinterState>((set) => ({
   test: async (input) => {
     set({ printing: true, error: null });
     try {
-      const identity = await resolvePrinterDeviceIdentity();
-      if (!identity.ok) throw new Error(identity.error);
+      const printer = await resolvePrinterDeviceContext(input);
 
       const result = await buildTestJob({
         ...input,
-        device_code: input.device_code ?? identity.agent.device_code ?? undefined,
-        agent_id: input.agent_id ?? identity.agent.agent_id,
-        agent_name: input.agent_name ?? identity.agent.agent_name,
-        print_mode: input.print_mode ?? "windows_agent"
+        device_code: printer.device_code,
+        agent_id: printer.agent_id,
+        agent_name: printer.agent_name,
+        print_mode: printer.print_mode
       });
       await dispatchPrintJob(result.data.job);
       set({ printing: false });

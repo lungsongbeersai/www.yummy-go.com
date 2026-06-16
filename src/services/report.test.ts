@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { apiRequest } from "@/lib/api";
-import { getBestSellingProductsReport } from "./report";
+import { getBestSellingProductsReport, getCategorySalesReport } from "./report";
 
 vi.mock("@/lib/api", async () => {
   const actual = await vi.importActual<typeof import("@/lib/api")>("@/lib/api");
@@ -42,6 +42,36 @@ describe("report services", () => {
           limit: 10,
           page: 1,
           sort_by: "date_asc",
+        },
+      },
+    );
+  });
+
+  it("sends category sales query params expected by the API", async () => {
+    await getCategorySalesReport({
+      branch_uuid_fk: "branch-1",
+      date_from: "2026-05-01",
+      date_to: "2026-06-28",
+      lang: "la",
+      limit: 10,
+      orderBy: "DESC",
+      page: 1,
+      payment_method: "all",
+    });
+
+    expect(mockedApiRequest).toHaveBeenCalledWith(
+      "get",
+      "/api/v1/report/category_sales",
+      {
+        params: {
+          branch_uuid_fk: "branch-1",
+          date_from: "2026-05-01",
+          date_to: "2026-06-28",
+          lang: "la",
+          limit: 10,
+          orderBy: "DESC",
+          page: 1,
+          payment_method: "all",
         },
       },
     );

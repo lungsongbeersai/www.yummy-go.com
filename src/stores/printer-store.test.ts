@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildTestJob,
   dispatchPrintJob,
-  resolvePrinterDeviceIdentity,
+  resolvePrinterDeviceContext,
   type BuildTestJobResponse
 } from "@/services/printer";
 import { usePrinterStore } from "@/stores/printer-store";
@@ -22,6 +22,7 @@ vi.mock("@/services/printer", () => ({
   getPrinterRoles: vi.fn(),
   getPrinters: vi.fn(),
   printTableQRJob: vi.fn(),
+  resolvePrinterDeviceContext: vi.fn(),
   resolvePrinterDeviceIdentity: vi.fn(),
   resolvePrintersByCategory: vi.fn(),
   saveCategoryPrinter: vi.fn(),
@@ -33,7 +34,7 @@ vi.mock("@/services/printer", () => ({
 
 const buildTestJobMock = vi.mocked(buildTestJob);
 const dispatchPrintJobMock = vi.mocked(dispatchPrintJob);
-const resolvePrinterDeviceIdentityMock = vi.mocked(resolvePrinterDeviceIdentity);
+const resolvePrinterDeviceContextMock = vi.mocked(resolvePrinterDeviceContext);
 
 describe("printer store", () => {
   beforeEach(() => {
@@ -55,13 +56,11 @@ describe("printer store", () => {
       printer_type: "receipt"
     };
 
-    resolvePrinterDeviceIdentityMock.mockResolvedValue({
-      ok: true,
-      agent: {
-        agent_id: "WINDOWS-AGENT-001",
-        agent_name: "Windows Agent",
-        device_code: "WINDOWS-001"
-      }
+    resolvePrinterDeviceContextMock.mockResolvedValue({
+      agent_id: "include-f8e4f9",
+      agent_name: "Include Agent",
+      device_code: "INCLUDE",
+      print_mode: "mobile_wifi"
     });
     buildTestJobMock.mockResolvedValue({ data: { job, printer: {} } } as BuildTestJobResponse);
     dispatchPrintJobMock.mockResolvedValue();
@@ -76,10 +75,10 @@ describe("printer store", () => {
       login_uuid_fk: "login-1",
       print_config_uuid: "printer-1",
       lang: "la",
-      device_code: "WINDOWS-001",
-      agent_id: "WINDOWS-AGENT-001",
-      agent_name: "Windows Agent",
-      print_mode: "windows_agent"
+      device_code: "INCLUDE",
+      agent_id: "include-f8e4f9",
+      agent_name: "Include Agent",
+      print_mode: "mobile_wifi"
     });
     expect(dispatchPrintJobMock).toHaveBeenCalledWith(job);
   });

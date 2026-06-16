@@ -28,6 +28,7 @@ const disabledReportItems: MenuItem[] = [
   { path: "/report/daily-sales", title: "daily_sales_report" },
   { path: "/report/best-selling-products", title: "best_selling_products_report" },
   { path: "/report/payment-methods", title: "payment_methods_report" },
+  { path: "/report/category-sales", title: "category_sales_report" },
   { path: "/report/monthly-sales", title: "monthly_sales_report", disabled: true },
   { path: "/report/bill-sales-summary", title: "bill_sales_summary", disabled: true },
   { path: "/report/stock", title: "stock_report_menu", disabled: true },

@@ -8,6 +8,7 @@ export type DailySalesReportOrder = "ASC" | "DESC";
 export type DailySalesPaymentMethod = "all" | "cash" | "transfer" | "debt" | "mixed";
 export type DailySaleItemsOrder = "ASC" | "DESC";
 export type PaymentMethodReportOrder = "ASC" | "DESC";
+export type CategorySalesReportOrder = "ASC" | "DESC";
 export const PAYMENT_METHOD_REPORT_FILTER_OPTIONS = ["all", "cash", "transfer", "debt"] as const;
 export type PaymentMethodReportFilter = (typeof PAYMENT_METHOD_REPORT_FILTER_OPTIONS)[number];
 export const BEST_SELLING_PRODUCTS_SORT_OPTIONS = [
@@ -63,6 +64,17 @@ export interface FetchPaymentMethodsReportParams {
   lang?: string;
   limit: PageLimit;
   orderBy: PaymentMethodReportOrder;
+  page: number;
+  payment_method: PaymentMethodReportFilter;
+}
+
+export interface FetchCategorySalesReportParams {
+  branch_uuid_fk: string;
+  date_from: string;
+  date_to: string;
+  lang?: string;
+  limit: PageLimit;
+  orderBy: CategorySalesReportOrder;
   page: number;
   payment_method: PaymentMethodReportFilter;
 }
@@ -156,6 +168,24 @@ export interface PaymentMethodsReportResponse extends ApiEntity {
   totalPages?: number;
 }
 
+export interface CategorySalesReportResponse extends ApiEntity {
+  branch_uuid_fk?: string;
+  data?: unknown;
+  date_from?: string;
+  date_to?: string;
+  limit?: number;
+  message?: string;
+  orderBy?: CategorySalesReportOrder;
+  page?: number;
+  payment_method?: PaymentMethodReportFilter;
+  report_key?: string;
+  report_name?: string;
+  search?: string;
+  status?: string;
+  total?: number;
+  totalPages?: number;
+}
+
 export interface FetchBestSellingProductsReportParams {
   branch_uuid_fk: string;
   date_from: string;
@@ -216,6 +246,19 @@ export function getPaymentMethodsReport(params: FetchPaymentMethodsReportParams)
   };
 
   return apiRequest<PaymentMethodsReportResponse>("get", "/api/v1/report/payment_methods", {
+    params: query
+  });
+}
+
+export function getCategorySalesReport(params: FetchCategorySalesReportParams) {
+  if (!params.branch_uuid_fk) throw new ServiceError("branch_uuid_fk is required", 400);
+  const query: Record<string, unknown> = {
+    ...params,
+    limit: isAllPageLimit(params.limit) ? PAGE_LIMIT_ALL_BATCH : params.limit,
+    lang: toApiLanguage(params.lang)
+  };
+
+  return apiRequest<CategorySalesReportResponse>("get", "/api/v1/report/category_sales", {
     params: query
   });
 }

@@ -1,9 +1,12 @@
 import { PAGE_LIMIT_ALL_BATCH } from "@/lib/pagination";
 import {
+  getCategorySalesReport,
   getBestSellingProductsReport,
   getDailySalesReport,
   getPaymentMethodsReport,
   type BestSellingProductsReportResponse,
+  type CategorySalesReportResponse,
+  type FetchCategorySalesReportParams,
   type FetchBestSellingProductsReportParams,
   type DailySalesReportResponse,
   type FetchDailySalesReportParams,
@@ -28,10 +31,16 @@ import {
   type PaymentMethodReportRow,
   type PaymentMethodSummaryCard
 } from "./payment-method-normalizers";
+import {
+  normalizeCategorySalesReportResponse,
+  type CategorySalesGroup,
+  type CategorySalesRow
+} from "./category-sales-normalizers";
 
 export type DailySalesReportExportParams = Omit<FetchDailySalesReportParams, "limit" | "page">;
 export type BestSellingProductsReportExportParams = Omit<FetchBestSellingProductsReportParams, "limit" | "page">;
 export type PaymentMethodsReportExportParams = Omit<FetchPaymentMethodsReportParams, "limit" | "page">;
+export type CategorySalesReportExportParams = Omit<FetchCategorySalesReportParams, "limit" | "page">;
 
 export type DailySalesReportFetcher = (
   params: FetchDailySalesReportParams
@@ -42,6 +51,9 @@ export type BestSellingProductsReportFetcher = (
 export type PaymentMethodsReportFetcher = (
   params: FetchPaymentMethodsReportParams
 ) => Promise<PaymentMethodsReportResponse>;
+export type CategorySalesReportFetcher = (
+  params: FetchCategorySalesReportParams
+) => Promise<CategorySalesReportResponse>;
 
 export type DailySalesReportExportData = {
   billGroups: DailySalesBillGroup[];
@@ -62,6 +74,13 @@ export type PaymentMethodsReportExportData = {
   reportName: string;
   reportTotal: ApiEntity;
   rows: PaymentMethodReportRow[];
+};
+
+export type CategorySalesReportExportData = {
+  groups: CategorySalesGroup[];
+  reportName: string;
+  rows: CategorySalesRow[];
+  summary: ApiEntity;
 };
 
 function isRecord(value: unknown): value is ApiEntity {
@@ -174,5 +193,34 @@ export async function loadPaymentMethodsReportExportData(
     reportName: firstData.reportName,
     reportTotal: firstData.reportTotal,
     rows: allRows
+  };
+}
+
+export async function loadCategorySalesReportExportData(
+  params: CategorySalesReportExportParams,
+  fetchReport: CategorySalesReportFetcher = getCategorySalesReport
+): Promise<CategorySalesReportExportData> {
+  const requestParams: FetchCategorySalesReportParams = {
+    ...params,
+    limit: PAGE_LIMIT_ALL_BATCH,
+    page: 1
+  };
+  const firstResponse = await fetchReport(requestParams);
+  const firstData = normalizeCategorySalesReportResponse(firstResponse, PAGE_LIMIT_ALL_BATCH, 1);
+  const allGroups = [...firstData.groups];
+
+  for (let nextPage = 2; nextPage <= firstData.pagination.totalPages; nextPage += 1) {
+    const response = await fetchReport({ ...requestParams, page: nextPage });
+    const normalized = normalizeCategorySalesReportResponse(response, PAGE_LIMIT_ALL_BATCH, nextPage);
+    allGroups.push(...normalized.groups);
+  }
+
+  const rows = allGroups.flatMap((group) => group.rows).sort((left, right) => left.rank - right.rank);
+
+  return {
+    groups: allGroups,
+    reportName: firstData.reportName,
+    rows,
+    summary: firstData.summary
   };
 }
