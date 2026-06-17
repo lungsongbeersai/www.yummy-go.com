@@ -836,7 +836,7 @@ export async function executeKitchenPrintJobs(input: ExecuteKitchenPrintInput): 
       if (ackPayload) await ackPrintJob(ackPayload);
       input.onProgress?.({ total, completed: total, successCount: total, failedCount: 0, phase: "done" });
       return { successCount: total, failedCount: 0, total };
-    } catch (error) {
+    } catch {
       const ackPayload = getDirectAckPayload(input.print_job, "ack_failed_payload");
       if (ackPayload) await ackPrintJob(ackPayload);
       input.onProgress?.({ total, completed: total, successCount: 0, failedCount: total, phase: "done" });
@@ -882,7 +882,7 @@ export async function executeKitchenPrintJobs(input: ExecuteKitchenPrintInput): 
       if (globalAckSuccess) await ackPrintJob(ackPayloadWithLogin(globalAckSuccess, loginUuid));
       input.onProgress?.({ total, completed: total, successCount: total, failedCount: 0, phase: "done" });
       return { successCount: total, failedCount: 0, total };
-    } catch (error) {
+    } catch {
       if (globalAckFailed) await ackPrintJob(ackPayloadWithLogin(globalAckFailed, loginUuid));
       input.onProgress?.({ total, completed: total, successCount: 0, failedCount: total, phase: "done" });
       return { successCount: 0, failedCount: total, total };

@@ -1,0 +1,1212 @@
+{
+  "mode": "execute",
+  "excelPath": "D:\\Project\\www.yummy-go.com\\outputs\\menu-units\\ລາຍການອາຫານ 2026 - with units.xlsx",
+  "branch_uuid_fk": "16bd0ecd-248a-47c8-b8e3-c424f1a9bba1",
+  "store_uuid_fk": "a8e8930c-fc80-43ba-9c26-3e24e42c5f95",
+  "size_uuid_fk": "5a9949a3-0f6b-4eea-a86a-1fd2b99352c3",
+  "createdReferences": [
+    {
+      "type": "category",
+      "name": "ປະເພດແຈ່ວ+ຊຸບຜັກ"
+    },
+    {
+      "type": "category",
+      "name": "ປະເພດຕຳ ແລະ ຍຳ"
+    },
+    {
+      "type": "category",
+      "name": "ປະເພດຈືນ + ປີ້ງ"
+    },
+    {
+      "type": "category",
+      "name": "ປະເພດ ເອາະ+ ແກງ"
+    },
+    {
+      "type": "category",
+      "name": "ປະເພດຂົ້ວ+ຜັດ"
+    },
+    {
+      "type": "unit",
+      "name": "ຕຸກ",
+      "uuid": "adaa13c0-2286-4175-8169-5d1f581c2d61"
+    }
+  ],
+  "summary": {
+    "importable": 52,
+    "skipped": 86,
+    "success": 52,
+    "failed": 0,
+    "skippedByReason": {
+      "unknown_category": 81,
+      "skipped_category": 5
+    }
+  },
+  "samples": [
+    {
+      "rowNumber": 12,
+      "categoryHeader": "ປະເພດເຂົ້າ+ອາຫານຈານດ່ຽວ",
+      "payload": {
+        "branch_uuid_fk": "16bd0ecd-248a-47c8-b8e3-c424f1a9bba1",
+        "cate_uuid_fk": "35010a0a-2067-4ee2-a0a0-1a7ef67258be",
+        "unite_uuid_fk": "dfa9aa00-8bcf-44a6-bb9a-5250f126bf88",
+        "prod_code": "PRD-001",
+        "prod_name_la": "ເຂົ້າໜຽວ",
+        "prod_name_eng": "ເຂົ້າໜຽວ",
+        "prod_order_point": 10,
+        "prod_notification": 2,
+        "status_sort_fk": 1,
+        "prod_set_price": 0,
+        "prod_status_imge": 2,
+        "prod_image": "#d7b8f3",
+        "prod_topping_status": 1,
+        "toppings": "[]",
+        "details": "[{\"size_uuid_fk\":\"5a9949a3-0f6b-4eea-a86a-1fd2b99352c3\",\"pro_detail_bprice\":18000,\"pro_detail_sprice\":18000,\"pro_detail_qty_stock\":100,\"pro_detail_stock\":1,\"pro_detail_enabled\":1}]"
+      }
+    },
+    {
+      "rowNumber": 13,
+      "categoryHeader": "ປະເພດເຂົ້າ+ອາຫານຈານດ່ຽວ",
+      "payload": {
+        "branch_uuid_fk": "16bd0ecd-248a-47c8-b8e3-c424f1a9bba1",
+        "cate_uuid_fk": "35010a0a-2067-4ee2-a0a0-1a7ef67258be",
+        "unite_uuid_fk": "f57ee5bd-d0ca-42aa-8b0d-f314cef2a1c4",
+        "prod_code": "PRD-002",
+        "prod_name_la": "ເຂົ້າຈ້າວ",
+        "prod_name_eng": "ເຂົ້າຈ້າວ",
+        "prod_order_point": 10,
+        "prod_notification": 2,
+        "status_sort_fk": 1,
+        "prod_set_price": 0,
+        "prod_status_imge": 2,
+        "prod_image": "#d7b8f3",
+        "prod_topping_status": 1,
+        "toppings": "[]",
+        "details": "[{\"size_uuid_fk\":\"5a9949a3-0f6b-4eea-a86a-1fd2b99352c3\",\"pro_detail_bprice\":18000,\"pro_detail_sprice\":18000,\"pro_detail_qty_stock\":100,\"pro_detail_stock\":1,\"pro_detail_enabled\":1}]"
+      }
+    },
+    {
+      "rowNumber": 14,
+      "categoryHeader": "ປະເພດເຂົ້າ+ອາຫານຈານດ່ຽວ",
+      "payload": {
+        "branch_uuid_fk": "16bd0ecd-248a-47c8-b8e3-c424f1a9bba1",
+        "cate_uuid_fk": "35010a0a-2067-4ee2-a0a0-1a7ef67258be",
+        "unite_uuid_fk": "f57ee5bd-d0ca-42aa-8b0d-f314cef2a1c4",
+        "prod_code": "PRD-003",
+        "prod_name_la": "ເຂົ້າຜັດ (ໝູ,ໄກ່,ທະເລ)",
+        "prod_name_eng": "ເຂົ້າຜັດ (ໝູ,ໄກ່,ທະເລ)",
+        "prod_order_point": 10,
+        "prod_notification": 2,
+        "status_sort_fk": 1,
+        "prod_set_price": 0,
+        "prod_status_imge": 2,
+        "prod_image": "#d7b8f3",
+        "prod_topping_status": 1,
+        "toppings": "[]",
+        "details": "[{\"size_uuid_fk\":\"5a9949a3-0f6b-4eea-a86a-1fd2b99352c3\",\"pro_detail_bprice\":60000,\"pro_detail_sprice\":60000,\"pro_detail_qty_stock\":100,\"pro_detail_stock\":1,\"pro_detail_enabled\":1}]"
+      }
+    },
+    {
+      "rowNumber": 120,
+      "categoryHeader": "ປະເພດເຄື່ອງດື່ມ",
+      "payload": {
+        "branch_uuid_fk": "16bd0ecd-248a-47c8-b8e3-c424f1a9bba1",
+        "cate_uuid_fk": "199b1116-4665-44b2-9ba3-485cbdb46394",
+        "unite_uuid_fk": "adaa13c0-2286-4175-8169-5d1f581c2d61",
+        "prod_code": "PRD-023",
+        "prod_name_la": "ນ້ຳດື່ມໃຫຍ່",
+        "prod_name_eng": "ນ້ຳດື່ມໃຫຍ່",
+        "prod_order_point": 10,
+        "prod_notification": 2,
+        "status_sort_fk": 1,
+        "prod_set_price": 0,
+        "prod_status_imge": 2,
+        "prod_image": "#d7b8f3",
+        "prod_topping_status": 1,
+        "toppings": "[]",
+        "details": "[{\"size_uuid_fk\":\"5a9949a3-0f6b-4eea-a86a-1fd2b99352c3\",\"pro_detail_bprice\":15000,\"pro_detail_sprice\":15000,\"pro_detail_qty_stock\":100,\"pro_detail_stock\":1,\"pro_detail_enabled\":1}]"
+      }
+    },
+    {
+      "rowNumber": 121,
+      "categoryHeader": "ປະເພດເຄື່ອງດື່ມ",
+      "payload": {
+        "branch_uuid_fk": "16bd0ecd-248a-47c8-b8e3-c424f1a9bba1",
+        "cate_uuid_fk": "199b1116-4665-44b2-9ba3-485cbdb46394",
+        "unite_uuid_fk": "adaa13c0-2286-4175-8169-5d1f581c2d61",
+        "prod_code": "PRD-024",
+        "prod_name_la": "ນ້ຳດື່ມກາງ",
+        "prod_name_eng": "ນ້ຳດື່ມກາງ",
+        "prod_order_point": 10,
+        "prod_notification": 2,
+        "status_sort_fk": 1,
+        "prod_set_price": 0,
+        "prod_status_imge": 2,
+        "prod_image": "#d7b8f3",
+        "prod_topping_status": 1,
+        "toppings": "[]",
+        "details": "[{\"size_uuid_fk\":\"5a9949a3-0f6b-4eea-a86a-1fd2b99352c3\",\"pro_detail_bprice\":8000,\"pro_detail_sprice\":8000,\"pro_detail_qty_stock\":100,\"pro_detail_stock\":1,\"pro_detail_enabled\":1}]"
+      }
+    },
+    {
+      "rowNumber": 122,
+      "categoryHeader": "ປະເພດເຄື່ອງດື່ມ",
+      "payload": {
+        "branch_uuid_fk": "16bd0ecd-248a-47c8-b8e3-c424f1a9bba1",
+        "cate_uuid_fk": "199b1116-4665-44b2-9ba3-485cbdb46394",
+        "unite_uuid_fk": "adaa13c0-2286-4175-8169-5d1f581c2d61",
+        "prod_code": "PRD-025",
+        "prod_name_la": "ນ້ຳດື່ມນ້ອຍ",
+        "prod_name_eng": "ນ້ຳດື່ມນ້ອຍ",
+        "prod_order_point": 10,
+        "prod_notification": 2,
+        "status_sort_fk": 1,
+        "prod_set_price": 0,
+        "prod_status_imge": 2,
+        "prod_image": "#d7b8f3",
+        "prod_topping_status": 1,
+        "toppings": "[]",
+        "details": "[{\"size_uuid_fk\":\"5a9949a3-0f6b-4eea-a86a-1fd2b99352c3\",\"pro_detail_bprice\":5000,\"pro_detail_sprice\":5000,\"pro_detail_qty_stock\":100,\"pro_detail_stock\":1,\"pro_detail_enabled\":1}]"
+      }
+    }
+  ],
+  "skipped": [
+    {
+      "rowNumber": 3,
+      "name": "ແຈ່ວປາແດກເຄື່ອງ+ລວກຜັກ",
+      "categoryHeader": "ປະເພດແຈ່ວ+ຊຸບຜັກ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 4,
+      "name": "ແຈ່ວນ້ຳປູ+ໜໍ່ໄມ້",
+      "categoryHeader": "ປະເພດແຈ່ວ+ຊຸບຜັກ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 5,
+      "name": "ແຈ່ວນ້ຳຜັກ+ລວກຜັກ",
+      "categoryHeader": "ປະເພດແຈ່ວ+ຊຸບຜັກ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 6,
+      "name": "ແຈ່ວໝາກເລັ່ນ+ລວກຜັກ",
+      "categoryHeader": "ປະເພດແຈ່ວ+ຊຸບຜັກ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 7,
+      "name": "ແຈ່ວປາແຫ້ງ+ລວກຜັກ+ໄຂ່ຕົ້ມ",
+      "categoryHeader": "ປະເພດແຈ່ວ+ຊຸບຜັກ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 8,
+      "name": "ແຈ່ວບອງ",
+      "categoryHeader": "ປະເພດແຈ່ວ+ຊຸບຜັກ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 9,
+      "name": "ຊຸບຜັກ",
+      "categoryHeader": "ປະເພດແຈ່ວ+ຊຸບຜັກ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 10,
+      "name": "ຊຸບຜັກໜອກໃສ່ໜັງງົວ",
+      "categoryHeader": "ປະເພດແຈ່ວ+ຊຸບຜັກ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 19,
+      "name": "ຕຳໝາກຫຸ່ງຫຼວງພະບາງ",
+      "categoryHeader": "ປະເພດຕຳ ແລະ ຍຳ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 20,
+      "name": "ຕຳເຂົ້າປຸ້ນ",
+      "categoryHeader": "ປະເພດຕຳ ແລະ ຍຳ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 21,
+      "name": "ຕຳໝາກຖົ່ວ+ໃສ່ໄຂ່ຕົ້ມ",
+      "categoryHeader": "ປະເພດຕຳ ແລະ ຍຳ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 22,
+      "name": "ຕຳໝາກແຕງ",
+      "categoryHeader": "ປະເພດຕຳ ແລະ ຍຳ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 23,
+      "name": "ຕຳປ່າ",
+      "categoryHeader": "ປະເພດຕຳ ແລະ ຍຳ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 24,
+      "name": "ຕຳຕີນໄກ່",
+      "categoryHeader": "ປະເພດຕຳ ແລະ ຍຳ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 25,
+      "name": "ຍຳທະເລ",
+      "categoryHeader": "ປະເພດຕຳ ແລະ ຍຳ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 26,
+      "name": "ຍຳໂຕ່ງ",
+      "categoryHeader": "ປະເພດຕຳ ແລະ ຍຳ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 27,
+      "name": "ຍຳສະຫລັດຫຼວງພະບາງ",
+      "categoryHeader": "ປະເພດຕຳ ແລະ ຍຳ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 29,
+      "name": "ຈືນໃສ້ອົ່ວຫຼວງພະບາງ",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 30,
+      "name": "ຈືນສົ້ມໝູຫຼວງພະບາງ",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 31,
+      "name": "ຈືນໄຄແຜ່ນ+ແຈ່ວບອງ",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 32,
+      "name": "ຈືນອົ່ວໜໍ່ໄມ້",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 33,
+      "name": "ຈືນອົ່ວສີໄຄ",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 34,
+      "name": "ຈືນຢໍ່ຜັກຊີຫຼວງພະບາງ",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 35,
+      "name": "ຈືນໄຂ່ໃສ່ສົ້ມໝູຫຼວງພະບາງ",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 36,
+      "name": "ຈືນໄຂ່ໃສ່ໂຕແມ້ຊົງເຄື່ອງ",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 37,
+      "name": "ຈືນໄຂ່ຈຽວໝູສັບ",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 38,
+      "name": "ຈືນປາໂຈກ",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 39,
+      "name": "ຈືນປາໄຂ່",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 40,
+      "name": "ຈືນປານາງ",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 41,
+      "name": "ຈືນປາແດດດຽວ",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 42,
+      "name": "ຈືນປາສົ້ມ (ປາຕອງ)",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 43,
+      "name": "ຈືນເອັນເຫຼືອງ",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 44,
+      "name": "ຈືນຊີ້ນແດດດຽວ",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 45,
+      "name": "ຈືນສາມຊັ້ນນ້ຳປາ",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 46,
+      "name": "ຈືນເອັນໄກ່",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 47,
+      "name": "ຈືນໜັງຍຳຊົງເຄື່ອງ",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 48,
+      "name": "ຈືນໜັງ+ແຈ່ວປາແດກເຄື່ອງ",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 49,
+      "name": "ຈືນຊີ້ນແຜ່ນ",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 50,
+      "name": "ຈືນຊີ້ນສະຫວັນ(ໝູ)",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 51,
+      "name": "ຈືນສົ້ມດູກຂ້າງ",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 52,
+      "name": "ຈືນປີກໄກ່",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 53,
+      "name": "ຈືນຕີນໄກ່",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 54,
+      "name": "ຈືນດູກຂ້າງໝູ",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 55,
+      "name": "ຈືນນົກກະທາທອດກະທຽມ",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 56,
+      "name": "ຈືນຄາງເປັດ",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 57,
+      "name": "ຈືນປາຍປີກໄກ່",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 58,
+      "name": "ຈືນເຫືອກ",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 59,
+      "name": "ຈືນຈີ້ງຫລີດ",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 60,
+      "name": "ຈືນມັນຝຣັ່ງ",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 61,
+      "name": "ປີ້ງໄກ່ທາປາແດກ (ບໍ່ທາປາແດກ)",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 62,
+      "name": "ປີ້ງຊີ້ນທຸບ",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 63,
+      "name": "ພັນໝ້ຽງປານິນ",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 65,
+      "name": "ເອາະຫຼາມ (ງົວ)",
+      "categoryHeader": "ປະເພດ ເອາະ+ ແກງ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 66,
+      "name": "ເອາະປາແດກ+ລວກຜັກ",
+      "categoryHeader": "ປະເພດ ເອາະ+ ແກງ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 67,
+      "name": "ຕົ້ມຍຳປາເຄິງ",
+      "categoryHeader": "ປະເພດ ເອາະ+ ແກງ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 68,
+      "name": "ຕົ້ມຍຳປາຄໍ່",
+      "categoryHeader": "ປະເພດ ເອາະ+ ແກງ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 69,
+      "name": "ແກງເພ້ຍ",
+      "categoryHeader": "ປະເພດ ເອາະ+ ແກງ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 70,
+      "name": "ແກງເປັດ",
+      "categoryHeader": "ປະເພດ ເອາະ+ ແກງ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 71,
+      "name": "ແກງເຫັດລວມ",
+      "categoryHeader": "ປະເພດ ເອາະ+ ແກງ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 72,
+      "name": "ແກງຈືດເຕົາຮູ້ສາຫຼ່າຍ",
+      "categoryHeader": "ປະເພດ ເອາະ+ ແກງ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 73,
+      "name": "ແກງຜັກກາດຊອມກະດູກໝູ",
+      "categoryHeader": "ປະເພດ ເອາະ+ ແກງ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 74,
+      "name": "ແກງຜັກກາດຕີນໝີໃສ່ຕີນຈ໊ອກ",
+      "categoryHeader": "ປະເພດ ເອາະ+ ແກງ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 75,
+      "name": "ແກງໜໍ່ໄມ້ສົ້ມໃສ່ຕີນຈ໊ອກ",
+      "categoryHeader": "ປະເພດ ເອາະ+ ແກງ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 76,
+      "name": "ແກງປາຕ່ອງໃສ່ຜັກຫວານ",
+      "categoryHeader": "ປະເພດ ເອາະ+ ແກງ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 77,
+      "name": "ແກງໜໍ່ໄມ້",
+      "categoryHeader": "ປະເພດ ເອາະ+ ແກງ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 78,
+      "name": "ແກງໜໍ່ຫວານໃສ່ກະດູກໝູ(ນ້ຳໃສ)",
+      "categoryHeader": "ປະເພດ ເອາະ+ ແກງ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 79,
+      "name": "ແກງໝາກຊູ",
+      "categoryHeader": "ປະເພດ ເອາະ+ ແກງ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 80,
+      "name": "ຕົ້ມໄກ່",
+      "categoryHeader": "ປະເພດ ເອາະ+ ແກງ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 81,
+      "name": "ຕົ້ມໄກ່ລາດແທ້",
+      "categoryHeader": "ປະເພດ ເອາະ+ ແກງ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 83,
+      "name": "ລາບງົວ(ສຸກ-ດິບ)",
+      "categoryHeader": "ປະເພດລາບ+ກ້ອຍ",
+      "reason": "skipped_category"
+    },
+    {
+      "rowNumber": 84,
+      "name": "ລາບເປັດ",
+      "categoryHeader": "ປະເພດລາບ+ກ້ອຍ",
+      "reason": "skipped_category"
+    },
+    {
+      "rowNumber": 85,
+      "name": "ລວກປາເຄິງ",
+      "categoryHeader": "ປະເພດລາບ+ກ້ອຍ",
+      "reason": "skipped_category"
+    },
+    {
+      "rowNumber": 86,
+      "name": "ກ້ອຍປາເຄິງ",
+      "categoryHeader": "ປະເພດລາບ+ກ້ອຍ",
+      "reason": "skipped_category"
+    },
+    {
+      "rowNumber": 87,
+      "name": "ກ້ອຍຫອຍນາ",
+      "categoryHeader": "ປະເພດລາບ+ກ້ອຍ",
+      "reason": "skipped_category"
+    },
+    {
+      "rowNumber": 89,
+      "name": "ຂົ້ວເຂົ້າປຸ້ນຫຼວງພະບາງ",
+      "categoryHeader": "ປະເພດຂົ້ວ+ຜັດ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 90,
+      "name": "ຂົ້ວຜັກລວມ",
+      "categoryHeader": "ປະເພດຂົ້ວ+ຜັດ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 91,
+      "name": "ຂົ້ວເຫັດລວມ",
+      "categoryHeader": "ປະເພດຂົ້ວ+ຜັດ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 92,
+      "name": "ຂົ້ວຜັກບົ້ງໄຟແດງ",
+      "categoryHeader": "ປະເພດຂົ້ວ+ຜັດ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 93,
+      "name": "ຂົ້ວຜັກກາດນານ້ຳມັນຫອຍ",
+      "categoryHeader": "ປະເພດຂົ້ວ+ຜັດ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 94,
+      "name": "ຂົ້ວຖົ່ວເບີ",
+      "categoryHeader": "ປະເພດຂົ້ວ+ຜັດ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 95,
+      "name": "ຜັດເຜັດກົບ",
+      "categoryHeader": "ປະເພດຂົ້ວ+ຜັດ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 96,
+      "name": "ຜັດເຜັດໄຂ່ຫຼັງໄກ່",
+      "categoryHeader": "ປະເພດຂົ້ວ+ຜັດ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 97,
+      "name": "ຂົ້ວກະລ່ຳນ້ຳປາ",
+      "categoryHeader": "ປະເພດຂົ້ວ+ຜັດ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 98,
+      "name": "ຂົ້ວສະເຕັກລາວ",
+      "categoryHeader": "ປະເພດຂົ້ວ+ຜັດ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 99,
+      "name": "ຂົ້ວມະລະຜັດໄຂ່ໃສ່ຫມູສັບ",
+      "categoryHeader": "ປະເພດຂົ້ວ+ຜັດ",
+      "reason": "unknown_category"
+    },
+    {
+      "rowNumber": 100,
+      "name": "ຂົ້ວຖົ່ວລັນເຕົາ",
+      "categoryHeader": "ປະເພດຂົ້ວ+ຜັດ",
+      "reason": "unknown_category"
+    }
+  ],
+  "results": [
+    {
+      "rowNumber": 12,
+      "prod_code": "PRD-001",
+      "prod_name_la": "ເຂົ້າໜຽວ",
+      "status": "success",
+      "response": {
+        "status": "success",
+        "message": "ບັນທຶກສິນຄ້າສຳເລັດແລ້ວ"
+      }
+    },
+    {
+      "rowNumber": 13,
+      "prod_code": "PRD-002",
+      "prod_name_la": "ເຂົ້າຈ້າວ",
+      "status": "success",
+      "response": {
+        "status": "success",
+        "message": "ບັນທຶກສິນຄ້າສຳເລັດແລ້ວ"
+      }
+    },
+    {
+      "rowNumber": 14,
+      "prod_code": "PRD-003",
+      "prod_name_la": "ເຂົ້າຜັດ (ໝູ,ໄກ່,ທະເລ)",
+      "status": "success",
+      "response": {
+        "status": "success",
+        "message": "ບັນທຶກສິນຄ້າສຳເລັດແລ້ວ"
+      }
+    },
+    {
+      "rowNumber": 15,
+      "prod_code": "PRD-004",
+      "prod_name_la": "ເຂົ້າລາດໜ້າກະເພົາໄຂ່ດາວ (ໝູ, ໝູສັບ,ໄກ່)",
+      "status": "success",
+      "response": {
+        "status": "success",
+        "message": "ບັນທຶກສິນຄ້າສຳເລັດແລ້ວ"
+      }
+    },
+    {
+      "rowNumber": 16,
+      "prod_code": "PRD-005",
+      "prod_name_la": "ເຂົ້າລາດໜ້າໝູຜັດພິກໄທດຳໄຂ່ດາວ",
+      "status": "success",
+      "response": {
+        "status": "success",
+        "message": "ບັນທຶກສິນຄ້າສຳເລັດແລ້ວ"
+      }
+    },
+    {
+      "rowNumber": 17,
+      "prod_code": "PRD-006",
+      "prod_name_la": "ເຂົ້າລາດໜ້າຜັດຂີງໄຂ່ດາວ (ຫມູ,ໄກ່)",
+      "status": "success",
+      "response": {
+        "status": "success",
+        "message": "ບັນທຶກສິນຄ້າສຳເລັດແລ້ວ"
+      }
+    },
+    {
+      "rowNumber": 102,
+      "prod_code": "PRD-007",
+      "prod_name_la": "ໝົກປາແດກ",
+      "status": "success",
+      "response": {
+        "status": "success",
+        "message": "ບັນທຶກສິນຄ້າສຳເລັດແລ້ວ"
+      }
+    },
+    {
+      "rowNumber": 103,
+      "prod_code": "PRD-008",
+      "prod_name_la": "ໝົກໜໍ່ໄມ້",
+      "status": "success",
+      "response": {
+        "status": "success",
+        "message": "ບັນທຶກສິນຄ້າສຳເລັດແລ້ວ"
+      }
+    },
+    {
+      "rowNumber": 104,
+      "prod_code": "PRD-009",
+      "prod_name_la": "ໝົກໄຄ",
+      "status": "success",
+      "response": {
+        "status": "success",
+        "message": "ບັນທຶກສິນຄ້າສຳເລັດແລ້ວ"
+      }
+    },
+    {
+      "rowNumber": 105,
+      "prod_code": "PRD-010",
+      "prod_name_la": "ໝົກປາໜັງ",
+      "status": "success",
+      "response": {
+        "status": "success",
+        "message": "ບັນທຶກສິນຄ້າສຳເລັດແລ້ວ"
+      }
+    },
+    {
+      "rowNumber": 106,
+      "prod_code": "PRD-011",
+      "prod_name_la": "ໝົກສະໝອງໝູ",
+      "status": "success",
+      "response": {
+        "status": "success",
+        "message": "ບັນທຶກສິນຄ້າສຳເລັດແລ້ວ"
+      }
+    },
+    {
+      "rowNumber": 107,
+      "prod_code": "PRD-012",
+      "prod_name_la": "ໝົກອອກແອກ",
+      "status": "success",
+      "response": {
+        "status": "success",
+        "message": "ບັນທຶກສິນຄ້າສຳເລັດແລ້ວ"
+      }
+    },
+    {
+      "rowNumber": 108,
+      "prod_code": "PRD-013",
+      "prod_name_la": "ໝົກຂີ້ປາ",
+      "status": "success",
+      "response": {
+        "status": "success",
+        "message": "ບັນທຶກສິນຄ້າສຳເລັດແລ້ວ"
+      }
+    },
+    {
+      "rowNumber": 110,
+      "prod_code": "PRD-014",
+      "prod_name_la": "ຈືນໄຂ່ໃສ່ໄຂ່ມົດ",
+      "status": "success",
+      "response": {
+        "status": "success",
+        "message": "ບັນທຶກສິນຄ້າສຳເລັດແລ້ວ"
+      }
+    },
+    {
+      "rowNumber": 111,
+      "prod_code": "PRD-015",
+      "prod_name_la": "ແກງຜັກຫວານໃສ່ໄຂ່ມົດ",
+      "status": "success",
+      "response": {
+        "status": "success",
+        "message": "ບັນທຶກສິນຄ້າສຳເລັດແລ້ວ"
+      }
+    },
+    {
+      "rowNumber": 112,
+      "prod_code": "PRD-016",
+      "prod_name_la": "ແກງສົ້ມປາຄໍ່ໃສ່ໄຂ່ມົດ",
+      "status": "success",
+      "response": {
+        "status": "success",
+        "message": "ບັນທຶກສິນຄ້າສຳເລັດແລ້ວ"
+      }
+    },
+    {
+      "rowNumber": 113,
+      "prod_code": "PRD-017",
+      "prod_name_la": "ແກງເຫັດເຟືອງໃສ່ໄຂ່ມົດ",
+      "status": "success",
+      "response": {
+        "status": "success",
+        "message": "ບັນທຶກສິນຄ້າສຳເລັດແລ້ວ"
+      }
+    },
+    {
+      "rowNumber": 114,
+      "prod_code": "PRD-018",
+      "prod_name_la": "ແກງເຫັດເພາະ",
+      "status": "success",
+      "response": {
+        "status": "success",
+        "message": "ບັນທຶກສິນຄ້າສຳເລັດແລ້ວ"
+      }
+    },
+    {
+      "rowNumber": 115,
+      "prod_code": "PRD-019",
+      "prod_name_la": "ແກງໝາກມີ້ອ່ອນໃສ່ຕີນຈ໊ອກ",
+      "status": "success",
+      "response": {
+        "status": "success",
+        "message": "ບັນທຶກສິນຄ້າສຳເລັດແລ້ວ"
+      }
+    },
+    {
+      "rowNumber": 116,
+      "prod_code": "PRD-020",
+      "prod_name_la": "ກ້ອຍໄຂ່ມົດ",
+      "status": "success",
+      "response": {
+        "status": "success",
+        "message": "ບັນທຶກສິນຄ້າສຳເລັດແລ້ວ"
+      }
+    },
+    {
+      "rowNumber": 117,
+      "prod_code": "PRD-021",
+      "prod_name_la": "ຊຸບໝາກມີ້ອ່ອນ",
+      "status": "success",
+      "response": {
+        "status": "success",
+        "message": "ບັນທຶກສິນຄ້າສຳເລັດແລ້ວ"
+      }
+    },
+    {
+      "rowNumber": 118,
+      "prod_code": "PRD-022",
+      "prod_name_la": "ກ້ອຍລີ້ນໄມ້ໃສ່ຫອຍນາ",
+      "status": "success",
+      "response": {
+        "status": "success",
+        "message": "ບັນທຶກສິນຄ້າສຳເລັດແລ້ວ"
+      }
+    },
+    {
+      "rowNumber": 120,
+      "prod_code": "PRD-023",
+      "prod_name_la": "ນ້ຳດື່ມໃຫຍ່",
+      "status": "success",
+      "response": {
+        "status": "success",
+        "message": "ບັນທຶກສິນຄ້າສຳເລັດແລ້ວ"
+      }
+    },
+    {
+      "rowNumber": 121,
+      "prod_code": "PRD-024",
+      "prod_name_la": "ນ້ຳດື່ມກາງ",
+      "status": "success",
+      "response": {
+        "status": "success",
+        "message": "ບັນທຶກສິນຄ້າສຳເລັດແລ້ວ"
+      }
+    },
+    {
+      "rowNumber": 122,
+      "prod_code": "PRD-025",
+      "prod_name_la": "ນ້ຳດື່ມນ້ອຍ",
+      "status": "success",
+      "response": {
+        "status": "success",
+        "message": "ບັນທຶກສິນຄ້າສຳເລັດແລ້ວ"
+      }
+    },
+    {
+      "rowNumber": 123,
+      "prod_code": "PRD-026",
+      "prod_name_la": "ໂອອິຊິ",
+      "status": "success",
+      "response": {
+        "status": "success",
+        "message": "ບັນທຶກສິນຄ້າສຳເລັດແລ້ວ"
+      }
+    },
+    {
+      "rowNumber": 124,
+      "prod_code": "PRD-027",
+      "prod_name_la": "ແປບຊີ້",
+      "status": "success",
+      "response": {
+        "status": "success",
+        "message": "ບັນທຶກສິນຄ້າສຳເລັດແລ້ວ"
+      }
+    },
+    {
+      "rowNumber": 125,
+      "prod_code": "PRD-028",
+      "prod_name_la": "ນ້ຳຫວານກະປ໋ອງ",
+      "status": "success",
+      "response": {
+        "status": "success",
+        "message": "ບັນທຶກສິນຄ້າສຳເລັດແລ້ວ"
+      }
+    },
+    {
+      "rowNumber": 126,
+      "prod_code": "PRD-029",
+      "prod_name_la": "ຊາຈີນ",
+      "status": "success",
+      "response": {
+        "status": "success",
+        "message": "ບັນທຶກສິນຄ້າສຳເລັດແລ້ວ"
+      }
+    },
+    {
+      "rowNumber": 127,
+      "prod_code": "PRD-030",
+      "prod_name_la": "ເອັມ100",
+      "status": "success",
+      "response": {
+        "status": "success",
+        "message": "ບັນທຶກສິນຄ້າສຳເລັດແລ້ວ"
+      }
+    },
+    {
+      "rowNumber": 128,
+      "prod_code": "PRD-031",
+      "prod_name_la": "ເບຍລາວແກ້ວໃຫຍ່",
+      "status": "success",
+      "response": {
+        "status": "success",
+        "message": "ບັນທຶກສິນຄ້າສຳເລັດແລ້ວ"
+      }
+    },
+    {
+      "rowNumber": 129,
+      "prod_code": "PRD-032",
+      "prod_name_la": "ເບຍລາວແກ້ວນ້ອຍ",
+      "status": "success",
+      "response": {
+        "status": "success",
+        "message": "ບັນທຶກສິນຄ້າສຳເລັດແລ້ວ"
+      }
+    },
+    {
+      "rowNumber": 130,
+      "prod_code": "PRD-033",
+      "prod_name_la": "ເບຍຄາສເບີດແກ້ວນ້ອຍ",
+      "status": "success",
+      "response": {
+        "status": "success",
+        "message": "ບັນທຶກສິນຄ້າສຳເລັດແລ້ວ"
+      }
+    },
+    {
+      "rowNumber": 131,
+      "prod_code": "PRD-034",
+      "prod_name_la": "ເບຍກລີນກະປ໋ອງໃຫຍ່",
+      "status": "success",
+      "response": {
+        "status": "success",
+        "message": "ບັນທຶກສິນຄ້າສຳເລັດແລ້ວ"
+      }
+    },
+    {
+      "rowNumber": 132,
+      "prod_code": "PRD-035",
+      "prod_name_la": "ເບຍ1664 ແກ້ວນ້ອຍ",
+      "status": "success",
+      "response": {
+        "status": "success",
+        "message": "ບັນທຶກສິນຄ້າສຳເລັດແລ້ວ"
+      }
+    },
+    {
+      "rowNumber": 133,
+      "prod_code": "PRD-036",
+      "prod_name_la": "ເບຍໄຮເນເກັ້ນແກ້ວໃຫຍ່",
+      "status": "success",
+      "response": {
+        "status": "success",
+        "message": "ບັນທຶກສິນຄ້າສຳເລັດແລ້ວ"
+      }
+    },
+    {
+      "rowNumber": 134,
+      "prod_code": "PRD-037",
+      "prod_name_la": "ເບຍໄຮເນເກັ້ນປ໋ອງ",
+      "status": "success",
+      "response": {
+        "status": "success",
+        "message": "ບັນທຶກສິນຄ້າສຳເລັດແລ້ວ"
+      }
+    },
+    {
+      "rowNumber": 135,
+      "prod_code": "PRD-038",
+      "prod_name_la": "ສະເມີບີ້",
+      "status": "success",
+      "response": {
+        "status": "success",
+        "message": "ບັນທຶກສິນຄ້າສຳເລັດແລ້ວ"
+      }
+    },
+    {
+      "rowNumber": 136,
+      "prod_code": "PRD-039",
+      "prod_name_la": "ໂຊຈູ",
+      "status": "success",
+      "response": {
+        "status": "success",
+        "message": "ບັນທຶກສິນຄ້າສຳເລັດແລ້ວ"
+      }
+    },
+    {
+      "rowNumber": 137,
+      "prod_code": "PRD-040",
+      "prod_name_la": "ນ້ຳກະທັນ",
+      "status": "success",
+      "response": {
+        "status": "success",
+        "message": "ບັນທຶກສິນຄ້າສຳເລັດແລ້ວ"
+      }
+    },
+    {
+      "rowNumber": 138,
+      "prod_code": "PRD-041",
+      "prod_name_la": "ນ້ຳໝາກພ້າວສົດ",
+      "status": "success",
+      "response": {
+        "status": "success",
+        "message": "ບັນທຶກສິນຄ້າສຳເລັດແລ້ວ"
+      }
+    },
+    {
+      "rowNumber": 139,
+      "prod_code": "PRD-042",
+      "prod_name_la": "ນ້ຳໝາກກ້ຽງສົດ",
+      "status": "success",
+      "response": {
+        "status": "success",
+        "message": "ບັນທຶກສິນຄ້າສຳເລັດແລ້ວ"
+      }
+    },
+    {
+      "rowNumber": 140,
+      "prod_code": "PRD-043",
+      "prod_name_la": "ນ້ຳໝາກໜອດ",
+      "status": "success",
+      "response": {
+        "status": "success",
+        "message": "ບັນທຶກສິນຄ້າສຳເລັດແລ້ວ"
+      }
+    },
+    {
+      "rowNumber": 141,
+      "prod_code": "PRD-044",
+      "prod_name_la": "ນ້ຳໝາກນາວ",
+      "status": "success",
+      "response": {
+        "status": "success",
+        "message": "ບັນທຶກສິນຄ້າສຳເລັດແລ້ວ"
+      }
+    },
+    {
+      "rowNumber": 142,
+      "prod_code": "PRD-045",
+      "prod_name_la": "ນ້ຳສະໂລແດງໂຊດາໝາກນາວ",
+      "status": "success",
+      "response": {
+        "status": "success",
+        "message": "ບັນທຶກສິນຄ້າສຳເລັດແລ້ວ"
+      }
+    },
+    {
+      "rowNumber": 143,
+      "prod_code": "PRD-046",
+      "prod_name_la": "ນ້ຳສະໂລແດງນົມ",
+      "status": "success",
+      "response": {
+        "status": "success",
+        "message": "ບັນທຶກສິນຄ້າສຳເລັດແລ້ວ"
+      }
+    },
+    {
+      "rowNumber": 144,
+      "prod_code": "PRD-047",
+      "prod_name_la": "ນ້ຳສະໂລຂຽວໂຊດາໝາກນາວ",
+      "status": "success",
+      "response": {
+        "status": "success",
+        "message": "ບັນທຶກສິນຄ້າສຳເລັດແລ້ວ"
+      }
+    },
+    {
+      "rowNumber": 145,
+      "prod_code": "PRD-048",
+      "prod_name_la": "ນ້ຳສະໂລຂຽວນົມ",
+      "status": "success",
+      "response": {
+        "status": "success",
+        "message": "ບັນທຶກສິນຄ້າສຳເລັດແລ້ວ"
+      }
+    },
+    {
+      "rowNumber": 146,
+      "prod_code": "PRD-049",
+      "prod_name_la": "ກາເຟນົມເຢັນ",
+      "status": "success",
+      "response": {
+        "status": "success",
+        "message": "ບັນທຶກສິນຄ້າສຳເລັດແລ້ວ"
+      }
+    },
+    {
+      "rowNumber": 147,
+      "prod_code": "PRD-050",
+      "prod_name_la": "ຊາໝາກນາວ",
+      "status": "success",
+      "response": {
+        "status": "success",
+        "message": "ບັນທຶກສິນຄ້າສຳເລັດແລ້ວ"
+      }
+    },
+    {
+      "rowNumber": 148,
+      "prod_code": "PRD-051",
+      "prod_name_la": "ຊາຂຽວເຢັນ",
+      "status": "success",
+      "response": {
+        "status": "success",
+        "message": "ບັນທຶກສິນຄ້າສຳເລັດແລ້ວ"
+      }
+    },
+    {
+      "rowNumber": 149,
+      "prod_code": "PRD-052",
+      "prod_name_la": "ຊານົມເຢັນ",
+      "status": "success",
+      "response": {
+        "status": "success",
+        "message": "ບັນທຶກສິນຄ້າສຳເລັດແລ້ວ"
+      }
+    }
+  ]
+}

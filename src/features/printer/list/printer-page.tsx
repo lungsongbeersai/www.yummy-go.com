@@ -4,9 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
-import { icons as mdiIcons } from "@iconify-json/mdi";
-import { Icon as IconifyIcon, addCollection } from "@iconify/react";
-import { AlertTriangle, Download, Plus, Power, PowerOff, Printer as PrinterIcon, RefreshCcw, Search } from "lucide-react";
+import { AlertTriangle, Apple, Download, MonitorDown, Plus, Power, PowerOff, Printer as PrinterIcon, RefreshCcw, Search } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -31,13 +29,6 @@ import { useToastStore } from "@/stores/toast-store";
 const EMPTY_CATEGORIES: Category[] = [];
 const TYPE_ALL = "all";
 const STATUS_ALL = "all";
-const AGENT_PLATFORM_ICONS: Record<string, string> = {
-  windows: "mdi:microsoft-windows",
-  macos: "mdi:apple"
-};
-
-addCollection(mdiIcons);
-
 type PrinterTableRow = Printer & { row_number: number };
 
 function roleLabel(code: string, roles: PrinterRole[]) {
@@ -101,11 +92,12 @@ function agentDownloadUrl(file: { download_url?: string }) {
 }
 
 function AgentPlatformIcon({ platform }: { platform: string }) {
-  const icon = AGENT_PLATFORM_ICONS[platform.trim().toLowerCase()];
+  const normalizedPlatform = platform.trim().toLowerCase();
 
-  if (!icon) return <Download aria-hidden="true" />;
+  if (normalizedPlatform.includes("mac")) return <Apple aria-hidden="true" />;
+  if (normalizedPlatform.includes("win")) return <MonitorDown aria-hidden="true" />;
 
-  return <IconifyIcon aria-hidden="true" icon={icon} className="size-4" />;
+  return <Download aria-hidden="true" />;
 }
 
 export function PrinterPage() {

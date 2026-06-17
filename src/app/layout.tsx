@@ -46,6 +46,8 @@ const themeBootstrapScript = `
 })();
 `;
 
+const enableSpeedInsights = process.env.NEXT_PUBLIC_ENABLE_SPEED_INSIGHTS === "1";
+
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const cookieStore = await cookies();
   const initialLanguage = toLanguage(cookieStore.get(LANGUAGE_COOKIE)?.value ?? DEFAULT_LANGUAGE);
@@ -57,7 +59,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       </head>
       <body>
         <Providers initialLanguage={initialLanguage}>{children}</Providers>
-        <SpeedInsights />
+        {enableSpeedInsights ? <SpeedInsights /> : null}
       </body>
     </html>
   );

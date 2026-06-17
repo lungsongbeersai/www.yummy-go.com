@@ -1,0 +1,175 @@
+{
+  "mode": "dry-run",
+  "excelPath": "D:\\Project\\www.yummy-go.com\\outputs\\menu-units\\ລາຍການອາຫານ 2026 - with units.xlsx",
+  "branch_uuid_fk": "16bd0ecd-248a-47c8-b8e3-c424f1a9bba1",
+  "summary": {
+    "importable": 133,
+    "skipped": 5,
+    "success": 0,
+    "failed": 0,
+    "skippedByReason": {
+      "skipped_category": 5
+    }
+  },
+  "samples": [
+    {
+      "rowNumber": 3,
+      "categoryHeader": "ປະເພດແຈ່ວ+ຊຸບຜັກ",
+      "payload": {
+        "branch_uuid_fk": "16bd0ecd-248a-47c8-b8e3-c424f1a9bba1",
+        "cate_uuid_fk": "ece16e42-25be-4b72-9534-23ce8bdf0d36",
+        "unite_uuid_fk": "afb52093-c04e-46aa-b097-1cca3ab8b36b",
+        "prod_code": "PRD-001",
+        "prod_name_la": "ແຈ່ວປາແດກເຄື່ອງ+ລວກຜັກ",
+        "prod_name_eng": "ແຈ່ວປາແດກເຄື່ອງ+ລວກຜັກ",
+        "prod_order_point": 10,
+        "prod_notification": 2,
+        "status_sort_fk": 1,
+        "prod_set_price": 0,
+        "prod_status_imge": 2,
+        "prod_image": "#d7b8f3",
+        "prod_topping_status": 1,
+        "toppings": "[]",
+        "details": "[{\"size_uuid_fk\":\"5a9949a3-0f6b-4eea-a86a-1fd2b99352c3d\",\"pro_detail_bprice\":50000,\"pro_detail_sprice\":50000,\"pro_detail_qty_stock\":100,\"pro_detail_stock\":1,\"pro_detail_enabled\":1}]"
+      }
+    },
+    {
+      "rowNumber": 4,
+      "categoryHeader": "ປະເພດແຈ່ວ+ຊຸບຜັກ",
+      "payload": {
+        "branch_uuid_fk": "16bd0ecd-248a-47c8-b8e3-c424f1a9bba1",
+        "cate_uuid_fk": "ece16e42-25be-4b72-9534-23ce8bdf0d36",
+        "unite_uuid_fk": "afb52093-c04e-46aa-b097-1cca3ab8b36b",
+        "prod_code": "PRD-002",
+        "prod_name_la": "ແຈ່ວນ້ຳປູ+ໜໍ່ໄມ້",
+        "prod_name_eng": "ແຈ່ວນ້ຳປູ+ໜໍ່ໄມ້",
+        "prod_order_point": 10,
+        "prod_notification": 2,
+        "status_sort_fk": 1,
+        "prod_set_price": 0,
+        "prod_status_imge": 2,
+        "prod_image": "#d7b8f3",
+        "prod_topping_status": 1,
+        "toppings": "[]",
+        "details": "[{\"size_uuid_fk\":\"5a9949a3-0f6b-4eea-a86a-1fd2b99352c3d\",\"pro_detail_bprice\":50000,\"pro_detail_sprice\":50000,\"pro_detail_qty_stock\":100,\"pro_detail_stock\":1,\"pro_detail_enabled\":1}]"
+      }
+    },
+    {
+      "rowNumber": 5,
+      "categoryHeader": "ປະເພດແຈ່ວ+ຊຸບຜັກ",
+      "payload": {
+        "branch_uuid_fk": "16bd0ecd-248a-47c8-b8e3-c424f1a9bba1",
+        "cate_uuid_fk": "ece16e42-25be-4b72-9534-23ce8bdf0d36",
+        "unite_uuid_fk": "afb52093-c04e-46aa-b097-1cca3ab8b36b",
+        "prod_code": "PRD-003",
+        "prod_name_la": "ແຈ່ວນ້ຳຜັກ+ລວກຜັກ",
+        "prod_name_eng": "ແຈ່ວນ້ຳຜັກ+ລວກຜັກ",
+        "prod_order_point": 10,
+        "prod_notification": 2,
+        "status_sort_fk": 1,
+        "prod_set_price": 0,
+        "prod_status_imge": 2,
+        "prod_image": "#d7b8f3",
+        "prod_topping_status": 1,
+        "toppings": "[]",
+        "details": "[{\"size_uuid_fk\":\"5a9949a3-0f6b-4eea-a86a-1fd2b99352c3d\",\"pro_detail_bprice\":50000,\"pro_detail_sprice\":50000,\"pro_detail_qty_stock\":100,\"pro_detail_stock\":1,\"pro_detail_enabled\":1}]"
+      }
+    },
+    {
+      "rowNumber": 120,
+      "categoryHeader": "ປະເພດເຄື່ອງດື່ມ",
+      "payload": {
+        "branch_uuid_fk": "16bd0ecd-248a-47c8-b8e3-c424f1a9bba1",
+        "cate_uuid_fk": "199b1116-4665-44b2-9ba3-485cbdb46394",
+        "unite_uuid_fk": "dffe1d42-b2ac-4ecf-9833-e2c636021f0b",
+        "prod_code": "PRD-104",
+        "prod_name_la": "ນ້ຳດື່ມໃຫຍ່",
+        "prod_name_eng": "ນ້ຳດື່ມໃຫຍ່",
+        "prod_order_point": 10,
+        "prod_notification": 2,
+        "status_sort_fk": 1,
+        "prod_set_price": 0,
+        "prod_status_imge": 2,
+        "prod_image": "#d7b8f3",
+        "prod_topping_status": 1,
+        "toppings": "[]",
+        "details": "[{\"size_uuid_fk\":\"5a9949a3-0f6b-4eea-a86a-1fd2b99352c3d\",\"pro_detail_bprice\":15000,\"pro_detail_sprice\":15000,\"pro_detail_qty_stock\":100,\"pro_detail_stock\":1,\"pro_detail_enabled\":1}]"
+      }
+    },
+    {
+      "rowNumber": 121,
+      "categoryHeader": "ປະເພດເຄື່ອງດື່ມ",
+      "payload": {
+        "branch_uuid_fk": "16bd0ecd-248a-47c8-b8e3-c424f1a9bba1",
+        "cate_uuid_fk": "199b1116-4665-44b2-9ba3-485cbdb46394",
+        "unite_uuid_fk": "dffe1d42-b2ac-4ecf-9833-e2c636021f0b",
+        "prod_code": "PRD-105",
+        "prod_name_la": "ນ້ຳດື່ມກາງ",
+        "prod_name_eng": "ນ້ຳດື່ມກາງ",
+        "prod_order_point": 10,
+        "prod_notification": 2,
+        "status_sort_fk": 1,
+        "prod_set_price": 0,
+        "prod_status_imge": 2,
+        "prod_image": "#d7b8f3",
+        "prod_topping_status": 1,
+        "toppings": "[]",
+        "details": "[{\"size_uuid_fk\":\"5a9949a3-0f6b-4eea-a86a-1fd2b99352c3d\",\"pro_detail_bprice\":8000,\"pro_detail_sprice\":8000,\"pro_detail_qty_stock\":100,\"pro_detail_stock\":1,\"pro_detail_enabled\":1}]"
+      }
+    },
+    {
+      "rowNumber": 122,
+      "categoryHeader": "ປະເພດເຄື່ອງດື່ມ",
+      "payload": {
+        "branch_uuid_fk": "16bd0ecd-248a-47c8-b8e3-c424f1a9bba1",
+        "cate_uuid_fk": "199b1116-4665-44b2-9ba3-485cbdb46394",
+        "unite_uuid_fk": "dffe1d42-b2ac-4ecf-9833-e2c636021f0b",
+        "prod_code": "PRD-106",
+        "prod_name_la": "ນ້ຳດື່ມນ້ອຍ",
+        "prod_name_eng": "ນ້ຳດື່ມນ້ອຍ",
+        "prod_order_point": 10,
+        "prod_notification": 2,
+        "status_sort_fk": 1,
+        "prod_set_price": 0,
+        "prod_status_imge": 2,
+        "prod_image": "#d7b8f3",
+        "prod_topping_status": 1,
+        "toppings": "[]",
+        "details": "[{\"size_uuid_fk\":\"5a9949a3-0f6b-4eea-a86a-1fd2b99352c3d\",\"pro_detail_bprice\":5000,\"pro_detail_sprice\":5000,\"pro_detail_qty_stock\":100,\"pro_detail_stock\":1,\"pro_detail_enabled\":1}]"
+      }
+    }
+  ],
+  "skipped": [
+    {
+      "rowNumber": 83,
+      "name": "ລາບງົວ(ສຸກ-ດິບ)",
+      "categoryHeader": "ປະເພດລາບ+ກ້ອຍ",
+      "reason": "skipped_category"
+    },
+    {
+      "rowNumber": 84,
+      "name": "ລາບເປັດ",
+      "categoryHeader": "ປະເພດລາບ+ກ້ອຍ",
+      "reason": "skipped_category"
+    },
+    {
+      "rowNumber": 85,
+      "name": "ລວກປາເຄິງ",
+      "categoryHeader": "ປະເພດລາບ+ກ້ອຍ",
+      "reason": "skipped_category"
+    },
+    {
+      "rowNumber": 86,
+      "name": "ກ້ອຍປາເຄິງ",
+      "categoryHeader": "ປະເພດລາບ+ກ້ອຍ",
+      "reason": "skipped_category"
+    },
+    {
+      "rowNumber": 87,
+      "name": "ກ້ອຍຫອຍນາ",
+      "categoryHeader": "ປະເພດລາບ+ກ້ອຍ",
+      "reason": "skipped_category"
+    }
+  ],
+  "results": []
+}

@@ -99,18 +99,20 @@ export function useSelectedTableCartPanelWorkflow({
     () => visibleCartItems(displayCart).filter(isNewOrderCartItem),
     [displayCart],
   );
-  // เพิ่มตรงนี้ หลัง resolvedPrinterContext
-const resolvedPrinterContext = usePrinterStore((state) => 
-  state.agent?.device_code ? {
-    device_code: state.agent.device_code ?? undefined,
-    agent_id: state.agent.agent_id,
-    agent_name: state.agent.agent_name,
-    print_mode: undefined,
-  } : null
-);
-  console.log("resolvedPrinterContext:", resolvedPrinterContext); // ← เพิ่ม
-  const activeprinterContext = printerContext ?? resolvedPrinterContext;
-  console.log("activeprinterContext:", activeprinterContext); // ← เพิ่ม
+  const printerAgent = usePrinterStore((state) => state.agent);
+  const resolvedPrinterContext = useMemo<PrinterDeviceContext | null>(
+    () =>
+      printerAgent?.device_code
+        ? {
+            device_code: printerAgent.device_code,
+            agent_id: printerAgent.agent_id,
+            agent_name: printerAgent.agent_name,
+            print_mode: undefined,
+          }
+        : null,
+    [printerAgent?.agent_id, printerAgent?.agent_name, printerAgent?.device_code],
+  );
+  const activePrinterContext = printerContext ?? resolvedPrinterContext;
   const historyItems = useMemo(
     () => visibleCartItems(displayCart).filter(isOrderHistoryCartItem),
     [displayCart],
@@ -452,16 +454,16 @@ const resolvedPrinterContext = usePrinterStore((state) =>
           order_uuid: group.orderUuid,
           login_uuid_fk: user.uuid,
           order_item_uuids: group.itemUuids,
-          device_code: activeprinterContext?.device_code, // ← เปลี่ยน
-          agent_id: activeprinterContext?.agent_id,   // ← แก้จาก printerContext
-          print_mode: activeprinterContext?.print_mode, // ← แก้จาก printerContext
+          device_code: activePrinterContext?.device_code,
+          agent_id: activePrinterContext?.agent_id,
+          print_mode: activePrinterContext?.print_mode,
         });
         confirmedGroups++;
 
         const result = await executeKitchenAck(
           response,
           user.uuid,
-          activeprinterContext, // ← เปลี่ยน
+          activePrinterContext,
           (progress) => {
             const nextTotalPrintSteps = totalPrintSteps + progress.total;
             const nextCompletedPrintSteps =
@@ -498,14 +500,13 @@ const resolvedPrinterContext = usePrinterStore((state) =>
       );
       showKitchenConfirmResult(printResult, t("pos.orderConfirmFailed"));
     } catch (error) {
-  console.error("confirmNewOrder error:", error); // ← เพิ่ม
-  await onCartRefresh().catch(() => undefined);
-  showToast({
-    title: t("pos.orderConfirmFailed"),
-    description: error instanceof Error ? error.message : "",
-    tone: "error",
-  });
-} finally {
+      await onCartRefresh().catch(() => undefined);
+      showToast({
+        title: t("pos.orderConfirmFailed"),
+        description: error instanceof Error ? error.message : "",
+        tone: "error",
+      });
+    } finally {
       setConfirming(false);
       setConfirmAllProgress(null);
     }
@@ -522,11 +523,11 @@ const resolvedPrinterContext = usePrinterStore((state) =>
         order_uuid: orderUuid,
         login_uuid_fk: user.uuid,
         order_item_uuids: [itemUuid],
-        device_code: activeprinterContext?.device_code, // ← เปลี่ยน
-        agent_id: activeprinterContext?.agent_id,   // ← แก้จาก printerContext
-        print_mode: activeprinterContext?.print_mode, // ← แก้จาก printerContext
+        device_code: activePrinterContext?.device_code,
+        agent_id: activePrinterContext?.agent_id,
+        print_mode: activePrinterContext?.print_mode,
       });
-      const result = await executeKitchenAck(response, user.uuid, activeprinterContext);
+      const result = await executeKitchenAck(response, user.uuid, activePrinterContext);
       await onCartRefresh();
       showKitchenConfirmResult(result, t("pos.confirmToKitchenFailed"));
     } catch (error) {
