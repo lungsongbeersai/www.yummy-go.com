@@ -9,7 +9,7 @@ import {
 } from "@/features/customer-display/shared/customer-display-sync";
 import { getBranchQrUrl } from "@/services/branch";
 import type { CartItem, CartOrder, PosTable } from "@/services/pos";
-import type { PrintProgress } from "@/services/printer";
+import type { PrintProgress, PrinterDeviceContext } from "@/services/printer";
 import { useAppStore } from "@/stores/app-store";
 import { useAuthStore } from "@/stores/auth-store";
 import { usePosStore } from "@/stores/pos-store";
@@ -63,7 +63,9 @@ interface UseSelectedTableCartPanelWorkflowParams {
   newOrderFocusKey?: number;
   onCartRefresh: () => Promise<void>;
   onTableActionComplete: (nextTableUuid?: string) => Promise<void>;
+  printerContext?: PrinterDeviceContext | null;
   table: PosTable | null;
+
 }
 
 export function useSelectedTableCartPanelWorkflow({
@@ -71,6 +73,7 @@ export function useSelectedTableCartPanelWorkflow({
   newOrderFocusKey = 0,
   onCartRefresh,
   onTableActionComplete,
+  printerContext,
   table,
 }: UseSelectedTableCartPanelWorkflowParams) {
   const { t } = useTranslation();
@@ -96,6 +99,18 @@ export function useSelectedTableCartPanelWorkflow({
     () => visibleCartItems(displayCart).filter(isNewOrderCartItem),
     [displayCart],
   );
+  // เพิ่มตรงนี้ หลัง resolvedPrinterContext
+const resolvedPrinterContext = usePrinterStore((state) => 
+  state.agent?.device_code ? {
+    device_code: state.agent.device_code ?? undefined,
+    agent_id: state.agent.agent_id,
+    agent_name: state.agent.agent_name,
+    print_mode: undefined,
+  } : null
+);
+  console.log("resolvedPrinterContext:", resolvedPrinterContext); // ← เพิ่ม
+  const activeprinterContext = printerContext ?? resolvedPrinterContext;
+  console.log("activeprinterContext:", activeprinterContext); // ← เพิ่ม
   const historyItems = useMemo(
     () => visibleCartItems(displayCart).filter(isOrderHistoryCartItem),
     [displayCart],
@@ -182,32 +197,32 @@ export function useSelectedTableCartPanelWorkflow({
     : null;
   const cartActionsLocked = Boolean(
     !hasSelectedTable ||
-      updatingItemUuid ||
-      confirming ||
-      actingItemUuid ||
-      billDiscountPending,
+    updatingItemUuid ||
+    confirming ||
+    actingItemUuid ||
+    billDiscountPending,
   );
   const canConfirm =
     Boolean(user?.uuid) && confirmGroups.length > 0 && !cartActionsLocked;
   const canPayBill = Boolean(
     user?.uuid &&
-      currentOrderUuid &&
-      historyItems.length > 0 &&
-      newOrderItems.length === 0 &&
-      summary.grandTotal > 0 &&
-      !cartActionsLocked,
+    currentOrderUuid &&
+    historyItems.length > 0 &&
+    newOrderItems.length === 0 &&
+    summary.grandTotal > 0 &&
+    !cartActionsLocked,
   );
   const canSelectSplitItems = Boolean(
     user?.uuid &&
-      currentOrderUuid &&
-      splitEligibleItems.length > 0 &&
-      !cartActionsLocked,
+    currentOrderUuid &&
+    splitEligibleItems.length > 0 &&
+    !cartActionsLocked,
   );
   const canPaySplitSelection = Boolean(
     user?.uuid &&
-      splitSelection &&
-      splitSelectedCount > 0 &&
-      !cartActionsLocked,
+    splitSelection &&
+    splitSelectedCount > 0 &&
+    !cartActionsLocked,
   );
   const itemDiscountMaxAmount = itemDiscountTarget
     ? cartItemDiscountMaxAmount(itemDiscountTarget)
@@ -346,13 +361,20 @@ export function useSelectedTableCartPanelWorkflow({
   async function executeKitchenAck(
     response: Awaited<ReturnType<typeof confirmKitchen>>,
     fallbackLoginUuid: string,
+    printerCtx?: PrinterDeviceContext | null, // ← เพิ่ม
     onProgress?: (progress: PrintProgress) => void,
   ) {
+    console.log("executeKitchenAck printerCtx:", printerCtx); // ← เพิ่ม
+  console.log("executeKitchenAck response:", JSON.stringify(response, null, 2)); // ← เพิ่ม
+    const hasRootNewJob =
+      (Array.isArray(response.jobs) && response.jobs.length > 0) || Boolean(response.ack_success_payload);
+    const printJob = hasRootNewJob ? response : response.print_job;
+    const hasBatchPrintJob = Array.isArray(printJob?.jobs) && printJob.jobs.length > 0;
     const printJobUuid = optionalString(
-      response.print_job?.print_job_uuid,
+      printJob?.print_job_uuid,
       response.pending_query?.print_job_uuid,
     );
-    if (!printJobUuid) return { successCount: 0, failedCount: 0, total: 0 };
+    if (!printJobUuid && !hasBatchPrintJob) return { successCount: 0, failedCount: 0, total: 0 };
 
     const loginUuid = optionalString(
       response.pending_query?.login_uuid_fk,
@@ -362,10 +384,14 @@ export function useSelectedTableCartPanelWorkflow({
     if (!loginUuid) throw new Error("login_uuid_fk is required");
 
     return executeKitchen({
-      print_job: response.print_job,
+      print_job: printJob,
       pending_query: response.pending_query,
       login_uuid_fk: loginUuid,
+      device_code: printerCtx?.device_code, // ← เพิ่ม
+      agent_id: printerCtx?.agent_id,       // ← เพิ่ม
+      print_mode: printerCtx?.print_mode,   // ← เพิ่ม
       onProgress,
+
     });
   }
 
@@ -426,12 +452,16 @@ export function useSelectedTableCartPanelWorkflow({
           order_uuid: group.orderUuid,
           login_uuid_fk: user.uuid,
           order_item_uuids: group.itemUuids,
+          device_code: activeprinterContext?.device_code, // ← เปลี่ยน
+          agent_id: activeprinterContext?.agent_id,   // ← แก้จาก printerContext
+          print_mode: activeprinterContext?.print_mode, // ← แก้จาก printerContext
         });
         confirmedGroups++;
 
         const result = await executeKitchenAck(
           response,
           user.uuid,
+          activeprinterContext, // ← เปลี่ยน
           (progress) => {
             const nextTotalPrintSteps = totalPrintSteps + progress.total;
             const nextCompletedPrintSteps =
@@ -468,13 +498,14 @@ export function useSelectedTableCartPanelWorkflow({
       );
       showKitchenConfirmResult(printResult, t("pos.orderConfirmFailed"));
     } catch (error) {
-      await onCartRefresh().catch(() => undefined);
-      showToast({
-        title: t("pos.orderConfirmFailed"),
-        description: error instanceof Error ? error.message : "",
-        tone: "error",
-      });
-    } finally {
+  console.error("confirmNewOrder error:", error); // ← เพิ่ม
+  await onCartRefresh().catch(() => undefined);
+  showToast({
+    title: t("pos.orderConfirmFailed"),
+    description: error instanceof Error ? error.message : "",
+    tone: "error",
+  });
+} finally {
       setConfirming(false);
       setConfirmAllProgress(null);
     }
@@ -491,8 +522,11 @@ export function useSelectedTableCartPanelWorkflow({
         order_uuid: orderUuid,
         login_uuid_fk: user.uuid,
         order_item_uuids: [itemUuid],
+        device_code: activeprinterContext?.device_code, // ← เปลี่ยน
+        agent_id: activeprinterContext?.agent_id,   // ← แก้จาก printerContext
+        print_mode: activeprinterContext?.print_mode, // ← แก้จาก printerContext
       });
-      const result = await executeKitchenAck(response, user.uuid);
+      const result = await executeKitchenAck(response, user.uuid, activeprinterContext);
       await onCartRefresh();
       showKitchenConfirmResult(result, t("pos.confirmToKitchenFailed"));
     } catch (error) {
@@ -767,8 +801,8 @@ export function useSelectedTableCartPanelWorkflow({
   function canConfirmKitchenItem(item: CartItem) {
     return Boolean(
       user?.uuid &&
-        cartItemActionUuid(item) &&
-        cartOrderUuidForItem(orders, item),
+      cartItemActionUuid(item) &&
+      cartOrderUuidForItem(orders, item),
     );
   }
 

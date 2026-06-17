@@ -68,6 +68,30 @@ describe("pos requests", () => {
     });
   });
 
+  it("patches kitchen confirmation without order_item_uuids when confirming the whole order", async () => {
+    apiMocks.apiRequest.mockResolvedValue({ status: "success" });
+
+    await confirmToKitchen({
+      login_uuid_fk: "fc445438-e617-471c-9af3-262ae747932f",
+      order_uuid: "8ea2f7a8-e21a-4d55-b8d6-70df22e1376b",
+      lang: "la",
+      device_code: "INCLUDE",
+      agent_id: "include-f8e4f9",
+      print_mode: "windows_agent"
+    });
+
+    expect(apiMocks.apiRequest).toHaveBeenCalledWith("patch", "/api/v1/pos/confirm_to_kitchen", {
+      data: {
+        login_uuid_fk: "fc445438-e617-471c-9af3-262ae747932f",
+        order_uuid: "8ea2f7a8-e21a-4d55-b8d6-70df22e1376b",
+        lang: "la",
+        device_code: "INCLUDE",
+        agent_id: "include-f8e4f9",
+        print_mode: "windows_agent"
+      }
+    });
+  });
+
   it("posts payment with printer identity fields", async () => {
     apiMocks.apiRequest.mockResolvedValue({ status: "success" });
 

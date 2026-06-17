@@ -17,6 +17,7 @@ export interface QRScanResponse {
   table_status: number;
   qr_enabled: boolean;
   branch_uuid_fk: string;
+  login_uuid_fk?: string;
 }
 
 export interface PublicStatusSort {
@@ -62,6 +63,9 @@ export interface CustomerConfirmKitchenInput {
   t: string;
   order_uuid: string;
   order_item_uuids?: string[];
+  device_code?: string;
+  agent_id?: string;
+  print_mode?: string;
 }
 
 export interface CustomerEmitTableStatusParams {

@@ -8,6 +8,7 @@ import {
   type FetchCartStatusRule,
   type ProdItem
 } from "@/services/pos";
+import { getLocalPrinterAgentInfo, resolvePrinterDeviceContext } from "@/services/printer";
 import * as publicPosService from "@/services/public-pos";
 import type {
   CustomerCreateOrderInput,
@@ -54,6 +55,34 @@ function emitCustomerTableAlert(params: CustomerEmitTableStatusParams) {
     table_uuid: params.table_uuid,
     customer_order_state: true
   });
+}
+
+async function customerConfirmPrinterParams(scan: QRScanResponse | null, params: CustomerConfirmKitchenInput) {
+  if (params.device_code) {
+    return {
+      device_code: params.device_code,
+      agent_id: params.agent_id,
+      print_mode: params.print_mode
+    };
+  }
+
+  if (scan?.login_uuid_fk) {
+    return resolvePrinterDeviceContext({
+      login_uuid_fk: scan.login_uuid_fk,
+      device_code: params.device_code,
+      agent_id: params.agent_id,
+      print_mode: params.print_mode,
+      lang: scan.lang
+    });
+  }
+
+  const agent = await getLocalPrinterAgentInfo();
+  if (!agent.device_code) throw new Error("device_code required");
+  return {
+    device_code: agent.device_code,
+    agent_id: agent.agent_id,
+    print_mode: params.print_mode
+  };
 }
 
 let cartLoadPromise: Promise<CartOrder[]> | null = null;
@@ -382,8 +411,14 @@ export const usePublicPosStore = create<PublicPosState>((set, get) => ({
   confirmKitchen: async (params) => {
     set({ confirming: true, error: null, token: params.t });
     try {
-      const result = await publicPosService.customerConfirmKitchen(params);
       const scan = get().scan;
+      const printer = await customerConfirmPrinterParams(scan, params);
+      const result = await publicPosService.customerConfirmKitchen({
+        ...params,
+        device_code: printer.device_code,
+        agent_id: printer.agent_id,
+        print_mode: printer.print_mode
+      });
       if (scan?.branch_uuid_fk && scan.table_uuid) {
         await get().emitTableStatus({
           t: params.t,

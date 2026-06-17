@@ -480,10 +480,26 @@ export interface ConfirmToKitchenInput {
 }
 export interface ConfirmSummary extends ApiEntity {}
 export interface ConfirmToKitchenPrintJob extends ApiEntity {
-  print_job_uuid: string;
-  job_status: string;
+  print_job_uuid?: string;
+  job_status?: string;
   order_uuid?: string;
   requested_total?: number;
+  login_uuid_fk?: string;
+  agent_id?: string;
+  agent_name?: string;
+  device_code?: string;
+  print_mode?: string;
+  print_client?: string;
+  print_config_uuid?: string;
+  printer_name?: string;
+  interface_value?: string;
+  printer_type?: string;
+  paper_width_mm?: number;
+  job_total?: number;
+  cut_mode?: string;
+  jobs?: ApiEntity[];
+  ack_success_payload?: ApiEntity;
+  ack_failed_payload?: ApiEntity;
 }
 export interface ConfirmToKitchenNextAction extends ApiEntity {}
 export interface ConfirmToKitchenPendingQuery {
@@ -500,6 +516,21 @@ export interface ConfirmToKitchenResponse extends ApiEntity {
   message: string;
   order_uuid?: string;
   login_uuid_fk?: string;
+  agent_id?: string;
+  agent_name?: string;
+  device_code?: string;
+  print_mode?: string;
+  print_client?: string;
+  print_config_uuid?: string;
+  printer_name?: string;
+  interface_value?: string;
+  printer_type?: string;
+  paper_width_mm?: number;
+  job_total?: number;
+  cut_mode?: string;
+  jobs?: ApiEntity[];
+  ack_success_payload?: ApiEntity;
+  ack_failed_payload?: ApiEntity;
   print_job?: ConfirmToKitchenPrintJob;
   pending_query?: ConfirmToKitchenPendingQuery;
 }

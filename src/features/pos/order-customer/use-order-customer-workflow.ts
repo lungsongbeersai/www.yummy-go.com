@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { fetchCateProducts, getProdItem, ProductSortStatus, type CateProductItem, type CateWithProducts, type ProdDetail, type ProdItem, type ProdTopping } from "@/services/pos";
+import { resolvePrinterDeviceContext, type PrinterDeviceContext } from "@/services/printer";
 import { useAppStore } from "@/stores/app-store";
 import { useAuthStore } from "@/stores/auth-store";
 import { usePosStore } from "@/stores/pos-store";
@@ -84,6 +85,8 @@ export function useOrderCustomerWorkflow({
   const [toppingUuids, setToppingUuids] = useState<string[]>([]);
   const [note, setNote] = useState("");
   const [qty, setQty] = useState(1);
+  const [printerContext, setPrinterContext] =
+    useState<PrinterDeviceContext | null>(null);
 
   const selectedTable = useMemo(
     () =>
@@ -320,6 +323,29 @@ export function useOrderCustomerWorkflow({
     void loadMenu({ refreshCategories: true });
   }, [loadMenu]);
 
+  useEffect(() => {
+    if (!user?.uuid) {
+      setPrinterContext(null);
+      return;
+    }
+
+    let cancelled = false;
+    void resolvePrinterDeviceContext({
+      login_uuid_fk: user.uuid,
+      lang: language,
+    })
+      .then((context) => {
+        if (!cancelled) setPrinterContext(context);
+      })
+      .catch(() => {
+        if (!cancelled) setPrinterContext(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [language, user?.uuid]);
+
   function openTablesPage() {
     router.replace("/sales/open-table-sale");
   }
@@ -482,6 +508,7 @@ export function useOrderCustomerWorkflow({
     openTablesPage,
     productMode,
     productSheetOpen,
+    printerContext,
     qty,
     refreshAll,
     saving,

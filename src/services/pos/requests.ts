@@ -111,11 +111,11 @@ export const confirmToKitchen = (input: ConfirmToKitchenInput) =>
     data: {
       order_uuid: input.order_uuid,
       login_uuid_fk: input.login_uuid_fk,
-      order_item_uuids: input.order_item_uuids,
       lang: langParam(input.lang),
       device_code: input.device_code,
       agent_id: input.agent_id,
-      print_mode: input.print_mode
+      print_mode: input.print_mode,
+      ...(input.order_item_uuids?.length ? { order_item_uuids: input.order_item_uuids } : {})
     }
   });
 

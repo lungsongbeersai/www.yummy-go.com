@@ -1,6 +1,7 @@
 "use client";
 
 import type { CartOrder, PosTable, PosZone } from "@/services/pos";
+import type { PrinterDeviceContext } from "@/services/printer";
 import { useSelectedTableCartPanelWorkflow } from "./hooks/use-selected-table-cart-panel-workflow";
 import { SelectedTableCartPanelContent } from "./selected-table-cart-panel-content";
 
@@ -12,6 +13,7 @@ export function TableNextStepPanel({
   onTableActionComplete,
   selectedTable,
   showCreateEmployeeOrderAction = true,
+  
 }: {
   allZones: PosZone[];
   cart: CartOrder | CartOrder[] | null;
@@ -20,6 +22,7 @@ export function TableNextStepPanel({
   onTableActionComplete: (nextTableUuid?: string) => Promise<void>;
   selectedTable: PosTable | null;
   showCreateEmployeeOrderAction?: boolean;
+  
 }) {
   return (
     <SelectedTableCartPanel
@@ -39,6 +42,7 @@ export function SelectedTableCartPanel({
   cart,
   loading,
   newOrderFocusKey = 0,
+  printerContext,
   table,
   variant = "side",
   showCreateEmployeeOrderAction = true,
@@ -49,6 +53,7 @@ export function SelectedTableCartPanel({
   cart: CartOrder | CartOrder[] | null;
   loading: boolean;
   newOrderFocusKey?: number;
+  printerContext?: PrinterDeviceContext | null;
   table: PosTable | null;
   variant?: "side" | "sheet";
   showCreateEmployeeOrderAction?: boolean;
@@ -60,6 +65,7 @@ export function SelectedTableCartPanel({
     newOrderFocusKey,
     onCartRefresh,
     onTableActionComplete,
+    printerContext,
     table,
   });
 

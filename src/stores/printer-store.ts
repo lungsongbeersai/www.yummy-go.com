@@ -231,8 +231,8 @@ export const usePrinterStore = create<PrinterState>((set) => ({
         return {
           printers: exists
             ? state.printers.map((item) =>
-                item.print_config_uuid === printer.print_config_uuid ? printer : item
-              )
+              item.print_config_uuid === printer.print_config_uuid ? printer : item
+            )
             : printer.print_config_uuid
               ? [printer, ...state.printers]
               : state.printers,
@@ -322,16 +322,21 @@ export const usePrinterStore = create<PrinterState>((set) => ({
     return resolvedPrinters;
   },
   getDefaultCategoryByRole: (input) => getDefaultCategoryByRole(input),
+  // printer-store.ts
   loadPendingJobs: async (printJobUuid, loginUuid) => {
-    const pendingJobs = await getPendingPrintJobs({
+    const result = await getPendingPrintJobs({
       print_job_uuid: printJobUuid,
       login_uuid_fk: loginUuid
     });
+    const pendingJobs = result.jobs; // ← เปลี่ยนจาก result เป็น result.jobs
     set({ pendingJobs });
     return pendingJobs;
   },
   ack: (payload) => ackPrintJob(payload),
-  executeKitchen: (input) => executeKitchenPrintJobs(input),
+  executeKitchen: (input) => {
+    console.log("executeKitchen input:", JSON.stringify(input, null, 2));
+    return executeKitchenPrintJobs(input);
+  },
   reset: () =>
     set({
       printers: [],

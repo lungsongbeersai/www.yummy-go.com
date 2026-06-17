@@ -65,6 +65,7 @@ export function OrderCustomerView({
     openTablesPage,
     productMode,
     productSheetOpen,
+    printerContext,
     qty,
     refreshAll,
     saving,
@@ -246,6 +247,7 @@ export function OrderCustomerView({
               cart={cart}
               loading={loadingCart}
               newOrderFocusKey={newOrderFocusKey}
+              printerContext={printerContext}
               showCreateEmployeeOrderAction={false}
               table={selectedTable}
               onCartRefresh={loadCart}
@@ -287,6 +289,7 @@ export function OrderCustomerView({
             cart={cart}
             loading={loadingCart}
             newOrderFocusKey={newOrderFocusKey}
+            printerContext={printerContext}
             showCreateEmployeeOrderAction={false}
             table={selectedTable}
             variant="sheet"
