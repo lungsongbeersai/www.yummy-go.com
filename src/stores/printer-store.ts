@@ -322,13 +322,16 @@ export const usePrinterStore = create<PrinterState>((set) => ({
     return resolvedPrinters;
   },
   getDefaultCategoryByRole: (input) => getDefaultCategoryByRole(input),
-  // printer-store.ts
   loadPendingJobs: async (printJobUuid, loginUuid) => {
+    const printer = await resolvePrinterDeviceContext({ login_uuid_fk: loginUuid });
     const result = await getPendingPrintJobs({
       print_job_uuid: printJobUuid,
-      login_uuid_fk: loginUuid
+      login_uuid_fk: loginUuid,
+      device_code: printer.device_code,
+      agent_id: printer.agent_id,
+      print_mode: printer.print_mode
     });
-    const pendingJobs = result.jobs; // ← เปลี่ยนจาก result เป็น result.jobs
+    const pendingJobs = result.jobs;
     set({ pendingJobs });
     return pendingJobs;
   },

@@ -27,6 +27,7 @@ import {
   billSummaryMetrics,
   hasDisplayValue,
   isCancelledRow,
+  isPaymentAttentionRow,
   isZeroColumnValue,
   readValue,
   reportImageColor,
@@ -110,7 +111,10 @@ export function SummaryReportTable({
                 key={`${rowKey(row, index)}-${index}`}
                 className={cn(
                   tableRowClass(row, index),
-                  selected && !isCancelledRow(row) && "bg-primary/5",
+                  selected &&
+                    !isCancelledRow(row) &&
+                    !isPaymentAttentionRow(row) &&
+                    "bg-primary/5",
                 )}
               >
                 <TableCell className="w-[52px] whitespace-nowrap text-center">
@@ -253,12 +257,21 @@ export function DetailBillTable({
               selectedItemCount === groupItemIds.length;
             const groupPartiallySelected =
               selectedItemCount > 0 && !groupSelected;
+            const groupNeedsAttention =
+              !group.cancelled &&
+              isPaymentAttentionRow({
+                debt_amount: group.debtAmount,
+                payment_method: group.paymentType,
+                status: group.status,
+              });
 
             return (
               <Fragment key={group.id}>
                 <TableRow
                   className={cn(
                     "border-b border-border/80 bg-card hover:bg-muted/25 [&>td]:py-3",
+                    groupNeedsAttention &&
+                      "bg-red-50 hover:bg-red-100/70 dark:bg-red-950/25 dark:hover:bg-red-950/35",
                     group.cancelled &&
                       "border-l-4 border-l-destructive/60 bg-destructive/5 hover:bg-destructive/10",
                   )}
@@ -334,7 +347,13 @@ export function DetailBillTable({
                   ) : null}
                 </TableRow>
                 {expanded ? (
-                  <TableRow className="border-b border-border/80 bg-muted/20 hover:bg-muted/20">
+                  <TableRow
+                    className={cn(
+                      "border-b border-border/80 bg-muted/20 hover:bg-muted/20",
+                      groupNeedsAttention &&
+                        "bg-red-50/70 hover:bg-red-50/70 dark:bg-red-950/20 dark:hover:bg-red-950/20",
+                    )}
+                  >
                     <TableCell colSpan={parentColumnCount} className="p-0">
                       <div className="border-l-4 border-l-primary/20 px-4 py-3">
                         <Table className="min-w-[1160px] text-[13px]">
@@ -380,6 +399,7 @@ export function DetailBillTable({
                                     tableRowClass(item, itemIndex),
                                     selected &&
                                       !isCancelledRow(item) &&
+                                      !isPaymentAttentionRow(item) &&
                                       "bg-primary/5",
                                   )}
                                 >
@@ -506,6 +526,8 @@ function tableRowClass(row: ApiEntity, index: number) {
   return cn(
     "group border-b border-border/80",
     index % 2 === 1 && "bg-muted/15",
+    isPaymentAttentionRow(row) &&
+      "bg-red-50 hover:bg-red-100/70 dark:bg-red-950/25 dark:hover:bg-red-950/35",
     isCancelledRow(row) &&
       "border-l-4 border-l-destructive/60 bg-destructive/5 hover:bg-destructive/10",
   );

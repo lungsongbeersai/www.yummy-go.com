@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildTestJob,
   dispatchPrintJob,
+  getPendingPrintJobs,
   resolvePrinterDeviceContext,
   type BuildTestJobResponse
 } from "@/services/printer";
@@ -34,6 +35,7 @@ vi.mock("@/services/printer", () => ({
 
 const buildTestJobMock = vi.mocked(buildTestJob);
 const dispatchPrintJobMock = vi.mocked(dispatchPrintJob);
+const getPendingPrintJobsMock = vi.mocked(getPendingPrintJobs);
 const resolvePrinterDeviceContextMock = vi.mocked(resolvePrinterDeviceContext);
 
 describe("printer store", () => {
@@ -81,5 +83,31 @@ describe("printer store", () => {
       print_mode: "mobile_wifi"
     });
     expect(dispatchPrintJobMock).toHaveBeenCalledWith(job);
+  });
+
+  it("loads pending jobs with local printer identity", async () => {
+    const jobs = [{ print_job_uuid: "job-1", print_items: [] }];
+    resolvePrinterDeviceContextMock.mockResolvedValue({
+      agent_id: "include-f8e4f9",
+      agent_name: "Include Agent",
+      device_code: "INCLUDE",
+      print_mode: "mobile_wifi"
+    });
+    getPendingPrintJobsMock.mockResolvedValue({
+      jobs,
+      batchPayloads: [],
+      ackSuccess: null,
+      ackFailed: null
+    } as Awaited<ReturnType<typeof getPendingPrintJobs>>);
+
+    await expect(usePrinterStore.getState().loadPendingJobs("job-1", "login-1")).resolves.toEqual(jobs);
+
+    expect(getPendingPrintJobsMock).toHaveBeenCalledWith({
+      print_job_uuid: "job-1",
+      login_uuid_fk: "login-1",
+      device_code: "INCLUDE",
+      agent_id: "include-f8e4f9",
+      print_mode: "mobile_wifi"
+    });
   });
 });

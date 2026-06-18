@@ -536,7 +536,14 @@ export interface ConfirmToKitchenResponse extends ApiEntity {
 }
 export interface ConfirmOrderItemServedInput { order_it_uuid: string }
 export interface CancelOrderItemInput { order_it_uuid: string }
-export interface CreateTableQRRequest extends ApiEntity { table_uuid: string; login_uuid_fk: string; lang?: string }
+export interface CreateTableQRRequest extends ApiEntity {
+  table_uuid: string;
+  login_uuid_fk: string;
+  lang?: string;
+  device_code?: string;
+  agent_id?: string;
+  print_mode?: string;
+}
 export interface CreateTableQRResponse extends TableQRResponse {}
 export interface PrintInvoiceRequest extends ApiEntity {
   order_uuid: string;

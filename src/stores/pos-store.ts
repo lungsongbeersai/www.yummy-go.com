@@ -241,7 +241,14 @@ export const usePosStore = create<PosState>((set) => ({
     return lastSplitBill;
   },
   createTableQr: async (params) => {
-    const tableQr = await posService.createTableQR(params);
+    const printer = await resolvePrinterDeviceContext(params);
+
+    const tableQr = await posService.createTableQR({
+      ...params,
+      device_code: printer.device_code,
+      agent_id: printer.agent_id,
+      print_mode: printer.print_mode
+    });
     set({ tableQr });
     return tableQr;
   },

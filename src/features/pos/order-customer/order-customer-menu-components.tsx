@@ -257,7 +257,7 @@ export const EmployeeCategorySidebar = memo(function EmployeeCategorySidebar({
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 bg-black/10"
       />
-      <div className="relative flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
+      <div className="relative flex min-h-0 flex-1 flex-col gap-2">
         <Button
           type="button"
           variant="ghost"
@@ -269,40 +269,45 @@ export const EmployeeCategorySidebar = memo(function EmployeeCategorySidebar({
           <ArrowLeft data-icon="inline-start" />
         </Button>
 
-        {loading
-          ? Array.from({ length: 6 }).map((_, index) => (
-              <Skeleton key={index} className="h-20 rounded-lg bg-white/20" />
-            ))
-          : categories.map((category) => {
-              const active = category.cate_uuid === selectedCateUuid;
-              return (
-                <Tooltip key={category.cate_uuid}>
-                  <TooltipTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      className={cn(
-                        "h-20 w-full flex-col gap-1 rounded-lg border border-white/20 bg-white/8 px-2 text-white/85 hover:border-white/45 hover:bg-white/15 hover:text-white focus-visible:ring-white/60",
-                        active &&
-                          "border-white bg-white text-primary shadow-lg hover:bg-white hover:text-primary",
-                      )}
-                      onClick={() => onSelectCategory(category.cate_uuid)}
-                    >
-                      <CategoryIconView
-                        icon={category.cate_icon}
-                        className="size-6"
-                      />
-                      <span className="line-clamp-2 text-center text-xs font-black leading-4">
-                        {category.cate_name}
-                      </span>
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="right">
-                    {category.cate_name || t("pos.menu")}
-                  </TooltipContent>
-                </Tooltip>
-              );
-            })}
+        <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain pr-1">
+          {loading
+            ? Array.from({ length: 6 }).map((_, index) => (
+                <Skeleton
+                  key={index}
+                  className="h-[6.25rem] rounded-lg bg-white/20"
+                />
+              ))
+            : categories.map((category) => {
+                const active = category.cate_uuid === selectedCateUuid;
+                return (
+                  <Tooltip key={category.cate_uuid}>
+                    <TooltipTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className={cn(
+                          "h-auto min-h-[6.25rem] w-full flex-col gap-1 rounded-lg border border-white/20 bg-white/10 px-2 py-3 text-white/90 shadow-sm shadow-black/5 hover:border-white/45 hover:bg-white/20 hover:text-white focus-visible:ring-white/60",
+                          active &&
+                            "border-white bg-white text-primary shadow-lg shadow-black/15 hover:bg-white hover:text-primary",
+                        )}
+                        onClick={() => onSelectCategory(category.cate_uuid)}
+                      >
+                        <CategoryIconView
+                          icon={category.cate_icon}
+                          className="size-7 shrink-0"
+                        />
+                        <span className="line-clamp-3 max-w-full break-words text-center text-xs font-black leading-4">
+                          {category.cate_name}
+                        </span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">
+                      {category.cate_name || t("pos.menu")}
+                    </TooltipContent>
+                  </Tooltip>
+                );
+              })}
+        </div>
       </div>
     </aside>
   );

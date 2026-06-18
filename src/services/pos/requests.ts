@@ -143,7 +143,10 @@ export const createTableQR = (params: CreateTableQRRequest) =>
     params: {
       table_uuid: params.table_uuid,
       lang: langParam(params.lang),
-      login_uuid_fk: params.login_uuid_fk
+      login_uuid_fk: params.login_uuid_fk,
+      device_code: params.device_code,
+      agent_id: params.agent_id,
+      print_mode: params.print_mode
     }
   });
 
