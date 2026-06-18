@@ -62,7 +62,7 @@ function readRows(): unknown[][] {
 
 describe("menu product import script", () => {
   beforeAll(async () => {
-    // @ts-ignore - one-off import script is intentionally plain Node.js.
+    // @ts-expect-error - one-off import script is intentionally plain Node.js.
     script = await import("../../../scripts/import-menu-products.mjs");
   });
 
