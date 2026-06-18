@@ -279,17 +279,6 @@ export interface DefaultCategoryByRoleInput extends ApiEntity { login_uuid_fk: s
 export interface DefaultCategoryGroupDetail extends ApiEntity { }
 export interface DefaultCategoryGroup extends ApiEntity { }
 export interface DefaultCategoryByRoleResponse extends ApiEntity { }
-export interface TableQRPrintJob extends ApiEntity {
-  agent_url?: string;
-  agent_id?: string;
-  device_code?: string | null;
-  document_type?: string;
-  lang?: string;
-  ops?: Record<string, unknown>[];
-  print_client?: string;
-  qr_url?: string;
-  table_name?: string;
-}
 export interface PrintProgress { total: number; completed: number; successCount: number; failedCount: number; phase: "fetching" | "printing" | "done" }
 export interface ExecuteKitchenPrintInput {
   print_job?: ConfirmToKitchenPrintJob;
@@ -300,6 +289,7 @@ export interface ExecuteKitchenPrintInput {
   print_mode?: string;
   onProgress?: (progress: PrintProgress) => void;
 }
+export type ExecuteInvoicePrintInput = ExecuteKitchenPrintInput;
 
 export async function searchPrinters(mode: "usb" | "network" = "usb") {
   const { data } = await axios.get<SearchPrintersResponse>(
@@ -411,7 +401,7 @@ export const deletePrinter = (print_config_uuid: string) =>
 export const buildTestJob = (data: BuildTestJobRequest) =>
   apiRequest<BuildTestJobResponse>("post", "/api/v1/printer/build-test-job", { data });
 
-export async function renderMobileEscpos(job: PrintJob | TableQRPrintJob) {
+export async function renderMobileEscpos(job: PrintJob) {
   const result = await apiRequest<MobileEscposRenderResponse>(
     "post",
     "/api/v1/printer/mobile/render-escpos",
@@ -422,7 +412,7 @@ export async function renderMobileEscpos(job: PrintJob | TableQRPrintJob) {
   return escposBase64;
 }
 
-export async function sendMobileBackendPrintJob(job: PrintJob | TableQRPrintJob) {
+export async function sendMobileBackendPrintJob(job: PrintJob) {
   await apiRequest<MobileEscposRenderResponse>(
     "post",
     "/api/v1/printer/mobile/render-escpos",
@@ -540,11 +530,11 @@ export async function getLocalPrinterAgentInfo(agentUrl = AGENT_URL) {
   }
 }
 
-function printJobAgentBase(job: PrintJob | TableQRPrintJob | null | undefined) {
+function printJobAgentBase(job: PrintJob | null | undefined) {
   return printerAgentBase(AGENT_URL, textValue(job?.agent_url) || undefined);
 }
 
-function isPrintJobForAgent(job: PrintJob | TableQRPrintJob | null | undefined, agent: AgentInfo) {
+function isPrintJobForAgent(job: PrintJob | null | undefined, agent: AgentInfo) {
   const jobAgentId = textValue(job?.agent_id);
   const localAgentId = textValue(agent.agent_id);
   if (!jobAgentId || !localAgentId || jobAgentId !== localAgentId) return false;
@@ -556,7 +546,7 @@ function isPrintJobForAgent(job: PrintJob | TableQRPrintJob | null | undefined, 
   return true;
 }
 
-function assertPrintJobForAgent(job: PrintJob | TableQRPrintJob, agent: AgentInfo) {
+function assertPrintJobForAgent(job: PrintJob, agent: AgentInfo) {
   if (!textValue(job.agent_id)) {
     throw new ServiceError("Print job missing agent_id", 409);
   }
@@ -565,7 +555,7 @@ function assertPrintJobForAgent(job: PrintJob | TableQRPrintJob, agent: AgentInf
   }
 }
 
-function isBrowserDevicePrintJob(job: PrintJob | TableQRPrintJob | null | undefined) {
+function isBrowserDevicePrintJob(job: PrintJob | null | undefined) {
   return isBrowserPrinterAgentId(job?.agent_id) && textValue(job?.device_code).includes("-web-");
 }
 
@@ -609,7 +599,7 @@ export async function resolvePrinterDeviceIdentity(agentUrl = AGENT_URL): Promis
   }
 }
 
-export async function printWithLocalAgent(job: PrintJob | TableQRPrintJob, localAgent?: AgentInfo) {
+export async function printWithLocalAgent(job: PrintJob, localAgent?: AgentInfo) {
   const agent = localAgent ?? await getLocalAgentInfo();
   assertPrintJobForAgent(job, agent);
 
@@ -664,44 +654,16 @@ async function printKitchenBatchJob(batch: PrintOpsBatchPayload) {
   assertAgentOk(data, "Print failed");
 }
 
-// export async function dispatchPrintJob(job: PrintJob | TableQRPrintJob, localAgent?: AgentInfo) {
-//   if (isBrowserDevicePrintJob(job)) {
-//     await renderMobileEscpos(job);
-//     return;
-//   }
-
-//   await printWithLocalAgent(job, localAgent);
-// }
-
 export async function dispatchPrintJob(
-  job: PrintJob | TableQRPrintJob,
+  job: PrintJob,
   localAgent?: AgentInfo,
 ) {
-  console.log("[printer] dispatchPrintJob", {
-    agent_id: job.agent_id,
-    device_code: job.device_code,
-    interface_value: textValue(job.interface_value),
-    isBrowserJob: isBrowserDevicePrintJob(job),
-  });
-
   if (isBrowserDevicePrintJob(job)) {
     await sendMobileBackendPrintJob(job);
     return;
   }
 
-  console.log("[printer] desktop branch: local agent print start");
-
   await printWithLocalAgent(job, localAgent);
-
-  console.log("[printer] desktop branch: local agent print success");
-}
-
-export async function printOps(job: PrintJob, localAgent?: AgentInfo) {
-  await printWithLocalAgent(job, localAgent);
-}
-
-export async function printTableQRJob(job: TableQRPrintJob) {
-  await dispatchPrintJob(job);
 }
 
 export async function getCategoryRoles(login_uuid_fk: string) {
@@ -777,41 +739,6 @@ function kitchenCutMode(input: ExecuteKitchenPrintInput, pending: PendingPrintJo
   return textValue(input.print_job?.cut_mode) || textValue(pending.find((job) => textValue(job.cut_mode))?.cut_mode) || "per_ticket";
 }
 
-function getDirectKitchenBatch(value: unknown): PrintOpsBatchPayload | null {
-  if (!value || typeof value !== "object") return null;
-  const record = value as ApiEntity;
-  const jobs = record.jobs;
-  if (!Array.isArray(jobs)) return null;
-  const printableJobs = jobs.filter((job): job is PrintJob =>
-    Boolean(job && typeof job === "object" && Array.isArray((job as PrintJob).ops))
-  );
-  if (!printableJobs.length) return null;
-
-  return {
-    cut_mode: textValue(record.cut_mode) || "per_ticket",
-    agent_id: textValue(record.agent_id) || undefined,
-    agent_name: textValue(record.agent_name) || undefined,
-    device_code: textValue(record.device_code) || undefined,
-    print_mode: textValue(record.print_mode) || undefined,
-    print_client: textValue(record.print_client) || undefined,
-    print_config_uuid: textValue(record.print_config_uuid) || undefined,
-    printer_name: textValue(record.printer_name) || undefined,
-    interface_value: textValue(record.interface_value) || undefined,
-    printer_type: textValue(record.printer_type) || undefined,
-    paper_width_mm: Number(record.paper_width_mm || printableJobs[0]?.paper_width_mm || 80),
-    job_total: Number(record.job_total || printableJobs.length),
-    jobs: printableJobs
-  };
-}
-
-function getDirectAckPayload(value: unknown, key: "ack_success_payload" | "ack_failed_payload") {
-  if (!value || typeof value !== "object") return null;
-  const payload = (value as ApiEntity)[key];
-  if (!payload || typeof payload !== "object") return null;
-  const record = payload as PrintAckPayload;
-  return textValue(record.print_job_uuid) && Array.isArray(record.results) ? record : null;
-}
-
 function groupKitchenBatchItems(items: PendingPrintItem[]) {
   const groups = new Map<string, PendingPrintItem[]>();
 
@@ -824,26 +751,7 @@ function groupKitchenBatchItems(items: PendingPrintItem[]) {
   return Array.from(groups.values());
 }
 
-export async function executeKitchenPrintJobs(input: ExecuteKitchenPrintInput): Promise<KitchenPrintResult> {
-  const directBatch = getDirectKitchenBatch(input.print_job);
-  if (directBatch) {
-    const total = directBatch.jobs.length;
-    input.onProgress?.({ total, completed: 0, successCount: 0, failedCount: 0, phase: "printing" });
-
-    try {
-      await printKitchenBatchJob(directBatch);
-      const ackPayload = getDirectAckPayload(input.print_job, "ack_success_payload");
-      if (ackPayload) await ackPrintJob(ackPayload);
-      input.onProgress?.({ total, completed: total, successCount: total, failedCount: 0, phase: "done" });
-      return { successCount: total, failedCount: 0, total };
-    } catch {
-      const ackPayload = getDirectAckPayload(input.print_job, "ack_failed_payload");
-      if (ackPayload) await ackPrintJob(ackPayload);
-      input.onProgress?.({ total, completed: total, successCount: 0, failedCount: total, phase: "done" });
-      return { successCount: 0, failedCount: total, total };
-    }
-  }
-
+async function executePrintJobs(input: ExecuteKitchenPrintInput, options: { ack: boolean }): Promise<KitchenPrintResult> {
   const jobUuid = input.pending_query?.print_job_uuid ?? input.print_job?.print_job_uuid;
   const loginUuid = input.pending_query?.login_uuid_fk ?? input.login_uuid_fk;
   if (!jobUuid || !loginUuid) return { successCount: 0, failedCount: 0, total: 0 };
@@ -879,11 +787,11 @@ export async function executeKitchenPrintJobs(input: ExecuteKitchenPrintInput): 
       for (const batch of batchPayloads) {
         await printKitchenBatchJob(batch);
       }
-      if (globalAckSuccess) await ackPrintJob(ackPayloadWithLogin(globalAckSuccess, loginUuid));
+      if (options.ack && globalAckSuccess) await ackPrintJob(ackPayloadWithLogin(globalAckSuccess, loginUuid));
       input.onProgress?.({ total, completed: total, successCount: total, failedCount: 0, phase: "done" });
       return { successCount: total, failedCount: 0, total };
     } catch {
-      if (globalAckFailed) await ackPrintJob(ackPayloadWithLogin(globalAckFailed, loginUuid));
+      if (options.ack && globalAckFailed) await ackPrintJob(ackPayloadWithLogin(globalAckFailed, loginUuid));
       input.onProgress?.({ total, completed: total, successCount: 0, failedCount: total, phase: "done" });
       return { successCount: 0, failedCount: total, total };
     }
@@ -905,24 +813,26 @@ export async function executeKitchenPrintJobs(input: ExecuteKitchenPrintInput): 
   for (const item of items) {
     try {
       if (item.skip_without_print && item.ack_skipped_payload) {
-        await ackPrintJob(ackPayloadWithLogin(item.ack_skipped_payload, loginUuid));
+        if (options.ack) await ackPrintJob(ackPayloadWithLogin(item.ack_skipped_payload, loginUuid));
         skippedCount++;
         reportKitchenProgress(input, items.length, successCount, failedCount, skippedCount);
         continue;
       }
 
       if (!item.can_print) throw new ServiceError(item.error || "Item cannot print", 400);
-      if (!item.job || !item.ack_success_payload) throw new ServiceError("Print job payload missing", 400);
+      if (!item.job || (options.ack && !item.ack_success_payload)) throw new ServiceError("Print job payload missing", 400);
       if (!isBrowserDevicePrintJob(item.job)) {
         batchItems.push(item);
         continue;
       }
 
       await dispatchPrintJob(item.job);
-      await ackPrintJob(ackPayloadWithLogin(item.ack_success_payload, loginUuid));
+      if (options.ack && item.ack_success_payload) {
+        await ackPrintJob(ackPayloadWithLogin(item.ack_success_payload, loginUuid));
+      }
       successCount++;
     } catch (error) {
-      if (!item.ack_failed_payload) {
+      if (!options.ack || !item.ack_failed_payload) {
         failedCount++;
         continue;
       }
@@ -939,14 +849,18 @@ export async function executeKitchenPrintJobs(input: ExecuteKitchenPrintInput): 
         undefined,
         cutMode
       );
-      for (const item of batchGroup) {
-        if (!item.ack_success_payload) continue;
-        await ackPrintJob(ackPayloadWithLogin(item.ack_success_payload, loginUuid));
-        successCount++;
+      if (options.ack) {
+        for (const item of batchGroup) {
+          if (!item.ack_success_payload) continue;
+          await ackPrintJob(ackPayloadWithLogin(item.ack_success_payload, loginUuid));
+          successCount++;
+        }
+      } else {
+        successCount += batchGroup.length;
       }
     } catch (error) {
       for (const item of batchGroup) {
-        if (!item.ack_failed_payload) {
+        if (!options.ack || !item.ack_failed_payload) {
           failedCount++;
           continue;
         }
@@ -965,4 +879,12 @@ export async function executeKitchenPrintJobs(input: ExecuteKitchenPrintInput): 
     phase: "done"
   });
   return { successCount, failedCount, total: items.length };
+}
+
+export async function executeKitchenPrintJobs(input: ExecuteKitchenPrintInput): Promise<KitchenPrintResult> {
+  return executePrintJobs(input, { ack: true });
+}
+
+export async function executeInvoicePrintJobs(input: ExecuteInvoicePrintInput): Promise<KitchenPrintResult> {
+  return executePrintJobs(input, { ack: false });
 }

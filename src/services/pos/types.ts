@@ -296,36 +296,6 @@ export interface MoveTableResponse extends ApiEntity {}
 export interface JoinTableMultiInput { from_table_uuids: string[]; to_table_uuid: string }
 export interface JoinTableMergedFrom extends ApiEntity {}
 export interface JoinTableMultiResponse extends ApiEntity {}
-export interface TableQRPrintJobResponse extends ApiEntity {
-  document_type?: string;
-  lang?: string;
-  qr_url?: string;
-  table_name?: string;
-}
-export interface TableQRAgentPrintJob extends ApiEntity {
-  type?: string;
-  document_type?: string;
-  agent_url?: string;
-  agent_id?: string;
-  agent_name?: string;
-  device_code?: string;
-  printer_name?: string;
-  print_config_uuid?: string;
-  lang?: string;
-  paper_width_mm?: number;
-  interface_value?: string;
-  printer_type?: string;
-  ops?: Record<string, unknown>[];
-}
-export interface TableQRAgentPrintPayload extends ApiEntity {
-  job?: TableQRAgentPrintJob;
-}
-export interface TableQRAgentPrintResponse extends ApiEntity {
-  mode?: string;
-  role_code?: string;
-  agent_url?: string;
-  payload?: TableQRAgentPrintPayload;
-}
 export interface TableQRNextAction extends ApiEntity {
   print_endpoint?: string;
 }
@@ -345,7 +315,6 @@ export interface TableQRResponse extends ApiEntity {
   table_token?: string;
   regenerated?: boolean;
   reused_existing_qr?: boolean;
-  job?: TableQRPrintJobResponse;
   next_action?: TableQRNextAction;
   summary?: TableQRSummary;
   qr_url?: string;
@@ -361,7 +330,9 @@ export interface TableQRResponse extends ApiEntity {
   print_endpoint?: string;
   role_code?: string;
   print_mode?: string;
-  print_job?: TableQRAgentPrintResponse;
+  print_job?: ConfirmToKitchenPrintJob;
+  pending_query?: ConfirmToKitchenPendingQuery;
+  ack_template?: ConfirmToKitchenAckTemplate;
   fallback_print?: unknown;
   reason?: string | null;
 }
@@ -370,6 +341,7 @@ export interface UpdateOrderNoteInput { order_it_uuid: string; order_it_note: st
 export interface UpdateOrderNoteResponse extends ApiEntity {}
 export interface PaymentInput extends ApiEntity {
   order_uuid: string;
+  table_uuid?: string;
   customer_uuid_fk?: string;
   payment_method: PaymentMethod;
   order_channel: OrderChannel;
@@ -408,16 +380,6 @@ export interface PaymentTotals extends ApiEntity {
   paid_transfer?: number;
   change?: number;
 }
-export interface PaymentPrintJobPayload extends ApiEntity {
-  job?: TableQRAgentPrintJob;
-  source_order?: { job?: TableQRAgentPrintJob };
-  new_order?: { job?: TableQRAgentPrintJob };
-}
-export interface PaymentPrintJob extends ApiEntity {
-  mode?: string;
-  role_code?: string;
-  payload?: PaymentPrintJobPayload;
-}
 export interface PaymentResponse extends ApiEntity {
   status?: string;
   message?: string;
@@ -428,11 +390,15 @@ export interface PaymentResponse extends ApiEntity {
   is_fully_paid?: boolean;
   order_check_bill_after?: number;
   order_status_after?: number;
-  print_job?: PaymentPrintJob;
+  print_job?: ConfirmToKitchenPrintJob;
+  next_action?: ConfirmToKitchenNextAction;
+  pending_query?: ConfirmToKitchenPendingQuery;
+  ack_template?: ConfirmToKitchenAckTemplate;
   fallback_print?: ApiEntity | null;
 }
 export interface SplitBillInput extends ApiEntity {
   order_uuid: string;
+  table_uuid?: string;
   order_item_uuids: string[];
   order_channel: OrderChannel;
   customer_uuid_fk: string;
@@ -452,8 +418,6 @@ export interface SplitBillInput extends ApiEntity {
 export interface SplitBillOrderSummary extends ApiEntity {}
 export interface SplitBillTotals extends ApiEntity {}
 export interface SplitBillPaymentSummary extends ApiEntity {}
-export interface SplitBillPrintJobEntry extends ApiEntity {}
-export interface SplitBillPrintJob extends ApiEntity {}
 export interface SplitBillResponseData extends ApiEntity {
   new_order?: CartOrder;
   source_order?: CartOrder;
@@ -465,7 +429,10 @@ export interface SplitBillResponse extends ApiEntity {
   new_order_invoice?: string;
   order_invoice?: string;
   payment?: PaymentRecord;
-  print_job?: PaymentPrintJob;
+  print_job?: ConfirmToKitchenPrintJob;
+  next_action?: ConfirmToKitchenNextAction;
+  pending_query?: ConfirmToKitchenPendingQuery;
+  ack_template?: ConfirmToKitchenAckTemplate;
   source_order?: CartOrder;
   data?: SplitBillResponseData;
 }
@@ -554,13 +521,15 @@ export interface PrintInvoiceRequest extends ApiEntity {
   agent_id?: string;
   print_mode?: string;
 }
-export interface PrintInvoiceJob extends ApiEntity {}
-export interface PrintInvoicePrintJob extends ApiEntity {}
 export interface PrintInvoiceResponse extends ApiEntity {
   status?: string;
   message?: string;
   order_uuid?: string;
   order_invoice?: string;
-  print_job?: PaymentPrintJob;
+  print_job?: ConfirmToKitchenPrintJob;
+  next_action?: ConfirmToKitchenNextAction;
+  pending_query?: ConfirmToKitchenPendingQuery;
+  ack_template?: ConfirmToKitchenAckTemplate;
+  totals?: PaymentTotals;
   fallback_print?: ApiEntity | null;
 }

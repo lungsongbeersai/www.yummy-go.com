@@ -29,6 +29,7 @@ import {
   cartItemActionUuid,
   cartItemDiscountMaxAmount,
   cartItemUuid,
+  cartOrdersBelongToTable,
   cartOrderInvoice,
   cartOrders,
   cartOrderUuidForItem,
@@ -56,6 +57,7 @@ type PaymentContext = {
   orders: CartOrder[];
   splitBillItemUuids?: string[];
   summary: ReturnType<typeof cartSummary>;
+  tableUuid: string;
 };
 
 interface UseSelectedTableCartPanelWorkflowParams {
@@ -331,6 +333,17 @@ export function useSelectedTableCartPanelWorkflow({
   }, [activeTab]);
 
   useEffect(() => {
+    if (!paymentContext || !selectedTable) return;
+    if (
+      paymentContext.tableUuid === selectedTable.table_uuid &&
+      cartOrdersBelongToTable(paymentContext.orders, selectedTable)
+    )
+      return;
+
+    setPaymentContext(null);
+  }, [paymentContext, selectedTable]);
+
+  useEffect(() => {
     const eligibleUuids = splitEligibleItems.map(cartItemActionUuid);
     setSplitSelectedItemUuids((current) =>
       pruneSelectedItemUuids(current, eligibleUuids),
@@ -363,20 +376,15 @@ export function useSelectedTableCartPanelWorkflow({
   async function executeKitchenAck(
     response: Awaited<ReturnType<typeof confirmKitchen>>,
     fallbackLoginUuid: string,
-    printerCtx?: PrinterDeviceContext | null, // ← เพิ่ม
+    printerCtx?: PrinterDeviceContext | null,
     onProgress?: (progress: PrintProgress) => void,
   ) {
-    console.log("executeKitchenAck printerCtx:", printerCtx); // ← เพิ่ม
-  console.log("executeKitchenAck response:", JSON.stringify(response, null, 2)); // ← เพิ่ม
-    const hasRootNewJob =
-      (Array.isArray(response.jobs) && response.jobs.length > 0) || Boolean(response.ack_success_payload);
-    const printJob = hasRootNewJob ? response : response.print_job;
-    const hasBatchPrintJob = Array.isArray(printJob?.jobs) && printJob.jobs.length > 0;
+    const printJob = response.print_job;
     const printJobUuid = optionalString(
       printJob?.print_job_uuid,
       response.pending_query?.print_job_uuid,
     );
-    if (!printJobUuid && !hasBatchPrintJob) return { successCount: 0, failedCount: 0, total: 0 };
+    if (!printJobUuid) return { successCount: 0, failedCount: 0, total: 0 };
 
     const loginUuid = optionalString(
       response.pending_query?.login_uuid_fk,
@@ -389,11 +397,10 @@ export function useSelectedTableCartPanelWorkflow({
       print_job: printJob,
       pending_query: response.pending_query,
       login_uuid_fk: loginUuid,
-      device_code: printerCtx?.device_code, // ← เพิ่ม
-      agent_id: printerCtx?.agent_id,       // ← เพิ่ม
-      print_mode: printerCtx?.print_mode,   // ← เพิ่ม
+      device_code: printerCtx?.device_code,
+      agent_id: printerCtx?.agent_id,
+      print_mode: printerCtx?.print_mode,
       onProgress,
-
     });
   }
 
@@ -419,10 +426,11 @@ export function useSelectedTableCartPanelWorkflow({
     setConfirming(true);
     try {
       const printResult = { successCount: 0, failedCount: 0, total: 0 };
-      const refreshStepCount = 1;
-      let confirmedGroups = 0;
-      let completedPrintSteps = 0;
-      let totalPrintSteps = 0;
+      const confirmItemTotal = confirmGroups.reduce(
+        (sum, group) => sum + group.itemUuids.length,
+        0,
+      );
+      let confirmedItems = 0;
 
       const setProgress = (completed: number, total: number, label: string) => {
         const safeTotal = Math.max(total, 1);
@@ -440,14 +448,14 @@ export function useSelectedTableCartPanelWorkflow({
 
       setProgress(
         0,
-        confirmGroups.length + refreshStepCount,
+        confirmItemTotal,
         t("pos.confirmAllPreparing"),
       );
 
       for (const group of confirmGroups) {
         setProgress(
-          confirmedGroups + completedPrintSteps,
-          confirmGroups.length + totalPrintSteps + refreshStepCount,
+          confirmedItems,
+          confirmItemTotal,
           t("pos.confirmAllConfirming"),
         );
         const response = await confirmKitchen({
@@ -458,24 +466,21 @@ export function useSelectedTableCartPanelWorkflow({
           agent_id: activePrinterContext?.agent_id,
           print_mode: activePrinterContext?.print_mode,
         });
-        confirmedGroups++;
+        confirmedItems += group.itemUuids.length;
 
         const result = await executeKitchenAck(
           response,
           user.uuid,
           activePrinterContext,
           (progress) => {
-            const nextTotalPrintSteps = totalPrintSteps + progress.total;
-            const nextCompletedPrintSteps =
-              completedPrintSteps + progress.completed;
             const label =
               progress.phase === "fetching"
                 ? t("pos.confirmAllFetchingPrintJobs")
                 : t("pos.confirmAllPrinting");
 
             setProgress(
-              confirmedGroups + nextCompletedPrintSteps,
-              confirmGroups.length + nextTotalPrintSteps + refreshStepCount,
+              confirmedItems,
+              confirmItemTotal,
               label,
             );
           },
@@ -483,19 +488,17 @@ export function useSelectedTableCartPanelWorkflow({
         printResult.successCount += result.successCount;
         printResult.failedCount += result.failedCount;
         printResult.total += result.total;
-        completedPrintSteps += result.total;
-        totalPrintSteps += result.total;
       }
 
       setProgress(
-        confirmedGroups + completedPrintSteps,
-        confirmGroups.length + totalPrintSteps + refreshStepCount,
+        confirmedItems,
+        confirmItemTotal,
         t("pos.confirmAllRefreshing"),
       );
       await onCartRefresh();
       setProgress(
-        confirmGroups.length + totalPrintSteps + refreshStepCount,
-        confirmGroups.length + totalPrintSteps + refreshStepCount,
+        confirmItemTotal,
+        confirmItemTotal,
         t("pos.confirmAllDone"),
       );
       showKitchenConfirmResult(printResult, t("pos.orderConfirmFailed"));
@@ -695,12 +698,18 @@ export function useSelectedTableCartPanelWorkflow({
   }
 
   function openFullPayment() {
-    if (!hasSelectedTable) return;
+    if (!selectedTable) return;
+
+    if (!cartOrdersBelongToTable(orders, selectedTable)) {
+      showToast({ title: t("pos.paymentMissingOrder"), tone: "error" });
+      return;
+    }
 
     setPaymentContext({
       kind: "full",
       orders,
       summary,
+      tableUuid: selectedTable.table_uuid,
     });
   }
 
@@ -736,19 +745,24 @@ export function useSelectedTableCartPanelWorkflow({
   }
 
   function requestSelectedSplitPayment() {
-    if (!hasSelectedTable) return;
+    if (!selectedTable) return;
 
     if (!splitSelection) {
       showToast({ title: t("pos.splitPaymentSelectRequired"), tone: "error" });
       return;
     }
     if (!canPaySplitSelection) return;
+    if (!cartOrdersBelongToTable(splitSelection.orders, selectedTable)) {
+      showToast({ title: t("pos.paymentMissingOrder"), tone: "error" });
+      return;
+    }
 
     setPaymentContext({
       kind: "split",
       orders: splitSelection.orders,
       splitBillItemUuids: splitSelection.itemUuids,
       summary: splitSelection.summary,
+      tableUuid: selectedTable.table_uuid,
     });
   }
 

@@ -97,6 +97,7 @@ describe("pos requests", () => {
 
     await createPayment({
       order_uuid: "order-1",
+      table_uuid: "table-5",
       customer_uuid_fk: "customer-1",
       payment_method: 1,
       order_channel: 1,
@@ -115,6 +116,7 @@ describe("pos requests", () => {
     expect(apiMocks.apiRequest).toHaveBeenCalledWith("post", "/api/v1/pos/payment", {
       data: {
         order_uuid: "order-1",
+        table_uuid: "table-5",
         customer_uuid_fk: "customer-1",
         payment_method: 1,
         order_channel: 1,
@@ -137,6 +139,7 @@ describe("pos requests", () => {
 
     await splitBill({
       order_uuid: "order-1",
+      table_uuid: "table-5",
       order_item_uuids: ["item-1"],
       customer_uuid_fk: "customer-1",
       payment_method: 1,
@@ -156,6 +159,7 @@ describe("pos requests", () => {
     expect(apiMocks.apiRequest).toHaveBeenCalledWith("post", "/api/v1/pos/split_bill", {
       data: {
         order_uuid: "order-1",
+        table_uuid: "table-5",
         order_item_uuids: ["item-1"],
         customer_uuid_fk: "customer-1",
         payment_method: 1,

@@ -35,7 +35,7 @@ export function TableQrDialog({
   const language = useAppStore((state) => state.language);
   const loginUuid = useAuthStore((state) => state.user?.uuid);
   const createTableQr = usePosStore((state) => state.createTableQr);
-  const printTableQr = usePrinterStore((state) => state.printTableQr);
+  const executeInvoice = usePrinterStore((state) => state.executeInvoice);
   const showToast = useToastStore((state) => state.show);
   const [pending, setPending] = useState(false);
   const [printing, setPrinting] = useState(false);
@@ -44,10 +44,10 @@ export function TableQrDialog({
   const targetUrl = useMemo(() => tableQrTargetUrl(response, table), [response, table]);
   const qrImageUrl = useMemo(() => tableQrImageUrl(response), [response]);
   const previewUrl = qrImageUrl || qrDataUrl;
-  const printJob = useMemo(() => tableQrPrintJob(response), [response]);
-  const canUseFrontendQrFallback = Boolean(targetUrl && !printJob);
+  const pendingJobUuid = useMemo(() => tableQrPendingJobUuid(response), [response]);
+  const canUseFrontendQrFallback = Boolean(targetUrl && !pendingJobUuid);
   const canDownload = Boolean(previewUrl || canUseFrontendQrFallback);
-  const canPrint = Boolean(printJob || previewUrl || canUseFrontendQrFallback);
+  const canPrint = Boolean(pendingJobUuid || previewUrl || canUseFrontendQrFallback);
 
   useEffect(() => {
     if (!open) return;
@@ -87,7 +87,7 @@ export function TableQrDialog({
   }, [createTableQr, language, loginUuid, open, showToast, table.table_uuid, t]);
 
   useEffect(() => {
-    if (!targetUrl || qrImageUrl || printJob) {
+    if (!targetUrl || qrImageUrl) {
       setQrDataUrl("");
       return;
     }
@@ -104,7 +104,7 @@ export function TableQrDialog({
     return () => {
       ignore = true;
     };
-  }, [printJob, qrImageUrl, targetUrl]);
+  }, [qrImageUrl, targetUrl]);
 
   async function copyLink() {
     if (!targetUrl) return;
@@ -133,32 +133,14 @@ export function TableQrDialog({
 
     setPrinting(true);
     try {
-      if (printJob) {
-        try {
-          await printTableQr(printJob);
-          showToast({ title: t("pos.printQr"), tone: "success" });
-          return;
-        } catch (error) {
-          if (previewUrl && isAgentContactError(error)) {
-            openFallbackPrintWindow();
-            return;
-          }
-
-          if (isAgentContactError(error)) {
-            const imageUrl = await fallbackPrintImageUrl();
-            if (imageUrl) {
-              openFallbackPrintWindow(imageUrl);
-              return;
-            }
-          }
-
-          showToast({
-            title: t("report.printFailed"),
-            description: error instanceof Error ? error.message : "",
-            tone: "error"
-          });
-          return;
-        }
+      if (pendingJobUuid) {
+        await executeInvoice({
+          print_job: response?.print_job,
+          pending_query: response?.pending_query,
+          login_uuid_fk: loginUuid,
+        });
+        showToast({ title: t("pos.printQr"), tone: "success" });
+        return;
       }
 
       const imageUrl = await fallbackPrintImageUrl();
@@ -333,35 +315,18 @@ function tableQrImageUrl(response: CreateTableQRResponse | null) {
   const imageUrl = optionalString(response.qr_image, response.image_url);
   if (imageUrl && looksLikeImageUrl(imageUrl)) return normalizePublicUrl(imageUrl);
 
-  const printImageUrl = tableQrPrintImageUrl(response);
-  if (printImageUrl) return printImageUrl;
-
   const qrUrl = optionalString(response.qr_url);
   if (qrUrl && looksLikeImageUrl(qrUrl)) return normalizePublicUrl(qrUrl);
 
   return null;
 }
 
-function tableQrPrintImageUrl(response: CreateTableQRResponse | null) {
-  const ops = response?.print_job?.payload?.job?.ops;
-  if (!Array.isArray(ops)) return null;
-
-  for (const op of ops) {
-    if (op.type !== "qr") continue;
-    const source = optionalString(op.data, op.text, op.src, op.image, op.qr_image);
-    if (source && looksLikeImageUrl(source)) return normalizePublicUrl(source);
-  }
-
-  return null;
-}
-
-function tableQrPrintJob(response: CreateTableQRResponse | null) {
-  const agentJob = response?.print_job?.payload?.job;
-  if (agentJob && Array.isArray(agentJob.ops) && agentJob.ops.length) {
-    return agentJob;
-  }
-
-  return null;
+function tableQrPendingJobUuid(response: CreateTableQRResponse | null) {
+  return (
+    optionalString(response?.pending_query?.print_job_uuid) ??
+    optionalString(response?.print_job?.print_job_uuid) ??
+    ""
+  );
 }
 
 function tableQrTargetBaseUrl() {
@@ -371,19 +336,6 @@ function tableQrTargetBaseUrl() {
 function isLocalBrowser() {
   if (typeof window === "undefined") return false;
   return ["localhost", "127.0.0.1"].includes(window.location.hostname);
-}
-
-function isAgentContactError(error: unknown) {
-  const record = error && typeof error === "object" ? error as Record<string, unknown> : {};
-  const code = optionalString(record.code)?.toUpperCase();
-  const message = optionalString(record.message)?.toLowerCase() ?? "";
-
-  return (
-    Boolean(code && ["ECONNABORTED", "ECONNREFUSED", "ERR_NETWORK", "ETIMEDOUT"].includes(code)) ||
-    message.includes("network error") ||
-    message.includes("timeout") ||
-    message.includes("failed to fetch")
-  );
 }
 
 function createFallbackQrDataUrl(value: string) {

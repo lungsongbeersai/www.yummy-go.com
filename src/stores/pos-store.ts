@@ -200,7 +200,6 @@ export const usePosStore = create<PosState>((set) => ({
   },
   confirmKitchen: async (input) => {
     const printer = await resolvePrinterDeviceContext(input);
-    console.log("✅ resolved printer:", printer);
     const lastKitchenConfirm = await posService.confirmToKitchen({
       order_uuid: input.order_uuid,
       login_uuid_fk: input.login_uuid_fk,

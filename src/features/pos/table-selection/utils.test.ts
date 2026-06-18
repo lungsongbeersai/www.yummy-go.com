@@ -5,6 +5,8 @@ import {
   buildCustomerDisplayPayload,
   cartDisplaySummary,
   cartForTable,
+  cartOrderBelongsToTable,
+  cartOrdersBelongToTable,
   cartSummary,
   discountDraftValue,
   isCanceledCartItem,
@@ -103,6 +105,33 @@ describe("table selection utils", () => {
     expect(cartForTable([otherTableCart, currentTableCart], "table-1")).toEqual([
       currentTableCart,
     ]);
+  });
+
+  it("checks whether payment orders belong to the selected table", () => {
+    expect(
+      cartOrderBelongsToTable(
+        cartOrder({ table_uuid_fk: "table-1" }),
+        table,
+      ),
+    ).toBe(true);
+    expect(
+      cartOrderBelongsToTable(
+        cartOrder({ table_uuid_fk: "table-2" }),
+        table,
+      ),
+    ).toBe(false);
+    expect(
+      cartOrderBelongsToTable(cartOrder({ table_name_la: "A1" }), table),
+    ).toBe(true);
+    expect(
+      cartOrdersBelongToTable(
+        [
+          cartOrder({ table_uuid_fk: "table-1" }),
+          cartOrder({ order_uuid: "order-2", table_uuid_fk: "table-2" }),
+        ],
+        table,
+      ),
+    ).toBe(false);
   });
 
   it("preserves legacy cart data when the API does not include table ids", () => {
