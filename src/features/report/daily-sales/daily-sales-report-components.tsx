@@ -41,13 +41,29 @@ export function ReportSummaryCards({
     <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
       {cards.map((card) => {
         const value = summaryCardValue(summaryCards, reportTotal, card.keys);
+        const tone = summaryCardTone(card);
+
         return (
           <Card
             key={card.label}
-            className="overflow-hidden border-border bg-card shadow-sm"
+            className={cn(
+              "overflow-hidden border shadow-sm",
+              tone === "primary" &&
+                "border-primary/20 bg-primary/5 shadow-primary/5",
+              tone === "danger" &&
+                "border-destructive/20 bg-destructive/5 shadow-destructive/5",
+              tone === "neutral" && "border-border bg-muted/20",
+            )}
           >
             <CardContent className="p-4">
-              <p className="truncate text-xs font-black uppercase text-muted-foreground">
+              <p
+                className={cn(
+                  "truncate text-xs font-black uppercase",
+                  tone === "primary" && "text-primary",
+                  tone === "danger" && "text-destructive",
+                  tone === "neutral" && "text-muted-foreground",
+                )}
+              >
                 {card.label}
               </p>
               <p className="mt-2 truncate text-xl font-black tabular-nums text-foreground">
@@ -61,6 +77,23 @@ export function ReportSummaryCards({
       })}
     </section>
   );
+}
+
+function summaryCardTone(card: SummaryCardConfig) {
+  if (
+    card.keys.some((key) =>
+      [
+        "debt",
+        "discount",
+        "cancel",
+      ].some((token) => key.includes(token)),
+    )
+  ) {
+    return "danger";
+  }
+
+  if (card.kind === "money") return "primary";
+  return "neutral";
 }
 
 export function ReportSummaryToggle({

@@ -264,6 +264,37 @@ export function cartOrders(cart: CartOrder | CartOrder[] | null) {
   return Array.isArray(cart) ? cart : [cart];
 }
 
+export function cartOrderTableUuid(order: CartOrder) {
+  return optionalString(order.table_uuid_fk, order.table_uuid);
+}
+
+export function cartOrderTableName(order: CartOrder) {
+  return optionalString(
+    order.table_name,
+    order.table_name_la,
+    order.table_name_eng,
+  );
+}
+
+export function cartOrderBelongsToTable(order: CartOrder, table: PosTable) {
+  const orderTableUuid = cartOrderTableUuid(order);
+  if (orderTableUuid) return orderTableUuid === table.table_uuid;
+
+  const orderTableName = cartOrderTableName(order);
+  if (orderTableName) {
+    return orderTableName.trim() === table.table_name.trim();
+  }
+
+  return true;
+}
+
+export function cartOrdersBelongToTable(
+  orders: CartOrder[],
+  table: PosTable,
+) {
+  return orders.every((order) => cartOrderBelongsToTable(order, table));
+}
+
 export function cartForTable(
   cart: CartOrder | CartOrder[] | null,
   tableUuid: string,
@@ -271,15 +302,12 @@ export function cartForTable(
   if (!cart || !tableUuid) return null;
 
   const orders = cartOrders(cart);
-  const hasTableScopedOrders = orders.some((order) =>
-    optionalString(order.table_uuid_fk, order.table_uuid),
-  );
+  const hasTableScopedOrders = orders.some((order) => cartOrderTableUuid(order));
 
   if (!hasTableScopedOrders) return cart;
 
   const matchingOrders = orders.filter(
-    (order) =>
-      optionalString(order.table_uuid_fk, order.table_uuid) === tableUuid,
+    (order) => cartOrderTableUuid(order) === tableUuid,
   );
 
   if (!matchingOrders.length) return null;

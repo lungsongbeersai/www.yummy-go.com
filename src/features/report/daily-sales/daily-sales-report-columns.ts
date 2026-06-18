@@ -332,6 +332,12 @@ export function reportColumns(
         minWidth: "min-w-[130px]",
       },
       {
+        header: t("report.columns.cashierName"),
+        keys: ["cashier_name", "login_name", "user_name"],
+        minWidth: "min-w-[160px]",
+        wide: true,
+      },
+      {
         header: t("report.columns.status"),
         kind: "status",
         keys: [
@@ -359,6 +365,12 @@ export function reportColumns(
       minWidth: "min-w-[84px]",
     },
     {
+      header: t("report.columns.cashierName"),
+      keys: ["cashier_name", "login_name", "user_name"],
+      minWidth: "min-w-[160px]",
+      wide: true,
+    },
+    {
       header: t("report.columns.saleDate"),
       kind: "date",
       keys: ["sale_date", "business_date", "created_at", "order_date", "date"],
@@ -381,13 +393,13 @@ export function reportColumns(
       keys: ["amount", "order_total", "total_order", "gross_total"],
       minWidth: "min-w-[126px]",
     },
-    {
-      header: t("report.columns.toppingTotal"),
-      kind: "money",
-      align: "right",
-      keys: ["topping_total", "topping_line_total", "sum_topping_total"],
-      minWidth: "min-w-[126px]",
-    },
+    // {
+    //   header: t("report.columns.toppingTotal"),
+    //   kind: "money",
+    //   align: "right",
+    //   keys: ["topping_total", "topping_line_total", "sum_topping_total"],
+    //   minWidth: "min-w-[126px]",
+    // },
     {
       header: t("report.columns.discount"),
       kind: "money",

@@ -29,6 +29,7 @@ import {
   cartItemActionUuid,
   cartItemDiscountMaxAmount,
   cartItemUuid,
+  cartOrdersBelongToTable,
   cartOrderInvoice,
   cartOrders,
   cartOrderUuidForItem,
@@ -56,6 +57,7 @@ type PaymentContext = {
   orders: CartOrder[];
   splitBillItemUuids?: string[];
   summary: ReturnType<typeof cartSummary>;
+  tableUuid: string;
 };
 
 interface UseSelectedTableCartPanelWorkflowParams {
@@ -99,18 +101,20 @@ export function useSelectedTableCartPanelWorkflow({
     () => visibleCartItems(displayCart).filter(isNewOrderCartItem),
     [displayCart],
   );
-  // เพิ่มตรงนี้ หลัง resolvedPrinterContext
-const resolvedPrinterContext = usePrinterStore((state) => 
-  state.agent?.device_code ? {
-    device_code: state.agent.device_code ?? undefined,
-    agent_id: state.agent.agent_id,
-    agent_name: state.agent.agent_name,
-    print_mode: undefined,
-  } : null
-);
-  console.log("resolvedPrinterContext:", resolvedPrinterContext); // ← เพิ่ม
-  const activeprinterContext = printerContext ?? resolvedPrinterContext;
-  console.log("activeprinterContext:", activeprinterContext); // ← เพิ่ม
+  const printerAgent = usePrinterStore((state) => state.agent);
+  const resolvedPrinterContext = useMemo<PrinterDeviceContext | null>(
+    () =>
+      printerAgent?.device_code
+        ? {
+            device_code: printerAgent.device_code,
+            agent_id: printerAgent.agent_id,
+            agent_name: printerAgent.agent_name,
+            print_mode: undefined,
+          }
+        : null,
+    [printerAgent?.agent_id, printerAgent?.agent_name, printerAgent?.device_code],
+  );
+  const activePrinterContext = printerContext ?? resolvedPrinterContext;
   const historyItems = useMemo(
     () => visibleCartItems(displayCart).filter(isOrderHistoryCartItem),
     [displayCart],
@@ -329,6 +333,17 @@ const resolvedPrinterContext = usePrinterStore((state) =>
   }, [activeTab]);
 
   useEffect(() => {
+    if (!paymentContext || !selectedTable) return;
+    if (
+      paymentContext.tableUuid === selectedTable.table_uuid &&
+      cartOrdersBelongToTable(paymentContext.orders, selectedTable)
+    )
+      return;
+
+    setPaymentContext(null);
+  }, [paymentContext, selectedTable]);
+
+  useEffect(() => {
     const eligibleUuids = splitEligibleItems.map(cartItemActionUuid);
     setSplitSelectedItemUuids((current) =>
       pruneSelectedItemUuids(current, eligibleUuids),
@@ -361,20 +376,15 @@ const resolvedPrinterContext = usePrinterStore((state) =>
   async function executeKitchenAck(
     response: Awaited<ReturnType<typeof confirmKitchen>>,
     fallbackLoginUuid: string,
-    printerCtx?: PrinterDeviceContext | null, // ← เพิ่ม
+    printerCtx?: PrinterDeviceContext | null,
     onProgress?: (progress: PrintProgress) => void,
   ) {
-    console.log("executeKitchenAck printerCtx:", printerCtx); // ← เพิ่ม
-  console.log("executeKitchenAck response:", JSON.stringify(response, null, 2)); // ← เพิ่ม
-    const hasRootNewJob =
-      (Array.isArray(response.jobs) && response.jobs.length > 0) || Boolean(response.ack_success_payload);
-    const printJob = hasRootNewJob ? response : response.print_job;
-    const hasBatchPrintJob = Array.isArray(printJob?.jobs) && printJob.jobs.length > 0;
+    const printJob = response.print_job;
     const printJobUuid = optionalString(
       printJob?.print_job_uuid,
       response.pending_query?.print_job_uuid,
     );
-    if (!printJobUuid && !hasBatchPrintJob) return { successCount: 0, failedCount: 0, total: 0 };
+    if (!printJobUuid) return { successCount: 0, failedCount: 0, total: 0 };
 
     const loginUuid = optionalString(
       response.pending_query?.login_uuid_fk,
@@ -387,11 +397,10 @@ const resolvedPrinterContext = usePrinterStore((state) =>
       print_job: printJob,
       pending_query: response.pending_query,
       login_uuid_fk: loginUuid,
-      device_code: printerCtx?.device_code, // ← เพิ่ม
-      agent_id: printerCtx?.agent_id,       // ← เพิ่ม
-      print_mode: printerCtx?.print_mode,   // ← เพิ่ม
+      device_code: printerCtx?.device_code,
+      agent_id: printerCtx?.agent_id,
+      print_mode: printerCtx?.print_mode,
       onProgress,
-
     });
   }
 
@@ -417,10 +426,11 @@ const resolvedPrinterContext = usePrinterStore((state) =>
     setConfirming(true);
     try {
       const printResult = { successCount: 0, failedCount: 0, total: 0 };
-      const refreshStepCount = 1;
-      let confirmedGroups = 0;
-      let completedPrintSteps = 0;
-      let totalPrintSteps = 0;
+      const confirmItemTotal = confirmGroups.reduce(
+        (sum, group) => sum + group.itemUuids.length,
+        0,
+      );
+      let confirmedItems = 0;
 
       const setProgress = (completed: number, total: number, label: string) => {
         const safeTotal = Math.max(total, 1);
@@ -438,42 +448,39 @@ const resolvedPrinterContext = usePrinterStore((state) =>
 
       setProgress(
         0,
-        confirmGroups.length + refreshStepCount,
+        confirmItemTotal,
         t("pos.confirmAllPreparing"),
       );
 
       for (const group of confirmGroups) {
         setProgress(
-          confirmedGroups + completedPrintSteps,
-          confirmGroups.length + totalPrintSteps + refreshStepCount,
+          confirmedItems,
+          confirmItemTotal,
           t("pos.confirmAllConfirming"),
         );
         const response = await confirmKitchen({
           order_uuid: group.orderUuid,
           login_uuid_fk: user.uuid,
           order_item_uuids: group.itemUuids,
-          device_code: activeprinterContext?.device_code, // ← เปลี่ยน
-          agent_id: activeprinterContext?.agent_id,   // ← แก้จาก printerContext
-          print_mode: activeprinterContext?.print_mode, // ← แก้จาก printerContext
+          device_code: activePrinterContext?.device_code,
+          agent_id: activePrinterContext?.agent_id,
+          print_mode: activePrinterContext?.print_mode,
         });
-        confirmedGroups++;
+        confirmedItems += group.itemUuids.length;
 
         const result = await executeKitchenAck(
           response,
           user.uuid,
-          activeprinterContext, // ← เปลี่ยน
+          activePrinterContext,
           (progress) => {
-            const nextTotalPrintSteps = totalPrintSteps + progress.total;
-            const nextCompletedPrintSteps =
-              completedPrintSteps + progress.completed;
             const label =
               progress.phase === "fetching"
                 ? t("pos.confirmAllFetchingPrintJobs")
                 : t("pos.confirmAllPrinting");
 
             setProgress(
-              confirmedGroups + nextCompletedPrintSteps,
-              confirmGroups.length + nextTotalPrintSteps + refreshStepCount,
+              confirmedItems,
+              confirmItemTotal,
               label,
             );
           },
@@ -481,31 +488,28 @@ const resolvedPrinterContext = usePrinterStore((state) =>
         printResult.successCount += result.successCount;
         printResult.failedCount += result.failedCount;
         printResult.total += result.total;
-        completedPrintSteps += result.total;
-        totalPrintSteps += result.total;
       }
 
       setProgress(
-        confirmedGroups + completedPrintSteps,
-        confirmGroups.length + totalPrintSteps + refreshStepCount,
+        confirmedItems,
+        confirmItemTotal,
         t("pos.confirmAllRefreshing"),
       );
       await onCartRefresh();
       setProgress(
-        confirmGroups.length + totalPrintSteps + refreshStepCount,
-        confirmGroups.length + totalPrintSteps + refreshStepCount,
+        confirmItemTotal,
+        confirmItemTotal,
         t("pos.confirmAllDone"),
       );
       showKitchenConfirmResult(printResult, t("pos.orderConfirmFailed"));
     } catch (error) {
-  console.error("confirmNewOrder error:", error); // ← เพิ่ม
-  await onCartRefresh().catch(() => undefined);
-  showToast({
-    title: t("pos.orderConfirmFailed"),
-    description: error instanceof Error ? error.message : "",
-    tone: "error",
-  });
-} finally {
+      await onCartRefresh().catch(() => undefined);
+      showToast({
+        title: t("pos.orderConfirmFailed"),
+        description: error instanceof Error ? error.message : "",
+        tone: "error",
+      });
+    } finally {
       setConfirming(false);
       setConfirmAllProgress(null);
     }
@@ -522,11 +526,11 @@ const resolvedPrinterContext = usePrinterStore((state) =>
         order_uuid: orderUuid,
         login_uuid_fk: user.uuid,
         order_item_uuids: [itemUuid],
-        device_code: activeprinterContext?.device_code, // ← เปลี่ยน
-        agent_id: activeprinterContext?.agent_id,   // ← แก้จาก printerContext
-        print_mode: activeprinterContext?.print_mode, // ← แก้จาก printerContext
+        device_code: activePrinterContext?.device_code,
+        agent_id: activePrinterContext?.agent_id,
+        print_mode: activePrinterContext?.print_mode,
       });
-      const result = await executeKitchenAck(response, user.uuid, activeprinterContext);
+      const result = await executeKitchenAck(response, user.uuid, activePrinterContext);
       await onCartRefresh();
       showKitchenConfirmResult(result, t("pos.confirmToKitchenFailed"));
     } catch (error) {
@@ -694,12 +698,18 @@ const resolvedPrinterContext = usePrinterStore((state) =>
   }
 
   function openFullPayment() {
-    if (!hasSelectedTable) return;
+    if (!selectedTable) return;
+
+    if (!cartOrdersBelongToTable(orders, selectedTable)) {
+      showToast({ title: t("pos.paymentMissingOrder"), tone: "error" });
+      return;
+    }
 
     setPaymentContext({
       kind: "full",
       orders,
       summary,
+      tableUuid: selectedTable.table_uuid,
     });
   }
 
@@ -735,19 +745,24 @@ const resolvedPrinterContext = usePrinterStore((state) =>
   }
 
   function requestSelectedSplitPayment() {
-    if (!hasSelectedTable) return;
+    if (!selectedTable) return;
 
     if (!splitSelection) {
       showToast({ title: t("pos.splitPaymentSelectRequired"), tone: "error" });
       return;
     }
     if (!canPaySplitSelection) return;
+    if (!cartOrdersBelongToTable(splitSelection.orders, selectedTable)) {
+      showToast({ title: t("pos.paymentMissingOrder"), tone: "error" });
+      return;
+    }
 
     setPaymentContext({
       kind: "split",
       orders: splitSelection.orders,
       splitBillItemUuids: splitSelection.itemUuids,
       summary: splitSelection.summary,
+      tableUuid: selectedTable.table_uuid,
     });
   }
 

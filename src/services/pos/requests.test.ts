@@ -8,7 +8,7 @@ vi.mock("@/lib/api", () => ({
   apiRequest: apiMocks.apiRequest
 }));
 
-import { confirmToKitchen, createPayment, printInvoice, splitBill } from "@/services/pos/requests";
+import { confirmToKitchen, createPayment, createTableQR, printInvoice, splitBill } from "@/services/pos/requests";
 
 describe("pos requests", () => {
   beforeEach(() => {
@@ -97,6 +97,7 @@ describe("pos requests", () => {
 
     await createPayment({
       order_uuid: "order-1",
+      table_uuid: "table-5",
       customer_uuid_fk: "customer-1",
       payment_method: 1,
       order_channel: 1,
@@ -115,6 +116,7 @@ describe("pos requests", () => {
     expect(apiMocks.apiRequest).toHaveBeenCalledWith("post", "/api/v1/pos/payment", {
       data: {
         order_uuid: "order-1",
+        table_uuid: "table-5",
         customer_uuid_fk: "customer-1",
         payment_method: 1,
         order_channel: 1,
@@ -137,6 +139,7 @@ describe("pos requests", () => {
 
     await splitBill({
       order_uuid: "order-1",
+      table_uuid: "table-5",
       order_item_uuids: ["item-1"],
       customer_uuid_fk: "customer-1",
       payment_method: 1,
@@ -156,6 +159,7 @@ describe("pos requests", () => {
     expect(apiMocks.apiRequest).toHaveBeenCalledWith("post", "/api/v1/pos/split_bill", {
       data: {
         order_uuid: "order-1",
+        table_uuid: "table-5",
         order_item_uuids: ["item-1"],
         customer_uuid_fk: "customer-1",
         payment_method: 1,
@@ -165,6 +169,30 @@ describe("pos requests", () => {
         transfer_payment_amount: 0,
         change_amount: 0,
         note: "",
+        lang: "la",
+        login_uuid_fk: "login-1",
+        device_code: "WINDOWS-001",
+        agent_id: "WINDOWS-AGENT-001",
+        print_mode: "windows_agent"
+      }
+    });
+  });
+
+  it("fetches table QR with printer identity fields", async () => {
+    apiMocks.apiRequest.mockResolvedValue({ status: "success" });
+
+    await createTableQR({
+      table_uuid: "table-1",
+      login_uuid_fk: "login-1",
+      lang: "la",
+      device_code: "WINDOWS-001",
+      agent_id: "WINDOWS-AGENT-001",
+      print_mode: "windows_agent"
+    });
+
+    expect(apiMocks.apiRequest).toHaveBeenCalledWith("get", "/api/v1/pos/admin/create_table_qr", {
+      params: {
+        table_uuid: "table-1",
         lang: "la",
         login_uuid_fk: "login-1",
         device_code: "WINDOWS-001",

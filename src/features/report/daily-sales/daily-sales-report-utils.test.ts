@@ -19,6 +19,7 @@ import {
   formatDate,
   hasDisplayValue,
   isCancelledRow,
+  isPaymentAttentionRow,
   paymentMethodParam,
   readValue,
   reportImageColor,
@@ -104,6 +105,20 @@ describe("daily sales report basic helpers", () => {
     expect(statusClass({}, "ຊຳລະແລ້ວ")).toContain("text-primary");
     expect(statusClass({}, "ໜີ້ຄ້າງ")).toContain("amber");
     expect(statusClass({}, "Pending payment")).toContain("sky");
+    expect(isPaymentAttentionRow({ debt_amount: 12000 })).toBe(true);
+    expect(isPaymentAttentionRow({ payment_method: "debt" })).toBe(true);
+    expect(
+      isPaymentAttentionRow({
+        payment_method: "\u0edc\u0eb5\u0ec9\u0e84\u0ec9\u0eb2\u0e87",
+      }),
+    ).toBe(true);
+    expect(isPaymentAttentionRow({ status: "Pending payment" })).toBe(true);
+    expect(isPaymentAttentionRow({ status: "paid", debt_amount: 0 })).toBe(
+      false,
+    );
+    expect(
+      isPaymentAttentionRow({ status_name: "Cancelled", debt_amount: 12000 }),
+    ).toBe(false);
     expect(reportImageColor({ prod_image: "color:#10b981" })).toBe("#10b981");
     expect(reportImageSrc({ prod_image: "noodle.png" })).toBe(
       "/uploaded/products/noodle.png",

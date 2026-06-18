@@ -94,7 +94,7 @@ export function OrderCustomerView({
   return (
     <div className="relative h-full min-h-0 overflow-hidden bg-[url('/pos/background_wide.webp')] bg-cover bg-top text-foreground">
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-primary/45 dark:bg-black/55" />
-      <div className="relative grid h-full min-h-0 overflow-hidden md:grid-cols-[136px_minmax(0,1fr)] xl:grid-cols-[136px_minmax(0,1fr)_clamp(340px,24vw,420px)]">
+      <div className="relative grid h-full min-h-0 overflow-hidden md:grid-cols-[170px_minmax(0,1fr)] xl:grid-cols-[170px_minmax(0,1fr)_clamp(340px,24vw,420px)]">
         <EmployeeCategorySidebar
           categories={categories}
           loading={loadingMenu && !categories.length}

@@ -258,6 +258,57 @@ export function isCancelledRow(row: ApiEntity) {
   return status.includes("cancel") || status.includes("void");
 }
 
+export function isPaymentAttentionRow(row: ApiEntity) {
+  if (isCancelledRow(row)) return false;
+
+  const debtAmount = firstNumber(
+    readValue(row, ["debt_amount", "debt_total", "balance_total"]),
+  );
+  if (debtAmount > 0) return true;
+
+  const status = textValue(
+    readValue(row, [
+      "status_code",
+      "payment_status",
+      "payment_type_code",
+      "order_status",
+      "order_status_text",
+      "order_it_status",
+      "order_it_status_text",
+      "status_name",
+      "status_text",
+      "status",
+    ]),
+    "",
+  ).toLowerCase();
+  const paymentMethod = textValue(
+    readValue(row, [
+      "payment_method_code",
+      "payment_type_code",
+      "payment_type",
+      "payment_method",
+      "payment_name",
+      "payment_type_name",
+    ]),
+    "",
+  ).toLowerCase();
+  const paymentText = `${status} ${paymentMethod}`;
+  const attentionTokens = [
+    "debt",
+    "unpaid",
+    "balance",
+    "pending",
+    "waiting",
+    "wait",
+    "\u0edc\u0eb5\u0ec9",
+    "\u0e84\u0ec9\u0eb2\u0e87",
+    "\u0ea5\u0ecd",
+    "\u0e96\u0ec9\u0eb2",
+  ];
+
+  return attentionTokens.some((token) => paymentText.includes(token));
+}
+
 export function statusClass(row: ApiEntity, value: unknown) {
   if (isCancelledRow(row)) {
     return "border-destructive bg-destructive text-destructive-foreground shadow-sm";

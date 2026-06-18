@@ -6,6 +6,7 @@ import {
   buildTestJob,
   deletePrinter,
   dispatchPrintJob,
+  executeInvoicePrintJobs,
   executeKitchenPrintJobs,
   getAgentFiles,
   fetchPrinterCategoryRole,
@@ -15,7 +16,6 @@ import {
   getPrinterOptions,
   getPrinterRoles,
   getPrinters,
-  printTableQRJob,
   resolvePrinterDeviceContext,
   resolvePrinterDeviceIdentity,
   resolvePrintersByCategory,
@@ -30,11 +30,11 @@ import {
   type BuildTestJobRequest,
   type CategoryRole,
   type DefaultCategoryByRoleInput,
+  type ExecuteInvoicePrintInput,
   type ExecuteKitchenPrintInput,
   type FetchPrintersForLocalAgentParams,
   type FetchPrintersParams,
   type PendingPrintJobData,
-  type PrintJob,
   type Printer,
   type PrinterCategoryRole,
   type PrinterRole,
@@ -42,8 +42,7 @@ import {
   type SaveCategoryPrinterInput,
   type SaveCategoryRoleInput,
   type SavePrinterInput,
-  type SearchPrinterResult,
-  type TableQRPrintJob
+  type SearchPrinterResult
 } from "@/services/printer";
 import { errorMessage } from "@/stores/store-utils";
 
@@ -85,8 +84,6 @@ interface PrinterState {
   toggleActive: (printConfigUuid: string) => Promise<void>;
   buildTest: (data: BuildTestJobRequest) => ReturnType<typeof buildTestJob>;
   test: (data: BuildTestJobRequest) => Promise<void>;
-  print: (job: PrintJob) => Promise<void>;
-  printTableQr: (job: TableQRPrintJob) => Promise<void>;
   loadCategoryRoles: (loginUuid: string) => Promise<CategoryRole[]>;
   saveCategoryRole: (input: SaveCategoryRoleInput) => Promise<void>;
   loadPrinterCategoryRole: (loginUuid: string, printerUuid: string, lang?: string) => Promise<PrinterCategoryRole | null>;
@@ -96,6 +93,7 @@ interface PrinterState {
   loadPendingJobs: (printJobUuid: string, loginUuid: string) => Promise<PendingPrintJobData[]>;
   ack: (payload: AckPayload) => ReturnType<typeof ackPrintJob>;
   executeKitchen: (input: ExecuteKitchenPrintInput) => ReturnType<typeof executeKitchenPrintJobs>;
+  executeInvoice: (input: ExecuteInvoicePrintInput) => ReturnType<typeof executeInvoicePrintJobs>;
   reset: () => void;
 }
 
@@ -293,17 +291,6 @@ export const usePrinterStore = create<PrinterState>((set) => ({
       throw error;
     }
   },
-  print: async (job) => {
-    set({ printing: true, error: null });
-    try {
-      await dispatchPrintJob(job);
-      set({ printing: false });
-    } catch (error) {
-      set({ error: errorMessage(error), printing: false });
-      throw error;
-    }
-  },
-  printTableQr: (job) => printTableQRJob(job),
   loadCategoryRoles: async (loginUuid) => {
     const categoryRoles = await getCategoryRoles(loginUuid);
     set({ categoryRoles });
@@ -322,21 +309,22 @@ export const usePrinterStore = create<PrinterState>((set) => ({
     return resolvedPrinters;
   },
   getDefaultCategoryByRole: (input) => getDefaultCategoryByRole(input),
-  // printer-store.ts
   loadPendingJobs: async (printJobUuid, loginUuid) => {
+    const printer = await resolvePrinterDeviceContext({ login_uuid_fk: loginUuid });
     const result = await getPendingPrintJobs({
       print_job_uuid: printJobUuid,
-      login_uuid_fk: loginUuid
+      login_uuid_fk: loginUuid,
+      device_code: printer.device_code,
+      agent_id: printer.agent_id,
+      print_mode: printer.print_mode
     });
-    const pendingJobs = result.jobs; // ← เปลี่ยนจาก result เป็น result.jobs
+    const pendingJobs = result.jobs;
     set({ pendingJobs });
     return pendingJobs;
   },
   ack: (payload) => ackPrintJob(payload),
-  executeKitchen: (input) => {
-    console.log("executeKitchen input:", JSON.stringify(input, null, 2));
-    return executeKitchenPrintJobs(input);
-  },
+  executeKitchen: (input) => executeKitchenPrintJobs(input),
+  executeInvoice: (input) => executeInvoicePrintJobs(input),
   reset: () =>
     set({
       printers: [],

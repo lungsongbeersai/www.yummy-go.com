@@ -26,7 +26,11 @@ import { usePrinterStore } from "@/stores/printer-store";
 import { useToastStore } from "@/stores/toast-store";
 import { usePaymentCustomers } from "./use-payment-customers";
 import type { PaymentDialogProps } from "../payment-dialog-types";
-import { cartOrderInvoice, optionalString } from "../utils";
+import {
+  cartOrdersBelongToTable,
+  cartOrderInvoice,
+  optionalString,
+} from "../utils";
 import {
   activeAmountField,
   activeExactAmountLak,
@@ -38,8 +42,6 @@ import {
   exchangeCurrencyOptions,
   firstOrderUuid,
   formatAmountInputDisplay,
-  getPrintInvoiceJob,
-  getPrintableJob,
   LAK_CURRENCY_OPTION,
   LAK_CURRENCY_VALUE,
   openLocalInvoicePrintWindow,
@@ -78,7 +80,7 @@ export function usePaymentDialogWorkflow({
   const createPayment = usePosStore((state) => state.createPayment);
   const splitBill = usePosStore((state) => state.splitBill);
   const printInvoice = usePosStore((state) => state.printInvoice);
-  const print = usePrinterStore((state) => state.print);
+  const executeInvoice = usePrinterStore((state) => state.executeInvoice);
   const showToast = useToastStore((state) => state.show);
   const activeAmountInputRef = useRef<HTMLInputElement>(null);
   const customers = usePaymentCustomers({ language, open, user });
@@ -422,11 +424,16 @@ export function usePaymentDialogWorkflow({
 
   async function submitPayment() {
     if (validation || processing || !user?.uuid) return;
+    if (!cartOrdersBelongToTable(orders, table)) {
+      showToast({ title: t("pos.paymentMissingOrder"), tone: "error" });
+      return;
+    }
 
     setProcessing(true);
     try {
       const paymentPayload = {
         order_uuid: orderUuid,
+        table_uuid: table.table_uuid,
         customer_uuid_fk: customers.customerUuid,
         payment_method: selectedTab.method,
         amount: totalAmount,
@@ -475,11 +482,19 @@ export function usePaymentDialogWorkflow({
   }
 
   async function printReceipt(response: PaymentResponse | SplitBillResponse) {
-    const job = getPrintableJob(response.print_job);
-    if (!job) return;
+    const pendingJobUuid =
+      response.pending_query?.print_job_uuid ??
+      (typeof response.print_job?.print_job_uuid === "string"
+        ? response.print_job.print_job_uuid
+        : "");
+    if (!pendingJobUuid) return;
 
     try {
-      await print(job);
+      await executeInvoice({
+        print_job: response.print_job,
+        pending_query: response.pending_query,
+        login_uuid_fk: user?.uuid,
+      });
     } catch (error) {
       showToast({
         title: t("pos.receiptPrintFailed"),
@@ -491,6 +506,10 @@ export function usePaymentDialogWorkflow({
 
   async function handlePrintInvoice() {
     if (!orderUuid || !user?.uuid || processing || invoicePrinting) return;
+    if (!cartOrdersBelongToTable(orders, table)) {
+      showToast({ title: t("pos.paymentMissingOrder"), tone: "error" });
+      return;
+    }
 
     const invoicePrintData = buildInvoicePrintData({
       invoice,
@@ -510,9 +529,13 @@ export function usePaymentDialogWorkflow({
         lang: toApiLanguage(language),
         login_uuid_fk: user.uuid,
       });
-      const job = getPrintInvoiceJob(response);
+      const pendingJobUuid =
+        response.pending_query?.print_job_uuid ??
+        (typeof response.print_job?.print_job_uuid === "string"
+          ? response.print_job.print_job_uuid
+          : "");
 
-      if (!job) {
+      if (!pendingJobUuid) {
         await showInvoicePrintFallback(
           invoicePrintData,
           t("pos.invoicePrintMissingJob"),
@@ -521,7 +544,11 @@ export function usePaymentDialogWorkflow({
       }
 
       try {
-        await print(job);
+        await executeInvoice({
+          print_job: response.print_job,
+          pending_query: response.pending_query,
+          login_uuid_fk: user.uuid,
+        });
         showToast({ title: t("pos.invoicePrintSent"), tone: "success" });
       } catch (error) {
         await showInvoicePrintFallback(

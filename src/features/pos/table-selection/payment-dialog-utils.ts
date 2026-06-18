@@ -31,11 +31,6 @@ import {
 } from "./utils";
 
 export {
-  getPrintInvoiceJob,
-  getPrintableJob,
-  isPrintableJob,
-} from "@/services/pos/print-jobs";
-export {
   escapeHtml,
   formatInvoicePrintDate,
   formatInvoiceQty,

@@ -39,7 +39,6 @@ import { toApiLanguage } from "@/lib/language";
 import type { UrlPaginationState } from "@/lib/url-pagination";
 import { cn } from "@/lib/utils";
 import type { DailySaleItemsOrder } from "@/services/report";
-import { getPrintInvoiceJob } from "@/services/pos";
 import type { ApiEntity, PageLimit } from "@/services/shared/types";
 import { useAppStore } from "@/stores/app-store";
 import { useAuthStore } from "@/stores/auth-store";
@@ -77,7 +76,7 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
   const loadSalesItems = useDailySaleItemsStore((state) => state.load);
   const resetSalesItems = useDailySaleItemsStore((state) => state.reset);
   const printInvoice = usePosStore((state) => state.printInvoice);
-  const print = usePrinterStore((state) => state.print);
+  const executeInvoice = usePrinterStore((state) => state.executeInvoice);
   const showToast = useToastStore((state) => state.show);
   const branchUuid = user?.branch_uuid ?? "";
   const branchLabel = user?.branch_name || branchUuid || "-";
@@ -197,15 +196,21 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
         lang: toApiLanguage(language),
         login_uuid_fk: user.uuid
       });
-      const job = getPrintInvoiceJob(response);
+      const pendingJobUuid =
+        response.pending_query?.print_job_uuid ??
+        (typeof response.print_job?.print_job_uuid === "string" ? response.print_job.print_job_uuid : "");
 
-      if (!job) {
+      if (!pendingJobUuid) {
         await showReprintReceiptFallback(fallbackData, t("salesList.reprintReceiptMissingJob"));
         return;
       }
 
       try {
-        await print(job);
+        await executeInvoice({
+          print_job: response.print_job,
+          pending_query: response.pending_query,
+          login_uuid_fk: user.uuid
+        });
       } catch (printError) {
         await showReprintReceiptFallback(fallbackData, printError instanceof Error ? printError.message : "");
         return;

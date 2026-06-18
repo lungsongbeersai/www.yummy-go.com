@@ -270,7 +270,8 @@ export function SelectedTableCartPanelContent({
         }
         onSelectedDisplayChange={customerDisplay.setSelectedDisplayId}
       />
-      {selectedTable && workflow.paymentContext ? (
+      {selectedTable &&
+      workflow.paymentContext?.tableUuid === selectedTable.table_uuid ? (
         <PaymentDialog
           open
           orders={workflow.paymentContext.orders}

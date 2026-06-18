@@ -190,5 +190,6 @@ export async function printMobileEscposOverTcp({
         });
 
         console.log("[mobile-tcp] disconnect done");
+
     }
 }
