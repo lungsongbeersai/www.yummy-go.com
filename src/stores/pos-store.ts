@@ -273,18 +273,47 @@ export const usePosStore = create<PosState>((set) => ({
     return tableQr;
   },
   confirmKitchen: async (input) => {
-    const printer = await resolvePosPrinterContext(input);
-    const lastKitchenConfirm = await posService.confirmToKitchen({
-      order_uuid: input.order_uuid,
-      login_uuid_fk: input.login_uuid_fk,
-      order_item_uuids: input.order_item_uuids,
-      lang: input.lang,
-      device_code: printer.device_code,
-      agent_id: printer.agent_id,
-      print_mode: printer.print_mode,
-    });
-    set({ lastKitchenConfirm });
-    return lastKitchenConfirm;
+    try {
+      alert("[1] confirmKitchen input:\n" + JSON.stringify(input, null, 2));
+
+      const printer = await resolvePosPrinterContext(input);
+
+      alert("[2] printer context:\n" + JSON.stringify(printer, null, 2));
+
+      const payload = {
+        order_uuid: input.order_uuid,
+        login_uuid_fk: input.login_uuid_fk,
+        order_item_uuids: input.order_item_uuids,
+        lang: input.lang,
+        device_code: printer.device_code,
+        agent_id: printer.agent_id,
+        print_mode: printer.print_mode,
+      };
+
+      alert("[3] confirm payload:\n" + JSON.stringify(payload, null, 2));
+
+      const lastKitchenConfirm = await posService.confirmToKitchen(payload);
+
+      alert("[4] backend response:\n" + JSON.stringify(lastKitchenConfirm, null, 2));
+
+      set({ lastKitchenConfirm });
+      return lastKitchenConfirm;
+    } catch (error) {
+      const detail =
+        error instanceof Error
+          ? {
+            name: error.name,
+            message: error.message,
+            stack: error.stack,
+          }
+          : error;
+
+      alert("[ERROR] confirmKitchen failed:\n" + JSON.stringify(detail, null, 2));
+
+      set({ error: errorMessage(error) });
+      throw error;
+    }
+
   },
   confirmServed: (input) => posService.confirmOrderItemServed(input),
   cancelItem: (input) => posService.cancelOrderItem(input),
