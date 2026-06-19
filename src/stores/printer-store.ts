@@ -47,6 +47,7 @@ import {
 } from "@/services/printer";
 import { errorMessage } from "@/stores/store-utils";
 import { printMobileEscposOverTcp } from "@/services/printer/mobile-tcp";
+import { Capacitor } from "@capacitor/core";
 
 type AgentStatus = "unchecked" | "connected" | "offline";
 
@@ -290,10 +291,20 @@ export const usePrinterStore = create<PrinterState>((set) => ({
 
       const job = result.data.job;
 
+      const printerConnectType = textValue(
+        (printer as { connect_type?: string | null }).connect_type,
+      ).toLowerCase();
+
+      const jobConnectType = textValue(
+        (job as { connect_type?: string | null }).connect_type,
+      ).toLowerCase();
+
       const isMobileWifi =
         textValue(printer.print_mode).toLowerCase() === "mobile_wifi" ||
         textValue(job.print_mode).toLowerCase() === "mobile_wifi" ||
-        textValue(job.print_client).toLowerCase() === "mobile_wifi";
+        textValue(job.print_client).toLowerCase() === "mobile_wifi" ||
+        (Capacitor.isNativePlatform() &&
+          (printerConnectType === "tcp" || jobConnectType === "tcp"));
 
       if (isMobileWifi) {
         const escposBase64 = await renderMobileEscpos(job);
