@@ -55,6 +55,8 @@ const translate = (key: string) => ({
   "pos.invoicePrintThankYou": "Thank you",
   "pos.invoicePrintTitle": "Receipt",
   "pos.invoicePrintTotalAmount": "Subtotal",
+  "pos.receiptPrintNumber": "Receipt No",
+  "pos.receiptPrintTitle": "Receipt",
   "pos.price": "Price",
   "pos.serviceTotal": "Service",
   "pos.toppingTotal": "Toppings",
@@ -223,6 +225,7 @@ describe("sales list utils", () => {
       total: 3200,
       vat: 300
     });
+    expect(printData.labels.invoice).toBe("Receipt No");
     expect(printData.labels.service).toBe("Service charge (10%)");
     expect(printData.labels.vat).toBe("VAT (7%)");
   });

@@ -366,6 +366,35 @@ describe("printer service dispatch", () => {
     );
   });
 
+  it("falls back before calling the print agent when invoice batch payloads are empty", async () => {
+    apiMocks.apiRequest.mockImplementation(async (method, url) => {
+      if (method === "get" && url === "/api/v1/printer/jobs/pending") {
+        return { print_batch_payloads: [] };
+      }
+      throw new Error(`Unexpected request ${method} ${url}`);
+    });
+
+    await expect(
+      executeInvoicePrintJobs({
+        pending_query: {
+          print_job_uuid: "invoice-job-1",
+          login_uuid_fk: "login-1",
+          device_code: "device-1",
+          agent_id: "agent-1",
+          print_mode: "windows_agent"
+        }
+      })
+    ).rejects.toThrow("Print batch payloads are empty");
+
+    expect(axiosMocks.get).not.toHaveBeenCalled();
+    expect(axiosMocks.post).not.toHaveBeenCalled();
+    expect(apiMocks.apiRequest).not.toHaveBeenCalledWith(
+      "post",
+      "/api/v1/printer/jobs/ack",
+      expect.anything()
+    );
+  });
+
   it("uses confirm pending_query directly without resolving printer context again", async () => {
     apiMocks.apiRequest.mockImplementation(async (method, url, options) => {
       if (method === "get" && url === "/api/v1/printer/jobs/pending") {
@@ -800,7 +829,7 @@ describe("printer pending jobs", () => {
   it("fetches pending jobs scoped by printer identity fields", async () => {
     apiMocks.apiRequest.mockResolvedValue({ data: [] });
 
-    await getPendingPrintJobs({
+    const result = await getPendingPrintJobs({
       print_job_uuid: "job-1",
       login_uuid_fk: "login-1",
       device_code: "INCLUDE",
@@ -817,6 +846,20 @@ describe("printer pending jobs", () => {
         print_mode: "windows_agent"
       }
     });
+    expect(result.hasBatchPayloads).toBe(false);
+    expect(result.batchPayloads).toEqual([]);
+  });
+
+  it("preserves an explicitly empty print_batch_payloads response", async () => {
+    apiMocks.apiRequest.mockResolvedValue({ print_batch_payloads: [] });
+
+    const result = await getPendingPrintJobs({
+      print_job_uuid: "job-1",
+      login_uuid_fk: "login-1"
+    });
+
+    expect(result.hasBatchPayloads).toBe(true);
+    expect(result.batchPayloads).toEqual([]);
   });
 });
 

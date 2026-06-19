@@ -19,6 +19,7 @@ import {
   quickCashAmounts,
   rawCaretFromDisplayCaret,
   renderLocalInvoiceHtml,
+  withReceiptPrintLabels,
 } from "./payment-dialog-utils";
 
 const usd = {
@@ -214,5 +215,39 @@ describe("payment dialog helpers", () => {
     });
     expect(html).toContain("&lt;Store&gt;");
     expect(html).toContain("&lt;VIP&gt;");
+  });
+
+  it("overrides fallback print labels for payment receipts", () => {
+    const data = buildInvoicePrintData({
+      invoice: "REC-1",
+      orders: [order()],
+      qrUrl: null,
+      selectedCustomer: null,
+      summary: {
+        grandTotal: 20000,
+        orderDiscount: 0,
+        orderVat: null,
+        serviceRate: null,
+        serviceTotal: 0,
+        subtotal: 20000,
+        tax: 0,
+        taxRate: null,
+        vatTotal: null,
+      } as ReturnType<typeof import("./utils").cartSummary>,
+      table,
+      translate,
+      user: {
+        uuid: "user-1",
+        email: "cashier@example.com",
+        store_name: "Store",
+      } as unknown as AuthUser,
+    });
+
+    const receipt = withReceiptPrintLabels(data, translate);
+
+    expect(data.title).toBe("pos.invoicePrintTitle");
+    expect(receipt.title).toBe("pos.receiptPrintTitle");
+    expect(receipt.labels.invoice).toBe("pos.receiptPrintNumber");
+    expect(renderLocalInvoiceHtml(receipt, receipt.title)).toContain("pos.receiptPrintTitle");
   });
 });

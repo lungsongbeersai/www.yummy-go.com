@@ -60,25 +60,14 @@ export type InvoicePrintData = {
 };
 
 export async function openLocalInvoicePrintWindow(data: InvoicePrintData) {
-  const paperWidth = data.paperWidthMm;
-  const windowWidth = Math.max(
-    Math.round(paperWidth * 4.2),
-    window.screen.availWidth || window.innerWidth || 1024
-  );
-  const windowHeight = window.screen.availHeight || window.innerHeight || 768;
   const printWindow = window.open(
     "",
     "_blank",
-    `left=0,top=0,width=${windowWidth},height=${windowHeight},resizable=yes,scrollbars=yes`
+    fullscreenPrintWindowFeatures()
   );
   if (!printWindow) return false;
 
-  try {
-    printWindow.moveTo(0, 0);
-    printWindow.resizeTo(windowWidth, windowHeight);
-  } catch {
-    // Browser popup policies can block resizing; the window can still print.
-  }
+  maximizePrintWindow(printWindow);
 
   const safeTitle = escapeHtml(
     data.invoice ? `${data.labels.invoice}: ${data.invoice}` : data.title
@@ -92,6 +81,33 @@ export async function openLocalInvoicePrintWindow(data: InvoicePrintData) {
   printWindow.document.write(renderLocalInvoiceHtml(data, safeTitle));
   printWindow.document.close();
   return true;
+}
+
+export function fullscreenPrintWindowFeatures() {
+  const width = window.screen.availWidth || window.innerWidth || 1024;
+  const height = window.screen.availHeight || window.innerHeight || 768;
+  return [
+    "left=0",
+    "top=0",
+    "screenX=0",
+    "screenY=0",
+    `width=${width}`,
+    `height=${height}`,
+    "resizable=yes",
+    "scrollbars=yes",
+    "fullscreen=yes"
+  ].join(",");
+}
+
+export function maximizePrintWindow(printWindow: Window) {
+  const width = window.screen.availWidth || window.innerWidth || 1024;
+  const height = window.screen.availHeight || window.innerHeight || 768;
+  try {
+    printWindow.moveTo(0, 0);
+    printWindow.resizeTo(width, height);
+  } catch {
+    // Browser popup policies can block resizing; the window can still print.
+  }
 }
 
 export function renderLocalInvoiceHtml(

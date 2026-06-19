@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { fullscreenPrintWindowFeatures, maximizePrintWindow } from "@/features/pos/print/invoice-print-window";
 import type { CreateTableQRResponse, PosTable } from "@/services/pos";
 import { useAppStore } from "@/stores/app-store";
 import { useAuthStore } from "@/stores/auth-store";
@@ -134,12 +135,24 @@ export function TableQrDialog({
     setPrinting(true);
     try {
       if (pendingJobUuid) {
-        await executeInvoice({
-          print_job: response?.print_job,
-          pending_query: response?.pending_query,
-          login_uuid_fk: loginUuid,
-        });
-        showToast({ title: t("pos.printQr"), tone: "success" });
+        try {
+          await executeInvoice({
+            print_job: response?.print_job,
+            pending_query: response?.pending_query,
+            login_uuid_fk: loginUuid,
+          });
+          showToast({ title: t("pos.printQr"), tone: "success" });
+        } catch (error) {
+          const imageUrl = await fallbackPrintImageUrl();
+          if (imageUrl) {
+            openFallbackPrintWindow(imageUrl);
+            showToast({
+              title: t("pos.printQr"),
+              description: error instanceof Error ? error.message : "",
+              tone: "info",
+            });
+          }
+        }
         return;
       }
 
@@ -165,8 +178,9 @@ export function TableQrDialog({
 
   function openFallbackPrintWindow(imageUrl = previewUrl) {
     if (!imageUrl) return;
-    const printWindow = window.open("", "_blank", "width=320,height=520");
+    const printWindow = window.open("", "_blank", fullscreenPrintWindowFeatures());
     if (!printWindow) return;
+    maximizePrintWindow(printWindow);
 
     const safeTableName = escapeHtml(table.table_name);
     const safeImage = escapeAttribute(imageUrl);

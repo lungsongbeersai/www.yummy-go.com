@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { Bell, Check, ImageIcon, Layers3, RefreshCcw, Save, Utensils } from "lucide-react";
+import { Bell, Check, ImageIcon, Layers3, Plus, RefreshCcw, Save, Utensils } from "lucide-react";
 import { BackButton } from "@/components/common/back-button";
 import { FormattedNumberInput } from "@/components/common/formatted-number-input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -24,6 +24,8 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
+import { CategoryFormDialog } from "@/features/settings/category/category-form-dialog";
+import { OptionFormDialog } from "@/features/settings/shared/option-settings-page";
 import { SettingsImageCropPanel } from "@/features/settings/shared/settings-image-crop";
 import type { BinaryFlag } from "./product-form-types";
 import {
@@ -62,6 +64,7 @@ export function ProductFormView({ form }: { form: ProductFormWorkflow }) {
     toppingCount,
     validColors,
     categoryOptions,
+    groupOptions,
     unitOptions,
     productTypeChoices,
     imageModeChoices,
@@ -96,10 +99,22 @@ export function ProductFormView({ form }: { form: ProductFormWorkflow }) {
     colorChoice,
     setColorChoice,
     prodToppingStatus,
+    categoryDialogOpen,
+    setCategoryDialogOpen,
+    unitDialogOpen,
+    setUnitDialogOpen,
+    sizeDialogOpen,
+    setSizeDialogOpen,
     language,
     saving,
+    categorySaving,
+    unitSaving,
+    sizeSaving,
     colors,
     submit,
+    saveCategoryFromDialog,
+    saveUnitFromDialog,
+    saveSizeFromDialog,
     changeStatusSort,
   } = form;
 
@@ -416,7 +431,19 @@ export function ProductFormView({ form }: { form: ProductFormWorkflow }) {
                 <Input id="prod-name-eng" value={prodNameEng} onChange={(event) => setProdNameEng(event.target.value)} />
               </Field>
               <Field>
-                <FieldLabel htmlFor="prod-category">{t("nav.category")}</FieldLabel>
+                <div className="flex items-center justify-between gap-2">
+                  <FieldLabel htmlFor="prod-category">{t("nav.category")}</FieldLabel>
+                  <Button
+                    type="button"
+                    size="xs"
+                    variant="outline"
+                    disabled={categorySaving}
+                    onClick={() => setCategoryDialogOpen(true)}
+                  >
+                    <Plus data-icon="inline-start" />
+                    {t("actions.add")}
+                  </Button>
+                </div>
                 <Select key={categoryOptions.length ? "ready" : "loading"} value={cateUuidFk} onValueChange={setCateUuidFk}>
                   <SelectTrigger id="prod-category" className="w-full">
                     <SelectValue placeholder={t("nav.category")} />
@@ -436,7 +463,19 @@ export function ProductFormView({ form }: { form: ProductFormWorkflow }) {
                 </Select>
               </Field>
               <Field>
-                <FieldLabel htmlFor="prod-unit">{t("nav.unit")}</FieldLabel>
+                <div className="flex items-center justify-between gap-2">
+                  <FieldLabel htmlFor="prod-unit">{t("nav.unit")}</FieldLabel>
+                  <Button
+                    type="button"
+                    size="xs"
+                    variant="outline"
+                    disabled={unitSaving}
+                    onClick={() => setUnitDialogOpen(true)}
+                  >
+                    <Plus data-icon="inline-start" />
+                    {t("actions.add")}
+                  </Button>
+                </div>
                 <Select key={unitOptions.length ? "ready" : "loading"} value={uniteUuidFk} onValueChange={setUniteUuidFk}>
                   <SelectTrigger id="prod-unit" className="w-full">
                     <SelectValue placeholder={t("nav.unit")} />
@@ -519,6 +558,54 @@ export function ProductFormView({ form }: { form: ProductFormWorkflow }) {
           </div>
         </div>
       </form>
+
+      <CategoryFormDialog
+        editing={null}
+        groupOptions={groupOptions}
+        open={categoryDialogOpen}
+        saving={categorySaving}
+        title={t("settings.modules.category.title")}
+        onOpenChange={(open) => {
+          if (!categorySaving) setCategoryDialogOpen(open);
+        }}
+        onSubmit={saveCategoryFromDialog}
+      />
+      <OptionFormDialog
+        description={t("settings.unitFormHint")}
+        editing={null}
+        fields={[
+          { name: "unite_name_la", label: t("fields.unite_name_la"), required: true, fallbackKey: "unite_name" },
+          { name: "unite_name_eng", label: t("fields.unite_name_eng") }
+        ]}
+        formTitle={t("settings.unitDetails")}
+        idKey="unite_uuid"
+        open={unitDialogOpen}
+        saving={unitSaving}
+        slug="unit"
+        title={t("settings.modules.unit.title")}
+        onOpenChange={(open) => {
+          if (!unitSaving) setUnitDialogOpen(open);
+        }}
+        onSubmit={saveUnitFromDialog}
+      />
+      <OptionFormDialog
+        description={t("settings.sizeFormHint")}
+        editing={null}
+        fields={[
+          { name: "size_name_la", label: t("fields.size_name_la"), required: true, fallbackKey: "size_name" },
+          { name: "size_name_eng", label: t("fields.size_name_eng") }
+        ]}
+        formTitle={t("settings.sizeDetails")}
+        idKey="size_uuid"
+        open={sizeDialogOpen}
+        saving={sizeSaving}
+        slug="size"
+        title={t("settings.modules.size.title")}
+        onOpenChange={(open) => {
+          if (!sizeSaving) setSizeDialogOpen(open);
+        }}
+        onSubmit={saveSizeFromDialog}
+      />
     </div>
   );
 }

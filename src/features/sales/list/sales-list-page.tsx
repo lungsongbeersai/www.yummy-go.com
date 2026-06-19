@@ -8,15 +8,12 @@ import {
   type InvoicePrintData
 } from "@/features/pos/print/invoice-print-window";
 import { useUrlPagination } from "@/hooks/use-url-pagination";
-import { toApiLanguage } from "@/lib/language";
 import type { UrlPaginationState } from "@/lib/url-pagination";
 import type { CancelableBill, CancelableDateOption } from "@/services/cancel";
 import type { SortOrder } from "@/services/shared/types";
 import { useAppStore } from "@/stores/app-store";
 import { useAuthStore } from "@/stores/auth-store";
 import { useCancelStore } from "@/stores/cancel-store";
-import { usePosStore } from "@/stores/pos-store";
-import { usePrinterStore } from "@/stores/printer-store";
 import { useToastStore } from "@/stores/toast-store";
 import { CancelBillDialog } from "./cancel-bill-dialog";
 import { SalesBillDetailPanel, SalesBillMobileSheet } from "./sales-bill-detail";
@@ -51,8 +48,6 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
   const cancelBill = useCancelStore((state) => state.cancelBill);
   const clearSelectedBill = useCancelStore((state) => state.clearSelectedBill);
   const resetBills = useCancelStore((state) => state.reset);
-  const printInvoice = usePosStore((state) => state.printInvoice);
-  const executeInvoice = usePrinterStore((state) => state.executeInvoice);
   const showToast = useToastStore((state) => state.show);
   const branchUuid = user?.branch_uuid ?? "";
 
@@ -191,7 +186,7 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
     const orderUuid = billUuid(detailSource);
     if (!orderUuid || !user?.uuid || receiptPrintingOrderUuid) return;
 
-    const fallbackData = buildSalesListInvoicePrintData({
+    const receiptData = buildSalesListInvoicePrintData({
       bill: detailSource,
       translate: (key, options) => String(t(key, options)),
       user
@@ -199,40 +194,13 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
 
     setReceiptPrintingOrderUuid(orderUuid);
     try {
-      const response = await printInvoice({
-        order_uuid: orderUuid,
-        lang: toApiLanguage(language),
-        login_uuid_fk: user.uuid
-      });
-      const pendingJobUuid =
-        response.pending_query?.print_job_uuid ??
-        (typeof response.print_job?.print_job_uuid === "string" ? response.print_job.print_job_uuid : "");
-
-      if (!pendingJobUuid) {
-        await showReprintReceiptFallback(fallbackData, t("cancelSale.reprintReceiptMissingJob"));
-        return;
-      }
-
-      try {
-        await executeInvoice({
-          print_job: response.print_job,
-          pending_query: response.pending_query,
-          login_uuid_fk: user.uuid
-        });
-      } catch (printError) {
-        await showReprintReceiptFallback(
-          fallbackData,
-          printError instanceof Error ? printError.message : ""
-        );
-        return;
-      }
-
-      showToast({ title: t("cancelSale.reprintReceiptSuccess"), tone: "success" });
+      await showReprintReceiptFallback(receiptData, "");
     } catch (printError) {
-      await showReprintReceiptFallback(
-        fallbackData,
-        printError instanceof Error ? printError.message : ""
-      );
+      showToast({
+        title: t("cancelSale.reprintReceiptFailed"),
+        description: printError instanceof Error ? printError.message : "",
+        tone: "error"
+      });
     } finally {
       setReceiptPrintingOrderUuid("");
     }
