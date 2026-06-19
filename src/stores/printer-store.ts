@@ -328,25 +328,30 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
         (job as { connect_type?: string | null }).connect_type,
       ).toLowerCase();
 
-      const isMobileWifi =
-        textValue(printer.print_mode).toLowerCase() === "mobile_wifi" ||
-        textValue(job.print_mode).toLowerCase() === "mobile_wifi" ||
-        textValue(job.print_client).toLowerCase() === "mobile_wifi" ||
-        nativeTcpPrinter ||
-        (Capacitor.isNativePlatform() &&
-          (printerConnectType === "tcp" || jobConnectType === "tcp"));
+      const isNativeApp = Capacitor.isNativePlatform();
 
-      console.log("[printer-test] mode", {
-        isNative: Capacitor.isNativePlatform(),
-        selectedConnectType,
-        nativeTcpPrinter,
-        printerConnectType,
-        jobConnectType,
-        printerPrintMode: printer.print_mode,
-        jobPrintMode: job.print_mode,
-        jobPrintClient: job.print_client,
-        isMobileWifi,
-      });
+      const isMobileWifi =
+        isNativeApp &&
+        (
+          textValue(printer.print_mode).toLowerCase() === "mobile_wifi" ||
+          textValue(job.print_mode).toLowerCase() === "mobile_wifi" ||
+          textValue(job.print_client).toLowerCase() === "mobile_wifi" ||
+          nativeTcpPrinter ||
+          printerConnectType === "tcp" ||
+          jobConnectType === "tcp"
+        );
+
+      // console.log("[printer-test] mode", {
+      //   isNative: Capacitor.isNativePlatform(),
+      //   selectedConnectType,
+      //   nativeTcpPrinter,
+      //   printerConnectType,
+      //   jobConnectType,
+      //   printerPrintMode: printer.print_mode,
+      //   jobPrintMode: job.print_mode,
+      //   jobPrintClient: job.print_client,
+      //   isMobileWifi,
+      // });
 
       if (isMobileWifi) {
         phase = "renderMobileEscpos";

@@ -21,6 +21,7 @@ import type { ApiDataResponse, ApiEntity, ApiListResponse, FetchParams } from "@
 import type { ConfirmToKitchenPendingQuery, ConfirmToKitchenPrintJob } from "@/services/pos";
 
 import { printMobileEscposOverTcp } from "@/services/printer/mobile-tcp";
+import { Capacitor } from "@capacitor/core";
 
 export const AGENT_URL = process.env.NEXT_PUBLIC_PRINTER_AGENT_URL ?? "http://127.0.0.1:7777";
 const AGENT_SECRET = process.env.NEXT_PUBLIC_PRINTER_AGENT_SECRET ?? "";
@@ -838,6 +839,10 @@ async function printKitchenMobileBatch(batch: PrintOpsBatchPayload) {
 }
 
 function isMobilePrintBatch(batch: PrintOpsBatchPayload) {
+  if (!Capacitor.isNativePlatform()) {
+    return false;
+  }
+
   const printClient = textValue(batch.print_client).toLowerCase();
   const printMode = textValue(batch.print_mode).toLowerCase();
 
