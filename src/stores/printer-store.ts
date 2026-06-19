@@ -100,7 +100,7 @@ interface PrinterState {
   reset: () => void;
 }
 
-export const usePrinterStore = create<PrinterState>((set) => ({
+export const usePrinterStore = create<PrinterState>((set, get) => ({
   printers: [],
   options: [],
   agentFiles: [],
@@ -283,11 +283,32 @@ export const usePrinterStore = create<PrinterState>((set) => ({
     try {
       console.log("[printer-test] start", input);
 
+      const selectedPrinter = get().printers.find(
+        (item) =>
+          input.print_config_uuid &&
+          item.print_config_uuid === input.print_config_uuid,
+      );
+
+      const selectedConnectType = textValue(selectedPrinter?.connect_type).toLowerCase();
+      const nativeTcpPrinter =
+        Capacitor.isNativePlatform() && selectedConnectType === "tcp";
+
       phase = "resolvePrinterDeviceContext";
-      const printer = await resolvePrinterDeviceContext(input);
+
+      const printer = nativeTcpPrinter
+        ? {
+          device_code: selectedPrinter?.device_code,
+          agent_id: selectedPrinter?.agent_id,
+          agent_name: selectedPrinter?.agent_name,
+          print_mode: selectedPrinter?.print_mode,
+          connect_type: selectedPrinter?.connect_type,
+        }
+        : await resolvePrinterDeviceContext(input);
+
       console.log("[printer-test] printer", printer);
 
       phase = "buildTestJob";
+
       const result = await buildTestJob({
         ...input,
         device_code: printer.device_code,
@@ -311,11 +332,14 @@ export const usePrinterStore = create<PrinterState>((set) => ({
         textValue(printer.print_mode).toLowerCase() === "mobile_wifi" ||
         textValue(job.print_mode).toLowerCase() === "mobile_wifi" ||
         textValue(job.print_client).toLowerCase() === "mobile_wifi" ||
+        nativeTcpPrinter ||
         (Capacitor.isNativePlatform() &&
           (printerConnectType === "tcp" || jobConnectType === "tcp"));
 
       console.log("[printer-test] mode", {
         isNative: Capacitor.isNativePlatform(),
+        selectedConnectType,
+        nativeTcpPrinter,
         printerConnectType,
         jobConnectType,
         printerPrintMode: printer.print_mode,
