@@ -886,6 +886,11 @@ async function executePrintJobs(input: ExecuteKitchenPrintInput, options: { ack:
   const globalAckFailed = pendingResult.ackFailed;
 
   // ถ้า server ส่ง print_batch_payloads มา ให้ใช้โดยตรงเลย
+  if (pendingResult.hasBatchPayloads && batchPayloads.length === 0) {
+    input.onProgress?.({ total: 0, completed: 0, successCount: 0, failedCount: 0, phase: "done" });
+    throw new ServiceError(EMPTY_PRINT_BATCH_PAYLOADS_MESSAGE, 204);
+  }
+
   if (batchPayloads.length > 0) {
     const total = batchPayloads.reduce(
       (sum, batch) => sum + printBatchJobTotal(batch),
