@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 import {
-  getPrinterOptions,
+  getPrinters,
   resolvePrinterDeviceContext,
   type Printer,
   type PrinterDeviceContextParams
@@ -84,11 +84,15 @@ async function pickMobilePrinter(input: { login_uuid_fk?: string; lang?: string 
     return cachedPrinter;
   }
 
-  const fetchedOptions = await getPrinterOptions(loginUuid, input.lang);
-  const fetchedPrinter = pickMobilePrinterFromList(fetchedOptions);
+  const fetchedPrinters = await getPrinters({
+    login_uuid_fk: loginUuid,
+    lang: input.lang
+  });
 
-  if (fetchedOptions.length) {
-    usePrinterStore.setState({ options: fetchedOptions });
+  const fetchedPrinter = pickMobilePrinterFromList(fetchedPrinters);
+
+  if (fetchedPrinters.length) {
+    usePrinterStore.setState({ printers: fetchedPrinters });
   }
 
   return fetchedPrinter ?? cachedPrinter;
