@@ -1,7 +1,12 @@
 "use client";
 
 import { create } from "zustand";
-import { resolvePrinterDeviceContext } from "@/services/printer";
+import {
+  resolvePrinterDeviceContext,
+  type PrinterDeviceContextParams
+} from "@/services/printer";
+import { usePrinterStore } from "@/stores/printer-store";
+import { Capacitor } from "@capacitor/core";
 import * as posService from "@/services/pos";
 import type {
   BillDiscountInput,
@@ -43,6 +48,52 @@ import { errorMessage } from "@/stores/store-utils";
 async function fetchTables(params: FetchPosParams) {
   const result = await posService.getPosTables(params);
   return result.data ?? [];
+}
+
+function textValue(value: unknown) {
+  return String(value ?? "").trim();
+}
+
+function pickMobilePrinterFromStore() {
+  const printerState = usePrinterStore.getState();
+  const candidates = [...printerState.printers, ...printerState.options];
+
+  return candidates.find((printer) => {
+    const connectType = textValue(printer.connect_type).toLowerCase();
+    const printMode = textValue(printer.print_mode).toLowerCase();
+
+    return (
+      printer.is_active &&
+      (connectType === "tcp" || printMode === "mobile_wifi")
+    );
+
+  }) ?? candidates.find((printer) => {
+    const connectType = textValue(printer.connect_type).toLowerCase();
+    const printMode = textValue(printer.print_mode).toLowerCase();
+
+    return connectType === "tcp" || printMode === "mobile_wifi";
+
+  });
+}
+
+async function resolvePosPrinterContext(
+input: PrinterDeviceContextParams & {
+agent_name?: string;
+}
+) {
+if (Capacitor.isNativePlatform()) {
+const selectedPrinter = pickMobilePrinterFromStore();
+
+return {
+  device_code: selectedPrinter?.device_code ?? input.device_code,
+  agent_id: selectedPrinter?.agent_id ?? input.agent_id,
+  agent_name: selectedPrinter?.agent_name ?? input.agent_name,
+  print_mode: selectedPrinter?.print_mode ?? input.print_mode ?? "mobile_wifi"
+};
+
+}
+
+return resolvePrinterDeviceContext(input);
 }
 
 interface PosState {
@@ -199,7 +250,7 @@ export const usePosStore = create<PosState>((set) => ({
     return tableQr;
   },
   confirmKitchen: async (input) => {
-    const printer = await resolvePrinterDeviceContext(input);
+    const printer = await resolvePosPrinterContext(input);
     const lastKitchenConfirm = await posService.confirmToKitchen({
       order_uuid: input.order_uuid,
       login_uuid_fk: input.login_uuid_fk,
@@ -216,7 +267,7 @@ export const usePosStore = create<PosState>((set) => ({
   cancelItem: (input) => posService.cancelOrderItem(input),
   updateNote: (input) => posService.updateOrderNote(input),
   createPayment: async (input) => {
-    const printer = await resolvePrinterDeviceContext(input);
+    const printer = await resolvePosPrinterContext(input);
 
     const lastPayment = await posService.createPayment({
       ...input,
@@ -228,7 +279,7 @@ export const usePosStore = create<PosState>((set) => ({
     return lastPayment;
   },
   splitBill: async (input) => {
-    const printer = await resolvePrinterDeviceContext(input);
+    const printer = await resolvePosPrinterContext(input);
 
     const lastSplitBill = await posService.splitBill({
       ...input,
@@ -240,7 +291,7 @@ export const usePosStore = create<PosState>((set) => ({
     return lastSplitBill;
   },
   createTableQr: async (params) => {
-    const printer = await resolvePrinterDeviceContext(params);
+    const printer = await resolvePosPrinterContext(params);
 
     const tableQr = await posService.createTableQR({
       ...params,
@@ -252,7 +303,7 @@ export const usePosStore = create<PosState>((set) => ({
     return tableQr;
   },
   printInvoice: async (params) => {
-    const printer = await resolvePrinterDeviceContext(params);
+    const printer = await resolvePosPrinterContext(params);
 
     const lastInvoice = await posService.printInvoice({
       login_uuid_fk: params.login_uuid_fk,
