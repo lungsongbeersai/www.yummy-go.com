@@ -278,11 +278,7 @@ export const usePosStore = create<PosState>((set) => ({
   },
   confirmKitchen: async (input) => {
     try {
-      alert("[1] confirmKitchen input:\n" + JSON.stringify(input, null, 2));
-
       const printer = await resolvePosPrinterContext(input);
-
-      alert("[2] printer context:\n" + JSON.stringify(printer, null, 2));
 
       const payload = {
         order_uuid: input.order_uuid,
@@ -294,11 +290,7 @@ export const usePosStore = create<PosState>((set) => ({
         print_mode: printer.print_mode,
       };
 
-      alert("[3] confirm payload:\n" + JSON.stringify(payload, null, 2));
-
       const lastKitchenConfirm = await posService.confirmToKitchen(payload);
-
-      alert("[4] backend response:\n" + JSON.stringify(lastKitchenConfirm, null, 2));
 
       const pendingQuery = lastKitchenConfirm.pending_query;
       const printJobUuid =
@@ -315,29 +307,14 @@ export const usePosStore = create<PosState>((set) => ({
           }
         };
 
-        alert("[5] execute kitchen input:\n" + JSON.stringify(executeInput, null, 2));
-
-        const printResult = await usePrinterStore.getState().executeKitchen(executeInput);
-
-        alert("[6] execute kitchen result:\n" + JSON.stringify(printResult, null, 2));
-      } else {
-        alert("[5] no print_job_uuid found");
+        await usePrinterStore.getState().executeKitchen(
+          executeInput as Parameters<ReturnType<typeof usePrinterStore.getState>["executeKitchen"]>[0]
+        );
       }
 
       set({ lastKitchenConfirm });
       return lastKitchenConfirm;
     } catch (error) {
-      const detail =
-        error instanceof Error
-          ? {
-            name: error.name,
-            message: error.message,
-            stack: error.stack,
-          }
-          : error;
-
-      alert("[ERROR] confirmKitchen failed:\n" + JSON.stringify(detail, null, 2));
-
       set({ error: errorMessage(error) });
       throw error;
     }
