@@ -20,6 +20,8 @@ import {
 import type { ApiDataResponse, ApiEntity, ApiListResponse, FetchParams } from "@/services/shared/types";
 import type { ConfirmToKitchenPendingQuery, ConfirmToKitchenPrintJob } from "@/services/pos";
 
+import { printMobileEscposOverTcp } from "@/services/printer/mobile-tcp";
+
 export const AGENT_URL = process.env.NEXT_PUBLIC_PRINTER_AGENT_URL ?? "http://127.0.0.1:7777";
 const AGENT_SECRET = process.env.NEXT_PUBLIC_PRINTER_AGENT_SECRET ?? "";
 const PRINTER_IDENTITY_MISSING = "Printer device identity missing";
@@ -139,6 +141,7 @@ export interface SavePrinterInput extends ApiEntity {
   agent_id: string;
   agent_name: string;
   device_code: string;
+  print_mode?: string;
   font_size?: number;
 }
 export type SavePrinterResponse = ApiDataResponse<Printer>;
@@ -183,20 +186,44 @@ export interface PrintJob extends ApiEntity {
   meta?: ApiEntity | null;
 }
 export interface PrintOpsAgentResponse extends ApiEntity { ok: boolean; error?: string; message?: string }
-export interface PrintOpsBatchPayload extends ApiEntity {
-  cut_mode: string;
-  agent_id?: string;
-  agent_name?: string;
-  device_code?: string;
-  print_mode?: string;
-  print_client?: string;
-  print_config_uuid?: string;
-  printer_name?: string;
-  interface_value?: string;
+export interface MobileEscposPayload extends ApiEntity {
+  type?: string;
+  render_mode?: string;
   printer_type?: string;
   paper_width_mm?: number;
+  interface_value?: string;
+  lang?: string;
+  cut_mode?: string;
+  jobs_total?: number;
+  escpos_base64?: string | null;
+  bytes?: number;
+  meta?: ApiEntity | null;
+}
+
+export interface PrintOpsBatchPayload extends ApiEntity {
+  type?: string;
+  cut_mode: string;
+
+  agent_id?: string | null;
+  agent_name?: string | null;
+  agent_url?: string | null;
+
+  device_code?: string | null;
+  print_mode?: string | null;
+  print_client?: string | null;
+
+  print_config_uuid?: string | null;
+  printer_name?: string | null;
+  interface_value?: string | null;
+  printer_type?: string | null;
+  paper_width_mm?: number | null;
+
   job_total?: number;
   jobs: PrintJob[];
+
+  mobile_ready?: boolean;
+  mobile_error?: string | null;
+  mobile_escpos?: MobileEscposPayload | null;
 }
 export interface PrintOpsBatchAgentResponse extends ApiEntity {
   ok: boolean;
@@ -228,7 +255,11 @@ export interface FetchPrintersParams extends FetchParams {
   device_code?: string;
 }
 export interface FetchPrintersForLocalAgentParams extends FetchParams { login_uuid_fk: string }
-export interface AckResultItem { print_job_item_uuid: string; status: "success" | "failed"; reason?: string }
+export interface AckResultItem {
+  print_job_item_uuid: string;
+  status: "success" | "failed" | "skipped";
+  reason?: string;
+}
 export interface AckPayload {
   login_uuid_fk?: string;
   print_job_uuid: string;
@@ -373,6 +404,8 @@ export async function savePrinter(input: SavePrinterInput) {
     input.connect_type === "tcp"
       ? textValue(input.interface_value) || tcpInterfaceValue(input.ip, tcpPort)
       : textValue(input.interface_value);
+  const isMobileWifi = textValue(input.print_mode) === "mobile_wifi";
+
   const base = {
     print_config_uuid: input.print_config_uuid ?? "",
     login_uuid_fk: input.login_uuid_fk,
@@ -380,10 +413,13 @@ export async function savePrinter(input: SavePrinterInput) {
     connect_type: input.connect_type,
     paper_width_mm: input.paper_width_mm,
     role_codes: input.role_codes,
-    agent_url: input.agent_url || AGENT_URL,
+
+    agent_url: isMobileWifi ? "" : input.agent_url || AGENT_URL,
     agent_id: input.agent_id,
     agent_name: input.agent_name,
     device_code: input.device_code || input.agent_id,
+    print_mode: input.print_mode || undefined,
+
     cate_uuid_fk: input.cate_uuid_fk ?? []
   };
   const data =
@@ -751,50 +787,161 @@ function groupKitchenBatchItems(items: PendingPrintItem[]) {
   return Array.from(groups.values());
 }
 
+async function printKitchenMobileBatch(batch: PrintOpsBatchPayload) {
+  const mobileEscpos = batch.mobile_escpos ?? null;
+
+  const escposBase64 = textValue(mobileEscpos?.escpos_base64);
+
+  const interfaceValue =
+    textValue(mobileEscpos?.interface_value) ||
+    textValue(batch.interface_value) ||
+    textValue(batch.jobs?.[0]?.interface_value);
+
+  if (!escposBase64) {
+    throw new ServiceError(
+      batch.mobile_error || "Mobile ESC/POS payload missing",
+      500
+    );
+  }
+
+  if (!interfaceValue) {
+    throw new ServiceError("Mobile printer interface_value missing", 400);
+  }
+
+  await printMobileEscposOverTcp({
+    interface_value: interfaceValue,
+    escpos_base64: escposBase64,
+  });
+}
+
+function isMobilePrintBatch(batch: PrintOpsBatchPayload) {
+  const printClient = textValue(batch.print_client).toLowerCase();
+  const printMode = textValue(batch.print_mode).toLowerCase();
+
+  return (
+    printClient === "mobile_wifi" ||
+    printMode === "mobile_wifi" ||
+    Boolean(textValue(batch.mobile_escpos?.escpos_base64))
+  );
+}
+
+function printBatchJobTotal(batch: PrintOpsBatchPayload) {
+  const jobsTotal = Array.isArray(batch.jobs) ? batch.jobs.length : 0;
+  const declaredTotal = Number(batch.job_total || 0);
+
+  return jobsTotal || declaredTotal || 0;
+}
+
 async function executePrintJobs(input: ExecuteKitchenPrintInput, options: { ack: boolean }): Promise<KitchenPrintResult> {
   const jobUuid = input.pending_query?.print_job_uuid ?? input.print_job?.print_job_uuid;
   const loginUuid = input.pending_query?.login_uuid_fk ?? input.login_uuid_fk;
-  if (!jobUuid || !loginUuid) return { successCount: 0, failedCount: 0, total: 0 };
 
-  input.onProgress?.({ total: 0, completed: 0, successCount: 0, failedCount: 0, phase: "fetching" });
+  if (!jobUuid || !loginUuid) {
+    return {
+      successCount: 0,
+      failedCount: 0,
+      total: 0,
+    };
+  }
+
+  input.onProgress?.({
+    total: 0,
+    completed: 0,
+    successCount: 0,
+    failedCount: 0,
+    phase: "fetching",
+  });
 
   const pendingParams =
-    input.pending_query?.device_code && input.pending_query.print_job_uuid && input.pending_query.login_uuid_fk
+    input.pending_query?.device_code &&
+      input.pending_query.print_job_uuid &&
+      input.pending_query.login_uuid_fk
       ? input.pending_query
       : {
-          print_job_uuid: jobUuid,
+        print_job_uuid: jobUuid,
+        login_uuid_fk: loginUuid,
+        ...(await resolvePrinterDeviceContext({
           login_uuid_fk: loginUuid,
-          ...(await resolvePrinterDeviceContext({
-            login_uuid_fk: loginUuid,
-            device_code: input.pending_query?.device_code ?? input.device_code,
-            agent_id: input.pending_query?.agent_id ?? input.agent_id,
-            print_mode: input.pending_query?.print_mode ?? input.print_mode
-          }))
-        };
+          device_code: input.pending_query?.device_code ?? input.device_code,
+          agent_id: input.pending_query?.agent_id ?? input.agent_id,
+          print_mode: input.pending_query?.print_mode ?? input.print_mode,
+        })),
+      };
 
   const pendingResult = await getPendingPrintJobs(pendingParams);
+
   const pending = pendingResult.jobs;
   const batchPayloads = pendingResult.batchPayloads;
   const globalAckSuccess = pendingResult.ackSuccess;
   const globalAckFailed = pendingResult.ackFailed;
 
-  // ถ้า server ส่ง print_batch_payloads มา ให้ใช้โดยตรงเลย
   if (batchPayloads.length > 0) {
-    const total = batchPayloads.reduce((sum, b) => sum + b.jobs.length, 0);
-    input.onProgress?.({ total, completed: 0, successCount: 0, failedCount: 0, phase: "printing" });
+    const total = batchPayloads.reduce(
+      (sum, batch) => sum + printBatchJobTotal(batch),
+      0
+    );
+
+    input.onProgress?.({
+      total,
+      completed: 0,
+      successCount: 0,
+      failedCount: 0,
+      phase: "printing",
+    });
 
     try {
       for (const batch of batchPayloads) {
-        await printKitchenBatchJob(batch);
+        if (isMobilePrintBatch(batch)) {
+          await printKitchenMobileBatch(batch);
+        } else {
+          await printKitchenBatchJob(batch);
+        }
       }
-      if (options.ack && globalAckSuccess) await ackPrintJob(ackPayloadWithLogin(globalAckSuccess, loginUuid));
-      input.onProgress?.({ total, completed: total, successCount: total, failedCount: 0, phase: "done" });
-      return { successCount: total, failedCount: 0, total };
-    } catch {
-      if (options.ack && globalAckFailed) await ackPrintJob(ackPayloadWithLogin(globalAckFailed, loginUuid));
-      input.onProgress?.({ total, completed: total, successCount: 0, failedCount: total, phase: "done" });
-      return { successCount: 0, failedCount: total, total };
+
+      if (options.ack && globalAckSuccess) {
+        await ackPrintJob(
+          ackPayloadWithLogin(globalAckSuccess, loginUuid)
+        );
+      }
+
+      input.onProgress?.({
+        total,
+        completed: total,
+        successCount: total,
+        failedCount: 0,
+        phase: "done",
+      });
+
+      return {
+        successCount: total,
+        failedCount: 0,
+        total,
+      };
+    } catch (error) {
+      if (options.ack && globalAckFailed) {
+        await ackPrintJob(
+          ackPayloadWithLogin(
+            failPayload(globalAckFailed, getPrinterErrorMessage(error)),
+            loginUuid
+          )
+        );
+      }
+
+      input.onProgress?.({
+        total,
+        completed: total,
+        successCount: 0,
+        failedCount: total,
+        phase: "done",
+      });
+
+      return {
+        successCount: 0,
+        failedCount: total,
+        total,
+      };
     }
+
   }
 
   const printItems = pending.flatMap((job) => job.print_items ?? []);
@@ -813,33 +960,71 @@ async function executePrintJobs(input: ExecuteKitchenPrintInput, options: { ack:
   for (const item of items) {
     try {
       if (item.skip_without_print && item.ack_skipped_payload) {
-        if (options.ack) await ackPrintJob(ackPayloadWithLogin(item.ack_skipped_payload, loginUuid));
+        if (options.ack) {
+          await ackPrintJob(
+            ackPayloadWithLogin(item.ack_skipped_payload, loginUuid)
+          );
+        }
+
         skippedCount++;
-        reportKitchenProgress(input, items.length, successCount, failedCount, skippedCount);
+
+        reportKitchenProgress(
+          input,
+          items.length,
+          successCount,
+          failedCount,
+          skippedCount
+        );
+
         continue;
       }
 
-      if (!item.can_print) throw new ServiceError(item.error || "Item cannot print", 400);
-      if (!item.job || (options.ack && !item.ack_success_payload)) throw new ServiceError("Print job payload missing", 400);
+      if (!item.can_print) {
+        throw new ServiceError(item.error || "Item cannot print", 400);
+      }
+
+      if (!item.job || (options.ack && !item.ack_success_payload)) {
+        throw new ServiceError("Print job payload missing", 400);
+      }
+
       if (!isBrowserDevicePrintJob(item.job)) {
         batchItems.push(item);
         continue;
       }
 
       await dispatchPrintJob(item.job);
+
       if (options.ack && item.ack_success_payload) {
-        await ackPrintJob(ackPayloadWithLogin(item.ack_success_payload, loginUuid));
+        await ackPrintJob(
+          ackPayloadWithLogin(item.ack_success_payload, loginUuid)
+        );
       }
+
       successCount++;
     } catch (error) {
       if (!options.ack || !item.ack_failed_payload) {
         failedCount++;
         continue;
       }
-      await ackPrintJob(ackPayloadWithLogin(failPayload(item.ack_failed_payload, getPrinterErrorMessage(error)), loginUuid));
+
+      await ackPrintJob(
+        ackPayloadWithLogin(
+          failPayload(item.ack_failed_payload, getPrinterErrorMessage(error)),
+          loginUuid
+        )
+      );
+
       failedCount++;
     }
-    reportKitchenProgress(input, items.length, successCount, failedCount, skippedCount);
+
+    reportKitchenProgress(
+      input,
+      items.length,
+      successCount,
+      failedCount,
+      skippedCount
+    );
+
   }
 
   for (const batchGroup of groupKitchenBatchItems(batchItems)) {
@@ -849,10 +1034,15 @@ async function executePrintJobs(input: ExecuteKitchenPrintInput, options: { ack:
         undefined,
         cutMode
       );
+
       if (options.ack) {
         for (const item of batchGroup) {
           if (!item.ack_success_payload) continue;
-          await ackPrintJob(ackPayloadWithLogin(item.ack_success_payload, loginUuid));
+
+          await ackPrintJob(
+            ackPayloadWithLogin(item.ack_success_payload, loginUuid)
+          );
+
           successCount++;
         }
       } else {
@@ -864,11 +1054,26 @@ async function executePrintJobs(input: ExecuteKitchenPrintInput, options: { ack:
           failedCount++;
           continue;
         }
-        await ackPrintJob(ackPayloadWithLogin(failPayload(item.ack_failed_payload, getPrinterErrorMessage(error)), loginUuid));
+
+        await ackPrintJob(
+          ackPayloadWithLogin(
+            failPayload(item.ack_failed_payload, getPrinterErrorMessage(error)),
+            loginUuid
+          )
+        );
+
         failedCount++;
       }
     }
-    reportKitchenProgress(input, items.length, successCount, failedCount, skippedCount);
+
+    reportKitchenProgress(
+      input,
+      items.length,
+      successCount,
+      failedCount,
+      skippedCount
+    );
+
   }
 
   input.onProgress?.({
@@ -876,9 +1081,14 @@ async function executePrintJobs(input: ExecuteKitchenPrintInput, options: { ack:
     completed: items.length,
     successCount,
     failedCount,
-    phase: "done"
+    phase: "done",
   });
-  return { successCount, failedCount, total: items.length };
+
+  return {
+    successCount,
+    failedCount,
+    total: items.length,
+  };
 }
 
 export async function executeKitchenPrintJobs(input: ExecuteKitchenPrintInput): Promise<KitchenPrintResult> {

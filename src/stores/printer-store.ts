@@ -42,9 +42,11 @@ import {
   type SaveCategoryPrinterInput,
   type SaveCategoryRoleInput,
   type SavePrinterInput,
-  type SearchPrinterResult
+  type SearchPrinterResult,
+  renderMobileEscpos
 } from "@/services/printer";
 import { errorMessage } from "@/stores/store-utils";
+import { printMobileEscposOverTcp } from "@/services/printer/mobile-tcp";
 
 type AgentStatus = "unchecked" | "connected" | "offline";
 
@@ -274,6 +276,7 @@ export const usePrinterStore = create<PrinterState>((set) => ({
   buildTest: (data) => buildTestJob(data),
   test: async (input) => {
     set({ printing: true, error: null });
+
     try {
       const printer = await resolvePrinterDeviceContext(input);
 
@@ -282,14 +285,33 @@ export const usePrinterStore = create<PrinterState>((set) => ({
         device_code: printer.device_code,
         agent_id: printer.agent_id,
         agent_name: printer.agent_name,
-        print_mode: printer.print_mode
+        print_mode: printer.print_mode,
       });
-      await dispatchPrintJob(result.data.job);
+
+      const job = result.data.job;
+
+      const isMobileWifi =
+        textValue(printer.print_mode).toLowerCase() === "mobile_wifi" ||
+        textValue(job.print_mode).toLowerCase() === "mobile_wifi" ||
+        textValue(job.print_client).toLowerCase() === "mobile_wifi";
+
+      if (isMobileWifi) {
+        const escposBase64 = await renderMobileEscpos(job);
+
+        await printMobileEscposOverTcp({
+          interface_value: job.interface_value,
+          escpos_base64: escposBase64,
+        });
+      } else {
+        await dispatchPrintJob(job);
+      }
+
       set({ printing: false });
     } catch (error) {
       set({ error: errorMessage(error), printing: false });
       throw error;
     }
+
   },
   loadCategoryRoles: async (loginUuid) => {
     const categoryRoles = await getCategoryRoles(loginUuid);

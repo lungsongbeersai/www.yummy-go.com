@@ -49,8 +49,38 @@ import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
 import { usePrinterStore } from "@/stores/printer-store";
 import { useReferenceStore } from "@/stores/reference-store";
 import { useToastStore } from "@/stores/toast-store";
+import { Capacitor } from "@capacitor/core";
 
 const EMPTY_CATEGORIES: Category[] = [];
+
+
+const MOBILE_PRINTER_DEVICE_KEY = "yummy_mobile_printer_device_code";
+
+
+function getMobilePrinterDeviceCode() {
+  if (typeof window === "undefined") {
+    return "mobile-device";
+  }
+
+  const storage = window.localStorage;
+  const existing = storage.getItem(MOBILE_PRINTER_DEVICE_KEY);
+
+  if (existing) {
+    return existing;
+  }
+
+  const randomPart =
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : String(Date.now()) + "-" + Math.random().toString(16).slice(2);
+
+  const deviceCode = "mobile-" + randomPart;
+
+  storage.setItem(MOBILE_PRINTER_DEVICE_KEY, deviceCode);
+
+  return deviceCode;
+}
+
 
 type ConnectType = "usb" | "tcp";
 
@@ -234,6 +264,7 @@ export function PrinterFormPage() {
 
   const language = i18n.language;
   const storeUuid = authStoreUuid(user);
+  const isNativeMobile = Capacitor.isNativePlatform();
   const editing = useMemo(
     () =>
       printers.find(
@@ -436,19 +467,34 @@ export function PrinterFormPage() {
     if (!user?.uuid || !canSubmit) return;
 
     try {
-      const identity = await resolveDeviceIdentity(agentUrl.trim() || AGENT_URL);
+      const isMobileWifi = isNativeMobile && connectType === "tcp";
+
+      const identity = isMobileWifi
+        ? {
+          agent_id: "mobile",
+          agent_name: "Mobile Device",
+          device_code: getMobilePrinterDeviceCode(),
+        }
+        : await resolveDeviceIdentity(agentUrl.trim() || AGENT_URL);
+
       const nextAgentId = textValue(identity.agent_id).trim();
       const nextAgentName = textValue(identity.agent_name).trim();
       const nextDeviceCode = textValue(identity.device_code).trim();
+
       const nextPort = Number(port || 9100);
+
       const nextInterfaceValue =
         connectType === "tcp"
           ? tcpInterfaceValue(ip.trim(), nextPort)
           : interfaceValue.trim();
 
-      const nextAgentUrl = isBrowserPrinterAgentId(nextAgentId)
-        ? BROWSER_PRINTER_AGENT_URL
-        : agentUrl.trim() || AGENT_URL;
+      const nextPrintMode = isMobileWifi ? "mobile_wifi" : "";
+
+      const nextAgentUrl = isMobileWifi
+        ? ""
+        : isBrowserPrinterAgentId(nextAgentId)
+          ? BROWSER_PRINTER_AGENT_URL
+          : agentUrl.trim() || AGENT_URL;
 
       fillAgent(identity, nextAgentUrl);
 
@@ -467,9 +513,12 @@ export function PrinterFormPage() {
         agent_id: nextAgentId,
         agent_name: nextAgentName,
         device_code: nextDeviceCode,
+        print_mode: nextPrintMode || undefined,
       });
+
       showToast({ title: t("printer.saved"), tone: "success" });
       router.push("/printer");
+
     } catch (error) {
       showToast({
         title: t("printer.saveFailed"),
