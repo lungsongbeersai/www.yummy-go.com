@@ -790,28 +790,51 @@ function groupKitchenBatchItems(items: PendingPrintItem[]) {
 async function printKitchenMobileBatch(batch: PrintOpsBatchPayload) {
   const mobileEscpos = batch.mobile_escpos ?? null;
 
-  const escposBase64 = textValue(mobileEscpos?.escpos_base64);
+  const batchEscposBase64 = textValue(mobileEscpos?.escpos_base64);
 
-  const interfaceValue =
+  const batchInterfaceValue =
     textValue(mobileEscpos?.interface_value) ||
     textValue(batch.interface_value) ||
     textValue(batch.jobs?.[0]?.interface_value);
 
-  if (!escposBase64) {
+  if (batchEscposBase64) {
+    if (!batchInterfaceValue) {
+      throw new ServiceError("Mobile printer interface_value missing", 400);
+    }
+
+    await printMobileEscposOverTcp({
+      interface_value: batchInterfaceValue,
+      escpos_base64: batchEscposBase64,
+    });
+
+    return;
+
+  }
+
+  if (!batch.jobs?.length) {
     throw new ServiceError(
       batch.mobile_error || "Mobile ESC/POS payload missing",
       500
     );
   }
 
-  if (!interfaceValue) {
-    throw new ServiceError("Mobile printer interface_value missing", 400);
-  }
+  for (const job of batch.jobs) {
+    const jobInterfaceValue =
+      textValue(job.interface_value) ||
+      batchInterfaceValue;
 
-  await printMobileEscposOverTcp({
-    interface_value: interfaceValue,
-    escpos_base64: escposBase64,
-  });
+    if (!jobInterfaceValue) {
+      throw new ServiceError("Mobile printer interface_value missing", 400);
+    }
+
+    const escposBase64 = await renderMobileEscpos(job);
+
+    await printMobileEscposOverTcp({
+      interface_value: jobInterfaceValue,
+      escpos_base64: escposBase64,
+    });
+
+  }
 }
 
 function isMobilePrintBatch(batch: PrintOpsBatchPayload) {
