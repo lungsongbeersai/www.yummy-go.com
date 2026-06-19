@@ -918,6 +918,35 @@ async function executePrintJobs(input: ExecuteKitchenPrintInput, options: { ack:
         total,
       };
     } catch (error) {
+      const debugError =
+        error instanceof Error
+          ? {
+            name: error.name,
+            message: error.message,
+            stack: error.stack,
+          }
+          : error;
+
+      if (typeof window !== "undefined") {
+        alert("[printer execute batch ERROR]\n" + JSON.stringify({
+          error: debugError,
+          batchPayloads: batchPayloads.map((batch) => ({
+            print_mode: batch.print_mode,
+            print_client: batch.print_client,
+            mobile_ready: batch.mobile_ready,
+            mobile_error: batch.mobile_error,
+            has_mobile_escpos: Boolean(batch.mobile_escpos?.escpos_base64),
+            mobile_interface_value: batch.mobile_escpos?.interface_value,
+            interface_value: batch.interface_value,
+            jobs_total: batch.jobs?.length,
+            first_job_interface_value: batch.jobs?.[0]?.interface_value,
+            first_job_agent_url: batch.jobs?.[0]?.agent_url,
+            first_job_agent_id: batch.jobs?.[0]?.agent_id,
+            first_job_device_code: batch.jobs?.[0]?.device_code,
+          }))
+        }, null, 2));
+      }
+
       if (options.ack && globalAckFailed) {
         await ackPrintJob(
           ackPayloadWithLogin(
