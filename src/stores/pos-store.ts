@@ -298,6 +298,38 @@ export const usePosStore = create<PosState>((set) => ({
 
       const lastKitchenConfirm = await posService.confirmToKitchen(payload);
 
+
+      alert("[4] backend response:\n" + JSON.stringify(lastKitchenConfirm, null, 2));
+
+      const pendingQuery = lastKitchenConfirm.pending_query;
+      const printJobUuid =
+        pendingQuery?.print_job_uuid ?? lastKitchenConfirm.print_job?.print_job_uuid;
+
+      if (printJobUuid) {
+        alert("[5] execute kitchen print:\n" + JSON.stringify({
+          print_job_uuid: printJobUuid,
+          login_uuid_fk: pendingQuery?.login_uuid_fk ?? input.login_uuid_fk,
+          device_code: pendingQuery?.device_code ?? printer.device_code,
+          agent_id: pendingQuery?.agent_id ?? printer.agent_id,
+          print_mode: pendingQuery?.print_mode ?? printer.print_mode
+        }, null, 2));
+
+        const printResult = await usePrinterStore.getState().executeKitchen({
+          pending_query: {
+            print_job_uuid: printJobUuid,
+            login_uuid_fk: pendingQuery?.login_uuid_fk ?? input.login_uuid_fk,
+            device_code: pendingQuery?.device_code ?? printer.device_code,
+            agent_id: pendingQuery?.agent_id ?? printer.agent_id,
+            print_mode: pendingQuery?.print_mode ?? printer.print_mode
+          }
+        });
+
+        alert("[6] execute kitchen result:\n" + JSON.stringify(printResult, null, 2));
+      }
+
+      set({ lastKitchenConfirm });
+      return lastKitchenConfirm;
+
       alert("[4] backend response:\n" + JSON.stringify(lastKitchenConfirm, null, 2));
 
       set({ lastKitchenConfirm });
