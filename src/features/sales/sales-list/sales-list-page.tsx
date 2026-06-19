@@ -35,7 +35,6 @@ import { openLocalInvoicePrintWindow, type InvoicePrintData } from "@/features/p
 import { buildSalesListInvoicePrintData } from "@/features/sales/list/sales-list-utils";
 import { useUrlPagination } from "@/hooks/use-url-pagination";
 import { money } from "@/lib/format";
-import { toApiLanguage } from "@/lib/language";
 import type { UrlPaginationState } from "@/lib/url-pagination";
 import { cn } from "@/lib/utils";
 import type { DailySaleItemsOrder } from "@/services/report";
@@ -43,8 +42,6 @@ import type { ApiEntity, PageLimit } from "@/services/shared/types";
 import { useAppStore } from "@/stores/app-store";
 import { useAuthStore } from "@/stores/auth-store";
 import { useDailySaleItemsStore, type DailySaleItemsBillGroup } from "@/stores/report-store";
-import { usePosStore } from "@/stores/pos-store";
-import { usePrinterStore } from "@/stores/printer-store";
 import { useToastStore } from "@/stores/toast-store";
 import {
   SALES_LIST_LIMIT_OPTIONS,
@@ -75,8 +72,6 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
   const totalPages = useDailySaleItemsStore((state) => state.totalPages);
   const loadSalesItems = useDailySaleItemsStore((state) => state.load);
   const resetSalesItems = useDailySaleItemsStore((state) => state.reset);
-  const printInvoice = usePosStore((state) => state.printInvoice);
-  const executeInvoice = usePrinterStore((state) => state.executeInvoice);
   const showToast = useToastStore((state) => state.show);
   const branchUuid = user?.branch_uuid ?? "";
   const branchLabel = user?.branch_name || branchUuid || "-";
@@ -183,7 +178,7 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
     const orderUuid = textValue(readValue(group.raw, ["order_uuid"]), "");
     if (!orderUuid || !user?.uuid || printingBillId) return;
 
-    const fallbackData = buildSalesListInvoicePrintData({
+    const receiptData = buildSalesListInvoicePrintData({
       bill: saleListPrintBillSource(group),
       translate: (key, options) => String(t(key, options)),
       user
@@ -191,34 +186,13 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
 
     setPrintingBillId(group.id);
     try {
-      const response = await printInvoice({
-        order_uuid: orderUuid,
-        lang: toApiLanguage(language),
-        login_uuid_fk: user.uuid
-      });
-      const pendingJobUuid =
-        response.pending_query?.print_job_uuid ??
-        (typeof response.print_job?.print_job_uuid === "string" ? response.print_job.print_job_uuid : "");
-
-      if (!pendingJobUuid) {
-        await showReprintReceiptFallback(fallbackData, t("salesList.reprintReceiptMissingJob"));
-        return;
-      }
-
-      try {
-        await executeInvoice({
-          print_job: response.print_job,
-          pending_query: response.pending_query,
-          login_uuid_fk: user.uuid
-        });
-      } catch (printError) {
-        await showReprintReceiptFallback(fallbackData, printError instanceof Error ? printError.message : "");
-        return;
-      }
-
-      showToast({ title: t("salesList.reprintReceiptSuccess"), tone: "success" });
+      await showReprintReceiptFallback(receiptData, "");
     } catch (printError) {
-      await showReprintReceiptFallback(fallbackData, printError instanceof Error ? printError.message : "");
+      showToast({
+        title: t("salesList.reprintReceiptFailed"),
+        description: printError instanceof Error ? printError.message : "",
+        tone: "error"
+      });
     } finally {
       setPrintingBillId("");
     }

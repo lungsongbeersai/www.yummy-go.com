@@ -64,6 +64,7 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
     filteredSetOptionOptions,
     language,
     statusSortFk,
+    sizeSaving,
     updateDetail,
     removeDetail,
     setOptionDialogOpen,
@@ -78,11 +79,11 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
     deletingSetOptionUuid,
     setDeletingSetOptionUuid,
     setOptionSaving,
-    openSetOptionDialog,
     resetSetOptionForm,
     editSetOption,
     saveSetOptionFromDialog,
     deleteSetOptionFromDialog,
+    openSizeDialog,
   } = form;
   const detailItemLabel = statusSortFk === "2" ? t("pos.product") : t("fields.size");
   const showNoSetProductOptions = statusSortFk === "2" && !sizeOptions.length;
@@ -156,7 +157,19 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
                 </div>
                 <FieldGroup className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                   <Field>
-                    <FieldLabel>{detailItemLabel}</FieldLabel>
+                    <div className="flex items-center justify-between gap-2">
+                      <FieldLabel>{detailItemLabel}</FieldLabel>
+                      <Button
+                        type="button"
+                        size="xs"
+                        variant="outline"
+                        disabled={statusSortFk === "2" ? setOptionSaving : sizeSaving}
+                        onClick={() => openSizeDialog(row.id)}
+                      >
+                        <Plus data-icon="inline-start" />
+                        {t("actions.add")}
+                      </Button>
+                    </div>
                     <div className="flex min-w-0 flex-col gap-2 sm:flex-row">
                       <Select
                         key={sizeSelectKey}
@@ -187,19 +200,6 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
                           </SelectGroup>
                         </SelectContent>
                       </Select>
-                      {statusSortFk === "2" ? (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          className="shrink-0"
-                          disabled={setOptionSaving}
-                          onClick={() => openSetOptionDialog(row.id)}
-                        >
-                          <Plus data-icon="inline-start" />
-                          {t("product.addSetProductOption")}
-                        </Button>
-                      ) : null}
                     </div>
                   </Field>
                   <Field>

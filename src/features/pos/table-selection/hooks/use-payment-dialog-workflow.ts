@@ -55,6 +55,7 @@ import {
   tenderInputLak,
   tenderInputValue,
   tenderLabel,
+  withReceiptPrintLabels,
   type InvoicePrintData,
   type PaymentTab,
   type SplitTenderField,
@@ -489,6 +490,27 @@ export function usePaymentDialogWorkflow({
         : "");
     if (!pendingJobUuid) return;
 
+    const receiptInvoice = optionalString(
+      "new_order_invoice" in response ? response.new_order_invoice : null,
+      response.order_invoice,
+      invoice,
+    );
+    const invoicePrintData = user
+      ? withReceiptPrintLabels(
+          buildInvoicePrintData({
+            invoice: receiptInvoice,
+            orders,
+            qrUrl: branchQrUrl,
+            selectedCustomer: customers.selectedCustomerOption,
+            summary,
+            table,
+            translate: (key, options) => String(t(key, options)),
+            user,
+          }),
+          (key, options) => String(t(key, options)),
+        )
+      : null;
+
     try {
       await executeInvoice({
         print_job: response.print_job,
@@ -496,6 +518,14 @@ export function usePaymentDialogWorkflow({
         login_uuid_fk: user?.uuid,
       });
     } catch (error) {
+      if (invoicePrintData) {
+        await showInvoicePrintFallback(
+          invoicePrintData,
+          error instanceof Error ? error.message : "",
+        );
+        return;
+      }
+
       showToast({
         title: t("pos.receiptPrintFailed"),
         description: error instanceof Error ? error.message : "",

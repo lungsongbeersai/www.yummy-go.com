@@ -2,6 +2,7 @@ import { cn } from "@/lib/utils";
 import { numberFromFormatted } from "@/lib/number-format";
 import type { Category } from "@/services/category";
 import type { Color } from "@/services/color";
+import type { Group } from "@/services/group";
 import type {
   Product,
   ProductTopping,
@@ -31,6 +32,7 @@ export const TOPPING_NONE = "1";
 export const TOPPING_HAS = "2";
 export const EMPTY_CATEGORIES: Category[] = [];
 export const EMPTY_COLORS: Color[] = [];
+export const EMPTY_GROUPS: Group[] = [];
 export const EMPTY_SIZES: Size[] = [];
 export const EMPTY_TOPPINGS: Topping[] = [];
 export const EMPTY_UNITS: Unit[] = [];

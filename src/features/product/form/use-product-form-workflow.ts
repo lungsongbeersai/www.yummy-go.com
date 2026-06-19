@@ -7,10 +7,21 @@ import {
   DEFAULT_CROP,
   type CropState,
 } from "@/features/settings/shared/settings-image-crop";
+import {
+  buildCategoryPayload,
+  categoryValue,
+  groupLabel,
+  missingCategoryField,
+} from "@/features/settings/category/category-utils";
+import { buildSizePayload, missingSizeField } from "@/features/settings/size/size-utils";
+import { buildUnitPayload, missingUnitField } from "@/features/settings/unit/unit-utils";
 import { getProductImageUrl } from "@/services/product";
 import { useAppStore } from "@/stores/app-store";
 import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
+import { useCategoryStore } from "@/stores/category-store";
+import { useSizeStore } from "@/stores/size-store";
 import { useToastStore } from "@/stores/toast-store";
+import { useUnitStore } from "@/stores/unit-store";
 import type {
   BinaryFlag,
   SizeSelectOption,
@@ -21,6 +32,7 @@ import {
   CUSTOM_COLOR_VALUE,
   DEFAULT_COLOR,
   EMPTY_PRODUCT_FORM_DEFAULTS,
+  SIZE_NAME_KEYS,
   TOPPING_HAS,
   TOPPING_NONE,
   UNIT_NAME_KEYS,
@@ -48,6 +60,7 @@ import {
   readProductFormDefaults,
   rawProductImage,
   requiredFieldErrors as getRequiredFieldErrors,
+  sizeUuid,
   unitUuid,
   writeProductFormDefaults,
 } from "./product-form-utils";
@@ -90,6 +103,12 @@ export function useProductFormWorkflow() {
   const user = useAuthStore((state) => state.user);
   const storeUuid = authStoreUuid(user);
   const showToast = useToastStore((state) => state.show);
+  const saveCategoryRow = useCategoryStore((state) => state.save);
+  const categorySaving = useCategoryStore((state) => state.saving);
+  const saveUnitRow = useUnitStore((state) => state.save);
+  const unitSaving = useUnitStore((state) => state.saving);
+  const saveSizeRow = useSizeStore((state) => state.save);
+  const sizeSaving = useSizeStore((state) => state.saving);
   const [statusSortFk, setStatusSortFk] = useState<StatusSortFk>("1");
   const {
     categories,
@@ -98,9 +117,13 @@ export function useProductFormWorkflow() {
     createToppingRow,
     deleteSizeForStatus,
     deleteToppingRow,
+    groups,
+    loadCategories,
     loadProducts,
+    loadSizes,
     loadSizesByStatus,
     loadToppings,
+    loadUnits,
     productLoading,
     productSizesByStatus,
     productSizesByStatusStatus,
@@ -136,6 +159,10 @@ export function useProductFormWorkflow() {
   const [colorChoice, setColorChoice] = useState(CUSTOM_COLOR_VALUE);
   const [storedDefaults, setStoredDefaults] = useState(EMPTY_PRODUCT_FORM_DEFAULTS);
   const [saveNotice, setSaveNotice] = useState<ProductFormSaveNotice>("idle");
+  const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
+  const [unitDialogOpen, setUnitDialogOpen] = useState(false);
+  const [sizeDialogOpen, setSizeDialogOpen] = useState(false);
+  const [sizeTargetDetailId, setSizeTargetDetailId] = useState("");
   const {
     bulkStockSaving,
     detailStockState,
@@ -343,6 +370,117 @@ export function useProductFormWorkflow() {
     );
   }
 
+  function missingCategoryDescription(field: ReturnType<typeof missingCategoryField>) {
+    if (field === "store") return t("settings.storeRequired");
+    if (field === "group") return t("settings.categoryGroupRequired");
+    if (field === "name") return t("settings.categoryNameRequired");
+    if (field === "icon") return t("settings.categoryIconRequired");
+    return t("toasts.pleaseTryAgain");
+  }
+
+  async function saveCategoryFromDialog(formData: FormData) {
+    const groupUuid = String(formData.get("group_uuid_fk") ?? "").trim();
+    const nameLa = String(formData.get("cate_name_la") ?? "").trim();
+    const nameEng = String(formData.get("cate_name_eng") ?? "").trim();
+    const icon = String(formData.get("cate_icon") ?? "").trim();
+    const missing = missingCategoryField({ storeUuid, groupUuid, nameLa, icon });
+
+    if (missing) {
+      showToast({ title: t("settings.saveFailed"), description: missingCategoryDescription(missing), tone: "error" });
+      return;
+    }
+
+    try {
+      const saved = await saveCategoryRow(buildCategoryPayload({ editing: null, storeUuid, groupUuid, nameLa, nameEng, icon }));
+      const refreshed = await loadCategories(language, storeUuid);
+      const savedUuid =
+        categoryUuid(saved) ||
+        findOptionByText(refreshed, { cate_name_la: nameLa, cate_name_eng: nameEng }, CATEGORY_NAME_KEYS, categoryUuid);
+
+      if (savedUuid) setCateUuidFk(savedUuid);
+      setCategoryDialogOpen(false);
+      showToast({ title: t("settings.saved"), tone: "success" });
+    } catch (error) {
+      showToast({
+        title: t("settings.saveFailed"),
+        description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
+        tone: "error"
+      });
+    }
+  }
+
+  async function saveUnitFromDialog(formData: FormData) {
+    const nameLa = String(formData.get("unite_name_la") ?? "").trim();
+    const nameEng = String(formData.get("unite_name_eng") ?? "").trim();
+    const missing = missingUnitField({ nameLa });
+
+    if (missing) {
+      showToast({ title: t("settings.saveFailed"), description: t("settings.unitNameRequired"), tone: "error" });
+      return;
+    }
+
+    try {
+      const saved = await saveUnitRow(buildUnitPayload({ editing: null, storeUuid, nameLa, nameEng }));
+      const refreshed = await loadUnits(language, storeUuid);
+      const savedUuid =
+        unitUuid(saved) ||
+        findOptionByText(refreshed, { unite_name_la: nameLa, unite_name_eng: nameEng }, UNIT_NAME_KEYS, unitUuid);
+
+      if (savedUuid) setUniteUuidFk(savedUuid);
+      setUnitDialogOpen(false);
+      showToast({ title: t("settings.saved"), tone: "success" });
+    } catch (error) {
+      showToast({
+        title: t("settings.saveFailed"),
+        description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
+        tone: "error"
+      });
+    }
+  }
+
+  async function saveSizeFromDialog(formData: FormData) {
+    const nameLa = String(formData.get("size_name_la") ?? "").trim();
+    const nameEng = String(formData.get("size_name_eng") ?? "").trim();
+    const missing = missingSizeField({ nameLa });
+
+    if (missing) {
+      showToast({ title: t("settings.saveFailed"), description: t("settings.sizeNameRequired"), tone: "error" });
+      return;
+    }
+
+    try {
+      const saved = await saveSizeRow(buildSizePayload({ editing: null, storeUuid, nameLa, nameEng }));
+      const [refreshed] = await Promise.all([
+        loadSizes(language, storeUuid),
+        loadSizesByStatus(storeUuid, Number(statusSortFk), language)
+      ]);
+      const savedUuid =
+        sizeUuid(saved) ||
+        findOptionByText(refreshed, { size_name_la: nameLa, size_name_eng: nameEng }, SIZE_NAME_KEYS, sizeUuid);
+
+      if (savedUuid && sizeTargetDetailId) updateDetail(sizeTargetDetailId, { size_uuid_fk: savedUuid });
+      setSizeDialogOpen(false);
+      setSizeTargetDetailId("");
+      showToast({ title: t("settings.saved"), tone: "success" });
+    } catch (error) {
+      showToast({
+        title: t("settings.saveFailed"),
+        description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
+        tone: "error"
+      });
+    }
+  }
+
+  function openSizeDialog(detailId: string) {
+    if (statusSortFk === "2") {
+      openSetOptionDialog(detailId);
+      return;
+    }
+
+    setSizeTargetDetailId(detailId);
+    setSizeDialogOpen(true);
+  }
+
   async function submit() {
     setSaveNotice("saving");
 
@@ -479,6 +617,13 @@ export function useProductFormWorkflow() {
   const categoryOptions = useMemo(
     () => includeSelectedOption(categories, editing, cateUuidFk, categoryUuid),
     [categories, cateUuidFk, editing]
+  );
+  const groupOptions = useMemo(
+    () =>
+      groups
+        .map((group) => ({ label: groupLabel(group), value: categoryValue(group, "group_uuid") }))
+        .filter((option) => option.value),
+    [groups]
   );
   const unitOptions = useMemo(
     () => includeSelectedOption(units, editing, uniteUuidFk, unitUuid),
@@ -633,6 +778,7 @@ export function useProductFormWorkflow() {
     validColors,
     selectedToppingMap,
     categoryOptions,
+    groupOptions,
     unitOptions,
     sizeOptions,
     setOptionOptions,
@@ -682,6 +828,12 @@ export function useProductFormWorkflow() {
     bulkStockSaving,
     prodToppingStatus,
     setProdToppingStatus,
+    categoryDialogOpen,
+    setCategoryDialogOpen,
+    unitDialogOpen,
+    setUnitDialogOpen,
+    sizeDialogOpen,
+    setSizeDialogOpen,
     selectedToppings,
     toppingDialogOpen,
     setToppingDialogOpen,
@@ -711,6 +863,9 @@ export function useProductFormWorkflow() {
     language,
     storeUuid,
     saving: savingProduct,
+    categorySaving,
+    unitSaving,
+    sizeSaving,
     toppingSaving,
     colors,
     submit,
@@ -718,13 +873,16 @@ export function useProductFormWorkflow() {
     updateDetail,
     updateAllDetailStockModes,
     removeDetail,
+    saveCategoryFromDialog,
+    saveUnitFromDialog,
+    saveSizeFromDialog,
+    openSizeDialog,
     toggleTopping,
     updateToppingPrice,
     resetNewToppingForm,
     editTopping,
     saveToppingFromDialog,
     deleteToppingFromDialog,
-    openSetOptionDialog,
     resetSetOptionForm,
     editSetOption,
     saveSetOptionFromDialog,

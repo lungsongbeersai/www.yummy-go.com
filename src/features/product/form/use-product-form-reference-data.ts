@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import type { TFunction } from "i18next";
 import type { Category } from "@/services/category";
 import type { Color } from "@/services/color";
+import type { Group } from "@/services/group";
 import type { Size } from "@/services/size";
 import type { Topping } from "@/services/topping";
 import type { Unit } from "@/services/unit";
@@ -15,6 +16,7 @@ import type { StatusSortFk } from "./product-form-types";
 import {
   EMPTY_CATEGORIES,
   EMPTY_COLORS,
+  EMPTY_GROUPS,
   EMPTY_SIZES,
   EMPTY_TOPPINGS,
   EMPTY_UNITS
@@ -48,11 +50,13 @@ export function useProductFormReferenceData({
   const updateDetailsStock = useProductStore((state) => state.updateDetailsStock);
   const categories = (useReferenceStore((state) => state.options.categories) ?? EMPTY_CATEGORIES) as Category[];
   const colors = (useReferenceStore((state) => state.options.colors) ?? EMPTY_COLORS) as Color[];
+  const groups = (useReferenceStore((state) => state.options.groups) ?? EMPTY_GROUPS) as Group[];
   const units = (useReferenceStore((state) => state.options.units) ?? EMPTY_UNITS) as Unit[];
   const sizes = (useReferenceStore((state) => state.options.sizes) ?? EMPTY_SIZES) as Size[];
   const toppings = (useReferenceStore((state) => state.options.toppings) ?? EMPTY_TOPPINGS) as Topping[];
   const loadCategories = useReferenceStore((state) => state.loadCategories);
   const loadColors = useReferenceStore((state) => state.loadColors);
+  const loadGroups = useReferenceStore((state) => state.loadGroups);
   const loadUnits = useReferenceStore((state) => state.loadUnits);
   const loadSizes = useReferenceStore((state) => state.loadSizes);
   const loadToppings = useReferenceStore((state) => state.loadToppings);
@@ -65,6 +69,7 @@ export function useProductFormReferenceData({
     void Promise.all([
       loadCategories(language, storeUuid),
       loadColors(),
+      loadGroups(language, storeUuid),
       loadUnits(language, storeUuid),
       loadSizes(language, storeUuid),
       loadToppings(language, storeUuid)
@@ -75,7 +80,7 @@ export function useProductFormReferenceData({
         tone: "error"
       });
     });
-  }, [language, loadCategories, loadColors, loadSizes, loadToppings, loadUnits, showToast, storeUuid, t]);
+  }, [language, loadCategories, loadColors, loadGroups, loadSizes, loadToppings, loadUnits, showToast, storeUuid, t]);
 
   useEffect(() => {
     if (!storeUuid) return;
@@ -102,9 +107,13 @@ export function useProductFormReferenceData({
     updateDetailsStock,
     categories,
     colors,
+    groups,
     units,
     sizes,
     toppings,
+    loadCategories,
+    loadUnits,
+    loadSizes,
     loadToppings,
     createToppingRow,
     deleteToppingRow,

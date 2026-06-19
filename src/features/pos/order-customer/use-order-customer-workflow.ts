@@ -141,13 +141,13 @@ export function useOrderCustomerWorkflow({
       if (!user?.branch_uuid) return emptyMenuBySort();
 
       const selectedCateUuid = optionalString(cateUuid) ?? "";
-      const searchQuery = query ?? "";
-      if (!selectedCateUuid) return emptyMenuBySort();
+      const searchQuery = query.trim();
+      if (!selectedCateUuid && !searchQuery) return emptyMenuBySort();
 
       const request = (status_sort_fk: ProductSortStatus) =>
         fetchCateProducts({
           branch_uuid_fk: user.branch_uuid,
-          cate_uuid: selectedCateUuid,
+          ...(searchQuery ? {} : { cate_uuid: selectedCateUuid }),
           lang: language,
           search: searchQuery,
           status_sort_fk,
