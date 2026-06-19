@@ -113,13 +113,13 @@ function numberValue(value: unknown) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function firstText(row: Record<string, unknown>, keys: string[]) {
-  for (const key of keys) {
-    const value = cleanText(row[key]);
-    if (value) return value;
-  }
-  return "";
-}
+// function firstText(row: Record<string, unknown>, keys: string[]) {
+//   for (const key of keys) {
+//     const value = cleanText(row[key]);
+//     if (value) return value;
+//   }
+//   return "";
+// }
 
 function optionLabel(row: Record<string, unknown>, keys: string[]) {
   return keys.map((key) => keyText(row[key])).filter(Boolean);
