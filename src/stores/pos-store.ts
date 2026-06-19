@@ -2,9 +2,12 @@
 
 import { create } from "zustand";
 import {
+  getPrinterOptions,
   resolvePrinterDeviceContext,
+  type Printer,
   type PrinterDeviceContextParams
 } from "@/services/printer";
+
 import { usePrinterStore } from "@/stores/printer-store";
 import { Capacitor } from "@capacitor/core";
 import * as posService from "@/services/pos";
@@ -54,46 +57,66 @@ function textValue(value: unknown) {
   return String(value ?? "").trim();
 }
 
-function pickMobilePrinterFromStore() {
+function isMobilePrinterCandidate(printer: Printer) {
+  const connectType = textValue(printer.connect_type).toLowerCase();
+  const printMode = textValue(printer.print_mode).toLowerCase();
+
+  return connectType === "tcp" || printMode === "mobile_wifi";
+}
+
+function pickMobilePrinterFromList(printers: Printer[]) {
+  return printers.find((printer) => printer.is_active && isMobilePrinterCandidate(printer)) ??
+    printers.find((printer) => isMobilePrinterCandidate(printer));
+}
+
+async function pickMobilePrinter(input: { login_uuid_fk?: string; lang?: string }) {
   const printerState = usePrinterStore.getState();
-  const candidates = [...printerState.printers, ...printerState.options];
+  const cachedCandidates = [...printerState.printers, ...printerState.options];
+  const cachedPrinter = pickMobilePrinterFromList(cachedCandidates);
 
-  return candidates.find((printer) => {
-    const connectType = textValue(printer.connect_type).toLowerCase();
-    const printMode = textValue(printer.print_mode).toLowerCase();
+  if (cachedPrinter?.device_code) {
+    return cachedPrinter;
+  }
 
-    return (
-      printer.is_active &&
-      (connectType === "tcp" || printMode === "mobile_wifi")
-    );
+  const loginUuid = textValue(input.login_uuid_fk);
 
-  }) ?? candidates.find((printer) => {
-    const connectType = textValue(printer.connect_type).toLowerCase();
-    const printMode = textValue(printer.print_mode).toLowerCase();
+  if (!loginUuid) {
+    return cachedPrinter;
+  }
 
-    return connectType === "tcp" || printMode === "mobile_wifi";
+  const fetchedOptions = await getPrinterOptions(loginUuid, input.lang);
+  const fetchedPrinter = pickMobilePrinterFromList(fetchedOptions);
 
-  });
+  if (fetchedOptions.length) {
+    usePrinterStore.setState({ options: fetchedOptions });
+  }
+
+  return fetchedPrinter ?? cachedPrinter;
 }
 
 async function resolvePosPrinterContext(
-input: PrinterDeviceContextParams & {
-agent_name?: string;
-}
+  input: PrinterDeviceContextParams & {
+    agent_name?: string;
+    lang?: string;
+  }
 ) {
-if (Capacitor.isNativePlatform()) {
-const selectedPrinter = pickMobilePrinterFromStore();
+  if (Capacitor.isNativePlatform()) {
+    const selectedPrinter = await pickMobilePrinter(input);
 
-return {
-  device_code: selectedPrinter?.device_code ?? input.device_code,
-  agent_id: selectedPrinter?.agent_id ?? input.agent_id,
-  agent_name: selectedPrinter?.agent_name ?? input.agent_name,
-  print_mode: selectedPrinter?.print_mode ?? input.print_mode ?? "mobile_wifi"
-};
+    if (!selectedPrinter?.device_code) {
+      throw new Error("mobile printer device_code not found");
+    }
 
-}
+    return {
+      device_code: selectedPrinter.device_code,
+      agent_id: selectedPrinter.agent_id ?? input.agent_id,
+      agent_name: selectedPrinter.agent_name ?? input.agent_name,
+      print_mode: selectedPrinter.print_mode ?? input.print_mode ?? "mobile_wifi"
+    };
 
-return resolvePrinterDeviceContext(input);
+  }
+
+  return resolvePrinterDeviceContext(input);
 }
 
 interface PosState {
