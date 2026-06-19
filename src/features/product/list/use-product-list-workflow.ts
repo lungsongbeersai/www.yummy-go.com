@@ -8,6 +8,8 @@ import { useUrlPagination } from "@/hooks/use-url-pagination";
 import { pageLimitSize } from "@/lib/pagination";
 import { samePageLimit, type UrlPaginationState } from "@/lib/url-pagination";
 import type { Category } from "@/services/category";
+import type { Size } from "@/services/size";
+import type { Unit } from "@/services/unit";
 import type { Product, ProductDetail } from "@/services/product";
 import { useAppStore } from "@/stores/app-store";
 import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
@@ -23,9 +25,17 @@ import {
   statusSortValue
 } from "./product-list-utils";
 import type { ProductStatusKey, ProductStockModeValue, ProductTableRow } from "./product-list-types";
+import {
+  buildProductImportDrafts,
+  productImportSummary,
+  sheetRowsFromAoA,
+  type ProductImportDraft,
+} from "./product-import-utils";
 
 const DEFAULT_STATUS_SORT = "1";
 const EMPTY_CATEGORIES: Category[] = [];
+const EMPTY_UNITS: Unit[] = [];
+const EMPTY_SIZES: Size[] = [];
 
 export const ALL_CATEGORIES_VALUE = "__all_categories__";
 
@@ -50,15 +60,27 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
   const setPageLimit = useProductStore((state) => state.setPageLimit);
   const loadProducts = useProductStore((state) => state.load);
   const loadStatusSorts = useProductStore((state) => state.loadStatusSorts);
+  const loadSizesByStatus = useProductStore((state) => state.loadSizesByStatus);
+  const saveProduct = useProductStore((state) => state.save);
   const removeProduct = useProductStore((state) => state.remove);
   const updateProductNotification = useProductStore((state) => state.updateProductNotification);
   const updateDetailEnabledState = useProductStore((state) => state.updateDetailEnabled);
   const updateDetailStock = useProductStore((state) => state.updateDetailStock);
   const updateDetailsStock = useProductStore((state) => state.updateDetailsStock);
   const categories = (useReferenceStore((state) => state.options.categories) ?? EMPTY_CATEGORIES) as Category[];
+  const units = (useReferenceStore((state) => state.options.units) ?? EMPTY_UNITS) as Unit[];
+  const sizes = (useReferenceStore((state) => state.options.sizes) ?? EMPTY_SIZES) as Size[];
   const categoryLoading = Boolean(useReferenceStore((state) => state.loadingKeys.categories));
   const loadCategories = useReferenceStore((state) => state.loadCategories);
+  const loadUnits = useReferenceStore((state) => state.loadUnits);
+  const loadSizes = useReferenceStore((state) => state.loadSizes);
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [importDrafts, setImportDrafts] = useState<ProductImportDraft[]>([]);
+  const [importFileName, setImportFileName] = useState("");
+  const [importing, setImporting] = useState(false);
+  const [importParsing, setImportParsing] = useState(false);
+  const [importResult, setImportResult] = useState("");
   const [collapsedProducts, setCollapsedProducts] = useState<Set<string>>(() => new Set());
   const [pendingKeys, setPendingKeys] = useState<Set<ProductStatusKey>>(() => new Set());
   const [pendingBulkStockModes, setPendingBulkStockModes] = useState<Record<string, ProductStockModeValue>>({});
@@ -155,14 +177,18 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
 
   useEffect(() => {
     if (!storeUuid) return;
-    loadCategories(language, storeUuid).catch((error) => {
+    Promise.all([
+      loadCategories(language, storeUuid),
+      loadUnits(language, storeUuid),
+      loadSizes(language, storeUuid)
+    ]).catch((error) => {
       showToast({
         title: t("product.loadFailed"),
         description: error instanceof Error ? error.message : "",
         tone: "error"
       });
     });
-  }, [language, loadCategories, showToast, storeUuid, t]);
+  }, [language, loadCategories, loadSizes, loadUnits, showToast, storeUuid, t]);
 
   useEffect(() => {
     if (!samePageLimit(storePageLimit, pageLimit)) setPageLimit(pageLimit);
@@ -351,6 +377,159 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
     });
   }
 
+  function resetImportState() {
+    setImportDrafts([]);
+    setImportFileName("");
+    setImportResult("");
+  }
+
+  const importFieldLabels = useMemo(
+    () => ({
+      "Product Name (Lao)": t("product.import.fields.productNameLa"),
+      "Set Name (Lao)": t("product.import.fields.setNameLa"),
+      Category: t("product.import.fields.category"),
+      Unit: t("product.import.fields.unit"),
+      "Size Name": t("product.import.fields.sizeName"),
+      "Set Option / Product Name": t("product.import.fields.setOptionName"),
+      "Cost Price": t("product.import.fields.costPrice"),
+      "Sale Price": t("product.import.fields.salePrice"),
+    }),
+    [t]
+  );
+  const importFieldLabel = useCallback(
+    (field: string) => importFieldLabels[field as keyof typeof importFieldLabels] ?? field,
+    [importFieldLabels]
+  );
+
+  const importMessages = useMemo(
+    () => ({
+      required: (field: string) => t("product.import.required", { field: importFieldLabel(field) }),
+      rowRequired: (row: number, field: string) => t("product.import.rowFieldRequired", { row, field: importFieldLabel(field) }),
+      categoryNotFound: (name: string) => t("product.import.categoryNotFound", { name }),
+      unitNotFound: (name: string) => t("product.import.unitNotFound", { name }),
+      sizeNotFound: (row: number, name: string) => t("product.import.sizeNotFound", { row, name }),
+      setOptionNotFound: (row: number, name: string) => t("product.import.setOptionNotFound", { row, name }),
+      priceGreaterThanZero: (row: number, field: string) =>
+        t("product.import.priceGreaterThanZero", { row, field: importFieldLabel(field) }),
+      setPriceGreaterThanZero: () => t("product.import.setPriceGreaterThanZero"),
+      multipleSetPrices: () => t("product.import.multipleSetPrices"),
+    }),
+    [importFieldLabel, t]
+  );
+
+  async function prepareImportFile(file: File | null) {
+    resetImportState();
+    if (!file) return;
+
+    if (!user?.branch_uuid || !storeUuid) {
+      showToast({ title: t("settings.saveFailed"), description: t("settings.branchRequired"), tone: "error" });
+      return;
+    }
+
+    setImportParsing(true);
+    setImportFileName(file.name);
+
+    try {
+      const XLSX = await import("xlsx");
+      const workbook = XLSX.read(await file.arrayBuffer(), { type: "array" });
+      const normalSheet = workbook.Sheets.Normal;
+      const setSheet = workbook.Sheets.Set;
+      const normalRows = normalSheet
+        ? sheetRowsFromAoA(XLSX.utils.sheet_to_json(normalSheet, { header: 1, blankrows: false, defval: "" }) as unknown[][], [
+            "Product Code",
+            "Product Name (Lao)",
+            "Product Name (English)",
+            "Category",
+            "Unit",
+            "Size Name",
+            "Cost Price",
+            "Sale Price",
+          ])
+        : [];
+      const setRows = setSheet
+        ? sheetRowsFromAoA(XLSX.utils.sheet_to_json(setSheet, { header: 1, blankrows: false, defval: "" }) as unknown[][], [
+            "Product Code",
+            "Set Name (Lao)",
+            "Set Name (English)",
+            "Category",
+            "Unit",
+            "Set Option / Product Name",
+            "Cost Price",
+            "Set Price",
+          ])
+        : [];
+
+      const [categoryRows, unitRows, sizeRows, setSizeRows] = await Promise.all([
+        categories.length ? Promise.resolve(categories) : loadCategories(language, storeUuid),
+        units.length ? Promise.resolve(units) : loadUnits(language, storeUuid),
+        sizes.length ? Promise.resolve(sizes) : loadSizes(language, storeUuid),
+        loadSizesByStatus(storeUuid, 2, language),
+      ]);
+      const drafts = buildProductImportDrafts(
+        { Normal: normalRows, Set: setRows },
+        {
+          branchUuid: user.branch_uuid,
+          categories: categoryRows,
+          units: unitRows,
+          sizes: sizeRows,
+          setSizes: setSizeRows,
+        },
+        importMessages
+      );
+
+      setImportDrafts(drafts);
+      if (!drafts.length) {
+        setImportResult(t("product.import.noRows"));
+      }
+    } catch (error) {
+      setImportDrafts([]);
+      setImportResult(error instanceof Error ? error.message : t("toasts.pleaseTryAgain"));
+    } finally {
+      setImportParsing(false);
+    }
+  }
+
+  async function importProductsFromDrafts() {
+    const readyDrafts = importDrafts.filter(
+      (draft): draft is ProductImportDraft & { payload: NonNullable<ProductImportDraft["payload"]> } =>
+        Boolean(draft.payload) && !draft.errors.length
+    );
+    if (!readyDrafts.length) {
+      showToast({ title: t("settings.saveFailed"), description: t("product.import.noValidRows"), tone: "error" });
+      return;
+    }
+
+    setImporting(true);
+    let success = 0;
+    let failed = 0;
+
+    try {
+      for (const draft of readyDrafts) {
+        try {
+          await saveProduct(draft.payload!);
+          success += 1;
+        } catch (error) {
+          failed += 1;
+          draft.errors.push(error instanceof Error ? error.message : t("toasts.pleaseTryAgain"));
+        }
+      }
+
+      setImportDrafts([...importDrafts]);
+      const resultMessage = t("product.import.result", { success, failed });
+      setImportResult(resultMessage);
+      showToast({
+        title: success ? t("product.saved") : t("settings.saveFailed"),
+        description: resultMessage,
+        tone: success ? "success" : "error",
+      });
+      await load();
+    } finally {
+      setImporting(false);
+    }
+  }
+
+  const importSummary = productImportSummary(importDrafts);
+
   return {
     t,
     language,
@@ -367,6 +546,14 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
     statusTabs,
     activeStatusLabel,
     loading,
+    importDialogOpen,
+    setImportDialogOpen,
+    importDrafts,
+    importFileName,
+    importSummary,
+    importParsing,
+    importing,
+    importResult,
     filteredRows,
     selectedRows,
     deleteTarget,
@@ -398,6 +585,9 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
     updateDetailEnabled,
     updateDetailStockMode,
     updateAllDetailStockModes,
+    prepareImportFile,
+    importProductsFromDrafts,
+    resetImportState,
     goToPage
   };
 }

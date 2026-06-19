@@ -638,4 +638,16 @@ export function buildInvoicePrintData({
   };
 }
 
+export function withReceiptPrintLabels(data: InvoicePrintData, translate: Translate): InvoicePrintData {
+  return {
+    ...data,
+    labels: {
+      ...data.labels,
+      invoice: translate("pos.receiptPrintNumber"),
+      title: translate("pos.receiptPrintTitle"),
+    },
+    title: translate("pos.receiptPrintTitle"),
+  };
+}
+
 

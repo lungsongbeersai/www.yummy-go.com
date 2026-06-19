@@ -25,6 +25,7 @@ import { printMobileEscposOverTcp } from "@/services/printer/mobile-tcp";
 export const AGENT_URL = process.env.NEXT_PUBLIC_PRINTER_AGENT_URL ?? "http://127.0.0.1:7777";
 const AGENT_SECRET = process.env.NEXT_PUBLIC_PRINTER_AGENT_SECRET ?? "";
 const PRINTER_IDENTITY_MISSING = "Printer device identity missing";
+const EMPTY_PRINT_BATCH_PAYLOADS_MESSAGE = "Print batch payloads are empty";
 const LOCAL_AGENT_IDENTITY_KEY = "yummy_local_printer_agent_identity";
 export {
   BROWSER_PRINTER_AGENT_ID,
@@ -287,6 +288,13 @@ export interface PendingPrintJobsParams {
   device_code?: string;
   agent_id?: string;
   print_mode?: string;
+}
+export interface PendingPrintJobsResult {
+  jobs: PendingPrintJobData[];
+  batchPayloads: PrintOpsBatchPayload[];
+  hasBatchPayloads: boolean;
+  ackSuccess: AckPayload | null;
+  ackFailed: AckPayload | null;
 }
 export interface PrinterDeviceContextParams {
   login_uuid_fk: string;
@@ -729,7 +737,7 @@ export async function resolvePrintersByCategory(login_uuid_fk: string, cate_uuid
 }
 export const getDefaultCategoryByRole = (input: DefaultCategoryByRoleInput) =>
   apiRequest<DefaultCategoryByRoleResponse>("post", "/api/v1/printer/category-printer/default-by-role", { data: input });
-export async function getPendingPrintJobs(params: PendingPrintJobsParams) {
+export async function getPendingPrintJobs(params: PendingPrintJobsParams): Promise<PendingPrintJobsResult> {
   const result = await apiRequest<PendingPrintJobsFullResponse>("get", "/api/v1/printer/jobs/pending", {
     params: {
       print_job_uuid: params.print_job_uuid,
@@ -739,9 +747,11 @@ export async function getPendingPrintJobs(params: PendingPrintJobsParams) {
       print_mode: params.print_mode
     }
   });
+  const hasBatchPayloads = Array.isArray(result.print_batch_payloads);
   return {
     jobs: result.data ?? [],
-    batchPayloads: result.print_batch_payloads ?? [],
+    batchPayloads: hasBatchPayloads ? result.print_batch_payloads ?? [] : [],
+    hasBatchPayloads,
     ackSuccess: result.ack_success_payload ?? null,
     ackFailed: result.ack_failed_payload ?? null,
   };
@@ -875,6 +885,7 @@ async function executePrintJobs(input: ExecuteKitchenPrintInput, options: { ack:
   const globalAckSuccess = pendingResult.ackSuccess;
   const globalAckFailed = pendingResult.ackFailed;
 
+  // ถ้า server ส่ง print_batch_payloads มา ให้ใช้โดยตรงเลย
   if (batchPayloads.length > 0) {
     const total = batchPayloads.reduce(
       (sum, batch) => sum + printBatchJobTotal(batch),

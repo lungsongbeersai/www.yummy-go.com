@@ -29,6 +29,8 @@ import { useToastStore } from "@/stores/toast-store";
 const EMPTY_CATEGORIES: Category[] = [];
 const TYPE_ALL = "all";
 const STATUS_ALL = "all";
+const XPRINTER_DRIVER_URL = "/downloads/drivers/XPrinter%20Driver%20Setup%20V8.2.exe";
+const XPRINTER_DRIVER_FILE_NAME = "XPrinter Driver Setup V8.2.exe";
 type PrinterTableRow = Printer & { row_number: number };
 
 function roleLabel(code: string, roles: PrinterRole[]) {
@@ -223,6 +225,10 @@ export function PrinterPage() {
     showToast({ title: t("printer.laoFontDownloadStarted"), tone: "success" });
   }
 
+  function showDriverDownloadToast() {
+    showToast({ title: t("printer.driverDownloadStarted"), tone: "success" });
+  }
+
   async function remove(row: Printer) {
     try {
       await removePrinter(row.print_config_uuid);
@@ -291,6 +297,16 @@ export function PrinterPage() {
           </p>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <Button asChild className="shadow-sm" size="sm" type="button" variant="outline">
+            <a
+              href={XPRINTER_DRIVER_URL}
+              download={XPRINTER_DRIVER_FILE_NAME}
+              onClick={showDriverDownloadToast}
+            >
+              <Download data-icon="inline-start" />
+              {t("printer.installDriver")}
+            </a>
+          </Button>
           <DropdownMenu onOpenChange={loadAgentFilesOnOpen}>
             <DropdownMenuTrigger asChild>
               <Button className="shadow-sm" size="sm" type="button" variant="outline">

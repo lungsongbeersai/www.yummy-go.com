@@ -96,6 +96,7 @@ describe("printer store", () => {
     getPendingPrintJobsMock.mockResolvedValue({
       jobs,
       batchPayloads: [],
+      hasBatchPayloads: false,
       ackSuccess: null,
       ackFailed: null
     } as Awaited<ReturnType<typeof getPendingPrintJobs>>);

@@ -307,13 +307,13 @@ export function salesListInvoicePrintLabels(
     customer: translate("pos.customer"),
     date: translate("pos.invoicePrintDate"),
     discount: translate("pos.invoicePrintDiscount"),
-    invoice: translate("pos.invoicePrintNumber"),
+    invoice: translate("pos.receiptPrintNumber"),
     price: translate("pos.price"),
     service: serviceRate ? `${translate("salesList.serviceCharge")} (${serviceRate})` : translate("pos.serviceTotal"),
     subtotal: translate("pos.invoicePrintTotalAmount"),
     table: translate("pos.invoicePrintTable"),
     thankYou: translate("pos.invoicePrintThankYou"),
-    title: translate("pos.invoicePrintTitle"),
+    title: translate("pos.receiptPrintTitle"),
     topping: translate("pos.toppingTotal"),
     total: translate("pos.invoicePrintAmountToPay"),
     vat: vatRate ? `${translate("pos.vat")} (${vatRate})` : translate("pos.vat")
@@ -387,7 +387,7 @@ export function buildSalesListInvoicePrintData({
     storeName: firstText(user.store_name, user.branch_name, readFromBillSections([bill], branchKeys, ["order", "self"])),
     subtotal: subtotal ?? orderTotal ?? 0,
     tableName: firstText(readFromBillSections([bill], tableKeys, ["order", "self"])),
-    title: translate("pos.invoicePrintTitle"),
+    title: translate("pos.receiptPrintTitle"),
     total: grandTotal ?? orderTotal ?? 0,
     vat: positiveNumber(vat) ?? 0
   };

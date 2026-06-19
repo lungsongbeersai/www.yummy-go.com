@@ -518,7 +518,7 @@ export function OptionSettingsPage<
   );
 }
 
-function OptionFormDialog<Row extends ApiEntity>({
+export function OptionFormDialog<Row extends ApiEntity>({
   description,
   dialogContentClassName,
   editing,

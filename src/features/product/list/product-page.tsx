@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Plus, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileSpreadsheet, Plus, Search } from "lucide-react";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { EmptyState } from "@/components/common/empty-state";
 import { LoadingState } from "@/components/common/loading-state";
@@ -25,6 +25,7 @@ import { PAGE_LIMIT_OPTIONS } from "@/lib/pagination";
 import type { UrlPaginationState } from "@/lib/url-pagination";
 import { cn } from "@/lib/utils";
 import { categoryOptionName, categoryUuid } from "./product-list-utils";
+import { ProductImportDialog } from "./product-import-dialog";
 import { ProductListMobile } from "./product-list-mobile";
 import { ProductListTable } from "./product-list-table";
 import { ALL_CATEGORIES_VALUE, useProductListWorkflow } from "./use-product-list-workflow";
@@ -40,10 +41,16 @@ export function ProductPage({ initialPagination }: { initialPagination: UrlPagin
           <p className="text-sm font-bold text-primary">{t("product.title")}</p>
           <h1 className="mt-1 text-xl font-black">{t("product.menuStock")}</h1>
         </div>
-        <Link className={cn(buttonVariants({ size: "sm" }), "shadow-sm")} href="/product/form">
-          <Plus data-icon="inline-start" />
-          {t("product.newProduct")}
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" size="sm" variant="outline" className="shadow-sm" onClick={() => product.setImportDialogOpen(true)}>
+            <FileSpreadsheet data-icon="inline-start" />
+            {t("product.import.button")}
+          </Button>
+          <Link className={cn(buttonVariants({ size: "sm" }), "shadow-sm")} href="/product/form">
+            <Plus data-icon="inline-start" />
+            {t("product.newProduct")}
+          </Link>
+        </div>
       </div>
 
       <Card className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-none border-x-0 border-b-0">
@@ -252,6 +259,7 @@ export function ProductPage({ initialPagination }: { initialPagination: UrlPagin
           if (!nextOpen) product.setDeleteTarget(null);
         }}
       />
+      <ProductImportDialog workflow={product} />
     </div>
   );
 }
