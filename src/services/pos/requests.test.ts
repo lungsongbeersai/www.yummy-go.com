@@ -201,4 +201,72 @@ describe("pos requests", () => {
       }
     });
   });
+
+  it("patches kitchen confirmation with mobile wifi printer identity fields", async () => {
+    apiMocks.apiRequest.mockResolvedValue({ status: "success" });
+
+    await confirmToKitchen({
+      login_uuid_fk: "login-1",
+      order_uuid: "order-1",
+      order_item_uuids: ["item-1"],
+      lang: "la",
+      device_code: "MOBILE-001",
+      agent_id: "MOBILE-AGENT-001",
+      print_mode: "mobile_wifi"
+    });
+
+    expect(apiMocks.apiRequest).toHaveBeenCalledWith("patch", "/api/v1/pos/confirm_to_kitchen", {
+      data: {
+        order_uuid: "order-1",
+        login_uuid_fk: "login-1",
+        order_item_uuids: ["item-1"],
+        lang: "la",
+        device_code: "MOBILE-001",
+        agent_id: "MOBILE-AGENT-001",
+        print_mode: "mobile_wifi"
+      }
+    });
+  });
+
+  it("posts payment with mobile wifi printer identity fields", async () => {
+    apiMocks.apiRequest.mockResolvedValue({ status: "success" });
+
+    await createPayment({
+      order_uuid: "order-1",
+      table_uuid: "table-5",
+      customer_uuid_fk: "customer-1",
+      payment_method: 1,
+      order_channel: 1,
+      amount: 100,
+      cash_payment_amount: 100,
+      transfer_payment_amount: 0,
+      change_amount: 0,
+      paid_at: null,
+      lang: "la",
+      login_uuid_fk: "login-1",
+      device_code: "MOBILE-001",
+      agent_id: "MOBILE-AGENT-001",
+      print_mode: "mobile_wifi"
+    });
+
+    expect(apiMocks.apiRequest).toHaveBeenCalledWith("post", "/api/v1/pos/payment", {
+      data: {
+        order_uuid: "order-1",
+        table_uuid: "table-5",
+        customer_uuid_fk: "customer-1",
+        payment_method: 1,
+        order_channel: 1,
+        amount: 100,
+        cash_payment_amount: 100,
+        transfer_payment_amount: 0,
+        change_amount: 0,
+        paid_at: null,
+        lang: "la",
+        login_uuid_fk: "login-1",
+        device_code: "MOBILE-001",
+        agent_id: "MOBILE-AGENT-001",
+        print_mode: "mobile_wifi"
+      }
+    });
+  });
 });
