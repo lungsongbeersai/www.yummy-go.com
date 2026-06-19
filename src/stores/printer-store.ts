@@ -278,9 +278,16 @@ export const usePrinterStore = create<PrinterState>((set) => ({
   test: async (input) => {
     set({ printing: true, error: null });
 
-    try {
-      const printer = await resolvePrinterDeviceContext(input);
+    let phase = "start";
 
+    try {
+      console.log("[printer-test] start", input);
+
+      phase = "resolvePrinterDeviceContext";
+      const printer = await resolvePrinterDeviceContext(input);
+      console.log("[printer-test] printer", printer);
+
+      phase = "buildTestJob";
       const result = await buildTestJob({
         ...input,
         device_code: printer.device_code,
@@ -290,6 +297,7 @@ export const usePrinterStore = create<PrinterState>((set) => ({
       });
 
       const job = result.data.job;
+      console.log("[printer-test] job", job);
 
       const printerConnectType = textValue(
         (printer as { connect_type?: string | null }).connect_type,
@@ -306,21 +314,44 @@ export const usePrinterStore = create<PrinterState>((set) => ({
         (Capacitor.isNativePlatform() &&
           (printerConnectType === "tcp" || jobConnectType === "tcp"));
 
-      if (isMobileWifi) {
-        const escposBase64 = await renderMobileEscpos(job);
+      console.log("[printer-test] mode", {
+        isNative: Capacitor.isNativePlatform(),
+        printerConnectType,
+        jobConnectType,
+        printerPrintMode: printer.print_mode,
+        jobPrintMode: job.print_mode,
+        jobPrintClient: job.print_client,
+        isMobileWifi,
+      });
 
+      if (isMobileWifi) {
+        phase = "renderMobileEscpos";
+        const escposBase64 = await renderMobileEscpos(job);
+        console.log("[printer-test] escposBase64 length", escposBase64.length);
+
+        phase = "printMobileEscposOverTcp";
         await printMobileEscposOverTcp({
           interface_value: job.interface_value,
           escpos_base64: escposBase64,
         });
       } else {
+        phase = "dispatchPrintJob";
         await dispatchPrintJob(job);
       }
 
+      phase = "done";
       set({ printing: false });
     } catch (error) {
-      set({ error: errorMessage(error), printing: false });
-      throw error;
+      const message = error instanceof Error ? error.message : errorMessage(error);
+      const finalMessage = `[${phase}] ${message}`;
+
+      console.error("[printer-test] failed", {
+        phase,
+        error,
+      });
+
+      set({ error: finalMessage, printing: false });
+      throw new Error(finalMessage);
     }
 
   },
