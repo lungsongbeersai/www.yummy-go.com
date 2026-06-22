@@ -88,6 +88,7 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
   const detailItemLabel = statusSortFk === "2" ? t("pos.product") : t("fields.size");
   const showNoSetProductOptions = statusSortFk === "2" && !sizeOptions.length;
   const sizeSelectKey = showNoSetProductOptions ? "empty" : sizeOptions.length ? "ready" : "loading";
+  const labelRowClass = "flex min-h-8 items-center justify-between gap-2";
 
   return (
     <>
@@ -157,7 +158,7 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
                 </div>
                 <FieldGroup className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                   <Field>
-                    <div className="flex items-center justify-between gap-2">
+                    <div className={labelRowClass}>
                       <FieldLabel>{detailItemLabel}</FieldLabel>
                       <Button
                         type="button"
@@ -203,7 +204,9 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
                     </div>
                   </Field>
                   <Field>
-                    <FieldLabel>{t("fields.bprice")}</FieldLabel>
+                    <div className={labelRowClass}>
+                      <FieldLabel>{t("fields.bprice")}</FieldLabel>
+                    </div>
                     <FormattedNumberInput
                       min={0}
                       value={row.pro_detail_bprice}
@@ -212,7 +215,9 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
                   </Field>
                   {statusSortFk !== "2" ? (
                     <Field>
-                      <FieldLabel>{t("fields.sprice")}</FieldLabel>
+                      <div className={labelRowClass}>
+                        <FieldLabel>{t("fields.sprice")}</FieldLabel>
+                      </div>
                       <FormattedNumberInput
                         min={0}
                         value={row.pro_detail_sprice}
@@ -221,7 +226,9 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
                     </Field>
                   ) : null}
                   <Field>
-                    <FieldLabel>{t("fields.qtyStock")}</FieldLabel>
+                    <div className={labelRowClass}>
+                      <FieldLabel>{t("fields.qtyStock")}</FieldLabel>
+                    </div>
                     <FormattedNumberInput
                       min={0}
                       value={row.pro_detail_qty_stock}
@@ -229,7 +236,9 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
                     />
                   </Field>
                   <Field>
-                    <FieldLabel>{t("product.detailStockStatus")}</FieldLabel>
+                    <div className={labelRowClass}>
+                      <FieldLabel>{t("product.detailStockStatus")}</FieldLabel>
+                    </div>
                     {canEditDetailStock ? (
                       <Select
                         value={row.pro_detail_stock}
@@ -254,7 +263,9 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
                   </Field>
                   {statusSortFk === "1" ? (
                     <Field>
-                      <FieldLabel>{t("product.detailEnabledStatus")}</FieldLabel>
+                      <div className={labelRowClass}>
+                        <FieldLabel>{t("product.detailEnabledStatus")}</FieldLabel>
+                      </div>
                       <Select
                         value={row.pro_detail_enabled}
                         onValueChange={(value) => updateDetail(row.id, { pro_detail_enabled: value as BinaryFlag })}
@@ -274,7 +285,9 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
                   {statusSortFk === "3" ? (
                     <>
                       <Field>
-                        <FieldLabel>{t("product.buyQty")}</FieldLabel>
+                        <div className={labelRowClass}>
+                          <FieldLabel>{t("product.buyQty")}</FieldLabel>
+                        </div>
                         <FormattedNumberInput
                           min={0}
                           value={row.pro_detail_cus_qtyBuy}
@@ -282,7 +295,9 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
                         />
                       </Field>
                       <Field>
-                        <FieldLabel>{t("product.freeQty")}</FieldLabel>
+                        <div className={labelRowClass}>
+                          <FieldLabel>{t("product.freeQty")}</FieldLabel>
+                        </div>
                         <FormattedNumberInput
                           min={0}
                           value={row.pro_detail_cus_qtyFree}
@@ -290,7 +305,9 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
                         />
                       </Field>
                       <Field>
-                        <FieldLabel>{t("product.promotionTime.label")}</FieldLabel>
+                        <div className={labelRowClass}>
+                          <FieldLabel>{t("product.promotionTime.label")}</FieldLabel>
+                        </div>
                         <Select
                           value={row.pro_detail_status}
                           onValueChange={(value) => updateDetail(row.id, { pro_detail_status: value as BinaryFlag })}
@@ -307,7 +324,9 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
                         </Select>
                       </Field>
                       <Field>
-                        <FieldLabel>{t("product.startDate")}</FieldLabel>
+                        <div className={labelRowClass}>
+                          <FieldLabel>{t("product.startDate")}</FieldLabel>
+                        </div>
                         <Input
                           type="date"
                           value={row.pro_detail_sDate}
@@ -315,7 +334,9 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
                         />
                       </Field>
                       <Field>
-                        <FieldLabel>{t("product.endDate")}</FieldLabel>
+                        <div className={labelRowClass}>
+                          <FieldLabel>{t("product.endDate")}</FieldLabel>
+                        </div>
                         <Input
                           type="date"
                           value={row.pro_detail_eDate}
@@ -325,7 +346,9 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
                       {row.pro_detail_status === "2" ? (
                         <>
                           <Field>
-                            <FieldLabel>{t("product.startTime")}</FieldLabel>
+                            <div className={labelRowClass}>
+                              <FieldLabel>{t("product.startTime")}</FieldLabel>
+                            </div>
                             <Input
                               type="time"
                               value={row.pro_detail_sTime}
@@ -333,7 +356,9 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
                             />
                           </Field>
                           <Field>
-                            <FieldLabel>{t("product.endTime")}</FieldLabel>
+                            <div className={labelRowClass}>
+                              <FieldLabel>{t("product.endTime")}</FieldLabel>
+                            </div>
                             <Input
                               type="time"
                               value={row.pro_detail_eTime}

@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, type RefObject, useState } from "react";
+import { type ReactNode, type RefObject, useCallback, useState } from "react";
 import {
   CalendarDays,
   ChevronDown,
@@ -8,6 +8,7 @@ import {
   CreditCard,
   Download,
   FileSpreadsheet,
+  Filter,
   Printer,
   RefreshCcw,
   SlidersHorizontal,
@@ -18,6 +19,22 @@ import { LoadingState } from "@/components/common/loading-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
@@ -28,15 +45,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Sheet,
-  SheetClose,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
 import {
   Table,
   TableBody,
@@ -55,6 +63,11 @@ import type {
   PaymentMethodReportRow,
   PaymentMethodSummaryCard,
 } from "@/stores/report-store";
+import { SortableReportTableHead } from "../report-sort-table-head";
+import {
+  reportOrderOptions,
+  useLocalTableSort,
+} from "../report-sort-utils";
 import type {
   PaymentMethodsExportAction,
   PaymentMethodsReportFilters,
@@ -178,21 +191,18 @@ export function PaymentMethodsFilterSheet({
   const { t } = useTranslation();
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent
-        side="bottom"
-        className="max-h-[88dvh] gap-0 overflow-hidden rounded-t-xl p-0 xl:hidden"
-      >
-        <SheetHeader className="shrink-0 border-b border-border px-4 py-3 pr-12 text-left">
-          <SheetTitle className="text-base font-black">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-5xl">
+        <DialogHeader className="shrink-0 border-b border-border px-4 py-3 pr-12 text-left">
+          <DialogTitle className="text-base font-black">
             {t("report.filters.currentFilters")}
-          </SheetTitle>
-          <SheetDescription>
+          </DialogTitle>
+          <DialogDescription>
             {t("report.paymentMethodsReport.title")}
-          </SheetDescription>
-        </SheetHeader>
-        <div className="min-h-0 overflow-y-auto p-4">
-          <div className="grid gap-3">
+          </DialogDescription>
+        </DialogHeader>
+        <div className="min-h-0 flex-1 overflow-y-auto p-4">
+          <div className="grid gap-3 lg:grid-cols-3">
             <PaymentMethodsFilterFields
               branchLoading={branchLoading}
               branchLocked={branchLocked}
@@ -204,12 +214,12 @@ export function PaymentMethodsFilterSheet({
             />
           </div>
         </div>
-        <SheetFooter className="grid-cols-2 gap-2 border-t border-border bg-card/95 px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur grid">
-          <SheetClose asChild>
+        <DialogFooter className="grid grid-cols-2 gap-2 border-t border-border bg-card/95 px-4 py-3 backdrop-blur sm:flex">
+          <DialogClose asChild>
             <Button type="button" variant="outline">
               {t("actions.close")}
             </Button>
-          </SheetClose>
+          </DialogClose>
           <Button
             type="button"
             disabled={loading || !canApply}
@@ -220,9 +230,9 @@ export function PaymentMethodsFilterSheet({
             ) : null}
             {t("report.apply")}
           </Button>
-        </SheetFooter>
-      </SheetContent>
-    </Sheet>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -299,6 +309,7 @@ function PaymentMethodsFilterFields({
   onDraftChange: (filters: PaymentMethodsReportFilters) => void;
 }) {
   const { t } = useTranslation();
+  const orderOptions = reportOrderOptions(t);
 
   function patch(patch: Partial<PaymentMethodsReportFilters>) {
     onDraftChange({ ...draftFilters, ...patch });
@@ -432,8 +443,11 @@ function PaymentMethodsFilterFields({
           </SelectTrigger>
           <SelectContent>
             <SelectGroup>
-              <SelectItem value="DESC">DESC</SelectItem>
-              <SelectItem value="ASC">ASC</SelectItem>
+              {orderOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
             </SelectGroup>
           </SelectContent>
         </Select>
@@ -449,11 +463,11 @@ type TableCardProps = {
   footer: ReactNode;
   loading: boolean;
   methodLabel: string;
-  rangeLabel: string;
   rowsLength: number;
   title: string;
   onExportExcel: () => void;
   onExportPdf: () => void;
+  onOpenFilters: () => void;
   onPrintReport: () => void;
   onRefresh: () => void;
 };
@@ -465,25 +479,24 @@ export function PaymentMethodsTableCard({
   footer,
   loading,
   methodLabel,
-  rangeLabel,
   rowsLength,
   title,
   onExportExcel,
   onExportPdf,
+  onOpenFilters,
   onPrintReport,
   onRefresh,
 }: TableCardProps) {
   const { t } = useTranslation();
 
   return (
-    <Card className="min-h-0 overflow-hidden border-border bg-card shadow-sm md:sticky md:top-[calc(var(--payment-method-filter-height)+0.75rem)] md:flex md:max-h-[calc(100dvh-var(--app-shell-header-height)-var(--payment-method-filter-height)-1.5rem)] md:flex-col">
+    <Card className="min-h-0 min-w-0 overflow-hidden border-border bg-card shadow-sm md:sticky md:top-3 md:flex md:max-h-[calc(100dvh-var(--app-shell-header-height)-1.5rem)] md:flex-col">
       <CardHeader className="flex shrink-0 flex-col gap-2 border-b border-border bg-card px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <CardTitle className="flex min-w-0 items-center gap-2 text-base font-black">
             <CreditCard />
             <span className="truncate">{title}</span>
           </CardTitle>
-          <p className="text-sm text-muted-foreground">{rangeLabel}</p>
           <Badge className="mt-2 h-7 w-fit px-2 text-xs">{methodLabel}</Badge>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -492,31 +505,42 @@ export function PaymentMethodsTableCard({
             variant="outline"
             size="sm"
             className="h-9"
-            disabled={exportDisabled}
-            onClick={onExportExcel}
+            onClick={onOpenFilters}
           >
-            {exporting === "excel" ? (
-              <RefreshCcw className="animate-spin" data-icon="inline-start" />
-            ) : (
-              <FileSpreadsheet data-icon="inline-start" />
-            )}
-            {t("report.exportExcel")}
+            <Filter data-icon="inline-start" />
+            {t("report.filters.openFilters")}
           </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-9"
-            disabled={exportDisabled}
-            onClick={onExportPdf}
-          >
-            {exporting === "pdf" ? (
-              <RefreshCcw className="animate-spin" data-icon="inline-start" />
-            ) : (
-              <Download data-icon="inline-start" />
-            )}
-            {t("report.exportPdf")}
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-9"
+                disabled={exportDisabled}
+              >
+                {exporting === "excel" || exporting === "pdf" ? (
+                  <RefreshCcw className="animate-spin" data-icon="inline-start" />
+                ) : (
+                  <Download data-icon="inline-start" />
+                )}
+                {t("common.export")}
+                <ChevronDown data-icon="inline-end" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuGroup>
+                <DropdownMenuItem disabled={exportDisabled} onSelect={onExportExcel}>
+                  <FileSpreadsheet data-icon="inline-start" />
+                  {t("report.exportExcel")}
+                </DropdownMenuItem>
+                <DropdownMenuItem disabled={exportDisabled} onSelect={onExportPdf}>
+                  <Download data-icon="inline-start" />
+                  {t("report.exportPdf")}
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button
             type="button"
             variant="outline"
@@ -638,6 +662,15 @@ export function PaymentMethodsTable({
   const allMetrics = paymentMethodRowMetricConfigs(t);
   // Map field -> metric config for quick lookup
   const metricByField = Object.fromEntries(allMetrics.map((m) => [m.field, m]));
+  const getSortValue = useCallback(
+    (row: PaymentMethodReportRow, key: keyof PaymentMethodReportRow) =>
+      row[key],
+    [],
+  );
+  const { sort, sortedRows, toggleSort } = useLocalTableSort(
+    rows,
+    getSortValue,
+  );
 
   return (
     <div className="hidden min-w-0 md:block">
@@ -659,29 +692,44 @@ export function PaymentMethodsTable({
           </TableRow>
           {/* Column header row */}
           <TableRow>
-            <TableHead className="w-15 whitespace-nowrap bg-background/95 text-center">
+            <SortableReportTableHead
+              align="right"
+              sort={sort}
+              sortKey="rank"
+              className="w-15 whitespace-nowrap bg-background/95 text-center"
+              onSort={toggleSort}
+            >
               {t("report.paymentMethodsReport.columns.rank")}
-            </TableHead>
-            <TableHead className="min-w-50 whitespace-nowrap bg-background/95">
+            </SortableReportTableHead>
+            <SortableReportTableHead
+              sort={sort}
+              sortKey="paymentMethodName"
+              className="min-w-50 whitespace-nowrap bg-background/95"
+              onSort={toggleSort}
+            >
               {t("report.paymentMethodsReport.columns.paymentMethod")}
-            </TableHead>
+            </SortableReportTableHead>
             {COLUMN_GROUPS.flatMap((group) =>
               group.fields.map((field) => {
                 const metric = metricByField[field];
                 return (
-                  <TableHead
+                  <SortableReportTableHead
                     key={field}
+                    align="right"
+                    sort={sort}
+                    sortKey={field}
                     className="min-w-27.5 whitespace-nowrap bg-background/95 text-right text-[12px]"
+                    onSort={toggleSort}
                   >
                     {metric?.label ?? field}
-                  </TableHead>
+                  </SortableReportTableHead>
                 );
               }),
             )}
           </TableRow>
         </TableHeader>
         <TableBody>
-          {rows.map((row, index) => (
+          {sortedRows.map((row, index) => (
             <TableRow
               key={`${row.paymentMethodCode}-${row.rank}`}
               className={index % 2 === 1 ? "bg-muted/15" : undefined}

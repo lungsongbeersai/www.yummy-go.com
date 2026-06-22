@@ -16,23 +16,20 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Sheet,
-  SheetClose,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { PAGE_LIMIT_OPTIONS, isAllPageLimit } from "@/lib/pagination";
 import type {
   DetailPaginationBasis,
   ReportBranchOption,
   ReportFilters,
-  ReportPaymentMethodFilter,
 } from "./daily-sales-report-types";
-import { paymentMethodOptions } from "./daily-sales-report-utils";
-import type { DailySalesReportOrder } from "@/services/report";
 
 type ReportFilterProps = {
   branchLoading: boolean;
@@ -106,19 +103,16 @@ export function ReportFilterSheet({
   const { t } = useTranslation();
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent
-        side="bottom"
-        className="max-h-[88dvh] gap-0 overflow-hidden rounded-t-xl p-0 xl:hidden"
-      >
-        <SheetHeader className="shrink-0 border-b border-border px-4 py-3 pr-12 text-left">
-          <SheetTitle className="text-base font-black">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-5xl">
+        <DialogHeader className="shrink-0 border-b border-border px-4 py-3 pr-12 text-left">
+          <DialogTitle className="text-base font-black">
             {t("report.filters.currentFilters")}
-          </SheetTitle>
-          <SheetDescription>{t("report.dailySalesTitle")}</SheetDescription>
-        </SheetHeader>
-        <div className="min-h-0 overflow-y-auto p-4">
-          <div className="grid gap-3">
+          </DialogTitle>
+          <DialogDescription>{t("report.dailySalesTitle")}</DialogDescription>
+        </DialogHeader>
+        <div className="min-h-0 flex-1 overflow-y-auto p-4">
+          <div className="grid gap-3 lg:grid-cols-3">
             <ReportFilterFields
               branchLoading={branchLoading}
               branchLocked={branchLocked}
@@ -130,12 +124,12 @@ export function ReportFilterSheet({
             />
           </div>
         </div>
-        <SheetFooter className="grid-cols-2 gap-2 border-t border-border bg-card/95 px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur grid">
-          <SheetClose asChild>
+        <DialogFooter className="grid grid-cols-2 gap-2 border-t border-border bg-card/95 px-4 py-3 backdrop-blur sm:flex">
+          <DialogClose asChild>
             <Button type="button" variant="outline">
               {t("actions.close")}
             </Button>
-          </SheetClose>
+          </DialogClose>
           <Button
             type="button"
             disabled={loading || !canApply}
@@ -146,9 +140,9 @@ export function ReportFilterSheet({
             ) : null}
             {t("report.apply")}
           </Button>
-        </SheetFooter>
-      </SheetContent>
-    </Sheet>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -302,58 +296,6 @@ function ReportFilterFields({
         />
       </Field>
       <Field className="min-w-0 gap-1.5">
-        <FieldLabel className="text-xs font-bold text-muted-foreground">
-          {t("report.filters.typePage")}
-        </FieldLabel>
-        <div className="grid h-9 grid-cols-2 gap-1 rounded-md border border-border bg-background/70 p-1">
-          {(["summary", "detail"] as const).map((typePage) => (
-            <Button
-              key={typePage}
-              type="button"
-              size="xs"
-              variant={draftFilters.typePage === typePage ? "default" : "ghost"}
-              className="h-7 min-w-0 px-2 text-xs shadow-none"
-              onClick={() => patch({ typePage })}
-            >
-              <span className="truncate">
-                {typePage === "summary"
-                  ? t("report.summary")
-                  : t("report.detail")}
-              </span>
-            </Button>
-          ))}
-        </div>
-      </Field>
-      <Field className="min-w-0 gap-1.5">
-        <FieldLabel
-          htmlFor={`${idPrefix}-payment-method`}
-          className="text-xs font-bold text-muted-foreground"
-        >
-          {t("report.filters.paymentMethod")}
-        </FieldLabel>
-        <Select
-          value={draftFilters.paymentMethod}
-          onValueChange={(value) =>
-            patch({ paymentMethod: value as ReportPaymentMethodFilter })
-          }
-        >
-          <SelectTrigger id={`${idPrefix}-payment-method`} className="w-full">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              {paymentMethodOptions.map((method) => (
-                <SelectItem key={method} value={method}>
-                  {method === "all"
-                    ? t("common.all")
-                    : t(`report.paymentMethods.${method}`)}
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          </SelectContent>
-        </Select>
-      </Field>
-      <Field className="min-w-0 gap-1.5">
         <FieldLabel
           htmlFor={`${idPrefix}-limit`}
           className="text-xs font-bold text-muted-foreground"
@@ -380,30 +322,6 @@ function ReportFilterFields({
                   {limit === "All" ? t("common.all") : limit}
                 </SelectItem>
               ))}
-            </SelectGroup>
-          </SelectContent>
-        </Select>
-      </Field>
-      <Field className="min-w-0 gap-1.5">
-        <FieldLabel
-          htmlFor={`${idPrefix}-order`}
-          className="text-xs font-bold text-muted-foreground"
-        >
-          {t("report.filters.orderBy")}
-        </FieldLabel>
-        <Select
-          value={draftFilters.orderBy}
-          onValueChange={(value) =>
-            patch({ orderBy: value as DailySalesReportOrder })
-          }
-        >
-          <SelectTrigger id={`${idPrefix}-order`} className="w-full">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              <SelectItem value="DESC">DESC</SelectItem>
-              <SelectItem value="ASC">ASC</SelectItem>
             </SelectGroup>
           </SelectContent>
         </Select>

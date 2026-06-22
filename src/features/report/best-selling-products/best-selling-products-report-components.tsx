@@ -1,13 +1,15 @@
 "use client";
 
-import { Fragment, type ReactNode, type RefObject } from "react";
+import { Fragment, useCallback, type ReactNode, type RefObject } from "react";
 import {
   CalendarArrowDown,
   CalendarArrowUp,
   CalendarDays,
+  ChevronDown,
   CircleDollarSign,
   Download,
   FileSpreadsheet,
+  Filter,
   ListOrdered,
   Printer,
   RefreshCcw,
@@ -21,6 +23,22 @@ import { LoadingState } from "@/components/common/loading-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
@@ -31,15 +49,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Sheet,
-  SheetClose,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
 import {
   Table,
   TableBody,
@@ -59,6 +68,11 @@ import type {
   BestSellingProductGroup,
   BestSellingProductItem,
 } from "@/stores/report-store";
+import { SortableReportTableHead } from "../report-sort-table-head";
+import {
+  sortRowsLocally,
+  useLocalTableSort
+} from "../report-sort-utils";
 import type {
   BestSellingExportAction,
   BestSellingOption,
@@ -82,6 +96,8 @@ const bestSellingSortIcons: Record<BestSellingProductsSortBy, LucideIcon> = {
   qty: ListOrdered,
   total: CircleDollarSign,
 };
+
+type BestSellingSortKey = keyof BestSellingProductItem;
 
 type FilterProps = {
   branchLoading: boolean;
@@ -190,19 +206,16 @@ export function BestSellingFilterSheet({
   const { t } = useTranslation();
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent
-        side="bottom"
-        className="max-h-[88dvh] gap-0 overflow-hidden rounded-t-xl p-0 xl:hidden"
-      >
-        <SheetHeader className="shrink-0 border-b border-border px-4 py-3 pr-12 text-left">
-          <SheetTitle className="text-base font-black">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-5xl">
+        <DialogHeader className="shrink-0 border-b border-border px-4 py-3 pr-12 text-left">
+          <DialogTitle className="text-base font-black">
             {t("report.filters.currentFilters")}
-          </SheetTitle>
-          <SheetDescription>{t("report.bestSelling.title")}</SheetDescription>
-        </SheetHeader>
-        <div className="min-h-0 overflow-y-auto p-4">
-          <div className="grid gap-3">
+          </DialogTitle>
+          <DialogDescription>{t("report.bestSelling.title")}</DialogDescription>
+        </DialogHeader>
+        <div className="min-h-0 flex-1 overflow-y-auto p-4">
+          <div className="grid gap-3 lg:grid-cols-3">
             <BestSellingFilterFields
               branchLoading={branchLoading}
               branchLocked={branchLocked}
@@ -215,12 +228,12 @@ export function BestSellingFilterSheet({
             />
           </div>
         </div>
-        <SheetFooter className="grid-cols-2 gap-2 border-t border-border bg-card/95 px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur grid">
-          <SheetClose asChild>
+        <DialogFooter className="grid grid-cols-2 gap-2 border-t border-border bg-card/95 px-4 py-3 backdrop-blur sm:flex">
+          <DialogClose asChild>
             <Button type="button" variant="outline">
               {t("actions.close")}
             </Button>
-          </SheetClose>
+          </DialogClose>
           <Button
             type="button"
             disabled={loading || !canApply}
@@ -231,9 +244,9 @@ export function BestSellingFilterSheet({
             ) : null}
             {t("report.apply")}
           </Button>
-        </SheetFooter>
-      </SheetContent>
-    </Sheet>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -464,11 +477,11 @@ type TableCardProps = {
   exporting: BestSellingExportAction | null;
   footer: ReactNode;
   loading: boolean;
-  rangeLabel: string;
   rowsLength: number;
   sortByLabel: string;
   onExportExcel: () => void;
   onExportPdf: () => void;
+  onOpenFilters: () => void;
   onPrintReport: () => void;
   onRefresh: () => void;
 };
@@ -479,18 +492,18 @@ export function BestSellingTableCard({
   exporting,
   footer,
   loading,
-  rangeLabel,
   rowsLength,
   sortByLabel,
   onExportExcel,
   onExportPdf,
+  onOpenFilters,
   onPrintReport,
   onRefresh,
 }: TableCardProps) {
   const { t } = useTranslation();
 
   return (
-    <Card className="min-h-0 min-w-0 overflow-hidden border-border bg-card shadow-sm md:sticky md:top-[calc(var(--best-selling-filter-height)+0.75rem)] md:flex md:max-h-[calc(100dvh-var(--app-shell-header-height)-var(--best-selling-filter-height)-1.5rem)] md:flex-col">
+    <Card className="min-h-0 min-w-0 overflow-hidden border-border bg-card shadow-sm md:sticky md:top-3 md:flex md:max-h-[calc(100dvh-var(--app-shell-header-height)-1.5rem)] md:flex-col">
       <CardHeader className="flex min-w-0 shrink-0 flex-col gap-2 border-b border-border bg-card px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
         <div className="min-w-0 flex-1">
           <CardTitle className="flex min-w-0 items-center gap-2 text-base font-black">
@@ -499,7 +512,6 @@ export function BestSellingTableCard({
               {t("report.bestSelling.tableTitle")}
             </span>
           </CardTitle>
-          <p className="text-sm text-muted-foreground">{rangeLabel}</p>
           <Badge className="mt-2 h-7 w-fit px-2 text-xs">{sortByLabel}</Badge>
         </div>
         <div className="flex min-w-0 flex-wrap items-center gap-2 sm:justify-end">
@@ -508,31 +520,42 @@ export function BestSellingTableCard({
             variant="outline"
             size="sm"
             className="h-9"
-            disabled={exportDisabled}
-            onClick={onExportExcel}
+            onClick={onOpenFilters}
           >
-            {exporting === "excel" ? (
-              <RefreshCcw className="animate-spin" data-icon="inline-start" />
-            ) : (
-              <FileSpreadsheet data-icon="inline-start" />
-            )}
-            {t("report.exportExcel")}
+            <Filter data-icon="inline-start" />
+            {t("report.filters.openFilters")}
           </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-9"
-            disabled={exportDisabled}
-            onClick={onExportPdf}
-          >
-            {exporting === "pdf" ? (
-              <RefreshCcw className="animate-spin" data-icon="inline-start" />
-            ) : (
-              <Download data-icon="inline-start" />
-            )}
-            {t("report.exportPdf")}
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-9"
+                disabled={exportDisabled}
+              >
+                {exporting === "excel" || exporting === "pdf" ? (
+                  <RefreshCcw className="animate-spin" data-icon="inline-start" />
+                ) : (
+                  <Download data-icon="inline-start" />
+                )}
+                {t("common.export")}
+                <ChevronDown data-icon="inline-end" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuGroup>
+                <DropdownMenuItem disabled={exportDisabled} onSelect={onExportExcel}>
+                  <FileSpreadsheet data-icon="inline-start" />
+                  {t("report.exportExcel")}
+                </DropdownMenuItem>
+                <DropdownMenuItem disabled={exportDisabled} onSelect={onExportPdf}>
+                  <Download data-icon="inline-start" />
+                  {t("report.exportPdf")}
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button
             type="button"
             variant="outline"
@@ -600,39 +623,82 @@ export function BestSellingProductsTable({
   const { t } = useTranslation();
   const productMetrics = bestSellingProductMetricConfigs(t);
   const groupMetrics = bestSellingGroupMetricConfigs(t);
+  const getGroupSortValue = useCallback(
+    (group: BestSellingProductGroup, key: BestSellingSortKey) => {
+      if (key === "groupName") return group.name;
+      const groupMetric = groupMetrics.find((metric) => metric.field === key);
+      if (groupMetric) return group[groupMetric.field];
+      return group.items[0]?.[key];
+    },
+    [groupMetrics],
+  );
+  const { sort, sortedRows: sortedGroups, toggleSort } = useLocalTableSort(
+    groups,
+    getGroupSortValue,
+  );
 
   return (
     <div className="hidden w-full min-w-0 overflow-x-auto md:block">
       <Table className="min-w-470 text-[13px]">
         <TableHeader className="sticky top-0 z-20 bg-background/95 shadow-sm backdrop-blur">
           <TableRow>
-            <TableHead className="w-22.5 whitespace-nowrap bg-background/95 text-center">
+            <SortableReportTableHead
+              align="right"
+              sort={sort}
+              sortKey="rank"
+              className="w-22.5 whitespace-nowrap bg-background/95 text-center"
+              onSort={toggleSort}
+            >
               {t("report.bestSelling.columns.rank")}
-            </TableHead>
-            <TableHead className="min-w-65 whitespace-nowrap bg-background/95">
+            </SortableReportTableHead>
+            <SortableReportTableHead
+              sort={sort}
+              sortKey="productName"
+              className="min-w-65 whitespace-nowrap bg-background/95"
+              onSort={toggleSort}
+            >
               {t("report.bestSelling.columns.product")}
-            </TableHead>
-            <TableHead className="min-w-35 whitespace-nowrap bg-background/95">
+            </SortableReportTableHead>
+            <SortableReportTableHead
+              sort={sort}
+              sortKey="productCode"
+              className="min-w-35 whitespace-nowrap bg-background/95"
+              onSort={toggleSort}
+            >
               {t("report.bestSelling.columns.productCode")}
-            </TableHead>
-            <TableHead className="min-w-35 whitespace-nowrap bg-background/95">
+            </SortableReportTableHead>
+            <SortableReportTableHead
+              sort={sort}
+              sortKey="categoryName"
+              className="min-w-35 whitespace-nowrap bg-background/95"
+              onSort={toggleSort}
+            >
               {t("report.bestSelling.columns.category")}
-            </TableHead>
-            <TableHead className="min-w-40 whitespace-nowrap bg-background/95">
+            </SortableReportTableHead>
+            <SortableReportTableHead
+              sort={sort}
+              sortKey="groupName"
+              className="min-w-40 whitespace-nowrap bg-background/95"
+              onSort={toggleSort}
+            >
               {t("report.bestSelling.columns.group")}
-            </TableHead>
+            </SortableReportTableHead>
             {productMetrics.map((metric) => (
-              <TableHead
+              <SortableReportTableHead
                 key={metric.key}
+                align="right"
+                sort={sort}
+                sortKey={metric.field}
                 className="min-w-32.5 whitespace-nowrap bg-background/95 text-right"
+                onSort={toggleSort}
               >
                 {metric.label}
-              </TableHead>
+              </SortableReportTableHead>
             ))}
           </TableRow>
         </TableHeader>
         <TableBody>
-          {groups.map((group) => (
+          {sortedGroups.map((group) => (
             <Fragment key={group.id}>
               <TableRow className="border-b border-border/80 bg-muted/25 hover:bg-muted/25">
                 <TableCell colSpan={5} className="py-3">
@@ -667,7 +733,7 @@ export function BestSellingProductsTable({
                   );
                 })}
               </TableRow>
-              {group.items.map((item, index) => (
+              {sortRowsLocally(group.items, sort, (item, key) => item[key]).map((item, index) => (
                 <BestSellingProductRow
                   key={item.id}
                   item={item}

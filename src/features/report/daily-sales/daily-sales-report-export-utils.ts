@@ -30,6 +30,39 @@ export function waitForPaint() {
     requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
   });
 }
+
+export function waitForImages(element: HTMLElement, timeoutMs = 1200) {
+  const images = Array.from(element.querySelectorAll("img"));
+  if (!images.length) return Promise.resolve();
+
+  const loaded = Promise.all(
+    images.map((image) => waitForImage(image)),
+  ).then(() => undefined);
+  const timeout = new Promise<void>((resolve) =>
+    window.setTimeout(resolve, timeoutMs),
+  );
+
+  return Promise.race([loaded, timeout]);
+}
+
+function waitForImage(image: HTMLImageElement) {
+  return new Promise<void>((resolve) => {
+    if (image.complete) {
+      resolve();
+      return;
+    }
+
+    const done = () => {
+      image.removeEventListener("load", done);
+      image.removeEventListener("error", done);
+      resolve();
+    };
+
+    image.addEventListener("load", done, { once: true });
+    image.addEventListener("error", done, { once: true });
+  });
+}
+
 export function exportCellValue(row: ApiEntity, column: ReportColumn) {
   const value = readValue(row, column.keys);
   if (column.kind === "image")
