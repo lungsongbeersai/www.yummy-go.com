@@ -3,10 +3,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  ChevronLeft,
-  ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
   GripVertical,
   Menu,
   Pencil,
@@ -31,6 +27,7 @@ import {
   verticalListSortingStrategy
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { AppPagination } from "@/components/common/app-pagination";
 import { compactText } from "@/lib/format";
 import { DEFAULT_PAGE_LIMIT, PAGE_LIMIT_OPTIONS, isAllPageLimit, pageLimitSize } from "@/lib/pagination";
 import { cn } from "@/lib/utils";
@@ -371,49 +368,11 @@ export function DataTable<T extends Record<string, unknown>>({
                   </SelectContent>
                 </Select>
               </div>
-              <span>{t("common.page", { current: pageIndex + 1, total: totalPages })}</span>
-              <div className="flex items-center gap-1">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="iconSm"
-                  aria-label={t("common.firstPage")}
-                  disabled={pageIndex === 0}
-                  onClick={() => setPageIndex(0)}
-                >
-                  <ChevronsLeft />
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="iconSm"
-                  aria-label={t("common.previousPage")}
-                  disabled={pageIndex === 0}
-                  onClick={() => setPageIndex((index) => Math.max(0, index - 1))}
-                >
-                  <ChevronLeft />
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="iconSm"
-                  aria-label={t("common.nextPage")}
-                  disabled={pageIndex >= totalPages - 1}
-                  onClick={() => setPageIndex((index) => Math.min(totalPages - 1, index + 1))}
-                >
-                  <ChevronRight />
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="iconSm"
-                  aria-label={t("common.lastPage")}
-                  disabled={pageIndex >= totalPages - 1}
-                  onClick={() => setPageIndex(totalPages - 1)}
-                >
-                  <ChevronsRight />
-                </Button>
-              </div>
+              <AppPagination
+                page={pageIndex + 1}
+                totalPages={totalPages}
+                onPageChange={(nextPage) => setPageIndex(nextPage - 1)}
+              />
             </div>
           ) : null}
         </div>

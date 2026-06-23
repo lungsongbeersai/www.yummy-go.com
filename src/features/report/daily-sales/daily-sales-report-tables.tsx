@@ -385,6 +385,10 @@ export function DetailBillTable({
                 <TableRow
                   className={cn(
                     "border-b border-border/80 bg-card hover:bg-muted/25 [&>td]:py-3",
+                    expanded &&
+                      !group.cancelled &&
+                      !groupNeedsAttention &&
+                      "border-l-4 border-l-primary/60 bg-primary/5 hover:bg-primary/10",
                     groupNeedsAttention &&
                       "bg-red-50 hover:bg-red-100/70 dark:bg-red-950/25 dark:hover:bg-red-950/35",
                     group.cancelled &&
@@ -470,118 +474,151 @@ export function DetailBillTable({
                     )}
                   >
                     <TableCell colSpan={parentColumnCount} className="p-0">
-                      <div className="border-l-4 border-l-primary/20 px-4 py-3">
-                        <Table className="min-w-[1160px] text-[13px]">
-                          <TableHeader className="bg-muted/60">
-                            <TableRow>
-                              <TableHead className="w-[52px] whitespace-nowrap bg-muted/60 text-center">
-                                <IndeterminateCheckbox
-                                  aria-label={t("common.selectAll")}
-                                  checked={groupSelected}
-                                  indeterminate={groupPartiallySelected}
-                                  onChange={(event) =>
-                                    onToggleRows(
-                                      group.items,
-                                      event.target.checked,
-                                    )
-                                  }
-                                />
-                              </TableHead>
-                              {itemColumns.map((column) =>
-                                column.kind === "image" ? (
-                                  <TableHead
-                                    key={column.header}
-                                    className={cn(
-                                      "h-9 whitespace-nowrap bg-muted/60",
-                                      column.minWidth,
-                                    )}
-                                  >
-                                    {column.header}
-                                  </TableHead>
-                                ) : (
-                                  <SortableReportTableHead
-                                    key={column.header}
-                                    align={column.align}
-                                    sort={itemSort}
-                                    sortKey={column.header}
-                                    className={cn(
-                                      "h-9 whitespace-nowrap bg-muted/60",
-                                      column.align === "right" && "text-right",
-                                      column.minWidth,
-                                      column.wide && "min-w-[180px]",
-                                    )}
-                                    onSort={toggleItemSort}
-                                  >
-                                    {column.header}
-                                  </SortableReportTableHead>
-                                ),
-                              )}
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {sortRowsLocally(
-                              group.items,
-                              itemSort,
-                              getItemSortValue,
-                            ).map((item, itemIndex) => {
-                              const recordId = reportRecordId(item);
-                              const selected = selectedRecordIds.has(recordId);
-
-                              return (
-                                <TableRow
-                                  key={`${rowKey(item, itemIndex)}-${itemIndex}`}
-                                  className={cn(
-                                    tableRowClass(item, itemIndex),
-                                    selected &&
-                                      !isCancelledRow(item) &&
-                                      !isPaymentAttentionRow(item) &&
-                                      "bg-primary/5",
-                                  )}
-                                >
-                                  <TableCell className="w-[52px] whitespace-nowrap text-center">
-                                    <Checkbox
-                                      aria-label={t("common.selectRow", {
-                                        name: textValue(
-                                          readValue(item, [
-                                            "product_name",
-                                            "prod_name",
-                                            "prod_name_la",
-                                            "prod_name_eng",
-                                          ]),
-                                          `${group.invoiceNumber}-${itemIndex + 1}`,
-                                        ),
-                                      })}
-                                      checked={selected}
+                      <div className="px-4 py-3">
+                        <div className="overflow-hidden rounded-md border border-border bg-card shadow-sm">
+                          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-primary/5 px-4 py-3">
+                            <div className="flex min-w-0 flex-wrap items-center gap-2">
+                              <Badge className="h-7 border-primary/20 bg-primary/10 px-2 text-primary">
+                                {t("fields.no")} {pageStart + index}
+                              </Badge>
+                              <span className="font-black text-foreground">
+                                {group.invoiceNumber}
+                              </span>
+                              <span className="text-sm font-semibold text-muted-foreground">
+                                {group.itemCount.toLocaleString("en-US")}{" "}
+                                {t("report.billItems")}
+                              </span>
+                            </div>
+                            <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs font-semibold text-muted-foreground">
+                              <Badge className="h-7 border-border bg-background px-2 text-foreground">
+                                {t("report.columns.tableName")}:{" "}
+                                {group.tableName}
+                              </Badge>
+                              <Badge className="h-7 border-border bg-background px-2 text-foreground">
+                                {t("report.columns.paymentType")}:{" "}
+                                {group.paymentType}
+                              </Badge>
+                            </div>
+                          </div>
+                          <div className="overflow-x-auto p-3">
+                            <Table className="min-w-[1160px] text-[13px]">
+                              <TableHeader className="bg-muted/60">
+                                <TableRow>
+                                  <TableHead className="w-[52px] whitespace-nowrap bg-muted/60 text-center">
+                                    <IndeterminateCheckbox
+                                      aria-label={t("common.selectAll")}
+                                      checked={groupSelected}
+                                      indeterminate={groupPartiallySelected}
                                       onChange={(event) =>
-                                        onToggleRow(item, event.target.checked)
+                                        onToggleRows(
+                                          group.items,
+                                          event.target.checked,
+                                        )
                                       }
                                     />
-                                  </TableCell>
-                                  {itemColumns.map((column) => (
-                                    <TableCell
-                                      key={column.header}
+                                  </TableHead>
+                                  {itemColumns.map((column) =>
+                                    column.kind === "image" ? (
+                                      <TableHead
+                                        key={column.header}
+                                        className={cn(
+                                          "h-9 whitespace-nowrap bg-muted/60",
+                                          column.minWidth,
+                                        )}
+                                      >
+                                        {column.header}
+                                      </TableHead>
+                                    ) : (
+                                      <SortableReportTableHead
+                                        key={column.header}
+                                        align={column.align}
+                                        sort={itemSort}
+                                        sortKey={column.header}
+                                        className={cn(
+                                          "h-9 whitespace-nowrap bg-muted/60",
+                                          column.align === "right" &&
+                                            "text-right",
+                                          column.minWidth,
+                                          column.wide && "min-w-[180px]",
+                                        )}
+                                        onSort={toggleItemSort}
+                                      >
+                                        {column.header}
+                                      </SortableReportTableHead>
+                                    ),
+                                  )}
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {sortRowsLocally(
+                                  group.items,
+                                  itemSort,
+                                  getItemSortValue,
+                                ).map((item, itemIndex) => {
+                                  const recordId = reportRecordId(item);
+                                  const selected =
+                                    selectedRecordIds.has(recordId);
+
+                                  return (
+                                    <TableRow
+                                      key={`${rowKey(item, itemIndex)}-${itemIndex}`}
                                       className={cn(
-                                        tableCellClass(item, column),
-                                        column.kind === "image" && "pl-4",
+                                        tableRowClass(item, itemIndex),
+                                        selected &&
+                                          !isCancelledRow(item) &&
+                                          !isPaymentAttentionRow(item) &&
+                                          "bg-primary/5",
                                       )}
                                     >
-                                      {renderCell(item, column)}
-                                    </TableCell>
-                                  ))}
-                                </TableRow>
-                              );
-                            })}
-                          </TableBody>
-                        </Table>
-                        <div className="mt-3 grid gap-2 text-xs sm:grid-cols-2 xl:grid-cols-5">
-                          {billSummaryMetrics(t, group).map((metric) => (
-                            <BillMetric
-                              key={metric.label}
-                              label={metric.label}
-                              strong={metric.strong}
-                              value={metric.value}
-                            />
-                          ))}
+                                      <TableCell className="w-[52px] whitespace-nowrap text-center">
+                                        <Checkbox
+                                          aria-label={t("common.selectRow", {
+                                            name: textValue(
+                                              readValue(item, [
+                                                "product_name",
+                                                "prod_name",
+                                                "prod_name_la",
+                                                "prod_name_eng",
+                                              ]),
+                                              `${group.invoiceNumber}-${itemIndex + 1}`,
+                                            ),
+                                          })}
+                                          checked={selected}
+                                          onChange={(event) =>
+                                            onToggleRow(
+                                              item,
+                                              event.target.checked,
+                                            )
+                                          }
+                                        />
+                                      </TableCell>
+                                      {itemColumns.map((column) => (
+                                        <TableCell
+                                          key={column.header}
+                                          className={cn(
+                                            tableCellClass(item, column),
+                                            column.kind === "image" && "pl-4",
+                                          )}
+                                        >
+                                          {renderCell(item, column)}
+                                        </TableCell>
+                                      ))}
+                                    </TableRow>
+                                  );
+                                })}
+                              </TableBody>
+                            </Table>
+                          </div>
+                          <div className="grid gap-2 border-t border-border bg-muted/20 p-3 text-xs sm:grid-cols-2 xl:grid-cols-5">
+                            {billSummaryMetrics(t, group).map((metric) => (
+                              <BillMetric
+                                key={metric.label}
+                                label={metric.label}
+                                strong={metric.strong}
+                                value={metric.value}
+                              />
+                            ))}
+                          </div>
                         </div>
                       </div>
                     </TableCell>

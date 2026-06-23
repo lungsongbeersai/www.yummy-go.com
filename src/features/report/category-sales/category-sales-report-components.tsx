@@ -44,7 +44,7 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHeader, TableRow } from "@/components/ui/table";
 import { PAGE_LIMIT_OPTIONS, isAllPageLimit } from "@/lib/pagination";
 import type { CategorySalesReportOrder, PaymentMethodReportFilter } from "@/services/report";
 import type { CategorySalesGroup, CategorySalesRow } from "@/stores/report-store";

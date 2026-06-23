@@ -86,6 +86,7 @@ export function CategorySalesReportPage({ initialPagination }: { initialPaginati
               totalPages={report.totalPages}
               onBack={() => report.setPage((current) => Math.max(1, current - 1))}
               onNext={() => report.setPage((current) => current + 1)}
+              onPageChange={report.setPage}
             />
           }
           loading={report.loading}

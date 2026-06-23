@@ -45,6 +45,7 @@ export type InvoicePrintData = {
     | "vat",
     string
   >;
+
   contentWidthMm: number;
   paperHeightMm: number;
   paperWidthMm: number;
@@ -60,6 +61,14 @@ export type InvoicePrintData = {
 };
 
 export async function openLocalInvoicePrintWindow(data: InvoicePrintData) {
+  return openLocalInvoiceBatchPrintWindow([data]);
+}
+
+export async function openLocalInvoiceBatchPrintWindow(
+  dataList: InvoicePrintData[]
+) {
+  if (!dataList.length) return false;
+
   const printWindow = window.open(
     "",
     "_blank",
@@ -69,16 +78,22 @@ export async function openLocalInvoicePrintWindow(data: InvoicePrintData) {
 
   maximizePrintWindow(printWindow);
 
+  const first = dataList[0];
   const safeTitle = escapeHtml(
-    data.invoice ? `${data.labels.invoice}: ${data.invoice}` : data.title
+    dataList.length > 1
+      ? `${first.title} (${dataList.length})`
+      : first.invoice
+        ? `${first.labels.invoice}: ${first.invoice}`
+        : first.title
   );
+
   printWindow.document.write(
     `<!doctype html><html><head><title>${safeTitle}</title></head><body>Loading print preview...</body></html>`
   );
   printWindow.document.close();
 
   printWindow.document.open();
-  printWindow.document.write(renderLocalInvoiceHtml(data, safeTitle));
+  printWindow.document.write(renderLocalInvoiceBatchHtml(dataList, safeTitle));
   printWindow.document.close();
   return true;
 }
@@ -110,13 +125,23 @@ export function maximizePrintWindow(printWindow: Window) {
   }
 }
 
-export function renderLocalInvoiceHtml(
-  data: InvoicePrintData,
+export function renderLocalInvoiceBatchHtml(
+  dataList: InvoicePrintData[],
   safeTitle: string
 ) {
-  const contentWidth = data.contentWidthMm;
-  const paperHeight = data.paperHeightMm;
-  const paperWidth = data.paperWidthMm;
+  const first = dataList[0];
+  const contentWidth = first.contentWidthMm;
+  const paperHeight = first.paperHeightMm;
+  const paperWidth = first.paperWidthMm;
+
+  const receipts = dataList
+    .map(
+      (data, index) => `
+    <section class="receipt${index === dataList.length - 1 ? " receipt-last" : ""}">
+      ${renderInvoiceReceiptBody(data)}
+    </section>`
+    )
+    .join("");
 
   return `<!doctype html>
 <html>
@@ -125,18 +150,62 @@ export function renderLocalInvoiceHtml(
     <style>
       @page { size: ${paperWidth}mm ${paperHeight}mm; margin: 0; }
       * { box-sizing: border-box; }
-      html, body { width: ${paperWidth}mm; min-height: ${paperHeight}mm; margin: 0; background: #fff; color: #111; }
+      html, body { width: ${paperWidth}mm; margin: 0; background: #fff; color: #111; }
       body {
         font-family: Arial, "Noto Sans Lao", "Segoe UI", sans-serif;
         font-size: 13px;
         line-height: 1.16;
       }
-      .paper {
+      .receipt {
         width: ${contentWidth}mm;
         min-height: ${paperHeight}mm;
         padding: 0;
         margin: 0 auto;
+        break-after: page;
+        page-break-after: always;
       }
+      .receipt-last {
+        break-after: auto;
+        page-break-after: auto;
+      }
+      ${invoiceSharedStyles()}
+      @media print {
+        html, body { width: ${paperWidth}mm; }
+        .receipt { width: ${contentWidth}mm; min-height: ${paperHeight}mm; margin: 0 auto; }
+      }
+    </style>
+  </head>
+  <body>
+    ${receipts}
+    <script>
+      window.addEventListener("load", () => {
+        window.focus();
+        window.setTimeout(() => window.print(), 250);
+      });
+    </script>
+  </body>
+</html>`;
+}
+
+export function renderLocalInvoiceHtml(data: InvoicePrintData, safeTitle: string) {
+  return renderLocalInvoiceBatchHtml([data], safeTitle);
+}
+
+function renderInvoiceReceiptBody(data: InvoicePrintData) {
+  return `
+      ${renderInvoiceHeader(data)}
+      <div class="divider"></div>
+      ${renderInvoiceMeta(data)}
+      <div class="divider"></div>
+      ${renderInvoiceItems(data)}
+      <div class="divider"></div>
+      ${renderInvoiceTotals(data)}
+      ${renderInvoiceQr(data)}
+      <p class="footer">${escapeHtml(data.labels.thankYou)}</p>`;
+}
+
+function invoiceSharedStyles() {
+  return `
       .center { text-align: center; }
       .strong { font-weight: 800; }
       .store {
@@ -253,33 +322,7 @@ export function renderLocalInvoiceHtml(
         height: auto;
         margin: 2.4mm auto 1.6mm;
         object-fit: contain;
-      }
-      @media print {
-        html, body { width: ${paperWidth}mm; min-height: ${paperHeight}mm; }
-        .paper { width: ${contentWidth}mm; min-height: ${paperHeight}mm; margin: 0 auto; }
-      }
-    </style>
-  </head>
-  <body>
-    <main class="paper">
-      ${renderInvoiceHeader(data)}
-      <div class="divider"></div>
-      ${renderInvoiceMeta(data)}
-      <div class="divider"></div>
-      ${renderInvoiceItems(data)}
-      <div class="divider"></div>
-      ${renderInvoiceTotals(data)}
-      ${renderInvoiceQr(data)}
-      <p class="footer">${escapeHtml(data.labels.thankYou)}</p>
-    </main>
-    <script>
-      window.addEventListener("load", () => {
-        window.focus();
-        window.setTimeout(() => window.print(), 250);
-      });
-    </script>
-  </body>
-</html>`;
+      }`;
 }
 
 export function renderInvoiceHeader(data: InvoicePrintData) {

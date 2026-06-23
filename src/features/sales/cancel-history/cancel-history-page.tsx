@@ -3,6 +3,7 @@
 import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CalendarDays, History, RefreshCcw, SlidersHorizontal } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { AppPagination } from "@/components/common/app-pagination";
 import { EmptyState } from "@/components/common/empty-state";
 import { LoadingState } from "@/components/common/loading-state";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -230,6 +231,7 @@ export function CancelHistoryPage({ initialPagination }: { initialPagination: Ur
               totalPages={safeTotalPages}
               onBack={() => goToPage(page - 1)}
               onNext={() => goToPage(page + 1)}
+              onPageChange={goToPage}
             />
           }
           loading={loading}
@@ -632,38 +634,26 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 function CancelHistoryPagination({
-  canGoBack,
-  canGoNext,
-  onBack,
-  onNext,
+  onPageChange,
   page,
-  rangeLabel,
   totalPages
 }: {
   canGoBack: boolean;
   canGoNext: boolean;
   onBack: () => void;
   onNext: () => void;
+  onPageChange: (page: number) => void;
   page: number;
   rangeLabel: string;
   totalPages: number;
 }) {
-  const { t } = useTranslation();
-
   return (
-    <div className="flex flex-col gap-2 border-t border-border px-4 py-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-      <span>{rangeLabel}</span>
-      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:flex">
-        <Button type="button" size="xs" variant="outline" disabled={!canGoBack} onClick={onBack}>
-          {t("actions.back")}
-        </Button>
-        <Badge className="h-7 px-2 text-xs">
-          {t("common.page", { current: page, total: totalPages })}
-        </Badge>
-        <Button type="button" size="xs" variant="outline" disabled={!canGoNext} onClick={onNext}>
-          {t("common.nextPage")}
-        </Button>
-      </div>
+    <div className="border-t border-border px-4 py-3 text-sm text-muted-foreground">
+      <AppPagination
+        page={page}
+        totalPages={totalPages}
+        onPageChange={onPageChange}
+      />
     </div>
   );
 }

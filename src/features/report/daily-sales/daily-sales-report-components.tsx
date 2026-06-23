@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { AppPagination } from "@/components/common/app-pagination";
 import {
   ChevronDown,
   ChevronRight,
@@ -283,6 +284,8 @@ type ReportTableActionsProps = {
   exporting: ReportExportAction | null;
   loading: boolean;
   paymentMethod: ReportPaymentMethodFilter;
+  printDisabled: boolean;
+  selectedBillCount: number;
   selectedCount: number;
   typePage: "summary" | "detail";
   onClearSelection: () => void;
@@ -305,6 +308,8 @@ function ReportTableActions({
   exporting,
   loading,
   paymentMethod,
+  printDisabled,
+  selectedBillCount,
   selectedCount,
   typePage,
   onClearSelection,
@@ -354,7 +359,9 @@ function ReportTableActions({
         <div className="mt-2 flex flex-wrap items-center gap-2">
           {selectedCount ? (
             <Badge className="h-7 border-primary/20 bg-primary/10 px-2 text-xs text-primary">
-              {t("report.selectedForExport", { count: selectedCount })}
+              {t("report.selectedBillsForPrint", {
+                count: selectedBillCount,
+              })}
             </Badge>
           ) : null}
           {selectedCount ? (
@@ -469,7 +476,7 @@ function ReportTableActions({
           variant="outline"
           size="sm"
           className="h-9"
-          disabled={exportDisabled}
+          disabled={printDisabled}
           onClick={onPrintReport}
         >
           {exporting === "print" ? (
@@ -509,50 +516,26 @@ export function ReportError({ message }: { message: string }) {
 }
 
 export function ReportPagination({
-  canGoBack,
-  canGoNext,
-  onBack,
-  onNext,
+  onPageChange,
   page,
-  rangeLabel,
   totalPages,
 }: {
   canGoBack: boolean;
   canGoNext: boolean;
   onBack: () => void;
   onNext: () => void;
+  onPageChange: (page: number) => void;
   page: number;
   rangeLabel: string;
   totalPages: number;
 }) {
-  const { t } = useTranslation();
-
   return (
-    <div className="flex flex-col gap-2 border-t border-border px-4 py-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-      <span>{rangeLabel}</span>
-      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:flex">
-        <Button
-          type="button"
-          size="xs"
-          variant="outline"
-          disabled={!canGoBack}
-          onClick={onBack}
-        >
-          {t("actions.back")}
-        </Button>
-        <Badge className="h-7 px-2 text-xs">
-          {t("common.page", { current: page, total: totalPages })}
-        </Badge>
-        <Button
-          type="button"
-          size="xs"
-          variant="outline"
-          disabled={!canGoNext}
-          onClick={onNext}
-        >
-          {t("common.nextPage")}
-        </Button>
-      </div>
+    <div className="border-t border-border px-4 py-3">
+      <AppPagination
+        page={page}
+        totalPages={totalPages}
+        onPageChange={onPageChange}
+      />
     </div>
   );
 }

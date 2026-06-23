@@ -93,10 +93,11 @@ export function BestSellingProductsReportPage({ initialPagination }: { initialPa
                 canGoNext={report.canGoNext}
                 page={report.page}
                 rangeLabel={report.paginationRangeLabel}
-                totalPages={report.totalPages}
-                onBack={() => report.setPage((current) => Math.max(1, current - 1))}
-                onNext={() => report.setPage((current) => current + 1)}
-              />
+              totalPages={report.totalPages}
+              onBack={() => report.setPage((current) => Math.max(1, current - 1))}
+              onNext={() => report.setPage((current) => current + 1)}
+              onPageChange={report.setPage}
+            />
             }
             onExportExcel={() => void report.exportExcel()}
             onExportPdf={() => void report.exportPdf()}

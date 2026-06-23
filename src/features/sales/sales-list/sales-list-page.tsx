@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   CalendarDays,
   CreditCard,
@@ -12,6 +12,7 @@ import {
   Table2
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { AppPagination } from "@/components/common/app-pagination";
 import { EmptyState } from "@/components/common/empty-state";
 import { LoadingState } from "@/components/common/loading-state";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -40,12 +41,14 @@ import { cn } from "@/lib/utils";
 import type { DailySaleItemsOrder } from "@/services/report";
 import type { ApiEntity, PageLimit } from "@/services/shared/types";
 import { useAppStore } from "@/stores/app-store";
-import { useAuthStore } from "@/stores/auth-store";
+import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
+import { useBranchStore } from "@/stores/branch-store";
 import { useDailySaleItemsStore, type DailySaleItemsBillGroup } from "@/stores/report-store";
 import { useToastStore } from "@/stores/toast-store";
 import {
   SALES_LIST_LIMIT_OPTIONS,
   SALES_LIST_ORDER_OPTIONS,
+  branchOptionFromRow,
   defaultSalesListFilters,
   firstNumber,
   formatSaleDate,
@@ -55,8 +58,10 @@ import {
   readValue,
   saleListPrintBillSource,
   salesListRange,
+  selectedBranchLabel,
   statusBadgeClass,
   textValue,
+  type SalesListBranchOption,
   type SalesListFilters
 } from "./sales-list-utils";
 
@@ -70,13 +75,19 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
   const responsePage = useDailySaleItemsStore((state) => state.page);
   const total = useDailySaleItemsStore((state) => state.total);
   const totalPages = useDailySaleItemsStore((state) => state.totalPages);
+  const branches = useBranchStore((state) => state.branches);
+  const branchLoading = useBranchStore((state) => state.loading);
+  const branchStoreUuid = useBranchStore((state) => state.storeUuid);
+  const loadBranches = useBranchStore((state) => state.loadBranches);
+  const selectedBranchUuid = useBranchStore((state) => state.selectedBranchUuid);
+  const setSelectedBranch = useBranchStore((state) => state.setSelectedBranch);
   const loadSalesItems = useDailySaleItemsStore((state) => state.load);
   const resetSalesItems = useDailySaleItemsStore((state) => state.reset);
   const showToast = useToastStore((state) => state.show);
-  const branchUuid = user?.branch_uuid ?? "";
-  const branchLabel = user?.branch_name || branchUuid || "-";
-  const [draftFilters, setDraftFilters] = useState<SalesListFilters>(() => defaultSalesListFilters(branchUuid, initialPagination.limit));
-  const [appliedFilters, setAppliedFilters] = useState<SalesListFilters>(() => defaultSalesListFilters(branchUuid, initialPagination.limit));
+  const storeUuid = authStoreUuid(user);
+  const userBranchUuid = user?.branch_uuid ?? "";
+  const [draftFilters, setDraftFilters] = useState<SalesListFilters>(() => defaultSalesListFilters(userBranchUuid, initialPagination.limit));
+  const [appliedFilters, setAppliedFilters] = useState<SalesListFilters>(() => defaultSalesListFilters(userBranchUuid, initialPagination.limit));
   const [searchText, setSearchText] = useState("");
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
   const [selectedBillId, setSelectedBillId] = useState("");
@@ -88,19 +99,52 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
   const safeTotalPages = Math.max(1, totalPages);
   const range = salesListRange(responsePage || page, appliedFilters.limit, bills.length, total);
   const rangeLabel = t("salesList.range", { end: range.end, start: range.start, total });
-  const canApply = Boolean(branchUuid && draftFilters.dateFrom && draftFilters.dateTo);
+  const branchOptions = useMemo(() => {
+    const storeBranches = branchStoreUuid === storeUuid ? branches : [];
+    const options = storeBranches
+      .map((branch) => branchOptionFromRow(branch, language))
+      .filter((option): option is NonNullable<typeof option> => Boolean(option));
+
+    if (userBranchUuid && !options.some((option) => option.value === userBranchUuid)) {
+      options.unshift({ value: userBranchUuid, label: user?.branch_name || userBranchUuid });
+    }
+
+    return options;
+  }, [branches, branchStoreUuid, language, storeUuid, user?.branch_name, userBranchUuid]);
+  const branchOptionValues = useMemo(() => new Set(branchOptions.map((option) => option.value)), [branchOptions]);
+  const branchStoreSelectedUuid = branchStoreUuid === storeUuid ? selectedBranchUuid : "";
+  const defaultBranchUuid = useMemo(() => {
+    if (branchStoreSelectedUuid && (!branchOptionValues.size || branchOptionValues.has(branchStoreSelectedUuid))) return branchStoreSelectedUuid;
+    if (userBranchUuid && (!branchOptionValues.size || branchOptionValues.has(userBranchUuid))) return userBranchUuid;
+    return branchOptions[0]?.value ?? userBranchUuid;
+  }, [branchOptionValues, branchOptions, branchStoreSelectedUuid, userBranchUuid]);
+  const branchUuid = appliedFilters.branchUuid || defaultBranchUuid;
+  const branchLabel = selectedBranchLabel(branchOptions, branchUuid, user?.branch_name || branchUuid || "-");
+  const canApply = Boolean(draftFilters.branchUuid && draftFilters.dateFrom && draftFilters.dateTo);
   const canGoBack = page > 1 && !loading;
   const canGoNext = page < safeTotalPages && !loading;
   const selectedBill = bills.find((bill) => bill.id === selectedBillId) ?? null;
 
   useEffect(() => {
-    const nextFilters = defaultSalesListFilters(branchUuid, initialPagination.limit);
-    setDraftFilters((current) => (current.branchUuid === branchUuid ? current : { ...nextFilters, limit: current.limit, search: current.search }));
-    setAppliedFilters((current) => (current.branchUuid === branchUuid ? current : { ...nextFilters, limit: current.limit, search: current.search }));
+    if (!storeUuid) return;
+    void loadBranches(storeUuid, userBranchUuid).catch(() => undefined);
+  }, [loadBranches, storeUuid, userBranchUuid]);
+
+  useEffect(() => {
+    if (!defaultBranchUuid) {
+      resetSalesItems();
+      return;
+    }
+
+    setDraftFilters((current) =>
+      current.branchUuid === defaultBranchUuid ? current : { ...current, branchUuid: defaultBranchUuid }
+    );
+    setAppliedFilters((current) =>
+      current.branchUuid === defaultBranchUuid ? current : { ...current, branchUuid: defaultBranchUuid }
+    );
     resetPage();
     setSelectedBillId("");
-    if (!branchUuid) resetSalesItems();
-  }, [branchUuid, initialPagination.limit, resetPage, resetSalesItems]);
+  }, [defaultBranchUuid, resetPage, resetSalesItems]);
 
   useEffect(() => {
     const search = searchText.trim();
@@ -123,14 +167,15 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
   }, [bills]);
 
   const load = useCallback(async () => {
-    if (!branchUuid || !appliedFilters.dateFrom || !appliedFilters.dateTo) {
+    const selectedBranch = appliedFilters.branchUuid || defaultBranchUuid;
+    if (!selectedBranch || !appliedFilters.dateFrom || !appliedFilters.dateTo) {
       resetSalesItems();
       return;
     }
 
     try {
       await loadSalesItems({
-        branch_uuid_fk: branchUuid,
+        branch_uuid_fk: selectedBranch,
         date_from: appliedFilters.dateFrom,
         date_to: appliedFilters.dateTo,
         lang: language,
@@ -146,7 +191,7 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
         tone: "error"
       });
     }
-  }, [appliedFilters, branchUuid, language, loadSalesItems, page, resetSalesItems, showToast, t]);
+  }, [appliedFilters, defaultBranchUuid, language, loadSalesItems, page, resetSalesItems, showToast, t]);
 
   useEffect(() => {
     void load();
@@ -157,15 +202,17 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
   }, [goToPage, loading, page, safeTotalPages]);
 
   function patchDraft(patch: Partial<SalesListFilters>) {
-    setDraftFilters((current) => ({ ...current, ...patch, branchUuid }));
+    setDraftFilters((current) => ({ ...current, ...patch }));
   }
 
   function applyFilters() {
     if (!canApply) return;
-    const nextFilters = { ...draftFilters, branchUuid, search: searchText.trim() };
+    const nextFilters = { ...draftFilters, search: searchText.trim() };
+    setSelectedBranch(nextFilters.branchUuid);
     setDraftFilters(nextFilters);
     setAppliedFilters(nextFilters);
     changeLimit(nextFilters.limit);
+    resetPage();
     setSelectedBillId("");
   }
 
@@ -186,7 +233,7 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
 
     setPrintingBillId(group.id);
     try {
-      await showReprintReceiptFallback(receiptData, "");
+      await openReceiptPrintWindow(receiptData, "");
     } catch (printError) {
       showToast({
         title: t("salesList.reprintReceiptFailed"),
@@ -198,7 +245,7 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
     }
   }
 
-  async function showReprintReceiptFallback(data: InvoicePrintData, description: string) {
+  async function openReceiptPrintWindow(data: InvoicePrintData, description: string) {
     const opened = await openLocalInvoicePrintWindow(data);
     if (opened) {
       showToast({
@@ -222,6 +269,8 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
         <SalesListHeader
           appliedFilters={appliedFilters}
           branchLabel={branchLabel}
+          branchLoading={branchLoading}
+          branchOptions={branchOptions}
           canApply={canApply}
           draftFilters={draftFilters}
           loading={loading}
@@ -235,6 +284,8 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
 
         <SalesListFilterSheet
           branchLabel={branchLabel}
+          branchLoading={branchLoading}
+          branchOptions={branchOptions}
           canApply={canApply}
           draftFilters={draftFilters}
           loading={loading}
@@ -265,6 +316,7 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
             totalPages={safeTotalPages}
             onBack={() => goToPage(page - 1)}
             onNext={() => goToPage(page + 1)}
+            onPageChange={goToPage}
             onSelect={setSelectedBillId}
           />
           <SalesBillDetailPanel
@@ -282,6 +334,8 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
 function SalesListHeader({
   appliedFilters,
   branchLabel,
+  branchLoading,
+  branchOptions,
   canApply,
   draftFilters,
   loading,
@@ -294,6 +348,8 @@ function SalesListHeader({
 }: {
   appliedFilters: SalesListFilters;
   branchLabel: string;
+  branchLoading: boolean;
+  branchOptions: SalesListBranchOption[];
   canApply: boolean;
   draftFilters: SalesListFilters;
   loading: boolean;
@@ -334,6 +390,8 @@ function SalesListHeader({
         </Badge>
         <SalesListFilterPopover
           branchLabel={branchLabel}
+          branchLoading={branchLoading}
+          branchOptions={branchOptions}
           canApply={canApply}
           draftFilters={draftFilters}
           loading={loading}
@@ -373,6 +431,8 @@ function SalesListHeader({
 
 function SalesListFilterPopover({
   branchLabel,
+  branchLoading,
+  branchOptions,
   canApply,
   draftFilters,
   loading,
@@ -383,6 +443,8 @@ function SalesListFilterPopover({
   onRefresh
 }: {
   branchLabel: string;
+  branchLoading: boolean;
+  branchOptions: SalesListBranchOption[];
   canApply: boolean;
   draftFilters: SalesListFilters;
   loading: boolean;
@@ -410,6 +472,8 @@ function SalesListFilterPopover({
         <div className="grid grid-cols-2 gap-3 p-4 lg:grid-cols-5">
           <SalesListFilterFields
             branchLabel={branchLabel}
+            branchLoading={branchLoading}
+            branchOptions={branchOptions}
             draftFilters={draftFilters}
             idPrefix="sales-list"
             onDraftChange={onDraftChange}
@@ -432,6 +496,8 @@ function SalesListFilterPopover({
 
 function SalesListFilterSheet({
   branchLabel,
+  branchLoading,
+  branchOptions,
   canApply,
   draftFilters,
   loading,
@@ -442,6 +508,8 @@ function SalesListFilterSheet({
   onRefresh
 }: {
   branchLabel: string;
+  branchLoading: boolean;
+  branchOptions: SalesListBranchOption[];
   canApply: boolean;
   draftFilters: SalesListFilters;
   loading: boolean;
@@ -464,6 +532,8 @@ function SalesListFilterSheet({
           <div className="grid gap-3">
             <SalesListFilterFields
               branchLabel={branchLabel}
+              branchLoading={branchLoading}
+              branchOptions={branchOptions}
               draftFilters={draftFilters}
               idPrefix="sales-list-mobile"
               onDraftChange={onDraftChange}
@@ -492,11 +562,15 @@ function SalesListFilterSheet({
 
 function SalesListFilterFields({
   branchLabel,
+  branchLoading,
+  branchOptions,
   draftFilters,
   idPrefix,
   onDraftChange
 }: {
   branchLabel: string;
+  branchLoading: boolean;
+  branchOptions: SalesListBranchOption[];
   draftFilters: SalesListFilters;
   idPrefix: string;
   onDraftChange: (patch: Partial<SalesListFilters>) => void;
@@ -509,7 +583,24 @@ function SalesListFilterFields({
         <FieldLabel htmlFor={`${idPrefix}-branch`} className="text-xs font-bold text-muted-foreground">
           {t("nav.branch")}
         </FieldLabel>
-        <Input id={`${idPrefix}-branch`} value={branchLabel} readOnly />
+        <Select
+          value={draftFilters.branchUuid}
+          disabled={branchLoading || branchOptions.length <= 1}
+          onValueChange={(value) => onDraftChange({ branchUuid: value })}
+        >
+          <SelectTrigger id={`${idPrefix}-branch`} className="w-full">
+            <SelectValue placeholder={branchLabel || t("nav.branch")} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              {branchOptions.map((branch) => (
+                <SelectItem key={branch.value} value={branch.value}>
+                  {branch.label}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
       </Field>
       <Field className="gap-1.5">
         <FieldLabel htmlFor={`${idPrefix}-date-from`} className="text-xs font-bold text-muted-foreground">
@@ -588,6 +679,7 @@ function SalesBillListPanel({
   loading,
   onBack,
   onNext,
+  onPageChange,
   onSelect,
   page,
   rangeLabel,
@@ -600,6 +692,7 @@ function SalesBillListPanel({
   loading: boolean;
   onBack: () => void;
   onNext: () => void;
+  onPageChange: (page: number) => void;
   onSelect: (billId: string) => void;
   page: number;
   rangeLabel: string;
@@ -644,6 +737,7 @@ function SalesBillListPanel({
               totalPages={totalPages}
               onBack={onBack}
               onNext={onNext}
+              onPageChange={onPageChange}
             />
           </>
         ) : (
@@ -913,36 +1007,26 @@ function SelectedBillSummary({ bill }: { bill: DailySaleItemsBillGroup }) {
 }
 
 function SalesListPagination({
-  canGoBack,
-  canGoNext,
-  onBack,
-  onNext,
+  onPageChange,
   page,
-  rangeLabel,
   totalPages
 }: {
   canGoBack: boolean;
   canGoNext: boolean;
   onBack: () => void;
   onNext: () => void;
+  onPageChange: (page: number) => void;
   page: number;
   rangeLabel: string;
   totalPages: number;
 }) {
-  const { t } = useTranslation();
-
   return (
-    <div className="flex flex-col gap-2 border-t border-border px-4 py-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between xl:flex-col xl:items-stretch 2xl:flex-row 2xl:items-center">
-      <span>{rangeLabel}</span>
-      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-        <Button type="button" size="xs" variant="outline" disabled={!canGoBack} onClick={onBack}>
-          {t("common.previousPage")}
-        </Button>
-        <Badge className="h-7 justify-center px-2 text-xs">{t("common.page", { current: page, total: totalPages })}</Badge>
-        <Button type="button" size="xs" variant="outline" disabled={!canGoNext} onClick={onNext}>
-          {t("common.nextPage")}
-        </Button>
-      </div>
+    <div className="border-t border-border px-4 py-3 text-sm text-muted-foreground">
+      <AppPagination
+        page={page}
+        totalPages={totalPages}
+        onPageChange={onPageChange}
+      />
     </div>
   );
 }

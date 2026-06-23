@@ -84,10 +84,11 @@ export function PaymentMethodsReportPage({ initialPagination }: { initialPaginat
                 canGoNext={report.canGoNext}
                 page={report.page}
                 rangeLabel={report.paginationRangeLabel}
-                totalPages={report.totalPages}
-                onBack={() => report.setPage((current) => Math.max(1, current - 1))}
-                onNext={() => report.setPage((current) => current + 1)}
-              />
+              totalPages={report.totalPages}
+              onBack={() => report.setPage((current) => Math.max(1, current - 1))}
+              onNext={() => report.setPage((current) => current + 1)}
+              onPageChange={report.setPage}
+            />
             }
             loading={report.loading}
             methodLabel={report.activePaymentMethodLabel}

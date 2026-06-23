@@ -1,10 +1,11 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, Menu, Pencil, Plus, Search, SlidersHorizontal, Trash2 } from "lucide-react";
+import { Menu, Pencil, Plus, Search, SlidersHorizontal, Trash2 } from "lucide-react";
 import type { ComponentProps, ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { BackButton } from "@/components/common/back-button";
 import { EmptyState } from "@/components/common/empty-state";
+import { AppPagination } from "@/components/common/app-pagination";
 import { LoadingState } from "@/components/common/loading-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -454,46 +455,28 @@ export function SettingsMobileMeta({ label, value }: { label: ReactNode; value: 
 }
 
 export function SettingsPaginationFooter({
-  canGoBack,
-  canGoNext,
-  onBack,
-  onNext,
+  onPageChange,
   page,
-  pageEnd,
-  pageStart,
-  total,
   totalPages
 }: {
   canGoBack: boolean;
   canGoNext: boolean;
   onBack: () => void;
   onNext: () => void;
+  onPageChange: (page: number) => void;
   page: number;
   pageEnd: number;
   pageStart: number;
   total: number;
   totalPages: number;
 }) {
-  const { t } = useTranslation();
-
   return (
-    <div className="flex shrink-0 flex-col gap-2 border-t border-border px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-      <span>
-        {t("common.showingRange", { start: pageStart, end: pageEnd, total })}
-      </span>
-      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:flex">
-        <Button className="min-w-0" disabled={!canGoBack} size="xs" type="button" variant="outline" onClick={onBack}>
-          <ChevronLeft data-icon="inline-start" />
-          {t("actions.back")}
-        </Button>
-        <Badge className="h-7 px-2 text-xs">
-          {t("common.page", { current: page, total: totalPages })}
-        </Badge>
-        <Button className="min-w-0" disabled={!canGoNext} size="xs" type="button" variant="outline" onClick={onNext}>
-          {t("common.nextPage")}
-          <ChevronRight data-icon="inline-end" />
-        </Button>
-      </div>
+    <div className="shrink-0 border-t border-border px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] text-sm text-muted-foreground">
+      <AppPagination
+        page={page}
+        totalPages={totalPages}
+        onPageChange={onPageChange}
+      />
     </div>
   );
 }

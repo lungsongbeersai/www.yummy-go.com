@@ -106,7 +106,9 @@ export function DailySalesReportPage({ initialPagination }: { initialPagination:
               exporting: report.exporting,
               loading: report.loading,
               paymentMethod: report.appliedFilters.paymentMethod,
+              printDisabled: report.loading || Boolean(report.exporting) || !report.selectedBillCount,
               selectedCount: report.selectedCount,
+              selectedBillCount: report.selectedBillCount,
               typePage: report.appliedFilters.typePage,
               onClearSelection: report.clearSelection,
               onCollapseAllBills: report.collapseAllBills,
@@ -132,6 +134,7 @@ export function DailySalesReportPage({ initialPagination }: { initialPagination:
                   report.setPage((current) => Math.max(1, current - 1))
                 }
                 onNext={() => report.setPage((current) => current + 1)}
+                onPageChange={report.setPage}
               />
             }
             loading={report.loading}
@@ -166,36 +169,38 @@ export function DailySalesReportPage({ initialPagination }: { initialPagination:
         exporting={report.exporting}
         progress={report.exportProgress}
       />
-      <ReportExportSurface
-        cards={report.cards}
-        billGroups={report.renderedExportData.billGroups}
-        columns={report.columns}
-        containerRef={exportReportRef}
-        dateRange={`${report.appliedFilters.dateFrom} - ${report.appliedFilters.dateTo}`}
-        dateTotals={report.renderedExportData.grandTotalByDate}
-        itemColumns={report.detailItemColumns}
-        noLabel={t("fields.no")}
-        reportTotal={report.renderedExportData.reportTotal}
-        rows={report.renderedExportData.rows}
-        rowsLabel={
-          report.appliedFilters.typePage === "detail"
-            ? t("report.detailGroupedCount", {
-                bills: report.renderedExportData.billGroups.length,
-                lines: report.renderedExportData.rows.length,
-              })
-            : t("report.rowsCount", {
-                count: report.renderedExportData.rows.length,
-              })
-        }
-        summaryCards={report.renderedExportData.summaryCards}
-        title={t("report.dailySalesTitle")}
-        typePage={report.appliedFilters.typePage}
-        typeLabel={
-          report.appliedFilters.typePage === "summary"
-            ? t("report.summary")
-            : t("report.detail")
-        }
-      />
+      {report.exportSurfaceReady ? (
+        <ReportExportSurface
+          cards={report.cards}
+          billGroups={report.renderedExportData.billGroups}
+          columns={report.columns}
+          containerRef={exportReportRef}
+          dateRange={`${report.appliedFilters.dateFrom} - ${report.appliedFilters.dateTo}`}
+          dateTotals={report.renderedExportData.grandTotalByDate}
+          itemColumns={report.detailItemColumns}
+          noLabel={t("fields.no")}
+          reportTotal={report.renderedExportData.reportTotal}
+          rows={report.renderedExportData.rows}
+          rowsLabel={
+            report.appliedFilters.typePage === "detail"
+              ? t("report.detailGroupedCount", {
+                  bills: report.renderedExportData.billGroups.length,
+                  lines: report.renderedExportData.rows.length,
+                })
+              : t("report.rowsCount", {
+                  count: report.renderedExportData.rows.length,
+                })
+          }
+          summaryCards={report.renderedExportData.summaryCards}
+          title={t("report.dailySalesTitle")}
+          typePage={report.appliedFilters.typePage}
+          typeLabel={
+            report.appliedFilters.typePage === "summary"
+              ? t("report.summary")
+              : t("report.detail")
+          }
+        />
+      ) : null}
     </>
   );
 }
