@@ -1,17 +1,22 @@
-﻿"use client";
+"use client";
 
-import { Bell, Check, ImageIcon, Layers3, Plus, RefreshCcw, Save, Utensils } from "lucide-react";
+import {
+  Bell,
+  Check,
+  ImageIcon,
+  Layers3,
+  Plus,
+  RefreshCcw,
+  Save,
+  Utensils,
+} from "lucide-react";
 import { BackButton } from "@/components/common/back-button";
 import { FormattedNumberInput } from "@/components/common/formatted-number-input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Field,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -117,6 +122,7 @@ export function ProductFormView({ form }: { form: ProductFormWorkflow }) {
     saveSizeFromDialog,
     changeStatusSort,
   } = form;
+  const labelRowClass = "flex min-h-8 items-center justify-between gap-2";
 
   return (
     <div className="flex min-h-full flex-col gap-4">
@@ -124,12 +130,16 @@ export function ProductFormView({ form }: { form: ProductFormWorkflow }) {
         <div className="min-w-0">
           <BackButton fallbackHref="/product" label={t("product.title")} />
           <h1 className="mt-2 text-2xl font-black">{title}</h1>
-          <p className="mt-1 max-w-3xl text-sm text-muted-foreground">{t("product.formDescription")}</p>
+          <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
+            {t("product.formDescription")}
+          </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Badge>{typeLabel}</Badge>
           <Badge>{imageLabel}</Badge>
-          {prodToppingStatus === TOPPING_HAS ? <Badge>{t("common.selectedCount", { count: toppingCount })}</Badge> : null}
+          {prodToppingStatus === TOPPING_HAS ? (
+            <Badge>{t("common.selectedCount", { count: toppingCount })}</Badge>
+          ) : null}
         </div>
       </div>
 
@@ -137,15 +147,24 @@ export function ProductFormView({ form }: { form: ProductFormWorkflow }) {
         <Alert
           role="status"
           aria-live="polite"
-          className={cn(saveNotice === "saved" && "border-primary/30 bg-primary/5")}
+          className={cn(
+            saveNotice === "saved" && "border-primary/30 bg-primary/5",
+          )}
         >
           {saveNotice === "saving" ? (
             <Spinner role="presentation" aria-hidden="true" />
           ) : (
             <Check aria-hidden="true" />
           )}
-          <AlertDescription className={cn("font-medium", saveNotice === "saved" && "text-primary")}>
-            {saveNotice === "saving" ? t("product.saving") : t("product.savedNext")}
+          <AlertDescription
+            className={cn(
+              "font-medium",
+              saveNotice === "saved" && "text-primary",
+            )}
+          >
+            {saveNotice === "saving"
+              ? t("product.saving")
+              : t("product.savedNext")}
           </AlertDescription>
         </Alert>
       ) : null}
@@ -161,7 +180,9 @@ export function ProductFormView({ form }: { form: ProductFormWorkflow }) {
           <Card>
             <CardHeader className="flex-col items-start">
               <CardTitle>{t("product.formSummary")}</CardTitle>
-              <p className="text-xs text-muted-foreground">{t("product.formSummaryHint")}</p>
+              <p className="text-xs text-muted-foreground">
+                {t("product.formSummaryHint")}
+              </p>
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
               <div
@@ -170,8 +191,8 @@ export function ProductFormView({ form }: { form: ProductFormWorkflow }) {
                   prodStatusImge === "2"
                     ? { backgroundColor: colorValue }
                     : previewSrc
-                      ? { backgroundImage: `url("${previewSrc}")` }
-                      : undefined
+                    ? { backgroundImage: `url("${previewSrc}")` }
+                    : undefined
                 }
               >
                 {prodStatusImge === "1" && !previewSrc ? (
@@ -179,13 +200,25 @@ export function ProductFormView({ form }: { form: ProductFormWorkflow }) {
                 ) : null}
               </div>
               <div className="min-w-0">
-                <p className="truncate text-lg font-black">{prodNameLa || prodNameEng || title}</p>
-                <p className="truncate text-xs font-semibold text-muted-foreground">{prodCode}</p>
+                <p className="truncate text-lg font-black">
+                  {prodNameLa || prodNameEng || title}
+                </p>
+                <p className="truncate text-xs font-semibold text-muted-foreground">
+                  {prodCode}
+                </p>
               </div>
-              <Badge className={cn("w-fit", readyToSave && "border-primary/30 bg-primary/10 text-primary")}>
+              <Badge
+                className={cn(
+                  "w-fit",
+                  readyToSave && "border-primary/30 bg-primary/10 text-primary",
+                )}
+              >
                 {readyToSave
                   ? t("product.readyToSave")
-                  : t("product.needRequiredFields", { completed: completedChecks, total: requiredChecks.length })}
+                  : t("product.needRequiredFields", {
+                      completed: completedChecks,
+                      total: requiredChecks.length,
+                    })}
               </Badge>
               <Separator />
               <div className="grid gap-3 text-sm">
@@ -202,7 +235,9 @@ export function ProductFormView({ form }: { form: ProductFormWorkflow }) {
                     {t("product.notification.label")}
                   </span>
                   <span className="font-semibold">
-                    {prodNotification === "1" ? t("product.notification.on") : t("product.notification.off")}
+                    {prodNotification === "1"
+                      ? t("product.notification.on")
+                      : t("product.notification.off")}
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-3">
@@ -211,7 +246,9 @@ export function ProductFormView({ form }: { form: ProductFormWorkflow }) {
                     {t("product.sections.toppings")}
                   </span>
                   <span className="font-semibold">
-                    {prodToppingStatus === TOPPING_HAS ? toppingCount : t("product.topping.no")}
+                    {prodToppingStatus === TOPPING_HAS
+                      ? toppingCount
+                      : t("product.topping.no")}
                   </span>
                 </div>
               </div>
@@ -222,16 +259,28 @@ export function ProductFormView({ form }: { form: ProductFormWorkflow }) {
                 </p>
                 <div className="grid gap-1.5">
                   {requiredChecks.map((item) => (
-                    <div key={item.label} className="flex items-center gap-2 text-xs">
+                    <div
+                      key={item.label}
+                      className="flex items-center gap-2 text-xs"
+                    >
                       <span
                         className={cn(
                           "grid size-4 shrink-0 place-items-center rounded-full border",
-                          item.done ? "border-primary bg-primary text-primary-foreground" : "border-border text-transparent"
+                          item.done
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-border text-transparent",
                         )}
                       >
                         <Check className="size-3" />
                       </span>
-                      <span className={cn("truncate", item.done ? "text-foreground" : "text-muted-foreground")}>
+                      <span
+                        className={cn(
+                          "truncate",
+                          item.done
+                            ? "text-foreground"
+                            : "text-muted-foreground",
+                        )}
+                      >
                         {item.label}
                       </span>
                     </div>
@@ -258,123 +307,146 @@ export function ProductFormView({ form }: { form: ProductFormWorkflow }) {
               <ProductFormSectionNumber value="1" />
               <div className="min-w-0">
                 <CardTitle>{t("product.sections.image")}</CardTitle>
-                <p className="mt-1 text-xs text-muted-foreground">{t("product.sections.imageHint")}</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {t("product.sections.imageHint")}
+                </p>
               </div>
             </CardHeader>
             <CardContent className="p-0">
               <div className="flex flex-col gap-4 p-4 lg:p-5">
-              <Field>
-                <FieldLabel>{t("product.imageMode")}</FieldLabel>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {imageModeChoices.map((choice) => {
-                    const active = prodStatusImge === choice.value;
-                    return (
-                      <button
-                        key={choice.value}
-                        type="button"
-                        className={choiceCardClass(active)}
-                        aria-pressed={active}
-                        onClick={() => setProdStatusImge(choice.value)}
-                      >
-                        <span className={choiceMarkClass(active)}>
-                          <Check className="size-3" />
-                        </span>
-                        <span className="min-w-0">
-                          <span className="block truncate text-sm font-black">{choice.label}</span>
-                          <span className="mt-1 block text-xs leading-5 text-muted-foreground">{choice.hint}</span>
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </Field>
-              </div>
-            {prodStatusImge === "1" ? (
-              <SettingsImageCropPanel
-                crop={crop}
-                description={t("settings.storeBranch.cropHint")}
-                emptyLabel={t("fields.prod_image")}
-                existingSrc={existingSrc}
-                fileSupportText={t("settings.storeBranch.imageSupport")}
-                fieldId="prod-image"
-                horizontalLabel={t("settings.storeBranch.horizontal")}
-                previewMaxClassName="max-w-44 sm:max-w-52"
-                removeLabel={t("settings.storeBranch.cancelImage")}
-                saving={saving}
-                selectedFile={selectedImage}
-                title={t("settings.storeBranch.cropImage")}
-                uploadLabel={t("settings.storeBranch.uploadImage")}
-                verticalLabel={t("settings.storeBranch.vertical")}
-                zoomLabel={t("settings.storeBranch.zoom")}
-                onCropChange={setCrop}
-                onFileChange={setSelectedImage}
-              />
-            ) : (
-              <div className="flex flex-col gap-3 p-4 lg:p-5">
                 <Field>
-                  <FieldLabel htmlFor="prod-color-choice">{t("product.color")}</FieldLabel>
-                  <Select
-                    value={colorChoice}
-                    onValueChange={(value) => {
-                      setColorChoice(value);
-                      if (value === CUSTOM_COLOR_VALUE) return;
-                      const selected = colors.find((color) => color.color_uuid === value);
-                      const code = selected ? colorCode(selected) : "";
-                      if (code) setColorValue(code);
-                    }}
-                  >
-                    <SelectTrigger id="prod-color-choice" className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent position="popper">
-                      <SelectGroup>
-                        {validColors.map((color) => {
-                          const code = colorCode(color);
-                          return (
-                            <SelectItem key={color.color_uuid} value={color.color_uuid}>
-                              <span className="flex min-w-0 items-center gap-2">
-                                <span
-                                  className="size-3 shrink-0 rounded-full border border-border"
-                                  style={{ backgroundColor: code }}
-                                />
-                                <span className="truncate">{colorLabel(color)}</span>
-                                <span className="text-muted-foreground">{code}</span>
-                              </span>
-                            </SelectItem>
-                          );
-                        })}
-                        <SelectItem value={CUSTOM_COLOR_VALUE}>{t("settings.customFlag")}</SelectItem>
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="prod-color">{t("fields.color_code")}</FieldLabel>
-                  <div className="grid gap-3 sm:grid-cols-[auto_minmax(0,1fr)]">
-                    <Input
-                      id="prod-color-picker"
-                      type="color"
-                      className="size-10 shrink-0 cursor-pointer p-1"
-                      value={isHexColor(colorValue) ? colorValue : DEFAULT_COLOR}
-                      onChange={(event) => {
-                        setColorChoice(CUSTOM_COLOR_VALUE);
-                        setColorValue(event.target.value);
-                      }}
-                    />
-                    <Input
-                      id="prod-color"
-                      placeholder="#000000"
-                      value={colorValue}
-                      onChange={(event) => {
-                        setColorChoice(CUSTOM_COLOR_VALUE);
-                        setColorValue(event.target.value);
-                      }}
-                    />
+                  <FieldLabel>{t("product.imageMode")}</FieldLabel>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {imageModeChoices.map((choice) => {
+                      const active = prodStatusImge === choice.value;
+                      return (
+                        <button
+                          key={choice.value}
+                          type="button"
+                          className={choiceCardClass(active)}
+                          aria-pressed={active}
+                          onClick={() => setProdStatusImge(choice.value)}
+                        >
+                          <span className={choiceMarkClass(active)}>
+                            <Check className="size-3" />
+                          </span>
+                          <span className="min-w-0">
+                            <span className="block truncate text-sm font-black">
+                              {choice.label}
+                            </span>
+                            <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+                              {choice.hint}
+                            </span>
+                          </span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </Field>
               </div>
-            )}
-          </CardContent>
+              {prodStatusImge === "1" ? (
+                <SettingsImageCropPanel
+                  crop={crop}
+                  description={t("settings.storeBranch.cropHint")}
+                  emptyLabel={t("fields.prod_image")}
+                  existingSrc={existingSrc}
+                  fileSupportText={t("settings.storeBranch.imageSupport")}
+                  fieldId="prod-image"
+                  horizontalLabel={t("settings.storeBranch.horizontal")}
+                  previewMaxClassName="max-w-44 sm:max-w-52"
+                  removeLabel={t("settings.storeBranch.cancelImage")}
+                  saving={saving}
+                  selectedFile={selectedImage}
+                  title={t("settings.storeBranch.cropImage")}
+                  uploadLabel={t("settings.storeBranch.uploadImage")}
+                  verticalLabel={t("settings.storeBranch.vertical")}
+                  zoomLabel={t("settings.storeBranch.zoom")}
+                  onCropChange={setCrop}
+                  onFileChange={setSelectedImage}
+                />
+              ) : (
+                <div className="flex flex-col gap-3 p-4 lg:p-5">
+                  <Field>
+                    <FieldLabel htmlFor="prod-color-choice">
+                      {t("product.color")}
+                    </FieldLabel>
+                    <Select
+                      value={colorChoice}
+                      onValueChange={(value) => {
+                        setColorChoice(value);
+                        if (value === CUSTOM_COLOR_VALUE) return;
+                        const selected = colors.find(
+                          (color) => color.color_uuid === value,
+                        );
+                        const code = selected ? colorCode(selected) : "";
+                        if (code) setColorValue(code);
+                      }}
+                    >
+                      <SelectTrigger id="prod-color-choice" className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent position="popper">
+                        <SelectGroup>
+                          {validColors.map((color) => {
+                            const code = colorCode(color);
+                            return (
+                              <SelectItem
+                                key={color.color_uuid}
+                                value={color.color_uuid}
+                              >
+                                <span className="flex min-w-0 items-center gap-2">
+                                  <span
+                                    className="size-3 shrink-0 rounded-full border border-border"
+                                    style={{ backgroundColor: code }}
+                                  />
+                                  <span className="truncate">
+                                    {colorLabel(color)}
+                                  </span>
+                                  <span className="text-muted-foreground">
+                                    {code}
+                                  </span>
+                                </span>
+                              </SelectItem>
+                            );
+                          })}
+                          <SelectItem value={CUSTOM_COLOR_VALUE}>
+                            {t("settings.customFlag")}
+                          </SelectItem>
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="prod-color">
+                      {t("fields.color_code")}
+                    </FieldLabel>
+                    <div className="grid gap-3 sm:grid-cols-[auto_minmax(0,1fr)]">
+                      <Input
+                        id="prod-color-picker"
+                        type="color"
+                        className="size-10 shrink-0 cursor-pointer p-1"
+                        value={
+                          isHexColor(colorValue) ? colorValue : DEFAULT_COLOR
+                        }
+                        onChange={(event) => {
+                          setColorChoice(CUSTOM_COLOR_VALUE);
+                          setColorValue(event.target.value);
+                        }}
+                      />
+                      <Input
+                        id="prod-color"
+                        placeholder="#000000"
+                        value={colorValue}
+                        onChange={(event) => {
+                          setColorChoice(CUSTOM_COLOR_VALUE);
+                          setColorValue(event.target.value);
+                        }}
+                      />
+                    </div>
+                  </Field>
+                </div>
+              )}
+            </CardContent>
           </Card>
 
           <Card>
@@ -382,162 +454,242 @@ export function ProductFormView({ form }: { form: ProductFormWorkflow }) {
               <ProductFormSectionNumber value="2" />
               <div className="min-w-0">
                 <CardTitle>{t("product.sections.general")}</CardTitle>
-                <p className="mt-1 text-xs text-muted-foreground">{t("product.sections.generalHint")}</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {t("product.sections.generalHint")}
+                </p>
               </div>
             </CardHeader>
             <CardContent>
               <FieldGroup className="grid gap-4 md:grid-cols-2">
-              <Field className="md:col-span-2">
-                <FieldLabel htmlFor="prod-type">{t("product.type")}</FieldLabel>
-                <div id="prod-type" className="grid gap-2 sm:grid-cols-3">
-                  {productTypeChoices.map((choice) => {
-                    const active = statusSortFk === choice.value;
-                    return (
-                      <button
-                        key={choice.value}
-                        type="button"
-                        className={choiceCardClass(active)}
-                        aria-pressed={active}
-                        onClick={() => changeStatusSort(choice.value)}
-                      >
-                        <span className={choiceMarkClass(active)}>
-                          <Check className="size-3" />
-                        </span>
-                        <span className="min-w-0">
-                          <span className="block truncate text-sm font-black">{choice.label}</span>
-                          <span className="mt-1 block text-xs leading-5 text-muted-foreground">{choice.hint}</span>
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="prod-code">{t("fields.code")}</FieldLabel>
-                <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
-                  <Input id="prod-code" value={prodCode} readOnly required />
-                  <Button type="button" size="md" variant="outline" onClick={() => setProdCode(generateProdCode())}>
-                    <RefreshCcw data-icon="inline-start" />
-                    {t("product.regenerateCode")}
-                  </Button>
-                </div>
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="prod-name-la">{t("fields.nameLa")}</FieldLabel>
-                <Input id="prod-name-la" value={prodNameLa} onChange={(event) => setProdNameLa(event.target.value)} required />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="prod-name-eng">{t("fields.nameEn")}</FieldLabel>
-                <Input id="prod-name-eng" value={prodNameEng} onChange={(event) => setProdNameEng(event.target.value)} />
-              </Field>
-              <Field>
-                <div className="flex items-center justify-between gap-2">
-                  <FieldLabel htmlFor="prod-category">{t("nav.category")}</FieldLabel>
-                  <Button
-                    type="button"
-                    size="xs"
-                    variant="outline"
-                    disabled={categorySaving}
-                    onClick={() => setCategoryDialogOpen(true)}
-                  >
-                    <Plus data-icon="inline-start" />
-                    {t("actions.add")}
-                  </Button>
-                </div>
-                <Select key={categoryOptions.length ? "ready" : "loading"} value={cateUuidFk} onValueChange={setCateUuidFk}>
-                  <SelectTrigger id="prod-category" className="w-full">
-                    <SelectValue placeholder={t("nav.category")} />
-                  </SelectTrigger>
-                  <SelectContent position="popper">
-                    <SelectGroup>
-                      {categoryOptions.map((category) => {
-                        const uuid = categoryUuid(category);
-                        return (
-                          <SelectItem key={uuid} value={uuid}>
-                            {entityLabel(category, "cate_name_eng", "cate_name_la", language, productCategoryName(category) || uuid)}
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field>
-                <div className="flex items-center justify-between gap-2">
-                  <FieldLabel htmlFor="prod-unit">{t("nav.unit")}</FieldLabel>
-                  <Button
-                    type="button"
-                    size="xs"
-                    variant="outline"
-                    disabled={unitSaving}
-                    onClick={() => setUnitDialogOpen(true)}
-                  >
-                    <Plus data-icon="inline-start" />
-                    {t("actions.add")}
-                  </Button>
-                </div>
-                <Select key={unitOptions.length ? "ready" : "loading"} value={uniteUuidFk} onValueChange={setUniteUuidFk}>
-                  <SelectTrigger id="prod-unit" className="w-full">
-                    <SelectValue placeholder={t("nav.unit")} />
-                  </SelectTrigger>
-                  <SelectContent position="popper">
-                    <SelectGroup>
-                      {unitOptions.map((unit) => {
-                        const uuid = unitUuid(unit);
-                        return (
-                          <SelectItem key={uuid} value={uuid}>
-                            {entityLabel(unit, "unite_name_eng", "unite_name_la", language, productUnitName(unit) || uuid)}
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="prod-order-point">{t("product.orderPoint")}</FieldLabel>
-                <Select value={prodOrderPoint} onValueChange={setProdOrderPoint}>
-                  <SelectTrigger id="prod-order-point" className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent position="popper">
-                    <SelectGroup>
-                      {ORDER_POINT_OPTIONS.map((value) => (
-                        <SelectItem key={value} value={String(value)}>
-                          {value}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="prod-notification">{t("product.notification.label")}</FieldLabel>
-                <Select value={prodNotification} onValueChange={(value) => setProdNotification(value as BinaryFlag)}>
-                  <SelectTrigger id="prod-notification" className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent position="popper">
-                    <SelectGroup>
-                      <SelectItem value="1">{t("product.notification.on")}</SelectItem>
-                      <SelectItem value="2">{t("product.notification.off")}</SelectItem>
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </Field>
-              {statusSortFk === "2" ? (
                 <Field className="md:col-span-2">
-                  <FieldLabel htmlFor="prod-set-price">{t("product.setPrice")}</FieldLabel>
-                  <FormattedNumberInput
-                    id="prod-set-price"
-                    min={0}
-                    value={prodSetPrice}
-                    onValueChange={setProdSetPrice}
+                  <FieldLabel htmlFor="prod-type">
+                    {t("product.type")}
+                  </FieldLabel>
+                  <div id="prod-type" className="grid gap-2 sm:grid-cols-3">
+                    {productTypeChoices.map((choice) => {
+                      const active = statusSortFk === choice.value;
+                      return (
+                        <button
+                          key={choice.value}
+                          type="button"
+                          className={choiceCardClass(active)}
+                          aria-pressed={active}
+                          onClick={() => changeStatusSort(choice.value)}
+                        >
+                          <span className={choiceMarkClass(active)}>
+                            <Check className="size-3" />
+                          </span>
+                          <span className="min-w-0">
+                            <span className="block truncate text-sm font-black">
+                              {choice.label}
+                            </span>
+                            <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+                              {choice.hint}
+                            </span>
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </Field>
+                <Field className="md:col-span-2">
+                  <div className={labelRowClass}>
+                    <FieldLabel htmlFor="prod-code">
+                      {t("fields.code")}
+                    </FieldLabel>
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+                    <Input id="prod-code" value={prodCode} readOnly required />
+                    <Button
+                      type="button"
+                      size="md"
+                      variant="outline"
+                      onClick={() => setProdCode(generateProdCode())}
+                    >
+                      <RefreshCcw data-icon="inline-start" />
+                      {t("product.regenerateCode")}
+                    </Button>
+                  </div>
+                </Field>
+                <Field>
+                  <div className={labelRowClass}>
+                    <FieldLabel htmlFor="prod-name-la">
+                      {t("fields.nameLa")}
+                    </FieldLabel>
+                  </div>
+                  <Input
+                    id="prod-name-la"
+                    value={prodNameLa}
+                    onChange={(event) => setProdNameLa(event.target.value)}
+                    required
                   />
                 </Field>
-              ) : null}
-            </FieldGroup>
-          </CardContent>
+                <Field>
+                  <div className={labelRowClass}>
+                    <FieldLabel htmlFor="prod-name-eng">
+                      {t("fields.nameEn")}
+                    </FieldLabel>
+                  </div>
+                  <Input
+                    id="prod-name-eng"
+                    value={prodNameEng}
+                    onChange={(event) => setProdNameEng(event.target.value)}
+                  />
+                </Field>
+                <Field>
+                  <div className={labelRowClass}>
+                    <FieldLabel htmlFor="prod-category">
+                      {t("nav.category")}
+                    </FieldLabel>
+                    <Button
+                      type="button"
+                      size="xs"
+                      variant="outline"
+                      disabled={categorySaving}
+                      onClick={() => setCategoryDialogOpen(true)}
+                    >
+                      <Plus data-icon="inline-start" />
+                      {t("actions.add")}
+                    </Button>
+                  </div>
+                  <Select
+                    key={categoryOptions.length ? "ready" : "loading"}
+                    value={cateUuidFk}
+                    onValueChange={setCateUuidFk}
+                  >
+                    <SelectTrigger id="prod-category" className="w-full">
+                      <SelectValue placeholder={t("nav.category")} />
+                    </SelectTrigger>
+                    <SelectContent position="popper">
+                      <SelectGroup>
+                        {categoryOptions.map((category) => {
+                          const uuid = categoryUuid(category);
+                          return (
+                            <SelectItem key={uuid} value={uuid}>
+                              {entityLabel(
+                                category,
+                                "cate_name_eng",
+                                "cate_name_la",
+                                language,
+                                productCategoryName(category) || uuid,
+                              )}
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field>
+                  <div className={labelRowClass}>
+                    <FieldLabel htmlFor="prod-unit">{t("nav.unit")}</FieldLabel>
+                    <Button
+                      type="button"
+                      size="xs"
+                      variant="outline"
+                      disabled={unitSaving}
+                      onClick={() => setUnitDialogOpen(true)}
+                    >
+                      <Plus data-icon="inline-start" />
+                      {t("actions.add")}
+                    </Button>
+                  </div>
+                  <Select
+                    key={unitOptions.length ? "ready" : "loading"}
+                    value={uniteUuidFk}
+                    onValueChange={setUniteUuidFk}
+                  >
+                    <SelectTrigger id="prod-unit" className="w-full">
+                      <SelectValue placeholder={t("nav.unit")} />
+                    </SelectTrigger>
+                    <SelectContent position="popper">
+                      <SelectGroup>
+                        {unitOptions.map((unit) => {
+                          const uuid = unitUuid(unit);
+                          return (
+                            <SelectItem key={uuid} value={uuid}>
+                              {entityLabel(
+                                unit,
+                                "unite_name_eng",
+                                "unite_name_la",
+                                language,
+                                productUnitName(unit) || uuid,
+                              )}
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field>
+                  <div className={labelRowClass}>
+                    <FieldLabel htmlFor="prod-order-point">
+                      {t("product.orderPoint")}
+                    </FieldLabel>
+                  </div>
+                  <Select
+                    value={prodOrderPoint}
+                    onValueChange={setProdOrderPoint}
+                  >
+                    <SelectTrigger id="prod-order-point" className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent position="popper">
+                      <SelectGroup>
+                        {ORDER_POINT_OPTIONS.map((value) => (
+                          <SelectItem key={value} value={String(value)}>
+                            {value}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field>
+                  <div className={labelRowClass}>
+                    <FieldLabel htmlFor="prod-notification">
+                      {t("product.notification.label")}
+                    </FieldLabel>
+                  </div>
+                  <Select
+                    value={prodNotification}
+                    onValueChange={(value) =>
+                      setProdNotification(value as BinaryFlag)
+                    }
+                  >
+                    <SelectTrigger id="prod-notification" className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent position="popper">
+                      <SelectGroup>
+                        <SelectItem value="1">
+                          {t("product.notification.on")}
+                        </SelectItem>
+                        <SelectItem value="2">
+                          {t("product.notification.off")}
+                        </SelectItem>
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </Field>
+                {statusSortFk === "2" ? (
+                  <Field className="md:col-span-2">
+                    <div className={labelRowClass}>
+                      <FieldLabel htmlFor="prod-set-price">
+                        {t("product.setPrice")}
+                      </FieldLabel>
+                    </div>
+                    <FormattedNumberInput
+                      id="prod-set-price"
+                      min={0}
+                      value={prodSetPrice}
+                      onValueChange={setProdSetPrice}
+                    />
+                  </Field>
+                ) : null}
+              </FieldGroup>
+            </CardContent>
           </Card>
 
           <ProductFormDetailsSection form={form} />
@@ -574,8 +726,13 @@ export function ProductFormView({ form }: { form: ProductFormWorkflow }) {
         description={t("settings.unitFormHint")}
         editing={null}
         fields={[
-          { name: "unite_name_la", label: t("fields.unite_name_la"), required: true, fallbackKey: "unite_name" },
-          { name: "unite_name_eng", label: t("fields.unite_name_eng") }
+          {
+            name: "unite_name_la",
+            label: t("fields.unite_name_la"),
+            required: true,
+            fallbackKey: "unite_name",
+          },
+          { name: "unite_name_eng", label: t("fields.unite_name_eng") },
         ]}
         formTitle={t("settings.unitDetails")}
         idKey="unite_uuid"
@@ -592,8 +749,13 @@ export function ProductFormView({ form }: { form: ProductFormWorkflow }) {
         description={t("settings.sizeFormHint")}
         editing={null}
         fields={[
-          { name: "size_name_la", label: t("fields.size_name_la"), required: true, fallbackKey: "size_name" },
-          { name: "size_name_eng", label: t("fields.size_name_eng") }
+          {
+            name: "size_name_la",
+            label: t("fields.size_name_la"),
+            required: true,
+            fallbackKey: "size_name",
+          },
+          { name: "size_name_eng", label: t("fields.size_name_eng") },
         ]}
         formTitle={t("settings.sizeDetails")}
         idKey="size_uuid"

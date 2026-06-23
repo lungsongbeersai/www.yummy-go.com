@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useRef } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { ChevronDown, ChevronRight, Package } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -20,6 +20,13 @@ import { cn } from "@/lib/utils";
 import type { DailySalesReportType } from "@/services/report";
 import type { ApiEntity } from "@/services/shared/types";
 import type { DailySalesBillGroup } from "@/stores/report-store";
+import { SortableReportTableHead } from "../report-sort-table-head";
+import {
+  nextLocalSortState,
+  sortRowsLocally,
+  useLocalTableSort,
+  type LocalSortState,
+} from "../report-sort-utils";
 import type { ReportColumn } from "./daily-sales-report-types";
 import {
   firstNumber,
@@ -39,6 +46,16 @@ import {
   toppingLines,
 } from "./daily-sales-report-utils";
 
+type DailySalesBillSortKey =
+  | "cashierName"
+  | "invoiceNumber"
+  | "itemCount"
+  | "lineTotal"
+  | "paymentType"
+  | "saleDate"
+  | "status"
+  | "tableName";
+
 export function SummaryReportTable({
   columns,
   pageStart,
@@ -57,7 +74,18 @@ export function SummaryReportTable({
   onToggleRows: (rows: ApiEntity[], selected: boolean) => void;
 }) {
   const { t } = useTranslation();
-  const visibleIds = rows.map(reportRecordId);
+  const getSortValue = useCallback(
+    (row: ApiEntity, key: string) => {
+      const column = columns.find((item) => item.header === key);
+      return column ? readValue(row, column.keys) : undefined;
+    },
+    [columns],
+  );
+  const { sort, sortedRows, toggleSort } = useLocalTableSort(
+    rows,
+    getSortValue,
+  );
+  const visibleIds = sortedRows.map(reportRecordId);
   const allVisibleSelected =
     visibleIds.length > 0 &&
     visibleIds.every((id) => selectedRecordIds.has(id));
@@ -80,29 +108,47 @@ export function SummaryReportTable({
                 aria-label={t("common.selectAll")}
                 checked={allVisibleSelected}
                 indeterminate={!allVisibleSelected && someVisibleSelected}
-                onChange={(event) => onToggleRows(rows, event.target.checked)}
+                onChange={(event) =>
+                  onToggleRows(sortedRows, event.target.checked)
+                }
               />
             </TableHead>
             <TableHead className="w-px whitespace-nowrap text-center">
               {t("fields.no")}
             </TableHead>
-            {columns.map((column) => (
-              <TableHead
-                key={column.header}
-                className={cn(
-                  "h-11 whitespace-nowrap bg-background/95",
-                  column.align === "right" && "text-right",
-                  column.minWidth,
-                  column.wide && "min-w-[180px]",
-                )}
-              >
-                {column.header}
-              </TableHead>
-            ))}
+            {columns.map((column) =>
+              column.kind === "image" ? (
+                <TableHead
+                  key={column.header}
+                  className={cn(
+                    "h-11 whitespace-nowrap bg-background/95",
+                    column.minWidth,
+                  )}
+                >
+                  {column.header}
+                </TableHead>
+              ) : (
+                <SortableReportTableHead
+                  key={column.header}
+                  align={column.align}
+                  sort={sort}
+                  sortKey={column.header}
+                  className={cn(
+                    "h-11 whitespace-nowrap bg-background/95",
+                    column.align === "right" && "text-right",
+                    column.minWidth,
+                    column.wide && "min-w-[180px]",
+                  )}
+                  onSort={toggleSort}
+                >
+                  {column.header}
+                </SortableReportTableHead>
+              ),
+            )}
           </TableRow>
         </TableHeader>
         <TableBody>
-          {rows.map((row, index) => {
+          {sortedRows.map((row, index) => {
             const recordId = reportRecordId(row);
             const selected = selectedRecordIds.has(recordId);
 
@@ -174,7 +220,19 @@ export function DetailBillTable({
   onToggleRows: (rows: ApiEntity[], selected: boolean) => void;
 }) {
   const { t } = useTranslation();
-  const visibleItems = groups.flatMap((group) => group.items);
+  const getGroupSortValue = useCallback(
+    (group: DailySalesBillGroup, key: DailySalesBillSortKey) =>
+      dailySalesBillSortValue(group, key),
+    [],
+  );
+  const {
+    sort: groupSort,
+    sortedRows: sortedGroups,
+    toggleSort: toggleGroupSort,
+  } = useLocalTableSort(groups, getGroupSortValue);
+  const [itemSort, setItemSort] =
+    useState<LocalSortState<string>>(null);
+  const visibleItems = sortedGroups.flatMap((group) => group.items);
   const visibleItemIds = visibleItems.map(reportRecordId);
   const allVisibleSelected =
     visibleItemIds.length > 0 &&
@@ -183,7 +241,7 @@ export function DetailBillTable({
     selectedRecordIds.has(id),
   );
 
-  const allItems = groups.flatMap((group) => group.items);
+  const allItems = sortedGroups.flatMap((group) => group.items);
   const hasStatusData = allItems.some((item) =>
     hasDisplayValue(
       readValue(item, [
@@ -197,6 +255,21 @@ export function DetailBillTable({
     ),
   );
   const parentColumnCount = hasStatusData ? 10 : 9;
+  const getItemSortValue = useCallback(
+    (row: ApiEntity, key: string) => {
+      const column = itemColumns.find((item) => item.header === key);
+      return column ? readValue(row, column.keys) : undefined;
+    },
+    [itemColumns],
+  );
+
+  useEffect(() => {
+    setItemSort(null);
+  }, [groups, itemColumns]);
+
+  const toggleItemSort = useCallback((key: string) => {
+    setItemSort((current) => nextLocalSortState(current, key));
+  }, []);
 
   return (
     <div className="w-full min-w-0 overflow-x-auto">
@@ -216,36 +289,78 @@ export function DetailBillTable({
             <TableHead className="w-[90px] whitespace-nowrap bg-background/95 text-center">
               {t("fields.no")}
             </TableHead>
-            <TableHead className="min-w-[132px] whitespace-nowrap bg-background/95">
+            <SortableReportTableHead
+              sort={groupSort}
+              sortKey="invoiceNumber"
+              className="min-w-[132px] whitespace-nowrap bg-background/95"
+              onSort={toggleGroupSort}
+            >
               {t("report.columns.invoiceNumber")}
-            </TableHead>
-            <TableHead className="min-w-[118px] whitespace-nowrap bg-background/95">
+            </SortableReportTableHead>
+            <SortableReportTableHead
+              sort={groupSort}
+              sortKey="saleDate"
+              className="min-w-[118px] whitespace-nowrap bg-background/95"
+              onSort={toggleGroupSort}
+            >
               {t("report.columns.saleDate")}
-            </TableHead>
-            <TableHead className="min-w-[84px] whitespace-nowrap bg-background/95">
+            </SortableReportTableHead>
+            <SortableReportTableHead
+              sort={groupSort}
+              sortKey="tableName"
+              className="min-w-[84px] whitespace-nowrap bg-background/95"
+              onSort={toggleGroupSort}
+            >
               {t("report.columns.tableName")}
-            </TableHead>
-            <TableHead className="min-w-[130px] whitespace-nowrap bg-background/95">
+            </SortableReportTableHead>
+            <SortableReportTableHead
+              sort={groupSort}
+              sortKey="paymentType"
+              className="min-w-[130px] whitespace-nowrap bg-background/95"
+              onSort={toggleGroupSort}
+            >
               {t("report.columns.paymentType")}
-            </TableHead>
-            <TableHead className="min-w-[160px] whitespace-nowrap bg-background/95">
+            </SortableReportTableHead>
+            <SortableReportTableHead
+              sort={groupSort}
+              sortKey="cashierName"
+              className="min-w-[160px] whitespace-nowrap bg-background/95"
+              onSort={toggleGroupSort}
+            >
               {t("report.columns.cashierName")}
-            </TableHead>
-            <TableHead className="min-w-[94px] whitespace-nowrap bg-background/95 text-right">
+            </SortableReportTableHead>
+            <SortableReportTableHead
+              align="right"
+              sort={groupSort}
+              sortKey="itemCount"
+              className="min-w-[94px] whitespace-nowrap bg-background/95 text-right"
+              onSort={toggleGroupSort}
+            >
               {t("report.billItems")}
-            </TableHead>
-            <TableHead className="min-w-[132px] whitespace-nowrap bg-background/95 text-right">
+            </SortableReportTableHead>
+            <SortableReportTableHead
+              align="right"
+              sort={groupSort}
+              sortKey="lineTotal"
+              className="min-w-[132px] whitespace-nowrap bg-background/95 text-right"
+              onSort={toggleGroupSort}
+            >
               {t("report.cards.netTotal")}
-            </TableHead>
+            </SortableReportTableHead>
             {hasStatusData ? (
-              <TableHead className="min-w-[118px] whitespace-nowrap bg-background/95">
+              <SortableReportTableHead
+                sort={groupSort}
+                sortKey="status"
+                className="min-w-[118px] whitespace-nowrap bg-background/95"
+                onSort={toggleGroupSort}
+              >
                 {t("report.columns.status")}
-              </TableHead>
+              </SortableReportTableHead>
             ) : null}
           </TableRow>
         </TableHeader>
         <TableBody>
-          {groups.map((group, index) => {
+          {sortedGroups.map((group, index) => {
             const expanded = !collapsedGroups.has(group.id);
             const statusRow = group.items[0] ?? {};
             const groupItemIds = group.items.map(reportRecordId);
@@ -270,6 +385,10 @@ export function DetailBillTable({
                 <TableRow
                   className={cn(
                     "border-b border-border/80 bg-card hover:bg-muted/25 [&>td]:py-3",
+                    expanded &&
+                      !group.cancelled &&
+                      !groupNeedsAttention &&
+                      "border-l-4 border-l-primary/60 bg-primary/5 hover:bg-primary/10",
                     groupNeedsAttention &&
                       "bg-red-50 hover:bg-red-100/70 dark:bg-red-950/25 dark:hover:bg-red-950/35",
                     group.cancelled &&
@@ -355,98 +474,151 @@ export function DetailBillTable({
                     )}
                   >
                     <TableCell colSpan={parentColumnCount} className="p-0">
-                      <div className="border-l-4 border-l-primary/20 px-4 py-3">
-                        <Table className="min-w-[1160px] text-[13px]">
-                          <TableHeader className="bg-muted/60">
-                            <TableRow>
-                              <TableHead className="w-[52px] whitespace-nowrap bg-muted/60 text-center">
-                                <IndeterminateCheckbox
-                                  aria-label={t("common.selectAll")}
-                                  checked={groupSelected}
-                                  indeterminate={groupPartiallySelected}
-                                  onChange={(event) =>
-                                    onToggleRows(
-                                      group.items,
-                                      event.target.checked,
-                                    )
-                                  }
-                                />
-                              </TableHead>
-                              {itemColumns.map((column) => (
-                                <TableHead
-                                  key={column.header}
-                                  className={cn(
-                                    "h-9 whitespace-nowrap bg-muted/60",
-                                    column.align === "right" && "text-right",
-                                    column.minWidth,
-                                    column.wide && "min-w-[180px]",
-                                  )}
-                                >
-                                  {column.header}
-                                </TableHead>
-                              ))}
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {group.items.map((item, itemIndex) => {
-                              const recordId = reportRecordId(item);
-                              const selected = selectedRecordIds.has(recordId);
-
-                              return (
-                                <TableRow
-                                  key={`${rowKey(item, itemIndex)}-${itemIndex}`}
-                                  className={cn(
-                                    tableRowClass(item, itemIndex),
-                                    selected &&
-                                      !isCancelledRow(item) &&
-                                      !isPaymentAttentionRow(item) &&
-                                      "bg-primary/5",
-                                  )}
-                                >
-                                  <TableCell className="w-[52px] whitespace-nowrap text-center">
-                                    <Checkbox
-                                      aria-label={t("common.selectRow", {
-                                        name: textValue(
-                                          readValue(item, [
-                                            "product_name",
-                                            "prod_name",
-                                            "prod_name_la",
-                                            "prod_name_eng",
-                                          ]),
-                                          `${group.invoiceNumber}-${itemIndex + 1}`,
-                                        ),
-                                      })}
-                                      checked={selected}
+                      <div className="px-4 py-3">
+                        <div className="overflow-hidden rounded-md border border-border bg-card shadow-sm">
+                          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-primary/5 px-4 py-3">
+                            <div className="flex min-w-0 flex-wrap items-center gap-2">
+                              <Badge className="h-7 border-primary/20 bg-primary/10 px-2 text-primary">
+                                {t("fields.no")} {pageStart + index}
+                              </Badge>
+                              <span className="font-black text-foreground">
+                                {group.invoiceNumber}
+                              </span>
+                              <span className="text-sm font-semibold text-muted-foreground">
+                                {group.itemCount.toLocaleString("en-US")}{" "}
+                                {t("report.billItems")}
+                              </span>
+                            </div>
+                            <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs font-semibold text-muted-foreground">
+                              <Badge className="h-7 border-border bg-background px-2 text-foreground">
+                                {t("report.columns.tableName")}:{" "}
+                                {group.tableName}
+                              </Badge>
+                              <Badge className="h-7 border-border bg-background px-2 text-foreground">
+                                {t("report.columns.paymentType")}:{" "}
+                                {group.paymentType}
+                              </Badge>
+                            </div>
+                          </div>
+                          <div className="overflow-x-auto p-3">
+                            <Table className="min-w-[1160px] text-[13px]">
+                              <TableHeader className="bg-muted/60">
+                                <TableRow>
+                                  <TableHead className="w-[52px] whitespace-nowrap bg-muted/60 text-center">
+                                    <IndeterminateCheckbox
+                                      aria-label={t("common.selectAll")}
+                                      checked={groupSelected}
+                                      indeterminate={groupPartiallySelected}
                                       onChange={(event) =>
-                                        onToggleRow(item, event.target.checked)
+                                        onToggleRows(
+                                          group.items,
+                                          event.target.checked,
+                                        )
                                       }
                                     />
-                                  </TableCell>
-                                  {itemColumns.map((column) => (
-                                    <TableCell
-                                      key={column.header}
+                                  </TableHead>
+                                  {itemColumns.map((column) =>
+                                    column.kind === "image" ? (
+                                      <TableHead
+                                        key={column.header}
+                                        className={cn(
+                                          "h-9 whitespace-nowrap bg-muted/60",
+                                          column.minWidth,
+                                        )}
+                                      >
+                                        {column.header}
+                                      </TableHead>
+                                    ) : (
+                                      <SortableReportTableHead
+                                        key={column.header}
+                                        align={column.align}
+                                        sort={itemSort}
+                                        sortKey={column.header}
+                                        className={cn(
+                                          "h-9 whitespace-nowrap bg-muted/60",
+                                          column.align === "right" &&
+                                            "text-right",
+                                          column.minWidth,
+                                          column.wide && "min-w-[180px]",
+                                        )}
+                                        onSort={toggleItemSort}
+                                      >
+                                        {column.header}
+                                      </SortableReportTableHead>
+                                    ),
+                                  )}
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {sortRowsLocally(
+                                  group.items,
+                                  itemSort,
+                                  getItemSortValue,
+                                ).map((item, itemIndex) => {
+                                  const recordId = reportRecordId(item);
+                                  const selected =
+                                    selectedRecordIds.has(recordId);
+
+                                  return (
+                                    <TableRow
+                                      key={`${rowKey(item, itemIndex)}-${itemIndex}`}
                                       className={cn(
-                                        tableCellClass(item, column),
-                                        column.kind === "image" && "pl-4",
+                                        tableRowClass(item, itemIndex),
+                                        selected &&
+                                          !isCancelledRow(item) &&
+                                          !isPaymentAttentionRow(item) &&
+                                          "bg-primary/5",
                                       )}
                                     >
-                                      {renderCell(item, column)}
-                                    </TableCell>
-                                  ))}
-                                </TableRow>
-                              );
-                            })}
-                          </TableBody>
-                        </Table>
-                        <div className="mt-3 grid gap-2 text-xs sm:grid-cols-2 xl:grid-cols-5">
-                          {billSummaryMetrics(t, group).map((metric) => (
-                            <BillMetric
-                              key={metric.label}
-                              label={metric.label}
-                              strong={metric.strong}
-                              value={metric.value}
-                            />
-                          ))}
+                                      <TableCell className="w-[52px] whitespace-nowrap text-center">
+                                        <Checkbox
+                                          aria-label={t("common.selectRow", {
+                                            name: textValue(
+                                              readValue(item, [
+                                                "product_name",
+                                                "prod_name",
+                                                "prod_name_la",
+                                                "prod_name_eng",
+                                              ]),
+                                              `${group.invoiceNumber}-${itemIndex + 1}`,
+                                            ),
+                                          })}
+                                          checked={selected}
+                                          onChange={(event) =>
+                                            onToggleRow(
+                                              item,
+                                              event.target.checked,
+                                            )
+                                          }
+                                        />
+                                      </TableCell>
+                                      {itemColumns.map((column) => (
+                                        <TableCell
+                                          key={column.header}
+                                          className={cn(
+                                            tableCellClass(item, column),
+                                            column.kind === "image" && "pl-4",
+                                          )}
+                                        >
+                                          {renderCell(item, column)}
+                                        </TableCell>
+                                      ))}
+                                    </TableRow>
+                                  );
+                                })}
+                              </TableBody>
+                            </Table>
+                          </div>
+                          <div className="grid gap-2 border-t border-border bg-muted/20 p-3 text-xs sm:grid-cols-2 xl:grid-cols-5">
+                            {billSummaryMetrics(t, group).map((metric) => (
+                              <BillMetric
+                                key={metric.label}
+                                label={metric.label}
+                                strong={metric.strong}
+                                value={metric.value}
+                              />
+                            ))}
+                          </div>
                         </div>
                       </div>
                     </TableCell>
@@ -465,36 +637,7 @@ export function renderPrintCell(row: ApiEntity, column: ReportColumn) {
   const value = readValue(row, column.keys);
 
   if (column.kind === "image") {
-    const color = reportImageColor(row);
-    if (color)
-      return (
-        <span
-          className="report-print-image"
-          style={{ backgroundColor: color }}
-        />
-      );
-    const src = reportImageSrc(row);
-    const name = textValue(
-      readValue(row, [
-        "product_name",
-        "prod_name",
-        "prod_name_la",
-        "prod_name_eng",
-      ]),
-      "Product",
-    );
-    if (src)
-      return (
-        <Image
-          src={src}
-          alt={name}
-          width={24}
-          height={24}
-          unoptimized
-          className="report-print-image"
-        />
-      );
-    return "-";
+    return <PrintProductImage row={row} />;
   }
 
   if (column.kind === "product") return <PrintProductNameCell row={row} />;
@@ -520,6 +663,30 @@ function renderCell(row: ApiEntity, column: ReportColumn) {
   }
 
   return textValue(value);
+}
+
+function dailySalesBillSortValue(
+  group: DailySalesBillGroup,
+  key: DailySalesBillSortKey,
+) {
+  switch (key) {
+    case "cashierName":
+      return group.cashierName;
+    case "invoiceNumber":
+      return group.invoiceNumber;
+    case "itemCount":
+      return group.itemCount;
+    case "lineTotal":
+      return group.lineTotal;
+    case "paymentType":
+      return group.paymentType;
+    case "saleDate":
+      return group.saleDate;
+    case "status":
+      return group.status;
+    case "tableName":
+      return group.tableName;
+  }
 }
 
 function tableRowClass(row: ApiEntity, index: number) {
@@ -591,6 +758,30 @@ function PrintProductNameCell({ row }: { row: ApiEntity }) {
       ) : null}
     </span>
   );
+}
+
+function PrintProductImage({ row }: { row: ApiEntity }) {
+  const src = reportImageSrc(row);
+  const color = reportImageColor(row) || "#10B981";
+  const backgroundImage = src ? `url("${printImageUrl(src)}")` : undefined;
+
+  return (
+    <span
+      aria-hidden="true"
+      className="report-print-image"
+      style={{
+        backgroundColor: backgroundImage ? "#ffffff" : color,
+        backgroundImage,
+      }}
+    />
+  );
+}
+
+function printImageUrl(src: string) {
+  if (/^https?:\/\//i.test(src)) {
+    return `/_next/image?url=${encodeURIComponent(src)}&w=48&q=75`;
+  }
+  return src;
 }
 
 function ProductImage({ row }: { row: ApiEntity }) {

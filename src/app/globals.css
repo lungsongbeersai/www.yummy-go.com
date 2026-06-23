@@ -540,7 +540,12 @@ html.theme-transition-active[data-theme-transition-direction="ltr"]::view-transi
   height: 24px;
   border: 1px solid #d7dee8;
   border-radius: 6px;
-  object-fit: cover;
+  background: #ffffff;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  object-fit: contain;
+  object-position: center;
   vertical-align: middle;
 }
 

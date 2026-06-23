@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, FileSpreadsheet, Plus, Search } from "lucide-react";
+import { FileSpreadsheet, Plus, Search } from "lucide-react";
+import { AppPagination } from "@/components/common/app-pagination";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { EmptyState } from "@/components/common/empty-state";
 import { LoadingState } from "@/components/common/loading-state";
@@ -201,41 +202,12 @@ export function ProductPage({ initialPagination }: { initialPagination: UrlPagin
               </div>
               <ProductListTable workflow={product} />
               <ProductListMobile workflow={product} />
-              <div className="flex shrink-0 flex-col gap-2 border-t border-border px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-                <span>
-                  {t("common.showingRange", {
-                    start: product.pageStart,
-                    end: product.pageEnd,
-                    total: product.total || product.rows.length
-                  })}
-                </span>
-                <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:flex">
-                  <Button
-                    className="min-w-0"
-                    disabled={!product.canGoBack}
-                    size="xs"
-                    type="button"
-                    variant="outline"
-                    onClick={() => product.goToPage(product.page - 1)}
-                  >
-                    <ChevronLeft data-icon="inline-start" />
-                    {t("actions.back")}
-                  </Button>
-                  <Badge className="h-7 px-2 text-xs">
-                    {t("common.page", { current: product.page, total: Math.max(1, product.totalPages) })}
-                  </Badge>
-                  <Button
-                    className="min-w-0"
-                    disabled={!product.canGoNext}
-                    size="xs"
-                    type="button"
-                    variant="outline"
-                    onClick={() => product.goToPage(Math.min(Math.max(1, product.totalPages), product.page + 1))}
-                  >
-                    {t("common.nextPage")}
-                    <ChevronRight data-icon="inline-end" />
-                  </Button>
-                </div>
+              <div className="shrink-0 border-t border-border px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] text-sm text-muted-foreground">
+                <AppPagination
+                  page={product.page}
+                  totalPages={Math.max(1, product.totalPages)}
+                  onPageChange={product.goToPage}
+                />
               </div>
             </>
           ) : (

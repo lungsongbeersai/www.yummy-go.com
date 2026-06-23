@@ -16,6 +16,11 @@ export interface SalesListFilters {
   search: string;
 }
 
+export interface SalesListBranchOption {
+  label: string;
+  value: string;
+}
+
 export function localDateInputValue(date = new Date()) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -56,6 +61,25 @@ export function readValue(row: ApiEntity, keys: string[]) {
     if (isPresent(value)) return value;
   }
   return undefined;
+}
+
+export function branchOptionLabel(branch: ApiEntity, language: string) {
+  const keys =
+    language === "en"
+      ? ["branch_name_eng", "branch_name", "branch_name_la", "branch_code", "branch_uuid"]
+      : ["branch_name_la", "branch_name", "branch_name_eng", "branch_code", "branch_uuid"];
+
+  return textValue(readValue(branch, keys), "-");
+}
+
+export function branchOptionFromRow(branch: ApiEntity, language: string): SalesListBranchOption | null {
+  const value = textValue(readValue(branch, ["branch_uuid", "branch_uuid_fk"]), "");
+  if (!value) return null;
+  return { value, label: branchOptionLabel(branch, language) };
+}
+
+export function selectedBranchLabel(options: SalesListBranchOption[], value: string, fallback = "-") {
+  return options.find((option) => option.value === value)?.label ?? fallback;
 }
 
 export function numberValue(value: unknown) {

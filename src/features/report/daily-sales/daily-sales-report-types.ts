@@ -42,6 +42,11 @@ export type SummaryCards = ApiEntity | ApiEntity[];
 
 export type ReportExportAction = "excel" | "pdf" | "print";
 
+export type ReportExportProgress = {
+  label: string;
+  percent: number;
+};
+
 export type ReportExportData = DailySalesReportExportData;
 
 export type DetailPaginationBasis = "bills" | "lines";

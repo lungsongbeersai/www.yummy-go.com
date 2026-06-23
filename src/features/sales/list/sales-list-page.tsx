@@ -194,7 +194,7 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
 
     setReceiptPrintingOrderUuid(orderUuid);
     try {
-      await showReprintReceiptFallback(receiptData, "");
+      await openReceiptPrintWindow(receiptData, "");
     } catch (printError) {
       showToast({
         title: t("cancelSale.reprintReceiptFailed"),
@@ -206,7 +206,7 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
     }
   }
 
-  async function showReprintReceiptFallback(data: InvoicePrintData, description: string) {
+  async function openReceiptPrintWindow(data: InvoicePrintData, description: string) {
     const opened = await openLocalInvoicePrintWindow(data);
     if (opened) {
       showToast({
@@ -267,6 +267,7 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
             totalPages={safeTotalPages}
             onBack={() => goToPage(page - 1)}
             onNext={() => goToPage(Math.min(safeTotalPages, page + 1))}
+            onPageChange={goToPage}
           />
         </section>
 

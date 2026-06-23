@@ -233,6 +233,7 @@ export function CurrencySettingsPage({ initialPagination }: { initialPagination:
               totalPages={totalPages}
               onBack={() => setPage((current) => Math.max(1, current - 1))}
               onNext={() => setPage((current) => Math.min(totalPages, current + 1))}
+              onPageChange={setPage}
             />
           ) : undefined
         }

@@ -1,19 +1,17 @@
 "use client";
 
-import { type CSSProperties, useEffect, useRef, useState } from "react";
+import { type CSSProperties, useRef, useState } from "react";
 import { CalendarDays, Trophy } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
 import type { UrlPaginationState } from "@/lib/url-pagination";
 import {
   BestSellingExportSurface,
-  BestSellingFilterBar,
   BestSellingFilterSheet,
   BestSellingProductsMobileList,
   BestSellingProductsTable,
   BestSellingSummaryCards,
   BestSellingTableCard,
-  MobileBestSellingFilterSummary
 } from "./best-selling-products-report-components";
 import { ReportError, ReportPagination, ReportSummaryToggle } from "../daily-sales/daily-sales-report-components";
 import { useBestSellingProductsReportWorkflow } from "./use-best-selling-products-report-workflow";
@@ -23,52 +21,17 @@ const SUMMARY_CARDS_ID = "best-selling-summary-cards";
 export function BestSellingProductsReportPage({ initialPagination }: { initialPagination: UrlPaginationState }) {
   const { t } = useTranslation();
   const exportReportRef = useRef<HTMLDivElement>(null);
-  const filterRef = useRef<HTMLDivElement>(null);
-  const [filterHeight, setFilterHeight] = useState(0);
   const [summaryVisible, setSummaryVisible] = useState(false);
   const report = useBestSellingProductsReportWorkflow(exportReportRef, initialPagination);
   const layoutStyle = {
-    "--best-selling-filter-height": `${filterHeight}px`
+    "--best-selling-filter-height": "0px"
   } as CSSProperties;
-
-  useEffect(() => {
-    const node = filterRef.current;
-    if (!node) return;
-
-    let frameId = 0;
-    const updateHeight = () => {
-      window.cancelAnimationFrame(frameId);
-      frameId = window.requestAnimationFrame(() => {
-        const nextHeight = Math.ceil(node.getBoundingClientRect().height);
-        setFilterHeight((currentHeight) => (currentHeight === nextHeight ? currentHeight : nextHeight));
-      });
-    };
-
-    updateHeight();
-    window.addEventListener("resize", updateHeight);
-
-    if (typeof ResizeObserver === "undefined") {
-      return () => {
-        window.cancelAnimationFrame(frameId);
-        window.removeEventListener("resize", updateHeight);
-      };
-    }
-
-    const observer = new ResizeObserver(updateHeight);
-    observer.observe(node);
-
-    return () => {
-      window.cancelAnimationFrame(frameId);
-      window.removeEventListener("resize", updateHeight);
-      observer.disconnect();
-    };
-  }, []);
 
   return (
     <>
       <div className="h-full min-h-0 min-w-0 overflow-x-hidden overflow-y-auto" style={layoutStyle}>
-        <div className="mx-auto flex w-full min-w-0 max-w-full flex-col gap-4 p-3 sm:p-4 lg:p-6 2xl:max-w-375">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div className="mx-auto flex w-full min-w-0 max-w-full flex-col gap-3 p-3 sm:p-4 lg:p-4 2xl:max-w-375">
+          <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <div className="flex items-center gap-2 text-sm font-bold text-primary">
                 <Trophy className="size-4" />
@@ -90,35 +53,6 @@ export function BestSellingProductsReportPage({ initialPagination }: { initialPa
                 controlsId={SUMMARY_CARDS_ID}
                 expanded={summaryVisible}
                 onToggle={() => setSummaryVisible((visible) => !visible)}
-              />
-            </div>
-          </div>
-
-          <div
-            ref={filterRef}
-            className="sticky top-0 z-30 -mx-3 bg-background/95 px-3 py-2 backdrop-blur supports-backdrop-filter:bg-background/85 sm:-mx-4 sm:px-4 lg:-mx-6 lg:px-6"
-          >
-            <div className="xl:hidden">
-              <MobileBestSellingFilterSummary
-                branchLabel={report.activeBranchLabel}
-                filters={report.appliedFilters}
-                groupLabel={report.activeGroupLabel}
-                sortByLabel={report.sortByLabel}
-                onOpen={report.openMobileFilters}
-              />
-            </div>
-            <div className="hidden xl:block">
-              <BestSellingFilterBar
-                branchLoading={report.branchLoading}
-                branchLocked={!report.canSelectBranch}
-                branchOptions={report.branchOptions}
-                canApply={report.canApply}
-                draftFilters={report.draftFilters}
-                groupLoading={report.groupLoading}
-                groupOptions={report.groupOptions}
-                loading={report.loading}
-                onApply={report.applyFilters}
-                onDraftChange={report.setDraftFilters}
               />
             </div>
           </div>
@@ -151,7 +85,6 @@ export function BestSellingProductsReportPage({ initialPagination }: { initialPa
             exportDisabled={report.exportDisabled}
             exporting={report.exporting}
             loading={report.loading}
-            rangeLabel={report.paginationRangeLabel}
             rowsLength={report.rows.length}
             sortByLabel={report.sortByLabel}
             footer={
@@ -160,13 +93,15 @@ export function BestSellingProductsReportPage({ initialPagination }: { initialPa
                 canGoNext={report.canGoNext}
                 page={report.page}
                 rangeLabel={report.paginationRangeLabel}
-                totalPages={report.totalPages}
-                onBack={() => report.setPage((current) => Math.max(1, current - 1))}
-                onNext={() => report.setPage((current) => current + 1)}
-              />
+              totalPages={report.totalPages}
+              onBack={() => report.setPage((current) => Math.max(1, current - 1))}
+              onNext={() => report.setPage((current) => current + 1)}
+              onPageChange={report.setPage}
+            />
             }
             onExportExcel={() => void report.exportExcel()}
             onExportPdf={() => void report.exportPdf()}
+            onOpenFilters={report.openMobileFilters}
             onPrintReport={() => void report.printReport()}
             onRefresh={() => void report.load()}
           >

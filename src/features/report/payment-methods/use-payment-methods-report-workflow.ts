@@ -285,30 +285,11 @@ export function usePaymentMethodsReportWorkflow(exportReportRef: RefObject<HTMLD
   }
 
   async function printReport() {
-    if (exportDisabled) return;
-    setExporting("print");
-    try {
-      const data = await fetchExportData();
-      setExportData(data);
-      await waitForPaint();
-      let clearTimer: number | null = null;
-      const clearPrintData = () => {
-        setExportData(null);
-        if (clearTimer) window.clearTimeout(clearTimer);
-      };
-
-      window.addEventListener("afterprint", clearPrintData, { once: true });
-      window.print();
-      clearTimer = window.setTimeout(clearPrintData, 5000);
-    } catch (error) {
-      showToast({
-        title: t("report.printFailed"),
-        description: error instanceof Error ? error.message : "",
-        tone: "error"
-      });
-    } finally {
-      setExporting(null);
-    }
+    showToast({
+      title: t("report.printFailed"),
+      description: t("report.selectBillsToPrint"),
+      tone: "info"
+    });
   }
 
   return {

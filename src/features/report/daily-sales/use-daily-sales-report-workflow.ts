@@ -8,21 +8,35 @@ import {
   type RefObject,
 } from "react";
 import { useTranslation } from "react-i18next";
+import {
+  openLocalInvoiceBatchPrintWindow,
+  type InvoicePrintData,
+} from "@/features/pos/print/invoice-print-window";
+import {
+  buildSalesListInvoicePrintData,
+  type BillSource,
+} from "@/features/sales/list/sales-list-utils";
 import { useUrlPagination } from "@/hooks/use-url-pagination";
 import { pageLimitSize } from "@/lib/pagination";
 import type { UrlPaginationState } from "@/lib/url-pagination";
 import type { ApiEntity } from "@/services/shared/types";
 import { useAppStore } from "@/stores/app-store";
-import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
+import {
+  authStoreUuid,
+  useAuthStore,
+  type AuthUser,
+} from "@/stores/auth-store";
 import { useBranchStore } from "@/stores/branch-store";
 import {
   createDailySalesBillGroups,
+  type DailySalesBillGroup,
   useDailySalesReportStore,
 } from "@/stores/report-store";
 import { useToastStore } from "@/stores/toast-store";
 import type {
   ReportExportData,
   ReportExportAction,
+  ReportExportProgress,
   ReportFilters,
 } from "./daily-sales-report-types";
 import {
@@ -42,6 +56,7 @@ import {
   exportTableRows,
   reportFileBaseName,
   selectedDetailBillGroups,
+  waitForImages,
   waitForPaint,
 } from "./daily-sales-report-export-utils";
 import {
@@ -72,9 +87,6 @@ export function useDailySalesReportWorkflow(
   );
   const setSelectedBranch = useBranchStore((state) => state.setSelectedBranch);
   const billGroups = useDailySalesReportStore((state) => state.billGroups);
-  const grandTotalByDate = useDailySalesReportStore(
-    (state) => state.grandTotalByDate,
-  );
   const rows = useDailySalesReportStore((state) => state.rows);
   const summaryCards = useDailySalesReportStore((state) => state.summaryCards);
   const reportTotal = useDailySalesReportStore((state) => state.reportTotal);
@@ -102,6 +114,8 @@ export function useDailySalesReportWorkflow(
     () => new Set(),
   );
   const [exporting, setExporting] = useState<ReportExportAction | null>(null);
+  const [exportProgress, setExportProgress] =
+    useState<ReportExportProgress | null>(null);
   const [exportData, setExportData] = useState<ReportExportData | null>(null);
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
   const [selectedRecordIds, setSelectedRecordIds] = useState<Set<string>>(
@@ -227,17 +241,23 @@ export function useDailySalesReportWorkflow(
   const canGoNext = page < totalPages && !loading;
   const exportDisabled =
     loading || Boolean(exporting) || !branchUuid || !rows.length;
+  const exportSurfaceReady = Boolean(exportData);
   const renderedExportData = exportData ?? {
-    billGroups,
-    grandTotalByDate,
-    reportTotal,
-    rows,
-    summaryCards,
+    billGroups: [],
+    grandTotalByDate: [],
+    reportTotal: {},
+    rows: [],
+    summaryCards: {},
   };
   const allDetailGroupsExpanded =
     billGroups.length > 0 &&
     billGroups.every((group) => !collapsedBillGroups.has(group.id));
   const selectedCount = selectedRecordIds.size;
+  const selectedReceiptBillGroups = useMemo(
+    () => selectedBillGroupsForReceipt(billGroups, selectedRecordIds),
+    [billGroups, selectedRecordIds],
+  );
+  const selectedBillCount = selectedReceiptBillGroups.length;
   const detailRangeLabel =
     detailPageBasis === "lines"
       ? t("report.showingDetailLinesRange", {
@@ -368,6 +388,20 @@ export function useDailySalesReportWorkflow(
     setMobileFilterOpen(false);
   }
 
+  function applyTableHeaderFilters(
+    patch: Pick<Partial<ReportFilters>, "paymentMethod" | "typePage">,
+  ) {
+    const nextFilters = normalizeBranchFilters({
+      ...appliedFilters,
+      ...patch,
+    });
+    if (nextFilters.branchUuid) setSelectedBranch(nextFilters.branchUuid);
+    setDraftFilters(nextFilters);
+    setAppliedFilters(nextFilters);
+    changeLimit(nextFilters.limit);
+    setPage(1);
+  }
+
   function toggleBillGroup(groupId: string) {
     setCollapsedBillGroups((current) => {
       const next = new Set(current);
@@ -473,13 +507,26 @@ export function useDailySalesReportWorkflow(
     };
   }, [appliedFilters, branchUuid, language, loadExportData, selectedRecordIds, t]);
 
+  function updateExportProgress(percent: number, labelKey: string) {
+    setExportProgress({
+      label: t(labelKey),
+      percent: Math.min(100, Math.max(0, percent)),
+    });
+  }
+
   async function exportExcel() {
     if (exportDisabled) return;
     setExporting("excel");
+    updateExportProgress(5, "report.exportProgress.fetching");
     try {
+      await waitForPaint();
       const data = await fetchExportData();
+      updateExportProgress(35, "report.exportProgress.preparing");
+      await waitForPaint();
       const XLSX = await import("xlsx");
       const workbook = XLSX.utils.book_new();
+      updateExportProgress(65, "report.exportProgress.buildingFile");
+      await waitForPaint();
       const summarySheet = XLSX.utils.json_to_sheet(
         exportSummaryRows(cards, data.summaryCards, data.reportTotal),
       );
@@ -510,7 +557,10 @@ export function useDailySalesReportWorkflow(
       } else {
         XLSX.utils.book_append_sheet(workbook, rowsSheet, "Rows");
       }
+      updateExportProgress(90, "report.exportProgress.saving");
+      await waitForPaint();
       XLSX.writeFile(workbook, `${reportFileBaseName(appliedFilters)}.xlsx`);
+      updateExportProgress(100, "report.exportProgress.done");
       showToast({
         title: t("report.exportReady"),
         description: t("report.exportedRows", { count: data.rows.length }),
@@ -524,50 +574,54 @@ export function useDailySalesReportWorkflow(
       });
     } finally {
       setExporting(null);
+      setExportProgress(null);
     }
   }
 
   async function exportPdf() {
     if (exportDisabled) return;
     setExporting("pdf");
+    updateExportProgress(5, "report.exportProgress.fetching");
     try {
+      await waitForPaint();
       const data = await fetchExportData();
+      updateExportProgress(25, "report.exportProgress.rendering");
       setExportData(data);
       await waitForPaint();
 
       const element = exportReportRef.current;
       if (!element) throw new Error(t("report.exportFailed"));
+      updateExportProgress(40, "report.exportProgress.loadingImages");
+      await waitForPaint();
+      await waitForImages(element);
 
+      updateExportProgress(55, "report.exportProgress.capturing");
+      await waitForPaint();
       const [{ jsPDF }, html2canvasModule] = await Promise.all([
         import("jspdf"),
         import("html2canvas"),
       ]);
       const canvas = await html2canvasModule.default(element, {
         backgroundColor: "#ffffff",
-        scale: Math.min(2, window.devicePixelRatio || 1.5),
+        imageTimeout: 2000,
+        scale: pdfCanvasScale(data.rows.length),
         useCORS: true,
         windowHeight: element.scrollHeight,
         windowWidth: element.scrollWidth,
       });
+      updateExportProgress(80, "report.exportProgress.buildingPdf");
+      await waitForPaint();
       const pdf = new jsPDF({
         format: "a4",
         orientation: "landscape",
         unit: "pt",
       });
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      const imageHeight = (canvas.height * pageWidth) / canvas.width;
-      const imageData = canvas.toDataURL("image/png", 1);
-      let offsetY = 0;
+      addCanvasToPdfPages(pdf, canvas, element);
 
-      pdf.addImage(imageData, "PNG", 0, offsetY, pageWidth, imageHeight);
-      while (imageHeight + offsetY > pageHeight) {
-        offsetY -= pageHeight;
-        pdf.addPage();
-        pdf.addImage(imageData, "PNG", 0, offsetY, pageWidth, imageHeight);
-      }
-
+      updateExportProgress(95, "report.exportProgress.saving");
+      await waitForPaint();
       pdf.save(`${reportFileBaseName(appliedFilters)}.pdf`);
+      updateExportProgress(100, "report.exportProgress.done");
       showToast({
         title: t("report.exportReady"),
         description: t("report.exportedRows", { count: data.rows.length }),
@@ -581,26 +635,41 @@ export function useDailySalesReportWorkflow(
       });
     } finally {
       setExporting(null);
+      setExportProgress(null);
       setExportData(null);
     }
   }
 
   async function printReport() {
-    if (exportDisabled) return;
+    if (loading || exporting) return;
+    if (!user) return;
+    if (!selectedBillCount) {
+      showToast({
+        title: t("report.printFailed"),
+        description: t("report.selectBillsToPrint"),
+        tone: "info",
+      });
+      return;
+    }
+
     setExporting("print");
     try {
-      const data = await fetchExportData();
-      setExportData(data);
-      await waitForPaint();
-      let clearTimer: number | null = null;
-      const clearPrintData = () => {
-        setExportData(null);
-        if (clearTimer) window.clearTimeout(clearTimer);
-      };
+      const receipts = selectedReceiptBillGroups.map((group) =>
+        buildDailySalesReceiptPrintData({
+          group,
+          translate: (key, options) => String(t(key, options)),
+          user,
+        }),
+      );
 
-      window.addEventListener("afterprint", clearPrintData, { once: true });
-      window.print();
-      clearTimer = window.setTimeout(clearPrintData, 5000);
+      const opened = await openLocalInvoiceBatchPrintWindow(receipts);
+      if (!opened) throw new Error(t("report.printPopupBlocked"));
+
+      showToast({
+        title: t("report.printReady"),
+        description: t("report.printedBills", { count: receipts.length }),
+        tone: "success",
+      });
     } catch (error) {
       showToast({
         title: t("report.printFailed"),
@@ -638,6 +707,8 @@ export function useDailySalesReportWorkflow(
     exportDisabled,
     exportExcel,
     exporting,
+    exportProgress,
+    exportSurfaceReady,
     expandAllBills,
     handleMobileFilterOpenChange,
     load,
@@ -652,6 +723,7 @@ export function useDailySalesReportWorkflow(
     reportTotal,
     rows,
     selectedCount,
+    selectedBillCount,
     selectedRecordIds,
     setDraftFilters,
     setPage,
@@ -660,8 +732,222 @@ export function useDailySalesReportWorkflow(
     toggleReportRow,
     toggleReportRows,
     totalPages,
+    applyTableHeaderFilters,
     applyFilters,
     applyMobileFilters,
     exportPdf,
   };
+}
+
+function pdfCanvasScale(rowCount: number) {
+  const deviceScale = window.devicePixelRatio || 1.5;
+  if (rowCount > 120) return 1;
+  if (rowCount > 40) return Math.min(1.25, deviceScale);
+  return Math.min(1.5, deviceScale);
+}
+
+type PdfDocument = {
+  addImage: (
+    imageData: string,
+    format: "PNG",
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+  ) => void;
+  addPage: () => void;
+  internal: {
+    pageSize: {
+      getHeight: () => number;
+      getWidth: () => number;
+    };
+  };
+};
+
+function addCanvasToPdfPages(
+  pdf: PdfDocument,
+  canvas: HTMLCanvasElement,
+  sourceElement: HTMLElement,
+) {
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+  const pageCanvasHeight = Math.floor((pageHeight / pageWidth) * canvas.width);
+  const pageBreaks = getCanvasPageBreaks(sourceElement, canvas);
+  let pageStart = 0;
+  let isFirstPage = true;
+
+  while (pageStart < canvas.height) {
+    const pageEnd = choosePdfPageEnd(
+      pageStart,
+      Math.min(pageStart + pageCanvasHeight, canvas.height),
+      canvas.height,
+      pageBreaks,
+    );
+    const sliceHeight = Math.max(1, pageEnd - pageStart);
+    const sliceCanvas = document.createElement("canvas");
+    const context = sliceCanvas.getContext("2d");
+
+    sliceCanvas.width = canvas.width;
+    sliceCanvas.height = sliceHeight;
+    if (!context) break;
+
+    context.fillStyle = "#ffffff";
+    context.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
+    context.drawImage(
+      canvas,
+      0,
+      pageStart,
+      canvas.width,
+      sliceHeight,
+      0,
+      0,
+      canvas.width,
+      sliceHeight,
+    );
+
+    if (!isFirstPage) pdf.addPage();
+    pdf.addImage(
+      sliceCanvas.toDataURL("image/png", 1),
+      "PNG",
+      0,
+      0,
+      pageWidth,
+      (sliceHeight * pageWidth) / canvas.width,
+    );
+
+    isFirstPage = false;
+    pageStart = pageEnd;
+  }
+}
+
+function selectedBillGroupsForReceipt(
+  groups: DailySalesBillGroup[],
+  selectedRecordIds: Set<string>,
+) {
+  if (!selectedRecordIds.size) return [];
+
+  return groups.filter((group) =>
+    group.items.some((item) => selectedRecordIds.has(reportRecordId(item))),
+  );
+}
+
+function buildDailySalesReceiptPrintData({
+  group,
+  translate,
+  user,
+}: {
+  group: DailySalesBillGroup;
+  translate: (key: string, options?: Record<string, unknown>) => string;
+  user: AuthUser;
+}): InvoicePrintData {
+  return buildSalesListInvoicePrintData({
+    bill: dailySalesReceiptBillSource(group),
+    translate,
+    user,
+  });
+}
+
+function dailySalesReceiptBillSource(group: DailySalesBillGroup): BillSource {
+  return {
+    amount: group.amountTotal,
+    branch_name: group.branchName,
+    cashier_name: group.cashierName,
+    change_amount: group.changeAmount,
+    debt_amount: group.debtAmount,
+    discount_bill: group.discountBillAmount,
+    discount_amount: group.discountBillAmount,
+    grand_total: group.lineTotal,
+    invoice_number: group.invoiceNumber,
+    item_discount_amount: group.itemDiscountAmount,
+    items: group.items.map((item) => ({
+      ...item,
+      item_discount_amount: readValue(item, [
+        "discount_total",
+        "discount_amount",
+        "item_discount_amount",
+        "discount",
+      ]),
+      line_total: readValue(item, ["total", "line_total", "net_total"]),
+      price: readValue(item, ["sale_price", "price", "unit_price"]),
+      topping_unit_total: readValue(item, [
+        "topping_total",
+        "topping_unit_total",
+      ]),
+    })),
+    net_total: group.lineTotal,
+    order_grand_total: group.lineTotal,
+    order_invoice: group.invoiceNumber,
+    order_total: group.amountTotal,
+    receive_cash: group.receiveCashAmount,
+    receive_transfer: group.receiveTransferAmount,
+    sale_date: group.saleDate,
+    service_charge_amount: group.serviceChargeAmount,
+    status: group.status,
+    table_name: group.tableName,
+    total: group.lineTotal,
+    vat_amount: group.vatAmount,
+  };
+}
+
+function getCanvasPageBreaks(
+  sourceElement: HTMLElement,
+  canvas: HTMLCanvasElement,
+) {
+  const rootRect = sourceElement.getBoundingClientRect();
+  const scaleY = canvas.height / sourceElement.scrollHeight;
+  const billStarts = canvasPositions(
+    sourceElement.querySelectorAll("tr.is-bill"),
+    rootRect.top,
+    scaleY,
+    canvas.height,
+    "top",
+  );
+
+  return {
+    fallback: canvasPositions(
+      sourceElement.querySelectorAll("tr"),
+      rootRect.top,
+      scaleY,
+      canvas.height,
+      "bottom",
+    ),
+    preferred: billStarts,
+  };
+}
+
+function canvasPositions(
+  rows: NodeListOf<Element>,
+  rootTop: number,
+  scaleY: number,
+  canvasHeight: number,
+  edge: "bottom" | "top",
+) {
+  return Array.from(rows)
+    .map((row) => {
+      const rowRect = row.getBoundingClientRect();
+      const y = edge === "top" ? rowRect.top : rowRect.bottom;
+      return Math.round((y - rootTop) * scaleY);
+    })
+    .filter((value) => value > 0 && value < canvasHeight)
+    .sort((left, right) => left - right);
+}
+
+function choosePdfPageEnd(
+  pageStart: number,
+  maxEnd: number,
+  canvasHeight: number,
+  pageBreaks: { fallback: number[]; preferred: number[] },
+) {
+  if (maxEnd >= canvasHeight) return canvasHeight;
+
+  const minUsefulHeight = pageStart + 120;
+  const safeMaxEnd = maxEnd - 8;
+  const preferredBoundary = pageBreaks.preferred
+    .filter((value) => value > minUsefulHeight && value <= safeMaxEnd)
+    .at(-1);
+  const fallbackBoundary = pageBreaks.fallback
+    .filter((value) => value > minUsefulHeight && value <= safeMaxEnd)
+    .at(-1);
+
+  return preferredBoundary ?? fallbackBoundary ?? maxEnd;
 }
