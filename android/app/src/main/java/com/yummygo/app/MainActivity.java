@@ -1,22 +1,31 @@
 package com.yummygo.app;
 
 import android.graphics.Color;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 import android.view.Window;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
 
+import androidx.appcompat.app.AppCompatDelegate;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
+import androidx.webkit.WebSettingsCompat;
+import androidx.webkit.WebViewFeature;
 
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
   @Override
   public void onCreate(Bundle savedInstanceState) {
+    AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
     super.onCreate(savedInstanceState);
+
+    hardenWebViewRendering();
 
     Window window = getWindow();
 
@@ -50,5 +59,24 @@ public class MainActivity extends BridgeActivity {
 
       return insets;
     });
+  }
+
+  private void hardenWebViewRendering() {
+    WebView webView = getBridge() != null ? getBridge().getWebView() : null;
+    if (webView == null) {
+      return;
+    }
+
+    webView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
+
+    WebSettings settings = webView.getSettings();
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+      webView.setForceDarkAllowed(false);
+      settings.setForceDark(WebSettings.FORCE_DARK_OFF);
+    }
+
+    if (WebViewFeature.isFeatureSupported(WebViewFeature.ALGORITHMIC_DARKENING)) {
+      WebSettingsCompat.setAlgorithmicDarkeningAllowed(settings, false);
+    }
   }
 }
