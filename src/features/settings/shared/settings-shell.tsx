@@ -221,8 +221,8 @@ export function SettingsToolbar({ state }: { state: SettingsToolbarState }) {
   const filterLabel = t("settings.filterTitle");
   const limitOptions = state.limitOptions ?? PAGE_LIMIT_OPTIONS;
   const orderOptions = state.orderOptions ?? [
-    { label: t("common.asc"), value: "ASC" as SortOrder },
-    { label: t("common.desc"), value: "DESC" as SortOrder }
+    { label: t("common.oldestFirst"), value: "ASC" as SortOrder },
+    { label: t("common.newestFirst"), value: "DESC" as SortOrder }
   ];
 
   function updateLimit(value: string) {

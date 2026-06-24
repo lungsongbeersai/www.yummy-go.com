@@ -115,6 +115,23 @@ export function statusBadgeClass(value: unknown) {
   return "border-border bg-muted text-muted-foreground";
 }
 
+export function billNeedsPaymentAttention(bill: DailySaleItemsBillGroup) {
+  if (bill.cancelled) return false;
+  if (bill.debtAmount > 0) return true;
+
+  const paymentText = `${bill.paymentMethodCode} ${bill.paymentMethodName}`.toLowerCase();
+  const status = bill.status.toLowerCase();
+  return (
+    ["debt", "unpaid", "pending", "arrears", "balance", "credit"].some(
+      (value) => paymentText.includes(value) || status.includes(value)
+    ) ||
+    paymentText.includes("ໜີ້") ||
+    paymentText.includes("ຄ້າງ") ||
+    status.includes("ໜີ້") ||
+    status.includes("ຄ້າງ")
+  );
+}
+
 export function itemProductName(item: ApiEntity) {
   return textValue(readValue(item, ["product_name", "prod_name", "name", "item_name"]));
 }

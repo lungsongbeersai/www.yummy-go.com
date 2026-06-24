@@ -579,7 +579,7 @@ export function useSelectedTableCartPanelWorkflow({
     const value = optionalNumber(item.detail?.order_it_discount_value);
     setItemDiscountTarget(item);
     setItemDiscountDraft({
-      type: normalizeDiscountType(item.detail?.order_it_discount_type),
+      type: normalizeDiscountType(item.detail?.order_it_discount_type, value),
       value: value !== null ? String(value) : "",
     });
   }
@@ -590,7 +590,7 @@ export function useSelectedTableCartPanelWorkflow({
     const order = orders.find((entry) => optionalString(entry.order_uuid));
     const value = optionalNumber(order?.order_discount_value);
     setBillDiscountDraft({
-      type: normalizeDiscountType(order?.order_discount_type),
+      type: normalizeDiscountType(order?.order_discount_type, value),
       value: value !== null ? String(value) : "",
     });
     setBillDiscountOpen(true);

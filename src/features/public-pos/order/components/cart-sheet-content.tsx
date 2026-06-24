@@ -10,13 +10,13 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Tooltip,
@@ -54,27 +54,25 @@ export function CartSheetContent({
   } = workflow;
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent
-        side="bottom"
-        className="max-h-[88dvh] overflow-hidden rounded-t-[1.35rem] border-emerald-100 bg-[#f7fcf9] p-0 sm:inset-x-auto sm:left-1/2 sm:w-full sm:max-w-xl sm:-translate-x-1/2 dark:border-border dark:bg-background"
+    <Drawer open={open} onOpenChange={onOpenChange} direction="bottom">
+      <DrawerContent
+        className="mx-auto max-h-[88dvh] w-full max-w-xl overflow-hidden rounded-t-[1.35rem] border-emerald-100 bg-[#f7fcf9] p-0 dark:border-border dark:bg-background"
       >
-        <SheetHeader className="border-b border-emerald-100 bg-white/95 p-3 text-left dark:border-border dark:bg-background/95">
-          <div className="mb-1 h-1 w-10 self-center rounded-full bg-emerald-100 dark:bg-muted" />
+        <DrawerHeader className="border-b border-emerald-100 bg-white/95 px-3 pb-3 pt-2 text-left dark:border-border dark:bg-background/95">
           <div className="flex items-start justify-between gap-3 pr-8">
             <div className="min-w-0">
-              <SheetTitle className="truncate text-base font-semibold leading-5">
+              <DrawerTitle className="truncate text-base font-semibold leading-5">
                 {invoice}
-              </SheetTitle>
-              <SheetDescription className="text-xs">
+              </DrawerTitle>
+              <DrawerDescription className="text-xs">
                 {tableName ? `${t("pos.table")} ${tableName}` : t("pos.basket")}
-              </SheetDescription>
+              </DrawerDescription>
             </div>
             <Badge className="h-6 rounded-full border border-emerald-100 bg-emerald-50 px-2 text-[11px] font-medium text-primary dark:border-border dark:bg-primary/10">
               {allItems.length} {t("pos.cartItems")}
             </Badge>
           </div>
-        </SheetHeader>
+        </DrawerHeader>
 
         <div className="overflow-y-auto px-3 py-2.5">
           {loading ? (
@@ -109,7 +107,7 @@ export function CartSheetContent({
           )}
         </div>
 
-        <SheetFooter className="border-t border-emerald-100 bg-white p-3 dark:border-border dark:bg-background">
+        <DrawerFooter className="border-t border-emerald-100 bg-white p-3 dark:border-border dark:bg-background">
           <div className="grid gap-1.5 rounded-xl border border-emerald-100 bg-emerald-50/45 p-2.5 text-xs dark:border-border dark:bg-muted/30">
             <CartTotalRow
               label={t("pos.cartSubtotal")}
@@ -184,8 +182,8 @@ export function CartSheetContent({
               {t("pos.confirmOrderAction")}
             </Button>
           </div>
-        </SheetFooter>
-      </SheetContent>
-    </Sheet>
+        </DrawerFooter>
+      </DrawerContent>
+    </Drawer>
   );
 }

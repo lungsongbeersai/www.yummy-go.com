@@ -55,11 +55,11 @@ export function AppPagination({
         "flex gap-2 text-sm text-muted-foreground",
         compact
           ? "flex-row items-center justify-between"
-          : "flex-col sm:flex-row sm:items-center sm:justify-between",
+          : "flex-row items-center justify-between",
         className,
       )}
     >
-      <div className="flex shrink-0 items-center gap-2">
+      <div className="flex min-w-0 shrink-0 items-center gap-1.5 sm:gap-2">
         <span className="font-semibold text-foreground">
           {t("common.pageLabel")}
         </span>
@@ -70,7 +70,7 @@ export function AppPagination({
         >
           <SelectTrigger
             aria-label={t("common.pageLabel")}
-            className="h-8 w-20 bg-background text-foreground"
+            className="h-8 w-16 bg-background text-foreground sm:w-20"
           >
             <SelectValue />
           </SelectTrigger>
@@ -93,8 +93,52 @@ export function AppPagination({
 
       <Pagination
         aria-label={t("common.pagination")}
+        className="mx-0 w-auto justify-end sm:hidden"
+      >
+        <PaginationContent className="min-w-max flex-nowrap gap-0.5">
+          <PaginationItem>
+            <PaginationAction
+              disabled={!canGoBack}
+              label={t("common.previousShort")}
+              onClick={() => onPageChange(1)}
+            >
+              <ChevronsLeft aria-hidden="true" />
+            </PaginationAction>
+          </PaginationItem>
+          <PaginationItem>
+            <PaginationAction
+              disabled={!canGoBack}
+              label={t("common.previousPage")}
+              onClick={() => onPageChange(currentPage - 1)}
+            >
+              <ChevronLeft aria-hidden="true" />
+            </PaginationAction>
+          </PaginationItem>
+          <PaginationItem>
+            <PaginationAction
+              disabled={!canGoNext}
+              label={t("common.nextPage")}
+              onClick={() => onPageChange(currentPage + 1)}
+            >
+              <ChevronRight aria-hidden="true" />
+            </PaginationAction>
+          </PaginationItem>
+          <PaginationItem>
+            <PaginationAction
+              disabled={!canGoNext}
+              label={t("common.nextShort")}
+              onClick={() => onPageChange(pageCount)}
+            >
+              <ChevronsRight aria-hidden="true" />
+            </PaginationAction>
+          </PaginationItem>
+        </PaginationContent>
+      </Pagination>
+
+      <Pagination
+        aria-label={t("common.pagination")}
         className={cn(
-          "mx-0 overflow-x-auto overscroll-x-contain",
+          "mx-0 hidden overflow-x-auto overscroll-x-contain sm:flex",
           compact
             ? "w-auto justify-end"
             : "w-full justify-start sm:w-auto sm:justify-end",

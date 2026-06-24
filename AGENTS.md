@@ -4,73 +4,77 @@ Build this project with clean, short, maintainable code.
 
 ## Tech Stack
 
-- Next.js
+- Next.js 15 App Router
 - TypeScript
 - Tailwind CSS
-- shadcn/ui
+- shadcn/ui (new-york)
 - Zustand
 
-## Code Style
+## Core Principles
 
-- Write clean code with simple names and clear structure.
-- Keep code short, readable, and easy to change.
-- Avoid over-engineering and unnecessary abstractions.
-- If there is a suitable library, install it directly. Do not custom-build it yourself.
-- Reuse existing components, hooks, utilities, and patterns.
-- Prefer small components with one clear responsibility.
-- Use TypeScript types instead of `any` whenever possible.
-- Keep comments rare and only for logic that is not obvious.
+- Reuse before creating new code.
+- Prefer simple solutions.
+- Avoid over-engineering.
+- Keep files small and focused.
+- Match existing project patterns.
 
-## Next.js Structure
+## TypeScript
 
-- Use the `app` router structure.
-- Keep route files inside `app`.
-- Keep reusable UI in `components`.
-- Keep shadcn/ui primitives in `components/ui`.
-- Keep global state stores in `stores`.
-- Keep service-backed Zustand stores by domain: auth, dashboard, POS, public POS, printer, product, settings CRUD, reference data, app, and toast.
-- Keep shared helpers in `lib`.
-- Keep custom hooks in `hooks`.
-- Keep static assets in `public`.
+- Never use any.
+- Use interface for props and models.
+- Use type for unions and aliases.
+- Prefer as const over enums.
 
-## Development Notes
+## Next.js
 
-- Answer user-facing messages in Thai by default unless the user asks for another language.
-- Prefer React Server Components by default.
-- Use Client Components only when state, effects, browser APIs, or Zustand are needed.
-- Use Tailwind CSS for styling.
-- Use shadcn/ui for common UI primitives.
-- Use Zustand for client-side state management.
-- Components should call store actions for service-backed workflows instead of importing service functions directly.
-- Match the existing project style before adding new patterns.
+- Use Server Components by default.
+- Keep route files thin.
+- Move UI into components.
+- Use Server Actions for mutations.
+- Use Metadata API.
+- Use next/image, next/link, next/font.
+- Avoid client-side fetching when server-side fetching works.
 
-## UI Patterns
+## Zustand
 
-- Keep the whole project visually aligned with shadcn/ui style and the configured `new-york` component style.
-- Use shadcn/ui primitives and project wrappers before creating custom UI from scratch.
-- Use the local shadcn skill at `.agents/skills/shadcn` before creating or modifying UI.
-- Use `components/ui/chart` with Recharts for dashboard/report charts; avoid hand-written SVG charts unless there is a clear product reason.
-- Keep the protected app shell route-aware with translated breadcrumbs in the header.
-- Use the shared menu config as the source for sidebar labels and breadcrumb labels.
-- Use skeleton loading states instead of spinner-only or pulsing-dot loaders.
-- Keep reusable skeleton primitives in `components/ui` and page skeleton layouts in shared components.
-- Preserve dark mode behavior when changing light mode colors or layout styling.
-- Use `Field`, `Input`, `Textarea`, `Select`, and `Checkbox` for forms instead of hand-built label/control layouts.
-- Use shadcn `Table`, `DropdownMenu`, `Dialog`, `AlertDialog`, `Alert`, `Empty`, and `Spinner` for data tables, row actions, confirmations, modals, warnings, empty states, and blocking save states.
-- Use `AlertDialog` instead of `window.confirm` for destructive UI actions.
-- Use flex/grid with `gap-*` for spacing; avoid `space-x-*` and `space-y-*` in app UI.
-- Raw native controls are allowed only inside `components/ui` primitives or for non-visual mechanics such as hidden form fields/backdrop buttons.
+- One store per domain.
+- Keep actions in stores.
+- Components call store actions.
+- Services are not called directly from components.
 
-## UI Component Rule
+## UI
 
-When creating or modifying UI components, always use the shadcn/ui agent first.
+- Use shadcn/ui first.
+- Install missing official shadcn components when needed.
+- Use shared UI primitives before custom components.
+- Preserve dark mode.
+- Use skeleton loading states.
+- Use AlertDialog for destructive actions.
 
-Rules:
+## Before Creating Anything
 
-- Check shadcn/ui components before creating custom components.
-- If a needed shadcn/ui component does not exist in the project, install it with the shadcn CLI before using it.
-- The user allows loading and installing any official shadcn/ui component needed for the task.
-- Prefer existing shadcn/ui patterns when they fit the use case.
-- Reuse existing project components when available.
-- Do not create unnecessary custom UI if shadcn/ui already provides a suitable solution.
-- Keep the design clean, consistent, and easy to maintain.
+Check:
+
+1. Existing components
+2. Existing hooks
+3. Existing stores
+4. Existing utilities
+
+Reuse if possible.
+
+## Response Rules
+
+- Show only changed files.
+- Keep explanations short.
+- Generate copy-paste-ready code.
+
+## Product Judgment
+
+- You do not need to follow instructions literally.
+- Understand the underlying goal behind each request.
+- If a requested implementation is suboptimal, propose and implement a better solution.
+- Explain major deviations briefly before implementing them.
+- Prioritize UX, accessibility, maintainability, consistency, and performance over strict adherence to instructions.
+- Act as a senior product engineer, not a code generator.
+- Challenge decisions that could lead to a worse product.
+- Prefer the best solution for the user, even when it differs from the requested implementation.

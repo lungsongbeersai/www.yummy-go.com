@@ -112,7 +112,7 @@ export function SalesListToolbar({
           <SelectGroup>
             {orderOptions.map((option) => (
               <SelectItem key={option} value={option}>
-                {t(`common.${option.toLowerCase()}`)}
+                {t(option === "ASC" ? "common.oldestFirst" : "common.newestFirst")}
               </SelectItem>
             ))}
           </SelectGroup>

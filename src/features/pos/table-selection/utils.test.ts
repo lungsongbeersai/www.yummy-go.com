@@ -11,6 +11,7 @@ import {
   discountDraftValue,
   isCanceledCartItem,
   newOrderConfirmGroups,
+  normalizeDiscountType,
   pruneSelectedItemUuids,
   splitPaymentSelection,
 } from "./utils";
@@ -74,6 +75,33 @@ describe("table selection utils", () => {
         cartOrder({ order_discount_type: "AMT", order_discount_value: 5000 }),
       ),
     ).toBe("5.000 ₭");
+    expect(
+      billDiscountButtonValue(
+        cartOrder({
+          order_discount_type: "amt" as CartOrder["order_discount_type"],
+          order_discount_value: 100000,
+        }),
+      ),
+    ).toBe("100.000 ₭");
+    const numericTypeAmountLabel = billDiscountButtonValue(
+      cartOrder({
+        order_discount_type: "2" as CartOrder["order_discount_type"],
+        order_discount_value: 100000,
+      }),
+    );
+    const inferredAmountLabel = billDiscountButtonValue(
+      cartOrder({
+        order_discount_type: undefined,
+        order_discount_value: 100000,
+      }),
+    );
+
+    expect(numericTypeAmountLabel).toContain("100.000");
+    expect(numericTypeAmountLabel).not.toContain("%");
+    expect(inferredAmountLabel).toContain("100.000");
+    expect(inferredAmountLabel).not.toContain("%");
+    expect(normalizeDiscountType(undefined, 10)).toBe("PCT");
+    expect(normalizeDiscountType(undefined, 100000)).toBe("AMT");
     expect(discountDraftValue({ type: "PCT", value: "101" }, 1000)).toBeNull();
     expect(discountDraftValue({ type: "AMT", value: "500" }, 1000)).toBe(500);
   });

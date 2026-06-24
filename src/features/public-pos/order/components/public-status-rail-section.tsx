@@ -50,15 +50,25 @@ export const StatusRailSection = memo(function StatusRailSection({
     const rail = railRef.current;
     if (!rail || visibleProducts.length >= products.length) return;
 
+    let frameId = 0;
     const handleScroll = () => {
-      if (rail.scrollLeft + rail.clientWidth >= rail.scrollWidth - 220) {
+      if (frameId) return;
+
+      frameId = window.requestAnimationFrame(() => {
+        frameId = 0;
+        if (rail.scrollLeft + rail.clientWidth < rail.scrollWidth - 220)
+          return;
+
         const statusKind = products[0]?.statusKind;
         if (statusKind) onRevealMore(statusKind, products.length);
-      }
+      });
     };
 
     rail.addEventListener("scroll", handleScroll, { passive: true });
-    return () => rail.removeEventListener("scroll", handleScroll);
+    return () => {
+      rail.removeEventListener("scroll", handleScroll);
+      if (frameId) window.cancelAnimationFrame(frameId);
+    };
   }, [onRevealMore, products, visibleProducts.length]);
 
   if (!visibleProducts.length && !loading) return null;

@@ -98,8 +98,8 @@ export function LocationSettingsPage({ initialPagination, kind }: { initialPagin
     district: t("nav.district"),
     no: t("fields.no"),
     province: t("nav.province"),
-    sortAsc: t("common.asc"),
-    sortDesc: t("common.desc")
+    sortAsc: t("common.oldestFirst"),
+    sortDesc: t("common.newestFirst")
   };
   const requestParams = useMemo(
     () => ({ search, page, limit, orderBy, lang: language }),

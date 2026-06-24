@@ -50,6 +50,7 @@ import type { CategorySalesReportOrder, PaymentMethodReportFilter } from "@/serv
 import type { CategorySalesGroup, CategorySalesRow } from "@/stores/report-store";
 import { SortableReportTableHead } from "../report-sort-table-head";
 import {
+  reportOrderLabel,
   reportOrderOptions,
   sortRowsLocally,
   useLocalTableSort
@@ -216,7 +217,7 @@ export function MobileCategorySalesFilterSummary({
               {limitLabel}
             </Badge>
             <Badge className="h-6 border-border bg-muted px-2 text-[11px] text-muted-foreground">
-              {filters.orderBy}
+              {reportOrderLabel(t, filters.orderBy)}
             </Badge>
           </div>
         </div>

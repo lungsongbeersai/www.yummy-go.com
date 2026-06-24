@@ -29,9 +29,13 @@ const collator = new Intl.Collator(undefined, {
 
 export function reportOrderOptions(t: (key: string) => string) {
   return REPORT_ORDER_OPTIONS.map((value) => ({
-    label: t(value === "ASC" ? "common.lowHigh" : "common.highLow"),
+    label: reportOrderLabel(t, value),
     value,
   }));
+}
+
+export function reportOrderLabel(t: (key: string) => string, value: ReportOrder) {
+  return t(value === "ASC" ? "common.oldestFirst" : "common.newestFirst");
 }
 
 export function nextLocalSortState<TKey extends string>(

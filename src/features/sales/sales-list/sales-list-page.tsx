@@ -49,6 +49,7 @@ import { useToastStore } from "@/stores/toast-store";
 import {
   SALES_LIST_LIMIT_OPTIONS,
   SALES_LIST_ORDER_OPTIONS,
+  billNeedsPaymentAttention,
   branchOptionFromRow,
   defaultSalesListFilters,
   firstNumber,
@@ -708,7 +709,7 @@ function SalesListFilterFields({
             <SelectGroup>
               {SALES_LIST_ORDER_OPTIONS.map((order) => (
                 <SelectItem key={order} value={order}>
-                  {order}
+                  {t(order === "ASC" ? "common.oldestFirst" : "common.newestFirst")}
                 </SelectItem>
               ))}
             </SelectGroup>
@@ -807,20 +808,36 @@ function BillListItem({
   selected: boolean;
 }) {
   const { t } = useTranslation();
+  const needsPaymentAttention = billNeedsPaymentAttention(bill);
 
   return (
     <Button
       type="button"
       variant="ghost"
       className={cn(
-        "h-auto w-full justify-start rounded-none border-b border-border px-4 py-3 text-left shadow-none",
-        selected && "bg-primary/10 hover:bg-primary/10"
+        "h-auto w-full justify-start rounded-none border-b px-4 py-3 text-left shadow-none transition-colors",
+        needsPaymentAttention
+          ? "border-destructive/25 bg-destructive/15 hover:bg-destructive/20"
+          : "border-border",
+        selected &&
+          (needsPaymentAttention
+            ? "bg-destructive/20 hover:bg-destructive/20 ring-1 ring-inset ring-destructive/35"
+            : "bg-primary/10 hover:bg-primary/10")
       )}
       aria-pressed={selected}
       onClick={onSelect}
     >
       <div className="grid w-full min-w-0 grid-cols-[2.75rem_minmax(0,1fr)] gap-3">
-        <div className={cn("flex size-11 items-center justify-center rounded-md border border-border bg-muted", selected && "border-primary/25 bg-primary/15 text-primary")}>
+        <div
+          className={cn(
+            "flex size-11 items-center justify-center rounded-md border border-border bg-muted",
+            needsPaymentAttention && "border-destructive/30 bg-destructive/15 text-destructive",
+            selected &&
+              (needsPaymentAttention
+                ? "border-destructive/40 bg-destructive/20 text-destructive"
+                : "border-primary/25 bg-primary/15 text-primary")
+          )}
+        >
           <ReceiptText className="size-5" />
         </div>
         <div className="min-w-0">
@@ -835,7 +852,14 @@ function BillListItem({
             <span className="truncate">{bill.paymentMethodName}</span>
           </div>
           <div className="mt-2 flex min-w-0 items-center justify-between gap-2">
-            <Badge className={statusBadgeClass(bill.status)}>{bill.status}</Badge>
+            <div className="flex min-w-0 items-center gap-1.5">
+              <Badge className={cn("max-w-28 truncate", statusBadgeClass(bill.status))}>{bill.status}</Badge>
+              {needsPaymentAttention ? (
+                <Badge className="max-w-36 truncate border-destructive/25 bg-destructive text-destructive-foreground">
+                  {bill.debtAmount > 0 ? `${t("salesList.debt")}: ${money(bill.debtAmount)}` : t("salesList.debt")}
+                </Badge>
+              ) : null}
+            </div>
             <span className="shrink-0 text-sm font-black tabular-nums text-foreground">{money(bill.lineTotal)}</span>
           </div>
           <p className="mt-1 truncate text-xs text-muted-foreground">
@@ -852,15 +876,19 @@ function SalesBillDetailPanel({
   className,
   loading,
   onReprint,
-  printingBillId
+  printingBillId,
+  variant = "panel"
 }: {
   bill: DailySaleItemsBillGroup | null;
   className?: string;
   loading: boolean;
   onReprint: (group: DailySaleItemsBillGroup) => void;
   printingBillId: string;
+  variant?: "panel" | "drawer";
 }) {
   const { t } = useTranslation();
+  const drawer = variant === "drawer";
+  const needsPaymentAttention = bill ? billNeedsPaymentAttention(bill) : false;
 
   return (
     <Card className={cn("min-h-0 overflow-hidden border-border bg-card shadow-sm xl:flex xl:min-h-0 xl:flex-col", className)}>
@@ -874,7 +902,12 @@ function SalesBillDetailPanel({
             <div className="min-w-0">
               <CardTitle className="truncate text-lg font-black">{bill.invoiceNumber}</CardTitle>
               <div className="mt-2 flex min-w-0 flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                <Badge className={statusBadgeClass(bill.status)}>{bill.status}</Badge>
+                <Badge className={cn("max-w-36 truncate", statusBadgeClass(bill.status))}>{bill.status}</Badge>
+                {needsPaymentAttention ? (
+                  <Badge className="max-w-full truncate border-destructive/25 bg-destructive text-destructive-foreground">
+                    {bill.debtAmount > 0 ? `${t("salesList.debt")}: ${money(bill.debtAmount)}` : t("salesList.debt")}
+                  </Badge>
+                ) : null}
                 <span className="inline-flex min-w-0 items-center gap-1">
                   <CalendarDays className="size-4" />
                   <span className="truncate">{formatSaleDate(bill.saleDate)}</span>
@@ -900,8 +933,8 @@ function SalesBillDetailPanel({
               {printingBillId === bill.id ? t("salesList.reprintingReceipt") : t("salesList.reprintReceipt")}
             </Button>
           </CardHeader>
-          <CardContent className="flex min-h-0 flex-1 flex-col p-0">
-            <div className="min-h-0 flex-1 p-3 sm:p-4 xl:overflow-auto">
+          <CardContent className={cn("min-h-0 flex-1 p-0", drawer ? "overflow-y-auto" : "flex flex-col")}>
+            <div className={cn("p-3 sm:p-4", drawer ? "shrink-0" : "min-h-0 flex-1 overflow-auto")}>
               <SalesListItems items={bill.items} />
             </div>
             <SelectedBillSummary bill={bill} />
@@ -932,7 +965,7 @@ function SalesBillDetailDrawer({
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent className="h-[calc(100dvh-0.75rem)] max-h-[92dvh] gap-0 overflow-hidden rounded-t-xl xl:hidden">
-        <DrawerHeader className="shrink-0 border-b border-border px-4 py-3 text-left">
+        <DrawerHeader className="sr-only">
           <DrawerTitle className="truncate text-base font-black">{bill ? bill.invoiceNumber : t("salesList.billDetail")}</DrawerTitle>
           <DrawerDescription className="truncate">
             {bill ? `${formatSaleDate(bill.saleDate)} / ${bill.tableName}` : t("salesList.selectBillHint")}
@@ -944,6 +977,7 @@ function SalesBillDetailDrawer({
             className="flex h-full flex-col rounded-none border-0 shadow-none"
             loading={loading}
             printingBillId={printingBillId}
+            variant="drawer"
             onReprint={onReprint}
           />
         </div>
@@ -1064,17 +1098,48 @@ function CompactMetric({
   );
 }
 
+type SummaryMetricTone =
+  | "amount"
+  | "cash"
+  | "debt"
+  | "discount"
+  | "service"
+  | "topping"
+  | "transfer"
+  | "vat";
+
+interface SummaryMetric {
+  label: string;
+  tone: SummaryMetricTone;
+  value: number;
+}
+
+function summaryMetricClass(tone: SummaryMetricTone) {
+  const classes = {
+    amount: "border-primary/20 bg-primary/10 text-primary",
+    cash: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300",
+    debt: "border-destructive/25 bg-destructive/10 text-destructive",
+    discount: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300",
+    service: "border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-900/60 dark:bg-violet-950/30 dark:text-violet-300",
+    topping: "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/30 dark:text-sky-300",
+    transfer: "border-cyan-200 bg-cyan-50 text-cyan-700 dark:border-cyan-900/60 dark:bg-cyan-950/30 dark:text-cyan-300",
+    vat: "border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-900/60 dark:bg-indigo-950/30 dark:text-indigo-300"
+  } satisfies Record<SummaryMetricTone, string>;
+
+  return classes[tone];
+}
+
 function SelectedBillSummary({ bill }: { bill: DailySaleItemsBillGroup }) {
   const { t } = useTranslation();
-  const metrics = [
-    { label: t("salesList.amount"), value: bill.amountTotal },
-    { label: t("salesList.toppings"), value: bill.toppingTotal },
-    { label: t("salesList.discount"), value: bill.discountTotal },
-    { label: t("salesList.serviceCharge"), value: bill.serviceChargeAmount },
-    { label: t("salesList.vat"), value: bill.vatAmount },
-    { label: t("salesList.cashReceived"), value: bill.receiveCashAmount },
-    { label: t("salesList.transferReceived"), value: bill.receiveTransferAmount },
-    { label: t("salesList.debt"), value: bill.debtAmount }
+  const metrics: SummaryMetric[] = [
+    { label: t("salesList.amount"), tone: "amount", value: bill.amountTotal },
+    { label: t("salesList.toppings"), tone: "topping", value: bill.toppingTotal },
+    { label: t("salesList.discount"), tone: "discount", value: bill.discountTotal },
+    { label: t("salesList.serviceCharge"), tone: "service", value: bill.serviceChargeAmount },
+    { label: t("salesList.vat"), tone: "vat", value: bill.vatAmount },
+    { label: t("salesList.cashReceived"), tone: "cash", value: bill.receiveCashAmount },
+    { label: t("salesList.transferReceived"), tone: "transfer", value: bill.receiveTransferAmount },
+    { label: t("salesList.debt"), tone: "debt", value: bill.debtAmount }
   ];
 
   return (
@@ -1085,8 +1150,14 @@ function SelectedBillSummary({ bill }: { bill: DailySaleItemsBillGroup }) {
       </div>
       <div className="mt-3 grid grid-cols-2 gap-2 lg:grid-cols-4">
         {metrics.map((metric) => (
-          <div key={metric.label} className="min-w-0 rounded-md border border-border bg-muted/35 px-3 py-2">
-            <p className="truncate text-xs font-bold text-muted-foreground">{metric.label}</p>
+          <div
+            key={metric.label}
+            className={cn(
+              "min-w-0 rounded-md border px-3 py-2",
+              summaryMetricClass(metric.tone)
+            )}
+          >
+            <p className="truncate text-xs font-bold opacity-80">{metric.label}</p>
             <p className="mt-1 truncate text-sm font-black tabular-nums">{money(metric.value)}</p>
           </div>
         ))}

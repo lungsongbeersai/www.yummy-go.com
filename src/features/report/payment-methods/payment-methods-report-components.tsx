@@ -65,6 +65,7 @@ import type {
 } from "@/stores/report-store";
 import { SortableReportTableHead } from "../report-sort-table-head";
 import {
+  reportOrderLabel,
   reportOrderOptions,
   useLocalTableSort,
 } from "../report-sort-utils";
@@ -273,7 +274,7 @@ export function MobilePaymentMethodsFilterSummary({
               {limitLabel}
             </Badge>
             <Badge className="h-6 border-border bg-muted px-2 text-[11px] text-muted-foreground">
-              {filters.orderBy}
+              {reportOrderLabel(t, filters.orderBy)}
             </Badge>
           </div>
         </div>

@@ -25,6 +25,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { PAGE_LIMIT_OPTIONS, isAllPageLimit } from "@/lib/pagination";
+import { reportOrderLabel } from "../report-sort-utils";
 import type {
   DetailPaginationBasis,
   ReportBranchOption,
@@ -198,7 +199,7 @@ export function MobileReportFilterSummary({
               {limitLabel}
             </Badge>
             <Badge className="h-6 border-border bg-muted px-2 text-[11px] text-muted-foreground">
-              {filters.orderBy}
+              {reportOrderLabel(t, filters.orderBy)}
             </Badge>
           </div>
         </div>

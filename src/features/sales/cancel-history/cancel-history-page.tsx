@@ -412,7 +412,7 @@ function CancelHistoryFilterFields({
             <SelectGroup>
               {CANCEL_HISTORY_ORDER_OPTIONS.map((order) => (
                 <SelectItem key={order} value={order}>
-                  {order}
+                  {t(order === "ASC" ? "common.oldestFirst" : "common.newestFirst")}
                 </SelectItem>
               ))}
             </SelectGroup>
@@ -451,7 +451,9 @@ function MobileCancelHistoryFilterSummary({
             <Badge className="h-6 border-border bg-muted px-2 text-[11px] text-muted-foreground">
               {filters.limit}
             </Badge>
-            <Badge className="h-6 px-2 text-[11px]">{filters.orderBy}</Badge>
+            <Badge className="h-6 px-2 text-[11px]">
+              {t(filters.orderBy === "ASC" ? "common.oldestFirst" : "common.newestFirst")}
+            </Badge>
           </div>
         </div>
         <Button type="button" size="sm" className="h-9 shrink-0 px-3" onClick={onOpen}>

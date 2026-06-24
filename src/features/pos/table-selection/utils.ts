@@ -619,8 +619,21 @@ export function formatRate(value: number | null) {
     : value.toFixed(2).replace(/0+$/, "").replace(/\.$/, "");
 }
 
-export function normalizeDiscountType(value: unknown): DiscountTypeCode {
-  return String(value).toUpperCase() === "AMT" ? "AMT" : "PCT";
+export function normalizeDiscountType(
+  value: unknown,
+  discountValue?: unknown,
+): DiscountTypeCode {
+  const normalized = String(value ?? "").trim().toUpperCase();
+  const amountTypes = ["AMT", "AMOUNT", "FIXED", "MONEY", "LAK", "KIP", "2"];
+  const percentTypes = ["PCT", "PERCENT", "PERCENTAGE", "%", "1"];
+
+  if (amountTypes.includes(normalized))
+    return "AMT";
+  if (percentTypes.includes(normalized))
+    return "PCT";
+
+  const numericValue = optionalNumber(discountValue);
+  return numericValue !== null && numericValue > 100 ? "AMT" : "PCT";
 }
 
 export function discountDraftValue(
@@ -681,7 +694,7 @@ export function billDiscountButtonValue(order: CartOrder | undefined) {
   const value = optionalNumber(order?.order_discount_value);
   if (value === null || value <= 0) return null;
 
-  if (normalizeDiscountType(order?.order_discount_type) === "PCT") {
+  if (normalizeDiscountType(order?.order_discount_type, value) === "PCT") {
     const rate = formatRate(value);
     return rate ? `${rate}%` : null;
   }

@@ -259,12 +259,13 @@ export function OrderCustomerView({
 
       <Button
         type="button"
-        className="pos-safe-bottom-offset fixed right-4 h-12 rounded-full border border-white/20 bg-black/45 px-4 text-white shadow-lg hover:bg-white/10 sm:hidden"
+        aria-label={t("pos.currentCart")}
+        className="pos-safe-bottom-offset fixed right-4 z-40 h-12 max-w-[calc(100vw-2rem)] rounded-full border border-primary/20 bg-primary px-4 text-sm font-black text-primary-foreground shadow-[0_16px_34px_-20px_rgb(15_23_42/0.9)] hover:bg-primary/90 active:scale-[0.98] sm:hidden"
         onClick={() => void openCartSheet()}
       >
         <ShoppingCart data-icon="inline-start" />
-        {t("pos.currentCart")}
-        <Badge className="min-w-6 justify-center rounded-full border-white/30 bg-white px-1.5 py-0 text-black">
+        <span className="min-w-0 truncate">{t("pos.currentCart")}</span>
+        <Badge className="min-w-6 shrink-0 justify-center rounded-full border-primary-foreground/30 bg-primary-foreground px-1.5 py-0 text-primary">
           {cartCount}
         </Badge>
       </Button>

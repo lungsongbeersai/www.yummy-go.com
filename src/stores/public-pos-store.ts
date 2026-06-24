@@ -85,7 +85,106 @@ async function customerConfirmPrinterParams(scan: QRScanResponse | null, params:
   };
 }
 
+const MENU_CACHE_TTL_MS = 45_000;
+const PRODUCT_CACHE_TTL_MS = 120_000;
+
+interface CacheEntry<T> {
+  expiresAt: number;
+  value: T;
+}
+
+type CateProductsResponse = Awaited<
+  ReturnType<typeof publicPosService.customerFetchCateProducts>
+>;
+type ProductItemResponse = Awaited<
+  ReturnType<typeof publicPosService.customerGetProdItem>
+>;
+
 let cartLoadPromise: Promise<CartOrder[]> | null = null;
+const menuProductsCache = new Map<string, CacheEntry<CateProductsResponse>>();
+const menuProductsPromises = new Map<string, Promise<CateProductsResponse>>();
+const productItemCache = new Map<string, CacheEntry<ProductItemResponse>>();
+const productItemPromises = new Map<string, Promise<ProductItemResponse>>();
+
+function cachedValue<T>(cache: Map<string, CacheEntry<T>>, key: string) {
+  const entry = cache.get(key);
+  if (!entry) return null;
+  if (entry.expiresAt <= Date.now()) {
+    cache.delete(key);
+    return null;
+  }
+  return entry.value;
+}
+
+function setCachedValue<T>(
+  cache: Map<string, CacheEntry<T>>,
+  key: string,
+  value: T,
+  ttlMs: number
+) {
+  cache.set(key, { expiresAt: Date.now() + ttlMs, value });
+}
+
+function productItemRequestKey(params: CustomerGetProdItemParams) {
+  return [
+    params.t,
+    params.lang ?? "",
+    params.prod_uuid,
+    params.cate_uuid ?? "",
+    params.search ?? "",
+    params.status_sort_fk ?? 1
+  ].join(":");
+}
+
+async function fetchMenuProductsCached(params: CustomerFetchCateProductsParams) {
+  const key = menuSequenceKey(params);
+  const cached = cachedValue(menuProductsCache, key);
+  if (cached) return cached;
+
+  const pending = menuProductsPromises.get(key);
+  if (pending) return pending;
+
+  const request = publicPosService.customerFetchCateProducts(params)
+    .then((result) => {
+      setCachedValue(menuProductsCache, key, result, MENU_CACHE_TTL_MS);
+      return result;
+    })
+    .finally(() => {
+      menuProductsPromises.delete(key);
+    });
+
+  menuProductsPromises.set(key, request);
+  return request;
+}
+
+async function fetchProductItemCached(params: CustomerGetProdItemParams) {
+  const key = productItemRequestKey(params);
+  const cached = cachedValue(productItemCache, key);
+  if (cached) return cached;
+
+  const pending = productItemPromises.get(key);
+  if (pending) return pending;
+
+  const request = publicPosService.customerGetProdItem(params)
+    .then((result) => {
+      setCachedValue(productItemCache, key, result, PRODUCT_CACHE_TTL_MS);
+      return result;
+    })
+    .finally(() => {
+      productItemPromises.delete(key);
+    });
+
+  productItemPromises.set(key, request);
+  return request;
+}
+
+function clearPublicPosDataCache() {
+  cartLoadPromise = null;
+  menuProductsCache.clear();
+  menuProductsPromises.clear();
+  productItemCache.clear();
+  productItemPromises.clear();
+}
 
 interface PublicPosState {
   token: string;
@@ -141,12 +240,19 @@ export const usePublicPosStore = create<PublicPosState>((set, get) => ({
   saving: false,
   confirming: false,
   error: null,
-  setToken: (token) => set({ token }),
+  setToken: (token) => {
+    if (get().token !== token) clearPublicPosDataCache();
+    set({ token });
+  },
   setTableName: (tableName) => set({ tableName }),
   setSelectedCateUuid: (selectedCateUuid) => set({ selectedCateUuid }),
   setCart: (cart) => set({ cart }),
   setError: (error) => set({ error }),
   scanTable: async (token, lang) => {
+    if (get().token !== token || get().scan?.lang !== lang) {
+      clearPublicPosDataCache();
+    }
+
     set({
       loading: true,
       error: null,
@@ -220,7 +326,7 @@ export const usePublicPosStore = create<PublicPosState>((set, get) => ({
     });
 
     try {
-      const result = await publicPosService.customerFetchCateProducts(baseParams);
+      const result = await fetchMenuProductsCached(baseParams);
       if (get().menuRequestKey !== sequenceKey) return get().menuByKind;
 
       const categories = normalizeCategories(result.data ?? []);
@@ -312,7 +418,7 @@ export const usePublicPosStore = create<PublicPosState>((set, get) => ({
     }));
 
     try {
-      const result = await publicPosService.customerFetchCateProducts(requestParams);
+      const result = await fetchMenuProductsCached(requestParams);
       const categories = normalizeCategories(result.data ?? []);
 
       set((current) => {
@@ -364,7 +470,7 @@ export const usePublicPosStore = create<PublicPosState>((set, get) => ({
   loadProductItem: async (params) => {
     set({ loadingItem: true, error: null, token: params.t, selectedProduct: null });
     try {
-      const selectedProduct = await publicPosService.customerGetProdItem(params);
+      const selectedProduct = await fetchProductItemCached(params);
       set({ selectedProduct, loadingItem: false });
       return selectedProduct;
     } catch (error) {
@@ -376,6 +482,7 @@ export const usePublicPosStore = create<PublicPosState>((set, get) => ({
     set({ saving: true, error: null });
     try {
       const result = await publicPosService.customerCreateOrder(token, input);
+      clearPublicPosDataCache();
       await get().loadCart({ t: token, lang: typeof input.lang === "string" ? input.lang : get().scan?.lang }).catch(() => undefined);
       set({ saving: false });
       return result;
@@ -388,6 +495,7 @@ export const usePublicPosStore = create<PublicPosState>((set, get) => ({
     set({ saving: true, error: null, token: params.t });
     try {
       const result = await publicPosService.customerUpdateQty(params);
+      clearPublicPosDataCache();
       await get().loadCart({ t: params.t, lang: get().scan?.lang }).catch(() => undefined);
       set({ saving: false });
       return result;
@@ -400,6 +508,7 @@ export const usePublicPosStore = create<PublicPosState>((set, get) => ({
     set({ saving: true, error: null, token: params.t });
     try {
       const result = await publicPosService.customerDeleteOrderItem(params);
+      clearPublicPosDataCache();
       await get().loadCart({ t: params.t, lang: get().scan?.lang }).catch(() => undefined);
       set({ saving: false });
       return result;
@@ -419,6 +528,7 @@ export const usePublicPosStore = create<PublicPosState>((set, get) => ({
         agent_id: printer.agent_id,
         print_mode: printer.print_mode
       });
+      clearPublicPosDataCache();
       if (scan?.branch_uuid_fk && scan.table_uuid) {
         await get().emitTableStatus({
           t: params.t,
@@ -438,7 +548,8 @@ export const usePublicPosStore = create<PublicPosState>((set, get) => ({
     emitCustomerTableAlert(params);
     return publicPosService.customerEmitTableStatus(params);
   },
-  reset: () =>
+  reset: () => {
+    clearPublicPosDataCache();
     set({
       token: "",
       tableName: "",
@@ -454,5 +565,6 @@ export const usePublicPosStore = create<PublicPosState>((set, get) => ({
       saving: false,
       confirming: false,
       error: null
-    })
+    });
+  }
 }));

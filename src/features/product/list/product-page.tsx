@@ -38,10 +38,9 @@ export function ProductPage({ initialPagination }: { initialPagination: UrlPagin
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
-      <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 px-4 py-3 lg:px-5">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 px-4 py-2.5 lg:gap-3 lg:px-5 lg:py-3">
         <div className="min-w-0">
-          <p className="text-sm font-bold text-primary">{t("product.title")}</p>
-          <h1 className="mt-1 text-xl font-black">{t("product.menuStock")}</h1>
+          <p className="text-base font-black text-primary">{t("product.title")}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button type="button" size="sm" variant="outline" className="shadow-sm" onClick={() => product.setImportDialogOpen(true)}>
@@ -56,14 +55,14 @@ export function ProductPage({ initialPagination }: { initialPagination: UrlPagin
       </div>
 
       <Card className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-none border-x-0 border-b-0">
-        <CardHeader className="shrink-0 border-t border-border/70 bg-muted/10 px-4 py-3 lg:px-5">
-          <div className="grid w-full gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(22rem,30rem)] xl:items-end">
-            <section className="grid min-w-0 gap-2 md:grid-cols-[minmax(18rem,1fr)_minmax(12rem,18rem)_minmax(7rem,9rem)]">
-              <Field className="gap-1">
-                <FieldLabel htmlFor="product-search-filter" className="text-xs font-bold text-muted-foreground">
+        <CardHeader className="shrink-0 border-t border-border/70 bg-muted/10 px-4 py-2 lg:px-5 lg:py-3">
+          <div className="grid w-full gap-2 lg:gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(22rem,30rem)] xl:items-end">
+            <section className="grid min-w-0 grid-cols-2 gap-2 md:grid-cols-[minmax(18rem,1fr)_minmax(12rem,18rem)_minmax(7rem,9rem)]">
+              <Field className="col-span-2 gap-1 md:col-span-1">
+                <FieldLabel htmlFor="product-search-filter" className="sr-only text-xs font-bold text-muted-foreground md:not-sr-only">
                   {t("actions.search")}
                 </FieldLabel>
-                <InputGroup className="h-10 bg-background">
+                <InputGroup className="h-9 bg-background md:h-10">
                   <InputGroupAddon>
                     <Search />
                   </InputGroupAddon>
@@ -92,7 +91,7 @@ export function ProductPage({ initialPagination }: { initialPagination: UrlPagin
                 </InputGroup>
               </Field>
               <Field className="gap-1">
-                <FieldLabel htmlFor="product-category-filter" className="text-xs font-bold text-muted-foreground">
+                <FieldLabel htmlFor="product-category-filter" className="sr-only text-xs font-bold text-muted-foreground md:not-sr-only">
                   {t("nav.category")}
                 </FieldLabel>
                 <Select
@@ -100,7 +99,7 @@ export function ProductPage({ initialPagination }: { initialPagination: UrlPagin
                   disabled={product.categoryLoading}
                   onValueChange={product.changeCategory}
                 >
-                  <SelectTrigger id="product-category-filter" className="h-10 w-full bg-background">
+                  <SelectTrigger id="product-category-filter" className="h-9 w-full bg-background md:h-10">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent position="popper" align="end">
@@ -121,11 +120,11 @@ export function ProductPage({ initialPagination }: { initialPagination: UrlPagin
                 </Select>
               </Field>
               <Field className="gap-1">
-                <FieldLabel htmlFor="product-limit-filter" className="text-xs font-bold text-muted-foreground">
+                <FieldLabel htmlFor="product-limit-filter" className="sr-only text-xs font-bold text-muted-foreground md:not-sr-only">
                   {t("common.rowsPerPage")}
                 </FieldLabel>
                 <Select value={String(product.pageLimit)} onValueChange={product.changePageLimit}>
-                  <SelectTrigger id="product-limit-filter" className="h-10 w-full bg-background">
+                  <SelectTrigger id="product-limit-filter" className="h-9 w-full bg-background md:h-10">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent position="popper" align="end">
@@ -142,12 +141,12 @@ export function ProductPage({ initialPagination }: { initialPagination: UrlPagin
             </section>
             <section className="flex w-full min-w-0 justify-start xl:justify-end">
               <Field className="w-full min-w-0 gap-1">
-                <FieldLabel className="text-xs font-bold text-muted-foreground">{t("product.type")}</FieldLabel>
+                <FieldLabel className="sr-only text-xs font-bold text-muted-foreground md:not-sr-only">{t("product.type")}</FieldLabel>
                 <ToggleGroup
                   type="single"
                   value={product.statusSortFk}
                   aria-label={t("product.type")}
-                  className="grid h-10 w-full max-w-xl grid-cols-3 rounded-md border border-border bg-background p-1 xl:max-w-none"
+                  className="grid h-9 w-full max-w-xl grid-cols-3 rounded-md border border-border bg-background p-1 md:h-10 xl:max-w-none"
                   onValueChange={(value) => {
                     if (value) product.changeStatusSort(value);
                   }}
@@ -157,7 +156,7 @@ export function ProductPage({ initialPagination }: { initialPagination: UrlPagin
                       key={tab.value}
                       value={tab.value}
                       size="sm"
-                      className="h-8 min-w-0 px-2 text-xs data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
+                      className="h-7 min-w-0 px-2 text-xs data-[state=on]:bg-primary data-[state=on]:text-primary-foreground md:h-8"
                     >
                       <span className="truncate">{tab.label}</span>
                     </ToggleGroupItem>

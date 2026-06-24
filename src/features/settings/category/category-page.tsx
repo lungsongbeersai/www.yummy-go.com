@@ -275,8 +275,8 @@ export function CategorySettingsPage({ initialPagination }: { initialPagination:
         orderBy,
         limitOptions: PAGE_LIMIT_OPTIONS,
         orderOptions: [
-          { label: t("common.asc"), value: "1" },
-          { label: t("common.desc"), value: "-1" }
+          { label: t("common.oldestFirst"), value: "1" },
+          { label: t("common.newestFirst"), value: "-1" }
         ],
         selectedCount: selectedRows.size,
         onApply: applyFilters,

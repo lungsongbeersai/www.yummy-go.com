@@ -10,8 +10,8 @@ const t = (key: string) => key;
 describe("report sort helpers", () => {
   it("builds shared API order options from locale keys", () => {
     expect(reportOrderOptions(t)).toEqual([
-      { label: "common.highLow", value: "DESC" },
-      { label: "common.lowHigh", value: "ASC" },
+      { label: "common.newestFirst", value: "DESC" },
+      { label: "common.oldestFirst", value: "ASC" },
     ]);
   });
 

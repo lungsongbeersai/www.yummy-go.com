@@ -138,6 +138,15 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
               const rowStockClass =
                 rowStockMode === "1" ? "bg-primary/10 text-primary" : "bg-secondary text-secondary-foreground";
 
+              const otherSelectedSizeUuids = new Set(
+                details
+                  .filter((otherRow) => otherRow.id !== row.id && otherRow.size_uuid_fk)
+                  .map((otherRow) => otherRow.size_uuid_fk)
+              );
+              const availableSizeOptions = sizeOptions.filter(
+                (size) => !otherSelectedSizeUuids.has(sizeUuid(size))
+              );
+
               return (
               <FieldSet key={row.id} className="gap-4 rounded-md border border-border bg-muted/20 p-4">
                 <div className="flex items-center justify-between gap-3">
@@ -190,7 +199,7 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
                                 {t("product.noSetProductOptions")}
                               </SelectItem>
                             ) : null}
-                            {sizeOptions.map((size) => {
+                            {availableSizeOptions.map((size) => {
                               const uuid = sizeUuid(size);
                               return (
                                 <SelectItem key={uuid} value={uuid}>
