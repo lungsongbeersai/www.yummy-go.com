@@ -117,8 +117,8 @@ export function TableSelectionPage() {
   const activeCart = cartForTable(panelCart ?? cart, selectedTableUuid);
 
   return (
-    <div className="relative h-full min-h-0 overflow-hidden bg-[url('/pos/background_wide.webp')] bg-cover bg-top">
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-primary/45 dark:bg-black/55" />
+    <div data-pos-pattern="true" className="relative h-full min-h-0 overflow-hidden bg-[url('/pos/background_wide.webp')] bg-cover bg-top">
+      <div aria-hidden="true" data-pos-pattern-overlay="true" className="pointer-events-none absolute inset-0 bg-primary/45 dark:bg-black/55" />
       <div className="relative grid h-full min-h-0 overflow-hidden xl:grid-cols-[minmax(0,1fr)_clamp(340px,24vw,420px)]">
         <section className="flex min-h-0 min-w-0 flex-col xl:border-r xl:border-border/60">
           <header className="relative flex h-18 shrink-0 items-center justify-between overflow-hidden px-3 text-primary-foreground shadow-sm sm:h-20 sm:px-4">
@@ -142,7 +142,7 @@ export function TableSelectionPage() {
         </section>
       </div>
       <Sheet open={mobileSheetOpen} onOpenChange={setMobileSheetOpen}>
-        <SheetContent side="bottom" className="h-[calc(100dvh-8px)] max-h-none gap-0 overflow-hidden rounded-t-2xl border-primary/20 bg-[url('/pos/background_wide.webp')] bg-cover bg-top p-0 text-primary-foreground dark:border-primary/30">
+        <SheetContent data-pos-pattern="true" side="bottom" className="h-[calc(100dvh-8px)] max-h-none gap-0 overflow-hidden rounded-t-2xl border-primary/20 bg-[url('/pos/background_wide.webp')] bg-cover bg-top p-0 text-primary-foreground dark:border-primary/30">
           <SheetTitle className="sr-only">{selectedTable ? t("nav.table") + " " + selectedTable.table_name : t("pos.tables")}</SheetTitle>
           {selectedTable ? (
             <SelectedTableCartPanel allZones={zones} cart={activeCart} loading={panelLoadingCart} table={selectedTable} variant="sheet" onCartRefresh={() => refreshSelectedCart({ showLoading: false }).then(() => undefined)} onTableActionComplete={refreshTablesAndSelectedCart} />

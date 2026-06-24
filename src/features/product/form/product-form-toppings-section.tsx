@@ -105,9 +105,10 @@ export function ProductFormToppingsSection({ form }: { form: ProductFormWorkflow
                 {toppingModeChoices.map((choice) => {
                   const active = prodToppingStatus === choice.value;
                   return (
-                    <button
+                    <Button
                       key={choice.value}
                       type="button"
+                      variant="ghost"
                       className={choiceCardClass(active)}
                       aria-pressed={active}
                       onClick={() => setProdToppingStatus(choice.value as BinaryFlag)}
@@ -119,7 +120,7 @@ export function ProductFormToppingsSection({ form }: { form: ProductFormWorkflow
                         <span className="block truncate text-sm font-black">{choice.label}</span>
                         <span className="mt-1 block text-xs leading-5 text-muted-foreground">{choice.hint}</span>
                       </span>
-                    </button>
+                    </Button>
                   );
                 })}
               </div>
@@ -292,16 +293,17 @@ export function ProductFormToppingsSection({ form }: { form: ProductFormWorkflow
                             selected ? "border-primary" : "border-border"
                           )}
                         >
-                          <button
+                          <Button
                             type="button"
-                            className="min-w-0 flex-1 text-left"
+                            variant="ghost"
+                            className="h-auto min-w-0 flex-1 flex-col items-start justify-start px-0 py-0 text-left hover:bg-transparent"
                             onClick={() => editTopping(topping)}
                           >
                             <span className="block truncate text-sm font-black">{label}</span>
                             <span className="mt-1 block truncate text-xs text-muted-foreground">
                               {String(topping.topping_name_eng ?? "") || t("fields.nameEn")}
                             </span>
-                          </button>
+                          </Button>
                           {selected ? <Badge className="shrink-0">{selected.topping_price || "0"}</Badge> : null}
                           <Button
                             type="button"

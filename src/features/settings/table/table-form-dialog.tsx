@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Field, FieldDescription, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
@@ -186,20 +187,20 @@ export function TableFormDialog({
                   <FieldLabel>{t("fields.charge_status")}</FieldLabel>
                   <input name="charge_status" type="hidden" value={chargeStatus} />
                   <RadioGroup className="grid gap-2 sm:grid-cols-2" value={chargeStatus} onValueChange={setChargeStatus}>
-                    <label
+                    <Label
                       className="flex min-h-11 cursor-pointer items-center gap-3 rounded-md border border-border bg-card p-3 text-sm font-medium has-data-[state=checked]:border-primary has-data-[state=checked]:bg-primary/5"
                       htmlFor="charge_status_2"
                     >
                       <RadioGroupItem id="charge_status_2" disabled={saving} value="2" />
                       {t("common.inactive")}
-                    </label>
-                    <label
+                    </Label>
+                    <Label
                       className="flex min-h-11 cursor-pointer items-center gap-3 rounded-md border border-border bg-card p-3 text-sm font-medium has-data-[state=checked]:border-primary has-data-[state=checked]:bg-primary/5"
                       htmlFor="charge_status_1"
                     >
                       <RadioGroupItem id="charge_status_1" disabled={saving} value="1" />
                       {t("common.active")}
-                    </label>
+                    </Label>
                   </RadioGroup>
                 </Field>
               </FieldSet>

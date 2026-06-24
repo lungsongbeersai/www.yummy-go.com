@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { PAGE_LIMIT_OPTIONS } from "@/lib/pagination";
@@ -428,9 +429,9 @@ export function SettingsMobileCard({
     >
       <div className="flex min-w-0 items-start gap-2">
         {typeof checked === "boolean" ? (
-          <label className="flex min-h-11 min-w-0 flex-1 cursor-pointer items-start gap-3">
+          <Label className="flex min-h-11 min-w-0 flex-1 cursor-pointer items-start gap-3">
             {content}
-          </label>
+          </Label>
         ) : (
           <div className="flex min-h-11 min-w-0 flex-1 items-start gap-3">{content}</div>
         )}

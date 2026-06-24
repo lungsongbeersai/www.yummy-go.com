@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
@@ -90,9 +91,9 @@ export function CartNoteDialog({
           <DialogDescription>{t("pos.editNoteDescription")}</DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-2">
-          <label htmlFor="cart-item-note" className="text-sm font-bold text-foreground">
+          <Label htmlFor="cart-item-note" className="text-sm font-bold text-foreground">
             {t("pos.note")}
-          </label>
+          </Label>
           <Textarea
             id="cart-item-note"
             value={note}
@@ -180,7 +181,7 @@ export function CartDiscountDialog({
               </p>
             </div>
             <div className="w-32 shrink-0">
-              <label className="mb-1.5 block text-xs font-bold text-muted-foreground">{t("pos.discountType")}</label>
+              <Label className="mb-1.5 block text-xs font-bold text-muted-foreground">{t("pos.discountType")}</Label>
               <Select
                 value={draft.type}
                 disabled={pending}

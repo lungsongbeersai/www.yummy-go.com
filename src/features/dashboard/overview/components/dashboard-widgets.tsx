@@ -306,13 +306,11 @@ export const DashboardPaymentSummaryStrip = memo(function DashboardPaymentSummar
     <div className="dashboard-payment-summary-stack">
       <div
         aria-label={copy.paymentSplit}
-        className="overflow-hidden rounded-xl border border-border grid grid-cols-2 md:flex"
+        className="grid grid-cols-1 overflow-hidden rounded-xl border border-border md:flex"
       >
         {cards.map((card, index) => {
           const Icon = paymentSummaryIcon(card);
-          const isLastInRow = (index + 1) % 2 === 0;
           const isLastItem = index === cards.length - 1;
-          const isBottomRow = index >= cards.length - (cards.length % 2 === 0 ? 2 : 1);
 
           return (
             <div
@@ -320,11 +318,7 @@ export const DashboardPaymentSummaryStrip = memo(function DashboardPaymentSummar
               className={cn(
                 "flex-1 min-w-0",
                 paymentSummaryTone(card),
-                // mobile: border-r ທຸກ col ຍົກເວັ້ນ col ຂວາ, border-b ທຸກ row ຍົກເວັ້ນ row ສຸດທ້າຍ
-                !isLastInRow && !isLastItem && "border-r border-border",
-                !isBottomRow && "border-b border-border md:border-b-0",
-                // desktop: border-r ທຸກ item ຍົກເວັ້ນ item ສຸດທ້າຍ
-                !isLastItem && "md:border-r md:border-border"
+                !isLastItem && "border-b border-border md:border-b-0 md:border-r",
               )}
             >
               <CardContent className="dashboard-payment-card-content">

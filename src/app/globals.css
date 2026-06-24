@@ -114,6 +114,117 @@ html {
   --pos-system-bottom-safe-area: max(env(safe-area-inset-bottom, 0px), 1.5rem);
 }
 
+.android-webview-compat *,
+.android-webview-compat *::before,
+.android-webview-compat *::after {
+  filter: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  mix-blend-mode: normal !important;
+  mask: none !important;
+  mask-image: none !important;
+  -webkit-mask: none !important;
+  -webkit-mask-image: none !important;
+}
+
+.android-webview-compat svg,
+.android-webview-compat [data-icon] {
+  opacity: 1 !important;
+  stroke-opacity: 1 !important;
+  fill-opacity: 1 !important;
+}
+
+.android-webview-compat .lucide,
+.android-webview-compat svg[stroke="currentColor"] {
+  stroke-width: 2.25px;
+}
+
+.android-webview-compat .app-header {
+  background: hsl(var(--card));
+}
+
+.android-webview-compat .app-sidebar-panel {
+  background: hsl(var(--sidebar));
+}
+
+.android-webview-compat [data-slot="dropdown-menu-content"],
+.android-webview-compat [data-slot="select-content"],
+.android-webview-compat [data-slot="popover-content"] {
+  background: hsl(var(--popover)) !important;
+}
+
+.android-webview-compat [data-pos-pattern] {
+  background-image: url("/pos/background_wide.webp") !important;
+  background-position: top !important;
+  background-size: cover !important;
+}
+
+.android-webview-compat [data-pos-pattern-overlay] {
+  background: hsl(var(--primary) / 0.28) !important;
+}
+
+.dark.android-webview-compat [data-pos-pattern-overlay],
+.dark .android-webview-compat [data-pos-pattern-overlay] {
+  background: rgb(0 0 0 / 0.38) !important;
+}
+
+.android-webview-compat .bg-white\/10,
+.android-webview-compat .bg-white\/12,
+.android-webview-compat .bg-white\/15,
+.android-webview-compat .bg-primary-foreground\/10,
+.android-webview-compat .hover\:bg-white\/10:hover,
+.android-webview-compat .hover\:bg-primary-foreground\/20:hover {
+  background-color: rgb(255 255 255 / 0.3) !important;
+}
+
+.android-webview-compat .bg-white\/20,
+.android-webview-compat .bg-white\/25,
+.android-webview-compat .bg-primary-foreground\/20,
+.android-webview-compat .hover\:bg-white\/20:hover,
+.android-webview-compat .hover\:bg-white\/25:hover {
+  background-color: rgb(255 255 255 / 0.38) !important;
+}
+
+.android-webview-compat .bg-black\/10,
+.android-webview-compat .bg-black\/20,
+.android-webview-compat .bg-black\/25 {
+  background-color: rgb(0 0 0 / 0.28) !important;
+}
+
+.android-webview-compat .bg-black\/45 {
+  background-color: rgb(0 0 0 / 0.58) !important;
+}
+
+.android-webview-compat .border-white\/10,
+.android-webview-compat .border-white\/15,
+.android-webview-compat .border-white\/20,
+.android-webview-compat .border-white\/25,
+.android-webview-compat .border-white\/30,
+.android-webview-compat .border-primary-foreground\/20,
+.android-webview-compat .border-primary-foreground\/30,
+.android-webview-compat .hover\:border-white\/45:hover {
+  border-color: rgb(255 255 255 / 0.46) !important;
+}
+
+.android-webview-compat .text-white\/45,
+.android-webview-compat .text-white\/50,
+.android-webview-compat .text-white\/60,
+.android-webview-compat .text-white\/65,
+.android-webview-compat .text-white\/70,
+.android-webview-compat .text-white\/75,
+.android-webview-compat .text-white\/80,
+.android-webview-compat .text-white\/90,
+.android-webview-compat .placeholder\:text-white\/65::placeholder {
+  color: rgb(255 255 255 / 0.92) !important;
+}
+
+.android-webview-compat .text-primary-foreground\/75,
+.android-webview-compat .text-primary-foreground\/80,
+.android-webview-compat .text-muted-foreground\/55,
+.android-webview-compat .text-muted-foreground\/80 {
+  color: hsl(var(--foreground)) !important;
+}
+
 .pos-soft-light-zone {
   --background: 210 38% 98%;
   --foreground: 224 42% 11%;

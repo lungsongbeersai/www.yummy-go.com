@@ -1,8 +1,15 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Capacitor } from "@capacitor/core";
 import { I18nextProvider } from "react-i18next";
 import i18n from "@/lib/i18n";
+import {
+  ANDROID_WEBVIEW_COMPAT_CLASS,
+  ANDROID_WEBVIEW_COMPAT_STORAGE_KEY,
+  CAPACITOR_ANDROID_CLASS,
+  getAndroidWebViewCompatInfo,
+} from "@/lib/android-webview-compat";
 import { LANGUAGE_COOKIE, type Language } from "@/lib/language";
 import { useAppStore, type ThemeMode } from "@/stores/app-store";
 import { Toaster } from "@/components/ui/sonner";
@@ -44,6 +51,42 @@ function clearThemeTransitionState() {
   delete root.dataset.themeTransitionDirection;
 }
 
+function readAndroidWebViewCompatOverride() {
+  try {
+    return window.localStorage.getItem(ANDROID_WEBVIEW_COMPAT_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function cssSupports(property: string, value: string) {
+  return typeof CSS !== "undefined" && typeof CSS.supports === "function" && CSS.supports(property, value);
+}
+
+function applyAndroidWebViewCompatClasses() {
+  const info = getAndroidWebViewCompatInfo({
+    isNativePlatform: Capacitor.isNativePlatform(),
+    platform: Capacitor.getPlatform(),
+    userAgent: window.navigator.userAgent,
+    cssSupports,
+    storageValue: readAndroidWebViewCompatOverride(),
+  });
+  const targets = [document.documentElement, document.body].filter(Boolean);
+
+  targets.forEach((target) => {
+    target.classList.toggle(CAPACITOR_ANDROID_CLASS, info.isAndroidNative);
+    target.classList.toggle(ANDROID_WEBVIEW_COMPAT_CLASS, info.needsCompat);
+  });
+  document.documentElement.dataset.androidWebviewCompat = info.needsCompat ? "on" : "off";
+
+  return () => {
+    targets.forEach((target) => {
+      target.classList.remove(CAPACITOR_ANDROID_CLASS, ANDROID_WEBVIEW_COMPAT_CLASS);
+    });
+    delete document.documentElement.dataset.androidWebviewCompat;
+  };
+}
+
 export function Providers({ children, initialLanguage }: ProvidersProps) {
   const [mounted, setMounted] = useState(false);
   const appliedThemeRef = useRef(false);
@@ -59,7 +102,10 @@ export function Providers({ children, initialLanguage }: ProvidersProps) {
 
   useEffect(() => {
     setMounted(true);
+    const cleanupAndroidWebViewCompatClasses = applyAndroidWebViewCompatClasses();
     void useAppStore.persist.rehydrate();
+
+    return cleanupAndroidWebViewCompatClasses;
   }, []);
 
   useEffect(() => {

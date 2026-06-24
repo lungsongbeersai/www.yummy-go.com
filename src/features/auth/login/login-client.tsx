@@ -153,19 +153,21 @@ export function LoginClient() {
                       className="h-12 rounded-lg border-slate-200 bg-white px-4 pr-11 text-sm font-semibold text-slate-800 shadow-sm outline-none transition placeholder:text-slate-400 focus-visible:border-emerald-500 focus-visible:ring-4 focus-visible:ring-emerald-500/10"
                     />
 
-                    <button
+                    <Button
                       type="button"
+                      variant="ghost"
+                      size="iconSm"
                       aria-label={showPassword ? t("auth.hidePassword") : t("auth.showPassword")}
                       aria-pressed={showPassword}
                       onClick={() => setShowPassword((value) => !value)}
                       className="absolute right-3 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-md text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
                     >
                       {showPassword ? (
-                        <EyeOff aria-hidden="true" className="h-4 w-4" />
+                        <EyeOff aria-hidden="true" />
                       ) : (
-                        <Eye aria-hidden="true" className="h-4 w-4" />
+                        <Eye aria-hidden="true" />
                       )}
-                    </button>
+                    </Button>
                   </div>
                 </Field>
 
@@ -199,15 +201,17 @@ export function LoginClient() {
 
               <p className="mt-5 text-center text-sm font-semibold text-slate-500">
                 {t("auth.noAccount")}{" "}
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="sm"
                   disabled
                   aria-disabled="true"
                   title={t("auth.unavailable")}
-                  className="font-black text-emerald-600 disabled:pointer-events-none disabled:opacity-70"
+                  className="h-auto px-0 font-black text-emerald-600 hover:bg-transparent disabled:pointer-events-none disabled:opacity-70"
                 >
                   {t("auth.register")}
-                </button>
+                </Button>
               </p>
 
               <div className="my-6 flex items-center gap-3 text-xs font-bold text-slate-400">

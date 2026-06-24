@@ -168,11 +168,12 @@ export function ProductOrderSheetContent({
                     {details.map((detail) => {
                       const enabled = isDetailAvailable(detail);
                       return (
-                        <button
+                        <Button
                           key={detail.pro_detail_uuid}
                           type="button"
+                          variant="outline"
                           className={cn(
-                            "flex min-h-12 items-center justify-between gap-3 rounded-xl border bg-white px-3 py-2 text-left text-sm shadow-sm shadow-emerald-950/5 transition dark:bg-background",
+                            "flex min-h-12 w-full items-center justify-between gap-3 rounded-xl border bg-white px-3 py-2 text-left text-sm shadow-sm shadow-emerald-950/5 transition dark:bg-background",
                             detailUuid === detail.pro_detail_uuid
                               ? "border-primary bg-emerald-50 text-primary ring-1 ring-primary/15 dark:bg-primary/10"
                               : "border-emerald-100 dark:border-border",
@@ -186,7 +187,7 @@ export function ProductOrderSheetContent({
                           <span className="min-w-0">
                             <span className="flex min-w-0 items-center gap-1.5">
                               {detailUuid === detail.pro_detail_uuid ? (
-                                <CheckCircle2 className="size-4 shrink-0" />
+                                <CheckCircle2 />
                               ) : null}
                               <span className="truncate font-black">
                                 {detail.size_name || t("pos.size")}
@@ -212,7 +213,7 @@ export function ProductOrderSheetContent({
                           <span className="shrink-0 text-right font-black">
                             {formatMoney(productPriceFromDetail(detail), lang)}
                           </span>
-                        </button>
+                        </Button>
                       );
                     })}
                   </div>
@@ -273,11 +274,12 @@ export function ProductOrderSheetContent({
                       );
                       const enabled = isToppingAvailable(topping);
                       return (
-                        <button
+                        <Button
                           key={topping.prod_topping_uuid}
                           type="button"
+                          variant="outline"
                           className={cn(
-                            "min-h-11 rounded-xl border px-2.5 py-1.5 text-left text-sm shadow-sm shadow-emerald-950/5 transition",
+                            "min-h-11 flex-col items-start justify-start rounded-xl border px-2.5 py-1.5 text-left text-sm shadow-sm shadow-emerald-950/5 transition",
                             selected
                               ? "border-primary bg-primary text-primary-foreground"
                               : "border-emerald-100 bg-white dark:border-border dark:bg-background",
@@ -294,7 +296,7 @@ export function ProductOrderSheetContent({
                           <span className="text-xs font-bold opacity-80">
                             {formatMoney(numeric(topping.topping_price), lang)}
                           </span>
-                        </button>
+                        </Button>
                       );
                     })}
                   </div>

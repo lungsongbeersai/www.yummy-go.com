@@ -918,23 +918,24 @@ export function PaymentMethodsMobileList({
             </div>
 
             {/* Expand toggle */}
-            <button
+            <Button
               type="button"
-              className="flex w-full items-center justify-center gap-1.5 border-b border-border py-2 text-[11px] font-bold text-muted-foreground transition-colors hover:bg-muted/20"
+              variant="ghost"
+              className="h-auto w-full rounded-none border-b border-border py-2 text-[11px] font-bold text-muted-foreground hover:bg-muted/20"
               onClick={() => toggleExpand(key)}
             >
               {expanded ? (
                 <>
-                  <ChevronUp className="size-3.5" />
+                  <ChevronUp />
                   {t("actions.showLess", { defaultValue: "ຫຍໍ້ລາຍລະອຽດ" })}
                 </>
               ) : (
                 <>
-                  <ChevronDown className="size-3.5" />
+                  <ChevronDown />
                   {t("actions.showMore", { defaultValue: "ລາຍລະອຽດທັງໝົດ" })}
                 </>
               )}
-            </button>
+            </Button>
 
             {/* Expanded detail grouped by category */}
             {expanded && (

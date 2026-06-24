@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@/components/ui/input-group";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -184,14 +185,14 @@ export function ProductPage({ initialPagination }: { initialPagination: UrlPagin
                 </div>
               ) : null}
               <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-3 py-2 md:hidden">
-                <label className="flex min-w-0 items-center gap-2 text-sm font-semibold">
+                <Label className="flex min-w-0 items-center gap-2 text-sm font-semibold">
                   <Checkbox
                     aria-label={t("common.selectAll")}
                     checked={product.allSelected}
                     onChange={(event) => product.toggleAllSelected(event.target.checked)}
                   />
                   <span className="truncate">{t("common.selectAll")}</span>
-                </label>
+                </Label>
                 <span className="shrink-0 text-xs text-muted-foreground">
                   {t("common.showingRange", {
                     start: product.pageStart,

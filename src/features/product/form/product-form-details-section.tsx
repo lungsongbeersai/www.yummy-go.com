@@ -453,12 +453,17 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
                         editing || selected ? "border-primary" : "border-border"
                       )}
                     >
-                      <button type="button" className="min-w-0 flex-1 text-left" onClick={() => editSetOption(size)}>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="h-auto min-w-0 flex-1 flex-col items-start justify-start px-0 py-0 text-left hover:bg-transparent"
+                        onClick={() => editSetOption(size)}
+                      >
                         <span className="block truncate text-sm font-black">{label}</span>
                         <span className="mt-1 block truncate text-xs text-muted-foreground">
                           {String(size.size_name_eng ?? "") || t("fields.nameEn")}
                         </span>
-                      </button>
+                      </Button>
                       {selected ? <Badge className="shrink-0">{t("common.active")}</Badge> : null}
                       <Button
                         type="button"

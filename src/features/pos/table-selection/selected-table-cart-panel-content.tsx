@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsContent, TabsList } from "@/components/ui/tabs";
@@ -35,20 +36,20 @@ const PaymentDialog = dynamic<PaymentDialogProps>(
 );
 
 function PaymentDialogLoadingFallback() {
+  const { t } = useTranslation();
+
   return (
-    <div
-      className="fixed inset-0 z-50 grid place-items-center bg-black/45 p-4"
-      aria-busy="true"
-    >
-      <Card className="w-full max-w-[320px] rounded-lg border-white/20 bg-background text-center shadow-xl">
-        <CardContent className="flex flex-col items-center gap-3 p-4">
+    <Dialog open>
+      <DialogContent showCloseButton={false} className="w-full max-w-[320px] text-center" aria-busy="true">
+        <DialogTitle className="sr-only">{t("common.loading")}</DialogTitle>
+        <div className="flex flex-col items-center gap-3">
           <div className="grid size-11 place-items-center rounded-lg bg-primary/10 text-primary">
             <Spinner className="text-primary" />
           </div>
           <Skeleton className="h-3 w-32" />
-        </CardContent>
-      </Card>
-    </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 

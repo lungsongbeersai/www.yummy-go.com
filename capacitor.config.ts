@@ -10,6 +10,12 @@ const config: CapacitorConfig = {
     cleartext: false,
   },
 
+  android: {
+    appendUserAgent: "YummyGoCapacitorAndroid",
+    backgroundColor: "#ffffff",
+    webContentsDebuggingEnabled: process.env.CAPACITOR_WEB_DEBUG === "1",
+  },
+
   plugins: {
     StatusBar: {
       overlaysWebView: false,

@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
+import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { TabsTrigger } from "@/components/ui/tabs";
 import { money } from "@/lib/format";
@@ -259,7 +260,7 @@ function CartItemRow({
         )}
       >
         {splitSelectable ? (
-          <label
+          <Label
             className={cn(
               "flex size-11 shrink-0 items-start justify-center pt-0.5",
               splitEnabled ? "cursor-pointer" : "cursor-not-allowed"
@@ -272,7 +273,7 @@ function CartItemRow({
               className="mt-0.5 size-5 rounded-md border-primary/50 bg-background shadow-sm"
               onChange={toggleSplitSelection}
             />
-          </label>
+          </Label>
         ) : null}
         <CartProductMedia media={media} title={title} />
         <div className="min-w-0">

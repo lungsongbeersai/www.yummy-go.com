@@ -8,6 +8,7 @@ import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -239,9 +240,9 @@ export function TableQrDialog({
           </div>
 
           <div className="flex flex-col gap-2">
-            <label htmlFor="table-qr-url" className="text-sm font-black text-foreground">
+            <Label htmlFor="table-qr-url" className="text-sm font-black text-foreground">
               {t("pos.openMenu")}
-            </label>
+            </Label>
             <div className="grid grid-cols-[minmax(0,1fr)_44px] gap-2">
               <Input id="table-qr-url" readOnly className="h-11 rounded-xl font-semibold" value={targetUrl ?? t("pos.qrLinkUnavailable")} />
               <TooltipProvider>

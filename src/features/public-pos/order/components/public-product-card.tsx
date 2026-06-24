@@ -5,12 +5,13 @@ import { useTranslation } from "react-i18next";
 import {
   AlertCircle,
   ChevronRight,
-  Loader2,
   Plus,
   SlidersHorizontal,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 import type { CateProductItem } from "@/services/pos";
 import {
@@ -86,15 +87,16 @@ export const ProductCard = memo(function ProductCard({
           : "active:scale-[0.99] hover:border-primary/35 hover:shadow-md",
       )}
     >
-      <button
+      <Button
         type="button"
-        className="flex h-full w-full flex-col text-left disabled:cursor-not-allowed"
+        variant="ghost"
+        className="flex h-full w-full flex-col items-stretch justify-start rounded-none p-0 text-left hover:bg-transparent disabled:cursor-not-allowed"
         onClick={handleClick}
         disabled={isBlocked || loading}
         aria-label={
           blockedLabel
             ? `${product.prod_name} - ${blockedLabel}`
-            : product.prod_name
+          : product.prod_name
         }
       >
         <div ref={mediaRef}>
@@ -140,7 +142,7 @@ export const ProductCard = memo(function ProductCard({
             <ProductActionPill actionState={actionState} loading={loading} />
           </div>
         </CardContent>
-      </button>
+      </Button>
     </Card>
   );
 });
@@ -166,7 +168,7 @@ function ProductActionPill({
     return (
       <span className="flex h-7 shrink-0 items-center justify-center gap-1 rounded-full border border-primary/25 bg-primary/10 px-2 text-[10px] font-black leading-none text-primary">
         {loading ? (
-          <Loader2 className="size-3.5 animate-spin" />
+          <Spinner />
         ) : (
           <SlidersHorizontal className="size-3.5" />
         )}
@@ -179,7 +181,7 @@ function ProductActionPill({
     return (
       <span className="flex h-7 shrink-0 items-center justify-center gap-1 rounded-full border border-slate-200 bg-white px-2 text-[10px] font-black leading-none text-slate-600 dark:border-border dark:bg-background dark:text-muted-foreground">
         {loading ? (
-          <Loader2 className="size-3.5 animate-spin" />
+          <Spinner />
         ) : (
           <ChevronRight className="size-3.5" />
         )}
@@ -191,7 +193,7 @@ function ProductActionPill({
   return (
     <span className="flex h-7 shrink-0 items-center justify-center gap-1 rounded-full bg-primary px-2 text-[10px] font-black leading-none text-primary-foreground">
       {loading ? (
-        <Loader2 className="size-3.5 animate-spin" />
+        <Spinner />
       ) : (
         <Plus className="size-3.5" />
       )}

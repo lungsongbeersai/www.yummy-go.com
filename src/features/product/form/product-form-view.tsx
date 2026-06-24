@@ -320,9 +320,10 @@ export function ProductFormView({ form }: { form: ProductFormWorkflow }) {
                     {imageModeChoices.map((choice) => {
                       const active = prodStatusImge === choice.value;
                       return (
-                        <button
+                        <Button
                           key={choice.value}
                           type="button"
+                          variant="ghost"
                           className={choiceCardClass(active)}
                           aria-pressed={active}
                           onClick={() => setProdStatusImge(choice.value)}
@@ -338,7 +339,7 @@ export function ProductFormView({ form }: { form: ProductFormWorkflow }) {
                               {choice.hint}
                             </span>
                           </span>
-                        </button>
+                        </Button>
                       );
                     })}
                   </div>
@@ -469,9 +470,10 @@ export function ProductFormView({ form }: { form: ProductFormWorkflow }) {
                     {productTypeChoices.map((choice) => {
                       const active = statusSortFk === choice.value;
                       return (
-                        <button
+                        <Button
                           key={choice.value}
                           type="button"
+                          variant="ghost"
                           className={choiceCardClass(active)}
                           aria-pressed={active}
                           onClick={() => changeStatusSort(choice.value)}
@@ -487,7 +489,7 @@ export function ProductFormView({ form }: { form: ProductFormWorkflow }) {
                               {choice.hint}
                             </span>
                           </span>
-                        </button>
+                        </Button>
                       );
                     })}
                   </div>

@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/empty";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -543,19 +544,19 @@ function PermissionTable({
                           />
                         </TableCell>
                         <TableCell className="max-w-[32rem]">
-                          <label htmlFor={submenuInputId} className="flex min-w-0 cursor-pointer items-center gap-2 pl-3">
+                          <Label htmlFor={submenuInputId} className="flex min-w-0 cursor-pointer items-center gap-2 pl-3">
                             <span aria-hidden className="h-6 w-4 shrink-0 rounded-bl-md border-b border-l border-border" />
                             <span className="block min-w-0 truncate font-black">{submenu.sub_title || "-"}</span>
-                          </label>
+                          </Label>
                         </TableCell>
                         <TableCell className="max-w-[28rem]">
-                          <label
+                          <Label
                             htmlFor={submenuInputId}
                             className="block min-w-0 cursor-pointer truncate font-mono text-xs text-muted-foreground"
                             translate="no"
                           >
                             {submenu.sub_path || "-"}
-                          </label>
+                          </Label>
                         </TableCell>
                       </TableRow>
                     );

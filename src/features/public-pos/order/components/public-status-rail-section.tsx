@@ -2,6 +2,7 @@
 
 import { memo, useEffect, useRef } from "react";
 import { Plus, Sparkles } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import type { CateProductItem } from "@/services/pos";
 import {
   PUBLIC_MENU_KIND,
@@ -91,8 +92,9 @@ export const StatusRailSection = memo(function StatusRailSection({
               />
             ))}
             {visibleProducts.length < products.length ? (
-              <button
+              <Button
                 type="button"
+                variant="outline"
                 className="grid h-57.5 w-14 flex-none place-items-center rounded-lg border border-emerald-100 bg-white text-primary shadow-sm shadow-emerald-950/5 dark:border-border dark:bg-background"
                 onClick={() =>
                   onRevealMore(
@@ -102,8 +104,8 @@ export const StatusRailSection = memo(function StatusRailSection({
                 }
                 aria-label={title}
               >
-                <Plus className="size-5" />
-              </button>
+                <Plus />
+              </Button>
             ) : null}
           </div>
         </div>

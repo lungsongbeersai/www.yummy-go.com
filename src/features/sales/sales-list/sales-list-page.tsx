@@ -19,6 +19,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
@@ -65,6 +66,13 @@ import {
   type SalesListFilters
 } from "./sales-list-utils";
 
+const SALES_LIST_DESKTOP_MEDIA_QUERY = "(min-width: 1280px)";
+
+function shouldOpenMobileBillDetail() {
+  if (typeof window === "undefined") return false;
+  return !window.matchMedia(SALES_LIST_DESKTOP_MEDIA_QUERY).matches;
+}
+
 export function SalesListPage({ initialPagination }: { initialPagination: UrlPaginationState }) {
   const { t } = useTranslation();
   const language = useAppStore((state) => state.language);
@@ -90,6 +98,7 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
   const [appliedFilters, setAppliedFilters] = useState<SalesListFilters>(() => defaultSalesListFilters(userBranchUuid, initialPagination.limit));
   const [searchText, setSearchText] = useState("");
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
+  const [mobileDetailOpen, setMobileDetailOpen] = useState(false);
   const [selectedBillId, setSelectedBillId] = useState("");
   const [printingBillId, setPrintingBillId] = useState("");
   const { changeLimit, goToPage, page, resetPage } = useUrlPagination({
@@ -144,6 +153,7 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
     );
     resetPage();
     setSelectedBillId("");
+    setMobileDetailOpen(false);
   }, [defaultBranchUuid, resetPage, resetSalesItems]);
 
   useEffect(() => {
@@ -154,6 +164,7 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
       setAppliedFilters((current) => ({ ...current, search }));
       resetPage();
       setSelectedBillId("");
+      setMobileDetailOpen(false);
     }, 350);
 
     return () => window.clearTimeout(timer);
@@ -165,6 +176,27 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
       return bills[0]?.id ?? "";
     });
   }, [bills]);
+
+  useEffect(() => {
+    if (mobileDetailOpen && !selectedBill) setMobileDetailOpen(false);
+  }, [mobileDetailOpen, selectedBill]);
+
+  useEffect(() => {
+    if (!mobileDetailOpen) return;
+
+    const mediaQuery = window.matchMedia(SALES_LIST_DESKTOP_MEDIA_QUERY);
+    if (mediaQuery.matches) {
+      setMobileDetailOpen(false);
+      return;
+    }
+
+    const closeOnDesktop = (event: MediaQueryListEvent) => {
+      if (event.matches) setMobileDetailOpen(false);
+    };
+
+    mediaQuery.addEventListener("change", closeOnDesktop);
+    return () => mediaQuery.removeEventListener("change", closeOnDesktop);
+  }, [mobileDetailOpen]);
 
   const load = useCallback(async () => {
     const selectedBranch = appliedFilters.branchUuid || defaultBranchUuid;
@@ -214,6 +246,7 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
     changeLimit(nextFilters.limit);
     resetPage();
     setSelectedBillId("");
+    setMobileDetailOpen(false);
   }
 
   function applyMobileFilters() {
@@ -261,6 +294,11 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
       description: t("salesList.reprintReceiptPopupBlocked"),
       tone: "error"
     });
+  }
+
+  function selectBill(billId: string) {
+    setSelectedBillId(billId);
+    if (shouldOpenMobileBillDetail()) setMobileDetailOpen(true);
   }
 
   return (
@@ -317,16 +355,25 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
             onBack={() => goToPage(page - 1)}
             onNext={() => goToPage(page + 1)}
             onPageChange={goToPage}
-            onSelect={setSelectedBillId}
+            onSelect={selectBill}
           />
           <SalesBillDetailPanel
             bill={selectedBill}
+            className="hidden xl:flex"
             loading={loading}
             printingBillId={printingBillId}
             onReprint={(group) => void reprintReceipt(group)}
           />
         </div>
       </div>
+      <SalesBillDetailDrawer
+        bill={selectedBill}
+        loading={loading}
+        open={mobileDetailOpen}
+        printingBillId={printingBillId}
+        onOpenChange={setMobileDetailOpen}
+        onReprint={(group) => void reprintReceipt(group)}
+      />
     </div>
   );
 }
@@ -802,11 +849,13 @@ function BillListItem({
 
 function SalesBillDetailPanel({
   bill,
+  className,
   loading,
   onReprint,
   printingBillId
 }: {
   bill: DailySaleItemsBillGroup | null;
+  className?: string;
   loading: boolean;
   onReprint: (group: DailySaleItemsBillGroup) => void;
   printingBillId: string;
@@ -814,7 +863,7 @@ function SalesBillDetailPanel({
   const { t } = useTranslation();
 
   return (
-    <Card className="min-h-0 overflow-hidden border-border bg-card shadow-sm xl:flex xl:min-h-0 xl:flex-col">
+    <Card className={cn("min-h-0 overflow-hidden border-border bg-card shadow-sm xl:flex xl:min-h-0 xl:flex-col", className)}>
       {!bill ? (
         <div className="flex min-h-96 flex-1 items-center justify-center p-4">
           <EmptyState title={t("salesList.noSelection")} description={t("salesList.selectBillHint")} />
@@ -860,6 +909,46 @@ function SalesBillDetailPanel({
         </>
       )}
     </Card>
+  );
+}
+
+function SalesBillDetailDrawer({
+  bill,
+  loading,
+  onOpenChange,
+  onReprint,
+  open,
+  printingBillId
+}: {
+  bill: DailySaleItemsBillGroup | null;
+  loading: boolean;
+  onOpenChange: (open: boolean) => void;
+  onReprint: (group: DailySaleItemsBillGroup) => void;
+  open: boolean;
+  printingBillId: string;
+}) {
+  const { t } = useTranslation();
+
+  return (
+    <Drawer open={open} onOpenChange={onOpenChange}>
+      <DrawerContent className="h-[calc(100dvh-0.75rem)] max-h-[92dvh] gap-0 overflow-hidden rounded-t-xl xl:hidden">
+        <DrawerHeader className="shrink-0 border-b border-border px-4 py-3 text-left">
+          <DrawerTitle className="truncate text-base font-black">{bill ? bill.invoiceNumber : t("salesList.billDetail")}</DrawerTitle>
+          <DrawerDescription className="truncate">
+            {bill ? `${formatSaleDate(bill.saleDate)} / ${bill.tableName}` : t("salesList.selectBillHint")}
+          </DrawerDescription>
+        </DrawerHeader>
+        <div className="min-h-0 flex-1 overflow-hidden">
+          <SalesBillDetailPanel
+            bill={bill}
+            className="flex h-full flex-col rounded-none border-0 shadow-none"
+            loading={loading}
+            printingBillId={printingBillId}
+            onReprint={onReprint}
+          />
+        </div>
+      </DrawerContent>
+    </Drawer>
   );
 }
 
