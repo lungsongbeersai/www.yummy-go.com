@@ -263,6 +263,30 @@ html {
   color: rgb(148 163 184) !important;
 }
 
+.capacitor-android .login-light-zone .login-submit-button {
+  appearance: none;
+  -webkit-appearance: none;
+  background-color: #059669 !important;
+  border-color: #059669 !important;
+  color: #ffffff !important;
+  opacity: 1 !important;
+  box-shadow: 0 18px 34px -24px rgba(5, 150, 105, 0.95) !important;
+}
+
+.capacitor-android .login-light-zone .login-submit-button:hover,
+.capacitor-android .login-light-zone .login-submit-button:focus {
+  background-color: #047857 !important;
+  border-color: #047857 !important;
+  color: #ffffff !important;
+}
+
+.capacitor-android .login-light-zone .login-submit-button:disabled {
+  background-color: #059669 !important;
+  border-color: #059669 !important;
+  color: #ffffff !important;
+  opacity: 0.7 !important;
+}
+
 @media (orientation: landscape) and (max-height: 720px) {
   .capacitor-android .login-light-zone .login-panel-section {
     align-items: flex-start;

@@ -192,7 +192,8 @@ export function LoginClient() {
                 </div>
 
                 <Button
-                  className="mt-1 h-12 w-full rounded-lg bg-emerald-600 text-base font-black text-white shadow-[0_18px_34px_-24px_rgba(5,150,105,0.95)] transition hover:bg-emerald-700"
+                  type="submit"
+                  className="login-submit-button mt-1 h-12 w-full rounded-lg bg-emerald-600 text-base font-black text-white shadow-[0_18px_34px_-24px_rgba(5,150,105,0.95)] transition hover:bg-emerald-700"
                   disabled={loading}
                 >
                   {loading ? t("auth.signingIn") : t("auth.signIn")}
