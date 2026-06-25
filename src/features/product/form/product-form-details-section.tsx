@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { Info, Layers3, Pencil, Plus, RefreshCcw, Save, Search, Trash2 } from "lucide-react";
+import { Info, Pencil, Plus, RefreshCcw, Save, Search, Trash2 } from "lucide-react";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { FormattedNumberInput } from "@/components/common/formatted-number-input";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -33,6 +33,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
+import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import type { BinaryFlag } from "./product-form-types";
 import {
@@ -49,13 +50,12 @@ const NO_SET_PRODUCT_OPTION_VALUE = "__no-set-products__";
 export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow }) {
   const {
     t,
-    detailStockStateClass,
+    detailStockState,
     detailStockStateLabel,
     detailStockActionLabel,
     details,
     bulkStockSaving,
     updateAllDetailStockModes,
-    nextDetailStockMode,
     addDetail,
     typeLabel,
     detailModeHint,
@@ -100,20 +100,6 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
                 <p className="mt-1 text-xs text-muted-foreground">{t("product.sections.detailsHint")}</p>
               </div>
               <div className="flex flex-col gap-2 sm:flex-row md:justify-end">
-                <div className="flex min-h-9 items-center justify-between gap-2 rounded-md border border-border bg-muted/35 px-3 text-xs sm:min-w-48">
-                  <span className="font-bold text-muted-foreground">{t("product.stockBulk.label")}</span>
-                  <Badge className={detailStockStateClass}>{detailStockStateLabel}</Badge>
-                </div>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  disabled={!details.length || bulkStockSaving}
-                  onClick={() => void updateAllDetailStockModes(nextDetailStockMode)}
-                >
-                  {bulkStockSaving ? <Spinner data-icon="inline-start" /> : <Layers3 data-icon="inline-start" />}
-                  {detailStockActionLabel}
-                </Button>
                 <Button type="button" size="sm" variant="outline" disabled={bulkStockSaving} onClick={addDetail}>
                   <Plus data-icon="inline-start" />
                   {t("product.addDetail")}
@@ -383,6 +369,30 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
               );
             })}
             </CardContent>
+      </Card>
+      <Card>
+        <CardHeader className="flex-row items-start justify-start gap-3">
+          <ProductFormSectionNumber value="4" />
+          <div className="min-w-0">
+            <CardTitle>{t("product.stockBulk.label")}</CardTitle>
+            <p className="mt-1 text-xs text-muted-foreground">{t("product.stockBulk.label")}</p>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-3 rounded-md border border-border bg-card px-4 py-3 shadow-sm">
+            <Switch
+              checked={detailStockState === "deduct"}
+              disabled={!details.length || bulkStockSaving}
+              onCheckedChange={(checked) =>
+                void updateAllDetailStockModes(checked ? "1" : "2")
+              }
+            />
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-foreground">{detailStockStateLabel}</p>
+              <p className="text-xs text-muted-foreground">{detailStockActionLabel}</p>
+            </div>
+          </div>
+        </CardContent>
       </Card>
       <Dialog open={setOptionDialogOpen} onOpenChange={handleSetOptionDialogOpen}>
         <DialogContent className="max-h-[calc(100vh-2rem)] overflow-y-auto sm:max-w-4xl">

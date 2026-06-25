@@ -78,7 +78,7 @@ export function ProductFormToppingsSection({ form }: { form: ProductFormWorkflow
     <>          <Card>
             <CardHeader className="flex-row items-start justify-between gap-3">
               <div className="flex min-w-0 items-start gap-3">
-                <ProductFormSectionNumber value="4" />
+                <ProductFormSectionNumber value="5" />
                 <div className="min-w-0">
                   <CardTitle>{t("product.sections.toppings")}</CardTitle>
                   <p className="mt-1 text-xs text-muted-foreground">{t("product.sections.toppingsHint")}</p>

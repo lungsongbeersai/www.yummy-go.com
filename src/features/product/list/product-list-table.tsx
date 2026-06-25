@@ -5,6 +5,7 @@ import { Boxes, ChevronRight, ChevronsUpDown, Package } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { money } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -18,28 +19,89 @@ import {
   productDetailUuid,
   productName,
   productOrderPoint,
-  productPriceLabel,
   shortDate,
   shortTime,
+  totalStockQty,
   unitName
 } from "./product-list-utils";
 import { ProductListActions } from "./product-list-actions";
 import { ProductMedia } from "./product-list-media";
 import {
   ProductEnabledSwitch,
-  ProductStatusBadges,
   ProductStockBadge,
   ProductStockSelect,
-  ProductStockSummaryStatus,
-  stockSummaryClass,
   stockSummaryLabel
 } from "./product-list-status";
-import type { ProductTableRow } from "./product-list-types";
+import type { ProductStatusKey, ProductTableRow } from "./product-list-types";
 import type { ProductListWorkflow } from "./use-product-list-workflow";
 
 const MotionTableRow = motion.create(TableRow);
 
-function ProductDetailPanel({
+function ProductNotificationSwitch({
+  row,
+  workflow
+}: {
+  row: ProductTableRow;
+  workflow: ProductListWorkflow;
+}) {
+  const notificationKey: ProductStatusKey = `notification:${row.prod_uuid}`;
+  const checked = binaryFlag(row.prod_notification, "2") === "1";
+  const disabled = workflow.pendingKeys.has(notificationKey);
+
+  return (
+    <div className="flex items-center gap-2 whitespace-nowrap">
+      <Switch
+        checked={checked}
+        disabled={disabled}
+        size="sm"
+        aria-label={workflow.t("product.notification.label")}
+        onCheckedChange={(nextChecked) => workflow.updateNotification(row, nextChecked)}
+      />
+      <span className="text-xs text-muted-foreground">
+        {checked ? workflow.t("common.active") : workflow.t("common.inactive")}
+      </span>
+    </div>
+  );
+}
+
+function ProductStockModeSwitch({
+  row,
+  workflow
+}: {
+  row: ProductTableRow;
+  workflow: ProductListWorkflow;
+}) {
+  const details = productDetails(row);
+  const pendingKey: ProductStatusKey = `stock-all:${row.prod_uuid}`;
+  const pendingMode = workflow.pendingBulkStockModes[row.prod_uuid];
+
+  if (!details.length) {
+    return <span className="text-xs text-muted-foreground">{workflow.t("common.noData")}</span>;
+  }
+
+  const summary = detailStockSummary(details);
+  const checked = pendingMode ? pendingMode === 1 : summary === "deduct";
+  const label = pendingMode
+    ? pendingMode === 1
+      ? workflow.t("product.stockMode.deduct")
+      : workflow.t("product.stockMode.noDeduct")
+    : stockSummaryLabel(workflow, summary);
+
+  return (
+    <div className="flex items-center gap-2 whitespace-nowrap">
+      <Switch
+        checked={checked}
+        disabled={workflow.pendingKeys.has(pendingKey)}
+        size="sm"
+        aria-label={workflow.t("product.stockBulk.label")}
+        onCheckedChange={(nextChecked) => workflow.updateAllDetailStockModes(row, nextChecked ? 1 : 2)}
+      />
+      <span className="text-xs text-muted-foreground">{label}</span>
+    </div>
+  );
+}
+
+function ProductDetailRows({
   row,
   workflow
 }: {
@@ -52,122 +114,80 @@ function ProductDetailPanel({
 
   if (!details.length) return null;
 
-  return (
-    <MotionTableRow
-      key={`${row.prod_uuid}-details`}
-      initial={workflow.detailMotion.initial}
-      animate={workflow.detailMotion.animate}
-      exit={{ ...workflow.detailMotion.exit, pointerEvents: "none" }}
-      transition={workflow.detailMotion.transition}
-      className="origin-top transform-gpu bg-muted/15 will-change-transform hover:bg-muted/15"
-    >
-      <TableCell colSpan={7} className="px-4 py-3">
-        <div className="overflow-hidden rounded-md border border-border bg-background shadow-sm">
-          <div className="flex min-w-0 items-center justify-between gap-3 border-b border-border bg-muted/20 px-3 py-2">
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <Boxes className="text-primary" />
-                <p className="text-sm font-black">{workflow.t("product.sections.details")}</p>
-                <Badge>{details.length}</Badge>
-              </div>
-              <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                {productName(row, workflow.language)}
+  return details.map((detail, index) => {
+    const detailUuid = productDetailUuid(detail) || `${row.prod_uuid}-${index}`;
+    const enabled = binaryFlag(detail.pro_detail_enabled, "1") === "1";
+
+    return (
+      <MotionTableRow
+        key={detailUuid}
+        initial={workflow.detailMotion.initial}
+        animate={workflow.detailMotion.animate}
+        exit={{ ...workflow.detailMotion.exit, pointerEvents: "none" }}
+        transition={workflow.detailMotion.transition}
+        className="origin-top bg-muted/10 hover:bg-muted/20 [&>td]:whitespace-nowrap [&>td]:py-2.5"
+      >
+        <TableCell className="w-10 px-2" />
+        <TableCell />
+        <TableCell>
+          <div className="min-w-0 border-l border-border pl-4">
+            <p className="truncate text-sm font-black">{detailLabel(detail, index, workflow.language)}</p>
+          </div>
+        </TableCell>
+        <TableCell className="font-mono text-sm font-semibold tabular-nums">
+          {money(detail.pro_detail_bprice)}
+        </TableCell>
+        <TableCell className="font-mono text-sm font-semibold tabular-nums">
+          {isFoodSet ? money(row.prod_set_price) : money(detail.pro_detail_sprice)}
+        </TableCell>
+        <TableCell className="font-mono text-sm font-semibold tabular-nums">{detailStockQty(detail)}</TableCell>
+        <TableCell />
+        <TableCell>
+          {isFoodSet ? (
+            <ProductStockSelect compact detail={detail} prodUuid={row.prod_uuid} workflow={workflow} />
+          ) : (
+            <ProductStockBadge compact detail={detail} workflow={workflow} />
+          )}
+        </TableCell>
+        <TableCell />
+        <TableCell>
+          <div className="flex items-center gap-2 whitespace-nowrap">
+            <ProductEnabledSwitch detail={detail} workflow={workflow} />
+            <span className="text-xs text-muted-foreground">
+              {enabled ? workflow.t("common.active") : workflow.t("common.inactive")}
+            </span>
+          </div>
+        </TableCell>
+        {isPromotion ? (
+          <TableCell>
+            <div className="min-w-0 text-xs text-muted-foreground">
+              <p className="truncate">
+                {workflow.t("product.buyQty")}: {String(detail.pro_detail_cus_qtyBuy ?? 0)} /{" "}
+                {workflow.t("product.freeQty")}: {String(detail.pro_detail_cus_qtyFree ?? 0)}
+              </p>
+              <p className="truncate">
+                {shortDate(detail.pro_detail_sDate)} - {shortDate(detail.pro_detail_eDate)}
+              </p>
+              <p className="truncate">
+                {shortTime(detail.pro_detail_sTime)} - {shortTime(detail.pro_detail_eTime)}
               </p>
             </div>
-            <Badge className={stockSummaryClass(detailStockSummary(details))}>
-              {stockSummaryLabel(workflow, detailStockSummary(details))}
-            </Badge>
-          </div>
-          <div className="overflow-x-auto">
-            <Table className={cn(isPromotion ? "min-w-230" : "min-w-180")}>
-              <TableHeader className="bg-background">
-                <TableRow>
-                  <TableHead className="min-w-56">
-                    {isFoodSet ? workflow.t("pos.product") : workflow.t("fields.size")}
-                  </TableHead>
-                  <TableHead className="w-32">{workflow.t("fields.bprice")}</TableHead>
-                  <TableHead className="w-32">
-                    {isFoodSet ? workflow.t("product.setPrice") : workflow.t("fields.sprice")}
-                  </TableHead>
-                  <TableHead className="w-28">{workflow.t("fields.qtyStock")}</TableHead>
-                  <TableHead className="w-44">{workflow.t("product.stockBulk.label")}</TableHead>
-                  <TableHead className="w-36">{workflow.t("product.detailEnabledStatus")}</TableHead>
-                  {isPromotion ? (
-                    <TableHead className="min-w-56">{workflow.t("product.promotionTime.label")}</TableHead>
-                  ) : null}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {details.map((detail, index) => {
-                  const detailUuid = productDetailUuid(detail) || `${row.prod_uuid}-${index}`;
-                  const enabled = binaryFlag(detail.pro_detail_enabled, "1") === "1";
-                  return (
-                    <TableRow key={detailUuid} className="hover:bg-muted/20">
-                      <TableCell>
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-black">
-                            {detailLabel(detail, index, workflow.language)}
-                          </p>
-                          <p className="mt-0.5 text-xs text-muted-foreground">#{index + 1}</p>
-                        </div>
-                      </TableCell>
-                      <TableCell className="font-mono text-sm font-semibold tabular-nums">
-                        {money(detail.pro_detail_bprice)}
-                      </TableCell>
-                      <TableCell className="font-mono text-sm font-semibold tabular-nums">
-                        {isFoodSet ? money(row.prod_set_price) : money(detail.pro_detail_sprice)}
-                      </TableCell>
-                      <TableCell className="font-mono text-sm font-semibold tabular-nums">
-                        {detailStockQty(detail)}
-                      </TableCell>
-                      <TableCell>
-                        {isFoodSet ? (
-                          <ProductStockSelect compact detail={detail} prodUuid={row.prod_uuid} workflow={workflow} />
-                        ) : (
-                          <ProductStockBadge compact detail={detail} workflow={workflow} />
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <ProductEnabledSwitch detail={detail} workflow={workflow} />
-                          <span className="text-xs text-muted-foreground">
-                            {enabled ? workflow.t("common.active") : workflow.t("common.inactive")}
-                          </span>
-                        </div>
-                      </TableCell>
-                      {isPromotion ? (
-                        <TableCell>
-                          <div className="min-w-0 text-xs text-muted-foreground">
-                            <p className="truncate">
-                              {workflow.t("product.buyQty")}: {String(detail.pro_detail_cus_qtyBuy ?? 0)} /{" "}
-                              {workflow.t("product.freeQty")}: {String(detail.pro_detail_cus_qtyFree ?? 0)}
-                            </p>
-                            <p className="truncate">
-                              {shortDate(detail.pro_detail_sDate)} - {shortDate(detail.pro_detail_eDate)}
-                            </p>
-                            <p className="truncate">
-                              {shortTime(detail.pro_detail_sTime)} - {shortTime(detail.pro_detail_eTime)}
-                            </p>
-                          </div>
-                        </TableCell>
-                      ) : null}
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
-        </div>
-      </TableCell>
-    </MotionTableRow>
-  );
+          </TableCell>
+        ) : null}
+        <TableCell />
+      </MotionTableRow>
+    );
+  });
 }
 
 export function ProductListTable({ workflow }: { workflow: ProductListWorkflow }) {
+  const isPromotion = String(workflow.statusSortFk) === "3";
+  const isFoodSet = String(workflow.statusSortFk) === "2";
+
   return (
     <div className="relative hidden min-h-0 flex-1 overflow-auto md:block">
-      <Table className="min-w-255">
-        <TableHeader className="sticky top-0 z-40 bg-background shadow-sm [&_th]:sticky [&_th]:top-0 [&_th]:z-40 [&_th]:border-b [&_th]:border-border [&_th]:bg-background [&_th]:shadow-sm">
+      <Table className="w-max min-w-full table-auto">
+        <TableHeader className="sticky top-0 z-40 bg-background shadow-sm [&_th]:sticky [&_th]:top-0 [&_th]:z-40 [&_th]:whitespace-nowrap [&_th]:border-b [&_th]:border-border [&_th]:bg-background [&_th]:shadow-sm">
           <TableRow>
             <TableHead className="w-10 px-2">
               <Checkbox
@@ -176,7 +196,8 @@ export function ProductListTable({ workflow }: { workflow: ProductListWorkflow }
                 onChange={(event) => workflow.toggleAllSelected(event.target.checked)}
               />
             </TableHead>
-            <TableHead className="min-w-[24rem]">
+            <TableHead>{workflow.t("nav.category")}</TableHead>
+            <TableHead>
               <div className="flex items-center gap-2">
                 <Button
                   type="button"
@@ -194,15 +215,18 @@ export function ProductListTable({ workflow }: { workflow: ProductListWorkflow }
                 <span>{workflow.t("fields.prod_name")}</span>
               </div>
             </TableHead>
-            <TableHead className="min-w-48">
-              {workflow.t("nav.category")} / {workflow.t("product.type")}
-            </TableHead>
-            <TableHead className="min-w-44">{workflow.t("fields.prod_price")}</TableHead>
-            <TableHead className="min-w-56">{workflow.t("fields.qtyStock")}</TableHead>
-            <TableHead className="min-w-44">{workflow.t("common.status")}</TableHead>
-            <TableHead className="w-16 text-right">{workflow.t("common.actions")}</TableHead>
+            <TableHead>{workflow.t("fields.bprice")}</TableHead>
+            <TableHead>{isFoodSet ? workflow.t("product.setPrice") : workflow.t("fields.sprice")}</TableHead>
+            <TableHead>{workflow.t("fields.qtyStock")}</TableHead>
+            <TableHead>{workflow.t("product.orderPoint")}</TableHead>
+            <TableHead>{workflow.t("product.stockBulk.label")}</TableHead>
+            <TableHead>{workflow.t("product.notification.label")}</TableHead>
+            <TableHead>{workflow.t("product.detailEnabledStatus")}</TableHead>
+            {isPromotion ? <TableHead>{workflow.t("product.promotionTime.label")}</TableHead> : null}
+            <TableHead className="text-right">{workflow.t("common.actions")}</TableHead>
           </TableRow>
         </TableHeader>
+
         <TableBody className="bg-card">
           {workflow.filteredRows.flatMap((row) => {
             const details = productDetails(row);
@@ -210,11 +234,12 @@ export function ProductListTable({ workflow }: { workflow: ProductListWorkflow }
             const expanded = hasDetails && !workflow.collapsedProducts.has(row.prod_uuid);
             const selected = workflow.selectedRows.has(row.prod_uuid);
             const orderPoint = productOrderPoint(row);
+
             const rowsToRender = [
               <TableRow
                 key={row.prod_uuid}
                 className={cn(
-                  "bg-card data-[state=selected]:bg-primary/5 [&>td]:py-3",
+                  "bg-card data-[state=selected]:bg-primary/5 [&>td]:whitespace-nowrap [&>td]:py-3",
                   expanded && "border-l-4 border-l-primary/50"
                 )}
                 data-state={selected ? "selected" : undefined}
@@ -225,6 +250,9 @@ export function ProductListTable({ workflow }: { workflow: ProductListWorkflow }
                     checked={selected}
                     onChange={(event) => workflow.toggleSelected(row.prod_uuid, event.target.checked)}
                   />
+                </TableCell>
+                <TableCell>
+                  <p className="max-w-40 truncate font-semibold">{categoryName(row, workflow.language)}</p>
                 </TableCell>
                 <TableCell>
                   <div className="flex min-w-0 items-center gap-3">
@@ -250,40 +278,35 @@ export function ProductListTable({ workflow }: { workflow: ProductListWorkflow }
                     </Button>
                     <ProductMedia row={row} />
                     <div className="min-w-0">
-                      <div className="flex min-w-0 items-center gap-2">
-                        <p className="truncate font-black">{productName(row, workflow.language)}</p>
-                        <Badge className="shrink-0 bg-muted text-muted-foreground">{row.row_number}</Badge>
+                      <div className="flex min-w-0 items-center gap-1.5">
+                        <p className="max-w-56 truncate font-black">{productName(row, workflow.language)}</p>
+                        {hasDetails ? (
+                          <Badge variant="outline" className="shrink-0 gap-1 text-xs">
+                            <Boxes className="size-3" />
+                            {details.length}
+                          </Badge>
+                        ) : null}
                       </div>
-                      <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                      <p className="mt-0.5 max-w-56 truncate text-xs text-muted-foreground">
                         {row.prod_code || "-"} / {unitName(row, workflow.language)}
                       </p>
                     </div>
                   </div>
                 </TableCell>
-                <TableCell>
-                  <div className="min-w-0">
-                    <p className="truncate font-semibold">{categoryName(row, workflow.language)}</p>
-                    <Badge className="mt-1 bg-primary/10 text-primary">{workflow.activeStatusLabel}</Badge>
-                  </div>
+                <TableCell />
+                <TableCell />
+                <TableCell className="font-mono text-sm font-bold tabular-nums">{totalStockQty(row)}</TableCell>
+                <TableCell className="font-mono text-sm font-semibold tabular-nums">
+                  {orderPoint > 0 ? orderPoint : null}
                 </TableCell>
                 <TableCell>
-                  <div className="min-w-0">
-                    <p className="truncate font-mono font-bold">{productPriceLabel(row)}</p>
-                  </div>
+                  <ProductStockModeSwitch row={row} workflow={workflow} />
                 </TableCell>
                 <TableCell>
-                  <div className="flex min-w-0 flex-col gap-1">
-                    <ProductStockSummaryStatus row={row} workflow={workflow} />
-                    {orderPoint > 0 ? (
-                      <Badge>
-                        {workflow.t("product.orderPoint")}: {orderPoint}
-                      </Badge>
-                    ) : null}
-                  </div>
+                  <ProductNotificationSwitch row={row} workflow={workflow} />
                 </TableCell>
-                <TableCell>
-                  <ProductStatusBadges row={row} workflow={workflow} />
-                </TableCell>
+                <TableCell />
+                {isPromotion ? <TableCell /> : null}
                 <TableCell className="text-right">
                   <ProductListActions row={row} workflow={workflow} />
                 </TableCell>
@@ -293,10 +316,11 @@ export function ProductListTable({ workflow }: { workflow: ProductListWorkflow }
             if (hasDetails) {
               rowsToRender.push(
                 <AnimatePresence key={`${row.prod_uuid}-details-presence`} initial={false}>
-                  {expanded ? <ProductDetailPanel row={row} workflow={workflow} /> : null}
+                  {expanded ? <ProductDetailRows row={row} workflow={workflow} /> : null}
                 </AnimatePresence>
               );
             }
+
             return rowsToRender;
           })}
         </TableBody>
