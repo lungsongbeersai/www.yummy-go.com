@@ -241,6 +241,28 @@ html {
   min-height: 100dvh;
 }
 
+.capacitor-android .login-light-zone .login-input {
+  appearance: none;
+  -webkit-appearance: none;
+  background-color: #ffffff !important;
+  border-color: rgb(16 185 129) !important;
+  box-shadow: 0 1px 2px 0 rgb(15 23 42 / 0.06) !important;
+  color: rgb(30 41 59) !important;
+  caret-color: rgb(5 150 105);
+  outline: none !important;
+}
+
+.capacitor-android .login-light-zone .login-input:focus {
+  border-color: rgb(16 185 129) !important;
+  box-shadow:
+    0 0 0 4px rgb(16 185 129 / 0.12),
+    0 1px 2px 0 rgb(15 23 42 / 0.06) !important;
+}
+
+.capacitor-android .login-light-zone .login-input::placeholder {
+  color: rgb(148 163 184) !important;
+}
+
 @media (orientation: landscape) and (max-height: 720px) {
   .capacitor-android .login-light-zone .login-panel-section {
     align-items: flex-start;

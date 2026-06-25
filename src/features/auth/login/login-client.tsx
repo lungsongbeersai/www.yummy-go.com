@@ -116,7 +116,7 @@ export function LoginClient() {
                     type="email"
                     autoComplete="email"
                     required
-                    className="h-12 rounded-lg border-slate-200 bg-white px-4 text-sm font-semibold text-slate-800 shadow-sm outline-none transition placeholder:text-slate-400 focus-visible:border-emerald-500 focus-visible:ring-4 focus-visible:ring-emerald-500/10"
+                    className="login-input h-12 rounded-lg border-slate-200 bg-white px-4 text-sm font-semibold text-slate-800 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 focus-visible:border-emerald-500 focus-visible:ring-4 focus-visible:ring-emerald-500/10"
                   />
                 </Field>
 
@@ -150,7 +150,7 @@ export function LoginClient() {
                       type={showPassword ? "text" : "password"}
                       autoComplete="current-password"
                       required
-                      className="h-12 rounded-lg border-slate-200 bg-white px-4 pr-11 text-sm font-semibold text-slate-800 shadow-sm outline-none transition placeholder:text-slate-400 focus-visible:border-emerald-500 focus-visible:ring-4 focus-visible:ring-emerald-500/10"
+                      className="login-input h-12 rounded-lg border-slate-200 bg-white px-4 pr-11 text-sm font-semibold text-slate-800 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 focus-visible:border-emerald-500 focus-visible:ring-4 focus-visible:ring-emerald-500/10"
                     />
 
                     <Button
