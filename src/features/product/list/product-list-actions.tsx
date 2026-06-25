@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, Boxes, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { Bell, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -58,6 +58,7 @@ export function ProductListActions({
           <DropdownMenuCheckboxItem
             checked={notificationOn}
             disabled={notificationPending}
+            className="flex items-center gap-2"
             onCheckedChange={(checked) => workflow.updateNotification(row, checked === true)}
           >
             {notificationPending ? <Spinner /> : <Bell />}
@@ -66,8 +67,7 @@ export function ProductListActions({
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
-          <DropdownMenuLabel className="flex items-center gap-2 text-xs text-muted-foreground">
-            {stockPending ? <Spinner /> : <Boxes />}
+          <DropdownMenuLabel className="text-xs text-muted-foreground">
             {workflow.t("product.stockBulk.label")}
           </DropdownMenuLabel>
           <DropdownMenuRadioGroup
@@ -78,10 +78,18 @@ export function ProductListActions({
               }
             }}
           >
-            <DropdownMenuRadioItem value="1" disabled={!details.length || stockPending}>
+            <DropdownMenuRadioItem
+              value="1"
+              disabled={!details.length || stockPending}
+              className="flex items-center gap-2"
+            >
               {workflow.t("product.stockMode.deduct")}
             </DropdownMenuRadioItem>
-            <DropdownMenuRadioItem value="2" disabled={!details.length || stockPending}>
+            <DropdownMenuRadioItem
+              value="2"
+              disabled={!details.length || stockPending}
+              className="flex items-center gap-2"
+            >
               {workflow.t("product.stockMode.noDeduct")}
             </DropdownMenuRadioItem>
           </DropdownMenuRadioGroup>

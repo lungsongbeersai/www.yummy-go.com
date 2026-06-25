@@ -263,7 +263,7 @@
     "price": "Price",
     "prod_code": "Code",
     "sprice": "Selling price",
-    "prod_name": "Name",
+    "prod_name": "Product Name",
     "prod_price": "Price",
     "prod_image": "Image",
     "province_uuid_fk": "Province",

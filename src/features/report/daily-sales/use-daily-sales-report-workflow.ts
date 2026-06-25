@@ -454,7 +454,10 @@ export function useDailySalesReportWorkflow(
     });
   }
 
-  const fetchExportData = useCallback(async () => {
+  const fetchExportData = useCallback(async (
+    typePage: ReportFilters["typePage"] = appliedFilters.typePage,
+    selectedIds = selectedRecordIds,
+  ) => {
     if (!branchUuid) throw new Error(t("report.branchRequired"));
 
     const data = await loadExportData({
@@ -465,43 +468,43 @@ export function useDailySalesReportWorkflow(
       orderBy: appliedFilters.orderBy,
       payment_method: paymentMethodParam(appliedFilters.paymentMethod),
       payment_type: paymentMethodParam(appliedFilters.paymentMethod),
-      type_page: appliedFilters.typePage,
+      type_page: typePage,
     });
     const allRows = data.rows;
     const allBillGroups = data.billGroups;
 
     const billGroupsForExport =
-      selectedRecordIds.size && appliedFilters.typePage === "detail"
-        ? selectedDetailBillGroups(allBillGroups, selectedRecordIds)
-        : selectedRecordIds.size
+      selectedIds.size && typePage === "detail"
+        ? selectedDetailBillGroups(allBillGroups, selectedIds)
+        : selectedIds.size
           ? createDailySalesBillGroups(
               allRows.filter((row) =>
-                selectedRecordIds.has(reportRecordId(row)),
+                selectedIds.has(reportRecordId(row)),
               ),
             )
           : allBillGroups;
     const rowsForExport =
-      selectedRecordIds.size && appliedFilters.typePage === "detail"
+      selectedIds.size && typePage === "detail"
         ? billGroupsForExport.flatMap((group) => group.items)
-        : selectedRecordIds.size
-          ? allRows.filter((row) => selectedRecordIds.has(reportRecordId(row)))
+        : selectedIds.size
+          ? allRows.filter((row) => selectedIds.has(reportRecordId(row)))
           : allRows;
     const selectedReportTotal =
-      selectedRecordIds.size && appliedFilters.typePage === "detail"
+      selectedIds.size && typePage === "detail"
         ? reportTotalFromBillGroups(billGroupsForExport)
-        : selectedRecordIds.size
-          ? reportTotalFromRows(rowsForExport, appliedFilters.typePage)
+        : selectedIds.size
+          ? reportTotalFromRows(rowsForExport, typePage)
           : data.reportTotal;
 
     return {
       ...data,
       billGroups: billGroupsForExport,
-      grandTotalByDate: selectedRecordIds.size
+      grandTotalByDate: selectedIds.size
         ? dateTotalsFromGroups(billGroupsForExport)
         : data.grandTotalByDate,
       reportTotal: selectedReportTotal,
       rows: rowsForExport,
-      summaryCards: selectedRecordIds.size
+      summaryCards: selectedIds.size
         ? selectedReportTotal
         : data.summaryCards,
     };
@@ -654,7 +657,19 @@ export function useDailySalesReportWorkflow(
 
     setExporting("print");
     try {
-      const receipts = selectedReceiptBillGroups.map((group) =>
+      const receiptGroups =
+        appliedFilters.typePage === "detail"
+          ? selectedReceiptBillGroups
+          : selectedBillGroupsForReceipt(
+              (await fetchExportData("detail", new Set<string>())).billGroups,
+              selectedRecordIds,
+            );
+
+      if (!receiptGroups.length) {
+        throw new Error(t("report.selectBillsToPrint"));
+      }
+
+      const receipts = receiptGroups.map((group) =>
         buildDailySalesReceiptPrintData({
           group,
           translate: (key, options) => String(t(key, options)),
@@ -827,8 +842,20 @@ function selectedBillGroupsForReceipt(
   if (!selectedRecordIds.size) return [];
 
   return groups.filter((group) =>
+    dailySalesBillGroupSelectionIds(group).some((id) =>
+      selectedRecordIds.has(id),
+    ) ||
     group.items.some((item) => selectedRecordIds.has(reportRecordId(item))),
   );
+}
+
+function dailySalesBillGroupSelectionIds(group: DailySalesBillGroup) {
+  return [
+    group.id,
+    `order:${group.id}`,
+    group.invoiceNumber,
+    `order:${group.invoiceNumber}`,
+  ].filter(Boolean);
 }
 
 function buildDailySalesReceiptPrintData({

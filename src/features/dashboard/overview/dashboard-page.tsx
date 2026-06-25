@@ -15,7 +15,7 @@ import {
   DashboardPaymentSummaryStrip,
   // DashboardQueryBar,
   ErrorBanner,
-  type DashboardCopy
+  type DashboardCopy,
 } from "@/features/dashboard/overview/components/dashboard-widgets";
 import {
   asRow,
@@ -25,7 +25,7 @@ import {
   optionList,
   selectedLabel,
   text,
-  type DashboardFilters
+  type DashboardFilters,
 } from "@/features/dashboard/overview/dashboard-view-model";
 import { useAppStore } from "@/stores/app-store";
 import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
@@ -111,19 +111,21 @@ const dashboardCopyKeys = [
   "waiting",
   "warnings",
   "watchProduct",
-  "year"
+  "year",
 ] as const;
 
 function createDashboardCopy(t: (key: string) => unknown): DashboardCopy {
   return Object.fromEntries(
-    dashboardCopyKeys.map((key) => [key, String(t(`dashboard.${key}`))])
+    dashboardCopyKeys.map((key) => [key, String(t(`dashboard.${key}`))]),
   ) as DashboardCopy;
 }
 
-function filtersFromRequestParams(params: Record<string, unknown>): DashboardFilters {
+function filtersFromRequestParams(
+  params: Record<string, unknown>,
+): DashboardFilters {
   return {
     end_date: text(params.end_date, ""),
-    start_date: text(params.start_date, "")
+    start_date: text(params.start_date, ""),
   };
 }
 
@@ -132,27 +134,36 @@ function filtersKey(filters: DashboardFilters) {
 }
 
 const DashboardRevenueAccountingGrid = dynamic(
-  () => import("./components/dashboard-chart-widgets").then((module) => module.DashboardRevenueAccountingGrid),
+  () =>
+    import("./components/dashboard-chart-widgets").then(
+      (module) => module.DashboardRevenueAccountingGrid,
+    ),
   {
     loading: () => <DashboardChartGridFallback variant="revenue" />,
-    ssr: false
-  }
+    ssr: false,
+  },
 );
 
 const DashboardOperationsGrid = dynamic(
-  () => import("./components/dashboard-chart-widgets").then((module) => module.DashboardOperationsGrid),
+  () =>
+    import("./components/dashboard-chart-widgets").then(
+      (module) => module.DashboardOperationsGrid,
+    ),
   {
     loading: () => <DashboardChartGridFallback variant="operations" />,
-    ssr: false
-  }
+    ssr: false,
+  },
 );
 
 const DashboardProductsParetoGrid = dynamic(
-  () => import("./components/dashboard-chart-widgets").then((module) => module.DashboardProductsParetoGrid),
+  () =>
+    import("./components/dashboard-chart-widgets").then(
+      (module) => module.DashboardProductsParetoGrid,
+    ),
   {
     loading: () => <DashboardChartGridFallback variant="products" />,
-    ssr: false
-  }
+    ssr: false,
+  },
 );
 
 export function DashboardPage() {
@@ -164,8 +175,8 @@ export function DashboardPage() {
       data: state.data,
       error: state.error,
       loadDashboard: state.load,
-      loading: state.loading
-    }))
+      loading: state.loading,
+    })),
   );
   const {
     branchError,
@@ -174,7 +185,7 @@ export function DashboardPage() {
     branches,
     loadBranches,
     selectedBranchUuid,
-    setSelectedBranch
+    setSelectedBranch,
   } = useBranchStore(
     useShallow((state) => ({
       branchError: state.error,
@@ -183,72 +194,98 @@ export function DashboardPage() {
       branches: state.branches,
       loadBranches: state.loadBranches,
       selectedBranchUuid: state.selectedBranchUuid,
-      setSelectedBranch: state.setSelectedBranch
-    }))
+      setSelectedBranch: state.setSelectedBranch,
+    })),
   );
   const copy = useMemo(() => createDashboardCopy(t), [t]);
-  const [filters, setFilters] = useState<DashboardFilters>(() => createDefaultFilters());
-  const [appliedFilters, setAppliedFilters] = useState<DashboardFilters>(() => createDefaultFilters());
+  const [filters, setFilters] = useState<DashboardFilters>(() =>
+    createDefaultFilters(),
+  );
+  const [appliedFilters, setAppliedFilters] = useState<DashboardFilters>(() =>
+    createDefaultFilters(),
+  );
   const [top, setTop] = useState("10");
   const storeUuid = authStoreUuid(user);
 
-  const model = useMemo(() => createDashboardModel(data, appliedFilters, top), [appliedFilters, data, top]);
+  const model = useMemo(
+    () => createDashboardModel(data, appliedFilters, top),
+    [appliedFilters, data, top],
+  );
   const topOptions = useMemo(() => {
     const options = optionList(model.dashboard, "top");
     return options.length
       ? options
       : ["5", "10", "20", "50"].map((value) => ({ label: value, value }));
   }, [model.dashboard]);
-  const activeBranchUuid = branchStoreUuid === storeUuid && selectedBranchUuid
-    ? selectedBranchUuid
-    : user?.branch_uuid || "";
+  const activeBranchUuid =
+    branchStoreUuid === storeUuid && selectedBranchUuid
+      ? selectedBranchUuid
+      : user?.branch_uuid || "";
   const branchOptions = useMemo(() => {
     const options = branches
       .map((branch) => {
         const row = asRow(branch);
-        return { value: text(row.branch_uuid), label: branchLabel(row, language) };
+        return {
+          value: text(row.branch_uuid),
+          label: branchLabel(row, language),
+        };
       })
       .filter((option) => option.value !== "-");
 
-    if (user?.branch_uuid && !options.some((option) => option.value === user.branch_uuid)) {
-      options.unshift({ value: user.branch_uuid, label: user.branch_name || user.branch_uuid });
+    if (
+      user?.branch_uuid &&
+      !options.some((option) => option.value === user.branch_uuid)
+    ) {
+      options.unshift({
+        value: user.branch_uuid,
+        label: user.branch_name || user.branch_uuid,
+      });
     }
 
     return options;
   }, [branches, language, user?.branch_name, user?.branch_uuid]);
   const activeBranchLabel = useMemo(
     () => selectedLabel(branchOptions, activeBranchUuid),
-    [activeBranchUuid, branchOptions]
+    [activeBranchUuid, branchOptions],
   );
-  const periodLabel = useMemo(
-    () => {
-      const start = text(model.requestParams.start_date, appliedFilters.start_date);
-      const end = text(model.requestParams.end_date, appliedFilters.end_date);
-      if (!start && !end) return "";
-      return start === end ? start : `${start} - ${end}`;
-    },
-    [appliedFilters.end_date, appliedFilters.start_date, model.requestParams]
+  const periodLabel = useMemo(() => {
+    const start = text(
+      model.requestParams.start_date,
+      appliedFilters.start_date,
+    );
+    const end = text(model.requestParams.end_date, appliedFilters.end_date);
+    if (!start && !end) return "";
+    return start === end ? start : `${start} - ${end}`;
+  }, [appliedFilters.end_date, appliedFilters.start_date, model.requestParams]);
+  const productSummary = useMemo(
+    () => asRow(model.dashboard.product_summary),
+    [model.dashboard],
   );
-  const productSummary = useMemo(() => asRow(model.dashboard.product_summary), [model.dashboard]);
-  const responseFilters = useMemo(() => filtersFromRequestParams(model.requestParams), [model.requestParams]);
+  const responseFilters = useMemo(
+    () => filtersFromRequestParams(model.requestParams),
+    [model.requestParams],
+  );
   const responseFilterKey = filtersKey(responseFilters);
 
-  const load = useCallback(async (targetFilters: DashboardFilters, targetTop: string) => {
-    if (!activeBranchUuid) return;
-    const params = {
-      branch_uuid_fk: activeBranchUuid,
-      end_date: targetFilters.end_date,
-      lang: language,
-      start_date: targetFilters.start_date,
-      top: targetTop
-    };
+  const load = useCallback(
+    async (targetFilters: DashboardFilters, targetTop: string) => {
+      if (!activeBranchUuid) return;
+      const params = {
+        branch_uuid_fk: activeBranchUuid,
+        end_date: targetFilters.end_date,
+        lang: language,
+        start_date: targetFilters.start_date,
+        top: targetTop,
+      };
 
-    try {
-      await loadDashboard(params);
-    } catch {
-      // Dashboard store owns the visible error message.
-    }
-  }, [activeBranchUuid, language, loadDashboard]);
+      try {
+        await loadDashboard(params);
+      } catch {
+        // Dashboard store owns the visible error message.
+      }
+    },
+    [activeBranchUuid, language, loadDashboard],
+  );
 
   const handleFilterChange = useCallback((patch: Partial<DashboardFilters>) => {
     setFilters((current) => ({ ...current, ...patch }));
@@ -279,14 +316,22 @@ export function DashboardPage() {
 
   useEffect(() => {
     if (!data || !responseFilterKey.replaceAll("|", "")) return;
-    setFilters((current) => (filtersKey(current) === responseFilterKey ? current : responseFilters));
+    setFilters((current) =>
+      filtersKey(current) === responseFilterKey ? current : responseFilters,
+    );
   }, [data, responseFilterKey, responseFilters]);
 
-  if (loading && !data) return <LoadingState label={t("common.loading")} variant="dashboard" />;
+  if (loading && !data)
+    return <LoadingState label={t("common.loading")} variant="dashboard" />;
 
   return (
     <div className="dashboard-screen flex flex-col gap-4">
-      <DashboardHeader activeBranchLabel={activeBranchLabel} copy={copy} filtersMeta={model.filters} section={model.section} />
+      <DashboardHeader
+        activeBranchLabel={activeBranchLabel}
+        copy={copy}
+        filtersMeta={model.filters}
+        section={model.section}
+      />
       <div className="dashboard-filter-slot">
         <div className="dashboard-filter-lock">
           <DashboardFilterBar
@@ -316,11 +361,19 @@ export function DashboardPage() {
 
       {!data && !loading ? (
         <Card>
-          <CardContent className="p-6 text-center text-sm text-muted-foreground">{copy.noData}</CardContent>
+          <CardContent className="p-6 text-center text-sm text-muted-foreground">
+            {copy.noData}
+          </CardContent>
         </Card>
       ) : null}
 
-      <DashboardHeroStrip copy={copy} kpis={model.kpis} periodLabel={periodLabel} section={model.section} trendRows={model.trendRows} />
+      <DashboardHeroStrip
+        copy={copy}
+        kpis={model.kpis}
+        periodLabel={periodLabel}
+        section={model.section}
+        trendRows={model.trendRows}
+      />
       <DashboardRevenueAccountingGrid
         accountingRows={model.accountingRows}
         copy={copy}
@@ -346,7 +399,12 @@ export function DashboardPage() {
         topOptions={topOptions}
         onTopChange={handleTopChange}
       />
-      <DashboardFooter activeBranchUuid={activeBranchUuid} copy={copy} filtersMeta={model.filters} requestParams={model.requestParams} />
+      <DashboardFooter
+        activeBranchUuid={activeBranchUuid}
+        copy={copy}
+        filtersMeta={model.filters}
+        requestParams={model.requestParams}
+      />
     </div>
   );
 }

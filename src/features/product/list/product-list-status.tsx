@@ -116,20 +116,7 @@ export function ProductStatusBadges({
   row: ProductTableRow;
   workflow: ProductListWorkflow;
 }) {
-  const details = productDetails(row);
-
-  return (
-    <div className="flex min-w-0 flex-col items-start gap-1.5">
-      <ProductNotificationStatus row={row} workflow={workflow} />
-      {details.length ? (
-        <Badge className="bg-primary/10 text-primary">
-          {details.length} {workflow.t("product.sections.details")}
-        </Badge>
-      ) : (
-        <Badge className="bg-muted text-muted-foreground">{workflow.t("common.noData")}</Badge>
-      )}
-    </div>
-  );
+  return <ProductNotificationStatus row={row} workflow={workflow} />;
 }
 
 export function ProductStockSelect({

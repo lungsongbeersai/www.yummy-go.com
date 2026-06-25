@@ -784,6 +784,7 @@ export function useProductFormWorkflow() {
     setOptionOptions,
     filteredSetOptionOptions,
     nextDetailStockMode,
+    detailStockState,
     detailStockStateLabel,
     detailStockStateClass,
     detailStockActionLabel,
