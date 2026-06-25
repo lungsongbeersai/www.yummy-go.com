@@ -225,6 +225,30 @@ html {
   color: hsl(var(--foreground)) !important;
 }
 
+.android-webview-compat .login-light-zone .login-hero-overlay {
+  background-color: rgb(255 255 255 / 0.2) !important;
+}
+
+.capacitor-android .login-light-zone {
+  min-height: 100dvh;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.capacitor-android .login-light-zone .login-layout,
+.capacitor-android .login-light-zone .login-hero-section,
+.capacitor-android .login-light-zone .login-panel-section {
+  min-height: 100dvh;
+}
+
+@media (orientation: landscape) and (max-height: 720px) {
+  .capacitor-android .login-light-zone .login-panel-section {
+    align-items: flex-start;
+    padding-top: max(3.5rem, calc(1rem + env(safe-area-inset-top, 0px)));
+    padding-bottom: max(1rem, calc(1rem + env(safe-area-inset-bottom, 0px)));
+  }
+}
+
 .pos-soft-light-zone {
   --background: 210 38% 98%;
   --foreground: 224 42% 11%;
