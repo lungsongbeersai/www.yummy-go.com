@@ -259,22 +259,52 @@ html {
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
   mix-blend-mode: normal !important;
-  mask: none !important;
-  mask-image: none !important;
-  -webkit-mask: none !important;
-  -webkit-mask-image: none !important;
 }
 
 .android-webview-compat svg,
 .android-webview-compat [data-icon] {
+  display: inline-block !important;
+  flex-shrink: 0 !important;
   opacity: 1 !important;
+  overflow: visible !important;
   stroke-opacity: 1 !important;
   fill-opacity: 1 !important;
+  vertical-align: -0.125em !important;
 }
 
 .android-webview-compat .lucide,
 .android-webview-compat svg[stroke="currentColor"] {
+  fill: none !important;
+  stroke: currentColor !important;
+  stroke-linecap: round !important;
+  stroke-linejoin: round !important;
   stroke-width: 2.25px;
+}
+
+.android-webview-compat svg.iconify,
+.android-webview-compat svg[class*="iconify"],
+.android-webview-compat .iconify svg,
+.android-webview-compat [class*="iconify"] svg {
+  color: currentColor !important;
+  display: inline-block !important;
+  fill: currentColor !important;
+  min-height: 1em;
+  min-width: 1em;
+  stroke: none !important;
+}
+
+.android-webview-compat svg.iconify *,
+.android-webview-compat svg[class*="iconify"] *,
+.android-webview-compat .iconify svg *,
+.android-webview-compat [class*="iconify"] svg * {
+  fill: currentColor !important;
+  stroke: none !important;
+}
+
+.android-webview-compat button svg,
+.android-webview-compat a svg,
+.android-webview-compat [role="button"] svg {
+  pointer-events: none !important;
 }
 
 .android-webview-compat .app-header {
