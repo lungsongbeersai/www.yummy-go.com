@@ -8,6 +8,8 @@ const config: CapacitorConfig = {
   server: {
     url: "https://yummy-go.com",
     cleartext: false,
+    androidScheme: "https",
+    iosScheme: "https",
   },
 
   android: {

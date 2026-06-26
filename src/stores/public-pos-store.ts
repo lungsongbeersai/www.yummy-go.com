@@ -493,6 +493,9 @@ export const usePublicPosStore = create<PublicPosState>((set, get) => ({
     try {
       const scan = get().scan;
       const { device_code, agent_id, print_mode, ...confirmPayload } = params;
+      void device_code;
+      void agent_id;
+      void print_mode;
       const result = await publicPosService.customerConfirmKitchen(confirmPayload);
       clearPublicPosDataCache();
       if (scan?.branch_uuid_fk && scan.table_uuid) {
