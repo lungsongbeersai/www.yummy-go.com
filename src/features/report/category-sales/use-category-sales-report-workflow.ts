@@ -34,6 +34,7 @@ export function useCategorySalesReportWorkflow(exportReportRef: RefObject<HTMLDi
   const loadBranches = useBranchStore((state) => state.loadBranches);
   const selectedBranchUuid = useBranchStore((state) => state.selectedBranchUuid);
   const setSelectedBranch = useBranchStore((state) => state.setSelectedBranch);
+  const selectedBranch = useBranchStore((state) => state.getSelectedBranch());
   const groups = useCategorySalesReportStore((state) => state.groups);
   const reportName = useCategorySalesReportStore((state) => state.reportName);
   const rows = useCategorySalesReportStore((state) => state.rows);
@@ -104,6 +105,27 @@ export function useCategorySalesReportWorkflow(exportReportRef: RefObject<HTMLDi
   const canGoNext = page < totalPages && !loading;
   const canApply = Boolean(draftFilters.branchUuid || defaultBranchUuid);
   const exportDisabled = loading || Boolean(exporting) || !branchUuid || !rows.length;
+  const serviceChargePercent = selectedBranch?.charge_status === 1 ? Number(selectedBranch.charge_name) : NaN;
+  const vatPercent = selectedBranch?.vat_status === 1 ? Number(selectedBranch.vat_name) : NaN;
+  const serviceChargePercentLabel = Number.isFinite(serviceChargePercent)
+    ? `${serviceChargePercent.toLocaleString("en-US", { maximumFractionDigits: 2 })}%`
+    : null;
+  const vatPercentLabel = Number.isFinite(vatPercent)
+    ? `${vatPercent.toLocaleString("en-US", { maximumFractionDigits: 2 })}%`
+    : null;
+
+  const serviceChargeLabel = serviceChargePercentLabel
+    ? `${t("report.categorySales.columns.serviceCharge")} (${serviceChargePercentLabel})`
+    : t("report.categorySales.columns.serviceCharge");
+  const vatLabel = vatPercentLabel
+    ? `${t("report.categorySales.columns.vat")} (${vatPercentLabel})`
+    : t("report.categorySales.columns.vat");
+
+  const labelOverrides = {
+    service_charge: serviceChargeLabel,
+    vat: vatLabel
+  } as const;
+
   const renderedExportData = exportData ?? { ...emptyExportData(), groups, reportName, rows, summary };
   const paginationRangeLabel = t("common.showingRange", { start: pageStart, end: pageEnd, total });
 
@@ -205,8 +227,8 @@ export function useCategorySalesReportWorkflow(exportReportRef: RefObject<HTMLDi
       const data = await fetchExportData();
       const XLSX = await import("xlsx");
       const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(exportSummaryRows(data.summary, t)), "Summary");
-      XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(exportCategorySalesRows(data.rows, t)), "Rows");
+      XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(exportSummaryRows(data.summary, t, labelOverrides)), "Summary");
+      XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(exportCategorySalesRows(data.rows, t, labelOverrides)), "Rows");
       XLSX.writeFile(workbook, `${categorySalesFileBaseName(appliedFilters)}.xlsx`);
       showToast({
         title: t("report.exportReady"),
@@ -303,6 +325,7 @@ export function useCategorySalesReportWorkflow(exportReportRef: RefObject<HTMLDi
     exporting,
     groups,
     handleMobileFilterOpenChange,
+    labelOverrides,
     load,
     loading,
     methodOptions,

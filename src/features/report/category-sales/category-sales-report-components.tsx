@@ -10,7 +10,7 @@ import {
   FolderTree,
   Printer,
   RefreshCcw,
-  SlidersHorizontal
+  SlidersHorizontal,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { EmptyState } from "@/components/common/empty-state";
@@ -25,14 +25,14 @@ import {
   DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogTitle
+  DialogTitle,
 } from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
-  DropdownMenuTrigger
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -42,27 +42,46 @@ import {
   SelectGroup,
   SelectItem,
   SelectTrigger,
-  SelectValue
+  SelectValue,
 } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { PAGE_LIMIT_OPTIONS, isAllPageLimit } from "@/lib/pagination";
-import type { CategorySalesReportOrder, PaymentMethodReportFilter } from "@/services/report";
-import type { CategorySalesGroup, CategorySalesRow } from "@/stores/report-store";
+import type {
+  CategorySalesReportOrder,
+  PaymentMethodReportFilter,
+} from "@/services/report";
+import type {
+  CategorySalesGroup,
+  CategorySalesRow,
+} from "@/stores/report-store";
 import { SortableReportTableHead } from "../report-sort-table-head";
 import {
   reportOrderLabel,
   reportOrderOptions,
   sortRowsLocally,
-  useLocalTableSort
+  useLocalTableSort,
 } from "../report-sort-utils";
-import type { CategorySalesExportAction, CategorySalesOption, CategorySalesReportFilters } from "./category-sales-report-types";
+import type {
+  CategorySalesExportAction,
+  CategorySalesOption,
+  CategorySalesReportFilters,
+} from "./category-sales-report-types";
 import {
   categorySalesRowMetricConfigs,
   categorySalesSummaryMetricConfigs,
-  displayMetric
+  displayMetric,
 } from "./category-sales-report-utils";
 
-type CategorySalesSortKey = keyof CategorySalesRow | "groupSummary";
+type CategorySalesSortKey =
+  | keyof CategorySalesRow
+  | "groupName"
+  | "groupSummary";
 
 type FilterProps = {
   branchLoading: boolean;
@@ -76,16 +95,29 @@ type FilterProps = {
   onDraftChange: (filters: CategorySalesReportFilters) => void;
 };
 
-export function CategorySalesSummaryCards({ summary }: { summary: Record<string, unknown> }) {
+export function CategorySalesSummaryCards({
+  summary,
+}: {
+  summary: Record<string, unknown>;
+}) {
   const { t } = useTranslation();
-  const cards = categorySalesSummaryMetricConfigs(t).slice(0, 8);
+  const cards = categorySalesSummaryMetricConfigs(t).filter((card) =>
+    ["total", "category_bill_count", "qty_total", "categories_count"].includes(
+      card.key,
+    ),
+  );
 
   return (
-    <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-8">
+    <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
       {cards.map((card) => (
-        <Card key={card.key} className="overflow-hidden border-border bg-card shadow-sm">
+        <Card
+          key={card.key}
+          className="overflow-hidden border-border bg-card shadow-sm"
+        >
           <CardContent className="p-4">
-            <p className="truncate text-xs font-black uppercase text-muted-foreground">{card.label}</p>
+            <p className="truncate text-xs font-black uppercase text-muted-foreground">
+              {card.label}
+            </p>
             <p className="mt-2 truncate text-xl font-black tabular-nums text-foreground">
               {displayMetric(summary[card.key], card.kind)}
             </p>
@@ -105,7 +137,7 @@ export function CategorySalesFilterBar({
   loading,
   methodOptions,
   onApply,
-  onDraftChange
+  onDraftChange,
 }: FilterProps) {
   const { t } = useTranslation();
 
@@ -121,8 +153,15 @@ export function CategorySalesFilterBar({
           methodOptions={methodOptions}
           onDraftChange={onDraftChange}
         />
-        <Button type="button" className="h-9 min-w-28" disabled={loading || !canApply} onClick={onApply}>
-          {loading ? <RefreshCcw className="animate-spin" data-icon="inline-start" /> : null}
+        <Button
+          type="button"
+          className="h-9 min-w-28"
+          disabled={loading || !canApply}
+          onClick={onApply}
+        >
+          {loading ? (
+            <RefreshCcw className="animate-spin" data-icon="inline-start" />
+          ) : null}
           {t("report.apply")}
         </Button>
       </CardContent>
@@ -141,7 +180,7 @@ export function CategorySalesFilterSheet({
   open,
   onApply,
   onDraftChange,
-  onOpenChange
+  onOpenChange,
 }: FilterProps & {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -152,8 +191,12 @@ export function CategorySalesFilterSheet({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-5xl">
         <DialogHeader className="shrink-0 border-b border-border px-4 py-3 pr-12 text-left">
-          <DialogTitle className="text-base font-black">{t("report.filters.currentFilters")}</DialogTitle>
-          <DialogDescription>{t("report.categorySales.title")}</DialogDescription>
+          <DialogTitle className="text-base font-black">
+            {t("report.filters.currentFilters")}
+          </DialogTitle>
+          <DialogDescription>
+            {t("report.categorySales.title")}
+          </DialogDescription>
         </DialogHeader>
         <div className="min-h-0 flex-1 overflow-y-auto p-4">
           <div className="grid gap-3 lg:grid-cols-3">
@@ -174,8 +217,14 @@ export function CategorySalesFilterSheet({
               {t("actions.close")}
             </Button>
           </DialogClose>
-          <Button type="button" disabled={loading || !canApply} onClick={onApply}>
-            {loading ? <RefreshCcw className="animate-spin" data-icon="inline-start" /> : null}
+          <Button
+            type="button"
+            disabled={loading || !canApply}
+            onClick={onApply}
+          >
+            {loading ? (
+              <RefreshCcw className="animate-spin" data-icon="inline-start" />
+            ) : null}
             {t("report.apply")}
           </Button>
         </DialogFooter>
@@ -188,7 +237,7 @@ export function MobileCategorySalesFilterSummary({
   branchLabel,
   filters,
   methodLabel,
-  onOpen
+  onOpen,
 }: {
   branchLabel: string;
   filters: CategorySalesReportFilters;
@@ -196,7 +245,9 @@ export function MobileCategorySalesFilterSummary({
   onOpen: () => void;
 }) {
   const { t } = useTranslation();
-  const limitLabel = isAllPageLimit(filters.limit) ? t("common.all") : filters.limit;
+  const limitLabel = isAllPageLimit(filters.limit)
+    ? t("common.all")
+    : filters.limit;
 
   return (
     <div className="rounded-md border border-border bg-card p-2 shadow-sm">
@@ -209,10 +260,12 @@ export function MobileCategorySalesFilterSummary({
             </span>
           </div>
           <div className="mt-1 flex min-w-0 flex-wrap gap-1">
-            <Badge className="h-6 max-w-[11rem] truncate border-border bg-muted px-2 text-[11px] text-muted-foreground">
+            <Badge className="h-6 max-w-44 truncate border-border bg-muted px-2 text-[11px] text-muted-foreground">
               {branchLabel}
             </Badge>
-            <Badge className="h-6 max-w-[9rem] truncate px-2 text-[11px]">{methodLabel}</Badge>
+            <Badge className="h-6 max-w-36 truncate px-2 text-[11px]">
+              {methodLabel}
+            </Badge>
             <Badge className="h-6 border-border bg-muted px-2 text-[11px] text-muted-foreground">
               {limitLabel}
             </Badge>
@@ -221,7 +274,12 @@ export function MobileCategorySalesFilterSummary({
             </Badge>
           </div>
         </div>
-        <Button type="button" size="sm" className="h-9 shrink-0 px-3" onClick={onOpen}>
+        <Button
+          type="button"
+          size="sm"
+          className="h-9 shrink-0 px-3"
+          onClick={onOpen}
+        >
           <SlidersHorizontal data-icon="inline-start" />
           {t("report.filters.openFilters")}
         </Button>
@@ -237,7 +295,7 @@ function CategorySalesFilterFields({
   draftFilters,
   idPrefix,
   methodOptions,
-  onDraftChange
+  onDraftChange,
 }: {
   branchLoading: boolean;
   branchLocked: boolean;
@@ -257,7 +315,10 @@ function CategorySalesFilterFields({
   return (
     <>
       <Field className="gap-1.5">
-        <FieldLabel htmlFor={`${idPrefix}-branch`} className="text-xs font-bold text-muted-foreground">
+        <FieldLabel
+          htmlFor={`${idPrefix}-branch`}
+          className="text-xs font-bold text-muted-foreground"
+        >
           {t("nav.branch")}
         </FieldLabel>
         <Select
@@ -279,8 +340,12 @@ function CategorySalesFilterFields({
           </SelectContent>
         </Select>
       </Field>
+
       <Field className="gap-1.5">
-        <FieldLabel htmlFor={`${idPrefix}-date-from`} className="text-xs font-bold text-muted-foreground">
+        <FieldLabel
+          htmlFor={`${idPrefix}-date-from`}
+          className="text-xs font-bold text-muted-foreground"
+        >
           {t("report.filters.dateFrom")}
         </FieldLabel>
         <Input
@@ -290,8 +355,12 @@ function CategorySalesFilterFields({
           onChange={(event) => patch({ dateFrom: event.target.value })}
         />
       </Field>
+
       <Field className="gap-1.5">
-        <FieldLabel htmlFor={`${idPrefix}-date-to`} className="text-xs font-bold text-muted-foreground">
+        <FieldLabel
+          htmlFor={`${idPrefix}-date-to`}
+          className="text-xs font-bold text-muted-foreground"
+        >
           {t("report.filters.dateTo")}
         </FieldLabel>
         <Input
@@ -301,13 +370,19 @@ function CategorySalesFilterFields({
           onChange={(event) => patch({ dateTo: event.target.value })}
         />
       </Field>
+
       <Field className="gap-1.5">
-        <FieldLabel htmlFor={`${idPrefix}-payment-method`} className="text-xs font-bold text-muted-foreground">
+        <FieldLabel
+          htmlFor={`${idPrefix}-payment-method`}
+          className="text-xs font-bold text-muted-foreground"
+        >
           {t("report.filters.paymentMethod")}
         </FieldLabel>
         <Select
           value={draftFilters.paymentMethod}
-          onValueChange={(value) => patch({ paymentMethod: value as PaymentMethodReportFilter })}
+          onValueChange={(value) =>
+            patch({ paymentMethod: value as PaymentMethodReportFilter })
+          }
         >
           <SelectTrigger id={`${idPrefix}-payment-method`} className="w-full">
             <SelectValue />
@@ -323,13 +398,19 @@ function CategorySalesFilterFields({
           </SelectContent>
         </Select>
       </Field>
+
       <Field className="gap-1.5">
-        <FieldLabel htmlFor={`${idPrefix}-limit`} className="text-xs font-bold text-muted-foreground">
+        <FieldLabel
+          htmlFor={`${idPrefix}-limit`}
+          className="text-xs font-bold text-muted-foreground"
+        >
           {t("common.rowsPerPage")}
         </FieldLabel>
         <Select
           value={String(draftFilters.limit)}
-          onValueChange={(value) => patch({ limit: value === "All" ? "All" : Number(value) })}
+          onValueChange={(value) =>
+            patch({ limit: value === "All" ? "All" : Number(value) })
+          }
         >
           <SelectTrigger id={`${idPrefix}-limit`} className="w-full">
             <SelectValue />
@@ -345,11 +426,20 @@ function CategorySalesFilterFields({
           </SelectContent>
         </Select>
       </Field>
+
       <Field className="gap-1.5">
-        <FieldLabel htmlFor={`${idPrefix}-order`} className="text-xs font-bold text-muted-foreground">
+        <FieldLabel
+          htmlFor={`${idPrefix}-order`}
+          className="text-xs font-bold text-muted-foreground"
+        >
           {t("report.filters.orderBy")}
         </FieldLabel>
-        <Select value={draftFilters.orderBy} onValueChange={(value) => patch({ orderBy: value as CategorySalesReportOrder })}>
+        <Select
+          value={draftFilters.orderBy}
+          onValueChange={(value) =>
+            patch({ orderBy: value as CategorySalesReportOrder })
+          }
+        >
           <SelectTrigger id={`${idPrefix}-order`} className="w-full">
             <SelectValue />
           </SelectTrigger>
@@ -390,37 +480,58 @@ export function CategorySalesTableCard({
   exporting,
   footer,
   loading,
-  methodLabel,
   rowsLength,
   title,
   onExportExcel,
   onExportPdf,
   onOpenFilters,
   onPrintReport,
-  onRefresh
+  onRefresh,
 }: TableCardProps) {
   const { t } = useTranslation();
 
   return (
     <Card className="min-h-0 min-w-0 overflow-hidden border-border bg-card shadow-sm md:sticky md:top-3 md:flex md:max-h-[calc(100dvh-var(--app-shell-header-height)-1.5rem)] md:flex-col">
-      <CardHeader className="flex shrink-0 flex-col gap-2 border-b border-border bg-card px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+      <CardHeader className="flex shrink-0 flex-col gap-3 border-b border-border bg-card px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0">
           <CardTitle className="flex min-w-0 items-center gap-2 text-base font-black">
-            <FolderTree />
+            <FolderTree className="size-4 shrink-0" />
             <span className="truncate">{title}</span>
           </CardTitle>
-          <Badge className="mt-2 h-7 w-fit px-2 text-xs">{methodLabel}</Badge>
+          {/* <div className="mt-2 flex flex-wrap items-center gap-2">
+            <Badge className="h-7 w-fit px-2 text-xs">{methodLabel}</Badge>
+            <span className="text-xs text-muted-foreground">
+              {t("report.categorySales.rowsLabel", { count: rowsLength })}
+            </span>
+          </div> */}
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button type="button" variant="outline" size="sm" className="h-9" onClick={onOpenFilters}>
+
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-9"
+            onClick={onOpenFilters}
+          >
             <Filter data-icon="inline-start" />
             {t("report.filters.openFilters")}
           </Button>
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button type="button" variant="outline" size="sm" className="h-9" disabled={exportDisabled}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-9"
+                disabled={exportDisabled}
+              >
                 {exporting === "excel" || exporting === "pdf" ? (
-                  <RefreshCcw className="animate-spin" data-icon="inline-start" />
+                  <RefreshCcw
+                    className="animate-spin"
+                    data-icon="inline-start"
+                  />
                 ) : (
                   <Download data-icon="inline-start" />
                 )}
@@ -430,18 +541,32 @@ export function CategorySalesTableCard({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-44">
               <DropdownMenuGroup>
-                <DropdownMenuItem disabled={exportDisabled} onSelect={onExportExcel}>
+                <DropdownMenuItem
+                  disabled={exportDisabled}
+                  onSelect={onExportExcel}
+                >
                   <FileSpreadsheet data-icon="inline-start" />
                   {t("report.exportExcel")}
                 </DropdownMenuItem>
-                <DropdownMenuItem disabled={exportDisabled} onSelect={onExportPdf}>
+                <DropdownMenuItem
+                  disabled={exportDisabled}
+                  onSelect={onExportPdf}
+                >
                   <Download data-icon="inline-start" />
                   {t("report.exportPdf")}
                 </DropdownMenuItem>
               </DropdownMenuGroup>
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button type="button" variant="outline" size="sm" className="h-9" disabled={exportDisabled} onClick={onPrintReport}>
+
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-9"
+            disabled={exportDisabled}
+            onClick={onPrintReport}
+          >
             {exporting === "print" ? (
               <RefreshCcw className="animate-spin" data-icon="inline-start" />
             ) : (
@@ -449,27 +574,43 @@ export function CategorySalesTableCard({
             )}
             {t("report.print")}
           </Button>
-          <Button type="button" variant="outline" size="sm" className="h-9" disabled={loading || Boolean(exporting)} onClick={onRefresh}>
-            <RefreshCcw className={loading ? "animate-spin" : undefined} data-icon="inline-start" />
+
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-9"
+            disabled={loading || Boolean(exporting)}
+            onClick={onRefresh}
+          >
+            <RefreshCcw
+              className={loading ? "animate-spin" : undefined}
+              data-icon="inline-start"
+            />
             {t("actions.refresh")}
           </Button>
         </div>
       </CardHeader>
+
       <CardContent className="flex min-h-0 flex-1 flex-col p-0">
         {loading ? (
-          <div className="p-4 md:min-h-[320px]">
-            <LoadingState label={t("report.categorySales.loading")} variant="table" />
+          <div className="p-4 md:min-h-80">
+            <LoadingState
+              label={t("report.categorySales.loading")}
+              variant="table"
+            />
           </div>
         ) : rowsLength ? (
           <>
-            <div className="min-h-0 md:flex-1 md:overflow-auto md:overscroll-x-contain md:overscroll-y-auto">
-              {children}
-            </div>
+            <div className="min-h-0 md:flex-1 md:overflow-auto">{children}</div>
             <div className="shrink-0 bg-card">{footer}</div>
           </>
         ) : (
-          <div className="p-4 md:min-h-[320px]">
-            <EmptyState title={t("report.categorySales.noData")} description={t("report.categorySales.adjustFilters")} />
+          <div className="p-4 md:min-h-80">
+            <EmptyState
+              title={t("report.categorySales.noData")}
+              description={t("report.categorySales.adjustFilters")}
+            />
           </div>
         )}
       </CardContent>
@@ -477,146 +618,388 @@ export function CategorySalesTableCard({
   );
 }
 
-export function CategorySalesTable({ groups }: { groups: CategorySalesGroup[] }) {
+export function CategorySalesTable({
+  groups,
+  labelOverrides,
+}: {
+  groups: CategorySalesGroup[];
+  labelOverrides?: {
+    service_charge?: string;
+    vat?: string;
+  };
+}) {
   const { t } = useTranslation();
-  const metrics = categorySalesRowMetricConfigs(t);
+
   const getGroupSortValue = useCallback(
     (group: CategorySalesGroup, key: CategorySalesSortKey) => {
       if (key === "groupName") return group.groupName;
       if (key === "groupSummary") return group.summary.total;
       return group.rows[0]?.[key as keyof CategorySalesRow];
     },
-    []
+    [],
   );
-  const { sort, sortedRows: sortedGroups, toggleSort } = useLocalTableSort(groups, getGroupSortValue);
+
+  const {
+    sort,
+    sortedRows: sortedGroups,
+    toggleSort,
+  } = useLocalTableSort(groups, getGroupSortValue);
 
   return (
     <div className="hidden min-w-0 md:block">
-      <Table className="min-w-[1500px] text-[13px]">
-        <TableHeader className="sticky top-0 z-20 bg-background/95 shadow-sm backdrop-blur">
+      <Table className="w-max min-w-full table-auto text-[13px]">
+        <TableHeader className="[&_th]:sticky [&_th]:top-0 [&_th]:z-30 [&_th]:whitespace-nowrap [&_th]:border-b [&_th]:border-border [&_th]:bg-background [&_th]:px-3 [&_th]:shadow-sm">
           <TableRow>
-            <SortableReportTableHead
+            {/* <SortableReportTableHead
               align="right"
               sort={sort}
               sortKey="rank"
-              className="w-[70px] whitespace-nowrap bg-background/95 text-center"
+              className="w-14 text-center"
               onSort={toggleSort}
             >
               {t("report.categorySales.columns.rank")}
-            </SortableReportTableHead>
-            <SortableReportTableHead
-              sort={sort}
-              sortKey="groupName"
-              className="min-w-[180px] whitespace-nowrap bg-background/95"
-              onSort={toggleSort}
-            >
-              {t("report.categorySales.columns.group")}
-            </SortableReportTableHead>
+            </SortableReportTableHead> */}
+            <TableCell className="w-14 text-center">
+              <span className="sr-only">
+                {/* {t("report.categorySales.columns.rank")} */}
+              </span>
+            </TableCell>
             <SortableReportTableHead
               sort={sort}
               sortKey="cateName"
-              className="min-w-[180px] whitespace-nowrap bg-background/95"
               onSort={toggleSort}
             >
               {t("report.categorySales.columns.category")}
             </SortableReportTableHead>
-            {metrics.map((metric) => (
-              <SortableReportTableHead
-                key={metric.key}
-                align="right"
-                sort={sort}
-                sortKey={metric.field}
-                className="min-w-[120px] whitespace-nowrap bg-background/95 text-right text-[12px]"
-                onSort={toggleSort}
-              >
-                {metric.label}
-              </SortableReportTableHead>
-            ))}
+            <SortableReportTableHead
+              align="right"
+              sort={sort}
+              sortKey="billCount"
+              className="text-right"
+              onSort={toggleSort}
+            >
+              {t("report.categorySales.columns.billCount")}
+            </SortableReportTableHead>
+            <SortableReportTableHead
+              align="right"
+              sort={sort}
+              sortKey="itemsCount"
+              className="text-right"
+              onSort={toggleSort}
+            >
+              {t("report.categorySales.columns.itemsCount")}
+            </SortableReportTableHead>
+            <SortableReportTableHead
+              align="right"
+              sort={sort}
+              sortKey="qtyTotal"
+              className="text-right"
+              onSort={toggleSort}
+            >
+              {t("report.categorySales.columns.qtyTotal")}
+            </SortableReportTableHead>
+            <SortableReportTableHead
+              align="right"
+              sort={sort}
+              sortKey="amount"
+              className="text-right"
+              onSort={toggleSort}
+            >
+              {t("report.categorySales.columns.amount")}
+            </SortableReportTableHead>
+            <SortableReportTableHead
+              align="right"
+              sort={sort}
+              sortKey="discountTotal"
+              className="text-right"
+              onSort={toggleSort}
+            >
+              {t("report.categorySales.columns.discountTotal")}
+            </SortableReportTableHead>
+            <SortableReportTableHead
+              align="right"
+              sort={sort}
+              sortKey="serviceCharge"
+              className="text-right"
+              onSort={toggleSort}
+            >
+              {labelOverrides?.service_charge ??
+                t("report.categorySales.columns.serviceCharge")}
+            </SortableReportTableHead>
+            <SortableReportTableHead
+              align="right"
+              sort={sort}
+              sortKey="vat"
+              className="text-right"
+              onSort={toggleSort}
+            >
+              {labelOverrides?.vat ?? t("report.categorySales.columns.vat")}
+            </SortableReportTableHead>
+            <SortableReportTableHead
+              align="right"
+              sort={sort}
+              sortKey="total"
+              className="text-right"
+              onSort={toggleSort}
+            >
+              {t("report.categorySales.columns.total")}
+            </SortableReportTableHead>
+            <SortableReportTableHead
+              align="right"
+              sort={sort}
+              sortKey="salePercent"
+              className="text-right"
+              onSort={toggleSort}
+            >
+              {t("report.categorySales.columns.salePercent")}
+            </SortableReportTableHead>
           </TableRow>
         </TableHeader>
-        <TableBody>
-          {sortedGroups.map((group) => (
-            <Fragment key={group.groupUuid || group.groupName}>
-              <TableRow className="bg-muted/40">
-                <TableCell colSpan={3 + metrics.length} className="py-2">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="font-black">{group.groupName}</div>
-                    <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                      <span>{t("report.categorySales.columns.category")}: {String(group.summary.categories_count ?? group.rows.length)}</span>
-                      <span>{t("report.categorySales.columns.total")}: {displayMetric(group.summary.total, "money")}</span>
+
+        <TableBody className="[&_td]:whitespace-nowrap [&_td]:px-3">
+          {sortedGroups.map((group) => {
+            const rows = sortRowsLocally(
+              group.rows,
+              sort,
+              (row, key) => row[key as keyof CategorySalesRow],
+            );
+
+            return (
+              <Fragment key={group.groupUuid || group.groupName}>
+                <TableRow className="border-t-2 border-border bg-muted/50 hover:bg-muted/50">
+                  <TableCell colSpan={11} className="py-3">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-black">
+                          {group.groupName}
+                        </p>
+                        {/* <p className="mt-0.5 text-xs text-muted-foreground">
+                          {t("report.categorySales.groupSummary", {
+                            categories:
+                              group.summary.categories_count ??
+                              group.rows.length,
+                            qty: group.summary.qty_total ?? 0,
+                          })}
+                        </p> */}
+                      </div>
+                      {/* <Badge className="h-7 whitespace-nowrap">
+                        {t("report.categorySales.columns.total")}:{" "}
+                        {displayMetric(group.summary.total, "money")}
+                      </Badge> */}
                     </div>
-                  </div>
-                </TableCell>
-              </TableRow>
-              {sortRowsLocally(group.rows, sort, (row, key) => row[key as keyof CategorySalesRow]).map((row, index) => (
-                <TableRow key={`${row.groupUuid}-${row.cateUuid}-${row.rank}`} className={index % 2 === 1 ? "bg-muted/15" : undefined}>
-                  <TableCell className="whitespace-nowrap text-center">
-                    <Badge className="h-6 min-w-9 justify-center px-1.5 text-xs tabular-nums">#{row.rank}</Badge>
                   </TableCell>
-                  <TableCell className="whitespace-nowrap">{row.groupName}</TableCell>
-                  <TableCell className="whitespace-nowrap font-bold">{row.cateName}</TableCell>
-                  {metrics.map((metric) => (
-                    <TableCell key={metric.key} className="whitespace-nowrap text-right tabular-nums">
-                      {displayMetric(row[metric.field], metric.kind)}
-                    </TableCell>
-                  ))}
                 </TableRow>
-              ))}
-            </Fragment>
-          ))}
+
+                {rows.map((row) => (
+                  <TableRow
+                    key={`${row.groupUuid}-${row.cateUuid}-${row.rank}`}
+                    className="hover:bg-muted/20"
+                  >
+                    <TableCell className="text-center">
+                      {/* <Badge className="h-6 min-w-9 justify-center px-1.5 text-xs tabular-nums">
+                        #{row.rank}
+                      </Badge> */}
+                    </TableCell>
+                    <TableCell className="font-bold">{row.cateName}</TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {displayMetric(row.billCount, "number")}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {displayMetric(row.itemsCount, "number")}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {displayMetric(row.qtyTotal, "number")}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {displayMetric(row.amount, "money")}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {displayMetric(row.discountTotal, "money")}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {displayMetric(row.serviceCharge, "money")}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {displayMetric(row.vat, "money")}
+                    </TableCell>
+                    <TableCell className="text-right font-black tabular-nums">
+                      {displayMetric(row.total, "money")}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {displayMetric(row.salePercent, "percent")}
+                    </TableCell>
+                  </TableRow>
+                ))}
+
+                <TableRow className="border-b-2 border-border bg-primary/20 hover:bg-primary/5">
+                  <TableCell colSpan={2} className="font-black text-primary">
+                    {/* {t("common.total")} {group.groupName} */}
+                  </TableCell>
+                  <TableCell className="text-right font-black tabular-nums">
+                    {displayMetric(group.summary.category_bill_count, "number")}
+                  </TableCell>
+                  <TableCell className="text-right font-black tabular-nums">
+                    {displayMetric(group.summary.items_count, "number")}
+                  </TableCell>
+                  <TableCell className="text-right font-black tabular-nums">
+                    {displayMetric(group.summary.qty_total, "number")}
+                  </TableCell>
+                  <TableCell className="text-right font-black tabular-nums">
+                    {displayMetric(group.summary.amount, "money")}
+                  </TableCell>
+                  <TableCell className="text-right font-black tabular-nums">
+                    {displayMetric(group.summary.discount_total, "money")}
+                  </TableCell>
+                  <TableCell className="text-right font-black tabular-nums">
+                    {displayMetric(group.summary.service_charge, "money")}
+                  </TableCell>
+                  <TableCell className="text-right font-black tabular-nums">
+                    {displayMetric(group.summary.vat, "money")}
+                  </TableCell>
+                  <TableCell className="text-right font-black tabular-nums text-primary">
+                    {displayMetric(group.summary.total, "money")}
+                  </TableCell>
+                  <TableCell />
+                </TableRow>
+              </Fragment>
+            );
+          })}
         </TableBody>
       </Table>
     </div>
   );
 }
 
-export function CategorySalesMobileList({ groups }: { groups: CategorySalesGroup[] }) {
+export function CategorySalesMobileList({
+  groups,
+}: {
+  groups: CategorySalesGroup[];
+  labelOverrides?: {
+    service_charge?: string;
+    vat?: string;
+  };
+}) {
   const { t } = useTranslation();
 
   return (
     <div className="flex flex-col gap-3 p-3 md:hidden">
       {groups.map((group) => (
-        <section key={group.groupUuid || group.groupName} className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-          <div className="flex items-center justify-between gap-3 bg-muted/30 px-4 py-3">
-            <div className="min-w-0">
-              <h3 className="truncate text-sm font-black">{group.groupName}</h3>
-              <p className="text-xs text-muted-foreground">
-                {t("report.categorySales.groupSummary", {
-                  categories: group.summary.categories_count ?? group.rows.length,
-                  qty: group.summary.qty_total ?? 0
-                })}
-              </p>
-            </div>
-            <div className="shrink-0 text-right">
-              <p className="text-[11px] font-bold text-muted-foreground">{t("report.categorySales.columns.total")}</p>
-              <p className="text-base font-black tabular-nums">{displayMetric(group.summary.total, "money")}</p>
+        <section
+          key={group.groupUuid || group.groupName}
+          className="overflow-hidden rounded-md border border-border bg-card shadow-sm"
+        >
+          <div className="bg-muted/40 px-3 py-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h3 className="truncate text-sm font-black">
+                  {group.groupName}
+                </h3>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {t("report.categorySales.groupSummary", {
+                    categories:
+                      group.summary.categories_count ?? group.rows.length,
+                    qty: group.summary.qty_total ?? 0,
+                  })}
+                </p>
+              </div>
+              <div className="shrink-0 text-right">
+                <p className="text-[11px] font-bold text-muted-foreground">
+                  {t("report.categorySales.columns.total")}
+                </p>
+                <p className="text-sm font-black tabular-nums">
+                  {displayMetric(group.summary.total, "money")}
+                </p>
+              </div>
             </div>
           </div>
+
           <div className="divide-y divide-border">
             {group.rows.map((row) => (
-              <div key={`${row.groupUuid}-${row.cateUuid}-${row.rank}`} className="p-3">
+              <div
+                key={`${row.groupUuid}-${row.cateUuid}-${row.rank}`}
+                className="p-3"
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <Badge className="h-6 min-w-9 shrink-0 justify-center px-1.5 text-xs tabular-nums">#{row.rank}</Badge>
-                      <p className="truncate text-sm font-black">{row.cateName}</p>
+                      <Badge className="h-6 min-w-9 shrink-0 justify-center px-1.5 text-xs tabular-nums">
+                        #{row.rank}
+                      </Badge>
+                      <p className="truncate text-sm font-black">
+                        {row.cateName}
+                      </p>
                     </div>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      {t("report.categorySales.columns.salePercent")}: {displayMetric(row.salePercent, "percent")}
+                      {t("report.categorySales.columns.salePercent")}:{" "}
+                      {displayMetric(row.salePercent, "percent")}
                     </p>
                   </div>
                   <div className="shrink-0 text-right">
-                    <p className="text-[11px] font-bold text-muted-foreground">{t("report.categorySales.columns.total")}</p>
-                    <p className="text-sm font-black tabular-nums">{displayMetric(row.total, "money")}</p>
+                    <p className="text-[11px] font-bold text-muted-foreground">
+                      {t("report.categorySales.columns.total")}
+                    </p>
+                    <p className="text-sm font-black tabular-nums">
+                      {displayMetric(row.total, "money")}
+                    </p>
                   </div>
                 </div>
+
                 <div className="mt-3 grid grid-cols-3 gap-2">
-                  <MetricTile label={t("report.categorySales.columns.billCount")} value={row.billCount} kind="number" />
-                  <MetricTile label={t("report.categorySales.columns.qtyTotal")} value={row.qtyTotal} kind="number" />
-                  <MetricTile label={t("report.categorySales.columns.amount")} value={row.amount} kind="money" />
+                  <MetricTile
+                    label={t("report.categorySales.columns.billCount")}
+                    value={row.billCount}
+                    kind="number"
+                  />
+                  <MetricTile
+                    label={t("report.categorySales.columns.qtyTotal")}
+                    value={row.qtyTotal}
+                    kind="number"
+                  />
+                  <MetricTile
+                    label={t("report.categorySales.columns.amount")}
+                    value={row.amount}
+                    kind="money"
+                  />
+                </div>
+
+                <div className="mt-2 grid grid-cols-3 gap-2">
+                  <MetricTile
+                    label={t("report.categorySales.columns.discountTotal")}
+                    value={row.discountTotal}
+                    kind="money"
+                  />
+                  <MetricTile
+                    label={t("report.categorySales.columns.serviceCharge")}
+                    value={row.serviceCharge}
+                    kind="money"
+                  />
+                  <MetricTile
+                    label={t("report.categorySales.columns.vat")}
+                    value={row.vat}
+                    kind="money"
+                  />
                 </div>
               </div>
             ))}
+          </div>
+
+          <div className="border-t border-border bg-primary/5 p-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-black text-primary">
+                  {t("common.total")} {group.groupName}
+                </p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {t("report.categorySales.columns.billCount")}:{" "}
+                  {displayMetric(group.summary.category_bill_count, "number")} /{" "}
+                  {t("report.categorySales.columns.qtyTotal")}:{" "}
+                  {displayMetric(group.summary.qty_total, "number")}
+                </p>
+              </div>
+              <p className="shrink-0 text-sm font-black tabular-nums text-primary">
+                {displayMetric(group.summary.total, "money")}
+              </p>
+            </div>
           </div>
         </section>
       ))}
@@ -624,11 +1007,23 @@ export function CategorySalesMobileList({ groups }: { groups: CategorySalesGroup
   );
 }
 
-function MetricTile({ kind, label, value }: { kind: "money" | "number"; label: string; value: unknown }) {
+function MetricTile({
+  kind,
+  label,
+  value,
+}: {
+  kind: "money" | "number";
+  label: string;
+  value: unknown;
+}) {
   return (
-    <div className="min-w-0 rounded-lg border border-border bg-muted/20 px-2.5 py-2">
-      <p className="truncate text-[10px] font-bold uppercase tracking-wide text-muted-foreground">{label}</p>
-      <p className="truncate text-xs font-black tabular-nums text-foreground">{displayMetric(value, kind)}</p>
+    <div className="min-w-0 rounded-md border border-border bg-muted/20 px-2.5 py-2">
+      <p className="truncate text-[10px] font-bold uppercase text-muted-foreground">
+        {label}
+      </p>
+      <p className="truncate text-xs font-black tabular-nums text-foreground">
+        {displayMetric(value, kind)}
+      </p>
     </div>
   );
 }
@@ -636,14 +1031,19 @@ function MetricTile({ kind, label, value }: { kind: "money" | "number"; label: s
 export function CategorySalesExportSurface({
   containerRef,
   dateRange,
+  labelOverrides,
   methodLabel,
   rows,
   rowsLabel,
   summary,
-  title
+  title,
 }: {
   containerRef: RefObject<HTMLDivElement | null>;
   dateRange: string;
+  labelOverrides?: {
+    service_charge?: string;
+    vat?: string;
+  };
   methodLabel: string;
   rows: CategorySalesRow[];
   rowsLabel: string;
@@ -651,8 +1051,8 @@ export function CategorySalesExportSurface({
   title: string;
 }) {
   const { t } = useTranslation();
-  const rowMetrics = categorySalesRowMetricConfigs(t);
-  const summaryMetrics = categorySalesSummaryMetricConfigs(t);
+  const rowMetrics = categorySalesRowMetricConfigs(t, labelOverrides);
+  const summaryMetrics = categorySalesSummaryMetricConfigs(t, labelOverrides);
 
   return (
     <div ref={containerRef} className="report-print-surface">
@@ -666,6 +1066,7 @@ export function CategorySalesExportSurface({
           <span>{rowsLabel}</span>
         </div>
       </div>
+
       <div className="report-print-section">
         <h2>{t("report.summary")}</h2>
         <table className="report-print-table">
@@ -673,12 +1074,15 @@ export function CategorySalesExportSurface({
             {summaryMetrics.map((metric) => (
               <tr key={metric.key}>
                 <td>{metric.label}</td>
-                <td className="is-right">{displayMetric(summary[metric.key], metric.kind)}</td>
+                <td className="is-right">
+                  {displayMetric(summary[metric.key], metric.kind)}
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
       <table className="report-print-table">
         <thead>
           <tr>
