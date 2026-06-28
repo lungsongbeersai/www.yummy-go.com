@@ -56,6 +56,84 @@ type DailySalesBillSortKey =
   | "status"
   | "tableName";
 
+type SummaryColumnKey =
+  | "date"
+  | "invoice"
+  | "tableName"
+  | "paymentMethod"
+  | "amount"
+  | "discount"
+  | "serviceCharge"
+  | "vat"
+  | "total"
+  | "debt"
+  | "status";
+
+type SummaryColumn = {
+  align?: "left" | "right";
+  key: SummaryColumnKey;
+  label: string;
+  sortableKey: string;
+};
+
+function summaryColumns(t: (key: string) => string): SummaryColumn[] {
+  return [
+    { key: "date", label: t("report.columns.saleDate"), sortableKey: "date" },
+    {
+      key: "invoice",
+      label: t("report.columns.invoiceNumber"),
+      sortableKey: "invoice",
+    },
+    {
+      key: "tableName",
+      label: t("report.columns.tableName"),
+      sortableKey: "table_name",
+    },
+    {
+      key: "paymentMethod",
+      label: t("report.columns.paymentType"),
+      sortableKey: "payment_method",
+    },
+    {
+      key: "amount",
+      label: t("report.columns.amount"),
+      sortableKey: "amount",
+      align: "right",
+    },
+    {
+      key: "discount",
+      label: t("report.columns.discount"),
+      sortableKey: "discount_total",
+      align: "right",
+    },
+    {
+      key: "serviceCharge",
+      label: t("report.columns.serviceCharge"),
+      sortableKey: "service_charge",
+      align: "right",
+    },
+    {
+      key: "vat",
+      label: t("report.columns.vat"),
+      sortableKey: "vat",
+      align: "right",
+    },
+    {
+      key: "total",
+      label: t("report.cards.netTotal"),
+      sortableKey: "total",
+      align: "right",
+    },
+    {
+      key: "debt",
+      label: t("dashboard.debt"),
+      sortableKey: "debt_amount",
+      align: "right",
+    },
+    { key: "status", label: t("report.columns.status"), sortableKey: "status" },
+  ];
+}
+
 export function SummaryReportTable({
   columns,
   pageStart,
@@ -74,13 +152,17 @@ export function SummaryReportTable({
   onToggleRows: (rows: ApiEntity[], selected: boolean) => void;
 }) {
   const { t } = useTranslation();
+  const activeColumns = typePage === "summary" ? summaryColumns(t) : null;
+
   const getSortValue = useCallback(
     (row: ApiEntity, key: string) => {
+      if (activeColumns) return summaryCellValue(row, key);
       const column = columns.find((item) => item.header === key);
       return column ? readValue(row, column.keys) : undefined;
     },
-    [columns],
+    [activeColumns, columns],
   );
+
   const { sort, sortedRows, toggleSort } = useLocalTableSort(
     rows,
     getSortValue,
@@ -94,16 +176,11 @@ export function SummaryReportTable({
   );
 
   return (
-    <div className="w-full min-w-0 overflow-x-auto">
-      <Table
-        className={cn(
-          "text-[13px]",
-          typePage === "summary" ? "min-w-375" : "min-w-[1880px]",
-        )}
-      >
-        <TableHeader className="sticky top-0 z-20 bg-background/95 shadow-sm backdrop-blur">
+    <div className="w-full min-w-0">
+      <Table className="w-max min-w-full table-auto text-[13px]">
+        <TableHeader className="[&_th]:sticky [&_th]:top-0 [&_th]:z-30 [&_th]:whitespace-nowrap [&_th]:border-b [&_th]:border-border [&_th]:bg-background [&_th]:px-3 [&_th]:shadow-sm">
           <TableRow>
-            <TableHead className="w-[52px] whitespace-nowrap bg-background/95 text-center">
+            <TableHead className="w-12 text-center">
               <IndeterminateCheckbox
                 aria-label={t("common.selectAll")}
                 checked={allVisibleSelected}
@@ -113,40 +190,49 @@ export function SummaryReportTable({
                 }
               />
             </TableHead>
-            <TableHead className="w-px whitespace-nowrap text-center">
-              {t("fields.no")}
-            </TableHead>
-            {columns.map((column) =>
-              column.kind === "image" ? (
-                <TableHead
-                  key={column.header}
-                  className={cn(
-                    "h-11 whitespace-nowrap bg-background/95",
-                    column.minWidth,
-                  )}
-                >
-                  {column.header}
-                </TableHead>
-              ) : (
-                <SortableReportTableHead
-                  key={column.header}
-                  align={column.align}
-                  sort={sort}
-                  sortKey={column.header}
-                  className={cn(
-                    "h-11 whitespace-nowrap bg-background/95",
-                    column.align === "right" && "text-right",
-                    column.minWidth,
-                    column.wide && "min-w-[180px]",
-                  )}
-                  onSort={toggleSort}
-                >
-                  {column.header}
-                </SortableReportTableHead>
-              ),
-            )}
+
+            <TableHead className="w-px text-center">{t("fields.no")}</TableHead>
+
+            {activeColumns
+              ? activeColumns.map((column) => (
+                  <SortableReportTableHead
+                    key={column.key}
+                    align={column.align}
+                    sort={sort}
+                    sortKey={column.sortableKey}
+                    className={cn(
+                      "h-11",
+                      column.align === "right" && "text-right",
+                    )}
+                    onSort={toggleSort}
+                  >
+                    {column.label}
+                  </SortableReportTableHead>
+                ))
+              : columns.map((column) =>
+                  column.kind === "image" ? (
+                    <TableHead key={column.header} className="h-11">
+                      {column.header}
+                    </TableHead>
+                  ) : (
+                    <SortableReportTableHead
+                      key={column.header}
+                      align={column.align}
+                      sort={sort}
+                      sortKey={column.header}
+                      className={cn(
+                        "h-11",
+                        column.align === "right" && "text-right",
+                      )}
+                      onSort={toggleSort}
+                    >
+                      {column.header}
+                    </SortableReportTableHead>
+                  ),
+                )}
           </TableRow>
         </TableHeader>
+
         <TableBody>
           {sortedRows.map((row, index) => {
             const recordId = reportRecordId(row);
@@ -163,7 +249,7 @@ export function SummaryReportTable({
                     "bg-primary/5",
                 )}
               >
-                <TableCell className="w-[52px] whitespace-nowrap text-center">
+                <TableCell className="w-12 text-center">
                   <Checkbox
                     aria-label={t("common.selectRow", {
                       name: textValue(
@@ -180,17 +266,28 @@ export function SummaryReportTable({
                     onChange={(event) => onToggleRow(row, event.target.checked)}
                   />
                 </TableCell>
-                <TableCell className="w-px whitespace-nowrap text-center text-sm font-black text-muted-foreground">
+
+                <TableCell className="w-px text-center text-sm font-black text-muted-foreground">
                   {pageStart + index}
                 </TableCell>
-                {columns.map((column) => (
-                  <TableCell
-                    key={column.header}
-                    className={tableCellClass(row, column)}
-                  >
-                    {renderCell(row, column)}
-                  </TableCell>
-                ))}
+
+                {activeColumns
+                  ? activeColumns.map((column) => (
+                      <TableCell
+                        key={column.key}
+                        className={summaryCellClass(row, column)}
+                      >
+                        {renderSummaryCell(row, column)}
+                      </TableCell>
+                    ))
+                  : columns.map((column) => (
+                      <TableCell
+                        key={column.header}
+                        className={tableCellClass(row, column)}
+                      >
+                        {renderCell(row, column)}
+                      </TableCell>
+                    ))}
               </TableRow>
             );
           })}
@@ -198,6 +295,77 @@ export function SummaryReportTable({
       </Table>
     </div>
   );
+}
+
+function summaryCellValue(row: ApiEntity, key: string) {
+  if (key === "discount_total") return summaryDiscount(row);
+  return readValue(row, [key]);
+}
+
+function summaryDiscount(row: ApiEntity) {
+  return (
+    firstNumber(readValue(row, ["discount_bill"])) +
+    firstNumber(readValue(row, ["item_discount"]))
+  );
+}
+
+function summaryCellClass(row: ApiEntity, column: SummaryColumn) {
+  const value = summaryCellValue(row, column.sortableKey);
+
+  return cn(
+    "h-12 whitespace-nowrap px-3 text-[13px]",
+    column.align === "right" && "text-right tabular-nums",
+    column.key === "invoice" && "font-black",
+    column.key === "total" && "font-black",
+    column.key === "debt" &&
+      firstNumber(value) > 0 &&
+      "font-black text-destructive",
+    firstNumber(value) === 0 &&
+      ["amount", "discount", "serviceCharge", "vat", "debt"].includes(
+        column.key,
+      ) &&
+      "text-muted-foreground",
+  );
+}
+
+function renderSummaryCell(row: ApiEntity, column: SummaryColumn) {
+  switch (column.key) {
+    case "date":
+      return formatDate(readValue(row, ["date", "sale_date", "order_date"]));
+    case "invoice":
+      return textValue(
+        readValue(row, [
+          "invoice",
+          "invoice_number",
+          "invoice_no",
+          "order_invoice",
+        ]),
+      );
+    case "tableName":
+      return textValue(readValue(row, ["table_name", "tableName"]), "-");
+    case "paymentMethod":
+      return textValue(readValue(row, ["payment_method", "payment_type"]), "-");
+    case "amount":
+      return money(firstNumber(readValue(row, ["amount"])));
+    case "discount":
+      return money(summaryDiscount(row));
+    case "serviceCharge":
+      return money(firstNumber(readValue(row, ["service_charge"])));
+    case "vat":
+      return money(firstNumber(readValue(row, ["vat"])));
+    case "total":
+      return money(firstNumber(readValue(row, ["total"])));
+    case "debt": {
+      const debt = firstNumber(readValue(row, ["debt_amount"]));
+      return debt > 0 ? money(debt) : null;
+    }
+    case "status": {
+      const label = textValue(
+        readValue(row, ["status", "status_name", "status_text"]),
+      );
+      return <Badge className={statusClass(row, label)}>{label}</Badge>;
+    }
+  }
 }
 
 export function DetailBillTable({
@@ -220,18 +388,20 @@ export function DetailBillTable({
   onToggleRows: (rows: ApiEntity[], selected: boolean) => void;
 }) {
   const { t } = useTranslation();
+
   const getGroupSortValue = useCallback(
     (group: DailySalesBillGroup, key: DailySalesBillSortKey) =>
       dailySalesBillSortValue(group, key),
     [],
   );
+
   const {
     sort: groupSort,
     sortedRows: sortedGroups,
     toggleSort: toggleGroupSort,
   } = useLocalTableSort(groups, getGroupSortValue);
-  const [itemSort, setItemSort] =
-    useState<LocalSortState<string>>(null);
+
+  const [itemSort, setItemSort] = useState<LocalSortState<string>>(null);
   const visibleItems = sortedGroups.flatMap((group) => group.items);
   const visibleItemIds = visibleItems.map(reportRecordId);
   const allVisibleSelected =
@@ -254,7 +424,9 @@ export function DetailBillTable({
       ]),
     ),
   );
+
   const parentColumnCount = hasStatusData ? 10 : 9;
+
   const getItemSortValue = useCallback(
     (row: ApiEntity, key: string) => {
       const column = itemColumns.find((item) => item.header === key);
@@ -272,11 +444,11 @@ export function DetailBillTable({
   }, []);
 
   return (
-    <div className="w-full min-w-0 overflow-x-auto">
-      <Table className="min-w-[1100px] text-[13px]">
-        <TableHeader className="sticky top-0 z-20 bg-background/95 shadow-sm backdrop-blur">
+    <div className="w-full min-w-0">
+      <Table className="w-max min-w-full table-auto text-[13px]">
+        <TableHeader className="[&_th]:sticky [&_th]:top-0 [&_th]:z-30 [&_th]:whitespace-nowrap [&_th]:border-b [&_th]:border-border [&_th]:bg-background [&_th]:px-3 [&_th]:shadow-sm">
           <TableRow>
-            <TableHead className="w-[52px] whitespace-nowrap bg-background/95 text-center">
+            <TableHead className="w-12 text-center">
               <IndeterminateCheckbox
                 aria-label={t("common.selectAll")}
                 checked={allVisibleSelected}
@@ -286,72 +458,73 @@ export function DetailBillTable({
                 }
               />
             </TableHead>
-            <TableHead className="w-[90px] whitespace-nowrap bg-background/95 text-center">
-              {t("fields.no")}
-            </TableHead>
+
+            <TableHead className="w-20 text-center">{t("fields.no")}</TableHead>
+
             <SortableReportTableHead
               sort={groupSort}
               sortKey="invoiceNumber"
-              className="min-w-[132px] whitespace-nowrap bg-background/95"
               onSort={toggleGroupSort}
             >
               {t("report.columns.invoiceNumber")}
             </SortableReportTableHead>
+
             <SortableReportTableHead
               sort={groupSort}
               sortKey="saleDate"
-              className="min-w-[118px] whitespace-nowrap bg-background/95"
               onSort={toggleGroupSort}
             >
               {t("report.columns.saleDate")}
             </SortableReportTableHead>
+
             <SortableReportTableHead
               sort={groupSort}
               sortKey="tableName"
-              className="min-w-[84px] whitespace-nowrap bg-background/95"
               onSort={toggleGroupSort}
             >
               {t("report.columns.tableName")}
             </SortableReportTableHead>
+
             <SortableReportTableHead
               sort={groupSort}
               sortKey="paymentType"
-              className="min-w-[130px] whitespace-nowrap bg-background/95"
               onSort={toggleGroupSort}
             >
               {t("report.columns.paymentType")}
             </SortableReportTableHead>
+
             <SortableReportTableHead
               sort={groupSort}
               sortKey="cashierName"
-              className="min-w-[160px] whitespace-nowrap bg-background/95"
               onSort={toggleGroupSort}
             >
               {t("report.columns.cashierName")}
             </SortableReportTableHead>
+
             <SortableReportTableHead
               align="right"
               sort={groupSort}
               sortKey="itemCount"
-              className="min-w-[94px] whitespace-nowrap bg-background/95 text-right"
+              className="text-right"
               onSort={toggleGroupSort}
             >
               {t("report.billItems")}
             </SortableReportTableHead>
+
             <SortableReportTableHead
               align="right"
               sort={groupSort}
               sortKey="lineTotal"
-              className="min-w-[132px] whitespace-nowrap bg-background/95 text-right"
+              className="text-right"
               onSort={toggleGroupSort}
             >
               {t("report.cards.netTotal")}
             </SortableReportTableHead>
+
             {hasStatusData ? (
               <SortableReportTableHead
                 sort={groupSort}
                 sortKey="status"
-                className="min-w-[118px] whitespace-nowrap bg-background/95"
                 onSort={toggleGroupSort}
               >
                 {t("report.columns.status")}
@@ -359,6 +532,7 @@ export function DetailBillTable({
             ) : null}
           </TableRow>
         </TableHeader>
+
         <TableBody>
           {sortedGroups.map((group, index) => {
             const expanded = !collapsedGroups.has(group.id);
@@ -384,7 +558,7 @@ export function DetailBillTable({
               <Fragment key={group.id}>
                 <TableRow
                   className={cn(
-                    "border-b border-border/80 bg-card hover:bg-muted/25 [&>td]:py-3",
+                    "border-b border-border/80 bg-card hover:bg-muted/25 [&>td]:whitespace-nowrap [&>td]:px-3 [&>td]:py-3",
                     expanded &&
                       !group.cancelled &&
                       !groupNeedsAttention &&
@@ -396,7 +570,7 @@ export function DetailBillTable({
                   )}
                   data-state={expanded ? "selected" : undefined}
                 >
-                  <TableCell className="whitespace-nowrap text-center">
+                  <TableCell className="text-center">
                     <IndeterminateCheckbox
                       aria-label={t("common.selectRow", {
                         name: group.invoiceNumber,
@@ -408,7 +582,8 @@ export function DetailBillTable({
                       }
                     />
                   </TableCell>
-                  <TableCell className="whitespace-nowrap text-center">
+
+                  <TableCell className="text-center">
                     <div className="flex items-center justify-center gap-2">
                       <Button
                         type="button"
@@ -429,29 +604,30 @@ export function DetailBillTable({
                       </span>
                     </div>
                   </TableCell>
-                  <TableCell className="whitespace-nowrap font-black">
+
+                  <TableCell className="font-black">
                     {group.invoiceNumber}
                   </TableCell>
-                  <TableCell className="whitespace-nowrap">
-                    {formatDate(group.saleDate)}
+                  <TableCell>{formatDate(group.saleDate)}</TableCell>
+                  <TableCell>{group.tableName}</TableCell>
+                  <TableCell>{group.paymentType}</TableCell>
+
+                  <TableCell>
+                    <span className="block max-w-56 truncate">
+                      {group.cashierName}
+                    </span>
                   </TableCell>
-                  <TableCell className="whitespace-nowrap">
-                    {group.tableName}
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap">
-                    {group.paymentType}
-                  </TableCell>
-                  <TableCell className="max-w-[220px] whitespace-normal leading-snug">
-                    {group.cashierName}
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap text-right tabular-nums">
+
+                  <TableCell className="text-right tabular-nums">
                     <Badge className="h-7 px-2 text-xs">
                       {group.itemCount.toLocaleString("en-US")}
                     </Badge>
                   </TableCell>
+
                   <MoneyCell value={group.lineTotal} strong />
+
                   {hasStatusData ? (
-                    <TableCell className="whitespace-nowrap">
+                    <TableCell>
                       <Badge
                         className={statusClass(
                           group.cancelled
@@ -465,6 +641,7 @@ export function DetailBillTable({
                     </TableCell>
                   ) : null}
                 </TableRow>
+
                 {expanded ? (
                   <TableRow
                     className={cn(
@@ -474,9 +651,9 @@ export function DetailBillTable({
                     )}
                   >
                     <TableCell colSpan={parentColumnCount} className="p-0">
-                      <div className="px-4 py-3">
+                      <div className="px-3 py-3">
                         <div className="overflow-hidden rounded-md border border-border bg-card shadow-sm">
-                          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-primary/5 px-4 py-3">
+                          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-primary/5 px-3 py-3">
                             <div className="flex min-w-0 flex-wrap items-center gap-2">
                               <Badge className="h-7 border-primary/20 bg-primary/10 px-2 text-primary">
                                 {t("fields.no")} {pageStart + index}
@@ -489,6 +666,7 @@ export function DetailBillTable({
                                 {t("report.billItems")}
                               </span>
                             </div>
+
                             <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs font-semibold text-muted-foreground">
                               <Badge className="h-7 border-border bg-background px-2 text-foreground">
                                 {t("report.columns.tableName")}:{" "}
@@ -500,11 +678,12 @@ export function DetailBillTable({
                               </Badge>
                             </div>
                           </div>
-                          <div className="overflow-x-auto p-3">
-                            <Table className="min-w-[1160px] text-[13px]">
-                              <TableHeader className="bg-muted/60">
+
+                          <div className="overflow-x-auto p-2">
+                            <Table className="w-max min-w-full table-auto text-[13px]">
+                              <TableHeader className="[&_th]:whitespace-nowrap [&_th]:bg-muted/60 [&_th]:px-3">
                                 <TableRow>
-                                  <TableHead className="w-[52px] whitespace-nowrap bg-muted/60 text-center">
+                                  <TableHead className="w-12 text-center">
                                     <IndeterminateCheckbox
                                       aria-label={t("common.selectAll")}
                                       checked={groupSelected}
@@ -517,14 +696,12 @@ export function DetailBillTable({
                                       }
                                     />
                                   </TableHead>
+
                                   {itemColumns.map((column) =>
                                     column.kind === "image" ? (
                                       <TableHead
                                         key={column.header}
-                                        className={cn(
-                                          "h-9 whitespace-nowrap bg-muted/60",
-                                          column.minWidth,
-                                        )}
+                                        className="h-9"
                                       >
                                         {column.header}
                                       </TableHead>
@@ -535,11 +712,9 @@ export function DetailBillTable({
                                         sort={itemSort}
                                         sortKey={column.header}
                                         className={cn(
-                                          "h-9 whitespace-nowrap bg-muted/60",
+                                          "h-9",
                                           column.align === "right" &&
                                             "text-right",
-                                          column.minWidth,
-                                          column.wide && "min-w-[180px]",
                                         )}
                                         onSort={toggleItemSort}
                                       >
@@ -549,6 +724,7 @@ export function DetailBillTable({
                                   )}
                                 </TableRow>
                               </TableHeader>
+
                               <TableBody>
                                 {sortRowsLocally(
                                   group.items,
@@ -561,7 +737,10 @@ export function DetailBillTable({
 
                                   return (
                                     <TableRow
-                                      key={`${rowKey(item, itemIndex)}-${itemIndex}`}
+                                      key={`${rowKey(
+                                        item,
+                                        itemIndex,
+                                      )}-${itemIndex}`}
                                       className={cn(
                                         tableRowClass(item, itemIndex),
                                         selected &&
@@ -570,7 +749,7 @@ export function DetailBillTable({
                                           "bg-primary/5",
                                       )}
                                     >
-                                      <TableCell className="w-[52px] whitespace-nowrap text-center">
+                                      <TableCell className="w-12 text-center">
                                         <Checkbox
                                           aria-label={t("common.selectRow", {
                                             name: textValue(
@@ -580,7 +759,9 @@ export function DetailBillTable({
                                                 "prod_name_la",
                                                 "prod_name_eng",
                                               ]),
-                                              `${group.invoiceNumber}-${itemIndex + 1}`,
+                                              `${group.invoiceNumber}-${
+                                                itemIndex + 1
+                                              }`,
                                             ),
                                           })}
                                           checked={selected}
@@ -592,6 +773,7 @@ export function DetailBillTable({
                                           }
                                         />
                                       </TableCell>
+
                                       {itemColumns.map((column) => (
                                         <TableCell
                                           key={column.header}
@@ -609,6 +791,7 @@ export function DetailBillTable({
                               </TableBody>
                             </Table>
                           </div>
+
                           <div className="grid gap-2 border-t border-border bg-muted/20 p-3 text-xs sm:grid-cols-2 xl:grid-cols-5">
                             {billSummaryMetrics(t, group).map((metric) => (
                               <BillMetric
@@ -636,10 +819,7 @@ export function DetailBillTable({
 export function renderPrintCell(row: ApiEntity, column: ReportColumn) {
   const value = readValue(row, column.keys);
 
-  if (column.kind === "image") {
-    return <PrintProductImage row={row} />;
-  }
-
+  if (column.kind === "image") return <PrintProductImage row={row} />;
   if (column.kind === "product") return <PrintProductNameCell row={row} />;
   if (column.kind === "money") return money(firstNumber(value));
   if (column.kind === "number")
@@ -702,10 +882,10 @@ function tableRowClass(row: ApiEntity, index: number) {
 
 function tableCellClass(row: ApiEntity, column: ReportColumn) {
   return cn(
-    "h-12 whitespace-nowrap text-[13px]",
+    "h-12 whitespace-nowrap px-3 text-[13px]",
     column.align === "right" && "text-right tabular-nums",
-    column.wide && "max-w-[280px] whitespace-normal leading-snug",
-    column.minWidth,
+    column.kind === "product" && "max-w-72",
+    column.wide && column.kind !== "product" && "max-w-72 truncate",
     isZeroColumnValue(row, column) && "text-muted-foreground",
   );
 }
@@ -722,12 +902,16 @@ function ProductNameCell({ row }: { row: ApiEntity }) {
   const toppings = toppingLines(row);
 
   return (
-    <div className="min-w-0 whitespace-normal leading-snug">
-      <p className="font-semibold text-foreground">{productName}</p>
+    <div className="min-w-0 leading-snug">
+      <p className="max-w-72 truncate font-semibold text-foreground">
+        {productName}
+      </p>
       {toppings.length ? (
-        <div className="mt-1 flex flex-col gap-0.5 text-xs font-medium text-muted-foreground">
+        <div className="mt-1 flex max-w-72 flex-col gap-0.5 text-xs font-medium text-muted-foreground">
           {toppings.map((topping, index) => (
-            <span key={`${topping}-${index}`}>{topping}</span>
+            <span key={`${topping}-${index}`} className="truncate">
+              {topping}
+            </span>
           ))}
         </div>
       ) : null}
@@ -778,9 +962,8 @@ function PrintProductImage({ row }: { row: ApiEntity }) {
 }
 
 function printImageUrl(src: string) {
-  if (/^https?:\/\//i.test(src)) {
+  if (/^https?:\/\//i.test(src))
     return `/_next/image?url=${encodeURIComponent(src)}&w=48&q=75`;
-  }
   return src;
 }
 
@@ -827,7 +1010,7 @@ function MoneyCell({
   return (
     <TableCell
       className={cn(
-        "whitespace-nowrap text-right tabular-nums",
+        "whitespace-nowrap px-3 text-right tabular-nums",
         strong && "font-black",
         value === 0 && "text-muted-foreground",
       )}
@@ -869,9 +1052,7 @@ function IndeterminateCheckbox({
   const checkboxRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (checkboxRef.current) {
-      checkboxRef.current.indeterminate = indeterminate;
-    }
+    if (checkboxRef.current) checkboxRef.current.indeterminate = indeterminate;
   }, [indeterminate]);
 
   return (

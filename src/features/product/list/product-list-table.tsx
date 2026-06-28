@@ -21,7 +21,6 @@ import {
   productOrderPoint,
   shortDate,
   shortTime,
-  totalStockQty,
   unitName
 } from "./product-list-utils";
 import { ProductListActions } from "./product-list-actions";
@@ -295,7 +294,10 @@ export function ProductListTable({ workflow }: { workflow: ProductListWorkflow }
                 </TableCell>
                 <TableCell />
                 <TableCell />
-                <TableCell className="font-mono text-sm font-bold tabular-nums">{totalStockQty(row)}</TableCell>
+                <TableCell className="font-mono text-sm font-bold tabular-nums">
+                  {/* {totalStockQty(row)} */}
+
+                </TableCell>
                 <TableCell className="font-mono text-sm font-semibold tabular-nums">
                   {orderPoint > 0 ? orderPoint : null}
                 </TableCell>

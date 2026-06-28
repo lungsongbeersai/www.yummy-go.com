@@ -114,11 +114,7 @@ export function ReportSummaryCards({
 function summaryCardTone(card: SummaryCardConfig) {
   if (
     card.keys.some((key) =>
-      [
-        "debt",
-        "discount",
-        "cancel",
-      ].some((token) => key.includes(token)),
+      ["debt", "discount", "cancel"].some((token) => key.includes(token)),
     )
   ) {
     return "danger";
@@ -174,8 +170,8 @@ export function ReportExportLoadingDialog({
     exporting === "excel"
       ? t("report.exportingExcel")
       : exporting === "pdf"
-        ? t("report.exportingPdf")
-        : t("report.preparingPrint");
+      ? t("report.exportingPdf")
+      : t("report.preparingPrint");
   const percent = progress?.percent ?? 0;
   const progressLabel = progress?.label ?? t("report.exportingDescription");
 
@@ -258,9 +254,7 @@ export function ReportTableCard({
           </div>
         ) : rowsLength ? (
           <>
-            <div className="min-h-0 min-w-0 overflow-auto overscroll-x-contain overscroll-y-auto md:flex-1">
-              {children}
-            </div>
+            <div className="min-h-0 flex-1 overflow-auto">{children}</div>
             <div className="shrink-0 bg-card">{footer}</div>
           </>
         ) : (
@@ -391,11 +385,7 @@ function ReportTableActions({
           >
             <SelectValue />
           </SelectTrigger>
-          <SelectContent
-            align="start"
-            className="z-[100]"
-            position="popper"
-          >
+          <SelectContent align="start" className="z-[100]" position="popper">
             <SelectGroup>
               {paymentMethodOptions.map((method) => (
                 <SelectItem key={method} value={method}>
@@ -464,7 +454,10 @@ function ReportTableActions({
                 <FileSpreadsheet data-icon="inline-start" />
                 {t("report.exportExcel")}
               </DropdownMenuItem>
-              <DropdownMenuItem disabled={exportDisabled} onSelect={onExportPdf}>
+              <DropdownMenuItem
+                disabled={exportDisabled}
+                onSelect={onExportPdf}
+              >
                 <Download data-icon="inline-start" />
                 {t("report.exportPdf")}
               </DropdownMenuItem>

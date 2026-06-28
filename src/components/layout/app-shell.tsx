@@ -11,7 +11,7 @@ import {
   LogOut,
   PanelLeftClose,
   PanelLeftOpen,
-  UserPen
+  UserPen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -23,7 +23,7 @@ import {
   BreadcrumbLink,
   BreadcrumbList,
   BreadcrumbPage,
-  BreadcrumbSeparator
+  BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import {
@@ -32,7 +32,7 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuTrigger
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -53,20 +53,31 @@ import {
   SidebarProvider,
   SidebarRail,
   SidebarTrigger,
-  useSidebar
+  useSidebar,
 } from "@/components/ui/sidebar";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { MenuIcon } from "@/components/common/menu-icon";
 import { LanguageSwitch } from "@/components/layout/language-switch";
 import { NotificationMenu } from "@/components/layout/notification-menu";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import sideMenu, { type MenuItem } from "@/config/menu";
-import { routeBreadcrumbs, type RouteBreadcrumbItem } from "@/config/route-breadcrumbs";
+import {
+  routeBreadcrumbs,
+  type RouteBreadcrumbItem,
+} from "@/config/route-breadcrumbs";
 import { sidebarPermissionMenuItemsToMenuItems } from "@/services/sidebar-menu";
 import { getStoreLogoUrl } from "@/services/store";
 import { getUserProfileUrl } from "@/services/user";
 import { useAppStore } from "@/stores/app-store";
-import { authStoreUuid, useAuthStore, type AuthUser } from "@/stores/auth-store";
+import {
+  authStoreUuid,
+  useAuthStore,
+  type AuthUser,
+} from "@/stores/auth-store";
 import { useSidebarMenuStore } from "@/stores/sidebar-menu-store";
 
 type BreadcrumbTrailItem = RouteBreadcrumbItem;
@@ -77,13 +88,18 @@ function menuKey(title: string) {
   return `nav.${title}`;
 }
 
-function menuItemLabel(item: Pick<MenuItem, "label" | "title">, t: (key: string) => string) {
+function menuItemLabel(
+  item: Pick<MenuItem, "label" | "title">,
+  t: (key: string) => string,
+) {
   return item.label || t(menuKey(item.title));
 }
 
 function isAllowed(item: MenuItem, userStatus?: number) {
   if (!item.allowedStatus?.length) return true;
-  return typeof userStatus === "number" && item.allowedStatus.includes(userStatus);
+  return (
+    typeof userStatus === "number" && item.allowedStatus.includes(userStatus)
+  );
 }
 
 function filterMenu(items: MenuItem[], userStatus?: number): MenuItem[] {
@@ -106,7 +122,9 @@ function routeIsActive(pathname: string, path?: string) {
 
 function hasActiveRoute(item: MenuItem, pathname: string): boolean {
   if (routeIsActive(pathname, item.path)) return true;
-  return item.children?.some((child) => hasActiveRoute(child, pathname)) ?? false;
+  return (
+    item.children?.some((child) => hasActiveRoute(child, pathname)) ?? false
+  );
 }
 
 function activeMenuTitles(items: MenuItem[], pathname: string): string[] {
@@ -119,13 +137,18 @@ function activeMenuTitles(items: MenuItem[], pathname: string): string[] {
 function findBreadcrumbs(
   items: MenuItem[],
   pathname: string,
-  trail: BreadcrumbTrailItem[] = []
+  trail: BreadcrumbTrailItem[] = [],
 ): BreadcrumbTrailItem[] | null {
   for (const item of items) {
     if (item.is_header) continue;
     const nextTrail = [
       ...trail,
-      { disabled: item.disabled, label: item.label, path: item.path, title: item.title }
+      {
+        disabled: item.disabled,
+        label: item.label,
+        path: item.path,
+        title: item.title,
+      },
     ];
     if (isExactRoute(pathname, item.path)) return nextTrail;
     if (item.children?.length) {
@@ -136,7 +159,10 @@ function findBreadcrumbs(
   return null;
 }
 
-function resolveBreadcrumbs(items: MenuItem[], pathname: string): BreadcrumbTrailItem[] | null {
+function resolveBreadcrumbs(
+  items: MenuItem[],
+  pathname: string,
+): BreadcrumbTrailItem[] | null {
   const exact = findBreadcrumbs(items, pathname);
   if (exact) return exact;
 
@@ -154,12 +180,14 @@ function resolveBreadcrumbs(items: MenuItem[], pathname: string): BreadcrumbTrai
 
 function userInitials(user: AuthUser | null) {
   const source = user?.store_name || user?.branch_name || user?.email || "YG";
-  return source
-    .split(/[^\p{L}\p{N}]+/u)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join("") || "YG";
+  return (
+    source
+      .split(/[^\p{L}\p{N}]+/u)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase())
+      .join("") || "YG"
+  );
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -173,12 +201,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const clearSidebarMenu = useSidebarMenuStore((state) => state.clearActive);
   const loadSidebarMenu = useSidebarMenuStore((state) => state.load);
   const storeUuid = authStoreUuid(user);
-  const staticMenuItems = useMemo(() => filterMenu(sideMenu, user?.status), [user?.status]);
+  const staticMenuItems = useMemo(
+    () => filterMenu(sideMenu, user?.status),
+    [user?.status],
+  );
   const permissionMenuItems = useMemo(
     () => sidebarPermissionMenuItemsToMenuItems(sidebarItems),
-    [sidebarItems]
+    [sidebarItems],
   );
-  const menuItems = permissionMenuItems.length ? permissionMenuItems : staticMenuItems;
+  const menuItems = permissionMenuItems.length
+    ? permissionMenuItems
+    : staticMenuItems;
   const breadcrumbs = useMemo(() => {
     const home: BreadcrumbTrailItem = { path: "/", title: "dashboard" };
     const trail = resolveBreadcrumbs(menuItems, pathname);
@@ -186,10 +219,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     if (trail[0]?.path === "/") return trail;
     return [home, ...trail];
   }, [menuItems, pathname]);
-  const immersiveScreen = pathname === "/sales/open-table-sale" || pathname === "/sale/order-customer";
+  const immersiveScreen =
+    pathname === "/sales/open-table-sale" ||
+    pathname === "/sale/order-customer";
   const dashboardScreen = pathname === "/";
-  const fixedDataScreen = immersiveScreen || pathname.startsWith("/setting/") || pathname === "/printer" || pathname === "/product" || pathname === "/report/daily-sales" || pathname === "/report/best-selling-products" || pathname === "/report/payment-methods" || pathname === "/sales/sales-list" || pathname === "/sales/cancel-sale" || pathname === "/sales/cancel-history";
-  const [openMenus, setOpenMenus] = useState<Set<string>>(() => new Set(activeMenuTitles(menuItems, pathname)));
+ const fixedDataScreen =
+  immersiveScreen ||
+  pathname.startsWith("/setting/") ||
+  pathname.startsWith("/report/") ||
+  pathname === "/printer" ||
+  pathname === "/product" ||
+  pathname === "/sales/sales-list" ||
+  pathname === "/sales/cancel-sale" ||
+  pathname === "/sales/cancel-history";
+  const [openMenus, setOpenMenus] = useState<Set<string>>(
+    () => new Set(activeMenuTitles(menuItems, pathname)),
+  );
 
   useEffect(() => {
     if (!storeUuid || typeof user?.status !== "number") {
@@ -197,7 +242,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       return;
     }
     void loadSidebarMenu(storeUuid, user.status, i18n.language);
-  }, [clearSidebarMenu, i18n.language, loadSidebarMenu, storeUuid, user?.status]);
+  }, [
+    clearSidebarMenu,
+    i18n.language,
+    loadSidebarMenu,
+    storeUuid,
+    user?.status,
+  ]);
 
   useEffect(() => {
     if (!fixedDataScreen) return;
@@ -262,16 +313,28 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           ? immersiveScreen
             ? "h-[100dvh] overflow-hidden"
             : "h-screen overflow-hidden"
-          : "min-h-screen"
+          : "min-h-screen",
       )}
       data-fixed-screen={fixedDataScreen ? "true" : "false"}
       data-dashboard-screen={dashboardScreen ? "true" : "false"}
       data-sidebar-state={collapsed ? "collapsed" : "expanded"}
     >
       {!immersiveScreen ? (
-        <AppHeader breadcrumbs={breadcrumbs} collapsed={collapsed} logout={logout} user={user} />
+        <AppHeader
+          breadcrumbs={breadcrumbs}
+          collapsed={collapsed}
+          logout={logout}
+          user={user}
+        />
       ) : null}
-      <div className={cn("app-shell-body flex min-h-0 w-full flex-1", dashboardScreen && !fixedDataScreen ? "overflow-visible" : "overflow-hidden")}>
+      <div
+        className={cn(
+          "app-shell-body flex min-h-0 w-full flex-1",
+          dashboardScreen && !fixedDataScreen
+            ? "overflow-visible"
+            : "overflow-hidden",
+        )}
+      >
         {!immersiveScreen ? (
           <AppSidebar
             menuItems={menuItems}
@@ -280,12 +343,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             toggleMenu={toggleMenu}
           />
         ) : null}
-        <SidebarInset className={cn("min-w-0", fixedDataScreen ? "h-full overflow-hidden" : "min-h-0")}>
+        <SidebarInset
+          className={cn(
+            "min-w-0",
+            fixedDataScreen ? "h-full overflow-hidden" : "min-h-0",
+          )}
+        >
           <main
             className={cn(
               fixedDataScreen
                 ? "h-full min-h-0 min-w-0 w-full max-w-none overflow-hidden"
-                : "mx-auto w-full max-w-[1500px] p-4 lg:p-6"
+                : "mx-auto w-full max-w-[1500px] p-4 lg:p-6",
             )}
           >
             {children}
@@ -300,7 +368,7 @@ function AppHeader({
   breadcrumbs,
   collapsed,
   logout,
-  user
+  user,
 }: {
   breadcrumbs: BreadcrumbTrailItem[];
   collapsed: boolean;
@@ -309,12 +377,17 @@ function AppHeader({
 }) {
   const { t } = useTranslation();
   const router = useRouter();
-  const currentBreadcrumb = breadcrumbs[breadcrumbs.length - 1] ?? { title: "dashboard" };
+  const currentBreadcrumb = breadcrumbs[breadcrumbs.length - 1] ?? {
+    title: "dashboard",
+  };
   const pageTitle = menuItemLabel(currentBreadcrumb, t);
-  const logoSrc = user?.store_logo ? getStoreLogoUrl(user.store_logo) : "/brand/icon.png";
+  const logoSrc = user?.store_logo
+    ? getStoreLogoUrl(user.store_logo)
+    : "/brand/icon.png";
   const profileSrc = user?.profile ? getUserProfileUrl(user.profile) : "";
   const branchTitle = user?.branch_name || user?.store_name || "Yummy Go";
-  const address = user?.branch_address || user?.store_name || t("app.posWorkspace");
+  const address =
+    user?.branch_address || user?.store_name || t("app.posWorkspace");
 
   return (
     <header className="app-header sticky top-0 z-40 flex h-[var(--app-shell-header-height)] w-full items-center justify-between gap-2 border-b border-border px-2 sm:px-4 lg:gap-4 lg:px-6">
@@ -328,23 +401,36 @@ function AppHeader({
                 "hidden min-w-0 shrink-0 items-center md:flex",
                 collapsed
                   ? "w-[var(--sidebar-width-icon)] max-w-[var(--sidebar-width-icon)] justify-center"
-                  : "w-[var(--sidebar-width)] max-w-[var(--sidebar-width)] gap-3"
+                  : "w-[var(--sidebar-width)] max-w-[var(--sidebar-width)] gap-3",
               )}
             >
               <Avatar className="size-[50px] shrink-0 rounded-md">
                 <AvatarImage src={logoSrc} alt={branchTitle} />
-                <AvatarFallback className="rounded-md font-black">{userInitials(user)}</AvatarFallback>
+                <AvatarFallback className="rounded-md font-black">
+                  {userInitials(user)}
+                </AvatarFallback>
               </Avatar>
-              <div className={cn("min-w-0 flex-1 flex-col overflow-hidden", collapsed ? "hidden" : "hidden sm:flex")}>
-                <span className="truncate text-base font-black text-primary">{branchTitle}</span>
-                <span className="truncate text-xs text-muted-foreground">{address}</span>
+              <div
+                className={cn(
+                  "min-w-0 flex-1 flex-col overflow-hidden",
+                  collapsed ? "hidden" : "hidden sm:flex",
+                )}
+              >
+                <span className="truncate text-base font-black text-primary">
+                  {branchTitle}
+                </span>
+                <span className="truncate text-xs text-muted-foreground">
+                  {address}
+                </span>
               </div>
             </Link>
           </TooltipTrigger>
           <TooltipContent side="bottom" align="start" className="max-w-96">
             <div className="flex min-w-0 flex-col gap-1">
               <span className="font-bold">{branchTitle}</span>
-              <span className="break-words text-xs leading-5 opacity-80">{address}</span>
+              <span className="break-words text-xs leading-5 opacity-80">
+                {address}
+              </span>
             </div>
           </TooltipContent>
         </Tooltip>
@@ -354,7 +440,10 @@ function AppHeader({
         <div className="flex min-w-0 flex-1 items-center gap-1 md:gap-2">
           <Tooltip>
             <TooltipTrigger asChild>
-              <SidebarTrigger aria-label={t("app.openMenu")} className="shrink-0 md:hidden" />
+              <SidebarTrigger
+                aria-label={t("app.openMenu")}
+                className="shrink-0 md:hidden"
+              />
             </TooltipTrigger>
             <TooltipContent side="bottom">{t("app.openMenu")}</TooltipContent>
           </Tooltip>
@@ -382,8 +471,12 @@ function AppHeader({
             <ChevronLeft data-icon="inline-start" />
             {t("actions.back")}
           </Button>
-          <span className="min-w-0 truncate text-sm font-bold md:hidden">{pageTitle}</span>
-          <span className="hidden truncate text-sm text-muted-foreground md:block lg:hidden">{pageTitle}</span>
+          <span className="min-w-0 truncate text-sm font-bold md:hidden">
+            {pageTitle}
+          </span>
+          <span className="hidden truncate text-sm text-muted-foreground md:block lg:hidden">
+            {pageTitle}
+          </span>
           <AppBreadcrumb breadcrumbs={breadcrumbs} />
         </div>
       </div>
@@ -394,17 +487,29 @@ function AppHeader({
         <LanguageSwitch />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-10 min-w-10 gap-2 px-0 sm:px-2">
+            <Button
+              variant="ghost"
+              className="h-10 min-w-10 gap-2 px-0 sm:px-2"
+            >
               <Avatar className="size-9">
-                {profileSrc ? <AvatarImage src={profileSrc} alt={user?.email ?? "Profile"} /> : null}
+                {profileSrc ? (
+                  <AvatarImage
+                    src={profileSrc}
+                    alt={user?.email ?? "Profile"}
+                  />
+                ) : null}
                 <AvatarFallback>{userInitials(user)}</AvatarFallback>
               </Avatar>
-              <span className="hidden max-w-28 truncate font-bold lg:inline">{t("common.actions")}</span>
+              <span className="hidden max-w-28 truncate font-bold lg:inline">
+                {t("common.actions")}
+              </span>
               <ChevronDown className="hidden sm:block" data-icon="inline-end" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel className="truncate">{user?.email ?? t("settings.modules.user.title")}</DropdownMenuLabel>
+            <DropdownMenuLabel className="truncate">
+              {user?.email ?? t("settings.modules.user.title")}
+            </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
               <Link href="/profile">
@@ -428,7 +533,7 @@ function AppSidebar({
   menuItems,
   openMenus,
   pathname,
-  toggleMenu
+  toggleMenu,
 }: {
   menuItems: MenuItem[];
   openMenus: Set<string>;
@@ -454,7 +559,9 @@ function AppSidebar({
           <SidebarMenuButton disabled tooltip={title}>
             {icon}
             <span>{title}</span>
-            {!collapsed ? <SidebarMenuBadge>{t("nav.coming_soon")}</SidebarMenuBadge> : null}
+            {!collapsed ? (
+              <SidebarMenuBadge>{t("nav.coming_soon")}</SidebarMenuBadge>
+            ) : null}
           </SidebarMenuButton>
         ) : (
           <SidebarMenuButton asChild isActive={active} tooltip={title}>
@@ -480,7 +587,10 @@ function AppSidebar({
     return (
       <SidebarMenuSubItem key={item.path ?? item.title}>
         {item.disabled || !item.path ? (
-          <SidebarMenuSubButton aria-disabled className="pointer-events-none opacity-50">
+          <SidebarMenuSubButton
+            aria-disabled
+            className="pointer-events-none opacity-50"
+          >
             <span>{title}</span>
             <Badge className="ml-auto rounded-full text-[10px]">
               {t("nav.coming_soon")}
@@ -576,12 +686,19 @@ function AppSidebar({
               {item.badgeText}
             </SidebarMenuBadge>
           ) : null}
-          <ChevronDown className={cn("shrink-0 transition-transform", open && "rotate-180")} />
+          <ChevronDown
+            className={cn(
+              "shrink-0 transition-transform",
+              open && "rotate-180",
+            )}
+          />
         </SidebarMenuButton>
         {open ? (
           <SidebarMenuSub>
             {item.children.map((child) => (
-              <Fragment key={child.path ?? child.title}>{renderChild(child)}</Fragment>
+              <Fragment key={child.path ?? child.title}>
+                {renderChild(child)}
+              </Fragment>
             ))}
           </SidebarMenuSub>
         ) : null}
@@ -590,11 +707,16 @@ function AppSidebar({
   }
 
   return (
-    <Sidebar collapsible="icon" className="app-sidebar-panel border-r border-sidebar-border">
+    <Sidebar
+      collapsible="icon"
+      className="app-sidebar-panel border-r border-sidebar-border"
+    >
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupContent>
-            <SidebarMenu>{menuItems.map((item) => renderItem(item))}</SidebarMenu>
+            <SidebarMenu>
+              {menuItems.map((item) => renderItem(item))}
+            </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
@@ -608,7 +730,9 @@ function AppSidebar({
               onClick={() => setOpen(collapsed)}
             >
               {collapsed ? <PanelLeftOpen /> : <PanelLeftClose />}
-              <span>{collapsed ? t("app.expandSidebar") : t("app.collapseSidebar")}</span>
+              <span>
+                {collapsed ? t("app.expandSidebar") : t("app.collapseSidebar")}
+              </span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
@@ -625,7 +749,11 @@ function SidebarItemIcon({ item }: { item: MenuItem }) {
   return null;
 }
 
-function AppBreadcrumb({ breadcrumbs }: { breadcrumbs: BreadcrumbTrailItem[] }) {
+function AppBreadcrumb({
+  breadcrumbs,
+}: {
+  breadcrumbs: BreadcrumbTrailItem[];
+}) {
   const { t } = useTranslation();
   const first = breadcrumbs[0];
   const last = breadcrumbs[breadcrumbs.length - 1];
@@ -635,7 +763,11 @@ function AppBreadcrumb({ breadcrumbs }: { breadcrumbs: BreadcrumbTrailItem[] }) 
   function renderItem(item: BreadcrumbTrailItem, current: boolean) {
     const title = menuItemLabel(item, t);
     if (current || item.disabled || !item.path) {
-      return <BreadcrumbPage className="truncate font-semibold">{title}</BreadcrumbPage>;
+      return (
+        <BreadcrumbPage className="truncate font-semibold">
+          {title}
+        </BreadcrumbPage>
+      );
     }
 
     return (
@@ -646,9 +778,16 @@ function AppBreadcrumb({ breadcrumbs }: { breadcrumbs: BreadcrumbTrailItem[] }) 
   }
 
   return (
-    <Breadcrumb aria-label={t("app.breadcrumbs")} className="hidden min-w-0 text-sm lg:block">
+    <Breadcrumb
+      aria-label={t("app.breadcrumbs")}
+      className="hidden min-w-0 text-sm lg:block"
+    >
       <BreadcrumbList className="gap-1.5">
-        {first ? <BreadcrumbItem className="min-w-0">{renderItem(first, breadcrumbs.length === 1)}</BreadcrumbItem> : null}
+        {first ? (
+          <BreadcrumbItem className="min-w-0">
+            {renderItem(first, breadcrumbs.length === 1)}
+          </BreadcrumbItem>
+        ) : null}
         {overflow ? (
           <>
             <BreadcrumbSeparator />
@@ -665,7 +804,10 @@ function AppBreadcrumb({ breadcrumbs }: { breadcrumbs: BreadcrumbTrailItem[] }) 
                     const title = menuItemLabel(item, t);
                     if (item.disabled || !item.path) {
                       return (
-                        <DropdownMenuItem key={`${item.title}-disabled`} disabled>
+                        <DropdownMenuItem
+                          key={`${item.title}-disabled`}
+                          disabled
+                        >
                           {title}
                         </DropdownMenuItem>
                       );
@@ -684,14 +826,18 @@ function AppBreadcrumb({ breadcrumbs }: { breadcrumbs: BreadcrumbTrailItem[] }) 
           middle.map((item) => (
             <Fragment key={item.path ?? item.title}>
               <BreadcrumbSeparator />
-              <BreadcrumbItem className="min-w-0">{renderItem(item, false)}</BreadcrumbItem>
+              <BreadcrumbItem className="min-w-0">
+                {renderItem(item, false)}
+              </BreadcrumbItem>
             </Fragment>
           ))
         )}
         {breadcrumbs.length > 1 && last ? (
           <>
             <BreadcrumbSeparator />
-            <BreadcrumbItem className="min-w-0">{renderItem(last, true)}</BreadcrumbItem>
+            <BreadcrumbItem className="min-w-0">
+              {renderItem(last, true)}
+            </BreadcrumbItem>
           </>
         ) : null}
       </BreadcrumbList>

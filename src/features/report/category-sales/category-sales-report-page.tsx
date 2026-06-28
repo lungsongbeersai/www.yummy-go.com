@@ -99,8 +99,8 @@ export function CategorySalesReportPage({ initialPagination }: { initialPaginati
           onPrintReport={() => void report.printReport()}
           onRefresh={() => void report.load()}
         >
-          <CategorySalesTable groups={report.groups} />
-          <CategorySalesMobileList groups={report.groups} />
+          <CategorySalesTable groups={report.groups} labelOverrides={report.labelOverrides} />
+          <CategorySalesMobileList groups={report.groups} labelOverrides={report.labelOverrides} />
         </CategorySalesTableCard>
       </div>
       <CategorySalesExportSurface
@@ -111,6 +111,7 @@ export function CategorySalesReportPage({ initialPagination }: { initialPaginati
         rowsLabel={t("report.categorySales.rowsLabel", { count: report.renderedExportData.rows.length })}
         summary={report.renderedExportData.summary}
         title={report.renderedExportData.reportName || report.reportTitle}
+        labelOverrides={report.labelOverrides}
       />
     </div>
   );

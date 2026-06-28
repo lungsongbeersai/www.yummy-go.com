@@ -15,7 +15,7 @@ export function SortableReportTableHead<TKey extends string,>({
   sortKey,
   onSort,
 }: {
-  align?: "right";
+  align?: "left" | "right";
   children: ReactNode;
   className?: string;
   sort: LocalSortState<TKey>;

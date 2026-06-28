@@ -9,13 +9,13 @@ const config: CapacitorConfig = {
     url: "https://yummy-go.com",
     cleartext: false,
     androidScheme: "https",
+    iosScheme: "https",
   },
 
   android: {
     appendUserAgent: "YummyGoCapacitorAndroid",
     backgroundColor: "#ffffff",
     webContentsDebuggingEnabled: process.env.CAPACITOR_WEB_DEBUG === "1",
-    allowMixedContent: false,
   },
 
   plugins: {
@@ -23,12 +23,6 @@ const config: CapacitorConfig = {
       overlaysWebView: false,
       backgroundColor: "#ffffff",
       style: "LIGHT",
-    },
-
-    SplashScreen: {
-      backgroundColor: "#ffffff",
-      showSpinner: false,
-      launchShowDuration: 0,
     },
   },
 };

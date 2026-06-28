@@ -13,6 +13,11 @@ type MetricDefinition = Omit<CategorySalesRowMetricConfig, "label"> & {
   labelKey: string;
 };
 
+type CategorySalesLabelOverrides = Partial<{
+  service_charge: string;
+  vat: string;
+}>;
+
 type SummaryMetricDefinition = {
   key: string;
   kind: CategorySalesMetricKind;
@@ -87,20 +92,26 @@ export function selectedPaymentMethodLabel(
   return paymentMethodFallbackOptions(t).find((option) => option.value === value)?.label ?? t("common.all");
 }
 
-export function categorySalesRowMetricConfigs(t: (key: string) => string): CategorySalesRowMetricConfig[] {
+export function categorySalesRowMetricConfigs(
+  t: (key: string) => string,
+  labelOverrides?: CategorySalesLabelOverrides
+): CategorySalesRowMetricConfig[] {
   return rowMetricDefinitions.map((definition) => ({
     field: definition.field,
     key: definition.key,
     kind: definition.kind,
-    label: t(definition.labelKey)
+    label: labelOverrides?.[definition.key as keyof CategorySalesLabelOverrides] ?? t(definition.labelKey)
   }));
 }
 
-export function categorySalesSummaryMetricConfigs(t: (key: string) => string) {
+export function categorySalesSummaryMetricConfigs(
+  t: (key: string) => string,
+  labelOverrides?: CategorySalesLabelOverrides
+) {
   return summaryMetricDefinitions.map((definition) => ({
     key: definition.key,
     kind: definition.kind,
-    label: t(definition.labelKey)
+    label: labelOverrides?.[definition.key as keyof CategorySalesLabelOverrides] ?? t(definition.labelKey)
   }));
 }
 
@@ -114,8 +125,12 @@ export function waitForPaint() {
   });
 }
 
-export function exportCategorySalesRows(rows: CategorySalesRow[], t: (key: string) => string) {
-  const metrics = categorySalesRowMetricConfigs(t);
+export function exportCategorySalesRows(
+  rows: CategorySalesRow[],
+  t: (key: string) => string,
+  labelOverrides?: CategorySalesLabelOverrides
+) {
+  const metrics = categorySalesRowMetricConfigs(t, labelOverrides);
   return rows.map((row) => ({
     [t("report.categorySales.columns.rank")]: row.rank,
     [t("report.categorySales.columns.group")]: row.groupName,
@@ -124,8 +139,12 @@ export function exportCategorySalesRows(rows: CategorySalesRow[], t: (key: strin
   }));
 }
 
-export function exportSummaryRows(summary: ApiEntity, t: (key: string) => string) {
-  return categorySalesSummaryMetricConfigs(t).map((metric) => ({
+export function exportSummaryRows(
+  summary: ApiEntity,
+  t: (key: string) => string,
+  labelOverrides?: CategorySalesLabelOverrides
+) {
+  return categorySalesSummaryMetricConfigs(t, labelOverrides).map((metric) => ({
     [t("report.categorySales.export.metric")]: metric.label,
     [t("report.categorySales.export.value")]: firstNumber(summary[metric.key])
   }));

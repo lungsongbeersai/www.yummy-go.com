@@ -3,7 +3,9 @@
 import axios, { AxiosError, type AxiosInstance } from "axios";
 import { useAuthStore } from "@/stores/auth-store";
 
-const baseURL = process.env.NEXT_PUBLIC_BASE_URL;
+const baseURL =
+  process.env.NEXT_PUBLIC_BASE_URL ??
+  (typeof window !== "undefined" ? window.location.origin : undefined);
 
 export class ServiceError extends Error {
   constructor(

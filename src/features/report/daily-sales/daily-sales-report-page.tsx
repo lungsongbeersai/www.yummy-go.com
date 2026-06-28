@@ -14,9 +14,7 @@ import {
   ReportTableCard,
 } from "./daily-sales-report-components";
 import { ReportExportSurface } from "./daily-sales-report-export-surface";
-import {
-  ReportFilterSheet,
-} from "./daily-sales-report-filters";
+import { ReportFilterSheet } from "./daily-sales-report-filters";
 import {
   DetailBillTable,
   SummaryReportTable,
@@ -25,7 +23,11 @@ import { useDailySalesReportWorkflow } from "./use-daily-sales-report-workflow";
 
 const SUMMARY_CARDS_ID = "daily-sales-summary-cards";
 
-export function DailySalesReportPage({ initialPagination }: { initialPagination: UrlPaginationState }) {
+export function DailySalesReportPage({
+  initialPagination,
+}: {
+  initialPagination: UrlPaginationState;
+}) {
   const { t } = useTranslation();
   const exportReportRef = useRef<HTMLDivElement>(null);
   const [summaryVisible, setSummaryVisible] = useState(false);
@@ -33,27 +35,24 @@ export function DailySalesReportPage({ initialPagination }: { initialPagination:
   const layoutStyle = {
     "--daily-sales-filter-height": "0px",
   } as CSSProperties;
-  const canApplyFilters = Boolean(
-    report.draftFilters.branchUuid || report.defaultBranchUuid,
-  );
+  const canApplyFilters = Boolean(report.draftFilters.branchUuid || report.defaultBranchUuid);
 
   return (
     <>
       <div className="h-full min-h-0 min-w-0 overflow-x-hidden overflow-y-auto" style={layoutStyle}>
-        <div className="mx-auto flex w-full min-w-0 max-w-full flex-col gap-3 p-3 sm:p-4 lg:p-4 2xl:max-w-375">
+        <div className="flex w-full min-w-0 flex-col gap-3 p-3 sm:p-4">
           <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-            <div>
+            <div className="min-w-0">
               <div className="flex items-center gap-2 text-sm font-bold text-primary">
                 <BarChart3 className="size-4" />
                 {t("nav.report_menu")}
               </div>
-              <h1 className="text-2xl font-black tracking-normal text-foreground">
+              <h1 className="truncate text-2xl font-black tracking-normal text-foreground">
                 {t("report.dailySalesTitle")}
               </h1>
-              <p className="text-sm text-muted-foreground">
-                {t("report.dailySalesDescription")}
-              </p>
+              <p className="text-sm text-muted-foreground">{t("report.dailySalesDescription")}</p>
             </div>
+
             <div className="flex flex-wrap items-center gap-2 sm:justify-end">
               <Badge className="w-fit rounded-full px-3 py-1">
                 <CalendarDays data-icon="inline-start" />
@@ -81,12 +80,8 @@ export function DailySalesReportPage({ initialPagination }: { initialPagination:
             onOpenChange={report.handleMobileFilterOpenChange}
           />
 
-          {!report.branchUuid ? (
-            <ReportError message={t("report.branchRequired")} />
-          ) : null}
-          {report.branchError ? (
-            <ReportError message={report.branchError} />
-          ) : null}
+          {!report.branchUuid ? <ReportError message={t("report.branchRequired")} /> : null}
+          {report.branchError ? <ReportError message={report.branchError} /> : null}
           {report.error ? <ReportError message={report.error} /> : null}
 
           <div id={SUMMARY_CARDS_ID} hidden={!summaryVisible}>
@@ -116,12 +111,10 @@ export function DailySalesReportPage({ initialPagination }: { initialPagination:
               onExportExcel: () => void report.exportExcel(),
               onExportPdf: () => void report.exportPdf(),
               onOpenFilters: report.openMobileFilters,
-              onPaymentMethodChange: (paymentMethod) =>
-                report.applyTableHeaderFilters({ paymentMethod }),
+              onPaymentMethodChange: (paymentMethod) => report.applyTableHeaderFilters({ paymentMethod }),
               onPrintReport: () => void report.printReport(),
               onRefresh: () => void report.load(),
-              onTypePageChange: (typePage) =>
-                report.applyTableHeaderFilters({ typePage }),
+              onTypePageChange: (typePage) => report.applyTableHeaderFilters({ typePage }),
             }}
             footer={
               <ReportPagination
@@ -130,9 +123,7 @@ export function DailySalesReportPage({ initialPagination }: { initialPagination:
                 page={report.page}
                 rangeLabel={report.paginationRangeLabel}
                 totalPages={report.totalPages}
-                onBack={() =>
-                  report.setPage((current) => Math.max(1, current - 1))
-                }
+                onBack={() => report.setPage((current) => Math.max(1, current - 1))}
                 onNext={() => report.setPage((current) => current + 1)}
                 onPageChange={report.setPage}
               />
@@ -165,10 +156,9 @@ export function DailySalesReportPage({ initialPagination }: { initialPagination:
           </ReportTableCard>
         </div>
       </div>
-      <ReportExportLoadingDialog
-        exporting={report.exporting}
-        progress={report.exportProgress}
-      />
+
+      <ReportExportLoadingDialog exporting={report.exporting} progress={report.exportProgress} />
+
       {report.exportSurfaceReady ? (
         <ReportExportSurface
           cards={report.cards}
@@ -194,11 +184,7 @@ export function DailySalesReportPage({ initialPagination }: { initialPagination:
           summaryCards={report.renderedExportData.summaryCards}
           title={t("report.dailySalesTitle")}
           typePage={report.appliedFilters.typePage}
-          typeLabel={
-            report.appliedFilters.typePage === "summary"
-              ? t("report.summary")
-              : t("report.detail")
-          }
+          typeLabel={report.appliedFilters.typePage === "summary" ? t("report.summary") : t("report.detail")}
         />
       ) : null}
     </>
