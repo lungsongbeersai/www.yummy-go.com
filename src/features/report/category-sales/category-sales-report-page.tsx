@@ -29,7 +29,7 @@ export function CategorySalesReportPage({ initialPagination }: { initialPaginati
 
   return (
     <div className="h-full min-h-0 min-w-0 overflow-x-hidden overflow-y-auto" style={layoutStyle}>
-      <div className="mx-auto flex w-full max-w-full flex-col gap-3 p-3 sm:p-4 lg:p-4 2xl:max-w-[1500px]">
+      <div className="mx-auto flex w-full max-w-full flex-col gap-3 p-3 sm:p-4 lg:p-4 2xl:max-w-375">
         <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <div className="flex items-center gap-2 text-sm font-bold text-primary">

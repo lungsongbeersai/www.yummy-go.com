@@ -304,7 +304,7 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
 
   return (
     <div className="h-full min-h-0 overflow-y-auto bg-muted/20 xl:overflow-hidden">
-      <div className="mx-auto flex w-full max-w-[1500px] flex-col gap-2 p-2 sm:gap-3 sm:p-3 lg:p-4 xl:h-full xl:min-h-0">
+      <div className="mx-auto flex w-full max-w-375 flex-col gap-2 p-2 sm:gap-3 sm:p-3 lg:p-4 xl:h-full xl:min-h-0">
         <SalesListHeader
           appliedFilters={appliedFilters}
           branchLabel={branchLabel}
@@ -1005,18 +1005,18 @@ function SalesListItems({ items }: { items: ApiEntity[] }) {
         ))}
       </div>
       <div className="hidden overflow-x-auto rounded-md border border-border bg-card md:block">
-        <Table className="min-w-[940px] text-[13px]">
+        <Table className="min-w-235 text-[13px]">
         <TableHeader className="bg-muted/60">
           <TableRow>
-            <TableHead className="w-[64px] whitespace-nowrap text-center">{t("fields.no")}</TableHead>
-            <TableHead className="min-w-[220px] whitespace-nowrap">{t("salesList.product")}</TableHead>
-            <TableHead className="min-w-[82px] whitespace-nowrap text-right">{t("salesList.qty")}</TableHead>
-            <TableHead className="min-w-[116px] whitespace-nowrap text-right">{t("salesList.price")}</TableHead>
-            <TableHead className="min-w-[116px] whitespace-nowrap text-right">{t("salesList.amount")}</TableHead>
-            <TableHead className="min-w-[116px] whitespace-nowrap text-right">{t("salesList.discount")}</TableHead>
-            <TableHead className="min-w-[116px] whitespace-nowrap text-right">{t("salesList.toppings")}</TableHead>
-            <TableHead className="min-w-[128px] whitespace-nowrap text-right">{t("salesList.total")}</TableHead>
-            <TableHead className="min-w-[220px] whitespace-nowrap">{t("salesList.note")}</TableHead>
+            <TableHead className="w-16 whitespace-nowrap text-center">{t("fields.no")}</TableHead>
+            <TableHead className="min-w-55 whitespace-nowrap">{t("salesList.product")}</TableHead>
+            <TableHead className="min-w-20.5 whitespace-nowrap text-right">{t("salesList.qty")}</TableHead>
+            <TableHead className="min-w-29 whitespace-nowrap text-right">{t("salesList.price")}</TableHead>
+            <TableHead className="min-w-29 whitespace-nowrap text-right">{t("salesList.amount")}</TableHead>
+            <TableHead className="min-w-29 whitespace-nowrap text-right">{t("salesList.discount")}</TableHead>
+            <TableHead className="min-w-29 whitespace-nowrap text-right">{t("salesList.toppings")}</TableHead>
+            <TableHead className="min-w-32 whitespace-nowrap text-right">{t("salesList.total")}</TableHead>
+            <TableHead className="min-w-55 whitespace-nowrap">{t("salesList.note")}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -1035,7 +1035,7 @@ function SalesListItems({ items }: { items: ApiEntity[] }) {
               <MoneyCell value={firstNumber(item, ["discount_total", "discount_amount", "item_discount_amount"])} />
               <MoneyCell value={firstNumber(item, ["topping_total", "topping_unit_total"])} />
               <MoneyCell value={firstNumber(item, ["total", "line_total", "net_total"])} strong />
-              <TableCell className="max-w-[260px] whitespace-normal text-muted-foreground">{itemNote(item) || "-"}</TableCell>
+              <TableCell className="max-w-65 whitespace-normal text-muted-foreground">{itemNote(item) || "-"}</TableCell>
             </TableRow>
           ))}
         </TableBody>
@@ -1056,7 +1056,7 @@ function SalesListItemCard({ index, item }: { index: number; item: ApiEntity }) 
     <div className={cn("flex flex-col gap-2 px-3 py-3", index > 0 && "border-t border-border")}>
       <div className="flex min-w-0 items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="break-words text-sm font-black">{itemProductName(item)}</p>
+          <p className="wrap-break-word text-sm font-black">{itemProductName(item)}</p>
           {code ? <p className="mt-1 truncate text-xs text-muted-foreground">{code}</p> : null}
         </div>
         <p className="shrink-0 text-right text-sm font-black tabular-nums">
@@ -1074,7 +1074,7 @@ function SalesListItemCard({ index, item }: { index: number; item: ApiEntity }) 
       {note ? (
         <div className="flex min-w-0 justify-between gap-3 text-xs">
           <span className="shrink-0 font-semibold text-muted-foreground">{t("salesList.note")}</span>
-          <span className="min-w-0 break-words text-right text-muted-foreground">{note}</span>
+          <span className="min-w-0 wrap-break-word text-right text-muted-foreground">{note}</span>
         </div>
       ) : null}
     </div>

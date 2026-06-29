@@ -311,7 +311,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         "app-shell flex-col text-foreground",
         fixedDataScreen
           ? immersiveScreen
-            ? "h-[100dvh] overflow-hidden"
+            ? "h-dvh overflow-hidden"
             : "h-screen overflow-hidden"
           : "min-h-screen",
       )}
@@ -353,7 +353,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             className={cn(
               fixedDataScreen
                 ? "h-full min-h-0 min-w-0 w-full max-w-none overflow-hidden"
-                : "mx-auto w-full max-w-[1500px] p-4 lg:p-6",
+                : "mx-auto w-full max-w-375 p-4 lg:p-6",
             )}
           >
             {children}
@@ -390,7 +390,7 @@ function AppHeader({
     user?.branch_address || user?.store_name || t("app.posWorkspace");
 
   return (
-    <header className="app-header sticky top-0 z-40 flex h-[var(--app-shell-header-height)] w-full items-center justify-between gap-2 border-b border-border px-2 sm:px-4 lg:gap-4 lg:px-6">
+    <header className="app-header sticky top-0 z-40 flex h-(--app-shell-header-height) w-full items-center justify-between gap-2 border-b border-border px-2 sm:px-4 lg:gap-4 lg:px-6">
       <div className="flex min-w-0 flex-1 items-center gap-2 md:gap-4">
         <Tooltip>
           <TooltipTrigger asChild>
@@ -400,11 +400,11 @@ function AppHeader({
               className={cn(
                 "hidden min-w-0 shrink-0 items-center md:flex",
                 collapsed
-                  ? "w-[var(--sidebar-width-icon)] max-w-[var(--sidebar-width-icon)] justify-center"
-                  : "w-[var(--sidebar-width)] max-w-[var(--sidebar-width)] gap-3",
+                  ? "w-(--sidebar-width-icon) max-w-(--sidebar-width-icon) justify-center"
+                  : "w-(--sidebar-width) max-w-(--sidebar-width) gap-3",
               )}
             >
-              <Avatar className="size-[50px] shrink-0 rounded-md">
+              <Avatar className="size-12.5 shrink-0 rounded-md">
                 <AvatarImage src={logoSrc} alt={branchTitle} />
                 <AvatarFallback className="rounded-md font-black">
                   {userInitials(user)}
@@ -428,7 +428,7 @@ function AppHeader({
           <TooltipContent side="bottom" align="start" className="max-w-96">
             <div className="flex min-w-0 flex-col gap-1">
               <span className="font-bold">{branchTitle}</span>
-              <span className="break-words text-xs leading-5 opacity-80">
+              <span className="wrap-break-word text-xs leading-5 opacity-80">
                 {address}
               </span>
             </div>
