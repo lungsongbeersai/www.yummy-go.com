@@ -2,6 +2,7 @@ import type { InvoicePrintData, InvoicePrintItem, InvoicePrintTopping } from "@/
 import { dateTime, money } from "@/lib/format";
 import { pageLimitNumber } from "@/lib/pagination";
 import type { CancelableBill, CancelableBillDetail, CancelableDateOption } from "@/services/cancel";
+import { getBranchQrUrl } from "@/services/branch";
 import type { ApiEntity, PageLimit, SortOrder } from "@/services/shared/types";
 import type { AuthUser } from "@/stores/auth-store";
 
@@ -188,7 +189,7 @@ export function billItems(source: BillSource) {
 }
 
 export function itemName(item: ApiEntity) {
-  return textValue(readValue(item, ["prod_name", "product_name", "name", "title", "item_name"]), "-");
+  return textValue(readValue(item, ["product_full_name", "prod_name", "product_name", "name", "title", "item_name"]), "-");
 }
 
 export function itemQty(item: ApiEntity) {
@@ -196,12 +197,12 @@ export function itemQty(item: ApiEntity) {
 }
 
 export function itemPrice(item: ApiEntity) {
-  const value = optionalNumber(readValue(item, ["price", "unit_price", "base_price", "pro_detail_sprice"]));
+  const value = optionalNumber(readValue(item, ["price", "unit_price", "base_price", "pro_detail_sprice", "product_price"]));
   return value === null ? "-" : money(value);
 }
 
 export function itemTotal(item: ApiEntity) {
-  const value = optionalNumber(readValue(item, ["line_total", "net_total", "total", "gross_total", "base_line_total"]));
+  const value = optionalNumber(readValue(item, ["line_total", "net_total", "total", "gross_total", "base_line_total", "product_price_total"]));
   return value === null ? "-" : money(value);
 }
 
@@ -226,7 +227,7 @@ export function itemToppings(item: ApiEntity) {
 }
 
 export function itemToppingTotal(item: ApiEntity) {
-  const explicit = optionalNumber(readValue(item, ["topping_unit_total", "topping_total", "topping_line_total"]));
+  const explicit = optionalNumber(readValue(item, ["topping_total", "topping_line_total", "topping_unit_total"]));
   if (explicit !== null) return explicit;
   const toppings = itemToppings(item);
   if (!toppings.length) return null;
@@ -309,15 +310,24 @@ export function salesListInvoicePrintLabels(
     discount: translate("pos.invoicePrintDiscount"),
     invoice: translate("pos.receiptPrintNumber"),
     price: translate("pos.price"),
-    service: serviceRate ? `${translate("salesList.serviceCharge")} (${serviceRate})` : translate("pos.serviceTotal"),
+    service: serviceRate ? translate("pos.serviceWithPercent", { percent: serviceRate.replace("%", "") }) : translate("pos.serviceTotal"),
     subtotal: translate("pos.invoicePrintTotalAmount"),
     table: translate("pos.invoicePrintTable"),
     thankYou: translate("pos.invoicePrintThankYou"),
     title: translate("pos.receiptPrintTitle"),
     topping: translate("pos.toppingTotal"),
     total: translate("pos.invoicePrintAmountToPay"),
-    vat: vatRate ? `${translate("pos.vat")} (${vatRate})` : translate("pos.vat")
+    vat: vatRate ? translate("pos.invoicePrintVatWithPercent", { percent: vatRate.replace("%", "") }) : translate("pos.vat")
   };
+}
+
+function salesListQrUrl(bill: BillSource) {
+  const value = firstText(
+    readFromBillSections([bill], ["branch_qr", "qr_url", "payment_qr", "branch_qr_url"], ["payment", "totals", "self", "order"])
+  );
+  if (!value) return null;
+  if (/^(https?:|data:|blob:)/i.test(value)) return value;
+  return getBranchQrUrl(value);
 }
 
 export function salesListInvoicePrintItems(
@@ -326,10 +336,10 @@ export function salesListInvoicePrintItems(
 ): InvoicePrintItem[] {
   return billItems(bill).map((item) => {
     const qty = optionalNumber(readValue(item, ["qty", "quantity", "order_it_qty", "sale_qty"])) ?? 0;
-    const displayTotal = optionalNumber(readValue(item, ["line_total", "net_total", "total", "base_line_total", "gross_total"])) ?? 0;
+    const displayTotal = optionalNumber(readValue(item, ["line_total", "net_total", "total", "base_line_total", "gross_total", "product_price_total"])) ?? 0;
     const itemDiscount = itemDiscountAmount(item) ?? 0;
     const originalLineTotal = itemDiscount > 0 ? displayTotal + itemDiscount : null;
-    const explicitUnitPrice = optionalNumber(readValue(item, ["price", "unit_price", "base_price", "pro_detail_sprice"]));
+    const explicitUnitPrice = optionalNumber(readValue(item, ["price", "unit_price", "base_price", "pro_detail_sprice", "product_price"]));
     const unitPrice = explicitUnitPrice ?? (qty > 0 ? displayTotal / qty : null);
     const size = itemSize(item);
     const toppings: InvoicePrintTopping[] = itemToppings(item).map((topping) => ({
@@ -382,7 +392,7 @@ export function buildSalesListInvoicePrintData({
     paperHeightMm: 210,
     paperWidthMm: 80,
     printedAt: billDateValue(bill),
-    qrUrl: null,
+    qrUrl: salesListQrUrl(bill),
     service: positiveNumber(service) ?? 0,
     storeName: firstText(user.store_name, user.branch_name, readFromBillSections([bill], branchKeys, ["order", "self"])),
     subtotal: subtotal ?? orderTotal ?? 0,

@@ -15,6 +15,7 @@ const eslintConfig = [
       ".next/**",
       ".netlify/**",
       ".open-next/**",
+      "android/app/build/**",
       "dist/**",
       "dist-electron/**",
       "node_modules/**",

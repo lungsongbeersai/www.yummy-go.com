@@ -65,6 +65,7 @@ interface AgentInfoResponse extends ApiEntity {
 interface PendingPrintJobsFullResponse extends ApiEntity {
   data?: PendingPrintJobData[];
   print_batch_payloads?: PrintOpsBatchPayload[];
+  print_summary?: ApiEntity;
   ack_success_payload?: AckPayload;
   ack_failed_payload?: AckPayload;
 }
@@ -296,6 +297,7 @@ export interface PendingPrintJobsResult {
   hasBatchPayloads: boolean;
   ackSuccess: AckPayload | null;
   ackFailed: AckPayload | null;
+  printSummary: ApiEntity;
 }
 export interface PrinterDeviceContextParams {
   login_uuid_fk: string;
@@ -755,6 +757,7 @@ export async function getPendingPrintJobs(params: PendingPrintJobsParams): Promi
     hasBatchPayloads,
     ackSuccess: result.ack_success_payload ?? null,
     ackFailed: result.ack_failed_payload ?? null,
+    printSummary: result.print_summary ?? {},
   };
 }
 export const ackPrintJob = (payload: AckPayload) =>
@@ -870,6 +873,16 @@ function printBatchJobTotal(batch: PrintOpsBatchPayload) {
   return jobsTotal || declaredTotal || 0;
 }
 
+function pendingFailedBeforePrintTotal(result: PendingPrintJobsResult) {
+  const summaryTotal = Number(result.printSummary.failed_before_print_total ?? 0);
+  if (Number.isFinite(summaryTotal) && summaryTotal > 0) return summaryTotal;
+
+  const failedResults = result.ackFailed?.results?.filter((item) => item.status === "failed").length ?? 0;
+  if (failedResults > 0) return failedResults;
+
+  return result.hasBatchPayloads && result.batchPayloads.length === 0 ? 1 : 0;
+}
+
 async function executePrintJobs(input: ExecuteKitchenPrintInput, options: { ack: boolean }): Promise<KitchenPrintResult> {
   const jobUuid = input.pending_query?.print_job_uuid ?? input.print_job?.print_job_uuid;
   const loginUuid = input.pending_query?.login_uuid_fk ?? input.login_uuid_fk;
@@ -913,11 +926,22 @@ async function executePrintJobs(input: ExecuteKitchenPrintInput, options: { ack:
   const globalAckSuccess = pendingResult.ackSuccess;
   const globalAckFailed = pendingResult.ackFailed;
 
-  // ถ้า server ส่ง print_batch_payloads มา ให้ใช้โดยตรงเลย
-  // if (pendingResult.hasBatchPayloads && batchPayloads.length === 0) {
-  //   input.onProgress?.({ total: 0, completed: 0, successCount: 0, failedCount: 0, phase: "done" });
-  //   throw new ServiceError(EMPTY_PRINT_BATCH_PAYLOADS_MESSAGE, 204);
-  // }
+  if (pendingResult.hasBatchPayloads && batchPayloads.length === 0) {
+    const failedCount = pendingFailedBeforePrintTotal(pendingResult);
+    input.onProgress?.({
+      total: failedCount,
+      completed: failedCount,
+      successCount: 0,
+      failedCount,
+      phase: "done",
+    });
+
+    return {
+      successCount: 0,
+      failedCount,
+      total: failedCount,
+    };
+  }
 
   if (batchPayloads.length > 0) {
     const total = batchPayloads.reduce(

@@ -369,7 +369,24 @@ describe("printer service dispatch", () => {
   it("falls back before calling the print agent when invoice batch payloads are empty", async () => {
     apiMocks.apiRequest.mockImplementation(async (method, url) => {
       if (method === "get" && url === "/api/v1/printer/jobs/pending") {
-        return { print_batch_payloads: [] };
+        return {
+          print_batch_payloads: [],
+          print_summary: {
+            failed_before_print_total: 1,
+            print_batch_total: 0,
+            printable_item_total: 0
+          },
+          ack_failed_payload: {
+            print_job_uuid: "invoice-job-1",
+            results: [
+              {
+                print_job_item_uuid: "receipt-1",
+                status: "failed",
+                reason: "no active printer config for role_code receipt"
+              }
+            ]
+          }
+        };
       }
       throw new Error(`Unexpected request ${method} ${url}`);
     });
@@ -384,7 +401,7 @@ describe("printer service dispatch", () => {
           print_mode: "windows_agent"
         }
       })
-    ).rejects.toThrow("Print batch payloads are empty");
+    ).resolves.toEqual({ successCount: 0, failedCount: 1, total: 1 });
 
     expect(axiosMocks.get).not.toHaveBeenCalled();
     expect(axiosMocks.post).not.toHaveBeenCalled();
@@ -850,8 +867,25 @@ describe("printer pending jobs", () => {
     expect(result.batchPayloads).toEqual([]);
   });
 
-  it("preserves an explicitly empty print_batch_payloads response", async () => {
-    apiMocks.apiRequest.mockResolvedValue({ print_batch_payloads: [] });
+  it("preserves an explicitly empty print_batch_payloads response with failed metadata", async () => {
+    apiMocks.apiRequest.mockResolvedValue({
+      print_batch_payloads: [],
+      print_summary: {
+        failed_before_print_total: 1,
+        print_batch_total: 0,
+        printable_item_total: 0
+      },
+      ack_failed_payload: {
+        print_job_uuid: "job-1",
+        results: [
+          {
+            print_job_item_uuid: "item-1",
+            status: "failed",
+            reason: "no active printer config for role_code receipt"
+          }
+        ]
+      }
+    });
 
     const result = await getPendingPrintJobs({
       print_job_uuid: "job-1",
@@ -860,6 +894,8 @@ describe("printer pending jobs", () => {
 
     expect(result.hasBatchPayloads).toBe(true);
     expect(result.batchPayloads).toEqual([]);
+    expect(result.printSummary.failed_before_print_total).toBe(1);
+    expect(result.ackFailed?.results[0]?.reason).toBe("no active printer config for role_code receipt");
   });
 });
 

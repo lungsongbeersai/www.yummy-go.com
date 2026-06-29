@@ -43,7 +43,7 @@ function source(value: Record<string, unknown>): BillSource {
   return value as BillSource;
 }
 
-const translate = (key: string) => ({
+const translate = (key: string, options?: Record<string, unknown>) => ({
   "fields.branch_address": "Branch address",
   "pos.customer": "Customer",
   "pos.invoicePrintAmountToPay": "Amount to pay",
@@ -55,9 +55,11 @@ const translate = (key: string) => ({
   "pos.invoicePrintThankYou": "Thank you",
   "pos.invoicePrintTitle": "Receipt",
   "pos.invoicePrintTotalAmount": "Subtotal",
+  "pos.invoicePrintVatWithPercent": `VAT (${options?.percent}%)`,
   "pos.receiptPrintNumber": "Receipt No",
   "pos.receiptPrintTitle": "Receipt",
   "pos.price": "Price",
+  "pos.serviceWithPercent": `Service (${options?.percent}%)`,
   "pos.serviceTotal": "Service",
   "pos.toppingTotal": "Toppings",
   "pos.vat": "VAT",
@@ -174,6 +176,7 @@ describe("sales list utils", () => {
       order: {
         branch_address: "Bill address",
         branch_name: "Bill Branch",
+        branch_qr: "bill-qr.png",
         branch_tel: "020 1111",
         created_at: "2026-06-03T10:00:00Z",
         order_invoice: "INV-PRINT",
@@ -217,6 +220,7 @@ describe("sales list utils", () => {
       customer: "Jane",
       discount: 100,
       invoice: "INV-PRINT",
+      qrUrl: "/uploaded/qrcode/bill-qr.png",
       service: 200,
       storeName: "User Store",
       subtotal: 2800,
@@ -226,8 +230,41 @@ describe("sales list utils", () => {
       vat: 300
     });
     expect(printData.labels.invoice).toBe("Receipt No");
-    expect(printData.labels.service).toBe("Service charge (10%)");
+    expect(printData.labels.service).toBe("Service (10%)");
     expect(printData.labels.vat).toBe("VAT (7%)");
+  });
+
+  it("uses product_full_name in receipt print items from sale list API", () => {
+    const [printItem] = salesListInvoicePrintItems(
+      source({
+        items: [
+          {
+            product_full_name: "Fried rice-Large",
+            product_price: 65000,
+            product_price_total: 195000,
+            qty: 2,
+            topping_total: 45000,
+            topping_unit_total: 15000,
+            toppings: [
+              { topping_name: "Egg", topping_qty: 1, topping_total: 5000 },
+              { topping_name: "Meat", topping_qty: 1, topping_total: 10000 }
+            ],
+            total: 240000
+          }
+        ]
+      }),
+      translate
+    );
+
+    expect(printItem.name).toBe("Fried rice-Large");
+    expect(printItem.qty).toBe(2);
+    expect(printItem.displayTotal).toBe(240000);
+    expect(printItem.toppingTotal).toBe(45000);
+    expect(printItem.toppings).toEqual([
+      { name: "Egg", qty: 1, total: 5000 },
+      { name: "Meat", qty: 1, total: 10000 }
+    ]);
+    expect(printItem.unitPrice).toBe(65000);
   });
 
   it("keeps status badge classes stable for cancelled, paid, and pending rows", () => {

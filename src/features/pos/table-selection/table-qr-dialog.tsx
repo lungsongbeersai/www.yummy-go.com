@@ -137,11 +137,24 @@ export function TableQrDialog({
     try {
       if (pendingJobUuid) {
         try {
-          await executeInvoice({
+          const printResult = await executeInvoice({
             print_job: response?.print_job,
             pending_query: response?.pending_query,
             login_uuid_fk: loginUuid,
           });
+
+          if (printResult.failedCount > 0) {
+            const imageUrl = await fallbackPrintImageUrl();
+            if (imageUrl) {
+              openFallbackPrintWindow(imageUrl);
+              showToast({
+                title: t("pos.printQr"),
+                tone: "info",
+              });
+            }
+            return;
+          }
+
           showToast({ title: t("pos.printQr"), tone: "success" });
         } catch (error) {
           const imageUrl = await fallbackPrintImageUrl();

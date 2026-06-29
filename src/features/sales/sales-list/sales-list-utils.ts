@@ -6,6 +6,8 @@ import type { DailySaleItemsBillGroup } from "@/stores/report-store";
 
 export const SALES_LIST_LIMIT_OPTIONS: PageLimit[] = [20, 50, 100, 200];
 export const SALES_LIST_ORDER_OPTIONS: DailySaleItemsOrder[] = ["DESC", "ASC"];
+export const SALES_LIST_PAYMENT_METHOD_OPTIONS = ["All", "1", "2", "4"] as const;
+export type SalesListPaymentMethod = (typeof SALES_LIST_PAYMENT_METHOD_OPTIONS)[number];
 
 export interface SalesListFilters {
   branchUuid: string;
@@ -13,6 +15,7 @@ export interface SalesListFilters {
   dateTo: string;
   limit: PageLimit;
   orderBy: DailySaleItemsOrder;
+  paymentMethod: SalesListPaymentMethod;
   search: string;
 }
 
@@ -36,6 +39,7 @@ export function defaultSalesListFilters(branchUuid: string, limit: PageLimit): S
     dateTo: today,
     limit,
     orderBy: "DESC",
+    paymentMethod: "All",
     search: ""
   };
 }
@@ -133,7 +137,67 @@ export function billNeedsPaymentAttention(bill: DailySaleItemsBillGroup) {
 }
 
 export function itemProductName(item: ApiEntity) {
-  return textValue(readValue(item, ["product_name", "prod_name", "name", "item_name"]));
+  return textValue(readValue(item, ["product_full_name", "product_name", "prod_name", "name", "item_name"]));
+}
+
+export interface SalesListItemTopping {
+  name: string;
+  qty: number;
+  total: number;
+}
+
+export type SalesListItemMedia =
+  | { type: "color"; color: string }
+  | { type: "empty" }
+  | { type: "image"; src: string };
+
+const HEX_COLOR_PATTERN = /^#(?:[0-9a-f]{3}){1,2}$/i;
+
+function isHexColor(value: string) {
+  return HEX_COLOR_PATTERN.test(value.trim());
+}
+
+export function itemMedia(item: ApiEntity): SalesListItemMedia {
+  const mediaValue = textValue(
+    readValue(item, ["prod_image", "product_image", "image", "prod_image_raw", "image_url"]),
+    ""
+  );
+  if (!mediaValue) return { type: "empty" };
+
+  const imageStatus = firstNumber(item, ["prod_status_imge", "prod_status_image", "product_image_status", "image_status"]);
+  const isColor = imageStatus === 2 || isHexColor(mediaValue);
+  if (isColor) {
+    return isHexColor(mediaValue) ? { type: "color", color: mediaValue } : { type: "empty" };
+  }
+
+  return { type: "image", src: mediaValue };
+}
+
+export function itemToppings(item: ApiEntity): SalesListItemTopping[] {
+  const rows = readValue(item, ["toppings", "item_toppings", "order_item_toppings"]);
+  if (!Array.isArray(rows)) return [];
+
+  return rows
+    .filter((row): row is ApiEntity => Boolean(row) && typeof row === "object" && !Array.isArray(row))
+    .map((row) => ({
+      name: textValue(readValue(row, ["topping_name", "prod_topping_name", "product_name", "name"]), ""),
+      qty: firstNumber(row, ["topping_qty", "qty", "quantity"]),
+      total: firstNumber(row, ["topping_total", "total", "line_total", "topping_price"])
+    }))
+    .filter((row) => Boolean(row.name));
+}
+
+export function itemToppingNames(item: ApiEntity) {
+  return itemToppings(item).map((topping) => {
+    const qty = topping.qty > 1 ? ` x ${topping.qty.toLocaleString("en-US")}` : "";
+    return `${topping.name}${qty}`;
+  });
+}
+
+export function itemToppingTotal(item: ApiEntity) {
+  const explicit = firstNumber(item, ["topping_total", "topping_line_total", "topping_unit_total"]);
+  if (explicit > 0) return explicit;
+  return itemToppings(item).reduce((total, topping) => total + topping.total, 0);
 }
 
 export function itemNote(item: ApiEntity) {
@@ -154,8 +218,9 @@ export function saleListPrintBillSource(group: DailySaleItemsBillGroup): ApiEnti
       ...item,
       item_discount_amount: readValue(item, ["discount_total", "discount_amount", "item_discount_amount"]),
       line_total: readValue(item, ["total", "line_total", "net_total"]),
-      price: readValue(item, ["sale_price", "price", "unit_price"]),
-      topping_unit_total: readValue(item, ["topping_total", "topping_unit_total"])
+      price: readValue(item, ["sale_price", "price", "unit_price", "product_price"]),
+      product_price_total: readValue(item, ["product_price_total"]),
+      topping_total: readValue(item, ["topping_total", "topping_line_total", "topping_unit_total"])
     })),
     net_total: group.lineTotal,
     order_grand_total: group.lineTotal,

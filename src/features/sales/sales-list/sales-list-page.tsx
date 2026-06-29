@@ -1,7 +1,10 @@
 "use client";
 
+import type { CSSProperties, ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import {
+  BadgePercent,
   CalendarDays,
   CreditCard,
   Printer,
@@ -9,7 +12,11 @@ import {
   RefreshCcw,
   Search,
   SlidersHorizontal,
-  Table2
+  ShoppingBag,
+  StickyNote,
+  Table2,
+  Tag,
+  Utensils
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { AppPagination } from "@/components/common/app-pagination";
@@ -32,7 +39,6 @@ import {
 } from "@/components/ui/popover";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { openLocalInvoicePrintWindow, type InvoicePrintData } from "@/features/pos/print/invoice-print-window";
 import { buildSalesListInvoicePrintData } from "@/features/sales/list/sales-list-utils";
 import { useUrlPagination } from "@/hooks/use-url-pagination";
@@ -49,13 +55,17 @@ import { useToastStore } from "@/stores/toast-store";
 import {
   SALES_LIST_LIMIT_OPTIONS,
   SALES_LIST_ORDER_OPTIONS,
+  SALES_LIST_PAYMENT_METHOD_OPTIONS,
   billNeedsPaymentAttention,
   branchOptionFromRow,
   defaultSalesListFilters,
   firstNumber,
   formatSaleDate,
+  itemMedia,
   itemNote,
   itemProductName,
+  itemToppings,
+  itemToppingTotal,
   moneyValue,
   readValue,
   saleListPrintBillSource,
@@ -64,7 +74,8 @@ import {
   statusBadgeClass,
   textValue,
   type SalesListBranchOption,
-  type SalesListFilters
+  type SalesListFilters,
+  type SalesListPaymentMethod
 } from "./sales-list-utils";
 
 const SALES_LIST_DESKTOP_MEDIA_QUERY = "(min-width: 1280px)";
@@ -215,6 +226,7 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
         limit: appliedFilters.limit,
         orderBy: appliedFilters.orderBy,
         page,
+        payment_method: appliedFilters.paymentMethod,
         search: appliedFilters.search
       });
     } catch (loadError) {
@@ -259,8 +271,22 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
     const orderUuid = textValue(readValue(group.raw, ["order_uuid"]), "");
     if (!orderUuid || !user?.uuid || printingBillId) return;
 
+    const currentBranch = branches.find((branch) => branch.branch_uuid === branchUuid);
+    const baseReceiptSource = saleListPrintBillSource(group);
+    const receiptSource = {
+      ...baseReceiptSource,
+      branch_address:
+        textValue(readValue(baseReceiptSource, ["branch_address"]), "") ||
+        textValue(readValue(currentBranch ?? {}, ["branch_address"]), ""),
+      branch_qr:
+        textValue(readValue(baseReceiptSource, ["branch_qr", "qr_url", "payment_qr", "branch_qr_url"]), "") ||
+        textValue(readValue(currentBranch ?? {}, ["branch_qr"]), ""),
+      branch_tel:
+        textValue(readValue(baseReceiptSource, ["branch_tel", "branch_phone", "tel", "phone"]), "") ||
+        textValue(readValue(currentBranch ?? {}, ["branch_tel", "branch_phone", "tel", "phone"]), "")
+    };
     const receiptData = buildSalesListInvoicePrintData({
-      bill: saleListPrintBillSource(group),
+      bill: receiptSource,
       translate: (key, options) => String(t(key, options)),
       user
     });
@@ -517,7 +543,7 @@ function SalesListFilterPopover({
           <PopoverTitle className="text-sm font-black">{t("salesList.filters")}</PopoverTitle>
           <PopoverDescription className="text-xs">{t("salesList.subtitle")}</PopoverDescription>
         </PopoverHeader>
-        <div className="grid grid-cols-2 gap-3 p-4 lg:grid-cols-5">
+        <div className="grid grid-cols-2 gap-3 p-4 lg:grid-cols-6">
           <SalesListFilterFields
             branchLabel={branchLabel}
             branchLoading={branchLoading}
@@ -695,6 +721,28 @@ function SalesListFilterFields({
         </Select>
       </Field>
       <Field className="gap-1.5">
+        <FieldLabel htmlFor={`${idPrefix}-payment-method`} className="text-xs font-bold text-muted-foreground">
+          {t("salesList.paymentMethod")}
+        </FieldLabel>
+        <Select
+          value={draftFilters.paymentMethod}
+          onValueChange={(value) => onDraftChange({ paymentMethod: value as SalesListPaymentMethod })}
+        >
+          <SelectTrigger id={`${idPrefix}-payment-method`} className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              {SALES_LIST_PAYMENT_METHOD_OPTIONS.map((paymentMethod) => (
+                <SelectItem key={paymentMethod} value={paymentMethod}>
+                  {paymentMethodLabel(paymentMethod, t)}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+      </Field>
+      <Field className="gap-1.5">
         <FieldLabel htmlFor={`${idPrefix}-order`} className="text-xs font-bold text-muted-foreground">
           {t("salesList.orderBy")}
         </FieldLabel>
@@ -853,7 +901,9 @@ function BillListItem({
           </div>
           <div className="mt-2 flex min-w-0 items-center justify-between gap-2">
             <div className="flex min-w-0 items-center gap-1.5">
-              <Badge className={cn("max-w-28 truncate", statusBadgeClass(bill.status))}>{bill.status}</Badge>
+              {bill.status ? (
+                <Badge className={cn("max-w-28 truncate", statusBadgeClass(bill.status))}>{bill.status}</Badge>
+              ) : null}
               {needsPaymentAttention ? (
                 <Badge className="max-w-36 truncate border-destructive/25 bg-destructive text-destructive-foreground">
                   {bill.debtAmount > 0 ? `${t("salesList.debt")}: ${money(bill.debtAmount)}` : t("salesList.debt")}
@@ -902,7 +952,9 @@ function SalesBillDetailPanel({
             <div className="min-w-0">
               <CardTitle className="truncate text-lg font-black">{bill.invoiceNumber}</CardTitle>
               <div className="mt-2 flex min-w-0 flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                <Badge className={cn("max-w-36 truncate", statusBadgeClass(bill.status))}>{bill.status}</Badge>
+                {bill.status ? (
+                  <Badge className={cn("max-w-36 truncate", statusBadgeClass(bill.status))}>{bill.status}</Badge>
+                ) : null}
                 {needsPaymentAttention ? (
                   <Badge className="max-w-full truncate border-destructive/25 bg-destructive text-destructive-foreground">
                     {bill.debtAmount > 0 ? `${t("salesList.debt")}: ${money(bill.debtAmount)}` : t("salesList.debt")}
@@ -994,106 +1046,195 @@ function SalesListItems({ items }: { items: ApiEntity[] }) {
   }
 
   return (
-    <>
-      <div className="flex flex-col overflow-hidden rounded-md border border-border bg-card md:hidden">
-        {items.map((item, index) => (
-          <SalesListItemCard
-            key={textValue(readValue(item, ["__report_record_id", "order_item_uuid"]), String(index))}
-            item={item}
-            index={index}
-          />
-        ))}
-      </div>
-      <div className="hidden overflow-x-auto rounded-md border border-border bg-card md:block">
-        <Table className="min-w-235 text-[13px]">
-        <TableHeader className="bg-muted/60">
-          <TableRow>
-            <TableHead className="w-16 whitespace-nowrap text-center">{t("fields.no")}</TableHead>
-            <TableHead className="min-w-55 whitespace-nowrap">{t("salesList.product")}</TableHead>
-            <TableHead className="min-w-20.5 whitespace-nowrap text-right">{t("salesList.qty")}</TableHead>
-            <TableHead className="min-w-29 whitespace-nowrap text-right">{t("salesList.price")}</TableHead>
-            <TableHead className="min-w-29 whitespace-nowrap text-right">{t("salesList.amount")}</TableHead>
-            <TableHead className="min-w-29 whitespace-nowrap text-right">{t("salesList.discount")}</TableHead>
-            <TableHead className="min-w-29 whitespace-nowrap text-right">{t("salesList.toppings")}</TableHead>
-            <TableHead className="min-w-32 whitespace-nowrap text-right">{t("salesList.total")}</TableHead>
-            <TableHead className="min-w-55 whitespace-nowrap">{t("salesList.note")}</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {items.map((item, index) => (
-            <TableRow key={textValue(readValue(item, ["__report_record_id", "order_item_uuid"]), String(index))} className="bg-card">
-              <TableCell className="whitespace-nowrap text-center font-black text-muted-foreground">{index + 1}</TableCell>
-              <TableCell className="whitespace-normal">
-                <div className="flex min-w-0 flex-col gap-1">
-                  <span className="font-bold">{itemProductName(item)}</span>
-                  <span className="text-xs text-muted-foreground">{textValue(readValue(item, ["prod_code", "product_code"]), "")}</span>
-                </div>
-              </TableCell>
-              <NumberCell value={firstNumber(item, ["qty", "quantity"])} />
-              <MoneyCell value={firstNumber(item, ["sale_price", "price", "unit_price"])} />
-              <MoneyCell value={firstNumber(item, ["amount", "line_amount"])} />
-              <MoneyCell value={firstNumber(item, ["discount_total", "discount_amount", "item_discount_amount"])} />
-              <MoneyCell value={firstNumber(item, ["topping_total", "topping_unit_total"])} />
-              <MoneyCell value={firstNumber(item, ["total", "line_total", "net_total"])} strong />
-              <TableCell className="max-w-65 whitespace-normal text-muted-foreground">{itemNote(item) || "-"}</TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-        </Table>
-      </div>
-    </>
+    <div className="flex flex-col overflow-hidden rounded-md border border-border bg-card">
+      {items.map((item, index) => (
+        <SalesListItemCard
+          key={textValue(readValue(item, ["__report_record_id", "order_item_uuid"]), String(index))}
+          item={item}
+        />
+      ))}
+    </div>
   );
 }
 
-function SalesListItemCard({ index, item }: { index: number; item: ApiEntity }) {
+function paymentMethodLabel(
+  paymentMethod: SalesListPaymentMethod,
+  translate: (key: string) => string
+) {
+  const labels = {
+    "1": translate("pos.paymentCash"),
+    "2": translate("pos.paymentTransfer"),
+    "4": translate("pos.paymentArrears"),
+    All: translate("common.all")
+  } satisfies Record<SalesListPaymentMethod, string>;
+
+  return labels[paymentMethod];
+}
+
+function SalesListItemCard({ item }: { item: ApiEntity }) {
   const { t } = useTranslation();
-  const code = textValue(readValue(item, ["prod_code", "product_code"]), "");
+  const media = itemMedia(item);
   const note = itemNote(item);
-  const discount = firstNumber(item, ["discount_total", "discount_amount", "item_discount_amount"]);
-  const toppings = firstNumber(item, ["topping_total", "topping_unit_total"]);
+  const discount = firstNumber(item, ["discount_total", "discount_amount", "item_discount_amount", "discount_item_amount"]);
+  const qty = firstNumber(item, ["qty", "quantity"]);
+  const total = firstNumber(item, ["total", "line_total", "net_total"]);
+  const amount = firstNumber(item, ["amount", "line_amount", "product_price_total"]);
+  const unitPrice = qty > 0 && total > 0 ? total / qty : firstNumber(item, ["sale_price", "price", "unit_price", "product_price"]);
 
   return (
-    <div className={cn("flex flex-col gap-2 px-3 py-3", index > 0 && "border-t border-border")}>
-      <div className="flex min-w-0 items-start justify-between gap-3">
+    <div className="border-b border-border/80 bg-background px-3 py-2.5 last:border-b-0 hover:bg-muted/20 sm:px-4">
+      <div className="grid min-w-0 grid-cols-[48px_minmax(0,1fr)] gap-2.5 sm:grid-cols-[52px_minmax(0,1fr)]">
+        <SalesListItemMedia media={media} title={itemProductName(item)} />
         <div className="min-w-0">
-          <p className="wrap-break-word text-sm font-black">{itemProductName(item)}</p>
-          {code ? <p className="mt-1 truncate text-xs text-muted-foreground">{code}</p> : null}
+          <div className="flex min-w-0 items-start justify-between gap-2">
+            <p className="min-w-0 wrap-break-word text-[15px] font-black leading-5 text-foreground">
+              {itemProductName(item)}
+            </p>
+            <p className="max-w-32 shrink-0 truncate text-right text-[15px] font-black leading-5 text-foreground tabular-nums">
+              {moneyValue(total)}
+            </p>
+          </div>
+
+          <div className="mt-1.5 grid gap-0.5">
+            <SalesListItemDetailRow icon={<Tag />} tone="price">
+              <span className="tabular-nums">
+                {qty.toLocaleString("en-US")} x {moneyValue(unitPrice)}
+              </span>
+            </SalesListItemDetailRow>
+            {amount > 0 && amount !== total ? (
+              <SalesListItemDetailRow tone="muted" right={moneyValue(amount)}>
+                {t("salesList.amount")}
+              </SalesListItemDetailRow>
+            ) : null}
+            <SalesListItemToppings item={item} />
+            {discount > 0 ? (
+              <SalesListItemDetailRow icon={<BadgePercent />} tone="discount" right={`-${moneyValue(discount)}`}>
+                {t("salesList.discount")}
+              </SalesListItemDetailRow>
+            ) : null}
+            {note ? (
+              <SalesListItemDetailRow icon={<StickyNote />} tone="note">
+                <span className="text-foreground/70">{t("salesList.note")}: </span>
+                <span>{note}</span>
+              </SalesListItemDetailRow>
+            ) : null}
+          </div>
+
+          <div className="mt-2 flex min-w-0 justify-end">
+            <Badge className="h-9 rounded-full border-border bg-muted px-3 text-sm font-black text-muted-foreground">
+              x{qty.toLocaleString("en-US")}
+            </Badge>
+          </div>
         </div>
-        <p className="shrink-0 text-right text-sm font-black tabular-nums">
-          {moneyValue(firstNumber(item, ["total", "line_total", "net_total"]))}
-        </p>
       </div>
-      <div className="grid grid-cols-2 gap-2 rounded-md bg-muted/35 px-3 py-2 text-xs">
-        <CompactMetric label={t("fields.no")} value={String(index + 1)} />
-        <CompactMetric label={t("salesList.qty")} value={firstNumber(item, ["qty", "quantity"]).toLocaleString("en-US")} />
-        <CompactMetric label={t("salesList.price")} value={moneyValue(firstNumber(item, ["sale_price", "price", "unit_price"]))} />
-        <CompactMetric label={t("salesList.amount")} value={moneyValue(firstNumber(item, ["amount", "line_amount"]))} />
-        {toppings > 0 ? <CompactMetric label={t("salesList.toppings")} value={moneyValue(toppings)} /> : null}
-        {discount > 0 ? <CompactMetric label={t("salesList.discount")} value={`-${moneyValue(discount)}`} tone="destructive" /> : null}
-      </div>
-      {note ? (
-        <div className="flex min-w-0 justify-between gap-3 text-xs">
-          <span className="shrink-0 font-semibold text-muted-foreground">{t("salesList.note")}</span>
-          <span className="min-w-0 wrap-break-word text-right text-muted-foreground">{note}</span>
+    </div>
+  );
+}
+
+function SalesListItemMedia({
+  media,
+  title
+}: {
+  media: ReturnType<typeof itemMedia>;
+  title: string;
+}) {
+  const colorStyle = media.type === "color" ? ({ backgroundColor: media.color } satisfies CSSProperties) : undefined;
+
+  return (
+    <div
+      className="relative size-12 shrink-0 overflow-hidden rounded-md border border-border bg-muted shadow-sm"
+      style={colorStyle}
+    >
+      {media.type === "image" ? (
+        <Image src={media.src} alt={title} fill sizes="(max-width: 640px) 48px, 52px" className="object-cover" />
+      ) : media.type === "color" ? (
+        <>
+          <span className="pointer-events-none absolute inset-0 rounded-[inherit] ring-1 ring-inset ring-black/10" aria-hidden="true" />
+          <span className="absolute inset-0 grid place-items-center" aria-hidden="true">
+            <span className="grid size-8 place-items-center rounded-full bg-black/25 text-white shadow-sm backdrop-blur-[1px]">
+              <Utensils className="size-4" />
+            </span>
+          </span>
+        </>
+      ) : (
+        <div className="flex size-full items-center justify-center text-muted-foreground">
+          <ShoppingBag />
         </div>
+      )}
+    </div>
+  );
+}
+
+type SalesListItemDetailTone = "discount" | "muted" | "note" | "price" | "topping";
+
+function SalesListItemDetailRow({
+  children,
+  className,
+  icon,
+  right,
+  tone = "muted"
+}: {
+  children: ReactNode;
+  className?: string;
+  icon?: ReactNode;
+  right?: ReactNode;
+  tone?: SalesListItemDetailTone;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex min-w-0 items-start justify-between gap-2 text-[11px] font-bold leading-4.5 sm:text-xs",
+        tone === "price" && "text-foreground/75",
+        tone === "discount" && "text-destructive",
+        tone === "note" && "text-muted-foreground",
+        tone === "topping" && "text-muted-foreground",
+        tone === "muted" && "text-muted-foreground",
+        className
+      )}
+    >
+      <span className="flex min-w-0 items-start gap-1.5">
+        {icon ? <span className="mt-0.5 flex size-3.5 shrink-0 items-center justify-center [&_svg]:size-3.5">{icon}</span> : null}
+        <span className="min-w-0 wrap-break-word">{children}</span>
+      </span>
+      {right ? (
+        <span
+          className={cn(
+            "shrink-0 text-right font-black tabular-nums",
+            tone === "discount" ? "text-destructive" : "text-foreground/75"
+          )}
+        >
+          {right}
+        </span>
       ) : null}
     </div>
   );
 }
 
-function CompactMetric({
-  label,
-  tone,
-  value
-}: {
-  label: string;
-  tone?: "destructive";
-  value: string;
-}) {
+function SalesListItemToppings({ item }: { item: ApiEntity }) {
+  const { t } = useTranslation();
+  const toppings = itemToppings(item);
+  const toppingTotal = itemToppingTotal(item);
+
+  if (!toppings.length && toppingTotal <= 0) return null;
+
   return (
-    <div className="min-w-0">
-      <p className="truncate font-semibold text-muted-foreground">{label}</p>
-      <p className={cn("mt-0.5 truncate font-black tabular-nums", tone === "destructive" && "text-destructive")}>{value}</p>
+    <div className="grid gap-0.5">
+      {toppings.length ? (
+        toppings.map((topping, index) => (
+          <SalesListItemDetailRow
+            key={`${topping.name}-${index}`}
+            className="pl-5"
+            tone="topping"
+            right={topping.total > 0 ? `+${moneyValue(topping.total)}` : null}
+          >
+            + {topping.name}{topping.qty > 0 ? ` x${topping.qty.toLocaleString("en-US")}` : ""}
+          </SalesListItemDetailRow>
+        ))
+      ) : (
+        <SalesListItemDetailRow className="pl-5" tone="topping" right={`+${moneyValue(toppingTotal)}`}>
+          + {t("pos.toppingTotal")}
+        </SalesListItemDetailRow>
+      )}
     </div>
   );
 }
@@ -1103,6 +1244,7 @@ type SummaryMetricTone =
   | "cash"
   | "debt"
   | "discount"
+  | "total"
   | "service"
   | "topping"
   | "transfer"
@@ -1114,12 +1256,39 @@ interface SummaryMetric {
   value: number;
 }
 
+function rateLabel(value: unknown) {
+  const number = Number(value);
+  if (!Number.isFinite(number) || number <= 0) return "";
+  const percent = number > 0 && number <= 1 ? number * 100 : number;
+  return `${percent.toLocaleString("lo-LA", { maximumFractionDigits: 2 })}%`;
+}
+
+function recordValue(value: unknown): ApiEntity | null {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as ApiEntity : null;
+}
+
+function readRateLabel(source: ApiEntity, keys: string[], nestedKey: string) {
+  const summary = recordValue(source.summary);
+  const nested = recordValue(source[nestedKey]);
+  return rateLabel(readValue(summary ?? {}, keys)) || rateLabel(readValue(nested ?? {}, keys)) || rateLabel(readValue(source, keys));
+}
+
+function calculatedRateLabel(amount: number, base: number) {
+  if (amount <= 0 || base <= 0) return "";
+  return rateLabel((amount / base) * 100);
+}
+
+function summaryMetricLabel(label: string, rate: string) {
+  return rate ? `${label} (${rate})` : label;
+}
+
 function summaryMetricClass(tone: SummaryMetricTone) {
   const classes = {
     amount: "border-primary/20 bg-primary/10 text-primary",
     cash: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300",
     debt: "border-destructive/25 bg-destructive/10 text-destructive",
     discount: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300",
+    total: "border-primary/20 bg-primary/10 text-primary",
     service: "border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-900/60 dark:bg-violet-950/30 dark:text-violet-300",
     topping: "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/30 dark:text-sky-300",
     transfer: "border-cyan-200 bg-cyan-50 text-cyan-700 dark:border-cyan-900/60 dark:bg-cyan-950/30 dark:text-cyan-300",
@@ -1131,34 +1300,41 @@ function summaryMetricClass(tone: SummaryMetricTone) {
 
 function SelectedBillSummary({ bill }: { bill: DailySaleItemsBillGroup }) {
   const { t } = useTranslation();
-  const metrics: SummaryMetric[] = [
+  const serviceBase = bill.amountTotal + bill.toppingTotal - bill.discountTotal;
+  const vatBase = serviceBase + bill.serviceChargeAmount;
+  const serviceRate =
+    readRateLabel(bill.raw, ["service_charge_rate", "service_rate", "order_service_rate", "charge_name", "rate"], "service_charge") ||
+    calculatedRateLabel(bill.serviceChargeAmount, serviceBase);
+  const vatRate =
+    readRateLabel(bill.raw, ["vat_rate", "tax_rate", "order_vat_rate", "vat_name", "rate"], "vat") ||
+    calculatedRateLabel(bill.vatAmount, vatBase);
+  const allMetrics: SummaryMetric[] = [
     { label: t("salesList.amount"), tone: "amount", value: bill.amountTotal },
     { label: t("salesList.toppings"), tone: "topping", value: bill.toppingTotal },
     { label: t("salesList.discount"), tone: "discount", value: bill.discountTotal },
-    { label: t("salesList.serviceCharge"), tone: "service", value: bill.serviceChargeAmount },
-    { label: t("salesList.vat"), tone: "vat", value: bill.vatAmount },
+    { label: summaryMetricLabel(t("salesList.serviceCharge"), serviceRate), tone: "service", value: bill.serviceChargeAmount },
+    { label: summaryMetricLabel(t("salesList.vat"), vatRate), tone: "vat", value: bill.vatAmount },
+    { label: t("salesList.total"), tone: "total", value: bill.lineTotal },
     { label: t("salesList.cashReceived"), tone: "cash", value: bill.receiveCashAmount },
     { label: t("salesList.transferReceived"), tone: "transfer", value: bill.receiveTransferAmount },
     { label: t("salesList.debt"), tone: "debt", value: bill.debtAmount }
   ];
+  const metrics = allMetrics.filter((metric) => metric.tone === "amount" || metric.tone === "total" || metric.value > 0);
 
   return (
     <div className="shrink-0 border-t border-border bg-card px-3 py-3 sm:px-4">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-sm font-black">{t("salesList.billSummary")}</p>
-        <p className="text-lg font-black tabular-nums text-primary">{money(bill.lineTotal)}</p>
-      </div>
-      <div className="mt-3 grid grid-cols-2 gap-2 lg:grid-cols-4">
+      <p className="text-sm font-black">{t("salesList.billSummary")}</p>
+      <div className="mt-2 flex flex-col divide-y divide-border overflow-hidden rounded-md border border-border">
         {metrics.map((metric) => (
           <div
             key={metric.label}
             className={cn(
-              "min-w-0 rounded-md border px-3 py-2",
+              "flex min-w-0 items-center justify-between gap-3 px-3 py-2",
               summaryMetricClass(metric.tone)
             )}
           >
             <p className="truncate text-xs font-bold opacity-80">{metric.label}</p>
-            <p className="mt-1 truncate text-sm font-black tabular-nums">{money(metric.value)}</p>
+            <p className="shrink-0 text-sm font-black tabular-nums">{money(metric.value)}</p>
           </div>
         ))}
       </div>
@@ -1200,18 +1376,3 @@ function SalesListError({ description, title }: { description: string; title: st
   );
 }
 
-function NumberCell({ value }: { value: number }) {
-  return (
-    <TableCell className="whitespace-nowrap text-right font-semibold tabular-nums">
-      {value.toLocaleString("en-US")}
-    </TableCell>
-  );
-}
-
-function MoneyCell({ strong, value }: { strong?: boolean; value: number }) {
-  return (
-    <TableCell className={cn("whitespace-nowrap text-right tabular-nums", strong && "font-black")}>
-      {moneyValue(value)}
-    </TableCell>
-  );
-}

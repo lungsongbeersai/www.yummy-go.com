@@ -512,11 +512,23 @@ export function usePaymentDialogWorkflow({
       : null;
 
     try {
-      await executeInvoice({
+      const printResult = await executeInvoice({
         print_job: response.print_job,
         pending_query: response.pending_query,
         login_uuid_fk: user?.uuid,
       });
+
+      if (printResult.failedCount > 0) {
+        if (invoicePrintData) {
+          await showInvoicePrintFallback(invoicePrintData, t("pos.receiptPrintFailed"));
+          return;
+        }
+
+        showToast({
+          title: t("pos.receiptPrintFailed"),
+          tone: "info",
+        });
+      }
     } catch (error) {
       if (invoicePrintData) {
         await showInvoicePrintFallback(
@@ -574,11 +586,16 @@ export function usePaymentDialogWorkflow({
       }
 
       try {
-        await executeInvoice({
+        const printResult = await executeInvoice({
           print_job: response.print_job,
           pending_query: response.pending_query,
           login_uuid_fk: user.uuid,
         });
+        if (printResult.failedCount > 0) {
+          await showInvoicePrintFallback(invoicePrintData, t("pos.invoicePrintFailed"));
+          return;
+        }
+
         showToast({ title: t("pos.invoicePrintSent"), tone: "success" });
       } catch (error) {
         await showInvoicePrintFallback(

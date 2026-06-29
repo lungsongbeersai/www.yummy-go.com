@@ -85,4 +85,95 @@ describe("normalizeDailySaleItemsResponse", () => {
       payment_method_name: "Cash"
     });
   });
+
+  it("maps report_all sale_list response sales into bill groups", () => {
+    const normalized = normalizeDailySaleItemsResponse(
+      {
+        page: 1,
+        limit: 4,
+        total: 7,
+        totalPages: 2,
+        summary: {
+          bill_count: 7,
+          sum_total: 1809137
+        },
+        sales: [
+          {
+            sale_list: {
+              order_uuid: "order-2",
+              order_invoice: "INV-002",
+              order_date: "2026-06-29",
+              qty: 4,
+              amount: 164707
+            },
+            order: {
+              order_uuid: "order-2",
+              order_invoice: "INV-002",
+              order_date: "2026-06-29",
+              table_name: "T02",
+              payment_method: 1,
+              payment_method_name: "Cash",
+              paid_cash: 200000,
+              paid_transfer: 0,
+              item_count: 2,
+              item_qty: 4,
+              items: [
+                {
+                  order_it_uuid: "item-3",
+                  product_full_name: "Tea-Large",
+                  qty: 3,
+                  product_price: 65000,
+                  amount: 240000,
+                  discount_item_amount: 5000,
+                  topping_total: 45000,
+                  total: 235000
+                }
+              ],
+              amount: 258000,
+              sum_discount: 129000,
+              service_rate: 14,
+              sum_servicecharge: 18060,
+              vat_rate: 12,
+              sum_vate: 17647,
+              sum_total: 164707
+            }
+          }
+        ]
+      },
+      { limit: 4, page: 1 }
+    );
+
+    expect(normalized.reportTotal.sum_total).toBe(1809137);
+    expect(normalized.pagination).toEqual({
+      limit: 4,
+      page: 1,
+      total: 7,
+      totalPages: 2
+    });
+    expect(normalized.bills[0]).toMatchObject({
+      amountTotal: 258000,
+      discountTotal: 129000,
+      invoiceNumber: "INV-002",
+      itemCount: 2,
+      lineTotal: 164707,
+      paymentMethodCode: "1",
+      paymentMethodName: "Cash",
+      qtyTotal: 4,
+      receiveCashAmount: 200000,
+      serviceChargeAmount: 18060,
+      status: "",
+      tableName: "T02",
+      vatAmount: 17647
+    });
+    expect(normalized.bills[0].raw).toMatchObject({
+      service_rate: 14,
+      vat_rate: 12
+    });
+    expect(normalized.rows[0]).toMatchObject({
+      __report_bill_id: "order-2",
+      order_invoice: "INV-002",
+      order_uuid: "order-2",
+      product_full_name: "Tea-Large"
+    });
+  });
 });

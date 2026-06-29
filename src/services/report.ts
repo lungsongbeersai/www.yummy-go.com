@@ -54,6 +54,7 @@ export interface FetchDailySaleItemsParams {
   limit: PageLimit;
   orderBy: DailySaleItemsOrder;
   page: number;
+  payment_method?: string;
   search?: string;
 }
 
@@ -96,9 +97,15 @@ export interface DailySalesReportResponse extends ApiEntity {
 export interface DailySaleItemsBillSummary extends ApiEntity {
   amount?: number | string;
   debt_amount?: number | string;
+  discount_bill?: number | string;
+  discount_item?: number | string;
   discount_total?: number | string;
   items_count?: number | string;
   qty_total?: number | string;
+  sum_discount?: number | string;
+  sum_servicecharge?: number | string;
+  sum_total?: number | string;
+  sum_vate?: number | string;
   receive_cash?: number | string;
   receive_transfer?: number | string;
   service_charge?: number | string;
@@ -147,6 +154,8 @@ export interface DailySaleItemsResponse extends ApiEntity {
   report_key?: string;
   report_name?: string;
   report_total?: ApiEntity;
+  sales?: unknown;
+  summary?: ApiEntity;
   status?: string;
   total?: number;
   totalPages?: number;
@@ -227,12 +236,12 @@ export function getDailySaleItems(params: FetchDailySaleItemsParams) {
   const query: Record<string, unknown> = {
     ...rest,
     limit: isAllPageLimit(params.limit) ? PAGE_LIMIT_ALL_BATCH : params.limit,
-    lang: toApiLanguage(params.lang)
+    lang: toApiLanguage(params.lang),
+    payment_method: params.payment_method ?? "All",
+    search: search?.trim() ?? ""
   };
-  const searchText = search?.trim();
-  if (searchText) query.search = searchText;
 
-  return apiRequest<DailySaleItemsResponse>("get", "/api/v1/report/daily_sale_items", {
+  return apiRequest<DailySaleItemsResponse>("get", "/api/v1/report_all/sale_list", {
     params: query
   });
 }

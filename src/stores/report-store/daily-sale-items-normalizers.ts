@@ -79,7 +79,7 @@ function responseRows(root: ApiEntity, response: DailySaleItemsResponse) {
   const directRows = Array.isArray(response.data) ? asRecords(response.data) : [];
   if (directRows.length) return directRows;
 
-  for (const key of ["data", "items", "orders", "rows", "list"]) {
+  for (const key of ["sales", "data", "items", "orders", "rows", "list"]) {
     const rows = asRecords(root[key]);
     if (rows.length) return rows;
   }
@@ -104,52 +104,66 @@ function syntheticItemId(billId: string, item: ApiEntity, index: number) {
 }
 
 function normalizeBill(row: ApiEntity, index: number): DailySaleItemsBillGroup {
-  const summary = asRecord(row.summary);
-  const invoiceNumber = textValue(readValue(row, ["order_invoice", "invoice_number", "invoice_no", "invoice"]), `bill-${index + 1}`);
-  const id = textValue(readValue(row, ["order_uuid", "bill_uuid", "uuid", "id"]), `bill:${invoiceNumber}`);
-  const saleDate = textValue(readValue(row, ["sale_date", "created_at", "order_date", "date"]), "-");
-  const tableName = textValue(readValue(row, ["table_name", "table_name_la", "table_name_eng"]), "-");
-  const paymentMethodName = textValue(readValue(row, ["payment_method_name", "payment_method", "payment_type_name"]), "-");
-  const paymentMethodCode = textValue(readValue(row, ["payment_method_code", "payment_method", "payment_type"]), "");
-  const status = textValue(readValue(row, ["bill_status", "status", "status_name", "status_text"]), "-");
-  const items = asRecords(row.items).map((item, itemIndex) => ({
+  const saleList = asRecord(row.sale_list);
+  const order = asRecord(row.order);
+  const source = order.order_uuid || order.order_invoice ? order : row;
+  const summary = asRecord(source.summary);
+  const invoiceNumber = textValue(readValue(source, ["order_invoice", "invoice_number", "invoice_no", "invoice", "bill_no"]), `bill-${index + 1}`);
+  const id = textValue(readValue(source, ["order_uuid", "bill_uuid", "uuid", "id"]), `bill:${invoiceNumber}`);
+  const saleDate = textValue(readValue(source, ["sale_date", "created_at", "order_date", "date"]), "-");
+  const tableName = textValue(readValue(source, ["table_name", "table_name_la", "table_name_eng"]), "-");
+  const paymentMethodName = textValue(readValue(source, ["payment_method_name", "payment_method", "payment_type_name"]), "-");
+  const paymentMethodCode = textValue(readValue(source, ["payment_method_code", "payment_method", "payment_type"]), "");
+  const status = textValue(readValue(source, ["bill_status", "status", "status_name", "status_text"]), "");
+  const items = asRecords(source.items).map((item, itemIndex) => ({
     ...item,
     __report_bill_id: id,
     __report_record_id: textValue(readValue(item, ["order_item_uuid", "order_it_uuid"]), "") || syntheticItemId(id, item, itemIndex),
-    branch_name: textValue(readValue(row, ["branch_name", "branch_name_la", "branch_name_eng"]), ""),
+    branch_name: textValue(readValue(source, ["branch_name", "branch_name_la", "branch_name_eng"]), ""),
     order_invoice: invoiceNumber,
-    order_uuid: textValue(readValue(row, ["order_uuid"]), ""),
+    order_uuid: textValue(readValue(source, ["order_uuid"]), ""),
     payment_method_code: paymentMethodCode,
     payment_method_name: paymentMethodName,
     sale_date: saleDate,
     status_name: status,
     table_name: tableName
   }));
-  const qtyTotal = firstNumber(summary, ["qty_total", "quantity_total"]) || items.reduce((total, item) => total + firstNumber(item, ["qty", "quantity"]), 0);
+  const qtyTotal =
+    firstNumber(summary, ["qty_total", "quantity_total"]) ||
+    firstNumber(source, ["item_qty", "qty"]) ||
+    firstNumber(saleList, ["qty"]) ||
+    items.reduce((total, item) => total + firstNumber(item, ["qty", "quantity"]), 0);
 
   return {
-    amountTotal: firstNumber(summary, ["amount", "order_total", "subtotal"]),
-    branchName: textValue(readValue(row, ["branch_name", "branch_name_la", "branch_name_eng"]), "-"),
-    cancelled: isCancelled(row),
+    amountTotal: firstNumber(summary, ["amount", "order_total", "subtotal"]) || firstNumber(source, ["amount", "order_total", "subtotal"]),
+    branchName: textValue(readValue(source, ["branch_name", "branch_name_la", "branch_name_eng"]), "-"),
+    cancelled: isCancelled(source),
     debtAmount: firstNumber(summary, ["debt_amount", "debt_total", "balance_total"]),
-    discountTotal: firstNumber(summary, ["discount_total", "discount_amount", "item_discount", "discount_bill"]),
+    discountTotal:
+      firstNumber(summary, ["discount_total", "discount_amount", "item_discount", "discount_bill", "sum_discount"]) ||
+      firstNumber(source, ["sum_discount", "discount_total", "discount_amount", "discount_item", "discount_bill"]),
     id,
     invoiceNumber,
-    itemCount: firstNumber(summary, ["items_count", "item_count"]) || items.length,
+    itemCount: firstNumber(summary, ["items_count", "item_count"]) || firstNumber(source, ["item_count"]) || items.length,
     items,
-    lineTotal: firstNumber(summary, ["total", "net_total", "grand_total"]),
+    lineTotal:
+      firstNumber(summary, ["total", "net_total", "grand_total", "sum_total"]) ||
+      firstNumber(source, ["sum_total", "paid_amount", "total", "net_total", "grand_total"]) ||
+      firstNumber(saleList, ["amount"]),
     paymentMethodCode,
     paymentMethodName,
     qtyTotal,
-    raw: row,
-    receiveCashAmount: firstNumber(summary, ["receive_cash", "cash_received", "cash_total"]),
-    receiveTransferAmount: firstNumber(summary, ["receive_transfer", "transfer_received", "transfer_total"]),
+    raw: source,
+    receiveCashAmount: firstNumber(summary, ["receive_cash", "cash_received", "cash_total"]) || firstNumber(source, ["paid_cash"]),
+    receiveTransferAmount: firstNumber(summary, ["receive_transfer", "transfer_received", "transfer_total"]) || firstNumber(source, ["paid_transfer"]),
     saleDate,
-    serviceChargeAmount: firstNumber(summary, ["service_charge", "service_charge_amount", "service_total"]),
+    serviceChargeAmount:
+      firstNumber(summary, ["service_charge", "service_charge_amount", "service_total", "sum_servicecharge"]) ||
+      firstNumber(source, ["sum_servicecharge", "service_charge", "service_charge_amount", "service_total"]),
     status,
     tableName,
-    toppingTotal: firstNumber(summary, ["topping_total", "topping_line_total"]),
-    vatAmount: firstNumber(summary, ["vat", "vat_amount", "vat_total"])
+    toppingTotal: firstNumber(summary, ["topping_total", "topping_line_total"]) || items.reduce((total, item) => total + firstNumber(item, ["topping_total", "topping_line_total"]), 0),
+    vatAmount: firstNumber(summary, ["vat", "vat_amount", "vat_total", "sum_vate"]) || firstNumber(source, ["sum_vate", "vat", "vat_amount", "vat_total"])
   };
 }
 
@@ -180,7 +194,7 @@ export function normalizeDailySaleItemsResponse(
       total,
       totalPages: totalPages(root, total, fallback.limit, page)
     },
-    reportTotal: asRecord(root.report_total),
+    reportTotal: asRecord(root.report_total ?? root.summary),
     response,
     rows: bills.flatMap((bill) => bill.items)
   };

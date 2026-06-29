@@ -307,9 +307,13 @@ export const usePosStore = create<PosState>((set) => ({
           }
         };
 
-        await usePrinterStore.getState().executeKitchen(
+        const printResult = await usePrinterStore.getState().executeKitchen(
           executeInput as Parameters<ReturnType<typeof usePrinterStore.getState>["executeKitchen"]>[0]
         );
+
+        if (printResult.failedCount > 0) {
+          throw new Error("Kitchen print failed");
+        }
       }
 
       set({ lastKitchenConfirm });

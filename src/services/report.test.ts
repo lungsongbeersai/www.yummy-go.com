@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { apiRequest } from "@/lib/api";
-import { getBestSellingProductsReport, getCategorySalesReport } from "./report";
+import { getBestSellingProductsReport, getCategorySalesReport, getDailySaleItems } from "./report";
 
 vi.mock("@/lib/api", async () => {
   const actual = await vi.importActual<typeof import("@/lib/api")>("@/lib/api");
@@ -74,6 +74,61 @@ describe("report services", () => {
           payment_method: "all",
         },
       },
+    );
+  });
+
+  it("sends sale list query params expected by the API", async () => {
+    await getDailySaleItems({
+      branch_uuid_fk: "branch-1",
+      date_from: "2026-06-20",
+      date_to: "2026-06-29",
+      lang: "la",
+      limit: 4,
+      orderBy: "DESC",
+      page: 1,
+      search: "",
+    });
+
+    expect(mockedApiRequest).toHaveBeenCalledWith(
+      "get",
+      "/api/v1/report_all/sale_list",
+      {
+        params: {
+          branch_uuid_fk: "branch-1",
+          date_from: "2026-06-20",
+          date_to: "2026-06-29",
+          lang: "la",
+          limit: 4,
+          orderBy: "DESC",
+          page: 1,
+          payment_method: "All",
+          search: "",
+        },
+      },
+    );
+  });
+
+  it("sends selected sale list payment method to the API", async () => {
+    await getDailySaleItems({
+      branch_uuid_fk: "branch-1",
+      date_from: "2026-06-20",
+      date_to: "2026-06-29",
+      lang: "la",
+      limit: 4,
+      orderBy: "DESC",
+      page: 1,
+      payment_method: "4",
+      search: "",
+    });
+
+    expect(mockedApiRequest).toHaveBeenCalledWith(
+      "get",
+      "/api/v1/report_all/sale_list",
+      expect.objectContaining({
+        params: expect.objectContaining({
+          payment_method: "4",
+        }),
+      }),
     );
   });
 });

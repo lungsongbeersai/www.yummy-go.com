@@ -98,7 +98,8 @@ describe("printer store", () => {
       batchPayloads: [],
       hasBatchPayloads: false,
       ackSuccess: null,
-      ackFailed: null
+      ackFailed: null,
+      printSummary: {}
     } as Awaited<ReturnType<typeof getPendingPrintJobs>>);
 
     await expect(usePrinterStore.getState().loadPendingJobs("job-1", "login-1")).resolves.toEqual(jobs);
