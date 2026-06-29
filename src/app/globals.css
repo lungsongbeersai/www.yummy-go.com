@@ -114,6 +114,144 @@ html {
   --pos-system-bottom-safe-area: max(env(safe-area-inset-bottom, 0px), 1.5rem);
 }
 
+.android-webview-compat {
+  /* Android 11 WebView on Swan 1/I22D01 does not reliably render Tailwind v4 OKLCH palette values. */
+  --color-white: #ffffff;
+  --color-black: #000000;
+
+  --color-slate-50: #f8fafc;
+  --color-slate-100: #f1f5f9;
+  --color-slate-200: #e2e8f0;
+  --color-slate-300: #cbd5e1;
+  --color-slate-400: #94a3b8;
+  --color-slate-500: #64748b;
+  --color-slate-600: #475569;
+  --color-slate-700: #334155;
+  --color-slate-800: #1e293b;
+  --color-slate-900: #0f172a;
+  --color-slate-950: #020617;
+
+  --color-red-50: #fef2f2;
+  --color-red-100: #fee2e2;
+  --color-red-200: #fecaca;
+  --color-red-300: #fca5a5;
+  --color-red-400: #f87171;
+  --color-red-500: #ef4444;
+  --color-red-600: #dc2626;
+  --color-red-700: #b91c1c;
+  --color-red-800: #991b1b;
+  --color-red-900: #7f1d1d;
+  --color-red-950: #450a0a;
+
+  --color-amber-50: #fffbeb;
+  --color-amber-100: #fef3c7;
+  --color-amber-200: #fde68a;
+  --color-amber-300: #fcd34d;
+  --color-amber-400: #fbbf24;
+  --color-amber-500: #f59e0b;
+  --color-amber-600: #d97706;
+  --color-amber-700: #b45309;
+  --color-amber-800: #92400e;
+  --color-amber-900: #78350f;
+  --color-amber-950: #451a03;
+
+  --color-emerald-50: #ecfdf5;
+  --color-emerald-100: #d1fae5;
+  --color-emerald-200: #a7f3d0;
+  --color-emerald-300: #6ee7b7;
+  --color-emerald-400: #34d399;
+  --color-emerald-500: #10b981;
+  --color-emerald-600: #059669;
+  --color-emerald-700: #047857;
+  --color-emerald-800: #065f46;
+  --color-emerald-900: #064e3b;
+  --color-emerald-950: #022c22;
+
+  --color-sky-50: #f0f9ff;
+  --color-sky-100: #e0f2fe;
+  --color-sky-200: #bae6fd;
+  --color-sky-300: #7dd3fc;
+  --color-sky-400: #38bdf8;
+  --color-sky-500: #0ea5e9;
+  --color-sky-600: #0284c7;
+  --color-sky-700: #0369a1;
+  --color-sky-800: #075985;
+  --color-sky-900: #0c4a6e;
+  --color-sky-950: #082f49;
+
+  --color-cyan-50: #ecfeff;
+  --color-cyan-100: #cffafe;
+  --color-cyan-200: #a5f3fc;
+  --color-cyan-300: #67e8f9;
+  --color-cyan-400: #22d3ee;
+  --color-cyan-500: #06b6d4;
+  --color-cyan-600: #0891b2;
+  --color-cyan-700: #0e7490;
+  --color-cyan-800: #155e75;
+  --color-cyan-900: #164e63;
+  --color-cyan-950: #083344;
+
+  --color-blue-50: #eff6ff;
+  --color-blue-100: #dbeafe;
+  --color-blue-200: #bfdbfe;
+  --color-blue-300: #93c5fd;
+  --color-blue-400: #60a5fa;
+  --color-blue-500: #3b82f6;
+  --color-blue-600: #2563eb;
+  --color-blue-700: #1d4ed8;
+  --color-blue-800: #1e40af;
+  --color-blue-900: #1e3a8a;
+  --color-blue-950: #172554;
+
+  --color-indigo-50: #eef2ff;
+  --color-indigo-100: #e0e7ff;
+  --color-indigo-200: #c7d2fe;
+  --color-indigo-300: #a5b4fc;
+  --color-indigo-400: #818cf8;
+  --color-indigo-500: #6366f1;
+  --color-indigo-600: #4f46e5;
+  --color-indigo-700: #4338ca;
+  --color-indigo-800: #3730a3;
+  --color-indigo-900: #312e81;
+  --color-indigo-950: #1e1b4b;
+
+  --color-violet-50: #f5f3ff;
+  --color-violet-100: #ede9fe;
+  --color-violet-200: #ddd6fe;
+  --color-violet-300: #c4b5fd;
+  --color-violet-400: #a78bfa;
+  --color-violet-500: #8b5cf6;
+  --color-violet-600: #7c3aed;
+  --color-violet-700: #6d28d9;
+  --color-violet-800: #5b21b6;
+  --color-violet-900: #4c1d95;
+  --color-violet-950: #2e1065;
+
+  --color-purple-50: #faf5ff;
+  --color-purple-100: #f3e8ff;
+  --color-purple-200: #e9d5ff;
+  --color-purple-300: #d8b4fe;
+  --color-purple-400: #c084fc;
+  --color-purple-500: #a855f7;
+  --color-purple-600: #9333ea;
+  --color-purple-700: #7e22ce;
+  --color-purple-800: #6b21a8;
+  --color-purple-900: #581c87;
+  --color-purple-950: #3b0764;
+
+  --color-rose-50: #fff1f2;
+  --color-rose-100: #ffe4e6;
+  --color-rose-200: #fecdd3;
+  --color-rose-300: #fda4af;
+  --color-rose-400: #fb7185;
+  --color-rose-500: #f43f5e;
+  --color-rose-600: #e11d48;
+  --color-rose-700: #be123c;
+  --color-rose-800: #9f1239;
+  --color-rose-900: #881337;
+  --color-rose-950: #4c0519;
+}
+
 .android-webview-compat *,
 .android-webview-compat *::before,
 .android-webview-compat *::after {
@@ -121,22 +259,52 @@ html {
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
   mix-blend-mode: normal !important;
-  mask: none !important;
-  mask-image: none !important;
-  -webkit-mask: none !important;
-  -webkit-mask-image: none !important;
 }
 
 .android-webview-compat svg,
 .android-webview-compat [data-icon] {
+  display: inline-block !important;
+  flex-shrink: 0 !important;
   opacity: 1 !important;
+  overflow: visible !important;
   stroke-opacity: 1 !important;
   fill-opacity: 1 !important;
+  vertical-align: -0.125em !important;
 }
 
 .android-webview-compat .lucide,
 .android-webview-compat svg[stroke="currentColor"] {
+  fill: none !important;
+  stroke: currentColor !important;
+  stroke-linecap: round !important;
+  stroke-linejoin: round !important;
   stroke-width: 2.25px;
+}
+
+.android-webview-compat svg.iconify,
+.android-webview-compat svg[class*="iconify"],
+.android-webview-compat .iconify svg,
+.android-webview-compat [class*="iconify"] svg {
+  color: currentColor !important;
+  display: inline-block !important;
+  fill: currentColor !important;
+  min-height: 1em;
+  min-width: 1em;
+  stroke: none !important;
+}
+
+.android-webview-compat svg.iconify *,
+.android-webview-compat svg[class*="iconify"] *,
+.android-webview-compat .iconify svg *,
+.android-webview-compat [class*="iconify"] svg * {
+  fill: currentColor !important;
+  stroke: none !important;
+}
+
+.android-webview-compat button svg,
+.android-webview-compat a svg,
+.android-webview-compat [role="button"] svg {
+  pointer-events: none !important;
 }
 
 .android-webview-compat .app-header {
@@ -160,12 +328,12 @@ html {
 }
 
 .android-webview-compat [data-pos-pattern-overlay] {
-  background: hsl(var(--primary) / 0.28) !important;
+  background: rgba(5, 150, 105, 0.28) !important;
 }
 
 .dark.android-webview-compat [data-pos-pattern-overlay],
 .dark .android-webview-compat [data-pos-pattern-overlay] {
-  background: rgb(0 0 0 / 0.38) !important;
+  background: rgba(0, 0, 0, 0.38) !important;
 }
 
 .android-webview-compat .bg-white\/10,
@@ -174,7 +342,7 @@ html {
 .android-webview-compat .bg-primary-foreground\/10,
 .android-webview-compat .hover\:bg-white\/10:hover,
 .android-webview-compat .hover\:bg-primary-foreground\/20:hover {
-  background-color: rgb(255 255 255 / 0.3) !important;
+  background-color: rgba(255, 255, 255, 0.3) !important;
 }
 
 .android-webview-compat .bg-white\/20,
@@ -182,17 +350,17 @@ html {
 .android-webview-compat .bg-primary-foreground\/20,
 .android-webview-compat .hover\:bg-white\/20:hover,
 .android-webview-compat .hover\:bg-white\/25:hover {
-  background-color: rgb(255 255 255 / 0.38) !important;
+  background-color: rgba(255, 255, 255, 0.38) !important;
 }
 
 .android-webview-compat .bg-black\/10,
 .android-webview-compat .bg-black\/20,
 .android-webview-compat .bg-black\/25 {
-  background-color: rgb(0 0 0 / 0.28) !important;
+  background-color: rgba(0, 0, 0, 0.28) !important;
 }
 
 .android-webview-compat .bg-black\/45 {
-  background-color: rgb(0 0 0 / 0.58) !important;
+  background-color: rgba(0, 0, 0, 0.58) !important;
 }
 
 .android-webview-compat .border-white\/10,
@@ -203,7 +371,7 @@ html {
 .android-webview-compat .border-primary-foreground\/20,
 .android-webview-compat .border-primary-foreground\/30,
 .android-webview-compat .hover\:border-white\/45:hover {
-  border-color: rgb(255 255 255 / 0.46) !important;
+  border-color: rgba(255, 255, 255, 0.46) !important;
 }
 
 .android-webview-compat .text-white\/45,
@@ -215,7 +383,7 @@ html {
 .android-webview-compat .text-white\/80,
 .android-webview-compat .text-white\/90,
 .android-webview-compat .placeholder\:text-white\/65::placeholder {
-  color: rgb(255 255 255 / 0.92) !important;
+  color: rgba(255, 255, 255, 0.92) !important;
 }
 
 .android-webview-compat .text-primary-foreground\/75,
@@ -223,6 +391,317 @@ html {
 .android-webview-compat .text-muted-foreground\/55,
 .android-webview-compat .text-muted-foreground\/80 {
   color: hsl(var(--foreground)) !important;
+}
+
+.android-webview-compat .bg-white\/35 {
+  background-color: rgba(255, 255, 255, 0.35) !important;
+}
+
+.android-webview-compat .bg-white\/65 {
+  background-color: rgba(255, 255, 255, 0.65) !important;
+}
+
+.android-webview-compat .bg-white\/75 {
+  background-color: rgba(255, 255, 255, 0.75) !important;
+}
+
+.android-webview-compat .bg-white\/85 {
+  background-color: rgba(255, 255, 255, 0.85) !important;
+}
+
+.android-webview-compat .bg-white\/90 {
+  background-color: rgba(255, 255, 255, 0.9) !important;
+}
+
+.android-webview-compat .bg-white\/95 {
+  background-color: rgba(255, 255, 255, 0.95) !important;
+}
+
+.android-webview-compat .bg-black\/35 {
+  background-color: rgba(0, 0, 0, 0.35) !important;
+}
+
+.android-webview-compat .bg-black\/50 {
+  background-color: rgba(0, 0, 0, 0.5) !important;
+}
+
+.android-webview-compat .bg-black\/55 {
+  background-color: rgba(0, 0, 0, 0.55) !important;
+}
+
+.android-webview-compat .border-white\/80 {
+  border-color: rgba(255, 255, 255, 0.8) !important;
+}
+
+.android-webview-compat .border-slate-200\/80 {
+  border-color: rgba(226, 232, 240, 0.8) !important;
+}
+
+.android-webview-compat .ring-white\/60 {
+  --tw-ring-color: rgba(255, 255, 255, 0.6) !important;
+}
+
+.android-webview-compat .ring-black\/10 {
+  --tw-ring-color: rgba(0, 0, 0, 0.1) !important;
+}
+
+.android-webview-compat .bg-emerald-50\/45 {
+  background-color: rgba(236, 253, 245, 0.45) !important;
+}
+
+.android-webview-compat .bg-emerald-50\/50 {
+  background-color: rgba(236, 253, 245, 0.5) !important;
+}
+
+.android-webview-compat .bg-emerald-400\/15 {
+  background-color: rgba(52, 211, 153, 0.15) !important;
+}
+
+.android-webview-compat .bg-emerald-500\/8 {
+  background-color: rgba(16, 185, 129, 0.08) !important;
+}
+
+.android-webview-compat .bg-emerald-950\/30 {
+  background-color: rgba(2, 44, 34, 0.3) !important;
+}
+
+.android-webview-compat .bg-emerald-950\/35 {
+  background-color: rgba(2, 44, 34, 0.35) !important;
+}
+
+.android-webview-compat .border-emerald-500\/20 {
+  border-color: rgba(16, 185, 129, 0.2) !important;
+}
+
+.android-webview-compat .border-emerald-500\/30 {
+  border-color: rgba(16, 185, 129, 0.3) !important;
+}
+
+.android-webview-compat .border-emerald-500\/35 {
+  border-color: rgba(16, 185, 129, 0.35) !important;
+}
+
+.android-webview-compat .ring-emerald-500\/10 {
+  --tw-ring-color: rgba(16, 185, 129, 0.1) !important;
+}
+
+.android-webview-compat .bg-red-50\/40 {
+  background-color: rgba(254, 242, 242, 0.4) !important;
+}
+
+.android-webview-compat .bg-red-50\/70 {
+  background-color: rgba(254, 242, 242, 0.7) !important;
+}
+
+.android-webview-compat .bg-red-100\/70 {
+  background-color: rgba(254, 226, 226, 0.7) !important;
+}
+
+.android-webview-compat .bg-red-950\/15 {
+  background-color: rgba(69, 10, 10, 0.15) !important;
+}
+
+.android-webview-compat .bg-red-950\/20 {
+  background-color: rgba(69, 10, 10, 0.2) !important;
+}
+
+.android-webview-compat .bg-red-950\/25 {
+  background-color: rgba(69, 10, 10, 0.25) !important;
+}
+
+.android-webview-compat .bg-red-950\/35 {
+  background-color: rgba(69, 10, 10, 0.35) !important;
+}
+
+.android-webview-compat .border-red-500\/30 {
+  border-color: rgba(239, 68, 68, 0.3) !important;
+}
+
+.android-webview-compat .border-red-500\/35 {
+  border-color: rgba(239, 68, 68, 0.35) !important;
+}
+
+.android-webview-compat .bg-amber-400\/15,
+.android-webview-compat .bg-amber-500\/15 {
+  background-color: rgba(245, 158, 11, 0.15) !important;
+}
+
+.android-webview-compat .bg-amber-500\/8 {
+  background-color: rgba(245, 158, 11, 0.08) !important;
+}
+
+.android-webview-compat .bg-amber-500\/10 {
+  background-color: rgba(245, 158, 11, 0.1) !important;
+}
+
+.android-webview-compat .bg-amber-950\/30 {
+  background-color: rgba(69, 26, 3, 0.3) !important;
+}
+
+.android-webview-compat .bg-amber-950\/35 {
+  background-color: rgba(69, 26, 3, 0.35) !important;
+}
+
+.android-webview-compat .bg-amber-950\/85 {
+  background-color: rgba(69, 26, 3, 0.85) !important;
+}
+
+.android-webview-compat .border-amber-500\/20 {
+  border-color: rgba(245, 158, 11, 0.2) !important;
+}
+
+.android-webview-compat .border-amber-500\/30 {
+  border-color: rgba(245, 158, 11, 0.3) !important;
+}
+
+.android-webview-compat .border-amber-500\/35 {
+  border-color: rgba(245, 158, 11, 0.35) !important;
+}
+
+.android-webview-compat .border-amber-500\/40 {
+  border-color: rgba(245, 158, 11, 0.4) !important;
+}
+
+.android-webview-compat .border-amber-500\/50 {
+  border-color: rgba(245, 158, 11, 0.5) !important;
+}
+
+.android-webview-compat .bg-sky-500\/15 {
+  background-color: rgba(14, 165, 233, 0.15) !important;
+}
+
+.android-webview-compat .bg-sky-950\/30 {
+  background-color: rgba(8, 47, 73, 0.3) !important;
+}
+
+.android-webview-compat .bg-sky-950\/35 {
+  background-color: rgba(8, 47, 73, 0.35) !important;
+}
+
+.android-webview-compat .border-sky-500\/35 {
+  border-color: rgba(14, 165, 233, 0.35) !important;
+}
+
+.android-webview-compat .border-sky-500\/40 {
+  border-color: rgba(14, 165, 233, 0.4) !important;
+}
+
+.android-webview-compat .bg-blue-500\/8 {
+  background-color: rgba(59, 130, 246, 0.08) !important;
+}
+
+.android-webview-compat .border-blue-500\/20 {
+  border-color: rgba(59, 130, 246, 0.2) !important;
+}
+
+.android-webview-compat .bg-purple-500\/8 {
+  background-color: rgba(168, 85, 247, 0.08) !important;
+}
+
+.android-webview-compat .border-purple-500\/20 {
+  border-color: rgba(168, 85, 247, 0.2) !important;
+}
+
+.android-webview-compat .bg-rose-500\/8 {
+  background-color: rgba(244, 63, 94, 0.08) !important;
+}
+
+.android-webview-compat .border-rose-500\/20 {
+  border-color: rgba(244, 63, 94, 0.2) !important;
+}
+
+.android-webview-compat .bg-violet-950\/30 {
+  background-color: rgba(46, 16, 101, 0.3) !important;
+}
+
+.android-webview-compat .bg-cyan-950\/30 {
+  background-color: rgba(8, 51, 68, 0.3) !important;
+}
+
+.android-webview-compat .bg-indigo-950\/30 {
+  background-color: rgba(30, 27, 75, 0.3) !important;
+}
+
+.android-webview-compat .border-violet-900\/60 {
+  border-color: rgba(76, 29, 149, 0.6) !important;
+}
+
+.android-webview-compat .border-cyan-900\/60 {
+  border-color: rgba(22, 78, 99, 0.6) !important;
+}
+
+.android-webview-compat .border-indigo-900\/60 {
+  border-color: rgba(49, 46, 129, 0.6) !important;
+}
+
+.android-webview-compat .login-light-zone .login-hero-overlay {
+  background-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+.capacitor-android .login-light-zone {
+  min-height: 100dvh;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.capacitor-android .login-light-zone .login-layout,
+.capacitor-android .login-light-zone .login-hero-section,
+.capacitor-android .login-light-zone .login-panel-section {
+  min-height: 100dvh;
+}
+
+.capacitor-android .login-light-zone .login-input {
+  appearance: none;
+  -webkit-appearance: none;
+  background-color: #ffffff !important;
+  border-color: #10b981 !important;
+  box-shadow: 0 1px 2px 0 rgba(15, 23, 42, 0.06) !important;
+  color: #1e293b !important;
+  caret-color: #059669;
+  outline: none !important;
+}
+
+.capacitor-android .login-light-zone .login-input:focus {
+  border-color: #10b981 !important;
+  box-shadow:
+    0 0 0 4px rgba(16, 185, 129, 0.12),
+    0 1px 2px 0 rgba(15, 23, 42, 0.06) !important;
+}
+
+.capacitor-android .login-light-zone .login-input::placeholder {
+  color: #94a3b8 !important;
+}
+
+.capacitor-android .login-light-zone .login-submit-button {
+  appearance: none;
+  -webkit-appearance: none;
+  background-color: #059669 !important;
+  border-color: #059669 !important;
+  color: #ffffff !important;
+  opacity: 1 !important;
+  box-shadow: 0 18px 34px -24px rgba(5, 150, 105, 0.95) !important;
+}
+
+.capacitor-android .login-light-zone .login-submit-button:hover,
+.capacitor-android .login-light-zone .login-submit-button:focus {
+  background-color: #047857 !important;
+  border-color: #047857 !important;
+  color: #ffffff !important;
+}
+
+.capacitor-android .login-light-zone .login-submit-button:disabled {
+  background-color: #059669 !important;
+  border-color: #059669 !important;
+  color: #ffffff !important;
+  opacity: 0.7 !important;
+}
+
+@media (orientation: landscape) and (max-height: 720px) {
+  .capacitor-android .login-light-zone .login-panel-section {
+    align-items: flex-start;
+    padding-top: max(3.5rem, calc(1rem + env(safe-area-inset-top, 0px)));
+    padding-bottom: max(1rem, calc(1rem + env(safe-area-inset-bottom, 0px)));
+  }
 }
 
 .pos-soft-light-zone {

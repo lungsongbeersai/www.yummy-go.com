@@ -53,7 +53,7 @@ export function LoginClient() {
   }
 
   return (
-    <main className="login-light-zone relative min-h-screen overflow-hidden bg-[#f6fbf9] text-slate-950">
+    <main className="login-light-zone relative min-h-screen min-h-[100dvh] overflow-x-hidden overflow-y-auto bg-[#f6fbf9] text-slate-950">
       <div className="absolute right-4 top-4 z-30 flex items-center gap-2 sm:right-6 sm:top-6">
         <LanguageSwitch
           className="border border-slate-200 bg-white/95 text-slate-700 shadow-sm backdrop-blur hover:bg-white"
@@ -61,9 +61,9 @@ export function LoginClient() {
         />
       </div>
 
-      <div className="grid min-h-screen grid-cols-1 lg:grid-cols-[minmax(0,1.04fr)_minmax(30rem,0.96fr)]">
+      <div className="login-layout grid min-h-screen min-h-[100dvh] grid-cols-1 lg:grid-cols-[minmax(0,1.04fr)_minmax(30rem,0.96fr)]">
         <section
-          className="relative hidden min-h-screen overflow-hidden bg-[#f4eee8] lg:block"
+          className="login-hero-section relative hidden min-h-screen min-h-[100dvh] overflow-hidden bg-[#f4eee8] lg:block"
           aria-hidden="true"
         >
           <Image
@@ -75,12 +75,12 @@ export function LoginClient() {
             className="object-cover object-center"
           />
 
-          <div className="absolute inset-0 bg-white/20" />
+          <div className="login-hero-overlay absolute inset-0 bg-white/20" />
           <div className="absolute inset-y-0 right-0 w-40 bg-gradient-to-pr from-transparent to-[#f6fbf9]" />
         </section>
 
-        <section className="flex min-h-screen items-center justify-center px-4 py-16 sm:px-6 lg:px-12">
-          <Card className="w-full max-w-md rounded-[22px] border border-slate-200/80 bg-white/95 shadow-[0_24px_70px_-42px_rgba(15,23,42,0.5)] backdrop-blur">
+        <section className="login-panel-section flex min-h-screen min-h-[100dvh] items-center justify-center px-4 py-16 sm:px-6 lg:px-12">
+          <Card className="login-card w-full max-w-md rounded-[22px] border border-slate-200/80 bg-white/95 shadow-[0_24px_70px_-42px_rgba(15,23,42,0.5)] backdrop-blur">
             <CardContent className="px-6 py-8 sm:px-8 sm:py-9">
               <div className="mb-7 text-center">
                 <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full border border-slate-200 bg-white shadow-[0_16px_36px_-26px_rgba(15,23,42,0.55)]">
@@ -116,7 +116,7 @@ export function LoginClient() {
                     type="email"
                     autoComplete="email"
                     required
-                    className="h-12 rounded-lg border-slate-200 bg-white px-4 text-sm font-semibold text-slate-800 shadow-sm outline-none transition placeholder:text-slate-400 focus-visible:border-emerald-500 focus-visible:ring-4 focus-visible:ring-emerald-500/10"
+                    className="login-input h-12 rounded-lg border-slate-200 bg-white px-4 text-sm font-semibold text-slate-800 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 focus-visible:border-emerald-500 focus-visible:ring-4 focus-visible:ring-emerald-500/10"
                   />
                 </Field>
 
@@ -150,7 +150,7 @@ export function LoginClient() {
                       type={showPassword ? "text" : "password"}
                       autoComplete="current-password"
                       required
-                      className="h-12 rounded-lg border-slate-200 bg-white px-4 pr-11 text-sm font-semibold text-slate-800 shadow-sm outline-none transition placeholder:text-slate-400 focus-visible:border-emerald-500 focus-visible:ring-4 focus-visible:ring-emerald-500/10"
+                      className="login-input h-12 rounded-lg border-slate-200 bg-white px-4 pr-11 text-sm font-semibold text-slate-800 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 focus-visible:border-emerald-500 focus-visible:ring-4 focus-visible:ring-emerald-500/10"
                     />
 
                     <Button
@@ -192,7 +192,8 @@ export function LoginClient() {
                 </div>
 
                 <Button
-                  className="mt-1 h-12 w-full rounded-lg bg-emerald-600 text-base font-black text-white shadow-[0_18px_34px_-24px_rgba(5,150,105,0.95)] transition hover:bg-emerald-700"
+                  type="submit"
+                  className="login-submit-button mt-1 h-12 w-full rounded-lg bg-emerald-600 text-base font-black text-white shadow-[0_18px_34px_-24px_rgba(5,150,105,0.95)] transition hover:bg-emerald-700"
                   disabled={loading}
                 >
                   {loading ? t("auth.signingIn") : t("auth.signIn")}

@@ -1,0 +1,77 @@
+html,
+body {
+    width: 100%;
+    min-height: 100%;
+    margin: 0;
+    overflow-x: hidden;
+    background: #ffffff;
+    color: #111827;
+    font-family: var(--font-noto-sans-lao), "Noto Sans Lao", "Noto Sans Thai",
+        "Roboto", "Arial", sans-serif;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    color-scheme: light;
+}
+
+* {
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+}
+
+button,
+input,
+textarea,
+select {
+    font: inherit;
+}
+
+input,
+textarea,
+select {
+    font-size: 16px;
+}
+
+img,
+svg,
+video,
+canvas {
+    max-width: 100%;
+}
+
+body {
+    min-height: 100vh;
+    min-height: 100dvh;
+}
+
+.capacitor-android,
+.capacitor-android body {
+    background: #ffffff;
+    color-scheme: light;
+}
+
+.capacitor-android .page,
+.capacitor-android .app-page,
+.capacitor-android .main-page,
+.capacitor-android .dashboard-page {
+    min-height: 100vh;
+    min-height: 100dvh;
+}
+
+.capacitor-android .safe-area-page {
+    min-height: 100vh;
+    min-height: 100dvh;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+}
+
+.capacitor-android .fixed-bottom,
+.capacitor-android .bottom-nav {
+    padding-bottom: env(safe-area-inset-bottom);
+}
+
+.capacitor-android .fixed-top,
+.capacitor-android .top-header {
+    padding-top: env(safe-area-inset-top);
+}
