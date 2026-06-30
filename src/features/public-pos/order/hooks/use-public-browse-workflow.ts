@@ -66,6 +66,7 @@ export function usePublicBrowseWorkflow({
     loadProductItem,
     createOrder,
     updateQty,
+    updateNote,
     deleteItem,
     confirmKitchen,
   } = usePublicPosStore(
@@ -79,6 +80,7 @@ export function usePublicBrowseWorkflow({
       loadProductItem: state.loadProductItem,
       createOrder: state.createOrder,
       updateQty: state.updateQty,
+      updateNote: state.updateNote,
       deleteItem: state.deleteItem,
       confirmKitchen: state.confirmKitchen,
     })),
@@ -124,6 +126,7 @@ export function usePublicBrowseWorkflow({
     t,
     toast,
     token,
+    updateNote,
     updateQty,
   });
 

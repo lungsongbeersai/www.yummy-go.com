@@ -6,6 +6,7 @@ export interface DailySaleItemsBillGroup {
   amountTotal: number;
   branchName: string;
   cancelled: boolean;
+  changeAmount: number;
   debtAmount: number;
   discountTotal: number;
   id: string;
@@ -138,6 +139,7 @@ function normalizeBill(row: ApiEntity, index: number): DailySaleItemsBillGroup {
     amountTotal: firstNumber(summary, ["amount", "order_total", "subtotal"]) || firstNumber(source, ["amount", "order_total", "subtotal"]),
     branchName: textValue(readValue(source, ["branch_name", "branch_name_la", "branch_name_eng"]), "-"),
     cancelled: isCancelled(source),
+    changeAmount: firstNumber(summary, ["change_amount", "change_total"]) || firstNumber(source, ["change_amount", "change_total"]),
     debtAmount: firstNumber(summary, ["debt_amount", "debt_total", "balance_total"]),
     discountTotal:
       firstNumber(summary, ["discount_total", "discount_amount", "item_discount", "discount_bill", "sum_discount"]) ||

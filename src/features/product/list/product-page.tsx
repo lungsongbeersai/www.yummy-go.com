@@ -169,7 +169,7 @@ export function ProductPage({ initialPagination }: { initialPagination: UrlPagin
         <CardContent className="flex min-h-0 flex-1 flex-col p-0">
           {product.loading ? (
             <div className="min-h-0 flex-1 p-4">
-              <LoadingState label={t("product.loading")} variant="table" />
+              <LoadingState label={t("product.loading")} variant="productList" />
             </div>
           ) : product.filteredRows.length ? (
             <>

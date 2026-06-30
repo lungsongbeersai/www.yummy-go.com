@@ -36,7 +36,7 @@ export function CounterCheckoutPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [language, user?.branch_uuid]);
 
-  if (loading) return <LoadingState label={t("pos.loadingTables")} variant="grid" />;
+  if (loading) return <LoadingState label={t("pos.loadingTables")} variant="posGrid" />;
 
   return (
     <div className="flex flex-col gap-5">

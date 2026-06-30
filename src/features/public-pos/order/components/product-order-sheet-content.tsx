@@ -79,20 +79,31 @@ export function ProductOrderSheetContent({
           <div className="flex items-start justify-between gap-3 pr-8">
             <div className="min-w-0">
               <SheetTitle className="line-clamp-2 text-base font-black leading-5">
-                {product?.prod_name ?? t("pos.product")}
+                {loading && !product ? (
+                  <Skeleton className="h-5 w-36" />
+                ) : (
+                  product?.prod_name ?? t("pos.product")
+                )}
               </SheetTitle>
-              <SheetDescription className="mt-1 flex flex-wrap items-center gap-1.5 text-xs">
-                {modeLabel ? (
+              {loading && !product ? (
+                <SheetDescription className="mt-1 flex flex-wrap items-center gap-1.5">
+                  <Skeleton className="h-5 w-16 rounded-full" />
+                  <Skeleton className="h-5 w-12 rounded-full" />
+                </SheetDescription>
+              ) : (
+                <SheetDescription className="mt-1 flex flex-wrap items-center gap-1.5 text-xs">
+                  {modeLabel ? (
                   <span className="rounded-full bg-emerald-50 px-2 py-0.5 font-black text-primary dark:bg-primary/10">
                     {modeLabel}
                   </span>
-                ) : null}
-                {product?.unite_name ? (
+                  ) : null}
+                  {product?.unite_name ? (
                   <span className="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-600 dark:bg-muted dark:text-muted-foreground">
                     {product.unite_name}
                   </span>
-                ) : null}
-              </SheetDescription>
+                  ) : null}
+                </SheetDescription>
+              )}
             </div>
             {priceLabel ? (
               <div className="shrink-0 rounded-full bg-primary px-2.5 py-1 text-xs font-black text-primary-foreground">
@@ -104,11 +115,7 @@ export function ProductOrderSheetContent({
 
         <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
           {loading && !product ? (
-            <div className="grid gap-3">
-              <Skeleton className="aspect-video w-full rounded-lg" />
-              <Skeleton className="h-10 w-full" />
-              <Skeleton className="h-20 w-full" />
-            </div>
+            <ProductOrderSheetSkeleton />
           ) : null}
 
           {product ? (
@@ -134,11 +141,6 @@ export function ProductOrderSheetContent({
                         </Badge>
                       ) : null}
                     </div>
-                    {product.prod_code ? (
-                      <p className="mt-1 truncate text-[11px] font-bold text-muted-foreground">
-                        {product.prod_code}
-                      </p>
-                    ) : null}
                     <p className="mt-1 text-lg font-black leading-6 text-primary">
                       {formatMoney(lineTotal, lang)}
                     </p>
@@ -267,22 +269,24 @@ export function ProductOrderSheetContent({
                   <p className="text-xs font-black text-slate-700 dark:text-muted-foreground">
                     {t("pos.toppings")}
                   </p>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid gap-2 sm:grid-cols-2">
                     {toppings.map((topping) => {
                       const selected = selectedToppingUuids.includes(
                         topping.prod_topping_uuid,
                       );
                       const enabled = isToppingAvailable(topping);
+                      const toppingName =
+                        toppingDisplayName(topping, lang) || t("pos.toppings");
                       return (
                         <Button
                           key={topping.prod_topping_uuid}
                           type="button"
                           variant="outline"
                           className={cn(
-                            "min-h-11 flex-col items-start justify-start rounded-xl border px-2.5 py-1.5 text-left text-sm shadow-sm shadow-emerald-950/5 transition",
+                            "min-h-14 w-full items-center justify-between gap-3 rounded-xl border px-3 py-2 text-left text-sm shadow-sm shadow-emerald-950/5 transition",
                             selected
-                              ? "border-primary bg-primary text-primary-foreground"
-                              : "border-emerald-100 bg-white dark:border-border dark:bg-background",
+                              ? "border-primary bg-emerald-50 text-primary ring-1 ring-primary/15 dark:bg-primary/10"
+                              : "border-emerald-100 bg-white text-slate-800 dark:border-border dark:bg-background dark:text-foreground",
                             !enabled ? "opacity-50" : "",
                           )}
                           onClick={() =>
@@ -290,10 +294,15 @@ export function ProductOrderSheetContent({
                           }
                           disabled={!enabled}
                         >
-                          <span className="line-clamp-1 font-black">
-                            {toppingDisplayName(topping, lang)}
+                          <span className="flex min-w-0 flex-1 items-start gap-2">
+                            {selected ? (
+                              <CheckCircle2 className="mt-0.5 size-4 shrink-0" />
+                            ) : null}
+                            <span className="line-clamp-2 whitespace-normal break-words text-[13px] font-black leading-[1.55]">
+                              {toppingName}
+                            </span>
                           </span>
-                          <span className="text-xs font-bold opacity-80">
+                          <span className="shrink-0 text-right text-xs font-black opacity-85">
                             {formatMoney(numeric(topping.topping_price), lang)}
                           </span>
                         </Button>
@@ -319,59 +328,121 @@ export function ProductOrderSheetContent({
         </div>
 
         <SheetFooter className="shrink-0 border-t border-emerald-100 bg-white p-3 dark:border-border dark:bg-background">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex flex-col gap-1">
-              <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  className="h-11 w-11 rounded-md"
-                  onClick={() => handleQty(qty - qtyStep)}
-                  disabled={qty <= minQty || saving}
-                >
-                  <Minus className="size-4" />
-                </Button>
-                <span className="grid h-10 min-w-10 place-items-center rounded-md border border-emerald-100 px-2 text-sm font-black dark:border-border">
-                  {qty}
-                </span>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  className="h-11 w-11 rounded-md"
-                  onClick={() => handleQty(qty + qtyStep)}
-                  disabled={qty + qtyStep > maxQty || saving}
-                >
-                  <Plus className="size-4" />
-                </Button>
+          {loading && !product ? (
+            <>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <Skeleton className="h-11 w-11 rounded-md" />
+                  <Skeleton className="h-10 w-10 rounded-md" />
+                  <Skeleton className="h-11 w-11 rounded-md" />
+                </div>
+                <div className="grid justify-items-end gap-1">
+                  <Skeleton className="h-4 w-12" />
+                  <Skeleton className="h-5 w-24" />
+                </div>
               </div>
-              {quantityMeta.hasPromotion ? (
-                <p className="text-[11px] font-bold text-amber-700 dark:text-amber-200">
-                  {t("pos.orderStep", { count: qtyStep })}
-                </p>
-              ) : null}
-            </div>
-            <div className="text-right">
-              <p className="text-xs font-bold text-muted-foreground">
-                {t("common.total")}
-              </p>
-              <p className="font-black text-primary">
-                {formatMoney(lineTotal, lang)}
-              </p>
-            </div>
-          </div>
-          <Button
-            type="button"
-            className="h-11 rounded-md"
-            disabled={!canSubmit}
-            onClick={handleSubmit}
-          >
-            {saving ? <Loader2 className="animate-spin" /> : <Plus />}
-            {t("actions.add")}
-          </Button>
+              <Skeleton className="h-11 w-full rounded-md" />
+            </>
+          ) : (
+            <>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="h-11 w-11 rounded-md"
+                      onClick={() => handleQty(qty - qtyStep)}
+                      disabled={qty <= minQty || saving}
+                    >
+                      <Minus className="size-4" />
+                    </Button>
+                    <span className="grid h-10 min-w-10 place-items-center rounded-md border border-emerald-100 px-2 text-sm font-black dark:border-border">
+                      {qty}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="h-11 w-11 rounded-md"
+                      onClick={() => handleQty(qty + qtyStep)}
+                      disabled={qty + qtyStep > maxQty || saving}
+                    >
+                      <Plus className="size-4" />
+                    </Button>
+                  </div>
+                  {quantityMeta.hasPromotion ? (
+                    <p className="text-[11px] font-bold text-amber-700 dark:text-amber-200">
+                      {t("pos.orderStep", { count: qtyStep })}
+                    </p>
+                  ) : null}
+                </div>
+                <div className="text-right">
+                  <p className="text-xs font-bold text-muted-foreground">
+                    {t("common.total")}
+                  </p>
+                  <p className="font-black text-primary">
+                    {formatMoney(lineTotal, lang)}
+                  </p>
+                </div>
+              </div>
+              <Button
+                type="button"
+                className="h-11 rounded-md"
+                disabled={!canSubmit}
+                onClick={handleSubmit}
+              >
+                {saving ? <Loader2 className="animate-spin" /> : <Plus />}
+                {t("actions.add")}
+              </Button>
+            </>
+          )}
         </SheetFooter>
       </SheetContent>
     </Sheet>
+  );
+}
+
+function ProductOrderSheetSkeleton() {
+  return (
+    <div className="grid gap-3 pb-1">
+      <section className="rounded-xl border border-emerald-100 bg-white p-2.5 shadow-sm shadow-emerald-950/5 dark:border-border dark:bg-background">
+        <div className="flex gap-2.5">
+          <Skeleton className="size-24 shrink-0 rounded-lg" />
+          <div className="grid min-w-0 flex-1 content-start gap-2">
+            <div className="flex gap-1.5">
+              <Skeleton className="h-5 w-14 rounded-full" />
+              <Skeleton className="h-5 w-12 rounded-full" />
+            </div>
+            <Skeleton className="h-6 w-28" />
+            <Skeleton className="h-4 w-20" />
+          </div>
+        </div>
+      </section>
+
+      <section className="grid gap-2">
+        <div className="flex items-center justify-between gap-3">
+          <Skeleton className="h-4 w-20" />
+          <Skeleton className="h-4 w-4" />
+        </div>
+        <Skeleton className="h-12 w-full rounded-xl" />
+        <Skeleton className="h-12 w-full rounded-xl" />
+      </section>
+
+      <section className="grid gap-2">
+        <Skeleton className="h-4 w-20" />
+        <div className="grid gap-2 sm:grid-cols-2">
+          <Skeleton className="h-14 w-full rounded-xl" />
+          <Skeleton className="h-14 w-full rounded-xl" />
+          <Skeleton className="h-14 w-full rounded-xl" />
+        </div>
+      </section>
+
+      <section className="grid gap-2">
+        <Skeleton className="h-4 w-16" />
+        <Skeleton className="h-16 w-full rounded-md" />
+      </section>
+    </div>
   );
 }

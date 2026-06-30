@@ -212,6 +212,7 @@ export function saleListPrintBillSource(group: DailySaleItemsBillGroup): ApiEnti
     ...group.raw,
     ...summary,
     amount: group.amountTotal,
+    change_amount: group.changeAmount,
     discount_amount: group.discountTotal,
     grand_total: group.lineTotal,
     items: group.items.map((item) => ({

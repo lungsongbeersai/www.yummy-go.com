@@ -23,21 +23,26 @@ export function CartTabTrigger({
   count,
   disabled = false,
   label,
+  shortLabel,
   value
 }: {
   active: boolean;
   count: number;
   disabled?: boolean;
   label: string;
+  shortLabel?: string;
   value: CartTab;
 }) {
   return (
     <TabsTrigger
       value={value}
       disabled={disabled}
+      aria-label={`${label}: ${count}`}
+      title={label}
       className="h-full min-w-0 gap-1.5 rounded-lg px-2.5 text-[13px] font-black text-white/80 transition-colors data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
     >
-      <span className="min-w-0 truncate">{label}</span>
+      <span className="min-w-0 truncate sm:hidden">{shortLabel ?? label}</span>
+      <span className="hidden min-w-0 truncate sm:inline">{label}</span>
       <Badge
         className={cn(
           "h-6 shrink-0 rounded-full border-transparent px-2 text-xs font-black",
@@ -231,11 +236,12 @@ function CartItemRow({
     note
   );
   const isCanceled = isCanceledCartItem(item);
-  const canDelete = statusValue === 1;
+  const canDelete = statusValue === 0 || statusValue === 1;
   const canCancel = !editable && statusValue !== 0 && statusValue !== 1 && !isCanceled;
   const canConfirmServed = !editable && statusValue !== 0 && statusValue !== 1 && !isCanceled && !isServedCartItem(item);
   const splitSelectable = Boolean(splitEligible && itemUuid && onToggleSplitItem);
   const splitEnabled = splitSelectable && !splitSelectionDisabled;
+  const isWaitingConfirm = statusValue === 0;
 
   function toggleSplitSelection() {
     if (!splitEnabled) return;
@@ -246,6 +252,8 @@ function CartItemRow({
     <div
       className={cn(
         "border-b border-border/80 bg-background px-3 py-2.5 transition-colors last:border-b-0 hover:bg-muted/20 sm:px-4",
+        isWaitingConfirm &&
+          "border-l-4 border-l-amber-400 bg-amber-50/70 hover:bg-amber-50 dark:border-l-amber-500 dark:bg-amber-950/20 dark:hover:bg-amber-950/30",
         isCanceled && "bg-destructive/5 hover:bg-destructive/10",
         splitSelectable && !splitEnabled && "cursor-not-allowed opacity-60",
         splitSelected && "border-l-4 border-l-primary bg-primary/5 hover:bg-primary/10"
@@ -281,14 +289,18 @@ function CartItemRow({
             <div className="min-w-0">
               <div className="flex min-w-0 flex-wrap items-center gap-1.5">
                 <p className="min-w-0 wrap-break-word text-[15px] font-black leading-5 text-foreground">{title}</p>
-                {statusText ? (
+                {statusText || isWaitingConfirm ? (
                   <Badge
                     className={cn(
                       "h-6 rounded-md border-transparent px-2 text-[11px] font-black shadow-none",
-                      isCanceled ? "bg-destructive text-destructive-foreground" : "bg-secondary text-secondary-foreground"
+                      isCanceled
+                        ? "bg-destructive text-destructive-foreground"
+                        : isWaitingConfirm
+                          ? "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
+                          : "bg-secondary text-secondary-foreground"
                     )}
                   >
-                    {statusText}
+                    {statusText ?? t("pos.cartStatusWaitingConfirm")}
                   </Badge>
                 ) : statusValue !== null ? (
                   <Badge

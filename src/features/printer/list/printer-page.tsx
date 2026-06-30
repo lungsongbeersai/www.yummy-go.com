@@ -691,7 +691,7 @@ export function PrinterPage() {
         <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden p-0">
           {loading ? (
             <div className="min-h-0 flex-1 p-4">
-              <LoadingState label={t("printer.loading")} variant="table" />
+              <LoadingState label={t("printer.loading")} variant="settingsTable" />
             </div>
           ) : filteredRows.length ? (
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden">

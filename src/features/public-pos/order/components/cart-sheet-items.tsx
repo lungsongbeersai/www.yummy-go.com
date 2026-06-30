@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useTranslation } from "react-i18next";
-import { ImageIcon, Minus, Plus, Trash2, Utensils } from "lucide-react";
+import { ImageIcon, MessageSquareText, Minus, Plus, Trash2, Utensils } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -64,6 +64,7 @@ export function CartGroup({
   lang,
   onUpdateQty,
   onDeleteItem,
+  onOpenNote,
 }: {
   title: string;
   items: CartItem[];
@@ -76,6 +77,7 @@ export function CartGroup({
     changeQty?: number,
   ) => void;
   onDeleteItem: (orderItemUuid: string) => void;
+  onOpenNote: (item: CartItem) => void;
 }) {
   const { t } = useTranslation();
 
@@ -160,7 +162,7 @@ export function CartGroup({
                   </div>
                 ) : null}
                 {item.detail?.order_it_note ? (
-                  <p className="mt-1 line-clamp-1 rounded-md bg-slate-50 px-1.5 py-1 text-xs font-medium text-muted-foreground dark:bg-muted/50">
+                  <p className="mt-1 line-clamp-2 rounded-md bg-slate-50 px-1.5 py-1 text-xs font-medium text-muted-foreground dark:bg-muted/50">
                     {item.detail.order_it_note}
                   </p>
                 ) : null}
@@ -207,16 +209,32 @@ export function CartGroup({
                     </Badge>
                   )}
                   {editableItem && uuid ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-11 w-11 rounded-md"
-                      disabled={saving}
-                      onClick={() => onDeleteItem(uuid)}
-                    >
-                      <Trash2 className="size-4 text-destructive" />
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="h-11 w-11 rounded-md text-primary"
+                        disabled={saving}
+                        aria-label={t("pos.editNote")}
+                        title={t("pos.editNote")}
+                        onClick={() => onOpenNote(item)}
+                      >
+                        <MessageSquareText className="size-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-11 w-11 rounded-md"
+                        disabled={saving}
+                        aria-label={t("pos.deleteItem")}
+                        title={t("pos.deleteItem")}
+                        onClick={() => onDeleteItem(uuid)}
+                      >
+                        <Trash2 className="size-4 text-destructive" />
+                      </Button>
+                    </div>
                   ) : null}
                 </div>
               </div>

@@ -18,7 +18,7 @@ import { useToastStore } from "@/stores/toast-store";
 import { TableListSection } from "./table-list-section";
 import { SelectedTableCartPanel, TableNextStepPanel } from "./selected-table-cart-panel";
 import type { TableStatusFilter } from "./types";
-import { cartForTable, formatClock } from "./utils";
+import { cartForTable, formatClock, markTableAvailableInZones, tableAvailableState, visibleCartItems } from "./utils";
 import { useHasTableSidePanel } from "./hooks/use-has-table-side-panel";
 import { useSelectedTableCart } from "./hooks/use-selected-table-cart";
 import { useTableAlerts } from "./hooks/use-table-alerts";
@@ -38,6 +38,7 @@ export function TableSelectionPage() {
   const refreshTables = usePosStore((state) => state.refreshTables);
   const loadCartStore = usePosStore((state) => state.loadCart);
   const setCart = usePosStore((state) => state.setCart);
+  const setZones = usePosStore((state) => state.setZones);
   const updateTableCustomerOrderState = usePosStore((state) => state.updateTableCustomerOrderState);
   const showToast = useToastStore((state) => state.show);
   const [search, setSearch] = useState("");
@@ -98,7 +99,20 @@ export function TableSelectionPage() {
   function selectTable(table: PosTable) {
     setSelectedTable(table);
     if (!hasSidePanel) setMobileSheetOpen(true);
+    void refreshCartForTable(table.table_uuid, {
+      clearBeforeLoad: true,
+      showLoading: true
+    }).catch(showOrderError);
   }
+
+  const markSelectedTableAvailable = useCallback((tableUuid: string, latestZones: PosZone[]) => {
+    const nextZones = markTableAvailableInZones(latestZones, tableUuid);
+    if (nextZones !== latestZones) setZones(nextZones);
+    setSelectedTable((current) =>
+      current?.table_uuid === tableUuid ? tableAvailableState(current) : current
+    );
+    setZoneOptions((current) => markTableAvailableInZones(current, tableUuid));
+  }, [setZones]);
 
   const refreshTablesAndSelectedCart = useCallback(async (nextTableUuid?: string) => {
     const shouldResetZone = Boolean(nextTableUuid && selectedZoneUuid);
@@ -111,8 +125,11 @@ export function TableSelectionPage() {
       clearCart();
       return;
     }
-    await refreshCartForTable(nextSelectedTableUuid);
-  }, [clearCart, load, refreshCartForTable, selectedTable, selectedZoneUuid]);
+    const nextCart = await refreshCartForTable(nextSelectedTableUuid);
+    if (!visibleCartItems(nextCart).length) {
+      markSelectedTableAvailable(nextSelectedTableUuid, nextZones);
+    }
+  }, [clearCart, load, markSelectedTableAvailable, refreshCartForTable, selectedTable, selectedZoneUuid]);
 
   const activeCart = cartForTable(panelCart ?? cart, selectedTableUuid);
 

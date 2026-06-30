@@ -51,7 +51,7 @@ export function ProductListActions({
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuGroup>
+        {/* <DropdownMenuGroup>
           <DropdownMenuLabel className="text-xs text-muted-foreground">
             {workflow.t("product.notification.label")}
           </DropdownMenuLabel>
@@ -93,8 +93,8 @@ export function ProductListActions({
               {workflow.t("product.stockMode.noDeduct")}
             </DropdownMenuRadioItem>
           </DropdownMenuRadioGroup>
-        </DropdownMenuGroup>
-        <DropdownMenuSeparator />
+        </DropdownMenuGroup> */}
+        {/* <DropdownMenuSeparator /> */}
         <DropdownMenuGroup>
           <DropdownMenuItem variant="destructive" onSelect={() => workflow.setDeleteTarget(row)}>
             <Trash2 />

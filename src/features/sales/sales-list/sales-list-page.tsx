@@ -7,6 +7,8 @@ import {
   BadgePercent,
   CalendarDays,
   CreditCard,
+  Eye,
+  EyeOff,
   Printer,
   ReceiptText,
   RefreshCcw,
@@ -16,7 +18,8 @@ import {
   StickyNote,
   Table2,
   Tag,
-  Utensils
+  Utensils,
+  UserRound
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { AppPagination } from "@/components/common/app-pagination";
@@ -79,6 +82,7 @@ import {
 } from "./sales-list-utils";
 
 const SALES_LIST_DESKTOP_MEDIA_QUERY = "(min-width: 1280px)";
+const SALES_LIST_SUMMARY_CARDS_ID = "sales-list-summary-cards";
 
 function shouldOpenMobileBillDetail() {
   if (typeof window === "undefined") return false;
@@ -92,6 +96,7 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
   const bills = useDailySaleItemsStore((state) => state.bills);
   const error = useDailySaleItemsStore((state) => state.error);
   const loading = useDailySaleItemsStore((state) => state.loading);
+  const reportTotal = useDailySaleItemsStore((state) => state.reportTotal);
   const responsePage = useDailySaleItemsStore((state) => state.page);
   const total = useDailySaleItemsStore((state) => state.total);
   const totalPages = useDailySaleItemsStore((state) => state.totalPages);
@@ -111,6 +116,7 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
   const [searchText, setSearchText] = useState("");
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
   const [mobileDetailOpen, setMobileDetailOpen] = useState(false);
+  const [summaryVisible, setSummaryVisible] = useState(false);
   const [selectedBillId, setSelectedBillId] = useState("");
   const [printingBillId, setPrintingBillId] = useState("");
   const { changeLimit, goToPage, page, resetPage } = useUrlPagination({
@@ -145,6 +151,7 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
   const canGoBack = page > 1 && !loading;
   const canGoNext = page < safeTotalPages && !loading;
   const selectedBill = bills.find((bill) => bill.id === selectedBillId) ?? null;
+  const initialLoading = loading && !bills.length;
 
   useEffect(() => {
     if (!storeUuid) return;
@@ -340,11 +347,14 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
           draftFilters={draftFilters}
           loading={loading}
           searchText={searchText}
+          summaryControlsId={SALES_LIST_SUMMARY_CARDS_ID}
+          summaryVisible={summaryVisible}
           onApply={applyFilters}
           onDraftChange={patchDraft}
           onMobileFiltersOpen={() => setMobileFilterOpen(true)}
           onRefresh={() => void load()}
           onSearchChange={setSearchText}
+          onSummaryToggle={() => setSummaryVisible((visible) => !visible)}
         />
 
         <SalesListFilterSheet
@@ -369,29 +379,39 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
         ) : null}
         {error ? <SalesListError title={t("salesList.loadFailed")} description={error} /> : null}
 
-        <div className="grid min-w-0 gap-2 sm:gap-3 xl:min-h-0 xl:flex-1 xl:grid-cols-[minmax(20rem,27rem)_minmax(0,1fr)]">
-          <SalesBillListPanel
-            bills={bills}
-            canGoBack={canGoBack}
-            canGoNext={canGoNext}
-            loading={loading}
-            page={page}
-            rangeLabel={rangeLabel}
-            selectedBillId={selectedBillId}
-            totalPages={safeTotalPages}
-            onBack={() => goToPage(page - 1)}
-            onNext={() => goToPage(page + 1)}
-            onPageChange={goToPage}
-            onSelect={selectBill}
-          />
-          <SalesBillDetailPanel
-            bill={selectedBill}
-            className="hidden xl:flex"
-            loading={loading}
-            printingBillId={printingBillId}
-            onReprint={(group) => void reprintReceipt(group)}
-          />
+        <div id={SALES_LIST_SUMMARY_CARDS_ID} hidden={!summaryVisible}>
+          <SalesListSummaryCards reportTotal={reportTotal} />
         </div>
+
+        {initialLoading ? (
+          <div className="min-w-0 xl:min-h-0 xl:flex-1">
+            <LoadingState label={t("salesList.loading")} variant="splitPanel" />
+          </div>
+        ) : (
+          <div className="grid min-w-0 gap-2 sm:gap-3 xl:min-h-0 xl:flex-1 xl:grid-cols-[minmax(20rem,27rem)_minmax(0,1fr)]">
+            <SalesBillListPanel
+              bills={bills}
+              canGoBack={canGoBack}
+              canGoNext={canGoNext}
+              loading={loading}
+              page={page}
+              rangeLabel={rangeLabel}
+              selectedBillId={selectedBillId}
+              totalPages={safeTotalPages}
+              onBack={() => goToPage(page - 1)}
+              onNext={() => goToPage(page + 1)}
+              onPageChange={goToPage}
+              onSelect={selectBill}
+            />
+            <SalesBillDetailPanel
+              bill={selectedBill}
+              className="hidden xl:flex"
+              loading={loading}
+              printingBillId={printingBillId}
+              onReprint={(group) => void reprintReceipt(group)}
+            />
+          </div>
+        )}
       </div>
       <SalesBillDetailDrawer
         bill={selectedBill}
@@ -414,11 +434,14 @@ function SalesListHeader({
   draftFilters,
   loading,
   searchText,
+  summaryControlsId,
+  summaryVisible,
   onApply,
   onDraftChange,
   onMobileFiltersOpen,
   onRefresh,
-  onSearchChange
+  onSearchChange,
+  onSummaryToggle
 }: {
   appliedFilters: SalesListFilters;
   branchLabel: string;
@@ -428,11 +451,14 @@ function SalesListHeader({
   draftFilters: SalesListFilters;
   loading: boolean;
   searchText: string;
+  summaryControlsId: string;
+  summaryVisible: boolean;
   onApply: () => void;
   onDraftChange: (patch: Partial<SalesListFilters>) => void;
   onMobileFiltersOpen: () => void;
   onRefresh: () => void;
   onSearchChange: (value: string) => void;
+  onSummaryToggle: () => void;
 }) {
   const { t } = useTranslation();
   const [desktopFiltersOpen, setDesktopFiltersOpen] = useState(false);
@@ -485,6 +511,19 @@ function SalesListHeader({
         >
           <SlidersHorizontal data-icon="inline-start" />
           <span className="sr-only">{t("salesList.filters")}</span>
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="iconSm"
+          className="h-9 w-9 shrink-0"
+          aria-controls={summaryControlsId}
+          aria-expanded={summaryVisible}
+          aria-label={summaryVisible ? t("report.hideSummary") : t("report.showSummary")}
+          onClick={onSummaryToggle}
+        >
+          {summaryVisible ? <EyeOff data-icon="inline-start" /> : <Eye data-icon="inline-start" />}
+          <span className="sr-only">{summaryVisible ? t("report.hideSummary") : t("report.showSummary")}</span>
         </Button>
         <Button
           type="button"
@@ -768,6 +807,77 @@ function SalesListFilterFields({
   );
 }
 
+type SalesListSummaryCardTone = "danger" | "neutral" | "primary";
+
+interface SalesListSummaryCardConfig {
+  key: string;
+  kind: "count" | "money";
+  label: string;
+  tone: SalesListSummaryCardTone;
+}
+
+function SalesListSummaryCards({ reportTotal }: { reportTotal: ApiEntity }) {
+  const { t } = useTranslation();
+  const cards: SalesListSummaryCardConfig[] = [
+    { key: "bill_count", kind: "count", label: t("salesList.summary.bills"), tone: "neutral" },
+    { key: "total_qty", kind: "count", label: t("salesList.summary.qty"), tone: "neutral" },
+    { key: "amount", kind: "money", label: t("salesList.summary.amount"), tone: "primary" },
+    { key: "discount_item", kind: "money", label: t("salesList.summary.itemDiscount"), tone: "danger" },
+    { key: "discount_bill", kind: "money", label: t("salesList.summary.billDiscount"), tone: "danger" },
+    { key: "sum_discount", kind: "money", label: t("salesList.summary.discount"), tone: "danger" },
+    { key: "sum_servicecharge", kind: "money", label: t("salesList.summary.serviceCharge"), tone: "neutral" },
+    { key: "sum_vate", kind: "money", label: t("salesList.summary.vat"), tone: "neutral" },
+    { key: "sum_total", kind: "money", label: t("salesList.summary.total"), tone: "primary" }
+  ];
+
+  return (
+    <section className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
+      {cards.map((card) => (
+        <SalesListSummaryCard
+          key={card.key}
+          card={card}
+          value={firstNumber(reportTotal, [card.key])}
+        />
+      ))}
+    </section>
+  );
+}
+
+function SalesListSummaryCard({
+  card,
+  value
+}: {
+  card: SalesListSummaryCardConfig;
+  value: number;
+}) {
+  return (
+    <Card
+      className={cn(
+        "overflow-hidden rounded-md border shadow-sm",
+        card.tone === "primary" && "border-primary/20 bg-primary/5 shadow-primary/5",
+        card.tone === "danger" && "border-destructive/20 bg-destructive/5 shadow-destructive/5",
+        card.tone === "neutral" && "border-border bg-muted/20"
+      )}
+    >
+      <CardContent className="p-2.5">
+        <p
+          className={cn(
+            "truncate text-[11px] font-black leading-4",
+            card.tone === "primary" && "text-primary",
+            card.tone === "danger" && "text-destructive",
+            card.tone === "neutral" && "text-muted-foreground"
+          )}
+        >
+          {card.label}
+        </p>
+        <p className="mt-1 truncate text-base font-black tabular-nums text-foreground sm:text-lg">
+          {card.kind === "money" ? money(value) : value.toLocaleString("en-US")}
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
 function SalesBillListPanel({
   bills,
   canGoBack,
@@ -809,7 +919,7 @@ function SalesBillListPanel({
         </div>
       </CardHeader>
       <CardContent className="flex min-h-0 flex-1 flex-col p-0">
-        {loading ? (
+        {loading && !bills.length ? (
           <div className="p-4">
             <LoadingState label={t("salesList.loading")} variant="table" />
           </div>
@@ -938,7 +1048,6 @@ function SalesBillDetailPanel({
 }) {
   const { t } = useTranslation();
   const drawer = variant === "drawer";
-  const needsPaymentAttention = bill ? billNeedsPaymentAttention(bill) : false;
 
   return (
     <Card className={cn("min-h-0 overflow-hidden border-border bg-card shadow-sm xl:flex xl:min-h-0 xl:flex-col", className)}>
@@ -948,36 +1057,15 @@ function SalesBillDetailPanel({
         </div>
       ) : (
         <>
-          <CardHeader className="shrink-0 flex-col gap-3 border-b border-border px-3 py-3 sm:flex-row sm:items-start sm:justify-between sm:px-4">
-            <div className="min-w-0">
-              <CardTitle className="truncate text-lg font-black">{bill.invoiceNumber}</CardTitle>
-              <div className="mt-2 flex min-w-0 flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                {bill.status ? (
-                  <Badge className={cn("max-w-36 truncate", statusBadgeClass(bill.status))}>{bill.status}</Badge>
-                ) : null}
-                {needsPaymentAttention ? (
-                  <Badge className="max-w-full truncate border-destructive/25 bg-destructive text-destructive-foreground">
-                    {bill.debtAmount > 0 ? `${t("salesList.debt")}: ${money(bill.debtAmount)}` : t("salesList.debt")}
-                  </Badge>
-                ) : null}
-                <span className="inline-flex min-w-0 items-center gap-1">
-                  <CalendarDays className="size-4" />
-                  <span className="truncate">{formatSaleDate(bill.saleDate)}</span>
-                </span>
-                <span className="inline-flex min-w-0 items-center gap-1">
-                  <Table2 className="size-4" />
-                  <span className="truncate">{bill.tableName}</span>
-                </span>
-                <span className="inline-flex min-w-0 items-center gap-1">
-                  <CreditCard className="size-4" />
-                  <span className="truncate">{bill.paymentMethodName}</span>
-                </span>
-              </div>
+          <CardHeader className="flex-col items-stretch gap-2 border-b border-border px-3 py-2.5 md:flex-row md:items-start md:justify-between md:px-4">
+            <div className="min-w-0 flex-1">
+              <CardTitle className="truncate text-base font-black">{t("salesList.billDetail")}</CardTitle>
+              <BillHeaderFacts bill={bill} compact={drawer} />
             </div>
             <Button
               type="button"
               variant="outline"
-              className="w-full shrink-0 sm:w-auto"
+              className="h-9 w-full shrink-0 md:w-auto"
               disabled={!textValue(readValue(bill.raw, ["order_uuid"]), "") || Boolean(printingBillId) || loading}
               onClick={() => onReprint(bill)}
             >
@@ -985,8 +1073,8 @@ function SalesBillDetailPanel({
               {printingBillId === bill.id ? t("salesList.reprintingReceipt") : t("salesList.reprintReceipt")}
             </Button>
           </CardHeader>
-          <CardContent className={cn("min-h-0 flex-1 p-0", drawer ? "overflow-y-auto" : "flex flex-col")}>
-            <div className={cn("p-3 sm:p-4", drawer ? "shrink-0" : "min-h-0 flex-1 overflow-auto")}>
+          <CardContent className="flex min-h-0 flex-1 flex-col p-0">
+            <div className="min-h-0 flex-1 overflow-auto p-2 sm:p-3">
               <SalesListItems items={bill.items} />
             </div>
             <SelectedBillSummary bill={bill} />
@@ -1018,10 +1106,8 @@ function SalesBillDetailDrawer({
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent className="h-[calc(100dvh-0.75rem)] max-h-[92dvh] gap-0 overflow-hidden rounded-t-xl xl:hidden">
         <DrawerHeader className="sr-only">
-          <DrawerTitle className="truncate text-base font-black">{bill ? bill.invoiceNumber : t("salesList.billDetail")}</DrawerTitle>
-          <DrawerDescription className="truncate">
-            {bill ? `${formatSaleDate(bill.saleDate)} / ${bill.tableName}` : t("salesList.selectBillHint")}
-          </DrawerDescription>
+          <DrawerTitle>{t("salesList.billDetail")}</DrawerTitle>
+          <DrawerDescription>{t("salesList.selectBillHint")}</DrawerDescription>
         </DrawerHeader>
         <div className="min-h-0 flex-1 overflow-hidden">
           <SalesBillDetailPanel
@@ -1035,6 +1121,90 @@ function SalesBillDetailDrawer({
         </div>
       </DrawerContent>
     </Drawer>
+  );
+}
+
+interface BillReviewMetaItem {
+  icon: ReactNode;
+  label: string;
+  value: string;
+}
+
+function billMetaText(bill: DailySaleItemsBillGroup, keys: string[]) {
+  const summary = recordValue(bill.raw.summary);
+  return textValue(readValue(bill.raw, keys) ?? readValue(summary ?? {}, keys), "");
+}
+
+function realMetaText(value: unknown) {
+  const text = textValue(value, "").trim();
+  return text && text !== "-" ? text : "";
+}
+
+function BillHeaderFacts({
+  bill,
+  compact = false
+}: {
+  bill: DailySaleItemsBillGroup;
+  compact?: boolean;
+}) {
+  const { t } = useTranslation();
+  const customerName = realMetaText(billMetaText(bill, ["customer_name", "customer"]));
+  const customerPhone = realMetaText(billMetaText(bill, ["customer_phone", "phone", "tel"]));
+  const memberCode = realMetaText(billMetaText(bill, ["member_code", "customer_code"]));
+  const customerDetail = [customerName, memberCode, customerPhone].filter(Boolean).join(" / ");
+  const orderChannel = realMetaText(billMetaText(bill, ["order_channel_name", "channel_name"]));
+  const paymentFactCandidates: Array<BillReviewMetaItem | null> = [
+    bill.receiveCashAmount > 0 ? { icon: <CreditCard />, label: t("salesList.cashReceived"), value: money(bill.receiveCashAmount) } : null,
+    bill.receiveTransferAmount > 0 ? { icon: <CreditCard />, label: t("salesList.transferReceived"), value: money(bill.receiveTransferAmount) } : null,
+    bill.changeAmount > 0 ? { icon: <ReceiptText />, label: t("salesList.change"), value: money(bill.changeAmount) } : null
+  ];
+  const paymentFacts = paymentFactCandidates.filter((item): item is BillReviewMetaItem => Boolean(item));
+  const candidates: Array<BillReviewMetaItem | null> = [
+    customerDetail ? { icon: <UserRound />, label: t("pos.customer"), value: customerDetail } : null,
+    orderChannel ? { icon: <ReceiptText />, label: t("pos.orderChannel"), value: orderChannel } : null,
+    ...paymentFacts
+  ];
+  const items = candidates
+    .filter((item): item is BillReviewMetaItem => Boolean(item))
+    .filter((item) => Boolean(realMetaText(item.value)));
+
+  if (!items.length) return null;
+
+  return (
+    <div
+      className={cn(
+        "mt-2 grid min-w-0 grid-cols-1 gap-1.5 min-[430px]:grid-cols-2 md:flex md:flex-wrap",
+        compact && "min-[360px]:grid-cols-2"
+      )}
+    >
+      {items.map((item) => (
+        <BillHeaderFact key={`${item.label}-${item.value}`} item={item} compact={compact} />
+      ))}
+    </div>
+  );
+}
+
+function BillHeaderFact({
+  compact,
+  item
+}: {
+  compact: boolean;
+  item: BillReviewMetaItem;
+}) {
+  return (
+    <span
+      className={cn(
+        "inline-flex w-full min-w-0 items-center gap-1.5 rounded-md border border-border/80 bg-background px-2 py-1 text-xs text-muted-foreground shadow-sm",
+        compact ? "" : "md:w-auto md:max-w-56 2xl:max-w-64"
+      )}
+      title={`${item.label}: ${item.value}`}
+    >
+      <span className="flex size-3.5 shrink-0 items-center justify-center text-muted-foreground/80 [&_svg]:size-3.5">{item.icon}</span>
+      <span className="min-w-0 truncate">
+        <span className="font-medium">{item.label}: </span>
+        <span className="font-semibold text-foreground/85">{item.value}</span>
+      </span>
+    </span>
   );
 }
 
@@ -1241,13 +1411,10 @@ function SalesListItemToppings({ item }: { item: ApiEntity }) {
 
 type SummaryMetricTone =
   | "amount"
-  | "cash"
-  | "debt"
   | "discount"
   | "total"
   | "service"
   | "topping"
-  | "transfer"
   | "vat";
 
 interface SummaryMetric {
@@ -1285,14 +1452,11 @@ function summaryMetricLabel(label: string, rate: string) {
 function summaryMetricClass(tone: SummaryMetricTone) {
   const classes = {
     amount: "border-primary/20 bg-primary/10 text-primary",
-    cash: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300",
-    debt: "border-destructive/25 bg-destructive/10 text-destructive",
-    discount: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300",
+    discount: "border-destructive/20 bg-destructive/10 text-destructive",
     total: "border-primary/20 bg-primary/10 text-primary",
-    service: "border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-900/60 dark:bg-violet-950/30 dark:text-violet-300",
-    topping: "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/30 dark:text-sky-300",
-    transfer: "border-cyan-200 bg-cyan-50 text-cyan-700 dark:border-cyan-900/60 dark:bg-cyan-950/30 dark:text-cyan-300",
-    vat: "border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-900/60 dark:bg-indigo-950/30 dark:text-indigo-300"
+    service: "border-border bg-muted/35 text-foreground",
+    topping: "border-border bg-muted/35 text-foreground",
+    vat: "border-border bg-muted/35 text-foreground"
   } satisfies Record<SummaryMetricTone, string>;
 
   return classes[tone];
@@ -1314,10 +1478,7 @@ function SelectedBillSummary({ bill }: { bill: DailySaleItemsBillGroup }) {
     { label: t("salesList.discount"), tone: "discount", value: bill.discountTotal },
     { label: summaryMetricLabel(t("salesList.serviceCharge"), serviceRate), tone: "service", value: bill.serviceChargeAmount },
     { label: summaryMetricLabel(t("salesList.vat"), vatRate), tone: "vat", value: bill.vatAmount },
-    { label: t("salesList.total"), tone: "total", value: bill.lineTotal },
-    { label: t("salesList.cashReceived"), tone: "cash", value: bill.receiveCashAmount },
-    { label: t("salesList.transferReceived"), tone: "transfer", value: bill.receiveTransferAmount },
-    { label: t("salesList.debt"), tone: "debt", value: bill.debtAmount }
+    { label: t("salesList.total"), tone: "total", value: bill.lineTotal }
   ];
   const metrics = allMetrics.filter((metric) => metric.tone === "amount" || metric.tone === "total" || metric.value > 0);
 

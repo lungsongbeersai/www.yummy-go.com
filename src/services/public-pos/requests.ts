@@ -10,6 +10,7 @@ import type {
   CustomerFetchCartParams,
   CustomerFetchCateProductsParams,
   CustomerGetProdItemParams,
+  CustomerUpdateOrderNoteInput,
   CustomerUpdateQtyInput,
   PublicStatusSortResponse,
   QRScanResponse
@@ -20,6 +21,7 @@ import type {
   DeleteOrderItemResponse,
   FetchCartResponse,
   FetchCateProductsResponse,
+  UpdateOrderNoteResponse,
   UpdateQtyResponse
 } from "@/services/pos";
 
@@ -96,6 +98,19 @@ export function customerDeleteOrderItem(params: CustomerDeleteOrderItemParams) {
   return publicApiRequest<DeleteOrderItemResponse>("delete", "/api/v1/pos/customer/delete_order_item", {
     params: { t: requiredToken(params.t), order_it_uuid: params.order_it_uuid }
   });
+}
+
+export function customerUpdateOrderNote(params: CustomerUpdateOrderNoteInput) {
+  return publicApiRequest<UpdateOrderNoteResponse>(
+    "patch",
+    `/api/v1/pos/customer/update_note?t=${encodeURIComponent(requiredToken(params.t))}`,
+    {
+      data: {
+        order_it_uuid: params.order_it_uuid,
+        order_it_note: params.order_it_note
+      }
+    }
+  );
 }
 
 export function customerConfirmKitchen(params: CustomerConfirmKitchenInput) {

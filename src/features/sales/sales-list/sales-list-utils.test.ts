@@ -7,6 +7,7 @@ function bill(overrides: Partial<DailySaleItemsBillGroup> = {}): DailySaleItemsB
     amountTotal: 100000,
     branchName: "Main",
     cancelled: false,
+    changeAmount: 0,
     debtAmount: 0,
     discountTotal: 0,
     id: "bill-1",
@@ -74,6 +75,7 @@ describe("sales list utils", () => {
     const source = saleListPrintBillSource(
       bill({
         amountTotal: 240000,
+        changeAmount: 43568,
         items: [
           {
             product_full_name: "Fried rice-Large",
@@ -99,5 +101,6 @@ describe("sales list utils", () => {
       product_price_total: 195000,
       topping_total: 45000
     });
+    expect(source.change_amount).toBe(43568);
   });
 });

@@ -153,7 +153,7 @@ export function SettingsModuleShell({
         <CardContent className="flex min-h-0 flex-1 flex-col p-0">
           {loading ? (
             <div className="min-h-0 flex-1 p-4">
-              <LoadingState label={loadingLabel ?? t("common.loading")} variant="table" />
+              <LoadingState label={loadingLabel ?? t("common.loading")} variant="settingsTable" />
             </div>
           ) : table || mobileList ? (
             <>

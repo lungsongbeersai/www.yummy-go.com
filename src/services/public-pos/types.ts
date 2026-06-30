@@ -5,6 +5,7 @@ import type {
   FetchCartResponse,
   FetchCateProductsResponse,
   ProdItem,
+  UpdateOrderNoteResponse,
   UpdateQtyResponse
 } from "@/services/pos";
 
@@ -59,6 +60,12 @@ export interface CustomerUpdateQtyInput {
 
 export interface CustomerDeleteOrderItemParams { t: string; order_it_uuid: string }
 
+export interface CustomerUpdateOrderNoteInput {
+  t: string;
+  order_it_uuid: string;
+  order_it_note: string;
+}
+
 export interface CustomerConfirmKitchenInput {
   t: string;
   order_uuid: string;
@@ -105,4 +112,5 @@ export type CustomerGetProdItemResponse = ProdItem;
 export type CustomerCreateOrderResponse = CreateOrderResponse;
 export type CustomerUpdateQtyResponse = UpdateQtyResponse;
 export type CustomerDeleteOrderItemResponse = DeleteOrderItemResponse;
+export type CustomerUpdateOrderNoteResponse = UpdateOrderNoteResponse;
 export type CustomerConfirmKitchenResponse = ConfirmToKitchenResponse;

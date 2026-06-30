@@ -17,6 +17,7 @@ import type {
   CustomerFetchCartParams,
   CustomerFetchCateProductsParams,
   CustomerGetProdItemParams,
+  CustomerUpdateOrderNoteInput,
   CustomerUpdateQtyInput,
   QRScanResponse
 } from "@/services/public-pos";
@@ -191,6 +192,7 @@ interface PublicPosState {
   createOrder: (token: string, input: CustomerCreateOrderInput) => Promise<CreateOrderResponse>;
   updateQty: (params: CustomerUpdateQtyInput) => ReturnType<typeof publicPosService.customerUpdateQty>;
   deleteItem: (params: CustomerDeleteOrderItemParams) => ReturnType<typeof publicPosService.customerDeleteOrderItem>;
+  updateNote: (params: CustomerUpdateOrderNoteInput) => ReturnType<typeof publicPosService.customerUpdateOrderNote>;
   confirmKitchen: (params: CustomerConfirmKitchenInput) => ReturnType<typeof publicPosService.customerConfirmKitchen>;
   emitTableStatus: (params: CustomerEmitTableStatusParams) => ReturnType<typeof publicPosService.customerEmitTableStatus>;
   reset: () => void;
@@ -479,6 +481,19 @@ export const usePublicPosStore = create<PublicPosState>((set, get) => ({
     set({ saving: true, error: null, token: params.t });
     try {
       const result = await publicPosService.customerDeleteOrderItem(params);
+      clearPublicPosDataCache();
+      await get().loadCart({ t: params.t, lang: get().scan?.lang }).catch(() => undefined);
+      set({ saving: false });
+      return result;
+    } catch (error) {
+      set({ error: errorMessage(error), saving: false });
+      throw error;
+    }
+  },
+  updateNote: async (params) => {
+    set({ saving: true, error: null, token: params.t });
+    try {
+      const result = await publicPosService.customerUpdateOrderNote(params);
       clearPublicPosDataCache();
       await get().loadCart({ t: params.t, lang: get().scan?.lang }).catch(() => undefined);
       set({ saving: false });

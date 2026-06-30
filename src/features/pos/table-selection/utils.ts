@@ -42,6 +42,42 @@ export function tableSeatCount(table: PosTable) {
   return Number(value || 0);
 }
 
+export function tableAvailableState(table: PosTable): PosTable {
+  if (
+    Number(table.table_status) === TableStatus.AVAILABLE &&
+    table.customer_order_state === false
+  )
+    return table;
+
+  return {
+    ...table,
+    customer_order_state: false,
+    table_status: TableStatus.AVAILABLE,
+  };
+}
+
+export function markTableAvailableInZones(zones: PosZone[], tableUuid: string) {
+  let changed = false;
+
+  const nextZones = zones.map((zone) => {
+    let zoneChanged = false;
+    const nextTables = (zone.tables ?? []).map((table) => {
+      if (table.table_uuid !== tableUuid) return table;
+
+      const nextTable = tableAvailableState(table);
+      if (nextTable === table) return table;
+
+      changed = true;
+      zoneChanged = true;
+      return nextTable;
+    });
+
+    return zoneChanged ? { ...zone, tables: nextTables } : zone;
+  });
+
+  return changed ? nextZones : zones;
+}
+
 export function optionalNumber(...values: unknown[]) {
   for (const value of values) {
     if (value === null || value === undefined || value === "") continue;
@@ -431,7 +467,11 @@ export function cartItemStatus(item: CartItem) {
 }
 
 export function isVisibleCartItem(item: CartItem) {
-  return cartItemStatus(item) !== 0;
+  return Boolean(item);
+}
+
+export function isWaitingCartItem(item: CartItem) {
+  return cartItemStatus(item) === 0;
 }
 
 export function isNewOrderCartItem(item: CartItem) {
@@ -441,6 +481,13 @@ export function isNewOrderCartItem(item: CartItem) {
 export function isOrderHistoryCartItem(item: CartItem) {
   const status = cartItemStatus(item);
   return status === null || (status !== 0 && status !== 1);
+}
+
+export function newOrderTabItems(items: CartItem[]) {
+  return [
+    ...items.filter(isNewOrderCartItem),
+    ...items.filter(isWaitingCartItem),
+  ];
 }
 
 export function isServedCartItem(item: CartItem) {

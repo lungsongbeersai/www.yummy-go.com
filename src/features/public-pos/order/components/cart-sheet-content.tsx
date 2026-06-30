@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/tooltip";
 import type { PublicCartSheetWorkflow } from "../hooks/use-public-cart-sheet-workflow";
 import { formatMoney } from "../utils";
+import { CartNoteDialog } from "./cart-note-dialog";
 import { CartGroup, CartTotalRow } from "./cart-sheet-items";
 
 export function CartSheetContent({
@@ -43,8 +44,14 @@ export function CartSheetContent({
     loading,
     onConfirmKitchen,
     onDeleteItem,
+    onNoteChange,
+    onNoteOpen,
+    onNoteOpenChange,
     onOpenChange,
+    onUpdateNote,
     onUpdateQty,
+    noteDraft,
+    noteTarget,
     open,
     saving,
     statusRule,
@@ -102,6 +109,7 @@ export function CartSheetContent({
                 lang={lang}
                 onUpdateQty={onUpdateQty}
                 onDeleteItem={onDeleteItem}
+                onOpenNote={onNoteOpen}
               />
             ) : null,
           )}
@@ -184,6 +192,14 @@ export function CartSheetContent({
           </div>
         </DrawerFooter>
       </DrawerContent>
+      <CartNoteDialog
+        note={noteDraft}
+        open={Boolean(noteTarget)}
+        pending={saving}
+        onNoteChange={onNoteChange}
+        onOpenChange={onNoteOpenChange}
+        onSubmit={onUpdateNote}
+      />
     </Drawer>
   );
 }

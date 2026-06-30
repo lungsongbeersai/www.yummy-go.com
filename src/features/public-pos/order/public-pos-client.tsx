@@ -37,7 +37,7 @@ export function PublicPosClient({
   const canOrder = Boolean(table && !qrDisabled && !isPublicLoading);
 
   return (
-    <main className="min-h-screen bg-[#f3fbf7] pb-[calc(4rem+env(safe-area-inset-bottom))] text-slate-950 dark:bg-app dark:text-foreground">
+    <main className="min-h-screen bg-[#f3fbf7] pb-[calc(5.75rem+env(safe-area-inset-bottom))] text-slate-950 dark:bg-app dark:text-foreground">
       <PublicHeader
         table={table}
         statusLabel={statusLabel}

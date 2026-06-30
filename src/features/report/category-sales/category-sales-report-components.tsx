@@ -597,7 +597,7 @@ export function CategorySalesTableCard({
           <div className="p-4 md:min-h-80">
             <LoadingState
               label={t("report.categorySales.loading")}
-              variant="table"
+              variant="reportTable"
             />
           </div>
         ) : rowsLength ? (

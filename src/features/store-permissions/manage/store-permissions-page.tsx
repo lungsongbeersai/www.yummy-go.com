@@ -399,7 +399,7 @@ export function StorePermissionsPage() {
         <CardContent className="flex min-h-0 flex-1 flex-col p-0">
           {loading ? (
             <div className="min-h-0 flex-1 p-4">
-              <LoadingState label={t("storePermissions.loading")} variant="table" />
+              <LoadingState label={t("storePermissions.loading")} variant="settingsTable" />
             </div>
           ) : !stores.length || !roles.length ? (
             <PermissionEmpty

@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { AppPagination } from "@/components/common/app-pagination";
+import { BlockingLoadingDialog } from "@/components/common/blocking-loading-dialog";
 import {
   ChevronDown,
   ChevronRight,
@@ -22,20 +23,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Progress } from "@/components/ui/progress";
 import {
   Select,
   SelectContent,
@@ -44,7 +37,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Spinner } from "@/components/ui/spinner";
 import { money } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type {
@@ -237,59 +229,13 @@ export function ReportExportLoadingDialog({
   const progressLabel = progress?.label ?? t("report.exportingDescription");
 
   return (
-    <Dialog open={Boolean(exporting)}>
-      <DialogContent
-        className="max-w-md gap-0 overflow-hidden p-0"
-        showCloseButton={false}
-        onEscapeKeyDown={(event) => event.preventDefault()}
-        onPointerDownOutside={(event) => event.preventDefault()}
-      >
-        <DialogHeader className="gap-0 border-b bg-muted/30 p-0 text-left">
-          <div className="flex items-center gap-4 px-6 py-5">
-            <div className="grid size-12 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
-              <Spinner className="size-6" />
-            </div>
-
-            <div className="min-w-0 flex-1">
-              <DialogTitle className="truncate text-base font-black">
-                {actionLabel}
-              </DialogTitle>
-              <DialogDescription className="mt-1">
-                {t("report.exportingDescription")}
-              </DialogDescription>
-            </div>
-
-            <div className="shrink-0 text-right">
-              <p className="text-3xl font-black tabular-nums text-foreground">
-                {percent}%
-              </p>
-              <p className="text-xs font-semibold text-muted-foreground">
-                {t("report.exportProgress.progress")}
-              </p>
-            </div>
-          </div>
-        </DialogHeader>
-
-        <div className="flex flex-col gap-3 px-6 py-5">
-          <Progress
-            value={percent}
-            aria-label={t("report.exportProgress.progress")}
-            className="h-2.5"
-          />
-          <div
-            className="flex items-center justify-between gap-3 text-sm"
-            aria-live="polite"
-          >
-            <span className="min-w-0 truncate font-semibold text-foreground">
-              {progressLabel}
-            </span>
-            <span className="shrink-0 text-xs text-muted-foreground">
-              {t("report.exportProgress.keepOpen")}
-            </span>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+    <BlockingLoadingDialog
+      open={Boolean(exporting)}
+      title={actionLabel}
+      description={t("report.exportingDescription")}
+      progressLabel={progressLabel}
+      progressValue={percent}
+    />
   );
 }
 
@@ -309,7 +255,7 @@ export function ReportTableCard({
       <CardContent className="flex min-h-0 flex-1 flex-col p-0">
         {loading ? (
           <div className="p-4 md:min-h-80">
-            <LoadingState label={t("report.loading")} variant="table" />
+            <LoadingState label={t("report.loading")} variant="reportTable" />
           </div>
         ) : rowsLength ? (
           <>

@@ -115,6 +115,7 @@ describe("normalizeDailySaleItemsResponse", () => {
               payment_method_name: "Cash",
               paid_cash: 200000,
               paid_transfer: 0,
+              change_amount: 35293,
               item_count: 2,
               item_qty: 4,
               items: [
@@ -152,6 +153,7 @@ describe("normalizeDailySaleItemsResponse", () => {
     });
     expect(normalized.bills[0]).toMatchObject({
       amountTotal: 258000,
+      changeAmount: 35293,
       discountTotal: 129000,
       invoiceNumber: "INV-002",
       itemCount: 2,

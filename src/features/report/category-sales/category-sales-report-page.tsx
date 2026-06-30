@@ -3,6 +3,7 @@
 import { type CSSProperties, useRef, useState } from "react";
 import { CalendarDays, FolderTree } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { BlockingLoadingDialog } from "@/components/common/blocking-loading-dialog";
 import { Badge } from "@/components/ui/badge";
 import type { UrlPaginationState } from "@/lib/url-pagination";
 import { ReportError, ReportPagination, ReportSummaryToggle } from "../daily-sales/daily-sales-report-components";
@@ -26,6 +27,12 @@ export function CategorySalesReportPage({ initialPagination }: { initialPaginati
   const layoutStyle = {
     "--category-sales-filter-height": "0px"
   } as CSSProperties;
+  const exportTitle =
+    report.exporting === "excel"
+      ? t("report.exportingExcel")
+      : report.exporting === "pdf"
+        ? t("report.exportingPdf")
+        : t("report.preparingPrint");
 
   return (
     <div className="h-full min-h-0 min-w-0 overflow-x-hidden overflow-y-auto" style={layoutStyle}>
@@ -112,6 +119,11 @@ export function CategorySalesReportPage({ initialPagination }: { initialPaginati
         summary={report.renderedExportData.summary}
         title={report.renderedExportData.reportName || report.reportTitle}
         labelOverrides={report.labelOverrides}
+      />
+      <BlockingLoadingDialog
+        open={Boolean(report.exporting)}
+        title={exportTitle}
+        description={t("report.exportingDescription")}
       />
     </div>
   );

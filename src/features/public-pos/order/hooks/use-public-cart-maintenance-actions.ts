@@ -1,11 +1,11 @@
 "use client";
 
 import type { TFunction } from "i18next";
-import { useCallback, useEffect } from "react";
-import type { CartOrder, ChangeType } from "@/services/pos";
+import { useCallback, useEffect, useState } from "react";
+import type { CartItem, CartOrder, ChangeType } from "@/services/pos";
 import { usePublicPosStore } from "@/stores/public-pos-store";
 import type { ToastInput } from "@/stores/toast-store";
-import { getConfirmableOrderPayload } from "../utils";
+import { getConfirmableOrderPayload, getOrderItemUuid } from "../utils";
 
 type PublicPosState = ReturnType<typeof usePublicPosStore.getState>;
 
@@ -21,6 +21,7 @@ interface UsePublicCartMaintenanceActionsParams {
   t: TFunction;
   toast: (toast: ToastInput) => void;
   token: string;
+  updateNote: PublicPosState["updateNote"];
   updateQty: PublicPosState["updateQty"];
 }
 
@@ -36,8 +37,12 @@ export function usePublicCartMaintenanceActions({
   t,
   toast,
   token,
+  updateNote,
   updateQty,
 }: UsePublicCartMaintenanceActionsParams) {
+  const [noteTarget, setNoteTarget] = useState<CartItem | null>(null);
+  const [noteDraft, setNoteDraft] = useState("");
+
   const handleUpdateItemQty = useCallback(
     async (orderItemUuid: string, changeType: ChangeType, changeQty = 1) => {
       try {
@@ -73,6 +78,40 @@ export function usePublicCartMaintenanceActions({
     },
     [deleteItem, t, toast, token],
   );
+
+  const handleOpenNoteDialog = useCallback((item: CartItem) => {
+    setNoteTarget(item);
+    setNoteDraft(item.detail?.order_it_note ?? "");
+  }, []);
+
+  const handleNoteDialogOpenChange = useCallback((open: boolean) => {
+    if (open) return;
+
+    setNoteTarget(null);
+    setNoteDraft("");
+  }, []);
+
+  const handleUpdateItemNote = useCallback(async () => {
+    const orderItemUuid = noteTarget ? getOrderItemUuid(noteTarget) : "";
+    if (!orderItemUuid) return;
+
+    try {
+      await updateNote({
+        t: token,
+        order_it_uuid: orderItemUuid,
+        order_it_note: noteDraft.trim(),
+      });
+      toast({ title: t("pos.noteUpdated"), tone: "success" });
+      setNoteTarget(null);
+      setNoteDraft("");
+    } catch (error) {
+      toast({
+        title: t("pos.noteUpdateFailed"),
+        description: error instanceof Error ? error.message : undefined,
+        tone: "error",
+      });
+    }
+  }, [noteDraft, noteTarget, t, toast, token, updateNote]);
 
   const handleConfirmKitchen = useCallback(async () => {
     if (confirming) return;
@@ -112,6 +151,12 @@ export function usePublicCartMaintenanceActions({
   return {
     handleConfirmKitchen,
     handleDeleteItem,
+    handleNoteDialogOpenChange,
+    handleOpenNoteDialog,
+    handleUpdateItemNote,
     handleUpdateItemQty,
+    noteDraft,
+    noteTarget,
+    setNoteDraft,
   };
 }

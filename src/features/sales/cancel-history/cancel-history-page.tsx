@@ -500,7 +500,7 @@ function CancelHistoryTableCard({
       <CardContent className="flex min-h-0 flex-1 flex-col p-0">
         {loading ? (
           <div className="p-4 md:min-h-[320px]">
-            <LoadingState label={t("cancelHistory.loading")} variant="table" />
+            <LoadingState label={t("cancelHistory.loading")} variant="reportTable" />
           </div>
         ) : rowsLength ? (
           <>

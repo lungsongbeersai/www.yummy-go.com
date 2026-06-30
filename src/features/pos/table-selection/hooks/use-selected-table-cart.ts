@@ -6,6 +6,7 @@ import type { CartOrder, FetchCartParams } from "@/services/pos";
 type CartPanelData = CartOrder | CartOrder[] | null;
 
 interface RefreshCartOptions {
+  clearBeforeLoad?: boolean;
   showLoading?: boolean;
 }
 
@@ -42,7 +43,7 @@ export function useSelectedTableCart({
   }, [setStoreCart]);
 
   const refreshCartForTable = useCallback(
-    async (tableUuid: string, { showLoading = true }: RefreshCartOptions = {}) => {
+    async (tableUuid: string, { clearBeforeLoad = false, showLoading = true }: RefreshCartOptions = {}) => {
       const requestId = latestRequestIdRef.current + 1;
       latestRequestIdRef.current = requestId;
       latestRequestedKeyRef.current = cartRequestKey(tableUuid, language);
@@ -54,6 +55,10 @@ export function useSelectedTableCart({
         return null;
       }
 
+      if (clearBeforeLoad) {
+        setCart(null);
+        setStoreCart(null);
+      }
       if (showLoading) setLoading(true);
 
       try {

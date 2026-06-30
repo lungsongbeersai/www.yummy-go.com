@@ -39,7 +39,9 @@ import {
   formatRate,
   isNewOrderCartItem,
   isOrderHistoryCartItem,
+  isWaitingCartItem,
   isSplitPaymentEligibleItem,
+  newOrderTabItems,
   newOrderConfirmGroups,
   normalizeDiscountType,
   optionalNumber,
@@ -97,9 +99,18 @@ export function useSelectedTableCartPanelWorkflow({
   const tableUuid = selectedTable?.table_uuid ?? "";
   const displayCart = hasSelectedTable ? cart : null;
   const orders = useMemo(() => cartOrders(displayCart), [displayCart]);
+  const displayItems = useMemo(() => visibleCartItems(displayCart), [displayCart]);
   const newOrderItems = useMemo(
-    () => visibleCartItems(displayCart).filter(isNewOrderCartItem),
-    [displayCart],
+    () => displayItems.filter(isNewOrderCartItem),
+    [displayItems],
+  );
+  const waitingItems = useMemo(
+    () => displayItems.filter(isWaitingCartItem),
+    [displayItems],
+  );
+  const newOrderDisplayItems = useMemo(
+    () => newOrderTabItems(displayItems),
+    [displayItems],
   );
   const printerAgent = usePrinterStore((state) => state.agent);
   const resolvedPrinterContext = useMemo<PrinterDeviceContext | null>(
@@ -116,13 +127,13 @@ export function useSelectedTableCartPanelWorkflow({
   );
   const activePrinterContext = printerContext ?? resolvedPrinterContext;
   const historyItems = useMemo(
-    () => visibleCartItems(displayCart).filter(isOrderHistoryCartItem),
-    [displayCart],
+    () => displayItems.filter(isOrderHistoryCartItem),
+    [displayItems],
   );
   const summary = useMemo(() => cartSummary(displayCart), [displayCart]);
   const confirmGroups = useMemo(() => newOrderConfirmGroups(orders), [orders]);
   const preferredTab: CartTab =
-    newOrderItems.length || !historyItems.length ? "new" : "history";
+    newOrderDisplayItems.length || !historyItems.length ? "new" : "history";
   const [activeTab, setActiveTab] = useState<CartTab>(preferredTab);
   const previousTableUuidRef = useRef(tableUuid);
   const previousNewOrderFocusKeyRef = useRef(newOrderFocusKey);
@@ -169,7 +180,8 @@ export function useSelectedTableCartPanelWorkflow({
     const branchQr = optionalString(...orders.map((order) => order.branch_qr));
     return branchQr ? getBranchQrUrl(branchQr) : null;
   }, [orders]);
-  const visibleItemCount = newOrderItems.length + historyItems.length;
+  const visibleItemCount =
+    waitingItems.length + newOrderItems.length + historyItems.length;
   const currentOrderUuid = useMemo(() => firstCartOrderUuid(orders), [orders]);
   const currentOrder = useMemo(
     () => orders.find((entry) => optionalString(entry.order_uuid)),
@@ -213,6 +225,7 @@ export function useSelectedTableCartPanelWorkflow({
     currentOrderUuid &&
     historyItems.length > 0 &&
     newOrderItems.length === 0 &&
+    waitingItems.length === 0 &&
     summary.grandTotal > 0 &&
     !cartActionsLocked,
   );
@@ -283,14 +296,13 @@ export function useSelectedTableCartPanelWorkflow({
         previousTableUuidRef.current = tableUuid;
         return preferredTab;
       }
-      if (current === "history" && !historyItems.length) return "new";
-      if (current === "new" && !newOrderItems.length && historyItems.length)
-        return "history";
+      if (current === "history" && !historyItems.length) return preferredTab;
+      if (current === "new" && !newOrderDisplayItems.length) return preferredTab;
       return current;
     });
   }, [
     historyItems.length,
-    newOrderItems.length,
+    newOrderDisplayItems.length,
     preferredTab,
     tableUuid,
   ]);
@@ -361,7 +373,7 @@ export function useSelectedTableCartPanelWorkflow({
         change_type: change > 0 ? "INCREASE" : "DECREASE",
         change_qty: 1,
       });
-      await onCartRefresh();
+      await onTableActionComplete();
     } catch (error) {
       showToast({
         title: t("pos.cartUpdateFailed"),
@@ -495,7 +507,7 @@ export function useSelectedTableCartPanelWorkflow({
         confirmItemTotal,
         t("pos.confirmAllRefreshing"),
       );
-      await onCartRefresh();
+      await onTableActionComplete();
       setProgress(
         confirmItemTotal,
         confirmItemTotal,
@@ -556,7 +568,7 @@ export function useSelectedTableCartPanelWorkflow({
       } else {
         await cancelItem({ order_it_uuid: actionTargetUuid });
       }
-      await onCartRefresh();
+      await onTableActionComplete();
       showToast({ title: t(successKey), tone: "success" });
       setItemActionTarget(null);
     } catch (error) {
@@ -870,6 +882,7 @@ export function useSelectedTableCartPanelWorkflow({
     itemDiscountValue,
     language,
     markItemServed,
+    newOrderDisplayItems,
     newOrderItems,
     noteDraft,
     noteTarget,
@@ -909,6 +922,7 @@ export function useSelectedTableCartPanelWorkflow({
     updatingItemUuid,
     user,
     visibleItemCount,
+    waitingItems,
   };
 }
 

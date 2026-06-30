@@ -3,6 +3,7 @@
 import { type CSSProperties, useRef, useState } from "react";
 import { CalendarDays, CreditCard } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { BlockingLoadingDialog } from "@/components/common/blocking-loading-dialog";
 import { Badge } from "@/components/ui/badge";
 import type { UrlPaginationState } from "@/lib/url-pagination";
 import {
@@ -26,6 +27,12 @@ export function PaymentMethodsReportPage({ initialPagination }: { initialPaginat
   const layoutStyle = {
     "--payment-method-filter-height": "0px"
   } as CSSProperties;
+  const exportTitle =
+    report.exporting === "excel"
+      ? t("report.exportingExcel")
+      : report.exporting === "pdf"
+        ? t("report.exportingPdf")
+        : t("report.preparingPrint");
 
   return (
     <>
@@ -114,6 +121,11 @@ export function PaymentMethodsReportPage({ initialPagination }: { initialPaginat
         rows={report.renderedExportData.rows}
         rowsLabel={t("report.paymentMethodsReport.rowsLabel", { count: report.renderedExportData.rows.length })}
         title={report.renderedExportData.reportName || report.reportTitle}
+      />
+      <BlockingLoadingDialog
+        open={Boolean(report.exporting)}
+        title={exportTitle}
+        description={t("report.exportingDescription")}
       />
     </>
   );

@@ -128,9 +128,10 @@ export function SelectedTableCartPanelContent({
           >
             <CartTabTrigger
               active={workflow.activeTab === "new"}
-              count={workflow.newOrderItems.length}
+              count={workflow.newOrderDisplayItems.length}
               disabled={!workflow.hasSelectedTable}
               label={t("pos.newOrder")}
+              shortLabel={t("pos.newOrderShort")}
               value="new"
             />
             <CartTabTrigger
@@ -138,6 +139,7 @@ export function SelectedTableCartPanelContent({
               count={workflow.historyItems.length}
               disabled={!workflow.hasSelectedTable}
               label={t("pos.orderHistory")}
+              shortLabel={t("pos.orderHistoryShort")}
               value="history"
             />
           </TabsList>
@@ -154,7 +156,7 @@ export function SelectedTableCartPanelContent({
                   actingItemUuid={workflow.actingItemUuid}
                   actionDisabled={workflow.cartActionsLocked}
                   canConfirmKitchenItem={workflow.canConfirmKitchenItem}
-                  items={workflow.newOrderItems}
+                  items={workflow.newOrderDisplayItems}
                   updatingItemUuid={workflow.updatingItemUuid}
                   onChangeQty={workflow.changeCartItemQty}
                   onConfirmKitchen={workflow.confirmSingleItemToKitchen}

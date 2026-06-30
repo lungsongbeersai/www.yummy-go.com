@@ -10,10 +10,16 @@ import {
   cartSummary,
   discountDraftValue,
   isCanceledCartItem,
+  isNewOrderCartItem,
+  isOrderHistoryCartItem,
+  isWaitingCartItem,
+  markTableAvailableInZones,
+  newOrderTabItems,
   newOrderConfirmGroups,
   normalizeDiscountType,
   pruneSelectedItemUuids,
   splitPaymentSelection,
+  visibleCartItems,
 } from "./utils";
 
 function cartOrder(overrides: Partial<CartOrder> = {}): CartOrder {
@@ -112,10 +118,70 @@ describe("table selection utils", () => {
     ]);
   });
 
+  it("keeps waiting items at the bottom of the new order tab", () => {
+    const waitingItem = {
+      order_it_uuid: "waiting",
+      detail: { order_it_status: 0, net_total: 12000 },
+    } as CartItem;
+    const newItem = {
+      order_it_uuid: "new",
+      detail: { order_it_status: 1, net_total: 8000 },
+    } as CartItem;
+    const historyItem = {
+      order_it_uuid: "history",
+      detail: { order_it_status: 2, net_total: 20000 },
+    } as CartItem;
+    const cart = cartOrder({
+      items: [waitingItem, newItem, historyItem],
+      totals: undefined,
+    });
+
+    expect(visibleCartItems(cart)).toEqual([waitingItem, newItem, historyItem]);
+    expect(visibleCartItems(cart).filter(isWaitingCartItem)).toEqual([waitingItem]);
+    expect(visibleCartItems(cart).filter(isNewOrderCartItem)).toEqual([newItem]);
+    expect(visibleCartItems(cart).filter(isOrderHistoryCartItem)).toEqual([historyItem]);
+    expect(newOrderTabItems(visibleCartItems(cart))).toEqual([newItem, waitingItem]);
+    expect(cartSummary(cart).subtotal).toBe(40000);
+    expect(newOrderConfirmGroups([cart])).toEqual([
+      { orderUuid: "order-1", itemUuids: ["new"] },
+    ]);
+  });
+
   it("detects canceled cart items from status code and text", () => {
     expect(isCanceledCartItem({ detail: { order_it_status: 9 } } as CartItem)).toBe(true);
     expect(isCanceledCartItem({ detail: { order_it_status_text: "ຍົກເລີກ" } } as CartItem)).toBe(true);
     expect(isCanceledCartItem({ detail: { order_it_status_text: "sent" } } as CartItem)).toBe(false);
+  });
+
+  it("marks a table available in zone state after its cart becomes empty", () => {
+    const zones = [
+      {
+        zone_uuid: "zone-1",
+        zone_name: "Indoor",
+        tables: [
+          {
+            table_uuid: "table-1",
+            table_name: "A1",
+            table_status: 2,
+            customer_order_state: true,
+          },
+          {
+            table_uuid: "table-2",
+            table_name: "A2",
+            table_status: 2,
+            customer_order_state: true,
+          },
+        ],
+      },
+    ];
+
+    const nextZones = markTableAvailableInZones(zones, "table-1");
+
+    expect(nextZones[0]?.tables[0]).toMatchObject({
+      customer_order_state: false,
+      table_status: 1,
+    });
+    expect(nextZones[0]?.tables[1]).toBe(zones[0]?.tables[1]);
   });
 
   it("keeps cart data only for the selected table", () => {

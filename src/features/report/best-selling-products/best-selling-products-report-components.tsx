@@ -591,7 +591,7 @@ export function BestSellingTableCard({
           <div className="p-4 md:min-h-80">
             <LoadingState
               label={t("report.bestSelling.loading")}
-              variant="table"
+              variant="reportTable"
             />
           </div>
         ) : rowsLength ? (

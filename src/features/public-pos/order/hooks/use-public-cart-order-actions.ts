@@ -43,6 +43,7 @@ interface UsePublicCartOrderActionsParams {
   t: TFunction;
   toast: (toast: ToastInput) => void;
   token: string;
+  updateNote: PublicPosState["updateNote"];
   updateQty: PublicPosState["updateQty"];
   confirmKitchen: PublicPosState["confirmKitchen"];
 }
@@ -66,6 +67,7 @@ export function usePublicCartOrderActions({
   t,
   toast,
   token,
+  updateNote,
   updateQty,
   confirmKitchen,
 }: UsePublicCartOrderActionsParams) {
@@ -106,7 +108,13 @@ export function usePublicCartOrderActions({
   const {
     handleConfirmKitchen,
     handleDeleteItem,
+    handleNoteDialogOpenChange,
+    handleOpenNoteDialog,
+    handleUpdateItemNote,
     handleUpdateItemQty,
+    noteDraft,
+    noteTarget,
+    setNoteDraft,
   } = usePublicCartMaintenanceActions({
     cart,
     cartOpen,
@@ -119,6 +127,7 @@ export function usePublicCartOrderActions({
     t,
     toast,
     token,
+    updateNote,
     updateQty,
   });
 
@@ -129,8 +138,14 @@ export function usePublicCartOrderActions({
     loadingProductUuid,
     handleAddToCart,
     handleProductClick,
-    handleUpdateItemQty,
+    handleNoteDialogOpenChange,
+    handleOpenNoteDialog,
+    handleUpdateItemNote,
     handleDeleteItem,
     handleConfirmKitchen,
+    handleUpdateItemQty,
+    noteDraft,
+    noteTarget,
+    setNoteDraft,
   };
 }

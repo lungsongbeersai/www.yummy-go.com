@@ -3,6 +3,7 @@
 import { type CSSProperties, useRef, useState } from "react";
 import { CalendarDays, Trophy } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { BlockingLoadingDialog } from "@/components/common/blocking-loading-dialog";
 import { Badge } from "@/components/ui/badge";
 import type { UrlPaginationState } from "@/lib/url-pagination";
 import {
@@ -26,6 +27,12 @@ export function BestSellingProductsReportPage({ initialPagination }: { initialPa
   const layoutStyle = {
     "--best-selling-filter-height": "0px"
   } as CSSProperties;
+  const exportTitle =
+    report.exporting === "excel"
+      ? t("report.exportingExcel")
+      : report.exporting === "pdf"
+        ? t("report.exportingPdf")
+        : t("report.preparingPrint");
 
   return (
     <>
@@ -120,6 +127,11 @@ export function BestSellingProductsReportPage({ initialPagination }: { initialPa
         sortByLabel={report.sortByLabel}
         summary={report.renderedExportData.summary}
         title={t("report.bestSelling.title")}
+      />
+      <BlockingLoadingDialog
+        open={Boolean(report.exporting)}
+        title={exportTitle}
+        description={t("report.exportingDescription")}
       />
     </>
   );

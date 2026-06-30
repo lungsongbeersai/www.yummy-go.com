@@ -33,7 +33,13 @@ export interface CartSheetProps {
     changeQty?: number,
   ) => void;
   onDeleteItem: (orderItemUuid: string) => void;
+  onNoteChange: (note: string) => void;
+  onNoteOpen: (item: CartItem) => void;
+  onNoteOpenChange: (open: boolean) => void;
+  onUpdateNote: () => void;
   onConfirmKitchen: () => void;
+  noteDraft: string;
+  noteTarget: CartItem | null;
 }
 
 export interface CartSheetGroup {
@@ -53,7 +59,13 @@ export function usePublicCartSheetWorkflow({
   confirming,
   onUpdateQty,
   onDeleteItem,
+  onNoteChange,
+  onNoteOpen,
+  onNoteOpenChange,
+  onUpdateNote,
   onConfirmKitchen,
+  noteDraft,
+  noteTarget,
 }: CartSheetProps) {
   const { t } = useTranslation();
   const receipt = cart[0] ?? null;
@@ -149,8 +161,14 @@ export function usePublicCartSheetWorkflow({
     loading,
     onConfirmKitchen,
     onDeleteItem,
+    onNoteChange,
+    onNoteOpen,
+    onNoteOpenChange,
     onOpenChange,
+    onUpdateNote,
     onUpdateQty,
+    noteDraft,
+    noteTarget,
     open,
     saving,
     statusRule,

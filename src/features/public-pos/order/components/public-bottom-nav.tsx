@@ -29,36 +29,38 @@ export function BottomNav({
   const staffComingSoon = t("pos.comingSoon");
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-border/70 bg-background/95 shadow-[0_-1px_10px_rgba(15,23,42,0.06)] backdrop-blur-xl dark:bg-background/95">
-      <div className="mx-auto grid h-[calc(3.5rem+env(safe-area-inset-bottom))] max-w-5xl grid-cols-4 items-start px-2 pb-[env(safe-area-inset-bottom)] pt-1">
-        <BottomNavButton
-          icon={<Utensils />}
-          label={t("pos.navMenu")}
-          ariaLabel={t("pos.menu")}
-          onClick={onMenu}
-          active
-        />
-        <BottomNavButton
-          icon={<ShoppingBag />}
-          label={t("pos.navCart")}
-          ariaLabel={t("pos.basket")}
-          onClick={onCart}
-          badge={cartQty}
-          buttonRef={cartTargetRef}
-        />
-        <BottomNavButton
-          icon={<Share2 />}
-          label={t("pos.navQr")}
-          ariaLabel={t("pos.qrCode")}
-          onClick={onShare}
-        />
-        <BottomNavButton
-          icon={<Bell />}
-          label={t("pos.navStaff")}
-          ariaLabel={t("pos.callWaiter")}
-          description={staffComingSoon}
-          disabled
-        />
+    <nav className="pointer-events-none fixed inset-x-0 bottom-0 z-30 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:px-4">
+      <div className="pointer-events-auto mx-auto max-w-5xl rounded-3xl border border-emerald-100 bg-background/95 p-1.5 shadow-[0_-8px_28px_rgba(15,23,42,0.10)] backdrop-blur-xl dark:border-border dark:bg-background/95">
+        <div className="grid h-16 grid-cols-4 gap-1">
+          <BottomNavButton
+            icon={<Utensils />}
+            label={t("pos.navMenu")}
+            ariaLabel={t("pos.menu")}
+            onClick={onMenu}
+            active
+          />
+          <BottomNavButton
+            icon={<ShoppingBag />}
+            label={t("pos.navCart")}
+            ariaLabel={t("pos.basket")}
+            onClick={onCart}
+            badge={cartQty}
+            buttonRef={cartTargetRef}
+          />
+          <BottomNavButton
+            icon={<Share2 />}
+            label={t("pos.navQr")}
+            ariaLabel={t("pos.qrCode")}
+            onClick={onShare}
+          />
+          <BottomNavButton
+            icon={<Bell />}
+            label={t("pos.navStaff")}
+            ariaLabel={t("pos.callWaiter")}
+            description={staffComingSoon}
+            disabled
+          />
+        </div>
       </div>
     </nav>
   );
@@ -98,10 +100,11 @@ function BottomNavButton({
       variant="ghost"
       size="md"
       className={cn(
-        "relative h-12 w-full min-w-0 flex-col gap-1 rounded-xl px-1 text-[11px] font-semibold leading-none transition hover:bg-muted/50 active:scale-[0.98]",
+        "relative h-full w-full min-w-0 flex-col gap-1 rounded-2xl px-1 text-[11px] font-bold leading-none transition active:scale-[0.98]",
         active
-          ? "bg-transparent text-primary hover:bg-primary/5"
-          : "text-muted-foreground hover:text-foreground",
+          ? "bg-primary/10 text-primary shadow-sm shadow-emerald-950/5 hover:bg-primary/15"
+          : "text-muted-foreground hover:bg-muted/70 hover:text-foreground",
+        disabled ? "opacity-45 hover:bg-transparent hover:text-muted-foreground" : "",
       )}
       aria-label={accessibleLabel}
       disabled={disabled}
@@ -109,18 +112,20 @@ function BottomNavButton({
       title={buttonTitle}
       onClick={onClick}
     >
-      {active ? (
-        <span
-          className="absolute top-0 h-0.5 w-7 rounded-full bg-primary"
-          aria-hidden="true"
-        />
-      ) : null}
-      <span className="relative grid h-5 place-items-center text-current">
-        <span className="[&_svg]:size-4.5 [&_svg]:stroke-[2.05]">
+      <span
+        className={cn(
+          "relative grid size-8 place-items-center rounded-full text-current transition",
+          active
+            ? "bg-primary text-primary-foreground shadow-sm shadow-emerald-950/15"
+            : "bg-muted/70",
+          disabled ? "bg-muted/50" : "",
+        )}
+      >
+        <span className="[&_svg]:size-[18px] [&_svg]:stroke-[2.1]">
           {icon}
         </span>
         {badge && badge > 0 ? (
-          <Badge className="absolute -right-3 -top-1 h-3.5 min-w-3.5 justify-center rounded-full border border-background bg-primary px-1 py-0 text-[8px] font-black leading-none text-primary-foreground">
+          <Badge className="absolute -right-2 -top-1 h-4 min-w-4 justify-center rounded-full border border-background bg-primary px-1 py-0 text-[9px] font-black leading-none text-primary-foreground shadow-sm">
             {badgeLabel}
           </Badge>
         ) : null}

@@ -312,7 +312,13 @@ export function ProductBrowseContent({
           confirming={confirming}
           onUpdateQty={cartActions.handleUpdateItemQty}
           onDeleteItem={cartActions.handleDeleteItem}
+          onNoteChange={cartActions.setNoteDraft}
+          onNoteOpen={cartActions.handleOpenNoteDialog}
+          onNoteOpenChange={cartActions.handleNoteDialogOpenChange}
+          onUpdateNote={cartActions.handleUpdateItemNote}
           onConfirmKitchen={cartActions.handleConfirmKitchen}
+          noteDraft={cartActions.noteDraft}
+          noteTarget={cartActions.noteTarget}
         />
       ) : null}
     </div>

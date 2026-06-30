@@ -23,7 +23,7 @@ export function ScrollJumpControls({
   const Icon = scrollToTop ? ArrowUp : ArrowDown;
 
   return (
-    <div className="fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom))] right-3 z-40 sm:right-5">
+    <div className="fixed bottom-[calc(6.25rem+env(safe-area-inset-bottom))] right-3 z-40 sm:right-5">
       <Tooltip>
         <TooltipTrigger asChild>
           <Button
