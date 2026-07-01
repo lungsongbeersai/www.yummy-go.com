@@ -2,13 +2,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type {
   CategorySalesReportOrder,
   DailySalesReportOrder,
-  PaymentMethodReportOrder,
 } from "@/services/report";
 
 export type ReportOrder =
   | DailySalesReportOrder
-  | CategorySalesReportOrder
-  | PaymentMethodReportOrder;
+  | CategorySalesReportOrder;
 
 export type LocalSortDirection = "ASC" | "DESC";
 

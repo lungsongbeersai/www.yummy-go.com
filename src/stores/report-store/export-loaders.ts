@@ -1,14 +1,20 @@
-import { PAGE_LIMIT_ALL_BATCH } from "@/lib/pagination";
+import { PAGE_LIMIT_ALL, PAGE_LIMIT_ALL_BATCH } from "@/lib/pagination";
 import {
   getCategorySalesReport,
   getBestSellingProductsReport,
+  getDailySalesBillReport,
+  getDailySalesOrderReport,
   getDailySalesReport,
   getPaymentMethodsReport,
   type BestSellingProductsReportResponse,
   type CategorySalesReportResponse,
   type FetchCategorySalesReportParams,
   type FetchBestSellingProductsReportParams,
+  type DailySalesBillReportResponse,
   type DailySalesReportResponse,
+  type FetchDailySalesBillReportParams,
+  type DailySalesOrderReportResponse,
+  type FetchDailySalesOrderReportParams,
   type FetchDailySalesReportParams,
   type FetchPaymentMethodsReportParams,
   type PaymentMethodsReportResponse
@@ -27,6 +33,12 @@ import {
   type SummaryCards
 } from "./normalizers";
 import {
+  normalizeDailySalesBillReportResponse
+} from "./daily-sales-bill-normalizers";
+import {
+  normalizeDailySalesOrderReportResponse
+} from "./daily-sales-order-normalizers";
+import {
   normalizePaymentMethodsReportResponse,
   type PaymentMethodReportRow,
   type PaymentMethodSummaryCard
@@ -38,6 +50,8 @@ import {
 } from "./category-sales-normalizers";
 
 export type DailySalesReportExportParams = Omit<FetchDailySalesReportParams, "limit" | "page">;
+export type DailySalesBillReportExportParams = Omit<FetchDailySalesBillReportParams, "limit" | "page">;
+export type DailySalesOrderReportExportParams = Omit<FetchDailySalesOrderReportParams, "limit" | "page">;
 export type BestSellingProductsReportExportParams = Omit<FetchBestSellingProductsReportParams, "limit" | "page">;
 export type PaymentMethodsReportExportParams = Omit<FetchPaymentMethodsReportParams, "limit" | "page">;
 export type CategorySalesReportExportParams = Omit<FetchCategorySalesReportParams, "limit" | "page">;
@@ -45,6 +59,12 @@ export type CategorySalesReportExportParams = Omit<FetchCategorySalesReportParam
 export type DailySalesReportFetcher = (
   params: FetchDailySalesReportParams
 ) => Promise<DailySalesReportResponse>;
+export type DailySalesBillReportFetcher = (
+  params: FetchDailySalesBillReportParams
+) => Promise<DailySalesBillReportResponse>;
+export type DailySalesOrderReportFetcher = (
+  params: FetchDailySalesOrderReportParams
+) => Promise<DailySalesOrderReportResponse>;
 export type BestSellingProductsReportFetcher = (
   params: FetchBestSellingProductsReportParams
 ) => Promise<BestSellingProductsReportResponse>;
@@ -137,6 +157,76 @@ export async function loadDailySalesReportExportData(
   };
 }
 
+export async function loadDailySalesBillReportExportData(
+  params: DailySalesBillReportExportParams,
+  fetchReport: DailySalesBillReportFetcher = getDailySalesBillReport
+): Promise<DailySalesReportExportData> {
+  const requestParams: FetchDailySalesBillReportParams = {
+    ...params,
+    limit: PAGE_LIMIT_ALL_BATCH,
+    page: 1
+  };
+  const firstResponse = await fetchReport(requestParams);
+  const firstData = normalizeDailySalesBillReportResponse(firstResponse, {
+    limit: PAGE_LIMIT_ALL_BATCH,
+    page: 1
+  });
+  const allRows = [...firstData.rows];
+
+  for (let nextPage = 2; nextPage <= firstData.pagination.totalPages; nextPage += 1) {
+    const response = await fetchReport({ ...requestParams, page: nextPage });
+    const normalized = normalizeDailySalesBillReportResponse(response, {
+      limit: PAGE_LIMIT_ALL_BATCH,
+      page: nextPage
+    });
+    allRows.push(...normalized.rows);
+  }
+
+  return {
+    billGroups: [],
+    grandTotalByDate: [],
+    reportTotal: firstData.summary,
+    rows: allRows,
+    summaryCards: firstData.summary
+  };
+}
+
+export async function loadDailySalesOrderReportExportData(
+  params: DailySalesOrderReportExportParams,
+  fetchReport: DailySalesOrderReportFetcher = getDailySalesOrderReport
+): Promise<DailySalesReportExportData> {
+  const requestParams: FetchDailySalesOrderReportParams = {
+    ...params,
+    limit: PAGE_LIMIT_ALL_BATCH,
+    page: 1
+  };
+  const firstResponse = await fetchReport(requestParams);
+  const firstData = normalizeDailySalesOrderReportResponse(firstResponse, {
+    limit: PAGE_LIMIT_ALL_BATCH,
+    page: 1
+  });
+  const allRows = [...firstData.rows];
+  const allBillGroups = [...firstData.billGroups];
+
+  for (let nextPage = 2; nextPage <= firstData.pagination.totalPages; nextPage += 1) {
+    const response = await fetchReport({ ...requestParams, page: nextPage });
+    const normalized = normalizeDailySalesOrderReportResponse(response, {
+      limit: PAGE_LIMIT_ALL_BATCH,
+      page: nextPage
+    });
+    allRows.push(...normalized.rows);
+    allBillGroups.push(...normalized.billGroups);
+  }
+
+  return {
+    billGroups: allBillGroups,
+    grandTotalByDate: firstData.grandTotalByDate,
+    reportTotal: firstData.reportTotal,
+    rows: allRows,
+    summaryCards: firstData.summaryCards
+  };
+}
+
 export async function loadBestSellingProductsReportExportData(
   params: BestSellingProductsReportExportParams,
   fetchReport: BestSellingProductsReportFetcher = getBestSellingProductsReport
@@ -175,24 +265,17 @@ export async function loadPaymentMethodsReportExportData(
 ): Promise<PaymentMethodsReportExportData> {
   const requestParams: FetchPaymentMethodsReportParams = {
     ...params,
-    limit: PAGE_LIMIT_ALL_BATCH,
+    limit: PAGE_LIMIT_ALL,
     page: 1
   };
   const firstResponse = await fetchReport(requestParams);
-  const firstData = normalizePaymentMethodsReportResponse(firstResponse, PAGE_LIMIT_ALL_BATCH, 1);
-  const allRows = [...firstData.rows];
-
-  for (let nextPage = 2; nextPage <= firstData.pagination.totalPages; nextPage += 1) {
-    const response = await fetchReport({ ...requestParams, page: nextPage });
-    const normalized = normalizePaymentMethodsReportResponse(response, PAGE_LIMIT_ALL_BATCH, nextPage);
-    allRows.push(...normalized.rows);
-  }
+  const firstData = normalizePaymentMethodsReportResponse(firstResponse, PAGE_LIMIT_ALL, 1);
 
   return {
     cards: firstData.cards,
     reportName: firstData.reportName,
     reportTotal: firstData.reportTotal,
-    rows: allRows
+    rows: firstData.rows
   };
 }
 

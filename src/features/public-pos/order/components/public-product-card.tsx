@@ -51,7 +51,7 @@ export const ProductCard = memo(function ProductCard({
     sourceRect?: DOMRect | null,
   ) => void;
   imagePriority?: boolean;
-  variant?: "grid" | "rail";
+  variant?: "grid" | "rail" | "list";
 }) {
   const { t } = useTranslation();
   const mediaRef = useRef<HTMLDivElement | null>(null);
@@ -76,6 +76,96 @@ export const ProductCard = memo(function ProductCard({
       ),
     [cateUuid, onProductClick, product, statusKind],
   );
+
+  if (variant === "list") {
+    return (
+      <Card
+        className={cn(
+          "overflow-hidden rounded-lg border-emerald-100 bg-white shadow-sm shadow-emerald-950/5 transition dark:border-border dark:bg-background",
+          isBlocked
+            ? "bg-muted/20"
+            : "active:scale-[0.99] hover:border-primary/35 hover:shadow-md",
+        )}
+      >
+        <Button
+          type="button"
+          variant="ghost"
+          className="flex min-h-24 w-full items-stretch gap-2 rounded-none p-2 text-left hover:bg-primary/5 disabled:cursor-not-allowed disabled:opacity-100 min-[380px]:min-h-[6.25rem] min-[380px]:gap-2.5"
+          onClick={handleClick}
+          disabled={isBlocked || loading}
+          aria-label={
+            blockedLabel
+              ? `${product.prod_name} - ${blockedLabel}`
+              : product.prod_name
+          }
+        >
+          <div
+            ref={mediaRef}
+            className="h-20 w-20 shrink-0 overflow-hidden rounded-md border border-emerald-100 bg-emerald-50 dark:border-border dark:bg-muted min-[380px]:h-[5.25rem] min-[380px]:w-[5.25rem]"
+          >
+            <ProductMedia
+              product={product}
+              variant="listThumb"
+              blockedState={blockedState}
+              blockedLabel={blockedLabel}
+              priority={imagePriority}
+            />
+          </div>
+          <CardContent className="flex min-w-0 flex-1 gap-2 p-0.5">
+            <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+              <div className="min-w-0">
+                <p
+                  className={cn(
+                    "line-clamp-2 text-sm font-black leading-5 text-foreground",
+                    isBlocked ? "text-muted-foreground" : "",
+                  )}
+                >
+                  {product.prod_name}
+                </p>
+                <p className="mt-0.5 truncate text-[11px] font-medium text-muted-foreground">
+                  {sectionLabel}
+                </p>
+              </div>
+
+              <div className="flex min-h-5 flex-wrap items-center gap-1">
+                {blockedLabel ? (
+                  <Badge className="h-5 border-destructive/30 bg-destructive/10 px-1.5 py-0 text-[10px] font-black text-destructive dark:bg-destructive/20">
+                    {blockedLabel}
+                  </Badge>
+                ) : null}
+                {!isBlocked && chooseBadgeLabel ? (
+                  <Badge className="h-5 border-primary/25 bg-primary/10 px-1.5 py-0 text-[10px] font-black text-primary">
+                    {chooseBadgeLabel}
+                  </Badge>
+                ) : null}
+                {!isBlocked && actionState !== "choose" && promoLabel ? (
+                  <Badge className="h-5 border-amber-300 bg-amber-50 px-1.5 py-0 text-[10px] font-black text-amber-700 dark:border-amber-500/50 dark:bg-amber-950/40 dark:text-amber-200">
+                    {promoLabel}
+                  </Badge>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="flex shrink-0 flex-col items-end justify-between gap-2">
+              {price ? (
+                <p
+                  className={cn(
+                    "max-w-24 truncate text-right text-sm font-black leading-5 text-primary tabular-nums",
+                    isBlocked ? "text-muted-foreground" : "",
+                  )}
+                >
+                  {price}
+                </p>
+              ) : (
+                <span className="h-5" aria-hidden="true" />
+              )}
+              <ProductActionPill actionState={actionState} loading={loading} />
+            </div>
+          </CardContent>
+        </Button>
+      </Card>
+    );
+  }
 
   return (
     <Card

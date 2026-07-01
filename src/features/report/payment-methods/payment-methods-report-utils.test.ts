@@ -81,17 +81,16 @@ describe("payment method report helpers", () => {
     ]);
   });
 
-  it("uses payment method, order, and date range in the export file name", () => {
+  it("uses payment method and date range in the export file name", () => {
     const filters: PaymentMethodsReportFilters = {
       branchUuid: "branch-1",
       dateFrom: "2026-06-01",
       dateTo: "2026-06-03",
       limit: 20,
-      orderBy: "DESC",
       paymentMethod: "cash"
     };
 
-    expect(paymentMethodsFileBaseName(filters)).toBe("payment-methods-cash-DESC-2026-06-01-to-2026-06-03");
+    expect(paymentMethodsFileBaseName(filters)).toBe("payment-methods-cash-2026-06-01-to-2026-06-03");
   });
 
   it("exports all financial row fields", () => {

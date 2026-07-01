@@ -540,6 +540,29 @@ export function newOrderConfirmGroups(orders: CartOrder[]) {
   }[];
 }
 
+export interface FullBillPaymentEligibilityInput {
+  currentOrderUuid: string | null;
+  grandTotal: number;
+  historyItemCount: number;
+  newOrderItemCount: number;
+  waitingItemCount: number;
+}
+
+export function canPayFullBill({
+  currentOrderUuid,
+  grandTotal,
+  historyItemCount,
+  newOrderItemCount,
+  waitingItemCount,
+}: FullBillPaymentEligibilityInput) {
+  return Boolean(
+    currentOrderUuid &&
+      (historyItemCount > 0 || waitingItemCount > 0) &&
+      newOrderItemCount === 0 &&
+      grandTotal > 0,
+  );
+}
+
 export function cartItemsTotal(items: CartItem[]) {
   return items.reduce((sum, item) => sum + cartItemTotal(item), 0);
 }

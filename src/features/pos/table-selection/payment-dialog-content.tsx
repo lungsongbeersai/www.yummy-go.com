@@ -8,6 +8,7 @@ import {
   Clock3,
   CreditCard,
   Landmark,
+  Plus,
   Printer,
   ReceiptText,
 } from "lucide-react";
@@ -65,6 +66,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { money } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { CustomerFormDialog } from "@/features/settings/customer/customer-form-dialog";
 import type { OrderChannel } from "@/services/pos";
 import type { PaymentDialogWorkflow } from "./hooks/use-payment-dialog-workflow";
 import { PaymentStat, PosNumpad, TenderRow } from "./payment-dialog-components";
@@ -172,13 +174,18 @@ export function PaymentDialogContent({
     validation,
   } = workflow;
   const {
+    customerCreateOpen,
+    customerCreateSaving,
     customerOpen,
     customerOptions,
     customerSearch,
     customerSearchLoading,
     customerUuid,
+    handleCustomerCreateOpenChange,
+    handleCustomerCreateSubmit,
     handleCustomerOpenChange,
     handleCustomerSelect,
+    openCustomerCreate,
     selectedCustomerOption,
     setCustomerSearch,
   } = customers;
@@ -195,7 +202,9 @@ export function PaymentDialogContent({
     <>
       <Dialog
         open={workflow.open}
-        onOpenChange={(nextOpen) => !processing && onOpenChange(nextOpen)}
+        onOpenChange={(nextOpen) =>
+          !processing && !customerCreateOpen && onOpenChange(nextOpen)
+        }
       >
         <DialogContent
           className="!left-0 !top-0 grid h-[var(--pos-payment-dialog-height)] max-h-[var(--pos-payment-dialog-height)] w-full max-w-[100vw] !translate-x-0 !translate-y-0 grid-rows-[auto_minmax(0,1fr)] gap-0 overflow-hidden rounded-none border-0 bg-background p-0 sm:!left-[50%] sm:!top-[50%] sm:h-[calc(100dvh-1rem)] sm:max-h-[calc(100dvh-1rem)] sm:max-w-[calc(100vw-1rem)] sm:!translate-x-[-50%] sm:!translate-y-[-50%] sm:rounded-lg sm:border xl:max-w-7xl"
@@ -268,9 +277,31 @@ export function PaymentDialogContent({
                       className="gap-1 min-[560px]:col-span-2 md:col-span-1 md:gap-1.5"
                       data-invalid={!customerUuid}
                     >
-                      <FieldLabel className="sr-only min-[430px]:not-sr-only min-[430px]:truncate">
-                        {t("pos.customer")}
-                      </FieldLabel>
+                      <div className="flex min-h-8 items-center justify-between gap-2">
+                        <FieldLabel className="min-w-0 truncate">
+                          {t("pos.customer")}
+                        </FieldLabel>
+                        <Button
+                          type="button"
+                          size="xs"
+                          variant="outline"
+                          className="shrink-0"
+                          disabled={processing || customerCreateSaving}
+                          onClick={openCustomerCreate}
+                        >
+                          {customerCreateSaving ? (
+                            <Spinner data-icon="inline-start" />
+                          ) : (
+                            <Plus data-icon="inline-start" />
+                          )}
+                          <span className="hidden min-[430px]:inline">
+                            {t("actions.add")} {t("pos.customer")}
+                          </span>
+                          <span className="min-[430px]:hidden">
+                            {t("actions.add")}
+                          </span>
+                        </Button>
+                      </div>
                       <Popover
                         open={customerOpen}
                         onOpenChange={handleCustomerOpenChange}
@@ -706,6 +737,14 @@ export function PaymentDialogContent({
           </Tabs>
         </DialogContent>
       </Dialog>
+
+      <CustomerFormDialog
+        editing={null}
+        open={customerCreateOpen}
+        saving={customerCreateSaving}
+        onOpenChange={handleCustomerCreateOpenChange}
+        onSubmit={handleCustomerCreateSubmit}
+      />
 
       <AlertDialog
         open={confirmOpen}

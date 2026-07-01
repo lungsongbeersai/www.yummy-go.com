@@ -122,8 +122,8 @@ export function useCategorySalesReportWorkflow(exportReportRef: RefObject<HTMLDi
     : t("report.categorySales.columns.vat");
 
   const labelOverrides = {
-    service_charge: serviceChargeLabel,
-    vat: vatLabel
+    sum_servicecharge: serviceChargeLabel,
+    sum_vate: vatLabel
   } as const;
 
   const renderedExportData = exportData ?? { ...emptyExportData(), groups, reportName, rows, summary };

@@ -6,13 +6,19 @@ import {
   getCategorySalesReport,
   getBestSellingProductsReport,
   getDailySaleItems,
+  getDailySalesBillReport,
+  getDailySalesOrderReport,
   getDailySalesReport,
   getPaymentMethodsReport,
   type BestSellingProductsReportResponse,
   type CategorySalesReportResponse,
+  type DailySalesBillReportResponse,
+  type DailySalesOrderReportResponse,
   type FetchCategorySalesReportParams,
   type DailySaleItemsResponse,
   type FetchBestSellingProductsReportParams,
+  type FetchDailySalesBillReportParams,
+  type FetchDailySalesOrderReportParams,
   type FetchDailySaleItemsParams,
   type DailySalesReportResponse,
   type FetchDailySalesReportParams,
@@ -52,16 +58,28 @@ import {
   type DailySaleItemsBillGroup,
   type DailySaleItemsPagination
 } from "@/stores/report-store/daily-sale-items-normalizers";
+import {
+  normalizeDailySalesBillReportResponse,
+  type DailySalesBillReportPagination
+} from "@/stores/report-store/daily-sales-bill-normalizers";
+import {
+  normalizeDailySalesOrderReportResponse,
+  type DailySalesOrderReportPagination
+} from "@/stores/report-store/daily-sales-order-normalizers";
 import { errorMessage } from "@/stores/store-utils";
 import {
   loadBestSellingProductsReportExportData,
   loadCategorySalesReportExportData,
+  loadDailySalesBillReportExportData,
+  loadDailySalesOrderReportExportData,
   loadDailySalesReportExportData,
   loadPaymentMethodsReportExportData,
   type BestSellingProductsReportExportData,
   type BestSellingProductsReportExportParams,
   type CategorySalesReportExportData,
   type CategorySalesReportExportParams,
+  type DailySalesBillReportExportParams,
+  type DailySalesOrderReportExportParams,
   type DailySalesReportExportData,
   type DailySalesReportExportParams,
   type PaymentMethodsReportExportData,
@@ -69,11 +87,15 @@ import {
 } from "@/stores/report-store/export-loaders";
 
 export { createDailySalesBillGroups, normalizeDailySalesReportResponse };
+export { normalizeDailySalesBillReportResponse };
+export { normalizeDailySalesOrderReportResponse };
 export { mergeBestSellingProductGroups, normalizeBestSellingProductsReportResponse };
 export { normalizeDailySaleItemsResponse };
 export { normalizePaymentMethodsReportResponse };
 export { normalizeCategorySalesReportResponse };
 export type { DailySalesBillGroup };
+export type { DailySalesBillReportPagination };
+export type { DailySalesOrderReportPagination };
 export type { DailySaleItemsBillGroup, DailySaleItemsPagination };
 export type { BestSellingProductGroup, BestSellingProductItem, BestSellingProductsPagination };
 export type { PaymentMethodOption, PaymentMethodReportRow, PaymentMethodSummaryCard, PaymentMethodsPagination };
@@ -81,6 +103,8 @@ export type { CategorySalesGroup, CategorySalesPagination, CategorySalesRow };
 export type {
   BestSellingProductsReportExportData,
   CategorySalesReportExportData,
+  DailySalesBillReportExportParams,
+  DailySalesOrderReportExportParams,
   DailySalesReportExportData,
   PaymentMethodsReportExportData
 };
@@ -172,6 +196,222 @@ export const useDailySalesReportStore = create<DailySalesReportState>((set) => (
       limit: DEFAULT_PAGE_LIMIT,
       loading: false,
       page: 1,
+      reportTotal: {},
+      response: null,
+      rows: [],
+      summaryCards: {},
+      total: 0,
+      totalPages: 1
+    })
+}));
+
+interface DailySalesBillReportState {
+  error: string | null;
+  filters: ApiEntity;
+  limit: PageLimit;
+  loading: boolean;
+  page: number;
+  pagination: DailySalesBillReportPagination;
+  response: DailySalesBillReportResponse | null;
+  rows: ApiEntity[];
+  summary: ApiEntity;
+  total: number;
+  totalPages: number;
+  loadExportData: (params: DailySalesBillReportExportParams) => Promise<DailySalesReportExportData>;
+  load: (params: FetchDailySalesBillReportParams) => Promise<DailySalesBillReportResponse>;
+  reset: () => void;
+}
+
+const defaultDailySalesBillPagination: DailySalesBillReportPagination = {
+  limit: DEFAULT_PAGE_LIMIT,
+  page: 1,
+  total: 0,
+  totalPages: 1
+};
+
+export const useDailySalesBillReportStore = create<DailySalesBillReportState>((set) => ({
+  error: null,
+  filters: {},
+  limit: DEFAULT_PAGE_LIMIT,
+  loading: false,
+  page: 1,
+  pagination: defaultDailySalesBillPagination,
+  response: null,
+  rows: [],
+  summary: {},
+  total: 0,
+  totalPages: 1,
+  loadExportData: loadDailySalesBillReportExportData,
+  load: async (params) => {
+    set({ error: null, loading: true });
+    try {
+      const loadAll = isAllPageLimit(params.limit);
+      const requestParams = loadAll ? { ...params, limit: PAGE_LIMIT_ALL_BATCH, page: 1 } : params;
+      const response = await getDailySalesBillReport(requestParams);
+      const normalized = normalizeDailySalesBillReportResponse(response, requestParams);
+      const allRows = [...normalized.rows];
+
+      if (loadAll) {
+        for (let nextPage = 2; nextPage <= normalized.pagination.totalPages; nextPage += 1) {
+          const nextResponse = await getDailySalesBillReport({ ...requestParams, page: nextPage });
+          const nextNormalized = normalizeDailySalesBillReportResponse(nextResponse, {
+            ...requestParams,
+            page: nextPage
+          });
+          allRows.push(...nextNormalized.rows);
+        }
+      }
+
+      const total = loadAll ? allRows.length : normalized.pagination.total;
+      const pagination: DailySalesBillReportPagination = {
+        ...normalized.pagination,
+        limit: params.limit,
+        page: loadAll ? 1 : normalized.pagination.page,
+        total,
+        totalPages: loadAll ? 1 : normalized.pagination.totalPages
+      };
+
+      set({
+        filters: normalized.filters,
+        limit: params.limit,
+        loading: false,
+        page: pagination.page,
+        pagination,
+        response,
+        rows: allRows,
+        summary: normalized.summary,
+        total,
+        totalPages: pagination.totalPages
+      });
+
+      return response;
+    } catch (error) {
+      set({ error: errorMessage(error), loading: false });
+      throw error;
+    }
+  },
+  reset: () =>
+    set({
+      error: null,
+      filters: {},
+      limit: DEFAULT_PAGE_LIMIT,
+      loading: false,
+      page: 1,
+      pagination: defaultDailySalesBillPagination,
+      response: null,
+      rows: [],
+      summary: {},
+      total: 0,
+      totalPages: 1
+    })
+}));
+
+interface DailySalesOrderReportState {
+  billGroups: DailySalesBillGroup[];
+  error: string | null;
+  filters: ApiEntity;
+  grandTotalByDate: ApiEntity[];
+  limit: PageLimit;
+  loading: boolean;
+  page: number;
+  pagination: DailySalesOrderReportPagination;
+  reportTotal: ApiEntity;
+  response: DailySalesOrderReportResponse | null;
+  rows: ApiEntity[];
+  summaryCards: SummaryCards;
+  total: number;
+  totalPages: number;
+  loadExportData: (params: DailySalesOrderReportExportParams) => Promise<DailySalesReportExportData>;
+  load: (params: FetchDailySalesOrderReportParams) => Promise<DailySalesOrderReportResponse>;
+  reset: () => void;
+}
+
+const defaultDailySalesOrderPagination: DailySalesOrderReportPagination = {
+  limit: DEFAULT_PAGE_LIMIT,
+  page: 1,
+  total: 0,
+  totalPages: 1
+};
+
+export const useDailySalesOrderReportStore = create<DailySalesOrderReportState>((set) => ({
+  billGroups: [],
+  error: null,
+  filters: {},
+  grandTotalByDate: [],
+  limit: DEFAULT_PAGE_LIMIT,
+  loading: false,
+  page: 1,
+  pagination: defaultDailySalesOrderPagination,
+  reportTotal: {},
+  response: null,
+  rows: [],
+  summaryCards: {},
+  total: 0,
+  totalPages: 1,
+  loadExportData: loadDailySalesOrderReportExportData,
+  load: async (params) => {
+    set({ error: null, loading: true });
+    try {
+      const loadAll = isAllPageLimit(params.limit);
+      const requestParams = loadAll ? { ...params, limit: PAGE_LIMIT_ALL_BATCH, page: 1 } : params;
+      const response = await getDailySalesOrderReport(requestParams);
+      const normalized = normalizeDailySalesOrderReportResponse(response, requestParams);
+      const allRows = [...normalized.rows];
+      const allBillGroups = [...normalized.billGroups];
+
+      if (loadAll) {
+        for (let nextPage = 2; nextPage <= normalized.pagination.totalPages; nextPage += 1) {
+          const nextResponse = await getDailySalesOrderReport({ ...requestParams, page: nextPage });
+          const nextNormalized = normalizeDailySalesOrderReportResponse(nextResponse, {
+            ...requestParams,
+            page: nextPage
+          });
+          allRows.push(...nextNormalized.rows);
+          allBillGroups.push(...nextNormalized.billGroups);
+        }
+      }
+
+      const total = loadAll ? allBillGroups.length : normalized.pagination.total;
+      const pagination: DailySalesOrderReportPagination = {
+        ...normalized.pagination,
+        limit: params.limit,
+        page: loadAll ? 1 : normalized.pagination.page,
+        total,
+        totalPages: loadAll ? 1 : normalized.pagination.totalPages
+      };
+
+      set({
+        billGroups: allBillGroups,
+        filters: normalized.filters,
+        grandTotalByDate: normalized.grandTotalByDate,
+        limit: params.limit,
+        loading: false,
+        page: pagination.page,
+        pagination,
+        reportTotal: normalized.reportTotal,
+        response,
+        rows: allRows,
+        summaryCards: normalized.summaryCards,
+        total,
+        totalPages: pagination.totalPages
+      });
+
+      return response;
+    } catch (error) {
+      set({ error: errorMessage(error), loading: false });
+      throw error;
+    }
+  },
+  reset: () =>
+    set({
+      billGroups: [],
+      error: null,
+      filters: {},
+      grandTotalByDate: [],
+      limit: DEFAULT_PAGE_LIMIT,
+      loading: false,
+      page: 1,
+      pagination: defaultDailySalesOrderPagination,
       reportTotal: {},
       response: null,
       rows: [],
@@ -429,27 +669,15 @@ export const usePaymentMethodsReportStore = create<PaymentMethodsReportState>((s
   load: async (params) => {
     set({ error: null, loading: true });
     try {
-      const loadAll = isAllPageLimit(params.limit);
-      const requestParams = loadAll ? { ...params, limit: PAGE_LIMIT_ALL_BATCH, page: 1 } : params;
-      const response = await getPaymentMethodsReport(requestParams);
-      const normalized = normalizePaymentMethodsReportResponse(response, requestParams.limit, requestParams.page);
-      const allRows = [...normalized.rows];
-
-      if (loadAll) {
-        for (let nextPage = 2; nextPage <= normalized.pagination.totalPages; nextPage += 1) {
-          const nextResponse = await getPaymentMethodsReport({ ...requestParams, page: nextPage });
-          const nextNormalized = normalizePaymentMethodsReportResponse(nextResponse, requestParams.limit, nextPage);
-          allRows.push(...nextNormalized.rows);
-        }
-      }
-
-      const total = loadAll ? allRows.length : normalized.pagination.total;
+      const response = await getPaymentMethodsReport(params);
+      const normalized = normalizePaymentMethodsReportResponse(response, params.limit, params.page);
+      const total = isAllPageLimit(params.limit) ? normalized.rows.length : normalized.pagination.total;
       const pagination: PaymentMethodsPagination = {
         ...normalized.pagination,
         limit: params.limit,
-        page: loadAll ? 1 : normalized.pagination.page,
+        page: isAllPageLimit(params.limit) ? 1 : normalized.pagination.page,
         total,
-        totalPages: loadAll ? 1 : normalized.pagination.totalPages
+        totalPages: isAllPageLimit(params.limit) ? 1 : normalized.pagination.totalPages
       };
 
       set({
@@ -462,7 +690,7 @@ export const usePaymentMethodsReportStore = create<PaymentMethodsReportState>((s
         reportName: normalized.reportName,
         reportTotal: normalized.reportTotal,
         response,
-        rows: allRows,
+        rows: normalized.rows,
         summaryCards: normalized.summaryCards,
         total,
         totalPages: pagination.totalPages

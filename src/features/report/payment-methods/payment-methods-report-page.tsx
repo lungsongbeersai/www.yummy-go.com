@@ -52,6 +52,12 @@ export function PaymentMethodsReportPage({ initialPagination }: { initialPaginat
                 <CalendarDays data-icon="inline-start" />
                 {report.appliedFilters.dateFrom} - {report.appliedFilters.dateTo}
               </Badge>
+              <Badge className="max-w-56 rounded-full border-border bg-muted px-3 py-1 text-muted-foreground">
+                <span className="truncate">{report.activeBranchLabel}</span>
+              </Badge>
+              <Badge className="max-w-44 rounded-full border-border bg-muted px-3 py-1 text-muted-foreground">
+                <span className="truncate">{report.activePaymentMethodLabel}</span>
+              </Badge>
               <ReportSummaryToggle
                 controlsId={SUMMARY_CARDS_ID}
                 expanded={summaryVisible}
@@ -91,11 +97,11 @@ export function PaymentMethodsReportPage({ initialPagination }: { initialPaginat
                 canGoNext={report.canGoNext}
                 page={report.page}
                 rangeLabel={report.paginationRangeLabel}
-              totalPages={report.totalPages}
-              onBack={() => report.setPage((current) => Math.max(1, current - 1))}
-              onNext={() => report.setPage((current) => current + 1)}
-              onPageChange={report.setPage}
-            />
+                totalPages={report.totalPages}
+                onBack={() => report.setPage((current) => Math.max(1, current - 1))}
+                onNext={() => report.setPage((current) => current + 1)}
+                onPageChange={report.setPage}
+              />
             }
             loading={report.loading}
             methodLabel={report.activePaymentMethodLabel}

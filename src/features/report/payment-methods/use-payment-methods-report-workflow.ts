@@ -53,7 +53,6 @@ export function usePaymentMethodsReportWorkflow(exportReportRef: RefObject<HTMLD
     dateFrom: today,
     dateTo: today,
     limit: initialPagination.limit,
-    orderBy: "DESC",
     paymentMethod: "all"
   });
   const [appliedFilters, setAppliedFilters] = useState<PaymentMethodsReportFilters>(draftFilters);
@@ -150,7 +149,6 @@ export function usePaymentMethodsReportWorkflow(exportReportRef: RefObject<HTMLD
         date_to: appliedFilters.dateTo,
         lang: language,
         limit: appliedFilters.limit,
-        orderBy: appliedFilters.orderBy,
         page,
         payment_method: appliedFilters.paymentMethod
       });
@@ -202,7 +200,6 @@ export function usePaymentMethodsReportWorkflow(exportReportRef: RefObject<HTMLD
       date_from: appliedFilters.dateFrom,
       date_to: appliedFilters.dateTo,
       lang: language,
-      orderBy: appliedFilters.orderBy,
       payment_method: appliedFilters.paymentMethod
     });
   }, [appliedFilters, branchUuid, language, loadExportData, t]);

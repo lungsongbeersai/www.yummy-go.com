@@ -1,7 +1,8 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { Loader2, Search } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Grid2X2, List, Loader2, Search } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,7 +13,12 @@ import {
   RAIL_RENDER_CHUNK,
 } from "../constants";
 import type { PublicBrowseWorkflow } from "../hooks/use-public-browse-workflow";
-import { statusSectionLabel } from "../utils";
+import type { PublicProductLayoutMode } from "../types";
+import {
+  readPublicProductLayoutMode,
+  statusSectionLabel,
+  writePublicProductLayoutMode,
+} from "../utils";
 import { BottomNav } from "./public-bottom-nav";
 import { CartFlyAnimationLayer } from "./cart-fly-animation-layer";
 import { CartSheet } from "./cart-sheet";
@@ -43,6 +49,8 @@ export function ProductBrowseContent({
   workflow: PublicBrowseWorkflow;
 }) {
   const { t } = useTranslation();
+  const [productLayoutMode, setProductLayoutMode] =
+    useState<PublicProductLayoutMode>("grid");
   const {
     cart,
     cartActions,
@@ -96,6 +104,17 @@ export function ProductBrowseContent({
     toggleCategoryCollapsed,
     visibleCategoryTabs,
   } = browse;
+  const gridLayoutLabel = t("settings.icons.grid");
+  const listLayoutLabel = t("settings.icons.list");
+
+  useEffect(() => {
+    setProductLayoutMode(readPublicProductLayoutMode());
+  }, []);
+
+  function handleProductLayoutModeChange(mode: PublicProductLayoutMode) {
+    setProductLayoutMode(mode);
+    writePublicProductLayoutMode(mode);
+  }
 
   return (
     <div className="flex flex-col gap-3">
@@ -129,6 +148,34 @@ export function ProductBrowseContent({
             >
               {loadingMenu ? <Loader2 className="animate-spin" /> : <Search />}
             </Button>
+            <div
+              className="flex shrink-0 rounded-md border border-emerald-100 bg-emerald-50/50 p-0.5 dark:border-border dark:bg-muted/45"
+              role="group"
+              aria-label={`${gridLayoutLabel} / ${listLayoutLabel}`}
+            >
+              <Button
+                type="button"
+                size="iconSm"
+                variant={productLayoutMode === "grid" ? "default" : "ghost"}
+                className="size-8 rounded-sm"
+                aria-label={gridLayoutLabel}
+                aria-pressed={productLayoutMode === "grid"}
+                onClick={() => handleProductLayoutModeChange("grid")}
+              >
+                <Grid2X2 data-icon="inline-start" />
+              </Button>
+              <Button
+                type="button"
+                size="iconSm"
+                variant={productLayoutMode === "list" ? "default" : "ghost"}
+                className="size-8 rounded-sm"
+                aria-label={listLayoutLabel}
+                aria-pressed={productLayoutMode === "list"}
+                onClick={() => handleProductLayoutModeChange("list")}
+              >
+                <List data-icon="inline-start" />
+              </Button>
+            </div>
           </form>
 
           {visibleCategoryTabs.length ? (
@@ -223,6 +270,7 @@ export function ProductBrowseContent({
                 collapsed={collapsedCateUuids.includes(category.cate_uuid)}
                 lang={lang}
                 statusKind={PUBLIC_MENU_KIND.NORMAL}
+                layoutMode={productLayoutMode}
                 priorityFirstImage={
                   !hasPromotionImage && !hasSetImage && index === 0
                 }

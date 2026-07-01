@@ -1,9 +1,9 @@
 "use client";
 
 import { useTranslation } from "react-i18next";
+import { BlockingLoadingDialog } from "@/components/common/blocking-loading-dialog";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Progress } from "@/components/ui/progress";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -21,47 +21,39 @@ export function ConfirmAllLoadingDialog({ progress }: { progress: ConfirmAllProg
   const percent = Math.round((completed / total) * 100);
 
   return (
-    <Dialog open={Boolean(progress)} onOpenChange={() => undefined}>
-      <DialogContent
-        className="sm:max-w-105"
-        showCloseButton={false}
-        onEscapeKeyDown={(event) => event.preventDefault()}
-        onInteractOutside={(event) => event.preventDefault()}
-      >
-        <DialogHeader className="items-center text-center">
-          <div className="grid size-11 place-items-center rounded-xl bg-muted text-foreground">
-            <Spinner />
-          </div>
-          <DialogTitle className="text-base font-black">{t("pos.confirmAllTitle")}</DialogTitle>
-          <DialogDescription className="max-w-75 text-center">
-            {progress?.label ?? t("common.processing")}
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="flex flex-col gap-2">
-          <Progress value={percent} />
-          <div className="flex items-center justify-between text-xs font-bold text-muted-foreground">
-            <span>{progress?.detail ?? t("common.processing")}</span>
-            <span>{percent}%</span>
-          </div>
-        </div>
-
-        <DialogFooter className="sm:justify-center">
-          <Button type="button" variant="outline" disabled>
-            {t("actions.cancel")}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <BlockingLoadingDialog
+      open={Boolean(progress)}
+      title={t("pos.confirmAllTitle")}
+      description={progress?.label ?? t("common.processing")}
+      progressLabel={progress?.detail ?? t("common.processing")}
+      progressValue={percent}
+    />
   );
 }
 
 export function CartPanelLoading() {
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3 bg-background p-4" aria-busy="true">
-      <Skeleton className="h-20 rounded-lg" />
-      <Skeleton className="h-20 rounded-lg" />
-      <Skeleton className="h-20 rounded-lg" />
+    <div className="flex h-full min-h-0 flex-col gap-0 bg-muted/35" aria-busy="true">
+      {Array.from({ length: 4 }).map((_, index) => (
+        <div key={index} className="border-b border-border bg-background px-3 py-3">
+          <div className="grid grid-cols-[52px_minmax(0,1fr)] gap-3">
+            <Skeleton className="size-12 rounded-md" />
+            <div className="min-w-0">
+              <div className="flex items-start justify-between gap-3">
+                <div className="grid min-w-0 flex-1 gap-2">
+                  <Skeleton className="h-5 w-4/5" />
+                  <Skeleton className="h-5 w-20 rounded-full" />
+                  <Skeleton className="h-4 w-32" />
+                </div>
+                <Skeleton className="h-5 w-20" />
+              </div>
+              <div className="mt-4 flex justify-end">
+                <Skeleton className="h-11 w-36 rounded-full" />
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

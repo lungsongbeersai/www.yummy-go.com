@@ -6,8 +6,10 @@ import type { ApiEntity, PageLimit } from "@/services/shared/types";
 export type DailySalesReportType = "summary" | "detail";
 export type DailySalesReportOrder = "ASC" | "DESC";
 export type DailySalesPaymentMethod = "all" | "cash" | "transfer" | "debt" | "mixed";
+export const DAILY_SALES_BILL_PAYMENT_METHOD_OPTIONS = ["All", "1", "2", "4"] as const;
+export type DailySalesBillPaymentMethod = (typeof DAILY_SALES_BILL_PAYMENT_METHOD_OPTIONS)[number];
+export type DailySalesBillReportOrder = "ASC" | "DESC";
 export type DailySaleItemsOrder = "ASC" | "DESC";
-export type PaymentMethodReportOrder = "ASC" | "DESC";
 export type CategorySalesReportOrder = "ASC" | "DESC";
 export const PAYMENT_METHOD_REPORT_FILTER_OPTIONS = ["all", "cash", "transfer", "debt"] as const;
 export type PaymentMethodReportFilter = (typeof PAYMENT_METHOD_REPORT_FILTER_OPTIONS)[number];
@@ -46,6 +48,30 @@ export interface FetchDailySalesReportParams {
   type_page: DailySalesReportType;
 }
 
+export interface FetchDailySalesBillReportParams {
+  branch_uuid_fk: string;
+  date_from: string;
+  date_to: string;
+  lang?: string;
+  limit: PageLimit;
+  orderBy: DailySalesBillReportOrder;
+  page: number;
+  payment_method?: DailySalesBillPaymentMethod;
+  search?: string;
+}
+
+export interface FetchDailySalesOrderReportParams {
+  branch_uuid_fk: string;
+  date_from: string;
+  date_to: string;
+  lang?: string;
+  limit: PageLimit;
+  orderBy: DailySalesBillReportOrder;
+  page: number;
+  payment_method?: DailySalesBillPaymentMethod;
+  search?: string;
+}
+
 export interface FetchDailySaleItemsParams {
   branch_uuid_fk: string;
   date_from: string;
@@ -64,7 +90,6 @@ export interface FetchPaymentMethodsReportParams {
   date_to: string;
   lang?: string;
   limit: PageLimit;
-  orderBy: PaymentMethodReportOrder;
   page: number;
   payment_method: PaymentMethodReportFilter;
 }
@@ -92,6 +117,30 @@ export interface DailySalesReportResponse extends ApiEntity {
   totalPage?: number;
   totalPages?: number;
   total_page?: number;
+}
+
+export interface DailySalesBillReportResponse extends ApiEntity {
+  bills?: unknown;
+  filters?: unknown;
+  lang?: string;
+  limit?: PageLimit;
+  message?: string;
+  page?: number;
+  status?: string;
+  summary?: unknown;
+  total?: number;
+  totalPages?: number;
+}
+
+export interface DailySalesOrderReportResponse extends DailySalesReportResponse {
+  filters?: unknown;
+  lang?: string;
+  limit?: PageLimit;
+  orders?: unknown;
+  page?: number;
+  summary?: unknown;
+  total?: number;
+  totalPages?: number;
 }
 
 export interface DailySaleItemsBillSummary extends ApiEntity {
@@ -165,32 +214,45 @@ export interface PaymentMethodsReportResponse extends ApiEntity {
   card_summary?: unknown;
   dashboard_cards?: unknown;
   data?: unknown;
-  limit?: number;
+  items?: unknown;
+  limit?: PageLimit | "all";
   message?: string;
+  methods?: unknown;
   page?: number;
+  payment_rows?: unknown;
+  payment_method_summaries?: unknown;
+  payment_summary?: unknown;
+  payment_summary_by_method?: unknown;
   payment_methods?: unknown;
+  report_key?: string;
   report_name?: string;
   report_total?: unknown;
+  rows?: unknown;
   status?: string;
+  summary?: unknown;
   summary_cards?: unknown;
   total?: number;
   totalPages?: number;
 }
 
 export interface CategorySalesReportResponse extends ApiEntity {
+  branch?: unknown;
   branch_uuid_fk?: string;
   data?: unknown;
   date_from?: string;
   date_to?: string;
+  filters?: unknown;
+  groups?: unknown;
+  lang?: string;
   limit?: number;
   message?: string;
-  orderBy?: CategorySalesReportOrder;
   page?: number;
   payment_method?: PaymentMethodReportFilter;
   report_key?: string;
   report_name?: string;
   search?: string;
   status?: string;
+  summary?: unknown;
   total?: number;
   totalPages?: number;
 }
@@ -230,6 +292,38 @@ export function getDailySalesReport(params: FetchDailySalesReportParams) {
   });
 }
 
+export function getDailySalesBillReport(params: FetchDailySalesBillReportParams) {
+  if (!params.branch_uuid_fk) throw new ServiceError("branch_uuid_fk is required", 400);
+  const { search, ...rest } = params;
+  const query: Record<string, unknown> = {
+    ...rest,
+    limit: isAllPageLimit(params.limit) ? PAGE_LIMIT_ALL_BATCH : params.limit,
+    lang: toApiLanguage(params.lang),
+    payment_method: params.payment_method ?? "All",
+    search: search?.trim() ?? ""
+  };
+
+  return apiRequest<DailySalesBillReportResponse>("get", "/api/v1/report_all/sale_report_bill", {
+    params: query
+  });
+}
+
+export function getDailySalesOrderReport(params: FetchDailySalesOrderReportParams) {
+  if (!params.branch_uuid_fk) throw new ServiceError("branch_uuid_fk is required", 400);
+  const { search, ...rest } = params;
+  const query: Record<string, unknown> = {
+    ...rest,
+    limit: isAllPageLimit(params.limit) ? PAGE_LIMIT_ALL_BATCH : params.limit,
+    lang: toApiLanguage(params.lang),
+    payment_method: params.payment_method ?? "All",
+    search: search?.trim() ?? ""
+  };
+
+  return apiRequest<DailySalesOrderReportResponse>("get", "/api/v1/report_all/sale_report_list", {
+    params: query
+  });
+}
+
 export function getDailySaleItems(params: FetchDailySaleItemsParams) {
   if (!params.branch_uuid_fk) throw new ServiceError("branch_uuid_fk is required", 400);
   const { search, ...rest } = params;
@@ -249,12 +343,16 @@ export function getDailySaleItems(params: FetchDailySaleItemsParams) {
 export function getPaymentMethodsReport(params: FetchPaymentMethodsReportParams) {
   if (!params.branch_uuid_fk) throw new ServiceError("branch_uuid_fk is required", 400);
   const query: Record<string, unknown> = {
-    ...params,
-    limit: isAllPageLimit(params.limit) ? PAGE_LIMIT_ALL_BATCH : params.limit,
-    lang: toApiLanguage(params.lang)
+    branch_uuid_fk: params.branch_uuid_fk,
+    date_from: params.date_from,
+    date_to: params.date_to,
+    lang: toApiLanguage(params.lang),
+    limit: isAllPageLimit(params.limit) ? "all" : params.limit,
+    page: params.page,
+    payment_method: params.payment_method ?? "all"
   };
 
-  return apiRequest<PaymentMethodsReportResponse>("get", "/api/v1/report/payment_methods", {
+  return apiRequest<PaymentMethodsReportResponse>("get", "/api/v1/report_all/payment_summary_by_method", {
     params: query
   });
 }
@@ -264,10 +362,12 @@ export function getCategorySalesReport(params: FetchCategorySalesReportParams) {
   const query: Record<string, unknown> = {
     ...params,
     limit: isAllPageLimit(params.limit) ? PAGE_LIMIT_ALL_BATCH : params.limit,
-    lang: toApiLanguage(params.lang)
+    lang: toApiLanguage(params.lang),
+    orderBy: params.orderBy ?? "DESC",
+    payment_method: params.payment_method ?? "all"
   };
 
-  return apiRequest<CategorySalesReportResponse>("get", "/api/v1/report/category_sales", {
+  return apiRequest<CategorySalesReportResponse>("get", "/api/v1/report_all/group_list", {
     params: query
   });
 }

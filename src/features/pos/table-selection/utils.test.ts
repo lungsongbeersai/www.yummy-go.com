@@ -3,6 +3,7 @@ import type { CartItem, CartOrder, PosTable } from "@/services/pos";
 import {
   billDiscountButtonValue,
   buildCustomerDisplayPayload,
+  canPayFullBill,
   cartDisplaySummary,
   cartForTable,
   cartOrderBelongsToTable,
@@ -145,6 +146,69 @@ describe("table selection utils", () => {
     expect(newOrderConfirmGroups([cart])).toEqual([
       { orderUuid: "order-1", itemUuids: ["new"] },
     ]);
+  });
+
+  it("allows full payment when waiting items are the only unpaid new-order items", () => {
+    expect(
+      canPayFullBill({
+        currentOrderUuid: "order-1",
+        grandTotal: 12000,
+        historyItemCount: 0,
+        newOrderItemCount: 0,
+        waitingItemCount: 1,
+      }),
+    ).toBe(true);
+    expect(
+      canPayFullBill({
+        currentOrderUuid: "order-1",
+        grandTotal: 32000,
+        historyItemCount: 1,
+        newOrderItemCount: 0,
+        waitingItemCount: 1,
+      }),
+    ).toBe(true);
+  });
+
+  it("blocks full payment when status 1 items are still waiting for kitchen confirmation", () => {
+    expect(
+      canPayFullBill({
+        currentOrderUuid: "order-1",
+        grandTotal: 20000,
+        historyItemCount: 0,
+        newOrderItemCount: 1,
+        waitingItemCount: 1,
+      }),
+    ).toBe(false);
+  });
+
+  it("blocks full payment without payable items or total", () => {
+    expect(
+      canPayFullBill({
+        currentOrderUuid: "order-1",
+        grandTotal: 0,
+        historyItemCount: 0,
+        newOrderItemCount: 0,
+        waitingItemCount: 1,
+      }),
+    ).toBe(false);
+    expect(
+      canPayFullBill({
+        currentOrderUuid: "order-1",
+        grandTotal: 12000,
+        historyItemCount: 0,
+        newOrderItemCount: 0,
+        waitingItemCount: 0,
+      }),
+    ).toBe(false);
+    expect(
+      canPayFullBill({
+        currentOrderUuid: null,
+        grandTotal: 12000,
+        historyItemCount: 0,
+        newOrderItemCount: 0,
+        waitingItemCount: 1,
+      }),
+    ).toBe(false);
   });
 
   it("detects canceled cart items from status code and text", () => {

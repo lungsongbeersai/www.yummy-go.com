@@ -25,6 +25,7 @@ import type {
 import {
   billDiscountButtonValue,
   buildCustomerDisplayPayload,
+  canPayFullBill,
   cartDisplaySummary,
   cartItemActionUuid,
   cartItemDiscountMaxAmount,
@@ -222,11 +223,13 @@ export function useSelectedTableCartPanelWorkflow({
     Boolean(user?.uuid) && confirmGroups.length > 0 && !cartActionsLocked;
   const canPayBill = Boolean(
     user?.uuid &&
-    currentOrderUuid &&
-    historyItems.length > 0 &&
-    newOrderItems.length === 0 &&
-    waitingItems.length === 0 &&
-    summary.grandTotal > 0 &&
+    canPayFullBill({
+      currentOrderUuid,
+      grandTotal: summary.grandTotal,
+      historyItemCount: historyItems.length,
+      newOrderItemCount: newOrderItems.length,
+      waitingItemCount: waitingItems.length,
+    }) &&
     !cartActionsLocked,
   );
   const canSelectSplitItems = Boolean(

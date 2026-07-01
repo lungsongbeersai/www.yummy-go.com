@@ -4,129 +4,182 @@ import { normalizeCategorySalesReportResponse } from "./category-sales-normalize
 
 const response: CategorySalesReportResponse = {
   status: "success",
-  report_key: "category_sales",
-  report_name: "Sales report by category",
+  message: "success",
   lang: "la",
   page: 1,
-  limit: 10,
-  total: 4,
-  totalPages: 1,
-  date_from: "2026-05-01",
-  date_to: "2026-06-28",
-  branch_uuid_fk: "branch-1",
-  payment_method: "all",
-  search: "",
-  orderBy: "DESC",
-  data: [
-    {
-      sort_order: 1,
-      group_uuid_fk: "group-drinks",
-      group_name: "Drinks",
-      details: [
-        {
-          sort_order: 1,
-          rank: 1,
-          cate_uuid: "beer",
-          cate_name: "Beer",
-          category_bill_count: 36,
-          items_count: 135,
-          qty_total: 287,
-          amount: 17430000,
-          topping_total: 55000,
-          item_discount: 181760,
-          discount_bill: 393419.54,
-          discount_total: 575179.54,
-          service_charge: 1176968.08,
-          vat: 1803179.78,
-          total: 19834968.32,
-          sale_percent: 87.73
-        }
-      ],
-      summary: {
-        categories_count: 1,
-        category_bill_count: 36,
-        items_count: 135,
-        qty_total: 287,
-        amount: 17430000,
-        topping_total: 55000,
-        item_discount: 181760,
-        discount_bill: 393419.54,
-        discount_total: 575179.54,
-        service_charge: 1176968.08,
-        vat: 1803179.78,
-        total: 19834968.32
+  limit: 20,
+  total: 100,
+  totalPages: 5,
+  filters: {
+    search: "",
+    date_from: "2026-06-01",
+    date_to: "2026-06-29",
+    payment_method: null,
+    payment_method_name: "All",
+    sortBy: "grouped_items",
+    orderBy: "DESC"
+  },
+  summary: {
+    product_count: 100,
+    bill_count: 61,
+    total_qty: 433,
+    product_price_total: 29627726,
+    topping_total: 371000,
+    total: 29998726,
+    discount_item_amount: 421460,
+    after_discount_item: 29577266,
+    discount_bill: 1843556,
+    after_discount_bill: 27777371.62,
+    sum_servicecharge: 2151676,
+    sum_vate: 3092041,
+    grand_total: 33021088.62
+  },
+  groups: [
+      {
+        group_uuid: null,
+        group_name: "No group",
+        categories: [
+          {
+            cate_uuid: null,
+            cate_name: "No category",
+            summary: {
+              product_count: 1,
+              total_qty: 1,
+              product_price_total: 55000,
+              topping_total: 16000,
+              total: 71000,
+              discount_item_amount: 0,
+              after_discount_item: 71000,
+              discount_bill: 4961.73,
+              after_discount_bill: 66038.27,
+              sum_servicecharge: 4614.43,
+              sum_vate: 7053.48,
+              grand_total: 77706.19
+            },
+            items: [
+              {
+                prod_uuid: null,
+                product_full_name: "Unknown item",
+                bill_count: 1,
+                total_qty: 1,
+                product_price_total: 55000,
+                topping_total: 16000,
+                total: 71000,
+                discount_item_amount: 0,
+                after_discount_item: 71000,
+                discount_bill: 4961.73,
+                after_discount_bill: 66038.27,
+                service_rate: 7,
+                sum_servicecharge: 4614.43,
+                vat_rate: 10,
+                sum_vate: 7053.48,
+                grand_total: 77706.19
+              }
+            ]
+          }
+        ]
+      },
+      {
+        group_uuid: "group-drinks",
+        group_name: "Drinks",
+        categories: [
+          {
+            cate_uuid: "beer",
+            cate_name: "Beer",
+            summary: {
+              product_count: 2,
+              total_qty: 7,
+              product_price_total: 160000,
+              topping_total: 10000,
+              total: 170000,
+              discount_item_amount: 15000,
+              after_discount_item: 155000,
+              discount_bill: 0,
+              after_discount_bill: 155000,
+              sum_servicecharge: 10850,
+              sum_vate: 16585,
+              grand_total: 182435
+            },
+            items: [
+              {
+                prod_uuid: "prod-1",
+                product_full_name: "Tiger Beer",
+                bill_count: 2,
+                total_qty: 3,
+                product_price_total: 90000,
+                topping_total: 10000,
+                total: 100000,
+                discount_item_amount: 5000,
+                after_discount_item: 95000,
+                discount_bill: 0,
+                after_discount_bill: 95000,
+                service_rate: 7,
+                sum_servicecharge: 6650,
+                vat_rate: 10,
+                sum_vate: 10165,
+                grand_total: 111815
+              },
+              {
+                prod_uuid: "prod-2",
+                product_full_name: "Lao Beer",
+                bill_count: 2,
+                total_qty: 4,
+                product_price_total: 70000,
+                topping_total: 0,
+                total: 70000,
+                discount_item_amount: 10000,
+                after_discount_item: 60000,
+                discount_bill: 0,
+                after_discount_bill: 60000,
+                service_rate: 7,
+                sum_servicecharge: 4200,
+                vat_rate: 10,
+                sum_vate: 6420,
+                grand_total: 70620
+              }
+            ]
+          }
+        ]
       }
-    },
-    {
-      sort_order: 2,
-      group_uuid_fk: null,
-      group_name: "No group",
-      details: [
-        {
-          sort_order: 2,
-          rank: 2,
-          cate_uuid: null,
-          cate_name: "No category",
-          category_bill_count: 7,
-          items_count: 8,
-          qty_total: 17,
-          amount: 1034066,
-          topping_total: 174000,
-          item_discount: 32500,
-          discount_bill: 61599.99,
-          discount_total: 94099.99,
-          service_charge: 65797.73,
-          vat: 100576.43,
-          total: 1106340.18,
-          sale_percent: 4.89
-        }
-      ],
-      summary: {
-        categories_count: 1,
-        category_bill_count: 7,
-        items_count: 8,
-        qty_total: 17,
-        amount: 1034066,
-        topping_total: 174000,
-        item_discount: 32500,
-        discount_bill: 61599.99,
-        discount_total: 94099.99,
-        service_charge: 65797.73,
-        vat: 100576.43,
-        total: 1106340.18
-      }
-    }
   ]
 };
 
 describe("normalizeCategorySalesReportResponse", () => {
-  it("keeps grouped category rows and derives summary from API group summaries", () => {
-    const normalized = normalizeCategorySalesReportResponse(response, 10, 1);
+  it("normalizes group_list product rows and keeps backend summary", () => {
+    const normalized = normalizeCategorySalesReportResponse(response, 4, 1);
 
-    expect(normalized.reportName).toBe("Sales report by category");
     expect(normalized.filters).toMatchObject({
-      branch_uuid_fk: "branch-1",
-      date_from: "2026-05-01",
-      date_to: "2026-06-28",
-      orderBy: "DESC",
-      payment_method: "all"
+      date_from: "2026-06-01",
+      date_to: "2026-06-29",
+      payment_method: null
     });
     expect(normalized.groups).toHaveLength(2);
-    expect(normalized.rows.map((row) => row.rank)).toEqual([1, 2]);
-    expect(normalized.rows[0]).toMatchObject({
-      amount: 17430000,
-      billCount: 36,
-      cateName: "Beer",
+    expect(normalized.groups[1]).toMatchObject({
       groupName: "Drinks",
-      salePercent: 87.73,
-      total: 19834968.32
+      categories: [
+        expect.objectContaining({
+          cateName: "Beer",
+          rows: expect.any(Array)
+        })
+      ]
     });
-    expect(normalized.summary).toMatchObject({
-      categories_count: 2,
-      category_bill_count: 43,
-      qty_total: 304,
-      total: 20941308.5
+    expect(normalized.rows.map((row) => row.productName)).toEqual([
+      "Unknown item",
+      "Tiger Beer",
+      "Lao Beer"
+    ]);
+    expect(normalized.rows[1]).toMatchObject({
+      billCount: 2,
+      cateName: "Beer",
+      grandTotal: 111815,
+      groupName: "Drinks",
+      productName: "Tiger Beer",
+      productPriceTotal: 90000,
+      totalQty: 3
     });
-    expect(normalized.pagination).toEqual({ limit: 10, page: 1, total: 4, totalPages: 1 });
+    expect(normalized.groups[1]?.summary.bill_count).toBe(4);
+    expect(normalized.groups[1]?.categories[0]?.summary.bill_count).toBe(4);
+    expect(normalized.summary).toEqual(response.summary);
+    expect(normalized.pagination).toEqual({ limit: 20, page: 1, total: 100, totalPages: 5 });
   });
 });

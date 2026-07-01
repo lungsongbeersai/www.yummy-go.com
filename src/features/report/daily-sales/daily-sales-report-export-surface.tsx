@@ -3,11 +3,11 @@
 import { Fragment, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
 import { money } from "@/lib/format";
-import type { DailySalesReportType } from "@/services/report";
 import type { ApiEntity } from "@/services/shared/types";
 import type { DailySalesBillGroup } from "@/stores/report-store";
 import type {
   ReportColumn,
+  ReportTab,
   SummaryCardConfig,
   SummaryCards,
 } from "./daily-sales-report-types";
@@ -52,7 +52,7 @@ export function ReportExportSurface({
   rowsLabel: string;
   summaryCards: SummaryCards;
   title: string;
-  typePage: DailySalesReportType;
+  typePage: ReportTab;
   typeLabel: string;
 }) {
   return (
@@ -237,8 +237,8 @@ function DetailPrintTable({
           <th>{t("report.columns.tableName")}</th>
           <th>{t("report.columns.paymentType")}</th>
           <th className="is-right">{t("report.billItems")}</th>
-          <th className="is-right">{t("report.cards.orderTotal")}</th>
           <th className="is-right">{t("report.cards.toppingTotal")}</th>
+          <th className="is-right">{t("report.cards.orderTotal")}</th>
           <th className="is-right">{t("report.cards.discountAmount")}</th>
           <th className="is-right">{t("report.cards.itemDiscountAmount")}</th>
           <th className="is-right">{t("report.cards.serviceCharge")}</th>
@@ -248,7 +248,6 @@ function DetailPrintTable({
           <th className="is-right">{t("report.cards.receiveTransfer")}</th>
           <th className="is-right">{t("report.cards.debtAmount")}</th>
           <th className="is-right">{t("report.cards.changeAmount")}</th>
-          <th>{t("report.columns.cashierName")}</th>
           <th>{t("report.columns.status")}</th>
         </tr>
       </thead>
@@ -266,8 +265,8 @@ function DetailPrintTable({
               <td className="is-right">
                 {group.itemCount.toLocaleString("en-US")}
               </td>
-              <td className="is-right">{money(group.amountTotal)}</td>
               <td className="is-right">{money(group.toppingTotal)}</td>
+              <td className="is-right">{money(group.amountTotal)}</td>
               <td className="is-right">{money(group.discountBillAmount)}</td>
               <td className="is-right">{money(group.itemDiscountAmount)}</td>
               <td className="is-right">{money(group.serviceChargeAmount)}</td>
@@ -277,11 +276,10 @@ function DetailPrintTable({
               <td className="is-right">{money(group.receiveTransferAmount)}</td>
               <td className="is-right">{money(group.debtAmount)}</td>
               <td className="is-right">{money(group.changeAmount)}</td>
-              <td>{group.cashierName}</td>
               <td>{group.status}</td>
             </tr>
             <tr>
-              <td colSpan={19} className="report-print-nested-cell">
+              <td colSpan={18} className="report-print-nested-cell">
                 <table className="report-print-table report-print-item-table">
                   <thead>
                     <tr>

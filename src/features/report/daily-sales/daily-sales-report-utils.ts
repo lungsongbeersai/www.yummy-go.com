@@ -1,6 +1,9 @@
 import { money } from "@/lib/format";
 import { getProductImageUrl } from "@/services/product";
-import type { DailySalesReportType } from "@/services/report";
+import {
+  DAILY_SALES_BILL_PAYMENT_METHOD_OPTIONS,
+  type DailySalesBillPaymentMethod,
+} from "@/services/report";
 import type { ApiEntity } from "@/services/shared/types";
 import {
   createDailySalesBillGroups,
@@ -8,9 +11,11 @@ import {
 } from "@/stores/report-store";
 import type {
   DetailPaginationBasis,
+  DetailReportPaymentMethod,
   ReportBranchOption,
   ReportColumn,
   ReportPaymentMethodFilter,
+  ReportTab,
   SummaryCards,
 } from "./daily-sales-report-types";
 
@@ -21,17 +26,40 @@ export const reportImageKeys = [
   "image_url",
 ];
 export const paymentMethodOptions: ReportPaymentMethodFilter[] = [
-  "all",
-  "cash",
-  "transfer",
-  "debt",
-  "mixed",
+  ...DAILY_SALES_BILL_PAYMENT_METHOD_OPTIONS,
 ];
 
 const HEX_COLOR_PATTERN = /^#(?:[0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
 
-export function paymentMethodParam(paymentMethod: ReportPaymentMethodFilter) {
+export function billPaymentMethodParam(paymentMethod: ReportPaymentMethodFilter): DailySalesBillPaymentMethod {
   return paymentMethod;
+}
+
+export function detailPaymentMethodParam(
+  paymentMethod: ReportPaymentMethodFilter,
+): DetailReportPaymentMethod {
+  const methodMap: Record<ReportPaymentMethodFilter, DetailReportPaymentMethod> = {
+    "1": "cash",
+    "2": "transfer",
+    "4": "debt",
+    All: "all",
+  };
+
+  return methodMap[paymentMethod];
+}
+
+export function paymentMethodLabel(
+  t: (key: string) => string,
+  paymentMethod: ReportPaymentMethodFilter,
+) {
+  const labelKeyMap: Record<ReportPaymentMethodFilter, string> = {
+    "1": "cash",
+    "2": "transfer",
+    "4": "debt",
+    All: "all",
+  };
+  const labelKey = labelKeyMap[paymentMethod];
+  return labelKey === "all" ? t("common.all") : t(`report.paymentMethods.${labelKey}`);
 }
 
 export function branchOptionLabel(branch: ApiEntity, language: string) {
@@ -472,14 +500,14 @@ export function sumRows(rows: ApiEntity[], keys: string[]) {
 
 export function toppingLines(row: ApiEntity) {
   return asRecords(row.toppings).map((topping) => {
-    const qty = firstNumber(readValue(topping, ["qty", "quantity"]));
+    const qty = firstNumber(readValue(topping, ["qty", "quantity", "topping_qty"]));
     const name = textValue(
       readValue(topping, ["name", "topping_name", "prod_name", "product_name"]),
       "",
     );
     const total = firstNumber(
-      readValue(topping, ["total", "line_total", "amount"]),
-      readValue(topping, ["price"]),
+      readValue(topping, ["total", "line_total", "amount", "topping_total"]),
+      readValue(topping, ["price", "topping_price"]),
     );
     return name
       ? `${qty || 1} x ${name} - ${money(total)}`
@@ -489,7 +517,7 @@ export function toppingLines(row: ApiEntity) {
 
 export function reportTotalFromRows(
   rows: ApiEntity[],
-  typePage: DailySalesReportType,
+  typePage: ReportTab,
 ): ApiEntity {
   if (typePage === "detail") {
     const billGroups = createDailySalesBillGroups(rows);
@@ -568,15 +596,23 @@ export function reportTotalFromRows(
   const cancelledBills = rows.filter(isCancelledRow).length;
   return {
     active_count: Math.max(0, rows.length - cancelledBills),
+    after_discount: sumRows(rows, ["after_discount"]),
+    amount: sumRows(rows, ["amount"]),
+    before_bill_discount: sumRows(rows, ["before_bill_discount"]),
+    bill_count: rows.length,
     bills_count: rows.length,
     cancelled_count: cancelledBills,
     change_amount: sumRows(rows, ["change_amount", "change_total"]),
     debt_amount: sumRows(rows, ["debt_amount", "debt_total", "balance_total"]),
+    discount_bill: sumRows(rows, ["discount_bill"]),
     discount_amount: sumRows(rows, [
       "discount",
       "discount_amount",
       "discount_total",
     ]),
+    paid_amount: sumRows(rows, ["paid_amount"]),
+    paid_cash: sumRows(rows, ["paid_cash"]),
+    paid_transfer: sumRows(rows, ["paid_transfer"]),
     net_total: sumRows(rows, ["net_total", "grand_total", "order_grand_total"]),
     order_total: sumRows(rows, ["order_total", "total_order", "gross_total"]),
     receive_cash: sumRows(rows, [
@@ -596,6 +632,11 @@ export function reportTotalFromRows(
       "service_charge_amount",
       "service_total",
     ]),
+    sum_discount: sumRows(rows, ["sum_discount", "discount_bill"]),
+    sum_servicecharge: sumRows(rows, ["sum_servicecharge", "service_charge"]),
+    sum_total: sumRows(rows, ["sum_total", "total", "net_total"]),
+    sum_vate: sumRows(rows, ["sum_vate", "vat", "vat_amount"]),
+    total_qty: sumRows(rows, ["total_qty", "qty_total", "qty", "quantity"]),
     vat_amount: sumRows(rows, ["vat", "vat_amount", "vat_total"]),
   };
 }

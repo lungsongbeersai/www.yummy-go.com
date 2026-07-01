@@ -133,7 +133,7 @@ export function paymentMethodRowMetrics(row: PaymentMethodReportRow, t: (key: st
 }
 
 export function paymentMethodsFileBaseName(filters: PaymentMethodsReportFilters) {
-  return `payment-methods-${filters.paymentMethod}-${filters.orderBy}-${filters.dateFrom}-to-${filters.dateTo}`;
+  return `payment-methods-${filters.paymentMethod}-${filters.dateFrom}-to-${filters.dateTo}`;
 }
 
 export function waitForPaint() {

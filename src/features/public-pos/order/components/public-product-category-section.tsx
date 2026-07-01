@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import type { CateProductItem, CateWithProducts } from "@/services/pos";
 import type { PublicMenuKind } from "@/stores/public-pos-store";
 import { PRODUCT_GRID_CLASS } from "../constants";
+import type { PublicProductLayoutMode } from "../types";
 import { hasRemoteProductImage } from "../utils";
 import {
   CategoryCompactLoading,
@@ -35,6 +36,7 @@ export const ProductCategorySection = memo(function ProductCategorySection({
   statusKind,
   priorityFirstImage = false,
   loadingProductUuid,
+  layoutMode,
   onEnsureLoad,
   onProductClick,
   onRevealMore,
@@ -52,6 +54,7 @@ export const ProductCategorySection = memo(function ProductCategorySection({
   statusKind: PublicMenuKind;
   priorityFirstImage?: boolean;
   loadingProductUuid: string;
+  layoutMode: PublicProductLayoutMode;
   onEnsureLoad: (cateUuid: string) => void;
   onProductClick: (
     product: CateProductItem,
@@ -156,7 +159,11 @@ export const ProductCategorySection = memo(function ProductCategorySection({
       ) : !loaded ? (
         <CategoryDeferredPlaceholder />
       ) : products.length ? (
-        <div className={PRODUCT_GRID_CLASS}>
+        <div
+          className={
+            layoutMode === "list" ? "grid grid-cols-1 gap-2.5" : PRODUCT_GRID_CLASS
+          }
+        >
           {products.map((product) => (
             <ProductCard
               key={product.prod_uuid}
@@ -166,6 +173,7 @@ export const ProductCategorySection = memo(function ProductCategorySection({
               lang={lang}
               loading={loadingProductUuid === product.prod_uuid}
               imagePriority={product.prod_uuid === priorityProductUuid}
+              variant={layoutMode}
               onProductClick={onProductClick}
             />
           ))}

@@ -6,22 +6,11 @@ import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Dialog, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
-import { Field, FieldDescription, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Textarea } from "@/components/ui/textarea";
 import {
-  SettingsDialogBody,
-  SettingsDialogContent,
-  SettingsDialogFooter,
-  SettingsDialogForm,
-  SettingsDialogHeader,
   SettingsMobileCard,
   SettingsMobileList,
   SettingsMobileMeta,
@@ -35,48 +24,28 @@ import {
 import { useUrlPagination } from "@/hooks/use-url-pagination";
 import { DEFAULT_PAGE_LIMIT, PAGE_LIMIT_OPTIONS } from "@/lib/pagination";
 import type { UrlPaginationState } from "@/lib/url-pagination";
-import type { Customer, FetchCustomersParams, SaveCustomerInput } from "@/services/customer";
-import type { ApiEntity, PageLimit, SortOrder } from "@/services/shared/types";
+import type { Customer, FetchCustomersParams } from "@/services/customer";
+import type { PageLimit, SortOrder } from "@/services/shared/types";
 import { useAppStore } from "@/stores/app-store";
 import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
 import { useCustomerStore } from "@/stores/customer-store";
 import { useToastStore } from "@/stores/toast-store";
+import { CustomerFormDialog } from "./customer-form-dialog";
+import {
+  customerAddress,
+  customerFormInput,
+  customerId,
+  customerMemberCode,
+  customerName,
+  customerPhone,
+  customerStatus
+} from "./customer-utils";
 
 const DEFAULT_LIMIT: PageLimit = DEFAULT_PAGE_LIMIT;
 const ORDER_OPTIONS: Array<{ labelKey: "asc" | "desc"; value: SortOrder }> = [
   { labelKey: "asc", value: "ASC" },
   { labelKey: "desc", value: "DESC" }
 ];
-
-function value(row: ApiEntity | null | undefined, key: string, fallback = "") {
-  const raw = row?.[key];
-  if (raw === null || raw === undefined || raw === "") return fallback;
-  return String(raw);
-}
-
-function customerId(row: Customer | null | undefined) {
-  return value(row, "customer_uuid");
-}
-
-function customerName(row: Customer | null | undefined) {
-  return value(row, "customer_name", "-");
-}
-
-function customerMemberCode(row: Customer | null | undefined) {
-  return value(row, "member_code");
-}
-
-function customerPhone(row: Customer | null | undefined) {
-  return value(row, "customer_phone", "-");
-}
-
-function customerAddress(row: Customer | null | undefined) {
-  return value(row, "customer_address", "-");
-}
-
-function customerStatus(row: Customer | null | undefined) {
-  return value(row, "customer_status", "1");
-}
 
 function customerInitials(name: string) {
   const compact = name.trim().replace(/\s+/g, "");
@@ -260,7 +229,6 @@ export function CustomerSettingsPage({ initialPagination }: { initialPagination:
   }
 
   async function save(formData: FormData) {
-    const id = customerId(editing);
     const name = String(formData.get("customer_name") ?? "").trim();
 
     if (!storeUuid) {
@@ -272,15 +240,7 @@ export function CustomerSettingsPage({ initialPagination }: { initialPagination:
       return;
     }
 
-    const input: SaveCustomerInput = {
-      store_uuid_fk: storeUuid,
-      member_code: String(formData.get("member_code") ?? "").trim(),
-      customer_name: name,
-      customer_phone: String(formData.get("customer_phone") ?? "").trim(),
-      customer_address: String(formData.get("customer_address") ?? "").trim(),
-      customer_status: Number(formData.get("customer_status") ?? 1)
-    };
-    if (id) input.customer_uuid = id;
+    const input = customerFormInput(formData, storeUuid, editing);
 
     try {
       await saveRow(input);
@@ -530,134 +490,5 @@ export function CustomerSettingsPage({ initialPagination }: { initialPagination:
         }}
       />
     </>
-  );
-}
-
-function CustomerFormDialog({
-  editing,
-  onOpenChange,
-  onSubmit,
-  open,
-  saving
-}: {
-  editing: Customer | null;
-  onOpenChange: (open: boolean) => void;
-  onSubmit: (formData: FormData) => Promise<void>;
-  open: boolean;
-  saving: boolean;
-}) {
-  const { t } = useTranslation();
-  const [status, setStatus] = useState("1");
-  const formKey = customerId(editing) || "new-customer";
-
-  useEffect(() => {
-    setStatus(customerStatus(editing));
-  }, [editing, open]);
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <SettingsDialogContent className="sm:max-w-2xl">
-        <SettingsDialogForm key={formKey} action={onSubmit}>
-          <SettingsDialogHeader>
-            <DialogTitle>{editing ? t("settings.editRecord") : t("settings.newRecord")}: {t("settings.modules.customer.title")}</DialogTitle>
-            <DialogDescription>{t("settings.customerFormHint")}</DialogDescription>
-          </SettingsDialogHeader>
-          <SettingsDialogBody>
-            <FieldGroup>
-              <FieldSet className="gap-4 rounded-lg border border-border bg-card p-4">
-                <Field>
-                  <FieldLegend>{t("settings.customerDetails")}</FieldLegend>
-                  <FieldDescription>{t("settings.customerDetailsHint")}</FieldDescription>
-                </Field>
-                <FieldGroup className="grid gap-4 sm:grid-cols-2">
-                  <Field>
-                    <FieldLabel htmlFor="customer-member-code">{t("fields.member_code")}</FieldLabel>
-                    <Input
-                      id="customer-member-code"
-                      name="member_code"
-                      autoComplete="off"
-                      defaultValue={customerMemberCode(editing)}
-                      disabled={saving}
-                      spellCheck={false}
-                      translate="no"
-                    />
-                    <FieldDescription>{t("settings.memberCodeHint")}</FieldDescription>
-                  </Field>
-                  <Field>
-                    <FieldLabel htmlFor="customer-name">{t("fields.customer_name")}</FieldLabel>
-                    <Input
-                      id="customer-name"
-                      name="customer_name"
-                      autoComplete="name"
-                      defaultValue={value(editing, "customer_name")}
-                      disabled={saving}
-                      required
-                    />
-                  </Field>
-                  <Field className="sm:col-span-2">
-                    <FieldLabel htmlFor="customer-status">{t("fields.customer_status")}</FieldLabel>
-                    <input name="customer_status" type="hidden" value={status} />
-                    <Select value={status} onValueChange={setStatus}>
-                      <SelectTrigger id="customer-status" className="w-full" disabled={saving}>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent position="popper">
-                        <SelectGroup>
-                          <SelectItem value="1">{t("common.active")}</SelectItem>
-                          <SelectItem value="2">{t("common.inactive")}</SelectItem>
-                        </SelectGroup>
-                      </SelectContent>
-                    </Select>
-                  </Field>
-                </FieldGroup>
-              </FieldSet>
-
-              <FieldSet className="gap-4 rounded-lg border border-border bg-card p-4">
-                <Field>
-                  <FieldLegend>{t("settings.customerContactDetails")}</FieldLegend>
-                  <FieldDescription>{t("settings.customerContactDetailsHint")}</FieldDescription>
-                </Field>
-                <FieldGroup className="grid gap-4 sm:grid-cols-2">
-                  <Field>
-                    <FieldLabel htmlFor="customer-phone">{t("fields.customer_phone")}</FieldLabel>
-                    <Input
-                      id="customer-phone"
-                      name="customer_phone"
-                      autoComplete="tel"
-                      defaultValue={value(editing, "customer_phone")}
-                      disabled={saving}
-                      inputMode="tel"
-                      type="tel"
-                      translate="no"
-                    />
-                  </Field>
-                  <Field className="sm:col-span-2">
-                    <FieldLabel htmlFor="customer-address">{t("fields.customer_address")}</FieldLabel>
-                    <Textarea
-                      id="customer-address"
-                      name="customer_address"
-                      autoComplete="street-address"
-                      defaultValue={value(editing, "customer_address")}
-                      disabled={saving}
-                      rows={4}
-                    />
-                  </Field>
-                </FieldGroup>
-              </FieldSet>
-            </FieldGroup>
-          </SettingsDialogBody>
-          <input name="customer_uuid" type="hidden" value={customerId(editing)} readOnly />
-          <SettingsDialogFooter>
-            <Button disabled={saving} type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              {t("actions.cancel")}
-            </Button>
-            <Button disabled={saving} type="submit">
-              {saving ? <Spinner data-icon="inline-start" /> : null}
-              {saving ? t("common.processing") : t("actions.save")}
-            </Button>
-          </SettingsDialogFooter>
-        </SettingsDialogForm>
-      </SettingsDialogContent>
-    </Dialog>
   );
 }

@@ -20,7 +20,7 @@ export function ProductMedia({
   priority = false,
 }: {
   product: CateProductItem | ProdItem;
-  variant?: "card" | "sheet" | "sheetThumb";
+  variant?: "card" | "sheet" | "sheetThumb" | "listThumb";
   blockedState?: ProductBlockedState | null;
   blockedLabel?: string;
   priority?: boolean;
@@ -37,9 +37,11 @@ export function ProductMedia({
       ? "aspect-[16/9]"
       : variant === "sheetThumb"
         ? "aspect-square"
+        : variant === "listThumb"
+          ? "h-full"
         : "aspect-[1.05/1]";
   const imageSizes =
-    variant === "sheetThumb"
+    variant === "sheetThumb" || variant === "listThumb"
       ? "96px"
       : "(min-width: 1024px) 240px, (min-width: 640px) 30vw, 50vw";
 
@@ -60,7 +62,7 @@ export function ProductMedia({
           quality={60}
           sizes={imageSizes}
           className={cn(
-            "object-cover",
+            variant === "listThumb" ? "object-contain p-1.5" : "object-cover",
             blockedState ? "opacity-65 saturate-[0.55]" : "",
           )}
         />
@@ -76,7 +78,8 @@ export function ProductMedia({
     return (
       <div
         className={cn(
-          "relative grid w-full place-items-center overflow-hidden border-b border-emerald-100 dark:border-border",
+          "relative grid w-full place-items-center overflow-hidden border-emerald-100 dark:border-border",
+          variant === "listThumb" ? "" : "border-b",
           mediaClass,
         )}
         style={{ backgroundColor: colorSwatch }}

@@ -1,236 +1,122 @@
-import type { DailySalesReportType } from "@/services/report";
 import type {
   ReportColumn,
+  ReportTab,
   SummaryCardConfig,
 } from "./daily-sales-report-types";
 import { reportImageKeys } from "./daily-sales-report-utils";
 
+export function cardSummaryConfigs(
+  t: (key: string) => string,
+): SummaryCardConfig[] {
+  return [
+    {
+      label: t("report.cards.billsCount"),
+      kind: "number",
+      keys: ["bill_count"],
+    },
+    {
+      label: t("report.cards.totalQuantity"),
+      kind: "number",
+      keys: ["total_qty"],
+    },
+    {
+      label: t("report.cards.orderTotal"),
+      kind: "money",
+      keys: ["amount"],
+    },
+    {
+      label: t("report.cards.discountAmount"),
+      kind: "money",
+      keys: ["discount_bill"],
+    },
+    {
+      label: t("report.cards.sumDiscount"),
+      kind: "money",
+      keys: ["sum_discount"],
+    },
+    {
+      label: t("report.cards.afterDiscount"),
+      kind: "money",
+      keys: ["after_discount"],
+    },
+    {
+      label: t("report.cards.serviceCharge"),
+      kind: "money",
+      keys: ["sum_servicecharge"],
+    },
+    {
+      label: t("report.cards.vatAmount"),
+      kind: "money",
+      keys: ["sum_vate"],
+    },
+    {
+      label: t("report.cards.netTotal"),
+      kind: "money",
+      keys: ["sum_total"],
+    },
+  ];
+}
+
 export function summaryConfigs(
   t: (key: string) => string,
-  typePage: DailySalesReportType,
+  typePage: ReportTab,
 ): SummaryCardConfig[] {
   if (typePage === "detail") {
     return [
       {
         label: t("report.cards.billsCount"),
         kind: "number",
-        keys: ["bills_count", "bill_count", "total_bills", "orders_count"],
+        keys: ["bill_count"],
+      },
+      {
+        label: t("report.cards.totalQuantity"),
+        kind: "number",
+        keys: ["total_qty"],
       },
       {
         label: t("report.cards.orderTotal"),
         kind: "money",
-        keys: [
-          "amount",
-          "order_total",
-          "total_order",
-          "gross_total",
-          "sum_order_total",
-        ],
-      },
-      {
-        label: t("report.cards.toppingTotal"),
-        kind: "money",
-        keys: ["topping_total", "topping_line_total", "sum_topping_total"],
-      },
-      {
-        label: t("report.cards.discountAmount"),
-        kind: "money",
-        keys: [
-          "discount_bill",
-          "discount_amount",
-          "discount_total",
-          "order_discount_amount",
-          "sum_discount_total",
-        ],
+        keys: ["amount"],
       },
       {
         label: t("report.cards.itemDiscountAmount"),
         kind: "money",
-        keys: [
-          "item_discount",
-          "item_discount_amount",
-          "order_item_discount_amount",
-        ],
+        keys: ["discount_item"],
+      },
+      {
+        label: t("report.cards.discountAmount"),
+        kind: "money",
+        keys: ["discount_bill"],
+      },
+      {
+        label: t("report.cards.sumDiscount"),
+        kind: "money",
+        keys: ["sum_discount"],
       },
       {
         label: t("report.cards.serviceCharge"),
         kind: "money",
-        keys: [
-          "service_charge",
-          "service_charge_amount",
-          "service_total",
-          "sum_service_total",
-        ],
+        keys: ["sum_servicecharge"],
       },
       {
         label: t("report.cards.vatAmount"),
         kind: "money",
-        keys: [
-          "vat",
-          "vat_amount",
-          "vat_total",
-          "order_vat_amount",
-          "sum_vat_total",
-        ],
+        keys: ["sum_vate"],
       },
       {
         label: t("report.cards.netTotal"),
         kind: "money",
-        keys: [
-          "total",
-          "net_total",
-          "grand_total",
-          "order_grand_total",
-          "sum_grand_total",
-        ],
-      },
-      {
-        label: t("report.cards.receiveCash"),
-        kind: "money",
-        keys: ["receive_cash", "cash_received", "cash_amount", "cash_total"],
-      },
-      {
-        label: t("report.cards.receiveTransfer"),
-        kind: "money",
-        keys: [
-          "receive_transfer",
-          "transfer_received",
-          "transfer_amount",
-          "transfer_total",
-        ],
-      },
-      {
-        label: t("report.cards.debtAmount"),
-        kind: "money",
-        keys: ["debt_amount", "debt_total", "balance_total"],
-      },
-      {
-        label: t("report.cards.changeAmount"),
-        kind: "money",
-        keys: ["change_amount", "change_total"],
-      },
-      {
-        label: t("report.cards.cancelledCount"),
-        kind: "number",
-        keys: ["cancelled_count", "cancel_count", "cancelled_bills_count"],
-      },
-      {
-        label: t("report.cards.activeCount"),
-        kind: "number",
-        keys: ["active_count", "active_bills_count"],
+        keys: ["sum_total"],
       },
     ];
   }
 
-  return [
-    {
-      label: t("report.cards.billsCount"),
-      kind: "number",
-      keys: ["bills_count", "bill_count", "total_bills", "orders_count"],
-    },
-    {
-      label: t("report.cards.orderTotal"),
-      kind: "money",
-      keys: [
-        "amount",
-        "order_total",
-        "total_order",
-        "gross_total",
-        "sum_order_total",
-      ],
-    },
-    {
-      label: t("report.cards.toppingTotal"),
-      kind: "money",
-      keys: ["topping_total", "topping_line_total", "sum_topping_total"],
-    },
-    {
-      label: t("report.cards.discountAmount"),
-      kind: "money",
-      keys: [
-        "discount_bill",
-        "discount_amount",
-        "discount_total",
-        "order_discount_amount",
-        "sum_discount_total",
-      ],
-    },
-    {
-      label: t("report.cards.itemDiscountAmount"),
-      kind: "money",
-      keys: [
-        "item_discount",
-        "item_discount_amount",
-        "order_item_discount_amount",
-      ],
-    },
-    {
-      label: t("report.cards.serviceCharge"),
-      kind: "money",
-      keys: [
-        "service_charge",
-        "service_charge_amount",
-        "service_total",
-        "sum_service_total",
-      ],
-    },
-    {
-      label: t("report.cards.vatAmount"),
-      kind: "money",
-      keys: ["vat", "vat_amount", "vat_total", "order_vat_amount", "sum_vat_total"],
-    },
-    {
-      label: t("report.cards.netTotal"),
-      kind: "money",
-      keys: [
-        "total",
-        "net_total",
-        "grand_total",
-        "order_grand_total",
-        "sum_grand_total",
-      ],
-    },
-    {
-      label: t("report.cards.receiveCash"),
-      kind: "money",
-      keys: ["receive_cash", "cash_received", "cash_amount", "cash_total"],
-    },
-    {
-      label: t("report.cards.receiveTransfer"),
-      kind: "money",
-      keys: [
-        "receive_transfer",
-        "transfer_received",
-        "transfer_amount",
-        "transfer_total",
-      ],
-    },
-    {
-      label: t("report.cards.debtAmount"),
-      kind: "money",
-      keys: ["debt_amount", "debt_total", "balance_total"],
-    },
-    {
-      label: t("report.cards.changeAmount"),
-      kind: "money",
-      keys: ["change_amount", "change_total"],
-    },
-    {
-      label: t("report.cards.cancelledCount"),
-      kind: "number",
-      keys: ["cancelled_count", "cancel_count", "cancelled_bills_count"],
-    },
-    {
-      label: t("report.cards.activeCount"),
-      kind: "number",
-      keys: ["active_count", "active_bills_count"],
-    },
-  ];
+  return cardSummaryConfigs(t);
 }
 
 export function reportColumns(
   t: (key: string) => string,
-  typePage: DailySalesReportType,
+  typePage: ReportTab,
 ): ReportColumn[] {
   if (typePage === "detail") {
     return [
@@ -311,11 +197,6 @@ export function reportColumns(
         minWidth: "min-w-[128px]",
       },
       {
-        header: t("report.columns.cashierName"),
-        keys: ["cashier_name", "login_name", "user_name"],
-        minWidth: "min-w-[132px]",
-      },
-      {
         header: t("report.columns.note"),
         keys: ["note", "order_it_note", "order_note"],
         minWidth: "min-w-[220px]",
@@ -330,12 +211,6 @@ export function reportColumns(
           "payment_type_name",
         ],
         minWidth: "min-w-[130px]",
-      },
-      {
-        header: t("report.columns.cashierName"),
-        keys: ["cashier_name", "login_name", "user_name"],
-        minWidth: "min-w-[160px]",
-        wide: true,
       },
       {
         header: t("report.columns.status"),
@@ -356,8 +231,14 @@ export function reportColumns(
   return [
     {
       header: t("report.columns.invoiceNumber"),
-      keys: ["invoice_number", "invoice_no", "invoice", "order_invoice"],
+      keys: ["order_invoice", "invoice_number", "invoice_no", "invoice"],
       minWidth: "min-w-[132px]",
+    },
+    {
+      header: t("report.columns.saleDate"),
+      kind: "date",
+      keys: ["order_date", "sale_date", "business_date", "created_at", "date"],
+      minWidth: "min-w-[118px]",
     },
     {
       header: t("report.columns.tableName"),
@@ -365,101 +246,72 @@ export function reportColumns(
       minWidth: "min-w-[84px]",
     },
     {
-      header: t("report.columns.cashierName"),
-      keys: ["cashier_name", "login_name", "user_name"],
-      minWidth: "min-w-[160px]",
-      wide: true,
-    },
-    {
-      header: t("report.columns.saleDate"),
-      kind: "date",
-      keys: ["sale_date", "business_date", "created_at", "order_date", "date"],
-      minWidth: "min-w-[118px]",
-    },
-    {
       header: t("report.columns.paymentType"),
-      keys: [
-        "payment_type",
-        "payment_method",
-        "payment_name",
-        "payment_type_name",
-      ],
+      keys: ["payment_method_name", "payment_type", "payment_method"],
       minWidth: "min-w-[130px]",
     },
     {
-      header: t("report.columns.orderTotal"),
+      header: t("report.columns.quantity"),
+      kind: "number",
+      align: "right",
+      keys: ["total_qty", "qty_total", "qty", "quantity"],
+      minWidth: "min-w-[84px]",
+    },
+    {
+      header: t("report.columns.totalAmount"),
       kind: "money",
       align: "right",
-      keys: ["amount", "order_total", "total_order", "gross_total"],
+      keys: ["amount"],
       minWidth: "min-w-[126px]",
     },
-    // {
-    //   header: t("report.columns.toppingTotal"),
-    //   kind: "money",
-    //   align: "right",
-    //   keys: ["topping_total", "topping_line_total", "sum_topping_total"],
-    //   minWidth: "min-w-[126px]",
-    // },
     {
-      header: t("report.columns.discount"),
+      header: t("report.columns.billDiscount"),
       kind: "money",
       align: "right",
-      keys: ["discount_bill", "discount", "discount_amount", "discount_total"],
+      keys: ["discount_bill"],
       minWidth: "min-w-[118px]",
     },
     {
-      header: t("report.columns.itemDiscount"),
+      header: t("report.columns.afterDiscount"),
       kind: "money",
       align: "right",
-      keys: ["item_discount", "item_discount_amount", "order_it_discount_amount"],
+      keys: ["after_discount"],
       minWidth: "min-w-[128px]",
     },
     {
       header: t("report.columns.serviceCharge"),
       kind: "money",
       align: "right",
-      keys: ["service_charge", "service_charge_amount", "service_total"],
+      keys: ["sum_servicecharge"],
       minWidth: "min-w-[130px]",
     },
     {
       header: t("report.columns.vat"),
       kind: "money",
       align: "right",
-      keys: ["vat", "vat_amount", "vat_total"],
+      keys: ["sum_vate"],
       minWidth: "min-w-[112px]",
     },
     {
       header: t("report.columns.netTotal"),
       kind: "money",
       align: "right",
-      keys: ["total", "net_total", "grand_total", "order_grand_total"],
+      keys: ["sum_total"],
       minWidth: "min-w-[130px]",
     },
     {
-      header: t("report.columns.cashReceived"),
+      header: t("report.columns.paidCash"),
       kind: "money",
       align: "right",
-      keys: ["cash_received", "receive_cash", "cash_amount", "cash_total"],
+      keys: ["paid_cash"],
       minWidth: "min-w-[132px]",
     },
     {
-      header: t("report.columns.transferReceived"),
+      header: t("report.columns.paidTransfer"),
       kind: "money",
       align: "right",
-      keys: [
-        "transfer_received",
-        "receive_transfer",
-        "transfer_amount",
-        "transfer_total",
-      ],
+      keys: ["paid_transfer"],
       minWidth: "min-w-[132px]",
-    },
-    {
-      header: t("report.columns.debtAmount"),
-      kind: "money",
-      align: "right",
-      keys: ["debt_amount", "debt_total", "balance_total"],
-      minWidth: "min-w-[124px]",
     },
     {
       header: t("report.columns.changeAmount"),
@@ -469,17 +321,10 @@ export function reportColumns(
       minWidth: "min-w-[124px]",
     },
     {
-      header: t("report.columns.status"),
-      kind: "status",
-      keys: [
-        "status_name",
-        "status_text",
-        "status",
-        "status_code",
-        "order_status_text",
-        "payment_status",
-      ],
-      minWidth: "min-w-[118px]",
+      header: t("report.columns.lastPaidAt"),
+      kind: "date",
+      keys: ["last_paid_at"],
+      minWidth: "min-w-[148px]",
     },
   ];
 }

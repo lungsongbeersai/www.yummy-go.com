@@ -29,6 +29,7 @@ import {
   MAX_OPEN_QTY,
   PUBLIC_SEARCH_HISTORY_LIMIT,
   PUBLIC_SEARCH_HISTORY_STORAGE_PREFIX,
+  PUBLIC_PRODUCT_LAYOUT_STORAGE_KEY,
 } from "@/features/public-pos/order/constants";
 import type {
   ProductActionState,
@@ -37,6 +38,7 @@ import type {
   PromotionQuantitySource,
   PublicAddToCartPayload,
   PublicDisplayProduct,
+  PublicProductLayoutMode,
   RectSnapshot,
   ScrollJumpEdge,
 } from "@/features/public-pos/order/types";
@@ -110,6 +112,37 @@ export function clearPublicSearchHistory(key: string) {
 
   try {
     window.localStorage.removeItem(key);
+  } catch {
+    // Ignore localStorage failures in private or restricted browser contexts.
+  }
+}
+
+export function normalizePublicProductLayoutMode(
+  value: unknown,
+): PublicProductLayoutMode {
+  return value === "list" ? "list" : "grid";
+}
+
+export function readPublicProductLayoutMode(): PublicProductLayoutMode {
+  if (typeof window === "undefined") return "grid";
+
+  try {
+    return normalizePublicProductLayoutMode(
+      window.localStorage.getItem(PUBLIC_PRODUCT_LAYOUT_STORAGE_KEY),
+    );
+  } catch {
+    return "grid";
+  }
+}
+
+export function writePublicProductLayoutMode(mode: PublicProductLayoutMode) {
+  if (typeof window === "undefined") return;
+
+  try {
+    window.localStorage.setItem(
+      PUBLIC_PRODUCT_LAYOUT_STORAGE_KEY,
+      normalizePublicProductLayoutMode(mode),
+    );
   } catch {
     // Ignore localStorage failures in private or restricted browser contexts.
   }

@@ -1,12 +1,14 @@
 import type {
+  DailySalesBillPaymentMethod,
   DailySalesPaymentMethod,
   DailySalesReportOrder,
-  DailySalesReportType,
 } from "@/services/report";
 import type { ApiEntity, PageLimit } from "@/services/shared/types";
 import type { DailySalesReportExportData } from "@/stores/report-store";
 
-export type ReportPaymentMethodFilter = DailySalesPaymentMethod | "all";
+export type ReportTab = "bill" | "detail";
+export type ReportPaymentMethodFilter = DailySalesBillPaymentMethod;
+export type DetailReportPaymentMethod = DailySalesPaymentMethod;
 
 export type ReportFilters = {
   branchUuid: string;
@@ -15,7 +17,8 @@ export type ReportFilters = {
   limit: PageLimit;
   orderBy: DailySalesReportOrder;
   paymentMethod: ReportPaymentMethodFilter;
-  typePage: DailySalesReportType;
+  search: string;
+  typePage: ReportTab;
 };
 
 export type ReportBranchOption = {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PAGE_LIMIT_ALL_BATCH } from "@/lib/pagination";
+import { PAGE_LIMIT_ALL, PAGE_LIMIT_ALL_BATCH } from "@/lib/pagination";
 import type {
   BestSellingProductsReportResponse,
   DailySalesReportResponse,
@@ -119,10 +119,9 @@ describe("report export loaders", () => {
     expect(data.summary).toEqual({ final_total: 30, qty: 3 });
   });
 
-  it("loads all payment method rows and keeps first-page cards and totals", async () => {
+  it("loads all payment method rows with limit all and keeps cards and totals", async () => {
     const requests: FetchPaymentMethodsReportParams[] = [];
-    const responses: Record<number, PaymentMethodsReportResponse> = {
-      1: {
+    const response: PaymentMethodsReportResponse = {
         dashboard_cards: [{ key: "total", label: "Total", sort_order: 1, value: 300, value_type: "money" }],
         data: [
           {
@@ -132,15 +131,7 @@ describe("report export loaders", () => {
             rank: 1,
             sort_order: 1,
             total: 100
-          }
-        ],
-        report_name: "Payment report",
-        report_total: { total: 300 },
-        total: 2,
-        totalPages: 2
-      },
-      2: {
-        data: [
+          },
           {
             amount: 200,
             payment_method_code: "transfer",
@@ -151,8 +142,9 @@ describe("report export loaders", () => {
           }
         ],
         total: 2,
-        totalPages: 2
-      }
+        totalPages: 1,
+        report_name: "Payment report",
+        report_total: { total: 300 }
     };
 
     const data = await loadPaymentMethodsReportExportData(
@@ -160,19 +152,15 @@ describe("report export loaders", () => {
         branch_uuid_fk: "branch-1",
         date_from: "2026-06-08",
         date_to: "2026-06-08",
-        orderBy: "DESC",
         payment_method: "all"
       },
       async (params) => {
         requests.push(params);
-        return responses[params.page]!;
+        return response;
       }
     );
 
-    expect(requests.map((request) => [request.limit, request.page])).toEqual([
-      [PAGE_LIMIT_ALL_BATCH, 1],
-      [PAGE_LIMIT_ALL_BATCH, 2]
-    ]);
+    expect(requests.map((request) => [request.limit, request.page])).toEqual([[PAGE_LIMIT_ALL, 1]]);
     expect(data.cards).toEqual([{ key: "total", label: "Total", sortOrder: 1, value: 300, valueType: "money" }]);
     expect(data.reportName).toBe("Payment report");
     expect(data.reportTotal).toEqual({ total: 300 });

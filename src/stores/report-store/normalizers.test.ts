@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { reportColumns, summaryConfigs } from "@/features/report/daily-sales/daily-sales-report-columns";
 import { exportTableRows } from "@/features/report/daily-sales/daily-sales-report-export-utils";
 import { summaryCardValue } from "@/features/report/daily-sales/daily-sales-report-utils";
+import { normalizeDailySalesBillReportResponse } from "@/stores/report-store/daily-sales-bill-normalizers";
+import { normalizeDailySalesOrderReportResponse } from "@/stores/report-store/daily-sales-order-normalizers";
 import { createDailySalesBillGroups, normalizeDailySalesReportResponse } from "@/stores/report-store/normalizers";
 
 const t = (key: string) => key;
@@ -393,19 +395,6 @@ describe("daily sales report normalizers", () => {
         }
       ]
     });
-    const cards = summaryConfigs(t, "summary");
-    const columns = reportColumns(t, "summary");
-    const exportedRow = exportTableRows([normalized.rows[0]], columns)[0];
-    const cardValue = (label: string) => {
-      const card = cards.find((card) => card.label === label);
-      expect(card).toBeDefined();
-      return summaryCardValue(
-        normalized.summaryCards,
-        normalized.reportTotal,
-        card?.keys ?? []
-      );
-    };
-
     expect(normalized.rows).toHaveLength(5);
     expect(normalized.billGroups).toHaveLength(5);
     expect(normalized.reportTotal.total).toBe(3558856);
@@ -415,16 +404,175 @@ describe("daily sales report normalizers", () => {
       payment_method: "ເງິນສົດ + ໂອນ",
       total: 97644
     });
-    expect(cardValue("report.cards.orderTotal")).toBe(3218000);
-    expect(cardValue("report.cards.toppingTotal")).toBe(148000);
-    expect(cardValue("report.cards.discountAmount")).toBe(155350);
-    expect(cardValue("report.cards.itemDiscountAmount")).toBe(36300);
-    expect(cardValue("report.cards.netTotal")).toBe(3558856);
+    expect(normalized.reportTotal.total).toBe(3558856);
+  });
+
+  it("normalizes the new daily sales bill report API shape", () => {
+    const normalized = normalizeDailySalesBillReportResponse(
+      {
+        status: "success",
+        message: "success",
+        lang: "la",
+        page: 1,
+        limit: 10,
+        total: 3,
+        totalPages: 1,
+        filters: {
+          payment_method: null,
+          payment_method_name: "All"
+        },
+        summary: {
+          bill_count: 3,
+          total_qty: 8,
+          amount: 1020000,
+          before_bill_discount: 1020000,
+          discount_bill: 720000,
+          sum_discount: 720000,
+          after_discount: 300000,
+          sum_servicecharge: 29400,
+          sum_vate: 35676,
+          sum_total: 365076
+        },
+        bills: [
+          {
+            bill_no: "BILL-1",
+            order_invoice: "INV-1",
+            order_date: "2026-06-20",
+            table_name: "T01",
+            customer_name: "Walk in",
+            order_channel_name: "POS",
+            payment_method_name: "Cash",
+            total_qty: 2,
+            amount: 100000,
+            discount_bill: 10000,
+            after_discount: 90000,
+            sum_servicecharge: 9000,
+            sum_vate: 11880,
+            sum_total: 110880,
+            paid_cash: 120000,
+            paid_transfer: 0,
+            paid_amount: 120000,
+            change_amount: 9120,
+            last_paid_at: "2026-06-20 10:00:00"
+          }
+        ]
+      },
+      { limit: 10, page: 1 }
+    );
+    const cards = summaryConfigs(t, "bill");
+    const columns = reportColumns(t, "bill");
+    const exportedRow = exportTableRows([normalized.rows[0]], columns)[0];
+    const cardValue = (label: string) => {
+      const card = cards.find((item) => item.label === label);
+      expect(card).toBeDefined();
+      return summaryCardValue(normalized.summary, normalized.summary, card?.keys ?? []);
+    };
+
+    expect(normalized.pagination).toMatchObject({
+      limit: 10,
+      page: 1,
+      total: 3,
+      totalPages: 1
+    });
+    expect(normalized.rows).toHaveLength(1);
+    expect(cards.map((item) => item.label)).not.toContain(
+      "report.cards.beforeBillDiscount"
+    );
+    expect(cardValue("report.cards.orderTotal")).toBe(1020000);
+    expect(cardValue("report.cards.afterDiscount")).toBe(300000);
+    expect(cardValue("report.cards.netTotal")).toBe(365076);
+    expect(exportedRow).not.toHaveProperty("report.columns.billNo");
+    expect(exportedRow).not.toHaveProperty("report.columns.customer");
+    expect(exportedRow).not.toHaveProperty("report.columns.orderChannel");
+    expect(exportedRow).not.toHaveProperty("report.columns.paidAmount");
     expect(exportedRow).toMatchObject({
-      "report.columns.invoiceNumber": "290526-0003",
-      "report.columns.paymentType": "ເງິນສົດ + ໂອນ",
-      "report.columns.netTotal": 97644,
-      "report.columns.status": "ຊຳລະແລ້ວ"
+      "report.columns.invoiceNumber": "INV-1",
+      "report.columns.paymentType": "Cash",
+      "report.columns.totalAmount": 100000,
+      "report.columns.netTotal": 110880
+    });
+  });
+
+  it("normalizes the new detailed sales report list pagination from orders", () => {
+    const normalized = normalizeDailySalesOrderReportResponse(
+      {
+        status: "success",
+        message: "success",
+        page: 1,
+        limit: 4,
+        total: 64,
+        totalPages: 16,
+        summary: {
+          bills_count: 64,
+          amount: 250000,
+          total: 275000
+        },
+        orders: [
+          {
+            order_uuid: "order-1",
+            order_invoice: "INV-1",
+            order_date: "2026-06-20",
+            table_name: "T01",
+            payment_method_name: "Cash",
+            summary: {
+              amount: 100000,
+              total: 110000
+            },
+            sum_servicecharge: 8000,
+            sum_vate: 12000,
+            items: [
+              {
+                product_name: "Coffee",
+                qty: 2,
+                sale_price: 50000,
+                total: 100000
+              }
+            ]
+          },
+          {
+            order_uuid: "order-2",
+            order_invoice: "INV-2",
+            order_date: "2026-06-20",
+            table_name: "T02",
+            payment_method_name: "Transfer",
+            summary: {
+              amount: 150000,
+              total: 165000
+            },
+            items: [
+              {
+                product_name: "Tea",
+                qty: 3,
+                sale_price: 50000,
+                total: 150000
+              }
+            ]
+          }
+        ]
+      },
+      { limit: 4, page: 1 }
+    );
+
+    expect(normalized.pagination).toMatchObject({
+      limit: 4,
+      page: 1,
+      total: 64,
+      totalPages: 16
+    });
+    expect(normalized.billGroups).toHaveLength(2);
+    expect(normalized.rows).toHaveLength(2);
+    expect(normalized.reportTotal.total).toBe(275000);
+    expect(normalized.billGroups[0]).toMatchObject({
+      invoiceNumber: "INV-1",
+      paymentType: "Cash",
+      serviceChargeAmount: 8000,
+      tableName: "T01"
+    });
+    expect(normalized.rows[0]).toMatchObject({
+      invoice_number: "INV-1",
+      product_name: "Coffee",
+      sale_price: 50000,
+      line_total: 100000
     });
   });
 });

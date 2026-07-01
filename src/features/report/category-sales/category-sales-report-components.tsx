@@ -52,10 +52,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { PAGE_LIMIT_OPTIONS, isAllPageLimit } from "@/lib/pagination";
-import type {
-  CategorySalesReportOrder,
-  PaymentMethodReportFilter,
-} from "@/services/report";
+import { cn } from "@/lib/utils";
+import type { CategorySalesReportOrder, PaymentMethodReportFilter } from "@/services/report";
 import type {
   CategorySalesGroup,
   CategorySalesRow,
@@ -83,6 +81,8 @@ type CategorySalesSortKey =
   | "groupName"
   | "groupSummary";
 
+type FinancialValueTone = "default" | "discount" | "total";
+
 type FilterProps = {
   branchLoading: boolean;
   branchLocked: boolean;
@@ -101,14 +101,10 @@ export function CategorySalesSummaryCards({
   summary: Record<string, unknown>;
 }) {
   const { t } = useTranslation();
-  const cards = categorySalesSummaryMetricConfigs(t).filter((card) =>
-    ["total", "category_bill_count", "qty_total", "categories_count"].includes(
-      card.key,
-    ),
-  );
+  const cards = categorySalesSummaryMetricConfigs(t);
 
   return (
-    <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-5">
       {cards.map((card) => (
         <Card
           key={card.key}
@@ -429,7 +425,7 @@ function CategorySalesFilterFields({
 
       <Field className="gap-1.5">
         <FieldLabel
-          htmlFor={`${idPrefix}-order`}
+          htmlFor={`${idPrefix}-order-by`}
           className="text-xs font-bold text-muted-foreground"
         >
           {t("report.filters.orderBy")}
@@ -440,7 +436,7 @@ function CategorySalesFilterFields({
             patch({ orderBy: value as CategorySalesReportOrder })
           }
         >
-          <SelectTrigger id={`${idPrefix}-order`} className="w-full">
+          <SelectTrigger id={`${idPrefix}-order-by`} className="w-full">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -454,6 +450,7 @@ function CategorySalesFilterFields({
           </SelectContent>
         </Select>
       </Field>
+
     </>
   );
 }
@@ -624,8 +621,8 @@ export function CategorySalesTable({
 }: {
   groups: CategorySalesGroup[];
   labelOverrides?: {
-    service_charge?: string;
-    vat?: string;
+    sum_servicecharge?: string;
+    sum_vate?: string;
   };
 }) {
   const { t } = useTranslation();
@@ -633,7 +630,7 @@ export function CategorySalesTable({
   const getGroupSortValue = useCallback(
     (group: CategorySalesGroup, key: CategorySalesSortKey) => {
       if (key === "groupName") return group.groupName;
-      if (key === "groupSummary") return group.summary.total;
+      if (key === "groupSummary") return group.summary.grand_total;
       return group.rows[0]?.[key as keyof CategorySalesRow];
     },
     [],
@@ -650,26 +647,12 @@ export function CategorySalesTable({
       <Table className="w-max min-w-full table-auto text-[13px]">
         <TableHeader className="[&_th]:sticky [&_th]:top-0 [&_th]:z-30 [&_th]:whitespace-nowrap [&_th]:border-b [&_th]:border-border [&_th]:bg-background [&_th]:px-3 [&_th]:shadow-sm">
           <TableRow>
-            {/* <SortableReportTableHead
-              align="right"
-              sort={sort}
-              sortKey="rank"
-              className="w-14 text-center"
-              onSort={toggleSort}
-            >
-              {t("report.categorySales.columns.rank")}
-            </SortableReportTableHead> */}
-            <TableCell className="w-14 text-center">
-              <span className="sr-only">
-                {/* {t("report.categorySales.columns.rank")} */}
-              </span>
-            </TableCell>
             <SortableReportTableHead
               sort={sort}
-              sortKey="cateName"
+              sortKey="productName"
               onSort={toggleSort}
             >
-              {t("report.categorySales.columns.category")}
+              {t("report.categorySales.columns.product")}
             </SortableReportTableHead>
             <SortableReportTableHead
               align="right"
@@ -683,16 +666,16 @@ export function CategorySalesTable({
             <SortableReportTableHead
               align="right"
               sort={sort}
-              sortKey="itemsCount"
+              sortKey="productPriceTotal"
               className="text-right"
               onSort={toggleSort}
             >
-              {t("report.categorySales.columns.itemsCount")}
+              {t("report.categorySales.columns.productPriceTotal")}
             </SortableReportTableHead>
             <SortableReportTableHead
               align="right"
               sort={sort}
-              sortKey="qtyTotal"
+              sortKey="totalQty"
               className="text-right"
               onSort={toggleSort}
             >
@@ -701,11 +684,20 @@ export function CategorySalesTable({
             <SortableReportTableHead
               align="right"
               sort={sort}
-              sortKey="amount"
+              sortKey="toppingTotal"
               className="text-right"
               onSort={toggleSort}
             >
-              {t("report.categorySales.columns.amount")}
+              {t("report.categorySales.columns.toppingTotal")}
+            </SortableReportTableHead>
+            <SortableReportTableHead
+              align="right"
+              sort={sort}
+              sortKey="total"
+              className="text-right"
+              onSort={toggleSort}
+            >
+              {t("report.categorySales.columns.total")}
             </SortableReportTableHead>
             <SortableReportTableHead
               align="right"
@@ -723,7 +715,7 @@ export function CategorySalesTable({
               className="text-right"
               onSort={toggleSort}
             >
-              {labelOverrides?.service_charge ??
+              {labelOverrides?.sum_servicecharge ??
                 t("report.categorySales.columns.serviceCharge")}
             </SortableReportTableHead>
             <SortableReportTableHead
@@ -733,137 +725,124 @@ export function CategorySalesTable({
               className="text-right"
               onSort={toggleSort}
             >
-              {labelOverrides?.vat ?? t("report.categorySales.columns.vat")}
+              {labelOverrides?.sum_vate ?? t("report.categorySales.columns.vat")}
             </SortableReportTableHead>
             <SortableReportTableHead
               align="right"
               sort={sort}
-              sortKey="total"
+              sortKey="grandTotal"
               className="text-right"
               onSort={toggleSort}
             >
-              {t("report.categorySales.columns.total")}
-            </SortableReportTableHead>
-            <SortableReportTableHead
-              align="right"
-              sort={sort}
-              sortKey="salePercent"
-              className="text-right"
-              onSort={toggleSort}
-            >
-              {t("report.categorySales.columns.salePercent")}
+              {t("report.categorySales.columns.grandTotal")}
             </SortableReportTableHead>
           </TableRow>
         </TableHeader>
 
         <TableBody className="[&_td]:whitespace-nowrap [&_td]:px-3">
-          {sortedGroups.map((group) => {
-            const rows = sortRowsLocally(
-              group.rows,
-              sort,
-              (row, key) => row[key as keyof CategorySalesRow],
-            );
-
-            return (
+          {sortedGroups.map((group) => (
               <Fragment key={group.groupUuid || group.groupName}>
                 <TableRow className="border-t-2 border-border bg-muted/50 hover:bg-muted/50">
-                  <TableCell colSpan={11} className="py-3">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-black">
-                          {group.groupName}
-                        </p>
-                        {/* <p className="mt-0.5 text-xs text-muted-foreground">
-                          {t("report.categorySales.groupSummary", {
-                            categories:
-                              group.summary.categories_count ??
-                              group.rows.length,
-                            qty: group.summary.qty_total ?? 0,
-                          })}
-                        </p> */}
-                      </div>
-                      {/* <Badge className="h-7 whitespace-nowrap">
-                        {t("report.categorySales.columns.total")}:{" "}
-                        {displayMetric(group.summary.total, "money")}
-                      </Badge> */}
+                  <TableCell colSpan={10} className="py-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-black">
+                        {group.groupName}
+                      </p>
                     </div>
                   </TableCell>
                 </TableRow>
 
-                {rows.map((row) => (
-                  <TableRow
-                    key={`${row.groupUuid}-${row.cateUuid}-${row.rank}`}
-                    className="hover:bg-muted/20"
-                  >
-                    <TableCell className="text-center">
-                      {/* <Badge className="h-6 min-w-9 justify-center px-1.5 text-xs tabular-nums">
-                        #{row.rank}
-                      </Badge> */}
-                    </TableCell>
-                    <TableCell className="font-bold">{row.cateName}</TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {displayMetric(row.billCount, "number")}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {displayMetric(row.itemsCount, "number")}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {displayMetric(row.qtyTotal, "number")}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {displayMetric(row.amount, "money")}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {displayMetric(row.discountTotal, "money")}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {displayMetric(row.serviceCharge, "money")}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {displayMetric(row.vat, "money")}
-                    </TableCell>
-                    <TableCell className="text-right font-black tabular-nums">
-                      {displayMetric(row.total, "money")}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {displayMetric(row.salePercent, "percent")}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {(() => {
+                  const rows = sortRowsLocally(
+                    group.rows,
+                    sort,
+                    (row, key) => row[key as keyof CategorySalesRow],
+                  );
 
-                <TableRow className="border-b-2 border-border bg-primary/20 hover:bg-primary/5">
-                  <TableCell colSpan={2} className="font-black text-primary">
-                    {/* {t("common.total")} {group.groupName} */}
+                  return (
+                    <>
+                      {rows.map((row) => (
+                        <TableRow
+                          key={`${row.groupUuid}-${row.cateUuid}-${row.productUuid}-${row.rank}`}
+                          className="hover:bg-muted/20"
+                        >
+                          <TableCell>
+                            <div className="ml-6 min-w-40 border-l border-border/70 pl-3">
+                              <p className="truncate font-bold">{row.productName}</p>
+                              {row.cateName ? (
+                                <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                                  {row.cateName}
+                                </p>
+                              ) : null}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums">
+                            {displayMetric(row.billCount, "number")}
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums">
+                            {displayMetric(row.productPriceTotal, "money")}
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums">
+                            {displayMetric(row.totalQty, "number")}
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums">
+                            {displayMetric(row.toppingTotal, "money")}
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums">
+                            {displayMetric(row.total, "money")}
+                          </TableCell>
+                          <TableCell className={financialValueClass(row.discountTotal, "discount")}>
+                            {displayMetric(row.discountTotal, "money")}
+                          </TableCell>
+                          <TableCell className={financialValueClass(row.serviceCharge)}>
+                            {displayMetric(row.serviceCharge, "money")}
+                          </TableCell>
+                          <TableCell className={financialValueClass(row.vat)}>
+                            {displayMetric(row.vat, "money")}
+                          </TableCell>
+                          <TableCell className={financialValueClass(row.grandTotal, "total")}>
+                            {displayMetric(row.grandTotal, "money")}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </>
+                  );
+                })()}
+
+                <TableRow className="border-b-2 border-border bg-primary/10 hover:bg-primary/10">
+                  <TableCell className="font-black text-primary">
+                    <span className="sr-only">{t("common.total")}</span>
                   </TableCell>
                   <TableCell className="text-right font-black tabular-nums">
-                    {displayMetric(group.summary.category_bill_count, "number")}
+                    {displayMetric(group.summary.bill_count, "number")}
                   </TableCell>
                   <TableCell className="text-right font-black tabular-nums">
-                    {displayMetric(group.summary.items_count, "number")}
+                    {displayMetric(group.summary.product_price_total, "money")}
                   </TableCell>
                   <TableCell className="text-right font-black tabular-nums">
-                    {displayMetric(group.summary.qty_total, "number")}
+                    {displayMetric(group.summary.total_qty, "number")}
                   </TableCell>
                   <TableCell className="text-right font-black tabular-nums">
-                    {displayMetric(group.summary.amount, "money")}
+                    {displayMetric(group.summary.topping_total, "money")}
                   </TableCell>
-                  <TableCell className="text-right font-black tabular-nums">
-                    {displayMetric(group.summary.discount_total, "money")}
-                  </TableCell>
-                  <TableCell className="text-right font-black tabular-nums">
-                    {displayMetric(group.summary.service_charge, "money")}
-                  </TableCell>
-                  <TableCell className="text-right font-black tabular-nums">
-                    {displayMetric(group.summary.vat, "money")}
-                  </TableCell>
-                  <TableCell className="text-right font-black tabular-nums text-primary">
+                  <TableCell className={financialValueClass(group.summary.total, "default", true)}>
                     {displayMetric(group.summary.total, "money")}
                   </TableCell>
-                  <TableCell />
+                  <TableCell className={financialValueClass(summaryDiscountTotal(group.summary), "discount", true)}>
+                    {displayMetric(summaryDiscountTotal(group.summary), "money")}
+                  </TableCell>
+                  <TableCell className={financialValueClass(group.summary.sum_servicecharge, "default", true)}>
+                    {displayMetric(group.summary.sum_servicecharge, "money")}
+                  </TableCell>
+                  <TableCell className={financialValueClass(group.summary.sum_vate, "default", true)}>
+                    {displayMetric(group.summary.sum_vate, "money")}
+                  </TableCell>
+                  <TableCell className={financialValueClass(group.summary.grand_total, "total", true, "text-primary")}>
+                    {displayMetric(group.summary.grand_total, "money")}
+                  </TableCell>
                 </TableRow>
               </Fragment>
-            );
-          })}
+            ))}
         </TableBody>
       </Table>
     </div>
@@ -872,11 +851,12 @@ export function CategorySalesTable({
 
 export function CategorySalesMobileList({
   groups,
+  labelOverrides,
 }: {
   groups: CategorySalesGroup[];
   labelOverrides?: {
-    service_charge?: string;
-    vat?: string;
+    sum_servicecharge?: string;
+    sum_vate?: string;
   };
 }) {
   const { t } = useTranslation();
@@ -889,95 +869,88 @@ export function CategorySalesMobileList({
           className="overflow-hidden rounded-md border border-border bg-card shadow-sm"
         >
           <div className="bg-muted/40 px-3 py-3">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <h3 className="truncate text-sm font-black">
-                  {group.groupName}
-                </h3>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  {t("report.categorySales.groupSummary", {
-                    categories:
-                      group.summary.categories_count ?? group.rows.length,
-                    qty: group.summary.qty_total ?? 0,
-                  })}
-                </p>
-              </div>
-              <div className="shrink-0 text-right">
-                <p className="text-[11px] font-bold text-muted-foreground">
-                  {t("report.categorySales.columns.total")}
-                </p>
-                <p className="text-sm font-black tabular-nums">
-                  {displayMetric(group.summary.total, "money")}
-                </p>
-              </div>
+            <div className="min-w-0">
+              <h3 className="truncate text-sm font-black">
+                {group.groupName}
+              </h3>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {t("report.categorySales.groupSummary", {
+                  categories: group.categories.length,
+                  qty: group.summary.total_qty ?? 0,
+                })}
+              </p>
             </div>
           </div>
 
           <div className="divide-y divide-border">
             {group.rows.map((row) => (
               <div
-                key={`${row.groupUuid}-${row.cateUuid}-${row.rank}`}
-                className="p-3"
+                key={`${row.groupUuid}-${row.cateUuid}-${row.productUuid}-${row.rank}`}
+                className="py-3 pr-3"
               >
-                <div className="flex items-start justify-between gap-3">
+                <div className="ml-3 border-l border-border/70 pl-3">
                   <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <Badge className="h-6 min-w-9 shrink-0 justify-center px-1.5 text-xs tabular-nums">
-                        #{row.rank}
-                      </Badge>
+                    <div className="min-w-0">
                       <p className="truncate text-sm font-black">
+                        {row.productName}
+                      </p>
+                      <p className="mt-0.5 truncate text-xs text-muted-foreground">
                         {row.cateName}
                       </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {t("report.categorySales.columns.qtyTotal")}:{" "}
+                        {displayMetric(row.totalQty, "number")}
+                      </p>
                     </div>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {t("report.categorySales.columns.salePercent")}:{" "}
-                      {displayMetric(row.salePercent, "percent")}
-                    </p>
+                    <div className="shrink-0 text-right">
+                      <p className="text-[11px] font-bold text-muted-foreground">
+                        {t("report.categorySales.columns.grandTotal")}
+                      </p>
+                      <p className={cn("text-sm tabular-nums", financialValueTextClass(row.grandTotal, "total"))}>
+                        {displayMetric(row.grandTotal, "money")}
+                      </p>
+                    </div>
                   </div>
-                  <div className="shrink-0 text-right">
-                    <p className="text-[11px] font-bold text-muted-foreground">
-                      {t("report.categorySales.columns.total")}
-                    </p>
-                    <p className="text-sm font-black tabular-nums">
-                      {displayMetric(row.total, "money")}
-                    </p>
+
+                  <div className="mt-3 grid grid-cols-3 gap-2">
+                    <MetricTile
+                      label={t("report.categorySales.columns.billCount")}
+                      value={row.billCount}
+                      kind="number"
+                    />
+                    <MetricTile
+                      label={t("report.categorySales.columns.productPriceTotal")}
+                      value={row.productPriceTotal}
+                      kind="money"
+                    />
+                    <MetricTile
+                      label={t("report.categorySales.columns.total")}
+                      value={row.total}
+                      kind="money"
+                    />
                   </div>
-                </div>
 
-                <div className="mt-3 grid grid-cols-3 gap-2">
-                  <MetricTile
-                    label={t("report.categorySales.columns.billCount")}
-                    value={row.billCount}
-                    kind="number"
-                  />
-                  <MetricTile
-                    label={t("report.categorySales.columns.qtyTotal")}
-                    value={row.qtyTotal}
-                    kind="number"
-                  />
-                  <MetricTile
-                    label={t("report.categorySales.columns.amount")}
-                    value={row.amount}
-                    kind="money"
-                  />
-                </div>
-
-                <div className="mt-2 grid grid-cols-3 gap-2">
-                  <MetricTile
-                    label={t("report.categorySales.columns.discountTotal")}
-                    value={row.discountTotal}
-                    kind="money"
-                  />
-                  <MetricTile
-                    label={t("report.categorySales.columns.serviceCharge")}
-                    value={row.serviceCharge}
-                    kind="money"
-                  />
-                  <MetricTile
-                    label={t("report.categorySales.columns.vat")}
-                    value={row.vat}
-                    kind="money"
-                  />
+                  <div className="mt-2 grid grid-cols-3 gap-2">
+                    <MetricTile
+                      label={t("report.categorySales.columns.discountTotal")}
+                      value={row.discountTotal}
+                      kind="money"
+                      tone="discount"
+                    />
+                    <MetricTile
+                      label={
+                        labelOverrides?.sum_servicecharge ??
+                        t("report.categorySales.columns.serviceCharge")
+                      }
+                      value={row.serviceCharge}
+                      kind="money"
+                    />
+                    <MetricTile
+                      label={labelOverrides?.sum_vate ?? t("report.categorySales.columns.vat")}
+                      value={row.vat}
+                      kind="money"
+                    />
+                  </div>
                 </div>
               </div>
             ))}
@@ -987,17 +960,17 @@ export function CategorySalesMobileList({
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <p className="truncate text-sm font-black text-primary">
-                  {t("common.total")} {group.groupName}
+                  {t("common.total")}
                 </p>
                 <p className="mt-0.5 text-xs text-muted-foreground">
                   {t("report.categorySales.columns.billCount")}:{" "}
-                  {displayMetric(group.summary.category_bill_count, "number")} /{" "}
+                  {displayMetric(group.summary.bill_count, "number")} /{" "}
                   {t("report.categorySales.columns.qtyTotal")}:{" "}
-                  {displayMetric(group.summary.qty_total, "number")}
+                  {displayMetric(group.summary.total_qty, "number")}
                 </p>
               </div>
               <p className="shrink-0 text-sm font-black tabular-nums text-primary">
-                {displayMetric(group.summary.total, "money")}
+                {displayMetric(group.summary.grand_total, "money")}
               </p>
             </div>
           </div>
@@ -1010,21 +983,66 @@ export function CategorySalesMobileList({
 function MetricTile({
   kind,
   label,
+  tone = "default",
   value,
 }: {
   kind: "money" | "number";
   label: string;
+  tone?: FinancialValueTone;
   value: unknown;
 }) {
+  const valueClassName = kind === "money" ? financialValueTextClass(value, tone) : "text-foreground";
+
   return (
     <div className="min-w-0 rounded-md border border-border bg-muted/20 px-2.5 py-2">
       <p className="truncate text-[10px] font-bold uppercase text-muted-foreground">
         {label}
       </p>
-      <p className="truncate text-xs font-black tabular-nums text-foreground">
+      <p className={cn("truncate text-xs font-black tabular-nums", valueClassName)}>
         {displayMetric(value, kind)}
       </p>
     </div>
+  );
+}
+
+function financialValueClass(
+  value: unknown,
+  tone: FinancialValueTone = "default",
+  strong = false,
+  positiveTotalClass = "text-foreground"
+) {
+  return cn(
+    "text-right tabular-nums",
+    financialValueTextClass(value, tone, strong, positiveTotalClass)
+  );
+}
+
+function financialValueTextClass(
+  value: unknown,
+  tone: FinancialValueTone = "default",
+  strong = false,
+  positiveTotalClass = "text-foreground"
+) {
+  const number = metricNumber(value);
+
+  return cn(
+    (strong || tone === "total" || (tone === "discount" && number > 0)) && "font-black",
+    number === 0 && "text-muted-foreground",
+    tone === "discount" && number > 0 && "text-destructive",
+    tone === "total" && number > 0 && positiveTotalClass
+  );
+}
+
+function metricNumber(value: unknown) {
+  const number = Number(value ?? 0);
+  return Number.isFinite(number) ? number : 0;
+}
+
+function summaryDiscountTotal(summary: Record<string, unknown>) {
+  return (
+    metricNumber(summary.discount_total) ||
+    metricNumber(summary.sum_discount) ||
+    metricNumber(summary.discount_item_amount) + metricNumber(summary.discount_bill)
   );
 }
 
@@ -1041,8 +1059,8 @@ export function CategorySalesExportSurface({
   containerRef: RefObject<HTMLDivElement | null>;
   dateRange: string;
   labelOverrides?: {
-    service_charge?: string;
-    vat?: string;
+    sum_servicecharge?: string;
+    sum_vate?: string;
   };
   methodLabel: string;
   rows: CategorySalesRow[];
@@ -1086,9 +1104,9 @@ export function CategorySalesExportSurface({
       <table className="report-print-table">
         <thead>
           <tr>
-            <th>{t("report.categorySales.columns.rank")}</th>
             <th>{t("report.categorySales.columns.group")}</th>
             <th>{t("report.categorySales.columns.category")}</th>
+            <th>{t("report.categorySales.columns.product")}</th>
             {rowMetrics.map((metric) => (
               <th key={metric.key} className="is-right">
                 {metric.label}
@@ -1099,9 +1117,9 @@ export function CategorySalesExportSurface({
         <tbody>
           {rows.map((row) => (
             <tr key={`${row.groupUuid}-${row.cateUuid}-${row.rank}`}>
-              <td className="is-center">{row.rank}</td>
               <td>{row.groupName}</td>
               <td>{row.cateName}</td>
+              <td>{row.productName}</td>
               {rowMetrics.map((metric) => (
                 <td key={metric.key} className="is-right">
                   {displayMetric(row[metric.field], metric.kind)}

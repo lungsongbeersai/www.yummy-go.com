@@ -125,7 +125,6 @@ export function exportBillRows(
       [t("report.columns.saleDate")]: group.saleDate,
       [t("report.columns.tableName")]: group.tableName,
       [t("report.columns.paymentType")]: group.paymentType,
-      [t("report.columns.cashierName")]: group.cashierName,
       [t("report.billItems")]: group.itemCount,
       [t("report.cards.netTotal")]: group.lineTotal,
     };

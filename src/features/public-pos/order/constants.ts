@@ -28,3 +28,5 @@ export const DEFAULT_PUBLIC_CATEGORY_ICON = "mdi:folder-outline";
 export const PUBLIC_SEARCH_HISTORY_LIMIT = 10;
 export const PUBLIC_SEARCH_HISTORY_STORAGE_PREFIX =
   "yummy-go-public-pos-search-history";
+export const PUBLIC_PRODUCT_LAYOUT_STORAGE_KEY =
+  "yummy-go-public-pos-product-layout";

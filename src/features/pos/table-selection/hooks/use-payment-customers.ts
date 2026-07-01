@@ -1,10 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { customerFormInput } from "@/features/settings/customer/customer-utils";
 import { toApiLanguage } from "@/lib/language";
 import type { Customer } from "@/services/customer";
 import { authStoreUuid, type AuthUser } from "@/stores/auth-store";
 import { useCustomerStore } from "@/stores/customer-store";
+import { useToastStore } from "@/stores/toast-store";
 import {
   CUSTOMER_SEARCH_DEBOUNCE_MS,
   CUSTOMER_SEARCH_LIMIT,
@@ -26,10 +29,15 @@ export function usePaymentCustomers({
   open,
   user,
 }: UsePaymentCustomersParams) {
+  const { t } = useTranslation();
   const loadCustomers = useCustomerStore((state) => state.load);
+  const saveCustomer = useCustomerStore((state) => state.save);
+  const showToast = useToastStore((state) => state.show);
   const storeUuid = authStoreUuid(user);
   const [customerUuid, setCustomerUuid] = useState("");
   const [customerOpen, setCustomerOpen] = useState(false);
+  const [customerCreateOpen, setCustomerCreateOpen] = useState(false);
+  const [customerCreateSaving, setCustomerCreateSaving] = useState(false);
   const [customerSearch, setCustomerSearch] = useState("");
   const [customerOptions, setCustomerOptions] = useState<Customer[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
@@ -48,6 +56,8 @@ export function usePaymentCustomers({
     selectedCustomerRef.current = null;
     setCustomerUuid("");
     setCustomerOpen(false);
+    setCustomerCreateOpen(false);
+    setCustomerCreateSaving(false);
     setCustomerSearch("");
     setCustomerOptions([]);
     setSelectedCustomer(null);
@@ -139,7 +149,7 @@ export function usePaymentCustomers({
   }, [customerOpen, customerSearch, language, loadCustomers, open, storeUuid]);
 
   useEffect(() => {
-    if (!open || customerUuid || !storeUuid) return;
+    if (!open || customerUuid || !storeUuid || customerCreateOpen) return;
 
     const requestId = defaultRequestIdRef.current + 1;
     defaultRequestIdRef.current = requestId;
@@ -173,7 +183,7 @@ export function usePaymentCustomers({
         defaultRequestIdRef.current += 1;
       }
     };
-  }, [customerUuid, language, loadCustomers, open, selectCustomer, storeUuid]);
+  }, [customerCreateOpen, customerUuid, language, loadCustomers, open, selectCustomer, storeUuid]);
 
   const handleCustomerOpenChange = useCallback((nextOpen: boolean) => {
     setCustomerOpen(nextOpen);
@@ -186,7 +196,106 @@ export function usePaymentCustomers({
     [selectCustomer],
   );
 
+  const openCustomerCreate = useCallback(() => {
+    if (!storeUuid) {
+      showToast({
+        title: t("settings.saveFailed"),
+        description: t("settings.storeRequired"),
+        tone: "error",
+      });
+      return;
+    }
+
+    setCustomerOpen(false);
+    setCustomerSearch("");
+    setCustomerCreateOpen(true);
+  }, [showToast, storeUuid, t]);
+
+  const handleCustomerCreateOpenChange = useCallback(
+    (nextOpen: boolean) => {
+      if (customerCreateSaving) return;
+      setCustomerCreateOpen(nextOpen);
+    },
+    [customerCreateSaving],
+  );
+
+  const handleCustomerCreateSubmit = useCallback(
+    async (formData: FormData) => {
+      if (customerCreateSaving) return;
+
+      const name = String(formData.get("customer_name") ?? "").trim();
+      if (!storeUuid) {
+        showToast({
+          title: t("settings.saveFailed"),
+          description: t("settings.storeRequired"),
+          tone: "error",
+        });
+        return;
+      }
+      if (!name) {
+        showToast({
+          title: t("settings.saveFailed"),
+          description: t("settings.customerNameRequired"),
+          tone: "error",
+        });
+        return;
+      }
+
+      setCustomerCreateSaving(true);
+      try {
+        const savedCustomer = await saveCustomer(customerFormInput(formData, storeUuid, null));
+        let nextCustomer: Customer | null = customerUuidOf(savedCustomer) ? savedCustomer : null;
+
+        if (!nextCustomer) {
+          try {
+            const rows = await loadCustomers({
+              store_uuid_fk: storeUuid,
+              page: 1,
+              limit: CUSTOMER_SEARCH_LIMIT,
+              search: name,
+              lang: toApiLanguage(language),
+            });
+            const options = dedupeCustomers(rows);
+            nextCustomer =
+              defaultCustomerFromRows(options, name) ??
+              options.find((customer) => Boolean(customerUuidOf(customer))) ??
+              null;
+            setCustomerOptions(withSelectedCustomer(options, nextCustomer));
+          } catch {
+            nextCustomer = null;
+          }
+        }
+
+        if (nextCustomer) selectCustomer(nextCustomer, true);
+        else setCustomerSearch(name);
+
+        setCustomerCreateOpen(false);
+        showToast({ title: t("settings.saved"), tone: "success" });
+      } catch (error) {
+        showToast({
+          title: t("settings.saveFailed"),
+          description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
+          tone: "error",
+        });
+      } finally {
+        setCustomerCreateSaving(false);
+      }
+    },
+    [
+      customerCreateSaving,
+      language,
+      loadCustomers,
+      saveCustomer,
+      selectCustomer,
+      showToast,
+      storeUuid,
+      t,
+    ],
+  );
+
   return {
+    customerCreateOpen,
+    customerCreateSaving,
     customerOpen,
     customerOptions,
     customerSearch,
@@ -194,6 +303,9 @@ export function usePaymentCustomers({
     customerUuid,
     handleCustomerOpenChange,
     handleCustomerSelect,
+    handleCustomerCreateOpenChange,
+    handleCustomerCreateSubmit,
+    openCustomerCreate,
     selectedCustomerOption,
     setCustomerSearch,
   };

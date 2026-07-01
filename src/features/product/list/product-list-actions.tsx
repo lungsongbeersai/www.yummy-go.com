@@ -1,45 +1,51 @@
 "use client";
 
-import { Bell, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
-  DropdownMenuCheckboxItem,
+  // DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
+  // DropdownMenuLabel,
+  // DropdownMenuRadioGroup,
+  // DropdownMenuRadioItem,
   DropdownMenuSeparator,
-  DropdownMenuTrigger
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Spinner } from "@/components/ui/spinner";
-import { binaryFlag, detailStockSummary, productDetails } from "./product-list-utils";
-import { bulkStockActiveMode } from "./product-list-status";
-import type { ProductStatusKey, ProductStockModeValue, ProductTableRow } from "./product-list-types";
+// import { Spinner } from "@/components/ui/spinner";
+// import { binaryFlag, detailStockSummary, productDetails } from "./product-list-utils";
+// import { bulkStockActiveMode } from "./product-list-status";
+// import type { ProductStatusKey, ProductStockModeValue, ProductTableRow } from "./product-list-types";
 import type { ProductListWorkflow } from "./use-product-list-workflow";
+import { ProductTableRow } from "./product-list-types";
 
 export function ProductListActions({
   row,
-  workflow
+  workflow,
 }: {
   row: ProductTableRow;
   workflow: ProductListWorkflow;
 }) {
-  const details = productDetails(row);
-  const stockSummary = detailStockSummary(details);
-  const activeStockMode = bulkStockActiveMode(stockSummary);
-  const stockPendingKey: ProductStatusKey = `stock-all:${row.prod_uuid}`;
-  const stockPending = workflow.pendingKeys.has(stockPendingKey);
-  const notificationKey: ProductStatusKey = `notification:${row.prod_uuid}`;
-  const notificationPending = workflow.pendingKeys.has(notificationKey);
-  const notificationOn = binaryFlag(row.prod_notification, "2") === "1";
+  // const details = productDetails(row);
+  // const stockSummary = detailStockSummary(details);
+  // const activeStockMode = bulkStockActiveMode(stockSummary);
+  // const stockPendingKey: ProductStatusKey = `stock-all:${row.prod_uuid}`;
+  // const stockPending = workflow.pendingKeys.has(stockPendingKey);
+  // const notificationKey: ProductStatusKey = `notification:${row.prod_uuid}`;
+  // const notificationPending = workflow.pendingKeys.has(notificationKey);
+  // const notificationOn = binaryFlag(row.prod_notification, "2") === "1";
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button type="button" size="iconSm" variant="ghost" aria-label={workflow.t("common.actions")}>
+        <Button
+          type="button"
+          size="iconSm"
+          variant="ghost"
+          aria-label={workflow.t("common.actions")}
+        >
           <MoreHorizontal />
         </Button>
       </DropdownMenuTrigger>
@@ -96,7 +102,10 @@ export function ProductListActions({
         </DropdownMenuGroup> */}
         {/* <DropdownMenuSeparator /> */}
         <DropdownMenuGroup>
-          <DropdownMenuItem variant="destructive" onSelect={() => workflow.setDeleteTarget(row)}>
+          <DropdownMenuItem
+            variant="destructive"
+            onSelect={() => workflow.setDeleteTarget(row)}
+          >
             <Trash2 />
             {workflow.t("actions.delete")}
           </DropdownMenuItem>

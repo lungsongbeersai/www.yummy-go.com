@@ -100,8 +100,12 @@ export function DailySalesReportPage({
               exportDisabled: report.exportDisabled,
               exporting: report.exporting,
               loading: report.loading,
-              paymentMethod: report.appliedFilters.paymentMethod,
-              printDisabled: report.loading || Boolean(report.exporting) || !report.selectedBillCount,
+              printDisabled:
+                report.appliedFilters.typePage === "bill" ||
+                report.loading ||
+                Boolean(report.exporting) ||
+                !report.selectedBillCount,
+              search: report.appliedFilters.search,
               selectedCount: report.selectedCount,
               selectedBillCount: report.selectedBillCount,
               typePage: report.appliedFilters.typePage,
@@ -111,9 +115,9 @@ export function DailySalesReportPage({
               onExportExcel: () => void report.exportExcel(),
               onExportPdf: () => void report.exportPdf(),
               onOpenFilters: report.openMobileFilters,
-              onPaymentMethodChange: (paymentMethod) => report.applyTableHeaderFilters({ paymentMethod }),
               onPrintReport: () => void report.printReport(),
               onRefresh: () => void report.load(),
+              onSearchChange: (search) => report.applyTableHeaderFilters({ search }),
               onTypePageChange: (typePage) => report.applyTableHeaderFilters({ typePage }),
             }}
             footer={
@@ -184,7 +188,11 @@ export function DailySalesReportPage({
           summaryCards={report.renderedExportData.summaryCards}
           title={t("report.dailySalesTitle")}
           typePage={report.appliedFilters.typePage}
-          typeLabel={report.appliedFilters.typePage === "summary" ? t("report.summary") : t("report.detail")}
+          typeLabel={
+            report.appliedFilters.typePage === "bill"
+              ? t("report.salesReportByBill")
+              : t("report.detailedSalesReport")
+          }
         />
       ) : null}
     </>

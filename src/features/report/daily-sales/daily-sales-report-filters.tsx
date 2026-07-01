@@ -25,12 +25,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { PAGE_LIMIT_OPTIONS, isAllPageLimit } from "@/lib/pagination";
-import { reportOrderLabel } from "../report-sort-utils";
+import { reportOrderLabel, reportOrderOptions } from "../report-sort-utils";
 import type {
   DetailPaginationBasis,
   ReportBranchOption,
   ReportFilters,
 } from "./daily-sales-report-types";
+import {
+  paymentMethodLabel,
+  paymentMethodOptions,
+} from "./daily-sales-report-utils";
 
 type ReportFilterProps = {
   branchLoading: boolean;
@@ -160,11 +164,10 @@ export function MobileReportFilterSummary({
 }) {
   const { t } = useTranslation();
   const typeLabel =
-    filters.typePage === "summary" ? t("report.summary") : t("report.detail");
-  const paymentMethodLabel =
-    filters.paymentMethod === "all"
-      ? t("common.all")
-      : t(`report.paymentMethods.${filters.paymentMethod}`);
+    filters.typePage === "bill"
+      ? t("report.salesReportByBill")
+      : t("report.detailedSalesReport");
+  const paymentLabel = paymentMethodLabel(t, filters.paymentMethod);
   const limitCount = isAllPageLimit(filters.limit)
     ? t("common.all")
     : filters.limit;
@@ -193,8 +196,13 @@ export function MobileReportFilterSummary({
               {typeLabel}
             </Badge>
             <Badge className="h-6 border-border bg-muted px-2 text-[11px] text-muted-foreground">
-              {paymentMethodLabel}
+              {paymentLabel}
             </Badge>
+            {filters.search ? (
+              <Badge className="h-6 max-w-36 truncate border-border bg-muted px-2 text-[11px] text-muted-foreground">
+                {filters.search}
+              </Badge>
+            ) : null}
             <Badge className="h-6 border-border bg-muted px-2 text-[11px] text-muted-foreground">
               {limitLabel}
             </Badge>
@@ -295,6 +303,60 @@ function ReportFilterFields({
           value={draftFilters.dateTo}
           onChange={(event) => patch({ dateTo: event.target.value })}
         />
+      </Field>
+      <Field className="min-w-0 gap-1.5">
+        <FieldLabel
+          htmlFor={`${idPrefix}-payment-method`}
+          className="text-xs font-bold text-muted-foreground"
+        >
+          {t("report.filters.paymentMethod")}
+        </FieldLabel>
+        <Select
+          value={draftFilters.paymentMethod}
+          onValueChange={(value) =>
+            patch({ paymentMethod: value as ReportFilters["paymentMethod"] })
+          }
+        >
+          <SelectTrigger id={`${idPrefix}-payment-method`} className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              {paymentMethodOptions.map((method) => (
+                <SelectItem key={method} value={method}>
+                  {paymentMethodLabel(t, method)}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+      </Field>
+      <Field className="min-w-0 gap-1.5">
+        <FieldLabel
+          htmlFor={`${idPrefix}-order-by`}
+          className="text-xs font-bold text-muted-foreground"
+        >
+          {t("report.filters.orderBy")}
+        </FieldLabel>
+        <Select
+          value={draftFilters.orderBy}
+          onValueChange={(value) =>
+            patch({ orderBy: value as ReportFilters["orderBy"] })
+          }
+        >
+          <SelectTrigger id={`${idPrefix}-order-by`} className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              {reportOrderOptions(t).map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
       </Field>
       <Field className="min-w-0 gap-1.5">
         <FieldLabel

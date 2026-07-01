@@ -30,6 +30,7 @@ import {
   isServedCartItem,
   hasMoreMenuToRender,
   maxAvailableQty,
+  normalizePublicProductLayoutMode,
   normalizePublicSearchHistory,
   promotionQuantity,
   statusSectionLabel,
@@ -93,6 +94,13 @@ function category(
 }
 
 describe("public POS product helpers", () => {
+  it("normalizes product layout modes with grid as the safe fallback", () => {
+    expect(normalizePublicProductLayoutMode("grid")).toBe("grid");
+    expect(normalizePublicProductLayoutMode("list")).toBe("list");
+    expect(normalizePublicProductLayoutMode("table")).toBe("grid");
+    expect(normalizePublicProductLayoutMode(null)).toBe("grid");
+  });
+
   it("blocks sold-out and expired promotion products before choosing actions", () => {
     expect(
       getProductBlockedState(product({ can_add: false }), normalStatus),

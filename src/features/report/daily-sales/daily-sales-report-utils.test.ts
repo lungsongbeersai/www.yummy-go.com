@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { DailySalesBillGroup } from "@/stores/report-store";
 import {
+  cardSummaryConfigs,
   reportColumns,
   reportDetailItemColumns,
   summaryConfigs,
@@ -14,13 +15,14 @@ import {
 } from "./daily-sales-report-export-utils";
 import {
   billSummaryMetrics,
+  billPaymentMethodParam,
   detailPaginationBasis,
+  detailPaymentMethodParam,
   firstNumber,
   formatDate,
   hasDisplayValue,
   isCancelledRow,
   isPaymentAttentionRow,
-  paymentMethodParam,
   readValue,
   reportImageColor,
   reportImageSrc,
@@ -30,6 +32,7 @@ import {
   statusClass,
   summaryCardValue,
   textValue,
+  toppingLines,
 } from "./daily-sales-report-utils";
 import type { ReportFilters } from "./daily-sales-report-types";
 
@@ -83,8 +86,70 @@ function billGroup(
 
 describe("daily sales report basic helpers", () => {
   it("keeps the all payment filter because the API expects it", () => {
-    expect(paymentMethodParam("all")).toBe("all");
-    expect(paymentMethodParam("cash")).toBe("cash");
+    expect(billPaymentMethodParam("All")).toBe("All");
+    expect(billPaymentMethodParam("1")).toBe("1");
+    expect(detailPaymentMethodParam("All")).toBe("all");
+    expect(detailPaymentMethodParam("1")).toBe("cash");
+    expect(detailPaymentMethodParam("2")).toBe("transfer");
+    expect(detailPaymentMethodParam("4")).toBe("debt");
+  });
+
+  it("uses only backend summary fields for detailed report summary cards", () => {
+    const cards = summaryConfigs(t, "detail");
+
+    expect(cards.map((card) => card.keys)).toEqual([
+      ["bill_count"],
+      ["total_qty"],
+      ["amount"],
+      ["discount_item"],
+      ["discount_bill"],
+      ["sum_discount"],
+      ["sum_servicecharge"],
+      ["sum_vate"],
+      ["sum_total"],
+    ]);
+
+    const summary = {
+      amount: 29_173_726,
+      bill_count: 64,
+      discount_bill: 1_176_056,
+      discount_item: 421_460,
+      sum_discount: 1_597_516,
+      sum_servicecharge: 2_131_726,
+      sum_total: 32_779_324,
+      sum_vate: 3_071_389,
+      total_qty: 433,
+    };
+
+    expect(
+      cards.map((card) => summaryCardValue(summary, summary, card.keys)),
+    ).toEqual([
+      64,
+      433,
+      29_173_726,
+      421_460,
+      1_176_056,
+      1_597_516,
+      2_131_726,
+      3_071_389,
+      32_779_324,
+    ]);
+  });
+
+  it("keeps card summary configs tied to the bill report backend summary", () => {
+    const cards = cardSummaryConfigs(t);
+
+    expect(cards.map((card) => card.keys)).toEqual([
+      ["bill_count"],
+      ["total_qty"],
+      ["amount"],
+      ["discount_bill"],
+      ["sum_discount"],
+      ["after_discount"],
+      ["sum_servicecharge"],
+      ["sum_vate"],
+      ["sum_total"],
+    ]);
   });
 
   it("reads fallback values and formats dates safely", () => {
@@ -144,6 +209,21 @@ describe("daily sales report basic helpers", () => {
     expect(hasDisplayValue("  ")).toBe(false);
     expect(hasDisplayValue("-")).toBe(false);
   });
+
+  it("formats topping lines from the sale report list API shape", () => {
+    expect(
+      toppingLines({
+        toppings: [
+          {
+            topping_name: "Egg",
+            topping_price: 5000,
+            topping_qty: 1,
+            topping_total: 5000,
+          },
+        ],
+      }),
+    ).toEqual(["1 x Egg - 5.000 ₭"]);
+  });
 });
 
 describe("daily sales report totals and selection", () => {
@@ -153,7 +233,7 @@ describe("daily sales report totals and selection", () => {
         { net_total: 100, order_total: 120, receive_cash: 100 },
         { net_total: 50, order_total: 50, status: "cancelled" },
       ],
-      "summary",
+      "bill",
     );
     const detailTotal = reportTotalFromRows(
       [
@@ -327,23 +407,24 @@ describe("daily sales report export helpers", () => {
       dateTo: "2026-05-29",
       limit: 20,
       orderBy: "DESC",
-      paymentMethod: "all",
-      typePage: "summary",
+      paymentMethod: "All",
+      search: "",
+      typePage: "bill",
     };
-    const cards = summaryConfigs(t, "summary");
-    const columns = reportColumns(t, "summary");
-    const reportTotal = { bills_count: 2, net_total: 150_000 };
+    const cards = summaryConfigs(t, "bill");
+    const columns = reportColumns(t, "bill");
+    const reportTotal = { bill_count: 2, sum_total: 150_000 };
 
     expect(reportFileBaseName(filters)).toBe(
-      "daily-sales-summary-2026-05-01-to-2026-05-29",
+      "daily-sales-bill-2026-05-01-to-2026-05-29",
     );
-    expect(summaryCardValue([], reportTotal, ["net_total"])).toBe(150_000);
+    expect(summaryCardValue([], reportTotal, ["sum_total"])).toBe(150_000);
     expect(
       exportSummaryRows(cards.slice(0, 1), reportTotal, reportTotal),
     ).toEqual([{ Metric: "report.cards.billsCount", Value: 2 }]);
     expect(
       exportTableRows(
-        [{ invoice_no: "INV-1", net_total: 150_000 }],
+        [{ order_invoice: "INV-1", sum_total: 150_000 }],
         columns,
       )[0],
     ).toMatchObject({

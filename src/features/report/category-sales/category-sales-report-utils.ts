@@ -14,8 +14,8 @@ type MetricDefinition = Omit<CategorySalesRowMetricConfig, "label"> & {
 };
 
 type CategorySalesLabelOverrides = Partial<{
-  service_charge: string;
-  vat: string;
+  sum_servicecharge: string;
+  sum_vate: string;
 }>;
 
 type SummaryMetricDefinition = {
@@ -25,30 +25,31 @@ type SummaryMetricDefinition = {
 };
 
 const rowMetricDefinitions = [
-  { field: "billCount", key: "category_bill_count", kind: "number", labelKey: "report.categorySales.columns.billCount" },
-  { field: "itemsCount", key: "items_count", kind: "number", labelKey: "report.categorySales.columns.itemsCount" },
-  { field: "qtyTotal", key: "qty_total", kind: "number", labelKey: "report.categorySales.columns.qtyTotal" },
+  { field: "billCount", key: "bill_count", kind: "number", labelKey: "report.categorySales.columns.billCount" },
+  { field: "totalQty", key: "total_qty", kind: "number", labelKey: "report.categorySales.columns.qtyTotal" },
+  { field: "productPriceTotal", key: "product_price_total", kind: "money", labelKey: "report.categorySales.columns.productPriceTotal" },
   { field: "toppingTotal", key: "topping_total", kind: "money", labelKey: "report.categorySales.columns.toppingTotal" },
-  { field: "amount", key: "amount", kind: "money", labelKey: "report.categorySales.columns.amount" },
-  // { field: "itemDiscount", key: "item_discount", kind: "money", labelKey: "report.categorySales.columns.itemDiscount" },
-  // { field: "discountBill", key: "discount_bill", kind: "money", labelKey: "report.categorySales.columns.discountBill" },
-  { field: "discountTotal", key: "discount_total", kind: "money", labelKey: "report.categorySales.columns.discountTotal" },
-  { field: "serviceCharge", key: "service_charge", kind: "money", labelKey: "report.categorySales.columns.serviceCharge" },
-  { field: "vat", key: "vat", kind: "money", labelKey: "report.categorySales.columns.vat" },
   { field: "total", key: "total", kind: "money", labelKey: "report.categorySales.columns.total" },
-  { field: "salePercent", key: "sale_percent", kind: "percent", labelKey: "report.categorySales.columns.salePercent" }
+  { field: "discountTotal", key: "discount_total", kind: "money", labelKey: "report.categorySales.columns.discountTotal" },
+  { field: "serviceCharge", key: "sum_servicecharge", kind: "money", labelKey: "report.categorySales.columns.serviceCharge" },
+  { field: "vat", key: "sum_vate", kind: "money", labelKey: "report.categorySales.columns.vat" },
+  { field: "grandTotal", key: "grand_total", kind: "money", labelKey: "report.categorySales.columns.grandTotal" }
 ] as const satisfies readonly MetricDefinition[];
 
 const summaryMetricDefinitions = [
-  { key: "categories_count", kind: "number", labelKey: "report.categorySales.cards.categories" },
-  { key: "category_bill_count", kind: "number", labelKey: "report.categorySales.columns.billCount" },
-  { key: "items_count", kind: "number", labelKey: "report.categorySales.columns.itemsCount" },
-  { key: "qty_total", kind: "number", labelKey: "report.categorySales.columns.qtyTotal" },
-  { key: "amount", kind: "money", labelKey: "report.categorySales.columns.amount" },
-  { key: "discount_total", kind: "money", labelKey: "report.categorySales.columns.discountTotal" },
-  { key: "service_charge", kind: "money", labelKey: "report.categorySales.columns.serviceCharge" },
-  { key: "vat", kind: "money", labelKey: "report.categorySales.columns.vat" },
-  { key: "total", kind: "money", labelKey: "report.categorySales.columns.total" }
+  { key: "product_count", kind: "number", labelKey: "report.categorySales.cards.products" },
+  { key: "bill_count", kind: "number", labelKey: "report.categorySales.columns.billCount" },
+  { key: "total_qty", kind: "number", labelKey: "report.categorySales.columns.qtyTotal" },
+  { key: "product_price_total", kind: "money", labelKey: "report.categorySales.columns.productPriceTotal" },
+  { key: "topping_total", kind: "money", labelKey: "report.categorySales.columns.toppingTotal" },
+  { key: "total", kind: "money", labelKey: "report.categorySales.columns.total" },
+  { key: "discount_item_amount", kind: "money", labelKey: "report.categorySales.columns.itemDiscount" },
+  { key: "after_discount_item", kind: "money", labelKey: "report.categorySales.columns.afterDiscountItem" },
+  { key: "discount_bill", kind: "money", labelKey: "report.categorySales.columns.discountBill" },
+  { key: "after_discount_bill", kind: "money", labelKey: "report.categorySales.columns.afterDiscountBill" },
+  { key: "sum_servicecharge", kind: "money", labelKey: "report.categorySales.columns.serviceCharge" },
+  { key: "sum_vate", kind: "money", labelKey: "report.categorySales.columns.vat" },
+  { key: "grand_total", kind: "money", labelKey: "report.categorySales.columns.grandTotal" }
 ] as const satisfies readonly SummaryMetricDefinition[];
 
 function isPresent(value: unknown) {
@@ -132,9 +133,9 @@ export function exportCategorySalesRows(
 ) {
   const metrics = categorySalesRowMetricConfigs(t, labelOverrides);
   return rows.map((row) => ({
-    [t("report.categorySales.columns.rank")]: row.rank,
     [t("report.categorySales.columns.group")]: row.groupName,
     [t("report.categorySales.columns.category")]: row.cateName,
+    [t("report.categorySales.columns.product")]: row.productName,
     ...Object.fromEntries(metrics.map((metric) => [metric.label, Number(row[metric.field] ?? 0)]))
   }));
 }

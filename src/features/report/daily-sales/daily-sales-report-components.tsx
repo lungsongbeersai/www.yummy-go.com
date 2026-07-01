@@ -15,6 +15,7 @@ import {
   Printer,
   ReceiptText,
   RefreshCcw,
+  Search,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { EmptyState } from "@/components/common/empty-state";
@@ -29,30 +30,17 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { money } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type {
   ReportExportAction,
   ReportExportProgress,
-  ReportPaymentMethodFilter,
+  ReportTab,
   SummaryCardConfig,
   SummaryCards,
 } from "./daily-sales-report-types";
-import {
-  firstNumber,
-  paymentMethodOptions,
-  summaryCardValue,
-} from "./daily-sales-report-utils";
-
-type ReportTypePage = "summary" | "detail";
+import { firstNumber, summaryCardValue } from "./daily-sales-report-utils";
 
 interface ReportSummaryCardsProps {
   cards: SummaryCardConfig[];
@@ -86,27 +74,27 @@ interface ReportTableActionsProps {
   exportDisabled: boolean;
   exporting: ReportExportAction | null;
   loading: boolean;
-  paymentMethod: ReportPaymentMethodFilter;
   printDisabled: boolean;
+  search: string;
   selectedBillCount: number;
   selectedCount: number;
-  typePage: ReportTypePage;
+  typePage: ReportTab;
   onClearSelection: () => void;
   onCollapseAllBills: () => void;
   onExpandAllBills: () => void;
   onExportExcel: () => void;
   onExportPdf: () => void;
   onOpenFilters: () => void;
-  onPaymentMethodChange: (paymentMethod: ReportPaymentMethodFilter) => void;
   onPrintReport: () => void;
   onRefresh: () => void;
-  onTypePageChange: (typePage: ReportTypePage) => void;
+  onSearchChange: (search: string) => void;
+  onTypePageChange: (typePage: ReportTab) => void;
 }
 
 interface ReportTypeSwitchProps {
   disabled: boolean;
-  value: ReportTypePage;
-  onChange: (typePage: ReportTypePage) => void;
+  value: ReportTab;
+  onChange: (typePage: ReportTab) => void;
 }
 
 interface ReportErrorProps {
@@ -282,8 +270,8 @@ function ReportTableActions({
   exportDisabled,
   exporting,
   loading,
-  paymentMethod,
   printDisabled,
+  search,
   selectedBillCount,
   selectedCount,
   typePage,
@@ -293,9 +281,9 @@ function ReportTableActions({
   onExportExcel,
   onExportPdf,
   onOpenFilters,
-  onPaymentMethodChange,
   onPrintReport,
   onRefresh,
+  onSearchChange,
   onTypePageChange,
 }: ReportTableActionsProps) {
   const { t } = useTranslation();
@@ -304,9 +292,9 @@ function ReportTableActions({
   const disabled = loading || Boolean(exporting);
 
   return (
-    <CardHeader className="shrink-0 border-b border-border bg-card px-3 py-3 sm:px-4">
-      <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:gap-3">
+    <CardHeader className="shrink-0 border-b border-border bg-card/95 px-3 py-3 sm:px-4">
+      <div className="grid min-w-0 gap-3 2xl:grid-cols-[minmax(220px,280px)_minmax(280px,360px)_minmax(280px,1fr)_auto] 2xl:items-start">
+        <div className="flex min-w-0 items-start gap-3">
           <div className="grid size-9 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
             {isDetail ? (
               <FileText className="size-4" />
@@ -317,7 +305,9 @@ function ReportTableActions({
 
           <div className="min-w-0 flex-1">
             <CardTitle className="truncate text-base font-black">
-              {isDetail ? t("report.detailTable") : t("report.summaryTable")}
+              {isDetail
+                ? t("report.detailedSalesReport")
+                : t("report.salesReportByBill")}
             </CardTitle>
 
             {selectedDisplayCount > 0 ? (
@@ -346,52 +336,38 @@ function ReportTableActions({
           </div>
         </div>
 
-        <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
-          <div className="min-w-0 w-full sm:w-auto">
-            <ReportTypeSwitch
-              disabled={disabled}
-              value={typePage}
-              onChange={onTypePageChange}
-            />
-          </div>
-
-          <Select
-            value={paymentMethod}
+        <div className="min-w-0">
+          <ReportTypeSwitch
             disabled={disabled}
-            onValueChange={(value) =>
-              onPaymentMethodChange(value as ReportPaymentMethodFilter)
-            }
-          >
-            <SelectTrigger
-              aria-label={t("report.filters.paymentMethod")}
-              className="h-10 w-full min-w-40 sm:w-auto"
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent align="start" className="z-100" position="popper">
-              <SelectGroup>
-                {paymentMethodOptions.map((method) => (
-                  <SelectItem key={method} value={method}>
-                    {method === "all"
-                      ? t("common.all")
-                      : t(`report.paymentMethods.${method}`)}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
+            value={typePage}
+            onChange={onTypePageChange}
+          />
+        </div>
 
+        <div className="relative min-w-0">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            type="search"
+            value={search}
+            autoComplete="off"
+            aria-label={t("actions.search")}
+            placeholder={t("actions.search")}
+            className="h-10 w-full rounded-lg bg-background pl-9"
+            disabled={!branchUuid || Boolean(exporting)}
+            onChange={(event) => onSearchChange(event.target.value)}
+          />
+        </div>
+
+        <div className="flex min-w-0 flex-wrap items-center gap-2 2xl:flex-nowrap 2xl:justify-end">
           {isDetail && billGroupsLength ? (
             <Button
               type="button"
               variant="outline"
               size="sm"
-              className="h-9"
+              className="h-10 min-w-10 rounded-lg px-3"
               disabled={disabled}
               onClick={
-                allDetailGroupsExpanded
-                  ? onCollapseAllBills
-                  : onExpandAllBills
+                allDetailGroupsExpanded ? onCollapseAllBills : onExpandAllBills
               }
             >
               {allDetailGroupsExpanded ? (
@@ -399,11 +375,11 @@ function ReportTableActions({
               ) : (
                 <ChevronRight data-icon="inline-start" />
               )}
-              <span className="hidden sm:inline">
+              {/* <span className="hidden sm:inline">
                 {allDetailGroupsExpanded
                   ? t("actions.collapseAll")
                   : t("actions.expandAll")}
-              </span>
+              </span> */}
             </Button>
           ) : null}
 
@@ -411,7 +387,7 @@ function ReportTableActions({
             type="button"
             variant="outline"
             size="sm"
-            className="h-9"
+            className="h-10 min-w-10 rounded-lg px-3"
             disabled={disabled}
             onClick={onOpenFilters}
           >
@@ -427,7 +403,7 @@ function ReportTableActions({
                 type="button"
                 variant="outline"
                 size="sm"
-                className="h-9"
+                className="h-10 min-w-10 rounded-lg px-3"
                 disabled={exportDisabled}
               >
                 {exporting === "excel" || exporting === "pdf" ? (
@@ -466,7 +442,7 @@ function ReportTableActions({
             type="button"
             variant="outline"
             size="sm"
-            className="h-9"
+            className="h-10 min-w-10 rounded-lg px-3"
             disabled={printDisabled}
             onClick={onPrintReport}
           >
@@ -482,7 +458,7 @@ function ReportTableActions({
             type="button"
             variant="ghost"
             size="sm"
-            className="h-9"
+            className="h-10 min-w-10 rounded-lg px-3 border-2 border-border/50 text-muted-foreground hover:text-foreground"
             disabled={loading || !branchUuid || Boolean(exporting)}
             onClick={onRefresh}
           >
@@ -490,7 +466,7 @@ function ReportTableActions({
               className={loading ? "animate-spin" : undefined}
               data-icon="inline-start"
             />
-            <span className="hidden sm:inline">{t("actions.refresh")}</span>
+            {/* <span className="hidden sm:inline">{t("actions.refresh")}</span> */}
           </Button>
         </div>
       </div>
@@ -506,15 +482,15 @@ function ReportTypeSwitch({
   const { t } = useTranslation();
 
   return (
-    <div className="grid h-10 w-full grid-cols-2 rounded-md border border-border bg-muted p-1 xl:w-80">
-      {(["summary", "detail"] as const).map((nextTypePage) => (
+    <div className="grid h-10 w-full grid-cols-2 rounded-lg border border-border bg-muted/80 p-1">
+      {(["bill", "detail"] as const).map((nextTypePage) => (
         <button
           key={nextTypePage}
           type="button"
           disabled={disabled}
           aria-pressed={value === nextTypePage}
           className={cn(
-            "min-w-0 rounded-sm px-3 text-sm font-black transition-colors",
+            "min-w-0 rounded-md px-3 text-sm font-black transition-colors",
             "disabled:pointer-events-none disabled:opacity-50",
             value === nextTypePage
               ? "bg-background text-foreground shadow-sm"
@@ -523,9 +499,9 @@ function ReportTypeSwitch({
           onClick={() => onChange(nextTypePage)}
         >
           <span className="block truncate">
-            {nextTypePage === "summary"
-              ? t("report.summary")
-              : t("report.detail")}
+            {nextTypePage === "bill"
+              ? t("report.salesReportByBill")
+              : t("report.detailedSalesReport")}
           </span>
         </button>
       ))}

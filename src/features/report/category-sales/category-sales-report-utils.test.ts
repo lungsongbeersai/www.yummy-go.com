@@ -3,6 +3,7 @@ import type { CategorySalesRow } from "@/stores/report-store";
 import {
   categorySalesFileBaseName,
   categorySalesRowMetricConfigs,
+  categorySalesSummaryMetricConfigs,
   exportCategorySalesRows,
   exportSummaryRows,
   paymentMethodFallbackOptions
@@ -14,18 +15,19 @@ const labels: Record<string, string> = {
   "report.paymentMethods.cash": "Cash",
   "report.paymentMethods.debt": "Debt",
   "report.paymentMethods.transfer": "Transfer",
-  "report.categorySales.cards.categories": "Categories",
-  "report.categorySales.columns.amount": "Amount",
+  "report.categorySales.cards.products": "Products",
+  "report.categorySales.columns.afterDiscountBill": "After bill discount",
+  "report.categorySales.columns.afterDiscountItem": "After item discount",
   "report.categorySales.columns.billCount": "Bills",
   "report.categorySales.columns.category": "Category",
   "report.categorySales.columns.discountBill": "Bill discount",
   "report.categorySales.columns.discountTotal": "Discount total",
+  "report.categorySales.columns.grandTotal": "Grand total",
   "report.categorySales.columns.group": "Group",
   "report.categorySales.columns.itemDiscount": "Item discount",
-  "report.categorySales.columns.itemsCount": "Items",
+  "report.categorySales.columns.product": "Product",
+  "report.categorySales.columns.productPriceTotal": "Product price total",
   "report.categorySales.columns.qtyTotal": "Qty",
-  "report.categorySales.columns.rank": "Rank",
-  "report.categorySales.columns.salePercent": "Sales %",
   "report.categorySales.columns.serviceCharge": "Service charge",
   "report.categorySales.columns.toppingTotal": "Topping total",
   "report.categorySales.columns.total": "Total",
@@ -37,24 +39,29 @@ const labels: Record<string, string> = {
 const t = (key: string) => labels[key] ?? key;
 
 const row: CategorySalesRow = {
-  amount: 17430000,
-  billCount: 36,
+  afterDiscountBill: 95000,
+  afterDiscountItem: 95000,
+  billCount: 2,
   cateName: "Beer",
   cateUuid: "beer",
-  discountBill: 393419.54,
-  discountTotal: 575179.54,
+  discountBill: 0,
+  discountItemAmount: 5000,
+  discountTotal: 5000,
   groupName: "Drinks",
   groupUuid: "group-drinks",
-  itemDiscount: 181760,
-  itemsCount: 135,
-  qtyTotal: 287,
+  grandTotal: 111815,
+  productName: "Tiger Beer",
+  productPriceTotal: 90000,
+  productUuid: "prod-1",
   rank: 1,
-  salePercent: 87.73,
-  serviceCharge: 1176968.08,
+  serviceCharge: 6650,
+  serviceRate: 7,
   sortOrder: 1,
-  toppingTotal: 55000,
-  total: 19834968.32,
-  vat: 1803179.78
+  toppingTotal: 10000,
+  total: 100000,
+  totalQty: 3,
+  vat: 10165,
+  vatRate: 10
 };
 
 describe("category sales report helpers", () => {
@@ -67,50 +74,63 @@ describe("category sales report helpers", () => {
     ]);
   });
 
-  it("uses payment method, order, and date range in the export file name", () => {
+  it("uses payment method and date range in the export file name", () => {
     const filters: CategorySalesReportFilters = {
       branchUuid: "branch-1",
       dateFrom: "2026-05-01",
       dateTo: "2026-06-28",
       limit: 10,
-      orderBy: "DESC",
+      orderBy: "ASC",
       paymentMethod: "all"
     };
 
-    expect(categorySalesFileBaseName(filters)).toBe("category-sales-all-DESC-2026-05-01-to-2026-06-28");
+    expect(categorySalesFileBaseName(filters)).toBe("category-sales-all-ASC-2026-05-01-to-2026-06-28");
   });
 
-  it("exports all category sales row fields", () => {
+  it("exports product sales row fields", () => {
     expect(categorySalesRowMetricConfigs(t).map((metric) => metric.key)).toEqual([
-      "category_bill_count",
-      "items_count",
-      "qty_total",
-      "amount",
+      "bill_count",
+      "total_qty",
+      "product_price_total",
       "topping_total",
-      "item_discount",
-      "discount_bill",
-      "discount_total",
-      "service_charge",
-      "vat",
       "total",
-      "sale_percent"
+      "discount_total",
+      "sum_servicecharge",
+      "sum_vate",
+      "grand_total"
     ]);
 
     expect(exportCategorySalesRows([row], t)[0]).toMatchObject({
-      Amount: 17430000,
       Category: "Beer",
       Group: "Drinks",
-      "Sales %": 87.73,
-      Total: 19834968.32,
-      VAT: 1803179.78
+      "Grand total": 111815,
+      Product: "Tiger Beer",
+      "Product price total": 90000,
+      Total: 100000,
+      VAT: 10165
     });
   });
 
-  it("exports derived summary rows", () => {
-    expect(exportSummaryRows({ categories_count: 2, total: 20941308.5 }, t)).toEqual(
+  it("exports backend summary rows", () => {
+    expect(categorySalesSummaryMetricConfigs(t).map((metric) => metric.key)).toEqual([
+      "product_count",
+      "bill_count",
+      "total_qty",
+      "product_price_total",
+      "topping_total",
+      "total",
+      "discount_item_amount",
+      "after_discount_item",
+      "discount_bill",
+      "after_discount_bill",
+      "sum_servicecharge",
+      "sum_vate",
+      "grand_total"
+    ]);
+    expect(exportSummaryRows({ product_count: 3, grand_total: 20941308.5 }, t)).toEqual(
       expect.arrayContaining([
-        { Metric: "Categories", Value: 2 },
-        { Metric: "Total", Value: 20941308.5 }
+        { Metric: "Products", Value: 3 },
+        { Metric: "Grand total", Value: 20941308.5 }
       ])
     );
   });

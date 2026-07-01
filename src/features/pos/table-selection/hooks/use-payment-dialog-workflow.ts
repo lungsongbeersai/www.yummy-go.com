@@ -383,6 +383,7 @@ export function usePaymentDialogWorkflow({
       processing ||
       confirmOpen ||
       customers.customerOpen ||
+      customers.customerCreateOpen ||
       activeTab === "arrears" ||
       !activeTenderField
     )

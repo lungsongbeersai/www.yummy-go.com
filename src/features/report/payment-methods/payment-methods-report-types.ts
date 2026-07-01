@@ -1,4 +1,4 @@
-import type { PaymentMethodReportFilter, PaymentMethodReportOrder } from "@/services/report";
+import type { PaymentMethodReportFilter } from "@/services/report";
 import type { PageLimit } from "@/services/shared/types";
 import type {
   PaymentMethodReportRow,
@@ -11,7 +11,6 @@ export type PaymentMethodsReportFilters = {
   dateFrom: string;
   dateTo: string;
   limit: PageLimit;
-  orderBy: PaymentMethodReportOrder;
   paymentMethod: PaymentMethodReportFilter;
 };
 

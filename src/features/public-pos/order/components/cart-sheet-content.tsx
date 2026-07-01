@@ -83,10 +83,7 @@ export function CartSheetContent({
 
         <div className="overflow-y-auto px-3 py-2.5">
           {loading ? (
-            <div className="grid gap-2">
-              <Skeleton className="h-24 w-full rounded-xl" />
-              <Skeleton className="h-24 w-full rounded-xl" />
-            </div>
+            <CartSheetLoadingSkeleton />
           ) : null}
 
           {!loading && !workflow.cart.length ? (
@@ -98,8 +95,9 @@ export function CartSheetContent({
             </div>
           ) : null}
 
-          {groups.map((group) =>
-            group.items.length ? (
+          {!loading
+            ? groups.map((group) =>
+                group.items.length ? (
               <CartGroup
                 key={group.key}
                 title={group.title}
@@ -111,85 +109,92 @@ export function CartSheetContent({
                 onDeleteItem={onDeleteItem}
                 onOpenNote={onNoteOpen}
               />
-            ) : null,
-          )}
+                ) : null,
+              )
+            : null}
         </div>
 
         <DrawerFooter className="border-t border-emerald-100 bg-white p-3 dark:border-border dark:bg-background">
-          <div className="grid gap-1.5 rounded-xl border border-emerald-100 bg-emerald-50/45 p-2.5 text-xs dark:border-border dark:bg-muted/30">
-            <CartTotalRow
-              label={t("pos.cartSubtotal")}
-              value={totals.subtotal}
-              lang={lang}
-            />
-            {totals.itemDiscount > 0 ? (
-              <CartTotalRow
-                label={t("pos.itemDiscount")}
-                value={-totals.itemDiscount}
-                lang={lang}
-                muted
-              />
-            ) : null}
-            {totals.orderDiscount > 0 ? (
-              <CartTotalRow
-                label={t("pos.discountTotal")}
-                value={-totals.orderDiscount}
-                lang={lang}
-                muted
-              />
-            ) : null}
-            {totals.service > 0 ? (
-              <CartTotalRow
-                label={t("pos.serviceCharge")}
-                value={totals.service}
-                lang={lang}
-                muted
-              />
-            ) : null}
-            {totals.vat > 0 ? (
-              <CartTotalRow
-                label={t("pos.vat")}
-                value={totals.vat}
-                lang={lang}
-                muted
-              />
-            ) : null}
-            <div className="mt-1 flex items-center justify-between border-t border-emerald-100 pt-2 dark:border-border">
-              <p className="text-sm font-semibold">{t("common.total")}</p>
-              <p className="text-base font-semibold text-primary">
-                {formatMoney(total, lang)}
-              </p>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span className="block min-w-0">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="h-11 w-full rounded-md text-xs"
-                    disabled
-                  >
-                    <ReceiptText />
-                    {t("pos.requestBill")}
-                  </Button>
-                </span>
-              </TooltipTrigger>
-              <TooltipContent side="top" sideOffset={8}>
-                {t("pos.requestBillDevelopmentTooltip")}
-              </TooltipContent>
-            </Tooltip>
-            <Button
-              type="button"
-              className="h-11 rounded-md text-xs"
-              onClick={onConfirmKitchen}
-              disabled={!confirmableItems.length || confirming}
-            >
-              {confirming ? <Loader2 className="animate-spin" /> : <Send />}
-              {t("pos.confirmOrderAction")}
-            </Button>
-          </div>
+          {loading ? (
+            <CartSheetFooterSkeleton />
+          ) : (
+            <>
+              <div className="grid gap-1.5 rounded-xl border border-emerald-100 bg-emerald-50/45 p-2.5 text-xs dark:border-border dark:bg-muted/30">
+                <CartTotalRow
+                  label={t("pos.cartSubtotal")}
+                  value={totals.subtotal}
+                  lang={lang}
+                />
+                {totals.itemDiscount > 0 ? (
+                  <CartTotalRow
+                    label={t("pos.itemDiscount")}
+                    value={-totals.itemDiscount}
+                    lang={lang}
+                    muted
+                  />
+                ) : null}
+                {totals.orderDiscount > 0 ? (
+                  <CartTotalRow
+                    label={t("pos.discountTotal")}
+                    value={-totals.orderDiscount}
+                    lang={lang}
+                    muted
+                  />
+                ) : null}
+                {totals.service > 0 ? (
+                  <CartTotalRow
+                    label={t("pos.serviceCharge")}
+                    value={totals.service}
+                    lang={lang}
+                    muted
+                  />
+                ) : null}
+                {totals.vat > 0 ? (
+                  <CartTotalRow
+                    label={t("pos.vat")}
+                    value={totals.vat}
+                    lang={lang}
+                    muted
+                  />
+                ) : null}
+                <div className="mt-1 flex items-center justify-between border-t border-emerald-100 pt-2 dark:border-border">
+                  <p className="text-sm font-semibold">{t("common.total")}</p>
+                  <p className="text-base font-semibold text-primary">
+                    {formatMoney(total, lang)}
+                  </p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="block min-w-0">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-11 w-full rounded-md text-xs"
+                        disabled
+                      >
+                        <ReceiptText />
+                        {t("pos.requestBill")}
+                      </Button>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" sideOffset={8}>
+                    {t("pos.requestBillDevelopmentTooltip")}
+                  </TooltipContent>
+                </Tooltip>
+                <Button
+                  type="button"
+                  className="h-11 rounded-md text-xs"
+                  onClick={onConfirmKitchen}
+                  disabled={!confirmableItems.length || confirming}
+                >
+                  {confirming ? <Loader2 className="animate-spin" /> : <Send />}
+                  {t("pos.confirmOrderAction")}
+                </Button>
+              </div>
+            </>
+          )}
         </DrawerFooter>
       </DrawerContent>
       <CartNoteDialog
@@ -201,5 +206,66 @@ export function CartSheetContent({
         onSubmit={onUpdateNote}
       />
     </Drawer>
+  );
+}
+
+function CartSheetLoadingSkeleton() {
+  return (
+    <div className="grid gap-3" aria-busy="true">
+      {Array.from({ length: 2 }).map((_, groupIndex) => (
+        <section key={groupIndex} className="grid gap-2">
+          <div className="flex items-center justify-between gap-3 px-1">
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="size-5 rounded-full" />
+          </div>
+          {Array.from({ length: groupIndex === 0 ? 2 : 1 }).map((__, itemIndex) => (
+            <div
+              key={itemIndex}
+              className="rounded-xl border border-emerald-100 bg-white p-2.5 shadow-sm shadow-emerald-950/5 dark:border-border dark:bg-background"
+            >
+              <div className="grid grid-cols-[52px_minmax(0,1fr)] gap-2.5">
+                <Skeleton className="size-12 rounded-lg" />
+                <div className="min-w-0">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="grid min-w-0 flex-1 gap-1.5">
+                      <Skeleton className="h-4.5 w-4/5" />
+                      <Skeleton className="h-4 w-16" />
+                      <Skeleton className="h-5 w-20 rounded-full" />
+                    </div>
+                    <Skeleton className="h-4.5 w-20" />
+                  </div>
+                  <div className="mt-3 flex items-center gap-2">
+                    <Skeleton className="h-10 w-10 rounded-md" />
+                    <Skeleton className="h-10 w-10 rounded-md" />
+                    <Skeleton className="h-10 w-10 rounded-md" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </section>
+      ))}
+    </div>
+  );
+}
+
+function CartSheetFooterSkeleton() {
+  return (
+    <>
+      <div className="grid gap-2 rounded-xl border border-emerald-100 bg-emerald-50/45 p-2.5 dark:border-border dark:bg-muted/30">
+        <div className="flex items-center justify-between gap-3">
+          <Skeleton className="h-4 w-20" />
+          <Skeleton className="h-4 w-24" />
+        </div>
+        <div className="flex items-center justify-between gap-3 border-t border-emerald-100 pt-2 dark:border-border">
+          <Skeleton className="h-5 w-12" />
+          <Skeleton className="h-5 w-28" />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <Skeleton className="h-11 rounded-md" />
+        <Skeleton className="h-11 rounded-md" />
+      </div>
+    </>
   );
 }

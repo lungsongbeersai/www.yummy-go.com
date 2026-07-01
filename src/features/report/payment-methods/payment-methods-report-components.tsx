@@ -15,7 +15,6 @@ import {
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { EmptyState } from "@/components/common/empty-state";
-import { LoadingState } from "@/components/common/loading-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -45,6 +44,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -53,22 +53,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 import { PAGE_LIMIT_OPTIONS, isAllPageLimit } from "@/lib/pagination";
-import type {
-  PaymentMethodReportFilter,
-  PaymentMethodReportOrder,
-} from "@/services/report";
+import type { PaymentMethodReportFilter } from "@/services/report";
 import type {
   PaymentMethodOption,
   PaymentMethodReportRow,
   PaymentMethodSummaryCard,
 } from "@/stores/report-store";
 import { SortableReportTableHead } from "../report-sort-table-head";
-import {
-  reportOrderLabel,
-  reportOrderOptions,
-  useLocalTableSort,
-} from "../report-sort-utils";
+import { useLocalTableSort } from "../report-sort-utils";
 import type {
   PaymentMethodsExportAction,
   PaymentMethodsReportFilters,
@@ -102,7 +96,7 @@ export function PaymentMethodsSummaryCards({
   const visibleCards = cards.length
     ? cards
     : paymentMethodTotalMetricConfigs(t)
-        .slice(0, 4)
+        .filter((metric) => isPresent(reportTotal[metric.key]))
         .map((metric, index) => ({
           key: metric.key,
           label: metric.label,
@@ -112,17 +106,21 @@ export function PaymentMethodsSummaryCards({
         }));
 
   return (
-    <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-7">
+    <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
       {visibleCards.map((card) => (
         <Card
           key={card.key}
-          className="overflow-hidden border-border bg-card shadow-sm"
+          className={cn(
+            "overflow-hidden border-border bg-card shadow-sm",
+            card.key === "total" && "border-primary/30 bg-primary/5",
+            card.key.includes("discount") && card.value > 0 && "border-destructive/25 bg-destructive/5"
+          )}
         >
           <CardContent className="p-4">
             <p className="truncate text-xs font-black uppercase text-muted-foreground">
               {card.label}
             </p>
-            <p className="mt-2 truncate text-xl font-black tabular-nums text-foreground">
+            <p className={cn("mt-2 truncate text-xl tabular-nums", financialTextClass(card.key, card.value, true))}>
               {displayMetric(card.value, card.valueType)}
             </p>
           </CardContent>
@@ -147,7 +145,7 @@ export function PaymentMethodsFilterBar({
 
   return (
     <Card className="border-border bg-card shadow-sm">
-      <CardContent className="grid gap-3 p-4 lg:grid-cols-4 lg:items-end 2xl:grid-cols-[repeat(6,minmax(0,1fr))_auto]">
+      <CardContent className="grid gap-3 p-4 md:grid-cols-2 lg:grid-cols-[repeat(5,minmax(0,1fr))_auto] lg:items-end">
         <PaymentMethodsFilterFields
           branchLoading={branchLoading}
           branchLocked={branchLocked}
@@ -273,9 +271,6 @@ export function MobilePaymentMethodsFilterSummary({
             <Badge className="h-6 border-border bg-muted px-2 text-[11px] text-muted-foreground">
               {limitLabel}
             </Badge>
-            <Badge className="h-6 border-border bg-muted px-2 text-[11px] text-muted-foreground">
-              {reportOrderLabel(t, filters.orderBy)}
-            </Badge>
           </div>
         </div>
         <Button
@@ -310,7 +305,6 @@ function PaymentMethodsFilterFields({
   onDraftChange: (filters: PaymentMethodsReportFilters) => void;
 }) {
   const { t } = useTranslation();
-  const orderOptions = reportOrderOptions(t);
 
   function patch(patch: Partial<PaymentMethodsReportFilters>) {
     onDraftChange({ ...draftFilters, ...patch });
@@ -426,33 +420,6 @@ function PaymentMethodsFilterFields({
           </SelectContent>
         </Select>
       </Field>
-      <Field className="gap-1.5">
-        <FieldLabel
-          htmlFor={`${idPrefix}-order`}
-          className="text-xs font-bold text-muted-foreground"
-        >
-          {t("report.filters.orderBy")}
-        </FieldLabel>
-        <Select
-          value={draftFilters.orderBy}
-          onValueChange={(value) =>
-            patch({ orderBy: value as PaymentMethodReportOrder })
-          }
-        >
-          <SelectTrigger id={`${idPrefix}-order`} className="w-full">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              {orderOptions.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          </SelectContent>
-        </Select>
-      </Field>
     </>
   );
 }
@@ -492,20 +459,28 @@ export function PaymentMethodsTableCard({
 
   return (
     <Card className="min-h-0 min-w-0 overflow-hidden border-border bg-card shadow-sm md:sticky md:top-3 md:flex md:max-h-[calc(100dvh-var(--app-shell-header-height)-1.5rem)] md:flex-col">
-      <CardHeader className="flex shrink-0 flex-col gap-2 border-b border-border bg-card px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+      <CardHeader className="flex shrink-0 flex-col gap-3 border-b border-border bg-card px-4 py-3 xl:flex-row xl:items-center xl:justify-between">
         <div className="min-w-0">
           <CardTitle className="flex min-w-0 items-center gap-2 text-base font-black">
             <CreditCard />
             <span className="truncate">{title}</span>
           </CardTitle>
-          <Badge className="mt-2 h-7 w-fit px-2 text-xs">{methodLabel}</Badge>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <Badge className="h-7 w-fit px-2 text-xs">{methodLabel}</Badge>
+            {loading && rowsLength ? (
+              <Badge className="h-7 w-fit border-border bg-muted px-2 text-xs text-muted-foreground">
+                <RefreshCcw className="size-3 animate-spin" />
+                {t("common.loading")}
+              </Badge>
+            ) : null}
+          </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center xl:justify-end">
           <Button
             type="button"
             variant="outline"
             size="sm"
-            className="h-9"
+            className="h-10 justify-center sm:h-9"
             onClick={onOpenFilters}
           >
             <Filter data-icon="inline-start" />
@@ -517,7 +492,7 @@ export function PaymentMethodsTableCard({
                 type="button"
                 variant="outline"
                 size="sm"
-                className="h-9"
+                className="h-10 justify-center sm:h-9"
                 disabled={exportDisabled}
               >
                 {exporting === "excel" || exporting === "pdf" ? (
@@ -546,7 +521,7 @@ export function PaymentMethodsTableCard({
             type="button"
             variant="outline"
             size="sm"
-            className="h-9"
+            className="h-10 justify-center sm:h-9"
             disabled={exportDisabled}
             onClick={onPrintReport}
           >
@@ -561,7 +536,7 @@ export function PaymentMethodsTableCard({
             type="button"
             variant="outline"
             size="sm"
-            className="h-9"
+            className="h-10 justify-center sm:h-9"
             disabled={loading || Boolean(exporting)}
             onClick={onRefresh}
           >
@@ -574,12 +549,9 @@ export function PaymentMethodsTableCard({
         </div>
       </CardHeader>
       <CardContent className="flex min-h-0 flex-1 flex-col p-0">
-        {loading ? (
+        {loading && !rowsLength ? (
           <div className="p-4 md:min-h-80">
-            <LoadingState
-              label={t("report.paymentMethodsReport.loading")}
-              variant="reportTable"
-            />
+            <PaymentMethodsLoadingSkeleton />
           </div>
         ) : rowsLength ? (
           <>
@@ -605,7 +577,6 @@ export function PaymentMethodsTableCard({
 type ColumnGroup = {
   key: string;
   labelKey: string;
-  colorClass: string;
   fields: Array<keyof PaymentMethodReportRow>;
 };
 
@@ -613,7 +584,6 @@ const COLUMN_GROUPS: ColumnGroup[] = [
   {
     key: "bills",
     labelKey: "report.paymentMethodsReport.groups.bills",
-    colorClass: "text-blue-500",
     fields: [
       "billsCount",
       "activeCount",
@@ -625,25 +595,21 @@ const COLUMN_GROUPS: ColumnGroup[] = [
   {
     key: "amount",
     labelKey: "report.paymentMethodsReport.groups.amount",
-    colorClass: "text-emerald-500",
     fields: ["amount", "toppingTotal"],
   },
   {
     key: "discount",
     labelKey: "report.paymentMethodsReport.groups.discount",
-    colorClass: "text-amber-500",
     fields: ["itemDiscount", "discountBill", "discountTotal"],
   },
   {
     key: "tax",
     labelKey: "report.paymentMethodsReport.groups.tax",
-    colorClass: "text-purple-500",
     fields: ["serviceCharge", "vat", "total"],
   },
   {
     key: "payment",
     labelKey: "report.paymentMethodsReport.groups.payment",
-    colorClass: "text-rose-500",
     fields: [
       "receiveCash",
       "receiveTransfer",
@@ -675,29 +641,27 @@ export function PaymentMethodsTable({
 
   return (
     <div className="hidden min-w-0 md:block">
-      <Table className="min-w-450 text-[13px]">
+      <Table className="w-max min-w-full table-auto text-[13px]">
         <TableHeader className="sticky top-0 z-20 bg-background/95 shadow-sm backdrop-blur">
-          {/* Group header row */}
           <TableRow className="border-b-0">
-            <TableHead className="w-15der-b border-border bg-background/95" />
-            <TableHead className="min-w-50 border-b border-border bg-background/95" />
+            <TableHead className="w-14 border-b border-border bg-background/95" />
+            <TableHead className="min-w-48 border-b border-border bg-background/95" />
             {COLUMN_GROUPS.map((group) => (
               <TableHead
                 key={group.key}
                 colSpan={group.fields.length}
-                className={`border-b border-border bg-background/95 text-center text-[11px] font-black uppercase tracking-widest ${group.colorClass}`}
+                className="border-b border-border bg-muted/30 text-center text-[11px] font-black uppercase text-muted-foreground"
               >
                 {t(group.labelKey, { defaultValue: group.key })}
               </TableHead>
             ))}
           </TableRow>
-          {/* Column header row */}
           <TableRow>
             <SortableReportTableHead
               align="right"
               sort={sort}
               sortKey="rank"
-              className="w-15 whitespace-nowrap bg-background/95 text-center"
+              className="w-14 whitespace-nowrap bg-background/95 text-center"
               onSort={toggleSort}
             >
               {t("report.paymentMethodsReport.columns.rank")}
@@ -705,7 +669,7 @@ export function PaymentMethodsTable({
             <SortableReportTableHead
               sort={sort}
               sortKey="paymentMethodName"
-              className="min-w-50 whitespace-nowrap bg-background/95"
+              className="min-w-48 whitespace-nowrap bg-background/95"
               onSort={toggleSort}
             >
               {t("report.paymentMethodsReport.columns.paymentMethod")}
@@ -719,7 +683,7 @@ export function PaymentMethodsTable({
                     align="right"
                     sort={sort}
                     sortKey={field}
-                    className="min-w-27.5 whitespace-nowrap bg-background/95 text-right text-[12px]"
+                    className="min-w-28 whitespace-nowrap bg-background/95 text-right text-[12px]"
                     onSort={toggleSort}
                   >
                     {metric?.label ?? field}
@@ -754,7 +718,7 @@ export function PaymentMethodsTable({
                   return (
                     <TableCell
                       key={field}
-                      className="whitespace-nowrap text-right tabular-nums"
+                      className={cn("whitespace-nowrap text-right tabular-nums", metricValueClass(field, row[field]))}
                     >
                       {metric
                         ? displayMetric(row[field], metric.kind)
@@ -775,9 +739,6 @@ export function PaymentMethodsTable({
 type MobileSectionGroup = {
   key: string;
   labelKey: string;
-  bgClass: string;
-  borderClass: string;
-  textClass: string;
   fields: Array<keyof PaymentMethodReportRow>;
 };
 
@@ -785,9 +746,6 @@ const MOBILE_GROUPS: MobileSectionGroup[] = [
   {
     key: "bills",
     labelKey: "report.paymentMethodsReport.groups.bills",
-    bgClass: "bg-blue-500/8",
-    borderClass: "border-blue-500/20",
-    textClass: "text-blue-600 dark:text-blue-400",
     fields: [
       "billsCount",
       "activeCount",
@@ -799,33 +757,21 @@ const MOBILE_GROUPS: MobileSectionGroup[] = [
   {
     key: "amount",
     labelKey: "report.paymentMethodsReport.groups.amount",
-    bgClass: "bg-emerald-500/8",
-    borderClass: "border-emerald-500/20",
-    textClass: "text-emerald-600 dark:text-emerald-400",
     fields: ["amount", "toppingTotal"],
   },
   {
     key: "discount",
     labelKey: "report.paymentMethodsReport.groups.discount",
-    bgClass: "bg-amber-500/8",
-    borderClass: "border-amber-500/20",
-    textClass: "text-amber-600 dark:text-amber-400",
     fields: ["itemDiscount", "discountBill", "discountTotal"],
   },
   {
     key: "tax",
     labelKey: "report.paymentMethodsReport.groups.tax",
-    bgClass: "bg-purple-500/8",
-    borderClass: "border-purple-500/20",
-    textClass: "text-purple-600 dark:text-purple-400",
     fields: ["serviceCharge", "vat", "total"],
   },
   {
     key: "payment",
     labelKey: "report.paymentMethodsReport.groups.payment",
-    bgClass: "bg-rose-500/8",
-    borderClass: "border-rose-500/20",
-    textClass: "text-rose-600 dark:text-rose-400",
     fields: [
       "receiveCash",
       "receiveTransfer",
@@ -860,12 +806,12 @@ export function PaymentMethodsMobileList({
       {rows.map((row) => {
         const key = `${row.paymentMethodCode}-${row.rank}`;
         const expanded = expandedKeys.has(key);
+        const receivedMetric = primaryReceivedMetric(row, t);
         return (
           <section
             key={key}
-            className="overflow-hidden rounded-xl border border-border bg-card shadow-sm"
+            className="overflow-hidden rounded-md border border-border bg-card shadow-sm"
           >
-            {/* Card header */}
             <div className="flex items-center justify-between gap-3 bg-muted/30 px-4 py-3">
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
@@ -884,13 +830,12 @@ export function PaymentMethodsMobileList({
                 <p className="text-[11px] font-bold text-muted-foreground">
                   {t("report.paymentMethodsReport.columns.total")}
                 </p>
-                <p className="text-base font-black tabular-nums text-foreground">
+                <p className={cn("text-base tabular-nums", metricValueClass("total", row.total))}>
                   {displayMetric(row.total, "money")}
                 </p>
               </div>
             </div>
 
-            {/* Quick stats always visible */}
             <div className="grid grid-cols-3 divide-x divide-border border-b border-border">
               <div className="px-3 py-2 text-center">
                 <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
@@ -904,25 +849,24 @@ export function PaymentMethodsMobileList({
                 <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
                   {t("report.paymentMethodsReport.columns.amount")}
                 </p>
-                <p className="text-sm font-black tabular-nums">
+                <p className={cn("text-sm tabular-nums", metricValueClass("amount", row.amount))}>
                   {displayMetric(row.amount, "money")}
                 </p>
               </div>
               <div className="px-3 py-2 text-center">
                 <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-                  {t("report.paymentMethodsReport.columns.receiveCash")}
+                  {receivedMetric.label}
                 </p>
-                <p className="text-sm font-black tabular-nums">
-                  {displayMetric(row.receiveCash, "money")}
+                <p className={cn("text-sm tabular-nums", metricValueClass(receivedMetric.field, receivedMetric.value))}>
+                  {displayMetric(receivedMetric.value, "money")}
                 </p>
               </div>
             </div>
 
-            {/* Expand toggle */}
             <Button
               type="button"
               variant="ghost"
-              className="h-auto w-full rounded-none border-b border-border py-2 text-[11px] font-bold text-muted-foreground hover:bg-muted/20"
+              className="h-11 w-full rounded-none border-b border-border text-[11px] font-bold text-muted-foreground hover:bg-muted/20"
               onClick={() => toggleExpand(key)}
             >
               {expanded ? (
@@ -938,14 +882,11 @@ export function PaymentMethodsMobileList({
               )}
             </Button>
 
-            {/* Expanded detail grouped by category */}
             {expanded && (
               <div className="divide-y divide-border">
                 {MOBILE_GROUPS.map((group) => (
-                  <div key={group.key} className={`p-3 ${group.bgClass}`}>
-                    <p
-                      className={`mb-2 text-[10px] font-black uppercase tracking-widest ${group.textClass}`}
-                    >
+                  <div key={group.key} className="bg-muted/10 p-3">
+                    <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
                       {t(group.labelKey, { defaultValue: group.key })}
                     </p>
                     <div className="grid grid-cols-2 gap-1.5">
@@ -954,12 +895,12 @@ export function PaymentMethodsMobileList({
                         return (
                           <div
                             key={field}
-                            className={`min-w-0 rounded-lg border px-2.5 py-1.5 ${group.borderClass} bg-background/60`}
+                            className="min-w-0 rounded-md border border-border bg-background/70 px-2.5 py-1.5"
                           >
                             <p className="truncate text-[10px] font-bold text-muted-foreground">
                               {metric?.label ?? field}
                             </p>
-                            <p className="truncate text-xs font-black tabular-nums text-foreground">
+                            <p className={cn("truncate text-xs tabular-nums", metricValueClass(field, row[field]))}>
                               {metric
                                 ? displayMetric(row[field], metric.kind)
                                 : String(row[field] ?? "-")}
@@ -977,6 +918,103 @@ export function PaymentMethodsMobileList({
       })}
     </div>
   );
+}
+
+function PaymentMethodsLoadingSkeleton() {
+  return (
+    <section aria-busy="true" className="flex flex-col gap-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
+        {Array.from({ length: 5 }).map((_, index) => (
+          <div key={index} className="rounded-md border border-border bg-card p-4 shadow-sm">
+            <Skeleton className="h-3 w-24" />
+            <Skeleton className="mt-3 h-7 w-32" />
+          </div>
+        ))}
+      </div>
+      <div className="hidden overflow-hidden rounded-md border border-border md:block">
+        <div className="grid min-w-[980px] grid-cols-[3rem_12rem_repeat(8,minmax(6rem,1fr))] gap-3 border-b border-border bg-muted/30 px-3 py-3">
+          {Array.from({ length: 10 }).map((_, index) => (
+            <Skeleton key={index} className="h-4" />
+          ))}
+        </div>
+        {Array.from({ length: 7 }).map((_, rowIndex) => (
+          <div key={rowIndex} className="grid min-w-[980px] grid-cols-[3rem_12rem_repeat(8,minmax(6rem,1fr))] gap-3 border-b border-border/70 px-3 py-3 last:border-b-0">
+            {Array.from({ length: 10 }).map((__, cellIndex) => (
+              <Skeleton key={cellIndex} className="h-5" />
+            ))}
+          </div>
+        ))}
+      </div>
+      <div className="flex flex-col gap-3 md:hidden">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <div key={index} className="rounded-md border border-border bg-card p-3 shadow-sm">
+            <div className="flex items-start justify-between gap-3">
+              <div className="grid flex-1 gap-2">
+                <Skeleton className="h-5 w-32" />
+                <Skeleton className="h-4 w-20" />
+              </div>
+              <Skeleton className="h-7 w-24" />
+            </div>
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              <Skeleton className="h-12" />
+              <Skeleton className="h-12" />
+              <Skeleton className="h-12" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function isPresent(value: unknown) {
+  return value !== null && value !== undefined && value !== "";
+}
+
+function metricNumber(value: unknown) {
+  const number = Number(value ?? 0);
+  return Number.isFinite(number) ? number : 0;
+}
+
+function financialTextClass(key: string, value: unknown, strong = false) {
+  const number = metricNumber(value);
+  const isDiscount = key.includes("discount");
+  const isTotal = key === "total" || key.includes("total") || key.includes("amount");
+
+  return cn(
+    (strong || isTotal || (isDiscount && number > 0)) && "font-black",
+    number === 0 && "text-muted-foreground",
+    isDiscount && number > 0 && "text-destructive",
+    !isDiscount && number > 0 && "text-foreground"
+  );
+}
+
+function metricValueClass(field: keyof PaymentMethodReportRow, value: unknown) {
+  return financialTextClass(String(field), value, field === "total");
+}
+
+function primaryReceivedMetric(row: PaymentMethodReportRow, t: (key: string) => string) {
+  if (row.receiveTransfer > row.receiveCash && row.receiveTransfer >= row.debtAmount) {
+    return {
+      field: "receiveTransfer" as const,
+      label: t("report.paymentMethodsReport.columns.receiveTransfer"),
+      value: row.receiveTransfer
+    };
+  }
+
+  if (row.debtAmount > row.receiveCash) {
+    return {
+      field: "debtAmount" as const,
+      label: t("report.paymentMethodsReport.columns.debtAmount"),
+      value: row.debtAmount
+    };
+  }
+
+  return {
+    field: "receiveCash" as const,
+    label: t("report.paymentMethodsReport.columns.receiveCash"),
+    value: row.receiveCash
+  };
 }
 
 export function PaymentMethodsExportSurface({

@@ -22,6 +22,7 @@ export interface PublicDisplayProduct {
 
 export type ProductBlockedState = "promotion-ended" | "sold-out";
 export type ProductActionState = "blocked" | "choose" | "add" | "view";
+export type PublicProductLayoutMode = "grid" | "list";
 export type ProductModalMode = "normal" | "set" | "promotion";
 export type PromotionQuantitySource =
   | ProdDetail

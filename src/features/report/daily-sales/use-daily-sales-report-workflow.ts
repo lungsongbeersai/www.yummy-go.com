@@ -6,6 +6,7 @@ import {
   useMemo,
   useState,
   type RefObject,
+  type SetStateAction,
 } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -16,7 +17,6 @@ import {
   buildSalesListInvoicePrintData,
   type BillSource,
 } from "@/features/sales/list/sales-list-utils";
-import { useUrlPagination } from "@/hooks/use-url-pagination";
 import { pageLimitSize } from "@/lib/pagination";
 import type { UrlPaginationState } from "@/lib/url-pagination";
 import type { ApiEntity } from "@/services/shared/types";
@@ -28,9 +28,9 @@ import {
 } from "@/stores/auth-store";
 import { useBranchStore } from "@/stores/branch-store";
 import {
-  createDailySalesBillGroups,
   type DailySalesBillGroup,
-  useDailySalesReportStore,
+  useDailySalesBillReportStore,
+  useDailySalesOrderReportStore,
 } from "@/stores/report-store";
 import { useToastStore } from "@/stores/toast-store";
 import type {
@@ -61,14 +61,15 @@ import {
 } from "./daily-sales-report-export-utils";
 import {
   branchOptionFromRow,
-  detailPaginationBasis,
+  billPaymentMethodParam,
   localDateInputValue,
-  paymentMethodParam,
   reportRecordId,
   reportTotalFromBillGroups,
   reportTotalFromRows,
   selectedBranchLabel,
 } from "./daily-sales-report-utils";
+
+const EMPTY_BILL_GROUPS: DailySalesBillGroup[] = [];
 
 export function useDailySalesReportWorkflow(
   exportReportRef: RefObject<HTMLDivElement | null>,
@@ -86,16 +87,24 @@ export function useDailySalesReportWorkflow(
     (state) => state.selectedBranchUuid,
   );
   const setSelectedBranch = useBranchStore((state) => state.setSelectedBranch);
-  const billGroups = useDailySalesReportStore((state) => state.billGroups);
-  const rows = useDailySalesReportStore((state) => state.rows);
-  const summaryCards = useDailySalesReportStore((state) => state.summaryCards);
-  const reportTotal = useDailySalesReportStore((state) => state.reportTotal);
-  const loading = useDailySalesReportStore((state) => state.loading);
-  const error = useDailySalesReportStore((state) => state.error);
-  const total = useDailySalesReportStore((state) => state.total);
-  const totalPages = useDailySalesReportStore((state) => state.totalPages);
-  const loadReport = useDailySalesReportStore((state) => state.load);
-  const loadExportData = useDailySalesReportStore((state) => state.loadExportData);
+  const detailBillGroups = useDailySalesOrderReportStore((state) => state.billGroups);
+  const detailRows = useDailySalesOrderReportStore((state) => state.rows);
+  const detailSummaryCards = useDailySalesOrderReportStore((state) => state.summaryCards);
+  const detailReportTotal = useDailySalesOrderReportStore((state) => state.reportTotal);
+  const detailLoading = useDailySalesOrderReportStore((state) => state.loading);
+  const detailError = useDailySalesOrderReportStore((state) => state.error);
+  const detailTotal = useDailySalesOrderReportStore((state) => state.total);
+  const detailTotalPages = useDailySalesOrderReportStore((state) => state.totalPages);
+  const loadDetailReport = useDailySalesOrderReportStore((state) => state.load);
+  const loadDetailExportData = useDailySalesOrderReportStore((state) => state.loadExportData);
+  const billRows = useDailySalesBillReportStore((state) => state.rows);
+  const billSummary = useDailySalesBillReportStore((state) => state.summary);
+  const billLoading = useDailySalesBillReportStore((state) => state.loading);
+  const billError = useDailySalesBillReportStore((state) => state.error);
+  const billTotal = useDailySalesBillReportStore((state) => state.total);
+  const billTotalPages = useDailySalesBillReportStore((state) => state.totalPages);
+  const loadBillReport = useDailySalesBillReportStore((state) => state.load);
+  const loadBillExportData = useDailySalesBillReportStore((state) => state.loadExportData);
   const showToast = useToastStore((state) => state.show);
   const today = useMemo(() => localDateInputValue(), []);
 
@@ -105,8 +114,9 @@ export function useDailySalesReportWorkflow(
     dateTo: today,
     limit: initialPagination.limit,
     orderBy: "DESC",
-    paymentMethod: "all",
-    typePage: "summary",
+    paymentMethod: "All",
+    search: "",
+    typePage: "bill",
   });
   const [appliedFilters, setAppliedFilters] =
     useState<ReportFilters>(draftFilters);
@@ -121,7 +131,8 @@ export function useDailySalesReportWorkflow(
   const [selectedRecordIds, setSelectedRecordIds] = useState<Set<string>>(
     () => new Set(),
   );
-  const { changeLimit, page, setPage } = useUrlPagination({ initialPagination });
+  const [billPage, setBillPage] = useState(1);
+  const [detailPage, setDetailPage] = useState(1);
 
   const storeUuid = authStoreUuid(user);
   const userBranchUuid = user?.branch_uuid ?? "";
@@ -199,12 +210,22 @@ export function useDailySalesReportWorkflow(
       ),
     [branchOptions, branchUuid, user?.branch_name],
   );
+  const isDetailTab = appliedFilters.typePage === "detail";
+  const billGroups = isDetailTab ? detailBillGroups : EMPTY_BILL_GROUPS;
+  const rows = isDetailTab ? detailRows : billRows;
+  const summaryCards = isDetailTab ? detailSummaryCards : billSummary;
+  const reportTotal = isDetailTab ? detailReportTotal : billSummary;
+  const loading = isDetailTab ? detailLoading : billLoading;
+  const error = isDetailTab ? detailError : billError;
+  const total = isDetailTab ? detailTotal : billTotal;
+  const totalPages = isDetailTab ? detailTotalPages : billTotalPages;
+  const page = isDetailTab ? detailPage : billPage;
   const columns = useMemo(
     () => reportColumns(t, appliedFilters.typePage),
     [appliedFilters.typePage, t],
   );
   const detailItemColumns = useMemo(() => {
-    const allItems = billGroups.flatMap((group) => group.items);
+    const allItems = detailBillGroups.flatMap((group) => group.items);
     const hasStatusData = allItems.some((item) =>
       hasDisplayValue(
         readValue(item, [
@@ -221,19 +242,13 @@ export function useDailySalesReportWorkflow(
     return hasStatusData
       ? columns
       : columns.filter((col) => col.kind !== "status");
-  }, [billGroups, t]);
+  }, [detailBillGroups, t]);
   const cards = useMemo(
     () => summaryConfigs(t, appliedFilters.typePage),
     [appliedFilters.typePage, t],
   );
-  const detailPageBasis = useMemo(
-    () => detailPaginationBasis(total, summaryCards, reportTotal),
-    [reportTotal, summaryCards, total],
-  );
-  const visibleCount =
-    appliedFilters.typePage === "detail" && detailPageBasis === "bills"
-      ? billGroups.length
-      : rows.length;
+  const detailPageBasis = "bills" as const;
+  const visibleCount = appliedFilters.typePage === "detail" ? billGroups.length : rows.length;
   const activePageLimit = pageLimitSize(appliedFilters.limit, visibleCount);
   const pageStart = visibleCount ? (page - 1) * activePageLimit + 1 : 0;
   const pageEnd = visibleCount ? pageStart + visibleCount - 1 : 0;
@@ -258,20 +273,11 @@ export function useDailySalesReportWorkflow(
     [billGroups, selectedRecordIds],
   );
   const selectedBillCount = selectedReceiptBillGroups.length;
-  const detailRangeLabel =
-    detailPageBasis === "lines"
-      ? t("report.showingDetailLinesRange", {
-          bills: billGroups.length,
-          end: pageEnd,
-          lines: rows.length,
-          start: pageStart,
-          total,
-        })
-      : t("report.showingBillsRange", {
-          start: pageStart,
-          end: pageEnd,
-          total,
-        });
+  const detailRangeLabel = t("report.showingBillsRange", {
+    start: pageStart,
+    end: pageEnd,
+    total,
+  });
   const contextRangeLabel =
     appliedFilters.typePage === "detail"
       ? detailRangeLabel
@@ -281,6 +287,16 @@ export function useDailySalesReportWorkflow(
     end: pageEnd,
     total,
   });
+  const setPage = useCallback(
+    (nextPage: SetStateAction<number>) => {
+      if (isDetailTab) {
+        setDetailPage((current) => normalizePage(nextPage, current, detailTotalPages));
+        return;
+      }
+      setBillPage((current) => normalizePage(nextPage, current, billTotalPages));
+    },
+    [billTotalPages, detailTotalPages, isDetailTab],
+  );
 
   const normalizeBranchFilters = useCallback(
     (filters: ReportFilters) => {
@@ -318,7 +334,22 @@ export function useDailySalesReportWorkflow(
     if (!branchUuid) return;
 
     try {
-      await loadReport({
+      if (appliedFilters.typePage === "bill") {
+        await loadBillReport({
+          branch_uuid_fk: branchUuid,
+          date_from: appliedFilters.dateFrom,
+          date_to: appliedFilters.dateTo,
+          lang: language,
+          limit: appliedFilters.limit,
+          orderBy: appliedFilters.orderBy,
+          page: billPage,
+          payment_method: billPaymentMethodParam(appliedFilters.paymentMethod),
+          search: appliedFilters.search,
+        });
+        return;
+      }
+
+      await loadDetailReport({
         branch_uuid_fk: branchUuid,
         date_from: appliedFilters.dateFrom,
         date_to: appliedFilters.dateTo,
@@ -326,9 +357,8 @@ export function useDailySalesReportWorkflow(
         limit: appliedFilters.limit,
         orderBy: appliedFilters.orderBy,
         page,
-        payment_method: paymentMethodParam(appliedFilters.paymentMethod),
-        payment_type: paymentMethodParam(appliedFilters.paymentMethod),
-        type_page: appliedFilters.typePage,
+        payment_method: billPaymentMethodParam(appliedFilters.paymentMethod),
+        search: appliedFilters.search,
       });
     } catch (error) {
       showToast({
@@ -337,11 +367,29 @@ export function useDailySalesReportWorkflow(
         tone: "error",
       });
     }
-  }, [appliedFilters, branchUuid, language, loadReport, page, showToast, t]);
+  }, [
+    appliedFilters,
+    billPage,
+    branchUuid,
+    language,
+    loadBillReport,
+    loadDetailReport,
+    page,
+    showToast,
+    t,
+  ]);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (billPage > billTotalPages) setBillPage(Math.max(1, billTotalPages));
+  }, [billPage, billTotalPages]);
+
+  useEffect(() => {
+    if (detailPage > detailTotalPages) setDetailPage(Math.max(1, detailTotalPages));
+  }, [detailPage, detailTotalPages]);
 
   useEffect(() => {
     setCollapsedBillGroups(new Set());
@@ -355,16 +403,26 @@ export function useDailySalesReportWorkflow(
     appliedFilters.limit,
     appliedFilters.orderBy,
     appliedFilters.paymentMethod,
+    appliedFilters.search,
     appliedFilters.typePage,
     branchUuid,
   ]);
 
-  function applyFilters() {
-    const nextFilters = normalizeBranchFilters(draftFilters);
+  function applyNextFilters(nextFilters: ReportFilters, closeMobile = false) {
     if (nextFilters.branchUuid) setSelectedBranch(nextFilters.branchUuid);
+    const resetPages = reportDataFilterKey(nextFilters) !== reportDataFilterKey(appliedFilters);
     setDraftFilters(nextFilters);
     setAppliedFilters(nextFilters);
-    changeLimit(nextFilters.limit);
+    if (resetPages) {
+      setBillPage(1);
+      setDetailPage(1);
+    }
+    if (closeMobile) setMobileFilterOpen(false);
+  }
+
+  function applyFilters() {
+    const nextFilters = normalizeBranchFilters(draftFilters);
+    applyNextFilters(nextFilters);
   }
 
   function openMobileFilters() {
@@ -381,25 +439,17 @@ export function useDailySalesReportWorkflow(
 
   function applyMobileFilters() {
     const nextFilters = normalizeBranchFilters(draftFilters);
-    if (nextFilters.branchUuid) setSelectedBranch(nextFilters.branchUuid);
-    setDraftFilters(nextFilters);
-    setAppliedFilters(nextFilters);
-    changeLimit(nextFilters.limit);
-    setMobileFilterOpen(false);
+    applyNextFilters(nextFilters, true);
   }
 
   function applyTableHeaderFilters(
-    patch: Pick<Partial<ReportFilters>, "paymentMethod" | "typePage">,
+    patch: Pick<Partial<ReportFilters>, "paymentMethod" | "typePage" | "search">,
   ) {
     const nextFilters = normalizeBranchFilters({
       ...appliedFilters,
       ...patch,
     });
-    if (nextFilters.branchUuid) setSelectedBranch(nextFilters.branchUuid);
-    setDraftFilters(nextFilters);
-    setAppliedFilters(nextFilters);
-    changeLimit(nextFilters.limit);
-    setPage(1);
+    applyNextFilters(nextFilters);
   }
 
   function toggleBillGroup(groupId: string) {
@@ -460,41 +510,55 @@ export function useDailySalesReportWorkflow(
   ) => {
     if (!branchUuid) throw new Error(t("report.branchRequired"));
 
-    const data = await loadExportData({
+    if (typePage === "bill") {
+      const data = await loadBillExportData({
+        branch_uuid_fk: branchUuid,
+        date_from: appliedFilters.dateFrom,
+        date_to: appliedFilters.dateTo,
+        lang: language,
+        orderBy: appliedFilters.orderBy,
+        payment_method: billPaymentMethodParam(appliedFilters.paymentMethod),
+        search: appliedFilters.search,
+      });
+      const rowsForExport = selectedIds.size
+        ? data.rows.filter((row) => selectedIds.has(reportRecordId(row)))
+        : data.rows;
+      const selectedReportTotal = selectedIds.size
+        ? reportTotalFromRows(rowsForExport, "bill")
+        : data.reportTotal;
+
+      return {
+        ...data,
+        reportTotal: selectedReportTotal,
+        rows: rowsForExport,
+        summaryCards: selectedIds.size ? selectedReportTotal : data.summaryCards,
+      };
+    }
+
+    const data = await loadDetailExportData({
       branch_uuid_fk: branchUuid,
       date_from: appliedFilters.dateFrom,
       date_to: appliedFilters.dateTo,
       lang: language,
       orderBy: appliedFilters.orderBy,
-      payment_method: paymentMethodParam(appliedFilters.paymentMethod),
-      payment_type: paymentMethodParam(appliedFilters.paymentMethod),
-      type_page: typePage,
+      payment_method: billPaymentMethodParam(appliedFilters.paymentMethod),
+      search: appliedFilters.search,
     });
     const allRows = data.rows;
     const allBillGroups = data.billGroups;
 
     const billGroupsForExport =
-      selectedIds.size && typePage === "detail"
+      selectedIds.size
         ? selectedDetailBillGroups(allBillGroups, selectedIds)
-        : selectedIds.size
-          ? createDailySalesBillGroups(
-              allRows.filter((row) =>
-                selectedIds.has(reportRecordId(row)),
-              ),
-            )
-          : allBillGroups;
+        : allBillGroups;
     const rowsForExport =
-      selectedIds.size && typePage === "detail"
+      selectedIds.size
         ? billGroupsForExport.flatMap((group) => group.items)
-        : selectedIds.size
-          ? allRows.filter((row) => selectedIds.has(reportRecordId(row)))
-          : allRows;
+        : allRows;
     const selectedReportTotal =
-      selectedIds.size && typePage === "detail"
+      selectedIds.size
         ? reportTotalFromBillGroups(billGroupsForExport)
-        : selectedIds.size
-          ? reportTotalFromRows(rowsForExport, typePage)
-          : data.reportTotal;
+        : data.reportTotal;
 
     return {
       ...data,
@@ -508,7 +572,15 @@ export function useDailySalesReportWorkflow(
         ? selectedReportTotal
         : data.summaryCards,
     };
-  }, [appliedFilters, branchUuid, language, loadExportData, selectedRecordIds, t]);
+  }, [
+    appliedFilters,
+    branchUuid,
+    language,
+    loadBillExportData,
+    loadDetailExportData,
+    selectedRecordIds,
+    t,
+  ]);
 
   function updateExportProgress(percent: number, labelKey: string) {
     setExportProgress({
@@ -645,6 +717,7 @@ export function useDailySalesReportWorkflow(
 
   async function printReport() {
     if (loading || exporting) return;
+    if (appliedFilters.typePage === "bill") return;
     if (!user) return;
     if (!selectedBillCount) {
       showToast({
@@ -657,13 +730,7 @@ export function useDailySalesReportWorkflow(
 
     setExporting("print");
     try {
-      const receiptGroups =
-        appliedFilters.typePage === "detail"
-          ? selectedReceiptBillGroups
-          : selectedBillGroupsForReceipt(
-              (await fetchExportData("detail", new Set<string>())).billGroups,
-              selectedRecordIds,
-            );
+      const receiptGroups = selectedReceiptBillGroups;
 
       if (!receiptGroups.length) {
         throw new Error(t("report.selectBillsToPrint"));
@@ -759,6 +826,27 @@ function pdfCanvasScale(rowCount: number) {
   if (rowCount > 120) return 1;
   if (rowCount > 40) return Math.min(1.25, deviceScale);
   return Math.min(1.5, deviceScale);
+}
+
+function normalizePage(
+  nextPage: SetStateAction<number>,
+  currentPage: number,
+  totalPages: number,
+) {
+  const resolved = typeof nextPage === "function" ? nextPage(currentPage) : nextPage;
+  return Math.min(Math.max(1, resolved), Math.max(1, totalPages));
+}
+
+function reportDataFilterKey(filters: ReportFilters) {
+  return [
+    filters.branchUuid,
+    filters.dateFrom,
+    filters.dateTo,
+    filters.limit,
+    filters.orderBy,
+    filters.paymentMethod,
+    filters.search,
+  ].join("|");
 }
 
 type PdfDocument = {
