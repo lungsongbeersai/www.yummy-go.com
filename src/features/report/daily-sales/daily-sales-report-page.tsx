@@ -39,18 +39,21 @@ export function DailySalesReportPage({
 
   return (
     <>
-      <div className="h-full min-h-0 min-w-0 overflow-x-hidden overflow-y-auto" style={layoutStyle}>
-        <div className="flex w-full min-w-0 flex-col gap-3 p-3 sm:p-4">
+      <div
+        className="h-full min-h-0 min-w-0 overflow-x-hidden overflow-y-auto lg:overflow-hidden"
+        style={layoutStyle}
+      >
+        <div className="flex min-h-full w-full min-w-0 flex-col gap-2 p-2 sm:p-3 lg:h-full lg:min-h-0">
           <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div className="min-w-0">
-              <div className="flex items-center gap-2 text-sm font-bold text-primary">
+              <div className="flex items-center gap-2 text-xs font-bold text-primary">
                 <BarChart3 className="size-4" />
                 {t("nav.report_menu")}
               </div>
-              <h1 className="truncate text-2xl font-black tracking-normal text-foreground">
+              <h1 className="truncate text-xl font-black tracking-normal text-foreground sm:text-2xl">
                 {t("report.dailySalesTitle")}
               </h1>
-              <p className="text-sm text-muted-foreground">{t("report.dailySalesDescription")}</p>
+              <p className="text-xs text-muted-foreground sm:text-sm">{t("report.dailySalesDescription")}</p>
             </div>
 
             <div className="flex flex-wrap items-center gap-2 sm:justify-end">
@@ -141,7 +144,9 @@ export function DailySalesReportPage({
                 groups={report.billGroups}
                 itemColumns={report.detailItemColumns}
                 pageStart={report.pageStart}
+                reportTotal={report.reportTotal}
                 selectedRecordIds={report.selectedRecordIds}
+                summaryCards={report.summaryCards}
                 onToggleGroup={report.toggleBillGroup}
                 onToggleRow={report.toggleReportRow}
                 onToggleRows={report.toggleReportRows}
@@ -150,8 +155,10 @@ export function DailySalesReportPage({
               <SummaryReportTable
                 columns={report.columns}
                 pageStart={report.pageStart}
+                reportTotal={report.reportTotal}
                 rows={report.rows}
                 selectedRecordIds={report.selectedRecordIds}
+                summaryCards={report.summaryCards}
                 typePage={report.appliedFilters.typePage}
                 onToggleRow={report.toggleReportRow}
                 onToggleRows={report.toggleReportRows}

@@ -79,6 +79,7 @@ Reuse if possible.
 - Challenge decisions that could lead to a worse product.
 - Prefer the best solution for the user, even when it differs from the requested implementation.
 
+
 <!-- autoclaw:hermes-evolution-guidance -->
 ## Hermes-Evolution
 

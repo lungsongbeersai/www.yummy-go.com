@@ -1,11 +1,13 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { AppPagination } from "@/components/common/app-pagination";
 import { BlockingLoadingDialog } from "@/components/common/blocking-loading-dialog";
 import {
   ChevronDown,
+  ChevronLeft,
   ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
   Download,
   Eye,
   EyeOff,
@@ -31,6 +33,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { money } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type {
@@ -237,7 +240,7 @@ export function ReportTableCard({
   const { t } = useTranslation();
 
   return (
-    <Card className="min-h-0 min-w-0 overflow-hidden border-border bg-card shadow-sm md:sticky md:top-3 md:flex md:max-h-[calc(100dvh-var(--app-shell-header-height)-1.5rem)] md:flex-col">
+    <Card className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden border-border bg-card shadow-sm">
       <ReportTableActions {...actions} />
 
       <CardContent className="flex min-h-0 flex-1 flex-col p-0">
@@ -292,26 +295,26 @@ function ReportTableActions({
   const disabled = loading || Boolean(exporting);
 
   return (
-    <CardHeader className="shrink-0 border-b border-border bg-card/95 px-3 py-3 sm:px-4">
-      <div className="grid min-w-0 gap-3 2xl:grid-cols-[minmax(220px,280px)_minmax(280px,360px)_minmax(280px,1fr)_auto] 2xl:items-start">
-        <div className="flex min-w-0 items-start gap-3">
-          <div className="grid size-9 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
+    <CardHeader className="shrink-0 border-b border-border bg-card/95 px-2 py-2 sm:px-3">
+      <div className="grid w-full min-w-0 grid-cols-1 items-center gap-2 2xl:grid-cols-[minmax(180px,16rem)_minmax(18rem,20rem)_minmax(16rem,1fr)_auto]">
+        <div className="flex min-w-0 items-center gap-2">
+          <div className="grid size-8 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
             {isDetail ? (
-              <FileText className="size-4" />
+              <FileText aria-hidden="true" />
             ) : (
-              <ReceiptText className="size-4" />
+              <ReceiptText aria-hidden="true" />
             )}
           </div>
 
           <div className="min-w-0 flex-1">
-            <CardTitle className="truncate text-base font-black">
+            <CardTitle className="truncate text-sm font-black">
               {isDetail
                 ? t("report.detailedSalesReport")
                 : t("report.salesReportByBill")}
             </CardTitle>
 
             {selectedDisplayCount > 0 ? (
-              <div className="mt-2 flex min-w-0 flex-wrap items-center gap-2">
+              <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5">
                 <Badge className="h-6 max-w-full truncate border-primary/20 bg-primary/10 px-2 text-xs text-primary">
                   {isDetail
                     ? t("report.selectedBillsForPrint", {
@@ -352,19 +355,19 @@ function ReportTableActions({
             autoComplete="off"
             aria-label={t("actions.search")}
             placeholder={t("actions.search")}
-            className="h-10 w-full rounded-lg bg-background pl-9"
+            className="h-9 w-full rounded-md bg-background pl-9 text-sm"
             disabled={!branchUuid || Boolean(exporting)}
             onChange={(event) => onSearchChange(event.target.value)}
           />
         </div>
 
-        <div className="flex min-w-0 flex-wrap items-center gap-2 2xl:flex-nowrap 2xl:justify-end">
+        <div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5 2xl:flex-nowrap">
           {isDetail && billGroupsLength ? (
             <Button
               type="button"
               variant="outline"
               size="sm"
-              className="h-10 min-w-10 rounded-lg px-3"
+              className="h-9 min-w-9 rounded-md px-2.5"
               disabled={disabled}
               onClick={
                 allDetailGroupsExpanded ? onCollapseAllBills : onExpandAllBills
@@ -387,7 +390,8 @@ function ReportTableActions({
             type="button"
             variant="outline"
             size="sm"
-            className="h-10 min-w-10 rounded-lg px-3"
+            aria-label={t("report.filters.openFilters")}
+            className="h-9 min-w-9 rounded-md px-2.5"
             disabled={disabled}
             onClick={onOpenFilters}
           >
@@ -403,7 +407,8 @@ function ReportTableActions({
                 type="button"
                 variant="outline"
                 size="sm"
-                className="h-10 min-w-10 rounded-lg px-3"
+                aria-label={t("common.export")}
+                className="h-9 min-w-9 rounded-md px-2.5"
                 disabled={exportDisabled}
               >
                 {exporting === "excel" || exporting === "pdf" ? (
@@ -442,7 +447,8 @@ function ReportTableActions({
             type="button"
             variant="outline"
             size="sm"
-            className="h-10 min-w-10 rounded-lg px-3"
+            aria-label={t("report.print")}
+            className="h-9 min-w-9 rounded-md px-2.5"
             disabled={printDisabled}
             onClick={onPrintReport}
           >
@@ -458,7 +464,8 @@ function ReportTableActions({
             type="button"
             variant="ghost"
             size="sm"
-            className="h-10 min-w-10 rounded-lg px-3 border-2 border-border/50 text-muted-foreground hover:text-foreground"
+            aria-label={t("actions.refresh")}
+            className="h-9 min-w-9 rounded-md border border-border/60 px-2.5 text-muted-foreground hover:text-foreground"
             disabled={loading || !branchUuid || Boolean(exporting)}
             onClick={onRefresh}
           >
@@ -482,30 +489,39 @@ function ReportTypeSwitch({
   const { t } = useTranslation();
 
   return (
-    <div className="grid h-10 w-full grid-cols-2 rounded-lg border border-border bg-muted/80 p-1">
+    <ToggleGroup
+      type="single"
+      value={value}
+      disabled={disabled}
+      className="grid h-9 w-full grid-cols-2 rounded-md border border-border bg-muted/70 p-1"
+      onValueChange={(nextValue) => {
+        if (nextValue === "bill" || nextValue === "detail")
+          onChange(nextValue);
+      }}
+    >
       {(["bill", "detail"] as const).map((nextTypePage) => (
-        <button
+        <ToggleGroupItem
           key={nextTypePage}
-          type="button"
-          disabled={disabled}
-          aria-pressed={value === nextTypePage}
+          value={nextTypePage}
+          aria-label={
+            nextTypePage === "bill"
+              ? t("report.salesReportByBill")
+              : t("report.detailedSalesReport")
+          }
           className={cn(
-            "min-w-0 rounded-md px-3 text-sm font-black transition-colors",
-            "disabled:pointer-events-none disabled:opacity-50",
-            value === nextTypePage
-              ? "bg-background text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground",
+            "h-7 min-w-0 rounded-sm px-2 text-xs font-black",
+            "data-[state=on]:bg-background data-[state=on]:text-foreground data-[state=on]:shadow-sm",
+            "text-muted-foreground hover:text-foreground",
           )}
-          onClick={() => onChange(nextTypePage)}
         >
           <span className="block truncate">
             {nextTypePage === "bill"
               ? t("report.salesReportByBill")
               : t("report.detailedSalesReport")}
           </span>
-        </button>
+        </ToggleGroupItem>
       ))}
-    </div>
+    </ToggleGroup>
   );
 }
 
@@ -520,17 +536,88 @@ export function ReportError({ message }: ReportErrorProps) {
 }
 
 export function ReportPagination({
+  canGoBack,
+  canGoNext,
+  onBack,
+  onNext,
   onPageChange,
   page,
+  rangeLabel,
   totalPages,
 }: ReportPaginationProps) {
+  const { t } = useTranslation();
+  const pageCount = Math.max(1, totalPages);
+  const currentPage = Math.min(Math.max(1, page), pageCount);
+
   return (
-    <div className="border-t border-border px-4 py-3">
-      <AppPagination
-        page={page}
-        totalPages={totalPages}
-        onPageChange={onPageChange}
-      />
+    <div className="border-t border-border bg-card/95 px-2 py-1.5">
+      <div className="flex min-h-9 min-w-0 flex-wrap items-center justify-between gap-2">
+        <p className="min-w-0 flex-1 truncate text-xs font-medium text-muted-foreground max-sm:basis-full">
+          {rangeLabel}
+        </p>
+
+        <div className="flex shrink-0 items-center gap-1 max-sm:w-full max-sm:justify-end">
+          <PaginationIconButton
+            disabled={!canGoBack}
+            label={t("common.previousShort")}
+            onClick={() => onPageChange(1)}
+          >
+            <ChevronsLeft aria-hidden="true" />
+          </PaginationIconButton>
+          <PaginationIconButton
+            disabled={!canGoBack}
+            label={t("common.previousPage")}
+            onClick={onBack}
+          >
+            <ChevronLeft aria-hidden="true" />
+          </PaginationIconButton>
+
+          <span className="mx-1 inline-flex h-8 min-w-[4.5rem] items-center justify-center rounded-md border border-border bg-muted/35 px-2 text-xs font-black tabular-nums text-foreground">
+            {currentPage} / {pageCount}
+          </span>
+
+          <PaginationIconButton
+            disabled={!canGoNext}
+            label={t("common.nextPage")}
+            onClick={onNext}
+          >
+            <ChevronRight aria-hidden="true" />
+          </PaginationIconButton>
+          <PaginationIconButton
+            disabled={!canGoNext}
+            label={t("common.nextShort")}
+            onClick={() => onPageChange(pageCount)}
+          >
+            <ChevronsRight aria-hidden="true" />
+          </PaginationIconButton>
+        </div>
+      </div>
     </div>
+  );
+}
+
+function PaginationIconButton({
+  children,
+  disabled,
+  label,
+  onClick,
+}: {
+  children: ReactNode;
+  disabled: boolean;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <Button
+      type="button"
+      size="iconSm"
+      variant="ghost"
+      aria-label={label}
+      disabled={disabled}
+      className="size-8 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-35"
+      onClick={onClick}
+    >
+      {children}
+    </Button>
   );
 }

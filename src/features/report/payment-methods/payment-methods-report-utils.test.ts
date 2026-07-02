@@ -14,29 +14,27 @@ const labels: Record<string, string> = {
   "report.paymentMethods.cash": "Cash",
   "report.paymentMethods.debt": "Debt",
   "report.paymentMethods.transfer": "Transfer",
-  "report.paymentMethodsReport.columns.activeCount": "Active",
-  "report.paymentMethodsReport.columns.amount": "Amount",
   "report.paymentMethodsReport.columns.avgBill": "Average bill",
+  "report.paymentMethodsReport.columns.billTotal": "Bill total",
   "report.paymentMethodsReport.columns.billsCount": "Bills",
-  "report.paymentMethodsReport.columns.cancelledCount": "Cancelled",
-  "report.paymentMethodsReport.columns.cancelledTotal": "Cancelled total",
-  "report.paymentMethodsReport.columns.changeAmount": "Change",
-  "report.paymentMethodsReport.columns.debtAmount": "Debt",
+  "report.paymentMethodsReport.columns.difference": "Difference",
   "report.paymentMethodsReport.columns.discountBill": "Bill discount",
   "report.paymentMethodsReport.columns.discountTotal": "Discount total",
   "report.paymentMethodsReport.columns.itemDiscount": "Item discount",
   "report.paymentMethodsReport.columns.itemsCount": "Items",
+  "report.paymentMethodsReport.columns.paymentAmount": "Payment amount",
   "report.paymentMethodsReport.columns.paymentMethod": "Payment method",
   "report.paymentMethodsReport.columns.paymentMethodCode": "Method code",
   "report.paymentMethodsReport.columns.qtyTotal": "Qty",
-  "report.paymentMethodsReport.columns.rank": "Rank",
-  "report.paymentMethodsReport.columns.receiveCash": "Cash",
-  "report.paymentMethodsReport.columns.receiveTransfer": "Transfer",
   "report.paymentMethodsReport.columns.rowsCount": "Rows",
   "report.paymentMethodsReport.columns.serviceCharge": "Service charge",
   "report.paymentMethodsReport.columns.toppingTotal": "Topping total",
   "report.paymentMethodsReport.columns.total": "Total",
   "report.paymentMethodsReport.columns.vat": "VAT",
+  "report.categorySales.columns.afterDiscountBill": "After bill discount",
+  "report.categorySales.columns.afterDiscountItem": "After item discount",
+  "report.categorySales.columns.grandTotal": "Grand total",
+  "report.categorySales.columns.productPriceTotal": "Product price total",
   "report.paymentMethodsReport.export.cards": "Cards",
   "report.paymentMethodsReport.export.metric": "Metric",
   "report.paymentMethodsReport.export.section": "Section",
@@ -47,23 +45,17 @@ const labels: Record<string, string> = {
 const t = (key: string) => labels[key] ?? key;
 
 const row: PaymentMethodReportRow = {
-  activeCount: 7,
-  amount: 1317996,
-  billsCount: 7,
-  cancelledCount: 0,
-  cancelledTotal: 0,
-  changeAmount: 4,
-  debtAmount: 0,
+  afterDiscountBill: 1451282,
+  afterDiscountItem: 1501282,
+  billCount: 7,
+  billTotal: 1551282,
   discountBill: 0,
-  discountTotal: 0,
-  itemDiscount: 0,
-  itemsCount: 17,
+  discountItemAmount: 0,
+  grandTotal: 1551282,
+  paymentAmount: 1551282,
   paymentMethodCode: "cash",
   paymentMethodName: "Cash",
-  qtyTotal: 27,
-  rank: 1,
-  receiveCash: 1551286,
-  receiveTransfer: 0,
+  productPriceTotal: 1317996,
   serviceCharge: 92260,
   sortOrder: 1,
   toppingTotal: 15000,
@@ -95,35 +87,33 @@ describe("payment method report helpers", () => {
 
   it("exports all financial row fields", () => {
     expect(paymentMethodRowMetricConfigs(t).map((metric) => metric.key)).toEqual([
-      "bills_count",
-      "active_count",
-      "cancelled_count",
-      "items_count",
-      "qty_total",
-      "amount",
+      "bill_count",
+      "product_price_total",
       "topping_total",
-      "item_discount",
+      "total",
+      "discount_item_amount",
+      "after_discount_item",
+      "bill_total",
       "discount_bill",
-      "discount_total",
+      "after_discount_bill",
       "service_charge",
       "vat",
-      "total",
-      "receive_cash",
-      "receive_transfer",
-      "debt_amount",
-      "change_amount",
-      "cancelled_total"
+      "grand_total",
+      "payment_amount"
     ]);
 
     expect(exportPaymentMethodRows([row], t)[0]).toMatchObject({
+      "After bill discount": 1451282,
+      "After item discount": 1501282,
       "Bill discount": 0,
-      Cash: 1551286,
-      Debt: 0,
+      "Bill total": 1551282,
+      "Grand total": 1551282,
       "Item discount": 0,
+      "Payment amount": 1551282,
       "Payment method": "Cash",
+      "Product price total": 1317996,
       "Service charge": 92260,
       Total: 1551282,
-      Transfer: 0,
       VAT: 141026
     });
   });
@@ -133,7 +123,7 @@ describe("payment method report helpers", () => {
       { key: "total", label: "Total", sortOrder: 1, value: 2144490, valueType: "money" }
     ];
 
-    expect(exportSummaryRows(cards, { total: 2144490, vat: 194954 }, t)).toEqual(
+    expect(exportSummaryRows(cards, { grand_total: 2144490, sum_vate: 194954 }, t)).toEqual(
       expect.arrayContaining([
         { Metric: "Total", Section: "Cards", Value: 2144490 },
         { Metric: "VAT", Section: "Total summary", Value: 194954 }

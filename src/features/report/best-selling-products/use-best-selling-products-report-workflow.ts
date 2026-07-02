@@ -193,6 +193,14 @@ export function useBestSellingProductsReportWorkflow(exportReportRef: RefObject<
     changeLimit(nextFilters.limit);
   }
 
+  function applySortBy(sortBy: BestSellingProductsFilters["sortBy"]) {
+    if (sortBy === appliedFilters.sortBy) return;
+    const nextFilters = normalizeBranchFilters({ ...appliedFilters, sortBy });
+    setDraftFilters((current) => ({ ...current, sortBy: nextFilters.sortBy }));
+    setAppliedFilters(nextFilters);
+    setPage(1);
+  }
+
   function openMobileFilters() {
     setDraftFilters({ ...appliedFilters });
     setMobileFilterOpen(true);
@@ -350,6 +358,7 @@ export function useBestSellingProductsReportWorkflow(exportReportRef: RefObject<
     summaryCards,
     totalPages,
     applyFilters,
+    applySortBy,
     applyMobileFilters
   };
 }
