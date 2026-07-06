@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Coins } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
@@ -31,6 +31,8 @@ import {
   SettingsTableScroll,
   SettingsToolbar
 } from "@/features/settings/shared/settings-shell";
+import { useAppliedSearch } from "@/hooks/use-applied-search";
+import { useLatestValue } from "@/hooks/use-latest-value";
 import { useUrlPagination } from "@/hooks/use-url-pagination";
 import { DEFAULT_PAGE_LIMIT, PAGE_LIMIT_OPTIONS } from "@/lib/pagination";
 import type { UrlPaginationState } from "@/lib/url-pagination";
@@ -150,9 +152,11 @@ export function ExchangeSettingsPage({ initialPagination }: { initialPagination:
 
   const title = t("settings.modules.exchange.title");
   const description = t("settings.modules.exchange.description");
+  const { appliedSearch, applySearch } = useAppliedSearch(search);
+  const hasLoadedRef = useLatestValue(hasLoaded);
   const requestParams = useMemo<FetchExchangesParams>(
-    () => ({ search, page, limit, orderBy, lang: language, store_uuid_fk: storeUuid }),
-    [language, limit, orderBy, page, search, storeUuid]
+    () => ({ search: appliedSearch, page, limit, orderBy, lang: language, store_uuid_fk: storeUuid }),
+    [appliedSearch, language, limit, orderBy, page, storeUuid]
   );
   const currencyById = useMemo(() => {
     const map = new Map<string, Currency>();
@@ -174,14 +178,14 @@ export function ExchangeSettingsPage({ initialPagination }: { initialPagination:
   const ids = useMemo(() => rows.map(exchangeId).filter(Boolean), [rows]);
   const allSelected = ids.length > 0 && ids.every((id) => selectedRows.has(id));
 
-  async function load() {
+  const load = useCallback(async () => {
     if (!storeUuid) {
       showToast({ title: t("settings.loadFailed", { title }), description: t("settings.storeRequired"), tone: "error" });
       return;
     }
 
     try {
-      await loadRows(requestParams, { background: hasLoaded });
+      await loadRows(requestParams, { background: hasLoadedRef.current });
     } catch (error) {
       showToast({
         title: t("settings.loadFailed", { title }),
@@ -189,12 +193,11 @@ export function ExchangeSettingsPage({ initialPagination }: { initialPagination:
         tone: "error"
       });
     }
-  }
+  }, [hasLoadedRef, loadRows, requestParams, showToast, storeUuid, t, title]);
 
   useEffect(() => {
     void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storeUuid, language, page, limit, orderBy]);
+  }, [load]);
 
   useEffect(() => {
     let active = true;
@@ -230,8 +233,7 @@ export function ExchangeSettingsPage({ initialPagination }: { initialPagination:
   }, [ids]);
 
   function applyFilters() {
-    if (page === 1) void load();
-    else resetPage();
+    applySearch({ page, resetPage, reload: () => void load() });
   }
 
   function toggleSelected(id: string, checked: boolean) {

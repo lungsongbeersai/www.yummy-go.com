@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useReducedMotion } from "motion/react";
 import { useTranslation } from "react-i18next";
+import { useAppliedSearch } from "@/hooks/use-applied-search";
 import { useUrlPagination } from "@/hooks/use-url-pagination";
 import { pageLimitSize } from "@/lib/pagination";
 import { samePageLimit, type UrlPaginationState } from "@/lib/url-pagination";
@@ -131,6 +132,7 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
 
   const categoryOptions = useMemo(() => categories.filter((category) => categoryUuid(category)), [categories]);
   const activeStatusLabel = statusTabs.find((tab) => tab.value === statusSortFk)?.label ?? statusSortFk;
+  const { appliedSearch, applySearch } = useAppliedSearch(search);
   const activePageLimit = pageLimitSize(pageLimit, rows.length);
   const pageStart = rows.length ? (page - 1) * activePageLimit + 1 : 0;
   const pageEnd = rows.length ? pageStart + rows.length - 1 : 0;
@@ -170,7 +172,7 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
 
     try {
       await loadProducts({
-        search,
+        search: appliedSearch,
         page,
         limit: pageLimit,
         lang: language,
@@ -185,7 +187,7 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
         tone: "error"
       });
     }
-  }, [cateUuidFk, language, loadProducts, page, pageLimit, search, showToast, statusSortFk, t, user?.branch_uuid]);
+  }, [appliedSearch, cateUuidFk, language, loadProducts, page, pageLimit, showToast, statusSortFk, t, user?.branch_uuid]);
 
   useEffect(() => {
     loadStatusSorts(language).catch((error) => {
@@ -218,9 +220,7 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
 
   useEffect(() => {
     void load();
-    // Search is applied by Enter/Search so typing does not refetch every character.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cateUuidFk, language, page, pageLimit, statusSortFk, user?.branch_uuid]);
+  }, [load]);
 
   useEffect(() => {
     const visible = new Set(detailProductIds);
@@ -239,8 +239,7 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
   }, [visibleProductIds]);
 
   function applyFilters() {
-    if (page === 1) void load();
-    else resetPage();
+    applySearch({ page, resetPage, reload: () => void load() });
   }
 
   function changeStatusSort(value: string) {

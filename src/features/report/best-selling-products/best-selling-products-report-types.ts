@@ -1,4 +1,4 @@
-import type { BestSellingProductsSortBy } from "@/services/report";
+import type { BestSellingProductsSortBy } from "@/config/report-filters";
 import type { PageLimit } from "@/services/shared/types";
 import type { BestSellingProductsReportExportData } from "@/stores/report-store";
 

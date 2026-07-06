@@ -15,7 +15,7 @@ import {
 } from "@/features/settings/category/category-utils";
 import { buildSizePayload, missingSizeField } from "@/features/settings/size/size-utils";
 import { buildUnitPayload, missingUnitField } from "@/features/settings/unit/unit-utils";
-import { getProductImageUrl } from "@/services/product";
+import { getProductImageUrl } from "@/lib/image";
 import { useAppStore } from "@/stores/app-store";
 import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
 import { useCategoryStore } from "@/stores/category-store";

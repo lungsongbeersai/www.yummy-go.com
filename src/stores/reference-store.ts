@@ -1,25 +1,19 @@
 "use client";
 
 import { create } from "zustand";
-import {
-  getBranchOptions,
-  getBranchQrUrl,
-  getStoreUuid,
-  setStoreUuid,
-  type Branch
-} from "@/services/branch";
+import { getBranchQrUrl, getProductImageUrl, getStoreLogoUrl, getUserProfileUrl } from "@/lib/image";
+import { getBranchOptions, getStoreUuid, setStoreUuid, type Branch } from "@/services/branch";
 import { getCategoryOptions, sortCategories, type Category, type SortCategoryInput } from "@/services/category";
 import { getColorOptions, type Color } from "@/services/color";
 import { getCurrencyOptions, type Currency } from "@/services/currency";
 import { getGroupOptions, type Group } from "@/services/group";
-import { getProductImageUrl } from "@/services/product";
 import { getProvinceOptions, type Province } from "@/services/province";
 import { getSizeOptions, type Size } from "@/services/size";
-import { getStoreLogoUrl, getStoreOptions, resetStorePassword, type Store } from "@/services/store";
+import { getStoreOptions, resetStorePassword, type Store } from "@/services/store";
 import { getTableOptions, type ZoneGroup } from "@/services/table";
 import { getToppingOptions, type Topping } from "@/services/topping";
 import { getUnitOptions, type Unit } from "@/services/unit";
-import { canCreateUser, getRoles, getUserById, getUserProfileUrl, type Role, type User } from "@/services/user";
+import { canCreateUser, getRoles, getUserById, type Role, type User } from "@/services/user";
 import { getZoneOptions, type Zone } from "@/services/zone";
 import type { ApiEntity } from "@/services/shared/types";
 import { authStoreUuid, useAuthStore } from "@/stores/auth-store";

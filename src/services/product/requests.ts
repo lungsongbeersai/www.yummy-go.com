@@ -1,6 +1,5 @@
 import { apiRequest } from "@/lib/api";
 import { toFormData } from "@/lib/form-data";
-import { uploadedUrl } from "@/lib/image";
 import { toApiLanguage } from "@/lib/language";
 import { requiredUuid } from "@/services/shared/validators";
 import { saveProductPayload } from "@/services/product/payload";
@@ -84,5 +83,4 @@ export async function deleteProduct(prod_uuid: string) {
   });
 }
 
-export const getProductImageUrl = (filename: string) =>
-  filename?.startsWith("#") ? filename : uploadedUrl(filename, "uploaded/products");
+export { getProductImageUrl } from "@/lib/image";

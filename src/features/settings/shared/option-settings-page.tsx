@@ -40,7 +40,9 @@ import {
   SettingsTableScroll,
   SettingsToolbar
 } from "@/features/settings/shared/settings-shell";
+import { useAppliedSearch } from "@/hooks/use-applied-search";
 import { useOptionRowSelection } from "@/features/settings/shared/use-option-row-selection";
+import { useLatestValue } from "@/hooks/use-latest-value";
 import { useUrlPagination } from "@/hooks/use-url-pagination";
 import type { UrlPaginationState } from "@/lib/url-pagination";
 import type { ApiEntity, FetchParams, SortOrder } from "@/services/shared/types";
@@ -176,11 +178,13 @@ export function OptionSettingsPage<
   const [deleteTarget, setDeleteTarget] = useState<Row | null>(null);
 
   const scope = useMemo(() => getScope?.(storeUuid, user) ?? {}, [getScope, storeUuid, user]);
-  const scopeKey = JSON.stringify(scope);
   const missingRequiredScope = Boolean(requiredScopeKey && !String(scope[requiredScopeKey] ?? "").trim());
+  const requiredScopeDescription = requiredScopeMessage ?? t("settings.branchRequired");
+  const { appliedSearch, applySearch } = useAppliedSearch(search);
+  const hasLoadedRef = useLatestValue(hasLoaded);
   const requestParams = useMemo<Params>(
-    () => ({ search, page, limit, orderBy, lang: language, ...scope }) as Params,
-    [language, limit, orderBy, page, scope, search]
+    () => ({ search: appliedSearch, page, limit, orderBy, lang: language, ...scope }) as Params,
+    [appliedSearch, language, limit, orderBy, page, scope]
   );
   const pageSize = optionPageSize(limit, rows.length);
   const totalPages = optionTotalPages(storeTotalPages, total, pageSize);
@@ -193,18 +197,14 @@ export function OptionSettingsPage<
   const rowId = useCallback((row: Row) => optionValue(row, idKey), [idKey]);
   const { allSelected, removeSelected, selectedRows, toggleAll, toggleSelected } = useOptionRowSelection(rows, rowId);
 
-  function requiredScopeDescription() {
-    return requiredScopeMessage ?? t("settings.branchRequired");
-  }
-
-  async function load() {
+  const load = useCallback(async () => {
     if (missingRequiredScope) {
-      showToast({ title: t("settings.loadFailed", { title }), description: requiredScopeDescription(), tone: "error" });
+      showToast({ title: t("settings.loadFailed", { title }), description: requiredScopeDescription, tone: "error" });
       return;
     }
 
     try {
-      await loadRows(requestParams, { background: hasLoaded });
+      await loadRows(requestParams, { background: hasLoadedRef.current });
     } catch (error) {
       showToast({
         title: t("settings.loadFailed", { title }),
@@ -212,12 +212,11 @@ export function OptionSettingsPage<
         tone: "error"
       });
     }
-  }
+  }, [hasLoadedRef, loadRows, missingRequiredScope, requestParams, requiredScopeDescription, showToast, t, title]);
 
   useEffect(() => {
     void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [language, page, limit, orderBy, scopeKey]);
+  }, [load]);
 
   function optionName(row: Row) {
     return getName?.(row) ?? optionValue(row, nameKey, optionValue(row, nameFallbackKey ?? "", optionValue(row, nameLaKey ?? "", optionValue(row, nameEngKey ?? "", "-"))));
@@ -234,13 +233,12 @@ export function OptionSettingsPage<
   }
 
   function applyFilters() {
-    if (page === 1) void load();
-    else resetPage();
+    applySearch({ page, resetPage, reload: () => void load() });
   }
 
   function openCreate() {
     if (missingRequiredScope) {
-      showToast({ title: t("settings.saveFailed"), description: requiredScopeDescription(), tone: "error" });
+      showToast({ title: t("settings.saveFailed"), description: requiredScopeDescription, tone: "error" });
       return;
     }
     setEditing(null);
@@ -254,7 +252,7 @@ export function OptionSettingsPage<
 
   async function save(formData: FormData) {
     if (missingRequiredScope) {
-      showToast({ title: t("settings.saveFailed"), description: requiredScopeDescription(), tone: "error" });
+      showToast({ title: t("settings.saveFailed"), description: requiredScopeDescription, tone: "error" });
       return;
     }
 

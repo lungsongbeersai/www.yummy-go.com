@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { ProductImageStatus, type ProductSortStatus } from "@/config/pos-constants";
 import {
-  ProductImageStatus,
-  type ProductSortStatus,
   type CartItem,
   type CartOrder,
   type CateProductItem,

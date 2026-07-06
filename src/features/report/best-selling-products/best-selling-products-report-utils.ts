@@ -1,5 +1,5 @@
 import { money } from "@/lib/format";
-import { BEST_SELLING_PRODUCTS_SORT_OPTIONS } from "@/services/report";
+import { BEST_SELLING_PRODUCTS_SORT_OPTIONS } from "@/config/report-filters";
 import type { ApiEntity } from "@/services/shared/types";
 import type { BestSellingProductGroup, BestSellingProductItem } from "@/stores/report-store";
 import type {

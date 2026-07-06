@@ -1,10 +1,21 @@
+import {
+  BROWSER_DESKTOP_AGENT_ID,
+  BROWSER_DEVICE_CODE_KEY,
+  BROWSER_MOBILE_AGENT_ID,
+  BROWSER_PRINTER_AGENT_ID,
+  BROWSER_PRINTER_AGENT_URL,
+  isBrowserPrinterAgentId,
+} from "@/config/printer-agent";
 import type { ApiEntity } from "@/services/shared/types";
 
-export const BROWSER_MOBILE_AGENT_ID = "mobile";
-export const BROWSER_DESKTOP_AGENT_ID = "desktop";
-export const BROWSER_PRINTER_AGENT_ID = BROWSER_MOBILE_AGENT_ID;
-export const BROWSER_PRINTER_AGENT_URL = "http://127.0.0.1:7777";
-export const BROWSER_DEVICE_CODE_KEY = "yummy_browser_device_code";
+export {
+  BROWSER_DESKTOP_AGENT_ID,
+  BROWSER_DEVICE_CODE_KEY,
+  BROWSER_MOBILE_AGENT_ID,
+  BROWSER_PRINTER_AGENT_ID,
+  BROWSER_PRINTER_AGENT_URL,
+  isBrowserPrinterAgentId,
+};
 
 export interface BrowserPrinterIdentity extends ApiEntity {
   agent_id: string;
@@ -129,11 +140,6 @@ async function getDeviceHints() {
       model: ""
     };
   }
-}
-
-export function isBrowserPrinterAgentId(agentId: unknown) {
-  const value = textValue(agentId);
-  return value === BROWSER_MOBILE_AGENT_ID || value === BROWSER_DESKTOP_AGENT_ID;
 }
 
 export function getBrowserAgentName(

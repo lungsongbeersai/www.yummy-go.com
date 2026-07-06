@@ -4,11 +4,12 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { fetchCateProducts, getProdItem, ProductSortStatus, type CateProductItem, type CateWithProducts, type ProdDetail, type ProdItem, type ProdTopping } from "@/services/pos";
-import { resolvePrinterDeviceContext, type PrinterDeviceContext } from "@/services/printer";
+import type { CateProductItem, CateWithProducts, ProdDetail, ProdItem, ProdTopping } from "@/services/pos";
+import type { PrinterDeviceContext } from "@/services/printer";
 import { useAppStore } from "@/stores/app-store";
 import { useAuthStore } from "@/stores/auth-store";
 import { usePosStore } from "@/stores/pos-store";
+import { usePrinterStore } from "@/stores/printer-store";
 import { useToastStore } from "@/stores/toast-store";
 import {
   buildStaffOrderInput,
@@ -25,6 +26,7 @@ import {
   nextMenuCategoryUuid,
   normalizeProdItem,
   orderCustomerUrl,
+  ProductSortStatus,
   productNeedsModal,
   selectedOrderTable,
   selectedToppingsFromUuids,
@@ -35,8 +37,8 @@ import {
 } from "./order-customer-utils";
 import {
   cartForTable,
+  cartQuantityCount,
   optionalString,
-  visibleCartItems,
 } from "../table-selection/utils";
 
 export type OrderCustomerWorkflowInput = {
@@ -61,8 +63,13 @@ export function useOrderCustomerWorkflow({
   const saving = usePosStore((state) => state.saving);
   const loadTables = usePosStore((state) => state.loadTables);
   const loadCartStore = usePosStore((state) => state.loadCart);
+  const loadProductCategories = usePosStore((state) => state.loadProductCategories);
+  const loadProductItem = usePosStore((state) => state.loadProductItem);
   const createOrder = usePosStore((state) => state.createOrder);
   const setTable = usePosStore((state) => state.setTable);
+  const resolvePrinterDeviceContext = usePrinterStore(
+    (state) => state.resolveDeviceContext,
+  );
   const [categories, setCategories] = useState<CateWithProducts[]>([]);
   const [selectedCateUuid, setSelectedCateUuid] = useState("");
   const [activeSort, setActiveSort] = useState<ProductSortStatus>(
@@ -107,7 +114,7 @@ export function useOrderCustomerWorkflow({
     [activeSort, menuBySort],
   );
   const cartCount = useMemo(
-    () => visibleCartItems(selectedCart).length,
+    () => cartQuantityCount(selectedCart),
     [selectedCart],
   );
   const selectedDetail = useMemo(
@@ -145,7 +152,7 @@ export function useOrderCustomerWorkflow({
       if (!selectedCateUuid && !searchQuery) return emptyMenuBySort();
 
       const request = (status_sort_fk: ProductSortStatus) =>
-        fetchCateProducts({
+        loadProductCategories({
           branch_uuid_fk: user.branch_uuid,
           ...(searchQuery ? {} : { cate_uuid: selectedCateUuid }),
           lang: language,
@@ -165,7 +172,7 @@ export function useOrderCustomerWorkflow({
         [ProductSortStatus.PROMOTION]: promotion.data ?? [],
       };
     },
-    [language, user?.branch_uuid],
+    [language, loadProductCategories, user?.branch_uuid],
   );
 
   const loadCart = useCallback(async () => {
@@ -222,7 +229,7 @@ export function useOrderCustomerWorkflow({
         const nextQuery = query ?? "";
 
         if (refreshCategories) {
-          const catalog = await fetchCateProducts({
+          const catalog = await loadProductCategories({
             branch_uuid_fk: user.branch_uuid,
             lang: language,
             search: "",
@@ -257,7 +264,14 @@ export function useOrderCustomerWorkflow({
         setLoadingMenu(false);
       }
     },
-    [fetchMenuGroups, language, showToast, t, user?.branch_uuid],
+    [
+      fetchMenuGroups,
+      language,
+      loadProductCategories,
+      showToast,
+      t,
+      user?.branch_uuid,
+    ],
   );
 
   const submitProductOrder = useCallback(
@@ -344,7 +358,7 @@ export function useOrderCustomerWorkflow({
     return () => {
       cancelled = true;
     };
-  }, [language, user?.uuid]);
+  }, [language, resolvePrinterDeviceContext, user?.uuid]);
 
   function openTablesPage() {
     router.replace("/sales/open-table-sale");
@@ -382,7 +396,7 @@ export function useOrderCustomerWorkflow({
 
     setLoadingProductUuid(entry.product.prod_uuid);
     try {
-      const item = await getProdItem({
+      const item = await loadProductItem({
         lang: language,
         prod_uuid: entry.product.prod_uuid,
       });

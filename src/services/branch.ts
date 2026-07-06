@@ -1,7 +1,7 @@
-import { uploadedUrl } from "@/lib/image";
 import { createCrud, listParams } from "@/services/shared/crud";
 import { apiRequest, ServiceError } from "@/lib/api";
 import type { ApiDataResponse, ApiEntity, ApiListResponse, FetchParams } from "@/services/shared/types";
+export { getBranchQrUrl } from "@/lib/image";
 
 let explicitStoreUuid = "";
 
@@ -88,4 +88,3 @@ export const saveBranch = (input: SaveBranchInput) => {
   return crud.save(payload);
 };
 export const deleteBranch = (branch_uuid: string) => crud.delete(branch_uuid);
-export const getBranchQrUrl = (filename: string) => uploadedUrl(filename, "uploaded/qrcode");

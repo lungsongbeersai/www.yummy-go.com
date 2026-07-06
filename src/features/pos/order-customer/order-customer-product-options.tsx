@@ -28,7 +28,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { money } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
-  ProductSortStatus,
   type CateProductItem,
   type ProdDetail,
   type ProdItem,
@@ -45,6 +44,7 @@ import {
   productMedia,
   productModeLabel,
   productPriceFromDetail,
+  ProductSortStatus,
   toppingDisplayName,
   toppingPrice,
   toppingUuid,

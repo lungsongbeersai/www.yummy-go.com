@@ -1,9 +1,9 @@
 import { money } from "@/lib/format";
-import { getProductImageUrl } from "@/services/product";
+import { getProductImageUrl } from "@/lib/image";
 import {
   DAILY_SALES_BILL_PAYMENT_METHOD_OPTIONS,
   type DailySalesBillPaymentMethod,
-} from "@/services/report";
+} from "@/config/report-filters";
 import type { ApiEntity } from "@/services/shared/types";
 import {
   createDailySalesBillGroups,

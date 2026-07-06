@@ -1,8 +1,8 @@
-import { uploadedUrl } from "@/lib/image";
 import { apiRequest, ServiceError } from "@/lib/api";
 import { toApiLanguage } from "@/lib/language";
 import { createCrud } from "@/services/shared/crud";
 import type { ApiDataResponse, ApiEntity, ApiListResponse, FetchParams } from "@/services/shared/types";
+export { getUserProfileUrl } from "@/lib/image";
 
 export interface User extends ApiEntity {
   login_uuid: string;
@@ -71,6 +71,4 @@ export async function getRoles(lang = "la", roles_id: number | string = "") {
 }
 export const saveUser = (input: SaveUserInput) => crud.save(input);
 export const deleteUser = (login_uuid: string) => crud.delete(login_uuid);
-export const getUserProfileUrl = (profilePath: string | null) =>
-  uploadedUrl(profilePath, "uploaded/profile");
 export const canCreateUser = (status?: number) => status === 1 || status === 2;

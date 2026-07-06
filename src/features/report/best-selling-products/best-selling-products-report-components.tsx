@@ -66,7 +66,7 @@ import { cn } from "@/lib/utils";
 import {
   isBestSellingProductsSortBy,
   type BestSellingProductsSortBy,
-} from "@/services/report";
+} from "@/config/report-filters";
 import type {
   BestSellingProductGroup,
   BestSellingProductItem,

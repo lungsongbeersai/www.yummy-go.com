@@ -1,4 +1,5 @@
-import type { CategorySalesReportOrder, PaymentMethodReportFilter } from "@/services/report";
+import type { PaymentMethodReportFilter } from "@/config/report-filters";
+import type { CategorySalesReportOrder } from "@/services/report";
 import type { PageLimit } from "@/services/shared/types";
 import type { CategorySalesReportExportData, CategorySalesRow } from "@/stores/report-store";
 

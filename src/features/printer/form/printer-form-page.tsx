@@ -40,9 +40,11 @@ import {
   isBrowserPrinterAgentId,
   parseInterfaceValue,
   tcpInterfaceValue,
-  type AgentInfo,
-  type Printer,
-  type SearchPrinterResult,
+} from "@/config/printer-agent";
+import type {
+  AgentInfo,
+  Printer,
+  SearchPrinterResult,
 } from "@/services/printer";
 import type { Category } from "@/services/category";
 import { authStoreUuid, useAuthStore } from "@/stores/auth-store";

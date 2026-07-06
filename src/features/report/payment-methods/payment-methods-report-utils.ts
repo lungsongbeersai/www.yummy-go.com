@@ -1,5 +1,8 @@
 import { money } from "@/lib/format";
-import { PAYMENT_METHOD_REPORT_FILTER_OPTIONS, type PaymentMethodReportFilter } from "@/services/report";
+import {
+  PAYMENT_METHOD_REPORT_FILTER_OPTIONS,
+  type PaymentMethodReportFilter,
+} from "@/config/report-filters";
 import type { ApiEntity } from "@/services/shared/types";
 import type { PaymentMethodOption, PaymentMethodReportRow } from "@/stores/report-store";
 import type {

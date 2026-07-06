@@ -6,8 +6,10 @@ import {
   canPayFullBill,
   cartDisplaySummary,
   cartForTable,
+  cartItemsQty,
   cartOrderBelongsToTable,
   cartOrdersBelongToTable,
+  cartQuantityCount,
   cartSummary,
   discountDraftValue,
   isCanceledCartItem,
@@ -146,6 +148,39 @@ describe("table selection utils", () => {
     expect(newOrderConfirmGroups([cart])).toEqual([
       { orderUuid: "order-1", itemUuids: ["new"] },
     ]);
+  });
+
+  it("counts cart quantity from order totals and item quantities", () => {
+    const cart = cartOrder({
+      items: [
+        {
+          order_it_uuid: "item-1",
+          detail: { order_it_qty: 2, net_total: 150000 },
+        },
+        {
+          order_it_uuid: "item-2",
+          detail: { order_it_qty: 1, net_total: 200000 },
+        },
+        {
+          order_it_uuid: "item-3",
+          detail: { order_it_qty: 1, net_total: 200000 },
+        },
+        {
+          order_it_uuid: "item-4",
+          detail: { order_it_qty: 1, net_total: 200000 },
+        },
+        {
+          order_it_uuid: "item-5",
+          detail: { order_it_qty: 1, net_total: 200000 },
+        },
+      ],
+      totals: { order_qty: 6 },
+    });
+
+    expect(visibleCartItems(cart)).toHaveLength(5);
+    expect(cartItemsQty(visibleCartItems(cart))).toBe(6);
+    expect(cartQuantityCount(cart)).toBe(6);
+    expect(cartQuantityCount(cartOrder({ totals: undefined }))).toBe(3);
   });
 
   it("allows full payment when waiting items are the only unpaid new-order items", () => {

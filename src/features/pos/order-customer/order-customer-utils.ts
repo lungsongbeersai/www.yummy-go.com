@@ -1,10 +1,13 @@
-import { getProductImageUrl } from "@/services/product";
+import { getProductImageUrl } from "@/lib/image";
 import {
   OrderChannelEnum,
   OrderSourceEnum,
   ProductImageStatus,
-  ProductSortStatus,
+  ProductSortStatus as ProductSortStatusValue,
   TableStatus,
+  type ProductSortStatus as ProductSortStatusType,
+} from "@/config/pos-constants";
+import {
   type CateProductItem,
   type CateWithProducts,
   type CreateOrderInput,
@@ -16,6 +19,9 @@ import {
   type ProdTopping,
 } from "@/services/pos";
 import { optionalNumber, optionalString } from "../table-selection/utils";
+
+export const ProductSortStatus = ProductSortStatusValue;
+export type ProductSortStatus = ProductSortStatusType;
 
 export const MAX_ORDER_QTY = 99;
 export const PRODUCT_GRID_CLASS =

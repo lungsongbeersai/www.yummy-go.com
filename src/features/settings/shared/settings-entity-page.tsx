@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { Button } from "@/components/ui/button";
@@ -27,6 +27,7 @@ import {
   SettingsTableScroll,
   SettingsToolbar
 } from "@/features/settings/shared/settings-shell";
+import { useAppliedSearch } from "@/hooks/use-applied-search";
 import { useUrlPagination } from "@/hooks/use-url-pagination";
 import { DEFAULT_PAGE_LIMIT } from "@/lib/pagination";
 import type { UrlPaginationState } from "@/lib/url-pagination";
@@ -78,7 +79,11 @@ export function SettingsEntityPage({ config, initialPagination }: { config: Sett
   const title = t(`settings.modules.${config.slug}.title`);
   const description = t(`settings.modules.${config.slug}.description`);
   const scope = useMemo(() => config.scope?.(user) ?? {}, [config, user]);
-  const scopeKey = JSON.stringify(scope);
+  const { appliedSearch, applySearch } = useAppliedSearch(search);
+  const requestParams = useMemo(
+    () => ({ search: appliedSearch, page, limit, orderBy, lang: language, ...scope }),
+    [appliedSearch, language, limit, orderBy, page, scope]
+  );
   const pageSize = limit === "All" ? rows.length || Number(DEFAULT_LIMIT) : Number(limit ?? DEFAULT_LIMIT);
   const totalPages = Math.max(1, Number(storeTotalPages || Math.ceil(total / pageSize) || 1));
   const pageStart = rows.length ? (page - 1) * pageSize + 1 : 0;
@@ -88,9 +93,9 @@ export function SettingsEntityPage({ config, initialPagination }: { config: Sett
   const ids = useMemo(() => rows.map((row) => value(row, config.idKey)).filter(Boolean), [config.idKey, rows]);
   const allSelected = ids.length > 0 && ids.every((id) => selectedRows.has(id));
 
-  async function load() {
+  const load = useCallback(async () => {
     try {
-      await loadEntity(config, { search, page, limit, orderBy, lang: language, ...scope });
+      await loadEntity(config, requestParams);
     } catch (error) {
       showToast({
         title: t("settings.loadFailed", { title }),
@@ -98,12 +103,11 @@ export function SettingsEntityPage({ config, initialPagination }: { config: Sett
         tone: "error"
       });
     }
-  }
+  }, [config, loadEntity, requestParams, showToast, t, title]);
 
   useEffect(() => {
     void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [config.slug, language, page, limit, orderBy, scopeKey]);
+  }, [load]);
 
   useEffect(() => {
     setSelectedRows((current) => {
@@ -120,8 +124,7 @@ export function SettingsEntityPage({ config, initialPagination }: { config: Sett
   }, [ids]);
 
   function applyFilters() {
-    if (page === 1) void load();
-    else resetPage();
+    applySearch({ page, resetPage, reload: () => void load() });
   }
 
   function toggleSelected(id: string, checked: boolean) {

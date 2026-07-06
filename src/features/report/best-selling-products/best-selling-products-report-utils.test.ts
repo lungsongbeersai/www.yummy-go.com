@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   BEST_SELLING_PRODUCTS_SORT_OPTIONS,
   isBestSellingProductsSortBy
-} from "@/services/report";
+} from "@/config/report-filters";
 import {
   bestSellingGroupMetricConfigs,
   bestSellingFileBaseName,

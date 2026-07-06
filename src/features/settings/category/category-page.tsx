@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { CategoryFormDialog } from "@/features/settings/category/category-form-dialog";
@@ -19,6 +19,8 @@ import {
   SettingsPaginationFooter,
   SettingsToolbar
 } from "@/features/settings/shared/settings-shell";
+import { useAppliedSearch } from "@/hooks/use-applied-search";
+import { useLatestValue } from "@/hooks/use-latest-value";
 import { useUrlPagination } from "@/hooks/use-url-pagination";
 import { DEFAULT_PAGE_LIMIT, PAGE_LIMIT_OPTIONS } from "@/lib/pagination";
 import type { UrlPaginationState } from "@/lib/url-pagination";
@@ -63,9 +65,11 @@ export function CategorySettingsPage({ initialPagination }: { initialPagination:
 
   const title = t("settings.modules.category.title");
   const description = t("settings.modules.category.description");
+  const { appliedSearch, applySearch } = useAppliedSearch(search);
+  const hasLoadedRef = useLatestValue(hasLoaded);
   const requestParams = useMemo<FetchCategoriesParams>(
-    () => ({ search, page, limit, orderBy, lang: language, store_uuid_fk: storeUuid }),
-    [language, limit, orderBy, page, search, storeUuid]
+    () => ({ search: appliedSearch, page, limit, orderBy, lang: language, store_uuid_fk: storeUuid }),
+    [appliedSearch, language, limit, orderBy, page, storeUuid]
   );
   const orderedRows = displayRows.length === storeRows.length ? displayRows : storeRows;
   const pageSize = limit === "All" ? orderedRows.length || Number(DEFAULT_LIMIT) : Number(limit ?? DEFAULT_LIMIT);
@@ -84,9 +88,9 @@ export function CategorySettingsPage({ initialPagination }: { initialPagination:
   const ids = useMemo(() => rows.map(categoryId).filter(Boolean), [rows]);
   const allSelected = ids.length > 0 && ids.every((id) => selectedRows.has(id));
 
-  async function load() {
+  const load = useCallback(async () => {
     try {
-      await loadRows(requestParams, { background: hasLoaded });
+      await loadRows(requestParams, { background: hasLoadedRef.current });
     } catch (error) {
       showToast({
         title: t("settings.loadFailed", { title }),
@@ -94,7 +98,7 @@ export function CategorySettingsPage({ initialPagination }: { initialPagination:
         tone: "error"
       });
     }
-  }
+  }, [hasLoadedRef, loadRows, requestParams, showToast, t, title]);
 
   useEffect(() => {
     setDisplayRows(storeRows);
@@ -102,8 +106,7 @@ export function CategorySettingsPage({ initialPagination }: { initialPagination:
 
   useEffect(() => {
     void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [language, page, limit, orderBy, storeUuid]);
+  }, [load]);
 
   useEffect(() => {
     if (!groupOptionsStoreUuid) {
@@ -149,8 +152,7 @@ export function CategorySettingsPage({ initialPagination }: { initialPagination:
   }, [ids]);
 
   function applyFilters() {
-    if (page === 1) void load();
-    else resetPage();
+    applySearch({ page, resetPage, reload: () => void load() });
   }
 
   function toggleSelected(id: string, checked: boolean) {

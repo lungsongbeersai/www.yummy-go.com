@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { sidebarPermissionMenuItemsToMenuItems } from "@/config/sidebar-permission-menu";
 import {
   buildSidebarPermissionMenuParams,
-  normalizeSidebarPermissionMenuResponse,
-  sidebarPermissionMenuItemsToMenuItems
+  normalizeSidebarPermissionMenuResponse
 } from "@/services/sidebar-menu";
 
 describe("sidebar menu service helpers", () => {

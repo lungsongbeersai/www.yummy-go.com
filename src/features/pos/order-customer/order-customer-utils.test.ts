@@ -12,6 +12,7 @@ import {
   nextMenuCategoryUuid,
   normalizeProdItem,
   orderCustomerUrl,
+  ProductSortStatus,
   productNeedsModal,
   selectedOrderTable,
   selectedToppingsFromUuids,
@@ -20,8 +21,9 @@ import {
 import {
   OrderChannelEnum,
   OrderSourceEnum,
-  ProductSortStatus,
   TableStatus,
+} from "@/config/pos-constants";
+import {
   type CateProductItem,
   type ProdDetail,
   type ProdItem,

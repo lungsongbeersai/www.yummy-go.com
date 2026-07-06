@@ -55,7 +55,8 @@ import {
 } from "@/components/ui/table";
 import { PAGE_LIMIT_OPTIONS, isAllPageLimit } from "@/lib/pagination";
 import { cn } from "@/lib/utils";
-import type { CategorySalesReportOrder, PaymentMethodReportFilter } from "@/services/report";
+import type { PaymentMethodReportFilter } from "@/config/report-filters";
+import type { CategorySalesReportOrder } from "@/services/report";
 import type {
   CategorySalesGroup,
   CategorySalesRow,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import { RefreshCcw } from "lucide-react";
@@ -22,19 +22,18 @@ export function CounterCheckoutPage() {
   const loadTables = usePosStore((state) => state.loadTables);
   const showToast = useToastStore((state) => state.show);
 
-  async function load() {
+  const load = useCallback(async () => {
     if (!user?.branch_uuid) return;
     try {
       await loadTables({ branch_uuid_fk: user.branch_uuid, lang: language });
     } catch (error) {
       showToast({ title: t("pos.failedTables"), description: error instanceof Error ? error.message : "", tone: "error" });
     }
-  }
+  }, [language, loadTables, showToast, t, user?.branch_uuid]);
 
   useEffect(() => {
     void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [language, user?.branch_uuid]);
+  }, [load]);
 
   if (loading) return <LoadingState label={t("pos.loadingTables")} variant="posGrid" />;
 
@@ -46,8 +45,8 @@ export function CounterCheckoutPage() {
           <h1 className="text-2xl font-black">{t("pos.tables")}</h1>
           <p className="text-sm text-muted-foreground">{t("pos.subtitleTables")}</p>
         </div>
-        <Button variant="outline" onClick={load}>
-          <RefreshCcw className="h-4 w-4" />
+        <Button variant="outline" onClick={() => void load()}>
+          <RefreshCcw data-icon="inline-start" />
           {t("actions.refresh")}
         </Button>
       </div>

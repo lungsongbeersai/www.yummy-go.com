@@ -55,7 +55,7 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { PAGE_LIMIT_OPTIONS, isAllPageLimit } from "@/lib/pagination";
-import type { PaymentMethodReportFilter } from "@/services/report";
+import type { PaymentMethodReportFilter } from "@/config/report-filters";
 import type {
   PaymentMethodOption,
   PaymentMethodReportRow,

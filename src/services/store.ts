@@ -1,7 +1,7 @@
-import { uploadedUrl } from "@/lib/image";
 import { createCrud } from "@/services/shared/crud";
 import { apiRequest, ServiceError } from "@/lib/api";
 import type { ApiEntity, ApiListResponse, FetchParams } from "@/services/shared/types";
+export { getStoreLogoUrl } from "@/lib/image";
 
 export interface Store extends ApiEntity {
   store_uuid: string;
@@ -36,4 +36,3 @@ export const resetStorePassword = async (login_email: string) => {
   if (!login_email.trim()) throw new ServiceError("login_email is required", 400);
   await apiRequest("post", "/api/v1/store/reset_password", { data: { login_email } });
 };
-export const getStoreLogoUrl = (filename: string) => uploadedUrl(filename, "uploaded/store");

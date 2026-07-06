@@ -1,39 +1,32 @@
 import { apiRequest, ServiceError } from "@/lib/api";
 import { toApiLanguage } from "@/lib/language";
 import { PAGE_LIMIT_ALL_BATCH, isAllPageLimit } from "@/lib/pagination";
+import type {
+  BestSellingProductsSortBy,
+  DailySalesBillPaymentMethod,
+  DailySalesPaymentMethod,
+  PaymentMethodReportFilter,
+} from "@/config/report-filters";
 import type { ApiEntity, PageLimit } from "@/services/shared/types";
+export {
+  BEST_SELLING_PRODUCTS_SORT_OPTIONS,
+  DAILY_SALES_BILL_PAYMENT_METHOD_OPTIONS,
+  isBestSellingProductsSortBy,
+  isPaymentMethodReportFilter,
+  PAYMENT_METHOD_REPORT_FILTER_OPTIONS,
+} from "@/config/report-filters";
+export type {
+  BestSellingProductsSortBy,
+  DailySalesBillPaymentMethod,
+  DailySalesPaymentMethod,
+  PaymentMethodReportFilter,
+} from "@/config/report-filters";
 
 export type DailySalesReportType = "summary" | "detail";
 export type DailySalesReportOrder = "ASC" | "DESC";
-export type DailySalesPaymentMethod = "all" | "cash" | "transfer" | "debt" | "mixed";
-export const DAILY_SALES_BILL_PAYMENT_METHOD_OPTIONS = ["All", "1", "2", "4"] as const;
-export type DailySalesBillPaymentMethod = (typeof DAILY_SALES_BILL_PAYMENT_METHOD_OPTIONS)[number];
 export type DailySalesBillReportOrder = "ASC" | "DESC";
 export type DailySaleItemsOrder = "ASC" | "DESC";
 export type CategorySalesReportOrder = "ASC" | "DESC";
-export const PAYMENT_METHOD_REPORT_FILTER_OPTIONS = ["all", "cash", "transfer", "debt"] as const;
-export type PaymentMethodReportFilter = (typeof PAYMENT_METHOD_REPORT_FILTER_OPTIONS)[number];
-export const BEST_SELLING_PRODUCTS_SORT_OPTIONS = [
-  "qty",
-  "total",
-  "date_asc",
-  "date_desc"
-] as const;
-export type BestSellingProductsSortBy = (typeof BEST_SELLING_PRODUCTS_SORT_OPTIONS)[number];
-
-export function isBestSellingProductsSortBy(value: unknown): value is BestSellingProductsSortBy {
-  return (
-    typeof value === "string" &&
-    BEST_SELLING_PRODUCTS_SORT_OPTIONS.includes(value as BestSellingProductsSortBy)
-  );
-}
-
-export function isPaymentMethodReportFilter(value: unknown): value is PaymentMethodReportFilter {
-  return (
-    typeof value === "string" &&
-    PAYMENT_METHOD_REPORT_FILTER_OPTIONS.includes(value as PaymentMethodReportFilter)
-  );
-}
 
 export interface FetchDailySalesReportParams {
   branch_uuid_fk: string;

@@ -66,22 +66,7 @@ export function mapPrinter(item: Record<string, unknown>): Printer {
   };
 }
 
-export function parseInterfaceValue(interfaceValue: string) {
-  if (interfaceValue.startsWith("tcp://")) {
-    const [ip, port] = interfaceValue.replace("tcp://", "").split(":");
-    return { mode: "network" as const, ip, port: Number(port || 9100) };
-  }
-  return { mode: "usb" as const, systemPrinterName: interfaceValue.replace(/^cups:|^win:/, "") };
-}
-
-export function tcpInterfaceValue(ip: string | undefined, port = 9100) {
-  const value = String(ip ?? "").trim();
-  if (!value) return "";
-  if (value.startsWith("tcp://")) return value;
-
-  const nextPort = Number.isFinite(port) && port > 0 ? port : 9100;
-  return `tcp://${value}:${nextPort}`;
-}
+export { parseInterfaceValue, tcpInterfaceValue } from "@/config/printer-agent";
 
 export const getRoleColor = () => "bg-emerald-100 text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-200";
 

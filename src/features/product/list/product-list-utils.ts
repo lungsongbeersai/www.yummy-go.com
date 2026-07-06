@@ -1,6 +1,7 @@
 import { money } from "@/lib/format";
 import type { Category } from "@/services/category";
-import { getProductImageUrl, type Product, type ProductDetail, type StatusSort } from "@/services/product";
+import { getProductImageUrl } from "@/lib/image";
+import type { Product, ProductDetail, StatusSort } from "@/services/product";
 
 export type ProductStockSummary = "deduct" | "noDeduct" | "mixed";
 
