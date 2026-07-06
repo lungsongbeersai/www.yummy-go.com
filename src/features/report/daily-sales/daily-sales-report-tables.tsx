@@ -1,12 +1,12 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useRef } from "react";
+import { Fragment, useCallback } from "react";
 import Image from "next/image";
 import { ChevronDown, ChevronRight, Package } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Checkbox, type CheckboxProps } from "@/components/ui/checkbox";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table,
   TableBody,
@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils";
 import type { ApiEntity } from "@/services/shared/types";
 import type { DailySalesBillGroup } from "@/stores/report-store";
 import { SortableReportTableHead } from "../report-sort-table-head";
+import { ReportIndeterminateCheckbox } from "../report-row-selection";
 import { useLocalTableSort } from "../report-sort-utils";
 import type { ReportColumn, ReportTab } from "./daily-sales-report-types";
 import type { SummaryCards } from "./daily-sales-report-types";
@@ -82,7 +83,7 @@ type SummaryColumn = {
   sortableKey: string;
 };
 
-type MoneyCellTone = "default" | "discount" | "total";
+type MoneyCellTone = "default" | "discount" | "service" | "total" | "vat";
 
 function summaryColumns(t: (key: string) => string): SummaryColumn[] {
   return [
@@ -140,21 +141,21 @@ function summaryColumns(t: (key: string) => string): SummaryColumn[] {
     },
     {
       key: "serviceCharge",
-      label: t("report.columns.serviceCharge"),
+      label: t("dashboard.serviceCharge"),
       align: "right",
       minWidth: "min-w-[138px]",
       sortableKey: "sum_servicecharge",
     },
     {
       key: "vat",
-      label: t("report.columns.vat"),
+      label: t("dashboard.vat"),
       align: "right",
       minWidth: "min-w-[104px]",
       sortableKey: "sum_vate",
     },
     {
       key: "total",
-      label: t("report.cards.netTotal"),
+      label: t("common.total"),
       align: "right",
       minWidth: "min-w-[132px]",
       sortableKey: "sum_total",
@@ -240,7 +241,7 @@ export function SummaryReportTable({
         <TableHeader className="[&_th]:sticky [&_th]:top-0 [&_th]:z-30 [&_th]:h-9 [&_th]:whitespace-nowrap [&_th]:border-b [&_th]:border-border [&_th]:bg-muted/80 [&_th]:px-2 [&_th]:shadow-sm [&_th]:backdrop-blur">
           <TableRow>
             <TableHead className="w-10 text-center">
-              <IndeterminateCheckbox
+              <ReportIndeterminateCheckbox
                 aria-label={t("common.selectAll")}
                 checked={allVisibleSelected}
                 indeterminate={!allVisibleSelected && someVisibleSelected}
@@ -585,7 +586,7 @@ export function DetailBillTable({
         <TableHeader className="[&_th]:sticky [&_th]:top-0 [&_th]:z-30 [&_th]:h-9 [&_th]:whitespace-nowrap [&_th]:border-b [&_th]:border-border [&_th]:bg-muted/80 [&_th]:px-2 [&_th]:shadow-sm [&_th]:backdrop-blur">
           <TableRow>
             <TableHead className="w-10 text-center">
-              <IndeterminateCheckbox
+              <ReportIndeterminateCheckbox
                 aria-label={t("common.selectAll")}
                 checked={allVisibleSelected}
                 indeterminate={!allVisibleSelected && someVisibleSelected}
@@ -686,31 +687,11 @@ export function DetailBillTable({
             <SortableReportTableHead
               align="right"
               sort={groupSort}
-              sortKey="serviceCharge"
-              className="min-w-[138px] text-right"
-              onSort={toggleGroupSort}
-            >
-              {t("report.columns.serviceCharge")}
-            </SortableReportTableHead>
-
-            <SortableReportTableHead
-              align="right"
-              sort={groupSort}
-              sortKey="vat"
-              className="min-w-[104px] text-right"
-              onSort={toggleGroupSort}
-            >
-              {t("report.columns.vat")}
-            </SortableReportTableHead>
-
-            <SortableReportTableHead
-              align="right"
-              sort={groupSort}
               sortKey="lineTotal"
               className="min-w-[132px] text-right"
               onSort={toggleGroupSort}
             >
-              {t("report.cards.netTotal")}
+              {t("common.total", { defaultValue: "Total" })}
             </SortableReportTableHead>
 
             {hasStatusData ? (
@@ -764,7 +745,7 @@ export function DetailBillTable({
                   data-state={expanded ? "selected" : undefined}
                 >
                   <TableCell className="text-center">
-                    <IndeterminateCheckbox
+                    <ReportIndeterminateCheckbox
                       aria-label={t("common.selectRow", {
                         name: group.invoiceNumber,
                       })}
@@ -813,8 +794,6 @@ export function DetailBillTable({
                       <BlankCell align="right" />
                       <BlankCell align="right" />
                       <BlankCell align="right" />
-                      <BlankCell align="right" />
-                      <BlankCell align="right" />
                     </>
                   ) : (
                     <>
@@ -830,8 +809,6 @@ export function DetailBillTable({
                         tone="discount"
                         value={groupDiscountTotal(group)}
                       />
-                      <OptionalMoneyCell value={group.serviceChargeAmount} />
-                      <OptionalMoneyCell value={group.vatAmount} />
                       <MoneyCell value={group.lineTotal} strong tone="total" />
                     </>
                   )}
@@ -911,8 +888,6 @@ export function DetailBillTable({
                             tone="discount"
                             value={itemMoney(item, ["discount"])}
                           />
-                          <BlankCell align="right" />
-                          <BlankCell align="right" />
                           <OptionalMoneyCell
                             tone="total"
                             value={itemMoney(item, ["total"])}
@@ -927,6 +902,10 @@ export function DetailBillTable({
                       group={group}
                       hasStatusData={hasStatusData}
                       summaryLabel={t("report.summary")}
+                    />
+                    <DetailBillAdjustmentRows
+                      group={group}
+                      hasStatusData={hasStatusData}
                     />
                   </>
                 ) : null}
@@ -1002,14 +981,6 @@ function DetailReportFooterRow({
         ])}
       />
       <SummaryFooterMoneyCell
-        value={summaryMetricNumber(summaryCards, reportTotal, [
-          "sum_servicecharge",
-        ])}
-      />
-      <SummaryFooterMoneyCell
-        value={summaryMetricNumber(summaryCards, reportTotal, ["sum_vate"])}
-      />
-      <SummaryFooterMoneyCell
         strong
         tone="total"
         value={summaryMetricNumber(summaryCards, reportTotal, [
@@ -1033,7 +1004,7 @@ function DetailBillSummaryRow({
   summaryLabel: string;
 }) {
   return (
-    <TableRow className="border-b border-primary/20 bg-primary/5 hover:bg-primary/10 [&>td]:whitespace-nowrap [&>td]:px-2 [&>td]:py-2">
+    <TableRow className="border-0 bg-primary/5 hover:bg-primary/5 [&>td]:whitespace-nowrap [&>td]:px-2 [&>td]:py-2">
       <TableCell />
       <TableCell />
       <TableCell colSpan={4}>
@@ -1049,14 +1020,131 @@ function DetailBillSummaryRow({
       <OptionalMoneyCell value={group.amountTotal} strong />
       <OptionalMoneyCell
         tone="discount"
-        value={groupDiscountTotal(group)}
+        value={groupItemDiscountTotal(group)}
         strong
       />
-      <OptionalMoneyCell value={group.serviceChargeAmount} strong />
-      <OptionalMoneyCell value={group.vatAmount} strong />
-      <MoneyCell value={group.lineTotal} strong tone="total" />
+      <OptionalMoneyCell value={groupItemLineTotal(group)} strong />
       {hasStatusData ? <TableCell /> : null}
     </TableRow>
+  );
+}
+
+function DetailBillAdjustmentRows({
+  group,
+  hasStatusData,
+}: {
+  group: DailySalesBillGroup;
+  hasStatusData: boolean;
+}) {
+  const { t } = useTranslation();
+
+  return (
+    <>
+      <DetailBillAdjustmentRow
+        hasStatusData={hasStatusData}
+        label={t("report.columns.billDiscount", {
+          defaultValue: "Bill discount",
+        })}
+        tone="discount"
+        value={group.discountBillAmount}
+      />
+      <DetailBillAdjustmentRow
+        hasStatusData={hasStatusData}
+        label={t("dashboard.serviceCharge")}
+        tone="service"
+        value={group.serviceChargeAmount}
+      />
+      <DetailBillAdjustmentRow
+        hasStatusData={hasStatusData}
+        label={t("dashboard.vat")}
+        tone="vat"
+        value={group.vatAmount}
+      />
+      <DetailBillAdjustmentRow
+        hasStatusData={hasStatusData}
+        label={t("common.total")}
+        last
+        tone="total"
+        value={group.lineTotal}
+      />
+    </>
+  );
+}
+
+function DetailBillAdjustmentRow({
+  hasStatusData,
+  label,
+  last = false,
+  tone = "default",
+  value,
+}: {
+  hasStatusData: boolean;
+  label: string;
+  last?: boolean;
+  tone?: MoneyCellTone;
+  value: number;
+}) {
+  return (
+    <TableRow
+      className={cn(
+        "bg-primary/5 hover:bg-primary/5 [&>td]:whitespace-nowrap [&>td]:px-2 [&>td]:py-1",
+        last ? "border-b border-border/80" : "border-0",
+      )}
+    >
+      <TableCell colSpan={10} />
+      <TableCell className="text-right" colSpan={2}>
+        <div className="ml-auto grid w-56 max-w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+          <span className={adjustmentLabelClass(tone)}>{label}</span>
+          <DetailBillAdjustmentValue tone={tone} value={value} />
+        </div>
+      </TableCell>
+      {hasStatusData ? <TableCell /> : null}
+    </TableRow>
+  );
+}
+
+function DetailBillAdjustmentValue({
+  tone = "default",
+  value,
+}: {
+  tone?: MoneyCellTone;
+  value: number;
+}) {
+  return (
+    <span className={adjustmentValueClass(tone, value)}>
+      {money(value)}
+    </span>
+  );
+}
+
+function adjustmentLabelClass(tone: MoneyCellTone) {
+  return cn(
+    "truncate text-xs font-semibold leading-none",
+    tone === "discount" && "text-destructive",
+    tone === "service" && "text-sky-700 dark:text-sky-300",
+    tone === "vat" && "text-amber-700 dark:text-amber-300",
+    tone === "total" && "text-primary",
+    tone === "default" && "text-muted-foreground",
+  );
+}
+
+function adjustmentValueClass(tone: MoneyCellTone, value: number) {
+  return cn(
+    "whitespace-nowrap text-right font-semibold tabular-nums",
+    tone === "discount" && "text-destructive",
+    tone === "discount" && value === 0 && "opacity-70",
+    tone === "service" &&
+      value > 0 &&
+      "font-black text-sky-700 dark:text-sky-300",
+    tone === "total" && "font-black text-primary",
+    tone === "vat" &&
+      value > 0 &&
+      "font-black text-amber-700 dark:text-amber-300",
+    tone === "default" && "font-semibold text-foreground",
+    value === 0 &&
+      tone !== "discount" &&
+      tone !== "total" &&
+      "text-muted-foreground",
   );
 }
 
@@ -1237,6 +1325,27 @@ function groupQuantity(group: DailySalesBillGroup) {
 
 function groupDiscountTotal(group: DailySalesBillGroup) {
   return group.discountBillAmount + group.itemDiscountAmount;
+}
+
+function groupItemDiscountTotal(group: DailySalesBillGroup) {
+  const itemTotal = group.items.reduce(
+    (total, item) => total + (itemMoney(item, ["discount"]) ?? 0),
+    0,
+  );
+  return itemTotal > 0 ? itemTotal : group.itemDiscountAmount;
+}
+
+function groupItemLineTotal(group: DailySalesBillGroup) {
+  let hasLineTotal = false;
+  const itemTotal = group.items.reduce((total, item) => {
+    const lineTotal = itemMoney(item, ["total", "line_total", "net_total"]);
+    if (lineTotal === null) return total;
+    hasLineTotal = true;
+    return total + lineTotal;
+  }, 0);
+
+  if (hasLineTotal) return itemTotal;
+  return Math.max(0, group.amountTotal - groupItemDiscountTotal(group));
 }
 
 function groupMoney(group: DailySalesBillGroup, keys: string[]) {
@@ -1505,21 +1614,3 @@ function BlankCell({ align = "left" }: { align?: "left" | "right" }) {
   );
 }
 
-function IndeterminateCheckbox({
-  indeterminate = false,
-  ...props
-}: CheckboxProps & { indeterminate?: boolean }) {
-  const checkboxRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (checkboxRef.current) checkboxRef.current.indeterminate = indeterminate;
-  }, [indeterminate]);
-
-  return (
-    <Checkbox
-      ref={checkboxRef}
-      aria-checked={indeterminate ? "mixed" : props.checked ? "true" : "false"}
-      {...props}
-    />
-  );
-}

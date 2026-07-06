@@ -12,11 +12,15 @@ import { useBestSellingProductsReportStore } from "@/stores/report-store";
 import { useGroupStore } from "@/stores/group-store";
 import { useToastStore } from "@/stores/toast-store";
 import { branchOptionFromRow, selectedBranchLabel } from "../daily-sales/daily-sales-report-utils";
+import { useReportRowSelection } from "../report-row-selection";
 import type { BestSellingExportAction, BestSellingExportData, BestSellingProductsFilters } from "./best-selling-products-report-types";
 import {
   ALL_GROUPS_VALUE,
   bestSellingFileBaseName,
+  bestSellingGroupsFromRows,
+  bestSellingProductRowId,
   bestSellingSortLabel,
+  bestSellingSummaryFromRows,
   bestSellingSummaryConfigs,
   exportGroupRows,
   exportProductRows,
@@ -68,6 +72,10 @@ export function useBestSellingProductsReportWorkflow(exportReportRef: RefObject<
   const [exportData, setExportData] = useState<BestSellingExportData | null>(null);
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
   const { changeLimit, page, setPage } = useUrlPagination({ initialPagination });
+  const rowSelection = useReportRowSelection({
+    getRowId: bestSellingProductRowId,
+    rows
+  });
 
   const storeUuid = authStoreUuid(user);
   const userBranchUuid = user?.branch_uuid ?? "";
@@ -233,11 +241,30 @@ export function useBestSellingProductsReportWorkflow(exportReportRef: RefObject<
     });
   }, [appliedFilters, branchUuid, language, loadExportData, t]);
 
+  const selectedExportData = useCallback(
+    (data: BestSellingExportData): BestSellingExportData => {
+      if (!rowSelection.selectedCount) return data;
+
+      const selectedRows = data.rows.filter((row) =>
+        rowSelection.selectedRowIds.has(bestSellingProductRowId(row))
+      );
+      const selectedGroups = bestSellingGroupsFromRows(data.groups, selectedRows);
+
+      return {
+        ...data,
+        groups: selectedGroups,
+        rows: selectedRows,
+        summary: bestSellingSummaryFromRows(selectedRows, selectedGroups.length)
+      };
+    },
+    [rowSelection.selectedCount, rowSelection.selectedRowIds]
+  );
+
   async function exportExcel() {
     if (exportDisabled) return;
     setExporting("excel");
     try {
-      const data = await fetchExportData();
+      const data = selectedExportData(await fetchExportData());
       const XLSX = await import("xlsx");
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(exportSummaryRows(summaryCards, data.summary, t)), "Summary");
@@ -264,7 +291,7 @@ export function useBestSellingProductsReportWorkflow(exportReportRef: RefObject<
     if (exportDisabled) return;
     setExporting("pdf");
     try {
-      const data = await fetchExportData();
+      const data = selectedExportData(await fetchExportData());
       setExportData(data);
       await waitForPaint();
 
@@ -312,11 +339,28 @@ export function useBestSellingProductsReportWorkflow(exportReportRef: RefObject<
   }
 
   async function printReport() {
-    showToast({
-      title: t("report.printFailed"),
-      description: t("report.selectBillsToPrint"),
-      tone: "info"
-    });
+    if (exportDisabled) return;
+    setExporting("print");
+    try {
+      const data = selectedExportData(await fetchExportData());
+      setExportData(data);
+      await waitForPaint();
+      window.print();
+      showToast({
+        title: t("report.exportReady"),
+        description: t("report.exportedRows", { count: data.rows.length }),
+        tone: "success"
+      });
+    } catch (error) {
+      showToast({
+        title: t("report.printFailed"),
+        description: error instanceof Error ? error.message : "",
+        tone: "error"
+      });
+    } finally {
+      setExporting(null);
+      setExportData(null);
+    }
   }
 
   return {
@@ -351,6 +395,7 @@ export function useBestSellingProductsReportWorkflow(exportReportRef: RefObject<
     printReport,
     renderedExportData,
     rows,
+    rowSelection,
     setDraftFilters,
     setPage,
     sortByLabel,

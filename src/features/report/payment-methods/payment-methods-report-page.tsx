@@ -112,15 +112,28 @@ export function PaymentMethodsReportPage({ initialPagination }: { initialPaginat
             }
             loading={report.loading}
             rowsLength={report.rows.length}
+            selectedCount={report.rowSelection.selectedCount}
             title={report.reportTitle}
+            onClearSelection={report.rowSelection.clearSelection}
             onExportExcel={() => void report.exportExcel()}
             onExportPdf={() => void report.exportPdf()}
             onOpenFilters={report.openMobileFilters}
             onPrintReport={() => void report.printReport()}
             onRefresh={() => void report.load()}
           >
-            <PaymentMethodsTable rows={report.rows} />
-            <PaymentMethodsMobileList rows={report.rows} />
+            <PaymentMethodsTable
+              reportTotal={report.reportTotal}
+              rows={report.rows}
+              selectedRowIds={report.rowSelection.selectedRowIds}
+              onToggleRow={report.rowSelection.toggleRow}
+              onToggleRows={report.rowSelection.toggleRows}
+            />
+            <PaymentMethodsMobileList
+              reportTotal={report.reportTotal}
+              rows={report.rows}
+              selectedRowIds={report.rowSelection.selectedRowIds}
+              onToggleRow={report.rowSelection.toggleRow}
+            />
           </PaymentMethodsTableCard>
         </div>
       </div>

@@ -96,6 +96,7 @@ export function BestSellingProductsReportPage({ initialPagination }: { initialPa
             exporting={report.exporting}
             loading={report.loading}
             rowsLength={report.rows.length}
+            selectedCount={report.rowSelection.selectedCount}
             sortBy={report.appliedFilters.sortBy}
             sortByLabel={report.sortByLabel}
             footer={
@@ -112,13 +113,25 @@ export function BestSellingProductsReportPage({ initialPagination }: { initialPa
             }
             onExportExcel={() => void report.exportExcel()}
             onExportPdf={() => void report.exportPdf()}
+            onClearSelection={report.rowSelection.clearSelection}
             onOpenFilters={report.openMobileFilters}
             onPrintReport={() => void report.printReport()}
             onRefresh={() => void report.load()}
             onSortByChange={report.applySortBy}
           >
-            <BestSellingProductsTable groups={report.groups} summary={report.summary} />
-            <BestSellingProductsMobileList groups={report.groups} />
+            <BestSellingProductsTable
+              groups={report.groups}
+              selectedRowIds={report.rowSelection.selectedRowIds}
+              summary={report.summary}
+              onToggleRow={report.rowSelection.toggleRow}
+              onToggleRows={report.rowSelection.toggleRows}
+            />
+            <BestSellingProductsMobileList
+              groups={report.groups}
+              selectedRowIds={report.rowSelection.selectedRowIds}
+              onToggleRow={report.rowSelection.toggleRow}
+              onToggleRows={report.rowSelection.toggleRows}
+            />
           </BestSellingTableCard>
         </div>
       </div>

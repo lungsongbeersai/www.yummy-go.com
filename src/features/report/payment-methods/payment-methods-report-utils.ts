@@ -161,6 +161,51 @@ export function exportPaymentMethodRows(rows: PaymentMethodReportRow[], t: (key:
   }));
 }
 
+export function paymentMethodReportRowId(row: PaymentMethodReportRow) {
+  return `${row.paymentMethodCode}:${row.sortOrder}`;
+}
+
+export function paymentMethodReportTotalFromRows(
+  rows: PaymentMethodReportRow[],
+) {
+  return rows.reduce<ApiEntity>(
+    (summary, row) => {
+      summary.bill_count = firstNumber(summary.bill_count) + row.billCount;
+      summary.product_price_total =
+        firstNumber(summary.product_price_total) + row.productPriceTotal;
+      summary.topping_total = firstNumber(summary.topping_total) + row.toppingTotal;
+      summary.total = firstNumber(summary.total) + row.total;
+      summary.discount_item_amount =
+        firstNumber(summary.discount_item_amount) + row.discountItemAmount;
+      summary.after_discount_item =
+        firstNumber(summary.after_discount_item) + row.afterDiscountItem;
+      summary.bill_total = firstNumber(summary.bill_total) + row.billTotal;
+      summary.discount_bill = firstNumber(summary.discount_bill) + row.discountBill;
+      summary.after_discount_bill =
+        firstNumber(summary.after_discount_bill) + row.afterDiscountBill;
+      summary.sum_servicecharge =
+        firstNumber(summary.sum_servicecharge) + row.serviceCharge;
+      summary.sum_vate = firstNumber(summary.sum_vate) + row.vat;
+      summary.grand_total = firstNumber(summary.grand_total) + row.grandTotal;
+      summary.payment_total =
+        firstNumber(summary.payment_total) + row.paymentAmount;
+      summary.difference = 0;
+      return summary;
+    },
+    {},
+  );
+}
+
+export function paymentMethodCardsForTotal(
+  cards: PaymentMethodsSummaryCard[],
+  reportTotal: ApiEntity,
+): PaymentMethodsSummaryCard[] {
+  return cards.map((card) => ({
+    ...card,
+    value: firstNumber(reportTotal[card.key]),
+  }));
+}
+
 export function emptyExportData(): PaymentMethodsExportData {
   return {
     cards: [],

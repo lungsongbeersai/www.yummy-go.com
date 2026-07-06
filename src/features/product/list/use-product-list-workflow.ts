@@ -24,7 +24,12 @@ import {
   statusSortLabel,
   statusSortValue
 } from "./product-list-utils";
-import type { ProductStatusKey, ProductStockModeValue, ProductTableRow } from "./product-list-types";
+import type {
+  ProductBulkEditInput,
+  ProductStatusKey,
+  ProductStockModeValue,
+  ProductTableRow
+} from "./product-list-types";
 import {
   buildProductImportDrafts,
   productImportSummary,
@@ -67,6 +72,7 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
   const updateDetailEnabledState = useProductStore((state) => state.updateDetailEnabled);
   const updateDetailStock = useProductStore((state) => state.updateDetailStock);
   const updateDetailsStock = useProductStore((state) => state.updateDetailsStock);
+  const updateStatusFields = useProductStore((state) => state.updateStatusFields);
   const categories = (useReferenceStore((state) => state.options.categories) ?? EMPTY_CATEGORIES) as Category[];
   const units = (useReferenceStore((state) => state.options.units) ?? EMPTY_UNITS) as Unit[];
   const sizes = (useReferenceStore((state) => state.options.sizes) ?? EMPTY_SIZES) as Size[];
@@ -85,6 +91,8 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
   const [pendingKeys, setPendingKeys] = useState<Set<ProductStatusKey>>(() => new Set());
   const [pendingBulkStockModes, setPendingBulkStockModes] = useState<Record<string, ProductStockModeValue>>({});
   const [selectedRows, setSelectedRows] = useState<Set<string>>(() => new Set());
+  const [bulkEditOpen, setBulkEditOpen] = useState(false);
+  const [bulkEditing, setBulkEditing] = useState(false);
   const [statusSortFk, setStatusSortFk] = useState(DEFAULT_STATUS_SORT);
   const {
     changeLimit,
@@ -138,6 +146,20 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
     () => filteredRows.map((row) => row.prod_uuid).filter(Boolean),
     [filteredRows]
   );
+  const selectedProductRows = useMemo(
+    () => filteredRows.filter((row) => selectedRows.has(row.prod_uuid)),
+    [filteredRows, selectedRows]
+  );
+  const selectedDetailUuids = useMemo(() => {
+    const detailUuids = new Set<string>();
+    selectedProductRows.forEach((row) => {
+      productDetails(row).forEach((detail) => {
+        const detailUuid = productDetailUuid(detail);
+        if (detailUuid) detailUuids.add(detailUuid);
+      });
+    });
+    return [...detailUuids];
+  }, [selectedProductRows]);
   const allSelected = visibleProductIds.length > 0 && visibleProductIds.every((id) => selectedRows.has(id));
   const allDetailsExpanded = detailProductIds.length > 0 && detailProductIds.every((id) => !collapsedProducts.has(id));
   const canGoBack = page > 1 && !loading;
@@ -282,6 +304,7 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
 
   function clearSelection() {
     setSelectedRows(new Set());
+    setBulkEditOpen(false);
   }
 
   async function remove(row: Product) {
@@ -375,6 +398,55 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
         return next;
       });
     });
+  }
+
+  async function applyBulkEdit(input: ProductBulkEditInput) {
+    const notificationValue = input.notification === "keep" ? null : Number(input.notification);
+    const enabledValue = input.enabled === "keep" ? null : Number(input.enabled);
+    const stockModeValue = input.stockMode === "keep" ? null : Number(input.stockMode);
+    const notificationProducts = notificationValue
+      ? selectedProductRows.filter((row) => row.prod_uuid)
+      : [];
+    const hasDetailPatch = selectedDetailUuids.length > 0 && (enabledValue || stockModeValue);
+
+    if (!notificationProducts.length && !hasDetailPatch) {
+      showToast({ title: t("storePermissions.noChanges"), tone: "info" });
+      return;
+    }
+
+    setBulkEditing(true);
+    try {
+      await Promise.all([
+        ...notificationProducts.map((row) => updateProductNotification(row.prod_uuid, notificationValue ?? 2)),
+        hasDetailPatch
+          ? updateStatusFields({
+              enabled: enabledValue
+                ? selectedDetailUuids.map((pro_detail_uuid) => ({
+                    pro_detail_uuid,
+                    pro_detail_enabled: enabledValue
+                  }))
+                : undefined,
+              stockModes: stockModeValue
+                ? selectedDetailUuids.map((pro_detail_uuid) => ({
+                    pro_detail_uuid,
+                    pro_detail_stock: stockModeValue
+                  }))
+                : undefined
+            })
+          : Promise.resolve()
+      ]);
+      showToast({ title: t("product.saved"), tone: "success" });
+      setBulkEditOpen(false);
+      clearSelection();
+    } catch (error) {
+      showToast({
+        title: t("settings.saveFailed"),
+        description: error instanceof Error ? error.message : "",
+        tone: "error"
+      });
+    } finally {
+      setBulkEditing(false);
+    }
   }
 
   function resetImportState() {
@@ -556,6 +628,11 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
     importResult,
     filteredRows,
     selectedRows,
+    selectedProductRows,
+    selectedDetailCount: selectedDetailUuids.length,
+    bulkEditOpen,
+    setBulkEditOpen,
+    bulkEditing,
     deleteTarget,
     setDeleteTarget,
     collapsedProducts,
@@ -579,6 +656,7 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
     toggleSelected,
     toggleAllSelected,
     clearSelection,
+    applyBulkEdit,
     remove,
     editProduct,
     updateNotification,

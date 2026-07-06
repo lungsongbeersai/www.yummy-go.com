@@ -99,15 +99,29 @@ export function CategorySalesReportPage({ initialPagination }: { initialPaginati
           loading={report.loading}
           methodLabel={report.activePaymentMethodLabel}
           rowsLength={report.rows.length}
+          selectedCount={report.rowSelection.selectedCount}
           title={report.reportTitle}
+          onClearSelection={report.rowSelection.clearSelection}
           onExportExcel={() => void report.exportExcel()}
           onExportPdf={() => void report.exportPdf()}
           onOpenFilters={report.openMobileFilters}
           onPrintReport={() => void report.printReport()}
           onRefresh={() => void report.load()}
         >
-          <CategorySalesTable groups={report.groups} labelOverrides={report.labelOverrides} />
-          <CategorySalesMobileList groups={report.groups} labelOverrides={report.labelOverrides} />
+          <CategorySalesTable
+            groups={report.groups}
+            labelOverrides={report.labelOverrides}
+            selectedRowIds={report.rowSelection.selectedRowIds}
+            onToggleRow={report.rowSelection.toggleRow}
+            onToggleRows={report.rowSelection.toggleRows}
+          />
+          <CategorySalesMobileList
+            groups={report.groups}
+            labelOverrides={report.labelOverrides}
+            selectedRowIds={report.rowSelection.selectedRowIds}
+            onToggleRow={report.rowSelection.toggleRow}
+            onToggleRows={report.rowSelection.toggleRows}
+          />
         </CategorySalesTableCard>
       </div>
       <CategorySalesExportSurface

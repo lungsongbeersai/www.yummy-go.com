@@ -1,10 +1,9 @@
 "use client";
 
-import { type ReactNode, type RefObject, useCallback, useState } from "react";
+import { type ReactNode, type RefObject, useCallback } from "react";
 import {
   CalendarDays,
   ChevronDown,
-  ChevronUp,
   CreditCard,
   Download,
   FileSpreadsheet,
@@ -18,6 +17,7 @@ import { EmptyState } from "@/components/common/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogClose,
@@ -62,13 +62,19 @@ import type {
   PaymentMethodSummaryCard,
 } from "@/stores/report-store";
 import { SortableReportTableHead } from "../report-sort-table-head";
+import {
+  ReportIndeterminateCheckbox,
+  selectionStateForVisibleIds,
+} from "../report-row-selection";
 import { useLocalTableSort } from "../report-sort-utils";
 import type {
   PaymentMethodsExportAction,
   PaymentMethodsReportFilters,
+  PaymentMethodsRowMetricConfig,
 } from "./payment-methods-report-types";
 import {
   displayMetric,
+  paymentMethodReportRowId,
   paymentMethodRowMetricConfigs,
   paymentMethodTotalMetricConfigs,
 } from "./payment-methods-report-utils";
@@ -443,7 +449,9 @@ type TableCardProps = {
   footer: ReactNode;
   loading: boolean;
   rowsLength: number;
+  selectedCount: number;
   title: string;
+  onClearSelection: () => void;
   onExportExcel: () => void;
   onExportPdf: () => void;
   onOpenFilters: () => void;
@@ -458,7 +466,9 @@ export function PaymentMethodsTableCard({
   footer,
   loading,
   rowsLength,
+  selectedCount,
   title,
+  onClearSelection,
   onExportExcel,
   onExportPdf,
   onOpenFilters,
@@ -468,7 +478,7 @@ export function PaymentMethodsTableCard({
   const { t } = useTranslation();
 
   return (
-    <Card className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden border-border bg-card shadow-sm">
+    <Card className="min-w-0 overflow-hidden border-border bg-card shadow-sm">
       <CardHeader className="shrink-0 border-b border-border bg-card/95 px-2 py-2 sm:px-3">
         <div className="grid w-full min-w-0 grid-cols-1 items-center gap-2 2xl:grid-cols-[minmax(180px,16rem)_minmax(0,1fr)_auto]">
           <div className="flex min-w-0 items-center gap-2">
@@ -479,6 +489,29 @@ export function PaymentMethodsTableCard({
               <CardTitle className="truncate text-sm font-black">
                 {title}
               </CardTitle>
+              {rowsLength ? (
+                <p className="mt-0.5 truncate text-xs font-semibold text-muted-foreground">
+                  {t("report.paymentMethodsReport.rowsLabel", {
+                    count: rowsLength,
+                  })}
+                </p>
+              ) : null}
+              {selectedCount > 0 ? (
+                <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5">
+                  <Badge className="h-6 max-w-full truncate border-primary/20 bg-primary/10 px-2 text-xs text-primary">
+                    {t("report.selectedForExport", { count: selectedCount })}
+                  </Badge>
+                  <Button
+                    type="button"
+                    size="xs"
+                    variant="ghost"
+                    className="h-6 px-2 text-xs text-muted-foreground"
+                    onClick={onClearSelection}
+                  >
+                    {t("report.clearSelection")}
+                  </Button>
+                </div>
+              ) : null}
             </div>
             {loading && rowsLength ? (
               <Badge className="h-7 w-fit border-border bg-muted px-2 text-xs text-muted-foreground">
@@ -567,14 +600,14 @@ export function PaymentMethodsTableCard({
           </div>
         </div>
       </CardHeader>
-      <CardContent className="flex min-h-0 flex-1 flex-col p-0">
+      <CardContent className="p-0">
         {loading && !rowsLength ? (
           <div className="p-4 md:min-h-80">
             <PaymentMethodsLoadingSkeleton />
           </div>
         ) : rowsLength ? (
           <>
-            <div className="min-h-0 min-w-0 flex-1 overflow-auto overscroll-x-contain overscroll-y-auto">
+            <div className="min-w-0 overflow-x-auto overscroll-x-contain">
               {children}
             </div>
             <div className="shrink-0 bg-card">{footer}</div>
@@ -592,56 +625,75 @@ export function PaymentMethodsTableCard({
   );
 }
 
-// Column group definitions for the desktop table
-type ColumnGroup = {
-  key: string;
-  labelKey: string;
-  fields: Array<keyof PaymentMethodReportRow>;
+type PaymentMethodTableField = {
+  field: keyof PaymentMethodReportRow;
+  minWidth: string;
+  summaryKey: string;
 };
 
-const COLUMN_GROUPS: ColumnGroup[] = [
+const PAYMENT_METHOD_TABLE_FIELDS = [
+  { field: "billCount", minWidth: "min-w-[84px]", summaryKey: "bill_count" },
   {
-    key: "bills",
-    labelKey: "report.paymentMethodsReport.groups.bills",
-    fields: ["billCount"],
+    field: "productPriceTotal",
+    minWidth: "min-w-[132px]",
+    summaryKey: "product_price_total",
   },
   {
-    key: "amount",
-    labelKey: "report.paymentMethodsReport.groups.amount",
-    fields: ["productPriceTotal", "toppingTotal", "total"],
+    field: "toppingTotal",
+    minWidth: "min-w-[116px]",
+    summaryKey: "topping_total",
+  },
+  { field: "total", minWidth: "min-w-[132px]", summaryKey: "total" },
+  {
+    field: "discountItemAmount",
+    minWidth: "min-w-[124px]",
+    summaryKey: "discount_item_amount",
   },
   {
-    key: "discount",
-    labelKey: "report.paymentMethodsReport.groups.discount",
-    fields: [
-      "discountItemAmount",
-      "afterDiscountItem",
-      "billTotal",
-      "discountBill",
-      "afterDiscountBill",
-    ],
+    field: "discountBill",
+    minWidth: "min-w-[124px]",
+    summaryKey: "discount_bill",
   },
   {
-    key: "tax",
-    labelKey: "report.paymentMethodsReport.groups.tax",
-    fields: ["serviceCharge", "vat", "grandTotal"],
+    field: "serviceCharge",
+    minWidth: "min-w-[124px]",
+    summaryKey: "sum_servicecharge",
+  },
+  { field: "vat", minWidth: "min-w-[104px]", summaryKey: "sum_vate" },
+  {
+    field: "grandTotal",
+    minWidth: "min-w-[132px]",
+    summaryKey: "grand_total",
   },
   {
-    key: "payment",
-    labelKey: "report.paymentMethodsReport.groups.payment",
-    fields: ["paymentAmount"],
+    field: "paymentAmount",
+    minWidth: "min-w-[142px]",
+    summaryKey: "payment_total",
   },
-];
+] as const satisfies readonly PaymentMethodTableField[];
+
+type PaymentMetricByField = Partial<
+  Record<keyof PaymentMethodReportRow, PaymentMethodsRowMetricConfig>
+>;
 
 export function PaymentMethodsTable({
+  reportTotal,
   rows,
+  selectedRowIds,
+  onToggleRow,
+  onToggleRows,
 }: {
+  reportTotal: Record<string, unknown>;
   rows: PaymentMethodReportRow[];
+  selectedRowIds: Set<string>;
+  onToggleRow: (row: PaymentMethodReportRow, selected: boolean) => void;
+  onToggleRows: (rows: PaymentMethodReportRow[], selected: boolean) => void;
 }) {
   const { t } = useTranslation();
-  const allMetrics = paymentMethodRowMetricConfigs(t);
-  // Map field -> metric config for quick lookup
-  const metricByField = Object.fromEntries(allMetrics.map((m) => [m.field, m]));
+  const metricByField = Object.fromEntries(
+    paymentMethodRowMetricConfigs(t).map((metric) => [metric.field, metric]),
+  ) as PaymentMetricByField;
+  const totalPaymentAmount = paymentTotalAmount(reportTotal, rows);
   const getSortValue = useCallback(
     (row: PaymentMethodReportRow, key: keyof PaymentMethodReportRow) =>
       row[key],
@@ -651,260 +703,357 @@ export function PaymentMethodsTable({
     rows,
     getSortValue,
   );
+  const visibleIds = sortedRows.map(paymentMethodReportRowId);
+  const { allVisibleSelected, someVisibleSelected } =
+    selectionStateForVisibleIds(visibleIds, selectedRowIds);
 
   return (
     <div className="hidden min-w-0 md:block">
       <Table className="w-max min-w-full table-auto text-[13px]">
-        <TableHeader className="sticky top-0 z-20 bg-background/95 shadow-sm backdrop-blur">
-          <TableRow className="border-b-0">
-            <TableHead className="min-w-48 border-b border-border bg-background/95" />
-            {COLUMN_GROUPS.map((group) => (
-              <TableHead
-                key={group.key}
-                colSpan={group.fields.length}
-                className="border-b border-border bg-muted/30 text-center text-[11px] font-black uppercase text-muted-foreground"
-              >
-                {t(group.labelKey, { defaultValue: group.key })}
-              </TableHead>
-            ))}
-          </TableRow>
+        <TableHeader className="[&_th]:sticky [&_th]:top-0 [&_th]:z-20 [&_th]:h-9 [&_th]:whitespace-nowrap [&_th]:border-b [&_th]:border-border [&_th]:bg-muted/70 [&_th]:px-2 [&_th]:shadow-sm [&_th]:backdrop-blur">
           <TableRow>
+            <TableHead className="w-10 text-center">
+              <ReportIndeterminateCheckbox
+                aria-label={t("common.selectAll")}
+                checked={allVisibleSelected}
+                indeterminate={!allVisibleSelected && someVisibleSelected}
+                onChange={(event) =>
+                  onToggleRows(sortedRows, event.target.checked)
+                }
+              />
+            </TableHead>
             <SortableReportTableHead
               sort={sort}
               sortKey="paymentMethodName"
-              className="min-w-48 whitespace-nowrap bg-background/95"
+              className="min-w-[220px]"
               onSort={toggleSort}
             >
               {t("report.paymentMethodsReport.columns.paymentMethod")}
             </SortableReportTableHead>
-            {COLUMN_GROUPS.flatMap((group) =>
-              group.fields.map((field) => {
-                const metric = metricByField[field];
-                return (
-                  <SortableReportTableHead
-                    key={field}
-                    align="right"
-                    sort={sort}
-                    sortKey={field}
-                    className="min-w-28 whitespace-nowrap bg-background/95 text-right text-[12px]"
-                    onSort={toggleSort}
-                  >
-                    {metric?.label ?? field}
-                  </SortableReportTableHead>
-                );
-              }),
-            )}
+
+            {PAYMENT_METHOD_TABLE_FIELDS.map(({ field, minWidth }) => {
+              const metric = metricByField[field];
+              return (
+                <SortableReportTableHead
+                  key={field}
+                  align="right"
+                  sort={sort}
+                  sortKey={field}
+                  className={cn(minWidth, "text-right text-[12px]")}
+                  onSort={toggleSort}
+                >
+                  {metric?.label ?? field}
+                </SortableReportTableHead>
+              );
+            })}
           </TableRow>
         </TableHeader>
         <TableBody>
           {sortedRows.map((row, index) => (
             <TableRow
               key={`${row.paymentMethodCode}-${row.sortOrder}`}
-              className={index % 2 === 1 ? "bg-muted/15" : undefined}
-            >
-              <TableCell className="whitespace-nowrap">
-                <div>
-                  <p className="font-black">{row.paymentMethodName}</p>
-                  <p className="text-[11px] text-muted-foreground">
-                    {row.paymentMethodCode}
-                  </p>
-                </div>
-              </TableCell>
-              {COLUMN_GROUPS.flatMap((group) =>
-                group.fields.map((field) => {
-                  const metric = metricByField[field];
-                  return (
-                    <TableCell
-                      key={field}
-                      className={cn("whitespace-nowrap text-right tabular-nums", metricValueClass(field, row[field]))}
-                    >
-                      {metric
-                        ? displayMetric(row[field], metric.kind)
-                        : String(row[field] ?? "-")}
-                    </TableCell>
-                  );
-                }),
+              className={cn(
+                "bg-card hover:bg-muted/25 [&>td]:px-2 [&>td]:py-2.5",
+                index % 2 === 1 && "bg-muted/10",
+                selectedRowIds.has(paymentMethodReportRowId(row)) &&
+                  "bg-primary/5 hover:bg-primary/10",
               )}
+            >
+              <TableCell className="w-10 text-center">
+                <Checkbox
+                  aria-label={t("common.selectRow", {
+                    name: row.paymentMethodName,
+                  })}
+                  checked={selectedRowIds.has(paymentMethodReportRowId(row))}
+                  onChange={(event) => onToggleRow(row, event.target.checked)}
+                />
+              </TableCell>
+              <TableCell className="whitespace-nowrap">
+                <PaymentMethodNameCell
+                  row={row}
+                  totalPaymentAmount={totalPaymentAmount}
+                />
+              </TableCell>
+
+              {PAYMENT_METHOD_TABLE_FIELDS.map(({ field }) => {
+                const metric = metricByField[field];
+                return (
+                  <TableCell
+                    key={field}
+                    className={cn(
+                      "whitespace-nowrap text-right tabular-nums",
+                      metricValueClass(field, row[field]),
+                    )}
+                  >
+                    {metric
+                      ? displayMetric(row[field], metric.kind)
+                      : String(row[field] ?? "-")}
+                  </TableCell>
+                );
+              })}
             </TableRow>
           ))}
+
+          <PaymentMethodsSummaryRow
+            metricByField={metricByField}
+            reportTotal={reportTotal}
+            rows={rows}
+          />
         </TableBody>
       </Table>
     </div>
   );
 }
 
-// Mobile section group definitions
-type MobileSectionGroup = {
-  key: string;
-  labelKey: string;
-  fields: Array<keyof PaymentMethodReportRow>;
-};
-
-const MOBILE_GROUPS: MobileSectionGroup[] = [
-  {
-    key: "bills",
-    labelKey: "report.paymentMethodsReport.groups.bills",
-    fields: ["billCount"],
-  },
-  {
-    key: "amount",
-    labelKey: "report.paymentMethodsReport.groups.amount",
-    fields: ["productPriceTotal", "toppingTotal", "total"],
-  },
-  {
-    key: "discount",
-    labelKey: "report.paymentMethodsReport.groups.discount",
-    fields: [
-      "discountItemAmount",
-      "afterDiscountItem",
-      "billTotal",
-      "discountBill",
-      "afterDiscountBill",
-    ],
-  },
-  {
-    key: "tax",
-    labelKey: "report.paymentMethodsReport.groups.tax",
-    fields: ["serviceCharge", "vat", "grandTotal"],
-  },
-  {
-    key: "payment",
-    labelKey: "report.paymentMethodsReport.groups.payment",
-    fields: ["paymentAmount"],
-  },
-];
-
 export function PaymentMethodsMobileList({
+  reportTotal,
   rows,
+  selectedRowIds,
+  onToggleRow,
 }: {
+  reportTotal: Record<string, unknown>;
   rows: PaymentMethodReportRow[];
+  selectedRowIds: Set<string>;
+  onToggleRow: (row: PaymentMethodReportRow, selected: boolean) => void;
 }) {
   const { t } = useTranslation();
-  const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
-  const allMetrics = paymentMethodRowMetricConfigs(t);
-  const metricByField = Object.fromEntries(allMetrics.map((m) => [m.field, m]));
-
-  function toggleExpand(key: string) {
-    setExpandedKeys((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-  }
+  const metricByField = Object.fromEntries(
+    paymentMethodRowMetricConfigs(t).map((metric) => [metric.field, metric]),
+  ) as PaymentMetricByField;
+  const totalPaymentAmount = paymentTotalAmount(reportTotal, rows);
+  const detailFields = PAYMENT_METHOD_TABLE_FIELDS.filter(
+    ({ field }) => field !== "billCount" && field !== "paymentAmount",
+  );
 
   return (
     <div className="flex flex-col gap-3 p-3 md:hidden">
-      {rows.map((row) => {
-        const key = `${row.paymentMethodCode}-${row.sortOrder}`;
-        const expanded = expandedKeys.has(key);
-        return (
-          <section
-            key={key}
-            className="overflow-hidden rounded-md border border-border bg-card shadow-sm"
-          >
-            <div className="flex items-center justify-between gap-3 bg-muted/30 px-4 py-3">
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <h3 className="truncate text-sm font-black">
-                    {row.paymentMethodName}
-                  </h3>
+      {rows.map((row) => (
+        <section
+          key={`${row.paymentMethodCode}-${row.sortOrder}`}
+          className={cn(
+            "overflow-hidden rounded-md border border-border bg-card shadow-sm",
+            selectedRowIds.has(paymentMethodReportRowId(row)) &&
+              "border-primary/30 bg-primary/5",
+          )}
+        >
+          <div className="flex items-start justify-between gap-3 border-b border-border bg-muted/20 px-3 py-3">
+            <div className="flex min-w-0 items-start gap-3">
+              <Checkbox
+                aria-label={t("common.selectRow", {
+                  name: row.paymentMethodName,
+                })}
+                className="mt-1"
+                checked={selectedRowIds.has(paymentMethodReportRowId(row))}
+                onChange={(event) => onToggleRow(row, event.target.checked)}
+              />
+              <PaymentMethodNameCell
+                row={row}
+                totalPaymentAmount={totalPaymentAmount}
+              />
+            </div>
+            <div className="shrink-0 text-right">
+              <p className="text-[11px] font-bold text-muted-foreground">
+                {t("report.paymentMethodsReport.columns.paymentAmount")}
+              </p>
+              <p
+                className={cn(
+                  "text-base tabular-nums",
+                  metricValueClass("paymentAmount", row.paymentAmount),
+                )}
+              >
+                {displayMetric(row.paymentAmount, "money")}
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 divide-x divide-border border-b border-border">
+            <div className="px-3 py-2 text-center">
+              <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                {t("report.paymentMethodsReport.columns.billsCount")}
+              </p>
+              <p className="text-sm font-black tabular-nums">
+                {row.billCount}
+              </p>
+            </div>
+            <div className="px-3 py-2 text-center">
+              <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                {t("report.paymentMethodsReport.columns.total")}
+              </p>
+              <p
+                className={cn(
+                  "text-sm tabular-nums",
+                  metricValueClass("total", row.total),
+                )}
+              >
+                {displayMetric(row.total, "money")}
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-1.5 bg-muted/10 p-3">
+            {detailFields.map(({ field }) => {
+              const metric = metricByField[field];
+              return (
+                <div
+                  key={field}
+                  className="min-w-0 rounded-md border border-border bg-background/70 px-2.5 py-1.5"
+                >
+                  <p className="truncate text-[10px] font-bold text-muted-foreground">
+                    {metric?.label ?? field}
+                  </p>
+                  <p
+                    className={cn(
+                      "truncate text-xs tabular-nums",
+                      metricValueClass(field, row[field]),
+                    )}
+                  >
+                    {metric
+                      ? displayMetric(row[field], metric.kind)
+                      : String(row[field] ?? "-")}
+                  </p>
                 </div>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  {row.paymentMethodCode}
-                </p>
-              </div>
-              <div className="shrink-0 text-right">
-                <p className="text-[11px] font-bold text-muted-foreground">
-                  {t("report.paymentMethodsReport.columns.paymentAmount")}
-                </p>
-                <p className={cn("text-base tabular-nums", metricValueClass("paymentAmount", row.paymentAmount))}>
-                  {displayMetric(row.paymentAmount, "money")}
-                </p>
-              </div>
-            </div>
+              );
+            })}
+          </div>
+        </section>
+      ))}
 
-            <div className="grid grid-cols-3 divide-x divide-border border-b border-border">
-              <div className="px-3 py-2 text-center">
-                <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-                  {t("report.paymentMethodsReport.columns.billsCount")}
-                </p>
-                <p className="text-sm font-black tabular-nums">
-                  {row.billCount}
-                </p>
-              </div>
-              <div className="px-3 py-2 text-center">
-                <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-                  {t("report.categorySales.columns.productPriceTotal")}
-                </p>
-                <p className={cn("text-sm tabular-nums", metricValueClass("productPriceTotal", row.productPriceTotal))}>
-                  {displayMetric(row.productPriceTotal, "money")}
-                </p>
-              </div>
-              <div className="px-3 py-2 text-center">
-                <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-                  {t("report.categorySales.columns.grandTotal")}
-                </p>
-                <p className={cn("text-sm tabular-nums", metricValueClass("grandTotal", row.grandTotal))}>
-                  {displayMetric(row.grandTotal, "money")}
-                </p>
-              </div>
-            </div>
+      <PaymentMethodsMobileSummary
+        metricByField={metricByField}
+        reportTotal={reportTotal}
+        rows={rows}
+      />
+    </div>
+  );
+}
 
-            <Button
-              type="button"
-              variant="ghost"
-              className="h-11 w-full rounded-none border-b border-border text-[11px] font-bold text-muted-foreground hover:bg-muted/20"
-              onClick={() => toggleExpand(key)}
-            >
-              {expanded ? (
-                <>
-                  <ChevronUp />
-                  {t("actions.showLess", { defaultValue: "ຫຍໍ້ລາຍລະອຽດ" })}
-                </>
-              ) : (
-                <>
-                  <ChevronDown />
-                  {t("actions.showMore", { defaultValue: "ລາຍລະອຽດທັງໝົດ" })}
-                </>
-              )}
-            </Button>
+function PaymentMethodNameCell({
+  row,
+  totalPaymentAmount,
+}: {
+  row: PaymentMethodReportRow;
+  totalPaymentAmount: number;
+}) {
+  const share = paymentShare(row.paymentAmount, totalPaymentAmount);
 
-            {expanded && (
-              <div className="divide-y divide-border">
-                {MOBILE_GROUPS.map((group) => (
-                  <div key={group.key} className="bg-muted/10 p-3">
-                    <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                      {t(group.labelKey, { defaultValue: group.key })}
-                    </p>
-                    <div className="grid grid-cols-2 gap-1.5">
-                      {group.fields.map((field) => {
-                        const metric = metricByField[field];
-                        return (
-                          <div
-                            key={field}
-                            className="min-w-0 rounded-md border border-border bg-background/70 px-2.5 py-1.5"
-                          >
-                            <p className="truncate text-[10px] font-bold text-muted-foreground">
-                              {metric?.label ?? field}
-                            </p>
-                            <p className={cn("truncate text-xs tabular-nums", metricValueClass(field, row[field]))}>
-                              {metric
-                                ? displayMetric(row[field], metric.kind)
-                                : String(row[field] ?? "-")}
-                            </p>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
-              </div>
+  return (
+    <div className="min-w-0">
+      <div className="flex items-center gap-2">
+        <div className="grid size-8 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
+          <CreditCard className="size-4" aria-hidden="true" />
+        </div>
+        <div className="min-w-0">
+          <p className="truncate font-black">{row.paymentMethodName}</p>
+          <p className="text-[11px] font-semibold text-muted-foreground">
+            {row.paymentMethodCode}
+          </p>
+        </div>
+      </div>
+      <div className="mt-2 flex items-center gap-2">
+        <div className="h-1.5 min-w-16 flex-1 overflow-hidden rounded-full bg-muted">
+          <div
+            className="h-full rounded-full bg-primary"
+            style={{ width: `${share}%` }}
+          />
+        </div>
+        <span className="text-[11px] font-bold tabular-nums text-muted-foreground">
+          {share.toFixed(1)}%
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function PaymentMethodsSummaryRow({
+  metricByField,
+  reportTotal,
+  rows,
+}: {
+  metricByField: PaymentMetricByField;
+  reportTotal: Record<string, unknown>;
+  rows: PaymentMethodReportRow[];
+}) {
+  const { t } = useTranslation();
+
+  return (
+    <TableRow className="sticky bottom-0 z-20 border-t border-primary/25 bg-primary/10 hover:bg-primary/10 [&>td]:px-2 [&>td]:py-2.5">
+      <TableCell />
+      <TableCell className="whitespace-nowrap">
+        <div className="flex min-w-48 items-center gap-2">
+          <span className="inline-flex h-6 items-center rounded-full bg-background/80 px-2 text-xs font-black uppercase text-primary ring-1 ring-primary/20">
+            {t("report.paymentMethodsReport.totalSummary")}
+          </span>
+          <span className="text-xs font-semibold text-muted-foreground">
+            {t("report.paymentMethodsReport.rowsLabel", { count: rows.length })}
+          </span>
+        </div>
+      </TableCell>
+
+      {PAYMENT_METHOD_TABLE_FIELDS.map(({ field, summaryKey }) => {
+        const metric = metricByField[field];
+        const value = summaryValue(reportTotal, rows, field, summaryKey);
+        return (
+          <TableCell
+            key={field}
+            className={cn(
+              "whitespace-nowrap text-right tabular-nums",
+              metricValueClass(field, value),
             )}
-          </section>
+          >
+            {metric ? displayMetric(value, metric.kind) : String(value)}
+          </TableCell>
         );
       })}
-    </div>
+    </TableRow>
+  );
+}
+
+function PaymentMethodsMobileSummary({
+  metricByField,
+  reportTotal,
+  rows,
+}: {
+  metricByField: PaymentMetricByField;
+  reportTotal: Record<string, unknown>;
+  rows: PaymentMethodReportRow[];
+}) {
+  const { t } = useTranslation();
+
+  return (
+    <section className="overflow-hidden rounded-md border border-primary/20 bg-primary/5 shadow-sm">
+      <div className="flex items-center justify-between gap-2 border-b border-primary/15 px-3 py-2.5">
+        <p className="text-sm font-black text-primary">
+          {t("report.paymentMethodsReport.totalSummary")}
+        </p>
+        <Badge className="border-primary/20 bg-background/80 text-primary">
+          {t("report.paymentMethodsReport.rowsLabel", { count: rows.length })}
+        </Badge>
+      </div>
+      <div className="grid grid-cols-2 gap-1.5 p-3">
+        {PAYMENT_METHOD_TABLE_FIELDS.map(({ field, summaryKey }) => {
+          const metric = metricByField[field];
+          const value = summaryValue(reportTotal, rows, field, summaryKey);
+          return (
+            <div
+              key={field}
+              className="min-w-0 rounded-md border border-border bg-background/80 px-2.5 py-1.5"
+            >
+              <p className="truncate text-[10px] font-bold text-muted-foreground">
+                {metric?.label ?? field}
+              </p>
+              <p
+                className={cn(
+                  "truncate text-xs tabular-nums",
+                  metricValueClass(field, value),
+                )}
+              >
+                {metric ? displayMetric(value, metric.kind) : String(value)}
+              </p>
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 
@@ -964,6 +1113,36 @@ function metricNumber(value: unknown) {
   return Number.isFinite(number) ? number : 0;
 }
 
+function summaryValue(
+  reportTotal: Record<string, unknown>,
+  rows: PaymentMethodReportRow[],
+  field: keyof PaymentMethodReportRow,
+  summaryKey: string,
+) {
+  const backendValue = reportTotal[summaryKey];
+  if (isPresent(backendValue)) return metricNumber(backendValue);
+
+  return rows.reduce((total, row) => total + metricNumber(row[field]), 0);
+}
+
+function paymentTotalAmount(
+  reportTotal: Record<string, unknown>,
+  rows: PaymentMethodReportRow[],
+) {
+  const paymentTotal = metricNumber(reportTotal.payment_total);
+  if (paymentTotal > 0) return paymentTotal;
+
+  const grandTotal = metricNumber(reportTotal.grand_total);
+  if (grandTotal > 0) return grandTotal;
+
+  return rows.reduce((total, row) => total + row.paymentAmount, 0);
+}
+
+function paymentShare(value: number, total: number) {
+  if (total <= 0) return 0;
+  return Math.min(100, Math.max(0, (value / total) * 100));
+}
+
 function financialTextClass(key: string, value: unknown, strong = false) {
   const number = metricNumber(value);
   const isDiscount = key.includes("discount");
@@ -978,10 +1157,32 @@ function financialTextClass(key: string, value: unknown, strong = false) {
 }
 
 function metricValueClass(field: keyof PaymentMethodReportRow, value: unknown) {
-  return financialTextClass(
-    String(field),
-    value,
-    field === "grandTotal" || field === "paymentAmount",
+  const number = metricNumber(value);
+  const isDiscount =
+    field === "discountBill" || field === "discountItemAmount";
+  const isTotal =
+    field === "grandTotal" || field === "paymentAmount" || field === "total";
+
+  return cn(
+    "font-semibold",
+    field === "billCount" && "font-black text-foreground",
+    field === "paymentAmount" && number > 0 && "font-black text-primary",
+    field === "grandTotal" && number > 0 && "font-black text-foreground",
+    field === "total" && number > 0 && "font-black text-foreground",
+    isDiscount && number > 0 && "font-black text-destructive",
+    field === "serviceCharge" &&
+      number > 0 &&
+      "font-black text-sky-700 dark:text-sky-300",
+    field === "vat" &&
+      number > 0 &&
+      "font-black text-amber-700 dark:text-amber-300",
+    !isTotal &&
+      !isDiscount &&
+      field !== "serviceCharge" &&
+      field !== "vat" &&
+      number > 0 &&
+      "text-foreground",
+    number === 0 && "text-muted-foreground",
   );
 }
 

@@ -138,7 +138,7 @@ export function ProductStockSelect({
 
   return (
     <Select
-      value={binaryFlag(detail.pro_detail_stock, "1")}
+      value={binaryFlag(detail.pro_detail_stock)}
       disabled={disabled}
       onValueChange={(value) => workflow.updateDetailStockMode(detail, value)}
     >
@@ -164,7 +164,7 @@ export function ProductStockBadge({
   detail: ProductDetail;
   workflow: ProductListWorkflow;
 }) {
-  const stockMode = binaryFlag(detail.pro_detail_stock, "1");
+  const stockMode = binaryFlag(detail.pro_detail_stock);
   const label =
     stockMode === "1" ? workflow.t("product.stockMode.deduct") : workflow.t("product.stockMode.noDeduct");
   const className = stockMode === "1" ? "bg-primary/10 text-primary" : "bg-secondary text-secondary-foreground";

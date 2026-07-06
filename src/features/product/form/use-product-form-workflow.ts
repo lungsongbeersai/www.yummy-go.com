@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import {
@@ -142,6 +142,7 @@ export function useProductFormWorkflow() {
     [isEditing, prodUuid, rows]
   );
   const editingHydrationKey = useMemo(() => productHydrationKey(editing), [editing]);
+  const hydratedEditableProductUuidRef = useRef("");
   const editDataReady = !isEditing || Boolean(editing);
 
   const [prodCode, setProdCode] = useState(generateProdCode);
@@ -318,7 +319,18 @@ export function useProductFormWorkflow() {
   }, [editLoadKey, editing, isEditing, language, loadProducts, prodUuid, showToast, t, user?.branch_uuid]);
 
   useEffect(() => {
+    hydratedEditableProductUuidRef.current = "";
+  }, [prodUuid]);
+
+  useEffect(() => {
     if (!editing) return;
+    const editingProductUuid = String(editing.prod_uuid ?? prodUuid);
+    const hasFullEditData = hasEditableProductData(editing);
+
+    if (hasFullEditData && hydratedEditableProductUuidRef.current === editingProductUuid) {
+      return;
+    }
+
     setProdCode(String(editing.prod_code ?? generateProdCode()));
     setProdNameLa(String(editing.prod_name_la ?? editing.prod_name ?? ""));
     setProdNameEng(String(editing.prod_name_eng ?? editing.prod_name ?? ""));
@@ -341,7 +353,10 @@ export function useProductFormWorkflow() {
     if (editing.details?.length) {
       setDetails(editing.details.map((detail) => detailFromProduct(detail, nextStatus)));
     }
-  }, [editing, editingHydrationKey, setDetails]);
+    if (hasFullEditData) {
+      hydratedEditableProductUuidRef.current = editingProductUuid;
+    }
+  }, [editing, editingHydrationKey, prodUuid, setDetails]);
 
   function changeStatusSort(value: StatusSortFk) {
     setDetails((current) => normalizeDetailsForStatus(current, value, statusSortFk));
