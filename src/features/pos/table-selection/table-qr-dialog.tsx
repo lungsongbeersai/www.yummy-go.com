@@ -1,10 +1,5 @@
 "use client";
 
-import { type ReactNode, useEffect, useMemo, useState } from "react";
-import Image from "next/image";
-import QRCode from "qrcode";
-import { Copy, Download, ExternalLink, Printer, QrCode as QrCodeIcon } from "lucide-react";
-import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -19,6 +14,11 @@ import { useAuthStore } from "@/stores/auth-store";
 import { usePosStore } from "@/stores/pos-store";
 import { usePrinterStore } from "@/stores/printer-store";
 import { useToastStore } from "@/stores/toast-store";
+import { Copy, Download, ExternalLink, Printer, QrCode as QrCodeIcon } from "lucide-react";
+import Image from "next/image";
+import QRCode from "qrcode";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { optionalString } from "./utils";
 
 const localQrTargetUrl = "http://localhost:3001/sales/open-table-sale";
@@ -281,7 +281,7 @@ export function TableQrDialog({
                 {printing ? <Spinner /> : <Printer />}
               </IconActionButton>
               <Button type="button" className="h-11 min-w-0 rounded-xl px-4 font-black" disabled={!targetUrl || pending} onClick={openMenu}>
-              {pending ? <Spinner data-icon="inline-start" /> : <ExternalLink data-icon="inline-start" />}
+                {pending ? <Spinner data-icon="inline-start" /> : <ExternalLink data-icon="inline-start" />}
                 <span className="truncate">{t("pos.openMenu")}</span>
               </Button>
             </div>

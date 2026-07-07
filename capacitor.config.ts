@@ -14,15 +14,32 @@ const config: CapacitorConfig = {
 
   android: {
     appendUserAgent: "YummyGoCapacitorAndroid",
-    backgroundColor: "#ffffff",
+    backgroundColor: "#16a34a",
     webContentsDebuggingEnabled: process.env.CAPACITOR_WEB_DEBUG === "1",
+  },
+
+  ios: {
+    appendUserAgent: "YummyGoCapacitoriOS",
+    backgroundColor: "#16a34a",
+    contentInset: "automatic",
   },
 
   plugins: {
     StatusBar: {
       overlaysWebView: false,
-      backgroundColor: "#ffffff",
+      backgroundColor: "#16a34a",
       style: "LIGHT",
+    },
+
+    SplashScreen: {
+      launchShowDuration: 900,
+      launchAutoHide: true,
+      backgroundColor: "#16a34a",
+      androidSplashResourceName: "splash",
+      androidScaleType: "CENTER_CROP",
+      showSpinner: false,
+      splashFullScreen: true,
+      splashImmersive: true,
     },
   },
 };

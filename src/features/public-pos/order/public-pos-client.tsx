@@ -1,15 +1,15 @@
 "use client";
 
-import { useState } from "react";
-import { useTranslation } from "react-i18next";
-import { AlertCircle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { cn } from "@/lib/utils";
-import { useAppStore } from "@/stores/app-store";
 import { ProductBrowse } from "@/features/public-pos/order/components/product-browse";
 import { PublicHeader } from "@/features/public-pos/order/components/public-header";
 import { PublicPosLoadingScreen } from "@/features/public-pos/order/components/public-pos-skeletons";
 import { usePublicPosBootstrap } from "@/features/public-pos/order/hooks/use-public-pos-bootstrap";
+import { cn } from "@/lib/utils";
+import { useAppStore } from "@/stores/app-store";
+import { AlertCircle } from "lucide-react";
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 export function PublicPosClient({
   token,

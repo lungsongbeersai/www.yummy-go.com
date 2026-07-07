@@ -1,17 +1,17 @@
 "use client";
 
-import { useEffect } from "react";
-import Link from "next/link";
-import { useTranslation } from "react-i18next";
-import { RefreshCcw } from "lucide-react";
+import { LoadingState } from "@/components/common/loading-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { LoadingState } from "@/components/common/loading-state";
 import { useAppStore } from "@/stores/app-store";
 import { useAuthStore } from "@/stores/auth-store";
 import { usePosStore } from "@/stores/pos-store";
 import { useToastStore } from "@/stores/toast-store";
+import { RefreshCcw } from "lucide-react";
+import Link from "next/link";
+import { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 
 export function CounterCheckoutPage() {
   const { t } = useTranslation();

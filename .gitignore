@@ -16,3 +16,7 @@ cloudflare-env.d.ts
 
 # Local Netlify folder
 .netlify
+android/app/key/
+android/key.properties
+*.jks
+*.keystore
