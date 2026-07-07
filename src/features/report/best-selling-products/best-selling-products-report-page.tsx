@@ -36,18 +36,21 @@ export function BestSellingProductsReportPage({ initialPagination }: { initialPa
 
   return (
     <>
-      <div className="h-full min-h-0 min-w-0 overflow-x-hidden overflow-y-auto" style={layoutStyle}>
-        <div className="mx-auto flex w-full min-w-0 max-w-full flex-col gap-3 p-3 sm:p-4 lg:p-4 2xl:max-w-375">
+      <div
+        className="h-full min-h-0 min-w-0 overflow-x-hidden overflow-y-auto lg:overflow-hidden"
+        style={layoutStyle}
+      >
+        <div className="flex min-h-full w-full min-w-0 flex-col gap-2 p-2 sm:p-3 lg:h-full lg:min-h-0">
           <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <div className="flex items-center gap-2 text-sm font-bold text-primary">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 text-xs font-bold text-primary">
                 <Trophy className="size-4" />
                 {t("nav.report_menu")}
               </div>
-              <h1 className="text-2xl font-black tracking-normal text-foreground">
+              <h1 className="truncate text-xl font-black tracking-normal text-foreground sm:text-2xl">
                 {t("report.bestSelling.title")}
               </h1>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-xs text-muted-foreground sm:text-sm">
                 {t("report.bestSelling.description")}
               </p>
             </div>
@@ -93,6 +96,8 @@ export function BestSellingProductsReportPage({ initialPagination }: { initialPa
             exporting={report.exporting}
             loading={report.loading}
             rowsLength={report.rows.length}
+            selectedCount={report.rowSelection.selectedCount}
+            sortBy={report.appliedFilters.sortBy}
             sortByLabel={report.sortByLabel}
             footer={
               <ReportPagination
@@ -100,20 +105,33 @@ export function BestSellingProductsReportPage({ initialPagination }: { initialPa
                 canGoNext={report.canGoNext}
                 page={report.page}
                 rangeLabel={report.paginationRangeLabel}
-              totalPages={report.totalPages}
-              onBack={() => report.setPage((current) => Math.max(1, current - 1))}
-              onNext={() => report.setPage((current) => current + 1)}
-              onPageChange={report.setPage}
-            />
+                totalPages={report.totalPages}
+                onBack={() => report.setPage((current) => Math.max(1, current - 1))}
+                onNext={() => report.setPage((current) => current + 1)}
+                onPageChange={report.setPage}
+              />
             }
             onExportExcel={() => void report.exportExcel()}
             onExportPdf={() => void report.exportPdf()}
+            onClearSelection={report.rowSelection.clearSelection}
             onOpenFilters={report.openMobileFilters}
             onPrintReport={() => void report.printReport()}
             onRefresh={() => void report.load()}
+            onSortByChange={report.applySortBy}
           >
-            <BestSellingProductsTable groups={report.groups} />
-            <BestSellingProductsMobileList groups={report.groups} />
+            <BestSellingProductsTable
+              groups={report.groups}
+              selectedRowIds={report.rowSelection.selectedRowIds}
+              summary={report.summary}
+              onToggleRow={report.rowSelection.toggleRow}
+              onToggleRows={report.rowSelection.toggleRows}
+            />
+            <BestSellingProductsMobileList
+              groups={report.groups}
+              selectedRowIds={report.rowSelection.selectedRowIds}
+              onToggleRow={report.rowSelection.toggleRow}
+              onToggleRows={report.rowSelection.toggleRows}
+            />
           </BestSellingTableCard>
         </div>
       </div>

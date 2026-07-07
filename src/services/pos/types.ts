@@ -1,15 +1,33 @@
 import type { ApiEntity } from "@/services/shared/types";
+import {
+  OrderChannelEnum as OrderChannelEnumValue,
+  OrderSourceEnum as OrderSourceEnumValue,
+  PaymentMethod as PaymentMethodValue,
+  ProductImageStatus as ProductImageStatusValue,
+  ProductSortStatus as ProductSortStatusValue,
+  TableStatus as TableStatusValue,
+} from "@/config/pos-constants";
+import type {
+  OrderChannel as OrderChannelType,
+  OrderSource as OrderSourceType,
+  PaymentMethod as PaymentMethodType,
+  ProductImageStatus as ProductImageStatusType,
+  ProductSortStatus as ProductSortStatusType,
+  TableStatus as TableStatusType,
+} from "@/config/pos-constants";
 
-export const ProductSortStatus = { NORMAL: 1, SET: 2, PROMOTION: 3 } as const;
-export type ProductSortStatus = (typeof ProductSortStatus)[keyof typeof ProductSortStatus];
-export const ProductImageStatus = { IMAGE: 1, COLOR: 2 } as const;
-export type ProductImageStatus = (typeof ProductImageStatus)[keyof typeof ProductImageStatus];
-export const TableStatus = { AVAILABLE: 1, OCCUPIED: 2 } as const;
-export type TableStatus = (typeof TableStatus)[keyof typeof TableStatus];
-export const OrderSourceEnum = { POS: 1, QR: 2, ONLINE: 3 } as const;
-export const OrderChannelEnum = { DINE_IN: 1, TAKEAWAY: 2, DELIVERY: 3 } as const;
-export const PaymentMethod = { CASH: 1, TRANSFER: 2, CASH_TRANSFER: 3, ARREARS: 4 } as const;
-export type PaymentMethod = (typeof PaymentMethod)[keyof typeof PaymentMethod];
+export const ProductSortStatus = ProductSortStatusValue;
+export type ProductSortStatus = ProductSortStatusType;
+export const ProductImageStatus = ProductImageStatusValue;
+export type ProductImageStatus = ProductImageStatusType;
+export const TableStatus = TableStatusValue;
+export type TableStatus = TableStatusType;
+export const OrderSourceEnum = OrderSourceEnumValue;
+export type OrderSource = OrderSourceType;
+export const OrderChannelEnum = OrderChannelEnumValue;
+export type OrderChannel = OrderChannelType;
+export const PaymentMethod = PaymentMethodValue;
+export type PaymentMethod = PaymentMethodType;
 
 export interface PosTable extends ApiEntity {
   table_uuid: string;
@@ -142,8 +160,6 @@ export interface CartToppingPayload { prod_topping_uuid_fk: string; topping_qty:
 export interface OrderItemOption { label: string; qty: number; price?: number; type?: "size" | "topping" }
 export interface OrderItem extends ApiEntity { id?: number; title?: string; price?: number; quantity?: number }
 export interface OrderHistory extends ApiEntity { id: number; timestamp: string; items: OrderItem[]; subtotal: number }
-export type OrderSource = (typeof OrderSourceEnum)[keyof typeof OrderSourceEnum];
-export type OrderChannel = (typeof OrderChannelEnum)[keyof typeof OrderChannelEnum];
 export type CreateOrderTopping = CartToppingPayload;
 export interface CreateOrderItem extends ApiEntity {
   prod_detail_uuid_fk: string;

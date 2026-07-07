@@ -1,4 +1,5 @@
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { beforeAll, describe, expect, it } from "vitest";
 import * as XLSX from "xlsx";
 
@@ -62,8 +63,8 @@ function readRows(): unknown[][] {
 
 describe("menu product import script", () => {
   beforeAll(async () => {
-    // @ts-expect-error - one-off import script is intentionally plain Node.js.
-    script = await import("../../../scripts/import-menu-products.mjs");
+    const scriptUrl = pathToFileURL(path.resolve(process.cwd(), "scripts/import-menu-products.mjs")).href;
+    script = await import(/* @vite-ignore */ scriptUrl) as MenuImportScript;
   });
 
   it("parses the Excel menu into product payloads", () => {

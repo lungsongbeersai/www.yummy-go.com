@@ -1,4 +1,4 @@
-import type { PaymentMethodReportFilter } from "@/services/report";
+import type { PaymentMethodReportFilter } from "@/config/report-filters";
 import type { PageLimit } from "@/services/shared/types";
 import type {
   PaymentMethodReportRow,

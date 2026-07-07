@@ -37,6 +37,8 @@ import {
   type PendingPrintJobData,
   type Printer,
   type PrinterCategoryRole,
+  type PrinterDeviceContext,
+  type PrinterDeviceContextParams,
   type PrinterRole,
   type ResolvedPrinter,
   type SaveCategoryPrinterInput,
@@ -92,6 +94,7 @@ interface PrinterState {
   loadPrinterCategoryRole: (loginUuid: string, printerUuid: string, lang?: string) => Promise<PrinterCategoryRole | null>;
   saveCategoryPrinter: (input: SaveCategoryPrinterInput) => Promise<void>;
   resolveByCategory: (loginUuid: string, categoryUuids: string[]) => Promise<ResolvedPrinter[]>;
+  resolveDeviceContext: (params: PrinterDeviceContextParams) => Promise<PrinterDeviceContext>;
   getDefaultCategoryByRole: (input: DefaultCategoryByRoleInput) => ReturnType<typeof getDefaultCategoryByRole>;
   loadPendingJobs: (printJobUuid: string, loginUuid: string) => Promise<PendingPrintJobData[]>;
   ack: (payload: AckPayload) => ReturnType<typeof ackPrintJob>;
@@ -401,6 +404,7 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
     set({ resolvedPrinters });
     return resolvedPrinters;
   },
+  resolveDeviceContext: (params) => resolvePrinterDeviceContext(params),
   getDefaultCategoryByRole: (input) => getDefaultCategoryByRole(input),
   loadPendingJobs: async (printJobUuid, loginUuid) => {
     const printer = await resolvePrinterDeviceContext({ login_uuid_fk: loginUuid });

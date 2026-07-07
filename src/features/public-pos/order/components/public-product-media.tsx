@@ -4,11 +4,8 @@ import Image from "next/image";
 import { AlertCircle, ImageIcon, Utensils } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import {
-  ProductImageStatus,
-  type CateProductItem,
-  type ProdItem,
-} from "@/services/pos";
+import { ProductImageStatus } from "@/config/pos-constants";
+import type { CateProductItem, ProdItem } from "@/services/pos";
 import type { ProductBlockedState } from "../types";
 import { isHexColor, productImageUrl } from "../utils";
 

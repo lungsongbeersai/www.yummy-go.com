@@ -478,8 +478,13 @@ describe("daily sales report normalizers", () => {
     expect(cards.map((item) => item.label)).not.toContain(
       "report.cards.beforeBillDiscount"
     );
+    expect(cards.map((item) => item.label)).not.toContain(
+      "report.cards.afterDiscount"
+    );
+    expect(cards.map((item) => item.label)).not.toContain(
+      "report.cards.itemDiscountAmount"
+    );
     expect(cardValue("report.cards.orderTotal")).toBe(1020000);
-    expect(cardValue("report.cards.afterDiscount")).toBe(300000);
     expect(cardValue("report.cards.netTotal")).toBe(365076);
     expect(exportedRow).not.toHaveProperty("report.columns.billNo");
     expect(exportedRow).not.toHaveProperty("report.columns.customer");

@@ -94,26 +94,27 @@ describe("daily sales report basic helpers", () => {
     expect(detailPaymentMethodParam("4")).toBe("debt");
   });
 
-  it("uses only backend summary fields for detailed report summary cards", () => {
-    const cards = summaryConfigs(t, "detail");
-
-    expect(cards.map((card) => card.keys)).toEqual([
+  it("uses the same backend summary fields for both report summary card tabs", () => {
+    const detailCards = summaryConfigs(t, "detail");
+    const billCards = summaryConfigs(t, "bill");
+    const expectedKeys = [
       ["bill_count"],
       ["total_qty"],
       ["amount"],
-      ["discount_item"],
       ["discount_bill"],
       ["sum_discount"],
       ["sum_servicecharge"],
       ["sum_vate"],
       ["sum_total"],
-    ]);
+    ];
+
+    expect(detailCards.map((card) => card.keys)).toEqual(expectedKeys);
+    expect(billCards.map((card) => card.keys)).toEqual(expectedKeys);
 
     const summary = {
       amount: 29_173_726,
       bill_count: 64,
       discount_bill: 1_176_056,
-      discount_item: 421_460,
       sum_discount: 1_597_516,
       sum_servicecharge: 2_131_726,
       sum_total: 32_779_324,
@@ -122,12 +123,11 @@ describe("daily sales report basic helpers", () => {
     };
 
     expect(
-      cards.map((card) => summaryCardValue(summary, summary, card.keys)),
+      detailCards.map((card) => summaryCardValue(summary, summary, card.keys)),
     ).toEqual([
       64,
       433,
       29_173_726,
-      421_460,
       1_176_056,
       1_597_516,
       2_131_726,
@@ -145,7 +145,6 @@ describe("daily sales report basic helpers", () => {
       ["amount"],
       ["discount_bill"],
       ["sum_discount"],
-      ["after_discount"],
       ["sum_servicecharge"],
       ["sum_vate"],
       ["sum_total"],

@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useRef, useState, type ComponentProps } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ComponentProps } from "react";
 import { useRouter } from "next/navigation";
 import {
   CheckCheck,
@@ -172,23 +172,7 @@ export function StorePermissionsPage() {
   const canReset = dirty && !saving && !loading;
   const canSave = Boolean(selectedStoreUuid && selectedRoleId && tree && dirty) && !saving && !loading;
 
-  useEffect(() => {
-    if (!allowed) router.replace("/");
-  }, [allowed, router]);
-
-  useEffect(() => {
-    if (!allowed || !userStatus) return;
-    void loadPermissionOptions();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allowed, language, userStatus]);
-
-  useEffect(() => {
-    if (!allowed || !userStatus || !selectedStoreUuid || !selectedRoleId) return;
-    void loadPermissionTree();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allowed, language, selectedRoleId, selectedStoreUuid, userStatus]);
-
-  async function loadPermissionOptions() {
+  const loadPermissionOptions = useCallback(async () => {
     try {
       await loadOptions(userStatus, language);
     } catch (error) {
@@ -198,7 +182,33 @@ export function StorePermissionsPage() {
         tone: "error"
       });
     }
-  }
+  }, [language, loadOptions, showToast, t, userStatus]);
+
+  const loadPermissionTree = useCallback(async () => {
+    try {
+      await loadTree(userStatus, language);
+    } catch (error) {
+      showToast({
+        description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
+        title: t("storePermissions.treeLoadFailed"),
+        tone: "error"
+      });
+    }
+  }, [language, loadTree, showToast, t, userStatus]);
+
+  useEffect(() => {
+    if (!allowed) router.replace("/");
+  }, [allowed, router]);
+
+  useEffect(() => {
+    if (!allowed || !userStatus) return;
+    void loadPermissionOptions();
+  }, [allowed, loadPermissionOptions, userStatus]);
+
+  useEffect(() => {
+    if (!allowed || !userStatus || !selectedStoreUuid || !selectedRoleId) return;
+    void loadPermissionTree();
+  }, [allowed, loadPermissionTree, selectedRoleId, selectedStoreUuid, userStatus]);
 
   async function refresh() {
     try {
@@ -208,18 +218,6 @@ export function StorePermissionsPage() {
       showToast({
         description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
         title: t("storePermissions.loadFailed"),
-        tone: "error"
-      });
-    }
-  }
-
-  async function loadPermissionTree() {
-    try {
-      await loadTree(userStatus, language);
-    } catch (error) {
-      showToast({
-        description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
-        title: t("storePermissions.treeLoadFailed"),
         tone: "error"
       });
     }

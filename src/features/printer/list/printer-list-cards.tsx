@@ -103,7 +103,7 @@ function PrinterCard({
             />
           </div>
 
-          <div className="mt-3 space-y-2.5">
+          <div className="mt-3 flex flex-col gap-2.5">
             <div>
               <p className="mb-1 text-xs font-semibold text-muted-foreground">
                 {t("printer.roles")}
@@ -206,9 +206,9 @@ export function PrinterListCards(props: PrinterListCardsProps) {
     <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden lg:hidden">
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] sm:p-3">
         <div className="grid gap-2 sm:gap-3 md:grid-cols-2">
-        {props.filteredRows.map((row) => (
-          <PrinterCard key={row.print_config_uuid} row={row} {...props} />
-        ))}
+          {props.filteredRows.map((row) => (
+            <PrinterCard key={row.print_config_uuid} row={row} {...props} />
+          ))}
         </div>
       </div>
     </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import {
@@ -8,6 +8,8 @@ import {
   SettingsPaginationFooter,
   SettingsToolbar
 } from "@/features/settings/shared/settings-shell";
+import { useAppliedSearch } from "@/hooks/use-applied-search";
+import { useLatestValue } from "@/hooks/use-latest-value";
 import { useUrlPagination } from "@/hooks/use-url-pagination";
 import { DEFAULT_PAGE_LIMIT, PAGE_LIMIT_OPTIONS } from "@/lib/pagination";
 import type { UrlPaginationState } from "@/lib/url-pagination";
@@ -67,13 +69,16 @@ export function TableSettingsPage({ initialPagination }: { initialPagination: Ur
   const [deleteTarget, setDeleteTarget] = useState<DiningTable | null>(null);
   const [selectedRows, setSelectedRows] = useState<Set<string>>(() => new Set());
   const [zoneOptions, setZoneOptions] = useState<Zone[]>([]);
+  const [lastSavedZoneUuid, setLastSavedZoneUuid] = useState("");
   const [collapsedZones, setCollapsedZones] = useState<Set<string>>(() => new Set());
 
   const title = t("settings.modules.table.title");
   const description = t("settings.modules.table.description");
+  const { appliedSearch, applySearch } = useAppliedSearch(search);
+  const hasLoadedRef = useLatestValue(hasLoaded);
   const requestParams = useMemo<FetchTablesParams>(
-    () => ({ search, page, limit, orderBy, lang: language, branch_uuid_fk: branchUuid }),
-    [branchUuid, language, limit, orderBy, page, search]
+    () => ({ search: appliedSearch, page, limit, orderBy, lang: language, branch_uuid_fk: branchUuid }),
+    [appliedSearch, branchUuid, language, limit, orderBy, page]
   );
   const zoneById = useMemo(() => {
     const map = new Map<string, Zone>();
@@ -83,6 +88,7 @@ export function TableSettingsPage({ initialPagination }: { initialPagination: Ur
     });
     return map;
   }, [zoneOptions]);
+  const initialFormZoneUuid = zoneById.has(lastSavedZoneUuid) ? lastSavedZoneUuid : "";
   const rows = useMemo(() => flattenTableRows(storeRows), [storeRows]);
   const tableGroups = useMemo(() => groupTableRows(storeRows, zoneById), [storeRows, zoneById]);
   const currentBranch = useMemo(() => {
@@ -107,13 +113,13 @@ export function TableSettingsPage({ initialPagination }: { initialPagination: Ur
   const allCollapsed = tableGroups.length > 0 && tableGroups.every((group) => collapsedZones.has(group.zoneId));
   const groupedTableRows = useMemo(() => buildGroupedTableRows(tableGroups, pageStart), [pageStart, tableGroups]);
 
-  async function load() {
+  const load = useCallback(async () => {
     if (!branchUuid) {
       showToast({ title: t("settings.loadFailed", { title }), description: t("settings.branchRequired"), tone: "error" });
       return;
     }
     try {
-      await loadRows(requestParams, { background: hasLoaded });
+      await loadRows(requestParams, { background: hasLoadedRef.current });
     } catch (error) {
       showToast({
         title: t("settings.loadFailed", { title }),
@@ -121,12 +127,11 @@ export function TableSettingsPage({ initialPagination }: { initialPagination: Ur
         tone: "error"
       });
     }
-  }
+  }, [branchUuid, hasLoadedRef, loadRows, requestParams, showToast, t, title]);
 
   useEffect(() => {
     void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [branchUuid, language, page, limit, orderBy]);
+  }, [load]);
 
   useEffect(() => {
     if (!storeUuid) return;
@@ -193,8 +198,7 @@ export function TableSettingsPage({ initialPagination }: { initialPagination: Ur
   }, [tableGroups]);
 
   function applyFilters() {
-    if (page === 1) void load();
-    else resetPage();
+    applySearch({ page, resetPage, reload: () => void load() });
   }
 
   function toggleSelected(id: string, checked: boolean) {
@@ -265,6 +269,7 @@ export function TableSettingsPage({ initialPagination }: { initialPagination: Ur
     try {
       await saveRow(buildTablePayload({ branchUuid, chargeStatus, editing, nameEng, nameLa, seats, zoneUuid }));
       showToast({ title: t("settings.saved"), tone: "success" });
+      setLastSavedZoneUuid(zoneUuid);
       setDialogOpen(false);
       setEditing(null);
       await loadRows(requestParams, { background: true });
@@ -378,6 +383,7 @@ export function TableSettingsPage({ initialPagination }: { initialPagination: Ur
       <TableFormDialog
         branchUuid={branchUuid}
         editing={editing}
+        initialZoneUuid={initialFormZoneUuid}
         open={dialogOpen}
         saving={saving}
         serviceCharge={serviceCharge}

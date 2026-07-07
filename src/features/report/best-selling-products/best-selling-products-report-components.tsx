@@ -23,6 +23,7 @@ import { LoadingState } from "@/components/common/loading-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogClose,
@@ -37,6 +38,9 @@ import {
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Field, FieldLabel } from "@/components/ui/field";
@@ -53,21 +57,25 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { PAGE_LIMIT_OPTIONS } from "@/lib/pagination";
 import { cn } from "@/lib/utils";
 import {
   isBestSellingProductsSortBy,
   type BestSellingProductsSortBy,
-} from "@/services/report";
+} from "@/config/report-filters";
 import type {
   BestSellingProductGroup,
   BestSellingProductItem,
 } from "@/stores/report-store";
 import { SortableReportTableHead } from "../report-sort-table-head";
+import {
+  ReportIndeterminateCheckbox,
+  selectionStateForVisibleIds,
+} from "../report-row-selection";
 import {
   sortRowsLocally,
   useLocalTableSort
@@ -81,11 +89,14 @@ import type {
 import {
   bestSellingGroupMetricConfigs,
   bestSellingGroupMetrics,
+  bestSellingProductRowId,
   bestSellingProductMetricConfigs,
   bestSellingProductMetrics,
+  bestSellingSummaryConfigs,
   bestSellingSortOptions,
   displayMetric,
   formatNumber,
+  firstNumber,
   summaryValue,
 } from "./best-selling-products-report-utils";
 
@@ -122,13 +133,28 @@ export function BestSellingSummaryCards({
     <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-7">
       {cards.map((card) => {
         const value = summaryValue(summary, card.keys);
+        const tone = summaryCardTone(card);
         return (
           <Card
             key={card.label}
-            className="overflow-hidden border-border bg-card shadow-sm"
+            className={cn(
+              "overflow-hidden border shadow-sm",
+              tone === "primary" &&
+                "border-primary/20 bg-primary/5 shadow-primary/5",
+              tone === "danger" &&
+                "border-destructive/20 bg-destructive/5 shadow-destructive/5",
+              tone === "neutral" && "border-border bg-muted/20",
+            )}
           >
             <CardContent className="p-4">
-              <p className="truncate text-xs font-black uppercase text-muted-foreground">
+              <p
+                className={cn(
+                  "truncate text-xs font-black uppercase",
+                  tone === "primary" && "text-primary",
+                  tone === "danger" && "text-destructive",
+                  tone === "neutral" && "text-muted-foreground",
+                )}
+              >
                 {card.label}
               </p>
               <p className="mt-2 truncate text-xl font-black tabular-nums text-foreground">
@@ -140,6 +166,12 @@ export function BestSellingSummaryCards({
       })}
     </section>
   );
+}
+
+function summaryCardTone(card: BestSellingSummaryCardConfig) {
+  if (card.keys.some((key) => key.includes("discount"))) return "danger";
+  if (card.kind === "money") return "primary";
+  return "neutral";
 }
 
 export function BestSellingFilterBar({
@@ -158,28 +190,32 @@ export function BestSellingFilterBar({
 
   return (
     <Card className="min-w-0 border-border bg-card shadow-sm">
-      <CardContent className="grid min-w-0 gap-3 p-3 sm:p-4 lg:grid-cols-4 lg:items-end 2xl:grid-cols-[repeat(6,minmax(0,1fr))_auto]">
-        <BestSellingFilterFields
-          branchLoading={branchLoading}
-          branchLocked={branchLocked}
-          branchOptions={branchOptions}
-          draftFilters={draftFilters}
-          groupLoading={groupLoading}
-          groupOptions={groupOptions}
-          idPrefix="best-selling"
-          onDraftChange={onDraftChange}
-        />
-        <Button
-          type="button"
-          className="h-9 min-w-28"
-          disabled={loading || !canApply}
-          onClick={onApply}
-        >
-          {loading ? (
-            <RefreshCcw className="animate-spin" data-icon="inline-start" />
-          ) : null}
-          {t("report.apply")}
-        </Button>
+      <CardContent className="p-3 sm:p-4">
+        <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-12">
+          <BestSellingFilterFields
+            branchLoading={branchLoading}
+            branchLocked={branchLocked}
+            branchOptions={branchOptions}
+            draftFilters={draftFilters}
+            groupLoading={groupLoading}
+            groupOptions={groupOptions}
+            idPrefix="best-selling"
+            onDraftChange={onDraftChange}
+          />
+          <div className="flex items-end sm:col-span-2 lg:col-span-12 xl:col-span-2">
+            <Button
+              type="button"
+              className="h-9 w-full min-w-28"
+              disabled={loading || !canApply}
+              onClick={onApply}
+            >
+              {loading ? (
+                <RefreshCcw className="animate-spin" data-icon="inline-start" />
+              ) : null}
+              {t("report.apply")}
+            </Button>
+          </div>
+        </div>
       </CardContent>
     </Card>
   );
@@ -206,15 +242,15 @@ export function BestSellingFilterSheet({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-5xl">
-        <DialogHeader className="shrink-0 border-b border-border px-4 py-3 pr-12 text-left">
-          <DialogTitle className="text-base font-black">
+      <DialogContent className="!flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-4xl">
+        <DialogHeader className="shrink-0 border-b border-border bg-muted/20 px-4 py-3 pr-12 text-left sm:px-5">
+          <DialogTitle className="text-base font-black text-foreground">
             {t("report.filters.currentFilters")}
           </DialogTitle>
           <DialogDescription>{t("report.bestSelling.title")}</DialogDescription>
         </DialogHeader>
-        <div className="min-h-0 flex-1 overflow-y-auto p-4">
-          <div className="grid gap-3 lg:grid-cols-3">
+        <div className="max-h-[calc(100dvh-12rem)] overflow-y-auto overscroll-contain p-4 sm:p-5">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-12">
             <BestSellingFilterFields
               branchLoading={branchLoading}
               branchLocked={branchLocked}
@@ -227,14 +263,15 @@ export function BestSellingFilterSheet({
             />
           </div>
         </div>
-        <DialogFooter className="grid grid-cols-2 gap-2 border-t border-border bg-card/95 px-4 py-3 backdrop-blur sm:flex">
+        <DialogFooter className="grid shrink-0 grid-cols-2 gap-2 border-t border-border bg-card/95 px-4 py-3 backdrop-blur sm:flex sm:px-5">
           <DialogClose asChild>
-            <Button type="button" variant="outline">
+            <Button type="button" variant="outline" className="h-10 sm:min-w-24">
               {t("actions.close")}
             </Button>
           </DialogClose>
           <Button
             type="button"
+            className="h-10 sm:min-w-24"
             disabled={loading || !canApply}
             onClick={onApply}
           >
@@ -321,7 +358,6 @@ function BestSellingFilterFields({
   onDraftChange: (filters: BestSellingProductsFilters) => void;
 }) {
   const { t } = useTranslation();
-  const sortOptions = bestSellingSortOptions(t);
 
   function patch(patch: Partial<BestSellingProductsFilters>) {
     onDraftChange({ ...draftFilters, ...patch });
@@ -329,7 +365,7 @@ function BestSellingFilterFields({
 
   return (
     <>
-      <Field className="min-w-0 gap-1.5">
+      <Field className="min-w-0 gap-1.5 sm:col-span-2 lg:col-span-4">
         <FieldLabel
           htmlFor={`${idPrefix}-branch`}
           className="text-xs font-bold text-muted-foreground"
@@ -341,7 +377,7 @@ function BestSellingFilterFields({
           disabled={branchLoading || branchLocked || branchOptions.length <= 1}
           onValueChange={(value) => patch({ branchUuid: value })}
         >
-          <SelectTrigger id={`${idPrefix}-branch`} className="w-full">
+          <SelectTrigger id={`${idPrefix}-branch`} className="h-10 w-full rounded-md">
             <SelectValue placeholder={t("nav.branch")} />
           </SelectTrigger>
           <SelectContent>
@@ -355,7 +391,7 @@ function BestSellingFilterFields({
           </SelectContent>
         </Select>
       </Field>
-      <Field className="min-w-0 gap-1.5">
+      <Field className="min-w-0 gap-1.5 lg:col-span-4">
         <FieldLabel
           htmlFor={`${idPrefix}-date-from`}
           className="text-xs font-bold text-muted-foreground"
@@ -364,12 +400,15 @@ function BestSellingFilterFields({
         </FieldLabel>
         <Input
           id={`${idPrefix}-date-from`}
+          name={`${idPrefix}-date-from`}
           type="date"
           value={draftFilters.dateFrom}
+          autoComplete="off"
+          className="h-10 rounded-md text-sm"
           onChange={(event) => patch({ dateFrom: event.target.value })}
         />
       </Field>
-      <Field className="min-w-0 gap-1.5">
+      <Field className="min-w-0 gap-1.5 lg:col-span-4">
         <FieldLabel
           htmlFor={`${idPrefix}-date-to`}
           className="text-xs font-bold text-muted-foreground"
@@ -378,12 +417,15 @@ function BestSellingFilterFields({
         </FieldLabel>
         <Input
           id={`${idPrefix}-date-to`}
+          name={`${idPrefix}-date-to`}
           type="date"
           value={draftFilters.dateTo}
+          autoComplete="off"
+          className="h-10 rounded-md text-sm"
           onChange={(event) => patch({ dateTo: event.target.value })}
         />
       </Field>
-      <Field className="min-w-0 gap-1.5">
+      <Field className="min-w-0 gap-1.5 lg:col-span-4">
         <FieldLabel
           htmlFor={`${idPrefix}-group`}
           className="text-xs font-bold text-muted-foreground"
@@ -395,7 +437,7 @@ function BestSellingFilterFields({
           disabled={groupLoading || !groupOptions.length}
           onValueChange={(value) => patch({ groupUuid: value })}
         >
-          <SelectTrigger id={`${idPrefix}-group`} className="w-full">
+          <SelectTrigger id={`${idPrefix}-group`} className="h-10 w-full rounded-md">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -409,37 +451,7 @@ function BestSellingFilterFields({
           </SelectContent>
         </Select>
       </Field>
-      <Field className="min-w-0 gap-1.5">
-        <FieldLabel className="text-xs font-bold text-muted-foreground">
-          {t("report.bestSelling.filters.sortBy")}
-        </FieldLabel>
-        <ToggleGroup
-          type="single"
-          value={draftFilters.sortBy}
-          variant="outline"
-          size="sm"
-          spacing={1}
-          className="grid w-full grid-cols-2 gap-1 2xl:grid-cols-4"
-          onValueChange={(value) => {
-            if (isBestSellingProductsSortBy(value)) patch({ sortBy: value });
-          }}
-        >
-          {sortOptions.map((option) => {
-            const Icon = bestSellingSortIcons[option.value];
-            return (
-              <ToggleGroupItem
-                key={option.value}
-                value={option.value}
-                className="min-w-0 justify-center px-2"
-              >
-                <Icon />
-                <span className="truncate">{option.label}</span>
-              </ToggleGroupItem>
-            );
-          })}
-        </ToggleGroup>
-      </Field>
-      <Field className="min-w-0 gap-1.5">
+      <Field className="min-w-0 gap-1.5 lg:col-span-6">
         <FieldLabel
           htmlFor={`${idPrefix}-limit`}
           className="text-xs font-bold text-muted-foreground"
@@ -452,7 +464,7 @@ function BestSellingFilterFields({
             patch({ limit: value === "All" ? "All" : Number(value) })
           }
         >
-          <SelectTrigger id={`${idPrefix}-limit`} className="w-full">
+          <SelectTrigger id={`${idPrefix}-limit`} className="h-10 w-full rounded-md">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -477,12 +489,16 @@ type TableCardProps = {
   footer: ReactNode;
   loading: boolean;
   rowsLength: number;
+  selectedCount: number;
+  sortBy: BestSellingProductsSortBy;
   sortByLabel: string;
+  onClearSelection: () => void;
   onExportExcel: () => void;
   onExportPdf: () => void;
   onOpenFilters: () => void;
   onPrintReport: () => void;
   onRefresh: () => void;
+  onSortByChange: (sortBy: BestSellingProductsSortBy) => void;
 };
 
 export function BestSellingTableCard({
@@ -492,98 +508,133 @@ export function BestSellingTableCard({
   footer,
   loading,
   rowsLength,
+  selectedCount,
+  sortBy,
   sortByLabel,
+  onClearSelection,
   onExportExcel,
   onExportPdf,
   onOpenFilters,
   onPrintReport,
   onRefresh,
+  onSortByChange,
 }: TableCardProps) {
   const { t } = useTranslation();
 
   return (
-    <Card className="min-h-0 min-w-0 overflow-hidden border-border bg-card shadow-sm md:sticky md:top-3 md:flex md:max-h-[calc(100dvh-var(--app-shell-header-height)-1.5rem)] md:flex-col">
-      <CardHeader className="flex min-w-0 shrink-0 flex-col gap-2 border-b border-border bg-card px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
-        <div className="min-w-0 flex-1">
-          <CardTitle className="flex min-w-0 items-center gap-2 text-base font-black">
-            <Trophy />
-            <span className="truncate">
-              {t("report.bestSelling.tableTitle")}
-            </span>
-          </CardTitle>
-          <Badge className="mt-2 h-7 w-fit px-2 text-xs">{sortByLabel}</Badge>
-        </div>
-        <div className="flex min-w-0 flex-wrap items-center gap-2 sm:justify-end">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-9"
-            onClick={onOpenFilters}
-          >
-            <Filter data-icon="inline-start" />
-            {t("report.filters.openFilters")}
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-9"
-                disabled={exportDisabled}
-              >
-                {exporting === "excel" || exporting === "pdf" ? (
-                  <RefreshCcw className="animate-spin" data-icon="inline-start" />
-                ) : (
-                  <Download data-icon="inline-start" />
-                )}
-                {t("common.export")}
-                <ChevronDown data-icon="inline-end" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-44">
-              <DropdownMenuGroup>
-                <DropdownMenuItem disabled={exportDisabled} onSelect={onExportExcel}>
-                  <FileSpreadsheet data-icon="inline-start" />
-                  {t("report.exportExcel")}
-                </DropdownMenuItem>
-                <DropdownMenuItem disabled={exportDisabled} onSelect={onExportPdf}>
-                  <Download data-icon="inline-start" />
-                  {t("report.exportPdf")}
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-9"
-            disabled={exportDisabled}
-            onClick={onPrintReport}
-          >
-            {exporting === "print" ? (
-              <RefreshCcw className="animate-spin" data-icon="inline-start" />
-            ) : (
-              <Printer data-icon="inline-start" />
-            )}
-            {t("report.print")}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-9"
-            disabled={loading || Boolean(exporting)}
-            onClick={onRefresh}
-          >
-            <RefreshCcw
-              className={loading ? "animate-spin" : undefined}
-              data-icon="inline-start"
+    <Card className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden border-border bg-card shadow-sm">
+      <CardHeader className="shrink-0 border-b border-border bg-card/95 px-2 py-2 sm:px-3">
+        <div className="grid w-full min-w-0 grid-cols-1 items-center gap-2 2xl:grid-cols-[minmax(180px,16rem)_minmax(0,1fr)_auto]">
+          <div className="flex min-w-0 items-center gap-2">
+            <div className="grid size-8 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
+              <Trophy aria-hidden="true" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <CardTitle className="truncate text-sm font-black">
+                {t("report.bestSelling.tableTitle")}
+              </CardTitle>
+              {selectedCount > 0 ? (
+                <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5">
+                  <Badge className="h-6 max-w-full truncate border-primary/20 bg-primary/10 px-2 text-xs text-primary">
+                    {t("report.selectedForExport", { count: selectedCount })}
+                  </Badge>
+                  <Button
+                    type="button"
+                    size="xs"
+                    variant="ghost"
+                    className="h-6 px-2 text-xs text-muted-foreground"
+                    onClick={onClearSelection}
+                  >
+                    {t("report.clearSelection")}
+                  </Button>
+                </div>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5 2xl:col-start-3 2xl:flex-nowrap">
+            <BestSellingSortDropdown
+              disabled={loading || Boolean(exporting)}
+              sortBy={sortBy}
+              sortByLabel={sortByLabel}
+              onSortByChange={onSortByChange}
             />
-            {t("actions.refresh")}
-          </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              aria-label={t("report.filters.openFilters")}
+              className="h-9 min-w-9 rounded-md px-2.5"
+              onClick={onOpenFilters}
+            >
+              <Filter data-icon="inline-start" />
+              <span className="hidden sm:inline">
+                {t("report.filters.openFilters")}
+              </span>
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  aria-label={t("common.export")}
+                  className="h-9 min-w-9 rounded-md px-2.5"
+                  disabled={exportDisabled}
+                >
+                  {exporting === "excel" || exporting === "pdf" ? (
+                    <RefreshCcw className="animate-spin" data-icon="inline-start" />
+                  ) : (
+                    <Download data-icon="inline-start" />
+                  )}
+                  <span className="hidden sm:inline">{t("common.export")}</span>
+                  <ChevronDown data-icon="inline-end" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-44">
+                <DropdownMenuGroup>
+                  <DropdownMenuItem disabled={exportDisabled} onSelect={onExportExcel}>
+                    <FileSpreadsheet data-icon="inline-start" />
+                    {t("report.exportExcel")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem disabled={exportDisabled} onSelect={onExportPdf}>
+                    <Download data-icon="inline-start" />
+                    {t("report.exportPdf")}
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              aria-label={t("report.print")}
+              className="h-9 min-w-9 rounded-md px-2.5"
+              disabled={exportDisabled}
+              onClick={onPrintReport}
+            >
+              {exporting === "print" ? (
+                <RefreshCcw className="animate-spin" data-icon="inline-start" />
+              ) : (
+                <Printer data-icon="inline-start" />
+              )}
+              <span className="hidden sm:inline">{t("report.print")}</span>
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              aria-label={t("actions.refresh")}
+              className="h-9 min-w-9 rounded-md border border-border/60 px-2.5 text-muted-foreground hover:text-foreground"
+              disabled={loading || Boolean(exporting)}
+              onClick={onRefresh}
+            >
+              <RefreshCcw
+                className={loading ? "animate-spin" : undefined}
+                data-icon="inline-start"
+              />
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="flex min-h-0 flex-1 flex-col p-0">
@@ -596,7 +647,7 @@ export function BestSellingTableCard({
           </div>
         ) : rowsLength ? (
           <>
-            <div className="min-h-0 min-w-0 overflow-auto overscroll-x-contain overscroll-y-auto md:flex-1">
+            <div className="min-h-0 min-w-0 flex-1 overflow-auto overscroll-x-contain overscroll-y-auto">
               {children}
             </div>
             <div className="shrink-0 bg-card">{footer}</div>
@@ -614,14 +665,84 @@ export function BestSellingTableCard({
   );
 }
 
+function BestSellingSortDropdown({
+  disabled,
+  sortBy,
+  sortByLabel,
+  onSortByChange,
+}: {
+  disabled: boolean;
+  sortBy: BestSellingProductsSortBy;
+  sortByLabel: string;
+  onSortByChange: (sortBy: BestSellingProductsSortBy) => void;
+}) {
+  const { t } = useTranslation();
+  const sortOptions = bestSellingSortOptions(t);
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          aria-label={t("report.bestSelling.filters.sortBy")}
+          className="h-9 min-w-0 max-w-full rounded-md px-2.5"
+          disabled={disabled}
+        >
+          <ListOrdered data-icon="inline-start" />
+          <span className="min-w-0 max-w-32 truncate sm:max-w-40">
+            {sortByLabel}
+          </span>
+          <ChevronDown data-icon="inline-end" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-60">
+        <DropdownMenuLabel className="px-2 py-1.5 text-xs font-black uppercase text-muted-foreground">
+          {t("report.bestSelling.filters.sortBy")}
+        </DropdownMenuLabel>
+        <DropdownMenuRadioGroup
+          value={sortBy}
+          onValueChange={(value) => {
+            if (isBestSellingProductsSortBy(value)) onSortByChange(value);
+          }}
+        >
+          {sortOptions.map((option) => {
+            const Icon = bestSellingSortIcons[option.value];
+            return (
+              <DropdownMenuRadioItem
+                key={option.value}
+                value={option.value}
+                className="min-w-0"
+              >
+                <Icon aria-hidden="true" />
+                <span className="min-w-0 truncate">{option.label}</span>
+              </DropdownMenuRadioItem>
+            );
+          })}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 export function BestSellingProductsTable({
   groups,
+  selectedRowIds,
+  summary,
+  onToggleRow,
+  onToggleRows,
 }: {
   groups: BestSellingProductGroup[];
+  selectedRowIds: Set<string>;
+  summary: Record<string, unknown>;
+  onToggleRow: (row: BestSellingProductItem, selected: boolean) => void;
+  onToggleRows: (rows: BestSellingProductItem[], selected: boolean) => void;
 }) {
   const { t } = useTranslation();
   const productMetrics = bestSellingProductMetricConfigs(t);
   const groupMetrics = bestSellingGroupMetricConfigs(t);
+  const summaryCards = bestSellingSummaryConfigs(t);
   const getGroupSortValue = useCallback(
     (group: BestSellingProductGroup, key: BestSellingSortKey) => {
       if (key === "groupName") return group.name;
@@ -635,17 +756,33 @@ export function BestSellingProductsTable({
     groups,
     getGroupSortValue,
   );
+  const visibleRows = sortedGroups.flatMap((group) =>
+    sortRowsLocally(group.items, sort, (item, key) => item[key]),
+  );
+  const visibleIds = visibleRows.map(bestSellingProductRowId);
+  const { allVisibleSelected, someVisibleSelected } =
+    selectionStateForVisibleIds(visibleIds, selectedRowIds);
 
   return (
-    <div className="hidden w-full min-w-0 overflow-x-auto md:block">
-      <Table className="min-w-470 text-[13px]">
-        <TableHeader className="sticky top-0 z-20 bg-background/95 shadow-sm backdrop-blur">
+    <div className="hidden w-full min-w-0 md:block">
+      <Table className="w-max min-w-full table-auto text-xs">
+        <TableHeader className="[&_th]:sticky [&_th]:top-0 [&_th]:z-30 [&_th]:h-9 [&_th]:whitespace-nowrap [&_th]:border-b [&_th]:border-border [&_th]:bg-muted/80 [&_th]:px-2 [&_th]:shadow-sm [&_th]:backdrop-blur">
           <TableRow>
+            <TableHead className="w-10 text-center">
+              <ReportIndeterminateCheckbox
+                aria-label={t("common.selectAll")}
+                checked={allVisibleSelected}
+                indeterminate={!allVisibleSelected && someVisibleSelected}
+                onChange={(event) =>
+                  onToggleRows(visibleRows, event.target.checked)
+                }
+              />
+            </TableHead>
             <SortableReportTableHead
               align="right"
               sort={sort}
               sortKey="rank"
-              className="w-22.5 whitespace-nowrap bg-background/95 text-center"
+              className="w-16 text-center"
               onSort={toggleSort}
             >
               {t("report.bestSelling.columns.rank")}
@@ -653,7 +790,7 @@ export function BestSellingProductsTable({
             <SortableReportTableHead
               sort={sort}
               sortKey="productName"
-              className="min-w-65 whitespace-nowrap bg-background/95"
+              className="min-w-60"
               onSort={toggleSort}
             >
               {t("report.bestSelling.columns.product")}
@@ -661,7 +798,7 @@ export function BestSellingProductsTable({
             <SortableReportTableHead
               sort={sort}
               sortKey="productCode"
-              className="min-w-35 whitespace-nowrap bg-background/95"
+              className="min-w-32"
               onSort={toggleSort}
             >
               {t("report.bestSelling.columns.productCode")}
@@ -669,7 +806,7 @@ export function BestSellingProductsTable({
             <SortableReportTableHead
               sort={sort}
               sortKey="categoryName"
-              className="min-w-35 whitespace-nowrap bg-background/95"
+              className="min-w-32"
               onSort={toggleSort}
             >
               {t("report.bestSelling.columns.category")}
@@ -677,7 +814,7 @@ export function BestSellingProductsTable({
             <SortableReportTableHead
               sort={sort}
               sortKey="groupName"
-              className="min-w-40 whitespace-nowrap bg-background/95"
+              className="min-w-36"
               onSort={toggleSort}
             >
               {t("report.bestSelling.columns.group")}
@@ -688,7 +825,7 @@ export function BestSellingProductsTable({
                 align="right"
                 sort={sort}
                 sortKey={metric.field}
-                className="min-w-32.5 whitespace-nowrap bg-background/95 text-right"
+                className="min-w-30 text-right"
                 onSort={toggleSort}
               >
                 {metric.label}
@@ -699,8 +836,34 @@ export function BestSellingProductsTable({
         <TableBody>
           {sortedGroups.map((group) => (
             <Fragment key={group.id}>
+              {(() => {
+                const groupRows = sortRowsLocally(
+                  group.items,
+                  sort,
+                  (item, key) => item[key],
+                );
+                const groupIds = groupRows.map(bestSellingProductRowId);
+                const groupSelection = selectionStateForVisibleIds(
+                  groupIds,
+                  selectedRowIds,
+                );
+
+                return (
               <TableRow className="border-b border-border/80 bg-muted/25 hover:bg-muted/25">
-                <TableCell colSpan={5} className="py-3">
+                <TableCell className="w-10 text-center">
+                  <ReportIndeterminateCheckbox
+                    aria-label={t("common.selectRow", { name: group.name })}
+                    checked={groupSelection.allVisibleSelected}
+                    indeterminate={
+                      !groupSelection.allVisibleSelected &&
+                      groupSelection.someVisibleSelected
+                    }
+                    onChange={(event) =>
+                      onToggleRows(groupRows, event.target.checked)
+                    }
+                  />
+                </TableCell>
+                <TableCell colSpan={5} className="px-2 py-2">
                   <div className="min-w-0">
                     <p className="truncate font-black text-foreground">
                       {group.name}
@@ -720,7 +883,11 @@ export function BestSellingProductsTable({
                   return (
                     <TableCell
                       key={metric.key}
-                      className="whitespace-nowrap text-right font-black tabular-nums"
+                      className={metricValueClass(
+                        groupMetric ? Number(group[groupMetric.field] ?? 0) : null,
+                        metric.key,
+                        true,
+                      )}
                     >
                       {groupMetric
                         ? displayMetric(
@@ -732,16 +899,28 @@ export function BestSellingProductsTable({
                   );
                 })}
               </TableRow>
+                );
+              })()}
               {sortRowsLocally(group.items, sort, (item, key) => item[key]).map((item, index) => (
                 <BestSellingProductRow
                   key={item.id}
                   item={item}
                   index={index}
+                  selected={selectedRowIds.has(bestSellingProductRowId(item))}
+                  onToggleRow={onToggleRow}
                 />
               ))}
             </Fragment>
           ))}
         </TableBody>
+        <tfoot className="sticky bottom-0 z-20">
+          <BestSellingSummaryFooterRow
+            productMetrics={productMetrics}
+            summary={summary}
+            summaryCards={summaryCards}
+            summaryLabel={t("report.summary")}
+          />
+        </tfoot>
       </Table>
     </div>
   );
@@ -750,9 +929,13 @@ export function BestSellingProductsTable({
 function BestSellingProductRow({
   item,
   index,
+  selected,
+  onToggleRow,
 }: {
   item: BestSellingProductItem;
   index: number;
+  selected: boolean;
+  onToggleRow: (row: BestSellingProductItem, selected: boolean) => void;
 }) {
   const { t } = useTranslation();
   const metrics = bestSellingProductMetrics(item, t);
@@ -760,33 +943,41 @@ function BestSellingProductRow({
   return (
     <TableRow
       className={cn(
-        "border-b border-border/80",
+        "h-9 border-b border-border/80",
         index % 2 === 1 && "bg-muted/15",
+        selected && "bg-primary/5 hover:bg-primary/10",
       )}
     >
-      <TableCell className="whitespace-nowrap text-center">
-        <Badge className="h-7 min-w-10 justify-center px-2 text-xs tabular-nums">
+      <TableCell className="w-10 text-center">
+        <Checkbox
+          aria-label={t("common.selectRow", { name: item.productName })}
+          checked={selected}
+          onChange={(event) => onToggleRow(item, event.target.checked)}
+        />
+      </TableCell>
+      <TableCell className="whitespace-nowrap px-2 py-2 text-center">
+        <Badge className="h-6 min-w-9 justify-center px-2 text-xs tabular-nums">
           #{item.rank}
         </Badge>
       </TableCell>
-      <TableCell className="max-w-90 whitespace-normal py-3">
+      <TableCell className="max-w-80 whitespace-normal px-2 py-2">
         <p className="font-semibold leading-snug text-foreground">
           {item.productName}
         </p>
       </TableCell>
-      <TableCell className="whitespace-nowrap text-muted-foreground">
+      <TableCell className="whitespace-nowrap px-2 py-2 text-muted-foreground">
         {item.productCode}
       </TableCell>
-      <TableCell className="whitespace-nowrap text-muted-foreground">
+      <TableCell className="whitespace-nowrap px-2 py-2 text-muted-foreground">
         {item.categoryName}
       </TableCell>
-      <TableCell className="whitespace-nowrap text-muted-foreground">
+      <TableCell className="whitespace-nowrap px-2 py-2 text-muted-foreground">
         {item.groupName}
       </TableCell>
       {metrics.map((metric) => (
         <TableCell
           key={metric.key}
-          className="whitespace-nowrap text-right font-black tabular-nums"
+          className={metricValueClass(metric.value, metric.key)}
         >
           {displayMetric(metric.value, metric.kind)}
         </TableCell>
@@ -795,10 +986,116 @@ function BestSellingProductRow({
   );
 }
 
+function BestSellingSummaryFooterRow({
+  productMetrics,
+  summary,
+  summaryCards,
+  summaryLabel,
+}: {
+  productMetrics: ReturnType<typeof bestSellingProductMetricConfigs>;
+  summary: Record<string, unknown>;
+  summaryCards: BestSellingSummaryCardConfig[];
+  summaryLabel: string;
+}) {
+  const { t } = useTranslation();
+  const productCount = firstNumber(
+    summaryValue(summary, ["product_count", "products_count"]),
+  );
+
+  return (
+    <TableRow className="border-t border-primary/25 bg-primary/5 hover:bg-primary/10">
+      <TableCell className={summaryFooterCellClass("left")} colSpan={6}>
+        <div className="flex min-w-64 items-center gap-2">
+          <span className="inline-flex h-6 items-center rounded-full bg-background/80 px-2 text-xs font-black uppercase text-primary ring-1 ring-primary/20">
+            {summaryLabel}
+          </span>
+          {productCount > 0 ? (
+            <span className="truncate text-xs font-semibold text-muted-foreground">
+              {t("report.bestSelling.rowsLabel", { count: productCount })}
+            </span>
+          ) : null}
+        </div>
+      </TableCell>
+      {productMetrics.map((metric) => (
+        <BestSellingSummaryMetricCell
+          key={metric.key}
+          metricKey={metric.key}
+          kind={metric.kind}
+          summary={summary}
+          summaryCards={summaryCards}
+        />
+      ))}
+    </TableRow>
+  );
+}
+
+function BestSellingSummaryMetricCell({
+  kind,
+  metricKey,
+  summary,
+  summaryCards,
+}: {
+  kind: "money" | "number";
+  metricKey: string;
+  summary: Record<string, unknown>;
+  summaryCards: BestSellingSummaryCardConfig[];
+}) {
+  const card = summaryCards.find((summaryCard) =>
+    summaryCard.keys.includes(metricKey),
+  );
+
+  if (!card) return <TableCell className={summaryFooterCellClass()} />;
+
+  const value = summaryValue(summary, card.keys);
+  return (
+    <TableCell className={summaryMetricCellClass(value, metricKey)}>
+      {displayMetric(value, kind)}
+    </TableCell>
+  );
+}
+
+function metricValueClass(value: unknown, key: string, strong = false) {
+  const numericValue = value === null ? null : firstNumber(value);
+
+  return cn(
+    "whitespace-nowrap px-2 py-2 text-right font-semibold tabular-nums",
+    strong && "font-black",
+    numericValue === 0 && "text-muted-foreground",
+    key.includes("discount") &&
+      numericValue !== null &&
+      numericValue > 0 &&
+      "font-black text-destructive",
+    key === "final_total" && "font-black text-foreground",
+  );
+}
+
+function summaryMetricCellClass(value: unknown, key: string) {
+  return cn(
+    summaryFooterCellClass("right"),
+    "font-semibold",
+    firstNumber(value) === 0 && "text-muted-foreground",
+    key.includes("discount") && firstNumber(value) > 0 && "font-black text-destructive",
+    key === "final_total" && "font-black text-foreground",
+  );
+}
+
+function summaryFooterCellClass(align: "left" | "right" = "left") {
+  return cn(
+    "sticky bottom-0 z-20 h-10 whitespace-nowrap border-t border-primary/25 bg-primary/10 px-2 py-2 backdrop-blur supports-[backdrop-filter]:bg-primary/10",
+    align === "right" ? "text-right tabular-nums" : "text-left",
+  );
+}
+
 export function BestSellingProductsMobileList({
   groups,
+  selectedRowIds,
+  onToggleRow,
+  onToggleRows,
 }: {
   groups: BestSellingProductGroup[];
+  selectedRowIds: Set<string>;
+  onToggleRow: (row: BestSellingProductItem, selected: boolean) => void;
+  onToggleRows: (rows: BestSellingProductItem[], selected: boolean) => void;
 }) {
   const { t } = useTranslation();
 
@@ -810,14 +1107,39 @@ export function BestSellingProductsMobileList({
           className="rounded-md border border-border bg-background"
         >
           <div className="border-b border-border bg-muted/25 p-3">
-            <div className="min-w-0">
-              <h3 className="truncate text-sm font-black">{group.name}</h3>
-              <p className="text-xs text-muted-foreground">
-                {t("report.bestSelling.groupSummary", {
-                  products: group.productCount,
-                  qty: formatNumber(group.qtyTotal),
-                })}
-              </p>
+            <div className="flex items-start gap-3">
+              <ReportIndeterminateCheckbox
+                aria-label={t("common.selectRow", { name: group.name })}
+                className="mt-0.5"
+                checked={
+                  selectionStateForVisibleIds(
+                    group.items.map(bestSellingProductRowId),
+                    selectedRowIds,
+                  ).allVisibleSelected
+                }
+                indeterminate={
+                  !selectionStateForVisibleIds(
+                    group.items.map(bestSellingProductRowId),
+                    selectedRowIds,
+                  ).allVisibleSelected &&
+                  selectionStateForVisibleIds(
+                    group.items.map(bestSellingProductRowId),
+                    selectedRowIds,
+                  ).someVisibleSelected
+                }
+                onChange={(event) =>
+                  onToggleRows(group.items, event.target.checked)
+                }
+              />
+              <div className="min-w-0 flex-1">
+                <h3 className="truncate text-sm font-black">{group.name}</h3>
+                <p className="text-xs text-muted-foreground">
+                  {t("report.bestSelling.groupSummary", {
+                    products: group.productCount,
+                    qty: formatNumber(group.qtyTotal),
+                  })}
+                </p>
+              </div>
             </div>
             <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
               {bestSellingGroupMetrics(group, t).map((metric) => (
@@ -834,8 +1156,17 @@ export function BestSellingProductsMobileList({
             {group.items.map((item) => (
               <div
                 key={item.id}
-                className="flex items-start gap-3 border-b border-border/70 p-3 last:border-b-0"
+                className={cn(
+                  "flex items-start gap-3 border-b border-border/70 p-3 last:border-b-0",
+                  selectedRowIds.has(bestSellingProductRowId(item)) &&
+                    "bg-primary/5",
+                )}
               >
+                <Checkbox
+                  aria-label={t("common.selectRow", { name: item.productName })}
+                  checked={selectedRowIds.has(bestSellingProductRowId(item))}
+                  onChange={(event) => onToggleRow(item, event.target.checked)}
+                />
                 <Badge className="h-7 min-w-10 justify-center px-2 text-xs tabular-nums">
                   #{item.rank}
                 </Badge>

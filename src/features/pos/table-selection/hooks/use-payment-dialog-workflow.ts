@@ -11,13 +11,9 @@ import {
 import { useTranslation } from "react-i18next";
 import { money } from "@/lib/format";
 import { toApiLanguage, toLanguage } from "@/lib/language";
-import { getBranchQrUrl } from "@/services/branch";
-import {
-  OrderChannelEnum,
-  type OrderChannel,
-  type PaymentResponse,
-  type SplitBillResponse,
-} from "@/services/pos";
+import { getBranchQrUrl } from "@/lib/image";
+import { OrderChannelEnum, type OrderChannel } from "@/config/pos-constants";
+import type { PaymentResponse, SplitBillResponse } from "@/services/pos";
 import { useAppStore } from "@/stores/app-store";
 import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
 import { useExchangeStore } from "@/stores/exchange-store";

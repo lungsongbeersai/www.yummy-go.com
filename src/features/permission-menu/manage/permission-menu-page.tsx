@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   KeyboardSensor,
@@ -17,6 +17,7 @@ import { LoadingState } from "@/components/common/loading-state";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { SettingsModuleShell } from "@/features/settings/shared/settings-shell";
+import { useLatestValue } from "@/hooks/use-latest-value";
 import { canManagePermissionMenu } from "@/lib/permissions";
 import type { PermissionMainMenu, PermissionSubMenu } from "@/services/permission-menu";
 import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
@@ -95,6 +96,7 @@ export function PermissionMenuPage() {
   const allowed = canManagePermissionMenu(user?.status);
   const storeUuid = authStoreUuid(user);
   const language = i18n.language;
+  const hasLoadedRef = useLatestValue(hasLoaded);
   const fullLoading = loading && !hasLoaded;
   const backgroundLoading = refreshing || (loading && hasLoaded);
   const busy = saving || sorting || fullLoading || backgroundLoading;
@@ -109,23 +111,9 @@ export function PermissionMenuPage() {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  useEffect(() => {
-    if (!allowed) router.replace("/");
-  }, [allowed, router]);
-
-  useEffect(() => {
-    if (!allowed) return;
-    void refresh();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allowed, language]);
-
-  useEffect(() => {
-    setSelectedMenuId((current) => resolveSelectedPermissionMenuId(menus, current));
-  }, [menus]);
-
-  async function refresh() {
+  const refresh = useCallback(async () => {
     try {
-      await load(language, { background: hasLoaded });
+      await load(language, { background: hasLoadedRef.current });
     } catch (error) {
       showToast({
         description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
@@ -133,7 +121,20 @@ export function PermissionMenuPage() {
         tone: "error"
       });
     }
-  }
+  }, [hasLoadedRef, language, load, showToast, t]);
+
+  useEffect(() => {
+    if (!allowed) router.replace("/");
+  }, [allowed, router]);
+
+  useEffect(() => {
+    if (!allowed) return;
+    void refresh();
+  }, [allowed, refresh]);
+
+  useEffect(() => {
+    setSelectedMenuId((current) => resolveSelectedPermissionMenuId(menus, current));
+  }, [menus]);
 
   function refreshSidebarMenu() {
     void refreshPermissionSidebarMenu({

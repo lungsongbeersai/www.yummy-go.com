@@ -1,6 +1,7 @@
 import axios from "axios";
 import { apiRequest, ServiceError } from "@/lib/api";
 import { toApiLanguage } from "@/lib/language";
+import { AGENT_URL } from "@/config/printer-agent";
 import {
   agentBase as printerAgentBase,
   assertAgentOk,
@@ -23,12 +24,12 @@ import type { ConfirmToKitchenPendingQuery, ConfirmToKitchenPrintJob } from "@/s
 import { printMobileEscposOverTcp } from "@/services/printer/mobile-tcp";
 import { Capacitor } from "@capacitor/core";
 
-export const AGENT_URL = process.env.NEXT_PUBLIC_PRINTER_AGENT_URL ?? "http://127.0.0.1:7777";
 const AGENT_SECRET = process.env.NEXT_PUBLIC_PRINTER_AGENT_SECRET ?? "";
 const PRINTER_IDENTITY_MISSING = "Printer device identity missing";
 // const EMPTY_PRINT_BATCH_PAYLOADS_MESSAGE = "Print batch payloads are empty";
 const LOCAL_AGENT_IDENTITY_KEY = "yummy_local_printer_agent_identity";
 export {
+  AGENT_URL,
   BROWSER_PRINTER_AGENT_ID,
   BROWSER_PRINTER_AGENT_URL,
   getPrinterErrorMessage,

@@ -69,9 +69,8 @@ import {
   routeBreadcrumbs,
   type RouteBreadcrumbItem,
 } from "@/config/route-breadcrumbs";
-import { sidebarPermissionMenuItemsToMenuItems } from "@/services/sidebar-menu";
-import { getStoreLogoUrl } from "@/services/store";
-import { getUserProfileUrl } from "@/services/user";
+import { sidebarPermissionMenuItemsToMenuItems } from "@/config/sidebar-permission-menu";
+import { getStoreLogoUrl, getUserProfileUrl } from "@/lib/image";
 import { useAppStore } from "@/stores/app-store";
 import {
   authStoreUuid,
@@ -83,6 +82,14 @@ import { useSidebarMenuStore } from "@/stores/sidebar-menu-store";
 type BreadcrumbTrailItem = RouteBreadcrumbItem;
 
 const POS_ANDROID_SYSTEM_SCREEN_CLASS = "pos-android-system-screen";
+const FIXED_DATA_SCREEN_PATHS = new Set([
+  "/printer",
+  "/product",
+  "/sales/cancel-history",
+  "/sales/cancel-sale",
+  "/sales/sales-list"
+]);
+const FIXED_DATA_SCREEN_PREFIXES = ["/setting/", "/report/"] as const;
 
 function menuKey(title: string) {
   return `nav.${title}`;
@@ -124,6 +131,14 @@ function hasActiveRoute(item: MenuItem, pathname: string): boolean {
   if (routeIsActive(pathname, item.path)) return true;
   return (
     item.children?.some((child) => hasActiveRoute(child, pathname)) ?? false
+  );
+}
+
+function isFixedDataScreen(pathname: string, immersiveScreen: boolean) {
+  return (
+    immersiveScreen ||
+    FIXED_DATA_SCREEN_PATHS.has(pathname) ||
+    FIXED_DATA_SCREEN_PREFIXES.some((prefix) => pathname.startsWith(prefix))
   );
 }
 
@@ -223,15 +238,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     pathname === "/sales/open-table-sale" ||
     pathname === "/sale/order-customer";
   const dashboardScreen = pathname === "/";
- const fixedDataScreen =
-  immersiveScreen ||
-  pathname.startsWith("/setting/") ||
-  pathname.startsWith("/report/") ||
-  pathname === "/printer" ||
-  pathname === "/product" ||
-  pathname === "/sales/sales-list" ||
-  pathname === "/sales/cancel-sale" ||
-  pathname === "/sales/cancel-history";
+  const fixedDataScreen = isFixedDataScreen(pathname, immersiveScreen);
   const [openMenus, setOpenMenus] = useState<Set<string>>(
     () => new Set(activeMenuTitles(menuItems, pathname)),
   );

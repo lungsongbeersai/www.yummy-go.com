@@ -1,4 +1,3 @@
-import type { MenuItem } from "@/config/menu";
 import { apiRequest, ServiceError } from "@/lib/api";
 import { normalizeMenuIconName } from "@/lib/menu-icons";
 import { toApiLanguage } from "@/lib/language";
@@ -190,21 +189,6 @@ export function normalizeSidebarPermissionMenuResponse(
     },
     (item) => item.label
   );
-}
-
-export function sidebarPermissionMenuItemsToMenuItems(
-  items: SidebarPermissionMenuItem[]
-): MenuItem[] {
-  return items.map((item) => ({
-    badgeText: item.badgeText,
-    children: item.children?.length ? sidebarPermissionMenuItemsToMenuItems(item.children) : undefined,
-    disabled: item.disabled,
-    iconName: item.iconName,
-    label: item.label,
-    path: item.path,
-    source: item.source,
-    title: item.title
-  }));
 }
 
 export async function fetchSidebarPermissionMenu(params: SidebarPermissionMenuParams) {

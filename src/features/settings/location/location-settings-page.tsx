@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import {
@@ -8,6 +8,7 @@ import {
   SettingsPaginationFooter,
   SettingsToolbar
 } from "@/features/settings/shared/settings-shell";
+import { useAppliedSearch } from "@/hooks/use-applied-search";
 import { LocationFormDialog } from "./location-form-dialog";
 import { LocationListSurface } from "./location-list";
 import type { LocationLabels, LocationSettingsRow as Row } from "./location-types";
@@ -22,6 +23,7 @@ import {
   missingProvinceField,
   type LocationKind
 } from "@/features/settings/location/location-utils";
+import { useLatestValue } from "@/hooks/use-latest-value";
 import { useUrlPagination } from "@/hooks/use-url-pagination";
 import { DEFAULT_PAGE_LIMIT, PAGE_LIMIT_OPTIONS } from "@/lib/pagination";
 import { canManageLocationSettings } from "@/lib/permissions";
@@ -101,9 +103,11 @@ export function LocationSettingsPage({ initialPagination, kind }: { initialPagin
     sortAsc: t("common.oldestFirst"),
     sortDesc: t("common.newestFirst")
   };
+  const { appliedSearch, applySearch } = useAppliedSearch(search);
+  const hasLoadedRef = useLatestValue(hasLoaded);
   const requestParams = useMemo(
-    () => ({ search, page, limit, orderBy, lang: language }),
-    [language, limit, orderBy, page, search]
+    () => ({ search: appliedSearch, page, limit, orderBy, lang: language }),
+    [appliedSearch, language, limit, orderBy, page]
   );
   const pageSize = limit === "All" ? rows.length || Number(DEFAULT_LIMIT) : Number(limit ?? DEFAULT_LIMIT);
   const totalPages = Math.max(1, Number(storeTotalPages || Math.ceil(total / pageSize) || 1));
@@ -137,7 +141,7 @@ export function LocationSettingsPage({ initialPagination, kind }: { initialPagin
     groupedDistricts.length > 0 &&
     groupedDistricts.every((group) => collapsedProvinces.has(group.provinceId));
 
-  async function load(background = hasLoaded) {
+  const load = useCallback(async (background = hasLoadedRef.current) => {
     try {
       if (kind === "province") await loadProvinces(requestParams, { background });
       else await loadDistricts(requestParams, { background });
@@ -148,12 +152,11 @@ export function LocationSettingsPage({ initialPagination, kind }: { initialPagin
         tone: "error"
       });
     }
-  }
+  }, [hasLoadedRef, kind, loadDistricts, loadProvinces, requestParams, showToast, t, title]);
 
   useEffect(() => {
-    void load(hasLoaded);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [config.slug, language, page, limit, orderBy]);
+    void load();
+  }, [load]);
 
   useEffect(() => {
     if (kind !== "district") return;
@@ -175,8 +178,7 @@ export function LocationSettingsPage({ initialPagination, kind }: { initialPagin
   }, [ids]);
 
   function applyFilters() {
-    if (page === 1) void load(hasLoaded);
-    else resetPage();
+    applySearch({ page, resetPage, reload: () => void load() });
   }
 
   function toggleSelected(id: string, checked: boolean) {

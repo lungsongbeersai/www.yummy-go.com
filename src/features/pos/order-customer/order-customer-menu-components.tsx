@@ -31,9 +31,9 @@ import {
 } from "@/components/ui/tooltip";
 import { LANGUAGES } from "@/lib/language";
 import { cn } from "@/lib/utils";
-import { ProductSortStatus, type CateWithProducts } from "@/services/pos";
+import type { CateWithProducts } from "@/services/pos";
 import { useAppStore } from "@/stores/app-store";
-import { SORT_TABS } from "./order-customer-utils";
+import { ProductSortStatus, SORT_TABS } from "./order-customer-utils";
 
 const CategoryIconView = dynamic(
   () =>

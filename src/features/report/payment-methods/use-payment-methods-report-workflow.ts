@@ -11,13 +11,17 @@ import { useBranchStore } from "@/stores/branch-store";
 import { usePaymentMethodsReportStore } from "@/stores/report-store";
 import { useToastStore } from "@/stores/toast-store";
 import { branchOptionFromRow, selectedBranchLabel } from "../daily-sales/daily-sales-report-utils";
+import { useReportRowSelection } from "../report-row-selection";
 import type { PaymentMethodsExportAction, PaymentMethodsExportData, PaymentMethodsReportFilters } from "./payment-methods-report-types";
 import {
   emptyExportData,
   exportPaymentMethodRows,
   exportSummaryRows,
   localDateInputValue,
+  paymentMethodCardsForTotal,
   paymentMethodOptions,
+  paymentMethodReportRowId,
+  paymentMethodReportTotalFromRows,
   paymentMethodsFileBaseName,
   selectedPaymentMethodLabel,
   waitForPaint
@@ -60,6 +64,10 @@ export function usePaymentMethodsReportWorkflow(exportReportRef: RefObject<HTMLD
   const [exportData, setExportData] = useState<PaymentMethodsExportData | null>(null);
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
   const { changeLimit, page, setPage } = useUrlPagination({ initialPagination });
+  const rowSelection = useReportRowSelection({
+    getRowId: paymentMethodReportRowId,
+    rows
+  });
 
   const storeUuid = authStoreUuid(user);
   const userBranchUuid = user?.branch_uuid ?? "";
@@ -204,11 +212,30 @@ export function usePaymentMethodsReportWorkflow(exportReportRef: RefObject<HTMLD
     });
   }, [appliedFilters, branchUuid, language, loadExportData, t]);
 
+  const selectedExportData = useCallback(
+    (data: PaymentMethodsExportData): PaymentMethodsExportData => {
+      if (!rowSelection.selectedCount) return data;
+
+      const selectedRows = data.rows.filter((row) =>
+        rowSelection.selectedRowIds.has(paymentMethodReportRowId(row))
+      );
+      const selectedReportTotal = paymentMethodReportTotalFromRows(selectedRows);
+
+      return {
+        ...data,
+        cards: paymentMethodCardsForTotal(data.cards, selectedReportTotal),
+        reportTotal: selectedReportTotal,
+        rows: selectedRows
+      };
+    },
+    [rowSelection.selectedCount, rowSelection.selectedRowIds]
+  );
+
   async function exportExcel() {
     if (exportDisabled) return;
     setExporting("excel");
     try {
-      const data = await fetchExportData();
+      const data = selectedExportData(await fetchExportData());
       const XLSX = await import("xlsx");
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(exportSummaryRows(data.cards, data.reportTotal, t)), "Summary");
@@ -234,7 +261,7 @@ export function usePaymentMethodsReportWorkflow(exportReportRef: RefObject<HTMLD
     if (exportDisabled) return;
     setExporting("pdf");
     try {
-      const data = await fetchExportData();
+      const data = selectedExportData(await fetchExportData());
       setExportData(data);
       await waitForPaint();
 
@@ -282,11 +309,28 @@ export function usePaymentMethodsReportWorkflow(exportReportRef: RefObject<HTMLD
   }
 
   async function printReport() {
-    showToast({
-      title: t("report.printFailed"),
-      description: t("report.selectBillsToPrint"),
-      tone: "info"
-    });
+    if (exportDisabled) return;
+    setExporting("print");
+    try {
+      const data = selectedExportData(await fetchExportData());
+      setExportData(data);
+      await waitForPaint();
+      window.print();
+      showToast({
+        title: t("report.exportReady"),
+        description: t("report.exportedRows", { count: data.rows.length }),
+        tone: "success"
+      });
+    } catch (error) {
+      showToast({
+        title: t("report.printFailed"),
+        description: error instanceof Error ? error.message : "",
+        tone: "error"
+      });
+    } finally {
+      setExporting(null);
+      setExportData(null);
+    }
   }
 
   return {
@@ -321,6 +365,7 @@ export function usePaymentMethodsReportWorkflow(exportReportRef: RefObject<HTMLD
     reportTitle,
     reportTotal,
     rows,
+    rowSelection,
     setDraftFilters,
     setPage,
     totalPages,

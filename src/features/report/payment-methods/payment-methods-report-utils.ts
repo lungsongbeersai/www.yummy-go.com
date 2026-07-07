@@ -1,5 +1,8 @@
 import { money } from "@/lib/format";
-import { PAYMENT_METHOD_REPORT_FILTER_OPTIONS, type PaymentMethodReportFilter } from "@/services/report";
+import {
+  PAYMENT_METHOD_REPORT_FILTER_OPTIONS,
+  type PaymentMethodReportFilter,
+} from "@/config/report-filters";
 import type { ApiEntity } from "@/services/shared/types";
 import type { PaymentMethodOption, PaymentMethodReportRow } from "@/stores/report-store";
 import type {
@@ -20,47 +23,38 @@ type RowMetricDefinition = Omit<PaymentMethodsRowMetricConfig, "label"> & {
 };
 
 const totalMetricDefinitions = [
-  { key: "rows_count", kind: "number", labelKey: "report.paymentMethodsReport.columns.rowsCount" },
-  { key: "bills_count", kind: "number", labelKey: "report.paymentMethodsReport.columns.billsCount" },
-  { key: "active_count", kind: "number", labelKey: "report.paymentMethodsReport.columns.activeCount" },
-  { key: "cancelled_count", kind: "number", labelKey: "report.paymentMethodsReport.columns.cancelledCount" },
-  { key: "items_count", kind: "number", labelKey: "report.paymentMethodsReport.columns.itemsCount" },
-  { key: "qty_total", kind: "number", labelKey: "report.paymentMethodsReport.columns.qtyTotal" },
-  { key: "amount", kind: "money", labelKey: "report.paymentMethodsReport.columns.amount" },
+  { key: "bill_count", kind: "number", labelKey: "report.paymentMethodsReport.columns.billsCount" },
+  { key: "item_count", kind: "number", labelKey: "report.paymentMethodsReport.columns.itemsCount" },
+  { key: "total_qty", kind: "number", labelKey: "report.paymentMethodsReport.columns.qtyTotal" },
+  { key: "product_price_total", kind: "money", labelKey: "report.categorySales.columns.productPriceTotal" },
   { key: "topping_total", kind: "money", labelKey: "report.paymentMethodsReport.columns.toppingTotal" },
-  { key: "item_discount", kind: "money", labelKey: "report.paymentMethodsReport.columns.itemDiscount" },
-  { key: "discount_bill", kind: "money", labelKey: "report.paymentMethodsReport.columns.discountBill" },
-  { key: "discount_total", kind: "money", labelKey: "report.paymentMethodsReport.columns.discountTotal" },
-  { key: "service_charge", kind: "money", labelKey: "report.paymentMethodsReport.columns.serviceCharge" },
-  { key: "vat", kind: "money", labelKey: "report.paymentMethodsReport.columns.vat" },
   { key: "total", kind: "money", labelKey: "report.paymentMethodsReport.columns.total" },
-  { key: "receive_cash", kind: "money", labelKey: "report.paymentMethodsReport.columns.receiveCash" },
-  { key: "receive_transfer", kind: "money", labelKey: "report.paymentMethodsReport.columns.receiveTransfer" },
-  { key: "debt_amount", kind: "money", labelKey: "report.paymentMethodsReport.columns.debtAmount" },
-  { key: "change_amount", kind: "money", labelKey: "report.paymentMethodsReport.columns.changeAmount" },
-  { key: "cancelled_total", kind: "money", labelKey: "report.paymentMethodsReport.columns.cancelledTotal" },
-  { key: "avg_bill", kind: "money", labelKey: "report.paymentMethodsReport.columns.avgBill" }
+  { key: "discount_item_amount", kind: "money", labelKey: "report.paymentMethodsReport.columns.itemDiscount" },
+  { key: "after_discount_item", kind: "money", labelKey: "report.categorySales.columns.afterDiscountItem" },
+  { key: "bill_total", kind: "money", labelKey: "report.paymentMethodsReport.columns.billTotal" },
+  { key: "discount_bill", kind: "money", labelKey: "report.paymentMethodsReport.columns.discountBill" },
+  { key: "after_discount_bill", kind: "money", labelKey: "report.categorySales.columns.afterDiscountBill" },
+  { key: "sum_servicecharge", kind: "money", labelKey: "report.paymentMethodsReport.columns.serviceCharge" },
+  { key: "sum_vate", kind: "money", labelKey: "report.paymentMethodsReport.columns.vat" },
+  { key: "grand_total", kind: "money", labelKey: "report.categorySales.columns.grandTotal" },
+  { key: "payment_total", kind: "money", labelKey: "report.paymentMethodsReport.columns.paymentAmount" },
+  { key: "difference", kind: "money", labelKey: "report.paymentMethodsReport.columns.difference" }
 ] as const satisfies readonly TotalMetricDefinition[];
 
 const rowMetricDefinitions = [
-  { field: "billsCount", key: "bills_count", kind: "number", labelKey: "report.paymentMethodsReport.columns.billsCount" },
-  { field: "activeCount", key: "active_count", kind: "number", labelKey: "report.paymentMethodsReport.columns.activeCount" },
-  { field: "cancelledCount", key: "cancelled_count", kind: "number", labelKey: "report.paymentMethodsReport.columns.cancelledCount" },
-  { field: "itemsCount", key: "items_count", kind: "number", labelKey: "report.paymentMethodsReport.columns.itemsCount" },
-  { field: "qtyTotal", key: "qty_total", kind: "number", labelKey: "report.paymentMethodsReport.columns.qtyTotal" },
-  { field: "amount", key: "amount", kind: "money", labelKey: "report.paymentMethodsReport.columns.amount" },
+  { field: "billCount", key: "bill_count", kind: "number", labelKey: "report.paymentMethodsReport.columns.billsCount" },
+  { field: "productPriceTotal", key: "product_price_total", kind: "money", labelKey: "report.categorySales.columns.productPriceTotal" },
   { field: "toppingTotal", key: "topping_total", kind: "money", labelKey: "report.paymentMethodsReport.columns.toppingTotal" },
-  { field: "itemDiscount", key: "item_discount", kind: "money", labelKey: "report.paymentMethodsReport.columns.itemDiscount" },
+  { field: "total", key: "total", kind: "money", labelKey: "report.paymentMethodsReport.columns.total" },
+  { field: "discountItemAmount", key: "discount_item_amount", kind: "money", labelKey: "report.paymentMethodsReport.columns.itemDiscount" },
+  { field: "afterDiscountItem", key: "after_discount_item", kind: "money", labelKey: "report.categorySales.columns.afterDiscountItem" },
+  { field: "billTotal", key: "bill_total", kind: "money", labelKey: "report.paymentMethodsReport.columns.billTotal" },
   { field: "discountBill", key: "discount_bill", kind: "money", labelKey: "report.paymentMethodsReport.columns.discountBill" },
-  { field: "discountTotal", key: "discount_total", kind: "money", labelKey: "report.paymentMethodsReport.columns.discountTotal" },
+  { field: "afterDiscountBill", key: "after_discount_bill", kind: "money", labelKey: "report.categorySales.columns.afterDiscountBill" },
   { field: "serviceCharge", key: "service_charge", kind: "money", labelKey: "report.paymentMethodsReport.columns.serviceCharge" },
   { field: "vat", key: "vat", kind: "money", labelKey: "report.paymentMethodsReport.columns.vat" },
-  { field: "total", key: "total", kind: "money", labelKey: "report.paymentMethodsReport.columns.total" },
-  { field: "receiveCash", key: "receive_cash", kind: "money", labelKey: "report.paymentMethodsReport.columns.receiveCash" },
-  { field: "receiveTransfer", key: "receive_transfer", kind: "money", labelKey: "report.paymentMethodsReport.columns.receiveTransfer" },
-  { field: "debtAmount", key: "debt_amount", kind: "money", labelKey: "report.paymentMethodsReport.columns.debtAmount" },
-  { field: "changeAmount", key: "change_amount", kind: "money", labelKey: "report.paymentMethodsReport.columns.changeAmount" },
-  { field: "cancelledTotal", key: "cancelled_total", kind: "money", labelKey: "report.paymentMethodsReport.columns.cancelledTotal" }
+  { field: "grandTotal", key: "grand_total", kind: "money", labelKey: "report.categorySales.columns.grandTotal" },
+  { field: "paymentAmount", key: "payment_amount", kind: "money", labelKey: "report.paymentMethodsReport.columns.paymentAmount" }
 ] as const satisfies readonly RowMetricDefinition[];
 
 function isPresent(value: unknown) {
@@ -164,10 +158,54 @@ export function exportSummaryRows(
 export function exportPaymentMethodRows(rows: PaymentMethodReportRow[], t: (key: string) => string) {
   const metrics = paymentMethodRowMetricConfigs(t);
   return rows.map((row) => ({
-    [t("report.paymentMethodsReport.columns.rank")]: row.rank,
     [t("report.paymentMethodsReport.columns.paymentMethod")]: row.paymentMethodName,
     [t("report.paymentMethodsReport.columns.paymentMethodCode")]: row.paymentMethodCode,
     ...Object.fromEntries(metrics.map((metric) => [metric.label, Number(row[metric.field] ?? 0)]))
+  }));
+}
+
+export function paymentMethodReportRowId(row: PaymentMethodReportRow) {
+  return `${row.paymentMethodCode}:${row.sortOrder}`;
+}
+
+export function paymentMethodReportTotalFromRows(
+  rows: PaymentMethodReportRow[],
+) {
+  return rows.reduce<ApiEntity>(
+    (summary, row) => {
+      summary.bill_count = firstNumber(summary.bill_count) + row.billCount;
+      summary.product_price_total =
+        firstNumber(summary.product_price_total) + row.productPriceTotal;
+      summary.topping_total = firstNumber(summary.topping_total) + row.toppingTotal;
+      summary.total = firstNumber(summary.total) + row.total;
+      summary.discount_item_amount =
+        firstNumber(summary.discount_item_amount) + row.discountItemAmount;
+      summary.after_discount_item =
+        firstNumber(summary.after_discount_item) + row.afterDiscountItem;
+      summary.bill_total = firstNumber(summary.bill_total) + row.billTotal;
+      summary.discount_bill = firstNumber(summary.discount_bill) + row.discountBill;
+      summary.after_discount_bill =
+        firstNumber(summary.after_discount_bill) + row.afterDiscountBill;
+      summary.sum_servicecharge =
+        firstNumber(summary.sum_servicecharge) + row.serviceCharge;
+      summary.sum_vate = firstNumber(summary.sum_vate) + row.vat;
+      summary.grand_total = firstNumber(summary.grand_total) + row.grandTotal;
+      summary.payment_total =
+        firstNumber(summary.payment_total) + row.paymentAmount;
+      summary.difference = 0;
+      return summary;
+    },
+    {},
+  );
+}
+
+export function paymentMethodCardsForTotal(
+  cards: PaymentMethodsSummaryCard[],
+  reportTotal: ApiEntity,
+): PaymentMethodsSummaryCard[] {
+  return cards.map((card) => ({
+    ...card,
+    value: firstNumber(reportTotal[card.key]),
   }));
 }
 

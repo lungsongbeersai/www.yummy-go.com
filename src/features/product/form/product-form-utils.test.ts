@@ -181,10 +181,12 @@ describe("product form detail helpers", () => {
 
     expect(row.pro_detail_sDate).toBe("2026-05-29");
     expect(row.pro_detail_sTime).toBe("09:30");
+    expect(row.pro_detail_stock).toBe("2");
 
     const normalized = normalizeDetailsForStatus([row], "1", "3");
     expect(normalized[0]?.pro_detail_status).toBe("2");
     expect(normalized[0]?.pro_detail_sDate).toBe("");
+    expect(normalized[0]?.pro_detail_stock).toBe("2");
   });
 
   it("builds detail payloads by product type and summarizes stock mode", () => {
@@ -223,6 +225,7 @@ describe("product form detail helpers", () => {
     expect(detailStockSummary([detail({ pro_detail_stock: "2" })])).toBe(
       "noDeduct",
     );
+    expect(detailStockSummary([])).toBe("noDeduct");
     expect(
       detailStockSummary([
         detail({ pro_detail_stock: "1" }),

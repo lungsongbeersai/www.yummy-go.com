@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { KeyRound } from "lucide-react";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
@@ -11,6 +11,8 @@ import {
   SettingsRowActions,
   SettingsToolbar
 } from "@/features/settings/shared/settings-shell";
+import { useAppliedSearch } from "@/hooks/use-applied-search";
+import { useLatestValue } from "@/hooks/use-latest-value";
 import { useUrlPagination } from "@/hooks/use-url-pagination";
 import { DEFAULT_PAGE_LIMIT, PAGE_LIMIT_OPTIONS } from "@/lib/pagination";
 import { canCreateStoreBranch, canDeleteStoreBranch, canEditStoreBranch } from "@/lib/permissions";
@@ -74,7 +76,6 @@ export function StoreBranchSettingsPage({ initialPagination, kind }: { initialPa
   const canDelete = canDeleteStoreBranch(user?.status);
   const canEdit = canEditStoreBranch(user?.status);
   const scope = useMemo(() => config.scope?.(user) ?? {}, [config, user]);
-  const scopeKey = useMemo(() => JSON.stringify(scope), [scope]);
   const visibleRows = useMemo(() => {
     if (kind === "store" && !canCreate) return rows.filter((row) => storeBranchValue(row, "store_uuid") === storeUuid);
     if (kind === "branch" && !canCreate) return rows.filter((row) => storeBranchValue(row, "branch_uuid") === user?.branch_uuid);
@@ -84,9 +85,11 @@ export function StoreBranchSettingsPage({ initialPagination, kind }: { initialPa
   const title = kind === "store" ? labels.store : labels.branch;
   const description = kind === "store" ? labels.storeHint : labels.branchHint;
   const listTitle = kind === "store" ? labels.storeList : labels.branchList;
+  const { appliedSearch, applySearch } = useAppliedSearch(search);
+  const hasLoadedRef = useLatestValue(hasLoaded);
   const requestParams = useMemo(
-    () => ({ page, limit, orderBy, lang: language, search, ...scope }),
-    [language, limit, orderBy, page, scope, search]
+    () => ({ page, limit, orderBy, lang: language, search: appliedSearch, ...scope }),
+    [appliedSearch, language, limit, orderBy, page, scope]
   );
   const pageSize = limit === "All" ? visibleRows.length || Number(LIST_LIMIT) : Number(limit ?? LIST_LIMIT);
   const total = canCreate ? Number(entity?.total ?? visibleRows.length) : visibleRows.length;
@@ -123,7 +126,7 @@ export function StoreBranchSettingsPage({ initialPagination, kind }: { initialPa
     });
   }, [visibleIds]);
 
-  async function load(background = hasLoaded) {
+  const load = useCallback(async (background = hasLoadedRef.current) => {
     try {
       await loadEntity(config, requestParams, { background });
     } catch (error) {
@@ -133,12 +136,11 @@ export function StoreBranchSettingsPage({ initialPagination, kind }: { initialPa
         tone: "error"
       });
     }
-  }
+  }, [config, hasLoadedRef, loadEntity, requestParams, showToast, t, title]);
 
   useEffect(() => {
     void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [config.slug, language, scopeKey, page, limit, orderBy]);
+  }, [load]);
 
   function resetForm() {
     setEditing(null);
@@ -158,8 +160,7 @@ export function StoreBranchSettingsPage({ initialPagination, kind }: { initialPa
   }
 
   function applyFilters() {
-    if (page === 1) void load(true);
-    else resetPage();
+    applySearch({ page, resetPage, reload: () => void load(true) });
   }
 
   function toggleSelected(id: string, checked: boolean) {

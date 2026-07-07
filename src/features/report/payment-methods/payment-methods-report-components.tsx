@@ -1,10 +1,9 @@
 "use client";
 
-import { type ReactNode, type RefObject, useCallback, useState } from "react";
+import { type ReactNode, type RefObject, useCallback } from "react";
 import {
   CalendarDays,
   ChevronDown,
-  ChevronUp,
   CreditCard,
   Download,
   FileSpreadsheet,
@@ -18,6 +17,7 @@ import { EmptyState } from "@/components/common/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogClose,
@@ -55,20 +55,26 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { PAGE_LIMIT_OPTIONS, isAllPageLimit } from "@/lib/pagination";
-import type { PaymentMethodReportFilter } from "@/services/report";
+import type { PaymentMethodReportFilter } from "@/config/report-filters";
 import type {
   PaymentMethodOption,
   PaymentMethodReportRow,
   PaymentMethodSummaryCard,
 } from "@/stores/report-store";
 import { SortableReportTableHead } from "../report-sort-table-head";
+import {
+  ReportIndeterminateCheckbox,
+  selectionStateForVisibleIds,
+} from "../report-row-selection";
 import { useLocalTableSort } from "../report-sort-utils";
 import type {
   PaymentMethodsExportAction,
   PaymentMethodsReportFilters,
+  PaymentMethodsRowMetricConfig,
 } from "./payment-methods-report-types";
 import {
   displayMetric,
+  paymentMethodReportRowId,
   paymentMethodRowMetricConfigs,
   paymentMethodTotalMetricConfigs,
 } from "./payment-methods-report-utils";
@@ -112,7 +118,8 @@ export function PaymentMethodsSummaryCards({
           key={card.key}
           className={cn(
             "overflow-hidden border-border bg-card shadow-sm",
-            card.key === "total" && "border-primary/30 bg-primary/5",
+            (card.key === "grand_total" || card.key === "payment_total") &&
+              "border-primary/30 bg-primary/5",
             card.key.includes("discount") && card.value > 0 && "border-destructive/25 bg-destructive/5"
           )}
         >
@@ -144,28 +151,32 @@ export function PaymentMethodsFilterBar({
   const { t } = useTranslation();
 
   return (
-    <Card className="border-border bg-card shadow-sm">
-      <CardContent className="grid gap-3 p-4 md:grid-cols-2 lg:grid-cols-[repeat(5,minmax(0,1fr))_auto] lg:items-end">
-        <PaymentMethodsFilterFields
-          branchLoading={branchLoading}
-          branchLocked={branchLocked}
-          branchOptions={branchOptions}
-          draftFilters={draftFilters}
-          idPrefix="payment-methods"
-          methodOptions={methodOptions}
-          onDraftChange={onDraftChange}
-        />
-        <Button
-          type="button"
-          className="h-9 min-w-28"
-          disabled={loading || !canApply}
-          onClick={onApply}
-        >
-          {loading ? (
-            <RefreshCcw className="animate-spin" data-icon="inline-start" />
-          ) : null}
-          {t("report.apply")}
-        </Button>
+    <Card className="min-w-0 border-border bg-card shadow-sm">
+      <CardContent className="p-3 sm:p-4">
+        <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-12">
+          <PaymentMethodsFilterFields
+            branchLoading={branchLoading}
+            branchLocked={branchLocked}
+            branchOptions={branchOptions}
+            draftFilters={draftFilters}
+            idPrefix="payment-methods"
+            methodOptions={methodOptions}
+            onDraftChange={onDraftChange}
+          />
+          <div className="flex items-end sm:col-span-2 lg:col-span-12 xl:col-span-2">
+            <Button
+              type="button"
+              className="h-9 w-full min-w-28"
+              disabled={loading || !canApply}
+              onClick={onApply}
+            >
+              {loading ? (
+                <RefreshCcw className="animate-spin" data-icon="inline-start" />
+              ) : null}
+              {t("report.apply")}
+            </Button>
+          </div>
+        </div>
       </CardContent>
     </Card>
   );
@@ -191,17 +202,17 @@ export function PaymentMethodsFilterSheet({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-5xl">
-        <DialogHeader className="shrink-0 border-b border-border px-4 py-3 pr-12 text-left">
-          <DialogTitle className="text-base font-black">
+      <DialogContent className="!flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-4xl">
+        <DialogHeader className="shrink-0 border-b border-border bg-muted/20 px-4 py-3 pr-12 text-left sm:px-5">
+          <DialogTitle className="text-base font-black text-foreground">
             {t("report.filters.currentFilters")}
           </DialogTitle>
           <DialogDescription>
             {t("report.paymentMethodsReport.title")}
           </DialogDescription>
         </DialogHeader>
-        <div className="min-h-0 flex-1 overflow-y-auto p-4">
-          <div className="grid gap-3 lg:grid-cols-3">
+        <div className="max-h-[calc(100dvh-12rem)] overflow-y-auto overscroll-contain p-4 sm:p-5">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-12">
             <PaymentMethodsFilterFields
               branchLoading={branchLoading}
               branchLocked={branchLocked}
@@ -213,14 +224,15 @@ export function PaymentMethodsFilterSheet({
             />
           </div>
         </div>
-        <DialogFooter className="grid grid-cols-2 gap-2 border-t border-border bg-card/95 px-4 py-3 backdrop-blur sm:flex">
+        <DialogFooter className="grid shrink-0 grid-cols-2 gap-2 border-t border-border bg-card/95 px-4 py-3 backdrop-blur sm:flex sm:px-5">
           <DialogClose asChild>
-            <Button type="button" variant="outline">
+            <Button type="button" variant="outline" className="h-10 sm:min-w-24">
               {t("actions.close")}
             </Button>
           </DialogClose>
           <Button
             type="button"
+            className="h-10 sm:min-w-24"
             disabled={loading || !canApply}
             onClick={onApply}
           >
@@ -312,7 +324,7 @@ function PaymentMethodsFilterFields({
 
   return (
     <>
-      <Field className="gap-1.5">
+      <Field className="min-w-0 gap-1.5 sm:col-span-2 lg:col-span-4">
         <FieldLabel
           htmlFor={`${idPrefix}-branch`}
           className="text-xs font-bold text-muted-foreground"
@@ -324,7 +336,7 @@ function PaymentMethodsFilterFields({
           disabled={branchLoading || branchLocked || branchOptions.length <= 1}
           onValueChange={(value) => patch({ branchUuid: value })}
         >
-          <SelectTrigger id={`${idPrefix}-branch`} className="w-full">
+          <SelectTrigger id={`${idPrefix}-branch`} className="h-10 w-full rounded-md">
             <SelectValue placeholder={t("nav.branch")} />
           </SelectTrigger>
           <SelectContent>
@@ -338,7 +350,7 @@ function PaymentMethodsFilterFields({
           </SelectContent>
         </Select>
       </Field>
-      <Field className="gap-1.5">
+      <Field className="min-w-0 gap-1.5 lg:col-span-4">
         <FieldLabel
           htmlFor={`${idPrefix}-date-from`}
           className="text-xs font-bold text-muted-foreground"
@@ -347,12 +359,15 @@ function PaymentMethodsFilterFields({
         </FieldLabel>
         <Input
           id={`${idPrefix}-date-from`}
+          name={`${idPrefix}-date-from`}
           type="date"
           value={draftFilters.dateFrom}
+          autoComplete="off"
+          className="h-10 rounded-md text-sm"
           onChange={(event) => patch({ dateFrom: event.target.value })}
         />
       </Field>
-      <Field className="gap-1.5">
+      <Field className="min-w-0 gap-1.5 lg:col-span-4">
         <FieldLabel
           htmlFor={`${idPrefix}-date-to`}
           className="text-xs font-bold text-muted-foreground"
@@ -361,12 +376,15 @@ function PaymentMethodsFilterFields({
         </FieldLabel>
         <Input
           id={`${idPrefix}-date-to`}
+          name={`${idPrefix}-date-to`}
           type="date"
           value={draftFilters.dateTo}
+          autoComplete="off"
+          className="h-10 rounded-md text-sm"
           onChange={(event) => patch({ dateTo: event.target.value })}
         />
       </Field>
-      <Field className="gap-1.5">
+      <Field className="min-w-0 gap-1.5 lg:col-span-4">
         <FieldLabel
           htmlFor={`${idPrefix}-payment-method`}
           className="text-xs font-bold text-muted-foreground"
@@ -379,7 +397,7 @@ function PaymentMethodsFilterFields({
             patch({ paymentMethod: value as PaymentMethodReportFilter })
           }
         >
-          <SelectTrigger id={`${idPrefix}-payment-method`} className="w-full">
+          <SelectTrigger id={`${idPrefix}-payment-method`} className="h-10 w-full rounded-md">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -393,7 +411,7 @@ function PaymentMethodsFilterFields({
           </SelectContent>
         </Select>
       </Field>
-      <Field className="gap-1.5">
+      <Field className="min-w-0 gap-1.5 lg:col-span-6">
         <FieldLabel
           htmlFor={`${idPrefix}-limit`}
           className="text-xs font-bold text-muted-foreground"
@@ -406,7 +424,7 @@ function PaymentMethodsFilterFields({
             patch({ limit: value === "All" ? "All" : Number(value) })
           }
         >
-          <SelectTrigger id={`${idPrefix}-limit`} className="w-full">
+          <SelectTrigger id={`${idPrefix}-limit`} className="h-10 w-full rounded-md">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -430,9 +448,10 @@ type TableCardProps = {
   exporting: PaymentMethodsExportAction | null;
   footer: ReactNode;
   loading: boolean;
-  methodLabel: string;
   rowsLength: number;
+  selectedCount: number;
   title: string;
+  onClearSelection: () => void;
   onExportExcel: () => void;
   onExportPdf: () => void;
   onOpenFilters: () => void;
@@ -446,9 +465,10 @@ export function PaymentMethodsTableCard({
   exporting,
   footer,
   loading,
-  methodLabel,
   rowsLength,
+  selectedCount,
   title,
+  onClearSelection,
   onExportExcel,
   onExportPdf,
   onOpenFilters,
@@ -458,104 +478,136 @@ export function PaymentMethodsTableCard({
   const { t } = useTranslation();
 
   return (
-    <Card className="min-h-0 min-w-0 overflow-hidden border-border bg-card shadow-sm md:sticky md:top-3 md:flex md:max-h-[calc(100dvh-var(--app-shell-header-height)-1.5rem)] md:flex-col">
-      <CardHeader className="flex shrink-0 flex-col gap-3 border-b border-border bg-card px-4 py-3 xl:flex-row xl:items-center xl:justify-between">
-        <div className="min-w-0">
-          <CardTitle className="flex min-w-0 items-center gap-2 text-base font-black">
-            <CreditCard />
-            <span className="truncate">{title}</span>
-          </CardTitle>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <Badge className="h-7 w-fit px-2 text-xs">{methodLabel}</Badge>
+    <Card className="min-w-0 overflow-hidden border-border bg-card shadow-sm">
+      <CardHeader className="shrink-0 border-b border-border bg-card/95 px-2 py-2 sm:px-3">
+        <div className="grid w-full min-w-0 grid-cols-1 items-center gap-2 2xl:grid-cols-[minmax(180px,16rem)_minmax(0,1fr)_auto]">
+          <div className="flex min-w-0 items-center gap-2">
+            <div className="grid size-8 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
+              <CreditCard aria-hidden="true" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <CardTitle className="truncate text-sm font-black">
+                {title}
+              </CardTitle>
+              {rowsLength ? (
+                <p className="mt-0.5 truncate text-xs font-semibold text-muted-foreground">
+                  {t("report.paymentMethodsReport.rowsLabel", {
+                    count: rowsLength,
+                  })}
+                </p>
+              ) : null}
+              {selectedCount > 0 ? (
+                <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5">
+                  <Badge className="h-6 max-w-full truncate border-primary/20 bg-primary/10 px-2 text-xs text-primary">
+                    {t("report.selectedForExport", { count: selectedCount })}
+                  </Badge>
+                  <Button
+                    type="button"
+                    size="xs"
+                    variant="ghost"
+                    className="h-6 px-2 text-xs text-muted-foreground"
+                    onClick={onClearSelection}
+                  >
+                    {t("report.clearSelection")}
+                  </Button>
+                </div>
+              ) : null}
+            </div>
             {loading && rowsLength ? (
               <Badge className="h-7 w-fit border-border bg-muted px-2 text-xs text-muted-foreground">
-                <RefreshCcw className="size-3 animate-spin" />
+                <RefreshCcw className="animate-spin" data-icon="inline-start" />
                 {t("common.loading")}
               </Badge>
             ) : null}
           </div>
-        </div>
-        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center xl:justify-end">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-10 justify-center sm:h-9"
-            onClick={onOpenFilters}
-          >
-            <Filter data-icon="inline-start" />
-            {t("report.filters.openFilters")}
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-10 justify-center sm:h-9"
-                disabled={exportDisabled}
-              >
-                {exporting === "excel" || exporting === "pdf" ? (
-                  <RefreshCcw className="animate-spin" data-icon="inline-start" />
-                ) : (
-                  <Download data-icon="inline-start" />
-                )}
-                {t("common.export")}
-                <ChevronDown data-icon="inline-end" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-44">
-              <DropdownMenuGroup>
-                <DropdownMenuItem disabled={exportDisabled} onSelect={onExportExcel}>
-                  <FileSpreadsheet data-icon="inline-start" />
-                  {t("report.exportExcel")}
-                </DropdownMenuItem>
-                <DropdownMenuItem disabled={exportDisabled} onSelect={onExportPdf}>
-                  <Download data-icon="inline-start" />
-                  {t("report.exportPdf")}
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-10 justify-center sm:h-9"
-            disabled={exportDisabled}
-            onClick={onPrintReport}
-          >
-            {exporting === "print" ? (
-              <RefreshCcw className="animate-spin" data-icon="inline-start" />
-            ) : (
-              <Printer data-icon="inline-start" />
-            )}
-            {t("report.print")}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-10 justify-center sm:h-9"
-            disabled={loading || Boolean(exporting)}
-            onClick={onRefresh}
-          >
-            <RefreshCcw
-              className={loading ? "animate-spin" : undefined}
-              data-icon="inline-start"
-            />
-            {t("actions.refresh")}
-          </Button>
+
+          <div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5 2xl:col-start-3 2xl:flex-nowrap">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              aria-label={t("report.filters.openFilters")}
+              className="h-9 min-w-9 rounded-md px-2.5"
+              onClick={onOpenFilters}
+            >
+              <Filter data-icon="inline-start" />
+              <span className="hidden sm:inline">
+                {t("report.filters.openFilters")}
+              </span>
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  aria-label={t("common.export")}
+                  className="h-9 min-w-9 rounded-md px-2.5"
+                  disabled={exportDisabled}
+                >
+                  {exporting === "excel" || exporting === "pdf" ? (
+                    <RefreshCcw className="animate-spin" data-icon="inline-start" />
+                  ) : (
+                    <Download data-icon="inline-start" />
+                  )}
+                  <span className="hidden sm:inline">{t("common.export")}</span>
+                  <ChevronDown data-icon="inline-end" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-44">
+                <DropdownMenuGroup>
+                  <DropdownMenuItem disabled={exportDisabled} onSelect={onExportExcel}>
+                    <FileSpreadsheet data-icon="inline-start" />
+                    {t("report.exportExcel")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem disabled={exportDisabled} onSelect={onExportPdf}>
+                    <Download data-icon="inline-start" />
+                    {t("report.exportPdf")}
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              aria-label={t("report.print")}
+              className="h-9 min-w-9 rounded-md px-2.5"
+              disabled={exportDisabled}
+              onClick={onPrintReport}
+            >
+              {exporting === "print" ? (
+                <RefreshCcw className="animate-spin" data-icon="inline-start" />
+              ) : (
+                <Printer data-icon="inline-start" />
+              )}
+              <span className="hidden sm:inline">{t("report.print")}</span>
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              aria-label={t("actions.refresh")}
+              className="h-9 min-w-9 rounded-md border border-border/60 px-2.5 text-muted-foreground hover:text-foreground"
+              disabled={loading || Boolean(exporting)}
+              onClick={onRefresh}
+            >
+              <RefreshCcw
+                className={loading ? "animate-spin" : undefined}
+                data-icon="inline-start"
+              />
+            </Button>
+          </div>
         </div>
       </CardHeader>
-      <CardContent className="flex min-h-0 flex-1 flex-col p-0">
+      <CardContent className="p-0">
         {loading && !rowsLength ? (
           <div className="p-4 md:min-h-80">
             <PaymentMethodsLoadingSkeleton />
           </div>
         ) : rowsLength ? (
           <>
-            <div className="min-h-0 md:flex-1 md:overflow-auto md:overscroll-x-contain md:overscroll-y-auto">
+            <div className="min-w-0 overflow-x-auto overscroll-x-contain">
               {children}
             </div>
             <div className="shrink-0 bg-card">{footer}</div>
@@ -573,62 +625,75 @@ export function PaymentMethodsTableCard({
   );
 }
 
-// Column group definitions for the desktop table
-type ColumnGroup = {
-  key: string;
-  labelKey: string;
-  fields: Array<keyof PaymentMethodReportRow>;
+type PaymentMethodTableField = {
+  field: keyof PaymentMethodReportRow;
+  minWidth: string;
+  summaryKey: string;
 };
 
-const COLUMN_GROUPS: ColumnGroup[] = [
+const PAYMENT_METHOD_TABLE_FIELDS = [
+  { field: "billCount", minWidth: "min-w-[84px]", summaryKey: "bill_count" },
   {
-    key: "bills",
-    labelKey: "report.paymentMethodsReport.groups.bills",
-    fields: [
-      "billsCount",
-      "activeCount",
-      "cancelledCount",
-      "itemsCount",
-      "qtyTotal",
-    ],
+    field: "productPriceTotal",
+    minWidth: "min-w-[132px]",
+    summaryKey: "product_price_total",
   },
   {
-    key: "amount",
-    labelKey: "report.paymentMethodsReport.groups.amount",
-    fields: ["amount", "toppingTotal"],
+    field: "toppingTotal",
+    minWidth: "min-w-[116px]",
+    summaryKey: "topping_total",
+  },
+  { field: "total", minWidth: "min-w-[132px]", summaryKey: "total" },
+  {
+    field: "discountItemAmount",
+    minWidth: "min-w-[124px]",
+    summaryKey: "discount_item_amount",
   },
   {
-    key: "discount",
-    labelKey: "report.paymentMethodsReport.groups.discount",
-    fields: ["itemDiscount", "discountBill", "discountTotal"],
+    field: "discountBill",
+    minWidth: "min-w-[124px]",
+    summaryKey: "discount_bill",
   },
   {
-    key: "tax",
-    labelKey: "report.paymentMethodsReport.groups.tax",
-    fields: ["serviceCharge", "vat", "total"],
+    field: "serviceCharge",
+    minWidth: "min-w-[124px]",
+    summaryKey: "sum_servicecharge",
+  },
+  { field: "vat", minWidth: "min-w-[104px]", summaryKey: "sum_vate" },
+  {
+    field: "grandTotal",
+    minWidth: "min-w-[132px]",
+    summaryKey: "grand_total",
   },
   {
-    key: "payment",
-    labelKey: "report.paymentMethodsReport.groups.payment",
-    fields: [
-      "receiveCash",
-      "receiveTransfer",
-      "debtAmount",
-      "changeAmount",
-      "cancelledTotal",
-    ],
+    field: "paymentAmount",
+    minWidth: "min-w-[142px]",
+    summaryKey: "payment_total",
   },
-];
+] as const satisfies readonly PaymentMethodTableField[];
+
+type PaymentMetricByField = Partial<
+  Record<keyof PaymentMethodReportRow, PaymentMethodsRowMetricConfig>
+>;
 
 export function PaymentMethodsTable({
+  reportTotal,
   rows,
+  selectedRowIds,
+  onToggleRow,
+  onToggleRows,
 }: {
+  reportTotal: Record<string, unknown>;
   rows: PaymentMethodReportRow[];
+  selectedRowIds: Set<string>;
+  onToggleRow: (row: PaymentMethodReportRow, selected: boolean) => void;
+  onToggleRows: (rows: PaymentMethodReportRow[], selected: boolean) => void;
 }) {
   const { t } = useTranslation();
-  const allMetrics = paymentMethodRowMetricConfigs(t);
-  // Map field -> metric config for quick lookup
-  const metricByField = Object.fromEntries(allMetrics.map((m) => [m.field, m]));
+  const metricByField = Object.fromEntries(
+    paymentMethodRowMetricConfigs(t).map((metric) => [metric.field, metric]),
+  ) as PaymentMetricByField;
+  const totalPaymentAmount = paymentTotalAmount(reportTotal, rows);
   const getSortValue = useCallback(
     (row: PaymentMethodReportRow, key: keyof PaymentMethodReportRow) =>
       row[key],
@@ -638,285 +703,357 @@ export function PaymentMethodsTable({
     rows,
     getSortValue,
   );
+  const visibleIds = sortedRows.map(paymentMethodReportRowId);
+  const { allVisibleSelected, someVisibleSelected } =
+    selectionStateForVisibleIds(visibleIds, selectedRowIds);
 
   return (
     <div className="hidden min-w-0 md:block">
       <Table className="w-max min-w-full table-auto text-[13px]">
-        <TableHeader className="sticky top-0 z-20 bg-background/95 shadow-sm backdrop-blur">
-          <TableRow className="border-b-0">
-            <TableHead className="w-14 border-b border-border bg-background/95" />
-            <TableHead className="min-w-48 border-b border-border bg-background/95" />
-            {COLUMN_GROUPS.map((group) => (
-              <TableHead
-                key={group.key}
-                colSpan={group.fields.length}
-                className="border-b border-border bg-muted/30 text-center text-[11px] font-black uppercase text-muted-foreground"
-              >
-                {t(group.labelKey, { defaultValue: group.key })}
-              </TableHead>
-            ))}
-          </TableRow>
+        <TableHeader className="[&_th]:sticky [&_th]:top-0 [&_th]:z-20 [&_th]:h-9 [&_th]:whitespace-nowrap [&_th]:border-b [&_th]:border-border [&_th]:bg-muted/70 [&_th]:px-2 [&_th]:shadow-sm [&_th]:backdrop-blur">
           <TableRow>
-            <SortableReportTableHead
-              align="right"
-              sort={sort}
-              sortKey="rank"
-              className="w-14 whitespace-nowrap bg-background/95 text-center"
-              onSort={toggleSort}
-            >
-              {t("report.paymentMethodsReport.columns.rank")}
-            </SortableReportTableHead>
+            <TableHead className="w-10 text-center">
+              <ReportIndeterminateCheckbox
+                aria-label={t("common.selectAll")}
+                checked={allVisibleSelected}
+                indeterminate={!allVisibleSelected && someVisibleSelected}
+                onChange={(event) =>
+                  onToggleRows(sortedRows, event.target.checked)
+                }
+              />
+            </TableHead>
             <SortableReportTableHead
               sort={sort}
               sortKey="paymentMethodName"
-              className="min-w-48 whitespace-nowrap bg-background/95"
+              className="min-w-[220px]"
               onSort={toggleSort}
             >
               {t("report.paymentMethodsReport.columns.paymentMethod")}
             </SortableReportTableHead>
-            {COLUMN_GROUPS.flatMap((group) =>
-              group.fields.map((field) => {
-                const metric = metricByField[field];
-                return (
-                  <SortableReportTableHead
-                    key={field}
-                    align="right"
-                    sort={sort}
-                    sortKey={field}
-                    className="min-w-28 whitespace-nowrap bg-background/95 text-right text-[12px]"
-                    onSort={toggleSort}
-                  >
-                    {metric?.label ?? field}
-                  </SortableReportTableHead>
-                );
-              }),
-            )}
+
+            {PAYMENT_METHOD_TABLE_FIELDS.map(({ field, minWidth }) => {
+              const metric = metricByField[field];
+              return (
+                <SortableReportTableHead
+                  key={field}
+                  align="right"
+                  sort={sort}
+                  sortKey={field}
+                  className={cn(minWidth, "text-right text-[12px]")}
+                  onSort={toggleSort}
+                >
+                  {metric?.label ?? field}
+                </SortableReportTableHead>
+              );
+            })}
           </TableRow>
         </TableHeader>
         <TableBody>
           {sortedRows.map((row, index) => (
             <TableRow
-              key={`${row.paymentMethodCode}-${row.rank}`}
-              className={index % 2 === 1 ? "bg-muted/15" : undefined}
+              key={`${row.paymentMethodCode}-${row.sortOrder}`}
+              className={cn(
+                "bg-card hover:bg-muted/25 [&>td]:px-2 [&>td]:py-2.5",
+                index % 2 === 1 && "bg-muted/10",
+                selectedRowIds.has(paymentMethodReportRowId(row)) &&
+                  "bg-primary/5 hover:bg-primary/10",
+              )}
             >
-              <TableCell className="whitespace-nowrap text-center">
-                <Badge className="h-6 min-w-9 justify-center px-1.5 text-xs tabular-nums">
-                  #{row.rank}
-                </Badge>
+              <TableCell className="w-10 text-center">
+                <Checkbox
+                  aria-label={t("common.selectRow", {
+                    name: row.paymentMethodName,
+                  })}
+                  checked={selectedRowIds.has(paymentMethodReportRowId(row))}
+                  onChange={(event) => onToggleRow(row, event.target.checked)}
+                />
               </TableCell>
               <TableCell className="whitespace-nowrap">
-                <div>
-                  <p className="font-black">{row.paymentMethodName}</p>
-                  <p className="text-[11px] text-muted-foreground">
-                    {row.paymentMethodCode}
-                  </p>
-                </div>
+                <PaymentMethodNameCell
+                  row={row}
+                  totalPaymentAmount={totalPaymentAmount}
+                />
               </TableCell>
-              {COLUMN_GROUPS.flatMap((group) =>
-                group.fields.map((field) => {
-                  const metric = metricByField[field];
-                  return (
-                    <TableCell
-                      key={field}
-                      className={cn("whitespace-nowrap text-right tabular-nums", metricValueClass(field, row[field]))}
-                    >
-                      {metric
-                        ? displayMetric(row[field], metric.kind)
-                        : String(row[field] ?? "-")}
-                    </TableCell>
-                  );
-                }),
-              )}
+
+              {PAYMENT_METHOD_TABLE_FIELDS.map(({ field }) => {
+                const metric = metricByField[field];
+                return (
+                  <TableCell
+                    key={field}
+                    className={cn(
+                      "whitespace-nowrap text-right tabular-nums",
+                      metricValueClass(field, row[field]),
+                    )}
+                  >
+                    {metric
+                      ? displayMetric(row[field], metric.kind)
+                      : String(row[field] ?? "-")}
+                  </TableCell>
+                );
+              })}
             </TableRow>
           ))}
+
+          <PaymentMethodsSummaryRow
+            metricByField={metricByField}
+            reportTotal={reportTotal}
+            rows={rows}
+          />
         </TableBody>
       </Table>
     </div>
   );
 }
 
-// Mobile section group definitions
-type MobileSectionGroup = {
-  key: string;
-  labelKey: string;
-  fields: Array<keyof PaymentMethodReportRow>;
-};
-
-const MOBILE_GROUPS: MobileSectionGroup[] = [
-  {
-    key: "bills",
-    labelKey: "report.paymentMethodsReport.groups.bills",
-    fields: [
-      "billsCount",
-      "activeCount",
-      "cancelledCount",
-      "itemsCount",
-      "qtyTotal",
-    ],
-  },
-  {
-    key: "amount",
-    labelKey: "report.paymentMethodsReport.groups.amount",
-    fields: ["amount", "toppingTotal"],
-  },
-  {
-    key: "discount",
-    labelKey: "report.paymentMethodsReport.groups.discount",
-    fields: ["itemDiscount", "discountBill", "discountTotal"],
-  },
-  {
-    key: "tax",
-    labelKey: "report.paymentMethodsReport.groups.tax",
-    fields: ["serviceCharge", "vat", "total"],
-  },
-  {
-    key: "payment",
-    labelKey: "report.paymentMethodsReport.groups.payment",
-    fields: [
-      "receiveCash",
-      "receiveTransfer",
-      "debtAmount",
-      "changeAmount",
-      "cancelledTotal",
-    ],
-  },
-];
-
 export function PaymentMethodsMobileList({
+  reportTotal,
   rows,
+  selectedRowIds,
+  onToggleRow,
 }: {
+  reportTotal: Record<string, unknown>;
   rows: PaymentMethodReportRow[];
+  selectedRowIds: Set<string>;
+  onToggleRow: (row: PaymentMethodReportRow, selected: boolean) => void;
 }) {
   const { t } = useTranslation();
-  const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
-  const allMetrics = paymentMethodRowMetricConfigs(t);
-  const metricByField = Object.fromEntries(allMetrics.map((m) => [m.field, m]));
-
-  function toggleExpand(key: string) {
-    setExpandedKeys((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-  }
+  const metricByField = Object.fromEntries(
+    paymentMethodRowMetricConfigs(t).map((metric) => [metric.field, metric]),
+  ) as PaymentMetricByField;
+  const totalPaymentAmount = paymentTotalAmount(reportTotal, rows);
+  const detailFields = PAYMENT_METHOD_TABLE_FIELDS.filter(
+    ({ field }) => field !== "billCount" && field !== "paymentAmount",
+  );
 
   return (
     <div className="flex flex-col gap-3 p-3 md:hidden">
-      {rows.map((row) => {
-        const key = `${row.paymentMethodCode}-${row.rank}`;
-        const expanded = expandedKeys.has(key);
-        const receivedMetric = primaryReceivedMetric(row, t);
-        return (
-          <section
-            key={key}
-            className="overflow-hidden rounded-md border border-border bg-card shadow-sm"
-          >
-            <div className="flex items-center justify-between gap-3 bg-muted/30 px-4 py-3">
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <Badge className="h-6 min-w-9 shrink-0 justify-center px-1.5 text-xs tabular-nums">
-                    #{row.rank}
-                  </Badge>
-                  <h3 className="truncate text-sm font-black">
-                    {row.paymentMethodName}
-                  </h3>
+      {rows.map((row) => (
+        <section
+          key={`${row.paymentMethodCode}-${row.sortOrder}`}
+          className={cn(
+            "overflow-hidden rounded-md border border-border bg-card shadow-sm",
+            selectedRowIds.has(paymentMethodReportRowId(row)) &&
+              "border-primary/30 bg-primary/5",
+          )}
+        >
+          <div className="flex items-start justify-between gap-3 border-b border-border bg-muted/20 px-3 py-3">
+            <div className="flex min-w-0 items-start gap-3">
+              <Checkbox
+                aria-label={t("common.selectRow", {
+                  name: row.paymentMethodName,
+                })}
+                className="mt-1"
+                checked={selectedRowIds.has(paymentMethodReportRowId(row))}
+                onChange={(event) => onToggleRow(row, event.target.checked)}
+              />
+              <PaymentMethodNameCell
+                row={row}
+                totalPaymentAmount={totalPaymentAmount}
+              />
+            </div>
+            <div className="shrink-0 text-right">
+              <p className="text-[11px] font-bold text-muted-foreground">
+                {t("report.paymentMethodsReport.columns.paymentAmount")}
+              </p>
+              <p
+                className={cn(
+                  "text-base tabular-nums",
+                  metricValueClass("paymentAmount", row.paymentAmount),
+                )}
+              >
+                {displayMetric(row.paymentAmount, "money")}
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 divide-x divide-border border-b border-border">
+            <div className="px-3 py-2 text-center">
+              <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                {t("report.paymentMethodsReport.columns.billsCount")}
+              </p>
+              <p className="text-sm font-black tabular-nums">
+                {row.billCount}
+              </p>
+            </div>
+            <div className="px-3 py-2 text-center">
+              <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                {t("report.paymentMethodsReport.columns.total")}
+              </p>
+              <p
+                className={cn(
+                  "text-sm tabular-nums",
+                  metricValueClass("total", row.total),
+                )}
+              >
+                {displayMetric(row.total, "money")}
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-1.5 bg-muted/10 p-3">
+            {detailFields.map(({ field }) => {
+              const metric = metricByField[field];
+              return (
+                <div
+                  key={field}
+                  className="min-w-0 rounded-md border border-border bg-background/70 px-2.5 py-1.5"
+                >
+                  <p className="truncate text-[10px] font-bold text-muted-foreground">
+                    {metric?.label ?? field}
+                  </p>
+                  <p
+                    className={cn(
+                      "truncate text-xs tabular-nums",
+                      metricValueClass(field, row[field]),
+                    )}
+                  >
+                    {metric
+                      ? displayMetric(row[field], metric.kind)
+                      : String(row[field] ?? "-")}
+                  </p>
                 </div>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  {row.paymentMethodCode}
-                </p>
-              </div>
-              <div className="shrink-0 text-right">
-                <p className="text-[11px] font-bold text-muted-foreground">
-                  {t("report.paymentMethodsReport.columns.total")}
-                </p>
-                <p className={cn("text-base tabular-nums", metricValueClass("total", row.total))}>
-                  {displayMetric(row.total, "money")}
-                </p>
-              </div>
-            </div>
+              );
+            })}
+          </div>
+        </section>
+      ))}
 
-            <div className="grid grid-cols-3 divide-x divide-border border-b border-border">
-              <div className="px-3 py-2 text-center">
-                <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-                  {t("report.paymentMethodsReport.columns.billsCount")}
-                </p>
-                <p className="text-sm font-black tabular-nums">
-                  {row.billsCount}
-                </p>
-              </div>
-              <div className="px-3 py-2 text-center">
-                <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-                  {t("report.paymentMethodsReport.columns.amount")}
-                </p>
-                <p className={cn("text-sm tabular-nums", metricValueClass("amount", row.amount))}>
-                  {displayMetric(row.amount, "money")}
-                </p>
-              </div>
-              <div className="px-3 py-2 text-center">
-                <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-                  {receivedMetric.label}
-                </p>
-                <p className={cn("text-sm tabular-nums", metricValueClass(receivedMetric.field, receivedMetric.value))}>
-                  {displayMetric(receivedMetric.value, "money")}
-                </p>
-              </div>
-            </div>
+      <PaymentMethodsMobileSummary
+        metricByField={metricByField}
+        reportTotal={reportTotal}
+        rows={rows}
+      />
+    </div>
+  );
+}
 
-            <Button
-              type="button"
-              variant="ghost"
-              className="h-11 w-full rounded-none border-b border-border text-[11px] font-bold text-muted-foreground hover:bg-muted/20"
-              onClick={() => toggleExpand(key)}
-            >
-              {expanded ? (
-                <>
-                  <ChevronUp />
-                  {t("actions.showLess", { defaultValue: "ຫຍໍ້ລາຍລະອຽດ" })}
-                </>
-              ) : (
-                <>
-                  <ChevronDown />
-                  {t("actions.showMore", { defaultValue: "ລາຍລະອຽດທັງໝົດ" })}
-                </>
-              )}
-            </Button>
+function PaymentMethodNameCell({
+  row,
+  totalPaymentAmount,
+}: {
+  row: PaymentMethodReportRow;
+  totalPaymentAmount: number;
+}) {
+  const share = paymentShare(row.paymentAmount, totalPaymentAmount);
 
-            {expanded && (
-              <div className="divide-y divide-border">
-                {MOBILE_GROUPS.map((group) => (
-                  <div key={group.key} className="bg-muted/10 p-3">
-                    <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                      {t(group.labelKey, { defaultValue: group.key })}
-                    </p>
-                    <div className="grid grid-cols-2 gap-1.5">
-                      {group.fields.map((field) => {
-                        const metric = metricByField[field];
-                        return (
-                          <div
-                            key={field}
-                            className="min-w-0 rounded-md border border-border bg-background/70 px-2.5 py-1.5"
-                          >
-                            <p className="truncate text-[10px] font-bold text-muted-foreground">
-                              {metric?.label ?? field}
-                            </p>
-                            <p className={cn("truncate text-xs tabular-nums", metricValueClass(field, row[field]))}>
-                              {metric
-                                ? displayMetric(row[field], metric.kind)
-                                : String(row[field] ?? "-")}
-                            </p>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
-              </div>
+  return (
+    <div className="min-w-0">
+      <div className="flex items-center gap-2">
+        <div className="grid size-8 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
+          <CreditCard className="size-4" aria-hidden="true" />
+        </div>
+        <div className="min-w-0">
+          <p className="truncate font-black">{row.paymentMethodName}</p>
+          <p className="text-[11px] font-semibold text-muted-foreground">
+            {row.paymentMethodCode}
+          </p>
+        </div>
+      </div>
+      <div className="mt-2 flex items-center gap-2">
+        <div className="h-1.5 min-w-16 flex-1 overflow-hidden rounded-full bg-muted">
+          <div
+            className="h-full rounded-full bg-primary"
+            style={{ width: `${share}%` }}
+          />
+        </div>
+        <span className="text-[11px] font-bold tabular-nums text-muted-foreground">
+          {share.toFixed(1)}%
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function PaymentMethodsSummaryRow({
+  metricByField,
+  reportTotal,
+  rows,
+}: {
+  metricByField: PaymentMetricByField;
+  reportTotal: Record<string, unknown>;
+  rows: PaymentMethodReportRow[];
+}) {
+  const { t } = useTranslation();
+
+  return (
+    <TableRow className="sticky bottom-0 z-20 border-t border-primary/25 bg-primary/10 hover:bg-primary/10 [&>td]:px-2 [&>td]:py-2.5">
+      <TableCell />
+      <TableCell className="whitespace-nowrap">
+        <div className="flex min-w-48 items-center gap-2">
+          <span className="inline-flex h-6 items-center rounded-full bg-background/80 px-2 text-xs font-black uppercase text-primary ring-1 ring-primary/20">
+            {t("report.paymentMethodsReport.totalSummary")}
+          </span>
+          <span className="text-xs font-semibold text-muted-foreground">
+            {t("report.paymentMethodsReport.rowsLabel", { count: rows.length })}
+          </span>
+        </div>
+      </TableCell>
+
+      {PAYMENT_METHOD_TABLE_FIELDS.map(({ field, summaryKey }) => {
+        const metric = metricByField[field];
+        const value = summaryValue(reportTotal, rows, field, summaryKey);
+        return (
+          <TableCell
+            key={field}
+            className={cn(
+              "whitespace-nowrap text-right tabular-nums",
+              metricValueClass(field, value),
             )}
-          </section>
+          >
+            {metric ? displayMetric(value, metric.kind) : String(value)}
+          </TableCell>
         );
       })}
-    </div>
+    </TableRow>
+  );
+}
+
+function PaymentMethodsMobileSummary({
+  metricByField,
+  reportTotal,
+  rows,
+}: {
+  metricByField: PaymentMetricByField;
+  reportTotal: Record<string, unknown>;
+  rows: PaymentMethodReportRow[];
+}) {
+  const { t } = useTranslation();
+
+  return (
+    <section className="overflow-hidden rounded-md border border-primary/20 bg-primary/5 shadow-sm">
+      <div className="flex items-center justify-between gap-2 border-b border-primary/15 px-3 py-2.5">
+        <p className="text-sm font-black text-primary">
+          {t("report.paymentMethodsReport.totalSummary")}
+        </p>
+        <Badge className="border-primary/20 bg-background/80 text-primary">
+          {t("report.paymentMethodsReport.rowsLabel", { count: rows.length })}
+        </Badge>
+      </div>
+      <div className="grid grid-cols-2 gap-1.5 p-3">
+        {PAYMENT_METHOD_TABLE_FIELDS.map(({ field, summaryKey }) => {
+          const metric = metricByField[field];
+          const value = summaryValue(reportTotal, rows, field, summaryKey);
+          return (
+            <div
+              key={field}
+              className="min-w-0 rounded-md border border-border bg-background/80 px-2.5 py-1.5"
+            >
+              <p className="truncate text-[10px] font-bold text-muted-foreground">
+                {metric?.label ?? field}
+              </p>
+              <p
+                className={cn(
+                  "truncate text-xs tabular-nums",
+                  metricValueClass(field, value),
+                )}
+              >
+                {metric ? displayMetric(value, metric.kind) : String(value)}
+              </p>
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 
@@ -932,14 +1069,14 @@ function PaymentMethodsLoadingSkeleton() {
         ))}
       </div>
       <div className="hidden overflow-hidden rounded-md border border-border md:block">
-        <div className="grid min-w-[980px] grid-cols-[3rem_12rem_repeat(8,minmax(6rem,1fr))] gap-3 border-b border-border bg-muted/30 px-3 py-3">
-          {Array.from({ length: 10 }).map((_, index) => (
+        <div className="grid min-w-[1180px] grid-cols-[12rem_repeat(13,minmax(7rem,1fr))] gap-3 border-b border-border bg-muted/30 px-3 py-3">
+          {Array.from({ length: 14 }).map((_, index) => (
             <Skeleton key={index} className="h-4" />
           ))}
         </div>
         {Array.from({ length: 7 }).map((_, rowIndex) => (
-          <div key={rowIndex} className="grid min-w-[980px] grid-cols-[3rem_12rem_repeat(8,minmax(6rem,1fr))] gap-3 border-b border-border/70 px-3 py-3 last:border-b-0">
-            {Array.from({ length: 10 }).map((__, cellIndex) => (
+          <div key={rowIndex} className="grid min-w-[1180px] grid-cols-[12rem_repeat(13,minmax(7rem,1fr))] gap-3 border-b border-border/70 px-3 py-3 last:border-b-0">
+            {Array.from({ length: 14 }).map((__, cellIndex) => (
               <Skeleton key={cellIndex} className="h-5" />
             ))}
           </div>
@@ -976,6 +1113,36 @@ function metricNumber(value: unknown) {
   return Number.isFinite(number) ? number : 0;
 }
 
+function summaryValue(
+  reportTotal: Record<string, unknown>,
+  rows: PaymentMethodReportRow[],
+  field: keyof PaymentMethodReportRow,
+  summaryKey: string,
+) {
+  const backendValue = reportTotal[summaryKey];
+  if (isPresent(backendValue)) return metricNumber(backendValue);
+
+  return rows.reduce((total, row) => total + metricNumber(row[field]), 0);
+}
+
+function paymentTotalAmount(
+  reportTotal: Record<string, unknown>,
+  rows: PaymentMethodReportRow[],
+) {
+  const paymentTotal = metricNumber(reportTotal.payment_total);
+  if (paymentTotal > 0) return paymentTotal;
+
+  const grandTotal = metricNumber(reportTotal.grand_total);
+  if (grandTotal > 0) return grandTotal;
+
+  return rows.reduce((total, row) => total + row.paymentAmount, 0);
+}
+
+function paymentShare(value: number, total: number) {
+  if (total <= 0) return 0;
+  return Math.min(100, Math.max(0, (value / total) * 100));
+}
+
 function financialTextClass(key: string, value: unknown, strong = false) {
   const number = metricNumber(value);
   const isDiscount = key.includes("discount");
@@ -990,31 +1157,33 @@ function financialTextClass(key: string, value: unknown, strong = false) {
 }
 
 function metricValueClass(field: keyof PaymentMethodReportRow, value: unknown) {
-  return financialTextClass(String(field), value, field === "total");
-}
+  const number = metricNumber(value);
+  const isDiscount =
+    field === "discountBill" || field === "discountItemAmount";
+  const isTotal =
+    field === "grandTotal" || field === "paymentAmount" || field === "total";
 
-function primaryReceivedMetric(row: PaymentMethodReportRow, t: (key: string) => string) {
-  if (row.receiveTransfer > row.receiveCash && row.receiveTransfer >= row.debtAmount) {
-    return {
-      field: "receiveTransfer" as const,
-      label: t("report.paymentMethodsReport.columns.receiveTransfer"),
-      value: row.receiveTransfer
-    };
-  }
-
-  if (row.debtAmount > row.receiveCash) {
-    return {
-      field: "debtAmount" as const,
-      label: t("report.paymentMethodsReport.columns.debtAmount"),
-      value: row.debtAmount
-    };
-  }
-
-  return {
-    field: "receiveCash" as const,
-    label: t("report.paymentMethodsReport.columns.receiveCash"),
-    value: row.receiveCash
-  };
+  return cn(
+    "font-semibold",
+    field === "billCount" && "font-black text-foreground",
+    field === "paymentAmount" && number > 0 && "font-black text-primary",
+    field === "grandTotal" && number > 0 && "font-black text-foreground",
+    field === "total" && number > 0 && "font-black text-foreground",
+    isDiscount && number > 0 && "font-black text-destructive",
+    field === "serviceCharge" &&
+      number > 0 &&
+      "font-black text-sky-700 dark:text-sky-300",
+    field === "vat" &&
+      number > 0 &&
+      "font-black text-amber-700 dark:text-amber-300",
+    !isTotal &&
+      !isDiscount &&
+      field !== "serviceCharge" &&
+      field !== "vat" &&
+      number > 0 &&
+      "text-foreground",
+    number === 0 && "text-muted-foreground",
+  );
 }
 
 export function PaymentMethodsExportSurface({
@@ -1078,7 +1247,6 @@ export function PaymentMethodsExportSurface({
       <table className="report-print-table">
         <thead>
           <tr>
-            <th>{t("report.paymentMethodsReport.columns.rank")}</th>
             <th>{t("report.paymentMethodsReport.columns.paymentMethod")}</th>
             <th>
               {t("report.paymentMethodsReport.columns.paymentMethodCode")}
@@ -1092,8 +1260,7 @@ export function PaymentMethodsExportSurface({
         </thead>
         <tbody>
           {rows.map((row) => (
-            <tr key={`${row.paymentMethodCode}-${row.rank}`}>
-              <td className="is-center">{row.rank}</td>
+            <tr key={`${row.paymentMethodCode}-${row.sortOrder}`}>
               <td>{row.paymentMethodName}</td>
               <td>{row.paymentMethodCode}</td>
               {rowMetrics.map((metric) => (

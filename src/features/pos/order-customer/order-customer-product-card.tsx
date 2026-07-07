@@ -18,7 +18,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { money } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { ProductSortStatus, type CateProductItem } from "@/services/pos";
+import type { CateProductItem } from "@/services/pos";
 import { optionalNumber, optionalString } from "../table-selection/utils";
 import {
   getProductActionState,
@@ -29,6 +29,7 @@ import {
   productBlockedLabel,
   productMedia,
   productPrice,
+  ProductSortStatus,
   PRODUCT_GRID_CLASS,
   type ProductCardEntry,
   type ProductMedia,

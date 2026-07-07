@@ -16,6 +16,7 @@ import type {
   CancelOrderItemInput,
   CartOrder,
   CateProductItem,
+  CateWithProducts,
   ConfirmOrderItemServedInput,
   ConfirmToKitchenInput,
   ConfirmToKitchenResponse,
@@ -24,6 +25,7 @@ import type {
   CreateTableQRRequest,
   CreateTableQRResponse,
   FetchCartParams,
+  FetchCateProductsResponse,
   FetchCateProductsParams,
   FetchJoinMoveTableParams,
   FetchPosParams,
@@ -148,6 +150,7 @@ interface PosState {
   updateTableCustomerOrderState: (tableUuid: string, customerOrderState: boolean) => void;
   loadTables: (params: FetchPosParams) => Promise<PosZone[]>;
   refreshTables: (params: FetchPosParams) => Promise<PosZone[]>;
+  loadProductCategories: (params: FetchCateProductsParams) => Promise<FetchCateProductsResponse>;
   loadProducts: (params: FetchCateProductsParams) => Promise<CateProductItem[]>;
   loadProductItem: (params: GetProdItemParams) => Promise<ProdItem>;
   loadCart: (params: FetchCartParams) => Promise<CartOrder | CartOrder[] | null>;
@@ -214,6 +217,20 @@ export const usePosStore = create<PosState>((set) => ({
       const zones = await fetchTables(params);
       set({ zones });
       return zones;
+    } catch (error) {
+      set({ error: errorMessage(error) });
+      throw error;
+    }
+  },
+  loadProductCategories: async (params) => {
+    try {
+      const result = await posService.fetchCateProducts(params);
+      const categories = result.data ?? [];
+      set({
+        products: categories.flatMap((category: CateWithProducts) => category.products ?? []),
+        error: null
+      });
+      return result;
     } catch (error) {
       set({ error: errorMessage(error) });
       throw error;

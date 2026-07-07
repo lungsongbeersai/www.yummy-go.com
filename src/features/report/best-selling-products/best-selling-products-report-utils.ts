@@ -1,5 +1,5 @@
 import { money } from "@/lib/format";
-import { BEST_SELLING_PRODUCTS_SORT_OPTIONS } from "@/services/report";
+import { BEST_SELLING_PRODUCTS_SORT_OPTIONS } from "@/config/report-filters";
 import type { ApiEntity } from "@/services/shared/types";
 import type { BestSellingProductGroup, BestSellingProductItem } from "@/stores/report-store";
 import type {
@@ -332,6 +332,56 @@ export function exportProductRows(rows: BestSellingProductItem[], t: (key: strin
     [t("report.bestSelling.columns.group")]: row.groupName,
     ...Object.fromEntries(metrics.map((metric) => [metric.label, Number(row[metric.field] ?? 0)]))
   }));
+}
+
+export function bestSellingProductRowId(row: BestSellingProductItem) {
+  return row.id;
+}
+
+export function bestSellingGroupsFromRows(
+  groups: BestSellingProductGroup[],
+  rows: BestSellingProductItem[]
+) {
+  const selectedIds = new Set(rows.map(bestSellingProductRowId));
+
+  return groups
+    .map((group) => {
+      const items = group.items.filter((item) =>
+        selectedIds.has(bestSellingProductRowId(item))
+      );
+      if (!items.length) return null;
+
+      return {
+        ...group,
+        billDiscountShare: items.reduce((total, item) => total + item.billDiscountShare, 0),
+        charge: items.reduce((total, item) => total + item.charge, 0),
+        finalTotal: items.reduce((total, item) => total + item.finalTotal, 0),
+        itemDiscount: items.reduce((total, item) => total + item.itemDiscount, 0),
+        items,
+        productCount: items.length,
+        qtyTotal: items.reduce((total, item) => total + item.qty, 0),
+        subtotal: items.reduce((total, item) => total + item.subtotal, 0),
+        vat: items.reduce((total, item) => total + item.vat, 0),
+      };
+    })
+    .filter((group): group is BestSellingProductGroup => Boolean(group));
+}
+
+export function bestSellingSummaryFromRows(
+  rows: BestSellingProductItem[],
+  groupCount: number
+) {
+  return {
+    bill_discount_share: rows.reduce((total, row) => total + row.billDiscountShare, 0),
+    charge: rows.reduce((total, row) => total + row.charge, 0),
+    final_total: rows.reduce((total, row) => total + row.finalTotal, 0),
+    group_count: groupCount,
+    item_discount: rows.reduce((total, row) => total + row.itemDiscount, 0),
+    product_count: rows.length,
+    qty: rows.reduce((total, row) => total + row.qty, 0),
+    subtotal: rows.reduce((total, row) => total + row.subtotal, 0),
+    vat: rows.reduce((total, row) => total + row.vat, 0),
+  };
 }
 
 export function displayMetric(value: unknown, kind: "money" | "number") {

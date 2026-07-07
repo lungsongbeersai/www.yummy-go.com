@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import {
@@ -13,6 +13,8 @@ import {
   SettingsPaginationFooter,
   SettingsToolbar
 } from "@/features/settings/shared/settings-shell";
+import { useAppliedSearch } from "@/hooks/use-applied-search";
+import { useLatestValue } from "@/hooks/use-latest-value";
 import { useUrlPagination } from "@/hooks/use-url-pagination";
 import { DEFAULT_PAGE_LIMIT, PAGE_LIMIT_OPTIONS } from "@/lib/pagination";
 import type { UrlPaginationState } from "@/lib/url-pagination";
@@ -73,9 +75,11 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
 
   const title = t("settings.modules.user.title");
   const description = t("settings.modules.user.description");
+  const { appliedSearch, applySearch } = useAppliedSearch(search);
+  const hasLoadedRef = useLatestValue(hasLoaded);
   const requestParams = useMemo<FetchUsersParams>(
     () => ({
-      search,
+      search: appliedSearch,
       page,
       limit,
       orderBy,
@@ -83,7 +87,7 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
       branch_uuid_fk: branchUuid,
       roles_id_fk: loggedRoleId || ""
     }),
-    [branchUuid, language, limit, loggedRoleId, orderBy, page, search]
+    [appliedSearch, branchUuid, language, limit, loggedRoleId, orderBy, page]
   );
   const pageSize = limit === "All" ? rows.length || Number(DEFAULT_LIMIT) : Number(limit ?? DEFAULT_LIMIT);
   const totalPages = Math.max(1, Number(storeTotalPages || Math.ceil(total / pageSize) || 1));
@@ -97,14 +101,14 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
   const ids = useMemo(() => rows.map(userId).filter(Boolean), [rows]);
   const allSelected = ids.length > 0 && ids.every((id) => selectedRows.has(id));
 
-  async function load() {
+  const load = useCallback(async () => {
     if (!branchUuid) {
       showToast({ title: t("settings.loadFailed", { title }), description: t("settings.branchRequired"), tone: "error" });
       return;
     }
 
     try {
-      await loadRows(requestParams, { background: hasLoaded });
+      await loadRows(requestParams, { background: hasLoadedRef.current });
     } catch (error) {
       showToast({
         title: t("settings.loadFailed", { title }),
@@ -112,12 +116,11 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
         tone: "error"
       });
     }
-  }
+  }, [branchUuid, hasLoadedRef, loadRows, requestParams, showToast, t, title]);
 
   useEffect(() => {
     void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [branchUuid, language, page, limit, orderBy, loggedRoleId]);
+  }, [load]);
 
   useEffect(() => {
     if (!loggedRoleId) {
@@ -163,8 +166,7 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
   }, [dialogOpen, editing]);
 
   function applyFilters() {
-    if (page === 1) void load();
-    else resetPage();
+    applySearch({ page, resetPage, reload: () => void load() });
   }
 
   function toggleSelected(id: string, checked: boolean) {

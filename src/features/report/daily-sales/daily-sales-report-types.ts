@@ -1,6 +1,8 @@
 import type {
   DailySalesBillPaymentMethod,
   DailySalesPaymentMethod,
+} from "@/config/report-filters";
+import type {
   DailySalesReportOrder,
 } from "@/services/report";
 import type { ApiEntity, PageLimit } from "@/services/shared/types";

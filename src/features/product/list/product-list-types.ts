@@ -10,6 +10,14 @@ export type ProductStatusKey =
 
 export type ProductStockModeValue = 1 | 2;
 
+export type ProductBulkEditFieldValue = "keep" | "1" | "2";
+
+export interface ProductBulkEditInput {
+  notification: ProductBulkEditFieldValue;
+  enabled: ProductBulkEditFieldValue;
+  stockMode: ProductBulkEditFieldValue;
+}
+
 export type ProductDetailMotion = {
   initial: { opacity: number; y: number; scale: number };
   animate: { opacity: number; y: number; scale: number };

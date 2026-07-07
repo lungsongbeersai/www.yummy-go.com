@@ -30,6 +30,7 @@ export const DEFAULT_COLOR = "#10b981";
 export const CUSTOM_COLOR_VALUE = "__custom__";
 export const TOPPING_NONE = "1";
 export const TOPPING_HAS = "2";
+export const DEFAULT_DETAIL_STOCK_MODE: BinaryFlag = "2";
 export const EMPTY_CATEGORIES: Category[] = [];
 export const EMPTY_COLORS: Color[] = [];
 export const EMPTY_GROUPS: Group[] = [];
@@ -605,7 +606,7 @@ export function emptyDetail(statusSortFk: StatusSortFk = "1"): DetailRow {
     pro_detail_bprice: "0",
     pro_detail_sprice: "0",
     pro_detail_qty_stock: "0",
-    pro_detail_stock: "1",
+    pro_detail_stock: DEFAULT_DETAIL_STOCK_MODE,
     pro_detail_enabled: "1",
     pro_detail_status: statusSortFk === "3" ? "1" : "2",
     ...EMPTY_PROMOTION_FIELDS,
@@ -625,7 +626,7 @@ export function detailFromProduct(
     pro_detail_qty_stock: String(
       detail.pro_detail_qty_stock ?? detail.qty_stock ?? 0,
     ),
-    pro_detail_stock: binaryFlag(detail.pro_detail_stock, "1"),
+    pro_detail_stock: binaryFlag(detail.pro_detail_stock, DEFAULT_DETAIL_STOCK_MODE),
     pro_detail_enabled: binaryFlag(detail.pro_detail_enabled, "1"),
     pro_detail_status: binaryFlag(
       detail.pro_detail_status,
@@ -652,7 +653,7 @@ export function normalizeDetailsForStatus(
       ...row,
       size_uuid_fk:
         targetStatus === "2" && sourceStatus !== "2" ? "" : row.size_uuid_fk,
-      pro_detail_stock: row.pro_detail_stock || "1",
+      pro_detail_stock: row.pro_detail_stock || DEFAULT_DETAIL_STOCK_MODE,
       pro_detail_enabled: row.pro_detail_enabled || "1",
       pro_detail_bprice: row.pro_detail_bprice || "0",
       pro_detail_sprice: row.pro_detail_sprice || "0",
@@ -765,8 +766,9 @@ export function buildDetailPayload(
 export function detailStockSummary(
   rows: Pick<DetailRow, "pro_detail_stock">[],
 ): DetailStockSummary {
-  const stockModes = rows.map((row) => binaryFlag(row.pro_detail_stock, "1"));
-  if (!stockModes.length || stockModes.every((value) => value === "1")) {
+  const stockModes = rows.map((row) => binaryFlag(row.pro_detail_stock, DEFAULT_DETAIL_STOCK_MODE));
+  if (!stockModes.length) return "noDeduct";
+  if (stockModes.every((value) => value === "1")) {
     return "deduct";
   }
   if (stockModes.every((value) => value === "2")) return "noDeduct";

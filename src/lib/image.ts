@@ -8,3 +8,19 @@ export function uploadedUrl(filename?: string | null, folder = "uploaded") {
   const cleanFile = filename.replace(/^\/+/, "");
   return `${cleanBase}/${cleanFolder}/${cleanFile}`;
 }
+
+export function getStoreLogoUrl(filename: string) {
+  return uploadedUrl(filename, "uploaded/store");
+}
+
+export function getUserProfileUrl(profilePath: string | null) {
+  return uploadedUrl(profilePath, "uploaded/profile");
+}
+
+export function getBranchQrUrl(filename: string) {
+  return uploadedUrl(filename, "uploaded/qrcode");
+}
+
+export function getProductImageUrl(filename: string) {
+  return filename?.startsWith("#") ? filename : uploadedUrl(filename, "uploaded/products");
+}

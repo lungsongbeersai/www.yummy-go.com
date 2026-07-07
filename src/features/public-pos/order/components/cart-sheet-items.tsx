@@ -6,12 +6,8 @@ import { ImageIcon, MessageSquareText, Minus, Plus, Trash2, Utensils } from "luc
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import {
-  ProductImageStatus,
-  type CartItem,
-  type ChangeType,
-  type FetchCartStatusRule,
-} from "@/services/pos";
+import { ProductImageStatus } from "@/config/pos-constants";
+import type { CartItem, ChangeType, FetchCartStatusRule } from "@/services/pos";
 import {
   cartItemTitle,
   formatMoney,

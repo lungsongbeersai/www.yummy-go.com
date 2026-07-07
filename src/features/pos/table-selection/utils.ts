@@ -3,13 +3,15 @@ import type { CustomerDisplayPayload } from "@/features/customer-display/shared/
 import {
   ProductImageStatus,
   TableStatus,
-  type CartItem,
-  type CartOrder,
-  type DiscountTypeCode,
-  type MoveTableItem,
-  type MoveTableZone,
-  type PosTable,
-  type PosZone,
+} from "@/config/pos-constants";
+import type {
+  CartItem,
+  CartOrder,
+  DiscountTypeCode,
+  MoveTableItem,
+  MoveTableZone,
+  PosTable,
+  PosZone,
 } from "@/services/pos";
 import type {
   DiscountDraft,
@@ -567,6 +569,10 @@ export function cartItemsTotal(items: CartItem[]) {
   return items.reduce((sum, item) => sum + cartItemTotal(item), 0);
 }
 
+export function cartItemsQty(items: CartItem[]) {
+  return items.reduce((sum, item) => sum + cartItemQty(item), 0);
+}
+
 export function sumOrderValue(
   orders: CartOrder[],
   selector: (order: CartOrder) => number | null,
@@ -680,6 +686,10 @@ export function cartSummary(cart: CartOrder | CartOrder[] | null) {
     toppingTotal,
     vatTotal,
   };
+}
+
+export function cartQuantityCount(cart: CartOrder | CartOrder[] | null) {
+  return cartSummary(cart).orderQty ?? cartItemsQty(visibleCartItems(cart));
 }
 
 export function formatRate(value: number | null) {

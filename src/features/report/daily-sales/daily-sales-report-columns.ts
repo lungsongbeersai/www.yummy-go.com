@@ -35,11 +35,6 @@ export function cardSummaryConfigs(
       keys: ["sum_discount"],
     },
     {
-      label: t("report.cards.afterDiscount"),
-      kind: "money",
-      keys: ["after_discount"],
-    },
-    {
       label: t("report.cards.serviceCharge"),
       kind: "money",
       keys: ["sum_servicecharge"],
@@ -61,56 +56,7 @@ export function summaryConfigs(
   t: (key: string) => string,
   typePage: ReportTab,
 ): SummaryCardConfig[] {
-  if (typePage === "detail") {
-    return [
-      {
-        label: t("report.cards.billsCount"),
-        kind: "number",
-        keys: ["bill_count"],
-      },
-      {
-        label: t("report.cards.totalQuantity"),
-        kind: "number",
-        keys: ["total_qty"],
-      },
-      {
-        label: t("report.cards.orderTotal"),
-        kind: "money",
-        keys: ["amount"],
-      },
-      {
-        label: t("report.cards.itemDiscountAmount"),
-        kind: "money",
-        keys: ["discount_item"],
-      },
-      {
-        label: t("report.cards.discountAmount"),
-        kind: "money",
-        keys: ["discount_bill"],
-      },
-      {
-        label: t("report.cards.sumDiscount"),
-        kind: "money",
-        keys: ["sum_discount"],
-      },
-      {
-        label: t("report.cards.serviceCharge"),
-        kind: "money",
-        keys: ["sum_servicecharge"],
-      },
-      {
-        label: t("report.cards.vatAmount"),
-        kind: "money",
-        keys: ["sum_vate"],
-      },
-      {
-        label: t("report.cards.netTotal"),
-        kind: "money",
-        keys: ["sum_total"],
-      },
-    ];
-  }
-
+  void typePage;
   return cardSummaryConfigs(t);
 }
 

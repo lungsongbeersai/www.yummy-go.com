@@ -2,7 +2,7 @@ import type { InvoicePrintData, InvoicePrintItem, InvoicePrintTopping } from "@/
 import { dateTime, money } from "@/lib/format";
 import { pageLimitNumber } from "@/lib/pagination";
 import type { CancelableBill, CancelableBillDetail, CancelableDateOption } from "@/services/cancel";
-import { getBranchQrUrl } from "@/services/branch";
+import { getBranchQrUrl } from "@/lib/image";
 import type { ApiEntity, PageLimit, SortOrder } from "@/services/shared/types";
 import type { AuthUser } from "@/stores/auth-store";
 

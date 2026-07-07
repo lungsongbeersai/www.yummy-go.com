@@ -1,7 +1,10 @@
 import { money } from "@/lib/format";
-import { PAYMENT_METHOD_REPORT_FILTER_OPTIONS, type PaymentMethodReportFilter } from "@/services/report";
+import {
+  PAYMENT_METHOD_REPORT_FILTER_OPTIONS,
+  type PaymentMethodReportFilter,
+} from "@/config/report-filters";
 import type { ApiEntity } from "@/services/shared/types";
-import type { CategorySalesRow } from "@/stores/report-store";
+import type { CategorySalesGroup, CategorySalesRow } from "@/stores/report-store";
 import type {
   CategorySalesMetricKind,
   CategorySalesOption,
@@ -149,6 +152,79 @@ export function exportSummaryRows(
     [t("report.categorySales.export.metric")]: metric.label,
     [t("report.categorySales.export.value")]: firstNumber(summary[metric.key])
   }));
+}
+
+export function categorySalesRowId(row: CategorySalesRow) {
+  return [
+    row.groupUuid,
+    row.cateUuid,
+    row.productUuid,
+    row.rank,
+  ].join(":");
+}
+
+export function categorySalesSummaryFromRows(rows: CategorySalesRow[]) {
+  return rows.reduce<ApiEntity>(
+    (summary, row) => {
+      summary.product_count = firstNumber(summary.product_count) + 1;
+      summary.bill_count = firstNumber(summary.bill_count) + row.billCount;
+      summary.total_qty = firstNumber(summary.total_qty) + row.totalQty;
+      summary.product_price_total =
+        firstNumber(summary.product_price_total) + row.productPriceTotal;
+      summary.topping_total = firstNumber(summary.topping_total) + row.toppingTotal;
+      summary.total = firstNumber(summary.total) + row.total;
+      summary.discount_item_amount =
+        firstNumber(summary.discount_item_amount) + row.discountItemAmount;
+      summary.after_discount_item =
+        firstNumber(summary.after_discount_item) + row.afterDiscountItem;
+      summary.discount_bill = firstNumber(summary.discount_bill) + row.discountBill;
+      summary.after_discount_bill =
+        firstNumber(summary.after_discount_bill) + row.afterDiscountBill;
+      summary.sum_servicecharge =
+        firstNumber(summary.sum_servicecharge) + row.serviceCharge;
+      summary.sum_vate = firstNumber(summary.sum_vate) + row.vat;
+      summary.grand_total = firstNumber(summary.grand_total) + row.grandTotal;
+      return summary;
+    },
+    {},
+  );
+}
+
+export function categorySalesGroupsFromRows(
+  groups: CategorySalesGroup[],
+  rows: CategorySalesRow[],
+) {
+  const selectedIds = new Set(rows.map(categorySalesRowId));
+
+  return groups
+    .map((group) => {
+      const categories = group.categories
+        .map((category) => {
+          const categoryRows = category.rows.filter((row) =>
+            selectedIds.has(categorySalesRowId(row)),
+          );
+          if (!categoryRows.length) return null;
+
+          return {
+            ...category,
+            rows: categoryRows,
+            summary: categorySalesSummaryFromRows(categoryRows),
+          };
+        })
+        .filter((category): category is NonNullable<typeof category> =>
+          Boolean(category),
+        );
+      const groupRows = categories.flatMap((category) => category.rows);
+      if (!groupRows.length) return null;
+
+      return {
+        ...group,
+        categories,
+        rows: groupRows,
+        summary: categorySalesSummaryFromRows(groupRows),
+      };
+    })
+    .filter((group): group is CategorySalesGroup => Boolean(group));
 }
 
 export function emptyExportData() {

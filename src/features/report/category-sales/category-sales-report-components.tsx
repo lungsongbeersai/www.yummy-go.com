@@ -18,6 +18,7 @@ import { LoadingState } from "@/components/common/loading-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogClose,
@@ -48,17 +49,23 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
 import { PAGE_LIMIT_OPTIONS, isAllPageLimit } from "@/lib/pagination";
 import { cn } from "@/lib/utils";
-import type { CategorySalesReportOrder, PaymentMethodReportFilter } from "@/services/report";
+import type { PaymentMethodReportFilter } from "@/config/report-filters";
+import type { CategorySalesReportOrder } from "@/services/report";
 import type {
   CategorySalesGroup,
   CategorySalesRow,
 } from "@/stores/report-store";
 import { SortableReportTableHead } from "../report-sort-table-head";
+import {
+  ReportIndeterminateCheckbox,
+  selectionStateForVisibleIds,
+} from "../report-row-selection";
 import {
   reportOrderLabel,
   reportOrderOptions,
@@ -72,6 +79,7 @@ import type {
 } from "./category-sales-report-types";
 import {
   categorySalesRowMetricConfigs,
+  categorySalesRowId,
   categorySalesSummaryMetricConfigs,
   displayMetric,
 } from "./category-sales-report-utils";
@@ -463,7 +471,9 @@ type TableCardProps = {
   loading: boolean;
   methodLabel: string;
   rowsLength: number;
+  selectedCount: number;
   title: string;
+  onClearSelection: () => void;
   onExportExcel: () => void;
   onExportPdf: () => void;
   onOpenFilters: () => void;
@@ -478,7 +488,9 @@ export function CategorySalesTableCard({
   footer,
   loading,
   rowsLength,
+  selectedCount,
   title,
+  onClearSelection,
   onExportExcel,
   onExportPdf,
   onOpenFilters,
@@ -495,6 +507,22 @@ export function CategorySalesTableCard({
             <FolderTree className="size-4 shrink-0" />
             <span className="truncate">{title}</span>
           </CardTitle>
+          {selectedCount > 0 ? (
+            <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5">
+              <Badge className="h-6 max-w-full truncate border-primary/20 bg-primary/10 px-2 text-xs text-primary">
+                {t("report.selectedForExport", { count: selectedCount })}
+              </Badge>
+              <Button
+                type="button"
+                size="xs"
+                variant="ghost"
+                className="h-6 px-2 text-xs text-muted-foreground"
+                onClick={onClearSelection}
+              >
+                {t("report.clearSelection")}
+              </Button>
+            </div>
+          ) : null}
           {/* <div className="mt-2 flex flex-wrap items-center gap-2">
             <Badge className="h-7 w-fit px-2 text-xs">{methodLabel}</Badge>
             <span className="text-xs text-muted-foreground">
@@ -618,12 +646,18 @@ export function CategorySalesTableCard({
 export function CategorySalesTable({
   groups,
   labelOverrides,
+  selectedRowIds,
+  onToggleRow,
+  onToggleRows,
 }: {
   groups: CategorySalesGroup[];
   labelOverrides?: {
     sum_servicecharge?: string;
     sum_vate?: string;
   };
+  selectedRowIds: Set<string>;
+  onToggleRow: (row: CategorySalesRow, selected: boolean) => void;
+  onToggleRows: (rows: CategorySalesRow[], selected: boolean) => void;
 }) {
   const { t } = useTranslation();
 
@@ -641,12 +675,32 @@ export function CategorySalesTable({
     sortedRows: sortedGroups,
     toggleSort,
   } = useLocalTableSort(groups, getGroupSortValue);
+  const visibleRows = sortedGroups.flatMap((group) =>
+    sortRowsLocally(
+      group.rows,
+      sort,
+      (row, key) => row[key as keyof CategorySalesRow],
+    ),
+  );
+  const visibleIds = visibleRows.map(categorySalesRowId);
+  const { allVisibleSelected, someVisibleSelected } =
+    selectionStateForVisibleIds(visibleIds, selectedRowIds);
 
   return (
     <div className="hidden min-w-0 md:block">
       <Table className="w-max min-w-full table-auto text-[13px]">
         <TableHeader className="[&_th]:sticky [&_th]:top-0 [&_th]:z-30 [&_th]:whitespace-nowrap [&_th]:border-b [&_th]:border-border [&_th]:bg-background [&_th]:px-3 [&_th]:shadow-sm">
           <TableRow>
+            <TableHead className="w-10 text-center">
+              <ReportIndeterminateCheckbox
+                aria-label={t("common.selectAll")}
+                checked={allVisibleSelected}
+                indeterminate={!allVisibleSelected && someVisibleSelected}
+                onChange={(event) =>
+                  onToggleRows(visibleRows, event.target.checked)
+                }
+              />
+            </TableHead>
             <SortableReportTableHead
               sort={sort}
               sortKey="productName"
@@ -743,6 +797,32 @@ export function CategorySalesTable({
           {sortedGroups.map((group) => (
               <Fragment key={group.groupUuid || group.groupName}>
                 <TableRow className="border-t-2 border-border bg-muted/50 hover:bg-muted/50">
+                  <TableCell className="w-10 text-center">
+                    <ReportIndeterminateCheckbox
+                      aria-label={t("common.selectRow", {
+                        name: group.groupName,
+                      })}
+                      checked={
+                        selectionStateForVisibleIds(
+                          group.rows.map(categorySalesRowId),
+                          selectedRowIds,
+                        ).allVisibleSelected
+                      }
+                      indeterminate={
+                        !selectionStateForVisibleIds(
+                          group.rows.map(categorySalesRowId),
+                          selectedRowIds,
+                        ).allVisibleSelected &&
+                        selectionStateForVisibleIds(
+                          group.rows.map(categorySalesRowId),
+                          selectedRowIds,
+                        ).someVisibleSelected
+                      }
+                      onChange={(event) =>
+                        onToggleRows(group.rows, event.target.checked)
+                      }
+                    />
+                  </TableCell>
                   <TableCell colSpan={10} className="py-3">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-black">
@@ -764,8 +844,23 @@ export function CategorySalesTable({
                       {rows.map((row) => (
                         <TableRow
                           key={`${row.groupUuid}-${row.cateUuid}-${row.productUuid}-${row.rank}`}
-                          className="hover:bg-muted/20"
+                          className={cn(
+                            "hover:bg-muted/20",
+                            selectedRowIds.has(categorySalesRowId(row)) &&
+                              "bg-primary/5 hover:bg-primary/10",
+                          )}
                         >
+                          <TableCell className="w-10 text-center">
+                            <Checkbox
+                              aria-label={t("common.selectRow", {
+                                name: row.productName,
+                              })}
+                              checked={selectedRowIds.has(categorySalesRowId(row))}
+                              onChange={(event) =>
+                                onToggleRow(row, event.target.checked)
+                              }
+                            />
+                          </TableCell>
                           <TableCell>
                             <div className="ml-6 min-w-40 border-l border-border/70 pl-3">
                               <p className="truncate font-bold">{row.productName}</p>
@@ -810,6 +905,7 @@ export function CategorySalesTable({
                 })()}
 
                 <TableRow className="border-b-2 border-border bg-primary/10 hover:bg-primary/10">
+                  <TableCell />
                   <TableCell className="font-black text-primary">
                     <span className="sr-only">{t("common.total")}</span>
                   </TableCell>
@@ -852,12 +948,18 @@ export function CategorySalesTable({
 export function CategorySalesMobileList({
   groups,
   labelOverrides,
+  selectedRowIds,
+  onToggleRow,
+  onToggleRows,
 }: {
   groups: CategorySalesGroup[];
   labelOverrides?: {
     sum_servicecharge?: string;
     sum_vate?: string;
   };
+  selectedRowIds: Set<string>;
+  onToggleRow: (row: CategorySalesRow, selected: boolean) => void;
+  onToggleRows: (rows: CategorySalesRow[], selected: boolean) => void;
 }) {
   const { t } = useTranslation();
 
@@ -869,16 +971,41 @@ export function CategorySalesMobileList({
           className="overflow-hidden rounded-md border border-border bg-card shadow-sm"
         >
           <div className="bg-muted/40 px-3 py-3">
-            <div className="min-w-0">
-              <h3 className="truncate text-sm font-black">
-                {group.groupName}
-              </h3>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                {t("report.categorySales.groupSummary", {
-                  categories: group.categories.length,
-                  qty: group.summary.total_qty ?? 0,
-                })}
-              </p>
+            <div className="flex items-start gap-3">
+              <ReportIndeterminateCheckbox
+                aria-label={t("common.selectRow", { name: group.groupName })}
+                className="mt-0.5"
+                checked={
+                  selectionStateForVisibleIds(
+                    group.rows.map(categorySalesRowId),
+                    selectedRowIds,
+                  ).allVisibleSelected
+                }
+                indeterminate={
+                  !selectionStateForVisibleIds(
+                    group.rows.map(categorySalesRowId),
+                    selectedRowIds,
+                  ).allVisibleSelected &&
+                  selectionStateForVisibleIds(
+                    group.rows.map(categorySalesRowId),
+                    selectedRowIds,
+                  ).someVisibleSelected
+                }
+                onChange={(event) =>
+                  onToggleRows(group.rows, event.target.checked)
+                }
+              />
+              <div className="min-w-0 flex-1">
+                <h3 className="truncate text-sm font-black">
+                  {group.groupName}
+                </h3>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {t("report.categorySales.groupSummary", {
+                    categories: group.categories.length,
+                    qty: group.summary.total_qty ?? 0,
+                  })}
+                </p>
+              </div>
             </div>
           </div>
 
@@ -886,9 +1013,21 @@ export function CategorySalesMobileList({
             {group.rows.map((row) => (
               <div
                 key={`${row.groupUuid}-${row.cateUuid}-${row.productUuid}-${row.rank}`}
-                className="py-3 pr-3"
+                className={cn(
+                  "py-3 pr-3",
+                  selectedRowIds.has(categorySalesRowId(row)) && "bg-primary/5",
+                )}
               >
-                <div className="ml-3 border-l border-border/70 pl-3">
+                <div className="ml-3 flex items-start gap-3 border-l border-border/70 pl-3">
+                  <Checkbox
+                    aria-label={t("common.selectRow", {
+                      name: row.productName,
+                    })}
+                    className="mt-0.5"
+                    checked={selectedRowIds.has(categorySalesRowId(row))}
+                    onChange={(event) => onToggleRow(row, event.target.checked)}
+                  />
+                  <div className="min-w-0 flex-1">
                   <div className="min-w-0">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-black">
@@ -950,6 +1089,7 @@ export function CategorySalesMobileList({
                       value={row.vat}
                       kind="money"
                     />
+                  </div>
                   </div>
                 </div>
               </div>

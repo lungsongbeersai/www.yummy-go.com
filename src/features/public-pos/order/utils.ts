@@ -5,14 +5,16 @@ import {
   OrderSourceEnum,
   ProductImageStatus,
   TableStatus,
-  type CartItem,
-  type CartOrder,
-  type CateProductItem,
-  type CateWithProducts,
-  type FetchCartStatusRule,
-  type ProdDetail,
-  type ProdItem,
-  type ProdTopping,
+} from "@/config/pos-constants";
+import type {
+  CartItem,
+  CartOrder,
+  CateProductItem,
+  CateWithProducts,
+  FetchCartStatusRule,
+  ProdDetail,
+  ProdItem,
+  ProdTopping,
 } from "@/services/pos";
 import type {
   CustomerCreateOrderInput,

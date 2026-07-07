@@ -1,6 +1,7 @@
 import { money } from "@/lib/format";
 import type { Category } from "@/services/category";
-import { getProductImageUrl, type Product, type ProductDetail, type StatusSort } from "@/services/product";
+import { getProductImageUrl } from "@/lib/image";
+import type { Product, ProductDetail, StatusSort } from "@/services/product";
 
 export type ProductStockSummary = "deduct" | "noDeduct" | "mixed";
 
@@ -117,8 +118,9 @@ export function detailStockQty(detail: ProductDetail) {
 }
 
 export function detailStockSummary(details: ProductDetail[]): ProductStockSummary {
-  const stockModes = details.map((detail) => binaryFlag(detail.pro_detail_stock, "1"));
-  if (!stockModes.length || stockModes.every((value) => value === "1")) return "deduct";
+  const stockModes = details.map((detail) => binaryFlag(detail.pro_detail_stock));
+  if (!stockModes.length) return "noDeduct";
+  if (stockModes.every((value) => value === "1")) return "deduct";
   if (stockModes.every((value) => value === "2")) return "noDeduct";
   return "mixed";
 }

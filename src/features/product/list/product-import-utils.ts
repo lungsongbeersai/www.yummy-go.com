@@ -53,8 +53,6 @@ export interface ProductImportMessages {
   unitNotFound: (name: string) => string;
   sizeNotFound: (row: number, name: string) => string;
   setOptionNotFound: (row: number, name: string) => string;
-  priceGreaterThanZero: (row: number, field: string) => string;
-  setPriceGreaterThanZero: () => string;
   multipleSetPrices: () => string;
 }
 
@@ -94,8 +92,6 @@ const DEFAULT_IMPORT_MESSAGES: ProductImportMessages = {
   unitNotFound: (name) => `Unit not found: ${name}`,
   sizeNotFound: (row, name) => `Row ${row}: Size not found: ${name}`,
   setOptionNotFound: (row, name) => `Row ${row}: Set option not found: ${name}`,
-  priceGreaterThanZero: (row, field) => `Row ${row}: ${field} must be greater than 0`,
-  setPriceGreaterThanZero: () => "Set Price must be greater than 0",
   multipleSetPrices: () => "Set has multiple Set Price values. The first price will be used.",
 };
 
@@ -240,8 +236,6 @@ export function buildProductImportDrafts(
 
       rowRequired(sizeNameValue, row.rowNumber, "Size Name", errors, messages);
       if (sizeNameValue && !sizeId) errors.push(messages.sizeNotFound(row.rowNumber, sizeNameValue));
-      if (costPrice <= 0) errors.push(messages.priceGreaterThanZero(row.rowNumber, "Cost Price"));
-      if (salePrice <= 0) errors.push(messages.priceGreaterThanZero(row.rowNumber, "Sale Price"));
 
       return {
         size_uuid_fk: sizeId,
@@ -311,7 +305,7 @@ export function buildProductImportDrafts(
     const code = displayCode(first["Product Code"], drafts.length + index);
     const categoryId = matchOption(references.categories, first.Category, categoryKeys, categoryUuid);
     const unitId = matchOption(references.units, first.Unit, unitKeys, unitUuid);
-    const setPrices = rows.map((row) => numberValue(row.values["Set Price"])).filter((value) => value > 0);
+    const setPrices = rows.map((row) => numberValue(row.values["Set Price"]));
     const setPrice = setPrices[0] ?? 0;
 
     required(first["Set Name (Lao)"], "Set Name (Lao)", errors, messages);
@@ -319,7 +313,6 @@ export function buildProductImportDrafts(
     required(first.Unit, "Unit", errors, messages);
     if (first.Category && !categoryId) errors.push(messages.categoryNotFound(first.Category));
     if (first.Unit && !unitId) errors.push(messages.unitNotFound(first.Unit));
-    if (setPrice <= 0) errors.push(messages.setPriceGreaterThanZero());
     if (new Set(setPrices).size > 1) warnings.push(messages.multipleSetPrices());
 
     const details = rows.map((row) => {
@@ -329,7 +322,6 @@ export function buildProductImportDrafts(
 
       rowRequired(optionName, row.rowNumber, "Set Option / Product Name", errors, messages);
       if (optionName && !sizeId) errors.push(messages.setOptionNotFound(row.rowNumber, optionName));
-      if (costPrice <= 0) errors.push(messages.priceGreaterThanZero(row.rowNumber, "Cost Price"));
 
       return {
         size_uuid_fk: sizeId,

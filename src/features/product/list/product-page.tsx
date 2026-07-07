@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FileSpreadsheet, Plus, Search } from "lucide-react";
+import { FileSpreadsheet, PencilLine, Plus, Search } from "lucide-react";
 import { AppPagination } from "@/components/common/app-pagination";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { EmptyState } from "@/components/common/empty-state";
@@ -31,6 +31,7 @@ import { ProductImportDialog } from "./product-import-dialog";
 import { ProductListMobile } from "./product-list-mobile";
 import { ProductListTable } from "./product-list-table";
 import { ALL_CATEGORIES_VALUE, useProductListWorkflow } from "./use-product-list-workflow";
+import { ProductBulkEditDialog } from "./product-bulk-edit-dialog";
 
 export function ProductPage({ initialPagination }: { initialPagination: UrlPaginationState }) {
   const product = useProductListWorkflow(initialPagination);
@@ -178,9 +179,15 @@ export function ProductPage({ initialPagination }: { initialPagination: UrlPagin
                   <Badge className="bg-primary/10 text-primary">
                     {t("common.selectedCount", { count: product.selectedRows.size })}
                   </Badge>
-                  <Button type="button" size="xs" variant="ghost" onClick={product.clearSelection}>
-                    {t("actions.clear")}
-                  </Button>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button type="button" size="xs" variant="outline" disabled={product.bulkEditing} onClick={() => product.setBulkEditOpen(true)}>
+                      <PencilLine data-icon="inline-start" />
+                      {t("actions.edit")}
+                    </Button>
+                    <Button type="button" size="xs" variant="ghost" disabled={product.bulkEditing} onClick={product.clearSelection}>
+                      {t("actions.clear")}
+                    </Button>
+                  </div>
                 </div>
               ) : null}
               <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-3 py-2 md:hidden">
@@ -232,6 +239,7 @@ export function ProductPage({ initialPagination }: { initialPagination: UrlPagin
         }}
       />
       <ProductImportDialog workflow={product} />
+      <ProductBulkEditDialog workflow={product} />
     </div>
   );
 }

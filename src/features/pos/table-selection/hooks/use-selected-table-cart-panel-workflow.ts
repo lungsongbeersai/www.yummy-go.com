@@ -7,7 +7,7 @@ import {
   withCustomerDisplayOrderMode,
   withCustomerDisplayPaymentMode,
 } from "@/features/customer-display/shared/customer-display-sync";
-import { getBranchQrUrl } from "@/services/branch";
+import { getBranchQrUrl } from "@/lib/image";
 import type { CartItem, CartOrder, PosTable } from "@/services/pos";
 import type { PrintProgress, PrinterDeviceContext } from "@/services/printer";
 import { useAppStore } from "@/stores/app-store";
@@ -27,6 +27,7 @@ import {
   buildCustomerDisplayPayload,
   canPayFullBill,
   cartDisplaySummary,
+  cartItemsQty,
   cartItemActionUuid,
   cartItemDiscountMaxAmount,
   cartItemUuid,
@@ -182,7 +183,7 @@ export function useSelectedTableCartPanelWorkflow({
     return branchQr ? getBranchQrUrl(branchQr) : null;
   }, [orders]);
   const visibleItemCount =
-    waitingItems.length + newOrderItems.length + historyItems.length;
+    summary.orderQty ?? cartItemsQty(displayItems);
   const currentOrderUuid = useMemo(() => firstCartOrderUuid(orders), [orders]);
   const currentOrder = useMemo(
     () => orders.find((entry) => optionalString(entry.order_uuid)),

@@ -117,7 +117,7 @@ describe("product list utils", () => {
     expect(detailStockQty(details[1])).toBe(7);
     expect(detailStockSummary(details)).toBe("mixed");
     expect(detailStockSummary([detail({ pro_detail_stock: "2" })])).toBe("noDeduct");
-    expect(detailStockSummary([])).toBe("deduct");
+    expect(detailStockSummary([])).toBe("noDeduct");
   });
 
   it("normalizes status sort values and labels", () => {

@@ -36,16 +36,23 @@ export function PaymentMethodsReportPage({ initialPagination }: { initialPaginat
 
   return (
     <>
-      <div className="h-full min-h-0 min-w-0 overflow-x-hidden overflow-y-auto" style={layoutStyle}>
-        <div className="mx-auto flex w-full min-w-0 max-w-375 flex-col gap-3 p-3 sm:p-4 lg:p-4">
+      <div
+        className="h-full min-h-0 min-w-0 overflow-x-hidden overflow-y-auto lg:overflow-hidden"
+        style={layoutStyle}
+      >
+        <div className="flex min-h-full w-full min-w-0 flex-col gap-2 p-2 sm:p-3 lg:h-full lg:min-h-0">
           <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <div className="flex items-center gap-2 text-sm font-bold text-primary">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 text-xs font-bold text-primary">
                 <CreditCard className="size-4" />
                 {t("nav.report_menu")}
               </div>
-              <h1 className="text-2xl font-black tracking-normal text-foreground">{report.reportTitle}</h1>
-              <p className="text-sm text-muted-foreground">{t("report.paymentMethodsReport.description")}</p>
+              <h1 className="truncate text-xl font-black tracking-normal text-foreground sm:text-2xl">
+                {report.reportTitle}
+              </h1>
+              <p className="text-xs text-muted-foreground sm:text-sm">
+                {t("report.paymentMethodsReport.description")}
+              </p>
             </div>
             <div className="flex flex-wrap items-center gap-2 sm:justify-end">
               <Badge className="w-fit rounded-full px-3 py-1">
@@ -104,17 +111,29 @@ export function PaymentMethodsReportPage({ initialPagination }: { initialPaginat
               />
             }
             loading={report.loading}
-            methodLabel={report.activePaymentMethodLabel}
             rowsLength={report.rows.length}
+            selectedCount={report.rowSelection.selectedCount}
             title={report.reportTitle}
+            onClearSelection={report.rowSelection.clearSelection}
             onExportExcel={() => void report.exportExcel()}
             onExportPdf={() => void report.exportPdf()}
             onOpenFilters={report.openMobileFilters}
             onPrintReport={() => void report.printReport()}
             onRefresh={() => void report.load()}
           >
-            <PaymentMethodsTable rows={report.rows} />
-            <PaymentMethodsMobileList rows={report.rows} />
+            <PaymentMethodsTable
+              reportTotal={report.reportTotal}
+              rows={report.rows}
+              selectedRowIds={report.rowSelection.selectedRowIds}
+              onToggleRow={report.rowSelection.toggleRow}
+              onToggleRows={report.rowSelection.toggleRows}
+            />
+            <PaymentMethodsMobileList
+              reportTotal={report.reportTotal}
+              rows={report.rows}
+              selectedRowIds={report.rowSelection.selectedRowIds}
+              onToggleRow={report.rowSelection.toggleRow}
+            />
           </PaymentMethodsTableCard>
         </div>
       </div>

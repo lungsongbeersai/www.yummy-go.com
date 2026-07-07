@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Users } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
@@ -21,6 +21,8 @@ import {
   SettingsTableScroll,
   SettingsToolbar
 } from "@/features/settings/shared/settings-shell";
+import { useAppliedSearch } from "@/hooks/use-applied-search";
+import { useLatestValue } from "@/hooks/use-latest-value";
 import { useUrlPagination } from "@/hooks/use-url-pagination";
 import { DEFAULT_PAGE_LIMIT, PAGE_LIMIT_OPTIONS } from "@/lib/pagination";
 import type { UrlPaginationState } from "@/lib/url-pagination";
@@ -135,16 +137,18 @@ export function CustomerSettingsPage({ initialPagination }: { initialPagination:
 
   const title = t("settings.modules.customer.title");
   const description = t("settings.modules.customer.description");
+  const { appliedSearch, applySearch } = useAppliedSearch(search);
+  const hasLoadedRef = useLatestValue(hasLoaded);
   const requestParams = useMemo<FetchCustomersParams>(
     () => ({
-      search,
+      search: appliedSearch,
       page,
       limit,
       orderBy,
       lang: language,
       store_uuid_fk: storeUuid
     }),
-    [language, limit, orderBy, page, search, storeUuid]
+    [appliedSearch, language, limit, orderBy, page, storeUuid]
   );
   const pageSize = limit === "All" ? rows.length || Number(DEFAULT_LIMIT) : Number(limit ?? DEFAULT_LIMIT);
   const totalPages = Math.max(1, Number(storeTotalPages || Math.ceil(total / pageSize) || 1));
@@ -158,14 +162,14 @@ export function CustomerSettingsPage({ initialPagination }: { initialPagination:
   const ids = useMemo(() => rows.map(customerId).filter(Boolean), [rows]);
   const allSelected = ids.length > 0 && ids.every((id) => selectedRows.has(id));
 
-  async function load() {
+  const load = useCallback(async () => {
     if (!storeUuid) {
       showToast({ title: t("settings.loadFailed", { title }), description: t("settings.storeRequired"), tone: "error" });
       return;
     }
 
     try {
-      await loadRows(requestParams, { background: hasLoaded });
+      await loadRows(requestParams, { background: hasLoadedRef.current });
     } catch (error) {
       showToast({
         title: t("settings.loadFailed", { title }),
@@ -173,12 +177,11 @@ export function CustomerSettingsPage({ initialPagination }: { initialPagination:
         tone: "error"
       });
     }
-  }
+  }, [hasLoadedRef, loadRows, requestParams, showToast, storeUuid, t, title]);
 
   useEffect(() => {
     void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [language, page, limit, orderBy, storeUuid]);
+  }, [load]);
 
   useEffect(() => {
     setSelectedRows((current) => {
@@ -195,8 +198,7 @@ export function CustomerSettingsPage({ initialPagination }: { initialPagination:
   }, [ids]);
 
   function applyFilters() {
-    if (page === 1) void load();
-    else resetPage();
+    applySearch({ page, resetPage, reload: () => void load() });
   }
 
   function toggleSelected(id: string, checked: boolean) {

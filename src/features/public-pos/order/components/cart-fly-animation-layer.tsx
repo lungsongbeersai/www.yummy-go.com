@@ -3,11 +3,8 @@
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { ImageIcon, Utensils } from "lucide-react";
-import {
-  ProductImageStatus,
-  type CateProductItem,
-  type ProdItem,
-} from "@/services/pos";
+import { ProductImageStatus } from "@/config/pos-constants";
+import type { CateProductItem, ProdItem } from "@/services/pos";
 import type { CartFlyAnimationState } from "@/features/public-pos/order/types";
 import { isHexColor, productImageUrl } from "@/features/public-pos/order/utils";
 

@@ -11,9 +11,13 @@ import { useBranchStore } from "@/stores/branch-store";
 import { useCategorySalesReportStore } from "@/stores/report-store";
 import { useToastStore } from "@/stores/toast-store";
 import { branchOptionFromRow, selectedBranchLabel } from "../daily-sales/daily-sales-report-utils";
+import { useReportRowSelection } from "../report-row-selection";
 import type { CategorySalesExportAction, CategorySalesExportData, CategorySalesReportFilters } from "./category-sales-report-types";
 import {
+  categorySalesGroupsFromRows,
   categorySalesFileBaseName,
+  categorySalesRowId,
+  categorySalesSummaryFromRows,
   emptyExportData,
   exportCategorySalesRows,
   exportSummaryRows,
@@ -61,6 +65,10 @@ export function useCategorySalesReportWorkflow(exportReportRef: RefObject<HTMLDi
   const [exportData, setExportData] = useState<CategorySalesExportData | null>(null);
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
   const { changeLimit, page, setPage } = useUrlPagination({ initialPagination });
+  const rowSelection = useReportRowSelection({
+    getRowId: categorySalesRowId,
+    rows
+  });
 
   const storeUuid = authStoreUuid(user);
   const userBranchUuid = user?.branch_uuid ?? "";
@@ -220,11 +228,29 @@ export function useCategorySalesReportWorkflow(exportReportRef: RefObject<HTMLDi
       });
   }, [appliedFilters, branchUuid, language, loadExportData, t]);
 
+  const selectedExportData = useCallback(
+    (data: CategorySalesExportData): CategorySalesExportData => {
+      if (!rowSelection.selectedCount) return data;
+
+      const selectedRows = data.rows.filter((row) =>
+        rowSelection.selectedRowIds.has(categorySalesRowId(row))
+      );
+
+      return {
+        ...data,
+        groups: categorySalesGroupsFromRows(data.groups, selectedRows),
+        rows: selectedRows,
+        summary: categorySalesSummaryFromRows(selectedRows)
+      };
+    },
+    [rowSelection.selectedCount, rowSelection.selectedRowIds]
+  );
+
   async function exportExcel() {
     if (exportDisabled) return;
     setExporting("excel");
     try {
-      const data = await fetchExportData();
+      const data = selectedExportData(await fetchExportData());
       const XLSX = await import("xlsx");
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(exportSummaryRows(data.summary, t, labelOverrides)), "Summary");
@@ -250,7 +276,7 @@ export function useCategorySalesReportWorkflow(exportReportRef: RefObject<HTMLDi
     if (exportDisabled) return;
     setExporting("pdf");
     try {
-      const data = await fetchExportData();
+      const data = selectedExportData(await fetchExportData());
       setExportData(data);
       await waitForPaint();
 
@@ -298,11 +324,28 @@ export function useCategorySalesReportWorkflow(exportReportRef: RefObject<HTMLDi
   }
 
   async function printReport() {
-    showToast({
-      title: t("report.printFailed"),
-      description: t("report.selectBillsToPrint"),
-      tone: "info"
-    });
+    if (exportDisabled) return;
+    setExporting("print");
+    try {
+      const data = selectedExportData(await fetchExportData());
+      setExportData(data);
+      await waitForPaint();
+      window.print();
+      showToast({
+        title: t("report.exportReady"),
+        description: t("report.exportedRows", { count: data.rows.length }),
+        tone: "success"
+      });
+    } catch (error) {
+      showToast({
+        title: t("report.printFailed"),
+        description: error instanceof Error ? error.message : "",
+        tone: "error"
+      });
+    } finally {
+      setExporting(null);
+      setExportData(null);
+    }
   }
 
   return {
@@ -337,6 +380,7 @@ export function useCategorySalesReportWorkflow(exportReportRef: RefObject<HTMLDi
     renderedExportData,
     reportTitle,
     rows,
+    rowSelection,
     setDraftFilters,
     setPage,
     summary,

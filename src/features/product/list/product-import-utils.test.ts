@@ -82,6 +82,40 @@ describe("product import utils", () => {
     ]);
   });
 
+  it("allows zero cost and sale prices for normal and set product imports", () => {
+    const normalRows = sheetRowsFromAoA(
+      [
+        ["Product Code", "Product Name (Lao)", "Product Name (English)", "Category", "Unit", "Size Name", "Cost Price", "Sale Price"],
+        ["", "Zero price item", "", "Noodles", "Bowl", "Regular", "0", "0"],
+      ],
+      ["Product Code", "Product Name (Lao)", "Product Name (English)", "Category", "Unit", "Size Name", "Cost Price", "Sale Price"],
+    );
+    const setRows = sheetRowsFromAoA(
+      [
+        ["Product Code", "Set Name (Lao)", "Set Name (English)", "Category", "Unit", "Set Option / Product Name", "Cost Price", "Set Price"],
+        ["SET-002", "Zero price set", "", "Sets", "Set", "Coffee + sandwich", "0", "0"],
+      ],
+      ["Product Code", "Set Name (Lao)", "Set Name (English)", "Category", "Unit", "Set Option / Product Name", "Cost Price", "Set Price"],
+    );
+
+    const [normalDraft, setDraft] = buildProductImportDrafts(
+      { Normal: normalRows, Set: setRows },
+      references,
+    );
+
+    expect(normalDraft.errors).toEqual([]);
+    expect(normalDraft.payload?.details?.[0]).toMatchObject({
+      pro_detail_bprice: 0,
+      pro_detail_sprice: 0,
+    });
+    expect(setDraft.errors).toEqual([]);
+    expect(setDraft.payload?.prod_set_price).toBe(0);
+    expect(setDraft.payload?.details?.[0]).toMatchObject({
+      pro_detail_bprice: 0,
+      pro_detail_status: 2,
+    });
+  });
+
   it("reports missing references instead of creating invalid payloads", () => {
     const rows = sheetRowsFromAoA(
       [

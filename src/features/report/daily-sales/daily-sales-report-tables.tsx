@@ -1,12 +1,12 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useRef } from "react";
+import { Fragment, useCallback } from "react";
 import Image from "next/image";
 import { ChevronDown, ChevronRight, Package } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Checkbox, type CheckboxProps } from "@/components/ui/checkbox";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table,
   TableBody,
@@ -20,11 +20,12 @@ import { cn } from "@/lib/utils";
 import type { ApiEntity } from "@/services/shared/types";
 import type { DailySalesBillGroup } from "@/stores/report-store";
 import { SortableReportTableHead } from "../report-sort-table-head";
-import {
-  useLocalTableSort,
-} from "../report-sort-utils";
+import { ReportIndeterminateCheckbox } from "../report-row-selection";
+import { useLocalTableSort } from "../report-sort-utils";
 import type { ReportColumn, ReportTab } from "./daily-sales-report-types";
+import type { SummaryCards } from "./daily-sales-report-types";
 import {
+  firstOptionalNumber,
   firstNumber,
   formatDate,
   hasDisplayValue,
@@ -37,6 +38,7 @@ import {
   reportRecordId,
   rowKey,
   statusClass,
+  summaryCardValue,
   textValue,
   toppingLines,
 } from "./daily-sales-report-utils";
@@ -81,7 +83,7 @@ type SummaryColumn = {
   sortableKey: string;
 };
 
-type MoneyCellTone = "default" | "discount" | "total";
+type MoneyCellTone = "default" | "discount" | "service" | "total" | "vat";
 
 function summaryColumns(t: (key: string) => string): SummaryColumn[] {
   return [
@@ -139,21 +141,21 @@ function summaryColumns(t: (key: string) => string): SummaryColumn[] {
     },
     {
       key: "serviceCharge",
-      label: t("report.columns.serviceCharge"),
+      label: t("dashboard.serviceCharge"),
       align: "right",
       minWidth: "min-w-[138px]",
       sortableKey: "sum_servicecharge",
     },
     {
       key: "vat",
-      label: t("report.columns.vat"),
+      label: t("dashboard.vat"),
       align: "right",
       minWidth: "min-w-[104px]",
       sortableKey: "sum_vate",
     },
     {
       key: "total",
-      label: t("report.cards.netTotal"),
+      label: t("common.total"),
       align: "right",
       minWidth: "min-w-[132px]",
       sortableKey: "sum_total",
@@ -193,14 +195,18 @@ export function SummaryReportTable({
   pageStart,
   rows,
   selectedRecordIds,
+  summaryCards,
+  reportTotal,
   typePage,
   onToggleRow,
   onToggleRows,
 }: {
   columns: ReportColumn[];
   pageStart: number;
+  reportTotal: ApiEntity;
   rows: ApiEntity[];
   selectedRecordIds: Set<string>;
+  summaryCards: SummaryCards;
   typePage: ReportTab;
   onToggleRow: (row: ApiEntity, selected: boolean) => void;
   onToggleRows: (rows: ApiEntity[], selected: boolean) => void;
@@ -231,11 +237,11 @@ export function SummaryReportTable({
 
   return (
     <div className="w-full min-w-0">
-      <Table className="w-max min-w-full table-auto text-[13px]">
-        <TableHeader className="[&_th]:sticky [&_th]:top-0 [&_th]:z-30 [&_th]:whitespace-nowrap [&_th]:border-b [&_th]:border-border [&_th]:bg-muted/80 [&_th]:px-3 [&_th]:shadow-sm [&_th]:backdrop-blur">
+      <Table className="w-max min-w-full table-auto text-xs">
+        <TableHeader className="[&_th]:sticky [&_th]:top-0 [&_th]:z-30 [&_th]:h-9 [&_th]:whitespace-nowrap [&_th]:border-b [&_th]:border-border [&_th]:bg-muted/80 [&_th]:px-2 [&_th]:shadow-sm [&_th]:backdrop-blur">
           <TableRow>
-            <TableHead className="w-12 text-center">
-              <IndeterminateCheckbox
+            <TableHead className="w-10 text-center">
+              <ReportIndeterminateCheckbox
                 aria-label={t("common.selectAll")}
                 checked={allVisibleSelected}
                 indeterminate={!allVisibleSelected && someVisibleSelected}
@@ -255,7 +261,7 @@ export function SummaryReportTable({
                     sort={sort}
                     sortKey={column.sortableKey}
                     className={cn(
-                      "h-11",
+                      "h-9",
                       column.minWidth,
                       column.align === "right" && "text-right",
                     )}
@@ -266,7 +272,7 @@ export function SummaryReportTable({
                 ))
               : columns.map((column) =>
                   column.kind === "image" ? (
-                    <TableHead key={column.header} className="h-11">
+                    <TableHead key={column.header} className="h-9">
                       {column.header}
                     </TableHead>
                   ) : (
@@ -276,7 +282,7 @@ export function SummaryReportTable({
                       sort={sort}
                       sortKey={column.header}
                       className={cn(
-                        "h-11",
+                        "h-9",
                         column.align === "right" && "text-right",
                       )}
                       onSort={toggleSort}
@@ -304,7 +310,7 @@ export function SummaryReportTable({
                     "bg-primary/5",
                 )}
               >
-                <TableCell className="w-12 text-center">
+                <TableCell className="w-10 text-center">
                   <Checkbox
                     aria-label={t("common.selectRow", {
                       name: textValue(
@@ -322,7 +328,7 @@ export function SummaryReportTable({
                   />
                 </TableCell>
 
-                <TableCell className="w-px text-center text-sm font-black text-muted-foreground">
+                <TableCell className="w-px text-center text-xs font-black text-muted-foreground">
                   {pageStart + index}
                 </TableCell>
 
@@ -346,6 +352,14 @@ export function SummaryReportTable({
               </TableRow>
             );
           })}
+          {activeColumns ? (
+            <SummaryReportFooterRow
+              reportTotal={reportTotal}
+              summaryCards={summaryCards}
+              summaryLabel={t("report.summary")}
+              billCountLabel={t("report.cards.billsCount")}
+            />
+          ) : null}
         </TableBody>
       </Table>
     </div>
@@ -360,7 +374,7 @@ function summaryCellClass(row: ApiEntity, column: SummaryColumn) {
   const value = summaryCellValue(row, column.sortableKey);
 
   return cn(
-    "h-12 whitespace-nowrap px-3 text-[13px]",
+    "h-9 whitespace-nowrap px-2 text-xs",
     column.minWidth,
     column.align === "right" && "text-right tabular-nums",
     column.key === "invoice" && "font-black",
@@ -396,9 +410,18 @@ function renderSummaryCell(row: ApiEntity, column: SummaryColumn) {
     case "tableName":
       return textValue(readValue(row, ["table_name", "tableName"]), "-");
     case "paymentMethod":
-      return textValue(readValue(row, ["payment_method_name", "payment_method", "payment_type"]), "-");
+      return textValue(
+        readValue(row, [
+          "payment_method_name",
+          "payment_method",
+          "payment_type",
+        ]),
+        "-",
+      );
     case "quantity":
-      return firstNumber(readValue(row, ["total_qty", "qty_total"])).toLocaleString("en-US");
+      return firstNumber(
+        readValue(row, ["total_qty", "qty_total"]),
+      ).toLocaleString("en-US");
     case "amount":
       return money(firstNumber(readValue(row, ["amount"])));
     case "discountBill":
@@ -422,11 +445,90 @@ function renderSummaryCell(row: ApiEntity, column: SummaryColumn) {
   }
 }
 
+function SummaryReportFooterRow({
+  billCountLabel,
+  reportTotal,
+  summaryCards,
+  summaryLabel,
+}: {
+  billCountLabel: string;
+  reportTotal: ApiEntity;
+  summaryCards: SummaryCards;
+  summaryLabel: string;
+}) {
+  return (
+    <TableRow className="border-t border-primary/25 bg-primary/5 hover:bg-primary/10">
+      <SummaryFooterBlankCell />
+      <SummaryFooterBlankCell />
+      <SummaryFooterLabelCell
+        billCount={summaryMetricNumber(summaryCards, reportTotal, [
+          "bill_count",
+          "bills_count",
+          "total_bills",
+        ])}
+        billCountLabel={billCountLabel}
+        colSpan={4}
+        label={summaryLabel}
+      />
+      <SummaryFooterNumberCell
+        value={summaryMetricNumber(summaryCards, reportTotal, ["total_qty"])}
+      />
+      <SummaryFooterMoneyCell
+        value={summaryMetricNumber(summaryCards, reportTotal, ["amount"])}
+      />
+      <SummaryFooterMoneyCell
+        tone="discount"
+        value={summaryMetricNumber(summaryCards, reportTotal, [
+          "discount_bill",
+        ])}
+      />
+      <SummaryFooterMoneyCell
+        value={summaryMetricNumber(summaryCards, reportTotal, [
+          "after_discount",
+        ])}
+      />
+      <SummaryFooterMoneyCell
+        value={summaryMetricNumber(summaryCards, reportTotal, [
+          "sum_servicecharge",
+        ])}
+      />
+      <SummaryFooterMoneyCell
+        value={summaryMetricNumber(summaryCards, reportTotal, ["sum_vate"])}
+      />
+      <SummaryFooterMoneyCell
+        strong
+        tone="total"
+        value={summaryMetricNumber(summaryCards, reportTotal, ["sum_total"])}
+      />
+      <SummaryFooterMoneyCell
+        value={summaryMetricNumber(summaryCards, reportTotal, [
+          "paid_cash",
+          "receive_cash",
+        ])}
+      />
+      <SummaryFooterMoneyCell
+        value={summaryMetricNumber(summaryCards, reportTotal, [
+          "paid_transfer",
+          "receive_transfer",
+        ])}
+      />
+      <SummaryFooterMoneyCell
+        value={summaryMetricNumber(summaryCards, reportTotal, [
+          "change_amount",
+        ])}
+      />
+      <SummaryFooterBlankCell />
+    </TableRow>
+  );
+}
+
 export function DetailBillTable({
   collapsedGroups,
   groups,
   pageStart,
+  reportTotal,
   selectedRecordIds,
+  summaryCards,
   onToggleGroup,
   onToggleRow,
   onToggleRows,
@@ -435,7 +537,9 @@ export function DetailBillTable({
   groups: DailySalesBillGroup[];
   itemColumns: ReportColumn[];
   pageStart: number;
+  reportTotal: ApiEntity;
   selectedRecordIds: Set<string>;
+  summaryCards: SummaryCards;
   onToggleGroup: (groupId: string) => void;
   onToggleRow: (row: ApiEntity, selected: boolean) => void;
   onToggleRows: (rows: ApiEntity[], selected: boolean) => void;
@@ -478,11 +582,11 @@ export function DetailBillTable({
   );
   return (
     <div className="w-full min-w-0">
-      <Table className="w-max min-w-full table-auto text-[13px]">
-        <TableHeader className="[&_th]:sticky [&_th]:top-0 [&_th]:z-30 [&_th]:whitespace-nowrap [&_th]:border-b [&_th]:border-border [&_th]:bg-muted/80 [&_th]:px-3 [&_th]:shadow-sm [&_th]:backdrop-blur">
+      <Table className="w-max min-w-full table-auto text-xs">
+        <TableHeader className="[&_th]:sticky [&_th]:top-0 [&_th]:z-30 [&_th]:h-9 [&_th]:whitespace-nowrap [&_th]:border-b [&_th]:border-border [&_th]:bg-muted/80 [&_th]:px-2 [&_th]:shadow-sm [&_th]:backdrop-blur">
           <TableRow>
-            <TableHead className="w-12 text-center">
-              <IndeterminateCheckbox
+            <TableHead className="w-10 text-center">
+              <ReportIndeterminateCheckbox
                 aria-label={t("common.selectAll")}
                 checked={allVisibleSelected}
                 indeterminate={!allVisibleSelected && someVisibleSelected}
@@ -492,7 +596,7 @@ export function DetailBillTable({
               />
             </TableHead>
 
-            <TableHead className="w-20 text-center">{t("fields.no")}</TableHead>
+            <TableHead className="w-16 text-center">{t("fields.no")}</TableHead>
 
             <SortableReportTableHead
               sort={groupSort}
@@ -583,31 +687,11 @@ export function DetailBillTable({
             <SortableReportTableHead
               align="right"
               sort={groupSort}
-              sortKey="serviceCharge"
-              className="min-w-[138px] text-right"
-              onSort={toggleGroupSort}
-            >
-              {t("report.columns.serviceCharge")}
-            </SortableReportTableHead>
-
-            <SortableReportTableHead
-              align="right"
-              sort={groupSort}
-              sortKey="vat"
-              className="min-w-[104px] text-right"
-              onSort={toggleGroupSort}
-            >
-              {t("report.columns.vat")}
-            </SortableReportTableHead>
-
-            <SortableReportTableHead
-              align="right"
-              sort={groupSort}
               sortKey="lineTotal"
               className="min-w-[132px] text-right"
               onSort={toggleGroupSort}
             >
-              {t("report.cards.netTotal")}
+              {t("common.total", { defaultValue: "Total" })}
             </SortableReportTableHead>
 
             {hasStatusData ? (
@@ -648,7 +732,7 @@ export function DetailBillTable({
               <Fragment key={group.id}>
                 <TableRow
                   className={cn(
-                    "border-b border-border/80 bg-card hover:bg-muted/25 [&>td]:whitespace-nowrap [&>td]:px-3 [&>td]:py-3",
+                    "border-b border-border/80 bg-card hover:bg-muted/25 [&>td]:whitespace-nowrap [&>td]:px-2 [&>td]:py-2",
                     expanded &&
                       !group.cancelled &&
                       !groupNeedsAttention &&
@@ -661,7 +745,7 @@ export function DetailBillTable({
                   data-state={expanded ? "selected" : undefined}
                 >
                   <TableCell className="text-center">
-                    <IndeterminateCheckbox
+                    <ReportIndeterminateCheckbox
                       aria-label={t("common.selectRow", {
                         name: group.invoiceNumber,
                       })}
@@ -689,7 +773,7 @@ export function DetailBillTable({
                       >
                         {expanded ? <ChevronDown /> : <ChevronRight />}
                       </Button>
-                      <span className="text-sm font-black text-muted-foreground">
+                      <span className="text-xs font-black text-muted-foreground">
                         {pageStart + index}
                       </span>
                     </div>
@@ -704,8 +788,6 @@ export function DetailBillTable({
 
                   {expanded ? (
                     <>
-                      <BlankCell align="right" />
-                      <BlankCell align="right" />
                       <BlankCell align="right" />
                       <BlankCell align="right" />
                       <BlankCell align="right" />
@@ -727,8 +809,6 @@ export function DetailBillTable({
                         tone="discount"
                         value={groupDiscountTotal(group)}
                       />
-                      <OptionalMoneyCell value={group.serviceChargeAmount} />
-                      <OptionalMoneyCell value={group.vatAmount} />
                       <MoneyCell value={group.lineTotal} strong tone="total" />
                     </>
                   )}
@@ -749,90 +829,168 @@ export function DetailBillTable({
                   ) : null}
                 </TableRow>
 
-                {expanded
-                  ? (
-                    <>
-                      {group.items.map((item, itemIndex) => {
-                        const recordId = reportRecordId(item);
-                        const selected = selectedRecordIds.has(recordId);
+                {expanded ? (
+                  <>
+                    {group.items.map((item, itemIndex) => {
+                      const recordId = reportRecordId(item);
+                      const selected = selectedRecordIds.has(recordId);
 
-                        return (
-                          <TableRow
-                            key={`${rowKey(item, itemIndex)}-${itemIndex}`}
-                            className={cn(
-                              "border-b border-border/80 bg-background hover:bg-muted/20 [&>td]:whitespace-nowrap [&>td]:px-3 [&>td]:py-3",
-                              groupNeedsAttention &&
-                                "bg-red-50/70 hover:bg-red-50/70 dark:bg-red-950/20 dark:hover:bg-red-950/20",
-                              selected &&
-                                !isCancelledRow(item) &&
-                                !isPaymentAttentionRow(item) &&
-                                "bg-primary/5",
-                            )}
-                          >
-                            <TableCell className="text-center">
-                              <Checkbox
-                                aria-label={t("common.selectRow", {
-                                  name: itemProductName(
-                                    item,
-                                    `${group.invoiceNumber}-${itemIndex + 1}`,
-                                  ),
-                                })}
-                                checked={selected}
-                                onChange={(event) =>
-                                  onToggleRow(item, event.target.checked)
-                                }
-                              />
-                            </TableCell>
-
-                            <TableCell />
-
-                            <TableCell colSpan={4}>
-                              <div className="flex min-w-80 items-center gap-3">
-                                <ProductImage row={item} />
-                                <ProductNameCell row={item} />
-                              </div>
-                            </TableCell>
-
-                            <OptionalMoneyCell
-                              value={itemMoney(item, ["sale_price"])}
+                      return (
+                        <TableRow
+                          key={`${rowKey(item, itemIndex)}-${itemIndex}`}
+                          className={cn(
+                            "border-b border-border/80 bg-background hover:bg-muted/20 [&>td]:whitespace-nowrap [&>td]:px-2 [&>td]:py-2",
+                            groupNeedsAttention &&
+                              "bg-red-50/70 hover:bg-red-50/70 dark:bg-red-950/20 dark:hover:bg-red-950/20",
+                            selected &&
+                              !isCancelledRow(item) &&
+                              !isPaymentAttentionRow(item) &&
+                              "bg-primary/5",
+                          )}
+                        >
+                          <TableCell className="text-center">
+                            <Checkbox
+                              aria-label={t("common.selectRow", {
+                                name: itemProductName(
+                                  item,
+                                  `${group.invoiceNumber}-${itemIndex + 1}`,
+                                ),
+                              })}
+                              checked={selected}
+                              onChange={(event) =>
+                                onToggleRow(item, event.target.checked)
+                              }
                             />
-                            <TableCell className="text-right font-black tabular-nums">
-                              {itemQuantity(item).toLocaleString("en-US")}
-                            </TableCell>
-                            <OptionalMoneyCell
-                              value={itemMoney(item, ["topping_total"])}
-                            />
-                            <OptionalMoneyCell value={itemMoney(item, ["amount"])} />
-                            <OptionalMoneyCell
-                              tone="discount"
-                              value={itemMoney(item, ["discount"])}
-                            />
-                            <BlankCell align="right" />
-                            <BlankCell align="right" />
-                            <OptionalMoneyCell
-                              tone="total"
-                              value={itemMoney(item, ["total"])}
-                              strong
-                            />
+                          </TableCell>
 
-                            {hasStatusData ? <TableCell /> : null}
-                          </TableRow>
-                        );
-                      })}
-                      <DetailBillSummaryRow
-                        group={group}
-                        hasStatusData={hasStatusData}
-                        summaryLabel={t("report.summary")}
-                      />
-                    </>
-                  )
-                  : null}
+                          <TableCell />
+
+                          <TableCell colSpan={4}>
+                            <div className="flex min-w-72 items-center gap-2">
+                              <ProductImage row={item} />
+                              <ProductNameCell row={item} />
+                            </div>
+                          </TableCell>
+
+                          <OptionalMoneyCell
+                            value={itemMoney(item, ["sale_price"])}
+                          />
+                          <TableCell className="text-right font-black tabular-nums">
+                            {itemQuantity(item).toLocaleString("en-US")}
+                          </TableCell>
+                          <OptionalMoneyCell
+                            value={itemMoney(item, ["topping_total"])}
+                          />
+                          <OptionalMoneyCell
+                            value={itemMoney(item, ["amount"])}
+                          />
+                          <OptionalMoneyCell
+                            tone="discount"
+                            value={itemMoney(item, ["discount"])}
+                          />
+                          <OptionalMoneyCell
+                            tone="total"
+                            value={itemMoney(item, ["total"])}
+                            strong
+                          />
+
+                          {hasStatusData ? <TableCell /> : null}
+                        </TableRow>
+                      );
+                    })}
+                    <DetailBillSummaryRow
+                      group={group}
+                      hasStatusData={hasStatusData}
+                      summaryLabel={t("report.summary")}
+                    />
+                    <DetailBillAdjustmentRows
+                      group={group}
+                      hasStatusData={hasStatusData}
+                    />
+                  </>
+                ) : null}
               </Fragment>
             );
           })}
+          <DetailReportFooterRow
+            hasStatusData={hasStatusData}
+            reportTotal={reportTotal}
+            summaryCards={summaryCards}
+            summaryLabel={t("report.summary")}
+            billCountLabel={t("report.cards.billsCount")}
+          />
         </TableBody>
       </Table>
     </div>
+  );
+}
+
+function DetailReportFooterRow({
+  billCountLabel,
+  hasStatusData,
+  reportTotal,
+  summaryCards,
+  summaryLabel,
+}: {
+  billCountLabel: string;
+  hasStatusData: boolean;
+  reportTotal: ApiEntity;
+  summaryCards: SummaryCards;
+  summaryLabel: string;
+}) {
+  return (
+    <TableRow className="border-t border-primary/25 bg-primary/5 hover:bg-primary/10">
+      <SummaryFooterBlankCell />
+      <SummaryFooterBlankCell />
+      <SummaryFooterLabelCell
+        billCount={summaryMetricNumber(summaryCards, reportTotal, [
+          "bill_count",
+          "bills_count",
+          "total_bills",
+        ])}
+        billCountLabel={billCountLabel}
+        colSpan={4}
+        label={summaryLabel}
+      />
+      <SummaryFooterMoneyCell
+        value={summaryMetricNumber(summaryCards, reportTotal, [
+          "product_price_total",
+          "selling_price_total",
+          "sale_price_total",
+        ])}
+      />
+      <SummaryFooterNumberCell
+        value={summaryMetricNumber(summaryCards, reportTotal, ["total_qty"])}
+      />
+      <SummaryFooterMoneyCell
+        value={summaryMetricNumber(summaryCards, reportTotal, [
+          "topping_total",
+          "total_topping_price",
+          "sum_topping",
+        ])}
+      />
+      <SummaryFooterMoneyCell
+        value={summaryMetricNumber(summaryCards, reportTotal, ["amount"])}
+      />
+      <SummaryFooterMoneyCell
+        tone="discount"
+        value={summaryMetricNumber(summaryCards, reportTotal, [
+          "sum_discount",
+          "discount_bill",
+          "discount_item",
+        ])}
+      />
+      <SummaryFooterMoneyCell
+        strong
+        tone="total"
+        value={summaryMetricNumber(summaryCards, reportTotal, [
+          "sum_total",
+          "grand_total",
+          "net_total",
+        ])}
+      />
+      {hasStatusData ? <SummaryFooterBlankCell /> : null}
+    </TableRow>
   );
 }
 
@@ -846,7 +1004,7 @@ function DetailBillSummaryRow({
   summaryLabel: string;
 }) {
   return (
-    <TableRow className="border-b border-primary/20 bg-primary/5 hover:bg-primary/10 [&>td]:whitespace-nowrap [&>td]:px-3 [&>td]:py-3">
+    <TableRow className="border-0 bg-primary/5 hover:bg-primary/5 [&>td]:whitespace-nowrap [&>td]:px-2 [&>td]:py-2">
       <TableCell />
       <TableCell />
       <TableCell colSpan={4}>
@@ -862,14 +1020,213 @@ function DetailBillSummaryRow({
       <OptionalMoneyCell value={group.amountTotal} strong />
       <OptionalMoneyCell
         tone="discount"
-        value={groupDiscountTotal(group)}
+        value={groupItemDiscountTotal(group)}
         strong
       />
-      <OptionalMoneyCell value={group.serviceChargeAmount} strong />
-      <OptionalMoneyCell value={group.vatAmount} strong />
-      <MoneyCell value={group.lineTotal} strong tone="total" />
+      <OptionalMoneyCell value={groupItemLineTotal(group)} strong />
       {hasStatusData ? <TableCell /> : null}
     </TableRow>
+  );
+}
+
+function DetailBillAdjustmentRows({
+  group,
+  hasStatusData,
+}: {
+  group: DailySalesBillGroup;
+  hasStatusData: boolean;
+}) {
+  const { t } = useTranslation();
+
+  return (
+    <>
+      <DetailBillAdjustmentRow
+        hasStatusData={hasStatusData}
+        label={t("report.columns.billDiscount", {
+          defaultValue: "Bill discount",
+        })}
+        tone="discount"
+        value={group.discountBillAmount}
+      />
+      <DetailBillAdjustmentRow
+        hasStatusData={hasStatusData}
+        label={t("dashboard.serviceCharge")}
+        tone="service"
+        value={group.serviceChargeAmount}
+      />
+      <DetailBillAdjustmentRow
+        hasStatusData={hasStatusData}
+        label={t("dashboard.vat")}
+        tone="vat"
+        value={group.vatAmount}
+      />
+      <DetailBillAdjustmentRow
+        hasStatusData={hasStatusData}
+        label={t("common.total")}
+        last
+        tone="total"
+        value={group.lineTotal}
+      />
+    </>
+  );
+}
+
+function DetailBillAdjustmentRow({
+  hasStatusData,
+  label,
+  last = false,
+  tone = "default",
+  value,
+}: {
+  hasStatusData: boolean;
+  label: string;
+  last?: boolean;
+  tone?: MoneyCellTone;
+  value: number;
+}) {
+  return (
+    <TableRow
+      className={cn(
+        "bg-primary/5 hover:bg-primary/5 [&>td]:whitespace-nowrap [&>td]:px-2 [&>td]:py-1",
+        last ? "border-b border-border/80" : "border-0",
+      )}
+    >
+      <TableCell colSpan={10} />
+      <TableCell className="text-right" colSpan={2}>
+        <div className="ml-auto grid w-56 max-w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+          <span className={adjustmentLabelClass(tone)}>{label}</span>
+          <DetailBillAdjustmentValue tone={tone} value={value} />
+        </div>
+      </TableCell>
+      {hasStatusData ? <TableCell /> : null}
+    </TableRow>
+  );
+}
+
+function DetailBillAdjustmentValue({
+  tone = "default",
+  value,
+}: {
+  tone?: MoneyCellTone;
+  value: number;
+}) {
+  return (
+    <span className={adjustmentValueClass(tone, value)}>
+      {money(value)}
+    </span>
+  );
+}
+
+function adjustmentLabelClass(tone: MoneyCellTone) {
+  return cn(
+    "truncate text-xs font-semibold leading-none",
+    tone === "discount" && "text-destructive",
+    tone === "service" && "text-sky-700 dark:text-sky-300",
+    tone === "vat" && "text-amber-700 dark:text-amber-300",
+    tone === "total" && "text-primary",
+    tone === "default" && "text-muted-foreground",
+  );
+}
+
+function adjustmentValueClass(tone: MoneyCellTone, value: number) {
+  return cn(
+    "whitespace-nowrap text-right font-semibold tabular-nums",
+    tone === "discount" && "text-destructive",
+    tone === "discount" && value === 0 && "opacity-70",
+    tone === "service" &&
+      value > 0 &&
+      "font-black text-sky-700 dark:text-sky-300",
+    tone === "total" && "font-black text-primary",
+    tone === "vat" &&
+      value > 0 &&
+      "font-black text-amber-700 dark:text-amber-300",
+    tone === "default" && "font-semibold text-foreground",
+    value === 0 &&
+      tone !== "discount" &&
+      tone !== "total" &&
+      "text-muted-foreground",
+  );
+}
+
+function summaryMetricNumber(
+  summaryCards: SummaryCards,
+  reportTotal: ApiEntity,
+  keys: string[],
+) {
+  return firstOptionalNumber(summaryCardValue(summaryCards, reportTotal, keys));
+}
+
+function SummaryFooterBlankCell({ colSpan }: { colSpan?: number }) {
+  return <TableCell className={summaryFooterCellClass()} colSpan={colSpan} />;
+}
+
+function SummaryFooterLabelCell({
+  billCount,
+  billCountLabel,
+  colSpan,
+  label,
+}: {
+  billCount: number | null;
+  billCountLabel: string;
+  colSpan: number;
+  label: string;
+}) {
+  return (
+    <TableCell className={summaryFooterCellClass("left")} colSpan={colSpan}>
+      <div className="flex min-w-64 items-center gap-2">
+        <span className="inline-flex h-6 items-center rounded-full bg-background/80 px-2 text-xs font-black uppercase text-primary ring-1 ring-primary/20">
+          {label}
+        </span>
+        {billCount !== null ? (
+          <span className="truncate text-xs font-semibold text-muted-foreground">
+            {billCountLabel}: {billCount.toLocaleString("en-US")}
+          </span>
+        ) : null}
+      </div>
+    </TableCell>
+  );
+}
+
+function SummaryFooterMoneyCell({
+  strong = false,
+  tone = "default",
+  value,
+}: {
+  strong?: boolean;
+  tone?: MoneyCellTone;
+  value: number | null;
+}) {
+  if (value === null) return <SummaryFooterBlankCell />;
+
+  return (
+    <TableCell
+      className={cn(
+        summaryFooterCellClass("right"),
+        (strong || tone === "total" || (tone === "discount" && value > 0)) &&
+          "font-black",
+        tone === "total" && "text-foreground",
+        tone === "discount" && value > 0 && "text-destructive",
+        value === 0 && "text-muted-foreground",
+      )}
+    >
+      {money(value)}
+    </TableCell>
+  );
+}
+
+function SummaryFooterNumberCell({ value }: { value: number | null }) {
+  if (value === null) return <SummaryFooterBlankCell />;
+
+  return (
+    <TableCell
+      className={cn(
+        summaryFooterCellClass("right"),
+        "font-black",
+        value === 0 && "text-muted-foreground",
+      )}
+    >
+      {value.toLocaleString("en-US")}
+    </TableCell>
   );
 }
 
@@ -904,13 +1261,20 @@ function renderCell(row: ApiEntity, column: ReportColumn) {
 
 function itemProductName(row: ApiEntity, fallback: string) {
   return textValue(
-    readValue(row, ["product_name", "prod_name", "prod_name_la", "prod_name_eng"]),
+    readValue(row, [
+      "product_name",
+      "prod_name",
+      "prod_name_la",
+      "prod_name_eng",
+    ]),
     fallback,
   );
 }
 
 function itemQuantity(row: ApiEntity) {
-  return firstNumber(readValue(row, ["quantity", "qty", "order_qty", "qty_total"]));
+  return firstNumber(
+    readValue(row, ["quantity", "qty", "order_qty", "qty_total"]),
+  );
 }
 
 function itemMoney(row: ApiEntity, keys: string[]) {
@@ -963,12 +1327,35 @@ function groupDiscountTotal(group: DailySalesBillGroup) {
   return group.discountBillAmount + group.itemDiscountAmount;
 }
 
+function groupItemDiscountTotal(group: DailySalesBillGroup) {
+  const itemTotal = group.items.reduce(
+    (total, item) => total + (itemMoney(item, ["discount"]) ?? 0),
+    0,
+  );
+  return itemTotal > 0 ? itemTotal : group.itemDiscountAmount;
+}
+
+function groupItemLineTotal(group: DailySalesBillGroup) {
+  let hasLineTotal = false;
+  const itemTotal = group.items.reduce((total, item) => {
+    const lineTotal = itemMoney(item, ["total", "line_total", "net_total"]);
+    if (lineTotal === null) return total;
+    hasLineTotal = true;
+    return total + lineTotal;
+  }, 0);
+
+  if (hasLineTotal) return itemTotal;
+  return Math.max(0, group.amountTotal - groupItemDiscountTotal(group));
+}
+
 function groupMoney(group: DailySalesBillGroup, keys: string[]) {
   const groupEntity = group as unknown as ApiEntity;
   const value = readValue(groupEntity, keys);
   if (hasDisplayValue(value)) return firstNumber(value);
 
-  if (keys.some((key) => ["amount", "order_total", "total_order"].includes(key))) {
+  if (
+    keys.some((key) => ["amount", "order_total", "total_order"].includes(key))
+  ) {
     return group.amountTotal;
   }
   if (keys.some((key) => ["topping_total", "toppingTotal"].includes(key))) {
@@ -1053,7 +1440,7 @@ function tableRowClass(row: ApiEntity, index: number) {
 
 function tableCellClass(row: ApiEntity, column: ReportColumn) {
   return cn(
-    "h-12 whitespace-nowrap px-3 text-[13px]",
+    "h-9 whitespace-nowrap px-2 text-xs",
     column.align === "right" && "text-right tabular-nums",
     column.kind === "product" && "max-w-72",
     column.wide && column.kind !== "product" && "max-w-72 truncate",
@@ -1153,7 +1540,7 @@ function ProductImage({ row }: { row: ApiEntity }) {
 
   return (
     <span
-      className="relative grid size-12 shrink-0 place-items-center overflow-hidden rounded-md border border-border bg-muted"
+      className="relative grid size-10 shrink-0 place-items-center overflow-hidden rounded-md border border-border bg-muted"
       style={color ? { backgroundColor: color } : undefined}
     >
       {src ? (
@@ -1171,6 +1558,13 @@ function ProductImage({ row }: { row: ApiEntity }) {
   );
 }
 
+function summaryFooterCellClass(align: "left" | "right" = "left") {
+  return cn(
+    "sticky bottom-0 z-20 h-10 whitespace-nowrap border-t border-primary/25 bg-primary/10 px-2 py-2 backdrop-blur supports-[backdrop-filter]:bg-primary/10",
+    align === "right" && "text-right tabular-nums",
+  );
+}
+
 function MoneyCell({
   strong = false,
   tone = "default",
@@ -1183,7 +1577,7 @@ function MoneyCell({
   return (
     <TableCell
       className={cn(
-        "whitespace-nowrap px-3 text-right tabular-nums",
+        "whitespace-nowrap px-2 text-right tabular-nums",
         (strong || tone === "total" || (tone === "discount" && value > 0)) &&
           "font-black",
         tone === "total" && "text-foreground",
@@ -1213,28 +1607,10 @@ function BlankCell({ align = "left" }: { align?: "left" | "right" }) {
   return (
     <TableCell
       className={cn(
-        "whitespace-nowrap px-3 text-muted-foreground",
+        "whitespace-nowrap px-2 text-muted-foreground",
         align === "right" && "text-right",
       )}
     />
   );
 }
 
-function IndeterminateCheckbox({
-  indeterminate = false,
-  ...props
-}: CheckboxProps & { indeterminate?: boolean }) {
-  const checkboxRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (checkboxRef.current) checkboxRef.current.indeterminate = indeterminate;
-  }, [indeterminate]);
-
-  return (
-    <Checkbox
-      ref={checkboxRef}
-      aria-checked={indeterminate ? "mixed" : props.checked ? "true" : "false"}
-      {...props}
-    />
-  );
-}

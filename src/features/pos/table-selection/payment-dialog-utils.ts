@@ -12,9 +12,11 @@ import type { Exchange } from "@/services/exchange";
 import {
   OrderChannelEnum,
   PaymentMethod,
-  type CartOrder,
   type OrderChannel,
-  type PosTable,
+} from "@/config/pos-constants";
+import type {
+  CartOrder,
+  PosTable,
 } from "@/services/pos";
 import type { AuthUser } from "@/stores/auth-store";
 import {
