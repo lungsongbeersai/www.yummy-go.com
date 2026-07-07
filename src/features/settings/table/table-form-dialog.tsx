@@ -31,20 +31,10 @@ import {
   zoneLabel
 } from "./table-utils";
 
-export function TableFormDialog({
-  branchUuid,
-  editing,
-  onOpenChange,
-  onSubmit,
-  open,
-  saving,
-  serviceCharge,
-  serviceChargeLoading,
-  title,
-  zones
-}: {
+interface TableFormDialogProps {
   branchUuid: string;
   editing: DiningTable | null;
+  initialZoneUuid: string;
   onOpenChange: (open: boolean) => void;
   onSubmit: (formData: FormData) => Promise<void>;
   open: boolean;
@@ -53,7 +43,21 @@ export function TableFormDialog({
   serviceChargeLoading: boolean;
   title: string;
   zones: Zone[];
-}) {
+}
+
+export function TableFormDialog({
+  branchUuid,
+  editing,
+  initialZoneUuid,
+  onOpenChange,
+  onSubmit,
+  open,
+  saving,
+  serviceCharge,
+  serviceChargeLoading,
+  title,
+  zones
+}: TableFormDialogProps) {
   const { t } = useTranslation();
   const [zoneUuid, setZoneUuid] = useState("");
   const [tableNameLa, setTableNameLa] = useState("");
@@ -68,10 +72,10 @@ export function TableFormDialog({
   });
 
   useEffect(() => {
-    setZoneUuid(tableValue(editing, "zone_uuid_fk"));
+    setZoneUuid(editing ? tableValue(editing, "zone_uuid_fk") : initialZoneUuid);
     setTableNameLa(tableValue(editing, "table_name_la", tableValue(editing, "table_name")));
     setChargeStatus(tableValue(editing, "charge_status", "2"));
-  }, [editing, open]);
+  }, [editing, initialZoneUuid, open]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

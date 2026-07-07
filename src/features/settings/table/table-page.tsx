@@ -69,6 +69,7 @@ export function TableSettingsPage({ initialPagination }: { initialPagination: Ur
   const [deleteTarget, setDeleteTarget] = useState<DiningTable | null>(null);
   const [selectedRows, setSelectedRows] = useState<Set<string>>(() => new Set());
   const [zoneOptions, setZoneOptions] = useState<Zone[]>([]);
+  const [lastSavedZoneUuid, setLastSavedZoneUuid] = useState("");
   const [collapsedZones, setCollapsedZones] = useState<Set<string>>(() => new Set());
 
   const title = t("settings.modules.table.title");
@@ -87,6 +88,7 @@ export function TableSettingsPage({ initialPagination }: { initialPagination: Ur
     });
     return map;
   }, [zoneOptions]);
+  const initialFormZoneUuid = zoneById.has(lastSavedZoneUuid) ? lastSavedZoneUuid : "";
   const rows = useMemo(() => flattenTableRows(storeRows), [storeRows]);
   const tableGroups = useMemo(() => groupTableRows(storeRows, zoneById), [storeRows, zoneById]);
   const currentBranch = useMemo(() => {
@@ -267,6 +269,7 @@ export function TableSettingsPage({ initialPagination }: { initialPagination: Ur
     try {
       await saveRow(buildTablePayload({ branchUuid, chargeStatus, editing, nameEng, nameLa, seats, zoneUuid }));
       showToast({ title: t("settings.saved"), tone: "success" });
+      setLastSavedZoneUuid(zoneUuid);
       setDialogOpen(false);
       setEditing(null);
       await loadRows(requestParams, { background: true });
@@ -380,6 +383,7 @@ export function TableSettingsPage({ initialPagination }: { initialPagination: Ur
       <TableFormDialog
         branchUuid={branchUuid}
         editing={editing}
+        initialZoneUuid={initialFormZoneUuid}
         open={dialogOpen}
         saving={saving}
         serviceCharge={serviceCharge}
