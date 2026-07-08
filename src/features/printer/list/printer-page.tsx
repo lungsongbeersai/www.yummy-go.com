@@ -51,6 +51,7 @@ import { PrinterListTable } from "./printer-list-table";
 import {
   agentDownloadUrl,
   categoryLabel,
+  PRINTER_SETUP_DOWNLOAD_URL,
   printerCategories,
   roleLabel,
   STATUS_ALL,
@@ -78,6 +79,7 @@ function PrinterDownloadsMenu({
   onAgentOpenChange,
   onDriverDownload,
   onLaoFontDownload,
+  onPrinterSetupDownload,
 }: {
   activeAgentFiles: Array<{
     agent_file_uuid: string;
@@ -90,6 +92,7 @@ function PrinterDownloadsMenu({
   onAgentOpenChange: (open: boolean) => void;
   onDriverDownload: () => void;
   onLaoFontDownload: () => void;
+  onPrinterSetupDownload: () => void;
 }) {
   const { t } = useTranslation();
 
@@ -128,6 +131,17 @@ function PrinterDownloadsMenu({
             >
               <Download />
               {t("printer.downloadLaoFont")}
+            </a>
+          </DropdownMenuItem>
+          <DropdownMenuItem asChild>
+            <a
+              href={PRINTER_SETUP_DOWNLOAD_URL}
+              target="_blank"
+              rel="noreferrer"
+              onClick={onPrinterSetupDownload}
+            >
+              <Download />
+              {t("printer.downloadPrinterSetup")}
             </a>
           </DropdownMenuItem>
         </DropdownMenuGroup>
@@ -342,6 +356,10 @@ export function PrinterPage() {
     showToast({ title: t("printer.driverDownloadStarted"), tone: "success" });
   }
 
+  function showPrinterSetupDownloadToast() {
+    showToast({ title: t("printer.printerSetupDownloadStarted"), tone: "success" });
+  }
+
   async function remove(row: Printer) {
     try {
       await removePrinter(row.print_config_uuid);
@@ -449,6 +467,7 @@ export function PrinterPage() {
               onAgentOpenChange={loadAgentFilesOnOpen}
               onDriverDownload={showDriverDownloadToast}
               onLaoFontDownload={showLaoFontDownloadToast}
+              onPrinterSetupDownload={showPrinterSetupDownloadToast}
             />
           </div>
 
@@ -549,6 +568,18 @@ export function PrinterPage() {
               >
                 <Download data-icon="inline-start" />
                 {t("printer.downloadLaoFont")}
+              </a>
+            </Button>
+
+            <Button asChild className="shadow-sm" size="sm" variant="outline">
+              <a
+                href={PRINTER_SETUP_DOWNLOAD_URL}
+                target="_blank"
+                rel="noreferrer"
+                onClick={showPrinterSetupDownloadToast}
+              >
+                <Download data-icon="inline-start" />
+                {t("printer.downloadPrinterSetup")}
               </a>
             </Button>
           </div>

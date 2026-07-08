@@ -9,6 +9,8 @@ export const STATUS_ALL = "all";
 export const XPRINTER_DRIVER_URL =
   "/downloads/drivers/XPrinter%20Driver%20Setup%20V8.2.exe";
 export const XPRINTER_DRIVER_FILE_NAME = "XPrinter Driver Setup V8.2.exe";
+export const PRINTER_SETUP_DOWNLOAD_URL =
+  "https://drive.google.com/file/d/1hLikOQZHEpVzoWgmoFXjoePvy0zM88RV/view";
 
 export function roleLabel(code: string, roles: PrinterRole[]) {
   return roles.find((role) => role.role_code === code)?.role_name ?? code;

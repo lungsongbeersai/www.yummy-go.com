@@ -140,7 +140,6 @@ export function BestSellingProductsReportPage({ initialPagination }: { initialPa
         containerRef={exportReportRef}
         dateRange={`${report.appliedFilters.dateFrom} - ${report.appliedFilters.dateTo}`}
         groups={report.renderedExportData.groups}
-        rows={report.renderedExportData.rows}
         rowsLabel={t("report.bestSelling.rowsLabel", { count: report.renderedExportData.rows.length })}
         sortByLabel={report.sortByLabel}
         summary={report.renderedExportData.summary}

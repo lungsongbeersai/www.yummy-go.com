@@ -1027,6 +1027,8 @@
     "driverDownloadStarted": "ເລີ່ມດາວໂຫຼດ XPrinter Driver ແລ້ວ",
     "downloadLaoFont": "ດາວໂຫຼດ Lao Script 8",
     "laoFontDownloadStarted": "ເລີ່ມດາວໂຫຼດ Lao Script 8 ແລ້ວ",
+    "downloadPrinterSetup": "Download Xprinter Test V3.6C.",
+    "printerSetupDownloadStarted": "ເປີດລິ້ງດາວໂຫຼດໄຟລ໌ຕິດຕັ້ງແລ້ວ",
     "laoFontNoticeTitle": "ພິມພາສາລາວບໍ່ຖືກບໍ?",
     "laoFontNoticeDescription": "ຖ້າພິມພາສາລາວຜິດ ຫຼື ຕົວອັກສອນອ່ານບໍ່ອອກ, ໃຫ້ດາວໂຫຼດ ແລະ ຕິດຕັ້ງ Lao Script 8.",
     "loadingAgentFiles": "ກຳລັງໂຫຼດ installer Agent",

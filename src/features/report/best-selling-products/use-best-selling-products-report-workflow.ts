@@ -269,7 +269,7 @@ export function useBestSellingProductsReportWorkflow(exportReportRef: RefObject<
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(exportSummaryRows(summaryCards, data.summary, t)), "Summary");
       XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(exportGroupRows(data.groups, t)), "Groups");
-      XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(exportProductRows(data.rows, t)), "Products");
+      XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(exportProductRows(data.groups, t)), "Products");
       XLSX.writeFile(workbook, `${bestSellingFileBaseName(appliedFilters)}.xlsx`);
       showToast({
         title: t("report.exportReady"),
