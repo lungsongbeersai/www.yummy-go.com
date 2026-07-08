@@ -1,12 +1,17 @@
 "use client";
 
-import { AnimatePresence, motion } from "motion/react";
-import { Boxes, ChevronRight, ChevronsUpDown, Package } from "lucide-react";
+import { useState, type ReactNode } from "react";
+import { DndContext, MeasuringStrategy, closestCenter, type DragEndEvent } from "@dnd-kit/core";
+import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
+import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { Boxes, ChevronRight, ChevronsUpDown, GripVertical, Package } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useReorderSensors } from "@/hooks/use-reorder-sensors";
 import { money } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
@@ -33,8 +38,6 @@ import {
 } from "./product-list-status";
 import type { ProductStatusKey, ProductTableRow } from "./product-list-types";
 import type { ProductListWorkflow } from "./use-product-list-workflow";
-
-const MotionTableRow = motion.create(TableRow);
 
 function ProductNotificationSwitch({
   row,
@@ -100,6 +103,81 @@ function ProductStockModeSwitch({
   );
 }
 
+function SortableRow({
+  children,
+  className,
+  dragEnabled,
+  handleHint,
+  handleLabel,
+  id,
+  selected,
+  onUnavailable
+}: {
+  children: (dragHandle: ReactNode) => ReactNode;
+  className?: string;
+  dragEnabled: boolean;
+  handleHint?: string;
+  handleLabel: string;
+  id: string;
+  selected?: boolean;
+  onUnavailable?: () => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id,
+    disabled: !dragEnabled
+  });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.85 : 1,
+    position: "relative" as const
+  };
+  const dragHandle = dragEnabled ? (
+    <Button
+      aria-label={handleLabel}
+      title={handleLabel}
+      size="iconSm"
+      type="button"
+      variant="ghost"
+      className="cursor-grab touch-none active:cursor-grabbing"
+      {...attributes}
+      {...listeners}
+    >
+      <GripVertical aria-hidden />
+    </Button>
+  ) : onUnavailable ? (
+    <Button
+      aria-disabled
+      aria-label={handleHint ?? handleLabel}
+      title={handleHint ?? handleLabel}
+      size="iconSm"
+      type="button"
+      variant="ghost"
+      className="opacity-50"
+      onClick={onUnavailable}
+    >
+      <GripVertical aria-hidden />
+    </Button>
+  ) : (
+    <span title={handleHint ?? handleLabel}>
+      <Button aria-label={handleHint ?? handleLabel} size="iconSm" type="button" variant="ghost" disabled>
+        <GripVertical aria-hidden />
+      </Button>
+    </span>
+  );
+
+  return (
+    <TableRow
+      ref={setNodeRef}
+      style={style}
+      data-state={selected ? "selected" : undefined}
+      className={cn(className, isDragging && "z-10 shadow-md")}
+    >
+      {children(dragHandle)}
+    </TableRow>
+  );
+}
+
 function ProductDetailRows({
   row,
   workflow
@@ -107,26 +185,52 @@ function ProductDetailRows({
   row: ProductTableRow;
   workflow: ProductListWorkflow;
 }) {
+  const sensors = useReorderSensors();
   const details = productDetails(row);
   const isPromotion = String(workflow.statusSortFk) === "3";
   const isFoodSet = String(workflow.statusSortFk) === "2";
+  const detailIds = details.map((detail, index) => productDetailUuid(detail) || `${row.prod_uuid}-${index}`);
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    void workflow.reorderProductDetail(row, String(active.id), String(over.id));
+  }
 
   if (!details.length) return null;
 
-  return details.map((detail, index) => {
-    const detailUuid = productDetailUuid(detail) || `${row.prod_uuid}-${index}`;
-    const enabled = binaryFlag(detail.pro_detail_enabled, "1") === "1";
+  return (
+    <DndContext
+      accessibility={{ container: typeof document === "undefined" ? undefined : document.body }}
+      collisionDetection={closestCenter}
+      modifiers={[restrictToVerticalAxis]}
+      sensors={sensors}
+      onDragEnd={handleDragEnd}
+    >
+      <SortableContext items={detailIds} strategy={verticalListSortingStrategy}>
+        {details.map((detail, index) => {
+          const detailUuid = detailIds[index];
+          const enabled = binaryFlag(detail.pro_detail_enabled, "1") === "1";
 
-    return (
-      <MotionTableRow
-        key={detailUuid}
-        initial={workflow.detailMotion.initial}
-        animate={workflow.detailMotion.animate}
-        exit={{ ...workflow.detailMotion.exit, pointerEvents: "none" }}
-        transition={workflow.detailMotion.transition}
-        className="origin-top bg-muted/10 hover:bg-muted/20 [&>td]:whitespace-nowrap [&>td]:py-2.5"
-      >
+          return (
+            <SortableRow
+              key={detailUuid}
+              className="bg-muted/10 hover:bg-muted/20 [&>td]:whitespace-nowrap [&>td]:py-2.5"
+              dragEnabled={workflow.canSortProductDetails && details.length > 1}
+              handleLabel={workflow.t("common.reorder")}
+              id={detailUuid}
+            >
+              {(dragHandle) => (
+              <>
         <TableCell className="w-10 px-2" />
+        <TableCell>
+          <div className="flex items-center justify-center gap-1 whitespace-nowrap">
+            <Badge variant="outline" className="h-7 min-w-8 justify-center px-2 font-mono text-xs tabular-nums">
+              {index + 1}
+            </Badge>
+            {dragHandle}
+          </div>
+        </TableCell>
         <TableCell />
         <TableCell>
           <div className="min-w-0 border-l border-border pl-4">
@@ -174,17 +278,40 @@ function ProductDetailRows({
           </TableCell>
         ) : null}
         <TableCell />
-      </MotionTableRow>
-    );
-  });
+              </>
+              )}
+            </SortableRow>
+          );
+        })}
+      </SortableContext>
+    </DndContext>
+  );
 }
 
 export function ProductListTable({ workflow }: { workflow: ProductListWorkflow }) {
   const isPromotion = String(workflow.statusSortFk) === "3";
   const isFoodSet = String(workflow.statusSortFk) === "2";
+  const [dragging, setDragging] = useState(false);
+  const sensors = useReorderSensors();
+
+  function handleDragEnd(event: DragEndEvent) {
+    setDragging(false);
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    void workflow.reorderProduct(String(active.id), String(over.id));
+  }
 
   return (
     <div className="relative hidden min-h-0 flex-1 overflow-auto md:block">
+      <DndContext
+        collisionDetection={closestCenter}
+        measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
+        modifiers={[restrictToVerticalAxis]}
+        sensors={sensors}
+        onDragCancel={() => setDragging(false)}
+        onDragEnd={handleDragEnd}
+        onDragStart={() => setDragging(true)}
+      >
       <Table className="w-max min-w-full table-auto">
         <TableHeader className="sticky top-0 z-40 bg-background shadow-sm [&_th]:sticky [&_th]:top-0 [&_th]:z-40 [&_th]:whitespace-nowrap [&_th]:border-b [&_th]:border-border [&_th]:bg-background [&_th]:shadow-sm">
           <TableRow>
@@ -195,6 +322,7 @@ export function ProductListTable({ workflow }: { workflow: ProductListWorkflow }
                 onChange={(event) => workflow.toggleAllSelected(event.target.checked)}
               />
             </TableHead>
+            <TableHead className="w-28 text-center">{workflow.t("common.order")}</TableHead>
             <TableHead>{workflow.t("nav.category")}</TableHead>
             <TableHead>
               <div className="flex items-center gap-2">
@@ -227,28 +355,47 @@ export function ProductListTable({ workflow }: { workflow: ProductListWorkflow }
         </TableHeader>
 
         <TableBody className="bg-card">
-          {workflow.filteredRows.flatMap((row) => {
+          <SortableContext
+            items={workflow.filteredRows.map((row) => row.prod_uuid)}
+            strategy={verticalListSortingStrategy}
+          >
+          {workflow.filteredRows.flatMap((row, index) => {
             const details = productDetails(row);
             const hasDetails = details.length > 0;
-            const expanded = hasDetails && !workflow.collapsedProducts.has(row.prod_uuid);
+            const expanded = hasDetails && !workflow.collapsedProducts.has(row.prod_uuid) && !dragging;
             const selected = workflow.selectedRows.has(row.prod_uuid);
             const orderPoint = productOrderPoint(row);
 
             const rowsToRender = [
-              <TableRow
+              <SortableRow
                 key={row.prod_uuid}
                 className={cn(
                   "bg-card data-[state=selected]:bg-primary/5 [&>td]:whitespace-nowrap [&>td]:py-3",
                   expanded && "border-l-4 border-l-primary/50"
                 )}
-                data-state={selected ? "selected" : undefined}
+                dragEnabled={workflow.canSortProducts}
+                handleHint={workflow.t("product.sortHint")}
+                handleLabel={workflow.t("common.reorder")}
+                id={row.prod_uuid}
+                selected={selected}
+                onUnavailable={workflow.notifySortUnavailable}
               >
+              {(dragHandle) => (
+              <>
                 <TableCell className="w-10 px-2">
                   <Checkbox
                     aria-label={workflow.t("common.selectRow", { name: productName(row, workflow.language) })}
                     checked={selected}
                     onChange={(event) => workflow.toggleSelected(row.prod_uuid, event.target.checked)}
                   />
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center justify-center gap-1 whitespace-nowrap">
+                    <Badge variant="outline" className="h-7 min-w-8 justify-center px-2 font-mono text-xs tabular-nums">
+                      {index + 1}
+                    </Badge>
+                    {dragHandle}
+                  </div>
                 </TableCell>
                 <TableCell>
                   <p className="max-w-40 truncate font-semibold">{categoryName(row, workflow.language)}</p>
@@ -312,21 +459,21 @@ export function ProductListTable({ workflow }: { workflow: ProductListWorkflow }
                 <TableCell className="text-right">
                   <ProductListActions row={row} workflow={workflow} />
                 </TableCell>
-              </TableRow>
+              </>
+              )}
+              </SortableRow>
             ];
 
-            if (hasDetails) {
-              rowsToRender.push(
-                <AnimatePresence key={`${row.prod_uuid}-details-presence`} initial={false}>
-                  {expanded ? <ProductDetailRows row={row} workflow={workflow} /> : null}
-                </AnimatePresence>
-              );
+            if (expanded) {
+              rowsToRender.push(<ProductDetailRows key={`${row.prod_uuid}-details`} row={row} workflow={workflow} />);
             }
 
             return rowsToRender;
           })}
+          </SortableContext>
         </TableBody>
       </Table>
+      </DndContext>
     </div>
   );
 }

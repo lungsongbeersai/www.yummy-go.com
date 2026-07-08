@@ -108,7 +108,7 @@ export function CartGroup({
               <div className="min-w-0 flex-1">
                 <div className="flex min-w-0 items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="line-clamp-2 text-sm font-semibold leading-4">
+                    <p className="lao-tone-text line-clamp-2 text-sm font-semibold">
                       {cartItemTitle(item)}
                     </p>
                     {item.detail?.size_name ? (

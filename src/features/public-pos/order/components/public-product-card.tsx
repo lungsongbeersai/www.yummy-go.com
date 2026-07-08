@@ -116,7 +116,7 @@ export const ProductCard = memo(function ProductCard({
               <div className="min-w-0">
                 <p
                   className={cn(
-                    "line-clamp-2 text-sm font-black leading-5 text-foreground",
+                    "lao-tone-text line-clamp-2 text-sm font-black text-foreground",
                     isBlocked ? "text-muted-foreground" : "",
                   )}
                 >
@@ -204,7 +204,7 @@ export const ProductCard = memo(function ProductCard({
           )}
         >
           <div className="min-w-0 flex-1">
-            <p className="line-clamp-2 min-h-8 text-[13px] font-black leading-4">
+            <p className="lao-tone-text line-clamp-2 min-h-10 text-[13px] font-black">
               {product.prod_name}
             </p>
             {price ? (

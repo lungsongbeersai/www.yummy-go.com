@@ -1,4 +1,5 @@
 import { apiRequest } from "@/lib/api";
+import { normalizeFetchCateProductsResponse } from "@/services/pos/normalizers";
 import { langParam } from "@/services/shared/request-helpers";
 import { requiredItems, requiredText } from "@/services/shared/validators";
 import type {
@@ -54,9 +55,10 @@ export async function getPosTables(params: FetchPosParams) {
 
 export async function fetchCateProducts(params: FetchCateProductsParams) {
   requiredText(params.branch_uuid_fk, "branch_uuid_fk");
-  return apiRequest<FetchCateProductsResponse>("get", "/api/v1/pos/fetch_cate_products", {
+  const response = await apiRequest<FetchCateProductsResponse>("get", "/api/v1/pos/fetch_cate_products", {
     params: { ...params, lang: langParam(params.lang), search: params.search ?? "" }
   });
+  return normalizeFetchCateProductsResponse(response);
 }
 
 export async function getProdItem(params: GetProdItemParams) {

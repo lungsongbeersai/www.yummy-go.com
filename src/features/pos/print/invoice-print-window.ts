@@ -1,4 +1,5 @@
 import { money } from "@/lib/format";
+import { openWindowOutsideNativeApp } from "@/lib/capacitor-platform";
 
 export type InvoicePrintItem = {
   displayTotal: number;
@@ -69,7 +70,7 @@ export async function openLocalInvoiceBatchPrintWindow(
 ) {
   if (!dataList.length) return false;
 
-  const printWindow = window.open(
+  const printWindow = openWindowOutsideNativeApp(
     "",
     "_blank",
     fullscreenPrintWindowFeatures()

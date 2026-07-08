@@ -6,6 +6,7 @@ import {
   publishCustomerDisplayPayload,
   type CustomerDisplayPayload,
 } from "@/features/customer-display/shared/customer-display-sync";
+import { openWindowOutsideNativeApp } from "@/lib/capacitor-platform";
 import { useToastStore } from "@/stores/toast-store";
 import type { CustomerDisplayPickerMode } from "../customer-display-picker-dialog";
 import {
@@ -147,7 +148,7 @@ export function useCustomerDisplayWorkflow(
     payload: CustomerDisplayPayload,
     targetScreen?: BrowserCustomerDisplayScreen | null,
   ) {
-    const openedWindow = window.open(
+    const openedWindow = openWindowOutsideNativeApp(
       "/customer-display",
       "yummy-go-customer-display",
       browserCustomerDisplayWindowFeatures(targetScreen),

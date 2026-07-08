@@ -5,6 +5,7 @@ import { CalendarDays, CreditCard } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { BlockingLoadingDialog } from "@/components/common/blocking-loading-dialog";
 import { Badge } from "@/components/ui/badge";
+import { useIsCapacitorNativeApp } from "@/hooks/use-capacitor-native-app";
 import type { UrlPaginationState } from "@/lib/url-pagination";
 import {
   PaymentMethodsExportSurface,
@@ -23,6 +24,7 @@ export function PaymentMethodsReportPage({ initialPagination }: { initialPaginat
   const { t } = useTranslation();
   const exportReportRef = useRef<HTMLDivElement>(null);
   const [summaryVisible, setSummaryVisible] = useState(false);
+  const nativeApp = useIsCapacitorNativeApp();
   const report = usePaymentMethodsReportWorkflow(exportReportRef, initialPagination);
   const layoutStyle = {
     "--payment-method-filter-height": "0px"
@@ -111,6 +113,7 @@ export function PaymentMethodsReportPage({ initialPagination }: { initialPaginat
               />
             }
             loading={report.loading}
+            printDisabled={report.exportDisabled || nativeApp}
             rowsLength={report.rows.length}
             selectedCount={report.rowSelection.selectedCount}
             title={report.reportTitle}

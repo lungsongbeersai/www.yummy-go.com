@@ -78,7 +78,7 @@ export function ProductOrderSheetContent({
         <SheetHeader className="shrink-0 border-b border-emerald-100 bg-white/95 p-3 text-left dark:border-border dark:bg-background/95">
           <div className="flex items-start justify-between gap-3 pr-8">
             <div className="min-w-0">
-              <SheetTitle className="line-clamp-2 text-base font-black leading-5">
+              <SheetTitle className="lao-tone-text line-clamp-2 text-base font-black">
                 {loading && !product ? (
                   <Skeleton className="h-5 w-36" />
                 ) : (

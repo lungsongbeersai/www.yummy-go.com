@@ -448,6 +448,7 @@ type TableCardProps = {
   exporting: PaymentMethodsExportAction | null;
   footer: ReactNode;
   loading: boolean;
+  printDisabled: boolean;
   rowsLength: number;
   selectedCount: number;
   title: string;
@@ -465,6 +466,7 @@ export function PaymentMethodsTableCard({
   exporting,
   footer,
   loading,
+  printDisabled,
   rowsLength,
   selectedCount,
   title,
@@ -573,7 +575,7 @@ export function PaymentMethodsTableCard({
               size="sm"
               aria-label={t("report.print")}
               className="h-9 min-w-9 rounded-md px-2.5"
-              disabled={exportDisabled}
+              disabled={printDisabled}
               onClick={onPrintReport}
             >
               {exporting === "print" ? (

@@ -1,11 +1,17 @@
 "use client";
 
+import { useState, type ReactNode } from "react";
+import { DndContext, MeasuringStrategy, closestCenter, type DragEndEvent } from "@dnd-kit/core";
+import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
+import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { AnimatePresence, motion } from "motion/react";
-import { Boxes, ChevronRight } from "lucide-react";
+import { Boxes, ChevronRight, GripVertical } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
+import { useReorderSensors } from "@/hooks/use-reorder-sensors";
 import { money } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
@@ -34,15 +40,92 @@ import {
 import type { ProductTableRow } from "./product-list-types";
 import type { ProductListWorkflow } from "./use-product-list-workflow";
 
+function SortableMobileItem({
+  children,
+  dragEnabled,
+  handleHint,
+  handleLabel,
+  id,
+  onUnavailable
+}: {
+  children: (dragHandle: ReactNode) => ReactNode;
+  dragEnabled: boolean;
+  handleHint?: string;
+  handleLabel: string;
+  id: string;
+  onUnavailable?: () => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id,
+    disabled: !dragEnabled
+  });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.85 : 1
+  };
+  const dragHandle = dragEnabled ? (
+    <Button
+      aria-label={handleLabel}
+      title={handleLabel}
+      size="iconSm"
+      type="button"
+      variant="outline"
+      className="cursor-grab touch-none active:cursor-grabbing"
+      {...attributes}
+      {...listeners}
+    >
+      <GripVertical aria-hidden />
+    </Button>
+  ) : onUnavailable ? (
+    <Button
+      aria-disabled
+      aria-label={handleHint ?? handleLabel}
+      title={handleHint ?? handleLabel}
+      size="iconSm"
+      type="button"
+      variant="outline"
+      className="opacity-50"
+      onClick={onUnavailable}
+    >
+      <GripVertical aria-hidden />
+    </Button>
+  ) : (
+    <span title={handleHint ?? handleLabel}>
+      <Button aria-label={handleHint ?? handleLabel} size="iconSm" type="button" variant="outline" disabled>
+        <GripVertical aria-hidden />
+      </Button>
+    </span>
+  );
+
+  return (
+    <div ref={setNodeRef} style={style} className={cn(isDragging && "relative z-10")}>
+      {children(dragHandle)}
+    </div>
+  );
+}
+
 function ProductMobileCard({
+  dragHandle,
+  dragging,
   row,
   workflow
 }: {
+  dragHandle: ReactNode;
+  dragging: boolean;
   row: ProductTableRow;
   workflow: ProductListWorkflow;
 }) {
+  const detailSensors = useReorderSensors();
   const details = productDetails(row);
-  const expanded = details.length > 0 && !workflow.collapsedProducts.has(row.prod_uuid);
+  const detailIds = details.map((detail, index) => productDetailUuid(detail) || String(index));
+  const expanded = details.length > 0 && !workflow.collapsedProducts.has(row.prod_uuid) && !dragging;
+
+  function handleDetailDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    void workflow.reorderProductDetail(row, String(active.id), String(over.id));
+  }
   const isPromotion = String(workflow.statusSortFk) === "3";
   const isFoodSet = String(workflow.statusSortFk) === "2";
   const orderPoint = productOrderPoint(row);
@@ -75,6 +158,7 @@ function ProductMobileCard({
             </div>
             <div className="flex shrink-0 items-center gap-1">
               <Badge>{row.row_number}</Badge>
+              {dragHandle}
               <ProductListActions row={row} workflow={workflow} />
             </div>
           </div>
@@ -142,9 +226,23 @@ function ProductMobileCard({
               transition={workflow.detailMotion.transition}
               className="origin-top transform-gpu will-change-transform"
             >
+              <DndContext
+                collisionDetection={closestCenter}
+                modifiers={[restrictToVerticalAxis]}
+                sensors={detailSensors}
+                onDragEnd={handleDetailDragEnd}
+              >
+              <SortableContext items={detailIds} strategy={verticalListSortingStrategy}>
               <div className="flex flex-col gap-2">
                 {details.map((detail, index) => (
-                  <div key={productDetailUuid(detail) || String(index)} className="rounded-md border border-border bg-background p-2.5">
+                  <SortableMobileItem
+                    key={detailIds[index]}
+                    dragEnabled={workflow.canSortProductDetails && details.length > 1}
+                    handleLabel={workflow.t("common.reorder")}
+                    id={detailIds[index]}
+                  >
+                  {(detailDragHandle) => (
+                  <div className="rounded-md border border-border bg-background p-2.5">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="truncate text-sm font-bold">{detailLabel(detail, index, workflow.language)}</p>
@@ -153,6 +251,7 @@ function ProductMobileCard({
                         </p>
                       </div>
                       <div className="flex shrink-0 items-center gap-2">
+                        {detailDragHandle}
                         <ProductEnabledSwitch detail={detail} workflow={workflow} />
                         <Badge className={binaryFlag(detail.pro_detail_enabled, "1") === "1" ? "bg-primary/10 text-primary" : "bg-secondary text-secondary-foreground"}>
                           {binaryFlag(detail.pro_detail_enabled, "1") === "1"
@@ -191,8 +290,12 @@ function ProductMobileCard({
                       </div>
                     ) : null}
                   </div>
+                  )}
+                  </SortableMobileItem>
                 ))}
               </div>
+              </SortableContext>
+              </DndContext>
             </motion.div>
           ) : null}
         </AnimatePresence>
@@ -202,13 +305,49 @@ function ProductMobileCard({
 }
 
 export function ProductListMobile({ workflow }: { workflow: ProductListWorkflow }) {
+  const [dragging, setDragging] = useState(false);
+  const sensors = useReorderSensors();
+
+  function handleDragEnd(event: DragEndEvent) {
+    setDragging(false);
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    void workflow.reorderProduct(String(active.id), String(over.id));
+  }
+
   return (
     <div className="min-h-0 flex-1 overflow-y-auto p-3 md:hidden">
-      <div className="flex flex-col gap-2">
-        {workflow.filteredRows.map((row) => (
-          <ProductMobileCard key={row.prod_uuid} row={row} workflow={workflow} />
-        ))}
-      </div>
+      <DndContext
+        collisionDetection={closestCenter}
+        measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
+        modifiers={[restrictToVerticalAxis]}
+        sensors={sensors}
+        onDragCancel={() => setDragging(false)}
+        onDragEnd={handleDragEnd}
+        onDragStart={() => setDragging(true)}
+      >
+        <SortableContext
+          items={workflow.filteredRows.map((row) => row.prod_uuid)}
+          strategy={verticalListSortingStrategy}
+        >
+          <div className="flex flex-col gap-2">
+            {workflow.filteredRows.map((row) => (
+              <SortableMobileItem
+                key={row.prod_uuid}
+                dragEnabled={workflow.canSortProducts}
+                handleHint={workflow.t("product.sortHint")}
+                handleLabel={workflow.t("common.reorder")}
+                id={row.prod_uuid}
+                onUnavailable={workflow.notifySortUnavailable}
+              >
+                {(dragHandle) => (
+                  <ProductMobileCard dragHandle={dragHandle} dragging={dragging} row={row} workflow={workflow} />
+                )}
+              </SortableMobileItem>
+            ))}
+          </div>
+        </SortableContext>
+      </DndContext>
     </div>
   );
 }

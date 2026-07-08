@@ -12,6 +12,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { canProgrammaticallyFocusTextInput } from "@/lib/input-focus";
 
 export function PublicSearchSheet({
   open,
@@ -39,6 +40,7 @@ export function PublicSearchSheet({
 
   useEffect(() => {
     if (!open) return;
+    if (!canProgrammaticallyFocusTextInput()) return;
 
     const timeoutId = window.setTimeout(() => {
       inputRef.current?.focus();

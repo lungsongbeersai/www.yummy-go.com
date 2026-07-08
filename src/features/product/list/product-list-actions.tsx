@@ -1,6 +1,6 @@
 "use client";
 
-import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { ListOrdered, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -54,6 +54,10 @@ export function ProductListActions({
           <DropdownMenuItem onSelect={() => workflow.editProduct(row)}>
             <Pencil />
             {workflow.t("actions.edit")}
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => workflow.setOrderEditTarget(row)}>
+            <ListOrdered />
+            {workflow.t("product.editOrder")}
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />

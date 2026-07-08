@@ -108,6 +108,7 @@ export interface GetProdItemParams {
 }
 export interface PosProduct extends ApiEntity {
   prod_uuid: string;
+  prod_sort?: number | string;
   prod_name: string;
   prod_image: string;
   prod_status_imge: ProductImageStatus;

@@ -7,6 +7,7 @@ import {
   openLocalInvoicePrintWindow,
   type InvoicePrintData
 } from "@/features/pos/print/invoice-print-window";
+import { useIsCapacitorNativeApp } from "@/hooks/use-capacitor-native-app";
 import { useUrlPagination } from "@/hooks/use-url-pagination";
 import type { UrlPaginationState } from "@/lib/url-pagination";
 import type { CancelableBill, CancelableDateOption } from "@/services/cancel";
@@ -50,6 +51,7 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
   const resetBills = useCancelStore((state) => state.reset);
   const showToast = useToastStore((state) => state.show);
   const branchUuid = user?.branch_uuid ?? "";
+  const nativeApp = useIsCapacitorNativeApp();
 
   const [dateSelect, setDateSelect] = useState(INITIAL_DATE_SELECT);
   const [orderBy, setOrderBy] = useState<SortOrder>("DESC");
@@ -72,7 +74,7 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
   const detailOrderUuid = billUuid(detailSource);
   const detailCanCancel = billCanCancel(selectedBill, selectedListBill);
   const cancelOrderUuid = detailOrderUuid;
-  const canReprintReceipt = Boolean(detailOrderUuid && user?.uuid && !receiptPrintingOrderUuid);
+  const canReprintReceipt = Boolean(detailOrderUuid && user?.uuid && !receiptPrintingOrderUuid && !nativeApp);
   const reprintingReceipt = Boolean(detailOrderUuid && receiptPrintingOrderUuid === detailOrderUuid);
   const rowsRange = pageBounds(page, limit, bills.length, total);
   const safeTotalPages = Math.max(1, totalPages);

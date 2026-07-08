@@ -15,6 +15,7 @@ export interface ProductDetail extends ApiEntity {
   detail_uuid?: string;
   pro_detail_id?: string;
   pro_detail_uuid?: string;
+  pro_detail_sort?: number | string;
   prod_detail_uuid?: string;
   product_detail_uuid?: string;
   prod_uuid_fk?: string;
@@ -43,6 +44,7 @@ export interface ProductDetailFormInput extends ApiEntity {}
 
 export interface Product extends ApiEntity {
   prod_uuid: string;
+  prod_sort?: number | string;
   prod_name?: string;
   prod_name_la?: string;
   prod_name_eng?: string;
@@ -127,6 +129,26 @@ export interface ProductStockModePatch {
 export interface ProductNotificationPatch {
   prod_uuid: string;
   prod_notification: number;
+}
+
+export interface SortProductsByCategoryItem {
+  prod_uuid: string;
+  prod_sort: number;
+}
+
+export interface SortProductsByCategoryInput {
+  cate_uuid_fk: string;
+  items: SortProductsByCategoryItem[];
+}
+
+export interface SortProductDetailsByProductItem {
+  pro_detail_uuid: string;
+  pro_detail_sort: number;
+}
+
+export interface SortProductDetailsByProductInput {
+  prod_uuid_fk: string;
+  items: SortProductDetailsByProductItem[];
 }
 
 export interface ProductStatusFieldsPatch {

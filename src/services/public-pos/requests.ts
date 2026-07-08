@@ -1,4 +1,5 @@
 import { publicApiClient, publicApiRequest, ServiceError } from "@/lib/api";
+import { normalizeFetchCateProductsResponse } from "@/services/pos/normalizers";
 import { langParam } from "@/services/shared/request-helpers";
 import { requiredItems, requiredToken } from "@/services/shared/validators";
 import type { EmitTableStatusResponse, ProdItem } from "@/services/pos";
@@ -44,7 +45,7 @@ export function fetchCustomerCart(params: CustomerFetchCartParams) {
   });
 }
 
-export function customerFetchCateProducts(params: CustomerFetchCateProductsParams) {
+export async function customerFetchCateProducts(params: CustomerFetchCateProductsParams) {
   const requestParams: Record<string, string | number | undefined> = {
     t: requiredToken(params.t),
     lang: langParam(params.lang),
@@ -55,9 +56,10 @@ export function customerFetchCateProducts(params: CustomerFetchCateProductsParam
     requestParams.cate_uuid = params.cate_uuid;
   }
 
-  return publicApiRequest<FetchCateProductsResponse>("get", "/api/v1/pos/customer/fetch_cate_products", {
+  const response = await publicApiRequest<FetchCateProductsResponse>("get", "/api/v1/pos/customer/fetch_cate_products", {
     params: requestParams
   });
+  return normalizeFetchCateProductsResponse(response);
 }
 
 export async function customerGetProdItem(params: CustomerGetProdItemParams) {

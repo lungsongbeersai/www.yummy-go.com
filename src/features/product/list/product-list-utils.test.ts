@@ -89,6 +89,22 @@ describe("product list utils", () => {
     expect(productDetails(product({ details: [detail(), validById, invalid] }))).toHaveLength(2);
   });
 
+  it("sorts product details by pro_detail_sort", () => {
+    const details = [
+      detail({ pro_detail_uuid: "detail-3", pro_detail_sort: 3 }),
+      detail({ pro_detail_uuid: "detail-unsorted" }),
+      detail({ pro_detail_uuid: "detail-1", pro_detail_sort: 1 }),
+      detail({ pro_detail_uuid: "detail-2", pro_detail_sort: "2" })
+    ];
+
+    expect(productDetails(product({ details })).map((row) => row.pro_detail_uuid)).toEqual([
+      "detail-1",
+      "detail-2",
+      "detail-3",
+      "detail-unsorted"
+    ]);
+  });
+
   it("builds detail labels from language-specific size names", () => {
     expect(detailLabel(detail(), 0, "lo")).toBe("ນ້ອຍ");
     expect(detailLabel(detail(), 0, "en")).toBe("Small");

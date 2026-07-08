@@ -9,7 +9,12 @@ import {
   type KeyboardEvent,
 } from "react";
 import { useTranslation } from "react-i18next";
+import { canUseWindowOpen } from "@/lib/capacitor-platform";
 import { money } from "@/lib/format";
+import {
+  canMoveCaretWithoutOpeningKeyboard,
+  canProgrammaticallyFocusTextInput,
+} from "@/lib/input-focus";
 import { toApiLanguage, toLanguage } from "@/lib/language";
 import { getBranchQrUrl } from "@/lib/image";
 import { OrderChannelEnum, type OrderChannel } from "@/config/pos-constants";
@@ -249,7 +254,9 @@ export function usePaymentDialogWorkflow({
     window.requestAnimationFrame(() => {
       const input = activeAmountInputRef.current;
       if (!input) return;
-      input.focus();
+      const inputAlreadyFocused = canMoveCaretWithoutOpeningKeyboard(input);
+      if (!inputAlreadyFocused && !canProgrammaticallyFocusTextInput()) return;
+      if (!inputAlreadyFocused) input.focus();
       if (typeof caret === "number") input.setSelectionRange(caret, caret);
     });
   }
@@ -614,6 +621,15 @@ export function usePaymentDialogWorkflow({
     data: InvoicePrintData,
     description: string,
   ) {
+    if (!canUseWindowOpen()) {
+      showToast({
+        title: t("pos.invoicePrintFailed"),
+        description: t("pos.invoicePrintPopupBlocked"),
+        tone: "error",
+      });
+      return;
+    }
+
     const opened = await openLocalInvoicePrintWindow(data);
     if (opened) {
       showToast({

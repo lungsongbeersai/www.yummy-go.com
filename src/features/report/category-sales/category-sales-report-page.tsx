@@ -5,6 +5,7 @@ import { CalendarDays, FolderTree } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { BlockingLoadingDialog } from "@/components/common/blocking-loading-dialog";
 import { Badge } from "@/components/ui/badge";
+import { useIsCapacitorNativeApp } from "@/hooks/use-capacitor-native-app";
 import type { UrlPaginationState } from "@/lib/url-pagination";
 import { ReportError, ReportPagination, ReportSummaryToggle } from "../daily-sales/daily-sales-report-components";
 import {
@@ -23,6 +24,7 @@ export function CategorySalesReportPage({ initialPagination }: { initialPaginati
   const { t } = useTranslation();
   const exportReportRef = useRef<HTMLDivElement>(null);
   const [summaryVisible, setSummaryVisible] = useState(false);
+  const nativeApp = useIsCapacitorNativeApp();
   const report = useCategorySalesReportWorkflow(exportReportRef, initialPagination);
   const layoutStyle = {
     "--category-sales-filter-height": "0px"
@@ -98,6 +100,7 @@ export function CategorySalesReportPage({ initialPagination }: { initialPaginati
           }
           loading={report.loading}
           methodLabel={report.activePaymentMethodLabel}
+          printDisabled={report.exportDisabled || nativeApp}
           rowsLength={report.rows.length}
           selectedCount={report.rowSelection.selectedCount}
           title={report.reportTitle}

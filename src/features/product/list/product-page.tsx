@@ -29,6 +29,7 @@ import { cn } from "@/lib/utils";
 import { categoryOptionName, categoryUuid } from "./product-list-utils";
 import { ProductImportDialog } from "./product-import-dialog";
 import { ProductListMobile } from "./product-list-mobile";
+import { ProductOrderDialog } from "./product-order-dialog";
 import { ProductListTable } from "./product-list-table";
 import { ALL_CATEGORIES_VALUE, useProductListWorkflow } from "./use-product-list-workflow";
 import { ProductBulkEditDialog } from "./product-bulk-edit-dialog";
@@ -240,6 +241,7 @@ export function ProductPage({ initialPagination }: { initialPagination: UrlPagin
       />
       <ProductImportDialog workflow={product} />
       <ProductBulkEditDialog workflow={product} />
+      <ProductOrderDialog workflow={product} />
     </div>
   );
 }

@@ -818,6 +818,12 @@ body {
     sans-serif;
 }
 
+.lao-tone-text {
+  /* Lao combining tone marks need extra line-box room when text is clamped. */
+  line-height: 1.55;
+  font-feature-settings: "mark" 1, "mkmk" 1;
+}
+
 html.theme-transition-active::view-transition-group(root) {
   animation: none;
 }
