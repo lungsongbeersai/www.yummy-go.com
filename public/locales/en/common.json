@@ -1026,6 +1026,8 @@
     "driverDownloadStarted": "XPrinter driver download started",
     "downloadLaoFont": "Download Lao Script 8",
     "laoFontDownloadStarted": "Lao Script 8 download started",
+    "downloadPrinterSetup": "Download Xprinter Test V3.6C.",
+    "printerSetupDownloadStarted": "Setup file download opened",
     "laoFontNoticeTitle": "Lao text printing issue?",
     "laoFontNoticeDescription": "If Lao text prints incorrectly or becomes garbled, download and install Lao Script 8.",
     "loadingAgentFiles": "Loading agent installers",

@@ -322,16 +322,18 @@ export function exportGroupRows(groups: BestSellingProductGroup[], t: (key: stri
   }));
 }
 
-export function exportProductRows(rows: BestSellingProductItem[], t: (key: string) => string) {
+export function exportProductRows(groups: BestSellingProductGroup[], t: (key: string) => string) {
   const metrics = bestSellingProductMetricConfigs(t);
-  return rows.map((row) => ({
-    [t("report.bestSelling.columns.rank")]: row.rank,
-    [t("report.bestSelling.columns.product")]: row.productName,
-    [t("report.bestSelling.columns.productCode")]: row.productCode,
-    [t("report.bestSelling.columns.category")]: row.categoryName,
-    [t("report.bestSelling.columns.group")]: row.groupName,
-    ...Object.fromEntries(metrics.map((metric) => [metric.label, Number(row[metric.field] ?? 0)]))
-  }));
+  return groups.flatMap((group) =>
+    group.items.map((row, index) => ({
+      [t("report.bestSelling.columns.rank")]: index + 1,
+      [t("report.bestSelling.columns.product")]: row.productName,
+      [t("report.bestSelling.columns.productCode")]: row.productCode,
+      [t("report.bestSelling.columns.category")]: row.categoryName,
+      [t("report.bestSelling.columns.group")]: row.groupName,
+      ...Object.fromEntries(metrics.map((metric) => [metric.label, Number(row[metric.field] ?? 0)]))
+    }))
+  );
 }
 
 export function bestSellingProductRowId(row: BestSellingProductItem) {

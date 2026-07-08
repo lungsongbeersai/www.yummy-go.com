@@ -811,14 +811,14 @@ export function BestSellingProductsTable({
             >
               {t("report.bestSelling.columns.category")}
             </SortableReportTableHead>
-            <SortableReportTableHead
+            {/* <SortableReportTableHead
               sort={sort}
               sortKey="groupName"
               className="min-w-36"
               onSort={toggleSort}
             >
               {t("report.bestSelling.columns.group")}
-            </SortableReportTableHead>
+            </SortableReportTableHead> */}
             {productMetrics.map((metric) => (
               <SortableReportTableHead
                 key={metric.key}
@@ -863,7 +863,7 @@ export function BestSellingProductsTable({
                     }
                   />
                 </TableCell>
-                <TableCell colSpan={5} className="px-2 py-2">
+                <TableCell colSpan={4} className="px-2 py-2">
                   <div className="min-w-0">
                     <p className="truncate font-black text-foreground">
                       {group.name}
@@ -906,6 +906,7 @@ export function BestSellingProductsTable({
                   key={item.id}
                   item={item}
                   index={index}
+                  rank={index + 1}
                   selected={selectedRowIds.has(bestSellingProductRowId(item))}
                   onToggleRow={onToggleRow}
                 />
@@ -929,11 +930,13 @@ export function BestSellingProductsTable({
 function BestSellingProductRow({
   item,
   index,
+  rank,
   selected,
   onToggleRow,
 }: {
   item: BestSellingProductItem;
   index: number;
+  rank: number;
   selected: boolean;
   onToggleRow: (row: BestSellingProductItem, selected: boolean) => void;
 }) {
@@ -957,7 +960,7 @@ function BestSellingProductRow({
       </TableCell>
       <TableCell className="whitespace-nowrap px-2 py-2 text-center">
         <Badge className="h-6 min-w-9 justify-center px-2 text-xs tabular-nums">
-          #{item.rank}
+          #{rank}
         </Badge>
       </TableCell>
       <TableCell className="max-w-80 whitespace-normal px-2 py-2">
@@ -971,9 +974,9 @@ function BestSellingProductRow({
       <TableCell className="whitespace-nowrap px-2 py-2 text-muted-foreground">
         {item.categoryName}
       </TableCell>
-      <TableCell className="whitespace-nowrap px-2 py-2 text-muted-foreground">
+      {/* <TableCell className="whitespace-nowrap px-2 py-2 text-muted-foreground">
         {item.groupName}
-      </TableCell>
+      </TableCell> */}
       {metrics.map((metric) => (
         <TableCell
           key={metric.key}
@@ -1004,7 +1007,7 @@ function BestSellingSummaryFooterRow({
 
   return (
     <TableRow className="border-t border-primary/25 bg-primary/5 hover:bg-primary/10">
-      <TableCell className={summaryFooterCellClass("left")} colSpan={6}>
+      <TableCell className={summaryFooterCellClass("left")} colSpan={5}>
         <div className="flex min-w-64 items-center gap-2">
           <span className="inline-flex h-6 items-center rounded-full bg-background/80 px-2 text-xs font-black uppercase text-primary ring-1 ring-primary/20">
             {summaryLabel}
@@ -1153,7 +1156,7 @@ export function BestSellingProductsMobileList({
             </div>
           </div>
           <div className="flex flex-col">
-            {group.items.map((item) => (
+            {group.items.map((item, index) => (
               <div
                 key={item.id}
                 className={cn(
@@ -1168,7 +1171,7 @@ export function BestSellingProductsMobileList({
                   onChange={(event) => onToggleRow(item, event.target.checked)}
                 />
                 <Badge className="h-7 min-w-10 justify-center px-2 text-xs tabular-nums">
-                  #{item.rank}
+                  #{index + 1}
                 </Badge>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold leading-snug text-foreground">
@@ -1223,7 +1226,6 @@ export function BestSellingExportSurface({
   containerRef,
   dateRange,
   groups,
-  rows,
   rowsLabel,
   sortByLabel,
   summary,
@@ -1233,7 +1235,6 @@ export function BestSellingExportSurface({
   containerRef: RefObject<HTMLDivElement | null>;
   dateRange: string;
   groups: BestSellingProductGroup[];
-  rows: BestSellingProductItem[];
   rowsLabel: string;
   sortByLabel: string;
   summary: Record<string, unknown>;
@@ -1314,20 +1315,22 @@ export function BestSellingExportSurface({
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => (
-            <tr key={row.id}>
-              <td className="is-center">{row.rank}</td>
-              <td>{row.productName}</td>
-              <td>{row.productCode}</td>
-              <td>{row.categoryName}</td>
-              <td>{row.groupName}</td>
-              {productMetrics.map((metric) => (
-                <td key={metric.key} className="is-right">
-                  {displayMetric(row[metric.field], metric.kind)}
-                </td>
-              ))}
-            </tr>
-          ))}
+          {groups.flatMap((group) =>
+            group.items.map((row, index) => (
+              <tr key={row.id}>
+                <td className="is-center">{index + 1}</td>
+                <td>{row.productName}</td>
+                <td>{row.productCode}</td>
+                <td>{row.categoryName}</td>
+                <td>{row.groupName}</td>
+                {productMetrics.map((metric) => (
+                  <td key={metric.key} className="is-right">
+                    {displayMetric(row[metric.field], metric.kind)}
+                  </td>
+                ))}
+              </tr>
+            ))
+          )}
         </tbody>
       </table>
     </div>

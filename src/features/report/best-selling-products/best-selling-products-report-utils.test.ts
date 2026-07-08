@@ -114,7 +114,7 @@ describe("best selling products report sort helpers", () => {
       productCode: "PRD-MPOUE39V",
       productName: "Product 5 - Medium",
       qty: 6,
-      rank: 1,
+      rank: 42,
       salePrice: 6666,
       subtotal: 39996,
       vat: 4279.63
@@ -159,13 +159,14 @@ describe("best selling products report sort helpers", () => {
       "report.bestSelling.columns.subtotal": 737996,
       "report.bestSelling.columns.vat": 78966
     });
-    expect(exportProductRows([item], t)[0]).toMatchObject({
+    expect(exportProductRows([group], t)[0]).toMatchObject({
       "report.bestSelling.columns.billDiscountShare": 0,
       "report.bestSelling.columns.category": "Beer",
       "report.bestSelling.columns.charge": 2799.76,
       "report.bestSelling.columns.finalTotal": 47075.39,
       "report.bestSelling.columns.itemDiscount": 0,
       "report.bestSelling.columns.productCode": "PRD-MPOUE39V",
+      "report.bestSelling.columns.rank": 1,
       "report.bestSelling.columns.salePrice": 6666,
       "report.bestSelling.columns.subtotal": 39996,
       "report.bestSelling.columns.vat": 4279.63
