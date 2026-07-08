@@ -44,6 +44,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { openLocalInvoicePrintWindow, type InvoicePrintData } from "@/features/pos/print/invoice-print-window";
 import { buildSalesListInvoicePrintData } from "@/features/sales/list/sales-list-utils";
+import { useIsCapacitorNativeApp } from "@/hooks/use-capacitor-native-app";
 import { useUrlPagination } from "@/hooks/use-url-pagination";
 import { money } from "@/lib/format";
 import type { UrlPaginationState } from "@/lib/url-pagination";
@@ -109,6 +110,7 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
   const loadSalesItems = useDailySaleItemsStore((state) => state.load);
   const resetSalesItems = useDailySaleItemsStore((state) => state.reset);
   const showToast = useToastStore((state) => state.show);
+  const nativeApp = useIsCapacitorNativeApp();
   const storeUuid = authStoreUuid(user);
   const userBranchUuid = user?.branch_uuid ?? "";
   const [draftFilters, setDraftFilters] = useState<SalesListFilters>(() => defaultSalesListFilters(userBranchUuid, initialPagination.limit));
@@ -276,7 +278,7 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
 
   async function reprintReceipt(group: DailySaleItemsBillGroup) {
     const orderUuid = textValue(readValue(group.raw, ["order_uuid"]), "");
-    if (!orderUuid || !user?.uuid || printingBillId) return;
+    if (!orderUuid || !user?.uuid || printingBillId || nativeApp) return;
 
     const currentBranch = branches.find((branch) => branch.branch_uuid === branchUuid);
     const baseReceiptSource = saleListPrintBillSource(group);
@@ -406,6 +408,7 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
             <SalesBillDetailPanel
               bill={selectedBill}
               className="hidden xl:flex"
+              canReprintReceipt={!nativeApp}
               loading={loading}
               printingBillId={printingBillId}
               onReprint={(group) => void reprintReceipt(group)}
@@ -415,6 +418,7 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
       </div>
       <SalesBillDetailDrawer
         bill={selectedBill}
+        canReprintReceipt={!nativeApp}
         loading={loading}
         open={mobileDetailOpen}
         printingBillId={printingBillId}
@@ -1033,6 +1037,7 @@ function BillListItem({
 
 function SalesBillDetailPanel({
   bill,
+  canReprintReceipt,
   className,
   loading,
   onReprint,
@@ -1040,6 +1045,7 @@ function SalesBillDetailPanel({
   variant = "panel"
 }: {
   bill: DailySaleItemsBillGroup | null;
+  canReprintReceipt: boolean;
   className?: string;
   loading: boolean;
   onReprint: (group: DailySaleItemsBillGroup) => void;
@@ -1066,7 +1072,7 @@ function SalesBillDetailPanel({
               type="button"
               variant="outline"
               className="h-9 w-full shrink-0 md:w-auto"
-              disabled={!textValue(readValue(bill.raw, ["order_uuid"]), "") || Boolean(printingBillId) || loading}
+              disabled={!canReprintReceipt || !textValue(readValue(bill.raw, ["order_uuid"]), "") || Boolean(printingBillId) || loading}
               onClick={() => onReprint(bill)}
             >
               {printingBillId === bill.id ? <RefreshCcw className="animate-spin" data-icon="inline-start" /> : <Printer data-icon="inline-start" />}
@@ -1087,6 +1093,7 @@ function SalesBillDetailPanel({
 
 function SalesBillDetailDrawer({
   bill,
+  canReprintReceipt,
   loading,
   onOpenChange,
   onReprint,
@@ -1094,6 +1101,7 @@ function SalesBillDetailDrawer({
   printingBillId
 }: {
   bill: DailySaleItemsBillGroup | null;
+  canReprintReceipt: boolean;
   loading: boolean;
   onOpenChange: (open: boolean) => void;
   onReprint: (group: DailySaleItemsBillGroup) => void;
@@ -1112,6 +1120,7 @@ function SalesBillDetailDrawer({
         <div className="min-h-0 flex-1 overflow-hidden">
           <SalesBillDetailPanel
             bill={bill}
+            canReprintReceipt={canReprintReceipt}
             className="flex h-full flex-col rounded-none border-0 shadow-none"
             loading={loading}
             printingBillId={printingBillId}

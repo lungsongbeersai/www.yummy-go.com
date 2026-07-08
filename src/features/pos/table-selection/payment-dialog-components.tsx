@@ -6,11 +6,13 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export function PaymentStat({
+  className,
   hero,
   label,
   strong,
   value,
 }: {
+  className?: string;
   hero?: boolean;
   label: string;
   strong?: boolean;
@@ -22,6 +24,7 @@ export function PaymentStat({
         "rounded-lg border border-border bg-card p-1.5 sm:p-3",
         strong && "border-primary/40",
         hero && "border-primary bg-primary text-primary-foreground",
+        className,
       )}
     >
       <p
@@ -36,8 +39,8 @@ export function PaymentStat({
         className={cn(
           "mt-0.5 truncate font-black tabular-nums sm:mt-1",
           hero
-            ? "text-lg sm:text-2xl lg:text-4xl"
-            : "text-sm min-[430px]:text-base sm:text-lg lg:text-xl",
+            ? "text-base min-[380px]:text-lg sm:text-2xl lg:text-4xl"
+            : "text-xs min-[380px]:text-sm min-[430px]:text-base sm:text-lg lg:text-xl",
         )}
       >
         {value}
@@ -110,12 +113,12 @@ export function PosNumpad({
   const keepAmountFocus = (event: PointerEvent<HTMLButtonElement>) =>
     event.preventDefault();
   const numberClass =
-    "h-full min-h-9 min-w-0 rounded-md text-lg font-black tabular-nums min-[430px]:min-h-10 sm:min-h-11 sm:text-2xl";
+    "h-full min-h-11 min-w-0 rounded-md text-lg font-black tabular-nums sm:text-2xl";
   const actionClass =
-    "h-full min-h-9 min-w-0 rounded-md px-2 text-xs font-black min-[430px]:min-h-10 sm:min-h-11 sm:text-sm";
+    "h-full min-h-11 min-w-0 rounded-md px-2 text-xs font-black sm:text-sm";
 
   return (
-    <div className="grid min-h-48 grid-cols-4 grid-rows-4 gap-1.5 min-[430px]:min-h-56 min-[430px]:gap-2 lg:h-full lg:min-h-0">
+    <div className="grid h-full min-h-[12.25rem] grid-cols-4 grid-rows-4 gap-1.5 min-[430px]:gap-2 sm:min-h-56 lg:min-h-0">
       {["7", "8", "9"].map((value) => (
         <Button
           key={value}

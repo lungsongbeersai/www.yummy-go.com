@@ -1,5 +1,10 @@
 "use client";
 
+import { type ReactNode, useEffect, useMemo, useState } from "react";
+import Image from "next/image";
+import QRCode from "qrcode";
+import { Copy, Download, ExternalLink, Printer, QrCode as QrCodeIcon } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -8,17 +13,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { fullscreenPrintWindowFeatures, maximizePrintWindow } from "@/features/pos/print/invoice-print-window";
+import { useIsCapacitorNativeApp } from "@/hooks/use-capacitor-native-app";
+import { openWindowOutsideNativeApp } from "@/lib/capacitor-platform";
 import type { CreateTableQRResponse, PosTable } from "@/services/pos";
 import { useAppStore } from "@/stores/app-store";
 import { useAuthStore } from "@/stores/auth-store";
 import { usePosStore } from "@/stores/pos-store";
 import { usePrinterStore } from "@/stores/printer-store";
 import { useToastStore } from "@/stores/toast-store";
-import { Copy, Download, ExternalLink, Printer, QrCode as QrCodeIcon } from "lucide-react";
-import Image from "next/image";
-import QRCode from "qrcode";
-import { type ReactNode, useEffect, useMemo, useState } from "react";
-import { useTranslation } from "react-i18next";
 import { optionalString } from "./utils";
 
 const localQrTargetUrl = "http://localhost:3001/sales/open-table-sale";
@@ -39,6 +41,7 @@ export function TableQrDialog({
   const createTableQr = usePosStore((state) => state.createTableQr);
   const executeInvoice = usePrinterStore((state) => state.executeInvoice);
   const showToast = useToastStore((state) => state.show);
+  const nativeApp = useIsCapacitorNativeApp();
   const [pending, setPending] = useState(false);
   const [printing, setPrinting] = useState(false);
   const [response, setResponse] = useState<CreateTableQRResponse | null>(null);
@@ -47,9 +50,10 @@ export function TableQrDialog({
   const qrImageUrl = useMemo(() => tableQrImageUrl(response), [response]);
   const previewUrl = qrImageUrl || qrDataUrl;
   const pendingJobUuid = useMemo(() => tableQrPendingJobUuid(response), [response]);
-  const canUseFrontendQrFallback = Boolean(targetUrl && !pendingJobUuid);
+  const canOpenBrowserWindow = !nativeApp;
+  const canUseFrontendQrFallback = Boolean(targetUrl && !pendingJobUuid && canOpenBrowserWindow);
   const canDownload = Boolean(previewUrl || canUseFrontendQrFallback);
-  const canPrint = Boolean(pendingJobUuid || previewUrl || canUseFrontendQrFallback);
+  const canPrint = Boolean(pendingJobUuid || (canOpenBrowserWindow && (previewUrl || canUseFrontendQrFallback)));
 
   useEffect(() => {
     if (!open) return;
@@ -127,7 +131,14 @@ export function TableQrDialog({
 
   function openMenu() {
     if (!targetUrl) return;
-    window.open(targetUrl, "_blank", "noopener,noreferrer");
+    const opened = openWindowOutsideNativeApp(targetUrl, "_blank", "noopener,noreferrer");
+    if (!opened) {
+      showToast({
+        title: t("pos.qrLinkUnavailable"),
+        description: t("pos.invoicePrintPopupBlocked"),
+        tone: "info",
+      });
+    }
   }
 
   async function printQr() {
@@ -145,11 +156,17 @@ export function TableQrDialog({
 
           if (printResult.failedCount > 0) {
             const imageUrl = await fallbackPrintImageUrl();
-            if (imageUrl) {
+            if (imageUrl && canOpenBrowserWindow) {
               openFallbackPrintWindow(imageUrl);
               showToast({
                 title: t("pos.printQr"),
                 tone: "info",
+              });
+            } else {
+              showToast({
+                title: t("pos.printQr"),
+                description: t("pos.invoicePrintPopupBlocked"),
+                tone: "error",
               });
             }
             return;
@@ -158,12 +175,18 @@ export function TableQrDialog({
           showToast({ title: t("pos.printQr"), tone: "success" });
         } catch (error) {
           const imageUrl = await fallbackPrintImageUrl();
-          if (imageUrl) {
+          if (imageUrl && canOpenBrowserWindow) {
             openFallbackPrintWindow(imageUrl);
             showToast({
               title: t("pos.printQr"),
               description: error instanceof Error ? error.message : "",
               tone: "info",
+            });
+          } else {
+            showToast({
+              title: t("pos.printQr"),
+              description: error instanceof Error ? error.message : t("pos.invoicePrintPopupBlocked"),
+              tone: "error",
             });
           }
         }
@@ -171,7 +194,7 @@ export function TableQrDialog({
       }
 
       const imageUrl = await fallbackPrintImageUrl();
-      if (imageUrl) openFallbackPrintWindow(imageUrl);
+      if (imageUrl && canOpenBrowserWindow) openFallbackPrintWindow(imageUrl);
     } finally {
       setPrinting(false);
     }
@@ -192,7 +215,7 @@ export function TableQrDialog({
 
   function openFallbackPrintWindow(imageUrl = previewUrl) {
     if (!imageUrl) return;
-    const printWindow = window.open("", "_blank", fullscreenPrintWindowFeatures());
+    const printWindow = openWindowOutsideNativeApp("", "_blank", fullscreenPrintWindowFeatures());
     if (!printWindow) return;
     maximizePrintWindow(printWindow);
 
@@ -280,8 +303,8 @@ export function TableQrDialog({
               <IconActionButton label={t("pos.printQr")} disabled={!canPrint || pending || printing} onClick={() => void printQr()}>
                 {printing ? <Spinner /> : <Printer />}
               </IconActionButton>
-              <Button type="button" className="h-11 min-w-0 rounded-xl px-4 font-black" disabled={!targetUrl || pending} onClick={openMenu}>
-                {pending ? <Spinner data-icon="inline-start" /> : <ExternalLink data-icon="inline-start" />}
+              <Button type="button" className="h-11 min-w-0 rounded-xl px-4 font-black" disabled={!targetUrl || pending || nativeApp} onClick={openMenu}>
+              {pending ? <Spinner data-icon="inline-start" /> : <ExternalLink data-icon="inline-start" />}
                 <span className="truncate">{t("pos.openMenu")}</span>
               </Button>
             </div>

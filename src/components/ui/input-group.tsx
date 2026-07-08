@@ -6,6 +6,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { canProgrammaticallyFocusTextInput } from "@/lib/input-focus";
 import { cn } from "@/lib/utils";
 
 function InputGroup({ className, ...props }: React.ComponentProps<"div">) {
@@ -57,6 +58,7 @@ function InputGroupAddon({
       className={cn(inputGroupAddonVariants({ align }), className)}
       onClick={(event) => {
         if ((event.target as HTMLElement).closest("button")) return;
+        if (!canProgrammaticallyFocusTextInput()) return;
         event.currentTarget.parentElement?.querySelector("input")?.focus();
       }}
       {...props}

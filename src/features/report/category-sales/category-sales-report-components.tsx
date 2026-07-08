@@ -470,6 +470,7 @@ type TableCardProps = {
   footer: ReactNode;
   loading: boolean;
   methodLabel: string;
+  printDisabled: boolean;
   rowsLength: number;
   selectedCount: number;
   title: string;
@@ -487,6 +488,7 @@ export function CategorySalesTableCard({
   exporting,
   footer,
   loading,
+  printDisabled,
   rowsLength,
   selectedCount,
   title,
@@ -589,7 +591,7 @@ export function CategorySalesTableCard({
             variant="outline"
             size="sm"
             className="h-9"
-            disabled={exportDisabled}
+            disabled={printDisabled}
             onClick={onPrintReport}
           >
             {exporting === "print" ? (

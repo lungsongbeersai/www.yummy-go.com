@@ -70,6 +70,14 @@ export function upsertProduct(rows: Product[], product: Product) {
   return rows.map((row, rowIndex) => (rowIndex === index ? { ...row, ...product } : row));
 }
 
+export function withProductSort(rows: Product[]) {
+  return rows.map((row, index) => ({ ...row, prod_sort: index + 1 }));
+}
+
+export function withProductDetailSort(details: ProductDetail[]) {
+  return details.map((detail, index) => ({ ...detail, pro_detail_sort: index + 1 }));
+}
+
 export function responseField(response: Record<string, unknown>, key: string, fallback: unknown) {
   const data = response.data;
   if (data && typeof data === "object" && key in data) {
@@ -135,6 +143,20 @@ export function patchDetail(rows: Product[], detailUuid: string, patch: Partial<
     });
 
     return rowChanged ? { ...row, details } : row;
+  });
+  return changed ? nextRows : rows;
+}
+
+export function replaceProductDetails(
+  rows: Product[],
+  prodUuid: string,
+  details: ProductDetail[]
+) {
+  let changed = false;
+  const nextRows = rows.map((row) => {
+    if (row.prod_uuid !== prodUuid) return row;
+    changed = true;
+    return { ...row, details };
   });
   return changed ? nextRows : rows;
 }

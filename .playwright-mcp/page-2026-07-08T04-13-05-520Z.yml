@@ -1,0 +1,36 @@
+- generic [active] [ref=e1]:
+  - main [ref=e2]:
+    - button "LA" [ref=e4] [cursor=pointer]:
+      - generic [ref=e6]: LA
+      - img
+    - generic [ref=e13]:
+      - generic [ref=e14]:
+        - img "Yummy Go" [ref=e16]
+        - heading "ເຂົ້າລະບົບ" [level=1] [ref=e17]
+        - paragraph [ref=e18]: ປ້ອນຂໍ້ມູນຂອງທ່ານເພື່ອເຂົ້າສູ່ລະບົບ
+      - generic [ref=e19]:
+        - group [ref=e20]:
+          - generic [ref=e21]:
+            - text: ອີເມວ
+            - generic [ref=e22]: "*"
+          - textbox "ອີເມວ *" [ref=e23]
+        - group [ref=e24]:
+          - generic [ref=e25]:
+            - generic [ref=e26]:
+              - text: ລະຫັດຜ່ານ
+              - generic [ref=e27]: "*"
+            - button "ລືມລະຫັດຜ່ານ?" [disabled]
+          - generic [ref=e28]:
+            - textbox "ລະຫັດຜ່ານ *" [ref=e29]
+            - button "ສະແດງລະຫັດຜ່ານ" [ref=e30] [cursor=pointer]:
+              - img
+        - group [ref=e33]:
+          - checkbox "ຈື່ຂ້ອຍໄວ້" [checked] [ref=e34] [cursor=pointer]
+          - generic [ref=e35]: ຈື່ຂ້ອຍໄວ້
+        - button "ເຂົ້າລະບົບ" [ref=e36] [cursor=pointer]
+      - paragraph [ref=e37]:
+        - text: auth.noAccount
+        - button "auth.register" [disabled]
+      - generic [ref=e39]: ຫຼື
+      - button "ທົດລອງໃຊ້" [disabled]
+  - region "Notifications alt+T"

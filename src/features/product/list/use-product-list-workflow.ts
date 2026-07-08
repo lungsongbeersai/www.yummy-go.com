@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { arrayMove } from "@dnd-kit/sortable";
 import { useReducedMotion } from "motion/react";
 import { useTranslation } from "react-i18next";
 import { useAppliedSearch } from "@/hooks/use-applied-search";
@@ -61,6 +62,7 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
   const cateUuidFk = useProductStore((state) => state.cateUuidFk);
   const storePageLimit = useProductStore((state) => state.pageLimit);
   const loading = useProductStore((state) => state.loading);
+  const saving = useProductStore((state) => state.saving);
   const setSearch = useProductStore((state) => state.setSearch);
   const setCateUuidFk = useProductStore((state) => state.setCateUuidFk);
   const setPageLimit = useProductStore((state) => state.setPageLimit);
@@ -74,6 +76,8 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
   const updateDetailStock = useProductStore((state) => state.updateDetailStock);
   const updateDetailsStock = useProductStore((state) => state.updateDetailsStock);
   const updateStatusFields = useProductStore((state) => state.updateStatusFields);
+  const sortProductsByCategory = useProductStore((state) => state.sortProductsByCategory);
+  const sortProductDetailsByProduct = useProductStore((state) => state.sortProductDetailsByProduct);
   const categories = (useReferenceStore((state) => state.options.categories) ?? EMPTY_CATEGORIES) as Category[];
   const units = (useReferenceStore((state) => state.options.units) ?? EMPTY_UNITS) as Unit[];
   const sizes = (useReferenceStore((state) => state.options.sizes) ?? EMPTY_SIZES) as Size[];
@@ -82,6 +86,7 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
   const loadUnits = useReferenceStore((state) => state.loadUnits);
   const loadSizes = useReferenceStore((state) => state.loadSizes);
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
+  const [orderEditTarget, setOrderEditTarget] = useState<ProductTableRow | null>(null);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [importDrafts, setImportDrafts] = useState<ProductImportDraft[]>([]);
   const [importFileName, setImportFileName] = useState("");
@@ -166,6 +171,14 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
   const allDetailsExpanded = detailProductIds.length > 0 && detailProductIds.every((id) => !collapsedProducts.has(id));
   const canGoBack = page > 1 && !loading;
   const canGoNext = page < Math.max(1, totalPages) && !loading;
+  const canSortProducts =
+    Boolean(cateUuidFk) &&
+    !appliedSearch.trim() &&
+    (pageLimit === "All" || totalPages <= 1) &&
+    filteredRows.length > 1 &&
+    !loading &&
+    !saving;
+  const canSortProductDetails = !loading && !saving;
 
   const load = useCallback(async () => {
     if (!user?.branch_uuid) return;
@@ -399,6 +412,63 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
     });
   }
 
+  function notifySortUnavailable() {
+    showToast({
+      title: t("product.sortUnavailable"),
+      description: t("product.sortHint"),
+      tone: "info"
+    });
+  }
+
+  async function persistProductOrder(nextRows: Product[]) {
+    try {
+      await sortProductsByCategory(cateUuidFk, nextRows);
+      showToast({ title: t("category.sorted"), tone: "success" });
+    } catch (error) {
+      showToast({
+        title: t("category.sortFailed"),
+        description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
+        tone: "error"
+      });
+    }
+  }
+
+  async function reorderProduct(activeId: string, overId: string) {
+    if (!canSortProducts || activeId === overId) return;
+    const oldIndex = rows.findIndex((item) => item.prod_uuid === activeId);
+    const newIndex = rows.findIndex((item) => item.prod_uuid === overId);
+    if (oldIndex < 0 || newIndex < 0) return;
+    await persistProductOrder(arrayMove(rows, oldIndex, newIndex));
+  }
+
+  async function moveProductToPosition(row: ProductTableRow, position: number) {
+    if (!canSortProducts) return;
+    const currentIndex = rows.findIndex((item) => item.prod_uuid === row.prod_uuid);
+    const nextIndex = Math.min(Math.max(position - 1, 0), rows.length - 1);
+    setOrderEditTarget(null);
+    if (currentIndex < 0 || currentIndex === nextIndex) return;
+    await persistProductOrder(arrayMove(rows, currentIndex, nextIndex));
+  }
+
+  async function reorderProductDetail(row: ProductTableRow, activeId: string, overId: string) {
+    if (!canSortProductDetails || activeId === overId) return;
+    const details = productDetails(row);
+    const oldIndex = details.findIndex((detail) => productDetailUuid(detail) === activeId);
+    const newIndex = details.findIndex((detail) => productDetailUuid(detail) === overId);
+    if (oldIndex < 0 || newIndex < 0) return;
+
+    try {
+      await sortProductDetailsByProduct(row.prod_uuid, arrayMove(details, oldIndex, newIndex));
+      showToast({ title: t("category.sorted"), tone: "success" });
+    } catch (error) {
+      showToast({
+        title: t("category.sortFailed"),
+        description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
+        tone: "error"
+      });
+    }
+  }
+
   async function applyBulkEdit(input: ProductBulkEditInput) {
     const notificationValue = input.notification === "keep" ? null : Number(input.notification);
     const enabledValue = input.enabled === "keep" ? null : Number(input.enabled);
@@ -617,6 +687,9 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
     statusTabs,
     activeStatusLabel,
     loading,
+    saving,
+    canSortProducts,
+    canSortProductDetails,
     importDialogOpen,
     setImportDialogOpen,
     importDrafts,
@@ -634,6 +707,8 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
     bulkEditing,
     deleteTarget,
     setDeleteTarget,
+    orderEditTarget,
+    setOrderEditTarget,
     collapsedProducts,
     pendingKeys,
     pendingBulkStockModes,
@@ -662,6 +737,10 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
     updateDetailEnabled,
     updateDetailStockMode,
     updateAllDetailStockModes,
+    notifySortUnavailable,
+    reorderProduct,
+    moveProductToPosition,
+    reorderProductDetail,
     prepareImportFile,
     importProductsFromDrafts,
     resetImportState,

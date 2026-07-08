@@ -98,7 +98,7 @@ export const EmployeeProductCard = memo(function EmployeeProductCard({
 
       <CardContent className="flex min-h-0 flex-1 flex-col gap-2 p-2.5 sm:gap-2.5 sm:p-3">
         <div className="min-w-0">
-          <CardTitle className="line-clamp-2 min-h-10 text-sm font-black leading-5 text-foreground sm:text-base">
+          <CardTitle className="lao-tone-text line-clamp-2 min-h-10 text-sm font-black text-foreground sm:text-base">
             {product.prod_name}
           </CardTitle>
           <p className="mt-1 line-clamp-1 min-h-4 text-xs font-bold leading-4 text-muted-foreground">

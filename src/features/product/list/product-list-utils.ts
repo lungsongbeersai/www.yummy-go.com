@@ -56,8 +56,21 @@ export function productDetailUuid(detail: ProductDetail) {
   return UUID_PATTERN.test(detailId) ? detailId : "";
 }
 
+function sortOrder(value: unknown) {
+  const order = Number(value);
+  return Number.isFinite(order) && order > 0 ? order : null;
+}
+
 export function productDetails(row: Product) {
-  return Array.isArray(row.details) ? row.details.filter((detail) => productDetailUuid(detail)) : [];
+  const details = Array.isArray(row.details) ? row.details.filter((detail) => productDetailUuid(detail)) : [];
+  return [...details].sort((left, right) => {
+    const leftOrder = sortOrder(left.pro_detail_sort);
+    const rightOrder = sortOrder(right.pro_detail_sort);
+    if (leftOrder === null && rightOrder === null) return 0;
+    if (leftOrder === null) return 1;
+    if (rightOrder === null) return -1;
+    return leftOrder - rightOrder;
+  });
 }
 
 export function detailLabel(detail: ProductDetail, index: number, language: string) {

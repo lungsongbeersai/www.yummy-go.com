@@ -356,7 +356,7 @@ function ProductDetailSummary({
               {actionLabel}
             </Badge>
           </div>
-          <h2 className="line-clamp-2 text-lg font-black leading-6 text-foreground sm:text-xl sm:leading-7">
+          <h2 className="lao-tone-text line-clamp-2 text-lg font-black text-foreground sm:text-xl">
             {product.prod_name}
           </h2>
           <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs font-bold leading-4 text-muted-foreground">

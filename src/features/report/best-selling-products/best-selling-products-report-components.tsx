@@ -488,6 +488,7 @@ type TableCardProps = {
   exporting: BestSellingExportAction | null;
   footer: ReactNode;
   loading: boolean;
+  printDisabled: boolean;
   rowsLength: number;
   selectedCount: number;
   sortBy: BestSellingProductsSortBy;
@@ -507,6 +508,7 @@ export function BestSellingTableCard({
   exporting,
   footer,
   loading,
+  printDisabled,
   rowsLength,
   selectedCount,
   sortBy,
@@ -610,7 +612,7 @@ export function BestSellingTableCard({
               size="sm"
               aria-label={t("report.print")}
               className="h-9 min-w-9 rounded-md px-2.5"
-              disabled={exportDisabled}
+              disabled={printDisabled}
               onClick={onPrintReport}
             >
               {exporting === "print" ? (

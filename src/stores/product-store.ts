@@ -8,11 +8,14 @@ import {
   getSizesByStatus,
   getStatusSorts,
   saveProduct,
+  sortProductDetailsByProduct as sortProductDetailsByProductRequest,
+  sortProductsByCategory as sortProductsByCategoryRequest,
   updateProductEnabled,
   updateProductNotificationEnabled,
   updateProductStockMode,
   type FetchProductsParams,
   type Product,
+  type ProductDetail,
   type ProductStockModePatch,
   type ProductStatusFieldsPatch,
   type SaveProductInput,
@@ -26,9 +29,13 @@ import {
   applyProductStatusFields,
   patchDetail,
   patchProduct,
+  productDetailUuid,
+  replaceProductDetails,
   responseNumber,
   stockModesFromResponse,
-  upsertProduct
+  upsertProduct,
+  withProductDetailSort,
+  withProductSort
 } from "@/stores/product-store/helpers";
 
 interface ProductState {
@@ -58,6 +65,8 @@ interface ProductState {
   updateDetailStock: (detailUuid: string, stockMode: number) => Promise<void>;
   updateDetailsStock: (stockModes: ProductStockModePatch[]) => Promise<void>;
   updateProductNotification: (prodUuid: string, enabled: number) => Promise<void>;
+  sortProductsByCategory: (cateUuidFk: string, orderedProducts: Product[]) => Promise<void>;
+  sortProductDetailsByProduct: (prodUuidFk: string, orderedDetails: ProductDetail[]) => Promise<void>;
   setEnabled: (detailUuid: string, enabled: number) => Promise<void>;
   setStockMode: (detailUuid: string, stockMode: number) => Promise<void>;
   setNotification: (prodUuid: string, enabled: number) => Promise<void>;
@@ -212,6 +221,52 @@ export const useProductStore = create<ProductState>((set, get) => ({
       }));
     } catch (error) {
       set({ error: errorMessage(error), saving: false });
+      throw error;
+    }
+  },
+  sortProductsByCategory: async (cateUuidFk, orderedProducts) => {
+    const sortedRows = withProductSort(orderedProducts.filter((row) => row.prod_uuid));
+    if (sortedRows.length < 2) return;
+
+    const previousRows = get().rows;
+    set({ rows: sortedRows, saving: true, error: null });
+    try {
+      await sortProductsByCategoryRequest({
+        cate_uuid_fk: cateUuidFk,
+        items: sortedRows.map((row) => ({
+          prod_uuid: row.prod_uuid,
+          prod_sort: Number(row.prod_sort)
+        }))
+      });
+      set({ saving: false });
+    } catch (error) {
+      set({ rows: previousRows, error: errorMessage(error), saving: false });
+      throw error;
+    }
+  },
+  sortProductDetailsByProduct: async (prodUuidFk, orderedDetails) => {
+    const sortedDetails = withProductDetailSort(
+      orderedDetails.filter((detail) => productDetailUuid(detail))
+    );
+    if (sortedDetails.length < 2) return;
+
+    const previousRows = get().rows;
+    set((state) => ({
+      rows: replaceProductDetails(state.rows, prodUuidFk, sortedDetails),
+      saving: true,
+      error: null
+    }));
+    try {
+      await sortProductDetailsByProductRequest({
+        prod_uuid_fk: prodUuidFk,
+        items: sortedDetails.map((detail) => ({
+          pro_detail_uuid: productDetailUuid(detail),
+          pro_detail_sort: Number(detail.pro_detail_sort)
+        }))
+      });
+      set({ saving: false });
+    } catch (error) {
+      set({ rows: previousRows, error: errorMessage(error), saving: false });
       throw error;
     }
   },

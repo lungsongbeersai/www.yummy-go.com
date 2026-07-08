@@ -4,6 +4,7 @@ import { type CSSProperties, useRef, useState } from "react";
 import { BarChart3, CalendarDays } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
+import { useIsCapacitorNativeApp } from "@/hooks/use-capacitor-native-app";
 import type { UrlPaginationState } from "@/lib/url-pagination";
 import {
   ReportError,
@@ -31,6 +32,7 @@ export function DailySalesReportPage({
   const { t } = useTranslation();
   const exportReportRef = useRef<HTMLDivElement>(null);
   const [summaryVisible, setSummaryVisible] = useState(false);
+  const nativeApp = useIsCapacitorNativeApp();
   const report = useDailySalesReportWorkflow(exportReportRef, initialPagination);
   const layoutStyle = {
     "--daily-sales-filter-height": "0px",
@@ -107,7 +109,8 @@ export function DailySalesReportPage({
                 report.appliedFilters.typePage === "bill" ||
                 report.loading ||
                 Boolean(report.exporting) ||
-                !report.selectedBillCount,
+                !report.selectedBillCount ||
+                nativeApp,
               search: report.appliedFilters.search,
               selectedCount: report.selectedCount,
               selectedBillCount: report.selectedBillCount,
