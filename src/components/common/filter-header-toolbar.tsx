@@ -47,9 +47,12 @@ export function FilterHeaderToolbar({
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               aria-label={search.ariaLabel}
-              className="h-9 pl-9"
+              autoComplete="off"
+              className="h-11 pl-9 sm:h-9"
               disabled={search.disabled}
+              name="filterSearch"
               placeholder={search.placeholder}
+              spellCheck={false}
               value={search.value}
               onChange={(event) => search.onChange(event.target.value)}
             />

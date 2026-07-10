@@ -175,6 +175,7 @@ export function CartGroup({
                         type="button"
                         variant="outline"
                         size="icon"
+                        aria-label={`${t("pos.qty")} -`}
                         className="h-11 w-11 rounded-md"
                         disabled={saving || qty <= promotion.qtyStep}
                         onClick={() =>
@@ -190,6 +191,7 @@ export function CartGroup({
                         type="button"
                         variant="outline"
                         size="icon"
+                        aria-label={`${t("pos.qty")} +`}
                         className="h-11 w-11 rounded-md"
                         disabled={saving}
                         onClick={() =>

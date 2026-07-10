@@ -1,15 +1,12 @@
 "use client";
 
-import { icons as mdiIcons } from "@iconify-json/mdi";
-import { Icon, addCollection } from "@iconify/react";
-import { cn } from "@/lib/utils";
+import { CategoryIcon } from "@/features/settings/category/category-icon";
 import { publicCategoryIconName } from "@/features/public-pos/order/utils";
-
-addCollection(mdiIcons);
+import { cn } from "@/lib/utils";
 
 export function PublicCategoryIcon({ className, icon }: { className?: string; icon?: string | null }) {
   const iconName = publicCategoryIconName(icon);
   if (!iconName) return null;
 
-  return <Icon aria-hidden="true" icon={iconName} className={cn("size-4 shrink-0 text-current", className)} />;
+  return <CategoryIcon value={iconName} className={cn("size-4 shrink-0 text-current", className)} />;
 }

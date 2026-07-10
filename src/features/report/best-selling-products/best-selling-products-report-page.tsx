@@ -180,16 +180,20 @@ export function BestSellingProductsReportPage({ initialPagination }: { initialPa
           </BestSellingTableCard>
         </div>
       </div>
-      <BestSellingExportSurface
-        cards={report.summaryCards}
-        containerRef={exportReportRef}
-        dateRange={`${report.appliedFilters.dateFrom} - ${report.appliedFilters.dateTo}`}
-        groups={report.renderedExportData.groups}
-        rowsLabel={t("report.bestSelling.rowsLabel", { count: report.renderedExportData.rows.length })}
-        sortByLabel={report.sortByLabel}
-        summary={report.renderedExportData.summary}
-        title={t("report.bestSelling.title")}
-      />
+      {report.exporting === "pdf" || report.exporting === "print" ? (
+        <BestSellingExportSurface
+          cards={report.summaryCards}
+          containerRef={exportReportRef}
+          dateRange={`${report.appliedFilters.dateFrom} - ${report.appliedFilters.dateTo}`}
+          groups={report.renderedExportData.groups}
+          rowsLabel={t("report.bestSelling.rowsLabel", {
+            count: report.renderedExportData.rows.length,
+          })}
+          sortByLabel={report.sortByLabel}
+          summary={report.renderedExportData.summary}
+          title={t("report.bestSelling.title")}
+        />
+      ) : null}
       <BlockingLoadingDialog
         open={Boolean(report.exporting)}
         title={exportTitle}

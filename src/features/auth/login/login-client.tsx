@@ -12,6 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
+import { safeInternalRedirect } from "@/lib/safe-internal-redirect";
 import { useAuthStore } from "@/stores/auth-store";
 import { useToastStore } from "@/stores/toast-store";
 
@@ -30,7 +31,7 @@ export function LoginClient() {
   const [remember, setRemember] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
 
-  const redirect = searchParams.get("redirect") || "/";
+  const redirect = safeInternalRedirect(searchParams.get("redirect"));
 
   useEffect(() => {
     if (hydrated && isLoggedIn) router.replace(redirect);
@@ -40,7 +41,9 @@ export function LoginClient() {
     event.preventDefault();
 
     try {
-      await loginWithPassword(email, password, remember);
+      const user = await loginWithPassword(email, password, remember);
+      if (!user) return;
+
       showToast({ title: t("auth.welcomeBack"), tone: "success" });
       router.replace(redirect);
     } catch (error) {
@@ -111,10 +114,12 @@ export function LoginClient() {
 
                   <Input
                     id="login-email"
+                    name="email"
                     value={email}
                     onChange={(event) => setEmail(event.target.value)}
                     type="email"
                     autoComplete="email"
+                    spellCheck={false}
                     required
                     className="login-input h-12 rounded-lg border-slate-200 bg-white px-4 text-sm font-semibold text-slate-800 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 focus-visible:border-emerald-500 focus-visible:ring-4 focus-visible:ring-emerald-500/10"
                   />
@@ -145,12 +150,13 @@ export function LoginClient() {
                   <div className="relative">
                     <Input
                       id="login-password"
+                      name="password"
                       value={password}
                       onChange={(event) => setPassword(event.target.value)}
                       type={showPassword ? "text" : "password"}
                       autoComplete="current-password"
                       required
-                      className="login-input h-12 rounded-lg border-slate-200 bg-white px-4 pr-11 text-sm font-semibold text-slate-800 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 focus-visible:border-emerald-500 focus-visible:ring-4 focus-visible:ring-emerald-500/10"
+                      className="login-input h-12 rounded-lg border-slate-200 bg-white px-4 pr-12 text-sm font-semibold text-slate-800 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 focus-visible:border-emerald-500 focus-visible:ring-4 focus-visible:ring-emerald-500/10"
                     />
 
                     <Button
@@ -160,7 +166,7 @@ export function LoginClient() {
                       aria-label={showPassword ? t("auth.hidePassword") : t("auth.showPassword")}
                       aria-pressed={showPassword}
                       onClick={() => setShowPassword((value) => !value)}
-                      className="absolute right-3 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-md text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
+                      className="absolute right-0 top-1/2 grid h-12 w-12 -translate-y-1/2 place-items-center rounded-md text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
                     >
                       {showPassword ? (
                         <EyeOff aria-hidden="true" />
@@ -176,6 +182,7 @@ export function LoginClient() {
                     <Field orientation="horizontal" className="items-center gap-2">
                       <Checkbox
                         id="login-remember"
+                        name="remember"
                         checked={remember}
                         onChange={(event) => setRemember(event.target.checked)}
                         className="h-4 w-4 rounded border-slate-300 data-[state=checked]:border-emerald-600 data-[state=checked]:bg-emerald-600"

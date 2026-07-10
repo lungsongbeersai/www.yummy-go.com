@@ -48,6 +48,7 @@ import type {
   UpdateQtyInput
 } from "@/services/pos";
 import { updateZonesTableOrderState } from "@/stores/pos-store/helpers";
+import { createSessionGuard, registerSessionStoreReset } from "@/stores/session-store-registry";
 import { errorMessage } from "@/stores/store-utils";
 
 async function fetchTables(params: FetchPosParams) {
@@ -57,6 +58,12 @@ async function fetchTables(params: FetchPosParams) {
 
 function textValue(value: unknown) {
   return String(value ?? "").trim();
+}
+
+function assertCurrentSession(isCurrentSession: () => boolean) {
+  if (!isCurrentSession()) {
+    throw new Error("Session changed while the request was in progress");
+  }
 }
 
 function isMobilePrinterCandidate(printer: Printer) {
@@ -72,6 +79,7 @@ function pickMobilePrinterFromList(printers: Printer[]) {
 }
 
 async function pickMobilePrinter(input: { login_uuid_fk?: string; lang?: string }) {
+  const isCurrentSession = createSessionGuard();
   const printerState = usePrinterStore.getState();
   const cachedCandidates = [...printerState.printers, ...printerState.options];
   const cachedPrinter = pickMobilePrinterFromList(cachedCandidates);
@@ -93,7 +101,7 @@ async function pickMobilePrinter(input: { login_uuid_fk?: string; lang?: string 
 
   const fetchedPrinter = pickMobilePrinterFromList(fetchedPrinters);
 
-  if (fetchedPrinters.length) {
+  if (fetchedPrinters.length && isCurrentSession()) {
     usePrinterStore.setState({ printers: fetchedPrinters });
   }
 
@@ -202,77 +210,86 @@ export const usePosStore = create<PosState>((set) => ({
       zones: updateZonesTableOrderState(state.zones, tableUuid, customerOrderState)
     })),
   loadTables: async (params) => {
+    const isCurrentSession = createSessionGuard();
     set({ loading: true, error: null });
     try {
       const zones = await fetchTables(params);
-      set({ zones, loading: false });
+      if (isCurrentSession()) set({ zones, loading: false });
       return zones;
     } catch (error) {
-      set({ error: errorMessage(error), loading: false });
+      if (isCurrentSession()) set({ error: errorMessage(error), loading: false });
       throw error;
     }
   },
   refreshTables: async (params) => {
+    const isCurrentSession = createSessionGuard();
     try {
       const zones = await fetchTables(params);
-      set({ zones });
+      if (isCurrentSession()) set({ zones });
       return zones;
     } catch (error) {
-      set({ error: errorMessage(error) });
+      if (isCurrentSession()) set({ error: errorMessage(error) });
       throw error;
     }
   },
   loadProductCategories: async (params) => {
+    const isCurrentSession = createSessionGuard();
     try {
       const result = await posService.fetchCateProducts(params);
       const categories = result.data ?? [];
-      set({
-        products: categories.flatMap((category: CateWithProducts) => category.products ?? []),
-        error: null
-      });
+      if (isCurrentSession()) {
+        set({
+          products: categories.flatMap((category: CateWithProducts) => category.products ?? []),
+          error: null
+        });
+      }
       return result;
     } catch (error) {
-      set({ error: errorMessage(error) });
+      if (isCurrentSession()) set({ error: errorMessage(error) });
       throw error;
     }
   },
   loadProducts: async (params) => {
+    const isCurrentSession = createSessionGuard();
     set({ loading: true, error: null });
     try {
       const result = await posService.fetchCateProducts(params);
       const products = (result.data ?? []).flatMap((category) => category.products ?? []);
-      set({ products, loading: false });
+      if (isCurrentSession()) set({ products, loading: false });
       return products;
     } catch (error) {
-      set({ error: errorMessage(error), loading: false });
+      if (isCurrentSession()) set({ error: errorMessage(error), loading: false });
       throw error;
     }
   },
   loadProductItem: async (params) => {
+    const isCurrentSession = createSessionGuard();
     const selectedProduct = await posService.getProdItem(params);
-    set({ selectedProduct });
+    if (isCurrentSession()) set({ selectedProduct });
     return selectedProduct;
   },
   loadCart: async (params) => {
+    const isCurrentSession = createSessionGuard();
     set({ loadingCart: true, error: null });
     try {
       const result = await posService.fetchCart(params);
       const cart = result.orders ?? result.data ?? null;
-      set({ cart, loadingCart: false });
+      if (isCurrentSession()) set({ cart, loadingCart: false });
       return cart;
     } catch (error) {
-      set({ error: errorMessage(error), loadingCart: false });
+      if (isCurrentSession()) set({ error: errorMessage(error), loadingCart: false });
       throw error;
     }
   },
   createOrder: async (input) => {
+    const isCurrentSession = createSessionGuard();
     set({ saving: true, error: null });
     try {
       const result = await posService.createOrder(input);
-      set({ saving: false });
+      if (isCurrentSession()) set({ saving: false });
       return result;
     } catch (error) {
-      set({ error: errorMessage(error), saving: false });
+      if (isCurrentSession()) set({ error: errorMessage(error), saving: false });
       throw error;
     }
   },
@@ -281,21 +298,25 @@ export const usePosStore = create<PosState>((set) => ({
   applyBillDiscount: (input) => posService.applyBillDiscount(input),
   deleteItem: (orderItemUuid) => posService.deleteOrderItem(orderItemUuid),
   loadJoinMoveTables: async (params) => {
+    const isCurrentSession = createSessionGuard();
     const result = await posService.fetchJoinMoveTables(params);
     const joinMoveZones = result.data ?? [];
-    set({ joinMoveZones });
+    if (isCurrentSession()) set({ joinMoveZones });
     return joinMoveZones;
   },
   moveTable: (input) => posService.moveTable(input),
   joinTables: (input) => posService.joinTableMulti(input),
   loadTableQr: async (tableUuid) => {
+    const isCurrentSession = createSessionGuard();
     const tableQr = await posService.getTableQR(tableUuid);
-    set({ tableQr });
+    if (isCurrentSession()) set({ tableQr });
     return tableQr;
   },
   confirmKitchen: async (input) => {
+    const isCurrentSession = createSessionGuard();
     try {
       const printer = await resolvePosPrinterContext(input);
+      assertCurrentSession(isCurrentSession);
 
       const payload = {
         order_uuid: input.order_uuid,
@@ -308,6 +329,7 @@ export const usePosStore = create<PosState>((set) => ({
       };
 
       const lastKitchenConfirm = await posService.confirmToKitchen(payload);
+      if (!isCurrentSession()) return lastKitchenConfirm;
 
       const pendingQuery = lastKitchenConfirm.pending_query;
       const printJobUuid =
@@ -327,16 +349,17 @@ export const usePosStore = create<PosState>((set) => ({
         const printResult = await usePrinterStore.getState().executeKitchen(
           executeInput as Parameters<ReturnType<typeof usePrinterStore.getState>["executeKitchen"]>[0]
         );
+        if (!isCurrentSession()) return lastKitchenConfirm;
 
         if (printResult.failedCount > 0) {
           throw new Error("Kitchen print failed");
         }
       }
 
-      set({ lastKitchenConfirm });
+      if (isCurrentSession()) set({ lastKitchenConfirm });
       return lastKitchenConfirm;
     } catch (error) {
-      set({ error: errorMessage(error) });
+      if (isCurrentSession()) set({ error: errorMessage(error) });
       throw error;
     }
 
@@ -345,7 +368,9 @@ export const usePosStore = create<PosState>((set) => ({
   cancelItem: (input) => posService.cancelOrderItem(input),
   updateNote: (input) => posService.updateOrderNote(input),
   createPayment: async (input) => {
+    const isCurrentSession = createSessionGuard();
     const printer = await resolvePosPrinterContext(input);
+    assertCurrentSession(isCurrentSession);
 
     const lastPayment = await posService.createPayment({
       ...input,
@@ -353,11 +378,13 @@ export const usePosStore = create<PosState>((set) => ({
       agent_id: printer.agent_id,
       print_mode: printer.print_mode
     });
-    set({ lastPayment });
+    if (isCurrentSession()) set({ lastPayment });
     return lastPayment;
   },
   splitBill: async (input) => {
+    const isCurrentSession = createSessionGuard();
     const printer = await resolvePosPrinterContext(input);
+    assertCurrentSession(isCurrentSession);
 
     const lastSplitBill = await posService.splitBill({
       ...input,
@@ -365,11 +392,13 @@ export const usePosStore = create<PosState>((set) => ({
       agent_id: printer.agent_id,
       print_mode: printer.print_mode
     });
-    set({ lastSplitBill });
+    if (isCurrentSession()) set({ lastSplitBill });
     return lastSplitBill;
   },
   createTableQr: async (params) => {
+    const isCurrentSession = createSessionGuard();
     const printer = await resolvePosPrinterContext(params);
+    assertCurrentSession(isCurrentSession);
 
     const tableQr = await posService.createTableQR({
       ...params,
@@ -377,11 +406,13 @@ export const usePosStore = create<PosState>((set) => ({
       agent_id: printer.agent_id,
       print_mode: printer.print_mode
     });
-    set({ tableQr });
+    if (isCurrentSession()) set({ tableQr });
     return tableQr;
   },
   printInvoice: async (params) => {
+    const isCurrentSession = createSessionGuard();
     const printer = await resolvePosPrinterContext(params);
+    assertCurrentSession(isCurrentSession);
 
     const lastInvoice = await posService.printInvoice({
       login_uuid_fk: params.login_uuid_fk,
@@ -392,7 +423,7 @@ export const usePosStore = create<PosState>((set) => ({
       agent_id: printer.agent_id,
       print_mode: printer.print_mode
     });
-    set({ lastInvoice });
+    if (isCurrentSession()) set({ lastInvoice });
     return lastInvoice;
   },
   setOrderHistory: (orders) => set({ orderHistory: posService.cartOrdersToHistory(orders) }),
@@ -417,3 +448,5 @@ export const usePosStore = create<PosState>((set) => ({
       error: null
     })
 }));
+
+registerSessionStoreReset("pos", () => usePosStore.getState().reset());

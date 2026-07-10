@@ -11,6 +11,7 @@ import { useBranchStore } from "@/stores/branch-store";
 import { usePaymentMethodsReportStore } from "@/stores/report-store";
 import { useToastStore } from "@/stores/toast-store";
 import { branchOptionFromRow, selectedBranchLabel } from "../daily-sales/daily-sales-report-utils";
+import { createSingleSheetReportWorkbook } from "../report-excel-utils";
 import { useReportRowSelection } from "../report-row-selection";
 import type { PaymentMethodsExportAction, PaymentMethodsExportData, PaymentMethodsReportFilters } from "./payment-methods-report-types";
 import {
@@ -237,9 +238,16 @@ export function usePaymentMethodsReportWorkflow(exportReportRef: RefObject<HTMLD
     try {
       const data = selectedExportData(await fetchExportData());
       const XLSX = await import("xlsx");
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(exportSummaryRows(data.cards, data.reportTotal, t)), "Summary");
-      XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(exportPaymentMethodRows(data.rows, t)), "Rows");
+      const workbook = createSingleSheetReportWorkbook(XLSX, [
+        {
+          title: "Summary",
+          rows: exportSummaryRows(data.cards, data.reportTotal, t)
+        },
+        {
+          title: "Rows",
+          rows: exportPaymentMethodRows(data.rows, t)
+        }
+      ]);
       XLSX.writeFile(workbook, `${paymentMethodsFileBaseName(appliedFilters)}.xlsx`);
       showToast({
         title: t("report.exportReady"),

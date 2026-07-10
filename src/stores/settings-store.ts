@@ -4,6 +4,7 @@ import { create } from "zustand";
 import type { SettingConfig } from "@/features/settings/shared/settings-config";
 import type { FetchParams } from "@/services/shared/types";
 import { getSettingsStoreAdapter } from "@/stores/settings-store-adapters";
+import { createSessionGuard, registerSessionStoreReset } from "@/stores/session-store-registry";
 import { errorMessage } from "@/stores/store-utils";
 
 interface SettingsEntityState {
@@ -61,6 +62,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   setSearch: (slug, search) =>
     set((state) => ({ entities: patchEntity(state, slug, { search }) })),
   load: async (config, params = {}, options) => {
+    const isCurrentSession = createSessionGuard();
     const adapter = getSettingsStoreAdapter(config.slug);
     const current = get().getEntity(config.slug);
     const background = Boolean(options?.background && current.hasLoaded);
@@ -74,69 +76,83 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     try {
       const result = await adapter.list({ ...params, search: params.search ?? current.search });
       const rows = Array.isArray(result.data) ? result.data : [];
-      set((state) => ({
-        entities: patchEntity(state, config.slug, {
-          rows,
-          total: Number(result.total ?? rows.length),
-          totalPages: Number(result.totalPages ?? result.total_page ?? 1),
-          hasLoaded: true,
-          loading: false,
-          refreshing: false
-        })
-      }));
+      if (isCurrentSession()) {
+        set((state) => ({
+          entities: patchEntity(state, config.slug, {
+            rows,
+            total: Number(result.total ?? rows.length),
+            totalPages: Number(result.totalPages ?? result.total_page ?? 1),
+            hasLoaded: true,
+            loading: false,
+            refreshing: false
+          })
+        }));
+      }
       return rows;
     } catch (error) {
-      set((state) => ({
-        entities: patchEntity(state, config.slug, {
-          error: errorMessage(error),
-          loading: false,
-          refreshing: false
-        })
-      }));
+      if (isCurrentSession()) {
+        set((state) => ({
+          entities: patchEntity(state, config.slug, {
+            error: errorMessage(error),
+            loading: false,
+            refreshing: false
+          })
+        }));
+      }
       throw error;
     }
   },
   save: async (config, input) => {
+    const isCurrentSession = createSessionGuard();
     const adapter = getSettingsStoreAdapter(config.slug);
     set((state) => ({
       entities: patchEntity(state, config.slug, { saving: true, error: null })
     }));
     try {
       const result = await adapter.save(input);
-      set((state) => ({
-        entities: patchEntity(state, config.slug, { saving: false })
-      }));
+      if (isCurrentSession()) {
+        set((state) => ({
+          entities: patchEntity(state, config.slug, { saving: false })
+        }));
+      }
       return result;
     } catch (error) {
-      set((state) => ({
-        entities: patchEntity(state, config.slug, {
-          error: errorMessage(error),
-          saving: false
-        })
-      }));
+      if (isCurrentSession()) {
+        set((state) => ({
+          entities: patchEntity(state, config.slug, {
+            error: errorMessage(error),
+            saving: false
+          })
+        }));
+      }
       throw error;
     }
   },
   remove: async (config, id) => {
+    const isCurrentSession = createSessionGuard();
     const adapter = getSettingsStoreAdapter(config.slug);
     set((state) => ({
       entities: patchEntity(state, config.slug, { saving: true, error: null })
     }));
     try {
       await adapter.remove(id);
-      set((state) => ({
-        entities: patchEntity(state, config.slug, {
-          rows: get().getEntity(config.slug).rows.filter((row) => String(row[config.idKey] ?? "") !== id),
-          saving: false
-        })
-      }));
+      if (isCurrentSession()) {
+        set((state) => ({
+          entities: patchEntity(state, config.slug, {
+            rows: get().getEntity(config.slug).rows.filter((row) => String(row[config.idKey] ?? "") !== id),
+            saving: false
+          })
+        }));
+      }
     } catch (error) {
-      set((state) => ({
-        entities: patchEntity(state, config.slug, {
-          error: errorMessage(error),
-          saving: false
-        })
-      }));
+      if (isCurrentSession()) {
+        set((state) => ({
+          entities: patchEntity(state, config.slug, {
+            error: errorMessage(error),
+            saving: false
+          })
+        }));
+      }
       throw error;
     }
   },
@@ -148,3 +164,5 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       return { entities: next };
     })
 }));
+
+registerSessionStoreReset("settings", () => useSettingsStore.getState().reset());

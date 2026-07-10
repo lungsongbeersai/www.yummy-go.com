@@ -2,7 +2,7 @@
 
 import { Badge } from "@/components/ui/badge";
 import type { Category } from "@/services/category";
-import { CategoryIcon } from "./category-icon-picker";
+import { CategoryIcon } from "./category-icon";
 import {
   categoryName,
   categoryValue

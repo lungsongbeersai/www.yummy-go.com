@@ -1,6 +1,13 @@
 "use client";
 
-import { Fragment, useCallback, type ReactNode, type RefObject } from "react";
+import {
+  Fragment,
+  memo,
+  useCallback,
+  useMemo,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import {
   CalendarArrowDown,
   CalendarArrowUp,
@@ -591,7 +598,7 @@ export function BestSellingTableCard({
                 </DropdownMenuGroup>
               </DropdownMenuContent>
             </DropdownMenu>
-            <Button
+            {/* <Button
               type="button"
               variant="outline"
               size="sm"
@@ -606,7 +613,7 @@ export function BestSellingTableCard({
                 <Printer data-icon="inline-start" />
               )}
               <span className="hidden sm:inline">{t("report.print")}</span>
-            </Button>
+            </Button> */}
             <Button
               type="button"
               variant="ghost"
@@ -624,9 +631,12 @@ export function BestSellingTableCard({
           </div>
         </div>
       </CardHeader>
-      <CardContent className="flex min-h-0 flex-1 flex-col p-0">
-        {loading ? (
-          <div className="p-4 md:min-h-80">
+      <CardContent
+        aria-busy={loading}
+        className="flex min-h-0 flex-1 flex-col p-0"
+      >
+        {loading && !rowsLength ? (
+          <div className="min-h-80 p-4">
             <LoadingState
               label={t("report.bestSelling.loading")}
               variant="reportTable"
@@ -640,7 +650,7 @@ export function BestSellingTableCard({
             <div className="shrink-0 bg-card">{footer}</div>
           </>
         ) : (
-          <div className="p-4 md:min-h-80">
+          <div className="min-h-80 p-4">
             <EmptyState
               title={t("report.bestSelling.noData")}
               description={t("report.bestSelling.adjustFilters")}
@@ -727,9 +737,19 @@ export function BestSellingProductsTable({
   onToggleRows: (rows: BestSellingProductItem[], selected: boolean) => void;
 }) {
   const { t } = useTranslation();
-  const productMetrics = bestSellingProductMetricConfigs(t);
-  const groupMetrics = bestSellingGroupMetricConfigs(t);
-  const summaryCards = bestSellingSummaryConfigs(t);
+  const productMetrics = useMemo(
+    () => bestSellingProductMetricConfigs(t),
+    [t],
+  );
+  const groupMetrics = useMemo(
+    () => bestSellingGroupMetricConfigs(t),
+    [t],
+  );
+  const summaryCards = useMemo(() => bestSellingSummaryConfigs(t), [t]);
+  const groupMetricByKey = useMemo(
+    () => new Map(groupMetrics.map((metric) => [metric.key, metric])),
+    [groupMetrics],
+  );
   const getGroupSortValue = useCallback(
     (group: BestSellingProductGroup, key: BestSellingSortKey) => {
       if (key === "groupName") return group.name;
@@ -743,10 +763,22 @@ export function BestSellingProductsTable({
     groups,
     getGroupSortValue,
   );
-  const visibleRows = sortedGroups.flatMap((group) =>
-    sortRowsLocally(group.items, sort, (item, key) => item[key]),
+  const sortedGroupRows = useMemo(
+    () =>
+      sortedGroups.map((group) => ({
+        group,
+        rows: sortRowsLocally(group.items, sort, (item, key) => item[key]),
+      })),
+    [sort, sortedGroups],
   );
-  const visibleIds = visibleRows.map(bestSellingProductRowId);
+  const visibleRows = useMemo(
+    () => sortedGroupRows.flatMap(({ rows }) => rows),
+    [sortedGroupRows],
+  );
+  const visibleIds = useMemo(
+    () => visibleRows.map(bestSellingProductRowId),
+    [visibleRows],
+  );
   const { allVisibleSelected, someVisibleSelected } =
     selectionStateForVisibleIds(visibleIds, selectedRowIds);
 
@@ -821,21 +853,15 @@ export function BestSellingProductsTable({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {sortedGroups.map((group) => (
-            <Fragment key={group.id}>
-              {(() => {
-                const groupRows = sortRowsLocally(
-                  group.items,
-                  sort,
-                  (item, key) => item[key],
-                );
-                const groupIds = groupRows.map(bestSellingProductRowId);
-                const groupSelection = selectionStateForVisibleIds(
-                  groupIds,
-                  selectedRowIds,
-                );
+          {sortedGroupRows.map(({ group, rows: groupRows }) => {
+            const groupIds = groupRows.map(bestSellingProductRowId);
+            const groupSelection = selectionStateForVisibleIds(
+              groupIds,
+              selectedRowIds,
+            );
 
-                return (
+            return (
+              <Fragment key={group.id}>
               <TableRow className="border-b border-border/80 bg-muted/25 hover:bg-muted/25">
                 <TableCell className="w-10 text-center">
                   <ReportIndeterminateCheckbox
@@ -864,9 +890,7 @@ export function BestSellingProductsTable({
                   </div>
                 </TableCell>
                 {productMetrics.map((metric) => {
-                  const groupMetric = groupMetrics.find(
-                    (item) => item.key === metric.key,
-                  );
+                  const groupMetric = groupMetricByKey.get(metric.key);
                   return (
                     <TableCell
                       key={metric.key}
@@ -886,20 +910,23 @@ export function BestSellingProductsTable({
                   );
                 })}
               </TableRow>
-                );
-              })()}
-              {sortRowsLocally(group.items, sort, (item, key) => item[key]).map((item, index) => (
+              {groupRows.map((item, index) => (
                 <BestSellingProductRow
                   key={item.id}
                   item={item}
                   index={index}
+                  metrics={productMetrics}
                   rank={index + 1}
+                  selectLabel={t("common.selectRow", {
+                    name: item.productName,
+                  })}
                   selected={selectedRowIds.has(bestSellingProductRowId(item))}
                   onToggleRow={onToggleRow}
                 />
               ))}
-            </Fragment>
-          ))}
+              </Fragment>
+            );
+          })}
         </TableBody>
         <tfoot className="sticky bottom-0 z-20">
           <BestSellingSummaryFooterRow
@@ -914,22 +941,23 @@ export function BestSellingProductsTable({
   );
 }
 
-function BestSellingProductRow({
+const BestSellingProductRow = memo(function BestSellingProductRow({
   item,
   index,
+  metrics,
   rank,
+  selectLabel,
   selected,
   onToggleRow,
 }: {
   item: BestSellingProductItem;
   index: number;
+  metrics: ReturnType<typeof bestSellingProductMetricConfigs>;
   rank: number;
+  selectLabel: string;
   selected: boolean;
   onToggleRow: (row: BestSellingProductItem, selected: boolean) => void;
 }) {
-  const { t } = useTranslation();
-  const metrics = bestSellingProductMetrics(item, t);
-
   return (
     <TableRow
       className={cn(
@@ -940,7 +968,7 @@ function BestSellingProductRow({
     >
       <TableCell className="w-10 text-center">
         <Checkbox
-          aria-label={t("common.selectRow", { name: item.productName })}
+          aria-label={selectLabel}
           checked={selected}
           onChange={(event) => onToggleRow(item, event.target.checked)}
         />
@@ -967,14 +995,14 @@ function BestSellingProductRow({
       {metrics.map((metric) => (
         <TableCell
           key={metric.key}
-          className={metricValueClass(metric.value, metric.key)}
+          className={metricValueClass(item[metric.field], metric.key)}
         >
-          {displayMetric(metric.value, metric.kind)}
+          {displayMetric(item[metric.field], metric.kind)}
         </TableCell>
       ))}
     </TableRow>
   );
-}
+});
 
 function BestSellingSummaryFooterRow({
   productMetrics,

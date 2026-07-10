@@ -84,6 +84,10 @@ export function PublicSearchSheet({
                 <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   ref={inputRef}
+                  aria-label={t("pos.searchMenu")}
+                  autoComplete="off"
+                  name="menuSearch"
+                  spellCheck={false}
                   value={value}
                   onChange={(event) => onValueChange(event.target.value)}
                   placeholder={t("pos.searchMenu")}
@@ -117,7 +121,7 @@ export function PublicSearchSheet({
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="h-8 shrink-0 rounded-md px-2 text-xs"
+                    className="min-h-11 shrink-0 rounded-md px-2 text-xs"
                     onClick={onClearHistory}
                   >
                     <Trash2 className="size-3.5" />

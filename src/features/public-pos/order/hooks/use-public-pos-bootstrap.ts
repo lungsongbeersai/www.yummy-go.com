@@ -8,6 +8,14 @@ import { useAppStore } from "@/stores/app-store";
 import { usePublicPosStore } from "@/stores/public-pos-store";
 import { PUBLIC_LOADING_MIN_MS } from "@/features/public-pos/order/constants";
 import { useMinimumVisibleLoading } from "@/features/public-pos/order/hooks/use-minimum-visible-loading";
+import {
+  currentPublicQrScanStatus,
+  INITIAL_PUBLIC_QR_SCAN_STATE,
+  isPublicQrScanLoading,
+  PUBLIC_QR_SCAN_STATUS,
+  publicQrScanRequestKey,
+  type PublicQrScanState,
+} from "@/features/public-pos/order/public-qr-scan-state";
 import { tableStatusLabel, totalCartQty } from "@/features/public-pos/order/utils";
 
 export function usePublicPosBootstrap({
@@ -39,17 +47,32 @@ export function usePublicPosBootstrap({
   const initialQueryLanguage = useRef<Language | null>(queryLanguage);
   const initialQueryLanguageApplied = useRef(!queryLanguage);
   const [languageReady, setLanguageReady] = useState(false);
+  const [scanAttempt, setScanAttempt] = useState(0);
+  const [scanRequest, setScanRequest] = useState<PublicQrScanState>(
+    INITIAL_PUBLIC_QR_SCAN_STATE,
+  );
   const searchParamsString = searchParams.toString();
   const activeLanguage = appLanguage;
   const hasToken = Boolean(token.trim());
   const qrDisabled = Boolean(table && !table.qr_enabled);
-  const scanKey = hasToken && languageReady ? `${token}:${activeLanguage}` : "";
-  const lastScanKey = useRef("");
+  const scanKey =
+    hasToken && languageReady
+      ? publicQrScanRequestKey(token, activeLanguage, scanAttempt)
+      : "";
+  const lastStartedScanKey = useRef("");
   const cartQty = useMemo(() => totalCartQty(cart), [cart]);
-  const pendingScan = Boolean(
-    hasToken && languageReady && lastScanKey.current !== scanKey,
+  const scanStatus = currentPublicQrScanStatus(scanRequest, scanKey);
+  const publicLoadingActive = isPublicQrScanLoading({
+    hasToken,
+    languageReady,
+    storeLoading: loading,
+    status: scanStatus,
+  });
+  const canRetryScan = Boolean(
+    hasToken &&
+      languageReady &&
+      scanStatus === PUBLIC_QR_SCAN_STATUS.ERROR,
   );
-  const publicLoadingActive = loading || !languageReady || pendingScan;
   const isPublicLoading = useMinimumVisibleLoading(
     publicLoadingActive,
     PUBLIC_LOADING_MIN_MS,
@@ -96,18 +119,47 @@ export function usePublicPosBootstrap({
   useEffect(() => {
     if (!hasToken) {
       reset();
-      lastScanKey.current = "";
+      lastStartedScanKey.current = "";
+      setScanRequest({
+        requestKey: "",
+        status: PUBLIC_QR_SCAN_STATUS.ERROR,
+      });
       setError(t("pos.missingToken"));
       return;
     }
 
-    if (!languageReady || lastScanKey.current === scanKey) return;
-    lastScanKey.current = scanKey;
+    if (
+      !languageReady ||
+      !scanKey ||
+      lastStartedScanKey.current === scanKey
+    ) {
+      return;
+    }
 
-    void scanTable(token, activeLanguage).catch((error) => {
-      lastScanKey.current = "";
-      setError(error instanceof Error ? error.message : t("pos.qrScanFailed"));
+    lastStartedScanKey.current = scanKey;
+    setScanRequest({
+      requestKey: scanKey,
+      status: PUBLIC_QR_SCAN_STATUS.LOADING,
     });
+
+    void scanTable(token, activeLanguage)
+      .then(() => {
+        if (lastStartedScanKey.current !== scanKey) return;
+        setScanRequest({
+          requestKey: scanKey,
+          status: PUBLIC_QR_SCAN_STATUS.SUCCESS,
+        });
+      })
+      .catch((error) => {
+        if (lastStartedScanKey.current !== scanKey) return;
+        setScanRequest({
+          requestKey: scanKey,
+          status: PUBLIC_QR_SCAN_STATUS.ERROR,
+        });
+        setError(
+          error instanceof Error ? error.message : t("pos.qrScanFailed"),
+        );
+      });
   }, [
     activeLanguage,
     hasToken,
@@ -120,12 +172,15 @@ export function usePublicPosBootstrap({
     token,
   ]);
 
-  const clearError = useCallback(() => {
+  const retryScan = useCallback(() => {
+    if (!hasToken || !languageReady) return;
     setError(null);
-  }, [setError]);
+    setScanAttempt((attempt) => attempt + 1);
+  }, [hasToken, languageReady, setError]);
 
   return {
     activeLanguage,
+    canRetryScan,
     cartQty,
     error,
     isPublicLoading,
@@ -133,6 +188,6 @@ export function usePublicPosBootstrap({
     qrDisabled,
     statusLabel,
     table,
-    clearError,
+    retryScan,
   };
 }

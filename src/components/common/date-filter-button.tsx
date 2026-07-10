@@ -26,7 +26,7 @@ export function DateFilterButton({
       disabled={disabled}
       title={label}
       className={cn(
-        "min-w-0 max-w-full justify-start gap-1.5 rounded-full border-primary/25 bg-primary/5 px-3 text-xs font-bold text-primary shadow-none hover:bg-primary/10 hover:text-primary focus-visible:ring-primary/30",
+        "min-h-11 min-w-0 max-w-full justify-start gap-1.5 rounded-full border-primary/25 bg-primary/5 px-3 text-xs font-bold text-primary shadow-none hover:bg-primary/10 hover:text-primary focus-visible:ring-primary/30 sm:min-h-8",
         className,
       )}
       onClick={onClick}

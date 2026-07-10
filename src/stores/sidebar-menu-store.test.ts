@@ -18,6 +18,14 @@ vi.mock("@/services/sidebar-menu", async (importOriginal) => {
 
 const fetchSidebarPermissionMenuMock = vi.mocked(fetchSidebarPermissionMenu);
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}
+
 const menuItems: SidebarPermissionMenuItem[] = [
   {
     iconName: "home",
@@ -79,5 +87,28 @@ describe("sidebar menu store", () => {
     expect(state.items).toEqual([]);
     expect(state.error).toBe("offline");
     expect(state.requestKey).toBe(sidebarMenuCacheKey("store-2", 2, "en"));
+  });
+
+  it("keeps the latest request active when an older response finishes last", async () => {
+    const first = deferred<SidebarPermissionMenuItem[]>();
+    const second = deferred<SidebarPermissionMenuItem[]>();
+    const latestItems = [{ ...menuItems[0], label: "Latest", path: "/latest" }];
+    fetchSidebarPermissionMenuMock
+      .mockReturnValueOnce(first.promise)
+      .mockReturnValueOnce(second.promise);
+
+    const firstLoad = useSidebarMenuStore.getState().load("store-1", 1, "la");
+    const secondLoad = useSidebarMenuStore.getState().load("store-2", 2, "en");
+
+    second.resolve(latestItems);
+    await secondLoad;
+    first.resolve(menuItems);
+    await firstLoad;
+
+    expect(useSidebarMenuStore.getState()).toMatchObject({
+      items: latestItems,
+      loading: false,
+      requestKey: sidebarMenuCacheKey("store-2", 2, "en")
+    });
   });
 });

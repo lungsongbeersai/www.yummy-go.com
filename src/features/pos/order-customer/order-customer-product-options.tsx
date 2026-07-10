@@ -264,6 +264,7 @@ export function ProductOptionsForm({
                   type="button"
                   variant="outline"
                   size="icon"
+                  aria-label={`${t("pos.qty")} -`}
                   className="size-11 bg-background hover:bg-muted"
                   disabled={qty <= 1}
                   onClick={() => onQtyChange(Math.max(1, qty - 1))}
@@ -271,8 +272,10 @@ export function ProductOptionsForm({
                   <Minus />
                 </Button>
                 <Input
+                  aria-label={t("pos.qty")}
                   className="h-11 w-full bg-background text-center text-lg font-black"
                   inputMode="numeric"
+                  name="quantity"
                   value={qty}
                   onChange={(event) => {
                     const next = Number(
@@ -285,6 +288,7 @@ export function ProductOptionsForm({
                   type="button"
                   variant="outline"
                   size="icon"
+                  aria-label={`${t("pos.qty")} +`}
                   className="size-11 bg-background hover:bg-muted"
                   disabled={qty >= MAX_ORDER_QTY}
                   onClick={() => onQtyChange(clampQty(qty + 1))}
@@ -297,7 +301,10 @@ export function ProductOptionsForm({
             <Field>
               <ProductSectionHeader label={t("pos.note")} />
               <Textarea
+                aria-label={t("pos.note")}
+                autoComplete="off"
                 className="min-h-16 resize-none bg-background"
+                name="orderNote"
                 value={note}
                 placeholder={t("pos.notePlaceholder")}
                 onChange={(event) => onNoteChange(event.target.value)}

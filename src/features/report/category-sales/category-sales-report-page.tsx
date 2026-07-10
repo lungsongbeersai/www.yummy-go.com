@@ -169,16 +169,20 @@ export function CategorySalesReportPage({ initialPagination }: { initialPaginati
           />
         </CategorySalesTableCard>
       </div>
-      <CategorySalesExportSurface
-        containerRef={exportReportRef}
-        dateRange={`${report.appliedFilters.dateFrom} - ${report.appliedFilters.dateTo}`}
-        methodLabel={report.activePaymentMethodLabel}
-        rows={report.renderedExportData.rows}
-        rowsLabel={t("report.categorySales.rowsLabel", { count: report.renderedExportData.rows.length })}
-        summary={report.renderedExportData.summary}
-        title={report.renderedExportData.reportName || report.reportTitle}
-        labelOverrides={report.labelOverrides}
-      />
+      {report.exporting === "pdf" || report.exporting === "print" ? (
+        <CategorySalesExportSurface
+          containerRef={exportReportRef}
+          dateRange={`${report.appliedFilters.dateFrom} - ${report.appliedFilters.dateTo}`}
+          methodLabel={report.activePaymentMethodLabel}
+          rows={report.renderedExportData.rows}
+          rowsLabel={t("report.categorySales.rowsLabel", {
+            count: report.renderedExportData.rows.length,
+          })}
+          summary={report.renderedExportData.summary}
+          title={report.renderedExportData.reportName || report.reportTitle}
+          labelOverrides={report.labelOverrides}
+        />
+      ) : null}
       <BlockingLoadingDialog
         open={Boolean(report.exporting)}
         title={exportTitle}

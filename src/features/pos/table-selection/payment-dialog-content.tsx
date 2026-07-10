@@ -251,7 +251,6 @@ export function PaymentDialogContent({
           className="!left-0 !top-0 grid h-[var(--pos-payment-dialog-height)] max-h-[var(--pos-payment-dialog-height)] w-full max-w-[100vw] !translate-x-0 !translate-y-0 grid-rows-[auto_minmax(0,1fr)] gap-0 overflow-hidden rounded-none border-0 bg-background p-0 sm:!left-[50%] sm:!top-[50%] sm:h-[calc(100dvh-1rem)] sm:max-h-[calc(100dvh-1rem)] sm:max-w-[calc(100vw-1rem)] sm:!translate-x-[-50%] sm:!translate-y-[-50%] sm:rounded-lg sm:border xl:max-w-7xl"
           style={dialogStyle}
           onKeyDown={handleDialogKeyDown}
-          onOpenAutoFocus={(event) => event.preventDefault()}
         >
           <DialogHeader className="shrink-0 border-b border-border bg-card px-3 py-1.5 pr-12 text-left sm:px-4 sm:py-3">
             <div className="flex min-w-0 items-center justify-between gap-3">

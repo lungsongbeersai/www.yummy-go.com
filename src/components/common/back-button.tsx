@@ -30,7 +30,10 @@ export function BackButton({ fallbackHref, label, className }: BackButtonProps) 
       variant="ghost"
       size="sm"
       onClick={handleClick}
-      className={cn("h-auto gap-2 px-2 py-1 text-sm font-bold text-primary hover:bg-primary/10", className)}
+      className={cn(
+        "h-auto min-h-11 gap-2 px-2 py-1 text-sm font-bold text-primary hover:bg-primary/10 sm:min-h-8",
+        className,
+      )}
     >
       <ArrowLeft data-icon="inline-start" />
       {label ?? t("common.back")}

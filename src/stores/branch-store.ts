@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import { getBranchOptions, type Branch } from "@/services/branch";
+import { createSessionGuard, registerSessionStoreReset } from "@/stores/session-store-registry";
 import { errorMessage } from "@/stores/store-utils";
 
 interface BranchState {
@@ -15,6 +16,8 @@ interface BranchState {
   getSelectedBranch: () => Branch | null;
   reset: () => void;
 }
+
+let branchRequestId = 0;
 
 function getBranchUuid(branch: Branch | null | undefined) {
   return String(branch?.branch_uuid ?? "");
@@ -34,6 +37,8 @@ export const useBranchStore = create<BranchState>((set, get) => ({
   loading: false,
   error: null,
   loadBranches: async (storeUuid = "", defaultBranchUuid = "") => {
+    const requestId = ++branchRequestId;
+    const isCurrentSession = createSessionGuard();
     if (!storeUuid) {
       set({
         branches: [],
@@ -59,10 +64,14 @@ export const useBranchStore = create<BranchState>((set, get) => ({
         get().selectedBranchUuid,
         defaultBranchUuid
       );
-      set({ branches, selectedBranchUuid, storeUuid, loading: false });
+      if (requestId === branchRequestId && isCurrentSession()) {
+        set({ branches, selectedBranchUuid, storeUuid, loading: false });
+      }
       return branches;
     } catch (error) {
-      set({ error: errorMessage(error), loading: false });
+      if (requestId === branchRequestId && isCurrentSession()) {
+        set({ error: errorMessage(error), loading: false });
+      }
       throw error;
     }
   },
@@ -71,12 +80,16 @@ export const useBranchStore = create<BranchState>((set, get) => ({
     const selectedBranchUuid = get().selectedBranchUuid;
     return get().branches.find((branch) => getBranchUuid(branch) === selectedBranchUuid) ?? null;
   },
-  reset: () =>
+  reset: () => {
+    branchRequestId += 1;
     set({
       branches: [],
       selectedBranchUuid: "",
       storeUuid: "",
       loading: false,
       error: null
-    })
+    });
+  }
 }));
+
+registerSessionStoreReset("branch", () => useBranchStore.getState().reset());

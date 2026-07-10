@@ -187,16 +187,20 @@ export function PaymentMethodsReportPage({ initialPagination }: { initialPaginat
           </PaymentMethodsTableCard>
         </div>
       </div>
-      <PaymentMethodsExportSurface
-        cards={report.renderedExportData.cards}
-        containerRef={exportReportRef}
-        dateRange={`${report.appliedFilters.dateFrom} - ${report.appliedFilters.dateTo}`}
-        methodLabel={report.activePaymentMethodLabel}
-        reportTotal={report.renderedExportData.reportTotal}
-        rows={report.renderedExportData.rows}
-        rowsLabel={t("report.paymentMethodsReport.rowsLabel", { count: report.renderedExportData.rows.length })}
-        title={report.renderedExportData.reportName || report.reportTitle}
-      />
+      {report.exporting === "pdf" || report.exporting === "print" ? (
+        <PaymentMethodsExportSurface
+          cards={report.renderedExportData.cards}
+          containerRef={exportReportRef}
+          dateRange={`${report.appliedFilters.dateFrom} - ${report.appliedFilters.dateTo}`}
+          methodLabel={report.activePaymentMethodLabel}
+          reportTotal={report.renderedExportData.reportTotal}
+          rows={report.renderedExportData.rows}
+          rowsLabel={t("report.paymentMethodsReport.rowsLabel", {
+            count: report.renderedExportData.rows.length,
+          })}
+          title={report.renderedExportData.reportName || report.reportTitle}
+        />
+      ) : null}
       <BlockingLoadingDialog
         open={Boolean(report.exporting)}
         title={exportTitle}

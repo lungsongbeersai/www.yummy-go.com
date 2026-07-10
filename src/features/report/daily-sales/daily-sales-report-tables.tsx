@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useCallback } from "react";
+import { Fragment, useCallback, useMemo } from "react";
 import Image from "next/image";
 import { ChevronDown, ChevronRight, Package } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -212,22 +212,32 @@ export function SummaryReportTable({
   onToggleRows: (rows: ApiEntity[], selected: boolean) => void;
 }) {
   const { t } = useTranslation();
-  const activeColumns = typePage === "bill" ? summaryColumns(t) : null;
+  const activeColumns = useMemo(
+    () => (typePage === "bill" ? summaryColumns(t) : null),
+    [t, typePage],
+  );
+  const columnByHeader = useMemo(
+    () => new Map(columns.map((column) => [column.header, column])),
+    [columns],
+  );
 
   const getSortValue = useCallback(
     (row: ApiEntity, key: string) => {
       if (activeColumns) return summaryCellValue(row, key);
-      const column = columns.find((item) => item.header === key);
+      const column = columnByHeader.get(key);
       return column ? readValue(row, column.keys) : undefined;
     },
-    [activeColumns, columns],
+    [activeColumns, columnByHeader],
   );
 
   const { sort, sortedRows, toggleSort } = useLocalTableSort(
     rows,
     getSortValue,
   );
-  const visibleIds = sortedRows.map(reportRecordId);
+  const visibleIds = useMemo(
+    () => sortedRows.map(reportRecordId),
+    [sortedRows],
+  );
   const allVisibleSelected =
     visibleIds.length > 0 &&
     visibleIds.every((id) => selectedRecordIds.has(id));
@@ -558,8 +568,14 @@ export function DetailBillTable({
     toggleSort: toggleGroupSort,
   } = useLocalTableSort(groups, getGroupSortValue);
 
-  const visibleItems = sortedGroups.flatMap((group) => group.items);
-  const visibleItemIds = visibleItems.map(reportRecordId);
+  const visibleItems = useMemo(
+    () => sortedGroups.flatMap((group) => group.items),
+    [sortedGroups],
+  );
+  const visibleItemIds = useMemo(
+    () => visibleItems.map(reportRecordId),
+    [visibleItems],
+  );
   const allVisibleSelected =
     visibleItemIds.length > 0 &&
     visibleItemIds.every((id) => selectedRecordIds.has(id));
@@ -567,18 +583,21 @@ export function DetailBillTable({
     selectedRecordIds.has(id),
   );
 
-  const allItems = sortedGroups.flatMap((group) => group.items);
-  const hasStatusData = allItems.some((item) =>
-    hasDisplayValue(
-      readValue(item, [
-        "status_name",
-        "status_text",
-        "status",
-        "status_code",
-        "order_status_text",
-        "order_it_status_text",
-      ]),
-    ),
+  const hasStatusData = useMemo(
+    () =>
+      visibleItems.some((item) =>
+        hasDisplayValue(
+          readValue(item, [
+            "status_name",
+            "status_text",
+            "status",
+            "status_code",
+            "order_status_text",
+            "order_it_status_text",
+          ]),
+        ),
+      ),
+    [visibleItems],
   );
   return (
     <div className="w-full min-w-0">

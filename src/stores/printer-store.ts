@@ -47,6 +47,7 @@ import {
   type SearchPrinterResult,
   renderMobileEscpos
 } from "@/services/printer";
+import { createSessionGuard, registerSessionStoreReset } from "@/stores/session-store-registry";
 import { errorMessage } from "@/stores/store-utils";
 import { printMobileEscposOverTcp } from "@/services/printer/mobile-tcp";
 import { Capacitor } from "@capacitor/core";
@@ -123,38 +124,44 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
   printing: false,
   error: null,
   loadPrinters: async (params) => {
+    const isCurrentSession = createSessionGuard();
     set({ loading: true, error: null });
     try {
       const printers = await getPrinters(params);
-      set({ printers, loading: false });
+      if (isCurrentSession()) set({ printers, loading: false });
       return printers;
     } catch (error) {
-      set({ error: errorMessage(error), loading: false });
+      if (isCurrentSession()) set({ error: errorMessage(error), loading: false });
       throw error;
     }
   },
   loadPrintersForLocalAgent: async (params) => {
+    const isCurrentSession = createSessionGuard();
     set({ loading: true, error: null });
 
     const result = await resolvePrinterDeviceIdentity();
+    if (!isCurrentSession()) return [];
+
     const agent = result.ok ? result.agent : null;
     const agentId = textValue(agent?.agent_id);
     const deviceCode = textValue(agent?.device_code);
 
     if (!result.ok || !agentId || !deviceCode) {
       const error = result.ok ? "Printer device identity missing" : result.error;
-      set({
-        printers: [],
-        agent,
-        agentStatus: "offline",
-        agentError: error,
-        error,
-        loading: false
-      });
+      if (isCurrentSession()) {
+        set({
+          printers: [],
+          agent,
+          agentStatus: "offline",
+          agentError: error,
+          error,
+          loading: false
+        });
+      }
       return [];
     }
 
-    set({ agent, agentStatus: "connected", agentError: null });
+    if (isCurrentSession()) set({ agent, agentStatus: "connected", agentError: null });
 
     try {
       const printers = await getPrinters({
@@ -162,123 +169,147 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
         agent_id: agentId,
         device_code: deviceCode
       });
-      set({ printers, loading: false });
+      if (isCurrentSession()) set({ printers, loading: false });
       return printers;
     } catch (error) {
-      set({ error: errorMessage(error), loading: false });
+      if (isCurrentSession()) set({ error: errorMessage(error), loading: false });
       throw error;
     }
   },
   loadOptions: async (loginUuid, lang) => {
+    const isCurrentSession = createSessionGuard();
     const options = await getPrinterOptions(loginUuid, lang);
-    set({ options });
+    if (isCurrentSession()) set({ options });
     return options;
   },
   loadAgentFiles: async () => {
+    const isCurrentSession = createSessionGuard();
     set({ loadingAgentFiles: true, error: null });
     try {
       const agentFiles = await getAgentFiles();
-      set({ agentFiles, loadingAgentFiles: false });
+      if (isCurrentSession()) set({ agentFiles, loadingAgentFiles: false });
       return agentFiles;
     } catch (error) {
-      set({ error: errorMessage(error), loadingAgentFiles: false });
+      if (isCurrentSession()) set({ error: errorMessage(error), loadingAgentFiles: false });
       throw error;
     }
   },
   discover: async (mode = "usb") => {
+    const isCurrentSession = createSessionGuard();
     set({ searching: true, error: null });
     try {
       const result = await searchPrinters(mode);
-      set({
-        found: result.printers,
-        agent: result.agent,
-        agentStatus: result.agent ? "connected" : "unchecked",
-        agentError: null,
-        searching: false
-      });
+      if (isCurrentSession()) {
+        set({
+          found: result.printers,
+          agent: result.agent,
+          agentStatus: result.agent ? "connected" : "unchecked",
+          agentError: null,
+          searching: false
+        });
+      }
       return result.printers;
     } catch (error) {
-      set({ error: errorMessage(error), agentStatus: "offline", agentError: errorMessage(error), searching: false });
+      if (isCurrentSession()) {
+        set({ error: errorMessage(error), agentStatus: "offline", agentError: errorMessage(error), searching: false });
+      }
       throw error;
     }
   },
   checkAgent: async (agentUrl) => {
+    const isCurrentSession = createSessionGuard();
     const result = await resolvePrinterDeviceIdentity(agentUrl);
-    set({
-      agent: result.ok ? result.agent ?? null : null,
-      agentStatus: result.ok ? "connected" : "offline",
-      agentError: result.ok ? null : result.error ?? null
-    });
+    if (isCurrentSession()) {
+      set({
+        agent: result.ok ? result.agent ?? null : null,
+        agentStatus: result.ok ? "connected" : "offline",
+        agentError: result.ok ? null : result.error ?? null
+      });
+    }
     return result.ok;
   },
   resolveDeviceIdentity: async (agentUrl) => {
+    const isCurrentSession = createSessionGuard();
     const result = await resolvePrinterDeviceIdentity(agentUrl);
-    set({
-      agent: result.ok ? result.agent ?? null : null,
-      agentStatus: result.ok ? "connected" : "offline",
-      agentError: result.ok ? null : result.error ?? null
-    });
+    if (isCurrentSession()) {
+      set({
+        agent: result.ok ? result.agent ?? null : null,
+        agentStatus: result.ok ? "connected" : "offline",
+        agentError: result.ok ? null : result.error ?? null
+      });
+    }
     if (!result.ok) throw new Error(result.error);
     return result.agent;
   },
   loadRoles: async (lang) => {
+    const isCurrentSession = createSessionGuard();
     const roles = await getPrinterRoles(lang);
-    set({ roles });
+    if (isCurrentSession()) set({ roles });
     return roles;
   },
   save: async (input) => {
+    const isCurrentSession = createSessionGuard();
     set({ saving: true, error: null });
     try {
       const printer = await savePrinter(input);
-      set((state) => {
-        const exists = state.printers.some((item) => item.print_config_uuid === printer.print_config_uuid);
-        return {
-          printers: exists
-            ? state.printers.map((item) =>
-              item.print_config_uuid === printer.print_config_uuid ? printer : item
-            )
-            : printer.print_config_uuid
-              ? [printer, ...state.printers]
-              : state.printers,
-          saving: false
-        };
-      });
+      if (isCurrentSession()) {
+        set((state) => {
+          const exists = state.printers.some((item) => item.print_config_uuid === printer.print_config_uuid);
+          return {
+            printers: exists
+              ? state.printers.map((item) =>
+                item.print_config_uuid === printer.print_config_uuid ? printer : item
+              )
+              : printer.print_config_uuid
+                ? [printer, ...state.printers]
+                : state.printers,
+            saving: false
+          };
+        });
+      }
       return printer;
     } catch (error) {
-      set({ error: errorMessage(error), saving: false });
+      if (isCurrentSession()) set({ error: errorMessage(error), saving: false });
       throw error;
     }
   },
   remove: async (printConfigUuid) => {
+    const isCurrentSession = createSessionGuard();
     set({ saving: true, error: null });
     try {
       await deletePrinter(printConfigUuid);
-      set((state) => ({
-        printers: state.printers.filter((printer) => printer.print_config_uuid !== printConfigUuid),
-        saving: false
-      }));
+      if (isCurrentSession()) {
+        set((state) => ({
+          printers: state.printers.filter((printer) => printer.print_config_uuid !== printConfigUuid),
+          saving: false
+        }));
+      }
     } catch (error) {
-      set({ error: errorMessage(error), saving: false });
+      if (isCurrentSession()) set({ error: errorMessage(error), saving: false });
       throw error;
     }
   },
   toggleActive: async (printConfigUuid) => {
+    const isCurrentSession = createSessionGuard();
     set({ saving: true, error: null });
     try {
       await togglePrinterActive(printConfigUuid);
-      set((state) => ({
-        printers: state.printers.map((printer) =>
-          printer.print_config_uuid === printConfigUuid ? { ...printer, is_active: !printer.is_active } : printer
-        ),
-        saving: false
-      }));
+      if (isCurrentSession()) {
+        set((state) => ({
+          printers: state.printers.map((printer) =>
+            printer.print_config_uuid === printConfigUuid ? { ...printer, is_active: !printer.is_active } : printer
+          ),
+          saving: false
+        }));
+      }
     } catch (error) {
-      set({ error: errorMessage(error), saving: false });
+      if (isCurrentSession()) set({ error: errorMessage(error), saving: false });
       throw error;
     }
   },
   buildTest: (data) => buildTestJob(data),
   test: async (input) => {
+    const isCurrentSession = createSessionGuard();
     set({ printing: true, error: null });
 
     let phase = "start";
@@ -307,6 +338,7 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
           connect_type: selectedPrinter?.connect_type,
         }
         : await resolvePrinterDeviceContext(input);
+      if (!isCurrentSession()) return;
 
       console.log("[printer-test] printer", printer);
 
@@ -319,6 +351,7 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
         agent_name: printer.agent_name,
         print_mode: printer.print_mode,
       });
+      if (!isCurrentSession()) return;
 
       const job = result.data.job;
       console.log("[printer-test] job", job);
@@ -359,6 +392,8 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
       if (isMobileWifi) {
         phase = "renderMobileEscpos";
         const escposBase64 = await renderMobileEscpos(job);
+        if (!isCurrentSession()) return;
+
         console.log("[printer-test] escposBase64 length", escposBase64.length);
 
         phase = "printMobileEscposOverTcp";
@@ -372,7 +407,7 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
       }
 
       phase = "done";
-      set({ printing: false });
+      if (isCurrentSession()) set({ printing: false });
     } catch (error) {
       const message = error instanceof Error ? error.message : errorMessage(error);
       const finalMessage = `[${phase}] ${message}`;
@@ -382,32 +417,38 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
         error,
       });
 
-      set({ error: finalMessage, printing: false });
+      if (isCurrentSession()) set({ error: finalMessage, printing: false });
       throw new Error(finalMessage);
     }
 
   },
   loadCategoryRoles: async (loginUuid) => {
+    const isCurrentSession = createSessionGuard();
     const categoryRoles = await getCategoryRoles(loginUuid);
-    set({ categoryRoles });
+    if (isCurrentSession()) set({ categoryRoles });
     return categoryRoles;
   },
   saveCategoryRole: (input) => saveCategoryRole(input),
   loadPrinterCategoryRole: async (loginUuid, printerUuid, lang) => {
+    const isCurrentSession = createSessionGuard();
     const printerCategoryRole = await fetchPrinterCategoryRole(loginUuid, printerUuid, lang);
-    set({ printerCategoryRole });
+    if (isCurrentSession()) set({ printerCategoryRole });
     return printerCategoryRole;
   },
   saveCategoryPrinter: (input) => saveCategoryPrinter(input),
   resolveByCategory: async (loginUuid, categoryUuids) => {
+    const isCurrentSession = createSessionGuard();
     const resolvedPrinters = await resolvePrintersByCategory(loginUuid, categoryUuids);
-    set({ resolvedPrinters });
+    if (isCurrentSession()) set({ resolvedPrinters });
     return resolvedPrinters;
   },
   resolveDeviceContext: (params) => resolvePrinterDeviceContext(params),
   getDefaultCategoryByRole: (input) => getDefaultCategoryByRole(input),
   loadPendingJobs: async (printJobUuid, loginUuid) => {
+    const isCurrentSession = createSessionGuard();
     const printer = await resolvePrinterDeviceContext({ login_uuid_fk: loginUuid });
+    if (!isCurrentSession()) return [];
+
     const result = await getPendingPrintJobs({
       print_job_uuid: printJobUuid,
       login_uuid_fk: loginUuid,
@@ -416,7 +457,7 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
       print_mode: printer.print_mode
     });
     const pendingJobs = result.jobs;
-    set({ pendingJobs });
+    if (isCurrentSession()) set({ pendingJobs });
     return pendingJobs;
   },
   ack: (payload) => ackPrintJob(payload),
@@ -444,3 +485,5 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
       error: null
     })
 }));
+
+registerSessionStoreReset("printer", () => usePrinterStore.getState().reset());

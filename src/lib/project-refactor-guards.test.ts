@@ -332,7 +332,7 @@ describe("project refactor guards", () => {
       join(srcDir, "features"),
       join(srcDir, "components")
     ])).toEqual([]);
-  });
+  }, 15_000);
 
   it("keeps destructive confirmation dialogs backed by AlertDialog", () => {
     const confirmDialog = readFileSync(

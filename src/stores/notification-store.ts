@@ -1,6 +1,7 @@
 "use client";
 
 import { create } from "zustand";
+import { registerSessionStoreReset } from "@/stores/session-store-registry";
 
 export type NotificationTone = "info" | "success" | "warning";
 
@@ -18,6 +19,7 @@ interface NotificationState {
   markRead: (id: string) => void;
   markAllRead: () => void;
   clear: () => void;
+  reset: () => void;
 }
 
 const MINUTE = 60_000;
@@ -70,5 +72,10 @@ export const useNotificationStore = create<NotificationState>((set) => ({
     set((state) => ({
       items: state.items.map((item) => ({ ...item, read: true }))
     })),
-  clear: () => set({ items: [] })
+  clear: () => set({ items: [] }),
+  reset: () => set({ items: seed() })
 }));
+
+registerSessionStoreReset("notification", () =>
+  useNotificationStore.getState().reset(),
+);

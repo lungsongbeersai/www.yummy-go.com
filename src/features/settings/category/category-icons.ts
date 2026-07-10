@@ -1,5 +1,3 @@
-import { icons as mdiIcons } from "@iconify-json/mdi";
-
 export interface CategoryIconOption {
   labelKey: string;
   value: string;
@@ -227,7 +225,5 @@ export function categoryIconGroup(rawValue: string): CategoryIconGroup {
 export function categoryIconName(rawValue: string) {
   const value = normalizeCategoryIconValue(rawValue);
   if (!value) return DEFAULT_CATEGORY_ICON;
-  const aliasedValue = LEGACY_CATEGORY_ICON_ALIASES[value] ?? value;
-  if (!aliasedValue.startsWith("mdi:")) return aliasedValue;
-  return mdiIcons.icons[aliasedValue.slice(4)] ? aliasedValue : DEFAULT_CATEGORY_ICON;
+  return LEGACY_CATEGORY_ICON_ALIASES[value] ?? value;
 }

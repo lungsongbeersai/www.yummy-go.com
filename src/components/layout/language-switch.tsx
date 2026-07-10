@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { ChevronDown } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { LANGUAGES, type Language } from "@/lib/language";
 import { cn } from "@/lib/utils";
 import { Button, type ButtonProps } from "@/components/ui/button";
@@ -41,6 +42,7 @@ export function LanguageSwitch({
   size,
   variant = "ghost"
 }: LanguageSwitchProps = {}) {
+  const { t } = useTranslation();
   const language = useAppStore((state) => state.language);
   const setLanguage = useAppStore((state) => state.setLanguage);
   const current = LANGUAGE_META[language];
@@ -52,7 +54,11 @@ export function LanguageSwitch({
           type="button"
           variant={variant}
           size={size}
-          className={cn("h-10 min-w-10 gap-1.5 px-2 font-black", className)}
+          aria-label={t("app.changeLanguage")}
+          className={cn(
+            "h-11 min-w-11 gap-1.5 px-2 font-black sm:h-10 sm:min-w-10",
+            className,
+          )}
         >
           <LanguageFlagImage src={current.flag} />
           {showShort ? <span className="hidden sm:inline">{current.short}</span> : null}

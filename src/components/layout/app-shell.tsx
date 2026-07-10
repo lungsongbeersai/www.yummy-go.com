@@ -207,7 +207,7 @@ function userInitials(user: AuthUser | null) {
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { i18n } = useTranslation();
+  const { i18n, t } = useTranslation();
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
   const collapsed = useAppStore((state) => state.collapsed);
@@ -326,6 +326,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       data-dashboard-screen={dashboardScreen ? "true" : "false"}
       data-sidebar-state={collapsed ? "collapsed" : "expanded"}
     >
+      <a
+        href="#app-main-content"
+        className="fixed left-2 top-2 z-100 -translate-y-24 rounded-md bg-background px-4 py-3 font-bold text-foreground shadow-lg transition-transform focus:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        {t("app.skipToContent")}
+      </a>
       {!immersiveScreen ? (
         <AppHeader
           breadcrumbs={breadcrumbs}
@@ -357,6 +363,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           )}
         >
           <main
+            id="app-main-content"
+            tabIndex={-1}
             className={cn(
               fixedDataScreen
                 ? "h-full min-h-0 min-w-0 w-full max-w-none overflow-hidden"

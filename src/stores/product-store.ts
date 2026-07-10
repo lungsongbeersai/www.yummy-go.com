@@ -24,6 +24,7 @@ import {
 } from "@/services/product";
 import { deleteSize, saveSizeForStatus, type SaveSizeForStatusInput } from "@/services/size";
 import type { PageLimit } from "@/services/shared/types";
+import { createSessionGuard, registerSessionStoreReset } from "@/stores/session-store-registry";
 import { errorMessage } from "@/stores/store-utils";
 import {
   applyProductStatusFields,
@@ -74,6 +75,7 @@ interface ProductState {
   reset: () => void;
 }
 
+let productLoadRequestId = 0;
 let sizesByStatusRequestId = 0;
 
 export const useProductStore = create<ProductState>((set, get) => ({
@@ -93,38 +95,47 @@ export const useProductStore = create<ProductState>((set, get) => ({
   setCateUuidFk: (cateUuidFk) => set({ cateUuidFk }),
   setPageLimit: (pageLimit) => set({ pageLimit }),
   load: async (params = {}) => {
+    const requestId = ++productLoadRequestId;
+    const isCurrentSession = createSessionGuard();
+    const pageLimit = params.limit ?? get().pageLimit;
     set({ loading: true, error: null });
     try {
       const result = await getProducts({
         ...params,
         search: params.search ?? get().search,
         cate_uuid_fk: params.cate_uuid_fk ?? get().cateUuidFk,
-        limit: params.limit ?? get().pageLimit
+        limit: pageLimit
       });
       const rows = result.data ?? [];
-      set({
-        rows,
-        total: Number(result.total ?? rows.length),
-        totalPages: isAllPageLimit(params.limit ?? get().pageLimit) ? 1 : Number(result.totalPages ?? result.total_page ?? 1),
-        loading: false
-      });
+      if (requestId === productLoadRequestId && isCurrentSession()) {
+        set({
+          rows,
+          total: Number(result.total ?? rows.length),
+          totalPages: isAllPageLimit(pageLimit) ? 1 : Number(result.totalPages ?? result.total_page ?? 1),
+          loading: false
+        });
+      }
       return rows;
     } catch (error) {
-      set({ error: errorMessage(error), loading: false });
+      if (requestId === productLoadRequestId && isCurrentSession()) {
+        set({ error: errorMessage(error), loading: false });
+      }
       throw error;
     }
   },
   loadStatusSorts: async (lang) => {
+    const isCurrentSession = createSessionGuard();
     const statusSorts = await getStatusSorts(lang);
-    set({ statusSorts });
+    if (isCurrentSession()) set({ statusSorts });
     return statusSorts;
   },
   loadSizesByStatus: async (storeUuid, statusSort, lang) => {
+    const isCurrentSession = createSessionGuard();
     const requestedStatus = Number(statusSort);
     const requestId = ++sizesByStatusRequestId;
     set({ sizesByStatusStatus: null });
     const sizesByStatus = await getSizesByStatus(storeUuid, statusSort, lang);
-    if (requestId === sizesByStatusRequestId) {
+    if (requestId === sizesByStatusRequestId && isCurrentSession()) {
       set({ sizesByStatus, sizesByStatusStatus: requestedStatus });
     }
     return sizesByStatus;
@@ -135,61 +146,74 @@ export const useProductStore = create<ProductState>((set, get) => ({
   },
   deleteSizeForStatus: (sizeUuid) => deleteSize(sizeUuid),
   save: async (input) => {
+    const isCurrentSession = createSessionGuard();
     set({ saving: true, error: null });
     try {
       const product = await saveProduct(input);
-      set((state) => ({
-        rows: upsertProduct(state.rows, product),
-        saving: false
-      }));
+      if (isCurrentSession()) {
+        set((state) => ({
+          rows: upsertProduct(state.rows, product),
+          saving: false
+        }));
+      }
       return product;
     } catch (error) {
-      set({ error: errorMessage(error), saving: false });
+      if (isCurrentSession()) set({ error: errorMessage(error), saving: false });
       throw error;
     }
   },
   remove: async (prodUuid) => {
+    const isCurrentSession = createSessionGuard();
     set({ saving: true, error: null });
     try {
       await deleteProduct(prodUuid);
-      set((state) => ({
-        rows: state.rows.filter((row) => row.prod_uuid !== prodUuid),
-        saving: false
-      }));
+      if (isCurrentSession()) {
+        set((state) => ({
+          rows: state.rows.filter((row) => row.prod_uuid !== prodUuid),
+          saving: false
+        }));
+      }
     } catch (error) {
-      set({ error: errorMessage(error), saving: false });
+      if (isCurrentSession()) set({ error: errorMessage(error), saving: false });
       throw error;
     }
   },
   updateDetailEnabled: async (detailUuid, enabled) => {
+    const isCurrentSession = createSessionGuard();
     set({ saving: true, error: null });
     try {
       const response = await updateProductEnabled(detailUuid, enabled);
       const syncedEnabled = responseNumber(response, "pro_detail_enabled", enabled);
-      set((state) => ({
-        rows: patchDetail(state.rows, detailUuid, { pro_detail_enabled: syncedEnabled }),
-        saving: false
-      }));
+      if (isCurrentSession()) {
+        set((state) => ({
+          rows: patchDetail(state.rows, detailUuid, { pro_detail_enabled: syncedEnabled }),
+          saving: false
+        }));
+      }
     } catch (error) {
-      set({ error: errorMessage(error), saving: false });
+      if (isCurrentSession()) set({ error: errorMessage(error), saving: false });
       throw error;
     }
   },
   updateDetailStock: async (detailUuid, stockMode) => {
+    const isCurrentSession = createSessionGuard();
     set({ saving: true, error: null });
     try {
       const response = await updateProductStockMode(detailUuid, stockMode);
       const syncedStock = responseNumber(response, "pro_detail_stock", stockMode);
-      set((state) => ({
-        rows: patchDetail(state.rows, detailUuid, { pro_detail_stock: syncedStock }),
-        saving: false
-      }));
+      if (isCurrentSession()) {
+        set((state) => ({
+          rows: patchDetail(state.rows, detailUuid, { pro_detail_stock: syncedStock }),
+          saving: false
+        }));
+      }
     } catch (error) {
-      set({ error: errorMessage(error), saving: false });
+      if (isCurrentSession()) set({ error: errorMessage(error), saving: false });
       throw error;
     }
   },
   updateDetailsStock: async (stockModes) => {
+    const isCurrentSession = createSessionGuard();
     const patches = stockModes.filter((row) => row.pro_detail_uuid);
     if (!patches.length) return;
 
@@ -201,30 +225,36 @@ export const useProductStore = create<ProductState>((set, get) => ({
           return stockModesFromResponse(response, [patch])[0] ?? patch;
         })
       );
-      set((state) => ({
-        rows: applyProductStatusFields(state.rows, { stockModes: syncedStockModes }),
-        saving: false
-      }));
+      if (isCurrentSession()) {
+        set((state) => ({
+          rows: applyProductStatusFields(state.rows, { stockModes: syncedStockModes }),
+          saving: false
+        }));
+      }
     } catch (error) {
-      set({ error: errorMessage(error), saving: false });
+      if (isCurrentSession()) set({ error: errorMessage(error), saving: false });
       throw error;
     }
   },
   updateProductNotification: async (prodUuid, enabled) => {
+    const isCurrentSession = createSessionGuard();
     set({ saving: true, error: null });
     try {
       const response = await updateProductNotificationEnabled(prodUuid, enabled);
       const syncedNotification = responseNumber(response, "prod_notification", enabled);
-      set((state) => ({
-        rows: patchProduct(state.rows, prodUuid, { prod_notification: syncedNotification }),
-        saving: false
-      }));
+      if (isCurrentSession()) {
+        set((state) => ({
+          rows: patchProduct(state.rows, prodUuid, { prod_notification: syncedNotification }),
+          saving: false
+        }));
+      }
     } catch (error) {
-      set({ error: errorMessage(error), saving: false });
+      if (isCurrentSession()) set({ error: errorMessage(error), saving: false });
       throw error;
     }
   },
   sortProductsByCategory: async (cateUuidFk, orderedProducts) => {
+    const isCurrentSession = createSessionGuard();
     const sortedRows = withProductSort(orderedProducts.filter((row) => row.prod_uuid));
     if (sortedRows.length < 2) return;
 
@@ -238,13 +268,16 @@ export const useProductStore = create<ProductState>((set, get) => ({
           prod_sort: Number(row.prod_sort)
         }))
       });
-      set({ saving: false });
+      if (isCurrentSession()) set({ saving: false });
     } catch (error) {
-      set({ rows: previousRows, error: errorMessage(error), saving: false });
+      if (isCurrentSession()) {
+        set({ rows: previousRows, error: errorMessage(error), saving: false });
+      }
       throw error;
     }
   },
   sortProductDetailsByProduct: async (prodUuidFk, orderedDetails) => {
+    const isCurrentSession = createSessionGuard();
     const sortedDetails = withProductDetailSort(
       orderedDetails.filter((detail) => productDetailUuid(detail))
     );
@@ -264,9 +297,11 @@ export const useProductStore = create<ProductState>((set, get) => ({
           pro_detail_sort: Number(detail.pro_detail_sort)
         }))
       });
-      set({ saving: false });
+      if (isCurrentSession()) set({ saving: false });
     } catch (error) {
-      set({ rows: previousRows, error: errorMessage(error), saving: false });
+      if (isCurrentSession()) {
+        set({ rows: previousRows, error: errorMessage(error), saving: false });
+      }
       throw error;
     }
   },
@@ -274,6 +309,7 @@ export const useProductStore = create<ProductState>((set, get) => ({
   setStockMode: async (detailUuid, stockMode) => get().updateDetailStock(detailUuid, stockMode),
   setNotification: async (prodUuid, enabled) => get().updateProductNotification(prodUuid, enabled),
   updateStatusFields: async (input) => {
+    const isCurrentSession = createSessionGuard();
     set({ saving: true, error: null });
     try {
       await Promise.all([
@@ -281,16 +317,20 @@ export const useProductStore = create<ProductState>((set, get) => ({
         ...(input.stockModes?.map((row) => updateProductStockMode(row)) ?? []),
         ...(input.enabled?.map((row) => updateProductEnabled(row)) ?? [])
       ]);
-      set((state) => ({
-        rows: applyProductStatusFields(state.rows, input),
-        saving: false
-      }));
+      if (isCurrentSession()) {
+        set((state) => ({
+          rows: applyProductStatusFields(state.rows, input),
+          saving: false
+        }));
+      }
     } catch (error) {
-      set({ error: errorMessage(error), saving: false });
+      if (isCurrentSession()) set({ error: errorMessage(error), saving: false });
       throw error;
     }
   },
-  reset: () =>
+  reset: () => {
+    productLoadRequestId += 1;
+    sizesByStatusRequestId += 1;
     set({
       rows: [],
       statusSorts: [],
@@ -304,5 +344,8 @@ export const useProductStore = create<ProductState>((set, get) => ({
       loading: false,
       saving: false,
       error: null
-    })
+    });
+  }
 }));
+
+registerSessionStoreReset("product", () => useProductStore.getState().reset());

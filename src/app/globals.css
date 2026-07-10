@@ -1272,6 +1272,16 @@ html.theme-transition-active[data-theme-transition-direction="ltr"]::view-transi
 }
 
 @media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+  }
+
   html.theme-transition-active::view-transition-group(root),
   html.theme-transition-active::view-transition-old(root),
   html.theme-transition-active::view-transition-new(root) {
@@ -1302,6 +1312,8 @@ input[type="submit"]:not(:disabled):not([aria-disabled="true"]),
 a[href]:not([aria-disabled="true"]),
 [role="button"]:not([aria-disabled="true"]) {
   cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: hsl(var(--primary) / 0.12);
 }
 
 .pos-grid {

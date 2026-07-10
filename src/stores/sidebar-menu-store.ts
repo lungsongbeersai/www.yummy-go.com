@@ -7,6 +7,7 @@ import {
   fetchSidebarPermissionMenu,
   type SidebarPermissionMenuItem
 } from "@/services/sidebar-menu";
+import { createSessionGuard, registerSessionStoreReset } from "@/stores/session-store-registry";
 import { errorMessage } from "@/stores/store-utils";
 
 interface SidebarMenuState {
@@ -50,35 +51,49 @@ const initialState = {
   requestKey: ""
 };
 
+let requestId = 0;
+
 export const useSidebarMenuStore = create<SidebarMenuState>()(
   persist(
     (set, get) => ({
       ...initialState,
-      clearActive: () => set({ error: null, items: [], loading: false, requestKey: "" }),
+      clearActive: () => {
+        requestId += 1;
+        set({ error: null, items: [], loading: false, requestKey: "" });
+      },
       load: async (companyUuid, roleId, lang) => {
+        const currentRequestId = ++requestId;
+        const isCurrentSession = createSessionGuard();
         const requestKey = sidebarMenuCacheKey(companyUuid, roleId, lang);
         const cachedItems = get().cache[requestKey] ?? [];
         set({ error: null, items: cachedItems, loading: true, requestKey });
 
         try {
           const items = await fetchSidebarPermissionMenu({ companyUuid, lang, roleId });
-          set((state) => ({
-            cache: { ...state.cache, [requestKey]: items },
-            error: null,
-            items,
-            loading: false,
-            requestKey
-          }));
+          if (currentRequestId === requestId && isCurrentSession()) {
+            set((state) => ({
+              cache: { ...state.cache, [requestKey]: items },
+              error: null,
+              items,
+              loading: false,
+              requestKey
+            }));
+          }
         } catch (error) {
-          set({
-            error: errorMessage(error),
-            items: get().cache[requestKey] ?? [],
-            loading: false,
-            requestKey
-          });
+          if (currentRequestId === requestId && isCurrentSession()) {
+            set({
+              error: errorMessage(error),
+              items: get().cache[requestKey] ?? [],
+              loading: false,
+              requestKey
+            });
+          }
         }
       },
-      reset: () => set(initialState)
+      reset: () => {
+        requestId += 1;
+        set(initialState);
+      }
     }),
     {
       name: STORAGE_KEY,
@@ -87,3 +102,5 @@ export const useSidebarMenuStore = create<SidebarMenuState>()(
     }
   )
 );
+
+registerSessionStoreReset("sidebar-menu", () => useSidebarMenuStore.getState().reset());

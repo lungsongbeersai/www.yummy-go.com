@@ -573,7 +573,7 @@ export function CategorySalesTableCard({
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <Button
+          {/* <Button
             type="button"
             variant="outline"
             size="sm"
@@ -587,7 +587,7 @@ export function CategorySalesTableCard({
               <Printer data-icon="inline-start" />
             )}
             {t("report.print")}
-          </Button>
+          </Button> */}
 
           <Button
             type="button"

@@ -19,6 +19,7 @@
   },
   "app": {
     "breadcrumbs": "ເສັ້ນທາງໜ້າ",
+    "changeLanguage": "ປ່ຽນພາສາ",
     "closeMenu": "ປິດເມນູ",
     "collapseSidebar": "ຫຍໍ້ແຖບເມນູ",
     "customerDisplay": "ຈໍລູກຄ້າ",
@@ -27,6 +28,7 @@
     "openMenu": "ເປີດເມນູ",
     "posWorkspace": "ພື້ນທີ່ POS",
     "publicMenu": "ເມນູສາທາລະນະ",
+    "skipToContent": "ຂ້າມໄປຫາເນື້ອຫາ",
     "tagline": "ລະບົບຮ້ານອາຫານທີ່ສ້າງໃໝ່ໃຫ້ສະອາດຂຶ້ນ.",
     "theme": "ຮູບແບບສີ",
     "toggleTheme": "ປ່ຽນຮູບແບບສີ"
@@ -41,9 +43,11 @@
     "heroTitle": "ການບໍລິການໄວຕ້ອງມີຊອບແວທີ່ນິ່ງ.",
     "hidePassword": "ເຊື່ອງລະຫັດຜ່ານ",
     "loginFailed": "ເຂົ້າລະບົບບໍ່ສຳເລັດ",
+    "noAccount": "ຍັງບໍ່ມີບັນຊີ?",
     "or": "ຫຼື",
     "password": "ລະຫັດຜ່ານ",
     "rememberMe": "ຈື່ຂ້ອຍໄວ້",
+    "register": "ລົງທະບຽນ",
     "showPassword": "ສະແດງລະຫັດຜ່ານ",
     "signIn": "ເຂົ້າລະບົບ",
     "signingIn": "ກຳລັງເຂົ້າລະບົບ...",
@@ -1200,6 +1204,15 @@
         "setOptionName": "ຕົວເລືອກ/ສິນຄ້າໃນຊຸດ",
         "costPrice": "ລາຄາທຶນ",
         "salePrice": "ລາຄາຂາຍ"
+      },
+      "errors": {
+        "invalid-file-type": "ກະລຸນາເລືອກໄຟລ໌ .xlsx ຫຼື .xls.",
+        "empty-file": "ໄຟລ໌ຕາຕະລາງເປົ່າຫວ່າງ.",
+        "file-too-large": "ໄຟລ໌ຕາຕະລາງຕ້ອງມີຂະໜາດບໍ່ເກີນ 10 MB.",
+        "too-many-sheets": "ໄຟລ໌ສາມາດມີໄດ້ສູງສຸດ 10 sheet.",
+        "too-many-rows": "ແຕ່ລະ sheet ສາມາດມີໄດ້ສູງສຸດ 10,000 ແຖວ.",
+        "too-many-columns": "ແຕ່ລະ sheet ສາມາດມີໄດ້ສູງສຸດ 200 ຖັນ.",
+        "invalid-workbook": "ບໍ່ສາມາດອ່ານໄຟລ໌ຕາຕະລາງນີ້ໄດ້."
       },
       "importButton": "ນຳເຂົ້າ {{count}} ລາຍການ",
       "noRows": "ບໍ່ພົບລາຍການສິນຄ້າ. ກະລຸນາໃຊ້ Product Import Template ທີ່ມີ sheet Normal ຫຼື Set.",

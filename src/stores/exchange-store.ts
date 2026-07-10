@@ -12,6 +12,7 @@ import {
   type SaveExchangeInput
 } from "@/services/exchange";
 import type { CrudListLoadOptions, CrudListState } from "@/stores/crud-list-store";
+import { createSessionGuard, registerSessionStoreReset } from "@/stores/session-store-registry";
 import { errorMessage } from "@/stores/store-utils";
 
 interface ExchangeState extends CrudListState<
@@ -38,59 +39,69 @@ export const useExchangeStore = create<ExchangeState>((set, get) => ({
   error: null,
   setSearch: (search) => set({ search }),
   load: async (params = {}, options?: CrudListLoadOptions) => {
+    const isCurrentSession = createSessionGuard();
     const background = Boolean(options?.background && get().hasLoaded);
     set({ error: null, loading: !background, refreshing: background });
     try {
       const result = await getExchanges({ ...params, search: params.search ?? get().search });
       const rows = Array.isArray(result.data) ? result.data : [];
-      set({
-        rows,
-        total: Number(result.total ?? rows.length),
-        totalPages: Number(result.totalPages ?? result.total_page ?? 1),
-        hasLoaded: true,
-        loading: false,
-        refreshing: false
-      });
+      if (isCurrentSession()) {
+        set({
+          rows,
+          total: Number(result.total ?? rows.length),
+          totalPages: Number(result.totalPages ?? result.total_page ?? 1),
+          hasLoaded: true,
+          loading: false,
+          refreshing: false
+        });
+      }
       return rows;
     } catch (error) {
-      set({ error: errorMessage(error), loading: false, refreshing: false });
+      if (isCurrentSession()) {
+        set({ error: errorMessage(error), loading: false, refreshing: false });
+      }
       throw error;
     }
   },
   loadAll: async (params) => {
+    const isCurrentSession = createSessionGuard();
     set({ loadingAll: true, error: null });
     try {
       const result = await getAllExchanges(params);
       const allRows = Array.isArray(result.data) ? result.data : [];
-      set({ allRows, loadingAll: false });
+      if (isCurrentSession()) set({ allRows, loadingAll: false });
       return allRows;
     } catch (error) {
-      set({ error: errorMessage(error), loadingAll: false });
+      if (isCurrentSession()) set({ error: errorMessage(error), loadingAll: false });
       throw error;
     }
   },
   save: async (input) => {
+    const isCurrentSession = createSessionGuard();
     set({ saving: true, error: null });
     try {
       const row = await saveExchange(input);
-      set({ saving: false });
+      if (isCurrentSession()) set({ saving: false });
       return row;
     } catch (error) {
-      set({ error: errorMessage(error), saving: false });
+      if (isCurrentSession()) set({ error: errorMessage(error), saving: false });
       throw error;
     }
   },
   remove: async (id) => {
+    const isCurrentSession = createSessionGuard();
     set({ saving: true, error: null });
     try {
       await deleteExchange(id);
-      set((state) => ({
-        rows: state.rows.filter((row) => String(row.ex_uuid ?? "") !== id),
-        allRows: state.allRows.filter((row) => String(row.ex_uuid ?? "") !== id),
-        saving: false
-      }));
+      if (isCurrentSession()) {
+        set((state) => ({
+          rows: state.rows.filter((row) => String(row.ex_uuid ?? "") !== id),
+          allRows: state.allRows.filter((row) => String(row.ex_uuid ?? "") !== id),
+          saving: false
+        }));
+      }
     } catch (error) {
-      set({ error: errorMessage(error), saving: false });
+      if (isCurrentSession()) set({ error: errorMessage(error), saving: false });
       throw error;
     }
   },
@@ -109,3 +120,5 @@ export const useExchangeStore = create<ExchangeState>((set, get) => ({
       error: null
     })
 }));
+
+registerSessionStoreReset("exchange", () => useExchangeStore.getState().reset());

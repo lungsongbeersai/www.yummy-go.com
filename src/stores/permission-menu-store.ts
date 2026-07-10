@@ -14,6 +14,7 @@ import {
   type PermissionMainMenu,
   type PermissionSubMenu
 } from "@/services/permission-menu";
+import { createSessionGuard, registerSessionStoreReset } from "@/stores/session-store-registry";
 import { errorMessage } from "@/stores/store-utils";
 
 interface PermissionMenuState {
@@ -53,63 +54,76 @@ export const usePermissionMenuStore = create<PermissionMenuState>((set, get) => 
   sorting: false,
   total: 0,
   createMain: async (input, lang) => {
+    const isCurrentSession = createSessionGuard();
     set({ error: null, saving: true });
     try {
       await createPermissionMainMenu(input);
+      if (!isCurrentSession()) return;
       set({ saving: false });
       await get().load(lang, { background: true });
     } catch (error) {
-      set({ error: errorMessage(error), saving: false });
+      if (isCurrentSession()) set({ error: errorMessage(error), saving: false });
       throw error;
     }
   },
   createSub: async (input, lang) => {
+    const isCurrentSession = createSessionGuard();
     set({ error: null, saving: true });
     try {
       await createPermissionSubMenu(input);
+      if (!isCurrentSession()) return;
       set({ saving: false });
       await get().load(lang, { background: true });
     } catch (error) {
-      set({ error: errorMessage(error), saving: false });
+      if (isCurrentSession()) set({ error: errorMessage(error), saving: false });
       throw error;
     }
   },
   deleteMain: async (menuId, lang) => {
+    const isCurrentSession = createSessionGuard();
     set({ error: null, saving: true });
     try {
       await deletePermissionMainMenu(menuId);
+      if (!isCurrentSession()) return;
       set({ saving: false });
       await get().load(lang, { background: true });
     } catch (error) {
-      set({ error: errorMessage(error), saving: false });
+      if (isCurrentSession()) set({ error: errorMessage(error), saving: false });
       throw error;
     }
   },
   deleteSub: async (subId, lang) => {
+    const isCurrentSession = createSessionGuard();
     set({ error: null, saving: true });
     try {
       await deletePermissionSubMenu(subId);
+      if (!isCurrentSession()) return;
       set({ saving: false });
       await get().load(lang, { background: true });
     } catch (error) {
-      set({ error: errorMessage(error), saving: false });
+      if (isCurrentSession()) set({ error: errorMessage(error), saving: false });
       throw error;
     }
   },
   load: async (lang, options) => {
+    const isCurrentSession = createSessionGuard();
     const background = Boolean(options?.background && get().hasLoaded);
     set({ error: null, loading: !background, refreshing: background });
     try {
       const result = await fetchPermissionMenuTree(lang);
-      set({
-        hasLoaded: true,
-        loading: false,
-        menus: result.menus,
-        refreshing: false,
-        total: result.total
-      });
+      if (isCurrentSession()) {
+        set({
+          hasLoaded: true,
+          loading: false,
+          menus: result.menus,
+          refreshing: false,
+          total: result.total
+        });
+      }
     } catch (error) {
-      set({ error: errorMessage(error), loading: false, refreshing: false });
+      if (isCurrentSession()) {
+        set({ error: errorMessage(error), loading: false, refreshing: false });
+      }
       throw error;
     }
   },
@@ -124,19 +138,24 @@ export const usePermissionMenuStore = create<PermissionMenuState>((set, get) => 
     total: 0
   }),
   sortMain: async (menus, lang) => {
+    const isCurrentSession = createSessionGuard();
     const previous = get().menus;
     const next = menus.map((menu, index) => ({ ...menu, menu_sort: index + 1 }));
     set({ error: null, menus: next, sorting: true });
     try {
       await sortPermissionMainMenus(next);
+      if (!isCurrentSession()) return;
       set({ sorting: false });
       await get().load(lang, { background: true });
     } catch (error) {
-      set({ error: errorMessage(error), menus: previous, sorting: false });
+      if (isCurrentSession()) {
+        set({ error: errorMessage(error), menus: previous, sorting: false });
+      }
       throw error;
     }
   },
   sortSub: async (menuId, submenus, lang) => {
+    const isCurrentSession = createSessionGuard();
     const previous = get().menus;
     const sortedSubmenus = withSubmenuSort(menuId, submenus);
     const next = previous.map((menu) =>
@@ -145,11 +164,16 @@ export const usePermissionMenuStore = create<PermissionMenuState>((set, get) => 
     set({ error: null, menus: next, sorting: true });
     try {
       await sortPermissionSubMenus(menuId, sortedSubmenus);
+      if (!isCurrentSession()) return;
       set({ sorting: false });
       await get().load(lang, { background: true });
     } catch (error) {
-      set({ error: errorMessage(error), menus: previous, sorting: false });
+      if (isCurrentSession()) {
+        set({ error: errorMessage(error), menus: previous, sorting: false });
+      }
       throw error;
     }
   }
 }));
+
+registerSessionStoreReset("permission-menu", () => usePermissionMenuStore.getState().reset());

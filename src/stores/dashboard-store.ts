@@ -3,6 +3,7 @@
 import { create } from "zustand";
 import { getExecutiveDashboard, type FetchExecutiveDashboardParams } from "@/services/dashboard";
 import type { ApiEntity } from "@/services/shared/types";
+import { createSessionGuard, registerSessionStoreReset } from "@/stores/session-store-registry";
 import { errorMessage } from "@/stores/store-utils";
 
 interface DashboardState {
@@ -33,6 +34,7 @@ export const useDashboardStore = create<DashboardState>((set) => ({
   error: null,
   lastParams: null,
   load: async (params) => {
+    const isCurrentSession = createSessionGuard();
     const key = dashboardParamsKey(params);
     if (inFlight?.key === key) return inFlight.promise;
 
@@ -41,15 +43,17 @@ export const useDashboardStore = create<DashboardState>((set) => ({
     const promise = getExecutiveDashboard(params)
       .then((result) => {
         const data = result.data ?? result;
-        if (requestId === requestSeq) set({ data, loading: false });
+        if (requestId === requestSeq && isCurrentSession()) set({ data, loading: false });
         return data;
       })
       .catch((error) => {
-        if (requestId === requestSeq) set({ error: errorMessage(error), loading: false });
+        if (requestId === requestSeq && isCurrentSession()) {
+          set({ error: errorMessage(error), loading: false });
+        }
         throw error;
       })
       .finally(() => {
-        if (inFlight?.key === key) inFlight = null;
+        if (inFlight?.promise === promise) inFlight = null;
       });
 
     inFlight = { key, promise };
@@ -61,3 +65,5 @@ export const useDashboardStore = create<DashboardState>((set) => ({
     set({ data: null, error: null, lastParams: null, loading: false });
   }
 }));
+
+registerSessionStoreReset("dashboard", () => useDashboardStore.getState().reset());

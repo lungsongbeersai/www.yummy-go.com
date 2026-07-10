@@ -1,14 +1,13 @@
 "use client";
 
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
-import { Icon, addCollection } from "@iconify/react";
-import { icons as mdiIcons } from "@iconify-json/mdi";
 import { Check, CircleSlash2, Search, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
+import { CategoryIcon } from "@/features/settings/category/category-icon";
 import {
   CATEGORY_ICON_GROUPS,
   CATEGORY_ICON_OPTIONS,
@@ -20,12 +19,6 @@ import {
   type CategoryIconPickerOption
 } from "@/features/settings/category/category-icons";
 import { cn } from "@/lib/utils";
-
-addCollection(mdiIcons);
-
-export function CategoryIcon({ value: iconValue }: { value: string }) {
-  return <Icon aria-hidden icon={categoryIconName(iconValue)} />;
-}
 
 export function CategoryIconPicker({
   defaultValue,
@@ -97,7 +90,7 @@ export function CategoryIconPicker({
       <div className="grid gap-3 lg:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]">
         <div className="flex min-w-0 items-center gap-3 rounded-lg border border-border bg-muted/30 p-3">
           <span className="grid size-12 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
-            <Icon aria-hidden icon={selectedIcon} width={26} height={26} />
+            <CategoryIcon value={selectedIcon} width={26} height={26} />
           </span>
           <div className="min-w-0">
             <p className="text-xs font-medium text-muted-foreground">{t("settings.selectedIcon")}</p>
@@ -183,7 +176,7 @@ export function CategoryIconPicker({
                   onClick={() => setIconValue(option.value)}
                 >
                   <span className={cn("grid size-9 shrink-0 place-items-center rounded-md bg-primary/10 text-primary", isActive && "ring-1 ring-primary/25")}>
-                    <Icon aria-hidden icon={categoryIconName(option.value)} width={23} height={23} />
+                    <CategoryIcon value={option.value} width={23} height={23} />
                   </span>
                   <span className="min-w-0 flex-1 text-left">
                     <span className="block truncate text-sm font-medium">{option.custom ? t("settings.customIcon") : option.label}</span>

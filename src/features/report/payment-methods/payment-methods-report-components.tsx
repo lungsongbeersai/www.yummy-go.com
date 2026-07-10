@@ -554,7 +554,7 @@ export function PaymentMethodsTableCard({
                 </DropdownMenuGroup>
               </DropdownMenuContent>
             </DropdownMenu>
-            <Button
+            {/* <Button
               type="button"
               variant="outline"
               size="sm"
@@ -569,7 +569,7 @@ export function PaymentMethodsTableCard({
                 <Printer data-icon="inline-start" />
               )}
               <span className="hidden sm:inline">{t("report.print")}</span>
-            </Button>
+            </Button> */}
             <Button
               type="button"
               variant="ghost"
