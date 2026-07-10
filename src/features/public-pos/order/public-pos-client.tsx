@@ -1,15 +1,16 @@
 "use client";
 
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
+import { AlertCircle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { useAppStore } from "@/stores/app-store";
 import { ProductBrowse } from "@/features/public-pos/order/components/product-browse";
 import { PublicHeader } from "@/features/public-pos/order/components/public-header";
 import { PublicPosLoadingScreen } from "@/features/public-pos/order/components/public-pos-skeletons";
 import { usePublicPosBootstrap } from "@/features/public-pos/order/hooks/use-public-pos-bootstrap";
-import { cn } from "@/lib/utils";
-import { useAppStore } from "@/stores/app-store";
-import { AlertCircle } from "lucide-react";
-import { useState } from "react";
-import { useTranslation } from "react-i18next";
 
 export function PublicPosClient({
   token,
@@ -24,6 +25,7 @@ export function PublicPosClient({
   const [cartOpen, setCartOpen] = useState(false);
   const {
     activeLanguage,
+    canRetryScan,
     cartQty,
     error,
     isPublicLoading,
@@ -31,6 +33,7 @@ export function PublicPosClient({
     qrDisabled,
     statusLabel,
     table,
+    retryScan,
   } = usePublicPosBootstrap({ token, queryLang, t });
   const errorTitle =
     table && !qrDisabled ? t("pos.productLoadFailed") : t("pos.qrScanFailed");
@@ -63,7 +66,19 @@ export function PublicPosClient({
             <Alert variant="destructive">
               <AlertCircle />
               <AlertTitle>{errorTitle}</AlertTitle>
-              <AlertDescription>{error}</AlertDescription>
+              <AlertDescription>
+                <p>{error}</p>
+                {canRetryScan ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={retryScan}
+                  >
+                    {t("actions.tryAgain")}
+                  </Button>
+                ) : null}
+              </AlertDescription>
             </Alert>
           ) : null}
 

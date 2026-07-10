@@ -11,6 +11,7 @@ import { Dialog, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Spinner } from "@/components/ui/spinner";
 import {
   SettingsDialogBody,
   SettingsDialogContent,
@@ -20,13 +21,30 @@ import {
 import {
   MENU_ICON_LETTER_FILTERS,
   MENU_ICON_RESULT_LIMIT,
-  buildMenuIconOptions,
-  normalizeMenuIconName,
-  type MenuIconLetterFilter
+  normalizeMenuIconValue,
+  type MenuIconLetterFilter,
+  type MenuIconPickerResult
 } from "@/lib/menu-icons";
 import { cn } from "@/lib/utils";
 import { PROJECT_ROUTE_OPTIONS } from "./permission-menu-options";
 import { iconOption, optionLabel } from "./permission-menu-utils";
+
+type MenuIconCatalog = typeof import("@/lib/menu-icon-catalog");
+
+const EMPTY_ICON_RESULTS: MenuIconPickerResult = {
+  filteredTotal: 0,
+  options: [],
+  total: 0
+};
+let menuIconCatalogPromise: Promise<MenuIconCatalog | null> | undefined;
+
+function loadMenuIconCatalog() {
+  menuIconCatalogPromise ??= import("@/lib/menu-icon-catalog").catch(() => {
+    menuIconCatalogPromise = undefined;
+    return null;
+  });
+  return menuIconCatalogPromise;
+}
 
 export function IconPickerButton({
   disabled,
@@ -44,11 +62,12 @@ export function IconPickerButton({
   const [search, setSearch] = useState("");
   const [activeLetter, setActiveLetter] = useState<MenuIconLetterFilter>("all");
   const [visibleLimit, setVisibleLimit] = useState(MENU_ICON_RESULT_LIMIT);
+  const [catalog, setCatalog] = useState<MenuIconCatalog | null>(null);
   const deferredSearch = useDeferredValue(search);
   const selected = iconOption(value);
   const iconResults = useMemo(
-    () => buildMenuIconOptions({ letter: activeLetter, limit: visibleLimit, search: deferredSearch }),
-    [activeLetter, deferredSearch, visibleLimit]
+    () => catalog?.buildMenuIconOptions({ letter: activeLetter, limit: visibleLimit, search: deferredSearch }) ?? EMPTY_ICON_RESULTS,
+    [activeLetter, catalog, deferredSearch, visibleLimit]
   );
   const hasMoreIcons = iconResults.options.length < iconResults.filteredTotal;
 
@@ -56,8 +75,21 @@ export function IconPickerButton({
     setVisibleLimit(MENU_ICON_RESULT_LIMIT);
   }, [activeLetter, search]);
 
+  useEffect(() => {
+    if (!open || catalog) return;
+    let active = true;
+
+    void loadMenuIconCatalog().then((loadedCatalog) => {
+      if (active && loadedCatalog) setCatalog(loadedCatalog);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [catalog, open]);
+
   function selectIcon(nextValue: string) {
-    onValueChange(normalizeMenuIconName(nextValue));
+    onValueChange(normalizeMenuIconValue(nextValue));
     setSearch("");
     setOpen(false);
   }
@@ -77,6 +109,8 @@ export function IconPickerButton({
         id={id}
         type="button"
         variant="outline"
+        onFocus={() => void loadMenuIconCatalog()}
+        onPointerEnter={() => void loadMenuIconCatalog()}
         onClick={() => setOpen(true)}
       >
         <span className="grid size-12 shrink-0 place-items-center rounded-md bg-primary/10 text-primary [&_svg]:size-7">
@@ -121,10 +155,14 @@ export function IconPickerButton({
                     {t("permissionMenu.selectIcon")}
                   </span>
                   <Badge className="h-6 min-w-14 justify-center rounded-md bg-primary/10 px-2.5 text-primary">
-                    {t("permissionMenu.iconResultsCount", {
-                      shown: iconResults.options.length,
-                      total: iconResults.filteredTotal
-                    })}
+                    {catalog ? (
+                      t("permissionMenu.iconResultsCount", {
+                        shown: iconResults.options.length,
+                        total: iconResults.filteredTotal
+                      })
+                    ) : (
+                      <Spinner aria-label={t("common.loading")} />
+                    )}
                   </Badge>
                 </div>
                 <div className="flex min-w-0 items-center gap-2 rounded-md border border-input bg-background px-2.5 transition-colors focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50">
@@ -177,7 +215,12 @@ export function IconPickerButton({
               })}
             </div>
             <div className="max-h-88 overflow-y-auto rounded-lg border border-border bg-background p-2">
-              {iconResults.options.length ? (
+              {!catalog ? (
+                <div className="flex min-h-40 items-center justify-center gap-2 text-sm text-muted-foreground" role="status">
+                  <Spinner aria-hidden />
+                  {t("common.loading")}
+                </div>
+              ) : iconResults.options.length ? (
                 <div className="flex flex-col gap-2">
                   <div aria-label={t("permissionMenu.selectIcon")} className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3" role="listbox">
                     {iconResults.options.map((option) => {

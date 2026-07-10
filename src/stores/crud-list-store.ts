@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import type { ApiEntity, FetchParams, ApiListResponse } from "@/services/shared/types";
+import { createSessionGuard, registerSessionStoreReset } from "@/stores/session-store-registry";
 import { errorMessage } from "@/stores/store-utils";
 
 interface CrudListStoreConfig<
@@ -45,7 +46,8 @@ export function createCrudListStore<
   SaveInput extends ApiEntity,
   Params extends FetchParams
 >({ idKey, list, save, remove }: CrudListStoreConfig<Row, SaveInput, Params>) {
-  return create<CrudListState<Row, SaveInput, Params>>((set, get) => ({
+  let loadRequestId = 0;
+  const store = create<CrudListState<Row, SaveInput, Params>>((set, get) => ({
     rows: [],
     total: 0,
     totalPages: 1,
@@ -57,50 +59,61 @@ export function createCrudListStore<
     error: null,
     setSearch: (search) => set({ search }),
     load: async (params = {} as Params, options) => {
+      const requestId = ++loadRequestId;
+      const isCurrentSession = createSessionGuard();
       const background = Boolean(options?.background && get().hasLoaded);
       set({ error: null, loading: !background, refreshing: background });
       try {
         const result = await list({ ...params, search: params.search ?? get().search } as Params);
         const rows = Array.isArray(result.data) ? result.data : [];
-        set({
-          rows,
-          total: Number(result.total ?? rows.length),
-          totalPages: Number(result.totalPages ?? result.total_page ?? 1),
-          hasLoaded: true,
-          loading: false,
-          refreshing: false
-        });
+        if (requestId === loadRequestId && isCurrentSession()) {
+          set({
+            rows,
+            total: Number(result.total ?? rows.length),
+            totalPages: Number(result.totalPages ?? result.total_page ?? 1),
+            hasLoaded: true,
+            loading: false,
+            refreshing: false
+          });
+        }
         return rows;
       } catch (error) {
-        set({ error: errorMessage(error), loading: false, refreshing: false });
+        if (requestId === loadRequestId && isCurrentSession()) {
+          set({ error: errorMessage(error), loading: false, refreshing: false });
+        }
         throw error;
       }
     },
     save: async (input) => {
+      const isCurrentSession = createSessionGuard();
       set({ saving: true, error: null });
       try {
         const row = await save(input);
-        set({ saving: false });
+        if (isCurrentSession()) set({ saving: false });
         return row;
       } catch (error) {
-        set({ error: errorMessage(error), saving: false });
+        if (isCurrentSession()) set({ error: errorMessage(error), saving: false });
         throw error;
       }
     },
     remove: async (id) => {
+      const isCurrentSession = createSessionGuard();
       set({ saving: true, error: null });
       try {
         await remove(id);
-        set((state) => ({
-          rows: state.rows.filter((row) => String(row[idKey] ?? "") !== id),
-          saving: false
-        }));
+        if (isCurrentSession()) {
+          set((state) => ({
+            rows: state.rows.filter((row) => String(row[idKey] ?? "") !== id),
+            saving: false
+          }));
+        }
       } catch (error) {
-        set({ error: errorMessage(error), saving: false });
+        if (isCurrentSession()) set({ error: errorMessage(error), saving: false });
         throw error;
       }
     },
-    reset: () =>
+    reset: () => {
+      loadRequestId += 1;
       set({
         rows: [],
         total: 0,
@@ -111,6 +124,10 @@ export function createCrudListStore<
         refreshing: false,
         saving: false,
         error: null
-      })
+      });
+    }
   }));
+
+  registerSessionStoreReset(`crud:${idKey}`, () => store.getState().reset());
+  return store;
 }

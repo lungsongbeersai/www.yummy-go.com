@@ -12,6 +12,7 @@ import {
   type StorePermissionStore,
   type StorePermissionTree
 } from "@/services/store-permissions";
+import { createSessionGuard, registerSessionStoreReset } from "@/stores/session-store-registry";
 import { errorMessage } from "@/stores/store-utils";
 
 interface StorePermissionsState {
@@ -91,12 +92,15 @@ export const useStorePermissionsStore = create<StorePermissionsState>((set, get)
   stores: [],
   tree: null,
   loadOptions: async (userStatus, lang) => {
+    const isCurrentSession = createSessionGuard();
     set({ error: null, loadingOptions: true });
     try {
       const [stores, roles] = await Promise.all([
         fetchStorePermissionStores(storeStatusForUser(userStatus), lang),
         fetchStorePermissionRoles(userStatus, lang)
       ]);
+      if (!isCurrentSession()) return;
+
       const currentStore = get().selectedStoreUuid;
       const currentRole = get().selectedRoleId;
       const selectedStoreUuid = stores.some((store) => store.store_uuid === currentStore)
@@ -123,11 +127,12 @@ export const useStorePermissionsStore = create<StorePermissionsState>((set, get)
         stores
       });
     } catch (error) {
-      set({ error: errorMessage(error), loadingOptions: false });
+      if (isCurrentSession()) set({ error: errorMessage(error), loadingOptions: false });
       throw error;
     }
   },
   loadTree: async (viewerRoleId, lang) => {
+    const isCurrentSession = createSessionGuard();
     const { selectedRoleId, selectedStoreUuid } = get();
     if (!selectedStoreUuid || !selectedRoleId) {
       set({
@@ -146,6 +151,8 @@ export const useStorePermissionsStore = create<StorePermissionsState>((set, get)
         fetchStorePermissionTree(selectedStoreUuid, selectedRoleId, lang),
         fetchStorePermissionSavedList(selectedStoreUuid, viewerRoleId, lang)
       ]);
+      if (!isCurrentSession()) return;
+
       const savedCheckedSubIds = checkedSubmenuIds(tree);
       set({
         checkedSubIds: savedCheckedSubIds,
@@ -157,7 +164,9 @@ export const useStorePermissionsStore = create<StorePermissionsState>((set, get)
         tree
       });
     } catch (error) {
-      set({ error: errorMessage(error), loadingSaved: false, loadingTree: false });
+      if (isCurrentSession()) {
+        set({ error: errorMessage(error), loadingSaved: false, loadingTree: false });
+      }
       throw error;
     }
   },
@@ -184,6 +193,7 @@ export const useStorePermissionsStore = create<StorePermissionsState>((set, get)
       dirty: false
     })),
   save: async (viewerRoleId, lang) => {
+    const isCurrentSession = createSessionGuard();
     const { checkedSubIds, dirty, selectedRoleId, selectedStoreUuid } = get();
     if (!selectedStoreUuid || !selectedRoleId || !dirty) return;
 
@@ -198,6 +208,8 @@ export const useStorePermissionsStore = create<StorePermissionsState>((set, get)
         fetchStorePermissionTree(selectedStoreUuid, selectedRoleId, lang),
         fetchStorePermissionSavedList(selectedStoreUuid, viewerRoleId, lang)
       ]);
+      if (!isCurrentSession()) return;
+
       const savedCheckedSubIds = checkedSubmenuIds(tree);
       set({
         checkedSubIds: savedCheckedSubIds,
@@ -208,7 +220,7 @@ export const useStorePermissionsStore = create<StorePermissionsState>((set, get)
         tree
       });
     } catch (error) {
-      set({ error: errorMessage(error), saving: false });
+      if (isCurrentSession()) set({ error: errorMessage(error), saving: false });
       throw error;
     }
   },
@@ -268,3 +280,5 @@ export const useStorePermissionsStore = create<StorePermissionsState>((set, get)
       };
     })
 }));
+
+registerSessionStoreReset("store-permissions", () => useStorePermissionsStore.getState().reset());

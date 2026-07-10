@@ -251,7 +251,7 @@ function CartItemRow({
   return (
     <div
       className={cn(
-        "border-b border-border/80 bg-background px-3 py-2.5 transition-colors last:border-b-0 hover:bg-muted/20 sm:px-4",
+        "border-b border-border/80 bg-background px-2.5 py-2.5 transition-colors last:border-b-0 hover:bg-muted/20 sm:px-3",
         isWaitingConfirm &&
           "border-l-4 border-l-amber-400 bg-amber-50/70 hover:bg-amber-50 dark:border-l-amber-500 dark:bg-amber-950/20 dark:hover:bg-amber-950/30",
         isCanceled && "bg-destructive/5 hover:bg-destructive/10",
@@ -261,16 +261,16 @@ function CartItemRow({
     >
       <div
         className={cn(
-          "grid min-w-0 gap-2.5",
+          "grid min-w-0 gap-2",
           splitSelectable
-            ? "grid-cols-[44px_44px_minmax(0,1fr)] sm:grid-cols-[44px_48px_minmax(0,1fr)]"
-            : "grid-cols-[44px_minmax(0,1fr)] sm:grid-cols-[48px_minmax(0,1fr)]"
+            ? "grid-cols-[40px_40px_minmax(0,1fr)] sm:grid-cols-[40px_44px_minmax(0,1fr)]"
+            : "grid-cols-[40px_minmax(0,1fr)] sm:grid-cols-[44px_minmax(0,1fr)]"
         )}
       >
         {splitSelectable ? (
           <Label
             className={cn(
-              "flex size-11 shrink-0 items-start justify-center pt-0.5",
+              "flex size-10 shrink-0 items-start justify-center pt-0.5",
               splitEnabled ? "cursor-pointer" : "cursor-not-allowed"
             )}
           >
@@ -285,37 +285,35 @@ function CartItemRow({
         ) : null}
         <CartProductMedia media={media} title={title} />
         <div className="min-w-0">
-          <div className="flex min-w-0 items-start justify-between gap-2">
-            <div className="min-w-0">
-              <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-                <p className="min-w-0 wrap-break-word text-[15px] font-black leading-5 text-foreground">{title}</p>
-                {statusText || isWaitingConfirm ? (
-                  <Badge
-                    className={cn(
-                      "h-6 rounded-md border-transparent px-2 text-[11px] font-black shadow-none",
-                      isCanceled
-                        ? "bg-destructive text-destructive-foreground"
-                        : isWaitingConfirm
-                          ? "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
-                          : "bg-secondary text-secondary-foreground"
-                    )}
-                  >
-                    {statusText ?? t("pos.cartStatusWaitingConfirm")}
-                  </Badge>
-                ) : statusValue !== null ? (
-                  <Badge
-                    className={cn(
-                      "h-6 rounded-md px-2 text-[11px] font-black shadow-none",
-                      isCanceled && "bg-destructive text-destructive-foreground"
-                    )}
-                  >
-                    {formatPlainValue(statusValue)}
-                  </Badge>
-                ) : null}
-              </div>
+          <div className="grid min-w-0 gap-1.5">
+            <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+              <p className="min-w-0 wrap-break-word text-[14px] font-black leading-5 text-foreground sm:text-[15px]">{title}</p>
+              {statusText || isWaitingConfirm ? (
+                <Badge
+                  className={cn(
+                    "h-6 rounded-md border-transparent px-2 text-[11px] font-black shadow-none",
+                    isCanceled
+                      ? "bg-destructive text-destructive-foreground"
+                      : isWaitingConfirm
+                        ? "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
+                        : "bg-secondary text-secondary-foreground"
+                  )}
+                >
+                  {statusText ?? t("pos.cartStatusWaitingConfirm")}
+                </Badge>
+              ) : statusValue !== null ? (
+                <Badge
+                  className={cn(
+                    "h-6 rounded-md px-2 text-[11px] font-black shadow-none",
+                    isCanceled && "bg-destructive text-destructive-foreground"
+                  )}
+                >
+                  {formatPlainValue(statusValue)}
+                </Badge>
+              ) : null}
             </div>
-            <div className="flex shrink-0 items-start gap-1">
-              <p className={cn("max-w-28 truncate text-right text-[15px] font-black leading-5 text-foreground tabular-nums", isCanceled && "text-destructive")}>{money(total)}</p>
+            <div className="flex min-w-0 items-center justify-end gap-1">
+              <p className={cn("min-w-0 truncate text-right text-[14px] font-black leading-5 text-foreground tabular-nums sm:text-[15px]", isCanceled && "text-destructive")}>{money(total)}</p>
               <CartItemActionMenu
                 canCancel={canCancel}
                 canDelete={canDelete}
@@ -590,16 +588,16 @@ function CartProductMedia({ media, title }: { media: CartItemMedia; title: strin
 
   return (
     <div
-      className="relative size-11 shrink-0 overflow-hidden rounded-md border border-border bg-muted shadow-sm sm:size-12"
+      className="relative size-10 shrink-0 overflow-hidden rounded-md border border-border bg-muted shadow-sm sm:size-11"
       style={colorStyle}
     >
       {media.type === "image" ? (
-        <Image src={media.src} alt={title} fill sizes="(max-width: 640px) 44px, 48px" className="object-cover" />
+        <Image src={media.src} alt={title} fill sizes="(max-width: 640px) 40px, 44px" className="object-cover" />
       ) : media.type === "color" ? (
         <>
           <span className="pointer-events-none absolute inset-0 rounded-[inherit] ring-1 ring-inset ring-black/10" aria-hidden="true" />
           <span className="absolute inset-0 grid place-items-center" aria-hidden="true">
-            <span className="grid size-7 place-items-center rounded-full bg-black/25 text-white shadow-sm backdrop-blur-[1px] sm:size-8">
+            <span className="grid size-7 place-items-center rounded-full bg-black/25 text-white shadow-sm backdrop-blur-[1px]">
               <Utensils className="size-4" />
             </span>
           </span>

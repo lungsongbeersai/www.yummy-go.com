@@ -49,8 +49,7 @@ export function AppPagination({
   const canGoNext = currentPage < pageCount && !disabled;
 
   return (
-    <nav
-      aria-label={t("common.pagination")}
+    <div
       className={cn(
         "flex gap-2 text-sm text-muted-foreground",
         compact
@@ -70,7 +69,7 @@ export function AppPagination({
         >
           <SelectTrigger
             aria-label={t("common.pageLabel")}
-            className="h-8 w-16 bg-background text-foreground sm:w-20"
+            className="h-11 w-16 bg-background text-foreground sm:h-8 sm:w-20"
           >
             <SelectValue />
           </SelectTrigger>
@@ -98,6 +97,7 @@ export function AppPagination({
         <PaginationContent className="min-w-max flex-nowrap gap-0.5">
           <PaginationItem>
             <PaginationAction
+              className="size-11"
               disabled={!canGoBack}
               label={t("common.previousShort")}
               onClick={() => onPageChange(1)}
@@ -107,6 +107,7 @@ export function AppPagination({
           </PaginationItem>
           <PaginationItem>
             <PaginationAction
+              className="size-11"
               disabled={!canGoBack}
               label={t("common.previousPage")}
               onClick={() => onPageChange(currentPage - 1)}
@@ -116,6 +117,7 @@ export function AppPagination({
           </PaginationItem>
           <PaginationItem>
             <PaginationAction
+              className="size-11"
               disabled={!canGoNext}
               label={t("common.nextPage")}
               onClick={() => onPageChange(currentPage + 1)}
@@ -125,6 +127,7 @@ export function AppPagination({
           </PaginationItem>
           <PaginationItem>
             <PaginationAction
+              className="size-11"
               disabled={!canGoNext}
               label={t("common.nextShort")}
               onClick={() => onPageChange(pageCount)}
@@ -205,17 +208,19 @@ export function AppPagination({
           </PaginationItem>
         </PaginationContent>
       </Pagination>
-    </nav>
+    </div>
   );
 }
 
 function PaginationAction({
   children,
+  className,
   disabled,
   label,
   onClick,
 }: {
   children: React.ReactNode;
+  className?: string;
   disabled: boolean;
   label: string;
   onClick: () => void;
@@ -224,6 +229,7 @@ function PaginationAction({
     <Button
       type="button"
       size="iconSm"
+      className={className}
       aria-label={label}
       disabled={disabled}
       variant="ghost"

@@ -30,7 +30,7 @@ export function ScrollJumpControls({
             type="button"
             variant="outline"
             size="icon"
-            className="size-10 rounded-full border-emerald-100 bg-background/95 text-muted-foreground shadow-lg shadow-emerald-950/10 backdrop-blur-xl hover:border-primary/30 hover:bg-primary/10 hover:text-primary dark:border-border"
+            className="size-11 rounded-full border-emerald-100 bg-background/95 text-muted-foreground shadow-lg shadow-emerald-950/10 backdrop-blur-xl hover:border-primary/30 hover:bg-primary/10 hover:text-primary dark:border-border"
             aria-label={label}
             onClick={onScroll}
           >

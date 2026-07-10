@@ -86,6 +86,20 @@ export function selectedBranchLabel(options: SalesListBranchOption[], value: str
   return options.find((option) => option.value === value)?.label ?? fallback;
 }
 
+export function paymentMethodLabel(
+  paymentMethod: SalesListPaymentMethod,
+  translate: (key: string) => string
+) {
+  const labels = {
+    "1": translate("pos.paymentCash"),
+    "2": translate("pos.paymentTransfer"),
+    "4": translate("pos.paymentArrears"),
+    All: translate("common.all")
+  } satisfies Record<SalesListPaymentMethod, string>;
+
+  return labels[paymentMethod];
+}
+
 export function numberValue(value: unknown) {
   const number = Number(value ?? 0);
   return Number.isFinite(number) ? number : 0;
@@ -106,6 +120,42 @@ export function formatSaleDate(value: unknown) {
   const date = new Date(raw);
   if (Number.isNaN(date.getTime())) return raw;
   return date.toLocaleString();
+}
+
+export function recordValue(value: unknown): ApiEntity | null {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as ApiEntity : null;
+}
+
+export function billMetaText(bill: DailySaleItemsBillGroup, keys: string[]) {
+  const summary = recordValue(bill.raw.summary);
+  return textValue(readValue(bill.raw, keys) ?? readValue(summary ?? {}, keys), "");
+}
+
+export function realMetaText(value: unknown) {
+  const text = textValue(value, "").trim();
+  return text && text !== "-" ? text : "";
+}
+
+export function rateLabel(value: unknown) {
+  const number = Number(value);
+  if (!Number.isFinite(number) || number <= 0) return "";
+  const percent = number > 0 && number <= 1 ? number * 100 : number;
+  return `${percent.toLocaleString("lo-LA", { maximumFractionDigits: 2 })}%`;
+}
+
+export function readRateLabel(source: ApiEntity, keys: string[], nestedKey: string) {
+  const summary = recordValue(source.summary);
+  const nested = recordValue(source[nestedKey]);
+  return rateLabel(readValue(summary ?? {}, keys)) || rateLabel(readValue(nested ?? {}, keys)) || rateLabel(readValue(source, keys));
+}
+
+export function calculatedRateLabel(amount: number, base: number) {
+  if (amount <= 0 || base <= 0) return "";
+  return rateLabel((amount / base) * 100);
+}
+
+export function summaryMetricLabel(label: string, rate: string) {
+  return rate ? `${label} (${rate})` : label;
 }
 
 export function statusBadgeClass(value: unknown) {

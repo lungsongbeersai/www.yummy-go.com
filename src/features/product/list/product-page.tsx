@@ -71,6 +71,7 @@ export function ProductPage({ initialPagination }: { initialPagination: UrlPagin
                   <InputGroupInput
                     id="product-search-filter"
                     name="product-search-filter"
+                    aria-invalid={product.highlightSearchFilter || undefined}
                     value={product.search}
                     placeholder={t("product.searchProducts")}
                     onChange={(event) => product.setSearch(event.target.value)}
@@ -99,9 +100,15 @@ export function ProductPage({ initialPagination }: { initialPagination: UrlPagin
                 <Select
                   value={product.cateUuidFk || ALL_CATEGORIES_VALUE}
                   disabled={product.categoryLoading}
+                  open={product.categoryDropdownOpen}
+                  onOpenChange={product.setCategoryDropdownOpen}
                   onValueChange={product.changeCategory}
                 >
-                  <SelectTrigger id="product-category-filter" className="h-9 w-full bg-background md:h-10">
+                  <SelectTrigger
+                    id="product-category-filter"
+                    aria-invalid={product.highlightCategoryFilter || undefined}
+                    className="h-9 w-full bg-background md:h-10"
+                  >
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent position="popper" align="end">

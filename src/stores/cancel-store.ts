@@ -19,6 +19,7 @@ import {
   normalizeCancelledBillsResponse,
   type CancelHistoryBill
 } from "@/stores/cancel-store/helpers";
+import { createSessionGuard, registerSessionStoreReset } from "@/stores/session-store-registry";
 import { errorMessage } from "@/stores/store-utils";
 
 export type { CancelHistoryBill };
@@ -89,53 +90,64 @@ const initialHistoryState = {
 export const useCancelStore = create<CancelState>((set) => ({
   ...initialState,
   cancelBill: async (input) => {
+    const isCurrentSession = createSessionGuard();
     set({ cancelling: true, error: null });
     try {
       const result = await cancelService.cancelBill(input);
-      set({ cancelling: false });
+      if (isCurrentSession()) set({ cancelling: false });
       return result;
     } catch (error) {
-      set({ cancelling: false, error: errorMessage(error) });
+      if (isCurrentSession()) set({ cancelling: false, error: errorMessage(error) });
       throw error;
     }
   },
   clearSelectedBill: () => set({ selectedBill: null }),
   load: async (params) => {
+    const isCurrentSession = createSessionGuard();
     const detailLoading = Boolean(params.selected_order_uuid);
     set({ detailLoading, error: null, loading: !detailLoading });
     try {
       const response = await cancelService.fetchCancelableBills(params);
       const normalized = normalizeCancelableBillsResponse(response, params);
-      set({
-        ...normalized,
-        detailLoading: false,
-        limit: params.limit,
-        loading: false,
-        page: params.page,
-        response
-      });
+      if (isCurrentSession()) {
+        set({
+          ...normalized,
+          detailLoading: false,
+          limit: params.limit,
+          loading: false,
+          page: params.page,
+          response
+        });
+      }
       return response;
     } catch (error) {
-      set({ detailLoading: false, error: errorMessage(error), loading: false });
+      if (isCurrentSession()) {
+        set({ detailLoading: false, error: errorMessage(error), loading: false });
+      }
       throw error;
     }
   },
   loadHistory: async (params) => {
+    const isCurrentSession = createSessionGuard();
     set({ historyError: null, historyLoading: true });
     try {
       const response = await cancelService.fetchCancelledBills(params);
       const normalized = normalizeCancelledBillsResponse(response, params);
-      set({
-        ...normalized,
-        historyLoading: false,
-        historyResponse: response
-      });
+      if (isCurrentSession()) {
+        set({
+          ...normalized,
+          historyLoading: false,
+          historyResponse: response
+        });
+      }
       return response;
     } catch (error) {
-      set({ historyError: errorMessage(error), historyLoading: false });
+      if (isCurrentSession()) set({ historyError: errorMessage(error), historyLoading: false });
       throw error;
     }
   },
   reset: () => set(initialState),
   resetHistory: () => set(initialHistoryState)
 }));
+
+registerSessionStoreReset("cancel", () => useCancelStore.getState().reset());

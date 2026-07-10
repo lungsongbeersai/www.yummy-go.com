@@ -1,6 +1,18 @@
 import { describe, expect, it } from "vitest";
 import type { DailySaleItemsBillGroup } from "@/stores/report-store";
-import { billNeedsPaymentAttention, itemToppingNames, itemToppingTotal, saleListPrintBillSource } from "./sales-list-utils";
+import {
+  billMetaText,
+  billNeedsPaymentAttention,
+  calculatedRateLabel,
+  itemToppingNames,
+  itemToppingTotal,
+  paymentMethodLabel,
+  rateLabel,
+  readRateLabel,
+  realMetaText,
+  saleListPrintBillSource,
+  summaryMetricLabel
+} from "./sales-list-utils";
 
 function bill(overrides: Partial<DailySaleItemsBillGroup> = {}): DailySaleItemsBillGroup {
   return {
@@ -102,5 +114,38 @@ describe("sales list utils", () => {
       topping_total: 45000
     });
     expect(source.change_amount).toBe(43568);
+  });
+
+  it("keeps payment method labels mapped to the existing translation keys", () => {
+    const translate = (key: string) => `translated:${key}`;
+
+    expect(paymentMethodLabel("All", translate)).toBe("translated:common.all");
+    expect(paymentMethodLabel("1", translate)).toBe("translated:pos.paymentCash");
+    expect(paymentMethodLabel("2", translate)).toBe("translated:pos.paymentTransfer");
+    expect(paymentMethodLabel("4", translate)).toBe("translated:pos.paymentArrears");
+  });
+
+  it("reads bill metadata from the raw bill before its summary fallback", () => {
+    const groupedBill = bill({
+      raw: {
+        customer_name: "Raw customer",
+        summary: {
+          customer_name: "Summary customer",
+          customer_phone: "020 5555 5555"
+        }
+      }
+    });
+
+    expect(billMetaText(groupedBill, ["customer_name"])).toBe("Raw customer");
+    expect(billMetaText(groupedBill, ["customer_phone"])).toBe("020 5555 5555");
+    expect(realMetaText(" - ")).toBe("");
+  });
+
+  it("preserves explicit and calculated percentage labels for bill summaries", () => {
+    expect(rateLabel(0.1)).toBe("10%");
+    expect(rateLabel(7.5)).toBe("7,5%");
+    expect(readRateLabel({ summary: { vat_rate: 0.07 }, vat_rate: 10 }, ["vat_rate"], "vat")).toBe("7%");
+    expect(calculatedRateLabel(10, 200)).toBe("5%");
+    expect(summaryMetricLabel("VAT", "7%")).toBe("VAT (7%)");
   });
 });

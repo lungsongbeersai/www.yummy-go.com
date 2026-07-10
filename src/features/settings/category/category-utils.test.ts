@@ -62,7 +62,7 @@ describe("category utils", () => {
     expect(normalizeCategoryIconValue("coffee")).toBe("mdi:coffee");
     expect(normalizeCategoryIconValue(" mdi:rice ")).toBe("mdi:rice");
     expect(categoryIconName("mdi:soup")).toBe("mdi:bowl-mix");
-    expect(categoryIconName("mdi:not-real")).toBe("mdi:folder-outline");
+    expect(categoryIconName("mdi:not-real")).toBe("mdi:not-real");
   });
 
   it("uses category and group name fallbacks", () => {

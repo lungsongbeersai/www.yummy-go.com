@@ -1,6 +1,7 @@
 "use client";
 
 import axios, { AxiosError, type AxiosInstance } from "axios";
+import { shouldLogoutForUnauthorized } from "@/lib/unauthorized-session";
 import { useAuthStore } from "@/stores/auth-store";
 
 const baseURL =
@@ -53,8 +54,18 @@ function createClient(authenticated: boolean): AxiosInstance {
       (response) => response,
       (error: AxiosError) => {
         const status = error.response?.status;
-        const { isLoggedIn, logout } = useAuthStore.getState();
-        if (status === 401 && isLoggedIn) {
+        const requestToken = String(
+          error.config?.headers.get("x-access-token") ?? "",
+        );
+        const { isLoggedIn, logout, token } = useAuthStore.getState();
+        if (
+          shouldLogoutForUnauthorized({
+            currentToken: token,
+            isLoggedIn,
+            requestToken,
+            status,
+          })
+        ) {
           logout();
           if (typeof window !== "undefined") window.location.assign("/login");
         }

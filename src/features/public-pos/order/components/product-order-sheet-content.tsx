@@ -313,10 +313,16 @@ export function ProductOrderSheetContent({
               ) : null}
 
               <section className="grid gap-2">
-                <p className="text-xs font-black text-slate-700 dark:text-muted-foreground">
+                <label
+                  htmlFor="public-product-order-note"
+                  className="text-xs font-black text-slate-700 dark:text-muted-foreground"
+                >
                   {t("pos.note")}
-                </p>
+                </label>
                 <Textarea
+                  id="public-product-order-note"
+                  name="orderNote"
+                  autoComplete="off"
                   value={note}
                   onChange={(event) => onNoteChange(event.target.value)}
                   placeholder={t("pos.notePlaceholder")}
@@ -352,6 +358,7 @@ export function ProductOrderSheetContent({
                       type="button"
                       variant="outline"
                       size="icon"
+                      aria-label={`${t("pos.qty")} -`}
                       className="h-11 w-11 rounded-md"
                       onClick={() => handleQty(qty - qtyStep)}
                       disabled={qty <= minQty || saving}
@@ -365,6 +372,7 @@ export function ProductOrderSheetContent({
                       type="button"
                       variant="outline"
                       size="icon"
+                      aria-label={`${t("pos.qty")} +`}
                       className="h-11 w-11 rounded-md"
                       onClick={() => handleQty(qty + qtyStep)}
                       disabled={qty + qtyStep > maxQty || saving}

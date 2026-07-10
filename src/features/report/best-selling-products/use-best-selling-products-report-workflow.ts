@@ -12,6 +12,7 @@ import { useBestSellingProductsReportStore } from "@/stores/report-store";
 import { useGroupStore } from "@/stores/group-store";
 import { useToastStore } from "@/stores/toast-store";
 import { branchOptionFromRow, selectedBranchLabel } from "../daily-sales/daily-sales-report-utils";
+import { createSingleSheetReportWorkbook } from "../report-excel-utils";
 import { useReportRowSelection } from "../report-row-selection";
 import type { BestSellingExportAction, BestSellingExportData, BestSellingProductsFilters } from "./best-selling-products-report-types";
 import {
@@ -266,10 +267,20 @@ export function useBestSellingProductsReportWorkflow(exportReportRef: RefObject<
     try {
       const data = selectedExportData(await fetchExportData());
       const XLSX = await import("xlsx");
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(exportSummaryRows(summaryCards, data.summary, t)), "Summary");
-      XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(exportGroupRows(data.groups, t)), "Groups");
-      XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(exportProductRows(data.groups, t)), "Products");
+      const workbook = createSingleSheetReportWorkbook(XLSX, [
+        {
+          title: "Summary",
+          rows: exportSummaryRows(summaryCards, data.summary, t)
+        },
+        {
+          title: "Groups",
+          rows: exportGroupRows(data.groups, t)
+        },
+        {
+          title: "Products",
+          rows: exportProductRows(data.groups, t)
+        }
+      ]);
       XLSX.writeFile(workbook, `${bestSellingFileBaseName(appliedFilters)}.xlsx`);
       showToast({
         title: t("report.exportReady"),

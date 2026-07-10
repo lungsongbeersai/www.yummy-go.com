@@ -38,7 +38,7 @@ import {
 } from "@/features/settings/shared/settings-shell";
 import { cn } from "@/lib/utils";
 import type { Category } from "@/services/category";
-import { CategoryIcon } from "./category-icon-picker";
+import { CategoryIcon } from "./category-icon";
 import { CategoryCodeBadge, CategoryIdentity } from "./category-display";
 import {
   categoryId,

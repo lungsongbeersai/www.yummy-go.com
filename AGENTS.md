@@ -18,6 +18,13 @@ Build this project with clean, short, maintainable code.
 - Keep files small and focused.
 - Match existing project patterns.
 
+## Code Comments
+
+- Comments are allowed and encouraged when they add useful context.
+- Prefer comments that explain why a decision, business rule, workaround, or constraint exists.
+- Do not add comments that merely repeat what clear code already says.
+- Keep comments concise and update them when the related code changes.
+
 ## TypeScript
 
 - Never use any.
@@ -64,6 +71,7 @@ Reuse if possible.
 
 ## Response Rules
 
+- Communicate with the user in Thai only.
 - Show only changed files.
 - Keep explanations short.
 - Generate copy-paste-ready code.

@@ -1,10 +1,11 @@
 "use client";
 
 import { type CSSProperties, useRef, useState } from "react";
-import { CalendarDays, Trophy } from "lucide-react";
+import { Eye, EyeOff, RefreshCcw, SlidersHorizontal, Trophy } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { BlockingLoadingDialog } from "@/components/common/blocking-loading-dialog";
-import { Badge } from "@/components/ui/badge";
+import { FilterHeaderToolbar } from "@/components/common/filter-header-toolbar";
+import { Button } from "@/components/ui/button";
 import { useIsCapacitorNativeApp } from "@/hooks/use-capacitor-native-app";
 import type { UrlPaginationState } from "@/lib/url-pagination";
 import {
@@ -15,7 +16,7 @@ import {
   BestSellingSummaryCards,
   BestSellingTableCard,
 } from "./best-selling-products-report-components";
-import { ReportError, ReportPagination, ReportSummaryToggle } from "../daily-sales/daily-sales-report-components";
+import { ReportError, ReportPagination } from "../daily-sales/daily-sales-report-components";
 import { useBestSellingProductsReportWorkflow } from "./use-best-selling-products-report-workflow";
 
 const SUMMARY_CARDS_ID = "best-selling-summary-cards";
@@ -29,6 +30,7 @@ export function BestSellingProductsReportPage({ initialPagination }: { initialPa
   const layoutStyle = {
     "--best-selling-filter-height": "0px"
   } as CSSProperties;
+  const dateRangeLabel = `${report.appliedFilters.dateFrom} - ${report.appliedFilters.dateTo}`;
   const exportTitle =
     report.exporting === "excel"
       ? t("report.exportingExcel")
@@ -56,18 +58,59 @@ export function BestSellingProductsReportPage({ initialPagination }: { initialPa
                 {t("report.bestSelling.description")}
               </p>
             </div>
-            <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-              <Badge className="w-fit rounded-full px-3 py-1">
-                <CalendarDays data-icon="inline-start" />
-                {report.appliedFilters.dateFrom} - {report.appliedFilters.dateTo}
-              </Badge>
-              <ReportSummaryToggle
-                controlsId={SUMMARY_CARDS_ID}
-                expanded={summaryVisible}
-                onToggle={() => setSummaryVisible((visible) => !visible)}
-              />
-            </div>
           </div>
+
+          <FilterHeaderToolbar
+            dateRange={{
+              ariaLabel: `${t("report.filters.openFilters")}: ${dateRangeLabel}`,
+              disabled: report.loading || Boolean(report.exporting),
+              label: dateRangeLabel,
+              onClick: report.openMobileFilters
+            }}
+            filterControl={
+              <Button
+                type="button"
+                variant="outline"
+                size="iconSm"
+                className="h-9 w-9 shrink-0"
+                aria-label={t("report.filters.openFilters")}
+                disabled={report.loading || Boolean(report.exporting)}
+                onClick={report.openMobileFilters}
+              >
+                <SlidersHorizontal data-icon="inline-start" />
+                <span className="sr-only">{t("report.filters.openFilters")}</span>
+              </Button>
+            }
+            refreshControl={
+              <Button
+                type="button"
+                variant="outline"
+                size="iconSm"
+                className="h-9 w-9 shrink-0"
+                aria-label={t("actions.refresh")}
+                disabled={report.loading || Boolean(report.exporting)}
+                onClick={() => void report.load()}
+              >
+                <RefreshCcw className={report.loading ? "animate-spin" : undefined} data-icon="inline-start" />
+                <span className="sr-only">{t("actions.refresh")}</span>
+              </Button>
+            }
+            summaryControl={
+              <Button
+                type="button"
+                variant="outline"
+                size="iconSm"
+                className="h-9 w-9 shrink-0"
+                aria-controls={SUMMARY_CARDS_ID}
+                aria-expanded={summaryVisible}
+                aria-label={summaryVisible ? t("report.hideSummary") : t("report.showSummary")}
+                onClick={() => setSummaryVisible((visible) => !visible)}
+              >
+                {summaryVisible ? <EyeOff data-icon="inline-start" /> : <Eye data-icon="inline-start" />}
+                <span className="sr-only">{summaryVisible ? t("report.hideSummary") : t("report.showSummary")}</span>
+              </Button>
+            }
+          />
 
           <BestSellingFilterSheet
             branchLoading={report.branchLoading}
@@ -117,7 +160,6 @@ export function BestSellingProductsReportPage({ initialPagination }: { initialPa
             onExportExcel={() => void report.exportExcel()}
             onExportPdf={() => void report.exportPdf()}
             onClearSelection={report.rowSelection.clearSelection}
-            onOpenFilters={report.openMobileFilters}
             onPrintReport={() => void report.printReport()}
             onRefresh={() => void report.load()}
             onSortByChange={report.applySortBy}
@@ -138,16 +180,20 @@ export function BestSellingProductsReportPage({ initialPagination }: { initialPa
           </BestSellingTableCard>
         </div>
       </div>
-      <BestSellingExportSurface
-        cards={report.summaryCards}
-        containerRef={exportReportRef}
-        dateRange={`${report.appliedFilters.dateFrom} - ${report.appliedFilters.dateTo}`}
-        groups={report.renderedExportData.groups}
-        rowsLabel={t("report.bestSelling.rowsLabel", { count: report.renderedExportData.rows.length })}
-        sortByLabel={report.sortByLabel}
-        summary={report.renderedExportData.summary}
-        title={t("report.bestSelling.title")}
-      />
+      {report.exporting === "pdf" || report.exporting === "print" ? (
+        <BestSellingExportSurface
+          cards={report.summaryCards}
+          containerRef={exportReportRef}
+          dateRange={`${report.appliedFilters.dateFrom} - ${report.appliedFilters.dateTo}`}
+          groups={report.renderedExportData.groups}
+          rowsLabel={t("report.bestSelling.rowsLabel", {
+            count: report.renderedExportData.rows.length,
+          })}
+          sortByLabel={report.sortByLabel}
+          summary={report.renderedExportData.summary}
+          title={t("report.bestSelling.title")}
+        />
+      ) : null}
       <BlockingLoadingDialog
         open={Boolean(report.exporting)}
         title={exportTitle}

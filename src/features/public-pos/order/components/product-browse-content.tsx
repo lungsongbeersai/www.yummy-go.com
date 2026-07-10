@@ -128,7 +128,7 @@ export function ProductBrowseContent({
               <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
 
               <Input
-                className="h-9 cursor-pointer rounded-md border-emerald-100 bg-emerald-50/50 pl-8 text-sm font-semibold shadow-none dark:border-border dark:bg-muted/45"
+                className="h-11 cursor-pointer rounded-md border-emerald-100 bg-emerald-50/50 pl-8 text-sm font-semibold shadow-none dark:border-border dark:bg-muted/45"
                 value={search.searchText}
                 readOnly
                 aria-expanded={search.searchOpen}
@@ -142,7 +142,7 @@ export function ProductBrowseContent({
             <Button
               type="submit"
               size="icon"
-              className="h-9 w-9 rounded-md"
+              className="h-11 w-11 rounded-md"
               aria-label={t("pos.searchMenu")}
               disabled={loadingMenu}
             >
@@ -157,7 +157,7 @@ export function ProductBrowseContent({
                 type="button"
                 size="iconSm"
                 variant={productLayoutMode === "grid" ? "default" : "ghost"}
-                className="size-8 rounded-sm"
+                className="size-11 rounded-sm"
                 aria-label={gridLayoutLabel}
                 aria-pressed={productLayoutMode === "grid"}
                 onClick={() => handleProductLayoutModeChange("grid")}
@@ -168,7 +168,7 @@ export function ProductBrowseContent({
                 type="button"
                 size="iconSm"
                 variant={productLayoutMode === "list" ? "default" : "ghost"}
-                className="size-8 rounded-sm"
+                className="size-11 rounded-sm"
                 aria-label={listLayoutLabel}
                 aria-pressed={productLayoutMode === "list"}
                 onClick={() => handleProductLayoutModeChange("list")}
@@ -185,7 +185,7 @@ export function ProductBrowseContent({
               className="gap-0"
             >
               <div className="overflow-x-auto pb-1">
-                <TabsList className="h-8 w-max justify-start gap-1 bg-transparent p-0">
+                <TabsList className="h-11 w-max justify-start gap-1 bg-transparent p-0">
                   {visibleCategoryTabs.map((category) => (
                     <TabsTrigger
                       key={category.cate_uuid}
@@ -193,7 +193,7 @@ export function ProductBrowseContent({
                       ref={(element) => {
                         categoryTabRefs.current[category.cate_uuid] = element;
                       }}
-                      className="h-8 flex-none gap-1.5 rounded-full border border-emerald-100 bg-white px-3 text-xs font-black shadow-none data-[state=active]:border-primary/30 data-[state=active]:bg-emerald-50 data-[state=active]:text-primary dark:border-border dark:bg-background dark:data-[state=active]:bg-primary/10"
+                      className="h-11 flex-none gap-1.5 rounded-full border border-emerald-100 bg-white px-3 text-xs font-black shadow-none data-[state=active]:border-primary/30 data-[state=active]:bg-emerald-50 data-[state=active]:text-primary dark:border-border dark:bg-background dark:data-[state=active]:bg-primary/10"
                     >
                       {jumpingCateUuid === category.cate_uuid ? (
                         <Loader2 className="size-4 shrink-0 animate-spin" />

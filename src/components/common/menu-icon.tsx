@@ -1,16 +1,22 @@
 "use client";
 
 import type { ComponentProps } from "react";
-import { Icon, addCollection } from "@iconify/react";
-import { icons as mdiIcons } from "@iconify-json/mdi";
-import { normalizeMenuIconName } from "@/lib/menu-icons";
+import { MdiIcon } from "@/components/common/mdi-icon";
+import { MENU_MDI_ICONS } from "@/lib/menu-mdi-icons.generated";
+import { DEFAULT_MENU_ICON, normalizeMenuIconValue } from "@/lib/menu-icons";
 
-addCollection(mdiIcons);
-
-type MenuIconProps = Omit<ComponentProps<typeof Icon>, "icon"> & {
+type MenuIconProps = Omit<ComponentProps<typeof MdiIcon>, "fallbackValue" | "icons" | "value"> & {
   value?: unknown;
 };
 
 export function MenuIcon({ value, ...props }: MenuIconProps) {
-  return <Icon aria-hidden icon={normalizeMenuIconName(value)} {...props} />;
+  return (
+    <MdiIcon
+      aria-hidden
+      fallbackValue={DEFAULT_MENU_ICON}
+      icons={MENU_MDI_ICONS}
+      value={normalizeMenuIconValue(value)}
+      {...props}
+    />
+  );
 }

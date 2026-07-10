@@ -13,7 +13,6 @@ import {
   EyeOff,
   FileSpreadsheet,
   FileText,
-  Filter,
   Printer,
   ReceiptText,
   RefreshCcw,
@@ -87,7 +86,6 @@ interface ReportTableActionsProps {
   onExpandAllBills: () => void;
   onExportExcel: () => void;
   onExportPdf: () => void;
-  onOpenFilters: () => void;
   onPrintReport: () => void;
   onRefresh: () => void;
   onSearchChange: (search: string) => void;
@@ -243,9 +241,12 @@ export function ReportTableCard({
     <Card className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden border-border bg-card shadow-sm">
       <ReportTableActions {...actions} />
 
-      <CardContent className="flex min-h-0 flex-1 flex-col p-0">
-        {loading ? (
-          <div className="p-4 md:min-h-80">
+      <CardContent
+        aria-busy={loading}
+        className="flex min-h-0 flex-1 flex-col p-0"
+      >
+        {loading && !rowsLength ? (
+          <div className="min-h-80 p-4">
             <LoadingState label={t("report.loading")} variant="reportTable" />
           </div>
         ) : rowsLength ? (
@@ -254,7 +255,7 @@ export function ReportTableCard({
             <div className="shrink-0 bg-card">{footer}</div>
           </>
         ) : (
-          <div className="p-4 md:min-h-80">
+          <div className="min-h-80 p-4">
             <EmptyState
               title={t("report.noData")}
               description={t("report.adjustFilters")}
@@ -283,7 +284,6 @@ function ReportTableActions({
   onExpandAllBills,
   onExportExcel,
   onExportPdf,
-  onOpenFilters,
   onPrintReport,
   onRefresh,
   onSearchChange,
@@ -386,21 +386,6 @@ function ReportTableActions({
             </Button>
           ) : null}
 
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            aria-label={t("report.filters.openFilters")}
-            className="h-9 min-w-9 rounded-md px-2.5"
-            disabled={disabled}
-            onClick={onOpenFilters}
-          >
-            <Filter data-icon="inline-start" />
-            <span className="hidden sm:inline">
-              {t("report.filters.openFilters")}
-            </span>
-          </Button>
-
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -443,7 +428,7 @@ function ReportTableActions({
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <Button
+          {/* <Button
             type="button"
             variant="outline"
             size="sm"
@@ -458,7 +443,7 @@ function ReportTableActions({
               <Printer data-icon="inline-start" />
             )}
             <span className="hidden sm:inline">{t("report.print")}</span>
-          </Button>
+          </Button> */}
 
           <Button
             type="button"

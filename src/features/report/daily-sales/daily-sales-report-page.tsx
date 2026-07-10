@@ -1,9 +1,10 @@
 "use client";
 
 import { type CSSProperties, useRef, useState } from "react";
-import { BarChart3, CalendarDays } from "lucide-react";
+import { BarChart3, Eye, EyeOff, RefreshCcw, SlidersHorizontal } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { Badge } from "@/components/ui/badge";
+import { FilterHeaderToolbar } from "@/components/common/filter-header-toolbar";
+import { Button } from "@/components/ui/button";
 import { useIsCapacitorNativeApp } from "@/hooks/use-capacitor-native-app";
 import type { UrlPaginationState } from "@/lib/url-pagination";
 import {
@@ -11,7 +12,6 @@ import {
   ReportExportLoadingDialog,
   ReportPagination,
   ReportSummaryCards,
-  ReportSummaryToggle,
   ReportTableCard,
 } from "./daily-sales-report-components";
 import { ReportExportSurface } from "./daily-sales-report-export-surface";
@@ -38,6 +38,7 @@ export function DailySalesReportPage({
     "--daily-sales-filter-height": "0px",
   } as CSSProperties;
   const canApplyFilters = Boolean(report.draftFilters.branchUuid || report.defaultBranchUuid);
+  const dateRangeLabel = `${report.appliedFilters.dateFrom} - ${report.appliedFilters.dateTo}`;
 
   return (
     <>
@@ -57,19 +58,59 @@ export function DailySalesReportPage({
               </h1>
               <p className="text-xs text-muted-foreground sm:text-sm">{t("report.dailySalesDescription")}</p>
             </div>
-
-            <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-              <Badge className="w-fit rounded-full px-3 py-1">
-                <CalendarDays data-icon="inline-start" />
-                {report.appliedFilters.dateFrom} - {report.appliedFilters.dateTo}
-              </Badge>
-              <ReportSummaryToggle
-                controlsId={SUMMARY_CARDS_ID}
-                expanded={summaryVisible}
-                onToggle={() => setSummaryVisible((visible) => !visible)}
-              />
-            </div>
           </div>
+
+          <FilterHeaderToolbar
+            dateRange={{
+              ariaLabel: `${t("report.filters.openFilters")}: ${dateRangeLabel}`,
+              disabled: report.loading || Boolean(report.exporting),
+              label: dateRangeLabel,
+              onClick: report.openMobileFilters,
+            }}
+            filterControl={
+              <Button
+                type="button"
+                variant="outline"
+                size="iconSm"
+                className="h-9 w-9 shrink-0"
+                aria-label={t("report.filters.openFilters")}
+                disabled={report.loading || Boolean(report.exporting)}
+                onClick={report.openMobileFilters}
+              >
+                <SlidersHorizontal data-icon="inline-start" />
+                <span className="sr-only">{t("report.filters.openFilters")}</span>
+              </Button>
+            }
+            refreshControl={
+              <Button
+                type="button"
+                variant="outline"
+                size="iconSm"
+                className="h-9 w-9 shrink-0"
+                aria-label={t("actions.refresh")}
+                disabled={report.loading || Boolean(report.exporting)}
+                onClick={() => void report.load()}
+              >
+                <RefreshCcw className={report.loading ? "animate-spin" : undefined} data-icon="inline-start" />
+                <span className="sr-only">{t("actions.refresh")}</span>
+              </Button>
+            }
+            summaryControl={
+              <Button
+                type="button"
+                variant="outline"
+                size="iconSm"
+                className="h-9 w-9 shrink-0"
+                aria-controls={SUMMARY_CARDS_ID}
+                aria-expanded={summaryVisible}
+                aria-label={summaryVisible ? t("report.hideSummary") : t("report.showSummary")}
+                onClick={() => setSummaryVisible((visible) => !visible)}
+              >
+                {summaryVisible ? <EyeOff data-icon="inline-start" /> : <Eye data-icon="inline-start" />}
+                <span className="sr-only">{summaryVisible ? t("report.hideSummary") : t("report.showSummary")}</span>
+              </Button>
+            }
+          />
 
           <ReportFilterSheet
             branchLoading={report.branchLoading}
@@ -120,7 +161,6 @@ export function DailySalesReportPage({
               onExpandAllBills: report.expandAllBills,
               onExportExcel: () => void report.exportExcel(),
               onExportPdf: () => void report.exportPdf(),
-              onOpenFilters: report.openMobileFilters,
               onPrintReport: () => void report.printReport(),
               onRefresh: () => void report.load(),
               onSearchChange: (search) => report.applyTableHeaderFilters({ search }),

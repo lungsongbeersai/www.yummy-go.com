@@ -6,7 +6,11 @@ import { ImageIcon, Utensils } from "lucide-react";
 import { ProductImageStatus } from "@/config/pos-constants";
 import type { CateProductItem, ProdItem } from "@/services/pos";
 import type { CartFlyAnimationState } from "@/features/public-pos/order/types";
-import { isHexColor, productImageUrl } from "@/features/public-pos/order/utils";
+import {
+  isHexColor,
+  prefersReducedMotion,
+  productImageUrl,
+} from "@/features/public-pos/order/utils";
 
 export function CartFlyAnimationLayer({
   animations,
@@ -41,8 +45,14 @@ function CartFlyAnimationItem({
   onDone: (id: number) => void;
 }) {
   const [active, setActive] = useState(false);
+  const reduceMotion = prefersReducedMotion();
 
   useEffect(() => {
+    if (reduceMotion) {
+      const frame = window.requestAnimationFrame(() => onDone(animation.id));
+      return () => window.cancelAnimationFrame(frame);
+    }
+
     setActive(false);
     const frame = window.requestAnimationFrame(() => setActive(true));
     const timer = window.setTimeout(() => onDone(animation.id), 680);
@@ -51,7 +61,9 @@ function CartFlyAnimationItem({
       window.cancelAnimationFrame(frame);
       window.clearTimeout(timer);
     };
-  }, [animation.id, onDone]);
+  }, [animation.id, onDone, reduceMotion]);
+
+  if (reduceMotion) return null;
 
   const startWidth = animation.start.width;
   const startHeight = animation.start.height;

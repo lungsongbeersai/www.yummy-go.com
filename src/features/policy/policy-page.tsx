@@ -102,7 +102,7 @@ const sections: { title: string; content: ReactNode }[] = [
 export function PolicyPage() {
   return (
     <main className="min-h-screen bg-slate-50 text-slate-800">
-      <section className="relative overflow-hidden bg-gradient-to-br from-emerald-700 via-green-600 to-lime-500 px-4 py-16 text-white md:py-20">
+      <section className="relative overflow-hidden bg-linear-to-br from-emerald-700 via-green-600 to-lime-500 px-4 py-16 text-white md:py-20">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.22),transparent_35%)]" />
 
         <div className="relative mx-auto max-w-5xl">
@@ -151,7 +151,7 @@ export function PolicyPage() {
               ordering, sales, receipt printing, and support services.
             </p>
 
-            <div className="mt-6 space-y-3 text-sm">
+            <div className="mt-6 flex flex-col gap-3 text-sm">
               <div className="rounded-2xl bg-emerald-50 p-4 text-emerald-800">
                 We do not sell personal information.
               </div>
@@ -163,13 +163,13 @@ export function PolicyPage() {
             </div>
           </aside>
 
-          <div className="space-y-6">
+          <div className="flex flex-col gap-6">
             <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
               <h2 className="text-2xl font-bold text-slate-950">
                 About Yummy Go
               </h2>
 
-              <div className="mt-4 space-y-4 leading-8 text-slate-700">
+              <div className="mt-4 flex flex-col gap-4 leading-8 text-slate-700">
                 <p>
                   Yummy Go is a restaurant POS and management application
                   designed to help restaurants manage orders, sales, tables,

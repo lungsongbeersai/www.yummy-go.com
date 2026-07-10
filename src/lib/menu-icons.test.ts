@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_MENU_ICON,
-  MENU_ICON_RESULT_LIMIT,
+  MENU_ICON_RESULT_LIMIT
+} from "@/lib/menu-icons";
+import {
   buildMenuIconOptions,
   normalizeMenuIconName
-} from "@/lib/menu-icons";
+} from "@/lib/menu-icon-catalog";
 
 describe("menu icon helpers", () => {
   it("normalizes legacy icon names to MDI values", () => {

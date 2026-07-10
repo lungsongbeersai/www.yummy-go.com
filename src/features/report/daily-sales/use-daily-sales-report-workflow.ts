@@ -33,6 +33,7 @@ import {
   useDailySalesOrderReportStore,
 } from "@/stores/report-store";
 import { useToastStore } from "@/stores/toast-store";
+import { createSingleSheetReportWorkbook } from "../report-excel-utils";
 import type {
   ReportExportData,
   ReportExportAction,
@@ -599,39 +600,34 @@ export function useDailySalesReportWorkflow(
       updateExportProgress(35, "report.exportProgress.preparing");
       await waitForPaint();
       const XLSX = await import("xlsx");
-      const workbook = XLSX.utils.book_new();
       updateExportProgress(65, "report.exportProgress.buildingFile");
       await waitForPaint();
-      const summarySheet = XLSX.utils.json_to_sheet(
-        exportSummaryRows(cards, data.summaryCards, data.reportTotal),
-      );
-      const rowsSheet = XLSX.utils.json_to_sheet(
-        exportTableRows(
-          data.rows,
-          appliedFilters.typePage === "detail" ? detailItemColumns : columns,
-        ),
-      );
-
-      XLSX.utils.book_append_sheet(workbook, summarySheet, "Summary");
-      if (appliedFilters.typePage === "detail") {
-        XLSX.utils.book_append_sheet(
-          workbook,
-          XLSX.utils.json_to_sheet(
-            exportDateTotalRows(data.grandTotalByDate, t),
+      const detailSections = appliedFilters.typePage === "detail"
+        ? [
+            {
+              title: "Date Totals",
+              rows: exportDateTotalRows(data.grandTotalByDate, t),
+            },
+            {
+              title: "Bills",
+              rows: exportBillRows(data.billGroups, t, true),
+            },
+          ]
+        : [];
+      const workbook = createSingleSheetReportWorkbook(XLSX, [
+        {
+          title: "Summary",
+          rows: exportSummaryRows(cards, data.summaryCards, data.reportTotal),
+        },
+        ...detailSections,
+        {
+          title: appliedFilters.typePage === "detail" ? "Items" : "Rows",
+          rows: exportTableRows(
+            data.rows,
+            appliedFilters.typePage === "detail" ? detailItemColumns : columns,
           ),
-          "Date Totals",
-        );
-        XLSX.utils.book_append_sheet(
-          workbook,
-          XLSX.utils.json_to_sheet(
-            exportBillRows(data.billGroups, t, true),
-          ),
-          "Bills",
-        );
-        XLSX.utils.book_append_sheet(workbook, rowsSheet, "Items");
-      } else {
-        XLSX.utils.book_append_sheet(workbook, rowsSheet, "Rows");
-      }
+        },
+      ]);
       updateExportProgress(90, "report.exportProgress.saving");
       await waitForPaint();
       XLSX.writeFile(workbook, `${reportFileBaseName(appliedFilters)}.xlsx`);

@@ -31,7 +31,10 @@ export function BlockingLoadingDialog({
   const { t } = useTranslation();
   const fallbackTitle = title ?? label ?? t("common.loading");
   const fallbackDescription = description ?? t("common.processing");
-  const hasProgress = typeof progressValue === "number";
+  const normalizedProgress =
+    typeof progressValue === "number" && Number.isFinite(progressValue)
+    ? Math.min(100, Math.max(0, progressValue))
+    : null;
 
   return (
     <Dialog open={open}>
@@ -56,17 +59,20 @@ export function BlockingLoadingDialog({
             </div>
           </div>
         </DialogHeader>
-        {hasProgress ? (
+        {normalizedProgress !== null ? (
           <div className="grid gap-2 px-6 py-4">
             <div className="flex items-center justify-between gap-3 text-xs font-semibold text-muted-foreground">
               <span className="truncate">
                 {progressLabel ?? fallbackDescription}
               </span>
               <span className="shrink-0 tabular-nums">
-                {Math.round(progressValue).toLocaleString("en-US")}%
+                {Math.round(normalizedProgress).toLocaleString("en-US")}%
               </span>
             </div>
-            <Progress value={progressValue} />
+            <Progress
+              aria-label={progressLabel ?? fallbackDescription}
+              value={normalizedProgress}
+            />
           </div>
         ) : null}
       </DialogContent>

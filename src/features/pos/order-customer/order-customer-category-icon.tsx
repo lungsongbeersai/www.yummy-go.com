@@ -1,16 +1,7 @@
 "use client";
 
-import { Icon, addCollection } from "@iconify/react";
-import { icons as mdiIcons } from "@iconify-json/mdi";
+import { CategoryIcon } from "@/features/settings/category/category-icon";
 import { optionalString } from "../table-selection/utils";
-
-let collectionReady = false;
-
-function ensureMdiCollection() {
-  if (collectionReady) return;
-  addCollection(mdiIcons);
-  collectionReady = true;
-}
 
 export function CategoryIconView({
   className,
@@ -22,6 +13,5 @@ export function CategoryIconView({
   const iconName = optionalString(icon);
   if (!iconName) return null;
 
-  ensureMdiCollection();
-  return <Icon aria-hidden="true" icon={iconName} className={className} />;
+  return <CategoryIcon value={iconName} className={className} />;
 }

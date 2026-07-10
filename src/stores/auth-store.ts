@@ -4,6 +4,7 @@ import { create } from "zustand";
 import { createJSONStorage, persist, type StateStorage } from "zustand/middleware";
 import { disconnectSocket } from "@/lib/socket";
 import { checkLogin } from "@/services/login";
+import { resetSessionStores } from "@/stores/session-store-registry";
 import { errorMessage } from "@/stores/store-utils";
 
 export interface AuthUser {
@@ -40,7 +41,7 @@ interface AuthState {
   loading: boolean;
   error: string | null;
   login: (token: string, user: AuthUser, rememberMe?: boolean) => void;
-  loginWithPassword: (email: string, password: string, rememberMe?: boolean) => Promise<AuthUser>;
+  loginWithPassword: (email: string, password: string, rememberMe?: boolean) => Promise<AuthUser | null>;
   logout: () => void;
   updateUser: (updates: Partial<AuthUser>) => void;
   setHydrated: (hydrated: boolean) => void;
@@ -48,6 +49,18 @@ interface AuthState {
 
 const STORAGE_KEY = "yummy-go-auth";
 const isBrowser = typeof window !== "undefined";
+let loginRequestId = 0;
+
+function authenticatedState(token: string, user: AuthUser, rememberMe: boolean) {
+  return {
+    token,
+    user: normalizeAuthUser(user),
+    isLoggedIn: true,
+    rememberMe,
+    loading: false,
+    error: null
+  };
+}
 
 const dualStorage: StateStorage = {
   getItem: (name) => {
@@ -82,23 +95,40 @@ export const useAuthStore = create<AuthState>()(
       hydrated: false,
       loading: false,
       error: null,
-      login: (token, user, rememberMe = false) =>
-        set({ token, user: normalizeAuthUser(user), isLoggedIn: true, rememberMe, error: null }),
+      login: (token, user, rememberMe = false) => {
+        loginRequestId += 1;
+        resetSessionStores();
+        set(authenticatedState(token, user, rememberMe));
+      },
       loginWithPassword: async (email, password, rememberMe = false) => {
+        const requestId = ++loginRequestId;
         set({ loading: true, error: null });
         try {
           const result = await checkLogin(email, password);
-          get().login(result.token, result.user, rememberMe);
-          set({ loading: false });
+          if (requestId !== loginRequestId) return null;
+
+          resetSessionStores();
+          set(authenticatedState(result.token, result.user, rememberMe));
           return result.user;
         } catch (error) {
+          if (requestId !== loginRequestId) return null;
+
           set({ loading: false, error: errorMessage(error) });
           throw error;
         }
       },
       logout: () => {
+        loginRequestId += 1;
         disconnectSocket();
-        set({ token: null, user: null, isLoggedIn: false, rememberMe: false, error: null });
+        resetSessionStores();
+        set({
+          token: null,
+          user: null,
+          isLoggedIn: false,
+          rememberMe: false,
+          loading: false,
+          error: null
+        });
         dualStorage.removeItem(STORAGE_KEY);
       },
       updateUser: (updates) => {

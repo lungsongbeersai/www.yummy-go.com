@@ -8,6 +8,14 @@ Yummy Go — a restaurant POS built with Next.js 15 (App Router), React 19, Type
 
 `AGENTS.md` contains the project's coding conventions — read it. Key rules: never use `any`; `interface` for props/models, `type` for unions; `as const` over enums; one Zustand store per domain with actions living in the store; components call store actions, never services directly; reuse existing components/hooks/stores/utilities before creating new ones; preserve dark mode; use AlertDialog for destructive actions.
 
+## Communication and Comments
+
+- Communicate with the user in Thai only.
+- Code comments are allowed and encouraged when they add useful context.
+- Prefer comments that explain why a decision, business rule, workaround, or constraint exists.
+- Do not add comments that merely repeat what clear code already says.
+- Keep comments concise and update them when the related code changes.
+
 ## Commands
 
 - `npm run dev` — Next.js dev server (Turbopack) on :3000

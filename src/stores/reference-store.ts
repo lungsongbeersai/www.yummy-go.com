@@ -17,6 +17,7 @@ import { canCreateUser, getRoles, getUserById, type Role, type User } from "@/se
 import { getZoneOptions, type Zone } from "@/services/zone";
 import type { ApiEntity } from "@/services/shared/types";
 import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
+import { createSessionGuard, registerSessionStoreReset } from "@/stores/session-store-registry";
 import { errorMessage } from "@/stores/store-utils";
 
 type ReferenceKey =
@@ -33,6 +34,18 @@ type ReferenceKey =
   | "zones"
   | "tables"
   | "roles";
+
+type ReferenceRequestKey = ReferenceKey | "user" | "password";
+
+let referenceRequestId = 0;
+const latestReferenceRequests = new Map<ReferenceRequestKey, number>();
+
+function createReferenceRequestGuard(key: ReferenceRequestKey) {
+  const requestId = ++referenceRequestId;
+  const isCurrentSession = createSessionGuard();
+  latestReferenceRequests.set(key, requestId);
+  return () => isCurrentSession() && latestReferenceRequests.get(key) === requestId;
+}
 
 interface ReferenceState {
   storeUuid: string;
@@ -69,22 +82,27 @@ export const useReferenceStore = create<ReferenceState>((set) => {
   const activeStoreUuid = () => getStoreUuid() || authStoreUuid(useAuthStore.getState().user);
 
   async function loadOption<T extends ApiEntity>(key: ReferenceKey, loader: () => Promise<T[]>) {
+    const isCurrentRequest = createReferenceRequestGuard(key);
     set((state) => ({
       loadingKeys: { ...state.loadingKeys, [key]: true },
       error: null
     }));
     try {
       const rows = await loader();
-      set((state) => ({
-        options: { ...state.options, [key]: rows },
-        loadingKeys: { ...state.loadingKeys, [key]: false }
-      }));
+      if (isCurrentRequest()) {
+        set((state) => ({
+          options: { ...state.options, [key]: rows },
+          loadingKeys: { ...state.loadingKeys, [key]: false }
+        }));
+      }
       return rows;
     } catch (error) {
-      set((state) => ({
-        loadingKeys: { ...state.loadingKeys, [key]: false },
-        error: errorMessage(error)
-      }));
+      if (isCurrentRequest()) {
+        set((state) => ({
+          loadingKeys: { ...state.loadingKeys, [key]: false },
+          error: errorMessage(error)
+        }));
+      }
       throw error;
     }
   }
@@ -116,32 +134,42 @@ export const useReferenceStore = create<ReferenceState>((set) => {
     loadTables: (lang) => loadOption("tables", () => getTableOptions(lang)),
     loadRoles: (lang, rolesId) => loadOption("roles", () => getRoles(lang, rolesId ?? useAuthStore.getState().user?.status ?? "")),
     loadUser: async (loginUuid) => {
+      const isCurrentRequest = createReferenceRequestGuard("user");
       set((state) => ({ loadingKeys: { ...state.loadingKeys, user: true }, error: null }));
       try {
         const selectedUser = await getUserById(loginUuid);
-        set((state) => ({
-          selectedUser,
-          loadingKeys: { ...state.loadingKeys, user: false }
-        }));
+        if (isCurrentRequest()) {
+          set((state) => ({
+            selectedUser,
+            loadingKeys: { ...state.loadingKeys, user: false }
+          }));
+        }
         return selectedUser;
       } catch (error) {
-        set((state) => ({
-          loadingKeys: { ...state.loadingKeys, user: false },
-          error: errorMessage(error)
-        }));
+        if (isCurrentRequest()) {
+          set((state) => ({
+            loadingKeys: { ...state.loadingKeys, user: false },
+            error: errorMessage(error)
+          }));
+        }
         throw error;
       }
     },
     resetPassword: async (email) => {
+      const isCurrentRequest = createReferenceRequestGuard("password");
       set((state) => ({ loadingKeys: { ...state.loadingKeys, password: true }, error: null }));
       try {
         await resetStorePassword(email);
-        set((state) => ({ loadingKeys: { ...state.loadingKeys, password: false } }));
+        if (isCurrentRequest()) {
+          set((state) => ({ loadingKeys: { ...state.loadingKeys, password: false } }));
+        }
       } catch (error) {
-        set((state) => ({
-          loadingKeys: { ...state.loadingKeys, password: false },
-          error: errorMessage(error)
-        }));
+        if (isCurrentRequest()) {
+          set((state) => ({
+            loadingKeys: { ...state.loadingKeys, password: false },
+            error: errorMessage(error)
+          }));
+        }
         throw error;
       }
     },
@@ -151,13 +179,18 @@ export const useReferenceStore = create<ReferenceState>((set) => {
     storeLogoUrl: getStoreLogoUrl,
     productImageUrl: getProductImageUrl,
     userProfileUrl: getUserProfileUrl,
-    reset: () =>
+    reset: () => {
+      latestReferenceRequests.clear();
+      setStoreUuid("");
       set({
-        storeUuid: activeStoreUuid(),
+        storeUuid: "",
         options: {},
         selectedUser: null,
         loadingKeys: {},
         error: null
-      })
+      });
+    }
   };
 });
+
+registerSessionStoreReset("reference", () => useReferenceStore.getState().reset());

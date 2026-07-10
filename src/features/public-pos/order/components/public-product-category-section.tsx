@@ -141,7 +141,7 @@ export const ProductCategorySection = memo(function ProductCategorySection({
           type="button"
           variant="ghost"
           size="icon"
-          className="size-8 shrink-0 rounded-full text-muted-foreground hover:bg-primary/10 hover:text-primary"
+          className="size-11 shrink-0 rounded-full text-muted-foreground hover:bg-primary/10 hover:text-primary"
           aria-label={category.cate_name}
           aria-expanded={!collapsed}
           onClick={() => onToggleCollapse(category.cate_uuid)}

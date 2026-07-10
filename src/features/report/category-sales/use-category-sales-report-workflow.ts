@@ -11,6 +11,7 @@ import { useBranchStore } from "@/stores/branch-store";
 import { useCategorySalesReportStore } from "@/stores/report-store";
 import { useToastStore } from "@/stores/toast-store";
 import { branchOptionFromRow, selectedBranchLabel } from "../daily-sales/daily-sales-report-utils";
+import { createSingleSheetReportWorkbook } from "../report-excel-utils";
 import { useReportRowSelection } from "../report-row-selection";
 import type { CategorySalesExportAction, CategorySalesExportData, CategorySalesReportFilters } from "./category-sales-report-types";
 import {
@@ -252,9 +253,16 @@ export function useCategorySalesReportWorkflow(exportReportRef: RefObject<HTMLDi
     try {
       const data = selectedExportData(await fetchExportData());
       const XLSX = await import("xlsx");
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(exportSummaryRows(data.summary, t, labelOverrides)), "Summary");
-      XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(exportCategorySalesRows(data.rows, t, labelOverrides)), "Rows");
+      const workbook = createSingleSheetReportWorkbook(XLSX, [
+        {
+          title: "Summary",
+          rows: exportSummaryRows(data.summary, t, labelOverrides)
+        },
+        {
+          title: "Rows",
+          rows: exportCategorySalesRows(data.rows, t, labelOverrides)
+        }
+      ]);
       XLSX.writeFile(workbook, `${categorySalesFileBaseName(appliedFilters)}.xlsx`);
       showToast({
         title: t("report.exportReady"),

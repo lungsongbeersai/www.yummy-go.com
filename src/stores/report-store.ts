@@ -66,6 +66,7 @@ import {
   normalizeDailySalesOrderReportResponse,
   type DailySalesOrderReportPagination
 } from "@/stores/report-store/daily-sales-order-normalizers";
+import { createSessionGuard, registerSessionStoreReset } from "@/stores/session-store-registry";
 import { errorMessage } from "@/stores/store-utils";
 import {
   loadBestSellingProductsReportExportData,
@@ -109,6 +110,35 @@ export type {
   PaymentMethodsReportExportData
 };
 
+type ReportRequestKey =
+  | "dailySales"
+  | "dailySalesBill"
+  | "dailySalesOrder"
+  | "dailySaleItems"
+  | "bestSellingProducts"
+  | "paymentMethods"
+  | "categorySales";
+
+const reportRequestIds: Record<ReportRequestKey, number> = {
+  dailySales: 0,
+  dailySalesBill: 0,
+  dailySalesOrder: 0,
+  dailySaleItems: 0,
+  bestSellingProducts: 0,
+  paymentMethods: 0,
+  categorySales: 0
+};
+
+function createReportRequestGuard(key: ReportRequestKey) {
+  const requestId = ++reportRequestIds[key];
+  const isCurrentSession = createSessionGuard();
+  return () => requestId === reportRequestIds[key] && isCurrentSession();
+}
+
+function invalidateReportRequest(key: ReportRequestKey) {
+  reportRequestIds[key] += 1;
+}
+
 interface DailySalesReportState {
   billGroups: DailySalesBillGroup[];
   error: string | null;
@@ -142,6 +172,7 @@ export const useDailySalesReportStore = create<DailySalesReportState>((set) => (
   totalPages: 1,
   loadExportData: loadDailySalesReportExportData,
   load: async (params) => {
+    const isCurrentRequest = createReportRequestGuard("dailySales");
     set({ error: null, loading: true });
     try {
       const loadAll = isAllPageLimit(params.limit);
@@ -161,12 +192,16 @@ export const useDailySalesReportStore = create<DailySalesReportState>((set) => (
       if (loadAll) {
         const pageCount = reportTotalPages(root, total, PAGE_LIMIT_ALL_BATCH, 1);
         for (let nextPage = 2; nextPage <= pageCount; nextPage += 1) {
+          if (!isCurrentRequest()) return response;
           const nextResponse = await getDailySalesReport({ ...requestParams, page: nextPage });
+          if (!isCurrentRequest()) return response;
           const nextNormalized = normalizeDailySalesReportResponse(nextResponse);
           allRows.push(...nextNormalized.rows);
           allBillGroups.push(...nextNormalized.billGroups);
         }
       }
+
+      if (!isCurrentRequest()) return response;
 
       set({
         billGroups: loadAll ? allBillGroups : normalized.billGroups,
@@ -184,11 +219,12 @@ export const useDailySalesReportStore = create<DailySalesReportState>((set) => (
 
       return response;
     } catch (error) {
-      set({ error: errorMessage(error), loading: false });
+      if (isCurrentRequest()) set({ error: errorMessage(error), loading: false });
       throw error;
     }
   },
-  reset: () =>
+  reset: () => {
+    invalidateReportRequest("dailySales");
     set({
       billGroups: [],
       error: null,
@@ -202,7 +238,8 @@ export const useDailySalesReportStore = create<DailySalesReportState>((set) => (
       summaryCards: {},
       total: 0,
       totalPages: 1
-    })
+    });
+  }
 }));
 
 interface DailySalesBillReportState {
@@ -243,6 +280,7 @@ export const useDailySalesBillReportStore = create<DailySalesBillReportState>((s
   totalPages: 1,
   loadExportData: loadDailySalesBillReportExportData,
   load: async (params) => {
+    const isCurrentRequest = createReportRequestGuard("dailySalesBill");
     set({ error: null, loading: true });
     try {
       const loadAll = isAllPageLimit(params.limit);
@@ -253,7 +291,9 @@ export const useDailySalesBillReportStore = create<DailySalesBillReportState>((s
 
       if (loadAll) {
         for (let nextPage = 2; nextPage <= normalized.pagination.totalPages; nextPage += 1) {
+          if (!isCurrentRequest()) return response;
           const nextResponse = await getDailySalesBillReport({ ...requestParams, page: nextPage });
+          if (!isCurrentRequest()) return response;
           const nextNormalized = normalizeDailySalesBillReportResponse(nextResponse, {
             ...requestParams,
             page: nextPage
@@ -271,6 +311,8 @@ export const useDailySalesBillReportStore = create<DailySalesBillReportState>((s
         totalPages: loadAll ? 1 : normalized.pagination.totalPages
       };
 
+      if (!isCurrentRequest()) return response;
+
       set({
         filters: normalized.filters,
         limit: params.limit,
@@ -286,11 +328,12 @@ export const useDailySalesBillReportStore = create<DailySalesBillReportState>((s
 
       return response;
     } catch (error) {
-      set({ error: errorMessage(error), loading: false });
+      if (isCurrentRequest()) set({ error: errorMessage(error), loading: false });
       throw error;
     }
   },
-  reset: () =>
+  reset: () => {
+    invalidateReportRequest("dailySalesBill");
     set({
       error: null,
       filters: {},
@@ -303,7 +346,8 @@ export const useDailySalesBillReportStore = create<DailySalesBillReportState>((s
       summary: {},
       total: 0,
       totalPages: 1
-    })
+    });
+  }
 }));
 
 interface DailySalesOrderReportState {
@@ -350,6 +394,7 @@ export const useDailySalesOrderReportStore = create<DailySalesOrderReportState>(
   totalPages: 1,
   loadExportData: loadDailySalesOrderReportExportData,
   load: async (params) => {
+    const isCurrentRequest = createReportRequestGuard("dailySalesOrder");
     set({ error: null, loading: true });
     try {
       const loadAll = isAllPageLimit(params.limit);
@@ -361,7 +406,9 @@ export const useDailySalesOrderReportStore = create<DailySalesOrderReportState>(
 
       if (loadAll) {
         for (let nextPage = 2; nextPage <= normalized.pagination.totalPages; nextPage += 1) {
+          if (!isCurrentRequest()) return response;
           const nextResponse = await getDailySalesOrderReport({ ...requestParams, page: nextPage });
+          if (!isCurrentRequest()) return response;
           const nextNormalized = normalizeDailySalesOrderReportResponse(nextResponse, {
             ...requestParams,
             page: nextPage
@@ -379,6 +426,8 @@ export const useDailySalesOrderReportStore = create<DailySalesOrderReportState>(
         total,
         totalPages: loadAll ? 1 : normalized.pagination.totalPages
       };
+
+      if (!isCurrentRequest()) return response;
 
       set({
         billGroups: allBillGroups,
@@ -398,11 +447,12 @@ export const useDailySalesOrderReportStore = create<DailySalesOrderReportState>(
 
       return response;
     } catch (error) {
-      set({ error: errorMessage(error), loading: false });
+      if (isCurrentRequest()) set({ error: errorMessage(error), loading: false });
       throw error;
     }
   },
-  reset: () =>
+  reset: () => {
+    invalidateReportRequest("dailySalesOrder");
     set({
       billGroups: [],
       error: null,
@@ -418,7 +468,8 @@ export const useDailySalesOrderReportStore = create<DailySalesOrderReportState>(
       summaryCards: {},
       total: 0,
       totalPages: 1
-    })
+    });
+  }
 }));
 
 interface DailySaleItemsReportState {
@@ -457,6 +508,7 @@ export const useDailySaleItemsStore = create<DailySaleItemsReportState>((set) =>
   total: 0,
   totalPages: 1,
   load: async (params) => {
+    const isCurrentRequest = createReportRequestGuard("dailySaleItems");
     set({ error: null, loading: true });
     try {
       const loadAll = isAllPageLimit(params.limit);
@@ -467,7 +519,9 @@ export const useDailySaleItemsStore = create<DailySaleItemsReportState>((set) =>
 
       if (loadAll) {
         for (let nextPage = 2; nextPage <= normalized.pagination.totalPages; nextPage += 1) {
+          if (!isCurrentRequest()) return response;
           const nextResponse = await getDailySaleItems({ ...requestParams, page: nextPage });
+          if (!isCurrentRequest()) return response;
           const nextNormalized = normalizeDailySaleItemsResponse(nextResponse, { ...requestParams, page: nextPage });
           allBills.push(...nextNormalized.bills);
         }
@@ -481,6 +535,8 @@ export const useDailySaleItemsStore = create<DailySaleItemsReportState>((set) =>
         total,
         totalPages: loadAll ? 1 : normalized.pagination.totalPages
       };
+
+      if (!isCurrentRequest()) return response;
 
       set({
         bills: allBills,
@@ -497,11 +553,12 @@ export const useDailySaleItemsStore = create<DailySaleItemsReportState>((set) =>
 
       return response;
     } catch (error) {
-      set({ error: errorMessage(error), loading: false });
+      if (isCurrentRequest()) set({ error: errorMessage(error), loading: false });
       throw error;
     }
   },
-  reset: () =>
+  reset: () => {
+    invalidateReportRequest("dailySaleItems");
     set({
       bills: [],
       error: null,
@@ -514,7 +571,8 @@ export const useDailySaleItemsStore = create<DailySaleItemsReportState>((set) =>
       rows: [],
       total: 0,
       totalPages: 1
-    })
+    });
+  }
 }));
 
 interface BestSellingProductsReportState {
@@ -559,6 +617,7 @@ export const useBestSellingProductsReportStore = create<BestSellingProductsRepor
   totalPages: 1,
   loadExportData: loadBestSellingProductsReportExportData,
   load: async (params) => {
+    const isCurrentRequest = createReportRequestGuard("bestSellingProducts");
     set({ error: null, loading: true });
     try {
       const loadAll = isAllPageLimit(params.limit);
@@ -569,7 +628,9 @@ export const useBestSellingProductsReportStore = create<BestSellingProductsRepor
 
       if (loadAll) {
         for (let nextPage = 2; nextPage <= normalized.pagination.totalPages; nextPage += 1) {
+          if (!isCurrentRequest()) return response;
           const nextResponse = await getBestSellingProductsReport({ ...requestParams, page: nextPage });
+          if (!isCurrentRequest()) return response;
           const nextNormalized = normalizeBestSellingProductsReportResponse(nextResponse, requestParams.limit, nextPage);
           allGroups.push(...nextNormalized.groups);
         }
@@ -585,6 +646,8 @@ export const useBestSellingProductsReportStore = create<BestSellingProductsRepor
         total,
         totalPages: loadAll ? 1 : normalized.pagination.totalPages
       };
+
+      if (!isCurrentRequest()) return response;
 
       set({
         filters: normalized.filters,
@@ -602,11 +665,12 @@ export const useBestSellingProductsReportStore = create<BestSellingProductsRepor
 
       return response;
     } catch (error) {
-      set({ error: errorMessage(error), loading: false });
+      if (isCurrentRequest()) set({ error: errorMessage(error), loading: false });
       throw error;
     }
   },
-  reset: () =>
+  reset: () => {
+    invalidateReportRequest("bestSellingProducts");
     set({
       error: null,
       filters: {},
@@ -620,7 +684,8 @@ export const useBestSellingProductsReportStore = create<BestSellingProductsRepor
       summary: {},
       total: 0,
       totalPages: 1
-    })
+    });
+  }
 }));
 
 interface PaymentMethodsReportState {
@@ -667,6 +732,7 @@ export const usePaymentMethodsReportStore = create<PaymentMethodsReportState>((s
   totalPages: 1,
   loadExportData: loadPaymentMethodsReportExportData,
   load: async (params) => {
+    const isCurrentRequest = createReportRequestGuard("paymentMethods");
     set({ error: null, loading: true });
     try {
       const response = await getPaymentMethodsReport(params);
@@ -679,6 +745,8 @@ export const usePaymentMethodsReportStore = create<PaymentMethodsReportState>((s
         total,
         totalPages: isAllPageLimit(params.limit) ? 1 : normalized.pagination.totalPages
       };
+
+      if (!isCurrentRequest()) return response;
 
       set({
         cards: normalized.cards,
@@ -698,11 +766,12 @@ export const usePaymentMethodsReportStore = create<PaymentMethodsReportState>((s
 
       return response;
     } catch (error) {
-      set({ error: errorMessage(error), loading: false });
+      if (isCurrentRequest()) set({ error: errorMessage(error), loading: false });
       throw error;
     }
   },
-  reset: () =>
+  reset: () => {
+    invalidateReportRequest("paymentMethods");
     set({
       cards: [],
       error: null,
@@ -718,7 +787,8 @@ export const usePaymentMethodsReportStore = create<PaymentMethodsReportState>((s
       summaryCards: {},
       total: 0,
       totalPages: 1
-    })
+    });
+  }
 }));
 
 interface CategorySalesReportState {
@@ -763,6 +833,7 @@ export const useCategorySalesReportStore = create<CategorySalesReportState>((set
   totalPages: 1,
   loadExportData: loadCategorySalesReportExportData,
   load: async (params) => {
+    const isCurrentRequest = createReportRequestGuard("categorySales");
     set({ error: null, loading: true });
     try {
       const loadAll = isAllPageLimit(params.limit);
@@ -773,7 +844,9 @@ export const useCategorySalesReportStore = create<CategorySalesReportState>((set
 
       if (loadAll) {
         for (let nextPage = 2; nextPage <= normalized.pagination.totalPages; nextPage += 1) {
+          if (!isCurrentRequest()) return response;
           const nextResponse = await getCategorySalesReport({ ...requestParams, page: nextPage });
+          if (!isCurrentRequest()) return response;
           const nextNormalized = normalizeCategorySalesReportResponse(nextResponse, requestParams.limit, nextPage);
           allGroups.push(...nextNormalized.groups);
         }
@@ -788,6 +861,8 @@ export const useCategorySalesReportStore = create<CategorySalesReportState>((set
         total,
         totalPages: loadAll ? 1 : normalized.pagination.totalPages
       };
+
+      if (!isCurrentRequest()) return response;
 
       set({
         filters: normalized.filters,
@@ -806,11 +881,12 @@ export const useCategorySalesReportStore = create<CategorySalesReportState>((set
 
       return response;
     } catch (error) {
-      set({ error: errorMessage(error), loading: false });
+      if (isCurrentRequest()) set({ error: errorMessage(error), loading: false });
       throw error;
     }
   },
-  reset: () =>
+  reset: () => {
+    invalidateReportRequest("categorySales");
     set({
       error: null,
       filters: {},
@@ -825,5 +901,14 @@ export const useCategorySalesReportStore = create<CategorySalesReportState>((set
       summary: {},
       total: 0,
       totalPages: 1
-    })
+    });
+  }
 }));
+
+registerSessionStoreReset("daily-sales-report", () => useDailySalesReportStore.getState().reset());
+registerSessionStoreReset("daily-sales-bill-report", () => useDailySalesBillReportStore.getState().reset());
+registerSessionStoreReset("daily-sales-order-report", () => useDailySalesOrderReportStore.getState().reset());
+registerSessionStoreReset("daily-sale-items-report", () => useDailySaleItemsStore.getState().reset());
+registerSessionStoreReset("best-selling-products-report", () => useBestSellingProductsReportStore.getState().reset());
+registerSessionStoreReset("payment-methods-report", () => usePaymentMethodsReportStore.getState().reset());
+registerSessionStoreReset("category-sales-report", () => useCategorySalesReportStore.getState().reset());

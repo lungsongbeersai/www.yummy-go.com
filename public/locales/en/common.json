@@ -19,6 +19,7 @@
   },
   "app": {
     "breadcrumbs": "Breadcrumbs",
+    "changeLanguage": "Change language",
     "closeMenu": "Close menu",
     "collapseSidebar": "Collapse sidebar",
     "customerDisplay": "Customer display",
@@ -27,6 +28,7 @@
     "openMenu": "Open menu",
     "posWorkspace": "POS workspace",
     "publicMenu": "Public menu",
+    "skipToContent": "Skip to content",
     "tagline": "Restaurant operations rebuilt cleanly.",
     "theme": "Theme",
     "toggleTheme": "Toggle theme"
@@ -41,9 +43,11 @@
     "heroTitle": "Fast service needs calm software.",
     "hidePassword": "Hide password",
     "loginFailed": "Login failed",
+    "noAccount": "Don't have an account?",
     "or": "or",
     "password": "Password",
     "rememberMe": "Remember me",
+    "register": "Register",
     "showPassword": "Show password",
     "signIn": "Sign in",
     "signingIn": "Signing in...",
@@ -1199,6 +1203,15 @@
         "setOptionName": "Set Option / Product Name",
         "costPrice": "Cost Price",
         "salePrice": "Sale Price"
+      },
+      "errors": {
+        "invalid-file-type": "Select an .xlsx or .xls file.",
+        "empty-file": "The spreadsheet file is empty.",
+        "file-too-large": "The spreadsheet file must be 10 MB or smaller.",
+        "too-many-sheets": "The workbook can contain at most 10 sheets.",
+        "too-many-rows": "Each sheet can contain at most 10,000 rows.",
+        "too-many-columns": "Each sheet can contain at most 200 columns.",
+        "invalid-workbook": "The spreadsheet file could not be read."
       },
       "importButton": "Import {{count}} product(s)",
       "noRows": "No product rows found. Please use the Product Import Template with Normal or Set sheets.",

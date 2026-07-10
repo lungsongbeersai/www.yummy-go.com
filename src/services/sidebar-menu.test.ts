@@ -20,7 +20,7 @@ describe("sidebar menu service helpers", () => {
     });
   });
 
-  it("normalizes selected role menus with sort, checked children, badges, and icon fallback", () => {
+  it("normalizes selected role menus while preserving stored icon values", () => {
     const menus = normalizeSidebarPermissionMenuResponse(
       {
         roles: [
@@ -88,7 +88,7 @@ describe("sidebar menu service helpers", () => {
     });
     expect(menus[1]).toMatchObject({
       badgeText: "News",
-      iconName: "mdi:file-document-outline",
+      iconName: "mdi:unknown-icon",
       label: "Settings",
       path: "/setting"
     });

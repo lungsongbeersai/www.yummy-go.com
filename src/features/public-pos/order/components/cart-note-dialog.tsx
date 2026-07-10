@@ -35,7 +35,6 @@ export function CartNoteDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         className="w-[calc(100vw-2rem)] max-w-md rounded-xl"
-        onOpenAutoFocus={(event) => event.preventDefault()}
       >
         <DialogHeader>
           <DialogTitle>{t("pos.editNote")}</DialogTitle>
@@ -48,6 +47,8 @@ export function CartNoteDialog({
           </Label>
           <Textarea
             id="public-cart-item-note"
+            name="orderNote"
+            autoComplete="off"
             value={note}
             disabled={pending}
             placeholder={t("pos.notePlaceholder")}
