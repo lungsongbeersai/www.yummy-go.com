@@ -13,7 +13,6 @@ import {
   EyeOff,
   FileSpreadsheet,
   FileText,
-  Filter,
   Printer,
   ReceiptText,
   RefreshCcw,
@@ -87,7 +86,6 @@ interface ReportTableActionsProps {
   onExpandAllBills: () => void;
   onExportExcel: () => void;
   onExportPdf: () => void;
-  onOpenFilters: () => void;
   onPrintReport: () => void;
   onRefresh: () => void;
   onSearchChange: (search: string) => void;
@@ -283,7 +281,6 @@ function ReportTableActions({
   onExpandAllBills,
   onExportExcel,
   onExportPdf,
-  onOpenFilters,
   onPrintReport,
   onRefresh,
   onSearchChange,
@@ -385,21 +382,6 @@ function ReportTableActions({
               </span> */}
             </Button>
           ) : null}
-
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            aria-label={t("report.filters.openFilters")}
-            className="h-9 min-w-9 rounded-md px-2.5"
-            disabled={disabled}
-            onClick={onOpenFilters}
-          >
-            <Filter data-icon="inline-start" />
-            <span className="hidden sm:inline">
-              {t("report.filters.openFilters")}
-            </span>
-          </Button>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

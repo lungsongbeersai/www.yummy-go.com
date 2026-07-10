@@ -87,6 +87,9 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
   const loadSizes = useReferenceStore((state) => state.loadSizes);
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
   const [orderEditTarget, setOrderEditTarget] = useState<ProductTableRow | null>(null);
+  const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
+  const [highlightCategoryFilter, setHighlightCategoryFilter] = useState(false);
+  const [highlightSearchFilter, setHighlightSearchFilter] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [importDrafts, setImportDrafts] = useState<ProductImportDraft[]>([]);
   const [importFileName, setImportFileName] = useState("");
@@ -251,6 +254,14 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
     });
   }, [visibleProductIds]);
 
+  useEffect(() => {
+    if (cateUuidFk) setHighlightCategoryFilter(false);
+  }, [cateUuidFk]);
+
+  useEffect(() => {
+    if (!appliedSearch.trim()) setHighlightSearchFilter(false);
+  }, [appliedSearch]);
+
   function applyFilters() {
     applySearch({ page, resetPage, reload: () => void load() });
   }
@@ -413,6 +424,11 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
   }
 
   function notifySortUnavailable() {
+    const missingCategory = !cateUuidFk;
+    const searchActive = Boolean(appliedSearch.trim());
+    setHighlightCategoryFilter(missingCategory);
+    setHighlightSearchFilter(searchActive);
+    if (missingCategory && !categoryLoading) setCategoryDropdownOpen(true);
     showToast({
       title: t("product.sortUnavailable"),
       description: t("product.sortHint"),
@@ -737,6 +753,10 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
     updateDetailEnabled,
     updateDetailStockMode,
     updateAllDetailStockModes,
+    categoryDropdownOpen,
+    setCategoryDropdownOpen,
+    highlightCategoryFilter,
+    highlightSearchFilter,
     notifySortUnavailable,
     reorderProduct,
     moveProductToPosition,

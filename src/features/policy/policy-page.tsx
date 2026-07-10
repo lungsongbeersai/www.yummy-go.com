@@ -102,7 +102,7 @@ const sections: { title: string; content: ReactNode }[] = [
 export function PolicyPage() {
   return (
     <main className="min-h-screen bg-slate-50 text-slate-800">
-      <section className="relative overflow-hidden bg-gradient-to-br from-emerald-700 via-green-600 to-lime-500 px-4 py-16 text-white md:py-20">
+      <section className="relative overflow-hidden bg-linear-to-br from-emerald-700 via-green-600 to-lime-500 px-4 py-16 text-white md:py-20">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.22),transparent_35%)]" />
 
         <div className="relative mx-auto max-w-5xl">

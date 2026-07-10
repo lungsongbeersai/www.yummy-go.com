@@ -74,6 +74,7 @@ export function ProductOrderSheetContent({
       <SheetContent
         side="bottom"
         className="flex max-h-[88dvh] flex-col overflow-hidden rounded-t-2xl border-emerald-100 bg-[#fbfffd] p-0 sm:inset-x-auto sm:left-1/2 sm:w-full sm:max-w-xl sm:-translate-x-1/2 dark:border-border dark:bg-background"
+        onOpenAutoFocus={(event) => event.preventDefault()}
       >
         <SheetHeader className="shrink-0 border-b border-emerald-100 bg-white/95 p-3 text-left dark:border-border dark:bg-background/95">
           <div className="flex items-start justify-between gap-3 pr-8">

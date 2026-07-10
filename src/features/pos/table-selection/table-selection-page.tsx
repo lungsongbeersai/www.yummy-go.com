@@ -95,6 +95,9 @@ export function TableSelectionPage() {
 
   useEffect(() => { void load(); }, [load]);
   useEffect(() => { const interval = window.setInterval(() => setNow(new Date()), 1000); return () => window.clearInterval(interval); }, []);
+  useEffect(() => {
+    if (hasSidePanel) setMobileSheetOpen(false);
+  }, [hasSidePanel]);
 
   function selectTable(table: PosTable) {
     setSelectedTable(table);
@@ -136,16 +139,16 @@ export function TableSelectionPage() {
   return (
     <div data-pos-pattern="true" className="relative h-full min-h-0 overflow-hidden bg-[url('/pos/background_wide.webp')] bg-cover bg-top">
       <div aria-hidden="true" data-pos-pattern-overlay="true" className="pointer-events-none absolute inset-0 bg-primary/45 dark:bg-black/55" />
-      <div className="relative grid h-full min-h-0 overflow-hidden xl:grid-cols-[minmax(0,1fr)_clamp(340px,24vw,420px)]">
-        <section className="flex min-h-0 min-w-0 flex-col xl:border-r xl:border-border/60">
-          <header className="relative flex h-18 shrink-0 items-center justify-between overflow-hidden px-3 text-primary-foreground shadow-sm sm:h-20 sm:px-4">
+      <div className="relative grid h-full min-h-0 overflow-hidden md:grid-cols-[minmax(0,1fr)_350px] lg:grid-cols-[minmax(0,1fr)_380px] xl:grid-cols-[minmax(0,1fr)_clamp(380px,26vw,460px)]">
+        <section className="flex min-h-0 min-w-0 flex-col md:border-r md:border-border/60">
+          <header className="relative grid h-18 shrink-0 grid-cols-[44px_minmax(0,1fr)_auto] items-center gap-2 overflow-hidden px-3 text-primary-foreground shadow-sm sm:h-20 sm:px-4">
             <Button aria-label={t("actions.back")} className="relative size-11 rounded-full border border-primary-foreground/20 bg-primary-foreground/10 px-0 text-primary-foreground shadow-sm backdrop-blur-sm hover:bg-primary-foreground/20 dark:border-white/20 dark:bg-white/10 dark:text-white dark:hover:bg-white/20 dark:hover:text-white" type="button" variant="ghost" onClick={() => router.replace("/")}>
               <ChevronLeft />
             </Button>
-            <p className="absolute left-1/2 top-1/2 max-w-55 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap text-[20px] font-black leading-none tracking-wide text-primary-foreground dark:text-white sm:text-[28px]">{formatClock(now)}</p>
-            <div className="relative flex min-w-0 items-center gap-1.5">
-              <NotificationMenu triggerClassName={cn(headerIconButtonClass, "hidden min-[430px]:inline-flex")} triggerVariant="ghost" />
-              <LanguageSwitch className={cn(headerIconButtonClass, "hidden min-[500px]:inline-flex")} contentAlign="end" showShort={false} size="icon" variant="ghost" />
+            <p className="min-w-0 truncate text-center text-[20px] font-black leading-none tracking-wide text-primary-foreground dark:text-white sm:text-[28px]">{formatClock(now)}</p>
+            <div className="relative flex min-w-0 items-center justify-end gap-1.5">
+              <NotificationMenu triggerClassName={cn(headerIconButtonClass, "hidden xl:inline-flex")} triggerVariant="ghost" />
+              <LanguageSwitch className={cn(headerIconButtonClass, "hidden xl:inline-flex")} contentAlign="end" showShort={false} size="icon" variant="ghost" />
               <ThemeToggle className={headerIconButtonClass} size="icon" variant="ghost" />
               <Button aria-label={t("actions.refresh")} className={headerIconButtonClass} type="button" variant="ghost" onClick={() => void load()}>
                 <RefreshCcw />
@@ -154,7 +157,7 @@ export function TableSelectionPage() {
           </header>
           <TableListSection loading={loading} search={search} selectedTable={selectedTable} selectedZoneUuid={selectedZoneUuid} statusFilter={statusFilter} zoneOptions={zoneOptions} zones={zones} onSearchChange={setSearch} onSelectTable={selectTable} onStatusFilterChange={setStatusFilter} onZoneChange={setSelectedZoneUuid} />
         </section>
-        <section className="hidden min-h-0 overflow-hidden xl:block">
+        <section className="hidden min-h-0 overflow-hidden md:block">
           <TableNextStepPanel allZones={zones} cart={activeCart} loading={panelLoadingCart} selectedTable={selectedTable} onCartRefresh={() => refreshSelectedCart({ showLoading: false }).then(() => undefined)} onTableActionComplete={refreshTablesAndSelectedCart} />
         </section>
       </div>

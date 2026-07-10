@@ -5,14 +5,12 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import {
   BadgePercent,
-  CalendarDays,
   CreditCard,
   Eye,
   EyeOff,
   Printer,
   ReceiptText,
   RefreshCcw,
-  Search,
   SlidersHorizontal,
   ShoppingBag,
   StickyNote,
@@ -24,6 +22,7 @@ import {
 import { useTranslation } from "react-i18next";
 import { AppPagination } from "@/components/common/app-pagination";
 import { EmptyState } from "@/components/common/empty-state";
+import { FilterHeaderToolbar } from "@/components/common/filter-header-toolbar";
 import { LoadingState } from "@/components/common/loading-state";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -473,49 +472,64 @@ function SalesListHeader({
     setDesktopFiltersOpen(false);
   }
 
+  const dateRangeLabel = `${appliedFilters.dateFrom} - ${appliedFilters.dateTo}`;
+
   return (
-    <div className="shrink-0 rounded-lg border border-border bg-card px-3 py-2 shadow-sm">
-      <div className="flex min-w-0 items-center gap-2">
-        <div className="relative min-w-0 flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            aria-label={t("actions.search")}
-            className="h-9 pl-9"
-            placeholder={t("actions.search")}
-            value={searchText}
-            onChange={(event) => onSearchChange(event.target.value)}
+    <FilterHeaderToolbar
+      dateRange={{
+        ariaLabel: `${t("salesList.filters")}: ${dateRangeLabel}`,
+        label: dateRangeLabel,
+        onClick: () => setDesktopFiltersOpen(true),
+      }}
+      filterControl={
+        <>
+          <SalesListFilterPopover
+            branchLabel={branchLabel}
+            branchLoading={branchLoading}
+            branchOptions={branchOptions}
+            canApply={canApply}
+            draftFilters={draftFilters}
+            loading={loading}
+            open={desktopFiltersOpen}
+            onApply={applyDesktopFilters}
+            onDraftChange={onDraftChange}
+            onOpenChange={setDesktopFiltersOpen}
+            onRefresh={onRefresh}
           />
-        </div>
-        <Badge className="hidden h-9 max-w-72 shrink-0 gap-1.5 rounded-md px-3 md:inline-flex">
-          <CalendarDays data-icon="inline-start" />
-          <span className="truncate">
-            {appliedFilters.dateFrom} - {appliedFilters.dateTo}
-          </span>
-        </Badge>
-        <SalesListFilterPopover
-          branchLabel={branchLabel}
-          branchLoading={branchLoading}
-          branchOptions={branchOptions}
-          canApply={canApply}
-          draftFilters={draftFilters}
-          loading={loading}
-          open={desktopFiltersOpen}
-          onApply={applyDesktopFilters}
-          onDraftChange={onDraftChange}
-          onOpenChange={setDesktopFiltersOpen}
-          onRefresh={onRefresh}
-        />
+          <Button
+            type="button"
+            variant="outline"
+            size="iconSm"
+            className="h-9 w-9 shrink-0 sm:hidden"
+            aria-label={t("salesList.filters")}
+            onClick={onMobileFiltersOpen}
+          >
+            <SlidersHorizontal data-icon="inline-start" />
+            <span className="sr-only">{t("salesList.filters")}</span>
+          </Button>
+        </>
+      }
+      refreshControl={
         <Button
           type="button"
           variant="outline"
           size="iconSm"
-          className="h-9 w-9 shrink-0 sm:hidden"
-          aria-label={t("salesList.filters")}
-          onClick={onMobileFiltersOpen}
+          className="h-9 w-9 shrink-0"
+          aria-label={t("actions.refresh")}
+          disabled={loading || !canApply}
+          onClick={onRefresh}
         >
-          <SlidersHorizontal data-icon="inline-start" />
-          <span className="sr-only">{t("salesList.filters")}</span>
+          <RefreshCcw className={loading ? "animate-spin" : undefined} data-icon="inline-start" />
+          <span className="sr-only">{t("actions.refresh")}</span>
         </Button>
+      }
+      search={{
+        ariaLabel: t("actions.search"),
+        placeholder: t("actions.search"),
+        value: searchText,
+        onChange: onSearchChange,
+      }}
+      summaryControl={
         <Button
           type="button"
           variant="outline"
@@ -529,20 +543,8 @@ function SalesListHeader({
           {summaryVisible ? <EyeOff data-icon="inline-start" /> : <Eye data-icon="inline-start" />}
           <span className="sr-only">{summaryVisible ? t("report.hideSummary") : t("report.showSummary")}</span>
         </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="iconSm"
-          className="h-9 w-9 shrink-0"
-          aria-label={t("actions.refresh")}
-          disabled={loading || !canApply}
-          onClick={onRefresh}
-        >
-          <RefreshCcw className={loading ? "animate-spin" : undefined} data-icon="inline-start" />
-          <span className="sr-only">{t("actions.refresh")}</span>
-        </Button>
-      </div>
-    </div>
+      }
+    />
   );
 }
 

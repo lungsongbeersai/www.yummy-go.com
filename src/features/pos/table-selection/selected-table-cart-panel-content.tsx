@@ -149,7 +149,7 @@ export function SelectedTableCartPanelContent({
           {loading ? (
             <CartPanelLoading />
           ) : (
-            <div className="h-full min-h-0 overflow-y-auto bg-muted/35 dark:bg-background">
+            <div className="h-full min-h-0 overflow-y-auto overscroll-contain bg-muted/35 dark:bg-background">
               <TabsContent value="new">
                 <CartTabItems
                   editable
@@ -199,7 +199,7 @@ export function SelectedTableCartPanelContent({
             }
             canPay={workflow.canPayBill}
             canPaySplitSelection={workflow.canPaySplitSelection}
-            compact={variant === "sheet"}
+            compact
             confirming={workflow.confirming}
             discountPending={workflow.billDiscountPending}
             newOrderCount={workflow.newOrderItems.length}

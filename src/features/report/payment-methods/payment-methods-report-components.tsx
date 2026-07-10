@@ -2,17 +2,16 @@
 
 import { type ReactNode, type RefObject, useCallback } from "react";
 import {
-  CalendarDays,
   ChevronDown,
   CreditCard,
   Download,
   FileSpreadsheet,
-  Filter,
   Printer,
   RefreshCcw,
   SlidersHorizontal,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { DateFilterButton } from "@/components/common/date-filter-button";
 import { EmptyState } from "@/components/common/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -262,17 +261,18 @@ export function MobilePaymentMethodsFilterSummary({
   const limitLabel = isAllPageLimit(filters.limit)
     ? t("common.all")
     : filters.limit;
+  const dateRangeLabel = `${filters.dateFrom} - ${filters.dateTo}`;
 
   return (
     <div className="rounded-md border border-border bg-card p-2 shadow-sm">
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0">
-          <div className="flex min-w-0 items-center gap-1 text-xs font-bold text-muted-foreground">
-            <CalendarDays className="size-3.5 shrink-0" />
-            <span className="truncate">
-              {filters.dateFrom} - {filters.dateTo}
-            </span>
-          </div>
+          <DateFilterButton
+            ariaLabel={`${t("report.filters.openFilters")}: ${dateRangeLabel}`}
+            className="h-8 max-w-full rounded-md border-border/70 bg-muted/50 px-2 text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground"
+            label={dateRangeLabel}
+            onClick={onOpen}
+          />
           <div className="mt-1 flex min-w-0 flex-wrap gap-1">
             <Badge className="h-6 max-w-44 truncate border-border bg-muted px-2 text-[11px] text-muted-foreground">
               {branchLabel}
@@ -455,7 +455,6 @@ type TableCardProps = {
   onClearSelection: () => void;
   onExportExcel: () => void;
   onExportPdf: () => void;
-  onOpenFilters: () => void;
   onPrintReport: () => void;
   onRefresh: () => void;
 };
@@ -473,7 +472,6 @@ export function PaymentMethodsTableCard({
   onClearSelection,
   onExportExcel,
   onExportPdf,
-  onOpenFilters,
   onPrintReport,
   onRefresh,
 }: TableCardProps) {
@@ -524,19 +522,6 @@ export function PaymentMethodsTableCard({
           </div>
 
           <div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5 2xl:col-start-3 2xl:flex-nowrap">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              aria-label={t("report.filters.openFilters")}
-              className="h-9 min-w-9 rounded-md px-2.5"
-              onClick={onOpenFilters}
-            >
-              <Filter data-icon="inline-start" />
-              <span className="hidden sm:inline">
-                {t("report.filters.openFilters")}
-              </span>
-            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button

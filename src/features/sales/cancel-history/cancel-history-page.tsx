@@ -1,10 +1,11 @@
 "use client";
 
-import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CalendarDays, History, RefreshCcw, SlidersHorizontal } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { History, RefreshCcw, SlidersHorizontal } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { AppPagination } from "@/components/common/app-pagination";
 import { EmptyState } from "@/components/common/empty-state";
+import { FilterHeaderToolbar } from "@/components/common/filter-header-toolbar";
 import { LoadingState } from "@/components/common/loading-state";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +13,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import {
+  Popover,
+  PopoverContent,
+  PopoverDescription,
+  PopoverHeader,
+  PopoverTitle,
+  PopoverTrigger
+} from "@/components/ui/popover";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -37,8 +46,6 @@ import {
 
 export function CancelHistoryPage({ initialPagination }: { initialPagination: UrlPaginationState }) {
   const { t } = useTranslation();
-  const filterRef = useRef<HTMLDivElement>(null);
-  const [filterHeight, setFilterHeight] = useState(0);
   const user = useAuthStore((state) => state.user);
   const bills = useCancelStore((state) => state.historyBills);
   const error = useCancelStore((state) => state.historyError);
@@ -59,6 +66,7 @@ export function CancelHistoryPage({ initialPagination }: { initialPagination: Ur
     ...defaultCancelHistoryFilters(branchUuid),
     limit: initialPagination.limit
   }));
+  const [desktopFiltersOpen, setDesktopFiltersOpen] = useState(false);
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
   const { changeLimit, goToPage, page, resetPage } = useUrlPagination({
     initialPagination,
@@ -70,9 +78,8 @@ export function CancelHistoryPage({ initialPagination }: { initialPagination: Ur
   const canApply = Boolean(branchUuid && draftFilters.startDate && draftFilters.endDate);
   const canGoBack = page > 1 && !loading;
   const canGoNext = page < safeTotalPages && !loading;
-  const layoutStyle = {
-    "--cancel-history-filter-height": `${filterHeight}px`
-  } as CSSProperties;
+  const dateRangeLabel = `${appliedFilters.startDate} - ${appliedFilters.endDate}`;
+  const orderLabel = t(appliedFilters.orderBy === "ASC" ? "common.oldestFirst" : "common.newestFirst");
 
   useEffect(() => {
     setDraftFilters((current) => (current.branchUuid === branchUuid ? current : { ...current, branchUuid }));
@@ -80,39 +87,6 @@ export function CancelHistoryPage({ initialPagination }: { initialPagination: Ur
     resetPage();
     if (!branchUuid) resetHistory();
   }, [branchUuid, resetHistory, resetPage]);
-
-  useEffect(() => {
-    const node = filterRef.current;
-    if (!node) return;
-
-    let frameId = 0;
-    const updateHeight = () => {
-      window.cancelAnimationFrame(frameId);
-      frameId = window.requestAnimationFrame(() => {
-        const nextHeight = Math.ceil(node.getBoundingClientRect().height);
-        setFilterHeight((currentHeight) => (currentHeight === nextHeight ? currentHeight : nextHeight));
-      });
-    };
-
-    updateHeight();
-    window.addEventListener("resize", updateHeight);
-
-    if (typeof ResizeObserver === "undefined") {
-      return () => {
-        window.cancelAnimationFrame(frameId);
-        window.removeEventListener("resize", updateHeight);
-      };
-    }
-
-    const observer = new ResizeObserver(updateHeight);
-    observer.observe(node);
-
-    return () => {
-      window.cancelAnimationFrame(frameId);
-      window.removeEventListener("resize", updateHeight);
-      observer.disconnect();
-    };
-  }, []);
 
   const load = useCallback(async () => {
     if (!branchUuid || !appliedFilters.startDate || !appliedFilters.endDate) {
@@ -156,14 +130,28 @@ export function CancelHistoryPage({ initialPagination }: { initialPagination: Ur
     changeLimit(draftFilters.limit);
   }
 
+  function applyDesktopFilters() {
+    if (!canApply) return;
+    applyFilters();
+    setDesktopFiltersOpen(false);
+  }
+
   function applyMobileFilters() {
     applyFilters();
     setMobileFilterOpen(false);
   }
 
+  function openHeaderFilters() {
+    if (typeof window !== "undefined" && window.matchMedia("(min-width: 640px)").matches) {
+      setDesktopFiltersOpen(true);
+      return;
+    }
+    setMobileFilterOpen(true);
+  }
+
   return (
-    <div className="h-full min-h-0 overflow-y-auto bg-muted/20" style={layoutStyle}>
-      <div className="mx-auto flex w-full max-w-[1500px] flex-col gap-4 p-4 lg:p-6">
+    <div className="h-full min-h-0 overflow-y-auto bg-muted/20 xl:overflow-hidden">
+      <div className="mx-auto flex w-full max-w-375 flex-col gap-2 p-2 sm:gap-3 sm:p-3 lg:p-4 xl:h-full xl:min-h-0">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <div className="flex items-center gap-2 text-sm font-bold text-primary">
@@ -173,34 +161,68 @@ export function CancelHistoryPage({ initialPagination }: { initialPagination: Ur
             <h1 className="text-2xl font-black tracking-normal text-foreground">{t("cancelHistory.title")}</h1>
             <p className="text-sm text-muted-foreground">{t("cancelHistory.subtitle")}</p>
           </div>
-          <Badge className="w-fit rounded-full px-3 py-1">
-            <CalendarDays data-icon="inline-start" />
-            {appliedFilters.startDate} - {appliedFilters.endDate}
-          </Badge>
         </div>
 
-        <div
-          ref={filterRef}
-          className="sticky top-0 z-30 -mx-4 bg-background/95 px-4 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/85 lg:-mx-6 lg:px-6"
-        >
-          <div className="sm:hidden">
-            <MobileCancelHistoryFilterSummary
-              branchLabel={branchLabel}
-              filters={appliedFilters}
-              onOpen={() => setMobileFilterOpen(true)}
-            />
-          </div>
-          <div className="hidden sm:block">
-            <CancelHistoryFilterBar
-              branchLabel={branchLabel}
-              canApply={canApply}
-              draftFilters={draftFilters}
-              loading={loading}
-              onApply={applyFilters}
-              onDraftChange={patchDraft}
-            />
-          </div>
-        </div>
+        <FilterHeaderToolbar
+          dateRange={{
+            ariaLabel: `${t("cancelHistory.filters")}: ${dateRangeLabel}`,
+            label: dateRangeLabel,
+            onClick: openHeaderFilters
+          }}
+          extraChips={
+            <>
+              <Badge className="h-7 max-w-48 truncate border-border bg-muted px-2 text-xs text-muted-foreground">
+                {branchLabel}
+              </Badge>
+              <Badge className="h-7 border-border bg-muted px-2 text-xs text-muted-foreground">
+                {appliedFilters.limit}
+              </Badge>
+              <Badge className="h-7 max-w-36 truncate px-2 text-xs">
+                {orderLabel}
+              </Badge>
+            </>
+          }
+          filterControl={
+            <>
+              <CancelHistoryFilterPopover
+                branchLabel={branchLabel}
+                canApply={canApply}
+                draftFilters={draftFilters}
+                loading={loading}
+                open={desktopFiltersOpen}
+                onApply={applyDesktopFilters}
+                onDraftChange={patchDraft}
+                onOpenChange={setDesktopFiltersOpen}
+                onRefresh={() => void load()}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="iconSm"
+                className="h-9 w-9 shrink-0 sm:hidden"
+                aria-label={t("cancelHistory.filters")}
+                onClick={() => setMobileFilterOpen(true)}
+              >
+                <SlidersHorizontal data-icon="inline-start" />
+                <span className="sr-only">{t("cancelHistory.filters")}</span>
+              </Button>
+            </>
+          }
+          refreshControl={
+            <Button
+              type="button"
+              variant="outline"
+              size="iconSm"
+              className="h-9 w-9 shrink-0"
+              aria-label={t("actions.refresh")}
+              disabled={loading || !canApply}
+              onClick={() => void load()}
+            >
+              <RefreshCcw className={loading ? "animate-spin" : undefined} data-icon="inline-start" />
+              <span className="sr-only">{t("actions.refresh")}</span>
+            </Button>
+          }
+        />
 
         <CancelHistoryFilterSheet
           branchLabel={branchLabel}
@@ -237,7 +259,6 @@ export function CancelHistoryPage({ initialPagination }: { initialPagination: Ur
           loading={loading}
           rangeLabel={rangeLabel}
           rowsLength={bills.length}
-          onRefresh={() => void load()}
         >
           <CancelHistoryTable rows={bills} startIndex={range.start} />
           <CancelHistoryMobileList rows={bills} />
@@ -247,40 +268,62 @@ export function CancelHistoryPage({ initialPagination }: { initialPagination: Ur
   );
 }
 
-function CancelHistoryFilterBar({
+function CancelHistoryFilterPopover({
   branchLabel,
   canApply,
   draftFilters,
   loading,
+  open,
   onApply,
-  onDraftChange
+  onDraftChange,
+  onOpenChange,
+  onRefresh
 }: {
   branchLabel: string;
   canApply: boolean;
   draftFilters: CancelHistoryFilters;
   loading: boolean;
+  open: boolean;
   onApply: () => void;
   onDraftChange: (patch: Partial<CancelHistoryFilters>) => void;
+  onOpenChange: (open: boolean) => void;
+  onRefresh: () => void;
 }) {
   const { t } = useTranslation();
 
   return (
-    <Card className="border-border bg-card shadow-sm">
-      <CardContent className="p-4">
-        <FieldGroup className="grid gap-3 lg:grid-cols-4 lg:items-end 2xl:grid-cols-[repeat(5,minmax(0,1fr))_auto]">
+    <Popover open={open} onOpenChange={onOpenChange}>
+      <PopoverTrigger asChild>
+        <Button type="button" variant="outline" size="sm" className="hidden h-9 shrink-0 sm:inline-flex">
+          <SlidersHorizontal data-icon="inline-start" />
+          {t("cancelHistory.filters")}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="hidden w-[calc(100vw-2rem)] max-w-4xl p-0 sm:block">
+        <PopoverHeader className="border-b border-border px-4 py-3">
+          <PopoverTitle className="text-sm font-black">{t("cancelHistory.filters")}</PopoverTitle>
+          <PopoverDescription className="text-xs">{t("cancelHistory.subtitle")}</PopoverDescription>
+        </PopoverHeader>
+        <div className="grid grid-cols-2 gap-3 p-4 lg:grid-cols-5">
           <CancelHistoryFilterFields
             branchLabel={branchLabel}
             draftFilters={draftFilters}
             idPrefix="cancel-history"
             onDraftChange={onDraftChange}
           />
-          <Button type="button" className="h-9 min-w-28" disabled={loading || !canApply} onClick={onApply}>
+        </div>
+        <div className="flex justify-end gap-2 border-t border-border px-4 py-3">
+          <Button type="button" variant="outline" size="sm" className="h-9" disabled={loading || !canApply} onClick={onRefresh}>
+            <RefreshCcw className={loading ? "animate-spin" : undefined} data-icon="inline-start" />
+            {t("actions.refresh")}
+          </Button>
+          <Button type="button" size="sm" className="h-9" disabled={loading || !canApply} onClick={onApply}>
             {loading ? <RefreshCcw className="animate-spin" data-icon="inline-start" /> : null}
             {t("cancelHistory.apply")}
           </Button>
-        </FieldGroup>
-      </CardContent>
-    </Card>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -423,67 +466,23 @@ function CancelHistoryFilterFields({
   );
 }
 
-function MobileCancelHistoryFilterSummary({
-  branchLabel,
-  filters,
-  onOpen
-}: {
-  branchLabel: string;
-  filters: CancelHistoryFilters;
-  onOpen: () => void;
-}) {
-  const { t } = useTranslation();
-
-  return (
-    <div className="rounded-md border border-border bg-card p-2 shadow-sm">
-      <div className="flex items-center justify-between gap-2">
-        <div className="min-w-0">
-          <div className="flex min-w-0 items-center gap-1 text-xs font-bold text-muted-foreground">
-            <CalendarDays className="size-3.5 shrink-0" />
-            <span className="truncate">
-              {filters.startDate} - {filters.endDate}
-            </span>
-          </div>
-          <div className="mt-1 flex min-w-0 flex-wrap gap-1">
-            <Badge className="h-6 max-w-[11rem] truncate border-border bg-muted px-2 text-[11px] text-muted-foreground">
-              {branchLabel}
-            </Badge>
-            <Badge className="h-6 border-border bg-muted px-2 text-[11px] text-muted-foreground">
-              {filters.limit}
-            </Badge>
-            <Badge className="h-6 px-2 text-[11px]">
-              {t(filters.orderBy === "ASC" ? "common.oldestFirst" : "common.newestFirst")}
-            </Badge>
-          </div>
-        </div>
-        <Button type="button" size="sm" className="h-9 shrink-0 px-3" onClick={onOpen}>
-          <SlidersHorizontal data-icon="inline-start" />
-          {t("cancelHistory.filters")}
-        </Button>
-      </div>
-    </div>
-  );
-}
-
 function CancelHistoryTableCard({
   children,
   footer,
   loading,
   rangeLabel,
-  rowsLength,
-  onRefresh
+  rowsLength
 }: {
   children: React.ReactNode;
   footer: React.ReactNode;
   loading: boolean;
   rangeLabel: string;
   rowsLength: number;
-  onRefresh: () => void;
 }) {
   const { t } = useTranslation();
 
   return (
-    <Card className="min-h-0 overflow-hidden border-border bg-card shadow-sm md:sticky md:top-[calc(var(--cancel-history-filter-height)_+_0.75rem)] md:flex md:max-h-[calc(100dvh_-_var(--app-shell-header-height)_-_var(--cancel-history-filter-height)_-_1.5rem)] md:flex-col">
+    <Card className="min-h-0 overflow-hidden border-border bg-card shadow-sm xl:flex xl:flex-1 xl:flex-col">
       <CardHeader className="flex shrink-0 flex-col gap-2 border-b border-border bg-card px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <CardTitle className="flex min-w-0 items-center gap-2 text-base font-black">
@@ -492,10 +491,6 @@ function CancelHistoryTableCard({
           </CardTitle>
           <p className="text-sm text-muted-foreground">{rangeLabel}</p>
         </div>
-        <Button type="button" variant="outline" size="sm" className="h-9" disabled={loading} onClick={onRefresh}>
-          <RefreshCcw className={loading ? "animate-spin" : undefined} data-icon="inline-start" />
-          {t("actions.refresh")}
-        </Button>
       </CardHeader>
       <CardContent className="flex min-h-0 flex-1 flex-col p-0">
         {loading ? (

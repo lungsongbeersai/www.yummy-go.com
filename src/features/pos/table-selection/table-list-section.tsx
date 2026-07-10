@@ -61,14 +61,14 @@ export function TableListSection({
             <ZoneChip key={zone.zone_uuid} active={selectedZoneUuid === zone.zone_uuid} label={zone.zone_name} onClick={() => onZoneChange(zone.zone_uuid)} />
           ))}
         </div>
-        <div className="flex flex-col gap-3 min-[900px]:flex-row min-[900px]:items-center min-[900px]:justify-between">
+        <div className="flex flex-col gap-2.5 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex gap-2 overflow-x-auto pb-1">
             <StatusChip active={statusFilter === "all"} label={t("common.all")} value={statusCounts.all} onClick={() => onStatusFilterChange("all")} />
             <StatusChip active={statusFilter === "free"} dot="free" label={t("common.free")} value={statusCounts.free} onClick={() => onStatusFilterChange("free")} />
             <StatusChip active={statusFilter === "busy"} dot="busy" label={t("common.busy")} value={statusCounts.busy} onClick={() => onStatusFilterChange("busy")} />
             <StatusChip active={statusFilter === "update"} dot="update" label={t("pos.tableSelectionNewOrder")} value={statusCounts.update} onClick={() => onStatusFilterChange("update")} />
           </div>
-          <div className="relative min-w-0 w-full min-[900px]:w-[320px]">
+          <div className="relative min-w-0 w-full xl:w-[320px]">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input className="h-10.5 rounded-full border-border bg-muted/35 pl-9 shadow-none" value={search} placeholder={t("actions.search")} onChange={(event) => onSearchChange(event.target.value)} />
           </div>
@@ -87,7 +87,7 @@ export function TableListSection({
                     <Badge>{(zone.tables ?? []).length}</Badge>
                   </div>
                 ) : null}
-                <div className="grid grid-cols-[repeat(auto-fill,minmax(min(140px,100%),1fr))] gap-2 sm:grid-cols-[repeat(auto-fill,minmax(min(210px,100%),1fr))] sm:gap-3 xl:grid-cols-[repeat(auto-fill,minmax(min(240px,100%),1fr))]">
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(min(128px,100%),1fr))] gap-2 sm:grid-cols-[repeat(auto-fill,minmax(min(136px,100%),1fr))] lg:grid-cols-[repeat(auto-fill,minmax(min(154px,100%),1fr))] xl:grid-cols-[repeat(auto-fill,minmax(min(176px,100%),1fr))]">
                   {(zone.tables ?? []).map((table) => (
                     <TableCard key={table.table_uuid} selected={selectedTable?.table_uuid === table.table_uuid} table={table} onOpen={onSelectTable} />
                   ))}
@@ -202,10 +202,10 @@ function TableCard({
         className="h-auto w-full items-stretch justify-start rounded-none p-0 text-left hover:bg-transparent"
         onClick={() => onOpen(table)}
       >
-        <CardContent className="flex min-h-32 w-full flex-col p-0 sm:min-h-42 xl:min-h-44.5">
+        <CardContent className="flex min-h-28 w-full flex-col p-0 sm:min-h-[7.75rem] lg:min-h-32 xl:min-h-36">
           <div
             className={cn(
-              "relative flex flex-1 flex-col items-center justify-center px-2 py-4 sm:px-4 sm:py-6",
+              "relative flex flex-1 flex-col items-center justify-center px-2 py-3 sm:px-3 sm:py-4",
               bodyToneClass
             )}
           >
@@ -227,23 +227,23 @@ function TableCard({
             ) : null}
             <span
               className={cn(
-                "absolute right-3 top-3 size-3 rounded-full border-[3px] border-background shadow-sm sm:right-4 sm:top-4 sm:size-4 sm:border-4",
+                "absolute right-2.5 top-2.5 size-3 rounded-full border-[3px] border-background shadow-sm sm:right-3 sm:top-3",
                 statusDotClass
               )}
             />
             <span className="text-xs font-medium text-muted-foreground">
               {t("nav.table")}
             </span>
-            <span className="mt-1 text-[22px] font-bold leading-none tracking-normal text-foreground sm:mt-1.5 sm:text-[28px]">
+            <span className="mt-1 text-[19px] font-bold leading-none tracking-normal text-foreground sm:text-[22px]">
               {table.table_name}
             </span>
-            <span className={cn("mt-2 text-xs font-semibold sm:mt-2.5", statusTextClass)}>
+            <span className={cn("mt-1.5 text-xs font-semibold sm:mt-2", statusTextClass)}>
               {busy ? t("common.busy") : t("common.free")}
             </span>
           </div>
           <div
             className={cn(
-              "flex h-8.5 items-center gap-1.5 border-t px-3 text-xs text-muted-foreground sm:h-10 sm:px-4",
+              "flex h-8 items-center gap-1.5 border-t px-3 text-xs text-muted-foreground sm:h-8.5",
               footerToneClass
             )}
           >

@@ -90,7 +90,7 @@ export const ProductCard = memo(function ProductCard({
         <Button
           type="button"
           variant="ghost"
-          className="flex min-h-24 w-full items-stretch gap-2 rounded-none p-2 text-left hover:bg-primary/5 disabled:cursor-not-allowed disabled:opacity-100 min-[380px]:min-h-[6.25rem] min-[380px]:gap-2.5"
+          className="flex min-h-24 w-full items-stretch gap-2 rounded-none p-2 text-left hover:bg-primary/5 disabled:cursor-not-allowed disabled:opacity-100 min-[380px]:min-h-25 min-[380px]:gap-2.5"
           onClick={handleClick}
           disabled={isBlocked || loading}
           aria-label={
@@ -101,7 +101,7 @@ export const ProductCard = memo(function ProductCard({
         >
           <div
             ref={mediaRef}
-            className="h-20 w-20 shrink-0 overflow-hidden rounded-md border border-emerald-100 bg-emerald-50 dark:border-border dark:bg-muted min-[380px]:h-[5.25rem] min-[380px]:w-[5.25rem]"
+            className="h-20 w-20 shrink-0 overflow-hidden rounded-md border border-emerald-100 bg-emerald-50 dark:border-border dark:bg-muted min-[380px]:h-21 min-[380px]:w-21"
           >
             <ProductMedia
               product={product}
