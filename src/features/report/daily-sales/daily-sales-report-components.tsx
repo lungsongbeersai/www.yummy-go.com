@@ -428,7 +428,7 @@ function ReportTableActions({
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* <Button
+          <Button
             type="button"
             variant="outline"
             size="sm"
@@ -443,7 +443,7 @@ function ReportTableActions({
               <Printer data-icon="inline-start" />
             )}
             <span className="hidden sm:inline">{t("report.print")}</span>
-          </Button> */}
+          </Button>
 
           <Button
             type="button"

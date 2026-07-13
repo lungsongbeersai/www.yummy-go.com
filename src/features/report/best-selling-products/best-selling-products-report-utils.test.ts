@@ -4,14 +4,13 @@ import {
   isBestSellingProductsSortBy
 } from "@/config/report-filters";
 import {
+  bestSellingGroupedSection,
   bestSellingGroupMetricConfigs,
   bestSellingFileBaseName,
   bestSellingProductMetricConfigs,
   bestSellingSummaryConfigs,
   bestSellingSortLabel,
   bestSellingSortOptions,
-  exportGroupRows,
-  exportProductRows,
   exportSummaryRows,
   groupParam
 } from "./best-selling-products-report-utils";
@@ -151,25 +150,53 @@ describe("best selling products report sort helpers", () => {
       { "report.bestSelling.export.metric": "report.bestSelling.columns.vat", "report.bestSelling.export.value": 88382 },
       { "report.bestSelling.export.metric": "report.bestSelling.columns.finalTotal", "report.bestSelling.export.value": 972198 }
     ]);
-    expect(exportGroupRows([group], t)[0]).toMatchObject({
-      "report.bestSelling.columns.billDiscountShare": 0,
-      "report.bestSelling.columns.charge": 51660.01,
-      "report.bestSelling.columns.finalTotal": 868622,
-      "report.bestSelling.columns.itemDiscount": 0,
-      "report.bestSelling.columns.subtotal": 737996,
-      "report.bestSelling.columns.vat": 78966
-    });
-    expect(exportProductRows([group], t)[0]).toMatchObject({
-      "report.bestSelling.columns.billDiscountShare": 0,
-      "report.bestSelling.columns.category": "Beer",
-      "report.bestSelling.columns.charge": 2799.76,
-      "report.bestSelling.columns.finalTotal": 47075.39,
-      "report.bestSelling.columns.itemDiscount": 0,
-      "report.bestSelling.columns.productCode": "PRD-MPOUE39V",
-      "report.bestSelling.columns.rank": 1,
-      "report.bestSelling.columns.salePrice": 6666,
-      "report.bestSelling.columns.subtotal": 39996,
-      "report.bestSelling.columns.vat": 4279.63
-    });
+    const section = bestSellingGroupedSection([group], summary, t);
+    const [header, groupRow, productRow, totalRow] = section.grid.rows;
+
+    expect(section.grid.columnCount).toBe(12);
+    expect(header.cells.map((cell) => cell.value)).toEqual([
+      "report.bestSelling.columns.rank",
+      "report.bestSelling.columns.product",
+      "report.bestSelling.columns.productCode",
+      "report.bestSelling.columns.category",
+      "report.bestSelling.columns.salePrice",
+      "report.bestSelling.columns.qty",
+      "report.bestSelling.columns.subtotal",
+      "report.bestSelling.columns.itemDiscount",
+      "report.bestSelling.columns.billDiscountShare",
+      "report.bestSelling.columns.charge",
+      "report.bestSelling.columns.vat",
+      "report.bestSelling.columns.finalTotal"
+    ]);
+
+    // แถวกลุ่ม: ชื่อกลุ่ม merge 4 คอลัมน์ + ยอดรวมกลุ่มในคอลัมน์ metric (เว้นราคาขาย)
+    expect(groupRow.cells[0].colSpan).toBe(4);
+    expect(groupRow.cells[0].value).toContain("Drinks");
+    expect(groupRow.cells[1].value).toBe("");
+    expect(groupRow.cells[2].value).toBe(21);
+    expect(groupRow.cells.at(-1)?.value).toBe(868622);
+    expect(groupRow.style?.bold).toBe(true);
+
+    // แถวสินค้า: อันดับนับใหม่ภายในกลุ่ม
+    expect(productRow.cells.map((cell) => cell.value)).toEqual([
+      1,
+      "Product 5 - Medium",
+      "PRD-MPOUE39V",
+      "Beer",
+      6666,
+      6,
+      39996,
+      0,
+      0,
+      2799.76,
+      4279.63,
+      47075.39
+    ]);
+
+    // แถวยอดรวมทั้งรายงานจาก summary ปิดท้ายตาราง
+    expect(totalRow.cells[0].value).toBe("report.summary");
+    expect(totalRow.cells[2].value).toBe(24);
+    expect(totalRow.cells.at(-1)?.value).toBe(972198);
+    expect(totalRow.style?.bold).toBe(true);
   });
 });

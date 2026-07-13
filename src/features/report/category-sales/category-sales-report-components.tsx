@@ -11,6 +11,10 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import {
+  ReportOfficialHeader,
+  ReportSignatures,
+} from "../report-official-layout";
 import { DateFilterButton } from "@/components/common/date-filter-button";
 import { EmptyState } from "@/components/common/empty-state";
 import { LoadingState } from "@/components/common/loading-state";
@@ -1178,22 +1182,24 @@ function summaryDiscountTotal(summary: Record<string, unknown>) {
 export function CategorySalesExportSurface({
   containerRef,
   dateRange,
+  groups,
   labelOverrides,
   methodLabel,
-  rows,
   rowsLabel,
+  showSummary,
   summary,
   title,
 }: {
   containerRef: RefObject<HTMLDivElement | null>;
   dateRange: string;
+  groups: CategorySalesGroup[];
   labelOverrides?: {
     sum_servicecharge?: string;
     sum_vate?: string;
   };
   methodLabel: string;
-  rows: CategorySalesRow[];
   rowsLabel: string;
+  showSummary: boolean;
   summary: Record<string, unknown>;
   title: string;
 }) {
@@ -1203,6 +1209,7 @@ export function CategorySalesExportSurface({
 
   return (
     <div ref={containerRef} className="report-print-surface">
+      <ReportOfficialHeader />
       <div className="report-print-header">
         <div>
           <p className="report-print-kicker">{methodLabel}</p>
@@ -1214,28 +1221,29 @@ export function CategorySalesExportSurface({
         </div>
       </div>
 
-      <div className="report-print-section">
-        <h2>{t("report.summary")}</h2>
-        <table className="report-print-table">
-          <tbody>
-            {summaryMetrics.map((metric) => (
-              <tr key={metric.key}>
-                <td>{metric.label}</td>
-                <td className="is-right">
-                  {displayMetric(summary[metric.key], metric.kind)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {showSummary ? (
+        <div className="report-print-section">
+          <h2>{t("report.summary")}</h2>
+          <table className="report-print-table">
+            <tbody>
+              {summaryMetrics.map((metric) => (
+                <tr key={metric.key}>
+                  <td>{metric.label}</td>
+                  <td className="is-right">
+                    {displayMetric(summary[metric.key], metric.kind)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
 
       <table className="report-print-table">
         <thead>
           <tr>
-            <th>{t("report.categorySales.columns.group")}</th>
-            <th>{t("report.categorySales.columns.category")}</th>
             <th>{t("report.categorySales.columns.product")}</th>
+            <th>{t("report.categorySales.columns.category")}</th>
             {rowMetrics.map((metric) => (
               <th key={metric.key} className="is-right">
                 {metric.label}
@@ -1244,20 +1252,51 @@ export function CategorySalesExportSurface({
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => (
-            <tr key={`${row.groupUuid}-${row.cateUuid}-${row.rank}`}>
-              <td>{row.groupName}</td>
-              <td>{row.cateName}</td>
-              <td>{row.productName}</td>
-              {rowMetrics.map((metric) => (
-                <td key={metric.key} className="is-right">
-                  {displayMetric(row[metric.field], metric.kind)}
-                </td>
+          {groups.map((group) => (
+            <Fragment key={group.groupUuid || group.groupName}>
+              {/* แถวกลุ่มถือยอดรวมของกลุ่มไว้ในตัว เหมือนแถวรวมท้ายกลุ่มบนหน้าจอ */}
+              <tr className="is-bill">
+                <td colSpan={2}>{group.groupName}</td>
+                {rowMetrics.map((metric) => (
+                  <td key={metric.key} className="is-right">
+                    {displayMetric(
+                      metric.key === "discount_total"
+                        ? summaryDiscountTotal(group.summary)
+                        : group.summary[metric.key],
+                      metric.kind,
+                    )}
+                  </td>
+                ))}
+              </tr>
+              {group.rows.map((row) => (
+                <tr key={`${row.groupUuid}-${row.cateUuid}-${row.rank}`}>
+                  <td>{row.productName}</td>
+                  <td>{row.cateName}</td>
+                  {rowMetrics.map((metric) => (
+                    <td key={metric.key} className="is-right">
+                      {displayMetric(row[metric.field], metric.kind)}
+                    </td>
+                  ))}
+                </tr>
               ))}
-            </tr>
+            </Fragment>
           ))}
+          <tr className="is-bill">
+            <td colSpan={2}>{t("report.summary")}</td>
+            {rowMetrics.map((metric) => (
+              <td key={metric.key} className="is-right">
+                {displayMetric(
+                  metric.key === "discount_total"
+                    ? summaryDiscountTotal(summary)
+                    : summary[metric.key],
+                  metric.kind,
+                )}
+              </td>
+            ))}
+          </tr>
         </tbody>
       </table>
+      <ReportSignatures />
     </div>
   );
 }

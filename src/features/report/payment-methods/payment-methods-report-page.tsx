@@ -27,7 +27,7 @@ export function PaymentMethodsReportPage({ initialPagination }: { initialPaginat
   const exportReportRef = useRef<HTMLDivElement>(null);
   const [summaryVisible, setSummaryVisible] = useState(false);
   const nativeApp = useIsCapacitorNativeApp();
-  const report = usePaymentMethodsReportWorkflow(exportReportRef, initialPagination);
+  const report = usePaymentMethodsReportWorkflow(exportReportRef, initialPagination, summaryVisible);
   const layoutStyle = {
     "--payment-method-filter-height": "0px"
   } as CSSProperties;
@@ -198,6 +198,7 @@ export function PaymentMethodsReportPage({ initialPagination }: { initialPaginat
           rowsLabel={t("report.paymentMethodsReport.rowsLabel", {
             count: report.renderedExportData.rows.length,
           })}
+          showSummary={summaryVisible}
           title={report.renderedExportData.reportName || report.reportTitle}
         />
       ) : null}

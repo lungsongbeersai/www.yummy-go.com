@@ -26,7 +26,7 @@ export function CategorySalesReportPage({ initialPagination }: { initialPaginati
   const exportReportRef = useRef<HTMLDivElement>(null);
   const [summaryVisible, setSummaryVisible] = useState(false);
   const nativeApp = useIsCapacitorNativeApp();
-  const report = useCategorySalesReportWorkflow(exportReportRef, initialPagination);
+  const report = useCategorySalesReportWorkflow(exportReportRef, initialPagination, summaryVisible);
   const layoutStyle = {
     "--category-sales-filter-height": "0px"
   } as CSSProperties;
@@ -173,11 +173,12 @@ export function CategorySalesReportPage({ initialPagination }: { initialPaginati
         <CategorySalesExportSurface
           containerRef={exportReportRef}
           dateRange={`${report.appliedFilters.dateFrom} - ${report.appliedFilters.dateTo}`}
+          groups={report.renderedExportData.groups}
           methodLabel={report.activePaymentMethodLabel}
-          rows={report.renderedExportData.rows}
           rowsLabel={t("report.categorySales.rowsLabel", {
             count: report.renderedExportData.rows.length,
           })}
+          showSummary={summaryVisible}
           summary={report.renderedExportData.summary}
           title={report.renderedExportData.reportName || report.reportTitle}
           labelOverrides={report.labelOverrides}

@@ -13,18 +13,18 @@ import { useGroupStore } from "@/stores/group-store";
 import { useToastStore } from "@/stores/toast-store";
 import { branchOptionFromRow, selectedBranchLabel } from "../daily-sales/daily-sales-report-utils";
 import { createSingleSheetReportWorkbook } from "../report-excel-utils";
+import { officialReportExcelLayout } from "../report-official-layout";
 import { useReportRowSelection } from "../report-row-selection";
 import type { BestSellingExportAction, BestSellingExportData, BestSellingProductsFilters } from "./best-selling-products-report-types";
 import {
   ALL_GROUPS_VALUE,
   bestSellingFileBaseName,
+  bestSellingGroupedSection,
   bestSellingGroupsFromRows,
   bestSellingProductRowId,
   bestSellingSortLabel,
   bestSellingSummaryFromRows,
   bestSellingSummaryConfigs,
-  exportGroupRows,
-  exportProductRows,
   exportSummaryRows,
   groupOptionFromRow,
   groupParam,
@@ -33,7 +33,12 @@ import {
   waitForPaint
 } from "./best-selling-products-report-utils";
 
-export function useBestSellingProductsReportWorkflow(exportReportRef: RefObject<HTMLDivElement | null>, initialPagination: UrlPaginationState) {
+export function useBestSellingProductsReportWorkflow(
+  exportReportRef: RefObject<HTMLDivElement | null>,
+  initialPagination: UrlPaginationState,
+  // สถานะการแสดง summary cards ใน UI — ไฟล์ export ต้องมีส่วนสรุปตรงกับที่ผู้ใช้เห็น
+  summaryVisible: boolean
+) {
   const { t } = useTranslation();
   const user = useAuthStore((state) => state.user);
   const language = useAppStore((state) => state.language);
@@ -266,21 +271,22 @@ export function useBestSellingProductsReportWorkflow(exportReportRef: RefObject<
     setExporting("excel");
     try {
       const data = selectedExportData(await fetchExportData());
-      const XLSX = await import("xlsx");
-      const workbook = createSingleSheetReportWorkbook(XLSX, [
-        {
-          title: "Summary",
-          rows: exportSummaryRows(summaryCards, data.summary, t)
-        },
-        {
-          title: "Groups",
-          rows: exportGroupRows(data.groups, t)
-        },
-        {
-          title: "Products",
-          rows: exportProductRows(data.groups, t)
-        }
-      ]);
+      const XLSX = await import("xlsx-js-style");
+      const workbook = createSingleSheetReportWorkbook(
+        XLSX,
+        [
+          ...(summaryVisible
+            ? [
+                {
+                  title: t("report.summary"),
+                  rows: exportSummaryRows(summaryCards, data.summary, t)
+                }
+              ]
+            : []),
+          bestSellingGroupedSection(data.groups, data.summary, t)
+        ],
+        officialReportExcelLayout(t)
+      );
       XLSX.writeFile(workbook, `${bestSellingFileBaseName(appliedFilters)}.xlsx`);
       showToast({
         title: t("report.exportReady"),

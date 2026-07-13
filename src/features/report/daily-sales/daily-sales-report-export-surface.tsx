@@ -11,15 +11,23 @@ import type {
   SummaryCardConfig,
   SummaryCards,
 } from "./daily-sales-report-types";
+import {
+  buildDailySalesDetailReportModel,
+  type DailySalesDetailAdjustmentKey,
+  type DailySalesDetailMetrics,
+  type DailySalesDetailTotals,
+} from "./daily-sales-detail-model";
+import {
+  ReportOfficialHeader,
+  ReportSignatures,
+} from "../report-official-layout";
 import { renderPrintCell } from "./daily-sales-report-tables";
 import {
   firstNumber,
   formatDate,
   isCancelledRow,
-  readValue,
   rowKey,
   summaryCardValue,
-  textValue,
 } from "./daily-sales-report-utils";
 
 export function ReportExportSurface({
@@ -28,12 +36,12 @@ export function ReportExportSurface({
   columns,
   containerRef,
   dateRange,
-  dateTotals,
   itemColumns,
   noLabel,
   reportTotal,
   rows,
   rowsLabel,
+  showSummary,
   summaryCards,
   title,
   typePage,
@@ -44,12 +52,12 @@ export function ReportExportSurface({
   columns: ReportColumn[];
   containerRef: RefObject<HTMLDivElement | null>;
   dateRange: string;
-  dateTotals: ApiEntity[];
   itemColumns: ReportColumn[];
   noLabel: string;
   reportTotal: ApiEntity;
   rows: ApiEntity[];
   rowsLabel: string;
+  showSummary: boolean;
   summaryCards: SummaryCards;
   title: string;
   typePage: ReportTab;
@@ -57,6 +65,7 @@ export function ReportExportSurface({
 }) {
   return (
     <div ref={containerRef} className="report-print-surface">
+      <ReportOfficialHeader />
       <div className="report-print-header">
         <div>
           <p className="report-print-kicker">{typeLabel}</p>
@@ -67,151 +76,35 @@ export function ReportExportSurface({
           <span>{rowsLabel}</span>
         </div>
       </div>
-      <div className="report-print-cards">
-        {cards.map((card) => {
-          const value = summaryCardValue(summaryCards, reportTotal, card.keys);
-          return (
-            <div key={card.label} className="report-print-card">
-              <p>{card.label}</p>
-              <strong>
-                {card.kind === "money"
-                  ? money(firstNumber(value))
-                  : firstNumber(value).toLocaleString("en-US")}
-              </strong>
-            </div>
-          );
-        })}
-      </div>
-      {typePage === "detail" && dateTotals.length ? (
-        <DateTotalsTable rows={dateTotals} />
+      {showSummary ? (
+        <div className="report-print-cards">
+          {cards.map((card) => {
+            const value = summaryCardValue(summaryCards, reportTotal, card.keys);
+            return (
+              <div key={card.label} className="report-print-card">
+                <p>{card.label}</p>
+                <strong>
+                  {card.kind === "money"
+                    ? money(firstNumber(value))
+                    : firstNumber(value).toLocaleString("en-US")}
+                </strong>
+              </div>
+            );
+          })}
+        </div>
       ) : null}
       {typePage === "detail" ? (
         <DetailPrintTable
           billGroups={billGroups}
           itemColumns={itemColumns}
           noLabel={noLabel}
+          reportTotal={reportTotal}
+          summaryCards={summaryCards}
         />
       ) : (
         <SummaryPrintTable columns={columns} noLabel={noLabel} rows={rows} />
       )}
-    </div>
-  );
-}
-
-function DateTotalsTable({ rows }: { rows: ApiEntity[] }) {
-  const { t } = useTranslation();
-
-  return (
-    <div className="report-print-section">
-      <h2>{t("report.dateTotals")}</h2>
-      <table className="report-print-table">
-        <thead>
-          <tr>
-            <th>{t("report.columns.saleDate")}</th>
-            <th className="is-right">{t("report.cards.billsCount")}</th>
-            <th className="is-right">{t("report.cards.orderTotal")}</th>
-            <th className="is-right">{t("report.cards.toppingTotal")}</th>
-            <th className="is-right">{t("report.cards.discountAmount")}</th>
-            <th className="is-right">{t("report.cards.itemDiscountAmount")}</th>
-            <th className="is-right">{t("report.cards.serviceCharge")}</th>
-            <th className="is-right">{t("report.cards.vatAmount")}</th>
-            <th className="is-right">{t("report.cards.netTotal")}</th>
-            <th className="is-right">{t("report.cards.receiveCash")}</th>
-            <th className="is-right">{t("report.cards.receiveTransfer")}</th>
-            <th className="is-right">{t("report.cards.debtAmount")}</th>
-            <th className="is-right">{t("report.cards.changeAmount")}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, index) => (
-            <tr
-              key={`${textValue(readValue(row, ["date", "sale_date"]), String(index))}-${index}`}
-            >
-              <td>{formatDate(readValue(row, ["date", "sale_date"]))}</td>
-              <td className="is-right">
-                {firstNumber(
-                  readValue(row, ["bills_count", "bill_count"]),
-                ).toLocaleString("en-US")}
-              </td>
-              <td className="is-right">
-                {money(
-                  firstNumber(
-                    readValue(row, ["amount", "order_total", "total_order"]),
-                  ),
-                )}
-              </td>
-              <td className="is-right">
-                {money(
-                  firstNumber(
-                    readValue(row, ["topping_total", "topping_line_total"]),
-                  ),
-                )}
-              </td>
-              <td className="is-right">
-                {money(
-                  firstNumber(
-                    readValue(row, [
-                      "discount_bill",
-                      "discount_amount",
-                      "discount_total",
-                    ]),
-                  ),
-                )}
-              </td>
-              <td className="is-right">
-                {money(
-                  firstNumber(
-                    readValue(row, ["item_discount", "item_discount_amount"]),
-                  ),
-                )}
-              </td>
-              <td className="is-right">
-                {money(
-                  firstNumber(
-                    readValue(row, ["service_charge", "service_charge_amount"]),
-                  ),
-                )}
-              </td>
-              <td className="is-right">
-                {money(firstNumber(readValue(row, ["vat", "vat_amount"])))}
-              </td>
-              <td className="is-right">
-                {money(
-                  firstNumber(
-                    readValue(row, ["total", "net_total", "grand_total"]),
-                  ),
-                )}
-              </td>
-              <td className="is-right">
-                {money(
-                  firstNumber(
-                    readValue(row, ["receive_cash", "cash_received"]),
-                  ),
-                )}
-              </td>
-              <td className="is-right">
-                {money(
-                  firstNumber(
-                    readValue(row, ["receive_transfer", "transfer_received"]),
-                  ),
-                )}
-              </td>
-              <td className="is-right">
-                {money(
-                  firstNumber(readValue(row, ["debt_amount", "debt_total"])),
-                )}
-              </td>
-              <td className="is-right">
-                {money(
-                  firstNumber(
-                    readValue(row, ["change_amount", "change_total"]),
-                  ),
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <ReportSignatures />
     </div>
   );
 }
@@ -220,15 +113,25 @@ function DetailPrintTable({
   billGroups,
   itemColumns,
   noLabel,
+  reportTotal,
+  summaryCards,
 }: {
   billGroups: DailySalesBillGroup[];
   itemColumns: ReportColumn[];
   noLabel: string;
+  reportTotal: ApiEntity;
+  summaryCards: SummaryCards;
 }) {
   const { t } = useTranslation();
+  const model = buildDailySalesDetailReportModel(
+    billGroups,
+    summaryCards,
+    reportTotal,
+  );
+  const imageColumn = itemColumns.find((column) => column.kind === "image");
 
   return (
-    <table className="report-print-table">
+    <table className="report-print-table report-print-detail-table">
       <thead>
         <tr>
           <th>{noLabel}</th>
@@ -236,94 +139,137 @@ function DetailPrintTable({
           <th>{t("report.columns.saleDate")}</th>
           <th>{t("report.columns.tableName")}</th>
           <th>{t("report.columns.paymentType")}</th>
-          <th className="is-right">{t("report.billItems")}</th>
-          <th className="is-right">{t("report.cards.toppingTotal")}</th>
-          <th className="is-right">{t("report.cards.orderTotal")}</th>
-          <th className="is-right">{t("report.cards.discountAmount")}</th>
-          <th className="is-right">{t("report.cards.itemDiscountAmount")}</th>
-          <th className="is-right">{t("report.cards.serviceCharge")}</th>
-          <th className="is-right">{t("report.cards.vatAmount")}</th>
-          <th className="is-right">{t("report.cards.netTotal")}</th>
-          <th className="is-right">{t("report.cards.receiveCash")}</th>
-          <th className="is-right">{t("report.cards.receiveTransfer")}</th>
-          <th className="is-right">{t("report.cards.debtAmount")}</th>
-          <th className="is-right">{t("report.cards.changeAmount")}</th>
-          <th>{t("report.columns.status")}</th>
+          <th className="is-right">{t("report.columns.salePrice")}</th>
+          <th className="is-right">{t("report.columns.quantity")}</th>
+          <th className="is-right">{t("report.columns.toppingTotal")}</th>
+          <th className="is-right">{t("report.columns.amount")}</th>
+          <th className="is-right">{t("report.columns.discount")}</th>
+          <th className="is-right">{t("common.total")}</th>
+          {model.hasStatus ? <th>{t("report.columns.status")}</th> : null}
         </tr>
       </thead>
       <tbody>
-        {billGroups.map((group, index) => (
-          <Fragment key={group.id}>
+        {model.bills.map((bill, index) => (
+          <Fragment key={bill.id}>
             <tr
-              className={group.cancelled ? "is-cancelled is-bill" : "is-bill"}
+              className={bill.cancelled ? "is-cancelled is-bill" : "is-bill"}
             >
               <td className="is-center">{index + 1}</td>
-              <td>{group.invoiceNumber}</td>
-              <td>{formatDate(group.saleDate)}</td>
-              <td>{group.tableName}</td>
-              <td>{group.paymentType}</td>
-              <td className="is-right">
-                {group.itemCount.toLocaleString("en-US")}
-              </td>
-              <td className="is-right">{money(group.toppingTotal)}</td>
-              <td className="is-right">{money(group.amountTotal)}</td>
-              <td className="is-right">{money(group.discountBillAmount)}</td>
-              <td className="is-right">{money(group.itemDiscountAmount)}</td>
-              <td className="is-right">{money(group.serviceChargeAmount)}</td>
-              <td className="is-right">{money(group.vatAmount)}</td>
-              <td className="is-right">{money(group.lineTotal)}</td>
-              <td className="is-right">{money(group.receiveCashAmount)}</td>
-              <td className="is-right">{money(group.receiveTransferAmount)}</td>
-              <td className="is-right">{money(group.debtAmount)}</td>
-              <td className="is-right">{money(group.changeAmount)}</td>
-              <td>{group.status}</td>
+              <td>{bill.invoiceNumber}</td>
+              <td>{formatDate(bill.saleDate)}</td>
+              <td>{bill.tableName}</td>
+              <td>{bill.paymentType}</td>
+              {Array.from({ length: 6 }, (_, cellIndex) => (
+                <td key={cellIndex} className="is-right" />
+              ))}
+              {model.hasStatus ? <td>{bill.status}</td> : null}
             </tr>
-            <tr>
-              <td colSpan={18} className="report-print-nested-cell">
-                <table className="report-print-table report-print-item-table">
-                  <thead>
-                    <tr>
-                      {itemColumns.map((column) => (
-                        <th
-                          key={column.header}
-                          className={
-                            column.align === "right" ? "is-right" : undefined
-                          }
-                        >
-                          {column.header}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {group.items.map((item, itemIndex) => (
-                      <tr
-                        key={`${rowKey(item, itemIndex)}-${itemIndex}`}
-                        className={
-                          isCancelledRow(item) ? "is-cancelled" : undefined
-                        }
-                      >
-                        {itemColumns.map((column) => (
-                          <td
-                            key={column.header}
-                            className={
-                              column.align === "right" ? "is-right" : undefined
-                            }
-                          >
-                            {renderPrintCell(item, column)}
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </td>
+            {bill.items.map((item, itemIndex) => (
+              <tr
+                key={`${bill.id}-item-${itemIndex}`}
+                className={item.cancelled ? "is-cancelled" : undefined}
+              >
+                <td />
+                <td colSpan={4}>
+                  <div className="report-print-detail-product">
+                    {imageColumn
+                      ? renderPrintCell(item.source, imageColumn)
+                      : null}
+                    <span>{item.productLabel}</span>
+                  </div>
+                </td>
+                <DetailPrintMetricCells metrics={item.metrics} />
+                {model.hasStatus ? <td /> : null}
+              </tr>
+            ))}
+            <tr className="report-print-detail-summary">
+              <td />
+              <td colSpan={4}>{t("report.summary")}</td>
+              <DetailPrintMetricCells metrics={bill.itemSubtotal} />
+              {model.hasStatus ? <td /> : null}
             </tr>
+            {bill.adjustments.map((adjustment) => (
+              <tr
+                key={`${bill.id}-${adjustment.key}`}
+                className={
+                  adjustment.key === "total"
+                    ? "report-print-detail-adjustment is-total"
+                    : "report-print-detail-adjustment"
+                }
+              >
+                <td colSpan={9} />
+                <td className="is-right">
+                  {detailAdjustmentLabel(adjustment.key, t)}
+                </td>
+                <td className="is-right">{money(adjustment.value)}</td>
+                {model.hasStatus ? <td /> : null}
+              </tr>
+            ))}
           </Fragment>
         ))}
+        <tr className="report-print-detail-total">
+          <td />
+          <td colSpan={4}>
+            {t("report.summary")}
+            {model.totals.billCount === null
+              ? null
+              : ` - ${t("report.cards.billsCount")}: ${model.totals.billCount.toLocaleString("en-US")}`}
+          </td>
+          <DetailPrintTotalCells totals={model.totals} />
+          {model.hasStatus ? <td /> : null}
+        </tr>
       </tbody>
     </table>
   );
+}
+
+function detailAdjustmentLabel(
+  key: DailySalesDetailAdjustmentKey,
+  t: (key: string) => string,
+) {
+  const labels: Record<DailySalesDetailAdjustmentKey, string> = {
+    "bill-discount": t("report.columns.billDiscount"),
+    "service-charge": t("dashboard.serviceCharge"),
+    total: t("common.total"),
+    vat: t("dashboard.vat"),
+  };
+  return labels[key];
+}
+
+function DetailPrintMetricCells({
+  metrics,
+}: {
+  metrics: DailySalesDetailMetrics;
+}) {
+  return (
+    <>
+      <DetailPrintMoneyCell value={metrics.sellingPrice} />
+      <td className="is-right">{metrics.quantity.toLocaleString("en-US")}</td>
+      <DetailPrintMoneyCell value={metrics.topping} />
+      <DetailPrintMoneyCell value={metrics.amount} />
+      <DetailPrintMoneyCell value={metrics.discount} />
+      <DetailPrintMoneyCell value={metrics.total} />
+    </>
+  );
+}
+
+function DetailPrintTotalCells({ totals }: { totals: DailySalesDetailTotals }) {
+  return (
+    <>
+      <DetailPrintMoneyCell value={totals.sellingPrice} />
+      <td className="is-right">
+        {totals.quantity?.toLocaleString("en-US") ?? ""}
+      </td>
+      <DetailPrintMoneyCell value={totals.topping} />
+      <DetailPrintMoneyCell value={totals.amount} />
+      <DetailPrintMoneyCell value={totals.discount} />
+      <DetailPrintMoneyCell value={totals.total} />
+    </>
+  );
+}
+
+function DetailPrintMoneyCell({ value }: { value: number | null }) {
+  return <td className="is-right">{value === null ? "" : money(value)}</td>;
 }
 
 function SummaryPrintTable({

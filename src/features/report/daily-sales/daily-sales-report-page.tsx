@@ -33,7 +33,7 @@ export function DailySalesReportPage({
   const exportReportRef = useRef<HTMLDivElement>(null);
   const [summaryVisible, setSummaryVisible] = useState(false);
   const nativeApp = useIsCapacitorNativeApp();
-  const report = useDailySalesReportWorkflow(exportReportRef, initialPagination);
+  const report = useDailySalesReportWorkflow(exportReportRef, initialPagination, summaryVisible);
   const layoutStyle = {
     "--daily-sales-filter-height": "0px",
   } as CSSProperties;
@@ -147,10 +147,9 @@ export function DailySalesReportPage({
               exporting: report.exporting,
               loading: report.loading,
               printDisabled:
-                report.appliedFilters.typePage === "bill" ||
                 report.loading ||
                 Boolean(report.exporting) ||
-                !report.selectedBillCount ||
+                !report.branchUuid ||
                 nativeApp,
               search: report.appliedFilters.search,
               selectedCount: report.selectedCount,
@@ -220,11 +219,11 @@ export function DailySalesReportPage({
           columns={report.columns}
           containerRef={exportReportRef}
           dateRange={`${report.appliedFilters.dateFrom} - ${report.appliedFilters.dateTo}`}
-          dateTotals={report.renderedExportData.grandTotalByDate}
           itemColumns={report.detailItemColumns}
           noLabel={t("fields.no")}
           reportTotal={report.renderedExportData.reportTotal}
           rows={report.renderedExportData.rows}
+          showSummary={summaryVisible}
           rowsLabel={
             report.appliedFilters.typePage === "detail"
               ? t("report.detailGroupedCount", {

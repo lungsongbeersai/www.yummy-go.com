@@ -26,7 +26,7 @@ export function BestSellingProductsReportPage({ initialPagination }: { initialPa
   const exportReportRef = useRef<HTMLDivElement>(null);
   const [summaryVisible, setSummaryVisible] = useState(false);
   const nativeApp = useIsCapacitorNativeApp();
-  const report = useBestSellingProductsReportWorkflow(exportReportRef, initialPagination);
+  const report = useBestSellingProductsReportWorkflow(exportReportRef, initialPagination, summaryVisible);
   const layoutStyle = {
     "--best-selling-filter-height": "0px"
   } as CSSProperties;
@@ -189,6 +189,7 @@ export function BestSellingProductsReportPage({ initialPagination }: { initialPa
           rowsLabel={t("report.bestSelling.rowsLabel", {
             count: report.renderedExportData.rows.length,
           })}
+          showSummary={summaryVisible}
           sortByLabel={report.sortByLabel}
           summary={report.renderedExportData.summary}
           title={t("report.bestSelling.title")}

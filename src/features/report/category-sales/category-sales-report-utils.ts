@@ -6,6 +6,11 @@ import {
 import type { ApiEntity } from "@/services/shared/types";
 import type { CategorySalesGroup, CategorySalesRow } from "@/stores/report-store";
 import type {
+  ReportExcelCellStyle,
+  ReportExcelGridRow,
+  ReportExcelGridSection
+} from "../report-excel-utils";
+import type {
   CategorySalesMetricKind,
   CategorySalesOption,
   CategorySalesReportFilters,
@@ -129,18 +134,94 @@ export function waitForPaint() {
   });
 }
 
-export function exportCategorySalesRows(
-  rows: CategorySalesRow[],
+// สไตล์ตาราง Excel แบบจัดกลุ่ม: แถวหัวกลุ่มถือยอดรวมของกลุ่มไว้ในตัว
+const GROUPED_TABLE_HEADER_STYLE = {
+  align: "center",
+  bold: true,
+  fill: "#1F4E78",
+  fontColor: "#FFFFFF"
+} as const satisfies ReportExcelCellStyle;
+
+const GROUP_ROW_STYLE = {
+  bold: true,
+  fill: "#DEE8F4"
+} as const satisfies ReportExcelCellStyle;
+
+const GRAND_TOTAL_ROW_STYLE = {
+  bold: true,
+  fill: "#D9E2F3"
+} as const satisfies ReportExcelCellStyle;
+
+// summary ของ API ไม่มี key discount_total ตรงๆ ต้องรวมส่วนลดรายการ + ส่วนลดบิล
+export function categorySalesSummaryDiscountTotal(summary: ApiEntity) {
+  return (
+    firstNumber(summary.discount_item_amount) + firstNumber(summary.discount_bill)
+  );
+}
+
+function summaryMetricValue(summary: ApiEntity, key: string) {
+  if (key === "discount_total") return categorySalesSummaryDiscountTotal(summary);
+  return firstNumber(summary[key]);
+}
+
+// ตารางเดียวจัดกลุ่มตามกลุ่มสินค้า เหมือนหน้าจอ: แถวกลุ่ม (พร้อมยอดรวมกลุ่ม)
+// → สินค้าในกลุ่ม → ปิดท้ายด้วยยอดรวมทั้งรายงาน
+export function categorySalesGroupedSection(
+  groups: CategorySalesGroup[],
+  summary: ApiEntity,
   t: (key: string) => string,
   labelOverrides?: CategorySalesLabelOverrides
-) {
+): ReportExcelGridSection {
   const metrics = categorySalesRowMetricConfigs(t, labelOverrides);
-  return rows.map((row) => ({
-    [t("report.categorySales.columns.group")]: row.groupName,
-    [t("report.categorySales.columns.category")]: row.cateName,
-    [t("report.categorySales.columns.product")]: row.productName,
-    ...Object.fromEntries(metrics.map((metric) => [metric.label, Number(row[metric.field] ?? 0)]))
-  }));
+  const headers = [
+    t("report.categorySales.columns.product"),
+    t("report.categorySales.columns.category"),
+    ...metrics.map((metric) => metric.label)
+  ];
+  const rows: ReportExcelGridRow[] = [
+    {
+      cells: headers.map((header) => ({ value: header })),
+      style: GROUPED_TABLE_HEADER_STYLE
+    }
+  ];
+
+  groups.forEach((group) => {
+    rows.push({
+      cells: [
+        { colSpan: 2, value: group.groupName },
+        ...metrics.map((metric) => ({
+          value: summaryMetricValue(group.summary, metric.key)
+        }))
+      ],
+      style: GROUP_ROW_STYLE
+    });
+    group.rows.forEach((row) => {
+      rows.push({
+        cells: [
+          { value: row.productName },
+          { value: row.cateName },
+          ...metrics.map((metric) => ({ value: firstNumber(row[metric.field]) }))
+        ]
+      });
+    });
+  });
+
+  rows.push({
+    cells: [
+      { colSpan: 2, value: t("report.summary") },
+      ...metrics.map((metric) => ({ value: summaryMetricValue(summary, metric.key) }))
+    ],
+    style: GRAND_TOTAL_ROW_STYLE
+  });
+
+  return {
+    grid: {
+      columnCount: headers.length,
+      columnWidths: [34, 20, 10, 10, 17, 14, 15, 14, 16, 13, 16],
+      rows
+    },
+    title: t("report.excel.rows")
+  };
 }
 
 export function exportSummaryRows(

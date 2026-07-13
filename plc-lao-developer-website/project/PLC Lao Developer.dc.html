@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PLC Lao Developer — Web Apps, Mobile Apps & Business Systems</title>
+  <meta name="description" content="Founded in 2002, PLC Lao Developer creates scalable digital solutions for restaurants, insurance businesses, and modern companies.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&amp;family=Noto+Sans+Lao:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+  <style>
+    html { scroll-behavior: smooth; }
+    body { margin: 0; background: #050810; color: #93a5c8; font-family: 'Space Grotesk', 'Noto Sans Lao', sans-serif; -webkit-font-smoothing: antialiased; }
+    a { color: #7cb7ff; text-decoration: none; }
+    a:hover { color: #a8d0ff; }
+    ::placeholder { color: #4a5c80; opacity: 1; }
+    ::selection { background: rgba(59,130,246,0.4); color: #eaf2ff; }
+    @keyframes floatY { 0%,100% { transform: translateY(0px) rotate(var(--rot, 0deg)); } 50% { transform: translateY(-22px) rotate(var(--rot, 0deg)); } }
+    @keyframes floatPanelA { 0%,100% { transform: perspective(900px) rotateX(12deg) rotateY(-16deg) translateY(0); } 50% { transform: perspective(900px) rotateX(9deg) rotateY(-12deg) translateY(-18px); } }
+    @keyframes floatPanelB { 0%,100% { transform: perspective(900px) rotateX(-8deg) rotateY(18deg) translateY(0); } 50% { transform: perspective(900px) rotateX(-5deg) rotateY(14deg) translateY(-26px); } }
+    @keyframes floatPanelC { 0%,100% { transform: perspective(900px) rotateX(20deg) rotateY(8deg) translateY(0); } 50% { transform: perspective(900px) rotateX(16deg) rotateY(4deg) translateY(-14px); } }
+    @keyframes ringSpin { from { transform: rotateX(68deg) rotateZ(0deg); } to { transform: rotateX(68deg) rotateZ(360deg); } }
+    @keyframes pulseGlow { 0%,100% { opacity: 0.55; } 50% { opacity: 1; } }
+    @keyframes particleFloat { 0%,100% { transform: translateY(0) translateX(0); } 33% { transform: translateY(-34px) translateX(14px); } 66% { transform: translateY(-10px) translateX(-12px); } }
+    @keyframes gridScroll { from { background-position: 0 0; } to { background-position: 0 56px; } }
+    @keyframes shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(240%); } }
+    @keyframes orbDrift { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(30px,-40px) scale(1.08); } }
+  </style>
+</helmet>
+
+<div data-screen-label="PLC Lao Developer site" style="min-height: 100vh; background: #050810; overflow-x: clip;">
+
+  <!-- ============ HEADER ============ -->
+  <header style="position: fixed; top: 0; left: 0; right: 0; z-index: 60; display: flex; align-items: center; gap: 20px; padding: 14px clamp(16px, 4vw, 48px); background: rgba(6,10,20,0.6); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); border-bottom: 1px solid rgba(96,165,250,0.14);">
+    <a href="#top" style="display: flex; align-items: center; gap: 12px; color: #eaf2ff;">
+      <div style="width: 40px; height: 40px; border-radius: 10px; border: 1px dashed rgba(124,183,255,0.55); display: grid; place-items: center; font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #6f8ec4; background: rgba(59,130,246,0.08);">LOGO</div>
+      <span style="font-weight: 700; font-size: 17px; letter-spacing: 0.2px; color: #eaf2ff; white-space: nowrap;">{{ companyName }}</span>
+    </a>
+    <nav style="display: flex; gap: 4px; margin-left: auto; flex-wrap: wrap; justify-content: flex-end;">
+      <sc-for list="{{ nav }}" as="n" hint-placeholder-count="6">
+        <a href="{{ n.href }}" style="padding: 8px 14px; border-radius: 10px; font-size: 14px; color: #a9bce0;" style-hover="color: #eaf2ff; background: rgba(96,165,250,0.12);">{{ n.label }}</a>
+      </sc-for>
+    </nav>
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <div style="display: flex; gap: 2px; padding: 3px; border-radius: 10px; border: 1px solid rgba(96,165,250,0.25); background: rgba(10,18,36,0.7);">
+        <button onClick="{{ setLo }}" style="{{ loBtnStyle }}">LA</button>
+        <button onClick="{{ setEn }}" style="{{ enBtnStyle }}">EN</button>
+      </div>
+      <a href="#contact" style="padding: 10px 18px; border-radius: 12px; font-size: 14px; font-weight: 600; color: #04101f; background: linear-gradient(135deg, #60a5fa, #22d3ee); box-shadow: 0 0 24px rgba(59,130,246,0.45); white-space: nowrap;" style-hover="box-shadow: 0 0 38px rgba(59,130,246,0.75); transform: translateY(-1px);">{{ navCta }}</a>
+    </div>
+  </header>
+
+  <!-- ============ HERO ============ -->
+  <section id="top" data-screen-label="Hero" style="position: relative; min-height: 100vh; display: flex; align-items: center; justify-content: center; overflow: hidden; padding: 140px clamp(16px, 5vw, 64px) 100px;">
+    <!-- animated background layers -->
+    <div data-parallax="0.25" style="position: absolute; inset: -20% -10%; background: radial-gradient(ellipse 60% 45% at 50% 32%, rgba(37,99,235,0.32), transparent 65%), radial-gradient(ellipse 40% 35% at 18% 70%, rgba(34,211,238,0.12), transparent 70%), radial-gradient(ellipse 45% 40% at 85% 60%, rgba(59,130,246,0.14), transparent 70%); pointer-events: none;"></div>
+    <div data-parallax="0.15" style="position: absolute; left: 0; right: 0; bottom: -12%; height: 55%; background-image: linear-gradient(rgba(96,165,250,0.16) 1px, transparent 1px), linear-gradient(90deg, rgba(96,165,250,0.16) 1px, transparent 1px); background-size: 56px 56px; transform: perspective(700px) rotateX(64deg); transform-origin: 50% 100%; animation: gridScroll 3.2s linear infinite; mask-image: linear-gradient(to top, rgba(0,0,0,0.85), transparent 85%); -webkit-mask-image: linear-gradient(to top, rgba(0,0,0,0.85), transparent 85%); pointer-events: none;"></div>
+    <div style="position: absolute; width: 520px; height: 520px; border-radius: 50%; left: -160px; top: 8%; background: radial-gradient(circle, rgba(37,99,235,0.25), transparent 60%); filter: blur(20px); animation: orbDrift 14s ease-in-out infinite; pointer-events: none;"></div>
+    <div style="position: absolute; width: 420px; height: 420px; border-radius: 50%; right: -120px; bottom: 4%; background: radial-gradient(circle, rgba(34,211,238,0.18), transparent 60%); filter: blur(20px); animation: orbDrift 18s ease-in-out infinite reverse; pointer-events: none;"></div>
+
+    <!-- particles -->
+    <sc-if value="{{ showParticles }}" hint-placeholder-val="{{ true }}">
+      <div style="position: absolute; inset: 0; pointer-events: none;">
+        <sc-for list="{{ particles }}" as="p" hint-placeholder-count="0">
+          <div style="{{ p.style }}"></div>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    <!-- floating 3D objects -->
+    <sc-if value="{{ showFloat }}" hint-placeholder-val="{{ true }}">
+      <div style="position: absolute; inset: 0; pointer-events: none;">
+        <!-- dashboard panel left -->
+        <div style="position: absolute; left: clamp(-60px, 4vw, 120px); top: 22%; width: 210px; border-radius: 16px; padding: 16px; background: rgba(13,24,48,0.55); border: 1px solid rgba(96,165,250,0.3); backdrop-filter: blur(10px); box-shadow: 0 30px 60px rgba(2,6,18,0.6), 0 0 40px rgba(59,130,246,0.18); animation: floatPanelA 9s ease-in-out infinite;">
+          <div style="display: flex; gap: 5px; margin-bottom: 12px;"><div style="width: 7px; height: 7px; border-radius: 50%; background: #60a5fa;"></div><div style="width: 7px; height: 7px; border-radius: 50%; background: rgba(96,165,250,0.4);"></div><div style="width: 7px; height: 7px; border-radius: 50%; background: rgba(96,165,250,0.2);"></div></div>
+          <div style="display: flex; align-items: flex-end; gap: 7px; height: 58px;">
+            <div style="flex: 1; height: 40%; border-radius: 4px 4px 0 0; background: linear-gradient(to top, rgba(59,130,246,0.25), rgba(96,165,250,0.75));"></div>
+            <div style="flex: 1; height: 70%; border-radius: 4px 4px 0 0; background: linear-gradient(to top, rgba(59,130,246,0.25), rgba(96,165,250,0.75));"></div>
+            <div style="flex: 1; height: 52%; border-radius: 4px 4px 0 0; background: linear-gradient(to top, rgba(59,130,246,0.25), rgba(96,165,250,0.75));"></div>
+            <div style="flex: 1; height: 92%; border-radius: 4px 4px 0 0; background: linear-gradient(to top, rgba(34,211,238,0.3), rgba(34,211,238,0.85)); box-shadow: 0 0 14px rgba(34,211,238,0.6);"></div>
+            <div style="flex: 1; height: 64%; border-radius: 4px 4px 0 0; background: linear-gradient(to top, rgba(59,130,246,0.25), rgba(96,165,250,0.75));"></div>
+          </div>
+          <div style="margin-top: 12px; height: 6px; border-radius: 3px; background: rgba(96,165,250,0.2);"></div>
+          <div style="margin-top: 6px; height: 6px; width: 60%; border-radius: 3px; background: rgba(96,165,250,0.35);"></div>
+        </div>
+        <!-- code panel right -->
+        <div style="position: absolute; right: clamp(-70px, 3vw, 100px); top: 18%; width: 230px; border-radius: 16px; padding: 16px; background: rgba(13,24,48,0.55); border: 1px solid rgba(96,165,250,0.3); backdrop-filter: blur(10px); box-shadow: 0 30px 60px rgba(2,6,18,0.6), 0 0 40px rgba(59,130,246,0.18); animation: floatPanelB 11s ease-in-out infinite; font-family: 'JetBrains Mono', monospace; font-size: 10px; line-height: 1.9;">
+          <div style="color: #38bdf8;">const <span style="color: #eaf2ff;">system</span> = {</div>
+          <div style="color: #7d93bd; padding-left: 14px;">pos: <span style="color: #60a5fa;">true</span>,</div>
+          <div style="color: #7d93bd; padding-left: 14px;">reports: <span style="color: #60a5fa;">live</span>,</div>
+          <div style="color: #7d93bd; padding-left: 14px;">scale: <span style="color: #22d3ee;">"cloud"</span></div>
+          <div style="color: #38bdf8;">}</div>
+        </div>
+        <!-- mobile panel bottom right -->
+        <div style="position: absolute; right: clamp(20px, 14vw, 280px); bottom: 12%; width: 110px; border-radius: 18px; padding: 12px 10px; background: rgba(13,24,48,0.55); border: 1px solid rgba(96,165,250,0.3); backdrop-filter: blur(10px); box-shadow: 0 30px 60px rgba(2,6,18,0.6), 0 0 32px rgba(34,211,238,0.16); animation: floatPanelC 10s ease-in-out infinite;">
+          <div style="width: 34px; height: 4px; border-radius: 2px; background: rgba(96,165,250,0.4); margin: 0 auto 10px;"></div>
+          <div style="height: 44px; border-radius: 10px; background: linear-gradient(135deg, rgba(59,130,246,0.35), rgba(34,211,238,0.25)); margin-bottom: 8px;"></div>
+          <div style="height: 6px; border-radius: 3px; background: rgba(96,165,250,0.3); margin-bottom: 5px;"></div>
+          <div style="height: 6px; width: 70%; border-radius: 3px; background: rgba(96,165,250,0.18);"></div>
+        </div>
+        <!-- glowing ring -->
+        <div style="position: absolute; left: clamp(20px, 12vw, 240px); bottom: 16%; width: 150px; height: 150px; border-radius: 50%; border: 2px solid rgba(96,165,250,0.5); box-shadow: 0 0 40px rgba(59,130,246,0.4), inset 0 0 30px rgba(59,130,246,0.25); animation: ringSpin 16s linear infinite;"></div>
+        <div style="position: absolute; left: 50%; top: 12%; width: 14px; height: 14px; border-radius: 50%; background: #60a5fa; box-shadow: 0 0 26px 8px rgba(96,165,250,0.55); animation: pulseGlow 4s ease-in-out infinite;"></div>
+      </div>
+    </sc-if>
+
+    <!-- hero content -->
+    <div style="position: relative; z-index: 2; max-width: 980px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 28px;">
+      <div style="display: inline-flex; align-items: center; gap: 10px; padding: 8px 18px; border-radius: 999px; border: 1px solid rgba(96,165,250,0.35); background: rgba(13,24,48,0.5); backdrop-filter: blur(10px); font-family: 'JetBrains Mono', monospace; font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase; color: #7cb7ff;">
+        <span style="width: 8px; height: 8px; border-radius: 50%; background: #22d3ee; box-shadow: 0 0 12px rgba(34,211,238,0.9); animation: pulseGlow 2.5s ease-in-out infinite;"></span>
+        {{ heroBadge }}
+      </div>
+      <h1 style="margin: 0; font-size: clamp(38px, 6vw, 76px); line-height: 1.08; font-weight: 700; letter-spacing: -1.5px; color: #eaf2ff; text-wrap: balance; text-shadow: 0 0 60px rgba(59,130,246,0.35);">{{ tagline }}</h1>
+      <p style="margin: 0; max-width: 640px; font-size: clamp(16px, 1.6vw, 19px); line-height: 1.7; color: #9db0d6; text-wrap: pretty;">{{ heroDescription }}</p>
+      <div style="display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; margin-top: 8px;">
+        <a href="#projects" style="padding: 15px 30px; border-radius: 14px; font-size: 16px; font-weight: 600; color: #04101f; background: linear-gradient(135deg, #60a5fa, #22d3ee); box-shadow: 0 0 34px rgba(59,130,246,0.5), 0 12px 30px rgba(2,6,18,0.5);" style-hover="box-shadow: 0 0 54px rgba(59,130,246,0.85), 0 12px 30px rgba(2,6,18,0.5); transform: translateY(-2px);">{{ btnExplore }}</a>
+        <a href="#tutorials" style="padding: 15px 30px; border-radius: 14px; font-size: 16px; font-weight: 600; color: #cfe2ff; border: 1px solid rgba(96,165,250,0.45); background: rgba(13,24,48,0.5); backdrop-filter: blur(10px);" style-hover="border-color: rgba(124,183,255,0.9); box-shadow: 0 0 28px rgba(59,130,246,0.35); transform: translateY(-2px);">{{ btnTutorials }}</a>
+        <a href="#contact" style="padding: 15px 30px; border-radius: 14px; font-size: 16px; font-weight: 600; color: #9db0d6;" style-hover="color: #eaf2ff;">{{ btnContact }} →</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ ABOUT ============ -->
+  <section id="about" data-screen-label="About" style="position: relative; padding: 110px clamp(16px, 5vw, 64px); scroll-margin-top: 80px; max-width: 1200px; margin: 0 auto;">
+    <div data-reveal style="transition: opacity 0.7s ease, transform 0.7s ease; display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 56px; align-items: center;">
+      <div>
+        <div style="font-family: 'JetBrains Mono', monospace; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: #38bdf8; margin-bottom: 16px;">{{ aboutKicker }}</div>
+        <h2 style="margin: 0 0 20px; font-size: clamp(30px, 3.6vw, 46px); line-height: 1.15; font-weight: 700; letter-spacing: -1px; color: #eaf2ff; text-wrap: balance;">{{ aboutTitle }}</h2>
+        <p style="margin: 0; font-size: 17px; line-height: 1.8; color: #9db0d6; text-wrap: pretty;">{{ aboutText }}</p>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px;">
+        <sc-for list="{{ highlights }}" as="h" hint-placeholder-count="5">
+          <div style="padding: 22px 20px; border-radius: 18px; background: rgba(13,24,48,0.45); border: 1px solid rgba(96,165,250,0.2); backdrop-filter: blur(14px); display: flex; flex-direction: column; gap: 12px; transition: transform 0.35s ease, box-shadow 0.35s ease, border-color 0.35s ease;" style-hover="transform: translateY(-4px); box-shadow: 0 0 34px rgba(59,130,246,0.28); border-color: rgba(124,183,255,0.5);">
+            <div style="width: 36px; height: 36px; border-radius: 10px; background: linear-gradient(135deg, rgba(59,130,246,0.35), rgba(34,211,238,0.2)); border: 1px solid rgba(96,165,250,0.35); display: grid; place-items: center; font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #a8d0ff; text-transform: uppercase;">{{ h.icon }}</div>
+            <div style="font-size: 15px; font-weight: 600; color: #dce8ff; line-height: 1.4;">{{ h.title }}</div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SERVICES ============ -->
+  <section id="services" data-screen-label="Services" style="position: relative; padding: 110px clamp(16px, 5vw, 64px); scroll-margin-top: 80px; background: linear-gradient(180deg, transparent, rgba(13,24,52,0.45) 20%, rgba(13,24,52,0.45) 80%, transparent);">
+    <div style="max-width: 1200px; margin: 0 auto;">
+      <div data-reveal style="transition: opacity 0.7s ease, transform 0.7s ease; text-align: center; margin-bottom: 56px;">
+        <div style="font-family: 'JetBrains Mono', monospace; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: #38bdf8; margin-bottom: 16px;">{{ servicesKicker }}</div>
+        <h2 style="margin: 0; font-size: clamp(30px, 3.6vw, 46px); font-weight: 700; letter-spacing: -1px; color: #eaf2ff;">{{ servicesTitle }}</h2>
+      </div>
+      <div data-reveal style="transition: opacity 0.7s ease, transform 0.7s ease; display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 18px;">
+        <sc-for list="{{ services }}" as="s" hint-placeholder-count="8">
+          <div style="position: relative; padding: 28px 24px; border-radius: 20px; background: rgba(13,24,48,0.5); border: 1px solid rgba(96,165,250,0.18); backdrop-filter: blur(14px); overflow: hidden; transition: transform 0.35s ease, box-shadow 0.35s ease, border-color 0.35s ease;" style-hover="transform: translateY(-6px) scale(1.015); box-shadow: 0 18px 50px rgba(2,6,18,0.6), 0 0 40px rgba(59,130,246,0.3); border-color: rgba(124,183,255,0.55);">
+            <div style="position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(124,183,255,0.7), transparent);"></div>
+            <div style="width: 46px; height: 46px; border-radius: 13px; margin-bottom: 18px; background: linear-gradient(135deg, rgba(59,130,246,0.4), rgba(34,211,238,0.2)); border: 1px solid rgba(96,165,250,0.4); box-shadow: 0 0 22px rgba(59,130,246,0.3); display: grid; place-items: center; font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #cfe2ff; text-transform: uppercase;">{{ s.icon }}</div>
+            <div style="font-size: 17px; font-weight: 600; color: #eaf2ff; margin-bottom: 10px; line-height: 1.35;">{{ s.title }}</div>
+            <div style="font-size: 14px; line-height: 1.65; color: #8ea1c7;">{{ s.description }}</div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ PROJECTS ============ -->
+  <section id="projects" data-screen-label="Projects" style="position: relative; padding: 110px clamp(16px, 5vw, 64px); scroll-margin-top: 80px; max-width: 1240px; margin: 0 auto;">
+    <div data-reveal style="transition: opacity 0.7s ease, transform 0.7s ease; text-align: center; margin-bottom: 56px;">
+      <div style="font-family: 'JetBrains Mono', monospace; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: #38bdf8; margin-bottom: 16px;">{{ projectsKicker }}</div>
+      <h2 style="margin: 0; font-size: clamp(30px, 3.6vw, 46px); font-weight: 700; letter-spacing: -1px; color: #eaf2ff;">{{ projectsTitle }}</h2>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(460px, 100%), 1fr)); gap: 28px;">
+      <sc-for list="{{ projects }}" as="pr" hint-placeholder-count="2">
+        <div data-reveal style="transition: opacity 0.7s ease, transform 0.7s ease, box-shadow 0.4s ease, border-color 0.4s ease; position: relative; border-radius: 26px; background: linear-gradient(160deg, rgba(17,30,60,0.75), rgba(9,15,32,0.85)); border: 1px solid rgba(96,165,250,0.22); backdrop-filter: blur(16px); overflow: hidden;" style-hover="box-shadow: 0 30px 70px rgba(2,6,18,0.7), 0 0 60px rgba(59,130,246,0.35); border-color: rgba(124,183,255,0.6);">
+          <div style="position: absolute; top: -80px; right: -80px; width: 260px; height: 260px; border-radius: 50%; background: radial-gradient(circle, rgba(59,130,246,0.28), transparent 65%); pointer-events: none;"></div>
+          <!-- screenshot placeholder -->
+          <div style="position: relative; margin: 22px 22px 0; height: 250px; border-radius: 18px; border: 1px dashed rgba(124,183,255,0.4); background: repeating-linear-gradient(-45deg, rgba(96,165,250,0.07) 0 14px, rgba(96,165,250,0.02) 14px 28px); display: grid; place-items: center; overflow: hidden;">
+            <div style="position: absolute; inset: 0; overflow: hidden; pointer-events: none;"><div style="position: absolute; top: 0; bottom: 0; width: 40%; background: linear-gradient(90deg, transparent, rgba(124,183,255,0.06), transparent); animation: shimmer 3.5s ease-in-out infinite;"></div></div>
+            <div style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #6f8ec4; text-align: center; line-height: 2;">[ project screenshot ]<br>{{ pr.name }}</div>
+          </div>
+          <div style="position: relative; padding: 26px 28px 30px; display: flex; flex-direction: column; gap: 16px;">
+            <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+              <h3 style="margin: 0; font-size: 27px; font-weight: 700; letter-spacing: -0.5px; color: #eaf2ff;">{{ pr.name }}</h3>
+              <span style="padding: 5px 13px; border-radius: 999px; font-family: 'JetBrains Mono', monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #7cd6f0; border: 1px solid rgba(34,211,238,0.4); background: rgba(34,211,238,0.08);">{{ pr.category }}</span>
+            </div>
+            <p style="margin: 0; font-size: 15px; line-height: 1.7; color: #9db0d6; text-wrap: pretty;">{{ pr.description }}</p>
+            <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+              <sc-for list="{{ pr.features }}" as="f" hint-placeholder-count="5">
+                <span style="padding: 6px 13px; border-radius: 999px; font-size: 12.5px; color: #a9bce0; border: 1px solid rgba(96,165,250,0.25); background: rgba(59,130,246,0.08);">{{ f }}</span>
+              </sc-for>
+            </div>
+            <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-top: 6px;">
+              <a href="#contact" style="padding: 12px 22px; border-radius: 12px; font-size: 14px; font-weight: 600; color: #04101f; background: linear-gradient(135deg, #60a5fa, #22d3ee); box-shadow: 0 0 22px rgba(59,130,246,0.4);" style-hover="box-shadow: 0 0 36px rgba(59,130,246,0.7); transform: translateY(-1px);">{{ btnViewProject }}</a>
+              <a href="#tutorials" style="padding: 12px 22px; border-radius: 12px; font-size: 14px; font-weight: 600; color: #cfe2ff; border: 1px solid rgba(96,165,250,0.4); background: rgba(13,24,48,0.5);" style-hover="border-color: rgba(124,183,255,0.8); box-shadow: 0 0 20px rgba(59,130,246,0.3);">{{ btnWatchTutorial }}</a>
+              <a href="#contact" style="padding: 12px 18px; border-radius: 12px; font-size: 14px; font-weight: 600; color: #8ea1c7;" style-hover="color: #eaf2ff;">{{ btnRequestDemo }} →</a>
+            </div>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <!-- ============ TUTORIALS ============ -->
+  <section id="tutorials" data-screen-label="Tutorial videos" style="position: relative; padding: 110px clamp(16px, 5vw, 64px); scroll-margin-top: 80px; background: linear-gradient(180deg, transparent, rgba(13,24,52,0.45) 20%, rgba(13,24,52,0.45) 80%, transparent);">
+    <div style="max-width: 1200px; margin: 0 auto;">
+      <div data-reveal style="transition: opacity 0.7s ease, transform 0.7s ease; text-align: center; margin-bottom: 36px;">
+        <div style="font-family: 'JetBrains Mono', monospace; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: #38bdf8; margin-bottom: 16px;">▶</div>
+        <h2 style="margin: 0 0 14px; font-size: clamp(30px, 3.6vw, 46px); font-weight: 700; letter-spacing: -1px; color: #eaf2ff;">{{ tutorialsTitle }}</h2>
+        <p style="margin: 0; font-size: 16px; color: #9db0d6;">{{ tutorialsSubtitle }}</p>
+      </div>
+      <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-bottom: 40px;">
+        <sc-for list="{{ videoFilters }}" as="vf" hint-placeholder-count="3">
+          <button onClick="{{ vf.onClick }}" style="{{ vf.style }}">{{ vf.label }}</button>
+        </sc-for>
+      </div>
+      <div data-reveal style="transition: opacity 0.7s ease, transform 0.7s ease; display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 20px;">
+        <sc-for list="{{ videos }}" as="v" hint-placeholder-count="4">
+          <div style="border-radius: 20px; background: rgba(13,24,48,0.5); border: 1px solid rgba(96,165,250,0.18); backdrop-filter: blur(14px); overflow: hidden; transition: transform 0.35s ease, box-shadow 0.35s ease, border-color 0.35s ease;" style-hover="transform: translateY(-5px); box-shadow: 0 16px 44px rgba(2,6,18,0.6), 0 0 36px rgba(59,130,246,0.3); border-color: rgba(124,183,255,0.55);">
+            <div style="position: relative; height: 155px; background: repeating-linear-gradient(-45deg, rgba(96,165,250,0.08) 0 14px, rgba(96,165,250,0.02) 14px 28px); border-bottom: 1px solid rgba(96,165,250,0.15); display: grid; place-items: center;">
+              <div style="width: 56px; height: 56px; border-radius: 50%; background: rgba(6,12,26,0.75); border: 1px solid rgba(124,183,255,0.6); backdrop-filter: blur(6px); box-shadow: 0 0 28px rgba(59,130,246,0.5); display: grid; place-items: center; transition: transform 0.3s ease, box-shadow 0.3s ease;" style-hover="transform: scale(1.12); box-shadow: 0 0 44px rgba(59,130,246,0.85);">
+                <div style="width: 0; height: 0; border-left: 16px solid #a8d0ff; border-top: 10px solid transparent; border-bottom: 10px solid transparent; margin-left: 4px;"></div>
+              </div>
+              <span style="position: absolute; bottom: 10px; right: 10px; padding: 3px 9px; border-radius: 7px; background: rgba(4,8,18,0.8); font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #a9bce0;">{{ v.duration }}</span>
+              <span style="position: absolute; top: 10px; left: 10px; padding: 3px 10px; border-radius: 999px; font-family: 'JetBrains Mono', monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #7cd6f0; background: rgba(34,211,238,0.12); border: 1px solid rgba(34,211,238,0.3);">{{ v.category }}</span>
+            </div>
+            <div style="padding: 18px 20px 22px; display: flex; flex-direction: column; gap: 8px;">
+              <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #38bdf8; text-transform: uppercase; letter-spacing: 1px;">{{ v.projectName }}</div>
+              <div style="font-size: 16px; font-weight: 600; color: #eaf2ff; line-height: 1.4;">{{ v.title }}</div>
+              <div style="font-size: 13.5px; line-height: 1.6; color: #8ea1c7;">{{ v.description }}</div>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ WHY CHOOSE US ============ -->
+  <section id="why" data-screen-label="Why choose us" style="position: relative; padding: 110px clamp(16px, 5vw, 64px); scroll-margin-top: 80px; max-width: 1200px; margin: 0 auto;">
+    <div data-reveal style="transition: opacity 0.7s ease, transform 0.7s ease; text-align: center; margin-bottom: 56px;">
+      <div style="font-family: 'JetBrains Mono', monospace; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: #38bdf8; margin-bottom: 16px;">{{ whyKicker }}</div>
+      <h2 style="margin: 0; font-size: clamp(30px, 3.6vw, 46px); font-weight: 700; letter-spacing: -1px; color: #eaf2ff;">{{ whyTitle }}</h2>
+    </div>
+    <div data-reveal style="transition: opacity 0.7s ease, transform 0.7s ease; display: flex; flex-wrap: wrap; justify-content: center; gap: 16px;">
+      <sc-for list="{{ why }}" as="w" hint-placeholder-count="7">
+        <div style="flex: 1 1 240px; max-width: 300px; padding: 24px 22px; border-radius: 18px; background: rgba(13,24,48,0.45); border: 1px solid rgba(96,165,250,0.2); backdrop-filter: blur(14px); display: flex; align-items: center; gap: 16px; transition: transform 0.35s ease, box-shadow 0.35s ease, border-color 0.35s ease;" style-hover="transform: translateY(-4px); box-shadow: 0 0 34px rgba(59,130,246,0.3); border-color: rgba(124,183,255,0.55);">
+          <div style="flex-shrink: 0; width: 42px; height: 42px; border-radius: 12px; background: linear-gradient(135deg, rgba(59,130,246,0.4), rgba(34,211,238,0.2)); border: 1px solid rgba(96,165,250,0.4); box-shadow: 0 0 18px rgba(59,130,246,0.3); display: grid; place-items: center; font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #cfe2ff; text-transform: uppercase;">{{ w.icon }}</div>
+          <div style="font-size: 15px; font-weight: 600; color: #dce8ff; line-height: 1.45;">{{ w.title }}</div>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <!-- ============ TECHNOLOGY ============ -->
+  <section id="technology" data-screen-label="Technology" style="position: relative; padding: 110px clamp(16px, 5vw, 64px); scroll-margin-top: 80px; background: linear-gradient(180deg, transparent, rgba(13,24,52,0.45) 20%, rgba(13,24,52,0.45) 80%, transparent);">
+    <div style="max-width: 1000px; margin: 0 auto;">
+      <div data-reveal style="transition: opacity 0.7s ease, transform 0.7s ease; text-align: center; margin-bottom: 48px;">
+        <div style="font-family: 'JetBrains Mono', monospace; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: #38bdf8; margin-bottom: 16px;">{{ techKicker }}</div>
+        <h2 style="margin: 0; font-size: clamp(30px, 3.6vw, 46px); font-weight: 700; letter-spacing: -1px; color: #eaf2ff;">{{ techTitle }}</h2>
+      </div>
+      <div data-reveal style="transition: opacity 0.7s ease, transform 0.7s ease; display: flex; flex-wrap: wrap; justify-content: center; gap: 14px;">
+        <sc-for list="{{ techs }}" as="t" hint-placeholder-count="8">
+          <div style="{{ t.style }}" style-hover="border-color: rgba(124,183,255,0.8); box-shadow: 0 0 30px rgba(59,130,246,0.45); color: #eaf2ff;">
+            <span style="width: 22px; height: 22px; border-radius: 6px; border: 1px dashed rgba(124,183,255,0.5); display: inline-grid; place-items: center; font-family: 'JetBrains Mono', monospace; font-size: 8px; color: #6f8ec4;">ic</span>
+            {{ t.name }}
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ CONTACT ============ -->
+  <section id="contact" data-screen-label="Contact" style="position: relative; padding: 110px clamp(16px, 5vw, 64px) 130px; scroll-margin-top: 80px; max-width: 1200px; margin: 0 auto;">
+    <div data-reveal style="transition: opacity 0.7s ease, transform 0.7s ease; text-align: center; margin-bottom: 56px;">
+      <div style="font-family: 'JetBrains Mono', monospace; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: #38bdf8; margin-bottom: 16px;">{{ contactKicker }}</div>
+      <h2 style="margin: 0 0 14px; font-size: clamp(30px, 3.6vw, 46px); font-weight: 700; letter-spacing: -1px; color: #eaf2ff;">{{ contactTitle }}</h2>
+      <p style="margin: 0; font-size: 16px; color: #9db0d6;">{{ contactSubtitle }}</p>
+    </div>
+    <div data-reveal style="transition: opacity 0.7s ease, transform 0.7s ease; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(420px, 100%), 1fr)); gap: 24px; align-items: start;">
+      <!-- form -->
+      <form onSubmit="{{ onSubmit }}" style="padding: 34px 32px; border-radius: 24px; background: rgba(13,24,48,0.5); border: 1px solid rgba(96,165,250,0.22); backdrop-filter: blur(16px); display: flex; flex-direction: column; gap: 16px; box-shadow: 0 20px 60px rgba(2,6,18,0.5);">
+        <label style="display: flex; flex-direction: column; gap: 8px; font-size: 13px; font-weight: 600; color: #a9bce0;">{{ fieldName }}
+          <input type="text" name="name" style="padding: 14px 16px; border-radius: 12px; border: 1px solid rgba(96,165,250,0.3); background: rgba(6,12,26,0.6); color: #eaf2ff; font-size: 15px; font-family: inherit; outline: none; transition: border-color 0.3s ease, box-shadow 0.3s ease;" style-focus="border-color: rgba(124,183,255,0.9); box-shadow: 0 0 18px rgba(59,130,246,0.3);">
+        </label>
+        <label style="display: flex; flex-direction: column; gap: 8px; font-size: 13px; font-weight: 600; color: #a9bce0;">{{ fieldEmail }}
+          <input type="text" name="contact" style="padding: 14px 16px; border-radius: 12px; border: 1px solid rgba(96,165,250,0.3); background: rgba(6,12,26,0.6); color: #eaf2ff; font-size: 15px; font-family: inherit; outline: none; transition: border-color 0.3s ease, box-shadow 0.3s ease;" style-focus="border-color: rgba(124,183,255,0.9); box-shadow: 0 0 18px rgba(59,130,246,0.3);">
+        </label>
+        <label style="display: flex; flex-direction: column; gap: 8px; font-size: 13px; font-weight: 600; color: #a9bce0;">{{ fieldMessage }}
+          <textarea name="message" rows="5" style="padding: 14px 16px; border-radius: 12px; border: 1px solid rgba(96,165,250,0.3); background: rgba(6,12,26,0.6); color: #eaf2ff; font-size: 15px; font-family: inherit; outline: none; resize: vertical; transition: border-color 0.3s ease, box-shadow 0.3s ease;" style-focus="border-color: rgba(124,183,255,0.9); box-shadow: 0 0 18px rgba(59,130,246,0.3);"></textarea>
+        </label>
+        <sc-if value="{{ formSent }}" hint-placeholder-val="{{ false }}">
+          <div style="padding: 13px 16px; border-radius: 12px; border: 1px solid rgba(34,211,238,0.4); background: rgba(34,211,238,0.08); font-size: 13.5px; line-height: 1.5; color: #7cd6f0;">{{ formNote }}</div>
+        </sc-if>
+        <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-top: 4px;">
+          <button type="submit" style="padding: 14px 26px; border-radius: 13px; border: none; cursor: pointer; font-family: inherit; font-size: 15px; font-weight: 600; color: #04101f; background: linear-gradient(135deg, #60a5fa, #22d3ee); box-shadow: 0 0 26px rgba(59,130,246,0.45); transition: box-shadow 0.3s ease, transform 0.3s ease;" style-hover="box-shadow: 0 0 42px rgba(59,130,246,0.8); transform: translateY(-1px);">{{ btnSend }}</button>
+          <button type="submit" style="padding: 14px 26px; border-radius: 13px; cursor: pointer; font-family: inherit; font-size: 15px; font-weight: 600; color: #cfe2ff; border: 1px solid rgba(96,165,250,0.4); background: rgba(13,24,48,0.5); transition: border-color 0.3s ease, box-shadow 0.3s ease;" style-hover="border-color: rgba(124,183,255,0.8); box-shadow: 0 0 20px rgba(59,130,246,0.3);">{{ btnCustom }}</button>
+        </div>
+      </form>
+      <!-- company contact card -->
+      <div style="padding: 34px 32px; border-radius: 24px; background: linear-gradient(160deg, rgba(17,30,60,0.7), rgba(9,15,32,0.8)); border: 1px solid rgba(96,165,250,0.22); backdrop-filter: blur(16px); display: flex; flex-direction: column; gap: 20px;">
+        <div style="font-size: 19px; font-weight: 700; color: #eaf2ff;">{{ contactCardTitle }}</div>
+        <sc-for list="{{ contactSlots }}" as="c" hint-placeholder-count="4">
+          <div style="display: flex; flex-direction: column; gap: 7px;">
+            <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: #38bdf8;">{{ c.label }}</div>
+            <div style="padding: 13px 16px; border-radius: 12px; border: 1px dashed rgba(124,183,255,0.35); background: rgba(6,12,26,0.4); font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #6f8ec4;">{{ c.value }}</div>
+          </div>
+        </sc-for>
+        <div style="display: flex; gap: 10px; margin-top: 2px;">
+          <div style="width: 42px; height: 42px; border-radius: 12px; border: 1px dashed rgba(124,183,255,0.35); background: rgba(6,12,26,0.4);"></div>
+          <div style="width: 42px; height: 42px; border-radius: 12px; border: 1px dashed rgba(124,183,255,0.35); background: rgba(6,12,26,0.4);"></div>
+          <div style="width: 42px; height: 42px; border-radius: 12px; border: 1px dashed rgba(124,183,255,0.35); background: rgba(6,12,26,0.4);"></div>
+          <div style="width: 42px; height: 42px; border-radius: 12px; border: 1px dashed rgba(124,183,255,0.35); background: rgba(6,12,26,0.4);"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ FOOTER ============ -->
+  <footer data-screen-label="Footer" style="border-top: 1px solid rgba(96,165,250,0.15); background: rgba(4,7,15,0.9); padding: 64px clamp(16px, 5vw, 64px) 32px;">
+    <div style="max-width: 1200px; margin: 0 auto;">
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 40px; margin-bottom: 48px;">
+        <div style="display: flex; flex-direction: column; gap: 16px;">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="width: 40px; height: 40px; border-radius: 10px; border: 1px dashed rgba(124,183,255,0.55); display: grid; place-items: center; font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #6f8ec4; background: rgba(59,130,246,0.08);">LOGO</div>
+            <span style="font-weight: 700; font-size: 16px; color: #eaf2ff;">{{ companyName }}</span>
+          </div>
+          <p style="margin: 0; font-size: 14px; line-height: 1.7; color: #7d93bd; max-width: 300px;">{{ footerDesc }}</p>
+          <div style="display: flex; gap: 2px; padding: 3px; border-radius: 10px; border: 1px solid rgba(96,165,250,0.25); background: rgba(10,18,36,0.7); width: fit-content;">
+            <button onClick="{{ setLo }}" style="{{ loBtnStyle }}">LA</button>
+            <button onClick="{{ setEn }}" style="{{ enBtnStyle }}">EN</button>
+          </div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: #38bdf8; margin-bottom: 4px;">{{ footerProjectsLabel }}</div>
+          <sc-for list="{{ projects }}" as="fp" hint-placeholder-count="2">
+            <a href="#projects" style="font-size: 14px; color: #8ea1c7;" style-hover="color: #dce8ff;">{{ fp.name }}</a>
+          </sc-for>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: #38bdf8; margin-bottom: 4px;">{{ footerServicesLabel }}</div>
+          <sc-for list="{{ footerServices }}" as="fs" hint-placeholder-count="4">
+            <a href="#services" style="font-size: 14px; color: #8ea1c7;" style-hover="color: #dce8ff;">{{ fs.title }}</a>
+          </sc-for>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: #38bdf8; margin-bottom: 4px;">{{ footerContactLabel }}</div>
+          <div style="padding: 12px 15px; border-radius: 11px; border: 1px dashed rgba(124,183,255,0.3); font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: #6f8ec4;">{{ placeholderTba }}</div>
+        </div>
+      </div>
+      <div style="border-top: 1px solid rgba(96,165,250,0.12); padding-top: 24px; text-align: center; font-size: 13px; color: #62759c;">{{ copyright }}</div>
+    </div>
+  </footer>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{
+  &quot;defaultLang&quot;: { &quot;editor&quot;: &quot;enum&quot;, &quot;options&quot;: [&quot;en&quot;, &quot;lo&quot;], &quot;default&quot;: &quot;en&quot;, &quot;tsType&quot;: &quot;\&quot;en\&quot; | \&quot;lo\&quot;&quot;, &quot;section&quot;: &quot;Content&quot; },
+  &quot;showFloatingObjects&quot;: { &quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: true, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;Hero effects&quot; },
+  &quot;showParticles&quot;: { &quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: true, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;Hero effects&quot; }
+}">
+class Component extends DCLogic {
+  state = { lang: null, videoFilter: "all", sent: false, data: null };
+
+  componentDidMount() {
+    import("./data.js")
+      .then((m) => this.setState({ data: m }))
+      .catch((e) => console.error("Failed to load site data:", e));
+
+    this._revealed = new WeakSet();
+    this._io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((en) => {
+          if (en.isIntersecting) {
+            const el = en.target;
+            this._revealed.add(el);
+            el.style.opacity = "1";
+            el.style.transform = "none";
+            this._io.unobserve(el);
+          }
+        });
+      },
+      { threshold: 0.1 }
+    );
+
+    this._onScroll = () => {
+      const y = window.scrollY;
+      document.querySelectorAll("[data-parallax]").forEach((el) => {
+        const speed = parseFloat(el.getAttribute("data-parallax")) || 0;
+        el.style.translate = "0 " + y * speed + "px";
+      });
+    };
+    window.addEventListener("scroll", this._onScroll, { passive: true });
+
+    setTimeout(() => this.setupReveal(), 80);
+  }
+
+  componentWillUnmount() {
+    window.removeEventListener("scroll", this._onScroll);
+    if (this._io) this._io.disconnect();
+  }
+
+  componentDidUpdate() {
+    setTimeout(() => this.setupReveal(), 60);
+  }
+
+  setupReveal() {
+    document.querySelectorAll("[data-reveal]").forEach((el) => {
+      if (this._revealed.has(el)) {
+        el.style.opacity = "1";
+        el.style.transform = "none";
+        return;
+      }
+      const r = el.getBoundingClientRect();
+      if (r.top > window.innerHeight * 0.92) {
+        el.style.opacity = "0";
+        el.style.transform = "translateY(28px)";
+        this._io.observe(el);
+      } else {
+        this._revealed.add(el);
+      }
+    });
+  }
+
+  getParticles() {
+    if (!this._particles) {
+      const arr = [];
+      for (let i = 0; i < 26; i++) {
+        const rnd = (n) => {
+          const x = Math.sin(i * 127.1 + n * 311.7) * 43758.5453;
+          return x - Math.floor(x);
+        };
+        const size = 2 + rnd(3) * 3;
+        arr.push({
+          style: {
+            position: "absolute",
+            left: rnd(1) * 100 + "%",
+            top: rnd(2) * 100 + "%",
+            width: size + "px",
+            height: size + "px",
+            borderRadius: "50%",
+            background: "#7cb7ff",
+            boxShadow: "0 0 8px 2px rgba(96,165,250,0.7)",
+            opacity: 0.2 + rnd(6) * 0.5,
+            animation:
+              "particleFloat " + (8 + rnd(5) * 10) + "s ease-in-out " + -rnd(4) * 12 + "s infinite",
+          },
+        });
+      }
+      this._particles = arr;
+    }
+    return this._particles;
+  }
+
+  renderVals() {
+    const d = this.state.data;
+    const lang = this.state.lang || this.props.defaultLang || "en";
+    const t = (obj, key) => (obj ? obj[key + "_" + lang] ?? obj[key + "_en"] : undefined);
+
+    const langBtn = (active) => ({
+      padding: "6px 11px",
+      borderRadius: "8px",
+      border: "none",
+      cursor: "pointer",
+      fontFamily: "'JetBrains Mono', monospace",
+      fontSize: "11.5px",
+      fontWeight: 600,
+      letterSpacing: "0.5px",
+      color: active ? "#04101f" : "#7d93bd",
+      background: active ? "linear-gradient(135deg, #60a5fa, #22d3ee)" : "transparent",
+      boxShadow: active ? "0 0 14px rgba(59,130,246,0.5)" : "none",
+      transition: "all 0.25s ease",
+    });
+
+    const filterBtn = (active) => ({
+      padding: "10px 22px",
+      borderRadius: "999px",
+      cursor: "pointer",
+      fontFamily: "inherit",
+      fontSize: "14px",
+      fontWeight: 600,
+      color: active ? "#04101f" : "#a9bce0",
+      border: active ? "1px solid transparent" : "1px solid rgba(96,165,250,0.35)",
+      background: active ? "linear-gradient(135deg, #60a5fa, #22d3ee)" : "rgba(13,24,48,0.5)",
+      boxShadow: active ? "0 0 24px rgba(59,130,246,0.55)" : "none",
+      transition: "all 0.3s ease",
+    });
+
+    const base = {
+      lang,
+      setEn: () => this.setState({ lang: "en" }),
+      setLo: () => this.setState({ lang: "lo" }),
+      enBtnStyle: langBtn(lang === "en"),
+      loBtnStyle: langBtn(lang === "lo"),
+      particles: this.getParticles(),
+      showParticles: this.props.showParticles ?? true,
+      showFloat: this.props.showFloatingObjects ?? true,
+      formSent: this.state.sent,
+      onSubmit: (e) => {
+        e.preventDefault();
+        this.setState({ sent: true });
+      },
+    };
+
+    if (!d) return base;
+
+    const ui = d.ui;
+    const projName = (id) => (d.projects.find((p) => p.id === id) || {}).name || "";
+
+    const videoFilters = [
+      { id: "all", label: t(ui, "filter_all") },
+      ...d.projects.map((p) => ({ id: p.id, label: p.name })),
+    ].map((f) => ({
+      ...f,
+      style: filterBtn(this.state.videoFilter === f.id),
+      onClick: () => this.setState({ videoFilter: f.id }),
+    }));
+
+    const videos = d.tutorialVideos
+      .filter((v) => this.state.videoFilter === "all" || v.projectId === this.state.videoFilter)
+      .map((v) => ({
+        id: v.id,
+        title: t(v, "title"),
+        description: t(v, "description"),
+        duration: v.duration,
+        category: v.category,
+        projectName: projName(v.projectId),
+      }));
+
+    return {
+      ...base,
+      companyName: d.company.name,
+      heroBadge: t(ui, "hero_badge"),
+      tagline: t(d.company, "tagline"),
+      heroDescription: t(d.company, "description"),
+      navCta: t(ui, "nav_cta"),
+      btnExplore: t(ui, "btn_explore"),
+      btnTutorials: t(ui, "btn_tutorials"),
+      btnContact: t(ui, "btn_contact"),
+      nav: d.navigation.map((n) => ({ href: n.href, label: t(n, "label") })),
+
+      aboutKicker: t(ui, "about_kicker"),
+      aboutTitle: t(ui, "about_title"),
+      aboutText: t(d.company, "about"),
+      highlights: d.highlights.map((h) => ({ icon: h.icon, title: t(h, "title") })),
+
+      servicesKicker: t(ui, "services_kicker"),
+      servicesTitle: t(ui, "services_title"),
+      services: d.services.map((s) => ({
+        icon: s.icon,
+        title: t(s, "title"),
+        description: t(s, "description"),
+      })),
+
+      projectsKicker: t(ui, "projects_kicker"),
+      projectsTitle: t(ui, "projects_title"),
+      btnViewProject: t(ui, "btn_view_project"),
+      btnWatchTutorial: t(ui, "btn_watch_tutorial"),
+      btnRequestDemo: t(ui, "btn_request_demo"),
+      projects: d.projects.map((p) => ({
+        name: p.name,
+        category: t(p, "category"),
+        description: t(p, "description"),
+        features: p["features_" + lang] || p.features_en,
+      })),
+
+      tutorialsTitle: t(ui, "tutorials_title"),
+      tutorialsSubtitle: t(ui, "tutorials_subtitle"),
+      videoFilters,
+      videos,
+
+      whyKicker: t(ui, "why_kicker"),
+      whyTitle: t(ui, "why_title"),
+      why: d.whyChooseUs.map((w) => ({ icon: w.icon, title: t(w, "title") })),
+
+      techKicker: t(ui, "tech_kicker"),
+      techTitle: t(ui, "tech_title"),
+      techs: d.technologies.map((tc, i) => ({
+        name: tc.name,
+        style: {
+          display: "inline-flex",
+          alignItems: "center",
+          gap: "10px",
+          padding: "13px 24px",
+          borderRadius: "999px",
+          fontSize: "15px",
+          fontWeight: 600,
+          color: "#cfe2ff",
+          border: "1px solid rgba(96,165,250,0.3)",
+          background: "rgba(13,24,48,0.5)",
+          backdropFilter: "blur(10px)",
+          transition: "all 0.3s ease",
+          animation: "floatY " + (5 + (i % 4)) + "s ease-in-out " + i * -0.7 + "s infinite",
+        },
+      })),
+
+      contactKicker: t(ui, "contact_kicker"),
+      contactTitle: t(ui, "contact_title"),
+      contactSubtitle: t(ui, "contact_subtitle"),
+      fieldName: t(ui, "field_name"),
+      fieldEmail: t(ui, "field_email"),
+      fieldMessage: t(ui, "field_message"),
+      btnSend: t(ui, "btn_send"),
+      btnCustom: t(ui, "btn_custom"),
+      formNote: t(ui, "form_sent"),
+      contactCardTitle: t(ui, "contact_card_title"),
+      contactSlots: [
+        { label: t(ui, "contact_email_label"), value: d.company.contactEmail || t(ui, "placeholder_tba") },
+        { label: t(ui, "contact_phone_label"), value: d.company.phone || t(ui, "placeholder_tba") },
+        { label: t(ui, "contact_address_label"), value: d.company.address || t(ui, "placeholder_tba") },
+        { label: t(ui, "contact_social_label"), value: t(ui, "placeholder_tba") },
+      ],
+
+      footerDesc: t(ui, "footer_desc"),
+      footerProjectsLabel: t(ui, "footer_projects"),
+      footerServicesLabel: t(ui, "footer_services"),
+      footerContactLabel: t(ui, "footer_contact"),
+      footerServices: d.services.slice(0, 4).map((s) => ({ title: t(s, "title") })),
+      placeholderTba: t(ui, "placeholder_tba"),
+      copyright: t(ui, "copyright"),
+    };
+  }
+}
+
+</script>
+</body>
+</html>

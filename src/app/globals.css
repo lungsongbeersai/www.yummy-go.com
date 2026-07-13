@@ -1015,6 +1015,44 @@ html.theme-transition-active[data-theme-transition-direction="ltr"]::view-transi
     sans-serif;
 }
 
+.report-print-official-header {
+  margin-bottom: 18px;
+  text-align: center;
+}
+
+.report-print-official-header p {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.report-print-signatures {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 80px;
+  margin-top: 56px;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.report-print-signature {
+  display: grid;
+  gap: 52px;
+  text-align: center;
+}
+
+.report-print-signature strong {
+  font-size: 13px;
+}
+
+.report-print-signature span {
+  display: block;
+  width: 70%;
+  margin: 0 auto;
+  border-bottom: 1px solid #111827;
+}
+
 .report-print-header {
   display: flex;
   align-items: flex-start;
@@ -1128,6 +1166,36 @@ html.theme-transition-active[data-theme-transition-direction="ltr"]::view-transi
 
 .report-print-item-table {
   font-size: 8px;
+}
+
+.report-print-detail-table tr.is-bill,
+.report-print-detail-table tr.report-print-detail-summary,
+.report-print-detail-table tr.report-print-detail-total {
+  font-weight: 900;
+}
+
+.report-print-detail-table tr.report-print-detail-summary td {
+  background: #eff6ff;
+}
+
+.report-print-detail-table tr.report-print-detail-adjustment td {
+  background: #f8fafc;
+}
+
+.report-print-detail-table tr.report-print-detail-adjustment.is-total td {
+  background: #ecfdf5;
+  font-weight: 900;
+}
+
+.report-print-detail-table tr.report-print-detail-total td {
+  background: #dbeafe;
+}
+
+.report-print-detail-product {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
 }
 
 .report-print-image {

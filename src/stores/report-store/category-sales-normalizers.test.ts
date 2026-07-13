@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { CategorySalesReportResponse } from "@/services/report";
-import { normalizeCategorySalesReportResponse } from "./category-sales-normalizers";
+import {
+  normalizeCategorySalesReportResponse,
+  reindexCategorySalesGroups,
+} from "./category-sales-normalizers";
 
 const response: CategorySalesReportResponse = {
   status: "success",
@@ -181,5 +184,49 @@ describe("normalizeCategorySalesReportResponse", () => {
     expect(normalized.groups[1]?.categories[0]?.summary.bill_count).toBe(4);
     expect(normalized.summary).toEqual(response.summary);
     expect(normalized.pagination).toEqual({ limit: 20, page: 1, total: 100, totalPages: 5 });
+  });
+
+  it("uses group count when backend pagination is group-based", () => {
+    const normalized = normalizeCategorySalesReportResponse(
+      {
+        ...response,
+        limit: 50,
+        total: 127,
+        totalPages: 1,
+      },
+      50,
+      1,
+    );
+
+    expect(normalized.rows).toHaveLength(3);
+    expect(normalized.pagination).toEqual({
+      limit: 50,
+      page: 1,
+      total: 2,
+      totalPages: 1,
+    });
+  });
+
+  it("prefers explicit group totals and keeps ranks unique across pages", () => {
+    const normalized = normalizeCategorySalesReportResponse(
+      {
+        ...response,
+        group_total: 21,
+        limit: 20,
+        total: 127,
+        totalPages: 2,
+      },
+      20,
+      1,
+    );
+    const groups = reindexCategorySalesGroups([
+      ...normalized.groups,
+      ...normalized.groups,
+    ]);
+
+    expect(normalized.pagination.total).toBe(21);
+    expect(groups.flatMap((group) => group.rows).map((row) => row.rank)).toEqual([
+      1, 2, 3, 4, 5, 6,
+    ]);
   });
 });

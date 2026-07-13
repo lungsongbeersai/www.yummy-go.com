@@ -22,6 +22,16 @@ import type { DailySalesBillGroup } from "@/stores/report-store";
 import { SortableReportTableHead } from "../report-sort-table-head";
 import { ReportIndeterminateCheckbox } from "../report-row-selection";
 import { useLocalTableSort } from "../report-sort-utils";
+import {
+  detailGroupDiscountTotal as groupDiscountTotal,
+  detailGroupItemDiscountTotal as groupItemDiscountTotal,
+  detailGroupItemLineTotal as groupItemLineTotal,
+  detailGroupQuantity as groupQuantity,
+  detailGroupSellingPriceTotal as groupSellingPriceTotal,
+  detailItemMoney as itemMoney,
+  detailItemProductName as itemProductName,
+  detailItemQuantity as itemQuantity,
+} from "./daily-sales-detail-model";
 import type { ReportColumn, ReportTab } from "./daily-sales-report-types";
 import type { SummaryCards } from "./daily-sales-report-types";
 import {
@@ -1276,95 +1286,6 @@ function renderCell(row: ApiEntity, column: ReportColumn) {
   }
 
   return textValue(value);
-}
-
-function itemProductName(row: ApiEntity, fallback: string) {
-  return textValue(
-    readValue(row, [
-      "product_name",
-      "prod_name",
-      "prod_name_la",
-      "prod_name_eng",
-    ]),
-    fallback,
-  );
-}
-
-function itemQuantity(row: ApiEntity) {
-  return firstNumber(
-    readValue(row, ["quantity", "qty", "order_qty", "qty_total"]),
-  );
-}
-
-function itemMoney(row: ApiEntity, keys: string[]) {
-  const value = readValue(row, keys);
-  return hasDisplayValue(value) ? firstNumber(value) : null;
-}
-
-function itemSellingPriceTotal(row: ApiEntity) {
-  const explicitTotal = itemMoney(row, [
-    "product_price_total",
-    "base_total",
-    "base_line_total",
-  ]);
-  if (explicitTotal !== null) return explicitTotal;
-
-  const unitPrice = itemMoney(row, [
-    "product_price",
-    "sale_price",
-    "price",
-    "unit_price",
-    "base_price",
-  ]);
-  if (unitPrice !== null) return unitPrice * Math.max(itemQuantity(row), 1);
-
-  const amount = itemMoney(row, ["amount"]);
-  const toppingTotal = itemMoney(row, ["topping_total"]);
-  if (amount !== null) return Math.max(0, amount - (toppingTotal ?? 0));
-
-  return null;
-}
-
-function groupSellingPriceTotal(group: DailySalesBillGroup) {
-  const itemsTotal = group.items.reduce(
-    (total, item) => total + (itemSellingPriceTotal(item) ?? 0),
-    0,
-  );
-  if (itemsTotal > 0) return itemsTotal;
-  if (group.baseTotal > 0 && group.baseTotal !== group.amountTotal)
-    return group.baseTotal;
-  if (group.amountTotal >= group.toppingTotal)
-    return group.amountTotal - group.toppingTotal;
-  return group.amountTotal;
-}
-
-function groupQuantity(group: DailySalesBillGroup) {
-  return group.qtyTotal || group.itemCount;
-}
-
-function groupDiscountTotal(group: DailySalesBillGroup) {
-  return group.discountBillAmount + group.itemDiscountAmount;
-}
-
-function groupItemDiscountTotal(group: DailySalesBillGroup) {
-  const itemTotal = group.items.reduce(
-    (total, item) => total + (itemMoney(item, ["discount"]) ?? 0),
-    0,
-  );
-  return itemTotal > 0 ? itemTotal : group.itemDiscountAmount;
-}
-
-function groupItemLineTotal(group: DailySalesBillGroup) {
-  let hasLineTotal = false;
-  const itemTotal = group.items.reduce((total, item) => {
-    const lineTotal = itemMoney(item, ["total", "line_total", "net_total"]);
-    if (lineTotal === null) return total;
-    hasLineTotal = true;
-    return total + lineTotal;
-  }, 0);
-
-  if (hasLineTotal) return itemTotal;
-  return Math.max(0, group.amountTotal - groupItemDiscountTotal(group));
 }
 
 function groupMoney(group: DailySalesBillGroup, keys: string[]) {

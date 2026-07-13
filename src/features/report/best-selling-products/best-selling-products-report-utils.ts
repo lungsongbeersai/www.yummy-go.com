@@ -3,6 +3,11 @@ import { BEST_SELLING_PRODUCTS_SORT_OPTIONS } from "@/config/report-filters";
 import type { ApiEntity } from "@/services/shared/types";
 import type { BestSellingProductGroup, BestSellingProductItem } from "@/stores/report-store";
 import type {
+  ReportExcelCellStyle,
+  ReportExcelGridRow,
+  ReportExcelGridSection
+} from "../report-excel-utils";
+import type {
   BestSellingMetricConfig,
   BestSellingOption,
   BestSellingProductsFilters,
@@ -312,28 +317,99 @@ export function exportSummaryRows(
   }));
 }
 
-export function exportGroupRows(groups: BestSellingProductGroup[], t: (key: string) => string) {
-  const metrics = bestSellingGroupMetricConfigs(t);
-  return groups.map((group, index) => ({
-    [t("fields.no")]: index + 1,
-    [t("report.bestSelling.columns.group")]: group.name,
-    [t("report.bestSelling.cards.productCount")]: group.productCount,
-    ...Object.fromEntries(metrics.map((metric) => [metric.label, Number(group[metric.field] ?? 0)]))
-  }));
-}
+// สไตล์ตาราง Excel แบบจัดกลุ่ม: แถวหัวกลุ่มถือยอดรวมของกลุ่มไว้ในตัว
+const GROUPED_TABLE_HEADER_STYLE = {
+  align: "center",
+  bold: true,
+  fill: "#1F4E78",
+  fontColor: "#FFFFFF"
+} as const satisfies ReportExcelCellStyle;
 
-export function exportProductRows(groups: BestSellingProductGroup[], t: (key: string) => string) {
-  const metrics = bestSellingProductMetricConfigs(t);
-  return groups.flatMap((group) =>
-    group.items.map((row, index) => ({
-      [t("report.bestSelling.columns.rank")]: index + 1,
-      [t("report.bestSelling.columns.product")]: row.productName,
-      [t("report.bestSelling.columns.productCode")]: row.productCode,
-      [t("report.bestSelling.columns.category")]: row.categoryName,
-      [t("report.bestSelling.columns.group")]: row.groupName,
-      ...Object.fromEntries(metrics.map((metric) => [metric.label, Number(row[metric.field] ?? 0)]))
-    }))
-  );
+const GROUP_ROW_STYLE = {
+  bold: true,
+  fill: "#DEE8F4"
+} as const satisfies ReportExcelCellStyle;
+
+const GRAND_TOTAL_ROW_STYLE = {
+  bold: true,
+  fill: "#D9E2F3"
+} as const satisfies ReportExcelCellStyle;
+
+// ตารางเดียวจัดกลุ่มตามกลุ่มสินค้า เหมือนหน้าจอ: แถวกลุ่ม (พร้อมยอดรวมกลุ่ม)
+// → สินค้าในกลุ่ม (อันดับนับใหม่ต่อกลุ่ม) → ปิดท้ายด้วยยอดรวมทั้งรายงาน
+export function bestSellingGroupedSection(
+  groups: BestSellingProductGroup[],
+  summary: ApiEntity,
+  t: (key: string, options?: Record<string, unknown>) => string
+): ReportExcelGridSection {
+  const productMetrics = bestSellingProductMetricConfigs(t);
+  const groupMetrics = bestSellingGroupMetricConfigs(t);
+  const headers = [
+    t("report.bestSelling.columns.rank"),
+    t("report.bestSelling.columns.product"),
+    t("report.bestSelling.columns.productCode"),
+    t("report.bestSelling.columns.category"),
+    ...productMetrics.map((metric) => metric.label)
+  ];
+  const rows: ReportExcelGridRow[] = [
+    {
+      cells: headers.map((header) => ({ value: header })),
+      style: GROUPED_TABLE_HEADER_STYLE
+    }
+  ];
+
+  groups.forEach((group) => {
+    rows.push({
+      cells: [
+        {
+          colSpan: 4,
+          value: `${group.name} — ${t("report.bestSelling.groupSummary", {
+            products: group.productCount,
+            qty: formatNumber(group.qtyTotal)
+          })}`
+        },
+        // ราคาขายไม่มีความหมายระดับกลุ่ม เว้นว่างเพื่อให้คอลัมน์ metric อื่นตรงแนว
+        { value: "" },
+        ...groupMetrics.map((metric) => ({
+          value: firstNumber(group[metric.field])
+        }))
+      ],
+      style: GROUP_ROW_STYLE
+    });
+    group.items.forEach((item, index) => {
+      rows.push({
+        cells: [
+          { value: index + 1 },
+          { value: item.productName },
+          { value: item.productCode },
+          { value: item.categoryName },
+          ...productMetrics.map((metric) => ({
+            value: firstNumber(item[metric.field])
+          }))
+        ]
+      });
+    });
+  });
+
+  rows.push({
+    cells: [
+      { colSpan: 4, value: t("report.summary") },
+      { value: "" },
+      ...bestSellingSummaryConfigs(t).map((card) => ({
+        value: firstNumber(summaryValue(summary, card.keys))
+      }))
+    ],
+    style: GRAND_TOTAL_ROW_STYLE
+  });
+
+  return {
+    grid: {
+      columnCount: headers.length,
+      columnWidths: [8, 34, 16, 18, 13, 10, 15, 14, 14, 13, 12, 16],
+      rows
+    },
+    title: t("report.excel.products")
+  };
 }
 
 export function bestSellingProductRowId(row: BestSellingProductItem) {

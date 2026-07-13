@@ -45,6 +45,7 @@ import {
 } from "./payment-method-normalizers";
 import {
   normalizeCategorySalesReportResponse,
+  reindexCategorySalesGroups,
   type CategorySalesGroup,
   type CategorySalesRow
 } from "./category-sales-normalizers";
@@ -298,10 +299,11 @@ export async function loadCategorySalesReportExportData(
     allGroups.push(...normalized.groups);
   }
 
-  const rows = allGroups.flatMap((group) => group.rows).sort((left, right) => left.rank - right.rank);
+  const groups = reindexCategorySalesGroups(allGroups);
+  const rows = groups.flatMap((group) => group.rows);
 
   return {
-    groups: allGroups,
+    groups,
     reportName: firstData.reportName,
     rows,
     summary: firstData.summary

@@ -1469,6 +1469,15 @@
       "progress": "ຄວາມຄືບໜ້າ",
       "rendering": "ກຳລັງສ້າງໜ້າລາຍງານ"
     },
+    "excel": {
+      "bills": "ບິນ",
+      "items": "ລາຍການສິນຄ້າ",
+      "metric": "ລາຍການ",
+      "products": "ສິນຄ້າ",
+      "reportInformation": "ຂໍ້ມູນລາຍງານ",
+      "rows": "ລາຍລະອຽດ",
+      "value": "ຄ່າ"
+    },
     "exportedRows": "ລວມ {{count}} ແຖວ.",
     "linesPerPage": "ລາຍການຕໍ່ໜ້າ",
     "linesPerPageValue": "{{count}} ລາຍການ/ໜ້າ",
@@ -1485,11 +1494,29 @@
     "print": "ພິມ",
     "printFailed": "ພິມບໍ່ສຳເລັດ",
     "printPopupBlocked": "ກະລຸນາອະນຸຍາດ popup ເພື່ອເປີດໜ້າພິມ",
+    "officialHeader": {
+      "line1": "ສາທາລະນະລັດ ປະຊາທິປະໄຕ ປະຊາຊົນລາວ",
+      "line2": "ສັນຕິພາບ ເອກະລາດ ປະຊາທິປະໄຕ ເອກະພາບ ວັດທະນາຖາວອນ"
+    },
+    "signatures": {
+      "reportPreparer": "ຜູ້ລາຍງານ",
+      "shopOwner": "ລາຍເຊັ່ນ ເຈົ້າຂອງຮ້ານ"
+    },
     "rowsCount": "{{count}} ແຖວ",
     "rowsPerPageValue": "{{count}} ແຖວ/ໜ້າ",
     "selectedForExport": "ເລືອກ {{count}} ລາຍການ",
     "selectedBillsForPrint": "ເລືອກ {{count}} ບິນ",
     "selectBillsToPrint": "ກະລຸນາເລືອກບິນກ່ອນພິມ",
+    "dailyPrint": {
+      "billCount": "ຈຳນວນບິນສຳເລັດ",
+      "cancelledBills": "ບິນຍົກເລີກ",
+      "categoryTotal": "ລວມ",
+      "grandTotal": "ລວມທັງໝົດ",
+      "group": "ກຸ່ມ",
+      "period": "ຊ່ວງວັນທີ",
+      "subtotal": "ຍອດກ່ອນລວມ",
+      "title": "ສະຫຼຸບຍອດຂາຍປະຈຳວັນ"
+    },
     "showingBillsRange": "ສະແດງບິນ {{start}}-{{end}} / {{total}}",
     "showingDetailLinesRange": "ສະແດງລາຍການ {{start}}-{{end}} / {{total}}, ຈັດກຸ່ມເປັນ {{bills}} ບິນ",
     "showSummary": "ສະແດງສະຫຼຸບ",
