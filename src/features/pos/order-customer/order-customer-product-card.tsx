@@ -58,12 +58,12 @@ export const EmployeeProductCard = memo(function EmployeeProductCard({
     actionState === "blocked"
       ? Ban
       : actionState === "choose" || actionState === "view"
-        ? SlidersHorizontal
-        : Plus;
+      ? SlidersHorizontal
+      : Plus;
   const priceLabel = actionState === "add" && price > 0 ? money(price) : null;
   const optionCount = Math.max(
     optionalNumber(product.count_option_enabled) ?? 0,
-    optionalNumber(product.count_option_all) ?? 0,
+    optionalNumber(product.count_option_all) ?? 0
   );
   const toppingCount = optionalNumber(product.count_topping_enabled) ?? 0;
   const choiceCount = Math.max(optionCount, toppingCount);
@@ -73,17 +73,17 @@ export const EmployeeProductCard = memo(function EmployeeProductCard({
       : actionLabel;
 
   return (
-    <Card className="group flex min-h-65 min-w-0 flex-col overflow-hidden rounded-lg border-border/80 bg-card text-card-foreground shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-primary/45 hover:shadow-md sm:min-h-76">
+    <Card className="group flex min-h-65 min-w-0 flex-col overflow-hidden rounded-lg border-border/80 bg-card text-card-foreground shadow-sm transition duration-200 motion-safe:hover:-translate-y-0.5 hover:border-primary/45 hover:shadow-md motion-reduce:transition-none sm:min-h-76">
       <div className="relative aspect-square overflow-hidden bg-muted bg-cover bg-center">
         <ProductMediaView
           alt={product.prod_name}
           fallbackIcon="utensils"
           imageClassName={cn(
-            "transition duration-300 group-hover:scale-105",
-            blockedState && "grayscale",
+            "transition duration-300 motion-safe:group-hover:scale-105 motion-reduce:transition-none",
+            blockedState && "grayscale"
           )}
           media={media}
-          sizes="(max-width: 768px) 50vw, 220px"
+          sizes="(max-width: 767px) 50vw, (max-width: 1279px) 33vw, (max-width: 1535px) 25vw, 300px"
         />
         <ProductBadges activeSort={activeSort} product={product} />
         {blockedState ? (
@@ -112,7 +112,7 @@ export const EmployeeProductCard = memo(function EmployeeProductCard({
         {priceLabel ? (
           <Button
             type="button"
-            className="mt-auto h-10 w-full justify-between rounded-lg bg-primary px-2.5 text-sm font-black text-primary-foreground shadow-sm hover:bg-primary/90 sm:h-11 sm:px-3"
+            className="mt-auto h-11 w-full justify-between rounded-lg bg-primary px-2.5 text-sm font-black text-primary-foreground shadow-sm hover:bg-primary/90 sm:px-3"
             disabled={loading}
             onClick={onAction}
           >
@@ -129,9 +129,9 @@ export const EmployeeProductCard = memo(function EmployeeProductCard({
           <Button
             type="button"
             className={cn(
-              "mt-auto h-9 w-full rounded-lg border-primary/45 bg-background px-2 text-xs font-black text-primary shadow-none hover:bg-primary/10 hover:text-primary sm:h-10 sm:px-3 sm:text-sm",
+              "mt-auto h-11 w-full rounded-lg border-primary/45 bg-background px-2 text-xs font-black text-primary shadow-none hover:bg-primary/10 hover:text-primary sm:px-3 sm:text-sm",
               actionState === "blocked" &&
-                "border-destructive/20 bg-destructive/10 text-destructive hover:bg-destructive/10 hover:text-destructive",
+                "border-destructive/20 bg-destructive/10 text-destructive hover:bg-destructive/10 hover:text-destructive"
             )}
             variant="outline"
             disabled={loading || actionState === "blocked"}
@@ -168,8 +168,8 @@ export function ProductMediaView({
     fallbackIcon === "chef"
       ? ChefHat
       : fallbackIcon === "utensils"
-        ? Utensils
-        : ImageIcon;
+      ? Utensils
+      : ImageIcon;
   const fallbackIconClassName =
     fallbackIcon === "image"
       ? "size-10 text-muted-foreground/55"
@@ -222,7 +222,7 @@ function ProductBadges({
   const { t } = useTranslation();
   const optionCount = Math.max(
     optionalNumber(product.count_option_enabled) ?? 0,
-    optionalNumber(product.count_option_all) ?? 0,
+    optionalNumber(product.count_option_all) ?? 0
   );
   const toppingCount = optionalNumber(product.count_topping_enabled) ?? 0;
   const productStatusSort =
@@ -281,7 +281,7 @@ function ProductBadges({
 function productCardDescription(
   product: CateProductItem,
   activeSort: ProductSortStatus,
-  t: ReturnType<typeof useTranslation>["t"],
+  t: ReturnType<typeof useTranslation>["t"]
 ) {
   const promoMessage = optionalString(product.promo_msg);
   if (promoMessage) return promoMessage;

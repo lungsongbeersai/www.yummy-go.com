@@ -745,6 +745,31 @@ export function appendCalculatorInput(currentValue: string, input: string) {
   return normalizeCalculatorValue(`${currentValue}${input}`);
 }
 
+// ສ່ວນຫຼຸດແບບເປີເຊັນຕ້ອງບໍ່ເກີນ 100 — ຖ້າກົດແລ້ວຄ່າຈະເກີນ ໃຫ້ຄົງຄ່າເດີມໄວ້
+export function appendDiscountCalculatorInput(
+  draft: DiscountDraft,
+  input: string,
+) {
+  const nextValue = appendCalculatorInput(draft.value, input);
+  if (draft.type === "PCT") {
+    const numeric = optionalNumber(nextValue);
+    if (numeric !== null && numeric > 100) return draft.value;
+  }
+  return nextValue;
+}
+
+// ສະຫຼັບປະເພດສ່ວນຫຼຸດ — ຖ້າປ່ຽນເປັນເປີເຊັນແລ້ວຄ່າເດີມເກີນ 100 ໃຫ້ລ້າງຄ່າ
+export function discountDraftWithType(
+  draft: DiscountDraft,
+  type: DiscountTypeCode,
+): DiscountDraft {
+  if (type === "PCT") {
+    const numeric = optionalNumber(draft.value);
+    if (numeric !== null && numeric > 100) return { type, value: "" };
+  }
+  return { ...draft, type };
+}
+
 export function firstCartOrderUuid(orders: CartOrder[]) {
   for (const order of orders) {
     const orderUuid = optionalString(order.order_uuid);

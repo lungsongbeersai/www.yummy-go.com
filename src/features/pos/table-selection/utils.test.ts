@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { CartItem, CartOrder, PosTable } from "@/services/pos";
 import {
+  appendDiscountCalculatorInput,
   billDiscountButtonValue,
   buildCustomerDisplayPayload,
   canPayFullBill,
@@ -12,6 +13,7 @@ import {
   cartQuantityCount,
   cartSummary,
   discountDraftValue,
+  discountDraftWithType,
   isCanceledCartItem,
   isNewOrderCartItem,
   isOrderHistoryCartItem,
@@ -113,6 +115,30 @@ describe("table selection utils", () => {
     expect(normalizeDiscountType(undefined, 100000)).toBe("AMT");
     expect(discountDraftValue({ type: "PCT", value: "101" }, 1000)).toBeNull();
     expect(discountDraftValue({ type: "AMT", value: "500" }, 1000)).toBe(500);
+  });
+
+  it("blocks percent keypad input above 100 but allows amounts", () => {
+    expect(appendDiscountCalculatorInput({ type: "PCT", value: "10" }, "0")).toBe("100");
+    expect(appendDiscountCalculatorInput({ type: "PCT", value: "100" }, "0")).toBe("100");
+    expect(appendDiscountCalculatorInput({ type: "PCT", value: "99" }, "9")).toBe("99");
+    expect(appendDiscountCalculatorInput({ type: "PCT", value: "5" }, "00")).toBe("5");
+    expect(appendDiscountCalculatorInput({ type: "PCT", value: "100" }, "delete")).toBe("10");
+    expect(appendDiscountCalculatorInput({ type: "AMT", value: "100" }, "000")).toBe("100000");
+  });
+
+  it("clears the draft value when switching to percent with a value above 100", () => {
+    expect(discountDraftWithType({ type: "AMT", value: "5000" }, "PCT")).toEqual({
+      type: "PCT",
+      value: "",
+    });
+    expect(discountDraftWithType({ type: "AMT", value: "50" }, "PCT")).toEqual({
+      type: "PCT",
+      value: "50",
+    });
+    expect(discountDraftWithType({ type: "PCT", value: "50" }, "AMT")).toEqual({
+      type: "AMT",
+      value: "50",
+    });
   });
 
   it("extracts confirmable new order groups", () => {
