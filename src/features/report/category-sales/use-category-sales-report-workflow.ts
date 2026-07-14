@@ -12,15 +12,16 @@ import { useCategorySalesReportStore } from "@/stores/report-store";
 import { useToastStore } from "@/stores/toast-store";
 import { branchOptionFromRow, selectedBranchLabel } from "../daily-sales/daily-sales-report-utils";
 import { createSingleSheetReportWorkbook } from "../report-excel-utils";
+import { officialReportExcelLayout } from "../report-official-layout";
 import { useReportRowSelection } from "../report-row-selection";
 import type { CategorySalesExportAction, CategorySalesExportData, CategorySalesReportFilters } from "./category-sales-report-types";
 import {
+  categorySalesGroupedSection,
   categorySalesGroupsFromRows,
   categorySalesFileBaseName,
   categorySalesRowId,
   categorySalesSummaryFromRows,
   emptyExportData,
-  exportCategorySalesRows,
   exportSummaryRows,
   localDateInputValue,
   paymentMethodFallbackOptions,
@@ -28,7 +29,12 @@ import {
   waitForPaint
 } from "./category-sales-report-utils";
 
-export function useCategorySalesReportWorkflow(exportReportRef: RefObject<HTMLDivElement | null>, initialPagination: UrlPaginationState) {
+export function useCategorySalesReportWorkflow(
+  exportReportRef: RefObject<HTMLDivElement | null>,
+  initialPagination: UrlPaginationState,
+  // สถานะการแสดง summary cards ใน UI — ไฟล์ export ต้องมีส่วนสรุปตรงกับที่ผู้ใช้เห็น
+  summaryVisible: boolean
+) {
   const { t } = useTranslation();
   const user = useAuthStore((state) => state.user);
   const language = useAppStore((state) => state.language);
@@ -106,7 +112,7 @@ export function useCategorySalesReportWorkflow(exportReportRef: RefObject<HTMLDi
   const methodOptions = paymentMethodFallbackOptions(t);
   const activePaymentMethodLabel = selectedPaymentMethodLabel(appliedFilters.paymentMethod, t);
   const reportTitle = reportName || t("report.categorySales.title");
-  const visibleCount = rows.length;
+  const visibleCount = groups.length;
   const activePageLimit = pageLimitSize(appliedFilters.limit, visibleCount);
   const pageStart = total ? (page - 1) * activePageLimit + 1 : 0;
   const pageEnd = total ? Math.min((page - 1) * activePageLimit + visibleCount, total) : 0;
@@ -252,17 +258,22 @@ export function useCategorySalesReportWorkflow(exportReportRef: RefObject<HTMLDi
     setExporting("excel");
     try {
       const data = selectedExportData(await fetchExportData());
-      const XLSX = await import("xlsx");
-      const workbook = createSingleSheetReportWorkbook(XLSX, [
-        {
-          title: "Summary",
-          rows: exportSummaryRows(data.summary, t, labelOverrides)
-        },
-        {
-          title: "Rows",
-          rows: exportCategorySalesRows(data.rows, t, labelOverrides)
-        }
-      ]);
+      const XLSX = await import("xlsx-js-style");
+      const workbook = createSingleSheetReportWorkbook(
+        XLSX,
+        [
+          ...(summaryVisible
+            ? [
+                {
+                  title: t("report.summary"),
+                  rows: exportSummaryRows(data.summary, t, labelOverrides)
+                }
+              ]
+            : []),
+          categorySalesGroupedSection(data.groups, data.summary, t, labelOverrides)
+        ],
+        officialReportExcelLayout(t)
+      );
       XLSX.writeFile(workbook, `${categorySalesFileBaseName(appliedFilters)}.xlsx`);
       showToast({
         title: t("report.exportReady"),

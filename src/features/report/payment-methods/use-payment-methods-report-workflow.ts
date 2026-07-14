@@ -12,6 +12,7 @@ import { usePaymentMethodsReportStore } from "@/stores/report-store";
 import { useToastStore } from "@/stores/toast-store";
 import { branchOptionFromRow, selectedBranchLabel } from "../daily-sales/daily-sales-report-utils";
 import { createSingleSheetReportWorkbook } from "../report-excel-utils";
+import { officialReportExcelLayout } from "../report-official-layout";
 import { useReportRowSelection } from "../report-row-selection";
 import type { PaymentMethodsExportAction, PaymentMethodsExportData, PaymentMethodsReportFilters } from "./payment-methods-report-types";
 import {
@@ -28,7 +29,12 @@ import {
   waitForPaint
 } from "./payment-methods-report-utils";
 
-export function usePaymentMethodsReportWorkflow(exportReportRef: RefObject<HTMLDivElement | null>, initialPagination: UrlPaginationState) {
+export function usePaymentMethodsReportWorkflow(
+  exportReportRef: RefObject<HTMLDivElement | null>,
+  initialPagination: UrlPaginationState,
+  // สถานะการแสดง summary cards ใน UI — ไฟล์ export ต้องมีส่วนสรุปตรงกับที่ผู้ใช้เห็น
+  summaryVisible: boolean
+) {
   const { t } = useTranslation();
   const user = useAuthStore((state) => state.user);
   const language = useAppStore((state) => state.language);
@@ -237,17 +243,23 @@ export function usePaymentMethodsReportWorkflow(exportReportRef: RefObject<HTMLD
     setExporting("excel");
     try {
       const data = selectedExportData(await fetchExportData());
-      const XLSX = await import("xlsx");
-      const workbook = createSingleSheetReportWorkbook(XLSX, [
-        {
-          title: "Summary",
-          rows: exportSummaryRows(data.cards, data.reportTotal, t)
-        },
-        {
-          title: "Rows",
-          rows: exportPaymentMethodRows(data.rows, t)
-        }
-      ]);
+      const XLSX = await import("xlsx-js-style");
+      const workbook = createSingleSheetReportWorkbook(
+        XLSX,
+        [
+          {
+            title: summaryVisible
+              ? t("report.summary")
+              : t("report.paymentMethodsReport.totalSummary"),
+            rows: exportSummaryRows(data.cards, data.reportTotal, t, summaryVisible)
+          },
+          {
+            title: t("report.excel.rows"),
+            rows: exportPaymentMethodRows(data.rows, t)
+          }
+        ],
+        officialReportExcelLayout(t)
+      );
       XLSX.writeFile(workbook, `${paymentMethodsFileBaseName(appliedFilters)}.xlsx`);
       showToast({
         title: t("report.exportReady"),

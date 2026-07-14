@@ -1461,6 +1461,15 @@
       "progress": "Progress",
       "rendering": "Rendering report"
     },
+    "excel": {
+      "bills": "Bills",
+      "items": "Items",
+      "metric": "Metric",
+      "products": "Products",
+      "reportInformation": "Report information",
+      "rows": "Details",
+      "value": "Value"
+    },
     "exportedRows": "{{count}} rows included.",
     "linesPerPage": "Lines per page",
     "linesPerPageValue": "{{count}} lines/page",
@@ -1477,11 +1486,29 @@
     "print": "Print",
     "printFailed": "Print failed",
     "printPopupBlocked": "Allow popups to open the print window.",
+    "officialHeader": {
+      "line1": "Lao People’s Democratic Republic",
+      "line2": "Peace, Independence, Democracy, Unity, and Prosperity"
+    },
+    "signatures": {
+      "reportPreparer": "Report preparer",
+      "shopOwner": "Shop owner signature"
+    },
     "rowsCount": "{{count}} rows",
     "rowsPerPageValue": "{{count}} rows/page",
     "selectedForExport": "{{count}} selected",
     "selectedBillsForPrint": "{{count}} bill(s) selected",
     "selectBillsToPrint": "Select bill(s) before printing.",
+    "dailyPrint": {
+      "billCount": "Completed bills",
+      "cancelledBills": "Cancelled bills",
+      "categoryTotal": "Total",
+      "grandTotal": "Grand total",
+      "group": "Group",
+      "period": "Period",
+      "subtotal": "Subtotal",
+      "title": "Daily sales summary"
+    },
     "showingBillsRange": "Showing bills {{start}}-{{end}} / {{total}}",
     "showingDetailLinesRange": "Showing lines {{start}}-{{end}} / {{total}}, grouped into {{bills}} bill(s)",
     "showSummary": "Show Summary",

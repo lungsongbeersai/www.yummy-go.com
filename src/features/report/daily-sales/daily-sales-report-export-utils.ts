@@ -100,6 +100,7 @@ export function exportTableRows(rows: ApiEntity[], columns: ReportColumn[]) {
     return output;
   });
 }
+
 export function exportBillRows(
   groups: DailySalesBillGroup[],
   t: (key: string) => string,

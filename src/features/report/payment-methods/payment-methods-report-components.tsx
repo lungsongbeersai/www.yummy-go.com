@@ -11,6 +11,10 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import {
+  ReportOfficialHeader,
+  ReportSignatures,
+} from "../report-official-layout";
 import { DateFilterButton } from "@/components/common/date-filter-button";
 import { EmptyState } from "@/components/common/empty-state";
 import { Badge } from "@/components/ui/badge";
@@ -1181,6 +1185,7 @@ export function PaymentMethodsExportSurface({
   reportTotal,
   rows,
   rowsLabel,
+  showSummary,
   title,
 }: {
   cards: PaymentMethodSummaryCard[];
@@ -1190,6 +1195,7 @@ export function PaymentMethodsExportSurface({
   reportTotal: Record<string, unknown>;
   rows: PaymentMethodReportRow[];
   rowsLabel: string;
+  showSummary: boolean;
   title: string;
 }) {
   const { t } = useTranslation();
@@ -1198,6 +1204,7 @@ export function PaymentMethodsExportSurface({
 
   return (
     <div ref={containerRef} className="report-print-surface">
+      <ReportOfficialHeader />
       <div className="report-print-header">
         <div>
           <p className="report-print-kicker">{methodLabel}</p>
@@ -1208,14 +1215,16 @@ export function PaymentMethodsExportSurface({
           <span>{rowsLabel}</span>
         </div>
       </div>
-      <div className="report-print-cards">
-        {cards.map((card) => (
-          <div key={card.key} className="report-print-card">
-            <p>{card.label}</p>
-            <strong>{displayMetric(card.value, card.valueType)}</strong>
-          </div>
-        ))}
-      </div>
+      {showSummary ? (
+        <div className="report-print-cards">
+          {cards.map((card) => (
+            <div key={card.key} className="report-print-card">
+              <p>{card.label}</p>
+              <strong>{displayMetric(card.value, card.valueType)}</strong>
+            </div>
+          ))}
+        </div>
+      ) : null}
       <div className="report-print-section">
         <h2>{t("report.paymentMethodsReport.totalSummary")}</h2>
         <table className="report-print-table">
@@ -1259,6 +1268,7 @@ export function PaymentMethodsExportSurface({
           ))}
         </tbody>
       </table>
+      <ReportSignatures />
     </div>
   );
 }

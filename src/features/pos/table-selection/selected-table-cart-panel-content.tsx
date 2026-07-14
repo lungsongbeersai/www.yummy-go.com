@@ -88,8 +88,10 @@ export function SelectedTableCartPanelContent({
       >
         <CardHeader
           className={cn(
-            "relative block shrink-0 overflow-hidden border-b border-white/10 px-4 pb-3 pt-4 text-white dark:bg-black/25",
-            variant === "sheet" && "px-4 pb-2.5 pt-3 pr-12",
+            "relative block shrink-0 overflow-hidden border-b border-white/10 text-white dark:bg-black/25",
+            variant === "side"
+              ? "px-3 pb-2.5 pt-3"
+              : "px-4 pb-2.5 pt-3 pr-12",
           )}
         >
           <div className="relative flex min-w-0 items-center justify-between gap-3">
@@ -99,7 +101,7 @@ export function SelectedTableCartPanelContent({
                   "flex min-w-0 items-center gap-2 truncate font-black text-white",
                   variant === "sheet"
                     ? "text-[17px] leading-5"
-                    : "text-[19px] leading-6",
+                    : "text-[17px] leading-5",
                 )}
               >
                 <ReceiptText className="size-5 shrink-0" />
@@ -115,7 +117,14 @@ export function SelectedTableCartPanelContent({
                 </p>
               ) : null}
             </div>
-            <Badge className="h-8 shrink-0 rounded-full border-white/20 bg-white/15 px-3 text-xs font-black text-white shadow-none">
+            <Badge
+              className={cn(
+                "shrink-0 rounded-full border-white/20 bg-white/15 font-black text-white shadow-none",
+                variant === "side"
+                  ? "h-7 px-2.5 text-[11px]"
+                  : "h-8 px-3 text-xs",
+              )}
+            >
               {t("common.total")}: {workflow.visibleItemCount}
             </Badge>
           </div>
@@ -123,7 +132,7 @@ export function SelectedTableCartPanelContent({
           <TabsList
             className={cn(
               "pos-soft-light-zone grid w-full grid-cols-2 rounded-xl bg-white/15 p-1 text-white shadow-inner backdrop-blur-sm",
-              variant === "sheet" ? "mt-2.5 h-11" : "mt-3 h-11.5",
+              variant === "side" ? "mt-2 h-10" : "mt-2.5 h-11",
             )}
           >
             <CartTabTrigger
@@ -153,6 +162,7 @@ export function SelectedTableCartPanelContent({
               <TabsContent value="new">
                 <CartTabItems
                   editable
+                  compact={variant === "side"}
                   actingItemUuid={workflow.actingItemUuid}
                   actionDisabled={workflow.cartActionsLocked}
                   canConfirmKitchenItem={workflow.canConfirmKitchenItem}
@@ -168,6 +178,7 @@ export function SelectedTableCartPanelContent({
               </TabsContent>
               <TabsContent value="history">
                 <CartTabItems
+                  compact={variant === "side"}
                   actingItemUuid={workflow.actingItemUuid}
                   actionDisabled={workflow.cartActionsLocked}
                   canConfirmKitchenItem={workflow.canConfirmKitchenItem}
@@ -189,7 +200,12 @@ export function SelectedTableCartPanelContent({
           )}
         </CardContent>
 
-        <CardFooter className="pos-safe-bottom-padding block shrink-0 border-t border-white/15 bg-transparent px-3 pt-2 text-white dark:bg-black/25">
+        <CardFooter
+          className={cn(
+            "pos-safe-bottom-padding block shrink-0 border-t border-white/15 bg-transparent text-white dark:bg-black/25",
+            variant === "side" ? "px-2.5 pt-1.5" : "px-3 pt-2",
+          )}
+        >
           <CartSummaryDock
             actionsDisabled={!workflow.hasSelectedTable}
             billDiscountValueLabel={workflow.billDiscountValueLabel}
@@ -199,7 +215,7 @@ export function SelectedTableCartPanelContent({
             }
             canPay={workflow.canPayBill}
             canPaySplitSelection={workflow.canPaySplitSelection}
-            compact
+            compact={variant === "side"}
             confirming={workflow.confirming}
             discountPending={workflow.billDiscountPending}
             newOrderCount={workflow.newOrderItems.length}

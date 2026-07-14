@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
-import type { CategorySalesRow } from "@/stores/report-store";
+import type { CategorySalesGroup, CategorySalesRow } from "@/stores/report-store";
 import {
   categorySalesFileBaseName,
+  categorySalesGroupedSection,
   categorySalesRowMetricConfigs,
+  categorySalesSummaryFromRows,
   categorySalesSummaryMetricConfigs,
-  exportCategorySalesRows,
   exportSummaryRows,
   paymentMethodFallbackOptions
 } from "./category-sales-report-utils";
@@ -100,15 +101,56 @@ describe("category sales report helpers", () => {
       "grand_total"
     ]);
 
-    expect(exportCategorySalesRows([row], t)[0]).toMatchObject({
-      Category: "Beer",
-      Group: "Drinks",
-      "Grand total": 111815,
-      Product: "Tiger Beer",
-      "Product price total": 90000,
-      Total: 100000,
-      VAT: 10165
-    });
+    const group: CategorySalesGroup = {
+      categories: [],
+      groupName: "Drinks",
+      groupUuid: "group-drinks",
+      rows: [row],
+      sortOrder: 1,
+      summary: categorySalesSummaryFromRows([row])
+    };
+    const section = categorySalesGroupedSection([group], group.summary, t);
+    const [header, groupRow, productRow, totalRow] = section.grid.rows;
+
+    expect(section.grid.columnCount).toBe(11);
+    expect(header.cells.map((cell) => cell.value)).toEqual([
+      "Product",
+      "Category",
+      "Bills",
+      "Qty",
+      "Product price total",
+      "Topping total",
+      "Total",
+      "Discount total",
+      "Service charge",
+      "VAT",
+      "Grand total"
+    ]);
+
+    // แถวกลุ่ม: ชื่อกลุ่ม merge 2 คอลัมน์ + ยอดรวมกลุ่ม (ส่วนลด = รายการ + บิล)
+    expect(groupRow.cells[0]).toMatchObject({ colSpan: 2, value: "Drinks" });
+    expect(groupRow.cells[6].value).toBe(5000);
+    expect(groupRow.cells.at(-1)?.value).toBe(111815);
+    expect(groupRow.style?.bold).toBe(true);
+
+    expect(productRow.cells.map((cell) => cell.value)).toEqual([
+      "Tiger Beer",
+      "Beer",
+      2,
+      3,
+      90000,
+      10000,
+      100000,
+      5000,
+      6650,
+      10165,
+      111815
+    ]);
+
+    // แถวยอดรวมทั้งรายงานปิดท้ายตาราง
+    expect(totalRow.cells[0].value).toBe("report.summary");
+    expect(totalRow.cells.at(-1)?.value).toBe(111815);
+    expect(totalRow.style?.bold).toBe(true);
   });
 
   it("exports backend summary rows", () => {

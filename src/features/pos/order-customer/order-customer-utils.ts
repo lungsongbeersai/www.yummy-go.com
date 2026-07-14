@@ -25,7 +25,7 @@ export type ProductSortStatus = ProductSortStatusType;
 
 export const MAX_ORDER_QTY = 99;
 export const PRODUCT_GRID_CLASS =
-  "grid grid-cols-2 gap-2.5 sm:gap-3 md:grid-cols-[repeat(auto-fill,minmax(190px,1fr))] 2xl:grid-cols-[repeat(auto-fill,minmax(210px,1fr))]";
+  "grid grid-cols-2 gap-2.5 md:grid-cols-[repeat(auto-fill,minmax(190px,1fr))]";
 
 export const SORT_TABS: Array<{
   labelKey: string;

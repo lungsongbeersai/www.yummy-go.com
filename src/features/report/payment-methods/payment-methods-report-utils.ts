@@ -139,9 +139,12 @@ export function waitForPaint() {
 export function exportSummaryRows(
   cards: PaymentMethodsSummaryCard[],
   reportTotal: ApiEntity,
-  t: (key: string) => string
+  t: (key: string) => string,
+  // แถว cards ใส่เฉพาะตอน summary cards แสดงใน UI ส่วนแถว totals ใส่เสมอ
+  // เพราะ UI แสดงยอดรวมใน footer ของตารางตลอด
+  includeCards = true
 ) {
-  const cardRows = cards.map((card) => ({
+  const cardRows = !includeCards ? [] : cards.map((card) => ({
     [t("report.paymentMethodsReport.export.section")]: t("report.paymentMethodsReport.export.cards"),
     [t("report.paymentMethodsReport.export.metric")]: card.label,
     [t("report.paymentMethodsReport.export.value")]: card.value

@@ -23,6 +23,10 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import {
+  ReportOfficialHeader,
+  ReportSignatures,
+} from "../report-official-layout";
 import { DateFilterButton } from "@/components/common/date-filter-button";
 import { EmptyState } from "@/components/common/empty-state";
 import { LoadingState } from "@/components/common/loading-state";
@@ -1242,6 +1246,7 @@ export function BestSellingExportSurface({
   dateRange,
   groups,
   rowsLabel,
+  showSummary,
   sortByLabel,
   summary,
   title,
@@ -1251,6 +1256,7 @@ export function BestSellingExportSurface({
   dateRange: string;
   groups: BestSellingProductGroup[];
   rowsLabel: string;
+  showSummary: boolean;
   sortByLabel: string;
   summary: Record<string, unknown>;
   title: string;
@@ -1261,6 +1267,7 @@ export function BestSellingExportSurface({
 
   return (
     <div ref={containerRef} className="report-print-surface">
+      <ReportOfficialHeader />
       <div className="report-print-header">
         <div>
           <p className="report-print-kicker">{sortByLabel}</p>
@@ -1271,49 +1278,18 @@ export function BestSellingExportSurface({
           <span>{rowsLabel}</span>
         </div>
       </div>
-      <div className="report-print-cards">
-        {cards.map((card) => (
-          <div key={card.label} className="report-print-card">
-            <p>{card.label}</p>
-            <strong>
-              {displayMetric(summaryValue(summary, card.keys), card.kind)}
-            </strong>
-          </div>
-        ))}
-      </div>
-      <div className="report-print-section">
-        <h2>{t("report.bestSelling.groupsTitle")}</h2>
-        <table className="report-print-table">
-          <thead>
-            <tr>
-              <th>{t("fields.no")}</th>
-              <th>{t("report.bestSelling.columns.group")}</th>
-              <th className="is-right">
-                {t("report.bestSelling.cards.productCount")}
-              </th>
-              {groupMetrics.map((metric) => (
-                <th key={metric.key} className="is-right">
-                  {metric.label}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {groups.map((group, index) => (
-              <tr key={group.id}>
-                <td className="is-center">{index + 1}</td>
-                <td>{group.name}</td>
-                <td className="is-right">{formatNumber(group.productCount)}</td>
-                {groupMetrics.map((metric) => (
-                  <td key={metric.key} className="is-right">
-                    {displayMetric(group[metric.field], metric.kind)}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {showSummary ? (
+        <div className="report-print-cards">
+          {cards.map((card) => (
+            <div key={card.label} className="report-print-card">
+              <p>{card.label}</p>
+              <strong>
+                {displayMetric(summaryValue(summary, card.keys), card.kind)}
+              </strong>
+            </div>
+          ))}
+        </div>
+      ) : null}
       <table className="report-print-table">
         <thead>
           <tr>
@@ -1321,7 +1297,6 @@ export function BestSellingExportSurface({
             <th>{t("report.bestSelling.columns.product")}</th>
             <th>{t("report.bestSelling.columns.productCode")}</th>
             <th>{t("report.bestSelling.columns.category")}</th>
-            <th>{t("report.bestSelling.columns.group")}</th>
             {productMetrics.map((metric) => (
               <th key={metric.key} className="is-right">
                 {metric.label}
@@ -1330,24 +1305,51 @@ export function BestSellingExportSurface({
           </tr>
         </thead>
         <tbody>
-          {groups.flatMap((group) =>
-            group.items.map((row, index) => (
-              <tr key={row.id}>
-                <td className="is-center">{index + 1}</td>
-                <td>{row.productName}</td>
-                <td>{row.productCode}</td>
-                <td>{row.categoryName}</td>
-                <td>{row.groupName}</td>
-                {productMetrics.map((metric) => (
+          {groups.map((group) => (
+            <Fragment key={group.id}>
+              {/* แถวกลุ่มถือยอดรวมของกลุ่ม — คอลัมน์ราคาขายเว้นว่างให้ metric อื่นตรงแนว */}
+              <tr className="is-bill">
+                <td colSpan={4}>
+                  {group.name} —{" "}
+                  {t("report.bestSelling.groupSummary", {
+                    products: group.productCount,
+                    qty: formatNumber(group.qtyTotal),
+                  })}
+                </td>
+                <td className="is-right" />
+                {groupMetrics.map((metric) => (
                   <td key={metric.key} className="is-right">
-                    {displayMetric(row[metric.field], metric.kind)}
+                    {displayMetric(group[metric.field], metric.kind)}
                   </td>
                 ))}
               </tr>
-            ))
-          )}
+              {group.items.map((row, index) => (
+                <tr key={row.id}>
+                  <td className="is-center">{index + 1}</td>
+                  <td>{row.productName}</td>
+                  <td>{row.productCode}</td>
+                  <td>{row.categoryName}</td>
+                  {productMetrics.map((metric) => (
+                    <td key={metric.key} className="is-right">
+                      {displayMetric(row[metric.field], metric.kind)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </Fragment>
+          ))}
+          <tr className="is-bill">
+            <td colSpan={4}>{t("report.summary")}</td>
+            <td className="is-right" />
+            {cards.map((card) => (
+              <td key={card.label} className="is-right">
+                {displayMetric(summaryValue(summary, card.keys), card.kind)}
+              </td>
+            ))}
+          </tr>
         </tbody>
       </table>
+      <ReportSignatures />
     </div>
   );
 }

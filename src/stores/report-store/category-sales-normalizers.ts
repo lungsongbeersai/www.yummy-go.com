@@ -255,11 +255,88 @@ function normalizeGroup(
   };
 }
 
-function totalPages(root: ApiEntity, total: number, limit: PageLimit, page: number) {
-  const explicit = firstNumber(root.totalPages, root.total_pages, root.total_page, root.totalPage);
+function reportedTotalPages(root: ApiEntity, pagination: ApiEntity) {
+  return firstNumber(
+    pagination.totalPages,
+    pagination.total_pages,
+    pagination.total_page,
+    pagination.totalPage,
+    root.totalPages,
+    root.total_pages,
+    root.total_page,
+    root.totalPage,
+  );
+}
+
+function groupPaginationTotal(
+  root: ApiEntity,
+  pagination: ApiEntity,
+  visibleGroups: number,
+  limit: PageLimit,
+  page: number,
+) {
+  const explicitGroupTotal = firstNumber(
+    pagination.total_groups,
+    pagination.group_total,
+    pagination.groups_count,
+    root.total_groups,
+    root.group_total,
+    root.groups_count,
+  );
+  if (explicitGroupTotal > 0) return explicitGroupTotal;
+
+  const nestedTotal = firstNumber(pagination.total);
+  if (nestedTotal > 0) return nestedTotal;
+
+  const reportedTotal = firstNumber(root.total);
+  const explicitPages = reportedTotalPages(root, pagination);
+  const numericLimit = pageLimitNumber(limit);
+  if (
+    reportedTotal > 0 &&
+    (explicitPages <= 0 || Math.ceil(reportedTotal / numericLimit) === explicitPages)
+  ) {
+    return reportedTotal;
+  }
+
+  if (explicitPages <= 1) return visibleGroups;
+  if (page >= explicitPages) {
+    return (page - 1) * numericLimit + visibleGroups;
+  }
+
+  return explicitPages * numericLimit;
+}
+
+function totalPages(
+  root: ApiEntity,
+  pagination: ApiEntity,
+  total: number,
+  limit: PageLimit,
+  page: number,
+) {
+  const explicit = reportedTotalPages(root, pagination);
   if (explicit > 0) return Math.max(1, explicit);
   const numericLimit = pageLimitNumber(limit);
   return total > 0 && numericLimit > 0 ? Math.max(1, Math.ceil(total / numericLimit)) : Math.max(1, page);
+}
+
+export function reindexCategorySalesGroups(groups: CategorySalesGroup[]) {
+  let rank = 0;
+
+  return groups.map((group) => {
+    const categories = group.categories.map((category) => {
+      const rows = category.rows.map((row) => {
+        rank += 1;
+        return { ...row, rank, sortOrder: rank };
+      });
+      return { ...category, rows };
+    });
+
+    return {
+      ...group,
+      categories,
+      rows: categories.flatMap((category) => category.rows),
+    };
+  });
 }
 
 export function normalizeCategorySalesReportResponse(
@@ -268,6 +345,7 @@ export function normalizeCategorySalesReportResponse(
   requestedPage: number
 ): CategorySalesReportNormalized {
   const root = response as ApiEntity;
+  const pagination = asRecord(root.pagination);
   const branch = asRecord(root.branch);
   const filters = asRecord(root.filters);
   const rawGroups = asRecords(root.groups).length
@@ -282,9 +360,18 @@ export function normalizeCategorySalesReportResponse(
     .map((group, index) => normalizeGroup(group, index, nextRank))
     .sort((left, right) => left.sortOrder - right.sortOrder);
   const rows = groups.flatMap((group) => group.rows).sort((left, right) => left.rank - right.rank);
-  const total = firstNumber(root.total, rows.length);
-  const page = firstNumber(root.page, requestedPage) || requestedPage;
-  const limitValue = (root.limit as PageLimit | undefined) ?? requestedLimit;
+  const page = firstNumber(pagination.page, root.page, requestedPage) || requestedPage;
+  const limitValue =
+    (pagination.limit as PageLimit | undefined) ??
+    (root.limit as PageLimit | undefined) ??
+    requestedLimit;
+  const total = groupPaginationTotal(
+    root,
+    pagination,
+    groups.length,
+    limitValue,
+    page,
+  );
 
   return {
     filters: {
@@ -303,7 +390,7 @@ export function normalizeCategorySalesReportResponse(
       limit: limitValue,
       page,
       total,
-      totalPages: totalPages(root, total, limitValue, page)
+      totalPages: totalPages(root, pagination, total, limitValue, page)
     },
     reportName: textValue(root.report_name, ""),
     rows,

@@ -23,7 +23,6 @@ import {
   EmployeeCategoryRail,
   EmployeeCategorySidebar,
   EmployeeSearchForm,
-  EmployeeMenuControlDock,
   EmployeeMobileHeaderActions,
   EmployeeSortTabs,
 } from "./order-customer-menu-components";
@@ -92,155 +91,184 @@ export function OrderCustomerView({
   } = workflow;
 
   return (
-    <div data-pos-pattern="true" className="relative h-full min-h-0 overflow-hidden bg-[url('/pos/background_wide.webp')] bg-cover bg-top text-foreground">
-      <div aria-hidden="true" data-pos-pattern-overlay="true" className="pointer-events-none absolute inset-0 bg-primary/45 dark:bg-black/55" />
-      <div className="relative grid h-full min-h-0 overflow-hidden md:grid-cols-[170px_minmax(0,1fr)] xl:grid-cols-[170px_minmax(0,1fr)_clamp(340px,24vw,420px)]">
-        <EmployeeCategorySidebar
-          categories={categories}
-          loading={loadingMenu && !categories.length}
-          selectedCateUuid={selectedCateUuid}
-          onBack={openTablesPage}
-          onSelectCategory={(cateUuid) => void selectCategory(cateUuid)}
-        />
-
-        <section className="relative flex min-h-0 min-w-0 flex-col overflow-hidden">
-          <header className="relative shrink-0 overflow-hidden bg-transparent px-3 py-2 text-white sm:px-4">
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-0 bg-black/10"
+    <div
+      data-pos-pattern="true"
+      className="relative h-full min-h-0 overflow-hidden bg-[url('/pos/background_wide.webp')] bg-cover bg-top text-foreground"
+    >
+      <div
+        aria-hidden="true"
+        data-pos-pattern-overlay="true"
+        className="pointer-events-none absolute inset-0 bg-primary/45 dark:bg-black/55"
+      />
+      <div className="relative grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden xl:grid-cols-[154px_minmax(0,1fr)_clamp(320px,20vw,360px)]">
+        <header className="relative shrink-0 overflow-hidden border-b border-white/15 bg-transparent px-3 py-2 text-white shadow-[0_1px_0_rgb(255_255_255/0.08)] sm:px-3.5 md:py-1.5 xl:col-span-2">
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 bg-black/10"
+          />
+          <div className="relative flex min-w-0 flex-col gap-2 md:hidden">
+            <EmployeeSortTabs
+              activeSort={activeSort}
+              onSortChange={(status) => setActiveSort(status)}
             />
-            <div className="relative flex min-w-0 flex-col gap-2 md:hidden">
-              <EmployeeSortTabs
-                activeSort={activeSort}
-                onSortChange={(status) => setActiveSort(status)}
-              />
-              <div className="flex min-w-0 items-center gap-2">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  aria-label={t("actions.back")}
-                  className="size-11 shrink-0 rounded-full bg-white/15 text-white shadow-sm hover:bg-white/25 hover:text-white"
-                  onClick={openTablesPage}
-                >
-                  <ArrowLeft data-icon="inline-start" />
-                </Button>
+            <div className="flex min-w-0 items-center gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                aria-label={t("actions.back")}
+                className="size-11 shrink-0 rounded-full bg-white/15 text-white shadow-sm hover:bg-white/25 hover:text-white"
+                onClick={openTablesPage}
+              >
+                <ArrowLeft data-icon="inline-start" />
+              </Button>
 
-                <EmployeeSearchForm
-                  className="flex-1"
-                  loading={loadingMenu}
-                  search={search}
-                  onSearchChange={setSearch}
-                  onSearchSubmit={() => void submitSearch()}
-                />
-
-                <EmployeeMobileHeaderActions
-                  loading={loadingTables || loadingMenu}
-                  onRefresh={() => void refreshAll()}
-                />
-              </div>
-
-              <EmployeeCategoryRail
-                categories={categories}
-                selectedCateUuid={selectedCateUuid}
-                onSelectCategory={(cateUuid) => void selectCategory(cateUuid)}
-              />
-            </div>
-
-            <div className="relative hidden min-w-0 items-center gap-2 md:flex">
-              <EmployeeMenuControlDock
-                activeSort={activeSort}
+              <EmployeeSearchForm
+                className="flex-1"
                 loading={loadingMenu}
                 search={search}
                 onSearchChange={setSearch}
                 onSearchSubmit={() => void submitSearch()}
-                onSortChange={(status) => setActiveSort(status)}
               />
 
-              <div className="flex shrink-0 items-center gap-2">
-                <LanguageSwitch
-                  className="border border-white/25 bg-white/15 text-white shadow-sm hover:bg-white/25 hover:text-white"
-                  contentAlign="end"
-                  showShort={false}
-                  size="icon"
-                  variant="ghost"
-                />
-                <ThemeToggle
-                  className="border border-white/25 bg-white/15 text-white shadow-sm hover:bg-white/25 hover:text-white"
-                  size="icon"
-                  variant="ghost"
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  aria-label={t("actions.refresh")}
-                  className="border border-white/25 bg-white/15 text-white shadow-sm hover:bg-white/25 hover:text-white"
-                  disabled={loadingTables || loadingMenu}
-                  onClick={() => void refreshAll()}
-                >
-                  {loadingTables || loadingMenu ? <Spinner /> : <RefreshCcw />}
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="hidden border border-white/25 bg-white/15 text-white shadow-sm hover:bg-white/25 hover:text-white sm:inline-flex xl:hidden"
-                  onClick={() => void openCartSheet()}
-                >
-                  <ShoppingCart data-icon="inline-start" />
-                  <span className="hidden sm:inline">
-                    {t("pos.currentCart")}
-                  </span>
-                  <Badge className="min-w-6 justify-center rounded-full border-white/30 bg-white text-primary">
-                    {cartCount}
-                  </Badge>
-                </Button>
-              </div>
+              <EmployeeMobileHeaderActions
+                loading={loadingTables || loadingMenu}
+                onRefresh={() => void refreshAll()}
+              />
             </div>
-          </header>
 
-          <div className="pos-soft-light-zone pos-dark-zone min-h-0 flex-1 overflow-y-auto bg-background p-3 text-foreground sm:p-4 lg:p-5">
-            {loadingMenu ? (
-              <ProductGridSkeleton />
-            ) : activeProducts.length ? (
-              <div className={cn(PRODUCT_GRID_CLASS, "pb-24 xl:pb-4")}>
-                {activeProducts.map((entry) => (
-                  <EmployeeProductCard
-                    key={`${entry.cateUuid}-${entry.product.prod_uuid}-${optionalString(entry.product.pro_detail_uuid) ?? activeSort}`}
-                    activeSort={activeSort}
-                    entry={entry}
-                    loading={
-                      loadingProductUuid === entry.product.prod_uuid || saving
-                    }
-                    onAction={() => void openOrAddProduct(entry)}
-                  />
-                ))}
-              </div>
-            ) : (
-              <Empty className="min-h-105 rounded-xl border border-dashed bg-background text-foreground">
-                <EmptyHeader>
-                  <EmptyMedia variant="icon">
-                    <Utensils />
-                  </EmptyMedia>
-                  <EmptyTitle>{t("pos.noProductsInCategory")}</EmptyTitle>
-                  <EmptyDescription>{t("empty.adjustSearch")}</EmptyDescription>
-                </EmptyHeader>
-                <EmptyContent>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => void refreshAll()}
-                  >
-                    <RefreshCcw data-icon="inline-start" />
-                    {t("actions.refresh")}
-                  </Button>
-                </EmptyContent>
-              </Empty>
-            )}
+            <EmployeeCategoryRail
+              categories={categories}
+              selectedCateUuid={selectedCateUuid}
+              onSelectCategory={(cateUuid) => void selectCategory(cateUuid)}
+            />
           </div>
-        </section>
 
-        <aside className="relative hidden min-h-0 overflow-hidden bg-transparent xl:block">
+          <div className="relative hidden min-w-0 items-center gap-2 md:flex">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              aria-label={t("actions.back")}
+              className="size-11 shrink-0 rounded-full border border-white/20 bg-white/15 text-white shadow-sm hover:bg-white/25 hover:text-white"
+              onClick={openTablesPage}
+            >
+              <ArrowLeft data-icon="inline-start" />
+            </Button>
+
+            <div className="grid min-w-0 flex-1 gap-2 lg:grid-cols-[17rem_minmax(14rem,1fr)]">
+              <EmployeeSortTabs
+                activeSort={activeSort}
+                className="w-full"
+                onSortChange={(status) => setActiveSort(status)}
+              />
+              <EmployeeSearchForm
+                className="w-full lg:max-w-xl"
+                loading={loadingMenu}
+                search={search}
+                showSearchLabel
+                onSearchChange={setSearch}
+                onSearchSubmit={() => void submitSearch()}
+              />
+            </div>
+
+            <div className="ml-auto flex shrink-0 items-center gap-2">
+              <LanguageSwitch
+                className="size-11 border border-white/25 bg-white/15 text-white shadow-sm hover:bg-white/25 hover:text-white"
+                contentAlign="end"
+                showShort={false}
+                size="icon"
+                variant="ghost"
+              />
+              <ThemeToggle
+                className="size-11 border border-white/25 bg-white/15 text-white shadow-sm hover:bg-white/25 hover:text-white"
+                size="icon"
+                variant="ghost"
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                aria-label={t("actions.refresh")}
+                className="size-11 border border-white/25 bg-white/15 text-white shadow-sm hover:bg-white/25 hover:text-white"
+                disabled={loadingTables || loadingMenu}
+                onClick={() => void refreshAll()}
+              >
+                {loadingTables || loadingMenu ? <Spinner /> : <RefreshCcw />}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                className="hidden h-11 border border-white/25 bg-white/15 text-white shadow-sm hover:bg-white/25 hover:text-white sm:inline-flex xl:hidden"
+                onClick={() => void openCartSheet()}
+              >
+                <ShoppingCart data-icon="inline-start" />
+                <span className="hidden sm:inline">{t("pos.currentCart")}</span>
+                <Badge className="min-w-6 justify-center rounded-full border-white/30 bg-white text-primary">
+                  {cartCount}
+                </Badge>
+              </Button>
+            </div>
+          </div>
+        </header>
+
+        <div className="grid min-h-0 overflow-hidden md:grid-cols-[154px_minmax(0,1fr)] xl:col-span-2">
+          <EmployeeCategorySidebar
+            categories={categories}
+            loading={loadingMenu && !categories.length}
+            selectedCateUuid={selectedCateUuid}
+            onSelectCategory={(cateUuid) => void selectCategory(cateUuid)}
+          />
+
+          <section className="relative flex min-h-0 min-w-0 flex-col overflow-hidden">
+            <div className="pos-soft-light-zone pos-dark-zone min-h-0 flex-1 overflow-y-auto bg-background p-3 text-foreground sm:p-3.5 lg:p-4">
+              {loadingMenu ? (
+                <ProductGridSkeleton />
+              ) : activeProducts.length ? (
+                <div className={cn(PRODUCT_GRID_CLASS, "pb-24 xl:pb-4")}>
+                  {activeProducts.map((entry) => (
+                    <EmployeeProductCard
+                      key={`${entry.cateUuid}-${entry.product.prod_uuid}-${
+                        optionalString(entry.product.pro_detail_uuid) ??
+                        activeSort
+                      }`}
+                      activeSort={activeSort}
+                      entry={entry}
+                      loading={
+                        loadingProductUuid === entry.product.prod_uuid || saving
+                      }
+                      onAction={() => void openOrAddProduct(entry)}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <Empty className="min-h-105 rounded-xl border border-dashed bg-background text-foreground">
+                  <EmptyHeader>
+                    <EmptyMedia variant="icon">
+                      <Utensils />
+                    </EmptyMedia>
+                    <EmptyTitle>{t("pos.noProductsInCategory")}</EmptyTitle>
+                    <EmptyDescription>
+                      {t("empty.adjustSearch")}
+                    </EmptyDescription>
+                  </EmptyHeader>
+                  <EmptyContent>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => void refreshAll()}
+                    >
+                      <RefreshCcw data-icon="inline-start" />
+                      {t("actions.refresh")}
+                    </Button>
+                  </EmptyContent>
+                </Empty>
+              )}
+            </div>
+          </section>
+        </div>
+
+        <aside className="relative col-start-3 row-span-2 row-start-1 hidden min-h-0 overflow-hidden bg-transparent xl:block">
           <div className="relative h-full min-h-0">
             <SelectedTableCartPanel
               allZones={zones}

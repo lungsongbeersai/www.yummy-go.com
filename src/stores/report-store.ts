@@ -49,6 +49,7 @@ import {
 } from "@/stores/report-store/payment-method-normalizers";
 import {
   normalizeCategorySalesReportResponse,
+  reindexCategorySalesGroups,
   type CategorySalesGroup,
   type CategorySalesPagination,
   type CategorySalesRow
@@ -852,8 +853,11 @@ export const useCategorySalesReportStore = create<CategorySalesReportState>((set
         }
       }
 
-      const rows = allGroups.flatMap((group) => group.rows).sort((left, right) => left.rank - right.rank);
-      const total = loadAll ? rows.length : normalized.pagination.total;
+      const groups = loadAll
+        ? reindexCategorySalesGroups(allGroups)
+        : normalized.groups;
+      const rows = groups.flatMap((group) => group.rows);
+      const total = loadAll ? groups.length : normalized.pagination.total;
       const pagination: CategorySalesPagination = {
         ...normalized.pagination,
         limit: params.limit,
@@ -866,7 +870,7 @@ export const useCategorySalesReportStore = create<CategorySalesReportState>((set
 
       set({
         filters: normalized.filters,
-        groups: allGroups,
+        groups,
         limit: params.limit,
         loading: false,
         page: pagination.page,

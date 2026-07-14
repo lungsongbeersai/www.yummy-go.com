@@ -236,17 +236,21 @@ export interface CategorySalesReportResponse extends ApiEntity {
   date_to?: string;
   filters?: unknown;
   groups?: unknown;
+  groups_count?: number;
+  group_total?: number;
   lang?: string;
   limit?: number;
   message?: string;
   page?: number;
   payment_method?: PaymentMethodReportFilter;
+  pagination?: unknown;
   report_key?: string;
   report_name?: string;
   search?: string;
   status?: string;
   summary?: unknown;
   total?: number;
+  total_groups?: number;
   totalPages?: number;
 }
 

@@ -60,6 +60,7 @@ export function CartTabItems({
   actionDisabled,
   canSplitItem,
   canConfirmKitchenItem,
+  compact = false,
   editable = false,
   items,
   onChangeQty,
@@ -77,6 +78,7 @@ export function CartTabItems({
   actionDisabled: boolean;
   canSplitItem?: (item: CartItem) => boolean;
   canConfirmKitchenItem: (item: CartItem) => boolean;
+  compact?: boolean;
   editable?: boolean;
   items: CartItem[];
   onChangeQty: (item: CartItem, change: 1 | -1) => void;
@@ -106,6 +108,7 @@ export function CartTabItems({
             actionDisabled={actionDisabled}
             acting={itemUuid === actingItemUuid}
             canConfirmKitchen={canConfirmKitchenItem(item)}
+            compact={compact}
             splitEligible={splitEligible}
             splitSelectionDisabled={splitSelectionDisabled}
             splitSelected={splitEligible && Boolean(itemUuid && splitSelectedItemUuids?.has(itemUuid))}
@@ -143,6 +146,7 @@ function CartItemRow({
   acting,
   actionDisabled,
   canConfirmKitchen,
+  compact,
   editable,
   item,
   onChangeQty,
@@ -160,6 +164,7 @@ function CartItemRow({
   acting: boolean;
   actionDisabled: boolean;
   canConfirmKitchen: boolean;
+  compact: boolean;
   editable: boolean;
   item: CartItem;
   onChangeQty: (item: CartItem, change: 1 | -1) => void;
@@ -251,7 +256,8 @@ function CartItemRow({
   return (
     <div
       className={cn(
-        "border-b border-border/80 bg-background px-2.5 py-2.5 transition-colors last:border-b-0 hover:bg-muted/20 sm:px-3",
+        "border-b border-border/80 bg-background transition-colors last:border-b-0 hover:bg-muted/20",
+        compact ? "px-2.5 py-2" : "px-2.5 py-2.5 sm:px-3",
         isWaitingConfirm &&
           "border-l-4 border-l-amber-400 bg-amber-50/70 hover:bg-amber-50 dark:border-l-amber-500 dark:bg-amber-950/20 dark:hover:bg-amber-950/30",
         isCanceled && "bg-destructive/5 hover:bg-destructive/10",
@@ -262,15 +268,20 @@ function CartItemRow({
       <div
         className={cn(
           "grid min-w-0 gap-2",
-          splitSelectable
-            ? "grid-cols-[40px_40px_minmax(0,1fr)] sm:grid-cols-[40px_44px_minmax(0,1fr)]"
-            : "grid-cols-[40px_minmax(0,1fr)] sm:grid-cols-[44px_minmax(0,1fr)]"
+          compact
+            ? splitSelectable
+              ? "grid-cols-[36px_40px_minmax(0,1fr)]"
+              : "grid-cols-[40px_minmax(0,1fr)]"
+            : splitSelectable
+              ? "grid-cols-[40px_40px_minmax(0,1fr)] sm:grid-cols-[40px_44px_minmax(0,1fr)]"
+              : "grid-cols-[40px_minmax(0,1fr)] sm:grid-cols-[44px_minmax(0,1fr)]"
         )}
       >
         {splitSelectable ? (
           <Label
             className={cn(
               "flex size-10 shrink-0 items-start justify-center pt-0.5",
+              compact && "size-9",
               splitEnabled ? "cursor-pointer" : "cursor-not-allowed"
             )}
           >
@@ -283,15 +294,27 @@ function CartItemRow({
             />
           </Label>
         ) : null}
-        <CartProductMedia media={media} title={title} />
+        <CartProductMedia compact={compact} media={media} title={title} />
         <div className="min-w-0">
-          <div className="grid min-w-0 gap-1.5">
-            <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-              <p className="min-w-0 wrap-break-word text-[14px] font-black leading-5 text-foreground sm:text-[15px]">{title}</p>
+          <div className="flex min-w-0 items-start gap-1">
+            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
+              <p
+                className={cn(
+                  "min-w-0 wrap-break-word font-black text-foreground",
+                  compact
+                    ? "text-[14px] leading-4.5"
+                    : "text-[14px] leading-5 sm:text-[15px]",
+                )}
+              >
+                {title}
+              </p>
               {statusText || isWaitingConfirm ? (
                 <Badge
                   className={cn(
-                    "h-6 rounded-md border-transparent px-2 text-[11px] font-black shadow-none",
+                    "rounded-md border-transparent font-black shadow-none",
+                    compact
+                      ? "h-5 px-1.5 text-[10px]"
+                      : "h-6 px-2 text-[11px]",
                     isCanceled
                       ? "bg-destructive text-destructive-foreground"
                       : isWaitingConfirm
@@ -304,7 +327,10 @@ function CartItemRow({
               ) : statusValue !== null ? (
                 <Badge
                   className={cn(
-                    "h-6 rounded-md px-2 text-[11px] font-black shadow-none",
+                    "rounded-md font-black shadow-none",
+                    compact
+                      ? "h-5 px-1.5 text-[10px]"
+                      : "h-6 px-2 text-[11px]",
                     isCanceled && "bg-destructive text-destructive-foreground"
                   )}
                 >
@@ -312,29 +338,26 @@ function CartItemRow({
                 </Badge>
               ) : null}
             </div>
-            <div className="flex min-w-0 items-center justify-end gap-1">
-              <p className={cn("min-w-0 truncate text-right text-[14px] font-black leading-5 text-foreground tabular-nums sm:text-[15px]", isCanceled && "text-destructive")}>{money(total)}</p>
-              <CartItemActionMenu
-                canCancel={canCancel}
-                canDelete={canDelete}
-                canConfirmKitchen={editable && statusValue === 1}
-                confirmKitchenDisabled={!canConfirmKitchen || actionDisabled}
-                canConfirmServed={canConfirmServed}
-                disabled={actionDisabled}
-                itemUuid={itemUuid}
-                pending={acting}
-                onCancel={() => onOpenItemAction("cancel", item)}
-                onConfirmKitchen={() => onConfirmKitchen(item)}
-                onConfirmServed={() => onConfirmServed(item)}
-                onDelete={() => onOpenItemAction("delete", item)}
-                onEditNote={() => onEditNote(item)}
-                onItemDiscount={() => onItemDiscount(item)}
-              />
-            </div>
+            <CartItemActionMenu
+              canCancel={canCancel}
+              canDelete={canDelete}
+              canConfirmKitchen={editable && statusValue === 1}
+              confirmKitchenDisabled={!canConfirmKitchen || actionDisabled}
+              canConfirmServed={canConfirmServed}
+              disabled={actionDisabled}
+              itemUuid={itemUuid}
+              pending={acting}
+              onCancel={() => onOpenItemAction("cancel", item)}
+              onConfirmKitchen={() => onConfirmKitchen(item)}
+              onConfirmServed={() => onConfirmServed(item)}
+              onDelete={() => onOpenItemAction("delete", item)}
+              onEditNote={() => onEditNote(item)}
+              onItemDiscount={() => onItemDiscount(item)}
+            />
           </div>
 
           {hasDetailContent ? (
-            <div className="mt-1.5 grid gap-0.5">
+            <div className={cn("grid gap-0.5", compact ? "mt-1" : "mt-1.5")}>
               {displayUnitPrice !== null ? (
                 <CartDetailRow
                   icon={<Tag />}
@@ -373,16 +396,31 @@ function CartItemRow({
             </div>
           ) : null}
 
-          <div className="mt-2 flex min-w-0 justify-end">
+          <div
+            className={cn(
+              "flex min-w-0 items-center justify-between gap-2",
+              compact ? "mt-1.5" : "mt-2",
+            )}
+          >
+            <p
+              className={cn(
+                "min-w-0 truncate font-black leading-5 text-foreground tabular-nums",
+                compact ? "text-[14px]" : "text-[14px] sm:text-[15px]",
+                isCanceled && "text-destructive",
+              )}
+            >
+              {money(total)}
+            </p>
             {editable ? (
               <CartQuantityStepper
+                compact={compact}
                 qty={qty}
                 updating={updating}
                 onDecrease={() => onChangeQty(item, -1)}
                 onIncrease={() => onChangeQty(item, 1)}
               />
             ) : (
-              <CartQuantityBadge qty={qty} />
+              <CartQuantityBadge compact={compact} qty={qty} />
             )}
           </div>
         </div>
@@ -583,16 +621,33 @@ function CartNote({ text }: { text: string }) {
   );
 }
 
-function CartProductMedia({ media, title }: { media: CartItemMedia; title: string }) {
+function CartProductMedia({
+  compact,
+  media,
+  title,
+}: {
+  compact: boolean;
+  media: CartItemMedia;
+  title: string;
+}) {
   const colorStyle = media.type === "color" ? ({ backgroundColor: media.color } satisfies CSSProperties) : undefined;
 
   return (
     <div
-      className="relative size-10 shrink-0 overflow-hidden rounded-md border border-border bg-muted shadow-sm sm:size-11"
+      className={cn(
+        "relative shrink-0 overflow-hidden rounded-md border border-border bg-muted shadow-sm",
+        compact ? "size-10" : "size-10 sm:size-11",
+      )}
       style={colorStyle}
     >
       {media.type === "image" ? (
-        <Image src={media.src} alt={title} fill sizes="(max-width: 640px) 40px, 44px" className="object-cover" />
+        <Image
+          src={media.src}
+          alt={title}
+          fill
+          sizes={compact ? "40px" : "(max-width: 640px) 40px, 44px"}
+          className="object-cover"
+        />
       ) : media.type === "color" ? (
         <>
           <span className="pointer-events-none absolute inset-0 rounded-[inherit] ring-1 ring-inset ring-black/10" aria-hidden="true" />
@@ -648,11 +703,13 @@ function CartToppingsList({
 }
 
 function CartQuantityStepper({
+  compact,
   onDecrease,
   onIncrease,
   qty,
   updating
 }: {
+  compact: boolean;
   onDecrease: () => void;
   onIncrease: () => void;
   qty: number;
@@ -662,19 +719,32 @@ function CartQuantityStepper({
   const locked = updating;
 
   return (
-    <div className="flex h-11 shrink-0 items-center rounded-full border border-border bg-background shadow-sm">
+    <div
+      className={cn(
+        "flex shrink-0 items-center rounded-full border border-border bg-background shadow-sm",
+        compact ? "h-9" : "h-11",
+      )}
+    >
       <Button
         aria-label={`${t("pos.qty")} -`}
         type="button"
         size="iconSm"
         variant="ghost"
-        className="size-10 rounded-full text-muted-foreground hover:bg-muted"
+        className={cn(
+          "rounded-full text-muted-foreground hover:bg-muted",
+          compact ? "size-8" : "size-10",
+        )}
         disabled={locked || qty <= 1}
         onClick={onDecrease}
       >
-        <Minus />
+        <Minus className={compact ? "size-3.5" : undefined} />
       </Button>
-      <span className="min-w-9 text-center text-sm font-black text-foreground tabular-nums">
+      <span
+        className={cn(
+          "text-center font-black text-foreground tabular-nums",
+          compact ? "min-w-7 text-[13px]" : "min-w-9 text-sm",
+        )}
+      >
         {updating ? <Spinner /> : qty}
       </span>
       <Button
@@ -682,19 +752,33 @@ function CartQuantityStepper({
         type="button"
         size="iconSm"
         variant="ghost"
-        className="size-10 rounded-full text-muted-foreground hover:bg-muted"
+        className={cn(
+          "rounded-full text-muted-foreground hover:bg-muted",
+          compact ? "size-8" : "size-10",
+        )}
         disabled={locked}
         onClick={onIncrease}
       >
-        <Plus />
+        <Plus className={compact ? "size-3.5" : undefined} />
       </Button>
     </div>
   );
 }
 
-function CartQuantityBadge({ qty }: { qty: number }) {
+function CartQuantityBadge({
+  compact,
+  qty,
+}: {
+  compact: boolean;
+  qty: number;
+}) {
   return (
-    <Badge className="h-9 rounded-full border-border bg-muted px-3 text-sm font-black text-muted-foreground">
+    <Badge
+      className={cn(
+        "rounded-full border-border bg-muted font-black text-muted-foreground",
+        compact ? "h-8 px-2.5 text-xs" : "h-9 px-3 text-sm",
+      )}
+    >
       x{qty}
     </Badge>
   );

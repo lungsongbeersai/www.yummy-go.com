@@ -3,7 +3,6 @@
 import dynamic from "next/dynamic";
 import { memo } from "react";
 import {
-  ArrowLeft,
   Check,
   Moon,
   MoreHorizontal,
@@ -38,9 +37,9 @@ import { ProductSortStatus, SORT_TABS } from "./order-customer-utils";
 const CategoryIconView = dynamic(
   () =>
     import("./order-customer-category-icon").then(
-      (mod) => mod.CategoryIconView,
+      (mod) => mod.CategoryIconView
     ),
-  { ssr: false },
+  { ssr: false }
 );
 
 export function EmployeeSortTabs({
@@ -55,18 +54,23 @@ export function EmployeeSortTabs({
   const { t } = useTranslation();
 
   return (
-    <div className={cn("grid min-w-0 grid-cols-3 gap-2", className)}>
+    <div
+      role="group"
+      aria-label={t("pos.menu")}
+      className={cn("grid min-w-0 grid-cols-3 gap-2", className)}
+    >
       {SORT_TABS.map((tab) => {
         const active = tab.status === activeSort;
         return (
           <Button
             key={tab.status}
             type="button"
+            aria-pressed={active}
             variant="ghost"
             className={cn(
               "h-11 justify-center rounded-full border border-white/20 bg-white/15 px-3 text-xs font-bold text-white shadow-sm hover:border-white/45 hover:bg-white/25 hover:text-white sm:text-sm",
               active &&
-                "border-primary/20 bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground",
+                "border-primary/20 bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
             )}
             onClick={() => onSortChange(tab.status)}
           >
@@ -97,6 +101,7 @@ export function EmployeeSearchForm({
 
   return (
     <form
+      role="search"
       className={cn("flex min-w-0 gap-2", className)}
       onSubmit={(event) => {
         event.preventDefault();
@@ -104,11 +109,18 @@ export function EmployeeSearchForm({
       }}
     >
       <div className="relative min-w-0 flex-1">
-        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-white/70" />
+        <Search
+          aria-hidden="true"
+          className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-white/70"
+        />
         <Input
+          aria-label={t("pos.searchMenu")}
+          autoComplete="off"
           className="h-11 rounded-full border-white/25 bg-white/15 pl-9 font-semibold text-white shadow-sm placeholder:text-white/65"
-          value={search}
+          name="menu-search"
           placeholder={t("pos.searchMenu")}
+          spellCheck={false}
+          value={search}
           onChange={(event) => onSearchChange(event.target.value)}
         />
       </div>
@@ -200,81 +212,32 @@ export function EmployeeMobileHeaderActions({
   );
 }
 
-export function EmployeeMenuControlDock({
-  activeSort,
-  loading,
-  onSearchChange,
-  onSearchSubmit,
-  onSortChange,
-  search,
-}: {
-  activeSort: ProductSortStatus;
-  loading: boolean;
-  onSearchChange: (value: string) => void;
-  onSearchSubmit: () => void;
-  onSortChange: (status: ProductSortStatus) => void;
-  search: string;
-}) {
-  return (
-    <div className="min-w-0 flex-1">
-      <div className="flex min-w-0 flex-col gap-2 lg:flex-row lg:items-center">
-        <EmployeeSortTabs
-          activeSort={activeSort}
-          className="lg:flex-1"
-          onSortChange={onSortChange}
-        />
-        <EmployeeSearchForm
-          className="lg:w-[min(36vw,440px)]"
-          loading={loading}
-          search={search}
-          showSearchLabel
-          onSearchChange={onSearchChange}
-          onSearchSubmit={onSearchSubmit}
-        />
-      </div>
-    </div>
-  );
-}
-
 export const EmployeeCategorySidebar = memo(function EmployeeCategorySidebar({
   categories,
   loading,
-  onBack,
   selectedCateUuid,
   onSelectCategory,
 }: {
   categories: CateWithProducts[];
   loading: boolean;
-  onBack: () => void;
   selectedCateUuid: string;
   onSelectCategory: (cateUuid: string) => void;
 }) {
   const { t } = useTranslation();
 
   return (
-    <aside className="relative hidden min-h-0 overflow-hidden bg-transparent p-2 text-white md:flex">
+    <aside className="relative hidden min-h-0 overflow-hidden bg-transparent p-1.5 text-white md:flex">
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 bg-black/10"
       />
       <div className="relative flex min-h-0 flex-1 flex-col gap-2">
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          aria-label={t("actions.back")}
-          className="mx-auto size-10 shrink-0 rounded-full border border-white/20 bg-white/15 text-white shadow-sm hover:bg-white/25 hover:text-white"
-          onClick={onBack}
-        >
-          <ArrowLeft data-icon="inline-start" />
-        </Button>
-
         <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain pr-1">
           {loading
             ? Array.from({ length: 6 }).map((_, index) => (
                 <Skeleton
                   key={index}
-                  className="h-[6.25rem] rounded-lg bg-white/20"
+                  className="h-[5.625rem] rounded-lg bg-white/20"
                 />
               ))
             : categories.map((category) => {
@@ -284,17 +247,18 @@ export const EmployeeCategorySidebar = memo(function EmployeeCategorySidebar({
                     <TooltipTrigger asChild>
                       <Button
                         type="button"
+                        aria-pressed={active}
                         variant="ghost"
                         className={cn(
-                          "h-auto min-h-[6.25rem] w-full flex-col gap-1 rounded-lg border border-white/20 bg-white/10 px-2 py-3 text-white/90 shadow-sm shadow-black/5 hover:border-white/45 hover:bg-white/20 hover:text-white focus-visible:ring-white/60",
+                          "h-auto min-h-[5.625rem] w-full flex-col gap-1 rounded-lg border border-white/20 bg-white/10 px-2 py-2 text-white/90 shadow-sm shadow-black/5 hover:border-white/45 hover:bg-white/20 hover:text-white focus-visible:ring-white/60",
                           active &&
-                            "border-white bg-white text-primary shadow-lg shadow-black/15 hover:bg-white hover:text-primary",
+                            "border-white bg-white text-primary shadow-lg shadow-black/15 hover:bg-white hover:text-primary"
                         )}
                         onClick={() => onSelectCategory(category.cate_uuid)}
                       >
                         <CategoryIconView
                           icon={category.cate_icon}
-                          className="size-7 shrink-0"
+                          className="size-6 shrink-0"
                         />
                         <span className="line-clamp-3 max-w-full break-words text-center text-xs font-black leading-4">
                           {category.cate_name}
@@ -334,12 +298,13 @@ export const EmployeeCategoryRail = memo(function EmployeeCategoryRail({
               <Button
                 key={category.cate_uuid}
                 type="button"
+                aria-pressed={active}
                 variant="ghost"
                 size="sm"
                 className={cn(
                   "h-11 max-w-47.5 rounded-2xl border border-white/15 bg-black/20 px-3 text-sm font-black text-white hover:border-white/45 hover:bg-white/10 hover:text-white",
                   active &&
-                    "border-white bg-white text-primary hover:bg-white hover:text-primary",
+                    "border-white bg-white text-primary hover:bg-white hover:text-primary"
                 )}
                 onClick={() => onSelectCategory(category.cate_uuid)}
               >

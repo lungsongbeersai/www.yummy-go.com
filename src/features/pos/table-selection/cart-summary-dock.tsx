@@ -96,20 +96,53 @@ export function CartSummaryDock({
   const disabledButtonClass = "disabled:cursor-not-allowed disabled:opacity-65 disabled:hover:bg-primary-foreground/95";
 
   return (
-    <div className="pos-soft-light-zone relative flex flex-col gap-2 text-primary-foreground">
-      <div className={cn("min-w-0 px-3 text-white", compact ? "py-2.5" : "py-3")}>
+    <div
+      className={cn(
+        "pos-soft-light-zone relative flex flex-col text-primary-foreground",
+        compact ? "gap-1.5" : "gap-2",
+      )}
+    >
+      <div
+        className={cn(
+          "min-w-0 text-white",
+          compact ? "px-2.5 py-2" : "px-3 py-3",
+        )}
+      >
         <div className="flex min-w-0 items-start justify-between gap-3">
-          <span className="shrink-0 text-xs font-bold leading-5 text-white/75">{summaryTitle}</span>
-          <span className={cn("min-w-0 text-right font-black tabular-nums", compact ? "text-2xl leading-7" : "text-[28px] leading-8")}>
+          <span
+            className={cn(
+              "shrink-0 leading-5",
+              compact
+                ? "text-sm font-black text-white/85"
+                : "text-xs font-bold text-white/75",
+            )}
+          >
+            {summaryTitle}
+          </span>
+          <span className={cn("min-w-0 text-right font-black tabular-nums", compact ? "text-[26px] leading-7" : "text-[28px] leading-8")}>
             {money(summary.grandTotal)}
           </span>
         </div>
         {summaryDetailRows.length > 0 ? (
-          <div className="mt-2 flex flex-col gap-1.5 border-t border-white/20 pt-2 text-sm font-bold leading-5 text-white/75">
+          <div
+            className={cn(
+              "flex flex-col border-t border-white/20 font-bold text-white/75",
+              compact
+                ? "mt-1.5 gap-1 pt-1.5 text-sm font-black leading-5 text-white/85"
+                : "mt-2 gap-1.5 pt-2 text-sm leading-5",
+            )}
+          >
             {summaryDetailRows.map((item) => (
               <div key={item.key} className="flex min-w-0 items-center justify-between gap-3">
                 <span className="min-w-0 truncate">{item.label}</span>
-                <span className="shrink-0 text-right text-white/90 tabular-nums">{item.value}</span>
+                <span
+                  className={cn(
+                    "shrink-0 text-right tabular-nums",
+                    compact ? "text-white" : "text-white/90",
+                  )}
+                >
+                  {item.value}
+                </span>
               </div>
             ))}
           </div>
@@ -123,7 +156,7 @@ export function CartSummaryDock({
           className={cn(
             "h-12 w-full min-w-0 justify-center rounded-lg bg-primary-foreground/95 px-3 text-primary shadow-sm hover:bg-primary-foreground/90",
             disabledButtonClass,
-            !compact && "h-13"
+            compact ? "h-11" : "h-13"
           )}
           disabled={actionsDisabled}
           onClick={onCreateEmployeeOrder}
@@ -133,13 +166,13 @@ export function CartSummaryDock({
         </Button>
       ) : null}
 
-      <div className={cn("grid items-stretch gap-2", compact ? "grid-cols-[44px_minmax(0,1fr)]" : "grid-cols-[48px_minmax(0,1fr)]")}>
+      <div className={cn("grid items-stretch gap-2", compact ? "grid-cols-[40px_minmax(0,1fr)]" : "grid-cols-[48px_minmax(0,1fr)]")}>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
               type="button"
               aria-label={t("nav.manage")}
-              className={cn("min-w-0 rounded-lg bg-primary-foreground/95 px-2 text-primary shadow-sm hover:bg-primary-foreground/90", disabledButtonClass, compact ? "h-12" : "h-13")}
+              className={cn("min-w-0 rounded-lg bg-primary-foreground/95 px-2 text-primary shadow-sm hover:bg-primary-foreground/90", disabledButtonClass, compact ? "h-11" : "h-13")}
               disabled={actionsDisabled}
             >
               <MoreHorizontal data-icon="inline-start" />
@@ -181,7 +214,7 @@ export function CartSummaryDock({
           aria-label={splitSelectedTotalLabel ? `${primaryLabel} ${splitSelectedTotalLabel}` : primaryLabel}
           className={cn(
             "relative min-w-0 overflow-hidden rounded-lg px-3 shadow-sm",
-            compact ? "h-12" : "h-13",
+            compact ? "h-11" : "h-13",
             primaryDisabled
               ? "bg-white text-primary hover:bg-white/90 disabled:hover:bg-white"
               : "bg-primary text-primary-foreground hover:bg-primary/90 disabled:hover:bg-primary",
