@@ -6,6 +6,7 @@ import {
   getCategorySalesReport,
   getBestSellingProductsReport,
   getDailySaleItems,
+  getDailyStoreClosingReport,
   getDailySalesBillReport,
   getDailySalesOrderReport,
   getDailySalesReport,
@@ -16,10 +17,12 @@ import {
   type DailySalesOrderReportResponse,
   type FetchCategorySalesReportParams,
   type DailySaleItemsResponse,
+  type DailyStoreClosingReportResponse,
   type FetchBestSellingProductsReportParams,
   type FetchDailySalesBillReportParams,
   type FetchDailySalesOrderReportParams,
   type FetchDailySaleItemsParams,
+  type FetchDailyStoreClosingReportParams,
   type DailySalesReportResponse,
   type FetchDailySalesReportParams,
   type FetchPaymentMethodsReportParams,
@@ -67,6 +70,10 @@ import {
   normalizeDailySalesOrderReportResponse,
   type DailySalesOrderReportPagination
 } from "@/stores/report-store/daily-sales-order-normalizers";
+import {
+  normalizeDailyStoreClosingReportResponse,
+  type DailyStoreClosingReport
+} from "@/stores/report-store/daily-store-closing-normalizers";
 import { createSessionGuard, registerSessionStoreReset } from "@/stores/session-store-registry";
 import { errorMessage } from "@/stores/store-utils";
 import {
@@ -95,6 +102,7 @@ export { mergeBestSellingProductGroups, normalizeBestSellingProductsReportRespon
 export { normalizeDailySaleItemsResponse };
 export { normalizePaymentMethodsReportResponse };
 export { normalizeCategorySalesReportResponse };
+export { normalizeDailyStoreClosingReportResponse };
 export type { DailySalesBillGroup };
 export type { DailySalesBillReportPagination };
 export type { DailySalesOrderReportPagination };
@@ -102,6 +110,7 @@ export type { DailySaleItemsBillGroup, DailySaleItemsPagination };
 export type { BestSellingProductGroup, BestSellingProductItem, BestSellingProductsPagination };
 export type { PaymentMethodOption, PaymentMethodReportRow, PaymentMethodSummaryCard, PaymentMethodsPagination };
 export type { CategorySalesGroup, CategorySalesPagination, CategorySalesRow };
+export type { DailyStoreClosingReport };
 export type {
   BestSellingProductsReportExportData,
   CategorySalesReportExportData,
@@ -116,6 +125,7 @@ type ReportRequestKey =
   | "dailySalesBill"
   | "dailySalesOrder"
   | "dailySaleItems"
+  | "dailyStoreClosing"
   | "bestSellingProducts"
   | "paymentMethods"
   | "categorySales";
@@ -125,6 +135,7 @@ const reportRequestIds: Record<ReportRequestKey, number> = {
   dailySalesBill: 0,
   dailySalesOrder: 0,
   dailySaleItems: 0,
+  dailyStoreClosing: 0,
   bestSellingProducts: 0,
   paymentMethods: 0,
   categorySales: 0
@@ -909,6 +920,43 @@ export const useCategorySalesReportStore = create<CategorySalesReportState>((set
   }
 }));
 
+interface DailyStoreClosingReportState {
+  error: string | null;
+  loading: boolean;
+  report: DailyStoreClosingReport | null;
+  response: DailyStoreClosingReportResponse | null;
+  load: (params: FetchDailyStoreClosingReportParams) => Promise<DailyStoreClosingReportResponse>;
+  reset: () => void;
+}
+
+export const useDailyStoreClosingReportStore = create<DailyStoreClosingReportState>((set) => ({
+  error: null,
+  loading: false,
+  report: null,
+  response: null,
+  load: async (params) => {
+    const isCurrentRequest = createReportRequestGuard("dailyStoreClosing");
+    set({ error: null, loading: true, report: null, response: null });
+    try {
+      const response = await getDailyStoreClosingReport(params);
+      const report = normalizeDailyStoreClosingReportResponse(response);
+
+      if (isCurrentRequest()) {
+        set({ loading: false, report, response });
+      }
+
+      return response;
+    } catch (error) {
+      if (isCurrentRequest()) set({ error: errorMessage(error), loading: false });
+      throw error;
+    }
+  },
+  reset: () => {
+    invalidateReportRequest("dailyStoreClosing");
+    set({ error: null, loading: false, report: null, response: null });
+  }
+}));
+
 registerSessionStoreReset("daily-sales-report", () => useDailySalesReportStore.getState().reset());
 registerSessionStoreReset("daily-sales-bill-report", () => useDailySalesBillReportStore.getState().reset());
 registerSessionStoreReset("daily-sales-order-report", () => useDailySalesOrderReportStore.getState().reset());
@@ -916,3 +964,4 @@ registerSessionStoreReset("daily-sale-items-report", () => useDailySaleItemsStor
 registerSessionStoreReset("best-selling-products-report", () => useBestSellingProductsReportStore.getState().reset());
 registerSessionStoreReset("payment-methods-report", () => usePaymentMethodsReportStore.getState().reset());
 registerSessionStoreReset("category-sales-report", () => useCategorySalesReportStore.getState().reset());
+registerSessionStoreReset("daily-store-closing-report", () => useDailyStoreClosingReportStore.getState().reset());

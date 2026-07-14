@@ -4,6 +4,7 @@ import {
   getBestSellingProductsReport,
   getCategorySalesReport,
   getDailySaleItems,
+  getDailyStoreClosingReport,
   getDailySalesBillReport,
   getDailySalesOrderReport,
   getPaymentMethodsReport
@@ -79,6 +80,26 @@ describe("report services", () => {
           orderBy: "DESC",
           page: 1,
           payment_method: "all",
+        },
+      },
+    );
+  });
+
+  it("sends daily store closing query params expected by the API", async () => {
+    await getDailyStoreClosingReport({
+      branch_uuid_fk: "branch-1",
+      date: "2026-07-10",
+      lang: "en",
+    });
+
+    expect(mockedApiRequest).toHaveBeenCalledWith(
+      "get",
+      "/api/v1/report_all/group_sale_report",
+      {
+        params: {
+          branch_uuid_fk: "branch-1",
+          date: "2026-07-10",
+          lang: "eng",
         },
       },
     );

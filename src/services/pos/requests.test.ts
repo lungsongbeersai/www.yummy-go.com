@@ -14,6 +14,7 @@ import {
   createTableQR,
   fetchCateProducts,
   printInvoice,
+  reprintReceipt,
   splitBill
 } from "@/services/pos/requests";
 
@@ -105,6 +106,32 @@ describe("pos requests", () => {
         device_code: "device-1",
         agent_id: "agent-1",
         print_mode: "agent"
+      }
+    });
+  });
+
+  it("posts only the reprint receipt fields with a normalized language", async () => {
+    apiMocks.apiRequest.mockResolvedValue({
+      print_job: { print_job_uuid: "job-1" }
+    });
+
+    await reprintReceipt({
+      order_uuid: "order-1",
+      login_uuid_fk: "login-1",
+      lang: "en-US",
+      device_code: "device-1",
+      agent_id: "agent-1",
+      print_mode: "windows_agent"
+    });
+
+    expect(apiMocks.apiRequest).toHaveBeenCalledWith("post", "/api/v1/pos/reprint_receipt", {
+      data: {
+        order_uuid: "order-1",
+        login_uuid_fk: "login-1",
+        lang: "eng",
+        device_code: "device-1",
+        agent_id: "agent-1",
+        print_mode: "windows_agent"
       }
     });
   });

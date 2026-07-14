@@ -704,15 +704,6 @@ export function CategorySalesTable({
             <SortableReportTableHead
               align="right"
               sort={sort}
-              sortKey="billCount"
-              className="text-right"
-              onSort={toggleSort}
-            >
-              {t("report.categorySales.columns.billCount")}
-            </SortableReportTableHead>
-            <SortableReportTableHead
-              align="right"
-              sort={sort}
               sortKey="productPriceTotal"
               className="text-right"
               onSort={toggleSort}
@@ -816,7 +807,7 @@ export function CategorySalesTable({
                       }
                     />
                   </TableCell>
-                  <TableCell colSpan={10} className="py-3">
+                  <TableCell colSpan={9} className="py-3">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-black">
                         {group.groupName}
@@ -865,9 +856,6 @@ export function CategorySalesTable({
                             </div>
                           </TableCell>
                           <TableCell className="text-right tabular-nums">
-                            {displayMetric(row.billCount, "number")}
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums">
                             {displayMetric(row.productPriceTotal, "money")}
                           </TableCell>
                           <TableCell className="text-right tabular-nums">
@@ -901,9 +889,6 @@ export function CategorySalesTable({
                   <TableCell />
                   <TableCell className="font-black text-primary">
                     <span className="sr-only">{t("common.total")}</span>
-                  </TableCell>
-                  <TableCell className="text-right font-black tabular-nums">
-                    {displayMetric(group.summary.bill_count, "number")}
                   </TableCell>
                   <TableCell className="text-right font-black tabular-nums">
                     {displayMetric(group.summary.product_price_total, "money")}
@@ -1044,12 +1029,7 @@ export function CategorySalesMobileList({
                     </div>
                   </div>
 
-                  <div className="mt-3 grid grid-cols-3 gap-2">
-                    <MetricTile
-                      label={t("report.categorySales.columns.billCount")}
-                      value={row.billCount}
-                      kind="number"
-                    />
+                  <div className="mt-3 grid grid-cols-2 gap-2">
                     <MetricTile
                       label={t("report.categorySales.columns.productPriceTotal")}
                       value={row.productPriceTotal}
@@ -1096,8 +1076,6 @@ export function CategorySalesMobileList({
                   {t("common.total")}
                 </p>
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  {t("report.categorySales.columns.billCount")}:{" "}
-                  {displayMetric(group.summary.bill_count, "number")} /{" "}
                   {t("report.categorySales.columns.qtyTotal")}:{" "}
                   {displayMetric(group.summary.total_qty, "number")}
                 </p>
@@ -1185,7 +1163,6 @@ export function CategorySalesExportSurface({
   groups,
   labelOverrides,
   methodLabel,
-  rowsLabel,
   showSummary,
   summary,
   title,
@@ -1198,7 +1175,6 @@ export function CategorySalesExportSurface({
     sum_vate?: string;
   };
   methodLabel: string;
-  rowsLabel: string;
   showSummary: boolean;
   summary: Record<string, unknown>;
   title: string;
@@ -1217,7 +1193,6 @@ export function CategorySalesExportSurface({
         </div>
         <div className="report-print-meta">
           <span>{dateRange}</span>
-          <span>{rowsLabel}</span>
         </div>
       </div>
 

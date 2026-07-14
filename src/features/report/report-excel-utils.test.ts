@@ -74,6 +74,25 @@ describe("report Excel helpers", () => {
     expect(strFromU8(archive["xl/styles.xml"])).toContain('horizontal="center"');
   });
 
+  it("centers an optional main title below the official header and sets A4 margins", () => {
+    const workbook = createSingleSheetReportWorkbook(
+      XLSXStyle,
+      [{ title: "Rows", rows: [{ Name: "Coffee" }] }],
+      {
+        headerLines: ["Lao People’s Democratic Republic"],
+        title: "Daily Sales Report",
+      },
+    );
+    const worksheet = workbook.Sheets.Report;
+
+    expect(worksheet.A1.v).toBe("Lao People’s Democratic Republic");
+    expect(worksheet.A3.v).toBe("Daily Sales Report");
+    expect(worksheet.A3.s.alignment.horizontal).toBe("center");
+    expect(worksheet.A3.s.font.bold).toBe(true);
+    expect(worksheet.A5.v).toBe("Rows");
+    expect(worksheet["!margins"]).toMatchObject({ left: 0.4, right: 0.4 });
+  });
+
   it("writes styled grid rows with merged cells and column widths", () => {
     const workbook = createSingleSheetReportWorkbook(XLSXStyle, [
       {

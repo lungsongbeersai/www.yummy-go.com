@@ -21,6 +21,10 @@ export const routeBreadcrumbs: Record<string, RouteBreadcrumbItem[]> = {
     { disabled: true, title: "sales" },
     { path: "/sales/sales-list", title: "sales_list" }
   ],
+  "/report/daily-closing": [
+    { disabled: true, title: "report_menu" },
+    { path: "/report/daily-closing", title: "daily_store_closing_report" }
+  ],
   "/setting/manage-menu": [{ path: "/setting/manage-menu", title: "manage_menu" }],
   "/setting/unite": [{ path: "/setting/unite", title: "unit" }],
   "/setting/manage-access-permissions": [

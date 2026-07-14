@@ -98,6 +98,12 @@ export interface FetchCategorySalesReportParams {
   payment_method: PaymentMethodReportFilter;
 }
 
+export interface FetchDailyStoreClosingReportParams {
+  branch_uuid_fk: string;
+  date: string;
+  lang?: string;
+}
+
 export interface DailySalesReportResponse extends ApiEntity {
   data?: unknown;
   grand_total?: unknown;
@@ -254,6 +260,19 @@ export interface CategorySalesReportResponse extends ApiEntity {
   totalPages?: number;
 }
 
+export interface DailyStoreClosingReportResponse extends ApiEntity {
+  cancel_summary?: unknown;
+  data?: unknown;
+  filters?: unknown;
+  groups?: unknown;
+  labels?: unknown;
+  lang?: string;
+  message?: string;
+  payment_summary?: unknown;
+  status?: string;
+  summary?: unknown;
+}
+
 export interface FetchBestSellingProductsReportParams {
   branch_uuid_fk: string;
   date_from: string;
@@ -366,6 +385,19 @@ export function getCategorySalesReport(params: FetchCategorySalesReportParams) {
 
   return apiRequest<CategorySalesReportResponse>("get", "/api/v1/report_all/group_list", {
     params: query
+  });
+}
+
+export function getDailyStoreClosingReport(params: FetchDailyStoreClosingReportParams) {
+  if (!params.branch_uuid_fk) throw new ServiceError("branch_uuid_fk is required", 400);
+  if (!params.date) throw new ServiceError("date is required", 400);
+
+  return apiRequest<DailyStoreClosingReportResponse>("get", "/api/v1/report_all/group_sale_report", {
+    params: {
+      branch_uuid_fk: params.branch_uuid_fk,
+      date: params.date,
+      lang: toApiLanguage(params.lang)
+    }
   });
 }
 

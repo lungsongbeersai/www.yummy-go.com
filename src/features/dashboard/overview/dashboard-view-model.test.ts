@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { createDashboardModel, createDefaultFilters } from "./dashboard-view-model";
+import {
+  applyPeriodMonth,
+  applyPeriodType,
+  applyPeriodYear,
+  createDashboardModel,
+  createDefaultFilters,
+  yearSelectOptions
+} from "./dashboard-view-model";
 
 function dashboardData(overrides: Record<string, unknown> = {}) {
   return {
@@ -108,6 +115,9 @@ describe("dashboard view model", () => {
   it("creates current-date default filters", () => {
     expect(createDefaultFilters(new Date(2026, 5, 11, 12))).toEqual({
       end_date: "2026-06-11",
+      periodMonth: 6,
+      periodType: "daily",
+      periodYear: 2026,
       start_date: "2026-06-11"
     });
   });
@@ -324,5 +334,75 @@ describe("dashboard view model", () => {
       orders: 5,
       revenue: 2500
     });
+  });
+});
+
+describe("dashboard period type filters", () => {
+  const dailyFilters = createDefaultFilters(new Date(2026, 5, 11, 12));
+
+  it("keeps a manual date range untouched while on the daily period", () => {
+    const filters = applyPeriodType(dailyFilters, "daily");
+
+    expect(filters).toMatchObject({
+      end_date: "2026-06-11",
+      periodType: "daily",
+      start_date: "2026-06-11"
+    });
+  });
+
+  it("fills the whole month when switching to the monthly period", () => {
+    const filters = applyPeriodType(dailyFilters, "monthly");
+
+    expect(filters).toMatchObject({
+      end_date: "2026-06-30",
+      periodMonth: 6,
+      periodType: "monthly",
+      periodYear: 2026,
+      start_date: "2026-06-01"
+    });
+  });
+
+  it("accounts for leap years when recomputing a February month range", () => {
+    const filters = applyPeriodMonth(
+      { ...dailyFilters, periodMonth: 2, periodType: "monthly", periodYear: 2024 },
+      2
+    );
+
+    expect(filters).toMatchObject({ end_date: "2024-02-29", start_date: "2024-02-01" });
+  });
+
+  it("fills January 1 - December 31 when switching to the yearly period", () => {
+    const filters = applyPeriodType({ ...dailyFilters, periodYear: 2024 }, "yearly");
+
+    expect(filters).toMatchObject({
+      end_date: "2024-12-31",
+      periodType: "yearly",
+      start_date: "2024-01-01"
+    });
+  });
+
+  it("recomputes the yearly range when the selected year changes", () => {
+    const yearly = applyPeriodType({ ...dailyFilters, periodYear: 2024 }, "yearly");
+    const filters = applyPeriodYear(yearly, 2025);
+
+    expect(filters).toMatchObject({
+      end_date: "2025-12-31",
+      periodYear: 2025,
+      start_date: "2025-01-01"
+    });
+  });
+
+  it("does not touch dates when changing year or month outside their matching period", () => {
+    expect(applyPeriodYear(dailyFilters, 2030).start_date).toBe("2026-06-11");
+    expect(applyPeriodMonth(dailyFilters, 9).start_date).toBe("2026-06-11");
+  });
+
+  it("builds a descending list of year options centered on the given year", () => {
+    expect(yearSelectOptions(2026, 3)).toEqual([
+      { label: "2026", value: "2026" },
+      { label: "2025", value: "2025" },
+      { label: "2024", value: "2024" },
+      { label: "2023", value: "2023" }
+    ]);
   });
 });

@@ -1245,7 +1245,6 @@ export function BestSellingExportSurface({
   containerRef,
   dateRange,
   groups,
-  rowsLabel,
   showSummary,
   sortByLabel,
   summary,
@@ -1255,7 +1254,6 @@ export function BestSellingExportSurface({
   containerRef: RefObject<HTMLDivElement | null>;
   dateRange: string;
   groups: BestSellingProductGroup[];
-  rowsLabel: string;
   showSummary: boolean;
   sortByLabel: string;
   summary: Record<string, unknown>;
@@ -1275,7 +1273,6 @@ export function BestSellingExportSurface({
         </div>
         <div className="report-print-meta">
           <span>{dateRange}</span>
-          <span>{rowsLabel}</span>
         </div>
       </div>
       {showSummary ? (

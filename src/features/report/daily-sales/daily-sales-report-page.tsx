@@ -216,24 +216,14 @@ export function DailySalesReportPage({
         <ReportExportSurface
           cards={report.cards}
           billGroups={report.renderedExportData.billGroups}
-          columns={report.columns}
+          columns={report.exportColumns}
           containerRef={exportReportRef}
-          dateRange={`${report.appliedFilters.dateFrom} - ${report.appliedFilters.dateTo}`}
+          dateRange={`${t("report.reportDate")}: ${report.appliedFilters.dateFrom} - ${report.appliedFilters.dateTo}`}
           itemColumns={report.detailItemColumns}
           noLabel={t("fields.no")}
           reportTotal={report.renderedExportData.reportTotal}
           rows={report.renderedExportData.rows}
           showSummary={summaryVisible}
-          rowsLabel={
-            report.appliedFilters.typePage === "detail"
-              ? t("report.detailGroupedCount", {
-                  bills: report.renderedExportData.billGroups.length,
-                  lines: report.renderedExportData.rows.length,
-                })
-              : t("report.rowsCount", {
-                  count: report.renderedExportData.rows.length,
-                })
-          }
           summaryCards={report.renderedExportData.summaryCards}
           title={t("report.dailySalesTitle")}
           typePage={report.appliedFilters.typePage}

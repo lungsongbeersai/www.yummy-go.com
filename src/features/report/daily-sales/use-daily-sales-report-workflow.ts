@@ -51,8 +51,10 @@ import {
 } from "./daily-sales-report-columns";
 import {
   dateTotalsFromGroups,
+  exportInfoRows,
   exportSummaryRows,
   exportTableRows,
+  reportExportColumns,
   reportFileBaseName,
   selectedDetailBillGroups,
   waitForImages,
@@ -229,6 +231,8 @@ export function useDailySalesReportWorkflow(
     () => reportColumns(t, appliedFilters.typePage),
     [appliedFilters.typePage, t],
   );
+  // ตัดคอลัมน์ "ຈ່າຍລ່າສຸດ" ออกจาก Excel/PDF export แต่ยังโชว์บนตารางหน้าจอปกติ
+  const exportColumns = useMemo(() => reportExportColumns(columns), [columns]);
   const detailItemColumns = useMemo(() => {
     const allItems = detailBillGroups.flatMap((group) => group.items);
     const hasStatusData = allItems.some((item) =>
@@ -606,7 +610,7 @@ export function useDailySalesReportWorkflow(
       const XLSX = await import("xlsx-js-style");
       updateExportProgress(65, "report.exportProgress.buildingFile");
       await waitForPaint();
-      const layout = officialReportExcelLayout(t);
+      const layout = officialReportExcelLayout(t, t("report.dailySalesTitle"));
       const workbook = appliedFilters.typePage === "detail"
         ? createDailySalesDetailExcelWorkbook(XLSX, {
             billGroups: data.billGroups,
@@ -628,6 +632,19 @@ export function useDailySalesReportWorkflow(
         : createSingleSheetReportWorkbook(
             XLSX,
             [
+              {
+                title: t("report.excel.reportInformation"),
+                rows: exportInfoRows(t, {
+                  branchLabel: activeBranchLabel,
+                  dateFrom: appliedFilters.dateFrom,
+                  dateTo: appliedFilters.dateTo,
+                  paymentMethodLabel: paymentMethodLabel(
+                    t,
+                    appliedFilters.paymentMethod,
+                  ),
+                  typeLabel: t("report.salesReportByBill"),
+                }),
+              },
               ...(summaryVisible
                 ? [
                     {
@@ -642,7 +659,7 @@ export function useDailySalesReportWorkflow(
                 : []),
               {
                 title: t("report.excel.bills"),
-                rows: exportTableRows(data.rows, columns),
+                rows: exportTableRows(data.rows, exportColumns),
               },
             ],
             layout,
@@ -784,6 +801,7 @@ export function useDailySalesReportWorkflow(
           period: t("report.dailyPrint.period"),
           product: t("report.columns.productName"),
           quantity: t("report.columns.quantity"),
+          revenueSummary: t("report.dailyPrint.revenueSummary"),
           serviceCharge: t("report.columns.serviceCharge"),
           subtotal: t("report.dailyPrint.subtotal"),
           title: t("report.dailyPrint.title"),
@@ -835,6 +853,7 @@ export function useDailySalesReportWorkflow(
     detailPageBasis,
     draftFilters,
     error,
+    exportColumns,
     exportDisabled,
     exportExcel,
     exporting,

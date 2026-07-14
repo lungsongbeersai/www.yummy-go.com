@@ -80,7 +80,19 @@ export interface ReportExcelLayout {
     owner: string;
     preparer: string;
   };
+  title?: string;
 }
+
+// ระยะขอบมาตรฐานสำหรับพิมพ์กระดาษ A4 — xlsx-js-style เขียนได้แค่ !margins เท่านั้น
+// (ตั้งขนาดกระดาษ/แนวกระดาษไม่ได้ในรุ่น community) จึงตั้งระยะขอบให้พอดีหน้า A4 แทน
+const A4_PAGE_MARGINS = {
+  bottom: 0.5,
+  footer: 0.3,
+  header: 0.3,
+  left: 0.4,
+  right: 0.4,
+  top: 0.5,
+} as const;
 
 export interface ReportExcelWorksheet {
   layout?: ReportExcelLayout;
@@ -358,11 +370,24 @@ function createReportWorksheet(
     const cell = worksheet[XLSX.utils.encode_cell({ c: 0, r: nextRow })];
     cell.s = {
       alignment: { horizontal: "center", vertical: "center" },
-      font: { bold: true },
+      font: { bold: true, sz: 16 },
     };
     nextRow += 1;
   });
   if (layout.headerLines?.length) nextRow += 1;
+
+  if (layout.title) {
+    XLSX.utils.sheet_add_aoa(worksheet, [[layout.title]], {
+      origin: { c: 0, r: nextRow },
+    });
+    mergeRow(worksheet, nextRow, 0, columnCount - 1);
+    const titleCell = worksheet[XLSX.utils.encode_cell({ c: 0, r: nextRow })];
+    titleCell.s = {
+      alignment: { horizontal: "center", vertical: "center" },
+      font: { bold: true, sz: 18 },
+    };
+    nextRow += 2;
+  }
 
   sections.forEach((section, index) => {
     XLSX.utils.sheet_add_aoa(worksheet, [[section.title]], {
@@ -395,7 +420,7 @@ function createReportWorksheet(
       const cell = worksheet[XLSX.utils.encode_cell({ c: column, r: nextRow })];
       cell.s = {
         alignment: { horizontal: "center", vertical: "center" },
-        font: { bold: true },
+        font: { bold: true, sz: 16 },
       };
     });
     nextRow += 4;
@@ -409,6 +434,7 @@ function createReportWorksheet(
   }
 
   formatNumericCells(XLSX, worksheet);
+  worksheet["!margins"] = A4_PAGE_MARGINS;
   return worksheet;
 }
 

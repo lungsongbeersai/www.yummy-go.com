@@ -550,3 +550,17 @@ export interface PrintInvoiceResponse extends ApiEntity {
   totals?: PaymentTotals;
   fallback_print?: ApiEntity | null;
 }
+export interface ReprintReceiptRequest {
+  order_uuid: string;
+  login_uuid_fk: string;
+  lang?: string;
+  device_code?: string;
+  agent_id?: string;
+  print_mode?: string;
+}
+export interface ReprintReceiptPrintJob {
+  print_job_uuid?: string;
+}
+export interface ReprintReceiptResponse {
+  print_job?: ReprintReceiptPrintJob | null;
+}

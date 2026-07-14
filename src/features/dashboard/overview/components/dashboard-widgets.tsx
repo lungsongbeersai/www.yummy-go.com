@@ -3,7 +3,6 @@
 import { memo, useState } from "react";
 import {
   AlertTriangle,
-  ArrowRight,
   Banknote,
   Code2,
   Copy,
@@ -11,7 +10,8 @@ import {
   Download,
   ReceiptText,
   RefreshCcw,
-  WalletCards
+  Search,
+  WalletCards,
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -19,7 +19,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import type {
@@ -29,7 +36,7 @@ import type {
   PaymentSummaryCard,
   Row,
   SelectOption,
-  TrendPoint
+  TrendPoint,
 } from "@/features/dashboard/overview/dashboard-view-model";
 import {
   asRow,
@@ -37,7 +44,7 @@ import {
   formatNumber,
   formatPercent,
   numberFrom,
-  text
+  text,
 } from "@/features/dashboard/overview/dashboard-view-model";
 
 export type DashboardCopy = Record<string, string>;
@@ -46,7 +53,7 @@ const paymentSummaryIconMap = {
   cash: Banknote,
   debt: WalletCards,
   payment_total: ReceiptText,
-  transfer: CreditCard
+  transfer: CreditCard,
 };
 const moneyUnits = new Set(["k", "kip", "kib", "lak", "₭", "ກີບ"]);
 
@@ -57,10 +64,16 @@ type FilterBarProps = {
   copy: DashboardCopy;
   filters: DashboardFilters;
   loading: boolean;
+  monthOptions: SelectOption[];
   onApply: () => void;
   onBranchChange: (value: string) => void;
   onFilterChange: (patch: Partial<DashboardFilters>) => void;
+  onPeriodMonthChange: (value: string) => void;
+  onPeriodTypeChange: (value: string) => void;
+  onPeriodYearChange: (value: string) => void;
   onReset: () => void;
+  periodTypeOptions: SelectOption[];
+  yearOptions: SelectOption[];
 };
 
 const SelectControl = memo(function SelectControl({
@@ -68,7 +81,7 @@ const SelectControl = memo(function SelectControl({
   label,
   onChange,
   options,
-  value
+  value,
 }: {
   disabled?: boolean;
   label: string;
@@ -77,10 +90,12 @@ const SelectControl = memo(function SelectControl({
   value: string;
 }) {
   return (
-    <Field className="dashboard-filter-field min-w-0 gap-1.5">
-      <FieldLabel className="text-[11px] font-bold text-muted-foreground">{label}</FieldLabel>
+    <Field className="dashboard-filter-field min-w-0">
+      <FieldLabel className="text-[11px] font-bold text-muted-foreground">
+        {label}
+      </FieldLabel>
       <Select disabled={disabled} value={value} onValueChange={onChange}>
-        <SelectTrigger className="h-9 w-full text-[13px] font-semibold">
+        <SelectTrigger className="w-full text-[13px] font-semibold">
           <SelectValue placeholder={label} />
         </SelectTrigger>
         <SelectContent position="popper">
@@ -101,7 +116,7 @@ const DateControl = memo(function DateControl({
   label,
   name,
   onChange,
-  value
+  value,
 }: {
   label: string;
   name: string;
@@ -109,8 +124,11 @@ const DateControl = memo(function DateControl({
   value: string;
 }) {
   return (
-    <Field className="dashboard-filter-field min-w-0 gap-1.5">
-      <FieldLabel className="text-[11px] font-bold text-muted-foreground" htmlFor={name}>
+    <Field className="dashboard-filter-field min-w-0">
+      <FieldLabel
+        className="text-[11px] font-bold text-muted-foreground"
+        htmlFor={name}
+      >
         {label}
       </FieldLabel>
       <Input
@@ -118,7 +136,7 @@ const DateControl = memo(function DateControl({
         name={name}
         type="date"
         value={value}
-        className="h-9 font-mono text-[13px] font-semibold"
+        className="font-mono text-[13px] font-semibold"
         onChange={(event) => onChange(event.target.value)}
       />
     </Field>
@@ -134,7 +152,13 @@ function formatApiMoney(value: unknown, unit: string) {
   return `${formatNumber(value)} ${unit}`;
 }
 
-function SparkPreview({ primary, values }: { primary?: boolean; values: number[] }) {
+function SparkPreview({
+  primary,
+  values,
+}: {
+  primary?: boolean;
+  values: number[];
+}) {
   if (!values.length) return <div className="dashboard-spark-empty" />;
   const max = Math.max(1, ...values);
   const width = 150;
@@ -148,8 +172,22 @@ function SparkPreview({ primary, values }: { primary?: boolean; values: number[]
     .join(" ");
 
   return (
-    <svg aria-hidden className={cn("dashboard-spark dashboard-spark-line", primary && "dashboard-spark-line-primary")} viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
-      <polyline points={points} fill="none" stroke="currentColor" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+    <svg
+      aria-hidden
+      className={cn(
+        "dashboard-spark dashboard-spark-line",
+        primary && "dashboard-spark-line-primary",
+      )}
+      viewBox={`0 0 ${width} ${height}`}
+      preserveAspectRatio="none"
+    >
+      <polyline
+        points={points}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        vectorEffect="non-scaling-stroke"
+      />
     </svg>
   );
 }
@@ -158,7 +196,7 @@ export const DashboardHeader = memo(function DashboardHeader({
   activeBranchLabel,
   copy,
   filtersMeta,
-  section
+  section,
 }: {
   activeBranchLabel: string;
   copy: DashboardCopy;
@@ -173,8 +211,10 @@ export const DashboardHeader = memo(function DashboardHeader({
   const updatedAt = text(filtersMeta.updated_at, "");
   const metaItems = [
     businessStart && businessEnd ? `${businessStart} - ${businessEnd}` : "",
-    [rangeMode, rangeDays ? `${formatNumber(rangeDays)} ${copy.days}` : ""].filter(Boolean).join(" "),
-    updatedAt
+    [rangeMode, rangeDays ? `${formatNumber(rangeDays)} ${copy.days}` : ""]
+      .filter(Boolean)
+      .join(" "),
+    updatedAt,
   ].filter(Boolean);
 
   function handleExport() {
@@ -189,19 +229,30 @@ export const DashboardHeader = memo(function DashboardHeader({
         </h1>
         <div className="mt-1 flex flex-wrap items-center gap-2 text-xs font-medium text-muted-foreground">
           {metaItems.map((item, index) => (
-            <span key={`${item}-${index}`} className={index === 1 ? "font-mono text-foreground" : undefined}>
-              {index ? <span className="mr-2 text-muted-foreground">·</span> : null}
+            <span
+              key={`${item}-${index}`}
+              className={index === 1 ? "font-mono text-foreground" : undefined}
+            >
+              {index ? (
+                <span className="mr-2 text-muted-foreground">·</span>
+              ) : null}
               {item}
             </span>
           ))}
         </div>
       </div>
-      <div className="dashboard-head-actions flex flex-wrap items-center justify-end gap-2">
-        <Button aria-label={`${copy.export} ${activeBranchLabel}`} size="sm" type="button" variant="outline" onClick={handleExport}>
+      {/* <div className="dashboard-head-actions flex flex-wrap items-center justify-end gap-2">
+        <Button
+          aria-label={`${copy.export} ${activeBranchLabel}`}
+          size="sm"
+          type="button"
+          variant="outline"
+          onClick={handleExport}
+        >
           <Download data-icon="inline-start" />
           {copy.export}
         </Button>
-      </div>
+      </div> */}
     </div>
   );
 });
@@ -213,15 +264,24 @@ export const DashboardFilterBar = memo(function DashboardFilterBar({
   copy,
   filters,
   loading,
+  monthOptions,
   onApply,
   onBranchChange,
   onFilterChange,
-  onReset
+  onPeriodMonthChange,
+  onPeriodTypeChange,
+  onPeriodYearChange,
+  onReset,
+  periodTypeOptions,
+  yearOptions,
 }: FilterBarProps) {
   return (
     <Card className="dashboard-filter-card border-border bg-card shadow-sm">
       <CardContent className="dashboard-filter-content">
-        <div className="dashboard-filter-selects">
+        <div
+          className="dashboard-filter-selects"
+          data-period-type={filters.periodType}
+        >
           <SelectControl
             disabled={branchLoading || !branchOptions.length}
             label={copy.branch}
@@ -229,26 +289,74 @@ export const DashboardFilterBar = memo(function DashboardFilterBar({
             value={activeBranchUuid}
             onChange={onBranchChange}
           />
-          <DateControl
-            label={copy.startDate}
-            name="dashboard-start-date"
-            value={filters.start_date}
-            onChange={(value) => onFilterChange({ start_date: value })}
+          <SelectControl
+            label={copy.periodType}
+            options={periodTypeOptions}
+            value={filters.periodType}
+            onChange={onPeriodTypeChange}
           />
-          <DateControl
-            label={copy.endDate}
-            name="dashboard-end-date"
-            value={filters.end_date}
-            onChange={(value) => onFilterChange({ end_date: value })}
-          />
+          {filters.periodType === "daily" ? (
+            <>
+              <DateControl
+                label={copy.startDate}
+                name="dashboard-start-date"
+                value={filters.start_date}
+                onChange={(value) => onFilterChange({ start_date: value })}
+              />
+              <DateControl
+                label={copy.endDate}
+                name="dashboard-end-date"
+                value={filters.end_date}
+                onChange={(value) => onFilterChange({ end_date: value })}
+              />
+            </>
+          ) : null}
+          {filters.periodType === "monthly" ? (
+            <>
+              <SelectControl
+                label={copy.year}
+                options={yearOptions}
+                value={String(filters.periodYear)}
+                onChange={(value) => onPeriodYearChange(value)}
+              />
+              <SelectControl
+                label={copy.month}
+                options={monthOptions}
+                value={String(filters.periodMonth)}
+                onChange={(value) => onPeriodMonthChange(value)}
+              />
+            </>
+          ) : null}
+          {filters.periodType === "yearly" ? (
+            <SelectControl
+              label={copy.year}
+              options={yearOptions}
+              value={String(filters.periodYear)}
+              onChange={(value) => onPeriodYearChange(value)}
+            />
+          ) : null}
         </div>
         <div className="dashboard-filter-actions">
-          <Button className="flex-1 xl:flex-none" size="sm" type="button" variant="outline" onClick={onReset}>
+          <Button
+            size="sm"
+            type="button"
+            variant="outline"
+            onClick={onReset}
+          >
             {copy.reset}
           </Button>
-          <Button className="flex-1 xl:flex-none" size="sm" type="button" disabled={loading || !activeBranchUuid} onClick={onApply}>
+          <Button
+            size="sm"
+            type="button"
+            disabled={loading || !activeBranchUuid}
+            onClick={onApply}
+          >
             {copy.apply}
-            {loading ? <RefreshCcw className="animate-spin" data-icon="inline-end" /> : <ArrowRight data-icon="inline-end" />}
+            {loading ? (
+              <RefreshCcw className="animate-spin" data-icon="inline-end" />
+            ) : (
+              <Search data-icon="inline-end" />
+            )}
           </Button>
         </div>
       </CardContent>
@@ -259,88 +367,120 @@ export const DashboardFilterBar = memo(function DashboardFilterBar({
 function paymentSummaryTone(card: PaymentSummaryCard) {
   const key = card.key.toLowerCase();
 
-  if (card.important || key.includes("payment_total") || key.includes("total")) return "dashboard-payment-card-total";
-  if (key.includes("debt") || key.includes("balance")) return "dashboard-payment-card-debt";
+  if (card.important || key.includes("payment_total") || key.includes("total"))
+    return "dashboard-payment-card-total";
+  if (key.includes("debt") || key.includes("balance"))
+    return "dashboard-payment-card-debt";
   if (key.includes("transfer")) return "dashboard-payment-card-transfer";
   return "dashboard-payment-card-cash";
 }
 
 function paymentSummaryIcon(card: PaymentSummaryCard) {
   const key = card.key.toLowerCase();
-  if (card.important || key.includes("payment_total") || key.includes("total")) return paymentSummaryIconMap.payment_total;
-  if (key.includes("debt") || key.includes("balance")) return paymentSummaryIconMap.debt;
+  if (card.important || key.includes("payment_total") || key.includes("total"))
+    return paymentSummaryIconMap.payment_total;
+  if (key.includes("debt") || key.includes("balance"))
+    return paymentSummaryIconMap.debt;
   if (key.includes("transfer")) return paymentSummaryIconMap.transfer;
   return paymentSummaryIconMap.cash;
 }
 
 function warningMessage(copy: DashboardCopy, warning: DashboardWarning) {
-  return warning.copyKey && copy[warning.copyKey] ? copy[warning.copyKey] : warning.value;
+  return warning.copyKey && copy[warning.copyKey]
+    ? copy[warning.copyKey]
+    : warning.value;
 }
 
-export const DashboardPaymentSummaryStrip = memo(function DashboardPaymentSummaryStrip({
-  cards,
-  copy,
-  paymentSummary,
-  warnings = []
-}: {
-  cards: PaymentSummaryCard[];
-  copy: DashboardCopy;
-  paymentSummary: PaymentSummary;
-  warnings?: DashboardWarning[];
-}) {
-  const mixedWarning = !paymentSummary.hasMixedSplitColumns && (paymentSummary.mixedTotal > 0 || paymentSummary.unallocatedMixedTotal > 0)
-    ? copy.paymentSplitWarning
-    : "";
-  const warningMessages = warnings
-    .map((warning) => warningMessage(copy, warning))
-    .filter((message) => message && message !== mixedWarning);
-  const mixedDetails = [
-    paymentSummary.mixedTotal ? `${copy.mixedPayment}: ${formatKip(paymentSummary.mixedTotal)}` : "",
-    paymentSummary.unallocatedMixedTotal ? `${copy.unallocatedMixedPayment}: ${formatKip(paymentSummary.unallocatedMixedTotal)}` : ""
-  ].filter(Boolean);
-  const messages = [mixedWarning, ...warningMessages].filter(Boolean);
+export const DashboardPaymentSummaryStrip = memo(
+  function DashboardPaymentSummaryStrip({
+    cards,
+    copy,
+    paymentSummary,
+    warnings = [],
+  }: {
+    cards: PaymentSummaryCard[];
+    copy: DashboardCopy;
+    paymentSummary: PaymentSummary;
+    warnings?: DashboardWarning[];
+  }) {
+    const mixedWarning =
+      !paymentSummary.hasMixedSplitColumns &&
+      (paymentSummary.mixedTotal > 0 ||
+        paymentSummary.unallocatedMixedTotal > 0)
+        ? copy.paymentSplitWarning
+        : "";
+    const warningMessages = warnings
+      .map((warning) => warningMessage(copy, warning))
+      .filter((message) => message && message !== mixedWarning);
+    const mixedDetails = [
+      paymentSummary.mixedTotal
+        ? `${copy.mixedPayment}: ${formatKip(paymentSummary.mixedTotal)}`
+        : "",
+      paymentSummary.unallocatedMixedTotal
+        ? `${copy.unallocatedMixedPayment}: ${formatKip(
+            paymentSummary.unallocatedMixedTotal,
+          )}`
+        : "",
+    ].filter(Boolean);
+    const messages = [mixedWarning, ...warningMessages].filter(Boolean);
 
-  if (!cards.length && !mixedDetails.length && !messages.length) return null;
+    if (!cards.length && !mixedDetails.length && !messages.length) return null;
 
-  return (
-    <div className="dashboard-payment-summary-stack">
-      <div
-        aria-label={copy.paymentSplit}
-        className="grid grid-cols-1 overflow-hidden rounded-xl border border-border md:flex"
-      >
-        {cards.map((card, index) => {
-          const Icon = paymentSummaryIcon(card);
-          const isLastItem = index === cards.length - 1;
+    return (
+      <div className="dashboard-payment-summary-stack">
+        <div
+          aria-label={copy.paymentSplit}
+          className="grid grid-cols-1 overflow-hidden rounded-xl border border-border md:flex"
+        >
+          {cards.map((card, index) => {
+            const Icon = paymentSummaryIcon(card);
+            const isLastItem = index === cards.length - 1;
 
-          return (
-            <div
-              key={card.key}
-              className={cn(
-                "flex-1 min-w-0",
-                paymentSummaryTone(card),
-                !isLastItem && "border-b border-border md:border-b-0 md:border-r",
-              )}
-            >
-              <CardContent className="dashboard-payment-card-content">
-                <div className="dashboard-payment-card-icon" aria-hidden="true">
-                  <Icon />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-xs font-semibold text-muted-foreground">{card.label}</p>
-                  <p className={cn("mt-1 wrap-break-word font-mono font-semibold leading-tight", card.important ? "text-2xl" : "text-xl")}>
-                    {formatKip(card.value)}
-                  </p>
-                </div>
-              </CardContent>
-            </div>
-          );
-        })}
+            return (
+              <div
+                key={card.key}
+                className={cn(
+                  "flex-1 min-w-0",
+                  paymentSummaryTone(card),
+                  !isLastItem &&
+                    "border-b border-border md:border-b-0 md:border-r",
+                )}
+              >
+                <CardContent className="dashboard-payment-card-content">
+                  <div
+                    className="dashboard-payment-card-icon"
+                    aria-hidden="true"
+                  >
+                    <Icon />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-xs font-semibold text-muted-foreground">
+                      {card.label}
+                    </p>
+                    <p
+                      className={cn(
+                        "mt-1 wrap-break-word font-mono font-semibold leading-tight",
+                        card.important ? "text-2xl" : "text-xl",
+                      )}
+                    >
+                      {formatKip(card.value)}
+                    </p>
+                  </div>
+                </CardContent>
+              </div>
+            );
+          })}
+        </div>
       </div>
-    </div>
-  );
-});
+    );
+  },
+);
 
-export const ErrorBanner = memo(function ErrorBanner({ message }: { message: string }) {
+export const ErrorBanner = memo(function ErrorBanner({
+  message,
+}: {
+  message: string;
+}) {
   return (
     <Card>
       <CardContent className="flex items-center gap-2 p-3 text-sm text-destructive">
@@ -354,7 +494,7 @@ export const ErrorBanner = memo(function ErrorBanner({ message }: { message: str
 export const DashboardQueryBar = memo(function DashboardQueryBar({
   activeBranchUuid,
   copy,
-  requestParams
+  requestParams,
 }: {
   activeBranchUuid: string;
   copy: DashboardCopy;
@@ -366,12 +506,16 @@ export const DashboardQueryBar = memo(function DashboardQueryBar({
     ["start_date", text(requestParams.start_date, "")],
     ["end_date", text(requestParams.end_date, "")],
     ["lang", text(requestParams.lang, "")],
-    ["top", text(requestParams.top, "")]
+    ["top", text(requestParams.top, "")],
   ].filter(([, value]) => value);
-  const query = params.map(([key, value]) => `${key}=${encodeURIComponent(value)}`).join("&");
+  const query = params
+    .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
+    .join("&");
 
   async function copyQuery() {
-    await navigator.clipboard?.writeText(`/api/v1/dashboard/executive?${query}`);
+    await navigator.clipboard?.writeText(
+      `/api/v1/dashboard/executive?${query}`,
+    );
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1500);
   }
@@ -384,12 +528,30 @@ export const DashboardQueryBar = memo(function DashboardQueryBar({
           {copy.activeQuery}
         </Badge>
         {params.map(([key, value]) => (
-          <div key={key} className="dashboard-query-kv flex shrink-0 items-baseline gap-2 border-r border-dashed border-border px-2 last:border-r-0">
-            <span className="font-bold uppercase tracking-wide text-muted-foreground">{key}</span>
-            <span className={cn("font-mono font-semibold", key === "branch_uuid_fk" && "text-primary")}>{value || "-"}</span>
+          <div
+            key={key}
+            className="dashboard-query-kv flex shrink-0 items-baseline gap-2 border-r border-dashed border-border px-2 last:border-r-0"
+          >
+            <span className="font-bold uppercase tracking-wide text-muted-foreground">
+              {key}
+            </span>
+            <span
+              className={cn(
+                "font-mono font-semibold",
+                key === "branch_uuid_fk" && "text-primary",
+              )}
+            >
+              {value || "-"}
+            </span>
           </div>
         ))}
-        <Button className="ml-auto shrink-0" size="sm" variant="outline" type="button" onClick={copyQuery}>
+        <Button
+          className="ml-auto shrink-0"
+          size="sm"
+          variant="outline"
+          type="button"
+          onClick={copyQuery}
+        >
           <Copy data-icon="inline-start" />
           {copied ? copy.copied : copy.copyQuery}
         </Button>
@@ -400,7 +562,7 @@ export const DashboardQueryBar = memo(function DashboardQueryBar({
 
 export const DashboardWarningBanner = memo(function DashboardWarningBanner({
   copy,
-  warnings
+  warnings,
 }: {
   copy: DashboardCopy;
   warnings: DashboardWarning[];
@@ -425,7 +587,7 @@ export const DashboardHeroStrip = memo(function DashboardHeroStrip({
   kpis,
   periodLabel,
   section,
-  trendRows
+  trendRows,
 }: {
   copy: DashboardCopy;
   kpis: Row;
@@ -437,50 +599,71 @@ export const DashboardHeroStrip = memo(function DashboardHeroStrip({
   const paymentSummary = asRow(section.payment_summary);
   const cancellationSummary = asRow(section.cancellation_summary);
   const mainUnit = text(mainTotal.unit, "");
-  const cancelledCount = numberFrom(cancellationSummary, "cancelled_orders_count") || numberFrom(kpis, "cancelled_orders_count");
-  const cancelledTotal = numberFrom(cancellationSummary, "cancelled_orders_total") || numberFrom(kpis, "cancelled_total") || numberFrom(kpis, "cancelled_amount_total");
+  const cancelledCount =
+    numberFrom(cancellationSummary, "cancelled_orders_count") ||
+    numberFrom(kpis, "cancelled_orders_count");
+  const cancelledTotal =
+    numberFrom(cancellationSummary, "cancelled_orders_total") ||
+    numberFrom(kpis, "cancelled_total") ||
+    numberFrom(kpis, "cancelled_amount_total");
   const metrics = [
     {
       detail: text(mainTotal.sub_label, periodLabel),
       label: text(mainTotal.label, copy.revenue),
       primary: true,
       sparkValues: trendRows.slice(-12).map((row) => row.revenue),
-      value: formatApiMoney(numberFrom(mainTotal, "value") || numberFrom(kpis, "revenue_total"), mainUnit)
+      value: formatApiMoney(
+        numberFrom(mainTotal, "value") || numberFrom(kpis, "revenue_total"),
+        mainUnit,
+      ),
     },
     {
       detail: copy.totalBills,
       label: copy.orders,
       sparkValues: trendRows.slice(-12).map((row) => row.orders),
-      value: formatNumber(numberFrom(paymentSummary, "orders_count") || numberFrom(kpis, "orders_count"))
+      value: formatNumber(
+        numberFrom(paymentSummary, "orders_count") ||
+          numberFrom(kpis, "orders_count"),
+      ),
     },
     {
       detail: copy.avgBill,
       label: copy.avgBill,
-      sparkValues: trendRows.slice(-12).map((row) => row.orders ? row.revenue / row.orders : 0),
-      value: formatKip(numberFrom(kpis, "avg_bill"))
+      sparkValues: trendRows
+        .slice(-12)
+        .map((row) => (row.orders ? row.revenue / row.orders : 0)),
+      value: formatKip(numberFrom(kpis, "avg_bill")),
     },
     {
-      detail: `${copy.discountRate}: ${formatPercent(numberFrom(kpis, "discount_rate"))}`,
+      detail: `${copy.discountRate}: ${formatPercent(
+        numberFrom(kpis, "discount_rate"),
+      )}`,
       label: copy.discount,
-      value: formatKip(numberFrom(kpis, "discount_total"))
+      value: formatKip(numberFrom(kpis, "discount_total")),
     },
     {
-      detail: `${copy.collectionRate}: ${formatPercent(numberFrom(kpis, "collection_rate"))}`,
+      detail: `${copy.collectionRate}: ${formatPercent(
+        numberFrom(kpis, "collection_rate"),
+      )}`,
       label: copy.paidTotal,
-      value: formatKip(numberFrom(kpis, "paid_total"))
+      value: formatKip(numberFrom(kpis, "paid_total")),
     },
     {
-      detail: `${copy.unpaidRate}: ${formatPercent(numberFrom(kpis, "unpaid_rate"))}`,
+      detail: `${copy.unpaidRate}: ${formatPercent(
+        numberFrom(kpis, "unpaid_rate"),
+      )}`,
       label: copy.balance,
       rose: true,
-      value: formatKip(numberFrom(kpis, "balance_total"))
+      value: formatKip(numberFrom(kpis, "balance_total")),
     },
     {
-      detail: `${copy.cancelRate}: ${formatPercent(numberFrom(kpis, "cancel_rate"))}`,
+      detail: `${copy.cancelRate}: ${formatPercent(
+        numberFrom(kpis, "cancel_rate"),
+      )}`,
       label: copy.cancellations,
       rose: true,
-      value: `${formatNumber(cancelledCount)} / ${formatKip(cancelledTotal)}`
-    }
+      value: `${formatNumber(cancelledCount)} / ${formatKip(cancelledTotal)}`,
+    },
   ];
 
   return (
@@ -491,16 +674,45 @@ export const DashboardHeroStrip = memo(function DashboardHeroStrip({
             key={metric.label}
             className={cn(
               "dashboard-hero-kpi min-w-0 p-4",
-              metric.primary && "dashboard-hero-kpi-primary relative overflow-hidden bg-primary text-primary-foreground xl:row-span-2",
-              !metric.primary && "bg-card"
+              metric.primary &&
+                "dashboard-hero-kpi-primary relative overflow-hidden bg-primary text-primary-foreground xl:row-span-2",
+              !metric.primary && "bg-card",
             )}
           >
-            <p className={cn("text-[11px] font-semibold uppercase tracking-[0.12em]", metric.primary ? "text-primary-foreground/75" : "text-muted-foreground")}>
+            <p
+              className={cn(
+                "text-[11px] font-semibold uppercase tracking-[0.12em]",
+                metric.primary
+                  ? "text-primary-foreground/75"
+                  : "text-muted-foreground",
+              )}
+            >
               {metric.label}
             </p>
-            <p className={cn("mt-2 truncate font-mono text-2xl font-semibold", metric.rose && "text-destructive")}>{metric.value}</p>
-            <p className={cn("mt-2 truncate text-xs", metric.primary ? "text-primary-foreground/75" : "text-muted-foreground")}>{metric.detail}</p>
-            {metric.sparkValues ? <SparkPreview primary={metric.primary} values={metric.sparkValues} /> : null}
+            <p
+              className={cn(
+                "mt-2 truncate font-mono text-2xl font-semibold",
+                metric.rose && "text-destructive",
+              )}
+            >
+              {metric.value}
+            </p>
+            <p
+              className={cn(
+                "mt-2 truncate text-xs",
+                metric.primary
+                  ? "text-primary-foreground/75"
+                  : "text-muted-foreground",
+              )}
+            >
+              {metric.detail}
+            </p>
+            {metric.sparkValues ? (
+              <SparkPreview
+                primary={metric.primary}
+                values={metric.sparkValues}
+              />
+            ) : null}
           </div>
         ))}
       </div>
@@ -510,7 +722,13 @@ export const DashboardHeroStrip = memo(function DashboardHeroStrip({
 
 type DashboardChartFallbackVariant = "operations" | "products" | "revenue";
 
-function DashboardChartFallbackCard({ className, rows = 4 }: { className?: string; rows?: number }) {
+function DashboardChartFallbackCard({
+  className,
+  rows = 4,
+}: {
+  className?: string;
+  rows?: number;
+}) {
   return (
     <Card className={cn("dashboard-card overflow-hidden", className)}>
       <CardHeader className="dashboard-card-header border-b px-4 py-3">
@@ -527,7 +745,11 @@ function DashboardChartFallbackCard({ className, rows = 4 }: { className?: strin
   );
 }
 
-export function DashboardChartGridFallback({ variant }: { variant: DashboardChartFallbackVariant }) {
+export function DashboardChartGridFallback({
+  variant,
+}: {
+  variant: DashboardChartFallbackVariant;
+}) {
   if (variant === "revenue") {
     return (
       <div className="dashboard-revenue-grid grid gap-4 xl:grid-cols-[1.7fr_1fr]">
@@ -555,27 +777,16 @@ export function DashboardChartGridFallback({ variant }: { variant: DashboardChar
   );
 }
 
-export const DashboardFooter = memo(function DashboardFooter({
-  activeBranchUuid,
-  copy,
-  filtersMeta,
-  requestParams
-}: {
+export const DashboardFooter = memo(function DashboardFooter({}: {
   activeBranchUuid: string;
   copy: DashboardCopy;
   filtersMeta: Row;
   requestParams: Row;
 }) {
-  const cutoff = numberFrom(filtersMeta, "business_cutoff_hour");
-  const details = [
-    cutoff ? `${copy.cutoff} ${cutoff}:00` : "",
-    [text(requestParams.start_date, ""), text(requestParams.end_date, "")].filter(Boolean).join(" - ")
-  ].filter(Boolean);
-
   return (
     <div className="dashboard-footer flex flex-wrap justify-between gap-2 pt-2 text-xs text-muted-foreground">
-      {activeBranchUuid ? <span>{copy.branch} <span className="font-mono">{activeBranchUuid}</span></span> : null}
-      {details.length ? <span className="font-mono">{details.join(" / ")}</span> : null}
+      {/* {activeBranchUuid ? <span>{copy.branch} <span className="font-mono">{activeBranchUuid}</span></span> : null} */}
+      {/* {details.length ? <span className="font-mono">{details.join(" / ")}</span> : null} */}
     </div>
   );
 });

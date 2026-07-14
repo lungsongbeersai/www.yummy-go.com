@@ -164,5 +164,6 @@ describe("buildDailySalesPrintData", () => {
     expect(html).toContain("group: Food &amp; Drink");
     expect(html).toContain("Rice &lt;Large&gt;");
     expect(html).toContain('class="total-row grand-total"');
+    expect(html.indexOf("grand-total")).toBeLessThan(html.indexOf("revenueSummary"));
   });
 });

@@ -2,8 +2,14 @@ import { Fragment, createElement } from "react";
 
 export type Row = Record<string, unknown>;
 
+export const DASHBOARD_PERIOD_TYPES = ["daily", "monthly", "yearly"] as const;
+export type DashboardPeriodType = (typeof DASHBOARD_PERIOD_TYPES)[number];
+
 export type DashboardFilters = {
   end_date: string;
+  periodMonth: number;
+  periodType: DashboardPeriodType;
+  periodYear: number;
   start_date: string;
 };
 
@@ -119,8 +125,67 @@ export function createDefaultFilters(date = new Date()): DashboardFilters {
 
   return {
     end_date: today,
+    periodMonth: date.getMonth() + 1,
+    periodType: "daily",
+    periodYear: date.getFullYear(),
     start_date: today
   };
+}
+
+function pad2(value: number) {
+  return String(value).padStart(2, "0");
+}
+
+function monthDateRange(year: number, month: number) {
+  const lastDay = new Date(year, month, 0).getDate();
+
+  return {
+    end_date: `${year}-${pad2(month)}-${pad2(lastDay)}`,
+    start_date: `${year}-${pad2(month)}-01`
+  };
+}
+
+function yearDateRange(year: number) {
+  return {
+    end_date: `${year}-12-31`,
+    start_date: `${year}-01-01`
+  };
+}
+
+// Recomputes the start/end date range from the period type + selected year/month,
+// so picking e.g. year 2024 in "yearly" mode auto-fills Jan 1 - Dec 31, 2024.
+export function applyPeriodType(filters: DashboardFilters, periodType: DashboardPeriodType): DashboardFilters {
+  if (periodType === "monthly") {
+    return { ...filters, periodType, ...monthDateRange(filters.periodYear, filters.periodMonth) };
+  }
+  if (periodType === "yearly") {
+    return { ...filters, periodType, ...yearDateRange(filters.periodYear) };
+  }
+  return { ...filters, periodType };
+}
+
+export function applyPeriodYear(filters: DashboardFilters, periodYear: number): DashboardFilters {
+  if (filters.periodType === "monthly") {
+    return { ...filters, periodYear, ...monthDateRange(periodYear, filters.periodMonth) };
+  }
+  if (filters.periodType === "yearly") {
+    return { ...filters, periodYear, ...yearDateRange(periodYear) };
+  }
+  return { ...filters, periodYear };
+}
+
+export function applyPeriodMonth(filters: DashboardFilters, periodMonth: number): DashboardFilters {
+  if (filters.periodType === "monthly") {
+    return { ...filters, periodMonth, ...monthDateRange(filters.periodYear, periodMonth) };
+  }
+  return { ...filters, periodMonth };
+}
+
+export function yearSelectOptions(centerYear: number, span = 7): SelectOption[] {
+  return Array.from({ length: span + 1 }, (_, index) => {
+    const year = centerYear - index;
+    return { label: String(year), value: String(year) };
+  });
 }
 
 const tones: Tone[] = ["primary", "sky", "amber", "rose", "violet", "slate"];

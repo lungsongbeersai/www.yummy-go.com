@@ -172,12 +172,9 @@ export function CategorySalesReportPage({ initialPagination }: { initialPaginati
       {report.exporting === "pdf" || report.exporting === "print" ? (
         <CategorySalesExportSurface
           containerRef={exportReportRef}
-          dateRange={`${report.appliedFilters.dateFrom} - ${report.appliedFilters.dateTo}`}
+          dateRange={`${t("report.reportDate")}: ${report.appliedFilters.dateFrom} - ${report.appliedFilters.dateTo}`}
           groups={report.renderedExportData.groups}
           methodLabel={report.activePaymentMethodLabel}
-          rowsLabel={t("report.categorySales.rowsLabel", {
-            count: report.renderedExportData.rows.length,
-          })}
           showSummary={summaryVisible}
           summary={report.renderedExportData.summary}
           title={report.renderedExportData.reportName || report.reportTitle}

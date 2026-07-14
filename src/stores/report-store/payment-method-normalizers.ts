@@ -1,7 +1,6 @@
 import { pageLimitNumber } from "@/lib/pagination";
 import {
   isPaymentMethodReportFilter,
-  PAYMENT_METHOD_REPORT_FILTER_OPTIONS,
   type PaymentMethodReportFilter,
   type PaymentMethodsReportResponse
 } from "@/services/report";
@@ -145,14 +144,6 @@ function normalizeCard(row: ApiEntity, index: number): PaymentMethodSummaryCard 
   };
 }
 
-function fallbackPaymentMethodOptions(): PaymentMethodOption[] {
-  return PAYMENT_METHOD_REPORT_FILTER_OPTIONS.map((value, index) => ({
-    label: value,
-    sortOrder: index + 1,
-    value
-  }));
-}
-
 function normalizePaymentOption(row: ApiEntity, index: number): PaymentMethodOption | null {
   const value = readValue(row, ["value", "code", "key"]);
   if (!isPaymentMethodReportFilter(value)) return null;
@@ -163,13 +154,13 @@ function normalizePaymentOption(row: ApiEntity, index: number): PaymentMethodOpt
   };
 }
 
+// ห้าม fallback เป็นรหัสดิบ (all/cash/...) ที่ store — ถ้า API ไม่ส่ง options มา
+// ให้คืน [] เพื่อให้ paymentMethodOptions() ฝั่ง UI ใส่ fallback ที่แปลภาษาแล้วแทน
 function normalizePaymentOptions(root: ApiEntity) {
-  const options = asRecords(root.payment_methods)
+  return asRecords(root.payment_methods)
     .map(normalizePaymentOption)
     .filter((option): option is PaymentMethodOption => Boolean(option))
     .sort((left, right) => left.sortOrder - right.sortOrder);
-
-  return options.length ? options : fallbackPaymentMethodOptions();
 }
 
 function normalizeReportTotal(root: ApiEntity) {

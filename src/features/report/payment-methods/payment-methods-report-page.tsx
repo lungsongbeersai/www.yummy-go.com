@@ -27,7 +27,7 @@ export function PaymentMethodsReportPage({ initialPagination }: { initialPaginat
   const exportReportRef = useRef<HTMLDivElement>(null);
   const [summaryVisible, setSummaryVisible] = useState(false);
   const nativeApp = useIsCapacitorNativeApp();
-  const report = usePaymentMethodsReportWorkflow(exportReportRef, initialPagination, summaryVisible);
+  const report = usePaymentMethodsReportWorkflow(exportReportRef, initialPagination);
   const layoutStyle = {
     "--payment-method-filter-height": "0px"
   } as CSSProperties;
@@ -189,16 +189,10 @@ export function PaymentMethodsReportPage({ initialPagination }: { initialPaginat
       </div>
       {report.exporting === "pdf" || report.exporting === "print" ? (
         <PaymentMethodsExportSurface
-          cards={report.renderedExportData.cards}
           containerRef={exportReportRef}
-          dateRange={`${report.appliedFilters.dateFrom} - ${report.appliedFilters.dateTo}`}
+          dateRange={`${t("report.reportDate")}: ${report.appliedFilters.dateFrom} - ${report.appliedFilters.dateTo}`}
           methodLabel={report.activePaymentMethodLabel}
-          reportTotal={report.renderedExportData.reportTotal}
           rows={report.renderedExportData.rows}
-          rowsLabel={t("report.paymentMethodsReport.rowsLabel", {
-            count: report.renderedExportData.rows.length,
-          })}
-          showSummary={summaryVisible}
           title={report.renderedExportData.reportName || report.reportTitle}
         />
       ) : null}
