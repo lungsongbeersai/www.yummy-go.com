@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import type { PaymentMethodReportRow, PaymentMethodSummaryCard } from "@/stores/report-store";
+import type { PaymentMethodReportRow } from "@/stores/report-store";
 import {
   exportPaymentMethodRows,
-  exportSummaryRows,
+  paymentMethodExportMetricConfigs,
   paymentMethodFallbackOptions,
   paymentMethodsFileBaseName,
   paymentMethodRowMetricConfigs
@@ -85,7 +85,7 @@ describe("payment method report helpers", () => {
     expect(paymentMethodsFileBaseName(filters)).toBe("payment-methods-cash-2026-06-01-to-2026-06-03");
   });
 
-  it("exports all financial row fields", () => {
+  it("keeps every financial field on screen but trims export columns", () => {
     expect(paymentMethodRowMetricConfigs(t).map((metric) => metric.key)).toEqual([
       "bill_count",
       "product_price_total",
@@ -102,32 +102,47 @@ describe("payment method report helpers", () => {
       "payment_amount"
     ]);
 
-    expect(exportPaymentMethodRows([row], t)[0]).toMatchObject({
+    // ไฟล์ export ตัดคอลัมน์จำนวนบิล/ยอดบิน/ยอดชำระออก
+    expect(paymentMethodExportMetricConfigs(t).map((metric) => metric.key)).toEqual([
+      "product_price_total",
+      "topping_total",
+      "total",
+      "discount_item_amount",
+      "after_discount_item",
+      "discount_bill",
+      "after_discount_bill",
+      "service_charge",
+      "vat",
+      "grand_total"
+    ]);
+  });
+
+  it("exports table rows without code/bill columns and appends a totals row", () => {
+    const exported = exportPaymentMethodRows([row, { ...row, paymentMethodName: "Transfer", vat: 9000 }], t);
+
+    expect(exported).toHaveLength(3);
+    expect(exported[0]).toEqual({
       "After bill discount": 1451282,
       "After item discount": 1501282,
       "Bill discount": 0,
-      "Bill total": 1551282,
       "Grand total": 1551282,
       "Item discount": 0,
-      "Payment amount": 1551282,
       "Payment method": "Cash",
       "Product price total": 1317996,
       "Service charge": 92260,
+      "Topping total": 15000,
       Total: 1551282,
       VAT: 141026
     });
-  });
+    expect(exported[0]).not.toHaveProperty("Method code");
+    expect(exported[0]).not.toHaveProperty("Bills");
+    expect(exported[0]).not.toHaveProperty("Bill total");
+    expect(exported[0]).not.toHaveProperty("Payment amount");
 
-  it("exports card summary and total summary rows", () => {
-    const cards: PaymentMethodSummaryCard[] = [
-      { key: "total", label: "Total", sortOrder: 1, value: 2144490, valueType: "money" }
-    ];
-
-    expect(exportSummaryRows(cards, { grand_total: 2144490, sum_vate: 194954 }, t)).toEqual(
-      expect.arrayContaining([
-        { Metric: "Total", Section: "Cards", Value: 2144490 },
-        { Metric: "VAT", Section: "Total summary", Value: 194954 }
-      ])
-    );
+    expect(exported[2]).toMatchObject({
+      "Payment method": "report.paymentMethodsReport.totalSummary",
+      "Grand total": 3102564,
+      VAT: 150026
+    });
   });
 });

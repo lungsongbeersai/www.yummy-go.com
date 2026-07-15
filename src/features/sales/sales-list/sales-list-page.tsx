@@ -83,7 +83,7 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
             <SalesBillDetailPanel
               bill={page.selectedBill}
               className="hidden xl:flex"
-              canReprintReceipt={!page.nativeApp}
+              canReprintReceipt={page.canReprintReceipt}
               loading={page.loading}
               printingBillId={page.printingBillId}
               onReprint={(group) => void page.reprintReceipt(group)}
@@ -93,7 +93,7 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
       </div>
       <SalesBillDetailDrawer
         bill={page.selectedBill}
-        canReprintReceipt={!page.nativeApp}
+        canReprintReceipt={page.canReprintReceipt}
         loading={page.loading}
         open={page.mobileDetailOpen}
         printingBillId={page.printingBillId}

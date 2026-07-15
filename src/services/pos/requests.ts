@@ -37,6 +37,8 @@ import type {
   PrintInvoiceRequest,
   PrintInvoiceResponse,
   ProdItem,
+  ReprintReceiptRequest,
+  ReprintReceiptResponse,
   SplitBillInput,
   SplitBillResponse,
   TableQRResponse,
@@ -159,6 +161,18 @@ export const printInvoice = (params: PrintInvoiceRequest) =>
       order_uuid: params.order_uuid,
       lang: langParam(params.lang),
       document_type: params.document_type ?? "invoice",
+      device_code: params.device_code,
+      agent_id: params.agent_id,
+      print_mode: params.print_mode
+    }
+  });
+
+export const reprintReceipt = (params: ReprintReceiptRequest) =>
+  apiRequest<ReprintReceiptResponse>("post", "/api/v1/pos/reprint_receipt", {
+    data: {
+      order_uuid: params.order_uuid,
+      login_uuid_fk: params.login_uuid_fk,
+      lang: langParam(params.lang),
       device_code: params.device_code,
       agent_id: params.agent_id,
       print_mode: params.print_mode

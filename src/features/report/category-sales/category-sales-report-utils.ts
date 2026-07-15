@@ -32,8 +32,8 @@ type SummaryMetricDefinition = {
   labelKey: string;
 };
 
+// ใช้เฉพาะตารางในไฟล์ Excel/PDF export — คอลัมน์จำนวนบิลแสดงบนหน้าจอเท่านั้น ไม่ใส่ในไฟล์
 const rowMetricDefinitions = [
-  { field: "billCount", key: "bill_count", kind: "number", labelKey: "report.categorySales.columns.billCount" },
   { field: "totalQty", key: "total_qty", kind: "number", labelKey: "report.categorySales.columns.qtyTotal" },
   { field: "productPriceTotal", key: "product_price_total", kind: "money", labelKey: "report.categorySales.columns.productPriceTotal" },
   { field: "toppingTotal", key: "topping_total", kind: "money", labelKey: "report.categorySales.columns.toppingTotal" },
@@ -44,9 +44,9 @@ const rowMetricDefinitions = [
   { field: "grandTotal", key: "grand_total", kind: "money", labelKey: "report.categorySales.columns.grandTotal" }
 ] as const satisfies readonly MetricDefinition[];
 
+// ไม่มี bill_count ทั้งใน summary cards บนหน้าจอและ section สรุปของไฟล์ export
 const summaryMetricDefinitions = [
   { key: "product_count", kind: "number", labelKey: "report.categorySales.cards.products" },
-  { key: "bill_count", kind: "number", labelKey: "report.categorySales.columns.billCount" },
   { key: "total_qty", kind: "number", labelKey: "report.categorySales.columns.qtyTotal" },
   { key: "product_price_total", kind: "money", labelKey: "report.categorySales.columns.productPriceTotal" },
   { key: "topping_total", kind: "money", labelKey: "report.categorySales.columns.toppingTotal" },
@@ -217,7 +217,7 @@ export function categorySalesGroupedSection(
   return {
     grid: {
       columnCount: headers.length,
-      columnWidths: [34, 20, 10, 10, 17, 14, 15, 14, 16, 13, 16],
+      columnWidths: [34, 20, 10, 17, 14, 15, 14, 16, 13, 16],
       rows
     },
     title: t("report.excel.rows")

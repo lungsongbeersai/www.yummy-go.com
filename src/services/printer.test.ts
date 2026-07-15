@@ -10,6 +10,14 @@ const axiosMocks = vi.hoisted(() => ({
   post: vi.fn()
 }));
 
+const capacitorMocks = vi.hoisted(() => ({
+  isNativePlatform: vi.fn()
+}));
+
+const mobileTcpMocks = vi.hoisted(() => ({
+  printMobileEscposOverTcp: vi.fn()
+}));
+
 vi.mock("@/lib/api", () => ({
   apiRequest: apiMocks.apiRequest,
   ServiceError: class ServiceError extends Error {
@@ -26,6 +34,12 @@ vi.mock("@/lib/api", () => ({
 vi.mock("axios", () => ({
   default: axiosMocks
 }));
+
+vi.mock("@capacitor/core", () => ({
+  Capacitor: capacitorMocks
+}));
+
+vi.mock("@/services/printer/mobile-tcp", () => mobileTcpMocks);
 
 import {
   BROWSER_PRINTER_AGENT_ID,
@@ -148,6 +162,8 @@ describe("printer service dispatch", () => {
     apiMocks.apiRequest.mockReset();
     axiosMocks.get.mockReset();
     axiosMocks.post.mockReset();
+    capacitorMocks.isNativePlatform.mockReset().mockReturnValue(false);
+    mobileTcpMocks.printMobileEscposOverTcp.mockReset().mockResolvedValue(undefined);
   });
 
   it("prints desktop jobs through the local printer agent", async () => {
@@ -308,6 +324,7 @@ describe("printer service dispatch", () => {
   });
 
   it("prints invoice pending batch without acking", async () => {
+    const progressPhases: string[] = [];
     const job = windowsPrintJob();
     const secondJob = windowsPrintJob({
       job_id: "invoice-item-2",
@@ -345,10 +362,12 @@ describe("printer service dispatch", () => {
           device_code: "device-1",
           agent_id: "agent-1",
           print_mode: "windows_agent"
-        }
+        },
+        onProgress: ({ phase }) => progressPhases.push(phase)
       })
     ).resolves.toEqual({ successCount: 2, failedCount: 0, total: 2 });
 
+    expect(progressPhases).toEqual(["fetching", "printing", "done"]);
     expect(axiosMocks.post).toHaveBeenCalledWith(
       "http://10.0.0.20:7777/print-ops-batch",
       {
@@ -366,7 +385,53 @@ describe("printer service dispatch", () => {
     );
   });
 
+  it("prints native mobile wifi invoice batches directly over TCP", async () => {
+    capacitorMocks.isNativePlatform.mockReturnValue(true);
+    apiMocks.apiRequest.mockImplementation(async (method, url) => {
+      if (method === "get" && url === "/api/v1/printer/jobs/pending") {
+        return {
+          print_batch_payloads: [
+            {
+              cut_mode: "per_ticket",
+              agent_id: "mobile-agent-1",
+              device_code: "mobile-device-1",
+              print_mode: "mobile_wifi",
+              print_client: "mobile_wifi",
+              interface_value: "tcp://192.168.1.20:9100",
+              job_total: 1,
+              jobs: [],
+              mobile_escpos: {
+                interface_value: "tcp://192.168.1.20:9100",
+                escpos_base64: "BASE64"
+              }
+            }
+          ]
+        };
+      }
+      throw new Error(`Unexpected request ${method} ${url}`);
+    });
+
+    await expect(
+      executeInvoicePrintJobs({
+        pending_query: {
+          print_job_uuid: "invoice-job-1",
+          login_uuid_fk: "login-1",
+          device_code: "mobile-device-1",
+          agent_id: "mobile-agent-1",
+          print_mode: "mobile_wifi"
+        }
+      })
+    ).resolves.toEqual({ successCount: 1, failedCount: 0, total: 1 });
+
+    expect(mobileTcpMocks.printMobileEscposOverTcp).toHaveBeenCalledWith({
+      interface_value: "tcp://192.168.1.20:9100",
+      escpos_base64: "BASE64"
+    });
+    expect(axiosMocks.post).not.toHaveBeenCalled();
+  });
+
   it("falls back before calling the print agent when invoice batch payloads are empty", async () => {
+    const progressPhases: string[] = [];
     apiMocks.apiRequest.mockImplementation(async (method, url) => {
       if (method === "get" && url === "/api/v1/printer/jobs/pending") {
         return {
@@ -399,10 +464,12 @@ describe("printer service dispatch", () => {
           device_code: "device-1",
           agent_id: "agent-1",
           print_mode: "windows_agent"
-        }
+        },
+        onProgress: ({ phase }) => progressPhases.push(phase)
       })
     ).resolves.toEqual({ successCount: 0, failedCount: 1, total: 1 });
 
+    expect(progressPhases).toEqual(["fetching", "done"]);
     expect(axiosMocks.get).not.toHaveBeenCalled();
     expect(axiosMocks.post).not.toHaveBeenCalled();
     expect(apiMocks.apiRequest).not.toHaveBeenCalledWith(

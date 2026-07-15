@@ -25,6 +25,7 @@ export interface DailySalesPrintLabels {
   period: string;
   product: string;
   quantity: string;
+  revenueSummary: string;
   serviceCharge: string;
   subtotal: string;
   title: string;
@@ -272,6 +273,7 @@ export function renderDailySalesPrintHtml(data: DailySalesPrintData) {
       .total-row { display: flex; justify-content: space-between; gap: 2mm; padding: 0.45mm 0; }
       .total-row span:last-child { flex-shrink: 0; text-align: right; font-variant-numeric: tabular-nums; }
       .grand-total { margin-top: 0.8mm; padding: 1mm 0; border-top: 1px solid #111; border-bottom: 1px double #111; font-size: 14px; font-weight: 900; }
+      .section-title { text-align: center; }
       .meta { text-align: left; }
       @media print { html, body { width: 74mm; } }
     </style>
@@ -302,6 +304,7 @@ export function renderDailySalesPrintHtml(data: DailySalesPrintData) {
     </section>
     <div class="divider"></div>
     <section>
+      <h2 class="section-title">${escapeHtml(labels.revenueSummary)}</h2>
       ${totalRow(labels.cashReceived, summary.cashReceived)}
       ${totalRow(labels.transferReceived, summary.transferReceived)}
       ${totalRow(labels.change, summary.change)}

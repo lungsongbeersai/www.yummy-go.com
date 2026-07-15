@@ -230,8 +230,7 @@ function infoSection(input: DailySalesDetailExcelInput) {
   const infoRows: ReportExcelGridRow[] = [
     [t("report.filters.typePage"), t("report.detailedSalesReport")],
     [t("dashboard.branch"), input.branchLabel],
-    [t("report.filters.dateFrom"), input.dateFrom],
-    [t("report.filters.dateTo"), input.dateTo],
+    [t("report.reportDate"), `${input.dateFrom} - ${input.dateTo}`],
     [t("report.filters.paymentMethod"), input.paymentMethodLabel],
   ].map(([label, value], index) => ({
     cells: [cell(label, { bold: true }), cell(value)],

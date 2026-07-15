@@ -18,14 +18,21 @@ import {
   type DashboardCopy,
 } from "@/features/dashboard/overview/components/dashboard-widgets";
 import {
+  applyPeriodMonth,
+  applyPeriodType,
+  applyPeriodYear,
   asRow,
   branchLabel,
   createDashboardModel,
   createDefaultFilters,
+  DASHBOARD_PERIOD_TYPES,
   optionList,
   selectedLabel,
   text,
+  yearSelectOptions,
   type DashboardFilters,
+  type DashboardPeriodType,
+  type SelectOption,
 } from "@/features/dashboard/overview/dashboard-view-model";
 import { useAppStore } from "@/stores/app-store";
 import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
@@ -53,6 +60,7 @@ const dashboardCopyKeys = [
   "copyQuery",
   "cumulativePercent",
   "cutoff",
+  "daily",
   "dailySales",
   "dailySalesSubtitle",
   "days",
@@ -70,6 +78,7 @@ const dashboardCopyKeys = [
   "mixed",
   "mixedPayment",
   "month",
+  "monthly",
   "noData",
   "occupied",
   "occupancy",
@@ -84,6 +93,7 @@ const dashboardCopyKeys = [
   "paymentSplit",
   "payments",
   "peakDay",
+  "periodType",
   "products",
   "productsSold",
   "qty",
@@ -112,6 +122,7 @@ const dashboardCopyKeys = [
   "warnings",
   "watchProduct",
   "year",
+  "yearly",
 ] as const;
 
 function createDashboardCopy(t: (key: string) => unknown): DashboardCopy {
@@ -122,14 +133,14 @@ function createDashboardCopy(t: (key: string) => unknown): DashboardCopy {
 
 function filtersFromRequestParams(
   params: Record<string, unknown>,
-): DashboardFilters {
+): Pick<DashboardFilters, "end_date" | "start_date"> {
   return {
     end_date: text(params.end_date, ""),
     start_date: text(params.start_date, ""),
   };
 }
 
-function filtersKey(filters: DashboardFilters) {
+function filtersKey(filters: Pick<DashboardFilters, "end_date" | "start_date">) {
   return [filters.start_date, filters.end_date].join("|");
 }
 
@@ -217,6 +228,22 @@ export function DashboardPage() {
       ? options
       : ["5", "10", "20", "50"].map((value) => ({ label: value, value }));
   }, [model.dashboard]);
+  const periodTypeOptions = useMemo<SelectOption[]>(
+    () => DASHBOARD_PERIOD_TYPES.map((value) => ({ label: copy[value], value })),
+    [copy],
+  );
+  const monthOptions = useMemo<SelectOption[]>(() => {
+    const months = t("dashboard.months", { returnObjects: true });
+    const monthNames = Array.isArray(months) ? (months as string[]) : [];
+    return Array.from({ length: 12 }, (_, index) => ({
+      label: monthNames[index] ?? String(index + 1),
+      value: String(index + 1),
+    }));
+  }, [t]);
+  const yearOptions = useMemo<SelectOption[]>(
+    () => yearSelectOptions(new Date().getFullYear()),
+    [],
+  );
   const activeBranchUuid =
     branchStoreUuid === storeUuid && selectedBranchUuid
       ? selectedBranchUuid
@@ -291,6 +318,18 @@ export function DashboardPage() {
     setFilters((current) => ({ ...current, ...patch }));
   }, []);
 
+  const handlePeriodTypeChange = useCallback((value: string) => {
+    setFilters((current) => applyPeriodType(current, value as DashboardPeriodType));
+  }, []);
+
+  const handlePeriodYearChange = useCallback((value: string) => {
+    setFilters((current) => applyPeriodYear(current, Number(value)));
+  }, []);
+
+  const handlePeriodMonthChange = useCallback((value: string) => {
+    setFilters((current) => applyPeriodMonth(current, Number(value)));
+  }, []);
+
   const handleApply = useCallback(() => {
     setAppliedFilters({ ...filters });
   }, [filters]);
@@ -317,7 +356,9 @@ export function DashboardPage() {
   useEffect(() => {
     if (!data || !responseFilterKey.replaceAll("|", "")) return;
     setFilters((current) =>
-      filtersKey(current) === responseFilterKey ? current : responseFilters,
+      filtersKey(current) === responseFilterKey
+        ? current
+        : { ...current, ...responseFilters },
     );
   }, [data, responseFilterKey, responseFilters]);
 
@@ -341,10 +382,16 @@ export function DashboardPage() {
             copy={copy}
             filters={filters}
             loading={loading}
+            monthOptions={monthOptions}
             onApply={handleApply}
             onBranchChange={setSelectedBranch}
             onFilterChange={handleFilterChange}
+            onPeriodMonthChange={handlePeriodMonthChange}
+            onPeriodTypeChange={handlePeriodTypeChange}
+            onPeriodYearChange={handlePeriodYearChange}
             onReset={handleReset}
+            periodTypeOptions={periodTypeOptions}
+            yearOptions={yearOptions}
           />
         </div>
       </div>

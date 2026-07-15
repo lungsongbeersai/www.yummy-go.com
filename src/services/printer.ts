@@ -966,26 +966,6 @@ async function executePrintJobs(input: ExecuteKitchenPrintInput, options: { ack:
           await printKitchenBatchJob(batch);
         }
       }
-
-      if (options.ack && globalAckSuccess) {
-        await ackPrintJob(
-          ackPayloadWithLogin(globalAckSuccess, loginUuid)
-        );
-      }
-
-      input.onProgress?.({
-        total,
-        completed: total,
-        successCount: total,
-        failedCount: 0,
-        phase: "done",
-      });
-
-      return {
-        successCount: total,
-        failedCount: 0,
-        total,
-      };
     } catch (error) {
       if (options.ack && globalAckFailed) {
         await ackPrintJob(
@@ -993,7 +973,7 @@ async function executePrintJobs(input: ExecuteKitchenPrintInput, options: { ack:
             failPayload(globalAckFailed, getPrinterErrorMessage(error)),
             loginUuid
           )
-        );
+        ).catch(() => undefined);
       }
 
       input.onProgress?.({
@@ -1010,6 +990,30 @@ async function executePrintJobs(input: ExecuteKitchenPrintInput, options: { ack:
         total,
       };
     }
+
+    // พิมพ์เสร็จแล้ว (กระดาษออกแล้ว) — ถ้า ack "สำเร็จ" กลับ backend พลาด ไม่ถือเป็นการพิมพ์ล้มเหลว
+    // สำคัญบนแอปมือถือ: เดิมพิมพ์ผ่านแต่ ack พลาด เลยถูกนับเป็น fail ทำให้แจ้งเตือนผิดว่ายืนยันออเดอร์ล้มเหลว
+    if (options.ack && globalAckSuccess) {
+      await ackPrintJob(
+        ackPayloadWithLogin(globalAckSuccess, loginUuid)
+      ).catch((error) => {
+        console.error("[printer] kitchen print succeeded but success-ack failed", error);
+      });
+    }
+
+    input.onProgress?.({
+      total,
+      completed: total,
+      successCount: total,
+      failedCount: 0,
+      phase: "done",
+    });
+
+    return {
+      successCount: total,
+      failedCount: 0,
+      total,
+    };
 
   }
 

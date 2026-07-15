@@ -26,6 +26,7 @@ export type MenuItem = {
 
 const disabledReportItems: MenuItem[] = [
   { path: "/report/daily-sales", title: "daily_sales_report" },
+  { path: "/report/daily-closing", title: "daily_store_closing_report" },
   { path: "/report/best-selling-products", title: "best_selling_products_report" },
   { path: "/report/payment-methods", title: "payment_methods_report" },
   { path: "/report/category-sales", title: "category_sales_report" },

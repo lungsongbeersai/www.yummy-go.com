@@ -40,7 +40,6 @@ export function ReportExportSurface({
   noLabel,
   reportTotal,
   rows,
-  rowsLabel,
   showSummary,
   summaryCards,
   title,
@@ -56,7 +55,6 @@ export function ReportExportSurface({
   noLabel: string;
   reportTotal: ApiEntity;
   rows: ApiEntity[];
-  rowsLabel: string;
   showSummary: boolean;
   summaryCards: SummaryCards;
   title: string;
@@ -67,13 +65,10 @@ export function ReportExportSurface({
     <div ref={containerRef} className="report-print-surface">
       <ReportOfficialHeader />
       <div className="report-print-header">
-        <div>
-          <p className="report-print-kicker">{typeLabel}</p>
-          <h1>{title}</h1>
-        </div>
+        <p className="report-print-kicker">{typeLabel}</p>
+        <h1>{title}</h1>
         <div className="report-print-meta">
           <span>{dateRange}</span>
-          <span>{rowsLabel}</span>
         </div>
       </div>
       {showSummary ? (

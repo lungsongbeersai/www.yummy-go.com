@@ -184,11 +184,8 @@ export function BestSellingProductsReportPage({ initialPagination }: { initialPa
         <BestSellingExportSurface
           cards={report.summaryCards}
           containerRef={exportReportRef}
-          dateRange={`${report.appliedFilters.dateFrom} - ${report.appliedFilters.dateTo}`}
+          dateRange={`${t("report.reportDate")}: ${report.appliedFilters.dateFrom} - ${report.appliedFilters.dateTo}`}
           groups={report.renderedExportData.groups}
-          rowsLabel={t("report.bestSelling.rowsLabel", {
-            count: report.renderedExportData.rows.length,
-          })}
           showSummary={summaryVisible}
           sortByLabel={report.sortByLabel}
           summary={report.renderedExportData.summary}

@@ -77,6 +77,8 @@ import type {
 } from "./payment-methods-report-types";
 import {
   displayMetric,
+  paymentMethodExportMetricConfigs,
+  paymentMethodExportTotals,
   paymentMethodReportRowId,
   paymentMethodRowMetricConfigs,
   paymentMethodTotalMetricConfigs,
@@ -1178,29 +1180,21 @@ function metricValueClass(field: keyof PaymentMethodReportRow, value: unknown) {
 }
 
 export function PaymentMethodsExportSurface({
-  cards,
   containerRef,
   dateRange,
   methodLabel,
-  reportTotal,
   rows,
-  rowsLabel,
-  showSummary,
   title,
 }: {
-  cards: PaymentMethodSummaryCard[];
   containerRef: RefObject<HTMLDivElement | null>;
   dateRange: string;
   methodLabel: string;
-  reportTotal: Record<string, unknown>;
   rows: PaymentMethodReportRow[];
-  rowsLabel: string;
-  showSummary: boolean;
   title: string;
 }) {
   const { t } = useTranslation();
-  const rowMetrics = paymentMethodRowMetricConfigs(t);
-  const totalMetrics = paymentMethodTotalMetricConfigs(t);
+  const rowMetrics = paymentMethodExportMetricConfigs(t);
+  const totals = paymentMethodExportTotals(rows, rowMetrics);
 
   return (
     <div ref={containerRef} className="report-print-surface">
@@ -1212,41 +1206,12 @@ export function PaymentMethodsExportSurface({
         </div>
         <div className="report-print-meta">
           <span>{dateRange}</span>
-          <span>{rowsLabel}</span>
         </div>
-      </div>
-      {showSummary ? (
-        <div className="report-print-cards">
-          {cards.map((card) => (
-            <div key={card.key} className="report-print-card">
-              <p>{card.label}</p>
-              <strong>{displayMetric(card.value, card.valueType)}</strong>
-            </div>
-          ))}
-        </div>
-      ) : null}
-      <div className="report-print-section">
-        <h2>{t("report.paymentMethodsReport.totalSummary")}</h2>
-        <table className="report-print-table">
-          <tbody>
-            {totalMetrics.map((metric) => (
-              <tr key={metric.key}>
-                <td>{metric.label}</td>
-                <td className="is-right">
-                  {displayMetric(reportTotal[metric.key], metric.kind)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
       </div>
       <table className="report-print-table">
         <thead>
           <tr>
             <th>{t("report.paymentMethodsReport.columns.paymentMethod")}</th>
-            <th>
-              {t("report.paymentMethodsReport.columns.paymentMethodCode")}
-            </th>
             {rowMetrics.map((metric) => (
               <th key={metric.key} className="is-right">
                 {metric.label}
@@ -1258,7 +1223,6 @@ export function PaymentMethodsExportSurface({
           {rows.map((row) => (
             <tr key={`${row.paymentMethodCode}-${row.sortOrder}`}>
               <td>{row.paymentMethodName}</td>
-              <td>{row.paymentMethodCode}</td>
               {rowMetrics.map((metric) => (
                 <td key={metric.key} className="is-right">
                   {displayMetric(row[metric.field], metric.kind)}
@@ -1266,6 +1230,15 @@ export function PaymentMethodsExportSurface({
               ))}
             </tr>
           ))}
+          {/* แถวรวมท้ายตารางแบบเดียวกับ footer ของตารางบนหน้าจอ แทน section สรุปแยก */}
+          <tr className="is-bill">
+            <td>{t("report.paymentMethodsReport.totalSummary")}</td>
+            {rowMetrics.map((metric, index) => (
+              <td key={metric.key} className="is-right">
+                {displayMetric(totals[index], metric.kind)}
+              </td>
+            ))}
+          </tr>
         </tbody>
       </table>
       <ReportSignatures />

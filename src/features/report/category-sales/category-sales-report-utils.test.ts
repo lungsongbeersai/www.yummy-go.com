@@ -88,9 +88,8 @@ describe("category sales report helpers", () => {
     expect(categorySalesFileBaseName(filters)).toBe("category-sales-all-ASC-2026-05-01-to-2026-06-28");
   });
 
-  it("exports product sales row fields", () => {
+  it("exports product sales row fields without the bill count column", () => {
     expect(categorySalesRowMetricConfigs(t).map((metric) => metric.key)).toEqual([
-      "bill_count",
       "total_qty",
       "product_price_total",
       "topping_total",
@@ -112,11 +111,10 @@ describe("category sales report helpers", () => {
     const section = categorySalesGroupedSection([group], group.summary, t);
     const [header, groupRow, productRow, totalRow] = section.grid.rows;
 
-    expect(section.grid.columnCount).toBe(11);
+    expect(section.grid.columnCount).toBe(10);
     expect(header.cells.map((cell) => cell.value)).toEqual([
       "Product",
       "Category",
-      "Bills",
       "Qty",
       "Product price total",
       "Topping total",
@@ -129,14 +127,13 @@ describe("category sales report helpers", () => {
 
     // แถวกลุ่ม: ชื่อกลุ่ม merge 2 คอลัมน์ + ยอดรวมกลุ่ม (ส่วนลด = รายการ + บิล)
     expect(groupRow.cells[0]).toMatchObject({ colSpan: 2, value: "Drinks" });
-    expect(groupRow.cells[6].value).toBe(5000);
+    expect(groupRow.cells[5].value).toBe(5000);
     expect(groupRow.cells.at(-1)?.value).toBe(111815);
     expect(groupRow.style?.bold).toBe(true);
 
     expect(productRow.cells.map((cell) => cell.value)).toEqual([
       "Tiger Beer",
       "Beer",
-      2,
       3,
       90000,
       10000,
@@ -156,7 +153,6 @@ describe("category sales report helpers", () => {
   it("exports backend summary rows", () => {
     expect(categorySalesSummaryMetricConfigs(t).map((metric) => metric.key)).toEqual([
       "product_count",
-      "bill_count",
       "total_qty",
       "product_price_total",
       "topping_total",

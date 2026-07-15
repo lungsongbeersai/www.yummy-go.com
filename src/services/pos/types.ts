@@ -417,6 +417,7 @@ export interface SplitBillInput extends ApiEntity {
   order_uuid: string;
   table_uuid?: string;
   order_item_uuids: string[];
+  document_type: "receipt" | "invoice";
   order_channel: OrderChannel;
   customer_uuid_fk: string;
   payment_method: PaymentMethod;
@@ -549,4 +550,18 @@ export interface PrintInvoiceResponse extends ApiEntity {
   ack_template?: ConfirmToKitchenAckTemplate;
   totals?: PaymentTotals;
   fallback_print?: ApiEntity | null;
+}
+export interface ReprintReceiptRequest {
+  order_uuid: string;
+  login_uuid_fk: string;
+  lang?: string;
+  device_code?: string;
+  agent_id?: string;
+  print_mode?: string;
+}
+export interface ReprintReceiptPrintJob {
+  print_job_uuid?: string;
+}
+export interface ReprintReceiptResponse {
+  print_job?: ReprintReceiptPrintJob | null;
 }

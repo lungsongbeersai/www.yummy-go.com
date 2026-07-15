@@ -17,6 +17,7 @@ import type {
   CartOrder,
   CateProductItem,
   CateWithProducts,
+  ConfirmToKitchenPendingQuery,
   ConfirmOrderItemServedInput,
   ConfirmToKitchenInput,
   ConfirmToKitchenResponse,
@@ -41,6 +42,7 @@ import type {
   PrintInvoiceRequest,
   PrintInvoiceResponse,
   ProdItem,
+  ReprintReceiptRequest,
   SplitBillInput,
   SplitBillResponse,
   TableQRResponse,
@@ -179,6 +181,7 @@ interface PosState {
   splitBill: (input: SplitBillInput) => Promise<SplitBillResponse>;
   createTableQr: (params: CreateTableQRRequest) => Promise<CreateTableQRResponse>;
   printInvoice: (params: PrintInvoiceRequest) => Promise<PrintInvoiceResponse>;
+  reprintReceipt: (params: ReprintReceiptRequest) => Promise<ConfirmToKitchenPendingQuery | null>;
   setOrderHistory: (orders: CartOrder[]) => void;
   reset: () => void;
 }
@@ -425,6 +428,32 @@ export const usePosStore = create<PosState>((set) => ({
     });
     if (isCurrentSession()) set({ lastInvoice });
     return lastInvoice;
+  },
+  reprintReceipt: async (params) => {
+    const isCurrentSession = createSessionGuard();
+    const printer = await resolvePosPrinterContext(params);
+    assertCurrentSession(isCurrentSession);
+
+    const response = await posService.reprintReceipt({
+      order_uuid: params.order_uuid,
+      login_uuid_fk: params.login_uuid_fk,
+      lang: params.lang,
+      device_code: printer.device_code,
+      agent_id: printer.agent_id,
+      print_mode: printer.print_mode
+    });
+    assertCurrentSession(isCurrentSession);
+    const printJobUuid = textValue(response.print_job?.print_job_uuid);
+
+    if (!printJobUuid) return null;
+
+    return {
+      print_job_uuid: printJobUuid,
+      login_uuid_fk: params.login_uuid_fk,
+      device_code: printer.device_code,
+      agent_id: printer.agent_id,
+      print_mode: printer.print_mode
+    };
   },
   setOrderHistory: (orders) => set({ orderHistory: posService.cartOrdersToHistory(orders) }),
   reset: () =>

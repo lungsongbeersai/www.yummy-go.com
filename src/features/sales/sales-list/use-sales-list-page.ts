@@ -4,12 +4,14 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { openLocalInvoicePrintWindow, type InvoicePrintData } from "@/features/pos/print/invoice-print-window";
 import { buildSalesListInvoicePrintData } from "@/features/sales/list/sales-list-utils";
-import { useIsCapacitorNativeApp } from "@/hooks/use-capacitor-native-app";
 import { useUrlPagination } from "@/hooks/use-url-pagination";
+import { isCapacitorNativeApp } from "@/lib/capacitor-platform";
 import type { UrlPaginationState } from "@/lib/url-pagination";
 import { useAppStore } from "@/stores/app-store";
-import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
+import { authStoreUuid, useAuthStore, type AuthUser } from "@/stores/auth-store";
 import { useBranchStore } from "@/stores/branch-store";
+import { usePosStore } from "@/stores/pos-store";
+import { usePrinterStore } from "@/stores/printer-store";
 import { useDailySaleItemsStore, type DailySaleItemsBillGroup } from "@/stores/report-store";
 import { useToastStore } from "@/stores/toast-store";
 import {
@@ -50,8 +52,9 @@ export function useSalesListPage(initialPagination: UrlPaginationState) {
   const setSelectedBranch = useBranchStore((state) => state.setSelectedBranch);
   const loadSalesItems = useDailySaleItemsStore((state) => state.load);
   const resetSalesItems = useDailySaleItemsStore((state) => state.reset);
+  const requestReprintReceipt = usePosStore((state) => state.reprintReceipt);
+  const executeInvoice = usePrinterStore((state) => state.executeInvoice);
   const showToast = useToastStore((state) => state.show);
-  const nativeApp = useIsCapacitorNativeApp();
   const storeUuid = authStoreUuid(user);
   const userBranchUuid = user?.branch_uuid ?? "";
   const [draftFilters, setDraftFilters] = useState<SalesListFilters>(() =>
@@ -97,6 +100,7 @@ export function useSalesListPage(initialPagination: UrlPaginationState) {
   const branchUuid = appliedFilters.branchUuid || defaultBranchUuid;
   const branchLabel = selectedBranchLabel(branchOptions, branchUuid, user?.branch_name || branchUuid || "-");
   const canApply = Boolean(draftFilters.branchUuid && draftFilters.dateFrom && draftFilters.dateTo);
+  const canReprintReceipt = Boolean(user?.uuid);
   const selectedBill = bills.find((bill) => bill.id === selectedBillId) ?? null;
   const initialLoading = loading && !bills.length;
 
@@ -221,10 +225,7 @@ export function useSalesListPage(initialPagination: UrlPaginationState) {
     setMobileFilterOpen(false);
   }
 
-  async function reprintReceipt(group: DailySaleItemsBillGroup) {
-    const orderUuid = textValue(readValue(group.raw, ["order_uuid"]), "");
-    if (!orderUuid || !user?.uuid || printingBillId || nativeApp) return;
-
+  function buildFallbackReceiptData(group: DailySaleItemsBillGroup, receiptUser: AuthUser) {
     const currentBranch = branches.find((branch) => branch.branch_uuid === branchUuid);
     const baseReceiptSource = saleListPrintBillSource(group);
     const receiptSource = {
@@ -239,15 +240,64 @@ export function useSalesListPage(initialPagination: UrlPaginationState) {
         textValue(readValue(baseReceiptSource, ["branch_tel", "branch_phone", "tel", "phone"]), "") ||
         textValue(readValue(currentBranch ?? {}, ["branch_tel", "branch_phone", "tel", "phone"]), "")
     };
-    const receiptData = buildSalesListInvoicePrintData({
+
+    return buildSalesListInvoicePrintData({
       bill: receiptSource,
       translate: (key, options) => String(t(key, options)),
-      user
+      user: receiptUser
     });
+  }
+
+  async function reprintReceipt(group: DailySaleItemsBillGroup) {
+    const orderUuid = textValue(readValue(group.raw, ["order_uuid"]), "");
+    if (!orderUuid || !user?.uuid || printingBillId) return;
 
     setPrintingBillId(group.id);
     try {
-      await openReceiptPrintWindow(receiptData, "");
+      const pendingQuery = await requestReprintReceipt({
+        order_uuid: orderUuid,
+        login_uuid_fk: user.uuid,
+        lang: language
+      });
+
+      if (!pendingQuery) {
+        showToast({
+          title: t("salesList.reprintReceiptFailed"),
+          description: t("salesList.reprintReceiptMissingJob"),
+          tone: "error"
+        });
+        return;
+      }
+
+      let printStarted = false;
+      const printResult = await executeInvoice({
+        pending_query: pendingQuery,
+        login_uuid_fk: user.uuid,
+        onProgress: ({ phase }) => {
+          if (phase === "printing") printStarted = true;
+        }
+      });
+
+      if (printResult.successCount > 0 && printResult.failedCount === 0) {
+        showToast({ title: t("salesList.reprintReceiptSuccess"), tone: "success" });
+        return;
+      }
+
+      if (printResult.total === 0) {
+        showToast({
+          title: t("salesList.reprintReceiptFailed"),
+          description: t("salesList.reprintReceiptMissingJob"),
+          tone: "error"
+        });
+        return;
+      }
+
+      if (printResult.failedCount > 0 && printStarted && !isCapacitorNativeApp()) {
+        await openReceiptPrintWindow(buildFallbackReceiptData(group, user), "");
+        return;
+      }
+
+      showToast({ title: t("salesList.reprintReceiptFailed"), tone: "error" });
     } catch (printError) {
       showToast({
         title: t("salesList.reprintReceiptFailed"),
@@ -292,6 +342,7 @@ export function useSalesListPage(initialPagination: UrlPaginationState) {
     branchOptions,
     branchUuid,
     canApply,
+    canReprintReceipt,
     draftFilters,
     error,
     goToPage,
@@ -300,7 +351,6 @@ export function useSalesListPage(initialPagination: UrlPaginationState) {
     loading,
     mobileDetailOpen,
     mobileFilterOpen,
-    nativeApp,
     page,
     patchDraft,
     printingBillId,

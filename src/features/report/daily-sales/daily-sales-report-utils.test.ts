@@ -8,8 +8,10 @@ import {
 } from "./daily-sales-report-columns";
 import {
   dateTotalsFromGroups,
+  exportInfoRows,
   exportSummaryRows,
   exportTableRows,
+  reportExportColumns,
   reportFileBaseName,
   selectedDetailBillGroups,
 } from "./daily-sales-report-export-utils";
@@ -431,5 +433,54 @@ describe("daily sales report export helpers", () => {
       "report.columns.invoiceNumber": "INV-1",
       "report.columns.netTotal": 150_000,
     });
+  });
+
+  it("drops the last-paid-at and quantity columns from exports only", () => {
+    const columns = reportColumns(t, "bill");
+    expect(columns.some((column) => column.keys.includes("last_paid_at"))).toBe(
+      true,
+    );
+    expect(columns.some((column) => column.keys.includes("total_qty"))).toBe(
+      true,
+    );
+
+    const exportColumns = reportExportColumns(columns);
+    expect(
+      exportColumns.some((column) => column.keys.includes("last_paid_at")),
+    ).toBe(false);
+    expect(
+      exportColumns.some((column) => column.keys.includes("total_qty")),
+    ).toBe(false);
+    expect(exportColumns.length).toBe(columns.length - 2);
+  });
+
+  it("combines date-from/date-to into a single report-date row", () => {
+    expect(
+      exportInfoRows(t, {
+        branchLabel: "Main branch",
+        dateFrom: "2026-07-01",
+        dateTo: "2026-07-13",
+        paymentMethodLabel: "Cash",
+        typeLabel: "report.salesReportByBill",
+      }),
+    ).toEqual([
+      { Metric: "report.filters.typePage", Value: "report.salesReportByBill" },
+      { Metric: "dashboard.branch", Value: "Main branch" },
+      { Metric: "report.reportDate", Value: "2026-07-01 - 2026-07-13" },
+      { Metric: "report.filters.paymentMethod", Value: "Cash" },
+    ]);
+  });
+
+  it("omits info rows for fields a report does not provide", () => {
+    expect(
+      exportInfoRows(t, {
+        branchLabel: "Main branch",
+        dateFrom: "2026-07-01",
+        dateTo: "2026-07-13",
+      }),
+    ).toEqual([
+      { Metric: "dashboard.branch", Value: "Main branch" },
+      { Metric: "report.reportDate", Value: "2026-07-01 - 2026-07-13" },
+    ]);
   });
 });

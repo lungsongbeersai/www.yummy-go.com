@@ -25,6 +25,49 @@ export function reportFileBaseName(filters: ReportFilters) {
   return `daily-sales-${filters.typePage}-${filters.dateFrom}-to-${filters.dateTo}`;
 }
 
+// คอลัมน์ "ຈ່າຍລ່າສຸດ" (last_paid_at) ແລະ "ຈຳນວນ" (quantity) ใช้แสดงบนหน้าจอเท่านั้น ไม่ต้องอยู่ในไฟล์ export
+const EXPORT_EXCLUDED_COLUMN_KEYS = ["last_paid_at", "total_qty"];
+
+export function reportExportColumns(columns: ReportColumn[]) {
+  return columns.filter(
+    (column) =>
+      !column.keys.some((key) => EXPORT_EXCLUDED_COLUMN_KEYS.includes(key)),
+  );
+}
+
+// แถวข้อมูลรายงานหัวไฟล์ export ใช้ร่วมกันทุกหน้ารายงาน — ส่งเฉพาะ field ที่รายงานนั้นมี
+export function exportInfoRows(
+  t: (key: string) => string,
+  input: {
+    branchLabel?: string;
+    dateFrom: string;
+    dateTo: string;
+    paymentMethodLabel?: string;
+    typeLabel?: string;
+  },
+) {
+  return [
+    ...(input.typeLabel
+      ? [{ Metric: t("report.filters.typePage"), Value: input.typeLabel }]
+      : []),
+    ...(input.branchLabel
+      ? [{ Metric: t("dashboard.branch"), Value: input.branchLabel }]
+      : []),
+    {
+      Metric: t("report.reportDate"),
+      Value: `${input.dateFrom} - ${input.dateTo}`,
+    },
+    ...(input.paymentMethodLabel
+      ? [
+          {
+            Metric: t("report.filters.paymentMethod"),
+            Value: input.paymentMethodLabel,
+          },
+        ]
+      : []),
+  ];
+}
+
 export function waitForPaint() {
   return new Promise<void>((resolve) => {
     requestAnimationFrame(() => requestAnimationFrame(() => resolve()));

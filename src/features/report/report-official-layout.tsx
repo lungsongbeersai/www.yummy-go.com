@@ -5,7 +5,10 @@ import type { ReportExcelLayout } from "./report-excel-utils";
 
 type Translate = (key: string) => string;
 
-export function officialReportExcelLayout(t: Translate): ReportExcelLayout {
+export function officialReportExcelLayout(
+  t: Translate,
+  title?: string,
+): ReportExcelLayout {
   return {
     headerLines: [
       t("report.officialHeader.line1"),
@@ -15,6 +18,7 @@ export function officialReportExcelLayout(t: Translate): ReportExcelLayout {
       owner: t("report.signatures.shopOwner"),
       preparer: t("report.signatures.reportPreparer"),
     },
+    title,
   };
 }
 

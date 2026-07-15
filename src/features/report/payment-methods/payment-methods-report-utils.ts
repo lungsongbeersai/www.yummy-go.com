@@ -126,6 +126,26 @@ export function paymentMethodRowMetrics(row: PaymentMethodReportRow, t: (key: st
   }));
 }
 
+// คอลัมน์ที่แสดงบนหน้าจอเท่านั้น ไม่ใส่ในไฟล์ Excel/PDF export
+const EXPORT_EXCLUDED_METRIC_KEYS = ["bill_count", "bill_total", "payment_amount"];
+
+export function paymentMethodExportMetricConfigs(
+  t: (key: string) => string
+): PaymentMethodsRowMetricConfig[] {
+  return paymentMethodRowMetricConfigs(t).filter(
+    (metric) => !EXPORT_EXCLUDED_METRIC_KEYS.includes(metric.key)
+  );
+}
+
+export function paymentMethodExportTotals(
+  rows: PaymentMethodReportRow[],
+  metrics: PaymentMethodsRowMetricConfig[]
+) {
+  return metrics.map((metric) =>
+    rows.reduce((total, row) => total + firstNumber(row[metric.field]), 0)
+  );
+}
+
 export function paymentMethodsFileBaseName(filters: PaymentMethodsReportFilters) {
   return `payment-methods-${filters.paymentMethod}-${filters.dateFrom}-to-${filters.dateTo}`;
 }
@@ -136,35 +156,23 @@ export function waitForPaint() {
   });
 }
 
-export function exportSummaryRows(
-  cards: PaymentMethodsSummaryCard[],
-  reportTotal: ApiEntity,
-  t: (key: string) => string,
-  // แถว cards ใส่เฉพาะตอน summary cards แสดงใน UI ส่วนแถว totals ใส่เสมอ
-  // เพราะ UI แสดงยอดรวมใน footer ของตารางตลอด
-  includeCards = true
-) {
-  const cardRows = !includeCards ? [] : cards.map((card) => ({
-    [t("report.paymentMethodsReport.export.section")]: t("report.paymentMethodsReport.export.cards"),
-    [t("report.paymentMethodsReport.export.metric")]: card.label,
-    [t("report.paymentMethodsReport.export.value")]: card.value
-  }));
-  const totalRows = paymentMethodTotalMetricConfigs(t).map((metric) => ({
-    [t("report.paymentMethodsReport.export.section")]: t("report.paymentMethodsReport.export.total"),
-    [t("report.paymentMethodsReport.export.metric")]: metric.label,
-    [t("report.paymentMethodsReport.export.value")]: firstNumber(reportTotal[metric.key])
-  }));
-
-  return [...cardRows, ...totalRows];
-}
-
+// ตาราง export มีแถวรวมท้ายตารางแบบเดียวกับ footer ของตารางบนหน้าจอ
+// จึงไม่ต้องมี section สรุปแยกต่างหากอีก
 export function exportPaymentMethodRows(rows: PaymentMethodReportRow[], t: (key: string) => string) {
-  const metrics = paymentMethodRowMetricConfigs(t);
-  return rows.map((row) => ({
-    [t("report.paymentMethodsReport.columns.paymentMethod")]: row.paymentMethodName,
-    [t("report.paymentMethodsReport.columns.paymentMethodCode")]: row.paymentMethodCode,
-    ...Object.fromEntries(metrics.map((metric) => [metric.label, Number(row[metric.field] ?? 0)]))
-  }));
+  const metrics = paymentMethodExportMetricConfigs(t);
+  const methodColumn = t("report.paymentMethodsReport.columns.paymentMethod");
+  const totals = paymentMethodExportTotals(rows, metrics);
+
+  return [
+    ...rows.map((row) => ({
+      [methodColumn]: row.paymentMethodName,
+      ...Object.fromEntries(metrics.map((metric) => [metric.label, Number(row[metric.field] ?? 0)]))
+    })),
+    {
+      [methodColumn]: t("report.paymentMethodsReport.totalSummary"),
+      ...Object.fromEntries(metrics.map((metric, index) => [metric.label, totals[index]]))
+    }
+  ];
 }
 
 export function paymentMethodReportRowId(row: PaymentMethodReportRow) {

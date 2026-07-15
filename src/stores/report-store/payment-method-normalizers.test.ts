@@ -151,7 +151,7 @@ describe("normalizePaymentMethodsReportResponse", () => {
     ]);
   });
 
-  it("falls back to static payment methods and derived pagination", () => {
+  it("returns no payment options so the UI can add a translated fallback", () => {
     const normalized = normalizePaymentMethodsReportResponse(
       {
         card_summary: [
@@ -166,12 +166,9 @@ describe("normalizePaymentMethodsReportResponse", () => {
 
     expect(normalized.cards).toHaveLength(1);
     expect(normalized.cards[0]?.value).toBe(99);
-    expect(normalized.paymentMethods.map((option) => option.value)).toEqual([
-      "all",
-      "cash",
-      "transfer",
-      "debt",
-    ]);
+    // ต้องเป็น [] เพื่อให้ paymentMethodOptions() ฝั่ง UI ใส่ตัวเลือกที่แปลภาษาแล้ว
+    // ไม่ใช่รหัสดิบ all/cash/transfer/debt
+    expect(normalized.paymentMethods).toEqual([]);
     expect(normalized.reportTotal).toMatchObject({ grand_total: 99 });
     expect(normalized.rows).toEqual([]);
     expect(normalized.pagination).toEqual({

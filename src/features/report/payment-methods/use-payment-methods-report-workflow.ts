@@ -10,15 +10,16 @@ import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
 import { useBranchStore } from "@/stores/branch-store";
 import { usePaymentMethodsReportStore } from "@/stores/report-store";
 import { useToastStore } from "@/stores/toast-store";
+import { exportInfoRows } from "../daily-sales/daily-sales-report-export-utils";
 import { branchOptionFromRow, selectedBranchLabel } from "../daily-sales/daily-sales-report-utils";
 import { createSingleSheetReportWorkbook } from "../report-excel-utils";
 import { officialReportExcelLayout } from "../report-official-layout";
+import { addReportCanvasToPdfPages } from "../report-pdf-utils";
 import { useReportRowSelection } from "../report-row-selection";
 import type { PaymentMethodsExportAction, PaymentMethodsExportData, PaymentMethodsReportFilters } from "./payment-methods-report-types";
 import {
   emptyExportData,
   exportPaymentMethodRows,
-  exportSummaryRows,
   localDateInputValue,
   paymentMethodCardsForTotal,
   paymentMethodOptions,
@@ -31,9 +32,7 @@ import {
 
 export function usePaymentMethodsReportWorkflow(
   exportReportRef: RefObject<HTMLDivElement | null>,
-  initialPagination: UrlPaginationState,
-  // สถานะการแสดง summary cards ใน UI — ไฟล์ export ต้องมีส่วนสรุปตรงกับที่ผู้ใช้เห็น
-  summaryVisible: boolean
+  initialPagination: UrlPaginationState
 ) {
   const { t } = useTranslation();
   const user = useAuthStore((state) => state.user);
@@ -248,17 +247,20 @@ export function usePaymentMethodsReportWorkflow(
         XLSX,
         [
           {
-            title: summaryVisible
-              ? t("report.summary")
-              : t("report.paymentMethodsReport.totalSummary"),
-            rows: exportSummaryRows(data.cards, data.reportTotal, t, summaryVisible)
+            title: t("report.excel.reportInformation"),
+            rows: exportInfoRows(t, {
+              branchLabel: activeBranchLabel,
+              dateFrom: appliedFilters.dateFrom,
+              dateTo: appliedFilters.dateTo,
+              paymentMethodLabel: activePaymentMethodLabel
+            })
           },
           {
             title: t("report.excel.rows"),
             rows: exportPaymentMethodRows(data.rows, t)
           }
         ],
-        officialReportExcelLayout(t)
+        officialReportExcelLayout(t, data.reportName || reportTitle)
       );
       XLSX.writeFile(workbook, `${paymentMethodsFileBaseName(appliedFilters)}.xlsx`);
       showToast({
@@ -297,18 +299,7 @@ export function usePaymentMethodsReportWorkflow(
         windowWidth: element.scrollWidth
       });
       const pdf = new jsPDF({ format: "a4", orientation: "landscape", unit: "pt" });
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      const imageHeight = (canvas.height * pageWidth) / canvas.width;
-      const imageData = canvas.toDataURL("image/png", 1);
-      let offsetY = 0;
-
-      pdf.addImage(imageData, "PNG", 0, offsetY, pageWidth, imageHeight);
-      while (imageHeight + offsetY > pageHeight) {
-        offsetY -= pageHeight;
-        pdf.addPage();
-        pdf.addImage(imageData, "PNG", 0, offsetY, pageWidth, imageHeight);
-      }
+      addReportCanvasToPdfPages(pdf, canvas, element);
 
       pdf.save(`${paymentMethodsFileBaseName(appliedFilters)}.pdf`);
       showToast({

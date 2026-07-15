@@ -138,54 +138,57 @@ describe("daily sales detail Excel workbook", () => {
     expect(result.SheetNames).toEqual(["Report"]);
     expect(sheet.A1.v).toBe("Lao People’s Democratic Republic");
     expect(sheet.A4.v).toBe("report.excel.reportInformation");
-    expect(sheet.A12.v).toBe("Summary");
+    // ข้อมูลวันที่รายงานรวมเป็นแถวเดียว แทนแถว dateFrom/dateTo แยกกัน
+    expect(sheet.A8.v).toBe("report.reportDate");
+    expect(sheet.B8.v).toBe("2026-07-01 - 2026-07-13");
+    expect(sheet.A11.v).toBe("Summary");
     // sheet เดียวมีหลายตาราง — autofilter ต้องปิดเพื่อไม่ให้ซ่อนแถวตารางอื่น
     expect(sheet["!autofilter"]).toBeUndefined();
     expect(Object.values(sheet).some((entry) => entry?.v === "Shop owner")).toBe(true);
     expect(Object.values(sheet).some((entry) => entry?.v === "Report preparer")).toBe(true);
 
-    expect(sheet.A21.v).toBe("Bills");
-    expect(sheet.A22.v).toBe("fields.no");
-    expect(sheet.F22.v).toBe("report.columns.productName");
+    expect(sheet.A20.v).toBe("Bills");
+    expect(sheet.A21.v).toBe("fields.no");
+    expect(sheet.F21.v).toBe("report.columns.productName");
 
     // แถวบิล: ข้อมูลบิลครั้งเดียว ตามด้วยรายการสินค้าของบิลนั้น
-    expect(sheet.A23.v).toBe(1);
-    expect(sheet.B23.v).toBe("INV-001");
-    expect(typeof sheet.C23.v).toBe("number");
-    expect(sheet.C23.z).toBe("yyyy-mm-dd hh:mm");
-    expect(sheet.D23.v).toBe("A1");
-    expect(sheet.E23.v).toBe("cash");
-    expect(sheet.M23.v).toBe("paid");
+    expect(sheet.A22.v).toBe(1);
+    expect(sheet.B22.v).toBe("INV-001");
+    expect(typeof sheet.C22.v).toBe("number");
+    expect(sheet.C22.z).toBe("yyyy-mm-dd hh:mm");
+    expect(sheet.D22.v).toBe("A1");
+    expect(sheet.E22.v).toBe("cash");
+    expect(sheet.M22.v).toBe("paid");
 
-    expect(sheet.F24.v).toContain("Noodle");
-    expect(sheet.F24.v).toContain("Chili");
-    expect(sheet.G24.v).toBe(10);
-    expect(sheet.H24.v).toBe(3);
-    expect(sheet.L24.v).toBe(31);
-    expect(sheet.F25.v).toBe("Tea");
-    expect(sheet.L25.v).toBe(48);
+    expect(sheet.F23.v).toContain("Noodle");
+    expect(sheet.F23.v).toContain("Chili");
+    expect(sheet.G23.v).toBe(10);
+    expect(sheet.H23.v).toBe(3);
+    expect(sheet.L23.v).toBe(31);
+    expect(sheet.F24.v).toBe("Tea");
+    expect(sheet.L24.v).toBe(48);
 
     // รวมย่อยของบิล + แถวปรับปรุง (ส่วนลดบิล/ค่าบริการ/VAT/ยอดสุทธิ)
-    expect(sheet.B26.v).toBe("Summary");
-    expect(sheet.G26.v).toBe(80);
-    expect(sheet.L26.v).toBe(79);
+    expect(sheet.B25.v).toBe("Summary");
+    expect(sheet.G25.v).toBe(80);
+    expect(sheet.L25.v).toBe(79);
     expect(sheet["!merges"]).toContainEqual({
-      e: { c: 5, r: 25 },
-      s: { c: 1, r: 25 },
+      e: { c: 5, r: 24 },
+      s: { c: 1, r: 24 },
     });
-    expect(sheet.B27.v).toBe("report.columns.billDiscount");
-    expect(sheet.L27.v).toBe(4);
-    expect(sheet.B30.v).toBe("common.total");
-    expect(sheet.L30.v).toBe(87);
+    expect(sheet.B26.v).toBe("report.columns.billDiscount");
+    expect(sheet.L26.v).toBe(4);
+    expect(sheet.B29.v).toBe("common.total");
+    expect(sheet.L29.v).toBe(87);
 
     // เงินสดรับแสดงเป็นแถวข้อมูลชำระ เฉพาะรายการที่มียอด
-    expect(sheet.B31.v).toBe("report.columns.cashReceived");
-    expect(sheet.L31.v).toBe(100);
+    expect(sheet.B30.v).toBe("report.columns.cashReceived");
+    expect(sheet.L30.v).toBe(100);
 
     // แถวยอดรวมทั้งรายงานพร้อมจำนวนบิล
-    expect(sheet.B32.v).toBe("Summary - report.cards.billsCount: 1");
-    expect(sheet.H32.v).toBe(5);
-    expect(sheet.L32.v).toBe(87);
+    expect(sheet.B31.v).toBe("Summary - report.cards.billsCount: 1");
+    expect(sheet.H31.v).toBe(5);
+    expect(sheet.L31.v).toBe(87);
 
     const exportedFile = XLSX.write(result, {
       bookType: "xlsx",
@@ -196,7 +199,7 @@ describe("daily sales detail Excel workbook", () => {
       type: "array",
     });
     expect(reopened.SheetNames).toEqual(["Report"]);
-    expect(reopened.Sheets.Report.B23.v).toBe("INV-001");
+    expect(reopened.Sheets.Report.B22.v).toBe("INV-001");
   });
 
   it("omits the summary section when summary cards are hidden", () => {
@@ -204,7 +207,7 @@ describe("daily sales detail Excel workbook", () => {
     const sheet = result.Sheets.Report;
 
     expect(result.SheetNames).toEqual(["Report"]);
-    expect(sheet.A12.v).toBe("Bills");
+    expect(sheet.A11.v).toBe("Bills");
     // "Grand total" เป็น label ของ summary card เท่านั้น — ต้องหายไปทั้ง sheet
     expect(Object.values(sheet).some((entry) => entry?.v === "Grand total")).toBe(false);
   });
@@ -220,11 +223,11 @@ describe("daily sales detail Excel workbook", () => {
     const sheet = result.Sheets.Report;
 
     expect(result.SheetNames).toEqual(["Report"]);
-    expect(sheet.A34.v).toBe("Daily Totals");
-    expect(sheet.A36.z).toBe("yyyy-mm-dd");
-    expect(XLSX.utils.format_cell(sheet.A36)).toBe("2026-07-13");
-    expect(sheet.B36.v).toBe(1);
-    expect(sheet.I36.v).toBe(87);
+    expect(sheet.A33.v).toBe("Daily Totals");
+    expect(sheet.A35.z).toBe("yyyy-mm-dd");
+    expect(XLSX.utils.format_cell(sheet.A35)).toBe("2026-07-13");
+    expect(sheet.B35.v).toBe(1);
+    expect(sheet.I35.v).toBe(87);
   });
 
   it("resolves selected-export aliases without losing summary totals", () => {
@@ -239,11 +242,11 @@ describe("daily sales detail Excel workbook", () => {
     });
     const sheet = result.Sheets.Report;
 
-    expect(sheet.B14.v).toBe(1);
-    expect(sheet.B15.v).toBe(5);
-    expect(sheet.B16.v).toBe(7);
-    expect(sheet.B17.v).toBe(5);
-    expect(sheet.B18.v).toBe(4);
-    expect(sheet.B19.v).toBe(87);
+    expect(sheet.B13.v).toBe(1);
+    expect(sheet.B14.v).toBe(5);
+    expect(sheet.B15.v).toBe(7);
+    expect(sheet.B16.v).toBe(5);
+    expect(sheet.B17.v).toBe(4);
+    expect(sheet.B18.v).toBe(87);
   });
 });

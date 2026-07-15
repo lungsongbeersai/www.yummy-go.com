@@ -14,6 +14,7 @@ import {
   createTableQR,
   fetchCateProducts,
   printInvoice,
+  reprintReceipt,
   splitBill
 } from "@/services/pos/requests";
 
@@ -105,6 +106,32 @@ describe("pos requests", () => {
         device_code: "device-1",
         agent_id: "agent-1",
         print_mode: "agent"
+      }
+    });
+  });
+
+  it("posts only the reprint receipt fields with a normalized language", async () => {
+    apiMocks.apiRequest.mockResolvedValue({
+      print_job: { print_job_uuid: "job-1" }
+    });
+
+    await reprintReceipt({
+      order_uuid: "order-1",
+      login_uuid_fk: "login-1",
+      lang: "en-US",
+      device_code: "device-1",
+      agent_id: "agent-1",
+      print_mode: "windows_agent"
+    });
+
+    expect(apiMocks.apiRequest).toHaveBeenCalledWith("post", "/api/v1/pos/reprint_receipt", {
+      data: {
+        order_uuid: "order-1",
+        login_uuid_fk: "login-1",
+        lang: "eng",
+        device_code: "device-1",
+        agent_id: "agent-1",
+        print_mode: "windows_agent"
       }
     });
   });
@@ -208,6 +235,7 @@ describe("pos requests", () => {
       order_uuid: "order-1",
       table_uuid: "table-5",
       order_item_uuids: ["item-1"],
+      document_type: "receipt",
       customer_uuid_fk: "customer-1",
       payment_method: 1,
       order_channel: 1,
@@ -228,6 +256,7 @@ describe("pos requests", () => {
         order_uuid: "order-1",
         table_uuid: "table-5",
         order_item_uuids: ["item-1"],
+        document_type: "receipt",
         customer_uuid_fk: "customer-1",
         payment_method: 1,
         order_channel: 1,
@@ -240,6 +269,52 @@ describe("pos requests", () => {
         login_uuid_fk: "login-1",
         device_code: "WINDOWS-001",
         agent_id: "WINDOWS-AGENT-001",
+        print_mode: "windows_agent"
+      }
+    });
+  });
+
+  it("posts split invoices to split_bill without full-order fields", async () => {
+    apiMocks.apiRequest.mockResolvedValue({
+      print_job: { print_job_uuid: "job-1" }
+    });
+
+    await splitBill({
+      order_uuid: "532f836f-d580-4244-b2fa-615526292b73",
+      order_item_uuids: ["221aa39e-a6b7-4fcb-be26-dc0255bc10d2"],
+      document_type: "invoice",
+      order_channel: 1,
+      customer_uuid_fk: "95eed663-1bad-4b2d-99c8-07676be13e94",
+      payment_method: 1,
+      amount: 63840,
+      cash_payment_amount: 63840,
+      transfer_payment_amount: 0,
+      change_amount: 0,
+      note: "split bill cash payment",
+      lang: "la",
+      login_uuid_fk: "fc445438-e617-471c-9af3-262ae747932f",
+      device_code: "INCLUDE",
+      agent_id: "include-f8e4f9",
+      print_mode: "windows_agent"
+    });
+
+    expect(apiMocks.apiRequest).toHaveBeenCalledWith("post", "/api/v1/pos/split_bill", {
+      data: {
+        order_uuid: "532f836f-d580-4244-b2fa-615526292b73",
+        order_item_uuids: ["221aa39e-a6b7-4fcb-be26-dc0255bc10d2"],
+        document_type: "invoice",
+        order_channel: 1,
+        customer_uuid_fk: "95eed663-1bad-4b2d-99c8-07676be13e94",
+        payment_method: 1,
+        amount: 63840,
+        cash_payment_amount: 63840,
+        transfer_payment_amount: 0,
+        change_amount: 0,
+        note: "split bill cash payment",
+        lang: "la",
+        login_uuid_fk: "fc445438-e617-471c-9af3-262ae747932f",
+        device_code: "INCLUDE",
+        agent_id: "include-f8e4f9",
         print_mode: "windows_agent"
       }
     });

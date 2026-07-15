@@ -10,9 +10,11 @@ import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
 import { useBranchStore } from "@/stores/branch-store";
 import { useCategorySalesReportStore } from "@/stores/report-store";
 import { useToastStore } from "@/stores/toast-store";
+import { exportInfoRows } from "../daily-sales/daily-sales-report-export-utils";
 import { branchOptionFromRow, selectedBranchLabel } from "../daily-sales/daily-sales-report-utils";
 import { createSingleSheetReportWorkbook } from "../report-excel-utils";
 import { officialReportExcelLayout } from "../report-official-layout";
+import { addReportCanvasToPdfPages } from "../report-pdf-utils";
 import { useReportRowSelection } from "../report-row-selection";
 import type { CategorySalesExportAction, CategorySalesExportData, CategorySalesReportFilters } from "./category-sales-report-types";
 import {
@@ -262,6 +264,15 @@ export function useCategorySalesReportWorkflow(
       const workbook = createSingleSheetReportWorkbook(
         XLSX,
         [
+          {
+            title: t("report.excel.reportInformation"),
+            rows: exportInfoRows(t, {
+              branchLabel: activeBranchLabel,
+              dateFrom: appliedFilters.dateFrom,
+              dateTo: appliedFilters.dateTo,
+              paymentMethodLabel: activePaymentMethodLabel
+            })
+          },
           ...(summaryVisible
             ? [
                 {
@@ -272,7 +283,7 @@ export function useCategorySalesReportWorkflow(
             : []),
           categorySalesGroupedSection(data.groups, data.summary, t, labelOverrides)
         ],
-        officialReportExcelLayout(t)
+        officialReportExcelLayout(t, data.reportName || reportTitle)
       );
       XLSX.writeFile(workbook, `${categorySalesFileBaseName(appliedFilters)}.xlsx`);
       showToast({
@@ -311,18 +322,7 @@ export function useCategorySalesReportWorkflow(
         windowWidth: element.scrollWidth
       });
       const pdf = new jsPDF({ format: "a4", orientation: "landscape", unit: "pt" });
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      const imageHeight = (canvas.height * pageWidth) / canvas.width;
-      const imageData = canvas.toDataURL("image/png", 1);
-      let offsetY = 0;
-
-      pdf.addImage(imageData, "PNG", 0, offsetY, pageWidth, imageHeight);
-      while (imageHeight + offsetY > pageHeight) {
-        offsetY -= pageHeight;
-        pdf.addPage();
-        pdf.addImage(imageData, "PNG", 0, offsetY, pageWidth, imageHeight);
-      }
+      addReportCanvasToPdfPages(pdf, canvas, element);
 
       pdf.save(`${categorySalesFileBaseName(appliedFilters)}.pdf`);
       showToast({
