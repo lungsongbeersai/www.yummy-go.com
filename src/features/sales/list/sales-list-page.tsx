@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { EmptyState } from "@/components/common/empty-state";
 import {
@@ -32,7 +32,15 @@ import {
   shouldOpenMobileDetail
 } from "./sales-list-utils";
 
-export function SalesListPage({ initialPagination }: { initialPagination: UrlPaginationState }) {
+export function SalesListPage({
+  initialDateSelect = INITIAL_DATE_SELECT,
+  initialOrderUuid = "",
+  initialPagination
+}: {
+  initialDateSelect?: string;
+  initialOrderUuid?: string;
+  initialPagination: UrlPaginationState;
+}) {
   const { t } = useTranslation();
   const language = useAppStore((state) => state.language);
   const user = useAuthStore((state) => state.user);
@@ -53,18 +61,20 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
   const branchUuid = user?.branch_uuid ?? "";
   const nativeApp = useIsCapacitorNativeApp();
 
-  const [dateSelect, setDateSelect] = useState(INITIAL_DATE_SELECT);
+  const [dateSelect, setDateSelect] = useState(initialDateSelect);
   const [orderBy, setOrderBy] = useState<SortOrder>("DESC");
   const { changeLimit, goToPage, limit, page, resetPage } = useUrlPagination({
     initialPagination,
     limitOptions: SALES_LIST_LIMIT_OPTIONS
   });
-  const [selectedOrderUuid, setSelectedOrderUuid] = useState("");
+  const [selectedOrderUuid, setSelectedOrderUuid] = useState(initialOrderUuid);
+  const [initialSelectionLoaded, setInitialSelectionLoaded] = useState(!initialOrderUuid);
   const [mobileDetailOpen, setMobileDetailOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
   const [reasonTouched, setReasonTouched] = useState(false);
   const [receiptPrintingOrderUuid, setReceiptPrintingOrderUuid] = useState("");
+  const initialCancelHandledRef = useRef(false);
 
   const selectedListBill = useMemo(
     () => bills.find((bill) => billIsSelected(bill, selectedOrderUuid) || billUuid(bill) === selectedOrderUuid),
@@ -104,6 +114,9 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
           page,
           selected_order_uuid: nextSelectedOrderUuid || undefined
         });
+        if (nextSelectedOrderUuid && nextSelectedOrderUuid === initialOrderUuid) {
+          setInitialSelectionLoaded(true);
+        }
       } catch (loadError) {
         showToast({
           title: t("cancelSale.loadFailed"),
@@ -112,7 +125,7 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
         });
       }
     },
-    [branchUuid, dateSelect, language, limit, loadBills, orderBy, page, resetBills, selectedOrderUuid, showToast, t]
+    [branchUuid, dateSelect, initialOrderUuid, language, limit, loadBills, orderBy, page, resetBills, selectedOrderUuid, showToast, t]
   );
 
   useEffect(() => {
@@ -123,7 +136,20 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
     if (!loading && page > safeTotalPages) goToPage(safeTotalPages);
   }, [goToPage, loading, page, safeTotalPages]);
 
+  useEffect(() => {
+    if (!initialOrderUuid || !initialSelectionLoaded || initialCancelHandledRef.current) return;
+    if (detailOrderUuid !== initialOrderUuid) return;
+
+    initialCancelHandledRef.current = true;
+    if (!detailCanCancel) return;
+
+    setCancelReason("");
+    setReasonTouched(false);
+    setCancelOpen(true);
+  }, [detailCanCancel, detailOrderUuid, initialOrderUuid, initialSelectionLoaded]);
+
   function resetSelection() {
+    initialCancelHandledRef.current = true;
     setMobileDetailOpen(false);
     setSelectedOrderUuid("");
     clearSelectedBill();
@@ -149,6 +175,7 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
   function selectBill(bill: CancelableBill) {
     const uuid = billUuid(bill);
     if (!uuid) return;
+    if (uuid !== initialOrderUuid) initialCancelHandledRef.current = true;
     setSelectedOrderUuid(uuid);
     setMobileDetailOpen(shouldOpenMobileDetail());
   }

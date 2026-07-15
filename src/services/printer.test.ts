@@ -467,7 +467,12 @@ describe("printer service dispatch", () => {
         },
         onProgress: ({ phase }) => progressPhases.push(phase)
       })
-    ).resolves.toEqual({ successCount: 0, failedCount: 1, total: 1 });
+    ).resolves.toEqual({
+      successCount: 0,
+      failedCount: 1,
+      total: 1,
+      errorMessage: "no active printer config for role_code receipt"
+    });
 
     expect(progressPhases).toEqual(["fetching", "done"]);
     expect(axiosMocks.get).not.toHaveBeenCalled();
@@ -477,6 +482,134 @@ describe("printer service dispatch", () => {
       "/api/v1/printer/jobs/ack",
       expect.anything()
     );
+  });
+
+  it("acks kitchen items that cannot print without counting them as failures", async () => {
+    // เมนูไม่มี config เครื่องพิมพ์ (can_print: false) — ack ให้ backend ปิดงาน แต่ไม่ใช่ความล้มเหลวฝั่ง client
+    const ackPayloads: AckPayload[] = [];
+    apiMocks.apiRequest.mockImplementation(async (method, url, options) => {
+      if (method === "get" && url === "/api/v1/printer/jobs/pending") {
+        return {
+          data: [
+            {
+              print_job_uuid: "kitchen-job-1",
+              print_items: [
+                {
+                  print_job_item_uuid: "item-1",
+                  can_print: false,
+                  error: "no printer config for category",
+                  job: null,
+                  ack_success_payload: null,
+                  ack_failed_payload: {
+                    print_job_uuid: "kitchen-job-1",
+                    results: [{ print_job_item_uuid: "item-1", status: "failed" }]
+                  }
+                }
+              ]
+            }
+          ]
+        };
+      }
+      if (method === "post" && url === "/api/v1/printer/jobs/ack") {
+        ackPayloads.push((options as { data: AckPayload }).data);
+        return {};
+      }
+      throw new Error(`Unexpected request ${method} ${url}`);
+    });
+
+    await expect(
+      executeKitchenPrintJobs({
+        pending_query: {
+          print_job_uuid: "kitchen-job-1",
+          login_uuid_fk: "login-1",
+          device_code: "device-1",
+          agent_id: "agent-1",
+          print_mode: "windows_agent"
+        }
+      })
+    ).resolves.toEqual({ successCount: 0, failedCount: 0, total: 1 });
+
+    expect(ackPayloads).toHaveLength(1);
+    expect(ackPayloads[0].results[0]).toMatchObject({
+      print_job_item_uuid: "item-1",
+      status: "failed"
+    });
+    expect(axiosMocks.post).not.toHaveBeenCalled();
+  });
+
+  it("does not report kitchen failed_before_print as a client print failure", async () => {
+    // workflow ใหม่: เมนูที่ไม่มี config เครื่องพิมพ์ backend รายงาน failed_before_print
+    // แต่ยังยืนยันสถานะออเดอร์ให้เอง — ฝั่ง client ต้องไม่แจ้งเป็น "พิมพ์ไม่สำเร็จ"
+    apiMocks.apiRequest.mockImplementation(async (method, url) => {
+      if (method === "get" && url === "/api/v1/printer/jobs/pending") {
+        return {
+          print_batch_payloads: [],
+          print_summary: {
+            failed_before_print_total: 1,
+            print_batch_total: 0,
+            printable_item_total: 0
+          },
+          ack_failed_payload: {
+            print_job_uuid: "kitchen-job-1",
+            results: [
+              {
+                print_job_item_uuid: "item-1",
+                status: "failed",
+                reason: "no active printer config for role_code kitchen"
+              }
+            ]
+          }
+        };
+      }
+      throw new Error(`Unexpected request ${method} ${url}`);
+    });
+
+    await expect(
+      executeKitchenPrintJobs({
+        pending_query: {
+          print_job_uuid: "kitchen-job-1",
+          login_uuid_fk: "login-1",
+          device_code: "device-1",
+          agent_id: "agent-1",
+          print_mode: "windows_agent"
+        }
+      })
+    ).resolves.toEqual({ successCount: 0, failedCount: 0, total: 0 });
+
+    expect(axiosMocks.get).not.toHaveBeenCalled();
+    expect(axiosMocks.post).not.toHaveBeenCalled();
+  });
+
+  it("treats empty batch payloads without failure metadata as nothing to print", async () => {
+    // เครื่องที่กดยืนยันไม่ใช่เครื่องที่ต่อเครื่องพิมพ์ — backend ส่ง payload ว่างโดยไม่มี fail metadata
+    // ต้องไม่นับเป็นความล้มเหลว (เดิมสังเคราะห์เป็น 1/1 ทำให้แจ้ง "พิมพ์ไม่สำเร็จ" ทั้งที่พิมพ์ออกจริง)
+    apiMocks.apiRequest.mockImplementation(async (method, url) => {
+      if (method === "get" && url === "/api/v1/printer/jobs/pending") {
+        return {
+          print_batch_payloads: [],
+          print_summary: {
+            print_batch_total: 0,
+            printable_item_total: 0
+          }
+        };
+      }
+      throw new Error(`Unexpected request ${method} ${url}`);
+    });
+
+    await expect(
+      executeKitchenPrintJobs({
+        pending_query: {
+          print_job_uuid: "kitchen-job-1",
+          login_uuid_fk: "login-1",
+          device_code: "device-1",
+          agent_id: "agent-1",
+          print_mode: "windows_agent"
+        }
+      })
+    ).resolves.toEqual({ successCount: 0, failedCount: 0, total: 0 });
+
+    expect(axiosMocks.get).not.toHaveBeenCalled();
+    expect(axiosMocks.post).not.toHaveBeenCalled();
   });
 
   it("uses confirm pending_query directly without resolving printer context again", async () => {
@@ -566,7 +699,12 @@ describe("printer service dispatch", () => {
       executeKitchenPrintJobs({
         pending_query: { print_job_uuid: "job-1", login_uuid_fk: "login-1" }
       })
-    ).resolves.toEqual({ successCount: 0, failedCount: 2, total: 2 });
+    ).resolves.toEqual({
+      successCount: 0,
+      failedCount: 2,
+      total: 2,
+      errorMessage: "batch failed"
+    });
 
     expect(axiosMocks.post).toHaveBeenCalledWith(
       "http://127.0.0.1:7777/print-ops-batch",
@@ -776,7 +914,12 @@ describe("printer service dispatch", () => {
       executeKitchenPrintJobs({
         pending_query: { print_job_uuid: "job-1", login_uuid_fk: "login-1" }
       })
-    ).resolves.toEqual({ successCount: 0, failedCount: 1, total: 1 });
+    ).resolves.toEqual({
+      successCount: 0,
+      failedCount: 1,
+      total: 1,
+      errorMessage: "render failed"
+    });
 
     expect(axiosMocks.get).toHaveBeenCalledTimes(1);
     expect(ackPayloads).toEqual([

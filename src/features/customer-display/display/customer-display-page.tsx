@@ -9,12 +9,18 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { money } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { WINDOW_OPEN_FONT_CLASS_NAME } from "@/lib/window-open-fonts";
 import type { CustomerDisplayPayload } from "../shared/customer-display-sync";
 import { CUSTOMER_DISPLAY_CHANNEL, CUSTOMER_DISPLAY_STORAGE_KEY } from "../shared/customer-display-sync";
 
 export function CustomerDisplayPage() {
   const { t } = useTranslation();
   const [payload, setPayload] = useState<CustomerDisplayPayload | null>(null);
+
+  useEffect(() => {
+    document.body.classList.add(WINDOW_OPEN_FONT_CLASS_NAME);
+    return () => document.body.classList.remove(WINDOW_OPEN_FONT_CLASS_NAME);
+  }, []);
 
   useEffect(() => {
     function acceptPayload(data: unknown) {
@@ -69,7 +75,12 @@ export function CustomerDisplayPage() {
   ].filter((row) => row.value > 0);
 
   return (
-    <main className="grid min-h-screen place-items-center bg-[radial-gradient(circle_at_top_left,#1f8f5f,#0d1724_45%,#070b12)] p-6 text-white lg:p-8">
+    <main
+      className={cn(
+        WINDOW_OPEN_FONT_CLASS_NAME,
+        "grid min-h-screen place-items-center bg-[radial-gradient(circle_at_top_left,#1f8f5f,#0d1724_45%,#070b12)] p-6 text-white lg:p-8",
+      )}
+    >
       <div className="w-full max-w-6xl">
         <div className="mb-6 flex items-center justify-between gap-4 lg:mb-8">
           <div className="flex items-center gap-3">

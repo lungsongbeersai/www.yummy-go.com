@@ -15,6 +15,12 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { fullscreenPrintWindowFeatures, maximizePrintWindow } from "@/features/pos/print/invoice-print-window";
 import { useIsCapacitorNativeApp } from "@/hooks/use-capacitor-native-app";
 import { openWindowOutsideNativeApp } from "@/lib/capacitor-platform";
+import {
+  WINDOW_OPEN_FONT_CLASS_NAME,
+  WINDOW_OPEN_FONT_STYLESHEET_LINK,
+  WINDOW_OPEN_PRINT_ON_LOAD_SCRIPT,
+  withWindowOpenFonts,
+} from "@/lib/window-open-fonts";
 import type { CreateTableQRResponse, PosTable } from "@/services/pos";
 import { useAppStore } from "@/stores/app-store";
 import { useAuthStore } from "@/stores/auth-store";
@@ -131,7 +137,11 @@ export function TableQrDialog({
 
   function openMenu() {
     if (!targetUrl) return;
-    const opened = openWindowOutsideNativeApp(targetUrl, "_blank", "noopener,noreferrer");
+    const opened = openWindowOutsideNativeApp(
+      withWindowOpenFonts(targetUrl, window.location.origin, [productionQrOrigin]),
+      "_blank",
+      "noopener,noreferrer",
+    );
     if (!opened) {
       showToast({
         title: t("pos.qrLinkUnavailable"),
@@ -224,12 +234,13 @@ export function TableQrDialog({
     printWindow.document.write(`<!doctype html>
 <html>
   <head>
+    ${WINDOW_OPEN_FONT_STYLESHEET_LINK}
     <title>${safeTableName} QR</title>
     <style>
       @page { size: 57mm 90mm; margin: 0; }
       * { box-sizing: border-box; }
       html, body { width: 57mm; min-height: 90mm; margin: 0; }
-      body { font-family: Arial, sans-serif; color: #111; text-align: center; }
+      body { color: #111; text-align: center; }
       .paper { width: 57mm; min-height: 90mm; padding: 4mm 3mm; }
       .table { font-size: 14pt; font-weight: 800; line-height: 1.1; margin: 0 0 2mm; }
       img { width: 46mm; height: 46mm; object-fit: contain; margin: 0 auto 2mm; }
@@ -238,17 +249,12 @@ export function TableQrDialog({
       }
     </style>
   </head>
-  <body>
+  <body class="${WINDOW_OPEN_FONT_CLASS_NAME}">
     <main class="paper">
       <p class="table">${safeTableName}</p>
       <img src="${safeImage}" alt="${safeTableName} QR" />
     </main>
-    <script>
-      window.addEventListener("load", () => {
-        window.focus();
-        window.print();
-      });
-    </script>
+    <script>${WINDOW_OPEN_PRINT_ON_LOAD_SCRIPT}</script>
   </body>
 </html>`);
     printWindow.document.close();

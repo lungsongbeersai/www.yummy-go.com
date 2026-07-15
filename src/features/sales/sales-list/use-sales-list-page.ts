@@ -17,6 +17,7 @@ import { useToastStore } from "@/stores/toast-store";
 import {
   SALES_LIST_LIMIT_OPTIONS,
   branchOptionFromRow,
+  cancelDateSelectForSaleDate,
   defaultSalesListFilters,
   readValue,
   saleListPrintBillSource,
@@ -102,6 +103,16 @@ export function useSalesListPage(initialPagination: UrlPaginationState) {
   const canApply = Boolean(draftFilters.branchUuid && draftFilters.dateFrom && draftFilters.dateTo);
   const canReprintReceipt = Boolean(user?.uuid);
   const selectedBill = bills.find((bill) => bill.id === selectedBillId) ?? null;
+  const selectedOrderUuid = selectedBill ? textValue(readValue(selectedBill.raw, ["order_uuid"]), "") : "";
+  const cancelDateSelect = selectedBill ? cancelDateSelectForSaleDate(selectedBill.saleDate) : null;
+  const cancelSaleHref =
+    selectedBill &&
+    !selectedBill.cancelled &&
+    selectedOrderUuid &&
+    cancelDateSelect &&
+    branchUuid === userBranchUuid
+      ? `/sales/cancel-sale?order_uuid=${encodeURIComponent(selectedOrderUuid)}&date_select=${cancelDateSelect}`
+      : null;
   const initialLoading = loading && !bills.length;
 
   useEffect(() => {
@@ -343,6 +354,7 @@ export function useSalesListPage(initialPagination: UrlPaginationState) {
     branchUuid,
     canApply,
     canReprintReceipt,
+    cancelSaleHref,
     draftFilters,
     error,
     goToPage,

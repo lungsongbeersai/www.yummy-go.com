@@ -23,8 +23,12 @@ export function DailyClosingReceiptPreview({ data }: DailyClosingReceiptPreviewP
         className="daily-closing-receipt-frame"
         style={{ height }}
         onLoad={(event) => {
-          const body = event.currentTarget.contentDocument?.body;
-          if (body) setHeight(body.scrollHeight + 8);
+          const previewDocument = event.currentTarget.contentDocument;
+          if (!previewDocument) return;
+
+          void previewDocument.fonts.ready.then(() => {
+            setHeight(previewDocument.body.scrollHeight + 8);
+          });
         }}
       />
     </div>

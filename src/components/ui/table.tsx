@@ -36,3 +36,12 @@ export function TableHead({ className, ...props }: React.ThHTMLAttributes<HTMLTa
 export function TableCell({ className, ...props }: React.TdHTMLAttributes<HTMLTableCellElement>) {
   return <td className={cn("px-3 py-2 align-middle", className)} {...props} />;
 }
+
+export function TableCaption({ className, ...props }: React.HTMLAttributes<HTMLTableCaptionElement>) {
+  return (
+    <caption
+      className={cn("mt-4 text-sm text-muted-foreground", className)}
+      {...props}
+    />
+  );
+}

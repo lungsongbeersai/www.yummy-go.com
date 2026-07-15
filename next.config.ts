@@ -7,6 +7,9 @@ const isGithubPages = process.env.GITHUB_PAGES === "1";
 const githubPagesBasePath = "/New-Yummy-go.com";
 
 const nextConfig: NextConfig = {
+  env: {
+    NEXT_PUBLIC_BASE_PATH: isGithubPages ? githubPagesBasePath : ""
+  },
   async redirects() {
     return [
       {

@@ -1280,6 +1280,41 @@
     "toppingMode": "Topping mode",
     "type": "Type"
   },
+  "stock": {
+    "title": "Stock overview",
+    "description": "Track quantity by product size and spot items that need restocking.",
+    "branchLabel": "Branch",
+    "loading": "Loading stock...",
+    "loadFailed": "Could not load stock.",
+    "branchRequired": "Your login does not include a branch.",
+    "noProducts": "No stock items found",
+    "emptyDescription": "Try another category or stock status.",
+    "variantCount": "{{count}} variants",
+    "noVariants": "No stock variants",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "reorderNeeded": "Reorder needed",
+    "filters": {
+      "category": "Category",
+      "allCategories": "All categories",
+      "status": "Stock status",
+      "rows": "Rows per page"
+    },
+    "columns": {
+      "product": "Product",
+      "variant": "Size",
+      "quantity": "Quantity",
+      "reorderPoint": "Reorder point",
+      "status": "Status",
+      "enabled": "Availability"
+    },
+    "status": {
+      "all": "All",
+      "inStock": "In stock",
+      "lowStock": "Low stock",
+      "outOfStock": "Out of stock"
+    }
+  },
   "profile": {
     "title": "Edit profile",
     "subtitle": "Update your account details and password.",
@@ -1472,6 +1507,7 @@
       "detailCount": "{{groups}} group(s) · {{items}} item row(s)",
       "difference": "Difference",
       "discountAmount": "Discount",
+      "employeeSignature": "Employee signature",
       "export": {
         "actualTotal": "Actual total",
         "afterItemDiscount": "Sales after item discounts",
@@ -1519,6 +1555,7 @@
       "salesSummary": "Sales summary",
       "selectBranch": "Select branch",
       "serviceCharge": "Service charge",
+      "storeManagerSignature": "Store manager signature",
       "title": "Daily store closing report",
       "totalAmount": "Net sales",
       "totalQty": "Total quantity",
@@ -1702,6 +1739,8 @@
     "canCancel": "Can cancel",
     "cancelable": "Cancelable",
     "cancelBill": "Cancel bill",
+    "openingCancelPage": "Opening cancel page...",
+    "cancelUnavailable": "Only uncancelled bills from today or yesterday in your current branch can be cancelled.",
     "cancelDescription": "Cancel invoice {{invoice}}. This action will be recorded with your reason.",
     "cancelFailed": "Cancel bill failed",
     "cancelReason": "Cancel reason",

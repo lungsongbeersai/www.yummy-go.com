@@ -317,7 +317,7 @@ export interface PrinterDeviceContext {
 }
 export interface AckAppliedItem extends ApiEntity { }
 export interface AckResponse extends ApiEntity { }
-export interface KitchenPrintResult { successCount: number; failedCount: number; total: number }
+export interface KitchenPrintResult { successCount: number; failedCount: number; total: number; errorMessage?: string }
 export interface DefaultCategoryByRoleInput extends ApiEntity { login_uuid_fk: string; role_codes: string[]; lang?: string }
 export interface DefaultCategoryGroupDetail extends ApiEntity { }
 export interface DefaultCategoryGroup extends ApiEntity { }
@@ -875,13 +875,15 @@ function printBatchJobTotal(batch: PrintOpsBatchPayload) {
 }
 
 function pendingFailedBeforePrintTotal(result: PendingPrintJobsResult) {
+  // นับเฉพาะที่ backend แจ้งชัดใน print_summary เท่านั้น — ตรวจจาก API จริงแล้ว ack_failed_payload
+  // เป็น "template" ให้ client กรอกใช้ตอนพิมพ์พลาด (แถว results เป็น status: "failed" เสมอ)
+  // ถ้าเอามานับ งานที่สำเร็จปกติจะถูกตีเป็นล้มเหลวปลอม "1/1"
   const summaryTotal = Number(result.printSummary.failed_before_print_total ?? 0);
-  if (Number.isFinite(summaryTotal) && summaryTotal > 0) return summaryTotal;
+  return Number.isFinite(summaryTotal) && summaryTotal > 0 ? summaryTotal : 0;
+}
 
-  const failedResults = result.ackFailed?.results?.filter((item) => item.status === "failed").length ?? 0;
-  if (failedResults > 0) return failedResults;
-
-  return result.hasBatchPayloads && result.batchPayloads.length === 0 ? 1 : 0;
+function pendingFailedBeforePrintReason(result: PendingPrintJobsResult) {
+  return result.ackFailed?.results?.find((item) => item.status === "failed")?.reason || undefined;
 }
 
 async function executePrintJobs(input: ExecuteKitchenPrintInput, options: { ack: boolean }): Promise<KitchenPrintResult> {
@@ -928,7 +930,10 @@ async function executePrintJobs(input: ExecuteKitchenPrintInput, options: { ack:
   const globalAckFailed = pendingResult.ackFailed;
 
   if (pendingResult.hasBatchPayloads && batchPayloads.length === 0) {
-    const failedCount = pendingFailedBeforePrintTotal(pendingResult);
+    // งานครัว (ack:true): backend/agent จัดการคิวพิมพ์และยืนยันสถานะออเดอร์เองทั้งหมด
+    // เมนูที่ไม่มี config เครื่องพิมพ์ backend รายงานเป็น failed_before_print แต่ยังยืนยันออเดอร์ให้ตามปกติ
+    // จึงไม่ใช่ความล้มเหลวฝั่ง client (workflow ใหม่) — ส่วนงานใบเสร็จ (ack:false) ยังต้องแจ้ง cashier ว่าพิมพ์ไม่ออก
+    const failedCount = options.ack ? 0 : pendingFailedBeforePrintTotal(pendingResult);
     input.onProgress?.({
       total: failedCount,
       completed: failedCount,
@@ -941,6 +946,9 @@ async function executePrintJobs(input: ExecuteKitchenPrintInput, options: { ack:
       successCount: 0,
       failedCount,
       total: failedCount,
+      ...(failedCount > 0
+        ? { errorMessage: pendingFailedBeforePrintReason(pendingResult) }
+        : {}),
     };
   }
 
@@ -988,6 +996,7 @@ async function executePrintJobs(input: ExecuteKitchenPrintInput, options: { ack:
         successCount: 0,
         failedCount: total,
         total,
+        errorMessage: getPrinterErrorMessage(error),
       };
     }
 
@@ -1028,6 +1037,7 @@ async function executePrintJobs(input: ExecuteKitchenPrintInput, options: { ack:
   let successCount = 0;
   let failedCount = 0;
   let skippedCount = 0;
+  let lastErrorMessage: string | undefined;
   const batchItems: PendingPrintItem[] = [];
 
   for (const item of items) {
@@ -1053,6 +1063,31 @@ async function executePrintJobs(input: ExecuteKitchenPrintInput, options: { ack:
       }
 
       if (!item.can_print) {
+        // งานครัว: เมนูที่พิมพ์ไม่ได้ (เช่น ไม่มี config เครื่องพิมพ์) — backend ยืนยันสถานะออเดอร์ให้เอง
+        // ส่ง ack ให้ backend ปิดงานตามปกติ แต่ไม่นับเป็นความล้มเหลวฝั่ง client (workflow ใหม่)
+        if (options.ack) {
+          if (item.ack_failed_payload) {
+            await ackPrintJob(
+              ackPayloadWithLogin(
+                failPayload(item.ack_failed_payload, item.error || "Item cannot print"),
+                loginUuid
+              )
+            ).catch(() => undefined);
+          }
+
+          skippedCount++;
+
+          reportKitchenProgress(
+            input,
+            items.length,
+            successCount,
+            failedCount,
+            skippedCount
+          );
+
+          continue;
+        }
+
         throw new ServiceError(item.error || "Item cannot print", 400);
       }
 
@@ -1075,6 +1110,7 @@ async function executePrintJobs(input: ExecuteKitchenPrintInput, options: { ack:
 
       successCount++;
     } catch (error) {
+      lastErrorMessage = getPrinterErrorMessage(error);
       if (!options.ack || !item.ack_failed_payload) {
         failedCount++;
         continue;
@@ -1082,7 +1118,7 @@ async function executePrintJobs(input: ExecuteKitchenPrintInput, options: { ack:
 
       await ackPrintJob(
         ackPayloadWithLogin(
-          failPayload(item.ack_failed_payload, getPrinterErrorMessage(error)),
+          failPayload(item.ack_failed_payload, lastErrorMessage),
           loginUuid
         )
       );
@@ -1122,6 +1158,7 @@ async function executePrintJobs(input: ExecuteKitchenPrintInput, options: { ack:
         successCount += batchGroup.length;
       }
     } catch (error) {
+      lastErrorMessage = getPrinterErrorMessage(error);
       for (const item of batchGroup) {
         if (!options.ack || !item.ack_failed_payload) {
           failedCount++;
@@ -1130,7 +1167,7 @@ async function executePrintJobs(input: ExecuteKitchenPrintInput, options: { ack:
 
         await ackPrintJob(
           ackPayloadWithLogin(
-            failPayload(item.ack_failed_payload, getPrinterErrorMessage(error)),
+            failPayload(item.ack_failed_payload, lastErrorMessage),
             loginUuid
           )
         );
@@ -1161,6 +1198,7 @@ async function executePrintJobs(input: ExecuteKitchenPrintInput, options: { ack:
     successCount,
     failedCount,
     total: items.length,
+    ...(failedCount > 0 && lastErrorMessage ? { errorMessage: lastErrorMessage } : {}),
   };
 }
 

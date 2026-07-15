@@ -426,13 +426,19 @@ export function useSelectedTableCartPanelWorkflow({
     successCount: number;
     failedCount: number;
     total: number;
+    errorMessage?: string;
   }) {
     showToast({ title: t("pos.orderConfirmed"), tone: "success" });
 
     if (result.failedCount > 0) {
       showToast({
         title: t("report.printFailed"),
-        description: `${result.failedCount}/${result.total || result.failedCount}`,
+        description: [
+          `${result.failedCount}/${result.total || result.failedCount}`,
+          result.errorMessage,
+        ]
+          .filter(Boolean)
+          .join(" — "),
         tone: "info",
       });
     }
@@ -443,7 +449,12 @@ export function useSelectedTableCartPanelWorkflow({
 
     setConfirming(true);
     try {
-      const printResult = { successCount: 0, failedCount: 0, total: 0 };
+      const printResult: {
+        successCount: number;
+        failedCount: number;
+        total: number;
+        errorMessage?: string;
+      } = { successCount: 0, failedCount: 0, total: 0 };
       const confirmItemTotal = confirmGroups.reduce(
         (sum, group) => sum + group.itemUuids.length,
         0,
@@ -506,6 +517,7 @@ export function useSelectedTableCartPanelWorkflow({
         printResult.successCount += result.successCount;
         printResult.failedCount += result.failedCount;
         printResult.total += result.total;
+        if (result.errorMessage) printResult.errorMessage = result.errorMessage;
       }
 
       setProgress(
