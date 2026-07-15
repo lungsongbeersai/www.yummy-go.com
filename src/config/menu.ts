@@ -53,7 +53,7 @@ const Menu: MenuItem[] = [
     ]
   },
   { path: "/product", icon: Utensils, title: "menu_add_item" },
-  { icon: Package, title: "stock_quantity", disabled: true },
+  { path: "/stock", icon: Package, title: "stock_quantity" },
   { path: "/printer", icon: Printer, title: "printer_management" },
   {
     icon: BarChart3,

@@ -85,6 +85,7 @@ const POS_ANDROID_SYSTEM_SCREEN_CLASS = "pos-android-system-screen";
 const FIXED_DATA_SCREEN_PATHS = new Set([
   "/printer",
   "/product",
+  "/stock",
   "/sales/cancel-history",
   "/sales/cancel-sale",
   "/sales/sales-list"

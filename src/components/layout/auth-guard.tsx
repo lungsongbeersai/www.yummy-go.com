@@ -16,7 +16,9 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!hydrated) return;
     if (!isLoggedIn) {
-      router.replace(`/login?redirect=${encodeURIComponent(pathname)}`);
+      // พาไปหน้าแนะนำบริษัท (/home) ก่อนเข้าสู่ระบบ — ปุ่ม login บนหน้านั้นจะพก redirect ต่อไปให้
+      // ส่วนกรณี session หมดอายุระหว่างใช้งาน (401 ใน lib/api.ts) ยังพาไป /login ตรง ๆ เหมือนเดิม
+      router.replace(`/home?redirect=${encodeURIComponent(pathname)}`);
     }
   }, [hydrated, isLoggedIn, pathname, router]);
 

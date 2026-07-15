@@ -1281,6 +1281,41 @@
     "toppingMode": "ຮູບແບບທ້ອບປິ້ງ",
     "type": "ປະເພດ"
   },
+  "stock": {
+    "title": "ສະຕັອກສິນຄ້າ",
+    "description": "ຕິດຕາມຈຳນວນສິນຄ້າແຕ່ລະຂະໜາດ ແລະ ລາຍການທີ່ຕ້ອງເຕີມ.",
+    "branchLabel": "ສາຂາ",
+    "loading": "ກຳລັງໂຫຼດສະຕັອກ...",
+    "loadFailed": "ບໍ່ສາມາດໂຫຼດສະຕັອກໄດ້.",
+    "branchRequired": "ບັນຊີນີ້ບໍ່ມີຂໍ້ມູນສາຂາ.",
+    "noProducts": "ບໍ່ພົບສິນຄ້າໃນສະຕັອກ",
+    "emptyDescription": "ລອງປ່ຽນໝວດໝູ່ ຫຼື ສະຖານະສະຕັອກ.",
+    "variantCount": "{{count}} ຂະໜາດ",
+    "noVariants": "ບໍ່ມີຂະໜາດສິນຄ້າ",
+    "enabled": "ເປີດໃຊ້ງານ",
+    "disabled": "ປິດໃຊ້ງານ",
+    "reorderNeeded": "ຕ້ອງເຕີມສິນຄ້າ",
+    "filters": {
+      "category": "ໝວດໝູ່",
+      "allCategories": "ທຸກໝວດໝູ່",
+      "status": "ສະຖານະສະຕັອກ",
+      "rows": "ຈຳນວນຕໍ່ໜ້າ"
+    },
+    "columns": {
+      "product": "ສິນຄ້າ",
+      "variant": "ຂະໜາດ",
+      "quantity": "ຄົງເຫຼືອ",
+      "reorderPoint": "ຈຸດສັ່ງເພີ່ມ",
+      "status": "ສະຖານະ",
+      "enabled": "ການໃຊ້ງານ"
+    },
+    "status": {
+      "all": "ທັງໝົດ",
+      "inStock": "ມີສິນຄ້າ",
+      "lowStock": "ສິນຄ້າໃກ້ໝົດ",
+      "outOfStock": "ສິນຄ້າໝົດ"
+    }
+  },
   "profile": {
     "title": "ແກ້ໄຂໂປຣໄຟລ໌",
     "subtitle": "ປັບປຸງຂໍ້ມູນບັນຊີ ແລະ ລະຫັດຜ່ານຂອງທ່ານ.",
@@ -1712,6 +1747,8 @@
     "canCancel": "ຍົກເລີກໄດ້",
     "cancelable": "ສາມາດຍົກເລີກ",
     "cancelBill": "ຍົກເລີກບິນ",
+    "openingCancelPage": "ກຳລັງເປີດໜ້າຍົກເລີກ...",
+    "cancelUnavailable": "ຍົກເລີກໄດ້ສະເພາະບິນທີ່ຍັງບໍ່ຖືກຍົກເລີກ ຂອງມື້ນີ້ ຫຼື ມື້ວານ ໃນສາຂາປັດຈຸບັນ.",
     "cancelDescription": "ຍົກເລີກບິນ {{invoice}}. ລະບົບຈະບັນທຶກເຫດຜົນນີ້.",
     "cancelFailed": "ຍົກເລີກບິນບໍ່ສໍາເລັດ",
     "cancelReason": "ເຫດຜົນຍົກເລີກ",
