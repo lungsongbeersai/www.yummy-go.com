@@ -417,6 +417,7 @@ export interface SplitBillInput extends ApiEntity {
   order_uuid: string;
   table_uuid?: string;
   order_item_uuids: string[];
+  document_type: "receipt" | "invoice";
   order_channel: OrderChannel;
   customer_uuid_fk: string;
   payment_method: PaymentMethod;

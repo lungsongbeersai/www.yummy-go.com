@@ -420,20 +420,22 @@ export function useSelectedTableCartPanelWorkflow({
     });
   }
 
-  function showKitchenConfirmResult(
-    result: { successCount: number; failedCount: number; total: number },
-    fallbackErrorTitle: string,
-  ) {
+  // เมื่อมาถึงจุดนี้ confirmKitchen ผ่านครบทุกกลุ่มแล้ว (ถ้าพลาดจะถูกโยนไปเข้า catch)
+  // ⇒ ยืนยันออเดอร์สำเร็จเสมอ ส่วนปัญหาการพิมพ์แจ้งแยกต่างหาก ไม่ปนกับผลการยืนยันออเดอร์
+  function showKitchenConfirmResult(result: {
+    successCount: number;
+    failedCount: number;
+    total: number;
+  }) {
+    showToast({ title: t("pos.orderConfirmed"), tone: "success" });
+
     if (result.failedCount > 0) {
       showToast({
-        title: fallbackErrorTitle,
+        title: t("report.printFailed"),
         description: `${result.failedCount}/${result.total || result.failedCount}`,
-        tone: "error",
+        tone: "info",
       });
-      return;
     }
-
-    showToast({ title: t("pos.orderConfirmed"), tone: "success" });
   }
 
   async function confirmNewOrder() {
@@ -517,7 +519,7 @@ export function useSelectedTableCartPanelWorkflow({
         confirmItemTotal,
         t("pos.confirmAllDone"),
       );
-      showKitchenConfirmResult(printResult, t("pos.orderConfirmFailed"));
+      showKitchenConfirmResult(printResult);
     } catch (error) {
       await onCartRefresh().catch(() => undefined);
       showToast({
@@ -548,7 +550,7 @@ export function useSelectedTableCartPanelWorkflow({
       });
       const result = await executeKitchenAck(response, user.uuid, activePrinterContext);
       await onCartRefresh();
-      showKitchenConfirmResult(result, t("pos.confirmToKitchenFailed"));
+      showKitchenConfirmResult(result);
     } catch (error) {
       await onCartRefresh().catch(() => undefined);
       showToast({

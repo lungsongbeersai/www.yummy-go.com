@@ -3,8 +3,10 @@ import { resolvePrinterDeviceContext } from "@/services/printer";
 import {
   confirmToKitchen,
   reprintReceipt,
+  splitBill,
   type ConfirmToKitchenResponse,
-  type ReprintReceiptResponse
+  type ReprintReceiptResponse,
+  type SplitBillResponse
 } from "@/services/pos";
 import { usePosStore } from "@/stores/pos-store";
 import { usePrinterStore } from "@/stores/printer-store";
@@ -23,12 +25,14 @@ vi.mock("@/services/pos", async (importOriginal) => {
   return {
     ...actual,
     confirmToKitchen: vi.fn(),
-    reprintReceipt: vi.fn()
+    reprintReceipt: vi.fn(),
+    splitBill: vi.fn()
   };
 });
 
 const confirmToKitchenMock = vi.mocked(confirmToKitchen);
 const reprintReceiptMock = vi.mocked(reprintReceipt);
+const splitBillMock = vi.mocked(splitBill);
 const resolvePrinterDeviceContextMock = vi.mocked(resolvePrinterDeviceContext);
 const originalExecuteKitchen = usePrinterStore.getState().executeKitchen;
 
@@ -164,6 +168,43 @@ describe("POS store session follow-up requests", () => {
       order_uuid: "order-1",
       login_uuid_fk: "login-1"
     })).resolves.toBeNull();
+  });
+
+  it("adds local printer context to split invoice requests", async () => {
+    resolvePrinterDeviceContextMock.mockResolvedValueOnce({
+      agent_id: "include-f8e4f9",
+      device_code: "INCLUDE",
+      print_mode: "windows_agent"
+    });
+    const response: SplitBillResponse = {
+      print_job: { print_job_uuid: "job-1" },
+      status: "success"
+    };
+    splitBillMock.mockResolvedValueOnce(response);
+
+    const input = {
+      order_uuid: "532f836f-d580-4244-b2fa-615526292b73",
+      order_item_uuids: ["221aa39e-a6b7-4fcb-be26-dc0255bc10d2"],
+      document_type: "invoice" as const,
+      order_channel: 1 as const,
+      customer_uuid_fk: "95eed663-1bad-4b2d-99c8-07676be13e94",
+      payment_method: 1 as const,
+      amount: 63840,
+      cash_payment_amount: 63840,
+      transfer_payment_amount: 0,
+      change_amount: 0,
+      note: "split bill cash payment",
+      lang: "la" as const,
+      login_uuid_fk: "fc445438-e617-471c-9af3-262ae747932f"
+    };
+
+    await expect(usePosStore.getState().splitBill(input)).resolves.toEqual(response);
+    expect(splitBillMock).toHaveBeenCalledWith({
+      ...input,
+      device_code: "INCLUDE",
+      agent_id: "include-f8e4f9",
+      print_mode: "windows_agent"
+    });
   });
 
   it("does not request a reprint after printer resolution crosses a session boundary", async () => {

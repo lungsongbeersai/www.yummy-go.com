@@ -18,7 +18,11 @@ import {
 import { toApiLanguage, toLanguage } from "@/lib/language";
 import { getBranchQrUrl } from "@/lib/image";
 import { OrderChannelEnum, type OrderChannel } from "@/config/pos-constants";
-import type { PaymentResponse, SplitBillResponse } from "@/services/pos";
+import type {
+  PaymentResponse,
+  SplitBillInput,
+  SplitBillResponse,
+} from "@/services/pos";
 import { useAppStore } from "@/stores/app-store";
 import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
 import { useExchangeStore } from "@/stores/exchange-store";
@@ -150,11 +154,12 @@ export function usePaymentDialogWorkflow({
     customers.customerUuid,
     isSplitPayment ? splitBillItemUuids : undefined,
   );
-  const hasPrintableSplitItems =
-    !isSplitPayment || splitBillItemUuids.length > 0;
+  const hasPrintableSplitContext =
+    !isSplitPayment ||
+    (splitBillItemUuids.length > 0 && Boolean(customers.customerUuid));
   const canPrintInvoice =
     Boolean(orderUuid && user?.uuid) &&
-    hasPrintableSplitItems &&
+    hasPrintableSplitContext &&
     !processing &&
     !invoicePrinting;
   const selectedTab =
@@ -453,6 +458,7 @@ export function usePaymentDialogWorkflow({
         ? await splitBill({
             ...paymentPayload,
             order_item_uuids: splitBillItemUuids,
+            document_type: "receipt",
             order_channel: orderChannel,
             lang: toLanguage(language),
           })
@@ -552,6 +558,14 @@ export function usePaymentDialogWorkflow({
 
   async function handlePrintInvoice() {
     if (!orderUuid || !user?.uuid || processing || invoicePrinting) return;
+    if (isSplitPayment && !splitBillItemUuids.length) {
+      showToast({ title: t("pos.splitPaymentSelectRequired"), tone: "error" });
+      return;
+    }
+    if (isSplitPayment && !customers.customerUuid) {
+      showToast({ title: t("pos.paymentCustomerRequired"), tone: "error" });
+      return;
+    }
     if (!cartOrdersBelongToTable(orders, table)) {
       showToast({ title: t("pos.paymentMissingOrder"), tone: "error" });
       return;
@@ -570,11 +584,27 @@ export function usePaymentDialogWorkflow({
 
     setInvoicePrinting(true);
     try {
-      const response = await printInvoice({
-        order_uuid: orderUuid,
-        lang: toApiLanguage(language),
-        login_uuid_fk: user.uuid,
-      });
+      const response = isSplitPayment
+        ? await splitBill({
+            order_uuid: orderUuid,
+            order_item_uuids: splitBillItemUuids,
+            document_type: "invoice",
+            order_channel: orderChannel,
+            customer_uuid_fk: customers.customerUuid,
+            payment_method: selectedTab.method,
+            amount: totalAmount,
+            cash_payment_amount: payment.cash,
+            transfer_payment_amount: payment.transfer,
+            change_amount: payment.change,
+            note: paymentNote(activeTab, note),
+            lang: toLanguage(language),
+            login_uuid_fk: user.uuid,
+          } satisfies SplitBillInput)
+        : await printInvoice({
+            order_uuid: orderUuid,
+            lang: toApiLanguage(language),
+            login_uuid_fk: user.uuid,
+          });
       const pendingJobUuid =
         response.pending_query?.print_job_uuid ??
         (typeof response.print_job?.print_job_uuid === "string"
