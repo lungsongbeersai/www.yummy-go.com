@@ -1,0 +1,22 @@
+@font-face {
+  font-family: "Yummy Go Saysettha OT";
+  src: url("./saysettha_ot.ttf") format("truetype");
+  font-display: swap;
+  font-style: normal;
+  font-weight: 400;
+  unicode-range: U+0E80-0EFF;
+}
+
+@font-face {
+  font-family: "Yummy Go Times New Roman";
+  src: url("./times.ttf") format("truetype");
+  font-display: swap;
+  font-style: normal;
+  font-weight: 400;
+}
+
+/* Limit Saysettha to Lao glyphs so Latin text, numbers, and punctuation fall through to Times. */
+.window-open-fonts,
+.window-open-fonts * {
+  font-family: "Yummy Go Saysettha OT", "Yummy Go Times New Roman", "Times New Roman", serif !important;
+}

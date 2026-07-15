@@ -1472,6 +1472,7 @@
       "detailCount": "{{groups}} group(s) · {{items}} item row(s)",
       "difference": "Difference",
       "discountAmount": "Discount",
+      "employeeSignature": "Employee signature",
       "export": {
         "actualTotal": "Actual total",
         "afterItemDiscount": "Sales after item discounts",
@@ -1519,6 +1520,7 @@
       "salesSummary": "Sales summary",
       "selectBranch": "Select branch",
       "serviceCharge": "Service charge",
+      "storeManagerSignature": "Store manager signature",
       "title": "Daily store closing report",
       "totalAmount": "Net sales",
       "totalQty": "Total quantity",

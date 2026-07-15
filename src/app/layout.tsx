@@ -5,6 +5,7 @@ import Script from "next/script";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Providers } from "@/app/providers";
 import { DEFAULT_LANGUAGE, LANGUAGE_COOKIE, toLanguage } from "@/lib/language";
+import { WINDOW_OPEN_FONT_STYLESHEET_HREF } from "@/lib/window-open-fonts";
 import "./globals.css";
 import "@/features/dashboard/overview/dashboard.css";
 
@@ -56,6 +57,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang={initialLanguage} className={notoSansLao.variable} suppressHydrationWarning>
       <head>
+        <link rel="stylesheet" href={WINDOW_OPEN_FONT_STYLESHEET_HREF} />
         <Script
           id="theme-bootstrap"
           strategy="beforeInteractive"

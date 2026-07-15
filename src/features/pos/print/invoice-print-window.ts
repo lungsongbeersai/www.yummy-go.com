@@ -1,5 +1,10 @@
 import { money } from "@/lib/format";
 import { openWindowOutsideNativeApp } from "@/lib/capacitor-platform";
+import {
+  WINDOW_OPEN_FONT_CLASS_NAME,
+  WINDOW_OPEN_FONT_STYLESHEET_LINK,
+  WINDOW_OPEN_PRINT_ON_LOAD_SCRIPT,
+} from "@/lib/window-open-fonts";
 
 export type InvoicePrintItem = {
   displayTotal: number;
@@ -89,7 +94,7 @@ export async function openLocalInvoiceBatchPrintWindow(
   );
 
   printWindow.document.write(
-    `<!doctype html><html><head><title>${safeTitle}</title></head><body>Loading print preview...</body></html>`
+    `<!doctype html><html><head>${WINDOW_OPEN_FONT_STYLESHEET_LINK}<title>${safeTitle}</title></head><body class="${WINDOW_OPEN_FONT_CLASS_NAME}">Loading print preview...</body></html>`
   );
   printWindow.document.close();
 
@@ -147,13 +152,13 @@ export function renderLocalInvoiceBatchHtml(
   return `<!doctype html>
 <html>
   <head>
+    ${WINDOW_OPEN_FONT_STYLESHEET_LINK}
     <title>${safeTitle}</title>
     <style>
       @page { size: ${paperWidth}mm ${paperHeight}mm; margin: 0; }
       * { box-sizing: border-box; }
       html, body { width: ${paperWidth}mm; margin: 0; background: #fff; color: #111; }
       body {
-        font-family: Arial, "Noto Sans Lao", "Segoe UI", sans-serif;
         font-size: 13px;
         line-height: 1.16;
       }
@@ -176,14 +181,9 @@ export function renderLocalInvoiceBatchHtml(
       }
     </style>
   </head>
-  <body>
+  <body class="${WINDOW_OPEN_FONT_CLASS_NAME}">
     ${receipts}
-    <script>
-      window.addEventListener("load", () => {
-        window.focus();
-        window.setTimeout(() => window.print(), 250);
-      });
-    </script>
+    <script>${WINDOW_OPEN_PRINT_ON_LOAD_SCRIPT}</script>
   </body>
 </html>`;
 }

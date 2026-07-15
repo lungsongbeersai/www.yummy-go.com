@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { Customer } from "@/services/customer";
 import type { CartOrder, PosTable } from "@/services/pos";
+import {
+  WINDOW_OPEN_FONT_CLASS_NAME,
+  WINDOW_OPEN_FONT_STYLESHEET_HREF,
+} from "@/lib/window-open-fonts";
 import type { AuthUser } from "@/stores/auth-store";
 import {
   amountInput,
@@ -215,6 +219,9 @@ describe("payment dialog helpers", () => {
     });
     expect(html).toContain("&lt;Store&gt;");
     expect(html).toContain("&lt;VIP&gt;");
+    expect(html).toContain(`href="${WINDOW_OPEN_FONT_STYLESHEET_HREF}"`);
+    expect(html).toContain(`body class="${WINDOW_OPEN_FONT_CLASS_NAME}"`);
+    expect(html).toContain("document.fonts?.ready");
   });
 
   it("overrides fallback print labels for payment receipts", () => {

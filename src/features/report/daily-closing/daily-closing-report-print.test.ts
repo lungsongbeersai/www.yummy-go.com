@@ -1,4 +1,8 @@
 import { describe, expect, it } from "vitest";
+import {
+  WINDOW_OPEN_FONT_CLASS_NAME,
+  WINDOW_OPEN_FONT_STYLESHEET_HREF,
+} from "@/lib/window-open-fonts";
 import type { DailyStoreClosingReport } from "@/stores/report-store";
 import {
   type DailyClosingPrintData,
@@ -69,6 +73,7 @@ function printData(): DailyClosingPrintData {
       credit: "Credit",
       difference: "Difference",
       discount: "Discount",
+      employeeSignature: "Employee signature",
       grandTotal: "Grand total",
       group: "Group",
       groupTotal: "Group total",
@@ -78,6 +83,7 @@ function printData(): DailyClosingPrintData {
       quantity: "Quantity",
       revenueSummary: "Revenue summary",
       serviceCharge: "Service charge",
+      storeManagerSignature: "Store manager signature",
       title: "Daily store closing report",
       totalAmount: "Total amount",
       totalQuantity: "Total quantity",
@@ -97,15 +103,19 @@ describe("daily closing report print", () => {
     expect(html).toContain("html, body { width: 74mm");
     expect(html).toContain("grid-template-columns: minmax(0, 1fr) 11mm 23mm");
     expect(html).toContain('class="total-row grand-total"');
+    expect(html).toContain(`href="${WINDOW_OPEN_FONT_STYLESHEET_HREF}"`);
+    expect(html).toContain(`body class="${WINDOW_OPEN_FONT_CLASS_NAME}"`);
+    expect(html).toContain("document.fonts?.ready");
   });
 
-  it("escapes group and product content without rendering toppings", () => {
+  it("escapes group, product, and topping content", () => {
     const html = renderDailyClosingPrintHtml(printData());
 
     expect(html).toContain("Food &amp; Drink");
     expect(html).toContain("Rice &lt;Large&gt;");
     expect(html).not.toContain("Rice <Large>");
-    expect(html).not.toContain("Egg &amp; meat");
+    expect(html).toContain('+ Egg &amp; meat × 2');
+    expect(html).not.toContain("Egg & meat");
   });
 
   it("shows API item quantities without showing unit prices", () => {
@@ -132,5 +142,19 @@ describe("daily closing report print", () => {
     data.report.summary.discountAmount = 0;
 
     expect(renderDailyClosingPrintHtml(data)).not.toContain("-0 ₭");
+  });
+
+  it("numbers payment methods and places manager and employee signatures left to right", () => {
+    const html = renderDailyClosingPrintHtml(printData());
+
+    expect(html).toContain("1. Cash");
+    expect(html).toContain("2. Transfer");
+    expect(html).toContain("3. Credit");
+    expect(html).toContain("4. Payments received");
+    expect(html).toContain("5. Difference");
+    expect(html).toContain("6. Cancelled bills (1)");
+    expect(html.indexOf("store-manager-signature")).toBeLessThan(html.indexOf("employee-signature"));
+    expect(html).toContain("Store manager signature");
+    expect(html).toContain("Employee signature");
   });
 });

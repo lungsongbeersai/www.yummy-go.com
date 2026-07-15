@@ -332,33 +332,10 @@ export const usePosStore = create<PosState>((set) => ({
       };
 
       const lastKitchenConfirm = await posService.confirmToKitchen(payload);
-      if (!isCurrentSession()) return lastKitchenConfirm;
 
-      const pendingQuery = lastKitchenConfirm.pending_query;
-      const printJobUuid =
-        pendingQuery?.print_job_uuid ?? lastKitchenConfirm.print_job?.print_job_uuid;
-
-      if (printJobUuid) {
-        const executeInput = {
-          pending_query: {
-            print_job_uuid: printJobUuid,
-            login_uuid_fk: pendingQuery?.login_uuid_fk ?? input.login_uuid_fk,
-            device_code: pendingQuery?.device_code ?? printer.device_code,
-            agent_id: pendingQuery?.agent_id ?? printer.agent_id,
-            print_mode: pendingQuery?.print_mode ?? printer.print_mode
-          }
-        };
-
-        const printResult = await usePrinterStore.getState().executeKitchen(
-          executeInput as Parameters<ReturnType<typeof usePrinterStore.getState>["executeKitchen"]>[0]
-        );
-        if (!isCurrentSession()) return lastKitchenConfirm;
-
-        if (printResult.failedCount > 0) {
-          throw new Error("Kitchen print failed");
-        }
-      }
-
+      // การพิมพ์ครัวเป็นหน้าที่ของ workflow ฝั่ง UI (executeKitchenAck) ที่เดียว
+      // — เดิม store รันงานพิมพ์ซ้อนอีกชั้นด้วย print_job_uuid เดียวกัน ทำให้พิมพ์/ack ซ้ำ
+      // และรอบสองถูก backend รายงานเป็น fail ปลอม ("ພິມບໍ່ສຳເລັດ 1/1") ทั้งที่งานแรกสำเร็จ
       if (isCurrentSession()) set({ lastKitchenConfirm });
       return lastKitchenConfirm;
     } catch (error) {

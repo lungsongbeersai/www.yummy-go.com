@@ -1,4 +1,8 @@
 import { describe, expect, it } from "vitest";
+import {
+  WINDOW_OPEN_FONT_CLASS_NAME,
+  WINDOW_OPEN_FONT_STYLESHEET_HREF,
+} from "@/lib/window-open-fonts";
 import type { AuthUser } from "@/stores/auth-store";
 import type { DailySaleItemsBillGroup } from "@/stores/report-store";
 import {
@@ -164,6 +168,9 @@ describe("buildDailySalesPrintData", () => {
     expect(html).toContain("group: Food &amp; Drink");
     expect(html).toContain("Rice &lt;Large&gt;");
     expect(html).toContain('class="total-row grand-total"');
+    expect(html).toContain(`href="${WINDOW_OPEN_FONT_STYLESHEET_HREF}"`);
+    expect(html).toContain(`body class="${WINDOW_OPEN_FONT_CLASS_NAME}"`);
+    expect(html).toContain("document.fonts?.ready");
     expect(html.indexOf("grand-total")).toBeLessThan(html.indexOf("revenueSummary"));
   });
 });

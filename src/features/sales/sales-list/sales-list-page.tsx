@@ -8,6 +8,7 @@ import { SalesBillDetailDrawer, SalesBillDetailPanel } from "./sales-bill-detail
 import { SalesBillListPanel } from "./sales-bill-list";
 import { SalesListFilterSheet, SalesListHeader } from "./sales-list-filters";
 import { SalesListSummaryCards } from "./sales-list-summary-cards";
+import { firstNumber } from "./sales-list-utils";
 import { useSalesListPage } from "./use-sales-list-page";
 
 const SALES_LIST_SUMMARY_CARDS_ID = "sales-list-summary-cards";
@@ -76,6 +77,7 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
               page={page.page}
               rangeLabel={page.rangeLabel}
               selectedBillId={page.selectedBillId}
+              totalAmount={firstNumber(page.reportTotal, ["sum_total"])}
               totalPages={page.safeTotalPages}
               onPageChange={page.goToPage}
               onSelect={page.selectBill}

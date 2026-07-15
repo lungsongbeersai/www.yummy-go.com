@@ -1,5 +1,10 @@
 import { money } from "@/lib/format";
 import { openWindowOutsideNativeApp } from "@/lib/capacitor-platform";
+import {
+  WINDOW_OPEN_FONT_CLASS_NAME,
+  WINDOW_OPEN_FONT_STYLESHEET_LINK,
+  WINDOW_OPEN_PRINT_ON_LOAD_SCRIPT,
+} from "@/lib/window-open-fonts";
 import type { ApiEntity } from "@/services/shared/types";
 import type { AuthUser } from "@/stores/auth-store";
 import type {
@@ -217,7 +222,9 @@ export function openDailySalesPrintWindow() {
   const printWindow = openWindowOutsideNativeApp("", "_blank", fullscreenPrintWindowFeatures());
   if (!printWindow) return null;
   maximizePrintWindow(printWindow);
-  printWindow.document.write("<!doctype html><html><head><title>Print</title></head><body>Loading print preview...</body></html>");
+  printWindow.document.write(
+    `<!doctype html><html><head>${WINDOW_OPEN_FONT_STYLESHEET_LINK}<title>Print</title></head><body class="${WINDOW_OPEN_FONT_CLASS_NAME}">Loading print preview...</body></html>`,
+  );
   printWindow.document.close();
   return printWindow;
 }
@@ -253,12 +260,13 @@ export function renderDailySalesPrintHtml(data: DailySalesPrintData) {
 <html>
   <head>
     <meta charset="utf-8" />
+    ${WINDOW_OPEN_FONT_STYLESHEET_LINK}
     <title>${escapeHtml(labels.title)}</title>
     <style>
       @page { size: 80mm 297mm; margin: 3mm; }
       * { box-sizing: border-box; }
       html, body { width: 74mm; margin: 0; background: #fff; color: #111; }
-      body { font-family: "Noto Sans Lao", "Segoe UI", sans-serif; font-size: 11px; line-height: 1.3; }
+      body { font-size: 11px; line-height: 1.3; }
       header { text-align: center; }
       h1 { margin: 1mm 0; font-size: 16px; line-height: 1.2; }
       h2 { margin: 2mm 0 1mm; font-size: 12px; }
@@ -278,7 +286,7 @@ export function renderDailySalesPrintHtml(data: DailySalesPrintData) {
       @media print { html, body { width: 74mm; } }
     </style>
   </head>
-  <body>
+  <body class="${WINDOW_OPEN_FONT_CLASS_NAME}">
     <header>
       ${data.storeName ? `<p class="strong">${escapeHtml(data.storeName)}</p>` : ""}
       ${data.branchName ? `<p>${escapeHtml(data.branchName)}</p>` : ""}
@@ -311,7 +319,7 @@ export function renderDailySalesPrintHtml(data: DailySalesPrintData) {
       ${totalRow(labels.debt, summary.debt)}
       <div class="total-row"><span>${escapeHtml(labels.cancelledBills)} (${summary.cancelledBillCount})</span><span>${escapeHtml(money(summary.cancelledAmount))}</span></div>
     </section>
-    <script>window.addEventListener("load", () => { window.focus(); window.setTimeout(() => window.print(), 250); });</script>
+    <script>${WINDOW_OPEN_PRINT_ON_LOAD_SCRIPT}</script>
   </body>
 </html>`;
 }
