@@ -15,6 +15,7 @@ import {
   addPublicSearchHistoryItem,
   buildPublicOrderInput,
   canAddQty,
+  changePublicToppingQty,
   cartGroupTitle,
   getCategoryPathUuids,
   getCartItemStatus,
@@ -34,6 +35,7 @@ import {
   promotionQuantity,
   statusSectionLabel,
   totalCartQty,
+  togglePublicToppingQty,
   visibleProductCountForCategory,
   withCategoryPathVisibleCounts,
 } from "@/features/public-pos/order/utils";
@@ -212,6 +214,14 @@ describe("public POS quantity helpers", () => {
 });
 
 describe("public POS order payload helper", () => {
+  it("adjusts topping quantity independently from product quantity", () => {
+    expect(changePublicToppingQty({}, "top-1", 3)).toEqual({ "top-1": 3 });
+    expect(changePublicToppingQty({ "top-1": 3 }, "top-1", 0)).toEqual({});
+    expect(changePublicToppingQty({}, "top-1", 999)).toEqual({ "top-1": 99 });
+    expect(togglePublicToppingQty({}, "top-1")).toEqual({ "top-1": 1 });
+    expect(togglePublicToppingQty({ "top-1": 2 }, "top-1")).toEqual({});
+  });
+
   it("builds the public QR create-order contract", () => {
     expect(
       buildPublicOrderInput({
@@ -227,7 +237,7 @@ describe("public POS order payload helper", () => {
         },
         detail: { pro_detail_uuid: "detail-1" },
         qty: 2,
-        toppings: [{ prod_topping_uuid: "top-1" }],
+        toppings: [{ topping: { prod_topping_uuid: "top-1" }, qty: 3 }],
         note: "less spicy",
         lang: "en",
       }),
@@ -243,7 +253,7 @@ describe("public POS order payload helper", () => {
           prod_detail_uuid_fk: "detail-1",
           order_it_qty: 2,
           order_it_note: "less spicy",
-          toppings: [{ prod_topping_uuid_fk: "top-1", topping_qty: 1 }],
+          toppings: [{ prod_topping_uuid_fk: "top-1", topping_qty: 3 }],
         },
       ],
     });

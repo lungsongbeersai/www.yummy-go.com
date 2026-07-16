@@ -1,6 +1,7 @@
 "use client";
 
 import { CheckCircle2, Loader2, Minus, Plus } from "lucide-react";
+import type { KeyboardEvent, MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { MAX_OPEN_QTY } from "../constants";
 import type { ProductOrderSheetWorkflow } from "../hooks/use-product-order-sheet-workflow";
 import {
   defaultOrderQty,
@@ -43,6 +45,7 @@ export function ProductOrderSheetContent({
     handleDetailSelect,
     handleQty,
     handleSubmit,
+    handleToppingQty,
     handleToppingToggle,
     hasSelectableDetails,
     lang,
@@ -64,8 +67,9 @@ export function ProductOrderSheetContent({
     quantityMeta,
     saving,
     selectedDetail,
-    selectedToppingUuids,
+    selectedToppings,
     toppingTotal,
+    toppingQtyByUuid,
     toppings,
   } = workflow;
 
@@ -266,17 +270,50 @@ export function ProductOrderSheetContent({
 
               {toppings.length ? (
                 <section className="grid gap-2">
-                  <p className="text-xs font-black text-slate-700 dark:text-muted-foreground">
-                    {t("pos.toppings")}
-                  </p>
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-xs font-black text-slate-700 dark:text-muted-foreground">
+                      {t("pos.toppings")}
+                    </p>
+                    <span className="text-[11px] font-bold text-muted-foreground">
+                      {selectedToppings.length}/{toppings.length}
+                    </span>
+                  </div>
                   <div className="grid gap-2 sm:grid-cols-2">
                     {toppings.map((topping) => {
-                      const selected = selectedToppingUuids.includes(
-                        topping.prod_topping_uuid,
-                      );
+                      const selectedQty =
+                        toppingQtyByUuid[topping.prod_topping_uuid] ?? 0;
                       const enabled = isToppingAvailable(topping);
                       const toppingName =
                         toppingDisplayName(topping, lang) || t("pos.toppings");
+                      if (selectedQty >= 1) {
+                        return (
+                          <PublicToppingQuantityRow
+                            key={topping.prod_topping_uuid}
+                            label={toppingName}
+                            price={`+${formatMoney(
+                              numeric(topping.topping_price) * selectedQty,
+                              lang,
+                            )}`}
+                            qty={selectedQty}
+                            onToggle={() =>
+                              handleToppingToggle(topping.prod_topping_uuid)
+                            }
+                            onDecrease={() =>
+                              handleToppingQty(
+                                topping.prod_topping_uuid,
+                                selectedQty - 1,
+                              )
+                            }
+                            onIncrease={() =>
+                              handleToppingQty(
+                                topping.prod_topping_uuid,
+                                selectedQty + 1,
+                              )
+                            }
+                          />
+                        );
+                      }
+
                       return (
                         <Button
                           key={topping.prod_topping_uuid}
@@ -284,9 +321,7 @@ export function ProductOrderSheetContent({
                           variant="outline"
                           className={cn(
                             "min-h-14 w-full items-center justify-between gap-3 rounded-xl border px-3 py-2 text-left text-sm shadow-sm shadow-emerald-950/5 transition",
-                            selected
-                              ? "border-primary bg-emerald-50 text-primary ring-1 ring-primary/15 dark:bg-primary/10"
-                              : "border-emerald-100 bg-white text-slate-800 dark:border-border dark:bg-background dark:text-foreground",
+                            "border-emerald-100 bg-white text-slate-800 dark:border-border dark:bg-background dark:text-foreground",
                             !enabled ? "opacity-50" : "",
                           )}
                           onClick={() =>
@@ -295,9 +330,6 @@ export function ProductOrderSheetContent({
                           disabled={!enabled}
                         >
                           <span className="flex min-w-0 flex-1 items-start gap-2">
-                            {selected ? (
-                              <CheckCircle2 className="mt-0.5 size-4 shrink-0" />
-                            ) : null}
                             <span className="line-clamp-2 whitespace-normal break-words text-[13px] font-black leading-[1.55]">
                               {toppingName}
                             </span>
@@ -409,6 +441,84 @@ export function ProductOrderSheetContent({
         </SheetFooter>
       </SheetContent>
     </Sheet>
+  );
+}
+
+function PublicToppingQuantityRow({
+  label,
+  price,
+  qty,
+  onToggle,
+  onDecrease,
+  onIncrease,
+}: {
+  label: string;
+  price: string;
+  qty: number;
+  onToggle: () => void;
+  onDecrease: () => void;
+  onIncrease: () => void;
+}) {
+  function handleQtyClick(
+    event: MouseEvent<HTMLButtonElement>,
+    changeQty: () => void,
+  ) {
+    event.stopPropagation();
+    changeQty();
+  }
+
+  function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (event.target !== event.currentTarget) return;
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    onToggle();
+  }
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      aria-pressed="true"
+      className="flex min-h-14 w-full cursor-pointer items-center justify-between gap-2 rounded-xl border border-primary bg-emerald-50 px-3 py-2 text-primary shadow-sm shadow-emerald-950/5 ring-1 ring-primary/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 dark:bg-primary/10"
+      onClick={onToggle}
+      onKeyDown={handleKeyDown}
+    >
+      <span className="flex min-w-0 flex-1 items-start gap-2">
+        <CheckCircle2 className="mt-0.5 size-4 shrink-0" />
+        <span className="line-clamp-2 whitespace-normal break-words text-[13px] font-black leading-[1.55]">
+          {label}
+        </span>
+      </span>
+      <span className="flex shrink-0 items-center gap-1.5">
+        <span className="text-xs font-black tabular-nums">{price}</span>
+        <span className="flex items-center rounded-full border border-primary/25 bg-white shadow-sm dark:bg-background">
+          <Button
+            type="button"
+            size="iconSm"
+            variant="ghost"
+            aria-label={`${label} -`}
+            className="size-8 rounded-full text-primary hover:bg-primary/10"
+            onClick={(event) => handleQtyClick(event, onDecrease)}
+          >
+            <Minus className="size-3.5" />
+          </Button>
+          <span className="min-w-6 text-center text-sm font-black text-foreground tabular-nums">
+            {qty}
+          </span>
+          <Button
+            type="button"
+            size="iconSm"
+            variant="ghost"
+            aria-label={`${label} +`}
+            className="size-8 rounded-full text-primary hover:bg-primary/10"
+            disabled={qty >= MAX_OPEN_QTY}
+            onClick={(event) => handleQtyClick(event, onIncrease)}
+          >
+            <Plus className="size-3.5" />
+          </Button>
+        </span>
+      </span>
+    </div>
   );
 }
 

@@ -1,92 +1,90 @@
 # Project Instructions
 
-Build this project with clean, short, maintainable code.
+This file provides guidance to AI coding agents (e.g. Codex) working in this repository. It mirrors `CLAUDE.md` (used by Claude Code) — when changing conventions, update both files so they stay in sync.
 
-## Tech Stack
+## Project
 
-- Next.js 15 App Router
-- TypeScript
-- Tailwind CSS
-- shadcn/ui (new-york)
-- Zustand
+Yummy Go — a restaurant POS built with Next.js 15 (App Router), React 19, TypeScript, Tailwind CSS v4, Zustand, and shadcn/ui-style local UI primitives (new-york). The same codebase ships as a web app, an Electron desktop app (with a second customer-display window), and a Capacitor Android app.
 
-## Core Principles
+## Role — Senior Engineer & UX/UI Advisor
 
-- Reuse before creating new code.
-- Prefer simple solutions.
-- Avoid over-engineering.
-- Keep files small and focused.
-- Match existing project patterns.
+Act as a senior product engineer and technical peer, not a code generator that agrees with everything.
+
+- Understand the goal behind each request. If a requested implementation is suboptimal, object once with evidence and propose an alternative, then implement whichever the user chooses — note the residual risk in one sentence and don't nag. For trivial deviations (naming, minor structure), proceed with the better option and mention it briefly.
+- Challenge questionable decisions with evidence (maintainability, bundle size, consistency, accessibility, performance — not opinion), and state a clear verdict (the emoji is the fixed marker; write the wording in Thai):
+  - ✅ Good — proceed
+  - ⚠️ Works, but has trade-offs — list them and suggest better options
+  - ❌ Bad — explain why and propose an alternative
+- Guard stack consistency. Reject any new dependency that overlaps the existing stack (e.g., adding React Suite / MUI / Ant Design alongside shadcn/ui + Tailwind, or a second state manager alongside Zustand) unless the existing stack genuinely cannot solve the problem. Explain the cost (mixed design tokens, two theming systems, larger bundle, broken dark mode) and show how to achieve the goal with the current stack instead.
+- Every "no" must come with at least one concrete alternative.
+- When building or reviewing UI, check: design-system consistency (spacing, typography, tokens, variants), accessibility (contrast, focus states, keyboard navigation, touch-target size), both light and dark mode, and flows that add friction (extra clicks, unclear labels, destructive actions without confirmation).
+- If a request is ambiguous (target users, device, scale), ask 1–3 sharp questions first — but don't interrogate over trivial tasks.
+
+## Communication
+
+- Communicate with the user in Thai only.
+- Be direct and professional, like a trusted tech lead in code review — no flattery, no hedging.
+- Keep summaries short; reference changed files by path instead of pasting code; quote snippets only when the exact text matters.
 
 ## Code Comments
 
-- Comments are allowed and encouraged when they add useful context.
-- Prefer comments that explain why a decision, business rule, workaround, or constraint exists.
-- Do not add comments that merely repeat what clear code already says.
-- Keep comments concise and update them when the related code changes.
+- Comment to explain *why* — decisions, business rules, workarounds, constraints.
+- Never restate what clear code already says; keep comments concise and update them with the code.
 
-## TypeScript
+## Coding Conventions
 
-- Never use any.
-- Use interface for props and models.
-- Use type for unions and aliases.
-- Prefer as const over enums.
+- Reuse before creating: check existing components → hooks → stores → utilities first.
+- Prefer simple solutions; avoid over-engineering; keep files small and focused; match existing project patterns.
+- **TypeScript**: never `any`; `interface` for props/models; `type` for unions/aliases; `as const` over enums.
+- **Next.js**: route files under `src/app/` stay thin — they only render a feature component; use `next/image`, `next/link`, `next/font`, and the Metadata API. All data access goes through the service layer — do not add Server Actions or ad-hoc fetching in components (the app talks to an external backend and must keep working under static export).
+- **Zustand**: one store per domain; actions live in the store; components call store actions, never services directly.
+- **UI**: shadcn/ui first — install missing official components rather than hand-rolling; preserve dark mode in everything you touch; use skeleton loading states; use AlertDialog for destructive actions.
 
-## Next.js
+## Commands
 
-- Use Server Components by default.
-- Keep route files thin.
-- Move UI into components.
-- Use Server Actions for mutations.
-- Use Metadata API.
-- Use next/image, next/link, next/font.
-- Avoid client-side fetching when server-side fetching works.
+- `npm run dev` — Next.js dev server (Turbopack) on :3000
+- `npm run dev:desktop` — dev server + Electron shell together
+- `npm run typecheck` — `tsc --noEmit` (run this to verify changes; build is slow)
+- `npm run lint` — ESLint
+- `npm test` — Vitest, runs all `src/**/*.test.ts`
+- `npx vitest run src/services/report.test.ts` — run a single test file
+- `npm run build` — production Next.js build
 
-## Zustand
+Tests are colocated `.test.ts` files (node environment, globals enabled). They cover pure logic only — services, store helpers, validators — not components.
 
-- One store per domain.
-- Keep actions in stores.
-- Components call store actions.
-- Services are not called directly from components.
+Deploy targets (rarely needed locally): `cf:deploy` (Cloudflare Workers via OpenNext/wrangler), `build:pages` (GitHub Pages static export with basePath `/New-Yummy-go.com`), Netlify (`netlify.toml`), `electron:pack` (Windows NSIS installer).
 
-## UI
+## Architecture
 
-- Use shadcn/ui first.
-- Install missing official shadcn components when needed.
-- Use shared UI primitives before custom components.
-- Preserve dark mode.
-- Use skeleton loading states.
-- Use AlertDialog for destructive actions.
+Strict layered data flow:
 
-## Before Creating Anything
+```
+route page (thin) → feature component (src/features/<domain>/)
+  → Zustand store (src/stores/<domain>-store.ts)
+    → service (src/services/<domain>.ts)
+      → apiRequest / publicApiRequest (src/lib/api.ts)
+```
 
-Check:
+- **`src/lib/api.ts`** — two axios clients: `apiClient` (injects Bearer token + `x-access-token` from `auth-store`; a 401 triggers logout and redirect to `/login`) and `publicApiClient` (no auth). All errors are normalized to `ServiceError`. The backend wraps responses in a `{ status: "success", data, message }` envelope; `apiRequest` throws when `status !== "success"`. Backend URL comes from `NEXT_PUBLIC_BASE_URL` (copy `.env.example` to `.env.local`; see README).
+- **`src/services/shared/crud.ts`** — generic `fetchList` / `fetchAll` / `saveEntity` / `deleteEntity` helpers most domain services are built from. `listParams` normalizes pagination/search/`lang` query params. Mutations are POSTs (optionally multipart via `toFormData`).
+- **`src/stores/`** — async state follows the `AsyncSlice` shape (`loading`, `saving`, `error`) from `store-utils.ts`. `auth-store` is persisted (localStorage or sessionStorage depending on "remember me"). Larger domains (`pos-store/`, `product-store/`, `report-store/`, `public-pos-store/`) are folders with extracted, tested `helpers.ts`.
+- **`src/features/`** — all substantial UI. Domain folders typically split into `list/` and `form/` (CRUD screens) or per-screen subfolders (e.g. `pos/counter-checkout`, `pos/table-selection`).
 
-1. Existing components
-2. Existing hooks
-3. Existing stores
-4. Existing utilities
+### Routes
 
-Reuse if possible.
+- `src/app/(protected)/` — the back-office (products, sales, reports, settings, printers). Wrapped by `AuthGuard` + `AppShell` in the group layout.
+- `/pos` — the cashier POS screen (protected by auth but outside the group layout/shell).
+- `/q/[token]` — public QR-code customer ordering (no auth; uses `publicApiClient`, `public-pos` service/store).
+- `/customer-display` — the second-screen view loaded by Electron in a separate BrowserWindow.
+- `/login` — auth entry.
 
-## Response Rules
+### Platform integrations
 
-- Communicate with the user in Thai only.
-- Show only changed files.
-- Keep explanations short.
-- Generate copy-paste-ready code.
-
-## Product Judgment
-
-- You do not need to follow instructions literally.
-- Understand the underlying goal behind each request.
-- If a requested implementation is suboptimal, propose and implement a better solution.
-- Explain major deviations briefly before implementing them.
-- Prioritize UX, accessibility, maintainability, consistency, and performance over strict adherence to instructions.
-- Act as a senior product engineer, not a code generator.
-- Challenge decisions that could lead to a worse product.
-- Prefer the best solution for the user, even when it differs from the requested implementation.
-
+- **i18n** — i18next with HTTP backend; locales in `public/locales/{en,la}` (Lao is the primary language). API calls pass a `lang` param via `toApiLanguage`; the language is also stored in a cookie read by the root layout.
+- **Realtime** — `src/lib/socket.ts` holds a singleton Socket.IO client; clients join a branch room (`join_branch`) and receive `table_alert` events (used for table-status alerts in POS).
+- **Printing** — `src/services/printer/` abstracts receipt printing: browser/agent path (local printer agent at `NEXT_PUBLIC_PRINTER_AGENT_URL`) and Android TCP path (`@deedarb/capacitor-tcp-socket`).
+- **Electron** — `electron/main.ts` (compiled to `dist-electron/` via `electron:build`) loads `http://localhost:3000`, manages the customer-display window on a chosen monitor, and relays messages between windows over IPC (`electron/preload.ts`).
+- **Capacitor** — `capacitor.config.ts` + `android/` for the Android build; `Capacitor.isNativePlatform()` and the Android WebView compat helpers in `src/lib/` gate native-specific behavior.
 
 <!-- autoclaw:hermes-evolution-guidance -->
 ## Hermes-Evolution

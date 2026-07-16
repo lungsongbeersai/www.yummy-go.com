@@ -144,17 +144,21 @@ export function CartGroup({
                 </div>
                 {item.toppings?.length ? (
                   <div className="mt-1 flex flex-wrap gap-1">
-                    {item.toppings.map((topping, toppingIndex) => (
-                      <span
-                        key={`${topping.topping_name}-${toppingIndex}`}
-                        className="rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 dark:bg-primary/10 dark:text-primary"
-                      >
-                        {topping.topping_name}
-                        {numeric(topping.topping_line_total) > 0
-                          ? ` +${formatMoney(numeric(topping.topping_line_total), lang)}`
-                          : ""}
-                      </span>
-                    ))}
+                    {item.toppings.map((topping, toppingIndex) => {
+                      const toppingQty = numeric(topping.topping_qty);
+                      return (
+                        <span
+                          key={`${topping.topping_name}-${toppingIndex}`}
+                          className="rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 dark:bg-primary/10 dark:text-primary"
+                        >
+                          {topping.topping_name}
+                          {toppingQty > 0 ? ` x${toppingQty}` : ""}
+                          {numeric(topping.topping_line_total) > 0
+                            ? ` +${formatMoney(numeric(topping.topping_line_total), lang)}`
+                            : ""}
+                        </span>
+                      );
+                    })}
                   </div>
                 ) : null}
                 {item.detail?.order_it_note ? (

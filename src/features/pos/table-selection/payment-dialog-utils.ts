@@ -25,6 +25,7 @@ import {
   cartItemQty,
   cartItemTotal,
   cartSummary,
+  cartToppingDisplay,
   formatRate,
   optionalNumber,
   optionalString,
@@ -584,11 +585,7 @@ export function buildInvoicePrintData({
       );
       const toppings = (item.toppings ?? []).map((topping) => ({
         name: optionalString(topping.topping_name) ?? "-",
-        qty: optionalNumber(topping.topping_qty),
-        total: positiveNumber(
-          topping.topping_line_total,
-          topping.topping_price,
-        ),
+        ...cartToppingDisplay(topping),
       }));
 
       return {

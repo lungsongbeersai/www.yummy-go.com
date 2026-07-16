@@ -47,6 +47,15 @@ export type ProductMedia =
   | { type: "empty" };
 export type ProductActionState = "blocked" | "choose" | "add" | "view";
 export type ProductModalMode = "normal" | "set" | "promotion";
+export type OrderSelectionIssue =
+  | "detail-unavailable"
+  | "price-invalid"
+  | "quantity-invalid"
+  | "stock-insufficient"
+  | "topping-invalid";
+export type ProductCardPrice =
+  | { kind: "exact" | "starting"; value: number }
+  | { kind: "unavailable" | "variable"; value: null };
 export type Translate = (key: string) => string;
 
 export function emptyMenuBySort(): MenuBySort {
@@ -139,20 +148,55 @@ export function nextMenuCategoryUuid({
   );
 }
 
-export function selectedToppingsFromUuids(
-  product: ProdItem | null | undefined,
-  toppingUuids: string[],
-) {
-  const selected = new Set(toppingUuids);
-  return (product?.toppings ?? []).filter((topping) =>
-    selected.has(toppingUuid(topping)),
-  );
+// จำนวน topping ในโมดัลและ payload คือ "ต่อสินค้า 1 หน่วย" โดย backend จะคูณ order_it_qty ตอนคิดยอดรวม
+export interface SelectedTopping {
+  topping: ProdTopping;
+  qty: number;
 }
 
-export function toggleToppingUuid(current: string[], uuid: string) {
-  return current.includes(uuid)
-    ? current.filter((item) => item !== uuid)
-    : [...current, uuid];
+export function selectedToppingsFromQtyMap(
+  product: ProdItem | null | undefined,
+  qtyByUuid: Record<string, number>,
+): SelectedTopping[] {
+  return (product?.toppings ?? [])
+    .map((topping) => ({ topping, qty: qtyByUuid[toppingUuid(topping)] ?? 0 }))
+    .filter(
+      (selected) =>
+        isToppingAvailable(selected.topping) &&
+        Number.isInteger(selected.qty) &&
+        selected.qty >= 1 &&
+        selected.qty <= MAX_ORDER_QTY,
+    );
+}
+
+export function toggleToppingQty(
+  current: Record<string, number>,
+  uuid: string,
+  rememberedQty = 1,
+) {
+  if (current[uuid]) {
+    const next = { ...current };
+    delete next[uuid];
+    return next;
+  }
+  return { ...current, [uuid]: clampQty(rememberedQty) };
+}
+
+export function changeToppingQty(
+  current: Record<string, number>,
+  uuid: string,
+  qty: number,
+) {
+  if (qty < 1) {
+    const next = { ...current };
+    delete next[uuid];
+    return next;
+  }
+  return { ...current, [uuid]: clampQty(qty) };
+}
+
+export function countSelectedToppings(toppings: SelectedTopping[]) {
+  return toppings.reduce((sum, selected) => sum + selected.qty, 0);
 }
 
 export function productPrice(product: CateProductItem | ProdItem) {
@@ -163,6 +207,60 @@ export function productPrice(product: CateProductItem | ProdItem) {
       product.prod_price,
     ) ?? 0
   );
+}
+
+export function productOptionCount(product: CateProductItem) {
+  return Math.max(
+    0,
+    optionalNumber(
+      product.count_option_enabled,
+      product.count_option_all,
+    ) ?? 0,
+  );
+}
+
+export function productToppingCount(product: CateProductItem) {
+  return Math.max(0, optionalNumber(product.count_topping_enabled) ?? 0);
+}
+
+export function productCardPrice(
+  product: CateProductItem,
+  activeSort: ProductSortStatus,
+): ProductCardPrice {
+  const productStatusSort =
+    optionalNumber(product.status_sort_fk) ?? activeSort;
+  const exactPrice =
+    productStatusSort === ProductSortStatus.SET
+      ? optionalNumber(
+          product.prod_set_price,
+          product.prod_price,
+          product.pro_detail_sprice,
+        ) ?? 0
+      : productPrice(product);
+
+  if (
+    productStatusSort === ProductSortStatus.SET ||
+    productOptionCount(product) <= 1
+  ) {
+    return exactPrice > 0
+      ? { kind: "exact", value: exactPrice }
+      : { kind: "unavailable", value: null };
+  }
+
+  // The menu endpoint must provide branch-aware aggregates. Fetching every
+  // product detail here would turn menu loading into an N+1 request pattern.
+  const minPrice = optionalNumber(product.min_price);
+  const maxPrice = optionalNumber(product.max_price);
+  if (minPrice === null || minPrice <= 0) {
+    return { kind: "variable", value: null };
+  }
+  if (maxPrice !== null && maxPrice > 0 && maxPrice === minPrice) {
+    return { kind: "exact", value: minPrice };
+  }
+  if (maxPrice !== null && maxPrice > 0 && maxPrice < minPrice) {
+    return { kind: "variable", value: null };
+  }
+  return { kind: "starting", value: minPrice };
 }
 
 export function productPriceFromDetail(detail?: ProdDetail | null) {
@@ -214,24 +312,57 @@ export function normalizeProdItem(
   };
 }
 
-export function isDetailAvailable(detail?: ProdDetail | null) {
+export function isDetailEnabled(detail?: ProdDetail | null) {
   if (!detail) return false;
   if (optionalNumber(detail.pro_detail_enabled) === 2) return false;
   if (optionalNumber(detail.pro_detail_status) === 2) return false;
+
+  return Boolean(optionalString(detail.pro_detail_uuid));
+}
+
+export function isDetailAvailable(detail?: ProdDetail | null) {
+  if (!detail || !isDetailEnabled(detail)) return false;
 
   const cutStock = optionalNumber(detail.cut_stock);
   const stock = optionalNumber(detail.qty_stock, detail.pro_detail_qty_stock);
   if (cutStock !== 2 && stock !== null && stock <= 0) return false;
 
-  return Boolean(optionalString(detail.pro_detail_uuid));
+  return true;
 }
 
-export function firstAvailableDetail(product?: ProdItem | null) {
-  return (
-    (product?.details ?? []).find(isDetailAvailable) ??
-    product?.details?.[0] ??
-    null
-  );
+function detailSortValue(detail: ProdDetail) {
+  const sort = optionalNumber(detail.pro_detail_sort);
+  return sort !== null && sort > 0 ? sort : null;
+}
+
+function sortProductDetails(details: ProdDetail[]) {
+  return details.sort((left, right) => {
+    const leftSort = detailSortValue(left);
+    const rightSort = detailSortValue(right);
+    if (leftSort === null && rightSort === null) return 0;
+    if (leftSort === null) return 1;
+    if (rightSort === null) return -1;
+    return leftSort - rightSort;
+  });
+}
+
+export function enabledProductDetails(product?: ProdItem | null) {
+  return sortProductDetails((product?.details ?? []).filter(isDetailEnabled));
+}
+
+export function availableProductDetails(product?: ProdItem | null) {
+  return sortProductDetails((product?.details ?? []).filter(isDetailAvailable));
+}
+
+export function firstAvailableDetail(
+  product?: ProdItem | null,
+  mode: ProductModalMode = "normal",
+) {
+  const details =
+    mode === "set"
+      ? enabledProductDetails(product)
+      : availableProductDetails(product);
+  return details[0] ?? null;
 }
 
 export function defaultOrderQty(detail?: ProdDetail | null) {
@@ -243,6 +374,74 @@ export function defaultOrderQty(detail?: ProdDetail | null) {
 export function clampQty(value: number) {
   if (!Number.isFinite(value)) return 1;
   return Math.min(MAX_ORDER_QTY, Math.max(1, Math.floor(value)));
+}
+
+export interface OrderQuantityRules {
+  canOrder: boolean;
+  min: number;
+  max: number;
+  step: number;
+}
+
+function promotionOrderStep(detail?: ProdDetail | null) {
+  const buy = optionalNumber(detail?.pro_detail_cus_qtyBuy) ?? 0;
+  const free = optionalNumber(detail?.pro_detail_cus_qtyFree) ?? 0;
+  return buy > 0 && free > 0 ? clampQty(buy) : 1;
+}
+
+function detailOrderStockLimit(
+  detail: ProdDetail | null | undefined,
+  unitsPerOrder = 1,
+) {
+  if (!detail || optionalNumber(detail.cut_stock) === 2) return MAX_ORDER_QTY;
+
+  const stock = optionalNumber(detail.qty_stock, detail.pro_detail_qty_stock);
+  if (stock === null) return MAX_ORDER_QTY;
+  return Math.max(0, Math.floor(stock / Math.max(1, unitsPerOrder)));
+}
+
+function setOrderStockLimit(product?: ProdItem | null) {
+  const details = enabledProductDetails(product);
+  if (!details.length) return 0;
+  return Math.min(
+    ...details.map((detail) =>
+      detailOrderStockLimit(detail, defaultOrderQty(detail)),
+    ),
+  );
+}
+
+export function orderQuantityRules(
+  detail: ProdDetail | null | undefined,
+  mode: ProductModalMode,
+  product?: ProdItem | null,
+): OrderQuantityRules {
+  const step = mode === "promotion" ? promotionOrderStep(detail) : 1;
+  const stockLimit =
+    mode === "set"
+      ? setOrderStockLimit(product)
+      : detailOrderStockLimit(detail);
+  const alignedMax =
+    Math.floor(Math.min(MAX_ORDER_QTY, stockLimit) / step) * step;
+  const canOrder = alignedMax >= step;
+  return {
+    canOrder,
+    min: step,
+    max: canOrder ? alignedMax : step,
+    step,
+  };
+}
+
+export function clampOrderQuantity(
+  value: number,
+  rules: OrderQuantityRules,
+) {
+  const normalized = Number.isFinite(value) ? Math.floor(value) : rules.min;
+  const stepped =
+    normalized <= rules.min
+      ? rules.min
+      : rules.min +
+        Math.ceil((normalized - rules.min) / rules.step) * rules.step;
+  return Math.min(rules.max, stepped);
 }
 
 export function isToppingAvailable(topping?: ProdTopping | null) {
@@ -276,24 +475,84 @@ export function toppingDisplayName(topping: ProdTopping) {
   );
 }
 
+export function getModalBasePrice(
+  product: ProdItem | null,
+  detail: ProdDetail | null | undefined,
+  mode: ProductModalMode,
+) {
+  return mode === "set"
+    ? (optionalNumber(product?.prod_set_price) ?? 0)
+    : productPriceFromDetail(detail);
+}
+
 export function getModalUnitPrice(
   product: ProdItem | null,
   detail: ProdDetail | null | undefined,
-  toppings: ProdTopping[],
+  toppings: SelectedTopping[],
   mode: ProductModalMode,
 ) {
-  const basePrice =
-    mode === "set"
-      ? (optionalNumber(
-          product?.prod_set_price,
-          product?.prod_price,
-          productPriceFromDetail(detail),
-        ) ?? 0)
-      : productPriceFromDetail(detail);
+  const basePrice = getModalBasePrice(product, detail, mode);
   return (
     basePrice +
-    toppings.reduce((sum, topping) => sum + toppingPrice(topping), 0)
+    toppings.reduce(
+      (sum, selected) => sum + toppingPrice(selected.topping) * selected.qty,
+      0,
+    )
   );
+}
+
+export function getOrderSelectionIssue({
+  detail,
+  mode,
+  product,
+  quantity,
+  toppings,
+}: {
+  detail: ProdDetail | null | undefined;
+  mode: ProductModalMode;
+  product?: ProdItem | null;
+  quantity: number;
+  toppings: SelectedTopping[];
+}): OrderSelectionIssue | null {
+  if (!detail || !isDetailEnabled(detail)) return "detail-unavailable";
+  if (mode !== "set" && !isDetailAvailable(detail)) {
+    return "detail-unavailable";
+  }
+
+  const basePrice = getModalBasePrice(product ?? null, detail, mode);
+  if (!Number.isFinite(basePrice) || basePrice <= 0) return "price-invalid";
+
+  const rules = orderQuantityRules(detail, mode, product);
+  if (!rules.canOrder) return "stock-insufficient";
+  if (
+    !Number.isInteger(quantity) ||
+    quantity < rules.min ||
+    quantity > rules.max ||
+    (quantity - rules.min) % rules.step !== 0
+  ) {
+    return "quantity-invalid";
+  }
+
+  const hasInvalidTopping = toppings.some(
+    (selected) =>
+      !isToppingAvailable(selected.topping) ||
+      !Number.isInteger(selected.qty) ||
+      selected.qty < 1 ||
+      selected.qty > MAX_ORDER_QTY ||
+      toppingPrice(selected.topping) < 0,
+  );
+  return hasInvalidTopping ? "topping-invalid" : null;
+}
+
+export function orderSelectionIssueLabel(
+  issue: OrderSelectionIssue,
+  t: Translate,
+) {
+  if (issue === "detail-unavailable") return t("pos.noAvailableOptions");
+  if (issue === "price-invalid") return t("pos.invalidProductPrice");
+  if (issue === "stock-insufficient") return t("pos.insufficientStock");
+  if (issue === "topping-invalid") return t("pos.invalidTopping");
+  return t("pos.invalidQuantity");
 }
 
 export function productMedia(
@@ -425,9 +684,16 @@ export function getProductModalMode(
   if (activeSort === ProductSortStatus.PROMOTION) return "promotion";
   if (activeSort === ProductSortStatus.SET) return "set";
 
+  const productStatus = optionalNumber(product?.status_sort_fk);
+  if (productStatus === ProductSortStatus.PROMOTION) return "promotion";
+  if (productStatus === ProductSortStatus.SET) return "set";
+
   const typeGroup = String(product?.type_group ?? "").toLowerCase();
   if (typeGroup.includes("promo")) return "promotion";
-  if (typeGroup.includes("set") || product?.prod_set_price !== undefined)
+  if (
+    typeGroup.includes("set") ||
+    (optionalNumber(product?.prod_set_price) ?? 0) > 0
+  )
     return "set";
   return "normal";
 }
@@ -456,14 +722,14 @@ export function getPromoLabel(
   return t("pos.promotion");
 }
 
-function buildStaffOrderToppings(toppings: ProdTopping[]) {
+function buildStaffOrderToppings(toppings: SelectedTopping[]) {
   return toppings
-    .map((topping) => {
-      const uuid = toppingUuid(topping);
+    .map((selected) => {
+      const uuid = toppingUuid(selected.topping);
       if (!uuid) return null;
       return {
         prod_topping_uuid_fk: uuid,
-        topping_qty: 1,
+        topping_qty: selected.qty,
       } satisfies CreateOrderTopping;
     })
     .filter((topping): topping is CreateOrderTopping => Boolean(topping));
@@ -482,12 +748,18 @@ export function buildStaffOrderItems({
   noteText: string;
   product?: ProdItem | null;
   quantity: number;
-  toppings: ProdTopping[];
+  toppings: SelectedTopping[];
 }) {
-  const details =
-    mode === "set"
-      ? (product?.details ?? []).filter(isDetailAvailable)
-      : [detail];
+  const issue = getOrderSelectionIssue({
+    detail,
+    mode,
+    product,
+    quantity,
+    toppings,
+  });
+  if (issue) throw new Error(`Invalid order selection: ${issue}`);
+
+  const details = mode === "set" ? enabledProductDetails(product) : [detail];
   if (!details.length) throw new Error("pro_detail_uuid is required");
 
   const note = noteText.trim() || undefined;
@@ -530,7 +802,7 @@ export function buildStaffOrderInput({
   product?: ProdItem | null;
   quantity: number;
   tableUuid: string;
-  toppings: ProdTopping[];
+  toppings: SelectedTopping[];
   userUuid: string;
 }): CreateOrderInput {
   if (!branchUuid) throw new Error("branch_uuid_fk is required");

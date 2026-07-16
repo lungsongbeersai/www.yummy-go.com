@@ -49,6 +49,7 @@ export function OrderCustomerView({
     cartSheetOpen,
     categories,
     changeProductDetail,
+    changeSelectedToppingQty,
     handleTableActionComplete,
     isMobile,
     loadCart,
@@ -72,7 +73,6 @@ export function OrderCustomerView({
     selectCategory,
     selectedCateUuid,
     selectedDetail,
-    selectedListProduct,
     selectedProduct,
     selectedTable,
     selectedToppings,
@@ -86,7 +86,7 @@ export function OrderCustomerView({
     submitSelectedProduct,
     t,
     toggleSelectedTopping,
-    toppingUuids,
+    toppingQtyByUuid,
     zones,
   } = workflow;
 
@@ -220,7 +220,10 @@ export function OrderCustomerView({
             onSelectCategory={(cateUuid) => void selectCategory(cateUuid)}
           />
 
-          <section className="relative flex min-h-0 min-w-0 flex-col overflow-hidden">
+          <section
+            aria-busy={loadingMenu}
+            className="relative flex min-h-0 min-w-0 flex-col overflow-hidden"
+          >
             <div className="pos-soft-light-zone pos-dark-zone min-h-0 flex-1 overflow-y-auto bg-background p-3 text-foreground sm:p-3.5 lg:p-4">
               {loadingMenu ? (
                 <ProductGridSkeleton />
@@ -233,11 +236,10 @@ export function OrderCustomerView({
                         activeSort
                       }`}
                       activeSort={activeSort}
+                      disabled={Boolean(loadingProductUuid) || saving}
                       entry={entry}
-                      loading={
-                        loadingProductUuid === entry.product.prod_uuid || saving
-                      }
-                      onAction={() => void openOrAddProduct(entry)}
+                      loading={loadingProductUuid === entry.product.prod_uuid}
+                      onAction={openOrAddProduct}
                     />
                   ))}
                 </div>
@@ -330,6 +332,8 @@ export function OrderCustomerView({
       </Sheet>
 
       <ProductOptionsOverlay
+        closeDisabled={saving}
+        closeLabel={t("actions.close")}
         description={
           selectedProduct
             ? productModeLabel(productMode, selectedProduct, t)
@@ -343,10 +347,8 @@ export function OrderCustomerView({
           setProductSheetOpen(nextOpen);
         }}
       >
-        {selectedProduct && selectedListProduct && selectedDetail ? (
+        {selectedProduct && selectedDetail ? (
           <ProductOptionsForm
-            activeSort={activeSort}
-            listProduct={selectedListProduct}
             modalUnitPrice={modalUnitPrice}
             mode={productMode}
             note={note}
@@ -355,7 +357,8 @@ export function OrderCustomerView({
             saving={saving}
             selectedDetail={selectedDetail}
             selectedToppings={selectedToppings}
-            toppingUuids={toppingUuids}
+            toppingQtyByUuid={toppingQtyByUuid}
+            onChangeToppingQty={changeSelectedToppingQty}
             onDetailChange={changeProductDetail}
             onNoteChange={setNote}
             onQtyChange={setQty}

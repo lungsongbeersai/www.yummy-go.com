@@ -10,8 +10,13 @@ import type { PublicMenuKind } from "@/stores/public-pos-store/helpers";
 export interface PublicAddToCartPayload {
   detail: ProdDetail;
   qty: number;
-  toppings: ProdTopping[];
+  toppings: PublicSelectedTopping[];
   note: string;
+}
+
+export interface PublicSelectedTopping {
+  topping: ProdTopping;
+  qty: number;
 }
 
 export interface PublicDisplayProduct {

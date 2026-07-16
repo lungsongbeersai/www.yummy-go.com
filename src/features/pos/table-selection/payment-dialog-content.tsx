@@ -11,6 +11,7 @@ import {
   Plus,
   Printer,
   ReceiptText,
+  X,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {
@@ -35,6 +36,7 @@ import {
 } from "@/components/ui/command";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogHeader,
@@ -53,7 +55,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Separator } from "@/components/ui/separator";
 import {
   Select,
   SelectContent,
@@ -125,28 +126,37 @@ interface PaymentSummaryStripItem {
 
 function PaymentSummaryStrip({ items }: { items: PaymentSummaryStripItem[] }) {
   return (
-    <div className="grid min-h-9 grid-cols-3 overflow-hidden rounded-lg border border-border bg-card">
-      {items.map((item) => {
+    <div className="grid min-h-9 grid-cols-2 overflow-hidden rounded-lg border border-border bg-card">
+      {items.map((item, index) => {
         const primary = item.tone === "primary";
+        const hero = index === 0;
 
         return (
           <div
             key={item.label}
             className={cn(
-              "min-w-0 border-r border-border px-1.5 py-1 last:border-r-0",
+              "min-w-0 px-2 py-1.5",
+              hero
+                ? "col-span-2 flex items-center justify-between gap-3 border-b border-border"
+                : index === 1 && "border-r border-border",
               primary && "border-primary bg-primary text-primary-foreground",
               item.tone === "strong" && "bg-muted/40",
             )}
           >
             <p
               className={cn(
-                "truncate text-[10px] font-semibold leading-tight text-muted-foreground min-[390px]:text-[11px]",
+                "line-clamp-2 text-[10px] leading-tight font-semibold text-muted-foreground min-[390px]:text-[11px]",
                 primary && "text-primary-foreground/80",
               )}
             >
               {item.label}
             </p>
-            <p className="truncate text-sm font-black leading-tight tabular-nums min-[390px]:text-base">
+            <p
+              className={cn(
+                "text-right text-sm leading-tight font-black tabular-nums [overflow-wrap:anywhere] min-[390px]:text-base",
+                hero && "text-base min-[390px]:text-lg",
+              )}
+            >
               {item.value}
             </p>
           </div>
@@ -248,11 +258,13 @@ export function PaymentDialogContent({
         }
       >
         <DialogContent
-          className="!left-0 !top-0 grid h-[var(--pos-payment-dialog-height)] max-h-[var(--pos-payment-dialog-height)] w-full max-w-[100vw] !translate-x-0 !translate-y-0 grid-rows-[auto_minmax(0,1fr)] gap-0 overflow-hidden rounded-none border-0 bg-background p-0 sm:!left-[50%] sm:!top-[50%] sm:h-[calc(100dvh-1rem)] sm:max-h-[calc(100dvh-1rem)] sm:max-w-[calc(100vw-1rem)] sm:!translate-x-[-50%] sm:!translate-y-[-50%] sm:rounded-lg sm:border xl:max-w-7xl"
-          style={dialogStyle}
-          onKeyDown={handleDialogKeyDown}
+            aria-busy={processing}
+            showCloseButton={false}
+            className="!left-0 !top-0 grid h-[var(--pos-payment-dialog-height)] max-h-[var(--pos-payment-dialog-height)] w-full max-w-[100vw] !translate-x-0 !translate-y-0 grid-rows-[auto_minmax(0,1fr)] gap-0 overflow-hidden rounded-none border-0 bg-background p-0 sm:!left-[50%] sm:!top-[50%] sm:h-[calc(100dvh-1rem)] sm:max-h-[calc(100dvh-1rem)] sm:max-w-[calc(100vw-1rem)] sm:!translate-x-[-50%] sm:!translate-y-[-50%] sm:rounded-lg sm:border xl:max-w-7xl"
+            style={dialogStyle}
+            onKeyDown={handleDialogKeyDown}
         >
-          <DialogHeader className="shrink-0 border-b border-border bg-card px-3 py-1.5 pr-12 text-left sm:px-4 sm:py-3">
+          <DialogHeader className="shrink-0 border-b border-border bg-card px-3 pt-[calc(0.375rem+env(safe-area-inset-top,0px))] pb-1.5 text-left sm:px-4 sm:py-3">
             <div className="flex min-w-0 items-center justify-between gap-3">
               <div className="min-w-0">
                 <DialogTitle className="flex min-w-0 items-center gap-2 text-base font-black sm:text-xl">
@@ -269,22 +281,36 @@ export function PaymentDialogContent({
                   {isSplitPayment ? ` - ${t("pos.splitPayment")}` : ""}
                 </DialogDescription>
               </div>
-              <div className="hidden shrink-0 items-center gap-2 sm:flex">
-                {isSplitPayment ? (
-                  <Badge className="rounded-full px-3 py-1 font-black">
-                    {t("pos.splitPayment")}
+              <div className="flex shrink-0 items-center gap-2">
+                <div className="hidden items-center gap-2 sm:flex">
+                  {isSplitPayment ? (
+                    <Badge className="rounded-full px-3 py-1 font-black">
+                      {t("pos.splitPayment")}
+                    </Badge>
+                  ) : null}
+                  <Badge className="rounded-full px-3 py-1 font-black tabular-nums">
+                    {selectedCurrency.code}
                   </Badge>
-                ) : null}
-                <Badge className="rounded-full px-3 py-1 font-black tabular-nums">
-                  {selectedCurrency.code}
-                </Badge>
+                </div>
+                <DialogClose asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    aria-label={t("actions.close")}
+                    className="size-11 shrink-0 rounded-full"
+                    disabled={processing}
+                  >
+                    <X aria-hidden="true" />
+                  </Button>
+                </DialogClose>
               </div>
             </div>
           </DialogHeader>
 
           <Tabs
             value={activeTab}
-            className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden bg-muted/30 overscroll-contain md:grid-cols-[280px_minmax(0,1fr)] md:grid-rows-[auto_auto] lg:grid-cols-[300px_minmax(0,1fr)_320px] lg:grid-rows-1 xl:grid-cols-[320px_minmax(0,1fr)_360px]"
+            className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden bg-muted/30 overscroll-contain md:grid-cols-[280px_minmax(0,1fr)] md:grid-rows-[minmax(0,1fr)_auto] lg:grid-cols-[300px_minmax(0,1fr)_320px] lg:grid-rows-1 xl:grid-cols-[320px_minmax(0,1fr)_360px]"
             onValueChange={handlePaymentTabChange}
           >
             <aside
@@ -292,7 +318,7 @@ export function PaymentDialogContent({
               data-pos-keypad-ignore="true"
             >
               <div className="grid gap-1.5 md:min-h-0 md:grid-rows-[auto_minmax(0,1fr)] md:gap-3 lg:h-full">
-                <TabsList className="grid h-auto grid-cols-4 gap-1 rounded-lg bg-muted p-1 md:grid-cols-2 md:gap-1.5 md:p-1.5">
+                <TabsList className="grid h-auto grid-cols-2 gap-1 rounded-lg bg-muted p-1 sm:grid-cols-4 md:grid-cols-2 md:gap-1.5 md:p-1.5">
                   {paymentTabs.map((tab) => {
                     const Icon = tab.icon;
                     return (
@@ -300,21 +326,21 @@ export function PaymentDialogContent({
                         key={tab.value}
                         value={tab.value}
                         aria-label={t(tab.labelKey)}
-                        className="h-9 min-w-0 gap-1.5 rounded-md px-2 font-black min-[430px]:h-10 md:h-11 md:gap-2"
+                        className="h-11 min-w-0 gap-1.5 rounded-md px-2 font-black md:gap-2"
                       >
-                        <Icon />
-                        <span className="hidden truncate min-[430px]:inline md:inline">
-                          {t(tab.labelKey)}
-                        </span>
+                          <Icon aria-hidden="true" />
+                          <span className="truncate">
+                            {t(tab.labelKey)}
+                          </span>
                       </TabsTrigger>
                     );
                   })}
                 </TabsList>
 
                 <div className="min-h-0 md:overflow-hidden">
-                  <FieldGroup className="grid grid-cols-[minmax(0,1fr)_4.75rem_4.75rem_2.75rem] items-end gap-1.5 md:grid-cols-1 md:items-stretch md:gap-3">
+                  <FieldGroup className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_2.75rem] items-end gap-1.5 sm:grid-cols-[minmax(0,1fr)_7rem_7rem_2.75rem] md:grid-cols-1 md:items-stretch md:gap-3">
                     <Field
-                      className="min-w-0 gap-0 md:gap-1.5"
+                      className="col-span-2 min-w-0 gap-0 sm:col-span-1 md:gap-1.5"
                       data-invalid={!customerUuid}
                     >
                       <div className="hidden min-h-8 items-center justify-between gap-2 md:flex">
@@ -446,8 +472,8 @@ export function PaymentDialogContent({
                       </Popover>
                     </Field>
 
-                    <Field className="min-w-0 gap-0 md:gap-1.5">
-                      <FieldLabel className="sr-only md:not-sr-only md:truncate">
+                    <Field className="col-start-1 row-start-2 min-w-0 gap-1 sm:col-start-auto sm:row-start-auto md:gap-1.5">
+                      <FieldLabel className="truncate text-[11px] font-semibold text-muted-foreground md:text-sm md:text-foreground">
                         {t("pos.orderChannel")}
                       </FieldLabel>
                       <Select
@@ -476,8 +502,8 @@ export function PaymentDialogContent({
                         </SelectContent>
                       </Select>
                     </Field>
-                    <Field className="min-w-0 gap-0 md:gap-1.5">
-                      <FieldLabel className="sr-only md:not-sr-only md:truncate">
+                    <Field className="col-span-2 col-start-2 row-start-2 min-w-0 gap-1 sm:col-span-1 sm:col-start-auto sm:row-start-auto md:gap-1.5">
+                      <FieldLabel className="truncate text-[11px] font-semibold text-muted-foreground md:text-sm md:text-foreground">
                         {t("pos.paymentCurrency")}
                       </FieldLabel>
                       <Select
@@ -507,7 +533,7 @@ export function PaymentDialogContent({
                         {currencyDescription}
                       </FieldDescription>
                     </Field>
-                    <Field className="gap-0 md:hidden">
+                    <Field className="col-start-3 row-start-1 gap-0 sm:col-start-auto sm:row-start-auto md:hidden">
                       <FieldLabel className="sr-only">
                         {t("actions.add")} {t("pos.customer")}
                       </FieldLabel>
@@ -524,22 +550,11 @@ export function PaymentDialogContent({
                     </Field>
                   </FieldGroup>
 
-                  <Separator className="my-3 hidden md:block" />
-                  <div className="hidden rounded-lg border border-border bg-muted/30 p-3 text-sm text-muted-foreground md:grid md:gap-1">
-                    <span className="truncate font-semibold text-foreground">
-                      {t("nav.table")}: {table.table_name}
-                    </span>
-                    {invoice ? (
-                      <span className="truncate">
-                        {t("pos.invoice")}: {invoice}
-                      </span>
-                    ) : null}
-                  </div>
                 </div>
               </div>
             </aside>
 
-            <section className="min-h-0 overflow-hidden p-1.5 sm:p-3 lg:p-4">
+            <section className="min-h-0 overflow-y-auto overscroll-contain p-1.5 sm:p-3 lg:p-4">
               <div className="h-full min-h-0">
                 {activeTenderField ? (
                   <div className="grid h-full min-h-0 grid-rows-[auto_auto_minmax(196px,1fr)] gap-1.5 min-[430px]:gap-2 sm:grid-rows-[auto_auto_minmax(0,1fr)] sm:gap-3">
@@ -600,7 +615,7 @@ export function PaymentDialogContent({
                           key={amount}
                           type="button"
                           variant="outline"
-                          className="h-9 min-w-0 px-2 font-black tabular-nums min-[430px]:h-10 sm:h-11 lg:h-12"
+                          className="h-11 min-w-0 px-2 font-black tabular-nums lg:h-12"
                           onPointerDown={(event) => event.preventDefault()}
                           onClick={() => {
                             const value = formatCurrencyInput(
@@ -707,7 +722,7 @@ export function PaymentDialogContent({
             </section>
 
             <aside
-              className="min-h-0 border-t border-border bg-background p-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] sm:p-3 md:col-span-2 md:pb-3 lg:col-span-1 lg:border-l lg:border-t-0 lg:p-4"
+              className="min-h-0 border-t border-border bg-background p-2 pb-[calc(0.5rem+var(--pos-system-bottom-safe-area))] sm:p-3 sm:pb-[calc(0.75rem+var(--pos-system-bottom-safe-area))] md:col-span-2 lg:col-span-1 lg:border-l lg:border-t-0 lg:p-4 lg:pb-[calc(1rem+var(--pos-system-bottom-safe-area))]"
               data-pos-keypad-ignore="true"
             >
               <div className="grid min-h-0 gap-1.5 md:hidden">
@@ -740,12 +755,12 @@ export function PaymentDialogContent({
                 {validation ? (
                   <p
                     role="alert"
-                    className="min-h-4 truncate text-xs font-semibold leading-none text-destructive"
+                    className="line-clamp-2 min-h-4 text-xs leading-tight font-semibold text-destructive"
                   >
                     {t(validation)}
                   </p>
                 ) : (
-                  <p className="min-h-4 truncate text-xs font-semibold leading-none text-muted-foreground">
+                  <p className="line-clamp-2 min-h-4 text-xs leading-tight font-semibold text-muted-foreground">
                     {selectedTab ? t(selectedTab.labelKey) : t("pos.paymentTitle")}
                   </p>
                 )}
@@ -790,19 +805,6 @@ export function PaymentDialogContent({
 
               <div className="hidden min-h-0 gap-1.5 md:grid md:grid-cols-[minmax(0,1fr)_auto] md:grid-rows-1 md:gap-2 lg:h-full lg:grid-cols-1 lg:grid-rows-[minmax(0,1fr)_auto]">
                 <div className="grid min-h-0 grid-cols-3 gap-1.5 md:gap-2 lg:grid-cols-1 lg:content-start lg:gap-3">
-                  <div className="hidden rounded-lg border border-border bg-muted/30 p-3 lg:grid lg:gap-1">
-                    <p className="truncate text-xs font-semibold text-muted-foreground">
-                      {t("nav.table")}
-                    </p>
-                    <p className="truncate text-base font-black">
-                      {table.table_name}
-                    </p>
-                    {invoice ? (
-                      <p className="truncate text-xs text-muted-foreground">
-                        {t("pos.invoice")}: {invoice}
-                      </p>
-                    ) : null}
-                  </div>
                   <PaymentStat
                     label={t("pos.amountDue")}
                     value={money(totalAmount)}
@@ -921,7 +923,7 @@ export function PaymentDialogContent({
               {processing ? (
                 <Spinner data-icon="inline-start" />
               ) : (
-                <Printer data-icon="inline-start" />
+                <ReceiptText data-icon="inline-start" />
               )}
               {t("pos.confirmPayment")}
             </AlertDialogAction>

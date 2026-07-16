@@ -20,7 +20,7 @@ Copy `.env.example` to `.env.local` and adjust values when needed.
 ```env
 NEXT_PUBLIC_BASE_URL=https://api.yummy-go.com
 NEXT_PUBLIC_PRINTER_AGENT_URL=http://127.0.0.1:7777
-NEXT_PUBLIC_PRINTER_AGENT_SECRET=edsRpZ94w15vQS0zJR1gD1uuzQjB50KFcZJloqsJh8h
+NEXT_PUBLIC_PRINTER_AGENT_SECRET=your-printer-agent-secret
 ```
 
 ## Scripts

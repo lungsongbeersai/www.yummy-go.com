@@ -51,7 +51,11 @@ describe("pos requests", () => {
           products: [
             product("prod-3", 3),
             product("prod-unsorted"),
-            product("prod-1", 1),
+            {
+              ...product("prod-1", 1),
+              min_price: "10000",
+              max_price: 15000,
+            },
             product("prod-2", "2")
           ]
         }
@@ -81,6 +85,11 @@ describe("pos requests", () => {
       "special-1",
       "special-2"
     ]);
+    expect(result.data[0]?.products[0]).toMatchObject({
+      prod_uuid: "prod-1",
+      min_price: "10000",
+      max_price: 15000,
+    });
   });
 
   it("posts the invoice print body expected by the API", async () => {

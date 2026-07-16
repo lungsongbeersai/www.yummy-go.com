@@ -41,6 +41,7 @@ import type {
   PublicAddToCartPayload,
   PublicDisplayProduct,
   PublicProductLayoutMode,
+  PublicSelectedTopping,
   RectSnapshot,
   ScrollJumpEdge,
 } from "@/features/public-pos/order/types";
@@ -803,7 +804,7 @@ export function buildPublicOrderInput({
   table: QRScanResponse;
   detail: ProdDetail;
   qty: number;
-  toppings: ProdTopping[];
+  toppings: PublicSelectedTopping[];
   note: string;
   lang: string;
 }): CustomerCreateOrderInput {
@@ -822,13 +823,42 @@ export function buildPublicOrderInput({
         order_it_qty: qty,
         order_it_note: note || "",
         order_it_status: 0,
-        toppings: toppings.map((topping) => ({
-          prod_topping_uuid_fk: topping.prod_topping_uuid,
-          topping_qty: 1,
+        toppings: toppings.map((selected) => ({
+          prod_topping_uuid_fk: selected.topping.prod_topping_uuid,
+          topping_qty: selected.qty,
         })),
       },
     ],
   };
+}
+
+export function changePublicToppingQty(
+  current: Record<string, number>,
+  toppingUuid: string,
+  qty: number,
+) {
+  const normalizedQty = Number.isFinite(qty) ? Math.floor(qty) : 0;
+  if (normalizedQty < 1) {
+    const next = { ...current };
+    delete next[toppingUuid];
+    return next;
+  }
+
+  return {
+    ...current,
+    [toppingUuid]: Math.min(MAX_OPEN_QTY, normalizedQty),
+  };
+}
+
+export function togglePublicToppingQty(
+  current: Record<string, number>,
+  toppingUuid: string,
+) {
+  return changePublicToppingQty(
+    current,
+    toppingUuid,
+    current[toppingUuid] ? 0 : 1,
+  );
 }
 
 export type DirectAddListResult =
@@ -896,10 +926,19 @@ export function findExistingCartItem(
 ) {
   const detailUuid = payload.detail.pro_detail_uuid;
   const toppingIds = payload.toppings
-    .map((topping) => topping.prod_topping_uuid)
+    .map((selected) =>
+      selected.topping.prod_topping_uuid
+        ? `${selected.topping.prod_topping_uuid}:${selected.qty}`
+        : "",
+    )
+    .filter(Boolean)
     .sort();
   const toppingNames = payload.toppings
-    .map((topping) => topping.topping_name ?? "")
+    .map((selected) =>
+      selected.topping.topping_name
+        ? `${selected.topping.topping_name}:${selected.qty}`
+        : "",
+    )
     .filter(Boolean)
     .sort();
 
@@ -923,15 +962,21 @@ export function findExistingCartItem(
       if (!matchesProduct) continue;
 
       const existingIds = (item.toppings ?? [])
-        .map((topping) =>
-          String(
+        .map((topping) => {
+          const uuid = String(
             topping.prod_topping_uuid_fk ?? topping.prod_topping_uuid ?? "",
-          ),
-        )
+          );
+          const qty = Math.max(1, numeric(topping.topping_qty));
+          return uuid ? `${uuid}:${qty}` : "";
+        })
         .filter(Boolean)
         .sort();
       const existingNames = (item.toppings ?? [])
-        .map((topping) => topping.topping_name ?? "")
+        .map((topping) => {
+          const name = topping.topping_name ?? "";
+          const qty = Math.max(1, numeric(topping.topping_qty));
+          return name ? `${name}:${qty}` : "";
+        })
         .filter(Boolean)
         .sort();
       const idsMatch =

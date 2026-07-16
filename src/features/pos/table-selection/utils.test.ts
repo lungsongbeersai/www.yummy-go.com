@@ -7,11 +7,13 @@ import {
   canPayFullBill,
   cartDisplaySummary,
   cartForTable,
+  cartItemBaseUnitPrice,
   cartItemsQty,
   cartOrderBelongsToTable,
   cartOrdersBelongToTable,
   cartQuantityCount,
   cartSummary,
+  cartToppingDisplay,
   discountDraftValue,
   discountDraftWithType,
   isCanceledCartItem,
@@ -79,6 +81,20 @@ const table: PosTable = {
 };
 
 describe("table selection utils", () => {
+  it("keeps the cart unit price separate from topping totals", () => {
+    expect(
+      cartItemBaseUnitPrice({
+        detail: {
+          order_it_qty: 1,
+          unit_price: 86000,
+          base_line_total: 45000,
+          topping_line_total: 41000,
+          gross_total: 86000,
+        },
+      }),
+    ).toBe(45000);
+  });
+
   it("formats bill discount and validates discount drafts", () => {
     expect(billDiscountButtonValue(cartOrder())).toBe("10%");
     expect(
@@ -385,6 +401,20 @@ describe("table selection utils", () => {
 
     expect(unchanged).toBe(current);
     expect([...pruned]).toEqual(["item-1"]);
+  });
+
+  it("shows topping qty and total as returned by the backend", () => {
+    expect(
+      cartToppingDisplay({
+        topping_name: "Egg",
+        topping_qty: 10,
+        topping_price: 5000,
+        topping_line_total: 50000,
+      }),
+    ).toEqual({ qty: 10, total: 50000 });
+    expect(
+      cartToppingDisplay({ topping_name: "Egg", topping_price: 5000 }),
+    ).toEqual({ qty: null, total: 5000 });
   });
 
   it("builds customer display payload", () => {
