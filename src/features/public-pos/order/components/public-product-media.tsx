@@ -36,7 +36,7 @@ export function ProductMedia({
         ? "aspect-square"
         : variant === "listThumb"
           ? "h-full"
-        : "aspect-[1.05/1]";
+          : "aspect-[4/3]";
   const imageSizes =
     variant === "sheetThumb" || variant === "listThumb"
       ? "96px"
@@ -60,7 +60,7 @@ export function ProductMedia({
           sizes={imageSizes}
           className={cn(
             variant === "listThumb" ? "object-contain p-1.5" : "object-cover",
-            blockedState ? "opacity-65 saturate-[0.55]" : "",
+            blockedState ? "saturate-[0.65]" : "",
           )}
         />
         <ProductMediaStateOverlay
@@ -81,12 +81,12 @@ export function ProductMedia({
         )}
         style={{ backgroundColor: colorSwatch }}
       >
-        <Utensils
-          className={cn(
-            "size-9 text-background/85 drop-shadow",
-            blockedState ? "opacity-60 saturate-[0.55]" : "",
-          )}
-        />
+        <span className="grid size-14 place-items-center rounded-full bg-black/15 text-white shadow-sm backdrop-blur-sm">
+          <Utensils
+            className={cn("size-7", blockedState ? "opacity-75" : "")}
+            aria-hidden="true"
+          />
+        </span>
         <ProductMediaStateOverlay
           blockedState={blockedState}
           label={blockedLabel}
@@ -98,11 +98,16 @@ export function ProductMedia({
   return (
     <div
       className={cn(
-        "relative grid w-full place-items-center overflow-hidden bg-emerald-50 text-muted-foreground dark:bg-muted",
+        "relative grid w-full place-items-center overflow-hidden bg-linear-to-br from-emerald-50 to-slate-100 text-muted-foreground dark:from-emerald-950/35 dark:to-muted",
         mediaClass,
       )}
     >
-      <ImageIcon className={cn("size-9", blockedState ? "opacity-60" : "")} />
+      <span className="grid size-14 place-items-center rounded-full bg-background/75 shadow-sm backdrop-blur-sm dark:bg-background/55">
+        <ImageIcon
+          className={cn("size-7", blockedState ? "opacity-75" : "")}
+          aria-hidden="true"
+        />
+      </span>
       <ProductMediaStateOverlay
         blockedState={blockedState}
         label={blockedLabel}
@@ -121,17 +126,20 @@ function ProductMediaStateOverlay({
   if (!blockedState || !label) return null;
 
   return (
-    <div className="pointer-events-none absolute inset-0">
-      <div className="absolute inset-0 bg-white/35 dark:bg-black/35" />
+    <div
+      className="pointer-events-none absolute inset-0"
+      aria-hidden="true"
+    >
+      <div className="absolute inset-0 bg-white/20 dark:bg-black/25" />
       <Badge
         className={cn(
-          "absolute left-2 top-2 h-6 max-w-[calc(100%-1rem)] gap-1 rounded-full px-2 py-0 text-[10px] font-black leading-none shadow-sm backdrop-blur-sm",
+          "absolute left-2 top-2 h-6 max-w-[calc(100%-1rem)] gap-1 rounded-full px-2 py-0 text-[11px] font-black leading-none shadow-sm backdrop-blur-sm",
           blockedState === "promotion-ended"
             ? "border-amber-300 bg-amber-50/95 text-amber-800 dark:border-amber-500/50 dark:bg-amber-950/85 dark:text-amber-100"
             : "border-destructive/35 bg-destructive/10 text-destructive dark:bg-destructive/20",
         )}
       >
-        <AlertCircle className="size-3 shrink-0" />
+        <AlertCircle className="size-3 shrink-0" aria-hidden="true" />
         <span className="truncate">{label}</span>
       </Badge>
     </div>

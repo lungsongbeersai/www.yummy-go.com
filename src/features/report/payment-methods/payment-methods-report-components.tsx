@@ -658,11 +658,6 @@ const PAYMENT_METHOD_TABLE_FIELDS = [
     minWidth: "min-w-[132px]",
     summaryKey: "grand_total",
   },
-  {
-    field: "paymentAmount",
-    minWidth: "min-w-[142px]",
-    summaryKey: "payment_total",
-  },
 ] as const satisfies readonly PaymentMethodTableField[];
 
 type PaymentMetricByField = Partial<
@@ -815,7 +810,7 @@ export function PaymentMethodsMobileList({
   ) as PaymentMetricByField;
   const totalPaymentAmount = paymentTotalAmount(reportTotal, rows);
   const detailFields = PAYMENT_METHOD_TABLE_FIELDS.filter(
-    ({ field }) => field !== "billCount" && field !== "paymentAmount",
+    ({ field }) => field !== "billCount" && field !== "grandTotal",
   );
 
   return (
@@ -846,15 +841,15 @@ export function PaymentMethodsMobileList({
             </div>
             <div className="shrink-0 text-right">
               <p className="text-[11px] font-bold text-muted-foreground">
-                {t("report.paymentMethodsReport.columns.paymentAmount")}
+                {t("report.paymentMethodsReport.columns.grandTotal")}
               </p>
               <p
                 className={cn(
                   "text-base tabular-nums",
-                  metricValueClass("paymentAmount", row.paymentAmount),
+                  metricValueClass("grandTotal", row.grandTotal),
                 )}
               >
-                {displayMetric(row.paymentAmount, "money")}
+                {displayMetric(row.grandTotal, "money")}
               </p>
             </div>
           </div>
@@ -1062,14 +1057,14 @@ function PaymentMethodsLoadingSkeleton() {
         ))}
       </div>
       <div className="hidden overflow-hidden rounded-md border border-border md:block">
-        <div className="grid min-w-[1180px] grid-cols-[12rem_repeat(13,minmax(7rem,1fr))] gap-3 border-b border-border bg-muted/30 px-3 py-3">
-          {Array.from({ length: 14 }).map((_, index) => (
+        <div className="grid min-w-[1180px] grid-cols-[12rem_repeat(10,minmax(7rem,1fr))] gap-3 border-b border-border bg-muted/30 px-3 py-3">
+          {Array.from({ length: 11 }).map((_, index) => (
             <Skeleton key={index} className="h-4" />
           ))}
         </div>
         {Array.from({ length: 7 }).map((_, rowIndex) => (
-          <div key={rowIndex} className="grid min-w-[1180px] grid-cols-[12rem_repeat(13,minmax(7rem,1fr))] gap-3 border-b border-border/70 px-3 py-3 last:border-b-0">
-            {Array.from({ length: 14 }).map((__, cellIndex) => (
+          <div key={rowIndex} className="grid min-w-[1180px] grid-cols-[12rem_repeat(10,minmax(7rem,1fr))] gap-3 border-b border-border/70 px-3 py-3 last:border-b-0">
+            {Array.from({ length: 11 }).map((__, cellIndex) => (
               <Skeleton key={cellIndex} className="h-5" />
             ))}
           </div>

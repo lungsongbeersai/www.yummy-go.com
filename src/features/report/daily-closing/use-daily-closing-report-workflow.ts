@@ -116,7 +116,6 @@ export function useDailyClosingReportWorkflow() {
       cash: t("report.dailyClosing.cash"),
       cashier: t("cancelSale.cashier"),
       credit: t("report.dailyClosing.credit"),
-      difference: t("report.dailyClosing.difference"),
       discount: t("report.dailyClosing.discountAmount"),
       employeeSignature: t("report.dailyClosing.employeeSignature"),
       grandTotal: t("report.dailyClosing.grandTotal"),

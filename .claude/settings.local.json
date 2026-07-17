@@ -13,5 +13,10 @@
       "Read(//c/Users/silav/.claude/skills/**)",
       "Read(//c/Users/silav/.claude/plugins/**)"
     ]
+  },
+  "enabledPlugins": {
+    "superpowers@superpowers-dev": true,
+    "context7@claude-plugins-official": true,
+    "playwright@claude-plugins-official": true
   }
 }

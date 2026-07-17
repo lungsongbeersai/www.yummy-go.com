@@ -54,8 +54,8 @@ export function ReportSignatures() {
         width: "100%",
       }}
     >
-      <ReportSignature align="left" label={t("report.signatures.shopOwner")} />
-      <ReportSignature align="right" label={t("report.signatures.reportPreparer")} />
+      <ReportSignature align="left" label={t("report.signatures.reportPreparer")} />
+      <ReportSignature align="right" label={t("report.signatures.shopOwner")} />
     </div>
   );
 }

@@ -13,8 +13,6 @@ const eslintConfig = [
   {
     ignores: [
       ".next/**",
-      ".netlify/**",
-      ".open-next/**",
       "android/app/build/**",
       "dist/**",
       "dist-electron/**",

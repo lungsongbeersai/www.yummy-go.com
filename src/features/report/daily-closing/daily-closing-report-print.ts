@@ -19,7 +19,6 @@ export interface DailyClosingPrintLabels {
   cash: string;
   cashier: string;
   credit: string;
-  difference: string;
   discount: string;
   employeeSignature: string;
   grandTotal: string;
@@ -113,7 +112,10 @@ export function renderDailyClosingReceiptBody(data: DailyClosingPrintData) {
             .filter((topping) => topping.name)
             .map((topping) => {
               const quantity = topping.qty > 0 ? ` × ${formatNumber(topping.qty)}` : "";
-              return `<span class="product-topping">+ ${escapeHtml(topping.name)}${quantity}</span>`;
+              const price = topping.price === null ? "" : ` · ${money(topping.price)}`;
+              return `<span class="product-topping">+ ${escapeHtml(
+                topping.name,
+              )}${quantity}${escapeHtml(price)}</span>`;
             })
             .join("");
 
@@ -159,31 +161,62 @@ export function renderDailyClosingReceiptBody(data: DailyClosingPrintData) {
     ${groups || `<p style="text-align:center">${escapeHtml(labels.noData)}</p>`}
     <div class="divider"></div>
     <section>
-      <div class="total-row strong"><span>${escapeHtml(dailyClosingLabel(apiLabels.totalQty, labels.totalQuantity))}</span><span>${escapeHtml(formatNumber(report.summary.totalQty))}</span></div>
+      <div class="total-row strong"><span>${escapeHtml(
+        dailyClosingLabel(apiLabels.totalQty, labels.totalQuantity),
+      )}</span><span>${escapeHtml(formatNumber(report.summary.totalQty))}</span></div>
       ${totalRow(totalAmountLabel, report.summary.totalAmount)}
       ${totalRow(discountLabel, -report.summary.discountAmount)}
-      ${totalRow(dailyClosingLabel(apiLabels.serviceCharge, labels.serviceCharge), report.summary.serviceCharge)}
+      ${totalRow(
+        dailyClosingLabel(apiLabels.serviceCharge, labels.serviceCharge),
+        report.summary.serviceCharge,
+      )}
       ${totalRow(dailyClosingLabel(apiLabels.vat, labels.vat), report.summary.vat)}
-      ${totalRow(dailyClosingLabel(apiLabels.grandTotal, labels.grandTotal), report.summary.grandTotal, "grand-total")}
+      ${totalRow(
+        dailyClosingLabel(apiLabels.grandTotal, labels.grandTotal),
+        report.summary.grandTotal,
+        "grand-total",
+      )}
     </section>
     <div class="divider"></div>
     <section>
       <h2 class="section-title">${escapeHtml(labels.revenueSummary)}</h2>
-      ${numberedTotalRow(1, dailyClosingLabel(apiLabels.cash, labels.cash), report.paymentSummary.cash)}
-      ${numberedTotalRow(2, dailyClosingLabel(apiLabels.transfer, labels.transfer), report.paymentSummary.transfer)}
-      ${numberedTotalRow(3, dailyClosingLabel(apiLabels.credit, labels.credit), report.paymentSummary.credit)}
-      ${numberedTotalRow(4, dailyClosingLabel(apiLabels.paymentTotal, labels.paymentTotal), report.paymentSummary.paymentTotal, "strong")}
-      ${numberedTotalRow(5, labels.difference, report.paymentSummary.paymentTotal - report.summary.grandTotal)}
-      ${numberedTotalRow(6, `${dailyClosingLabel(apiLabels.cancelBill, labels.cancelledBills)} (${formatNumber(report.cancelSummary.billCount)})`, report.cancelSummary.totalAmount)}
+      ${numberedTotalRow(
+        1,
+        dailyClosingLabel(apiLabels.cash, labels.cash),
+        report.paymentSummary.cash,
+      )}
+      ${numberedTotalRow(
+        2,
+        dailyClosingLabel(apiLabels.transfer, labels.transfer),
+        report.paymentSummary.transfer,
+      )}
+      ${numberedTotalRow(
+        3,
+        dailyClosingLabel(apiLabels.credit, labels.credit),
+        report.paymentSummary.credit,
+      )}
+      ${numberedTotalRow(
+        4,
+        dailyClosingLabel(apiLabels.paymentTotal, labels.paymentTotal),
+        report.paymentSummary.paymentTotal,
+        "strong",
+      )}
+      ${numberedTotalRow(
+        5,
+        `${dailyClosingLabel(apiLabels.cancelBill, labels.cancelledBills)} (${formatNumber(
+          report.cancelSummary.billCount,
+        )})`,
+        report.cancelSummary.totalAmount,
+      )}
     </section>
     <footer class="signatures">
-      <div class="signature store-manager-signature">
-        <div class="signature-line"></div>
-        <p>${escapeHtml(labels.storeManagerSignature)}</p>
-      </div>
       <div class="signature employee-signature">
         <div class="signature-line"></div>
         <p>${escapeHtml(labels.employeeSignature)}</p>
+      </div>
+      <div class="signature store-manager-signature">
+        <div class="signature-line"></div>
+        <p>${escapeHtml(labels.storeManagerSignature)}</p>
       </div>
     </footer>`;
 }

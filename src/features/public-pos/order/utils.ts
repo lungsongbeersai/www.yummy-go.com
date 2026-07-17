@@ -382,6 +382,53 @@ export function formatProductPrice(product: CateProductItem, lang: string) {
   return formatMoney(price, lang);
 }
 
+function positivePrice(value: unknown) {
+  const price = Number(value);
+  return Number.isFinite(price) && price > 0 ? price : null;
+}
+
+function hasPriceValue(value: unknown) {
+  return (
+    value !== null &&
+    value !== undefined &&
+    (typeof value !== "string" || value.trim() !== "")
+  );
+}
+
+export function publicProductCardPrice(
+  product: CateProductItem,
+):
+  | { kind: "exact" | "starting"; value: number }
+  | { kind: "variable"; value: null } {
+  if (Number(product.count_option_enabled ?? 0) > 1) {
+    const minPrice = positivePrice(product.min_price);
+    if (minPrice === null) return { kind: "variable", value: null };
+
+    if (!hasPriceValue(product.max_price)) {
+      return { kind: "starting", value: minPrice };
+    }
+
+    const maxPrice = positivePrice(product.max_price);
+    if (maxPrice === null || maxPrice < minPrice) {
+      return { kind: "variable", value: null };
+    }
+
+    return maxPrice === minPrice
+      ? { kind: "exact", value: minPrice }
+      : { kind: "starting", value: minPrice };
+  }
+
+  const exactPrice =
+    positivePrice(product.pro_detail_sprice) ??
+    positivePrice(product.prod_price);
+  if (exactPrice !== null) return { kind: "exact", value: exactPrice };
+
+  const minPrice = positivePrice(product.min_price);
+  return minPrice === null
+    ? { kind: "variable", value: null }
+    : { kind: "exact", value: minPrice };
+}
+
 export function formatMoney(price: number, lang: string) {
   if (!Number.isFinite(price) || price <= 0) return "0 LAK";
 
@@ -392,6 +439,32 @@ export function formatMoney(price: number, lang: string) {
 export function numeric(value: unknown) {
   const number = Number(value ?? 0);
   return Number.isFinite(number) ? number : 0;
+}
+
+export function getPublicOrderPriceTotals({
+  basePrice,
+  productQty,
+  toppings,
+}: {
+  basePrice: number;
+  productQty: number;
+  toppings: PublicSelectedTopping[];
+}) {
+  const normalizedProductQty = numeric(productQty);
+  const productSubtotal = numeric(basePrice) * normalizedProductQty;
+  const toppingUnitTotal = toppings.reduce(
+    (sum, selected) =>
+      sum + numeric(selected.topping.topping_price) * numeric(selected.qty),
+    0,
+  );
+  // topping_qty is per product; only its price is extended by the product quantity.
+  const toppingTotal = toppingUnitTotal * normalizedProductQty;
+
+  return {
+    productSubtotal,
+    toppingTotal,
+    total: productSubtotal + toppingTotal,
+  };
 }
 
 export function isHexColor(value?: string) {
@@ -853,11 +926,12 @@ export function changePublicToppingQty(
 export function togglePublicToppingQty(
   current: Record<string, number>,
   toppingUuid: string,
+  rememberedQty = 1,
 ) {
   return changePublicToppingQty(
     current,
     toppingUuid,
-    current[toppingUuid] ? 0 : 1,
+    current[toppingUuid] ? 0 : rememberedQty,
   );
 }
 

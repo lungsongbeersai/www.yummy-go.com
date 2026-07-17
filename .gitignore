@@ -10,9 +10,6 @@ release
 next-env.d.ts
 
 .vercel
-.open-next
-.wrangler
-cloudflare-env.d.ts
 
 # Local Netlify folder
 .netlify

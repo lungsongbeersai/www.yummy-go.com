@@ -52,7 +52,7 @@ Act as a senior product engineer and technical peer, not a code generator that a
 
 Tests are colocated `.test.ts` files (node environment, globals enabled). They cover pure logic only — services, store helpers, validators — not components.
 
-Deploy targets (rarely needed locally): `cf:deploy` (Cloudflare Workers via OpenNext/wrangler), `build:pages` (GitHub Pages static export with basePath `/New-Yummy-go.com`), Netlify (`netlify.toml`), `electron:pack` (Windows NSIS installer).
+Deploy: pushing to `main` triggers `.github/workflows/deploy-static.yml`, which rsyncs the repo to the production VPS, builds there, and restarts the `yummy-go-fe.service` systemd unit (serves https://yummy-go.com behind Cloudflare DNS proxy). `electron:pack` builds the Windows NSIS installer locally.
 
 ## Architecture
 

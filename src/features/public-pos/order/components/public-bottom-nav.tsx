@@ -29,8 +29,8 @@ export function BottomNav({
   const staffComingSoon = t("pos.comingSoon");
 
   return (
-    <nav className="pointer-events-none fixed inset-x-0 bottom-0 z-30 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:px-4">
-      <div className="pointer-events-auto mx-auto max-w-5xl rounded-3xl border border-emerald-100 bg-background/95 p-1.5 shadow-[0_-8px_28px_rgba(15,23,42,0.10)] backdrop-blur-xl dark:border-border dark:bg-background/95">
+    <nav className="pointer-events-none fixed inset-x-0 bottom-0 z-30 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:px-4 lg:bottom-3 lg:px-0">
+      <div className="pointer-events-auto mx-auto max-w-5xl rounded-3xl border border-emerald-100 bg-background/95 p-1.5 shadow-[0_-8px_28px_rgba(15,23,42,0.10)] backdrop-blur-xl lg:max-w-2xl dark:border-border dark:bg-background/95">
         <div className="grid h-16 grid-cols-4 gap-1">
           <BottomNavButton
             icon={<Utensils />}
@@ -100,7 +100,7 @@ function BottomNavButton({
       variant="ghost"
       size="md"
       className={cn(
-        "relative h-full w-full min-w-0 flex-col gap-1 rounded-2xl px-1 text-[11px] font-bold leading-none transition active:scale-[0.98]",
+        "relative h-full w-full min-w-0 flex-col gap-1 rounded-2xl px-1 text-xs font-bold leading-none transition-[background-color,color,transform,box-shadow] active:scale-[0.98] motion-reduce:transform-none motion-reduce:transition-none",
         active
           ? "bg-primary/10 text-primary shadow-sm shadow-emerald-950/5 hover:bg-primary/15"
           : "text-muted-foreground hover:bg-muted/70 hover:text-foreground",
@@ -114,14 +114,17 @@ function BottomNavButton({
     >
       <span
         className={cn(
-          "relative grid size-8 place-items-center rounded-full text-current transition",
+          "relative grid size-8 place-items-center rounded-full text-current transition-colors motion-reduce:transition-none",
           active
             ? "bg-primary text-primary-foreground shadow-sm shadow-emerald-950/15"
             : "bg-muted/70",
           disabled ? "bg-muted/50" : "",
         )}
       >
-        <span className="[&_svg]:size-[18px] [&_svg]:stroke-[2.1]">
+        <span
+          className="[&_svg]:size-[18px] [&_svg]:stroke-[2.1]"
+          aria-hidden="true"
+        >
           {icon}
         </span>
         {badge && badge > 0 ? (

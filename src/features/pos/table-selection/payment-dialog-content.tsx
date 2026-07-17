@@ -258,17 +258,17 @@ export function PaymentDialogContent({
         }
       >
         <DialogContent
-            aria-busy={processing}
-            showCloseButton={false}
-            className="!left-0 !top-0 grid h-[var(--pos-payment-dialog-height)] max-h-[var(--pos-payment-dialog-height)] w-full max-w-[100vw] !translate-x-0 !translate-y-0 grid-rows-[auto_minmax(0,1fr)] gap-0 overflow-hidden rounded-none border-0 bg-background p-0 sm:!left-[50%] sm:!top-[50%] sm:h-[calc(100dvh-1rem)] sm:max-h-[calc(100dvh-1rem)] sm:max-w-[calc(100vw-1rem)] sm:!translate-x-[-50%] sm:!translate-y-[-50%] sm:rounded-lg sm:border xl:max-w-7xl"
-            style={dialogStyle}
-            onKeyDown={handleDialogKeyDown}
+          aria-busy={processing}
+          showCloseButton={false}
+          className="!left-0 !top-0 grid h-[var(--pos-payment-dialog-height)] max-h-[var(--pos-payment-dialog-height)] w-full max-w-[100vw] !translate-x-0 !translate-y-0 grid-rows-[auto_minmax(0,1fr)] gap-0 overflow-hidden rounded-none border-0 bg-background p-0 sm:!left-[50%] sm:!top-[50%] sm:h-[calc(100dvh-1rem)] sm:max-h-[calc(100dvh-1rem)] sm:max-w-[calc(100vw-1rem)] sm:!translate-x-[-50%] sm:!translate-y-[-50%] sm:rounded-lg sm:border xl:max-w-7xl"
+          style={dialogStyle}
+          onKeyDown={handleDialogKeyDown}
         >
           <DialogHeader className="shrink-0 border-b border-border bg-card px-3 pt-[calc(0.375rem+env(safe-area-inset-top,0px))] pb-1.5 text-left sm:px-4 sm:py-3">
             <div className="flex min-w-0 items-center justify-between gap-3">
               <div className="min-w-0">
                 <DialogTitle className="flex min-w-0 items-center gap-2 text-base font-black sm:text-xl">
-                  <CreditCard />
+                  <CreditCard aria-hidden="true" />
                   <span className="truncate">
                     {isSplitPayment
                       ? t("pos.splitPayment")
@@ -912,6 +912,35 @@ export function PaymentDialogContent({
               })}
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <dl className="grid gap-2 rounded-lg border border-border bg-muted/35 p-3 text-sm">
+            <div className="flex items-center justify-between gap-3">
+              <dt className="text-muted-foreground">{t("pos.paymentMethod")}</dt>
+              <dd className="text-right font-bold">
+                {selectedTab ? t(selectedTab.labelKey) : t("pos.paymentTitle")}
+              </dd>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <dt className="text-muted-foreground">{t("pos.amountReceived")}</dt>
+              <dd className="text-right font-black tabular-nums">
+                {money(payment.received)}
+              </dd>
+            </div>
+            <div className="flex items-center justify-between gap-3 border-t border-border pt-2">
+              <dt className="font-semibold">
+                {payment.balance > 0
+                  ? t("pos.remainingAmount")
+                  : t("pos.changeAmount")}
+              </dt>
+              <dd
+                className={cn(
+                  "text-right font-black tabular-nums",
+                  payment.balance > 0 ? "text-destructive" : "text-primary",
+                )}
+              >
+                {money(payment.balance > 0 ? payment.balance : payment.change)}
+              </dd>
+            </div>
+          </dl>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={processing}>
               {t("actions.cancel")}

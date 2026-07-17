@@ -10,6 +10,7 @@ import type {
 } from "@/services/pos";
 import {
   cartGroupTitle,
+  getCartItemQty,
   getCartReceiptTotals,
   getOrderGrandTotal,
   isCanceledCartItem,
@@ -30,7 +31,7 @@ export interface CartSheetProps {
   onUpdateQty: (
     orderItemUuid: string,
     changeType: ChangeType,
-    changeQty?: number,
+    changeQty?: number
   ) => void;
   onDeleteItem: (orderItemUuid: string) => void;
   onNoteChange: (note: string) => void;
@@ -71,15 +72,15 @@ export function usePublicCartSheetWorkflow({
   const receipt = cart[0] ?? null;
   const allItems = useMemo(
     () => cart.flatMap((order) => order.items ?? []),
-    [cart],
+    [cart]
   );
   const confirmableItems = useMemo(
     () => allItems.filter((item) => isConfirmableCartItem(item, statusRule)),
-    [allItems, statusRule],
+    [allItems, statusRule]
   );
   const waitingStaffItems = useMemo(
     () => allItems.filter(isWaitingStaffConfirmCartItem),
-    [allItems],
+    [allItems]
   );
   const kitchenItems = useMemo(
     () =>
@@ -88,26 +89,33 @@ export function usePublicCartSheetWorkflow({
           !isConfirmableCartItem(item, statusRule) &&
           !isWaitingStaffConfirmCartItem(item) &&
           !isServedCartItem(item) &&
-          !isCanceledCartItem(item),
+          !isCanceledCartItem(item)
       ),
-    [allItems, statusRule],
+    [allItems, statusRule]
   );
   const servedItems = useMemo(
     () => allItems.filter(isServedCartItem),
-    [allItems],
+    [allItems]
   );
   const canceledItems = useMemo(
     () => allItems.filter(isCanceledCartItem),
-    [allItems],
+    [allItems]
   );
   const total = useMemo(
     () => cart.reduce((sum, order) => sum + getOrderGrandTotal(order), 0),
-    [cart],
+    [cart]
   );
   const totals = useMemo(() => getCartReceiptTotals(cart), [cart]);
-  const invoice = receipt?.order_invoice
-    ? `#${receipt.order_invoice}`
-    : t("pos.basket");
+  const totalItemQty = allItems.reduce(
+    (sum, item) =>
+      sum + (isCanceledCartItem(item) ? 0 : Math.max(0, getCartItemQty(item))),
+    0
+  );
+  const confirmableItemQty = confirmableItems.reduce(
+    (sum, item) => sum + Math.max(0, getCartItemQty(item)),
+    0
+  );
+  const invoice = receipt?.order_invoice ? `#${receipt.order_invoice}` : "";
   const tableName = receipt?.table_name_la || receipt?.table_name_eng || "";
   const groups = useMemo<CartSheetGroup[]>(
     () => [
@@ -120,7 +128,7 @@ export function usePublicCartSheetWorkflow({
         key: "waiting-staff",
         title: cartGroupTitle(
           waitingStaffItems,
-          t("pos.cartStatusWaitingConfirm"),
+          t("pos.cartStatusWaitingConfirm")
         ),
         items: waitingStaffItems,
       },
@@ -147,13 +155,14 @@ export function usePublicCartSheetWorkflow({
       servedItems,
       t,
       waitingStaffItems,
-    ],
+    ]
   );
 
   return {
     allItems,
     cart,
     confirming,
+    confirmableItemQty,
     confirmableItems,
     groups,
     invoice,
@@ -174,6 +183,7 @@ export function usePublicCartSheetWorkflow({
     statusRule,
     tableName,
     total,
+    totalItemQty,
     totals,
   };
 }

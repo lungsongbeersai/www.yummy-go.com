@@ -19,7 +19,6 @@ import {
   WINDOW_OPEN_FONT_CLASS_NAME,
   WINDOW_OPEN_FONT_STYLESHEET_LINK,
   WINDOW_OPEN_PRINT_ON_LOAD_SCRIPT,
-  withWindowOpenFonts,
 } from "@/lib/window-open-fonts";
 import type { CreateTableQRResponse, PosTable } from "@/services/pos";
 import { useAppStore } from "@/stores/app-store";
@@ -138,7 +137,7 @@ export function TableQrDialog({
   function openMenu() {
     if (!targetUrl) return;
     const opened = openWindowOutsideNativeApp(
-      withWindowOpenFonts(targetUrl, window.location.origin, [productionQrOrigin]),
+      targetUrl,
       "_blank",
       "noopener,noreferrer",
     );

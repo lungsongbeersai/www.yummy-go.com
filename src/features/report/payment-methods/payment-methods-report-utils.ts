@@ -26,7 +26,7 @@ const totalMetricDefinitions = [
   { key: "bill_count", kind: "number", labelKey: "report.paymentMethodsReport.columns.billsCount" },
   { key: "item_count", kind: "number", labelKey: "report.paymentMethodsReport.columns.itemsCount" },
   { key: "total_qty", kind: "number", labelKey: "report.paymentMethodsReport.columns.qtyTotal" },
-  { key: "product_price_total", kind: "money", labelKey: "report.categorySales.columns.productPriceTotal" },
+  { key: "product_price_total", kind: "money", labelKey: "report.paymentMethodsReport.columns.productPriceTotal" },
   { key: "topping_total", kind: "money", labelKey: "report.paymentMethodsReport.columns.toppingTotal" },
   { key: "total", kind: "money", labelKey: "report.paymentMethodsReport.columns.total" },
   { key: "discount_item_amount", kind: "money", labelKey: "report.paymentMethodsReport.columns.itemDiscount" },
@@ -36,14 +36,14 @@ const totalMetricDefinitions = [
   { key: "after_discount_bill", kind: "money", labelKey: "report.categorySales.columns.afterDiscountBill" },
   { key: "sum_servicecharge", kind: "money", labelKey: "report.paymentMethodsReport.columns.serviceCharge" },
   { key: "sum_vate", kind: "money", labelKey: "report.paymentMethodsReport.columns.vat" },
-  { key: "grand_total", kind: "money", labelKey: "report.categorySales.columns.grandTotal" },
+  { key: "grand_total", kind: "money", labelKey: "report.paymentMethodsReport.columns.grandTotal" },
   { key: "payment_total", kind: "money", labelKey: "report.paymentMethodsReport.columns.paymentAmount" },
   { key: "difference", kind: "money", labelKey: "report.paymentMethodsReport.columns.difference" }
 ] as const satisfies readonly TotalMetricDefinition[];
 
 const rowMetricDefinitions = [
   { field: "billCount", key: "bill_count", kind: "number", labelKey: "report.paymentMethodsReport.columns.billsCount" },
-  { field: "productPriceTotal", key: "product_price_total", kind: "money", labelKey: "report.categorySales.columns.productPriceTotal" },
+  { field: "productPriceTotal", key: "product_price_total", kind: "money", labelKey: "report.paymentMethodsReport.columns.productPriceTotal" },
   { field: "toppingTotal", key: "topping_total", kind: "money", labelKey: "report.paymentMethodsReport.columns.toppingTotal" },
   { field: "total", key: "total", kind: "money", labelKey: "report.paymentMethodsReport.columns.total" },
   { field: "discountItemAmount", key: "discount_item_amount", kind: "money", labelKey: "report.paymentMethodsReport.columns.itemDiscount" },
@@ -53,8 +53,7 @@ const rowMetricDefinitions = [
   { field: "afterDiscountBill", key: "after_discount_bill", kind: "money", labelKey: "report.categorySales.columns.afterDiscountBill" },
   { field: "serviceCharge", key: "service_charge", kind: "money", labelKey: "report.paymentMethodsReport.columns.serviceCharge" },
   { field: "vat", key: "vat", kind: "money", labelKey: "report.paymentMethodsReport.columns.vat" },
-  { field: "grandTotal", key: "grand_total", kind: "money", labelKey: "report.categorySales.columns.grandTotal" },
-  { field: "paymentAmount", key: "payment_amount", kind: "money", labelKey: "report.paymentMethodsReport.columns.paymentAmount" }
+  { field: "grandTotal", key: "grand_total", kind: "money", labelKey: "report.paymentMethodsReport.columns.grandTotal" }
 ] as const satisfies readonly RowMetricDefinition[];
 
 function isPresent(value: unknown) {
@@ -127,7 +126,7 @@ export function paymentMethodRowMetrics(row: PaymentMethodReportRow, t: (key: st
 }
 
 // คอลัมน์ที่แสดงบนหน้าจอเท่านั้น ไม่ใส่ในไฟล์ Excel/PDF export
-const EXPORT_EXCLUDED_METRIC_KEYS = ["bill_count", "bill_total", "payment_amount"];
+const EXPORT_EXCLUDED_METRIC_KEYS = ["bill_count", "bill_total"];
 
 export function paymentMethodExportMetricConfigs(
   t: (key: string) => string

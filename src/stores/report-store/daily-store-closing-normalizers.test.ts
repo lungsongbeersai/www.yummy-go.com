@@ -41,7 +41,13 @@ describe("normalizeDailyStoreClosingReportResponse", () => {
               total_qty: "2",
               discount_amount: "500",
               total_amount: "9500",
-              toppings: [{ topping_name: "Pearls", topping_qty: "2" }],
+              toppings: [
+                {
+                  topping_name: "Pearls",
+                  topping_price: "2500",
+                  topping_qty: "2",
+                },
+              ],
             },
           ],
         },
@@ -86,6 +92,7 @@ describe("normalizeDailyStoreClosingReportResponse", () => {
     });
     expect(report.groups[0].items[0].toppings[0]).toMatchObject({
       name: "Pearls",
+      price: 2500,
       qty: 2,
     });
     expect(report.summary).toEqual({

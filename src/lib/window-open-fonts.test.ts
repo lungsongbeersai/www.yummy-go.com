@@ -3,11 +3,9 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   WINDOW_OPEN_FONT_CLASS_NAME,
-  WINDOW_OPEN_FONT_QUERY_PARAM,
   WINDOW_OPEN_FONT_STYLESHEET_HREF,
   WINDOW_OPEN_FONT_STYLESHEET_LINK,
   WINDOW_OPEN_PRINT_ON_LOAD_SCRIPT,
-  withWindowOpenFonts,
 } from "./window-open-fonts";
 
 const fontsDirectory = resolve(process.cwd(), "public/fonts");
@@ -31,20 +29,5 @@ describe("window-open fonts", () => {
     expect(WINDOW_OPEN_FONT_STYLESHEET_HREF).toMatch(/\/fonts\/window-open-fonts\.css$/);
     expect(WINDOW_OPEN_FONT_STYLESHEET_LINK).toContain(WINDOW_OPEN_FONT_STYLESHEET_HREF);
     expect(WINDOW_OPEN_PRINT_ON_LOAD_SCRIPT).toContain("document.fonts?.ready");
-  });
-
-  it("marks only supported app URLs for the window-open font mode", () => {
-    const currentOrigin = "http://localhost:3000";
-    const productionOrigin = "https://yummy-go.com";
-
-    expect(withWindowOpenFonts("/pos?t=one", currentOrigin)).toBe(
-      `${currentOrigin}/pos?t=one&${WINDOW_OPEN_FONT_QUERY_PARAM}=1`,
-    );
-    expect(withWindowOpenFonts(`${productionOrigin}/q/two`, currentOrigin, [productionOrigin])).toBe(
-      `${productionOrigin}/q/two?${WINDOW_OPEN_FONT_QUERY_PARAM}=1`,
-    );
-    expect(withWindowOpenFonts("https://external.example/pos", currentOrigin, [productionOrigin])).toBe(
-      "https://external.example/pos",
-    );
   });
 });

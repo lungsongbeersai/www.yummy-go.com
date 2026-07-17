@@ -3,6 +3,7 @@ import {
   WINDOW_OPEN_FONT_CLASS_NAME,
   WINDOW_OPEN_FONT_STYLESHEET_HREF,
 } from "@/lib/window-open-fonts";
+import { money } from "@/lib/format";
 import type { DailyStoreClosingReport } from "@/stores/report-store";
 import {
   type DailyClosingPrintData,
@@ -21,7 +22,14 @@ function printData(): DailyClosingPrintData {
             discountAmount: 1000,
             key: "item-1",
             productName: "Rice <Large>",
-            toppings: [{ key: "topping-1", name: "Egg & meat", qty: 2 }],
+            toppings: [
+              {
+                key: "topping-1",
+                name: "Egg & meat",
+                price: 5000,
+                qty: 2,
+              },
+            ],
             totalAmount: 59000,
             totalQty: 1,
             unitPrice: 60000,
@@ -50,7 +58,12 @@ function printData(): DailyClosingPrintData {
       transfer: "",
       vat: "",
     },
-    paymentSummary: { cash: 63000, credit: 0, paymentTotal: 64000, transfer: 1000 },
+    paymentSummary: {
+      cash: 63000,
+      credit: 0,
+      paymentTotal: 64000,
+      transfer: 1000,
+    },
     summary: {
       discountAmount: 1000,
       grandTotal: 64000,
@@ -71,7 +84,6 @@ function printData(): DailyClosingPrintData {
       cash: "Cash",
       cashier: "Cashier",
       credit: "Credit",
-      difference: "Difference",
       discount: "Discount",
       employeeSignature: "Employee signature",
       grandTotal: "Grand total",
@@ -114,7 +126,7 @@ describe("daily closing report print", () => {
     expect(html).toContain("Food &amp; Drink");
     expect(html).toContain("Rice &lt;Large&gt;");
     expect(html).not.toContain("Rice <Large>");
-    expect(html).toContain('+ Egg &amp; meat × 2');
+    expect(html).toContain(`+ Egg &amp; meat × 2 · ${money(5000)}`);
     expect(html).not.toContain("Egg & meat");
   });
 
@@ -144,16 +156,16 @@ describe("daily closing report print", () => {
     expect(renderDailyClosingPrintHtml(data)).not.toContain("-0 ₭");
   });
 
-  it("numbers payment methods and places manager and employee signatures left to right", () => {
+  it("omits the difference row and places employee and manager signatures left to right", () => {
     const html = renderDailyClosingPrintHtml(printData());
 
     expect(html).toContain("1. Cash");
     expect(html).toContain("2. Transfer");
     expect(html).toContain("3. Credit");
     expect(html).toContain("4. Payments received");
-    expect(html).toContain("5. Difference");
-    expect(html).toContain("6. Cancelled bills (1)");
-    expect(html.indexOf("store-manager-signature")).toBeLessThan(html.indexOf("employee-signature"));
+    expect(html).not.toContain("Difference");
+    expect(html).toContain("5. Cancelled bills (1)");
+    expect(html.indexOf("employee-signature")).toBeLessThan(html.indexOf("store-manager-signature"));
     expect(html).toContain("Store manager signature");
     expect(html).toContain("Employee signature");
   });

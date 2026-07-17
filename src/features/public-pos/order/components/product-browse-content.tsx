@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Grid2X2, List, Loader2, Search } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
@@ -34,6 +34,7 @@ import {
 } from "./public-menu-sections";
 import { ProductOrderSheet } from "./product-order-sheet";
 import { ScrollJumpControls } from "./scroll-jump-controls";
+import { HorizontalScrollArrows } from "./horizontal-scroll-arrows";
 
 const PublicCategoryIcon = dynamic(
   () =>
@@ -51,11 +52,11 @@ export function ProductBrowseContent({
   const { t } = useTranslation();
   const [productLayoutMode, setProductLayoutMode] =
     useState<PublicProductLayoutMode>("grid");
+  const categoryRailRef = useRef<HTMLDivElement | null>(null);
   const {
     cart,
     cartActions,
     cartFlyAnimations,
-    cartHydrated,
     cartOpen,
     cartQty,
     cartStatusRule,
@@ -184,29 +185,32 @@ export function ProductBrowseContent({
               onValueChange={handleTabChange}
               className="gap-0"
             >
-              <div className="overflow-x-auto pb-1">
-                <TabsList className="h-11 w-max justify-start gap-1 bg-transparent p-0">
-                  {visibleCategoryTabs.map((category) => (
-                    <TabsTrigger
-                      key={category.cate_uuid}
-                      value={category.cate_uuid}
-                      ref={(element) => {
-                        categoryTabRefs.current[category.cate_uuid] = element;
-                      }}
-                      className="h-11 flex-none gap-1.5 rounded-full border border-emerald-100 bg-white px-3 text-xs font-black shadow-none data-[state=active]:border-primary/30 data-[state=active]:bg-emerald-50 data-[state=active]:text-primary dark:border-border dark:bg-background dark:data-[state=active]:bg-primary/10"
-                    >
-                      {jumpingCateUuid === category.cate_uuid ? (
-                        <Loader2 className="size-4 shrink-0 animate-spin" />
-                      ) : (
-                        <PublicCategoryIcon icon={category.cate_icon} />
-                      )}
+              <div className="relative">
+                <div ref={categoryRailRef} className="overflow-x-auto pb-1">
+                  <TabsList className="h-11 w-max justify-start gap-1 bg-transparent p-0">
+                    {visibleCategoryTabs.map((category) => (
+                      <TabsTrigger
+                        key={category.cate_uuid}
+                        value={category.cate_uuid}
+                        ref={(element) => {
+                          categoryTabRefs.current[category.cate_uuid] = element;
+                        }}
+                        className="h-11 flex-none gap-1.5 rounded-full border border-emerald-100 bg-white px-3 text-xs font-black shadow-none data-[state=active]:border-primary/30 data-[state=active]:bg-emerald-50 data-[state=active]:text-primary dark:border-border dark:bg-background dark:data-[state=active]:bg-primary/10"
+                      >
+                        {jumpingCateUuid === category.cate_uuid ? (
+                          <Loader2 className="size-4 shrink-0 animate-spin" />
+                        ) : (
+                          <PublicCategoryIcon icon={category.cate_icon} />
+                        )}
 
-                      <span className="min-w-0 max-w-30 truncate sm:max-w-40">
-                        {category.cate_name}
-                      </span>
-                    </TabsTrigger>
-                  ))}
-                </TabsList>
+                        <span className="min-w-0 max-w-30 truncate sm:max-w-40">
+                          {category.cate_name}
+                        </span>
+                      </TabsTrigger>
+                    ))}
+                  </TabsList>
+                </div>
+                <HorizontalScrollArrows scrollRef={categoryRailRef} />
               </div>
             </Tabs>
           ) : null}
@@ -327,48 +331,44 @@ export function ProductBrowseContent({
         onShare={qr.handleShareQr}
       />
 
-      {cartActions.productSheetOpen || selectedProduct ? (
-        <ProductOrderSheet
-          open={cartActions.productSheetOpen}
-          onOpenChange={cartActions.setProductSheetOpen}
-          product={selectedProduct}
-          statusKind={cartActions.selectedProductStatusKind}
-          cart={cart}
-          lang={lang}
-          loading={loadingItem}
-          saving={saving}
-          onAdd={(payload, sourceRect) => {
-            if (selectedProduct)
-              void cartActions.handleAddToCart(
-                selectedProduct,
-                payload,
-                sourceRect,
-              );
-          }}
-        />
-      ) : null}
+      <ProductOrderSheet
+        open={cartActions.productSheetOpen}
+        onOpenChange={cartActions.setProductSheetOpen}
+        product={selectedProduct}
+        statusKind={cartActions.selectedProductStatusKind}
+        cart={cart}
+        lang={lang}
+        loading={loadingItem}
+        saving={saving}
+        onAdd={(payload, sourceRect) => {
+          if (selectedProduct)
+            void cartActions.handleAddToCart(
+              selectedProduct,
+              payload,
+              sourceRect,
+            );
+        }}
+      />
 
-      {cartOpen || cartHydrated ? (
-        <CartSheet
-          open={cartOpen}
-          onOpenChange={onCartOpenChange}
-          cart={cart}
-          statusRule={cartStatusRule}
-          lang={lang}
-          loading={loadingCart}
-          saving={saving}
-          confirming={confirming}
-          onUpdateQty={cartActions.handleUpdateItemQty}
-          onDeleteItem={cartActions.handleDeleteItem}
-          onNoteChange={cartActions.setNoteDraft}
-          onNoteOpen={cartActions.handleOpenNoteDialog}
-          onNoteOpenChange={cartActions.handleNoteDialogOpenChange}
-          onUpdateNote={cartActions.handleUpdateItemNote}
-          onConfirmKitchen={cartActions.handleConfirmKitchen}
-          noteDraft={cartActions.noteDraft}
-          noteTarget={cartActions.noteTarget}
-        />
-      ) : null}
+      <CartSheet
+        open={cartOpen}
+        onOpenChange={onCartOpenChange}
+        cart={cart}
+        statusRule={cartStatusRule}
+        lang={lang}
+        loading={loadingCart}
+        saving={saving}
+        confirming={confirming}
+        onUpdateQty={cartActions.handleUpdateItemQty}
+        onDeleteItem={cartActions.handleDeleteItem}
+        onNoteChange={cartActions.setNoteDraft}
+        onNoteOpen={cartActions.handleOpenNoteDialog}
+        onNoteOpenChange={cartActions.handleNoteDialogOpenChange}
+        onUpdateNote={cartActions.handleUpdateItemNote}
+        onConfirmKitchen={cartActions.handleConfirmKitchen}
+        noteDraft={cartActions.noteDraft}
+        noteTarget={cartActions.noteTarget}
+      />
     </div>
   );
 }
