@@ -25,11 +25,13 @@ const labels: Record<string, string> = {
   "report.paymentMethodsReport.columns.paymentAmount": "Payment amount",
   "report.paymentMethodsReport.columns.paymentMethod": "Payment method",
   "report.paymentMethodsReport.columns.paymentMethodCode": "Method code",
+  "report.paymentMethodsReport.columns.productPriceTotal": "Product price total",
   "report.paymentMethodsReport.columns.qtyTotal": "Qty",
   "report.paymentMethodsReport.columns.rowsCount": "Rows",
   "report.paymentMethodsReport.columns.serviceCharge": "Service charge",
   "report.paymentMethodsReport.columns.toppingTotal": "Topping total",
   "report.paymentMethodsReport.columns.total": "Total",
+  "report.paymentMethodsReport.columns.grandTotal": "Grand total",
   "report.paymentMethodsReport.columns.vat": "VAT",
   "report.categorySales.columns.afterDiscountBill": "After bill discount",
   "report.categorySales.columns.afterDiscountItem": "After item discount",
@@ -98,8 +100,7 @@ describe("payment method report helpers", () => {
       "after_discount_bill",
       "service_charge",
       "vat",
-      "grand_total",
-      "payment_amount"
+      "grand_total"
     ]);
 
     // ไฟล์ export ตัดคอลัมน์จำนวนบิล/ยอดบิน/ยอดชำระออก

@@ -16,7 +16,7 @@ import { money } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { CartItem } from "@/services/pos";
 import type { CartItemAction, CartTab } from "./types";
-import { cartItemActionUuid, cartItemDisplayName, cartItemMedia, cartItemName, cartItemQty, cartItemStatus, cartItemTotal, cartItemUuid, differentNumber, formatPlainValue, formatPositiveMoneyValue, formatQuantityValue, formatRate, isCanceledCartItem, isServedCartItem, optionalBoolean, optionalNumber, optionalString, positiveNumber, type CartItemMedia } from "./utils";
+import { cartItemActionUuid, cartItemBaseUnitPrice, cartItemDisplayName, cartItemMedia, cartItemName, cartItemQty, cartItemStatus, cartItemTotal, cartItemUuid, cartToppingDisplay, differentNumber, formatPlainValue, formatPositiveMoneyValue, formatQuantityValue, formatRate, isCanceledCartItem, isServedCartItem, optionalBoolean, optionalNumber, optionalString, positiveNumber, type CartItemMedia } from "./utils";
 
 export function CartTabTrigger({
   active,
@@ -195,7 +195,6 @@ function CartItemRow({
   const totalReceiveQty = optionalNumber(detail?.total_receive_qty);
   const saleQty = optionalNumber(detail?.sale_qty);
   const freeQty = positiveNumber(detail?.free_qty);
-  const unitPrice = optionalNumber(detail?.unit_price, item.price, item.prod_price, item.product_price);
   const baseLineTotal = optionalNumber(detail?.base_line_total);
   const toppingLineTotal = positiveNumber(detail?.topping_line_total);
   const grossTotal = optionalNumber(detail?.gross_total);
@@ -211,8 +210,7 @@ function CartItemRow({
   const baseWithToppingTotal = baseLineTotal !== null || toppingLineTotal !== null ? (baseLineTotal ?? 0) + (toppingLineTotal ?? 0) : null;
   const originalTotal = [grossTotal, baseWithToppingTotal, baseLineTotal].find((value) => value !== null && value > total) ?? null;
   const priceQty = orderQty ?? qty;
-  const priceLineTotal = originalTotal ?? grossTotal ?? baseWithToppingTotal ?? baseLineTotal ?? (unitPrice !== null ? unitPrice * priceQty : null) ?? total;
-  const displayUnitPrice = priceQty > 0 && priceLineTotal !== null ? priceLineTotal / priceQty : unitPrice;
+  const displayUnitPrice = cartItemBaseUnitPrice(item);
   const promoBuyQty = positiveNumber(saleQty, promoSaleQty);
   const promoFreeDisplayQty = positiveNumber(freeQty, promoFreeQty);
   const promoReceiveQty = positiveNumber(totalReceiveQty);
@@ -684,15 +682,14 @@ function CartToppingsList({
       ) : null}
       {toppings.map((topping, index) => {
         const name = optionalString(topping.topping_name) ?? "-";
-        const qty = optionalNumber(topping.topping_qty);
-        const lineTotal = positiveNumber(topping.topping_line_total, topping.topping_price);
+        const { qty, total } = cartToppingDisplay(topping);
 
         return (
           <CartDetailRow
             key={`${name}-${index}`}
             className="pl-5"
             tone="topping"
-            right={lineTotal !== null ? `+${money(lineTotal)}` : null}
+            right={total !== null ? `+${money(total)}` : null}
           >
             + {name}{qty !== null ? ` x${formatQuantityValue(qty)}` : ""}
           </CartDetailRow>

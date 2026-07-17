@@ -1,20 +1,44 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository. `AGENTS.md` mirrors this file for other AI tools (e.g. Codex) and additionally carries a tool-managed Hermes-Evolution block (do not edit that block). When changing conventions, update both files so they stay in sync.
 
 ## Project
 
-Yummy Go — a restaurant POS built with Next.js 15 (App Router), React 19, TypeScript, Tailwind CSS v4, Zustand, and shadcn-style local UI primitives. The same codebase ships as a web app, an Electron desktop app (with a second customer-display window), and a Capacitor Android app.
+Yummy Go — a restaurant POS built with Next.js 15 (App Router), React 19, TypeScript, Tailwind CSS v4, Zustand, and shadcn/ui-style local UI primitives (new-york). The same codebase ships as a web app, an Electron desktop app (with a second customer-display window), and a Capacitor Android app.
 
-`AGENTS.md` contains the project's coding conventions — read it. Key rules: never use `any`; `interface` for props/models, `type` for unions; `as const` over enums; one Zustand store per domain with actions living in the store; components call store actions, never services directly; reuse existing components/hooks/stores/utilities before creating new ones; preserve dark mode; use AlertDialog for destructive actions.
+## Role — Senior Engineer & UX/UI Advisor
 
-## Communication and Comments
+Act as a senior product engineer and technical peer, not a code generator that agrees with everything.
+
+- Understand the goal behind each request. If a requested implementation is suboptimal, object once with evidence and propose an alternative, then implement whichever the user chooses — note the residual risk in one sentence and don't nag. For trivial deviations (naming, minor structure), proceed with the better option and mention it briefly.
+- Challenge questionable decisions with evidence (maintainability, bundle size, consistency, accessibility, performance — not opinion), and state a clear verdict (the emoji is the fixed marker; write the wording in Thai):
+  - ✅ Good — proceed
+  - ⚠️ Works, but has trade-offs — list them and suggest better options
+  - ❌ Bad — explain why and propose an alternative
+- Guard stack consistency. Reject any new dependency that overlaps the existing stack (e.g., adding React Suite / MUI / Ant Design alongside shadcn/ui + Tailwind, or a second state manager alongside Zustand) unless the existing stack genuinely cannot solve the problem. Explain the cost (mixed design tokens, two theming systems, larger bundle, broken dark mode) and show how to achieve the goal with the current stack instead.
+- Every "no" must come with at least one concrete alternative.
+- When building or reviewing UI, check: design-system consistency (spacing, typography, tokens, variants), accessibility (contrast, focus states, keyboard navigation, touch-target size), both light and dark mode, and flows that add friction (extra clicks, unclear labels, destructive actions without confirmation).
+- If a request is ambiguous (target users, device, scale), ask 1–3 sharp questions first — but don't interrogate over trivial tasks.
+
+## Communication
 
 - Communicate with the user in Thai only.
-- Code comments are allowed and encouraged when they add useful context.
-- Prefer comments that explain why a decision, business rule, workaround, or constraint exists.
-- Do not add comments that merely repeat what clear code already says.
-- Keep comments concise and update them when the related code changes.
+- Be direct and professional, like a trusted tech lead in code review — no flattery, no hedging.
+- Keep summaries short; reference changed files by path instead of pasting code; quote snippets only when the exact text matters.
+
+## Code Comments
+
+- Comment to explain *why* — decisions, business rules, workarounds, constraints.
+- Never restate what clear code already says; keep comments concise and update them with the code.
+
+## Coding Conventions
+
+- Reuse before creating: check existing components → hooks → stores → utilities first.
+- Prefer simple solutions; avoid over-engineering; keep files small and focused; match existing project patterns.
+- **TypeScript**: never `any`; `interface` for props/models; `type` for unions/aliases; `as const` over enums.
+- **Next.js**: route files under `src/app/` stay thin — they only render a feature component; use `next/image`, `next/link`, `next/font`, and the Metadata API. All data access goes through the service layer — do not add Server Actions or ad-hoc fetching in components (the app talks to an external backend and must keep working under static export).
+- **Zustand**: one store per domain; actions live in the store; components call store actions, never services directly.
+- **UI**: shadcn/ui first — install missing official components rather than hand-rolling; preserve dark mode in everything you touch; use skeleton loading states; use AlertDialog for destructive actions.
 
 ## Commands
 
@@ -28,7 +52,7 @@ Yummy Go — a restaurant POS built with Next.js 15 (App Router), React 19, Type
 
 Tests are colocated `.test.ts` files (node environment, globals enabled). They cover pure logic only — services, store helpers, validators — not components.
 
-Deploy targets (rarely needed locally): `cf:deploy` (Cloudflare Workers via OpenNext/wrangler), `build:pages` (GitHub Pages static export with basePath `/New-Yummy-go.com`), Netlify (`netlify.toml`), `electron:pack` (Windows NSIS installer).
+Deploy: pushing to `main` triggers `.github/workflows/deploy-static.yml`, which rsyncs the repo to the production VPS, builds there, and restarts the `yummy-go-fe.service` systemd unit (serves https://yummy-go.com behind Cloudflare DNS proxy). `electron:pack` builds the Windows NSIS installer locally.
 
 ## Architecture
 
@@ -41,10 +65,10 @@ route page (thin) → feature component (src/features/<domain>/)
       → apiRequest / publicApiRequest (src/lib/api.ts)
 ```
 
-- **`src/lib/api.ts`** — two axios clients: `apiClient` (injects Bearer token + `x-access-token` from `auth-store`; a 401 triggers logout and redirect to `/login`) and `publicApiClient` (no auth). All errors are normalized to `ServiceError`. The backend wraps responses in a `{ status: "success", data, message }` envelope; `apiRequest` throws when `status !== "success"`. Backend URL comes from `NEXT_PUBLIC_BASE_URL` (see README for env vars, copy `.env.example` to `.env.local`).
+- **`src/lib/api.ts`** — two axios clients: `apiClient` (injects Bearer token + `x-access-token` from `auth-store`; a 401 triggers logout and redirect to `/login`) and `publicApiClient` (no auth). All errors are normalized to `ServiceError`. The backend wraps responses in a `{ status: "success", data, message }` envelope; `apiRequest` throws when `status !== "success"`. Backend URL comes from `NEXT_PUBLIC_BASE_URL` (copy `.env.example` to `.env.local`; see README).
 - **`src/services/shared/crud.ts`** — generic `fetchList` / `fetchAll` / `saveEntity` / `deleteEntity` helpers most domain services are built from. `listParams` normalizes pagination/search/`lang` query params. Mutations are POSTs (optionally multipart via `toFormData`).
-- **`src/stores/`** — one store per domain; async state follows the `AsyncSlice` shape (`loading`, `saving`, `error`) from `store-utils.ts`. `auth-store` is persisted (localStorage or sessionStorage depending on "remember me"). Larger domains (`pos-store/`, `product-store/`, `report-store/`, `public-pos-store/`) are folders with extracted, tested `helpers.ts`.
-- **`src/features/`** — all substantial UI. Domain folders typically split into `list/` and `form/` (CRUD screens) or per-screen subfolders (e.g. `pos/counter-checkout`, `pos/table-selection`). Route files under `src/app/` stay thin and just render a feature component.
+- **`src/stores/`** — async state follows the `AsyncSlice` shape (`loading`, `saving`, `error`) from `store-utils.ts`. `auth-store` is persisted (localStorage or sessionStorage depending on "remember me"). Larger domains (`pos-store/`, `product-store/`, `report-store/`, `public-pos-store/`) are folders with extracted, tested `helpers.ts`.
+- **`src/features/`** — all substantial UI. Domain folders typically split into `list/` and `form/` (CRUD screens) or per-screen subfolders (e.g. `pos/counter-checkout`, `pos/table-selection`).
 
 ### Routes
 

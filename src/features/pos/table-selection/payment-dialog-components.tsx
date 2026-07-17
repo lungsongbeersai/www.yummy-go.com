@@ -37,7 +37,7 @@ export function PaymentStat({
       </p>
       <p
         className={cn(
-          "mt-0.5 truncate font-black tabular-nums sm:mt-1",
+          "mt-0.5 leading-tight font-black tabular-nums [overflow-wrap:anywhere] sm:mt-1",
           hero
             ? "text-base min-[380px]:text-lg sm:text-2xl lg:text-4xl"
             : "text-xs min-[380px]:text-sm min-[430px]:text-base sm:text-lg lg:text-xl",
@@ -216,6 +216,7 @@ export function PosNumpad({
       </Button>
       <Button
         type="button"
+        variant="secondary"
         className={actionClass}
         disabled={processing}
         onPointerDown={keepAmountFocus}

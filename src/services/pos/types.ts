@@ -56,6 +56,7 @@ export interface EmitTableStatusResponse extends ApiEntity { ok?: boolean; custo
 export interface ProdDetail extends ApiEntity {
   pro_detail_uuid: string;
   pro_detail_id?: string | number;
+  pro_detail_sort?: string | number;
   size_uuid_fk?: string;
   size_name?: string;
   price?: string | number;
@@ -122,6 +123,8 @@ export interface PosProduct extends ApiEntity {
 }
 export interface CateProductItem extends PosProduct {
   pro_detail_sprice?: number | string;
+  min_price?: number | string;
+  max_price?: number | string;
   can_add: boolean;
   has_options: boolean;
   options_msg: string;

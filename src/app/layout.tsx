@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from "next";
 import { cookies } from "next/headers";
 import { Noto_Sans_Lao } from "next/font/google";
 import Script from "next/script";
-import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Providers } from "@/app/providers";
 import { DEFAULT_LANGUAGE, LANGUAGE_COOKIE, toLanguage } from "@/lib/language";
 import { WINDOW_OPEN_FONT_STYLESHEET_HREF } from "@/lib/window-open-fonts";
@@ -48,8 +47,6 @@ const themeBootstrapScript = `
 })();
 `;
 
-const enableSpeedInsights = process.env.NEXT_PUBLIC_ENABLE_SPEED_INSIGHTS === "1";
-
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const cookieStore = await cookies();
   const initialLanguage = toLanguage(cookieStore.get(LANGUAGE_COOKIE)?.value ?? DEFAULT_LANGUAGE);
@@ -66,7 +63,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       </head>
       <body>
         <Providers initialLanguage={initialLanguage}>{children}</Providers>
-        {enableSpeedInsights ? <SpeedInsights /> : null}
       </body>
     </html>
   );

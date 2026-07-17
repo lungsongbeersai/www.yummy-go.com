@@ -7,6 +7,7 @@ import {
 import type {
   CartItem,
   CartOrder,
+  CartTopping,
   DiscountTypeCode,
   MoveTableItem,
   MoveTableZone,
@@ -405,6 +406,14 @@ export function cartItemMedia(item: CartItem): CartItemMedia {
   return { type: "image", src: mediaValue };
 }
 
+// backend ส่งจำนวนต่อสินค้าและยอดรวมของทั้งรายการมาแล้ว จึงไม่คูณ order_it_qty ซ้ำตอนแสดงผล
+export function cartToppingDisplay(topping: CartTopping) {
+  return {
+    qty: optionalNumber(topping.topping_qty),
+    total: positiveNumber(topping.topping_line_total, topping.topping_price),
+  };
+}
+
 export function cartItemQty(item: CartItem) {
   return (
     optionalNumber(
@@ -436,6 +445,26 @@ export function cartItemTotal(item: CartItem) {
       item.pro_detail_sprice,
     ) ?? 0;
   return price * cartItemQty(item);
+}
+
+export function cartItemBaseUnitPrice(item: CartItem) {
+  const qty = cartItemQty(item);
+  const baseLineTotal = optionalNumber(item.detail?.base_line_total);
+  if (baseLineTotal !== null && qty > 0) return baseLineTotal / qty;
+
+  const grossTotal = optionalNumber(item.detail?.gross_total);
+  const toppingLineTotal = optionalNumber(item.detail?.topping_line_total);
+  if (grossTotal !== null && toppingLineTotal !== null && qty > 0) {
+    return Math.max(0, grossTotal - toppingLineTotal) / qty;
+  }
+
+  return optionalNumber(
+    item.detail?.unit_price,
+    item.price,
+    item.prod_price,
+    item.product_price,
+    item.pro_detail_sprice,
+  );
 }
 
 export function cartItemDiscountMaxAmount(item: CartItem) {

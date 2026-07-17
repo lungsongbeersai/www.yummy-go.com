@@ -1,11 +1,32 @@
 "use client";
 
-import { CheckCircle2, Loader2, Minus, Plus } from "lucide-react";
+import { useRef, type ReactNode } from "react";
+import { AlertCircle, Check, Minus, Plus, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Field,
+  FieldGroup,
+  FieldLabel,
+  FieldLegend,
+  FieldSet,
+} from "@/components/ui/field";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Sheet,
+  SheetClose,
   SheetContent,
   SheetDescription,
   SheetFooter,
@@ -13,8 +34,12 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
+import type { ProdDetail, ProdTopping } from "@/services/pos";
+import { MAX_OPEN_QTY } from "../constants";
 import type { ProductOrderSheetWorkflow } from "../hooks/use-product-order-sheet-workflow";
 import {
   defaultOrderQty,
@@ -35,422 +60,777 @@ export function ProductOrderSheetContent({
   workflow: ProductOrderSheetWorkflow;
 }) {
   const { t } = useTranslation();
+  const isMobile = useIsMobile();
+  const { loading, modeLabel, onOpenChange, open, product, saving } = workflow;
+  const description =
+    [modeLabel, product?.unite_name].filter(Boolean).join(" · ") ||
+    t("pos.product");
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen && saving) return;
+    onOpenChange(nextOpen);
+  };
+  const form = <ProductOrderForm workflow={workflow} isMobile={isMobile} />;
+
+  if (isMobile) {
+    return (
+      <Sheet open={open} onOpenChange={handleOpenChange}>
+        <SheetContent
+          side="bottom"
+          showCloseButton={false}
+          aria-busy={loading || saving}
+          className="flex h-[calc(100dvh-0.5rem)] max-h-none flex-col gap-0 overflow-hidden rounded-t-2xl border-border bg-background p-0 text-foreground motion-reduce:transition-none motion-reduce:data-[state=closed]:animate-none motion-reduce:data-[state=open]:animate-none"
+          onEscapeKeyDown={(event) => {
+            if (saving) event.preventDefault();
+          }}
+          onPointerDownOutside={(event) => {
+            if (saving) event.preventDefault();
+          }}
+        >
+          <SheetHeader className="shrink-0 border-b border-border p-0 text-left">
+            <ProductOrderHeader
+              workflow={workflow}
+              title={
+                <SheetTitle className="lao-tone-text line-clamp-2 break-words text-base font-black leading-6">
+                  {product?.prod_name ?? t("pos.product")}
+                </SheetTitle>
+              }
+              description={
+                <SheetDescription className="sr-only">
+                  {description}
+                </SheetDescription>
+              }
+              closeControl={
+                <SheetClose asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    aria-label={t("actions.close")}
+                    className="size-11 shrink-0 rounded-full touch-manipulation"
+                    disabled={saving}
+                  >
+                    <X aria-hidden="true" />
+                  </Button>
+                </SheetClose>
+              }
+            />
+          </SheetHeader>
+          {form}
+        </SheetContent>
+      </Sheet>
+    );
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent
+        showCloseButton={false}
+        aria-busy={loading || saving}
+        className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden rounded-2xl border-border bg-background p-0 text-foreground motion-reduce:transition-none motion-reduce:data-[state=closed]:animate-none motion-reduce:data-[state=open]:animate-none sm:max-w-180"
+        onEscapeKeyDown={(event) => {
+          if (saving) event.preventDefault();
+        }}
+        onPointerDownOutside={(event) => {
+          if (saving) event.preventDefault();
+        }}
+      >
+        <DialogHeader className="shrink-0 border-b border-border p-0 text-left">
+          <ProductOrderHeader
+            workflow={workflow}
+            title={
+              <DialogTitle className="lao-tone-text line-clamp-2 break-words text-lg font-black leading-6">
+                {product?.prod_name ?? t("pos.product")}
+              </DialogTitle>
+            }
+            description={
+              <DialogDescription className="sr-only">
+                {description}
+              </DialogDescription>
+            }
+            closeControl={
+              <DialogClose asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  aria-label={t("actions.close")}
+                  className="size-11 shrink-0 rounded-full"
+                  disabled={saving}
+                >
+                  <X aria-hidden="true" />
+                </Button>
+              </DialogClose>
+            }
+          />
+        </DialogHeader>
+        {form}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ProductOrderHeader({
+  workflow,
+  title,
+  description,
+  closeControl,
+}: {
+  workflow: ProductOrderSheetWorkflow;
+  title: ReactNode;
+  description: ReactNode;
+  closeControl: ReactNode;
+}) {
+  const { t } = useTranslation();
+  const { basePrice, lang, loading, mediaRef, modeLabel, product } = workflow;
+
+  return (
+    <div className="flex min-w-0 items-start gap-3 px-3 py-3 sm:px-5">
+      <div
+        ref={mediaRef}
+        className="size-16 shrink-0 overflow-hidden rounded-xl border border-border bg-muted sm:size-18"
+      >
+        {loading && !product ? (
+          <Skeleton className="size-full" />
+        ) : product ? (
+          <ProductMedia product={product} variant="sheetThumb" />
+        ) : null}
+      </div>
+
+      <div className="min-w-0 flex-1">
+        {loading && !product ? (
+          <Skeleton className="h-5 w-36" />
+        ) : (
+          title
+        )}
+        {description}
+
+        <div className="mt-1 flex min-h-5 flex-wrap items-center gap-1.5">
+          {loading && !product ? (
+            <>
+              <Skeleton className="h-5 w-16 rounded-md" />
+              <Skeleton className="h-5 w-12 rounded-md" />
+            </>
+          ) : (
+            <>
+              {modeLabel ? <Badge variant="secondary">{modeLabel}</Badge> : null}
+              {product?.unite_name ? (
+                <Badge variant="outline">{product.unite_name}</Badge>
+              ) : null}
+            </>
+          )}
+        </div>
+
+        <div className="mt-1.5 flex min-w-0 items-baseline gap-2">
+          <span className="shrink-0 text-xs font-semibold text-muted-foreground">
+            {t("pos.unitPrice")}
+          </span>
+          {loading && !product ? (
+            <Skeleton className="h-5 w-24" />
+          ) : (
+            <span className="truncate text-lg font-black text-primary tabular-nums">
+              {formatMoney(basePrice, lang)}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {closeControl}
+    </div>
+  );
+}
+
+function ProductOrderForm({
+  workflow,
+  isMobile,
+}: {
+  workflow: ProductOrderSheetWorkflow;
+  isMobile: boolean;
+}) {
+  const { t } = useTranslation();
   const {
-    basePrice,
     canSubmit,
     detailUuid,
     details,
     handleDetailSelect,
-    handleQty,
     handleSubmit,
+    handleToppingQty,
     handleToppingToggle,
     hasSelectableDetails,
+    lang,
+    loading,
+    mode,
+    note,
+    onNoteChange,
+    product,
+    saving,
+    selectedDetail,
+    selectedToppings,
+    selectionIssue,
+    toppingQtyByUuid,
+    toppings,
+  } = workflow;
+  const issueLabel = selectionIssue ? t(`pos.${selectionIssue}`) : "";
+
+  return (
+    <form
+      aria-busy={saving}
+      aria-describedby={selectionIssue ? "public-product-order-error" : undefined}
+      className="flex min-h-0 flex-1 flex-col"
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (canSubmit) handleSubmit();
+      }}
+    >
+      <div className="min-h-0 flex-1 overscroll-y-contain overflow-y-auto bg-muted/20 px-3 py-3 scroll-pb-28 sm:px-5 sm:py-4">
+        {loading && !product ? <ProductOrderSheetSkeleton /> : null}
+
+        {product ? (
+          <FieldGroup className="gap-4">
+            {hasSelectableDetails ? (
+              <ProductSizeFieldset
+                details={details}
+                detailUuid={detailUuid}
+                lang={lang}
+                mode={mode}
+                saving={saving}
+                onDetailSelect={handleDetailSelect}
+              />
+            ) : null}
+
+            {mode === "set" && details.length ? (
+              <SetProductFieldset details={details} />
+            ) : null}
+
+            {mode === "promotion" && selectedDetail ? (
+              <Alert className="border-primary/20 bg-primary/5 text-primary">
+                <AlertTitle>{t("pos.promoDeal")}</AlertTitle>
+                <AlertDescription className="text-primary">
+                  {getPromoLabel(selectedDetail, t)}
+                </AlertDescription>
+              </Alert>
+            ) : null}
+
+            {toppings.length ? (
+              <ProductToppingFieldset
+                lang={lang}
+                saving={saving}
+                selectedCount={selectedToppings.length}
+                toppingQtyByUuid={toppingQtyByUuid}
+                toppings={toppings}
+                onChangeQty={handleToppingQty}
+                onToggle={handleToppingToggle}
+              />
+            ) : null}
+
+            <Field>
+              <FieldLabel
+                htmlFor="public-product-order-note"
+                className="text-sm font-black text-foreground"
+              >
+                {t("pos.note")}
+              </FieldLabel>
+              <Textarea
+                id="public-product-order-note"
+                name="orderNote"
+                autoComplete="off"
+                value={note}
+                disabled={saving}
+                onChange={(event) => onNoteChange(event.target.value)}
+                placeholder={t("pos.notePlaceholder")}
+                className="min-h-18 resize-none bg-background text-sm"
+              />
+            </Field>
+
+            {selectionIssue ? (
+              <Alert
+                id="public-product-order-error"
+                variant="destructive"
+                className="bg-destructive/5"
+              >
+                <AlertCircle aria-hidden="true" />
+                <AlertTitle className="line-clamp-none">{issueLabel}</AlertTitle>
+                {selectionIssue === "noAvailableOptions" ? (
+                  <AlertDescription>
+                    {t("pos.checkProductAvailability")}
+                  </AlertDescription>
+                ) : null}
+              </Alert>
+            ) : null}
+          </FieldGroup>
+        ) : null}
+
+        {!loading && !product ? (
+          <Alert variant="destructive">
+            <AlertCircle aria-hidden="true" />
+            <AlertTitle>{t("pos.productLoadFailed")}</AlertTitle>
+          </Alert>
+        ) : null}
+      </div>
+
+      <ProductOrderFooter workflow={workflow} isMobile={isMobile} />
+    </form>
+  );
+}
+
+function ProductSizeFieldset({
+  details,
+  detailUuid,
+  lang,
+  mode,
+  saving,
+  onDetailSelect,
+}: {
+  details: ProdDetail[];
+  detailUuid: string;
+  lang: string;
+  mode: ProductOrderSheetWorkflow["mode"];
+  saving: boolean;
+  onDetailSelect: (uuid: string) => void;
+}) {
+  const { t } = useTranslation();
+
+  return (
+    <FieldSet className="gap-2" disabled={saving}>
+      <SectionLegend
+        label={mode === "promotion" ? t("pos.promoDeal") : t("pos.chooseSize")}
+        meta={t("pos.sizeCount", { count: details.length })}
+      />
+      <RadioGroup
+        name="productSize"
+        value={detailUuid}
+        onValueChange={onDetailSelect}
+      >
+        {details.map((detail) => {
+          const enabled = isDetailAvailable(detail);
+          const id = `public-product-size-${detail.pro_detail_uuid}`;
+          return (
+            <Field
+              key={detail.pro_detail_uuid}
+              orientation="horizontal"
+              data-disabled={!enabled || undefined}
+            >
+              <FieldLabel
+                htmlFor={id}
+                className={cn(
+                  "min-h-14 w-full cursor-pointer items-center rounded-xl border border-border bg-background px-3 py-2 shadow-xs transition-[border-color,background-color,box-shadow] hover:border-primary/40 hover:bg-primary/5 has-data-[state=checked]:border-primary has-data-[state=checked]:bg-primary/10 has-data-[state=checked]:text-primary motion-reduce:transition-none",
+                  !enabled && "cursor-not-allowed opacity-60",
+                )}
+              >
+                <RadioGroupItem
+                  id={id}
+                  value={detail.pro_detail_uuid}
+                  disabled={!enabled}
+                  className="size-5"
+                />
+                <span className="min-w-0 flex-1">
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span className="truncate text-sm font-black">
+                      {detail.size_name || t("pos.size")}
+                    </span>
+                    {!enabled ? (
+                      <Badge variant="secondary" className="shrink-0">
+                        {t("pos.outOfStock")}
+                      </Badge>
+                    ) : null}
+                  </span>
+                  {mode === "promotion" ? (
+                    <span className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                      <span>{getPromoLabel(detail, t)}</span>
+                      {detail.pro_detail_eDate ? (
+                        <span>
+                          {t("pos.validUntil")} {formatShortDate(detail.pro_detail_eDate, lang)}
+                        </span>
+                      ) : null}
+                    </span>
+                  ) : null}
+                </span>
+                <span className="shrink-0 text-right text-sm font-black tabular-nums">
+                  {formatMoney(productPriceFromDetail(detail), lang)}
+                </span>
+              </FieldLabel>
+            </Field>
+          );
+        })}
+      </RadioGroup>
+    </FieldSet>
+  );
+}
+
+function SetProductFieldset({ details }: { details: ProdDetail[] }) {
+  const { t } = useTranslation();
+
+  return (
+    <FieldSet className="gap-2">
+      <SectionLegend
+        label={t("pos.includedInSet")}
+        meta={t("pos.optionCount", { count: details.length })}
+      />
+      <div className="flex flex-col gap-2">
+        {details.map((detail) => {
+          const enabled = isDetailAvailable(detail);
+          return (
+            <div
+              key={detail.pro_detail_uuid}
+              className={cn(
+                "flex min-h-12 items-center justify-between gap-3 rounded-xl border border-border bg-background px-3 py-2",
+                !enabled && "opacity-60",
+              )}
+            >
+              <span className="flex min-w-0 items-center gap-2">
+                <Check className="shrink-0 text-primary" aria-hidden="true" />
+                <span className="truncate text-sm font-black">
+                  {detail.size_name || t("pos.product")}
+                </span>
+              </span>
+              <span className="flex shrink-0 items-center gap-2">
+                {!enabled ? (
+                  <Badge variant="secondary">{t("pos.outOfStock")}</Badge>
+                ) : null}
+                <Badge variant="outline">x{defaultOrderQty(detail)}</Badge>
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </FieldSet>
+  );
+}
+
+function ProductToppingFieldset({
+  lang,
+  saving,
+  selectedCount,
+  toppingQtyByUuid,
+  toppings,
+  onChangeQty,
+  onToggle,
+}: {
+  lang: string;
+  saving: boolean;
+  selectedCount: number;
+  toppingQtyByUuid: Record<string, number>;
+  toppings: ProdTopping[];
+  onChangeQty: (uuid: string, qty: number) => void;
+  onToggle: (uuid: string) => void;
+}) {
+  const { t } = useTranslation();
+
+  return (
+    <FieldSet className="gap-2">
+      <SectionLegend
+        label={t("pos.toppings")}
+        meta={t("pos.selectedOf", {
+          selected: selectedCount,
+          total: toppings.length,
+        })}
+      />
+      <div className="flex flex-col gap-2">
+        {toppings.map((topping) => {
+          const uuid = topping.prod_topping_uuid;
+          const qty = toppingQtyByUuid[uuid] ?? 0;
+          return (
+            <ProductToppingRow
+              key={uuid}
+              lang={lang}
+              qty={qty}
+              saving={saving}
+              topping={topping}
+              onChangeQty={(nextQty) => onChangeQty(uuid, nextQty)}
+              onToggle={() => onToggle(uuid)}
+            />
+          );
+        })}
+      </div>
+    </FieldSet>
+  );
+}
+
+function ProductToppingRow({
+  lang,
+  qty,
+  saving,
+  topping,
+  onChangeQty,
+  onToggle,
+}: {
+  lang: string;
+  qty: number;
+  saving: boolean;
+  topping: ProdTopping;
+  onChangeQty: (qty: number) => void;
+  onToggle: () => void;
+}) {
+  const { t } = useTranslation();
+  const selected = qty >= 1;
+  const enabled = isToppingAvailable(topping);
+  const label = toppingDisplayName(topping, lang) || t("pos.toppings");
+  const unitPrice = numeric(topping.topping_price);
+  const id = `public-product-topping-${topping.prod_topping_uuid}`;
+  const checkboxRef = useRef<HTMLInputElement>(null);
+
+  return (
+    <Field
+      orientation="horizontal"
+      data-disabled={!enabled || undefined}
+      className={cn(
+        "min-h-16 flex-wrap rounded-xl border border-border bg-background px-3 py-2.5 shadow-xs transition-[border-color,background-color,box-shadow] motion-reduce:transition-none",
+        selected && "border-primary bg-primary/10 text-primary shadow-sm",
+        !enabled && "opacity-60",
+      )}
+    >
+      <FieldLabel
+        htmlFor={id}
+        className={cn(
+          "min-h-11 min-w-40 flex-1 cursor-pointer items-center gap-3 text-sm font-black",
+          !enabled && "cursor-not-allowed",
+        )}
+      >
+        <Checkbox
+          ref={checkboxRef}
+          id={id}
+          name={`topping-${topping.prod_topping_uuid}`}
+          checked={selected}
+          disabled={!enabled || saving}
+          onChange={onToggle}
+          className="size-5"
+        />
+        <span className="line-clamp-2 min-w-0 break-words">{label}</span>
+        {!enabled ? (
+          <Badge variant="secondary" className="shrink-0">
+            {t("pos.outOfStock")}
+          </Badge>
+        ) : null}
+      </FieldLabel>
+
+      <div className="ml-auto flex shrink-0 items-center gap-2">
+        <div className="text-right">
+          <p className="text-sm font-black tabular-nums">
+            +{formatMoney(unitPrice * Math.max(1, qty), lang)}
+          </p>
+          {selected && qty > 1 ? (
+            <p className="text-xs font-semibold text-muted-foreground tabular-nums">
+              {qty} × {formatMoney(unitPrice, lang)} · {t("pos.perItem")}
+            </p>
+          ) : null}
+        </div>
+
+        {selected ? (
+          <span className="flex items-center rounded-full border border-primary/25 bg-background shadow-sm">
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              aria-label={t("pos.decreaseTopping", { name: label })}
+              className="size-11 rounded-full text-primary touch-manipulation"
+              disabled={saving}
+              onClick={() => {
+                onChangeQty(qty - 1);
+                // Keep keyboard focus stable when the stepper unmounts at zero.
+                if (qty === 1) checkboxRef.current?.focus();
+              }}
+            >
+              <Minus aria-hidden="true" />
+            </Button>
+            <span className="min-w-7 text-center text-sm font-black text-foreground tabular-nums">
+              {qty}
+            </span>
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              aria-label={t("pos.increaseTopping", { name: label })}
+              className="size-11 rounded-full text-primary touch-manipulation"
+              disabled={saving || qty >= MAX_OPEN_QTY}
+              onClick={() => onChangeQty(qty + 1)}
+            >
+              <Plus aria-hidden="true" />
+            </Button>
+          </span>
+        ) : null}
+      </div>
+    </Field>
+  );
+}
+
+function ProductOrderFooter({
+  workflow,
+  isMobile,
+}: {
+  workflow: ProductOrderSheetWorkflow;
+  isMobile: boolean;
+}) {
+  const { t } = useTranslation();
+  const {
+    canSubmit,
+    handleQty,
     lang,
     lineTotal,
     loading,
     maxQty,
-    mediaRef,
     minQty,
-    mode,
-    modeLabel,
-    note,
-    onNoteChange,
-    onOpenChange,
-    open,
-    priceLabel,
     product,
     qty,
     qtyStep,
     quantityMeta,
     saving,
     selectedDetail,
-    selectedToppingUuids,
-    toppingTotal,
-    toppings,
   } = workflow;
 
-  return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent
-        side="bottom"
-        className="flex max-h-[88dvh] flex-col overflow-hidden rounded-t-2xl border-emerald-100 bg-[#fbfffd] p-0 sm:inset-x-auto sm:left-1/2 sm:w-full sm:max-w-xl sm:-translate-x-1/2 dark:border-border dark:bg-background"
-      >
-        <SheetHeader className="shrink-0 border-b border-emerald-100 bg-white/95 p-3 text-left dark:border-border dark:bg-background/95">
-          <div className="flex items-start justify-between gap-3 pr-8">
-            <div className="min-w-0">
-              <SheetTitle className="lao-tone-text line-clamp-2 text-base font-black">
-                {loading && !product ? (
-                  <Skeleton className="h-5 w-36" />
-                ) : (
-                  product?.prod_name ?? t("pos.product")
-                )}
-              </SheetTitle>
-              {loading && !product ? (
-                <SheetDescription className="mt-1 flex flex-wrap items-center gap-1.5">
-                  <Skeleton className="h-5 w-16 rounded-full" />
-                  <Skeleton className="h-5 w-12 rounded-full" />
-                </SheetDescription>
-              ) : (
-                <SheetDescription className="mt-1 flex flex-wrap items-center gap-1.5 text-xs">
-                  {modeLabel ? (
-                  <span className="rounded-full bg-emerald-50 px-2 py-0.5 font-black text-primary dark:bg-primary/10">
-                    {modeLabel}
-                  </span>
-                  ) : null}
-                  {product?.unite_name ? (
-                  <span className="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-600 dark:bg-muted dark:text-muted-foreground">
-                    {product.unite_name}
-                  </span>
-                  ) : null}
-                </SheetDescription>
-              )}
-            </div>
-            {priceLabel ? (
-              <div className="shrink-0 rounded-full bg-primary px-2.5 py-1 text-xs font-black text-primary-foreground">
-                {priceLabel}
-              </div>
-            ) : null}
-          </div>
-        </SheetHeader>
+  if (loading && !product) {
+    const skeleton = <ProductOrderFooterSkeleton />;
+    return isMobile ? (
+      <SheetFooter className="shrink-0 border-t border-border bg-background px-3 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+        {skeleton}
+      </SheetFooter>
+    ) : (
+      <DialogFooter className="shrink-0 border-t border-border bg-background px-5 py-4">
+        {skeleton}
+      </DialogFooter>
+    );
+  }
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
-          {loading && !product ? (
-            <ProductOrderSheetSkeleton />
-          ) : null}
+  const quantityControl = (
+    <div className="flex flex-col gap-1">
+      <span className="text-xs font-semibold text-muted-foreground">
+        {t("pos.qty")}
+      </span>
+      <div className="flex items-center gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          aria-label={t("pos.decreaseQuantity")}
+          className="size-11 touch-manipulation bg-background"
+          onClick={() => handleQty(qty - qtyStep)}
+          disabled={!selectedDetail || qty <= minQty || saving}
+        >
+          <Minus aria-hidden="true" />
+        </Button>
+        <output className="grid h-11 min-w-11 place-items-center rounded-md border border-border bg-background px-2 text-base font-black tabular-nums">
+          {qty}
+        </output>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          aria-label={t("pos.increaseQuantity")}
+          className="size-11 touch-manipulation bg-background"
+          onClick={() => handleQty(qty + qtyStep)}
+          disabled={!selectedDetail || qty + qtyStep > maxQty || saving}
+        >
+          <Plus aria-hidden="true" />
+        </Button>
+      </div>
+      {quantityMeta.hasPromotion ? (
+        <p className="text-xs font-semibold text-amber-700 dark:text-amber-200">
+          {t("pos.orderStep", { count: qtyStep })}
+        </p>
+      ) : null}
+    </div>
+  );
+  const totalOutput = (
+    <div className="min-w-0 text-right" aria-live="polite" aria-atomic="true">
+      <p className="text-xs font-semibold text-muted-foreground">
+        {t("common.total")}
+      </p>
+      <output className="block truncate text-xl font-black text-primary tabular-nums">
+        {formatMoney(lineTotal, lang)}
+      </output>
+    </div>
+  );
+  const submitButton = (
+    <Button
+      type="submit"
+      className={cn("h-12 rounded-lg text-sm font-black", !isMobile && "min-w-40")}
+      disabled={!canSubmit}
+    >
+      {saving ? (
+        <Spinner aria-label={t("common.loading")} data-icon="inline-start" />
+      ) : (
+        <Plus aria-hidden="true" data-icon="inline-start" />
+      )}
+      {t("pos.sendOrder")}
+    </Button>
+  );
 
-          {product ? (
-            <div className="grid gap-3 pb-1">
-              <section className="rounded-xl border border-emerald-100 bg-white p-2.5 shadow-sm shadow-emerald-950/5 dark:border-border dark:bg-background">
-                <div className="flex gap-2.5">
-                  <div
-                    ref={mediaRef}
-                    className="w-24 shrink-0 overflow-hidden rounded-lg border border-emerald-100 bg-emerald-50 dark:border-border dark:bg-muted"
-                  >
-                    <ProductMedia product={product} variant="sheetThumb" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap gap-1.5">
-                      {product.type_group ? (
-                        <Badge className="h-5 border-primary/20 bg-primary/10 px-1.5 py-0 text-[10px] font-black text-primary">
-                          {product.type_group}
-                        </Badge>
-                      ) : null}
-                      {mode === "promotion" && selectedDetail ? (
-                        <Badge className="h-5 border-amber-300 bg-amber-50 px-1.5 py-0 text-[10px] font-black text-amber-700">
-                          {getPromoLabel(selectedDetail, t)}
-                        </Badge>
-                      ) : null}
-                    </div>
-                    <p className="mt-1 text-lg font-black leading-6 text-primary">
-                      {formatMoney(lineTotal, lang)}
-                    </p>
-                    <p className="text-[11px] font-bold text-muted-foreground">
-                      {formatMoney(basePrice, lang)}
-                      {toppingTotal > 0
-                        ? ` + ${formatMoney(toppingTotal, lang)}`
-                        : ""}
-                    </p>
-                  </div>
-                </div>
-              </section>
-
-              {hasSelectableDetails ? (
-                <section className="grid gap-2">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-xs font-black text-slate-700 dark:text-muted-foreground">
-                      {mode === "promotion"
-                        ? t("pos.promoDeal")
-                        : t("pos.chooseSize")}
-                    </p>
-                    <span className="text-[11px] font-bold text-muted-foreground">
-                      {details.length}
-                    </span>
-                  </div>
-                  <div className="grid gap-2">
-                    {details.map((detail) => {
-                      const enabled = isDetailAvailable(detail);
-                      return (
-                        <Button
-                          key={detail.pro_detail_uuid}
-                          type="button"
-                          variant="outline"
-                          className={cn(
-                            "flex min-h-12 w-full items-center justify-between gap-3 rounded-xl border bg-white px-3 py-2 text-left text-sm shadow-sm shadow-emerald-950/5 transition dark:bg-background",
-                            detailUuid === detail.pro_detail_uuid
-                              ? "border-primary bg-emerald-50 text-primary ring-1 ring-primary/15 dark:bg-primary/10"
-                              : "border-emerald-100 dark:border-border",
-                            !enabled ? "opacity-50" : "",
-                          )}
-                          onClick={() =>
-                            handleDetailSelect(detail.pro_detail_uuid)
-                          }
-                          disabled={!enabled}
-                        >
-                          <span className="min-w-0">
-                            <span className="flex min-w-0 items-center gap-1.5">
-                              {detailUuid === detail.pro_detail_uuid ? (
-                                <CheckCircle2 />
-                              ) : null}
-                              <span className="truncate font-black">
-                                {detail.size_name || t("pos.size")}
-                              </span>
-                            </span>
-                            {mode === "promotion" ? (
-                              <span className="mt-0.5 flex flex-wrap gap-1">
-                                <Badge className="h-5 border-amber-300 bg-amber-50 px-1.5 py-0 text-[10px] font-black text-amber-700">
-                                  {getPromoLabel(detail, t)}
-                                </Badge>
-                                {detail.pro_detail_eDate ? (
-                                  <span className="text-[11px] font-bold text-muted-foreground">
-                                    {t("pos.validUntil")}{" "}
-                                    {formatShortDate(
-                                      detail.pro_detail_eDate,
-                                      lang,
-                                    )}
-                                  </span>
-                                ) : null}
-                              </span>
-                            ) : null}
-                          </span>
-                          <span className="shrink-0 text-right font-black">
-                            {formatMoney(productPriceFromDetail(detail), lang)}
-                          </span>
-                        </Button>
-                      );
-                    })}
-                  </div>
-                </section>
-              ) : null}
-
-              {mode === "set" && details.length ? (
-                <section className="grid gap-2">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-xs font-black text-slate-700 dark:text-muted-foreground">
-                      {t("pos.includedInSet")}
-                    </p>
-                    <span className="text-[11px] font-bold text-muted-foreground">
-                      {details.length}
-                    </span>
-                  </div>
-                  <div className="rounded-xl border border-emerald-100 bg-white p-2 shadow-sm shadow-emerald-950/5 dark:border-border dark:bg-background">
-                    {details.map((detail, index) => {
-                      const enabled = isDetailAvailable(detail);
-                      return (
-                        <div
-                          key={detail.pro_detail_uuid}
-                          className={cn(
-                            "flex min-h-10 items-center justify-between gap-3 rounded-lg px-2 py-1.5 text-sm",
-                            index > 0
-                              ? "border-t border-emerald-50 dark:border-border"
-                              : "",
-                            !enabled ? "opacity-50" : "",
-                          )}
-                        >
-                          <div className="flex min-w-0 items-center gap-2">
-                            <span className="grid size-6 shrink-0 place-items-center rounded-full bg-emerald-50 text-[11px] font-black text-primary dark:bg-primary/10">
-                              {index + 1}
-                            </span>
-                            <span className="truncate font-black">
-                              {detail.size_name || t("pos.product")}
-                            </span>
-                          </div>
-                          <Badge className="h-5 border-emerald-100 bg-emerald-50 px-1.5 py-0 text-[10px] font-black text-primary">
-                            x{defaultOrderQty(detail)}
-                          </Badge>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </section>
-              ) : null}
-
-              {toppings.length ? (
-                <section className="grid gap-2">
-                  <p className="text-xs font-black text-slate-700 dark:text-muted-foreground">
-                    {t("pos.toppings")}
-                  </p>
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    {toppings.map((topping) => {
-                      const selected = selectedToppingUuids.includes(
-                        topping.prod_topping_uuid,
-                      );
-                      const enabled = isToppingAvailable(topping);
-                      const toppingName =
-                        toppingDisplayName(topping, lang) || t("pos.toppings");
-                      return (
-                        <Button
-                          key={topping.prod_topping_uuid}
-                          type="button"
-                          variant="outline"
-                          className={cn(
-                            "min-h-14 w-full items-center justify-between gap-3 rounded-xl border px-3 py-2 text-left text-sm shadow-sm shadow-emerald-950/5 transition",
-                            selected
-                              ? "border-primary bg-emerald-50 text-primary ring-1 ring-primary/15 dark:bg-primary/10"
-                              : "border-emerald-100 bg-white text-slate-800 dark:border-border dark:bg-background dark:text-foreground",
-                            !enabled ? "opacity-50" : "",
-                          )}
-                          onClick={() =>
-                            handleToppingToggle(topping.prod_topping_uuid)
-                          }
-                          disabled={!enabled}
-                        >
-                          <span className="flex min-w-0 flex-1 items-start gap-2">
-                            {selected ? (
-                              <CheckCircle2 className="mt-0.5 size-4 shrink-0" />
-                            ) : null}
-                            <span className="line-clamp-2 whitespace-normal break-words text-[13px] font-black leading-[1.55]">
-                              {toppingName}
-                            </span>
-                          </span>
-                          <span className="shrink-0 text-right text-xs font-black opacity-85">
-                            {formatMoney(numeric(topping.topping_price), lang)}
-                          </span>
-                        </Button>
-                      );
-                    })}
-                  </div>
-                </section>
-              ) : null}
-
-              <section className="grid gap-2">
-                <label
-                  htmlFor="public-product-order-note"
-                  className="text-xs font-black text-slate-700 dark:text-muted-foreground"
-                >
-                  {t("pos.note")}
-                </label>
-                <Textarea
-                  id="public-product-order-note"
-                  name="orderNote"
-                  autoComplete="off"
-                  value={note}
-                  onChange={(event) => onNoteChange(event.target.value)}
-                  placeholder={t("pos.notePlaceholder")}
-                  className="min-h-16 resize-none border-emerald-100 text-sm dark:border-border"
-                />
-              </section>
-            </div>
-          ) : null}
+  if (isMobile) {
+    return (
+      <SheetFooter className="shrink-0 border-t border-border bg-background px-3 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+        <div className="flex items-end justify-between gap-3">
+          {quantityControl}
+          {totalOutput}
         </div>
+        {submitButton}
+      </SheetFooter>
+    );
+  }
 
-        <SheetFooter className="shrink-0 border-t border-emerald-100 bg-white p-3 dark:border-border dark:bg-background">
-          {loading && !product ? (
-            <>
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  <Skeleton className="h-11 w-11 rounded-md" />
-                  <Skeleton className="h-10 w-10 rounded-md" />
-                  <Skeleton className="h-11 w-11 rounded-md" />
-                </div>
-                <div className="grid justify-items-end gap-1">
-                  <Skeleton className="h-4 w-12" />
-                  <Skeleton className="h-5 w-24" />
-                </div>
-              </div>
-              <Skeleton className="h-11 w-full rounded-md" />
-            </>
-          ) : (
-            <>
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex flex-col gap-1">
-                  <div className="flex items-center gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      aria-label={`${t("pos.qty")} -`}
-                      className="h-11 w-11 rounded-md"
-                      onClick={() => handleQty(qty - qtyStep)}
-                      disabled={qty <= minQty || saving}
-                    >
-                      <Minus className="size-4" />
-                    </Button>
-                    <span className="grid h-10 min-w-10 place-items-center rounded-md border border-emerald-100 px-2 text-sm font-black dark:border-border">
-                      {qty}
-                    </span>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      aria-label={`${t("pos.qty")} +`}
-                      className="h-11 w-11 rounded-md"
-                      onClick={() => handleQty(qty + qtyStep)}
-                      disabled={qty + qtyStep > maxQty || saving}
-                    >
-                      <Plus className="size-4" />
-                    </Button>
-                  </div>
-                  {quantityMeta.hasPromotion ? (
-                    <p className="text-[11px] font-bold text-amber-700 dark:text-amber-200">
-                      {t("pos.orderStep", { count: qtyStep })}
-                    </p>
-                  ) : null}
-                </div>
-                <div className="text-right">
-                  <p className="text-xs font-bold text-muted-foreground">
-                    {t("common.total")}
-                  </p>
-                  <p className="font-black text-primary">
-                    {formatMoney(lineTotal, lang)}
-                  </p>
-                </div>
-              </div>
-              <Button
-                type="button"
-                className="h-11 rounded-md"
-                disabled={!canSubmit}
-                onClick={handleSubmit}
-              >
-                {saving ? <Loader2 className="animate-spin" /> : <Plus />}
-                {t("actions.add")}
-              </Button>
-            </>
-          )}
-        </SheetFooter>
-      </SheetContent>
-    </Sheet>
+  return (
+    <DialogFooter className="shrink-0 flex-row items-center justify-between gap-4 border-t border-border bg-background px-5 py-4">
+      {quantityControl}
+      <div className="ml-auto">{totalOutput}</div>
+      {submitButton}
+    </DialogFooter>
+  );
+}
+
+function SectionLegend({ label, meta }: { label: string; meta: string }) {
+  return (
+    <FieldLegend
+      variant="label"
+      className="mb-0 flex min-w-0 items-center justify-between gap-3 text-sm font-black text-foreground"
+    >
+      <span>{label}</span>
+      <span className="shrink-0 text-xs font-semibold text-muted-foreground">
+        {meta}
+      </span>
+    </FieldLegend>
   );
 }
 
 function ProductOrderSheetSkeleton() {
   return (
-    <div className="grid gap-3 pb-1">
-      <section className="rounded-xl border border-emerald-100 bg-white p-2.5 shadow-sm shadow-emerald-950/5 dark:border-border dark:bg-background">
-        <div className="flex gap-2.5">
-          <Skeleton className="size-24 shrink-0 rounded-lg" />
-          <div className="grid min-w-0 flex-1 content-start gap-2">
-            <div className="flex gap-1.5">
-              <Skeleton className="h-5 w-14 rounded-full" />
-              <Skeleton className="h-5 w-12 rounded-full" />
-            </div>
-            <Skeleton className="h-6 w-28" />
-            <Skeleton className="h-4 w-20" />
-          </div>
+    <div className="flex flex-col gap-4" aria-hidden="true">
+      <section className="flex flex-col gap-2">
+        <div className="flex items-center justify-between gap-3">
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="h-4 w-16" />
         </div>
+        <Skeleton className="h-14 w-full rounded-xl" />
+        <Skeleton className="h-14 w-full rounded-xl" />
+        <Skeleton className="h-14 w-full rounded-xl" />
       </section>
 
-      <section className="grid gap-2">
+      <section className="flex flex-col gap-2">
         <div className="flex items-center justify-between gap-3">
           <Skeleton className="h-4 w-20" />
-          <Skeleton className="h-4 w-4" />
+          <Skeleton className="h-4 w-24" />
         </div>
-        <Skeleton className="h-12 w-full rounded-xl" />
-        <Skeleton className="h-12 w-full rounded-xl" />
+        <Skeleton className="h-16 w-full rounded-xl" />
+        <Skeleton className="h-16 w-full rounded-xl" />
       </section>
 
-      <section className="grid gap-2">
-        <Skeleton className="h-4 w-20" />
-        <div className="grid gap-2 sm:grid-cols-2">
-          <Skeleton className="h-14 w-full rounded-xl" />
-          <Skeleton className="h-14 w-full rounded-xl" />
-          <Skeleton className="h-14 w-full rounded-xl" />
-        </div>
-      </section>
-
-      <section className="grid gap-2">
+      <section className="flex flex-col gap-2">
         <Skeleton className="h-4 w-16" />
-        <Skeleton className="h-16 w-full rounded-md" />
+        <Skeleton className="h-18 w-full rounded-md" />
       </section>
+    </div>
+  );
+}
+
+function ProductOrderFooterSkeleton() {
+  return (
+    <div className="grid w-full gap-2 sm:grid-cols-[auto_minmax(0,1fr)_10rem] sm:items-center sm:gap-4">
+      <div className="flex items-end gap-2">
+        <Skeleton className="size-11 rounded-md" />
+        <Skeleton className="size-11 rounded-md" />
+        <Skeleton className="size-11 rounded-md" />
+      </div>
+      <div className="grid justify-items-end gap-1">
+        <Skeleton className="h-4 w-12" />
+        <Skeleton className="h-6 w-28" />
+      </div>
+      <Skeleton className="h-12 w-full rounded-lg" />
     </div>
   );
 }

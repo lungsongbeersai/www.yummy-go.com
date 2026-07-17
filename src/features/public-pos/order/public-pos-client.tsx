@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AlertCircle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { WINDOW_OPEN_FONT_CLASS_NAME } from "@/lib/window-open-fonts";
 import { useAppStore } from "@/stores/app-store";
 import { ProductBrowse } from "@/features/public-pos/order/components/product-browse";
 import { PublicHeader } from "@/features/public-pos/order/components/public-header";
@@ -16,11 +15,9 @@ import { usePublicPosBootstrap } from "@/features/public-pos/order/hooks/use-pub
 export function PublicPosClient({
   token,
   queryLang,
-  windowOpenFonts,
 }: {
   token: string;
   queryLang: string | null;
-  windowOpenFonts: boolean;
 }) {
   const { t } = useTranslation();
   const theme = useAppStore((state) => state.theme);
@@ -42,18 +39,9 @@ export function PublicPosClient({
     table && !qrDisabled ? t("pos.productLoadFailed") : t("pos.qrScanFailed");
   const canOrder = Boolean(table && !qrDisabled && !isPublicLoading);
 
-  useEffect(() => {
-    if (!windowOpenFonts) return;
-    document.body.classList.add(WINDOW_OPEN_FONT_CLASS_NAME);
-    return () => document.body.classList.remove(WINDOW_OPEN_FONT_CLASS_NAME);
-  }, [windowOpenFonts]);
-
   return (
     <main
-      className={cn(
-        windowOpenFonts && WINDOW_OPEN_FONT_CLASS_NAME,
-        "min-h-screen bg-[#f3fbf7] pb-[calc(5.75rem+env(safe-area-inset-bottom))] text-slate-950 dark:bg-app dark:text-foreground",
-      )}
+      className="min-h-screen bg-[#f3fbf7] pb-[calc(6.5rem+env(safe-area-inset-bottom))] text-slate-950 dark:bg-app dark:text-foreground"
     >
       <PublicHeader
         table={table}

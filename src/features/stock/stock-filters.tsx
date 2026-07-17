@@ -23,30 +23,38 @@ import type { StockStatus } from "@/services/stock";
 import { STOCK_PAGE_LIMIT_OPTIONS, STOCK_STATUS_OPTIONS } from "./stock-constants";
 import { stockStatusTranslationKey } from "./stock-utils";
 
-interface StockCategoryOption {
+interface StockSelectOption {
   label: string;
   value: string;
 }
 
 interface StockFiltersProps {
+  branch: string;
+  branchDisabled: boolean;
+  branchOptions: StockSelectOption[];
   category: string;
   categoryDisabled: boolean;
-  categoryOptions: StockCategoryOption[];
+  categoryOptions: StockSelectOption[];
   disabled: boolean;
   limit: number;
   status: StockStatus;
+  onBranchChange: (value: string) => void;
   onCategoryChange: (value: string) => void;
   onLimitChange: (value: number) => void;
   onStatusChange: (value: StockStatus) => void;
 }
 
 export function StockFilters({
+  branch,
+  branchDisabled,
+  branchOptions,
   category,
   categoryDisabled,
   categoryOptions,
   disabled,
   limit,
   status,
+  onBranchChange,
   onCategoryChange,
   onLimitChange,
   onStatusChange
@@ -54,7 +62,7 @@ export function StockFilters({
   const { t } = useTranslation();
 
   return (
-    <FieldGroup className="grid grid-cols-2 gap-2 lg:grid-cols-[minmax(12rem,18rem)_minmax(7rem,9rem)_minmax(0,1fr)] lg:items-end">
+    <FieldGroup className="grid grid-cols-2 gap-2 lg:grid-cols-[minmax(10rem,15rem)_minmax(12rem,18rem)_minmax(7rem,9rem)_minmax(0,1fr)] lg:items-end">
       <Field className="col-span-2 gap-1 lg:hidden" data-disabled={disabled || undefined}>
         <FieldLabel htmlFor="stock-status-filter-mobile">
           {t("stock.filters.status")}
@@ -65,6 +73,33 @@ export function StockFilters({
           status={status}
           onStatusChange={onStatusChange}
         />
+      </Field>
+
+      <Field
+        className="col-span-2 gap-1 lg:col-span-1"
+        data-disabled={branchDisabled || undefined}
+      >
+        <FieldLabel htmlFor="stock-branch-filter">
+          {t("stock.filters.branch")}
+        </FieldLabel>
+        <Select
+          value={branch}
+          disabled={branchDisabled}
+          onValueChange={onBranchChange}
+        >
+          <SelectTrigger id="stock-branch-filter" className="h-11 w-full bg-background lg:h-9">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent position="popper" align="start">
+            <SelectGroup>
+              {branchOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
       </Field>
 
       <Field className="gap-1" data-disabled={categoryDisabled || undefined}>

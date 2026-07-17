@@ -66,6 +66,15 @@ describe("report Excel helpers", () => {
     expect(worksheet["!merges"]).toContainEqual({ s: { c: 0, r: 0 }, e: { c: 2, r: 0 } });
     expect(Object.values(worksheet).some((cell) => cell?.v === "Shop owner")).toBe(true);
     expect(Object.values(worksheet).some((cell) => cell?.v === "Report preparer")).toBe(true);
+    const preparerCell = Object.entries(worksheet).find(
+      ([, cell]) => cell?.v === "Report preparer",
+    );
+    const ownerCell = Object.entries(worksheet).find(([, cell]) => cell?.v === "Shop owner");
+    expect(preparerCell).toBeDefined();
+    expect(ownerCell).toBeDefined();
+    expect(XLSX.utils.decode_cell(preparerCell?.[0] ?? "A1").c).toBeLessThan(
+      XLSX.utils.decode_cell(ownerCell?.[0] ?? "A1").c,
+    );
 
     const exportedFile = XLSXStyle.write(workbook, { bookType: "xlsx", type: "array" });
     const exportedWorksheet = XLSXStyle.read(exportedFile, { type: "array" }).Sheets.Report;

@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useIsMobile } from "@/hooks/use-mobile";
-import type { CateProductItem, CateWithProducts, ProdDetail, ProdItem, ProdTopping } from "@/services/pos";
+import type { CateWithProducts, ProdDetail, ProdItem } from "@/services/pos";
 import type { PrinterDeviceContext } from "@/services/printer";
 import { useAppStore } from "@/stores/app-store";
 import { useAuthStore } from "@/stores/auth-store";
@@ -13,27 +13,32 @@ import { usePrinterStore } from "@/stores/printer-store";
 import { useToastStore } from "@/stores/toast-store";
 import {
   buildStaffOrderInput,
+  changeToppingQty,
   countProducts,
-  defaultOrderQty,
   emptyMenuBySort,
   firstAvailableDetail,
   firstStatusWithProducts,
   flattenProducts,
   getModalUnitPrice,
+  getOrderSelectionIssue,
   getProductBlockedState,
   getProductModalMode,
   isDetailAvailable,
+  isDetailEnabled,
   nextMenuCategoryUuid,
   normalizeProdItem,
   orderCustomerUrl,
+  orderQuantityRules,
+  orderSelectionIssueLabel,
   ProductSortStatus,
   productNeedsModal,
   selectedOrderTable,
-  selectedToppingsFromUuids,
-  toggleToppingUuid,
+  selectedToppingsFromQtyMap,
+  toggleToppingQty,
   type MenuBySort,
   type ProductCardEntry,
   type ProductModalMode,
+  type SelectedTopping,
 } from "./order-customer-utils";
 import {
   cartForTable,
@@ -85,11 +90,14 @@ export function useOrderCustomerWorkflow({
   const [productSheetOpen, setProductSheetOpen] = useState(false);
   const [cartSheetOpen, setCartSheetOpen] = useState(false);
   const [newOrderFocusKey, setNewOrderFocusKey] = useState(0);
-  const [selectedListProduct, setSelectedListProduct] =
-    useState<CateProductItem | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<ProdItem | null>(null);
   const [detailUuid, setDetailUuid] = useState("");
-  const [toppingUuids, setToppingUuids] = useState<string[]>([]);
+  const [toppingQtyByUuid, setToppingQtyByUuid] = useState<
+    Record<string, number>
+  >({});
+  const [rememberedToppingQtyByUuid, setRememberedToppingQtyByUuid] = useState<
+    Record<string, number>
+  >({});
   const [note, setNote] = useState("");
   const [qty, setQty] = useState(1);
   const [printerContext, setPrinterContext] =
@@ -117,20 +125,24 @@ export function useOrderCustomerWorkflow({
     () => cartQuantityCount(selectedCart),
     [selectedCart],
   );
-  const selectedDetail = useMemo(
-    () =>
-      (selectedProduct?.details ?? []).find(
-        (detail) => detail.pro_detail_uuid === detailUuid,
-      ) ?? firstAvailableDetail(selectedProduct),
-    [detailUuid, selectedProduct],
-  );
-  const selectedToppings = useMemo(
-    () => selectedToppingsFromUuids(selectedProduct, toppingUuids),
-    [selectedProduct, toppingUuids],
-  );
   const productMode = useMemo(
     () => getProductModalMode(activeSort, selectedProduct),
     [activeSort, selectedProduct],
+  );
+  const selectedDetail = useMemo(() => {
+    const matchingDetail = (selectedProduct?.details ?? []).find(
+      (detail) => detail.pro_detail_uuid === detailUuid,
+    );
+    const matchingDetailIsValid =
+      productMode === "set"
+        ? isDetailEnabled(matchingDetail)
+        : isDetailAvailable(matchingDetail);
+    if (matchingDetail && matchingDetailIsValid) return matchingDetail;
+    return firstAvailableDetail(selectedProduct, productMode);
+  }, [detailUuid, productMode, selectedProduct]);
+  const selectedToppings = useMemo(
+    () => selectedToppingsFromQtyMap(selectedProduct, toppingQtyByUuid),
+    [selectedProduct, toppingQtyByUuid],
   );
   const modalUnitPrice = useMemo(
     () =>
@@ -288,7 +300,7 @@ export function useOrderCustomerWorkflow({
       noteText: string;
       product?: ProdItem | null;
       quantity: number;
-      toppings: ProdTopping[];
+      toppings: SelectedTopping[];
     }) => {
       await createOrder(
         buildStaffOrderInput({
@@ -317,6 +329,102 @@ export function useOrderCustomerWorkflow({
       t,
       user?.branch_uuid,
       user?.uuid,
+    ],
+  );
+
+  const openProductOptions = useCallback(
+    (product: ProdItem) => {
+      const mode = getProductModalMode(activeSort, product);
+      const detail = firstAvailableDetail(product, mode);
+      if (!detail) return;
+
+      setSelectedProduct(product);
+      setDetailUuid(detail.pro_detail_uuid);
+      setQty(orderQuantityRules(detail, mode, product).min);
+      setToppingQtyByUuid({});
+      setRememberedToppingQtyByUuid({});
+      setNote("");
+      setProductSheetOpen(true);
+    },
+    [activeSort],
+  );
+
+  const openOrAddProduct = useCallback(
+    async (entry: ProductCardEntry) => {
+      const blockedState = getProductBlockedState(entry.product, activeSort);
+      if (blockedState) return;
+
+      setLoadingProductUuid(entry.product.prod_uuid);
+      try {
+        const item = await loadProductItem({
+          lang: language,
+          prod_uuid: entry.product.prod_uuid,
+        });
+        const productItem = normalizeProdItem(item, entry.product);
+        const mode = getProductModalMode(activeSort, productItem);
+        const detail = firstAvailableDetail(productItem, mode);
+
+        if (!detail) {
+          showToast({
+            title: t("pos.noAvailableOptions"),
+            description: t("pos.checkProductAvailability"),
+            tone: "error",
+          });
+          return;
+        }
+
+        if (productNeedsModal(entry.product, productItem, activeSort)) {
+          openProductOptions(productItem);
+          return;
+        }
+
+        const quantity = orderQuantityRules(detail, mode, productItem).min;
+        const selectionIssue = getOrderSelectionIssue({
+          detail,
+          mode,
+          product: productItem,
+          quantity,
+          toppings: [],
+        });
+        if (selectionIssue) {
+          showToast({
+            title: orderSelectionIssueLabel(selectionIssue, t),
+            description:
+              selectionIssue === "detail-unavailable" ||
+              selectionIssue === "stock-insufficient"
+                ? t("pos.checkProductAvailability")
+                : "",
+            tone: "error",
+          });
+          return;
+        }
+
+        await submitProductOrder({
+          detail,
+          mode,
+          noteText: "",
+          product: productItem,
+          quantity,
+          toppings: [],
+        });
+      } catch (error) {
+        showToast({
+          title: t("pos.orderFailed"),
+          description: error instanceof Error ? error.message : "",
+          tone: "error",
+        });
+      } finally {
+        setLoadingProductUuid("");
+      }
+    },
+    [
+      activeSort,
+      language,
+      loadProductItem,
+      openProductOptions,
+      showToast,
+      submitProductOrder,
+      t,
     ],
   );
 
@@ -390,72 +498,63 @@ export function useOrderCustomerWorkflow({
     await loadMenu({ cateUuid: selectedCateUuid, query: search.trim() });
   }
 
-  async function openOrAddProduct(entry: ProductCardEntry) {
-    const blockedState = getProductBlockedState(entry.product, activeSort);
-    if (blockedState) return;
+  function changeProductDetail(nextDetail: ProdDetail) {
+    if (!isDetailAvailable(nextDetail)) return;
 
-    setLoadingProductUuid(entry.product.prod_uuid);
-    try {
-      const item = await loadProductItem({
-        lang: language,
-        prod_uuid: entry.product.prod_uuid,
-      });
-      const productItem = normalizeProdItem(item, entry.product);
-
-      if (productNeedsModal(entry.product, productItem, activeSort)) {
-        openProductOptions(entry.product, productItem);
-        return;
-      }
-
-      const detail = firstAvailableDetail(productItem);
-      if (!detail) throw new Error("Product detail is required");
-
-      await submitProductOrder({
-        detail,
-        noteText: "",
-        quantity: defaultOrderQty(detail),
-        toppings: [],
-      });
-    } catch (error) {
-      showToast({
-        title: t("pos.orderFailed"),
-        description: error instanceof Error ? error.message : "",
-        tone: "error",
-      });
-    } finally {
-      setLoadingProductUuid("");
+    setDetailUuid(nextDetail.pro_detail_uuid);
+    if (productMode === "promotion") {
+      setQty(
+        orderQuantityRules(nextDetail, productMode, selectedProduct).min,
+      );
     }
   }
 
-  function openProductOptions(listProduct: CateProductItem, product: ProdItem) {
-    const detail = firstAvailableDetail(product);
-    setSelectedListProduct(listProduct);
-    setSelectedProduct(product);
-    setDetailUuid(detail?.pro_detail_uuid ?? "");
-    setQty(defaultOrderQty(detail));
-    setToppingUuids([]);
-    setNote("");
-    setProductSheetOpen(true);
-  }
-
-  function changeProductDetail(nextDetail: ProdDetail) {
-    setDetailUuid(nextDetail.pro_detail_uuid);
-    setQty(defaultOrderQty(nextDetail));
-  }
-
   function toggleSelectedTopping(uuid: string) {
-    setToppingUuids((current) => toggleToppingUuid(current, uuid));
+    const selectedQty = toppingQtyByUuid[uuid];
+    if (selectedQty) {
+      setRememberedToppingQtyByUuid((remembered) => ({
+        ...remembered,
+        [uuid]: selectedQty,
+      }));
+    }
+    setToppingQtyByUuid((current) =>
+      toggleToppingQty(
+        current,
+        uuid,
+        rememberedToppingQtyByUuid[uuid] ?? 1,
+      ),
+    );
+  }
+
+  function changeSelectedToppingQty(uuid: string, nextQty: number) {
+    setToppingQtyByUuid((current) => changeToppingQty(current, uuid, nextQty));
   }
 
   async function submitSelectedProduct() {
     if (!selectedProduct || saving) return;
 
-    const setDetails =
-      productMode === "set"
-        ? selectedProduct.details.filter(isDetailAvailable)
-        : [];
-    const detail = productMode === "set" ? setDetails[0] : selectedDetail;
+    const detail = selectedDetail;
     if (!detail) return;
+
+    const selectionIssue = getOrderSelectionIssue({
+      detail,
+      mode: productMode,
+      product: selectedProduct,
+      quantity: qty,
+      toppings: selectedToppings,
+    });
+    if (selectionIssue) {
+      showToast({
+        title: orderSelectionIssueLabel(selectionIssue, t),
+        description:
+          selectionIssue === "detail-unavailable" ||
+          selectionIssue === "stock-insufficient"
+            ? t("pos.checkProductAvailability")
+            : "",
+        tone: "error",
+      });
+      return;
+    }
 
     try {
       await submitProductOrder({
@@ -506,6 +605,7 @@ export function useOrderCustomerWorkflow({
     cartSheetOpen,
     categories,
     changeProductDetail,
+    changeSelectedToppingQty,
     handleTableActionComplete,
     isMobile,
     loadCart,
@@ -530,7 +630,6 @@ export function useOrderCustomerWorkflow({
     selectCategory,
     selectedCateUuid,
     selectedDetail,
-    selectedListProduct,
     selectedProduct,
     selectedTable,
     selectedToppings,
@@ -544,7 +643,7 @@ export function useOrderCustomerWorkflow({
     submitSelectedProduct,
     t,
     toggleSelectedTopping,
-    toppingUuids,
+    toppingQtyByUuid,
     zones,
   };
 }

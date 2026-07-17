@@ -1,22 +1,33 @@
 import { describe, expect, it } from "vitest";
 import {
+  availableProductDetails,
   buildStaffOrderItems,
   buildStaffOrderInput,
   canDirectAddFromList,
+  clampOrderQuantity,
+  changeToppingQty,
+  countSelectedToppings,
   defaultOrderQty,
+  firstAvailableDetail,
   firstStatusWithProducts,
   flattenProducts,
+  getModalBasePrice,
+  getModalUnitPrice,
+  getOrderSelectionIssue,
   getProductActionState,
   getProductBlockedState,
   getProductModalMode,
   nextMenuCategoryUuid,
   normalizeProdItem,
   orderCustomerUrl,
+  orderQuantityRules,
   ProductSortStatus,
+  productCardPrice,
   productNeedsModal,
+  productOptionCount,
   selectedOrderTable,
-  selectedToppingsFromUuids,
-  toggleToppingUuid,
+  selectedToppingsFromQtyMap,
+  toggleToppingQty,
 } from "@/features/pos/order-customer/order-customer-utils";
 import {
   OrderChannelEnum,
@@ -172,6 +183,87 @@ describe("order customer helpers", () => {
     ).toBe(false);
   });
 
+  it("builds truthful card prices without guessing a multi-size minimum", () => {
+    expect(productOptionCount(product())).toBe(1);
+    expect(
+      productOptionCount(
+        product({ count_option_enabled: 2, count_option_all: 4 }),
+      ),
+    ).toBe(2);
+    expect(
+      productOptionCount(
+        product({ count_option_enabled: 0, count_option_all: 4 }),
+      ),
+    ).toBe(0);
+    expect(
+      productCardPrice(product(), ProductSortStatus.NORMAL),
+    ).toEqual({ kind: "exact", value: 12000 });
+    expect(
+      productCardPrice(
+        product({ count_option_enabled: 3, count_option_all: 4 }),
+        ProductSortStatus.NORMAL,
+      ),
+    ).toEqual({ kind: "variable", value: null });
+    expect(
+      productCardPrice(
+        product({
+          count_option_enabled: 3,
+          min_price: "10000",
+          max_price: 15000,
+        }),
+        ProductSortStatus.NORMAL,
+      ),
+    ).toEqual({ kind: "starting", value: 10000 });
+    expect(
+      productCardPrice(
+        product({
+          count_option_enabled: 2,
+          min_price: 12000,
+          max_price: "12000",
+        }),
+        ProductSortStatus.NORMAL,
+      ),
+    ).toEqual({ kind: "exact", value: 12000 });
+    expect(
+      productCardPrice(
+        product({ count_option_enabled: 2, min_price: 0, max_price: 15000 }),
+        ProductSortStatus.NORMAL,
+      ),
+    ).toEqual({ kind: "variable", value: null });
+    expect(
+      productCardPrice(
+        product({
+          count_option_enabled: 2,
+          min_price: 15000,
+          max_price: 10000,
+        }),
+        ProductSortStatus.NORMAL,
+      ),
+    ).toEqual({ kind: "variable", value: null });
+    expect(
+      productCardPrice(
+        product({ count_topping_enabled: 3 }),
+        ProductSortStatus.NORMAL,
+      ),
+    ).toEqual({ kind: "exact", value: 12000 });
+    expect(
+      productCardPrice(
+        product({
+          status_sort_fk: ProductSortStatus.SET,
+          count_option_enabled: 2,
+          prod_set_price: 50000,
+        }),
+        ProductSortStatus.SET,
+      ),
+    ).toEqual({ kind: "exact", value: 50000 });
+    expect(
+      productCardPrice(
+        product({ pro_detail_sprice: 0, prod_price: 0 }),
+        ProductSortStatus.NORMAL,
+      ),
+    ).toEqual({ kind: "unavailable", value: null });
+  });
+
   it("normalizes product item fallback details and modal mode", () => {
     const normalized = normalizeProdItem(null, product());
     expect(normalized.details?.[0]?.pro_detail_uuid).toBe("detail-1");
@@ -191,6 +283,146 @@ describe("order customer helpers", () => {
     ).toBe(true);
   });
 
+  it("sorts available details and never falls back to an unavailable option", () => {
+    const item = normalizeProdItem(null, product());
+    item.details = [
+      detail({ pro_detail_uuid: "large", pro_detail_sort: 3 }),
+      detail({
+        pro_detail_uuid: "disabled",
+        pro_detail_enabled: 2,
+        pro_detail_sort: 1,
+      }),
+      detail({ pro_detail_uuid: "small", pro_detail_sort: 1 }),
+      detail({ pro_detail_uuid: "medium", pro_detail_sort: 2 }),
+      detail({ pro_detail_uuid: "invalid-sort", pro_detail_sort: 0 }),
+    ];
+
+    expect(
+      availableProductDetails(item).map((option) => option.pro_detail_uuid),
+    ).toEqual(["small", "medium", "large", "invalid-sort"]);
+    expect(firstAvailableDetail(item)?.pro_detail_uuid).toBe("small");
+    expect(
+      firstAvailableDetail({
+        ...item,
+        details: [detail({ pro_detail_enabled: 2 })],
+      }),
+    ).toBeNull();
+  });
+
+  it("enforces promotion quantity steps without changing normal quantities", () => {
+    const normalRules = orderQuantityRules(detail(), "normal");
+    expect(normalRules).toEqual({
+      canOrder: true,
+      min: 1,
+      max: 99,
+      step: 1,
+    });
+    expect(clampOrderQuantity(7, normalRules)).toBe(7);
+
+    expect(
+      orderQuantityRules(
+        detail({ pro_detail_cus_qtyBuy: 2, default_qty: 6 }),
+        "promotion",
+      ),
+    ).toEqual({ canOrder: true, min: 1, max: 99, step: 1 });
+
+    const promotionRules = orderQuantityRules(
+      detail({ pro_detail_cus_qtyBuy: 2, pro_detail_cus_qtyFree: 1 }),
+      "promotion",
+    );
+    expect(promotionRules).toEqual({
+      canOrder: true,
+      min: 2,
+      max: 98,
+      step: 2,
+    });
+    expect(clampOrderQuantity(1, promotionRules)).toBe(2);
+    expect(clampOrderQuantity(3, promotionRules)).toBe(4);
+    expect(clampOrderQuantity(99, promotionRules)).toBe(98);
+
+    expect(
+      orderQuantityRules(
+        detail({
+          cut_stock: 1,
+          qty_stock: 5,
+          pro_detail_cus_qtyBuy: 2,
+          pro_detail_cus_qtyFree: 1,
+        }),
+        "promotion",
+      ),
+    ).toEqual({ canOrder: true, min: 2, max: 4, step: 2 });
+    expect(
+      orderQuantityRules(
+        detail({
+          cut_stock: 1,
+          qty_stock: 1,
+          pro_detail_cus_qtyBuy: 2,
+          pro_detail_cus_qtyFree: 1,
+        }),
+        "promotion",
+      ),
+    ).toEqual({ canOrder: false, min: 2, max: 2, step: 2 });
+  });
+
+  it("requires an explicit set price and does not infer set mode from null", () => {
+    const normalProduct = {
+      ...normalizeProdItem(null, product()),
+      prod_price: 50000,
+      prod_set_price: null,
+    };
+
+    expect(
+      getProductModalMode(ProductSortStatus.NORMAL, normalProduct),
+    ).toBe("normal");
+    expect(getModalBasePrice(normalProduct, detail(), "set")).toBe(0);
+    expect(
+      getOrderSelectionIssue({
+        detail: detail(),
+        mode: "set",
+        product: normalProduct,
+        quantity: 1,
+        toppings: [],
+      }),
+    ).toBe("price-invalid");
+  });
+
+  it("validates price, stock, quantity, and toppings before building payload", () => {
+    expect(
+      getOrderSelectionIssue({
+        detail: detail({ price: 0, pro_detail_sprice: 0 }),
+        mode: "normal",
+        quantity: 1,
+        toppings: [],
+      }),
+    ).toBe("price-invalid");
+    expect(
+      getOrderSelectionIssue({
+        detail: detail({ cut_stock: 1, qty_stock: 2 }),
+        mode: "normal",
+        quantity: 3,
+        toppings: [],
+      }),
+    ).toBe("quantity-invalid");
+    expect(
+      getOrderSelectionIssue({
+        detail: detail(),
+        mode: "normal",
+        quantity: 1,
+        toppings: [
+          { topping: topping({ topping_enabled: 2 }), qty: 1 },
+        ],
+      }),
+    ).toBe("topping-invalid");
+    expect(() =>
+      buildStaffOrderItems({
+        detail: detail({ price: 0, pro_detail_sprice: 0 }),
+        noteText: "",
+        quantity: 1,
+        toppings: [],
+      }),
+    ).toThrow("price-invalid");
+  });
+
   it("normalizes default quantity and builds staff order payload", () => {
     const input = buildStaffOrderInput({
       branchUuid: "branch-1",
@@ -199,7 +431,7 @@ describe("order customer helpers", () => {
       noteText: " less spicy ",
       quantity: defaultOrderQty(detail({ pro_detail_cus_qtyBuy: 2 })),
       tableUuid: "table-1",
-      toppings: [topping()],
+      toppings: [{ topping: topping(), qty: 1 }],
       userUuid: "user-1",
     });
 
@@ -226,7 +458,12 @@ describe("order customer helpers", () => {
       prod_set_price: 220000,
       type_group: "Set",
       details: [
-        detail({ pro_detail_uuid: "beer", price: 0, pro_detail_sprice: 0 }),
+        detail({
+          pro_detail_uuid: "beer",
+          default_qty: 2,
+          price: 0,
+          pro_detail_sprice: 0,
+        }),
         detail({
           pro_detail_uuid: "ice",
           default_qty: 2,
@@ -248,14 +485,14 @@ describe("order customer helpers", () => {
       noteText: " cold ",
       product: setProduct,
       quantity: 3,
-      toppings: [topping()],
+      toppings: [{ topping: topping(), qty: 1 }],
     });
 
     expect(items).toHaveLength(2);
     expect(items).toEqual([
       {
         prod_detail_uuid_fk: "beer",
-        order_it_qty: 3,
+        order_it_qty: 6,
         order_it_status: 1,
         order_it_note: "cold",
         toppings: [{ prod_topping_uuid_fk: "top-1", topping_qty: 1 }],
@@ -279,11 +516,64 @@ describe("order customer helpers", () => {
     };
 
     expect(
-      selectedToppingsFromUuids(productItem, ["top-2"]).map(
-        (item) => item.topping_name,
+      selectedToppingsFromQtyMap(productItem, { "top-2": 2 }).map(
+        (selected) => `${selected.topping.topping_name} x${selected.qty}`,
       ),
-    ).toEqual(["Cheese"]);
-    expect(toggleToppingUuid(["top-1"], "top-2")).toEqual(["top-1", "top-2"]);
-    expect(toggleToppingUuid(["top-1", "top-2"], "top-1")).toEqual(["top-2"]);
+    ).toEqual(["Cheese x2"]);
+    expect(toggleToppingQty({ "top-1": 1 }, "top-2")).toEqual({
+      "top-1": 1,
+      "top-2": 1,
+    });
+    expect(toggleToppingQty({ "top-1": 1, "top-2": 2 }, "top-1")).toEqual({
+      "top-2": 2,
+    });
+    expect(toggleToppingQty({ "top-1": 1 }, "top-2", 3)).toEqual({
+      "top-1": 1,
+      "top-2": 3,
+    });
+    expect(changeToppingQty({ "top-1": 1 }, "top-1", 3)).toEqual({
+      "top-1": 3,
+    });
+    expect(changeToppingQty({ "top-1": 2, "top-2": 1 }, "top-1", 0)).toEqual({
+      "top-2": 1,
+    });
+    expect(
+      countSelectedToppings([
+        { topping: topping(), qty: 2 },
+        { topping: topping({ prod_topping_uuid: "top-2" }), qty: 1 },
+      ]),
+    ).toBe(3);
+  });
+
+  it("keeps topping_qty per product without multiplying by product quantity", () => {
+    const productItem = normalizeProdItem(null, product());
+
+    // ข้าวผัด 1 จาน + ไข่ 3 ฟอง/จาน → ราคาต่อจานรวมไข่ 3 ฟอง
+    expect(
+      getModalUnitPrice(
+        productItem,
+        detail(),
+        [{ topping: topping(), qty: 3 }],
+        "normal",
+      ),
+    ).toBe(12000 + 2000 * 3);
+
+    // ข้าวผัด 2 จาน × ไข่ 3 ฟอง/จาน → backend คูณ order_it_qty ตอนคิดยอดรวม
+    expect(
+      buildStaffOrderItems({
+        detail: detail(),
+        noteText: "",
+        quantity: 2,
+        toppings: [{ topping: topping(), qty: 3 }],
+      }),
+    ).toEqual([
+      {
+        prod_detail_uuid_fk: "detail-1",
+        order_it_qty: 2,
+        order_it_status: 1,
+        order_it_note: undefined,
+        toppings: [{ prod_topping_uuid_fk: "top-1", topping_qty: 3 }],
+      },
+    ]);
   });
 });

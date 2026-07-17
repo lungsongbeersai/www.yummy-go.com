@@ -15,6 +15,7 @@ import {
   addPublicSearchHistoryItem,
   buildPublicOrderInput,
   canAddQty,
+  changePublicToppingQty,
   cartGroupTitle,
   getCategoryPathUuids,
   getCartItemStatus,
@@ -24,6 +25,7 @@ import {
   getProductActionState,
   getProductBlockedState,
   getProductModalMode,
+  getPublicOrderPriceTotals,
   getRenderedMenuSections,
   isCanceledCartItem,
   isServedCartItem,
@@ -32,8 +34,10 @@ import {
   normalizePublicProductLayoutMode,
   normalizePublicSearchHistory,
   promotionQuantity,
+  publicProductCardPrice,
   statusSectionLabel,
   totalCartQty,
+  togglePublicToppingQty,
   visibleProductCountForCategory,
   withCategoryPathVisibleCounts,
 } from "@/features/public-pos/order/utils";
@@ -93,6 +97,93 @@ function category(
 }
 
 describe("public POS product helpers", () => {
+  it("uses the minimum as a starting price when enabled options have a price range", () => {
+    expect(
+      publicProductCardPrice(
+        product({
+          count_option_enabled: 3,
+          pro_detail_sprice: 99999,
+          min_price: "45000",
+          max_price: 65000,
+        }),
+      ),
+    ).toEqual({ kind: "starting", value: 45000 });
+
+    expect(
+      publicProductCardPrice(
+        product({
+          count_option_enabled: 2,
+          min_price: 45000,
+          max_price: undefined,
+        }),
+      ),
+    ).toEqual({ kind: "starting", value: 45000 });
+  });
+
+  it("uses an exact price when all enabled options have the same price", () => {
+    expect(
+      publicProductCardPrice(
+        product({
+          count_option_enabled: 2,
+          min_price: 45000,
+          max_price: "45000",
+        }),
+      ),
+    ).toEqual({ kind: "exact", value: 45000 });
+  });
+
+  it("does not claim a price for invalid or inverted option ranges", () => {
+    expect(
+      publicProductCardPrice(
+        product({
+          count_option_enabled: 2,
+          min_price: undefined,
+          max_price: 65000,
+        }),
+      ),
+    ).toEqual({ kind: "variable", value: null });
+    expect(
+      publicProductCardPrice(
+        product({
+          count_option_enabled: 2,
+          min_price: 65000,
+          max_price: 45000,
+        }),
+      ),
+    ).toEqual({ kind: "variable", value: null });
+    expect(
+      publicProductCardPrice(
+        product({
+          count_option_enabled: 2,
+          min_price: 45000,
+          max_price: "invalid",
+        }),
+      ),
+    ).toEqual({ kind: "variable", value: null });
+  });
+
+  it("uses direct prices for products without multiple enabled options", () => {
+    expect(publicProductCardPrice(product())).toEqual({
+      kind: "exact",
+      value: 12000,
+    });
+    expect(
+      publicProductCardPrice(
+        product({ pro_detail_sprice: 0, prod_price: "18000" }),
+      ),
+    ).toEqual({ kind: "exact", value: 18000 });
+    expect(
+      publicProductCardPrice(
+        product({ pro_detail_sprice: 0, prod_price: 0, min_price: 15000 }),
+      ),
+    ).toEqual({ kind: "exact", value: 15000 });
+    expect(
+      publicProductCardPrice(
+        product({ pro_detail_sprice: 0, prod_price: 0, min_price: 0 }),
+      ),
+    ).toEqual({ kind: "variable", value: null });
+  });
+
   it("normalizes product layout modes with grid as the safe fallback", () => {
     expect(normalizePublicProductLayoutMode("grid")).toBe("grid");
     expect(normalizePublicProductLayoutMode("list")).toBe("list");
@@ -212,6 +303,58 @@ describe("public POS quantity helpers", () => {
 });
 
 describe("public POS order payload helper", () => {
+  it("extends the per-product topping price by the product quantity", () => {
+    expect(
+      getPublicOrderPriceTotals({
+        basePrice: 65_000,
+        productQty: 2,
+        toppings: [
+          {
+            topping: {
+              prod_topping_uuid: "top-meat",
+              topping_price: "10000",
+            },
+            qty: 3,
+          },
+          {
+            topping: {
+              prod_topping_uuid: "top-egg",
+              topping_price: 5_000,
+            },
+            qty: 1,
+          },
+        ],
+      }),
+    ).toEqual({
+      productSubtotal: 130_000,
+      toppingTotal: 70_000,
+      total: 200_000,
+    });
+  });
+
+  it("calculates a product subtotal without toppings", () => {
+    expect(
+      getPublicOrderPriceTotals({
+        basePrice: 12_000,
+        productQty: 3,
+        toppings: [],
+      }),
+    ).toEqual({
+      productSubtotal: 36_000,
+      toppingTotal: 0,
+      total: 36_000,
+    });
+  });
+
+  it("adjusts topping quantity independently from product quantity", () => {
+    expect(changePublicToppingQty({}, "top-1", 3)).toEqual({ "top-1": 3 });
+    expect(changePublicToppingQty({ "top-1": 3 }, "top-1", 0)).toEqual({});
+    expect(changePublicToppingQty({}, "top-1", 999)).toEqual({ "top-1": 99 });
+    expect(togglePublicToppingQty({}, "top-1")).toEqual({ "top-1": 1 });
+    expect(togglePublicToppingQty({ "top-1": 2 }, "top-1")).toEqual({});
+    expect(togglePublicToppingQty({}, "top-1", 3)).toEqual({ "top-1": 3 });
+  });
+
   it("builds the public QR create-order contract", () => {
     expect(
       buildPublicOrderInput({
@@ -227,7 +370,7 @@ describe("public POS order payload helper", () => {
         },
         detail: { pro_detail_uuid: "detail-1" },
         qty: 2,
-        toppings: [{ prod_topping_uuid: "top-1" }],
+        toppings: [{ topping: { prod_topping_uuid: "top-1" }, qty: 3 }],
         note: "less spicy",
         lang: "en",
       }),
@@ -243,7 +386,7 @@ describe("public POS order payload helper", () => {
           prod_detail_uuid_fk: "detail-1",
           order_it_qty: 2,
           order_it_note: "less spicy",
-          toppings: [{ prod_topping_uuid_fk: "top-1", topping_qty: 1 }],
+          toppings: [{ prod_topping_uuid_fk: "top-1", topping_qty: 3 }],
         },
       ],
     });

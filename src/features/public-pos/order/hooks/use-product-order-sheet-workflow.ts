@@ -7,19 +7,22 @@ import {
   type PublicMenuKind,
 } from "@/stores/public-pos-store";
 import { MAX_OPEN_QTY } from "../constants";
-import type { PublicAddToCartPayload } from "../types";
+import type {
+  PublicAddToCartPayload,
+  PublicSelectedTopping,
+} from "../types";
 import {
+  changePublicToppingQty,
   defaultOrderQty,
-  firstAvailableDetail,
-  formatMoney,
   getModalBasePrice,
+  getPublicOrderPriceTotals,
   getProductModalMode,
   isDetailAvailable,
   isToppingAvailable,
   maxAvailableQty,
-  numeric,
   productModeLabel,
   promotionQuantity,
+  togglePublicToppingQty,
 } from "../utils";
 
 export interface ProductOrderSheetProps {
@@ -33,6 +36,12 @@ export interface ProductOrderSheetProps {
   saving: boolean;
   onAdd: (payload: PublicAddToCartPayload, sourceRect?: DOMRect | null) => void;
 }
+
+export type PublicProductSelectionIssue =
+  | "noAvailableOptions"
+  | "invalidProductPrice"
+  | "insufficientStock"
+  | "invalidQuantity";
 
 export function useProductOrderSheetWorkflow({
   open,
@@ -53,43 +62,52 @@ export function useProductOrderSheetWorkflow({
     () => getProductModalMode(statusSortFk, product),
     [product, statusSortFk],
   );
-  const [detailUuid, setDetailUuid] = useState("");
-  const [selectedToppingUuids, setSelectedToppingUuids] = useState<string[]>(
-    [],
+  const initialDetail = details.find(isDetailAvailable);
+  const [detailUuid, setDetailUuid] = useState(
+    () => initialDetail?.pro_detail_uuid ?? "",
   );
-  const [qty, setQty] = useState(1);
+  const [toppingQtyByUuid, setToppingQtyByUuid] = useState<
+    Record<string, number>
+  >({});
+  const [rememberedToppingQtyByUuid, setRememberedToppingQtyByUuid] = useState<
+    Record<string, number>
+  >({});
+  const [qty, setQty] = useState(() => defaultOrderQty(initialDetail));
   const [note, setNote] = useState("");
 
   useEffect(() => {
     if (!open || !product) return;
-    const nextDetail = firstAvailableDetail(product) ?? details[0];
+    const nextDetail = details.find(isDetailAvailable);
     setDetailUuid(nextDetail?.pro_detail_uuid ?? "");
     setQty(defaultOrderQty(nextDetail));
-    setSelectedToppingUuids([]);
+    setToppingQtyByUuid({});
+    setRememberedToppingQtyByUuid({});
     setNote("");
   }, [details, open, product]);
 
   const selectedDetail = useMemo(
     () =>
       details.find((detail) => detail.pro_detail_uuid === detailUuid) ??
-      firstAvailableDetail(product),
-    [detailUuid, details, product],
+      details.find(isDetailAvailable),
+    [detailUuid, details],
   );
   const selectedToppings = useMemo(
     () =>
-      toppings.filter(
-        (topping) =>
-          selectedToppingUuids.includes(topping.prod_topping_uuid) &&
-          isToppingAvailable(topping),
-      ),
-    [selectedToppingUuids, toppings],
+      toppings.flatMap((topping): PublicSelectedTopping[] => {
+        const toppingQty = toppingQtyByUuid[topping.prod_topping_uuid] ?? 0;
+        return toppingQty >= 1 && isToppingAvailable(topping)
+          ? [{ topping, qty: toppingQty }]
+          : [];
+      }),
+    [toppingQtyByUuid, toppings],
   );
   const basePrice = getModalBasePrice(product, selectedDetail, mode);
-  const toppingTotal = selectedToppings.reduce(
-    (sum, topping) => sum + numeric(topping.topping_price),
-    0,
-  );
-  const lineTotal = (basePrice + toppingTotal) * qty;
+  const priceTotals = getPublicOrderPriceTotals({
+    basePrice,
+    productQty: qty,
+    toppings: selectedToppings,
+  });
+  const { productSubtotal, toppingTotal, total: lineTotal } = priceTotals;
   const maxQty = Math.min(
     MAX_OPEN_QTY,
     maxAvailableQty(product, selectedDetail ?? undefined, cart),
@@ -97,34 +115,43 @@ export function useProductOrderSheetWorkflow({
   const quantityMeta = promotionQuantity(selectedDetail);
   const qtyStep = quantityMeta.qtyStep;
   const minQty = qtyStep;
-  const maxSelectableQty = maxQty >= minQty ? maxQty : minQty;
-  const canSubmit = Boolean(
-    product &&
-      selectedDetail &&
-      isDetailAvailable(selectedDetail) &&
-      qty >= minQty &&
-      qty <= maxQty &&
-      !saving,
-  );
+  const maxSelectableQty =
+    maxQty >= minQty
+      ? minQty + Math.floor((maxQty - minQty) / qtyStep) * qtyStep
+      : minQty;
+  let selectionIssue: PublicProductSelectionIssue | null = null;
+  if (!product || !selectedDetail || !isDetailAvailable(selectedDetail)) {
+    selectionIssue = "noAvailableOptions";
+  } else if (!Number.isFinite(basePrice) || basePrice <= 0) {
+    selectionIssue = "invalidProductPrice";
+  } else if (maxQty < minQty) {
+    selectionIssue = "insufficientStock";
+  } else if (
+    !Number.isInteger(qty) ||
+    qty < minQty ||
+    qty > maxSelectableQty ||
+    (qty - minQty) % qtyStep !== 0
+  ) {
+    selectionIssue = "invalidQuantity";
+  }
+  const canSubmit = selectionIssue === null && !saving;
   const modeLabel = product ? productModeLabel(mode, product, lang) : "";
-  const hasSelectableDetails = mode !== "set" && details.length > 0;
-  const priceLabel =
-    mode === "set"
-      ? formatMoney(basePrice, lang)
-      : selectedDetail
-        ? formatMoney(basePrice, lang)
-        : "";
+  const hasSelectableDetails = mode !== "set" && details.length > 1;
 
   const handleDetailSelect = (nextDetailUuid: string) => {
     const nextDetail = details.find(
       (detail) => detail.pro_detail_uuid === nextDetailUuid,
     );
+    if (!isDetailAvailable(nextDetail)) return;
     setDetailUuid(nextDetailUuid);
     setQty(defaultOrderQty(nextDetail));
   };
 
   const handleQty = (nextQty: number) => {
-    setQty(Math.max(minQty, Math.min(maxSelectableQty, nextQty)));
+    const clampedQty = Math.max(minQty, Math.min(maxSelectableQty, nextQty));
+    const validQty =
+      minQty + Math.floor((clampedQty - minQty) / qtyStep) * qtyStep;
+    setQty(validQty);
   };
 
   const handleToppingToggle = (toppingUuid: string) => {
@@ -133,10 +160,30 @@ export function useProductOrderSheetWorkflow({
     );
     if (!isToppingAvailable(topping)) return;
 
-    setSelectedToppingUuids((current) =>
-      current.includes(toppingUuid)
-        ? current.filter((uuid) => uuid !== toppingUuid)
-        : [...current, toppingUuid],
+    const selectedQty = toppingQtyByUuid[toppingUuid];
+    if (selectedQty) {
+      setRememberedToppingQtyByUuid((remembered) => ({
+        ...remembered,
+        [toppingUuid]: selectedQty,
+      }));
+    }
+    setToppingQtyByUuid((current) =>
+      togglePublicToppingQty(
+        current,
+        toppingUuid,
+        rememberedToppingQtyByUuid[toppingUuid] ?? 1,
+      ),
+    );
+  };
+
+  const handleToppingQty = (toppingUuid: string, nextQty: number) => {
+    const topping = toppings.find(
+      (item) => item.prod_topping_uuid === toppingUuid,
+    );
+    if (!isToppingAvailable(topping)) return;
+
+    setToppingQtyByUuid((current) =>
+      changePublicToppingQty(current, toppingUuid, nextQty),
     );
   };
 
@@ -161,6 +208,7 @@ export function useProductOrderSheetWorkflow({
     handleDetailSelect,
     handleQty,
     handleSubmit,
+    handleToppingQty,
     handleToppingToggle,
     hasSelectableDetails,
     lang,
@@ -175,14 +223,16 @@ export function useProductOrderSheetWorkflow({
     onNoteChange: setNote,
     onOpenChange,
     open,
-    priceLabel,
     product,
+    productSubtotal,
     qty,
     qtyStep,
     quantityMeta,
     saving,
     selectedDetail,
-    selectedToppingUuids,
+    selectionIssue,
+    selectedToppings,
+    toppingQtyByUuid,
     toppingTotal,
     toppings,
   };

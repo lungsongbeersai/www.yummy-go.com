@@ -16,6 +16,8 @@ interface StockState {
   loading: boolean;
   error: string | null;
   load: (params: FetchStockParams) => Promise<StockProduct[]>;
+  // ดึงข้อมูลทุกหน้าไว้ทำไฟล์ export โดยไม่แตะ state ของตารางบนหน้าจอ
+  loadExport: (params: FetchStockParams) => Promise<StockProduct[]>;
   reset: () => void;
 }
 
@@ -52,6 +54,10 @@ export const useStockStore = create<StockState>((set) => ({
       }
       throw error;
     }
+  },
+  loadExport: async (params) => {
+    const result = await getStockProducts(params);
+    return Array.isArray(result.data) ? result.data : [];
   },
   reset: () => {
     stockLoadRequestId += 1;

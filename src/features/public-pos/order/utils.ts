@@ -41,6 +41,7 @@ import type {
   PublicAddToCartPayload,
   PublicDisplayProduct,
   PublicProductLayoutMode,
+  PublicSelectedTopping,
   RectSnapshot,
   ScrollJumpEdge,
 } from "@/features/public-pos/order/types";
@@ -381,6 +382,53 @@ export function formatProductPrice(product: CateProductItem, lang: string) {
   return formatMoney(price, lang);
 }
 
+function positivePrice(value: unknown) {
+  const price = Number(value);
+  return Number.isFinite(price) && price > 0 ? price : null;
+}
+
+function hasPriceValue(value: unknown) {
+  return (
+    value !== null &&
+    value !== undefined &&
+    (typeof value !== "string" || value.trim() !== "")
+  );
+}
+
+export function publicProductCardPrice(
+  product: CateProductItem,
+):
+  | { kind: "exact" | "starting"; value: number }
+  | { kind: "variable"; value: null } {
+  if (Number(product.count_option_enabled ?? 0) > 1) {
+    const minPrice = positivePrice(product.min_price);
+    if (minPrice === null) return { kind: "variable", value: null };
+
+    if (!hasPriceValue(product.max_price)) {
+      return { kind: "starting", value: minPrice };
+    }
+
+    const maxPrice = positivePrice(product.max_price);
+    if (maxPrice === null || maxPrice < minPrice) {
+      return { kind: "variable", value: null };
+    }
+
+    return maxPrice === minPrice
+      ? { kind: "exact", value: minPrice }
+      : { kind: "starting", value: minPrice };
+  }
+
+  const exactPrice =
+    positivePrice(product.pro_detail_sprice) ??
+    positivePrice(product.prod_price);
+  if (exactPrice !== null) return { kind: "exact", value: exactPrice };
+
+  const minPrice = positivePrice(product.min_price);
+  return minPrice === null
+    ? { kind: "variable", value: null }
+    : { kind: "exact", value: minPrice };
+}
+
 export function formatMoney(price: number, lang: string) {
   if (!Number.isFinite(price) || price <= 0) return "0 LAK";
 
@@ -391,6 +439,32 @@ export function formatMoney(price: number, lang: string) {
 export function numeric(value: unknown) {
   const number = Number(value ?? 0);
   return Number.isFinite(number) ? number : 0;
+}
+
+export function getPublicOrderPriceTotals({
+  basePrice,
+  productQty,
+  toppings,
+}: {
+  basePrice: number;
+  productQty: number;
+  toppings: PublicSelectedTopping[];
+}) {
+  const normalizedProductQty = numeric(productQty);
+  const productSubtotal = numeric(basePrice) * normalizedProductQty;
+  const toppingUnitTotal = toppings.reduce(
+    (sum, selected) =>
+      sum + numeric(selected.topping.topping_price) * numeric(selected.qty),
+    0,
+  );
+  // topping_qty is per product; only its price is extended by the product quantity.
+  const toppingTotal = toppingUnitTotal * normalizedProductQty;
+
+  return {
+    productSubtotal,
+    toppingTotal,
+    total: productSubtotal + toppingTotal,
+  };
 }
 
 export function isHexColor(value?: string) {
@@ -803,7 +877,7 @@ export function buildPublicOrderInput({
   table: QRScanResponse;
   detail: ProdDetail;
   qty: number;
-  toppings: ProdTopping[];
+  toppings: PublicSelectedTopping[];
   note: string;
   lang: string;
 }): CustomerCreateOrderInput {
@@ -822,13 +896,43 @@ export function buildPublicOrderInput({
         order_it_qty: qty,
         order_it_note: note || "",
         order_it_status: 0,
-        toppings: toppings.map((topping) => ({
-          prod_topping_uuid_fk: topping.prod_topping_uuid,
-          topping_qty: 1,
+        toppings: toppings.map((selected) => ({
+          prod_topping_uuid_fk: selected.topping.prod_topping_uuid,
+          topping_qty: selected.qty,
         })),
       },
     ],
   };
+}
+
+export function changePublicToppingQty(
+  current: Record<string, number>,
+  toppingUuid: string,
+  qty: number,
+) {
+  const normalizedQty = Number.isFinite(qty) ? Math.floor(qty) : 0;
+  if (normalizedQty < 1) {
+    const next = { ...current };
+    delete next[toppingUuid];
+    return next;
+  }
+
+  return {
+    ...current,
+    [toppingUuid]: Math.min(MAX_OPEN_QTY, normalizedQty),
+  };
+}
+
+export function togglePublicToppingQty(
+  current: Record<string, number>,
+  toppingUuid: string,
+  rememberedQty = 1,
+) {
+  return changePublicToppingQty(
+    current,
+    toppingUuid,
+    current[toppingUuid] ? 0 : rememberedQty,
+  );
 }
 
 export type DirectAddListResult =
@@ -896,10 +1000,19 @@ export function findExistingCartItem(
 ) {
   const detailUuid = payload.detail.pro_detail_uuid;
   const toppingIds = payload.toppings
-    .map((topping) => topping.prod_topping_uuid)
+    .map((selected) =>
+      selected.topping.prod_topping_uuid
+        ? `${selected.topping.prod_topping_uuid}:${selected.qty}`
+        : "",
+    )
+    .filter(Boolean)
     .sort();
   const toppingNames = payload.toppings
-    .map((topping) => topping.topping_name ?? "")
+    .map((selected) =>
+      selected.topping.topping_name
+        ? `${selected.topping.topping_name}:${selected.qty}`
+        : "",
+    )
     .filter(Boolean)
     .sort();
 
@@ -923,15 +1036,21 @@ export function findExistingCartItem(
       if (!matchesProduct) continue;
 
       const existingIds = (item.toppings ?? [])
-        .map((topping) =>
-          String(
+        .map((topping) => {
+          const uuid = String(
             topping.prod_topping_uuid_fk ?? topping.prod_topping_uuid ?? "",
-          ),
-        )
+          );
+          const qty = Math.max(1, numeric(topping.topping_qty));
+          return uuid ? `${uuid}:${qty}` : "";
+        })
         .filter(Boolean)
         .sort();
       const existingNames = (item.toppings ?? [])
-        .map((topping) => topping.topping_name ?? "")
+        .map((topping) => {
+          const name = topping.topping_name ?? "";
+          const qty = Math.max(1, numeric(topping.topping_qty));
+          return name ? `${name}:${qty}` : "";
+        })
         .filter(Boolean)
         .sort();
       const idsMatch =

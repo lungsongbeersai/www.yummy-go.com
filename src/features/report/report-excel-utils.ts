@@ -411,7 +411,7 @@ function createReportWorksheet(
     nextRow += 3;
     XLSX.utils.sheet_add_aoa(
       worksheet,
-      [[layout.signatures.owner, ...Array(rightStart - 1).fill(""), layout.signatures.preparer]],
+      [[layout.signatures.preparer, ...Array(rightStart - 1).fill(""), layout.signatures.owner]],
       { origin: { c: 0, r: nextRow } },
     );
     mergeRow(worksheet, nextRow, 0, rightStart - 1);

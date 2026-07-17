@@ -1,7 +1,16 @@
 "use client";
 
-import { RefreshCw, TriangleAlert, Warehouse } from "lucide-react";
+import { useRef } from "react";
+import {
+  ChevronDown,
+  Download,
+  FileSpreadsheet,
+  RefreshCw,
+  TriangleAlert,
+  Warehouse,
+} from "lucide-react";
 import { AppPagination } from "@/components/common/app-pagination";
+import { BlockingLoadingDialog } from "@/components/common/blocking-loading-dialog";
 import { EmptyState } from "@/components/common/empty-state";
 import { LoadingState } from "@/components/common/loading-state";
 import {
@@ -10,8 +19,16 @@ import {
   AlertTitle,
 } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Spinner } from "@/components/ui/spinner";
 import type { UrlPaginationState } from "@/lib/url-pagination";
+import { StockExportSurface } from "./stock-export-surface";
 import { StockFilters } from "./stock-filters";
 import { StockMobileList } from "./stock-mobile-list";
 import { StockTable } from "./stock-table";
@@ -22,7 +39,8 @@ export function StockPage({
 }: {
   initialPagination: UrlPaginationState;
 }) {
-  const stock = useStockPage(initialPagination);
+  const exportReportRef = useRef<HTMLDivElement>(null);
+  const stock = useStockPage(exportReportRef, initialPagination);
   const { t } = stock;
   const initialLoading = stock.loading && !stock.rows.length;
 
@@ -45,25 +63,73 @@ export function StockPage({
             </p>
           </div>
 
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            className="h-11 lg:h-8"
-            disabled={stock.loading || !stock.branchUuid}
-            onClick={() => void stock.refresh()}
-          >
-            {stock.loading ? (
-              <Spinner data-icon="inline-start" />
-            ) : (
-              <RefreshCw data-icon="inline-start" />
-            )}
-            {t("actions.refresh")}
-          </Button>
+          <div className="flex items-center gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-11 lg:h-8"
+                  disabled={stock.exportDisabled}
+                >
+                  {stock.exporting ? (
+                    <Spinner data-icon="inline-start" />
+                  ) : (
+                    <Download data-icon="inline-start" />
+                  )}
+                  {t("common.export")}
+                  <ChevronDown data-icon="inline-end" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-44">
+                <DropdownMenuGroup>
+                  <DropdownMenuItem
+                    disabled={stock.exportDisabled}
+                    onSelect={() => void stock.exportExcel()}
+                  >
+                    <FileSpreadsheet data-icon="inline-start" />
+                    {t("report.exportExcel")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    disabled={stock.exportDisabled}
+                    onSelect={() => void stock.exportPdf()}
+                  >
+                    <Download data-icon="inline-start" />
+                    {t("report.exportPdf")}
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-11 lg:h-8"
+              disabled={stock.loading || !stock.branchUuid}
+              onClick={() => void stock.refresh()}
+            >
+              {stock.loading ? (
+                <Spinner data-icon="inline-start" />
+              ) : (
+                <RefreshCw data-icon="inline-start" />
+              )}
+              {t("actions.refresh")}
+            </Button>
+          </div>
         </div>
 
         <div className="border-t border-border bg-muted/15 px-4 py-2.5 lg:px-5">
           <StockFilters
+            branch={stock.branchUuid}
+            branchDisabled={
+              stock.loading ||
+              stock.branchLoading ||
+              !stock.canSelectBranch ||
+              !stock.branchUuid
+            }
+            branchOptions={stock.branchOptions}
             category={stock.category}
             categoryDisabled={
               stock.loading || stock.categoryLoading || !stock.branchUuid
@@ -72,6 +138,7 @@ export function StockPage({
             disabled={stock.loading || !stock.branchUuid}
             limit={stock.pageLimit}
             status={stock.status}
+            onBranchChange={stock.changeBranch}
             onCategoryChange={stock.changeCategory}
             onLimitChange={stock.changePageLimit}
             onStatusChange={stock.changeStatus}
@@ -92,6 +159,27 @@ export function StockPage({
           <StockResults initialLoading={initialLoading} stock={stock} />
         )}
       </section>
+
+      {stock.exporting === "pdf" ? (
+        <StockExportSurface
+          branchLabel={stock.branchName || stock.branchUuid}
+          categoryLabel={stock.activeCategoryLabel}
+          containerRef={exportReportRef}
+          dateLabel={`${t("report.reportDate")}: ${stock.exportDateLabel}`}
+          rows={stock.exportRows}
+          statusLabel={stock.activeStatusLabel}
+          title={t("stock.title")}
+        />
+      ) : null}
+      <BlockingLoadingDialog
+        open={Boolean(stock.exporting)}
+        title={
+          stock.exporting === "excel"
+            ? t("report.exportingExcel")
+            : t("report.exportingPdf")
+        }
+        description={t("report.exportingDescription")}
+      />
     </div>
   );
 }

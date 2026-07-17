@@ -3,13 +3,8 @@ import { dirname } from "path";
 import { fileURLToPath } from "url";
 
 const appDir = dirname(fileURLToPath(import.meta.url));
-const isGithubPages = process.env.GITHUB_PAGES === "1";
-const githubPagesBasePath = "/New-Yummy-go.com";
 
 const nextConfig: NextConfig = {
-  env: {
-    NEXT_PUBLIC_BASE_PATH: isGithubPages ? githubPagesBasePath : ""
-  },
   async redirects() {
     return [
       {
@@ -19,17 +14,8 @@ const nextConfig: NextConfig = {
       }
     ];
   },
-  ...(isGithubPages
-    ? {
-      output: "export" as const,
-      basePath: githubPagesBasePath,
-      assetPrefix: githubPagesBasePath,
-      trailingSlash: true
-    }
-    : {}),
   outputFileTracingRoot: appDir,
   images: {
-    unoptimized: isGithubPages,
     formats: ["image/avif", "image/webp"],
     qualities: [55, 60, 75],
     remotePatterns: [

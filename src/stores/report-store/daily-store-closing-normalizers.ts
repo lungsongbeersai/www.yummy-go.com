@@ -28,6 +28,7 @@ export interface DailyStoreClosingFilters {
 export interface DailyStoreClosingTopping {
   key: string;
   name: string;
+  price: number | null;
   qty: number;
 }
 
@@ -102,6 +103,15 @@ function numberValue(value: unknown) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function optionalNumberValue(...values: unknown[]) {
+  for (const value of values) {
+    if (value === null || value === undefined || value === "") continue;
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return null;
+}
+
 function normalizeLabels(value: unknown): DailyStoreClosingLabels {
   const labels = record(value);
 
@@ -120,7 +130,7 @@ function normalizeLabels(value: unknown): DailyStoreClosingLabels {
     totalAmount: textValue(labels.total_amount),
     totalQty: textValue(labels.total_qty),
     transfer: textValue(labels.transfer),
-    vat: textValue(labels.vat)
+    vat: textValue(labels.vat),
   };
 }
 
@@ -132,13 +142,21 @@ function normalizeGroups(value: unknown): DailyStoreClosingGroup[] {
       key: `group-${groupIndex + 1}-item-${itemIndex + 1}`,
       productName: textValue(item.product_full_name),
       toppings: records(item.toppings).map((topping, toppingIndex) => ({
-        key: `group-${groupIndex + 1}-item-${itemIndex + 1}-topping-${toppingIndex + 1}`,
+        key: `group-${groupIndex + 1}-item-${itemIndex + 1}-topping-${
+          toppingIndex + 1
+        }`,
         name: textValue(topping.topping_name),
-        qty: numberValue(topping.topping_qty)
+        price: optionalNumberValue(
+          topping.topping_price,
+          topping.price,
+          topping.topping_total,
+          topping.total
+        ),
+        qty: numberValue(topping.topping_qty),
       })),
       totalAmount: numberValue(item.total_amount),
       totalQty: numberValue(item.total_qty),
-      unitPrice: numberValue(item.unit_price)
+      unitPrice: numberValue(item.unit_price),
     }));
 
     return {
@@ -147,7 +165,7 @@ function normalizeGroups(value: unknown): DailyStoreClosingGroup[] {
       key: `group-${groupIndex + 1}`,
       name,
       totalAmount: numberValue(group.total_amount),
-      totalQty: numberValue(group.total_qty)
+      totalQty: numberValue(group.total_qty),
     };
   });
 }
@@ -164,12 +182,12 @@ export function normalizeDailyStoreClosingReportResponse(
   return {
     cancelSummary: {
       billCount: numberValue(cancelSummary.cancel_bill_count),
-      totalAmount: numberValue(cancelSummary.cancel_total_amount)
+      totalAmount: numberValue(cancelSummary.cancel_total_amount),
     },
     filters: {
       branchUuid: textValue(filters.branch_uuid_fk),
       date: textValue(filters.date),
-      lang: textValue(filters.lang || root.lang)
+      lang: textValue(filters.lang || root.lang),
     },
     groups: normalizeGroups(root.groups),
     labels: normalizeLabels(root.labels),
@@ -177,7 +195,7 @@ export function normalizeDailyStoreClosingReportResponse(
       cash: numberValue(paymentSummary.cash),
       credit: numberValue(paymentSummary.credit),
       paymentTotal: numberValue(paymentSummary.payment_total),
-      transfer: numberValue(paymentSummary.transfer)
+      transfer: numberValue(paymentSummary.transfer),
     },
     summary: {
       discountAmount: numberValue(summary.discount_amount),
@@ -185,7 +203,7 @@ export function normalizeDailyStoreClosingReportResponse(
       serviceCharge: numberValue(summary.sum_servicecharge),
       totalAmount: numberValue(summary.total_amount),
       totalQty: numberValue(summary.total_qty),
-      vat: numberValue(summary.sum_vate)
-    }
+      vat: numberValue(summary.sum_vate),
+    },
   };
 }

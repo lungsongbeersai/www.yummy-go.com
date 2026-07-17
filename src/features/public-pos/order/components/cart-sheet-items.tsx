@@ -1,8 +1,27 @@
 "use client";
 
 import Image from "next/image";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ImageIcon, MessageSquareText, Minus, Plus, Trash2, Utensils } from "lucide-react";
+import {
+  ImageIcon,
+  MessageSquareText,
+  Minus,
+  Plus,
+  Trash2,
+  Utensils,
+} from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -43,16 +62,17 @@ export function CartTotalRow({
     <div
       className={cn(
         "flex items-center justify-between gap-3",
-        muted ? "text-muted-foreground" : "",
+        muted ? "text-muted-foreground" : ""
       )}
     >
       <span>{label}</span>
-      <span className="font-medium">{formattedValue}</span>
+      <span className="font-medium tabular-nums">{formattedValue}</span>
     </div>
   );
 }
 
 export function CartGroup({
+  groupKey,
   title,
   items,
   statusRule,
@@ -62,6 +82,7 @@ export function CartGroup({
   onDeleteItem,
   onOpenNote,
 }: {
+  groupKey: string;
   title: string;
   items: CartItem[];
   statusRule: FetchCartStatusRule | null;
@@ -70,37 +91,61 @@ export function CartGroup({
   onUpdateQty: (
     orderItemUuid: string,
     changeType: ChangeType,
-    changeQty?: number,
+    changeQty?: number
   ) => void;
   onDeleteItem: (orderItemUuid: string) => void;
   onOpenNote: (item: CartItem) => void;
 }) {
   const { t } = useTranslation();
+  const [deleteTarget, setDeleteTarget] = useState<{
+    uuid: string;
+    title: string;
+  } | null>(null);
 
   return (
-    <div className="grid gap-2 py-1.5">
+    <section
+      className="grid gap-2 py-1.5"
+      aria-labelledby={`public-cart-group-${groupKey}`}
+    >
       <div className="flex items-center justify-between gap-3">
-        <p className="text-sm font-semibold">{title}</p>
-        <Badge className="h-5 rounded-full border border-emerald-100 bg-white px-1.5 py-0 text-[10px] font-medium text-muted-foreground dark:border-border dark:bg-background">
+        <h3
+          id={`public-cart-group-${groupKey}`}
+          className="text-sm font-semibold"
+        >
+          {title}
+        </h3>
+        <Badge
+          variant="secondary"
+          className="h-5 rounded-full px-1.5 py-0 text-[10px]"
+        >
           {items.length}
         </Badge>
       </div>
       {items.map((item, index) => {
         const uuid = getOrderItemUuid(item);
         const qty = getCartItemQty(item);
+        const titleText = cartItemTitle(item);
+        const sizeName = item.detail?.size_name?.trim() ?? "";
+        const showSizeName =
+          Boolean(sizeName) &&
+          !titleText.toLocaleLowerCase().includes(sizeName.toLocaleLowerCase());
+        const itemTotal = getCartItemTotal(item);
         const status = getCartItemStatus(item, t);
         const StatusIcon = status.Icon;
         const editableItem = isEditableCartItem(item, statusRule);
         const promotion = promotionQuantity(item.detail, qty);
         const discountAmount = numeric(item.detail?.order_it_discount_amount);
+        const showItemStatus =
+          status.label.trim().toLocaleLowerCase() !==
+          title.trim().toLocaleLowerCase();
         return (
           <div
             key={uuid || index}
             className={cn(
-              "rounded-xl border border-emerald-100 bg-white p-2.5 shadow-sm shadow-emerald-950/5 dark:border-border dark:bg-background",
+              "rounded-xl border border-border/70 bg-background p-2.5 shadow-sm",
               isCanceledCartItem(item)
-                ? "border-red-100 bg-red-50/40 dark:border-red-500/30 dark:bg-red-950/15"
-                : "",
+                ? "border-destructive/20 bg-destructive/5"
+                : ""
             )}
           >
             <div className="flex gap-2.5">
@@ -109,52 +154,71 @@ export function CartGroup({
                 <div className="flex min-w-0 items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="lao-tone-text line-clamp-2 text-sm font-semibold">
-                      {cartItemTitle(item)}
+                      {titleText}
                     </p>
-                    {item.detail?.size_name ? (
+                    {showSizeName ? (
                       <p className="text-xs font-medium text-muted-foreground">
-                        {item.detail.size_name}
+                        {sizeName}
                       </p>
                     ) : null}
                   </div>
-                  <p className="shrink-0 text-sm font-semibold text-primary">
-                    {formatMoney(getCartItemTotal(item), lang)}
-                  </p>
+                  <div className="shrink-0 text-right">
+                    <p className="text-sm font-semibold tabular-nums text-primary">
+                      {formatMoney(itemTotal, lang)}
+                    </p>
+                    {qty > 1 ? (
+                      <p className="text-[10px] tabular-nums text-muted-foreground">
+                        {qty} × {formatMoney(itemTotal / qty, lang)}
+                      </p>
+                    ) : null}
+                  </div>
                 </div>
                 <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                  <Badge
-                    className={cn(
-                      "h-5 gap-1 rounded-md border px-1.5 py-0 text-[10px] font-medium leading-4",
-                      status.className,
-                    )}
-                  >
-                    <StatusIcon className="size-3" />
-                    <span>{status.label}</span>
-                  </Badge>
+                  {showItemStatus ? (
+                    <Badge
+                      className={cn(
+                        "h-5 gap-1 rounded-md border px-1.5 py-0 text-[10px] font-medium leading-4",
+                        status.className
+                      )}
+                    >
+                      <StatusIcon aria-hidden="true" />
+                      <span>{status.label}</span>
+                    </Badge>
+                  ) : null}
                   {promotion.hasPromotion ? (
                     <Badge className="h-5 rounded-md border border-amber-200 bg-amber-50 px-1.5 py-0 text-[10px] font-medium text-amber-700 dark:border-amber-500/35 dark:bg-amber-950/35 dark:text-amber-200">
                       {t("pos.buyShort")} {promotion.saleQty}{" "}
                       {t("pos.getShort")} {promotion.freeQty}
                       {promotion.totalReceiveQty &&
                       promotion.totalReceiveQty > qty
-                        ? ` / ${t("pos.cartPromoReceive", { count: promotion.totalReceiveQty })}`
+                        ? ` / ${t("pos.cartPromoReceive", {
+                            count: promotion.totalReceiveQty,
+                          })}`
                         : ""}
                     </Badge>
                   ) : null}
                 </div>
                 {item.toppings?.length ? (
                   <div className="mt-1 flex flex-wrap gap-1">
-                    {item.toppings.map((topping, toppingIndex) => (
-                      <span
-                        key={`${topping.topping_name}-${toppingIndex}`}
-                        className="rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 dark:bg-primary/10 dark:text-primary"
-                      >
-                        {topping.topping_name}
-                        {numeric(topping.topping_line_total) > 0
-                          ? ` +${formatMoney(numeric(topping.topping_line_total), lang)}`
-                          : ""}
-                      </span>
-                    ))}
+                    {item.toppings.map((topping, toppingIndex) => {
+                      const toppingQty = numeric(topping.topping_qty);
+                      return (
+                        <Badge
+                          key={`${topping.topping_name}-${toppingIndex}`}
+                          variant="secondary"
+                          className="h-auto rounded-full px-1.5 py-0.5 text-[10px] font-medium"
+                        >
+                          {topping.topping_name}
+                          {toppingQty > 0 ? ` x${toppingQty}` : ""}
+                          {numeric(topping.topping_line_total) > 0
+                            ? ` +${formatMoney(
+                                numeric(topping.topping_line_total),
+                                lang
+                              )}`
+                            : ""}
+                        </Badge>
+                      );
+                    })}
                   </div>
                 ) : null}
                 {item.detail?.order_it_note ? (
@@ -175,35 +239,41 @@ export function CartGroup({
                         type="button"
                         variant="outline"
                         size="icon"
-                        aria-label={`${t("pos.qty")} -`}
+                        aria-label={t("pos.decreaseQuantity")}
                         className="h-11 w-11 rounded-md"
                         disabled={saving || qty <= promotion.qtyStep}
                         onClick={() =>
                           onUpdateQty(uuid, "DECREASE", promotion.qtyStep)
                         }
                       >
-                        <Minus className="size-4" />
+                        <Minus aria-hidden="true" />
                       </Button>
-                      <span className="grid h-10 min-w-9 place-items-center rounded-md border border-emerald-100 px-2 text-sm font-black dark:border-border">
+                      <output
+                        className="grid h-10 min-w-9 place-items-center rounded-md border border-border px-2 text-sm font-semibold tabular-nums"
+                        aria-live="polite"
+                      >
                         {qty}
-                      </span>
+                      </output>
                       <Button
                         type="button"
                         variant="outline"
                         size="icon"
-                        aria-label={`${t("pos.qty")} +`}
+                        aria-label={t("pos.increaseQuantity")}
                         className="h-11 w-11 rounded-md"
                         disabled={saving}
                         onClick={() =>
                           onUpdateQty(uuid, "INCREASE", promotion.qtyStep)
                         }
                       >
-                        <Plus className="size-4" />
+                        <Plus aria-hidden="true" />
                       </Button>
                     </div>
                   ) : (
-                    <Badge className="h-5 rounded-full border border-emerald-100 bg-white px-1.5 py-0 text-[10px] font-medium text-muted-foreground dark:border-border dark:bg-background">
-                      x{qty}
+                    <Badge
+                      variant="secondary"
+                      className="h-5 rounded-full px-1.5 py-0 text-[10px] font-medium"
+                    >
+                      {t("pos.quantityValue", { count: qty })}
                     </Badge>
                   )}
                   {editableItem && uuid ? (
@@ -218,7 +288,7 @@ export function CartGroup({
                         title={t("pos.editNote")}
                         onClick={() => onOpenNote(item)}
                       >
-                        <MessageSquareText className="size-4" />
+                        <MessageSquareText aria-hidden="true" />
                       </Button>
                       <Button
                         type="button"
@@ -228,9 +298,14 @@ export function CartGroup({
                         disabled={saving}
                         aria-label={t("pos.deleteItem")}
                         title={t("pos.deleteItem")}
-                        onClick={() => onDeleteItem(uuid)}
+                        onClick={() =>
+                          setDeleteTarget({ uuid, title: titleText })
+                        }
                       >
-                        <Trash2 className="size-4 text-destructive" />
+                        <Trash2
+                          className="text-destructive"
+                          aria-hidden="true"
+                        />
                       </Button>
                     </div>
                   ) : null}
@@ -240,7 +315,39 @@ export function CartGroup({
           </div>
         );
       })}
-    </div>
+      <AlertDialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) setDeleteTarget(null);
+        }}
+      >
+        <AlertDialogContent size="sm">
+          <AlertDialogHeader>
+            <AlertDialogMedia className="bg-destructive/10 text-destructive">
+              <Trash2 aria-hidden="true" />
+            </AlertDialogMedia>
+            <AlertDialogTitle>{t("pos.deleteItemConfirm")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("pos.deleteItemDescription", {
+                name: deleteTarget?.title ?? "",
+              })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("actions.cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              variant="danger"
+              onClick={() => {
+                if (deleteTarget) onDeleteItem(deleteTarget.uuid);
+                setDeleteTarget(null);
+              }}
+            >
+              {t("actions.delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </section>
   );
 }
 
@@ -278,14 +385,14 @@ function CartItemMedia({ item }: { item: CartItem }) {
         className="grid size-14 shrink-0 place-items-center rounded-md"
         style={{ backgroundColor: colorSwatch }}
       >
-        <Utensils className="size-6 text-background/85" />
+        <Utensils className="size-6 text-background/85" aria-hidden="true" />
       </div>
     );
   }
 
   return (
     <div className="grid size-14 shrink-0 place-items-center rounded-md bg-emerald-50 text-muted-foreground dark:bg-muted">
-      <ImageIcon className="size-6" />
+      <ImageIcon className="size-6" aria-hidden="true" />
     </div>
   );
 }
