@@ -1,5 +1,6 @@
 "use client";
 
+import { isActiveStatus, StatusBadge } from "@/components/common/status-badge";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Coins } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -9,7 +10,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogDescription, DialogTitle } from "@/components/ui/dialog";
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Field, FieldDescription, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
@@ -29,8 +29,8 @@ import {
   SettingsPaginationFooter,
   SettingsRowActions,
   SettingsTableScroll,
-  SettingsToolbar
-} from "@/features/settings/shared/settings-shell";
+  SettingsToolbar,
+  SettingsEmptyRecords,} from "@/features/settings/shared/settings-shell";
 import { useAppliedSearch } from "@/hooks/use-applied-search";
 import { useLatestValue } from "@/hooks/use-latest-value";
 import { useUrlPagination } from "@/hooks/use-url-pagination";
@@ -53,7 +53,6 @@ import {
   exchangeId,
   exchangeRate,
   exchangeStatus,
-  exchangeStatusLabel,
   exchangeValue,
   missingExchangeField
 } from "./exchange-utils";
@@ -64,26 +63,10 @@ const ORDER_OPTIONS: Array<{ labelKey: "asc" | "desc"; value: SortOrder }> = [
   { labelKey: "desc", value: "DESC" }
 ];
 
-function activeBadgeClass(status: string) {
-  return Number(status || 1) === 1
-    ? "border-primary/25 bg-primary/10 text-primary"
-    : "border-muted-foreground/20 bg-muted text-muted-foreground";
-}
-
 function RateBadge({ rate }: { rate: string }) {
   return (
     <Badge className="border-primary/20 bg-primary/10 text-primary" translate="no">
       {rate}
-    </Badge>
-  );
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const { t } = useTranslation();
-
-  return (
-    <Badge className={activeBadgeClass(status)}>
-      {exchangeStatusLabel(status, t("common.active"), t("common.inactive"))}
     </Badge>
   );
 }
@@ -356,7 +339,7 @@ export function ExchangeSettingsPage({ initialPagination }: { initialPagination:
                   <RateBadge rate={exchangeRate(row)} />
                 </TableCell>
                 <TableCell>
-                  <StatusBadge status={exchangeStatus(row)} />
+                  <StatusBadge active={isActiveStatus(exchangeStatus(row))} />
                 </TableCell>
                 <TableCell className="text-right">
                   <SettingsRowActions row={row} onEdit={openEdit} onDelete={setDeleteTarget} />
@@ -382,7 +365,7 @@ export function ExchangeSettingsPage({ initialPagination }: { initialPagination:
             badges={
               <>
                 <RateBadge rate={exchangeRate(row)} />
-                <StatusBadge status={exchangeStatus(row)} />
+                <StatusBadge active={isActiveStatus(exchangeStatus(row))} />
               </>
             }
             checked={selected}
@@ -399,7 +382,7 @@ export function ExchangeSettingsPage({ initialPagination }: { initialPagination:
           >
             <SettingsMobileMetaGrid>
               <SettingsMobileMeta label={t("fields.ex_price")} value={<RateBadge rate={exchangeRate(row)} />} />
-              <SettingsMobileMeta label={t("fields.ex_status")} value={<StatusBadge status={exchangeStatus(row)} />} />
+              <SettingsMobileMeta label={t("fields.ex_status")} value={<StatusBadge active={isActiveStatus(exchangeStatus(row))} />} />
             </SettingsMobileMetaGrid>
           </SettingsMobileCard>
         );
@@ -452,17 +435,7 @@ export function ExchangeSettingsPage({ initialPagination }: { initialPagination:
           <div className="min-h-0 flex-1 overflow-y-auto md:hidden">{mobileList}</div>
         </>
       ) : (
-        <div className="flex min-h-72 flex-1 items-center justify-center p-4">
-          <Empty className="max-w-md border border-dashed bg-muted/20">
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <Coins aria-hidden />
-              </EmptyMedia>
-              <EmptyTitle>{t("settings.noRecords", { title: title.toLowerCase() })}</EmptyTitle>
-              <EmptyDescription>{t("empty.adjustSearch")}</EmptyDescription>
-            </EmptyHeader>
-          </Empty>
-        </div>
+        <SettingsEmptyRecords icon={<Coins aria-hidden />} title={title.toLowerCase()} />
       )}
     </div>
   );

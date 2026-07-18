@@ -1,5 +1,6 @@
 "use client";
 
+import { isActiveStatus, StatusBadge } from "@/components/common/status-badge";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Users } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -7,7 +8,6 @@ import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Spinner } from "@/components/ui/spinner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
@@ -19,8 +19,8 @@ import {
   SettingsPaginationFooter,
   SettingsRowActions,
   SettingsTableScroll,
-  SettingsToolbar
-} from "@/features/settings/shared/settings-shell";
+  SettingsToolbar,
+  SettingsEmptyRecords,} from "@/features/settings/shared/settings-shell";
 import { useAppliedSearch } from "@/hooks/use-applied-search";
 import { useLatestValue } from "@/hooks/use-latest-value";
 import { useUrlPagination } from "@/hooks/use-url-pagination";
@@ -54,16 +54,6 @@ function customerInitials(name: string) {
   return (compact.slice(0, 2) || "C").toUpperCase();
 }
 
-function activeLabel(status: string, active: string, inactive: string) {
-  return Number(status || 1) === 1 ? active : inactive;
-}
-
-function activeBadgeClass(status: string) {
-  return Number(status || 1) === 1
-    ? "border-primary/25 bg-primary/10 text-primary"
-    : "border-muted-foreground/20 bg-muted text-muted-foreground";
-}
-
 function CustomerAvatar({ name }: { name: string }) {
   return (
     <Avatar size="lg">
@@ -79,16 +69,6 @@ function MemberCodeBadge({ code }: { code: string }) {
   return (
     <Badge className="max-w-full shrink-0 border-primary/20 bg-primary/10 text-primary" translate="no">
       {code}
-    </Badge>
-  );
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const { t } = useTranslation();
-
-  return (
-    <Badge className={activeBadgeClass(status)}>
-      {activeLabel(status, t("common.active"), t("common.inactive"))}
     </Badge>
   );
 }
@@ -323,7 +303,7 @@ export function CustomerSettingsPage({ initialPagination }: { initialPagination:
                   </span>
                 </TableCell>
                 <TableCell>
-                  <StatusBadge status={customerStatus(row)} />
+                  <StatusBadge active={isActiveStatus(customerStatus(row))} />
                 </TableCell>
                 <TableCell className="text-right">
                   <SettingsRowActions row={row} onEdit={openEdit} onDelete={setDeleteTarget} />
@@ -363,7 +343,7 @@ export function CustomerSettingsPage({ initialPagination }: { initialPagination:
             <SettingsMobileMetaGrid>
               <SettingsMobileMeta
                 label={t("fields.customer_status")}
-                value={<StatusBadge status={customerStatus(row)} />}
+                value={<StatusBadge active={isActiveStatus(customerStatus(row))} />}
               />
               <SettingsMobileMeta
                 label={t("fields.customer_address")}
@@ -421,17 +401,7 @@ export function CustomerSettingsPage({ initialPagination }: { initialPagination:
           <div className="min-h-0 flex-1 overflow-y-auto md:hidden">{mobileList}</div>
         </>
       ) : (
-        <div className="flex min-h-72 flex-1 items-center justify-center p-4">
-          <Empty className="max-w-md border border-dashed bg-muted/20">
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <Users aria-hidden />
-              </EmptyMedia>
-              <EmptyTitle>{t("settings.noRecords", { title: title.toLowerCase() })}</EmptyTitle>
-              <EmptyDescription>{t("empty.adjustSearch")}</EmptyDescription>
-            </EmptyHeader>
-          </Empty>
-        </div>
+        <SettingsEmptyRecords icon={<Users aria-hidden />} title={title.toLowerCase()} />
       )}
     </div>
   );

@@ -1,3 +1,4 @@
+import { isActiveStatus, statusBadgeClass } from "@/components/common/status-badge";
 import type { Currency, SaveCurrencyInput } from "@/services/currency";
 
 export function currencyValue(row: Currency | null | undefined, key: string, fallback = "") {
@@ -27,9 +28,7 @@ export function currencyStatusLabel(status: string, activeLabel: string, inactiv
 }
 
 export function currencyStatusBadgeClass(status: string) {
-  return Number(status || 1) === 1
-    ? "border-primary/25 bg-primary/10 text-primary"
-    : "border-muted-foreground/20 bg-muted text-muted-foreground";
+  return statusBadgeClass(isActiveStatus(status));
 }
 
 export type CurrencyMissingField = "name" | "flag" | "status" | null;

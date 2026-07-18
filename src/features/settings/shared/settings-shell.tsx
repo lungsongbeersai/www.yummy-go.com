@@ -5,6 +5,13 @@ import type { ComponentProps, ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { BackButton } from "@/components/common/back-button";
 import { EmptyState } from "@/components/common/empty-state";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle
+} from "@/components/ui/empty";
 import { AppPagination } from "@/components/common/app-pagination";
 import { LoadingState } from "@/components/common/loading-state";
 import { Badge } from "@/components/ui/badge";
@@ -174,6 +181,34 @@ export function SettingsModuleShell({
           )}
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+
+// บล็อก "ไม่มีข้อมูล" มาตรฐานของหน้ารายการ settings — เดิมถูกก๊อปซ้ำ 9 หน้า
+export function SettingsEmptyRecords({
+  description,
+  icon,
+  title,
+  titleText
+}: {
+  description?: string;
+  icon: ReactNode;
+  title?: string;
+  titleText?: string;
+}) {
+  const { t } = useTranslation();
+
+  return (
+    <div className="flex min-h-72 flex-1 items-center justify-center p-4">
+      <Empty className="max-w-md border border-dashed bg-muted/20">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">{icon}</EmptyMedia>
+          <EmptyTitle>{titleText ?? t("settings.noRecords", { title })}</EmptyTitle>
+          <EmptyDescription>{description ?? t("empty.adjustSearch")}</EmptyDescription>
+        </EmptyHeader>
+      </Empty>
     </div>
   );
 }

@@ -6,7 +6,6 @@ import { useTranslation } from "react-i18next";
 import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Spinner } from "@/components/ui/spinner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
@@ -14,7 +13,8 @@ import {
   SettingsMobileList,
   SettingsMobileMeta,
   SettingsMobileMetaGrid,
-  SettingsTableScroll
+  SettingsTableScroll,
+  SettingsEmptyRecords
 } from "@/features/settings/shared/settings-shell";
 import { cn } from "@/lib/utils";
 import {
@@ -121,17 +121,7 @@ export function StoreBranchListSurface({
           </div>
         </>
       ) : (
-        <div className="flex min-h-72 flex-1 items-center justify-center p-4">
-          <Empty className="max-w-md border border-dashed bg-muted/20">
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                {kind === "store" ? <Store aria-hidden /> : <Building2 aria-hidden />}
-              </EmptyMedia>
-              <EmptyTitle>{kind === "store" ? labels.noStore : labels.noBranch}</EmptyTitle>
-              <EmptyDescription>{labels.selectRecord}</EmptyDescription>
-            </EmptyHeader>
-          </Empty>
-        </div>
+        <SettingsEmptyRecords icon={kind === "store" ? <Store aria-hidden /> : <Building2 aria-hidden />} titleText={kind === "store" ? labels.noStore : labels.noBranch} description={labels.selectRecord} />
       )}
     </div>
   );

@@ -4,7 +4,6 @@ import type { ReactNode } from "react";
 import { Coins } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Spinner } from "@/components/ui/spinner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CurrencyFlag } from "@/features/settings/shared/currency-flag";
@@ -14,8 +13,8 @@ import {
   SettingsMobileMeta,
   SettingsMobileMetaGrid,
   SettingsRowActions,
-  SettingsTableScroll
-} from "@/features/settings/shared/settings-shell";
+  SettingsTableScroll,
+  SettingsEmptyRecords,} from "@/features/settings/shared/settings-shell";
 import type { Currency } from "@/services/currency";
 import { CurrencyCodeBadge, CurrencyIdentity, CurrencyStatusBadge } from "./currency-display";
 import {
@@ -104,17 +103,7 @@ export function CurrencyListSurface({
           </div>
         </>
       ) : (
-        <div className="flex min-h-72 flex-1 items-center justify-center p-4">
-          <Empty className="max-w-md border border-dashed bg-muted/20">
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <Coins aria-hidden />
-              </EmptyMedia>
-              <EmptyTitle>{t("settings.noRecords", { title: title.toLowerCase() })}</EmptyTitle>
-              <EmptyDescription>{t("empty.adjustSearch")}</EmptyDescription>
-            </EmptyHeader>
-          </Empty>
-        </div>
+        <SettingsEmptyRecords icon={<Coins aria-hidden />} title={title.toLowerCase()} />
       )}
     </div>
   );
