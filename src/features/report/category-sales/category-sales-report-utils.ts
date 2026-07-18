@@ -120,23 +120,11 @@ export function waitForPaint() {
   });
 }
 
-// สไตล์ตาราง Excel แบบจัดกลุ่ม: แถวหัวกลุ่มถือยอดรวมของกลุ่มไว้ในตัว
-const GROUPED_TABLE_HEADER_STYLE = {
-  align: "center",
-  bold: true,
-  fill: "#1F4E78",
-  fontColor: "#FFFFFF"
-} as const satisfies ReportExcelCellStyle;
-
-const GROUP_ROW_STYLE = {
-  bold: true,
-  fill: "#DEE8F4"
-} as const satisfies ReportExcelCellStyle;
-
-const GRAND_TOTAL_ROW_STYLE = {
-  bold: true,
-  fill: "#D9E2F3"
-} as const satisfies ReportExcelCellStyle;
+import {
+  REPORT_GRAND_TOTAL_ROW_STYLE as GRAND_TOTAL_ROW_STYLE,
+  REPORT_GROUP_ROW_STYLE as GROUP_ROW_STYLE,
+  REPORT_TABLE_HEADER_STYLE as GROUPED_TABLE_HEADER_STYLE,
+} from "../shared/report-excel-styles";
 
 // summary ของ API ไม่มี key discount_total ตรงๆ ต้องรวมส่วนลดรายการ + ส่วนลดบิล
 export function categorySalesSummaryDiscountTotal(summary: ApiEntity) {

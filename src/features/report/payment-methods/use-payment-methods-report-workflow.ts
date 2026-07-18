@@ -6,12 +6,12 @@ import { useUrlPagination } from "@/hooks/use-url-pagination";
 import { pageLimitSize } from "@/lib/pagination";
 import type { UrlPaginationState } from "@/lib/url-pagination";
 import { useAppStore } from "@/stores/app-store";
-import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
+import { useAuthStore } from "@/stores/auth-store";
 import { useBranchStore } from "@/stores/branch-store";
 import { usePaymentMethodsReportStore } from "@/stores/report-store";
 import { useToastStore } from "@/stores/toast-store";
 import { exportInfoRows } from "../shared/report-export-info";
-import { branchOptionFromRow, selectedBranchLabel } from "../shared/report-branch-options";
+import { useReportBranchSelection } from "../shared/use-report-branch-selection";
 import { createSingleSheetReportWorkbook } from "../report-excel-utils";
 import { officialReportExcelLayout } from "../report-official-layout";
 import { addReportCanvasToPdfPages } from "../report-pdf-utils";
@@ -37,12 +37,6 @@ export function usePaymentMethodsReportWorkflow(
   const { t } = useTranslation();
   const user = useAuthStore((state) => state.user);
   const language = useAppStore((state) => state.language);
-  const branches = useBranchStore((state) => state.branches);
-  const branchError = useBranchStore((state) => state.error);
-  const branchLoading = useBranchStore((state) => state.loading);
-  const branchStoreUuid = useBranchStore((state) => state.storeUuid);
-  const loadBranches = useBranchStore((state) => state.loadBranches);
-  const selectedBranchUuid = useBranchStore((state) => state.selectedBranchUuid);
   const setSelectedBranch = useBranchStore((state) => state.setSelectedBranch);
   const cards = usePaymentMethodsReportStore((state) => state.cards);
   const paymentMethods = usePaymentMethodsReportStore((state) => state.paymentMethods);
@@ -75,38 +69,17 @@ export function usePaymentMethodsReportWorkflow(
     rows
   });
 
-  const storeUuid = authStoreUuid(user);
-  const userBranchUuid = user?.branch_uuid ?? "";
-  const canSelectBranch = Number(user?.status ?? 0) === 1;
-  const branchOptions = useMemo(() => {
-    const storeBranches = branchStoreUuid === storeUuid ? branches : [];
-    const options = storeBranches
-      .map((branch) => branchOptionFromRow(branch, language))
-      .filter((option): option is NonNullable<typeof option> => Boolean(option));
-
-    if (userBranchUuid && !options.some((option) => option.value === userBranchUuid)) {
-      options.unshift({ value: userBranchUuid, label: user?.branch_name || userBranchUuid });
-    }
-
-    if (canSelectBranch) return options;
-
-    const lockedOptions = options.filter((option) => option.value === userBranchUuid);
-    return lockedOptions.length || !userBranchUuid
-      ? lockedOptions
-      : [{ value: userBranchUuid, label: user?.branch_name || userBranchUuid }];
-  }, [branches, branchStoreUuid, canSelectBranch, language, storeUuid, user?.branch_name, userBranchUuid]);
-  const branchOptionValues = useMemo(() => new Set(branchOptions.map((option) => option.value)), [branchOptions]);
-  const branchStoreSelectedUuid = branchStoreUuid === storeUuid ? selectedBranchUuid : "";
-  const defaultBranchUuid = useMemo(() => {
-    if (!canSelectBranch) return userBranchUuid;
-    if (branchStoreSelectedUuid && (!branchOptionValues.size || branchOptionValues.has(branchStoreSelectedUuid))) {
-      return branchStoreSelectedUuid;
-    }
-    if (userBranchUuid && (!branchOptionValues.size || branchOptionValues.has(userBranchUuid))) return userBranchUuid;
-    return branchOptions[0]?.value ?? userBranchUuid;
-  }, [branchOptionValues, branchOptions, branchStoreSelectedUuid, canSelectBranch, userBranchUuid]);
+  const {
+    branchError,
+    branchLabelFor,
+    branchLoading,
+    branchOptions,
+    canSelectBranch,
+    defaultBranchUuid,
+    normalizeBranchFilters,
+  } = useReportBranchSelection();
   const branchUuid = appliedFilters.branchUuid || defaultBranchUuid;
-  const activeBranchLabel = selectedBranchLabel(branchOptions, branchUuid, user?.branch_name || branchUuid || "-");
+  const activeBranchLabel = branchLabelFor(branchUuid);
   const methodOptions = paymentMethodOptions(paymentMethods, t);
   const activePaymentMethodLabel = selectedPaymentMethodLabel(paymentMethods, appliedFilters.paymentMethod, t);
   const reportTitle = reportName || t("report.paymentMethodsReport.title");
@@ -125,28 +98,6 @@ export function usePaymentMethodsReportWorkflow(
     rows
   };
   const paginationRangeLabel = t("common.showingRange", { start: pageStart, end: pageEnd, total });
-
-  const normalizeBranchFilters = useCallback(
-    (filters: PaymentMethodsReportFilters) => {
-      if (!defaultBranchUuid) return filters;
-
-      if (!canSelectBranch) {
-        return filters.branchUuid === defaultBranchUuid ? filters : { ...filters, branchUuid: defaultBranchUuid };
-      }
-
-      if (filters.branchUuid && (!branchOptionValues.size || branchOptionValues.has(filters.branchUuid))) {
-        return filters;
-      }
-
-      return { ...filters, branchUuid: defaultBranchUuid };
-    },
-    [branchOptionValues, canSelectBranch, defaultBranchUuid]
-  );
-
-  useEffect(() => {
-    if (!storeUuid) return;
-    void loadBranches(storeUuid, userBranchUuid).catch(() => undefined);
-  }, [loadBranches, storeUuid, userBranchUuid]);
 
   useEffect(() => {
     setDraftFilters((current) => normalizeBranchFilters(current));

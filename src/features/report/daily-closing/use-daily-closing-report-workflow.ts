@@ -1,17 +1,14 @@
 "use client";
 
+import { useReportBranchSelection } from "../shared/use-report-branch-selection";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "@/stores/app-store";
-import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
+import { useAuthStore } from "@/stores/auth-store";
 import { useBranchStore } from "@/stores/branch-store";
 import { useDailyStoreClosingReportStore } from "@/stores/report-store";
 import { useToastStore } from "@/stores/toast-store";
 import { localDateInputValue } from "@/lib/format";
-import {
-  branchOptionFromRow,
-  selectedBranchLabel,
-} from "../shared/report-branch-options";
 import type { DailyClosingReportFilters } from "./daily-closing-report-types";
 import {
   type DailyClosingPrintData,
@@ -28,11 +25,7 @@ export function useDailyClosingReportWorkflow() {
   const user = useAuthStore((state) => state.user);
   const language = useAppStore((state) => state.language);
   const branches = useBranchStore((state) => state.branches);
-  const branchError = useBranchStore((state) => state.error);
-  const branchLoading = useBranchStore((state) => state.loading);
   const branchStoreUuid = useBranchStore((state) => state.storeUuid);
-  const loadBranches = useBranchStore((state) => state.loadBranches);
-  const selectedBranchUuid = useBranchStore((state) => state.selectedBranchUuid);
   const setSelectedBranch = useBranchStore((state) => state.setSelectedBranch);
   const error = useDailyStoreClosingReportStore((state) => state.error);
   const loading = useDailyStoreClosingReportStore((state) => state.loading);
@@ -48,54 +41,24 @@ export function useDailyClosingReportWorkflow() {
   const [appliedFilters, setAppliedFilters] = useState<DailyClosingReportFilters>(draftFilters);
   const [printing, setPrinting] = useState(false);
 
-  const storeUuid = authStoreUuid(user);
-  const userBranchUuid = user?.branch_uuid ?? "";
-  const canSelectBranch = Number(user?.status ?? 0) === 1;
+  const {
+    branchError: branchSelectionError,
+    branchLabelFor,
+    branchLoading: branchSelectionLoading,
+    branchOptions,
+    canSelectBranch,
+    defaultBranchUuid,
+    normalizeBranchFilters,
+    storeUuid,
+    userBranchUuid,
+  } = useReportBranchSelection();
   const storeBranches = useMemo(
     () => (branchStoreUuid === storeUuid ? branches : []),
     [branches, branchStoreUuid, storeUuid],
   );
-  const branchOptions = useMemo(() => {
-    const options = storeBranches
-      .map((branch) => branchOptionFromRow(branch, language))
-      .filter((option): option is NonNullable<typeof option> => Boolean(option));
-
-    if (userBranchUuid && !options.some((option) => option.value === userBranchUuid)) {
-      options.unshift({ value: userBranchUuid, label: user?.branch_name || userBranchUuid });
-    }
-
-    if (canSelectBranch) return options;
-
-    const lockedOptions = options.filter((option) => option.value === userBranchUuid);
-    return lockedOptions.length || !userBranchUuid
-      ? lockedOptions
-      : [{ value: userBranchUuid, label: user?.branch_name || userBranchUuid }];
-  }, [canSelectBranch, language, storeBranches, user?.branch_name, userBranchUuid]);
-  const branchOptionValues = useMemo(
-    () => new Set(branchOptions.map((option) => option.value)),
-    [branchOptions],
-  );
-  const branchStoreSelectedUuid = branchStoreUuid === storeUuid ? selectedBranchUuid : "";
-  const defaultBranchUuid = useMemo(() => {
-    if (!canSelectBranch) return userBranchUuid;
-    if (
-      branchStoreSelectedUuid &&
-      (!branchOptionValues.size || branchOptionValues.has(branchStoreSelectedUuid))
-    ) {
-      return branchStoreSelectedUuid;
-    }
-    if (userBranchUuid && (!branchOptionValues.size || branchOptionValues.has(userBranchUuid))) {
-      return userBranchUuid;
-    }
-    return branchOptions[0]?.value ?? userBranchUuid;
-  }, [branchOptionValues, branchOptions, branchStoreSelectedUuid, canSelectBranch, userBranchUuid]);
   const branchUuid = appliedFilters.branchUuid || defaultBranchUuid;
   const activeBranch = storeBranches.find((branch) => branch.branch_uuid === branchUuid);
-  const activeBranchLabel = selectedBranchLabel(
-    branchOptions,
-    branchUuid,
-    user?.branch_name || branchUuid || "-",
-  );
+  const activeBranchLabel = branchLabelFor(branchUuid);
   const activeBranchAddress =
     activeBranch?.branch_address || (branchUuid === userBranchUuid ? user?.branch_address : "") || "";
   const activeBranchTel =
@@ -151,30 +114,6 @@ export function useDailyClosingReportWorkflow() {
     () => (report ? buildPrintData(report, appliedFilters.date) : null),
     [appliedFilters.date, buildPrintData, report],
   );
-
-  const normalizeBranchFilters = useCallback(
-    (filters: DailyClosingReportFilters) => {
-      if (!defaultBranchUuid) return filters;
-      if (!canSelectBranch) {
-        return filters.branchUuid === defaultBranchUuid
-          ? filters
-          : { ...filters, branchUuid: defaultBranchUuid };
-      }
-      if (
-        filters.branchUuid &&
-        (!branchOptionValues.size || branchOptionValues.has(filters.branchUuid))
-      ) {
-        return filters;
-      }
-      return { ...filters, branchUuid: defaultBranchUuid };
-    },
-    [branchOptionValues, canSelectBranch, defaultBranchUuid],
-  );
-
-  useEffect(() => {
-    if (!storeUuid) return;
-    void loadBranches(storeUuid, userBranchUuid).catch(() => undefined);
-  }, [loadBranches, storeUuid, userBranchUuid]);
 
   useEffect(() => {
     setDraftFilters((current) => normalizeBranchFilters(current));
@@ -265,8 +204,8 @@ export function useDailyClosingReportWorkflow() {
     activeBranchTel,
     appliedFilters,
     balanced,
-    branchError,
-    branchLoading,
+    branchError: branchSelectionError,
+    branchLoading: branchSelectionLoading,
     branchOptions,
     branchUuid,
     canApply,

@@ -44,12 +44,11 @@ interface DailySalesDetailExcelInput {
   t: Translate;
 }
 
-const TABLE_HEADER_STYLE = {
-  align: "center",
-  bold: true,
-  fill: "#1F4E78",
-  fontColor: "#FFFFFF",
-} as const satisfies ReportExcelCellStyle;
+import {
+  REPORT_GRAND_TOTAL_ROW_STYLE as GRAND_TOTAL_ROW_STYLE,
+  REPORT_GROUP_ROW_STYLE,
+  REPORT_TABLE_HEADER_STYLE as TABLE_HEADER_STYLE,
+} from "../shared/report-excel-styles";
 
 const MONEY_STYLE = {
   align: "right",
@@ -70,10 +69,7 @@ const DATE_TIME_STYLE = {
 } as const satisfies ReportExcelCellStyle;
 
 // สไตล์ของตารางจัดกลุ่มตามบิล: แถวบิลเด่นสุด > แถวรวมย่อย > แถวรายการสินค้า
-const BILL_ROW_STYLE = {
-  bold: true,
-  fill: "#DEE8F4",
-} as const satisfies ReportExcelCellStyle;
+const BILL_ROW_STYLE = REPORT_GROUP_ROW_STYLE;
 
 const BILL_ROW_CANCELLED_STYLE = {
   bold: true,
@@ -91,10 +87,7 @@ const SUBTOTAL_ROW_STYLE = {
   fill: "#EEF3F7",
 } as const satisfies ReportExcelCellStyle;
 
-const GRAND_TOTAL_ROW_STYLE = {
-  bold: true,
-  fill: "#D9E2F3",
-} as const satisfies ReportExcelCellStyle;
+
 
 const PAYMENT_INFO_STYLE = {
   fontColor: "#64748B",

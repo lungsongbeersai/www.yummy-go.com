@@ -290,23 +290,11 @@ export function exportSummaryRows(
   }));
 }
 
-// สไตล์ตาราง Excel แบบจัดกลุ่ม: แถวหัวกลุ่มถือยอดรวมของกลุ่มไว้ในตัว
-const GROUPED_TABLE_HEADER_STYLE = {
-  align: "center",
-  bold: true,
-  fill: "#1F4E78",
-  fontColor: "#FFFFFF"
-} as const satisfies ReportExcelCellStyle;
-
-const GROUP_ROW_STYLE = {
-  bold: true,
-  fill: "#DEE8F4"
-} as const satisfies ReportExcelCellStyle;
-
-const GRAND_TOTAL_ROW_STYLE = {
-  bold: true,
-  fill: "#D9E2F3"
-} as const satisfies ReportExcelCellStyle;
+import {
+  REPORT_GRAND_TOTAL_ROW_STYLE as GRAND_TOTAL_ROW_STYLE,
+  REPORT_GROUP_ROW_STYLE as GROUP_ROW_STYLE,
+  REPORT_TABLE_HEADER_STYLE as GROUPED_TABLE_HEADER_STYLE,
+} from "../shared/report-excel-styles";
 
 // ตารางเดียวจัดกลุ่มตามกลุ่มสินค้า เหมือนหน้าจอ: แถวกลุ่ม (พร้อมยอดรวมกลุ่ม)
 // → สินค้าในกลุ่ม (อันดับนับใหม่ต่อกลุ่ม) → ปิดท้ายด้วยยอดรวมทั้งรายงาน
