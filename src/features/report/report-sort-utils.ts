@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { useResetOnChange } from "@/hooks/use-reset-on-change";
 import type {
   CategorySalesReportOrder,
   DailySalesReportOrder,
@@ -73,9 +74,8 @@ export function useLocalTableSort<TItem, TKey extends string>(
 ) {
   const [sort, setSort] = useState<LocalSortState<TKey>>(null);
 
-  useEffect(() => {
-    setSort(null);
-  }, [rows]);
+  // โหลดข้อมูลชุดใหม่ = กลับไปเรียงตามลำดับตั้งต้น
+  useResetOnChange(rows, () => setSort(null));
 
   const sortedRows = useMemo(
     () => sortRowsLocally(rows, sort, getValue),

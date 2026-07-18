@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useResetOnChange } from "@/hooks/use-reset-on-change";
 import { History, RefreshCcw, SlidersHorizontal } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { AppPagination } from "@/components/common/app-pagination";
@@ -81,12 +82,13 @@ export function CancelHistoryPage({ initialPagination }: { initialPagination: Ur
   const dateRangeLabel = `${appliedFilters.startDate} - ${appliedFilters.endDate}`;
   const orderLabel = t(appliedFilters.orderBy === "ASC" ? "common.oldestFirst" : "common.newestFirst");
 
-  useEffect(() => {
+  // สลับสาขา = อัปเดต filter, กลับหน้าแรก และล้างประวัติถ้าไม่มีสาขา
+  useResetOnChange(branchUuid, () => {
     setDraftFilters((current) => (current.branchUuid === branchUuid ? current : { ...current, branchUuid }));
     setAppliedFilters((current) => (current.branchUuid === branchUuid ? current : { ...current, branchUuid }));
     resetPage();
     if (!branchUuid) resetHistory();
-  }, [branchUuid, resetHistory, resetPage]);
+  });
 
   const load = useCallback(async () => {
     if (!branchUuid || !appliedFilters.startDate || !appliedFilters.endDate) {

@@ -9,6 +9,7 @@ import {
   type RefObject,
   type SetStateAction,
 } from "react";
+import { useResetOnChange } from "@/hooks/use-reset-on-change";
 import { useTranslation } from "react-i18next";
 import { pageLimitSize } from "@/lib/pagination";
 import type { UrlPaginationState } from "@/lib/url-pagination";
@@ -234,10 +235,11 @@ export function useDailySalesReportWorkflow(
     [billTotalPages, detailTotalPages, isDetailTab],
   );
 
-  useEffect(() => {
+  // รายการสาขาเปลี่ยน (โหลดเสร็จ/สลับร้าน) = ปรับสาขาใน filter ให้ยังใช้ได้เสมอ
+  useResetOnChange(normalizeBranchFilters, () => {
     setDraftFilters((current) => normalizeBranchFilters(current));
     setAppliedFilters((current) => normalizeBranchFilters(current));
-  }, [normalizeBranchFilters]);
+  });
 
   const load = useCallback(async () => {
     if (!branchUuid) return;

@@ -8,6 +8,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { useResetOnChange } from "@/hooks/use-reset-on-change";
 import { Checkbox, type CheckboxProps } from "@/components/ui/checkbox";
 import {
   nextRowSelectionIds,
@@ -57,9 +58,8 @@ export function useReportRowSelection<Row>({
     [getRowId, rows, selectedRowIds],
   );
 
-  useEffect(() => {
-    setSelectedRowIds(new Set());
-  }, [rows]);
+  // โหลดข้อมูลชุดใหม่ = ล้างรายการที่เลือกไว้ทั้งหมด
+  useResetOnChange(rows, () => setSelectedRowIds(new Set()));
 
   const clearSelection = useCallback(() => {
     setSelectedRowIds(new Set());

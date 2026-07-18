@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, type RefObject } from "react";
+import { useResetOnChange } from "@/hooks/use-reset-on-change";
 import { useTranslation } from "react-i18next";
 import { useUrlPagination } from "@/hooks/use-url-pagination";
 import { pageLimitSize } from "@/lib/pagination";
@@ -99,10 +100,11 @@ export function usePaymentMethodsReportWorkflow(
   };
   const paginationRangeLabel = t("common.showingRange", { start: pageStart, end: pageEnd, total });
 
-  useEffect(() => {
+  // รายการสาขาเปลี่ยน (โหลดเสร็จ/สลับร้าน) = ปรับสาขาใน filter ให้ยังใช้ได้เสมอ
+  useResetOnChange(normalizeBranchFilters, () => {
     setDraftFilters((current) => normalizeBranchFilters(current));
     setAppliedFilters((current) => normalizeBranchFilters(current));
-  }, [normalizeBranchFilters]);
+  });
 
   const load = useCallback(async () => {
     if (!branchUuid) return;

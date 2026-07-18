@@ -2,6 +2,7 @@
 
 import { useReportBranchSelection } from "../shared/use-report-branch-selection";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useResetOnChange } from "@/hooks/use-reset-on-change";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "@/stores/app-store";
 import { useAuthStore } from "@/stores/auth-store";
@@ -115,10 +116,11 @@ export function useDailyClosingReportWorkflow() {
     [appliedFilters.date, buildPrintData, report],
   );
 
-  useEffect(() => {
+  // รายการสาขาเปลี่ยน (โหลดเสร็จ/สลับร้าน) = ปรับสาขาใน filter ให้ยังใช้ได้เสมอ
+  useResetOnChange(normalizeBranchFilters, () => {
     setDraftFilters((current) => normalizeBranchFilters(current));
     setAppliedFilters((current) => normalizeBranchFilters(current));
-  }, [normalizeBranchFilters]);
+  });
 
   const load = useCallback(async () => {
     if (!branchUuid || !appliedFilters.date) return false;

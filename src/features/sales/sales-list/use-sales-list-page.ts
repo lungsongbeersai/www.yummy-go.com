@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useResetOnChange, useResetOnDeps } from "@/hooks/use-reset-on-change";
 import { useTranslation } from "react-i18next";
 import { openLocalInvoicePrintWindow, type InvoicePrintData } from "@/features/pos/print/invoice-print-window";
 import { buildSalesListInvoicePrintData } from "@/features/sales/cancel-sale/cancel-sale-utils";
@@ -151,16 +152,18 @@ export function useSalesListPage(initialPagination: UrlPaginationState) {
     return () => window.clearTimeout(timer);
   }, [appliedFilters.search, resetPage, searchText]);
 
-  useEffect(() => {
+  // บิลชุดใหม่ = คงตัวที่เลือกไว้ถ้ายังอยู่ ไม่งั้นเลือกใบแรก
+  useResetOnChange(bills, () => {
     setSelectedBillId((current) => {
       if (current && bills.some((bill) => bill.id === current)) return current;
       return bills[0]?.id ?? "";
     });
-  }, [bills]);
+  });
 
-  useEffect(() => {
+  // บิลที่เปิดดูอยู่หายไป = ปิดแผงรายละเอียดบนมือถือ
+  useResetOnDeps([mobileDetailOpen, selectedBill], () => {
     if (mobileDetailOpen && !selectedBill) setMobileDetailOpen(false);
-  }, [mobileDetailOpen, selectedBill]);
+  });
 
   useEffect(() => {
     if (!mobileDetailOpen) return;

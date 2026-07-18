@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useResetOnDeps } from "@/hooks/use-reset-on-change";
 import { useTranslation } from "react-i18next";
 import { EmptyState } from "@/components/common/empty-state";
 import {
@@ -132,9 +133,10 @@ export function CancelSalePage({
     void load();
   }, [load]);
 
-  useEffect(() => {
+  // ข้อมูลหดลงจนหน้าปัจจุบันเกินช่วง = ดึงกลับมาหน้าสุดท้ายที่มีจริง
+  useResetOnDeps([loading, page, safeTotalPages], () => {
     if (!loading && page > safeTotalPages) goToPage(safeTotalPages);
-  }, [goToPage, loading, page, safeTotalPages]);
+  });
 
   useEffect(() => {
     if (!initialOrderUuid || !initialSelectionLoaded || initialCancelHandledRef.current) return;

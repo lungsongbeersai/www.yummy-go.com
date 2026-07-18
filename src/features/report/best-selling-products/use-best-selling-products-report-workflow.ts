@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, type RefObject } from "react";
+import { useResetOnChange } from "@/hooks/use-reset-on-change";
 import { useTranslation } from "react-i18next";
 import { useUrlPagination } from "@/hooks/use-url-pagination";
 import { pageLimitSize } from "@/lib/pagination";
@@ -127,10 +128,11 @@ export function useBestSellingProductsReportWorkflow(
     void loadGroups({ lang: language, limit: "All", page: 1, store_uuid_fk: storeUuid }).catch(() => undefined);
   }, [language, loadGroups, storeUuid]);
 
-  useEffect(() => {
+  // รายการสาขาเปลี่ยน (โหลดเสร็จ/สลับร้าน) = ปรับสาขาใน filter ให้ยังใช้ได้เสมอ
+  useResetOnChange(normalizeFilters, () => {
     setDraftFilters((current) => normalizeFilters(current));
     setAppliedFilters((current) => normalizeFilters(current));
-  }, [normalizeFilters]);
+  });
 
   const load = useCallback(async () => {
     if (!branchUuid) return;
