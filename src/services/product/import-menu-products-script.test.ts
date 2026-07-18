@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { beforeAll, describe, expect, it } from "vitest";
@@ -52,7 +53,9 @@ const excelPath = path.resolve(
 );
 
 function readRows(): unknown[][] {
-  const workbook = XLSX.readFile(excelPath);
+  // XLSX.readFile relies on xlsx's internal fs binding, which is not wired up
+  // under vitest's ESM environment — read via node fs and parse the buffer.
+  const workbook = XLSX.read(readFileSync(excelPath), { type: "buffer" });
   const firstSheet = workbook.SheetNames[0];
   return XLSX.utils.sheet_to_json(workbook.Sheets[firstSheet], {
     header: 1,

@@ -146,11 +146,12 @@ export function DailyClosingReportPage() {
         ) : null}
 
         {closing.report ? (
-          <DailyClosingPaymentCards
-            balanced={closing.balanced}
-            paymentDifference={closing.paymentDifference}
-            report={closing.report}
-          />
+          // <DailyClosingPaymentCards
+          //   balanced={closing.balanced}
+          //   paymentDifference={closing.paymentDifference}
+          //   report={closing.report}
+          // />
+          <DailyClosingPaymentCards report={closing.report} />
         ) : null}
 
         {closing.loading || showInitialLoading ? (

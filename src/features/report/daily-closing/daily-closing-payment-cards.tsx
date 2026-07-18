@@ -6,8 +6,8 @@ import type { DailyStoreClosingReport } from "@/stores/report-store";
 import { dailyClosingLabel } from "./daily-closing-report-utils";
 
 interface DailyClosingPaymentCardsProps {
-  balanced: boolean;
-  paymentDifference: number;
+  // balanced: boolean;
+  // paymentDifference: number;
   report: DailyStoreClosingReport;
 }
 
@@ -34,8 +34,8 @@ const CARD_STYLES: Record<PaymentCardVariant, { card: string; label: string; val
 // การ์ดสรุปการรับเงิน — ใช้ข้อมูลและ label ชุดเดียวกับส่วน "สະຫຼຸບລາຍຮັບ" ในใบเสร็จ
 // เพื่อให้ผู้ใช้เห็นยอดสำคัญด้านบนโดยไม่ต้องเลื่อนใบเสร็จ
 export function DailyClosingPaymentCards({
-  balanced,
-  paymentDifference,
+  // balanced,
+  // paymentDifference,
   report,
 }: DailyClosingPaymentCardsProps) {
   const { t } = useTranslation();
@@ -72,12 +72,12 @@ export function DailyClosingPaymentCards({
       value: money(paymentSummary.paymentTotal),
       variant: "primary",
     },
-    {
-      key: "difference",
-      label: t("report.dailyClosing.difference"),
-      value: money(paymentDifference),
-      variant: balanced ? "default" : "danger",
-    },
+    // {
+    //   key: "difference",
+    //   label: t("report.dailyClosing.difference"),
+    //   value: money(paymentDifference),
+    //   variant: balanced ? "default" : "danger",
+    // },
     {
       key: "cancel",
       label: `${dailyClosingLabel(apiLabels.cancelBill, t("report.dailyClosing.cancelBill"))} (${cancelSummary.billCount.toLocaleString("en-US")})`,
