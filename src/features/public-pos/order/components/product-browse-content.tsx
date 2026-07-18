@@ -108,7 +108,11 @@ export function ProductBrowseContent({
   const gridLayoutLabel = t("settings.icons.grid");
   const listLayoutLabel = t("settings.icons.list");
 
+  // effect นี้ถูกต้องแล้วและตั้งใจให้เป็นแบบนี้: ค่าอยู่ใน localStorage ซึ่งฝั่ง server
+  // ไม่มี ถ้าอ่านตอน render แรกจะเกิด hydration mismatch การอ่านหลัง mount คือวิธี
+  // มาตรฐานของ Next.js สำหรับค่าที่มีเฉพาะฝั่ง client
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- อ่านค่าฝั่ง client หลัง hydrate
     setProductLayoutMode(readPublicProductLayoutMode());
   }, []);
 
