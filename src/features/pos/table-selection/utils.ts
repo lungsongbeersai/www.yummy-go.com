@@ -1,4 +1,5 @@
 import { money } from "@/lib/format";
+import { optionalBoolean, optionalNumber, optionalString } from "@/lib/values";
 import type { CustomerDisplayPayload } from "@/features/customer-display/shared/customer-display-sync";
 import {
   ProductImageStatus,
@@ -81,35 +82,7 @@ export function markTableAvailableInZones(zones: PosZone[], tableUuid: string) {
   return changed ? nextZones : zones;
 }
 
-export function optionalNumber(...values: unknown[]) {
-  for (const value of values) {
-    if (value === null || value === undefined || value === "") continue;
-    const number = Number(value);
-    if (Number.isFinite(number)) return number;
-  }
-  return null;
-}
-
-export function optionalString(...values: unknown[]) {
-  for (const value of values) {
-    if (value === null || value === undefined) continue;
-    const text = String(value).trim();
-    if (text) return text;
-  }
-  return null;
-}
-
-export function optionalBoolean(...values: unknown[]) {
-  for (const value of values) {
-    if (value === null || value === undefined || value === "") continue;
-    if (typeof value === "boolean") return value;
-    if (typeof value === "number") return value !== 0;
-    const text = String(value).trim().toLowerCase();
-    if (["1", "true", "yes", "y"].includes(text)) return true;
-    if (["0", "false", "no", "n"].includes(text)) return false;
-  }
-  return null;
-}
+export { optionalBoolean, optionalNumber, optionalString };
 
 export function tableActionTableUuid(table: MoveTableItem | PosTable) {
   return optionalString(

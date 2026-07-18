@@ -35,3 +35,29 @@ export function firstNumberOrZero(...values: unknown[]) {
 export function readNumber(row: Record<string, unknown>, keys: string[]) {
   return firstNumber(readValue(row, keys));
 }
+
+// first non-empty value coerced to a trimmed string, else null
+export function optionalString(...values: unknown[]) {
+  for (const value of values) {
+    if (value === null || value === undefined) continue;
+    const text = String(value).trim();
+    if (text) return text;
+  }
+  return null;
+}
+
+// first present value coerced to boolean (accepts 1/0, true/false, yes/no), else null
+export function optionalBoolean(...values: unknown[]) {
+  for (const value of values) {
+    if (value === null || value === undefined || value === "") continue;
+    if (typeof value === "boolean") return value;
+    if (typeof value === "number") return value !== 0;
+    const text = String(value).trim().toLowerCase();
+    if (["1", "true", "yes", "y"].includes(text)) return true;
+    if (["0", "false", "no", "n"].includes(text)) return false;
+  }
+  return null;
+}
+
+// optionalNumber is the same first-finite-number scan as firstNumber
+export { firstNumber as optionalNumber };
