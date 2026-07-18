@@ -21,6 +21,7 @@ import {
   SettingsTableScroll,
   SettingsToolbar,
   SettingsEmptyRecords,} from "@/features/settings/shared/settings-shell";
+import { useOptionRowSelection } from "@/features/settings/shared/use-option-row-selection";
 import { useAppliedSearch } from "@/hooks/use-applied-search";
 import { useLatestValue } from "@/hooks/use-latest-value";
 import { useUrlPagination } from "@/hooks/use-url-pagination";
@@ -113,7 +114,6 @@ export function CustomerSettingsPage({ initialPagination }: { initialPagination:
   const [editing, setEditing] = useState<Customer | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Customer | null>(null);
-  const [selectedRows, setSelectedRows] = useState<Set<string>>(() => new Set());
 
   const title = t("settings.modules.customer.title");
   const description = t("settings.modules.customer.description");
@@ -139,8 +139,8 @@ export function CustomerSettingsPage({ initialPagination }: { initialPagination:
   const pagingBusy = loading || refreshing;
   const canGoBack = page > 1 && !pagingBusy;
   const canGoNext = page < totalPages && !pagingBusy;
-  const ids = useMemo(() => rows.map(customerId).filter(Boolean), [rows]);
-  const allSelected = ids.length > 0 && ids.every((id) => selectedRows.has(id));
+  const { allSelected, removeSelected, selectedRows, toggleAll, toggleSelected } =
+    useOptionRowSelection(rows, customerId);
 
   const load = useCallback(async () => {
     if (!storeUuid) {
@@ -163,37 +163,11 @@ export function CustomerSettingsPage({ initialPagination }: { initialPagination:
     void load();
   }, [load]);
 
-  useEffect(() => {
-    setSelectedRows((current) => {
-      if (!current.size) return current;
-      const allowed = new Set(ids);
-      let changed = false;
-      const next = new Set<string>();
-      current.forEach((id) => {
-        if (allowed.has(id)) next.add(id);
-        else changed = true;
-      });
-      return changed ? next : current;
-    });
-  }, [ids]);
 
   function applyFilters() {
     applySearch({ page, resetPage, reload: () => void load() });
   }
 
-  function toggleSelected(id: string, checked: boolean) {
-    if (!id) return;
-    setSelectedRows((current) => {
-      const next = new Set(current);
-      if (checked) next.add(id);
-      else next.delete(id);
-      return next;
-    });
-  }
-
-  function toggleAll(checked: boolean) {
-    setSelectedRows(checked ? new Set(ids) : new Set());
-  }
 
   function openCreate() {
     if (!storeUuid) {
@@ -247,11 +221,7 @@ export function CustomerSettingsPage({ initialPagination }: { initialPagination:
       await removeRow(id);
       showToast({ title: t("settings.deleted"), tone: "success" });
       setDeleteTarget(null);
-      setSelectedRows((current) => {
-        const next = new Set(current);
-        next.delete(id);
-        return next;
-      });
+      removeSelected(id);
       await loadRows(requestParams, { background: true });
     } catch (error) {
       showToast({
