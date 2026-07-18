@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useResetOnChange } from "@/hooks/use-reset-on-change";
 import { Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,9 +24,9 @@ export function ProductOrderDialog({ workflow }: { workflow: ProductListWorkflow
   const sortAvailable = workflow.canSortProducts;
   const [position, setPosition] = useState("");
 
-  useEffect(() => {
+  useResetOnChange(target, () => {
     if (target) setPosition(String(target.row_number));
-  }, [target]);
+  });
 
   const parsed = Number(position);
   const valid = Number.isInteger(parsed) && parsed >= 1 && parsed <= total;

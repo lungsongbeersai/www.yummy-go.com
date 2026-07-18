@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useResetOnChange } from "@/hooks/use-reset-on-change";
 import { arrayMove } from "@dnd-kit/sortable";
 import { useReducedMotion } from "motion/react";
 import { useTranslation } from "react-i18next";
@@ -242,29 +243,31 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
     void load();
   }, [load]);
 
-  useEffect(() => {
+  // สินค้าที่พับไว้อาจหลุดจากรายการหลังกรอง/โหลดใหม่ ต้องตัดออก
+  useResetOnChange(detailProductIds, () => {
     const visible = new Set(detailProductIds);
     setCollapsedProducts((current) => {
       const next = new Set([...current].filter((id) => visible.has(id)));
       return next.size === current.size ? current : next;
     });
-  }, [detailProductIds]);
+  });
 
-  useEffect(() => {
+  // แถวที่เลือกไว้อาจหลุดจากรายการที่มองเห็น ต้องตัดออกจาก selection
+  useResetOnChange(visibleProductIds, () => {
     const visible = new Set(visibleProductIds);
     setSelectedRows((current) => {
       const next = new Set([...current].filter((id) => visible.has(id)));
       return next.size === current.size ? current : next;
     });
-  }, [visibleProductIds]);
+  });
 
-  useEffect(() => {
+  useResetOnChange(cateUuidFk, () => {
     if (cateUuidFk) setHighlightCategoryFilter(false);
-  }, [cateUuidFk]);
+  });
 
-  useEffect(() => {
+  useResetOnChange(appliedSearch, () => {
     if (!appliedSearch.trim()) setHighlightSearchFilter(false);
-  }, [appliedSearch]);
+  });
 
   function applyFilters() {
     applySearch({ page, resetPage, reload: () => void load() });

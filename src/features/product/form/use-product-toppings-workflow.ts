@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useResetOnDeps } from "@/hooks/use-reset-on-change";
 import type { TFunction } from "i18next";
 import type { Product } from "@/services/product";
 import type { SaveToppingInput, Topping } from "@/services/topping";
@@ -91,13 +92,15 @@ export function useProductToppingsWorkflow({
     [language, selectedToppings, toppingOptions]
   );
 
-  useEffect(() => {
+  // สลับสินค้าที่แก้ไข (หรือ hydrate ใหม่) = โหลดท็อปปิ้งของสินค้านั้นใหม่
+  useResetOnDeps([editing, editingHydrationKey, toppings], () => {
     if (!editing) return;
     setProdToppingStatus(productHasToppings(editing) ? TOPPING_HAS : TOPPING_NONE);
     setSelectedToppings(productToppingsFromRows(editing.toppings, toppings));
-  }, [editing, editingHydrationKey, toppings]);
+  });
 
-  useEffect(() => {
+  // toppingOptions มาทีหลัง จึงต้องเติมท็อปปิ้งที่เพิ่ง resolve ได้เข้าไปภายหลัง
+  useResetOnDeps([editing, toppingOptions], () => {
     if (!editing?.toppings?.length || !toppingOptions.length) return;
 
     const resolved = editing.toppings
@@ -115,7 +118,7 @@ export function useProductToppingsWorkflow({
       if (!current.length) return resolved;
       return missing.length ? [...current, ...missing] : current;
     });
-  }, [editing, toppingOptions]);
+  });
 
   function toggleTopping(uuid: string, checked: boolean) {
     setSelectedToppings((current) => {

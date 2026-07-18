@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useResetOnChange, useResetOnDeps } from "@/hooks/use-reset-on-change";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import {
@@ -259,7 +260,8 @@ export function useProductFormWorkflow() {
     selectedImage
   });
 
-  useEffect(() => {
+  // สลับร้าน = โหลดค่าตั้งต้นของฟอร์มที่จำไว้ของร้านนั้น
+  useResetOnChange(storeUuid, () => {
     if (!storeUuid) {
       setStoredDefaults(EMPTY_PRODUCT_FORM_DEFAULTS);
       return;
@@ -268,7 +270,7 @@ export function useProductFormWorkflow() {
     const storage = browserProductFormStorage();
     if (!storage) return;
     setStoredDefaults(readProductFormDefaults(storage, storeUuid));
-  }, [storeUuid]);
+  });
 
   useEffect(() => {
     if (saveNotice !== "saved") return;
@@ -280,10 +282,11 @@ export function useProductFormWorkflow() {
     return () => window.clearTimeout(timeoutId);
   }, [saveNotice]);
 
-  useEffect(() => {
+  // จับคู่สีที่กรอกกับสีในรายการ ถ้าไม่ตรงถือเป็นสีกำหนดเอง
+  useResetOnDeps([colors, colorValue], () => {
     const matched = colors.find((color) => colorCode(color).toLowerCase() === colorValue.toLowerCase());
     setColorChoice(matched?.color_uuid ?? CUSTOM_COLOR_VALUE);
-  }, [colors, colorValue]);
+  });
 
   useEffect(() => {
     if (!isEditing) {
