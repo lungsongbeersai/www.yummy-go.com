@@ -8,29 +8,23 @@ import {
   FolderTree,
   Printer,
   RefreshCcw,
-  SlidersHorizontal,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {
   ReportOfficialHeader,
   ReportSignatures,
 } from "../report-official-layout";
-import { DateFilterButton } from "@/components/common/date-filter-button";
+import {
+  ReportFilterCard,
+  ReportFilterSheet,
+  ReportMobileFilterSummary,
+} from "../shared/report-filter-shell";
 import { EmptyState } from "@/components/common/empty-state";
 import { LoadingState } from "@/components/common/loading-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -146,33 +140,23 @@ export function CategorySalesFilterBar({
   onApply,
   onDraftChange,
 }: FilterProps) {
-  const { t } = useTranslation();
-
   return (
-    <Card className="min-w-0 border-border bg-card shadow-sm">
-      <CardContent className="grid min-w-0 gap-3 p-3 sm:p-4 lg:grid-cols-4 lg:items-end 2xl:grid-cols-[repeat(6,minmax(0,1fr))_auto]">
-        <CategorySalesFilterFields
-          branchLoading={branchLoading}
-          branchLocked={branchLocked}
-          branchOptions={branchOptions}
-          draftFilters={draftFilters}
-          idPrefix="category-sales"
-          methodOptions={methodOptions}
-          onDraftChange={onDraftChange}
-        />
-        <Button
-          type="button"
-          className="h-9 min-w-28"
-          disabled={loading || !canApply}
-          onClick={onApply}
-        >
-          {loading ? (
-            <RefreshCcw className="animate-spin" data-icon="inline-start" />
-          ) : null}
-          {t("report.apply")}
-        </Button>
-      </CardContent>
-    </Card>
+    <ReportFilterCard
+      canApply={canApply}
+      contentClassName="grid min-w-0 gap-3 p-3 sm:p-4 lg:grid-cols-4 lg:items-end 2xl:grid-cols-[repeat(6,minmax(0,1fr))_auto]"
+      loading={loading}
+      onApply={onApply}
+    >
+      <CategorySalesFilterFields
+        branchLoading={branchLoading}
+        branchLocked={branchLocked}
+        branchOptions={branchOptions}
+        draftFilters={draftFilters}
+        idPrefix="category-sales"
+        methodOptions={methodOptions}
+        onDraftChange={onDraftChange}
+      />
+    </ReportFilterCard>
   );
 }
 
@@ -195,48 +179,25 @@ export function CategorySalesFilterSheet({
   const { t } = useTranslation();
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-5xl">
-        <DialogHeader className="shrink-0 border-b border-border px-4 py-3 pr-12 text-left">
-          <DialogTitle className="text-base font-black">
-            {t("report.filters.currentFilters")}
-          </DialogTitle>
-          <DialogDescription>
-            {t("report.categorySales.title")}
-          </DialogDescription>
-        </DialogHeader>
-        <div className="min-h-0 flex-1 overflow-y-auto p-4">
-          <div className="grid gap-3 lg:grid-cols-3">
-            <CategorySalesFilterFields
-              branchLoading={branchLoading}
-              branchLocked={branchLocked}
-              branchOptions={branchOptions}
-              draftFilters={draftFilters}
-              idPrefix="category-sales-mobile"
-              methodOptions={methodOptions}
-              onDraftChange={onDraftChange}
-            />
-          </div>
-        </div>
-        <DialogFooter className="grid grid-cols-2 gap-2 border-t border-border bg-card/95 px-4 py-3 backdrop-blur sm:flex">
-          <DialogClose asChild>
-            <Button type="button" variant="outline">
-              {t("actions.close")}
-            </Button>
-          </DialogClose>
-          <Button
-            type="button"
-            disabled={loading || !canApply}
-            onClick={onApply}
-          >
-            {loading ? (
-              <RefreshCcw className="animate-spin" data-icon="inline-start" />
-            ) : null}
-            {t("report.apply")}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <ReportFilterSheet
+      canApply={canApply}
+      description={t("report.categorySales.title")}
+      gridClassName="lg:grid-cols-3"
+      loading={loading}
+      open={open}
+      onApply={onApply}
+      onOpenChange={onOpenChange}
+    >
+      <CategorySalesFilterFields
+        branchLoading={branchLoading}
+        branchLocked={branchLocked}
+        branchOptions={branchOptions}
+        draftFilters={draftFilters}
+        idPrefix="category-sales-mobile"
+        methodOptions={methodOptions}
+        onDraftChange={onDraftChange}
+      />
+    </ReportFilterSheet>
   );
 }
 
@@ -258,41 +219,24 @@ export function MobileCategorySalesFilterSummary({
   const dateRangeLabel = `${filters.dateFrom} - ${filters.dateTo}`;
 
   return (
-    <div className="rounded-md border border-border bg-card p-2 shadow-sm">
-      <div className="flex items-center justify-between gap-2">
-        <div className="min-w-0">
-          <DateFilterButton
-            ariaLabel={`${t("report.filters.openFilters")}: ${dateRangeLabel}`}
-            className="h-8 max-w-full rounded-md border-border/70 bg-muted/50 px-2 text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground"
-            label={dateRangeLabel}
-            onClick={onOpen}
-          />
-          <div className="mt-1 flex min-w-0 flex-wrap gap-1">
-            <Badge className="h-6 max-w-44 truncate border-border bg-muted px-2 text-[11px] text-muted-foreground">
-              {branchLabel}
-            </Badge>
-            <Badge className="h-6 max-w-36 truncate px-2 text-[11px]">
-              {methodLabel}
-            </Badge>
-            <Badge className="h-6 border-border bg-muted px-2 text-[11px] text-muted-foreground">
-              {limitLabel}
-            </Badge>
-            <Badge className="h-6 border-border bg-muted px-2 text-[11px] text-muted-foreground">
-              {reportOrderLabel(t, filters.orderBy)}
-            </Badge>
-          </div>
-        </div>
-        <Button
-          type="button"
-          size="sm"
-          className="h-9 shrink-0 px-3"
-          onClick={onOpen}
-        >
-          <SlidersHorizontal data-icon="inline-start" />
-          {t("report.filters.openFilters")}
-        </Button>
-      </div>
-    </div>
+    <ReportMobileFilterSummary dateRangeLabel={dateRangeLabel} onOpen={onOpen}
+      badges={
+        <>
+          <Badge className="h-6 max-w-44 truncate border-border bg-muted px-2 text-[11px] text-muted-foreground">
+            {branchLabel}
+          </Badge>
+          <Badge className="h-6 max-w-36 truncate px-2 text-[11px]">
+            {methodLabel}
+          </Badge>
+          <Badge className="h-6 border-border bg-muted px-2 text-[11px] text-muted-foreground">
+            {limitLabel}
+          </Badge>
+          <Badge className="h-6 border-border bg-muted px-2 text-[11px] text-muted-foreground">
+            {reportOrderLabel(t, filters.orderBy)}
+          </Badge>
+        </>
+      }
+    />
   );
 }
 

@@ -8,28 +8,22 @@ import {
   FileSpreadsheet,
   Printer,
   RefreshCcw,
-  SlidersHorizontal,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {
   ReportOfficialHeader,
   ReportSignatures,
 } from "../report-official-layout";
-import { DateFilterButton } from "@/components/common/date-filter-button";
+import {
+  ReportApplyButton,
+  ReportFilterSheet,
+  ReportMobileFilterSummary,
+} from "../shared/report-filter-shell";
 import { EmptyState } from "@/components/common/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -153,8 +147,6 @@ export function PaymentMethodsFilterBar({
   onApply,
   onDraftChange,
 }: FilterProps) {
-  const { t } = useTranslation();
-
   return (
     <Card className="min-w-0 border-border bg-card shadow-sm">
       <CardContent className="p-3 sm:p-4">
@@ -169,17 +161,12 @@ export function PaymentMethodsFilterBar({
             onDraftChange={onDraftChange}
           />
           <div className="flex items-end sm:col-span-2 lg:col-span-12 xl:col-span-2">
-            <Button
-              type="button"
+            <ReportApplyButton
+              canApply={canApply}
               className="h-9 w-full min-w-28"
-              disabled={loading || !canApply}
-              onClick={onApply}
-            >
-              {loading ? (
-                <RefreshCcw className="animate-spin" data-icon="inline-start" />
-              ) : null}
-              {t("report.apply")}
-            </Button>
+              loading={loading}
+              onApply={onApply}
+            />
           </div>
         </div>
       </CardContent>
@@ -206,49 +193,25 @@ export function PaymentMethodsFilterSheet({
   const { t } = useTranslation();
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="!flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-4xl">
-        <DialogHeader className="shrink-0 border-b border-border bg-muted/20 px-4 py-3 pr-12 text-left sm:px-5">
-          <DialogTitle className="text-base font-black text-foreground">
-            {t("report.filters.currentFilters")}
-          </DialogTitle>
-          <DialogDescription>
-            {t("report.paymentMethodsReport.title")}
-          </DialogDescription>
-        </DialogHeader>
-        <div className="max-h-[calc(100dvh-12rem)] overflow-y-auto overscroll-contain p-4 sm:p-5">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-12">
-            <PaymentMethodsFilterFields
-              branchLoading={branchLoading}
-              branchLocked={branchLocked}
-              branchOptions={branchOptions}
-              draftFilters={draftFilters}
-              idPrefix="payment-methods-mobile"
-              methodOptions={methodOptions}
-              onDraftChange={onDraftChange}
-            />
-          </div>
-        </div>
-        <DialogFooter className="grid shrink-0 grid-cols-2 gap-2 border-t border-border bg-card/95 px-4 py-3 backdrop-blur sm:flex sm:px-5">
-          <DialogClose asChild>
-            <Button type="button" variant="outline" className="h-10 sm:min-w-24">
-              {t("actions.close")}
-            </Button>
-          </DialogClose>
-          <Button
-            type="button"
-            className="h-10 sm:min-w-24"
-            disabled={loading || !canApply}
-            onClick={onApply}
-          >
-            {loading ? (
-              <RefreshCcw className="animate-spin" data-icon="inline-start" />
-            ) : null}
-            {t("report.apply")}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <ReportFilterSheet
+      canApply={canApply}
+      description={t("report.paymentMethodsReport.title")}
+      gridClassName="grid-cols-1 sm:grid-cols-2 lg:grid-cols-12"
+      loading={loading}
+      open={open}
+      onApply={onApply}
+      onOpenChange={onOpenChange}
+    >
+      <PaymentMethodsFilterFields
+        branchLoading={branchLoading}
+        branchLocked={branchLocked}
+        branchOptions={branchOptions}
+        draftFilters={draftFilters}
+        idPrefix="payment-methods-mobile"
+        methodOptions={methodOptions}
+        onDraftChange={onDraftChange}
+      />
+    </ReportFilterSheet>
   );
 }
 
@@ -270,38 +233,21 @@ export function MobilePaymentMethodsFilterSummary({
   const dateRangeLabel = `${filters.dateFrom} - ${filters.dateTo}`;
 
   return (
-    <div className="rounded-md border border-border bg-card p-2 shadow-sm">
-      <div className="flex items-center justify-between gap-2">
-        <div className="min-w-0">
-          <DateFilterButton
-            ariaLabel={`${t("report.filters.openFilters")}: ${dateRangeLabel}`}
-            className="h-8 max-w-full rounded-md border-border/70 bg-muted/50 px-2 text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground"
-            label={dateRangeLabel}
-            onClick={onOpen}
-          />
-          <div className="mt-1 flex min-w-0 flex-wrap gap-1">
-            <Badge className="h-6 max-w-44 truncate border-border bg-muted px-2 text-[11px] text-muted-foreground">
-              {branchLabel}
-            </Badge>
-            <Badge className="h-6 max-w-36 truncate px-2 text-[11px]">
-              {methodLabel}
-            </Badge>
-            <Badge className="h-6 border-border bg-muted px-2 text-[11px] text-muted-foreground">
-              {limitLabel}
-            </Badge>
-          </div>
-        </div>
-        <Button
-          type="button"
-          size="sm"
-          className="h-9 shrink-0 px-3"
-          onClick={onOpen}
-        >
-          <SlidersHorizontal data-icon="inline-start" />
-          {t("report.filters.openFilters")}
-        </Button>
-      </div>
-    </div>
+    <ReportMobileFilterSummary dateRangeLabel={dateRangeLabel} onOpen={onOpen}
+      badges={
+        <>
+          <Badge className="h-6 max-w-44 truncate border-border bg-muted px-2 text-[11px] text-muted-foreground">
+            {branchLabel}
+          </Badge>
+          <Badge className="h-6 max-w-36 truncate px-2 text-[11px]">
+            {methodLabel}
+          </Badge>
+          <Badge className="h-6 border-border bg-muted px-2 text-[11px] text-muted-foreground">
+            {limitLabel}
+          </Badge>
+        </>
+      }
+    />
   );
 }
 
