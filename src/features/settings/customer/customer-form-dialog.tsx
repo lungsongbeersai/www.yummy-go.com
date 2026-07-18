@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogDescription, DialogTitle } from "@/components/ui/dialog";
@@ -16,6 +16,7 @@ import {
   SettingsDialogForm,
   SettingsDialogHeader
 } from "@/features/settings/shared/settings-shell";
+import { useResetOnChange } from "@/hooks/use-reset-on-change";
 import type { Customer } from "@/services/customer";
 import { customerId, customerMemberCode, customerStatus, customerValue } from "./customer-utils";
 
@@ -35,12 +36,12 @@ export function CustomerFormDialog({
   saving
 }: CustomerFormDialogProps) {
   const { t } = useTranslation();
-  const [status, setStatus] = useState("1");
+  const [status, setStatus] = useState(() => customerStatus(editing));
   const formKey = customerId(editing) || "new-customer";
 
-  useEffect(() => {
+  useResetOnChange(`${formKey}:${open}`, () => {
     setStatus(customerStatus(editing));
-  }, [editing, open]);
+  });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

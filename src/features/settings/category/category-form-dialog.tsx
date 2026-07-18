@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogDescription, DialogTitle } from "@/components/ui/dialog";
@@ -15,6 +15,7 @@ import {
   SettingsDialogForm,
   SettingsDialogHeader
 } from "@/features/settings/shared/settings-shell";
+import { useResetOnChange } from "@/hooks/use-reset-on-change";
 import type { Category } from "@/services/category";
 import { CategoryIconPicker } from "./category-icon-picker";
 import {
@@ -41,17 +42,19 @@ export function CategoryFormDialog({
   title: string;
 }) {
   const { t } = useTranslation();
-  const [groupUuid, setGroupUuid] = useState("");
-  const [nameLa, setNameLa] = useState("");
-  const [nameEng, setNameEng] = useState("");
+  const [groupUuid, setGroupUuid] = useState(() => categoryValue(editing, "group_uuid_fk"));
+  const [nameLa, setNameLa] = useState(() =>
+    categoryValue(editing, "cate_name_la", categoryValue(editing, "cate_name"))
+  );
+  const [nameEng, setNameEng] = useState(() => categoryValue(editing, "cate_name_eng"));
   const formKey = categoryId(editing) || "new-category";
   const canSubmit = Boolean(groupUuid && nameLa.trim()) && !saving;
 
-  useEffect(() => {
+  useResetOnChange(`${formKey}:${open}`, () => {
     setGroupUuid(categoryValue(editing, "group_uuid_fk"));
     setNameLa(categoryValue(editing, "cate_name_la", categoryValue(editing, "cate_name")));
     setNameEng(categoryValue(editing, "cate_name_eng"));
-  }, [editing, open]);
+  });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

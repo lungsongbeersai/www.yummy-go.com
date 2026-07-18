@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogDescription, DialogTitle } from "@/components/ui/dialog";
@@ -15,6 +15,7 @@ import {
   SettingsDialogForm,
   SettingsDialogHeader
 } from "@/features/settings/shared/settings-shell";
+import { useResetOnChange } from "@/hooks/use-reset-on-change";
 import type { Currency } from "@/services/currency";
 import { CurrencyFlagPicker } from "./currency-flag-picker";
 import {
@@ -38,17 +39,17 @@ export function CurrencyFormDialog({
   saving: boolean;
 }) {
   const { t } = useTranslation();
-  const [name, setName] = useState("");
-  const [icon, setIcon] = useState("");
-  const [status, setStatus] = useState("1");
+  const [name, setName] = useState(() => currencyValue(editing, "currency_name"));
+  const [icon, setIcon] = useState(() => (currencyIcon(editing) === "-" ? "" : currencyIcon(editing)));
+  const [status, setStatus] = useState(() => currencyStatus(editing));
   const formKey = currencyId(editing) || "new-currency";
   const saveDisabled = saving || !name.trim() || !icon.trim() || !status.trim();
 
-  useEffect(() => {
+  useResetOnChange(`${formKey}:${open}`, () => {
     setName(currencyValue(editing, "currency_name"));
     setIcon(currencyIcon(editing) === "-" ? "" : currencyIcon(editing));
     setStatus(currencyStatus(editing));
-  }, [editing, open]);
+  });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

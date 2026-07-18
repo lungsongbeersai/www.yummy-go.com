@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { SettingsImageCropPanel, type CropState } from "@/features/settings/shared/settings-image-crop";
+import { useResetOnChange } from "@/hooks/use-reset-on-change";
 import type { Role, User } from "@/services/user";
 import {
   roleId,
@@ -52,16 +53,17 @@ export function UserFormDialog({
   title: string;
 }) {
   const { t } = useTranslation();
-  const [selectedRoleId, setSelectedRoleId] = useState("");
-  const [loginActive, setLoginActive] = useState("1");
+  const [selectedRoleId, setSelectedRoleId] = useState(
+    () => roleId(editing) || String(loggedRoleId || "")
+  );
+  const [loginActive, setLoginActive] = useState(() => userValue(editing, "login_active", "1"));
   const roles = useMemo(() => userRoleOptions(editing, roleOptions), [editing, roleOptions]);
+  const formKey = userId(editing) || "new";
 
-  useEffect(() => {
+  useResetOnChange(`${formKey}:${loggedRoleId}:${open}`, () => {
     setSelectedRoleId(roleId(editing) || String(loggedRoleId || ""));
     setLoginActive(userValue(editing, "login_active", "1"));
-  }, [editing, loggedRoleId, open]);
-
-  const formKey = userId(editing) || "new";
+  });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

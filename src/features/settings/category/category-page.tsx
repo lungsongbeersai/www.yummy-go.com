@@ -17,8 +17,10 @@ import {
 import {
   SettingsModuleShell,
   SettingsPaginationFooter,
-  SettingsToolbar
+  SettingsToolbar,
 } from "@/features/settings/shared/settings-shell";
+import { useOptionRowSelection } from "@/features/settings/shared/use-option-row-selection";
+import { useResetOnChange } from "@/hooks/use-reset-on-change";
 import { useAppliedSearch } from "@/hooks/use-applied-search";
 import { useLatestValue } from "@/hooks/use-latest-value";
 import { useUrlPagination } from "@/hooks/use-url-pagination";
@@ -33,6 +35,8 @@ import { useReferenceStore } from "@/stores/reference-store";
 import { useToastStore } from "@/stores/toast-store";
 
 const DEFAULT_LIMIT: PageLimit = DEFAULT_PAGE_LIMIT;
+
+const EMPTY_GROUP_OPTIONS: GroupOption[] = [];
 
 export function CategorySettingsPage({ initialPagination }: { initialPagination: UrlPaginationState }) {
   const { t } = useTranslation();
@@ -59,9 +63,8 @@ export function CategorySettingsPage({ initialPagination }: { initialPagination:
   const [editing, setEditing] = useState<Category | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Category | null>(null);
-  const [selectedRows, setSelectedRows] = useState<Set<string>>(() => new Set());
-  const [displayRows, setDisplayRows] = useState<Category[]>([]);
-  const [groupOptions, setGroupOptions] = useState<GroupOption[]>([]);
+  const [displayRows, setDisplayRows] = useState<Category[]>(storeRows);
+  const [fetchedGroupOptions, setFetchedGroupOptions] = useState<GroupOption[]>([]);
 
   const title = t("settings.modules.category.title");
   const description = t("settings.modules.category.description");
@@ -77,6 +80,8 @@ export function CategorySettingsPage({ initialPagination }: { initialPagination:
   const allRowsLoaded = limit === "All" || totalPages === 1;
   const rows = allRowsLoaded ? orderedRows : storeRows;
   const groupOptionsStoreUuid = storeUuid || rowStoreUuid(storeRows);
+  // ไม่มีร้านที่เลือก = ไม่มีกลุ่มให้เลือก แต่คงค่าที่โหลดไว้ไม่ให้ dropdown กะพริบตอนสลับร้าน
+  const groupOptions = groupOptionsStoreUuid ? fetchedGroupOptions : EMPTY_GROUP_OPTIONS;
   const dragEnabled = allRowsLoaded && rows.length > 1;
   const pageStart = rows.length ? (page - 1) * pageSize + 1 : 0;
   const pageEnd = rows.length ? pageStart + rows.length - 1 : 0;
@@ -85,8 +90,10 @@ export function CategorySettingsPage({ initialPagination }: { initialPagination:
   const pagingBusy = loading || refreshing;
   const canGoBack = page > 1 && !pagingBusy;
   const canGoNext = page < totalPages && !pagingBusy;
-  const ids = useMemo(() => rows.map(categoryId).filter(Boolean), [rows]);
-  const allSelected = ids.length > 0 && ids.every((id) => selectedRows.has(id));
+  const { allSelected, ids, removeSelected, selectedRows, toggleAll, toggleSelected } = useOptionRowSelection(
+    rows,
+    categoryId
+  );
 
   const load = useCallback(async () => {
     try {
@@ -100,25 +107,21 @@ export function CategorySettingsPage({ initialPagination }: { initialPagination:
     }
   }, [hasLoadedRef, loadRows, requestParams, showToast, t, title]);
 
-  useEffect(() => {
-    setDisplayRows(storeRows);
-  }, [storeRows]);
+  // displayRows คือสำเนาไว้จัดลำดับแบบ optimistic ต้องรีเซ็ตเมื่อ store โหลดชุดใหม่
+  useResetOnChange(storeRows, () => setDisplayRows(storeRows));
 
   useEffect(() => {
     void load();
   }, [load]);
 
   useEffect(() => {
-    if (!groupOptionsStoreUuid) {
-      setGroupOptions([]);
-      return;
-    }
+    if (!groupOptionsStoreUuid) return;
 
     let active = true;
     loadGroupOptions(language, groupOptionsStoreUuid)
       .then((groups) => {
         if (!active) return;
-        setGroupOptions(
+        setFetchedGroupOptions(
           groups
             .map((group) => ({ label: groupLabel(group), value: categoryValue(group, "group_uuid") }))
             .filter((option) => option.value)
@@ -137,36 +140,8 @@ export function CategorySettingsPage({ initialPagination }: { initialPagination:
     };
   }, [groupOptionsStoreUuid, language, loadGroupOptions, showToast, t]);
 
-  useEffect(() => {
-    setSelectedRows((current) => {
-      if (!current.size) return current;
-      const allowed = new Set(ids);
-      let changed = false;
-      const next = new Set<string>();
-      current.forEach((id) => {
-        if (allowed.has(id)) next.add(id);
-        else changed = true;
-      });
-      return changed ? next : current;
-    });
-  }, [ids]);
-
   function applyFilters() {
     applySearch({ page, resetPage, reload: () => void load() });
-  }
-
-  function toggleSelected(id: string, checked: boolean) {
-    if (!id) return;
-    setSelectedRows((current) => {
-      const next = new Set(current);
-      if (checked) next.add(id);
-      else next.delete(id);
-      return next;
-    });
-  }
-
-  function toggleAll(checked: boolean) {
-    setSelectedRows(checked ? new Set(ids) : new Set());
   }
 
   function openCreate() {
@@ -222,11 +197,7 @@ export function CategorySettingsPage({ initialPagination }: { initialPagination:
       await removeRow(id);
       showToast({ title: t("settings.deleted"), tone: "success" });
       setDeleteTarget(null);
-      setSelectedRows((current) => {
-        const next = new Set(current);
-        next.delete(id);
-        return next;
-      });
+      removeSelected(id);
       await loadRows(requestParams, { background: true });
     } catch (error) {
       showToast({

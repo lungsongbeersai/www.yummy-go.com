@@ -1,13 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useResetOnChange } from "@/hooks/use-reset-on-change";
 
 export function useOptionRowSelection<Row>(rows: Row[], getId: (row: Row) => string) {
   const [selectedRows, setSelectedRows] = useState<Set<string>>(() => new Set());
   const ids = useMemo(() => rows.map(getId).filter(Boolean), [getId, rows]);
   const allSelected = ids.length > 0 && ids.every((id) => selectedRows.has(id));
 
-  useEffect(() => {
+  // แถวที่เลือกไว้อาจหายไปหลังเปลี่ยนหน้า/ค้นหา/โหลดใหม่ ต้องตัดออกจาก selection
+  useResetOnChange(ids, () => {
     setSelectedRows((current) => {
       if (!current.size) return current;
       const allowed = new Set(ids);
@@ -19,7 +21,7 @@ export function useOptionRowSelection<Row>(rows: Row[], getId: (row: Row) => str
       });
       return changed ? next : current;
     });
-  }, [ids]);
+  });
 
   function toggleSelected(id: string, checked: boolean) {
     if (!id) return;
