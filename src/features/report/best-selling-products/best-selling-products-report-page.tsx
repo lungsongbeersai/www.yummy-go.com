@@ -16,7 +16,8 @@ import {
   BestSellingSummaryCards,
   BestSellingTableCard,
 } from "./best-selling-products-report-components";
-import { ReportError, ReportPagination } from "../daily-sales/daily-sales-report-components";
+import { ReportError } from "../shared/report-error";
+import { ReportPagination } from "../shared/report-pagination";
 import { useBestSellingProductsReportWorkflow } from "./use-best-selling-products-report-workflow";
 
 const SUMMARY_CARDS_ID = "best-selling-summary-cards";

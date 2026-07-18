@@ -27,7 +27,7 @@ import {
   localDateInputValue,
   selectedBranchLabel,
 } from "@/features/sales/sales-list/sales-list-utils";
-import { waitForPaint } from "@/features/report/daily-sales/daily-sales-report-export-utils";
+import { waitForPaint } from "@/features/report/shared/report-export-info";
 import { createSingleSheetReportWorkbook } from "@/features/report/report-excel-utils";
 import { officialReportExcelLayout } from "@/features/report/report-official-layout";
 import { addReportCanvasToPdfPages } from "@/features/report/report-pdf-utils";

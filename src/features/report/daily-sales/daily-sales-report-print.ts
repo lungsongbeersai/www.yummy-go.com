@@ -1,21 +1,18 @@
 import { money } from "@/lib/format";
-import { openWindowOutsideNativeApp } from "@/lib/capacitor-platform";
-import {
-  WINDOW_OPEN_FONT_CLASS_NAME,
-  WINDOW_OPEN_FONT_STYLESHEET_LINK,
-  WINDOW_OPEN_PRINT_ON_LOAD_SCRIPT,
-} from "@/lib/window-open-fonts";
+import { firstNumberOrZero, readValue, textValue } from "@/lib/values";
 import type { ApiEntity } from "@/services/shared/types";
 import type { AuthUser } from "@/stores/auth-store";
 import type {
   CategorySalesGroup,
   DailySaleItemsBillGroup,
 } from "@/stores/report-store";
+import { escapeHtml } from "@/features/pos/print/invoice-print-window";
 import {
-  escapeHtml,
-  fullscreenPrintWindowFeatures,
-  maximizePrintWindow,
-} from "@/features/pos/print/invoice-print-window";
+  openReceiptPrintWindow,
+  receiptDocumentHtml,
+  receiptTotalRowHtml,
+  renderReceiptPrintWindow,
+} from "../shared/report-receipt-print";
 
 export interface DailySalesPrintLabels {
   billCount: string;
@@ -80,24 +77,7 @@ export interface DailySalesPrintData {
   summary: DailySalesPrintSummary;
 }
 
-function numberValue(value: unknown) {
-  const number = Number(value ?? 0);
-  return Number.isFinite(number) ? number : 0;
-}
-
-function textValue(value: unknown, fallback = "-") {
-  return value === null || value === undefined || value === ""
-    ? fallback
-    : String(value);
-}
-
-function readValue(row: ApiEntity, keys: string[]) {
-  for (const key of keys) {
-    const value = row[key];
-    if (value !== null && value !== undefined && value !== "") return value;
-  }
-  return undefined;
-}
+const numberValue = firstNumberOrZero;
 
 function itemQuantity(item: ApiEntity) {
   return numberValue(readValue(item, ["qty", "quantity", "order_it_qty", "sale_qty"]));
@@ -219,21 +199,19 @@ function printCategory(name: string, products: DailySalesPrintProduct[]) {
 }
 
 export function openDailySalesPrintWindow() {
-  const printWindow = openWindowOutsideNativeApp("", "_blank", fullscreenPrintWindowFeatures());
-  if (!printWindow) return null;
-  maximizePrintWindow(printWindow);
-  printWindow.document.write(
-    `<!doctype html><html><head>${WINDOW_OPEN_FONT_STYLESHEET_LINK}<title>Print</title></head><body class="${WINDOW_OPEN_FONT_CLASS_NAME}">Loading print preview...</body></html>`,
-  );
-  printWindow.document.close();
-  return printWindow;
+  return openReceiptPrintWindow();
 }
 
 export function renderDailySalesPrintWindow(printWindow: Window, data: DailySalesPrintData) {
-  printWindow.document.open();
-  printWindow.document.write(renderDailySalesPrintHtml(data));
-  printWindow.document.close();
+  renderReceiptPrintWindow(printWindow, renderDailySalesPrintHtml(data));
 }
+
+// สไตล์เฉพาะรายงานยอดขายรายวัน: ตารางสามคอลัมน์ (สินค้า | จำนวน | ยอดรวม)
+const DAILY_SALES_EXTRA_STYLES = `
+      .columns, .row { display: grid; grid-template-columns: minmax(0, 1fr) 11mm 23mm; gap: 1mm; align-items: start; }
+      .columns span:nth-child(n+2), .row span:nth-child(n+2) { text-align: right; font-variant-numeric: tabular-nums; }
+      .product span:first-child { overflow-wrap: anywhere; }
+`;
 
 export function renderDailySalesPrintHtml(data: DailySalesPrintData) {
   const { labels, summary } = data;
@@ -253,40 +231,10 @@ export function renderDailySalesPrintHtml(data: DailySalesPrintData) {
       </div>
     </section>`).join("");
 
-  const totalRow = (label: string, value: number, strong = false) => `
-    <div class="total-row${strong ? " grand-total" : ""}"><span>${escapeHtml(label)}</span><span>${escapeHtml(money(value))}</span></div>`;
+  const totalRow = (label: string, value: number, strong = false) =>
+    receiptTotalRowHtml(label, value, strong ? "grand-total" : "");
 
-  return `<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    ${WINDOW_OPEN_FONT_STYLESHEET_LINK}
-    <title>${escapeHtml(labels.title)}</title>
-    <style>
-      @page { size: 80mm 297mm; margin: 3mm; }
-      * { box-sizing: border-box; }
-      html, body { width: 74mm; margin: 0; background: #fff; color: #111; }
-      body { font-size: 11px; line-height: 1.3; }
-      header { text-align: center; }
-      h1 { margin: 1mm 0; font-size: 16px; line-height: 1.2; }
-      h2 { margin: 2mm 0 1mm; font-size: 12px; }
-      p { margin: 0.4mm 0; }
-      .divider { border-top: 1px dashed #111; margin: 1.5mm 0; }
-      .columns, .row { display: grid; grid-template-columns: minmax(0, 1fr) 11mm 23mm; gap: 1mm; align-items: start; }
-      .columns span:nth-child(n+2), .row span:nth-child(n+2) { text-align: right; font-variant-numeric: tabular-nums; }
-      .product { padding: 0.65mm 0; border-bottom: 1px dotted #bbb; }
-      .product span:first-child { overflow-wrap: anywhere; }
-      .strong { font-weight: 800; }
-      .category-total { padding: 1mm 0; border-bottom: 1px solid #111; }
-      .total-row { display: flex; justify-content: space-between; gap: 2mm; padding: 0.45mm 0; }
-      .total-row span:last-child { flex-shrink: 0; text-align: right; font-variant-numeric: tabular-nums; }
-      .grand-total { margin-top: 0.8mm; padding: 1mm 0; border-top: 1px solid #111; border-bottom: 1px double #111; font-size: 14px; font-weight: 900; }
-      .section-title { text-align: center; }
-      .meta { text-align: left; }
-      @media print { html, body { width: 74mm; } }
-    </style>
-  </head>
-  <body class="${WINDOW_OPEN_FONT_CLASS_NAME}">
+  const bodyHtml = `
     <header>
       ${data.storeName ? `<p class="strong">${escapeHtml(data.storeName)}</p>` : ""}
       ${data.branchName ? `<p>${escapeHtml(data.branchName)}</p>` : ""}
@@ -318,10 +266,13 @@ export function renderDailySalesPrintHtml(data: DailySalesPrintData) {
       ${totalRow(labels.change, summary.change)}
       ${totalRow(labels.debt, summary.debt)}
       <div class="total-row"><span>${escapeHtml(labels.cancelledBills)} (${summary.cancelledBillCount})</span><span>${escapeHtml(money(summary.cancelledAmount))}</span></div>
-    </section>
-    <script>${WINDOW_OPEN_PRINT_ON_LOAD_SCRIPT}</script>
-  </body>
-</html>`;
+    </section>`;
+
+  return receiptDocumentHtml({
+    bodyHtml,
+    extraStyles: DAILY_SALES_EXTRA_STYLES,
+    title: labels.title,
+  });
 }
 
 function formatQuantity(value: number) {

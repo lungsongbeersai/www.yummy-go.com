@@ -17,7 +17,8 @@ import {
   PaymentMethodsTable,
   PaymentMethodsTableCard
 } from "./payment-methods-report-components";
-import { ReportError, ReportPagination } from "../daily-sales/daily-sales-report-components";
+import { ReportError } from "../shared/report-error";
+import { ReportPagination } from "../shared/report-pagination";
 import { usePaymentMethodsReportWorkflow } from "./use-payment-methods-report-workflow";
 
 const SUMMARY_CARDS_ID = "payment-methods-summary-cards";

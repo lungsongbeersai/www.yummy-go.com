@@ -7,11 +7,11 @@ import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
 import { useBranchStore } from "@/stores/branch-store";
 import { useDailyStoreClosingReportStore } from "@/stores/report-store";
 import { useToastStore } from "@/stores/toast-store";
+import { localDateInputValue } from "@/lib/format";
 import {
   branchOptionFromRow,
-  localDateInputValue,
   selectedBranchLabel,
-} from "../daily-sales/daily-sales-report-utils";
+} from "../shared/report-branch-options";
 import type { DailyClosingReportFilters } from "./daily-closing-report-types";
 import {
   type DailyClosingPrintData,

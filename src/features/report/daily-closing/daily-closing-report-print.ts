@@ -1,15 +1,11 @@
-import { openWindowOutsideNativeApp } from "@/lib/capacitor-platform";
 import { money } from "@/lib/format";
+import { escapeHtml } from "@/features/pos/print/invoice-print-window";
 import {
-  WINDOW_OPEN_FONT_CLASS_NAME,
-  WINDOW_OPEN_FONT_STYLESHEET_LINK,
-  WINDOW_OPEN_PRINT_ON_LOAD_SCRIPT,
-} from "@/lib/window-open-fonts";
-import {
-  escapeHtml,
-  fullscreenPrintWindowFeatures,
-  maximizePrintWindow,
-} from "@/features/pos/print/invoice-print-window";
+  openReceiptPrintWindow,
+  receiptDocumentHtml,
+  receiptTotalRowHtml,
+  renderReceiptPrintWindow,
+} from "../shared/report-receipt-print";
 import type { DailyStoreClosingReport } from "@/stores/report-store";
 import { dailyClosingLabel } from "./daily-closing-report-utils";
 
@@ -60,57 +56,9 @@ interface DailyClosingItemPriceFields {
   price?: PriceValue;
 }
 
-// สไตล์ใบเสร็จ 80mm — ใช้ร่วมกันทั้งหน้าต่างพิมพ์และ preview
-// เพื่อให้สิ่งที่ผู้ใช้เห็นบนหน้า ตรงกับสิ่งที่ออกจากเครื่องพิมพ์แบบ 1:1
-const DAILY_CLOSING_RECEIPT_STYLES = `
-      @page { size: 80mm 297mm; margin: 3mm; }
-
-      * {
-        box-sizing: border-box;
-      }
-
-      html,
-      body {
-        width: 74mm;
-        margin: 0;
-        background: #fff;
-        color: #111;
-      }
-
-      body {
-        font-size: 11px;
-        line-height: 1.3;
-      }
-
-      header {
-        text-align: center;
-      }
-
-      h1 {
-        margin: 1mm 0;
-        font-size: 16px;
-        line-height: 1.2;
-      }
-
-      h2 {
-        margin: 2mm 0 1mm;
-        font-size: 12px;
-      }
-
-      p {
-        margin: 0.4mm 0;
-      }
-
-      .divider {
-        border-top: 1px dashed #111;
-        margin: 1.5mm 0;
-      }
-
-      /*
-       * เหลือสองคอลัมน์:
-       * 1. ชื่อสินค้า + ราคาฐาน × จำนวน
-       * 2. ยอดรวม
-       */
+// สไตล์เฉพาะของใบปิดยอด (ต่อยอดจาก RECEIPT_80MM_BASE_STYLES):
+// สองคอลัมน์ (ชื่อสินค้า + ราคาฐาน × จำนวน | ยอดรวม) และช่องลายเซ็น
+const DAILY_CLOSING_EXTRA_STYLES = `
       .columns,
       .row {
         display: grid;
@@ -123,11 +71,6 @@ const DAILY_CLOSING_RECEIPT_STYLES = `
       .row > span:last-child {
         text-align: right;
         font-variant-numeric: tabular-nums;
-      }
-
-      .product {
-        padding: 0.65mm 0;
-        border-bottom: 1px dotted #bbb;
       }
 
       .product-main {
@@ -159,45 +102,6 @@ const DAILY_CLOSING_RECEIPT_STYLES = `
         line-height: 1.2;
       }
 
-      .strong {
-        font-weight: 800;
-      }
-
-      .category-total {
-        padding: 1mm 0;
-        border-bottom: 1px solid #111;
-      }
-
-      .total-row {
-        display: flex;
-        justify-content: space-between;
-        gap: 2mm;
-        padding: 0.45mm 0;
-      }
-
-      .total-row span:last-child {
-        flex-shrink: 0;
-        text-align: right;
-        font-variant-numeric: tabular-nums;
-      }
-
-      .grand-total {
-        margin-top: 0.8mm;
-        padding: 1mm 0;
-        border-top: 1px solid #111;
-        border-bottom: 1px double #111;
-        font-size: 14px;
-        font-weight: 900;
-      }
-
-      .section-title {
-        text-align: center;
-      }
-
-      .meta {
-        text-align: left;
-      }
-
       .signatures {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -220,41 +124,17 @@ const DAILY_CLOSING_RECEIPT_STYLES = `
         margin-top: 1.5mm;
         font-size: 10px;
       }
-
-      @media print {
-        html,
-        body {
-          width: 74mm;
-        }
-      }
 `;
 
 export function openDailyClosingPrintWindow() {
-  const printWindow = openWindowOutsideNativeApp(
-    "",
-    "_blank",
-    fullscreenPrintWindowFeatures(),
-  );
-
-  if (!printWindow) return null;
-
-  maximizePrintWindow(printWindow);
-
-  printWindow.document.write(
-    `<!doctype html><html><head>${WINDOW_OPEN_FONT_STYLESHEET_LINK}<title>Print</title></head><body class="${WINDOW_OPEN_FONT_CLASS_NAME}">Loading print preview...</body></html>`,
-  );
-  printWindow.document.close();
-
-  return printWindow;
+  return openReceiptPrintWindow();
 }
 
 export function renderDailyClosingPrintWindow(
   printWindow: Window,
   data: DailyClosingPrintData,
 ) {
-  printWindow.document.open();
-  printWindow.document.write(renderDailyClosingPrintHtml(data));
-  printWindow.document.close();
+  renderReceiptPrintWindow(printWindow, renderDailyClosingPrintHtml(data));
 }
 
 // เนื้อหาใบเสร็จไม่รวม html/head/style/script
@@ -509,23 +389,11 @@ export function renderDailyClosingReceiptBody(
 export function renderDailyClosingPrintHtml(
   data: DailyClosingPrintData,
 ) {
-  return `<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    ${WINDOW_OPEN_FONT_STYLESHEET_LINK}
-    <title>${escapeHtml(data.labels.title)}</title>
-
-    <style>
-      ${DAILY_CLOSING_RECEIPT_STYLES}
-    </style>
-  </head>
-
-  <body class="${WINDOW_OPEN_FONT_CLASS_NAME}">
-    ${renderDailyClosingReceiptBody(data)}
-    <script>${WINDOW_OPEN_PRINT_ON_LOAD_SCRIPT}</script>
-  </body>
-</html>`;
+  return receiptDocumentHtml({
+    bodyHtml: renderDailyClosingReceiptBody(data),
+    extraStyles: DAILY_CLOSING_EXTRA_STYLES,
+    title: data.labels.title,
+  });
 }
 
 // เอกสาร preview บนหน้าจอ ใช้เนื้อหาและสไตล์เดียวกับหน้าพิมพ์
@@ -533,14 +401,10 @@ export function renderDailyClosingPrintHtml(
 export function renderDailyClosingReceiptPreviewDoc(
   data: DailyClosingPrintData,
 ) {
-  return `<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    ${WINDOW_OPEN_FONT_STYLESHEET_LINK}
-
-    <style>
-      ${DAILY_CLOSING_RECEIPT_STYLES}
+  return receiptDocumentHtml({
+    autoPrint: false,
+    bodyHtml: renderDailyClosingReceiptBody(data),
+    extraStyles: `${DAILY_CLOSING_EXTRA_STYLES}
 
       html,
       body {
@@ -551,13 +415,8 @@ export function renderDailyClosingReceiptPreviewDoc(
       body {
         padding: 3mm 0;
       }
-    </style>
-  </head>
-
-  <body class="${WINDOW_OPEN_FONT_CLASS_NAME}">
-    ${renderDailyClosingReceiptBody(data)}
-  </body>
-</html>`;
+`,
+  });
 }
 
 function getItemBasePrice(
@@ -610,14 +469,7 @@ function totalRow(
   value: number,
   className = "",
 ) {
-  const displayValue = Object.is(value, -0) ? 0 : value;
-
-  return `
-    <div class="total-row${className ? ` ${className}` : ""}">
-      <span>${escapeHtml(label)}</span>
-      <span>${escapeHtml(money(displayValue))}</span>
-    </div>
-  `;
+  return receiptTotalRowHtml(label, value, className);
 }
 
 function numberedTotalRow(

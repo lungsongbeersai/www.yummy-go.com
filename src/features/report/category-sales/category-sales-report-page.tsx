@@ -8,7 +8,8 @@ import { FilterHeaderToolbar } from "@/components/common/filter-header-toolbar";
 import { Button } from "@/components/ui/button";
 import { useIsCapacitorNativeApp } from "@/hooks/use-capacitor-native-app";
 import type { UrlPaginationState } from "@/lib/url-pagination";
-import { ReportError, ReportPagination } from "../daily-sales/daily-sales-report-components";
+import { ReportError } from "../shared/report-error";
+import { ReportPagination } from "../shared/report-pagination";
 import {
   CategorySalesFilterSheet,
   CategorySalesExportSurface,

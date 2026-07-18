@@ -23,10 +23,7 @@ export type ReportFilters = {
   typePage: ReportTab;
 };
 
-export type ReportBranchOption = {
-  label: string;
-  value: string;
-};
+export type { ReportBranchOption } from "../shared/report-branch-options";
 
 export type SummaryCardConfig = {
   label: string;
