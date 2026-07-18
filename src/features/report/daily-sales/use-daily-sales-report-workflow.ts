@@ -1,5 +1,6 @@
 "use client";
 
+import { addReportCanvasToPdfPages } from "../report-pdf-utils";
 import {
   useCallback,
   useEffect,
@@ -723,7 +724,7 @@ export function useDailySalesReportWorkflow(
         orientation: "landscape",
         unit: "pt",
       });
-      addCanvasToPdfPages(pdf, canvas, element);
+      addReportCanvasToPdfPages(pdf, canvas, element);
 
       updateExportProgress(95, "report.exportProgress.saving");
       await waitForPaint();
@@ -917,80 +918,6 @@ function reportDataFilterKey(filters: ReportFilters) {
   ].join("|");
 }
 
-type PdfDocument = {
-  addImage: (
-    imageData: string,
-    format: "PNG",
-    x: number,
-    y: number,
-    width: number,
-    height: number,
-  ) => void;
-  addPage: () => void;
-  internal: {
-    pageSize: {
-      getHeight: () => number;
-      getWidth: () => number;
-    };
-  };
-};
-
-function addCanvasToPdfPages(
-  pdf: PdfDocument,
-  canvas: HTMLCanvasElement,
-  sourceElement: HTMLElement,
-) {
-  const pageWidth = pdf.internal.pageSize.getWidth();
-  const pageHeight = pdf.internal.pageSize.getHeight();
-  const pageCanvasHeight = Math.floor((pageHeight / pageWidth) * canvas.width);
-  const pageBreaks = getCanvasPageBreaks(sourceElement, canvas);
-  let pageStart = 0;
-  let isFirstPage = true;
-
-  while (pageStart < canvas.height) {
-    const pageEnd = choosePdfPageEnd(
-      pageStart,
-      Math.min(pageStart + pageCanvasHeight, canvas.height),
-      canvas.height,
-      pageBreaks,
-    );
-    const sliceHeight = Math.max(1, pageEnd - pageStart);
-    const sliceCanvas = document.createElement("canvas");
-    const context = sliceCanvas.getContext("2d");
-
-    sliceCanvas.width = canvas.width;
-    sliceCanvas.height = sliceHeight;
-    if (!context) break;
-
-    context.fillStyle = "#ffffff";
-    context.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
-    context.drawImage(
-      canvas,
-      0,
-      pageStart,
-      canvas.width,
-      sliceHeight,
-      0,
-      0,
-      canvas.width,
-      sliceHeight,
-    );
-
-    if (!isFirstPage) pdf.addPage();
-    pdf.addImage(
-      sliceCanvas.toDataURL("image/png", 1),
-      "PNG",
-      0,
-      0,
-      pageWidth,
-      (sliceHeight * pageWidth) / canvas.width,
-    );
-
-    isFirstPage = false;
-    pageStart = pageEnd;
-  }
-}
-
 function selectedBillGroupsForReceipt(
   groups: DailySalesBillGroup[],
   selectedRecordIds: Set<string>,
@@ -1014,65 +941,3 @@ function dailySalesBillGroupSelectionIds(group: DailySalesBillGroup) {
   ].filter(Boolean);
 }
 
-function getCanvasPageBreaks(
-  sourceElement: HTMLElement,
-  canvas: HTMLCanvasElement,
-) {
-  const rootRect = sourceElement.getBoundingClientRect();
-  const scaleY = canvas.height / sourceElement.scrollHeight;
-  const billStarts = canvasPositions(
-    sourceElement.querySelectorAll("tr.is-bill"),
-    rootRect.top,
-    scaleY,
-    canvas.height,
-    "top",
-  );
-
-  return {
-    fallback: canvasPositions(
-      sourceElement.querySelectorAll("tr"),
-      rootRect.top,
-      scaleY,
-      canvas.height,
-      "bottom",
-    ),
-    preferred: billStarts,
-  };
-}
-
-function canvasPositions(
-  rows: NodeListOf<Element>,
-  rootTop: number,
-  scaleY: number,
-  canvasHeight: number,
-  edge: "bottom" | "top",
-) {
-  return Array.from(rows)
-    .map((row) => {
-      const rowRect = row.getBoundingClientRect();
-      const y = edge === "top" ? rowRect.top : rowRect.bottom;
-      return Math.round((y - rootTop) * scaleY);
-    })
-    .filter((value) => value > 0 && value < canvasHeight)
-    .sort((left, right) => left - right);
-}
-
-function choosePdfPageEnd(
-  pageStart: number,
-  maxEnd: number,
-  canvasHeight: number,
-  pageBreaks: { fallback: number[]; preferred: number[] },
-) {
-  if (maxEnd >= canvasHeight) return canvasHeight;
-
-  const minUsefulHeight = pageStart + 120;
-  const safeMaxEnd = maxEnd - 8;
-  const preferredBoundary = pageBreaks.preferred
-    .filter((value) => value > minUsefulHeight && value <= safeMaxEnd)
-    .at(-1);
-  const fallbackBoundary = pageBreaks.fallback
-    .filter((value) => value > minUsefulHeight && value <= safeMaxEnd)
-    .at(-1);
-
-  return preferredBoundary ?? fallbackBoundary ?? maxEnd;
-}
