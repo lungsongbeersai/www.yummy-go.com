@@ -10,7 +10,6 @@ import {
   MonitorDown,
   Plus,
   RefreshCcw,
-  Search,
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -26,7 +25,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Field, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -38,6 +36,7 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { EmptyState } from "@/components/common/empty-state";
+import { SearchInput } from "@/components/common/search-input";
 import { LoadingState } from "@/components/common/loading-state";
 import { cn } from "@/lib/utils";
 import type { Category } from "@/services/category";
@@ -614,16 +613,14 @@ export function PrinterPage() {
               <FieldLabel htmlFor="printer-search-filter" className="sr-only">
                 {t("actions.search")}
               </FieldLabel>
-              <div className="relative min-w-0">
-                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  id="printer-search-filter"
-                  className="h-9 bg-background pl-9 text-sm"
-                  value={searchText}
-                  placeholder={t("settings.searchPlaceholder")}
-                  onChange={(event) => setSearchText(event.target.value)}
-                />
-              </div>
+              <SearchInput
+                id="printer-search-filter"
+                className="min-w-0"
+                inputClassName="text-sm"
+                value={searchText}
+                placeholder={t("settings.searchPlaceholder")}
+                onChange={setSearchText}
+              />
             </Field>
 
             <Button

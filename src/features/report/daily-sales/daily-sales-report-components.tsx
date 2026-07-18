@@ -4,10 +4,7 @@ import type { ReactNode } from "react";
 import { BlockingLoadingDialog } from "@/components/common/blocking-loading-dialog";
 import {
   ChevronDown,
-  ChevronLeft,
   ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
   Download,
   Eye,
   EyeOff,
@@ -16,10 +13,10 @@ import {
   Printer,
   ReceiptText,
   RefreshCcw,
-  Search,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { EmptyState } from "@/components/common/empty-state";
+import { SearchInput } from "@/components/common/search-input";
 import { LoadingState } from "@/components/common/loading-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -31,7 +28,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { money } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -96,21 +92,6 @@ interface ReportTypeSwitchProps {
   disabled: boolean;
   value: ReportTab;
   onChange: (typePage: ReportTab) => void;
-}
-
-interface ReportErrorProps {
-  message: string;
-}
-
-interface ReportPaginationProps {
-  canGoBack: boolean;
-  canGoNext: boolean;
-  onBack: () => void;
-  onNext: () => void;
-  onPageChange: (page: number) => void;
-  page: number;
-  rangeLabel: string;
-  totalPages: number;
 }
 
 export function ReportSummaryCards({
@@ -347,19 +328,15 @@ function ReportTableActions({
           />
         </div>
 
-        <div className="relative min-w-0">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            type="search"
-            value={search}
-            autoComplete="off"
-            aria-label={t("actions.search")}
-            placeholder={t("actions.search")}
-            className="h-9 w-full rounded-md bg-background pl-9 text-sm"
-            disabled={!branchUuid || Boolean(exporting)}
-            onChange={(event) => onSearchChange(event.target.value)}
-          />
-        </div>
+        <SearchInput
+          className="min-w-0"
+          inputClassName="text-sm"
+          ariaLabel={t("actions.search")}
+          placeholder={t("actions.search")}
+          disabled={!branchUuid || Boolean(exporting)}
+          value={search}
+          onChange={onSearchChange}
+        />
 
         <div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5 2xl:flex-nowrap">
           {isDetail && billGroupsLength ? (
