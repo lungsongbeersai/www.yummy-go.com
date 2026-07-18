@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { useResetOnDeps } from "@/hooks/use-reset-on-change";
 import { DEFAULT_PAGE_LIMIT, PAGE_LIMIT_OPTIONS } from "@/lib/pagination";
 import {
   LIMIT_QUERY_PARAM,
@@ -75,10 +76,11 @@ export function useUrlPagination({
     replaceUrl(1, limit);
   }, [limit, replaceUrl]);
 
-  useEffect(() => {
+  // ค่าจาก URL เปลี่ยน (ย้ายหน้า/กดย้อนกลับ) = ให้ state ตามค่าใหม่
+  useResetOnDeps([initialPagination.limit, initialPagination.page], () => {
     setPageState(initialPagination.page);
     setLimitState(initialPagination.limit);
-  }, [initialPagination.limit, initialPagination.page]);
+  });
 
   useEffect(() => {
     replaceUrl(initialPagination.page, initialPagination.limit);

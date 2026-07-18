@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useResetOnDeps } from "@/hooks/use-reset-on-change";
 import { PanelLeftIcon } from "lucide-react";
 import { Slot } from "radix-ui";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -87,9 +88,10 @@ export function SidebarProvider({
     [isMobile, open, openMobile, setOpen, toggleSidebar]
   );
 
-  React.useEffect(() => {
+  // ขยายจอจากมือถือเป็นเดสก์ท็อป = ปิด drawer ที่ค้างอยู่
+  useResetOnDeps([isMobile, openMobile], () => {
     if (!isMobile && openMobile) setOpenMobile(false);
-  }, [isMobile, openMobile]);
+  });
 
   return (
     <SidebarContext.Provider value={contextValue}>

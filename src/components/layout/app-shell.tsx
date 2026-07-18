@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useState } from "react";
+import { useResetOnDeps } from "@/hooks/use-reset-on-change";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
@@ -289,7 +290,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     };
   }, [immersiveScreen]);
 
-  useEffect(() => {
+  // เปลี่ยนหน้า = กางเมนูที่ครอบเส้นทางปัจจุบันไว้เสมอ
+  useResetOnDeps([menuItems, pathname], () => {
     const activeTitles = activeMenuTitles(menuItems, pathname);
     if (!activeTitles.length) return;
     setOpenMenus((current) => {
@@ -297,7 +299,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       activeTitles.forEach((title) => next.add(title));
       return next;
     });
-  }, [menuItems, pathname]);
+  });
 
   function toggleMenu(title: string) {
     setOpenMenus((current) => {
