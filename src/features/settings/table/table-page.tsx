@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useResetOnChange } from "@/hooks/use-reset-on-change";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import {
@@ -39,6 +40,8 @@ import {
 
 const DEFAULT_LIMIT: PageLimit = DEFAULT_PAGE_LIMIT;
 
+const EMPTY_ZONES: Zone[] = [];
+
 export function TableSettingsPage({ initialPagination }: { initialPagination: UrlPaginationState }) {
   const { t } = useTranslation();
   const language = useAppStore((state) => state.language);
@@ -68,7 +71,9 @@ export function TableSettingsPage({ initialPagination }: { initialPagination: Ur
   const [editing, setEditing] = useState<DiningTable | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<DiningTable | null>(null);
-  const [zoneOptions, setZoneOptions] = useState<Zone[]>([]);
+  const [fetchedZoneOptions, setFetchedZoneOptions] = useState<Zone[]>([]);
+  // ยังไม่มีสาขาที่อ้างอิง = ไม่มีตัวเลือก แต่คงค่าที่โหลดไว้ไม่ให้รายการกะพริบตอนสลับ
+  const zoneOptions = branchUuid ? fetchedZoneOptions : EMPTY_ZONES;
   const [lastSavedZoneUuid, setLastSavedZoneUuid] = useState("");
   const [collapsedZones, setCollapsedZones] = useState<Set<string>>(() => new Set());
 
@@ -146,15 +151,12 @@ export function TableSettingsPage({ initialPagination }: { initialPagination: Ur
   }, [branchUuid, loadBranches, showToast, storeUuid, t]);
 
   useEffect(() => {
-    if (!branchUuid) {
-      setZoneOptions([]);
-      return;
-    }
+    if (!branchUuid) return;
 
     let active = true;
     loadZoneOptions(language, branchUuid)
       .then((zones) => {
-        if (active) setZoneOptions(zones);
+        if (active) setFetchedZoneOptions(zones);
       })
       .catch((error) => {
         showToast({
@@ -170,7 +172,8 @@ export function TableSettingsPage({ initialPagination }: { initialPagination: Ur
   }, [branchUuid, language, loadZoneOptions, showToast, t]);
 
 
-  useEffect(() => {
+  // โซนที่พับไว้อาจหายไปหลังโหลดชุดใหม่ ต้องตัดออกไม่ให้ค้างใน state
+  useResetOnChange(tableGroups, () => {
     setCollapsedZones((current) => {
       if (!current.size) return current;
       const allowed = new Set(tableGroups.map((group) => group.zoneId));
@@ -182,7 +185,7 @@ export function TableSettingsPage({ initialPagination }: { initialPagination: Ur
       });
       return changed ? next : current;
     });
-  }, [tableGroups]);
+  });
 
   function applyFilters() {
     applySearch({ page, resetPage, reload: () => void load() });

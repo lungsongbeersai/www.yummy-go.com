@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useResetOnChange } from "@/hooks/use-reset-on-change";
 import { useTranslation } from "react-i18next";
 import { KeyRound } from "lucide-react";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
@@ -112,7 +113,8 @@ export function StoreBranchSettingsPage({ initialPagination, kind }: { initialPa
     [branchQrUrl, storeLogoUrl]
   );
 
-  useEffect(() => {
+  // แถวที่เลือกไว้อาจหายไปหลังเปลี่ยนหน้า/ค้นหา/โหลดใหม่ ต้องตัดออกจาก selection
+  useResetOnChange(visibleIds, () => {
     setSelectedRows((current) => {
       if (!current.size) return current;
       const allowed = new Set(visibleIds);
@@ -124,7 +126,7 @@ export function StoreBranchSettingsPage({ initialPagination, kind }: { initialPa
       });
       return changed ? next : current;
     });
-  }, [visibleIds]);
+  });
 
   const load = useCallback(async (background = hasLoadedRef.current) => {
     try {

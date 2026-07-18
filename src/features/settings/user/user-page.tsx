@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useResetOnDeps } from "@/hooks/use-reset-on-change";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import {
@@ -41,6 +42,8 @@ const ORDER_OPTIONS: Array<{ labelKey: "asc" | "desc"; value: SortOrder }> = [
   { labelKey: "desc", value: "desc" }
 ];
 
+const EMPTY_ROLES: Role[] = [];
+
 export function UserSettingsPage({ initialPagination }: { initialPagination: UrlPaginationState }) {
   const { t } = useTranslation();
   const language = useAppStore((state) => state.language);
@@ -64,7 +67,9 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
   const removeRow = useUserStore((state) => state.remove);
   const loadRoles = useReferenceStore((state) => state.loadRoles);
   const userProfileUrl = useReferenceStore((state) => state.userProfileUrl);
-  const [roles, setRoles] = useState<Role[]>([]);
+  const [fetchedRoles, setFetchedRoles] = useState<Role[]>([]);
+  // ยังไม่มีสิทธิ์ที่อ้างอิง = ไม่มีตัวเลือก แต่คงค่าที่โหลดไว้ไม่ให้รายการกะพริบตอนสลับ
+  const roles = loggedRoleId ? fetchedRoles : EMPTY_ROLES;
   const { changeLimit, limit, page, resetPage, setPage } = useUrlPagination({ initialPagination });
   const [orderBy, setOrderBy] = useState<SortOrder>("asc");
   const [editing, setEditing] = useState<User | null>(null);
@@ -123,15 +128,12 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
   }, [load]);
 
   useEffect(() => {
-    if (!loggedRoleId) {
-      setRoles([]);
-      return;
-    }
+    if (!loggedRoleId) return;
 
     let active = true;
     loadRoles(language, loggedRoleId)
       .then((nextRoles) => {
-        if (active) setRoles(nextRoles);
+        if (active) setFetchedRoles(nextRoles);
       })
       .catch((error) => {
         showToast({
@@ -147,10 +149,11 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
   }, [language, loadRoles, loggedRoleId, showToast, t]);
 
 
-  useEffect(() => {
+  // เปิด/ปิด dialog หรือสลับผู้ใช้ที่แก้ไข = ล้างรูปที่เลือกและกรอบครอปค้างไว้
+  useResetOnDeps([dialogOpen, editing], () => {
     setSelectedProfileImage(null);
     setCrop(DEFAULT_CROP);
-  }, [dialogOpen, editing]);
+  });
 
   function applyFilters() {
     applySearch({ page, resetPage, reload: () => void load() });

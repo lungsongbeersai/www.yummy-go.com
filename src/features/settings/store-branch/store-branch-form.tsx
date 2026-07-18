@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useResetOnDeps } from "@/hooks/use-reset-on-change";
 import { CheckCircle2, Plus } from "lucide-react";
 import { FormattedNumberInput } from "@/components/common/formatted-number-input";
 import { Button } from "@/components/ui/button";
@@ -181,7 +182,8 @@ function EntityForm({
       ? !missingStoreField({ email: storeEmail, nameLa: storeNameLa })
       : !missingBranchField({ name: branchName, storeUuid: activeStoreUuid }));
 
-  useEffect(() => {
+  // สลับเรคคอร์ด/เปิดฟอร์มใหม่ = โหลดค่าตั้งต้นของทุกช่องใหม่
+  useResetOnDeps([editing, recordKey], () => {
     setSelectedImage(null);
     setCrop(DEFAULT_CROP);
     setStoreNameLa(storeBranchValue(editing, "store_name_la", storeBranchValue(editing, "store_name")));
@@ -197,7 +199,7 @@ function EntityForm({
     setVatPercent(String(storeBranchNumber(editing, "vat_name", 0)));
     setChargeStatus(String(storeBranchNumber(editing, "charge_status", 2)));
     setChargePercent(String(storeBranchNumber(editing, "charge_name", 0)));
-  }, [editing, recordKey]);
+  });
 
   async function handleSubmit(formData: FormData) {
     if (selectedImage) {

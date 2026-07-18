@@ -23,3 +23,16 @@ export function useResetOnChange<K>(resetKey: K, reset: () => void) {
     reset();
   }
 }
+
+// เหมือน useResetOnChange แต่เทียบหลายค่าแบบ dependency array ของ useEffect
+// (แยกฟังก์ชันเพื่อไม่ให้กำกวมกับกรณีที่ตั้งใจส่ง array เป็น identity key ตรง ๆ)
+export function useResetOnDeps(deps: unknown[], reset: () => void) {
+  const [applied, setApplied] = useState(deps);
+  const changed =
+    applied.length !== deps.length || deps.some((dep, index) => !Object.is(dep, applied[index]));
+
+  if (changed) {
+    setApplied(deps);
+    reset();
+  }
+}

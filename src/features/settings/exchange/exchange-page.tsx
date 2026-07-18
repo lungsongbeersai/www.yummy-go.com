@@ -2,6 +2,7 @@
 
 import { isActiveStatus, StatusBadge } from "@/components/common/status-badge";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useResetOnChange } from "@/hooks/use-reset-on-change";
 import { Coins } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
@@ -514,11 +515,11 @@ function ExchangeFormDialog({
     ];
   }, [currencies, editing]);
 
-  useEffect(() => {
+  useResetOnChange(`${formKey}:${open}`, () => {
     setCurrencyUuid(currencyId(editing));
     setExPrice(exchangeValue(editing, "ex_price"));
     setExStatus(exchangeStatus(editing));
-  }, [editing, open]);
+  });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
