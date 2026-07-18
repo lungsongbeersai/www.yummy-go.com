@@ -33,7 +33,7 @@ import {
   statusClass,
   statusDotClass,
   type BillSource
-} from "./sales-list-utils";
+} from "./cancel-sale-utils";
 
 function entity(value: Record<string, unknown>): ApiEntity {
   return value as ApiEntity;

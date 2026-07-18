@@ -16,7 +16,7 @@ import {
   dateOptionLabel,
   dateOptionValue,
   orderOptions
-} from "./sales-list-utils";
+} from "./cancel-sale-utils";
 
 export function SalesListHeader({ loading, onRefresh }: { loading: boolean; onRefresh: () => void }) {
   const { t } = useTranslation();

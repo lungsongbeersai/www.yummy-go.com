@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { openLocalInvoicePrintWindow, type InvoicePrintData } from "@/features/pos/print/invoice-print-window";
-import { buildSalesListInvoicePrintData } from "@/features/sales/list/sales-list-utils";
+import { buildSalesListInvoicePrintData } from "@/features/sales/cancel-sale/cancel-sale-utils";
 import { useUrlPagination } from "@/hooks/use-url-pagination";
 import { isCapacitorNativeApp } from "@/lib/capacitor-platform";
 import type { UrlPaginationState } from "@/lib/url-pagination";

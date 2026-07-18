@@ -18,8 +18,8 @@ import { useCancelStore } from "@/stores/cancel-store";
 import { useToastStore } from "@/stores/toast-store";
 import { CancelBillDialog } from "./cancel-bill-dialog";
 import { SalesBillDetailPanel, SalesBillMobileSheet } from "./sales-bill-detail";
-import { SalesListContent } from "./sales-list-cards";
-import { SalesListHeader, SalesListPaginationFooter, SalesListToolbar } from "./sales-list-controls";
+import { SalesListContent } from "./cancel-sale-cards";
+import { SalesListHeader, SalesListPaginationFooter, SalesListToolbar } from "./cancel-sale-controls";
 import {
   INITIAL_DATE_SELECT,
   SALES_LIST_LIMIT_OPTIONS,
@@ -30,9 +30,9 @@ import {
   dateOptionValue,
   pageBounds,
   shouldOpenMobileDetail
-} from "./sales-list-utils";
+} from "./cancel-sale-utils";
 
-export function SalesListPage({
+export function CancelSalePage({
   initialDateSelect = INITIAL_DATE_SELECT,
   initialOrderUuid = "",
   initialPagination

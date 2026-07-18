@@ -19,8 +19,8 @@ import {
   billTotal,
   billUuid,
   statusDotClass
-} from "./sales-list-utils";
-import { CancelableBadge } from "./sales-list-status";
+} from "./cancel-sale-utils";
+import { CancelableBadge } from "./cancel-sale-status";
 
 export function SalesListContent({
   bills,

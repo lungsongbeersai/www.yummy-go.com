@@ -22,11 +22,11 @@ import {
   categoryOptionName,
   categoryUuid,
 } from "@/features/product/list/product-list-utils";
+import { localDateInputValue } from "@/lib/format";
 import {
   branchOptionFromRow,
-  localDateInputValue,
   selectedBranchLabel,
-} from "@/features/sales/sales-list/sales-list-utils";
+} from "@/features/report/shared/report-branch-options";
 import { waitForPaint } from "@/features/report/shared/report-export-info";
 import { createSingleSheetReportWorkbook } from "@/features/report/report-excel-utils";
 import { officialReportExcelLayout } from "@/features/report/report-official-layout";

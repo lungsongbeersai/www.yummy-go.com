@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   billInvoice,
   type BillSource
-} from "./sales-list-utils";
+} from "./cancel-sale-utils";
 
 export function CancelBillDialog({
   bill,
