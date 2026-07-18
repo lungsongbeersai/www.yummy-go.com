@@ -98,6 +98,16 @@ export function useBestSellingProductsReportWorkflow(
     return [{ value: ALL_GROUPS_VALUE, label: t("common.all") }, ...options];
   }, [groupRows, language, t]);
   const groupOptionValues = useMemo(() => new Set(groupOptions.map((option) => option.value)), [groupOptions]);
+  // รายงานนี้มี group filter เพิ่มจากรายงานอื่น จึงต้องรีเซ็ตกลุ่มที่หลุดจาก options
+  // (สลับร้าน/กลุ่มถูกลบ/ยังโหลดกลุ่มไม่เสร็จ) กลับเป็น "ทั้งหมด" ก่อนค่อย normalize สาขา
+  const normalizeFilters = useCallback(
+    (filters: BestSellingProductsFilters) => {
+      const nextGroupUuid = groupOptionValues.has(filters.groupUuid) ? filters.groupUuid : ALL_GROUPS_VALUE;
+      const nextFilters = filters.groupUuid === nextGroupUuid ? filters : { ...filters, groupUuid: nextGroupUuid };
+      return normalizeBranchFilters(nextFilters);
+    },
+    [groupOptionValues, normalizeBranchFilters]
+  );
   const activeGroupLabel = selectedOptionLabel(groupOptions, appliedFilters.groupUuid, t("common.all"));
   const summaryCards = useMemo(() => bestSellingSummaryConfigs(t), [t]);
   const sortByLabel = bestSellingSortLabel(appliedFilters.sortBy, t);
@@ -118,9 +128,9 @@ export function useBestSellingProductsReportWorkflow(
   }, [language, loadGroups, storeUuid]);
 
   useEffect(() => {
-    setDraftFilters((current) => normalizeBranchFilters(current));
-    setAppliedFilters((current) => normalizeBranchFilters(current));
-  }, [normalizeBranchFilters]);
+    setDraftFilters((current) => normalizeFilters(current));
+    setAppliedFilters((current) => normalizeFilters(current));
+  }, [normalizeFilters]);
 
   const load = useCallback(async () => {
     if (!branchUuid) return;
@@ -150,7 +160,7 @@ export function useBestSellingProductsReportWorkflow(
   }, [load]);
 
   function applyFilters() {
-    const nextFilters = normalizeBranchFilters(draftFilters);
+    const nextFilters = normalizeFilters(draftFilters);
     if (nextFilters.branchUuid) setSelectedBranch(nextFilters.branchUuid);
     setDraftFilters(nextFilters);
     setAppliedFilters(nextFilters);
@@ -159,7 +169,7 @@ export function useBestSellingProductsReportWorkflow(
 
   function applySortBy(sortBy: BestSellingProductsFilters["sortBy"]) {
     if (sortBy === appliedFilters.sortBy) return;
-    const nextFilters = normalizeBranchFilters({ ...appliedFilters, sortBy });
+    const nextFilters = normalizeFilters({ ...appliedFilters, sortBy });
     setDraftFilters((current) => ({ ...current, sortBy: nextFilters.sortBy }));
     setAppliedFilters(nextFilters);
     setPage(1);
@@ -176,7 +186,7 @@ export function useBestSellingProductsReportWorkflow(
   }
 
   function applyMobileFilters() {
-    const nextFilters = normalizeBranchFilters(draftFilters);
+    const nextFilters = normalizeFilters(draftFilters);
     if (nextFilters.branchUuid) setSelectedBranch(nextFilters.branchUuid);
     setDraftFilters(nextFilters);
     setAppliedFilters(nextFilters);
