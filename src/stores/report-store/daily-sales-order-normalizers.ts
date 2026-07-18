@@ -1,7 +1,10 @@
+import { readValue, textValue as textValueWithDash } from "@/lib/values";
 import { isAllPageLimit, pageLimitNumber } from "@/lib/pagination";
 import type { DailySalesOrderReportResponse } from "@/services/report";
 import type { ApiEntity, PageLimit } from "@/services/shared/types";
 import { normalizeDailySalesReportResponse, type DailySalesBillGroup, type SummaryCards } from "./normalizers";
+
+const textValue = (value: unknown, fallback = "") => textValueWithDash(value, fallback);
 
 export interface DailySalesOrderReportPagination {
   limit: PageLimit;
@@ -36,18 +39,6 @@ function asRecords(value: unknown): ApiEntity[] {
 function numberValue(value: unknown) {
   const number = Number(value ?? 0);
   return Number.isFinite(number) ? number : 0;
-}
-
-function textValue(value: unknown, fallback = "") {
-  return value !== null && value !== undefined && value !== "" ? String(value) : fallback;
-}
-
-function readValue(row: ApiEntity, keys: string[]) {
-  for (const key of keys) {
-    const value = row[key];
-    if (value !== null && value !== undefined && value !== "") return value;
-  }
-  return undefined;
 }
 
 function normalizeOrderItem(order: ApiEntity, item: ApiEntity, itemIndex: number) {

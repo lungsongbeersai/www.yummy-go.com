@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { SETTINGS } from "@/features/settings/shared/settings-config";
-import {
-  getSettingsStoreAdapter,
-  hasSettingsStoreAdapter,
-  settingsStoreAdapterKey
-} from "@/stores/settings-store-adapters";
+import { SETTINGS, SETTINGS_MODULE_SLUGS } from "@/features/settings/shared/settings-config";
+import { hasSettingsStoreAdapter } from "@/stores/settings-store-adapters";
 
 describe("settings store adapters", () => {
   it("keeps settings config free of service action bindings", () => {
@@ -15,15 +11,13 @@ describe("settings store adapters", () => {
     });
   });
 
-  it("has a store adapter for every settings metadata entry", () => {
-    Object.values(SETTINGS).forEach((config) => {
-      expect(hasSettingsStoreAdapter(config.slug), config.slug).toBe(true);
+  it("has a store adapter for every settings module", () => {
+    SETTINGS_MODULE_SLUGS.forEach((slug) => {
+      expect(hasSettingsStoreAdapter(slug), slug).toBe(true);
     });
   });
 
-  it("keeps the unite alias compatible with the unit adapter", () => {
-    expect(SETTINGS.unite?.slug).toBe("unit");
-    expect(settingsStoreAdapterKey("unite")).toBe("unit");
-    expect(getSettingsStoreAdapter("unite")).toBe(getSettingsStoreAdapter("unit"));
+  it("only exposes dynamic-route configs for entities without a static route", () => {
+    expect(Object.keys(SETTINGS).sort()).toEqual(["branch", "district", "province", "store"]);
   });
 });

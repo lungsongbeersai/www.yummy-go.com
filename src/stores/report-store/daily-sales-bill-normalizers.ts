@@ -1,3 +1,4 @@
+import { readValue } from "@/lib/values";
 import { isAllPageLimit, pageLimitNumber } from "@/lib/pagination";
 import type { DailySalesBillReportResponse } from "@/services/report";
 import type { ApiEntity, PageLimit } from "@/services/shared/types";
@@ -32,14 +33,6 @@ function asRecords(value: unknown): ApiEntity[] {
 function numberValue(value: unknown) {
   const number = Number(value ?? 0);
   return Number.isFinite(number) ? number : 0;
-}
-
-function readValue(row: ApiEntity, keys: string[]) {
-  for (const key of keys) {
-    const value = row[key];
-    if (value !== null && value !== undefined && value !== "") return value;
-  }
-  return undefined;
 }
 
 function totalPages(root: ApiEntity, total: number, limit: PageLimit, page: number) {

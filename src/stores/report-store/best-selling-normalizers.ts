@@ -1,3 +1,4 @@
+import { firstNumberOrZero as firstNumber, isPresent, readValue, textValue } from "@/lib/values";
 import { isAllPageLimit, pageLimitNumber } from "@/lib/pagination";
 import type { BestSellingProductsReportResponse } from "@/services/report";
 import type { ApiEntity, PageLimit } from "@/services/shared/types";
@@ -59,31 +60,6 @@ function asRecord(value: unknown): ApiEntity {
 
 function asRecords(value: unknown): ApiEntity[] {
   return Array.isArray(value) ? value.filter(isRecord) : [];
-}
-
-function isPresent(value: unknown) {
-  return value !== null && value !== undefined && value !== "";
-}
-
-function textValue(value: unknown, fallback = "-") {
-  return isPresent(value) ? String(value) : fallback;
-}
-
-function readValue(row: ApiEntity, keys: string[]) {
-  for (const key of keys) {
-    const value = row[key];
-    if (isPresent(value)) return value;
-  }
-  return undefined;
-}
-
-function firstNumber(...values: unknown[]) {
-  for (const value of values) {
-    if (!isPresent(value)) continue;
-    const number = Number(value);
-    if (Number.isFinite(number)) return number;
-  }
-  return 0;
 }
 
 function firstOptionalNumber(...values: unknown[]) {

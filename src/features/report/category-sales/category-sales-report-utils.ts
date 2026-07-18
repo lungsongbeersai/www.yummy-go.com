@@ -1,4 +1,5 @@
-import { money } from "@/lib/format";
+import { localDateInputValue, money } from "@/lib/format";
+import { firstNumberOrZero as firstNumber } from "@/lib/values";
 import {
   PAYMENT_METHOD_REPORT_FILTER_OPTIONS,
   type PaymentMethodReportFilter,
@@ -60,25 +61,10 @@ const summaryMetricDefinitions = [
   { key: "grand_total", kind: "money", labelKey: "report.categorySales.columns.grandTotal" }
 ] as const satisfies readonly SummaryMetricDefinition[];
 
-function isPresent(value: unknown) {
-  return value !== null && value !== undefined && value !== "";
-}
-
-export function firstNumber(value: unknown) {
-  if (!isPresent(value)) return 0;
-  const number = Number(value);
-  return Number.isFinite(number) ? number : 0;
-}
+export { firstNumber, localDateInputValue };
 
 export function formatNumber(value: unknown) {
   return firstNumber(value).toLocaleString("en-US");
-}
-
-export function localDateInputValue(date = new Date()) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
 }
 
 export function displayMetric(value: unknown, kind: CategorySalesMetricKind) {

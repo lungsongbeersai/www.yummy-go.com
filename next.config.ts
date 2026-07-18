@@ -11,6 +11,18 @@ const nextConfig: NextConfig = {
         source: "/sale/counter-checkout",
         destination: "/sales/sales-list",
         permanent: false
+      },
+      // QR codes printed for tables link to /q/<token>; the public POS reads it from ?t=
+      {
+        source: "/q/:token",
+        destination: "/pos?t=:token",
+        permanent: false
+      },
+      // legacy typo route inherited from backend field names (unite_*)
+      {
+        source: "/setting/unite",
+        destination: "/setting/unit",
+        permanent: true
       }
     ];
   },

@@ -59,17 +59,12 @@ const SETTINGS_STORE_ADAPTERS = {
   user: adapter({ list: user.getUsers, save: user.saveUser, remove: user.deleteUser })
 } satisfies Record<string, SettingsStoreAdapter>;
 
-export function settingsStoreAdapterKey(slug: string) {
-  return slug === "unite" ? "unit" : slug;
-}
-
 export function hasSettingsStoreAdapter(slug: string) {
-  return settingsStoreAdapterKey(slug) in SETTINGS_STORE_ADAPTERS;
+  return slug in SETTINGS_STORE_ADAPTERS;
 }
 
 export function getSettingsStoreAdapter(slug: string): SettingsStoreAdapter {
-  const key = settingsStoreAdapterKey(slug);
-  const adapter = SETTINGS_STORE_ADAPTERS[key as keyof typeof SETTINGS_STORE_ADAPTERS];
+  const adapter = SETTINGS_STORE_ADAPTERS[slug as keyof typeof SETTINGS_STORE_ADAPTERS];
   if (!adapter) throw new Error(`Missing settings store adapter for "${slug}"`);
   return adapter;
 }

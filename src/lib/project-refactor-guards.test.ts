@@ -43,11 +43,15 @@ const routeFileNames = new Set([
 ]);
 const allowedClientRouteFiles = new Set([
   "app/error.tsx",
-  "app/not-found.tsx"
+  "app/not-found.tsx",
+  "app/(protected)/error.tsx",
+  "app/(protected)/not-found.tsx"
 ]);
 const allowedUiRouteFiles = new Set([
   "app/error.tsx",
-  "app/not-found.tsx"
+  "app/not-found.tsx",
+  "app/(protected)/error.tsx",
+  "app/(protected)/not-found.tsx"
 ]);
 const routeFileLineLimit = 80;
 const suppressionPattern = new RegExp(

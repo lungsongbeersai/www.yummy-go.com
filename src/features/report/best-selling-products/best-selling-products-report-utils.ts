@@ -1,4 +1,5 @@
-import { money } from "@/lib/format";
+import { localDateInputValue, money } from "@/lib/format";
+import { firstNumberOrZero as firstNumber, isPresent, readValue, textValue } from "@/lib/values";
 import { BEST_SELLING_PRODUCTS_SORT_OPTIONS } from "@/config/report-filters";
 import type { ApiEntity } from "@/services/shared/types";
 import type { BestSellingProductGroup, BestSellingProductItem } from "@/stores/report-store";
@@ -167,30 +168,7 @@ const bestSellingGroupMetricDefinitions = [
   }
 ] as const satisfies readonly RowMetricDefinition<BestSellingProductGroup>[];
 
-export function isPresent(value: unknown) {
-  return value !== null && value !== undefined && value !== "";
-}
-
-export function textValue(value: unknown, fallback = "-") {
-  return isPresent(value) ? String(value) : fallback;
-}
-
-export function readValue(row: ApiEntity, keys: string[]) {
-  for (const key of keys) {
-    const value = row[key];
-    if (isPresent(value)) return value;
-  }
-  return undefined;
-}
-
-export function firstNumber(...values: unknown[]) {
-  for (const value of values) {
-    if (!isPresent(value)) continue;
-    const number = Number(value);
-    if (Number.isFinite(number)) return number;
-  }
-  return 0;
-}
+export { firstNumber, isPresent, readValue, textValue };
 
 function normalizeKey(value: unknown) {
   return String(value ?? "")
@@ -214,15 +192,10 @@ export function summaryValue(summary: ApiEntity | ApiEntity[], keys: string[]) {
   return readValue(summary, keys);
 }
 
+export { localDateInputValue };
+
 export function formatNumber(value: unknown) {
   return firstNumber(value).toLocaleString("en-US");
-}
-
-export function localDateInputValue(date = new Date()) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
 }
 
 export function groupOptionFromRow(row: ApiEntity, language: string): BestSellingOption | null {

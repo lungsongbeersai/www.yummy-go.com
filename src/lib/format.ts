@@ -14,3 +14,11 @@ export function compactText(value: unknown, fallback = "-") {
   if (value === null || value === undefined || value === "") return fallback;
   return String(value);
 }
+
+// yyyy-mm-dd in local time, the value shape <input type="date"> expects.
+export function localDateInputValue(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}

@@ -19,10 +19,34 @@ export interface SettingConfig {
   scope?: (user: AuthUser | null) => Record<string, unknown>;
 }
 
-const branchScope = (u: AuthUser | null) => ({ branch_uuid_fk: u?.branch_uuid ?? "" });
 const storeScope = (u: AuthUser | null) => ({ store_uuid_fk: u?.store_uuid || u?.store_uuid_fk || "" });
-const loginScope = (u: AuthUser | null) => ({ login_uuid_fk: u?.uuid ?? "" });
 
+// Modules shown as cards on the settings index; each slug also carries the
+// i18n keys settings.modules.<slug>.{title,description} and its own route
+// (static folder for most, /setting/[entity] for the SETTINGS entries below).
+export const SETTINGS_MODULE_SLUGS = [
+  "store",
+  "branch",
+  "province",
+  "district",
+  "topping",
+  "group",
+  "category",
+  "unit",
+  "size",
+  "color",
+  "zone",
+  "table",
+  "currency",
+  "exchange",
+  "customer",
+  "user"
+] as const;
+
+export type SettingsModuleSlug = (typeof SETTINGS_MODULE_SLUGS)[number];
+
+// Only the entities still served by the /setting/[entity] dynamic route.
+// Every other module has a dedicated static route + per-domain store.
 export const SETTINGS: Record<string, SettingConfig> = {
   store: {
     slug: "store",
@@ -66,147 +90,5 @@ export const SETTINGS: Record<string, SettingConfig> = {
     idKey: "district_uuid",
     columns: [{ key: "district_name", label: "Name" }, { key: "province_uuid_fk", label: "Province" }],
     fields: [{ name: "province_uuid_fk", label: "Province", required: true }, { name: "district_name_la", label: "Name LA", required: true }, { name: "district_name_eng", label: "Name EN" }]
-  },
-  topping: {
-    slug: "topping",
-    title: "Toppings",
-    description: "Extra item options.",
-    idKey: "topping_uuid",
-    columns: [{ key: "topping_name", label: "Name" }],
-    fields: [{ name: "topping_name_la", label: "Name LA", required: true }, { name: "topping_name_eng", label: "Name EN" }],
-    scope: storeScope
-  },
-  group: {
-    slug: "group",
-    title: "Food groups",
-    description: "Top-level food grouping.",
-    idKey: "group_uuid",
-    columns: [{ key: "group_name", label: "Name" }, { key: "group_name_la", label: "LA" }],
-    fields: [{ name: "group_name_la", label: "Name LA", required: true }, { name: "group_name_eng", label: "Name EN" }],
-    scope: storeScope
-  },
-  category: {
-    slug: "category",
-    title: "Categories",
-    description: "Menu categories.",
-    idKey: "cate_uuid",
-    columns: [{ key: "cate_name", label: "Name" }, { key: "group_uuid_fk", label: "Group" }],
-    fields: [{ name: "group_uuid_fk", label: "Group" }, { name: "cate_name_la", label: "Name LA", required: true }, { name: "cate_name_eng", label: "Name EN" }, { name: "cate_icon", label: "Icon" }],
-    scope: storeScope
-  },
-  unit: {
-    slug: "unit",
-    title: "Units",
-    description: "Product units.",
-    idKey: "unite_uuid",
-    columns: [{ key: "unite_name", label: "Name" }, { key: "unite_name_la", label: "LA" }],
-    fields: [{ name: "unite_name_la", label: "Name LA", required: true }, { name: "unite_name_eng", label: "Name EN" }],
-    scope: storeScope
-  },
-  unite: {
-    slug: "unit",
-    title: "Units",
-    description: "Product units.",
-    idKey: "unite_uuid",
-    columns: [{ key: "unite_name", label: "Name" }],
-    fields: [{ name: "unite_name_la", label: "Name LA", required: true }, { name: "unite_name_eng", label: "Name EN" }],
-    scope: storeScope
-  },
-  size: {
-    slug: "size",
-    title: "Sizes",
-    description: "Product size options.",
-    idKey: "size_uuid",
-    columns: [{ key: "size_name", label: "Name" }, { key: "size_name_la", label: "LA" }],
-    fields: [{ name: "size_name_la", label: "Name LA", required: true }, { name: "size_name_eng", label: "Name EN" }],
-    scope: storeScope
-  },
-  color: {
-    slug: "color",
-    title: "Colors",
-    description: "Product color swatches.",
-    idKey: "color_uuid",
-    columns: [{ key: "color_code", label: "Code" }],
-    fields: [{ name: "color_code", label: "Color code", required: true }]
-  },
-  zone: {
-    slug: "zone",
-    title: "Zones",
-    description: "Dining zones and table areas.",
-    idKey: "zone_uuid",
-    columns: [{ key: "zone_name", label: "Name" }, { key: "zone_name_la", label: "LA" }],
-    fields: [{ name: "zone_name_la", label: "Name LA", required: true }, { name: "zone_name_eng", label: "Name EN" }],
-    scope: branchScope
-  },
-  table: {
-    slug: "table",
-    title: "Tables",
-    description: "Dining table setup.",
-    idKey: "table_uuid",
-    columns: [{ key: "table_name", label: "Name" }, { key: "zone_uuid_fk", label: "Zone" }, { key: "table_qty", label: "Seats" }, { key: "charge_status", label: "Service charge" }],
-    fields: [
-      { name: "zone_uuid_fk", label: "Zone", required: true },
-      { name: "table_name_la", label: "Name LA", required: true },
-      { name: "table_name_eng", label: "Name EN" },
-      { name: "table_qty", label: "Seats", type: "number" },
-      { name: "charge_status", label: "Service charge", type: "number" }
-    ],
-    scope: branchScope
-  },
-  currency: {
-    slug: "currency",
-    title: "Currencies",
-    description: "Accepted currencies.",
-    idKey: "currency_uuid",
-    columns: [{ key: "currency_name", label: "Name" }, { key: "currency_icon", label: "Icon" }, { key: "currency_status", label: "Status" }],
-    fields: [{ name: "currency_name", label: "Name", required: true }, { name: "currency_icon", label: "Icon" }, { name: "currency_status", label: "Status", type: "number" }]
-  },
-  exchange: {
-    slug: "exchange",
-    title: "Exchange rates",
-    description: "Currency exchange rates.",
-    idKey: "ex_uuid",
-    columns: [{ key: "currency_uuid_fk", label: "Currency" }, { key: "ex_price", label: "Rate" }, { key: "ex_status", label: "Status" }],
-    fields: [{ name: "currency_uuid_fk", label: "Currency", required: true }, { name: "ex_price", label: "Rate", type: "number", required: true }, { name: "ex_status", label: "Status", type: "number" }],
-    scope: storeScope
-  },
-  customer: {
-    slug: "customer",
-    title: "Customers",
-    description: "Customer records.",
-    idKey: "customer_uuid",
-    columns: [
-      { key: "member_code", label: "Member code" },
-      { key: "customer_name", label: "Name" },
-      { key: "customer_phone", label: "Phone" },
-      { key: "customer_status", label: "Status" }
-    ],
-    fields: [
-      { name: "member_code", label: "Member code" },
-      { name: "customer_name", label: "Name", required: true },
-      { name: "customer_phone", label: "Phone" },
-      { name: "customer_status", label: "Status", type: "number" },
-      { name: "customer_address", label: "Address", type: "textarea" }
-    ],
-    scope: storeScope
-  },
-  user: {
-    slug: "user",
-    title: "Users",
-    description: "Staff user accounts.",
-    idKey: "login_uuid",
-    columns: [
-      { key: "login_email", label: "Email" },
-      { key: "roles_name", label: "Role" },
-      { key: "branch_name", label: "Branch" },
-      { key: "login_active", label: "Active" }
-    ],
-    fields: [
-      { name: "login_email", label: "Email", type: "email", required: true },
-      { name: "login_password", label: "Password", type: "password" },
-      { name: "roles_id_fk", label: "Role", type: "number" },
-      { name: "login_active", label: "Active", type: "number" }
-    ],
-    scope: (u) => ({ ...storeScope(u), ...branchScope(u), ...loginScope(u) })
   }
 };
