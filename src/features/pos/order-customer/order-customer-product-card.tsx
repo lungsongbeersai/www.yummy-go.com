@@ -1,7 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { memo, useEffect, useState } from "react";
+import { memo, useState } from "react";
+import { useResetOnChange } from "@/hooks/use-reset-on-change";
 import {
   Ban,
   ChefHat,
@@ -234,9 +235,8 @@ export function ProductMediaView({
       : "size-10 text-muted-foreground";
   const mediaKey = media.type === "image" ? media.src : media.type;
 
-  useEffect(() => {
-    setImageFailed(false);
-  }, [mediaKey]);
+  // เปลี่ยนรูป = ให้โอกาสโหลดใหม่ ไม่ค้าง fallback ของรูปเดิม
+  useResetOnChange(mediaKey, () => setImageFailed(false));
 
   if (media.type === "image" && !imageFailed) {
     return (

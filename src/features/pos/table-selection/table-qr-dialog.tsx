@@ -1,6 +1,7 @@
 "use client";
 
 import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { useResetOnChange, useResetOnDeps } from "@/hooks/use-reset-on-change";
 import Image from "next/image";
 import QRCode from "qrcode";
 import { Copy, Download, ExternalLink, Printer, QrCode as QrCodeIcon } from "lucide-react";
@@ -60,19 +61,23 @@ export function TableQrDialog({
   const canDownload = Boolean(previewUrl || canUseFrontendQrFallback);
   const canPrint = Boolean(pendingJobUuid || (canOpenBrowserWindow && (previewUrl || canUseFrontendQrFallback)));
 
+  // เปิด dialog = ล้างผลเดิม และตั้ง pending เฉพาะกรณีที่จะยิงคำขอจริง
+  useResetOnChange(open, () => {
+    if (!open) return;
+    setResponse(null);
+    setQrDataUrl("");
+    setPending(Boolean(loginUuid));
+  });
+
   useEffect(() => {
     if (!open) return;
 
-    let ignore = false;
-    setPending(true);
-    setResponse(null);
-    setQrDataUrl("");
-
     if (!loginUuid) {
       showToast({ title: t("pos.qrCreateFailed"), description: "login_uuid_fk is required", tone: "error" });
-      setPending(false);
       return;
     }
+
+    let ignore = false;
 
     createTableQr({ table_uuid: table.table_uuid, lang: language, login_uuid_fk: loginUuid })
       .then((result) => {
@@ -97,11 +102,13 @@ export function TableQrDialog({
     };
   }, [createTableQr, language, loginUuid, open, showToast, table.table_uuid, t]);
 
+  // มีรูป QR จากเซิร์ฟเวอร์แล้ว (หรือยังไม่มี URL) = ไม่ต้องใช้ fallback ที่สร้างเอง
+  useResetOnDeps([targetUrl, qrImageUrl], () => {
+    if (!targetUrl || qrImageUrl) setQrDataUrl("");
+  });
+
   useEffect(() => {
-    if (!targetUrl || qrImageUrl) {
-      setQrDataUrl("");
-      return;
-    }
+    if (!targetUrl || qrImageUrl) return;
 
     let ignore = false;
     createFallbackQrDataUrl(targetUrl)

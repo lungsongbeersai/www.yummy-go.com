@@ -3,11 +3,11 @@
 import {
   type FormEvent,
   useCallback,
-  useEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
+import { useResetOnChange } from "@/hooks/use-reset-on-change";
 import {
   addPublicSearchHistoryItem,
   clearPublicSearchHistory,
@@ -35,9 +35,8 @@ export function usePublicSearch({
     [branchUuid, lang],
   );
 
-  useEffect(() => {
-    setSearchHistory(readPublicSearchHistory(searchHistoryKey));
-  }, [searchHistoryKey]);
+  // สลับสาขา/ภาษา = อ่านประวัติค้นหาของคีย์ใหม่
+  useResetOnChange(searchHistoryKey, () => setSearchHistory(readPublicSearchHistory(searchHistoryKey)));
 
   const saveSearchHistory = useCallback(
     (query: string) => {

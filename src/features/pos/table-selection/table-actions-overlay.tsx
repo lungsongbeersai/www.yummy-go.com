@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useResetOnChange } from "@/hooks/use-reset-on-change";
 import { ArrowRightLeft, Info, LayoutGrid, MapPin, Merge, Search } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
@@ -86,14 +87,19 @@ export function TableActionsOverlay({
           to: table.table_name
         });
 
-  useEffect(() => {
+  // เปิด overlay ใหม่ = เริ่มฟอร์มใหม่ทุกครั้ง (แยกจาก effect ที่ไปโหลดรายการโต๊ะ)
+  useResetOnChange(open, () => {
     if (!open) return;
-
-    let ignore = false;
     setMode(initialMode);
     setSearch("");
     setMoveTargetUuid("");
     setJoinSourceUuids([]);
+  });
+
+  useEffect(() => {
+    if (!open) return;
+
+    let ignore = false;
 
     async function loadOptions() {
       if (!branchUuid) {
