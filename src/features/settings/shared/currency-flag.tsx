@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useResetOnChange } from "@/hooks/use-reset-on-change";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 
@@ -88,9 +89,8 @@ export function CurrencyFlag({
   const src = flagImageSrc(text);
   const [failed, setFailed] = useState(false);
 
-  useEffect(() => {
-    setFailed(false);
-  }, [src]);
+  // เปลี่ยนรูปธง = ให้โอกาสโหลดใหม่ ไม่ค้าง fallback ของรูปเดิม
+  useResetOnChange(src, () => setFailed(false));
 
   return (
     <span

@@ -1,6 +1,7 @@
 "use client";
 
-import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
+import { useResetOnChange } from "@/hooks/use-reset-on-change";
 import { Check, CircleSlash2, Search, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
@@ -84,10 +85,11 @@ export function CurrencyFlagPicker({
     return groupOptions.filter((option) => option.searchText.includes(query));
   }, [deferredSearch, groupOptions]);
 
-  useEffect(() => {
+  // เปลี่ยนสกุลเงินที่เลือก = ล้างตัวกรอง/คำค้นของรายการธง
+  useResetOnChange(code, () => {
     setActiveGroup("all");
     setSearch("");
-  }, [code]);
+  });
 
   return (
     <div className="flex min-w-0 flex-col gap-3">
