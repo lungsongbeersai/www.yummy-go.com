@@ -1,4 +1,4 @@
-import { isPresent, readValue, textValue as textValueWithDash } from "@/lib/values";
+import { readValue, textValue as textValueWithDash } from "@/lib/values";
 import { isAllPageLimit, pageLimitNumber } from "@/lib/pagination";
 import type { DailySaleItemsResponse } from "@/services/report";
 import type { ApiEntity, PageLimit } from "@/services/shared/types";

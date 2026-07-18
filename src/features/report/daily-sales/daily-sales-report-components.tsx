@@ -10,7 +10,6 @@ import {
   EyeOff,
   FileSpreadsheet,
   FileText,
-  Printer,
   ReceiptText,
   RefreshCcw,
 } from "lucide-react";
@@ -72,7 +71,6 @@ interface ReportTableActionsProps {
   exportDisabled: boolean;
   exporting: ReportExportAction | null;
   loading: boolean;
-  printDisabled: boolean;
   search: string;
   selectedBillCount: number;
   selectedCount: number;
@@ -82,7 +80,6 @@ interface ReportTableActionsProps {
   onExpandAllBills: () => void;
   onExportExcel: () => void;
   onExportPdf: () => void;
-  onPrintReport: () => void;
   onRefresh: () => void;
   onSearchChange: (search: string) => void;
   onTypePageChange: (typePage: ReportTab) => void;
@@ -255,7 +252,6 @@ function ReportTableActions({
   exportDisabled,
   exporting,
   loading,
-  printDisabled,
   search,
   selectedBillCount,
   selectedCount,
@@ -265,7 +261,6 @@ function ReportTableActions({
   onExpandAllBills,
   onExportExcel,
   onExportPdf,
-  onPrintReport,
   onRefresh,
   onSearchChange,
   onTypePageChange,
@@ -405,22 +400,6 @@ function ReportTableActions({
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            aria-label={t("report.print")}
-            className="h-9 min-w-9 rounded-md px-2.5"
-            disabled={printDisabled}
-            onClick={onPrintReport}
-          >
-            {exporting === "print" ? (
-              <RefreshCcw className="animate-spin" data-icon="inline-start" />
-            ) : (
-              <Printer data-icon="inline-start" />
-            )}
-            <span className="hidden sm:inline">{t("report.print")}</span>
-          </Button> */}
 
           <Button
             type="button"

@@ -27,7 +27,6 @@ import {
   createDefaultFilters,
   DASHBOARD_PERIOD_TYPES,
   optionList,
-  selectedLabel,
   text,
   yearSelectOptions,
   type DashboardFilters,
@@ -271,10 +270,6 @@ export function DashboardPage() {
 
     return options;
   }, [branches, language, user?.branch_name, user?.branch_uuid]);
-  const activeBranchLabel = useMemo(
-    () => selectedLabel(branchOptions, activeBranchUuid),
-    [activeBranchUuid, branchOptions],
-  );
   const periodLabel = useMemo(() => {
     const start = text(
       model.requestParams.start_date,
@@ -368,7 +363,6 @@ export function DashboardPage() {
   return (
     <div className="dashboard-screen flex flex-col gap-4">
       <DashboardHeader
-        activeBranchLabel={activeBranchLabel}
         copy={copy}
         filtersMeta={model.filters}
         section={model.section}

@@ -4,7 +4,6 @@ import { BEST_SELLING_PRODUCTS_SORT_OPTIONS } from "@/config/report-filters";
 import type { ApiEntity } from "@/services/shared/types";
 import type { BestSellingProductGroup, BestSellingProductItem } from "@/stores/report-store";
 import type {
-  ReportExcelCellStyle,
   ReportExcelGridRow,
   ReportExcelGridSection
 } from "../report-excel-utils";

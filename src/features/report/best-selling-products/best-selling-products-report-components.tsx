@@ -16,7 +16,6 @@ import {
   Download,
   FileSpreadsheet,
   ListOrdered,
-  Printer,
   RefreshCcw,
   Trophy,
   type LucideIcon,
@@ -447,7 +446,6 @@ type TableCardProps = {
   exporting: BestSellingExportAction | null;
   footer: ReactNode;
   loading: boolean;
-  printDisabled: boolean;
   rowsLength: number;
   selectedCount: number;
   sortBy: BestSellingProductsSortBy;
@@ -455,7 +453,6 @@ type TableCardProps = {
   onClearSelection: () => void;
   onExportExcel: () => void;
   onExportPdf: () => void;
-  onPrintReport: () => void;
   onRefresh: () => void;
   onSortByChange: (sortBy: BestSellingProductsSortBy) => void;
 };
@@ -466,7 +463,6 @@ export function BestSellingTableCard({
   exporting,
   footer,
   loading,
-  printDisabled,
   rowsLength,
   selectedCount,
   sortBy,
@@ -474,7 +470,6 @@ export function BestSellingTableCard({
   onClearSelection,
   onExportExcel,
   onExportPdf,
-  onPrintReport,
   onRefresh,
   onSortByChange,
 }: TableCardProps) {
@@ -550,22 +545,6 @@ export function BestSellingTableCard({
                 </DropdownMenuGroup>
               </DropdownMenuContent>
             </DropdownMenu>
-            {/* <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              aria-label={t("report.print")}
-              className="h-9 min-w-9 rounded-md px-2.5"
-              disabled={printDisabled}
-              onClick={onPrintReport}
-            >
-              {exporting === "print" ? (
-                <RefreshCcw className="animate-spin" data-icon="inline-start" />
-              ) : (
-                <Printer data-icon="inline-start" />
-              )}
-              <span className="hidden sm:inline">{t("report.print")}</span>
-            </Button> */}
             <Button
               type="button"
               variant="ghost"

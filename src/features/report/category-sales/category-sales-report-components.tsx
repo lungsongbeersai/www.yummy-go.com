@@ -6,7 +6,6 @@ import {
   Download,
   FileSpreadsheet,
   FolderTree,
-  Printer,
   RefreshCcw,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -418,14 +417,12 @@ type TableCardProps = {
   footer: ReactNode;
   loading: boolean;
   methodLabel: string;
-  printDisabled: boolean;
   rowsLength: number;
   selectedCount: number;
   title: string;
   onClearSelection: () => void;
   onExportExcel: () => void;
   onExportPdf: () => void;
-  onPrintReport: () => void;
   onRefresh: () => void;
 };
 
@@ -435,14 +432,12 @@ export function CategorySalesTableCard({
   exporting,
   footer,
   loading,
-  printDisabled,
   rowsLength,
   selectedCount,
   title,
   onClearSelection,
   onExportExcel,
   onExportPdf,
-  onPrintReport,
   onRefresh,
 }: TableCardProps) {
   const { t } = useTranslation();
@@ -521,21 +516,6 @@ export function CategorySalesTableCard({
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-9"
-            disabled={printDisabled}
-            onClick={onPrintReport}
-          >
-            {exporting === "print" ? (
-              <RefreshCcw className="animate-spin" data-icon="inline-start" />
-            ) : (
-              <Printer data-icon="inline-start" />
-            )}
-            {t("report.print")}
-          </Button> */}
 
           <Button
             type="button"

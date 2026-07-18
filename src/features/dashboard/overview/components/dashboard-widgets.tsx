@@ -7,7 +7,6 @@ import {
   Code2,
   Copy,
   CreditCard,
-  Download,
   ReceiptText,
   RefreshCcw,
   Search,
@@ -193,12 +192,10 @@ function SparkPreview({
 }
 
 export const DashboardHeader = memo(function DashboardHeader({
-  activeBranchLabel,
   copy,
   filtersMeta,
   section,
 }: {
-  activeBranchLabel: string;
   copy: DashboardCopy;
   filtersMeta: Row;
   section: Row;
@@ -216,10 +213,6 @@ export const DashboardHeader = memo(function DashboardHeader({
       .join(" "),
     updatedAt,
   ].filter(Boolean);
-
-  function handleExport() {
-    window.print();
-  }
 
   return (
     <div className="dashboard-page-head flex flex-wrap items-end justify-between gap-4">
@@ -241,18 +234,6 @@ export const DashboardHeader = memo(function DashboardHeader({
           ))}
         </div>
       </div>
-      {/* <div className="dashboard-head-actions flex flex-wrap items-center justify-end gap-2">
-        <Button
-          aria-label={`${copy.export} ${activeBranchLabel}`}
-          size="sm"
-          type="button"
-          variant="outline"
-          onClick={handleExport}
-        >
-          <Download data-icon="inline-start" />
-          {copy.export}
-        </Button>
-      </div> */}
     </div>
   );
 });

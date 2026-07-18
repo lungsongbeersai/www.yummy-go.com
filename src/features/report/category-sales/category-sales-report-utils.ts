@@ -7,7 +7,6 @@ import {
 import type { ApiEntity } from "@/services/shared/types";
 import type { CategorySalesGroup, CategorySalesRow } from "@/stores/report-store";
 import type {
-  ReportExcelCellStyle,
   ReportExcelGridRow,
   ReportExcelGridSection
 } from "../report-excel-utils";

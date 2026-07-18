@@ -6,7 +6,6 @@ import { useTranslation } from "react-i18next";
 import { BlockingLoadingDialog } from "@/components/common/blocking-loading-dialog";
 import { FilterHeaderToolbar } from "@/components/common/filter-header-toolbar";
 import { Button } from "@/components/ui/button";
-import { useIsCapacitorNativeApp } from "@/hooks/use-capacitor-native-app";
 import type { UrlPaginationState } from "@/lib/url-pagination";
 import {
   BestSellingExportSurface,
@@ -26,7 +25,6 @@ export function BestSellingProductsReportPage({ initialPagination }: { initialPa
   const { t } = useTranslation();
   const exportReportRef = useRef<HTMLDivElement>(null);
   const [summaryVisible, setSummaryVisible] = useState(false);
-  const nativeApp = useIsCapacitorNativeApp();
   const report = useBestSellingProductsReportWorkflow(exportReportRef, initialPagination, summaryVisible);
   const layoutStyle = {
     "--best-selling-filter-height": "0px"
@@ -141,7 +139,6 @@ export function BestSellingProductsReportPage({ initialPagination }: { initialPa
             exportDisabled={report.exportDisabled}
             exporting={report.exporting}
             loading={report.loading}
-            printDisabled={report.exportDisabled || nativeApp}
             rowsLength={report.rows.length}
             selectedCount={report.rowSelection.selectedCount}
             sortBy={report.appliedFilters.sortBy}
@@ -161,7 +158,6 @@ export function BestSellingProductsReportPage({ initialPagination }: { initialPa
             onExportExcel={() => void report.exportExcel()}
             onExportPdf={() => void report.exportPdf()}
             onClearSelection={report.rowSelection.clearSelection}
-            onPrintReport={() => void report.printReport()}
             onRefresh={() => void report.load()}
             onSortByChange={report.applySortBy}
           >

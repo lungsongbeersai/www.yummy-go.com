@@ -6,7 +6,6 @@ import {
   CreditCard,
   Download,
   FileSpreadsheet,
-  Printer,
   RefreshCcw,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -400,14 +399,12 @@ type TableCardProps = {
   exporting: PaymentMethodsExportAction | null;
   footer: ReactNode;
   loading: boolean;
-  printDisabled: boolean;
   rowsLength: number;
   selectedCount: number;
   title: string;
   onClearSelection: () => void;
   onExportExcel: () => void;
   onExportPdf: () => void;
-  onPrintReport: () => void;
   onRefresh: () => void;
 };
 
@@ -417,14 +414,12 @@ export function PaymentMethodsTableCard({
   exporting,
   footer,
   loading,
-  printDisabled,
   rowsLength,
   selectedCount,
   title,
   onClearSelection,
   onExportExcel,
   onExportPdf,
-  onPrintReport,
   onRefresh,
 }: TableCardProps) {
   const { t } = useTranslation();
@@ -506,22 +501,6 @@ export function PaymentMethodsTableCard({
                 </DropdownMenuGroup>
               </DropdownMenuContent>
             </DropdownMenu>
-            {/* <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              aria-label={t("report.print")}
-              className="h-9 min-w-9 rounded-md px-2.5"
-              disabled={printDisabled}
-              onClick={onPrintReport}
-            >
-              {exporting === "print" ? (
-                <RefreshCcw className="animate-spin" data-icon="inline-start" />
-              ) : (
-                <Printer data-icon="inline-start" />
-              )}
-              <span className="hidden sm:inline">{t("report.print")}</span>
-            </Button> */}
             <Button
               type="button"
               variant="ghost"

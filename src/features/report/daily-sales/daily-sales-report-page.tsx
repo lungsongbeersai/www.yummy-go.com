@@ -5,7 +5,6 @@ import { BarChart3, Eye, EyeOff, RefreshCcw, SlidersHorizontal } from "lucide-re
 import { useTranslation } from "react-i18next";
 import { FilterHeaderToolbar } from "@/components/common/filter-header-toolbar";
 import { Button } from "@/components/ui/button";
-import { useIsCapacitorNativeApp } from "@/hooks/use-capacitor-native-app";
 import type { UrlPaginationState } from "@/lib/url-pagination";
 import {
   ReportError,
@@ -32,7 +31,6 @@ export function DailySalesReportPage({
   const { t } = useTranslation();
   const exportReportRef = useRef<HTMLDivElement>(null);
   const [summaryVisible, setSummaryVisible] = useState(false);
-  const nativeApp = useIsCapacitorNativeApp();
   const report = useDailySalesReportWorkflow(exportReportRef, initialPagination, summaryVisible);
   const layoutStyle = {
     "--daily-sales-filter-height": "0px",
@@ -146,11 +144,6 @@ export function DailySalesReportPage({
               exportDisabled: report.exportDisabled,
               exporting: report.exporting,
               loading: report.loading,
-              printDisabled:
-                report.loading ||
-                Boolean(report.exporting) ||
-                !report.branchUuid ||
-                nativeApp,
               search: report.appliedFilters.search,
               selectedCount: report.selectedCount,
               selectedBillCount: report.selectedBillCount,
@@ -160,7 +153,6 @@ export function DailySalesReportPage({
               onExpandAllBills: report.expandAllBills,
               onExportExcel: () => void report.exportExcel(),
               onExportPdf: () => void report.exportPdf(),
-              onPrintReport: () => void report.printReport(),
               onRefresh: () => void report.load(),
               onSearchChange: (search) => report.applyTableHeaderFilters({ search }),
               onTypePageChange: (typePage) => report.applyTableHeaderFilters({ typePage }),

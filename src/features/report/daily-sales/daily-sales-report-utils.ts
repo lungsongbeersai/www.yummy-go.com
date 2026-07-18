@@ -19,7 +19,6 @@ import {
 import type {
   DetailPaginationBasis,
   DetailReportPaymentMethod,
-  ReportBranchOption,
   ReportColumn,
   ReportPaymentMethodFilter,
   ReportTab,
