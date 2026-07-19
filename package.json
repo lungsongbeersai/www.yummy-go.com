@@ -2,8 +2,13 @@
   "name": "new-yummy-go",
   "version": "1.0.0",
   "private": true,
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "main": "dist-electron/main.js",
   "scripts": {
+    "preinstall": "node scripts/check-node-version.mjs",
+    "verify:node": "node scripts/check-node-version.mjs",
     "dev": "next dev",
     "dev:desktop": "concurrently -k -n NEXT,ELECTRON -c cyan,green \"next dev\" \"wait-on http://localhost:3000 && npm run electron:dev\"",
     "build": "next build",
