@@ -1,4 +1,0 @@
-interface:
-  display_name: "Yummy Go Electron"
-  short_description: "Maintain the Yummy Go desktop shell safely"
-  default_prompt: "Use $yummy-go-electron to implement or review an Electron desktop change in Yummy Go."
