@@ -298,6 +298,16 @@ function internalAnchorNavigationMatches(directories: string[]) {
 }
 
 describe("project refactor guards", () => {
+  it("keeps the packaged Electron server outside ASAR and shell-free", () => {
+    const mainProcess = readFileSync(join(projectRoot, "electron/main.ts"), "utf8");
+
+    expect(mainProcess).toContain("process.resourcesPath");
+    expect(mainProcess).toContain("utilityProcess.fork");
+    expect(mainProcess).not.toContain("node_modules");
+    expect(mainProcess).not.toContain(".bin");
+    expect(mainProcess).not.toContain("shell: true");
+  });
+
   it("keeps chart.js removed from package manifests", () => {
     const manifest = JSON.parse(
       readFileSync(join(projectRoot, "package.json"), "utf8")

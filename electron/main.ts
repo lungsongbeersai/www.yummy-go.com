@@ -1,17 +1,31 @@
-import { app, BrowserWindow, ipcMain, screen, type Display } from "electron";
-import { spawn, type ChildProcess } from "child_process";
+import {
+  app,
+  BrowserWindow,
+  dialog,
+  ipcMain,
+  screen,
+  utilityProcess,
+  type Display,
+  type UtilityProcess,
+} from "electron";
 import path from "path";
+import {
+  createNextServerEnvironment,
+  createNextServerPaths,
+  materializeNextServer,
+  waitForNextServer,
+} from "../src/platform/electron/next-server-contract";
 
 let mainWindow: BrowserWindow | null = null;
 let customerWindow: BrowserWindow | null = null;
-let nextProcess: ChildProcess | null = null;
+let nextProcess: UtilityProcess | null = null;
 let customerReady = false;
 let activeCustomerDisplayId: number | null = null;
 const pendingMessages: unknown[] = [];
 
 const isDev = process.env.NODE_ENV !== "production" && !app.isPackaged;
 const PORT = Number(process.env.PORT ?? 3000);
-const BASE_URL = `http://localhost:${PORT}`;
+const BASE_URL = `http://127.0.0.1:${PORT}`;
 
 function preloadPath() {
   return path.join(__dirname, "preload.js");
@@ -156,42 +170,75 @@ function setupIpc() {
   });
 }
 
-function startNextServer() {
-  return new Promise<void>((resolve, reject) => {
-    if (isDev) {
-      resolve();
-      return;
-    }
+async function startNextServer() {
+  if (isDev) return;
 
-    const nextBin = path.join(__dirname, "..", "node_modules", ".bin", "next");
-    nextProcess = spawn(nextBin, ["start", "-p", String(PORT)], {
-      cwd: path.join(__dirname, ".."),
-      shell: true,
-      stdio: "pipe"
-    });
-
-    nextProcess.stdout?.on("data", (data: Buffer) => {
-      const text = data.toString();
-      if (text.includes("Ready") || text.includes("started")) resolve();
-    });
-    nextProcess.stderr?.on("data", (data: Buffer) => console.error(data.toString()));
-    nextProcess.on("error", reject);
-    setTimeout(resolve, 5000);
+  const appVersion = app.getVersion();
+  const paths = createNextServerPaths({
+    appVersion,
+    resourcesPath: process.resourcesPath,
+    userDataPath: app.getPath("userData"),
   });
+  await materializeNextServer(paths, appVersion);
+
+  const child = utilityProcess.fork(paths.runtimeEntry, [], {
+    cwd: paths.runtimeDirectory,
+    env: createNextServerEnvironment(PORT),
+    stdio: "pipe",
+    serviceName: "Yummy Go Next Server",
+  });
+  nextProcess = child;
+
+  child.stdout?.on("data", (data: Buffer) => {
+    process.stdout.write(data);
+  });
+  child.stderr?.on("data", (data: Buffer) => {
+    process.stderr.write(data);
+  });
+
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const handleEarlyExit = (code: number) => {
+        reject(new Error(`Next server exited before readiness with code ${code}`));
+      };
+      child.once("exit", handleEarlyExit);
+
+      void waitForNextServer(BASE_URL).then(
+        () => {
+          child.removeListener("exit", handleEarlyExit);
+          resolve();
+        },
+        (error: unknown) => {
+          child.removeListener("exit", handleEarlyExit);
+          reject(error);
+        },
+      );
+    });
+  } catch (error) {
+    child.kill();
+    if (nextProcess === child) nextProcess = null;
+    throw error;
+  }
 }
 
 app.whenReady().then(async () => {
   setupIpc();
-  await startNextServer();
-  createMainWindow();
+  try {
+    await startNextServer();
+    createMainWindow();
 
-  screen.on("display-removed", () => {
-    if (!activeCustomerDisplayId) return;
-    const activeStillConnected = screen
-      .getAllDisplays()
-      .some((display) => display.id === activeCustomerDisplayId);
-    if (!activeStillConnected) closeCustomerDisplay();
-  });
+    screen.on("display-removed", () => {
+      if (!activeCustomerDisplayId) return;
+      const activeStillConnected = screen
+        .getAllDisplays()
+        .some((display) => display.id === activeCustomerDisplayId);
+      if (!activeStillConnected) closeCustomerDisplay();
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    dialog.showErrorBox("Yummy Go could not start", message);
+    app.quit();
+  }
 });
 
 app.on("window-all-closed", () => {

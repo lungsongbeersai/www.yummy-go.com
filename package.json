@@ -5,7 +5,7 @@
   "engines": {
     "node": ">=22.0.0"
   },
-  "main": "dist-electron/main.js",
+  "main": "dist-electron/electron/main.js",
   "scripts": {
     "preinstall": "node scripts/check-node-version.mjs",
     "verify:node": "node scripts/check-node-version.mjs",
@@ -87,13 +87,22 @@
     "appId": "com.yummygo.pos",
     "productName": "Yummy Go POS",
     "files": [
+      "!**/*",
       "dist-electron/**/*",
       "package.json"
     ],
     "extraResources": [
       {
         "from": ".next/electron-runtime",
-        "to": "next-server"
+        "to": "next-server",
+        "filter": [
+          "**/*",
+          "!node_modules{,/**/*}"
+        ]
+      },
+      {
+        "from": ".next/electron-runtime/node_modules",
+        "to": "next-server/node_modules"
       }
     ],
     "directories": {

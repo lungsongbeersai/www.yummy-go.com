@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 
 interface ExtraResource {
   from: string;
+  filter?: string[];
   to: string;
 }
 
@@ -45,9 +46,21 @@ describe("Electron packaging contract", () => {
     expect(manifest.scripts?.["electron:pack"]).not.toContain(
       "electron:start",
     );
-    expect(manifest.build?.files).toEqual(["dist-electron/**/*", "package.json"]);
+    expect(manifest.build?.files).toEqual([
+      "!**/*",
+      "dist-electron/**/*",
+      "package.json",
+    ]);
     expect(manifest.build?.extraResources).toEqual([
-      { from: ".next/electron-runtime", to: "next-server" },
+      {
+        from: ".next/electron-runtime",
+        to: "next-server",
+        filter: ["**/*", "!node_modules{,/**/*}"],
+      },
+      {
+        from: ".next/electron-runtime/node_modules",
+        to: "next-server/node_modules",
+      },
     ]);
     expect(
       existsSync(join(projectRoot, "scripts/stage-electron-runtime.mjs")),
