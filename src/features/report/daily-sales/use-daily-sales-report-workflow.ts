@@ -9,7 +9,7 @@ import {
   type RefObject,
   type SetStateAction,
 } from "react";
-import { useResetOnChange } from "@/hooks/use-reset-on-change";
+import { useResetOnChange, useResetOnDeps } from "@/hooks/use-reset-on-change";
 import { useTranslation } from "react-i18next";
 import { pageLimitSize } from "@/lib/pagination";
 import type { UrlPaginationState } from "@/lib/url-pagination";
@@ -294,30 +294,36 @@ export function useDailySalesReportWorkflow(
     void load();
   }, [load]);
 
-  useEffect(() => {
+  // ข้อมูลหดลงจนหน้าปัจจุบันเกินช่วง = ดึงกลับมาหน้าสุดท้ายที่มีจริง
+  useResetOnDeps([billPage, billTotalPages], () => {
     if (billPage > billTotalPages) setBillPage(Math.max(1, billTotalPages));
-  }, [billPage, billTotalPages]);
+  });
 
-  useEffect(() => {
+  useResetOnDeps([detailPage, detailTotalPages], () => {
     if (detailPage > detailTotalPages) setDetailPage(Math.max(1, detailTotalPages));
-  }, [detailPage, detailTotalPages]);
+  });
 
-  useEffect(() => {
+  // เปลี่ยนแท็บ/หน้า/ชุดข้อมูล = กลับไปกางทุกบิลใหม่
+  useResetOnDeps([appliedFilters.typePage, page, rows], () => {
     setCollapsedBillGroups(new Set());
-  }, [appliedFilters.typePage, page, rows]);
+  });
 
-  useEffect(() => {
-    setSelectedRecordIds(new Set());
-  }, [
-    appliedFilters.dateFrom,
-    appliedFilters.dateTo,
-    appliedFilters.limit,
-    appliedFilters.orderBy,
-    appliedFilters.paymentMethod,
-    appliedFilters.search,
-    appliedFilters.typePage,
-    branchUuid,
-  ]);
+  // เงื่อนไขค้นหาเปลี่ยน = แถวที่เคยติ๊กไว้ไม่ใช่ชุดเดิมอีกต่อไป ต้องล้างการเลือก
+  useResetOnDeps(
+    [
+      appliedFilters.dateFrom,
+      appliedFilters.dateTo,
+      appliedFilters.limit,
+      appliedFilters.orderBy,
+      appliedFilters.paymentMethod,
+      appliedFilters.search,
+      appliedFilters.typePage,
+      branchUuid,
+    ],
+    () => {
+      setSelectedRecordIds(new Set());
+    },
+  );
 
   function applyNextFilters(nextFilters: ReportFilters, closeMobile = false) {
     if (nextFilters.branchUuid) setSelectedBranch(nextFilters.branchUuid);

@@ -51,6 +51,7 @@ import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
 import { usePrinterStore } from "@/stores/printer-store";
 import { useReferenceStore } from "@/stores/reference-store";
 import { useToastStore } from "@/stores/toast-store";
+import { useResetOnDeps } from "@/hooks/use-reset-on-change";
 
 const EMPTY_CATEGORIES: Category[] = [];
 
@@ -107,6 +108,54 @@ function categoryUuids(printer: Printer | null) {
     printer.categories?.map((category) => category.cate_uuid).filter(Boolean) ??
     []
   );
+}
+
+// ค่าฟอร์มที่คำนวณจากเครื่องพิมพ์ที่กำลังแก้ไข (null = โหมดเพิ่มใหม่)
+// แยกออกมาเพื่อใช้ซ้ำได้ทั้งตอน seed useState ครั้งแรกและตอนรีเซ็ตระหว่าง render
+function printerFormValues(printer: Printer | null) {
+  const parsed = parseInterfaceValue(printer?.interface_value ?? "");
+  const connectType: ConnectType = printer
+    ? printer.connect_type === "usb"
+      ? "usb"
+      : "tcp"
+    : "tcp";
+
+  return {
+    connectType,
+    displayName: printer?.printer_name ?? "",
+    interfaceValue:
+      connectType === "usb" ? (printer?.interface_value ?? "") : "",
+    ip: connectType === "tcp" ? (parsed.ip ?? "") : "",
+    port: String(connectType === "tcp" ? (parsed.port ?? 9100) : 9100),
+    paperWidth: String(printer?.paper_width_mm ?? 80),
+    selectedRoles: printer?.role_codes ?? [],
+    selectedCategories: categoryUuids(printer),
+    selectedDevice: "",
+    agentUrl: textValue(printer?.agent_url) || AGENT_URL,
+    agentId: printer?.agent_id ?? "",
+    agentName: printer?.agent_name ?? "",
+    deviceCode: printer?.device_code ?? "",
+  };
+}
+
+// printer-store เป็น store ระดับโมดูล ข้อมูลจากหน้า list จึงค้างอยู่ตอนเข้าหน้าฟอร์ม
+// ทำให้ editing/agent มีค่าตั้งแต่ render แรก — เดิมมี effect สองตัวทำงานต่อกันหลัง mount
+// จึงรวมลำดับเดิม (เติมจากเรคคอร์ดก่อน แล้วค่อยเติมช่อง agent ที่ยังว่าง) ไว้ที่นี่
+function initialPrinterFormValues(
+  printer: Printer | null,
+  agent: AgentInfo | null,
+  isEditing: boolean,
+) {
+  const values = printerFormValues(printer);
+  if (!agent || isEditing) return values;
+
+  return {
+    ...values,
+    agentUrl: values.agentUrl || AGENT_URL,
+    agentId: values.agentId || textValue(agent.agent_id),
+    agentName: values.agentName || textValue(agent.agent_name),
+    deviceCode: values.deviceCode || textValue(agent.device_code),
+  };
 }
 
 function IndeterminateCheckbox({
@@ -261,20 +310,38 @@ export function PrinterFormPage() {
     [categories, language],
   );
 
-  const [connectType, setConnectType] = useState<ConnectType>("tcp");
-  const [displayName, setDisplayName] = useState("");
-  const [interfaceValue, setInterfaceValue] = useState("");
-  const [ip, setIp] = useState("");
-  const [port, setPort] = useState("9100");
-  const [paperWidth, setPaperWidth] = useState("80");
-  const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [selectedDevice, setSelectedDevice] = useState("");
-  const [agentUrl, setAgentUrl] = useState(AGENT_URL);
-  const [agentId, setAgentId] = useState("");
-  const [agentName, setAgentName] = useState("");
-  const [deviceCode, setDeviceCode] = useState("");
-  const [usbSearchComplete, setUsbSearchComplete] = useState(false);
+  // seed จาก store ที่อาจมีข้อมูลค้างอยู่แล้วตั้งแต่ render แรก (เข้าจากหน้า list)
+  // แทนที่ effect เดิมซึ่ง setState หลัง mount — ผลลัพธ์เท่ากันแต่ไม่มี cascading render
+  const [initialForm] = useState(() =>
+    initialPrinterFormValues(editing, agent, isEditing),
+  );
+  const [connectType, setConnectType] = useState<ConnectType>(
+    initialForm.connectType,
+  );
+  const [displayName, setDisplayName] = useState(initialForm.displayName);
+  const [interfaceValue, setInterfaceValue] = useState(
+    initialForm.interfaceValue,
+  );
+  const [ip, setIp] = useState(initialForm.ip);
+  const [port, setPort] = useState(initialForm.port);
+  const [paperWidth, setPaperWidth] = useState(initialForm.paperWidth);
+  const [selectedRoles, setSelectedRoles] = useState<string[]>(
+    initialForm.selectedRoles,
+  );
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(
+    initialForm.selectedCategories,
+  );
+  const [selectedDevice, setSelectedDevice] = useState(
+    initialForm.selectedDevice,
+  );
+  const [agentUrl, setAgentUrl] = useState(initialForm.agentUrl);
+  const [agentId, setAgentId] = useState(initialForm.agentId);
+  const [agentName, setAgentName] = useState(initialForm.agentName);
+  const [deviceCode, setDeviceCode] = useState(initialForm.deviceCode);
+  // ผลค้นหา USB ที่ค้างอยู่ใน store ถือว่าค้นหาเสร็จแล้ว (เดิมเป็น effect ที่ทำงานตอน mount)
+  const [usbSearchComplete, setUsbSearchComplete] = useState(
+    () => initialForm.connectType === "usb" && found.length > 0,
+  );
   const [usbSearchError, setUsbSearchError] = useState("");
   const autoUsbSearchDone = useRef(false);
 
@@ -289,11 +356,15 @@ export function PrinterFormPage() {
     setDeviceCode(textValue(nextAgent.device_code));
   }, []);
 
+  // ดึง uuid ออกมาเป็นตัวแปรก่อน เพราะถ้าอ้าง user?.uuid ภายใน callback
+  // React Compiler จะ infer dependency เป็น object `user` ทั้งก้อน ไม่ตรงกับ dependency array
+  const userUuid = user?.uuid;
+
   const loadFormData = useCallback(async () => {
-    if (!user?.uuid) return;
+    if (!userUuid) return;
     try {
       await Promise.all([
-        loadPrintersForLocalAgent({ login_uuid_fk: user.uuid, lang: language }),
+        loadPrintersForLocalAgent({ login_uuid_fk: userUuid, lang: language }),
         loadRoles(language),
         storeUuid ? loadCategories(language, storeUuid) : Promise.resolve([]),
       ]);
@@ -312,40 +383,38 @@ export function PrinterFormPage() {
     showToast,
     storeUuid,
     t,
-    user?.uuid,
+    userUuid,
   ]);
 
   useEffect(() => {
     void loadFormData();
   }, [loadFormData]);
 
-  useEffect(() => {
+  // เติมฟอร์มใหม่เมื่อเรคคอร์ดที่แก้ไขเปลี่ยน (เช่น รายการเครื่องพิมพ์เพิ่งโหลดเสร็จ)
+  // ทำระหว่าง render เพื่อไม่ให้ผู้ใช้เห็นค่าเก่าแวบหนึ่งก่อน effect จะทำงาน
+  // (กรณี mount ถูกครอบคลุมโดย initialForm ด้านบนแล้ว)
+  useResetOnDeps([editing, isEditing], () => {
     if (isEditing && !editing) return;
 
-    const parsed = parseInterfaceValue(editing?.interface_value ?? "");
-    const nextConnectType = editing
-      ? editing.connect_type === "usb"
-        ? "usb"
-        : "tcp"
-      : "tcp";
-    setConnectType(nextConnectType);
-    setDisplayName(editing?.printer_name ?? "");
-    setInterfaceValue(
-      nextConnectType === "usb" ? (editing?.interface_value ?? "") : "",
-    );
-    setIp(nextConnectType === "tcp" ? (parsed.ip ?? "") : "");
-    setPort(String(nextConnectType === "tcp" ? (parsed.port ?? 9100) : 9100));
-    setPaperWidth(String(editing?.paper_width_mm ?? 80));
-    setSelectedRoles(editing?.role_codes ?? []);
-    setSelectedCategories(categoryUuids(editing));
-    setSelectedDevice("");
-    setAgentUrl(textValue(editing?.agent_url) || AGENT_URL);
-    setAgentId(editing?.agent_id ?? "");
-    setAgentName(editing?.agent_name ?? "");
-    setDeviceCode(editing?.device_code ?? "");
-  }, [editing, isEditing]);
+    const values = printerFormValues(editing);
+    setConnectType(values.connectType);
+    setDisplayName(values.displayName);
+    setInterfaceValue(values.interfaceValue);
+    setIp(values.ip);
+    setPort(values.port);
+    setPaperWidth(values.paperWidth);
+    setSelectedRoles(values.selectedRoles);
+    setSelectedCategories(values.selectedCategories);
+    setSelectedDevice(values.selectedDevice);
+    setAgentUrl(values.agentUrl);
+    setAgentId(values.agentId);
+    setAgentName(values.agentName);
+    setDeviceCode(values.deviceCode);
+  });
 
-  useEffect(() => {
+  // agent จาก store มาแบบ async — เติมเฉพาะช่องที่ยังว่าง ไม่ทับค่าจากเรคคอร์ดหรือที่ผู้ใช้เลือกไว้
+  // ต้องอยู่หลัง reset ของ editing เสมอ เพราะ functional updater ต้องเห็นค่าที่ reset เพิ่งตั้ง
+  useResetOnDeps([agent, isEditing], () => {
     if (!agent || isEditing) return;
     const nextAgentId = textValue(agent.agent_id);
     const nextAgentName = textValue(agent.agent_name);
@@ -354,7 +423,7 @@ export function PrinterFormPage() {
     setAgentId((value) => value || nextAgentId);
     setAgentName((value) => value || nextAgentName);
     setDeviceCode((value) => value || nextDeviceCode);
-  }, [agent, isEditing]);
+  });
 
   const hasAgentIdentity =
     Boolean(agentUrl.trim()) &&
@@ -397,17 +466,24 @@ export function PrinterFormPage() {
     [discoverPrinters, showToast, t],
   );
 
-  useEffect(() => {
+  // ส่วน sync: สถานะข้อความใต้ dropdown ขึ้นกับโหมดเชื่อมต่อและผลค้นหาเท่านั้น
+  useResetOnDeps([connectType, found.length], () => {
     if (connectType !== "usb") {
-      autoUsbSearchDone.current = false;
       setUsbSearchComplete(false);
       setUsbSearchError("");
       return;
     }
-    if (found.length) {
-      setUsbSearchComplete(true);
+    if (found.length) setUsbSearchComplete(true);
+  });
+
+  // ส่วน async: ยิงค้นหา USB อัตโนมัติครั้งเดียวต่อการเข้าโหมด usb
+  // (เก็บ ref ไว้ใน effect เท่านั้น จะได้ไม่เขียน ref ระหว่าง render)
+  useEffect(() => {
+    if (connectType !== "usb") {
+      autoUsbSearchDone.current = false;
       return;
     }
+    if (found.length) return;
     if (autoUsbSearchDone.current || searching || saving) return;
     autoUsbSearchDone.current = true;
     void searchUsbDevices(false);

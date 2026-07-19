@@ -37,6 +37,7 @@ import { useAppStore } from "@/stores/app-store";
 import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
 import { useBranchStore } from "@/stores/branch-store";
 import { useDashboardStore } from "@/stores/dashboard-store";
+import { useResetOnDeps } from "@/hooks/use-reset-on-change";
 
 const dashboardCopyKeys = [
   "accounting",
@@ -243,10 +244,14 @@ export function DashboardPage() {
     () => yearSelectOptions(new Date().getFullYear()),
     [],
   );
+  // แยกฟิลด์ของ user ออกมาเป็นค่า string ก่อนเข้า useMemo เพราะ React Compiler
+  // จะ infer dependency เป็น `user` ทั้งก้อน (กว้างกว่าที่ระบุไว้เอง) แล้วยกเลิกการ memo ทิ้ง
+  const userBranchUuid = user?.branch_uuid ?? "";
+  const userBranchName = user?.branch_name ?? "";
   const activeBranchUuid =
     branchStoreUuid === storeUuid && selectedBranchUuid
       ? selectedBranchUuid
-      : user?.branch_uuid || "";
+      : userBranchUuid;
   const branchOptions = useMemo(() => {
     const options = branches
       .map((branch) => {
@@ -259,17 +264,17 @@ export function DashboardPage() {
       .filter((option) => option.value !== "-");
 
     if (
-      user?.branch_uuid &&
-      !options.some((option) => option.value === user.branch_uuid)
+      userBranchUuid &&
+      !options.some((option) => option.value === userBranchUuid)
     ) {
       options.unshift({
-        value: user.branch_uuid,
-        label: user.branch_name || user.branch_uuid,
+        value: userBranchUuid,
+        label: userBranchName || userBranchUuid,
       });
     }
 
     return options;
-  }, [branches, language, user?.branch_name, user?.branch_uuid]);
+  }, [branches, language, userBranchName, userBranchUuid]);
   const periodLabel = useMemo(() => {
     const start = text(
       model.requestParams.start_date,
@@ -348,14 +353,18 @@ export function DashboardPage() {
     void load(appliedFilters, top);
   }, [appliedFilters, load, top]);
 
-  useEffect(() => {
+  // ซิงก์ช่องกรองในฟอร์มกลับมาตรงกับช่วงวันที่ที่ backend ใช้จริง (request_params)
+  // ทำระหว่าง render แทน effect เพื่อไม่ให้ผู้ใช้เห็นวันที่เดิมแวบหนึ่งก่อนถูกแก้
+  // ยังคง dependency ชุดเดิม [data, responseFilterKey, responseFilters] เพื่อให้จังหวะ
+  // การซิงก์เหมือน effect เดิมทุกกรณี (เช่น refetch จากการเปลี่ยน top/ภาษา)
+  useResetOnDeps([data, responseFilterKey, responseFilters], () => {
     if (!data || !responseFilterKey.replaceAll("|", "")) return;
     setFilters((current) =>
       filtersKey(current) === responseFilterKey
         ? current
         : { ...current, ...responseFilters },
     );
-  }, [data, responseFilterKey, responseFilters]);
+  });
 
   if (loading && !data)
     return <LoadingState label={t("common.loading")} variant="dashboard" />;
