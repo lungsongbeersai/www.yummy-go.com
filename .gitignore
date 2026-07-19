@@ -13,3 +13,6 @@ next-env.d.ts
 
 # Local Netlify folder
 .netlify
+
+# Local isolated workspaces created by coding agents
+.worktrees/
