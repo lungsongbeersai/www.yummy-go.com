@@ -8,6 +8,7 @@ import {
   type ChangeEvent,
   type KeyboardEvent,
 } from "react";
+import { useResetOnChange, useResetOnDeps } from "@/hooks/use-reset-on-change";
 import { useTranslation } from "react-i18next";
 import { canUseWindowOpen } from "@/lib/capacitor-platform";
 import { money } from "@/lib/format";
@@ -191,12 +192,10 @@ export function usePaymentDialogWorkflow({
           currency: selectedCurrency.code,
         });
 
-  useEffect(() => {
+  // เปิด dialog ชำระเงิน = ตั้งค่าฟอร์มใหม่ทั้งชุดทันที (แยกจาก effect ที่โหลดอัตราแลกเปลี่ยน)
+  useResetOnChange(open, () => {
     if (!open) return;
-    const defaultAmount = defaultCurrencyInput(
-      totalAmount,
-      LAK_CURRENCY_OPTION,
-    );
+    const defaultAmount = defaultCurrencyInput(totalAmount, LAK_CURRENCY_OPTION);
     setActiveTab("cash");
     setActiveSplitField("cash");
     setCashInput(defaultAmount);
@@ -207,6 +206,10 @@ export function usePaymentDialogWorkflow({
     setDueDate("");
     setNote("");
     setConfirmOpen(false);
+  });
+
+  useEffect(() => {
+    if (!open) return;
     const storeUuid = authStoreUuid(user);
     if (storeUuid) {
       void loadExchangeRates({
@@ -216,10 +219,11 @@ export function usePaymentDialogWorkflow({
     }
   }, [isSplitPayment, language, loadExchangeRates, open, totalAmount, user]);
 
-  useEffect(() => {
+  // สกุลเงินที่เลือกหลุดจากรายการ (โหลดอัตราใหม่/สลับร้าน) = กลับไปใช้ LAK
+  useResetOnDeps([currencyOptions, currencyValue], () => {
     if (!currencyOptions.some((option) => option.value === currencyValue))
       setCurrencyValue(LAK_CURRENCY_VALUE);
-  }, [currencyOptions, currencyValue]);
+  });
 
   function handleCurrencyChange(value: string) {
     const option =
