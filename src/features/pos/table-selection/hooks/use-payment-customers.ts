@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useResetOnDeps } from "@/hooks/use-reset-on-change";
 import { useTranslation } from "react-i18next";
 import { customerFormInput } from "@/features/settings/customer/customer-utils";
 import { toApiLanguage } from "@/lib/language";
@@ -86,9 +87,8 @@ export function usePaymentCustomers({
     [customerOptions, customerUuid, selectedCustomer],
   );
 
-  useEffect(() => {
-    resetCustomers();
-  }, [language, open, resetCustomers, storeUuid]);
+  // เปิด/ปิด dialog หรือสลับร้าน/ภาษา = ล้างรายชื่อลูกค้าที่ค้างอยู่
+  useResetOnDeps([language, open, resetCustomers, storeUuid], () => resetCustomers());
 
   useEffect(() => {
     selectedCustomerRef.current = selectedCustomer;

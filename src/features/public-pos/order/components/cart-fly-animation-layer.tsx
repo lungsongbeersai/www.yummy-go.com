@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useState } from "react";
+import { useResetOnChange } from "@/hooks/use-reset-on-change";
 import { ImageIcon, Utensils } from "lucide-react";
 import { ProductImageStatus } from "@/config/pos-constants";
 import type { CateProductItem, ProdItem } from "@/services/pos";
@@ -47,13 +48,16 @@ function CartFlyAnimationItem({
   const [active, setActive] = useState(false);
   const reduceMotion = prefersReducedMotion();
 
+  // เริ่มแอนิเมชันชิ้นใหม่ = กลับไปสถานะตั้งต้นก่อน เพื่อให้ transition เล่นซ้ำได้
+  // (ต้องเป็น false ก่อนแล้วค่อย true ในเฟรมถัดไป CSS transition จึงจะทำงาน)
+  useResetOnChange(animation.id, () => setActive(false));
+
   useEffect(() => {
     if (reduceMotion) {
       const frame = window.requestAnimationFrame(() => onDone(animation.id));
       return () => window.cancelAnimationFrame(frame);
     }
 
-    setActive(false);
     const frame = window.requestAnimationFrame(() => setActive(true));
     const timer = window.setTimeout(() => onDone(animation.id), 680);
 

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import { useResetOnDeps } from "@/hooks/use-reset-on-change";
 import type { CartOrder, ProdItem } from "@/services/pos";
 import {
   publicMenuKindToStatusSortFk,
@@ -75,7 +76,8 @@ export function useProductOrderSheetWorkflow({
   const [qty, setQty] = useState(() => defaultOrderQty(initialDetail));
   const [note, setNote] = useState("");
 
-  useEffect(() => {
+  // เปิดแผงสั่งของสินค้าใหม่ (หรือรายการตัวเลือกเปลี่ยน) = เริ่มกรอกใหม่ทั้งหมด
+  useResetOnDeps([details, open, product], () => {
     if (!open || !product) return;
     const nextDetail = details.find(isDetailAvailable);
     setDetailUuid(nextDetail?.pro_detail_uuid ?? "");
@@ -83,7 +85,7 @@ export function useProductOrderSheetWorkflow({
     setToppingQtyByUuid({});
     setRememberedToppingQtyByUuid({});
     setNote("");
-  }, [details, open, product]);
+  });
 
   const selectedDetail = useMemo(
     () =>

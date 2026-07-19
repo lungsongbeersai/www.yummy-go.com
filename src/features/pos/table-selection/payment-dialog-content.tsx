@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useResetOnChange } from "@/hooks/use-reset-on-change";
 import Image from "next/image";
 import {
   Check,
@@ -89,11 +90,13 @@ const DEFAULT_PAYMENT_DIALOG_HEIGHT = "100dvh";
 function usePaymentDialogHeight(open: boolean) {
   const [height, setHeight] = useState(DEFAULT_PAYMENT_DIALOG_HEIGHT);
 
+  // ปิด dialog = กลับไปความสูงตั้งต้น (แยกจาก effect ที่คอยฟังขนาด viewport)
+  useResetOnChange(open, () => {
+    if (!open) setHeight(DEFAULT_PAYMENT_DIALOG_HEIGHT);
+  });
+
   useEffect(() => {
-    if (!open || typeof window === "undefined") {
-      setHeight(DEFAULT_PAYMENT_DIALOG_HEIGHT);
-      return;
-    }
+    if (!open || typeof window === "undefined") return;
 
     const viewport = window.visualViewport;
     const updateHeight = () => {

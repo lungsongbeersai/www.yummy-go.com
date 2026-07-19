@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useResetOnChange } from "@/hooks/use-reset-on-change";
 import { useRouter } from "next/navigation";
 import {
   KeyboardSensor,
@@ -132,9 +133,8 @@ export function PermissionMenuPage() {
     void refresh();
   }, [allowed, refresh]);
 
-  useEffect(() => {
-    setSelectedMenuId((current) => resolveSelectedPermissionMenuId(menus, current));
-  }, [menus]);
+  // เมนูชุดใหม่ = คงตัวที่เลือกไว้ถ้ายังอยู่ ไม่งั้นเลือกตัวแรกที่ใช้ได้
+  useResetOnChange(menus, () => setSelectedMenuId((current) => resolveSelectedPermissionMenuId(menus, current)));
 
   function refreshSidebarMenu() {
     void refreshPermissionSidebarMenu({

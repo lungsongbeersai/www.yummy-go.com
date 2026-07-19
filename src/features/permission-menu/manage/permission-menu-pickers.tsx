@@ -1,6 +1,7 @@
 "use client";
 
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import { useResetOnDeps } from "@/hooks/use-reset-on-change";
 import { Check, ChevronsUpDown, CircleSlash2, FileText, Search, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { MenuIcon } from "@/components/common/menu-icon";
@@ -71,9 +72,8 @@ export function IconPickerButton({
   );
   const hasMoreIcons = iconResults.options.length < iconResults.filteredTotal;
 
-  useEffect(() => {
-    setVisibleLimit(MENU_ICON_RESULT_LIMIT);
-  }, [activeLetter, search]);
+  // เปลี่ยนตัวอักษร/คำค้น = เริ่มนับจำนวนที่แสดงใหม่จากหน้าแรก
+  useResetOnDeps([activeLetter, search], () => setVisibleLimit(MENU_ICON_RESULT_LIMIT));
 
   useEffect(() => {
     if (!open || catalog) return;

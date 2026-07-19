@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
+import { useResetOnChange } from "@/hooks/use-reset-on-change";
 import { useTranslation } from "react-i18next";
 import { Save, UserCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -21,9 +22,8 @@ export function ProfilePage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordError, setPasswordError] = useState<string | null>(null);
 
-  useEffect(() => {
-    setDisplayName(user?.email ?? "");
-  }, [user?.email]);
+  // สลับผู้ใช้ = แสดงชื่อของผู้ใช้คนใหม่
+  useResetOnChange(user?.email, () => setDisplayName(user?.email ?? ""));
 
   function submitAccount(event: FormEvent) {
     event.preventDefault();
