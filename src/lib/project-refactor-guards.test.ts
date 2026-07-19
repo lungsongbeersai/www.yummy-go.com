@@ -302,6 +302,7 @@ describe("project refactor guards", () => {
     const mainProcess = readFileSync(join(projectRoot, "electron/main.ts"), "utf8");
 
     expect(mainProcess).toContain("process.resourcesPath");
+    expect(mainProcess).toContain("assertNextServerPortAvailable(PORT)");
     expect(mainProcess).toContain("utilityProcess.fork");
     expect(mainProcess).not.toContain("node_modules");
     expect(mainProcess).not.toContain(".bin");

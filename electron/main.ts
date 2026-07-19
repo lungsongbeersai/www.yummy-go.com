@@ -10,10 +10,12 @@ import {
 } from "electron";
 import path from "path";
 import {
+  assertNextServerPortAvailable,
   createNextServerEnvironment,
   createNextServerPaths,
   materializeNextServer,
   waitForNextServer,
+  waitForNextServerStartup,
 } from "../src/platform/electron/next-server-contract";
 
 let mainWindow: BrowserWindow | null = null;
@@ -180,6 +182,7 @@ async function startNextServer() {
     userDataPath: app.getPath("userData"),
   });
   await materializeNextServer(paths, appVersion);
+  await assertNextServerPortAvailable(PORT);
 
   const child = utilityProcess.fork(paths.runtimeEntry, [], {
     cwd: paths.runtimeDirectory,
@@ -197,22 +200,16 @@ async function startNextServer() {
   });
 
   try {
-    await new Promise<void>((resolve, reject) => {
-      const handleEarlyExit = (code: number) => {
-        reject(new Error(`Next server exited before readiness with code ${code}`));
-      };
-      child.once("exit", handleEarlyExit);
-
-      void waitForNextServer(BASE_URL).then(
-        () => {
-          child.removeListener("exit", handleEarlyExit);
-          resolve();
-        },
-        (error: unknown) => {
-          child.removeListener("exit", handleEarlyExit);
-          reject(error);
-        },
-      );
+    await waitForNextServerStartup({
+      subscribeError: (listener) => {
+        child.once("error", listener);
+        return () => child.removeListener("error", listener);
+      },
+      subscribeExit: (listener) => {
+        child.once("exit", listener);
+        return () => child.removeListener("exit", listener);
+      },
+      waitForReadiness: () => waitForNextServer(BASE_URL),
     });
   } catch (error) {
     child.kill();

@@ -7,6 +7,7 @@ import {
   rm,
   writeFile,
 } from "node:fs/promises";
+import { createServer } from "node:net";
 import { basename, dirname, join } from "node:path";
 
 export interface NextServerPathsInput {
@@ -26,9 +27,22 @@ export interface NextServerPaths {
 export interface ServerReadinessOptions {
   timeoutMs?: number;
   intervalMs?: number;
-  probe?: (url: string) => Promise<boolean>;
+  probe?: (url: string, signal: AbortSignal) => Promise<boolean>;
   now?: () => number;
   delay?: (milliseconds: number) => Promise<void>;
+}
+
+export type NextServerExitListener = (code: number) => void;
+export type NextServerErrorListener = (
+  type: "FatalError",
+  location: string,
+  report: string,
+) => void;
+
+export interface NextServerStartupOptions {
+  waitForReadiness: () => Promise<void>;
+  subscribeExit: (listener: NextServerExitListener) => () => void;
+  subscribeError: (listener: NextServerErrorListener) => () => void;
 }
 
 function sanitizeVersion(appVersion: string) {
@@ -69,6 +83,32 @@ export function createNextServerEnvironment(
     NODE_ENV: "production",
     PORT: String(port),
   };
+}
+
+export function assertNextServerPortAvailable(port: number) {
+  const hostname = "127.0.0.1";
+
+  return new Promise<void>((resolve, reject) => {
+    const server = createServer();
+    const handleError = (error: NodeJS.ErrnoException) => {
+      server.removeListener("listening", handleListening);
+      const message = error.code === "EADDRINUSE"
+        ? `${hostname}:${port} is already in use`
+        : `Could not verify ${hostname}:${port}: ${error.message}`;
+      reject(new Error(message));
+    };
+    const handleListening = () => {
+      server.removeListener("error", handleError);
+      server.close((error) => {
+        if (error) reject(error);
+        else resolve();
+      });
+    };
+
+    server.once("error", handleError);
+    server.once("listening", handleListening);
+    server.listen({ exclusive: true, host: hostname, port });
+  });
 }
 
 function assertVersionedRuntimePath(
@@ -125,9 +165,9 @@ export async function materializeNextServer(
   await rename(stagingDirectory, paths.runtimeDirectory);
 }
 
-async function defaultProbe(url: string) {
+async function defaultProbe(url: string, signal: AbortSignal) {
   try {
-    const response = await fetch(url);
+    const response = await fetch(url, { signal });
     return response.ok;
   } catch {
     return false;
@@ -138,6 +178,31 @@ function defaultDelay(milliseconds: number) {
   return new Promise<void>((resolve) => {
     setTimeout(resolve, milliseconds);
   });
+}
+
+const probeTimedOut = Symbol("probe-timed-out");
+
+async function probeWithinDeadline(
+  url: string,
+  probe: (url: string, signal: AbortSignal) => Promise<boolean>,
+  remainingMs: number,
+) {
+  const controller = new AbortController();
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<typeof probeTimedOut>((resolve) => {
+    timeout = setTimeout(() => {
+      resolve(probeTimedOut);
+      controller.abort();
+    }, remainingMs);
+  });
+
+  try {
+    return await Promise.race([probe(url, controller.signal), deadline]);
+  } catch {
+    return false;
+  } finally {
+    if (timeout) clearTimeout(timeout);
+  }
 }
 
 export async function waitForNextServer(
@@ -152,10 +217,19 @@ export async function waitForNextServer(
   const startedAt = now();
 
   while (true) {
-    try {
-      if (await probe(url)) return;
-    } catch {
-      // A rejected probe is another not-ready result during startup polling.
+    const remainingMs = timeoutMs - (now() - startedAt);
+    if (remainingMs <= 0) {
+      throw new Error(`Next server did not become ready within ${timeoutMs}ms`);
+    }
+
+    const probeResult = await probeWithinDeadline(
+      url,
+      probe,
+      remainingMs,
+    );
+    if (probeResult === true) return;
+    if (probeResult === probeTimedOut) {
+      throw new Error(`Next server did not become ready within ${timeoutMs}ms`);
     }
 
     const elapsedMs = now() - startedAt;
@@ -165,4 +239,63 @@ export async function waitForNextServer(
 
     await delay(Math.min(intervalMs, timeoutMs - elapsedMs));
   }
+}
+
+export function waitForNextServerStartup(
+  options: NextServerStartupOptions,
+): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    let settled = false;
+    let unsubscribeExit: (() => void) | undefined;
+    let unsubscribeError: (() => void) | undefined;
+
+    const cleanup = () => {
+      unsubscribeExit?.();
+      unsubscribeExit = undefined;
+      unsubscribeError?.();
+      unsubscribeError = undefined;
+    };
+    const settleReady = () => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      resolve();
+    };
+    const settleFailed = (reason: unknown) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      reject(reason);
+    };
+    const handleExit: NextServerExitListener = (code) => {
+      settleFailed(
+        new Error(`Next server exited before readiness with code ${code}`),
+      );
+    };
+    const handleError: NextServerErrorListener = (type, location) => {
+      settleFailed(
+        new Error(`Next server utility process failed: ${type} at ${location}`),
+      );
+    };
+
+    try {
+      const removeExit = options.subscribeExit(handleExit);
+      if (settled) {
+        removeExit();
+        return;
+      }
+      unsubscribeExit = removeExit;
+
+      const removeError = options.subscribeError(handleError);
+      if (settled) {
+        removeError();
+        return;
+      }
+      unsubscribeError = removeError;
+
+      void options.waitForReadiness().then(settleReady, settleFailed);
+    } catch (error) {
+      settleFailed(error);
+    }
+  });
 }

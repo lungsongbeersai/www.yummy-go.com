@@ -1,12 +1,17 @@
 import { access, mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  assertNextServerPortAvailable,
   createNextServerEnvironment,
   createNextServerPaths,
   materializeNextServer,
   waitForNextServer,
+  waitForNextServerStartup,
+  type NextServerErrorListener,
+  type NextServerExitListener,
   type NextServerPaths,
 } from "./next-server-contract";
 
@@ -16,6 +21,91 @@ async function temporaryRoot() {
   const root = await mkdtemp(join(tmpdir(), "yummy-go-next-server-"));
   temporaryRoots.push(root);
   return root;
+}
+
+async function settlementWithin(
+  promise: Promise<void>,
+  milliseconds: number,
+) {
+  return new Promise<"pending" | "rejected" | "resolved">((resolve) => {
+    const timeout = setTimeout(() => resolve("pending"), milliseconds);
+
+    void promise.then(
+      () => {
+        clearTimeout(timeout);
+        resolve("resolved");
+      },
+      () => {
+        clearTimeout(timeout);
+        resolve("rejected");
+      },
+    );
+  });
+}
+
+async function listenOnTemporaryPort() {
+  const server = createServer();
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen({ exclusive: true, host: "127.0.0.1", port: 0 }, resolve);
+  });
+  const address = server.address();
+  if (!address || typeof address === "string") {
+    throw new Error("Temporary TCP listener did not expose a numeric port");
+  }
+
+  return { port: address.port, server };
+}
+
+function closeServer(server: ReturnType<typeof createServer>) {
+  return new Promise<void>((resolve, reject) => {
+    server.close((error) => {
+      if (error) reject(error);
+      else resolve();
+    });
+  });
+}
+
+function createDeferredReadiness() {
+  let resolve: () => void = () => undefined;
+  let reject: (reason?: unknown) => void = () => undefined;
+  const promise = new Promise<void>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+
+  return { promise, reject, resolve };
+}
+
+function createStartupHarness() {
+  const readiness = createDeferredReadiness();
+  const errorListeners = new Set<NextServerErrorListener>();
+  const exitListeners = new Set<NextServerExitListener>();
+
+  return {
+    emitError(type: "FatalError", location: string, report: string) {
+      [...errorListeners].forEach((listener) =>
+        listener(type, location, report),
+      );
+    },
+    emitExit(code: number) {
+      [...exitListeners].forEach((listener) => listener(code));
+    },
+    errorListeners,
+    exitListeners,
+    options: {
+      subscribeError(listener: NextServerErrorListener) {
+        errorListeners.add(listener);
+        return () => errorListeners.delete(listener);
+      },
+      subscribeExit(listener: NextServerExitListener) {
+        exitListeners.add(listener);
+        return () => exitListeners.delete(listener);
+      },
+      waitForReadiness: () => readiness.promise,
+    },
+    readiness,
+  };
 }
 
 async function writePackagedRuntime(paths: NextServerPaths) {
@@ -46,6 +136,7 @@ async function writePackagedRuntime(paths: NextServerPaths) {
 }
 
 afterEach(async () => {
+  vi.unstubAllGlobals();
   await Promise.all(
     temporaryRoots.splice(0).map((root) =>
       rm(root, { force: true, recursive: true }),
@@ -93,6 +184,21 @@ describe("packaged Next server contract", () => {
       PORT: "4321",
       YUMMY_GO_SETTING: "preserved",
     });
+  });
+
+  it("refuses an occupied loopback port without closing its listener", async () => {
+    const { port, server } = await listenOnTemporaryPort();
+
+    try {
+      await expect(assertNextServerPortAvailable(port)).rejects.toThrow(
+        `127.0.0.1:${port} is already in use`,
+      );
+      expect(server.listening).toBe(true);
+    } finally {
+      await closeServer(server);
+    }
+
+    await expect(assertNextServerPortAvailable(port)).resolves.toBeUndefined();
   });
 
   it("copies the runtime payload and writes its version marker", async () => {
@@ -219,7 +325,7 @@ describe("packaged Next server contract", () => {
     expect(currentTime).toBe(50);
   });
 
-  it("rejects readiness after the configured timeout", async () => {
+  it("rejects at the timeout without starting another readiness probe", async () => {
     let attempts = 0;
     let currentTime = 0;
 
@@ -237,7 +343,96 @@ describe("packaged Next server contract", () => {
         timeoutMs: 100,
       }),
     ).rejects.toThrow("within 100ms");
-    expect(attempts).toBe(5);
+    expect(attempts).toBe(4);
     expect(currentTime).toBe(100);
+  });
+
+  it("rejects within the timeout when a readiness probe never settles", async () => {
+    const outcome = await settlementWithin(
+      waitForNextServer("http://127.0.0.1:3000", {
+        probe: () => new Promise<boolean>(() => undefined),
+        timeoutMs: 25,
+      }),
+      250,
+    );
+
+    expect(outcome).toBe("rejected");
+  });
+
+  it("aborts a stalled default fetch when the readiness timeout expires", async () => {
+    let observedSignal: AbortSignal | undefined;
+    vi.stubGlobal(
+      "fetch",
+      (_input: RequestInfo | URL, init?: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          observedSignal = init?.signal ?? undefined;
+          observedSignal?.addEventListener(
+            "abort",
+            () => reject(new DOMException("aborted", "AbortError")),
+            { once: true },
+          );
+        }),
+    );
+
+    const outcome = await settlementWithin(
+      waitForNextServer("http://127.0.0.1:3000", { timeoutMs: 25 }),
+      250,
+    );
+
+    expect(outcome).toBe("rejected");
+    expect(observedSignal?.aborted).toBe(true);
+  });
+
+  it("cleans process listeners when startup readiness resolves", async () => {
+    const harness = createStartupHarness();
+    const startup = waitForNextServerStartup(harness.options);
+    expect(harness.exitListeners.size).toBe(1);
+    expect(harness.errorListeners.size).toBe(1);
+
+    harness.readiness.resolve();
+
+    await expect(startup).resolves.toBeUndefined();
+    expect(harness.exitListeners.size).toBe(0);
+    expect(harness.errorListeners.size).toBe(0);
+  });
+
+  it("cleans process listeners when startup readiness rejects", async () => {
+    const harness = createStartupHarness();
+    const startup = waitForNextServerStartup(harness.options);
+    const readinessError = new Error("readiness failed");
+
+    harness.readiness.reject(readinessError);
+
+    await expect(startup).rejects.toBe(readinessError);
+    expect(harness.exitListeners.size).toBe(0);
+    expect(harness.errorListeners.size).toBe(0);
+  });
+
+  it("rejects an early process exit and cleans all startup listeners", async () => {
+    const harness = createStartupHarness();
+    const startup = waitForNextServerStartup(harness.options);
+
+    harness.emitExit(9);
+
+    await expect(startup).rejects.toThrow(
+      "Next server exited before readiness with code 9",
+    );
+    expect(harness.exitListeners.size).toBe(0);
+    expect(harness.errorListeners.size).toBe(0);
+    harness.readiness.resolve();
+  });
+
+  it("rejects a process error and cleans all startup listeners", async () => {
+    const harness = createStartupHarness();
+    const startup = waitForNextServerStartup(harness.options);
+
+    harness.emitError("FatalError", "v8-worker", "diagnostic report");
+
+    await expect(startup).rejects.toThrow(
+      "Next server utility process failed: FatalError at v8-worker",
+    );
+    expect(harness.exitListeners.size).toBe(0);
+    expect(harness.errorListeners.size).toBe(0);
+    harness.readiness.resolve();
   });
 });
