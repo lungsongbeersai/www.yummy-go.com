@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
+import { useResetOnChange } from "@/hooks/use-reset-on-change";
 import { Check, Minus, Plus, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
@@ -561,9 +562,8 @@ function QuantityControl({
   const { t } = useTranslation();
   const [draft, setDraft] = useState(String(qty));
 
-  useEffect(() => {
-    setDraft(String(qty));
-  }, [qty]);
+  // จำนวนถูกแก้จากที่อื่น (ปุ่ม +/-) = ให้ช่องกรอกตามค่าใหม่
+  useResetOnChange(qty, () => setDraft(String(qty)));
 
   function draftNumber() {
     const parsed = Number(draft);

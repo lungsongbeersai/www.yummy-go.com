@@ -38,17 +38,19 @@ export function TableSelectionPage() {
   const [statusFilter, setStatusFilter] = useState<TableStatusFilter>("all");
   const [now, setNow] = useState(() => new Date());
 
+  const branchUuid = user?.branch_uuid ?? "";
+
   const load = useCallback(async (zoneUuid = selectedZoneUuid) => {
-    if (!user?.branch_uuid) return [];
+    if (!branchUuid) return [];
     try {
-      const nextZones = await loadTables({ branch_uuid_fk: user.branch_uuid, zone_uuid: zoneUuid, lang: language });
+      const nextZones = await loadTables({ branch_uuid_fk: branchUuid, zone_uuid: zoneUuid, lang: language });
       if (!zoneUuid) setZoneOptions(nextZones);
       return nextZones;
     } catch (error) {
       showToast({ title: t("pos.failedTables"), description: error instanceof Error ? error.message : "", tone: "error" });
       return [];
     }
-  }, [language, loadTables, selectedZoneUuid, showToast, t, user?.branch_uuid]);
+  }, [branchUuid, language, loadTables, selectedZoneUuid, showToast, t]);
 
   const showOrderError = useCallback((error: unknown) => {
     showToast({ title: t("pos.orderFailed"), description: error instanceof Error ? error.message : "", tone: "error" });

@@ -121,7 +121,8 @@ export function useSalesListPage(initialPagination: UrlPaginationState) {
     void loadBranches(storeUuid, userBranchUuid).catch(() => undefined);
   }, [loadBranches, storeUuid, userBranchUuid]);
 
-  useEffect(() => {
+  // สลับสาขา = ตั้ง filter ใหม่ กลับหน้าแรก และล้างบิลที่เลือกไว้
+  useResetOnDeps([defaultBranchUuid, resetPage, resetSalesItems], () => {
     if (!defaultBranchUuid) {
       resetSalesItems();
       return;
@@ -136,7 +137,7 @@ export function useSalesListPage(initialPagination: UrlPaginationState) {
     resetPage();
     setSelectedBillId("");
     setMobileDetailOpen(false);
-  }, [defaultBranchUuid, resetPage, resetSalesItems]);
+  });
 
   useEffect(() => {
     const search = searchText.trim();
