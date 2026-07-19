@@ -188,8 +188,10 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
     !saving;
   const canSortProductDetails = !loading && !saving;
 
+  const branchUuid = user?.branch_uuid ?? "";
+
   const load = useCallback(async () => {
-    if (!user?.branch_uuid) return;
+    if (!branchUuid) return;
 
     try {
       await loadProducts({
@@ -197,7 +199,7 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
         page,
         limit: pageLimit,
         lang: language,
-        branch_uuid_fk: user.branch_uuid,
+        branch_uuid_fk: branchUuid,
         cate_uuid_fk: cateUuidFk,
         status_sort_fk: Number(statusSortFk)
       });
@@ -208,7 +210,7 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
         tone: "error"
       });
     }
-  }, [appliedSearch, cateUuidFk, language, loadProducts, page, pageLimit, showToast, statusSortFk, t, user?.branch_uuid]);
+  }, [appliedSearch, branchUuid, cateUuidFk, language, loadProducts, page, pageLimit, showToast, statusSortFk, t]);
 
   useEffect(() => {
     loadStatusSorts(language).catch((error) => {

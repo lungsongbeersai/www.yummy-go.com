@@ -22,14 +22,16 @@ export function CounterCheckoutPage() {
   const loadTables = usePosStore((state) => state.loadTables);
   const showToast = useToastStore((state) => state.show);
 
+  const branchUuid = user?.branch_uuid ?? "";
+
   const load = useCallback(async () => {
-    if (!user?.branch_uuid) return;
+    if (!branchUuid) return;
     try {
-      await loadTables({ branch_uuid_fk: user.branch_uuid, lang: language });
+      await loadTables({ branch_uuid_fk: branchUuid, lang: language });
     } catch (error) {
       showToast({ title: t("pos.failedTables"), description: error instanceof Error ? error.message : "", tone: "error" });
     }
-  }, [language, loadTables, showToast, t, user?.branch_uuid]);
+  }, [branchUuid, language, loadTables, showToast, t]);
 
   useEffect(() => {
     void load();

@@ -3,9 +3,7 @@
 import {
   createElement,
   useCallback,
-  useEffect,
   useMemo,
-  useRef,
   useState,
 } from "react";
 import { useResetOnChange } from "@/hooks/use-reset-on-change";
@@ -107,16 +105,18 @@ export function ReportIndeterminateCheckbox({
   indeterminate = false,
   ...props
 }: CheckboxProps & { indeterminate?: boolean }) {
-  const ref = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (ref.current) {
-      ref.current.indeterminate = indeterminate;
-    }
-  }, [indeterminate]);
+  // indeterminate ตั้งผ่าน DOM property เท่านั้น (ไม่มี attribute ให้ React จัดการ)
+  // ใช้ ref callback แทน effect: identity เปลี่ยนตาม indeterminate React จึงถอด/ต่อ ref
+  // ให้ใหม่และค่าถูกเซ็ตทันทีตอน commit โดยไม่ต้องรอ effect รอบถัดไป
+  const setIndeterminateRef = useCallback(
+    (node: HTMLInputElement | null) => {
+      if (node) node.indeterminate = indeterminate;
+    },
+    [indeterminate]
+  );
 
   return createElement(Checkbox, {
-    ref,
+    ref: setIndeterminateRef,
     "aria-checked": indeterminate ? "mixed" : props.checked ? "true" : "false",
     ...props,
   });

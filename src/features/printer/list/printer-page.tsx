@@ -301,11 +301,13 @@ export function PrinterPage() {
   const pageEnd = filteredRows.length;
   const agentStatusLabel = agentError ?? t(`printer.status.${agentStatus}`);
 
+  const loginUuid = user?.uuid ?? "";
+
   const load = useCallback(async () => {
-    if (!user?.uuid) return;
+    if (!loginUuid) return;
     try {
       await Promise.all([
-        loadPrintersForLocalAgent({ login_uuid_fk: user.uuid, lang: language }),
+        loadPrintersForLocalAgent({ login_uuid_fk: loginUuid, lang: language }),
         loadRoles(language),
         storeUuid ? loadCategories(language, storeUuid) : Promise.resolve([]),
       ]);
@@ -321,10 +323,10 @@ export function PrinterPage() {
     loadCategories,
     loadPrintersForLocalAgent,
     loadRoles,
+    loginUuid,
     showToast,
     storeUuid,
     t,
-    user?.uuid,
   ]);
 
   useEffect(() => {
