@@ -35,6 +35,7 @@ const directOrderCustomerServiceImportPattern =
 const routeFileNames = new Set([
   "default.tsx",
   "error.tsx",
+  "global-error.tsx",
   "layout.tsx",
   "loading.tsx",
   "not-found.tsx",
@@ -43,6 +44,7 @@ const routeFileNames = new Set([
 ]);
 const allowedClientRouteFiles = new Set([
   "app/error.tsx",
+  "app/global-error.tsx",
   "app/not-found.tsx",
   "app/(protected)/error.tsx",
   "app/(protected)/not-found.tsx"
@@ -421,6 +423,34 @@ describe("project refactor guards", () => {
 
     expect(oversizedRouteFiles).toEqual([]);
     expect(directUiImports).toEqual([]);
+  });
+
+  it("keeps a complete root error boundary", () => {
+    const globalError = readFileSync(join(srcDir, "app/global-error.tsx"), "utf8");
+
+    expect(globalError).toContain('"use client"');
+    expect(globalError).toContain("<html");
+    expect(globalError).toContain("<body");
+    expect(globalError).toContain("unstable_retry");
+  });
+
+  it("keeps search-param routes behind visible Suspense fallbacks", () => {
+    const suspenseRoutes = [
+      "app/pos/page.tsx",
+      "app/home/page.tsx",
+      "app/login/page.tsx",
+      "app/(protected)/printer/form/page.tsx",
+    ];
+
+    const missingFallback = suspenseRoutes.filter((route) => (
+      !readFileSync(join(srcDir, route), "utf8").includes("<Suspense fallback={")
+    ));
+
+    expect(missingFallback).toEqual([]);
+  });
+
+  it("keeps deprecated Next Image priority props out of source", () => {
+    expect(matchesInFiles(srcDir, /\bpriority(?:\s*=|\s*>)/g)).toEqual([]);
   });
 
   it("keeps the staff order workflow behind store actions", () => {

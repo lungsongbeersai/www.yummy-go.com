@@ -172,7 +172,7 @@ export const ProductCategorySection = memo(function ProductCategorySection({
               statusKind={statusKind}
               lang={lang}
               loading={loadingProductUuid === product.prod_uuid}
-              imagePriority={product.prod_uuid === priorityProductUuid}
+              imagePreload={product.prod_uuid === priorityProductUuid}
               variant={layoutMode}
               onProductClick={onProductClick}
             />

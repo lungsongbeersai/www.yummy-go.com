@@ -37,7 +37,7 @@ export const ProductCard = memo(function ProductCard({
   lang,
   loading,
   onProductClick,
-  imagePriority = false,
+  imagePreload = false,
   variant = "grid",
 }: {
   product: CateProductItem;
@@ -51,7 +51,7 @@ export const ProductCard = memo(function ProductCard({
     statusKind: PublicMenuKind,
     sourceRect?: DOMRect | null,
   ) => void;
-  imagePriority?: boolean;
+  imagePreload?: boolean;
   variant?: "grid" | "rail" | "railGrid" | "list";
 }) {
   const { t } = useTranslation();
@@ -140,7 +140,7 @@ export const ProductCard = memo(function ProductCard({
               variant="listThumb"
               blockedState={blockedState}
               blockedLabel={blockedLabel}
-              priority={imagePriority}
+              preload={imagePreload}
             />
           </div>
 
@@ -214,7 +214,7 @@ export const ProductCard = memo(function ProductCard({
             product={product}
             blockedState={blockedState}
             blockedLabel={blockedLabel}
-            priority={imagePriority}
+            preload={imagePreload}
           />
           {!isBlocked && promoLabel ? (
             <ProductPromoBadge label={promoLabel} overlay />
