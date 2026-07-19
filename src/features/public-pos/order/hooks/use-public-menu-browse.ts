@@ -103,7 +103,7 @@ export function usePublicMenuBrowse({
     activeCateUuid,
     activeValue,
     categoryBarRef,
-    categoryRefs,
+    categoryRefs: categoryRefsRef,
     categoryTabRefs,
     handleScrollJump,
     handleScrollToTop,
@@ -111,7 +111,7 @@ export function usePublicMenuBrowse({
     scrollJumpEdge,
     scrollToCategory,
     setStableActiveCateUuid,
-    suppressScrollActiveUntil,
+    suppressScrollActiveUntil: suppressScrollActiveUntilRef,
   } = usePublicCategoryScroll({
     defaultActiveCateUuid: firstLoadedCateUuid,
     hasScrollJumpPendingContent,
@@ -312,7 +312,7 @@ export function usePublicMenuBrowse({
       const targetLoading = loadingCateUuids.includes(cateUuid);
 
       renderCategoryPathTo(cateUuid);
-      suppressScrollActiveUntil.current =
+      suppressScrollActiveUntilRef.current =
         Date.now() +
         (targetLoaded
           ? CATEGORY_SCROLL_SUPPRESS_MS
@@ -343,7 +343,7 @@ export function usePublicMenuBrowse({
       renderCategoryPathTo,
       scrollToCategory,
       setStableActiveCateUuid,
-      suppressScrollActiveUntil,
+      suppressScrollActiveUntilRef,
       visibleCategoryTabs,
     ],
   );
@@ -374,7 +374,7 @@ export function usePublicMenuBrowse({
   ]);
 
   useEffect(() => {
-    categoryRefs.current = {};
+    categoryRefsRef.current = {};
 
     if (!menuCategories.length) {
       lastCategoryOrderKey.current = "";
@@ -411,7 +411,7 @@ export function usePublicMenuBrowse({
     setStableActiveCateUuid(firstCategory.cate_uuid);
   }, [
     categoryOrderKey,
-    categoryRefs,
+    categoryRefsRef,
     defaultCateUuid,
     menuCategories,
     menuCategoryByUuid,
@@ -487,7 +487,7 @@ export function usePublicMenuBrowse({
   return {
     activeValue,
     categoryBarRef,
-    categoryRefs,
+    categoryRefs: categoryRefsRef,
     categoryTabRefs,
     collapsedCateUuids,
     handleScrollJump,
