@@ -138,6 +138,17 @@ export function readPublicProductLayoutMode(): PublicProductLayoutMode {
   }
 }
 
+// external store สำหรับ useSyncExternalStore — ให้ component อ่าน layout mode
+// โดยไม่ต้อง setState ใน effect และอัปเดตทันทีเมื่อมีการเขียนค่าใหม่
+const publicProductLayoutModeListeners = new Set<() => void>();
+
+export function subscribePublicProductLayoutMode(listener: () => void) {
+  publicProductLayoutModeListeners.add(listener);
+  return () => {
+    publicProductLayoutModeListeners.delete(listener);
+  };
+}
+
 export function writePublicProductLayoutMode(mode: PublicProductLayoutMode) {
   if (typeof window === "undefined") return;
 
@@ -149,6 +160,8 @@ export function writePublicProductLayoutMode(mode: PublicProductLayoutMode) {
   } catch {
     // Ignore localStorage failures in private or restricted browser contexts.
   }
+
+  publicProductLayoutModeListeners.forEach((listener) => listener());
 }
 
 export function publicCategoryIconName(icon?: string | null) {

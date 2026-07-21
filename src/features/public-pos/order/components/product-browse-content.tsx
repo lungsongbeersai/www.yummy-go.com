@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useSyncExternalStore } from "react";
 import { Grid2X2, List, Loader2, Search } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,7 @@ import type { PublicProductLayoutMode } from "../types";
 import {
   readPublicProductLayoutMode,
   statusSectionLabel,
+  subscribePublicProductLayoutMode,
   writePublicProductLayoutMode,
 } from "../utils";
 import { BottomNav } from "./public-bottom-nav";
@@ -50,8 +51,12 @@ export function ProductBrowseContent({
   workflow: PublicBrowseWorkflow;
 }) {
   const { t } = useTranslation();
-  const [productLayoutMode, setProductLayoutMode] =
-    useState<PublicProductLayoutMode>("grid");
+  // server render ใช้ grid เสมอ ฝั่ง client sync จาก localStorage โดยไม่มี effect
+  const productLayoutMode = useSyncExternalStore(
+    subscribePublicProductLayoutMode,
+    readPublicProductLayoutMode,
+    (): PublicProductLayoutMode => "grid",
+  );
   const categoryRailRef = useRef<HTMLDivElement | null>(null);
   const {
     cart,
@@ -108,12 +113,7 @@ export function ProductBrowseContent({
   const gridLayoutLabel = t("settings.icons.grid");
   const listLayoutLabel = t("settings.icons.list");
 
-  useEffect(() => {
-    setProductLayoutMode(readPublicProductLayoutMode());
-  }, []);
-
   function handleProductLayoutModeChange(mode: PublicProductLayoutMode) {
-    setProductLayoutMode(mode);
     writePublicProductLayoutMode(mode);
   }
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useResetOnDeps } from "@/hooks/use-reset-on-change";
 import type { CateWithProducts } from "@/services/pos";
 import type { PublicPosCategoryTab } from "@/stores/public-pos-store/helpers";
 import {
@@ -475,7 +476,8 @@ export function usePublicCategoryScroll({
       scheduleScrollSpy();
     };
 
-    updateActiveCategoryFromViewport();
+    // วัดตำแหน่งครั้งแรกหลัง paint ผ่าน rAF — anchor ถูกวัดหลัง layout เสร็จและไม่ setState กลาง effect
+    scheduleScrollSpy();
     window.addEventListener("scroll", handleScroll, { passive: true });
     window.addEventListener("resize", handleViewportChange);
     window.addEventListener("orientationchange", handleViewportChange);
@@ -527,11 +529,11 @@ export function usePublicCategoryScroll({
     };
   }, [updateScrollJumpEdgeFromViewport]);
 
-  useEffect(() => {
+  useResetOnDeps([activeCateUuid, defaultActiveCateUuid], () => {
     if (defaultActiveCateUuid && !activeCateUuid) {
       setStableActiveCateUuid(defaultActiveCateUuid);
     }
-  }, [activeCateUuid, defaultActiveCateUuid, setStableActiveCateUuid]);
+  });
 
   return useMemo(
     () => ({

@@ -2,6 +2,7 @@
 
 import type { Route } from "next";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { useResetOnChange, useResetOnDeps } from "@/hooks/use-reset-on-change";
 import { useTranslation } from "react-i18next";
 import { openLocalInvoicePrintWindow, type InvoicePrintData } from "@/features/pos/print/invoice-print-window";
@@ -69,6 +70,7 @@ export function useSalesListPage(initialPagination: UrlPaginationState) {
   const [searchText, setSearchText] = useState("");
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
   const [mobileDetailOpen, setMobileDetailOpen] = useState(false);
+  const isDesktop = useMediaQuery(SALES_LIST_DESKTOP_MEDIA_QUERY);
   const [summaryVisible, setSummaryVisible] = useState(false);
   const [selectedBillId, setSelectedBillId] = useState("");
   const [printingBillId, setPrintingBillId] = useState("");
@@ -167,22 +169,11 @@ export function useSalesListPage(initialPagination: UrlPaginationState) {
     if (mobileDetailOpen && !selectedBill) setMobileDetailOpen(false);
   });
 
-  useEffect(() => {
-    if (!mobileDetailOpen) return;
-
-    const mediaQuery = window.matchMedia(SALES_LIST_DESKTOP_MEDIA_QUERY);
-    if (mediaQuery.matches) {
-      setMobileDetailOpen(false);
-      return;
-    }
-
-    const closeOnDesktop = (event: MediaQueryListEvent) => {
-      if (event.matches) setMobileDetailOpen(false);
-    };
-
-    mediaQuery.addEventListener("change", closeOnDesktop);
-    return () => mediaQuery.removeEventListener("change", closeOnDesktop);
-  }, [mobileDetailOpen]);
+  // ปิดแผงมือถือเมื่อจอ "ข้าม" เป็น desktop — ไม่ derive จากค่า isDesktop ตรงๆ
+  // เพราะย่อจอกลับมา mobile แล้วแผงต้องไม่เด้งเปิดเอง
+  useResetOnDeps([isDesktop], () => {
+    if (isDesktop) setMobileDetailOpen(false);
+  });
 
   const load = useCallback(async () => {
     const selectedBranch = appliedFilters.branchUuid || defaultBranchUuid;
