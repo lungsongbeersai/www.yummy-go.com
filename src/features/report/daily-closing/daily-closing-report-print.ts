@@ -20,6 +20,7 @@ export interface DailyClosingPrintLabels {
   grandTotal: string;
   group: string;
   groupTotal: string;
+  items: string;
   revenueSummary: string;
   noData: string;
   paymentTotal: string;
@@ -106,7 +107,7 @@ const DAILY_CLOSING_EXTRA_STYLES = `
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 8mm;
-        margin-top: 11mm;
+        margin-top: 20mm;
         page-break-inside: avoid;
         break-inside: avoid;
       }
@@ -294,6 +295,7 @@ export function renderDailyClosingReceiptBody(
 
         <span>
           ${escapeHtml(formatNumber(report.summary.totalQty))}
+          ${escapeHtml(labels.items)}
         </span>
       </div>
 

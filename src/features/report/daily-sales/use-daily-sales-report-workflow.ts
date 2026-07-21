@@ -9,7 +9,7 @@ import {
   type RefObject,
   type SetStateAction,
 } from "react";
-import { useResetOnChange, useResetOnDeps } from "@/hooks/use-reset-on-change";
+import { useResetOnDeps } from "@/hooks/use-reset-on-change";
 import { useTranslation } from "react-i18next";
 import { pageLimitSize } from "@/lib/pagination";
 import type { UrlPaginationState } from "@/lib/url-pagination";
@@ -86,6 +86,7 @@ export function useDailySalesReportWorkflow(
     branchError,
     branchLabelFor,
     branchLoading,
+    branchNormalizationKey,
     branchOptions,
     canSelectBranch,
     defaultBranchUuid,
@@ -236,7 +237,8 @@ export function useDailySalesReportWorkflow(
   );
 
   // รายการสาขาเปลี่ยน (โหลดเสร็จ/สลับร้าน) = ปรับสาขาใน filter ให้ยังใช้ได้เสมอ
-  useResetOnChange(normalizeBranchFilters, () => {
+  // ใช้ primitive key แทน callback identity เพื่อไม่ให้ reset ซ้ำทุก render
+  useResetOnDeps([branchNormalizationKey], () => {
     setDraftFilters((current) => normalizeBranchFilters(current));
     setAppliedFilters((current) => normalizeBranchFilters(current));
   });
@@ -847,4 +849,3 @@ function dailySalesBillGroupSelectionIds(group: DailySalesBillGroup) {
     `order:${group.invoiceNumber}`,
   ].filter(Boolean);
 }
-

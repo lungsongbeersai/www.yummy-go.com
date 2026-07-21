@@ -147,6 +147,7 @@ export function StorePermissionsPage() {
   const [permissionSearch, setPermissionSearch] = useState("");
   const [collapsedMenuIds, setCollapsedMenuIds] = useState<Set<string>>(() => new Set());
   const allowed = canManageStorePermissions(user?.status);
+  const loginUuid = user?.uuid ?? "";
   const userStatus = Number(user?.status ?? 0);
   const language = i18n.language;
   const roleTree = useMemo(() => currentRoleTree(tree, selectedRoleId), [selectedRoleId, tree]);
@@ -174,7 +175,7 @@ export function StorePermissionsPage() {
 
   const loadPermissionOptions = useCallback(async () => {
     try {
-      await loadOptions(userStatus, language);
+      await loadOptions(loginUuid, language);
     } catch (error) {
       showToast({
         description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
@@ -182,7 +183,7 @@ export function StorePermissionsPage() {
         tone: "error"
       });
     }
-  }, [language, loadOptions, showToast, t, userStatus]);
+  }, [language, loadOptions, loginUuid, showToast, t]);
 
   const loadPermissionTree = useCallback(async () => {
     try {
@@ -201,9 +202,9 @@ export function StorePermissionsPage() {
   }, [allowed, router]);
 
   useEffect(() => {
-    if (!allowed || !userStatus) return;
+    if (!allowed || !loginUuid) return;
     void loadPermissionOptions();
-  }, [allowed, loadPermissionOptions, userStatus]);
+  }, [allowed, loadPermissionOptions, loginUuid]);
 
   useEffect(() => {
     if (!allowed || !userStatus || !selectedStoreUuid || !selectedRoleId) return;
@@ -212,7 +213,7 @@ export function StorePermissionsPage() {
 
   async function refresh() {
     try {
-      await loadOptions(userStatus, language);
+      await loadOptions(loginUuid, language);
       await loadTree(userStatus, language);
     } catch (error) {
       showToast({

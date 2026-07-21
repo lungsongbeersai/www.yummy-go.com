@@ -102,12 +102,22 @@ export function useBestSellingProductsReportWorkflow(
   // รายงานนี้มี group filter เพิ่มจากรายงานอื่น จึงต้องรีเซ็ตกลุ่มที่หลุดจาก options
   // (สลับร้าน/กลุ่มถูกลบ/ยังโหลดกลุ่มไม่เสร็จ) กลับเป็น "ทั้งหมด" ก่อนค่อย normalize สาขา
   const normalizeFilters = useCallback(
-    (filters: BestSellingProductsFilters) => {
-      const nextGroupUuid = groupOptionValues.has(filters.groupUuid) ? filters.groupUuid : ALL_GROUPS_VALUE;
-      const nextFilters = filters.groupUuid === nextGroupUuid ? filters : { ...filters, groupUuid: nextGroupUuid };
-      return normalizeBranchFilters(nextFilters);
+    (filters: BestSellingProductsFilters): BestSellingProductsFilters => {
+      const nextGroupUuid = groupOptionValues.has(filters.groupUuid)
+        ? filters.groupUuid
+        : ALL_GROUPS_VALUE;
+
+      const nextFilters =
+        filters.groupUuid === nextGroupUuid
+          ? filters
+          : {
+            ...filters,
+            groupUuid: nextGroupUuid,
+          };
+
+      return normalizeBranchFilters(nextFilters) ?? nextFilters;
     },
-    [groupOptionValues, normalizeBranchFilters]
+    [groupOptionValues, normalizeBranchFilters],
   );
   const activeGroupLabel = selectedOptionLabel(groupOptions, appliedFilters.groupUuid, t("common.all"));
   const summaryCards = useMemo(() => bestSellingSummaryConfigs(t), [t]);
@@ -247,11 +257,11 @@ export function useBestSellingProductsReportWorkflow(
           },
           ...(summaryVisible
             ? [
-                {
-                  title: t("report.summary"),
-                  rows: exportSummaryRows(summaryCards, data.summary, t)
-                }
-              ]
+              {
+                title: t("report.summary"),
+                rows: exportSummaryRows(summaryCards, data.summary, t)
+              }
+            ]
             : []),
           bestSellingGroupedSection(data.groups, data.summary, t)
         ],

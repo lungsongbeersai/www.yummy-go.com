@@ -1,47 +1,82 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useResetOnChange } from "@/hooks/use-reset-on-change";
+import { useResetOnDeps } from "@/hooks/use-reset-on-change";
 
-export function useOptionRowSelection<Row>(rows: Row[], getId: (row: Row) => string) {
-  const [selectedRows, setSelectedRows] = useState<Set<string>>(() => new Set());
-  const ids = useMemo(() => rows.map(getId).filter(Boolean), [getId, rows]);
-  const allSelected = ids.length > 0 && ids.every((id) => selectedRows.has(id));
+export function useOptionRowSelection<Row>(
+  rows: Row[],
+  getId: (row: Row) => string,
+) {
+  const [selectedRows, setSelectedRows] = useState<Set<string>>(
+    () => new Set(),
+  );
 
-  // แถวที่เลือกไว้อาจหายไปหลังเปลี่ยนหน้า/ค้นหา/โหลดใหม่ ต้องตัดออกจาก selection
-  useResetOnChange(ids, () => {
+  const ids = useMemo(
+    () => rows.map(getId).filter(Boolean),
+    [getId, rows],
+  );
+
+  const allSelected =
+    ids.length > 0 &&
+    ids.every((id) => selectedRows.has(id));
+
+  // เปรียบเทียบสมาชิกของ ids แทน identity ของ array เพราะ getId หรือ rows
+  // อาจทำให้ array ถูกสร้างใหม่แม้รายการจริงยังเหมือนเดิม
+  useResetOnDeps(ids, () => {
     setSelectedRows((current) => {
-      if (!current.size) return current;
+      if (!current.size) {
+        return current;
+      }
+
       const allowed = new Set(ids);
-      let changed = false;
       const next = new Set<string>();
+      let changed = false;
+
       current.forEach((id) => {
-        if (allowed.has(id)) next.add(id);
-        else changed = true;
+        if (allowed.has(id)) {
+          next.add(id);
+        } else {
+          changed = true;
+        }
       });
+
       return changed ? next : current;
     });
   });
 
   function toggleSelected(id: string, checked: boolean) {
-    if (!id) return;
+    if (!id) {
+      return;
+    }
+
     setSelectedRows((current) => {
       const next = new Set(current);
-      if (checked) next.add(id);
-      else next.delete(id);
+
+      if (checked) {
+        next.add(id);
+      } else {
+        next.delete(id);
+      }
+
       return next;
     });
   }
 
   function toggleAll(checked: boolean) {
-    setSelectedRows(checked ? new Set(ids) : new Set());
+    setSelectedRows(
+      checked ? new Set(ids) : new Set(),
+    );
   }
 
   function removeSelected(id: string) {
     setSelectedRows((current) => {
-      if (!current.has(id)) return current;
+      if (!current.has(id)) {
+        return current;
+      }
+
       const next = new Set(current);
       next.delete(id);
+
       return next;
     });
   }
@@ -52,6 +87,6 @@ export function useOptionRowSelection<Row>(rows: Row[], getId: (row: Row) => str
     removeSelected,
     selectedRows,
     toggleAll,
-    toggleSelected
+    toggleSelected,
   };
 }

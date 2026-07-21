@@ -90,6 +90,7 @@ function printData(): DailyClosingPrintData {
       grandTotal: "Grand total",
       group: "Group",
       groupTotal: "Group total",
+      items: "items",
       noData: "No data",
       paymentTotal: "Payments received",
       product: "Product",
@@ -135,7 +136,7 @@ describe("daily closing report print", () => {
   it("shows base price × quantity under each product", () => {
     const html = renderDailyClosingPrintHtml(printData());
 
-    expect(html).toMatch(/Total quantity\s*<\/span>\s*<span>\s*2\s*<\/span>/);
+    expect(html).toMatch(/Total quantity\s*<\/span>\s*<span>\s*2\s*items\s*<\/span>/);
     expect(html).toContain(`${money(60000)} × 1`);
     expect(html).not.toContain("Unit price");
     expect(html).toContain("Cancelled bills (1)");

@@ -3,16 +3,18 @@
 import { create } from "zustand";
 import {
   checkedSubmenuIds,
+  fetchStorePermissionOptions,
   fetchStorePermissionSavedList,
-  fetchStorePermissionRoles,
-  fetchStorePermissionStores,
   fetchStorePermissionTree,
   saveStorePermissions,
   type StorePermissionRole,
   type StorePermissionStore,
   type StorePermissionTree
 } from "@/services/store-permissions";
-import { createSessionGuard, registerSessionStoreReset } from "@/stores/session-store-registry";
+import {
+  createSessionGuard,
+  registerSessionStoreReset
+} from "@/stores/session-store-registry";
 import { errorMessage } from "@/stores/store-utils";
 
 interface StorePermissionsState {
@@ -30,17 +32,32 @@ interface StorePermissionsState {
   selectedStoreUuid: string;
   stores: StorePermissionStore[];
   tree: StorePermissionTree | null;
-  loadOptions: (userStatus: number, lang?: string) => Promise<void>;
-  loadTree: (viewerRoleId: number, lang?: string) => Promise<void>;
+  loadOptions: (
+    loginUuid: string,
+    lang?: string
+  ) => Promise<void>;
+  loadTree: (
+    viewerRoleId: number,
+    lang?: string
+  ) => Promise<void>;
   reset: () => void;
   resetChanges: () => void;
-  save: (viewerRoleId: number, lang?: string) => Promise<void>;
+  save: (
+    viewerRoleId: number,
+    lang?: string
+  ) => Promise<void>;
   clearAllSubmenus: () => void;
   selectAllSubmenus: () => void;
   setRole: (roleId: number) => void;
   setStore: (storeUuid: string) => void;
-  toggleMenu: (menuId: string, checked: boolean) => void;
-  toggleSubmenu: (subId: string, checked: boolean) => void;
+  toggleMenu: (
+    menuId: string,
+    checked: boolean
+  ) => void;
+  toggleSubmenu: (
+    subId: string,
+    checked: boolean
+  ) => void;
 }
 
 function selectedSet(ids: string[]) {
@@ -48,237 +65,412 @@ function selectedSet(ids: string[]) {
 }
 
 function normalizeIds(ids: string[]) {
-  return Array.from(new Set(ids.map(String).filter(Boolean))).sort();
+  return Array.from(
+    new Set(ids.map(String).filter(Boolean))
+  ).sort();
 }
 
 function sameIds(left: string[], right: string[]) {
   const a = normalizeIds(left);
   const b = normalizeIds(right);
-  return a.length === b.length && a.every((id, index) => id === b[index]);
-}
 
-function storeStatusForUser(status: number) {
-  return Number(status) === 1 ? 1 : 2;
-}
-
-function allSubmenuIds(tree: StorePermissionTree | null, menuId: string) {
-  if (!tree) return [];
-  return tree.roles.flatMap((role) =>
-    role.menus
-      .filter((menu) => menu.menu_id === menuId)
-      .flatMap((menu) => menu.sub_detail.map((submenu) => submenu.sub_id))
+  return (
+    a.length === b.length &&
+    a.every((id, index) => id === b[index])
   );
 }
 
-function roleSubmenuIds(tree: StorePermissionTree | null, roleId: number | null) {
-  if (!tree || !roleId) return [];
-  const role = tree.roles.find((item) => item.role_id === roleId) ?? tree.roles[0];
-  return role?.menus.flatMap((menu) => menu.sub_detail.map((submenu) => submenu.sub_id)) ?? [];
+function allSubmenuIds(
+  tree: StorePermissionTree | null,
+  menuId: string
+) {
+  if (!tree) return [];
+
+  return tree.roles.flatMap((role) =>
+    role.menus
+      .filter((menu) => menu.menu_id === menuId)
+      .flatMap((menu) =>
+        menu.sub_detail.map(
+          (submenu) => submenu.sub_id
+        )
+      )
+  );
 }
 
-export const useStorePermissionsStore = create<StorePermissionsState>((set, get) => ({
-  checkedSubIds: [],
-  dirty: false,
-  error: null,
-  loadingOptions: false,
-  loadingSaved: false,
-  loadingTree: false,
-  roles: [],
-  savedCheckedSubIds: [],
-  savedList: null,
-  saving: false,
-  selectedRoleId: null,
-  selectedStoreUuid: "",
-  stores: [],
-  tree: null,
-  loadOptions: async (userStatus, lang) => {
-    const isCurrentSession = createSessionGuard();
-    set({ error: null, loadingOptions: true });
-    try {
-      const [stores, roles] = await Promise.all([
-        fetchStorePermissionStores(storeStatusForUser(userStatus), lang),
-        fetchStorePermissionRoles(userStatus, lang)
-      ]);
-      if (!isCurrentSession()) return;
+function roleSubmenuIds(
+  tree: StorePermissionTree | null,
+  roleId: number | null
+) {
+  if (!tree || !roleId) return [];
 
-      const currentStore = get().selectedStoreUuid;
-      const currentRole = get().selectedRoleId;
-      const selectedStoreUuid = stores.some((store) => store.store_uuid === currentStore)
-        ? currentStore
-        : stores[0]?.store_uuid ?? "";
-      const selectedRoleId = roles.some((role) => role.roles_id === currentRole)
-        ? currentRole
-        : roles[0]?.roles_id ?? null;
+  const role =
+    tree.roles.find(
+      (item) => item.role_id === roleId
+    ) ?? tree.roles[0];
+
+  return (
+    role?.menus.flatMap((menu) =>
+      menu.sub_detail.map(
+        (submenu) => submenu.sub_id
+      )
+    ) ?? []
+  );
+}
+
+export const useStorePermissionsStore =
+  create<StorePermissionsState>((set, get) => ({
+    checkedSubIds: [],
+    dirty: false,
+    error: null,
+    loadingOptions: false,
+    loadingSaved: false,
+    loadingTree: false,
+    roles: [],
+    savedCheckedSubIds: [],
+    savedList: null,
+    saving: false,
+    selectedRoleId: null,
+    selectedStoreUuid: "",
+    stores: [],
+    tree: null,
+
+    loadOptions: async (loginUuid, lang) => {
+      const isCurrentSession = createSessionGuard();
 
       set({
-        ...(selectedStoreUuid !== currentStore || selectedRoleId !== currentRole
-          ? {
-            checkedSubIds: [],
-            dirty: false,
-            savedCheckedSubIds: [],
-            savedList: null,
-            tree: null
-          }
-          : {}),
-        loadingOptions: false,
-        roles,
-        selectedRoleId,
-        selectedStoreUuid,
-        stores
+        error: null,
+        loadingOptions: true
       });
-    } catch (error) {
-      if (isCurrentSession()) set({ error: errorMessage(error), loadingOptions: false });
-      throw error;
-    }
-  },
-  loadTree: async (viewerRoleId, lang) => {
-    const isCurrentSession = createSessionGuard();
-    const { selectedRoleId, selectedStoreUuid } = get();
-    if (!selectedStoreUuid || !selectedRoleId) {
+
+      try {
+        const { stores, roles } =
+          await fetchStorePermissionOptions(
+            loginUuid,
+            lang
+          );
+
+        if (!isCurrentSession()) return;
+
+        const currentStore =
+          get().selectedStoreUuid;
+        const currentRole =
+          get().selectedRoleId;
+
+        const selectedStoreUuid = stores.some(
+          (store) =>
+            store.store_uuid === currentStore
+        )
+          ? currentStore
+          : stores[0]?.store_uuid ?? "";
+
+        const selectedRoleId = roles.some(
+          (role) =>
+            role.roles_id === currentRole
+        )
+          ? currentRole
+          : roles[0]?.roles_id ?? null;
+
+        const selectionChanged =
+          selectedStoreUuid !== currentStore ||
+          selectedRoleId !== currentRole;
+
+        set({
+          ...(selectionChanged
+            ? {
+                checkedSubIds: [],
+                dirty: false,
+                savedCheckedSubIds: [],
+                savedList: null,
+                tree: null
+              }
+            : {}),
+          loadingOptions: false,
+          roles,
+          selectedRoleId,
+          selectedStoreUuid,
+          stores
+        });
+      } catch (error) {
+        if (isCurrentSession()) {
+          set({
+            error: errorMessage(error),
+            loadingOptions: false
+          });
+        }
+
+        throw error;
+      }
+    },
+
+    loadTree: async (viewerRoleId, lang) => {
+      const isCurrentSession = createSessionGuard();
+      const {
+        selectedRoleId,
+        selectedStoreUuid
+      } = get();
+
+      if (
+        !selectedStoreUuid ||
+        !selectedRoleId
+      ) {
+        set({
+          checkedSubIds: [],
+          dirty: false,
+          savedCheckedSubIds: [],
+          savedList: null,
+          tree: null
+        });
+        return;
+      }
+
+      set({
+        error: null,
+        loadingSaved: true,
+        loadingTree: true
+      });
+
+      try {
+        const [tree, savedList] =
+          await Promise.all([
+            fetchStorePermissionTree(
+              selectedStoreUuid,
+              selectedRoleId,
+              lang
+            ),
+            fetchStorePermissionSavedList(
+              selectedStoreUuid,
+              viewerRoleId,
+              lang
+            )
+          ]);
+
+        if (!isCurrentSession()) return;
+
+        const savedCheckedSubIds =
+          checkedSubmenuIds(tree);
+
+        set({
+          checkedSubIds:
+            savedCheckedSubIds,
+          dirty: false,
+          loadingSaved: false,
+          loadingTree: false,
+          savedCheckedSubIds,
+          savedList,
+          tree
+        });
+      } catch (error) {
+        if (isCurrentSession()) {
+          set({
+            error: errorMessage(error),
+            loadingSaved: false,
+            loadingTree: false
+          });
+        }
+
+        throw error;
+      }
+    },
+
+    reset: () =>
+      set({
+        checkedSubIds: [],
+        dirty: false,
+        error: null,
+        loadingOptions: false,
+        loadingSaved: false,
+        loadingTree: false,
+        roles: [],
+        savedCheckedSubIds: [],
+        savedList: null,
+        saving: false,
+        selectedRoleId: null,
+        selectedStoreUuid: "",
+        stores: [],
+        tree: null
+      }),
+
+    resetChanges: () =>
+      set((state) => ({
+        checkedSubIds:
+          state.savedCheckedSubIds,
+        dirty: false
+      })),
+
+    save: async (viewerRoleId, lang) => {
+      const isCurrentSession =
+        createSessionGuard();
+
+      const {
+        checkedSubIds,
+        dirty,
+        selectedRoleId,
+        selectedStoreUuid
+      } = get();
+
+      if (
+        !selectedStoreUuid ||
+        !selectedRoleId ||
+        !dirty
+      ) {
+        return;
+      }
+
+      set({
+        error: null,
+        saving: true
+      });
+
+      try {
+        await saveStorePermissions({
+          company_uuid_fk:
+            selectedStoreUuid,
+          role_id: selectedRoleId,
+          sub_id_list: checkedSubIds
+        });
+
+        const [tree, savedList] =
+          await Promise.all([
+            fetchStorePermissionTree(
+              selectedStoreUuid,
+              selectedRoleId,
+              lang
+            ),
+            fetchStorePermissionSavedList(
+              selectedStoreUuid,
+              viewerRoleId,
+              lang
+            )
+          ]);
+
+        if (!isCurrentSession()) return;
+
+        const savedCheckedSubIds =
+          checkedSubmenuIds(tree);
+
+        set({
+          checkedSubIds:
+            savedCheckedSubIds,
+          dirty: false,
+          savedCheckedSubIds,
+          savedList,
+          saving: false,
+          tree
+        });
+      } catch (error) {
+        if (isCurrentSession()) {
+          set({
+            error: errorMessage(error),
+            saving: false
+          });
+        }
+
+        throw error;
+      }
+    },
+
+    clearAllSubmenus: () =>
+      set((state) => ({
+        checkedSubIds: [],
+        dirty: !sameIds(
+          [],
+          state.savedCheckedSubIds
+        )
+      })),
+
+    selectAllSubmenus: () =>
+      set((state) => {
+        const checkedSubIds =
+          roleSubmenuIds(
+            state.tree,
+            state.selectedRoleId
+          );
+
+        return {
+          checkedSubIds,
+          dirty: !sameIds(
+            checkedSubIds,
+            state.savedCheckedSubIds
+          )
+        };
+      }),
+
+    setRole: (roleId) =>
+      set({
+        checkedSubIds: [],
+        dirty: false,
+        savedCheckedSubIds: [],
+        selectedRoleId: roleId,
+        tree: null
+      }),
+
+    setStore: (storeUuid) =>
       set({
         checkedSubIds: [],
         dirty: false,
         savedCheckedSubIds: [],
         savedList: null,
+        selectedStoreUuid: storeUuid,
         tree: null
-      });
-      return;
-    }
+      }),
 
-    set({ error: null, loadingSaved: true, loadingTree: true });
-    try {
-      const [tree, savedList] = await Promise.all([
-        fetchStorePermissionTree(selectedStoreUuid, selectedRoleId, lang),
-        fetchStorePermissionSavedList(selectedStoreUuid, viewerRoleId, lang)
-      ]);
-      if (!isCurrentSession()) return;
+    toggleMenu: (menuId, checked) =>
+      set((state) => {
+        const ids = allSubmenuIds(
+          state.tree,
+          menuId
+        );
+        const next = selectedSet(
+          state.checkedSubIds
+        );
 
-      const savedCheckedSubIds = checkedSubmenuIds(tree);
-      set({
-        checkedSubIds: savedCheckedSubIds,
-        dirty: false,
-        loadingSaved: false,
-        loadingTree: false,
-        savedCheckedSubIds,
-        savedList,
-        tree
-      });
-    } catch (error) {
-      if (isCurrentSession()) {
-        set({ error: errorMessage(error), loadingSaved: false, loadingTree: false });
-      }
-      throw error;
-    }
-  },
-  reset: () =>
-    set({
-      checkedSubIds: [],
-      dirty: false,
-      error: null,
-      loadingOptions: false,
-      loadingSaved: false,
-      loadingTree: false,
-      roles: [],
-      savedCheckedSubIds: [],
-      savedList: null,
-      saving: false,
-      selectedRoleId: null,
-      selectedStoreUuid: "",
-      stores: [],
-      tree: null
-    }),
-  resetChanges: () =>
-    set((state) => ({
-      checkedSubIds: state.savedCheckedSubIds,
-      dirty: false
-    })),
-  save: async (viewerRoleId, lang) => {
-    const isCurrentSession = createSessionGuard();
-    const { checkedSubIds, dirty, selectedRoleId, selectedStoreUuid } = get();
-    if (!selectedStoreUuid || !selectedRoleId || !dirty) return;
+        ids.forEach((id) => {
+          if (checked) {
+            next.add(id);
+          } else {
+            next.delete(id);
+          }
+        });
 
-    set({ error: null, saving: true });
-    try {
-      await saveStorePermissions({
-        company_uuid_fk: selectedStoreUuid,
-        role_id: selectedRoleId,
-        sub_id_list: checkedSubIds
-      });
-      const [tree, savedList] = await Promise.all([
-        fetchStorePermissionTree(selectedStoreUuid, selectedRoleId, lang),
-        fetchStorePermissionSavedList(selectedStoreUuid, viewerRoleId, lang)
-      ]);
-      if (!isCurrentSession()) return;
+        const checkedSubIds =
+          Array.from(next);
 
-      const savedCheckedSubIds = checkedSubmenuIds(tree);
-      set({
-        checkedSubIds: savedCheckedSubIds,
-        dirty: false,
-        savedCheckedSubIds,
-        savedList,
-        saving: false,
-        tree
-      });
-    } catch (error) {
-      if (isCurrentSession()) set({ error: errorMessage(error), saving: false });
-      throw error;
-    }
-  },
-  clearAllSubmenus: () =>
-    set((state) => ({
-      checkedSubIds: [],
-      dirty: !sameIds([], state.savedCheckedSubIds)
-    })),
-  selectAllSubmenus: () =>
-    set((state) => {
-      const checkedSubIds = roleSubmenuIds(state.tree, state.selectedRoleId);
-      return {
-        checkedSubIds,
-        dirty: !sameIds(checkedSubIds, state.savedCheckedSubIds)
-      };
-    }),
-  setRole: (roleId) =>
-    set({
-      checkedSubIds: [],
-      dirty: false,
-      savedCheckedSubIds: [],
-      selectedRoleId: roleId,
-      tree: null
-    }),
-  setStore: (storeUuid) =>
-    set({
-      checkedSubIds: [],
-      dirty: false,
-      savedCheckedSubIds: [],
-      savedList: null,
-      selectedStoreUuid: storeUuid,
-      tree: null
-    }),
-  toggleMenu: (menuId, checked) =>
-    set((state) => {
-      const ids = allSubmenuIds(state.tree, menuId);
-      const next = selectedSet(state.checkedSubIds);
-      ids.forEach((id) => {
-        if (checked) next.add(id);
-        else next.delete(id);
-      });
-      const checkedSubIds = Array.from(next);
-      return {
-        checkedSubIds,
-        dirty: !sameIds(checkedSubIds, state.savedCheckedSubIds)
-      };
-    }),
-  toggleSubmenu: (subId, checked) =>
-    set((state) => {
-      const next = selectedSet(state.checkedSubIds);
-      if (checked) next.add(subId);
-      else next.delete(subId);
-      const checkedSubIds = Array.from(next);
-      return {
-        checkedSubIds,
-        dirty: !sameIds(checkedSubIds, state.savedCheckedSubIds)
-      };
-    })
-}));
+        return {
+          checkedSubIds,
+          dirty: !sameIds(
+            checkedSubIds,
+            state.savedCheckedSubIds
+          )
+        };
+      }),
 
-registerSessionStoreReset("store-permissions", () => useStorePermissionsStore.getState().reset());
+    toggleSubmenu: (subId, checked) =>
+      set((state) => {
+        const next = selectedSet(
+          state.checkedSubIds
+        );
+
+        if (checked) {
+          next.add(subId);
+        } else {
+          next.delete(subId);
+        }
+
+        const checkedSubIds =
+          Array.from(next);
+
+        return {
+          checkedSubIds,
+          dirty: !sameIds(
+            checkedSubIds,
+            state.savedCheckedSubIds
+          )
+        };
+      })
+  }));
+
+registerSessionStoreReset(
+  "store-permissions",
+  () =>
+    useStorePermissionsStore.getState().reset()
+);
