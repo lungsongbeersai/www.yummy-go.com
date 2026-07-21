@@ -1,16 +1,11 @@
 import { notFound } from "next/navigation";
 import { SettingsEntityRoute } from "@/features/settings/shared/settings-entity-route";
 import { SETTINGS } from "@/features/settings/shared/settings-config";
-import { parseUrlPagination, type UrlSearchParamsRecord } from "@/lib/url-pagination";
+import { parseUrlPagination } from "@/lib/url-pagination";
 
-interface PageProps {
-  params: Promise<{ entity: string }>;
-  searchParams: Promise<UrlSearchParamsRecord>;
-}
-
-export default async function Page({ params, searchParams }: PageProps) {
-  const { entity } = await params;
-  const query = await searchParams;
+export default async function Page(props: PageProps<"/setting/[entity]">) {
+  const { entity } = await props.params;
+  const query = await props.searchParams;
   const config = SETTINGS[entity];
   if (!config) notFound();
   return <SettingsEntityRoute entity={entity} initialPagination={parseUrlPagination(query)} />;

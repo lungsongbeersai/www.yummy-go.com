@@ -1,10 +1,8 @@
 import { TableSettingsPage } from "@/features/settings/table/table-page";
-import { parseUrlPagination, type UrlSearchParamsRecord } from "@/lib/url-pagination";
+import { parseUrlPagination } from "@/lib/url-pagination";
 
-type SearchParams = Promise<UrlSearchParamsRecord>;
-
-export default async function Page({ searchParams }: { searchParams: SearchParams }) {
-  const params = await searchParams;
+export default async function Page(props: PageProps<"/setting/table">) {
+  const params = await props.searchParams;
 
   return <TableSettingsPage initialPagination={parseUrlPagination(params)} />;
 }

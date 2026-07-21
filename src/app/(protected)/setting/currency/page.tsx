@@ -1,10 +1,8 @@
 import { CurrencySettingsPage } from "@/features/settings/currency/currency-page";
-import { parseUrlPagination, type UrlSearchParamsRecord } from "@/lib/url-pagination";
+import { parseUrlPagination } from "@/lib/url-pagination";
 
-type SearchParams = Promise<UrlSearchParamsRecord>;
-
-export default async function Page({ searchParams }: { searchParams: SearchParams }) {
-  const params = await searchParams;
+export default async function Page(props: PageProps<"/setting/currency">) {
+  const params = await props.searchParams;
 
   return <CurrencySettingsPage initialPagination={parseUrlPagination(params)} />;
 }

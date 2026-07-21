@@ -1,18 +1,9 @@
 import { STOCK_PAGE_LIMIT_OPTIONS } from "@/features/stock/stock-constants";
 import { StockPage } from "@/features/stock/stock-page";
-import {
-  parseUrlPagination,
-  type UrlSearchParamsRecord,
-} from "@/lib/url-pagination";
+import { parseUrlPagination } from "@/lib/url-pagination";
 
-type SearchParams = Promise<UrlSearchParamsRecord>;
-
-export default async function Page({
-  searchParams,
-}: {
-  searchParams: SearchParams;
-}) {
-  const params = await searchParams;
+export default async function Page(props: PageProps<"/stock">) {
+  const params = await props.searchParams;
 
   return (
     <StockPage

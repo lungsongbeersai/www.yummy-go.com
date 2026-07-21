@@ -1,11 +1,9 @@
 import { CancelSalePage } from "@/features/sales/cancel-sale/cancel-sale-page";
 import { INITIAL_DATE_SELECT, SALES_LIST_LIMIT_OPTIONS } from "@/features/sales/cancel-sale/cancel-sale-utils";
-import { firstUrlParam, parseUrlPagination, type UrlSearchParamsRecord } from "@/lib/url-pagination";
+import { firstUrlParam, parseUrlPagination } from "@/lib/url-pagination";
 
-type SearchParams = Promise<UrlSearchParamsRecord>;
-
-export default async function Page({ searchParams }: { searchParams: SearchParams }) {
-  const params = await searchParams;
+export default async function Page(props: PageProps<"/sales/cancel-sale">) {
+  const params = await props.searchParams;
   const dateSelect = firstUrlParam(params.date_select) === "yesterday" ? "yesterday" : INITIAL_DATE_SELECT;
 
   return (

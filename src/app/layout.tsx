@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { cookies } from "next/headers";
 import { Noto_Sans_Lao } from "next/font/google";
-import Script from "next/script";
 import { Providers } from "@/app/providers";
 import { DEFAULT_LANGUAGE, LANGUAGE_COOKIE, toLanguage } from "@/lib/language";
 import { WINDOW_OPEN_FONT_STYLESHEET_HREF } from "@/lib/window-open-fonts";
@@ -55,11 +54,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html lang={initialLanguage} className={notoSansLao.variable} suppressHydrationWarning>
       <head>
         <link rel="stylesheet" href={WINDOW_OPEN_FONT_STYLESHEET_HREF} />
-        <Script
-          id="theme-bootstrap"
-          strategy="beforeInteractive"
-          dangerouslySetInnerHTML={{ __html: themeBootstrapScript }}
-        />
+        {/* ต้องรันก่อน paint แรกกัน dark-mode flash — inline script ตรงตามแพตเทิร์นที่ Next แนะนำ */}
+        <script dangerouslySetInnerHTML={{ __html: themeBootstrapScript }} />
       </head>
       <body>
         <Providers initialLanguage={initialLanguage}>{children}</Providers>
