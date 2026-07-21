@@ -1,8 +1,10 @@
 import { apiRequest } from "@/lib/api";
 import { toApiLanguage } from "@/lib/language";
 import { normalizeMenuIconName } from "@/lib/menu-icons";
+import { deleteEntity, saveEntity } from "@/services/shared/crud";
+import { numberValue, text } from "@/services/shared/normalize";
 import { requiredText } from "@/services/shared/validators";
-import type { ApiDataResponse, ApiListResponse, ApiMessageResponse } from "@/services/shared/types";
+import type { ApiListResponse, ApiMessageResponse } from "@/services/shared/types";
 
 const MAIN_MENU_ENDPOINTS = {
   create: "/api/v1/menus_bar/create",
@@ -73,16 +75,6 @@ export type RawPermissionSubMenu = Partial<PermissionSubMenu>;
 export type RawPermissionMainMenu = Partial<Omit<PermissionMainMenu, "sub_detail">> & {
   sub_detail?: RawPermissionSubMenu[];
 };
-
-function text(value: unknown, fallback = "") {
-  const next = String(value ?? "").trim();
-  return next || fallback;
-}
-
-function numberValue(value: unknown, fallback = 0) {
-  const next = Number(value);
-  return Number.isFinite(next) ? next : fallback;
-}
 
 export function permissionMenuBadgeValue(value: unknown) {
   return Number(value) === 1 ? 1 : 2;
@@ -182,23 +174,16 @@ export async function fetchPermissionMenuTree(lang?: string): Promise<Permission
 }
 
 export async function createPermissionMainMenu(input: CreateMainMenuInput) {
-  const payload = buildCreateMainMenuPayload(input);
-  const result = await apiRequest<ApiDataResponse<PermissionMainMenu>>(
-    "post",
+  const data = await saveEntity<PermissionMainMenu>(
     MAIN_MENU_ENDPOINTS.create,
-    { data: payload },
+    buildCreateMainMenuPayload(input),
     "Failed to create menu"
   );
-  return result.data ? normalizePermissionMainMenu(result.data) : null;
+  return data ? normalizePermissionMainMenu(data) : null;
 }
 
 export async function deletePermissionMainMenu(menuId: string) {
-  await apiRequest<ApiMessageResponse>(
-    "delete",
-    MAIN_MENU_ENDPOINTS.delete,
-    { data: { menu_id: requiredText(menuId, "menu_id") } },
-    "Failed to delete menu"
-  );
+  await deleteEntity(MAIN_MENU_ENDPOINTS.delete, "menu_id", menuId, "Failed to delete menu");
 }
 
 export function buildMainMenuSortPayload(menus: Pick<PermissionMainMenu, "menu_id">[]) {
@@ -221,22 +206,16 @@ export async function sortPermissionMainMenus(menus: Pick<PermissionMainMenu, "m
 
 export async function createPermissionSubMenu(input: CreateSubMenuInput) {
   const payload = buildCreateSubMenuPayload(input);
-  const result = await apiRequest<ApiDataResponse<PermissionSubMenu>>(
-    "post",
+  const data = await saveEntity<PermissionSubMenu>(
     SUBMENU_ENDPOINTS.create,
-    { data: payload },
+    payload,
     "Failed to create submenu"
   );
-  return result.data ? normalizePermissionSubMenu(result.data, payload.menu_id) : null;
+  return data ? normalizePermissionSubMenu(data, payload.menu_id) : null;
 }
 
 export async function deletePermissionSubMenu(subId: string) {
-  await apiRequest<ApiMessageResponse>(
-    "delete",
-    SUBMENU_ENDPOINTS.delete,
-    { data: { sub_id: requiredText(subId, "sub_id") } },
-    "Failed to delete submenu"
-  );
+  await deleteEntity(SUBMENU_ENDPOINTS.delete, "sub_id", subId, "Failed to delete submenu");
 }
 
 export function buildSubMenuSortPayload(menuId: string, submenus: Pick<PermissionSubMenu, "sub_id">[]) {

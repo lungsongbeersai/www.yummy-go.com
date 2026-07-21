@@ -526,7 +526,8 @@ export interface ConfirmOrderItemServedInput { order_it_uuid: string }
 export interface CancelOrderItemInput { order_it_uuid: string }
 export interface CreateTableQRRequest extends ApiEntity {
   table_uuid: string;
-  login_uuid_fk: string;
+  // optional: เส้นทางดู/รีเฟรช QR (loadTableQr) ไม่ต้องส่ง identity ของเครื่องพิมพ์
+  login_uuid_fk?: string;
   lang?: string;
   device_code?: string;
   agent_id?: string;

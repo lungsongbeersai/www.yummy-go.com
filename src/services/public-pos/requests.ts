@@ -1,6 +1,6 @@
 import { publicApiClient, publicApiRequest, ServiceError } from "@/lib/api";
+import { toApiLanguage } from "@/lib/language";
 import { normalizeFetchCateProductsResponse } from "@/services/pos/normalizers";
-import { langParam } from "@/services/shared/request-helpers";
 import { requiredItems, requiredToken } from "@/services/shared/validators";
 import type { EmitTableStatusResponse, ProdItem } from "@/services/pos";
 import type {
@@ -28,27 +28,27 @@ import type {
 
 export function scanTableQR(t: string, lang = "la") {
   return publicApiRequest<QRScanResponse>("get", "/api/v1/pos/customer/qrscan", {
-    params: { t: requiredToken(t), lang: langParam(lang) }
+    params: { t: requiredToken(t), lang: toApiLanguage(lang) }
   });
 }
 
 export async function fetchCustomerStatusSorts(lang = "la") {
   const result = await publicApiRequest<PublicStatusSortResponse>("get", "/api/v1/status/fetch_all", {
-    params: { lang: langParam(lang) }
+    params: { lang: toApiLanguage(lang) }
   });
   return result.data ?? [];
 }
 
 export function fetchCustomerCart(params: CustomerFetchCartParams) {
   return publicApiRequest<FetchCartResponse>("get", "/api/v1/pos/customer/fetch_cart", {
-    params: { t: requiredToken(params.t), lang: langParam(params.lang) }
+    params: { t: requiredToken(params.t), lang: toApiLanguage(params.lang) }
   });
 }
 
 export async function customerFetchCateProducts(params: CustomerFetchCateProductsParams) {
   const requestParams: Record<string, string | number | undefined> = {
     t: requiredToken(params.t),
-    lang: langParam(params.lang),
+    lang: toApiLanguage(params.lang),
     search: params.search ?? ""
   };
 
@@ -69,7 +69,7 @@ export async function customerGetProdItem(params: CustomerGetProdItemParams) {
     {
       data: {
         prod_uuid: params.prod_uuid,
-        lang: langParam(params.lang),
+        lang: toApiLanguage(params.lang),
         cate_uuid: params.cate_uuid,
         search: params.search,
         status_sort_fk: params.status_sort_fk ?? 1

@@ -1,6 +1,8 @@
 import { ServiceError, apiRequest } from "@/lib/api";
 import { toApiLanguage } from "@/lib/language";
+import { booleanFlag, numberValue, text } from "@/services/shared/normalize";
 import { requiredText } from "@/services/shared/validators";
+import type { ApiDataResponse, ApiListResponse } from "@/services/shared/types";
 
 const ENDPOINTS = {
   fetch: "/api/v1/permission/fetch",
@@ -8,19 +10,6 @@ const ENDPOINTS = {
   stores: "/api/v1/permission/stores",
   tree: "/api/v1/permission/tree"
 } as const;
-
-interface PermissionListResponse<T> {
-  status: string;
-  message: string | null;
-  total?: number;
-  data?: T[] | T;
-}
-
-interface PermissionDataResponse<T> {
-  status: string;
-  message: string | null;
-  data?: T;
-}
 
 interface StorePermissionOptionsData {
   stores?: RawStore[] | null;
@@ -113,23 +102,8 @@ type RawTree = Partial<Omit<StorePermissionTree, "roles">> & {
   roles?: RawRoleTree[] | null;
 };
 
-function text(value: unknown, fallback = "") {
-  const next = String(value ?? "").trim();
-  return next || fallback;
-}
-
-function numberValue(value: unknown, fallback = 0) {
-  const next = Number(value);
-  return Number.isFinite(next) ? next : fallback;
-}
-
-export function storePermissionCheckedValue(value: unknown) {
-  if (typeof value === "boolean") return value;
-  if (typeof value === "number") return value === 1;
-
-  const normalized = String(value ?? "").trim().toLowerCase();
-  return normalized === "1" || normalized === "true";
-}
+// คงชื่อ export เดิมไว้ให้ store/test ที่อ้างอิงอยู่ — ตัว logic ย้ายไป shared/normalize
+export const storePermissionCheckedValue = booleanFlag;
 
 function requiredNumber(value: unknown, field: string) {
   const next = Number(value);
@@ -284,7 +258,7 @@ export async function fetchStorePermissionOptions(
   lang?: string
 ): Promise<StorePermissionOptions> {
   const result = await apiRequest<
-    PermissionDataResponse<StorePermissionOptionsData>
+    ApiDataResponse<StorePermissionOptionsData>
   >(
     "get",
     ENDPOINTS.stores,
@@ -321,7 +295,7 @@ export async function fetchStorePermissionTree(
   lang?: string
 ) {
   const result = await apiRequest<
-    PermissionListResponse<StorePermissionTree>
+    ApiListResponse<StorePermissionTree>
   >(
     "get",
     ENDPOINTS.tree,
@@ -348,7 +322,7 @@ export async function fetchStorePermissionSavedList(
   lang?: string
 ) {
   const result = await apiRequest<
-    PermissionListResponse<StorePermissionTree>
+    ApiListResponse<StorePermissionTree>
   >(
     "get",
     ENDPOINTS.fetch,
@@ -374,7 +348,7 @@ export async function saveStorePermissions(
 ) {
   const payload = buildStorePermissionSavePayload(input);
 
-  await apiRequest<PermissionDataResponse<unknown>>(
+  await apiRequest<ApiDataResponse<unknown>>(
     "post",
     ENDPOINTS.save,
     { data: payload },

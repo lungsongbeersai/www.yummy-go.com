@@ -1,6 +1,7 @@
 import { apiRequest, ServiceError } from "@/lib/api";
 import { normalizeMenuIconName } from "@/lib/menu-icons";
 import { toApiLanguage } from "@/lib/language";
+import { booleanFlag, numberValue, text } from "@/services/shared/normalize";
 import { requiredText } from "@/services/shared/validators";
 
 const SIDEBAR_MENU_ENDPOINT = "/api/v1/permission/menu";
@@ -61,27 +62,10 @@ interface RawSidebarPermissionSubMenu {
   sub_title?: string | null;
 }
 
-function text(value: unknown, fallback = "") {
-  const next = String(value ?? "").trim();
-  return next || fallback;
-}
-
-function numberValue(value: unknown, fallback = 0) {
-  const next = Number(value);
-  return Number.isFinite(next) ? next : fallback;
-}
-
 function requiredNumber(value: unknown, field: string) {
   const next = Number(value);
   if (!Number.isFinite(next)) throw new ServiceError(`${field} is required`, 400);
   return next;
-}
-
-function booleanValue(value: unknown) {
-  if (typeof value === "boolean") return value;
-  if (typeof value === "number") return value === 1;
-  const normalized = String(value ?? "").trim().toLowerCase();
-  return normalized === "1" || normalized === "true";
 }
 
 function subStatusValue(value: unknown) {
@@ -106,7 +90,7 @@ function sortByOrder<T>(
 }
 
 function canShowSubMenu(submenu: RawSidebarPermissionSubMenu, roleId: number) {
-  if (!booleanValue(submenu.checked)) return false;
+  if (!booleanFlag(submenu.checked)) return false;
   return subStatusValue(submenu.sub_status) !== 2 || roleId === PLC_ROLE_STATUS;
 }
 
@@ -149,10 +133,10 @@ function normalizeMenu(menu: RawSidebarPermissionMenu, roleId: number): SidebarP
     },
     (item) => item.label
   );
-  const dropdown = booleanValue(menu.menu_is_dropdown)
+  const dropdown = booleanFlag(menu.menu_is_dropdown)
     || text(menu.menu_type).toLowerCase() === "dropdown"
     || children.length > 0;
-  const badgeText = booleanValue(menu.menu_badge_show) ? text(menu.menu_badge_text) : "";
+  const badgeText = booleanFlag(menu.menu_badge_show) ? text(menu.menu_badge_text) : "";
 
   return {
     ...(badgeText ? { badgeText } : {}),

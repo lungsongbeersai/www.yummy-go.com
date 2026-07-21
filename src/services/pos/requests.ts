@@ -1,6 +1,6 @@
 import { apiRequest } from "@/lib/api";
+import { toApiLanguage } from "@/lib/language";
 import { normalizeFetchCateProductsResponse } from "@/services/pos/normalizers";
-import { langParam } from "@/services/shared/request-helpers";
 import { requiredItems, requiredText } from "@/services/shared/validators";
 import type {
   BillDiscountInput,
@@ -41,7 +41,6 @@ import type {
   ReprintReceiptResponse,
   SplitBillInput,
   SplitBillResponse,
-  TableQRResponse,
   UpdateOrderNoteInput,
   UpdateOrderNoteResponse,
   UpdateQtyInput,
@@ -51,21 +50,21 @@ import type {
 export async function getPosTables(params: FetchPosParams) {
   requiredText(params.branch_uuid_fk, "branch_uuid_fk");
   return apiRequest<PosResponse>("get", "/api/v1/pos/fetch_table", {
-    params: { ...params, lang: langParam(params.lang) }
+    params: { ...params, lang: toApiLanguage(params.lang) }
   });
 }
 
 export async function fetchCateProducts(params: FetchCateProductsParams) {
   requiredText(params.branch_uuid_fk, "branch_uuid_fk");
   const response = await apiRequest<FetchCateProductsResponse>("get", "/api/v1/pos/fetch_cate_products", {
-    params: { ...params, lang: langParam(params.lang), search: params.search ?? "" }
+    params: { ...params, lang: toApiLanguage(params.lang), search: params.search ?? "" }
   });
   return normalizeFetchCateProductsResponse(response);
 }
 
 export async function getProdItem(params: GetProdItemParams) {
   const result = await apiRequest<{ data: ProdItem }>("post", "/api/v1/pos/get_prod_item", {
-    data: { prod_uuid: params.prod_uuid, lang: langParam(params.lang) }
+    data: { prod_uuid: params.prod_uuid, lang: toApiLanguage(params.lang) }
   });
   return result.data;
 }
@@ -86,7 +85,7 @@ export const applyBillDiscount = (input: BillDiscountInput) =>
 
 export const fetchCart = (params: FetchCartParams) =>
   apiRequest<FetchCartResponse>("get", "/api/v1/pos/fetch_cart", {
-    params: { ...params, lang: langParam(params.lang) }
+    params: { ...params, lang: toApiLanguage(params.lang) }
   });
 
 export const deleteOrderItem = (order_item_uuid: string) =>
@@ -96,7 +95,7 @@ export const deleteOrderItem = (order_item_uuid: string) =>
 
 export const fetchJoinMoveTables = (params: FetchJoinMoveTableParams) =>
   apiRequest<FetchJoinMoveTableResponse>("get", "/api/v1/pos/fetch_join_move_table", {
-    params: { ...params, lang: langParam(params.lang) }
+    params: { ...params, lang: toApiLanguage(params.lang) }
   });
 
 export const moveTable = (input: MoveTableInput) =>
@@ -105,17 +104,12 @@ export const moveTable = (input: MoveTableInput) =>
 export const joinTableMulti = (input: JoinTableMultiInput) =>
   apiRequest<JoinTableMultiResponse>("post", "/api/v1/pos/join_table_multi", { data: input });
 
-export const getTableQR = (table_uuid: string) =>
-  apiRequest<TableQRResponse>("get", "/api/v1/pos/admin/create_table_qr", {
-    params: { table_uuid, lang: langParam() }
-  });
-
 export const confirmToKitchen = (input: ConfirmToKitchenInput) =>
   apiRequest<ConfirmToKitchenResponse>("patch", "/api/v1/pos/confirm_to_kitchen", {
     data: {
       order_uuid: input.order_uuid,
       login_uuid_fk: input.login_uuid_fk,
-      lang: langParam(input.lang),
+      lang: toApiLanguage(input.lang),
       device_code: input.device_code,
       agent_id: input.agent_id,
       print_mode: input.print_mode,
@@ -136,7 +130,7 @@ export const updateOrderNote = (input: UpdateOrderNoteInput) =>
 
 export const createPayment = (input: PaymentInput) =>
   apiRequest<PaymentResponse>("post", "/api/v1/pos/payment", {
-    data: { ...input, lang: langParam(input.lang) }
+    data: { ...input, lang: toApiLanguage(input.lang) }
   });
 
 export const splitBill = (input: SplitBillInput) =>
@@ -146,7 +140,7 @@ export const createTableQR = (params: CreateTableQRRequest) =>
   apiRequest<CreateTableQRResponse>("get", "/api/v1/pos/admin/create_table_qr", {
     params: {
       table_uuid: params.table_uuid,
-      lang: langParam(params.lang),
+      lang: toApiLanguage(params.lang),
       login_uuid_fk: params.login_uuid_fk,
       device_code: params.device_code,
       agent_id: params.agent_id,
@@ -159,7 +153,7 @@ export const printInvoice = (params: PrintInvoiceRequest) =>
     data: {
       login_uuid_fk: params.login_uuid_fk,
       order_uuid: params.order_uuid,
-      lang: langParam(params.lang),
+      lang: toApiLanguage(params.lang),
       document_type: params.document_type ?? "invoice",
       device_code: params.device_code,
       agent_id: params.agent_id,
@@ -172,7 +166,7 @@ export const reprintReceipt = (params: ReprintReceiptRequest) =>
     data: {
       order_uuid: params.order_uuid,
       login_uuid_fk: params.login_uuid_fk,
-      lang: langParam(params.lang),
+      lang: toApiLanguage(params.lang),
       device_code: params.device_code,
       agent_id: params.agent_id,
       print_mode: params.print_mode

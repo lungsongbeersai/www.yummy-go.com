@@ -3,7 +3,7 @@
 import { create } from "zustand";
 import type { ApiEntity, FetchParams, ApiListResponse } from "@/services/shared/types";
 import { createSessionGuard, registerSessionStoreReset } from "@/stores/session-store-registry";
-import { errorMessage } from "@/stores/store-utils";
+import { errorMessage, type AsyncSlice } from "@/stores/store-utils";
 
 interface CrudListStoreConfig<
   Row extends ApiEntity,
@@ -24,16 +24,13 @@ export interface CrudListState<
   Row extends ApiEntity,
   SaveInput extends ApiEntity,
   Params extends FetchParams
-> {
+> extends AsyncSlice {
   rows: Row[];
   total: number;
   totalPages: number;
   search: string;
   hasLoaded: boolean;
-  loading: boolean;
   refreshing: boolean;
-  saving: boolean;
-  error: string | null;
   setSearch: (search: string) => void;
   load: (params?: Params, options?: CrudListLoadOptions) => Promise<Row[]>;
   save: (input: SaveInput) => Promise<Row>;

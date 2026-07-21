@@ -293,98 +293,68 @@ export interface BestSellingProductsReportResponse extends ApiEntity {
   status?: string;
 }
 
-export function getDailySalesReport(params: FetchDailySalesReportParams) {
-  if (!params.branch_uuid_fk) throw new ServiceError("branch_uuid_fk is required", 400);
-  const query: Record<string, unknown> = {
-    ...params,
-    limit: isAllPageLimit(params.limit) ? PAGE_LIMIT_ALL_BATCH : params.limit,
-    lang: toApiLanguage(params.lang)
-  };
-  query.payment_method = params.payment_method ?? "all";
-  query.payment_type = params.payment_type ?? params.payment_method ?? "all";
+interface ReportRequestParams {
+  branch_uuid_fk: string;
+  lang?: string;
+  limit?: PageLimit;
+}
 
-  return apiRequest<DailySalesReportResponse>("get", "/api/v1/report/sale_report", {
-    params: query
+// Scaffolding ที่ทุก fetcher ใช้ร่วมกัน: guard สาขา + แปลง limit แบบ "All" + normalize lang
+// defaults ถูก merge ทับ query ท้ายสุด ให้แต่ละ fetcher กำหนด fallback เฉพาะตัวได้
+function reportRequest<T>(
+  endpoint: string,
+  params: ReportRequestParams,
+  defaults: Record<string, unknown> = {}
+) {
+  if (!params.branch_uuid_fk) throw new ServiceError("branch_uuid_fk is required", 400);
+  const query: Record<string, unknown> = { ...params, lang: toApiLanguage(params.lang) };
+  if (params.limit !== undefined) {
+    query.limit = isAllPageLimit(params.limit) ? PAGE_LIMIT_ALL_BATCH : params.limit;
+  }
+
+  return apiRequest<T>("get", endpoint, { params: { ...query, ...defaults } });
+}
+
+export function getDailySalesReport(params: FetchDailySalesReportParams) {
+  return reportRequest<DailySalesReportResponse>("/api/v1/report/sale_report", params, {
+    payment_method: params.payment_method ?? "all",
+    payment_type: params.payment_type ?? params.payment_method ?? "all"
   });
 }
 
 export function getDailySalesBillReport(params: FetchDailySalesBillReportParams) {
-  if (!params.branch_uuid_fk) throw new ServiceError("branch_uuid_fk is required", 400);
-  const { search, ...rest } = params;
-  const query: Record<string, unknown> = {
-    ...rest,
-    limit: isAllPageLimit(params.limit) ? PAGE_LIMIT_ALL_BATCH : params.limit,
-    lang: toApiLanguage(params.lang),
+  return reportRequest<DailySalesBillReportResponse>("/api/v1/report_all/sale_report_bill", params, {
     payment_method: params.payment_method ?? "All",
-    search: search?.trim() ?? ""
-  };
-
-  return apiRequest<DailySalesBillReportResponse>("get", "/api/v1/report_all/sale_report_bill", {
-    params: query
+    search: params.search?.trim() ?? ""
   });
 }
 
 export function getDailySalesOrderReport(params: FetchDailySalesOrderReportParams) {
-  if (!params.branch_uuid_fk) throw new ServiceError("branch_uuid_fk is required", 400);
-  const { search, ...rest } = params;
-  const query: Record<string, unknown> = {
-    ...rest,
-    limit: isAllPageLimit(params.limit) ? PAGE_LIMIT_ALL_BATCH : params.limit,
-    lang: toApiLanguage(params.lang),
+  return reportRequest<DailySalesOrderReportResponse>("/api/v1/report_all/sale_report_list", params, {
     payment_method: params.payment_method ?? "All",
-    search: search?.trim() ?? ""
-  };
-
-  return apiRequest<DailySalesOrderReportResponse>("get", "/api/v1/report_all/sale_report_list", {
-    params: query
+    search: params.search?.trim() ?? ""
   });
 }
 
 export function getDailySaleItems(params: FetchDailySaleItemsParams) {
-  if (!params.branch_uuid_fk) throw new ServiceError("branch_uuid_fk is required", 400);
-  const { search, ...rest } = params;
-  const query: Record<string, unknown> = {
-    ...rest,
-    limit: isAllPageLimit(params.limit) ? PAGE_LIMIT_ALL_BATCH : params.limit,
-    lang: toApiLanguage(params.lang),
+  return reportRequest<DailySaleItemsResponse>("/api/v1/report_all/sale_list", params, {
     payment_method: params.payment_method ?? "All",
-    search: search?.trim() ?? ""
-  };
-
-  return apiRequest<DailySaleItemsResponse>("get", "/api/v1/report_all/sale_list", {
-    params: query
+    search: params.search?.trim() ?? ""
   });
 }
 
 export function getPaymentMethodsReport(params: FetchPaymentMethodsReportParams) {
-  if (!params.branch_uuid_fk) throw new ServiceError("branch_uuid_fk is required", 400);
-  const query: Record<string, unknown> = {
-    branch_uuid_fk: params.branch_uuid_fk,
-    date_from: params.date_from,
-    date_to: params.date_to,
-    lang: toApiLanguage(params.lang),
+  // endpoint นี้รับ limit=all ตรง ๆ ไม่ใช้ค่า batch เหมือนรายงานอื่น
+  return reportRequest<PaymentMethodsReportResponse>("/api/v1/report_all/payment_summary_by_method", params, {
     limit: isAllPageLimit(params.limit) ? "all" : params.limit,
-    page: params.page,
     payment_method: params.payment_method ?? "all"
-  };
-
-  return apiRequest<PaymentMethodsReportResponse>("get", "/api/v1/report_all/payment_summary_by_method", {
-    params: query
   });
 }
 
 export function getCategorySalesReport(params: FetchCategorySalesReportParams) {
-  if (!params.branch_uuid_fk) throw new ServiceError("branch_uuid_fk is required", 400);
-  const query: Record<string, unknown> = {
-    ...params,
-    limit: isAllPageLimit(params.limit) ? PAGE_LIMIT_ALL_BATCH : params.limit,
-    lang: toApiLanguage(params.lang),
+  return reportRequest<CategorySalesReportResponse>("/api/v1/report_all/group_list", params, {
     orderBy: params.orderBy ?? "DESC",
     payment_method: params.payment_method ?? "all"
-  };
-
-  return apiRequest<CategorySalesReportResponse>("get", "/api/v1/report_all/group_list", {
-    params: query
   });
 }
 
@@ -392,25 +362,11 @@ export function getDailyStoreClosingReport(params: FetchDailyStoreClosingReportP
   if (!params.branch_uuid_fk) throw new ServiceError("branch_uuid_fk is required", 400);
   if (!params.date) throw new ServiceError("date is required", 400);
 
-  return apiRequest<DailyStoreClosingReportResponse>("get", "/api/v1/report_all/group_sale_report", {
-    params: {
-      branch_uuid_fk: params.branch_uuid_fk,
-      date: params.date,
-      lang: toApiLanguage(params.lang)
-    }
-  });
+  return reportRequest<DailyStoreClosingReportResponse>("/api/v1/report_all/group_sale_report", params);
 }
 
 export function getBestSellingProductsReport(params: FetchBestSellingProductsReportParams) {
-  if (!params.branch_uuid_fk) throw new ServiceError("branch_uuid_fk is required", 400);
-  const query: Record<string, unknown> = {
-    ...params,
-    group_uuid_fk: params.group_uuid_fk || "all",
-    limit: isAllPageLimit(params.limit) ? PAGE_LIMIT_ALL_BATCH : params.limit,
-    lang: toApiLanguage(params.lang)
-  };
-
-  return apiRequest<BestSellingProductsReportResponse>("get", "/api/v1/best_selling/best_selling_products", {
-    params: query
+  return reportRequest<BestSellingProductsReportResponse>("/api/v1/best_selling/best_selling_products", params, {
+    group_uuid_fk: params.group_uuid_fk || "all"
   });
 }

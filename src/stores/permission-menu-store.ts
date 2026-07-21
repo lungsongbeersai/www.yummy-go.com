@@ -15,15 +15,12 @@ import {
   type PermissionSubMenu
 } from "@/services/permission-menu";
 import { createSessionGuard, registerSessionStoreReset } from "@/stores/session-store-registry";
-import { errorMessage } from "@/stores/store-utils";
+import { errorMessage, type AsyncSlice } from "@/stores/store-utils";
 
-interface PermissionMenuState {
-  error: string | null;
+interface PermissionMenuState extends AsyncSlice {
   hasLoaded: boolean;
-  loading: boolean;
   menus: PermissionMainMenu[];
   refreshing: boolean;
-  saving: boolean;
   sorting: boolean;
   total: number;
   createMain: (input: CreateMainMenuInput, lang?: string) => Promise<void>;
