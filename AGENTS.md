@@ -39,6 +39,8 @@ Act as a senior product engineer and technical peer, not a code generator that a
 - **Next.js**: route files under `src/app/` stay thin — they only render a feature component; use `next/image`, `next/link`, `next/font`, and the Metadata API. All data access goes through the service layer — do not add Server Actions or ad-hoc fetching in components (the app talks to an external backend; the Next server is a thin shell built with `output: "standalone"` for the SSR deploy and the packaged Electron runtime — keep it stateless).
 - **Zustand**: one store per domain; actions live in the store; components call store actions, never services directly.
 - **UI**: shadcn/ui first — install missing official components rather than hand-rolling; preserve dark mode in everything you touch; use skeleton loading states; use AlertDialog for destructive actions.
+- **Feature folders**: `src/features/<domain>/<screen>/` stays flat until it exceeds ~8 files, then split into `components/` and `hooks/` (see `public-pos/order` for the reference shape). Import via the `@/` alias; avoid `../` imports that cross feature boundaries.
+- **Routing/auth**: `typedRoutes` is on — runtime-sourced paths go through `internalRoute()` (src/lib/routes.ts), never raw `as Route` casts at call sites. Auth is intentionally client-side (localStorage token + `AuthGuard`); there is no proxy file, and if one is ever needed it must be Next 16's `proxy.ts` (middleware.ts is deprecated).
 
 ## Commands
 
