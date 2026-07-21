@@ -1,5 +1,6 @@
 "use client";
 
+import type { Route } from "next";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { useResetOnDeps } from "@/hooks/use-reset-on-change";
@@ -47,7 +48,8 @@ export function useUrlPagination({
       const nextSearch = query ? `?${query}` : "";
       if (window.location.search === nextSearch) return;
 
-      router.replace(`${pathname}${nextSearch}`, { scroll: false });
+      // replace บน pathname ปัจจุบัน (เปลี่ยนเฉพาะ query) — ปลอดภัยเสมอ จึง cast ได้
+      router.replace(`${pathname}${nextSearch}` as Route, { scroll: false });
     },
     [defaultLimit, pathname, router],
   );

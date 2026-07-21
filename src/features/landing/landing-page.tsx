@@ -1,5 +1,6 @@
 "use client";
 
+import type { Route } from "next";
 import { useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { useAppStore } from "@/stores/app-store";
@@ -28,7 +29,9 @@ export function LandingPage({ className }: LandingPageProps) {
   // คงค่า redirect เดิมไว้ เพื่อให้หลังล็อกอินกลับไปหน้าที่ผู้ใช้ตั้งใจเปิดตอนแรก
   const searchParams = useSearchParams();
   const redirect = searchParams.get("redirect");
-  const loginHref = redirect ? `/login?redirect=${encodeURIComponent(redirect)}` : "/login";
+  const loginHref: Route = redirect
+    ? (`/login?redirect=${encodeURIComponent(redirect)}` as Route)
+    : "/login";
 
   const rootRef = useRef<HTMLDivElement>(null);
   const heroRef = useRef<HTMLElement>(null);

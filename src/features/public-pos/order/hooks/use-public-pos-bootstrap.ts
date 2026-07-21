@@ -1,6 +1,7 @@
 "use client";
 
 import type { TFunction } from "i18next";
+import type { Route } from "next";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toApiLanguage, toLanguage, type Language } from "@/lib/language";
@@ -111,7 +112,8 @@ export function usePublicPosBootstrap({
 
     params.set("lang", nextLang);
     const nextQuery = params.toString();
-    router.replace(`${pathname}${nextQuery ? `?${nextQuery}` : ""}`, {
+    // replace บน pathname ปัจจุบัน (เปลี่ยนเฉพาะ query) — ปลอดภัยเสมอ จึง cast ได้
+    router.replace(`${pathname}${nextQuery ? `?${nextQuery}` : ""}` as Route, {
       scroll: false,
     });
   }, [activeLanguage, languageReady, pathname, router, searchParamsString]);

@@ -14,6 +14,7 @@ import {
   PanelLeftOpen,
   UserPen,
 } from "lucide-react";
+import { internalRoute } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -583,7 +584,7 @@ function AppSidebar({
           </SidebarMenuButton>
         ) : (
           <SidebarMenuButton asChild isActive={active} tooltip={title}>
-            <Link href={item.path} onClick={closeMobile}>
+            <Link href={internalRoute(item.path)} onClick={closeMobile}>
               {icon}
               <span className="min-w-0 flex-1 truncate">{title}</span>
               {item.badgeText && !collapsed ? (
@@ -616,7 +617,7 @@ function AppSidebar({
           </SidebarMenuSubButton>
         ) : (
           <SidebarMenuSubButton asChild isActive={active}>
-            <Link href={item.path} onClick={closeMobile}>
+            <Link href={internalRoute(item.path)} onClick={closeMobile}>
               <span>{title}</span>
             </Link>
           </SidebarMenuSubButton>
@@ -638,7 +639,7 @@ function AppSidebar({
 
     return (
       <DropdownMenuItem key={item.path} asChild>
-        <Link href={item.path} onClick={closeMobile}>
+        <Link href={internalRoute(item.path)} onClick={closeMobile}>
           {title}
         </Link>
       </DropdownMenuItem>
@@ -790,7 +791,7 @@ function AppBreadcrumb({
 
     return (
       <BreadcrumbLink asChild className="truncate">
-        <Link href={item.path}>{title}</Link>
+        <Link href={internalRoute(item.path)}>{title}</Link>
       </BreadcrumbLink>
     );
   }
@@ -832,7 +833,7 @@ function AppBreadcrumb({
                     }
                     return (
                       <DropdownMenuItem key={item.path} asChild>
-                        <Link href={item.path}>{title}</Link>
+                        <Link href={internalRoute(item.path)}>{title}</Link>
                       </DropdownMenuItem>
                     );
                   })}

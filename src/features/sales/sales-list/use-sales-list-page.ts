@@ -1,5 +1,6 @@
 "use client";
 
+import type { Route } from "next";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useResetOnChange, useResetOnDeps } from "@/hooks/use-reset-on-change";
 import { useTranslation } from "react-i18next";
@@ -112,7 +113,7 @@ export function useSalesListPage(initialPagination: UrlPaginationState) {
     selectedOrderUuid &&
     cancelDateSelect &&
     branchUuid === userBranchUuid
-      ? `/sales/cancel-sale?order_uuid=${encodeURIComponent(selectedOrderUuid)}&date_select=${cancelDateSelect}`
+      ? (`/sales/cancel-sale?order_uuid=${encodeURIComponent(selectedOrderUuid)}&date_select=${cancelDateSelect}` as Route)
       : null;
   const initialLoading = loading && !bills.length;
 

@@ -6,6 +6,7 @@ const appDir = dirname(fileURLToPath(import.meta.url));
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  typedRoutes: true,
   async redirects() {
     return [
       {

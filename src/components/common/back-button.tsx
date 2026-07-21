@@ -1,5 +1,6 @@
 "use client";
 
+import type { Route } from "next";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { ArrowLeft } from "lucide-react";
@@ -7,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 interface BackButtonProps {
-  fallbackHref: string;
+  fallbackHref: Route;
   label?: string;
   className?: string;
 }

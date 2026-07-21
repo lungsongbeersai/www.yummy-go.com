@@ -1,8 +1,11 @@
-const DEFAULT_REDIRECT = "/";
+import type { Route } from "next";
+
+const DEFAULT_REDIRECT: Route = "/";
 const INTERNAL_REDIRECT_ORIGIN = "https://internal.invalid";
 const ENCODED_CONTROL_CHARACTER = /%(?:0[0-9a-f]|1[0-9a-f]|7f)/i;
 
-export function safeInternalRedirect(value: string | null | undefined): string {
+// ค่า redirect มาจาก query string ตอน runtime — ผ่านการตรวจว่าเป็น internal path แล้วจึง cast เป็น Route
+export function safeInternalRedirect(value: string | null | undefined): Route {
   if (
     !value ||
     !value.startsWith("/") ||
@@ -15,7 +18,7 @@ export function safeInternalRedirect(value: string | null | undefined): string {
 
   try {
     const target = new URL(value, INTERNAL_REDIRECT_ORIGIN);
-    return target.origin === INTERNAL_REDIRECT_ORIGIN ? value : DEFAULT_REDIRECT;
+    return target.origin === INTERNAL_REDIRECT_ORIGIN ? (value as Route) : DEFAULT_REDIRECT;
   } catch {
     return DEFAULT_REDIRECT;
   }

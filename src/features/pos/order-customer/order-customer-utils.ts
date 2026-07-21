@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import { getProductImageUrl } from "@/lib/image";
 import {
   OrderChannelEnum,
@@ -120,12 +121,13 @@ export function orderCustomerUrl({
 }: {
   tableName: string;
   tableUuid: string;
-}) {
+}): Route {
   const params = new URLSearchParams({
     table_uuid: tableUuid,
     table_name: tableName,
   });
-  return `/sale/order-customer?${params.toString()}`;
+  // path เป็น route จริง ส่วน query เป็นค่า runtime — typedRoutes ตรวจ template แบบนี้ไม่ได้
+  return `/sale/order-customer?${params.toString()}` as Route;
 }
 
 export function nextMenuCategoryUuid({
