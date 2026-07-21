@@ -92,7 +92,7 @@ export function LoginClient() {
                     alt="Yummy Go"
                     width={38}
                     height={38}
-                    loading="eager"
+                    preload
                     className="h-9 w-9 object-contain"
                   />
                 </div>

@@ -387,14 +387,15 @@ describe("project refactor guards", () => {
     expect(matchesInProjectFiles([srcDir, join(projectRoot, "scripts")], suppressionPattern)).toEqual([]);
   });
 
+  // เทสต์สองตัวนี้ parse AST ทั้ง src/ + scripts/ — เกิน 5s ได้เมื่อรันทั้ง suite พร้อมกัน
   it("keeps source free of explicit any types", () => {
     expect(explicitAnyTypes([srcDir, join(projectRoot, "scripts")])).toEqual([]);
-  });
+  }, 15_000);
 
   it("keeps source free of TypeScript enums and React FC aliases", () => {
     expect(typeScriptEnums([srcDir, join(projectRoot, "scripts")])).toEqual([]);
     expect(matchesInProjectFiles([srcDir, join(projectRoot, "scripts")], reactComponentTypePattern)).toEqual([]);
-  });
+  }, 15_000);
 
   it("keeps app, feature, and reusable component code free of runtime service imports", () => {
     const imports = [

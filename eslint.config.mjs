@@ -6,6 +6,7 @@ const eslintConfig = [
     ignores: [
       ".claude/**",
       ".next/**",
+      ".worktrees/**",
       "android/app/build/**",
       "dist/**",
       "dist-electron/**",

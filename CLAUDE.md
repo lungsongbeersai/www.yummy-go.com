@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-Yummy Go — a restaurant POS built with Next.js 15 (App Router), React 19, TypeScript, Tailwind CSS v4, Zustand, and shadcn/ui-style local UI primitives (new-york). The same codebase ships as a web app, an Electron desktop app (with a second customer-display window), and a Capacitor Android app.
+Yummy Go — a restaurant POS built with Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS v4, Zustand, and shadcn/ui-style local UI primitives (new-york). The same codebase ships as a web app, an Electron desktop app (with a second customer-display window), and a Capacitor Android app.
 
 ## Role — Senior Engineer & UX/UI Advisor
 
@@ -36,7 +36,7 @@ Act as a senior product engineer and technical peer, not a code generator that a
 - Reuse before creating: check existing components → hooks → stores → utilities first.
 - Prefer simple solutions; avoid over-engineering; keep files small and focused; match existing project patterns.
 - **TypeScript**: never `any`; `interface` for props/models; `type` for unions/aliases; `as const` over enums.
-- **Next.js**: route files under `src/app/` stay thin — they only render a feature component; use `next/image`, `next/link`, `next/font`, and the Metadata API. All data access goes through the service layer — do not add Server Actions or ad-hoc fetching in components (the app talks to an external backend and must keep working under static export).
+- **Next.js**: route files under `src/app/` stay thin — they only render a feature component; use `next/image`, `next/link`, `next/font`, and the Metadata API. All data access goes through the service layer — do not add Server Actions or ad-hoc fetching in components (the app talks to an external backend; the Next server is a thin shell built with `output: "standalone"` for the SSR deploy and the packaged Electron runtime — keep it stateless).
 - **Zustand**: one store per domain; actions live in the store; components call store actions, never services directly.
 - **UI**: shadcn/ui first — install missing official components rather than hand-rolling; preserve dark mode in everything you touch; use skeleton loading states; use AlertDialog for destructive actions.
 
@@ -52,7 +52,7 @@ Act as a senior product engineer and technical peer, not a code generator that a
 
 Tests are colocated `.test.ts` files (node environment, globals enabled). They cover pure logic only — services, store helpers, validators — not components.
 
-Deploy: pushing to `main` triggers `.github/workflows/deploy-static.yml`, which rsyncs the repo to the production VPS, builds there, and restarts the `yummy-go-fe.service` systemd unit (serves https://yummy-go.com behind Cloudflare DNS proxy). `electron:pack` builds the Windows NSIS installer locally.
+Deploy: pushing to `main` triggers `.github/workflows/deploy-static.yml`, which rsyncs the repo to the production VPS, builds there (Node >= 22 enforced by `scripts/check-node-version.mjs`), and restarts the `yummy-go-fe.service` systemd unit (serves https://yummy-go.com behind Cloudflare DNS proxy). `electron:pack` builds the Windows NSIS installer locally (stages the standalone Next runtime via `electron:stage`).
 
 ## Architecture
 
@@ -69,6 +69,7 @@ route page (thin) → feature component (src/features/<domain>/)
 - **`src/services/shared/crud.ts`** — generic `fetchList` / `fetchAll` / `saveEntity` / `deleteEntity` helpers most domain services are built from. `listParams` normalizes pagination/search/`lang` query params. Mutations are POSTs (optionally multipart via `toFormData`).
 - **`src/stores/`** — async state follows the `AsyncSlice` shape (`loading`, `saving`, `error`) from `store-utils.ts`. `auth-store` is persisted (localStorage or sessionStorage depending on "remember me"). Larger domains (`pos-store/`, `product-store/`, `report-store/`, `public-pos-store/`) are folders with extracted, tested `helpers.ts`.
 - **`src/features/`** — all substantial UI. Domain folders typically split into `list/` and `form/` (CRUD screens) or per-screen subfolders (e.g. `pos/counter-checkout`, `pos/table-selection`).
+- **`src/platform/`** — platform-runtime contracts shared with non-web shells (currently `electron/next-server-contract.ts`, compiled into the Electron build; tested pure logic).
 
 ### Routes
 
@@ -83,5 +84,5 @@ route page (thin) → feature component (src/features/<domain>/)
 - **i18n** — i18next with HTTP backend; locales in `public/locales/{en,la}` (Lao is the primary language). API calls pass a `lang` param via `toApiLanguage`; the language is also stored in a cookie read by the root layout.
 - **Realtime** — `src/lib/socket.ts` holds a singleton Socket.IO client; clients join a branch room (`join_branch`) and receive `table_alert` events (used for table-status alerts in POS).
 - **Printing** — `src/services/printer/` abstracts receipt printing: browser/agent path (local printer agent at `NEXT_PUBLIC_PRINTER_AGENT_URL`) and Android TCP path (`@deedarb/capacitor-tcp-socket`).
-- **Electron** — `electron/main.ts` (compiled to `dist-electron/` via `electron:build`) loads `http://localhost:3000`, manages the customer-display window on a chosen monitor, and relays messages between windows over IPC (`electron/preload.ts`).
+- **Electron** — `electron/main.ts` (compiled to `dist-electron/` via `electron:build`) loads the dev server in development; when packaged it launches the staged standalone Next server via `utilityProcess` (`src/platform/electron/next-server-contract.ts`). It manages the customer-display window on a chosen monitor and relays messages between windows over IPC (`electron/preload.ts`).
 - **Capacitor** — `capacitor.config.ts` + `android/` for the Android build; `Capacitor.isNativePlatform()` and the Android WebView compat helpers in `src/lib/` gate native-specific behavior.
