@@ -7,8 +7,12 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "outDir": "../dist-electron",
-    "rootDir": ".",
+    "rootDir": "..",
     "types": ["node"]
   },
-  "include": ["*.ts"]
+  "include": [
+    "main.ts",
+    "preload.ts",
+    "../src/platform/electron/next-server-contract.ts"
+  ]
 }

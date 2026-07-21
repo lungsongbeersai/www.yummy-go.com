@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import { JetBrains_Mono, Space_Grotesk } from "next/font/google";
+import { LoadingState } from "@/components/common/loading-state";
 import { LandingPage } from "@/features/landing/landing-page";
 
 // ฟอนต์เฉพาะหน้า landing ตามดีไซน์ (ภาษาลาวใช้ Noto Sans Lao จาก root layout)
@@ -29,7 +30,7 @@ export const metadata: Metadata = {
 
 export default function HomePage() {
   return (
-    <Suspense>
+    <Suspense fallback={<LoadingState variant="page" />}>
       <LandingPage className={`${spaceGrotesk.variable} ${jetbrainsMono.variable}`} />
     </Suspense>
   );

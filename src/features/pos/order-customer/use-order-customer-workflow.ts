@@ -59,6 +59,7 @@ export function useOrderCustomerWorkflow({
   const router = useRouter();
   const isMobile = useIsMobile();
   const user = useAuthStore((state) => state.user);
+  const branchUuid = user?.branch_uuid ?? "";
   const language = useAppStore((state) => state.language);
   const showToast = useToastStore((state) => state.show);
   const zones = usePosStore((state) => state.zones);
@@ -157,7 +158,7 @@ export function useOrderCustomerWorkflow({
 
   const fetchMenuGroups = useCallback(
     async (cateUuid: string, query: string) => {
-      if (!user?.branch_uuid) return emptyMenuBySort();
+      if (!branchUuid) return emptyMenuBySort();
 
       const selectedCateUuid = optionalString(cateUuid) ?? "";
       const searchQuery = query.trim();
@@ -165,7 +166,7 @@ export function useOrderCustomerWorkflow({
 
       const request = (status_sort_fk: ProductSortStatus) =>
         loadProductCategories({
-          branch_uuid_fk: user.branch_uuid,
+          branch_uuid_fk: branchUuid,
           ...(searchQuery ? {} : { cate_uuid: selectedCateUuid }),
           lang: language,
           search: searchQuery,
@@ -184,7 +185,7 @@ export function useOrderCustomerWorkflow({
         [ProductSortStatus.PROMOTION]: promotion.data ?? [],
       };
     },
-    [language, loadProductCategories, user?.branch_uuid],
+    [branchUuid, language, loadProductCategories],
   );
 
   const loadCart = useCallback(async () => {
@@ -202,11 +203,11 @@ export function useOrderCustomerWorkflow({
   }, [initialTableUuid, language, loadCartStore, showToast, t]);
 
   const loadTablesForBranch = useCallback(async () => {
-    if (!user?.branch_uuid) return [];
+    if (!branchUuid) return [];
 
     try {
       return await loadTables({
-        branch_uuid_fk: user.branch_uuid,
+        branch_uuid_fk: branchUuid,
         lang: language,
       });
     } catch (error) {
@@ -217,7 +218,7 @@ export function useOrderCustomerWorkflow({
       });
       return [];
     }
-  }, [language, loadTables, showToast, t, user?.branch_uuid]);
+  }, [branchUuid, language, loadTables, showToast, t]);
 
   const loadMenu = useCallback(
     async ({
@@ -229,7 +230,7 @@ export function useOrderCustomerWorkflow({
       query?: string;
       refreshCategories?: boolean;
     } = {}) => {
-      if (!user?.branch_uuid) {
+      if (!branchUuid) {
         setCategories([]);
         setMenuBySort(emptyMenuBySort());
         return;
@@ -242,7 +243,7 @@ export function useOrderCustomerWorkflow({
 
         if (refreshCategories) {
           const catalog = await loadProductCategories({
-            branch_uuid_fk: user.branch_uuid,
+            branch_uuid_fk: branchUuid,
             lang: language,
             search: "",
             status_sort_fk: ProductSortStatus.NORMAL,
@@ -278,11 +279,11 @@ export function useOrderCustomerWorkflow({
     },
     [
       fetchMenuGroups,
+      branchUuid,
       language,
       loadProductCategories,
       showToast,
       t,
-      user?.branch_uuid,
     ],
   );
 

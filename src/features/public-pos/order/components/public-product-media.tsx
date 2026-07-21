@@ -14,13 +14,13 @@ export function ProductMedia({
   variant = "card",
   blockedState,
   blockedLabel,
-  priority = false,
+  preload = false,
 }: {
   product: CateProductItem | ProdItem;
   variant?: "card" | "sheet" | "sheetThumb" | "listThumb";
   blockedState?: ProductBlockedState | null;
   blockedLabel?: string;
-  priority?: boolean;
+  preload?: boolean;
 }) {
   const imageUrl = productImageUrl(product);
   const colorCandidate = product.prod_color || product.prod_image;
@@ -54,8 +54,8 @@ export function ProductMedia({
           src={imageUrl}
           alt={product.prod_name}
           fill
-          priority={priority || undefined}
-          loading={priority ? undefined : "lazy"}
+          preload={preload || undefined}
+          loading={preload ? undefined : "lazy"}
           quality={60}
           sizes={imageSizes}
           className={cn(

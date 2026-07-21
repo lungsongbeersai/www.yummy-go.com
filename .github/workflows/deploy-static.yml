@@ -115,6 +115,7 @@ jobs:
             cd "'"$APP_DIR"'"
 
             echo "Using node: $(node -v) / npm: $(npm -v)"
+            node scripts/check-node-version.mjs
             export NEXT_TELEMETRY_DISABLED=1
 
             rm -rf .next

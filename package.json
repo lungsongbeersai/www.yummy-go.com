@@ -2,8 +2,13 @@
   "name": "new-yummy-go",
   "version": "1.0.0",
   "private": true,
-  "main": "dist-electron/main.js",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "main": "dist-electron/electron/main.js",
   "scripts": {
+    "preinstall": "node scripts/check-node-version.mjs",
+    "verify:node": "node scripts/check-node-version.mjs",
     "dev": "next dev",
     "dev:desktop": "concurrently -k -n NEXT,ELECTRON -c cyan,green \"next dev\" \"wait-on http://localhost:3000 && npm run electron:dev\"",
     "build": "next build",
@@ -15,7 +20,10 @@
     "electron:build": "tsc -p electron/tsconfig.json",
     "electron:dev": "npm run electron:build && electron .",
     "electron:start": "npm run build && npm run electron:build && electron .",
-    "electron:pack": "npm run electron:start && electron-builder"
+    "electron:stage": "node scripts/stage-electron-runtime.mjs",
+    "electron:pack:dir": "npm run build && npm run electron:build && npm run electron:stage && electron-builder --dir",
+    "electron:pack": "npm run build && npm run electron:build && npm run electron:stage && electron-builder",
+    "smoke:ssr": "node scripts/smoke-next-standalone.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.4.0",
@@ -79,11 +87,23 @@
     "appId": "com.yummygo.pos",
     "productName": "Yummy Go POS",
     "files": [
+      "!**/*",
       "dist-electron/**/*",
-      ".next/**/*",
-      "public/**/*",
-      "node_modules/**/*",
       "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": ".next/electron-runtime",
+        "to": "next-server",
+        "filter": [
+          "**/*",
+          "!node_modules{,/**/*}"
+        ]
+      },
+      {
+        "from": ".next/electron-runtime/node_modules",
+        "to": "next-server/node_modules"
+      }
     ],
     "directories": {
       "output": "release"

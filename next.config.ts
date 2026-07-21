@@ -5,6 +5,7 @@ import { fileURLToPath } from "url";
 const appDir = dirname(fileURLToPath(import.meta.url));
 
 const nextConfig: NextConfig = {
+  output: "standalone",
   async redirects() {
     return [
       {

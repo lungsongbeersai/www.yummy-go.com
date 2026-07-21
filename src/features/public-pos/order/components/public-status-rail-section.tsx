@@ -112,7 +112,7 @@ export const StatusRailSection = memo(function StatusRailSection({
                   statusKind={statusKind}
                   lang={lang}
                   loading={loadingProductUuid === product.prod_uuid}
-                  imagePriority={product.prod_uuid === priorityProductUuid}
+                  imagePreload={product.prod_uuid === priorityProductUuid}
                   onProductClick={onProductClick}
                   variant={useDesktopGrid ? "railGrid" : "rail"}
                 />
