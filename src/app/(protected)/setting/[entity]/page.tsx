@@ -8,10 +8,6 @@ interface PageProps {
   searchParams: Promise<UrlSearchParamsRecord>;
 }
 
-export function generateStaticParams() {
-  return Object.keys(SETTINGS).map((entity) => ({ entity }));
-}
-
 export default async function Page({ params, searchParams }: PageProps) {
   const { entity } = await params;
   const query = await searchParams;
