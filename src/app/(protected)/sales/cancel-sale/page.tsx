@@ -1,6 +1,11 @@
+import type { Metadata } from "next";
 import { CancelSalePage } from "@/features/sales/cancel-sale/cancel-sale-page";
 import { INITIAL_DATE_SELECT, SALES_LIST_LIMIT_OPTIONS } from "@/features/sales/cancel-sale/cancel-sale-utils";
 import { firstUrlParam, parseUrlPagination } from "@/lib/url-pagination";
+
+export const metadata: Metadata = {
+  title: "ຍົກເລີກການຂາຍ",
+};
 
 export default async function Page(props: PageProps<"/sales/cancel-sale">) {
   const params = await props.searchParams;

@@ -1,6 +1,11 @@
+import type { Metadata } from "next";
 import { SalesListPage } from "@/features/sales/sales-list/sales-list-page";
 import { SALES_LIST_LIMIT_OPTIONS } from "@/features/sales/sales-list/sales-list-utils";
 import { parseUrlPagination } from "@/lib/url-pagination";
+
+export const metadata: Metadata = {
+  title: "ລາຍການຂາຍ",
+};
 
 export default async function Page(props: PageProps<"/sales/sales-list">) {
   const params = await props.searchParams;
