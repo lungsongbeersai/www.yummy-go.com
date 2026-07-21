@@ -1,4 +1,0 @@
-interface:
-  display_name: "Yummy Go Printing"
-  short_description: "Maintain POS printing across web and Android"
-  default_prompt: "Use $yummy-go-printing to implement or review a Yummy Go printing change."

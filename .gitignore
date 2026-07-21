@@ -16,3 +16,6 @@ next-env.d.ts
 
 # Local isolated workspaces created by coding agents
 .worktrees/
+
+# agent-generated skill files (Codex)
+.agents/skills/
