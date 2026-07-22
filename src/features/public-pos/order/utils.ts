@@ -493,12 +493,6 @@ export function snapshotRect(rect: DOMRect | DOMRectReadOnly): RectSnapshot {
   };
 }
 
-export function prefersReducedMotion() {
-  if (typeof window === "undefined" || typeof window.matchMedia !== "function")
-    return false;
-  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-}
-
 export function easeOutCubic(value: number) {
   return 1 - Math.pow(1 - value, 3);
 }

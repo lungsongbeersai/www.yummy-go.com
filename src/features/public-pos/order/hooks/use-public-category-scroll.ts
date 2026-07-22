@@ -22,11 +22,11 @@ import {
   SCROLL_JUMP_VERIFY_DELAY_MS,
 } from "@/features/public-pos/order/constants";
 import type { ScrollJumpEdge } from "@/features/public-pos/order/types";
+import { prefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
 import {
   easeOutCubic,
   getScrollJumpEdgeFromViewport,
   getWindowMaxScrollY,
-  prefersReducedMotion,
 } from "@/features/public-pos/order/utils";
 
 export function usePublicCategoryScroll({

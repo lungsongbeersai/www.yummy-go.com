@@ -16,7 +16,7 @@ import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
-import { optionalString } from "../table-selection/utils";
+import { optionalString } from "@/lib/values";
 import { SelectedTableCartPanel } from "../table-selection/selected-table-cart-panel";
 import { PRODUCT_GRID_CLASS, productModeLabel } from "./order-customer-utils";
 import {

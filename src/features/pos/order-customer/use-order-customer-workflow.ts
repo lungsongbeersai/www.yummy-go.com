@@ -40,11 +40,8 @@ import {
   type ProductModalMode,
   type SelectedTopping,
 } from "./order-customer-utils";
-import {
-  cartForTable,
-  cartQuantityCount,
-  optionalString,
-} from "../table-selection/utils";
+import { cartForTable, cartQuantityCount } from "../table-selection/utils";
+import { optionalString } from "@/lib/values";
 
 export type OrderCustomerWorkflowInput = {
   initialTableUuid: string;

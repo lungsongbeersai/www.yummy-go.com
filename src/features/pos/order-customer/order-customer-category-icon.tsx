@@ -1,7 +1,7 @@
 "use client";
 
 import { CategoryIcon } from "@/features/settings/category/category-icon";
-import { optionalString } from "../table-selection/utils";
+import { optionalString } from "@/lib/values";
 
 export function CategoryIconView({
   className,

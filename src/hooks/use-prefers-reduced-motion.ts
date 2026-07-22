@@ -10,6 +10,15 @@ function subscribe(onChange: () => void) {
   return () => query.removeEventListener("change", onChange);
 }
 
+// เวอร์ชันฟังก์ชันล้วนสำหรับโค้ดนอก React (event handler, imperative helper)
+// ที่เรียก hook ไม่ได้ — ใช้ guard typeof window เพราะบางจุดถูกเรียกจากโค้ด
+// ที่อาจรันได้ทั้งฝั่ง server และ client
+export function prefersReducedMotion() {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function")
+    return false;
+  return window.matchMedia(REDUCED_MOTION_QUERY).matches;
+}
+
 // ผู้ใช้เปิด "ลดการเคลื่อนไหว" ในระบบปฏิบัติการหรือไม่
 //
 // อ่านผ่าน useSyncExternalStore แทนการเช็ค matchMedia ใน effect แล้ว setState

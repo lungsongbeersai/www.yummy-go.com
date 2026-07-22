@@ -38,6 +38,10 @@ import {
   optionalString,
 } from "../utils";
 import {
+  openLocalInvoicePrintWindow,
+  type InvoicePrintData,
+} from "@/features/pos/print/invoice-print-window";
+import {
   activeAmountField,
   activeExactAmountLak,
   amountInput,
@@ -50,7 +54,6 @@ import {
   formatAmountInputDisplay,
   LAK_CURRENCY_OPTION,
   LAK_CURRENCY_VALUE,
-  openLocalInvoicePrintWindow,
   paymentAmounts,
   paymentNote,
   paymentTabs,
@@ -62,7 +65,6 @@ import {
   tenderInputValue,
   tenderLabel,
   withReceiptPrintLabels,
-  type InvoicePrintData,
   type PaymentTab,
   type SplitTenderField,
   type TenderField,

@@ -21,7 +21,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { money } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { CateProductItem } from "@/services/pos";
-import { optionalNumber, optionalString } from "../table-selection/utils";
+import { optionalNumber, optionalString } from "@/lib/values";
 import {
   getProductActionState,
   getProductBlockedState,

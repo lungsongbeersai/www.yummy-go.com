@@ -19,7 +19,7 @@ import {
   type ProdItem,
   type ProdTopping,
 } from "@/services/pos";
-import { optionalNumber, optionalString } from "../table-selection/utils";
+import { optionalNumber, optionalString } from "@/lib/values";
 
 export const ProductSortStatus = ProductSortStatusValue;
 export type ProductSortStatus = ProductSortStatusType;

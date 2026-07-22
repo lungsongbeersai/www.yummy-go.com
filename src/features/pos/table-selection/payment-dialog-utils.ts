@@ -33,30 +33,6 @@ import {
   visibleCartItems,
 } from "./utils";
 
-export {
-  escapeHtml,
-  formatInvoicePrintDate,
-  formatInvoiceQty,
-  invoiceMetaRow,
-  invoiceTotalRow,
-  openLocalInvoicePrintWindow,
-  renderInvoiceHeader,
-  renderInvoiceItem,
-  renderInvoiceItems,
-  renderInvoiceMeta,
-  renderInvoiceOriginalLineTotal,
-  renderInvoiceQr,
-  renderInvoiceTopping,
-  renderInvoiceToppings,
-  renderInvoiceTotals,
-  renderLocalInvoiceHtml,
-} from "@/features/pos/print/invoice-print-window";
-export type {
-  InvoicePrintData,
-  InvoicePrintItem,
-  InvoicePrintTopping,
-} from "@/features/pos/print/invoice-print-window";
-
 export type PaymentTab = "cash" | "transfer" | "cash_transfer" | "arrears";
 export type PaymentKind = "full" | "split";
 export type SplitTenderField = "cash" | "transfer";

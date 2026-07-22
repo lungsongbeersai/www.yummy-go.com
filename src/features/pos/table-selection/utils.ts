@@ -470,10 +470,6 @@ export function cartItemStatus(item: CartItem) {
   );
 }
 
-export function isVisibleCartItem(item: CartItem) {
-  return Boolean(item);
-}
-
 export function isWaitingCartItem(item: CartItem) {
   return cartItemStatus(item) === 0;
 }
@@ -515,8 +511,10 @@ export function cartItems(cart: CartOrder | CartOrder[] | null) {
   return cartOrders(cart).flatMap((order) => order.items ?? []);
 }
 
+// items ที่มาจาก order.items เป็น CartItem เสมอ (ไม่มี null/undefined หลุดมา)
+// ชื่อฟังก์ชันนี้คงไว้เพื่อสื่อความหมาย "รายการที่แสดงผล" แม้จะไม่กรองอะไรจริง
 export function visibleCartItems(cart: CartOrder | CartOrder[] | null) {
-  return cartItems(cart).filter(isVisibleCartItem);
+  return cartItems(cart);
 }
 
 export function cartOrderInvoice(orders: CartOrder[]) {

@@ -3,10 +3,8 @@
 import { type RefObject, useCallback, useRef, useState } from "react";
 import type { CateProductItem, ProdItem } from "@/services/pos";
 import type { CartFlyAnimationState } from "@/features/public-pos/order/types";
-import {
-  prefersReducedMotion,
-  snapshotRect,
-} from "@/features/public-pos/order/utils";
+import { prefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
+import { snapshotRect } from "@/features/public-pos/order/utils";
 
 export function useCartFlyAnimation(
   cartTargetRef: RefObject<HTMLButtonElement | null>,
