@@ -39,7 +39,7 @@ import type {
 } from "./daily-sales-report-types";
 import { firstNumber, summaryCardValue } from "./daily-sales-report-utils";
 
-interface ReportSummaryCardsProps {
+interface DailySalesSummaryCardsProps {
   cards: SummaryCardConfig[];
   reportTotal: Record<string, unknown>;
   summaryCards: SummaryCards;
@@ -56,7 +56,7 @@ interface ReportExportLoadingDialogProps {
   progress: ReportExportProgress | null;
 }
 
-interface ReportTableCardProps {
+interface DailySalesTableCardProps {
   actions: ReportTableActionsProps;
   children: ReactNode;
   footer: ReactNode;
@@ -91,11 +91,11 @@ interface ReportTypeSwitchProps {
   onChange: (typePage: ReportTab) => void;
 }
 
-export function ReportSummaryCards({
+export function DailySalesSummaryCards({
   cards,
   reportTotal,
   summaryCards,
-}: ReportSummaryCardsProps) {
+}: DailySalesSummaryCardsProps) {
   return (
     <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
       {cards.map((card) => {
@@ -206,13 +206,13 @@ export function ReportExportLoadingDialog({
   );
 }
 
-export function ReportTableCard({
+export function DailySalesTableCard({
   actions,
   children,
   footer,
   loading,
   rowsLength,
-}: ReportTableCardProps) {
+}: DailySalesTableCardProps) {
   const { t } = useTranslation();
 
   return (
@@ -465,7 +465,4 @@ function ReportTypeSwitch({
     </ToggleGroup>
   );
 }
-
-export { ReportError } from "../shared/report-error";
-export { ReportPagination } from "../shared/report-pagination";
 

@@ -98,3 +98,26 @@ export function receiptTotalRowHtml(label: string, value: number, className = ""
     </div>
   `;
 }
+
+// ส่วนหัวใบเสร็จร่วมกันทุกรายงาน: ชื่อร้าน (ถ้ามี) → ชื่อสาขา (ถ้ามี) → หัวข้อรายงาน
+export function receiptHeaderHtml({
+  branchName,
+  storeName,
+  title,
+}: {
+  branchName?: string;
+  storeName?: string;
+  title: string;
+}) {
+  return `
+    <header>
+      ${storeName ? `<p class="strong">${escapeHtml(storeName)}</p>` : ""}
+      ${branchName ? `<p>${escapeHtml(branchName)}</p>` : ""}
+      <h1>${escapeHtml(title)}</h1>
+    </header>
+  `;
+}
+
+export function receiptMetaRowHtml(label: string, value: unknown) {
+  return `<p>${escapeHtml(label)}: ${escapeHtml(value)}</p>`;
+}

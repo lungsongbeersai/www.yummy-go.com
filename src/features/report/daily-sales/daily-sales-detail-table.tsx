@@ -19,8 +19,8 @@ import { cn } from "@/lib/utils";
 import type { ApiEntity } from "@/services/shared/types";
 import type { DailySalesBillGroup } from "@/stores/report-store";
 import { SortableReportTableHead } from "../report-sort-table-head";
-import { ReportIndeterminateCheckbox } from "../report-row-selection";
-import { useLocalTableSort } from "../report-sort-utils";
+import { ReportIndeterminateCheckbox } from "../shared/report-row-selection";
+import { useLocalTableSort } from "../shared/report-sort-utils";
 import {
   detailGroupDiscountTotal as groupDiscountTotal,
   detailGroupItemDiscountTotal as groupItemDiscountTotal,

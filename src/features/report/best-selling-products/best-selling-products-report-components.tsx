@@ -24,7 +24,7 @@ import { useTranslation } from "react-i18next";
 import {
   ReportOfficialHeader,
   ReportSignatures,
-} from "../report-official-layout";
+} from "../shared/report-official-layout";
 import {
   ReportApplyButton,
   ReportFilterSheet,
@@ -78,11 +78,11 @@ import { SortableReportTableHead } from "../report-sort-table-head";
 import {
   ReportIndeterminateCheckbox,
   selectionStateForVisibleIds,
-} from "../report-row-selection";
+} from "../shared/report-row-selection";
 import {
   sortRowsLocally,
   useLocalTableSort
-} from "../report-sort-utils";
+} from "../shared/report-sort-utils";
 import type {
   BestSellingExportAction,
   BestSellingOption,

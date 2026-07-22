@@ -1,4 +1,3 @@
-import { localDateInputValue, money } from "@/lib/format";
 import { firstNumberOrZero as firstNumber, isPresent, readValue, textValue } from "@/lib/values";
 import { BEST_SELLING_PRODUCTS_SORT_OPTIONS } from "@/config/report-filters";
 import type { ApiEntity } from "@/services/shared/types";
@@ -6,13 +5,17 @@ import type { BestSellingProductGroup, BestSellingProductItem } from "@/stores/r
 import type {
   ReportExcelGridRow,
   ReportExcelGridSection
-} from "../report-excel-utils";
+} from "../shared/report-excel-utils";
+import { formatNumber } from "../shared/report-metrics";
 import type {
   BestSellingMetricConfig,
   BestSellingOption,
   BestSellingProductsFilters,
   BestSellingSummaryCardConfig
 } from "./best-selling-products-report-types";
+
+export { displayMetric, formatNumber } from "../shared/report-metrics";
+export { waitForPaint } from "../shared/report-export-info";
 
 export const ALL_GROUPS_VALUE = "all";
 
@@ -191,12 +194,6 @@ export function summaryValue(summary: ApiEntity | ApiEntity[], keys: string[]) {
   return readValue(summary, keys);
 }
 
-export { localDateInputValue };
-
-export function formatNumber(value: unknown) {
-  return firstNumber(value).toLocaleString("en-US");
-}
-
 export function groupOptionFromRow(row: ApiEntity, language: string): BestSellingOption | null {
   const value = textValue(readValue(row, ["group_uuid", "group_uuid_fk", "uuid"]), "");
   if (!value) return null;
@@ -270,12 +267,6 @@ export function bestSellingGroupMetrics(group: BestSellingProductGroup, t: (key:
 
 export function bestSellingFileBaseName(filters: BestSellingProductsFilters) {
   return `best-selling-products-${filters.sortBy}-${filters.dateFrom}-to-${filters.dateTo}`;
-}
-
-export function waitForPaint() {
-  return new Promise<void>((resolve) => {
-    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-  });
 }
 
 export function exportSummaryRows(
@@ -420,8 +411,4 @@ export function bestSellingSummaryFromRows(
     subtotal: rows.reduce((total, row) => total + row.subtotal, 0),
     vat: rows.reduce((total, row) => total + row.vat, 0),
   };
-}
-
-export function displayMetric(value: unknown, kind: "money" | "number") {
-  return kind === "money" ? money(firstNumber(value)) : formatNumber(value);
 }

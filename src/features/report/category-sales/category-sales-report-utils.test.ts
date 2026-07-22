@@ -6,8 +6,7 @@ import {
   categorySalesRowMetricConfigs,
   categorySalesSummaryFromRows,
   categorySalesSummaryMetricConfigs,
-  exportSummaryRows,
-  paymentMethodFallbackOptions
+  exportSummaryRows
 } from "./category-sales-report-utils";
 import type { CategorySalesReportFilters } from "./category-sales-report-types";
 
@@ -66,15 +65,6 @@ const row: CategorySalesRow = {
 };
 
 describe("category sales report helpers", () => {
-  it("builds fallback payment method options", () => {
-    expect(paymentMethodFallbackOptions(t).map((option) => [option.value, option.label])).toEqual([
-      ["all", "All"],
-      ["cash", "Cash"],
-      ["transfer", "Transfer"],
-      ["debt", "Debt"]
-    ]);
-  });
-
   it("uses payment method and date range in the export file name", () => {
     const filters: CategorySalesReportFilters = {
       branchUuid: "branch-1",

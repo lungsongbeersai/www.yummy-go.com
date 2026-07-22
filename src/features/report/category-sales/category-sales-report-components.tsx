@@ -12,7 +12,7 @@ import { useTranslation } from "react-i18next";
 import {
   ReportOfficialHeader,
   ReportSignatures,
-} from "../report-official-layout";
+} from "../shared/report-official-layout";
 import {
   ReportFilterCard,
   ReportFilterSheet,
@@ -61,13 +61,13 @@ import { SortableReportTableHead } from "../report-sort-table-head";
 import {
   ReportIndeterminateCheckbox,
   selectionStateForVisibleIds,
-} from "../report-row-selection";
+} from "../shared/report-row-selection";
 import {
   reportOrderLabel,
   reportOrderOptions,
   sortRowsLocally,
   useLocalTableSort,
-} from "../report-sort-utils";
+} from "../shared/report-sort-utils";
 import type {
   CategorySalesExportAction,
   CategorySalesOption,
@@ -79,6 +79,7 @@ import {
   categorySalesSummaryMetricConfigs,
   displayMetric,
 } from "./category-sales-report-utils";
+import { metricNumber } from "../shared/report-metrics";
 
 type CategorySalesSortKey =
   | keyof CategorySalesRow
@@ -1066,11 +1067,6 @@ function financialValueTextClass(
     tone === "discount" && number > 0 && "text-destructive",
     tone === "total" && number > 0 && positiveTotalClass
   );
-}
-
-function metricNumber(value: unknown) {
-  const number = Number(value ?? 0);
-  return Number.isFinite(number) ? number : 0;
 }
 
 function summaryDiscountTotal(summary: Record<string, unknown>) {

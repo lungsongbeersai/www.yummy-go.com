@@ -1,4 +1,4 @@
-import { localDateInputValue, money } from "@/lib/format";
+import { money } from "@/lib/format";
 import { getProductImageUrl } from "@/lib/image";
 import {
   firstNumber as firstOptionalNumber,
@@ -70,7 +70,6 @@ export function paymentMethodLabel(
 
 export { branchOptionFromRow, branchOptionLabel, selectedBranchLabel } from "../shared/report-branch-options";
 
-export { localDateInputValue };
 export { firstNumber, firstOptionalNumber, isPresent, readValue, textValue };
 
 export function displayTextValue(value: unknown, fallback = "") {

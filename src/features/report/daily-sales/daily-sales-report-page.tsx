@@ -6,15 +6,15 @@ import { useTranslation } from "react-i18next";
 import { FilterHeaderToolbar } from "@/components/common/filter-header-toolbar";
 import { Button } from "@/components/ui/button";
 import type { UrlPaginationState } from "@/lib/url-pagination";
+import { ReportError } from "../shared/report-error";
+import { ReportPagination } from "../shared/report-pagination";
 import {
-  ReportError,
+  DailySalesSummaryCards,
+  DailySalesTableCard,
   ReportExportLoadingDialog,
-  ReportPagination,
-  ReportSummaryCards,
-  ReportTableCard,
 } from "./daily-sales-report-components";
-import { ReportExportSurface } from "./daily-sales-report-export-surface";
-import { ReportFilterSheet } from "./daily-sales-report-filters";
+import { DailySalesExportSurface } from "./daily-sales-report-export-surface";
+import { DailySalesFilterSheet } from "./daily-sales-report-filters";
 import {
   DetailBillTable,
   SummaryReportTable,
@@ -110,7 +110,7 @@ export function DailySalesReportPage({
             }
           />
 
-          <ReportFilterSheet
+          <DailySalesFilterSheet
             branchLoading={report.branchLoading}
             branchLocked={!report.canSelectBranch}
             branchOptions={report.branchOptions}
@@ -129,14 +129,14 @@ export function DailySalesReportPage({
           {report.error ? <ReportError message={report.error} /> : null}
 
           <div id={SUMMARY_CARDS_ID} hidden={!summaryVisible}>
-            <ReportSummaryCards
+            <DailySalesSummaryCards
               cards={report.cards}
               reportTotal={report.reportTotal}
               summaryCards={report.summaryCards}
             />
           </div>
 
-          <ReportTableCard
+          <DailySalesTableCard
             actions={{
               allDetailGroupsExpanded: report.allDetailGroupsExpanded,
               billGroupsLength: report.billGroups.length,
@@ -198,14 +198,14 @@ export function DailySalesReportPage({
                 onToggleRows={report.toggleReportRows}
               />
             )}
-          </ReportTableCard>
+          </DailySalesTableCard>
         </div>
       </div>
 
       <ReportExportLoadingDialog exporting={report.exporting} progress={report.exportProgress} />
 
       {report.exportSurfaceReady ? (
-        <ReportExportSurface
+        <DailySalesExportSurface
           cards={report.cards}
           billGroups={report.renderedExportData.billGroups}
           columns={report.exportColumns}

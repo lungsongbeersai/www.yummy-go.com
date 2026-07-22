@@ -8,7 +8,7 @@ import {
   type ReportExcelGridSection,
   type ReportExcelLayout,
   type XlsxModule,
-} from "../report-excel-utils";
+} from "../shared/report-excel-utils";
 import {
   buildDailySalesDetailReportModel,
   type DailySalesDetailAdjustmentKey,

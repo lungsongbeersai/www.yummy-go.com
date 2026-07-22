@@ -15,8 +15,8 @@ import { money } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { ApiEntity } from "@/services/shared/types";
 import { SortableReportTableHead } from "../report-sort-table-head";
-import { ReportIndeterminateCheckbox } from "../report-row-selection";
-import { useLocalTableSort } from "../report-sort-utils";
+import { ReportIndeterminateCheckbox } from "../shared/report-row-selection";
+import { useLocalTableSort } from "../shared/report-sort-utils";
 import type {
   ReportColumn,
   ReportTab,

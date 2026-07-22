@@ -1,10 +1,10 @@
 import { money } from "@/lib/format";
 import { escapeHtml } from "@/features/pos/print/invoice-print-window";
 import {
-  openReceiptPrintWindow,
   receiptDocumentHtml,
+  receiptHeaderHtml,
+  receiptMetaRowHtml,
   receiptTotalRowHtml,
-  renderReceiptPrintWindow,
 } from "../shared/report-receipt-print";
 import type { DailyStoreClosingReport } from "@/stores/report-store";
 import { dailyClosingLabel } from "./daily-closing-report-utils";
@@ -127,17 +127,6 @@ const DAILY_CLOSING_EXTRA_STYLES = `
       }
 `;
 
-export function openDailyClosingPrintWindow() {
-  return openReceiptPrintWindow();
-}
-
-export function renderDailyClosingPrintWindow(
-  printWindow: Window,
-  data: DailyClosingPrintData,
-) {
-  renderReceiptPrintWindow(printWindow, renderDailyClosingPrintHtml(data));
-}
-
 // เนื้อหาใบเสร็จไม่รวม html/head/style/script
 // ใช้ร่วมกันระหว่างหน้าพิมพ์และ preview บนหน้าจอ
 export function renderDailyClosingReceiptBody(
@@ -238,34 +227,17 @@ export function renderDailyClosingReceiptBody(
     .join("");
 
   return `
-    <header>
-      ${
-        data.storeName
-          ? `<p class="strong">${escapeHtml(data.storeName)}</p>`
-          : ""
-      }
-
-      ${
-        data.branchName
-          ? `<p>${escapeHtml(data.branchName)}</p>`
-          : ""
-      }
-
-      <h1>${escapeHtml(labels.title)}</h1>
-    </header>
+    ${receiptHeaderHtml({
+      branchName: data.branchName,
+      storeName: data.storeName,
+      title: labels.title,
+    })}
 
     <div class="divider"></div>
 
     <section class="meta">
-      <p>
-        ${escapeHtml(labels.businessDate)}:
-        ${escapeHtml(data.businessDate)}
-      </p>
-
-      <p>
-        ${escapeHtml(labels.cashier)}:
-        ${escapeHtml(data.cashier)}
-      </p>
+      ${receiptMetaRowHtml(labels.businessDate, data.businessDate)}
+      ${receiptMetaRowHtml(labels.cashier, data.cashier)}
     </section>
 
     <div class="divider"></div>

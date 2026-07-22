@@ -12,7 +12,7 @@ import { useTranslation } from "react-i18next";
 import {
   ReportOfficialHeader,
   ReportSignatures,
-} from "../report-official-layout";
+} from "../shared/report-official-layout";
 import {
   ReportApplyButton,
   ReportFilterSheet,
@@ -61,8 +61,8 @@ import { SortableReportTableHead } from "../report-sort-table-head";
 import {
   ReportIndeterminateCheckbox,
   selectionStateForVisibleIds,
-} from "../report-row-selection";
-import { useLocalTableSort } from "../report-sort-utils";
+} from "../shared/report-row-selection";
+import { useLocalTableSort } from "../shared/report-sort-utils";
 import type {
   PaymentMethodsExportAction,
   PaymentMethodsReportFilters,
@@ -76,6 +76,7 @@ import {
   paymentMethodRowMetricConfigs,
   paymentMethodTotalMetricConfigs,
 } from "./payment-methods-report-utils";
+import { metricNumber } from "../shared/report-metrics";
 
 type FilterProps = {
   branchLoading: boolean;
@@ -1019,11 +1020,6 @@ function PaymentMethodsLoadingSkeleton() {
 
 function isPresent(value: unknown) {
   return value !== null && value !== undefined && value !== "";
-}
-
-function metricNumber(value: unknown) {
-  const number = Number(value ?? 0);
-  return Number.isFinite(number) ? number : 0;
 }
 
 function summaryValue(

@@ -3,7 +3,6 @@ import type { PaymentMethodReportRow } from "@/stores/report-store";
 import {
   exportPaymentMethodRows,
   paymentMethodExportMetricConfigs,
-  paymentMethodFallbackOptions,
   paymentMethodsFileBaseName,
   paymentMethodRowMetricConfigs
 } from "./payment-methods-report-utils";
@@ -66,15 +65,6 @@ const row: PaymentMethodReportRow = {
 };
 
 describe("payment method report helpers", () => {
-  it("builds fallback payment method options", () => {
-    expect(paymentMethodFallbackOptions(t).map((option) => [option.value, option.label])).toEqual([
-      ["all", "All"],
-      ["cash", "Cash"],
-      ["transfer", "Transfer"],
-      ["debt", "Debt"]
-    ]);
-  });
-
   it("uses payment method and date range in the export file name", () => {
     const filters: PaymentMethodsReportFilters = {
       branchUuid: "branch-1",

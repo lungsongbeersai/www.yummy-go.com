@@ -13,10 +13,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PAGE_LIMIT_OPTIONS, isAllPageLimit } from "@/lib/pagination";
-import { reportOrderLabel, reportOrderOptions } from "../report-sort-utils";
+import { reportOrderLabel, reportOrderOptions } from "../shared/report-sort-utils";
 import {
   ReportFilterCard,
-  ReportFilterSheet as SharedReportFilterSheet,
+  ReportFilterSheet,
   ReportMobileFilterSummary,
 } from "../shared/report-filter-shell";
 import type {
@@ -41,7 +41,7 @@ type ReportFilterProps = {
   onDraftChange: (filters: ReportFilters) => void;
 };
 
-export function ReportFilterBar({
+export function DailySalesFilterBar({
   branchLoading,
   branchLocked,
   branchOptions,
@@ -72,7 +72,7 @@ export function ReportFilterBar({
   );
 }
 
-export function ReportFilterSheet({
+export function DailySalesFilterSheet({
   branchLoading,
   branchLocked,
   branchOptions,
@@ -91,7 +91,7 @@ export function ReportFilterSheet({
   const { t } = useTranslation();
 
   return (
-    <SharedReportFilterSheet
+    <ReportFilterSheet
       canApply={canApply}
       description={t("report.dailySalesTitle")}
       gridClassName="lg:grid-cols-3"
@@ -109,7 +109,7 @@ export function ReportFilterSheet({
         idPrefix="report-mobile"
         onDraftChange={onDraftChange}
       />
-    </SharedReportFilterSheet>
+    </ReportFilterSheet>
   );
 }
 

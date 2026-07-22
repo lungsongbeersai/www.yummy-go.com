@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState, type RefObject } from "react
 import { useResetOnChange } from "@/hooks/use-reset-on-change";
 import { useTranslation } from "react-i18next";
 import { useUrlPagination } from "@/hooks/use-url-pagination";
+import { localDateInputValue } from "@/lib/format";
 import { pageLimitSize } from "@/lib/pagination";
 import type { UrlPaginationState } from "@/lib/url-pagination";
 import { useAppStore } from "@/stores/app-store";
@@ -13,10 +14,10 @@ import { useCategorySalesReportStore } from "@/stores/report-store";
 import { useToastStore } from "@/stores/toast-store";
 import { exportInfoRows } from "../shared/report-export-info";
 import { useReportBranchSelection } from "../shared/use-report-branch-selection";
-import { createSingleSheetReportWorkbook } from "../report-excel-utils";
-import { officialReportExcelLayout } from "../report-official-layout";
-import { addReportCanvasToPdfPages } from "../report-pdf-utils";
-import { useReportRowSelection } from "../report-row-selection";
+import { createSingleSheetReportWorkbook } from "../shared/report-excel-utils";
+import { officialReportExcelLayout } from "../shared/report-official-layout";
+import { addReportCanvasToPdfPages } from "../shared/report-pdf-utils";
+import { useReportRowSelection } from "../shared/report-row-selection";
 import type { CategorySalesExportAction, CategorySalesExportData, CategorySalesReportFilters } from "./category-sales-report-types";
 import {
   categorySalesGroupedSection,
@@ -26,7 +27,6 @@ import {
   categorySalesSummaryFromRows,
   emptyExportData,
   exportSummaryRows,
-  localDateInputValue,
   paymentMethodFallbackOptions,
   selectedPaymentMethodLabel,
   waitForPaint
@@ -86,7 +86,7 @@ export function useCategorySalesReportWorkflow(
   const branchUuid = appliedFilters.branchUuid || defaultBranchUuid;
   const activeBranchLabel = branchLabelFor(branchUuid);
   const methodOptions = paymentMethodFallbackOptions(t);
-  const activePaymentMethodLabel = selectedPaymentMethodLabel(appliedFilters.paymentMethod, t);
+  const activePaymentMethodLabel = selectedPaymentMethodLabel(methodOptions, appliedFilters.paymentMethod, t);
   const reportTitle = reportName || t("report.categorySales.title");
   const visibleCount = groups.length;
   const activePageLimit = pageLimitSize(appliedFilters.limit, visibleCount);

@@ -1,6 +1,6 @@
 "use client";
 
-import { addReportCanvasToPdfPages } from "../report-pdf-utils";
+import { addReportCanvasToPdfPages } from "../shared/report-pdf-utils";
 import {
   useCallback,
   useEffect,
@@ -11,6 +11,7 @@ import {
 } from "react";
 import { useResetOnDeps } from "@/hooks/use-reset-on-change";
 import { useTranslation } from "react-i18next";
+import { localDateInputValue } from "@/lib/format";
 import { pageLimitSize } from "@/lib/pagination";
 import type { UrlPaginationState } from "@/lib/url-pagination";
 import type { ApiEntity } from "@/services/shared/types";
@@ -26,8 +27,9 @@ import {
   useDailySalesOrderReportStore,
 } from "@/stores/report-store";
 import { useToastStore } from "@/stores/toast-store";
-import { createSingleSheetReportWorkbook } from "../report-excel-utils";
-import { officialReportExcelLayout } from "../report-official-layout";
+import { createSingleSheetReportWorkbook } from "../shared/report-excel-utils";
+import { officialReportExcelLayout } from "../shared/report-official-layout";
+import { openReceiptPrintWindow, renderReceiptPrintWindow } from "../shared/report-receipt-print";
 import { createDailySalesDetailExcelWorkbook } from "./daily-sales-detail-excel";
 import type {
   ReportExportData,
@@ -41,8 +43,7 @@ import {
 } from "./daily-sales-report-utils";
 import {
   buildDailySalesPrintData,
-  openDailySalesPrintWindow,
-  renderDailySalesPrintWindow,
+  renderDailySalesPrintHtml,
 } from "./daily-sales-report-print";
 import {
   reportColumns,
@@ -63,7 +64,6 @@ import {
 import {
   billPaymentMethodParam,
   detailPaymentMethodParam,
-  localDateInputValue,
   paymentMethodLabel,
   reportRecordId,
   reportTotalFromBillGroups,
@@ -661,7 +661,7 @@ export function useDailySalesReportWorkflow(
     if (loading || exporting) return;
     if (!user) return;
 
-    const printWindow = openDailySalesPrintWindow();
+    const printWindow = openReceiptPrintWindow();
     if (!printWindow) {
       showToast({ title: t("report.printFailed"), description: t("report.printPopupBlocked"), tone: "error" });
       return;
@@ -694,7 +694,7 @@ export function useDailySalesReportWorkflow(
       const bills = useDailySaleItemsStore.getState().bills;
       if (!bills.length && !categorySales.groups.length) throw new Error(t("report.noData"));
 
-      renderDailySalesPrintWindow(printWindow, buildDailySalesPrintData({
+      renderReceiptPrintWindow(printWindow, renderDailySalesPrintHtml(buildDailySalesPrintData({
         bills,
         dateFrom: appliedFilters.dateFrom,
         dateTo: appliedFilters.dateTo,
@@ -722,7 +722,7 @@ export function useDailySalesReportWorkflow(
         },
         salesGroups: categorySales.groups,
         user,
-      }));
+      })));
 
       showToast({
         title: t("report.printReady"),

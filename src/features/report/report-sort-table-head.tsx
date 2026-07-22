@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { TableHead } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
-import type { LocalSortState } from "./report-sort-utils";
+import type { LocalSortState } from "./shared/report-sort-utils";
 
 export function SortableReportTableHead<TKey extends string,>({
   align,

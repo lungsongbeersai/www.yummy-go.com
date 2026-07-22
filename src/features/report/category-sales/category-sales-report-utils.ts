@@ -1,18 +1,12 @@
-import { localDateInputValue, money } from "@/lib/format";
 import { firstNumberOrZero as firstNumber } from "@/lib/values";
-import {
-  PAYMENT_METHOD_REPORT_FILTER_OPTIONS,
-  type PaymentMethodReportFilter,
-} from "@/config/report-filters";
 import type { ApiEntity } from "@/services/shared/types";
 import type { CategorySalesGroup, CategorySalesRow } from "@/stores/report-store";
 import type {
   ReportExcelGridRow,
   ReportExcelGridSection
-} from "../report-excel-utils";
+} from "../shared/report-excel-utils";
 import type {
   CategorySalesMetricKind,
-  CategorySalesOption,
   CategorySalesReportFilters,
   CategorySalesRowMetricConfig
 } from "./category-sales-report-types";
@@ -60,31 +54,9 @@ const summaryMetricDefinitions = [
   { key: "grand_total", kind: "money", labelKey: "report.categorySales.columns.grandTotal" }
 ] as const satisfies readonly SummaryMetricDefinition[];
 
-export { firstNumber, localDateInputValue };
-
-export function formatNumber(value: unknown) {
-  return firstNumber(value).toLocaleString("en-US");
-}
-
-export function displayMetric(value: unknown, kind: CategorySalesMetricKind) {
-  if (kind === "money") return money(firstNumber(value));
-  if (kind === "percent") return `${firstNumber(value).toLocaleString("en-US", { maximumFractionDigits: 2 })}%`;
-  return formatNumber(value);
-}
-
-export function paymentMethodFallbackOptions(t: (key: string) => string): CategorySalesOption[] {
-  return PAYMENT_METHOD_REPORT_FILTER_OPTIONS.map((value) => ({
-    label: value === "all" ? t("common.all") : t(`report.paymentMethods.${value}`),
-    value
-  }));
-}
-
-export function selectedPaymentMethodLabel(
-  value: PaymentMethodReportFilter,
-  t: (key: string) => string
-) {
-  return paymentMethodFallbackOptions(t).find((option) => option.value === value)?.label ?? t("common.all");
-}
+export { firstNumber };
+export { displayMetric, formatNumber } from "../shared/report-metrics";
+export { paymentMethodFallbackOptions, selectedPaymentMethodLabel } from "../shared/report-payment-method-options";
 
 export function categorySalesRowMetricConfigs(
   t: (key: string) => string,
@@ -113,11 +85,7 @@ export function categorySalesFileBaseName(filters: CategorySalesReportFilters) {
   return `category-sales-${filters.paymentMethod}-${filters.orderBy}-${filters.dateFrom}-to-${filters.dateTo}`;
 }
 
-export function waitForPaint() {
-  return new Promise<void>((resolve) => {
-    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-  });
-}
+export { waitForPaint } from "../shared/report-export-info";
 
 import {
   REPORT_GRAND_TOTAL_ROW_STYLE as GRAND_TOTAL_ROW_STYLE,

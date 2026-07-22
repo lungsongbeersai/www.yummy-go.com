@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import {
   ReportOfficialHeader,
   ReportSignatures
-} from "@/features/report/report-official-layout";
+} from "@/features/report/shared/report-official-layout";
 import type { StockExportRow } from "./stock-export-utils";
 
 interface StockExportSurfaceProps {

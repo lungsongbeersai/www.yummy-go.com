@@ -8,10 +8,10 @@ import type {
 } from "@/stores/report-store";
 import { escapeHtml } from "@/features/pos/print/invoice-print-window";
 import {
-  openReceiptPrintWindow,
   receiptDocumentHtml,
+  receiptHeaderHtml,
+  receiptMetaRowHtml,
   receiptTotalRowHtml,
-  renderReceiptPrintWindow,
 } from "../shared/report-receipt-print";
 
 export interface DailySalesPrintLabels {
@@ -198,14 +198,6 @@ function printCategory(name: string, products: DailySalesPrintProduct[]) {
   };
 }
 
-export function openDailySalesPrintWindow() {
-  return openReceiptPrintWindow();
-}
-
-export function renderDailySalesPrintWindow(printWindow: Window, data: DailySalesPrintData) {
-  renderReceiptPrintWindow(printWindow, renderDailySalesPrintHtml(data));
-}
-
 // สไตล์เฉพาะรายงานยอดขายรายวัน: ตารางสามคอลัมน์ (สินค้า | จำนวน | ยอดรวม)
 const DAILY_SALES_EXTRA_STYLES = `
       .columns, .row { display: grid; grid-template-columns: minmax(0, 1fr) 11mm 23mm; gap: 1mm; align-items: start; }
@@ -235,16 +227,12 @@ export function renderDailySalesPrintHtml(data: DailySalesPrintData) {
     receiptTotalRowHtml(label, value, strong ? "grand-total" : "");
 
   const bodyHtml = `
-    <header>
-      ${data.storeName ? `<p class="strong">${escapeHtml(data.storeName)}</p>` : ""}
-      ${data.branchName ? `<p>${escapeHtml(data.branchName)}</p>` : ""}
-      <h1>${escapeHtml(labels.title)}</h1>
-    </header>
+    ${receiptHeaderHtml({ branchName: data.branchName, storeName: data.storeName, title: labels.title })}
     <div class="divider"></div>
     <section class="meta">
-      <p>${escapeHtml(labels.period)}: ${escapeHtml(data.dateFrom)} - ${escapeHtml(data.dateTo)}</p>
-      <p>${escapeHtml(labels.billCount)}: ${summary.activeBillCount}</p>
-      <p>Cashier: ${escapeHtml(data.cashier)}</p>
+      ${receiptMetaRowHtml(labels.period, `${data.dateFrom} - ${data.dateTo}`)}
+      ${receiptMetaRowHtml(labels.billCount, summary.activeBillCount)}
+      ${receiptMetaRowHtml("Cashier", data.cashier)}
     </section>
     <div class="divider"></div>
     <div class="columns strong"><span>${escapeHtml(labels.product)}</span><span>${escapeHtml(labels.quantity)}</span><span>${escapeHtml(labels.totalAmount)}</span></div>
