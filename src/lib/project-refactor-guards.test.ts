@@ -180,6 +180,11 @@ function runtimeImportNames(importClause: ts.ImportClause | undefined) {
   return names;
 }
 
+// invoice-print-window lives under services/printer for co-location with the rest of
+// the printing layer (per CLAUDE.md), but it only renders HTML/manages print windows —
+// it does no apiRequest data access, so it's exempt from the service-layer-isolation guard.
+const printRenderingServiceSpecifier = "@/services/printer/invoice-print-window";
+
 function runtimeServiceImports(directory: string): TextMatch[] {
   return sourceFiles(directory).flatMap((path) => {
     const content = readFileSync(path, "utf8");
@@ -190,7 +195,8 @@ function runtimeServiceImports(directory: string): TextMatch[] {
       const specifier = statement.moduleSpecifier;
       if (
         !ts.isStringLiteral(specifier) ||
-        !specifier.text.startsWith("@/services/")
+        !specifier.text.startsWith("@/services/") ||
+        specifier.text === printRenderingServiceSpecifier
       )
         return [];
 
@@ -330,7 +336,7 @@ describe("project refactor guards", () => {
 
   it("keeps raw image tags limited to generated print templates", () => {
     const allowedRawImageFiles = new Set([
-      "features/pos/print/invoice-print-window.ts",
+      "services/printer/invoice-print-window.ts",
       "features/pos/table-selection/table-qr-dialog.tsx"
     ]);
     const disallowedRawImages = matchesInFiles(srcDir, rawImageTagPattern)

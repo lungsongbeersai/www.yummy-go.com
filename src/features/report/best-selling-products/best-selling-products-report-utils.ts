@@ -5,7 +5,7 @@ import type { BestSellingProductGroup, BestSellingProductItem } from "@/stores/r
 import type {
   ReportExcelGridRow,
   ReportExcelGridSection
-} from "../shared/report-excel-utils";
+} from "@/lib/export/excel";
 import { formatNumber } from "../shared/report-metrics";
 import type {
   BestSellingMetricConfig,
@@ -15,7 +15,7 @@ import type {
 } from "./best-selling-products-report-types";
 
 export { displayMetric, formatNumber } from "../shared/report-metrics";
-export { waitForPaint } from "../shared/report-export-info";
+export { waitForPaint } from "@/lib/export/paint";
 
 export const ALL_GROUPS_VALUE = "all";
 
@@ -284,7 +284,7 @@ import {
   REPORT_GRAND_TOTAL_ROW_STYLE as GRAND_TOTAL_ROW_STYLE,
   REPORT_GROUP_ROW_STYLE as GROUP_ROW_STYLE,
   REPORT_TABLE_HEADER_STYLE as GROUPED_TABLE_HEADER_STYLE,
-} from "../shared/report-excel-styles";
+} from "@/lib/export/excel-styles";
 
 // ตารางเดียวจัดกลุ่มตามกลุ่มสินค้า เหมือนหน้าจอ: แถวกลุ่ม (พร้อมยอดรวมกลุ่ม)
 // → สินค้าในกลุ่ม (อันดับนับใหม่ต่อกลุ่ม) → ปิดท้ายด้วยยอดรวมทั้งรายงาน

@@ -8,7 +8,7 @@ import {
   type ReportExcelGridSection,
   type ReportExcelLayout,
   type XlsxModule,
-} from "../shared/report-excel-utils";
+} from "@/lib/export/excel";
 import {
   buildDailySalesDetailReportModel,
   type DailySalesDetailAdjustmentKey,
@@ -48,7 +48,7 @@ import {
   REPORT_GRAND_TOTAL_ROW_STYLE as GRAND_TOTAL_ROW_STYLE,
   REPORT_GROUP_ROW_STYLE,
   REPORT_TABLE_HEADER_STYLE as TABLE_HEADER_STYLE,
-} from "../shared/report-excel-styles";
+} from "@/lib/export/excel-styles";
 
 const MONEY_STYLE = {
   align: "right",

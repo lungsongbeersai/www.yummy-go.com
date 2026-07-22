@@ -6,7 +6,7 @@ import type {
   CategorySalesGroup,
   DailySaleItemsBillGroup,
 } from "@/stores/report-store";
-import { escapeHtml } from "@/features/pos/print/invoice-print-window";
+import { escapeHtml } from "@/services/printer/invoice-print-window";
 import {
   receiptDocumentHtml,
   receiptHeaderHtml,

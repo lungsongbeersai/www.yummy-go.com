@@ -1,4 +1,4 @@
-import type { InvoicePrintData, InvoicePrintItem, InvoicePrintTopping } from "@/features/pos/print/invoice-print-window";
+import type { InvoicePrintData, InvoicePrintItem, InvoicePrintTopping } from "@/services/printer/invoice-print-window";
 import { dateTime, money } from "@/lib/format";
 import { pageLimitNumber } from "@/lib/pagination";
 import type { CancelableBill, CancelableBillDetail, CancelableDateOption } from "@/services/cancel";

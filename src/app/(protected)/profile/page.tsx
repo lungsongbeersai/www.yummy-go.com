@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { ProfilePage } from "@/features/profile/overview/profile-page";
+import { ProfilePage } from "@/features/profile/profile-page";
 
 export const metadata: Metadata = {
   title: "ແກ້ໄຂໂປຣໄຟລ໌",

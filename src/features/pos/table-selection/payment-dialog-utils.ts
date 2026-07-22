@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import { money } from "@/lib/format";
 import { toLanguage } from "@/lib/language";
-import type { InvoicePrintData } from "@/features/pos/print/invoice-print-window";
+import type { InvoicePrintData } from "@/services/printer/invoice-print-window";
 import type { Customer } from "@/services/customer";
 import type { Exchange } from "@/services/exchange";
 import {

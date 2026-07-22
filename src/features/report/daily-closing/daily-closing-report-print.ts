@@ -1,5 +1,5 @@
 import { money } from "@/lib/format";
-import { escapeHtml } from "@/features/pos/print/invoice-print-window";
+import { escapeHtml } from "@/services/printer/invoice-print-window";
 import {
   receiptDocumentHtml,
   receiptHeaderHtml,

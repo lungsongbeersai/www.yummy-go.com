@@ -2,7 +2,7 @@ import * as XLSX from "xlsx";
 import * as XLSXStyle from "xlsx-js-style";
 import { strFromU8, unzipSync } from "fflate";
 import { describe, expect, it } from "vitest";
-import { createSingleSheetReportWorkbook } from "./report-excel-utils";
+import { createSingleSheetReportWorkbook } from "./excel";
 
 describe("report Excel helpers", () => {
   it("places every report section in one worksheet", () => {

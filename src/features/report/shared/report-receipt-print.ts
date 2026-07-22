@@ -9,7 +9,7 @@ import {
   escapeHtml,
   fullscreenPrintWindowFeatures,
   maximizePrintWindow,
-} from "@/features/pos/print/invoice-print-window";
+} from "@/services/printer/invoice-print-window";
 
 // ฐานสไตล์ใบเสร็จ 80mm ที่ทุกรายงานใช้ร่วมกัน — สิ่งที่เห็นบนจอต้องตรงกับ
 // สิ่งที่ออกจากเครื่องพิมพ์ 1:1 แต่ละรายงานเพิ่มเฉพาะ layout คอลัมน์ของตัวเอง

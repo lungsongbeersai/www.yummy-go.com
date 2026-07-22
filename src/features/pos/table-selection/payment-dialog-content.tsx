@@ -50,7 +50,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { useSuppressSoftKeyboard } from "@/hooks/use-soft-keyboard-policy";
+import { useSuppressSoftKeyboard } from "./hooks/use-soft-keyboard-policy";
 import {
   Popover,
   PopoverContent,

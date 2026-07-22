@@ -41,7 +41,7 @@ import {
 import {
   openLocalInvoicePrintWindow,
   type InvoicePrintData,
-} from "@/features/pos/print/invoice-print-window";
+} from "@/services/printer/invoice-print-window";
 import {
   activeAmountField,
   activeExactAmountLak,

@@ -36,7 +36,8 @@ export function reportExportColumns(columns: ReportColumn[]) {
 }
 
 // แถวข้อมูลรายงานหัวไฟล์ export ใช้ร่วมกันทุกหน้ารายงาน — ส่งเฉพาะ field ที่รายงานนั้นมี
-export { exportInfoRows, waitForPaint } from "../shared/report-export-info";
+export { exportInfoRows } from "../shared/report-export-info";
+export { waitForPaint } from "@/lib/export/paint";
 
 export function waitForImages(element: HTMLElement, timeoutMs = 1200) {
   const images = Array.from(element.querySelectorAll("img"));

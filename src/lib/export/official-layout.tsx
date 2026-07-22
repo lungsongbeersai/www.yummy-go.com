@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslation } from "react-i18next";
-import type { ReportExcelLayout } from "./report-excel-utils";
+import type { ReportExcelLayout } from "./excel";
 
 type Translate = (key: string) => string;
 

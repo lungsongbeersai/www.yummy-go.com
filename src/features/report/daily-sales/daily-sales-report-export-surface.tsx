@@ -20,7 +20,7 @@ import {
 import {
   ReportOfficialHeader,
   ReportSignatures,
-} from "../shared/report-official-layout";
+} from "@/lib/export/official-layout";
 import { renderPrintCell } from "./daily-sales-report-tables";
 import {
   firstNumber,

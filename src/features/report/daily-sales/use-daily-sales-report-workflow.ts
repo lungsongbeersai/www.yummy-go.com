@@ -1,6 +1,6 @@
 "use client";
 
-import { addReportCanvasToPdfPages } from "../shared/report-pdf-utils";
+import { addReportCanvasToPdfPages } from "@/lib/export/pdf";
 import {
   useCallback,
   useEffect,
@@ -27,8 +27,8 @@ import {
   useDailySalesOrderReportStore,
 } from "@/stores/report-store";
 import { useToastStore } from "@/stores/toast-store";
-import { createSingleSheetReportWorkbook } from "../shared/report-excel-utils";
-import { officialReportExcelLayout } from "../shared/report-official-layout";
+import { createSingleSheetReportWorkbook } from "@/lib/export/excel";
+import { officialReportExcelLayout } from "@/lib/export/official-layout";
 import { openReceiptPrintWindow, renderReceiptPrintWindow } from "../shared/report-receipt-print";
 import { createDailySalesDetailExcelWorkbook } from "./daily-sales-detail-excel";
 import type {

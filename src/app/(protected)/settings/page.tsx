@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { SettingsIndexPage } from "@/features/settings/index/settings-index-page";
+import { SettingsIndexPage } from "@/features/settings/overview/settings-index-page";
 
 export const metadata: Metadata = {
   title: "ຕັ້ງຄ່າ",

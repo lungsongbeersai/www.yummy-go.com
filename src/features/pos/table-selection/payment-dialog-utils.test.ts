@@ -6,7 +6,7 @@ import {
   WINDOW_OPEN_FONT_STYLESHEET_HREF,
 } from "@/lib/window-open-fonts";
 import type { AuthUser } from "@/stores/auth-store";
-import { renderLocalInvoiceHtml } from "@/features/pos/print/invoice-print-window";
+import { renderLocalInvoiceHtml } from "@/services/printer/invoice-print-window";
 import {
   amountInput,
   buildInvoicePrintData,

@@ -4,7 +4,7 @@ import type { CategorySalesGroup, CategorySalesRow } from "@/stores/report-store
 import type {
   ReportExcelGridRow,
   ReportExcelGridSection
-} from "../shared/report-excel-utils";
+} from "@/lib/export/excel";
 import type {
   CategorySalesMetricKind,
   CategorySalesReportFilters,
@@ -85,13 +85,13 @@ export function categorySalesFileBaseName(filters: CategorySalesReportFilters) {
   return `category-sales-${filters.paymentMethod}-${filters.orderBy}-${filters.dateFrom}-to-${filters.dateTo}`;
 }
 
-export { waitForPaint } from "../shared/report-export-info";
+export { waitForPaint } from "@/lib/export/paint";
 
 import {
   REPORT_GRAND_TOTAL_ROW_STYLE as GRAND_TOTAL_ROW_STYLE,
   REPORT_GROUP_ROW_STYLE as GROUP_ROW_STYLE,
   REPORT_TABLE_HEADER_STYLE as GROUPED_TABLE_HEADER_STYLE,
-} from "../shared/report-excel-styles";
+} from "@/lib/export/excel-styles";
 
 // summary ของ API ไม่มี key discount_total ตรงๆ ต้องรวมส่วนลดรายการ + ส่วนลดบิล
 export function categorySalesSummaryDiscountTotal(summary: ApiEntity) {

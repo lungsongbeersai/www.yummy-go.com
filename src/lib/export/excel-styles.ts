@@ -1,4 +1,4 @@
-import type { ReportExcelCellStyle } from "./report-excel-utils";
+import type { ReportExcelCellStyle } from "./excel";
 
 // โทนสีมาตรฐานของตาราง Excel ทุกรายงาน — แก้ที่นี่ที่เดียวแล้วมีผลทุกไฟล์ export
 export const REPORT_TABLE_HEADER_STYLE = {

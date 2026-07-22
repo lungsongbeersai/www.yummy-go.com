@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { chooseReportPdfPageEnd } from "./report-pdf-utils";
+import { chooseReportPdfPageEnd } from "./pdf";
 
 describe("chooseReportPdfPageEnd", () => {
   it("uses the full remaining canvas when it fits on the page", () => {

@@ -30,9 +30,3 @@ export function exportInfoRows(
       : []),
   ];
 }
-
-export function waitForPaint() {
-  return new Promise<void>((resolve) => {
-    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-  });
-}

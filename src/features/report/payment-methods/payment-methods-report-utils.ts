@@ -11,7 +11,7 @@ import type {
 
 export { displayMetric, formatNumber } from "../shared/report-metrics";
 export { paymentMethodFallbackOptions, selectedPaymentMethodLabel } from "../shared/report-payment-method-options";
-export { waitForPaint } from "../shared/report-export-info";
+export { waitForPaint } from "@/lib/export/paint";
 
 type TotalMetricDefinition = {
   key: string;

@@ -7,7 +7,7 @@ import { EmptyState } from "@/components/common/empty-state";
 import {
   openLocalInvoicePrintWindow,
   type InvoicePrintData
-} from "@/features/pos/print/invoice-print-window";
+} from "@/services/printer/invoice-print-window";
 import { useIsCapacitorNativeApp } from "@/hooks/use-capacitor-native-app";
 import { useUrlPagination } from "@/hooks/use-url-pagination";
 import type { UrlPaginationState } from "@/lib/url-pagination";

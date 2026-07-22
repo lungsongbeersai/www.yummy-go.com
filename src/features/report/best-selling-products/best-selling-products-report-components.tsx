@@ -24,7 +24,7 @@ import { useTranslation } from "react-i18next";
 import {
   ReportOfficialHeader,
   ReportSignatures,
-} from "../shared/report-official-layout";
+} from "@/lib/export/official-layout";
 import {
   ReportApplyButton,
   ReportFilterSheet,
