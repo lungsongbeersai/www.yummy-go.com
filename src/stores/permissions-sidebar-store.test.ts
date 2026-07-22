@@ -2,14 +2,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   fetchSidebarPermissionMenu,
   type SidebarPermissionMenuItem
-} from "@/services/sidebar-menu";
+} from "@/services/permissions/sidebar";
 import {
   sidebarMenuCacheKey,
-  useSidebarMenuStore
-} from "@/stores/sidebar-menu-store";
+  usePermissionsSidebarStore
+} from "@/stores/permissions-sidebar-store";
 
-vi.mock("@/services/sidebar-menu", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/services/sidebar-menu")>();
+vi.mock("@/services/permissions/sidebar", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/services/permissions/sidebar")>();
   return {
     ...actual,
     fetchSidebarPermissionMenu: vi.fn()
@@ -36,10 +36,10 @@ const menuItems: SidebarPermissionMenuItem[] = [
   }
 ];
 
-describe("sidebar menu store", () => {
+describe("permissions sidebar store", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    useSidebarMenuStore.setState({
+    usePermissionsSidebarStore.setState({
       cache: {},
       error: null,
       items: [],
@@ -51,10 +51,10 @@ describe("sidebar menu store", () => {
   it("uses api menu items and caches them on success", async () => {
     fetchSidebarPermissionMenuMock.mockResolvedValueOnce(menuItems);
 
-    await useSidebarMenuStore.getState().load("store-1", 1, "la");
+    await usePermissionsSidebarStore.getState().load("store-1", 1, "la");
 
     const key = sidebarMenuCacheKey("store-1", 1, "la");
-    const state = useSidebarMenuStore.getState();
+    const state = usePermissionsSidebarStore.getState();
     expect(fetchSidebarPermissionMenuMock).toHaveBeenCalledWith({
       companyUuid: "store-1",
       lang: "la",
@@ -67,12 +67,12 @@ describe("sidebar menu store", () => {
 
   it("keeps same-key cached menu items when the api fails", async () => {
     const key = sidebarMenuCacheKey("store-1", 1, "la");
-    useSidebarMenuStore.setState({ cache: { [key]: menuItems } });
+    usePermissionsSidebarStore.setState({ cache: { [key]: menuItems } });
     fetchSidebarPermissionMenuMock.mockRejectedValueOnce(new Error("offline"));
 
-    await useSidebarMenuStore.getState().load("store-1", 1, "la");
+    await usePermissionsSidebarStore.getState().load("store-1", 1, "la");
 
-    const state = useSidebarMenuStore.getState();
+    const state = usePermissionsSidebarStore.getState();
     expect(state.items).toEqual(menuItems);
     expect(state.error).toBe("offline");
     expect(state.loading).toBe(false);
@@ -81,9 +81,9 @@ describe("sidebar menu store", () => {
   it("uses empty active items when the api fails without cache", async () => {
     fetchSidebarPermissionMenuMock.mockRejectedValueOnce(new Error("offline"));
 
-    await useSidebarMenuStore.getState().load("store-2", 2, "en");
+    await usePermissionsSidebarStore.getState().load("store-2", 2, "en");
 
-    const state = useSidebarMenuStore.getState();
+    const state = usePermissionsSidebarStore.getState();
     expect(state.items).toEqual([]);
     expect(state.error).toBe("offline");
     expect(state.requestKey).toBe(sidebarMenuCacheKey("store-2", 2, "en"));
@@ -97,15 +97,15 @@ describe("sidebar menu store", () => {
       .mockReturnValueOnce(first.promise)
       .mockReturnValueOnce(second.promise);
 
-    const firstLoad = useSidebarMenuStore.getState().load("store-1", 1, "la");
-    const secondLoad = useSidebarMenuStore.getState().load("store-2", 2, "en");
+    const firstLoad = usePermissionsSidebarStore.getState().load("store-1", 1, "la");
+    const secondLoad = usePermissionsSidebarStore.getState().load("store-2", 2, "en");
 
     second.resolve(latestItems);
     await secondLoad;
     first.resolve(menuItems);
     await firstLoad;
 
-    expect(useSidebarMenuStore.getState()).toMatchObject({
+    expect(usePermissionsSidebarStore.getState()).toMatchObject({
       items: latestItems,
       loading: false,
       requestKey: sidebarMenuCacheKey("store-2", 2, "en")

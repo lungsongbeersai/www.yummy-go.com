@@ -6,7 +6,7 @@ import { toLanguage } from "@/lib/language";
 import {
   fetchSidebarPermissionMenu,
   type SidebarPermissionMenuItem
-} from "@/services/sidebar-menu";
+} from "@/services/permissions/sidebar";
 import { createSessionGuard, registerSessionStoreReset } from "@/stores/session-store-registry";
 import { errorMessage } from "@/stores/store-utils";
 
@@ -53,7 +53,7 @@ const initialState = {
 
 let requestId = 0;
 
-export const useSidebarMenuStore = create<SidebarMenuState>()(
+export const usePermissionsSidebarStore = create<SidebarMenuState>()(
   persist(
     (set, get) => ({
       ...initialState,
@@ -103,4 +103,4 @@ export const useSidebarMenuStore = create<SidebarMenuState>()(
   )
 );
 
-registerSessionStoreReset("sidebar-menu", () => useSidebarMenuStore.getState().reset());
+registerSessionStoreReset("permissions-sidebar", () => usePermissionsSidebarStore.getState().reset());

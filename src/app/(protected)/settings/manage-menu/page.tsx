@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { PermissionMenuPage } from "@/features/permission-menu/manage/permission-menu-page";
+import { PermissionMenuPage } from "@/features/permissions/menu/manage/permission-menu-page";
 
 export const metadata: Metadata = {
   title: "ຈັດການເມນູ",

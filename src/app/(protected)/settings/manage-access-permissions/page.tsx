@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { StorePermissionsPage } from "@/features/store-permissions/manage/store-permissions-page";
+import { StorePermissionsPage } from "@/features/permissions/store/manage/store-permissions-page";
 
 export const metadata: Metadata = {
   title: "ຈັດການສິດທິເຂົ້າໃຊ້",

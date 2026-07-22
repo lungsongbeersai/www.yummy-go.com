@@ -15,7 +15,7 @@ import {
 } from "@/features/settings/shared/settings-shell";
 import type { MainFormState, SubFormState } from "./permission-menu-options";
 import { IconPickerButton, PathPicker } from "./permission-menu-pickers";
-import type { PermissionMainMenu } from "@/services/permission-menu";
+import type { PermissionMainMenu } from "@/services/permissions/menu-admin";
 import { useTranslation } from "react-i18next";
 
 export function MainMenuDialog({

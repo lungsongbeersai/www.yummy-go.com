@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { PermissionMainMenu } from "@/services/permission-menu";
+import type { PermissionMainMenu } from "@/services/permissions/menu-admin";
 import {
   badgeLabel,
   filterPermissionMenus,

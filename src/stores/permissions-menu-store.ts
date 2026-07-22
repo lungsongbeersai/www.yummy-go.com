@@ -13,7 +13,7 @@ import {
   type CreateSubMenuInput,
   type PermissionMainMenu,
   type PermissionSubMenu
-} from "@/services/permission-menu";
+} from "@/services/permissions/menu-admin";
 import { createSessionGuard, registerSessionStoreReset } from "@/stores/session-store-registry";
 import { errorMessage, type AsyncSlice } from "@/stores/store-utils";
 
@@ -41,7 +41,7 @@ function withSubmenuSort(menuId: string, submenus: PermissionSubMenu[]) {
   }));
 }
 
-export const usePermissionMenuStore = create<PermissionMenuState>((set, get) => ({
+export const usePermissionsMenuStore = create<PermissionMenuState>((set, get) => ({
   error: null,
   hasLoaded: false,
   loading: false,
@@ -173,4 +173,4 @@ export const usePermissionMenuStore = create<PermissionMenuState>((set, get) => 
   }
 }));
 
-registerSessionStoreReset("permission-menu", () => usePermissionMenuStore.getState().reset());
+registerSessionStoreReset("permissions-menu", () => usePermissionsMenuStore.getState().reset());

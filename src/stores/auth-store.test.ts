@@ -10,8 +10,8 @@ import { useDashboardStore } from "@/stores/dashboard-store";
 import { useNotificationStore } from "@/stores/notification-store";
 import { useProductStore } from "@/stores/product-store";
 import { useReferenceStore } from "@/stores/reference-store";
-import { useSidebarMenuStore } from "@/stores/sidebar-menu-store";
-import { useStorePermissionsStore } from "@/stores/store-permissions-store";
+import { usePermissionsSidebarStore } from "@/stores/permissions-sidebar-store";
+import { usePermissionsAccessStore } from "@/stores/permissions-access-store";
 
 vi.mock("@/lib/socket", () => ({
   disconnectSocket: vi.fn()
@@ -89,8 +89,8 @@ describe("auth store session isolation", () => {
     useNotificationStore.getState().clear();
     useProductStore.setState({ search: "private products" });
     useReferenceStore.setState({ storeUuid: "user-1-store", selectedUser: { login_uuid: "user-1" } });
-    useSidebarMenuStore.setState({ requestKey: "user-1:1:la" });
-    useStorePermissionsStore.setState({ selectedStoreUuid: "user-1-store" });
+    usePermissionsSidebarStore.setState({ requestKey: "user-1:1:la" });
+    usePermissionsAccessStore.setState({ selectedStoreUuid: "user-1-store" });
 
     useAuthStore.getState().logout();
 
@@ -104,22 +104,22 @@ describe("auth store session isolation", () => {
     expect(useNotificationStore.getState().items).toHaveLength(4);
     expect(useProductStore.getState().search).toBe("");
     expect(useReferenceStore.getState()).toMatchObject({ storeUuid: "", selectedUser: null });
-    expect(useSidebarMenuStore.getState().requestKey).toBe("");
-    expect(useStorePermissionsStore.getState().selectedStoreUuid).toBe("");
+    expect(usePermissionsSidebarStore.getState().requestKey).toBe("");
+    expect(usePermissionsAccessStore.getState().selectedStoreUuid).toBe("");
     expect(disconnectSocketMock).toHaveBeenCalledOnce();
   });
 
   it("resets the previous session before applying a new login", () => {
     useAuthStore.getState().login("token-1", authUser("user-1"));
     useProductStore.setState({ search: "user-1 products" });
-    useSidebarMenuStore.setState({ requestKey: "user-1:1:la" });
+    usePermissionsSidebarStore.setState({ requestKey: "user-1:1:la" });
 
     useAuthStore.getState().login("token-2", authUser("user-2"));
 
     expect(useAuthStore.getState()).toMatchObject({ token: "token-2", isLoggedIn: true });
     expect(useAuthStore.getState().user?.uuid).toBe("user-2");
     expect(useProductStore.getState().search).toBe("");
-    expect(useSidebarMenuStore.getState().requestKey).toBe("");
+    expect(usePermissionsSidebarStore.getState().requestKey).toBe("");
   });
 
   it("does not let an older login response overwrite the active session", async () => {

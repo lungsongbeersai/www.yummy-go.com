@@ -4,7 +4,7 @@ import {
   checkedSubmenuIds,
   normalizeStorePermissionTree,
   storePermissionCheckedValue
-} from "@/services/store-permissions";
+} from "@/services/permissions/access";
 
 const MANAGE_MENU_SUB_ID = "d01dcd72-6da2-495b-a56f-54a58bcec6f8";
 

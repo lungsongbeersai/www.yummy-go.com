@@ -1,5 +1,5 @@
 // ตัวช่วย coerce ค่าจาก API ที่ type หลวม (string/number/boolean ปนกัน)
-// ใช้ร่วมกันใน store-permissions / permission-menu / sidebar-menu
+// ใช้ร่วมกันใน permissions/access / permissions/menu-admin / permissions/sidebar
 export function text(value: unknown, fallback = "") {
   const next = String(value ?? "").trim();
   return next || fallback;

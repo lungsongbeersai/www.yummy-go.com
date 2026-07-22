@@ -3,7 +3,7 @@ import { sidebarPermissionMenuItemsToMenuItems } from "@/config/sidebar-permissi
 import {
   buildSidebarPermissionMenuParams,
   normalizeSidebarPermissionMenuResponse
-} from "@/services/sidebar-menu";
+} from "@/services/permissions/sidebar";
 
 describe("sidebar menu service helpers", () => {
   it("builds permission menu request params", () => {

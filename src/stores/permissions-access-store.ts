@@ -10,7 +10,7 @@ import {
   type StorePermissionRole,
   type StorePermissionStore,
   type StorePermissionTree
-} from "@/services/store-permissions";
+} from "@/services/permissions/access";
 import {
   createSessionGuard,
   registerSessionStoreReset
@@ -117,7 +117,7 @@ function roleSubmenuIds(
   );
 }
 
-export const useStorePermissionsStore =
+export const usePermissionsAccessStore =
   create<StorePermissionsState>((set, get) => ({
     checkedSubIds: [],
     dirty: false,
@@ -470,7 +470,7 @@ export const useStorePermissionsStore =
   }));
 
 registerSessionStoreReset(
-  "store-permissions",
+  "permissions-access",
   () =>
-    useStorePermissionsStore.getState().reset()
+    usePermissionsAccessStore.getState().reset()
 );

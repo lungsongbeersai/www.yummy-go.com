@@ -79,7 +79,7 @@ import {
   useAuthStore,
   type AuthUser,
 } from "@/stores/auth-store";
-import { useSidebarMenuStore } from "@/stores/sidebar-menu-store";
+import { usePermissionsSidebarStore } from "@/stores/permissions-sidebar-store";
 
 type BreadcrumbTrailItem = RouteBreadcrumbItem;
 
@@ -215,9 +215,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const logout = useAuthStore((state) => state.logout);
   const collapsed = useAppStore((state) => state.collapsed);
   const setCollapsed = useAppStore((state) => state.setCollapsed);
-  const sidebarItems = useSidebarMenuStore((state) => state.items);
-  const clearSidebarMenu = useSidebarMenuStore((state) => state.clearActive);
-  const loadSidebarMenu = useSidebarMenuStore((state) => state.load);
+  const sidebarItems = usePermissionsSidebarStore((state) => state.items);
+  const clearSidebarMenu = usePermissionsSidebarStore((state) => state.clearActive);
+  const loadSidebarMenu = usePermissionsSidebarStore((state) => state.load);
   const storeUuid = authStoreUuid(user);
   const staticMenuItems = useMemo(
     () => filterMenu(sideMenu, user?.status),

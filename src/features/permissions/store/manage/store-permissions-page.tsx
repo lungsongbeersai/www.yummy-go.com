@@ -40,9 +40,9 @@ import type {
   StorePermissionRoleTree,
   StorePermissionSubMenu,
   StorePermissionTree
-} from "@/services/store-permissions";
+} from "@/services/permissions/access";
 import { useAuthStore } from "@/stores/auth-store";
-import { useStorePermissionsStore } from "@/stores/store-permissions-store";
+import { usePermissionsAccessStore } from "@/stores/permissions-access-store";
 import { useToastStore } from "@/stores/toast-store";
 
 interface PermissionMenuGroup {
@@ -122,28 +122,28 @@ export function StorePermissionsPage() {
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
   const showToast = useToastStore((state) => state.show);
-  const checkedSubIds = useStorePermissionsStore((state) => state.checkedSubIds);
-  const dirty = useStorePermissionsStore((state) => state.dirty);
-  const loadingOptions = useStorePermissionsStore((state) => state.loadingOptions);
-  const loadingSaved = useStorePermissionsStore((state) => state.loadingSaved);
-  const loadingTree = useStorePermissionsStore((state) => state.loadingTree);
-  const roles = useStorePermissionsStore((state) => state.roles);
-  const savedList = useStorePermissionsStore((state) => state.savedList);
-  const saving = useStorePermissionsStore((state) => state.saving);
-  const selectedRoleId = useStorePermissionsStore((state) => state.selectedRoleId);
-  const selectedStoreUuid = useStorePermissionsStore((state) => state.selectedStoreUuid);
-  const stores = useStorePermissionsStore((state) => state.stores);
-  const tree = useStorePermissionsStore((state) => state.tree);
-  const loadOptions = useStorePermissionsStore((state) => state.loadOptions);
-  const loadTree = useStorePermissionsStore((state) => state.loadTree);
-  const resetChanges = useStorePermissionsStore((state) => state.resetChanges);
-  const savePermissions = useStorePermissionsStore((state) => state.save);
-  const clearAllSubmenus = useStorePermissionsStore((state) => state.clearAllSubmenus);
-  const selectAllSubmenus = useStorePermissionsStore((state) => state.selectAllSubmenus);
-  const setRole = useStorePermissionsStore((state) => state.setRole);
-  const setStore = useStorePermissionsStore((state) => state.setStore);
-  const toggleMenu = useStorePermissionsStore((state) => state.toggleMenu);
-  const toggleSubmenu = useStorePermissionsStore((state) => state.toggleSubmenu);
+  const checkedSubIds = usePermissionsAccessStore((state) => state.checkedSubIds);
+  const dirty = usePermissionsAccessStore((state) => state.dirty);
+  const loadingOptions = usePermissionsAccessStore((state) => state.loadingOptions);
+  const loadingSaved = usePermissionsAccessStore((state) => state.loadingSaved);
+  const loadingTree = usePermissionsAccessStore((state) => state.loadingTree);
+  const roles = usePermissionsAccessStore((state) => state.roles);
+  const savedList = usePermissionsAccessStore((state) => state.savedList);
+  const saving = usePermissionsAccessStore((state) => state.saving);
+  const selectedRoleId = usePermissionsAccessStore((state) => state.selectedRoleId);
+  const selectedStoreUuid = usePermissionsAccessStore((state) => state.selectedStoreUuid);
+  const stores = usePermissionsAccessStore((state) => state.stores);
+  const tree = usePermissionsAccessStore((state) => state.tree);
+  const loadOptions = usePermissionsAccessStore((state) => state.loadOptions);
+  const loadTree = usePermissionsAccessStore((state) => state.loadTree);
+  const resetChanges = usePermissionsAccessStore((state) => state.resetChanges);
+  const savePermissions = usePermissionsAccessStore((state) => state.save);
+  const clearAllSubmenus = usePermissionsAccessStore((state) => state.clearAllSubmenus);
+  const selectAllSubmenus = usePermissionsAccessStore((state) => state.selectAllSubmenus);
+  const setRole = usePermissionsAccessStore((state) => state.setRole);
+  const setStore = usePermissionsAccessStore((state) => state.setStore);
+  const toggleMenu = usePermissionsAccessStore((state) => state.toggleMenu);
+  const toggleSubmenu = usePermissionsAccessStore((state) => state.toggleSubmenu);
   const [permissionSearch, setPermissionSearch] = useState("");
   const [collapsedMenuIds, setCollapsedMenuIds] = useState<Set<string>>(() => new Set());
   const allowed = canManageStorePermissions(user?.status);

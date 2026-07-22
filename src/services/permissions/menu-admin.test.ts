@@ -7,7 +7,7 @@ import {
   normalizePermissionMainMenu,
   normalizePermissionMenuTreeResponse,
   permissionMenuBadgeValue
-} from "@/services/permission-menu";
+} from "@/services/permissions/menu-admin";
 
 describe("permission menu service helpers", () => {
   it("normalizes main menus and nested submenus from fetch_all", () => {

@@ -4,11 +4,11 @@ import {
   fetchStorePermissionTree,
   saveStorePermissions,
   type StorePermissionTree
-} from "@/services/store-permissions";
-import { useStorePermissionsStore } from "@/stores/store-permissions-store";
+} from "@/services/permissions/access";
+import { usePermissionsAccessStore } from "@/stores/permissions-access-store";
 
-vi.mock("@/services/store-permissions", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/services/store-permissions")>();
+vi.mock("@/services/permissions/access", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/services/permissions/access")>();
   return {
     ...actual,
     fetchStorePermissionSavedList: vi.fn(),
@@ -120,10 +120,10 @@ function multiRolePermissionTree(): StorePermissionTree {
   };
 }
 
-describe("store permissions store", () => {
+describe("permissions access store", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    useStorePermissionsStore.setState({
+    usePermissionsAccessStore.setState({
       checkedSubIds: [],
       dirty: false,
       error: null,
@@ -142,20 +142,20 @@ describe("store permissions store", () => {
   });
 
   it("tracks the Manage Menu submenu id when toggled", () => {
-    useStorePermissionsStore.setState({
+    usePermissionsAccessStore.setState({
       savedCheckedSubIds: [],
       tree: permissionTree(false)
     });
 
-    useStorePermissionsStore.getState().toggleSubmenu(MANAGE_MENU_SUB_ID, true);
+    usePermissionsAccessStore.getState().toggleSubmenu(MANAGE_MENU_SUB_ID, true);
 
-    expect(useStorePermissionsStore.getState().checkedSubIds).toEqual([MANAGE_MENU_SUB_ID]);
-    expect(useStorePermissionsStore.getState().dirty).toBe(true);
+    expect(usePermissionsAccessStore.getState().checkedSubIds).toEqual([MANAGE_MENU_SUB_ID]);
+    expect(usePermissionsAccessStore.getState().dirty).toBe(true);
 
-    useStorePermissionsStore.getState().toggleSubmenu(MANAGE_MENU_SUB_ID, false);
+    usePermissionsAccessStore.getState().toggleSubmenu(MANAGE_MENU_SUB_ID, false);
 
-    expect(useStorePermissionsStore.getState().checkedSubIds).toEqual([]);
-    expect(useStorePermissionsStore.getState().dirty).toBe(false);
+    expect(usePermissionsAccessStore.getState().checkedSubIds).toEqual([]);
+    expect(usePermissionsAccessStore.getState().dirty).toBe(false);
   });
 
   it("saves Manage Menu through sub_id_list", async () => {
@@ -163,7 +163,7 @@ describe("store permissions store", () => {
     fetchStorePermissionSavedListMock.mockResolvedValue(savedTree);
     fetchStorePermissionTreeMock.mockResolvedValue(savedTree);
     saveStorePermissionsMock.mockResolvedValue(undefined);
-    useStorePermissionsStore.setState({
+    usePermissionsAccessStore.setState({
       checkedSubIds: [MANAGE_MENU_SUB_ID],
       dirty: true,
       savedCheckedSubIds: [],
@@ -172,36 +172,36 @@ describe("store permissions store", () => {
       tree: permissionTree(false)
     });
 
-    await useStorePermissionsStore.getState().save(1, "la");
+    await usePermissionsAccessStore.getState().save(1, "la");
 
     expect(saveStorePermissionsMock).toHaveBeenCalledWith({
       company_uuid_fk: "store-1",
       role_id: 1,
       sub_id_list: [MANAGE_MENU_SUB_ID]
     });
-    expect(useStorePermissionsStore.getState().checkedSubIds).toEqual([MANAGE_MENU_SUB_ID]);
-    expect(useStorePermissionsStore.getState().dirty).toBe(false);
+    expect(usePermissionsAccessStore.getState().checkedSubIds).toEqual([MANAGE_MENU_SUB_ID]);
+    expect(usePermissionsAccessStore.getState().dirty).toBe(false);
   });
 
   it("selects every submenu for the current role only", () => {
-    useStorePermissionsStore.setState({
+    usePermissionsAccessStore.setState({
       savedCheckedSubIds: [],
       selectedRoleId: 1,
       tree: multiRolePermissionTree()
     });
 
-    useStorePermissionsStore.getState().selectAllSubmenus();
+    usePermissionsAccessStore.getState().selectAllSubmenus();
 
-    expect(useStorePermissionsStore.getState().checkedSubIds).toEqual([
+    expect(usePermissionsAccessStore.getState().checkedSubIds).toEqual([
       MANAGE_MENU_SUB_ID,
       USER_SUB_ID
     ]);
-    expect(useStorePermissionsStore.getState().checkedSubIds).not.toContain(OTHER_ROLE_SUB_ID);
-    expect(useStorePermissionsStore.getState().dirty).toBe(true);
+    expect(usePermissionsAccessStore.getState().checkedSubIds).not.toContain(OTHER_ROLE_SUB_ID);
+    expect(usePermissionsAccessStore.getState().dirty).toBe(true);
   });
 
   it("marks select all clean when it matches saved permissions", () => {
-    useStorePermissionsStore.setState({
+    usePermissionsAccessStore.setState({
       checkedSubIds: [],
       dirty: true,
       savedCheckedSubIds: [MANAGE_MENU_SUB_ID, USER_SUB_ID],
@@ -209,31 +209,31 @@ describe("store permissions store", () => {
       tree: multiRolePermissionTree()
     });
 
-    useStorePermissionsStore.getState().selectAllSubmenus();
+    usePermissionsAccessStore.getState().selectAllSubmenus();
 
-    expect(useStorePermissionsStore.getState().checkedSubIds).toEqual([
+    expect(usePermissionsAccessStore.getState().checkedSubIds).toEqual([
       MANAGE_MENU_SUB_ID,
       USER_SUB_ID
     ]);
-    expect(useStorePermissionsStore.getState().dirty).toBe(false);
+    expect(usePermissionsAccessStore.getState().dirty).toBe(false);
   });
 
   it("clears all submenu selections and updates dirty state", () => {
-    useStorePermissionsStore.setState({
+    usePermissionsAccessStore.setState({
       checkedSubIds: [MANAGE_MENU_SUB_ID, USER_SUB_ID],
       savedCheckedSubIds: [MANAGE_MENU_SUB_ID],
       selectedRoleId: 1,
       tree: multiRolePermissionTree()
     });
 
-    useStorePermissionsStore.getState().clearAllSubmenus();
+    usePermissionsAccessStore.getState().clearAllSubmenus();
 
-    expect(useStorePermissionsStore.getState().checkedSubIds).toEqual([]);
-    expect(useStorePermissionsStore.getState().dirty).toBe(true);
+    expect(usePermissionsAccessStore.getState().checkedSubIds).toEqual([]);
+    expect(usePermissionsAccessStore.getState().dirty).toBe(true);
   });
 
   it("marks clear all clean when saved permissions are empty", () => {
-    useStorePermissionsStore.setState({
+    usePermissionsAccessStore.setState({
       checkedSubIds: [MANAGE_MENU_SUB_ID],
       dirty: true,
       savedCheckedSubIds: [],
@@ -241,9 +241,9 @@ describe("store permissions store", () => {
       tree: multiRolePermissionTree()
     });
 
-    useStorePermissionsStore.getState().clearAllSubmenus();
+    usePermissionsAccessStore.getState().clearAllSubmenus();
 
-    expect(useStorePermissionsStore.getState().checkedSubIds).toEqual([]);
-    expect(useStorePermissionsStore.getState().dirty).toBe(false);
+    expect(usePermissionsAccessStore.getState().checkedSubIds).toEqual([]);
+    expect(usePermissionsAccessStore.getState().dirty).toBe(false);
   });
 });
