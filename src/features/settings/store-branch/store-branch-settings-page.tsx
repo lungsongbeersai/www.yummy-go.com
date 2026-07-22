@@ -5,7 +5,6 @@ import { useResetOnChange } from "@/hooks/use-reset-on-change";
 import { useTranslation } from "react-i18next";
 import { KeyRound } from "lucide-react";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
-import { SETTINGS } from "@/features/settings/shared/settings-config";
 import {
   SettingsModuleShell,
   SettingsPaginationFooter,
@@ -18,11 +17,14 @@ import { useUrlPagination } from "@/hooks/use-url-pagination";
 import { DEFAULT_PAGE_LIMIT, PAGE_LIMIT_OPTIONS } from "@/lib/pagination";
 import { canCreateStoreBranch, canDeleteStoreBranch, canEditStoreBranch } from "@/lib/permissions";
 import type { UrlPaginationState } from "@/lib/url-pagination";
+import type { SaveBranchInput } from "@/services/branch";
 import type { PageLimit, SortOrder } from "@/services/shared/types";
+import type { SaveStoreInput } from "@/services/store";
 import { useAppStore } from "@/stores/app-store";
-import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
+import { authStoreUuid, useAuthStore, type AuthUser } from "@/stores/auth-store";
+import { useBranchSettingsStore } from "@/stores/branch-settings-store";
 import { useReferenceStore } from "@/stores/reference-store";
-import { useSettingsStore } from "@/stores/settings-store";
+import { useStoreSettingsStore } from "@/stores/store-settings-store";
 import { useToastStore } from "@/stores/toast-store";
 import { StoreBranchFormDialog } from "./store-branch-form";
 import { StoreBranchListSurface } from "./store-branch-list";
@@ -41,11 +43,14 @@ import {
 import { useStoreBranchLabels } from "./use-store-branch-labels";
 
 const LIST_LIMIT: PageLimit = DEFAULT_PAGE_LIMIT;
-const EMPTY_ROWS: Row[] = [];
+
+// ร้านค้าเดียวมีหลายสาขา ต้อง scope รายการสาขาด้วย store_uuid_fk ของผู้ใช้ (store ไม่ต้อง scope)
+const STORE_BRANCH_SCOPE: Partial<Record<StoreBranchKind, (user: AuthUser | null) => Record<string, unknown>>> = {
+  branch: (user) => ({ store_uuid_fk: user?.store_uuid || user?.store_uuid_fk || "" })
+};
 
 export function StoreBranchSettingsPage({ initialPagination, kind }: { initialPagination: UrlPaginationState; kind: StoreBranchKind }) {
   const { t } = useTranslation();
-  const config = SETTINGS[kind];
   const language = useAppStore((state) => state.language);
   const labels = useStoreBranchLabels();
   const user = useAuthStore((state) => state.user);
@@ -55,17 +60,42 @@ export function StoreBranchSettingsPage({ initialPagination, kind }: { initialPa
   const resetPassword = useReferenceStore((state) => state.resetPassword);
   const storeLogoUrl = useReferenceStore((state) => state.storeLogoUrl);
   const branchQrUrl = useReferenceStore((state) => state.branchQrUrl);
-  const entity = useSettingsStore((state) => state.entities[config.slug]);
-  const rows = (entity?.rows ?? EMPTY_ROWS) as Row[];
-  const search = entity?.search ?? "";
-  const hasLoaded = entity?.hasLoaded ?? false;
-  const loading = entity?.loading ?? false;
-  const refreshing = entity?.refreshing ?? false;
-  const saving = entity?.saving ?? false;
-  const setSearch = useSettingsStore((state) => state.setSearch);
-  const loadEntity = useSettingsStore((state) => state.load);
-  const saveEntity = useSettingsStore((state) => state.save);
-  const removeEntity = useSettingsStore((state) => state.remove);
+
+  const storeRows = useStoreSettingsStore((state) => state.rows) as Row[];
+  const storeTotal = useStoreSettingsStore((state) => state.total);
+  const storeTotalPages = useStoreSettingsStore((state) => state.totalPages);
+  const storeSearch = useStoreSettingsStore((state) => state.search);
+  const storeHasLoaded = useStoreSettingsStore((state) => state.hasLoaded);
+  const storeLoading = useStoreSettingsStore((state) => state.loading);
+  const storeRefreshing = useStoreSettingsStore((state) => state.refreshing);
+  const storeSaving = useStoreSettingsStore((state) => state.saving);
+  const setStoreSearch = useStoreSettingsStore((state) => state.setSearch);
+  const loadStoreRows = useStoreSettingsStore((state) => state.load);
+  const saveStoreRow = useStoreSettingsStore((state) => state.save);
+  const removeStoreRow = useStoreSettingsStore((state) => state.remove);
+
+  const branchRows = useBranchSettingsStore((state) => state.rows) as Row[];
+  const branchTotal = useBranchSettingsStore((state) => state.total);
+  const branchTotalPages = useBranchSettingsStore((state) => state.totalPages);
+  const branchSearch = useBranchSettingsStore((state) => state.search);
+  const branchHasLoaded = useBranchSettingsStore((state) => state.hasLoaded);
+  const branchLoading = useBranchSettingsStore((state) => state.loading);
+  const branchRefreshing = useBranchSettingsStore((state) => state.refreshing);
+  const branchSaving = useBranchSettingsStore((state) => state.saving);
+  const setBranchSearch = useBranchSettingsStore((state) => state.setSearch);
+  const loadBranchRows = useBranchSettingsStore((state) => state.load);
+  const saveBranchRow = useBranchSettingsStore((state) => state.save);
+  const removeBranchRow = useBranchSettingsStore((state) => state.remove);
+
+  const rows = kind === "store" ? storeRows : branchRows;
+  const search = kind === "store" ? storeSearch : branchSearch;
+  const hasLoaded = kind === "store" ? storeHasLoaded : branchHasLoaded;
+  const loading = kind === "store" ? storeLoading : branchLoading;
+  const refreshing = kind === "store" ? storeRefreshing : branchRefreshing;
+  const saving = kind === "store" ? storeSaving : branchSaving;
+  const setSearch = kind === "store" ? setStoreSearch : setBranchSearch;
+  const entityTotal = kind === "store" ? storeTotal : branchTotal;
+  const entityTotalPages = kind === "store" ? storeTotalPages : branchTotalPages;
   const [editing, setEditing] = useState<Row | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Row | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -76,7 +106,7 @@ export function StoreBranchSettingsPage({ initialPagination, kind }: { initialPa
   const canCreate = canCreateStoreBranch(user?.status);
   const canDelete = canDeleteStoreBranch(user?.status);
   const canEdit = canEditStoreBranch(user?.status);
-  const scope = useMemo(() => config.scope?.(user) ?? {}, [config, user]);
+  const scope = useMemo(() => STORE_BRANCH_SCOPE[kind]?.(user) ?? {}, [kind, user]);
   const visibleRows = useMemo(() => {
     if (kind === "store" && !canCreate) return rows.filter((row) => storeBranchValue(row, "store_uuid") === storeUuid);
     if (kind === "branch" && !canCreate) return rows.filter((row) => storeBranchValue(row, "branch_uuid") === user?.branch_uuid);
@@ -93,8 +123,8 @@ export function StoreBranchSettingsPage({ initialPagination, kind }: { initialPa
     [appliedSearch, language, limit, orderBy, page, scope]
   );
   const pageSize = limit === "All" ? visibleRows.length || Number(LIST_LIMIT) : Number(limit ?? LIST_LIMIT);
-  const total = canCreate ? Number(entity?.total ?? visibleRows.length) : visibleRows.length;
-  const totalPages = canCreate ? Math.max(1, Number(entity?.totalPages || Math.ceil(total / pageSize) || 1)) : 1;
+  const total = canCreate ? Number(entityTotal ?? visibleRows.length) : visibleRows.length;
+  const totalPages = canCreate ? Math.max(1, Number(entityTotalPages || Math.ceil(total / pageSize) || 1)) : 1;
   const pageStart = visibleRows.length ? (page - 1) * pageSize + 1 : 0;
   const pageEnd = visibleRows.length ? pageStart + visibleRows.length - 1 : 0;
   const fullLoading = loading && !hasLoaded;
@@ -130,7 +160,8 @@ export function StoreBranchSettingsPage({ initialPagination, kind }: { initialPa
 
   const load = useCallback(async (background = hasLoadedRef.current) => {
     try {
-      await loadEntity(config, requestParams, { background });
+      if (kind === "store") await loadStoreRows(requestParams, { background });
+      else await loadBranchRows(requestParams, { background });
     } catch (error) {
       showToast({
         title: t("settings.loadFailed", { title }),
@@ -138,7 +169,7 @@ export function StoreBranchSettingsPage({ initialPagination, kind }: { initialPa
         tone: "error"
       });
     }
-  }, [config, hasLoadedRef, loadEntity, requestParams, showToast, t, title]);
+  }, [hasLoadedRef, kind, loadBranchRows, loadStoreRows, requestParams, showToast, t, title]);
 
   useEffect(() => {
     void load();
@@ -228,8 +259,14 @@ export function StoreBranchSettingsPage({ initialPagination, kind }: { initialPa
     }
 
     try {
-      await saveEntity(config, input);
-      const nextRows = await loadEntity(config, requestParams, { background: true });
+      let nextRows: Row[];
+      if (kind === "store") {
+        await saveStoreRow(input as SaveStoreInput);
+        nextRows = (await loadStoreRows(requestParams, { background: true })) as Row[];
+      } else {
+        await saveBranchRow(input as SaveBranchInput);
+        nextRows = (await loadBranchRows(requestParams, { background: true })) as Row[];
+      }
       const updated = id ? nextRows.find((row) => storeBranchId(row, kind) === id) : null;
       if (updated && kind === "store" && id === storeUuid) {
         updateUser({
@@ -259,8 +296,13 @@ export function StoreBranchSettingsPage({ initialPagination, kind }: { initialPa
     const id = storeBranchId(row, kind);
     if (!canDelete || !id || id === activeId) return;
     try {
-      await removeEntity(config, id);
-      await loadEntity(config, requestParams, { background: true });
+      if (kind === "store") {
+        await removeStoreRow(id);
+        await loadStoreRows(requestParams, { background: true });
+      } else {
+        await removeBranchRow(id);
+        await loadBranchRows(requestParams, { background: true });
+      }
       if (editing && storeBranchId(editing, kind) === id) resetForm();
       setDeleteTarget(null);
       setSelectedRows((current) => {
@@ -333,7 +375,7 @@ export function StoreBranchSettingsPage({ initialPagination, kind }: { initialPa
           setOrderBy(nextOrder);
           setPage(1);
         },
-        onSearch: (nextSearch) => setSearch(config.slug, nextSearch)
+        onSearch: setSearch
       }}
     />
   );

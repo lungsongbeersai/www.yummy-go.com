@@ -24,11 +24,12 @@ import type {
   SplitBillInput,
   SplitBillResponse,
 } from "@/services/pos";
+import type { Exchange } from "@/services/exchange";
 import { useAppStore } from "@/stores/app-store";
 import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
-import { useExchangeStore } from "@/stores/exchange-store";
 import { usePosStore } from "@/stores/pos-store";
 import { usePrinterStore } from "@/stores/printer-store";
+import { useReferenceStore } from "@/stores/reference-store";
 import { useToastStore } from "@/stores/toast-store";
 import { usePaymentCustomers } from "./use-payment-customers";
 import type { PaymentDialogProps } from "../payment-dialog-types";
@@ -70,6 +71,8 @@ import {
   type TenderField,
 } from "../payment-dialog-utils";
 
+const EMPTY_EXCHANGES: Exchange[] = [];
+
 export function usePaymentDialogWorkflow({
   onCompleted,
   onOpenChange,
@@ -83,9 +86,9 @@ export function usePaymentDialogWorkflow({
   const { t } = useTranslation();
   const language = useAppStore((state) => state.language);
   const user = useAuthStore((state) => state.user);
-  const exchanges = useExchangeStore((state) => state.allRows);
-  const loadExchangeRates = useExchangeStore((state) => state.loadAll);
-  const exchangeRatesLoading = useExchangeStore((state) => state.loadingAll);
+  const exchanges = (useReferenceStore((state) => state.options.exchangeRates) ?? EMPTY_EXCHANGES) as Exchange[];
+  const loadExchangeRates = useReferenceStore((state) => state.loadExchangeRates);
+  const exchangeRatesLoading = useReferenceStore((state) => state.loadingKeys.exchangeRates ?? false);
   const createPayment = usePosStore((state) => state.createPayment);
   const splitBill = usePosStore((state) => state.splitBill);
   const printInvoice = usePosStore((state) => state.printInvoice);

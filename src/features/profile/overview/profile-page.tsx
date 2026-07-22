@@ -4,43 +4,33 @@ import { useState, type FormEvent } from "react";
 import { useResetOnChange } from "@/hooks/use-reset-on-change";
 import { useTranslation } from "react-i18next";
 import { Save, UserCircle } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Field, FieldContent, FieldDescription, FieldLabel } from "@/components/ui/field";
+import { Field, FieldContent, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { useAuthStore } from "@/stores/auth-store";
-import { useToastStore } from "@/stores/toast-store";
 
 export function ProfilePage() {
   const { t } = useTranslation();
   const user = useAuthStore((state) => state.user);
-  const showToast = useToastStore((state) => state.show);
 
   const [displayName, setDisplayName] = useState(user?.email ?? "");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [passwordError, setPasswordError] = useState<string | null>(null);
 
   // สลับผู้ใช้ = แสดงชื่อของผู้ใช้คนใหม่
   useResetOnChange(user?.email, () => setDisplayName(user?.email ?? ""));
 
+  // Backend ยังไม่มี endpoint สำหรับบันทึกโปรไฟล์/เปลี่ยนรหัสผ่าน — ปิดปุ่ม submit
+  // ไว้ก่อน (coming soon) แทนที่จะยิง toast สำเร็จหลอกๆ ไม่มีผลจริง
   function submitAccount(event: FormEvent) {
     event.preventDefault();
-    showToast({ title: t("profile.saved"), tone: "success" });
   }
 
   function submitPassword(event: FormEvent) {
     event.preventDefault();
-    if (newPassword !== confirmPassword) {
-      setPasswordError(t("profile.validation.passwordMismatch"));
-      return;
-    }
-    setPasswordError(null);
-    setCurrentPassword("");
-    setNewPassword("");
-    setConfirmPassword("");
-    showToast({ title: t("profile.passwordChanged"), tone: "success" });
   }
 
   return (
@@ -72,7 +62,10 @@ export function ProfilePage() {
       <Card>
         <CardHeader>
           <div className="flex flex-col gap-1">
-            <CardTitle>{t("profile.sections.account")}</CardTitle>
+            <div className="flex items-center gap-2">
+              <CardTitle>{t("profile.sections.account")}</CardTitle>
+              <Badge variant="secondary">{t("nav.coming_soon")}</Badge>
+            </div>
             <p className="text-[13px] text-muted-foreground">{t("profile.sections.accountHint")}</p>
           </div>
         </CardHeader>
@@ -102,7 +95,7 @@ export function ProfilePage() {
               </FieldContent>
             </Field>
             <div className="flex justify-end">
-              <Button type="submit" size="sm" className="gap-2">
+              <Button type="submit" size="sm" className="gap-2" disabled>
                 <Save className="size-4" />
                 {t("profile.actions.save")}
               </Button>
@@ -114,7 +107,10 @@ export function ProfilePage() {
       <Card>
         <CardHeader>
           <div className="flex flex-col gap-1">
-            <CardTitle>{t("profile.sections.password")}</CardTitle>
+            <div className="flex items-center gap-2">
+              <CardTitle>{t("profile.sections.password")}</CardTitle>
+              <Badge variant="secondary">{t("nav.coming_soon")}</Badge>
+            </div>
             <p className="text-[13px] text-muted-foreground">{t("profile.sections.passwordHint")}</p>
           </div>
         </CardHeader>
@@ -154,13 +150,10 @@ export function ProfilePage() {
                   onChange={(event) => setConfirmPassword(event.target.value)}
                   autoComplete="new-password"
                 />
-                {passwordError ? (
-                  <FieldDescription className="text-destructive">{passwordError}</FieldDescription>
-                ) : null}
               </FieldContent>
             </Field>
             <div className="flex justify-end">
-              <Button type="submit" size="sm" className="gap-2">
+              <Button type="submit" size="sm" className="gap-2" disabled>
                 <Save className="size-4" />
                 {t("profile.actions.updatePassword")}
               </Button>

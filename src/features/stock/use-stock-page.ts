@@ -9,6 +9,7 @@ import {
 } from "react";
 import { useTranslation } from "react-i18next";
 import { useUrlPagination } from "@/hooks/use-url-pagination";
+import { pageRange } from "@/lib/pagination";
 import type { UrlPaginationState } from "@/lib/url-pagination";
 import type { Category } from "@/services/category";
 import type { StockStatus } from "@/services/stock";
@@ -102,8 +103,7 @@ export function useStockPage(
   const pageLimit =
     typeof limit === "number" ? limit : STOCK_PAGE_LIMIT_OPTIONS[0];
   const safeTotalPages = Math.max(1, totalPages);
-  const pageStart = rows.length ? (page - 1) * pageLimit + 1 : 0;
-  const pageEnd = rows.length ? pageStart + rows.length - 1 : 0;
+  const { start: pageStart, end: pageEnd } = pageRange(rows.length, page, pageLimit);
 
   const categoryOptions = useMemo<StockCategoryOption[]>(
     () =>
