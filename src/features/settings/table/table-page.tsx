@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useResetOnChange } from "@/hooks/use-reset-on-change";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
@@ -9,21 +9,16 @@ import {
   SettingsPaginationFooter,
   SettingsToolbar
 } from "@/features/settings/shared/settings-shell";
+import { optionPageRange, optionPageSize, optionTotalPages } from "@/features/settings/shared/option-settings-utils";
 import { useOptionRowSelection } from "@/features/settings/shared/use-option-row-selection";
-import { useAppliedSearch } from "@/hooks/use-applied-search";
-import { useLatestValue } from "@/hooks/use-latest-value";
-import { useUrlPagination } from "@/hooks/use-url-pagination";
-import { DEFAULT_PAGE_LIMIT, PAGE_LIMIT_OPTIONS } from "@/lib/pagination";
+import { useSettingsCrudController } from "@/features/settings/shared/use-settings-crud-controller";
+import { PAGE_LIMIT_OPTIONS } from "@/lib/pagination";
 import type { UrlPaginationState } from "@/lib/url-pagination";
-import type { PageLimit, SortOrder } from "@/services/shared/types";
-import type { FetchTablesParams, Table as DiningTable } from "@/services/table";
+import type { FetchTablesParams, SaveTableInput, Table as DiningTable, TableListRow } from "@/services/table";
 import type { Zone } from "@/services/zone";
-import { useAppStore } from "@/stores/app-store";
-import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
 import { useBranchStore } from "@/stores/branch-store";
 import { useReferenceStore } from "@/stores/reference-store";
 import { useTableStore } from "@/stores/table-store";
-import { useToastStore } from "@/stores/toast-store";
 import { TableFormDialog } from "./table-form-dialog";
 import { TableListSurface } from "./table-list";
 import {
@@ -38,53 +33,94 @@ import {
   tableValue
 } from "./table-utils";
 
-const DEFAULT_LIMIT: PageLimit = DEFAULT_PAGE_LIMIT;
-
 const EMPTY_ZONES: Zone[] = [];
 
 export function TableSettingsPage({ initialPagination }: { initialPagination: UrlPaginationState }) {
   const { t } = useTranslation();
-  const language = useAppStore((state) => state.language);
-  const user = useAuthStore((state) => state.user);
-  const storeUuid = authStoreUuid(user);
-  const branchUuid = user?.branch_uuid ?? "";
-  const showToast = useToastStore((state) => state.show);
   const branches = useBranchStore((state) => state.branches);
   const branchStoreUuid = useBranchStore((state) => state.storeUuid);
   const branchLoading = useBranchStore((state) => state.loading);
   const loadBranches = useBranchStore((state) => state.loadBranches);
-  const storeRows = useTableStore((state) => state.rows);
-  const total = useTableStore((state) => state.total);
-  const storeTotalPages = useTableStore((state) => state.totalPages);
-  const search = useTableStore((state) => state.search);
-  const hasLoaded = useTableStore((state) => state.hasLoaded);
-  const loading = useTableStore((state) => state.loading);
-  const refreshing = useTableStore((state) => state.refreshing);
-  const saving = useTableStore((state) => state.saving);
-  const setSearch = useTableStore((state) => state.setSearch);
-  const loadRows = useTableStore((state) => state.load);
-  const saveRow = useTableStore((state) => state.save);
-  const removeRow = useTableStore((state) => state.remove);
   const loadZoneOptions = useReferenceStore((state) => state.loadZones);
-  const { changeLimit, limit, page, resetPage, setPage } = useUrlPagination({ initialPagination });
-  const [orderBy, setOrderBy] = useState<SortOrder>("ASC");
-  const [editing, setEditing] = useState<DiningTable | null>(null);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<DiningTable | null>(null);
+  // แถวจริงเป็นกลุ่มโซน (TableListRow อาจเป็น ZoneGroup) ต้องแบน/นับหน้าเองแยกจาก controller และ
+  // save ต้องจำโซนที่บันทึกสำเร็จล่าสุดไว้ตั้งค่าเริ่มต้นฟอร์มถัดไป — save() ของ controller ไม่มีจุด
+  // ต่อขยายให้ทำหลังบันทึกสำเร็จเท่านั้น จึงเรียก saveRow/loadRows ของสโตร์ตรง (เหมือน category's persistOrder)
+  const saveTableRow = useTableStore((state) => state.save);
+  const loadTableRows = useTableStore((state) => state.load);
+  const removeTableRow = useTableStore((state) => state.remove);
+  const storeTotalPages = useTableStore((state) => state.totalPages);
   const [fetchedZoneOptions, setFetchedZoneOptions] = useState<Zone[]>([]);
-  // ยังไม่มีสาขาที่อ้างอิง = ไม่มีตัวเลือก แต่คงค่าที่โหลดไว้ไม่ให้รายการกะพริบตอนสลับ
-  const zoneOptions = branchUuid ? fetchedZoneOptions : EMPTY_ZONES;
   const [lastSavedZoneUuid, setLastSavedZoneUuid] = useState("");
   const [collapsedZones, setCollapsedZones] = useState<Set<string>>(() => new Set());
 
   const title = t("settings.modules.table.title");
   const description = t("settings.modules.table.description");
-  const { appliedSearch, applySearch } = useAppliedSearch(search);
-  const hasLoadedRef = useLatestValue(hasLoaded);
-  const requestParams = useMemo<FetchTablesParams>(
-    () => ({ search: appliedSearch, page, limit, orderBy, lang: language, branch_uuid_fk: branchUuid }),
-    [appliedSearch, branchUuid, language, limit, orderBy, page]
-  );
+  const {
+    applyFilters,
+    backgroundLoading,
+    changeLimit,
+    deleteTarget,
+    dialogOpen,
+    editing,
+    fullLoading,
+    language,
+    limit,
+    missingRequiredScope,
+    onDialogOpenChange,
+    openEdit,
+    orderBy,
+    page,
+    pagingBusy,
+    requestParams,
+    requiredScopeDescription,
+    rows: storeRows,
+    saving,
+    search,
+    setDeleteTarget,
+    setDialogOpen,
+    setEditing,
+    setOrderBy,
+    setPage,
+    setSearch,
+    showToast,
+    storeUuid,
+    total,
+    user
+  } = useSettingsCrudController<TableListRow, SaveTableInput, FetchTablesParams>({
+    // buildInput/validateInput ให้ครบตามชนิดที่ controller ต้องการ แต่การบันทึกจริงยังเดินตรงผ่านสโตร์
+    // ใน save() ท้องถิ่นด้านล่าง (ดูคอมเมนต์ที่ saveTableRow) เพื่อคงพฤติกรรม "จำโซนหลังบันทึกสำเร็จ" เดิม
+    buildInput: ({ editing: editingRow, formData, user: currentUser }) => {
+      const editingTable = editingRow && !isZoneGroup(editingRow) ? editingRow : null;
+      return buildTablePayload({
+        branchUuid: currentUser?.branch_uuid ?? "",
+        chargeStatus: String(formData.get("charge_status") ?? "2").trim(),
+        editing: editingTable,
+        nameEng: String(formData.get("table_name_eng") ?? "").trim(),
+        nameLa: String(formData.get("table_name_la") ?? "").trim(),
+        seats: String(formData.get("table_qty") ?? "").trim(),
+        zoneUuid: String(formData.get("zone_uuid_fk") ?? "").trim()
+      });
+    },
+    idKey: "table_uuid",
+    initialPagination,
+    requiredScopeKey: "branch_uuid_fk",
+    requiredScopeMessage: t("settings.branchRequired"),
+    scope: (_storeUuid, currentUser) => ({ branch_uuid_fk: currentUser?.branch_uuid ?? "" }),
+    store: useTableStore,
+    title,
+    validateInput: ({ formData, user: currentUser }) => {
+      const missing = missingTableField({
+        branchUuid: currentUser?.branch_uuid ?? "",
+        nameLa: String(formData.get("table_name_la") ?? "").trim(),
+        zoneUuid: String(formData.get("zone_uuid_fk") ?? "").trim()
+      });
+      return missing ? missingFieldDescription(missing) : null;
+    }
+  });
+
+  const branchUuid = user?.branch_uuid ?? "";
+  // ยังไม่มีสาขาที่อ้างอิง = ไม่มีตัวเลือก แต่คงค่าที่โหลดไว้ไม่ให้รายการกะพริบตอนสลับ
+  const zoneOptions = branchUuid ? fetchedZoneOptions : EMPTY_ZONES;
   const zoneById = useMemo(() => {
     const map = new Map<string, Zone>();
     zoneOptions.forEach((zone) => {
@@ -104,39 +140,18 @@ export function TableSettingsPage({ initialPagination }: { initialPagination: Ur
   const serviceChargeRateLabel = branchLoading && !currentBranch ? t("common.loading") : serviceCharge.percentLabel;
   const groupedResponse = useMemo(() => storeRows.some(isZoneGroup), [storeRows]);
   const displayTotal = groupedResponse ? rows.length : Number(total || rows.length);
-  const pageSize = limit === "All" ? rows.length || Number(DEFAULT_LIMIT) : Number(limit ?? DEFAULT_LIMIT);
-  const totalPages = Math.max(1, Number(storeTotalPages || Math.ceil(displayTotal / pageSize) || 1));
-  const pageStart = rows.length ? (page - 1) * pageSize + 1 : 0;
-  const pageEnd = rows.length ? pageStart + rows.length - 1 : 0;
-  const fullLoading = loading && !hasLoaded;
-  const backgroundLoading = refreshing || (loading && hasLoaded);
-  const pagingBusy = loading || refreshing;
+  const pageSize = optionPageSize(limit, rows.length);
+  const totalPages = optionTotalPages(storeTotalPages, displayTotal, pageSize);
+  const { start: pageStart, end: pageEnd } = optionPageRange(rows.length, page, pageSize);
   const canGoBack = page > 1 && !pagingBusy;
   const canGoNext = page < totalPages && !pagingBusy;
   const { allSelected, removeSelected, selectedRows, toggleAll, toggleSelected } =
     useOptionRowSelection(rows, tableId);
   const allCollapsed = tableGroups.length > 0 && tableGroups.every((group) => collapsedZones.has(group.zoneId));
   const groupedTableRows = useMemo(() => buildGroupedTableRows(tableGroups, pageStart), [pageStart, tableGroups]);
-
-  const load = useCallback(async () => {
-    if (!branchUuid) {
-      showToast({ title: t("settings.loadFailed", { title }), description: t("settings.branchRequired"), tone: "error" });
-      return;
-    }
-    try {
-      await loadRows(requestParams, { background: hasLoadedRef.current });
-    } catch (error) {
-      showToast({
-        title: t("settings.loadFailed", { title }),
-        description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
-        tone: "error"
-      });
-    }
-  }, [branchUuid, hasLoadedRef, loadRows, requestParams, showToast, t, title]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
+  // editing มาจาก controller เป็น TableListRow (อาจเป็น ZoneGroup) แต่ในทางปฏิบัติมีแต่แถวโต๊ะเดี่ยว
+  // เท่านั้นที่ถูกส่งเข้า openEdit จึงตีบให้แคบเป็น DiningTable ให้ dialog/ payload ใช้ตรงชนิดได้
+  const editingTable = editing && !isZoneGroup(editing) ? editing : null;
 
   useEffect(() => {
     if (!storeUuid) return;
@@ -171,7 +186,6 @@ export function TableSettingsPage({ initialPagination }: { initialPagination: Ur
     };
   }, [branchUuid, language, loadZoneOptions, showToast, t]);
 
-
   // โซนที่พับไว้อาจหายไปหลังโหลดชุดใหม่ ต้องตัดออกไม่ให้ค้างใน state
   useResetOnChange(tableGroups, () => {
     setCollapsedZones((current) => {
@@ -187,11 +201,6 @@ export function TableSettingsPage({ initialPagination }: { initialPagination: Ur
     });
   });
 
-  function applyFilters() {
-    applySearch({ page, resetPage, reload: () => void load() });
-  }
-
-
   function toggleZoneCollapse(zoneId: string) {
     setCollapsedZones((current) => {
       const next = new Set(current);
@@ -205,9 +214,16 @@ export function TableSettingsPage({ initialPagination }: { initialPagination: Ur
     setCollapsedZones(collapsed ? new Set(tableGroups.map((group) => group.zoneId)) : new Set());
   }
 
+  function missingFieldDescription(field: ReturnType<typeof missingTableField>) {
+    if (field === "branch") return t("settings.branchRequired");
+    if (field === "zone") return t("settings.tableZoneRequired");
+    if (field === "name") return t("settings.tableNameRequired");
+    return t("toasts.pleaseTryAgain");
+  }
+
   function openCreate() {
-    if (!branchUuid) {
-      showToast({ title: t("settings.saveFailed"), description: t("settings.branchRequired"), tone: "error" });
+    if (missingRequiredScope) {
+      showToast({ title: t("settings.saveFailed"), description: requiredScopeDescription, tone: "error" });
       return;
     }
     if (!zoneOptions.length) {
@@ -216,18 +232,6 @@ export function TableSettingsPage({ initialPagination }: { initialPagination: Ur
     }
     setEditing(null);
     setDialogOpen(true);
-  }
-
-  function openEdit(row: DiningTable) {
-    setEditing(row);
-    setDialogOpen(true);
-  }
-
-  function missingFieldDescription(field: ReturnType<typeof missingTableField>) {
-    if (field === "branch") return t("settings.branchRequired");
-    if (field === "zone") return t("settings.tableZoneRequired");
-    if (field === "name") return t("settings.tableNameRequired");
-    return t("toasts.pleaseTryAgain");
   }
 
   async function save(formData: FormData) {
@@ -244,12 +248,12 @@ export function TableSettingsPage({ initialPagination }: { initialPagination: Ur
     }
 
     try {
-      await saveRow(buildTablePayload({ branchUuid, chargeStatus, editing, nameEng, nameLa, seats, zoneUuid }));
+      await saveTableRow(buildTablePayload({ branchUuid, chargeStatus, editing: editingTable, nameEng, nameLa, seats, zoneUuid }));
       showToast({ title: t("settings.saved"), tone: "success" });
       setLastSavedZoneUuid(zoneUuid);
       setDialogOpen(false);
       setEditing(null);
-      await loadRows(requestParams, { background: true });
+      await loadTableRows(requestParams, { background: true });
     } catch (error) {
       showToast({
         title: t("settings.saveFailed"),
@@ -263,11 +267,11 @@ export function TableSettingsPage({ initialPagination }: { initialPagination: Ur
     const id = tableId(row);
     if (!id) return;
     try {
-      await removeRow(id);
+      await removeTableRow(id);
       showToast({ title: t("settings.deleted"), tone: "success" });
       setDeleteTarget(null);
       removeSelected(id);
-      await loadRows(requestParams, { background: true });
+      await loadTableRows(requestParams, { background: true });
     } catch (error) {
       showToast({
         title: t("settings.deleteFailed"),
@@ -355,7 +359,7 @@ export function TableSettingsPage({ initialPagination }: { initialPagination: Ur
       />
       <TableFormDialog
         branchUuid={branchUuid}
-        editing={editing}
+        editing={editingTable}
         initialZoneUuid={initialFormZoneUuid}
         open={dialogOpen}
         saving={saving}
@@ -363,11 +367,7 @@ export function TableSettingsPage({ initialPagination }: { initialPagination: Ur
         serviceChargeLoading={branchLoading && !currentBranch}
         title={title}
         zones={zoneOptions}
-        onOpenChange={(nextOpen) => {
-          if (saving) return;
-          setDialogOpen(nextOpen);
-          if (!nextOpen) setEditing(null);
-        }}
+        onOpenChange={onDialogOpenChange}
         onSubmit={save}
       />
       <ConfirmDialog
@@ -378,7 +378,7 @@ export function TableSettingsPage({ initialPagination }: { initialPagination: Ur
         open={Boolean(deleteTarget)}
         title={t("actions.delete")}
         onConfirm={() => {
-          if (deleteTarget) void remove(deleteTarget);
+          if (deleteTarget && !isZoneGroup(deleteTarget)) void remove(deleteTarget);
         }}
         onOpenChange={(nextOpen) => {
           if (!nextOpen) setDeleteTarget(null);

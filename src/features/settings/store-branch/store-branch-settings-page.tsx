@@ -1,7 +1,5 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useResetOnChange } from "@/hooks/use-reset-on-change";
 import { useTranslation } from "react-i18next";
 import { KeyRound } from "lucide-react";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
@@ -11,274 +9,189 @@ import {
   SettingsRowActions,
   SettingsToolbar
 } from "@/features/settings/shared/settings-shell";
-import { useAppliedSearch } from "@/hooks/use-applied-search";
-import { useLatestValue } from "@/hooks/use-latest-value";
-import { useUrlPagination } from "@/hooks/use-url-pagination";
-import { DEFAULT_PAGE_LIMIT, PAGE_LIMIT_OPTIONS } from "@/lib/pagination";
+import { optionPageRange, optionPageSize } from "@/features/settings/shared/option-settings-utils";
+import { useOptionRowSelection } from "@/features/settings/shared/use-option-row-selection";
+import { useSettingsCrudController } from "@/features/settings/shared/use-settings-crud-controller";
+import { PAGE_LIMIT_OPTIONS } from "@/lib/pagination";
 import { canCreateStoreBranch, canDeleteStoreBranch, canEditStoreBranch } from "@/lib/permissions";
 import type { UrlPaginationState } from "@/lib/url-pagination";
-import type { SaveBranchInput } from "@/services/branch";
-import type { PageLimit, SortOrder } from "@/services/shared/types";
-import type { SaveStoreInput } from "@/services/store";
-import { useAppStore } from "@/stores/app-store";
-import { authStoreUuid, useAuthStore, type AuthUser } from "@/stores/auth-store";
+import type { Branch, FetchBranchesParams, SaveBranchInput } from "@/services/branch";
+import type { SortOrder } from "@/services/shared/types";
+import type { FetchStoresParams, SaveStoreInput, Store } from "@/services/store";
+import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
 import { useBranchSettingsStore } from "@/stores/branch-settings-store";
 import { useReferenceStore } from "@/stores/reference-store";
 import { useStoreSettingsStore } from "@/stores/store-settings-store";
-import { useToastStore } from "@/stores/toast-store";
 import { StoreBranchFormDialog } from "./store-branch-form";
 import { StoreBranchListSurface } from "./store-branch-list";
-import type { StoreBranchSettingsRow as Row } from "./store-branch-types";
+import type { StoreBranchSettingsRow } from "./store-branch-types";
 import {
   buildBranchPayload,
   buildStorePayload,
   missingBranchField,
   missingStoreField,
   storeBranchId,
-  storeBranchMediaKey,
   storeBranchName,
   storeBranchValue,
   type StoreBranchKind
 } from "./store-branch-utils";
 import { useStoreBranchLabels } from "./use-store-branch-labels";
 
-const LIST_LIMIT: PageLimit = DEFAULT_PAGE_LIMIT;
-
-// ร้านค้าเดียวมีหลายสาขา ต้อง scope รายการสาขาด้วย store_uuid_fk ของผู้ใช้ (store ไม่ต้อง scope)
-const STORE_BRANCH_SCOPE: Partial<Record<StoreBranchKind, (user: AuthUser | null) => Record<string, unknown>>> = {
-  branch: (user) => ({ store_uuid_fk: user?.store_uuid || user?.store_uuid_fk || "" })
-};
-
+// ร้าน/สาขาเป็นสโตร์คนละตัว (useStoreSettingsStore / useBranchSettingsStore) — kind ผูกกับเราท์
+// (settings/store, settings/branch) จึงคงที่ตลอดอายุของอินสแตนซ์ที่ mount แต่ละครั้ง แยกเป็น 2
+// คอมโพเนนต์ย่อยที่ผูก useSettingsCrudController กับสโตร์เดียวคนละตัวได้อย่างปลอดภัย เหตุผลเดียวกับ
+// location-settings-page.tsx (คอมเมนต์เต็มอยู่ที่นั่น — cast ชนิดข้ามสโตร์ไม่ปลอดภัย และ auto-load
+// ในตัว controller จะยิงทั้งสอง entity พร้อมกันถ้ารวมเป็น instance เดียว)
 export function StoreBranchSettingsPage({ initialPagination, kind }: { initialPagination: UrlPaginationState; kind: StoreBranchKind }) {
+  if (kind === "branch") return <BranchSettingsPage initialPagination={initialPagination} />;
+  return <StoreSettingsPage initialPagination={initialPagination} />;
+}
+
+function StoreSettingsPage({ initialPagination }: { initialPagination: UrlPaginationState }) {
   const { t } = useTranslation();
-  const language = useAppStore((state) => state.language);
   const labels = useStoreBranchLabels();
-  const user = useAuthStore((state) => state.user);
-  const storeUuid = authStoreUuid(user);
   const updateUser = useAuthStore((state) => state.updateUser);
-  const showToast = useToastStore((state) => state.show);
   const resetPassword = useReferenceStore((state) => state.resetPassword);
   const storeLogoUrl = useReferenceStore((state) => state.storeLogoUrl);
-  const branchQrUrl = useReferenceStore((state) => state.branchQrUrl);
-
-  const storeRows = useStoreSettingsStore((state) => state.rows) as Row[];
-  const storeTotal = useStoreSettingsStore((state) => state.total);
-  const storeTotalPages = useStoreSettingsStore((state) => state.totalPages);
-  const storeSearch = useStoreSettingsStore((state) => state.search);
-  const storeHasLoaded = useStoreSettingsStore((state) => state.hasLoaded);
-  const storeLoading = useStoreSettingsStore((state) => state.loading);
-  const storeRefreshing = useStoreSettingsStore((state) => state.refreshing);
-  const storeSaving = useStoreSettingsStore((state) => state.saving);
-  const setStoreSearch = useStoreSettingsStore((state) => state.setSearch);
-  const loadStoreRows = useStoreSettingsStore((state) => state.load);
+  // handleSave ต้องอ่านแถวที่เพิ่งโหลดกลับมาเพื่อซิงก์ auth state ของร้านตัวเอง (updateUser) — ค่าที่
+  // โหลดกลับมาไม่ถูกคืนออกมาจาก save()/load() ของ controller จึงเรียกสโตร์ตรงเหมือน table-page
   const saveStoreRow = useStoreSettingsStore((state) => state.save);
+  const loadStoreRows = useStoreSettingsStore((state) => state.load);
   const removeStoreRow = useStoreSettingsStore((state) => state.remove);
 
-  const branchRows = useBranchSettingsStore((state) => state.rows) as Row[];
-  const branchTotal = useBranchSettingsStore((state) => state.total);
-  const branchTotalPages = useBranchSettingsStore((state) => state.totalPages);
-  const branchSearch = useBranchSettingsStore((state) => state.search);
-  const branchHasLoaded = useBranchSettingsStore((state) => state.hasLoaded);
-  const branchLoading = useBranchSettingsStore((state) => state.loading);
-  const branchRefreshing = useBranchSettingsStore((state) => state.refreshing);
-  const branchSaving = useBranchSettingsStore((state) => state.saving);
-  const setBranchSearch = useBranchSettingsStore((state) => state.setSearch);
-  const loadBranchRows = useBranchSettingsStore((state) => state.load);
-  const saveBranchRow = useBranchSettingsStore((state) => state.save);
-  const removeBranchRow = useBranchSettingsStore((state) => state.remove);
+  const title = labels.store;
+  const description = labels.storeHint;
+  const listTitle = labels.storeList;
+  const {
+    applyFilters,
+    backgroundLoading,
+    changeLimit,
+    deleteTarget,
+    dialogOpen,
+    editing,
+    fullLoading,
+    limit,
+    openCreate: controllerOpenCreate,
+    openEdit: controllerOpenEdit,
+    orderBy,
+    page,
+    pagingBusy,
+    requestParams,
+    rows,
+    saving,
+    search,
+    setDeleteTarget,
+    setDialogOpen,
+    setEditing,
+    setOrderBy,
+    setPage,
+    setSearch,
+    showToast,
+    storeUuid,
+    total: controllerTotal,
+    totalPages: controllerTotalPages
+  } = useSettingsCrudController<Store, SaveStoreInput, FetchStoresParams>({
+    // buildInput ให้ครบตามชนิดที่ controller ต้องการ แต่การบันทึกจริงยังเดินตรงผ่านสโตร์ใน
+    // handleSave ด้านล่าง (ดูคอมเมนต์ที่ saveStoreRow) เพื่อคงพฤติกรรม "ซิงก์ auth state หลังบันทึก" เดิม
+    buildInput: ({ editing: editingRow, formData }) =>
+      buildStorePayload({
+        active: String(formData.get("store_active") ?? "1"),
+        editing: editingRow,
+        email: String(formData.get("store_email") ?? ""),
+        logo: null,
+        nameEng: String(formData.get("store_name_eng") ?? ""),
+        nameLa: String(formData.get("store_name_la") ?? ""),
+        status: String(formData.get("store_status") ?? "2")
+      }),
+    idKey: "store_uuid",
+    initialPagination,
+    store: useStoreSettingsStore,
+    title,
+    validateInput: ({ formData }) => {
+      const missing = missingStoreField({
+        email: String(formData.get("store_email") ?? ""),
+        nameLa: String(formData.get("store_name_la") ?? "")
+      });
+      if (missing === "email") return labels.storeEmailRequired;
+      if (missing === "name") return labels.storeNameRequired;
+      return null;
+    }
+  });
 
-  const rows = kind === "store" ? storeRows : branchRows;
-  const search = kind === "store" ? storeSearch : branchSearch;
-  const hasLoaded = kind === "store" ? storeHasLoaded : branchHasLoaded;
-  const loading = kind === "store" ? storeLoading : branchLoading;
-  const refreshing = kind === "store" ? storeRefreshing : branchRefreshing;
-  const saving = kind === "store" ? storeSaving : branchSaving;
-  const setSearch = kind === "store" ? setStoreSearch : setBranchSearch;
-  const entityTotal = kind === "store" ? storeTotal : branchTotal;
-  const entityTotalPages = kind === "store" ? storeTotalPages : branchTotalPages;
-  const [editing, setEditing] = useState<Row | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<Row | null>(null);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedRows, setSelectedRows] = useState<Set<string>>(() => new Set());
-  const { changeLimit, limit, page, resetPage, setPage } = useUrlPagination({ initialPagination });
-  const [orderBy, setOrderBy] = useState<SortOrder>("ASC");
-
+  const user = useAuthStore((state) => state.user);
   const canCreate = canCreateStoreBranch(user?.status);
   const canDelete = canDeleteStoreBranch(user?.status);
   const canEdit = canEditStoreBranch(user?.status);
-  const scope = useMemo(() => STORE_BRANCH_SCOPE[kind]?.(user) ?? {}, [kind, user]);
-  const visibleRows = useMemo(() => {
-    if (kind === "store" && !canCreate) return rows.filter((row) => storeBranchValue(row, "store_uuid") === storeUuid);
-    if (kind === "branch" && !canCreate) return rows.filter((row) => storeBranchValue(row, "branch_uuid") === user?.branch_uuid);
-    return rows;
-  }, [canCreate, kind, rows, storeUuid, user?.branch_uuid]);
-  const activeId = kind === "store" ? storeUuid : user?.branch_uuid;
-  const title = kind === "store" ? labels.store : labels.branch;
-  const description = kind === "store" ? labels.storeHint : labels.branchHint;
-  const listTitle = kind === "store" ? labels.storeList : labels.branchList;
-  const { appliedSearch, applySearch } = useAppliedSearch(search);
-  const hasLoadedRef = useLatestValue(hasLoaded);
-  const requestParams = useMemo(
-    () => ({ page, limit, orderBy, lang: language, search: appliedSearch, ...scope }),
-    [appliedSearch, language, limit, orderBy, page, scope]
+  const activeId = storeUuid;
+  // ผู้ใช้ที่สร้างร้านไม่ได้ (เช่น พนักงานร้าน) เห็นได้แค่ร้านตัวเอง — กรองฝั่ง client จากรายการที่โหลดมา
+  const visibleRows = canCreate ? rows : rows.filter((row) => storeBranchValue(row, "store_uuid") === storeUuid);
+  const { allSelected, removeSelected, selectedRows, toggleAll, toggleSelected } = useOptionRowSelection(
+    visibleRows,
+    (row) => storeBranchId(row, "store")
   );
-  const pageSize = limit === "All" ? visibleRows.length || Number(LIST_LIMIT) : Number(limit ?? LIST_LIMIT);
-  const total = canCreate ? Number(entityTotal ?? visibleRows.length) : visibleRows.length;
-  const totalPages = canCreate ? Math.max(1, Number(entityTotalPages || Math.ceil(total / pageSize) || 1)) : 1;
-  const pageStart = visibleRows.length ? (page - 1) * pageSize + 1 : 0;
-  const pageEnd = visibleRows.length ? pageStart + visibleRows.length - 1 : 0;
-  const fullLoading = loading && !hasLoaded;
-  const backgroundLoading = refreshing || (loading && hasLoaded);
-  const pagingBusy = loading || refreshing;
+  const pageSize = optionPageSize(limit, visibleRows.length);
+  const total = canCreate ? controllerTotal : visibleRows.length;
+  const totalPages = canCreate ? controllerTotalPages : 1;
+  const { start: pageStart, end: pageEnd } = optionPageRange(visibleRows.length, page, pageSize);
   const canGoBack = page > 1 && !pagingBusy;
   const canGoNext = page < totalPages && !pagingBusy;
-  const visibleIds = useMemo(() => visibleRows.map((row) => storeBranchId(row, kind)).filter(Boolean), [kind, visibleRows]);
-  const allSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedRows.has(id));
-  const imageUrl = useMemo(
-    () => (row: Row, rowKind: StoreBranchKind) => {
-      const key = storeBranchMediaKey(row, rowKind);
-      if (!key) return "";
-      return rowKind === "store" ? storeLogoUrl(key) : branchQrUrl(key);
-    },
-    [branchQrUrl, storeLogoUrl]
-  );
 
-  // แถวที่เลือกไว้อาจหายไปหลังเปลี่ยนหน้า/ค้นหา/โหลดใหม่ ต้องตัดออกจาก selection
-  useResetOnChange(visibleIds, () => {
-    setSelectedRows((current) => {
-      if (!current.size) return current;
-      const allowed = new Set(visibleIds);
-      let changed = false;
-      const next = new Set<string>();
-      current.forEach((id) => {
-        if (allowed.has(id)) next.add(id);
-        else changed = true;
-      });
-      return changed ? next : current;
-    });
-  });
+  function imageUrl(row: StoreBranchSettingsRow, rowKind: StoreBranchKind) {
+    if (rowKind !== "store") return "";
+    const key = storeBranchValue(row, "store_logo");
+    return key ? storeLogoUrl(key) : "";
+  }
 
-  const load = useCallback(async (background = hasLoadedRef.current) => {
-    try {
-      if (kind === "store") await loadStoreRows(requestParams, { background });
-      else await loadBranchRows(requestParams, { background });
-    } catch (error) {
-      showToast({
-        title: t("settings.loadFailed", { title }),
-        description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
-        tone: "error"
-      });
-    }
-  }, [hasLoadedRef, kind, loadBranchRows, loadStoreRows, requestParams, showToast, t, title]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
+  function missingFieldDescription(field: ReturnType<typeof missingStoreField>) {
+    if (field === "email") return labels.storeEmailRequired;
+    if (field === "name") return labels.storeNameRequired;
+    return t("toasts.pleaseTryAgain");
+  }
 
   function resetForm() {
     setEditing(null);
     setDialogOpen(false);
   }
 
-  function openCreateForm() {
+  function openCreate() {
     if (!canCreate) return;
-    setEditing(null);
-    setDialogOpen(true);
+    controllerOpenCreate();
   }
 
-  function openEditForm(row: Row) {
+  function openEdit(row: Store) {
     if (!canEdit) return;
-    setEditing(row);
-    setDialogOpen(true);
-  }
-
-  function applyFilters() {
-    applySearch({ page, resetPage, reload: () => void load(true) });
-  }
-
-  function toggleSelected(id: string, checked: boolean) {
-    if (!id) return;
-    setSelectedRows((current) => {
-      const next = new Set(current);
-      if (checked) next.add(id);
-      else next.delete(id);
-      return next;
-    });
-  }
-
-  function toggleAllSelected(checked: boolean) {
-    setSelectedRows(checked ? new Set(visibleIds) : new Set());
-  }
-
-  function missingFieldDescription(field: ReturnType<typeof missingStoreField> | ReturnType<typeof missingBranchField>) {
-    if (field === "store") return labels.storeRequired;
-    if (field === "email") return labels.storeEmailRequired;
-    if (field === "name") return kind === "store" ? labels.storeNameRequired : labels.branchNameRequired;
-    return t("toasts.pleaseTryAgain");
+    controllerOpenEdit(row);
   }
 
   async function handleSave(formData: FormData) {
-    const id = editing ? storeBranchId(editing, kind) : "";
+    const id = editing ? storeBranchId(editing, "store") : "";
     if (!id && !canCreate) return;
     if (id && !canEdit) return;
 
     const logo = formData.get("store_logo");
-    const qr = formData.get("branch_qr");
-    const input =
-      kind === "store"
-        ? buildStorePayload({
-            active: String(formData.get("store_active") ?? "1"),
-            editing,
-            email: String(formData.get("store_email") ?? ""),
-            logo: logo instanceof File && logo.size ? logo : null,
-            nameEng: String(formData.get("store_name_eng") ?? ""),
-            nameLa: String(formData.get("store_name_la") ?? ""),
-            status: String(formData.get("store_status") ?? "2")
-          })
-        : buildBranchPayload({
-            address: String(formData.get("branch_address") ?? ""),
-            chargePercent: String(formData.get("charge_name") ?? ""),
-            chargeStatus: String(formData.get("charge_status") ?? "2"),
-            editing,
-            email: String(formData.get("branch_email") ?? ""),
-            name: String(formData.get("branch_name") ?? ""),
-            qr: qr instanceof File && qr.size ? qr : null,
-            storeUuid: storeUuid,
-            tel: String(formData.get("branch_tel") ?? ""),
-            vatPercent: String(formData.get("vat_name") ?? ""),
-            vatStatus: String(formData.get("vat_status") ?? "2")
-          });
-    const missing =
-      kind === "store"
-        ? missingStoreField({ email: String(input.store_email ?? ""), nameLa: String(input.store_name_la ?? "") })
-        : missingBranchField({ name: String(input.branch_name ?? ""), storeUuid: String(input.store_uuid_fk ?? "") });
-
+    const input = buildStorePayload({
+      active: String(formData.get("store_active") ?? "1"),
+      editing,
+      email: String(formData.get("store_email") ?? ""),
+      logo: logo instanceof File && logo.size ? logo : null,
+      nameEng: String(formData.get("store_name_eng") ?? ""),
+      nameLa: String(formData.get("store_name_la") ?? ""),
+      status: String(formData.get("store_status") ?? "2")
+    });
+    const missing = missingStoreField({ email: String(input.store_email ?? ""), nameLa: String(input.store_name_la ?? "") });
     if (missing) {
       showToast({ title: labels.saveFailed, description: missingFieldDescription(missing), tone: "error" });
       return;
     }
 
     try {
-      let nextRows: Row[];
-      if (kind === "store") {
-        await saveStoreRow(input as SaveStoreInput);
-        nextRows = (await loadStoreRows(requestParams, { background: true })) as Row[];
-      } else {
-        await saveBranchRow(input as SaveBranchInput);
-        nextRows = (await loadBranchRows(requestParams, { background: true })) as Row[];
-      }
-      const updated = id ? nextRows.find((row) => storeBranchId(row, kind) === id) : null;
-      if (updated && kind === "store" && id === storeUuid) {
+      await saveStoreRow(input);
+      const nextRows = await loadStoreRows(requestParams, { background: true });
+      const updated = id ? nextRows.find((row) => storeBranchId(row, "store") === id) : null;
+      if (updated && id === storeUuid) {
         updateUser({
           store_logo: storeBranchValue(updated, "store_logo"),
           store_name: storeBranchName(updated, "store")
-        });
-      }
-      if (updated && kind === "branch" && id === user?.branch_uuid) {
-        updateUser({
-          branch_address: storeBranchValue(updated, "branch_address"),
-          branch_name: storeBranchName(updated, "branch"),
-          branch_tel: storeBranchValue(updated, "branch_tel")
         });
       }
       showToast({ title: labels.saved, tone: "success" });
@@ -292,24 +205,15 @@ export function StoreBranchSettingsPage({ initialPagination, kind }: { initialPa
     }
   }
 
-  async function handleDelete(row: Row) {
-    const id = storeBranchId(row, kind);
+  async function handleDelete(row: Store) {
+    const id = storeBranchId(row, "store");
     if (!canDelete || !id || id === activeId) return;
     try {
-      if (kind === "store") {
-        await removeStoreRow(id);
-        await loadStoreRows(requestParams, { background: true });
-      } else {
-        await removeBranchRow(id);
-        await loadBranchRows(requestParams, { background: true });
-      }
-      if (editing && storeBranchId(editing, kind) === id) resetForm();
+      await removeStoreRow(id);
+      await loadStoreRows(requestParams, { background: true });
+      if (editing && storeBranchId(editing, "store") === id) resetForm();
       setDeleteTarget(null);
-      setSelectedRows((current) => {
-        const next = new Set(current);
-        next.delete(id);
-        return next;
-      });
+      removeSelected(id);
       showToast({ title: t("settings.deleted"), tone: "success" });
     } catch (error) {
       showToast({
@@ -320,7 +224,7 @@ export function StoreBranchSettingsPage({ initialPagination, kind }: { initialPa
     }
   }
 
-  async function handleResetPassword(row: Row) {
+  async function handleResetPassword(row: Store) {
     const email = storeBranchValue(row, "store_email");
     if (!email) return;
     try {
@@ -335,31 +239,27 @@ export function StoreBranchSettingsPage({ initialPagination, kind }: { initialPa
     }
   }
 
-  const rowActions = (row: Row) => {
-    const id = storeBranchId(row, kind);
+  function rowActions(row: StoreBranchSettingsRow) {
+    const id = storeBranchId(row, "store");
     const isCurrent = id === activeId;
     return (
       <SettingsRowActions
         row={row}
         editDisabled={!canEdit || saving}
         deleteDisabled={!canDelete || isCurrent || saving}
-        actions={
-          kind === "store"
-            ? [
-                {
-                  label: labels.resetPassword,
-                  icon: <KeyRound aria-hidden />,
-                  disabled: !canEdit || saving,
-                  onSelect: (nextRow) => void handleResetPassword(nextRow)
-                }
-              ]
-            : undefined
-        }
-        onEdit={openEditForm}
-        onDelete={setDeleteTarget}
+        actions={[
+          {
+            label: labels.resetPassword,
+            icon: <KeyRound aria-hidden />,
+            disabled: !canEdit || saving,
+            onSelect: (nextRow) => void handleResetPassword(nextRow as Store)
+          }
+        ]}
+        onEdit={(nextRow) => openEdit(nextRow as Store)}
+        onDelete={(nextRow) => setDeleteTarget(nextRow as Store)}
       />
     );
-  };
+  }
 
   const toolbar = (
     <SettingsToolbar
@@ -371,7 +271,7 @@ export function StoreBranchSettingsPage({ initialPagination, kind }: { initialPa
         selectedCount: selectedRows.size,
         onApply: applyFilters,
         onLimit: changeLimit,
-        onOrder: (nextOrder) => {
+        onOrder: (nextOrder: SortOrder) => {
           setOrderBy(nextOrder);
           setPage(1);
         },
@@ -386,7 +286,7 @@ export function StoreBranchSettingsPage({ initialPagination, kind }: { initialPa
       allSelected={allSelected}
       backgroundLoading={backgroundLoading}
       imageUrl={imageUrl}
-      kind={kind}
+      kind="store"
       labels={labels}
       listTitle={listTitle}
       page={page}
@@ -398,7 +298,7 @@ export function StoreBranchSettingsPage({ initialPagination, kind }: { initialPa
       toolbar={toolbar}
       total={total}
       totalPages={totalPages}
-      onToggleAllSelected={toggleAllSelected}
+      onToggleAllSelected={toggleAll}
       onToggleSelected={toggleSelected}
     />
   );
@@ -406,7 +306,7 @@ export function StoreBranchSettingsPage({ initialPagination, kind }: { initialPa
   return (
     <>
       <SettingsModuleShell
-        addLabel={kind === "store" ? labels.addStore : labels.addBranch}
+        addLabel={labels.addStore}
         cardTitle={listTitle}
         description={description}
         footer={
@@ -430,14 +330,314 @@ export function StoreBranchSettingsPage({ initialPagination, kind }: { initialPa
         loadingLabel={t("settings.loading", { title })}
         table={listSurface}
         title={title}
-        onAdd={canCreate ? openCreateForm : undefined}
+        onAdd={canCreate ? openCreate : undefined}
       />
       <StoreBranchFormDialog
         activeStoreUuid={storeUuid}
         canEdit={canEdit}
         editing={editing}
-        imageUrl={(row, rowKind) => imageUrl(row, rowKind)}
-        kind={kind}
+        imageUrl={imageUrl}
+        kind="store"
+        labels={labels}
+        open={dialogOpen}
+        saving={saving}
+        onCancel={resetForm}
+        onSubmit={handleSave}
+      />
+      <ConfirmDialog
+        cancelLabel={labels.cancel}
+        confirmLabel={labels.delete}
+        confirmPending={saving}
+        description={labels.deleteConfirm}
+        open={Boolean(deleteTarget)}
+        title={labels.delete}
+        onConfirm={() => {
+          if (deleteTarget) void handleDelete(deleteTarget);
+        }}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) setDeleteTarget(null);
+        }}
+      />
+    </>
+  );
+}
+
+function BranchSettingsPage({ initialPagination }: { initialPagination: UrlPaginationState }) {
+  const { t } = useTranslation();
+  const labels = useStoreBranchLabels();
+  const updateUser = useAuthStore((state) => state.updateUser);
+  const branchQrUrl = useReferenceStore((state) => state.branchQrUrl);
+  const saveBranchRow = useBranchSettingsStore((state) => state.save);
+  const loadBranchRows = useBranchSettingsStore((state) => state.load);
+  const removeBranchRow = useBranchSettingsStore((state) => state.remove);
+
+  const title = labels.branch;
+  const description = labels.branchHint;
+  const listTitle = labels.branchList;
+  const {
+    applyFilters,
+    backgroundLoading,
+    changeLimit,
+    deleteTarget,
+    dialogOpen,
+    editing,
+    fullLoading,
+    limit,
+    openCreate: controllerOpenCreate,
+    openEdit: controllerOpenEdit,
+    orderBy,
+    page,
+    pagingBusy,
+    requestParams,
+    rows,
+    saving,
+    search,
+    setDeleteTarget,
+    setDialogOpen,
+    setEditing,
+    setOrderBy,
+    setPage,
+    setSearch,
+    showToast,
+    storeUuid,
+    total: controllerTotal,
+    totalPages: controllerTotalPages
+  } = useSettingsCrudController<Branch, SaveBranchInput, FetchBranchesParams>({
+    // buildInput ให้ครบตามชนิดที่ controller ต้องการ แต่การบันทึกจริงยังเดินตรงผ่านสโตร์ใน
+    // handleSave ด้านล่าง (ดูคอมเมนต์ที่ saveBranchRow) เพื่อคงพฤติกรรม "ซิงก์ auth state หลังบันทึก" เดิม
+    buildInput: ({ editing: editingRow, formData, user: currentUser }) =>
+      buildBranchPayload({
+        address: String(formData.get("branch_address") ?? ""),
+        chargePercent: String(formData.get("charge_name") ?? ""),
+        chargeStatus: String(formData.get("charge_status") ?? "2"),
+        editing: editingRow,
+        email: String(formData.get("branch_email") ?? ""),
+        name: String(formData.get("branch_name") ?? ""),
+        qr: null,
+        storeUuid: authStoreUuid(currentUser),
+        tel: String(formData.get("branch_tel") ?? ""),
+        vatPercent: String(formData.get("vat_name") ?? ""),
+        vatStatus: String(formData.get("vat_status") ?? "2")
+      }),
+    idKey: "branch_uuid",
+    initialPagination,
+    // สโตร์เดียวมีหลายสาขา ต้อง scope รายการสาขาด้วย store_uuid_fk ของผู้ใช้เสมอ
+    scope: (scopedStoreUuid) => ({ store_uuid_fk: scopedStoreUuid }),
+    store: useBranchSettingsStore,
+    title,
+    validateInput: ({ formData, user: currentUser }) => {
+      const missing = missingBranchField({
+        name: String(formData.get("branch_name") ?? ""),
+        storeUuid: authStoreUuid(currentUser)
+      });
+      if (missing === "store") return labels.storeRequired;
+      if (missing === "name") return labels.branchNameRequired;
+      return null;
+    }
+  });
+
+  const user = useAuthStore((state) => state.user);
+  const canCreate = canCreateStoreBranch(user?.status);
+  const canDelete = canDeleteStoreBranch(user?.status);
+  const canEdit = canEditStoreBranch(user?.status);
+  const activeId = user?.branch_uuid ?? "";
+  // ผู้ใช้ที่สร้างสาขาไม่ได้ (เช่น พนักงานสาขา) เห็นได้แค่สาขาตัวเอง — กรองฝั่ง client จากรายการที่โหลดมา
+  const visibleRows = canCreate ? rows : rows.filter((row) => storeBranchValue(row, "branch_uuid") === activeId);
+  const { allSelected, removeSelected, selectedRows, toggleAll, toggleSelected } = useOptionRowSelection(
+    visibleRows,
+    (row) => storeBranchId(row, "branch")
+  );
+  const pageSize = optionPageSize(limit, visibleRows.length);
+  const total = canCreate ? controllerTotal : visibleRows.length;
+  const totalPages = canCreate ? controllerTotalPages : 1;
+  const { start: pageStart, end: pageEnd } = optionPageRange(visibleRows.length, page, pageSize);
+  const canGoBack = page > 1 && !pagingBusy;
+  const canGoNext = page < totalPages && !pagingBusy;
+
+  function imageUrl(row: StoreBranchSettingsRow, rowKind: StoreBranchKind) {
+    if (rowKind !== "branch") return "";
+    const key = storeBranchValue(row, "branch_qr");
+    return key ? branchQrUrl(key) : "";
+  }
+
+  function missingFieldDescription(field: ReturnType<typeof missingBranchField>) {
+    if (field === "store") return labels.storeRequired;
+    if (field === "name") return labels.branchNameRequired;
+    return t("toasts.pleaseTryAgain");
+  }
+
+  function resetForm() {
+    setEditing(null);
+    setDialogOpen(false);
+  }
+
+  function openCreate() {
+    if (!canCreate) return;
+    controllerOpenCreate();
+  }
+
+  function openEdit(row: Branch) {
+    if (!canEdit) return;
+    controllerOpenEdit(row);
+  }
+
+  async function handleSave(formData: FormData) {
+    const id = editing ? storeBranchId(editing, "branch") : "";
+    if (!id && !canCreate) return;
+    if (id && !canEdit) return;
+
+    const qr = formData.get("branch_qr");
+    const input = buildBranchPayload({
+      address: String(formData.get("branch_address") ?? ""),
+      chargePercent: String(formData.get("charge_name") ?? ""),
+      chargeStatus: String(formData.get("charge_status") ?? "2"),
+      editing,
+      email: String(formData.get("branch_email") ?? ""),
+      name: String(formData.get("branch_name") ?? ""),
+      qr: qr instanceof File && qr.size ? qr : null,
+      storeUuid,
+      tel: String(formData.get("branch_tel") ?? ""),
+      vatPercent: String(formData.get("vat_name") ?? ""),
+      vatStatus: String(formData.get("vat_status") ?? "2")
+    });
+    const missing = missingBranchField({ name: String(input.branch_name ?? ""), storeUuid: String(input.store_uuid_fk ?? "") });
+    if (missing) {
+      showToast({ title: labels.saveFailed, description: missingFieldDescription(missing), tone: "error" });
+      return;
+    }
+
+    try {
+      await saveBranchRow(input);
+      const nextRows = await loadBranchRows(requestParams, { background: true });
+      const updated = id ? nextRows.find((row) => storeBranchId(row, "branch") === id) : null;
+      if (updated && id === activeId) {
+        updateUser({
+          branch_address: storeBranchValue(updated, "branch_address"),
+          branch_name: storeBranchName(updated, "branch"),
+          branch_tel: storeBranchValue(updated, "branch_tel")
+        });
+      }
+      showToast({ title: labels.saved, tone: "success" });
+      resetForm();
+    } catch (error) {
+      showToast({
+        title: labels.saveFailed,
+        description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
+        tone: "error"
+      });
+    }
+  }
+
+  async function handleDelete(row: Branch) {
+    const id = storeBranchId(row, "branch");
+    if (!canDelete || !id || id === activeId) return;
+    try {
+      await removeBranchRow(id);
+      await loadBranchRows(requestParams, { background: true });
+      if (editing && storeBranchId(editing, "branch") === id) resetForm();
+      setDeleteTarget(null);
+      removeSelected(id);
+      showToast({ title: t("settings.deleted"), tone: "success" });
+    } catch (error) {
+      showToast({
+        title: labels.deleteFailed,
+        description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
+        tone: "error"
+      });
+    }
+  }
+
+  function rowActions(row: StoreBranchSettingsRow) {
+    const id = storeBranchId(row, "branch");
+    const isCurrent = id === activeId;
+    return (
+      <SettingsRowActions
+        row={row}
+        editDisabled={!canEdit || saving}
+        deleteDisabled={!canDelete || isCurrent || saving}
+        onEdit={(nextRow) => openEdit(nextRow as Branch)}
+        onDelete={(nextRow) => setDeleteTarget(nextRow as Branch)}
+      />
+    );
+  }
+
+  const toolbar = (
+    <SettingsToolbar
+      state={{
+        search,
+        limit,
+        orderBy,
+        limitOptions: PAGE_LIMIT_OPTIONS,
+        selectedCount: selectedRows.size,
+        onApply: applyFilters,
+        onLimit: changeLimit,
+        onOrder: (nextOrder: SortOrder) => {
+          setOrderBy(nextOrder);
+          setPage(1);
+        },
+        onSearch: setSearch
+      }}
+    />
+  );
+
+  const listSurface = (
+    <StoreBranchListSurface
+      activeId={activeId}
+      allSelected={allSelected}
+      backgroundLoading={backgroundLoading}
+      imageUrl={imageUrl}
+      kind="branch"
+      labels={labels}
+      listTitle={listTitle}
+      page={page}
+      pageEnd={pageEnd}
+      pageStart={pageStart}
+      rowActions={rowActions}
+      rows={visibleRows}
+      selectedRows={selectedRows}
+      toolbar={toolbar}
+      total={total}
+      totalPages={totalPages}
+      onToggleAllSelected={toggleAll}
+      onToggleSelected={toggleSelected}
+    />
+  );
+
+  return (
+    <>
+      <SettingsModuleShell
+        addLabel={labels.addBranch}
+        cardTitle={listTitle}
+        description={description}
+        footer={
+          visibleRows.length ? (
+            <SettingsPaginationFooter
+              canGoBack={canGoBack}
+              canGoNext={canGoNext}
+              page={page}
+              pageEnd={pageEnd}
+              pageStart={pageStart}
+              total={total}
+              totalPages={totalPages}
+              onBack={() => setPage((current) => Math.max(1, current - 1))}
+              onNext={() => setPage((current) => Math.min(totalPages, current + 1))}
+              onPageChange={setPage}
+            />
+          ) : undefined
+        }
+        hideCardHeader
+        loading={fullLoading}
+        loadingLabel={t("settings.loading", { title })}
+        table={listSurface}
+        title={title}
+        onAdd={canCreate ? openCreate : undefined}
+      />
+      <StoreBranchFormDialog
+        activeStoreUuid={storeUuid}
+        canEdit={canEdit}
+        editing={editing}
+        imageUrl={imageUrl}
+        kind="branch"
         labels={labels}
         open={dialogOpen}
         saving={saving}

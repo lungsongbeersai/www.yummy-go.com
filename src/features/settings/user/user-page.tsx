@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useResetOnDeps } from "@/hooks/use-reset-on-change";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
@@ -14,18 +14,12 @@ import {
   SettingsPaginationFooter,
   SettingsToolbar
 } from "@/features/settings/shared/settings-shell";
-import { useOptionRowSelection } from "@/features/settings/shared/use-option-row-selection";
-import { useAppliedSearch } from "@/hooks/use-applied-search";
-import { useLatestValue } from "@/hooks/use-latest-value";
-import { useUrlPagination } from "@/hooks/use-url-pagination";
-import { DEFAULT_PAGE_LIMIT, PAGE_LIMIT_OPTIONS } from "@/lib/pagination";
+import { useSettingsCrudController } from "@/features/settings/shared/use-settings-crud-controller";
+import { PAGE_LIMIT_OPTIONS } from "@/lib/pagination";
 import type { UrlPaginationState } from "@/lib/url-pagination";
-import type { PageLimit, SortOrder } from "@/services/shared/types";
-import type { FetchUsersParams, Role, User } from "@/services/user";
-import { useAppStore } from "@/stores/app-store";
-import { useAuthStore } from "@/stores/auth-store";
+import type { FetchUsersParams, Role, SaveUserInput, User } from "@/services/user";
+import type { SortOrder } from "@/services/shared/types";
 import { useReferenceStore } from "@/stores/reference-store";
-import { useToastStore } from "@/stores/toast-store";
 import { useUserStore } from "@/stores/user-store";
 import { UserFormDialog } from "./user-form-dialog";
 import { UserListSurface } from "./user-list";
@@ -36,7 +30,6 @@ import {
   userValue
 } from "./user-utils";
 
-const DEFAULT_LIMIT: PageLimit = DEFAULT_PAGE_LIMIT;
 const ORDER_OPTIONS: Array<{ labelKey: "asc" | "desc"; value: SortOrder }> = [
   { labelKey: "asc", value: "asc" },
   { labelKey: "desc", value: "desc" }
@@ -46,86 +39,90 @@ const EMPTY_ROLES: Role[] = [];
 
 export function UserSettingsPage({ initialPagination }: { initialPagination: UrlPaginationState }) {
   const { t } = useTranslation();
-  const language = useAppStore((state) => state.language);
-  const user = useAuthStore((state) => state.user);
-  const branchUuid = user?.branch_uuid ?? "";
-  const loginBranchName = user?.branch_name || t("settings.currentBranch");
-  const currentLoginUuid = user?.uuid ?? "";
-  const loggedRoleId = Number(user?.status ?? 0);
-  const showToast = useToastStore((state) => state.show);
-  const rows = useUserStore((state) => state.rows);
-  const total = useUserStore((state) => state.total);
-  const storeTotalPages = useUserStore((state) => state.totalPages);
-  const search = useUserStore((state) => state.search);
-  const hasLoaded = useUserStore((state) => state.hasLoaded);
-  const loading = useUserStore((state) => state.loading);
-  const refreshing = useUserStore((state) => state.refreshing);
-  const saving = useUserStore((state) => state.saving);
-  const setSearch = useUserStore((state) => state.setSearch);
-  const loadRows = useUserStore((state) => state.load);
-  const saveRow = useUserStore((state) => state.save);
-  const removeRow = useUserStore((state) => state.remove);
   const loadRoles = useReferenceStore((state) => state.loadRoles);
   const userProfileUrl = useReferenceStore((state) => state.userProfileUrl);
   const [fetchedRoles, setFetchedRoles] = useState<Role[]>([]);
-  // ยังไม่มีสิทธิ์ที่อ้างอิง = ไม่มีตัวเลือก แต่คงค่าที่โหลดไว้ไม่ให้รายการกะพริบตอนสลับ
-  const roles = loggedRoleId ? fetchedRoles : EMPTY_ROLES;
-  const { changeLimit, limit, page, resetPage, setPage } = useUrlPagination({ initialPagination });
-  const [orderBy, setOrderBy] = useState<SortOrder>("asc");
-  const [editing, setEditing] = useState<User | null>(null);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
   const [selectedProfileImage, setSelectedProfileImage] = useState<File | null>(null);
   const [crop, setCrop] = useState<CropState>(DEFAULT_CROP);
 
   const title = t("settings.modules.user.title");
   const description = t("settings.modules.user.description");
-  const { appliedSearch, applySearch } = useAppliedSearch(search);
-  const hasLoadedRef = useLatestValue(hasLoaded);
-  const requestParams = useMemo<FetchUsersParams>(
-    () => ({
-      search: appliedSearch,
-      page,
-      limit,
-      orderBy,
-      lang: language,
-      branch_uuid_fk: branchUuid,
-      roles_id_fk: loggedRoleId || ""
+  const {
+    allSelected,
+    applyFilters,
+    backgroundLoading,
+    canGoBack,
+    canGoNext,
+    changeLimit,
+    deleteTarget,
+    dialogOpen,
+    editing,
+    fullLoading,
+    language,
+    limit,
+    missingRequiredScope,
+    onDialogOpenChange,
+    openEdit: controllerOpenEdit,
+    orderBy,
+    page,
+    pageEnd,
+    pageStart,
+    remove: crudRemove,
+    requiredScopeDescription,
+    rows,
+    save,
+    saving,
+    search,
+    selectedRows,
+    setDeleteTarget,
+    setDialogOpen,
+    setEditing,
+    setOrderBy,
+    setPage,
+    setSearch,
+    showToast,
+    toggleAll,
+    toggleSelected,
+    total,
+    totalPages,
+    user
+  } = useSettingsCrudController<User, SaveUserInput, FetchUsersParams>({
+    buildInput: ({ editing: editingRow, formData, user: currentUser }) =>
+      buildUserSaveInput({
+        active: String(formData.get("login_active") ?? 1),
+        branchUuid: currentUser?.branch_uuid ?? "",
+        editing: editingRow,
+        email: String(formData.get("login_email") ?? ""),
+        password: String(formData.get("login_password") ?? "").trim(),
+        profile: formData.get("login_profile"),
+        selectedRoleId: String(formData.get("roles_id_fk") ?? "").trim()
+      }),
+    idKey: "login_uuid",
+    initialOrderBy: "asc",
+    initialPagination,
+    requiredScopeKey: "branch_uuid_fk",
+    requiredScopeMessage: t("settings.branchRequired"),
+    scope: (_storeUuid, currentUser) => ({
+      branch_uuid_fk: currentUser?.branch_uuid ?? "",
+      roles_id_fk: Number(currentUser?.status ?? 0) || ""
     }),
-    [appliedSearch, branchUuid, language, limit, loggedRoleId, orderBy, page]
-  );
-  const pageSize = limit === "All" ? rows.length || Number(DEFAULT_LIMIT) : Number(limit ?? DEFAULT_LIMIT);
-  const totalPages = Math.max(1, Number(storeTotalPages || Math.ceil(total / pageSize) || 1));
-  const pageStart = rows.length ? (page - 1) * pageSize + 1 : 0;
-  const pageEnd = rows.length ? pageStart + rows.length - 1 : 0;
-  const fullLoading = loading && !hasLoaded;
-  const backgroundLoading = refreshing || (loading && hasLoaded);
-  const pagingBusy = loading || refreshing;
-  const canGoBack = page > 1 && !pagingBusy;
-  const canGoNext = page < totalPages && !pagingBusy;
-  const { allSelected, removeSelected, selectedRows, toggleAll, toggleSelected } =
-    useOptionRowSelection(rows, userId);
-
-  const load = useCallback(async () => {
-    if (!branchUuid) {
-      showToast({ title: t("settings.loadFailed", { title }), description: t("settings.branchRequired"), tone: "error" });
-      return;
+    store: useUserStore,
+    title,
+    validateInput: ({ editing: editingRow, formData }) => {
+      const selectedRoleId = String(formData.get("roles_id_fk") ?? "").trim();
+      const password = String(formData.get("login_password") ?? "").trim();
+      if (!selectedRoleId) return t("settings.createRoleFirst");
+      if (!userId(editingRow) && !password) return t("settings.passwordRequired");
+      return null;
     }
+  });
 
-    try {
-      await loadRows(requestParams, { background: hasLoadedRef.current });
-    } catch (error) {
-      showToast({
-        title: t("settings.loadFailed", { title }),
-        description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
-        tone: "error"
-      });
-    }
-  }, [branchUuid, hasLoadedRef, loadRows, requestParams, showToast, t, title]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
+  const branchUuid = user?.branch_uuid ?? "";
+  const loginBranchName = user?.branch_name || t("settings.currentBranch");
+  const currentLoginUuid = user?.uuid ?? "";
+  const loggedRoleId = Number(user?.status ?? 0);
+  // ยังไม่มีสิทธิ์ที่อ้างอิง = ไม่มีตัวเลือก แต่คงค่าที่โหลดไว้ไม่ให้รายการกะพริบตอนสลับ
+  const roles = loggedRoleId ? fetchedRoles : EMPTY_ROLES;
 
   useEffect(() => {
     if (!loggedRoleId) return;
@@ -148,21 +145,15 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
     };
   }, [language, loadRoles, loggedRoleId, showToast, t]);
 
-
   // เปิด/ปิด dialog หรือสลับผู้ใช้ที่แก้ไข = ล้างรูปที่เลือกและกรอบครอปค้างไว้
   useResetOnDeps([dialogOpen, editing], () => {
     setSelectedProfileImage(null);
     setCrop(DEFAULT_CROP);
   });
 
-  function applyFilters() {
-    applySearch({ page, resetPage, reload: () => void load() });
-  }
-
-
   function openCreate() {
-    if (!branchUuid) {
-      showToast({ title: t("settings.saveFailed"), description: t("settings.branchRequired"), tone: "error" });
+    if (missingRequiredScope) {
+      showToast({ title: t("settings.saveFailed"), description: requiredScopeDescription, tone: "error" });
       return;
     }
     if (!roles.length) {
@@ -175,52 +166,7 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
 
   function openEdit(row: User) {
     if (isProtectedUser(row)) return;
-    setEditing(row);
-    setDialogOpen(true);
-  }
-
-  async function save(formData: FormData) {
-    const selectedRoleId = String(formData.get("roles_id_fk") ?? "").trim();
-    const password = String(formData.get("login_password") ?? "").trim();
-    const profile = formData.get("login_profile");
-    const id = userId(editing);
-
-    if (!branchUuid) {
-      showToast({ title: t("settings.saveFailed"), description: t("settings.branchRequired"), tone: "error" });
-      return;
-    }
-    if (!selectedRoleId) {
-      showToast({ title: t("settings.saveFailed"), description: t("settings.createRoleFirst"), tone: "error" });
-      return;
-    }
-    if (!id && !password) {
-      showToast({ title: t("settings.saveFailed"), description: t("settings.passwordRequired"), tone: "error" });
-      return;
-    }
-
-    try {
-      await saveRow(
-        buildUserSaveInput({
-          active: String(formData.get("login_active") ?? 1),
-          branchUuid,
-          editing,
-          email: String(formData.get("login_email") ?? ""),
-          password,
-          profile,
-          selectedRoleId
-        })
-      );
-      showToast({ title: t("settings.saved"), tone: "success" });
-      setDialogOpen(false);
-      setEditing(null);
-      await loadRows(requestParams, { background: true });
-    } catch (error) {
-      showToast({
-        title: t("settings.saveFailed"),
-        description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
-        tone: "error"
-      });
-    }
+    controllerOpenEdit(row);
   }
 
   async function submitUserForm(formData: FormData) {
@@ -233,22 +179,7 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
 
   async function remove(row: User) {
     if (isProtectedUser(row)) return;
-    const id = userId(row);
-    if (!id) return;
-
-    try {
-      await removeRow(id);
-      showToast({ title: t("settings.deleted"), tone: "success" });
-      setDeleteTarget(null);
-      removeSelected(id);
-      await loadRows(requestParams, { background: true });
-    } catch (error) {
-      showToast({
-        title: t("settings.deleteFailed"),
-        description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
-        tone: "error"
-      });
-    }
+    await crudRemove(row);
   }
 
   const toolbar = (
@@ -338,11 +269,7 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
         title={title}
         onCropChange={setCrop}
         onFileChange={setSelectedProfileImage}
-        onOpenChange={(nextOpen) => {
-          if (saving) return;
-          setDialogOpen(nextOpen);
-          if (!nextOpen) setEditing(null);
-        }}
+        onOpenChange={onDialogOpenChange}
         onSubmit={submitUserForm}
       />
       <ConfirmDialog
