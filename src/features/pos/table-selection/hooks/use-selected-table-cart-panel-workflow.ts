@@ -833,7 +833,7 @@ export function useSelectedTableCartPanelWorkflow({
       table_name: selectedTable.table_name,
     });
 
-    router.replace(`/sale/order-customer?${params.toString()}`);
+    router.replace(`/pos/order?${params.toString()}`);
   }
 
   function openTableActions() {

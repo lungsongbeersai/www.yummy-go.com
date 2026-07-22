@@ -117,7 +117,7 @@ describe("order customer helpers", () => {
     });
 
     expect(orderCustomerUrl({ tableUuid: "table 1", tableName: "A&B" })).toBe(
-      "/sale/order-customer?table_uuid=table+1&table_name=A%26B",
+      "/pos/order?table_uuid=table+1&table_name=A%26B",
     );
   });
 

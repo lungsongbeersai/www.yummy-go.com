@@ -60,7 +60,7 @@ export function CounterCheckoutPage() {
               {(zone.tables ?? []).map((table) => (
                 <Link
                   key={table.table_uuid}
-                  href={`/sales/open-table-sale?table_uuid=${table.table_uuid}&table_name=${encodeURIComponent(table.table_name)}`}
+                  href={`/pos/tables?table_uuid=${table.table_uuid}&table_name=${encodeURIComponent(table.table_name)}`}
                 >
                   <Card className="transition hover:border-primary hover:shadow-md">
                     <CardContent className="p-4">

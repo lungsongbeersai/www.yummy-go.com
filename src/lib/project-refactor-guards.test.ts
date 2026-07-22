@@ -451,7 +451,7 @@ describe("project refactor guards", () => {
       "app/pos/page.tsx",
       "app/home/page.tsx",
       "app/login/page.tsx",
-      "app/(protected)/printer/form/page.tsx",
+      "app/(protected)/printers/form/page.tsx",
     ];
 
     const missingFallback = suspenseRoutes.filter((route) => (

@@ -3,15 +3,15 @@ import type { MenuItem } from "@/config/menu";
 export type RouteBreadcrumbItem = Pick<MenuItem, "disabled" | "label" | "path" | "title">;
 
 export const routeBreadcrumbs: Record<string, RouteBreadcrumbItem[]> = {
-  "/product/form": [
-    { path: "/product", title: "menu_add_item" },
-    { path: "/product/form", title: "product_form" }
+  "/products/form": [
+    { path: "/products", title: "menu_add_item" },
+    { path: "/products/form", title: "product_form" }
   ],
-  "/printer/form": [
-    { path: "/printer", title: "printer_management" },
-    { path: "/printer/form", title: "printer_form" }
+  "/printers/form": [
+    { path: "/printers", title: "printer_management" },
+    { path: "/printers/form", title: "printer_form" }
   ],
-  "/sale/order-customer": [{ path: "/sale/order-customer", title: "customer_order" }],
+  "/pos/order": [{ path: "/pos/order", title: "customer_order" }],
   "/sales/cancel-sale": [
     { disabled: true, title: "sales" },
     { path: "/sales/cancel-sale", title: "cancel_sale" }
@@ -24,10 +24,10 @@ export const routeBreadcrumbs: Record<string, RouteBreadcrumbItem[]> = {
     { disabled: true, title: "report_menu" },
     { path: "/report/daily-closing", title: "daily_store_closing_report" }
   ],
-  "/setting/manage-menu": [{ path: "/setting/manage-menu", title: "manage_menu" }],
-  "/setting/unit": [{ path: "/setting/unit", title: "unit" }],
-  "/setting/manage-access-permissions": [
-    { path: "/setting/manage-access-permissions", title: "manage_access_permissions" }
+  "/settings/manage-menu": [{ path: "/settings/manage-menu", title: "manage_menu" }],
+  "/settings/unit": [{ path: "/settings/unit", title: "unit" }],
+  "/settings/manage-access-permissions": [
+    { path: "/settings/manage-access-permissions", title: "manage_access_permissions" }
   ],
   "/profile": [{ path: "/profile", title: "profile" }]
 };

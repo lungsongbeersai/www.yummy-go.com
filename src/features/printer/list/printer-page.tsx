@@ -587,7 +587,7 @@ export function PrinterPage() {
 
           <Link
             className={cn(buttonVariants({ size: "sm" }), "shadow-sm")}
-            href="/printer/form"
+            href="/printers/form"
           >
             <Plus data-icon="inline-start" />
             <span className="hidden sm:inline">

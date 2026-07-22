@@ -29,7 +29,7 @@ import { usePrinterStore } from "@/stores/printer-store";
 import { useToastStore } from "@/stores/toast-store";
 import { optionalString } from "./utils";
 
-const localQrTargetUrl = "http://localhost:3001/sales/open-table-sale";
+const localQrTargetUrl = "http://localhost:3001/pos/tables";
 const productionQrOrigin = "https://yummy-go.com";
 
 export function TableQrDialog({

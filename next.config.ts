@@ -23,8 +23,49 @@ const nextConfig: NextConfig = {
       // legacy typo route inherited from backend field names (unite_*)
       {
         source: "/setting/unite",
-        destination: "/setting/unit",
+        destination: "/settings/unit",
         permanent: true
+      },
+      // P2.1 route renames — keep old bookmarks/links working; not settled long enough for permanent:true
+      {
+        source: "/setting",
+        destination: "/settings",
+        permanent: false
+      },
+      {
+        source: "/setting/:path*",
+        destination: "/settings/:path*",
+        permanent: false
+      },
+      {
+        source: "/product",
+        destination: "/products",
+        permanent: false
+      },
+      {
+        source: "/product/:path*",
+        destination: "/products/:path*",
+        permanent: false
+      },
+      {
+        source: "/printer",
+        destination: "/printers",
+        permanent: false
+      },
+      {
+        source: "/printer/:path*",
+        destination: "/printers/:path*",
+        permanent: false
+      },
+      {
+        source: "/sale/order-customer",
+        destination: "/pos/order",
+        permanent: false
+      },
+      {
+        source: "/sales/open-table-sale",
+        destination: "/pos/tables",
+        permanent: false
       }
     ];
   },

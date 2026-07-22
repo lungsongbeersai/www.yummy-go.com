@@ -27,7 +27,7 @@ export function SettingsIndexPage() {
         {modules.map((slug) => (
           <Link
             key={slug}
-            href={`/setting/${slug}`}
+            href={`/settings/${slug}`}
             className="group min-w-0 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <Card className="h-full transition group-hover:border-primary group-hover:shadow-md">

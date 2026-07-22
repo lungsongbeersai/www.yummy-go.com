@@ -467,7 +467,7 @@ export function useOrderCustomerWorkflow({
   }, [language, resolvePrinterDeviceContext, user?.uuid]);
 
   function openTablesPage() {
-    router.replace("/sales/open-table-sale");
+    router.replace("/pos/tables");
   }
 
   async function refreshAll() {

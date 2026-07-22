@@ -547,7 +547,7 @@ export function PrinterFormPage() {
         device_code: nextDeviceCode,
       });
       showToast({ title: t("printer.saved"), tone: "success" });
-      router.push("/printer");
+      router.push("/printers");
     } catch (error) {
       showToast({
         title: t("printer.saveFailed"),
@@ -560,7 +560,7 @@ export function PrinterFormPage() {
   return (
     <div className="flex flex-col gap-5">
       <BackButton
-        fallbackHref="/printer"
+        fallbackHref="/printers"
         label={t("printer.title")}
         className="self-start"
       />
@@ -767,7 +767,7 @@ export function PrinterFormPage() {
                 type="button"
                 variant="outline"
                 disabled={saving}
-                onClick={() => router.push("/printer")}
+                onClick={() => router.push("/printers")}
               >
                 {t("actions.cancel")}
               </Button>

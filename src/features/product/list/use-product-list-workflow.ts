@@ -384,7 +384,7 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
   }
 
   function editProduct(row: ProductTableRow) {
-    router.push(`/product/form?prod_uuid=${encodeURIComponent(row.prod_uuid)}`);
+    router.push(`/products/form?prod_uuid=${encodeURIComponent(row.prod_uuid)}`);
   }
 
   function updateNotification(row: Product, checked: boolean) {

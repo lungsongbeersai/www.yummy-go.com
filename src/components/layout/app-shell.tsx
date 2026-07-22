@@ -85,14 +85,14 @@ type BreadcrumbTrailItem = RouteBreadcrumbItem;
 
 const POS_ANDROID_SYSTEM_SCREEN_CLASS = "pos-android-system-screen";
 const FIXED_DATA_SCREEN_PATHS = new Set([
-  "/printer",
-  "/product",
+  "/printers",
+  "/products",
   "/stock",
   "/sales/cancel-history",
   "/sales/cancel-sale",
   "/sales/sales-list"
 ]);
-const FIXED_DATA_SCREEN_PREFIXES = ["/setting/", "/report/"] as const;
+const FIXED_DATA_SCREEN_PREFIXES = ["/settings/", "/report/"] as const;
 
 function menuKey(title: string) {
   return `nav.${title}`;
@@ -238,8 +238,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return [home, ...trail];
   }, [menuItems, pathname]);
   const immersiveScreen =
-    pathname === "/sales/open-table-sale" ||
-    pathname === "/sale/order-customer";
+    pathname === "/pos/tables" ||
+    pathname === "/pos/order";
   const dashboardScreen = pathname === "/";
   const fixedDataScreen = isFixedDataScreen(pathname, immersiveScreen);
   const [openMenus, setOpenMenus] = useState<Set<string>>(

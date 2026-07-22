@@ -562,7 +562,7 @@ export function useProductFormWorkflow() {
 
       showToast({ title: t("product.saved"), tone: "success" });
       if (isEditing) {
-        router.push("/product");
+        router.push("/products");
         return;
       }
 

@@ -46,43 +46,43 @@ const Menu: MenuItem[] = [
     icon: ShoppingCart,
     title: "sales",
     children: [
-      { path: "/sales/open-table-sale", title: "open_table_sale" },
+      { path: "/pos/tables", title: "open_table_sale" },
       { path: "/sales/sales-list", title: "sales_list" },
       { path: "/sales/cancel-sale", title: "cancel_sale" },
       { path: "/sales/cancel-history", title: "cancel_history" }
     ]
   },
-  { path: "/product", icon: Utensils, title: "menu_add_item" },
+  { path: "/products", icon: Utensils, title: "menu_add_item" },
   { path: "/stock", icon: Package, title: "stock_quantity" },
-  { path: "/printer", icon: Printer, title: "printer_management" },
+  { path: "/printers", icon: Printer, title: "printer_management" },
   {
     icon: BarChart3,
     title: "report_menu",
     children: disabledReportItems
   },
   {
-    path: "/setting",
+    path: "/settings",
     icon: Settings,
     title: "settings",
     children: [
-      { path: "/setting/store", title: "store", allowedStatus: STORE_BRANCH_VIEW_STATUSES },
-      { path: "/setting/branch", title: "branch", allowedStatus: STORE_BRANCH_VIEW_STATUSES },
-      { path: "/setting/province", title: "province" },
-      { path: "/setting/district", title: "district" },
-      { path: "/setting/topping", title: "topping" },
-      { path: "/setting/group", title: "food_group" },
-      { path: "/setting/category", title: "category" },
-      { path: "/setting/unit", title: "unit" },
-      { path: "/setting/size", title: "size" },
-      { path: "/setting/color", title: "color" },
-      { path: "/setting/zone", title: "zone" },
-      { path: "/setting/table", title: "table" },
-      { path: "/setting/currency", title: "currency" },
-      { path: "/setting/exchange", title: "exchange_rate" },
-      { path: "/setting/customer", title: "customer" },
-      { path: "/setting/user", title: "user" },
-      { path: "/setting/manage-menu", title: "manage_menu", allowedStatus: [ROLE_STATUS.SUPER_ADMIN] },
-      { path: "/setting/manage-access-permissions", title: "manage_access_permissions" }
+      { path: "/settings/store", title: "store", allowedStatus: STORE_BRANCH_VIEW_STATUSES },
+      { path: "/settings/branch", title: "branch", allowedStatus: STORE_BRANCH_VIEW_STATUSES },
+      { path: "/settings/province", title: "province" },
+      { path: "/settings/district", title: "district" },
+      { path: "/settings/topping", title: "topping" },
+      { path: "/settings/group", title: "food_group" },
+      { path: "/settings/category", title: "category" },
+      { path: "/settings/unit", title: "unit" },
+      { path: "/settings/size", title: "size" },
+      { path: "/settings/color", title: "color" },
+      { path: "/settings/zone", title: "zone" },
+      { path: "/settings/table", title: "table" },
+      { path: "/settings/currency", title: "currency" },
+      { path: "/settings/exchange", title: "exchange_rate" },
+      { path: "/settings/customer", title: "customer" },
+      { path: "/settings/user", title: "user" },
+      { path: "/settings/manage-menu", title: "manage_menu", allowedStatus: [ROLE_STATUS.SUPER_ADMIN] },
+      { path: "/settings/manage-access-permissions", title: "manage_access_permissions" }
     ]
   }
 ];

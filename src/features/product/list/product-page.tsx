@@ -49,7 +49,7 @@ export function ProductPage({ initialPagination }: { initialPagination: UrlPagin
             <FileSpreadsheet data-icon="inline-start" />
             {t("product.import.button")}
           </Button>
-          <Link className={cn(buttonVariants({ size: "sm" }), "shadow-sm")} href="/product/form">
+          <Link className={cn(buttonVariants({ size: "sm" }), "shadow-sm")} href="/products/form">
             <Plus data-icon="inline-start" />
             {t("product.newProduct")}
           </Link>

@@ -127,7 +127,7 @@ export function orderCustomerUrl({
     table_name: tableName,
   });
   // path เป็น route จริง ส่วน query เป็นค่า runtime — typedRoutes ตรวจ template แบบนี้ไม่ได้
-  return `/sale/order-customer?${params.toString()}` as Route;
+  return `/pos/order?${params.toString()}` as Route;
 }
 
 export function nextMenuCategoryUuid({

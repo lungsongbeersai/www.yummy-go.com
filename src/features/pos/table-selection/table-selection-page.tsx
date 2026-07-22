@@ -78,7 +78,7 @@ export function TableSelectionPage() {
   function selectTable(table: PosTable) {
     const params = new URLSearchParams({ table_uuid: table.table_uuid });
     if (table.table_name) params.set("table_name", table.table_name);
-    router.push(`/sale/order-customer?${params.toString()}`);
+    router.push(`/pos/order?${params.toString()}`);
   }
 
   return (

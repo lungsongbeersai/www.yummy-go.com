@@ -128,7 +128,7 @@ export function ProductFormView({ form }: { form: ProductFormWorkflow }) {
     <div className="flex min-h-full flex-col gap-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0">
-          <BackButton fallbackHref="/product" label={t("product.title")} />
+          <BackButton fallbackHref="/products" label={t("product.title")} />
           <h1 className="mt-2 text-2xl font-black">{title}</h1>
           <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
             {t("product.formDescription")}
