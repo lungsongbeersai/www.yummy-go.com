@@ -1,46 +1,13 @@
 "use client";
 
-import { Fragment, useCallback, type ReactNode, type RefObject } from "react";
-import {
-  ChevronDown,
-  Download,
-  FileSpreadsheet,
-  FolderTree,
-  RefreshCcw,
-} from "lucide-react";
+import { Fragment, useCallback, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ReportOfficialHeader,
   ReportSignatures,
 } from "@/lib/export/official-layout";
-import {
-  ReportFilterCard,
-  ReportFilterSheet,
-  ReportMobileFilterSummary,
-} from "../shared/report-filter-shell";
-import { EmptyState } from "@/components/common/empty-state";
-import { LoadingState } from "@/components/common/loading-state";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ReportFilterSheet } from "../shared/report-filter-shell";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Field, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -49,7 +16,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { PAGE_LIMIT_OPTIONS, isAllPageLimit } from "@/lib/pagination";
 import { cn } from "@/lib/utils";
 import type { PaymentMethodReportFilter } from "@/config/report-filters";
 import type { CategorySalesReportOrder } from "@/services/report";
@@ -59,17 +25,23 @@ import type {
 } from "@/stores/report-store";
 import { SortableReportTableHead } from "../report-sort-table-head";
 import {
+  ReportBranchField,
+  ReportDateRangeFields,
+  ReportPageLimitField,
+  ReportPaymentMethodField,
+  ReportSelectField,
+} from "../shared/report-filter-fields";
+import { ReportSummaryCardsGrid, type ReportSummaryCard } from "../shared/report-metric-display";
+import {
   ReportIndeterminateCheckbox,
   selectionStateForVisibleIds,
 } from "../shared/report-row-selection";
 import {
-  reportOrderLabel,
   reportOrderOptions,
   sortRowsLocally,
   useLocalTableSort,
 } from "../shared/report-sort-utils";
 import type {
-  CategorySalesExportAction,
   CategorySalesOption,
   CategorySalesReportFilters,
 } from "./category-sales-report-types";
@@ -95,7 +67,7 @@ type FilterProps = {
   canApply: boolean;
   draftFilters: CategorySalesReportFilters;
   loading: boolean;
-  methodOptions: CategorySalesOption[];
+  methodOptions: Array<{ label: string; value: PaymentMethodReportFilter }>;
   onApply: () => void;
   onDraftChange: (filters: CategorySalesReportFilters) => void;
 };
@@ -106,57 +78,21 @@ export function CategorySalesSummaryCards({
   summary: Record<string, unknown>;
 }) {
   const { t } = useTranslation();
-  const cards = categorySalesSummaryMetricConfigs(t);
+  const cards: ReportSummaryCard[] = categorySalesSummaryMetricConfigs(t).map((metric) => ({
+    key: metric.key,
+    kind: metric.kind,
+    label: metric.label,
+    value: summary[metric.key],
+  }));
 
   return (
-    <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-5">
-      {cards.map((card) => (
-        <Card
-          key={card.key}
-          className="overflow-hidden border-border bg-card shadow-sm"
-        >
-          <CardContent className="p-4">
-            <p className="truncate text-xs font-black uppercase text-muted-foreground">
-              {card.label}
-            </p>
-            <p className="mt-2 truncate text-xl font-black tabular-nums text-foreground">
-              {displayMetric(summary[card.key], card.kind)}
-            </p>
-          </CardContent>
-        </Card>
-      ))}
-    </section>
-  );
-}
-
-export function CategorySalesFilterBar({
-  branchLoading,
-  branchLocked,
-  branchOptions,
-  canApply,
-  draftFilters,
-  loading,
-  methodOptions,
-  onApply,
-  onDraftChange,
-}: FilterProps) {
-  return (
-    <ReportFilterCard
-      canApply={canApply}
-      contentClassName="grid min-w-0 gap-3 p-3 sm:p-4 lg:grid-cols-4 lg:items-end 2xl:grid-cols-[repeat(6,minmax(0,1fr))_auto]"
-      loading={loading}
-      onApply={onApply}
-    >
-      <CategorySalesFilterFields
-        branchLoading={branchLoading}
-        branchLocked={branchLocked}
-        branchOptions={branchOptions}
-        draftFilters={draftFilters}
-        idPrefix="category-sales"
-        methodOptions={methodOptions}
-        onDraftChange={onDraftChange}
-      />
-    </ReportFilterCard>
+    <ReportSummaryCardsGrid
+      cards={cards}
+      gridClassName="sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-5"
+      cardClassName={() => "border-border bg-card"}
+      labelClassName={() => "text-muted-foreground"}
+      valueClassName={() => "font-black text-foreground"}
+    />
   );
 }
 
@@ -201,45 +137,6 @@ export function CategorySalesFilterSheet({
   );
 }
 
-export function MobileCategorySalesFilterSummary({
-  branchLabel,
-  filters,
-  methodLabel,
-  onOpen,
-}: {
-  branchLabel: string;
-  filters: CategorySalesReportFilters;
-  methodLabel: string;
-  onOpen: () => void;
-}) {
-  const { t } = useTranslation();
-  const limitLabel = isAllPageLimit(filters.limit)
-    ? t("common.all")
-    : filters.limit;
-  const dateRangeLabel = `${filters.dateFrom} - ${filters.dateTo}`;
-
-  return (
-    <ReportMobileFilterSummary dateRangeLabel={dateRangeLabel} onOpen={onOpen}
-      badges={
-        <>
-          <Badge className="h-6 max-w-44 truncate border-border bg-muted px-2 text-[11px] text-muted-foreground">
-            {branchLabel}
-          </Badge>
-          <Badge className="h-6 max-w-36 truncate px-2 text-[11px]">
-            {methodLabel}
-          </Badge>
-          <Badge className="h-6 border-border bg-muted px-2 text-[11px] text-muted-foreground">
-            {limitLabel}
-          </Badge>
-          <Badge className="h-6 border-border bg-muted px-2 text-[11px] text-muted-foreground">
-            {reportOrderLabel(t, filters.orderBy)}
-          </Badge>
-        </>
-      }
-    />
-  );
-}
-
 function CategorySalesFilterFields({
   branchLoading,
   branchLocked,
@@ -254,7 +151,7 @@ function CategorySalesFilterFields({
   branchOptions: CategorySalesOption[];
   draftFilters: CategorySalesReportFilters;
   idPrefix: string;
-  methodOptions: CategorySalesOption[];
+  methodOptions: Array<{ label: string; value: PaymentMethodReportFilter }>;
   onDraftChange: (filters: CategorySalesReportFilters) => void;
 }) {
   const { t } = useTranslation();
@@ -266,298 +163,44 @@ function CategorySalesFilterFields({
 
   return (
     <>
-      <Field className="gap-1.5">
-        <FieldLabel
-          htmlFor={`${idPrefix}-branch`}
-          className="text-xs font-bold text-muted-foreground"
-        >
-          {t("nav.branch")}
-        </FieldLabel>
-        <Select
-          value={draftFilters.branchUuid}
-          disabled={branchLoading || branchLocked || branchOptions.length <= 1}
-          onValueChange={(value) => patch({ branchUuid: value })}
-        >
-          <SelectTrigger id={`${idPrefix}-branch`} className="w-full">
-            <SelectValue placeholder={t("nav.branch")} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              {branchOptions.map((branch) => (
-                <SelectItem key={branch.value} value={branch.value}>
-                  {branch.label}
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          </SelectContent>
-        </Select>
-      </Field>
+      <ReportBranchField
+        branchLoading={branchLoading}
+        branchLocked={branchLocked}
+        id={`${idPrefix}-branch`}
+        options={branchOptions}
+        value={draftFilters.branchUuid}
+        onValueChange={(value) => patch({ branchUuid: value })}
+      />
 
-      <Field className="gap-1.5">
-        <FieldLabel
-          htmlFor={`${idPrefix}-date-from`}
-          className="text-xs font-bold text-muted-foreground"
-        >
-          {t("report.filters.dateFrom")}
-        </FieldLabel>
-        <Input
-          id={`${idPrefix}-date-from`}
-          type="date"
-          value={draftFilters.dateFrom}
-          onChange={(event) => patch({ dateFrom: event.target.value })}
-        />
-      </Field>
+      <ReportDateRangeFields
+        dateFrom={draftFilters.dateFrom}
+        dateTo={draftFilters.dateTo}
+        idPrefix={idPrefix}
+        onDateFromChange={(value) => patch({ dateFrom: value })}
+        onDateToChange={(value) => patch({ dateTo: value })}
+      />
 
-      <Field className="gap-1.5">
-        <FieldLabel
-          htmlFor={`${idPrefix}-date-to`}
-          className="text-xs font-bold text-muted-foreground"
-        >
-          {t("report.filters.dateTo")}
-        </FieldLabel>
-        <Input
-          id={`${idPrefix}-date-to`}
-          type="date"
-          value={draftFilters.dateTo}
-          onChange={(event) => patch({ dateTo: event.target.value })}
-        />
-      </Field>
+      <ReportPaymentMethodField
+        id={`${idPrefix}-payment-method`}
+        options={methodOptions}
+        value={draftFilters.paymentMethod}
+        onValueChange={(value) => patch({ paymentMethod: value })}
+      />
 
-      <Field className="gap-1.5">
-        <FieldLabel
-          htmlFor={`${idPrefix}-payment-method`}
-          className="text-xs font-bold text-muted-foreground"
-        >
-          {t("report.filters.paymentMethod")}
-        </FieldLabel>
-        <Select
-          value={draftFilters.paymentMethod}
-          onValueChange={(value) =>
-            patch({ paymentMethod: value as PaymentMethodReportFilter })
-          }
-        >
-          <SelectTrigger id={`${idPrefix}-payment-method`} className="w-full">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              {methodOptions.map((method) => (
-                <SelectItem key={method.value} value={method.value}>
-                  {method.label}
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          </SelectContent>
-        </Select>
-      </Field>
+      <ReportPageLimitField
+        id={`${idPrefix}-limit`}
+        value={draftFilters.limit}
+        onValueChange={(value) => patch({ limit: value })}
+      />
 
-      <Field className="gap-1.5">
-        <FieldLabel
-          htmlFor={`${idPrefix}-limit`}
-          className="text-xs font-bold text-muted-foreground"
-        >
-          {t("common.rowsPerPage")}
-        </FieldLabel>
-        <Select
-          value={String(draftFilters.limit)}
-          onValueChange={(value) =>
-            patch({ limit: value === "All" ? "All" : Number(value) })
-          }
-        >
-          <SelectTrigger id={`${idPrefix}-limit`} className="w-full">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              {PAGE_LIMIT_OPTIONS.map((limit) => (
-                <SelectItem key={String(limit)} value={String(limit)}>
-                  {limit === "All" ? t("common.all") : limit}
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          </SelectContent>
-        </Select>
-      </Field>
-
-      <Field className="gap-1.5">
-        <FieldLabel
-          htmlFor={`${idPrefix}-order-by`}
-          className="text-xs font-bold text-muted-foreground"
-        >
-          {t("report.filters.orderBy")}
-        </FieldLabel>
-        <Select
-          value={draftFilters.orderBy}
-          onValueChange={(value) =>
-            patch({ orderBy: value as CategorySalesReportOrder })
-          }
-        >
-          <SelectTrigger id={`${idPrefix}-order-by`} className="w-full">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              {orderOptions.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          </SelectContent>
-        </Select>
-      </Field>
-
+      <ReportSelectField
+        id={`${idPrefix}-order-by`}
+        label={t("report.filters.orderBy")}
+        options={orderOptions}
+        value={draftFilters.orderBy}
+        onValueChange={(value) => patch({ orderBy: value as CategorySalesReportOrder })}
+      />
     </>
-  );
-}
-
-type TableCardProps = {
-  children: ReactNode;
-  exportDisabled: boolean;
-  exporting: CategorySalesExportAction | null;
-  footer: ReactNode;
-  loading: boolean;
-  methodLabel: string;
-  rowsLength: number;
-  selectedCount: number;
-  title: string;
-  onClearSelection: () => void;
-  onExportExcel: () => void;
-  onExportPdf: () => void;
-  onRefresh: () => void;
-};
-
-export function CategorySalesTableCard({
-  children,
-  exportDisabled,
-  exporting,
-  footer,
-  loading,
-  rowsLength,
-  selectedCount,
-  title,
-  onClearSelection,
-  onExportExcel,
-  onExportPdf,
-  onRefresh,
-}: TableCardProps) {
-  const { t } = useTranslation();
-
-  return (
-    <Card className="min-h-0 min-w-0 overflow-hidden border-border bg-card shadow-sm md:sticky md:top-3 md:flex md:max-h-[calc(100dvh-var(--app-shell-header-height)-1.5rem)] md:flex-col">
-      <CardHeader className="flex shrink-0 flex-col gap-3 border-b border-border bg-card px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="min-w-0">
-          <CardTitle className="flex min-w-0 items-center gap-2 text-base font-black">
-            <FolderTree className="size-4 shrink-0" />
-            <span className="truncate">{title}</span>
-          </CardTitle>
-          {selectedCount > 0 ? (
-            <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5">
-              <Badge className="h-6 max-w-full truncate border-primary/20 bg-primary/10 px-2 text-xs text-primary">
-                {t("report.selectedForExport", { count: selectedCount })}
-              </Badge>
-              <Button
-                type="button"
-                size="xs"
-                variant="ghost"
-                className="h-6 px-2 text-xs text-muted-foreground"
-                onClick={onClearSelection}
-              >
-                {t("report.clearSelection")}
-              </Button>
-            </div>
-          ) : null}
-          {/* <div className="mt-2 flex flex-wrap items-center gap-2">
-            <Badge className="h-7 w-fit px-2 text-xs">{methodLabel}</Badge>
-            <span className="text-xs text-muted-foreground">
-              {t("report.categorySales.rowsLabel", { count: rowsLength })}
-            </span>
-          </div> */}
-        </div>
-
-        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-9"
-                disabled={exportDisabled}
-              >
-                {exporting === "excel" || exporting === "pdf" ? (
-                  <RefreshCcw
-                    className="animate-spin"
-                    data-icon="inline-start"
-                  />
-                ) : (
-                  <Download data-icon="inline-start" />
-                )}
-                {t("common.export")}
-                <ChevronDown data-icon="inline-end" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-44">
-              <DropdownMenuGroup>
-                <DropdownMenuItem
-                  disabled={exportDisabled}
-                  onSelect={onExportExcel}
-                >
-                  <FileSpreadsheet data-icon="inline-start" />
-                  {t("report.exportExcel")}
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  disabled={exportDisabled}
-                  onSelect={onExportPdf}
-                >
-                  <Download data-icon="inline-start" />
-                  {t("report.exportPdf")}
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-9"
-            disabled={loading || Boolean(exporting)}
-            onClick={onRefresh}
-          >
-            <RefreshCcw
-              className={loading ? "animate-spin" : undefined}
-              data-icon="inline-start"
-            />
-            {t("actions.refresh")}
-          </Button>
-        </div>
-      </CardHeader>
-
-      <CardContent className="flex min-h-0 flex-1 flex-col p-0">
-        {loading ? (
-          <div className="p-4 md:min-h-80">
-            <LoadingState
-              label={t("report.categorySales.loading")}
-              variant="reportTable"
-            />
-          </div>
-        ) : rowsLength ? (
-          <>
-            <div className="min-h-0 md:flex-1 md:overflow-auto">{children}</div>
-            <div className="shrink-0 bg-card">{footer}</div>
-          </>
-        ) : (
-          <div className="p-4 md:min-h-80">
-            <EmptyState
-              title={t("report.categorySales.noData")}
-              description={t("report.categorySales.adjustFilters")}
-            />
-          </div>
-        )}
-      </CardContent>
-    </Card>
   );
 }
 

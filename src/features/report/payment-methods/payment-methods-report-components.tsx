@@ -1,45 +1,15 @@
 "use client";
 
-import { type ReactNode, type RefObject, useCallback } from "react";
-import {
-  ChevronDown,
-  CreditCard,
-  Download,
-  FileSpreadsheet,
-  RefreshCcw,
-} from "lucide-react";
+import { useCallback, type RefObject } from "react";
+import { CreditCard } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {
   ReportOfficialHeader,
   ReportSignatures,
 } from "@/lib/export/official-layout";
-import {
-  ReportApplyButton,
-  ReportFilterSheet,
-  ReportMobileFilterSummary,
-} from "../shared/report-filter-shell";
-import { EmptyState } from "@/components/common/empty-state";
+import { ReportFilterSheet } from "../shared/report-filter-shell";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Field, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -50,8 +20,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
-import { PAGE_LIMIT_OPTIONS, isAllPageLimit } from "@/lib/pagination";
-import type { PaymentMethodReportFilter } from "@/config/report-filters";
 import type {
   PaymentMethodOption,
   PaymentMethodReportRow,
@@ -59,12 +27,19 @@ import type {
 } from "@/stores/report-store";
 import { SortableReportTableHead } from "../report-sort-table-head";
 import {
+  ReportBranchField,
+  ReportDateRangeFields,
+  ReportPageLimitField,
+  ReportPaymentMethodField,
+} from "../shared/report-filter-fields";
+import { ReportSummaryCardsGrid, type ReportSummaryCard } from "../shared/report-metric-display";
+import { metricNumber } from "../shared/report-metrics";
+import {
   ReportIndeterminateCheckbox,
   selectionStateForVisibleIds,
 } from "../shared/report-row-selection";
 import { useLocalTableSort } from "../shared/report-sort-utils";
 import type {
-  PaymentMethodsExportAction,
   PaymentMethodsReportFilters,
   PaymentMethodsRowMetricConfig,
 } from "./payment-methods-report-types";
@@ -76,7 +51,6 @@ import {
   paymentMethodRowMetricConfigs,
   paymentMethodTotalMetricConfigs,
 } from "./payment-methods-report-utils";
-import { metricNumber } from "../shared/report-metrics";
 
 type FilterProps = {
   branchLoading: boolean;
@@ -98,79 +72,31 @@ export function PaymentMethodsSummaryCards({
   reportTotal: Record<string, unknown>;
 }) {
   const { t } = useTranslation();
-  const visibleCards = cards.length
-    ? cards
+  const visibleCards: ReportSummaryCard[] = cards.length
+    ? cards.map((card) => ({ key: card.key, kind: card.valueType, label: card.label, value: card.value }))
     : paymentMethodTotalMetricConfigs(t)
         .filter((metric) => isPresent(reportTotal[metric.key]))
-        .map((metric, index) => ({
+        .map((metric) => ({
           key: metric.key,
+          kind: metric.kind,
           label: metric.label,
-          sortOrder: index + 1,
           value: Number(reportTotal[metric.key] ?? 0),
-          valueType: metric.kind,
         }));
 
   return (
-    <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
-      {visibleCards.map((card) => (
-        <Card
-          key={card.key}
-          className={cn(
-            "overflow-hidden border-border bg-card shadow-sm",
-            (card.key === "grand_total" || card.key === "payment_total") &&
-              "border-primary/30 bg-primary/5",
-            card.key.includes("discount") && card.value > 0 && "border-destructive/25 bg-destructive/5"
-          )}
-        >
-          <CardContent className="p-4">
-            <p className="truncate text-xs font-black uppercase text-muted-foreground">
-              {card.label}
-            </p>
-            <p className={cn("mt-2 truncate text-xl tabular-nums", financialTextClass(card.key, card.value, true))}>
-              {displayMetric(card.value, card.valueType)}
-            </p>
-          </CardContent>
-        </Card>
-      ))}
-    </section>
-  );
-}
-
-export function PaymentMethodsFilterBar({
-  branchLoading,
-  branchLocked,
-  branchOptions,
-  canApply,
-  draftFilters,
-  loading,
-  methodOptions,
-  onApply,
-  onDraftChange,
-}: FilterProps) {
-  return (
-    <Card className="min-w-0 border-border bg-card shadow-sm">
-      <CardContent className="p-3 sm:p-4">
-        <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-12">
-          <PaymentMethodsFilterFields
-            branchLoading={branchLoading}
-            branchLocked={branchLocked}
-            branchOptions={branchOptions}
-            draftFilters={draftFilters}
-            idPrefix="payment-methods"
-            methodOptions={methodOptions}
-            onDraftChange={onDraftChange}
-          />
-          <div className="flex items-end sm:col-span-2 lg:col-span-12 xl:col-span-2">
-            <ReportApplyButton
-              canApply={canApply}
-              className="h-9 w-full min-w-28"
-              loading={loading}
-              onApply={onApply}
-            />
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+    <ReportSummaryCardsGrid
+      cards={visibleCards}
+      gridClassName="sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5"
+      cardClassName={(card) =>
+        cn(
+          "border-border bg-card",
+          (card.key === "grand_total" || card.key === "payment_total") && "border-primary/30 bg-primary/5",
+          card.key.includes("discount") && metricNumber(card.value) > 0 && "border-destructive/25 bg-destructive/5"
+        )
+      }
+      labelClassName={() => "text-muted-foreground"}
+      valueClassName={(card) => financialTextClass(card.key, card.value, true)}
+    />
   );
 }
 
@@ -215,42 +141,6 @@ export function PaymentMethodsFilterSheet({
   );
 }
 
-export function MobilePaymentMethodsFilterSummary({
-  branchLabel,
-  filters,
-  methodLabel,
-  onOpen,
-}: {
-  branchLabel: string;
-  filters: PaymentMethodsReportFilters;
-  methodLabel: string;
-  onOpen: () => void;
-}) {
-  const { t } = useTranslation();
-  const limitLabel = isAllPageLimit(filters.limit)
-    ? t("common.all")
-    : filters.limit;
-  const dateRangeLabel = `${filters.dateFrom} - ${filters.dateTo}`;
-
-  return (
-    <ReportMobileFilterSummary dateRangeLabel={dateRangeLabel} onOpen={onOpen}
-      badges={
-        <>
-          <Badge className="h-6 max-w-44 truncate border-border bg-muted px-2 text-[11px] text-muted-foreground">
-            {branchLabel}
-          </Badge>
-          <Badge className="h-6 max-w-36 truncate px-2 text-[11px]">
-            {methodLabel}
-          </Badge>
-          <Badge className="h-6 border-border bg-muted px-2 text-[11px] text-muted-foreground">
-            {limitLabel}
-          </Badge>
-        </>
-      }
-    />
-  );
-}
-
 function PaymentMethodsFilterFields({
   branchLoading,
   branchLocked,
@@ -268,279 +158,48 @@ function PaymentMethodsFilterFields({
   methodOptions: PaymentMethodOption[];
   onDraftChange: (filters: PaymentMethodsReportFilters) => void;
 }) {
-  const { t } = useTranslation();
-
   function patch(patch: Partial<PaymentMethodsReportFilters>) {
     onDraftChange({ ...draftFilters, ...patch });
   }
 
   return (
     <>
-      <Field className="min-w-0 gap-1.5 sm:col-span-2 lg:col-span-4">
-        <FieldLabel
-          htmlFor={`${idPrefix}-branch`}
-          className="text-xs font-bold text-muted-foreground"
-        >
-          {t("nav.branch")}
-        </FieldLabel>
-        <Select
-          value={draftFilters.branchUuid}
-          disabled={branchLoading || branchLocked || branchOptions.length <= 1}
-          onValueChange={(value) => patch({ branchUuid: value })}
-        >
-          <SelectTrigger id={`${idPrefix}-branch`} className="h-10 w-full rounded-md">
-            <SelectValue placeholder={t("nav.branch")} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              {branchOptions.map((branch) => (
-                <SelectItem key={branch.value} value={branch.value}>
-                  {branch.label}
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          </SelectContent>
-        </Select>
-      </Field>
-      <Field className="min-w-0 gap-1.5 lg:col-span-4">
-        <FieldLabel
-          htmlFor={`${idPrefix}-date-from`}
-          className="text-xs font-bold text-muted-foreground"
-        >
-          {t("report.filters.dateFrom")}
-        </FieldLabel>
-        <Input
-          id={`${idPrefix}-date-from`}
-          name={`${idPrefix}-date-from`}
-          type="date"
-          value={draftFilters.dateFrom}
-          autoComplete="off"
-          className="h-10 rounded-md text-sm"
-          onChange={(event) => patch({ dateFrom: event.target.value })}
-        />
-      </Field>
-      <Field className="min-w-0 gap-1.5 lg:col-span-4">
-        <FieldLabel
-          htmlFor={`${idPrefix}-date-to`}
-          className="text-xs font-bold text-muted-foreground"
-        >
-          {t("report.filters.dateTo")}
-        </FieldLabel>
-        <Input
-          id={`${idPrefix}-date-to`}
-          name={`${idPrefix}-date-to`}
-          type="date"
-          value={draftFilters.dateTo}
-          autoComplete="off"
-          className="h-10 rounded-md text-sm"
-          onChange={(event) => patch({ dateTo: event.target.value })}
-        />
-      </Field>
-      <Field className="min-w-0 gap-1.5 lg:col-span-4">
-        <FieldLabel
-          htmlFor={`${idPrefix}-payment-method`}
-          className="text-xs font-bold text-muted-foreground"
-        >
-          {t("report.filters.paymentMethod")}
-        </FieldLabel>
-        <Select
-          value={draftFilters.paymentMethod}
-          onValueChange={(value) =>
-            patch({ paymentMethod: value as PaymentMethodReportFilter })
-          }
-        >
-          <SelectTrigger id={`${idPrefix}-payment-method`} className="h-10 w-full rounded-md">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              {methodOptions.map((method) => (
-                <SelectItem key={method.value} value={method.value}>
-                  {method.label}
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          </SelectContent>
-        </Select>
-      </Field>
-      <Field className="min-w-0 gap-1.5 lg:col-span-6">
-        <FieldLabel
-          htmlFor={`${idPrefix}-limit`}
-          className="text-xs font-bold text-muted-foreground"
-        >
-          {t("common.rowsPerPage")}
-        </FieldLabel>
-        <Select
-          value={String(draftFilters.limit)}
-          onValueChange={(value) =>
-            patch({ limit: value === "All" ? "All" : Number(value) })
-          }
-        >
-          <SelectTrigger id={`${idPrefix}-limit`} className="h-10 w-full rounded-md">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              {PAGE_LIMIT_OPTIONS.map((limit) => (
-                <SelectItem key={String(limit)} value={String(limit)}>
-                  {limit === "All" ? t("common.all") : limit}
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          </SelectContent>
-        </Select>
-      </Field>
+      <ReportBranchField
+        branchLoading={branchLoading}
+        branchLocked={branchLocked}
+        fieldClassName="min-w-0 gap-1.5 sm:col-span-2 lg:col-span-4"
+        id={`${idPrefix}-branch`}
+        options={branchOptions}
+        triggerClassName="h-10 w-full rounded-md"
+        value={draftFilters.branchUuid}
+        onValueChange={(value) => patch({ branchUuid: value })}
+      />
+      <ReportDateRangeFields
+        dateFrom={draftFilters.dateFrom}
+        dateTo={draftFilters.dateTo}
+        fieldClassName="min-w-0 gap-1.5 lg:col-span-4"
+        idPrefix={idPrefix}
+        inputClassName="h-10 rounded-md text-sm"
+        withNativeName
+        onDateFromChange={(value) => patch({ dateFrom: value })}
+        onDateToChange={(value) => patch({ dateTo: value })}
+      />
+      <ReportPaymentMethodField
+        fieldClassName="min-w-0 gap-1.5 lg:col-span-4"
+        id={`${idPrefix}-payment-method`}
+        options={methodOptions}
+        triggerClassName="h-10 w-full rounded-md"
+        value={draftFilters.paymentMethod}
+        onValueChange={(value) => patch({ paymentMethod: value })}
+      />
+      <ReportPageLimitField
+        fieldClassName="min-w-0 gap-1.5 lg:col-span-6"
+        id={`${idPrefix}-limit`}
+        triggerClassName="h-10 w-full rounded-md"
+        value={draftFilters.limit}
+        onValueChange={(value) => patch({ limit: value })}
+      />
     </>
-  );
-}
-
-type TableCardProps = {
-  children: ReactNode;
-  exportDisabled: boolean;
-  exporting: PaymentMethodsExportAction | null;
-  footer: ReactNode;
-  loading: boolean;
-  rowsLength: number;
-  selectedCount: number;
-  title: string;
-  onClearSelection: () => void;
-  onExportExcel: () => void;
-  onExportPdf: () => void;
-  onRefresh: () => void;
-};
-
-export function PaymentMethodsTableCard({
-  children,
-  exportDisabled,
-  exporting,
-  footer,
-  loading,
-  rowsLength,
-  selectedCount,
-  title,
-  onClearSelection,
-  onExportExcel,
-  onExportPdf,
-  onRefresh,
-}: TableCardProps) {
-  const { t } = useTranslation();
-
-  return (
-    <Card className="min-w-0 overflow-hidden border-border bg-card shadow-sm">
-      <CardHeader className="shrink-0 border-b border-border bg-card/95 px-2 py-2 sm:px-3">
-        <div className="grid w-full min-w-0 grid-cols-1 items-center gap-2 2xl:grid-cols-[minmax(180px,16rem)_minmax(0,1fr)_auto]">
-          <div className="flex min-w-0 items-center gap-2">
-            <div className="grid size-8 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
-              <CreditCard aria-hidden="true" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <CardTitle className="truncate text-sm font-black">
-                {title}
-              </CardTitle>
-              {rowsLength ? (
-                <p className="mt-0.5 truncate text-xs font-semibold text-muted-foreground">
-                  {t("report.paymentMethodsReport.rowsLabel", {
-                    count: rowsLength,
-                  })}
-                </p>
-              ) : null}
-              {selectedCount > 0 ? (
-                <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5">
-                  <Badge className="h-6 max-w-full truncate border-primary/20 bg-primary/10 px-2 text-xs text-primary">
-                    {t("report.selectedForExport", { count: selectedCount })}
-                  </Badge>
-                  <Button
-                    type="button"
-                    size="xs"
-                    variant="ghost"
-                    className="h-6 px-2 text-xs text-muted-foreground"
-                    onClick={onClearSelection}
-                  >
-                    {t("report.clearSelection")}
-                  </Button>
-                </div>
-              ) : null}
-            </div>
-            {loading && rowsLength ? (
-              <Badge className="h-7 w-fit border-border bg-muted px-2 text-xs text-muted-foreground">
-                <RefreshCcw className="animate-spin" data-icon="inline-start" />
-                {t("common.loading")}
-              </Badge>
-            ) : null}
-          </div>
-
-          <div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5 2xl:col-start-3 2xl:flex-nowrap">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  aria-label={t("common.export")}
-                  className="h-9 min-w-9 rounded-md px-2.5"
-                  disabled={exportDisabled}
-                >
-                  {exporting === "excel" || exporting === "pdf" ? (
-                    <RefreshCcw className="animate-spin" data-icon="inline-start" />
-                  ) : (
-                    <Download data-icon="inline-start" />
-                  )}
-                  <span className="hidden sm:inline">{t("common.export")}</span>
-                  <ChevronDown data-icon="inline-end" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-44">
-                <DropdownMenuGroup>
-                  <DropdownMenuItem disabled={exportDisabled} onSelect={onExportExcel}>
-                    <FileSpreadsheet data-icon="inline-start" />
-                    {t("report.exportExcel")}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem disabled={exportDisabled} onSelect={onExportPdf}>
-                    <Download data-icon="inline-start" />
-                    {t("report.exportPdf")}
-                  </DropdownMenuItem>
-                </DropdownMenuGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              aria-label={t("actions.refresh")}
-              className="h-9 min-w-9 rounded-md border border-border/60 px-2.5 text-muted-foreground hover:text-foreground"
-              disabled={loading || Boolean(exporting)}
-              onClick={onRefresh}
-            >
-              <RefreshCcw
-                className={loading ? "animate-spin" : undefined}
-                data-icon="inline-start"
-              />
-            </Button>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="p-0">
-        {loading && !rowsLength ? (
-          <div className="p-4 md:min-h-80">
-            <PaymentMethodsLoadingSkeleton />
-          </div>
-        ) : rowsLength ? (
-          <>
-            <div className="min-w-0 overflow-x-auto overscroll-x-contain">
-              {children}
-            </div>
-            <div className="shrink-0 bg-card">{footer}</div>
-          </>
-        ) : (
-          <div className="p-4 md:min-h-80">
-            <EmptyState
-              title={t("report.paymentMethodsReport.noData")}
-              description={t("report.paymentMethodsReport.adjustFilters")}
-            />
-          </div>
-        )}
-      </CardContent>
-    </Card>
   );
 }
 
@@ -971,7 +630,7 @@ function PaymentMethodsMobileSummary({
   );
 }
 
-function PaymentMethodsLoadingSkeleton() {
+export function PaymentMethodsLoadingSkeleton() {
   return (
     <section aria-busy="true" className="flex flex-col gap-4">
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">

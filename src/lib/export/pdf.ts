@@ -1,3 +1,42 @@
+export interface CaptureElementToPdfOptions {
+  fileName: string;
+  format?: "a4";
+  orientation?: "landscape" | "portrait";
+  preferredBreakSelector?: string;
+  unit?: "pt";
+}
+
+// จับภาพ element (โครง html ที่เตรียมไว้เพื่อ export) เป็น canvas แล้วตัดแบ่งหน้า PDF —
+// ใช้ร่วมกันทุกหน้ารายงานที่มีปุ่ม export PDF (เดิมก๊อปวาง html2canvas+jsPDF ไว้ทุกไฟล์)
+export async function captureElementToPdf(
+  element: HTMLElement,
+  options: CaptureElementToPdfOptions,
+) {
+  const [{ jsPDF }, html2canvasModule] = await Promise.all([
+    import("jspdf"),
+    import("html2canvas"),
+  ]);
+  const canvas = await html2canvasModule.default(element, {
+    backgroundColor: "#ffffff",
+    scale: Math.min(2, window.devicePixelRatio || 1.5),
+    useCORS: true,
+    windowHeight: element.scrollHeight,
+    windowWidth: element.scrollWidth,
+  });
+  const pdf = new jsPDF({
+    format: options.format ?? "a4",
+    orientation: options.orientation ?? "landscape",
+    unit: options.unit ?? "pt",
+  });
+  addReportCanvasToPdfPages(
+    pdf,
+    canvas,
+    element,
+    options.preferredBreakSelector,
+  );
+  pdf.save(options.fileName);
+}
+
 interface PdfDocument {
   addImage: (
     imageData: string,

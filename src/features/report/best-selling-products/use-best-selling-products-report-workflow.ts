@@ -1,25 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type RefObject } from "react";
-import { useResetOnChange } from "@/hooks/use-reset-on-change";
+import { useCallback, useEffect, useMemo, useRef, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
-import { useUrlPagination } from "@/hooks/use-url-pagination";
-import { localDateInputValue } from "@/lib/format";
-import { pageLimitSize } from "@/lib/pagination";
-import type { UrlPaginationState } from "@/lib/url-pagination";
-import { useAppStore } from "@/stores/app-store";
-import { useAuthStore } from "@/stores/auth-store";
-import { useBranchStore } from "@/stores/branch-store";
-import { useBestSellingProductsReportStore } from "@/stores/report-store";
-import { useGroupStore } from "@/stores/group-store";
-import { useToastStore } from "@/stores/toast-store";
-import { exportInfoRows } from "../shared/report-export-info";
-import { useReportBranchSelection } from "../shared/use-report-branch-selection";
 import { createSingleSheetReportWorkbook } from "@/lib/export/excel";
 import { officialReportExcelLayout } from "@/lib/export/official-layout";
-import { addReportCanvasToPdfPages } from "@/lib/export/pdf";
-import { useReportRowSelection } from "../shared/report-row-selection";
-import type { BestSellingExportAction, BestSellingExportData, BestSellingProductsFilters } from "./best-selling-products-report-types";
+import type { UrlPaginationState } from "@/lib/url-pagination";
+import { useAppStore } from "@/stores/app-store";
+import { useBestSellingProductsReportStore } from "@/stores/report-store";
+import { useGroupStore } from "@/stores/group-store";
+import { exportInfoRows } from "../shared/report-export-info";
+import { useStandardReportWorkflow } from "../shared/use-standard-report-workflow";
+import type { BestSellingExportData, BestSellingProductsFilters } from "./best-selling-products-report-types";
 import {
   ALL_GROUPS_VALUE,
   bestSellingFileBaseName,
@@ -32,8 +23,7 @@ import {
   exportSummaryRows,
   groupOptionFromRow,
   groupParam,
-  selectedOptionLabel,
-  waitForPaint
+  selectedOptionLabel
 } from "./best-selling-products-report-utils";
 
 export function useBestSellingProductsReportWorkflow(
@@ -43,9 +33,7 @@ export function useBestSellingProductsReportWorkflow(
   summaryVisible: boolean
 ) {
   const { t } = useTranslation();
-  const user = useAuthStore((state) => state.user);
   const language = useAppStore((state) => state.language);
-  const setSelectedBranch = useBranchStore((state) => state.setSelectedBranch);
   const groupRows = useGroupStore((state) => state.rows);
   const groupError = useGroupStore((state) => state.error);
   const groupLoading = useGroupStore((state) => state.loading);
@@ -59,39 +47,7 @@ export function useBestSellingProductsReportWorkflow(
   const totalPages = useBestSellingProductsReportStore((state) => state.totalPages);
   const loadReport = useBestSellingProductsReportStore((state) => state.load);
   const loadExportData = useBestSellingProductsReportStore((state) => state.loadExportData);
-  const showToast = useToastStore((state) => state.show);
-  const today = useMemo(() => localDateInputValue(), []);
 
-  const [draftFilters, setDraftFilters] = useState<BestSellingProductsFilters>({
-    branchUuid: user?.branch_uuid ?? "",
-    dateFrom: today,
-    dateTo: today,
-    groupUuid: ALL_GROUPS_VALUE,
-    limit: initialPagination.limit,
-    sortBy: "qty"
-  });
-  const [appliedFilters, setAppliedFilters] = useState<BestSellingProductsFilters>(draftFilters);
-  const [exporting, setExporting] = useState<BestSellingExportAction | null>(null);
-  const [exportData, setExportData] = useState<BestSellingExportData | null>(null);
-  const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
-  const { changeLimit, page, setPage } = useUrlPagination({ initialPagination });
-  const rowSelection = useReportRowSelection({
-    getRowId: bestSellingProductRowId,
-    rows
-  });
-
-  const {
-    branchError,
-    branchLabelFor,
-    branchLoading,
-    branchOptions,
-    canSelectBranch,
-    defaultBranchUuid,
-    normalizeBranchFilters,
-    storeUuid,
-  } = useReportBranchSelection();
-  const branchUuid = appliedFilters.branchUuid || defaultBranchUuid;
-  const activeBranchLabel = branchLabelFor(branchUuid);
   const groupOptions = useMemo(() => {
     const options = groupRows
       .map((group) => groupOptionFromRow(group, language))
@@ -99,132 +55,75 @@ export function useBestSellingProductsReportWorkflow(
     return [{ value: ALL_GROUPS_VALUE, label: t("common.all") }, ...options];
   }, [groupRows, language, t]);
   const groupOptionValues = useMemo(() => new Set(groupOptions.map((option) => option.value)), [groupOptions]);
-  // รายงานนี้มี group filter เพิ่มจากรายงานอื่น จึงต้องรีเซ็ตกลุ่มที่หลุดจาก options
-  // (สลับร้าน/กลุ่มถูกลบ/ยังโหลดกลุ่มไม่เสร็จ) กลับเป็น "ทั้งหมด" ก่อนค่อย normalize สาขา
-  const normalizeFilters = useCallback(
-    (filters: BestSellingProductsFilters): BestSellingProductsFilters => {
-      const nextGroupUuid = groupOptionValues.has(filters.groupUuid)
-        ? filters.groupUuid
-        : ALL_GROUPS_VALUE;
-
-      const nextFilters =
-        filters.groupUuid === nextGroupUuid
-          ? filters
-          : {
-            ...filters,
-            groupUuid: nextGroupUuid,
-          };
-
-      return normalizeBranchFilters(nextFilters) ?? nextFilters;
-    },
-    [groupOptionValues, normalizeBranchFilters],
-  );
-  const activeGroupLabel = selectedOptionLabel(groupOptions, appliedFilters.groupUuid, t("common.all"));
   const summaryCards = useMemo(() => bestSellingSummaryConfigs(t), [t]);
-  const sortByLabel = bestSellingSortLabel(appliedFilters.sortBy, t);
-  const visibleCount = rows.length;
-  const activePageLimit = pageLimitSize(appliedFilters.limit, visibleCount);
-  const pageStart = total ? (page - 1) * activePageLimit + 1 : 0;
-  const pageEnd = total ? Math.min((page - 1) * activePageLimit + visibleCount, total) : 0;
-  const canGoBack = page > 1 && !loading;
-  const canGoNext = page < totalPages && !loading;
-  const exportDisabled = loading || Boolean(exporting) || !branchUuid || !rows.length;
-  const renderedExportData = exportData ?? { groups, rows, summary };
-  const paginationRangeLabel = t("common.showingRange", { start: pageStart, end: pageEnd, total });
-  const canApply = Boolean(draftFilters.branchUuid || defaultBranchUuid);
 
-  useEffect(() => {
-    if (!storeUuid) return;
-    void loadGroups({ lang: language, limit: "All", page: 1, store_uuid_fk: storeUuid }).catch(() => undefined);
-  }, [language, loadGroups, storeUuid]);
+  // รายงานนี้มี group filter เพิ่มจากรายงานอื่น จึงต้องรีเซ็ตกลุ่มที่หลุดจาก options (สลับร้าน/กลุ่มถูกลบ/
+  // ยังโหลดกลุ่มไม่เสร็จ) กลับเป็น "ทั้งหมด" — ส่งเข้า useStandardReportWorkflow เป็น extraNormalize
+  // (ต้อง useCallback เองเพราะ identity ของมันขับ reset effect ในฮุกกลาง เมื่อ groupOptionValues เปลี่ยน)
+  const extraNormalize = useCallback(
+    (filters: BestSellingProductsFilters): BestSellingProductsFilters => {
+      const nextGroupUuid = groupOptionValues.has(filters.groupUuid) ? filters.groupUuid : ALL_GROUPS_VALUE;
+      return filters.groupUuid === nextGroupUuid ? filters : { ...filters, groupUuid: nextGroupUuid };
+    },
+    [groupOptionValues]
+  );
 
-  // รายการสาขาเปลี่ยน (โหลดเสร็จ/สลับร้าน) = ปรับสาขาใน filter ให้ยังใช้ได้เสมอ
-  useResetOnChange(normalizeFilters, () => {
-    setDraftFilters((current) => normalizeFilters(current));
-    setAppliedFilters((current) => normalizeFilters(current));
-  });
+  // buildExcelWorkbook ต้องใช้ค่าที่คำนวณจากผลลัพธ์ของฮุกนี้เอง (activeBranchLabel ฯลฯ) — อ้างตรงๆ ในตัว
+  // config ไม่ได้เพราะ TS อนุมาน type ของ "report" แบบวนกลับเข้าตัวเองไม่ได้ (runtime ปลอดภัยเพราะ closure
+  // ถูกเรียกทีหลังเสมอ) จึงพักค่าไว้ใน ref แล้วอัปเดตผ่าน effect
+  const excelContextRef = useRef({ activeBranchLabel: "", dateFrom: "", dateTo: "" });
 
-  const load = useCallback(async () => {
-    if (!branchUuid) return;
-
-    try {
-      await loadReport({
-        branch_uuid_fk: branchUuid,
-        date_from: appliedFilters.dateFrom,
-        date_to: appliedFilters.dateTo,
-        group_uuid_fk: groupParam(appliedFilters.groupUuid),
-        lang: language,
-        limit: appliedFilters.limit,
-        page,
-        sort_by: appliedFilters.sortBy
-      });
-    } catch (error) {
-      showToast({
-        title: t("report.bestSelling.loadFailed"),
-        description: error instanceof Error ? error.message : "",
-        tone: "error"
-      });
-    }
-  }, [appliedFilters, branchUuid, language, loadReport, page, showToast, t]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  function applyFilters() {
-    const nextFilters = normalizeFilters(draftFilters);
-    if (nextFilters.branchUuid) setSelectedBranch(nextFilters.branchUuid);
-    setDraftFilters(nextFilters);
-    setAppliedFilters(nextFilters);
-    changeLimit(nextFilters.limit);
-  }
-
-  function applySortBy(sortBy: BestSellingProductsFilters["sortBy"]) {
-    if (sortBy === appliedFilters.sortBy) return;
-    const nextFilters = normalizeFilters({ ...appliedFilters, sortBy });
-    setDraftFilters((current) => ({ ...current, sortBy: nextFilters.sortBy }));
-    setAppliedFilters(nextFilters);
-    setPage(1);
-  }
-
-  function openMobileFilters() {
-    setDraftFilters({ ...appliedFilters });
-    setMobileFilterOpen(true);
-  }
-
-  function handleMobileFilterOpenChange(open: boolean) {
-    setMobileFilterOpen(open);
-    if (!open) setDraftFilters({ ...appliedFilters });
-  }
-
-  function applyMobileFilters() {
-    const nextFilters = normalizeFilters(draftFilters);
-    if (nextFilters.branchUuid) setSelectedBranch(nextFilters.branchUuid);
-    setDraftFilters(nextFilters);
-    setAppliedFilters(nextFilters);
-    changeLimit(nextFilters.limit);
-    setMobileFilterOpen(false);
-  }
-
-  const fetchExportData = useCallback(async (): Promise<BestSellingExportData> => {
-    if (!branchUuid) throw new Error(t("report.branchRequired"));
-
-    return loadExportData({
+  const report = useStandardReportWorkflow<
+    BestSellingProductsFilters,
+    (typeof rows)[number],
+    Parameters<typeof loadReport>[0],
+    Parameters<typeof loadExportData>[0],
+    BestSellingExportData
+  >({
+    buildInitialFilters: ({ today, userBranchUuid, initialPagination: pagination }) => ({
+      branchUuid: userBranchUuid,
+      dateFrom: today,
+      dateTo: today,
+      groupUuid: ALL_GROUPS_VALUE,
+      limit: pagination.limit,
+      sortBy: "qty"
+    }),
+    extraNormalize,
+    initialPagination,
+    error,
+    getRowId: bestSellingProductRowId,
+    loading,
+    rows,
+    total,
+    totalPages,
+    visibleRowCount: rows.length,
+    buildLoadParams: ({ branchUuid, filters, language: lang, page }) => ({
       branch_uuid_fk: branchUuid,
-      date_from: appliedFilters.dateFrom,
-      date_to: appliedFilters.dateTo,
-      group_uuid_fk: groupParam(appliedFilters.groupUuid),
-      lang: language,
-      sort_by: appliedFilters.sortBy
-    });
-  }, [appliedFilters, branchUuid, language, loadExportData, t]);
-
-  const selectedExportData = useCallback(
-    (data: BestSellingExportData): BestSellingExportData => {
-      if (!rowSelection.selectedCount) return data;
+      date_from: filters.dateFrom,
+      date_to: filters.dateTo,
+      group_uuid_fk: groupParam(filters.groupUuid),
+      lang,
+      limit: filters.limit,
+      page,
+      sort_by: filters.sortBy
+    }),
+    load: loadReport,
+    loadFailedTitle: t("report.bestSelling.loadFailed"),
+    exportReportRef,
+    buildExportParams: ({ branchUuid, filters, language: lang }) => ({
+      branch_uuid_fk: branchUuid,
+      date_from: filters.dateFrom,
+      date_to: filters.dateTo,
+      group_uuid_fk: groupParam(filters.groupUuid),
+      lang,
+      sort_by: filters.sortBy
+    }),
+    loadExportData,
+    applySelection: (data, selection) => {
+      if (!selection.selectedCount) return data;
 
       const selectedRows = data.rows.filter((row) =>
-        rowSelection.selectedRowIds.has(bestSellingProductRowId(row))
+        selection.selectedRowIds.has(bestSellingProductRowId(row))
       );
       const selectedGroups = bestSellingGroupsFromRows(data.groups, selectedRows);
 
@@ -235,24 +134,18 @@ export function useBestSellingProductsReportWorkflow(
         summary: bestSellingSummaryFromRows(selectedRows, selectedGroups.length)
       };
     },
-    [rowSelection.selectedCount, rowSelection.selectedRowIds]
-  );
-
-  async function exportExcel() {
-    if (exportDisabled) return;
-    setExporting("excel");
-    try {
-      const data = selectedExportData(await fetchExportData());
-      const XLSX = await import("xlsx-js-style");
-      const workbook = createSingleSheetReportWorkbook(
+    fileBaseName: bestSellingFileBaseName,
+    buildExcelWorkbook: (XLSX, data) => {
+      const context = excelContextRef.current;
+      return createSingleSheetReportWorkbook(
         XLSX,
         [
           {
             title: t("report.excel.reportInformation"),
             rows: exportInfoRows(t, {
-              branchLabel: activeBranchLabel,
-              dateFrom: appliedFilters.dateFrom,
-              dateTo: appliedFilters.dateTo
+              branchLabel: context.activeBranchLabel,
+              dateFrom: context.dateFrom,
+              dateTo: context.dateTo
             })
           },
           ...(summaryVisible
@@ -267,129 +160,50 @@ export function useBestSellingProductsReportWorkflow(
         ],
         officialReportExcelLayout(t, t("report.bestSelling.title"))
       );
-      XLSX.writeFile(workbook, `${bestSellingFileBaseName(appliedFilters)}.xlsx`);
-      showToast({
-        title: t("report.exportReady"),
-        description: t("report.exportedRows", { count: data.rows.length }),
-        tone: "success"
-      });
-    } catch (error) {
-      showToast({
-        title: t("report.exportFailed"),
-        description: error instanceof Error ? error.message : "",
-        tone: "error"
-      });
-    } finally {
-      setExporting(null);
     }
-  }
+  });
 
-  async function exportPdf() {
-    if (exportDisabled) return;
-    setExporting("pdf");
-    try {
-      const data = selectedExportData(await fetchExportData());
-      setExportData(data);
-      await waitForPaint();
+  const activeGroupLabel = selectedOptionLabel(groupOptions, report.appliedFilters.groupUuid, t("common.all"));
+  const activeBranchLabel = report.branchLabelFor(report.branchUuid);
+  const sortByLabel = bestSellingSortLabel(report.appliedFilters.sortBy, t);
+  const renderedExportData = report.exportData ?? { groups, rows, summary };
 
-      const element = exportReportRef.current;
-      if (!element) throw new Error(t("report.exportFailed"));
+  // ห้ามเขียน ref ระหว่าง render (react-hooks/refs) — อัปเดตผ่าน effect แทน ยังปลอดภัยเพราะ
+  // buildExcelWorkbook ถูกเรียกจากปุ่ม export เท่านั้น ซึ่งเกิดหลัง effect นี้รันเสมอ
+  useEffect(() => {
+    excelContextRef.current = {
+      activeBranchLabel,
+      dateFrom: report.appliedFilters.dateFrom,
+      dateTo: report.appliedFilters.dateTo
+    };
+  });
 
-      const [{ jsPDF }, html2canvasModule] = await Promise.all([import("jspdf"), import("html2canvas")]);
-      const canvas = await html2canvasModule.default(element, {
-        backgroundColor: "#ffffff",
-        scale: Math.min(2, window.devicePixelRatio || 1.5),
-        useCORS: true,
-        windowHeight: element.scrollHeight,
-        windowWidth: element.scrollWidth
-      });
-      const pdf = new jsPDF({ format: "a4", orientation: "landscape", unit: "pt" });
-      addReportCanvasToPdfPages(pdf, canvas, element);
+  useEffect(() => {
+    if (!report.storeUuid) return;
+    void loadGroups({ lang: language, limit: "All", page: 1, store_uuid_fk: report.storeUuid }).catch(() => undefined);
+  }, [language, loadGroups, report.storeUuid]);
 
-      pdf.save(`${bestSellingFileBaseName(appliedFilters)}.pdf`);
-      showToast({
-        title: t("report.exportReady"),
-        description: t("report.exportedRows", { count: data.rows.length }),
-        tone: "success"
-      });
-    } catch (error) {
-      showToast({
-        title: t("report.exportFailed"),
-        description: error instanceof Error ? error.message : "",
-        tone: "error"
-      });
-    } finally {
-      setExporting(null);
-      setExportData(null);
-    }
-  }
-
-  async function printReport() {
-    if (exportDisabled) return;
-    setExporting("print");
-    try {
-      const data = selectedExportData(await fetchExportData());
-      setExportData(data);
-      await waitForPaint();
-      window.print();
-      showToast({
-        title: t("report.exportReady"),
-        description: t("report.exportedRows", { count: data.rows.length }),
-        tone: "success"
-      });
-    } catch (error) {
-      showToast({
-        title: t("report.printFailed"),
-        description: error instanceof Error ? error.message : "",
-        tone: "error"
-      });
-    } finally {
-      setExporting(null);
-      setExportData(null);
-    }
+  function applySortBy(sortBy: BestSellingProductsFilters["sortBy"]) {
+    if (sortBy === report.appliedFilters.sortBy) return;
+    const nextFilters = report.normalizeFilters({ ...report.appliedFilters, sortBy });
+    report.setDraftFilters((current) => ({ ...current, sortBy: nextFilters.sortBy }));
+    report.setAppliedFilters(nextFilters);
+    report.setPage(1);
   }
 
   return {
+    ...report,
     activeBranchLabel,
     activeGroupLabel,
-    appliedFilters,
-    branchError,
-    branchLoading,
-    branchOptions,
-    branchUuid,
-    canApply,
-    canGoBack,
-    canGoNext,
-    canSelectBranch,
-    draftFilters,
-    error,
-    exportDisabled,
-    exportExcel,
-    exportPdf,
-    exporting,
     groupError,
     groupLoading,
     groupOptions,
     groups,
-    handleMobileFilterOpenChange,
-    load,
-    loading,
-    mobileFilterOpen,
-    openMobileFilters,
-    page,
-    paginationRangeLabel,
-    printReport,
     renderedExportData,
     rows,
-    rowSelection,
-    setDraftFilters,
-    setPage,
     sortByLabel,
     summary,
     summaryCards,
-    totalPages,
-    applyFilters,
-    applySortBy,
-    applyMobileFilters
+    applySortBy
   };
 }
