@@ -71,6 +71,18 @@ export function productCardPrice(
   return { kind: "starting", value: minPrice };
 }
 
+// P3.3: NOT merged with public-pos/order/product-domain.ts's
+// identically-named productPriceFromDetail/getModalBasePrice, despite the
+// name collision — diffing found genuine, revenue-affecting divergence:
+// - productPriceFromDetail: optionalNumber() here skips an empty-string
+//   pro_detail_sprice and falls through to `price`; the public version's
+//   `?? ` only skips null/undefined, so an empty string there short-circuits
+//   to 0 instead of falling back.
+// - getModalBasePrice's "set" branch here only reads prod_set_price
+//   (defaulting to 0 if absent); the public version falls back through
+//   prod_price and the detail price when prod_set_price is missing.
+// Unifying either would silently change a displayed/charged price on one
+// surface, so both stay separate.
 export function productPriceFromDetail(detail?: ProdDetail | null) {
   return optionalNumber(detail?.pro_detail_sprice, detail?.price) ?? 0;
 }

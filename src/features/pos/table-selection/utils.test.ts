@@ -19,6 +19,7 @@ import {
   isCanceledCartItem,
   isNewOrderCartItem,
   isOrderHistoryCartItem,
+  isServedCartItem,
   isWaitingCartItem,
   markTableAvailableInZones,
   newOrderTabItems,
@@ -292,6 +293,18 @@ describe("table selection utils", () => {
     expect(isCanceledCartItem({ detail: { order_it_status: 9 } } as CartItem)).toBe(true);
     expect(isCanceledCartItem({ detail: { order_it_status_text: "ຍົກເລີກ" } } as CartItem)).toBe(true);
     expect(isCanceledCartItem({ detail: { order_it_status_text: "sent" } } as CartItem)).toBe(false);
+  });
+
+  // Locks in the staff table view's "exact match only" served rule: unlike
+  // the public QR menu (public-pos/order), this surface does not match the
+  // Lao word "ເສີບ" as a substring, and only an exact "served" string
+  // counts — a genuine divergence found while deduping into
+  // src/lib/pos/cart-status.ts, not an oversight to silently fix here.
+  it("detects served cart items from status code or an exact status text match only", () => {
+    expect(isServedCartItem({ detail: { order_it_status: 4 } } as CartItem)).toBe(true);
+    expect(isServedCartItem({ detail: { order_it_status_text: "served" } } as CartItem)).toBe(true);
+    expect(isServedCartItem({ detail: { order_it_status_text: "Served up" } } as CartItem)).toBe(false);
+    expect(isServedCartItem({ detail: { order_it_status_text: "ເສີບ" } } as CartItem)).toBe(false);
   });
 
   it("marks a table available in zone state after its cart becomes empty", () => {

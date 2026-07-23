@@ -1,4 +1,8 @@
 import { money } from "@/lib/format";
+import {
+  isCanceledCartStatus,
+  isServedCartStatusExact,
+} from "@/lib/pos/cart-status";
 import { optionalNumber, optionalString } from "@/lib/values";
 import { ProductImageStatus } from "@/config/pos-constants";
 import type { CartItem, CartOrder, CartTopping, PosTable } from "@/services/pos";
@@ -259,21 +263,21 @@ export function newOrderTabItems(items: CartItem[]) {
   ];
 }
 
+// P3.3: decisions shared with public-pos/order/cart-domain.ts in
+// src/lib/pos/cart-status.ts — see that file's comment for why
+// isServedCartItem uses the "exact" rule here (no Lao match, unlike the
+// public menu) while isCanceledCartItem's rule is byte-identical on both
+// sides. This file keeps its own status-code/text extraction unchanged.
 export function isServedCartItem(item: CartItem) {
-  const statusText = optionalString(
-    item.detail?.order_it_status_text,
-  )?.toLowerCase();
-  return cartItemStatus(item) === 4 || statusText === "served";
+  const statusText =
+    optionalString(item.detail?.order_it_status_text)?.toLowerCase() ?? "";
+  return isServedCartStatusExact(cartItemStatus(item), statusText);
 }
 
 export function isCanceledCartItem(item: CartItem) {
-  const statusText = optionalString(
-    item.detail?.order_it_status_text,
-  )?.toLowerCase();
-  return (
-    cartItemStatus(item) === 9 ||
-    Boolean(statusText && ["cancel", "canceled", "cancelled", "ຍົກເລີກ"].some((value) => statusText.includes(value)))
-  );
+  const statusText =
+    optionalString(item.detail?.order_it_status_text)?.toLowerCase() ?? "";
+  return isCanceledCartStatus(cartItemStatus(item), statusText);
 }
 
 export function cartItems(cart: CartOrder | CartOrder[] | null) {

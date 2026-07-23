@@ -1,9 +1,17 @@
 import type { TFunction } from "i18next";
+import { OrderChannelEnum, OrderSourceEnum } from "@/config/pos-constants";
+import { formatMoney, formatShortDate } from "@/lib/format";
 import {
-  OrderChannelEnum,
-  OrderSourceEnum,
-  ProductImageStatus,
-} from "@/config/pos-constants";
+  getProductBlockedState,
+  isKnownModalProductCore,
+  isProductUnavailable,
+  isPromotionEnded,
+} from "@/lib/pos/product-classification";
+import {
+  publicHasRemoteProductImage,
+  publicIsHexColor,
+  publicProductImageUrl,
+} from "@/lib/pos/product-media";
 import type {
   CartOrder,
   CateProductItem,
@@ -22,7 +30,6 @@ import {
 import { MAX_OPEN_QTY } from "@/features/public-pos/order/constants";
 import type {
   ProductActionState,
-  ProductBlockedState,
   ProductModalMode,
   PromotionQuantitySource,
   PublicAddToCartPayload,
@@ -32,20 +39,18 @@ import { getCartItemQty, isOpenCartItemForStock } from "./cart-domain";
 import { statusSectionLabel } from "./menu-render";
 import { numeric } from "./numeric";
 
-export function productImageUrl(product: CateProductItem | ProdItem) {
-  return product.prod_status_imge === ProductImageStatus.IMAGE &&
-    product.prod_image?.startsWith("http")
-    ? product.prod_image
-    : "";
-}
+// P3.3: relocated to src/lib/pos/product-media.ts, alongside the staff POS's
+// diverging productMedia() resolver — re-exported unchanged under the
+// original names so this module's ~6 importers don't need to change.
+export {
+  publicProductImageUrl as productImageUrl,
+  publicHasRemoteProductImage as hasRemoteProductImage,
+  publicIsHexColor as isHexColor,
+};
 
-export function hasRemoteProductImage(product: CateProductItem | ProdItem) {
-  return Boolean(productImageUrl(product));
-}
-
-export function isHexColor(value?: string) {
-  return Boolean(value && /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(value));
-}
+// P3.3: relocated to src/lib/format.ts alongside money(); re-exported
+// unchanged (see that file for why they weren't folded into money()).
+export { formatMoney, formatShortDate };
 
 export function formatProductPrice(product: CateProductItem, lang: string) {
   const rawPrice = product.pro_detail_sprice ?? product.prod_price;
@@ -102,13 +107,6 @@ export function publicProductCardPrice(
     : { kind: "exact", value: minPrice };
 }
 
-export function formatMoney(price: number, lang: string) {
-  if (!Number.isFinite(price) || price <= 0) return "0 LAK";
-
-  const locale = lang === "en" ? "en-US" : "lo-LA";
-  return `${new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(price)} LAK`;
-}
-
 export function getPublicOrderPriceTotals({
   basePrice,
   productQty,
@@ -135,6 +133,10 @@ export function getPublicOrderPriceTotals({
   };
 }
 
+// P3.3: NOT merged with pos/order-customer's identically-named
+// getProductModalMode — this version also checks product?.status_sort_fk
+// (not just the passed-in statusSortFk) and matches the Lao menu's "③"/"②"
+// glyph markers in type_group, neither of which the staff version does.
 export function getProductModalMode(
   statusSortFk: number,
   product?: ProdItem | null,
@@ -185,6 +187,10 @@ export function getModalBasePrice(
   return productPriceFromDetail(detail);
 }
 
+// P3.3: NOT merged with pos/order-customer's identically-named
+// getPromoLabel — this version uses the "pos.getShort" i18n key for the
+// "buy X get Y" message; the staff version reuses "pos.freeShort" there
+// instead, a real text difference, not just a style one.
 export function getPromoLabel(
   detail: ProdDetail | null | undefined,
   t: TFunction,
@@ -196,17 +202,6 @@ export function getPromoLabel(
     return `${t("pos.buyShort")} ${buy} ${t("pos.getShort")} ${free}`;
   if (free > 0) return `${t("pos.freeShort")} ${free}`;
   return t("pos.promotion");
-}
-
-export function formatShortDate(value: string, lang: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-
-  return new Intl.DateTimeFormat(lang === "en" ? "en-US" : "lo-LA", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  }).format(date);
 }
 
 export function isToppingAvailable(topping?: ProdTopping | null) {
@@ -234,46 +229,15 @@ export function toppingDisplayName(topping: ProdTopping, lang: string) {
   );
 }
 
-export function isProductUnavailable(product: CateProductItem) {
-  return (
-    product.sold_out_manual === true ||
-    product.stock_sold_out === true ||
-    product.stock_available === false ||
-    product.can_add === false
-  );
-}
-
-export function isPromotionEnded(
-  product: CateProductItem,
-  activeStatusSortFk: number,
-) {
-  if (product.promo_expired !== true) return false;
-
-  const promoState = String(product.promo_state ?? "")
-    .trim()
-    .toUpperCase();
-  const productStatusSort = Number(
-    product.status_sort_fk ?? activeStatusSortFk,
-  );
-  return (
-    productStatusSort ===
-      publicMenuKindToStatusSortFk(PUBLIC_MENU_KIND.PROMOTION) ||
-    Boolean(promoState && promoState !== "NONE") ||
-    Boolean(String(product.promo_msg ?? "").trim())
-  );
-}
-
-export function getProductBlockedState(
-  product: CateProductItem,
-  activeStatusSortFk: number,
-): ProductBlockedState | null {
-  if (isPromotionEnded(product, activeStatusSortFk)) return "promotion-ended";
-  if (isProductUnavailable(product)) return "sold-out";
-  return null;
-}
+// P3.3: isProductUnavailable, isPromotionEnded, and getProductBlockedState
+// are byte-identical (modulo the ProductSortStatus vs PUBLIC_MENU_KIND
+// vocabulary, which resolve to the same numbers) to pos/order-customer's
+// copies and now live in src/lib/pos/product-classification.ts.
+// Re-exported here unchanged for API compatibility.
+export { getProductBlockedState, isProductUnavailable, isPromotionEnded };
 
 export function productBlockedLabel(
-  blockedState: ProductBlockedState | null,
+  blockedState: ReturnType<typeof getProductBlockedState>,
   product: CateProductItem,
   t: TFunction,
 ) {
@@ -293,22 +257,19 @@ export function getProductActionState(
   return "view";
 }
 
+// Same 6 conditions as pos/order-customer's isKnownModalProduct, differing
+// only in the hasPromo(product) call — which itself has a whitespace-trim
+// divergence between the two trees (see the shared module's file comment).
+// isKnownModalProductCore takes that as an explicit parameter so this
+// wrapper keeps its original 2-arg signature and behavior unchanged.
 export function isKnownModalProduct(
   product: CateProductItem,
   activeStatusSortFk: number,
 ) {
-  const productStatusSort = Number(
-    product.status_sort_fk ?? activeStatusSortFk,
-  );
-  return (
-    product.has_options === true ||
-    Number(product.count_option_enabled ?? 1) > 1 ||
-    Number(product.count_option_all ?? 1) > 1 ||
-    Number(product.count_topping_enabled ?? 0) > 0 ||
-    productStatusSort === publicMenuKindToStatusSortFk(PUBLIC_MENU_KIND.SET) ||
-    productStatusSort ===
-      publicMenuKindToStatusSortFk(PUBLIC_MENU_KIND.PROMOTION) ||
-    hasPromo(product)
+  return isKnownModalProductCore(
+    product,
+    activeStatusSortFk,
+    hasPromo(product),
   );
 }
 
@@ -341,6 +302,11 @@ export function productNeedsModal(
   );
 }
 
+// P3.3: NOT merged with pos/order-customer's identically-named
+// canDirectAddFromList — this version accepts any finite price (including
+// 0 or negative), lacks the staff version's extra count_option_all<=1
+// guard, and doesn't gate on getProductBlockedState. Real divergence, not
+// style — see product-classification.ts over there.
 export function canDirectAddFromList(
   product: CateProductItem,
   activeStatusSortFk: number,
@@ -385,6 +351,10 @@ export function productListItemToProdItem(product: CateProductItem): ProdItem {
   };
 }
 
+// P3.3: NOT merged with pos/order-customer's identically-named
+// isDetailAvailable/firstAvailableDetail/getModalBasePrice/
+// productPriceFromDetail — see product-availability.ts and pricing.ts over
+// there for the specific divergence found in each.
 export function isDetailAvailable(detail?: ProdDetail) {
   if (!detail) return false;
   if (detail.pro_detail_enabled === 2) return false;

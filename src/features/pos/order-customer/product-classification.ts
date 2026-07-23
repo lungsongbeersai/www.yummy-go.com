@@ -1,6 +1,10 @@
 import { type CateProductItem, type ProdDetail, type ProdItem } from "@/services/pos";
 import { optionalNumber, optionalString } from "@/lib/values";
 import {
+  getProductBlockedState,
+  isKnownModalProductCore,
+} from "@/lib/pos/product-classification";
+import {
   ProductSortStatus,
   type ProductActionState,
   type ProductModalMode,
@@ -8,6 +12,11 @@ import {
 } from "./menu-structure";
 import { isDetailAvailable } from "./product-availability";
 import { isToppingAvailable } from "./topping-selection";
+
+// P3.3: getProductBlockedState is byte-identical to public-pos/order's copy
+// and now lives in src/lib/pos/product-classification.ts; re-exported here
+// unchanged so the ~9 importers of this module don't need to change.
+export { getProductBlockedState };
 
 export function hasPromo(product: CateProductItem) {
   const promoState = String(product.promo_state ?? "")
@@ -18,13 +27,17 @@ export function hasPromo(product: CateProductItem) {
   );
 }
 
-export function getProductBlockedState(
+// Diffing against public-pos/order/product-domain.ts's isKnownModalProduct
+// found the same 6 conditions, differing only in this hasPromo(product)
+// call — which itself has a whitespace-trim divergence between the two
+// trees (see the shared module's file comment). isKnownModalProductCore
+// takes that as an explicit parameter so this wrapper's own behavior is
+// unchanged.
+function isKnownModalProduct(
   product: CateProductItem,
   activeSort: ProductSortStatus,
 ) {
-  if (isPromotionEnded(product, activeSort)) return "promotion-ended";
-  if (isProductUnavailable(product)) return "sold-out";
-  return null;
+  return isKnownModalProductCore(product, activeSort, hasPromo(product));
 }
 
 export function productBlockedLabel(
@@ -149,51 +162,4 @@ export function getPromoLabel(
     return `${t("pos.buyShort")} ${buy} ${t("pos.freeShort")} ${free}`;
   if (free > 0) return `${t("pos.freeShort")} ${free}`;
   return t("pos.promotion");
-}
-
-function isPromotionEnded(
-  product: CateProductItem,
-  activeSort: ProductSortStatus,
-) {
-  if (product.promo_expired !== true) return false;
-
-  const promoState = String(product.promo_state ?? "")
-    .trim()
-    .toUpperCase();
-  const productStatusSort =
-    optionalNumber(product.status_sort_fk) ?? activeSort;
-  return (
-    productStatusSort === ProductSortStatus.PROMOTION ||
-    Boolean(promoState && promoState !== "NONE") ||
-    Boolean(optionalString(product.promo_msg))
-  );
-}
-
-function isProductUnavailable(product: CateProductItem) {
-  return (
-    product.can_add === false ||
-    product.sold_out_manual === true ||
-    product.stock_available === false ||
-    product.stock_sold_out === true
-  );
-}
-
-function isKnownModalProduct(
-  product: CateProductItem,
-  activeSort: ProductSortStatus,
-) {
-  const productStatusSort =
-    optionalNumber(product.status_sort_fk) ?? activeSort;
-  const enabledOptionCount = optionalNumber(product.count_option_enabled) ?? 1;
-  const allOptionCount = optionalNumber(product.count_option_all) ?? 1;
-
-  return (
-    product.has_options === true ||
-    enabledOptionCount > 1 ||
-    allOptionCount > 1 ||
-    (optionalNumber(product.count_topping_enabled) ?? 0) > 0 ||
-    productStatusSort === ProductSortStatus.SET ||
-    productStatusSort === ProductSortStatus.PROMOTION ||
-    hasPromo(product)
-  );
 }

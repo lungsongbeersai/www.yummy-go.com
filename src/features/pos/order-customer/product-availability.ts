@@ -49,6 +49,16 @@ export function normalizeProdItem(
   };
 }
 
+// P3.3: NOT merged with public-pos/order/product-domain.ts's
+// identically-named isDetailAvailable/firstAvailableDetail, despite the
+// name collision — diffing found genuine divergence: this isDetailAvailable
+// additionally requires a pro_detail_uuid (via isDetailEnabled) and also
+// checks the pro_detail_qty_stock field the public version never reads;
+// firstAvailableDetail below returns null when nothing qualifies (see the
+// "never falls back to an unavailable option" test), while the public
+// version falls back to the first detail in array order even if
+// unavailable. Unifying either would change which detail a caller adds to
+// the cart, so both stay separate.
 export function isDetailEnabled(detail?: ProdDetail | null) {
   if (!detail) return false;
   if (optionalNumber(detail.pro_detail_enabled) === 2) return false;

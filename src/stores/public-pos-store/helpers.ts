@@ -1,3 +1,4 @@
+import { ProductSortStatus } from "@/config/pos-constants";
 import type {
   CartOrder,
   CateProductItem,
@@ -20,10 +21,13 @@ export const MENU_KIND_LOAD_ORDER = [
   PUBLIC_MENU_KIND.NORMAL
 ] as const;
 
+// The public menu's "kind" vocabulary maps 1:1 onto the staff POS's
+// ProductSortStatus — kept as the single numeric source of truth so the two
+// never drift (P3.3).
 const MENU_KIND_STATUS_SORT_FK: Record<PublicMenuKind, number> = {
-  [PUBLIC_MENU_KIND.NORMAL]: 1,
-  [PUBLIC_MENU_KIND.SET]: 2,
-  [PUBLIC_MENU_KIND.PROMOTION]: 3
+  [PUBLIC_MENU_KIND.NORMAL]: ProductSortStatus.NORMAL,
+  [PUBLIC_MENU_KIND.SET]: ProductSortStatus.SET,
+  [PUBLIC_MENU_KIND.PROMOTION]: ProductSortStatus.PROMOTION
 };
 
 const SPECIAL_CATEGORY_UUID: Record<Exclude<PublicMenuKind, "normal">, string> = {

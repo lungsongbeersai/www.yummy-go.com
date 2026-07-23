@@ -1,5 +1,9 @@
 import type { TFunction } from "i18next";
 import { Ban, CheckCircle2, ChefHat, Clock3, Send } from "lucide-react";
+import {
+  isCanceledCartStatus,
+  isServedCartStatusFlexible,
+} from "@/lib/pos/cart-status";
 import type {
   CartItem,
   CartOrder,
@@ -155,24 +159,25 @@ export function statusTextIncludes(text: string, values: string[]) {
   return values.some((value) => text.includes(value));
 }
 
+// P3.3: the "code 9 or these words" / "code 4 or these words" decisions are
+// now shared with pos/table-selection/cart-readers.ts in
+// src/lib/pos/cart-status.ts (isCanceledCartItem's decision is
+// byte-identical between the two trees; isServedCartItem's genuinely
+// diverges — the public menu also matches the Lao word "ເສີບ" as a
+// substring, table-selection doesn't — so it's kept as a distinctly-named
+// "flexible" rule). This file keeps its own status-code/text extraction
+// unchanged.
 export function isCanceledCartItem(item: CartItem) {
-  const text = normalizedStatusText(item);
-  return (
-    getCartItemStatusCode(item) === 9 ||
-    statusTextIncludes(text, [
-      "cancel",
-      "canceled",
-      "cancelled",
-      "ຍົກເລີກ",
-    ])
+  return isCanceledCartStatus(
+    getCartItemStatusCode(item),
+    normalizedStatusText(item),
   );
 }
 
 export function isServedCartItem(item: CartItem) {
-  const text = normalizedStatusText(item);
-  return (
-    getCartItemStatusCode(item) === 4 ||
-    statusTextIncludes(text, ["served", "ເສີບ"])
+  return isServedCartStatusFlexible(
+    getCartItemStatusCode(item),
+    normalizedStatusText(item),
   );
 }
 
