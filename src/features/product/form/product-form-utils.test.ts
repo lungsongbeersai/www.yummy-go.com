@@ -19,6 +19,7 @@ import {
   productFormDefaultsStorageKey,
   productFormToppingDefaultPrice,
   normalizeDetailsForStatus,
+  nextProductHydrationPlan,
   productColorValue,
   productFormSizeOptions,
   productHasToppings,
@@ -43,6 +44,58 @@ function detail(overrides: Partial<DetailRow> = {}): DetailRow {
 }
 
 describe("product form image and hydration helpers", () => {
+  it("plans partial, full, route-change, and guarded product hydration", () => {
+    expect(
+      nextProductHydrationPlan({
+        editingProductUuid: "prod-a",
+        hasEditingProduct: true,
+        hasFullEditData: false,
+        hydratedProductUuid: "",
+        routeProductUuid: "prod-a",
+      }),
+    ).toEqual({ hydratedProductUuid: "", shouldHydrate: true });
+
+    expect(
+      nextProductHydrationPlan({
+        editingProductUuid: "prod-a",
+        hasEditingProduct: true,
+        hasFullEditData: true,
+        hydratedProductUuid: "",
+        routeProductUuid: "prod-a",
+      }),
+    ).toEqual({ hydratedProductUuid: "prod-a", shouldHydrate: true });
+
+    expect(
+      nextProductHydrationPlan({
+        editingProductUuid: "prod-a",
+        hasEditingProduct: true,
+        hasFullEditData: true,
+        hydratedProductUuid: "prod-a",
+        routeProductUuid: "prod-a",
+      }),
+    ).toEqual({ hydratedProductUuid: "prod-a", shouldHydrate: false });
+
+    expect(
+      nextProductHydrationPlan({
+        editingProductUuid: "prod-b",
+        hasEditingProduct: true,
+        hasFullEditData: true,
+        hydratedProductUuid: "prod-a",
+        routeProductUuid: "prod-b",
+      }),
+    ).toEqual({ hydratedProductUuid: "prod-b", shouldHydrate: true });
+
+    expect(
+      nextProductHydrationPlan({
+        editingProductUuid: "",
+        hasEditingProduct: false,
+        hasFullEditData: false,
+        hydratedProductUuid: "prod-a",
+        routeProductUuid: "",
+      }),
+    ).toEqual({ hydratedProductUuid: "", shouldHydrate: false });
+  });
+
   it("normalizes image filenames, color mode, and binary flags", () => {
     expect(
       rawProductImage({

@@ -97,7 +97,7 @@ export function useProductToppingsWorkflow({
     if (!editing) return;
     setProdToppingStatus(productHasToppings(editing) ? TOPPING_HAS : TOPPING_NONE);
     setSelectedToppings(productToppingsFromRows(editing.toppings, toppings));
-  });
+  }, { runOnMount: true });
 
   // toppingOptions มาทีหลัง จึงต้องเติมท็อปปิ้งที่เพิ่ง resolve ได้เข้าไปภายหลัง
   useResetOnDeps([editing, toppingOptions], () => {
@@ -118,7 +118,7 @@ export function useProductToppingsWorkflow({
       if (!current.length) return resolved;
       return missing.length ? [...current, ...missing] : current;
     });
-  });
+  }, { runOnMount: true });
 
   function toggleTopping(uuid: string, checked: boolean) {
     setSelectedToppings((current) => {

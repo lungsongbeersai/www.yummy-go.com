@@ -2,6 +2,7 @@
 
 import type { TFunction } from "i18next";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useResetOnChange, useResetOnDeps } from "@/hooks/use-reset-on-change";
 import {
   type PublicMenuByKind,
   PUBLIC_MENU_KIND,
@@ -20,12 +21,24 @@ import { usePublicMenuCategoryLoader } from "@/features/public-pos/order/hooks/u
 import { usePublicCategoryScroll } from "@/features/public-pos/order/hooks/use-public-category-scroll";
 import {
   getCategoryPathUuids,
+  missingPublicMenuCategoryRefUuids,
+  nextPublicMenuCategoryReset,
   orderCateUuidsByMenu,
   visibleProductCountForCategory,
   withCategoryPathVisibleCounts,
 } from "@/features/public-pos/order/utils";
 
 type PublicPosState = ReturnType<typeof usePublicPosStore.getState>;
+
+interface PendingCategoryScroll {
+  cateUuid: string;
+  requestId: number;
+}
+
+interface PendingActiveCategorySync {
+  cateUuid: string | null;
+  requestId: number;
+}
 
 interface UsePublicMenuBrowseParams {
   lang: string;
@@ -58,6 +71,10 @@ export function usePublicMenuBrowse({
 }: UsePublicMenuBrowseParams) {
   const [renderedCateUuids, setRenderedCateUuids] = useState<string[]>([]);
   const [jumpingCateUuid, setJumpingCateUuid] = useState("");
+  const [pendingCategoryScroll, setPendingCategoryScroll] =
+    useState<PendingCategoryScroll>({ cateUuid: "", requestId: 0 });
+  const [pendingActiveCategorySync, setPendingActiveCategorySync] =
+    useState<PendingActiveCategorySync>({ cateUuid: null, requestId: 0 });
   const [collapsedCateUuids, setCollapsedCateUuids] = useState<string[]>([]);
   const [visibleProductCountByCate, setVisibleProductCountByCate] = useState<
     Record<string, number>
@@ -69,8 +86,12 @@ export function usePublicMenuBrowse({
     [PUBLIC_MENU_KIND.SET]: RAIL_RENDER_CHUNK,
     [PUBLIC_MENU_KIND.NORMAL]: RAIL_RENDER_CHUNK,
   });
+  const [lastCategoryOrderKey, setLastCategoryOrderKey] = useState<
+    string | null
+  >(null);
   const initialLoadKey = useRef("");
-  const lastCategoryOrderKey = useRef("");
+  const appliedActiveCategorySyncRequestRef = useRef(0);
+  const latestCategoryScrollRequestRef = useRef(0);
   const renderSentinelRef = useRef<HTMLDivElement | null>(null);
   const {
     categoryOrderKey,
@@ -300,6 +321,13 @@ export function usePublicMenuBrowse({
     );
   }, []);
 
+  const enqueueCategoryScroll = useCallback((cateUuid: string) => {
+    setPendingCategoryScroll((current) => ({
+      cateUuid,
+      requestId: current.requestId + 1,
+    }));
+  }, []);
+
   const handleTabChange = useCallback(
     (cateUuid: string) => {
       if (
@@ -322,7 +350,7 @@ export function usePublicMenuBrowse({
 
       if (targetLoaded) {
         setJumpingCateUuid("");
-        window.setTimeout(() => scrollToCategory(cateUuid), 0);
+        enqueueCategoryScroll(cateUuid);
         return;
       }
 
@@ -340,8 +368,8 @@ export function usePublicMenuBrowse({
       loadNormalCategoryProductsSafely,
       loadedCateUuids,
       loadingCateUuids,
+      enqueueCategoryScroll,
       renderCategoryPathTo,
-      scrollToCategory,
       setStableActiveCateUuid,
       suppressScrollActiveUntilRef,
       visibleCategoryTabs,
@@ -373,51 +401,60 @@ export function usePublicMenuBrowse({
     token,
   ]);
 
-  useEffect(() => {
-    categoryRefsRef.current = {};
-
-    if (!menuCategories.length) {
-      lastCategoryOrderKey.current = "";
-      setRenderedCateUuids([]);
-      setJumpingCateUuid("");
-      setCollapsedCateUuids([]);
-      setVisibleProductCountByCate({});
-      setStableActiveCateUuid("");
-      return;
-    }
-
-    if (lastCategoryOrderKey.current === categoryOrderKey) return;
-
-    lastCategoryOrderKey.current = categoryOrderKey;
-    setCollapsedCateUuids([]);
-
-    const firstCateUuid =
-      selectedCateUuid || defaultCateUuid || menuCategories[0].cate_uuid;
-    const firstCategory =
-      menuCategoryByUuid.get(firstCateUuid) ?? menuCategories[0];
-    const firstTotalProducts = firstCategory.products?.length ?? 0;
-
-    setRenderedCateUuids([firstCategory.cate_uuid]);
-    setVisibleProductCountByCate(
-      firstTotalProducts > 0
-        ? {
-            [firstCategory.cate_uuid]: Math.min(
-              PRODUCT_RENDER_CHUNK,
-              firstTotalProducts,
-            ),
-          }
-        : {},
-    );
-    setStableActiveCateUuid(firstCategory.cate_uuid);
-  }, [
+  useResetOnDeps([
     categoryOrderKey,
-    categoryRefsRef,
     defaultCateUuid,
     menuCategories,
-    menuCategoryByUuid,
     selectedCateUuid,
-    setStableActiveCateUuid,
-  ]);
+  ], () => {
+    const reset = nextPublicMenuCategoryReset({
+      categoryOrderKey,
+      defaultCateUuid,
+      menuCategories,
+      previousCategoryOrderKey: lastCategoryOrderKey,
+      productRenderChunk: PRODUCT_RENDER_CHUNK,
+      selectedCateUuid,
+    });
+    if (!reset) return;
+
+    setLastCategoryOrderKey(reset.categoryOrderKey);
+    setRenderedCateUuids(reset.renderedCateUuids);
+    setCollapsedCateUuids([]);
+    setVisibleProductCountByCate(reset.visibleProductCountByCate);
+    setPendingActiveCategorySync((current) => ({
+      cateUuid: reset.activeCateUuid,
+      requestId: current.requestId + 1,
+    }));
+
+    if (!reset.activeCateUuid) {
+      setJumpingCateUuid("");
+      setPendingCategoryScroll((current) => ({
+        cateUuid: "",
+        requestId: current.requestId + 1,
+      }));
+    }
+  }, { runOnMount: true });
+
+  useEffect(() => {
+    if (pendingActiveCategorySync.cateUuid === null) return;
+
+    const { cateUuid, requestId } = pendingActiveCategorySync;
+    if (appliedActiveCategorySyncRequestRef.current === requestId) return;
+    appliedActiveCategorySyncRequestRef.current = requestId;
+    setStableActiveCateUuid(cateUuid);
+  }, [pendingActiveCategorySync, setStableActiveCateUuid]);
+
+  useEffect(() => {
+    const liveCateUuids = menuCategories.map(
+      (category) => category.cate_uuid,
+    );
+    missingPublicMenuCategoryRefUuids(
+      categoryRefsRef.current,
+      liveCateUuids,
+    ).forEach((cateUuid) => {
+      delete categoryRefsRef.current[cateUuid];
+    });
+  }, [categoryOrderKey, categoryRefsRef, menuCategories]);
 
   useEffect(() => {
     const firstCateUuid =
@@ -431,7 +468,7 @@ export function usePublicMenuBrowse({
     selectedCateUuid,
   ]);
 
-  useEffect(() => {
+  useResetOnChange(menuRequestKey, () => {
     setRailVisibleCounts({
       [PUBLIC_MENU_KIND.PROMOTION]: RAIL_RENDER_CHUNK,
       [PUBLIC_MENU_KIND.SET]: RAIL_RENDER_CHUNK,
@@ -439,7 +476,11 @@ export function usePublicMenuBrowse({
     });
     setJumpingCateUuid("");
     setCollapsedCateUuids([]);
-  }, [menuRequestKey]);
+    setPendingCategoryScroll((current) => ({
+      cateUuid: "",
+      requestId: current.requestId + 1,
+    }));
+  });
 
   useEffect(() => {
     const firstCateUuid =
@@ -459,13 +500,38 @@ export function usePublicMenuBrowse({
     visibleCategoryTabs,
   ]);
 
-  useEffect(() => {
-    if (!jumpingCateUuid || !loadedCateUuids.includes(jumpingCateUuid)) return;
+  const loadedJumpCateUuid =
+    jumpingCateUuid && loadedCateUuids.includes(jumpingCateUuid)
+      ? jumpingCateUuid
+      : "";
 
-    const cateUuid = jumpingCateUuid;
+  useResetOnChange(loadedJumpCateUuid, () => {
+    if (!loadedJumpCateUuid) return;
+
     setJumpingCateUuid("");
-    window.setTimeout(() => scrollToCategory(cateUuid), 0);
-  }, [jumpingCateUuid, loadedCateUuids, scrollToCategory]);
+    setPendingCategoryScroll((current) => ({
+      cateUuid: loadedJumpCateUuid,
+      requestId: current.requestId + 1,
+    }));
+  });
+
+  useEffect(() => {
+    if (!pendingCategoryScroll.cateUuid) return;
+
+    const { cateUuid, requestId } = pendingCategoryScroll;
+    latestCategoryScrollRequestRef.current = requestId;
+    const timeoutId = window.setTimeout(() => {
+      if (latestCategoryScrollRequestRef.current !== requestId) return;
+      setPendingCategoryScroll((current) =>
+        current.requestId === requestId
+          ? { cateUuid: "", requestId }
+          : current,
+      );
+      scrollToCategory(cateUuid);
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [pendingCategoryScroll, scrollToCategory]);
 
   useEffect(() => {
     const element = renderSentinelRef.current;

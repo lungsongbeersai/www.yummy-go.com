@@ -2,6 +2,12 @@
 
 import { useState } from "react";
 
+const RESET_NOT_APPLIED = Symbol("reset-not-applied");
+
+export interface UseResetOptions {
+  runOnMount?: boolean;
+}
+
 // รีเซ็ต state ภายในเมื่อ "ตัวระบุ" ที่ผูกอยู่เปลี่ยน เช่น สลับเรคคอร์ด
 // เปิด/ปิด dialog หรือข้อมูลจาก store ถูกโหลดใหม่
 //
@@ -10,10 +16,16 @@ import { useState } from "react";
 export function useResetOnChange<K>(
   resetKey: K,
   reset: () => void,
+  options: UseResetOptions = {},
 ) {
-  const [appliedKey, setAppliedKey] = useState<K>(() => resetKey);
+  const [appliedKey, setAppliedKey] = useState<K | typeof RESET_NOT_APPLIED>(
+    () => options.runOnMount ? RESET_NOT_APPLIED : resetKey,
+  );
 
-  if (Object.is(appliedKey, resetKey)) {
+  if (
+    appliedKey !== RESET_NOT_APPLIED &&
+    Object.is(appliedKey, resetKey)
+  ) {
     return;
   }
 
@@ -26,12 +38,16 @@ export function useResetOnChange<K>(
 export function useResetOnDeps(
   deps: readonly unknown[],
   reset: () => void,
+  options: UseResetOptions = {},
 ) {
-  const [appliedDeps, setAppliedDeps] = useState<readonly unknown[]>(
-    () => deps,
+  const [appliedDeps, setAppliedDeps] = useState<
+    readonly unknown[] | typeof RESET_NOT_APPLIED
+  >(
+    () => options.runOnMount ? RESET_NOT_APPLIED : deps,
   );
 
   const changed =
+    appliedDeps === RESET_NOT_APPLIED ||
     appliedDeps.length !== deps.length ||
     deps.some(
       (dependency, index) =>

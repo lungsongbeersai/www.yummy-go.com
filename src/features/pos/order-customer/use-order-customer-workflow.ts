@@ -4,7 +4,8 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useIsMobile } from "@/hooks/use-mobile";
-import type { CateWithProducts, ProdDetail, ProdItem } from "@/services/pos";
+import { useResetOnDeps } from "@/hooks/use-reset-on-change";
+import type { ProdDetail, ProdItem } from "@/services/pos";
 import type { PrinterDeviceContext } from "@/services/printer";
 import { useAppStore } from "@/stores/app-store";
 import { useAuthStore } from "@/stores/auth-store";
@@ -14,10 +15,7 @@ import { useToastStore } from "@/stores/toast-store";
 import {
   buildStaffOrderInput,
   changeToppingQty,
-  countProducts,
-  emptyMenuBySort,
   firstAvailableDetail,
-  firstStatusWithProducts,
   flattenProducts,
   getModalUnitPrice,
   getOrderSelectionIssue,
@@ -25,23 +23,19 @@ import {
   getProductModalMode,
   isDetailAvailable,
   isDetailEnabled,
-  nextMenuCategoryUuid,
   normalizeProdItem,
   orderCustomerUrl,
   orderQuantityRules,
   orderSelectionIssueLabel,
-  ProductSortStatus,
   productNeedsModal,
   selectedOrderTable,
   selectedToppingsFromQtyMap,
   toggleToppingQty,
-  type MenuBySort,
   type ProductCardEntry,
   type ProductModalMode,
   type SelectedTopping,
 } from "./order-customer-utils";
 import { cartForTable, cartQuantityCount } from "../table-selection/utils";
-import { optionalString } from "@/lib/values";
 
 export type OrderCustomerWorkflowInput = {
   initialTableUuid: string;
@@ -64,26 +58,24 @@ export function useOrderCustomerWorkflow({
   const loadingTables = usePosStore((state) => state.loading);
   const loadingCart = usePosStore((state) => state.loadingCart);
   const saving = usePosStore((state) => state.saving);
+  const categories = usePosStore((state) => state.categories);
+  const selectedCateUuid = usePosStore((state) => state.selectedCateUuid);
+  const activeSort = usePosStore((state) => state.activeSort);
+  const menuBySort = usePosStore((state) => state.menuBySort);
+  const loadingMenu = usePosStore((state) => state.loadingMenu);
+  const submittedSearch = usePosStore((state) => state.submittedSearch);
   const loadTables = usePosStore((state) => state.loadTables);
   const loadCartStore = usePosStore((state) => state.loadCart);
-  const loadProductCategories = usePosStore((state) => state.loadProductCategories);
+  const loadMenuStore = usePosStore((state) => state.loadMenu);
+  const resetMenu = usePosStore((state) => state.resetMenu);
   const loadProductItem = usePosStore((state) => state.loadProductItem);
   const createOrder = usePosStore((state) => state.createOrder);
   const setTable = usePosStore((state) => state.setTable);
+  const setActiveSort = usePosStore((state) => state.setActiveSort);
   const resolvePrinterDeviceContext = usePrinterStore(
     (state) => state.resolveDeviceContext,
   );
-  const [categories, setCategories] = useState<CateWithProducts[]>([]);
-  const [selectedCateUuid, setSelectedCateUuid] = useState("");
-  const [activeSort, setActiveSort] = useState<ProductSortStatus>(
-    ProductSortStatus.NORMAL,
-  );
-  const [menuBySort, setMenuBySort] = useState<MenuBySort>(() =>
-    emptyMenuBySort(),
-  );
-  const [loadingMenu, setLoadingMenu] = useState(false);
   const [search, setSearch] = useState("");
-  const [submittedSearch, setSubmittedSearch] = useState("");
   const [loadingProductUuid, setLoadingProductUuid] = useState("");
   const [productSheetOpen, setProductSheetOpen] = useState(false);
   const [cartSheetOpen, setCartSheetOpen] = useState(false);
@@ -98,8 +90,9 @@ export function useOrderCustomerWorkflow({
   >({});
   const [note, setNote] = useState("");
   const [qty, setQty] = useState(1);
-  const [printerContext, setPrinterContext] =
+  const [fetchedPrinterContext, setFetchedPrinterContext] =
     useState<PrinterDeviceContext | null>(null);
+  const printerContext = user?.uuid ? fetchedPrinterContext : null;
 
   const selectedTable = useMemo(
     () =>
@@ -153,38 +146,6 @@ export function useOrderCustomerWorkflow({
     [productMode, selectedDetail, selectedProduct, selectedToppings],
   );
 
-  const fetchMenuGroups = useCallback(
-    async (cateUuid: string, query: string) => {
-      if (!branchUuid) return emptyMenuBySort();
-
-      const selectedCateUuid = optionalString(cateUuid) ?? "";
-      const searchQuery = query.trim();
-      if (!selectedCateUuid && !searchQuery) return emptyMenuBySort();
-
-      const request = (status_sort_fk: ProductSortStatus) =>
-        loadProductCategories({
-          branch_uuid_fk: branchUuid,
-          ...(searchQuery ? {} : { cate_uuid: selectedCateUuid }),
-          lang: language,
-          search: searchQuery,
-          status_sort_fk,
-        });
-
-      const [normal, set, promotion] = await Promise.all([
-        request(ProductSortStatus.NORMAL),
-        request(ProductSortStatus.SET),
-        request(ProductSortStatus.PROMOTION),
-      ]);
-
-      return {
-        [ProductSortStatus.NORMAL]: normal.data ?? [],
-        [ProductSortStatus.SET]: set.data ?? [],
-        [ProductSortStatus.PROMOTION]: promotion.data ?? [],
-      };
-    },
-    [branchUuid, language, loadProductCategories],
-  );
-
   const loadCart = useCallback(async () => {
     if (!initialTableUuid) return;
 
@@ -227,58 +188,26 @@ export function useOrderCustomerWorkflow({
       query?: string;
       refreshCategories?: boolean;
     } = {}) => {
-      if (!branchUuid) {
-        setCategories([]);
-        setMenuBySort(emptyMenuBySort());
-        return;
-      }
-
-      setLoadingMenu(true);
       try {
-        let nextCateUuid = optionalString(cateUuid) ?? "";
-        const nextQuery = query ?? "";
-
-        if (refreshCategories) {
-          const catalog = await loadProductCategories({
-            branch_uuid_fk: branchUuid,
-            lang: language,
-            search: "",
-            status_sort_fk: ProductSortStatus.NORMAL,
-          });
-          const nextCategories = catalog.data ?? [];
-          setCategories(nextCategories);
-          nextCateUuid = nextMenuCategoryUuid({
-            categories: nextCategories,
-            defaultCateUuid: catalog.default_cate_uuid,
-            requestedCateUuid: nextCateUuid,
-            selectedCateUuid: catalog.selected_cate_uuid,
-          });
-        }
-
-        const nextMenu = await fetchMenuGroups(nextCateUuid, nextQuery);
-        setSelectedCateUuid(nextCateUuid);
-        setSubmittedSearch(nextQuery);
-        setMenuBySort(nextMenu);
-        setActiveSort((current) =>
-          countProducts(nextMenu[current]) > 0
-            ? current
-            : firstStatusWithProducts(nextMenu),
-        );
+        await loadMenuStore({
+          branchUuid,
+          language,
+          cateUuid,
+          query,
+          refreshCategories,
+        });
       } catch (error) {
         showToast({
           title: t("pos.failedProducts"),
           description: error instanceof Error ? error.message : "",
           tone: "error",
         });
-      } finally {
-        setLoadingMenu(false);
       }
     },
     [
-      fetchMenuGroups,
       branchUuid,
       language,
-      loadProductCategories,
+      loadMenuStore,
       showToast,
       t,
     ],
@@ -428,8 +357,16 @@ export function useOrderCustomerWorkflow({
 
   useEffect(() => {
     setTable(initialTableUuid, initialTableName);
-    setCartSheetOpen(false);
   }, [initialTableName, initialTableUuid, setTable]);
+
+  useResetOnDeps([initialTableName, initialTableUuid], () => {
+    setCartSheetOpen(false);
+  });
+
+  useEffect(() => {
+    resetMenu();
+    return resetMenu;
+  }, [resetMenu]);
 
   useEffect(() => {
     void loadTablesForBranch();
@@ -444,10 +381,7 @@ export function useOrderCustomerWorkflow({
   }, [loadMenu]);
 
   useEffect(() => {
-    if (!user?.uuid) {
-      setPrinterContext(null);
-      return;
-    }
+    if (!user?.uuid) return;
 
     let cancelled = false;
     void resolvePrinterDeviceContext({
@@ -455,10 +389,10 @@ export function useOrderCustomerWorkflow({
       lang: language,
     })
       .then((context) => {
-        if (!cancelled) setPrinterContext(context);
+        if (!cancelled) setFetchedPrinterContext(context);
       })
       .catch(() => {
-        if (!cancelled) setPrinterContext(null);
+        if (!cancelled) setFetchedPrinterContext(null);
       });
 
     return () => {

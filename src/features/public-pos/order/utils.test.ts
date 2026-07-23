@@ -31,6 +31,8 @@ import {
   isServedCartItem,
   hasMoreMenuToRender,
   maxAvailableQty,
+  missingPublicMenuCategoryRefUuids,
+  nextPublicMenuCategoryReset,
   normalizePublicProductLayoutMode,
   normalizePublicSearchHistory,
   promotionQuantity,
@@ -95,6 +97,76 @@ function category(
     products,
   };
 }
+
+describe("public menu category reset helpers", () => {
+  it("selects the initial rendered category only when category order changes", () => {
+    const categories = [
+      category("cate-1", [product({ prod_uuid: "prod-1" })]),
+      category("cate-2", [
+        product({ prod_uuid: "prod-2" }),
+        product({ prod_uuid: "prod-3" }),
+      ]),
+    ];
+
+    expect(
+      nextPublicMenuCategoryReset({
+        categoryOrderKey: "cate-1:cate-2",
+        defaultCateUuid: "cate-1",
+        menuCategories: categories,
+        previousCategoryOrderKey: null,
+        productRenderChunk: 1,
+        selectedCateUuid: "cate-2",
+      }),
+    ).toEqual({
+      activeCateUuid: "cate-2",
+      categoryOrderKey: "cate-1:cate-2",
+      renderedCateUuids: ["cate-2"],
+      visibleProductCountByCate: { "cate-2": 1 },
+    });
+
+    expect(
+      nextPublicMenuCategoryReset({
+        categoryOrderKey: "cate-1:cate-2",
+        defaultCateUuid: "cate-1",
+        menuCategories: categories,
+        previousCategoryOrderKey: "cate-1:cate-2",
+        productRenderChunk: 1,
+        selectedCateUuid: "cate-1",
+      }),
+    ).toBeNull();
+
+    expect(
+      nextPublicMenuCategoryReset({
+        categoryOrderKey: "",
+        defaultCateUuid: "",
+        menuCategories: [],
+        previousCategoryOrderKey: "cate-1:cate-2",
+        productRenderChunk: 1,
+        selectedCateUuid: "",
+      }),
+    ).toEqual({
+      activeCateUuid: "",
+      categoryOrderKey: "",
+      renderedCateUuids: [],
+      visibleProductCountByCate: {},
+    });
+  });
+
+  it("identifies only stale category refs for pruning", () => {
+    const liveRef = {};
+    const removedRef = {};
+    const refs = {
+      "cate-live": liveRef,
+      "cate-removed": removedRef,
+    };
+
+    expect(
+      missingPublicMenuCategoryRefUuids(refs, ["cate-live", "cate-new"]),
+    ).toEqual(["cate-removed"]);
+    expect(refs["cate-live"]).toBe(liveRef);
+    expect(refs["cate-removed"]).toBe(removedRef);
+  });
+});
 
 describe("public POS product helpers", () => {
   it("uses the minimum as a starting price when enabled options have a price range", () => {

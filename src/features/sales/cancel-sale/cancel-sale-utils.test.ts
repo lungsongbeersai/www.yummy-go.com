@@ -30,6 +30,7 @@ import {
   itemTotal,
   pageBounds,
   salesListInvoicePrintItems,
+  shouldOpenInitialCancelDialog,
   statusClass,
   statusDotClass,
   type BillSource
@@ -82,6 +83,66 @@ const user: AuthUser = {
 };
 
 describe("sales list utils", () => {
+  it.each([
+    {
+      name: "successful matching detail",
+      input: {
+        alreadyHandled: false,
+        detailLoading: false,
+        detailOrderUuid: "order-1",
+        error: null,
+        initialOrderUuid: "order-1"
+      },
+      expected: true
+    },
+    {
+      name: "detail still loading",
+      input: {
+        alreadyHandled: false,
+        detailLoading: true,
+        detailOrderUuid: "order-1",
+        error: null,
+        initialOrderUuid: "order-1"
+      },
+      expected: false
+    },
+    {
+      name: "failed detail request",
+      input: {
+        alreadyHandled: false,
+        detailLoading: false,
+        detailOrderUuid: "order-1",
+        error: "failed",
+        initialOrderUuid: "order-1"
+      },
+      expected: false
+    },
+    {
+      name: "mismatched detail",
+      input: {
+        alreadyHandled: false,
+        detailLoading: false,
+        detailOrderUuid: "order-2",
+        error: null,
+        initialOrderUuid: "order-1"
+      },
+      expected: false
+    },
+    {
+      name: "already handled detail",
+      input: {
+        alreadyHandled: true,
+        detailLoading: false,
+        detailOrderUuid: "order-1",
+        error: null,
+        initialOrderUuid: "order-1"
+      },
+      expected: false
+    }
+  ])("opens initial cancel dialog only after $name", ({ input, expected }) => {
+    expect(shouldOpenInitialCancelDialog(input)).toBe(expected);
+  });
+
   it("chooses bill identity and display values from detail before list fallback rows", () => {
     const listRow = source({
       can_cancel: "0",

@@ -179,6 +179,28 @@ export function billIsSelected(source: BillSource, selectedOrderUuid: string) {
   return Boolean(booleanField(source, ["is_selected"]) || (selectedOrderUuid && billUuid(source) === selectedOrderUuid));
 }
 
+export function shouldOpenInitialCancelDialog({
+  alreadyHandled,
+  detailLoading,
+  detailOrderUuid,
+  error,
+  initialOrderUuid
+}: {
+  alreadyHandled: boolean;
+  detailLoading: boolean;
+  detailOrderUuid: string;
+  error: string | null;
+  initialOrderUuid: string;
+}) {
+  return Boolean(
+    initialOrderUuid &&
+    !detailLoading &&
+    !error &&
+    detailOrderUuid === initialOrderUuid &&
+    !alreadyHandled
+  );
+}
+
 export function billItems(source: BillSource) {
   if (!isRecord(source)) return [];
   for (const key of itemKeys) {

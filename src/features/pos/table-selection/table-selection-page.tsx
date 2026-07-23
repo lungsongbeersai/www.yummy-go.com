@@ -9,7 +9,7 @@ import { NotificationMenu } from "@/components/layout/notification-menu";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import type { PosTable, PosZone } from "@/services/pos";
+import type { PosTable } from "@/services/pos";
 import { useAppStore } from "@/stores/app-store";
 import { useAuthStore } from "@/stores/auth-store";
 import { usePosStore } from "@/stores/pos-store";
@@ -27,6 +27,7 @@ export function TableSelectionPage() {
   const user = useAuthStore((state) => state.user);
   const language = useAppStore((state) => state.language);
   const zones = usePosStore((state) => state.zones);
+  const zoneOptions = usePosStore((state) => state.zoneOptions);
   const loading = usePosStore((state) => state.loading);
   const loadTables = usePosStore((state) => state.loadTables);
   const refreshTables = usePosStore((state) => state.refreshTables);
@@ -34,7 +35,6 @@ export function TableSelectionPage() {
   const showToast = useToastStore((state) => state.show);
   const [search, setSearch] = useState("");
   const [selectedZoneUuid, setSelectedZoneUuid] = useState("");
-  const [zoneOptions, setZoneOptions] = useState<PosZone[]>([]);
   const [statusFilter, setStatusFilter] = useState<TableStatusFilter>("all");
   const [now, setNow] = useState(() => new Date());
 
@@ -43,9 +43,7 @@ export function TableSelectionPage() {
   const load = useCallback(async (zoneUuid = selectedZoneUuid) => {
     if (!branchUuid) return [];
     try {
-      const nextZones = await loadTables({ branch_uuid_fk: branchUuid, zone_uuid: zoneUuid, lang: language });
-      if (!zoneUuid) setZoneOptions(nextZones);
-      return nextZones;
+      return await loadTables({ branch_uuid_fk: branchUuid, zone_uuid: zoneUuid, lang: language });
     } catch (error) {
       showToast({ title: t("pos.failedTables"), description: error instanceof Error ? error.message : "", tone: "error" });
       return [];
@@ -68,7 +66,6 @@ export function TableSelectionPage() {
     selectedTableUuid: "",
     selectedZoneUuid,
     setSelectedTable: () => undefined,
-    setZoneOptions,
     updateTableCustomerOrderState
   });
 

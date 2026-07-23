@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useResetOnDeps } from "@/hooks/use-reset-on-change";
 import { useTranslation } from "react-i18next";
 import { EmptyState } from "@/components/common/empty-state";
@@ -30,6 +30,7 @@ import {
   buildSalesListInvoicePrintData,
   dateOptionValue,
   pageBounds,
+  shouldOpenInitialCancelDialog,
   shouldOpenMobileDetail
 } from "./cancel-sale-utils";
 
@@ -69,13 +70,12 @@ export function CancelSalePage({
     limitOptions: SALES_LIST_LIMIT_OPTIONS
   });
   const [selectedOrderUuid, setSelectedOrderUuid] = useState(initialOrderUuid);
-  const [initialSelectionLoaded, setInitialSelectionLoaded] = useState(!initialOrderUuid);
   const [mobileDetailOpen, setMobileDetailOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
   const [reasonTouched, setReasonTouched] = useState(false);
   const [receiptPrintingOrderUuid, setReceiptPrintingOrderUuid] = useState("");
-  const initialCancelHandledRef = useRef(false);
+  const [initialCancelHandled, setInitialCancelHandled] = useState(false);
 
   const selectedListBill = useMemo(
     () => bills.find((bill) => billIsSelected(bill, selectedOrderUuid) || billUuid(bill) === selectedOrderUuid),
@@ -115,9 +115,6 @@ export function CancelSalePage({
           page,
           selected_order_uuid: nextSelectedOrderUuid || undefined
         });
-        if (nextSelectedOrderUuid && nextSelectedOrderUuid === initialOrderUuid) {
-          setInitialSelectionLoaded(true);
-        }
       } catch (loadError) {
         showToast({
           title: t("cancelSale.loadFailed"),
@@ -126,7 +123,7 @@ export function CancelSalePage({
         });
       }
     },
-    [branchUuid, dateSelect, initialOrderUuid, language, limit, loadBills, orderBy, page, resetBills, selectedOrderUuid, showToast, t]
+    [branchUuid, dateSelect, language, limit, loadBills, orderBy, page, resetBills, selectedOrderUuid, showToast, t]
   );
 
   useEffect(() => {
@@ -138,20 +135,32 @@ export function CancelSalePage({
     if (!loading && page > safeTotalPages) goToPage(safeTotalPages);
   });
 
-  useEffect(() => {
-    if (!initialOrderUuid || !initialSelectionLoaded || initialCancelHandledRef.current) return;
-    if (detailOrderUuid !== initialOrderUuid) return;
+  useResetOnDeps([
+    detailCanCancel,
+    detailLoading,
+    detailOrderUuid,
+    error,
+    initialCancelHandled,
+    initialOrderUuid,
+  ], () => {
+    if (!shouldOpenInitialCancelDialog({
+      alreadyHandled: initialCancelHandled,
+      detailLoading,
+      detailOrderUuid,
+      error,
+      initialOrderUuid,
+    })) return;
 
-    initialCancelHandledRef.current = true;
+    setInitialCancelHandled(true);
     if (!detailCanCancel) return;
 
     setCancelReason("");
     setReasonTouched(false);
     setCancelOpen(true);
-  }, [detailCanCancel, detailOrderUuid, initialOrderUuid, initialSelectionLoaded]);
+  });
 
   function resetSelection() {
-    initialCancelHandledRef.current = true;
+    setInitialCancelHandled(true);
     setMobileDetailOpen(false);
     setSelectedOrderUuid("");
     clearSelectedBill();
@@ -177,7 +186,7 @@ export function CancelSalePage({
   function selectBill(bill: CancelableBill) {
     const uuid = billUuid(bill);
     if (!uuid) return;
-    if (uuid !== initialOrderUuid) initialCancelHandledRef.current = true;
+    if (uuid !== initialOrderUuid) setInitialCancelHandled(true);
     setSelectedOrderUuid(uuid);
     setMobileDetailOpen(shouldOpenMobileDetail());
   }

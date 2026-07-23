@@ -50,6 +50,7 @@ import {
   isHexColor,
   mergeProductFormToppingPrices,
   nextBulkStockMode,
+  nextProductHydrationPlan,
   normalizeDetailsForStatus,
   productCategoryUuid,
   productColorValue,
@@ -143,7 +144,10 @@ export function useProductFormWorkflow() {
     [isEditing, prodUuid, rows]
   );
   const editingHydrationKey = useMemo(() => productHydrationKey(editing), [editing]);
-  const hydratedEditableProductUuidRef = useRef("");
+  const [
+    hydratedEditableProductUuid,
+    setHydratedEditableProductUuid,
+  ] = useState("");
   const editDataReady = !isEditing || Boolean(editing);
 
   const [prodCode, setProdCode] = useState(generateProdCode);
@@ -249,7 +253,7 @@ export function useProductFormWorkflow() {
     t,
     toppings
   });
-  const [editLoadKey, setEditLoadKey] = useState("");
+  const editLoadKeyRef = useRef("");
   const rawExistingImage = rawProductImage(editing);
   const { productImagePayload, selectedImagePreview } = useProductImageWorkflow({
     colorValue,
@@ -270,7 +274,7 @@ export function useProductFormWorkflow() {
     const storage = browserProductFormStorage();
     if (!storage) return;
     setStoredDefaults(readProductFormDefaults(storage, storeUuid));
-  });
+  }, { runOnMount: true });
 
   useEffect(() => {
     if (saveNotice !== "saved") return;
@@ -286,19 +290,19 @@ export function useProductFormWorkflow() {
   useResetOnDeps([colors, colorValue], () => {
     const matched = colors.find((color) => colorCode(color).toLowerCase() === colorValue.toLowerCase());
     setColorChoice(matched?.color_uuid ?? CUSTOM_COLOR_VALUE);
-  });
+  }, { runOnMount: true });
 
   useEffect(() => {
     if (!isEditing) {
-      setEditLoadKey("");
+      editLoadKeyRef.current = "";
       return;
     }
     if (!user?.branch_uuid || hasEditableProductData(editing)) return;
 
     const nextEditLoadKey = `${prodUuid}:${language}:${user.branch_uuid}`;
-    if (editLoadKey === nextEditLoadKey) return;
+    if (editLoadKeyRef.current === nextEditLoadKey) return;
 
-    setEditLoadKey(nextEditLoadKey);
+    editLoadKeyRef.current = nextEditLoadKey;
     void loadProducts({
       branch_uuid_fk: user.branch_uuid,
       cate_uuid_fk: "",
@@ -319,20 +323,28 @@ export function useProductFormWorkflow() {
           tone: "error"
         });
       });
-  }, [editLoadKey, editing, isEditing, language, loadProducts, prodUuid, showToast, t, user?.branch_uuid]);
+  }, [editing, isEditing, language, loadProducts, prodUuid, showToast, t, user?.branch_uuid]);
 
-  useEffect(() => {
-    hydratedEditableProductUuidRef.current = "";
-  }, [prodUuid]);
-
-  useEffect(() => {
-    if (!editing) return;
-    const editingProductUuid = String(editing.prod_uuid ?? prodUuid);
+  useResetOnDeps([editing, editingHydrationKey, prodUuid], () => {
+    const editingProductUuid = editing
+      ? String(editing.prod_uuid ?? prodUuid)
+      : "";
     const hasFullEditData = hasEditableProductData(editing);
-
-    if (hasFullEditData && hydratedEditableProductUuidRef.current === editingProductUuid) {
-      return;
+    const hydrationPlan = nextProductHydrationPlan({
+      editingProductUuid,
+      hasEditingProduct: Boolean(editing),
+      hasFullEditData,
+      hydratedProductUuid: hydratedEditableProductUuid,
+      routeProductUuid: prodUuid,
+    });
+    if (
+      hydrationPlan.hydratedProductUuid !== hydratedEditableProductUuid
+    ) {
+      setHydratedEditableProductUuid(
+        hydrationPlan.hydratedProductUuid,
+      );
     }
+    if (!editing || !hydrationPlan.shouldHydrate) return;
 
     setProdCode(String(editing.prod_code ?? generateProdCode()));
     setProdNameLa(String(editing.prod_name_la ?? editing.prod_name ?? ""));
@@ -356,10 +368,7 @@ export function useProductFormWorkflow() {
     if (editing.details?.length) {
       setDetails(editing.details.map((detail) => detailFromProduct(detail, nextStatus)));
     }
-    if (hasFullEditData) {
-      hydratedEditableProductUuidRef.current = editingProductUuid;
-    }
-  }, [editing, editingHydrationKey, prodUuid, setDetails]);
+  }, { runOnMount: true });
 
   function changeStatusSort(value: StatusSortFk) {
     setDetails((current) => normalizeDetailsForStatus(current, value, statusSortFk));
@@ -760,27 +769,35 @@ export function useProductFormWorkflow() {
     return productUnitUuid(editing) || findOptionByText(unitOptions, editing, UNIT_NAME_KEYS, unitUuid);
   }, [editing, unitOptions]);
 
-  useEffect(() => {
-    if (!editing || cateUuidFk || !editingCategoryUuid) return;
-    setCateUuidFk(editingCategoryUuid);
-  }, [cateUuidFk, editing, editingCategoryUuid]);
-
-  useEffect(() => {
-    if (!editing || uniteUuidFk || !editingUnitUuid) return;
-    setUniteUuidFk(editingUnitUuid);
-  }, [editing, editingUnitUuid, uniteUuidFk]);
-
-  useEffect(() => {
+  useResetOnDeps([
+    availableStoredDefaults.cateUuidFk,
+    cateUuidFk,
+    editing,
+    editingCategoryUuid,
+    isEditing,
+  ], () => {
+    if (editing && !cateUuidFk && editingCategoryUuid) {
+      setCateUuidFk(editingCategoryUuid);
+    }
     if (isEditing && (!editing || editingCategoryUuid)) return;
     if (cateUuidFk || !availableStoredDefaults.cateUuidFk) return;
     setCateUuidFk(availableStoredDefaults.cateUuidFk);
-  }, [availableStoredDefaults.cateUuidFk, cateUuidFk, editing, editingCategoryUuid, isEditing]);
+  }, { runOnMount: true });
 
-  useEffect(() => {
+  useResetOnDeps([
+    availableStoredDefaults.uniteUuidFk,
+    editing,
+    editingUnitUuid,
+    isEditing,
+    uniteUuidFk,
+  ], () => {
+    if (editing && !uniteUuidFk && editingUnitUuid) {
+      setUniteUuidFk(editingUnitUuid);
+    }
     if (isEditing && (!editing || editingUnitUuid)) return;
     if (uniteUuidFk || !availableStoredDefaults.uniteUuidFk) return;
     setUniteUuidFk(availableStoredDefaults.uniteUuidFk);
-  }, [availableStoredDefaults.uniteUuidFk, editing, editingUnitUuid, isEditing, uniteUuidFk]);
+  }, { runOnMount: true });
 
   return {
     t,

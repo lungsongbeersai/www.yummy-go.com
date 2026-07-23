@@ -9,7 +9,13 @@ import {
   type CateWithProducts,
   type PosTable,
 } from "@/services/pos";
-import { optionalString } from "@/lib/values";
+import {
+  countPosMenuProducts,
+  emptyPosMenuBySort,
+  firstPosMenuStatusWithProducts,
+  nextPosMenuCategoryUuid,
+  type PosMenuBySort,
+} from "@/stores/pos-store/helpers";
 
 export const ProductSortStatus = ProductSortStatusValue;
 export type ProductSortStatus = ProductSortStatusType;
@@ -27,7 +33,7 @@ export const SORT_TABS: Array<{
   { labelKey: "pos.menuPromotion", status: ProductSortStatus.PROMOTION },
 ];
 
-export type MenuBySort = Record<ProductSortStatus, CateWithProducts[]>;
+export type MenuBySort = PosMenuBySort;
 export type ProductCardEntry = {
   cateUuid: string;
   product: CateProductItem;
@@ -50,11 +56,7 @@ export type ProductCardPrice =
 export type Translate = (key: string) => string;
 
 export function emptyMenuBySort(): MenuBySort {
-  return {
-    [ProductSortStatus.NORMAL]: [],
-    [ProductSortStatus.SET]: [],
-    [ProductSortStatus.PROMOTION]: [],
-  };
+  return emptyPosMenuBySort();
 }
 
 export function flattenProducts(
@@ -69,17 +71,11 @@ export function flattenProducts(
 }
 
 export function countProducts(categories: CateWithProducts[]) {
-  return categories.reduce(
-    (sum, category) => sum + (category.products?.length ?? 0),
-    0,
-  );
+  return countPosMenuProducts(categories);
 }
 
 export function firstStatusWithProducts(menuBySort: MenuBySort) {
-  return (
-    SORT_TABS.find((tab) => countProducts(menuBySort[tab.status]) > 0)
-      ?.status ?? ProductSortStatus.NORMAL
-  );
+  return firstPosMenuStatusWithProducts(menuBySort);
 }
 
 export function selectedOrderTable({
@@ -138,11 +134,10 @@ export function nextMenuCategoryUuid({
   requestedCateUuid?: string | null;
   selectedCateUuid?: string | null;
 }) {
-  return (
-    optionalString(requestedCateUuid) ??
-    optionalString(selectedCateUuid) ??
-    optionalString(defaultCateUuid) ??
-    optionalString(categories[0]?.cate_uuid) ??
-    ""
-  );
+  return nextPosMenuCategoryUuid({
+    categories,
+    defaultCateUuid,
+    requestedCateUuid,
+    selectedCateUuid,
+  });
 }

@@ -2,9 +2,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { resolvePrinterDeviceContext } from "@/services/printer";
 import {
   confirmToKitchen,
+  fetchCateProducts,
+  getPosTables,
   reprintReceipt,
   splitBill,
+  ProductSortStatus,
+  type CateWithProducts,
   type ConfirmToKitchenResponse,
+  type PosZone,
   type ReprintReceiptResponse,
   type SplitBillResponse
 } from "@/services/pos";
@@ -25,16 +30,22 @@ vi.mock("@/services/pos", async (importOriginal) => {
   return {
     ...actual,
     confirmToKitchen: vi.fn(),
+    fetchCateProducts: vi.fn(),
+    getPosTables: vi.fn(),
     reprintReceipt: vi.fn(),
     splitBill: vi.fn()
   };
 });
 
 const confirmToKitchenMock = vi.mocked(confirmToKitchen);
+const fetchCateProductsMock = vi.mocked(fetchCateProducts);
+const getPosTablesMock = vi.mocked(getPosTables);
 const reprintReceiptMock = vi.mocked(reprintReceipt);
 const splitBillMock = vi.mocked(splitBill);
 const resolvePrinterDeviceContextMock = vi.mocked(resolvePrinterDeviceContext);
 const originalExecuteKitchen = usePrinterStore.getState().executeKitchen;
+const originalLoadProductCategories =
+  usePosStore.getState().loadProductCategories;
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -42,6 +53,22 @@ function deferred<T>() {
     resolve = done;
   });
   return { promise, resolve };
+}
+
+function zone(zoneUuid: string): PosZone {
+  return {
+    zone_uuid: zoneUuid,
+    zone_name: zoneUuid,
+    tables: []
+  };
+}
+
+function category(cateUuid: string): CateWithProducts {
+  return {
+    cate_uuid: cateUuid,
+    cate_name: cateUuid,
+    products: []
+  };
 }
 
 describe("POS store session follow-up requests", () => {
@@ -244,5 +271,278 @@ describe("POS store session follow-up requests", () => {
     response.resolve({ print_job: { print_job_uuid: "job-1" } });
 
     await expect(reprint).rejects.toThrow("Session changed while the request was in progress");
+  });
+});
+
+describe("POS store menu and table browse state", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    fetchCateProductsMock.mockReset();
+    getPosTablesMock.mockReset();
+    usePosStore.setState({
+      loadProductCategories: originalLoadProductCategories,
+    });
+    usePosStore.getState().reset();
+  });
+
+  it("initializes and resets menu and full-zone option state", () => {
+    expect(usePosStore.getState()).toMatchObject({
+      activeSort: ProductSortStatus.NORMAL,
+      categories: [],
+      loadingMenu: false,
+      menuBySort: {
+        [ProductSortStatus.NORMAL]: [],
+        [ProductSortStatus.SET]: [],
+        [ProductSortStatus.PROMOTION]: []
+      },
+      selectedCateUuid: "",
+      submittedSearch: "",
+      zoneOptions: []
+    });
+
+    usePosStore.setState({
+      activeSort: ProductSortStatus.SET,
+      categories: [category("category-1")],
+      loadingMenu: true,
+      selectedCateUuid: "category-1",
+      submittedSearch: "tea",
+      zoneOptions: [zone("zone-1")]
+    });
+    usePosStore.getState().reset();
+
+    expect(usePosStore.getState()).toMatchObject({
+      activeSort: ProductSortStatus.NORMAL,
+      categories: [],
+      loadingMenu: false,
+      selectedCateUuid: "",
+      submittedSearch: "",
+      zoneOptions: []
+    });
+  });
+
+  it("keeps full zone options while filtered loads replace only visible zones", async () => {
+    const fullZones = [zone("zone-1"), zone("zone-2")];
+    const filteredZones = [zone("zone-2")];
+    getPosTablesMock
+      .mockResolvedValueOnce({ status: "success", message: "ok", data: fullZones })
+      .mockResolvedValueOnce({ status: "success", message: "ok", data: filteredZones });
+
+    await usePosStore.getState().loadTables({
+      branch_uuid_fk: "branch-1",
+      lang: "en"
+    });
+    expect(usePosStore.getState()).toMatchObject({
+      zones: fullZones,
+      zoneOptions: fullZones
+    });
+
+    await usePosStore.getState().loadTables({
+      branch_uuid_fk: "branch-1",
+      zone_uuid: "zone-2",
+      lang: "en"
+    });
+    expect(usePosStore.getState()).toMatchObject({
+      zones: filteredZones,
+      zoneOptions: fullZones
+    });
+  });
+
+  it("updates full zone options only for unfiltered refreshes", async () => {
+    const originalOptions = [zone("zone-original")];
+    const filteredZones = [zone("zone-filtered")];
+    const refreshedFullZones = [zone("zone-full")];
+    usePosStore.setState({ zoneOptions: originalOptions });
+    getPosTablesMock
+      .mockResolvedValueOnce({ status: "success", message: "ok", data: filteredZones })
+      .mockResolvedValueOnce({ status: "success", message: "ok", data: refreshedFullZones });
+
+    await usePosStore.getState().refreshTables({
+      branch_uuid_fk: "branch-1",
+      zone_uuid: "zone-filtered",
+      lang: "en"
+    });
+    expect(usePosStore.getState()).toMatchObject({
+      zones: filteredZones,
+      zoneOptions: originalOptions
+    });
+
+    await usePosStore.getState().refreshTables({
+      branch_uuid_fk: "branch-1",
+      lang: "en"
+    });
+    expect(usePosStore.getState()).toMatchObject({
+      zones: refreshedFullZones,
+      zoneOptions: refreshedFullZones
+    });
+  });
+
+  it("drops full-zone results returned after a session reset", async () => {
+    const response = deferred<Awaited<ReturnType<typeof getPosTables>>>();
+    getPosTablesMock.mockReturnValueOnce(response.promise);
+
+    const load = usePosStore.getState().loadTables({
+      branch_uuid_fk: "branch-1",
+      lang: "en"
+    });
+    resetSessionStores();
+    response.resolve({
+      status: "success",
+      message: "ok",
+      data: [zone("stale-zone")]
+    });
+
+    await expect(load).resolves.toEqual([zone("stale-zone")]);
+    expect(usePosStore.getState()).toMatchObject({
+      zones: [],
+      zoneOptions: []
+    });
+  });
+
+  it("loads catalog and sorted menu groups into store-owned state", async () => {
+    const catalog = [category("category-1"), category("category-2")];
+    const normalMenu = [category("normal")];
+    const setMenu = [category("set")];
+    const promotionMenu = [category("promotion")];
+    fetchCateProductsMock
+      .mockResolvedValueOnce({
+        status: "success",
+        message: "ok",
+        data: catalog,
+        default_cate_uuid: "category-2"
+      })
+      .mockResolvedValueOnce({ status: "success", message: "ok", data: normalMenu })
+      .mockResolvedValueOnce({ status: "success", message: "ok", data: setMenu })
+      .mockResolvedValueOnce({ status: "success", message: "ok", data: promotionMenu });
+
+    await usePosStore.getState().loadMenu({
+      branchUuid: "branch-1",
+      language: "en",
+      refreshCategories: true
+    });
+
+    expect(usePosStore.getState()).toMatchObject({
+      activeSort: ProductSortStatus.NORMAL,
+      categories: catalog,
+      loadingMenu: false,
+      menuBySort: {
+        [ProductSortStatus.NORMAL]: normalMenu,
+        [ProductSortStatus.SET]: setMenu,
+        [ProductSortStatus.PROMOTION]: promotionMenu
+      },
+      selectedCateUuid: "category-2",
+      submittedSearch: ""
+    });
+    expect(fetchCateProductsMock).toHaveBeenNthCalledWith(2, {
+      branch_uuid_fk: "branch-1",
+      cate_uuid: "category-2",
+      lang: "en",
+      search: "",
+      status_sort_fk: ProductSortStatus.NORMAL
+    });
+  });
+
+  it("delegates menu requests through the store action and clears loading on rejection", async () => {
+    const loadError = new Error("menu failed");
+    const loadProductCategories = vi.fn().mockRejectedValue(loadError);
+    fetchCateProductsMock.mockRejectedValue(loadError);
+    usePosStore.setState({ loadProductCategories });
+
+    await expect(
+      usePosStore.getState().loadMenu({
+        branchUuid: "branch-1",
+        language: "en",
+        refreshCategories: true
+      })
+    ).rejects.toThrow("menu failed");
+
+    expect(loadProductCategories).toHaveBeenCalledOnce();
+    expect(usePosStore.getState()).toMatchObject({
+      error: "menu failed",
+      loadingMenu: false
+    });
+  });
+
+  it("resets route-local menu fields without clearing table state", () => {
+    const store = usePosStore.getState();
+
+    const retainedZones = [zone("zone-1")];
+    usePosStore.setState({
+      activeSort: ProductSortStatus.SET,
+      categories: [category("category-1")],
+      loadingMenu: true,
+      menuBySort: {
+        [ProductSortStatus.NORMAL]: [category("normal")],
+        [ProductSortStatus.SET]: [category("set")],
+        [ProductSortStatus.PROMOTION]: [category("promotion")],
+      },
+      selectedCateUuid: "category-1",
+      submittedSearch: "tea",
+      tableName: "Table 1",
+      tableUuid: "table-1",
+      zones: retainedZones,
+    });
+
+    store.resetMenu();
+
+    expect(usePosStore.getState()).toMatchObject({
+      activeSort: ProductSortStatus.NORMAL,
+      categories: [],
+      loadingMenu: false,
+      menuBySort: {
+        [ProductSortStatus.NORMAL]: [],
+        [ProductSortStatus.SET]: [],
+        [ProductSortStatus.PROMOTION]: [],
+      },
+      selectedCateUuid: "",
+      submittedSearch: "",
+      tableName: "Table 1",
+      tableUuid: "table-1",
+      zones: retainedZones,
+    });
+  });
+
+  it("does not repopulate menu state when a route-local request finishes after reset", async () => {
+    const store = usePosStore.getState();
+
+    const catalogResponse =
+      deferred<Awaited<ReturnType<typeof fetchCateProducts>>>();
+    fetchCateProductsMock
+      .mockReturnValueOnce(catalogResponse.promise)
+      .mockResolvedValue({
+        status: "success",
+        message: "ok",
+        data: [category("stale-menu")],
+      });
+
+    const load = store.loadMenu({
+      branchUuid: "branch-1",
+      language: "en",
+      refreshCategories: true,
+    });
+    await vi.waitFor(() =>
+      expect(fetchCateProductsMock).toHaveBeenCalledOnce(),
+    );
+
+    store.resetMenu();
+    catalogResponse.resolve({
+      status: "success",
+      message: "ok",
+      data: [category("category-1")],
+      default_cate_uuid: "category-1",
+    });
+    await load;
+
+    expect(usePosStore.getState()).toMatchObject({
+      activeSort: ProductSortStatus.NORMAL,
+      categories: [],
+      loadingMenu: false,
+      menuBySort: {
+        [ProductSortStatus.NORMAL]: [],
+        [ProductSortStatus.SET]: [],
+        [ProductSortStatus.PROMOTION]: [],
+      },
+      selectedCateUuid: "",
+      submittedSearch: "",
+    });
   });
 });

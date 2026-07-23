@@ -162,6 +162,63 @@ export function visibleProductCountForCategory(
   return totalProducts > 0 ? Math.min(productRenderChunk, totalProducts) : 0;
 }
 
+export function nextPublicMenuCategoryReset({
+  categoryOrderKey,
+  defaultCateUuid,
+  menuCategories,
+  previousCategoryOrderKey,
+  productRenderChunk,
+  selectedCateUuid,
+}: {
+  categoryOrderKey: string;
+  defaultCateUuid: string;
+  menuCategories: CateWithProducts[];
+  previousCategoryOrderKey: string | null;
+  productRenderChunk: number;
+  selectedCateUuid: string;
+}) {
+  if (previousCategoryOrderKey === categoryOrderKey) return null;
+
+  const requestedCateUuid =
+    selectedCateUuid || defaultCateUuid || menuCategories[0]?.cate_uuid || "";
+  const firstCategory =
+    menuCategories.find(
+      (category) => category.cate_uuid === requestedCateUuid,
+    ) ?? menuCategories[0];
+
+  if (!firstCategory) {
+    return {
+      activeCateUuid: "",
+      categoryOrderKey,
+      renderedCateUuids: [],
+      visibleProductCountByCate: {},
+    };
+  }
+
+  const visibleCount = visibleProductCountForCategory(
+    firstCategory,
+    productRenderChunk,
+  );
+
+  return {
+    activeCateUuid: firstCategory.cate_uuid,
+    categoryOrderKey,
+    renderedCateUuids: [firstCategory.cate_uuid],
+    visibleProductCountByCate:
+      visibleCount > 0 ? { [firstCategory.cate_uuid]: visibleCount } : {},
+  };
+}
+
+export function missingPublicMenuCategoryRefUuids<T>(
+  categoryRefs: Record<string, T>,
+  liveCateUuids: readonly string[],
+) {
+  const liveCateUuidSet = new Set(liveCateUuids);
+  return Object.keys(categoryRefs).filter(
+    (cateUuid) => !liveCateUuidSet.has(cateUuid),
+  );
+}
+
 export function getCategoryPathUuids({
   activeCateUuid,
   targetCateUuid,

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useResetOnChange } from "@/hooks/use-reset-on-change";
 import type { CartOrder, FetchCartParams } from "@/services/pos";
 
 type CartPanelData = CartOrder | CartOrder[] | null;
@@ -80,19 +81,27 @@ export function useSelectedTableCart({
     [refreshCartForTable, selectedTableUuid]
   );
 
+  const selectedRequestKey = cartRequestKey(selectedTableUuid, language);
+  useResetOnChange(selectedRequestKey, () => {
+    setCart(null);
+    setLoading(false);
+  });
+
   useEffect(() => {
     if (!selectedTableUuid) {
-      clearCart();
+      latestRequestIdRef.current += 1;
+      latestRequestedKeyRef.current = "";
+      setStoreCart(null);
       return;
     }
 
-    const selectedRequestKey = cartRequestKey(selectedTableUuid, language);
     if (latestRequestedKeyRef.current === selectedRequestKey) return;
 
-    setCart(null);
+    latestRequestIdRef.current += 1;
+    latestRequestedKeyRef.current = "";
     setStoreCart(null);
     void refreshSelectedCart().catch(onError);
-  }, [clearCart, language, onError, refreshSelectedCart, selectedTableUuid, setStoreCart]);
+  }, [onError, refreshSelectedCart, selectedRequestKey, selectedTableUuid, setStoreCart]);
 
   return {
     cart,
