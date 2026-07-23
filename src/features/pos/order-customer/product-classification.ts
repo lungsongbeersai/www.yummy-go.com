@@ -1,7 +1,7 @@
 import { type CateProductItem, type ProdDetail, type ProdItem } from "@/services/pos";
 import { optionalNumber, optionalString } from "@/lib/values";
 import {
-  getProductBlockedState,
+  getProductBlockedStateCore,
   isKnownModalProductCore,
 } from "@/lib/pos/product-classification";
 import {
@@ -13,10 +13,24 @@ import {
 import { isDetailAvailable } from "./product-availability";
 import { isToppingAvailable } from "./topping-selection";
 
-// P3.3: getProductBlockedState is byte-identical to public-pos/order's copy
-// and now lives in src/lib/pos/product-classification.ts; re-exported here
-// unchanged so the ~9 importers of this module don't need to change.
-export { getProductBlockedState };
+// Staff POS intentionally skips invalid numeric API values before applying
+// route fallbacks; shared classification receives only these resolved values.
+function staffProductStatusSort(
+  product: CateProductItem,
+  activeSort: ProductSortStatus,
+) {
+  return optionalNumber(product.status_sort_fk) ?? activeSort;
+}
+
+export function getProductBlockedState(
+  product: CateProductItem,
+  activeSort: ProductSortStatus,
+) {
+  return getProductBlockedStateCore(
+    product,
+    staffProductStatusSort(product, activeSort),
+  );
+}
 
 export function hasPromo(product: CateProductItem) {
   const promoState = String(product.promo_state ?? "")
@@ -27,17 +41,20 @@ export function hasPromo(product: CateProductItem) {
   );
 }
 
-// Diffing against public-pos/order/product-domain.ts's isKnownModalProduct
-// found the same 6 conditions, differing only in this hasPromo(product)
-// call — which itself has a whitespace-trim divergence between the two
-// trees (see the shared module's file comment). isKnownModalProductCore
-// takes that as an explicit parameter so this wrapper's own behavior is
-// unchanged.
 function isKnownModalProduct(
   product: CateProductItem,
   activeSort: ProductSortStatus,
 ) {
-  return isKnownModalProductCore(product, activeSort, hasPromo(product));
+  return isKnownModalProductCore({
+    allOptionCount: optionalNumber(product.count_option_all) ?? 1,
+    enabledOptionCount:
+      optionalNumber(product.count_option_enabled) ?? 1,
+    enabledToppingCount:
+      optionalNumber(product.count_topping_enabled) ?? 0,
+    hasOptions: product.has_options === true,
+    hasPromo: hasPromo(product),
+    productStatusSort: staffProductStatusSort(product, activeSort),
+  });
 }
 
 export function productBlockedLabel(

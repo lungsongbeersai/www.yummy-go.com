@@ -62,6 +62,10 @@ function product(overrides: Partial<CateProductItem> = {}): CateProductItem {
   };
 }
 
+function productStatus(value: unknown): CateProductItem["status_sort_fk"] {
+  return value as CateProductItem["status_sort_fk"];
+}
+
 function detail(overrides: Partial<ProdDetail> = {}): ProdDetail {
   return {
     pro_detail_uuid: "detail-1",
@@ -182,6 +186,64 @@ describe("order customer helpers", () => {
       ),
     ).toBe(false);
   });
+
+  it.each([
+    { label: "malformed", value: "not-a-status" },
+    { label: "empty", value: "" },
+    { label: "non-finite", value: Number.POSITIVE_INFINITY },
+  ])(
+    "keeps staff fallback behavior for $label product status",
+    ({ value }) => {
+      const statusSortFk = productStatus(value);
+
+      expect(
+        getProductBlockedState(
+          product({
+            promo_expired: true,
+            promo_msg: "",
+            promo_state: "NONE",
+            status_sort_fk: statusSortFk,
+          }),
+          ProductSortStatus.PROMOTION,
+        ),
+      ).toBe("promotion-ended");
+      expect(
+        getProductActionState(
+          product({ status_sort_fk: statusSortFk }),
+          ProductSortStatus.SET,
+        ),
+      ).toBe("choose");
+    },
+  );
+
+  it.each([
+    {
+      label: "enabled option count",
+      overrides: { count_option_enabled: Number.POSITIVE_INFINITY },
+    },
+    {
+      label: "all option count",
+      overrides: { count_option_all: Number.POSITIVE_INFINITY },
+    },
+    {
+      label: "enabled topping count",
+      overrides: { count_topping_enabled: Number.POSITIVE_INFINITY },
+    },
+    {
+      label: "NaN option count",
+      overrides: { count_option_enabled: Number.NaN },
+    },
+  ])(
+    "does not force staff choice for non-finite $label",
+    ({ overrides }) => {
+      expect(
+        getProductActionState(
+          product(overrides),
+          ProductSortStatus.NORMAL,
+        ),
+      ).toBe("add");
+    },
+  );
 
   it("builds truthful card prices without guessing a multi-size minimum", () => {
     expect(productOptionCount(product())).toBe(1);

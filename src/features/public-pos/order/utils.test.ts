@@ -98,6 +98,10 @@ function category(
   };
 }
 
+function productStatus(value: unknown): CateProductItem["status_sort_fk"] {
+  return value as CateProductItem["status_sort_fk"];
+}
+
 describe("public menu category reset helpers", () => {
   it("selects the initial rendered category only when category order changes", () => {
     const categories = [
@@ -284,6 +288,62 @@ describe("public POS product helpers", () => {
         normalStatus,
       ),
     ).toBe("blocked");
+  });
+
+  it.each([
+    { label: "malformed", value: "not-a-status" },
+    { label: "empty", value: "" },
+    { label: "non-finite", value: Number.POSITIVE_INFINITY },
+  ])(
+    "keeps public numeric coercion for $label product status",
+    ({ value }) => {
+      const statusSortFk = productStatus(value);
+
+      expect(
+        getProductBlockedState(
+          product({
+            promo_expired: true,
+            promo_msg: "",
+            promo_state: "NONE",
+            status_sort_fk: statusSortFk,
+          }),
+          promotionStatus,
+        ),
+      ).toBeNull();
+      expect(
+        getProductActionState(
+          product({ status_sort_fk: statusSortFk }),
+          setStatus,
+        ),
+      ).toBe("add");
+    },
+  );
+
+  it("keeps public non-finite count coercion behavior", () => {
+    expect(
+      getProductActionState(
+        product({ count_option_enabled: Number.POSITIVE_INFINITY }),
+        normalStatus,
+      ),
+    ).toBe("choose");
+    expect(
+      getProductActionState(
+        product({ count_option_all: Number.POSITIVE_INFINITY }),
+        normalStatus,
+      ),
+    ).toBe("choose");
+    expect(
+      getProductActionState(
+        product({ count_topping_enabled: Number.POSITIVE_INFINITY }),
+        normalStatus,
+      ),
+    ).toBe("choose");
+    expect(
+      getProductActionState(
+        product({ count_option_enabled: Number.NaN }),
+        normalStatus,
+      ),
+    ).toBe("view");
   });
 
   it("selects list action states from options, direct-add data, and fallback view", () => {

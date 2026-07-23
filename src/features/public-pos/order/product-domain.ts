@@ -2,10 +2,10 @@ import type { TFunction } from "i18next";
 import { OrderChannelEnum, OrderSourceEnum } from "@/config/pos-constants";
 import { formatMoney, formatShortDate } from "@/lib/format";
 import {
-  getProductBlockedState,
+  getProductBlockedStateCore,
   isKnownModalProductCore,
   isProductUnavailable,
-  isPromotionEnded,
+  isPromotionEndedCore,
 } from "@/lib/pos/product-classification";
 import {
   publicHasRemoteProductImage,
@@ -134,9 +134,9 @@ export function getPublicOrderPriceTotals({
 }
 
 // P3.3: NOT merged with pos/order-customer's identically-named
-// getProductModalMode — this version also checks product?.status_sort_fk
-// (not just the passed-in statusSortFk) and matches the Lao menu's "③"/"②"
-// glyph markers in type_group, neither of which the staff version does.
+// getProductModalMode — for status, this public version uses only the passed
+// statusSortFk and also matches the Lao menu's "③"/"②" glyph markers in
+// type_group; the staff version additionally checks product?.status_sort_fk.
 export function getProductModalMode(
   statusSortFk: number,
   product?: ProdItem | null,
@@ -229,12 +229,37 @@ export function toppingDisplayName(topping: ProdTopping, lang: string) {
   );
 }
 
-// P3.3: isProductUnavailable, isPromotionEnded, and getProductBlockedState
-// are byte-identical (modulo the ProductSortStatus vs PUBLIC_MENU_KIND
-// vocabulary, which resolve to the same numbers) to pos/order-customer's
-// copies and now live in src/lib/pos/product-classification.ts.
-// Re-exported here unchanged for API compatibility.
-export { getProductBlockedState, isProductUnavailable, isPromotionEnded };
+// Public ordering intentionally preserves direct Number(...) coercion from
+// its pre-P3.3 implementation; shared classification receives those resolved
+// values without imposing staff POS fallback semantics.
+function publicProductStatusSort(
+  product: CateProductItem,
+  activeStatusSortFk: number,
+) {
+  return Number(product.status_sort_fk ?? activeStatusSortFk);
+}
+
+export function isPromotionEnded(
+  product: CateProductItem,
+  activeStatusSortFk: number,
+) {
+  return isPromotionEndedCore(
+    product,
+    publicProductStatusSort(product, activeStatusSortFk),
+  );
+}
+
+export function getProductBlockedState(
+  product: CateProductItem,
+  activeStatusSortFk: number,
+) {
+  return getProductBlockedStateCore(
+    product,
+    publicProductStatusSort(product, activeStatusSortFk),
+  );
+}
+
+export { isProductUnavailable };
 
 export function productBlockedLabel(
   blockedState: ReturnType<typeof getProductBlockedState>,
@@ -257,20 +282,21 @@ export function getProductActionState(
   return "view";
 }
 
-// Same 6 conditions as pos/order-customer's isKnownModalProduct, differing
-// only in the hasPromo(product) call — which itself has a whitespace-trim
-// divergence between the two trees (see the shared module's file comment).
-// isKnownModalProductCore takes that as an explicit parameter so this
-// wrapper keeps its original 2-arg signature and behavior unchanged.
 export function isKnownModalProduct(
   product: CateProductItem,
   activeStatusSortFk: number,
 ) {
-  return isKnownModalProductCore(
-    product,
-    activeStatusSortFk,
-    hasPromo(product),
-  );
+  return isKnownModalProductCore({
+    allOptionCount: Number(product.count_option_all ?? 1),
+    enabledOptionCount: Number(product.count_option_enabled ?? 1),
+    enabledToppingCount: Number(product.count_topping_enabled ?? 0),
+    hasOptions: product.has_options === true,
+    hasPromo: hasPromo(product),
+    productStatusSort: publicProductStatusSort(
+      product,
+      activeStatusSortFk,
+    ),
+  });
 }
 
 export function hasPromo(product: CateProductItem) {

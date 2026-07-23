@@ -3,15 +3,19 @@ import type { CateProductItem } from "@/services/pos";
 
 /**
  * Shared "is this product blocked?" / "does it look like a modal-worthy
- * product?" rules, deduped from pos/order-customer/product-classification.ts
- * and public-pos/order/product-domain.ts, which mirrored this logic
- * near-verbatim (P3.3).
+ * product?" decisions for staff and public ordering.
+ *
+ * The two surfaces deliberately keep their own numeric coercion. Staff POS
+ * skips empty, malformed, and non-finite values before falling back; public
+ * ordering preserves direct Number(...) coercion. Callers resolve those
+ * values before entering this core so both surfaces retain their legacy
+ * behavior.
  *
  * hasPromo() is deliberately NOT here: the two trees' copies differ in a
  * whitespace-trim edge case on the free-text promo_state field (public-pos
  * doesn't trim, staff POS does), found while diffing byte-for-byte. Rather
  * than silently pick one, isKnownModalProductCore() below takes the
- * caller's own hasPromo(product) result as a parameter instead of calling
+ * caller's own hasPromo(product) result as an input instead of calling
  * hasPromo itself, so this file never has to choose between the two.
  *
  * canDirectAddFromList, productNeedsModal, getProductActionState's own
@@ -23,18 +27,15 @@ import type { CateProductItem } from "@/services/pos";
  * defined in its own tree. See the diff notes in those files.
  */
 
-function isPromotionEnded(
+export function isPromotionEndedCore(
   product: CateProductItem,
-  activeStatusSortFk: number,
+  productStatusSort: number,
 ) {
   if (product.promo_expired !== true) return false;
 
   const promoState = String(product.promo_state ?? "")
     .trim()
     .toUpperCase();
-  const productStatusSort = Number(
-    product.status_sort_fk ?? activeStatusSortFk,
-  );
   return (
     productStatusSort === ProductSortStatus.PROMOTION ||
     Boolean(promoState && promoState !== "NONE") ||
@@ -51,36 +52,42 @@ function isProductUnavailable(product: CateProductItem) {
   );
 }
 
-export function getProductBlockedState(
+export function getProductBlockedStateCore(
   product: CateProductItem,
-  activeStatusSortFk: number,
+  productStatusSort: number,
 ) {
-  if (isPromotionEnded(product, activeStatusSortFk)) return "promotion-ended";
+  if (isPromotionEndedCore(product, productStatusSort))
+    return "promotion-ended";
   if (isProductUnavailable(product)) return "sold-out";
   return null;
 }
 
-// hasPromoValue is supplied by the caller's own hasPromo(product) — see the
-// file comment above for why this isn't called internally.
 export function isKnownModalProductCore(
-  product: CateProductItem,
-  activeStatusSortFk: number,
-  hasPromoValue: boolean,
+  {
+    allOptionCount,
+    enabledOptionCount,
+    enabledToppingCount,
+    hasOptions,
+    hasPromo,
+    productStatusSort,
+  }: {
+    allOptionCount: number;
+    enabledOptionCount: number;
+    enabledToppingCount: number;
+    hasOptions: boolean;
+    hasPromo: boolean;
+    productStatusSort: number;
+  },
 ) {
-  const productStatusSort = Number(
-    product.status_sort_fk ?? activeStatusSortFk,
-  );
   return (
-    product.has_options === true ||
-    Number(product.count_option_enabled ?? 1) > 1 ||
-    Number(product.count_option_all ?? 1) > 1 ||
-    Number(product.count_topping_enabled ?? 0) > 0 ||
+    hasOptions ||
+    enabledOptionCount > 1 ||
+    allOptionCount > 1 ||
+    enabledToppingCount > 0 ||
     productStatusSort === ProductSortStatus.SET ||
     productStatusSort === ProductSortStatus.PROMOTION ||
-    hasPromoValue
+    hasPromo
   );
 }
 
-// Kept exported for API compatibility: public-pos/order/product-domain.ts
-// used to define + export these two directly.
-export { isPromotionEnded, isProductUnavailable };
+export { isProductUnavailable };
