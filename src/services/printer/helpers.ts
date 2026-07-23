@@ -1,6 +1,16 @@
 import { ServiceError } from "@/lib/api";
-import type { AckPayload, Printer, PrinterCategory } from "@/services/printer";
+// Import from types.ts (not the printer.ts barrel) to avoid a circular import:
+// printer.ts re-exports from this file, so importing back from printer.ts here
+// would create a cycle.
+import type { AckPayload, Printer, PrinterCategory } from "@/services/printer/types";
 import { stringArray } from "@/services/shared/validators";
+
+// Shared across the printer/ submodules (config-api, agent-transport, print-jobs).
+export const AGENT_SECRET = process.env.NEXT_PUBLIC_PRINTER_AGENT_SECRET ?? "";
+
+export function textValue(value: unknown) {
+  return String(value ?? "").trim();
+}
 
 export const getPrinterErrorMessage = (error: unknown) =>
   error instanceof Error ? error.message : typeof error === "string" ? error : "Unknown printer error";

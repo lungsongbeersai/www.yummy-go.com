@@ -1,7 +1,6 @@
 "use client";
 
 import { create } from "zustand";
-import { toApiLanguage } from "@/lib/language";
 import { emitTableAlert } from "@/lib/socket";
 import {
   type CartOrder,
@@ -24,8 +23,8 @@ import type {
 } from "@/services/public-pos";
 import {
   PUBLIC_MENU_KIND,
-  emptyProductBrowseState,
   emptyMenuByKind,
+  emptyProductBrowseState,
   emptyStatusMenu,
   firstAvailableCateUuid,
   menuSequenceKey,
@@ -45,6 +44,10 @@ import {
   type PublicPosCategoryTab,
   type PublicStatusMenu
 } from "@/stores/public-pos-store/helpers";
+import {
+  createPublicPosSessionCache,
+  emptyPublicPosSessionState
+} from "@/stores/public-pos-store/session-cache";
 import { errorMessage } from "@/stores/store-utils";
 
 export { PUBLIC_MENU_KIND, publicMenuKindToStatusSortFk };
@@ -58,190 +61,9 @@ function emitCustomerTableAlert(params: CustomerEmitTableStatusParams) {
   });
 }
 
-const MENU_CACHE_TTL_MS = 45_000;
-const PRODUCT_CACHE_TTL_MS = 120_000;
-const IDLE_PUBLIC_POS_REQUEST_STATE = {
-  loading: false,
-  loadingCart: false,
-  loadingItem: false,
-  loadingMenu: false,
-  saving: false,
-  confirming: false
-} as const;
-
-interface CacheEntry<T> {
-  expiresAt: number;
-  value: T;
-}
-
-type CateProductsResponse = Awaited<
-  ReturnType<typeof publicPosService.customerFetchCateProducts>
->;
-type ProductItemResponse = Awaited<
-  ReturnType<typeof publicPosService.customerGetProdItem>
->;
-
-let activeSessionToken = "";
-let activeSessionLanguage = toApiLanguage();
-// Version checks logically cancel requests when the underlying service promise cannot be aborted.
-let publicPosSessionVersion = 0;
-let publicPosCacheVersion = 0;
-let scanRequestVersion = 0;
-let cartRequestVersion = 0;
-let productItemRequestVersion = 0;
-let cartLoadPromise: Promise<CartOrder[]> | null = null;
-const menuProductsCache = new Map<string, CacheEntry<CateProductsResponse>>();
-const menuProductsPromises = new Map<string, Promise<CateProductsResponse>>();
-const productItemCache = new Map<string, CacheEntry<ProductItemResponse>>();
-const productItemPromises = new Map<string, Promise<ProductItemResponse>>();
-
-function clearPublicPosDataCache() {
-  publicPosCacheVersion += 1;
-  cartRequestVersion += 1;
-  productItemRequestVersion += 1;
-  cartLoadPromise = null;
-  menuProductsCache.clear();
-  menuProductsPromises.clear();
-  productItemCache.clear();
-  productItemPromises.clear();
-}
-
-function activatePublicPosSession(token: string, lang?: string) {
-  const language = toApiLanguage(lang);
-  if (activeSessionToken !== token || activeSessionLanguage !== language) {
-    activeSessionToken = token;
-    activeSessionLanguage = language;
-    publicPosSessionVersion += 1;
-    clearPublicPosDataCache();
-  }
-  return publicPosSessionVersion;
-}
-
-function activatePublicPosToken(token: string) {
-  if (activeSessionToken !== token) {
-    activeSessionToken = token;
-    publicPosSessionVersion += 1;
-    clearPublicPosDataCache();
-  }
-  return publicPosSessionVersion;
-}
-
-function isActivePublicPosSession(token: string, lang?: string) {
-  return (
-    activeSessionToken === token &&
-    activeSessionLanguage === toApiLanguage(lang)
-  );
-}
-
-function invalidatePublicPosSession() {
-  activeSessionToken = "";
-  activeSessionLanguage = toApiLanguage();
-  publicPosSessionVersion += 1;
-  scanRequestVersion += 1;
-  clearPublicPosDataCache();
-}
-
-function isCurrentPublicPosSession(version: number) {
-  return version === publicPosSessionVersion;
-}
-
-function emptyPublicPosSessionState() {
-  return {
-    ...IDLE_PUBLIC_POS_REQUEST_STATE,
-    tableName: "",
-    scan: null,
-    ...emptyProductBrowseState(),
-    selectedProduct: null,
-    cart: [],
-    cartStatusRule: null,
-    cartHydrated: false,
-    error: null
-  };
-}
-
-function cachedValue<T>(cache: Map<string, CacheEntry<T>>, key: string) {
-  const entry = cache.get(key);
-  if (!entry) return null;
-  if (entry.expiresAt <= Date.now()) {
-    cache.delete(key);
-    return null;
-  }
-  return entry.value;
-}
-
-function setCachedValue<T>(
-  cache: Map<string, CacheEntry<T>>,
-  key: string,
-  value: T,
-  ttlMs: number
-) {
-  cache.set(key, { expiresAt: Date.now() + ttlMs, value });
-}
-
-function productItemRequestKey(params: CustomerGetProdItemParams) {
-  return [
-    params.t,
-    params.lang ?? "",
-    params.prod_uuid,
-    params.cate_uuid ?? "",
-    params.search ?? "",
-    params.status_sort_fk ?? 1
-  ].join(":");
-}
-
-async function fetchMenuProductsCached(params: CustomerFetchCateProductsParams) {
-  const key = menuSequenceKey(params);
-  const cached = cachedValue(menuProductsCache, key);
-  if (cached) return cached;
-
-  const pending = menuProductsPromises.get(key);
-  if (pending) return pending;
-
-  const requestCacheVersion = publicPosCacheVersion;
-  const request = publicPosService.customerFetchCateProducts(params).then((result) => {
-    if (requestCacheVersion === publicPosCacheVersion) {
-      setCachedValue(menuProductsCache, key, result, MENU_CACHE_TTL_MS);
-    }
-    return result;
-  });
-
-  menuProductsPromises.set(key, request);
-  const clearPendingRequest = () => {
-    if (menuProductsPromises.get(key) === request) {
-      menuProductsPromises.delete(key);
-    }
-  };
-  void request.then(clearPendingRequest, clearPendingRequest);
-
-  return request;
-}
-
-async function fetchProductItemCached(params: CustomerGetProdItemParams) {
-  const key = productItemRequestKey(params);
-  const cached = cachedValue(productItemCache, key);
-  if (cached) return cached;
-
-  const pending = productItemPromises.get(key);
-  if (pending) return pending;
-
-  const requestCacheVersion = publicPosCacheVersion;
-  const request = publicPosService.customerGetProdItem(params).then((result) => {
-    if (requestCacheVersion === publicPosCacheVersion) {
-      setCachedValue(productItemCache, key, result, PRODUCT_CACHE_TTL_MS);
-    }
-    return result;
-  });
-
-  productItemPromises.set(key, request);
-  const clearPendingRequest = () => {
-    if (productItemPromises.get(key) === request) {
-      productItemPromises.delete(key);
-    }
-  };
-  void request.then(clearPendingRequest, clearPendingRequest);
-
-  return request;
-}
+// Session-versioning + request/response caching lives in session-cache.ts
+// (P3.4 split) — this file keeps only the Zustand wiring.
+const sessionCache = createPublicPosSessionCache();
 
 interface PublicPosState {
   token: string;
@@ -298,8 +120,8 @@ async function runSavingCartMutation<TResult>({
   set,
   token
 }: SavingCartMutationOptions<TResult>) {
-  const sessionChanged = !isActivePublicPosSession(token, lang);
-  const sessionVersion = activatePublicPosSession(token, lang);
+  const sessionChanged = !sessionCache.isActiveSession(token, lang);
+  const sessionVersion = sessionCache.activateSession(token, lang);
   set({
     ...(sessionChanged ? emptyPublicPosSessionState() : {}),
     saving: true,
@@ -309,16 +131,16 @@ async function runSavingCartMutation<TResult>({
 
   try {
     const result = await request();
-    if (!isCurrentPublicPosSession(sessionVersion)) return result;
+    if (!sessionCache.isCurrentSession(sessionVersion)) return result;
 
-    clearPublicPosDataCache();
+    sessionCache.clearDataCache();
     await get().loadCart({ t: token, lang }).catch(() => undefined);
-    if (isCurrentPublicPosSession(sessionVersion)) {
+    if (sessionCache.isCurrentSession(sessionVersion)) {
       set({ saving: false });
     }
     return result;
   } catch (error) {
-    if (isCurrentPublicPosSession(sessionVersion)) {
+    if (sessionCache.isCurrentSession(sessionVersion)) {
       set({ error: errorMessage(error), saving: false });
     }
     throw error;
@@ -329,8 +151,8 @@ export const usePublicPosStore = create<PublicPosState>((set, get) => ({
   token: "",
   ...emptyPublicPosSessionState(),
   setToken: (token) => {
-    const sessionChanged = activeSessionToken !== token;
-    activatePublicPosToken(token);
+    const sessionChanged = sessionCache.currentToken() !== token;
+    sessionCache.activateToken(token);
     set({
       ...(sessionChanged ? emptyPublicPosSessionState() : {}),
       token
@@ -341,8 +163,8 @@ export const usePublicPosStore = create<PublicPosState>((set, get) => ({
   setCart: (cart) => set({ cart }),
   setError: (error) => set({ error }),
   scanTable: async (token, lang) => {
-    const sessionVersion = activatePublicPosSession(token, lang);
-    const requestVersion = ++scanRequestVersion;
+    const sessionVersion = sessionCache.activateSession(token, lang);
+    const requestVersion = sessionCache.scanRequest.next();
 
     set({
       ...emptyPublicPosSessionState(),
@@ -352,8 +174,8 @@ export const usePublicPosStore = create<PublicPosState>((set, get) => ({
     try {
       const scan = await publicPosService.scanTableQR(token, lang);
       if (
-        requestVersion !== scanRequestVersion ||
-        !isCurrentPublicPosSession(sessionVersion)
+        !sessionCache.scanRequest.isCurrent(requestVersion) ||
+        !sessionCache.isCurrentSession(sessionVersion)
       ) {
         return scan;
       }
@@ -366,8 +188,8 @@ export const usePublicPosStore = create<PublicPosState>((set, get) => ({
       return scan;
     } catch (error) {
       if (
-        requestVersion === scanRequestVersion &&
-        isCurrentPublicPosSession(sessionVersion)
+        sessionCache.scanRequest.isCurrent(requestVersion) &&
+        sessionCache.isCurrentSession(sessionVersion)
       ) {
         set({
           error: errorMessage(error),
@@ -380,9 +202,9 @@ export const usePublicPosStore = create<PublicPosState>((set, get) => ({
     }
   },
   loadCart: async (params) => {
-    const sessionChanged = !isActivePublicPosSession(params.t, params.lang);
-    const sessionVersion = activatePublicPosSession(params.t, params.lang);
-    const requestVersion = ++cartRequestVersion;
+    const sessionChanged = !sessionCache.isActiveSession(params.t, params.lang);
+    const sessionVersion = sessionCache.activateSession(params.t, params.lang);
+    const requestVersion = sessionCache.cartRequest.next();
     set({
       ...(sessionChanged ? emptyPublicPosSessionState() : {}),
       loadingCart: true,
@@ -394,16 +216,16 @@ export const usePublicPosStore = create<PublicPosState>((set, get) => ({
       const cart = normalizeCartOrders(result);
       const cartStatusRule = normalizeCartStatusRule(result);
       if (
-        isCurrentPublicPosSession(sessionVersion) &&
-        requestVersion === cartRequestVersion
+        sessionCache.isCurrentSession(sessionVersion) &&
+        sessionCache.cartRequest.isCurrent(requestVersion)
       ) {
         set({ cart, cartStatusRule, loadingCart: false, cartHydrated: true });
       }
       return cart;
     } catch (error) {
       if (
-        isCurrentPublicPosSession(sessionVersion) &&
-        requestVersion === cartRequestVersion
+        sessionCache.isCurrentSession(sessionVersion) &&
+        sessionCache.cartRequest.isCurrent(requestVersion)
       ) {
         set({
           error: errorMessage(error),
@@ -416,30 +238,31 @@ export const usePublicPosStore = create<PublicPosState>((set, get) => ({
     }
   },
   ensureCartLoaded: async (params) => {
-    const sessionChanged = !isActivePublicPosSession(params.t, params.lang);
-    activatePublicPosSession(params.t, params.lang);
+    const sessionChanged = !sessionCache.isActiveSession(params.t, params.lang);
+    sessionCache.activateSession(params.t, params.lang);
     if (sessionChanged) {
       set({ ...emptyPublicPosSessionState(), token: params.t });
     }
     const state = get();
     if (!sessionChanged && state.cartHydrated) return state.cart;
 
-    if (!cartLoadPromise) {
-      const request = get().loadCart(params);
-      cartLoadPromise = request;
-      const clearPendingRequest = () => {
-        if (cartLoadPromise === request) {
-          cartLoadPromise = null;
-        }
-      };
-      void request.then(clearPendingRequest, clearPendingRequest);
-    }
+    const pendingRequest = sessionCache.getCartLoadPromise();
+    if (pendingRequest) return pendingRequest;
 
-    return cartLoadPromise;
+    const request = get().loadCart(params);
+    sessionCache.setCartLoadPromise(request);
+    const clearPendingRequest = () => {
+      if (sessionCache.getCartLoadPromise() === request) {
+        sessionCache.setCartLoadPromise(null);
+      }
+    };
+    void request.then(clearPendingRequest, clearPendingRequest);
+
+    return request;
   },
   loadMenuProducts: async (params) => {
-    const sessionChanged = !isActivePublicPosSession(params.t, params.lang);
-    const sessionVersion = activatePublicPosSession(params.t, params.lang);
+    const sessionChanged = !sessionCache.isActiveSession(params.t, params.lang);
+    const sessionVersion = sessionCache.activateSession(params.t, params.lang);
     const baseParams: CustomerFetchCateProductsParams = {
       t: params.t,
       lang: params.lang,
@@ -458,9 +281,9 @@ export const usePublicPosStore = create<PublicPosState>((set, get) => ({
     });
 
     try {
-      const result = await fetchMenuProductsCached(baseParams);
+      const result = await sessionCache.fetchMenuProducts(baseParams);
       if (
-        !isCurrentPublicPosSession(sessionVersion) ||
+        !sessionCache.isCurrentSession(sessionVersion) ||
         get().menuRequestKey !== sequenceKey
       ) {
         return get().menuByKind;
@@ -513,7 +336,7 @@ export const usePublicPosStore = create<PublicPosState>((set, get) => ({
     } catch (error) {
       const message = errorMessage(error);
       if (
-        isCurrentPublicPosSession(sessionVersion) &&
+        sessionCache.isCurrentSession(sessionVersion) &&
         get().menuRequestKey === sequenceKey
       ) {
         set({
@@ -526,8 +349,8 @@ export const usePublicPosStore = create<PublicPosState>((set, get) => ({
     }
   },
   loadNormalCategoryProducts: async (params) => {
-    const sessionChanged = !isActivePublicPosSession(params.t, params.lang);
-    const sessionVersion = activatePublicPosSession(params.t, params.lang);
+    const sessionChanged = !sessionCache.isActiveSession(params.t, params.lang);
+    const sessionVersion = sessionCache.activateSession(params.t, params.lang);
     const cateUuid = params.cate_uuid?.trim();
     if (!cateUuid) return get().menuByKind[PUBLIC_MENU_KIND.NORMAL];
 
@@ -567,8 +390,8 @@ export const usePublicPosStore = create<PublicPosState>((set, get) => ({
     }));
 
     try {
-      const result = await fetchMenuProductsCached(requestParams);
-      if (!isCurrentPublicPosSession(sessionVersion)) {
+      const result = await sessionCache.fetchMenuProducts(requestParams);
+      if (!sessionCache.isCurrentSession(sessionVersion)) {
         return get().menuByKind[PUBLIC_MENU_KIND.NORMAL];
       }
       const categories = normalizeCategories(result.data ?? []);
@@ -603,7 +426,7 @@ export const usePublicPosStore = create<PublicPosState>((set, get) => ({
       });
     } catch (error) {
       const message = errorMessage(error);
-      if (isCurrentPublicPosSession(sessionVersion)) {
+      if (sessionCache.isCurrentSession(sessionVersion)) {
         set((current) => ({
           menuByKind: {
             ...current.menuByKind,
@@ -624,9 +447,9 @@ export const usePublicPosStore = create<PublicPosState>((set, get) => ({
     return get().menuByKind[PUBLIC_MENU_KIND.NORMAL];
   },
   loadProductItem: async (params) => {
-    const sessionChanged = !isActivePublicPosSession(params.t, params.lang);
-    const sessionVersion = activatePublicPosSession(params.t, params.lang);
-    const requestVersion = ++productItemRequestVersion;
+    const sessionChanged = !sessionCache.isActiveSession(params.t, params.lang);
+    const sessionVersion = sessionCache.activateSession(params.t, params.lang);
+    const requestVersion = sessionCache.productItemRequest.next();
     set({
       ...(sessionChanged ? emptyPublicPosSessionState() : {}),
       loadingItem: true,
@@ -635,18 +458,18 @@ export const usePublicPosStore = create<PublicPosState>((set, get) => ({
       selectedProduct: null
     });
     try {
-      const selectedProduct = await fetchProductItemCached(params);
+      const selectedProduct = await sessionCache.fetchProductItem(params);
       if (
-        isCurrentPublicPosSession(sessionVersion) &&
-        requestVersion === productItemRequestVersion
+        sessionCache.isCurrentSession(sessionVersion) &&
+        sessionCache.productItemRequest.isCurrent(requestVersion)
       ) {
         set({ selectedProduct, loadingItem: false });
       }
       return selectedProduct;
     } catch (error) {
       if (
-        isCurrentPublicPosSession(sessionVersion) &&
-        requestVersion === productItemRequestVersion
+        sessionCache.isCurrentSession(sessionVersion) &&
+        sessionCache.productItemRequest.isCurrent(requestVersion)
       ) {
         set({ error: errorMessage(error), loadingItem: false });
       }
@@ -656,7 +479,7 @@ export const usePublicPosStore = create<PublicPosState>((set, get) => ({
   createOrder: (token, input) =>
     runSavingCartMutation({
       get,
-      lang: input.lang ?? get().scan?.lang ?? activeSessionLanguage,
+      lang: input.lang ?? get().scan?.lang ?? sessionCache.currentLanguage(),
       request: () => publicPosService.customerCreateOrder(token, input),
       set,
       token
@@ -664,7 +487,7 @@ export const usePublicPosStore = create<PublicPosState>((set, get) => ({
   updateQty: (params) =>
     runSavingCartMutation({
       get,
-      lang: get().scan?.lang ?? activeSessionLanguage,
+      lang: get().scan?.lang ?? sessionCache.currentLanguage(),
       request: () => publicPosService.customerUpdateQty(params),
       set,
       token: params.t
@@ -672,7 +495,7 @@ export const usePublicPosStore = create<PublicPosState>((set, get) => ({
   deleteItem: (params) =>
     runSavingCartMutation({
       get,
-      lang: get().scan?.lang ?? activeSessionLanguage,
+      lang: get().scan?.lang ?? sessionCache.currentLanguage(),
       request: () => publicPosService.customerDeleteOrderItem(params),
       set,
       token: params.t
@@ -680,15 +503,15 @@ export const usePublicPosStore = create<PublicPosState>((set, get) => ({
   updateNote: (params) =>
     runSavingCartMutation({
       get,
-      lang: get().scan?.lang ?? activeSessionLanguage,
+      lang: get().scan?.lang ?? sessionCache.currentLanguage(),
       request: () => publicPosService.customerUpdateOrderNote(params),
       set,
       token: params.t
     }),
   confirmKitchen: async (params) => {
-    const lang = get().scan?.lang ?? activeSessionLanguage;
-    const sessionChanged = !isActivePublicPosSession(params.t, lang);
-    const sessionVersion = activatePublicPosSession(params.t, lang);
+    const lang = get().scan?.lang ?? sessionCache.currentLanguage();
+    const sessionChanged = !sessionCache.isActiveSession(params.t, lang);
+    const sessionVersion = sessionCache.activateSession(params.t, lang);
     set({
       ...(sessionChanged ? emptyPublicPosSessionState() : {}),
       confirming: true,
@@ -702,9 +525,9 @@ export const usePublicPosStore = create<PublicPosState>((set, get) => ({
       void agent_id;
       void print_mode;
       const result = await publicPosService.customerConfirmKitchen(confirmPayload);
-      if (!isCurrentPublicPosSession(sessionVersion)) return result;
+      if (!sessionCache.isCurrentSession(sessionVersion)) return result;
 
-      clearPublicPosDataCache();
+      sessionCache.clearDataCache();
       if (scan?.branch_uuid_fk && scan.table_uuid) {
         await get().emitTableStatus({
           t: params.t,
@@ -712,15 +535,15 @@ export const usePublicPosStore = create<PublicPosState>((set, get) => ({
           table_uuid: scan.table_uuid
         }).catch(() => undefined);
       }
-      if (isCurrentPublicPosSession(sessionVersion)) {
+      if (sessionCache.isCurrentSession(sessionVersion)) {
         await get().loadCart({ t: params.t, lang }).catch(() => undefined);
       }
-      if (isCurrentPublicPosSession(sessionVersion)) {
+      if (sessionCache.isCurrentSession(sessionVersion)) {
         set({ confirming: false });
       }
       return result;
     } catch (error) {
-      if (isCurrentPublicPosSession(sessionVersion)) {
+      if (sessionCache.isCurrentSession(sessionVersion)) {
         set({ error: errorMessage(error), confirming: false });
       }
       throw error;
@@ -731,7 +554,7 @@ export const usePublicPosStore = create<PublicPosState>((set, get) => ({
     return publicPosService.customerEmitTableStatus(params);
   },
   reset: () => {
-    invalidatePublicPosSession();
+    sessionCache.invalidateSession();
     set({
       ...emptyPublicPosSessionState(),
       token: "",
