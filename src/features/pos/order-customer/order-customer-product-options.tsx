@@ -2,8 +2,9 @@
 
 import { useState, type ReactNode } from "react";
 import { useResetOnChange } from "@/hooks/use-reset-on-change";
-import { Check, Minus, Plus, X } from "lucide-react";
+import { AlertCircle, Check, Minus, Plus, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { Alert, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -372,13 +373,14 @@ export function ProductOptionsForm({
             </FieldGroup>
 
             {submitIssue ? (
-              <p
+              <Alert
                 id="product-options-error"
-                role="alert"
-                className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm font-bold text-destructive"
+                variant="destructive"
+                className="bg-destructive/5"
               >
-                {submitIssue}
-              </p>
+                <AlertCircle aria-hidden="true" />
+                <AlertTitle className="line-clamp-none">{submitIssue}</AlertTitle>
+              </Alert>
             ) : null}
           </div>
         </fieldset>
