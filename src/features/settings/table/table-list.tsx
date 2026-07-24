@@ -35,16 +35,11 @@ export function TableListSurface({
   allSelected,
   backgroundLoading,
   collapsedZones,
-  displayTotal,
   groupedRows,
-  page,
-  pageEnd,
-  pageStart,
   serviceChargeRateLabel,
   selectedRows,
   title,
   toolbar,
-  totalPages,
   zoneById,
   onDelete,
   onEdit,
@@ -57,16 +52,11 @@ export function TableListSurface({
   allSelected: boolean;
   backgroundLoading: boolean;
   collapsedZones: Set<string>;
-  displayTotal: number;
   groupedRows: TableGroupedRows;
-  page: number;
-  pageEnd: number;
-  pageStart: number;
   serviceChargeRateLabel: string;
   selectedRows: Set<string>;
   title: string;
   toolbar: ReactNode;
-  totalPages: number;
   zoneById: Map<string, Zone>;
   onDelete: (row: DiningTable) => void;
   onEdit: (row: DiningTable) => void;
@@ -98,9 +88,6 @@ export function TableListSurface({
               <p className="text-sm font-black">{t("settings.tableList")}</p>
               {groupToggleAction}
             </div>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              {t("common.showingRange", { start: pageStart, end: pageEnd, total: displayTotal })} - {t("common.page", { current: page, total: totalPages })}
-            </p>
           </div>
           <div className="min-w-0 xl:max-w-[48rem]">{toolbar}</div>
         </div>

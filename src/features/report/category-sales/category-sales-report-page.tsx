@@ -3,10 +3,10 @@
 import { useRef, useState } from "react";
 import { FolderTree } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { AppPagination } from "@/components/common/app-pagination";
 import { LoadingState } from "@/components/common/loading-state";
 import type { UrlPaginationState } from "@/lib/url-pagination";
 import { ReportPageShell } from "../shared/report-page-shell";
-import { ReportPagination } from "../shared/report-pagination";
 import { ReportTableCard } from "../shared/report-table-card";
 import {
   CategorySalesFilterSheet,
@@ -86,14 +86,10 @@ export function CategorySalesReportPage({ initialPagination }: { initialPaginati
           exportDisabled={report.exportDisabled}
           exporting={report.exporting}
           footer={
-            <ReportPagination
-              canGoBack={report.canGoBack}
-              canGoNext={report.canGoNext}
+            <AppPagination
               page={report.page}
               rangeLabel={report.paginationRangeLabel}
               totalPages={report.totalPages}
-              onBack={() => report.setPage((current) => Math.max(1, current - 1))}
-              onNext={() => report.setPage((current) => current + 1)}
               onPageChange={report.setPage}
             />
           }

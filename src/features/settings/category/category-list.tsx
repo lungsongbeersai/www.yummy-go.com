@@ -51,15 +51,11 @@ export function CategoryListSurface({
   backgroundLoading,
   dragEnabled,
   ids,
-  page,
-  pageEnd,
   pageStart,
   rows,
   selectedRows,
   title,
   toolbar,
-  total,
-  totalPages,
   onDelete,
   onEdit,
   onReorder,
@@ -70,15 +66,11 @@ export function CategoryListSurface({
   backgroundLoading: boolean;
   dragEnabled: boolean;
   ids: string[];
-  page: number;
-  pageEnd: number;
   pageStart: number;
   rows: Category[];
   selectedRows: Set<string>;
   title: string;
   toolbar: ReactNode;
-  total: number;
-  totalPages: number;
   onDelete: (row: Category) => void;
   onEdit: (row: Category) => void;
   onReorder: (nextRows: Category[]) => void;
@@ -108,9 +100,6 @@ export function CategoryListSurface({
         <div className="flex min-w-0 flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
           <div className="min-w-0">
             <p className="text-sm font-black">{t("settings.categoryList")}</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              {t("common.showingRange", { start: pageStart, end: pageEnd, total })} - {t("common.page", { current: page, total: totalPages })}
-            </p>
           </div>
           <div className="min-w-0 xl:max-w-[48rem]">{toolbar}</div>
         </div>

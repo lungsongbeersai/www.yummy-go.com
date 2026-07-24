@@ -37,15 +37,11 @@ export function StoreBranchListSurface({
   kind,
   labels,
   listTitle,
-  page,
-  pageEnd,
   pageStart,
   rowActions,
   rows,
   selectedRows,
   toolbar,
-  total,
-  totalPages,
   onToggleAllSelected,
   onToggleSelected
 }: {
@@ -56,29 +52,20 @@ export function StoreBranchListSurface({
   kind: StoreBranchKind;
   labels: StoreBranchLabels;
   listTitle: string;
-  page: number;
-  pageEnd: number;
   pageStart: number;
   rowActions: (row: StoreBranchSettingsRow) => ReactNode;
   rows: StoreBranchSettingsRow[];
   selectedRows: Set<string>;
   toolbar: ReactNode;
-  total: number;
-  totalPages: number;
   onToggleAllSelected: (checked: boolean) => void;
   onToggleSelected: (id: string, checked: boolean) => void;
 }) {
-  const { t } = useTranslation();
-
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="shrink-0 border-b border-border bg-card/95 px-3 py-2.5 backdrop-blur sm:px-4 lg:px-5">
         <div className="flex min-w-0 flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
           <div className="min-w-0">
             <p className="text-sm font-black">{listTitle}</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              {t("common.showingRange", { start: pageStart, end: pageEnd, total })} - {t("common.page", { current: page, total: totalPages })}
-            </p>
           </div>
           <div className="min-w-0 xl:max-w-[48rem]">{toolbar}</div>
         </div>

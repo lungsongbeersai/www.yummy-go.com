@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { CreditCard } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { AppPagination } from "@/components/common/app-pagination";
 import { Badge } from "@/components/ui/badge";
 import type { UrlPaginationState } from "@/lib/url-pagination";
 import {
@@ -14,7 +15,6 @@ import {
   PaymentMethodsTable,
 } from "./payment-methods-report-components";
 import { ReportPageShell } from "../shared/report-page-shell";
-import { ReportPagination } from "../shared/report-pagination";
 import { ReportTableCard } from "../shared/report-table-card";
 import { usePaymentMethodsReportWorkflow } from "./use-payment-methods-report-workflow";
 
@@ -104,14 +104,10 @@ export function PaymentMethodsReportPage({ initialPagination }: { initialPaginat
           exportDisabled={report.exportDisabled}
           exporting={report.exporting}
           footer={
-            <ReportPagination
-              canGoBack={report.canGoBack}
-              canGoNext={report.canGoNext}
+            <AppPagination
               page={report.page}
               rangeLabel={report.paginationRangeLabel}
               totalPages={report.totalPages}
-              onBack={() => report.setPage((current) => Math.max(1, current - 1))}
-              onNext={() => report.setPage((current) => current + 1)}
               onPageChange={report.setPage}
             />
           }

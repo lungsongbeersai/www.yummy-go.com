@@ -144,8 +144,6 @@ export function OptionSettingsPage<
     allSelected,
     applyFilters,
     backgroundLoading,
-    canGoBack,
-    canGoNext,
     changeLimit,
     deleteTarget,
     dialogOpen,
@@ -319,9 +317,6 @@ export function OptionSettingsPage<
         <div className="flex min-w-0 flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
           <div className="min-w-0">
             <p className="text-sm font-black">{listTitle}</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              {t("common.showingRange", { start: pageStart, end: pageEnd, total })} - {t("common.page", { current: page, total: totalPages })}
-            </p>
           </div>
           <div className="min-w-0 xl:max-w-[48rem]">{toolbar}</div>
         </div>
@@ -354,15 +349,11 @@ export function OptionSettingsPage<
         footer={
           rows.length ? (
             <SettingsPaginationFooter
-              canGoBack={canGoBack}
-              canGoNext={canGoNext}
               page={page}
               pageEnd={pageEnd}
               pageStart={pageStart}
               total={total}
               totalPages={totalPages}
-              onBack={() => setPage((current) => Math.max(1, current - 1))}
-              onNext={() => setPage((current) => Math.min(totalPages, current + 1))}
               onPageChange={setPage}
             />
           ) : undefined

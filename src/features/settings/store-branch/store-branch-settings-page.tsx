@@ -75,7 +75,6 @@ function StoreSettingsPage({ initialPagination }: { initialPagination: UrlPagina
     openEdit: controllerOpenEdit,
     orderBy,
     page,
-    pagingBusy,
     requestParams,
     rows,
     saving,
@@ -133,8 +132,6 @@ function StoreSettingsPage({ initialPagination }: { initialPagination: UrlPagina
   const total = canCreate ? controllerTotal : visibleRows.length;
   const totalPages = canCreate ? controllerTotalPages : 1;
   const { start: pageStart, end: pageEnd } = optionPageRange(visibleRows.length, page, pageSize);
-  const canGoBack = page > 1 && !pagingBusy;
-  const canGoNext = page < totalPages && !pagingBusy;
 
   function imageUrl(row: StoreBranchSettingsRow, rowKind: StoreBranchKind) {
     if (rowKind !== "store") return "";
@@ -289,15 +286,11 @@ function StoreSettingsPage({ initialPagination }: { initialPagination: UrlPagina
       kind="store"
       labels={labels}
       listTitle={listTitle}
-      page={page}
-      pageEnd={pageEnd}
       pageStart={pageStart}
       rowActions={rowActions}
       rows={visibleRows}
       selectedRows={selectedRows}
       toolbar={toolbar}
-      total={total}
-      totalPages={totalPages}
       onToggleAllSelected={toggleAll}
       onToggleSelected={toggleSelected}
     />
@@ -312,15 +305,11 @@ function StoreSettingsPage({ initialPagination }: { initialPagination: UrlPagina
         footer={
           visibleRows.length ? (
             <SettingsPaginationFooter
-              canGoBack={canGoBack}
-              canGoNext={canGoNext}
               page={page}
               pageEnd={pageEnd}
               pageStart={pageStart}
               total={total}
               totalPages={totalPages}
-              onBack={() => setPage((current) => Math.max(1, current - 1))}
-              onNext={() => setPage((current) => Math.min(totalPages, current + 1))}
               onPageChange={setPage}
             />
           ) : undefined
@@ -387,7 +376,6 @@ function BranchSettingsPage({ initialPagination }: { initialPagination: UrlPagin
     openEdit: controllerOpenEdit,
     orderBy,
     page,
-    pagingBusy,
     requestParams,
     rows,
     saving,
@@ -451,8 +439,6 @@ function BranchSettingsPage({ initialPagination }: { initialPagination: UrlPagin
   const total = canCreate ? controllerTotal : visibleRows.length;
   const totalPages = canCreate ? controllerTotalPages : 1;
   const { start: pageStart, end: pageEnd } = optionPageRange(visibleRows.length, page, pageSize);
-  const canGoBack = page > 1 && !pagingBusy;
-  const canGoNext = page < totalPages && !pagingBusy;
 
   function imageUrl(row: StoreBranchSettingsRow, rowKind: StoreBranchKind) {
     if (rowKind !== "branch") return "";
@@ -589,15 +575,11 @@ function BranchSettingsPage({ initialPagination }: { initialPagination: UrlPagin
       kind="branch"
       labels={labels}
       listTitle={listTitle}
-      page={page}
-      pageEnd={pageEnd}
       pageStart={pageStart}
       rowActions={rowActions}
       rows={visibleRows}
       selectedRows={selectedRows}
       toolbar={toolbar}
-      total={total}
-      totalPages={totalPages}
       onToggleAllSelected={toggleAll}
       onToggleSelected={toggleSelected}
     />
@@ -612,15 +594,11 @@ function BranchSettingsPage({ initialPagination }: { initialPagination: UrlPagin
         footer={
           visibleRows.length ? (
             <SettingsPaginationFooter
-              canGoBack={canGoBack}
-              canGoNext={canGoNext}
               page={page}
               pageEnd={pageEnd}
               pageStart={pageStart}
               total={total}
               totalPages={totalPages}
-              onBack={() => setPage((current) => Math.max(1, current - 1))}
-              onNext={() => setPage((current) => Math.min(totalPages, current + 1))}
               onPageChange={setPage}
             />
           ) : undefined

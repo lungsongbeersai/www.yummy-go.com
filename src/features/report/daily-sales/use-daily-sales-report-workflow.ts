@@ -190,8 +190,6 @@ export function useDailySalesReportWorkflow(
   const activePageLimit = pageLimitSize(appliedFilters.limit, visibleCount);
   const pageStart = visibleCount ? (page - 1) * activePageLimit + 1 : 0;
   const pageEnd = visibleCount ? pageStart + visibleCount - 1 : 0;
-  const canGoBack = page > 1 && !loading;
-  const canGoNext = page < totalPages && !loading;
   const exportDisabled =
     loading || Boolean(exporting) || !branchUuid || !rows.length;
   const exportSurfaceReady = Boolean(exportData);
@@ -749,8 +747,6 @@ export function useDailySalesReportWorkflow(
     branchLoading,
     branchOptions,
     branchUuid,
-    canGoBack,
-    canGoNext,
     canSelectBranch,
     cards,
     clearSelection,

@@ -70,7 +70,6 @@ export function TableSettingsPage({ initialPagination }: { initialPagination: Ur
     openEdit,
     orderBy,
     page,
-    pagingBusy,
     requestParams,
     requiredScopeDescription,
     rows: storeRows,
@@ -143,8 +142,6 @@ export function TableSettingsPage({ initialPagination }: { initialPagination: Ur
   const pageSize = optionPageSize(limit, rows.length);
   const totalPages = optionTotalPages(storeTotalPages, displayTotal, pageSize);
   const { start: pageStart, end: pageEnd } = optionPageRange(rows.length, page, pageSize);
-  const canGoBack = page > 1 && !pagingBusy;
-  const canGoNext = page < totalPages && !pagingBusy;
   const { allSelected, removeSelected, selectedRows, toggleAll, toggleSelected } =
     useOptionRowSelection(rows, tableId);
   const allCollapsed = tableGroups.length > 0 && tableGroups.every((group) => collapsedZones.has(group.zoneId));
@@ -306,16 +303,11 @@ export function TableSettingsPage({ initialPagination }: { initialPagination: Ur
       allSelected={allSelected}
       backgroundLoading={backgroundLoading}
       collapsedZones={collapsedZones}
-      displayTotal={displayTotal}
       groupedRows={groupedTableRows}
-      page={page}
-      pageEnd={pageEnd}
-      pageStart={pageStart}
       selectedRows={selectedRows}
       serviceChargeRateLabel={serviceChargeRateLabel}
       title={title}
       toolbar={toolbar}
-      totalPages={totalPages}
       zoneById={zoneById}
       onDelete={setDeleteTarget}
       onEdit={openEdit}
@@ -337,15 +329,11 @@ export function TableSettingsPage({ initialPagination }: { initialPagination: Ur
         footer={
           rows.length ? (
             <SettingsPaginationFooter
-              canGoBack={canGoBack}
-              canGoNext={canGoNext}
               page={page}
               pageEnd={pageEnd}
               pageStart={pageStart}
               total={displayTotal}
               totalPages={totalPages}
-              onBack={() => setPage((current) => Math.max(1, current - 1))}
-              onNext={() => setPage((current) => Math.min(totalPages, current + 1))}
               onPageChange={setPage}
             />
           ) : undefined

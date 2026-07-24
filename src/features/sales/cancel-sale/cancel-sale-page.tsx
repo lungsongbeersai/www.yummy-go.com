@@ -89,8 +89,6 @@ export function CancelSalePage({
   const reprintingReceipt = Boolean(detailOrderUuid && receiptPrintingOrderUuid === detailOrderUuid);
   const rowsRange = pageBounds(page, limit, bills.length, total);
   const safeTotalPages = Math.max(1, totalPages);
-  const canGoBack = page > 1 && !loading;
-  const canGoNext = page < safeTotalPages && !loading;
   const reasonInvalid = reasonTouched && !cancelReason.trim();
 
   const safeDateOptions = useMemo<CancelableDateOption[]>(() => {
@@ -297,16 +295,12 @@ export function CancelSalePage({
             onSelect={selectBill}
           />
           <SalesListPaginationFooter
-            canGoBack={canGoBack}
-            canGoNext={canGoNext}
             loading={loading}
             page={page}
             pageEnd={rowsRange.end}
             pageStart={rowsRange.start}
             total={total}
             totalPages={safeTotalPages}
-            onBack={() => goToPage(page - 1)}
-            onNext={() => goToPage(Math.min(safeTotalPages, page + 1))}
             onPageChange={goToPage}
           />
         </section>

@@ -57,7 +57,6 @@ export function CategorySettingsPage({ initialPagination }: { initialPagination:
     openEdit,
     orderBy,
     page,
-    pagingBusy,
     remove,
     requestParams,
     rows: storeRows,
@@ -112,8 +111,6 @@ export function CategorySettingsPage({ initialPagination }: { initialPagination:
   const dragEnabled = allRowsLoaded && rows.length > 1;
   const pageStart = rows.length ? (page - 1) * pageSize + 1 : 0;
   const pageEnd = rows.length ? pageStart + rows.length - 1 : 0;
-  const canGoBack = page > 1 && !pagingBusy;
-  const canGoNext = page < totalPages && !pagingBusy;
   const { allSelected, ids, selectedRows, toggleAll, toggleSelected } = useOptionRowSelection(rows, categoryId);
 
   // displayRows คือสำเนาไว้จัดลำดับแบบ optimistic ต้องรีเซ็ตเมื่อ store โหลดชุดใหม่
@@ -211,15 +208,11 @@ export function CategorySettingsPage({ initialPagination }: { initialPagination:
         footer={
           rows.length ? (
             <SettingsPaginationFooter
-              canGoBack={canGoBack}
-              canGoNext={canGoNext}
               page={page}
               pageEnd={pageEnd}
               pageStart={pageStart}
               total={total}
               totalPages={totalPages}
-              onBack={() => setPage((current) => Math.max(1, current - 1))}
-              onNext={() => setPage((current) => Math.min(totalPages, current + 1))}
               onPageChange={setPage}
             />
           ) : undefined
@@ -233,15 +226,11 @@ export function CategorySettingsPage({ initialPagination }: { initialPagination:
             backgroundLoading={backgroundLoading}
             dragEnabled={dragEnabled}
             ids={ids}
-            page={page}
-            pageEnd={pageEnd}
             pageStart={pageStart}
             rows={rows}
             selectedRows={selectedRows}
             title={title}
             toolbar={toolbar}
-            total={total}
-            totalPages={totalPages}
             onDelete={setDeleteTarget}
             onEdit={openEdit}
             onReorder={(nextRows) => {

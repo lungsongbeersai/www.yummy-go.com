@@ -493,12 +493,11 @@ export function SettingsMobileMeta({ label, value }: { label: ReactNode; value: 
 export function SettingsPaginationFooter({
   onPageChange,
   page,
+  pageEnd,
+  pageStart,
+  total,
   totalPages
 }: {
-  canGoBack: boolean;
-  canGoNext: boolean;
-  onBack: () => void;
-  onNext: () => void;
   onPageChange: (page: number) => void;
   page: number;
   pageEnd: number;
@@ -506,10 +505,13 @@ export function SettingsPaginationFooter({
   total: number;
   totalPages: number;
 }) {
+  const { t } = useTranslation();
+
   return (
     <div className="shrink-0 border-t border-border px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] text-sm text-muted-foreground">
       <AppPagination
         page={page}
+        rangeLabel={t("common.showingRange", { start: pageStart, end: pageEnd, total })}
         totalPages={totalPages}
         onPageChange={onPageChange}
       />

@@ -51,8 +51,6 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
     allSelected,
     applyFilters,
     backgroundLoading,
-    canGoBack,
-    canGoNext,
     changeLimit,
     deleteTarget,
     dialogOpen,
@@ -207,16 +205,12 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
       allSelected={allSelected}
       backgroundLoading={backgroundLoading}
       currentLoginUuid={currentLoginUuid}
-      page={page}
-      pageEnd={pageEnd}
       pageStart={pageStart}
       profileUrl={userProfileUrl}
       rows={rows}
       selectedRows={selectedRows}
       title={title}
       toolbar={toolbar}
-      total={total}
-      totalPages={totalPages}
       onDelete={setDeleteTarget}
       onEdit={openEdit}
       onToggleAll={toggleAll}
@@ -235,15 +229,11 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
         footer={
           rows.length ? (
             <SettingsPaginationFooter
-              canGoBack={canGoBack}
-              canGoNext={canGoNext}
               page={page}
               pageEnd={pageEnd}
               pageStart={pageStart}
               total={total}
               totalPages={totalPages}
-              onBack={() => setPage((current) => Math.max(1, current - 1))}
-              onNext={() => setPage((current) => Math.min(totalPages, current + 1))}
               onPageChange={setPage}
             />
           ) : undefined

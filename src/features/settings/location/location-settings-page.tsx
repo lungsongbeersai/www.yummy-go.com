@@ -70,8 +70,6 @@ function ProvinceSettingsPage({ initialPagination }: { initialPagination: UrlPag
     allSelected,
     applyFilters,
     backgroundLoading,
-    canGoBack,
-    canGoNext,
     changeLimit,
     deleteTarget,
     dialogOpen,
@@ -189,8 +187,6 @@ function ProvinceSettingsPage({ initialPagination }: { initialPagination: UrlPag
       kind="province"
       labels={labels}
       listTitle={listTitle}
-      page={page}
-      pageEnd={pageEnd}
       pageStart={pageStart}
       provinceById={provinceById}
       refreshLabel={refreshLabel}
@@ -198,8 +194,6 @@ function ProvinceSettingsPage({ initialPagination }: { initialPagination: UrlPag
       selectedRows={selectedRows}
       title={title}
       toolbar={toolbar}
-      total={total}
-      totalPages={totalPages}
       onDelete={handleDeleteTarget}
       onEdit={handleEdit}
       onToggleAll={toggleAll}
@@ -220,15 +214,11 @@ function ProvinceSettingsPage({ initialPagination }: { initialPagination: UrlPag
         footer={
           rows.length ? (
             <SettingsPaginationFooter
-              canGoBack={canGoBack}
-              canGoNext={canGoNext}
               page={page}
               pageEnd={pageEnd}
               pageStart={pageStart}
               total={total}
               totalPages={totalPages}
-              onBack={() => setPage((current) => Math.max(1, current - 1))}
-              onNext={() => setPage((current) => Math.min(totalPages, current + 1))}
               onPageChange={setPage}
             />
           ) : undefined
@@ -294,8 +284,6 @@ function DistrictSettingsPage({ initialPagination }: { initialPagination: UrlPag
     allSelected,
     applyFilters,
     backgroundLoading,
-    canGoBack,
-    canGoNext,
     changeLimit,
     deleteTarget,
     dialogOpen,
@@ -444,8 +432,6 @@ function DistrictSettingsPage({ initialPagination }: { initialPagination: UrlPag
       kind="district"
       labels={labels}
       listTitle={listTitle}
-      page={page}
-      pageEnd={pageEnd}
       pageStart={pageStart}
       provinceById={provinceById}
       refreshLabel={refreshLabel}
@@ -453,8 +439,6 @@ function DistrictSettingsPage({ initialPagination }: { initialPagination: UrlPag
       selectedRows={selectedRows}
       title={title}
       toolbar={toolbar}
-      total={total}
-      totalPages={totalPages}
       onDelete={handleDeleteTarget}
       onEdit={handleEdit}
       onToggleAll={toggleAll}
@@ -475,15 +459,11 @@ function DistrictSettingsPage({ initialPagination }: { initialPagination: UrlPag
         footer={
           rows.length ? (
             <SettingsPaginationFooter
-              canGoBack={canGoBack}
-              canGoNext={canGoNext}
               page={page}
               pageEnd={pageEnd}
               pageStart={pageStart}
               total={total}
               totalPages={totalPages}
-              onBack={() => setPage((current) => Math.max(1, current - 1))}
-              onNext={() => setPage((current) => Math.min(totalPages, current + 1))}
               onPageChange={setPage}
             />
           ) : undefined

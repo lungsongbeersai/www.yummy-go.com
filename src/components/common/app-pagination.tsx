@@ -30,6 +30,7 @@ type AppPaginationProps = {
   disabled?: boolean;
   onPageChange: (page: number) => void;
   page: number;
+  rangeLabel?: string;
   totalPages: number;
 };
 
@@ -39,6 +40,7 @@ export function AppPagination({
   disabled = false,
   onPageChange,
   page,
+  rangeLabel,
   totalPages,
 }: AppPaginationProps) {
   const { t } = useTranslation();
@@ -51,13 +53,18 @@ export function AppPagination({
   return (
     <div
       className={cn(
-        "flex gap-2 text-sm text-muted-foreground",
+        "flex flex-wrap gap-2 text-sm text-muted-foreground",
         compact
           ? "flex-row items-center justify-between"
           : "flex-row items-center justify-between",
         className,
       )}
     >
+      {rangeLabel ? (
+        <p className="min-w-0 flex-1 truncate text-xs font-medium text-muted-foreground max-sm:basis-full">
+          {rangeLabel}
+        </p>
+      ) : null}
       <div className="flex min-w-0 shrink-0 items-center gap-1.5 sm:gap-2">
         <span className="font-semibold text-foreground">
           {t("common.pageLabel")}

@@ -105,8 +105,6 @@ export function useSettingsCrudController<
   const fullLoading = loading && !hasLoaded;
   const backgroundLoading = refreshing || (loading && hasLoaded);
   const pagingBusy = loading || refreshing;
-  const canGoBack = page > 1 && !pagingBusy;
-  const canGoNext = page < totalPages && !pagingBusy;
   const rowId = useCallback((row: Row) => optionValue(row, idKey), [idKey]);
   const { allSelected, ids, removeSelected, selectedRows, toggleAll, toggleSelected } = useOptionRowSelection(rows, rowId);
 
@@ -208,8 +206,6 @@ export function useSettingsCrudController<
     allSelected,
     applyFilters,
     backgroundLoading,
-    canGoBack,
-    canGoNext,
     changeLimit,
     deleteTarget,
     dialogOpen,

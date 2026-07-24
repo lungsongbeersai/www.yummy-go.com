@@ -35,8 +35,6 @@ export function LocationListSurface({
   kind,
   labels,
   listTitle,
-  page,
-  pageEnd,
   pageStart,
   provinceById,
   refreshLabel,
@@ -44,8 +42,6 @@ export function LocationListSurface({
   selectedRows,
   title,
   toolbar,
-  total,
-  totalPages,
   onDelete,
   onEdit,
   onToggleAll,
@@ -62,8 +58,6 @@ export function LocationListSurface({
   kind: LocationKind;
   labels: LocationLabels;
   listTitle: string;
-  page: number;
-  pageEnd: number;
   pageStart: number;
   provinceById: Map<string, LocationSettingsRow>;
   refreshLabel: string;
@@ -71,8 +65,6 @@ export function LocationListSurface({
   selectedRows: Set<string>;
   title: string;
   toolbar: ReactNode;
-  total: number;
-  totalPages: number;
   onDelete: (row: LocationSettingsRow) => void;
   onEdit: (row: LocationSettingsRow) => void;
   onToggleAll: (checked: boolean) => void;
@@ -104,9 +96,6 @@ export function LocationListSurface({
               <p className="text-sm font-black">{listTitle}</p>
               {groupToggleAction}
             </div>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              {t("common.showingRange", { start: pageStart, end: pageEnd, total })} - {t("common.page", { current: page, total: totalPages })}
-            </p>
           </div>
           <div className="min-w-0 xl:max-w-[48rem]">{toolbar}</div>
         </div>

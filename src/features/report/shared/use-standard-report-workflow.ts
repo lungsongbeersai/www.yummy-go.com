@@ -110,8 +110,6 @@ export interface StandardReportWorkflowResult<
   branchOptions: { label: string; value: string }[];
   branchUuid: string;
   canApply: boolean;
-  canGoBack: boolean;
-  canGoNext: boolean;
   canSelectBranch: boolean;
   defaultBranchUuid: string;
   draftFilters: Filters;
@@ -196,8 +194,6 @@ export function useStandardReportWorkflow<
   const pageEnd = config.total
     ? Math.min((page - 1) * activePageLimit + config.visibleRowCount, config.total)
     : 0;
-  const canGoBack = page > 1 && !config.loading;
-  const canGoNext = page < config.totalPages && !config.loading;
   const paginationRangeLabel = t("common.showingRange", {
     start: pageStart,
     end: pageEnd,
@@ -306,8 +302,6 @@ export function useStandardReportWorkflow<
     branchOptions,
     branchUuid,
     canApply,
-    canGoBack,
-    canGoNext,
     canSelectBranch,
     defaultBranchUuid,
     draftFilters,

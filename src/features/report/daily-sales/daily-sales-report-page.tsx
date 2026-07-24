@@ -3,11 +3,11 @@
 import { type CSSProperties, useRef, useState } from "react";
 import { BarChart3, Eye, EyeOff, RefreshCcw, SlidersHorizontal } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { AppPagination } from "@/components/common/app-pagination";
 import { FilterHeaderToolbar } from "@/components/common/filter-header-toolbar";
 import { Button } from "@/components/ui/button";
 import type { UrlPaginationState } from "@/lib/url-pagination";
 import { ReportError } from "../shared/report-error";
-import { ReportPagination } from "../shared/report-pagination";
 import {
   DailySalesSummaryCards,
   DailySalesTableCard,
@@ -158,14 +158,10 @@ export function DailySalesReportPage({
               onTypePageChange: (typePage) => report.applyTableHeaderFilters({ typePage }),
             }}
             footer={
-              <ReportPagination
-                canGoBack={report.canGoBack}
-                canGoNext={report.canGoNext}
+              <AppPagination
                 page={report.page}
                 rangeLabel={report.paginationRangeLabel}
                 totalPages={report.totalPages}
-                onBack={() => report.setPage((current) => Math.max(1, current - 1))}
-                onNext={() => report.setPage((current) => current + 1)}
                 onPageChange={report.setPage}
               />
             }
