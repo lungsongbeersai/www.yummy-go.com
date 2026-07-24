@@ -1,21 +1,10 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type FormEvent,
-} from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { useTranslation } from "react-i18next";
 import { Save } from "lucide-react";
 import { BackButton } from "@/components/common/back-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Checkbox, type CheckboxProps } from "@/components/ui/checkbox";
 import {
   Field,
   FieldDescription,
@@ -34,528 +23,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
-import {
-  AGENT_URL,
-  BROWSER_PRINTER_AGENT_URL,
-  isBrowserPrinterAgentId,
-  parseInterfaceValue,
-  tcpInterfaceValue,
-} from "@/config/printer-agent";
-import type {
-  AgentInfo,
-  Printer,
-  SearchPrinterResult,
-} from "@/services/printer";
-import type { Category } from "@/services/category";
-import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
-import { usePrinterStore } from "@/stores/printer-store";
-import { useReferenceStore } from "@/stores/reference-store";
-import { useToastStore } from "@/stores/toast-store";
-import { useResetOnDeps } from "@/hooks/use-reset-on-change";
-
-const EMPTY_CATEGORIES: Category[] = [];
-
-type ConnectType = "usb" | "tcp";
-
-interface CheckboxOption {
-  label: string;
-  value: string;
-}
-
-function safeId(prefix: string, value: string) {
-  return `${prefix}-${value.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
-}
-
-function toggleValue(values: string[], value: string) {
-  return values.includes(value)
-    ? values.filter((item) => item !== value)
-    : [...values, value];
-}
-
-function toggleAllValues(
-  values: string[],
-  options: CheckboxOption[],
-  checked: boolean,
-) {
-  const optionValues = options.map((option) => option.value);
-  if (checked) {
-    const selected = new Set(values);
-    return [
-      ...values,
-      ...optionValues.filter((value) => !selected.has(value)),
-    ];
-  }
-
-  const optionSet = new Set(optionValues);
-  return values.filter((value) => !optionSet.has(value));
-}
-
-function textValue(value: unknown) {
-  return value === null || value === undefined ? "" : String(value);
-}
-
-function categoryLabel(category: Category, language: string) {
-  const english = language.startsWith("en");
-  const primary = english ? category.cate_name_eng : category.cate_name_la;
-  const fallback = english ? category.cate_name_la : category.cate_name_eng;
-  return primary || fallback || category.cate_name || category.cate_uuid;
-}
-
-function categoryUuids(printer: Printer | null) {
-  if (!printer) return [];
-  if (printer.cate_uuid_fk.length) return printer.cate_uuid_fk;
-  return (
-    printer.categories?.map((category) => category.cate_uuid).filter(Boolean) ??
-    []
-  );
-}
-
-// ค่าฟอร์มที่คำนวณจากเครื่องพิมพ์ที่กำลังแก้ไข (null = โหมดเพิ่มใหม่)
-// แยกออกมาเพื่อใช้ซ้ำได้ทั้งตอน seed useState ครั้งแรกและตอนรีเซ็ตระหว่าง render
-function printerFormValues(printer: Printer | null) {
-  const parsed = parseInterfaceValue(printer?.interface_value ?? "");
-  const connectType: ConnectType = printer
-    ? printer.connect_type === "usb"
-      ? "usb"
-      : "tcp"
-    : "tcp";
-
-  return {
-    connectType,
-    displayName: printer?.printer_name ?? "",
-    interfaceValue:
-      connectType === "usb" ? (printer?.interface_value ?? "") : "",
-    ip: connectType === "tcp" ? (parsed.ip ?? "") : "",
-    port: String(connectType === "tcp" ? (parsed.port ?? 9100) : 9100),
-    paperWidth: String(printer?.paper_width_mm ?? 80),
-    selectedRoles: printer?.role_codes ?? [],
-    selectedCategories: categoryUuids(printer),
-    selectedDevice: "",
-    agentUrl: textValue(printer?.agent_url) || AGENT_URL,
-    agentId: printer?.agent_id ?? "",
-    agentName: printer?.agent_name ?? "",
-    deviceCode: printer?.device_code ?? "",
-  };
-}
-
-// printer-store เป็น store ระดับโมดูล ข้อมูลจากหน้า list จึงค้างอยู่ตอนเข้าหน้าฟอร์ม
-// ทำให้ editing/agent มีค่าตั้งแต่ render แรก — เดิมมี effect สองตัวทำงานต่อกันหลัง mount
-// จึงรวมลำดับเดิม (เติมจากเรคคอร์ดก่อน แล้วค่อยเติมช่อง agent ที่ยังว่าง) ไว้ที่นี่
-function initialPrinterFormValues(
-  printer: Printer | null,
-  agent: AgentInfo | null,
-  isEditing: boolean,
-) {
-  const values = printerFormValues(printer);
-  if (!agent || isEditing) return values;
-
-  return {
-    ...values,
-    agentUrl: values.agentUrl || AGENT_URL,
-    agentId: values.agentId || textValue(agent.agent_id),
-    agentName: values.agentName || textValue(agent.agent_name),
-    deviceCode: values.deviceCode || textValue(agent.device_code),
-  };
-}
-
-function IndeterminateCheckbox({
-  indeterminate = false,
-  ...props
-}: CheckboxProps & { indeterminate?: boolean }) {
-  const checkboxRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (checkboxRef.current) {
-      checkboxRef.current.indeterminate = indeterminate;
-    }
-  }, [indeterminate]);
-
-  return (
-    <Checkbox
-      ref={checkboxRef}
-      aria-checked={indeterminate ? "mixed" : props.checked ? "true" : "false"}
-      {...props}
-    />
-  );
-}
-
-function CheckboxOptionList({
-  description,
-  emptyLabel,
-  legend,
-  name,
-  options,
-  selectAllLabel,
-  selected,
-  onToggle,
-  onToggleAll,
-}: {
-  description: string;
-  emptyLabel: string;
-  legend: string;
-  name: string;
-  options: CheckboxOption[];
-  selectAllLabel: string;
-  selected: string[];
-  onToggle: (value: string) => void;
-  onToggleAll: (checked: boolean) => void;
-}) {
-  const optionValues = options.map((option) => option.value);
-  const selectedCount = optionValues.filter((value) =>
-    selected.includes(value),
-  ).length;
-  const allSelected = selectedCount === options.length;
-  const someSelected = selectedCount > 0 && !allSelected;
-  const selectAllId = safeId(name, "select-all");
-
-  return (
-    <FieldSet className="gap-4 rounded-lg border border-border bg-card p-4">
-      <div>
-        <FieldLegend className="mb-1 text-sm font-black">{legend}</FieldLegend>
-        <FieldDescription>{description}</FieldDescription>
-      </div>
-      {options.length ? (
-        <div className="grid gap-2 sm:grid-cols-2">
-          <Field
-            orientation="horizontal"
-            className="rounded-md border border-border bg-muted/30 p-3 sm:col-span-2"
-          >
-            <IndeterminateCheckbox
-              id={selectAllId}
-              checked={allSelected}
-              indeterminate={someSelected}
-              onChange={(event) => onToggleAll(event.currentTarget.checked)}
-            />
-            <FieldLabel htmlFor={selectAllId} className="font-black">
-              {selectAllLabel}
-            </FieldLabel>
-          </Field>
-          {options.map((option) => {
-            const id = safeId(name, option.value);
-            return (
-              <Field
-                key={option.value}
-                orientation="horizontal"
-                className="rounded-md border border-border p-3"
-              >
-                <Checkbox
-                  id={id}
-                  checked={selected.includes(option.value)}
-                  onChange={() => onToggle(option.value)}
-                />
-                <FieldLabel htmlFor={id}>{option.label}</FieldLabel>
-              </Field>
-            );
-          })}
-        </div>
-      ) : (
-        <FieldDescription>{emptyLabel}</FieldDescription>
-      )}
-    </FieldSet>
-  );
-}
+import type { SearchPrinterResult } from "@/services/printer";
+import { CheckboxOptionList } from "./printer-form-fields";
+import { toggleAllValues, toggleValue, type ConnectType } from "./printer-form-utils";
+import { usePrinterForm } from "./use-printer-form";
 
 export function PrinterFormPage() {
-  const { i18n, t } = useTranslation();
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const printConfigUuid = searchParams.get("print_config_uuid") ?? "";
-  const isEditing = Boolean(printConfigUuid);
-  const user = useAuthStore((state) => state.user);
-  const showToast = useToastStore((state) => state.show);
-  const printers = usePrinterStore((state) => state.printers);
-  const found = usePrinterStore((state) => state.found);
-  const roles = usePrinterStore((state) => state.roles);
-  const agent = usePrinterStore((state) => state.agent);
-  const loading = usePrinterStore((state) => state.loading);
-  const searching = usePrinterStore((state) => state.searching);
-  const saving = usePrinterStore((state) => state.saving);
-  const loadPrintersForLocalAgent = usePrinterStore(
-    (state) => state.loadPrintersForLocalAgent,
-  );
-  const loadRoles = usePrinterStore((state) => state.loadRoles);
-  const discoverPrinters = usePrinterStore((state) => state.discover);
-  const savePrinter = usePrinterStore((state) => state.save);
-  const resolveDeviceIdentity = usePrinterStore(
-    (state) => state.resolveDeviceIdentity,
-  );
-  const categories = (useReferenceStore((state) => state.options.categories) ??
-    EMPTY_CATEGORIES) as Category[];
-  const loadCategories = useReferenceStore((state) => state.loadCategories);
-
-  const language = i18n.language;
-  const storeUuid = authStoreUuid(user);
-  const editing = useMemo(
-    () =>
-      printers.find(
-        (printer) => printer.print_config_uuid === printConfigUuid,
-      ) ?? null,
-    [printConfigUuid, printers],
-  );
-  const roleOptions = useMemo(
-    () =>
-      roles
-        .map((role) => ({ label: role.role_name, value: role.role_code }))
-        .filter((role) => role.value),
-    [roles],
-  );
-  const categoryOptions = useMemo(
-    () =>
-      categories
-        .map((category) => ({
-          label: categoryLabel(category, language),
-          value: category.cate_uuid,
-        }))
-        .filter((category) => category.value),
-    [categories, language],
-  );
-
-  // seed จาก store ที่อาจมีข้อมูลค้างอยู่แล้วตั้งแต่ render แรก (เข้าจากหน้า list)
-  // แทนที่ effect เดิมซึ่ง setState หลัง mount — ผลลัพธ์เท่ากันแต่ไม่มี cascading render
-  const [initialForm] = useState(() =>
-    initialPrinterFormValues(editing, agent, isEditing),
-  );
-  const [connectType, setConnectType] = useState<ConnectType>(
-    initialForm.connectType,
-  );
-  const [displayName, setDisplayName] = useState(initialForm.displayName);
-  const [interfaceValue, setInterfaceValue] = useState(
-    initialForm.interfaceValue,
-  );
-  const [ip, setIp] = useState(initialForm.ip);
-  const [port, setPort] = useState(initialForm.port);
-  const [paperWidth, setPaperWidth] = useState(initialForm.paperWidth);
-  const [selectedRoles, setSelectedRoles] = useState<string[]>(
-    initialForm.selectedRoles,
-  );
-  const [selectedCategories, setSelectedCategories] = useState<string[]>(
-    initialForm.selectedCategories,
-  );
-  const [selectedDevice, setSelectedDevice] = useState(
-    initialForm.selectedDevice,
-  );
-  const [agentUrl, setAgentUrl] = useState(initialForm.agentUrl);
-  const [agentId, setAgentId] = useState(initialForm.agentId);
-  const [agentName, setAgentName] = useState(initialForm.agentName);
-  const [deviceCode, setDeviceCode] = useState(initialForm.deviceCode);
-  // ผลค้นหา USB ที่ค้างอยู่ใน store ถือว่าค้นหาเสร็จแล้ว (เดิมเป็น effect ที่ทำงานตอน mount)
-  const [usbSearchComplete, setUsbSearchComplete] = useState(
-    () => initialForm.connectType === "usb" && found.length > 0,
-  );
-  const [usbSearchError, setUsbSearchError] = useState("");
-  const autoUsbSearchDone = useRef(false);
-
-  const fillAgent = useCallback((nextAgent: AgentInfo, nextAgentUrl = AGENT_URL) => {
-    setAgentUrl(
-      isBrowserPrinterAgentId(nextAgent.agent_id)
-        ? BROWSER_PRINTER_AGENT_URL
-        : nextAgentUrl,
-    );
-    setAgentId(textValue(nextAgent.agent_id));
-    setAgentName(textValue(nextAgent.agent_name));
-    setDeviceCode(textValue(nextAgent.device_code));
-  }, []);
-
-  // ดึง uuid ออกมาเป็นตัวแปรก่อน เพราะถ้าอ้าง user?.uuid ภายใน callback
-  // React Compiler จะ infer dependency เป็น object `user` ทั้งก้อน ไม่ตรงกับ dependency array
-  const userUuid = user?.uuid;
-
-  const loadFormData = useCallback(async () => {
-    if (!userUuid) return;
-    try {
-      await Promise.all([
-        loadPrintersForLocalAgent({ login_uuid_fk: userUuid, lang: language }),
-        loadRoles(language),
-        storeUuid ? loadCategories(language, storeUuid) : Promise.resolve([]),
-      ]);
-    } catch (error) {
-      showToast({
-        title: t("printer.loadFailed"),
-        description: error instanceof Error ? error.message : "",
-        tone: "error",
-      });
-    }
-  }, [
-    language,
-    loadCategories,
-    loadPrintersForLocalAgent,
-    loadRoles,
-    showToast,
-    storeUuid,
-    t,
-    userUuid,
-  ]);
-
-  useEffect(() => {
-    void loadFormData();
-  }, [loadFormData]);
-
-  // เติมฟอร์มใหม่เมื่อเรคคอร์ดที่แก้ไขเปลี่ยน (เช่น รายการเครื่องพิมพ์เพิ่งโหลดเสร็จ)
-  // ทำระหว่าง render เพื่อไม่ให้ผู้ใช้เห็นค่าเก่าแวบหนึ่งก่อน effect จะทำงาน
-  // (กรณี mount ถูกครอบคลุมโดย initialForm ด้านบนแล้ว)
-  useResetOnDeps([editing, isEditing], () => {
-    if (isEditing && !editing) return;
-
-    const values = printerFormValues(editing);
-    setConnectType(values.connectType);
-    setDisplayName(values.displayName);
-    setInterfaceValue(values.interfaceValue);
-    setIp(values.ip);
-    setPort(values.port);
-    setPaperWidth(values.paperWidth);
-    setSelectedRoles(values.selectedRoles);
-    setSelectedCategories(values.selectedCategories);
-    setSelectedDevice(values.selectedDevice);
-    setAgentUrl(values.agentUrl);
-    setAgentId(values.agentId);
-    setAgentName(values.agentName);
-    setDeviceCode(values.deviceCode);
-  });
-
-  // agent จาก store มาแบบ async — เติมเฉพาะช่องที่ยังว่าง ไม่ทับค่าจากเรคคอร์ดหรือที่ผู้ใช้เลือกไว้
-  // ต้องอยู่หลัง reset ของ editing เสมอ เพราะ functional updater ต้องเห็นค่าที่ reset เพิ่งตั้ง
-  useResetOnDeps([agent, isEditing], () => {
-    if (!agent || isEditing) return;
-    const nextAgentId = textValue(agent.agent_id);
-    const nextAgentName = textValue(agent.agent_name);
-    const nextDeviceCode = textValue(agent.device_code);
-    setAgentUrl((value) => value || AGENT_URL);
-    setAgentId((value) => value || nextAgentId);
-    setAgentName((value) => value || nextAgentName);
-    setDeviceCode((value) => value || nextDeviceCode);
-  });
-
-  const hasAgentIdentity =
-    Boolean(agentUrl.trim()) &&
-    Boolean(agentId.trim()) &&
-    Boolean(agentName.trim()) &&
-    Boolean(deviceCode.trim());
-  const canSubmit =
-    Boolean(displayName.trim()) &&
-    selectedRoles.length > 0 &&
-    (connectType === "usb"
-      ? Boolean(interfaceValue.trim()) && hasAgentIdentity
-      : Boolean(ip.trim()));
-
-  const searchUsbDevices = useCallback(
-    async (showSuccess = true) => {
-      setUsbSearchError("");
-      setUsbSearchComplete(false);
-      try {
-        const result = await discoverPrinters("usb");
-        setUsbSearchComplete(true);
-        if (showSuccess) {
-          showToast({
-            title: t("printer.printerSearchComplete"),
-            description: t("printer.deviceCount", { count: result.length }),
-            tone: "success",
-          });
-        }
-      } catch (error) {
-        showToast({
-          title: t("printer.searchFailed"),
-          description: error instanceof Error ? error.message : "",
-          tone: "error",
-        });
-        setUsbSearchError(
-          error instanceof Error ? error.message : t("printer.searchFailed"),
-        );
-        setUsbSearchComplete(true);
-      }
-    },
-    [discoverPrinters, showToast, t],
-  );
-
-  // ส่วน sync: สถานะข้อความใต้ dropdown ขึ้นกับโหมดเชื่อมต่อและผลค้นหาเท่านั้น
-  useResetOnDeps([connectType, found.length], () => {
-    if (connectType !== "usb") {
-      setUsbSearchComplete(false);
-      setUsbSearchError("");
-      return;
-    }
-    if (found.length) setUsbSearchComplete(true);
-  });
-
-  // ส่วน async: ยิงค้นหา USB อัตโนมัติครั้งเดียวต่อการเข้าโหมด usb
-  // (เก็บ ref ไว้ใน effect เท่านั้น จะได้ไม่เขียน ref ระหว่าง render)
-  useEffect(() => {
-    if (connectType !== "usb") {
-      autoUsbSearchDone.current = false;
-      return;
-    }
-    if (found.length) return;
-    if (autoUsbSearchDone.current || searching || saving) return;
-    autoUsbSearchDone.current = true;
-    void searchUsbDevices(false);
-  }, [connectType, found.length, saving, searchUsbDevices, searching]);
-
-  const usbSelectDescription = (() => {
-    if (searching) return t("printer.searchingUsb");
-    if (usbSearchError) return usbSearchError;
-    if (found.length) return t("printer.deviceCount", { count: found.length });
-    if (usbSearchComplete) return t("printer.noUsbPrinters");
-    return t("printer.usbSearchPending");
-  })();
-
-  function selectDevice(interfaceValue: string) {
-    const printer = found.find(
-      (item) => item.interface_value === interfaceValue,
-    );
-    if (!printer) return;
-    setSelectedDevice(interfaceValue);
-    setConnectType("usb");
-    setDisplayName(textValue(printer.name));
-    setInterfaceValue(textValue(printer.interface_value));
-    if (agent) fillAgent(agent, agentUrl.trim() || AGENT_URL);
-  }
-
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!user?.uuid || !canSubmit) return;
-
-    try {
-      const identity = await resolveDeviceIdentity(agentUrl.trim() || AGENT_URL);
-      const nextAgentId = textValue(identity.agent_id).trim();
-      const nextAgentName = textValue(identity.agent_name).trim();
-      const nextDeviceCode = textValue(identity.device_code).trim();
-      const nextPort = Number(port || 9100);
-      const nextInterfaceValue =
-        connectType === "tcp"
-          ? tcpInterfaceValue(ip.trim(), nextPort)
-          : interfaceValue.trim();
-
-      const nextAgentUrl = isBrowserPrinterAgentId(nextAgentId)
-        ? BROWSER_PRINTER_AGENT_URL
-        : agentUrl.trim() || AGENT_URL;
-
-      fillAgent(identity, nextAgentUrl);
-
-      await savePrinter({
-        print_config_uuid: printConfigUuid,
-        login_uuid_fk: user.uuid,
-        display_name: displayName.trim(),
-        connect_type: connectType,
-        ip: ip.trim(),
-        port: nextPort,
-        interface_value: nextInterfaceValue,
-        paper_width_mm: Number(paperWidth || 80),
-        role_codes: selectedRoles,
-        cate_uuid_fk: selectedCategories,
-        agent_url: nextAgentUrl,
-        agent_id: nextAgentId,
-        agent_name: nextAgentName,
-        device_code: nextDeviceCode,
-      });
-      showToast({ title: t("printer.saved"), tone: "success" });
-      router.push("/printers");
-    } catch (error) {
-      showToast({
-        title: t("printer.saveFailed"),
-        description: error instanceof Error ? error.message : "",
-        tone: "error",
-      });
-    }
-  }
+  const form = usePrinterForm();
+  const { t } = form;
 
   return (
     <div className="flex flex-col gap-5">
@@ -568,16 +43,16 @@ export function PrinterFormPage() {
         <CardHeader>
           <div>
             <CardTitle>
-              {isEditing ? t("printer.edit") : t("printer.add")}
+              {form.isEditing ? t("printer.edit") : t("printer.add")}
             </CardTitle>
             <p className="mt-1 text-sm text-muted-foreground">
               {t("printer.formHint")}
             </p>
           </div>
-          {isEditing ? <Badge>{t("actions.edit")}</Badge> : null}
+          {form.isEditing ? <Badge>{t("actions.edit")}</Badge> : null}
         </CardHeader>
         <CardContent>
-          <form onSubmit={submit} className="flex flex-col gap-4">
+          <form onSubmit={form.submit} className="flex flex-col gap-4">
             <FieldSet className="gap-4 rounded-lg border border-border bg-card p-4">
               <div>
                 <FieldLegend className="mb-1 text-sm font-black">
@@ -595,10 +70,10 @@ export function PrinterFormPage() {
                   </FieldLabel>
                   <Input
                     id="printer-display-name"
-                    value={displayName}
-                    disabled={saving}
+                    value={form.displayName}
+                    disabled={form.saving}
                     required
-                    onChange={(event) => setDisplayName(event.target.value)}
+                    onChange={(event) => form.setDisplayName(event.target.value)}
                   />
                 </Field>
                 <Field>
@@ -606,9 +81,9 @@ export function PrinterFormPage() {
                     {t("fields.connectType")}
                   </FieldLabel>
                   <Select
-                    value={connectType}
+                    value={form.connectType}
                     onValueChange={(value) =>
-                      setConnectType(value as ConnectType)
+                      form.setConnectType(value as ConnectType)
                     }
                   >
                     <SelectTrigger id="printer-connect-type" className="w-full">
@@ -627,16 +102,16 @@ export function PrinterFormPage() {
                   </Select>
                 </Field>
 
-                {connectType === "usb" ? (
+                {form.connectType === "usb" ? (
                   <>
                     <Field>
                       <FieldLabel htmlFor="printer-usb-device">
                         {t("printer.selectedPrinter")}
                       </FieldLabel>
                       <Select
-                        value={selectedDevice}
-                        disabled={!found.length || searching || saving}
-                        onValueChange={selectDevice}
+                        value={form.selectedDevice}
+                        disabled={!form.found.length || form.searching || form.saving}
+                        onValueChange={form.selectDevice}
                       >
                         <SelectTrigger
                           id="printer-usb-device"
@@ -644,7 +119,7 @@ export function PrinterFormPage() {
                         >
                           <SelectValue
                             placeholder={
-                              searching
+                              form.searching
                                 ? t("printer.searchingUsb")
                                 : t("printer.selectUsbPrinter")
                             }
@@ -652,7 +127,7 @@ export function PrinterFormPage() {
                         </SelectTrigger>
                         <SelectContent position="popper">
                           <SelectGroup>
-                            {found.map((printer: SearchPrinterResult) => (
+                            {form.found.map((printer: SearchPrinterResult) => (
                               <SelectItem
                                 key={printer.interface_value}
                                 value={printer.interface_value}
@@ -664,7 +139,7 @@ export function PrinterFormPage() {
                         </SelectContent>
                       </Select>
                       <FieldDescription>
-                        {usbSelectDescription}
+                        {form.usbSelectDescription}
                       </FieldDescription>
                     </Field>
                     {/* <Field>
@@ -687,11 +162,11 @@ export function PrinterFormPage() {
                       </FieldLabel>
                       <Input
                         id="printer-ip"
-                        value={ip}
-                        disabled={saving}
+                        value={form.ip}
+                        disabled={form.saving}
                         placeholder="192.168.100.75"
                         required
-                        onChange={(event) => setIp(event.target.value)}
+                        onChange={(event) => form.setIp(event.target.value)}
                       />
                     </Field>
                     <Field>
@@ -700,11 +175,11 @@ export function PrinterFormPage() {
                       </FieldLabel>
                       <Input
                         id="printer-port"
-                        value={port}
-                        disabled={saving}
+                        value={form.port}
+                        disabled={form.saving}
                         type="number"
                         required
-                        onChange={(event) => setPort(event.target.value)}
+                        onChange={(event) => form.setPort(event.target.value)}
                       />
                     </Field>
                   </>
@@ -716,11 +191,11 @@ export function PrinterFormPage() {
                   </FieldLabel>
                   <Input
                     id="printer-paper-width"
-                    value={paperWidth}
-                    disabled={saving}
+                    value={form.paperWidth}
+                    disabled={form.saving}
                     type="number"
                     required
-                    onChange={(event) => setPaperWidth(event.target.value)}
+                    onChange={(event) => form.setPaperWidth(event.target.value)}
                   />
                 </Field>
               </FieldGroup>
@@ -731,15 +206,15 @@ export function PrinterFormPage() {
               description={t("printer.rolesHint")}
               emptyLabel={t("printer.noRoles")}
               name="printer-role"
-              options={roleOptions}
+              options={form.roleOptions}
               selectAllLabel={t("common.selectAll")}
-              selected={selectedRoles}
+              selected={form.selectedRoles}
               onToggle={(value) =>
-                setSelectedRoles((current) => toggleValue(current, value))
+                form.setSelectedRoles((current) => toggleValue(current, value))
               }
               onToggleAll={(checked) =>
-                setSelectedRoles((current) =>
-                  toggleAllValues(current, roleOptions, checked),
+                form.setSelectedRoles((current) =>
+                  toggleAllValues(current, form.roleOptions, checked),
                 )
               }
             />
@@ -749,15 +224,15 @@ export function PrinterFormPage() {
               description={t("printer.categoriesHint")}
               emptyLabel={t("printer.noCategories")}
               name="printer-category"
-              options={categoryOptions}
+              options={form.categoryOptions}
               selectAllLabel={t("common.selectAll")}
-              selected={selectedCategories}
+              selected={form.selectedCategories}
               onToggle={(value) =>
-                setSelectedCategories((current) => toggleValue(current, value))
+                form.setSelectedCategories((current) => toggleValue(current, value))
               }
               onToggleAll={(checked) =>
-                setSelectedCategories((current) =>
-                  toggleAllValues(current, categoryOptions, checked),
+                form.setSelectedCategories((current) =>
+                  toggleAllValues(current, form.categoryOptions, checked),
                 )
               }
             />
@@ -766,18 +241,18 @@ export function PrinterFormPage() {
               <Button
                 type="button"
                 variant="outline"
-                disabled={saving}
-                onClick={() => router.push("/printers")}
+                disabled={form.saving}
+                onClick={() => form.router.push("/printers")}
               >
                 {t("actions.cancel")}
               </Button>
-              <Button disabled={saving || loading || !canSubmit} type="submit">
-                {saving ? (
+              <Button disabled={form.saving || form.loading || !form.canSubmit} type="submit">
+                {form.saving ? (
                   <Spinner data-icon="inline-start" />
                 ) : (
                   <Save data-icon="inline-start" />
                 )}
-                {saving ? t("common.processing") : t("actions.save")}
+                {form.saving ? t("common.processing") : t("actions.save")}
               </Button>
             </div>
           </form>
