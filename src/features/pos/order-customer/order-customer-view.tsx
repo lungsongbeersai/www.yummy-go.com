@@ -231,14 +231,14 @@ export function OrderCustomerView({
                 <div className={cn(PRODUCT_GRID_CLASS, "pb-24 xl:pb-4")}>
                   {activeProducts.map((entry) => (
                     <EmployeeProductCard
-                      key={`${entry.cateUuid}-${entry.product.prod_uuid}-${
-                        optionalString(entry.product.pro_detail_uuid) ??
+                      key={`${entry.cateUuid}-${entry.product.prodUuid}-${
+                        optionalString(entry.product.proDetailUuid) ??
                         activeSort
                       }`}
                       activeSort={activeSort}
                       disabled={Boolean(loadingProductUuid) || saving}
                       entry={entry}
-                      loading={loadingProductUuid === entry.product.prod_uuid}
+                      loading={loadingProductUuid === entry.product.prodUuid}
                       onAction={openOrAddProduct}
                     />
                   ))}
@@ -341,7 +341,7 @@ export function OrderCustomerView({
         }
         isMobile={isMobile}
         open={productSheetOpen}
-        title={selectedProduct?.prod_name ?? t("pos.product")}
+        title={selectedProduct?.prodName ?? t("pos.product")}
         onOpenChange={(nextOpen) => {
           if (saving) return;
           setProductSheetOpen(nextOpen);

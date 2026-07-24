@@ -55,31 +55,31 @@ export function countSelectedToppings(toppings: SelectedTopping[]) {
 
 export function isToppingAvailable(topping?: ProdTopping | null) {
   if (!topping) return false;
-  if (optionalNumber(topping.topping_enabled) === 2) return false;
-  if (optionalNumber(topping.topping_status) === 2) return false;
+  if (optionalNumber(topping.toppingEnabled) === 2) return false;
+  if (optionalNumber(topping.toppingStatus) === 2) return false;
   return Boolean(toppingUuid(topping));
 }
 
 export function toppingUuid(topping: ProdTopping) {
   return (
     optionalString(
-      topping.prod_topping_uuid,
-      topping.topping_uuid_fk,
-      topping.topping_uuid,
+      topping.prodToppingUuid,
+      topping.toppingUuidFk,
+      topping.toppingUuid,
     ) ?? ""
   );
 }
 
 export function toppingPrice(topping: ProdTopping) {
-  return optionalNumber(topping.topping_price) ?? 0;
+  return optionalNumber(topping.toppingPrice) ?? 0;
 }
 
 export function toppingDisplayName(topping: ProdTopping) {
   return (
     optionalString(
-      topping.topping_name_la,
-      topping.topping_name,
-      topping.topping_name_eng,
+      topping.toppingNameLa,
+      topping.toppingName,
+      topping.toppingNameEng,
     ) ?? "-"
   );
 }

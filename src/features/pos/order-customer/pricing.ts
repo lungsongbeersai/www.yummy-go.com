@@ -10,9 +10,9 @@ import { toppingPrice, type SelectedTopping } from "./topping-selection";
 export function productPrice(product: CateProductItem | ProdItem) {
   return (
     optionalNumber(
-      product.pro_detail_sprice,
-      product.prod_set_price,
-      product.prod_price,
+      product.proDetailSprice,
+      product.prodSetPrice,
+      product.prodPrice,
     ) ?? 0
   );
 }
@@ -21,14 +21,14 @@ export function productOptionCount(product: CateProductItem) {
   return Math.max(
     0,
     optionalNumber(
-      product.count_option_enabled,
-      product.count_option_all,
+      product.countOptionEnabled,
+      product.countOptionAll,
     ) ?? 0,
   );
 }
 
 export function productToppingCount(product: CateProductItem) {
-  return Math.max(0, optionalNumber(product.count_topping_enabled) ?? 0);
+  return Math.max(0, optionalNumber(product.countToppingEnabled) ?? 0);
 }
 
 export function productCardPrice(
@@ -36,13 +36,13 @@ export function productCardPrice(
   activeSort: ProductSortStatus,
 ): ProductCardPrice {
   const productStatusSort =
-    optionalNumber(product.status_sort_fk) ?? activeSort;
+    optionalNumber(product.statusSortFk) ?? activeSort;
   const exactPrice =
     productStatusSort === ProductSortStatus.SET
       ? optionalNumber(
-          product.prod_set_price,
-          product.prod_price,
-          product.pro_detail_sprice,
+          product.prodSetPrice,
+          product.prodPrice,
+          product.proDetailSprice,
         ) ?? 0
       : productPrice(product);
 
@@ -57,8 +57,8 @@ export function productCardPrice(
 
   // The menu endpoint must provide branch-aware aggregates. Fetching every
   // product detail here would turn menu loading into an N+1 request pattern.
-  const minPrice = optionalNumber(product.min_price);
-  const maxPrice = optionalNumber(product.max_price);
+  const minPrice = optionalNumber(product.minPrice);
+  const maxPrice = optionalNumber(product.maxPrice);
   if (minPrice === null || minPrice <= 0) {
     return { kind: "variable", value: null };
   }
@@ -75,16 +75,16 @@ export function productCardPrice(
 // identically-named productPriceFromDetail/getModalBasePrice, despite the
 // name collision — diffing found genuine, revenue-affecting divergence:
 // - productPriceFromDetail: optionalNumber() here skips an empty-string
-//   pro_detail_sprice and falls through to `price`; the public version's
+//   proDetailSprice and falls through to `price`; the public version's
 //   `?? ` only skips null/undefined, so an empty string there short-circuits
 //   to 0 instead of falling back.
-// - getModalBasePrice's "set" branch here only reads prod_set_price
+// - getModalBasePrice's "set" branch here only reads prodSetPrice
 //   (defaulting to 0 if absent); the public version falls back through
-//   prod_price and the detail price when prod_set_price is missing.
+//   prodPrice and the detail price when prodSetPrice is missing.
 // Unifying either would silently change a displayed/charged price on one
 // surface, so both stay separate.
 export function productPriceFromDetail(detail?: ProdDetail | null) {
-  return optionalNumber(detail?.pro_detail_sprice, detail?.price) ?? 0;
+  return optionalNumber(detail?.proDetailSprice, detail?.price) ?? 0;
 }
 
 export function getModalBasePrice(
@@ -93,7 +93,7 @@ export function getModalBasePrice(
   mode: ProductModalMode,
 ) {
   return mode === "set"
-    ? (optionalNumber(product?.prod_set_price) ?? 0)
+    ? (optionalNumber(product?.prodSetPrice) ?? 0)
     : productPriceFromDetail(detail);
 }
 

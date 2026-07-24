@@ -241,9 +241,9 @@ export const EmployeeCategorySidebar = memo(function EmployeeCategorySidebar({
                 />
               ))
             : categories.map((category) => {
-                const active = category.cate_uuid === selectedCateUuid;
+                const active = category.cateUuid === selectedCateUuid;
                 return (
-                  <Tooltip key={category.cate_uuid}>
+                  <Tooltip key={category.cateUuid}>
                     <TooltipTrigger asChild>
                       <Button
                         type="button"
@@ -254,19 +254,19 @@ export const EmployeeCategorySidebar = memo(function EmployeeCategorySidebar({
                           active &&
                             "border-white bg-white text-primary shadow-lg shadow-black/15 hover:bg-white hover:text-primary"
                         )}
-                        onClick={() => onSelectCategory(category.cate_uuid)}
+                        onClick={() => onSelectCategory(category.cateUuid)}
                       >
                         <CategoryIconView
-                          icon={category.cate_icon}
+                          icon={category.cateIcon}
                           className="size-6 shrink-0"
                         />
                         <span className="line-clamp-3 max-w-full break-words text-center text-xs font-black leading-4">
-                          {category.cate_name}
+                          {category.cateName}
                         </span>
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent side="right">
-                      {category.cate_name || t("pos.menu")}
+                      {category.cateName || t("pos.menu")}
                     </TooltipContent>
                   </Tooltip>
                 );
@@ -293,10 +293,10 @@ export const EmployeeCategoryRail = memo(function EmployeeCategoryRail({
       <div className="w-max min-w-full overflow-hidden rounded-2xl border border-white/20 bg-white/15 p-2 shadow-xl shadow-black/20">
         <div className="flex gap-2">
           {categories.map((category) => {
-            const active = category.cate_uuid === selectedCateUuid;
+            const active = category.cateUuid === selectedCateUuid;
             return (
               <Button
-                key={category.cate_uuid}
+                key={category.cateUuid}
                 type="button"
                 aria-pressed={active}
                 variant="ghost"
@@ -306,13 +306,13 @@ export const EmployeeCategoryRail = memo(function EmployeeCategoryRail({
                   active &&
                     "border-white bg-white text-primary hover:bg-white hover:text-primary"
                 )}
-                onClick={() => onSelectCategory(category.cate_uuid)}
+                onClick={() => onSelectCategory(category.cateUuid)}
               >
                 <CategoryIconView
-                  icon={category.cate_icon}
+                  icon={category.cateIcon}
                   className="size-5 shrink-0"
                 />
-                <span className="truncate">{category.cate_name}</span>
+                <span className="truncate">{category.cateName}</span>
               </Button>
             );
           })}

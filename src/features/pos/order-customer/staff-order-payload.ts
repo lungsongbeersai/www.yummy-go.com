@@ -60,7 +60,7 @@ export function buildStaffOrderItems({
   const orderToppings = buildStaffOrderToppings(toppings);
 
   return details.map((itemDetail, index) => {
-    const detailId = optionalString(itemDetail.pro_detail_uuid);
+    const detailId = optionalString(itemDetail.proDetailUuid);
     if (!detailId) throw new Error("pro_detail_uuid is required");
 
     const item: CreateOrderItem = {

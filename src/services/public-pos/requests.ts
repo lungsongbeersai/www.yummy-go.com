@@ -1,8 +1,15 @@
 import { publicApiClient, publicApiRequest, ServiceError } from "@/lib/api";
 import { toApiLanguage } from "@/lib/language";
-import { normalizeFetchCateProductsResponse } from "@/services/pos/normalizers";
+import type {
+  ApiFetchCateProductsResponse,
+  ApiProdItemResponse,
+} from "@/services/pos/api-types";
+import {
+  mapApiProdItem,
+  normalizeFetchCateProductsResponse,
+} from "@/services/pos/normalizers";
 import { requiredItems, requiredToken } from "@/services/shared/validators";
-import type { EmitTableStatusResponse, ProdItem } from "@/services/pos";
+import type { EmitTableStatusResponse } from "@/services/pos";
 import type {
   CustomerConfirmKitchenInput,
   CustomerCreateOrderInput,
@@ -21,10 +28,35 @@ import type {
   CreateOrderResponse,
   DeleteOrderItemResponse,
   FetchCartResponse,
-  FetchCateProductsResponse,
   UpdateOrderNoteResponse,
   UpdateQtyResponse
 } from "@/services/pos";
+
+function buildCustomerCatalogQuery(
+  params: CustomerFetchCateProductsParams,
+): Record<string, string | number | undefined> {
+  const query: Record<string, string | number | undefined> = {
+    t: requiredToken(params.token),
+    lang: toApiLanguage(params.lang),
+    search: params.search ?? "",
+  };
+
+  if (params.cateUuid?.trim()) {
+    query.cate_uuid = params.cateUuid;
+  }
+
+  return query;
+}
+
+function buildCustomerProductBody(params: CustomerGetProdItemParams) {
+  return {
+    prod_uuid: params.prodUuid,
+    lang: toApiLanguage(params.lang),
+    cate_uuid: params.cateUuid,
+    search: params.search,
+    status_sort_fk: params.statusSortFk ?? 1,
+  };
+}
 
 export function scanTableQR(t: string, lang = "la") {
   return publicApiRequest<QRScanResponse>("get", "/api/v1/pos/customer/qrscan", {
@@ -46,37 +78,25 @@ export function fetchCustomerCart(params: CustomerFetchCartParams) {
 }
 
 export async function customerFetchCateProducts(params: CustomerFetchCateProductsParams) {
-  const requestParams: Record<string, string | number | undefined> = {
-    t: requiredToken(params.t),
-    lang: toApiLanguage(params.lang),
-    search: params.search ?? ""
-  };
-
-  if (params.cate_uuid?.trim()) {
-    requestParams.cate_uuid = params.cate_uuid;
-  }
-
-  const response = await publicApiRequest<FetchCateProductsResponse>("get", "/api/v1/pos/customer/fetch_cate_products", {
-    params: requestParams
-  });
+  const response = await publicApiRequest<ApiFetchCateProductsResponse>(
+    "get",
+    "/api/v1/pos/customer/fetch_cate_products",
+    {
+      params: buildCustomerCatalogQuery(params),
+    },
+  );
   return normalizeFetchCateProductsResponse(response);
 }
 
 export async function customerGetProdItem(params: CustomerGetProdItemParams) {
-  const result = await publicApiRequest<{ data: ProdItem }>(
+  const result = await publicApiRequest<ApiProdItemResponse>(
     "post",
-    `/api/v1/pos/customer/get_prod_item?t=${encodeURIComponent(requiredToken(params.t))}`,
+    `/api/v1/pos/customer/get_prod_item?t=${encodeURIComponent(requiredToken(params.token))}`,
     {
-      data: {
-        prod_uuid: params.prod_uuid,
-        lang: toApiLanguage(params.lang),
-        cate_uuid: params.cate_uuid,
-        search: params.search,
-        status_sort_fk: params.status_sort_fk ?? 1
-      }
-    }
+      data: buildCustomerProductBody(params),
+    },
   );
-  return result.data;
+  return mapApiProdItem(result.data);
 }
 
 export function customerCreateOrder(t: string, input: CustomerCreateOrderInput) {

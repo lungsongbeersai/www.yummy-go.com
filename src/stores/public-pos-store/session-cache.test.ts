@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { CustomerFetchCateProductsResponse } from "@/services/public-pos";
 
 const publicPosMocks = vi.hoisted(() => ({
   customerFetchCateProducts: vi.fn(),
@@ -14,6 +15,12 @@ import {
   setCachedValue,
   type CacheEntry
 } from "@/stores/public-pos-store/session-cache";
+
+const EMPTY_CATALOG_RESPONSE: CustomerFetchCateProductsResponse = {
+  status: "success",
+  message: "",
+  categories: []
+};
 
 describe("createRequestVersionTracker", () => {
   it("increments on next() and reports the latest call as current", () => {
@@ -111,23 +118,23 @@ describe("createPublicPosSessionCache", () => {
 
   it("dedupes concurrent fetchMenuProducts calls for the same key and caches the resolved value", async () => {
     const cache = createPublicPosSessionCache();
-    let resolveRequest: (value: unknown) => void = () => undefined;
+    let resolveRequest: (value: CustomerFetchCateProductsResponse) => void = () => undefined;
     publicPosMocks.customerFetchCateProducts.mockReturnValue(
-      new Promise((resolve) => {
+      new Promise<CustomerFetchCateProductsResponse>((resolve) => {
         resolveRequest = resolve;
       })
     );
 
-    const params = { t: "token-1", lang: "la", cate_uuid: "cate-1", search: "" };
+    const params = { token: "token-1", lang: "la", cateUuid: "cate-1", search: "" };
     // Both calls dedupe onto the same in-flight service request even though
     // each (async) call returns its own promise wrapper.
     const first = cache.fetchMenuProducts(params);
     const second = cache.fetchMenuProducts(params);
     expect(publicPosMocks.customerFetchCateProducts).toHaveBeenCalledTimes(1);
 
-    resolveRequest({ data: [] });
-    await expect(first).resolves.toEqual({ data: [] });
-    await expect(second).resolves.toEqual({ data: [] });
+    resolveRequest(EMPTY_CATALOG_RESPONSE);
+    await expect(first).resolves.toEqual(EMPTY_CATALOG_RESPONSE);
+    await expect(second).resolves.toEqual(EMPTY_CATALOG_RESPONSE);
 
     // Now cached: a further call must not hit the service again.
     await cache.fetchMenuProducts(params);
@@ -136,17 +143,17 @@ describe("createPublicPosSessionCache", () => {
 
   it("does not cache a fetchMenuProducts result if the cache was cleared while the request was in flight", async () => {
     const cache = createPublicPosSessionCache();
-    let resolveRequest: (value: unknown) => void = () => undefined;
+    let resolveRequest: (value: CustomerFetchCateProductsResponse) => void = () => undefined;
     publicPosMocks.customerFetchCateProducts.mockReturnValue(
-      new Promise((resolve) => {
+      new Promise<CustomerFetchCateProductsResponse>((resolve) => {
         resolveRequest = resolve;
       })
     );
 
-    const params = { t: "token-1", lang: "la", cate_uuid: "cate-1", search: "" };
+    const params = { token: "token-1", lang: "la", cateUuid: "cate-1", search: "" };
     const pending = cache.fetchMenuProducts(params);
     cache.clearDataCache();
-    resolveRequest({ data: [] });
+    resolveRequest(EMPTY_CATALOG_RESPONSE);
     await pending;
 
     await cache.fetchMenuProducts(params);

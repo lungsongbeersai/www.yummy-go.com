@@ -31,9 +31,9 @@ export function flattenStatusProducts(
   const products: PublicDisplayProduct[] = [];
 
   categories.forEach((category) => {
-    const cateUuid = category.cate_uuid.startsWith("__special_")
+    const cateUuid = category.cateUuid.startsWith("__special_")
       ? ""
-      : category.cate_uuid;
+      : category.cateUuid;
 
     (category.products ?? []).forEach((product) => {
       products.push({
@@ -62,7 +62,7 @@ export function orderCateUuidsByMenu(
 ) {
   const requested = new Set(cateUuids.filter(Boolean));
   return menuCategories
-    .map((category) => category.cate_uuid)
+    .map((category) => category.cateUuid)
     .filter((cateUuid) => requested.has(cateUuid));
 }
 
@@ -144,13 +144,13 @@ export function hasMoreMenuToRender({
   }
 
   const lastIndex = menuCategories.findIndex(
-    (category) => category.cate_uuid === lastCateUuid,
+    (category) => category.cateUuid === lastCateUuid,
   );
   return (
     lastIndex >= 0 &&
     menuCategories
       .slice(lastIndex + 1)
-      .some((category) => !renderedCateUuids.includes(category.cate_uuid))
+      .some((category) => !renderedCateUuids.includes(category.cateUuid))
   );
 }
 
@@ -180,10 +180,10 @@ export function nextPublicMenuCategoryReset({
   if (previousCategoryOrderKey === categoryOrderKey) return null;
 
   const requestedCateUuid =
-    selectedCateUuid || defaultCateUuid || menuCategories[0]?.cate_uuid || "";
+    selectedCateUuid || defaultCateUuid || menuCategories[0]?.cateUuid || "";
   const firstCategory =
     menuCategories.find(
-      (category) => category.cate_uuid === requestedCateUuid,
+      (category) => category.cateUuid === requestedCateUuid,
     ) ?? menuCategories[0];
 
   if (!firstCategory) {
@@ -201,11 +201,11 @@ export function nextPublicMenuCategoryReset({
   );
 
   return {
-    activeCateUuid: firstCategory.cate_uuid,
+    activeCateUuid: firstCategory.cateUuid,
     categoryOrderKey,
-    renderedCateUuids: [firstCategory.cate_uuid],
+    renderedCateUuids: [firstCategory.cateUuid],
     visibleProductCountByCate:
-      visibleCount > 0 ? { [firstCategory.cate_uuid]: visibleCount } : {},
+      visibleCount > 0 ? { [firstCategory.cateUuid]: visibleCount } : {},
   };
 }
 
@@ -231,19 +231,19 @@ export function getCategoryPathUuids({
   menuCategories: CateWithProducts[];
 }) {
   const targetIndex = menuCategories.findIndex(
-    (category) => category.cate_uuid === targetCateUuid,
+    (category) => category.cateUuid === targetCateUuid,
   );
   if (targetIndex < 0) return [];
 
   const anchorCateUuid =
     activeCateUuid ||
     renderedCateUuids.at(-1) ||
-    menuCategories[0]?.cate_uuid ||
+    menuCategories[0]?.cateUuid ||
     "";
   const anchorIndex = Math.max(
     0,
     menuCategories.findIndex(
-      (category) => category.cate_uuid === anchorCateUuid,
+      (category) => category.cateUuid === anchorCateUuid,
     ),
   );
   const fromIndex = Math.min(anchorIndex, targetIndex);
@@ -251,7 +251,7 @@ export function getCategoryPathUuids({
 
   return menuCategories
     .slice(fromIndex, toIndex + 1)
-    .map((category) => category.cate_uuid);
+    .map((category) => category.cateUuid);
 }
 
 export function withCategoryPathVisibleCounts({

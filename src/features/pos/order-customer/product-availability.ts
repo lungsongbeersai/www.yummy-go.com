@@ -9,28 +9,28 @@ export function normalizeProdItem(
   fallback: CateProductItem,
 ): ProdItem {
   const price = productPrice(fallback);
-  const fallbackDetails: ProdDetail[] = fallback.pro_detail_uuid
+  const fallbackDetails: ProdDetail[] = fallback.proDetailUuid
     ? [
         {
-          pro_detail_uuid: String(fallback.pro_detail_uuid),
+          proDetailUuid: String(fallback.proDetailUuid),
           price,
-          pro_detail_sprice: price,
-          pro_detail_enabled: 1,
-          cut_stock: 2,
+          proDetailSprice: price,
+          proDetailEnabled: 1,
+          cutStock: 2,
         },
       ]
     : [];
 
-  if (item?.prod_uuid) {
+  if (item?.prodUuid) {
     return {
       ...item,
-      prod_color:
-        optionalString(item.prod_color, fallback.prod_color) ?? undefined,
-      prod_image: optionalString(item.prod_image, fallback.prod_image) ?? "",
-      prod_price: item.prod_price ?? price,
-      prod_status_imge: productImageStatus(
-        item.prod_status_imge,
-        fallback.prod_status_imge,
+      prodColor:
+        optionalString(item.prodColor, fallback.prodColor) ?? undefined,
+      prodImage: optionalString(item.prodImage, fallback.prodImage) ?? "",
+      prodPrice: item.prodPrice ?? price,
+      prodStatusImge: productImageStatus(
+        item.prodStatusImge,
+        fallback.prodStatusImge,
       ),
       details: item.details?.length ? item.details : fallbackDetails,
       toppings: item.toppings ?? [],
@@ -38,12 +38,12 @@ export function normalizeProdItem(
   }
 
   return {
-    prod_uuid: fallback.prod_uuid,
-    prod_name: fallback.prod_name,
-    prod_color: optionalString(fallback.prod_color) ?? undefined,
-    prod_image: optionalString(fallback.prod_image) ?? "",
-    prod_price: price,
-    prod_status_imge: productImageStatus(fallback.prod_status_imge),
+    prodUuid: fallback.prodUuid,
+    prodName: fallback.prodName,
+    prodColor: optionalString(fallback.prodColor) ?? undefined,
+    prodImage: optionalString(fallback.prodImage) ?? "",
+    prodPrice: price,
+    prodStatusImge: productImageStatus(fallback.prodStatusImge),
     details: fallbackDetails,
     toppings: [],
   };
@@ -52,8 +52,8 @@ export function normalizeProdItem(
 // P3.3: NOT merged with public-pos/order/product-domain.ts's
 // identically-named isDetailAvailable/firstAvailableDetail, despite the
 // name collision — diffing found genuine divergence: this isDetailAvailable
-// additionally requires a pro_detail_uuid (via isDetailEnabled) and also
-// checks the pro_detail_qty_stock field the public version never reads;
+// additionally requires a proDetailUuid (via isDetailEnabled) and also
+// checks the proDetailQtyStock field the public version never reads;
 // firstAvailableDetail below returns null when nothing qualifies (see the
 // "never falls back to an unavailable option" test), while the public
 // version falls back to the first detail in array order even if
@@ -61,24 +61,24 @@ export function normalizeProdItem(
 // the cart, so both stay separate.
 export function isDetailEnabled(detail?: ProdDetail | null) {
   if (!detail) return false;
-  if (optionalNumber(detail.pro_detail_enabled) === 2) return false;
-  if (optionalNumber(detail.pro_detail_status) === 2) return false;
+  if (optionalNumber(detail.proDetailEnabled) === 2) return false;
+  if (optionalNumber(detail.proDetailStatus) === 2) return false;
 
-  return Boolean(optionalString(detail.pro_detail_uuid));
+  return Boolean(optionalString(detail.proDetailUuid));
 }
 
 export function isDetailAvailable(detail?: ProdDetail | null) {
   if (!detail || !isDetailEnabled(detail)) return false;
 
-  const cutStock = optionalNumber(detail.cut_stock);
-  const stock = optionalNumber(detail.qty_stock, detail.pro_detail_qty_stock);
+  const cutStock = optionalNumber(detail.cutStock);
+  const stock = optionalNumber(detail.qtyStock, detail.proDetailQtyStock);
   if (cutStock !== 2 && stock !== null && stock <= 0) return false;
 
   return true;
 }
 
 function detailSortValue(detail: ProdDetail) {
-  const sort = optionalNumber(detail.pro_detail_sort);
+  const sort = optionalNumber(detail.proDetailSort);
   return sort !== null && sort > 0 ? sort : null;
 }
 

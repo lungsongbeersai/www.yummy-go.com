@@ -44,9 +44,9 @@ function staffProductImageSrc(value: string) {
 export function staffProductMedia(
   product: CateProductItem | ProdItem,
 ): StaffProductMedia {
-  const image = optionalString(product.prod_image);
-  const color = optionalString(product.prod_color, product.prod_image);
-  const imageStatus = optionalNumber(product.prod_status_imge);
+  const image = optionalString(product.prodImage);
+  const color = optionalString(product.prodColor, product.prodImage);
+  const imageStatus = optionalNumber(product.prodStatusImge);
 
   if (
     imageStatus === ProductImageStatus.IMAGE &&
@@ -68,9 +68,9 @@ export function staffProductMedia(
 }
 
 export function publicProductImageUrl(product: CateProductItem | ProdItem) {
-  return product.prod_status_imge === ProductImageStatus.IMAGE &&
-    product.prod_image?.startsWith("http")
-    ? product.prod_image
+  return product.prodStatusImge === ProductImageStatus.IMAGE &&
+    product.prodImage?.startsWith("http")
+    ? product.prodImage
     : "";
 }
 

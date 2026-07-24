@@ -38,7 +38,7 @@ export function usePublicMenuBrowseModel({
   const visibleCategoryTabs = categoryTabs;
 
   const categoryOrderKey = useMemo(
-    () => menuCategories.map((category) => category.cate_uuid).join(":"),
+    () => menuCategories.map((category) => category.cateUuid).join(":"),
     [menuCategories],
   );
   const promotionProducts = useMemo(
@@ -67,11 +67,11 @@ export function usePublicMenuBrowseModel({
   );
   const menuCategoryByUuid = useMemo(
     () =>
-      new Map(menuCategories.map((category) => [category.cate_uuid, category])),
+      new Map(menuCategories.map((category) => [category.cateUuid, category])),
     [menuCategories],
   );
   const firstLoadedCateUuid =
-    selectedCateUuid || defaultCateUuid || menuCategories[0]?.cate_uuid || "";
+    selectedCateUuid || defaultCateUuid || menuCategories[0]?.cateUuid || "";
   const renderedMenuSections = useMemo(
     () =>
       getRenderedMenuSections({

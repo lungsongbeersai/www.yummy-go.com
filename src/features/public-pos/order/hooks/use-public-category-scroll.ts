@@ -62,16 +62,16 @@ export function usePublicCategoryScroll({
   const categoryTabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
   const fallbackActiveValue =
-    defaultActiveCateUuid || visibleCategoryTabs[0]?.cate_uuid || "";
+    defaultActiveCateUuid || visibleCategoryTabs[0]?.cateUuid || "";
   const activeValue = visibleCategoryTabs.some(
-    (category) => category.cate_uuid === activeCateUuid,
+    (category) => category.cateUuid === activeCateUuid,
   )
     ? activeCateUuid
     : visibleCategoryTabs.some(
-          (category) => category.cate_uuid === fallbackActiveValue,
+          (category) => category.cateUuid === fallbackActiveValue,
         )
       ? fallbackActiveValue
-      : visibleCategoryTabs[0]?.cate_uuid || "";
+      : visibleCategoryTabs[0]?.cateUuid || "";
 
   useEffect(() => {
     scrollJumpPendingContentRef.current = hasScrollJumpPendingContent;
@@ -263,8 +263,8 @@ export function usePublicCategoryScroll({
 
         const cateUuid =
           edge === "top"
-            ? visibleCategoryTabs[0]?.cate_uuid || renderedCateUuids[0] || ""
-            : visibleCategoryTabs.at(-1)?.cate_uuid ||
+            ? visibleCategoryTabs[0]?.cateUuid || renderedCateUuids[0] || ""
+            : visibleCategoryTabs.at(-1)?.cateUuid ||
               renderedCateUuids.at(-1) ||
               "";
         if (cateUuid) setStableActiveCateUuid(cateUuid, { force: true });
@@ -439,7 +439,7 @@ export function usePublicCategoryScroll({
       anchorMatchedCateUuid ||
       passedAnchorCateUuid ||
       nearestVisibleCateUuid ||
-      firstCategory?.cate_uuid ||
+      firstCategory?.cateUuid ||
       "";
 
     if (cateUuid) {

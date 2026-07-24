@@ -63,7 +63,7 @@ export function ProductOrderSheetContent({
   const isMobile = useIsMobile();
   const { loading, modeLabel, onOpenChange, open, product, saving } = workflow;
   const description =
-    [modeLabel, product?.unite_name].filter(Boolean).join(" · ") ||
+    [modeLabel, product?.uniteName].filter(Boolean).join(" · ") ||
     t("pos.product");
   const handleOpenChange = (nextOpen: boolean) => {
     if (!nextOpen && saving) return;
@@ -91,7 +91,7 @@ export function ProductOrderSheetContent({
               workflow={workflow}
               title={
                 <SheetTitle className="lao-tone-text line-clamp-2 break-words text-base font-black leading-6">
-                  {product?.prod_name ?? t("pos.product")}
+                  {product?.prodName ?? t("pos.product")}
                 </SheetTitle>
               }
               description={
@@ -139,7 +139,7 @@ export function ProductOrderSheetContent({
             workflow={workflow}
             title={
               <DialogTitle className="lao-tone-text line-clamp-2 break-words text-lg font-black leading-6">
-                {product?.prod_name ?? t("pos.product")}
+                {product?.prodName ?? t("pos.product")}
               </DialogTitle>
             }
             description={
@@ -213,8 +213,8 @@ function ProductOrderHeader({
           ) : (
             <>
               {modeLabel ? <Badge variant="secondary">{modeLabel}</Badge> : null}
-              {product?.unite_name ? (
-                <Badge variant="outline">{product.unite_name}</Badge>
+              {product?.uniteName ? (
+                <Badge variant="outline">{product.uniteName}</Badge>
               ) : null}
             </>
           )}
@@ -402,10 +402,10 @@ function ProductSizeFieldset({
       >
         {details.map((detail) => {
           const enabled = isDetailAvailable(detail);
-          const id = `public-product-size-${detail.pro_detail_uuid}`;
+          const id = `public-product-size-${detail.proDetailUuid}`;
           return (
             <Field
-              key={detail.pro_detail_uuid}
+              key={detail.proDetailUuid}
               orientation="horizontal"
               data-disabled={!enabled || undefined}
             >
@@ -418,14 +418,14 @@ function ProductSizeFieldset({
               >
                 <RadioGroupItem
                   id={id}
-                  value={detail.pro_detail_uuid}
+                  value={detail.proDetailUuid}
                   disabled={!enabled}
                   className="size-5"
                 />
                 <span className="min-w-0 flex-1">
                   <span className="flex min-w-0 items-center gap-2">
                     <span className="truncate text-sm font-black">
-                      {detail.size_name || t("pos.size")}
+                      {detail.sizeName || t("pos.size")}
                     </span>
                     {!enabled ? (
                       <Badge variant="secondary" className="shrink-0">
@@ -436,9 +436,9 @@ function ProductSizeFieldset({
                   {mode === "promotion" ? (
                     <span className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
                       <span>{getPromoLabel(detail, t)}</span>
-                      {detail.pro_detail_eDate ? (
+                      {detail.proDetailEDate ? (
                         <span>
-                          {t("pos.validUntil")} {formatShortDate(detail.pro_detail_eDate, lang)}
+                          {t("pos.validUntil")} {formatShortDate(detail.proDetailEDate, lang)}
                         </span>
                       ) : null}
                     </span>
@@ -470,7 +470,7 @@ function SetProductFieldset({ details }: { details: ProdDetail[] }) {
           const enabled = isDetailAvailable(detail);
           return (
             <div
-              key={detail.pro_detail_uuid}
+              key={detail.proDetailUuid}
               className={cn(
                 "flex min-h-12 items-center justify-between gap-3 rounded-xl border border-border bg-background px-3 py-2",
                 !enabled && "opacity-60",
@@ -479,7 +479,7 @@ function SetProductFieldset({ details }: { details: ProdDetail[] }) {
               <span className="flex min-w-0 items-center gap-2">
                 <Check className="shrink-0 text-primary" aria-hidden="true" />
                 <span className="truncate text-sm font-black">
-                  {detail.size_name || t("pos.product")}
+                  {detail.sizeName || t("pos.product")}
                 </span>
               </span>
               <span className="flex shrink-0 items-center gap-2">
@@ -526,7 +526,7 @@ function ProductToppingFieldset({
       />
       <div className="flex flex-col gap-2">
         {toppings.map((topping) => {
-          const uuid = topping.prod_topping_uuid;
+          const uuid = topping.prodToppingUuid;
           const qty = toppingQtyByUuid[uuid] ?? 0;
           return (
             <ProductToppingRow
@@ -564,8 +564,8 @@ function ProductToppingRow({
   const selected = qty >= 1;
   const enabled = isToppingAvailable(topping);
   const label = toppingDisplayName(topping, lang) || t("pos.toppings");
-  const unitPrice = numeric(topping.topping_price);
-  const id = `public-product-topping-${topping.prod_topping_uuid}`;
+  const unitPrice = numeric(topping.toppingPrice);
+  const id = `public-product-topping-${topping.prodToppingUuid}`;
   const checkboxRef = useRef<HTMLInputElement>(null);
 
   return (
@@ -588,7 +588,7 @@ function ProductToppingRow({
         <Checkbox
           ref={checkboxRef}
           id={id}
-          name={`topping-${topping.prod_topping_uuid}`}
+          name={`topping-${topping.prodToppingUuid}`}
           checked={selected}
           disabled={!enabled || saving}
           onChange={onToggle}

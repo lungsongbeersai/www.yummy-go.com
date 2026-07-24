@@ -5,7 +5,7 @@ import { enabledProductDetails } from "./product-availability";
 
 export function defaultOrderQty(detail?: ProdDetail | null) {
   const qty =
-    optionalNumber(detail?.pro_detail_cus_qtyBuy, detail?.default_qty) ?? 1;
+    optionalNumber(detail?.proDetailCusQtyBuy, detail?.defaultQty) ?? 1;
   return clampQty(qty);
 }
 
@@ -17,8 +17,8 @@ export interface OrderQuantityRules {
 }
 
 function promotionOrderStep(detail?: ProdDetail | null) {
-  const buy = optionalNumber(detail?.pro_detail_cus_qtyBuy) ?? 0;
-  const free = optionalNumber(detail?.pro_detail_cus_qtyFree) ?? 0;
+  const buy = optionalNumber(detail?.proDetailCusQtyBuy) ?? 0;
+  const free = optionalNumber(detail?.proDetailCusQtyFree) ?? 0;
   return buy > 0 && free > 0 ? clampQty(buy) : 1;
 }
 
@@ -26,9 +26,9 @@ function detailOrderStockLimit(
   detail: ProdDetail | null | undefined,
   unitsPerOrder = 1,
 ) {
-  if (!detail || optionalNumber(detail.cut_stock) === 2) return MAX_ORDER_QTY;
+  if (!detail || optionalNumber(detail.cutStock) === 2) return MAX_ORDER_QTY;
 
-  const stock = optionalNumber(detail.qty_stock, detail.pro_detail_qty_stock);
+  const stock = optionalNumber(detail.qtyStock, detail.proDetailQtyStock);
   if (stock === null) return MAX_ORDER_QTY;
   return Math.max(0, Math.floor(stock / Math.max(1, unitsPerOrder)));
 }

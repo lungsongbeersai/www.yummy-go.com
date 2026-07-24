@@ -65,8 +65,8 @@ function zone(zoneUuid: string): PosZone {
 
 function category(cateUuid: string): CateWithProducts {
   return {
-    cate_uuid: cateUuid,
-    cate_name: cateUuid,
+    cateUuid,
+    cateName: cateUuid,
     products: []
   };
 }
@@ -407,12 +407,12 @@ describe("POS store menu and table browse state", () => {
       .mockResolvedValueOnce({
         status: "success",
         message: "ok",
-        data: catalog,
-        default_cate_uuid: "category-2"
+        categories: catalog,
+        defaultCateUuid: "category-2"
       })
-      .mockResolvedValueOnce({ status: "success", message: "ok", data: normalMenu })
-      .mockResolvedValueOnce({ status: "success", message: "ok", data: setMenu })
-      .mockResolvedValueOnce({ status: "success", message: "ok", data: promotionMenu });
+      .mockResolvedValueOnce({ status: "success", message: "ok", categories: normalMenu })
+      .mockResolvedValueOnce({ status: "success", message: "ok", categories: setMenu })
+      .mockResolvedValueOnce({ status: "success", message: "ok", categories: promotionMenu });
 
     await usePosStore.getState().loadMenu({
       branchUuid: "branch-1",
@@ -433,11 +433,11 @@ describe("POS store menu and table browse state", () => {
       submittedSearch: ""
     });
     expect(fetchCateProductsMock).toHaveBeenNthCalledWith(2, {
-      branch_uuid_fk: "branch-1",
-      cate_uuid: "category-2",
+      branchUuidFk: "branch-1",
+      cateUuid: "category-2",
       lang: "en",
       search: "",
-      status_sort_fk: ProductSortStatus.NORMAL
+      statusSortFk: ProductSortStatus.NORMAL
     });
   });
 
@@ -511,7 +511,7 @@ describe("POS store menu and table browse state", () => {
       .mockResolvedValue({
         status: "success",
         message: "ok",
-        data: [category("stale-menu")],
+        categories: [category("stale-menu")],
       });
 
     const load = store.loadMenu({
@@ -527,8 +527,8 @@ describe("POS store menu and table browse state", () => {
     catalogResponse.resolve({
       status: "success",
       message: "ok",
-      data: [category("category-1")],
-      default_cate_uuid: "category-1",
+      categories: [category("category-1")],
+      defaultCateUuid: "category-1",
     });
     await load;
 

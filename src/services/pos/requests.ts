@@ -1,6 +1,13 @@
 import { apiRequest } from "@/lib/api";
 import { toApiLanguage } from "@/lib/language";
-import { normalizeFetchCateProductsResponse } from "@/services/pos/normalizers";
+import type {
+  ApiFetchCateProductsResponse,
+  ApiProdItemResponse,
+} from "@/services/pos/api-types";
+import {
+  mapApiProdItem,
+  normalizeFetchCateProductsResponse,
+} from "@/services/pos/normalizers";
 import { requiredItems, requiredText } from "@/services/shared/validators";
 import type {
   BillDiscountInput,
@@ -18,7 +25,6 @@ import type {
   FetchCartParams,
   FetchCartResponse,
   FetchCateProductsParams,
-  FetchCateProductsResponse,
   FetchJoinMoveTableParams,
   FetchJoinMoveTableResponse,
   FetchPosParams,
@@ -36,7 +42,6 @@ import type {
   PosResponse,
   PrintInvoiceRequest,
   PrintInvoiceResponse,
-  ProdItem,
   ReprintReceiptRequest,
   ReprintReceiptResponse,
   SplitBillInput,
@@ -47,6 +52,25 @@ import type {
   UpdateQtyResponse
 } from "@/services/pos/types";
 
+function buildFetchCateProductsQuery(params: FetchCateProductsParams) {
+  return {
+    branch_uuid_fk: params.branchUuidFk,
+    ...(params.cateUuid !== undefined ? { cate_uuid: params.cateUuid } : {}),
+    ...(params.statusSortFk !== undefined
+      ? { status_sort_fk: params.statusSortFk }
+      : {}),
+    lang: toApiLanguage(params.lang),
+    search: params.search ?? "",
+  };
+}
+
+function buildGetProdItemBody(params: GetProdItemParams) {
+  return {
+    prod_uuid: params.prodUuid,
+    lang: toApiLanguage(params.lang),
+  };
+}
+
 export async function getPosTables(params: FetchPosParams) {
   requiredText(params.branch_uuid_fk, "branch_uuid_fk");
   return apiRequest<PosResponse>("get", "/api/v1/pos/fetch_table", {
@@ -55,18 +79,26 @@ export async function getPosTables(params: FetchPosParams) {
 }
 
 export async function fetchCateProducts(params: FetchCateProductsParams) {
-  requiredText(params.branch_uuid_fk, "branch_uuid_fk");
-  const response = await apiRequest<FetchCateProductsResponse>("get", "/api/v1/pos/fetch_cate_products", {
-    params: { ...params, lang: toApiLanguage(params.lang), search: params.search ?? "" }
-  });
+  requiredText(params.branchUuidFk, "branch_uuid_fk");
+  const response = await apiRequest<ApiFetchCateProductsResponse>(
+    "get",
+    "/api/v1/pos/fetch_cate_products",
+    {
+      params: buildFetchCateProductsQuery(params),
+    },
+  );
   return normalizeFetchCateProductsResponse(response);
 }
 
 export async function getProdItem(params: GetProdItemParams) {
-  const result = await apiRequest<{ data: ProdItem }>("post", "/api/v1/pos/get_prod_item", {
-    data: { prod_uuid: params.prod_uuid, lang: toApiLanguage(params.lang) }
-  });
-  return result.data;
+  const result = await apiRequest<ApiProdItemResponse>(
+    "post",
+    "/api/v1/pos/get_prod_item",
+    {
+      data: buildGetProdItemBody(params),
+    },
+  );
+  return mapApiProdItem(result.data);
 }
 
 export function createOrder(input: CreateOrderInput) {

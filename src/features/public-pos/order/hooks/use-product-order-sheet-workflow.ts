@@ -65,7 +65,7 @@ export function useProductOrderSheetWorkflow({
   );
   const initialDetail = details.find(isDetailAvailable);
   const [detailUuid, setDetailUuid] = useState(
-    () => initialDetail?.pro_detail_uuid ?? "",
+    () => initialDetail?.proDetailUuid ?? "",
   );
   const [toppingQtyByUuid, setToppingQtyByUuid] = useState<
     Record<string, number>
@@ -80,7 +80,7 @@ export function useProductOrderSheetWorkflow({
   useResetOnDeps([details, open, product], () => {
     if (!open || !product) return;
     const nextDetail = details.find(isDetailAvailable);
-    setDetailUuid(nextDetail?.pro_detail_uuid ?? "");
+    setDetailUuid(nextDetail?.proDetailUuid ?? "");
     setQty(defaultOrderQty(nextDetail));
     setToppingQtyByUuid({});
     setRememberedToppingQtyByUuid({});
@@ -89,14 +89,14 @@ export function useProductOrderSheetWorkflow({
 
   const selectedDetail = useMemo(
     () =>
-      details.find((detail) => detail.pro_detail_uuid === detailUuid) ??
+      details.find((detail) => detail.proDetailUuid === detailUuid) ??
       details.find(isDetailAvailable),
     [detailUuid, details],
   );
   const selectedToppings = useMemo(
     () =>
       toppings.flatMap((topping): PublicSelectedTopping[] => {
-        const toppingQty = toppingQtyByUuid[topping.prod_topping_uuid] ?? 0;
+        const toppingQty = toppingQtyByUuid[topping.prodToppingUuid] ?? 0;
         return toppingQty >= 1 && isToppingAvailable(topping)
           ? [{ topping, qty: toppingQty }]
           : [];
@@ -142,7 +142,7 @@ export function useProductOrderSheetWorkflow({
 
   const handleDetailSelect = (nextDetailUuid: string) => {
     const nextDetail = details.find(
-      (detail) => detail.pro_detail_uuid === nextDetailUuid,
+      (detail) => detail.proDetailUuid === nextDetailUuid,
     );
     if (!isDetailAvailable(nextDetail)) return;
     setDetailUuid(nextDetailUuid);
@@ -158,7 +158,7 @@ export function useProductOrderSheetWorkflow({
 
   const handleToppingToggle = (toppingUuid: string) => {
     const topping = toppings.find(
-      (item) => item.prod_topping_uuid === toppingUuid,
+      (item) => item.prodToppingUuid === toppingUuid,
     );
     if (!isToppingAvailable(topping)) return;
 
@@ -180,7 +180,7 @@ export function useProductOrderSheetWorkflow({
 
   const handleToppingQty = (toppingUuid: string, nextQty: number) => {
     const topping = toppings.find(
-      (item) => item.prod_topping_uuid === toppingUuid,
+      (item) => item.prodToppingUuid === toppingUuid,
     );
     if (!isToppingAvailable(topping)) return;
 

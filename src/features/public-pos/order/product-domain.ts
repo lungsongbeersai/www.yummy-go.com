@@ -53,7 +53,7 @@ export {
 export { formatMoney, formatShortDate };
 
 export function formatProductPrice(product: CateProductItem, lang: string) {
-  const rawPrice = product.pro_detail_sprice ?? product.prod_price;
+  const rawPrice = product.proDetailSprice ?? product.prodPrice;
   const price = Number(rawPrice);
   if (!Number.isFinite(price) || price <= 0) return "";
 
@@ -78,15 +78,15 @@ export function publicProductCardPrice(
 ):
   | { kind: "exact" | "starting"; value: number }
   | { kind: "variable"; value: null } {
-  if (Number(product.count_option_enabled ?? 0) > 1) {
-    const minPrice = positivePrice(product.min_price);
+  if (Number(product.countOptionEnabled ?? 0) > 1) {
+    const minPrice = positivePrice(product.minPrice);
     if (minPrice === null) return { kind: "variable", value: null };
 
-    if (!hasPriceValue(product.max_price)) {
+    if (!hasPriceValue(product.maxPrice)) {
       return { kind: "starting", value: minPrice };
     }
 
-    const maxPrice = positivePrice(product.max_price);
+    const maxPrice = positivePrice(product.maxPrice);
     if (maxPrice === null || maxPrice < minPrice) {
       return { kind: "variable", value: null };
     }
@@ -97,11 +97,11 @@ export function publicProductCardPrice(
   }
 
   const exactPrice =
-    positivePrice(product.pro_detail_sprice) ??
-    positivePrice(product.prod_price);
+    positivePrice(product.proDetailSprice) ??
+    positivePrice(product.prodPrice);
   if (exactPrice !== null) return { kind: "exact", value: exactPrice };
 
-  const minPrice = positivePrice(product.min_price);
+  const minPrice = positivePrice(product.minPrice);
   return minPrice === null
     ? { kind: "variable", value: null }
     : { kind: "exact", value: minPrice };
@@ -120,7 +120,7 @@ export function getPublicOrderPriceTotals({
   const productSubtotal = numeric(basePrice) * normalizedProductQty;
   const toppingUnitTotal = toppings.reduce(
     (sum, selected) =>
-      sum + numeric(selected.topping.topping_price) * numeric(selected.qty),
+      sum + numeric(selected.topping.toppingPrice) * numeric(selected.qty),
     0,
   );
   // topping_qty is per product; only its price is extended by the product quantity.
@@ -136,7 +136,7 @@ export function getPublicOrderPriceTotals({
 // P3.3: NOT merged with pos/order-customer's identically-named
 // getProductModalMode — for status, this public version uses only the passed
 // statusSortFk and also matches the Lao menu's "③"/"②" glyph markers in
-// type_group; the staff version additionally checks product?.status_sort_fk.
+// typeGroup; the staff version additionally checks product?.statusSortFk.
 export function getProductModalMode(
   statusSortFk: number,
   product?: ProdItem | null,
@@ -147,13 +147,13 @@ export function getProductModalMode(
   if (status === publicMenuKindToStatusSortFk(PUBLIC_MENU_KIND.SET))
     return "set";
 
-  const typeGroup = String(product?.type_group ?? "").toLowerCase();
+  const typeGroup = String(product?.typeGroup ?? "").toLowerCase();
   if (typeGroup.includes("③") || typeGroup.includes("promo"))
     return "promotion";
   if (
     typeGroup.includes("②") ||
     typeGroup.includes("set") ||
-    product?.prod_set_price !== undefined
+    product?.prodSetPrice !== undefined
   )
     return "set";
   return "normal";
@@ -164,7 +164,7 @@ export function productModeLabel(
   product: ProdItem,
   lang: string,
 ) {
-  if (product.type_group) return product.type_group;
+  if (product.typeGroup) return product.typeGroup;
   if (mode === "promotion")
     return statusSectionLabel(PUBLIC_MENU_KIND.PROMOTION, lang);
   if (mode === "set") return statusSectionLabel(PUBLIC_MENU_KIND.SET, lang);
@@ -178,8 +178,8 @@ export function getModalBasePrice(
 ) {
   if (mode === "set") {
     return numeric(
-      product?.prod_set_price ??
-        product?.prod_price ??
+      product?.prodSetPrice ??
+        product?.prodPrice ??
         productPriceFromDetail(detail),
     );
   }
@@ -195,8 +195,8 @@ export function getPromoLabel(
   detail: ProdDetail | null | undefined,
   t: TFunction,
 ) {
-  const buy = Number(detail?.pro_detail_cus_qtyBuy ?? 0);
-  const free = Number(detail?.pro_detail_cus_qtyFree ?? 0);
+  const buy = Number(detail?.proDetailCusQtyBuy ?? 0);
+  const free = Number(detail?.proDetailCusQtyFree ?? 0);
 
   if (buy > 0 && free > 0)
     return `${t("pos.buyShort")} ${buy} ${t("pos.getShort")} ${free}`;
@@ -206,25 +206,25 @@ export function getPromoLabel(
 
 export function isToppingAvailable(topping?: ProdTopping | null) {
   if (!topping) return false;
-  if (topping.topping_enabled === 2) return false;
-  if (topping.topping_status === 2) return false;
+  if (topping.toppingEnabled === 2) return false;
+  if (topping.toppingStatus === 2) return false;
   return true;
 }
 
 export function toppingDisplayName(topping: ProdTopping, lang: string) {
   if (lang === "en") {
     return (
-      topping.topping_name_eng ||
-      topping.topping_name ||
-      topping.topping_name_la ||
+      topping.toppingNameEng ||
+      topping.toppingName ||
+      topping.toppingNameLa ||
       ""
     );
   }
 
   return (
-    topping.topping_name_la ||
-    topping.topping_name ||
-    topping.topping_name_eng ||
+    topping.toppingNameLa ||
+    topping.toppingName ||
+    topping.toppingNameEng ||
     ""
   );
 }
@@ -236,7 +236,7 @@ function publicProductStatusSort(
   product: CateProductItem,
   activeStatusSortFk: number,
 ) {
-  return Number(product.status_sort_fk ?? activeStatusSortFk);
+  return Number(product.statusSortFk ?? activeStatusSortFk);
 }
 
 export function isPromotionEnded(
@@ -268,7 +268,7 @@ export function productBlockedLabel(
 ) {
   if (blockedState === "promotion-ended") return t("pos.promotionEnded");
   if (blockedState === "sold-out")
-    return product.sold_out_msg || t("pos.outOfStock");
+    return product.soldOutMsg || t("pos.outOfStock");
   return "";
 }
 
@@ -287,10 +287,10 @@ export function isKnownModalProduct(
   activeStatusSortFk: number,
 ) {
   return isKnownModalProductCore({
-    allOptionCount: Number(product.count_option_all ?? 1),
-    enabledOptionCount: Number(product.count_option_enabled ?? 1),
-    enabledToppingCount: Number(product.count_topping_enabled ?? 0),
-    hasOptions: product.has_options === true,
+    allOptionCount: Number(product.countOptionAll ?? 1),
+    enabledOptionCount: Number(product.countOptionEnabled ?? 1),
+    enabledToppingCount: Number(product.countToppingEnabled ?? 0),
+    hasOptions: product.hasOptions === true,
     hasPromo: hasPromo(product),
     productStatusSort: publicProductStatusSort(
       product,
@@ -300,9 +300,9 @@ export function isKnownModalProduct(
 }
 
 export function hasPromo(product: CateProductItem) {
-  const promoState = String(product.promo_state ?? "").toUpperCase();
+  const promoState = String(product.promoState ?? "").toUpperCase();
   return Boolean(
-    promoState && promoState !== "NONE" && product.promo_expired !== true,
+    promoState && promoState !== "NONE" && product.promoExpired !== true,
   );
 }
 
@@ -314,11 +314,11 @@ export function productNeedsModal(
   const enabledDetails = (item.details ?? []).filter(isDetailAvailable);
   const enabledToppings = (item.toppings ?? []).filter(isToppingAvailable);
   const productStatusSort = Number(
-    product.status_sort_fk ?? activeStatusSortFk,
+    product.statusSortFk ?? activeStatusSortFk,
   );
   return (
-    product.has_options === true ||
-    Number(product.count_topping_enabled ?? 0) > 0 ||
+    product.hasOptions === true ||
+    Number(product.countToppingEnabled ?? 0) > 0 ||
     productStatusSort === publicMenuKindToStatusSortFk(PUBLIC_MENU_KIND.SET) ||
     productStatusSort ===
       publicMenuKindToStatusSortFk(PUBLIC_MENU_KIND.PROMOTION) ||
@@ -330,24 +330,24 @@ export function productNeedsModal(
 
 // P3.3: NOT merged with pos/order-customer's identically-named
 // canDirectAddFromList — this version accepts any finite price (including
-// 0 or negative), lacks the staff version's extra count_option_all<=1
+// 0 or negative), lacks the staff version's extra countOptionAll<=1
 // guard, and doesn't gate on getProductBlockedState. Real divergence, not
 // style — see product-classification.ts over there.
 export function canDirectAddFromList(
   product: CateProductItem,
   activeStatusSortFk: number,
 ) {
-  const detailUuid = String(product.pro_detail_uuid ?? "").trim();
-  const price = Number(product.pro_detail_sprice ?? product.prod_price);
+  const detailUuid = String(product.proDetailUuid ?? "").trim();
+  const price = Number(product.proDetailSprice ?? product.prodPrice);
   const productStatusSort = Number(
-    product.status_sort_fk ?? activeStatusSortFk,
+    product.statusSortFk ?? activeStatusSortFk,
   );
   return (
     Boolean(detailUuid) &&
     Number.isFinite(price) &&
-    product.has_options !== true &&
-    Number(product.count_option_enabled ?? 1) <= 1 &&
-    Number(product.count_topping_enabled ?? 0) <= 0 &&
+    product.hasOptions !== true &&
+    Number(product.countOptionEnabled ?? 1) <= 1 &&
+    Number(product.countToppingEnabled ?? 0) <= 0 &&
     productStatusSort !== publicMenuKindToStatusSortFk(PUBLIC_MENU_KIND.SET) &&
     productStatusSort !==
       publicMenuKindToStatusSortFk(PUBLIC_MENU_KIND.PROMOTION) &&
@@ -356,21 +356,21 @@ export function canDirectAddFromList(
 }
 
 export function productListItemToProdItem(product: CateProductItem): ProdItem {
-  const price = product.pro_detail_sprice ?? product.prod_price ?? 0;
+  const price = product.proDetailSprice ?? product.prodPrice ?? 0;
   return {
-    prod_uuid: product.prod_uuid,
-    prod_name: product.prod_name,
-    prod_image: product.prod_image,
-    prod_color: product.prod_color,
-    prod_price: price,
-    prod_status_imge: product.prod_status_imge,
+    prodUuid: product.prodUuid,
+    prodName: product.prodName,
+    prodImage: product.prodImage,
+    prodColor: product.prodColor,
+    prodPrice: price,
+    prodStatusImge: product.prodStatusImge,
     details: [
       {
-        pro_detail_uuid: String(product.pro_detail_uuid ?? ""),
+        proDetailUuid: String(product.proDetailUuid ?? ""),
         price,
-        pro_detail_sprice: price,
-        cut_stock: 2,
-        pro_detail_enabled: 1,
+        proDetailSprice: price,
+        cutStock: 2,
+        proDetailEnabled: 1,
       },
     ],
     toppings: [],
@@ -383,9 +383,9 @@ export function productListItemToProdItem(product: CateProductItem): ProdItem {
 // there for the specific divergence found in each.
 export function isDetailAvailable(detail?: ProdDetail) {
   if (!detail) return false;
-  if (detail.pro_detail_enabled === 2) return false;
-  if (detail.pro_detail_status === 2) return false;
-  if (detail.cut_stock !== 2 && Number(detail.qty_stock ?? 1) <= 0)
+  if (detail.proDetailEnabled === 2) return false;
+  if (detail.proDetailStatus === 2) return false;
+  if (detail.cutStock !== 2 && Number(detail.qtyStock ?? 1) <= 0)
     return false;
   return true;
 }
@@ -399,7 +399,7 @@ export function firstAvailableDetail(product?: ProdItem | null) {
 }
 
 export function defaultOrderQty(detail?: ProdDetail | null) {
-  const qty = Number(detail?.pro_detail_cus_qtyBuy ?? detail?.default_qty ?? 1);
+  const qty = Number(detail?.proDetailCusQtyBuy ?? detail?.defaultQty ?? 1);
   return Number.isFinite(qty) && qty > 0 ? qty : 1;
 }
 
@@ -415,11 +415,11 @@ export function promotionQuantity(
   const saleQty =
     positiveQuantity(source?.sale_qty) ??
     positiveQuantity(source?.order_it_promo_sale_qty) ??
-    positiveQuantity(source?.pro_detail_cus_qtyBuy) ??
+    positiveQuantity(source?.proDetailCusQtyBuy) ??
     0;
   const freeQty =
     positiveQuantity(source?.free_qty) ??
-    positiveQuantity(source?.pro_detail_cus_qtyFree) ??
+    positiveQuantity(source?.proDetailCusQtyFree) ??
     positiveQuantity(source?.order_it_promo_free_qty) ??
     0;
   const lineFreeQty = positiveQuantity(source?.order_it_promo_free_qty) ?? 0;
@@ -437,7 +437,7 @@ export function promotionQuantity(
 }
 
 export function productPriceFromDetail(detail?: ProdDetail | null) {
-  return numeric(detail?.pro_detail_sprice ?? detail?.price);
+  return numeric(detail?.proDetailSprice ?? detail?.price);
 }
 
 export function maxAvailableQty(
@@ -446,9 +446,9 @@ export function maxAvailableQty(
   cart: CartOrder[],
 ) {
   if (!detail) return 1;
-  if (detail.cut_stock === 2) return MAX_OPEN_QTY;
+  if (detail.cutStock === 2) return MAX_OPEN_QTY;
 
-  const stock = Number(detail.qty_stock ?? MAX_OPEN_QTY);
+  const stock = Number(detail.qtyStock ?? MAX_OPEN_QTY);
   if (!Number.isFinite(stock) || stock <= 0) return 0;
 
   const usedQty = cart
@@ -463,8 +463,8 @@ export function maxAvailableQty(
       );
       const itemProductUuid = String(item.prod_uuid_fk ?? item.prod_uuid ?? "");
       return (
-        itemDetailUuid === detail.pro_detail_uuid ||
-        Boolean(product?.prod_uuid && itemProductUuid === product.prod_uuid)
+        itemDetailUuid === detail.proDetailUuid ||
+        Boolean(product?.prodUuid && itemProductUuid === product.prodUuid)
       );
     })
     .reduce((sum, item) => sum + getCartItemQty(item), 0);
@@ -509,12 +509,12 @@ export function buildPublicOrderInput({
     lang,
     items: [
       {
-        prod_detail_uuid_fk: detail.pro_detail_uuid,
+        prod_detail_uuid_fk: detail.proDetailUuid,
         order_it_qty: qty,
         order_it_note: note || "",
         order_it_status: 0,
         toppings: toppings.map((selected) => ({
-          prod_topping_uuid_fk: selected.topping.prod_topping_uuid,
+          prod_topping_uuid_fk: selected.topping.prodToppingUuid,
           topping_qty: selected.qty,
         })),
       },

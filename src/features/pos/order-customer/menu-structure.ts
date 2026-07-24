@@ -64,7 +64,7 @@ export function flattenProducts(
 ): ProductCardEntry[] {
   return categories.flatMap((category) =>
     (category.products ?? []).map((product) => ({
-      cateUuid: category.cate_uuid,
+      cateUuid: category.cateUuid,
       product,
     })),
   );

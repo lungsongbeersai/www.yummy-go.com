@@ -261,12 +261,12 @@ export const usePublicPosStore = create<PublicPosState>((set, get) => ({
     return request;
   },
   loadMenuProducts: async (params) => {
-    const sessionChanged = !sessionCache.isActiveSession(params.t, params.lang);
-    const sessionVersion = sessionCache.activateSession(params.t, params.lang);
+    const sessionChanged = !sessionCache.isActiveSession(params.token, params.lang);
+    const sessionVersion = sessionCache.activateSession(params.token, params.lang);
     const baseParams: CustomerFetchCateProductsParams = {
-      t: params.t,
+      token: params.token,
       lang: params.lang,
-      cate_uuid: params.cate_uuid?.trim() || undefined,
+      cateUuid: params.cateUuid?.trim() || undefined,
       search: params.search ?? ""
     };
     const sequenceKey = menuSequenceKey(baseParams);
@@ -277,7 +277,7 @@ export const usePublicPosStore = create<PublicPosState>((set, get) => ({
       loadingMenu: true,
       menuRequestKey: sequenceKey,
       error: null,
-      token: baseParams.t
+      token: baseParams.token
     });
 
     try {
@@ -289,15 +289,15 @@ export const usePublicPosStore = create<PublicPosState>((set, get) => ({
         return get().menuByKind;
       }
 
-      const categories = normalizeCategories(result.data ?? []);
+      const categories = normalizeCategories(result.categories ?? []);
       const categoryTabs = toCategoryTabs(categories);
-      const selectedCateUuid = firstAvailableCateUuid(categories, result.selected_cate_uuid, result.default_cate_uuid);
+      const selectedCateUuid = firstAvailableCateUuid(categories, result.selectedCateUuid, result.defaultCateUuid);
       const defaultCateUuid =
-        result.default_cate_uuid && categories.some((category) => category.cate_uuid === result.default_cate_uuid)
-          ? result.default_cate_uuid
+        result.defaultCateUuid && categories.some((category) => category.cateUuid === result.defaultCateUuid)
+          ? result.defaultCateUuid
           : selectedCateUuid;
       const loadedCateUuids = uniqueStrings([selectedCateUuid, ...productCateUuids(categories)]);
-      const specialProducts = splitSpecialProducts(result.special_products ?? []);
+      const specialProducts = splitSpecialProducts(result.specialProducts ?? []);
       const promotionCategories = toSpecialCategories(PUBLIC_MENU_KIND.PROMOTION, specialProducts.promotion);
       const setCategories = toSpecialCategories(PUBLIC_MENU_KIND.SET, specialProducts.set);
 
@@ -349,15 +349,15 @@ export const usePublicPosStore = create<PublicPosState>((set, get) => ({
     }
   },
   loadNormalCategoryProducts: async (params) => {
-    const sessionChanged = !sessionCache.isActiveSession(params.t, params.lang);
-    const sessionVersion = sessionCache.activateSession(params.t, params.lang);
-    const cateUuid = params.cate_uuid?.trim();
+    const sessionChanged = !sessionCache.isActiveSession(params.token, params.lang);
+    const sessionVersion = sessionCache.activateSession(params.token, params.lang);
+    const cateUuid = params.cateUuid?.trim();
     if (!cateUuid) return get().menuByKind[PUBLIC_MENU_KIND.NORMAL];
 
     if (sessionChanged) {
       set({
         ...emptyPublicPosSessionState(),
-        token: params.t
+        token: params.token
       });
     }
 
@@ -368,9 +368,9 @@ export const usePublicPosStore = create<PublicPosState>((set, get) => ({
     }
 
     const requestParams: CustomerFetchCateProductsParams = {
-      t: params.t,
+      token: params.token,
       lang: params.lang,
-      cate_uuid: cateUuid,
+      cateUuid,
       search: params.search ?? ""
     };
     const requestKey = statusMenuRequestKey(requestParams, PUBLIC_MENU_KIND.NORMAL);
@@ -394,7 +394,7 @@ export const usePublicPosStore = create<PublicPosState>((set, get) => ({
       if (!sessionCache.isCurrentSession(sessionVersion)) {
         return get().menuByKind[PUBLIC_MENU_KIND.NORMAL];
       }
-      const categories = normalizeCategories(result.data ?? []);
+      const categories = normalizeCategories(result.categories ?? []);
 
       set((current) => {
         const currentNormalMenu = current.menuByKind[PUBLIC_MENU_KIND.NORMAL];
@@ -413,7 +413,7 @@ export const usePublicPosStore = create<PublicPosState>((set, get) => ({
               categories: mergedCategories,
               categoryTabs,
               selectedCateUuid: currentNormalMenu.selectedCateUuid,
-              defaultCateUuid: currentNormalMenu.defaultCateUuid || result.default_cate_uuid || cateUuid,
+              defaultCateUuid: currentNormalMenu.defaultCateUuid || result.defaultCateUuid || cateUuid,
               loadedCateUuids: uniqueStrings([...currentNormalMenu.loadedCateUuids, cateUuid]),
               loadingCateUuids: currentNormalMenu.loadingCateUuids.filter((uuid) => uuid !== cateUuid),
               error: null,
@@ -421,7 +421,7 @@ export const usePublicPosStore = create<PublicPosState>((set, get) => ({
             }
           },
           categoryTabs,
-          defaultCateUuid: current.defaultCateUuid || result.default_cate_uuid || cateUuid
+          defaultCateUuid: current.defaultCateUuid || result.defaultCateUuid || cateUuid
         };
       });
     } catch (error) {
@@ -447,14 +447,14 @@ export const usePublicPosStore = create<PublicPosState>((set, get) => ({
     return get().menuByKind[PUBLIC_MENU_KIND.NORMAL];
   },
   loadProductItem: async (params) => {
-    const sessionChanged = !sessionCache.isActiveSession(params.t, params.lang);
-    const sessionVersion = sessionCache.activateSession(params.t, params.lang);
+    const sessionChanged = !sessionCache.isActiveSession(params.token, params.lang);
+    const sessionVersion = sessionCache.activateSession(params.token, params.lang);
     const requestVersion = sessionCache.productItemRequest.next();
     set({
       ...(sessionChanged ? emptyPublicPosSessionState() : {}),
       loadingItem: true,
       error: null,
-      token: params.t,
+      token: params.token,
       selectedProduct: null
     });
     try {

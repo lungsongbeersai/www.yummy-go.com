@@ -57,30 +57,30 @@ const t = ((key: string) => key) as never;
 
 function product(overrides: Partial<CateProductItem> = {}): CateProductItem {
   return {
-    prod_uuid: "prod-1",
-    prod_name: "Noodle",
-    prod_image: "",
-    prod_status_imge: ProductImageStatus.IMAGE,
-    status_sort_fk: normalStatus,
-    can_add: true,
-    has_options: false,
-    options_msg: "",
-    count_option_all: 1,
-    count_option_enabled: 1,
-    count_topping_enabled: 0,
-    pro_detail_uuid: "detail-1",
-    pro_detail_sprice: 12000,
+    prodUuid: "prod-1",
+    prodName: "Noodle",
+    prodImage: "",
+    prodStatusImge: ProductImageStatus.IMAGE,
+    statusSortFk: normalStatus,
+    canAdd: true,
+    hasOptions: false,
+    optionsMsg: "",
+    countOptionAll: 1,
+    countOptionEnabled: 1,
+    countToppingEnabled: 0,
+    proDetailUuid: "detail-1",
+    proDetailSprice: 12000,
     ...overrides,
   };
 }
 
 function prodItem(overrides: Partial<ProdItem> = {}): ProdItem {
   return {
-    prod_uuid: "prod-1",
-    prod_name: "Noodle",
-    prod_image: "",
-    prod_status_imge: ProductImageStatus.IMAGE,
-    prod_price: 12000,
+    prodUuid: "prod-1",
+    prodName: "Noodle",
+    prodImage: "",
+    prodStatusImge: ProductImageStatus.IMAGE,
+    prodPrice: 12000,
     details: [],
     toppings: [],
     ...overrides,
@@ -90,25 +90,25 @@ function prodItem(overrides: Partial<ProdItem> = {}): ProdItem {
 function category(
   cateUuid: string,
   products: CateProductItem[] = [],
-): { cate_uuid: string; cate_name: string; products: CateProductItem[] } {
+): { cateUuid: string; cateName: string; products: CateProductItem[] } {
   return {
-    cate_uuid: cateUuid,
-    cate_name: cateUuid,
+    cateUuid,
+    cateName: cateUuid,
     products,
   };
 }
 
-function productStatus(value: unknown): CateProductItem["status_sort_fk"] {
-  return value as CateProductItem["status_sort_fk"];
+function productStatus(value: unknown): CateProductItem["statusSortFk"] {
+  return value as CateProductItem["statusSortFk"];
 }
 
 describe("public menu category reset helpers", () => {
   it("selects the initial rendered category only when category order changes", () => {
     const categories = [
-      category("cate-1", [product({ prod_uuid: "prod-1" })]),
+      category("cate-1", [product({ prodUuid: "prod-1" })]),
       category("cate-2", [
-        product({ prod_uuid: "prod-2" }),
-        product({ prod_uuid: "prod-3" }),
+        product({ prodUuid: "prod-2" }),
+        product({ prodUuid: "prod-3" }),
       ]),
     ];
 
@@ -177,10 +177,10 @@ describe("public POS product helpers", () => {
     expect(
       publicProductCardPrice(
         product({
-          count_option_enabled: 3,
-          pro_detail_sprice: 99999,
-          min_price: "45000",
-          max_price: 65000,
+          countOptionEnabled: 3,
+          proDetailSprice: 99999,
+          minPrice: "45000",
+          maxPrice: 65000,
         }),
       ),
     ).toEqual({ kind: "starting", value: 45000 });
@@ -188,9 +188,9 @@ describe("public POS product helpers", () => {
     expect(
       publicProductCardPrice(
         product({
-          count_option_enabled: 2,
-          min_price: 45000,
-          max_price: undefined,
+          countOptionEnabled: 2,
+          minPrice: 45000,
+          maxPrice: undefined,
         }),
       ),
     ).toEqual({ kind: "starting", value: 45000 });
@@ -200,9 +200,9 @@ describe("public POS product helpers", () => {
     expect(
       publicProductCardPrice(
         product({
-          count_option_enabled: 2,
-          min_price: 45000,
-          max_price: "45000",
+          countOptionEnabled: 2,
+          minPrice: 45000,
+          maxPrice: "45000",
         }),
       ),
     ).toEqual({ kind: "exact", value: 45000 });
@@ -212,27 +212,27 @@ describe("public POS product helpers", () => {
     expect(
       publicProductCardPrice(
         product({
-          count_option_enabled: 2,
-          min_price: undefined,
-          max_price: 65000,
+          countOptionEnabled: 2,
+          minPrice: undefined,
+          maxPrice: 65000,
         }),
       ),
     ).toEqual({ kind: "variable", value: null });
     expect(
       publicProductCardPrice(
         product({
-          count_option_enabled: 2,
-          min_price: 65000,
-          max_price: 45000,
+          countOptionEnabled: 2,
+          minPrice: 65000,
+          maxPrice: 45000,
         }),
       ),
     ).toEqual({ kind: "variable", value: null });
     expect(
       publicProductCardPrice(
         product({
-          count_option_enabled: 2,
-          min_price: 45000,
-          max_price: "invalid",
+          countOptionEnabled: 2,
+          minPrice: 45000,
+          maxPrice: "invalid",
         }),
       ),
     ).toEqual({ kind: "variable", value: null });
@@ -245,17 +245,17 @@ describe("public POS product helpers", () => {
     });
     expect(
       publicProductCardPrice(
-        product({ pro_detail_sprice: 0, prod_price: "18000" }),
+        product({ proDetailSprice: 0, prodPrice: "18000" }),
       ),
     ).toEqual({ kind: "exact", value: 18000 });
     expect(
       publicProductCardPrice(
-        product({ pro_detail_sprice: 0, prod_price: 0, min_price: 15000 }),
+        product({ proDetailSprice: 0, prodPrice: 0, minPrice: 15000 }),
       ),
     ).toEqual({ kind: "exact", value: 15000 });
     expect(
       publicProductCardPrice(
-        product({ pro_detail_sprice: 0, prod_price: 0, min_price: 0 }),
+        product({ proDetailSprice: 0, prodPrice: 0, minPrice: 0 }),
       ),
     ).toEqual({ kind: "variable", value: null });
   });
@@ -269,14 +269,14 @@ describe("public POS product helpers", () => {
 
   it("blocks sold-out and expired promotion products before choosing actions", () => {
     expect(
-      getProductBlockedState(product({ can_add: false }), normalStatus),
+      getProductBlockedState(product({ canAdd: false }), normalStatus),
     ).toBe("sold-out");
     expect(
       getProductBlockedState(
         product({
-          promo_expired: true,
-          promo_state: "ACTIVE",
-          status_sort_fk: promotionStatus,
+          promoExpired: true,
+          promoState: "ACTIVE",
+          statusSortFk: promotionStatus,
         }),
         promotionStatus,
       ),
@@ -284,7 +284,7 @@ describe("public POS product helpers", () => {
 
     expect(
       getProductActionState(
-        product({ can_add: false, has_options: true }),
+        product({ canAdd: false, hasOptions: true }),
         normalStatus,
       ),
     ).toBe("blocked");
@@ -302,17 +302,17 @@ describe("public POS product helpers", () => {
       expect(
         getProductBlockedState(
           product({
-            promo_expired: true,
-            promo_msg: "",
-            promo_state: "NONE",
-            status_sort_fk: statusSortFk,
+            promoExpired: true,
+            promoMsg: "",
+            promoState: "NONE",
+            statusSortFk,
           }),
           promotionStatus,
         ),
       ).toBeNull();
       expect(
         getProductActionState(
-          product({ status_sort_fk: statusSortFk }),
+          product({ statusSortFk }),
           setStatus,
         ),
       ).toBe("add");
@@ -322,25 +322,25 @@ describe("public POS product helpers", () => {
   it("keeps public non-finite count coercion behavior", () => {
     expect(
       getProductActionState(
-        product({ count_option_enabled: Number.POSITIVE_INFINITY }),
+        product({ countOptionEnabled: Number.POSITIVE_INFINITY }),
         normalStatus,
       ),
     ).toBe("choose");
     expect(
       getProductActionState(
-        product({ count_option_all: Number.POSITIVE_INFINITY }),
+        product({ countOptionAll: Number.POSITIVE_INFINITY }),
         normalStatus,
       ),
     ).toBe("choose");
     expect(
       getProductActionState(
-        product({ count_topping_enabled: Number.POSITIVE_INFINITY }),
+        product({ countToppingEnabled: Number.POSITIVE_INFINITY }),
         normalStatus,
       ),
     ).toBe("choose");
     expect(
       getProductActionState(
-        product({ count_option_enabled: Number.NaN }),
+        product({ countOptionEnabled: Number.NaN }),
         normalStatus,
       ),
     ).toBe("view");
@@ -348,11 +348,11 @@ describe("public POS product helpers", () => {
 
   it("selects list action states from options, direct-add data, and fallback view", () => {
     expect(
-      getProductActionState(product({ has_options: true }), normalStatus),
+      getProductActionState(product({ hasOptions: true }), normalStatus),
     ).toBe("choose");
     expect(getProductActionState(product(), normalStatus)).toBe("add");
     expect(
-      getProductActionState(product({ pro_detail_uuid: "" }), normalStatus),
+      getProductActionState(product({ proDetailUuid: "" }), normalStatus),
     ).toBe("view");
   });
 
@@ -362,11 +362,11 @@ describe("public POS product helpers", () => {
     expect(
       getProductModalMode(
         normalStatus,
-        prodItem({ type_group: "promo bundle" }),
+        prodItem({ typeGroup: "promo bundle" }),
       ),
     ).toBe("promotion");
     expect(
-      getProductModalMode(normalStatus, prodItem({ type_group: "lunch set" })),
+      getProductModalMode(normalStatus, prodItem({ typeGroup: "lunch set" })),
     ).toBe("set");
     expect(getProductModalMode(normalStatus, prodItem())).toBe("normal");
   });
@@ -388,9 +388,9 @@ describe("public POS product helpers", () => {
 describe("public POS quantity helpers", () => {
   it("limits stock by editable open cart quantity", () => {
     const detail: ProdDetail = {
-      pro_detail_uuid: "detail-1",
-      cut_stock: 1,
-      qty_stock: 5,
+      proDetailUuid: "detail-1",
+      cutStock: 1,
+      qtyStock: 5,
     };
     const cart: CartOrder[] = [
       {
@@ -414,7 +414,7 @@ describe("public POS quantity helpers", () => {
   it("normalizes promotion quantities and receive totals", () => {
     expect(
       promotionQuantity(
-        { pro_detail_cus_qtyBuy: 2, pro_detail_cus_qtyFree: 1 },
+        { proDetailCusQtyBuy: 2, proDetailCusQtyFree: 1 },
         4,
       ),
     ).toEqual({
@@ -443,15 +443,15 @@ describe("public POS order payload helper", () => {
         toppings: [
           {
             topping: {
-              prod_topping_uuid: "top-meat",
-              topping_price: "10000",
+              prodToppingUuid: "top-meat",
+              toppingPrice: "10000",
             },
             qty: 3,
           },
           {
             topping: {
-              prod_topping_uuid: "top-egg",
-              topping_price: 5_000,
+              prodToppingUuid: "top-egg",
+              toppingPrice: 5_000,
             },
             qty: 1,
           },
@@ -500,9 +500,9 @@ describe("public POS order payload helper", () => {
           qr_enabled: true,
           branch_uuid_fk: "branch-1",
         },
-        detail: { pro_detail_uuid: "detail-1" },
+        detail: { proDetailUuid: "detail-1" },
         qty: 2,
-        toppings: [{ topping: { prod_topping_uuid: "top-1" }, qty: 3 }],
+        toppings: [{ topping: { prodToppingUuid: "top-1" }, qty: 3 }],
         note: "less spicy",
         lang: "en",
       }),
@@ -529,13 +529,13 @@ describe("public POS browse helpers", () => {
   it("builds rendered category sections from ordered uuids and visible counts", () => {
     const categories = [
       category("cate-1", [
-        product({ prod_uuid: "p1" }),
-        product({ prod_uuid: "p2" }),
+        product({ prodUuid: "p1" }),
+        product({ prodUuid: "p2" }),
       ]),
-      category("cate-2", [product({ prod_uuid: "p3" })]),
+      category("cate-2", [product({ prodUuid: "p3" })]),
     ];
     const categoryByUuid = new Map(
-      categories.map((item) => [item.cate_uuid, item]),
+      categories.map((item) => [item.cateUuid, item]),
     );
 
     expect(
@@ -549,15 +549,15 @@ describe("public POS browse helpers", () => {
       }),
     ).toMatchObject([
       {
-        category: { cate_uuid: "cate-1" },
-        products: [{ prod_uuid: "p1" }],
+        category: { cateUuid: "cate-1" },
+        products: [{ prodUuid: "p1" }],
         totalProducts: 2,
         visibleCount: 1,
         loaded: true,
       },
       {
-        category: { cate_uuid: "cate-2" },
-        products: [{ prod_uuid: "p3" }],
+        category: { cateUuid: "cate-2" },
+        products: [{ prodUuid: "p3" }],
         totalProducts: 1,
         visibleCount: 1,
         loading: true,
@@ -568,13 +568,13 @@ describe("public POS browse helpers", () => {
   it("detects more menu content from hidden products or unrendered categories", () => {
     const categories = [
       category("cate-1", [
-        product({ prod_uuid: "p1" }),
-        product({ prod_uuid: "p2" }),
+        product({ prodUuid: "p1" }),
+        product({ prodUuid: "p2" }),
       ]),
-      category("cate-2", [product({ prod_uuid: "p3" })]),
+      category("cate-2", [product({ prodUuid: "p3" })]),
     ];
     const categoryByUuid = new Map(
-      categories.map((item) => [item.cate_uuid, item]),
+      categories.map((item) => [item.cateUuid, item]),
     );
 
     expect(
@@ -613,15 +613,15 @@ describe("public POS browse helpers", () => {
 
   it("calculates category path and initial visible counts", () => {
     const categories = [
-      category("cate-1", [product({ prod_uuid: "p1" })]),
+      category("cate-1", [product({ prodUuid: "p1" })]),
       category("cate-2", [
-        product({ prod_uuid: "p2" }),
-        product({ prod_uuid: "p3" }),
+        product({ prodUuid: "p2" }),
+        product({ prodUuid: "p3" }),
       ]),
-      category("cate-3", [product({ prod_uuid: "p4" })]),
+      category("cate-3", [product({ prodUuid: "p4" })]),
     ];
     const categoryByUuid = new Map(
-      categories.map((item) => [item.cate_uuid, item]),
+      categories.map((item) => [item.cateUuid, item]),
     );
     const path = getCategoryPathUuids({
       activeCateUuid: "cate-1",
@@ -646,12 +646,12 @@ describe("public POS browse helpers", () => {
     const direct = getDirectAddListPayload(product(), normalStatus, []);
     expect(direct.ok).toBe(true);
     if (direct.ok) {
-      expect(direct.item.prod_uuid).toBe("prod-1");
+      expect(direct.item.prodUuid).toBe("prod-1");
       expect(direct.payload).toMatchObject({ qty: 1, toppings: [], note: "" });
     }
 
     expect(
-      getDirectAddListPayload(product({ has_options: true }), normalStatus, []),
+      getDirectAddListPayload(product({ hasOptions: true }), normalStatus, []),
     ).toEqual({
       ok: false,
       reason: "needs-modal",

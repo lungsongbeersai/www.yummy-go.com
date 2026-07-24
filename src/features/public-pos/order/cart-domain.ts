@@ -40,19 +40,19 @@ export function findExistingCartItem(
   payload: PublicAddToCartPayload,
   statusRule: FetchCartStatusRule | null,
 ) {
-  const detailUuid = payload.detail.pro_detail_uuid;
+  const detailUuid = payload.detail.proDetailUuid;
   const toppingIds = payload.toppings
     .map((selected) =>
-      selected.topping.prod_topping_uuid
-        ? `${selected.topping.prod_topping_uuid}:${selected.qty}`
+      selected.topping.prodToppingUuid
+        ? `${selected.topping.prodToppingUuid}:${selected.qty}`
         : "",
     )
     .filter(Boolean)
     .sort();
   const toppingNames = payload.toppings
     .map((selected) =>
-      selected.topping.topping_name
-        ? `${selected.topping.topping_name}:${selected.qty}`
+      selected.topping.toppingName
+        ? `${selected.topping.toppingName}:${selected.qty}`
         : "",
     )
     .filter(Boolean)
@@ -72,8 +72,8 @@ export function findExistingCartItem(
       const itemProductUuid = String(item.prod_uuid_fk ?? item.prod_uuid ?? "");
       const matchesProduct =
         itemDetailUuid === detailUuid ||
-        itemProductUuid === product.prod_uuid ||
-        cartItemTitle(item).includes(product.prod_name);
+        itemProductUuid === product.prodUuid ||
+        cartItemTitle(item).includes(product.prodName);
 
       if (!matchesProduct) continue;
 

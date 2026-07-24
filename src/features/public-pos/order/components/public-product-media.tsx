@@ -23,9 +23,9 @@ export function ProductMedia({
   preload?: boolean;
 }) {
   const imageUrl = productImageUrl(product);
-  const colorCandidate = product.prod_color || product.prod_image;
+  const colorCandidate = product.prodColor || product.prodImage;
   const colorSwatch =
-    product.prod_status_imge === ProductImageStatus.COLOR &&
+    product.prodStatusImge === ProductImageStatus.COLOR &&
     isHexColor(colorCandidate)
       ? colorCandidate
       : "";
@@ -52,7 +52,7 @@ export function ProductMedia({
       >
         <Image
           src={imageUrl}
-          alt={product.prod_name}
+          alt={product.prodName}
           fill
           preload={preload || undefined}
           loading={preload ? undefined : "lazy"}

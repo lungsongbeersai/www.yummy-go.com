@@ -33,10 +33,10 @@ function deferred<T>() {
 
 function product(prodUuid: string): ProdItem {
   return {
-    prod_uuid: prodUuid,
-    prod_name: prodUuid,
-    prod_status_imge: ProductImageStatus.IMAGE,
-    prod_image: "",
+    prodUuid,
+    prodName: prodUuid,
+    prodStatusImge: ProductImageStatus.IMAGE,
+    prodImage: "",
     details: [],
     toppings: []
   };
@@ -165,7 +165,7 @@ describe("public POS session isolation", () => {
       cart: [{ order_uuid: "old-order" }],
       selectedProduct: product("old-product"),
       categoryTabs: [
-        { cate_uuid: "old-category", cate_name: "Old category" }
+        { cateUuid: "old-category", cateName: "Old category" }
       ],
       selectedCateUuid: "old-category"
     });
@@ -219,7 +219,7 @@ describe("public POS session isolation", () => {
     getProductItemMock
       .mockReturnValueOnce(oldRequest.promise)
       .mockReturnValueOnce(currentRequest.promise);
-    const params = { t: "table-token", lang: "la", prod_uuid: "product-1" };
+    const params = { token: "table-token", lang: "la", prodUuid: "product-1" };
 
     const oldLoad = usePublicPosStore.getState().loadProductItem(params);
     usePublicPosStore.getState().reset();
@@ -251,14 +251,14 @@ describe("public POS session isolation", () => {
       .mockReturnValueOnce(currentRequest.promise);
 
     const oldLoad = usePublicPosStore.getState().loadProductItem({
-      t: "table-token",
+      token: "table-token",
       lang: "la",
-      prod_uuid: "old-product"
+      prodUuid: "old-product"
     });
     const currentLoad = usePublicPosStore.getState().loadProductItem({
-      t: "table-token",
+      token: "table-token",
       lang: "la",
-      prod_uuid: "current-product"
+      prodUuid: "current-product"
     });
     currentRequest.resolve(product("current-product"));
     await currentLoad;

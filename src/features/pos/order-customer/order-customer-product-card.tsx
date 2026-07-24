@@ -77,8 +77,8 @@ export const EmployeeProductCard = memo(function EmployeeProductCard({
       ? Eye
       : Plus;
   const accessibleActionLabel = loading
-    ? `${t("common.loading")}: ${product.prod_name}`
-    : `${cardActionLabel}: ${product.prod_name}`;
+    ? `${t("common.loading")}: ${product.prodName}`
+    : `${cardActionLabel}: ${product.prodName}`;
 
   return (
     <Card
@@ -91,7 +91,7 @@ export const EmployeeProductCard = memo(function EmployeeProductCard({
     >
       <div className="relative aspect-square overflow-hidden bg-muted bg-cover bg-center md:aspect-[4/3]">
         <ProductMediaView
-          alt={product.prod_name}
+          alt={product.prodName}
           fallbackIcon="utensils"
           imageClassName={cn(
             !interactionDisabled &&
@@ -115,7 +115,7 @@ export const EmployeeProductCard = memo(function EmployeeProductCard({
       <CardContent className="flex min-h-0 flex-1 flex-col gap-2.5 p-2.5 sm:p-3">
         <div className="min-w-0">
           <p className="lao-tone-text line-clamp-2 min-h-10 text-pretty text-sm font-black text-foreground sm:text-base">
-            {product.prod_name}
+            {product.prodName}
           </p>
           {description ? (
             <p className="mt-1 line-clamp-1 min-h-4 text-xs font-medium leading-4 text-muted-foreground">
@@ -283,11 +283,11 @@ function ProductBadges({
 }) {
   const { t } = useTranslation();
   const productStatusSort =
-    optionalNumber(product.status_sort_fk) ?? activeSort;
+    optionalNumber(product.statusSortFk) ?? activeSort;
   const showSet = productStatusSort === ProductSortStatus.SET;
   const showPromotion =
     productStatusSort === ProductSortStatus.PROMOTION || hasPromo(product);
-  const showBuyFree = Boolean(product.customer_buy && product.customer_free);
+  const showBuyFree = Boolean(product.customerBuy && product.customerFree);
 
   if (!showSet && !showPromotion && !showBuyFree) return null;
 
@@ -306,8 +306,8 @@ function ProductBadges({
         ) : null}
         {showBuyFree ? (
           <Badge className="h-6 rounded-full bg-amber-300 px-1.5 py-0 text-xs font-black leading-none text-amber-950 shadow-sm sm:h-7 sm:px-2">
-            {t("pos.buyShort")} {product.customer_buy} {t("pos.freeShort")}{" "}
-            {product.customer_free}
+            {t("pos.buyShort")} {product.customerBuy} {t("pos.freeShort")}{" "}
+            {product.customerFree}
           </Badge>
         ) : null}
       </div>
@@ -320,16 +320,16 @@ function productCardDescription(
   activeSort: ProductSortStatus,
   t: ReturnType<typeof useTranslation>["t"]
 ) {
-  const promoMessage = optionalString(product.promo_msg);
+  const promoMessage = optionalString(product.promoMsg);
   if (promoMessage) return promoMessage;
 
   const optionCount = productOptionCount(product);
-  const optionMessage = optionalString(product.options_msg);
+  const optionMessage = optionalString(product.optionsMsg);
   const toppingCount = productToppingCount(product);
   const optionSummary =
     optionCount > 1
       ? t("pos.optionCount", { count: optionCount })
-      : product.has_options
+      : product.hasOptions
       ? optionMessage ?? t("pos.hasOptions")
       : null;
   const toppingSummary =
@@ -339,7 +339,7 @@ function productCardDescription(
     .join(" · ");
   if (choiceSummary) return choiceSummary;
 
-  const statusName = optionalString(product.status_name);
+  const statusName = optionalString(product.statusName);
   if (statusName) return statusName;
   if (activeSort === ProductSortStatus.PROMOTION) return t("pos.menuPromotion");
   if (activeSort === ProductSortStatus.SET) return t("pos.menuSet");

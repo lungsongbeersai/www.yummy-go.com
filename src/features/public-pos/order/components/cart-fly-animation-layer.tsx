@@ -102,9 +102,9 @@ function CartFlyAnimationItem({
 
 function FlyProductMedia({ product }: { product: CateProductItem | ProdItem }) {
   const imageUrl = productImageUrl(product);
-  const colorCandidate = product.prod_color || product.prod_image;
+  const colorCandidate = product.prodColor || product.prodImage;
   const colorSwatch =
-    product.prod_status_imge === ProductImageStatus.COLOR &&
+    product.prodStatusImge === ProductImageStatus.COLOR &&
     isHexColor(colorCandidate)
       ? colorCandidate
       : "";

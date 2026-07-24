@@ -190,21 +190,21 @@ export function ProductBrowseContent({
                   <TabsList className="h-11 w-max justify-start gap-1 bg-transparent p-0">
                     {visibleCategoryTabs.map((category) => (
                       <TabsTrigger
-                        key={category.cate_uuid}
-                        value={category.cate_uuid}
+                        key={category.cateUuid}
+                        value={category.cateUuid}
                         ref={(element) => {
-                          categoryTabRefs.current[category.cate_uuid] = element;
+                          categoryTabRefs.current[category.cateUuid] = element;
                         }}
                         className="h-11 flex-none gap-1.5 rounded-full border border-emerald-100 bg-white px-3 text-xs font-black shadow-none data-[state=active]:border-primary/30 data-[state=active]:bg-emerald-50 data-[state=active]:text-primary dark:border-border dark:bg-background dark:data-[state=active]:bg-primary/10"
                       >
-                        {jumpingCateUuid === category.cate_uuid ? (
+                        {jumpingCateUuid === category.cateUuid ? (
                           <Loader2 className="size-4 shrink-0 animate-spin" />
                         ) : (
-                          <PublicCategoryIcon icon={category.cate_icon} />
+                          <PublicCategoryIcon icon={category.cateIcon} />
                         )}
 
                         <span className="min-w-0 max-w-30 truncate sm:max-w-40">
-                          {category.cate_name}
+                          {category.cateName}
                         </span>
                       </TabsTrigger>
                     ))}
@@ -264,14 +264,14 @@ export function ProductBrowseContent({
           {renderedMenuSections.map(
             ({ category, products, loaded, loading }, index) => (
               <ProductCategorySection
-                key={category.cate_uuid}
+                key={category.cateUuid}
                 category={category}
                 products={products}
                 totalProducts={category.products?.length ?? 0}
                 loaded={loaded}
                 loading={loading}
-                jumping={jumpingCateUuid === category.cate_uuid}
-                collapsed={collapsedCateUuids.includes(category.cate_uuid)}
+                jumping={jumpingCateUuid === category.cateUuid}
+                collapsed={collapsedCateUuids.includes(category.cateUuid)}
                 lang={lang}
                 statusKind={PUBLIC_MENU_KIND.NORMAL}
                 layoutMode={productLayoutMode}
@@ -284,7 +284,7 @@ export function ProductBrowseContent({
                 onRevealMore={revealMoreProductsForCategory}
                 onToggleCollapse={toggleCategoryCollapsed}
                 refCallback={(element) => {
-                  categoryRefs.current[category.cate_uuid] = element;
+                  categoryRefs.current[category.cateUuid] = element;
                 }}
               />
             ),

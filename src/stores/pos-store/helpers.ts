@@ -51,7 +51,7 @@ export function nextPosMenuCategoryUuid({
     optionalString(requestedCateUuid) ??
     optionalString(selectedCateUuid) ??
     optionalString(defaultCateUuid) ??
-    optionalString(categories[0]?.cate_uuid) ??
+    optionalString(categories[0]?.cateUuid) ??
     ""
   );
 }

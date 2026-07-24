@@ -218,8 +218,8 @@ export function usePublicMenuBrowse({
 
     const lastCateUuid = renderedCateUuids.at(-1);
     if (!lastCateUuid) {
-      ensureCategoryRendered(menuCategories[0].cate_uuid);
-      ensureNormalCategoryProducts(menuCategories[0].cate_uuid);
+      ensureCategoryRendered(menuCategories[0].cateUuid);
+      ensureNormalCategoryProducts(menuCategories[0].cateUuid);
       return;
     }
 
@@ -249,18 +249,18 @@ export function usePublicMenuBrowse({
     }
 
     const lastIndex = menuCategories.findIndex(
-      (category) => category.cate_uuid === lastCateUuid,
+      (category) => category.cateUuid === lastCateUuid,
     );
     const nextCategory =
       lastIndex >= 0
         ? menuCategories
             .slice(lastIndex + 1)
-            .find((category) => !renderedCateUuids.includes(category.cate_uuid))
+            .find((category) => !renderedCateUuids.includes(category.cateUuid))
         : null;
 
     if (nextCategory) {
-      ensureCategoryRendered(nextCategory.cate_uuid);
-      ensureNormalCategoryProducts(nextCategory.cate_uuid);
+      ensureCategoryRendered(nextCategory.cateUuid);
+      ensureNormalCategoryProducts(nextCategory.cateUuid);
     }
   }, [
     collapsedCateUuids,
@@ -331,7 +331,7 @@ export function usePublicMenuBrowse({
   const handleTabChange = useCallback(
     (cateUuid: string) => {
       if (
-        !visibleCategoryTabs.some((category) => category.cate_uuid === cateUuid)
+        !visibleCategoryTabs.some((category) => category.cateUuid === cateUuid)
       ) {
         return;
       }
@@ -383,7 +383,7 @@ export function usePublicMenuBrowse({
     initialLoadKey.current = key;
     setStableActiveCateUuid("");
 
-    void loadMenuProducts({ t: token, lang, search: submittedSearch }).catch(
+    void loadMenuProducts({ token, lang, search: submittedSearch }).catch(
       (error) => {
         setError(
           error instanceof Error ? error.message : t("pos.productLoadFailed"),
@@ -446,7 +446,7 @@ export function usePublicMenuBrowse({
 
   useEffect(() => {
     const liveCateUuids = menuCategories.map(
-      (category) => category.cate_uuid,
+      (category) => category.cateUuid,
     );
     missingPublicMenuCategoryRefUuids(
       categoryRefsRef.current,
@@ -458,7 +458,7 @@ export function usePublicMenuBrowse({
 
   useEffect(() => {
     const firstCateUuid =
-      selectedCateUuid || defaultCateUuid || menuCategories[0]?.cate_uuid || "";
+      selectedCateUuid || defaultCateUuid || menuCategories[0]?.cateUuid || "";
 
     if (firstCateUuid) ensureNormalCategoryProducts(firstCateUuid);
   }, [
@@ -486,7 +486,7 @@ export function usePublicMenuBrowse({
     const firstCateUuid =
       firstLoadedCateUuid ||
       defaultCateUuid ||
-      visibleCategoryTabs[0]?.cate_uuid ||
+      visibleCategoryTabs[0]?.cateUuid ||
       "";
 
     if (firstCateUuid && !activeCateUuid) {

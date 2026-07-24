@@ -45,7 +45,7 @@ export const StatusRailSection = memo(function StatusRailSection({
   const useDesktopGrid = products.length <= 5;
   const priorityProductUuid = priorityFirstImage
     ? (visibleProducts.find(({ product }) => hasRemoteProductImage(product))
-        ?.product.prod_uuid ?? "")
+        ?.product.prodUuid ?? "")
     : "";
   const railRef = useRef<HTMLDivElement | null>(null);
 
@@ -106,13 +106,13 @@ export const StatusRailSection = memo(function StatusRailSection({
             >
               {visibleProducts.map(({ product, cateUuid, statusKind }) => (
                 <ProductCard
-                  key={`${statusKind}:${product.prod_uuid}`}
+                  key={`${statusKind}:${product.prodUuid}`}
                   product={product}
                   cateUuid={cateUuid}
                   statusKind={statusKind}
                   lang={lang}
-                  loading={loadingProductUuid === product.prod_uuid}
-                  imagePreload={product.prod_uuid === priorityProductUuid}
+                  loading={loadingProductUuid === product.prodUuid}
+                  imagePreload={product.prodUuid === priorityProductUuid}
                   onProductClick={onProductClick}
                   variant={useDesktopGrid ? "railGrid" : "rail"}
                 />

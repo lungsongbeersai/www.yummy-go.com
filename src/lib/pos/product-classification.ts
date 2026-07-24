@@ -12,7 +12,7 @@ import type { CateProductItem } from "@/services/pos";
  * behavior.
  *
  * hasPromo() is deliberately NOT here: the two trees' copies differ in a
- * whitespace-trim edge case on the free-text promo_state field (public-pos
+ * whitespace-trim edge case on the free-text promoState field (public-pos
  * doesn't trim, staff POS does), found while diffing byte-for-byte. Rather
  * than silently pick one, isKnownModalProductCore() below takes the
  * caller's own hasPromo(product) result as an input instead of calling
@@ -31,24 +31,24 @@ export function isPromotionEndedCore(
   product: CateProductItem,
   productStatusSort: number,
 ) {
-  if (product.promo_expired !== true) return false;
+  if (product.promoExpired !== true) return false;
 
-  const promoState = String(product.promo_state ?? "")
+  const promoState = String(product.promoState ?? "")
     .trim()
     .toUpperCase();
   return (
     productStatusSort === ProductSortStatus.PROMOTION ||
     Boolean(promoState && promoState !== "NONE") ||
-    Boolean(String(product.promo_msg ?? "").trim())
+    Boolean(String(product.promoMsg ?? "").trim())
   );
 }
 
 function isProductUnavailable(product: CateProductItem) {
   return (
-    product.can_add === false ||
-    product.sold_out_manual === true ||
-    product.stock_available === false ||
-    product.stock_sold_out === true
+    product.canAdd === false ||
+    product.soldOutManual === true ||
+    product.stockAvailable === false ||
+    product.stockSoldOut === true
   );
 }
 

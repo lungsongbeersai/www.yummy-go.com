@@ -64,19 +64,19 @@ export const ProductCard = memo(function ProductCard({
   const blockedLabel = productBlockedLabel(blockedState, product, t);
   const optionCount = Math.max(
     0,
-    Number(product.count_option_enabled ?? 0) || 0,
+    Number(product.countOptionEnabled ?? 0) || 0,
   );
   const hasActualChoices =
-    product.has_options === true ||
+    product.hasOptions === true ||
     optionCount > 1 ||
-    Number(product.count_topping_enabled ?? 0) > 0;
+    Number(product.countToppingEnabled ?? 0) > 0;
   const choiceMeta = hasActualChoices
     ? optionCount > 1
       ? t("pos.optionCount", { count: optionCount })
-      : product.options_msg || t("pos.hasOptions")
+      : product.optionsMsg || t("pos.hasOptions")
     : "";
   const promoLabel =
-    product.promo_msg || (hasPromo(product) ? t("pos.promotion") : "");
+    product.promoMsg || (hasPromo(product) ? t("pos.promotion") : "");
   const actionLabel = getActionLabel({
     actionState,
     blockedLabel,
@@ -93,7 +93,7 @@ export const ProductCard = memo(function ProductCard({
   });
   const priceLabel = getAccessiblePriceLabel(price, lang, isBlocked, t);
   const accessibleLabel = [
-    product.prod_name,
+    product.prodName,
     priceLabel,
     promoLabel,
     choiceMeta,
@@ -152,7 +152,7 @@ export const ProductCard = memo(function ProductCard({
                   isBlocked ? "text-foreground/75 dark:text-foreground/80" : "",
                 )}
               >
-                {product.prod_name}
+                {product.prodName}
               </p>
 
               <ProductPriceLabel
@@ -228,7 +228,7 @@ export const ProductCard = memo(function ProductCard({
               isBlocked ? "text-foreground/75 dark:text-foreground/80" : "",
             )}
           >
-            {product.prod_name}
+            {product.prodName}
           </p>
 
           <ProductPriceLabel

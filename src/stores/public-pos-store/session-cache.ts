@@ -98,12 +98,12 @@ type ProductItemResponse = Awaited<
 
 function productItemRequestKey(params: CustomerGetProdItemParams) {
   return [
-    params.t,
+    params.token,
     params.lang ?? "",
-    params.prod_uuid,
-    params.cate_uuid ?? "",
+    params.prodUuid,
+    params.cateUuid ?? "",
     params.search ?? "",
-    params.status_sort_fk ?? 1
+    params.statusSortFk ?? 1
   ].join(":");
 }
 

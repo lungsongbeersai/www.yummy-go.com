@@ -296,7 +296,7 @@ export const usePosStore = create<PosState>((set, get) => ({
     const isCurrentSession = createSessionGuard();
     try {
       const result = await posService.fetchCateProducts(params);
-      const categories = result.data ?? [];
+      const categories = result.categories ?? [];
       if (isCurrentSession()) {
         set({
           products: categories.flatMap((category: CateWithProducts) => category.products ?? []),
@@ -333,17 +333,17 @@ export const usePosStore = create<PosState>((set, get) => ({
 
       if (refreshCategories) {
         const catalog = await get().loadProductCategories({
-          branch_uuid_fk: branchUuid,
+          branchUuidFk: branchUuid,
           lang: language,
           search: "",
-          status_sort_fk: ProductSortStatus.NORMAL
+          statusSortFk: ProductSortStatus.NORMAL
         });
-        const categories = catalog.data ?? [];
+        const categories = catalog.categories ?? [];
         nextCateUuid = nextPosMenuCategoryUuid({
           categories,
-          defaultCateUuid: catalog.default_cate_uuid,
+          defaultCateUuid: catalog.defaultCateUuid,
           requestedCateUuid: nextCateUuid,
-          selectedCateUuid: catalog.selected_cate_uuid
+          selectedCateUuid: catalog.selectedCateUuid
         });
         if (isCurrentMenuLifecycle()) set({ categories });
       }
@@ -351,13 +351,13 @@ export const usePosStore = create<PosState>((set, get) => ({
       const searchQuery = nextQuery.trim();
       let menuBySort = emptyPosMenuBySort();
       if (nextCateUuid || searchQuery) {
-        const request = (status_sort_fk: ProductSortStatusType) =>
+        const request = (statusSortFk: ProductSortStatusType) =>
           get().loadProductCategories({
-            branch_uuid_fk: branchUuid,
-            ...(searchQuery ? {} : { cate_uuid: nextCateUuid }),
+            branchUuidFk: branchUuid,
+            ...(searchQuery ? {} : { cateUuid: nextCateUuid }),
             lang: language,
             search: searchQuery,
-            status_sort_fk
+            statusSortFk
           });
         const [normal, setMenu, promotion] = await Promise.all([
           request(ProductSortStatus.NORMAL),
@@ -365,9 +365,9 @@ export const usePosStore = create<PosState>((set, get) => ({
           request(ProductSortStatus.PROMOTION)
         ]);
         menuBySort = {
-          [ProductSortStatus.NORMAL]: normal.data ?? [],
-          [ProductSortStatus.SET]: setMenu.data ?? [],
-          [ProductSortStatus.PROMOTION]: promotion.data ?? []
+          [ProductSortStatus.NORMAL]: normal.categories ?? [],
+          [ProductSortStatus.SET]: setMenu.categories ?? [],
+          [ProductSortStatus.PROMOTION]: promotion.categories ?? []
         };
       }
 
@@ -395,7 +395,7 @@ export const usePosStore = create<PosState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const result = await posService.fetchCateProducts(params);
-      const products = (result.data ?? []).flatMap((category) => category.products ?? []);
+      const products = (result.categories ?? []).flatMap((category) => category.products ?? []);
       if (isCurrentSession()) set({ products, loading: false });
       return products;
     } catch (error) {

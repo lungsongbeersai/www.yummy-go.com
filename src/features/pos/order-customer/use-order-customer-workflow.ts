@@ -122,7 +122,7 @@ export function useOrderCustomerWorkflow({
   );
   const selectedDetail = useMemo(() => {
     const matchingDetail = (selectedProduct?.details ?? []).find(
-      (detail) => detail.pro_detail_uuid === detailUuid,
+      (detail) => detail.proDetailUuid === detailUuid,
     );
     const matchingDetailIsValid =
       productMode === "set"
@@ -266,7 +266,7 @@ export function useOrderCustomerWorkflow({
       if (!detail) return;
 
       setSelectedProduct(product);
-      setDetailUuid(detail.pro_detail_uuid);
+      setDetailUuid(detail.proDetailUuid);
       setQty(orderQuantityRules(detail, mode, product).min);
       setToppingQtyByUuid({});
       setRememberedToppingQtyByUuid({});
@@ -281,11 +281,11 @@ export function useOrderCustomerWorkflow({
       const blockedState = getProductBlockedState(entry.product, activeSort);
       if (blockedState) return;
 
-      setLoadingProductUuid(entry.product.prod_uuid);
+      setLoadingProductUuid(entry.product.prodUuid);
       try {
         const item = await loadProductItem({
           lang: language,
-          prod_uuid: entry.product.prod_uuid,
+          prodUuid: entry.product.prodUuid,
         });
         const productItem = normalizeProdItem(item, entry.product);
         const mode = getProductModalMode(activeSort, productItem);
@@ -433,7 +433,7 @@ export function useOrderCustomerWorkflow({
   function changeProductDetail(nextDetail: ProdDetail) {
     if (!isDetailAvailable(nextDetail)) return;
 
-    setDetailUuid(nextDetail.pro_detail_uuid);
+    setDetailUuid(nextDetail.proDetailUuid);
     if (productMode === "promotion") {
       setQty(
         orderQuantityRules(nextDetail, productMode, selectedProduct).min,

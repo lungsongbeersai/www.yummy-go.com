@@ -15,8 +15,8 @@ describe("public POS store helpers", () => {
 
   it("splits promotion and set products from special products", () => {
     const groups = splitSpecialProducts([
-      { prod_uuid: "p1", prod_name: "Promo", prod_image: "", prod_status_imge: 1, status_sort_fk: 3, can_add: true, has_options: false, options_msg: "", count_option_all: 0, count_option_enabled: 0, count_topping_enabled: 0 },
-      { prod_uuid: "p2", prod_name: "Set", prod_image: "", prod_status_imge: 1, status_sort_fk: 2, can_add: true, has_options: false, options_msg: "", count_option_all: 0, count_option_enabled: 0, count_topping_enabled: 0 }
+      { prodUuid: "p1", prodName: "Promo", prodImage: "", prodStatusImge: 1, statusSortFk: 3, canAdd: true, hasOptions: false, optionsMsg: "", countOptionAll: 0, countOptionEnabled: 0, countToppingEnabled: 0 },
+      { prodUuid: "p2", prodName: "Set", prodImage: "", prodStatusImge: 1, statusSortFk: 2, canAdd: true, hasOptions: false, optionsMsg: "", countOptionAll: 0, countOptionEnabled: 0, countToppingEnabled: 0 }
     ]);
 
     expect(groups.promotion).toHaveLength(1);
