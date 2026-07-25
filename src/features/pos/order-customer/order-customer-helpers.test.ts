@@ -1,34 +1,12 @@
 import { describe, expect, it } from "vitest";
-import {
-  availableProductDetails,
-  buildStaffOrderItems,
-  buildStaffOrderInput,
-  canDirectAddFromList,
-  clampOrderQuantity,
-  changeToppingQty,
-  countSelectedToppings,
-  defaultOrderQty,
-  firstAvailableDetail,
-  firstStatusWithProducts,
-  flattenProducts,
-  getModalBasePrice,
-  getModalUnitPrice,
-  getOrderSelectionIssue,
-  getProductActionState,
-  getProductBlockedState,
-  getProductModalMode,
-  nextMenuCategoryUuid,
-  normalizeProdItem,
-  orderCustomerUrl,
-  orderQuantityRules,
-  ProductSortStatus,
-  productCardPrice,
-  productNeedsModal,
-  productOptionCount,
-  selectedOrderTable,
-  selectedToppingsFromQtyMap,
-  toggleToppingQty,
-} from "@/features/pos/order-customer/order-customer-utils";
+import { ProductSortStatus, firstStatusWithProducts, flattenProducts, nextMenuCategoryUuid, orderCustomerUrl, selectedOrderTable } from "@/features/pos/order-customer/menu-structure";
+import { getOrderSelectionIssue } from "@/features/pos/order-customer/order-selection-validation";
+import { getModalBasePrice, getModalUnitPrice, productCardPrice, productOptionCount } from "@/features/pos/order-customer/pricing";
+import { availableProductDetails, firstAvailableDetail, normalizeProdItem } from "@/features/pos/order-customer/product-availability";
+import { canDirectAddFromList, getProductActionState, getProductBlockedState, getProductModalMode, productNeedsModal } from "@/features/pos/order-customer/product-classification";
+import { clampOrderQuantity, defaultOrderQty, orderQuantityRules } from "@/features/pos/order-customer/quantity-rules";
+import { buildStaffOrderInput, buildStaffOrderItems } from "@/features/pos/order-customer/staff-order-payload";
+import { changeToppingQty, countSelectedToppings, selectedToppingsFromQtyMap, toggleToppingQty } from "@/features/pos/order-customer/topping-selection";
 import {
   OrderChannelEnum,
   OrderSourceEnum,

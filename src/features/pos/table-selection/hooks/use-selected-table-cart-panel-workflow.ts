@@ -22,36 +22,11 @@ import type {
   ConfirmAllProgress,
   DiscountDraft,
 } from "../types";
-import {
-  billDiscountButtonValue,
-  buildCustomerDisplayPayload,
-  canPayFullBill,
-  cartDisplaySummary,
-  cartItemsQty,
-  cartItemActionUuid,
-  cartItemDiscountMaxAmount,
-  cartItemUuid,
-  cartOrdersBelongToTable,
-  cartOrderInvoice,
-  cartOrders,
-  cartOrderUuidForItem,
-  cartSummary,
-  discountDraftValue,
-  firstCartOrderUuid,
-  formatRate,
-  isNewOrderCartItem,
-  isOrderHistoryCartItem,
-  isWaitingCartItem,
-  isSplitPaymentEligibleItem,
-  newOrderTabItems,
-  newOrderConfirmGroups,
-  normalizeDiscountType,
-  optionalNumber,
-  optionalString,
-  pruneSelectedItemUuids,
-  splitPaymentSelection,
-  visibleCartItems,
-} from "../utils";
+import { cartItemActionUuid, cartItemDiscountMaxAmount, cartItemUuid, cartItemsQty, cartOrderInvoice, cartOrderUuidForItem, cartOrders, cartOrdersBelongToTable, cartSummary, firstCartOrderUuid, formatRate, isNewOrderCartItem, isOrderHistoryCartItem, isWaitingCartItem, newOrderConfirmGroups, newOrderTabItems, visibleCartItems } from "@/features/pos/table-selection/cart-readers";
+import { buildCustomerDisplayPayload } from "@/features/pos/table-selection/customer-display-payload";
+import { billDiscountButtonValue, discountDraftValue, normalizeDiscountType } from "@/features/pos/table-selection/discount-drafts";
+import { canPayFullBill, cartDisplaySummary, isSplitPaymentEligibleItem, pruneSelectedItemUuids, splitPaymentSelection } from "@/features/pos/table-selection/split-payment";
+import { optionalNumber, optionalString } from "@/lib/values";
 import { useCustomerDisplayWorkflow } from "./use-customer-display-workflow";
 import { useResetOnChange, useResetOnDeps } from "@/hooks/use-reset-on-change";
 
@@ -324,9 +299,9 @@ export function useSelectedTableCartPanelWorkflow({
     );
   }, [hasSelectedTable, newOrderFocusKey]);
 
-  // เปลี่ยนโต๊ะ = ทิ้ง dialog / ค่าดราฟต์ / รายการที่เลือกของโต๊ะเดิมทั้งหมด
-  // ทำระหว่าง render แทน effect เพื่อไม่ให้ commit เฟรมที่ยังถือ state ของโต๊ะเก่า
-  // (เฟรมนั้นจะดัน payload ของโต๊ะเก่าออกจอลูกค้าไปหนึ่งครั้งก่อนถูกล้าง)
+  // à¹€à¸›à¸¥à¸µà¹ˆà¸¢à¸™à¹‚à¸•à¹Šà¸° = à¸—à¸´à¹‰à¸‡ dialog / à¸„à¹ˆà¸²à¸”à¸£à¸²à¸Ÿà¸•à¹Œ / à¸£à¸²à¸¢à¸à¸²à¸£à¸—à¸µà¹ˆà¹€à¸¥à¸·à¸­à¸à¸‚à¸­à¸‡à¹‚à¸•à¹Šà¸°à¹€à¸”à¸´à¸¡à¸—à¸±à¹‰à¸‡à¸«à¸¡à¸”
+  // à¸—à¸³à¸£à¸°à¸«à¸§à¹ˆà¸²à¸‡ render à¹à¸—à¸™ effect à¹€à¸žà¸·à¹ˆà¸­à¹„à¸¡à¹ˆà¹ƒà¸«à¹‰ commit à¹€à¸Ÿà¸£à¸¡à¸—à¸µà¹ˆà¸¢à¸±à¸‡à¸–à¸·à¸­ state à¸‚à¸­à¸‡à¹‚à¸•à¹Šà¸°à¹€à¸à¹ˆà¸²
+  // (à¹€à¸Ÿà¸£à¸¡à¸™à¸±à¹‰à¸™à¸ˆà¸°à¸”à¸±à¸™ payload à¸‚à¸­à¸‡à¹‚à¸•à¹Šà¸°à¹€à¸à¹ˆà¸²à¸­à¸­à¸à¸ˆà¸­à¸¥à¸¹à¸à¸„à¹‰à¸²à¹„à¸›à¸«à¸™à¸¶à¹ˆà¸‡à¸„à¸£à¸±à¹‰à¸‡à¸à¹ˆà¸­à¸™à¸–à¸¹à¸à¸¥à¹‰à¸²à¸‡)
   useResetOnChange(tableUuid, () => {
     setItemActionTarget(null);
     setActingItemUuid(null);
@@ -344,7 +319,7 @@ export function useSelectedTableCartPanelWorkflow({
     setConfirmAllProgress(null);
   });
 
-  // ออกจากแท็บประวัติ = ทิ้งรายการที่ติ๊กไว้สำหรับแยกบิล เพราะเลือกได้เฉพาะแท็บประวัติ
+  // à¸­à¸­à¸à¸ˆà¸²à¸à¹à¸—à¹‡à¸šà¸›à¸£à¸°à¸§à¸±à¸•à¸´ = à¸—à¸´à¹‰à¸‡à¸£à¸²à¸¢à¸à¸²à¸£à¸—à¸µà¹ˆà¸•à¸´à¹Šà¸à¹„à¸§à¹‰à¸ªà¸³à¸«à¸£à¸±à¸šà¹à¸¢à¸à¸šà¸´à¸¥ à¹€à¸žà¸£à¸²à¸°à¹€à¸¥à¸·à¸­à¸à¹„à¸”à¹‰à¹€à¸‰à¸žà¸²à¸°à¹à¸—à¹‡à¸šà¸›à¸£à¸°à¸§à¸±à¸•à¸´
   useResetOnChange(activeTab, () => {
     if (activeTab === "history") return;
 
@@ -353,9 +328,9 @@ export function useSelectedTableCartPanelWorkflow({
     );
   });
 
-  // ล้างรายการชำระเงินที่ค้างไว้ทันทีที่มันไม่ตรงกับโต๊ะ/ออเดอร์ปัจจุบันแล้ว
-  // ตรวจระหว่าง render เพื่อไม่ให้มีเฟรมที่หน้าจ่ายเงินยังอ้างออเดอร์ผิดโต๊ะ
-  // ลู่เข้าเสมอ: หลัง setPaymentContext(null) รอบถัดไปจะ return ตั้งแต่บรรทัดแรก
+  // à¸¥à¹‰à¸²à¸‡à¸£à¸²à¸¢à¸à¸²à¸£à¸Šà¸³à¸£à¸°à¹€à¸‡à¸´à¸™à¸—à¸µà¹ˆà¸„à¹‰à¸²à¸‡à¹„à¸§à¹‰à¸—à¸±à¸™à¸—à¸µà¸—à¸µà¹ˆà¸¡à¸±à¸™à¹„à¸¡à¹ˆà¸•à¸£à¸‡à¸à¸±à¸šà¹‚à¸•à¹Šà¸°/à¸­à¸­à¹€à¸”à¸­à¸£à¹Œà¸›à¸±à¸ˆà¸ˆà¸¸à¸šà¸±à¸™à¹à¸¥à¹‰à¸§
+  // à¸•à¸£à¸§à¸ˆà¸£à¸°à¸«à¸§à¹ˆà¸²à¸‡ render à¹€à¸žà¸·à¹ˆà¸­à¹„à¸¡à¹ˆà¹ƒà¸«à¹‰à¸¡à¸µà¹€à¸Ÿà¸£à¸¡à¸—à¸µà¹ˆà¸«à¸™à¹‰à¸²à¸ˆà¹ˆà¸²à¸¢à¹€à¸‡à¸´à¸™à¸¢à¸±à¸‡à¸­à¹‰à¸²à¸‡à¸­à¸­à¹€à¸”à¸­à¸£à¹Œà¸œà¸´à¸”à¹‚à¸•à¹Šà¸°
+  // à¸¥à¸¹à¹ˆà¹€à¸‚à¹‰à¸²à¹€à¸ªà¸¡à¸­: à¸«à¸¥à¸±à¸‡ setPaymentContext(null) à¸£à¸­à¸šà¸–à¸±à¸”à¹„à¸›à¸ˆà¸° return à¸•à¸±à¹‰à¸‡à¹à¸•à¹ˆà¸šà¸£à¸£à¸—à¸±à¸”à¹à¸£à¸
   useResetOnDeps([paymentContext, selectedTable], () => {
     if (!paymentContext || !selectedTable) return;
     if (
@@ -367,8 +342,8 @@ export function useSelectedTableCartPanelWorkflow({
     setPaymentContext(null);
   });
 
-  // ตัดรายการที่ติ๊กไว้แต่หลุดจากบิลไปแล้วออก — pruneSelectedItemUuids คืน Set เดิม
-  // ถ้าไม่มีอะไรเปลี่ยน จึงไม่เกิด render ซ้ำโดยไม่จำเป็น
+  // à¸•à¸±à¸”à¸£à¸²à¸¢à¸à¸²à¸£à¸—à¸µà¹ˆà¸•à¸´à¹Šà¸à¹„à¸§à¹‰à¹à¸•à¹ˆà¸«à¸¥à¸¸à¸”à¸ˆà¸²à¸à¸šà¸´à¸¥à¹„à¸›à¹à¸¥à¹‰à¸§à¸­à¸­à¸ â€” pruneSelectedItemUuids à¸„à¸·à¸™ Set à¹€à¸”à¸´à¸¡
+  // à¸–à¹‰à¸²à¹„à¸¡à¹ˆà¸¡à¸µà¸­à¸°à¹„à¸£à¹€à¸›à¸¥à¸µà¹ˆà¸¢à¸™ à¸ˆà¸¶à¸‡à¹„à¸¡à¹ˆà¹€à¸à¸´à¸” render à¸‹à¹‰à¸³à¹‚à¸”à¸¢à¹„à¸¡à¹ˆà¸ˆà¸³à¹€à¸›à¹‡à¸™
   useResetOnChange(splitEligibleItems, () => {
     const eligibleUuids = splitEligibleItems.map(cartItemActionUuid);
     setSplitSelectedItemUuids((current) =>
@@ -430,8 +405,8 @@ export function useSelectedTableCartPanelWorkflow({
     });
   }
 
-  // เมื่อมาถึงจุดนี้ confirmKitchen ผ่านครบทุกกลุ่มแล้ว (ถ้าพลาดจะถูกโยนไปเข้า catch)
-  // ⇒ ยืนยันออเดอร์สำเร็จเสมอ ส่วนปัญหาการพิมพ์แจ้งแยกต่างหาก ไม่ปนกับผลการยืนยันออเดอร์
+  // à¹€à¸¡à¸·à¹ˆà¸­à¸¡à¸²à¸–à¸¶à¸‡à¸ˆà¸¸à¸”à¸™à¸µà¹‰ confirmKitchen à¸œà¹ˆà¸²à¸™à¸„à¸£à¸šà¸—à¸¸à¸à¸à¸¥à¸¸à¹ˆà¸¡à¹à¸¥à¹‰à¸§ (à¸–à¹‰à¸²à¸žà¸¥à¸²à¸”à¸ˆà¸°à¸–à¸¹à¸à¹‚à¸¢à¸™à¹„à¸›à¹€à¸‚à¹‰à¸² catch)
+  // â‡’ à¸¢à¸·à¸™à¸¢à¸±à¸™à¸­à¸­à¹€à¸”à¸­à¸£à¹Œà¸ªà¸³à¹€à¸£à¹‡à¸ˆà¹€à¸ªà¸¡à¸­ à¸ªà¹ˆà¸§à¸™à¸›à¸±à¸à¸«à¸²à¸à¸²à¸£à¸žà¸´à¸¡à¸žà¹Œà¹à¸ˆà¹‰à¸‡à¹à¸¢à¸à¸•à¹ˆà¸²à¸‡à¸«à¸²à¸ à¹„à¸¡à¹ˆà¸›à¸™à¸à¸±à¸šà¸œà¸¥à¸à¸²à¸£à¸¢à¸·à¸™à¸¢à¸±à¸™à¸­à¸­à¹€à¸”à¸­à¸£à¹Œ
   function showKitchenConfirmResult(result: {
     successCount: number;
     failedCount: number;
@@ -448,7 +423,7 @@ export function useSelectedTableCartPanelWorkflow({
           result.errorMessage,
         ]
           .filter(Boolean)
-          .join(" — "),
+          .join(" â€” "),
         tone: "info",
       });
     }

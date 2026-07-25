@@ -3,12 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useResetOnChange } from "@/hooks/use-reset-on-change";
 import { useTranslation } from "react-i18next";
-import { ConfirmDialog } from "@/components/common/confirm-dialog";
-import {
-  SettingsModuleShell,
-  SettingsPaginationFooter,
-  SettingsToolbar
-} from "@/features/settings/shared/settings-shell";
+import { SettingsCrudShell, SettingsCrudToolbar } from "@/features/settings/shared/settings-crud-shell";
 import { optionPageRange, optionPageSize, optionTotalPages } from "@/features/settings/shared/option-settings-utils";
 import { useOptionRowSelection } from "@/features/settings/shared/use-option-row-selection";
 import { useSettingsCrudController } from "@/features/settings/shared/use-settings-crud-controller";
@@ -55,37 +50,7 @@ export function TableSettingsPage({ initialPagination }: { initialPagination: Ur
 
   const title = t("settings.modules.table.title");
   const description = t("settings.modules.table.description");
-  const {
-    applyFilters,
-    backgroundLoading,
-    changeLimit,
-    deleteTarget,
-    dialogOpen,
-    editing,
-    fullLoading,
-    language,
-    limit,
-    missingRequiredScope,
-    onDialogOpenChange,
-    openEdit,
-    orderBy,
-    page,
-    requestParams,
-    requiredScopeDescription,
-    rows: storeRows,
-    saving,
-    search,
-    setDeleteTarget,
-    setDialogOpen,
-    setEditing,
-    setOrderBy,
-    setPage,
-    setSearch,
-    showToast,
-    storeUuid,
-    total,
-    user
-  } = useSettingsCrudController<TableListRow, SaveTableInput, FetchTablesParams>({
+  const controller = useSettingsCrudController<TableListRow, SaveTableInput, FetchTablesParams>({
     // buildInput/validateInput ให้ครบตามชนิดที่ controller ต้องการ แต่การบันทึกจริงยังเดินตรงผ่านสโตร์
     // ใน save() ท้องถิ่นด้านล่าง (ดูคอมเมนต์ที่ saveTableRow) เพื่อคงพฤติกรรม "จำโซนหลังบันทึกสำเร็จ" เดิม
     buildInput: ({ editing: editingRow, formData, user: currentUser }) => {
@@ -116,6 +81,25 @@ export function TableSettingsPage({ initialPagination }: { initialPagination: Ur
       return missing ? missingFieldDescription(missing) : null;
     }
   });
+  const {
+    backgroundLoading,
+    editing,
+    language,
+    limit,
+    missingRequiredScope,
+    openEdit,
+    page,
+    requestParams,
+    requiredScopeDescription,
+    rows: storeRows,
+    setDeleteTarget,
+    setDialogOpen,
+    setEditing,
+    showToast,
+    storeUuid,
+    total,
+    user
+  } = controller;
 
   const branchUuid = user?.branch_uuid ?? "";
   // ยังไม่มีสาขาที่อ้างอิง = ไม่มีตัวเลือก แต่คงค่าที่โหลดไว้ไม่ให้รายการกะพริบตอนสลับ
@@ -278,100 +262,55 @@ export function TableSettingsPage({ initialPagination }: { initialPagination: Ur
     }
   }
 
-  const toolbar = (
-    <SettingsToolbar
-      state={{
-        search,
-        limit,
-        orderBy,
-        limitOptions: PAGE_LIMIT_OPTIONS,
-        selectedCount: selectedRows.size,
-        onApply: applyFilters,
-        onLimit: changeLimit,
-        onOrder: (nextOrder) => {
-          setOrderBy(nextOrder);
-          setPage(1);
-        },
-        onSearch: setSearch
-      }}
-    />
-  );
-
-  const listSurface = (
-    <TableListSurface
-      allCollapsed={allCollapsed}
-      allSelected={allSelected}
-      backgroundLoading={backgroundLoading}
-      collapsedZones={collapsedZones}
-      groupedRows={groupedTableRows}
-      selectedRows={selectedRows}
-      serviceChargeRateLabel={serviceChargeRateLabel}
-      title={title}
-      toolbar={toolbar}
-      zoneById={zoneById}
-      onDelete={setDeleteTarget}
-      onEdit={openEdit}
-      onToggleAll={toggleAll}
-      onToggleAllZones={setAllZonesCollapsed}
-      onToggleSelected={toggleSelected}
-      onToggleZoneCollapse={toggleZoneCollapse}
-    />
-  );
+  // แถวจาก store เป็นกลุ่มโซน หน้านี้จึงแบนแถว/นับหน้า/เลือกแถวเองแล้วทับค่าให้ chrome
+  const chrome = { ...controller, pageEnd, pageStart, rows, selectedRows, total: displayTotal, totalPages };
 
   return (
-    <>
-      <SettingsModuleShell
-        addLabel={`${t("actions.add")} ${t("nav.table")}`}
-        cardTitle={t("settings.tableList")}
-        description={description}
-        emptyDescription={t("empty.adjustSearch")}
-        emptyTitle={t("settings.noRecords", { title: title.toLowerCase() })}
-        footer={
-          rows.length ? (
-            <SettingsPaginationFooter
-              page={page}
-              pageEnd={pageEnd}
-              pageStart={pageStart}
-              total={displayTotal}
-              totalPages={totalPages}
-              onPageChange={setPage}
-            />
-          ) : undefined
-        }
-        hideCardHeader
-        loading={fullLoading}
-        loadingLabel={t("settings.loading", { title })}
-        table={listSurface}
-        title={title}
-        onAdd={openCreate}
-      />
-      <TableFormDialog
-        branchUuid={branchUuid}
-        editing={editingTable}
-        initialZoneUuid={initialFormZoneUuid}
-        open={dialogOpen}
-        saving={saving}
-        serviceCharge={serviceCharge}
-        serviceChargeLoading={branchLoading && !currentBranch}
-        title={title}
-        zones={zoneOptions}
-        onOpenChange={onDialogOpenChange}
-        onSubmit={save}
-      />
-      <ConfirmDialog
-        cancelLabel={t("actions.cancel")}
-        confirmLabel={t("actions.delete")}
-        confirmPending={saving}
-        description={t("settings.deleteConfirm")}
-        open={Boolean(deleteTarget)}
-        title={t("actions.delete")}
-        onConfirm={() => {
-          if (deleteTarget && !isZoneGroup(deleteTarget)) void remove(deleteTarget);
-        }}
-        onOpenChange={(nextOpen) => {
-          if (!nextOpen) setDeleteTarget(null);
-        }}
-      />
-    </>
+    <SettingsCrudShell
+      addLabel={`${t("actions.add")} ${t("nav.table")}`}
+      cardTitle={t("settings.tableList")}
+      controller={chrome}
+      description={description}
+      formDialog={
+        <TableFormDialog
+          branchUuid={branchUuid}
+          editing={editingTable}
+          initialZoneUuid={initialFormZoneUuid}
+          open={controller.dialogOpen}
+          saving={controller.saving}
+          serviceCharge={serviceCharge}
+          serviceChargeLoading={branchLoading && !currentBranch}
+          title={title}
+          zones={zoneOptions}
+          onOpenChange={controller.onDialogOpenChange}
+          onSubmit={save}
+        />
+      }
+      listSurface={
+        <TableListSurface
+          allCollapsed={allCollapsed}
+          allSelected={allSelected}
+          backgroundLoading={backgroundLoading}
+          collapsedZones={collapsedZones}
+          groupedRows={groupedTableRows}
+          selectedRows={selectedRows}
+          serviceChargeRateLabel={serviceChargeRateLabel}
+          title={title}
+          toolbar={<SettingsCrudToolbar controller={chrome} limitOptions={PAGE_LIMIT_OPTIONS} />}
+          zoneById={zoneById}
+          onDelete={setDeleteTarget}
+          onEdit={openEdit}
+          onToggleAll={toggleAll}
+          onToggleAllZones={setAllZonesCollapsed}
+          onToggleSelected={toggleSelected}
+          onToggleZoneCollapse={toggleZoneCollapse}
+        />
+      }
+      title={title}
+      onAdd={openCreate}
+      onRemove={(row) => {
+        if (!isZoneGroup(row)) void remove(row);
+      }}
+    />
   );
 }

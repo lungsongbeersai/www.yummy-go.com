@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useResetOnChange } from "@/hooks/use-reset-on-change";
 import type { QRScanResponse } from "@/services/public-pos";
 import type { ToastInput } from "@/stores/toast-store";
-import { publicQrDownloadFilename } from "@/features/public-pos/order/utils";
+import { publicQrDownloadFilename } from "@/features/public-pos/order/menu-render";
 
 export function usePublicQrDialog({
   table,

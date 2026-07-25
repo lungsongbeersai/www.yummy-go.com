@@ -22,22 +22,10 @@ import { money } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { CateProductItem } from "@/services/pos";
 import { optionalNumber, optionalString } from "@/lib/values";
-import {
-  getProductActionState,
-  getProductBlockedState,
-  hasPromo,
-  isRemoteUrl,
-  productActionLabel,
-  productBlockedLabel,
-  productCardPrice,
-  productMedia,
-  productOptionCount,
-  productToppingCount,
-  ProductSortStatus,
-  PRODUCT_GRID_CLASS,
-  type ProductCardEntry,
-  type ProductMedia,
-} from "./order-customer-utils";
+import { PRODUCT_GRID_CLASS, ProductSortStatus, type ProductCardEntry, type ProductMedia } from "@/features/pos/order-customer/menu-structure";
+import { productCardPrice, productOptionCount, productToppingCount } from "@/features/pos/order-customer/pricing";
+import { getProductActionState, getProductBlockedState, hasPromo, productActionLabel, productBlockedLabel } from "@/features/pos/order-customer/product-classification";
+import { isRemoteUrl, productMedia } from "@/features/pos/order-customer/product-media";
 
 export const EmployeeProductCard = memo(function EmployeeProductCard({
   activeSort,

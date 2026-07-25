@@ -10,7 +10,7 @@ import { usePublicCartOrderActions } from "./use-public-cart-order-actions";
 import { usePublicMenuBrowse } from "./use-public-menu-browse";
 import { usePublicQrDialog } from "./use-public-qr-dialog";
 import { usePublicSearch } from "./use-public-search";
-import { totalCartQty } from "../utils";
+import { totalCartQty } from "@/features/public-pos/order/cart-domain";
 
 interface UsePublicBrowseWorkflowParams {
   cartOpen: boolean;

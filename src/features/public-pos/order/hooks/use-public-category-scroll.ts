@@ -23,11 +23,7 @@ import {
 } from "@/features/public-pos/order/constants";
 import type { ScrollJumpEdge } from "@/features/public-pos/order/types";
 import { prefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
-import {
-  easeOutCubic,
-  getScrollJumpEdgeFromViewport,
-  getWindowMaxScrollY,
-} from "@/features/public-pos/order/utils";
+import { easeOutCubic, getScrollJumpEdgeFromViewport, getWindowMaxScrollY } from "@/features/public-pos/order/scroll-motion";
 
 export function usePublicCategoryScroll({
   defaultActiveCateUuid,

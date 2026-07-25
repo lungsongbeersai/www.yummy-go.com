@@ -2,13 +2,8 @@
 
 import { useTranslation } from "react-i18next";
 import { KeyRound } from "lucide-react";
-import { ConfirmDialog } from "@/components/common/confirm-dialog";
-import {
-  SettingsModuleShell,
-  SettingsPaginationFooter,
-  SettingsRowActions,
-  SettingsToolbar
-} from "@/features/settings/shared/settings-shell";
+import { SettingsCrudShell, SettingsCrudToolbar } from "@/features/settings/shared/settings-crud-shell";
+import { SettingsRowActions } from "@/features/settings/shared/settings-shell";
 import { optionPageRange, optionPageSize } from "@/features/settings/shared/option-settings-utils";
 import { useOptionRowSelection } from "@/features/settings/shared/use-option-row-selection";
 import { useSettingsCrudController } from "@/features/settings/shared/use-settings-crud-controller";
@@ -16,7 +11,6 @@ import { PAGE_LIMIT_OPTIONS } from "@/lib/pagination";
 import { canCreateStoreBranch, canDeleteStoreBranch, canEditStoreBranch } from "@/lib/permissions";
 import type { UrlPaginationState } from "@/lib/url-pagination";
 import type { Branch, FetchBranchesParams, SaveBranchInput } from "@/services/branch";
-import type { SortOrder } from "@/services/shared/types";
 import type { FetchStoresParams, SaveStoreInput, Store } from "@/services/store";
 import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
 import { useBranchSettingsStore } from "@/stores/branch-settings-store";
@@ -62,34 +56,7 @@ function StoreSettingsPage({ initialPagination }: { initialPagination: UrlPagina
   const title = labels.store;
   const description = labels.storeHint;
   const listTitle = labels.storeList;
-  const {
-    applyFilters,
-    backgroundLoading,
-    changeLimit,
-    deleteTarget,
-    dialogOpen,
-    editing,
-    fullLoading,
-    limit,
-    openCreate: controllerOpenCreate,
-    openEdit: controllerOpenEdit,
-    orderBy,
-    page,
-    requestParams,
-    rows,
-    saving,
-    search,
-    setDeleteTarget,
-    setDialogOpen,
-    setEditing,
-    setOrderBy,
-    setPage,
-    setSearch,
-    showToast,
-    storeUuid,
-    total: controllerTotal,
-    totalPages: controllerTotalPages
-  } = useSettingsCrudController<Store, SaveStoreInput, FetchStoresParams>({
+  const controller = useSettingsCrudController<Store, SaveStoreInput, FetchStoresParams>({
     // buildInput ให้ครบตามชนิดที่ controller ต้องการ แต่การบันทึกจริงยังเดินตรงผ่านสโตร์ใน
     // handleSave ด้านล่าง (ดูคอมเมนต์ที่ saveStoreRow) เพื่อคงพฤติกรรม "ซิงก์ auth state หลังบันทึก" เดิม
     buildInput: ({ editing: editingRow, formData }) =>
@@ -116,6 +83,24 @@ function StoreSettingsPage({ initialPagination }: { initialPagination: UrlPagina
       return null;
     }
   });
+  const {
+    backgroundLoading,
+    editing,
+    limit,
+    openCreate: controllerOpenCreate,
+    openEdit: controllerOpenEdit,
+    page,
+    requestParams,
+    rows,
+    saving,
+    setDeleteTarget,
+    setDialogOpen,
+    setEditing,
+    showToast,
+    storeUuid,
+    total: controllerTotal,
+    totalPages: controllerTotalPages
+  } = controller;
 
   const user = useAuthStore((state) => state.user);
   const canCreate = canCreateStoreBranch(user?.status);
@@ -258,96 +243,51 @@ function StoreSettingsPage({ initialPagination }: { initialPagination: UrlPagina
     );
   }
 
-  const toolbar = (
-    <SettingsToolbar
-      state={{
-        search,
-        limit,
-        orderBy,
-        limitOptions: PAGE_LIMIT_OPTIONS,
-        selectedCount: selectedRows.size,
-        onApply: applyFilters,
-        onLimit: changeLimit,
-        onOrder: (nextOrder: SortOrder) => {
-          setOrderBy(nextOrder);
-          setPage(1);
-        },
-        onSearch: setSearch
-      }}
-    />
-  );
-
-  const listSurface = (
-    <StoreBranchListSurface
-      activeId={activeId}
-      allSelected={allSelected}
-      backgroundLoading={backgroundLoading}
-      imageUrl={imageUrl}
-      kind="store"
-      labels={labels}
-      listTitle={listTitle}
-      pageStart={pageStart}
-      rowActions={rowActions}
-      rows={visibleRows}
-      selectedRows={selectedRows}
-      toolbar={toolbar}
-      onToggleAllSelected={toggleAll}
-      onToggleSelected={toggleSelected}
-    />
-  );
+  // ผู้ใช้ที่สร้างร้านไม่ได้เห็นเฉพาะร้านตัวเอง หน้านี้จึงนับหน้า/เลือกแถวจาก visibleRows เอง
+  const chrome = { ...controller, pageEnd, pageStart, rows: visibleRows, selectedRows, total, totalPages };
 
   return (
-    <>
-      <SettingsModuleShell
-        addLabel={labels.addStore}
-        cardTitle={listTitle}
-        description={description}
-        footer={
-          visibleRows.length ? (
-            <SettingsPaginationFooter
-              page={page}
-              pageEnd={pageEnd}
-              pageStart={pageStart}
-              total={total}
-              totalPages={totalPages}
-              onPageChange={setPage}
-            />
-          ) : undefined
-        }
-        hideCardHeader
-        loading={fullLoading}
-        loadingLabel={t("settings.loading", { title })}
-        table={listSurface}
-        title={title}
-        onAdd={canCreate ? openCreate : undefined}
-      />
-      <StoreBranchFormDialog
-        activeStoreUuid={storeUuid}
-        canEdit={canEdit}
-        editing={editing}
-        imageUrl={imageUrl}
-        kind="store"
-        labels={labels}
-        open={dialogOpen}
-        saving={saving}
-        onCancel={resetForm}
-        onSubmit={handleSave}
-      />
-      <ConfirmDialog
-        cancelLabel={labels.cancel}
-        confirmLabel={labels.delete}
-        confirmPending={saving}
-        description={labels.deleteConfirm}
-        open={Boolean(deleteTarget)}
-        title={labels.delete}
-        onConfirm={() => {
-          if (deleteTarget) void handleDelete(deleteTarget);
-        }}
-        onOpenChange={(nextOpen) => {
-          if (!nextOpen) setDeleteTarget(null);
-        }}
-      />
-    </>
+    <SettingsCrudShell
+      addLabel={labels.addStore}
+      cardTitle={listTitle}
+      controller={chrome}
+      description={description}
+      formDialog={
+        <StoreBranchFormDialog
+          activeStoreUuid={storeUuid}
+          canEdit={canEdit}
+          editing={editing}
+          imageUrl={imageUrl}
+          kind="store"
+          labels={labels}
+          open={controller.dialogOpen}
+          saving={saving}
+          onCancel={resetForm}
+          onSubmit={handleSave}
+        />
+      }
+      listSurface={
+        <StoreBranchListSurface
+          activeId={activeId}
+          allSelected={allSelected}
+          backgroundLoading={backgroundLoading}
+          imageUrl={imageUrl}
+          kind="store"
+          labels={labels}
+          listTitle={listTitle}
+          pageStart={pageStart}
+          rowActions={rowActions}
+          rows={visibleRows}
+          selectedRows={selectedRows}
+          toolbar={<SettingsCrudToolbar controller={chrome} limitOptions={PAGE_LIMIT_OPTIONS} />}
+          onToggleAllSelected={toggleAll}
+          onToggleSelected={toggleSelected}
+        />
+      }
+      title={title}
+      onAdd={canCreate ? openCreate : null}
+      onRemove={handleDelete}
+    />
   );
 }
 
@@ -363,34 +303,7 @@ function BranchSettingsPage({ initialPagination }: { initialPagination: UrlPagin
   const title = labels.branch;
   const description = labels.branchHint;
   const listTitle = labels.branchList;
-  const {
-    applyFilters,
-    backgroundLoading,
-    changeLimit,
-    deleteTarget,
-    dialogOpen,
-    editing,
-    fullLoading,
-    limit,
-    openCreate: controllerOpenCreate,
-    openEdit: controllerOpenEdit,
-    orderBy,
-    page,
-    requestParams,
-    rows,
-    saving,
-    search,
-    setDeleteTarget,
-    setDialogOpen,
-    setEditing,
-    setOrderBy,
-    setPage,
-    setSearch,
-    showToast,
-    storeUuid,
-    total: controllerTotal,
-    totalPages: controllerTotalPages
-  } = useSettingsCrudController<Branch, SaveBranchInput, FetchBranchesParams>({
+  const controller = useSettingsCrudController<Branch, SaveBranchInput, FetchBranchesParams>({
     // buildInput ให้ครบตามชนิดที่ controller ต้องการ แต่การบันทึกจริงยังเดินตรงผ่านสโตร์ใน
     // handleSave ด้านล่าง (ดูคอมเมนต์ที่ saveBranchRow) เพื่อคงพฤติกรรม "ซิงก์ auth state หลังบันทึก" เดิม
     buildInput: ({ editing: editingRow, formData, user: currentUser }) =>
@@ -423,6 +336,24 @@ function BranchSettingsPage({ initialPagination }: { initialPagination: UrlPagin
       return null;
     }
   });
+  const {
+    backgroundLoading,
+    editing,
+    limit,
+    openCreate: controllerOpenCreate,
+    openEdit: controllerOpenEdit,
+    page,
+    requestParams,
+    rows,
+    saving,
+    setDeleteTarget,
+    setDialogOpen,
+    setEditing,
+    showToast,
+    storeUuid,
+    total: controllerTotal,
+    totalPages: controllerTotalPages
+  } = controller;
 
   const user = useAuthStore((state) => state.user);
   const canCreate = canCreateStoreBranch(user?.status);
@@ -547,95 +478,50 @@ function BranchSettingsPage({ initialPagination }: { initialPagination: UrlPagin
     );
   }
 
-  const toolbar = (
-    <SettingsToolbar
-      state={{
-        search,
-        limit,
-        orderBy,
-        limitOptions: PAGE_LIMIT_OPTIONS,
-        selectedCount: selectedRows.size,
-        onApply: applyFilters,
-        onLimit: changeLimit,
-        onOrder: (nextOrder: SortOrder) => {
-          setOrderBy(nextOrder);
-          setPage(1);
-        },
-        onSearch: setSearch
-      }}
-    />
-  );
-
-  const listSurface = (
-    <StoreBranchListSurface
-      activeId={activeId}
-      allSelected={allSelected}
-      backgroundLoading={backgroundLoading}
-      imageUrl={imageUrl}
-      kind="branch"
-      labels={labels}
-      listTitle={listTitle}
-      pageStart={pageStart}
-      rowActions={rowActions}
-      rows={visibleRows}
-      selectedRows={selectedRows}
-      toolbar={toolbar}
-      onToggleAllSelected={toggleAll}
-      onToggleSelected={toggleSelected}
-    />
-  );
+  // เช่นเดียวกับหน้าร้าน: นับหน้า/เลือกแถวจาก visibleRows ที่กรองตามสิทธิ์แล้ว
+  const chrome = { ...controller, pageEnd, pageStart, rows: visibleRows, selectedRows, total, totalPages };
 
   return (
-    <>
-      <SettingsModuleShell
-        addLabel={labels.addBranch}
-        cardTitle={listTitle}
-        description={description}
-        footer={
-          visibleRows.length ? (
-            <SettingsPaginationFooter
-              page={page}
-              pageEnd={pageEnd}
-              pageStart={pageStart}
-              total={total}
-              totalPages={totalPages}
-              onPageChange={setPage}
-            />
-          ) : undefined
-        }
-        hideCardHeader
-        loading={fullLoading}
-        loadingLabel={t("settings.loading", { title })}
-        table={listSurface}
-        title={title}
-        onAdd={canCreate ? openCreate : undefined}
-      />
-      <StoreBranchFormDialog
-        activeStoreUuid={storeUuid}
-        canEdit={canEdit}
-        editing={editing}
-        imageUrl={imageUrl}
-        kind="branch"
-        labels={labels}
-        open={dialogOpen}
-        saving={saving}
-        onCancel={resetForm}
-        onSubmit={handleSave}
-      />
-      <ConfirmDialog
-        cancelLabel={labels.cancel}
-        confirmLabel={labels.delete}
-        confirmPending={saving}
-        description={labels.deleteConfirm}
-        open={Boolean(deleteTarget)}
-        title={labels.delete}
-        onConfirm={() => {
-          if (deleteTarget) void handleDelete(deleteTarget);
-        }}
-        onOpenChange={(nextOpen) => {
-          if (!nextOpen) setDeleteTarget(null);
-        }}
-      />
-    </>
+    <SettingsCrudShell
+      addLabel={labels.addBranch}
+      cardTitle={listTitle}
+      controller={chrome}
+      description={description}
+      formDialog={
+        <StoreBranchFormDialog
+          activeStoreUuid={storeUuid}
+          canEdit={canEdit}
+          editing={editing}
+          imageUrl={imageUrl}
+          kind="branch"
+          labels={labels}
+          open={controller.dialogOpen}
+          saving={saving}
+          onCancel={resetForm}
+          onSubmit={handleSave}
+        />
+      }
+      listSurface={
+        <StoreBranchListSurface
+          activeId={activeId}
+          allSelected={allSelected}
+          backgroundLoading={backgroundLoading}
+          imageUrl={imageUrl}
+          kind="branch"
+          labels={labels}
+          listTitle={listTitle}
+          pageStart={pageStart}
+          rowActions={rowActions}
+          rows={visibleRows}
+          selectedRows={selectedRows}
+          toolbar={<SettingsCrudToolbar controller={chrome} limitOptions={PAGE_LIMIT_OPTIONS} />}
+          onToggleAllSelected={toggleAll}
+          onToggleSelected={toggleSelected}
+        />
+      }
+      title={title}
+      onAdd={canCreate ? openCreate : null}
+      onRemove={handleDelete}
+    />
   );
 }

@@ -23,7 +23,7 @@ import {
   TableActionTab
 } from "./table-actions-overlay-parts";
 import type { TableActionMode } from "./types";
-import { filterTableActionZones, normalizeTableActionZones, tableActionFlatTables } from "./utils";
+import { filterTableActionZones, normalizeTableActionZones, tableActionFlatTables } from "@/features/pos/table-selection/table-zones";
 
 export function TableActionsOverlay({
   branchUuid,

@@ -3,17 +3,12 @@
 import { useEffect, useState } from "react";
 import { useResetOnDeps } from "@/hooks/use-reset-on-change";
 import { useTranslation } from "react-i18next";
-import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import {
   DEFAULT_CROP,
   cropImageFile,
   type CropState
 } from "@/features/settings/shared/settings-image-crop";
-import {
-  SettingsModuleShell,
-  SettingsPaginationFooter,
-  SettingsToolbar
-} from "@/features/settings/shared/settings-shell";
+import { SettingsCrudShell, SettingsCrudToolbar } from "@/features/settings/shared/settings-crud-shell";
 import { useSettingsCrudController } from "@/features/settings/shared/use-settings-crud-controller";
 import { PAGE_LIMIT_OPTIONS } from "@/lib/pagination";
 import type { UrlPaginationState } from "@/lib/url-pagination";
@@ -47,44 +42,7 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
 
   const title = t("settings.modules.user.title");
   const description = t("settings.modules.user.description");
-  const {
-    allSelected,
-    applyFilters,
-    backgroundLoading,
-    changeLimit,
-    deleteTarget,
-    dialogOpen,
-    editing,
-    fullLoading,
-    language,
-    limit,
-    missingRequiredScope,
-    onDialogOpenChange,
-    openEdit: controllerOpenEdit,
-    orderBy,
-    page,
-    pageEnd,
-    pageStart,
-    remove: crudRemove,
-    requiredScopeDescription,
-    rows,
-    save,
-    saving,
-    search,
-    selectedRows,
-    setDeleteTarget,
-    setDialogOpen,
-    setEditing,
-    setOrderBy,
-    setPage,
-    setSearch,
-    showToast,
-    toggleAll,
-    toggleSelected,
-    total,
-    totalPages,
-    user
-  } = useSettingsCrudController<User, SaveUserInput, FetchUsersParams>({
+  const controller = useSettingsCrudController<User, SaveUserInput, FetchUsersParams>({
     buildInput: ({ editing: editingRow, formData, user: currentUser }) =>
       buildUserSaveInput({
         active: String(formData.get("login_active") ?? 1),
@@ -114,6 +72,29 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
       return null;
     }
   });
+  const {
+    allSelected,
+    backgroundLoading,
+    dialogOpen,
+    editing,
+    language,
+    missingRequiredScope,
+    openEdit: controllerOpenEdit,
+    pageStart,
+    remove: crudRemove,
+    requiredScopeDescription,
+    rows,
+    save,
+    saving,
+    selectedRows,
+    setDeleteTarget,
+    setDialogOpen,
+    setEditing,
+    showToast,
+    toggleAll,
+    toggleSelected,
+    user
+  } = controller;
 
   const branchUuid = user?.branch_uuid ?? "";
   const loginBranchName = user?.branch_name || t("settings.currentBranch");
@@ -180,102 +161,57 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
     await crudRemove(row);
   }
 
-  const toolbar = (
-    <SettingsToolbar
-      state={{
-        search,
-        limit,
-        orderBy,
-        limitOptions: PAGE_LIMIT_OPTIONS,
-        orderOptions: ORDER_OPTIONS.map((option) => ({ label: t(`common.${option.labelKey}`), value: option.value })),
-        selectedCount: selectedRows.size,
-        onApply: applyFilters,
-        onLimit: changeLimit,
-        onOrder: (nextOrder) => {
-          setOrderBy(nextOrder);
-          setPage(1);
-        },
-        onSearch: setSearch
-      }}
-    />
-  );
-
-  const listSurface = (
-    <UserListSurface
-      allSelected={allSelected}
-      backgroundLoading={backgroundLoading}
-      currentLoginUuid={currentLoginUuid}
-      pageStart={pageStart}
-      profileUrl={userProfileUrl}
-      rows={rows}
-      selectedRows={selectedRows}
-      title={title}
-      toolbar={toolbar}
-      onDelete={setDeleteTarget}
-      onEdit={openEdit}
-      onToggleAll={toggleAll}
-      onToggleSelected={toggleSelected}
-    />
-  );
-
   return (
-    <>
-      <SettingsModuleShell
-        addLabel={`${t("actions.add")} ${t("nav.user")}`}
-        cardTitle={t("settings.userList")}
-        description={description}
-        emptyDescription={t("empty.adjustSearch")}
-        emptyTitle={t("settings.noRecords", { title: title.toLowerCase() })}
-        footer={
-          rows.length ? (
-            <SettingsPaginationFooter
-              page={page}
-              pageEnd={pageEnd}
-              pageStart={pageStart}
-              total={total}
-              totalPages={totalPages}
-              onPageChange={setPage}
+    <SettingsCrudShell
+      addLabel={`${t("actions.add")} ${t("nav.user")}`}
+      cardTitle={t("settings.userList")}
+      controller={controller}
+      description={description}
+      formDialog={
+        <UserFormDialog
+          crop={crop}
+          currentBranchName={loginBranchName}
+          currentBranchUuid={branchUuid}
+          editing={editing}
+          loggedRoleId={loggedRoleId}
+          open={dialogOpen}
+          profileSrc={editing ? userProfileUrl(userValue(editing, "login_profile")) : ""}
+          roleOptions={roles}
+          saving={saving}
+          selectedProfileImage={selectedProfileImage}
+          title={title}
+          onCropChange={setCrop}
+          onFileChange={setSelectedProfileImage}
+          onOpenChange={controller.onDialogOpenChange}
+          onSubmit={submitUserForm}
+        />
+      }
+      listSurface={
+        <UserListSurface
+          allSelected={allSelected}
+          backgroundLoading={backgroundLoading}
+          currentLoginUuid={currentLoginUuid}
+          pageStart={pageStart}
+          profileUrl={userProfileUrl}
+          rows={rows}
+          selectedRows={selectedRows}
+          title={title}
+          toolbar={
+            <SettingsCrudToolbar
+              controller={controller}
+              limitOptions={PAGE_LIMIT_OPTIONS}
+              orderOptions={ORDER_OPTIONS.map((option) => ({ label: t(`common.${option.labelKey}`), value: option.value }))}
             />
-          ) : undefined
-        }
-        hideCardHeader
-        loading={fullLoading}
-        loadingLabel={t("settings.loading", { title })}
-        table={listSurface}
-        title={title}
-        onAdd={openCreate}
-      />
-      <UserFormDialog
-        crop={crop}
-        currentBranchName={loginBranchName}
-        currentBranchUuid={branchUuid}
-        editing={editing}
-        loggedRoleId={loggedRoleId}
-        open={dialogOpen}
-        profileSrc={editing ? userProfileUrl(userValue(editing, "login_profile")) : ""}
-        roleOptions={roles}
-        saving={saving}
-        selectedProfileImage={selectedProfileImage}
-        title={title}
-        onCropChange={setCrop}
-        onFileChange={setSelectedProfileImage}
-        onOpenChange={onDialogOpenChange}
-        onSubmit={submitUserForm}
-      />
-      <ConfirmDialog
-        cancelLabel={t("actions.cancel")}
-        confirmLabel={t("actions.delete")}
-        confirmPending={saving}
-        description={t("settings.deleteConfirm")}
-        open={Boolean(deleteTarget)}
-        title={t("actions.delete")}
-        onConfirm={() => {
-          if (deleteTarget) void remove(deleteTarget);
-        }}
-        onOpenChange={(nextOpen) => {
-          if (!nextOpen) setDeleteTarget(null);
-        }}
-      />
-    </>
+          }
+          onDelete={setDeleteTarget}
+          onEdit={openEdit}
+          onToggleAll={toggleAll}
+          onToggleSelected={toggleSelected}
+        />
+      }
+      title={title}
+      onAdd={openCreate}
+      onRemove={remove}
+    />
   );
 }

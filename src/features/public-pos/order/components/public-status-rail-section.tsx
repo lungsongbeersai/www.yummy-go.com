@@ -10,7 +10,7 @@ import {
   type PublicMenuKind,
 } from "@/stores/public-pos-store";
 import type { PublicDisplayProduct } from "../types";
-import { hasRemoteProductImage } from "../utils";
+import { hasRemoteProductImage } from "@/features/public-pos/order/product-domain";
 import { RailSkeleton } from "./public-pos-skeletons";
 import { ProductCard } from "./public-product-card";
 import { HorizontalScrollArrows } from "./horizontal-scroll-arrows";

@@ -1,34 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { CartItem, CartOrder, PosTable } from "@/services/pos";
-import {
-  appendDiscountCalculatorInput,
-  billDiscountButtonValue,
-  buildCustomerDisplayPayload,
-  canPayFullBill,
-  cartDisplaySummary,
-  cartForTable,
-  cartItemBaseUnitPrice,
-  cartItemsQty,
-  cartOrderBelongsToTable,
-  cartOrdersBelongToTable,
-  cartQuantityCount,
-  cartSummary,
-  cartToppingDisplay,
-  discountDraftValue,
-  discountDraftWithType,
-  isCanceledCartItem,
-  isNewOrderCartItem,
-  isOrderHistoryCartItem,
-  isServedCartItem,
-  isWaitingCartItem,
-  markTableAvailableInZones,
-  newOrderTabItems,
-  newOrderConfirmGroups,
-  normalizeDiscountType,
-  pruneSelectedItemUuids,
-  splitPaymentSelection,
-  visibleCartItems,
-} from "./utils";
+import { cartForTable, cartItemBaseUnitPrice, cartItemsQty, cartOrderBelongsToTable, cartOrdersBelongToTable, cartQuantityCount, cartSummary, cartToppingDisplay, isCanceledCartItem, isNewOrderCartItem, isOrderHistoryCartItem, isServedCartItem, isWaitingCartItem, newOrderConfirmGroups, newOrderTabItems, visibleCartItems } from "@/features/pos/table-selection/cart-readers";
+import { buildCustomerDisplayPayload } from "@/features/pos/table-selection/customer-display-payload";
+import { appendDiscountCalculatorInput, billDiscountButtonValue, discountDraftValue, discountDraftWithType, normalizeDiscountType } from "@/features/pos/table-selection/discount-drafts";
+import { canPayFullBill, cartDisplaySummary, pruneSelectedItemUuids, splitPaymentSelection } from "@/features/pos/table-selection/split-payment";
+import { markTableAvailableInZones } from "@/features/pos/table-selection/table-zones";
 
 function cartOrder(overrides: Partial<CartOrder> = {}): CartOrder {
   return {

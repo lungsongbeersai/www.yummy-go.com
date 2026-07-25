@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { ProductImageStatus } from "@/config/pos-constants";
 import type { CateProductItem, ProdItem } from "@/services/pos";
 import type { ProductBlockedState } from "../types";
-import { isHexColor, productImageUrl } from "../utils";
+import { isHexColor, productImageUrl } from "@/features/public-pos/order/product-domain";
 
 export function ProductMedia({
   product,

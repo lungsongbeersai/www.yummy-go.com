@@ -77,7 +77,7 @@ route page (thin) → feature component (src/features/<domain>/)
 
 - `src/app/(protected)/` — the back-office (`/products`, `/sales/*`, `/report/*`, `/settings/*`, `/printers`) plus the cashier POS screens `/pos/order` and `/pos/tables` (moved from `/sale/order-customer` and `/sales/open-table-sale` in P2.1). Wrapped by `AuthGuard` + `AppShell` in the group layout.
 - `/pos` — public QR-code customer ordering entry (top-level, outside the `(protected)` group and any auth; URL `/pos?t=` is frozen — printed on physical table QR codes). Route groups add no URL segment, so this is a distinct sibling of the protected `/pos/order` and `/pos/tables` pages, not a parent of them.
-- `/q/[token]` — public QR-code customer ordering (no auth; uses `publicApiClient`, `public-pos` service/store).
+- `/q/:token` — legacy QR-code URL kept alive by a redirect to `/pos?t=:token`; there is no route file for it. The screen it lands on is `/pos` (no auth; uses `publicApiClient`, `public-pos` service/store).
 - `/customer-display` — the second-screen view loaded by Electron in a separate BrowserWindow.
 - `/login` — auth entry.
 - Legacy bookmarks to the pre-P2.1 paths (`/setting*`, `/product*`, `/printer*`, `/sale/order-customer`, `/sales/open-table-sale`) 302-redirect to their new locations — see `redirects()` in `next.config.ts`.
