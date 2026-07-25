@@ -6,16 +6,16 @@ import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Spinner } from "@/components/ui/spinner";
 import { Table as DataTable, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
+  SettingsListSurface,
   SettingsMobileCard,
   SettingsMobileList,
   SettingsMobileMeta,
   SettingsMobileMetaGrid,
   SettingsRowActions,
   SettingsTableScroll,
-  SettingsEmptyRecords,} from "@/features/settings/shared/settings-shell";
+} from "@/features/settings/shared/settings-shell";
 import type { Table as DiningTable } from "@/services/table";
 import type { Zone } from "@/services/zone";
 import { TableChargeBadge, TableIcon, TableIdentity, TableStatusBadge } from "./table-display";
@@ -80,59 +80,44 @@ export function TableListSurface({
   ) : null;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <div className="shrink-0 border-b border-border bg-card/95 px-3 py-2.5 backdrop-blur sm:px-4 lg:px-5">
-        <div className="flex min-w-0 flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
-          <div className="min-w-0">
-            <div className="flex min-w-0 flex-wrap items-center gap-2">
-              <p className="text-sm font-black">{t("settings.tableList")}</p>
-              {groupToggleAction}
-            </div>
-          </div>
-          <div className="min-w-0 xl:max-w-[48rem]">{toolbar}</div>
-        </div>
-        {backgroundLoading ? (
-          <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-            <Spinner aria-hidden />
-            {t("settings.refreshingTableList")}
-          </div>
-        ) : null}
-      </div>
-      {hasGroups ? (
-        <>
-          <div className="hidden min-h-0 flex-1 md:flex">
-            <TableDesktopList
-              allSelected={allSelected}
-              collapsedZones={collapsedZones}
-              groupedRows={groupedRows}
-              selectedRows={selectedRows}
-              serviceChargeRateLabel={serviceChargeRateLabel}
-              zoneById={zoneById}
-              onDelete={onDelete}
-              onEdit={onEdit}
-              onToggleAll={onToggleAll}
-              onToggleSelected={onToggleSelected}
-              onToggleZoneCollapse={onToggleZoneCollapse}
-            />
-          </div>
-          <div className="min-h-0 flex-1 overflow-y-auto md:hidden">
-            <TableMobileList
-              collapsedZones={collapsedZones}
-              groupedRows={groupedRows}
-              selectedRows={selectedRows}
-              serviceChargeRateLabel={serviceChargeRateLabel}
-              zoneById={zoneById}
-              onDelete={onDelete}
-              onEdit={onEdit}
-              onToggleSelected={onToggleSelected}
-              onToggleZoneCollapse={onToggleZoneCollapse}
-            />
-          </div>
-        </>
-      ) : (
-        <SettingsEmptyRecords icon={<Table2 aria-hidden />} title={title.toLowerCase()} />
-      )}
-    </div>
+    <SettingsListSurface
+      backgroundLoading={backgroundLoading}
+      emptyIcon={<Table2 aria-hidden />}
+      emptyTitle={title.toLowerCase()}
+      hasRows={hasGroups}
+      headerAction={groupToggleAction}
+      listTitle={t("settings.tableList")}
+      mobileList={
+        <TableMobileList
+          collapsedZones={collapsedZones}
+          groupedRows={groupedRows}
+          selectedRows={selectedRows}
+          serviceChargeRateLabel={serviceChargeRateLabel}
+          zoneById={zoneById}
+          onDelete={onDelete}
+          onEdit={onEdit}
+          onToggleSelected={onToggleSelected}
+          onToggleZoneCollapse={onToggleZoneCollapse}
+        />
+      }
+      refreshLabel={t("settings.refreshingTableList")}
+      table={
+        <TableDesktopList
+          allSelected={allSelected}
+          collapsedZones={collapsedZones}
+          groupedRows={groupedRows}
+          selectedRows={selectedRows}
+          serviceChargeRateLabel={serviceChargeRateLabel}
+          zoneById={zoneById}
+          onDelete={onDelete}
+          onEdit={onEdit}
+          onToggleAll={onToggleAll}
+          onToggleSelected={onToggleSelected}
+          onToggleZoneCollapse={onToggleZoneCollapse}
+        />
+      }
+      toolbar={toolbar}
+    />
   );
 }
 

@@ -4,15 +4,15 @@ import type { ReactNode } from "react";
 import { UsersRound } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Spinner } from "@/components/ui/spinner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
+  SettingsListSurface,
   SettingsMobileCard,
   SettingsMobileMeta,
   SettingsMobileMetaGrid,
   SettingsRowActions,
   SettingsTableScroll,
-  SettingsEmptyRecords,} from "@/features/settings/shared/settings-shell";
+} from "@/features/settings/shared/settings-shell";
 import { cn } from "@/lib/utils";
 import type { User } from "@/services/user";
 import { UserActiveBadge, UserAvatar, UserBadges, UserIdentity } from "./user-display";
@@ -56,53 +56,41 @@ export function UserListSurface({
   const { t } = useTranslation();
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <div className="shrink-0 border-b border-border bg-card/95 px-3 py-2.5 backdrop-blur sm:px-4 lg:px-5">
-        <div className="flex min-w-0 flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
-          <div className="min-w-0">
-            <p className="text-sm font-black">{t("settings.userList")}</p>
-          </div>
-          <div className="min-w-0 xl:max-w-3xl">{toolbar}</div>
-        </div>
-        {backgroundLoading ? (
-          <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-            <Spinner aria-hidden />
-            {t("settings.refreshingList")}
-          </div>
-        ) : null}
-      </div>
-      {rows.length ? (
-        <>
-          <div className="hidden min-h-0 flex-1 md:flex">
-            <UserDesktopTable
-              allSelected={allSelected}
-              currentLoginUuid={currentLoginUuid}
-              pageStart={pageStart}
-              profileUrl={profileUrl}
-              rows={rows}
-              selectedRows={selectedRows}
-              onDelete={onDelete}
-              onEdit={onEdit}
-              onToggleAll={onToggleAll}
-              onToggleSelected={onToggleSelected}
-            />
-          </div>
-          <div className="min-h-0 flex-1 overflow-y-auto md:hidden">
-            <UserMobileList
-              currentLoginUuid={currentLoginUuid}
-              profileUrl={profileUrl}
-              rows={rows}
-              selectedRows={selectedRows}
-              onDelete={onDelete}
-              onEdit={onEdit}
-              onToggleSelected={onToggleSelected}
-            />
-          </div>
-        </>
-      ) : (
-        <SettingsEmptyRecords icon={<UsersRound aria-hidden />} title={title.toLowerCase()} />
-      )}
-    </div>
+    <SettingsListSurface
+      backgroundLoading={backgroundLoading}
+      emptyIcon={<UsersRound aria-hidden />}
+      emptyTitle={title.toLowerCase()}
+      hasRows={rows.length > 0}
+      listTitle={t("settings.userList")}
+      mobileList={
+        <UserMobileList
+          currentLoginUuid={currentLoginUuid}
+          profileUrl={profileUrl}
+          rows={rows}
+          selectedRows={selectedRows}
+          onDelete={onDelete}
+          onEdit={onEdit}
+          onToggleSelected={onToggleSelected}
+        />
+      }
+      refreshLabel={t("settings.refreshingList")}
+      table={
+        <UserDesktopTable
+          allSelected={allSelected}
+          currentLoginUuid={currentLoginUuid}
+          pageStart={pageStart}
+          profileUrl={profileUrl}
+          rows={rows}
+          selectedRows={selectedRows}
+          onDelete={onDelete}
+          onEdit={onEdit}
+          onToggleAll={onToggleAll}
+          onToggleSelected={onToggleSelected}
+        />
+      }
+      toolbar={toolbar}
+      toolbarClassName="min-w-0 xl:max-w-3xl"
+    />
   );
 }
 

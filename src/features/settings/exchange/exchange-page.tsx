@@ -5,7 +5,6 @@ import { useEffect, useMemo, useState } from "react";
 import { useResetOnChange } from "@/hooks/use-reset-on-change";
 import { Coins } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { FormattedNumberInput } from "@/components/common/formatted-number-input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,22 +15,21 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { Spinner } from "@/components/ui/spinner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CurrencyFlag } from "@/features/settings/shared/currency-flag";
+import { SettingsCrudShell, SettingsCrudToolbar } from "@/features/settings/shared/settings-crud-shell";
 import {
   SettingsDialogBody,
   SettingsDialogContent,
   SettingsDialogFooter,
   SettingsDialogForm,
   SettingsDialogHeader,
+  SettingsListSurface,
   SettingsMobileCard,
   SettingsMobileList,
   SettingsMobileMeta,
   SettingsMobileMetaGrid,
-  SettingsModuleShell,
-  SettingsPaginationFooter,
   SettingsRowActions,
   SettingsTableScroll,
-  SettingsToolbar,
-  SettingsEmptyRecords,} from "@/features/settings/shared/settings-shell";
+} from "@/features/settings/shared/settings-shell";
 import { useSettingsCrudController } from "@/features/settings/shared/use-settings-crud-controller";
 import { PAGE_LIMIT_OPTIONS } from "@/lib/pagination";
 import type { UrlPaginationState } from "@/lib/url-pagination";
@@ -107,43 +105,7 @@ export function ExchangeSettingsPage({ initialPagination }: { initialPagination:
   const description = t("settings.modules.exchange.description");
   const loadCurrencyOptions = useReferenceStore((state) => state.loadCurrencies);
   const [currencyOptions, setCurrencyOptions] = useState<Currency[]>([]);
-  const {
-    allSelected,
-    applyFilters,
-    backgroundLoading,
-    changeLimit,
-    deleteTarget,
-    dialogOpen,
-    editing,
-    fullLoading,
-    limit,
-    missingRequiredScope,
-    onDialogOpenChange,
-    openEdit,
-    orderBy,
-    page,
-    pageEnd,
-    pageStart,
-    remove,
-    requiredScopeDescription,
-    rows,
-    save,
-    saving,
-    search,
-    selectedRows,
-    setDeleteTarget,
-    setDialogOpen,
-    setEditing,
-    setOrderBy,
-    setPage,
-    setSearch,
-    showToast,
-    storeUuid,
-    toggleAll,
-    toggleSelected,
-    total,
-    totalPages
-  } = useSettingsCrudController<Exchange, SaveExchangeInput, FetchExchangesParams>({
+  const controller = useSettingsCrudController<Exchange, SaveExchangeInput, FetchExchangesParams>({
     buildInput: ({ editing: editingRow, formData, storeUuid: scopedStoreUuid }) => {
       const currencyUuid = String(formData.get("currency_uuid_fk") ?? "").trim();
       const price = String(formData.get("ex_price") ?? "").trim();
@@ -167,6 +129,21 @@ export function ExchangeSettingsPage({ initialPagination }: { initialPagination:
       return null;
     }
   });
+  const {
+    allSelected,
+    missingRequiredScope,
+    openEdit,
+    pageStart,
+    requiredScopeDescription,
+    rows,
+    selectedRows,
+    setDeleteTarget,
+    setDialogOpen,
+    setEditing,
+    showToast,
+    toggleAll,
+    toggleSelected
+  } = controller;
 
   const currencyById = useMemo(() => {
     const map = new Map<string, Currency>();
@@ -294,106 +271,47 @@ export function ExchangeSettingsPage({ initialPagination }: { initialPagination:
     </SettingsMobileList>
   ) : null;
 
-  const toolbar = (
-    <SettingsToolbar
-      state={{
-        search,
-        limit,
-        orderBy,
-        limitOptions: PAGE_LIMIT_OPTIONS,
-        orderOptions: ORDER_OPTIONS.map((option) => ({ label: t(`common.${option.labelKey}`), value: option.value })),
-        selectedCount: selectedRows.size,
-        onApply: applyFilters,
-        onLimit: changeLimit,
-        onOrder: (nextOrder) => {
-          setOrderBy(nextOrder);
-          setPage(1);
-        },
-        onSearch: setSearch
-      }}
-    />
-  );
-
-  const listSurface = (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <div className="shrink-0 border-b border-border bg-card/95 px-3 py-2.5 backdrop-blur sm:px-4 lg:px-5">
-        <div className="flex min-w-0 flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
-          <div className="min-w-0">
-            <p className="text-sm font-black">{t("settings.exchangeList")}</p>
-          </div>
-          <div className="min-w-0 xl:max-w-[48rem]">{toolbar}</div>
-        </div>
-        {backgroundLoading ? (
-          <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-            <Spinner aria-hidden />
-            {t("settings.refreshingList")}
-          </div>
-        ) : null}
-      </div>
-      {rows.length ? (
-        <>
-          <div className="hidden min-h-0 flex-1 md:flex">{table}</div>
-          <div className="min-h-0 flex-1 overflow-y-auto md:hidden">{mobileList}</div>
-        </>
-      ) : (
-        <SettingsEmptyRecords icon={<Coins aria-hidden />} title={title.toLowerCase()} />
-      )}
-    </div>
-  );
-
   return (
-    <>
-      <SettingsModuleShell
-        addLabel={`${t("actions.add")} ${t("nav.exchange_rate")}`}
-        cardTitle={t("settings.exchangeList")}
-        description={description}
-        emptyDescription={t("empty.adjustSearch")}
-        emptyTitle={t("settings.noRecords", { title: title.toLowerCase() })}
-        footer={
-          rows.length ? (
-            <SettingsPaginationFooter
-              page={page}
-              pageEnd={pageEnd}
-              pageStart={pageStart}
-              total={total}
-              totalPages={totalPages}
-              onPageChange={setPage}
+    <SettingsCrudShell
+      addLabel={`${t("actions.add")} ${t("nav.exchange_rate")}`}
+      cardTitle={t("settings.exchangeList")}
+      controller={controller}
+      description={description}
+      formDialog={
+        <ExchangeFormDialog
+          currencies={currencyOptions}
+          description={description}
+          editing={controller.editing}
+          open={controller.dialogOpen}
+          saving={controller.saving}
+          storeUuid={controller.storeUuid}
+          title={title}
+          onOpenChange={controller.onDialogOpenChange}
+          onSubmit={controller.save}
+        />
+      }
+      listSurface={
+        <SettingsListSurface
+          backgroundLoading={controller.backgroundLoading}
+          emptyIcon={<Coins aria-hidden />}
+          emptyTitle={title.toLowerCase()}
+          hasRows={rows.length > 0}
+          listTitle={t("settings.exchangeList")}
+          mobileList={mobileList}
+          refreshLabel={t("settings.refreshingList")}
+          table={table}
+          toolbar={
+            <SettingsCrudToolbar
+              controller={controller}
+              limitOptions={PAGE_LIMIT_OPTIONS}
+              orderOptions={ORDER_OPTIONS.map((option) => ({ label: t(`common.${option.labelKey}`), value: option.value }))}
             />
-          ) : undefined
-        }
-        hideCardHeader
-        loading={fullLoading}
-        loadingLabel={t("settings.loading", { title })}
-        table={listSurface}
-        title={title}
-        onAdd={openCreate}
-      />
-      <ExchangeFormDialog
-        currencies={currencyOptions}
-        description={description}
-        editing={editing}
-        open={dialogOpen}
-        saving={saving}
-        storeUuid={storeUuid}
-        title={title}
-        onOpenChange={onDialogOpenChange}
-        onSubmit={save}
-      />
-      <ConfirmDialog
-        cancelLabel={t("actions.cancel")}
-        confirmLabel={t("actions.delete")}
-        confirmPending={saving}
-        description={t("settings.deleteConfirm")}
-        open={Boolean(deleteTarget)}
-        title={t("actions.delete")}
-        onConfirm={() => {
-          if (deleteTarget) void remove(deleteTarget);
-        }}
-        onOpenChange={(nextOpen) => {
-          if (!nextOpen) setDeleteTarget(null);
-        }}
-      />
-    </>
+          }
+        />
+      }
+      title={title}
+      onAdd={openCreate}
+    />
   );
 }
 

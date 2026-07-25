@@ -31,6 +31,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Spinner } from "@/components/ui/spinner";
 import { PAGE_LIMIT_OPTIONS } from "@/lib/pagination";
 import { cn } from "@/lib/utils";
 import type { PageLimit, SortOrder } from "@/services/shared/types";
@@ -209,6 +210,75 @@ export function SettingsEmptyRecords({
           <EmptyDescription>{description ?? t("empty.adjustSearch")}</EmptyDescription>
         </EmptyHeader>
       </Empty>
+    </div>
+  );
+}
+
+// โครงรายการมาตรฐานของหน้า settings: หัวรายการ + toolbar + แถบกำลังรีเฟรช + สลับ
+// ตาราง/การ์ดตามขนาดจอ + สถานะว่าง — เดิมถูกก๊อปซ้ำใน 8 ไฟล์ (ทั้ง *-list.tsx และ
+// หน้า page ที่มีตารางเฉพาะทางจนใช้ OptionSettingsPage ไม่ได้)
+export function SettingsListSurface({
+  backgroundLoading,
+  emptyDescription,
+  emptyIcon,
+  emptyTitle,
+  emptyTitleText,
+  hasRows,
+  headerAction,
+  listTitle,
+  mobileList,
+  refreshLabel,
+  table,
+  toolbar,
+  toolbarClassName = "min-w-0 xl:max-w-[48rem]"
+}: {
+  backgroundLoading?: boolean;
+  emptyDescription?: string;
+  emptyIcon: ReactNode;
+  // ชื่อโมดูลที่เอาไปเติมในข้อความ "ไม่พบ {title}" — ส่ง emptyTitleText แทนถ้ามีข้อความสำเร็จรูปอยู่แล้ว
+  emptyTitle?: string;
+  emptyTitleText?: string;
+  hasRows: boolean;
+  headerAction?: ReactNode;
+  listTitle: ReactNode;
+  mobileList: ReactNode;
+  refreshLabel: ReactNode;
+  table: ReactNode;
+  toolbar: ReactNode;
+  toolbarClassName?: string;
+}) {
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="shrink-0 border-b border-border bg-card/95 px-3 py-2.5 backdrop-blur sm:px-4 lg:px-5">
+        <div className="flex min-w-0 flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
+          <div className="min-w-0">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <p className="text-sm font-black">{listTitle}</p>
+              {headerAction}
+            </div>
+          </div>
+          <div className={toolbarClassName}>{toolbar}</div>
+        </div>
+        {backgroundLoading ? (
+          <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+            <Spinner aria-hidden />
+            {refreshLabel}
+          </div>
+        ) : null}
+      </div>
+      {hasRows ? (
+        <>
+          <div className="hidden min-h-0 flex-1 md:flex">{table}</div>
+          <div className="min-h-0 flex-1 overflow-y-auto md:hidden">{mobileList}</div>
+        </>
+      ) : (
+        <SettingsEmptyRecords
+          description={emptyDescription}
+          icon={emptyIcon}
+          title={emptyTitle}
+          titleText={emptyTitleText}
+        />
+      )}
     </div>
   );
 }
