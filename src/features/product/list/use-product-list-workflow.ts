@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useResetOnChange } from "@/hooks/use-reset-on-change";
 import { arrayMove } from "@dnd-kit/sortable";
 import { useReducedMotion } from "motion/react";
 import { useTranslation } from "react-i18next";
@@ -187,8 +188,10 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
     !saving;
   const canSortProductDetails = !loading && !saving;
 
+  const branchUuid = user?.branch_uuid ?? "";
+
   const load = useCallback(async () => {
-    if (!user?.branch_uuid) return;
+    if (!branchUuid) return;
 
     try {
       await loadProducts({
@@ -196,7 +199,7 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
         page,
         limit: pageLimit,
         lang: language,
-        branch_uuid_fk: user.branch_uuid,
+        branch_uuid_fk: branchUuid,
         cate_uuid_fk: cateUuidFk,
         status_sort_fk: Number(statusSortFk)
       });
@@ -207,7 +210,7 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
         tone: "error"
       });
     }
-  }, [appliedSearch, cateUuidFk, language, loadProducts, page, pageLimit, showToast, statusSortFk, t, user?.branch_uuid]);
+  }, [appliedSearch, branchUuid, cateUuidFk, language, loadProducts, page, pageLimit, showToast, statusSortFk, t]);
 
   useEffect(() => {
     loadStatusSorts(language).catch((error) => {
@@ -242,29 +245,31 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
     void load();
   }, [load]);
 
-  useEffect(() => {
+  // สินค้าที่พับไว้อาจหลุดจากรายการหลังกรอง/โหลดใหม่ ต้องตัดออก
+  useResetOnChange(detailProductIds, () => {
     const visible = new Set(detailProductIds);
     setCollapsedProducts((current) => {
       const next = new Set([...current].filter((id) => visible.has(id)));
       return next.size === current.size ? current : next;
     });
-  }, [detailProductIds]);
+  });
 
-  useEffect(() => {
+  // แถวที่เลือกไว้อาจหลุดจากรายการที่มองเห็น ต้องตัดออกจาก selection
+  useResetOnChange(visibleProductIds, () => {
     const visible = new Set(visibleProductIds);
     setSelectedRows((current) => {
       const next = new Set([...current].filter((id) => visible.has(id)));
       return next.size === current.size ? current : next;
     });
-  }, [visibleProductIds]);
+  });
 
-  useEffect(() => {
+  useResetOnChange(cateUuidFk, () => {
     if (cateUuidFk) setHighlightCategoryFilter(false);
-  }, [cateUuidFk]);
+  });
 
-  useEffect(() => {
+  useResetOnChange(appliedSearch, () => {
     if (!appliedSearch.trim()) setHighlightSearchFilter(false);
-  }, [appliedSearch]);
+  });
 
   function applyFilters() {
     applySearch({ page, resetPage, reload: () => void load() });
@@ -379,7 +384,7 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
   }
 
   function editProduct(row: ProductTableRow) {
-    router.push(`/product/form?prod_uuid=${encodeURIComponent(row.prod_uuid)}`);
+    router.push(`/products/form?prod_uuid=${encodeURIComponent(row.prod_uuid)}`);
   }
 
   function updateNotification(row: Product, checked: boolean) {

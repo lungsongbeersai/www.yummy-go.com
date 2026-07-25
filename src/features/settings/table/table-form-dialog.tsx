@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { CircleHelp } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { FormattedNumberInput } from "@/components/common/formatted-number-input";
@@ -20,6 +20,7 @@ import {
   SettingsDialogForm,
   SettingsDialogHeader
 } from "@/features/settings/shared/settings-shell";
+import { useResetOnChange } from "@/hooks/use-reset-on-change";
 import type { Table as DiningTable } from "@/services/table";
 import type { Zone } from "@/services/zone";
 import { TableChargeBadge } from "./table-display";
@@ -59,9 +60,13 @@ export function TableFormDialog({
   zones
 }: TableFormDialogProps) {
   const { t } = useTranslation();
-  const [zoneUuid, setZoneUuid] = useState("");
-  const [tableNameLa, setTableNameLa] = useState("");
-  const [chargeStatus, setChargeStatus] = useState("2");
+  const [zoneUuid, setZoneUuid] = useState(() =>
+    editing ? tableValue(editing, "zone_uuid_fk") : initialZoneUuid
+  );
+  const [tableNameLa, setTableNameLa] = useState(() =>
+    tableValue(editing, "table_name_la", tableValue(editing, "table_name"))
+  );
+  const [chargeStatus, setChargeStatus] = useState(() => tableValue(editing, "charge_status", "2"));
   const formKey = tableId(editing) || "new-table";
   const serviceChargeText = serviceChargeSummary({
     activeLabel: t("common.active"),
@@ -71,11 +76,11 @@ export function TableFormDialog({
     serviceCharge
   });
 
-  useEffect(() => {
+  useResetOnChange(`${formKey}:${initialZoneUuid}:${open}`, () => {
     setZoneUuid(editing ? tableValue(editing, "zone_uuid_fk") : initialZoneUuid);
     setTableNameLa(tableValue(editing, "table_name_la", tableValue(editing, "table_name")));
     setChargeStatus(tableValue(editing, "charge_status", "2"));
-  }, [editing, initialZoneUuid, open]);
+  });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

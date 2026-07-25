@@ -11,6 +11,7 @@ import {
 import { usePrinterStore } from "@/stores/printer-store";
 import { Capacitor } from "@capacitor/core";
 import * as posService from "@/services/pos";
+import { ProductSortStatus } from "@/services/pos";
 import type {
   BillDiscountInput,
   CancelOrderItemInput,
@@ -47,9 +48,17 @@ import type {
   SplitBillResponse,
   TableQRResponse,
   UpdateOrderNoteInput,
-  UpdateQtyInput
+  UpdateQtyInput,
+  ProductSortStatus as ProductSortStatusType
 } from "@/services/pos";
-import { updateZonesTableOrderState } from "@/stores/pos-store/helpers";
+import {
+  countPosMenuProducts,
+  emptyPosMenuBySort,
+  firstPosMenuStatusWithProducts,
+  nextPosMenuCategoryUuid,
+  updateZonesTableOrderState,
+  type PosMenuBySort
+} from "@/stores/pos-store/helpers";
 import { createSessionGuard, registerSessionStoreReset } from "@/stores/session-store-registry";
 import { errorMessage } from "@/stores/store-utils";
 
@@ -60,6 +69,19 @@ async function fetchTables(params: FetchPosParams) {
 
 function textValue(value: unknown) {
   return String(value ?? "").trim();
+}
+
+let posMenuLifecycleVersion = 0;
+
+function initialPosMenuState() {
+  return {
+    categories: [] as CateWithProducts[],
+    selectedCateUuid: "",
+    menuBySort: emptyPosMenuBySort(),
+    loadingMenu: false,
+    submittedSearch: "",
+    activeSort: ProductSortStatus.NORMAL as ProductSortStatusType,
+  };
 }
 
 function assertCurrentSession(isCurrentSession: () => boolean) {
@@ -137,7 +159,14 @@ async function resolvePosPrinterContext(
 
 interface PosState {
   zones: PosZone[];
+  zoneOptions: PosZone[];
   products: CateProductItem[];
+  categories: CateWithProducts[];
+  selectedCateUuid: string;
+  menuBySort: PosMenuBySort;
+  loadingMenu: boolean;
+  submittedSearch: string;
+  activeSort: ProductSortStatusType;
   selectedProduct: ProdItem | null;
   cart: CartOrder | CartOrder[] | null;
   joinMoveZones: MoveTableZone[];
@@ -155,12 +184,21 @@ interface PosState {
   error: string | null;
   setZones: (zones: PosZone[]) => void;
   setProducts: (products: CateProductItem[]) => void;
+  setActiveSort: (activeSort: ProductSortStatusType) => void;
+  resetMenu: () => void;
   setCart: (cart: CartOrder | CartOrder[] | null) => void;
   setTable: (tableUuid: string, tableName?: string) => void;
   updateTableCustomerOrderState: (tableUuid: string, customerOrderState: boolean) => void;
   loadTables: (params: FetchPosParams) => Promise<PosZone[]>;
   refreshTables: (params: FetchPosParams) => Promise<PosZone[]>;
   loadProductCategories: (params: FetchCateProductsParams) => Promise<FetchCateProductsResponse>;
+  loadMenu: (params: {
+    branchUuid: string;
+    language: string;
+    cateUuid?: string;
+    query?: string;
+    refreshCategories?: boolean;
+  }) => Promise<PosMenuBySort>;
   loadProducts: (params: FetchCateProductsParams) => Promise<CateProductItem[]>;
   loadProductItem: (params: GetProdItemParams) => Promise<ProdItem>;
   loadCart: (params: FetchCartParams) => Promise<CartOrder | CartOrder[] | null>;
@@ -179,16 +217,19 @@ interface PosState {
   updateNote: (input: UpdateOrderNoteInput) => ReturnType<typeof posService.updateOrderNote>;
   createPayment: (input: PaymentInput) => Promise<PaymentResponse>;
   splitBill: (input: SplitBillInput) => Promise<SplitBillResponse>;
-  createTableQr: (params: CreateTableQRRequest) => Promise<CreateTableQRResponse>;
+  // action นี้สั่งพิมพ์ QR ด้วย จึงบังคับ login_uuid_fk ที่ระดับ store (request type เป็น optional)
+  createTableQr: (params: CreateTableQRRequest & { login_uuid_fk: string }) => Promise<CreateTableQRResponse>;
   printInvoice: (params: PrintInvoiceRequest) => Promise<PrintInvoiceResponse>;
   reprintReceipt: (params: ReprintReceiptRequest) => Promise<ConfirmToKitchenPendingQuery | null>;
   setOrderHistory: (orders: CartOrder[]) => void;
   reset: () => void;
 }
 
-export const usePosStore = create<PosState>((set) => ({
+export const usePosStore = create<PosState>((set, get) => ({
   zones: [],
+  zoneOptions: [],
   products: [],
+  ...initialPosMenuState(),
   selectedProduct: null,
   cart: null,
   joinMoveZones: [],
@@ -206,6 +247,11 @@ export const usePosStore = create<PosState>((set) => ({
   error: null,
   setZones: (zones) => set({ zones }),
   setProducts: (products) => set({ products }),
+  setActiveSort: (activeSort) => set({ activeSort }),
+  resetMenu: () => {
+    posMenuLifecycleVersion += 1;
+    set(initialPosMenuState());
+  },
   setCart: (cart) => set({ cart }),
   setTable: (tableUuid, tableName = "") => set({ tableUuid, tableName }),
   updateTableCustomerOrderState: (tableUuid, customerOrderState) =>
@@ -217,7 +263,13 @@ export const usePosStore = create<PosState>((set) => ({
     set({ loading: true, error: null });
     try {
       const zones = await fetchTables(params);
-      if (isCurrentSession()) set({ zones, loading: false });
+      if (isCurrentSession()) {
+        set({
+          zones,
+          ...(!params.zone_uuid ? { zoneOptions: zones } : {}),
+          loading: false
+        });
+      }
       return zones;
     } catch (error) {
       if (isCurrentSession()) set({ error: errorMessage(error), loading: false });
@@ -228,7 +280,12 @@ export const usePosStore = create<PosState>((set) => ({
     const isCurrentSession = createSessionGuard();
     try {
       const zones = await fetchTables(params);
-      if (isCurrentSession()) set({ zones });
+      if (isCurrentSession()) {
+        set({
+          zones,
+          ...(!params.zone_uuid ? { zoneOptions: zones } : {})
+        });
+      }
       return zones;
     } catch (error) {
       if (isCurrentSession()) set({ error: errorMessage(error) });
@@ -239,7 +296,7 @@ export const usePosStore = create<PosState>((set) => ({
     const isCurrentSession = createSessionGuard();
     try {
       const result = await posService.fetchCateProducts(params);
-      const categories = result.data ?? [];
+      const categories = result.categories ?? [];
       if (isCurrentSession()) {
         set({
           products: categories.flatMap((category: CateWithProducts) => category.products ?? []),
@@ -252,12 +309,93 @@ export const usePosStore = create<PosState>((set) => ({
       throw error;
     }
   },
+  loadMenu: async ({
+    branchUuid,
+    language,
+    cateUuid = "",
+    query = "",
+    refreshCategories = false
+  }) => {
+    const isCurrentSession = createSessionGuard();
+    const menuLifecycleVersion = posMenuLifecycleVersion;
+    const isCurrentMenuLifecycle = () =>
+      isCurrentSession() &&
+      menuLifecycleVersion === posMenuLifecycleVersion;
+    if (!branchUuid) {
+      get().resetMenu();
+      return emptyPosMenuBySort();
+    }
+
+    set({ loadingMenu: true, error: null });
+    try {
+      let nextCateUuid = textValue(cateUuid);
+      const nextQuery = query ?? "";
+
+      if (refreshCategories) {
+        const catalog = await get().loadProductCategories({
+          branchUuidFk: branchUuid,
+          lang: language,
+          search: "",
+          statusSortFk: ProductSortStatus.NORMAL
+        });
+        const categories = catalog.categories ?? [];
+        nextCateUuid = nextPosMenuCategoryUuid({
+          categories,
+          defaultCateUuid: catalog.defaultCateUuid,
+          requestedCateUuid: nextCateUuid,
+          selectedCateUuid: catalog.selectedCateUuid
+        });
+        if (isCurrentMenuLifecycle()) set({ categories });
+      }
+
+      const searchQuery = nextQuery.trim();
+      let menuBySort = emptyPosMenuBySort();
+      if (nextCateUuid || searchQuery) {
+        const request = (statusSortFk: ProductSortStatusType) =>
+          get().loadProductCategories({
+            branchUuidFk: branchUuid,
+            ...(searchQuery ? {} : { cateUuid: nextCateUuid }),
+            lang: language,
+            search: searchQuery,
+            statusSortFk
+          });
+        const [normal, setMenu, promotion] = await Promise.all([
+          request(ProductSortStatus.NORMAL),
+          request(ProductSortStatus.SET),
+          request(ProductSortStatus.PROMOTION)
+        ]);
+        menuBySort = {
+          [ProductSortStatus.NORMAL]: normal.categories ?? [],
+          [ProductSortStatus.SET]: setMenu.categories ?? [],
+          [ProductSortStatus.PROMOTION]: promotion.categories ?? []
+        };
+      }
+
+      if (isCurrentMenuLifecycle()) {
+        set((state) => ({
+          activeSort:
+            countPosMenuProducts(menuBySort[state.activeSort]) > 0
+              ? state.activeSort
+              : firstPosMenuStatusWithProducts(menuBySort),
+          selectedCateUuid: nextCateUuid,
+          submittedSearch: nextQuery,
+          menuBySort
+        }));
+      }
+      return menuBySort;
+    } catch (error) {
+      if (isCurrentMenuLifecycle()) set({ error: errorMessage(error) });
+      throw error;
+    } finally {
+      if (isCurrentMenuLifecycle()) set({ loadingMenu: false });
+    }
+  },
   loadProducts: async (params) => {
     const isCurrentSession = createSessionGuard();
     set({ loading: true, error: null });
     try {
       const result = await posService.fetchCateProducts(params);
-      const products = (result.data ?? []).flatMap((category) => category.products ?? []);
+      const products = (result.categories ?? []).flatMap((category) => category.products ?? []);
       if (isCurrentSession()) set({ products, loading: false });
       return products;
     } catch (error) {
@@ -311,7 +449,7 @@ export const usePosStore = create<PosState>((set) => ({
   joinTables: (input) => posService.joinTableMulti(input),
   loadTableQr: async (tableUuid) => {
     const isCurrentSession = createSessionGuard();
-    const tableQr = await posService.getTableQR(tableUuid);
+    const tableQr = await posService.createTableQR({ table_uuid: tableUuid });
     if (isCurrentSession()) set({ tableQr });
     return tableQr;
   },
@@ -433,10 +571,13 @@ export const usePosStore = create<PosState>((set) => ({
     };
   },
   setOrderHistory: (orders) => set({ orderHistory: posService.cartOrdersToHistory(orders) }),
-  reset: () =>
+  reset: () => {
+    posMenuLifecycleVersion += 1;
     set({
       zones: [],
+      zoneOptions: [],
       products: [],
+      ...initialPosMenuState(),
       selectedProduct: null,
       cart: null,
       joinMoveZones: [],
@@ -452,7 +593,8 @@ export const usePosStore = create<PosState>((set) => ({
       loadingCart: false,
       saving: false,
       error: null
-    })
+    });
+  }
 }));
 
 registerSessionStoreReset("pos", () => usePosStore.getState().reset());

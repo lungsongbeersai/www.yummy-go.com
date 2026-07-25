@@ -1,3 +1,4 @@
+import { localDateInputValue } from "@/lib/format";
 import { money } from "@/lib/format";
 import { DEFAULT_PAGE_LIMIT, pageLimitNumber } from "@/lib/pagination";
 import type { CancelHistoryOrder } from "@/services/cancel";
@@ -45,12 +46,7 @@ export const cancelHistoryMetricConfigs = [
   { field: "balance", kind: "money", labelKey: "cancelHistory.columns.balance" }
 ] as const satisfies readonly CancelHistoryMetricConfig[];
 
-export function localDateInputValue(date = new Date()) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
+export { localDateInputValue };
 
 export function defaultCancelHistoryFilters(branchUuid = "", date = new Date()): CancelHistoryFilters {
   const today = localDateInputValue(date);

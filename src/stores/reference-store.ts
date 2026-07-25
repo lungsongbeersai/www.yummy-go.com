@@ -6,6 +6,7 @@ import { getBranchOptions, getStoreUuid, setStoreUuid, type Branch } from "@/ser
 import { getCategoryOptions, sortCategories, type Category, type SortCategoryInput } from "@/services/category";
 import { getColorOptions, type Color } from "@/services/color";
 import { getCurrencyOptions, type Currency } from "@/services/currency";
+import { getAllExchanges, type Exchange, type FetchAllExchangesParams } from "@/services/exchange";
 import { getGroupOptions, type Group } from "@/services/group";
 import { getProvinceOptions, type Province } from "@/services/province";
 import { getSizeOptions, type Size } from "@/services/size";
@@ -29,6 +30,7 @@ type ReferenceKey =
   | "toppings"
   | "colors"
   | "currencies"
+  | "exchangeRates"
   | "sizes"
   | "units"
   | "zones"
@@ -62,6 +64,7 @@ interface ReferenceState {
   loadToppings: (lang?: string, storeUuid?: string) => Promise<Topping[]>;
   loadColors: () => Promise<Color[]>;
   loadCurrencies: () => Promise<Currency[]>;
+  loadExchangeRates: (params: FetchAllExchangesParams) => Promise<Exchange[]>;
   loadSizes: (lang?: string, storeUuid?: string) => Promise<Size[]>;
   loadUnits: (lang?: string, storeUuid?: string) => Promise<Unit[]>;
   loadZones: (lang?: string, branchUuid?: string) => Promise<Zone[]>;
@@ -126,6 +129,13 @@ export const useReferenceStore = create<ReferenceState>((set) => {
       loadOption("toppings", () => getToppingOptions(lang, storeUuid ?? activeStoreUuid())),
     loadColors: () => loadOption("colors", getColorOptions),
     loadCurrencies: () => loadOption("currencies", getCurrencyOptions),
+    // getAllExchanges returns the raw list envelope (data/total/...), unlike the
+    // options()-based loaders above which already unwrap to a bare array.
+    loadExchangeRates: (params) =>
+      loadOption("exchangeRates", async () => {
+        const result = await getAllExchanges(params);
+        return Array.isArray(result.data) ? result.data : [];
+      }),
     loadSizes: (lang, storeUuid) =>
       loadOption("sizes", () => getSizeOptions(lang, storeUuid ?? activeStoreUuid())),
     loadUnits: (lang, storeUuid) =>

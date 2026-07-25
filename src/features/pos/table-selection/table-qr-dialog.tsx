@@ -1,6 +1,7 @@
 "use client";
 
 import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { useResetOnChange, useResetOnDeps } from "@/hooks/use-reset-on-change";
 import Image from "next/image";
 import QRCode from "qrcode";
 import { Copy, Download, ExternalLink, Printer, QrCode as QrCodeIcon } from "lucide-react";
@@ -12,7 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { fullscreenPrintWindowFeatures, maximizePrintWindow } from "@/features/pos/print/invoice-print-window";
+import { fullscreenPrintWindowFeatures, maximizePrintWindow } from "@/services/printer/invoice-print-window";
 import { useIsCapacitorNativeApp } from "@/hooks/use-capacitor-native-app";
 import { openWindowOutsideNativeApp } from "@/lib/capacitor-platform";
 import {
@@ -28,7 +29,7 @@ import { usePrinterStore } from "@/stores/printer-store";
 import { useToastStore } from "@/stores/toast-store";
 import { optionalString } from "./utils";
 
-const localQrTargetUrl = "http://localhost:3001/sales/open-table-sale";
+const localQrTargetUrl = "http://localhost:3001/pos/tables";
 const productionQrOrigin = "https://yummy-go.com";
 
 export function TableQrDialog({
@@ -60,19 +61,23 @@ export function TableQrDialog({
   const canDownload = Boolean(previewUrl || canUseFrontendQrFallback);
   const canPrint = Boolean(pendingJobUuid || (canOpenBrowserWindow && (previewUrl || canUseFrontendQrFallback)));
 
+  // เปิด dialog = ล้างผลเดิม และตั้ง pending เฉพาะกรณีที่จะยิงคำขอจริง
+  useResetOnChange(open, () => {
+    if (!open) return;
+    setResponse(null);
+    setQrDataUrl("");
+    setPending(Boolean(loginUuid));
+  });
+
   useEffect(() => {
     if (!open) return;
 
-    let ignore = false;
-    setPending(true);
-    setResponse(null);
-    setQrDataUrl("");
-
     if (!loginUuid) {
       showToast({ title: t("pos.qrCreateFailed"), description: "login_uuid_fk is required", tone: "error" });
-      setPending(false);
       return;
     }
+
+    let ignore = false;
 
     createTableQr({ table_uuid: table.table_uuid, lang: language, login_uuid_fk: loginUuid })
       .then((result) => {
@@ -97,11 +102,13 @@ export function TableQrDialog({
     };
   }, [createTableQr, language, loginUuid, open, showToast, table.table_uuid, t]);
 
+  // มีรูป QR จากเซิร์ฟเวอร์แล้ว (หรือยังไม่มี URL) = ไม่ต้องใช้ fallback ที่สร้างเอง
+  useResetOnDeps([targetUrl, qrImageUrl], () => {
+    if (!targetUrl || qrImageUrl) setQrDataUrl("");
+  });
+
   useEffect(() => {
-    if (!targetUrl || qrImageUrl) {
-      setQrDataUrl("");
-      return;
-    }
+    if (!targetUrl || qrImageUrl) return;
 
     let ignore = false;
     createFallbackQrDataUrl(targetUrl)

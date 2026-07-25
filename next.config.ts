@@ -5,11 +5,66 @@ import { fileURLToPath } from "url";
 const appDir = dirname(fileURLToPath(import.meta.url));
 
 const nextConfig: NextConfig = {
+  output: "standalone",
+  typedRoutes: true,
   async redirects() {
     return [
       {
         source: "/sale/counter-checkout",
         destination: "/sales/sales-list",
+        permanent: false
+      },
+      // QR codes printed for tables link to /q/<token>; the public POS reads it from ?t=
+      {
+        source: "/q/:token",
+        destination: "/pos?t=:token",
+        permanent: false
+      },
+      // legacy typo route inherited from backend field names (unite_*)
+      {
+        source: "/setting/unite",
+        destination: "/settings/unit",
+        permanent: true
+      },
+      // P2.1 route renames — keep old bookmarks/links working; not settled long enough for permanent:true
+      {
+        source: "/setting",
+        destination: "/settings",
+        permanent: false
+      },
+      {
+        source: "/setting/:path*",
+        destination: "/settings/:path*",
+        permanent: false
+      },
+      {
+        source: "/product",
+        destination: "/products",
+        permanent: false
+      },
+      {
+        source: "/product/:path*",
+        destination: "/products/:path*",
+        permanent: false
+      },
+      {
+        source: "/printer",
+        destination: "/printers",
+        permanent: false
+      },
+      {
+        source: "/printer/:path*",
+        destination: "/printers/:path*",
+        permanent: false
+      },
+      {
+        source: "/sale/order-customer",
+        destination: "/pos/order",
+        permanent: false
+      },
+      {
+        source: "/sales/open-table-sale",
+        destination: "/pos/tables",
         permanent: false
       }
     ];

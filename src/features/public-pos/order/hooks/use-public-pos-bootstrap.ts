@@ -1,8 +1,10 @@
 "use client";
 
 import type { TFunction } from "i18next";
+import type { Route } from "next";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useResetOnDeps } from "@/hooks/use-reset-on-change";
 import { toApiLanguage, toLanguage, type Language } from "@/lib/language";
 import { useAppStore } from "@/stores/app-store";
 import { usePublicPosStore } from "@/stores/public-pos-store";
@@ -10,6 +12,7 @@ import { PUBLIC_LOADING_MIN_MS } from "@/features/public-pos/order/constants";
 import { useMinimumVisibleLoading } from "@/features/public-pos/order/hooks/use-minimum-visible-loading";
 import {
   currentPublicQrScanStatus,
+  initialPublicLanguageApplied,
   INITIAL_PUBLIC_QR_SCAN_STATE,
   isPublicQrScanLoading,
   PUBLIC_QR_SCAN_STATUS,
@@ -44,15 +47,22 @@ export function usePublicPosBootstrap({
     () => (queryLang?.trim() ? toLanguage(queryLang) : null),
     [queryLang],
   );
-  const initialQueryLanguage = useRef<Language | null>(queryLanguage);
-  const initialQueryLanguageApplied = useRef(!queryLanguage);
-  const [languageReady, setLanguageReady] = useState(false);
+  const [initialQueryLanguage] = useState<Language | null>(() => queryLanguage);
+  const [initialQueryLanguageApplied, setInitialQueryLanguageApplied] =
+    useState(() =>
+      initialPublicLanguageApplied({
+        activeLanguage: appLanguage,
+        hydrated,
+        initialQueryLanguage: queryLanguage,
+      }),
+    );
   const [scanAttempt, setScanAttempt] = useState(0);
   const [scanRequest, setScanRequest] = useState<PublicQrScanState>(
     INITIAL_PUBLIC_QR_SCAN_STATE,
   );
   const searchParamsString = searchParams.toString();
   const activeLanguage = appLanguage;
+  const languageReady = hydrated && initialQueryLanguageApplied;
   const hasToken = Boolean(token.trim());
   const qrDisabled = Boolean(table && !table.qr_enabled);
   const scanKey =
@@ -61,7 +71,7 @@ export function usePublicPosBootstrap({
       : "";
   const lastStartedScanKey = useRef("");
   const cartQty = useMemo(() => totalCartQty(cart), [cart]);
-  const scanStatus = currentPublicQrScanStatus(scanRequest, scanKey);
+  const scanStatus = currentPublicQrScanStatus(scanRequest, scanKey, hasToken);
   const publicLoadingActive = isPublicQrScanLoading({
     hasToken,
     languageReady,
@@ -79,28 +89,38 @@ export function usePublicPosBootstrap({
   );
   const statusLabel = table ? tableStatusLabel(table.table_status, t) : "";
 
-  useEffect(() => {
-    const languageFromUrl = initialQueryLanguage.current;
+  useResetOnDeps([
+    activeLanguage,
+    hydrated,
+    initialQueryLanguage,
+    initialQueryLanguageApplied,
+  ], () => {
+    if (
+      hydrated &&
+      !initialQueryLanguageApplied &&
+      initialQueryLanguage &&
+      activeLanguage === initialQueryLanguage
+    ) {
+      setInitialQueryLanguageApplied(true);
+    }
+  });
 
-    if (!hydrated) {
-      if (languageFromUrl && appLanguage !== languageFromUrl) {
-        setLanguage(languageFromUrl);
-      }
-      setLanguageReady(false);
+  useEffect(() => {
+    if (
+      initialQueryLanguageApplied ||
+      !initialQueryLanguage ||
+      activeLanguage === initialQueryLanguage
+    ) {
       return;
     }
 
-    if (!initialQueryLanguageApplied.current && languageFromUrl) {
-      if (appLanguage !== languageFromUrl) {
-        setLanguage(languageFromUrl);
-        setLanguageReady(false);
-        return;
-      }
-      initialQueryLanguageApplied.current = true;
-    }
-
-    setLanguageReady(true);
-  }, [appLanguage, hydrated, setLanguage]);
+    setLanguage(initialQueryLanguage);
+  }, [
+    activeLanguage,
+    initialQueryLanguage,
+    initialQueryLanguageApplied,
+    setLanguage,
+  ]);
 
   useEffect(() => {
     if (!languageReady) return;
@@ -111,7 +131,8 @@ export function usePublicPosBootstrap({
 
     params.set("lang", nextLang);
     const nextQuery = params.toString();
-    router.replace(`${pathname}${nextQuery ? `?${nextQuery}` : ""}`, {
+    // replace บน pathname ปัจจุบัน (เปลี่ยนเฉพาะ query) — ปลอดภัยเสมอ จึง cast ได้
+    router.replace(`${pathname}${nextQuery ? `?${nextQuery}` : ""}` as Route, {
       scroll: false,
     });
   }, [activeLanguage, languageReady, pathname, router, searchParamsString]);
@@ -120,10 +141,6 @@ export function usePublicPosBootstrap({
     if (!hasToken) {
       reset();
       lastStartedScanKey.current = "";
-      setScanRequest({
-        requestKey: "",
-        status: PUBLIC_QR_SCAN_STATUS.ERROR,
-      });
       setError(t("pos.missingToken"));
       return;
     }
@@ -137,10 +154,6 @@ export function usePublicPosBootstrap({
     }
 
     lastStartedScanKey.current = scanKey;
-    setScanRequest({
-      requestKey: scanKey,
-      status: PUBLIC_QR_SCAN_STATUS.LOADING,
-    });
 
     void scanTable(token, activeLanguage)
       .then(() => {

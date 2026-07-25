@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
+import { useResetOnDeps } from "@/hooks/use-reset-on-change";
 import { useTranslation } from "react-i18next";
 import {
   GripVertical,
@@ -121,9 +122,10 @@ export function DataTable<T extends Record<string, unknown>>({
   const activePageSize = pageLimitSize(pageSize, totalRows);
   const totalPages = pagination && !isAllPageLimit(pageSize) ? Math.max(1, Math.ceil(totalRows / activePageSize)) : 1;
 
-  useEffect(() => {
+  // ข้อมูลหดลงจนหน้าปัจจุบันเกินช่วง = ดึงกลับมาหน้าสุดท้ายที่มีจริง
+  useResetOnDeps([pageIndex, totalPages], () => {
     if (pageIndex > totalPages - 1) setPageIndex(Math.max(0, totalPages - 1));
-  }, [pageIndex, totalPages]);
+  });
 
   const visibleRows = useMemo(() => {
     if (!pagination) return rows;

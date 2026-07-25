@@ -1,6 +1,9 @@
+import { firstNumber, isPresent, readValue, textValue as textValueWithDash } from "@/lib/values";
 import { isAllPageLimit, pageLimitNumber } from "@/lib/pagination";
 import type { DailySalesReportResponse } from "@/services/report";
 import type { ApiEntity, PageLimit } from "@/services/shared/types";
+
+const textValue = (value: unknown, fallback = "") => textValueWithDash(value, fallback);
 
 export type SummaryCards = ApiEntity | ApiEntity[];
 
@@ -41,22 +44,6 @@ function asRecord(value: unknown): ApiEntity {
 
 function asRecords(value: unknown): ApiEntity[] {
   return Array.isArray(value) ? value.filter(isRecord) : [];
-}
-
-function isPresent(value: unknown) {
-  return value !== null && value !== undefined && value !== "";
-}
-
-function textValue(value: unknown, fallback = "") {
-  return isPresent(value) ? String(value) : fallback;
-}
-
-function readValue(row: ApiEntity, keys: string[]) {
-  for (const key of keys) {
-    const value = row[key];
-    if (isPresent(value)) return value;
-  }
-  return undefined;
 }
 
 function readAnyValue(rows: ApiEntity[], keys: string[]) {
@@ -333,15 +320,6 @@ export function createDailySalesBillGroups(rows: ApiEntity[]) {
 
 function responseRoot(response: DailySalesReportResponse) {
   return isRecord(response.data) ? response.data : response;
-}
-
-function firstNumber(...values: unknown[]) {
-  for (const value of values) {
-    if (value === null || value === undefined || value === "") continue;
-    const number = Number(value);
-    if (Number.isFinite(number)) return number;
-  }
-  return null;
 }
 
 function reportRows(root: ApiEntity, response: DailySalesReportResponse) {

@@ -4,6 +4,7 @@ import {
   WINDOW_OPEN_FONT_STYLESHEET_HREF,
 } from "@/lib/window-open-fonts";
 import { money } from "@/lib/format";
+import { RECEIPT_80MM_BASE_STYLES } from "@/features/report/shared/report-receipt-print";
 import type { DailyStoreClosingReport } from "@/stores/report-store";
 import {
   type DailyClosingPrintData,
@@ -89,6 +90,7 @@ function printData(): DailyClosingPrintData {
       grandTotal: "Grand total",
       group: "Group",
       groupTotal: "Group total",
+      items: "items",
       noData: "No data",
       paymentTotal: "Payments received",
       product: "Product",
@@ -108,12 +110,13 @@ function printData(): DailyClosingPrintData {
 }
 
 describe("daily closing report print", () => {
-  it("renders the same 80 x 297 mm receipt format as daily sales", () => {
+  it("renders on the shared 80 x 297 mm receipt base used by daily sales", () => {
     const html = renderDailyClosingPrintHtml(printData());
 
+    expect(html).toContain(RECEIPT_80MM_BASE_STYLES);
     expect(html).toContain("@page { size: 80mm 297mm; margin: 3mm; }");
     expect(html).toContain("html, body { width: 74mm");
-    expect(html).toContain("grid-template-columns: minmax(0, 1fr) 11mm 23mm");
+    expect(html).toContain("grid-template-columns: minmax(0, 1fr) 23mm");
     expect(html).toContain('class="total-row grand-total"');
     expect(html).toContain(`href="${WINDOW_OPEN_FONT_STYLESHEET_HREF}"`);
     expect(html).toContain(`body class="${WINDOW_OPEN_FONT_CLASS_NAME}"`);
@@ -130,14 +133,12 @@ describe("daily closing report print", () => {
     expect(html).not.toContain("Egg & meat");
   });
 
-  it("shows API item quantities without showing unit prices", () => {
+  it("shows base price × quantity under each product", () => {
     const html = renderDailyClosingPrintHtml(printData());
 
-    expect(html).toContain("Total quantity</span><span>2</span>");
-    expect(html).toContain("Quantity");
-    expect(html).toMatch(/Rice &lt;Large&gt;[\s\S]*<span>1<\/span>/);
+    expect(html).toMatch(/Total quantity\s*<\/span>\s*<span>\s*2\s*items\s*<\/span>/);
+    expect(html).toContain(`${money(60000)} × 1`);
     expect(html).not.toContain("Unit price");
-    expect(html).not.toContain("60,000 ₭");
     expect(html).toContain("Cancelled bills (1)");
   });
 

@@ -189,7 +189,7 @@ export function PrinterListTable({
         ]}
         onEdit={(row) =>
           router.push(
-            `/printer/form?print_config_uuid=${encodeURIComponent(
+            `/printers/form?print_config_uuid=${encodeURIComponent(
               row.print_config_uuid,
             )}`,
           )

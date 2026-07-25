@@ -2,6 +2,7 @@
 
 import type { TFunction } from "i18next";
 import { useCallback, useEffect, useState } from "react";
+import { useResetOnChange } from "@/hooks/use-reset-on-change";
 import type { QRScanResponse } from "@/services/public-pos";
 import type { ToastInput } from "@/stores/toast-store";
 import { publicQrDownloadFilename } from "@/features/public-pos/order/utils";
@@ -51,11 +52,13 @@ export function usePublicQrDialog({
     anchor.click();
   }, [dataUrl, table?.table_name]);
 
+  // ปิด dialog = ทิ้ง QR เดิม (แยกออกจาก effect ที่ไปสร้าง QR ใหม่)
+  useResetOnChange(open, () => {
+    if (!open) setDataUrl("");
+  });
+
   useEffect(() => {
-    if (!open || !targetUrl) {
-      if (!open) setDataUrl("");
-      return;
-    }
+    if (!open || !targetUrl) return;
 
     let ignore = false;
 

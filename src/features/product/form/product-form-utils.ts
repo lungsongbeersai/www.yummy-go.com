@@ -547,6 +547,47 @@ export function productHasToppings(row: Product | null | undefined) {
   return toppings.some((topping) => Boolean(productToppingUuid(topping)));
 }
 
+export function nextProductHydrationPlan({
+  editingProductUuid,
+  hasEditingProduct,
+  hasFullEditData,
+  hydratedProductUuid,
+  routeProductUuid,
+}: {
+  editingProductUuid: string;
+  hasEditingProduct: boolean;
+  hasFullEditData: boolean;
+  hydratedProductUuid: string;
+  routeProductUuid: string;
+}) {
+  const routeHydratedProductUuid =
+    hydratedProductUuid === routeProductUuid ? hydratedProductUuid : "";
+
+  if (!hasEditingProduct) {
+    return {
+      hydratedProductUuid: routeHydratedProductUuid,
+      shouldHydrate: false,
+    };
+  }
+
+  if (
+    hasFullEditData &&
+    routeHydratedProductUuid === editingProductUuid
+  ) {
+    return {
+      hydratedProductUuid: routeHydratedProductUuid,
+      shouldHydrate: false,
+    };
+  }
+
+  return {
+    hydratedProductUuid: hasFullEditData
+      ? editingProductUuid
+      : routeHydratedProductUuid,
+    shouldHydrate: true,
+  };
+}
+
 export function productHydrationKey(row: Product | null | undefined) {
   if (!row) return "";
   const details = Array.isArray(row.details) ? row.details : [];

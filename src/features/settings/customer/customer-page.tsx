@@ -1,13 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { isActiveStatus, StatusBadge } from "@/components/common/status-badge";
 import { Users } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Spinner } from "@/components/ui/spinner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
@@ -19,31 +18,24 @@ import {
   SettingsPaginationFooter,
   SettingsRowActions,
   SettingsTableScroll,
-  SettingsToolbar
-} from "@/features/settings/shared/settings-shell";
-import { useAppliedSearch } from "@/hooks/use-applied-search";
-import { useLatestValue } from "@/hooks/use-latest-value";
-import { useUrlPagination } from "@/hooks/use-url-pagination";
-import { DEFAULT_PAGE_LIMIT, PAGE_LIMIT_OPTIONS } from "@/lib/pagination";
+  SettingsToolbar,
+  SettingsEmptyRecords,} from "@/features/settings/shared/settings-shell";
+import { useSettingsCrudController } from "@/features/settings/shared/use-settings-crud-controller";
+import { PAGE_LIMIT_OPTIONS } from "@/lib/pagination";
 import type { UrlPaginationState } from "@/lib/url-pagination";
-import type { Customer, FetchCustomersParams } from "@/services/customer";
-import type { PageLimit, SortOrder } from "@/services/shared/types";
-import { useAppStore } from "@/stores/app-store";
-import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
+import type { Customer, FetchCustomersParams, SaveCustomerInput } from "@/services/customer";
+import type { SortOrder } from "@/services/shared/types";
 import { useCustomerStore } from "@/stores/customer-store";
-import { useToastStore } from "@/stores/toast-store";
 import { CustomerFormDialog } from "./customer-form-dialog";
 import {
   customerAddress,
   customerFormInput,
-  customerId,
   customerMemberCode,
   customerName,
   customerPhone,
   customerStatus
 } from "./customer-utils";
 
-const DEFAULT_LIMIT: PageLimit = DEFAULT_PAGE_LIMIT;
 const ORDER_OPTIONS: Array<{ labelKey: "asc" | "desc"; value: SortOrder }> = [
   { labelKey: "asc", value: "ASC" },
   { labelKey: "desc", value: "DESC" }
@@ -52,16 +44,6 @@ const ORDER_OPTIONS: Array<{ labelKey: "asc" | "desc"; value: SortOrder }> = [
 function customerInitials(name: string) {
   const compact = name.trim().replace(/\s+/g, "");
   return (compact.slice(0, 2) || "C").toUpperCase();
-}
-
-function activeLabel(status: string, active: string, inactive: string) {
-  return Number(status || 1) === 1 ? active : inactive;
-}
-
-function activeBadgeClass(status: string) {
-  return Number(status || 1) === 1
-    ? "border-primary/25 bg-primary/10 text-primary"
-    : "border-muted-foreground/20 bg-muted text-muted-foreground";
 }
 
 function CustomerAvatar({ name }: { name: string }) {
@@ -79,16 +61,6 @@ function MemberCodeBadge({ code }: { code: string }) {
   return (
     <Badge className="max-w-full shrink-0 border-primary/20 bg-primary/10 text-primary" translate="no">
       {code}
-    </Badge>
-  );
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const { t } = useTranslation();
-
-  return (
-    <Badge className={activeBadgeClass(status)}>
-      {activeLabel(status, t("common.active"), t("common.inactive"))}
     </Badge>
   );
 }
@@ -112,175 +84,55 @@ function CustomerIdentity({ row }: { row: Customer }) {
 
 export function CustomerSettingsPage({ initialPagination }: { initialPagination: UrlPaginationState }) {
   const { t } = useTranslation();
-  const language = useAppStore((state) => state.language);
-  const user = useAuthStore((state) => state.user);
-  const storeUuid = authStoreUuid(user);
-  const showToast = useToastStore((state) => state.show);
-  const rows = useCustomerStore((state) => state.rows);
-  const total = useCustomerStore((state) => state.total);
-  const storeTotalPages = useCustomerStore((state) => state.totalPages);
-  const search = useCustomerStore((state) => state.search);
-  const hasLoaded = useCustomerStore((state) => state.hasLoaded);
-  const loading = useCustomerStore((state) => state.loading);
-  const refreshing = useCustomerStore((state) => state.refreshing);
-  const saving = useCustomerStore((state) => state.saving);
-  const setSearch = useCustomerStore((state) => state.setSearch);
-  const loadRows = useCustomerStore((state) => state.load);
-  const saveRow = useCustomerStore((state) => state.save);
-  const removeRow = useCustomerStore((state) => state.remove);
-  const { changeLimit, limit, page, resetPage, setPage } = useUrlPagination({ initialPagination });
-  const [orderBy, setOrderBy] = useState<SortOrder>("ASC");
-  const [editing, setEditing] = useState<Customer | null>(null);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<Customer | null>(null);
-  const [selectedRows, setSelectedRows] = useState<Set<string>>(() => new Set());
-
   const title = t("settings.modules.customer.title");
   const description = t("settings.modules.customer.description");
-  const { appliedSearch, applySearch } = useAppliedSearch(search);
-  const hasLoadedRef = useLatestValue(hasLoaded);
-  const requestParams = useMemo<FetchCustomersParams>(
-    () => ({
-      search: appliedSearch,
-      page,
-      limit,
-      orderBy,
-      lang: language,
-      store_uuid_fk: storeUuid
-    }),
-    [appliedSearch, language, limit, orderBy, page, storeUuid]
-  );
-  const pageSize = limit === "All" ? rows.length || Number(DEFAULT_LIMIT) : Number(limit ?? DEFAULT_LIMIT);
-  const totalPages = Math.max(1, Number(storeTotalPages || Math.ceil(total / pageSize) || 1));
-  const pageStart = rows.length ? (page - 1) * pageSize + 1 : 0;
-  const pageEnd = rows.length ? pageStart + rows.length - 1 : 0;
-  const fullLoading = loading && !hasLoaded;
-  const backgroundLoading = refreshing || (loading && hasLoaded);
-  const pagingBusy = loading || refreshing;
-  const canGoBack = page > 1 && !pagingBusy;
-  const canGoNext = page < totalPages && !pagingBusy;
-  const ids = useMemo(() => rows.map(customerId).filter(Boolean), [rows]);
-  const allSelected = ids.length > 0 && ids.every((id) => selectedRows.has(id));
-
-  const load = useCallback(async () => {
-    if (!storeUuid) {
-      showToast({ title: t("settings.loadFailed", { title }), description: t("settings.storeRequired"), tone: "error" });
-      return;
+  const {
+    allSelected,
+    applyFilters,
+    backgroundLoading,
+    changeLimit,
+    deleteTarget,
+    dialogOpen,
+    editing,
+    fullLoading,
+    limit,
+    onDialogOpenChange,
+    openCreate,
+    openEdit,
+    orderBy,
+    page,
+    pageEnd,
+    pageStart,
+    remove,
+    rowId,
+    rows,
+    save,
+    saving,
+    search,
+    selectedRows,
+    setDeleteTarget,
+    setOrderBy,
+    setPage,
+    setSearch,
+    toggleAll,
+    toggleSelected,
+    total,
+    totalPages
+  } = useSettingsCrudController<Customer, SaveCustomerInput, FetchCustomersParams>({
+    buildInput: ({ editing: editingRow, formData, storeUuid }) => customerFormInput(formData, storeUuid, editingRow),
+    idKey: "customer_uuid",
+    initialPagination,
+    requiredScopeKey: "store_uuid_fk",
+    requiredScopeMessage: t("settings.storeRequired"),
+    scope: (storeUuid) => ({ store_uuid_fk: storeUuid }),
+    store: useCustomerStore,
+    title,
+    validateInput: ({ formData }) => {
+      const name = String(formData.get("customer_name") ?? "").trim();
+      if (!name) return t("settings.customerNameRequired");
+      return null;
     }
-
-    try {
-      await loadRows(requestParams, { background: hasLoadedRef.current });
-    } catch (error) {
-      showToast({
-        title: t("settings.loadFailed", { title }),
-        description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
-        tone: "error"
-      });
-    }
-  }, [hasLoadedRef, loadRows, requestParams, showToast, storeUuid, t, title]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  useEffect(() => {
-    setSelectedRows((current) => {
-      if (!current.size) return current;
-      const allowed = new Set(ids);
-      let changed = false;
-      const next = new Set<string>();
-      current.forEach((id) => {
-        if (allowed.has(id)) next.add(id);
-        else changed = true;
-      });
-      return changed ? next : current;
-    });
-  }, [ids]);
-
-  function applyFilters() {
-    applySearch({ page, resetPage, reload: () => void load() });
-  }
-
-  function toggleSelected(id: string, checked: boolean) {
-    if (!id) return;
-    setSelectedRows((current) => {
-      const next = new Set(current);
-      if (checked) next.add(id);
-      else next.delete(id);
-      return next;
-    });
-  }
-
-  function toggleAll(checked: boolean) {
-    setSelectedRows(checked ? new Set(ids) : new Set());
-  }
-
-  function openCreate() {
-    if (!storeUuid) {
-      showToast({ title: t("settings.saveFailed"), description: t("settings.storeRequired"), tone: "error" });
-      return;
-    }
-
-    setEditing(null);
-    setDialogOpen(true);
-  }
-
-  function openEdit(row: Customer) {
-    setEditing(row);
-    setDialogOpen(true);
-  }
-
-  async function save(formData: FormData) {
-    const name = String(formData.get("customer_name") ?? "").trim();
-
-    if (!storeUuid) {
-      showToast({ title: t("settings.saveFailed"), description: t("settings.storeRequired"), tone: "error" });
-      return;
-    }
-    if (!name) {
-      showToast({ title: t("settings.saveFailed"), description: t("settings.customerNameRequired"), tone: "error" });
-      return;
-    }
-
-    const input = customerFormInput(formData, storeUuid, editing);
-
-    try {
-      await saveRow(input);
-      showToast({ title: t("settings.saved"), tone: "success" });
-      setDialogOpen(false);
-      setEditing(null);
-      await loadRows(requestParams, { background: true });
-    } catch (error) {
-      showToast({
-        title: t("settings.saveFailed"),
-        description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
-        tone: "error"
-      });
-    }
-  }
-
-  async function remove(row: Customer) {
-    const id = customerId(row);
-    if (!id) return;
-
-    try {
-      await removeRow(id);
-      showToast({ title: t("settings.deleted"), tone: "success" });
-      setDeleteTarget(null);
-      setSelectedRows((current) => {
-        const next = new Set(current);
-        next.delete(id);
-        return next;
-      });
-      await loadRows(requestParams, { background: true });
-    } catch (error) {
-      showToast({
-        title: t("settings.deleteFailed"),
-        description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
-        tone: "error"
-      });
-    }
-  }
+  });
 
   const table = rows.length ? (
     <SettingsTableScroll>
@@ -300,7 +152,7 @@ export function CustomerSettingsPage({ initialPagination }: { initialPagination:
         </TableHeader>
         <TableBody>
           {rows.map((row, index) => {
-            const id = customerId(row);
+            const id = rowId(row);
             const name = customerName(row);
             const selected = selectedRows.has(id);
             return (
@@ -323,7 +175,7 @@ export function CustomerSettingsPage({ initialPagination }: { initialPagination:
                   </span>
                 </TableCell>
                 <TableCell>
-                  <StatusBadge status={customerStatus(row)} />
+                  <StatusBadge active={isActiveStatus(customerStatus(row))} />
                 </TableCell>
                 <TableCell className="text-right">
                   <SettingsRowActions row={row} onEdit={openEdit} onDelete={setDeleteTarget} />
@@ -339,7 +191,7 @@ export function CustomerSettingsPage({ initialPagination }: { initialPagination:
   const mobileList = rows.length ? (
     <SettingsMobileList>
       {rows.map((row, index) => {
-        const id = customerId(row);
+        const id = rowId(row);
         const name = customerName(row);
         const code = customerMemberCode(row);
         const selected = selectedRows.has(id);
@@ -363,7 +215,7 @@ export function CustomerSettingsPage({ initialPagination }: { initialPagination:
             <SettingsMobileMetaGrid>
               <SettingsMobileMeta
                 label={t("fields.customer_status")}
-                value={<StatusBadge status={customerStatus(row)} />}
+                value={<StatusBadge active={isActiveStatus(customerStatus(row))} />}
               />
               <SettingsMobileMeta
                 label={t("fields.customer_address")}
@@ -402,9 +254,6 @@ export function CustomerSettingsPage({ initialPagination }: { initialPagination:
         <div className="flex min-w-0 flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
           <div className="min-w-0">
             <p className="text-sm font-black">{t("settings.customerList")}</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              {t("common.showingRange", { start: pageStart, end: pageEnd, total })} - {t("common.page", { current: page, total: totalPages })}
-            </p>
           </div>
           <div className="min-w-0 xl:max-w-[48rem]">{toolbar}</div>
         </div>
@@ -421,17 +270,7 @@ export function CustomerSettingsPage({ initialPagination }: { initialPagination:
           <div className="min-h-0 flex-1 overflow-y-auto md:hidden">{mobileList}</div>
         </>
       ) : (
-        <div className="flex min-h-72 flex-1 items-center justify-center p-4">
-          <Empty className="max-w-md border border-dashed bg-muted/20">
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <Users aria-hidden />
-              </EmptyMedia>
-              <EmptyTitle>{t("settings.noRecords", { title: title.toLowerCase() })}</EmptyTitle>
-              <EmptyDescription>{t("empty.adjustSearch")}</EmptyDescription>
-            </EmptyHeader>
-          </Empty>
-        </div>
+        <SettingsEmptyRecords icon={<Users aria-hidden />} title={title.toLowerCase()} />
       )}
     </div>
   );
@@ -447,15 +286,11 @@ export function CustomerSettingsPage({ initialPagination }: { initialPagination:
         footer={
           rows.length ? (
             <SettingsPaginationFooter
-              canGoBack={canGoBack}
-              canGoNext={canGoNext}
               page={page}
               pageEnd={pageEnd}
               pageStart={pageStart}
               total={total}
               totalPages={totalPages}
-              onBack={() => setPage((current) => Math.max(1, current - 1))}
-              onNext={() => setPage((current) => Math.min(totalPages, current + 1))}
               onPageChange={setPage}
             />
           ) : undefined
@@ -471,11 +306,7 @@ export function CustomerSettingsPage({ initialPagination }: { initialPagination:
         editing={editing}
         open={dialogOpen}
         saving={saving}
-        onOpenChange={(nextOpen) => {
-          if (saving) return;
-          setDialogOpen(nextOpen);
-          if (!nextOpen) setEditing(null);
-        }}
+        onOpenChange={onDialogOpenChange}
         onSubmit={save}
       />
       <ConfirmDialog

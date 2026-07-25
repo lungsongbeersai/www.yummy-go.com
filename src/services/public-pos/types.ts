@@ -40,15 +40,15 @@ export interface PublicStatusSortResponse {
 export interface CustomerFetchCartParams { t: string; lang?: string }
 
 export interface CustomerFetchCateProductsParams {
-  t: string;
+  token: string;
   lang?: string;
-  cate_uuid?: string;
+  cateUuid?: string;
   search?: string;
 }
 
 export interface CustomerGetProdItemParams extends CustomerFetchCateProductsParams {
-  prod_uuid: string;
-  status_sort_fk?: number;
+  prodUuid: string;
+  statusSortFk?: number;
 }
 
 export interface CustomerUpdateQtyInput {

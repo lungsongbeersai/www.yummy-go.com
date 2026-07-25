@@ -35,6 +35,7 @@ const directOrderCustomerServiceImportPattern =
 const routeFileNames = new Set([
   "default.tsx",
   "error.tsx",
+  "global-error.tsx",
   "layout.tsx",
   "loading.tsx",
   "not-found.tsx",
@@ -43,11 +44,16 @@ const routeFileNames = new Set([
 ]);
 const allowedClientRouteFiles = new Set([
   "app/error.tsx",
-  "app/not-found.tsx"
+  "app/global-error.tsx",
+  "app/not-found.tsx",
+  "app/(protected)/error.tsx",
+  "app/(protected)/not-found.tsx"
 ]);
 const allowedUiRouteFiles = new Set([
   "app/error.tsx",
-  "app/not-found.tsx"
+  "app/not-found.tsx",
+  "app/(protected)/error.tsx",
+  "app/(protected)/not-found.tsx"
 ]);
 const routeFileLineLimit = 80;
 const suppressionPattern = new RegExp(
@@ -174,6 +180,11 @@ function runtimeImportNames(importClause: ts.ImportClause | undefined) {
   return names;
 }
 
+// invoice-print-window lives under services/printer for co-location with the rest of
+// the printing layer (per CLAUDE.md), but it only renders HTML/manages print windows —
+// it does no apiRequest data access, so it's exempt from the service-layer-isolation guard.
+const printRenderingServiceSpecifier = "@/services/printer/invoice-print-window";
+
 function runtimeServiceImports(directory: string): TextMatch[] {
   return sourceFiles(directory).flatMap((path) => {
     const content = readFileSync(path, "utf8");
@@ -184,7 +195,8 @@ function runtimeServiceImports(directory: string): TextMatch[] {
       const specifier = statement.moduleSpecifier;
       if (
         !ts.isStringLiteral(specifier) ||
-        !specifier.text.startsWith("@/services/")
+        !specifier.text.startsWith("@/services/") ||
+        specifier.text === printRenderingServiceSpecifier
       )
         return [];
 
@@ -292,6 +304,17 @@ function internalAnchorNavigationMatches(directories: string[]) {
 }
 
 describe("project refactor guards", () => {
+  it("keeps the packaged Electron server outside ASAR and shell-free", () => {
+    const mainProcess = readFileSync(join(projectRoot, "electron/main.ts"), "utf8");
+
+    expect(mainProcess).toContain("process.resourcesPath");
+    expect(mainProcess).toContain("assertNextServerPortAvailable(PORT)");
+    expect(mainProcess).toContain("utilityProcess.fork");
+    expect(mainProcess).not.toContain("node_modules");
+    expect(mainProcess).not.toContain(".bin");
+    expect(mainProcess).not.toContain("shell: true");
+  });
+
   it("keeps chart.js removed from package manifests", () => {
     const manifest = JSON.parse(
       readFileSync(join(projectRoot, "package.json"), "utf8")
@@ -313,7 +336,7 @@ describe("project refactor guards", () => {
 
   it("keeps raw image tags limited to generated print templates", () => {
     const allowedRawImageFiles = new Set([
-      "features/pos/print/invoice-print-window.ts",
+      "services/printer/invoice-print-window.ts",
       "features/pos/table-selection/table-qr-dialog.tsx"
     ]);
     const disallowedRawImages = matchesInFiles(srcDir, rawImageTagPattern)
@@ -370,14 +393,15 @@ describe("project refactor guards", () => {
     expect(matchesInProjectFiles([srcDir, join(projectRoot, "scripts")], suppressionPattern)).toEqual([]);
   });
 
+  // เทสต์สองตัวนี้ parse AST ทั้ง src/ + scripts/ — เกิน 5s ได้เมื่อรันทั้ง suite พร้อมกัน
   it("keeps source free of explicit any types", () => {
     expect(explicitAnyTypes([srcDir, join(projectRoot, "scripts")])).toEqual([]);
-  });
+  }, 15_000);
 
   it("keeps source free of TypeScript enums and React FC aliases", () => {
     expect(typeScriptEnums([srcDir, join(projectRoot, "scripts")])).toEqual([]);
     expect(matchesInProjectFiles([srcDir, join(projectRoot, "scripts")], reactComponentTypePattern)).toEqual([]);
-  });
+  }, 15_000);
 
   it("keeps app, feature, and reusable component code free of runtime service imports", () => {
     const imports = [
@@ -417,6 +441,34 @@ describe("project refactor guards", () => {
 
     expect(oversizedRouteFiles).toEqual([]);
     expect(directUiImports).toEqual([]);
+  });
+
+  it("keeps a complete root error boundary", () => {
+    const globalError = readFileSync(join(srcDir, "app/global-error.tsx"), "utf8");
+
+    expect(globalError).toContain('"use client"');
+    expect(globalError).toContain("<html");
+    expect(globalError).toContain("<body");
+    expect(globalError).toContain("unstable_retry");
+  });
+
+  it("keeps search-param routes behind visible Suspense fallbacks", () => {
+    const suspenseRoutes = [
+      "app/pos/page.tsx",
+      "app/home/page.tsx",
+      "app/login/page.tsx",
+      "app/(protected)/printers/form/page.tsx",
+    ];
+
+    const missingFallback = suspenseRoutes.filter((route) => (
+      !readFileSync(join(srcDir, route), "utf8").includes("<Suspense fallback={")
+    ));
+
+    expect(missingFallback).toEqual([]);
+  });
+
+  it("keeps deprecated Next Image priority props out of source", () => {
+    expect(matchesInFiles(srcDir, /\bpriority(?:\s*=|\s*>)/g)).toEqual([]);
   });
 
   it("keeps the staff order workflow behind store actions", () => {

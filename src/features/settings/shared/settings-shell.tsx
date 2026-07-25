@@ -5,6 +5,13 @@ import type { ComponentProps, ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { BackButton } from "@/components/common/back-button";
 import { EmptyState } from "@/components/common/empty-state";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle
+} from "@/components/ui/empty";
 import { AppPagination } from "@/components/common/app-pagination";
 import { LoadingState } from "@/components/common/loading-state";
 import { Badge } from "@/components/ui/badge";
@@ -178,6 +185,34 @@ export function SettingsModuleShell({
   );
 }
 
+
+// บล็อก "ไม่มีข้อมูล" มาตรฐานของหน้ารายการ settings — เดิมถูกก๊อปซ้ำ 9 หน้า
+export function SettingsEmptyRecords({
+  description,
+  icon,
+  title,
+  titleText
+}: {
+  description?: string;
+  icon: ReactNode;
+  title?: string;
+  titleText?: string;
+}) {
+  const { t } = useTranslation();
+
+  return (
+    <div className="flex min-h-72 flex-1 items-center justify-center p-4">
+      <Empty className="max-w-md border border-dashed bg-muted/20">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">{icon}</EmptyMedia>
+          <EmptyTitle>{titleText ?? t("settings.noRecords", { title })}</EmptyTitle>
+          <EmptyDescription>{description ?? t("empty.adjustSearch")}</EmptyDescription>
+        </EmptyHeader>
+      </Empty>
+    </div>
+  );
+}
+
 export function SettingsModuleHeader({
   addLabel,
   description,
@@ -196,7 +231,7 @@ export function SettingsModuleHeader({
   return (
     <div className="flex shrink-0 items-start justify-between gap-3 px-4 py-3 lg:px-5">
       <div className="min-w-0 flex-1">
-        <BackButton fallbackHref="/setting" label={t("settings.title")} />
+        <BackButton fallbackHref="/settings" label={t("settings.title")} />
         <h1 className="mt-1 text-xl font-black">{title}</h1>
         <p className="mt-0.5 hidden max-w-2xl truncate text-xs text-muted-foreground sm:block">{description}</p>
       </div>
@@ -458,12 +493,11 @@ export function SettingsMobileMeta({ label, value }: { label: ReactNode; value: 
 export function SettingsPaginationFooter({
   onPageChange,
   page,
+  pageEnd,
+  pageStart,
+  total,
   totalPages
 }: {
-  canGoBack: boolean;
-  canGoNext: boolean;
-  onBack: () => void;
-  onNext: () => void;
   onPageChange: (page: number) => void;
   page: number;
   pageEnd: number;
@@ -471,10 +505,13 @@ export function SettingsPaginationFooter({
   total: number;
   totalPages: number;
 }) {
+  const { t } = useTranslation();
+
   return (
     <div className="shrink-0 border-t border-border px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] text-sm text-muted-foreground">
       <AppPagination
         page={page}
+        rangeLabel={t("common.showingRange", { start: pageStart, end: pageEnd, total })}
         totalPages={totalPages}
         onPageChange={onPageChange}
       />

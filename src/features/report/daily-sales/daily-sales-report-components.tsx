@@ -4,22 +4,18 @@ import type { ReactNode } from "react";
 import { BlockingLoadingDialog } from "@/components/common/blocking-loading-dialog";
 import {
   ChevronDown,
-  ChevronLeft,
   ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
   Download,
   Eye,
   EyeOff,
   FileSpreadsheet,
   FileText,
-  Printer,
   ReceiptText,
   RefreshCcw,
-  Search,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { EmptyState } from "@/components/common/empty-state";
+import { SearchInput } from "@/components/common/search-input";
 import { LoadingState } from "@/components/common/loading-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -31,7 +27,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { money } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -44,7 +39,7 @@ import type {
 } from "./daily-sales-report-types";
 import { firstNumber, summaryCardValue } from "./daily-sales-report-utils";
 
-interface ReportSummaryCardsProps {
+interface DailySalesSummaryCardsProps {
   cards: SummaryCardConfig[];
   reportTotal: Record<string, unknown>;
   summaryCards: SummaryCards;
@@ -61,7 +56,7 @@ interface ReportExportLoadingDialogProps {
   progress: ReportExportProgress | null;
 }
 
-interface ReportTableCardProps {
+interface DailySalesTableCardProps {
   actions: ReportTableActionsProps;
   children: ReactNode;
   footer: ReactNode;
@@ -76,7 +71,6 @@ interface ReportTableActionsProps {
   exportDisabled: boolean;
   exporting: ReportExportAction | null;
   loading: boolean;
-  printDisabled: boolean;
   search: string;
   selectedBillCount: number;
   selectedCount: number;
@@ -86,7 +80,6 @@ interface ReportTableActionsProps {
   onExpandAllBills: () => void;
   onExportExcel: () => void;
   onExportPdf: () => void;
-  onPrintReport: () => void;
   onRefresh: () => void;
   onSearchChange: (search: string) => void;
   onTypePageChange: (typePage: ReportTab) => void;
@@ -98,26 +91,11 @@ interface ReportTypeSwitchProps {
   onChange: (typePage: ReportTab) => void;
 }
 
-interface ReportErrorProps {
-  message: string;
-}
-
-interface ReportPaginationProps {
-  canGoBack: boolean;
-  canGoNext: boolean;
-  onBack: () => void;
-  onNext: () => void;
-  onPageChange: (page: number) => void;
-  page: number;
-  rangeLabel: string;
-  totalPages: number;
-}
-
-export function ReportSummaryCards({
+export function DailySalesSummaryCards({
   cards,
   reportTotal,
   summaryCards,
-}: ReportSummaryCardsProps) {
+}: DailySalesSummaryCardsProps) {
   return (
     <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
       {cards.map((card) => {
@@ -228,13 +206,13 @@ export function ReportExportLoadingDialog({
   );
 }
 
-export function ReportTableCard({
+export function DailySalesTableCard({
   actions,
   children,
   footer,
   loading,
   rowsLength,
-}: ReportTableCardProps) {
+}: DailySalesTableCardProps) {
   const { t } = useTranslation();
 
   return (
@@ -274,7 +252,6 @@ function ReportTableActions({
   exportDisabled,
   exporting,
   loading,
-  printDisabled,
   search,
   selectedBillCount,
   selectedCount,
@@ -284,7 +261,6 @@ function ReportTableActions({
   onExpandAllBills,
   onExportExcel,
   onExportPdf,
-  onPrintReport,
   onRefresh,
   onSearchChange,
   onTypePageChange,
@@ -347,19 +323,15 @@ function ReportTableActions({
           />
         </div>
 
-        <div className="relative min-w-0">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            type="search"
-            value={search}
-            autoComplete="off"
-            aria-label={t("actions.search")}
-            placeholder={t("actions.search")}
-            className="h-9 w-full rounded-md bg-background pl-9 text-sm"
-            disabled={!branchUuid || Boolean(exporting)}
-            onChange={(event) => onSearchChange(event.target.value)}
-          />
-        </div>
+        <SearchInput
+          className="min-w-0"
+          inputClassName="text-sm"
+          ariaLabel={t("actions.search")}
+          placeholder={t("actions.search")}
+          disabled={!branchUuid || Boolean(exporting)}
+          value={search}
+          onChange={onSearchChange}
+        />
 
         <div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5 2xl:flex-nowrap">
           {isDetail && billGroupsLength ? (
@@ -428,22 +400,6 @@ function ReportTableActions({
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            aria-label={t("report.print")}
-            className="h-9 min-w-9 rounded-md px-2.5"
-            disabled={printDisabled}
-            onClick={onPrintReport}
-          >
-            {exporting === "print" ? (
-              <RefreshCcw className="animate-spin" data-icon="inline-start" />
-            ) : (
-              <Printer data-icon="inline-start" />
-            )}
-            <span className="hidden sm:inline">{t("report.print")}</span>
-          </Button> */}
 
           <Button
             type="button"
@@ -510,99 +466,3 @@ function ReportTypeSwitch({
   );
 }
 
-export function ReportError({ message }: ReportErrorProps) {
-  return (
-    <Card className="border-destructive/25 bg-destructive/5">
-      <CardContent className="p-3 text-sm font-medium text-destructive">
-        {message}
-      </CardContent>
-    </Card>
-  );
-}
-
-export function ReportPagination({
-  canGoBack,
-  canGoNext,
-  onBack,
-  onNext,
-  onPageChange,
-  page,
-  rangeLabel,
-  totalPages,
-}: ReportPaginationProps) {
-  const { t } = useTranslation();
-  const pageCount = Math.max(1, totalPages);
-  const currentPage = Math.min(Math.max(1, page), pageCount);
-
-  return (
-    <div className="border-t border-border bg-card/95 px-2 py-1.5">
-      <div className="flex min-h-9 min-w-0 flex-wrap items-center justify-between gap-2">
-        <p className="min-w-0 flex-1 truncate text-xs font-medium text-muted-foreground max-sm:basis-full">
-          {rangeLabel}
-        </p>
-
-        <div className="flex shrink-0 items-center gap-1 max-sm:w-full max-sm:justify-end">
-          <PaginationIconButton
-            disabled={!canGoBack}
-            label={t("common.previousShort")}
-            onClick={() => onPageChange(1)}
-          >
-            <ChevronsLeft aria-hidden="true" />
-          </PaginationIconButton>
-          <PaginationIconButton
-            disabled={!canGoBack}
-            label={t("common.previousPage")}
-            onClick={onBack}
-          >
-            <ChevronLeft aria-hidden="true" />
-          </PaginationIconButton>
-
-          <span className="mx-1 inline-flex h-8 min-w-[4.5rem] items-center justify-center rounded-md border border-border bg-muted/35 px-2 text-xs font-black tabular-nums text-foreground">
-            {currentPage} / {pageCount}
-          </span>
-
-          <PaginationIconButton
-            disabled={!canGoNext}
-            label={t("common.nextPage")}
-            onClick={onNext}
-          >
-            <ChevronRight aria-hidden="true" />
-          </PaginationIconButton>
-          <PaginationIconButton
-            disabled={!canGoNext}
-            label={t("common.nextShort")}
-            onClick={() => onPageChange(pageCount)}
-          >
-            <ChevronsRight aria-hidden="true" />
-          </PaginationIconButton>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function PaginationIconButton({
-  children,
-  disabled,
-  label,
-  onClick,
-}: {
-  children: ReactNode;
-  disabled: boolean;
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <Button
-      type="button"
-      size="iconSm"
-      variant="ghost"
-      aria-label={label}
-      disabled={disabled}
-      className="size-8 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-35"
-      onClick={onClick}
-    >
-      {children}
-    </Button>
-  );
-}

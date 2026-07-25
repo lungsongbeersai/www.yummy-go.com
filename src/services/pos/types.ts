@@ -53,113 +53,118 @@ export interface FetchPosParams {
   lang?: string;
 }
 export interface EmitTableStatusResponse extends ApiEntity { ok?: boolean; customer_order_state?: boolean }
-export interface ProdDetail extends ApiEntity {
-  pro_detail_uuid: string;
-  pro_detail_id?: string | number;
-  pro_detail_sort?: string | number;
-  size_uuid_fk?: string;
-  size_name?: string;
+export interface ProdDetail {
+  proDetailUuid: string;
+  proDetailId?: string | number;
+  proDetailSort?: string | number;
+  sizeUuidFk?: string;
+  sizeName?: string;
   price?: string | number;
-  pro_detail_sprice?: string | number;
-  qty_stock?: number;
-  pro_detail_qty_stock?: number | string;
-  pro_detail_enabled?: number;
-  pro_detail_status?: number;
-  cut_stock?: number;
-  pro_detail_cus_qtyBuy?: number;
-  pro_detail_cus_qtyFree?: number;
-  pro_detail_sDate?: string | null;
-  pro_detail_eDate?: string | null;
-  pro_detail_sTime?: string | null;
-  pro_detail_eTime?: string | null;
-  default_qty?: number;
+  proDetailSprice?: string | number;
+  qtyStock?: number;
+  proDetailQtyStock?: number | string;
+  proDetailEnabled?: number;
+  proDetailStatus?: number;
+  cutStock?: number;
+  proDetailCusQtyBuy?: number;
+  proDetailCusQtyFree?: number;
+  proDetailSDate?: string | null;
+  proDetailEDate?: string | null;
+  proDetailSTime?: string | null;
+  proDetailETime?: string | null;
+  defaultQty?: number;
 }
-export interface ProdTopping extends ApiEntity {
-  prod_topping_uuid: string;
-  topping_uuid_fk?: string;
-  topping_uuid?: string;
-  topping_name?: string;
-  topping_name_la?: string;
-  topping_name_eng?: string;
-  topping_price?: string | number;
-  topping_enabled?: number;
-  topping_status?: number;
+export interface ProdTopping {
+  prodToppingUuid: string;
+  toppingUuidFk?: string;
+  toppingUuid?: string;
+  toppingName?: string;
+  toppingNameLa?: string;
+  toppingNameEng?: string;
+  toppingPrice?: string | number;
+  toppingEnabled?: number;
+  toppingStatus?: number;
 }
-export interface ProdItem extends ApiEntity {
-  prod_uuid: string;
-  prod_code?: string;
-  prod_name: string;
-  prod_status_imge: ProductImageStatus;
-  prod_image: string;
-  prod_color?: string;
-  prod_price?: number | string;
-  type_group?: string;
-  unite_name?: string;
-  prod_set_price?: number | string | null;
-  pro_detail_sprice?: number | string;
+export interface ProdItem {
+  prodUuid: string;
+  prodCode?: string;
+  prodName: string;
+  prodStatusImge: ProductImageStatus;
+  prodImage: string;
+  prodColor?: string;
+  prodPrice?: number | string;
+  typeGroup?: string;
+  uniteName?: string;
+  prodSetPrice?: number | string | null;
+  proDetailSprice?: number | string;
+  statusSortFk?: ProductSortStatus;
   details: ProdDetail[];
   toppings: ProdTopping[];
 }
 export interface GetProdItemParams {
-  prod_uuid: string;
+  prodUuid: string;
   lang?: string;
-  cate_uuid?: string;
+  cateUuid?: string;
   search?: string;
-  status_sort_fk?: ProductSortStatus;
+  statusSortFk?: ProductSortStatus;
 }
-export interface PosProduct extends ApiEntity {
-  prod_uuid: string;
-  prod_sort?: number | string;
-  prod_name: string;
-  prod_image: string;
-  prod_status_imge: ProductImageStatus;
-  prod_color?: string;
-  status_sort_fk: ProductSortStatus;
-  status_name?: string;
-  promo_state?: string;
-  promo_expired?: boolean;
-  promo_msg?: string;
-  prod_price?: number | string;
+export interface PosProduct {
+  prodUuid: string;
+  prodCode?: string;
+  prodSort?: number | string;
+  prodName: string;
+  prodImage: string;
+  prodStatusImge: ProductImageStatus;
+  prodColor?: string;
+  statusSortFk: ProductSortStatus;
+  statusName?: string;
+  promoState?: string;
+  promoExpired?: boolean;
+  promoMsg?: string;
+  prodPrice?: number | string;
+  typeGroup?: string;
+  uniteName?: string;
+  prodSetPrice?: number | string | null;
 }
 export interface CateProductItem extends PosProduct {
-  pro_detail_sprice?: number | string;
-  min_price?: number | string;
-  max_price?: number | string;
-  can_add: boolean;
-  has_options: boolean;
-  options_msg: string;
-  sold_out_manual?: boolean;
-  sold_out_msg?: string;
-  stock_sold_out?: boolean;
-  stock_available?: boolean;
-  count_option_all: number;
-  count_option_enabled: number;
-  count_topping_enabled: number;
-  customer_buy?: number;
-  customer_free?: number;
-  pro_detail_uuid?: string;
+  proDetailSprice?: number | string;
+  minPrice?: number | string;
+  maxPrice?: number | string;
+  canAdd: boolean;
+  hasOptions: boolean;
+  optionsMsg: string;
+  soldOutManual?: boolean;
+  soldOutMsg?: string;
+  stockSoldOut?: boolean;
+  stockAvailable?: boolean;
+  countOptionAll: number;
+  countOptionEnabled: number;
+  countToppingEnabled: number;
+  customerBuy?: number;
+  customerFree?: number;
+  proDetailUuid?: string;
 }
-export interface CateWithProducts extends ApiEntity {
-  cate_uuid: string;
-  cate_name: string;
-  cate_icon?: string;
+export interface CateWithProducts {
+  cateUuid: string;
+  cateName: string;
+  cateIcon?: string;
   products: CateProductItem[];
 }
 
-export interface FetchCateProductsResponse extends ApiEntity {
+export interface FetchCateProductsResponse {
   status: string;
   message: string;
   lang?: string;
   search?: string;
-  branch_uuid_fk?: string;
-  special_products?: CateProductItem[];
-  total_special?: number;
-  selected_cate_uuid?: string;
-  data: CateWithProducts[];
-  default_cate_uuid?: string;
+  branchUuidFk?: string;
+  specialProducts?: CateProductItem[];
+  totalSpecial?: number;
+  selectedCateUuid?: string;
+  categories: CateWithProducts[];
+  defaultCateUuid?: string;
   total?: number;
 }
-export interface FetchCateProductsParams { branch_uuid_fk: string; cate_uuid?: string; search?: string; status_sort_fk?: ProductSortStatus; lang?: string }
+export interface FetchCateProductsParams { branchUuidFk: string; cateUuid?: string; search?: string; statusSortFk?: ProductSortStatus; lang?: string }
 export interface CartToppingPayload { prod_topping_uuid_fk: string; topping_qty: number }
 export interface OrderItemOption { label: string; qty: number; price?: number; type?: "size" | "topping" }
 export interface OrderItem extends ApiEntity { id?: number; title?: string; price?: number; quantity?: number }
@@ -526,7 +531,8 @@ export interface ConfirmOrderItemServedInput { order_it_uuid: string }
 export interface CancelOrderItemInput { order_it_uuid: string }
 export interface CreateTableQRRequest extends ApiEntity {
   table_uuid: string;
-  login_uuid_fk: string;
+  // optional: เส้นทางดู/รีเฟรช QR (loadTableQr) ไม่ต้องส่ง identity ของเครื่องพิมพ์
+  login_uuid_fk?: string;
   lang?: string;
   device_code?: string;
   agent_id?: string;

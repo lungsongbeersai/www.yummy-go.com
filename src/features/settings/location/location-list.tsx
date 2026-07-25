@@ -6,7 +6,6 @@ import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Spinner } from "@/components/ui/spinner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
@@ -15,8 +14,7 @@ import {
   SettingsMobileMeta,
   SettingsMobileMetaGrid,
   SettingsRowActions,
-  SettingsTableScroll
-} from "@/features/settings/shared/settings-shell";
+  SettingsTableScroll, SettingsEmptyRecords } from "@/features/settings/shared/settings-shell";
 import {
   locationId,
   locationName,
@@ -37,8 +35,6 @@ export function LocationListSurface({
   kind,
   labels,
   listTitle,
-  page,
-  pageEnd,
   pageStart,
   provinceById,
   refreshLabel,
@@ -46,8 +42,6 @@ export function LocationListSurface({
   selectedRows,
   title,
   toolbar,
-  total,
-  totalPages,
   onDelete,
   onEdit,
   onToggleAll,
@@ -64,8 +58,6 @@ export function LocationListSurface({
   kind: LocationKind;
   labels: LocationLabels;
   listTitle: string;
-  page: number;
-  pageEnd: number;
   pageStart: number;
   provinceById: Map<string, LocationSettingsRow>;
   refreshLabel: string;
@@ -73,8 +65,6 @@ export function LocationListSurface({
   selectedRows: Set<string>;
   title: string;
   toolbar: ReactNode;
-  total: number;
-  totalPages: number;
   onDelete: (row: LocationSettingsRow) => void;
   onEdit: (row: LocationSettingsRow) => void;
   onToggleAll: (checked: boolean) => void;
@@ -106,9 +96,6 @@ export function LocationListSurface({
               <p className="text-sm font-black">{listTitle}</p>
               {groupToggleAction}
             </div>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              {t("common.showingRange", { start: pageStart, end: pageEnd, total })} - {t("common.page", { current: page, total: totalPages })}
-            </p>
           </div>
           <div className="min-w-0 xl:max-w-[48rem]">{toolbar}</div>
         </div>
@@ -160,17 +147,7 @@ export function LocationListSurface({
           </div>
         </>
       ) : (
-        <div className="flex min-h-72 flex-1 items-center justify-center p-4">
-          <Empty className="max-w-md border border-dashed bg-muted/20">
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                {kind === "province" ? <MapPin aria-hidden /> : <MapPinned aria-hidden />}
-              </EmptyMedia>
-              <EmptyTitle>{t("settings.noRecords", { title: title.toLowerCase() })}</EmptyTitle>
-              <EmptyDescription>{t("empty.adjustSearch")}</EmptyDescription>
-            </EmptyHeader>
-          </Empty>
-        </div>
+        <SettingsEmptyRecords icon={kind === "province" ? <MapPin aria-hidden /> : <MapPinned aria-hidden />} title={title.toLowerCase()} />
       )}
     </div>
   );

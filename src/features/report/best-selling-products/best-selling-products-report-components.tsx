@@ -5,7 +5,6 @@ import {
   memo,
   useCallback,
   useMemo,
-  type ReactNode,
   type RefObject,
 } from "react";
 import {
@@ -13,56 +12,26 @@ import {
   CalendarArrowUp,
   ChevronDown,
   CircleDollarSign,
-  Download,
-  FileSpreadsheet,
   ListOrdered,
-  Printer,
-  RefreshCcw,
-  SlidersHorizontal,
-  Trophy,
   type LucideIcon,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {
   ReportOfficialHeader,
   ReportSignatures,
-} from "../report-official-layout";
-import { DateFilterButton } from "@/components/common/date-filter-button";
-import { EmptyState } from "@/components/common/empty-state";
-import { LoadingState } from "@/components/common/loading-state";
+} from "@/lib/export/official-layout";
+import { ReportFilterSheet } from "../shared/report-filter-shell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Field, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -71,7 +40,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { PAGE_LIMIT_OPTIONS } from "@/lib/pagination";
 import { cn } from "@/lib/utils";
 import {
   isBestSellingProductsSortBy,
@@ -83,15 +51,21 @@ import type {
 } from "@/stores/report-store";
 import { SortableReportTableHead } from "../report-sort-table-head";
 import {
+  ReportBranchField,
+  ReportDateRangeFields,
+  ReportPageLimitField,
+  ReportSelectField,
+} from "../shared/report-filter-fields";
+import { ReportSummaryCardsGrid, type ReportSummaryCard } from "../shared/report-metric-display";
+import {
   ReportIndeterminateCheckbox,
   selectionStateForVisibleIds,
-} from "../report-row-selection";
+} from "../shared/report-row-selection";
 import {
   sortRowsLocally,
   useLocalTableSort
-} from "../report-sort-utils";
+} from "../shared/report-sort-utils";
 import type {
-  BestSellingExportAction,
   BestSellingOption,
   BestSellingProductsFilters,
   BestSellingSummaryCardConfig,
@@ -102,8 +76,8 @@ import {
   bestSellingProductRowId,
   bestSellingProductMetricConfigs,
   bestSellingProductMetrics,
-  bestSellingSummaryConfigs,
   bestSellingSortOptions,
+  bestSellingSummaryConfigs,
   displayMetric,
   formatNumber,
   firstNumber,
@@ -139,96 +113,45 @@ export function BestSellingSummaryCards({
   cards: BestSellingSummaryCardConfig[];
   summary: Record<string, unknown>;
 }) {
+  const summaryCards: ReportSummaryCard[] = cards.map((card) => ({
+    key: card.label,
+    kind: card.kind,
+    label: card.label,
+    value: summaryValue(summary, card.keys),
+  }));
+  const cardByLabel = useMemo(() => new Map(cards.map((card) => [card.label, card])), [cards]);
+
   return (
-    <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-7">
-      {cards.map((card) => {
-        const value = summaryValue(summary, card.keys);
-        const tone = summaryCardTone(card);
-        return (
-          <Card
-            key={card.label}
-            className={cn(
-              "overflow-hidden border shadow-sm",
-              tone === "primary" &&
-                "border-primary/20 bg-primary/5 shadow-primary/5",
-              tone === "danger" &&
-                "border-destructive/20 bg-destructive/5 shadow-destructive/5",
-              tone === "neutral" && "border-border bg-muted/20",
-            )}
-          >
-            <CardContent className="p-4">
-              <p
-                className={cn(
-                  "truncate text-xs font-black uppercase",
-                  tone === "primary" && "text-primary",
-                  tone === "danger" && "text-destructive",
-                  tone === "neutral" && "text-muted-foreground",
-                )}
-              >
-                {card.label}
-              </p>
-              <p className="mt-2 truncate text-xl font-black tabular-nums text-foreground">
-                {displayMetric(value, card.kind)}
-              </p>
-            </CardContent>
-          </Card>
+    <ReportSummaryCardsGrid
+      cards={summaryCards}
+      gridClassName="sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-7"
+      cardClassName={(card) => {
+        const tone = summaryCardTone(cardByLabel.get(card.key));
+        return cn(
+          "border",
+          tone === "primary" && "border-primary/20 bg-primary/5 shadow-primary/5",
+          tone === "danger" && "border-destructive/20 bg-destructive/5 shadow-destructive/5",
+          tone === "neutral" && "border-border bg-muted/20",
         );
-      })}
-    </section>
+      }}
+      labelClassName={(card) => {
+        const tone = summaryCardTone(cardByLabel.get(card.key));
+        return cn(
+          tone === "primary" && "text-primary",
+          tone === "danger" && "text-destructive",
+          tone === "neutral" && "text-muted-foreground",
+        );
+      }}
+      valueClassName={() => "font-black text-foreground"}
+    />
   );
 }
 
-function summaryCardTone(card: BestSellingSummaryCardConfig) {
+function summaryCardTone(card: BestSellingSummaryCardConfig | undefined) {
+  if (!card) return "neutral";
   if (card.keys.some((key) => key.includes("discount"))) return "danger";
   if (card.kind === "money") return "primary";
   return "neutral";
-}
-
-export function BestSellingFilterBar({
-  branchLoading,
-  branchLocked,
-  branchOptions,
-  canApply,
-  draftFilters,
-  groupLoading,
-  groupOptions,
-  loading,
-  onApply,
-  onDraftChange,
-}: FilterProps) {
-  const { t } = useTranslation();
-
-  return (
-    <Card className="min-w-0 border-border bg-card shadow-sm">
-      <CardContent className="p-3 sm:p-4">
-        <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-12">
-          <BestSellingFilterFields
-            branchLoading={branchLoading}
-            branchLocked={branchLocked}
-            branchOptions={branchOptions}
-            draftFilters={draftFilters}
-            groupLoading={groupLoading}
-            groupOptions={groupOptions}
-            idPrefix="best-selling"
-            onDraftChange={onDraftChange}
-          />
-          <div className="flex items-end sm:col-span-2 lg:col-span-12 xl:col-span-2">
-            <Button
-              type="button"
-              className="h-9 w-full min-w-28"
-              disabled={loading || !canApply}
-              onClick={onApply}
-            >
-              {loading ? (
-                <RefreshCcw className="animate-spin" data-icon="inline-start" />
-              ) : null}
-              {t("report.apply")}
-            </Button>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
 }
 
 export function BestSellingFilterSheet({
@@ -251,101 +174,26 @@ export function BestSellingFilterSheet({
   const { t } = useTranslation();
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="!flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-4xl">
-        <DialogHeader className="shrink-0 border-b border-border bg-muted/20 px-4 py-3 pr-12 text-left sm:px-5">
-          <DialogTitle className="text-base font-black text-foreground">
-            {t("report.filters.currentFilters")}
-          </DialogTitle>
-          <DialogDescription>{t("report.bestSelling.title")}</DialogDescription>
-        </DialogHeader>
-        <div className="max-h-[calc(100dvh-12rem)] overflow-y-auto overscroll-contain p-4 sm:p-5">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-12">
-            <BestSellingFilterFields
-              branchLoading={branchLoading}
-              branchLocked={branchLocked}
-              branchOptions={branchOptions}
-              draftFilters={draftFilters}
-              groupLoading={groupLoading}
-              groupOptions={groupOptions}
-              idPrefix="best-selling-mobile"
-              onDraftChange={onDraftChange}
-            />
-          </div>
-        </div>
-        <DialogFooter className="grid shrink-0 grid-cols-2 gap-2 border-t border-border bg-card/95 px-4 py-3 backdrop-blur sm:flex sm:px-5">
-          <DialogClose asChild>
-            <Button type="button" variant="outline" className="h-10 sm:min-w-24">
-              {t("actions.close")}
-            </Button>
-          </DialogClose>
-          <Button
-            type="button"
-            className="h-10 sm:min-w-24"
-            disabled={loading || !canApply}
-            onClick={onApply}
-          >
-            {loading ? (
-              <RefreshCcw className="animate-spin" data-icon="inline-start" />
-            ) : null}
-            {t("report.apply")}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-export function MobileBestSellingFilterSummary({
-  branchLabel,
-  filters,
-  groupLabel,
-  onOpen,
-  sortByLabel,
-}: {
-  branchLabel: string;
-  filters: BestSellingProductsFilters;
-  groupLabel: string;
-  onOpen: () => void;
-  sortByLabel: string;
-}) {
-  const { t } = useTranslation();
-  const dateRangeLabel = `${filters.dateFrom} - ${filters.dateTo}`;
-
-  return (
-    <div className="rounded-md border border-border bg-card p-2 shadow-sm">
-      <div className="flex items-center justify-between gap-2">
-        <div className="min-w-0">
-          <DateFilterButton
-            ariaLabel={`${t("report.filters.openFilters")}: ${dateRangeLabel}`}
-            className="h-8 max-w-full rounded-md border-border/70 bg-muted/50 px-2 text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground"
-            label={dateRangeLabel}
-            onClick={onOpen}
-          />
-          <div className="mt-1 flex min-w-0 flex-wrap gap-1">
-            <Badge className="h-6 max-w-44 truncate border-border bg-muted px-2 text-[11px] text-muted-foreground">
-              {branchLabel}
-            </Badge>
-            <Badge className="h-6 max-w-40 truncate border-border bg-muted px-2 text-[11px] text-muted-foreground">
-              {groupLabel}
-            </Badge>
-            <Badge className="h-6 px-2 text-[11px]">{sortByLabel}</Badge>
-            <Badge className="h-6 border-border bg-muted px-2 text-[11px] text-muted-foreground">
-              {filters.limit === "All" ? t("common.all") : filters.limit}
-            </Badge>
-          </div>
-        </div>
-        <Button
-          type="button"
-          size="sm"
-          className="h-9 shrink-0 px-3"
-          onClick={onOpen}
-        >
-          <SlidersHorizontal data-icon="inline-start" />
-          {t("report.filters.openFilters")}
-        </Button>
-      </div>
-    </div>
+    <ReportFilterSheet
+      canApply={canApply}
+      description={t("report.bestSelling.title")}
+      gridClassName="grid-cols-1 sm:grid-cols-2 lg:grid-cols-12"
+      loading={loading}
+      open={open}
+      onApply={onApply}
+      onOpenChange={onOpenChange}
+    >
+      <BestSellingFilterFields
+        branchLoading={branchLoading}
+        branchLocked={branchLocked}
+        branchOptions={branchOptions}
+        draftFilters={draftFilters}
+        groupLoading={groupLoading}
+        groupOptions={groupOptions}
+        idPrefix="best-selling-mobile"
+        onDraftChange={onDraftChange}
+      />
+    </ReportFilterSheet>
   );
 }
 
@@ -376,297 +224,48 @@ function BestSellingFilterFields({
 
   return (
     <>
-      <Field className="min-w-0 gap-1.5 sm:col-span-2 lg:col-span-4">
-        <FieldLabel
-          htmlFor={`${idPrefix}-branch`}
-          className="text-xs font-bold text-muted-foreground"
-        >
-          {t("nav.branch")}
-        </FieldLabel>
-        <Select
-          value={draftFilters.branchUuid}
-          disabled={branchLoading || branchLocked || branchOptions.length <= 1}
-          onValueChange={(value) => patch({ branchUuid: value })}
-        >
-          <SelectTrigger id={`${idPrefix}-branch`} className="h-10 w-full rounded-md">
-            <SelectValue placeholder={t("nav.branch")} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              {branchOptions.map((branch) => (
-                <SelectItem key={branch.value} value={branch.value}>
-                  {branch.label}
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          </SelectContent>
-        </Select>
-      </Field>
-      <Field className="min-w-0 gap-1.5 lg:col-span-4">
-        <FieldLabel
-          htmlFor={`${idPrefix}-date-from`}
-          className="text-xs font-bold text-muted-foreground"
-        >
-          {t("report.filters.dateFrom")}
-        </FieldLabel>
-        <Input
-          id={`${idPrefix}-date-from`}
-          name={`${idPrefix}-date-from`}
-          type="date"
-          value={draftFilters.dateFrom}
-          autoComplete="off"
-          className="h-10 rounded-md text-sm"
-          onChange={(event) => patch({ dateFrom: event.target.value })}
-        />
-      </Field>
-      <Field className="min-w-0 gap-1.5 lg:col-span-4">
-        <FieldLabel
-          htmlFor={`${idPrefix}-date-to`}
-          className="text-xs font-bold text-muted-foreground"
-        >
-          {t("report.filters.dateTo")}
-        </FieldLabel>
-        <Input
-          id={`${idPrefix}-date-to`}
-          name={`${idPrefix}-date-to`}
-          type="date"
-          value={draftFilters.dateTo}
-          autoComplete="off"
-          className="h-10 rounded-md text-sm"
-          onChange={(event) => patch({ dateTo: event.target.value })}
-        />
-      </Field>
-      <Field className="min-w-0 gap-1.5 lg:col-span-4">
-        <FieldLabel
-          htmlFor={`${idPrefix}-group`}
-          className="text-xs font-bold text-muted-foreground"
-        >
-          {t("report.bestSelling.filters.group")}
-        </FieldLabel>
-        <Select
-          value={draftFilters.groupUuid}
-          disabled={groupLoading || !groupOptions.length}
-          onValueChange={(value) => patch({ groupUuid: value })}
-        >
-          <SelectTrigger id={`${idPrefix}-group`} className="h-10 w-full rounded-md">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              {groupOptions.map((group) => (
-                <SelectItem key={group.value} value={group.value}>
-                  {group.label}
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          </SelectContent>
-        </Select>
-      </Field>
-      <Field className="min-w-0 gap-1.5 lg:col-span-6">
-        <FieldLabel
-          htmlFor={`${idPrefix}-limit`}
-          className="text-xs font-bold text-muted-foreground"
-        >
-          {t("common.rowsPerPage")}
-        </FieldLabel>
-        <Select
-          value={String(draftFilters.limit)}
-          onValueChange={(value) =>
-            patch({ limit: value === "All" ? "All" : Number(value) })
-          }
-        >
-          <SelectTrigger id={`${idPrefix}-limit`} className="h-10 w-full rounded-md">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              {PAGE_LIMIT_OPTIONS.map((limit) => (
-                <SelectItem key={String(limit)} value={String(limit)}>
-                  {limit === "All" ? t("common.all") : limit}
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          </SelectContent>
-        </Select>
-      </Field>
+      <ReportBranchField
+        branchLoading={branchLoading}
+        branchLocked={branchLocked}
+        fieldClassName="min-w-0 gap-1.5 sm:col-span-2 lg:col-span-4"
+        id={`${idPrefix}-branch`}
+        options={branchOptions}
+        triggerClassName="h-10 w-full rounded-md"
+        value={draftFilters.branchUuid}
+        onValueChange={(value) => patch({ branchUuid: value })}
+      />
+      <ReportDateRangeFields
+        dateFrom={draftFilters.dateFrom}
+        dateTo={draftFilters.dateTo}
+        fieldClassName="min-w-0 gap-1.5 lg:col-span-4"
+        idPrefix={idPrefix}
+        inputClassName="h-10 rounded-md text-sm"
+        withNativeName
+        onDateFromChange={(value) => patch({ dateFrom: value })}
+        onDateToChange={(value) => patch({ dateTo: value })}
+      />
+      <ReportSelectField
+        disabled={groupLoading || !groupOptions.length}
+        fieldClassName="min-w-0 gap-1.5 lg:col-span-4"
+        id={`${idPrefix}-group`}
+        label={t("report.bestSelling.filters.group")}
+        options={groupOptions}
+        triggerClassName="h-10 w-full rounded-md"
+        value={draftFilters.groupUuid}
+        onValueChange={(value) => patch({ groupUuid: value })}
+      />
+      <ReportPageLimitField
+        fieldClassName="min-w-0 gap-1.5 lg:col-span-6"
+        id={`${idPrefix}-limit`}
+        triggerClassName="h-10 w-full rounded-md"
+        value={draftFilters.limit}
+        onValueChange={(value) => patch({ limit: value })}
+      />
     </>
   );
 }
 
-type TableCardProps = {
-  children: ReactNode;
-  exportDisabled: boolean;
-  exporting: BestSellingExportAction | null;
-  footer: ReactNode;
-  loading: boolean;
-  printDisabled: boolean;
-  rowsLength: number;
-  selectedCount: number;
-  sortBy: BestSellingProductsSortBy;
-  sortByLabel: string;
-  onClearSelection: () => void;
-  onExportExcel: () => void;
-  onExportPdf: () => void;
-  onPrintReport: () => void;
-  onRefresh: () => void;
-  onSortByChange: (sortBy: BestSellingProductsSortBy) => void;
-};
-
-export function BestSellingTableCard({
-  children,
-  exportDisabled,
-  exporting,
-  footer,
-  loading,
-  printDisabled,
-  rowsLength,
-  selectedCount,
-  sortBy,
-  sortByLabel,
-  onClearSelection,
-  onExportExcel,
-  onExportPdf,
-  onPrintReport,
-  onRefresh,
-  onSortByChange,
-}: TableCardProps) {
-  const { t } = useTranslation();
-
-  return (
-    <Card className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden border-border bg-card shadow-sm">
-      <CardHeader className="shrink-0 border-b border-border bg-card/95 px-2 py-2 sm:px-3">
-        <div className="grid w-full min-w-0 grid-cols-1 items-center gap-2 2xl:grid-cols-[minmax(180px,16rem)_minmax(0,1fr)_auto]">
-          <div className="flex min-w-0 items-center gap-2">
-            <div className="grid size-8 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
-              <Trophy aria-hidden="true" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <CardTitle className="truncate text-sm font-black">
-                {t("report.bestSelling.tableTitle")}
-              </CardTitle>
-              {selectedCount > 0 ? (
-                <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5">
-                  <Badge className="h-6 max-w-full truncate border-primary/20 bg-primary/10 px-2 text-xs text-primary">
-                    {t("report.selectedForExport", { count: selectedCount })}
-                  </Badge>
-                  <Button
-                    type="button"
-                    size="xs"
-                    variant="ghost"
-                    className="h-6 px-2 text-xs text-muted-foreground"
-                    onClick={onClearSelection}
-                  >
-                    {t("report.clearSelection")}
-                  </Button>
-                </div>
-              ) : null}
-            </div>
-          </div>
-
-          <div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5 2xl:col-start-3 2xl:flex-nowrap">
-            <BestSellingSortDropdown
-              disabled={loading || Boolean(exporting)}
-              sortBy={sortBy}
-              sortByLabel={sortByLabel}
-              onSortByChange={onSortByChange}
-            />
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  aria-label={t("common.export")}
-                  className="h-9 min-w-9 rounded-md px-2.5"
-                  disabled={exportDisabled}
-                >
-                  {exporting === "excel" || exporting === "pdf" ? (
-                    <RefreshCcw className="animate-spin" data-icon="inline-start" />
-                  ) : (
-                    <Download data-icon="inline-start" />
-                  )}
-                  <span className="hidden sm:inline">{t("common.export")}</span>
-                  <ChevronDown data-icon="inline-end" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-44">
-                <DropdownMenuGroup>
-                  <DropdownMenuItem disabled={exportDisabled} onSelect={onExportExcel}>
-                    <FileSpreadsheet data-icon="inline-start" />
-                    {t("report.exportExcel")}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem disabled={exportDisabled} onSelect={onExportPdf}>
-                    <Download data-icon="inline-start" />
-                    {t("report.exportPdf")}
-                  </DropdownMenuItem>
-                </DropdownMenuGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            {/* <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              aria-label={t("report.print")}
-              className="h-9 min-w-9 rounded-md px-2.5"
-              disabled={printDisabled}
-              onClick={onPrintReport}
-            >
-              {exporting === "print" ? (
-                <RefreshCcw className="animate-spin" data-icon="inline-start" />
-              ) : (
-                <Printer data-icon="inline-start" />
-              )}
-              <span className="hidden sm:inline">{t("report.print")}</span>
-            </Button> */}
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              aria-label={t("actions.refresh")}
-              className="h-9 min-w-9 rounded-md border border-border/60 px-2.5 text-muted-foreground hover:text-foreground"
-              disabled={loading || Boolean(exporting)}
-              onClick={onRefresh}
-            >
-              <RefreshCcw
-                className={loading ? "animate-spin" : undefined}
-                data-icon="inline-start"
-              />
-            </Button>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent
-        aria-busy={loading}
-        className="flex min-h-0 flex-1 flex-col p-0"
-      >
-        {loading && !rowsLength ? (
-          <div className="min-h-80 p-4">
-            <LoadingState
-              label={t("report.bestSelling.loading")}
-              variant="reportTable"
-            />
-          </div>
-        ) : rowsLength ? (
-          <>
-            <div className="min-h-0 min-w-0 flex-1 overflow-auto overscroll-x-contain overscroll-y-auto">
-              {children}
-            </div>
-            <div className="shrink-0 bg-card">{footer}</div>
-          </>
-        ) : (
-          <div className="min-h-80 p-4">
-            <EmptyState
-              title={t("report.bestSelling.noData")}
-              description={t("report.bestSelling.adjustFilters")}
-            />
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-function BestSellingSortDropdown({
+export function BestSellingSortDropdown({
   disabled,
   sortBy,
   sortByLabel,

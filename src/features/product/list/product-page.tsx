@@ -49,7 +49,7 @@ export function ProductPage({ initialPagination }: { initialPagination: UrlPagin
             <FileSpreadsheet data-icon="inline-start" />
             {t("product.import.button")}
           </Button>
-          <Link className={cn(buttonVariants({ size: "sm" }), "shadow-sm")} href="/product/form">
+          <Link className={cn(buttonVariants({ size: "sm" }), "shadow-sm")} href="/products/form">
             <Plus data-icon="inline-start" />
             {t("product.newProduct")}
           </Link>
@@ -198,7 +198,7 @@ export function ProductPage({ initialPagination }: { initialPagination: UrlPagin
                   </div>
                 </div>
               ) : null}
-              <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-3 py-2 md:hidden">
+              <div className="flex shrink-0 items-center gap-3 border-b border-border px-3 py-2 md:hidden">
                 <Label className="flex min-w-0 items-center gap-2 text-sm font-semibold">
                   <Checkbox
                     aria-label={t("common.selectAll")}
@@ -207,19 +207,17 @@ export function ProductPage({ initialPagination }: { initialPagination: UrlPagin
                   />
                   <span className="truncate">{t("common.selectAll")}</span>
                 </Label>
-                <span className="shrink-0 text-xs text-muted-foreground">
-                  {t("common.showingRange", {
-                    start: product.pageStart,
-                    end: product.pageEnd,
-                    total: product.total || product.rows.length
-                  })}
-                </span>
               </div>
               <ProductListTable workflow={product} />
               <ProductListMobile workflow={product} />
               <div className="shrink-0 border-t border-border px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] text-sm text-muted-foreground">
                 <AppPagination
                   page={product.page}
+                  rangeLabel={t("common.showingRange", {
+                    start: product.pageStart,
+                    end: product.pageEnd,
+                    total: product.total || product.rows.length
+                  })}
                   totalPages={Math.max(1, product.totalPages)}
                   onPageChange={product.goToPage}
                 />

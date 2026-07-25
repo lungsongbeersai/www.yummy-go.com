@@ -22,14 +22,16 @@ export function CounterCheckoutPage() {
   const loadTables = usePosStore((state) => state.loadTables);
   const showToast = useToastStore((state) => state.show);
 
+  const branchUuid = user?.branch_uuid ?? "";
+
   const load = useCallback(async () => {
-    if (!user?.branch_uuid) return;
+    if (!branchUuid) return;
     try {
-      await loadTables({ branch_uuid_fk: user.branch_uuid, lang: language });
+      await loadTables({ branch_uuid_fk: branchUuid, lang: language });
     } catch (error) {
       showToast({ title: t("pos.failedTables"), description: error instanceof Error ? error.message : "", tone: "error" });
     }
-  }, [language, loadTables, showToast, t, user?.branch_uuid]);
+  }, [branchUuid, language, loadTables, showToast, t]);
 
   useEffect(() => {
     void load();
@@ -58,7 +60,7 @@ export function CounterCheckoutPage() {
               {(zone.tables ?? []).map((table) => (
                 <Link
                   key={table.table_uuid}
-                  href={`/sales/open-table-sale?table_uuid=${table.table_uuid}&table_name=${encodeURIComponent(table.table_name)}`}
+                  href={`/pos/tables?table_uuid=${table.table_uuid}&table_name=${encodeURIComponent(table.table_name)}`}
                 >
                   <Card className="transition hover:border-primary hover:shadow-md">
                     <CardContent className="p-4">

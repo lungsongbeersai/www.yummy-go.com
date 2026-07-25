@@ -1,5 +1,5 @@
 import type { MenuItem } from "@/config/menu";
-import type { SidebarPermissionMenuItem } from "@/services/sidebar-menu";
+import type { SidebarPermissionMenuItem } from "@/services/permissions/sidebar";
 
 export function sidebarPermissionMenuItemsToMenuItems(
   items: SidebarPermissionMenuItem[]

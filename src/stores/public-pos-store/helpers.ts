@@ -1,3 +1,4 @@
+import { ProductSortStatus } from "@/config/pos-constants";
 import type {
   CartOrder,
   CateProductItem,
@@ -20,10 +21,13 @@ export const MENU_KIND_LOAD_ORDER = [
   PUBLIC_MENU_KIND.NORMAL
 ] as const;
 
+// The public menu's "kind" vocabulary maps 1:1 onto the staff POS's
+// ProductSortStatus — kept as the single numeric source of truth so the two
+// never drift (P3.3).
 const MENU_KIND_STATUS_SORT_FK: Record<PublicMenuKind, number> = {
-  [PUBLIC_MENU_KIND.NORMAL]: 1,
-  [PUBLIC_MENU_KIND.SET]: 2,
-  [PUBLIC_MENU_KIND.PROMOTION]: 3
+  [PUBLIC_MENU_KIND.NORMAL]: ProductSortStatus.NORMAL,
+  [PUBLIC_MENU_KIND.SET]: ProductSortStatus.SET,
+  [PUBLIC_MENU_KIND.PROMOTION]: ProductSortStatus.PROMOTION
 };
 
 const SPECIAL_CATEGORY_UUID: Record<Exclude<PublicMenuKind, "normal">, string> = {
@@ -35,7 +39,7 @@ export function publicMenuKindToStatusSortFk(kind: PublicMenuKind) {
   return MENU_KIND_STATUS_SORT_FK[kind];
 }
 
-export type PublicPosCategoryTab = Pick<CateWithProducts, "cate_uuid" | "cate_name" | "cate_icon">;
+export type PublicPosCategoryTab = Pick<CateWithProducts, "cateUuid" | "cateName" | "cateIcon">;
 
 export interface PublicStatusMenu {
   categories: CateWithProducts[];
@@ -106,9 +110,9 @@ export function normalizeCartOrders(result: unknown): CartOrder[] {
 
 export function toCategoryTabs(categories: CateWithProducts[]): PublicPosCategoryTab[] {
   return categories.map((category) => ({
-    cate_uuid: category.cate_uuid,
-    cate_name: category.cate_name,
-    cate_icon: category.cate_icon
+    cateUuid: category.cateUuid,
+    cateName: category.cateName,
+    cateIcon: category.cateIcon
   }));
 }
 
@@ -120,29 +124,29 @@ export function normalizeCategories(categories: CateWithProducts[]) {
 }
 
 export function menuSequenceKey(params: CustomerFetchCateProductsParams) {
-  return [params.t, params.lang ?? "", (params.cate_uuid ?? "").trim(), (params.search ?? "").trim()].join(":");
+  return [params.token, params.lang ?? "", (params.cateUuid ?? "").trim(), (params.search ?? "").trim()].join(":");
 }
 
 export function statusMenuRequestKey(params: CustomerFetchCateProductsParams, kind: PublicMenuKind) {
-  return [params.t, params.lang ?? "", kind, (params.cate_uuid ?? "").trim(), (params.search ?? "").trim()].join(":");
+  return [params.token, params.lang ?? "", kind, (params.cateUuid ?? "").trim(), (params.search ?? "").trim()].join(":");
 }
 
 export function firstAvailableCateUuid(categories: CateWithProducts[], selectedCateUuid?: string, defaultCateUuid?: string) {
-  if (selectedCateUuid && categories.some((category) => category.cate_uuid === selectedCateUuid)) {
+  if (selectedCateUuid && categories.some((category) => category.cateUuid === selectedCateUuid)) {
     return selectedCateUuid;
   }
 
-  if (defaultCateUuid && categories.some((category) => category.cate_uuid === defaultCateUuid)) {
+  if (defaultCateUuid && categories.some((category) => category.cateUuid === defaultCateUuid)) {
     return defaultCateUuid;
   }
 
-  return categories[0]?.cate_uuid ?? "";
+  return categories[0]?.cateUuid ?? "";
 }
 
 export function productCateUuids(categories: CateWithProducts[]) {
   return categories
     .filter((category) => (category.products?.length ?? 0) > 0)
-    .map((category) => category.cate_uuid)
+    .map((category) => category.cateUuid)
     .filter(Boolean);
 }
 
@@ -155,16 +159,16 @@ export function mergeCategoryProducts(
   nextCategories: CateWithProducts[],
   cateUuid: string
 ) {
-  const nextByUuid = new Map(nextCategories.map((category) => [category.cate_uuid, category]));
+  const nextByUuid = new Map(nextCategories.map((category) => [category.cateUuid, category]));
 
   return currentCategories.map((category) => {
-    const nextCategory = nextByUuid.get(category.cate_uuid);
+    const nextCategory = nextByUuid.get(category.cateUuid);
     if (!nextCategory) return category;
 
     return {
       ...category,
       ...nextCategory,
-      products: category.cate_uuid === cateUuid ? nextCategory.products ?? [] : category.products ?? []
+      products: category.cateUuid === cateUuid ? nextCategory.products ?? [] : category.products ?? []
     };
   });
 }
@@ -172,7 +176,7 @@ export function mergeCategoryProducts(
 export function splitSpecialProducts(products: CateProductItem[] = []) {
   return products.reduce(
     (groups, product) => {
-      const statusSortFk = Number(product.status_sort_fk);
+      const statusSortFk = Number(product.statusSortFk);
       if (statusSortFk === publicMenuKindToStatusSortFk(PUBLIC_MENU_KIND.PROMOTION)) {
         groups.promotion.push(product);
       } else if (statusSortFk === publicMenuKindToStatusSortFk(PUBLIC_MENU_KIND.SET)) {
@@ -190,8 +194,8 @@ export function toSpecialCategories(kind: Exclude<PublicMenuKind, "normal">, pro
 
   return [
     {
-      cate_uuid: SPECIAL_CATEGORY_UUID[kind],
-      cate_name: kind,
+      cateUuid: SPECIAL_CATEGORY_UUID[kind],
+      cateName: kind,
       products
     }
   ];

@@ -13,7 +13,9 @@ next-env.d.ts
 
 # Local Netlify folder
 .netlify
-android/app/key/
-android/key.properties
-*.jks
-*.keystore
+
+# Local isolated workspaces created by coding agents
+.worktrees/
+
+# agent-generated skill files (Codex)
+.agents/skills/

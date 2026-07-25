@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
+import { useIsMounted } from "@/hooks/use-is-mounted";
 import { Capacitor } from "@capacitor/core";
 import { I18nextProvider } from "react-i18next";
 import i18n from "@/lib/i18n";
@@ -88,7 +89,7 @@ function applyAndroidWebViewCompatClasses() {
 }
 
 export function Providers({ children, initialLanguage }: ProvidersProps) {
-  const [mounted, setMounted] = useState(false);
+  const mounted = useIsMounted();
   const appliedThemeRef = useRef(false);
   const themeTransitionIdRef = useRef(0);
   const themeTransitionCleanupTimerRef = useRef<number | null>(null);
@@ -101,7 +102,6 @@ export function Providers({ children, initialLanguage }: ProvidersProps) {
   }
 
   useEffect(() => {
-    setMounted(true);
     const cleanupAndroidWebViewCompatClasses = applyAndroidWebViewCompatClasses();
     void useAppStore.persist.rehydrate();
 

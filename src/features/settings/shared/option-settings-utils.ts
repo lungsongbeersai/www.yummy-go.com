@@ -1,4 +1,4 @@
-import { DEFAULT_PAGE_LIMIT } from "@/lib/pagination";
+import { pageLimitSize, pageRange, pageTotalPages } from "@/lib/pagination";
 import type { ApiEntity, PageLimit } from "@/services/shared/types";
 
 export function optionValue(row: ApiEntity | null | undefined, key: string, fallback = "") {
@@ -7,18 +7,12 @@ export function optionValue(row: ApiEntity | null | undefined, key: string, fall
   return String(raw);
 }
 
+// Re-exported under their original names: the pagination-range math itself now
+// lives in src/lib/pagination.ts (promoted so src/features/stock can share it).
 export function optionPageSize(limit: PageLimit, rowsLength: number) {
-  return limit === "All" ? rowsLength || Number(DEFAULT_PAGE_LIMIT) : Number(limit ?? DEFAULT_PAGE_LIMIT);
+  return pageLimitSize(limit, rowsLength);
 }
 
-export function optionTotalPages(totalPages: number, total: number, pageSize: number) {
-  return Math.max(1, Number(totalPages || Math.ceil(total / pageSize) || 1));
-}
+export const optionTotalPages = pageTotalPages;
 
-export function optionPageRange(rowsLength: number, page: number, pageSize: number) {
-  const start = rowsLength ? (page - 1) * pageSize + 1 : 0;
-  return {
-    start,
-    end: rowsLength ? start + rowsLength - 1 : 0
-  };
-}
+export const optionPageRange = pageRange;

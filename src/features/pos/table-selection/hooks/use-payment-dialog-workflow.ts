@@ -8,6 +8,7 @@ import {
   type ChangeEvent,
   type KeyboardEvent,
 } from "react";
+import { useResetOnChange, useResetOnDeps } from "@/hooks/use-reset-on-change";
 import { useTranslation } from "react-i18next";
 import { canUseWindowOpen } from "@/lib/capacitor-platform";
 import { money } from "@/lib/format";
@@ -23,11 +24,12 @@ import type {
   SplitBillInput,
   SplitBillResponse,
 } from "@/services/pos";
+import type { Exchange } from "@/services/exchange";
 import { useAppStore } from "@/stores/app-store";
 import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
-import { useExchangeStore } from "@/stores/exchange-store";
 import { usePosStore } from "@/stores/pos-store";
 import { usePrinterStore } from "@/stores/printer-store";
+import { useReferenceStore } from "@/stores/reference-store";
 import { useToastStore } from "@/stores/toast-store";
 import { usePaymentCustomers } from "./use-payment-customers";
 import type { PaymentDialogProps } from "../payment-dialog-types";
@@ -36,6 +38,10 @@ import {
   cartOrderInvoice,
   optionalString,
 } from "../utils";
+import {
+  openLocalInvoicePrintWindow,
+  type InvoicePrintData,
+} from "@/services/printer/invoice-print-window";
 import {
   activeAmountField,
   activeExactAmountLak,
@@ -49,7 +55,6 @@ import {
   formatAmountInputDisplay,
   LAK_CURRENCY_OPTION,
   LAK_CURRENCY_VALUE,
-  openLocalInvoicePrintWindow,
   paymentAmounts,
   paymentNote,
   paymentTabs,
@@ -61,11 +66,12 @@ import {
   tenderInputValue,
   tenderLabel,
   withReceiptPrintLabels,
-  type InvoicePrintData,
   type PaymentTab,
   type SplitTenderField,
   type TenderField,
 } from "../payment-dialog-utils";
+
+const EMPTY_EXCHANGES: Exchange[] = [];
 
 export function usePaymentDialogWorkflow({
   onCompleted,
@@ -80,9 +86,9 @@ export function usePaymentDialogWorkflow({
   const { t } = useTranslation();
   const language = useAppStore((state) => state.language);
   const user = useAuthStore((state) => state.user);
-  const exchanges = useExchangeStore((state) => state.allRows);
-  const loadExchangeRates = useExchangeStore((state) => state.loadAll);
-  const exchangeRatesLoading = useExchangeStore((state) => state.loadingAll);
+  const exchanges = (useReferenceStore((state) => state.options.exchangeRates) ?? EMPTY_EXCHANGES) as Exchange[];
+  const loadExchangeRates = useReferenceStore((state) => state.loadExchangeRates);
+  const exchangeRatesLoading = useReferenceStore((state) => state.loadingKeys.exchangeRates ?? false);
   const createPayment = usePosStore((state) => state.createPayment);
   const splitBill = usePosStore((state) => state.splitBill);
   const printInvoice = usePosStore((state) => state.printInvoice);
@@ -191,12 +197,10 @@ export function usePaymentDialogWorkflow({
           currency: selectedCurrency.code,
         });
 
-  useEffect(() => {
+  // เปิด dialog ชำระเงิน = ตั้งค่าฟอร์มใหม่ทั้งชุดทันที (แยกจาก effect ที่โหลดอัตราแลกเปลี่ยน)
+  useResetOnChange(open, () => {
     if (!open) return;
-    const defaultAmount = defaultCurrencyInput(
-      totalAmount,
-      LAK_CURRENCY_OPTION,
-    );
+    const defaultAmount = defaultCurrencyInput(totalAmount, LAK_CURRENCY_OPTION);
     setActiveTab("cash");
     setActiveSplitField("cash");
     setCashInput(defaultAmount);
@@ -207,6 +211,10 @@ export function usePaymentDialogWorkflow({
     setDueDate("");
     setNote("");
     setConfirmOpen(false);
+  });
+
+  useEffect(() => {
+    if (!open) return;
     const storeUuid = authStoreUuid(user);
     if (storeUuid) {
       void loadExchangeRates({
@@ -216,10 +224,11 @@ export function usePaymentDialogWorkflow({
     }
   }, [isSplitPayment, language, loadExchangeRates, open, totalAmount, user]);
 
-  useEffect(() => {
+  // สกุลเงินที่เลือกหลุดจากรายการ (โหลดอัตราใหม่/สลับร้าน) = กลับไปใช้ LAK
+  useResetOnDeps([currencyOptions, currencyValue], () => {
     if (!currencyOptions.some((option) => option.value === currencyValue))
       setCurrencyValue(LAK_CURRENCY_VALUE);
-  }, [currencyOptions, currencyValue]);
+  });
 
   function handleCurrencyChange(value: string) {
     const option =

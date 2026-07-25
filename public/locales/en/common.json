@@ -2213,5 +2213,86 @@
   },
   "toasts": {
     "pleaseTryAgain": "Please try again"
+  },
+  "policy": {
+    "badge": "Yummy Go Restaurant POS",
+    "title": "Privacy Policy",
+    "intro": "This Privacy Policy explains how Yummy Go collects, uses, stores, and protects information when you use our restaurant POS, mobile ordering, receipt printing, and management services.",
+    "meta": {
+      "application": "Application",
+      "applicationValue": "Yummy Go",
+      "purpose": "Purpose",
+      "purposeValue": "Restaurant POS Management",
+      "updated": "Last Updated",
+      "updatedValue": "July 8, 2026"
+    },
+    "summary": {
+      "title": "Policy Summary",
+      "description": "Yummy Go uses information to provide restaurant management, ordering, sales, receipt printing, and support services.",
+      "noSell": "We do not sell personal information.",
+      "purposeOnly": "Data is used only for service, security, support, and business operation purposes."
+    },
+    "about": {
+      "title": "About Yummy Go",
+      "paragraphs": [
+        "Yummy Go is a restaurant POS and management application designed to help restaurants manage orders, sales, tables, receipts, kitchen printing, products, and daily operations.",
+        "By using Yummy Go, you agree to the collection and use of information in accordance with this Privacy Policy."
+      ]
+    },
+    "sections": [
+      {
+        "title": "1. Information We Collect",
+        "paragraphs": ["We may collect information that is necessary to provide and improve our restaurant POS and management services."],
+        "list": [
+          "Restaurant or business account information",
+          "User login and account details",
+          "Order, sales, receipt, table, and product information",
+          "Printer and device connection information",
+          "Technical information such as device type, app version, and usage logs"
+        ]
+      },
+      {
+        "title": "2. How We Use Information",
+        "paragraphs": ["We use collected information to operate and improve Yummy Go."],
+        "list": [
+          "Provide restaurant POS and order management services",
+          "Process orders, receipts, kitchen tickets, and sales records",
+          "Manage tables, products, staff access, and restaurant operations",
+          "Improve application performance, reliability, and security",
+          "Provide customer support and troubleshooting",
+          "Prevent unauthorized access and protect our systems"
+        ]
+      },
+      {
+        "title": "3. Data Sharing",
+        "paragraphs": ["We do not sell personal information to third parties. We may share information only when necessary to provide our services, comply with legal obligations, protect users, or maintain the security and reliability of our systems."]
+      },
+      {
+        "title": "4. Data Security",
+        "paragraphs": ["We use reasonable technical and organizational measures to protect user data from unauthorized access, loss, misuse, alteration, or disclosure. However, no method of electronic storage or transmission is completely secure."]
+      },
+      {
+        "title": "5. Data Retention",
+        "paragraphs": ["We retain information only as long as necessary to provide our services, comply with legal requirements, resolve disputes, maintain business records, and support restaurant operations."]
+      },
+      {
+        "title": "6. User Rights",
+        "paragraphs": ["Users may contact us to request access, correction, or deletion of their information, subject to legal, security, and business requirements."]
+      },
+      {
+        "title": "7. Children’s Privacy",
+        "paragraphs": ["Yummy Go is intended for business and restaurant use. It is not directed to children under the age required by applicable law, and we do not knowingly collect personal information from children."]
+      },
+      {
+        "title": "8. Changes to This Policy",
+        "paragraphs": ["We may update this Privacy Policy from time to time. Any changes will be posted on this page with an updated effective date."]
+      }
+    ],
+    "contact": {
+      "title": "Contact Us",
+      "description": "If you have any questions about this Privacy Policy or how your information is handled, please contact us.",
+      "emailLabel": "Support Email",
+      "email": "support@yummy-go.com"
+    }
   }
 }

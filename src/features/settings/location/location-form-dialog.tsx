@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogDescription, DialogTitle } from "@/components/ui/dialog";
@@ -14,6 +14,7 @@ import {
   SettingsDialogForm,
   SettingsDialogHeader
 } from "@/features/settings/shared/settings-shell";
+import { useResetOnChange } from "@/hooks/use-reset-on-change";
 import {
   locationId,
   locationValue,
@@ -48,20 +49,22 @@ export function LocationFormDialog({
   title: string;
 }) {
   const { t } = useTranslation();
-  const [provinceUuid, setProvinceUuid] = useState("");
-  const [nameLa, setNameLa] = useState("");
-  const [nameEng, setNameEng] = useState("");
+  const [provinceUuid, setProvinceUuid] = useState(() => locationValue(editing, "province_uuid_fk"));
+  const [nameLa, setNameLa] = useState(() =>
+    locationValue(editing, `${kind}_name_la`, locationValue(editing, `${kind}_name`))
+  );
+  const [nameEng, setNameEng] = useState(() => locationValue(editing, `${kind}_name_eng`));
   const formKey = locationId(editing, kind) || `new-${kind}`;
   const detailsTitle = kind === "province" ? t("settings.provinceDetails") : t("settings.districtDetails");
   const detailsHint = kind === "province" ? t("settings.provinceDetailsHint") : t("settings.districtDetailsHint");
   const formHint = kind === "province" ? t("settings.provinceFormHint") : t("settings.districtFormHint");
   const saveDisabled = saving || !nameLa.trim() || (kind === "district" && !provinceUuid.trim());
 
-  useEffect(() => {
+  useResetOnChange(`${formKey}:${kind}:${open}`, () => {
     setProvinceUuid(locationValue(editing, "province_uuid_fk"));
     setNameLa(locationValue(editing, `${kind}_name_la`, locationValue(editing, `${kind}_name`)));
     setNameEng(locationValue(editing, `${kind}_name_eng`));
-  }, [editing, kind, open]);
+  });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

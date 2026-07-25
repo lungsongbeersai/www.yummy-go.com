@@ -1,5 +1,6 @@
 "use client";
 
+import type { Route } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import type { Language } from "@/lib/language";
@@ -8,7 +9,7 @@ import styles from "../landing.module.css";
 
 interface LandingProjectsProps {
   language: Language;
-  loginHref: string;
+  loginHref: Route;
 }
 
 export function LandingProjects({ language, loginHref }: LandingProjectsProps) {

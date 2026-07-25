@@ -77,7 +77,7 @@ export function usePublicProductClickAction({
 
       directAddingRef.current = true;
       setSelectedProductStatusKind(statusKind);
-      setLoadingProductUuid(product.prod_uuid);
+      setLoadingProductUuid(product.prodUuid);
 
       void (async () => {
         try {
@@ -102,12 +102,12 @@ export function usePublicProductClickAction({
           }
 
           const item = await loadProductItem({
-            t: token,
+            token,
             lang,
-            prod_uuid: product.prod_uuid,
-            cate_uuid: cateUuid || undefined,
+            prodUuid: product.prodUuid,
+            cateUuid: cateUuid || undefined,
             search: submittedSearch,
-            status_sort_fk: statusSortFk,
+            statusSortFk,
           });
 
           if (productNeedsModal(product, item, statusSortFk)) {

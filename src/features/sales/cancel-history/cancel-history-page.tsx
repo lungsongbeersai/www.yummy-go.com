@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useResetOnChange } from "@/hooks/use-reset-on-change";
 import { History, RefreshCcw, SlidersHorizontal } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { AppPagination } from "@/components/common/app-pagination";
@@ -76,17 +77,16 @@ export function CancelHistoryPage({ initialPagination }: { initialPagination: Ur
   const range = cancelHistoryRange(responsePage || page, appliedFilters.limit, bills.length, total);
   const rangeLabel = t("cancelHistory.range", { end: range.end, start: range.start, total });
   const canApply = Boolean(branchUuid && draftFilters.startDate && draftFilters.endDate);
-  const canGoBack = page > 1 && !loading;
-  const canGoNext = page < safeTotalPages && !loading;
   const dateRangeLabel = `${appliedFilters.startDate} - ${appliedFilters.endDate}`;
   const orderLabel = t(appliedFilters.orderBy === "ASC" ? "common.oldestFirst" : "common.newestFirst");
 
-  useEffect(() => {
+  // สลับสาขา = อัปเดต filter, กลับหน้าแรก และล้างประวัติถ้าไม่มีสาขา
+  useResetOnChange(branchUuid, () => {
     setDraftFilters((current) => (current.branchUuid === branchUuid ? current : { ...current, branchUuid }));
     setAppliedFilters((current) => (current.branchUuid === branchUuid ? current : { ...current, branchUuid }));
     resetPage();
     if (!branchUuid) resetHistory();
-  }, [branchUuid, resetHistory, resetPage]);
+  });
 
   const load = useCallback(async () => {
     if (!branchUuid || !appliedFilters.startDate || !appliedFilters.endDate) {
@@ -246,18 +246,13 @@ export function CancelHistoryPage({ initialPagination }: { initialPagination: Ur
         <CancelHistoryTableCard
           footer={
             <CancelHistoryPagination
-              canGoBack={canGoBack}
-              canGoNext={canGoNext}
               page={page}
               rangeLabel={rangeLabel}
               totalPages={safeTotalPages}
-              onBack={() => goToPage(page - 1)}
-              onNext={() => goToPage(page + 1)}
               onPageChange={goToPage}
             />
           }
           loading={loading}
-          rangeLabel={rangeLabel}
           rowsLength={bills.length}
         >
           <CancelHistoryTable rows={bills} startIndex={range.start} />
@@ -470,13 +465,11 @@ function CancelHistoryTableCard({
   children,
   footer,
   loading,
-  rangeLabel,
   rowsLength
 }: {
   children: React.ReactNode;
   footer: React.ReactNode;
   loading: boolean;
-  rangeLabel: string;
   rowsLength: number;
 }) {
   const { t } = useTranslation();
@@ -489,7 +482,6 @@ function CancelHistoryTableCard({
             <History />
             <span className="truncate">{t("cancelHistory.tableTitle")}</span>
           </CardTitle>
-          <p className="text-sm text-muted-foreground">{rangeLabel}</p>
         </div>
       </CardHeader>
       <CardContent className="flex min-h-0 flex-1 flex-col p-0">
@@ -633,12 +625,9 @@ function StatusBadge({ status }: { status: string }) {
 function CancelHistoryPagination({
   onPageChange,
   page,
+  rangeLabel,
   totalPages
 }: {
-  canGoBack: boolean;
-  canGoNext: boolean;
-  onBack: () => void;
-  onNext: () => void;
   onPageChange: (page: number) => void;
   page: number;
   rangeLabel: string;
@@ -648,6 +637,7 @@ function CancelHistoryPagination({
     <div className="border-t border-border px-4 py-3 text-sm text-muted-foreground">
       <AppPagination
         page={page}
+        rangeLabel={rangeLabel}
         totalPages={totalPages}
         onPageChange={onPageChange}
       />

@@ -19,7 +19,6 @@ interface UseTableAlertsParams {
   selectedTableUuid: string;
   selectedZoneUuid: string;
   setSelectedTable: Dispatch<SetStateAction<PosTable | null>>;
-  setZoneOptions: Dispatch<SetStateAction<PosZone[]>>;
   updateTableCustomerOrderState: (tableUuid: string, customerOrderState: boolean) => void;
 }
 
@@ -90,7 +89,6 @@ export function useTableAlerts({
   selectedTableUuid,
   selectedZoneUuid,
   setSelectedTable,
-  setZoneOptions,
   updateTableCustomerOrderState
 }: UseTableAlertsParams) {
   const playAlertSound = useAlertSoundPlayer();
@@ -111,14 +109,12 @@ export function useTableAlerts({
   const refreshVisibleTables = useCallback(async () => {
     if (!branchUuid) return;
 
-    const nextZones = await refreshTables({
+    await refreshTables({
       branch_uuid_fk: branchUuid,
       zone_uuid: selectedZoneUuid,
       lang: language
     });
-
-    if (!selectedZoneUuid) setZoneOptions(nextZones);
-  }, [branchUuid, language, refreshTables, selectedZoneUuid, setZoneOptions]);
+  }, [branchUuid, language, refreshTables, selectedZoneUuid]);
 
   const updateTableAlertState = useCallback(
     (tableUuid: string, customerOrderState: boolean) => {

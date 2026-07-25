@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { ReportBranchOption } from "../daily-sales/daily-sales-report-types";
+import type { ReportBranchOption } from "../shared/report-branch-options";
 import type { DailyClosingReportFilters } from "./daily-closing-report-types";
 
 interface DailyClosingReportControlsProps {

@@ -18,6 +18,21 @@ export const INITIAL_PUBLIC_QR_SCAN_STATE: PublicQrScanState = {
   status: PUBLIC_QR_SCAN_STATUS.IDLE,
 };
 
+export function initialPublicLanguageApplied({
+  activeLanguage,
+  hydrated,
+  initialQueryLanguage,
+}: {
+  activeLanguage: string;
+  hydrated: boolean;
+  initialQueryLanguage: string | null;
+}) {
+  return (
+    !initialQueryLanguage ||
+    (hydrated && activeLanguage === initialQueryLanguage)
+  );
+}
+
 export function publicQrScanRequestKey(
   token: string,
   language: string,
@@ -29,7 +44,10 @@ export function publicQrScanRequestKey(
 export function currentPublicQrScanStatus(
   state: PublicQrScanState,
   requestKey: string,
+  hasToken = true,
 ): PublicQrScanStatus {
+  if (!hasToken) return PUBLIC_QR_SCAN_STATUS.ERROR;
+
   return requestKey && state.requestKey === requestKey
     ? state.status
     : PUBLIC_QR_SCAN_STATUS.IDLE;

@@ -1,34 +1,25 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type RefObject } from "react";
+import { useEffect, useRef, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
-import { useUrlPagination } from "@/hooks/use-url-pagination";
-import { pageLimitSize } from "@/lib/pagination";
+import { createSingleSheetReportWorkbook } from "@/lib/export/excel";
+import { officialReportExcelLayout } from "@/lib/export/official-layout";
 import type { UrlPaginationState } from "@/lib/url-pagination";
-import { useAppStore } from "@/stores/app-store";
-import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
 import { useBranchStore } from "@/stores/branch-store";
 import { useCategorySalesReportStore } from "@/stores/report-store";
-import { useToastStore } from "@/stores/toast-store";
-import { exportInfoRows } from "../daily-sales/daily-sales-report-export-utils";
-import { branchOptionFromRow, selectedBranchLabel } from "../daily-sales/daily-sales-report-utils";
-import { createSingleSheetReportWorkbook } from "../report-excel-utils";
-import { officialReportExcelLayout } from "../report-official-layout";
-import { addReportCanvasToPdfPages } from "../report-pdf-utils";
-import { useReportRowSelection } from "../report-row-selection";
-import type { CategorySalesExportAction, CategorySalesExportData, CategorySalesReportFilters } from "./category-sales-report-types";
+import { exportInfoRows } from "../shared/report-export-info";
+import { useStandardReportWorkflow } from "../shared/use-standard-report-workflow";
+import type { CategorySalesExportData, CategorySalesReportFilters } from "./category-sales-report-types";
 import {
+  categorySalesFileBaseName,
   categorySalesGroupedSection,
   categorySalesGroupsFromRows,
-  categorySalesFileBaseName,
   categorySalesRowId,
   categorySalesSummaryFromRows,
   emptyExportData,
   exportSummaryRows,
-  localDateInputValue,
   paymentMethodFallbackOptions,
-  selectedPaymentMethodLabel,
-  waitForPaint
+  selectedPaymentMethodLabel
 } from "./category-sales-report-utils";
 
 export function useCategorySalesReportWorkflow(
@@ -38,15 +29,6 @@ export function useCategorySalesReportWorkflow(
   summaryVisible: boolean
 ) {
   const { t } = useTranslation();
-  const user = useAuthStore((state) => state.user);
-  const language = useAppStore((state) => state.language);
-  const branches = useBranchStore((state) => state.branches);
-  const branchError = useBranchStore((state) => state.error);
-  const branchLoading = useBranchStore((state) => state.loading);
-  const branchStoreUuid = useBranchStore((state) => state.storeUuid);
-  const loadBranches = useBranchStore((state) => state.loadBranches);
-  const selectedBranchUuid = useBranchStore((state) => state.selectedBranchUuid);
-  const setSelectedBranch = useBranchStore((state) => state.setSelectedBranch);
   const selectedBranch = useBranchStore((state) => state.getSelectedBranch());
   const groups = useCategorySalesReportStore((state) => state.groups);
   const reportName = useCategorySalesReportStore((state) => state.reportName);
@@ -58,70 +40,115 @@ export function useCategorySalesReportWorkflow(
   const totalPages = useCategorySalesReportStore((state) => state.totalPages);
   const loadReport = useCategorySalesReportStore((state) => state.load);
   const loadExportData = useCategorySalesReportStore((state) => state.loadExportData);
-  const showToast = useToastStore((state) => state.show);
-  const today = useMemo(() => localDateInputValue(), []);
 
-  const [draftFilters, setDraftFilters] = useState<CategorySalesReportFilters>({
-    branchUuid: user?.branch_uuid ?? "",
-    dateFrom: today,
-    dateTo: today,
-    limit: initialPagination.limit,
-    orderBy: "DESC",
-    paymentMethod: "all"
+  // buildExcelWorkbook ต้องใช้ค่าที่คำนวณจากผลลัพธ์ของฮุกนี้เอง (activeBranchLabel/labelOverrides/
+  // reportTitle ฯลฯ) — อ้างตรงๆ ในตัว config ไม่ได้เพราะ TS อนุมาน type ของ "report" แบบวนกลับเข้า
+  // ตัวเองไม่ได้ (runtime ปลอดภัยเพราะ closure ถูกเรียกทีหลังเสมอ) จึงพักค่าไว้ใน ref แล้วอัปเดตผ่าน effect
+  const excelContextRef = useRef({
+    activeBranchLabel: "",
+    activePaymentMethodLabel: "",
+    dateFrom: "",
+    dateTo: "",
+    labelOverrides: {} as { sum_servicecharge?: string; sum_vate?: string },
+    reportTitle: ""
   });
-  const [appliedFilters, setAppliedFilters] = useState<CategorySalesReportFilters>(draftFilters);
-  const [exporting, setExporting] = useState<CategorySalesExportAction | null>(null);
-  const [exportData, setExportData] = useState<CategorySalesExportData | null>(null);
-  const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
-  const { changeLimit, page, setPage } = useUrlPagination({ initialPagination });
-  const rowSelection = useReportRowSelection({
+
+  const report = useStandardReportWorkflow<
+    CategorySalesReportFilters,
+    (typeof rows)[number],
+    Parameters<typeof loadReport>[0],
+    Parameters<typeof loadExportData>[0],
+    CategorySalesExportData
+  >({
+    buildInitialFilters: ({ today, userBranchUuid, initialPagination: pagination }) => ({
+      branchUuid: userBranchUuid,
+      dateFrom: today,
+      dateTo: today,
+      limit: pagination.limit,
+      orderBy: "DESC",
+      paymentMethod: "all"
+    }),
+    initialPagination,
+    error,
     getRowId: categorySalesRowId,
-    rows
+    loading,
+    rows,
+    total,
+    totalPages,
+    // ต่างจากรายงานอื่น: นับจำนวนกลุ่มที่เห็นจริงต่อหน้า ไม่ใช่จำนวนแถวสินค้า
+    visibleRowCount: groups.length,
+    buildLoadParams: ({ branchUuid, filters, language, page }) => ({
+      branch_uuid_fk: branchUuid,
+      date_from: filters.dateFrom,
+      date_to: filters.dateTo,
+      lang: language,
+      limit: filters.limit,
+      orderBy: filters.orderBy,
+      page,
+      payment_method: filters.paymentMethod
+    }),
+    load: loadReport,
+    loadFailedTitle: t("report.categorySales.loadFailed"),
+    exportReportRef,
+    buildExportParams: ({ branchUuid, filters, language }) => ({
+      branch_uuid_fk: branchUuid,
+      date_from: filters.dateFrom,
+      date_to: filters.dateTo,
+      lang: language,
+      orderBy: filters.orderBy,
+      payment_method: filters.paymentMethod
+    }),
+    loadExportData,
+    applySelection: (data, selection) => {
+      if (!selection.selectedCount) return data;
+
+      const selectedRows = data.rows.filter((row) =>
+        selection.selectedRowIds.has(categorySalesRowId(row))
+      );
+
+      return {
+        ...data,
+        groups: categorySalesGroupsFromRows(data.groups, selectedRows),
+        rows: selectedRows,
+        summary: categorySalesSummaryFromRows(selectedRows)
+      };
+    },
+    fileBaseName: categorySalesFileBaseName,
+    buildExcelWorkbook: (XLSX, data) => {
+      const context = excelContextRef.current;
+      return createSingleSheetReportWorkbook(
+        XLSX,
+        [
+          {
+            title: t("report.excel.reportInformation"),
+            rows: exportInfoRows(t, {
+              branchLabel: context.activeBranchLabel,
+              dateFrom: context.dateFrom,
+              dateTo: context.dateTo,
+              paymentMethodLabel: context.activePaymentMethodLabel
+            })
+          },
+          ...(summaryVisible
+            ? [
+                {
+                  title: t("report.summary"),
+                  rows: exportSummaryRows(data.summary, t, context.labelOverrides)
+                }
+              ]
+            : []),
+          categorySalesGroupedSection(data.groups, data.summary, t, context.labelOverrides)
+        ],
+        officialReportExcelLayout(t, data.reportName || context.reportTitle)
+      );
+    }
   });
 
-  const storeUuid = authStoreUuid(user);
-  const userBranchUuid = user?.branch_uuid ?? "";
-  const canSelectBranch = Number(user?.status ?? 0) === 1;
-  const branchOptions = useMemo(() => {
-    const storeBranches = branchStoreUuid === storeUuid ? branches : [];
-    const options = storeBranches
-      .map((branch) => branchOptionFromRow(branch, language))
-      .filter((option): option is NonNullable<typeof option> => Boolean(option));
-
-    if (userBranchUuid && !options.some((option) => option.value === userBranchUuid)) {
-      options.unshift({ value: userBranchUuid, label: user?.branch_name || userBranchUuid });
-    }
-
-    if (canSelectBranch) return options;
-
-    const lockedOptions = options.filter((option) => option.value === userBranchUuid);
-    return lockedOptions.length || !userBranchUuid
-      ? lockedOptions
-      : [{ value: userBranchUuid, label: user?.branch_name || userBranchUuid }];
-  }, [branches, branchStoreUuid, canSelectBranch, language, storeUuid, user?.branch_name, userBranchUuid]);
-  const branchOptionValues = useMemo(() => new Set(branchOptions.map((option) => option.value)), [branchOptions]);
-  const branchStoreSelectedUuid = branchStoreUuid === storeUuid ? selectedBranchUuid : "";
-  const defaultBranchUuid = useMemo(() => {
-    if (!canSelectBranch) return userBranchUuid;
-    if (branchStoreSelectedUuid && (!branchOptionValues.size || branchOptionValues.has(branchStoreSelectedUuid))) {
-      return branchStoreSelectedUuid;
-    }
-    if (userBranchUuid && (!branchOptionValues.size || branchOptionValues.has(userBranchUuid))) return userBranchUuid;
-    return branchOptions[0]?.value ?? userBranchUuid;
-  }, [branchOptionValues, branchOptions, branchStoreSelectedUuid, canSelectBranch, userBranchUuid]);
-  const branchUuid = appliedFilters.branchUuid || defaultBranchUuid;
-  const activeBranchLabel = selectedBranchLabel(branchOptions, branchUuid, user?.branch_name || branchUuid || "-");
   const methodOptions = paymentMethodFallbackOptions(t);
-  const activePaymentMethodLabel = selectedPaymentMethodLabel(appliedFilters.paymentMethod, t);
+  const activePaymentMethodLabel = selectedPaymentMethodLabel(methodOptions, report.appliedFilters.paymentMethod, t);
+  const activeBranchLabel = report.branchLabelFor(report.branchUuid);
   const reportTitle = reportName || t("report.categorySales.title");
-  const visibleCount = groups.length;
-  const activePageLimit = pageLimitSize(appliedFilters.limit, visibleCount);
-  const pageStart = total ? (page - 1) * activePageLimit + 1 : 0;
-  const pageEnd = total ? Math.min((page - 1) * activePageLimit + visibleCount, total) : 0;
-  const canGoBack = page > 1 && !loading;
-  const canGoNext = page < totalPages && !loading;
-  const canApply = Boolean(draftFilters.branchUuid || defaultBranchUuid);
-  const exportDisabled = loading || Boolean(exporting) || !branchUuid || !rows.length;
+  const renderedExportData = report.exportData ?? { ...emptyExportData(), groups, reportName, rows, summary };
+
   const serviceChargePercent = selectedBranch?.charge_status === 1 ? Number(selectedBranch.charge_name) : NaN;
   const vatPercent = selectedBranch?.vat_status === 1 ? Number(selectedBranch.vat_name) : NaN;
   const serviceChargePercentLabel = Number.isFinite(serviceChargePercent)
@@ -143,268 +170,29 @@ export function useCategorySalesReportWorkflow(
     sum_vate: vatLabel
   } as const;
 
-  const renderedExportData = exportData ?? { ...emptyExportData(), groups, reportName, rows, summary };
-  const paginationRangeLabel = t("common.showingRange", { start: pageStart, end: pageEnd, total });
-
-  const normalizeBranchFilters = useCallback(
-    (filters: CategorySalesReportFilters) => {
-      if (!defaultBranchUuid) return filters;
-
-      if (!canSelectBranch) {
-        return filters.branchUuid === defaultBranchUuid ? filters : { ...filters, branchUuid: defaultBranchUuid };
-      }
-
-      if (filters.branchUuid && (!branchOptionValues.size || branchOptionValues.has(filters.branchUuid))) return filters;
-      return { ...filters, branchUuid: defaultBranchUuid };
-    },
-    [branchOptionValues, canSelectBranch, defaultBranchUuid]
-  );
-
+  // ห้ามเขียน ref ระหว่าง render (react-hooks/refs) — อัปเดตผ่าน effect แทน ยังปลอดภัยเพราะ
+  // buildExcelWorkbook ถูกเรียกจากปุ่ม export เท่านั้น ซึ่งเกิดหลัง effect นี้รันเสมอ
   useEffect(() => {
-    if (!storeUuid) return;
-    void loadBranches(storeUuid, userBranchUuid).catch(() => undefined);
-  }, [loadBranches, storeUuid, userBranchUuid]);
-
-  useEffect(() => {
-    setDraftFilters((current) => normalizeBranchFilters(current));
-    setAppliedFilters((current) => normalizeBranchFilters(current));
-  }, [normalizeBranchFilters]);
-
-  const load = useCallback(async () => {
-    if (!branchUuid) return;
-
-    try {
-      await loadReport({
-        branch_uuid_fk: branchUuid,
-        date_from: appliedFilters.dateFrom,
-        date_to: appliedFilters.dateTo,
-        lang: language,
-        limit: appliedFilters.limit,
-        orderBy: appliedFilters.orderBy,
-        page,
-        payment_method: appliedFilters.paymentMethod
-      });
-    } catch (error) {
-      showToast({
-        title: t("report.categorySales.loadFailed"),
-        description: error instanceof Error ? error.message : "",
-        tone: "error"
-      });
-    }
-  }, [appliedFilters, branchUuid, language, loadReport, page, showToast, t]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  function applyFilters() {
-    const nextFilters = normalizeBranchFilters(draftFilters);
-    if (nextFilters.branchUuid) setSelectedBranch(nextFilters.branchUuid);
-    setDraftFilters(nextFilters);
-    setAppliedFilters(nextFilters);
-    changeLimit(nextFilters.limit);
-  }
-
-  function openMobileFilters() {
-    setDraftFilters({ ...appliedFilters });
-    setMobileFilterOpen(true);
-  }
-
-  function handleMobileFilterOpenChange(open: boolean) {
-    setMobileFilterOpen(open);
-    if (!open) setDraftFilters({ ...appliedFilters });
-  }
-
-  function applyMobileFilters() {
-    const nextFilters = normalizeBranchFilters(draftFilters);
-    if (nextFilters.branchUuid) setSelectedBranch(nextFilters.branchUuid);
-    setDraftFilters(nextFilters);
-    setAppliedFilters(nextFilters);
-    changeLimit(nextFilters.limit);
-    setMobileFilterOpen(false);
-  }
-
-  const fetchExportData = useCallback(async (): Promise<CategorySalesExportData> => {
-    if (!branchUuid) throw new Error(t("report.branchRequired"));
-
-    return loadExportData({
-        branch_uuid_fk: branchUuid,
-        date_from: appliedFilters.dateFrom,
-        date_to: appliedFilters.dateTo,
-        lang: language,
-        orderBy: appliedFilters.orderBy,
-        payment_method: appliedFilters.paymentMethod
-      });
-  }, [appliedFilters, branchUuid, language, loadExportData, t]);
-
-  const selectedExportData = useCallback(
-    (data: CategorySalesExportData): CategorySalesExportData => {
-      if (!rowSelection.selectedCount) return data;
-
-      const selectedRows = data.rows.filter((row) =>
-        rowSelection.selectedRowIds.has(categorySalesRowId(row))
-      );
-
-      return {
-        ...data,
-        groups: categorySalesGroupsFromRows(data.groups, selectedRows),
-        rows: selectedRows,
-        summary: categorySalesSummaryFromRows(selectedRows)
-      };
-    },
-    [rowSelection.selectedCount, rowSelection.selectedRowIds]
-  );
-
-  async function exportExcel() {
-    if (exportDisabled) return;
-    setExporting("excel");
-    try {
-      const data = selectedExportData(await fetchExportData());
-      const XLSX = await import("xlsx-js-style");
-      const workbook = createSingleSheetReportWorkbook(
-        XLSX,
-        [
-          {
-            title: t("report.excel.reportInformation"),
-            rows: exportInfoRows(t, {
-              branchLabel: activeBranchLabel,
-              dateFrom: appliedFilters.dateFrom,
-              dateTo: appliedFilters.dateTo,
-              paymentMethodLabel: activePaymentMethodLabel
-            })
-          },
-          ...(summaryVisible
-            ? [
-                {
-                  title: t("report.summary"),
-                  rows: exportSummaryRows(data.summary, t, labelOverrides)
-                }
-              ]
-            : []),
-          categorySalesGroupedSection(data.groups, data.summary, t, labelOverrides)
-        ],
-        officialReportExcelLayout(t, data.reportName || reportTitle)
-      );
-      XLSX.writeFile(workbook, `${categorySalesFileBaseName(appliedFilters)}.xlsx`);
-      showToast({
-        title: t("report.exportReady"),
-        description: t("report.exportedRows", { count: data.rows.length }),
-        tone: "success"
-      });
-    } catch (error) {
-      showToast({
-        title: t("report.exportFailed"),
-        description: error instanceof Error ? error.message : "",
-        tone: "error"
-      });
-    } finally {
-      setExporting(null);
-    }
-  }
-
-  async function exportPdf() {
-    if (exportDisabled) return;
-    setExporting("pdf");
-    try {
-      const data = selectedExportData(await fetchExportData());
-      setExportData(data);
-      await waitForPaint();
-
-      const element = exportReportRef.current;
-      if (!element) throw new Error(t("report.exportFailed"));
-
-      const [{ jsPDF }, html2canvasModule] = await Promise.all([import("jspdf"), import("html2canvas")]);
-      const canvas = await html2canvasModule.default(element, {
-        backgroundColor: "#ffffff",
-        scale: Math.min(2, window.devicePixelRatio || 1.5),
-        useCORS: true,
-        windowHeight: element.scrollHeight,
-        windowWidth: element.scrollWidth
-      });
-      const pdf = new jsPDF({ format: "a4", orientation: "landscape", unit: "pt" });
-      addReportCanvasToPdfPages(pdf, canvas, element);
-
-      pdf.save(`${categorySalesFileBaseName(appliedFilters)}.pdf`);
-      showToast({
-        title: t("report.exportReady"),
-        description: t("report.exportedRows", { count: data.rows.length }),
-        tone: "success"
-      });
-    } catch (error) {
-      showToast({
-        title: t("report.exportFailed"),
-        description: error instanceof Error ? error.message : "",
-        tone: "error"
-      });
-    } finally {
-      setExporting(null);
-      setExportData(null);
-    }
-  }
-
-  async function printReport() {
-    if (exportDisabled) return;
-    setExporting("print");
-    try {
-      const data = selectedExportData(await fetchExportData());
-      setExportData(data);
-      await waitForPaint();
-      window.print();
-      showToast({
-        title: t("report.exportReady"),
-        description: t("report.exportedRows", { count: data.rows.length }),
-        tone: "success"
-      });
-    } catch (error) {
-      showToast({
-        title: t("report.printFailed"),
-        description: error instanceof Error ? error.message : "",
-        tone: "error"
-      });
-    } finally {
-      setExporting(null);
-      setExportData(null);
-    }
-  }
+    excelContextRef.current = {
+      activeBranchLabel,
+      activePaymentMethodLabel,
+      dateFrom: report.appliedFilters.dateFrom,
+      dateTo: report.appliedFilters.dateTo,
+      labelOverrides,
+      reportTitle
+    };
+  });
 
   return {
+    ...report,
     activeBranchLabel,
     activePaymentMethodLabel,
-    appliedFilters,
-    branchError,
-    branchLoading,
-    branchOptions,
-    branchUuid,
-    canApply,
-    canGoBack,
-    canGoNext,
-    canSelectBranch,
-    draftFilters,
-    error,
-    exportDisabled,
-    exportExcel,
-    exportPdf,
-    exporting,
     groups,
-    handleMobileFilterOpenChange,
     labelOverrides,
-    load,
-    loading,
     methodOptions,
-    mobileFilterOpen,
-    openMobileFilters,
-    page,
-    paginationRangeLabel,
-    printReport,
     renderedExportData,
     reportTitle,
     rows,
-    rowSelection,
-    setDraftFilters,
-    setPage,
-    summary,
-    totalPages,
-    applyFilters,
-    applyMobileFilters
+    summary
   };
 }

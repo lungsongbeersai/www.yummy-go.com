@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
-import { Check, Minus, Plus, X } from "lucide-react";
+import { useState, type ReactNode } from "react";
+import { useResetOnChange } from "@/hooks/use-reset-on-change";
+import { AlertCircle, Check, Minus, Plus, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { Alert, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -220,7 +222,7 @@ export function ProductOptionsForm({
         <fieldset disabled={saving} className="contents">
           <div className="flex flex-col gap-3 sm:gap-4">
             <ProductDetailSummary
-              detailLabel={setMode ? null : selectedDetail.size_name}
+              detailLabel={setMode ? null : selectedDetail.sizeName}
               media={media}
               modeLabel={modeLabel}
               unitPrice={modalUnitPrice}
@@ -238,8 +240,8 @@ export function ProductOptionsForm({
                       const price = productPriceFromDetail(detail);
                       return (
                         <SetProductRow
-                          key={detail.pro_detail_uuid}
-                          label={detail.size_name || t("pos.product")}
+                          key={detail.proDetailUuid}
+                          label={detail.sizeName || t("pos.product")}
                           price={
                             price > 0
                               ? money(price)
@@ -259,29 +261,29 @@ export function ProductOptionsForm({
                     meta={t("pos.sizeCount", { count: details.length })}
                   />
                   <RadioGroup
-                    value={selectedDetail.pro_detail_uuid}
+                    value={selectedDetail.proDetailUuid}
                     onValueChange={(uuid) => {
                       const detail = details.find(
-                        (option) => option.pro_detail_uuid === uuid,
+                        (option) => option.proDetailUuid === uuid,
                       );
                       if (detail) onDetailChange(detail);
                     }}
                   >
                     {details.map((detail) => {
-                      const id = `staff-product-size-${detail.pro_detail_uuid}`;
+                      const id = `staff-product-size-${detail.proDetailUuid}`;
                       return (
                         <FieldLabel
-                          key={detail.pro_detail_uuid}
+                          key={detail.proDetailUuid}
                           htmlFor={id}
                           className="min-h-12 w-full cursor-pointer items-center rounded-lg border border-border bg-card px-3 py-2 text-foreground shadow-xs transition-colors hover:border-primary/40 hover:bg-primary/5 has-data-[state=checked]:border-primary has-data-[state=checked]:bg-primary/10 has-data-[state=checked]:text-primary"
                         >
                           <RadioGroupItem
                             id={id}
-                            value={detail.pro_detail_uuid}
+                            value={detail.proDetailUuid}
                             className="size-5"
                           />
                           <span className="min-w-0 flex-1 truncate text-sm font-black">
-                            {detail.size_name || t("pos.size")}
+                            {detail.sizeName || t("pos.size")}
                           </span>
                           <span className="shrink-0 text-sm font-black tabular-nums">
                             {money(productPriceFromDetail(detail))}
@@ -371,13 +373,14 @@ export function ProductOptionsForm({
             </FieldGroup>
 
             {submitIssue ? (
-              <p
+              <Alert
                 id="product-options-error"
-                role="alert"
-                className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm font-bold text-destructive"
+                variant="destructive"
+                className="bg-destructive/5"
               >
-                {submitIssue}
-              </p>
+                <AlertCircle aria-hidden="true" />
+                <AlertTitle className="line-clamp-none">{submitIssue}</AlertTitle>
+              </Alert>
             ) : null}
           </div>
         </fieldset>
@@ -561,9 +564,8 @@ function QuantityControl({
   const { t } = useTranslation();
   const [draft, setDraft] = useState(String(qty));
 
-  useEffect(() => {
-    setDraft(String(qty));
-  }, [qty]);
+  // จำนวนถูกแก้จากที่อื่น (ปุ่ม +/-) = ให้ช่องกรอกตามค่าใหม่
+  useResetOnChange(qty, () => setDraft(String(qty)));
 
   function draftNumber() {
     const parsed = Number(draft);

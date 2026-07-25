@@ -1,3 +1,4 @@
+import { firstNumber } from "@/lib/values";
 import { pageLimitNumber } from "@/lib/pagination";
 import type {
   CancelableBill,
@@ -45,15 +46,6 @@ function asRecords<T extends ApiEntity>(value: unknown): T[] {
 
 function asRecord<T extends ApiEntity>(value: unknown): T | null {
   return isRecord(value) ? value as T : null;
-}
-
-function firstNumber(...values: unknown[]) {
-  for (const value of values) {
-    if (value === null || value === undefined || value === "") continue;
-    const number = Number(value);
-    if (Number.isFinite(number)) return number;
-  }
-  return null;
 }
 
 function numberValue(value: unknown) {

@@ -1,5 +1,6 @@
 "use client";
 
+import type { Route } from "next";
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
@@ -11,7 +12,7 @@ import { LandingLangSwitch } from "./landing-lang-switch";
 interface LandingHeaderProps {
   language: Language;
   onSetLanguage: (language: Language) => void;
-  loginHref: string;
+  loginHref: Route;
 }
 
 export function LandingHeader({

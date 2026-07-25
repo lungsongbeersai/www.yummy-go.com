@@ -2,13 +2,14 @@
 
 import Image from "next/image";
 import { useEffect, useState } from "react";
+import { useResetOnChange } from "@/hooks/use-reset-on-change";
 import { ImageIcon, Utensils } from "lucide-react";
 import { ProductImageStatus } from "@/config/pos-constants";
 import type { CateProductItem, ProdItem } from "@/services/pos";
 import type { CartFlyAnimationState } from "@/features/public-pos/order/types";
+import { prefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
 import {
   isHexColor,
-  prefersReducedMotion,
   productImageUrl,
 } from "@/features/public-pos/order/utils";
 
@@ -47,13 +48,16 @@ function CartFlyAnimationItem({
   const [active, setActive] = useState(false);
   const reduceMotion = prefersReducedMotion();
 
+  // เริ่มแอนิเมชันชิ้นใหม่ = กลับไปสถานะตั้งต้นก่อน เพื่อให้ transition เล่นซ้ำได้
+  // (ต้องเป็น false ก่อนแล้วค่อย true ในเฟรมถัดไป CSS transition จึงจะทำงาน)
+  useResetOnChange(animation.id, () => setActive(false));
+
   useEffect(() => {
     if (reduceMotion) {
       const frame = window.requestAnimationFrame(() => onDone(animation.id));
       return () => window.cancelAnimationFrame(frame);
     }
 
-    setActive(false);
     const frame = window.requestAnimationFrame(() => setActive(true));
     const timer = window.setTimeout(() => onDone(animation.id), 680);
 
@@ -98,9 +102,9 @@ function CartFlyAnimationItem({
 
 function FlyProductMedia({ product }: { product: CateProductItem | ProdItem }) {
   const imageUrl = productImageUrl(product);
-  const colorCandidate = product.prod_color || product.prod_image;
+  const colorCandidate = product.prodColor || product.prodImage;
   const colorSwatch =
-    product.prod_status_imge === ProductImageStatus.COLOR &&
+    product.prodStatusImge === ProductImageStatus.COLOR &&
     isHexColor(colorCandidate)
       ? colorCandidate
       : "";

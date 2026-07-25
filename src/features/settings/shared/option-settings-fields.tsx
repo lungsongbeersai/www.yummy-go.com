@@ -1,6 +1,7 @@
 "use client";
 
-import { useDeferredValue, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { useDeferredValue, useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { useResetOnChange, useResetOnDeps } from "@/hooks/use-reset-on-change";
 import { Check, CircleSlash2, Search, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
@@ -60,6 +61,20 @@ export interface OptionColumn<Row extends ApiEntity> {
   render?: (row: Row) => ReactNode;
 }
 
+// ค่าตั้งต้นของทุก select ที่อ่านจากเรคคอร์ดที่กำลังแก้ไข (fallback -> ตัวเลือกแรก)
+function initialSelectValues<Row extends ApiEntity>(fields: OptionField<Row>[], editing: Row | null) {
+  const values: Record<string, string> = {};
+  fields.forEach((field) => {
+    if (field.type !== "select") return;
+    values[field.name] = optionValue(
+      editing,
+      field.name,
+      optionValue(editing, field.fallbackKey ?? "", field.options?.[0]?.value ?? "")
+    );
+  });
+  return values;
+}
+
 export function colorStyle(color: string): CSSProperties | undefined {
   const trimmed = color.trim();
   return HEX_COLOR.test(trimmed) ? { backgroundColor: trimmed } : undefined;
@@ -108,9 +123,7 @@ function ColorCodeInput({
   const [code, setCode] = useState(defaultValue);
   const { t } = useTranslation();
 
-  useEffect(() => {
-    setCode(defaultValue);
-  }, [defaultValue]);
+  useResetOnChange(defaultValue, () => setCode(defaultValue));
 
   return (
     <div className="flex min-w-0 flex-col gap-3">
@@ -195,11 +208,12 @@ function FlagPicker({
     return groupOptions.filter((option) => option.searchText.includes(query));
   }, [deferredSearch, groupOptions]);
 
-  useEffect(() => {
+  // options ถูก memo จาก [defaultValue, language] จึงเปลี่ยนทุกครั้งที่ defaultValue เปลี่ยน
+  useResetOnDeps([defaultValue, options], () => {
     setCode(defaultValue.trim().toUpperCase() || options[0]?.code || "");
     setActiveGroup("all");
     setSearch("");
-  }, [defaultValue, options]);
+  });
 
   return (
     <div className="flex min-w-0 flex-col gap-3">
@@ -325,17 +339,12 @@ export function OptionFormFields<Row extends ApiEntity>({
   slug: string;
   title: string;
 }) {
-  const [selectValues, setSelectValues] = useState<Record<string, string>>({});
+  const [selectValues, setSelectValues] = useState<Record<string, string>>(() =>
+    initialSelectValues(fields, editing)
+  );
 
-  useEffect(() => {
-    const nextValues: Record<string, string> = {};
-    fields.forEach((field) => {
-      if (field.type === "select") {
-        nextValues[field.name] = optionValue(editing, field.name, optionValue(editing, field.fallbackKey ?? "", field.options?.[0]?.value ?? ""));
-      }
-    });
-    setSelectValues(nextValues);
-  }, [editing, fields]);
+  // สลับเรคคอร์ดที่แก้ไข (หรือชุด field เปลี่ยน) = โหลดค่าตั้งต้นของ select ใหม่
+  useResetOnDeps([editing, fields], () => setSelectValues(initialSelectValues(fields, editing)));
 
   return (
     <FieldGroup>

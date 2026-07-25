@@ -71,7 +71,7 @@ export const ProductCategorySection = memo(function ProductCategorySection({
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const loadingVisible = loading || jumping;
   const priorityProductUuid = priorityFirstImage
-    ? (products.find((product) => hasRemoteProductImage(product))?.prod_uuid ??
+    ? (products.find((product) => hasRemoteProductImage(product))?.prodUuid ??
       "")
     : "";
 
@@ -90,7 +90,7 @@ export const ProductCategorySection = memo(function ProductCategorySection({
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries.some((entry) => entry.isIntersecting)) {
-          onRevealMore(category.cate_uuid);
+          onRevealMore(category.cateUuid);
         }
       },
       { rootMargin: "180px 0px 220px 0px", threshold: 0 },
@@ -99,7 +99,7 @@ export const ProductCategorySection = memo(function ProductCategorySection({
     observer.observe(element);
     return () => observer.disconnect();
   }, [
-    category.cate_uuid,
+    category.cateUuid,
     collapsed,
     onRevealMore,
     products.length,
@@ -113,7 +113,7 @@ export const ProductCategorySection = memo(function ProductCategorySection({
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries.some((entry) => entry.isIntersecting)) {
-          onEnsureLoad(category.cate_uuid);
+          onEnsureLoad(category.cateUuid);
         }
       },
       { rootMargin: "260px 0px 420px 0px", threshold: 0 },
@@ -121,30 +121,30 @@ export const ProductCategorySection = memo(function ProductCategorySection({
 
     observer.observe(element);
     return () => observer.disconnect();
-  }, [category.cate_uuid, collapsed, jumping, loaded, loading, onEnsureLoad]);
+  }, [category.cateUuid, collapsed, jumping, loaded, loading, onEnsureLoad]);
 
   return (
     <section
       ref={setSectionRef}
-      id={`public-pos-cate-${category.cate_uuid}`}
-      data-cate-uuid={category.cate_uuid}
+      id={`public-pos-cate-${category.cateUuid}`}
+      data-cate-uuid={category.cateUuid}
       className="mt-7 scroll-mt-36 first:mt-0 sm:mt-8 [contain-intrinsic-size:720px] [content-visibility:auto]"
     >
       <div className="mb-2 flex min-w-0 items-center gap-2">
         <span className="grid size-8 shrink-0 place-items-center rounded-full border border-primary/10 bg-primary/10 text-primary shadow-sm shadow-emerald-950/5">
-          <PublicCategoryIcon icon={category.cate_icon} className="size-5" />
+          <PublicCategoryIcon icon={category.cateIcon} className="size-5" />
         </span>
         <h2 className="min-w-0 flex-1 truncate text-base font-black leading-6">
-          {category.cate_name}
+          {category.cateName}
         </h2>
         <Button
           type="button"
           variant="ghost"
           size="icon"
           className="size-11 shrink-0 rounded-full text-muted-foreground hover:bg-primary/10 hover:text-primary"
-          aria-label={category.cate_name}
+          aria-label={category.cateName}
           aria-expanded={!collapsed}
-          onClick={() => onToggleCollapse(category.cate_uuid)}
+          onClick={() => onToggleCollapse(category.cateUuid)}
         >
           {collapsed ? (
             <ChevronDown className="size-4" />
@@ -166,13 +166,13 @@ export const ProductCategorySection = memo(function ProductCategorySection({
         >
           {products.map((product) => (
             <ProductCard
-              key={product.prod_uuid}
+              key={product.prodUuid}
               product={product}
-              cateUuid={category.cate_uuid}
+              cateUuid={category.cateUuid}
               statusKind={statusKind}
               lang={lang}
-              loading={loadingProductUuid === product.prod_uuid}
-              imagePriority={product.prod_uuid === priorityProductUuid}
+              loading={loadingProductUuid === product.prodUuid}
+              imagePreload={product.prodUuid === priorityProductUuid}
               variant={layoutMode}
               onProductClick={onProductClick}
             />

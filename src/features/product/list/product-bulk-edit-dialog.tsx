@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useResetOnChange } from "@/hooks/use-reset-on-change";
 import { Boxes, Bell, CheckCircle2, Save } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -43,12 +44,13 @@ export function ProductBulkEditDialog({ workflow }: ProductBulkEditDialogProps) 
   const disabledDetailFields = workflow.selectedDetailCount === 0;
   const input: ProductBulkEditInput = { notification, enabled, stockMode };
 
-  useEffect(() => {
+  // เปิด dialog ใหม่ = เริ่มจากค่า "คงเดิม" ทุกช่องเสมอ
+  useResetOnChange(workflow.bulkEditOpen, () => {
     if (!workflow.bulkEditOpen) return;
     setNotification(KEEP_VALUE);
     setEnabled(KEEP_VALUE);
     setStockMode(KEEP_VALUE);
-  }, [workflow.bulkEditOpen]);
+  });
 
   return (
     <Dialog open={workflow.bulkEditOpen} onOpenChange={workflow.setBulkEditOpen}>

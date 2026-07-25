@@ -1,22 +1,21 @@
-import { SalesListPage } from "@/features/sales/list/sales-list-page";
-import { INITIAL_DATE_SELECT, SALES_LIST_LIMIT_OPTIONS } from "@/features/sales/list/sales-list-utils";
-import { parseUrlPagination, type UrlSearchParamsRecord } from "@/lib/url-pagination";
+import type { Metadata } from "next";
+import { CancelSalePage } from "@/features/sales/cancel-sale/cancel-sale-page";
+import { INITIAL_DATE_SELECT, SALES_LIST_LIMIT_OPTIONS } from "@/features/sales/cancel-sale/cancel-sale-utils";
+import { firstUrlParam, parseUrlPagination } from "@/lib/url-pagination";
 
-type SearchParams = Promise<UrlSearchParamsRecord>;
+export const metadata: Metadata = {
+  title: "ຍົກເລີກການຂາຍ",
+};
 
-export default async function Page({ searchParams }: { searchParams: SearchParams }) {
-  const params = await searchParams;
-  const dateSelect = firstParam(params.date_select) === "yesterday" ? "yesterday" : INITIAL_DATE_SELECT;
+export default async function Page(props: PageProps<"/sales/cancel-sale">) {
+  const params = await props.searchParams;
+  const dateSelect = firstUrlParam(params.date_select) === "yesterday" ? "yesterday" : INITIAL_DATE_SELECT;
 
   return (
-    <SalesListPage
+    <CancelSalePage
       initialDateSelect={dateSelect}
-      initialOrderUuid={firstParam(params.order_uuid).trim()}
+      initialOrderUuid={firstUrlParam(params.order_uuid).trim()}
       initialPagination={parseUrlPagination(params, { limitOptions: SALES_LIST_LIMIT_OPTIONS })}
     />
   );
-}
-
-function firstParam(value: string | string[] | undefined) {
-  return Array.isArray(value) ? value[0] ?? "" : value ?? "";
 }

@@ -53,6 +53,7 @@ import {
   visibleCartItems,
 } from "../utils";
 import { useCustomerDisplayWorkflow } from "./use-customer-display-workflow";
+import { useResetOnChange, useResetOnDeps } from "@/hooks/use-reset-on-change";
 
 type CartPanelData = CartOrder | CartOrder[] | null;
 
@@ -125,7 +126,7 @@ export function useSelectedTableCartPanelWorkflow({
             print_mode: undefined,
           }
         : null,
-    [printerAgent?.agent_id, printerAgent?.agent_name, printerAgent?.device_code],
+    [printerAgent],
   );
   const activePrinterContext = printerContext ?? resolvedPrinterContext;
   const historyItems = useMemo(
@@ -323,7 +324,10 @@ export function useSelectedTableCartPanelWorkflow({
     );
   }, [hasSelectedTable, newOrderFocusKey]);
 
-  useEffect(() => {
+  // เปลี่ยนโต๊ะ = ทิ้ง dialog / ค่าดราฟต์ / รายการที่เลือกของโต๊ะเดิมทั้งหมด
+  // ทำระหว่าง render แทน effect เพื่อไม่ให้ commit เฟรมที่ยังถือ state ของโต๊ะเก่า
+  // (เฟรมนั้นจะดัน payload ของโต๊ะเก่าออกจอลูกค้าไปหนึ่งครั้งก่อนถูกล้าง)
+  useResetOnChange(tableUuid, () => {
     setItemActionTarget(null);
     setActingItemUuid(null);
     setNoteTarget(null);
@@ -338,17 +342,21 @@ export function useSelectedTableCartPanelWorkflow({
     setPaymentContext(null);
     setSplitSelectedItemUuids(new Set());
     setConfirmAllProgress(null);
-  }, [tableUuid]);
+  });
 
-  useEffect(() => {
+  // ออกจากแท็บประวัติ = ทิ้งรายการที่ติ๊กไว้สำหรับแยกบิล เพราะเลือกได้เฉพาะแท็บประวัติ
+  useResetOnChange(activeTab, () => {
     if (activeTab === "history") return;
 
     setSplitSelectedItemUuids((current) =>
       current.size ? new Set() : current,
     );
-  }, [activeTab]);
+  });
 
-  useEffect(() => {
+  // ล้างรายการชำระเงินที่ค้างไว้ทันทีที่มันไม่ตรงกับโต๊ะ/ออเดอร์ปัจจุบันแล้ว
+  // ตรวจระหว่าง render เพื่อไม่ให้มีเฟรมที่หน้าจ่ายเงินยังอ้างออเดอร์ผิดโต๊ะ
+  // ลู่เข้าเสมอ: หลัง setPaymentContext(null) รอบถัดไปจะ return ตั้งแต่บรรทัดแรก
+  useResetOnDeps([paymentContext, selectedTable], () => {
     if (!paymentContext || !selectedTable) return;
     if (
       paymentContext.tableUuid === selectedTable.table_uuid &&
@@ -357,14 +365,16 @@ export function useSelectedTableCartPanelWorkflow({
       return;
 
     setPaymentContext(null);
-  }, [paymentContext, selectedTable]);
+  });
 
-  useEffect(() => {
+  // ตัดรายการที่ติ๊กไว้แต่หลุดจากบิลไปแล้วออก — pruneSelectedItemUuids คืน Set เดิม
+  // ถ้าไม่มีอะไรเปลี่ยน จึงไม่เกิด render ซ้ำโดยไม่จำเป็น
+  useResetOnChange(splitEligibleItems, () => {
     const eligibleUuids = splitEligibleItems.map(cartItemActionUuid);
     setSplitSelectedItemUuids((current) =>
       pruneSelectedItemUuids(current, eligibleUuids),
     );
-  }, [splitEligibleItems]);
+  });
 
   async function changeCartItemQty(item: CartItem, change: 1 | -1) {
     const itemUuid = cartItemUuid(item);
@@ -823,7 +833,7 @@ export function useSelectedTableCartPanelWorkflow({
       table_name: selectedTable.table_name,
     });
 
-    router.replace(`/sale/order-customer?${params.toString()}`);
+    router.replace(`/pos/order?${params.toString()}`);
   }
 
   function openTableActions() {

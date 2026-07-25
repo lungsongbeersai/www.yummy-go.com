@@ -1,18 +1,12 @@
-import { money } from "@/lib/format";
-import {
-  PAYMENT_METHOD_REPORT_FILTER_OPTIONS,
-  type PaymentMethodReportFilter,
-} from "@/config/report-filters";
+import { firstNumberOrZero as firstNumber } from "@/lib/values";
 import type { ApiEntity } from "@/services/shared/types";
 import type { CategorySalesGroup, CategorySalesRow } from "@/stores/report-store";
 import type {
-  ReportExcelCellStyle,
   ReportExcelGridRow,
   ReportExcelGridSection
-} from "../report-excel-utils";
+} from "@/lib/export/excel";
 import type {
   CategorySalesMetricKind,
-  CategorySalesOption,
   CategorySalesReportFilters,
   CategorySalesRowMetricConfig
 } from "./category-sales-report-types";
@@ -60,46 +54,9 @@ const summaryMetricDefinitions = [
   { key: "grand_total", kind: "money", labelKey: "report.categorySales.columns.grandTotal" }
 ] as const satisfies readonly SummaryMetricDefinition[];
 
-function isPresent(value: unknown) {
-  return value !== null && value !== undefined && value !== "";
-}
-
-export function firstNumber(value: unknown) {
-  if (!isPresent(value)) return 0;
-  const number = Number(value);
-  return Number.isFinite(number) ? number : 0;
-}
-
-export function formatNumber(value: unknown) {
-  return firstNumber(value).toLocaleString("en-US");
-}
-
-export function localDateInputValue(date = new Date()) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-export function displayMetric(value: unknown, kind: CategorySalesMetricKind) {
-  if (kind === "money") return money(firstNumber(value));
-  if (kind === "percent") return `${firstNumber(value).toLocaleString("en-US", { maximumFractionDigits: 2 })}%`;
-  return formatNumber(value);
-}
-
-export function paymentMethodFallbackOptions(t: (key: string) => string): CategorySalesOption[] {
-  return PAYMENT_METHOD_REPORT_FILTER_OPTIONS.map((value) => ({
-    label: value === "all" ? t("common.all") : t(`report.paymentMethods.${value}`),
-    value
-  }));
-}
-
-export function selectedPaymentMethodLabel(
-  value: PaymentMethodReportFilter,
-  t: (key: string) => string
-) {
-  return paymentMethodFallbackOptions(t).find((option) => option.value === value)?.label ?? t("common.all");
-}
+export { firstNumber };
+export { displayMetric, formatNumber } from "../shared/report-metrics";
+export { paymentMethodFallbackOptions, selectedPaymentMethodLabel } from "../shared/report-payment-method-options";
 
 export function categorySalesRowMetricConfigs(
   t: (key: string) => string,
@@ -128,29 +85,13 @@ export function categorySalesFileBaseName(filters: CategorySalesReportFilters) {
   return `category-sales-${filters.paymentMethod}-${filters.orderBy}-${filters.dateFrom}-to-${filters.dateTo}`;
 }
 
-export function waitForPaint() {
-  return new Promise<void>((resolve) => {
-    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-  });
-}
+export { waitForPaint } from "@/lib/export/paint";
 
-// สไตล์ตาราง Excel แบบจัดกลุ่ม: แถวหัวกลุ่มถือยอดรวมของกลุ่มไว้ในตัว
-const GROUPED_TABLE_HEADER_STYLE = {
-  align: "center",
-  bold: true,
-  fill: "#1F4E78",
-  fontColor: "#FFFFFF"
-} as const satisfies ReportExcelCellStyle;
-
-const GROUP_ROW_STYLE = {
-  bold: true,
-  fill: "#DEE8F4"
-} as const satisfies ReportExcelCellStyle;
-
-const GRAND_TOTAL_ROW_STYLE = {
-  bold: true,
-  fill: "#D9E2F3"
-} as const satisfies ReportExcelCellStyle;
+import {
+  REPORT_GRAND_TOTAL_ROW_STYLE as GRAND_TOTAL_ROW_STYLE,
+  REPORT_GROUP_ROW_STYLE as GROUP_ROW_STYLE,
+  REPORT_TABLE_HEADER_STYLE as GROUPED_TABLE_HEADER_STYLE,
+} from "@/lib/export/excel-styles";
 
 // summary ของ API ไม่มี key discount_total ตรงๆ ต้องรวมส่วนลดรายการ + ส่วนลดบิล
 export function categorySalesSummaryDiscountTotal(summary: ApiEntity) {

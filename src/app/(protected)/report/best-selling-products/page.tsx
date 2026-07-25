@@ -1,10 +1,13 @@
+import type { Metadata } from "next";
 import { BestSellingProductsReportPage } from "@/features/report/best-selling-products/best-selling-products-report-page";
-import { parseUrlPagination, type UrlSearchParamsRecord } from "@/lib/url-pagination";
+import { parseUrlPagination } from "@/lib/url-pagination";
 
-type SearchParams = Promise<UrlSearchParamsRecord>;
+export const metadata: Metadata = {
+  title: "ສິນຄ້າຂາຍດີ",
+};
 
-export default async function Page({ searchParams }: { searchParams: SearchParams }) {
-  const params = await searchParams;
+export default async function Page(props: PageProps<"/report/best-selling-products">) {
+  const params = await props.searchParams;
 
   return <BestSellingProductsReportPage initialPagination={parseUrlPagination(params)} />;
 }

@@ -47,7 +47,6 @@ export function SalesBillListPanel({
               <ReceiptText className="size-4 shrink-0 text-primary" />
               <span className="truncate">{t("salesList.billList")}</span>
             </CardTitle>
-            <p className="mt-0.5 truncate text-xs text-muted-foreground">{rangeLabel}</p>
           </div>
           <div className="ml-auto flex shrink-0 items-baseline justify-end gap-1.5 whitespace-nowrap text-right">
             <span className="text-xs text-muted-foreground">{t("salesList.summary.total")}</span>
@@ -72,7 +71,7 @@ export function SalesBillListPanel({
                 />
               ))}
             </div>
-            <SalesListPagination page={page} totalPages={totalPages} onPageChange={onPageChange} />
+            <SalesListPagination page={page} rangeLabel={rangeLabel} totalPages={totalPages} onPageChange={onPageChange} />
           </>
         ) : (
           <div className="flex min-h-80 items-center justify-center p-4">
@@ -190,15 +189,17 @@ function BillListItem({
 function SalesListPagination({
   onPageChange,
   page,
+  rangeLabel,
   totalPages
 }: {
   onPageChange: (page: number) => void;
   page: number;
+  rangeLabel: string;
   totalPages: number;
 }) {
   return (
     <div className="shrink-0 border-t border-border bg-muted/20 px-3 py-2.5 text-sm text-muted-foreground sm:px-4 sm:py-3">
-      <AppPagination page={page} totalPages={totalPages} onPageChange={onPageChange} />
+      <AppPagination page={page} rangeLabel={rangeLabel} totalPages={totalPages} onPageChange={onPageChange} />
     </div>
   );
 }

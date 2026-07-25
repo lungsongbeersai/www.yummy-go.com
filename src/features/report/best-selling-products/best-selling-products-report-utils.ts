@@ -1,18 +1,21 @@
-import { money } from "@/lib/format";
+import { firstNumberOrZero as firstNumber, isPresent, readValue, textValue } from "@/lib/values";
 import { BEST_SELLING_PRODUCTS_SORT_OPTIONS } from "@/config/report-filters";
 import type { ApiEntity } from "@/services/shared/types";
 import type { BestSellingProductGroup, BestSellingProductItem } from "@/stores/report-store";
 import type {
-  ReportExcelCellStyle,
   ReportExcelGridRow,
   ReportExcelGridSection
-} from "../report-excel-utils";
+} from "@/lib/export/excel";
+import { formatNumber } from "../shared/report-metrics";
 import type {
   BestSellingMetricConfig,
   BestSellingOption,
   BestSellingProductsFilters,
   BestSellingSummaryCardConfig
 } from "./best-selling-products-report-types";
+
+export { displayMetric, formatNumber } from "../shared/report-metrics";
+export { waitForPaint } from "@/lib/export/paint";
 
 export const ALL_GROUPS_VALUE = "all";
 
@@ -167,30 +170,7 @@ const bestSellingGroupMetricDefinitions = [
   }
 ] as const satisfies readonly RowMetricDefinition<BestSellingProductGroup>[];
 
-export function isPresent(value: unknown) {
-  return value !== null && value !== undefined && value !== "";
-}
-
-export function textValue(value: unknown, fallback = "-") {
-  return isPresent(value) ? String(value) : fallback;
-}
-
-export function readValue(row: ApiEntity, keys: string[]) {
-  for (const key of keys) {
-    const value = row[key];
-    if (isPresent(value)) return value;
-  }
-  return undefined;
-}
-
-export function firstNumber(...values: unknown[]) {
-  for (const value of values) {
-    if (!isPresent(value)) continue;
-    const number = Number(value);
-    if (Number.isFinite(number)) return number;
-  }
-  return 0;
-}
+export { firstNumber, isPresent, readValue, textValue };
 
 function normalizeKey(value: unknown) {
   return String(value ?? "")
@@ -212,17 +192,6 @@ export function summaryValue(summary: ApiEntity | ApiEntity[], keys: string[]) {
   }
 
   return readValue(summary, keys);
-}
-
-export function formatNumber(value: unknown) {
-  return firstNumber(value).toLocaleString("en-US");
-}
-
-export function localDateInputValue(date = new Date()) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
 }
 
 export function groupOptionFromRow(row: ApiEntity, language: string): BestSellingOption | null {
@@ -300,12 +269,6 @@ export function bestSellingFileBaseName(filters: BestSellingProductsFilters) {
   return `best-selling-products-${filters.sortBy}-${filters.dateFrom}-to-${filters.dateTo}`;
 }
 
-export function waitForPaint() {
-  return new Promise<void>((resolve) => {
-    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-  });
-}
-
 export function exportSummaryRows(
   cards: BestSellingSummaryCardConfig[],
   summary: ApiEntity,
@@ -317,23 +280,11 @@ export function exportSummaryRows(
   }));
 }
 
-// สไตล์ตาราง Excel แบบจัดกลุ่ม: แถวหัวกลุ่มถือยอดรวมของกลุ่มไว้ในตัว
-const GROUPED_TABLE_HEADER_STYLE = {
-  align: "center",
-  bold: true,
-  fill: "#1F4E78",
-  fontColor: "#FFFFFF"
-} as const satisfies ReportExcelCellStyle;
-
-const GROUP_ROW_STYLE = {
-  bold: true,
-  fill: "#DEE8F4"
-} as const satisfies ReportExcelCellStyle;
-
-const GRAND_TOTAL_ROW_STYLE = {
-  bold: true,
-  fill: "#D9E2F3"
-} as const satisfies ReportExcelCellStyle;
+import {
+  REPORT_GRAND_TOTAL_ROW_STYLE as GRAND_TOTAL_ROW_STYLE,
+  REPORT_GROUP_ROW_STYLE as GROUP_ROW_STYLE,
+  REPORT_TABLE_HEADER_STYLE as GROUPED_TABLE_HEADER_STYLE,
+} from "@/lib/export/excel-styles";
 
 // ตารางเดียวจัดกลุ่มตามกลุ่มสินค้า เหมือนหน้าจอ: แถวกลุ่ม (พร้อมยอดรวมกลุ่ม)
 // → สินค้าในกลุ่ม (อันดับนับใหม่ต่อกลุ่ม) → ปิดท้ายด้วยยอดรวมทั้งรายงาน
@@ -460,8 +411,4 @@ export function bestSellingSummaryFromRows(
     subtotal: rows.reduce((total, row) => total + row.subtotal, 0),
     vat: rows.reduce((total, row) => total + row.vat, 0),
   };
-}
-
-export function displayMetric(value: unknown, kind: "money" | "number") {
-  return kind === "money" ? money(firstNumber(value)) : formatNumber(value);
 }

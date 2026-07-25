@@ -1,5 +1,6 @@
 "use client";
 
+import type { Route } from "next";
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { Ban, CreditCard, Printer, ReceiptText, RefreshCcw, UserRound } from "lucide-react";
@@ -25,7 +26,7 @@ import {
 
 interface SalesBillDetailPanelProps {
   bill: DailySaleItemsBillGroup | null;
-  cancelSaleHref: string | null;
+  cancelSaleHref: Route | null;
   canReprintReceipt: boolean;
   className?: string;
   loading: boolean;
@@ -130,7 +131,7 @@ export function SalesBillDetailPanel({
 
 interface SalesBillDetailDrawerProps {
   bill: DailySaleItemsBillGroup | null;
-  cancelSaleHref: string | null;
+  cancelSaleHref: Route | null;
   canReprintReceipt: boolean;
   loading: boolean;
   onOpenChange: (open: boolean) => void;

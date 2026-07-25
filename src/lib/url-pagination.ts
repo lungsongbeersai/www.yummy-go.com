@@ -46,6 +46,11 @@ export function samePageLimit(a: PageLimit, b: PageLimit) {
   return String(a ?? "") === String(b ?? "");
 }
 
+export function firstUrlParam(value: string | string[] | undefined) {
+  if (Array.isArray(value)) return value[0] ?? "";
+  return value ?? "";
+}
+
 function paramValue(searchParams: URLSearchParams | UrlSearchParamsRecord | undefined, key: string) {
   if (!searchParams) return "";
   if (searchParams instanceof URLSearchParams) return searchParams.get(key) ?? "";

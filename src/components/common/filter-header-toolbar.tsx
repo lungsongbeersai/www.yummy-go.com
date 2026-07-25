@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
-import { Search } from "lucide-react";
 import { DateFilterButton } from "@/components/common/date-filter-button";
-import { Input } from "@/components/ui/input";
+import { SearchInput } from "@/components/common/search-input";
 import { cn } from "@/lib/utils";
 
 interface FilterHeaderSearchConfig {
@@ -43,20 +42,15 @@ export function FilterHeaderToolbar({
     <div className={cn("shrink-0 rounded-lg border border-border bg-card px-3 py-2 shadow-sm", className)}>
       <div className="flex min-w-0 flex-wrap items-center gap-2">
         {search ? (
-          <div className="relative min-w-44 flex-1">
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              aria-label={search.ariaLabel}
-              autoComplete="off"
-              className="h-11 pl-9 sm:h-9"
-              disabled={search.disabled}
-              name="filterSearch"
-              placeholder={search.placeholder}
-              spellCheck={false}
-              value={search.value}
-              onChange={(event) => search.onChange(event.target.value)}
-            />
-          </div>
+          <SearchInput
+            ariaLabel={search.ariaLabel}
+            className="min-w-44 flex-1 h-11 sm:h-9"
+            disabled={search.disabled}
+            name="filterSearch"
+            placeholder={search.placeholder}
+            value={search.value}
+            onChange={search.onChange}
+          />
         ) : (
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
             {dateRange ? (

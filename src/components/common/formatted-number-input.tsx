@@ -1,6 +1,7 @@
 "use client";
 
-import { type ComponentProps, useEffect, useMemo, useState } from "react";
+import { type ComponentProps, useMemo, useState } from "react";
+import { useResetOnDeps } from "@/hooks/use-reset-on-change";
 import { Input } from "@/components/ui/input";
 import { formatNumberInput, stripNumberFormat } from "@/lib/number-format";
 
@@ -28,9 +29,10 @@ export function FormattedNumberInput({
   const [rawValue, setRawValue] = useState(() => stripNumberFormat(defaultValue, options));
   const currentRawValue = controlled ? stripNumberFormat(value, options) : rawValue;
 
-  useEffect(() => {
+  // โหมด uncontrolled: defaultValue เปลี่ยน (เช่นเปิดฟอร์มของอีกเรคคอร์ด) = ตั้งค่าใหม่
+  useResetOnDeps([controlled, defaultValue, options], () => {
     if (!controlled) setRawValue(stripNumberFormat(defaultValue, options));
-  }, [controlled, defaultValue, options]);
+  });
 
   function updateValue(nextValue: string) {
     const nextRawValue = stripNumberFormat(nextValue, options);

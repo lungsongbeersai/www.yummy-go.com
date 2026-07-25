@@ -633,16 +633,17 @@ function ParetoPanel({ copy, products }: { copy: DashboardCopy; products: Produc
     const valueKey = metric === "revenue" ? "revenue" : "qty";
     const sorted = [...products].sort((a, b) => b[valueKey] - a[valueKey]);
     const total = sorted.reduce((sum, product) => sum + product[valueKey], 0) || 1;
-    let cumulative = 0;
+    // สะสมยอดแบบสร้าง array ใหม่ แทนการ reassign ตัวแปรใน closure ระหว่าง render
+    const runningTotals = sorted.reduce<number[]>(
+      (acc, product) => [...acc, (acc[acc.length - 1] ?? 0) + product[valueKey]],
+      []
+    );
 
-    return sorted.map((product) => {
-      cumulative += product[valueKey];
-      return {
-        ...product,
-        cumulativePercent: (cumulative / total) * 100,
-        label: product.size ? `${product.name} (${product.size})` : product.name
-      };
-    });
+    return sorted.map((product, index) => ({
+      ...product,
+      cumulativePercent: ((runningTotals[index] ?? 0) / total) * 100,
+      label: product.size ? `${product.name} (${product.size})` : product.name
+    }));
   }, [metric, products]);
   const thresholdCount = data.findIndex((product) => product.cumulativePercent >= 80) + 1 || data.length;
   const metricValue = (product: ProductRow) => metric === "revenue" ? product.revenue : product.qty;

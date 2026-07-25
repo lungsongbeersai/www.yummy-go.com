@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useSyncExternalStore } from "react";
 import { Grid2X2, List, Loader2, Search } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,7 @@ import type { PublicProductLayoutMode } from "../types";
 import {
   readPublicProductLayoutMode,
   statusSectionLabel,
+  subscribePublicProductLayoutMode,
   writePublicProductLayoutMode,
 } from "../utils";
 import { BottomNav } from "./public-bottom-nav";
@@ -50,8 +51,12 @@ export function ProductBrowseContent({
   workflow: PublicBrowseWorkflow;
 }) {
   const { t } = useTranslation();
-  const [productLayoutMode, setProductLayoutMode] =
-    useState<PublicProductLayoutMode>("grid");
+  // server render ใช้ grid เสมอ ฝั่ง client sync จาก localStorage โดยไม่มี effect
+  const productLayoutMode = useSyncExternalStore(
+    subscribePublicProductLayoutMode,
+    readPublicProductLayoutMode,
+    (): PublicProductLayoutMode => "grid",
+  );
   const categoryRailRef = useRef<HTMLDivElement | null>(null);
   const {
     cart,
@@ -108,12 +113,7 @@ export function ProductBrowseContent({
   const gridLayoutLabel = t("settings.icons.grid");
   const listLayoutLabel = t("settings.icons.list");
 
-  useEffect(() => {
-    setProductLayoutMode(readPublicProductLayoutMode());
-  }, []);
-
   function handleProductLayoutModeChange(mode: PublicProductLayoutMode) {
-    setProductLayoutMode(mode);
     writePublicProductLayoutMode(mode);
   }
 
@@ -190,21 +190,21 @@ export function ProductBrowseContent({
                   <TabsList className="h-11 w-max justify-start gap-1 bg-transparent p-0">
                     {visibleCategoryTabs.map((category) => (
                       <TabsTrigger
-                        key={category.cate_uuid}
-                        value={category.cate_uuid}
+                        key={category.cateUuid}
+                        value={category.cateUuid}
                         ref={(element) => {
-                          categoryTabRefs.current[category.cate_uuid] = element;
+                          categoryTabRefs.current[category.cateUuid] = element;
                         }}
                         className="h-11 flex-none gap-1.5 rounded-full border border-emerald-100 bg-white px-3 text-xs font-black shadow-none data-[state=active]:border-primary/30 data-[state=active]:bg-emerald-50 data-[state=active]:text-primary dark:border-border dark:bg-background dark:data-[state=active]:bg-primary/10"
                       >
-                        {jumpingCateUuid === category.cate_uuid ? (
+                        {jumpingCateUuid === category.cateUuid ? (
                           <Loader2 className="size-4 shrink-0 animate-spin" />
                         ) : (
-                          <PublicCategoryIcon icon={category.cate_icon} />
+                          <PublicCategoryIcon icon={category.cateIcon} />
                         )}
 
                         <span className="min-w-0 max-w-30 truncate sm:max-w-40">
-                          {category.cate_name}
+                          {category.cateName}
                         </span>
                       </TabsTrigger>
                     ))}
@@ -264,14 +264,14 @@ export function ProductBrowseContent({
           {renderedMenuSections.map(
             ({ category, products, loaded, loading }, index) => (
               <ProductCategorySection
-                key={category.cate_uuid}
+                key={category.cateUuid}
                 category={category}
                 products={products}
                 totalProducts={category.products?.length ?? 0}
                 loaded={loaded}
                 loading={loading}
-                jumping={jumpingCateUuid === category.cate_uuid}
-                collapsed={collapsedCateUuids.includes(category.cate_uuid)}
+                jumping={jumpingCateUuid === category.cateUuid}
+                collapsed={collapsedCateUuids.includes(category.cateUuid)}
                 lang={lang}
                 statusKind={PUBLIC_MENU_KIND.NORMAL}
                 layoutMode={productLayoutMode}
@@ -284,7 +284,7 @@ export function ProductBrowseContent({
                 onRevealMore={revealMoreProductsForCategory}
                 onToggleCollapse={toggleCategoryCollapsed}
                 refCallback={(element) => {
-                  categoryRefs.current[category.cate_uuid] = element;
+                  categoryRefs.current[category.cateUuid] = element;
                 }}
               />
             ),

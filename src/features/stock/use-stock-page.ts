@@ -9,6 +9,7 @@ import {
 } from "react";
 import { useTranslation } from "react-i18next";
 import { useUrlPagination } from "@/hooks/use-url-pagination";
+import { pageRange } from "@/lib/pagination";
 import type { UrlPaginationState } from "@/lib/url-pagination";
 import type { Category } from "@/services/category";
 import type { StockStatus } from "@/services/stock";
@@ -22,15 +23,15 @@ import {
   categoryOptionName,
   categoryUuid,
 } from "@/features/product/list/product-list-utils";
+import { localDateInputValue } from "@/lib/format";
 import {
   branchOptionFromRow,
-  localDateInputValue,
   selectedBranchLabel,
-} from "@/features/sales/sales-list/sales-list-utils";
-import { waitForPaint } from "@/features/report/daily-sales/daily-sales-report-export-utils";
-import { createSingleSheetReportWorkbook } from "@/features/report/report-excel-utils";
-import { officialReportExcelLayout } from "@/features/report/report-official-layout";
-import { addReportCanvasToPdfPages } from "@/features/report/report-pdf-utils";
+} from "@/features/report/shared/report-branch-options";
+import { waitForPaint } from "@/lib/export/paint";
+import { createSingleSheetReportWorkbook } from "@/lib/export/excel";
+import { officialReportExcelLayout } from "@/lib/export/official-layout";
+import { addReportCanvasToPdfPages } from "@/lib/export/pdf";
 import {
   flattenStockExportRows,
   stockExcelRows,
@@ -102,8 +103,7 @@ export function useStockPage(
   const pageLimit =
     typeof limit === "number" ? limit : STOCK_PAGE_LIMIT_OPTIONS[0];
   const safeTotalPages = Math.max(1, totalPages);
-  const pageStart = rows.length ? (page - 1) * pageLimit + 1 : 0;
-  const pageEnd = rows.length ? pageStart + rows.length - 1 : 0;
+  const { start: pageStart, end: pageEnd } = pageRange(rows.length, page, pageLimit);
 
   const categoryOptions = useMemo<StockCategoryOption[]>(
     () =>

@@ -73,7 +73,7 @@ export function LoginClient() {
             src="/auth/login-hero.png"
             alt=""
             fill
-            priority
+            preload
             sizes="(min-width: 1024px) 54vw, 0px"
             className="object-cover object-center"
           />
@@ -92,7 +92,7 @@ export function LoginClient() {
                     alt="Yummy Go"
                     width={38}
                     height={38}
-                    priority
+                    preload
                     className="h-9 w-9 object-contain"
                   />
                 </div>

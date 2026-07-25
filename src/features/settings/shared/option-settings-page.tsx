@@ -1,14 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { LucideIcon } from "lucide-react";
-import type { StoreApi, UseBoundStore } from "zustand";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogDescription, DialogTitle } from "@/components/ui/dialog";
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Spinner } from "@/components/ui/spinner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
@@ -18,12 +16,7 @@ import {
   type OptionColumn,
   type OptionField
 } from "@/features/settings/shared/option-settings-fields";
-import {
-  optionPageRange,
-  optionPageSize,
-  optionTotalPages,
-  optionValue
-} from "@/features/settings/shared/option-settings-utils";
+import { optionValue } from "@/features/settings/shared/option-settings-utils";
 import {
   SettingsDialogBody,
   SettingsDialogContent,
@@ -38,29 +31,21 @@ import {
   SettingsPaginationFooter,
   SettingsRowActions,
   SettingsTableScroll,
-  SettingsToolbar
-} from "@/features/settings/shared/settings-shell";
-import { useAppliedSearch } from "@/hooks/use-applied-search";
-import { useOptionRowSelection } from "@/features/settings/shared/use-option-row-selection";
-import { useLatestValue } from "@/hooks/use-latest-value";
-import { useUrlPagination } from "@/hooks/use-url-pagination";
+  SettingsToolbar,
+  SettingsEmptyRecords,} from "@/features/settings/shared/settings-shell";
+import {
+  useSettingsCrudController,
+  type SettingsCrudSaveArgs,
+  type SettingsCrudStore
+} from "@/features/settings/shared/use-settings-crud-controller";
 import type { UrlPaginationState } from "@/lib/url-pagination";
-import type { ApiEntity, FetchParams, SortOrder } from "@/services/shared/types";
-import { useAppStore } from "@/stores/app-store";
-import { authStoreUuid, useAuthStore, type AuthUser } from "@/stores/auth-store";
-import type { CrudListState } from "@/stores/crud-list-store";
-import { useToastStore } from "@/stores/toast-store";
+import type { ApiEntity, FetchParams } from "@/services/shared/types";
+import type { AuthUser } from "@/stores/auth-store";
 
 type OptionStore<Row extends ApiEntity, SaveInput extends ApiEntity, Params extends FetchParams> =
-  UseBoundStore<StoreApi<CrudListState<Row, SaveInput, Params>>>;
+  SettingsCrudStore<Row, SaveInput, Params>;
 
-export interface OptionSaveArgs<Row extends ApiEntity> {
-  editing: Row | null;
-  formData: FormData;
-  scope: Record<string, unknown>;
-  storeUuid: string;
-  user: AuthUser | null;
-}
+export type OptionSaveArgs<Row extends ApiEntity> = SettingsCrudSaveArgs<Row>;
 
 export interface OptionSettingsPageProps<
   Row extends ApiEntity,
@@ -155,68 +140,50 @@ export function OptionSettingsPage<
   validateInput
 }: OptionSettingsPageProps<Row, SaveInput, Params>) {
   const { t } = useTranslation();
-  const language = useAppStore((state) => state.language);
-  const user = useAuthStore((state) => state.user);
-  const storeUuid = authStoreUuid(user);
-  const showToast = useToastStore((state) => state.show);
-  const rows = store((state) => state.rows);
-  const total = store((state) => state.total);
-  const storeTotalPages = store((state) => state.totalPages);
-  const search = store((state) => state.search);
-  const hasLoaded = store((state) => state.hasLoaded);
-  const loading = store((state) => state.loading);
-  const refreshing = store((state) => state.refreshing);
-  const saving = store((state) => state.saving);
-  const setSearch = store((state) => state.setSearch);
-  const loadRows = store((state) => state.load);
-  const saveRow = store((state) => state.save);
-  const removeRow = store((state) => state.remove);
-  const { changeLimit, limit, page, resetPage, setPage } = useUrlPagination({ initialPagination });
-  const [orderBy, setOrderBy] = useState<SortOrder>("ASC");
-  const [editing, setEditing] = useState<Row | null>(null);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<Row | null>(null);
-
-  const scope = useMemo(() => getScope?.(storeUuid, user) ?? {}, [getScope, storeUuid, user]);
-  const missingRequiredScope = Boolean(requiredScopeKey && !String(scope[requiredScopeKey] ?? "").trim());
-  const requiredScopeDescription = requiredScopeMessage ?? t("settings.branchRequired");
-  const { appliedSearch, applySearch } = useAppliedSearch(search);
-  const hasLoadedRef = useLatestValue(hasLoaded);
-  const requestParams = useMemo<Params>(
-    () => ({ search: appliedSearch, page, limit, orderBy, lang: language, ...scope }) as Params,
-    [appliedSearch, language, limit, orderBy, page, scope]
-  );
-  const pageSize = optionPageSize(limit, rows.length);
-  const totalPages = optionTotalPages(storeTotalPages, total, pageSize);
-  const { start: pageStart, end: pageEnd } = optionPageRange(rows.length, page, pageSize);
-  const fullLoading = loading && !hasLoaded;
-  const backgroundLoading = refreshing || (loading && hasLoaded);
-  const pagingBusy = loading || refreshing;
-  const canGoBack = page > 1 && !pagingBusy;
-  const canGoNext = page < totalPages && !pagingBusy;
-  const rowId = useCallback((row: Row) => optionValue(row, idKey), [idKey]);
-  const { allSelected, removeSelected, selectedRows, toggleAll, toggleSelected } = useOptionRowSelection(rows, rowId);
-
-  const load = useCallback(async () => {
-    if (missingRequiredScope) {
-      showToast({ title: t("settings.loadFailed", { title }), description: requiredScopeDescription, tone: "error" });
-      return;
-    }
-
-    try {
-      await loadRows(requestParams, { background: hasLoadedRef.current });
-    } catch (error) {
-      showToast({
-        title: t("settings.loadFailed", { title }),
-        description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
-        tone: "error"
-      });
-    }
-  }, [hasLoadedRef, loadRows, missingRequiredScope, requestParams, requiredScopeDescription, showToast, t, title]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
+  const {
+    allSelected,
+    applyFilters,
+    backgroundLoading,
+    changeLimit,
+    deleteTarget,
+    dialogOpen,
+    editing,
+    fullLoading,
+    limit,
+    onDialogOpenChange,
+    openCreate,
+    openEdit,
+    orderBy,
+    page,
+    pageEnd,
+    pageStart,
+    remove,
+    rowId,
+    rows,
+    save,
+    saving,
+    search,
+    selectedRows,
+    setDeleteTarget,
+    setOrderBy,
+    setPage,
+    setSearch,
+    toggleAll,
+    toggleSelected,
+    total,
+    totalPages
+  } = useSettingsCrudController<Row, SaveInput, Params>({
+    // ไม่มี buildInput ที่ระบุมา = ใช้ defaultInput ที่ประกอบจาก fields[] แทน
+    buildInput: (args) => buildInput?.(args) ?? defaultInput<Row, SaveInput>({ ...args, fields, idKey }),
+    idKey,
+    initialPagination,
+    requiredScopeKey,
+    requiredScopeMessage,
+    scope: getScope,
+    store,
+    title,
+    validateInput
+  });
 
   function optionName(row: Row) {
     return getName?.(row) ?? optionValue(row, nameKey, optionValue(row, nameFallbackKey ?? "", optionValue(row, nameLaKey ?? "", optionValue(row, nameEngKey ?? "", "-"))));
@@ -230,72 +197,6 @@ export function OptionSettingsPage<
     }
     if (!nameLaKey && !nameEngKey) return "";
     return `${optionValue(row, nameLaKey ?? "", "-")} / ${optionValue(row, nameEngKey ?? "", "-")}`;
-  }
-
-  function applyFilters() {
-    applySearch({ page, resetPage, reload: () => void load() });
-  }
-
-  function openCreate() {
-    if (missingRequiredScope) {
-      showToast({ title: t("settings.saveFailed"), description: requiredScopeDescription, tone: "error" });
-      return;
-    }
-    setEditing(null);
-    setDialogOpen(true);
-  }
-
-  function openEdit(row: Row) {
-    setEditing(row);
-    setDialogOpen(true);
-  }
-
-  async function save(formData: FormData) {
-    if (missingRequiredScope) {
-      showToast({ title: t("settings.saveFailed"), description: requiredScopeDescription, tone: "error" });
-      return;
-    }
-
-    const args = { editing, formData, scope, storeUuid, user };
-    const validationMessage = validateInput?.(args) ?? null;
-    if (validationMessage) {
-      showToast({ title: t("settings.saveFailed"), description: validationMessage, tone: "error" });
-      return;
-    }
-
-    try {
-      const input = buildInput?.(args) ?? defaultInput<Row, SaveInput>({ ...args, fields, idKey });
-      await saveRow(input);
-      showToast({ title: t("settings.saved"), tone: "success" });
-      setDialogOpen(false);
-      setEditing(null);
-      await loadRows(requestParams, { background: true });
-    } catch (error) {
-      showToast({
-        title: t("settings.saveFailed"),
-        description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
-        tone: "error"
-      });
-    }
-  }
-
-  async function remove(row: Row) {
-    const id = rowId(row);
-    if (!id) return;
-
-    try {
-      await removeRow(id);
-      showToast({ title: t("settings.deleted"), tone: "success" });
-      setDeleteTarget(null);
-      removeSelected(id);
-      await loadRows(requestParams, { background: true });
-    } catch (error) {
-      showToast({
-        title: t("settings.deleteFailed"),
-        description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
-        tone: "error"
-      });
-    }
   }
 
   function leading(row: Row) {
@@ -416,9 +317,6 @@ export function OptionSettingsPage<
         <div className="flex min-w-0 flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
           <div className="min-w-0">
             <p className="text-sm font-black">{listTitle}</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              {t("common.showingRange", { start: pageStart, end: pageEnd, total })} - {t("common.page", { current: page, total: totalPages })}
-            </p>
           </div>
           <div className="min-w-0 xl:max-w-[48rem]">{toolbar}</div>
         </div>
@@ -435,17 +333,7 @@ export function OptionSettingsPage<
           <div className="min-h-0 flex-1 overflow-y-auto md:hidden">{mobileList}</div>
         </>
       ) : (
-        <div className="flex min-h-72 flex-1 items-center justify-center p-4">
-          <Empty className="max-w-md border border-dashed bg-muted/20">
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <Icon aria-hidden />
-              </EmptyMedia>
-              <EmptyTitle>{t("settings.noRecords", { title: title.toLowerCase() })}</EmptyTitle>
-              <EmptyDescription>{t("empty.adjustSearch")}</EmptyDescription>
-            </EmptyHeader>
-          </Empty>
-        </div>
+        <SettingsEmptyRecords icon={<Icon aria-hidden />} title={title.toLowerCase()} />
       )}
     </div>
   );
@@ -461,15 +349,11 @@ export function OptionSettingsPage<
         footer={
           rows.length ? (
             <SettingsPaginationFooter
-              canGoBack={canGoBack}
-              canGoNext={canGoNext}
               page={page}
               pageEnd={pageEnd}
               pageStart={pageStart}
               total={total}
               totalPages={totalPages}
-              onBack={() => setPage((current) => Math.max(1, current - 1))}
-              onNext={() => setPage((current) => Math.min(totalPages, current + 1))}
               onPageChange={setPage}
             />
           ) : undefined
@@ -492,11 +376,7 @@ export function OptionSettingsPage<
         slug={slug}
         title={title}
         formTitle={formTitle ?? title}
-        onOpenChange={(nextOpen) => {
-          if (saving) return;
-          setDialogOpen(nextOpen);
-          if (!nextOpen) setEditing(null);
-        }}
+        onOpenChange={onDialogOpenChange}
         onSubmit={save}
       />
       <ConfirmDialog

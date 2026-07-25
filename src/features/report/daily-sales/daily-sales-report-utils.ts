@@ -1,6 +1,13 @@
 import { money } from "@/lib/format";
 import { getProductImageUrl } from "@/lib/image";
 import {
+  firstNumber as firstOptionalNumber,
+  firstNumberOrZero as firstNumber,
+  isPresent,
+  readValue,
+  textValue,
+} from "@/lib/values";
+import {
   DAILY_SALES_BILL_PAYMENT_METHOD_OPTIONS,
   type DailySalesBillPaymentMethod,
 } from "@/config/report-filters";
@@ -12,7 +19,6 @@ import {
 import type {
   DetailPaginationBasis,
   DetailReportPaymentMethod,
-  ReportBranchOption,
   ReportColumn,
   ReportPaymentMethodFilter,
   ReportTab,
@@ -62,61 +68,9 @@ export function paymentMethodLabel(
   return labelKey === "all" ? t("common.all") : t(`report.paymentMethods.${labelKey}`);
 }
 
-export function branchOptionLabel(branch: ApiEntity, language: string) {
-  const keys =
-    language === "en"
-      ? [
-          "branch_name_eng",
-          "branch_name",
-          "branch_name_la",
-          "branch_code",
-          "branch_uuid",
-        ]
-      : [
-          "branch_name_la",
-          "branch_name",
-          "branch_name_eng",
-          "branch_code",
-          "branch_uuid",
-        ];
+export { branchOptionFromRow, branchOptionLabel, selectedBranchLabel } from "../shared/report-branch-options";
 
-  return textValue(readValue(branch, keys), "-");
-}
-
-export function branchOptionFromRow(
-  branch: ApiEntity,
-  language: string,
-): ReportBranchOption | null {
-  const value = textValue(
-    readValue(branch, ["branch_uuid", "branch_uuid_fk"]),
-    "",
-  );
-  if (!value) return null;
-  return { value, label: branchOptionLabel(branch, language) };
-}
-
-export function selectedBranchLabel(
-  options: ReportBranchOption[],
-  value: string,
-  fallback = "-",
-) {
-  return options.find((option) => option.value === value)?.label ?? fallback;
-}
-
-export function localDateInputValue(date = new Date()) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-export function isPresent(value: unknown) {
-  return value !== null && value !== undefined && value !== "";
-}
-
-export function textValue(value: unknown, fallback = "-") {
-  return isPresent(value) ? String(value) : fallback;
-}
+export { firstNumber, firstOptionalNumber, isPresent, readValue, textValue };
 
 export function displayTextValue(value: unknown, fallback = "") {
   const text = textValue(value, "").trim();
@@ -146,31 +100,6 @@ export function asRecords(value: unknown): ApiEntity[] {
   return Array.isArray(value) ? value.filter(isRecord) : [];
 }
 
-export function readValue(row: ApiEntity, keys: string[]) {
-  for (const key of keys) {
-    const value = row[key];
-    if (isPresent(value)) return value;
-  }
-  return undefined;
-}
-
-export function firstNumber(...values: unknown[]) {
-  for (const value of values) {
-    if (!isPresent(value)) continue;
-    const number = Number(value);
-    if (Number.isFinite(number)) return number;
-  }
-  return 0;
-}
-
-export function firstOptionalNumber(...values: unknown[]) {
-  for (const value of values) {
-    if (!isPresent(value)) continue;
-    const number = Number(value);
-    if (Number.isFinite(number)) return number;
-  }
-  return null;
-}
 
 export function summaryCardValue(
   summaryCards: SummaryCards,

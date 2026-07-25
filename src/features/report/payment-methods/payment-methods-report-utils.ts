@@ -1,16 +1,17 @@
-import { money } from "@/lib/format";
-import {
-  PAYMENT_METHOD_REPORT_FILTER_OPTIONS,
-  type PaymentMethodReportFilter,
-} from "@/config/report-filters";
+import { firstNumberOrZero as firstNumber } from "@/lib/values";
 import type { ApiEntity } from "@/services/shared/types";
 import type { PaymentMethodOption, PaymentMethodReportRow } from "@/stores/report-store";
+import { paymentMethodFallbackOptions } from "../shared/report-payment-method-options";
 import type {
   PaymentMethodsExportData,
   PaymentMethodsReportFilters,
   PaymentMethodsRowMetricConfig,
   PaymentMethodsSummaryCard
 } from "./payment-methods-report-types";
+
+export { displayMetric, formatNumber } from "../shared/report-metrics";
+export { paymentMethodFallbackOptions, selectedPaymentMethodLabel } from "../shared/report-payment-method-options";
+export { waitForPaint } from "@/lib/export/paint";
 
 type TotalMetricDefinition = {
   key: string;
@@ -56,49 +57,10 @@ const rowMetricDefinitions = [
   { field: "grandTotal", key: "grand_total", kind: "money", labelKey: "report.paymentMethodsReport.columns.grandTotal" }
 ] as const satisfies readonly RowMetricDefinition[];
 
-function isPresent(value: unknown) {
-  return value !== null && value !== undefined && value !== "";
-}
-
-export function firstNumber(value: unknown) {
-  if (!isPresent(value)) return 0;
-  const number = Number(value);
-  return Number.isFinite(number) ? number : 0;
-}
-
-export function formatNumber(value: unknown) {
-  return firstNumber(value).toLocaleString("en-US");
-}
-
-export function localDateInputValue(date = new Date()) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-export function displayMetric(value: unknown, kind: "money" | "number") {
-  return kind === "money" ? money(firstNumber(value)) : formatNumber(value);
-}
-
-export function paymentMethodFallbackOptions(t: (key: string) => string): PaymentMethodOption[] {
-  return PAYMENT_METHOD_REPORT_FILTER_OPTIONS.map((value, index) => ({
-    label: value === "all" ? t("common.all") : t(`report.paymentMethods.${value}`),
-    sortOrder: index + 1,
-    value
-  }));
-}
+export { firstNumber };
 
 export function paymentMethodOptions(options: PaymentMethodOption[], t: (key: string) => string) {
   return options.length ? options : paymentMethodFallbackOptions(t);
-}
-
-export function selectedPaymentMethodLabel(
-  options: PaymentMethodOption[],
-  value: PaymentMethodReportFilter,
-  t: (key: string) => string
-) {
-  return paymentMethodOptions(options, t).find((option) => option.value === value)?.label ?? t("common.all");
 }
 
 export function paymentMethodRowMetricConfigs(t: (key: string) => string): PaymentMethodsRowMetricConfig[] {
@@ -147,12 +109,6 @@ export function paymentMethodExportTotals(
 
 export function paymentMethodsFileBaseName(filters: PaymentMethodsReportFilters) {
   return `payment-methods-${filters.paymentMethod}-${filters.dateFrom}-to-${filters.dateTo}`;
-}
-
-export function waitForPaint() {
-  return new Promise<void>((resolve) => {
-    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-  });
 }
 
 // ตาราง export มีแถวรวมท้ายตารางแบบเดียวกับ footer ของตารางบนหน้าจอ

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ChangeEvent, type ReactNode } from "react";
+import { useEffect, useRef, useMemo, type ChangeEvent, type ReactNode } from "react";
 import { Crop, ImageIcon, ImagePlus, MoveHorizontal, MoveVertical, X, ZoomIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Field, FieldDescription, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
@@ -149,22 +149,18 @@ export function SettingsImageCropPanel({
   verticalLabel: string;
   zoomLabel: string;
 }) {
-  const [previewSrc, setPreviewSrc] = useState(existingSrc);
+  // object URL ของไฟล์ที่เพิ่งเลือก ถ้ายังไม่เลือกก็ใช้รูปเดิมของเรคคอร์ด
+  const objectUrl = useMemo(() => (selectedFile ? URL.createObjectURL(selectedFile) : ""), [selectedFile]);
+  const previewSrc = objectUrl || existingSrc;
   const inputDisabled = Boolean(disabled || saving);
   const cropDisabled = inputDisabled || !selectedFile;
   const sideBorderClass = sideBorderAt === "lg" ? "lg:border-b-0 lg:border-r" : "md:border-b-0 md:border-r";
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (!selectedFile) {
-      setPreviewSrc(existingSrc);
-      return;
-    }
-
-    const url = URL.createObjectURL(selectedFile);
-    setPreviewSrc(url);
-    return () => URL.revokeObjectURL(url);
-  }, [existingSrc, selectedFile]);
+    if (!objectUrl) return;
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [objectUrl]);
 
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0] ?? null;

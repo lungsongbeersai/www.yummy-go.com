@@ -4,7 +4,6 @@ import type { ReactNode } from "react";
 import { UsersRound } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Spinner } from "@/components/ui/spinner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
@@ -12,8 +11,8 @@ import {
   SettingsMobileMeta,
   SettingsMobileMetaGrid,
   SettingsRowActions,
-  SettingsTableScroll
-} from "@/features/settings/shared/settings-shell";
+  SettingsTableScroll,
+  SettingsEmptyRecords,} from "@/features/settings/shared/settings-shell";
 import { cn } from "@/lib/utils";
 import type { User } from "@/services/user";
 import { UserActiveBadge, UserAvatar, UserBadges, UserIdentity } from "./user-display";
@@ -29,16 +28,12 @@ export function UserListSurface({
   allSelected,
   backgroundLoading,
   currentLoginUuid,
-  page,
-  pageEnd,
   pageStart,
   profileUrl,
   rows,
   selectedRows,
   title,
   toolbar,
-  total,
-  totalPages,
   onDelete,
   onEdit,
   onToggleAll,
@@ -47,16 +42,12 @@ export function UserListSurface({
   allSelected: boolean;
   backgroundLoading: boolean;
   currentLoginUuid: string;
-  page: number;
-  pageEnd: number;
   pageStart: number;
   profileUrl: (profilePath: string | null) => string;
   rows: User[];
   selectedRows: Set<string>;
   title: string;
   toolbar: ReactNode;
-  total: number;
-  totalPages: number;
   onDelete: (row: User) => void;
   onEdit: (row: User) => void;
   onToggleAll: (checked: boolean) => void;
@@ -70,9 +61,6 @@ export function UserListSurface({
         <div className="flex min-w-0 flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
           <div className="min-w-0">
             <p className="text-sm font-black">{t("settings.userList")}</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              {t("common.showingRange", { start: pageStart, end: pageEnd, total })} - {t("common.page", { current: page, total: totalPages })}
-            </p>
           </div>
           <div className="min-w-0 xl:max-w-3xl">{toolbar}</div>
         </div>
@@ -112,17 +100,7 @@ export function UserListSurface({
           </div>
         </>
       ) : (
-        <div className="flex min-h-72 flex-1 items-center justify-center p-4">
-          <Empty className="max-w-md border border-dashed bg-muted/20">
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <UsersRound aria-hidden />
-              </EmptyMedia>
-              <EmptyTitle>{t("settings.noRecords", { title: title.toLowerCase() })}</EmptyTitle>
-              <EmptyDescription>{t("empty.adjustSearch")}</EmptyDescription>
-            </EmptyHeader>
-          </Empty>
-        </div>
+        <SettingsEmptyRecords icon={<UsersRound aria-hidden />} title={title.toLowerCase()} />
       )}
     </div>
   );

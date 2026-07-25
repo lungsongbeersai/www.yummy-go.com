@@ -1,6 +1,7 @@
 "use client";
 
-import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
+import { useResetOnChange } from "@/hooks/use-reset-on-change";
 import { Check, CircleSlash2, Search, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
@@ -78,11 +79,12 @@ export function CategoryIconPicker({
     return groupOptions.filter((option) => option.searchText.includes(query));
   }, [deferredSearch, groupOptions]);
 
-  useEffect(() => {
-    setIconValue(normalizeCategoryIconValue(defaultValue) || CATEGORY_ICON_OPTIONS[0]?.value || DEFAULT_CATEGORY_ICON);
+  // สลับไอคอนตั้งต้น (เปิดฟอร์มของอีกเรคคอร์ด) = เริ่มเลือกใหม่หมด
+  useResetOnChange(defaultValue, () => {
+    setIconValue(initialValue);
     setActiveGroup("all");
     setSearch("");
-  }, [defaultValue]);
+  });
 
   return (
     <div className="flex min-w-0 flex-col gap-3">

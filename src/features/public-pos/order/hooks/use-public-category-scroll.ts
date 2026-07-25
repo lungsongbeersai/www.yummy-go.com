@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useResetOnDeps } from "@/hooks/use-reset-on-change";
 import type { CateWithProducts } from "@/services/pos";
 import type { PublicPosCategoryTab } from "@/stores/public-pos-store/helpers";
 import {
@@ -21,11 +22,11 @@ import {
   SCROLL_JUMP_VERIFY_DELAY_MS,
 } from "@/features/public-pos/order/constants";
 import type { ScrollJumpEdge } from "@/features/public-pos/order/types";
+import { prefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
 import {
   easeOutCubic,
   getScrollJumpEdgeFromViewport,
   getWindowMaxScrollY,
-  prefersReducedMotion,
 } from "@/features/public-pos/order/utils";
 
 export function usePublicCategoryScroll({
@@ -61,16 +62,16 @@ export function usePublicCategoryScroll({
   const categoryTabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
   const fallbackActiveValue =
-    defaultActiveCateUuid || visibleCategoryTabs[0]?.cate_uuid || "";
+    defaultActiveCateUuid || visibleCategoryTabs[0]?.cateUuid || "";
   const activeValue = visibleCategoryTabs.some(
-    (category) => category.cate_uuid === activeCateUuid,
+    (category) => category.cateUuid === activeCateUuid,
   )
     ? activeCateUuid
     : visibleCategoryTabs.some(
-          (category) => category.cate_uuid === fallbackActiveValue,
+          (category) => category.cateUuid === fallbackActiveValue,
         )
       ? fallbackActiveValue
-      : visibleCategoryTabs[0]?.cate_uuid || "";
+      : visibleCategoryTabs[0]?.cateUuid || "";
 
   useEffect(() => {
     scrollJumpPendingContentRef.current = hasScrollJumpPendingContent;
@@ -262,8 +263,8 @@ export function usePublicCategoryScroll({
 
         const cateUuid =
           edge === "top"
-            ? visibleCategoryTabs[0]?.cate_uuid || renderedCateUuids[0] || ""
-            : visibleCategoryTabs.at(-1)?.cate_uuid ||
+            ? visibleCategoryTabs[0]?.cateUuid || renderedCateUuids[0] || ""
+            : visibleCategoryTabs.at(-1)?.cateUuid ||
               renderedCateUuids.at(-1) ||
               "";
         if (cateUuid) setStableActiveCateUuid(cateUuid, { force: true });
@@ -438,7 +439,7 @@ export function usePublicCategoryScroll({
       anchorMatchedCateUuid ||
       passedAnchorCateUuid ||
       nearestVisibleCateUuid ||
-      firstCategory?.cate_uuid ||
+      firstCategory?.cateUuid ||
       "";
 
     if (cateUuid) {
@@ -475,7 +476,8 @@ export function usePublicCategoryScroll({
       scheduleScrollSpy();
     };
 
-    updateActiveCategoryFromViewport();
+    // วัดตำแหน่งครั้งแรกหลัง paint ผ่าน rAF — anchor ถูกวัดหลัง layout เสร็จและไม่ setState กลาง effect
+    scheduleScrollSpy();
     window.addEventListener("scroll", handleScroll, { passive: true });
     window.addEventListener("resize", handleViewportChange);
     window.addEventListener("orientationchange", handleViewportChange);
@@ -527,11 +529,11 @@ export function usePublicCategoryScroll({
     };
   }, [updateScrollJumpEdgeFromViewport]);
 
-  useEffect(() => {
+  useResetOnDeps([activeCateUuid, defaultActiveCateUuid], () => {
     if (defaultActiveCateUuid && !activeCateUuid) {
       setStableActiveCateUuid(defaultActiveCateUuid);
     }
-  }, [activeCateUuid, defaultActiveCateUuid, setStableActiveCateUuid]);
+  });
 
   return useMemo(
     () => ({

@@ -34,14 +34,7 @@ export function asRecord<T extends Record<string, unknown>>(value: unknown): T |
   return isRecord(value) ? value as T : null;
 }
 
-export function firstNumber(...values: unknown[]) {
-  for (const value of values) {
-    if (value === null || value === undefined || value === "") continue;
-    const number = Number(value);
-    if (Number.isFinite(number)) return number;
-  }
-  return null;
-}
+export { firstNumber } from "@/lib/values";
 
 export function stringArray(value: unknown) {
   return Array.isArray(value) ? value.map(String).filter(Boolean) : [];

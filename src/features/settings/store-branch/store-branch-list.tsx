@@ -6,7 +6,6 @@ import { useTranslation } from "react-i18next";
 import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Spinner } from "@/components/ui/spinner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
@@ -14,7 +13,8 @@ import {
   SettingsMobileList,
   SettingsMobileMeta,
   SettingsMobileMetaGrid,
-  SettingsTableScroll
+  SettingsTableScroll,
+  SettingsEmptyRecords
 } from "@/features/settings/shared/settings-shell";
 import { cn } from "@/lib/utils";
 import {
@@ -37,15 +37,11 @@ export function StoreBranchListSurface({
   kind,
   labels,
   listTitle,
-  page,
-  pageEnd,
   pageStart,
   rowActions,
   rows,
   selectedRows,
   toolbar,
-  total,
-  totalPages,
   onToggleAllSelected,
   onToggleSelected
 }: {
@@ -56,29 +52,20 @@ export function StoreBranchListSurface({
   kind: StoreBranchKind;
   labels: StoreBranchLabels;
   listTitle: string;
-  page: number;
-  pageEnd: number;
   pageStart: number;
   rowActions: (row: StoreBranchSettingsRow) => ReactNode;
   rows: StoreBranchSettingsRow[];
   selectedRows: Set<string>;
   toolbar: ReactNode;
-  total: number;
-  totalPages: number;
   onToggleAllSelected: (checked: boolean) => void;
   onToggleSelected: (id: string, checked: boolean) => void;
 }) {
-  const { t } = useTranslation();
-
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="shrink-0 border-b border-border bg-card/95 px-3 py-2.5 backdrop-blur sm:px-4 lg:px-5">
         <div className="flex min-w-0 flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
           <div className="min-w-0">
             <p className="text-sm font-black">{listTitle}</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              {t("common.showingRange", { start: pageStart, end: pageEnd, total })} - {t("common.page", { current: page, total: totalPages })}
-            </p>
           </div>
           <div className="min-w-0 xl:max-w-[48rem]">{toolbar}</div>
         </div>
@@ -121,17 +108,7 @@ export function StoreBranchListSurface({
           </div>
         </>
       ) : (
-        <div className="flex min-h-72 flex-1 items-center justify-center p-4">
-          <Empty className="max-w-md border border-dashed bg-muted/20">
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                {kind === "store" ? <Store aria-hidden /> : <Building2 aria-hidden />}
-              </EmptyMedia>
-              <EmptyTitle>{kind === "store" ? labels.noStore : labels.noBranch}</EmptyTitle>
-              <EmptyDescription>{labels.selectRecord}</EmptyDescription>
-            </EmptyHeader>
-          </Empty>
-        </div>
+        <SettingsEmptyRecords icon={kind === "store" ? <Store aria-hidden /> : <Building2 aria-hidden />} titleText={kind === "store" ? labels.noStore : labels.noBranch} description={labels.selectRecord} />
       )}
     </div>
   );

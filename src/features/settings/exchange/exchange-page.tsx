@@ -1,6 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { isActiveStatus, StatusBadge } from "@/components/common/status-badge";
+import { useEffect, useMemo, useState } from "react";
+import { useResetOnChange } from "@/hooks/use-reset-on-change";
 import { Coins } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
@@ -9,7 +11,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogDescription, DialogTitle } from "@/components/ui/dialog";
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Field, FieldDescription, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
@@ -29,21 +30,16 @@ import {
   SettingsPaginationFooter,
   SettingsRowActions,
   SettingsTableScroll,
-  SettingsToolbar
-} from "@/features/settings/shared/settings-shell";
-import { useAppliedSearch } from "@/hooks/use-applied-search";
-import { useLatestValue } from "@/hooks/use-latest-value";
-import { useUrlPagination } from "@/hooks/use-url-pagination";
-import { DEFAULT_PAGE_LIMIT, PAGE_LIMIT_OPTIONS } from "@/lib/pagination";
+  SettingsToolbar,
+  SettingsEmptyRecords,} from "@/features/settings/shared/settings-shell";
+import { useSettingsCrudController } from "@/features/settings/shared/use-settings-crud-controller";
+import { PAGE_LIMIT_OPTIONS } from "@/lib/pagination";
 import type { UrlPaginationState } from "@/lib/url-pagination";
 import type { Currency } from "@/services/currency";
-import type { Exchange, FetchExchangesParams } from "@/services/exchange";
-import type { PageLimit, SortOrder } from "@/services/shared/types";
-import { useAppStore } from "@/stores/app-store";
-import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
+import type { Exchange, FetchExchangesParams, SaveExchangeInput } from "@/services/exchange";
+import type { SortOrder } from "@/services/shared/types";
 import { useExchangeStore } from "@/stores/exchange-store";
 import { useReferenceStore } from "@/stores/reference-store";
-import { useToastStore } from "@/stores/toast-store";
 import {
   buildExchangePayload,
   currencyIcon,
@@ -53,37 +49,19 @@ import {
   exchangeId,
   exchangeRate,
   exchangeStatus,
-  exchangeStatusLabel,
   exchangeValue,
   missingExchangeField
 } from "./exchange-utils";
 
-const DEFAULT_LIMIT: PageLimit = DEFAULT_PAGE_LIMIT;
 const ORDER_OPTIONS: Array<{ labelKey: "asc" | "desc"; value: SortOrder }> = [
   { labelKey: "asc", value: "ASC" },
   { labelKey: "desc", value: "DESC" }
 ];
 
-function activeBadgeClass(status: string) {
-  return Number(status || 1) === 1
-    ? "border-primary/25 bg-primary/10 text-primary"
-    : "border-muted-foreground/20 bg-muted text-muted-foreground";
-}
-
 function RateBadge({ rate }: { rate: string }) {
   return (
     <Badge className="border-primary/20 bg-primary/10 text-primary" translate="no">
       {rate}
-    </Badge>
-  );
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const { t } = useTranslation();
-
-  return (
-    <Badge className={activeBadgeClass(status)}>
-      {exchangeStatusLabel(status, t("common.active"), t("common.inactive"))}
     </Badge>
   );
 }
@@ -125,39 +103,71 @@ function CurrencyIdentity({
 
 export function ExchangeSettingsPage({ initialPagination }: { initialPagination: UrlPaginationState }) {
   const { t } = useTranslation();
-  const language = useAppStore((state) => state.language);
-  const user = useAuthStore((state) => state.user);
-  const storeUuid = authStoreUuid(user);
-  const showToast = useToastStore((state) => state.show);
-  const rows = useExchangeStore((state) => state.rows);
-  const total = useExchangeStore((state) => state.total);
-  const storeTotalPages = useExchangeStore((state) => state.totalPages);
-  const search = useExchangeStore((state) => state.search);
-  const hasLoaded = useExchangeStore((state) => state.hasLoaded);
-  const loading = useExchangeStore((state) => state.loading);
-  const refreshing = useExchangeStore((state) => state.refreshing);
-  const saving = useExchangeStore((state) => state.saving);
-  const setSearch = useExchangeStore((state) => state.setSearch);
-  const loadRows = useExchangeStore((state) => state.load);
-  const saveRow = useExchangeStore((state) => state.save);
-  const removeRow = useExchangeStore((state) => state.remove);
-  const loadCurrencyOptions = useReferenceStore((state) => state.loadCurrencies);
-  const { changeLimit, limit, page, resetPage, setPage } = useUrlPagination({ initialPagination });
-  const [orderBy, setOrderBy] = useState<SortOrder>("ASC");
-  const [editing, setEditing] = useState<Exchange | null>(null);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<Exchange | null>(null);
-  const [selectedRows, setSelectedRows] = useState<Set<string>>(() => new Set());
-  const [currencyOptions, setCurrencyOptions] = useState<Currency[]>([]);
-
   const title = t("settings.modules.exchange.title");
   const description = t("settings.modules.exchange.description");
-  const { appliedSearch, applySearch } = useAppliedSearch(search);
-  const hasLoadedRef = useLatestValue(hasLoaded);
-  const requestParams = useMemo<FetchExchangesParams>(
-    () => ({ search: appliedSearch, page, limit, orderBy, lang: language, store_uuid_fk: storeUuid }),
-    [appliedSearch, language, limit, orderBy, page, storeUuid]
-  );
+  const loadCurrencyOptions = useReferenceStore((state) => state.loadCurrencies);
+  const [currencyOptions, setCurrencyOptions] = useState<Currency[]>([]);
+  const {
+    allSelected,
+    applyFilters,
+    backgroundLoading,
+    changeLimit,
+    deleteTarget,
+    dialogOpen,
+    editing,
+    fullLoading,
+    limit,
+    missingRequiredScope,
+    onDialogOpenChange,
+    openEdit,
+    orderBy,
+    page,
+    pageEnd,
+    pageStart,
+    remove,
+    requiredScopeDescription,
+    rows,
+    save,
+    saving,
+    search,
+    selectedRows,
+    setDeleteTarget,
+    setDialogOpen,
+    setEditing,
+    setOrderBy,
+    setPage,
+    setSearch,
+    showToast,
+    storeUuid,
+    toggleAll,
+    toggleSelected,
+    total,
+    totalPages
+  } = useSettingsCrudController<Exchange, SaveExchangeInput, FetchExchangesParams>({
+    buildInput: ({ editing: editingRow, formData, storeUuid: scopedStoreUuid }) => {
+      const currencyUuid = String(formData.get("currency_uuid_fk") ?? "").trim();
+      const price = String(formData.get("ex_price") ?? "").trim();
+      const status = String(formData.get("ex_status") ?? "1");
+      return buildExchangePayload({ currencyUuid, editing: editingRow, price, status, storeUuid: scopedStoreUuid });
+    },
+    idKey: "ex_uuid",
+    initialPagination,
+    requiredScopeKey: "store_uuid_fk",
+    requiredScopeMessage: t("settings.storeRequired"),
+    scope: (storeUuid) => ({ store_uuid_fk: storeUuid }),
+    store: useExchangeStore,
+    title,
+    validateInput: ({ formData, storeUuid: scopedStoreUuid }) => {
+      const currencyUuid = String(formData.get("currency_uuid_fk") ?? "").trim();
+      const price = String(formData.get("ex_price") ?? "").trim();
+      const missing = missingExchangeField({ currencyUuid, price, storeUuid: scopedStoreUuid });
+      if (missing === "store") return t("settings.storeRequired");
+      if (missing === "currency") return t("settings.createCurrencyFirst");
+      if (missing === "rate") return t("settings.exchangeRateRequired");
+      return null;
+    }
+  });
+
   const currencyById = useMemo(() => {
     const map = new Map<string, Currency>();
     currencyOptions.forEach((currency) => {
@@ -166,38 +176,6 @@ export function ExchangeSettingsPage({ initialPagination }: { initialPagination:
     });
     return map;
   }, [currencyOptions]);
-  const pageSize = limit === "All" ? rows.length || Number(DEFAULT_LIMIT) : Number(limit ?? DEFAULT_LIMIT);
-  const totalPages = Math.max(1, Number(storeTotalPages || Math.ceil(total / pageSize) || 1));
-  const pageStart = rows.length ? (page - 1) * pageSize + 1 : 0;
-  const pageEnd = rows.length ? pageStart + rows.length - 1 : 0;
-  const fullLoading = loading && !hasLoaded;
-  const backgroundLoading = refreshing || (loading && hasLoaded);
-  const pagingBusy = loading || refreshing;
-  const canGoBack = page > 1 && !pagingBusy;
-  const canGoNext = page < totalPages && !pagingBusy;
-  const ids = useMemo(() => rows.map(exchangeId).filter(Boolean), [rows]);
-  const allSelected = ids.length > 0 && ids.every((id) => selectedRows.has(id));
-
-  const load = useCallback(async () => {
-    if (!storeUuid) {
-      showToast({ title: t("settings.loadFailed", { title }), description: t("settings.storeRequired"), tone: "error" });
-      return;
-    }
-
-    try {
-      await loadRows(requestParams, { background: hasLoadedRef.current });
-    } catch (error) {
-      showToast({
-        title: t("settings.loadFailed", { title }),
-        description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
-        tone: "error"
-      });
-    }
-  }, [hasLoadedRef, loadRows, requestParams, showToast, storeUuid, t, title]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
 
   useEffect(() => {
     let active = true;
@@ -218,41 +196,10 @@ export function ExchangeSettingsPage({ initialPagination }: { initialPagination:
     };
   }, [loadCurrencyOptions, showToast, t]);
 
-  useEffect(() => {
-    setSelectedRows((current) => {
-      if (!current.size) return current;
-      const allowed = new Set(ids);
-      let changed = false;
-      const next = new Set<string>();
-      current.forEach((id) => {
-        if (allowed.has(id)) next.add(id);
-        else changed = true;
-      });
-      return changed ? next : current;
-    });
-  }, [ids]);
-
-  function applyFilters() {
-    applySearch({ page, resetPage, reload: () => void load() });
-  }
-
-  function toggleSelected(id: string, checked: boolean) {
-    if (!id) return;
-    setSelectedRows((current) => {
-      const next = new Set(current);
-      if (checked) next.add(id);
-      else next.delete(id);
-      return next;
-    });
-  }
-
-  function toggleAll(checked: boolean) {
-    setSelectedRows(checked ? new Set(ids) : new Set());
-  }
-
+  // ต้องมีทั้งร้านและสกุลเงินก่อนจึงเปิดฟอร์มได้ — เช็คเพิ่มจากที่ controller เช็คสโคปร้านให้แล้ว
   function openCreate() {
-    if (!storeUuid) {
-      showToast({ title: t("settings.saveFailed"), description: t("settings.storeRequired"), tone: "error" });
+    if (missingRequiredScope) {
+      showToast({ title: t("settings.saveFailed"), description: requiredScopeDescription, tone: "error" });
       return;
     }
     if (!currencyOptions.length) {
@@ -261,66 +208,6 @@ export function ExchangeSettingsPage({ initialPagination }: { initialPagination:
     }
     setEditing(null);
     setDialogOpen(true);
-  }
-
-  function openEdit(row: Exchange) {
-    setEditing(row);
-    setDialogOpen(true);
-  }
-
-  function validationMessage(field: ReturnType<typeof missingExchangeField>) {
-    if (field === "store") return t("settings.storeRequired");
-    if (field === "currency") return t("settings.createCurrencyFirst");
-    if (field === "rate") return t("settings.exchangeRateRequired");
-    return "";
-  }
-
-  async function save(formData: FormData) {
-    const currencyUuid = String(formData.get("currency_uuid_fk") ?? "").trim();
-    const price = String(formData.get("ex_price") ?? "").trim();
-    const status = String(formData.get("ex_status") ?? "1");
-    const missing = missingExchangeField({ currencyUuid, price, storeUuid });
-
-    if (missing) {
-      showToast({ title: t("settings.saveFailed"), description: validationMessage(missing), tone: "error" });
-      return;
-    }
-
-    try {
-      await saveRow(buildExchangePayload({ currencyUuid, editing, price, status, storeUuid }));
-      showToast({ title: t("settings.saved"), tone: "success" });
-      setDialogOpen(false);
-      setEditing(null);
-      await loadRows(requestParams, { background: true });
-    } catch (error) {
-      showToast({
-        title: t("settings.saveFailed"),
-        description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
-        tone: "error"
-      });
-    }
-  }
-
-  async function remove(row: Exchange) {
-    const id = exchangeId(row);
-    if (!id) return;
-    try {
-      await removeRow(id);
-      showToast({ title: t("settings.deleted"), tone: "success" });
-      setDeleteTarget(null);
-      setSelectedRows((current) => {
-        const next = new Set(current);
-        next.delete(id);
-        return next;
-      });
-      await loadRows(requestParams, { background: true });
-    } catch (error) {
-      showToast({
-        title: t("settings.deleteFailed"),
-        description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
-        tone: "error"
-      });
-    }
   }
 
   const table = rows.length ? (
@@ -356,7 +243,7 @@ export function ExchangeSettingsPage({ initialPagination }: { initialPagination:
                   <RateBadge rate={exchangeRate(row)} />
                 </TableCell>
                 <TableCell>
-                  <StatusBadge status={exchangeStatus(row)} />
+                  <StatusBadge active={isActiveStatus(exchangeStatus(row))} />
                 </TableCell>
                 <TableCell className="text-right">
                   <SettingsRowActions row={row} onEdit={openEdit} onDelete={setDeleteTarget} />
@@ -382,7 +269,7 @@ export function ExchangeSettingsPage({ initialPagination }: { initialPagination:
             badges={
               <>
                 <RateBadge rate={exchangeRate(row)} />
-                <StatusBadge status={exchangeStatus(row)} />
+                <StatusBadge active={isActiveStatus(exchangeStatus(row))} />
               </>
             }
             checked={selected}
@@ -399,7 +286,7 @@ export function ExchangeSettingsPage({ initialPagination }: { initialPagination:
           >
             <SettingsMobileMetaGrid>
               <SettingsMobileMeta label={t("fields.ex_price")} value={<RateBadge rate={exchangeRate(row)} />} />
-              <SettingsMobileMeta label={t("fields.ex_status")} value={<StatusBadge status={exchangeStatus(row)} />} />
+              <SettingsMobileMeta label={t("fields.ex_status")} value={<StatusBadge active={isActiveStatus(exchangeStatus(row))} />} />
             </SettingsMobileMetaGrid>
           </SettingsMobileCard>
         );
@@ -433,9 +320,6 @@ export function ExchangeSettingsPage({ initialPagination }: { initialPagination:
         <div className="flex min-w-0 flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
           <div className="min-w-0">
             <p className="text-sm font-black">{t("settings.exchangeList")}</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              {t("common.showingRange", { start: pageStart, end: pageEnd, total })} - {t("common.page", { current: page, total: totalPages })}
-            </p>
           </div>
           <div className="min-w-0 xl:max-w-[48rem]">{toolbar}</div>
         </div>
@@ -452,17 +336,7 @@ export function ExchangeSettingsPage({ initialPagination }: { initialPagination:
           <div className="min-h-0 flex-1 overflow-y-auto md:hidden">{mobileList}</div>
         </>
       ) : (
-        <div className="flex min-h-72 flex-1 items-center justify-center p-4">
-          <Empty className="max-w-md border border-dashed bg-muted/20">
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <Coins aria-hidden />
-              </EmptyMedia>
-              <EmptyTitle>{t("settings.noRecords", { title: title.toLowerCase() })}</EmptyTitle>
-              <EmptyDescription>{t("empty.adjustSearch")}</EmptyDescription>
-            </EmptyHeader>
-          </Empty>
-        </div>
+        <SettingsEmptyRecords icon={<Coins aria-hidden />} title={title.toLowerCase()} />
       )}
     </div>
   );
@@ -478,15 +352,11 @@ export function ExchangeSettingsPage({ initialPagination }: { initialPagination:
         footer={
           rows.length ? (
             <SettingsPaginationFooter
-              canGoBack={canGoBack}
-              canGoNext={canGoNext}
               page={page}
               pageEnd={pageEnd}
               pageStart={pageStart}
               total={total}
               totalPages={totalPages}
-              onBack={() => setPage((current) => Math.max(1, current - 1))}
-              onNext={() => setPage((current) => Math.min(totalPages, current + 1))}
               onPageChange={setPage}
             />
           ) : undefined
@@ -506,11 +376,7 @@ export function ExchangeSettingsPage({ initialPagination }: { initialPagination:
         saving={saving}
         storeUuid={storeUuid}
         title={title}
-        onOpenChange={(nextOpen) => {
-          if (saving) return;
-          setDialogOpen(nextOpen);
-          if (!nextOpen) setEditing(null);
-        }}
+        onOpenChange={onDialogOpenChange}
         onSubmit={save}
       />
       <ConfirmDialog
@@ -571,11 +437,11 @@ function ExchangeFormDialog({
     ];
   }, [currencies, editing]);
 
-  useEffect(() => {
+  useResetOnChange(`${formKey}:${open}`, () => {
     setCurrencyUuid(currencyId(editing));
     setExPrice(exchangeValue(editing, "ex_price"));
     setExStatus(exchangeStatus(editing));
-  }, [editing, open]);
+  });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

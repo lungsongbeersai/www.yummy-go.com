@@ -36,43 +36,8 @@ export function reportExportColumns(columns: ReportColumn[]) {
 }
 
 // แถวข้อมูลรายงานหัวไฟล์ export ใช้ร่วมกันทุกหน้ารายงาน — ส่งเฉพาะ field ที่รายงานนั้นมี
-export function exportInfoRows(
-  t: (key: string) => string,
-  input: {
-    branchLabel?: string;
-    dateFrom: string;
-    dateTo: string;
-    paymentMethodLabel?: string;
-    typeLabel?: string;
-  },
-) {
-  return [
-    ...(input.typeLabel
-      ? [{ Metric: t("report.filters.typePage"), Value: input.typeLabel }]
-      : []),
-    ...(input.branchLabel
-      ? [{ Metric: t("dashboard.branch"), Value: input.branchLabel }]
-      : []),
-    {
-      Metric: t("report.reportDate"),
-      Value: `${input.dateFrom} - ${input.dateTo}`,
-    },
-    ...(input.paymentMethodLabel
-      ? [
-          {
-            Metric: t("report.filters.paymentMethod"),
-            Value: input.paymentMethodLabel,
-          },
-        ]
-      : []),
-  ];
-}
-
-export function waitForPaint() {
-  return new Promise<void>((resolve) => {
-    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-  });
-}
+export { exportInfoRows } from "../shared/report-export-info";
+export { waitForPaint } from "@/lib/export/paint";
 
 export function waitForImages(element: HTMLElement, timeoutMs = 1200) {
   const images = Array.from(element.querySelectorAll("img"));

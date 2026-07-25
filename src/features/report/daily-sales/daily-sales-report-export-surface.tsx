@@ -20,7 +20,7 @@ import {
 import {
   ReportOfficialHeader,
   ReportSignatures,
-} from "../report-official-layout";
+} from "@/lib/export/official-layout";
 import { renderPrintCell } from "./daily-sales-report-tables";
 import {
   firstNumber,
@@ -30,7 +30,7 @@ import {
   summaryCardValue,
 } from "./daily-sales-report-utils";
 
-export function ReportExportSurface({
+export function DailySalesExportSurface({
   billGroups,
   cards,
   columns,

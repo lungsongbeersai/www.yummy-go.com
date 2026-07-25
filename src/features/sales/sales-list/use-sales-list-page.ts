@@ -1,9 +1,12 @@
 "use client";
 
+import type { Route } from "next";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMediaQuery } from "@/hooks/use-media-query";
+import { useResetOnChange, useResetOnDeps } from "@/hooks/use-reset-on-change";
 import { useTranslation } from "react-i18next";
-import { openLocalInvoicePrintWindow, type InvoicePrintData } from "@/features/pos/print/invoice-print-window";
-import { buildSalesListInvoicePrintData } from "@/features/sales/list/sales-list-utils";
+import { openLocalInvoicePrintWindow, type InvoicePrintData } from "@/services/printer/invoice-print-window";
+import { buildSalesListInvoicePrintData } from "@/features/sales/cancel-sale/cancel-sale-utils";
 import { useUrlPagination } from "@/hooks/use-url-pagination";
 import { isCapacitorNativeApp } from "@/lib/capacitor-platform";
 import type { UrlPaginationState } from "@/lib/url-pagination";
@@ -67,6 +70,7 @@ export function useSalesListPage(initialPagination: UrlPaginationState) {
   const [searchText, setSearchText] = useState("");
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
   const [mobileDetailOpen, setMobileDetailOpen] = useState(false);
+  const isDesktop = useMediaQuery(SALES_LIST_DESKTOP_MEDIA_QUERY);
   const [summaryVisible, setSummaryVisible] = useState(false);
   const [selectedBillId, setSelectedBillId] = useState("");
   const [printingBillId, setPrintingBillId] = useState("");
@@ -111,7 +115,7 @@ export function useSalesListPage(initialPagination: UrlPaginationState) {
     selectedOrderUuid &&
     cancelDateSelect &&
     branchUuid === userBranchUuid
-      ? `/sales/cancel-sale?order_uuid=${encodeURIComponent(selectedOrderUuid)}&date_select=${cancelDateSelect}`
+      ? (`/sales/cancel-sale?order_uuid=${encodeURIComponent(selectedOrderUuid)}&date_select=${cancelDateSelect}` as Route)
       : null;
   const initialLoading = loading && !bills.length;
 
@@ -120,7 +124,8 @@ export function useSalesListPage(initialPagination: UrlPaginationState) {
     void loadBranches(storeUuid, userBranchUuid).catch(() => undefined);
   }, [loadBranches, storeUuid, userBranchUuid]);
 
-  useEffect(() => {
+  // สลับสาขา = ตั้ง filter ใหม่ กลับหน้าแรก และล้างบิลที่เลือกไว้
+  useResetOnDeps([defaultBranchUuid, resetPage, resetSalesItems], () => {
     if (!defaultBranchUuid) {
       resetSalesItems();
       return;
@@ -135,7 +140,7 @@ export function useSalesListPage(initialPagination: UrlPaginationState) {
     resetPage();
     setSelectedBillId("");
     setMobileDetailOpen(false);
-  }, [defaultBranchUuid, resetPage, resetSalesItems]);
+  });
 
   useEffect(() => {
     const search = searchText.trim();
@@ -151,33 +156,24 @@ export function useSalesListPage(initialPagination: UrlPaginationState) {
     return () => window.clearTimeout(timer);
   }, [appliedFilters.search, resetPage, searchText]);
 
-  useEffect(() => {
+  // บิลชุดใหม่ = คงตัวที่เลือกไว้ถ้ายังอยู่ ไม่งั้นเลือกใบแรก
+  useResetOnChange(bills, () => {
     setSelectedBillId((current) => {
       if (current && bills.some((bill) => bill.id === current)) return current;
       return bills[0]?.id ?? "";
     });
-  }, [bills]);
+  });
 
-  useEffect(() => {
+  // บิลที่เปิดดูอยู่หายไป = ปิดแผงรายละเอียดบนมือถือ
+  useResetOnDeps([mobileDetailOpen, selectedBill], () => {
     if (mobileDetailOpen && !selectedBill) setMobileDetailOpen(false);
-  }, [mobileDetailOpen, selectedBill]);
+  });
 
-  useEffect(() => {
-    if (!mobileDetailOpen) return;
-
-    const mediaQuery = window.matchMedia(SALES_LIST_DESKTOP_MEDIA_QUERY);
-    if (mediaQuery.matches) {
-      setMobileDetailOpen(false);
-      return;
-    }
-
-    const closeOnDesktop = (event: MediaQueryListEvent) => {
-      if (event.matches) setMobileDetailOpen(false);
-    };
-
-    mediaQuery.addEventListener("change", closeOnDesktop);
-    return () => mediaQuery.removeEventListener("change", closeOnDesktop);
-  }, [mobileDetailOpen]);
+  // ปิดแผงมือถือเมื่อจอ "ข้าม" เป็น desktop — ไม่ derive จากค่า isDesktop ตรงๆ
+  // เพราะย่อจอกลับมา mobile แล้วแผงต้องไม่เด้งเปิดเอง
+  useResetOnDeps([isDesktop], () => {
+    if (isDesktop) setMobileDetailOpen(false);
+  });
 
   const load = useCallback(async () => {
     const selectedBranch = appliedFilters.branchUuid || defaultBranchUuid;

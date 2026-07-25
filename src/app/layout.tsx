@@ -16,7 +16,10 @@ const notoSansLao = Noto_Sans_Lao({
 });
 
 export const metadata: Metadata = {
-  title: "Yummy Go POS",
+  title: {
+    default: "Yummy Go POS",
+    template: "%s | Yummy Go",
+  },
   description: "Clean rebuilt restaurant POS workspace",
   icons: {
     icon: "/brand/icon.png",

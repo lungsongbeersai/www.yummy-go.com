@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useState } from "react";
+import { useResetOnDeps } from "@/hooks/use-reset-on-change";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
@@ -13,6 +14,7 @@ import {
   PanelLeftOpen,
   UserPen,
 } from "lucide-react";
+import { internalRoute } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -77,20 +79,20 @@ import {
   useAuthStore,
   type AuthUser,
 } from "@/stores/auth-store";
-import { useSidebarMenuStore } from "@/stores/sidebar-menu-store";
+import { usePermissionsSidebarStore } from "@/stores/permissions-sidebar-store";
 
 type BreadcrumbTrailItem = RouteBreadcrumbItem;
 
 const POS_ANDROID_SYSTEM_SCREEN_CLASS = "pos-android-system-screen";
 const FIXED_DATA_SCREEN_PATHS = new Set([
-  "/printer",
-  "/product",
+  "/printers",
+  "/products",
   "/stock",
   "/sales/cancel-history",
   "/sales/cancel-sale",
   "/sales/sales-list"
 ]);
-const FIXED_DATA_SCREEN_PREFIXES = ["/setting/", "/report/"] as const;
+const FIXED_DATA_SCREEN_PREFIXES = ["/settings/", "/report/"] as const;
 
 function menuKey(title: string) {
   return `nav.${title}`;
@@ -213,9 +215,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const logout = useAuthStore((state) => state.logout);
   const collapsed = useAppStore((state) => state.collapsed);
   const setCollapsed = useAppStore((state) => state.setCollapsed);
-  const sidebarItems = useSidebarMenuStore((state) => state.items);
-  const clearSidebarMenu = useSidebarMenuStore((state) => state.clearActive);
-  const loadSidebarMenu = useSidebarMenuStore((state) => state.load);
+  const sidebarItems = usePermissionsSidebarStore((state) => state.items);
+  const clearSidebarMenu = usePermissionsSidebarStore((state) => state.clearActive);
+  const loadSidebarMenu = usePermissionsSidebarStore((state) => state.load);
   const storeUuid = authStoreUuid(user);
   const staticMenuItems = useMemo(
     () => filterMenu(sideMenu, user?.status),
@@ -236,8 +238,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return [home, ...trail];
   }, [menuItems, pathname]);
   const immersiveScreen =
-    pathname === "/sales/open-table-sale" ||
-    pathname === "/sale/order-customer";
+    pathname === "/pos/tables" ||
+    pathname === "/pos/order";
   const dashboardScreen = pathname === "/";
   const fixedDataScreen = isFixedDataScreen(pathname, immersiveScreen);
   const [openMenus, setOpenMenus] = useState<Set<string>>(
@@ -289,7 +291,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     };
   }, [immersiveScreen]);
 
-  useEffect(() => {
+  // เปลี่ยนหน้า = กางเมนูที่ครอบเส้นทางปัจจุบันไว้เสมอ
+  useResetOnDeps([menuItems, pathname], () => {
     const activeTitles = activeMenuTitles(menuItems, pathname);
     if (!activeTitles.length) return;
     setOpenMenus((current) => {
@@ -297,7 +300,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       activeTitles.forEach((title) => next.add(title));
       return next;
     });
-  }, [menuItems, pathname]);
+  });
 
   function toggleMenu(title: string) {
     setOpenMenus((current) => {
@@ -581,7 +584,7 @@ function AppSidebar({
           </SidebarMenuButton>
         ) : (
           <SidebarMenuButton asChild isActive={active} tooltip={title}>
-            <Link href={item.path} onClick={closeMobile}>
+            <Link href={internalRoute(item.path)} onClick={closeMobile}>
               {icon}
               <span className="min-w-0 flex-1 truncate">{title}</span>
               {item.badgeText && !collapsed ? (
@@ -614,7 +617,7 @@ function AppSidebar({
           </SidebarMenuSubButton>
         ) : (
           <SidebarMenuSubButton asChild isActive={active}>
-            <Link href={item.path} onClick={closeMobile}>
+            <Link href={internalRoute(item.path)} onClick={closeMobile}>
               <span>{title}</span>
             </Link>
           </SidebarMenuSubButton>
@@ -636,7 +639,7 @@ function AppSidebar({
 
     return (
       <DropdownMenuItem key={item.path} asChild>
-        <Link href={item.path} onClick={closeMobile}>
+        <Link href={internalRoute(item.path)} onClick={closeMobile}>
           {title}
         </Link>
       </DropdownMenuItem>
@@ -788,7 +791,7 @@ function AppBreadcrumb({
 
     return (
       <BreadcrumbLink asChild className="truncate">
-        <Link href={item.path}>{title}</Link>
+        <Link href={internalRoute(item.path)}>{title}</Link>
       </BreadcrumbLink>
     );
   }
@@ -830,7 +833,7 @@ function AppBreadcrumb({
                     }
                     return (
                       <DropdownMenuItem key={item.path} asChild>
-                        <Link href={item.path}>{title}</Link>
+                        <Link href={internalRoute(item.path)}>{title}</Link>
                       </DropdownMenuItem>
                     );
                   })}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
 import type { RefObject } from "react";
 import type { Language } from "@/lib/language";
 import { landingCompany, landingProjects, landingServices, landingUi, pickText } from "../landing-data";
@@ -18,16 +19,15 @@ export function LandingHero({
   heroRef,
   scrollHintRef
 }: LandingHeroProps) {
-  const [countProgress, setCountProgress] = useState(0);
-  const particles = useMemo(createParticleStyles, []);
+  const reducedMotion = usePrefersReducedMotion();
+  const [animatedProgress, setAnimatedProgress] = useState(0);
+  // เปิดโหมดลดการเคลื่อนไหว = ข้ามไปค่าปลายทางเลย ไม่ต้องนับ
+  const countProgress = reducedMotion ? 1 : animatedProgress;
+  const particles = useMemo(() => createParticleStyles(), []);
   const text = (key: keyof typeof landingUi) => pickText(landingUi[key], language);
 
   useEffect(() => {
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
-    if (reducedMotion.matches) {
-      setCountProgress(1);
-      return;
-    }
+    if (reducedMotion) return;
 
     const startedAt = performance.now();
     let frame = 0;
@@ -38,13 +38,13 @@ export function LandingHero({
       const step = Math.round(eased * 30);
       if (step !== previousStep) {
         previousStep = step;
-        setCountProgress(eased);
+        setAnimatedProgress(eased);
       }
       if (progress < 1) frame = requestAnimationFrame(tick);
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, []);
+  }, [reducedMotion]);
 
   const taglineWords = pickText(landingCompany.tagline, language).split(" ");
   const yearsTarget = new Date().getFullYear() - landingCompany.foundedYear;

@@ -1,5 +1,6 @@
 "use client";
 
+import { addReportCanvasToPdfPages } from "@/lib/export/pdf";
 import {
   useCallback,
   useEffect,
@@ -8,16 +9,16 @@ import {
   type RefObject,
   type SetStateAction,
 } from "react";
+import { useResetOnDeps } from "@/hooks/use-reset-on-change";
 import { useTranslation } from "react-i18next";
+import { localDateInputValue } from "@/lib/format";
 import { pageLimitSize } from "@/lib/pagination";
 import type { UrlPaginationState } from "@/lib/url-pagination";
 import type { ApiEntity } from "@/services/shared/types";
 import { useAppStore } from "@/stores/app-store";
-import {
-  authStoreUuid,
-  useAuthStore,
-} from "@/stores/auth-store";
+import { useAuthStore } from "@/stores/auth-store";
 import { useBranchStore } from "@/stores/branch-store";
+import { useReportBranchSelection } from "../shared/use-report-branch-selection";
 import {
   type DailySalesBillGroup,
   useCategorySalesReportStore,
@@ -26,8 +27,9 @@ import {
   useDailySalesOrderReportStore,
 } from "@/stores/report-store";
 import { useToastStore } from "@/stores/toast-store";
-import { createSingleSheetReportWorkbook } from "../report-excel-utils";
-import { officialReportExcelLayout } from "../report-official-layout";
+import { createSingleSheetReportWorkbook } from "@/lib/export/excel";
+import { officialReportExcelLayout } from "@/lib/export/official-layout";
+import { openReceiptPrintWindow, renderReceiptPrintWindow } from "../shared/report-receipt-print";
 import { createDailySalesDetailExcelWorkbook } from "./daily-sales-detail-excel";
 import type {
   ReportExportData,
@@ -41,8 +43,7 @@ import {
 } from "./daily-sales-report-utils";
 import {
   buildDailySalesPrintData,
-  openDailySalesPrintWindow,
-  renderDailySalesPrintWindow,
+  renderDailySalesPrintHtml,
 } from "./daily-sales-report-print";
 import {
   reportColumns,
@@ -61,15 +62,12 @@ import {
   waitForPaint,
 } from "./daily-sales-report-export-utils";
 import {
-  branchOptionFromRow,
   billPaymentMethodParam,
   detailPaymentMethodParam,
-  localDateInputValue,
   paymentMethodLabel,
   reportRecordId,
   reportTotalFromBillGroups,
   reportTotalFromRows,
-  selectedBranchLabel,
 } from "./daily-sales-report-utils";
 
 const EMPTY_BILL_GROUPS: DailySalesBillGroup[] = [];
@@ -83,15 +81,17 @@ export function useDailySalesReportWorkflow(
   const { t } = useTranslation();
   const user = useAuthStore((state) => state.user);
   const language = useAppStore((state) => state.language);
-  const branches = useBranchStore((state) => state.branches);
-  const branchError = useBranchStore((state) => state.error);
-  const branchLoading = useBranchStore((state) => state.loading);
-  const branchStoreUuid = useBranchStore((state) => state.storeUuid);
-  const loadBranches = useBranchStore((state) => state.loadBranches);
-  const selectedBranchUuid = useBranchStore(
-    (state) => state.selectedBranchUuid,
-  );
   const setSelectedBranch = useBranchStore((state) => state.setSelectedBranch);
+  const {
+    branchError,
+    branchLabelFor,
+    branchLoading,
+    branchNormalizationKey,
+    branchOptions,
+    canSelectBranch,
+    defaultBranchUuid,
+    normalizeBranchFilters,
+  } = useReportBranchSelection();
   const detailBillGroups = useDailySalesOrderReportStore((state) => state.billGroups);
   const detailRows = useDailySalesOrderReportStore((state) => state.rows);
   const detailSummaryCards = useDailySalesOrderReportStore((state) => state.summaryCards);
@@ -141,81 +141,10 @@ export function useDailySalesReportWorkflow(
   const [billPage, setBillPage] = useState(1);
   const [detailPage, setDetailPage] = useState(1);
 
-  const storeUuid = authStoreUuid(user);
-  const userBranchUuid = user?.branch_uuid ?? "";
-  const canSelectBranch = Number(user?.status ?? 0) === 1;
-  const branchOptions = useMemo(() => {
-    const storeBranches = branchStoreUuid === storeUuid ? branches : [];
-    const options = storeBranches
-      .map((branch) => branchOptionFromRow(branch, language))
-      .filter((option): option is NonNullable<typeof option> =>
-        Boolean(option),
-      );
-
-    if (
-      userBranchUuid &&
-      !options.some((option) => option.value === userBranchUuid)
-    ) {
-      options.unshift({
-        value: userBranchUuid,
-        label: user?.branch_name || userBranchUuid,
-      });
-    }
-
-    if (canSelectBranch) return options;
-
-    const lockedOptions = options.filter(
-      (option) => option.value === userBranchUuid,
-    );
-    return lockedOptions.length || !userBranchUuid
-      ? lockedOptions
-      : [{ value: userBranchUuid, label: user?.branch_name || userBranchUuid }];
-  }, [
-    branches,
-    branchStoreUuid,
-    canSelectBranch,
-    language,
-    storeUuid,
-    user?.branch_name,
-    userBranchUuid,
-  ]);
-  const branchOptionValues = useMemo(
-    () => new Set(branchOptions.map((option) => option.value)),
-    [branchOptions],
-  );
-  const branchStoreSelectedUuid =
-    branchStoreUuid === storeUuid ? selectedBranchUuid : "";
-  const defaultBranchUuid = useMemo(() => {
-    if (!canSelectBranch) return userBranchUuid;
-    if (
-      branchStoreSelectedUuid &&
-      (!branchOptionValues.size ||
-        branchOptionValues.has(branchStoreSelectedUuid))
-    ) {
-      return branchStoreSelectedUuid;
-    }
-    if (
-      userBranchUuid &&
-      (!branchOptionValues.size || branchOptionValues.has(userBranchUuid))
-    )
-      return userBranchUuid;
-    return branchOptions[0]?.value ?? userBranchUuid;
-  }, [
-    branchOptionValues,
-    branchOptions,
-    branchStoreSelectedUuid,
-    canSelectBranch,
-    userBranchUuid,
-  ]);
   const branchUuid = appliedFilters.branchUuid || defaultBranchUuid;
   const activeBranchLabel = useMemo(
-    () =>
-      selectedBranchLabel(
-        branchOptions,
-        branchUuid,
-        user?.branch_name || branchUuid || "-",
-      ),
-    [branchOptions, branchUuid, user?.branch_name],
+    () => branchLabelFor(branchUuid),
+    [branchLabelFor, branchUuid],
   );
   const isDetailTab = appliedFilters.typePage === "detail";
   const billGroups = isDetailTab ? detailBillGroups : EMPTY_BILL_GROUPS;
@@ -261,8 +190,6 @@ export function useDailySalesReportWorkflow(
   const activePageLimit = pageLimitSize(appliedFilters.limit, visibleCount);
   const pageStart = visibleCount ? (page - 1) * activePageLimit + 1 : 0;
   const pageEnd = visibleCount ? pageStart + visibleCount - 1 : 0;
-  const canGoBack = page > 1 && !loading;
-  const canGoNext = page < totalPages && !loading;
   const exportDisabled =
     loading || Boolean(exporting) || !branchUuid || !rows.length;
   const exportSurfaceReady = Boolean(exportData);
@@ -307,37 +234,12 @@ export function useDailySalesReportWorkflow(
     [billTotalPages, detailTotalPages, isDetailTab],
   );
 
-  const normalizeBranchFilters = useCallback(
-    (filters: ReportFilters) => {
-      if (!defaultBranchUuid) return filters;
-
-      if (!canSelectBranch) {
-        return filters.branchUuid === defaultBranchUuid
-          ? filters
-          : { ...filters, branchUuid: defaultBranchUuid };
-      }
-
-      if (
-        filters.branchUuid &&
-        (!branchOptionValues.size || branchOptionValues.has(filters.branchUuid))
-      ) {
-        return filters;
-      }
-
-      return { ...filters, branchUuid: defaultBranchUuid };
-    },
-    [branchOptionValues, canSelectBranch, defaultBranchUuid],
-  );
-
-  useEffect(() => {
-    if (!storeUuid) return;
-    void loadBranches(storeUuid, userBranchUuid).catch(() => undefined);
-  }, [loadBranches, storeUuid, userBranchUuid]);
-
-  useEffect(() => {
+  // รายการสาขาเปลี่ยน (โหลดเสร็จ/สลับร้าน) = ปรับสาขาใน filter ให้ยังใช้ได้เสมอ
+  // ใช้ primitive key แทน callback identity เพื่อไม่ให้ reset ซ้ำทุก render
+  useResetOnDeps([branchNormalizationKey], () => {
     setDraftFilters((current) => normalizeBranchFilters(current));
     setAppliedFilters((current) => normalizeBranchFilters(current));
-  }, [normalizeBranchFilters]);
+  });
 
   const load = useCallback(async () => {
     if (!branchUuid) return;
@@ -392,30 +294,36 @@ export function useDailySalesReportWorkflow(
     void load();
   }, [load]);
 
-  useEffect(() => {
+  // ข้อมูลหดลงจนหน้าปัจจุบันเกินช่วง = ดึงกลับมาหน้าสุดท้ายที่มีจริง
+  useResetOnDeps([billPage, billTotalPages], () => {
     if (billPage > billTotalPages) setBillPage(Math.max(1, billTotalPages));
-  }, [billPage, billTotalPages]);
+  });
 
-  useEffect(() => {
+  useResetOnDeps([detailPage, detailTotalPages], () => {
     if (detailPage > detailTotalPages) setDetailPage(Math.max(1, detailTotalPages));
-  }, [detailPage, detailTotalPages]);
+  });
 
-  useEffect(() => {
+  // เปลี่ยนแท็บ/หน้า/ชุดข้อมูล = กลับไปกางทุกบิลใหม่
+  useResetOnDeps([appliedFilters.typePage, page, rows], () => {
     setCollapsedBillGroups(new Set());
-  }, [appliedFilters.typePage, page, rows]);
+  });
 
-  useEffect(() => {
-    setSelectedRecordIds(new Set());
-  }, [
-    appliedFilters.dateFrom,
-    appliedFilters.dateTo,
-    appliedFilters.limit,
-    appliedFilters.orderBy,
-    appliedFilters.paymentMethod,
-    appliedFilters.search,
-    appliedFilters.typePage,
-    branchUuid,
-  ]);
+  // เงื่อนไขค้นหาเปลี่ยน = แถวที่เคยติ๊กไว้ไม่ใช่ชุดเดิมอีกต่อไป ต้องล้างการเลือก
+  useResetOnDeps(
+    [
+      appliedFilters.dateFrom,
+      appliedFilters.dateTo,
+      appliedFilters.limit,
+      appliedFilters.orderBy,
+      appliedFilters.paymentMethod,
+      appliedFilters.search,
+      appliedFilters.typePage,
+      branchUuid,
+    ],
+    () => {
+      setSelectedRecordIds(new Set());
+    },
+  );
 
   function applyNextFilters(nextFilters: ReportFilters, closeMobile = false) {
     if (nextFilters.branchUuid) setSelectedBranch(nextFilters.branchUuid);
@@ -723,7 +631,7 @@ export function useDailySalesReportWorkflow(
         orientation: "landscape",
         unit: "pt",
       });
-      addCanvasToPdfPages(pdf, canvas, element);
+      addReportCanvasToPdfPages(pdf, canvas, element);
 
       updateExportProgress(95, "report.exportProgress.saving");
       await waitForPaint();
@@ -751,7 +659,7 @@ export function useDailySalesReportWorkflow(
     if (loading || exporting) return;
     if (!user) return;
 
-    const printWindow = openDailySalesPrintWindow();
+    const printWindow = openReceiptPrintWindow();
     if (!printWindow) {
       showToast({ title: t("report.printFailed"), description: t("report.printPopupBlocked"), tone: "error" });
       return;
@@ -784,7 +692,7 @@ export function useDailySalesReportWorkflow(
       const bills = useDailySaleItemsStore.getState().bills;
       if (!bills.length && !categorySales.groups.length) throw new Error(t("report.noData"));
 
-      renderDailySalesPrintWindow(printWindow, buildDailySalesPrintData({
+      renderReceiptPrintWindow(printWindow, renderDailySalesPrintHtml(buildDailySalesPrintData({
         bills,
         dateFrom: appliedFilters.dateFrom,
         dateTo: appliedFilters.dateTo,
@@ -812,7 +720,7 @@ export function useDailySalesReportWorkflow(
         },
         salesGroups: categorySales.groups,
         user,
-      }));
+      })));
 
       showToast({
         title: t("report.printReady"),
@@ -839,8 +747,6 @@ export function useDailySalesReportWorkflow(
     branchLoading,
     branchOptions,
     branchUuid,
-    canGoBack,
-    canGoNext,
     canSelectBranch,
     cards,
     clearSelection,
@@ -917,80 +823,6 @@ function reportDataFilterKey(filters: ReportFilters) {
   ].join("|");
 }
 
-type PdfDocument = {
-  addImage: (
-    imageData: string,
-    format: "PNG",
-    x: number,
-    y: number,
-    width: number,
-    height: number,
-  ) => void;
-  addPage: () => void;
-  internal: {
-    pageSize: {
-      getHeight: () => number;
-      getWidth: () => number;
-    };
-  };
-};
-
-function addCanvasToPdfPages(
-  pdf: PdfDocument,
-  canvas: HTMLCanvasElement,
-  sourceElement: HTMLElement,
-) {
-  const pageWidth = pdf.internal.pageSize.getWidth();
-  const pageHeight = pdf.internal.pageSize.getHeight();
-  const pageCanvasHeight = Math.floor((pageHeight / pageWidth) * canvas.width);
-  const pageBreaks = getCanvasPageBreaks(sourceElement, canvas);
-  let pageStart = 0;
-  let isFirstPage = true;
-
-  while (pageStart < canvas.height) {
-    const pageEnd = choosePdfPageEnd(
-      pageStart,
-      Math.min(pageStart + pageCanvasHeight, canvas.height),
-      canvas.height,
-      pageBreaks,
-    );
-    const sliceHeight = Math.max(1, pageEnd - pageStart);
-    const sliceCanvas = document.createElement("canvas");
-    const context = sliceCanvas.getContext("2d");
-
-    sliceCanvas.width = canvas.width;
-    sliceCanvas.height = sliceHeight;
-    if (!context) break;
-
-    context.fillStyle = "#ffffff";
-    context.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
-    context.drawImage(
-      canvas,
-      0,
-      pageStart,
-      canvas.width,
-      sliceHeight,
-      0,
-      0,
-      canvas.width,
-      sliceHeight,
-    );
-
-    if (!isFirstPage) pdf.addPage();
-    pdf.addImage(
-      sliceCanvas.toDataURL("image/png", 1),
-      "PNG",
-      0,
-      0,
-      pageWidth,
-      (sliceHeight * pageWidth) / canvas.width,
-    );
-
-    isFirstPage = false;
-    pageStart = pageEnd;
-  }
-}
-
 function selectedBillGroupsForReceipt(
   groups: DailySalesBillGroup[],
   selectedRecordIds: Set<string>,
@@ -1012,67 +844,4 @@ function dailySalesBillGroupSelectionIds(group: DailySalesBillGroup) {
     group.invoiceNumber,
     `order:${group.invoiceNumber}`,
   ].filter(Boolean);
-}
-
-function getCanvasPageBreaks(
-  sourceElement: HTMLElement,
-  canvas: HTMLCanvasElement,
-) {
-  const rootRect = sourceElement.getBoundingClientRect();
-  const scaleY = canvas.height / sourceElement.scrollHeight;
-  const billStarts = canvasPositions(
-    sourceElement.querySelectorAll("tr.is-bill"),
-    rootRect.top,
-    scaleY,
-    canvas.height,
-    "top",
-  );
-
-  return {
-    fallback: canvasPositions(
-      sourceElement.querySelectorAll("tr"),
-      rootRect.top,
-      scaleY,
-      canvas.height,
-      "bottom",
-    ),
-    preferred: billStarts,
-  };
-}
-
-function canvasPositions(
-  rows: NodeListOf<Element>,
-  rootTop: number,
-  scaleY: number,
-  canvasHeight: number,
-  edge: "bottom" | "top",
-) {
-  return Array.from(rows)
-    .map((row) => {
-      const rowRect = row.getBoundingClientRect();
-      const y = edge === "top" ? rowRect.top : rowRect.bottom;
-      return Math.round((y - rootTop) * scaleY);
-    })
-    .filter((value) => value > 0 && value < canvasHeight)
-    .sort((left, right) => left - right);
-}
-
-function choosePdfPageEnd(
-  pageStart: number,
-  maxEnd: number,
-  canvasHeight: number,
-  pageBreaks: { fallback: number[]; preferred: number[] },
-) {
-  if (maxEnd >= canvasHeight) return canvasHeight;
-
-  const minUsefulHeight = pageStart + 120;
-  const safeMaxEnd = maxEnd - 8;
-  const preferredBoundary = pageBreaks.preferred
-    .filter((value) => value > minUsefulHeight && value <= safeMaxEnd)
-    .at(-1);
-  const fallbackBoundary = pageBreaks.fallback
-    .filter((value) => value > minUsefulHeight && value <= safeMaxEnd)
-    .at(-1);
-
-  return preferredBoundary ?? fallbackBoundary ?? maxEnd;
 }

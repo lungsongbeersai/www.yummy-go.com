@@ -40,10 +40,10 @@ export function usePublicMenuCategoryLoader({
 
       try {
         await loadNormalCategoryProducts({
-          t: token,
+          token,
           lang,
           search: submittedSearch,
-          cate_uuid: cateUuid,
+          cateUuid,
         });
       } catch (error) {
         toast({

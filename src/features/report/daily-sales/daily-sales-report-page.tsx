@@ -3,19 +3,18 @@
 import { type CSSProperties, useRef, useState } from "react";
 import { BarChart3, Eye, EyeOff, RefreshCcw, SlidersHorizontal } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { AppPagination } from "@/components/common/app-pagination";
 import { FilterHeaderToolbar } from "@/components/common/filter-header-toolbar";
 import { Button } from "@/components/ui/button";
-import { useIsCapacitorNativeApp } from "@/hooks/use-capacitor-native-app";
 import type { UrlPaginationState } from "@/lib/url-pagination";
+import { ReportError } from "../shared/report-error";
 import {
-  ReportError,
+  DailySalesSummaryCards,
+  DailySalesTableCard,
   ReportExportLoadingDialog,
-  ReportPagination,
-  ReportSummaryCards,
-  ReportTableCard,
 } from "./daily-sales-report-components";
-import { ReportExportSurface } from "./daily-sales-report-export-surface";
-import { ReportFilterSheet } from "./daily-sales-report-filters";
+import { DailySalesExportSurface } from "./daily-sales-report-export-surface";
+import { DailySalesFilterSheet } from "./daily-sales-report-filters";
 import {
   DetailBillTable,
   SummaryReportTable,
@@ -32,7 +31,6 @@ export function DailySalesReportPage({
   const { t } = useTranslation();
   const exportReportRef = useRef<HTMLDivElement>(null);
   const [summaryVisible, setSummaryVisible] = useState(false);
-  const nativeApp = useIsCapacitorNativeApp();
   const report = useDailySalesReportWorkflow(exportReportRef, initialPagination, summaryVisible);
   const layoutStyle = {
     "--daily-sales-filter-height": "0px",
@@ -112,7 +110,7 @@ export function DailySalesReportPage({
             }
           />
 
-          <ReportFilterSheet
+          <DailySalesFilterSheet
             branchLoading={report.branchLoading}
             branchLocked={!report.canSelectBranch}
             branchOptions={report.branchOptions}
@@ -131,14 +129,14 @@ export function DailySalesReportPage({
           {report.error ? <ReportError message={report.error} /> : null}
 
           <div id={SUMMARY_CARDS_ID} hidden={!summaryVisible}>
-            <ReportSummaryCards
+            <DailySalesSummaryCards
               cards={report.cards}
               reportTotal={report.reportTotal}
               summaryCards={report.summaryCards}
             />
           </div>
 
-          <ReportTableCard
+          <DailySalesTableCard
             actions={{
               allDetailGroupsExpanded: report.allDetailGroupsExpanded,
               billGroupsLength: report.billGroups.length,
@@ -146,11 +144,6 @@ export function DailySalesReportPage({
               exportDisabled: report.exportDisabled,
               exporting: report.exporting,
               loading: report.loading,
-              printDisabled:
-                report.loading ||
-                Boolean(report.exporting) ||
-                !report.branchUuid ||
-                nativeApp,
               search: report.appliedFilters.search,
               selectedCount: report.selectedCount,
               selectedBillCount: report.selectedBillCount,
@@ -160,20 +153,15 @@ export function DailySalesReportPage({
               onExpandAllBills: report.expandAllBills,
               onExportExcel: () => void report.exportExcel(),
               onExportPdf: () => void report.exportPdf(),
-              onPrintReport: () => void report.printReport(),
               onRefresh: () => void report.load(),
               onSearchChange: (search) => report.applyTableHeaderFilters({ search }),
               onTypePageChange: (typePage) => report.applyTableHeaderFilters({ typePage }),
             }}
             footer={
-              <ReportPagination
-                canGoBack={report.canGoBack}
-                canGoNext={report.canGoNext}
+              <AppPagination
                 page={report.page}
                 rangeLabel={report.paginationRangeLabel}
                 totalPages={report.totalPages}
-                onBack={() => report.setPage((current) => Math.max(1, current - 1))}
-                onNext={() => report.setPage((current) => current + 1)}
                 onPageChange={report.setPage}
               />
             }
@@ -206,14 +194,14 @@ export function DailySalesReportPage({
                 onToggleRows={report.toggleReportRows}
               />
             )}
-          </ReportTableCard>
+          </DailySalesTableCard>
         </div>
       </div>
 
       <ReportExportLoadingDialog exporting={report.exporting} progress={report.exportProgress} />
 
       {report.exportSurfaceReady ? (
-        <ReportExportSurface
+        <DailySalesExportSurface
           cards={report.cards}
           billGroups={report.renderedExportData.billGroups}
           columns={report.exportColumns}
