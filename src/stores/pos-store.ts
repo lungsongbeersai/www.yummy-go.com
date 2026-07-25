@@ -157,7 +157,7 @@ async function resolvePosPrinterContext(
   return resolvePrinterDeviceContext(input);
 }
 
-interface PosState {
+interface PosData {
   zones: PosZone[];
   zoneOptions: PosZone[];
   products: CateProductItem[];
@@ -182,6 +182,9 @@ interface PosState {
   loadingCart: boolean;
   saving: boolean;
   error: string | null;
+}
+
+interface PosState extends PosData {
   setZones: (zones: PosZone[]) => void;
   setProducts: (products: CateProductItem[]) => void;
   setActiveSort: (activeSort: ProductSortStatusType) => void;
@@ -225,26 +228,34 @@ interface PosState {
   reset: () => void;
 }
 
+// ค่าเริ่มต้นชุดเดียวใช้ทั้งตอนสร้างสโตร์และตอน reset() — เดิมเขียนซ้ำสองที่ ทำให้เพิ่ม state
+// ใหม่แล้วลืมล้างใน reset ได้ง่าย (สโตร์นี้ถูกล้างทุกครั้งที่ออกจากเซสชัน)
+function initialPosState(): PosData {
+  return {
+    zones: [],
+    zoneOptions: [],
+    products: [],
+    ...initialPosMenuState(),
+    selectedProduct: null,
+    cart: null,
+    joinMoveZones: [],
+    tableQr: null,
+    orderHistory: [],
+    lastPayment: null,
+    lastSplitBill: null,
+    lastKitchenConfirm: null,
+    lastInvoice: null,
+    tableUuid: "",
+    tableName: "",
+    loading: false,
+    loadingCart: false,
+    saving: false,
+    error: null
+  };
+}
+
 export const usePosStore = create<PosState>((set, get) => ({
-  zones: [],
-  zoneOptions: [],
-  products: [],
-  ...initialPosMenuState(),
-  selectedProduct: null,
-  cart: null,
-  joinMoveZones: [],
-  tableQr: null,
-  orderHistory: [],
-  lastPayment: null,
-  lastSplitBill: null,
-  lastKitchenConfirm: null,
-  lastInvoice: null,
-  tableUuid: "",
-  tableName: "",
-  loading: false,
-  loadingCart: false,
-  saving: false,
-  error: null,
+  ...initialPosState(),
   setZones: (zones) => set({ zones }),
   setProducts: (products) => set({ products }),
   setActiveSort: (activeSort) => set({ activeSort }),
@@ -573,27 +584,7 @@ export const usePosStore = create<PosState>((set, get) => ({
   setOrderHistory: (orders) => set({ orderHistory: posService.cartOrdersToHistory(orders) }),
   reset: () => {
     posMenuLifecycleVersion += 1;
-    set({
-      zones: [],
-      zoneOptions: [],
-      products: [],
-      ...initialPosMenuState(),
-      selectedProduct: null,
-      cart: null,
-      joinMoveZones: [],
-      tableQr: null,
-      orderHistory: [],
-      lastPayment: null,
-      lastSplitBill: null,
-      lastKitchenConfirm: null,
-      lastInvoice: null,
-      tableUuid: "",
-      tableName: "",
-      loading: false,
-      loadingCart: false,
-      saving: false,
-      error: null
-    });
+    set(initialPosState());
   }
 }));
 
