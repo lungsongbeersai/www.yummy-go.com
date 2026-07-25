@@ -81,7 +81,7 @@ describe("payment dialog helpers", () => {
   it("finds default customer terms by language and exact name", () => {
     const laoCustomer = {
       customer_uuid: "default-la",
-      customer_name: " ລູກຄ້າທົ່ວໄປ ",
+      customer_name: " àº¥àº¹àºàº„à»‰àº²àº—àº»à»ˆàº§à»„àº› ",
     } as Customer;
     const englishCustomer = {
       customer_uuid: "default-en",
@@ -92,7 +92,7 @@ describe("payment dialog helpers", () => {
       customer_name: "customer1",
     } as Customer;
 
-    expect(defaultCustomerSearchTerm("la")).toBe("ລູກຄ້າທົ່ວໄປ");
+    expect(defaultCustomerSearchTerm("la")).toBe("àº¥àº¹àºàº„à»‰àº²àº—àº»à»ˆàº§à»„àº›");
     expect(defaultCustomerSearchTerm("eng")).toBe("customer");
     expect(defaultCustomerSearchTerm("en")).toBe("customer");
     expect(defaultCustomerFromRows([similarCustomer], "customer")).toBeNull();
@@ -199,7 +199,7 @@ describe("payment dialog helpers", () => {
         tax: 0,
         taxRate: null,
         vatTotal: null,
-      } as ReturnType<typeof import("./utils").cartSummary>,
+      } as ReturnType<typeof import("./cart-readers").cartSummary>,
       table,
       translate,
       user: {
@@ -240,7 +240,7 @@ describe("payment dialog helpers", () => {
         tax: 0,
         taxRate: null,
         vatTotal: null,
-      } as ReturnType<typeof import("./utils").cartSummary>,
+      } as ReturnType<typeof import("./cart-readers").cartSummary>,
       table,
       translate,
       user: {

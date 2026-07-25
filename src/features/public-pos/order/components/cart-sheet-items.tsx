@@ -27,19 +27,9 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ProductImageStatus } from "@/config/pos-constants";
 import type { CartItem, ChangeType, FetchCartStatusRule } from "@/services/pos";
-import {
-  cartItemTitle,
-  formatMoney,
-  getCartItemQty,
-  getCartItemStatus,
-  getCartItemTotal,
-  getOrderItemUuid,
-  isCanceledCartItem,
-  isEditableCartItem,
-  isHexColor,
-  numeric,
-  promotionQuantity,
-} from "../utils";
+import { cartItemTitle, getCartItemQty, getCartItemStatus, getCartItemTotal, getOrderItemUuid, isCanceledCartItem, isEditableCartItem } from "@/features/public-pos/order/cart-domain";
+import { numeric } from "@/features/public-pos/order/numeric";
+import { formatMoney, isHexColor, promotionQuantity } from "@/features/public-pos/order/product-domain";
 
 export function CartTotalRow({
   label,

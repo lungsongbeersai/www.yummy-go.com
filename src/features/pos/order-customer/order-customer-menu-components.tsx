@@ -32,7 +32,7 @@ import { LANGUAGES } from "@/lib/language";
 import { cn } from "@/lib/utils";
 import type { CateWithProducts } from "@/services/pos";
 import { useAppStore } from "@/stores/app-store";
-import { ProductSortStatus, SORT_TABS } from "./order-customer-utils";
+import { ProductSortStatus, SORT_TABS } from "@/features/pos/order-customer/menu-structure";
 
 const CategoryIconView = dynamic(
   () =>

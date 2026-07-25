@@ -8,16 +8,7 @@ import type {
   ChangeType,
   FetchCartStatusRule,
 } from "@/services/pos";
-import {
-  cartGroupTitle,
-  getCartItemQty,
-  getCartReceiptTotals,
-  getOrderGrandTotal,
-  isCanceledCartItem,
-  isConfirmableCartItem,
-  isServedCartItem,
-  isWaitingStaffConfirmCartItem,
-} from "../utils";
+import { cartGroupTitle, getCartItemQty, getCartReceiptTotals, getOrderGrandTotal, isCanceledCartItem, isConfirmableCartItem, isServedCartItem, isWaitingStaffConfirmCartItem } from "@/features/public-pos/order/cart-domain";
 
 export interface CartSheetProps {
   open: boolean;

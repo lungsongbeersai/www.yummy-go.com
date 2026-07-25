@@ -41,27 +41,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { money } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { ProdDetail, ProdItem, ProdTopping } from "@/services/pos";
-import {
-  availableProductDetails,
-  clampOrderQuantity,
-  enabledProductDetails,
-  getOrderSelectionIssue,
-  getPromoLabel,
-  isToppingAvailable,
-  MAX_ORDER_QTY,
-  orderQuantityRules,
-  orderSelectionIssueLabel,
-  productMedia,
-  productModeLabel,
-  productPriceFromDetail,
-  toppingDisplayName,
-  toppingPrice,
-  toppingUuid,
-  type OrderQuantityRules,
-  type ProductMedia,
-  type ProductModalMode,
-  type SelectedTopping,
-} from "./order-customer-utils";
+import { MAX_ORDER_QTY, type ProductMedia, type ProductModalMode } from "@/features/pos/order-customer/menu-structure";
+import { getOrderSelectionIssue, orderSelectionIssueLabel } from "@/features/pos/order-customer/order-selection-validation";
+import { productPriceFromDetail } from "@/features/pos/order-customer/pricing";
+import { availableProductDetails, enabledProductDetails } from "@/features/pos/order-customer/product-availability";
+import { getPromoLabel, productModeLabel } from "@/features/pos/order-customer/product-classification";
+import { productMedia } from "@/features/pos/order-customer/product-media";
+import { clampOrderQuantity, orderQuantityRules, type OrderQuantityRules } from "@/features/pos/order-customer/quantity-rules";
+import { isToppingAvailable, toppingDisplayName, toppingPrice, toppingUuid, type SelectedTopping } from "@/features/pos/order-customer/topping-selection";
 import { ProductMediaView } from "./order-customer-product-card";
 
 export function ProductOptionsOverlay({

@@ -33,11 +33,8 @@ import { useReferenceStore } from "@/stores/reference-store";
 import { useToastStore } from "@/stores/toast-store";
 import { usePaymentCustomers } from "./use-payment-customers";
 import type { PaymentDialogProps } from "../payment-dialog-types";
-import {
-  cartOrdersBelongToTable,
-  cartOrderInvoice,
-  optionalString,
-} from "../utils";
+import { cartOrderInvoice, cartOrdersBelongToTable } from "@/features/pos/table-selection/cart-readers";
+import { optionalString } from "@/lib/values";
 import {
   openLocalInvoicePrintWindow,
   type InvoicePrintData,
@@ -197,7 +194,7 @@ export function usePaymentDialogWorkflow({
           currency: selectedCurrency.code,
         });
 
-  // เปิด dialog ชำระเงิน = ตั้งค่าฟอร์มใหม่ทั้งชุดทันที (แยกจาก effect ที่โหลดอัตราแลกเปลี่ยน)
+  // à¹€à¸›à¸´à¸” dialog à¸Šà¸³à¸£à¸°à¹€à¸‡à¸´à¸™ = à¸•à¸±à¹‰à¸‡à¸„à¹ˆà¸²à¸Ÿà¸­à¸£à¹Œà¸¡à¹ƒà¸«à¸¡à¹ˆà¸—à¸±à¹‰à¸‡à¸Šà¸¸à¸”à¸—à¸±à¸™à¸—à¸µ (à¹à¸¢à¸à¸ˆà¸²à¸ effect à¸—à¸µà¹ˆà¹‚à¸«à¸¥à¸”à¸­à¸±à¸•à¸£à¸²à¹à¸¥à¸à¹€à¸›à¸¥à¸µà¹ˆà¸¢à¸™)
   useResetOnChange(open, () => {
     if (!open) return;
     const defaultAmount = defaultCurrencyInput(totalAmount, LAK_CURRENCY_OPTION);
@@ -224,7 +221,7 @@ export function usePaymentDialogWorkflow({
     }
   }, [isSplitPayment, language, loadExchangeRates, open, totalAmount, user]);
 
-  // สกุลเงินที่เลือกหลุดจากรายการ (โหลดอัตราใหม่/สลับร้าน) = กลับไปใช้ LAK
+  // à¸ªà¸à¸¸à¸¥à¹€à¸‡à¸´à¸™à¸—à¸µà¹ˆà¹€à¸¥à¸·à¸­à¸à¸«à¸¥à¸¸à¸”à¸ˆà¸²à¸à¸£à¸²à¸¢à¸à¸²à¸£ (à¹‚à¸«à¸¥à¸”à¸­à¸±à¸•à¸£à¸²à¹ƒà¸«à¸¡à¹ˆ/à¸ªà¸¥à¸±à¸šà¸£à¹‰à¸²à¸™) = à¸à¸¥à¸±à¸šà¹„à¸›à¹ƒà¸Šà¹‰ LAK
   useResetOnDeps([currencyOptions, currencyValue], () => {
     if (!currencyOptions.some((option) => option.value === currencyValue))
       setCurrencyValue(LAK_CURRENCY_VALUE);

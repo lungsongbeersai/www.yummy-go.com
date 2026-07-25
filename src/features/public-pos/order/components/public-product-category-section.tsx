@@ -9,7 +9,7 @@ import type { CateProductItem, CateWithProducts } from "@/services/pos";
 import type { PublicMenuKind } from "@/stores/public-pos-store";
 import { PRODUCT_GRID_CLASS } from "../constants";
 import type { PublicProductLayoutMode } from "../types";
-import { hasRemoteProductImage } from "../utils";
+import { hasRemoteProductImage } from "@/features/public-pos/order/product-domain";
 import {
   CategoryCompactLoading,
   CategoryDeferredPlaceholder,

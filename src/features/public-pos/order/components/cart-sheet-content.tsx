@@ -27,7 +27,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import type { PublicCartSheetWorkflow } from "../hooks/use-public-cart-sheet-workflow";
-import { formatMoney } from "../utils";
+import { formatMoney } from "@/features/public-pos/order/product-domain";
 import { CartNoteDialog } from "./cart-note-dialog";
 import { CartGroup, CartTotalRow } from "./cart-sheet-items";
 

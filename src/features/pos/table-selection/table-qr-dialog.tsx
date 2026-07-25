@@ -27,7 +27,7 @@ import { useAuthStore } from "@/stores/auth-store";
 import { usePosStore } from "@/stores/pos-store";
 import { usePrinterStore } from "@/stores/printer-store";
 import { useToastStore } from "@/stores/toast-store";
-import { optionalString } from "./utils";
+import { optionalString } from "@/lib/values";
 
 const localQrTargetUrl = "http://localhost:3001/pos/tables";
 const productionQrOrigin = "https://yummy-go.com";
@@ -61,7 +61,7 @@ export function TableQrDialog({
   const canDownload = Boolean(previewUrl || canUseFrontendQrFallback);
   const canPrint = Boolean(pendingJobUuid || (canOpenBrowserWindow && (previewUrl || canUseFrontendQrFallback)));
 
-  // เปิด dialog = ล้างผลเดิม และตั้ง pending เฉพาะกรณีที่จะยิงคำขอจริง
+  // à¹€à¸›à¸´à¸” dialog = à¸¥à¹‰à¸²à¸‡à¸œà¸¥à¹€à¸”à¸´à¸¡ à¹à¸¥à¸°à¸•à¸±à¹‰à¸‡ pending à¹€à¸‰à¸žà¸²à¸°à¸à¸£à¸“à¸µà¸—à¸µà¹ˆà¸ˆà¸°à¸¢à¸´à¸‡à¸„à¸³à¸‚à¸­à¸ˆà¸£à¸´à¸‡
   useResetOnChange(open, () => {
     if (!open) return;
     setResponse(null);
@@ -102,7 +102,7 @@ export function TableQrDialog({
     };
   }, [createTableQr, language, loginUuid, open, showToast, table.table_uuid, t]);
 
-  // มีรูป QR จากเซิร์ฟเวอร์แล้ว (หรือยังไม่มี URL) = ไม่ต้องใช้ fallback ที่สร้างเอง
+  // à¸¡à¸µà¸£à¸¹à¸› QR à¸ˆà¸²à¸à¹€à¸‹à¸´à¸£à¹Œà¸Ÿà¹€à¸§à¸­à¸£à¹Œà¹à¸¥à¹‰à¸§ (à¸«à¸£à¸·à¸­à¸¢à¸±à¸‡à¹„à¸¡à¹ˆà¸¡à¸µ URL) = à¹„à¸¡à¹ˆà¸•à¹‰à¸­à¸‡à¹ƒà¸Šà¹‰ fallback à¸—à¸µà¹ˆà¸ªà¸£à¹‰à¸²à¸‡à¹€à¸­à¸‡
   useResetOnDeps([targetUrl, qrImageUrl], () => {
     if (!targetUrl || qrImageUrl) setQrDataUrl("");
   });

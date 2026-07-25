@@ -12,30 +12,15 @@ import { useAuthStore } from "@/stores/auth-store";
 import { usePosStore } from "@/stores/pos-store";
 import { usePrinterStore } from "@/stores/printer-store";
 import { useToastStore } from "@/stores/toast-store";
-import {
-  buildStaffOrderInput,
-  changeToppingQty,
-  firstAvailableDetail,
-  flattenProducts,
-  getModalUnitPrice,
-  getOrderSelectionIssue,
-  getProductBlockedState,
-  getProductModalMode,
-  isDetailAvailable,
-  isDetailEnabled,
-  normalizeProdItem,
-  orderCustomerUrl,
-  orderQuantityRules,
-  orderSelectionIssueLabel,
-  productNeedsModal,
-  selectedOrderTable,
-  selectedToppingsFromQtyMap,
-  toggleToppingQty,
-  type ProductCardEntry,
-  type ProductModalMode,
-  type SelectedTopping,
-} from "./order-customer-utils";
-import { cartForTable, cartQuantityCount } from "../table-selection/utils";
+import { flattenProducts, orderCustomerUrl, selectedOrderTable, type ProductCardEntry, type ProductModalMode } from "@/features/pos/order-customer/menu-structure";
+import { getOrderSelectionIssue, orderSelectionIssueLabel } from "@/features/pos/order-customer/order-selection-validation";
+import { getModalUnitPrice } from "@/features/pos/order-customer/pricing";
+import { firstAvailableDetail, isDetailAvailable, isDetailEnabled, normalizeProdItem } from "@/features/pos/order-customer/product-availability";
+import { getProductBlockedState, getProductModalMode, productNeedsModal } from "@/features/pos/order-customer/product-classification";
+import { orderQuantityRules } from "@/features/pos/order-customer/quantity-rules";
+import { buildStaffOrderInput } from "@/features/pos/order-customer/staff-order-payload";
+import { changeToppingQty, selectedToppingsFromQtyMap, toggleToppingQty, type SelectedTopping } from "@/features/pos/order-customer/topping-selection";
+import { cartForTable, cartQuantityCount } from "@/features/pos/table-selection/cart-readers";
 
 export type OrderCustomerWorkflowInput = {
   initialTableUuid: string;

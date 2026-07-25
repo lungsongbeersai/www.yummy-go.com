@@ -19,14 +19,7 @@ import {
 import { usePublicMenuBrowseModel } from "@/features/public-pos/order/hooks/use-public-menu-browse-model";
 import { usePublicMenuCategoryLoader } from "@/features/public-pos/order/hooks/use-public-menu-category-loader";
 import { usePublicCategoryScroll } from "@/features/public-pos/order/hooks/use-public-category-scroll";
-import {
-  getCategoryPathUuids,
-  missingPublicMenuCategoryRefUuids,
-  nextPublicMenuCategoryReset,
-  orderCateUuidsByMenu,
-  visibleProductCountForCategory,
-  withCategoryPathVisibleCounts,
-} from "@/features/public-pos/order/utils";
+import { getCategoryPathUuids, missingPublicMenuCategoryRefUuids, nextPublicMenuCategoryReset, orderCateUuidsByMenu, visibleProductCountForCategory, withCategoryPathVisibleCounts } from "@/features/public-pos/order/menu-render";
 
 type PublicPosState = ReturnType<typeof usePublicPosStore.getState>;
 

@@ -8,10 +8,7 @@ import { ProductImageStatus } from "@/config/pos-constants";
 import type { CateProductItem, ProdItem } from "@/services/pos";
 import type { CartFlyAnimationState } from "@/features/public-pos/order/types";
 import { prefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
-import {
-  isHexColor,
-  productImageUrl,
-} from "@/features/public-pos/order/utils";
+import { isHexColor, productImageUrl } from "@/features/public-pos/order/product-domain";
 
 export function CartFlyAnimationLayer({
   animations,

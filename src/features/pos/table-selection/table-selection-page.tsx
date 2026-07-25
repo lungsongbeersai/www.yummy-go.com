@@ -16,7 +16,7 @@ import { usePosStore } from "@/stores/pos-store";
 import { useToastStore } from "@/stores/toast-store";
 import { TableListSection } from "./table-list-section";
 import type { TableStatusFilter } from "./types";
-import { formatClock } from "./utils";
+import { formatClock } from "@/features/pos/table-selection/table-zones";
 import { useTableAlerts } from "./hooks/use-table-alerts";
 
 const headerIconButtonClass = "relative size-[40px] rounded-full border border-primary-foreground/20 bg-primary-foreground/10 px-0 text-primary-foreground shadow-sm backdrop-blur-sm hover:bg-primary-foreground/20 hover:text-primary-foreground dark:border-white/20 dark:bg-white/10 dark:text-white dark:hover:bg-white/20 dark:hover:text-white";

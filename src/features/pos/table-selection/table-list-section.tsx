@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import type { PosTable, PosZone } from "@/services/pos";
 import type { TableStatusFilter } from "./types";
-import { filterZones, tableCount, tableSeatCount, tableStatus } from "./utils";
+import { filterZones, tableCount, tableSeatCount, tableStatus } from "@/features/pos/table-selection/table-zones";
 
 interface TableListSectionProps {
   loading: boolean;
