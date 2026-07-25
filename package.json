@@ -28,6 +28,7 @@
   "dependencies": {
     "@capacitor/android": "^8.4.0",
     "@capacitor/core": "^8.4.0",
+    "@capacitor/ios": "^8.4.2",
     "@capacitor/status-bar": "^8.0.2",
     "@deedarb/capacitor-tcp-socket": "^7.2.1",
     "@dnd-kit/core": "^6.3.1",
