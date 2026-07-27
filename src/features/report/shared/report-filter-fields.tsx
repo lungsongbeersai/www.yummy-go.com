@@ -1,6 +1,5 @@
 "use client";
 
-import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -218,71 +217,6 @@ export function ReportPageLimitField({
       value={String(value)}
       onValueChange={(next) => onValueChange(next === "All" ? "All" : Number(next))}
     />
-  );
-}
-
-// สาขา + ช่วงวันที่ + จำนวนแถว คือฟิลด์ที่ทั้ง 3 รายงานมีเหมือนกันทุกตัวรวมถึงคลาสจัดวาง
-// ฟิลด์เฉพาะรายงาน (วิธีชำระ, กลุ่มสินค้า) ส่งเป็น children มาแทรกก่อนช่องจำนวนแถว
-export function ReportBaseFilterFields({
-  branchLoading,
-  branchLocked,
-  branchOptions,
-  branchUuid,
-  children,
-  dateFrom,
-  dateTo,
-  idPrefix,
-  limit,
-  onBranchChange,
-  onDateFromChange,
-  onDateToChange,
-  onLimitChange
-}: {
-  branchLoading: boolean;
-  branchLocked: boolean;
-  branchOptions: ReportFieldOption[];
-  branchUuid: string;
-  children?: ReactNode;
-  dateFrom: string;
-  dateTo: string;
-  idPrefix: string;
-  limit: PageLimit;
-  onBranchChange: (value: string) => void;
-  onDateFromChange: (value: string) => void;
-  onDateToChange: (value: string) => void;
-  onLimitChange: (value: PageLimit) => void;
-}) {
-  return (
-    <>
-      <ReportBranchField
-        branchLoading={branchLoading}
-        branchLocked={branchLocked}
-        fieldClassName="min-w-0 gap-1.5 sm:col-span-2 lg:col-span-4"
-        id={`${idPrefix}-branch`}
-        options={branchOptions}
-        triggerClassName="h-10 w-full rounded-md"
-        value={branchUuid}
-        onValueChange={onBranchChange}
-      />
-      <ReportDateRangeFields
-        dateFrom={dateFrom}
-        dateTo={dateTo}
-        fieldClassName="min-w-0 gap-1.5 lg:col-span-4"
-        idPrefix={idPrefix}
-        inputClassName="h-10 rounded-md text-sm"
-        withNativeName
-        onDateFromChange={onDateFromChange}
-        onDateToChange={onDateToChange}
-      />
-      {children}
-      <ReportPageLimitField
-        fieldClassName="min-w-0 gap-1.5 lg:col-span-6"
-        id={`${idPrefix}-limit`}
-        triggerClassName="h-10 w-full rounded-md"
-        value={limit}
-        onValueChange={onLimitChange}
-      />
-    </>
   );
 }
 

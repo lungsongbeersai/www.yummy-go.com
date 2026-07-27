@@ -10,8 +10,11 @@ import type { QRScanResponse } from "@/services/public-pos";
 import { usePublicPosStore } from "@/stores/public-pos-store";
 import type { ToastInput } from "@/stores/toast-store";
 import type { PublicAddToCartPayload } from "../types";
-import { findExistingCartItem, getOrderItemUuid } from "@/features/public-pos/order/cart-domain";
-import { buildPublicOrderInput } from "@/features/public-pos/order/product-domain";
+import {
+  buildPublicOrderInput,
+  findExistingCartItem,
+  getOrderItemUuid,
+} from "../utils";
 
 type PublicPosState = ReturnType<typeof usePublicPosStore.getState>;
 

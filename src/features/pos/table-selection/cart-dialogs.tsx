@@ -39,8 +39,13 @@ import { money } from "@/lib/format";
 import { formatNumberInput } from "@/lib/number-format";
 import { cn } from "@/lib/utils";
 import type { ConfirmAllProgress, DiscountDraft } from "./types";
-import { appendDiscountCalculatorInput, discountDraftValue, discountDraftWithType, normalizeDiscountType } from "@/features/pos/table-selection/discount-drafts";
-import { optionalNumber } from "@/lib/values";
+import {
+  appendDiscountCalculatorInput,
+  discountDraftValue,
+  discountDraftWithType,
+  normalizeDiscountType,
+  optionalNumber
+} from "./utils";
 
 const DISCOUNT_KEYPAD_KEYS = [
   "7",
@@ -182,7 +187,7 @@ export function CartDiscountDialog({
   const exceedsMax = draft.type === "AMT" && value !== null && maxAmount !== null && value > maxAmount;
   const invalid = Boolean(draft.value) && discountDraftValue(draft, maxAmount) === null;
   const displayValue = formatNumberInput(draft.value, { decimal: true }) || "0";
-  const displaySuffix = draft.type === "PCT" ? "%" : "â‚­";
+  const displaySuffix = draft.type === "PCT" ? "%" : "₭";
   const helpText =
     draft.type === "PCT"
       ? t("pos.discountPercentHelp")

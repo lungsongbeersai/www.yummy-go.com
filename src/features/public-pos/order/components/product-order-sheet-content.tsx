@@ -41,8 +41,17 @@ import { cn } from "@/lib/utils";
 import type { ProdDetail, ProdTopping } from "@/services/pos";
 import { MAX_OPEN_QTY } from "../constants";
 import type { ProductOrderSheetWorkflow } from "../hooks/use-product-order-sheet-workflow";
-import { numeric } from "@/features/public-pos/order/numeric";
-import { defaultOrderQty, formatMoney, formatShortDate, getPromoLabel, isDetailAvailable, isToppingAvailable, productPriceFromDetail, toppingDisplayName } from "@/features/public-pos/order/product-domain";
+import {
+  defaultOrderQty,
+  formatMoney,
+  formatShortDate,
+  getPromoLabel,
+  isDetailAvailable,
+  isToppingAvailable,
+  numeric,
+  productPriceFromDetail,
+  toppingDisplayName,
+} from "../utils";
 import { ProductMedia } from "./public-menu-sections";
 
 export function ProductOrderSheetContent({

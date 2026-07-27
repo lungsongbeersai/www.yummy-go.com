@@ -1,5 +1,5 @@
 import type { CartOrder, PosTable } from "@/services/pos";
-import type { cartSummary } from "@/features/pos/table-selection/cart-readers";
+import type { cartSummary } from "./utils";
 import type { PaymentKind } from "./payment-dialog-utils";
 
 export interface PaymentDialogProps {

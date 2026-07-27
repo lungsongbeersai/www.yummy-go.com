@@ -3,6 +3,7 @@
 import { type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { LucideIcon } from "lucide-react";
+import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogDescription, DialogTitle } from "@/components/ui/dialog";
@@ -16,21 +17,22 @@ import {
   type OptionField
 } from "@/features/settings/shared/option-settings-fields";
 import { optionValue } from "@/features/settings/shared/option-settings-utils";
-import { SettingsCrudShell, SettingsCrudToolbar } from "@/features/settings/shared/settings-crud-shell";
 import {
   SettingsDialogBody,
   SettingsDialogContent,
   SettingsDialogFooter,
   SettingsDialogForm,
   SettingsDialogHeader,
-  SettingsListSurface,
   SettingsMobileCard,
   SettingsMobileList,
   SettingsMobileMeta,
   SettingsMobileMetaGrid,
+  SettingsModuleShell,
+  SettingsPaginationFooter,
   SettingsRowActions,
   SettingsTableScroll,
-} from "@/features/settings/shared/settings-shell";
+  SettingsToolbar,
+  SettingsEmptyRecords,} from "@/features/settings/shared/settings-shell";
 import {
   useSettingsCrudController,
   type SettingsCrudSaveArgs,
@@ -138,7 +140,39 @@ export function OptionSettingsPage<
   validateInput
 }: OptionSettingsPageProps<Row, SaveInput, Params>) {
   const { t } = useTranslation();
-  const controller = useSettingsCrudController<Row, SaveInput, Params>({
+  const {
+    allSelected,
+    applyFilters,
+    backgroundLoading,
+    changeLimit,
+    deleteTarget,
+    dialogOpen,
+    editing,
+    fullLoading,
+    limit,
+    onDialogOpenChange,
+    openCreate,
+    openEdit,
+    orderBy,
+    page,
+    pageEnd,
+    pageStart,
+    remove,
+    rowId,
+    rows,
+    save,
+    saving,
+    search,
+    selectedRows,
+    setDeleteTarget,
+    setOrderBy,
+    setPage,
+    setSearch,
+    toggleAll,
+    toggleSelected,
+    total,
+    totalPages
+  } = useSettingsCrudController<Row, SaveInput, Params>({
     // ไม่มี buildInput ที่ระบุมา = ใช้ defaultInput ที่ประกอบจาก fields[] แทน
     buildInput: (args) => buildInput?.(args) ?? defaultInput<Row, SaveInput>({ ...args, fields, idKey }),
     idKey,
@@ -150,8 +184,6 @@ export function OptionSettingsPage<
     title,
     validateInput
   });
-  const { allSelected, openEdit, pageStart, rowId, rows, selectedRows, setDeleteTarget, toggleAll, toggleSelected } =
-    controller;
 
   function optionName(row: Row) {
     return getName?.(row) ?? optionValue(row, nameKey, optionValue(row, nameFallbackKey ?? "", optionValue(row, nameLaKey ?? "", optionValue(row, nameEngKey ?? "", "-"))));
@@ -261,43 +293,107 @@ export function OptionSettingsPage<
     </SettingsMobileList>
   ) : null;
 
-  return (
-    <SettingsCrudShell
-      addLabel={`${t("actions.add")} ${itemLabel}`}
-      cardTitle={listTitle}
-      controller={controller}
-      description={description}
-      formDialog={
-        <OptionFormDialog
-          description={formDescription ?? description}
-          dialogContentClassName={dialogContentClassName}
-          editing={controller.editing}
-          fields={fields}
-          idKey={idKey}
-          open={controller.dialogOpen}
-          saving={controller.saving}
-          slug={slug}
-          title={title}
-          formTitle={formTitle ?? title}
-          onOpenChange={controller.onDialogOpenChange}
-          onSubmit={controller.save}
-        />
-      }
-      listSurface={
-        <SettingsListSurface
-          backgroundLoading={controller.backgroundLoading}
-          emptyIcon={<Icon aria-hidden />}
-          emptyTitle={title.toLowerCase()}
-          hasRows={rows.length > 0}
-          listTitle={listTitle}
-          mobileList={mobileList}
-          refreshLabel={refreshLabel ?? t("settings.loading", { title })}
-          table={table}
-          toolbar={<SettingsCrudToolbar controller={controller} />}
-        />
-      }
-      title={title}
+  const toolbar = (
+    <SettingsToolbar
+      state={{
+        search,
+        limit,
+        orderBy,
+        selectedCount: selectedRows.size,
+        onApply: applyFilters,
+        onLimit: changeLimit,
+        onOrder: (nextOrder) => {
+          setOrderBy(nextOrder);
+          setPage(1);
+        },
+        onSearch: setSearch
+      }}
     />
+  );
+
+  const listSurface = (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="shrink-0 border-b border-border bg-card/95 px-3 py-2.5 backdrop-blur sm:px-4 lg:px-5">
+        <div className="flex min-w-0 flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
+          <div className="min-w-0">
+            <p className="text-sm font-black">{listTitle}</p>
+          </div>
+          <div className="min-w-0 xl:max-w-[48rem]">{toolbar}</div>
+        </div>
+        {backgroundLoading ? (
+          <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+            <Spinner aria-hidden />
+            {refreshLabel ?? t("settings.loading", { title })}
+          </div>
+        ) : null}
+      </div>
+      {rows.length ? (
+        <>
+          <div className="hidden min-h-0 flex-1 md:flex">{table}</div>
+          <div className="min-h-0 flex-1 overflow-y-auto md:hidden">{mobileList}</div>
+        </>
+      ) : (
+        <SettingsEmptyRecords icon={<Icon aria-hidden />} title={title.toLowerCase()} />
+      )}
+    </div>
+  );
+
+  return (
+    <>
+      <SettingsModuleShell
+        addLabel={`${t("actions.add")} ${itemLabel}`}
+        cardTitle={listTitle}
+        description={description}
+        emptyDescription={t("empty.adjustSearch")}
+        emptyTitle={t("settings.noRecords", { title: title.toLowerCase() })}
+        footer={
+          rows.length ? (
+            <SettingsPaginationFooter
+              page={page}
+              pageEnd={pageEnd}
+              pageStart={pageStart}
+              total={total}
+              totalPages={totalPages}
+              onPageChange={setPage}
+            />
+          ) : undefined
+        }
+        hideCardHeader
+        loading={fullLoading}
+        loadingLabel={t("settings.loading", { title })}
+        table={listSurface}
+        title={title}
+        onAdd={openCreate}
+      />
+      <OptionFormDialog
+        description={formDescription ?? description}
+        dialogContentClassName={dialogContentClassName}
+        editing={editing}
+        fields={fields}
+        idKey={idKey}
+        open={dialogOpen}
+        saving={saving}
+        slug={slug}
+        title={title}
+        formTitle={formTitle ?? title}
+        onOpenChange={onDialogOpenChange}
+        onSubmit={save}
+      />
+      <ConfirmDialog
+        cancelLabel={t("actions.cancel")}
+        confirmLabel={t("actions.delete")}
+        confirmPending={saving}
+        description={t("settings.deleteConfirm")}
+        open={Boolean(deleteTarget)}
+        title={t("actions.delete")}
+        onConfirm={() => {
+          if (deleteTarget) void remove(deleteTarget);
+        }}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) setDeleteTarget(null);
+        }}
+      />
+    </>
   );
 }
 

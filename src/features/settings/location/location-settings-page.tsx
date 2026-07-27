@@ -3,7 +3,12 @@
 import { useEffect, useMemo, useState } from "react";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
-import { SettingsCrudShell, SettingsCrudToolbar } from "@/features/settings/shared/settings-crud-shell";
+import { ConfirmDialog } from "@/components/common/confirm-dialog";
+import {
+  SettingsModuleShell,
+  SettingsPaginationFooter,
+  SettingsToolbar
+} from "@/features/settings/shared/settings-shell";
 import { useSettingsCrudController } from "@/features/settings/shared/use-settings-crud-controller";
 import { LocationFormDialog } from "./location-form-dialog";
 import { LocationListSurface } from "./location-list";
@@ -61,7 +66,38 @@ function ProvinceSettingsPage({ initialPagination }: { initialPagination: UrlPag
   const title = t("settings.modules.province.title");
   const description = t("settings.modules.province.description");
   const labels = buildLocationLabels(t);
-  const controller = useSettingsCrudController<Province, SaveProvinceInput, FetchProvincesParams>({
+  const {
+    allSelected,
+    applyFilters,
+    backgroundLoading,
+    changeLimit,
+    deleteTarget,
+    dialogOpen,
+    editing,
+    fullLoading,
+    limit,
+    onDialogOpenChange,
+    openCreate: controllerOpenCreate,
+    openEdit: controllerOpenEdit,
+    orderBy,
+    page,
+    pageEnd,
+    pageStart,
+    remove: crudRemove,
+    rows,
+    save: crudSave,
+    saving,
+    search,
+    selectedRows,
+    setDeleteTarget,
+    setOrderBy,
+    setPage,
+    setSearch,
+    toggleAll,
+    toggleSelected,
+    total,
+    totalPages
+  } = useSettingsCrudController<Province, SaveProvinceInput, FetchProvincesParams>({
     buildInput: ({ editing: editingRow, formData }) =>
       buildProvincePayload({
         editing: editingRow,
@@ -77,20 +113,6 @@ function ProvinceSettingsPage({ initialPagination }: { initialPagination: UrlPag
       return missing ? t("settings.provinceNameRequired") : null;
     }
   });
-  const {
-    allSelected,
-    backgroundLoading,
-    openCreate: controllerOpenCreate,
-    openEdit: controllerOpenEdit,
-    pageStart,
-    remove: crudRemove,
-    rows,
-    save: crudSave,
-    selectedRows,
-    setDeleteTarget,
-    toggleAll,
-    toggleSelected
-  } = controller;
 
   // แถวในหน้านี้เป็น Province เสมอ (ผูกกับ useProvinceStore ตัวเดียว) แต่ LocationListSurface ใช้ชนิด
   // กลาง LocationSettingsRow (ApiEntity) ร่วมกับหน้าอำเภอ จึงต้องตีบชนิดตรงจุดที่ส่ง callback เข้าไป
@@ -132,69 +154,113 @@ function ProvinceSettingsPage({ initialPagination }: { initialPagination: UrlPag
   const addLabel = `${t("actions.add")} ${labels.province}`;
   const listTitle = t("settings.provinceList");
   const refreshLabel = t("settings.refreshingProvinceList");
+  const toolbar = (
+    <SettingsToolbar
+      state={{
+        search,
+        limit,
+        orderBy,
+        limitOptions: PAGE_LIMIT_OPTIONS,
+        orderOptions: [
+          { label: labels.sortAsc, value: "ASC" },
+          { label: labels.sortDesc, value: "DESC" }
+        ],
+        selectedCount: selectedRows.size,
+        onApply: applyFilters,
+        onLimit: changeLimit,
+        onOrder: (nextOrder) => {
+          setOrderBy(nextOrder);
+          setPage(1);
+        },
+        onSearch: setSearch
+      }}
+    />
+  );
+  const listSurface = (
+    <LocationListSurface
+      allCollapsed={false}
+      allSelected={allSelected}
+      backgroundLoading={backgroundLoading}
+      canManage={canManage}
+      collapsedProvinces={EMPTY_COLLAPSED}
+      districtGroups={EMPTY_DISTRICT_GROUPS}
+      kind="province"
+      labels={labels}
+      listTitle={listTitle}
+      pageStart={pageStart}
+      provinceById={provinceById}
+      refreshLabel={refreshLabel}
+      rows={rows}
+      selectedRows={selectedRows}
+      title={title}
+      toolbar={toolbar}
+      onDelete={handleDeleteTarget}
+      onEdit={handleEdit}
+      onToggleAll={toggleAll}
+      onToggleAllGroups={NOOP}
+      onToggleProvinceCollapse={NOOP}
+      onToggleSelected={toggleSelected}
+    />
+  );
 
   return (
-    <SettingsCrudShell
-      addLabel={addLabel}
-      cardTitle={listTitle}
-      controller={controller}
-      description={description}
-      formDialog={
-        canManage ? (
+    <>
+      <SettingsModuleShell
+        addLabel={addLabel}
+        cardTitle={listTitle}
+        description={description}
+        emptyDescription={t("empty.adjustSearch")}
+        emptyTitle={t("settings.noRecords", { title: title.toLowerCase() })}
+        footer={
+          rows.length ? (
+            <SettingsPaginationFooter
+              page={page}
+              pageEnd={pageEnd}
+              pageStart={pageStart}
+              total={total}
+              totalPages={totalPages}
+              onPageChange={setPage}
+            />
+          ) : undefined
+        }
+        hideCardHeader
+        loading={fullLoading}
+        loadingLabel={t("settings.loading", { title })}
+        table={listSurface}
+        title={title}
+        onAdd={canManage ? openCreate : undefined}
+      />
+      {canManage ? (
+        <>
           <LocationFormDialog
             description={description}
-            editing={controller.editing}
+            editing={editing}
             kind="province"
             labels={labels}
-            open={controller.dialogOpen}
+            open={dialogOpen}
             provinceLoading={false}
             provinces={EMPTY_PROVINCES}
-            saving={controller.saving}
+            saving={saving}
             title={title}
-            onOpenChange={controller.onDialogOpenChange}
+            onOpenChange={onDialogOpenChange}
             onSubmit={save}
           />
-        ) : null
-      }
-      listSurface={
-        <LocationListSurface
-          allCollapsed={false}
-          allSelected={allSelected}
-          backgroundLoading={backgroundLoading}
-          canManage={canManage}
-          collapsedProvinces={EMPTY_COLLAPSED}
-          districtGroups={EMPTY_DISTRICT_GROUPS}
-          kind="province"
-          labels={labels}
-          listTitle={listTitle}
-          pageStart={pageStart}
-          provinceById={provinceById}
-          refreshLabel={refreshLabel}
-          rows={rows}
-          selectedRows={selectedRows}
-          title={title}
-          toolbar={
-            <SettingsCrudToolbar
-              controller={controller}
-              limitOptions={PAGE_LIMIT_OPTIONS}
-              orderOptions={[
-                { label: labels.sortAsc, value: "ASC" },
-                { label: labels.sortDesc, value: "DESC" }
-              ]}
-            />
-          }
-          onDelete={handleDeleteTarget}
-          onEdit={handleEdit}
-          onToggleAll={toggleAll}
-          onToggleAllGroups={NOOP}
-          onToggleProvinceCollapse={NOOP}
-          onToggleSelected={toggleSelected}
-        />
-      }
-      title={title}
-      onAdd={canManage ? openCreate : null}
-      onRemove={remove}
-    />
+          <ConfirmDialog
+            cancelLabel={t("actions.cancel")}
+            confirmLabel={t("actions.delete")}
+            description={t("settings.deleteConfirm")}
+            open={Boolean(deleteTarget)}
+            title={t("actions.delete")}
+            onConfirm={() => {
+              if (deleteTarget) void remove(deleteTarget);
+            }}
+            onOpenChange={(nextOpen) => {
+              if (!nextOpen) setDeleteTarget(null);
+            }}
+          />
+        </>
+      ) : null}
+    </>
   );
 }
 
@@ -214,7 +280,38 @@ function DistrictSettingsPage({ initialPagination }: { initialPagination: UrlPag
   const title = t("settings.modules.district.title");
   const description = t("settings.modules.district.description");
   const labels = buildLocationLabels(t);
-  const controller = useSettingsCrudController<District, SaveDistrictInput, FetchDistrictsParams>({
+  const {
+    allSelected,
+    applyFilters,
+    backgroundLoading,
+    changeLimit,
+    deleteTarget,
+    dialogOpen,
+    editing,
+    fullLoading,
+    limit,
+    onDialogOpenChange,
+    openCreate: controllerOpenCreate,
+    openEdit: controllerOpenEdit,
+    orderBy,
+    page,
+    pageEnd,
+    pageStart,
+    remove: crudRemove,
+    rows,
+    save: crudSave,
+    saving,
+    search,
+    selectedRows,
+    setDeleteTarget,
+    setOrderBy,
+    setPage,
+    setSearch,
+    toggleAll,
+    toggleSelected,
+    total,
+    totalPages
+  } = useSettingsCrudController<District, SaveDistrictInput, FetchDistrictsParams>({
     buildInput: ({ editing: editingRow, formData }) =>
       buildDistrictPayload({
         editing: editingRow,
@@ -236,20 +333,6 @@ function DistrictSettingsPage({ initialPagination }: { initialPagination: UrlPag
       return null;
     }
   });
-  const {
-    allSelected,
-    backgroundLoading,
-    openCreate: controllerOpenCreate,
-    openEdit: controllerOpenEdit,
-    pageStart,
-    remove: crudRemove,
-    rows,
-    save: crudSave,
-    selectedRows,
-    setDeleteTarget,
-    toggleAll,
-    toggleSelected
-  } = controller;
 
   const provinceById = useMemo(() => {
     const map = new Map<string, LocationSettingsRow>();
@@ -316,68 +399,112 @@ function DistrictSettingsPage({ initialPagination }: { initialPagination: UrlPag
   const addLabel = `${t("actions.add")} ${labels.district}`;
   const listTitle = t("settings.districtList");
   const refreshLabel = t("settings.refreshingDistrictList");
+  const toolbar = (
+    <SettingsToolbar
+      state={{
+        search,
+        limit,
+        orderBy,
+        limitOptions: PAGE_LIMIT_OPTIONS,
+        orderOptions: [
+          { label: labels.sortAsc, value: "ASC" },
+          { label: labels.sortDesc, value: "DESC" }
+        ],
+        selectedCount: selectedRows.size,
+        onApply: applyFilters,
+        onLimit: changeLimit,
+        onOrder: (nextOrder) => {
+          setOrderBy(nextOrder);
+          setPage(1);
+        },
+        onSearch: setSearch
+      }}
+    />
+  );
+  const listSurface = (
+    <LocationListSurface
+      allCollapsed={allCollapsed}
+      allSelected={allSelected}
+      backgroundLoading={backgroundLoading}
+      canManage={canManage}
+      collapsedProvinces={collapsedProvinces}
+      districtGroups={numberedDistrictGroups}
+      kind="district"
+      labels={labels}
+      listTitle={listTitle}
+      pageStart={pageStart}
+      provinceById={provinceById}
+      refreshLabel={refreshLabel}
+      rows={rows}
+      selectedRows={selectedRows}
+      title={title}
+      toolbar={toolbar}
+      onDelete={handleDeleteTarget}
+      onEdit={handleEdit}
+      onToggleAll={toggleAll}
+      onToggleAllGroups={toggleAllGroups}
+      onToggleProvinceCollapse={toggleProvinceCollapse}
+      onToggleSelected={toggleSelected}
+    />
+  );
 
   return (
-    <SettingsCrudShell
-      addLabel={addLabel}
-      cardTitle={listTitle}
-      controller={controller}
-      description={description}
-      formDialog={
-        canManage ? (
+    <>
+      <SettingsModuleShell
+        addLabel={addLabel}
+        cardTitle={listTitle}
+        description={description}
+        emptyDescription={t("empty.adjustSearch")}
+        emptyTitle={t("settings.noRecords", { title: title.toLowerCase() })}
+        footer={
+          rows.length ? (
+            <SettingsPaginationFooter
+              page={page}
+              pageEnd={pageEnd}
+              pageStart={pageStart}
+              total={total}
+              totalPages={totalPages}
+              onPageChange={setPage}
+            />
+          ) : undefined
+        }
+        hideCardHeader
+        loading={fullLoading}
+        loadingLabel={t("settings.loading", { title })}
+        table={listSurface}
+        title={title}
+        onAdd={canManage ? openCreate : undefined}
+      />
+      {canManage ? (
+        <>
           <LocationFormDialog
             description={description}
-            editing={controller.editing}
+            editing={editing}
             kind="district"
             labels={labels}
-            open={controller.dialogOpen}
+            open={dialogOpen}
             provinceLoading={provinceOptionsLoading}
             provinces={provinceRows}
-            saving={controller.saving}
+            saving={saving}
             title={title}
-            onOpenChange={controller.onDialogOpenChange}
+            onOpenChange={onDialogOpenChange}
             onSubmit={save}
           />
-        ) : null
-      }
-      listSurface={
-        <LocationListSurface
-          allCollapsed={allCollapsed}
-          allSelected={allSelected}
-          backgroundLoading={backgroundLoading}
-          canManage={canManage}
-          collapsedProvinces={collapsedProvinces}
-          districtGroups={numberedDistrictGroups}
-          kind="district"
-          labels={labels}
-          listTitle={listTitle}
-          pageStart={pageStart}
-          provinceById={provinceById}
-          refreshLabel={refreshLabel}
-          rows={rows}
-          selectedRows={selectedRows}
-          title={title}
-          toolbar={
-            <SettingsCrudToolbar
-              controller={controller}
-              limitOptions={PAGE_LIMIT_OPTIONS}
-              orderOptions={[
-                { label: labels.sortAsc, value: "ASC" },
-                { label: labels.sortDesc, value: "DESC" }
-              ]}
-            />
-          }
-          onDelete={handleDeleteTarget}
-          onEdit={handleEdit}
-          onToggleAll={toggleAll}
-          onToggleAllGroups={toggleAllGroups}
-          onToggleProvinceCollapse={toggleProvinceCollapse}
-          onToggleSelected={toggleSelected}
-        />
-      }
-      title={title}
-      onAdd={canManage ? openCreate : null}
-      onRemove={remove}
-    />
+          <ConfirmDialog
+            cancelLabel={t("actions.cancel")}
+            confirmLabel={t("actions.delete")}
+            description={t("settings.deleteConfirm")}
+            open={Boolean(deleteTarget)}
+            title={t("actions.delete")}
+            onConfirm={() => {
+              if (deleteTarget) void remove(deleteTarget);
+            }}
+            onOpenChange={(nextOpen) => {
+              if (!nextOpen) setDeleteTarget(null);
+            }}
+          />
+        </>
+      ) : null}
+    </>
   );
 }

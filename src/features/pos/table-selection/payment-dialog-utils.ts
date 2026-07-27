@@ -19,8 +19,19 @@ import type {
   PosTable,
 } from "@/services/pos";
 import type { AuthUser } from "@/stores/auth-store";
-import { cartItemDisplayName, cartItemName, cartItemQty, cartItemTotal, cartSummary, cartToppingDisplay, formatRate, positiveNumber, visibleCartItems } from "@/features/pos/table-selection/cart-readers";
-import { optionalNumber, optionalString } from "@/lib/values";
+import {
+  cartItemDisplayName,
+  cartItemName,
+  cartItemQty,
+  cartItemTotal,
+  cartSummary,
+  cartToppingDisplay,
+  formatRate,
+  optionalNumber,
+  optionalString,
+  positiveNumber,
+  visibleCartItems,
+} from "./utils";
 
 export type PaymentTab = "cash" | "transfer" | "cash_transfer" | "arrears";
 export type PaymentKind = "full" | "split";
@@ -99,7 +110,7 @@ export function customerUuidOf(customer: Customer) {
 }
 
 export function defaultCustomerSearchTerm(language?: string | null) {
-  return toLanguage(language) === "en" ? "customer" : "àº¥àº¹àºàº„à»‰àº²àº—àº»à»ˆàº§à»„àº›";
+  return toLanguage(language) === "en" ? "customer" : "ລູກຄ້າທົ່ວໄປ";
 }
 
 export function defaultCustomerFromRows(customers: Customer[], term: string) {

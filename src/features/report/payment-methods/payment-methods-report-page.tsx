@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { CreditCard } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { AppPagination } from "@/components/common/app-pagination";
 import { Badge } from "@/components/ui/badge";
 import type { UrlPaginationState } from "@/lib/url-pagination";
 import {
@@ -14,7 +15,7 @@ import {
   PaymentMethodsTable,
 } from "./payment-methods-report-components";
 import { ReportPageShell } from "../shared/report-page-shell";
-import { ReportDataCard, useReportChrome } from "../shared/report-standard-page";
+import { ReportTableCard } from "../shared/report-table-card";
 import { usePaymentMethodsReportWorkflow } from "./use-payment-methods-report-workflow";
 
 const SUMMARY_CARDS_ID = "payment-methods-summary-cards";
@@ -24,7 +25,12 @@ export function PaymentMethodsReportPage({ initialPagination }: { initialPaginat
   const exportReportRef = useRef<HTMLDivElement>(null);
   const [summaryVisible, setSummaryVisible] = useState(false);
   const report = usePaymentMethodsReportWorkflow(exportReportRef, initialPagination);
-  const chrome = useReportChrome(report);
+  const exportTitle =
+    report.exporting === "excel"
+      ? t("report.exportingExcel")
+      : report.exporting === "pdf"
+        ? t("report.exportingPdf")
+        : t("report.preparingPrint");
 
   return (
     <ReportPageShell
@@ -36,8 +42,12 @@ export function PaymentMethodsReportPage({ initialPagination }: { initialPaginat
       dateTo={report.appliedFilters.dateTo}
       loading={report.loading}
       exporting={Boolean(report.exporting)}
-      exportingTitle={chrome.exportTitle}
-      errors={chrome.errors}
+      exportingTitle={exportTitle}
+      errors={[
+        !report.branchUuid ? t("report.branchRequired") : null,
+        report.branchError,
+        report.error,
+      ]}
       extraChips={
         <>
           <Badge className="h-7 max-w-56 rounded-full border-border bg-muted px-3 text-xs text-muted-foreground">
@@ -70,8 +80,7 @@ export function PaymentMethodsReportPage({ initialPagination }: { initialPaginat
       onOpenFilters={report.openMobileFilters}
       onRefresh={() => void report.load()}
       table={
-        <ReportDataCard
-          report={report}
+        <ReportTableCard
           cardClassName="min-w-0 overflow-hidden border-border bg-card shadow-sm"
           contentClassName="p-0"
           contentWrapperClassName="min-w-0 overflow-x-auto overscroll-x-contain"
@@ -89,6 +98,23 @@ export function PaymentMethodsReportPage({ initialPagination }: { initialPaginat
           renderLoading={() => <PaymentMethodsLoadingSkeleton />}
           emptyTitle={t("report.paymentMethodsReport.noData")}
           emptyDescription={t("report.paymentMethodsReport.adjustFilters")}
+          loading={report.loading}
+          rowsLength={report.rows.length}
+          selectedCount={report.rowSelection.selectedCount}
+          exportDisabled={report.exportDisabled}
+          exporting={report.exporting}
+          footer={
+            <AppPagination
+              page={report.page}
+              rangeLabel={report.paginationRangeLabel}
+              totalPages={report.totalPages}
+              onPageChange={report.setPage}
+            />
+          }
+          onClearSelection={report.rowSelection.clearSelection}
+          onExportExcel={() => void report.exportExcel()}
+          onExportPdf={() => void report.exportPdf()}
+          onRefresh={() => void report.load()}
         >
           <PaymentMethodsTable
             reportTotal={report.reportTotal}
@@ -103,13 +129,13 @@ export function PaymentMethodsReportPage({ initialPagination }: { initialPaginat
             selectedRowIds={report.rowSelection.selectedRowIds}
             onToggleRow={report.rowSelection.toggleRow}
           />
-        </ReportDataCard>
+        </ReportTableCard>
       }
       exportSurface={
         report.exporting === "pdf" || report.exporting === "print" ? (
           <PaymentMethodsExportSurface
             containerRef={exportReportRef}
-            dateRange={chrome.dateRangeLabel}
+            dateRange={`${t("report.reportDate")}: ${report.appliedFilters.dateFrom} - ${report.appliedFilters.dateTo}`}
             methodLabel={report.activePaymentMethodLabel}
             rows={report.renderedExportData.rows}
             title={report.renderedExportData.reportName || report.reportTitle}

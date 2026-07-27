@@ -16,8 +16,7 @@ import { money } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { CartItem } from "@/services/pos";
 import type { CartItemAction, CartTab } from "./types";
-import { cartItemActionUuid, cartItemBaseUnitPrice, cartItemDisplayName, cartItemMedia, cartItemName, cartItemQty, cartItemStatus, cartItemTotal, cartItemUuid, cartToppingDisplay, differentNumber, formatPlainValue, formatPositiveMoneyValue, formatQuantityValue, formatRate, isCanceledCartItem, isServedCartItem, positiveNumber, type CartItemMedia } from "@/features/pos/table-selection/cart-readers";
-import { optionalBoolean, optionalNumber, optionalString } from "@/lib/values";
+import { cartItemActionUuid, cartItemBaseUnitPrice, cartItemDisplayName, cartItemMedia, cartItemName, cartItemQty, cartItemStatus, cartItemTotal, cartItemUuid, cartToppingDisplay, differentNumber, formatPlainValue, formatPositiveMoneyValue, formatQuantityValue, formatRate, isCanceledCartItem, isServedCartItem, optionalBoolean, optionalNumber, optionalString, positiveNumber, type CartItemMedia } from "./utils";
 
 export function CartTabTrigger({
   active,

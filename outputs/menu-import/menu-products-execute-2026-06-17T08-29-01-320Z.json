@@ -1,0 +1,934 @@
+{
+  "mode": "execute",
+  "excelPath": "D:\\Project\\www.yummy-go.com\\outputs\\menu-units\\ລາຍການອາຫານ 2026 - with units.xlsx",
+  "branch_uuid_fk": "16bd0ecd-248a-47c8-b8e3-c424f1a9bba1",
+  "store_uuid_fk": "a8e8930c-fc80-43ba-9c26-3e24e42c5f95",
+  "size_uuid_fk": "5a9949a3-0f6b-4eea-a86a-1fd2b99352c3",
+  "createdReferences": [],
+  "summary": {
+    "importable": 5,
+    "skipped": 133,
+    "success": 5,
+    "failed": 0,
+    "skippedByReason": {
+      "duplicate_name": 133
+    }
+  },
+  "samples": [
+    {
+      "rowNumber": 83,
+      "categoryHeader": "ປະເພດລາບ+ກ້ອຍ",
+      "payload": {
+        "branch_uuid_fk": "16bd0ecd-248a-47c8-b8e3-c424f1a9bba1",
+        "cate_uuid_fk": "e6f48d2c-8288-4e2a-915d-bc69a048e494",
+        "unite_uuid_fk": "f57ee5bd-d0ca-42aa-8b0d-f314cef2a1c4",
+        "prod_code": "PRD-134",
+        "prod_name_la": "ລາບງົວ(ສຸກ-ດິບ)",
+        "prod_name_eng": "ລາບງົວ(ສຸກ-ດິບ)",
+        "prod_order_point": 10,
+        "prod_notification": 2,
+        "status_sort_fk": 1,
+        "prod_set_price": 0,
+        "prod_status_imge": 2,
+        "prod_image": "#d7b8f3",
+        "prod_topping_status": 1,
+        "toppings": "[]",
+        "details": "[{\"size_uuid_fk\":\"5a9949a3-0f6b-4eea-a86a-1fd2b99352c3\",\"pro_detail_bprice\":110000,\"pro_detail_sprice\":110000,\"pro_detail_qty_stock\":100,\"pro_detail_stock\":1,\"pro_detail_enabled\":1}]"
+      }
+    },
+    {
+      "rowNumber": 84,
+      "categoryHeader": "ປະເພດລາບ+ກ້ອຍ",
+      "payload": {
+        "branch_uuid_fk": "16bd0ecd-248a-47c8-b8e3-c424f1a9bba1",
+        "cate_uuid_fk": "e6f48d2c-8288-4e2a-915d-bc69a048e494",
+        "unite_uuid_fk": "f57ee5bd-d0ca-42aa-8b0d-f314cef2a1c4",
+        "prod_code": "PRD-135",
+        "prod_name_la": "ລາບເປັດ",
+        "prod_name_eng": "ລາບເປັດ",
+        "prod_order_point": 10,
+        "prod_notification": 2,
+        "status_sort_fk": 1,
+        "prod_set_price": 0,
+        "prod_status_imge": 2,
+        "prod_image": "#d7b8f3",
+        "prod_topping_status": 1,
+        "toppings": "[]",
+        "details": "[{\"size_uuid_fk\":\"5a9949a3-0f6b-4eea-a86a-1fd2b99352c3\",\"pro_detail_bprice\":110000,\"pro_detail_sprice\":110000,\"pro_detail_qty_stock\":100,\"pro_detail_stock\":1,\"pro_detail_enabled\":1}]"
+      }
+    },
+    {
+      "rowNumber": 85,
+      "categoryHeader": "ປະເພດລາບ+ກ້ອຍ",
+      "payload": {
+        "branch_uuid_fk": "16bd0ecd-248a-47c8-b8e3-c424f1a9bba1",
+        "cate_uuid_fk": "e6f48d2c-8288-4e2a-915d-bc69a048e494",
+        "unite_uuid_fk": "f57ee5bd-d0ca-42aa-8b0d-f314cef2a1c4",
+        "prod_code": "PRD-136",
+        "prod_name_la": "ລວກປາເຄິງ",
+        "prod_name_eng": "ລວກປາເຄິງ",
+        "prod_order_point": 10,
+        "prod_notification": 2,
+        "status_sort_fk": 1,
+        "prod_set_price": 0,
+        "prod_status_imge": 2,
+        "prod_image": "#d7b8f3",
+        "prod_topping_status": 1,
+        "toppings": "[]",
+        "details": "[{\"size_uuid_fk\":\"5a9949a3-0f6b-4eea-a86a-1fd2b99352c3\",\"pro_detail_bprice\":100000,\"pro_detail_sprice\":100000,\"pro_detail_qty_stock\":100,\"pro_detail_stock\":1,\"pro_detail_enabled\":1}]"
+      }
+    }
+  ],
+  "skipped": [
+    {
+      "rowNumber": 3,
+      "name": "ແຈ່ວປາແດກເຄື່ອງ+ລວກຜັກ",
+      "categoryHeader": "ປະເພດແຈ່ວ+ຊຸບຜັກ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 4,
+      "name": "ແຈ່ວນ້ຳປູ+ໜໍ່ໄມ້",
+      "categoryHeader": "ປະເພດແຈ່ວ+ຊຸບຜັກ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 5,
+      "name": "ແຈ່ວນ້ຳຜັກ+ລວກຜັກ",
+      "categoryHeader": "ປະເພດແຈ່ວ+ຊຸບຜັກ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 6,
+      "name": "ແຈ່ວໝາກເລັ່ນ+ລວກຜັກ",
+      "categoryHeader": "ປະເພດແຈ່ວ+ຊຸບຜັກ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 7,
+      "name": "ແຈ່ວປາແຫ້ງ+ລວກຜັກ+ໄຂ່ຕົ້ມ",
+      "categoryHeader": "ປະເພດແຈ່ວ+ຊຸບຜັກ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 8,
+      "name": "ແຈ່ວບອງ",
+      "categoryHeader": "ປະເພດແຈ່ວ+ຊຸບຜັກ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 9,
+      "name": "ຊຸບຜັກ",
+      "categoryHeader": "ປະເພດແຈ່ວ+ຊຸບຜັກ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 10,
+      "name": "ຊຸບຜັກໜອກໃສ່ໜັງງົວ",
+      "categoryHeader": "ປະເພດແຈ່ວ+ຊຸບຜັກ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 12,
+      "name": "ເຂົ້າໜຽວ",
+      "categoryHeader": "ປະເພດເຂົ້າ+ອາຫານຈານດ່ຽວ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 13,
+      "name": "ເຂົ້າຈ້າວ",
+      "categoryHeader": "ປະເພດເຂົ້າ+ອາຫານຈານດ່ຽວ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 14,
+      "name": "ເຂົ້າຜັດ (ໝູ,ໄກ່,ທະເລ)",
+      "categoryHeader": "ປະເພດເຂົ້າ+ອາຫານຈານດ່ຽວ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 15,
+      "name": "ເຂົ້າລາດໜ້າກະເພົາໄຂ່ດາວ (ໝູ, ໝູສັບ,ໄກ່)",
+      "categoryHeader": "ປະເພດເຂົ້າ+ອາຫານຈານດ່ຽວ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 16,
+      "name": "ເຂົ້າລາດໜ້າໝູຜັດພິກໄທດຳໄຂ່ດາວ",
+      "categoryHeader": "ປະເພດເຂົ້າ+ອາຫານຈານດ່ຽວ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 17,
+      "name": "ເຂົ້າລາດໜ້າຜັດຂີງໄຂ່ດາວ (ຫມູ,ໄກ່)",
+      "categoryHeader": "ປະເພດເຂົ້າ+ອາຫານຈານດ່ຽວ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 19,
+      "name": "ຕຳໝາກຫຸ່ງຫຼວງພະບາງ",
+      "categoryHeader": "ປະເພດຕຳ ແລະ ຍຳ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 20,
+      "name": "ຕຳເຂົ້າປຸ້ນ",
+      "categoryHeader": "ປະເພດຕຳ ແລະ ຍຳ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 21,
+      "name": "ຕຳໝາກຖົ່ວ+ໃສ່ໄຂ່ຕົ້ມ",
+      "categoryHeader": "ປະເພດຕຳ ແລະ ຍຳ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 22,
+      "name": "ຕຳໝາກແຕງ",
+      "categoryHeader": "ປະເພດຕຳ ແລະ ຍຳ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 23,
+      "name": "ຕຳປ່າ",
+      "categoryHeader": "ປະເພດຕຳ ແລະ ຍຳ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 24,
+      "name": "ຕຳຕີນໄກ່",
+      "categoryHeader": "ປະເພດຕຳ ແລະ ຍຳ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 25,
+      "name": "ຍຳທະເລ",
+      "categoryHeader": "ປະເພດຕຳ ແລະ ຍຳ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 26,
+      "name": "ຍຳໂຕ່ງ",
+      "categoryHeader": "ປະເພດຕຳ ແລະ ຍຳ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 27,
+      "name": "ຍຳສະຫລັດຫຼວງພະບາງ",
+      "categoryHeader": "ປະເພດຕຳ ແລະ ຍຳ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 29,
+      "name": "ຈືນໃສ້ອົ່ວຫຼວງພະບາງ",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 30,
+      "name": "ຈືນສົ້ມໝູຫຼວງພະບາງ",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 31,
+      "name": "ຈືນໄຄແຜ່ນ+ແຈ່ວບອງ",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 32,
+      "name": "ຈືນອົ່ວໜໍ່ໄມ້",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 33,
+      "name": "ຈືນອົ່ວສີໄຄ",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 34,
+      "name": "ຈືນຢໍ່ຜັກຊີຫຼວງພະບາງ",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 35,
+      "name": "ຈືນໄຂ່ໃສ່ສົ້ມໝູຫຼວງພະບາງ",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 36,
+      "name": "ຈືນໄຂ່ໃສ່ໂຕແມ້ຊົງເຄື່ອງ",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 37,
+      "name": "ຈືນໄຂ່ຈຽວໝູສັບ",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 38,
+      "name": "ຈືນປາໂຈກ",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 39,
+      "name": "ຈືນປາໄຂ່",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 40,
+      "name": "ຈືນປານາງ",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 41,
+      "name": "ຈືນປາແດດດຽວ",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 42,
+      "name": "ຈືນປາສົ້ມ (ປາຕອງ)",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 43,
+      "name": "ຈືນເອັນເຫຼືອງ",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 44,
+      "name": "ຈືນຊີ້ນແດດດຽວ",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 45,
+      "name": "ຈືນສາມຊັ້ນນ້ຳປາ",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 46,
+      "name": "ຈືນເອັນໄກ່",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 47,
+      "name": "ຈືນໜັງຍຳຊົງເຄື່ອງ",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 48,
+      "name": "ຈືນໜັງ+ແຈ່ວປາແດກເຄື່ອງ",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 49,
+      "name": "ຈືນຊີ້ນແຜ່ນ",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 50,
+      "name": "ຈືນຊີ້ນສະຫວັນ(ໝູ)",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 51,
+      "name": "ຈືນສົ້ມດູກຂ້າງ",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 52,
+      "name": "ຈືນປີກໄກ່",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 53,
+      "name": "ຈືນຕີນໄກ່",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 54,
+      "name": "ຈືນດູກຂ້າງໝູ",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 55,
+      "name": "ຈືນນົກກະທາທອດກະທຽມ",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 56,
+      "name": "ຈືນຄາງເປັດ",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 57,
+      "name": "ຈືນປາຍປີກໄກ່",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 58,
+      "name": "ຈືນເຫືອກ",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 59,
+      "name": "ຈືນຈີ້ງຫລີດ",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 60,
+      "name": "ຈືນມັນຝຣັ່ງ",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 61,
+      "name": "ປີ້ງໄກ່ທາປາແດກ (ບໍ່ທາປາແດກ)",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 62,
+      "name": "ປີ້ງຊີ້ນທຸບ",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 63,
+      "name": "ພັນໝ້ຽງປານິນ",
+      "categoryHeader": "ປະເພດຈືນ + ປີ້ງ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 65,
+      "name": "ເອາະຫຼາມ (ງົວ)",
+      "categoryHeader": "ປະເພດ ເອາະ+ ແກງ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 66,
+      "name": "ເອາະປາແດກ+ລວກຜັກ",
+      "categoryHeader": "ປະເພດ ເອາະ+ ແກງ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 67,
+      "name": "ຕົ້ມຍຳປາເຄິງ",
+      "categoryHeader": "ປະເພດ ເອາະ+ ແກງ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 68,
+      "name": "ຕົ້ມຍຳປາຄໍ່",
+      "categoryHeader": "ປະເພດ ເອາະ+ ແກງ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 69,
+      "name": "ແກງເພ້ຍ",
+      "categoryHeader": "ປະເພດ ເອາະ+ ແກງ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 70,
+      "name": "ແກງເປັດ",
+      "categoryHeader": "ປະເພດ ເອາະ+ ແກງ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 71,
+      "name": "ແກງເຫັດລວມ",
+      "categoryHeader": "ປະເພດ ເອາະ+ ແກງ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 72,
+      "name": "ແກງຈືດເຕົາຮູ້ສາຫຼ່າຍ",
+      "categoryHeader": "ປະເພດ ເອາະ+ ແກງ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 73,
+      "name": "ແກງຜັກກາດຊອມກະດູກໝູ",
+      "categoryHeader": "ປະເພດ ເອາະ+ ແກງ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 74,
+      "name": "ແກງຜັກກາດຕີນໝີໃສ່ຕີນຈ໊ອກ",
+      "categoryHeader": "ປະເພດ ເອາະ+ ແກງ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 75,
+      "name": "ແກງໜໍ່ໄມ້ສົ້ມໃສ່ຕີນຈ໊ອກ",
+      "categoryHeader": "ປະເພດ ເອາະ+ ແກງ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 76,
+      "name": "ແກງປາຕ່ອງໃສ່ຜັກຫວານ",
+      "categoryHeader": "ປະເພດ ເອາະ+ ແກງ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 77,
+      "name": "ແກງໜໍ່ໄມ້",
+      "categoryHeader": "ປະເພດ ເອາະ+ ແກງ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 78,
+      "name": "ແກງໜໍ່ຫວານໃສ່ກະດູກໝູ(ນ້ຳໃສ)",
+      "categoryHeader": "ປະເພດ ເອາະ+ ແກງ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 79,
+      "name": "ແກງໝາກຊູ",
+      "categoryHeader": "ປະເພດ ເອາະ+ ແກງ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 80,
+      "name": "ຕົ້ມໄກ່",
+      "categoryHeader": "ປະເພດ ເອາະ+ ແກງ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 81,
+      "name": "ຕົ້ມໄກ່ລາດແທ້",
+      "categoryHeader": "ປະເພດ ເອາະ+ ແກງ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 89,
+      "name": "ຂົ້ວເຂົ້າປຸ້ນຫຼວງພະບາງ",
+      "categoryHeader": "ປະເພດຂົ້ວ+ຜັດ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 90,
+      "name": "ຂົ້ວຜັກລວມ",
+      "categoryHeader": "ປະເພດຂົ້ວ+ຜັດ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 91,
+      "name": "ຂົ້ວເຫັດລວມ",
+      "categoryHeader": "ປະເພດຂົ້ວ+ຜັດ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 92,
+      "name": "ຂົ້ວຜັກບົ້ງໄຟແດງ",
+      "categoryHeader": "ປະເພດຂົ້ວ+ຜັດ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 93,
+      "name": "ຂົ້ວຜັກກາດນານ້ຳມັນຫອຍ",
+      "categoryHeader": "ປະເພດຂົ້ວ+ຜັດ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 94,
+      "name": "ຂົ້ວຖົ່ວເບີ",
+      "categoryHeader": "ປະເພດຂົ້ວ+ຜັດ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 95,
+      "name": "ຜັດເຜັດກົບ",
+      "categoryHeader": "ປະເພດຂົ້ວ+ຜັດ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 96,
+      "name": "ຜັດເຜັດໄຂ່ຫຼັງໄກ່",
+      "categoryHeader": "ປະເພດຂົ້ວ+ຜັດ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 97,
+      "name": "ຂົ້ວກະລ່ຳນ້ຳປາ",
+      "categoryHeader": "ປະເພດຂົ້ວ+ຜັດ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 98,
+      "name": "ຂົ້ວສະເຕັກລາວ",
+      "categoryHeader": "ປະເພດຂົ້ວ+ຜັດ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 99,
+      "name": "ຂົ້ວມະລະຜັດໄຂ່ໃສ່ຫມູສັບ",
+      "categoryHeader": "ປະເພດຂົ້ວ+ຜັດ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 100,
+      "name": "ຂົ້ວຖົ່ວລັນເຕົາ",
+      "categoryHeader": "ປະເພດຂົ້ວ+ຜັດ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 102,
+      "name": "ໝົກປາແດກ",
+      "categoryHeader": "ປະເພດໝົກ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 103,
+      "name": "ໝົກໜໍ່ໄມ້",
+      "categoryHeader": "ປະເພດໝົກ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 104,
+      "name": "ໝົກໄຄ",
+      "categoryHeader": "ປະເພດໝົກ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 105,
+      "name": "ໝົກປາໜັງ",
+      "categoryHeader": "ປະເພດໝົກ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 106,
+      "name": "ໝົກສະໝອງໝູ",
+      "categoryHeader": "ປະເພດໝົກ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 107,
+      "name": "ໝົກອອກແອກ",
+      "categoryHeader": "ປະເພດໝົກ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 108,
+      "name": "ໝົກຂີ້ປາ",
+      "categoryHeader": "ປະເພດໝົກ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 110,
+      "name": "ຈືນໄຂ່ໃສ່ໄຂ່ມົດ",
+      "categoryHeader": "ປະເພດອາຫານຕາມລະດູການ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 111,
+      "name": "ແກງຜັກຫວານໃສ່ໄຂ່ມົດ",
+      "categoryHeader": "ປະເພດອາຫານຕາມລະດູການ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 112,
+      "name": "ແກງສົ້ມປາຄໍ່ໃສ່ໄຂ່ມົດ",
+      "categoryHeader": "ປະເພດອາຫານຕາມລະດູການ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 113,
+      "name": "ແກງເຫັດເຟືອງໃສ່ໄຂ່ມົດ",
+      "categoryHeader": "ປະເພດອາຫານຕາມລະດູການ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 114,
+      "name": "ແກງເຫັດເພາະ",
+      "categoryHeader": "ປະເພດອາຫານຕາມລະດູການ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 115,
+      "name": "ແກງໝາກມີ້ອ່ອນໃສ່ຕີນຈ໊ອກ",
+      "categoryHeader": "ປະເພດອາຫານຕາມລະດູການ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 116,
+      "name": "ກ້ອຍໄຂ່ມົດ",
+      "categoryHeader": "ປະເພດອາຫານຕາມລະດູການ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 117,
+      "name": "ຊຸບໝາກມີ້ອ່ອນ",
+      "categoryHeader": "ປະເພດອາຫານຕາມລະດູການ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 118,
+      "name": "ກ້ອຍລີ້ນໄມ້ໃສ່ຫອຍນາ",
+      "categoryHeader": "ປະເພດອາຫານຕາມລະດູການ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 120,
+      "name": "ນ້ຳດື່ມໃຫຍ່",
+      "categoryHeader": "ປະເພດເຄື່ອງດື່ມ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 121,
+      "name": "ນ້ຳດື່ມກາງ",
+      "categoryHeader": "ປະເພດເຄື່ອງດື່ມ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 122,
+      "name": "ນ້ຳດື່ມນ້ອຍ",
+      "categoryHeader": "ປະເພດເຄື່ອງດື່ມ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 123,
+      "name": "ໂອອິຊິ",
+      "categoryHeader": "ປະເພດເຄື່ອງດື່ມ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 124,
+      "name": "ແປບຊີ້",
+      "categoryHeader": "ປະເພດເຄື່ອງດື່ມ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 125,
+      "name": "ນ້ຳຫວານກະປ໋ອງ",
+      "categoryHeader": "ປະເພດເຄື່ອງດື່ມ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 126,
+      "name": "ຊາຈີນ",
+      "categoryHeader": "ປະເພດເຄື່ອງດື່ມ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 127,
+      "name": "ເອັມ100",
+      "categoryHeader": "ປະເພດເຄື່ອງດື່ມ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 128,
+      "name": "ເບຍລາວແກ້ວໃຫຍ່",
+      "categoryHeader": "ປະເພດເຄື່ອງດື່ມ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 129,
+      "name": "ເບຍລາວແກ້ວນ້ອຍ",
+      "categoryHeader": "ປະເພດເຄື່ອງດື່ມ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 130,
+      "name": "ເບຍຄາສເບີດແກ້ວນ້ອຍ",
+      "categoryHeader": "ປະເພດເຄື່ອງດື່ມ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 131,
+      "name": "ເບຍກລີນກະປ໋ອງໃຫຍ່",
+      "categoryHeader": "ປະເພດເຄື່ອງດື່ມ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 132,
+      "name": "ເບຍ1664 ແກ້ວນ້ອຍ",
+      "categoryHeader": "ປະເພດເຄື່ອງດື່ມ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 133,
+      "name": "ເບຍໄຮເນເກັ້ນແກ້ວໃຫຍ່",
+      "categoryHeader": "ປະເພດເຄື່ອງດື່ມ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 134,
+      "name": "ເບຍໄຮເນເກັ້ນປ໋ອງ",
+      "categoryHeader": "ປະເພດເຄື່ອງດື່ມ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 135,
+      "name": "ສະເມີບີ້",
+      "categoryHeader": "ປະເພດເຄື່ອງດື່ມ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 136,
+      "name": "ໂຊຈູ",
+      "categoryHeader": "ປະເພດເຄື່ອງດື່ມ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 137,
+      "name": "ນ້ຳກະທັນ",
+      "categoryHeader": "ປະເພດເຄື່ອງດື່ມ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 138,
+      "name": "ນ້ຳໝາກພ້າວສົດ",
+      "categoryHeader": "ປະເພດເຄື່ອງດື່ມ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 139,
+      "name": "ນ້ຳໝາກກ້ຽງສົດ",
+      "categoryHeader": "ປະເພດເຄື່ອງດື່ມ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 140,
+      "name": "ນ້ຳໝາກໜອດ",
+      "categoryHeader": "ປະເພດເຄື່ອງດື່ມ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 141,
+      "name": "ນ້ຳໝາກນາວ",
+      "categoryHeader": "ປະເພດເຄື່ອງດື່ມ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 142,
+      "name": "ນ້ຳສະໂລແດງໂຊດາໝາກນາວ",
+      "categoryHeader": "ປະເພດເຄື່ອງດື່ມ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 143,
+      "name": "ນ້ຳສະໂລແດງນົມ",
+      "categoryHeader": "ປະເພດເຄື່ອງດື່ມ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 144,
+      "name": "ນ້ຳສະໂລຂຽວໂຊດາໝາກນາວ",
+      "categoryHeader": "ປະເພດເຄື່ອງດື່ມ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 145,
+      "name": "ນ້ຳສະໂລຂຽວນົມ",
+      "categoryHeader": "ປະເພດເຄື່ອງດື່ມ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 146,
+      "name": "ກາເຟນົມເຢັນ",
+      "categoryHeader": "ປະເພດເຄື່ອງດື່ມ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 147,
+      "name": "ຊາໝາກນາວ",
+      "categoryHeader": "ປະເພດເຄື່ອງດື່ມ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 148,
+      "name": "ຊາຂຽວເຢັນ",
+      "categoryHeader": "ປະເພດເຄື່ອງດື່ມ",
+      "reason": "duplicate_name"
+    },
+    {
+      "rowNumber": 149,
+      "name": "ຊານົມເຢັນ",
+      "categoryHeader": "ປະເພດເຄື່ອງດື່ມ",
+      "reason": "duplicate_name"
+    }
+  ],
+  "results": [
+    {
+      "rowNumber": 83,
+      "prod_code": "PRD-134",
+      "prod_name_la": "ລາບງົວ(ສຸກ-ດິບ)",
+      "status": "success",
+      "response": {
+        "status": "success",
+        "message": "ບັນທຶກສິນຄ້າສຳເລັດແລ້ວ"
+      }
+    },
+    {
+      "rowNumber": 84,
+      "prod_code": "PRD-135",
+      "prod_name_la": "ລາບເປັດ",
+      "status": "success",
+      "response": {
+        "status": "success",
+        "message": "ບັນທຶກສິນຄ້າສຳເລັດແລ້ວ"
+      }
+    },
+    {
+      "rowNumber": 85,
+      "prod_code": "PRD-136",
+      "prod_name_la": "ລວກປາເຄິງ",
+      "status": "success",
+      "response": {
+        "status": "success",
+        "message": "ບັນທຶກສິນຄ້າສຳເລັດແລ້ວ"
+      }
+    },
+    {
+      "rowNumber": 86,
+      "prod_code": "PRD-137",
+      "prod_name_la": "ກ້ອຍປາເຄິງ",
+      "status": "success",
+      "response": {
+        "status": "success",
+        "message": "ບັນທຶກສິນຄ້າສຳເລັດແລ້ວ"
+      }
+    },
+    {
+      "rowNumber": 87,
+      "prod_code": "PRD-138",
+      "prod_name_la": "ກ້ອຍຫອຍນາ",
+      "status": "success",
+      "response": {
+        "status": "success",
+        "message": "ບັນທຶກສິນຄ້າສຳເລັດແລ້ວ"
+      }
+    }
+  ]
+}

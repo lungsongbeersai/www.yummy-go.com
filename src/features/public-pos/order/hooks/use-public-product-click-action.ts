@@ -11,7 +11,14 @@ import {
 } from "@/stores/public-pos-store";
 import type { ToastInput } from "@/stores/toast-store";
 import type { PublicAddToCartPayload } from "../types";
-import { canAddQty, defaultOrderQty, firstAvailableDetail, getDirectAddListPayload, getProductBlockedState, productNeedsModal } from "@/features/public-pos/order/product-domain";
+import {
+  canAddQty,
+  defaultOrderQty,
+  firstAvailableDetail,
+  getDirectAddListPayload,
+  getProductBlockedState,
+  productNeedsModal,
+} from "../utils";
 
 type PublicPosState = ReturnType<typeof usePublicPosStore.getState>;
 

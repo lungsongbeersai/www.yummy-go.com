@@ -16,7 +16,7 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { money } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { cartSummary, positiveNumber } from "@/features/pos/table-selection/cart-readers";
+import { cartSummary, positiveNumber } from "./utils";
 
 export function CartSummaryDock({
   actionsDisabled = false,

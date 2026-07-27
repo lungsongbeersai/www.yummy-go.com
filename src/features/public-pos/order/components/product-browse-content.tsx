@@ -14,8 +14,12 @@ import {
 } from "../constants";
 import type { PublicBrowseWorkflow } from "../hooks/use-public-browse-workflow";
 import type { PublicProductLayoutMode } from "../types";
-import { statusSectionLabel } from "@/features/public-pos/order/menu-render";
-import { readPublicProductLayoutMode, subscribePublicProductLayoutMode, writePublicProductLayoutMode } from "@/features/public-pos/order/product-layout-mode";
+import {
+  readPublicProductLayoutMode,
+  statusSectionLabel,
+  subscribePublicProductLayoutMode,
+  writePublicProductLayoutMode,
+} from "../utils";
 import { BottomNav } from "./public-bottom-nav";
 import { CartFlyAnimationLayer } from "./cart-fly-animation-layer";
 import { CartSheet } from "./cart-sheet";

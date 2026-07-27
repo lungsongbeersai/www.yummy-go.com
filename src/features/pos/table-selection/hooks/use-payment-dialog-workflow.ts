@@ -33,8 +33,11 @@ import { useReferenceStore } from "@/stores/reference-store";
 import { useToastStore } from "@/stores/toast-store";
 import { usePaymentCustomers } from "./use-payment-customers";
 import type { PaymentDialogProps } from "../payment-dialog-types";
-import { cartOrderInvoice, cartOrdersBelongToTable } from "@/features/pos/table-selection/cart-readers";
-import { optionalString } from "@/lib/values";
+import {
+  cartOrdersBelongToTable,
+  cartOrderInvoice,
+  optionalString,
+} from "../utils";
 import {
   openLocalInvoicePrintWindow,
   type InvoicePrintData,
@@ -194,7 +197,7 @@ export function usePaymentDialogWorkflow({
           currency: selectedCurrency.code,
         });
 
-  // à¹€à¸›à¸´à¸” dialog à¸Šà¸³à¸£à¸°à¹€à¸‡à¸´à¸™ = à¸•à¸±à¹‰à¸‡à¸„à¹ˆà¸²à¸Ÿà¸­à¸£à¹Œà¸¡à¹ƒà¸«à¸¡à¹ˆà¸—à¸±à¹‰à¸‡à¸Šà¸¸à¸”à¸—à¸±à¸™à¸—à¸µ (à¹à¸¢à¸à¸ˆà¸²à¸ effect à¸—à¸µà¹ˆà¹‚à¸«à¸¥à¸”à¸­à¸±à¸•à¸£à¸²à¹à¸¥à¸à¹€à¸›à¸¥à¸µà¹ˆà¸¢à¸™)
+  // เปิด dialog ชำระเงิน = ตั้งค่าฟอร์มใหม่ทั้งชุดทันที (แยกจาก effect ที่โหลดอัตราแลกเปลี่ยน)
   useResetOnChange(open, () => {
     if (!open) return;
     const defaultAmount = defaultCurrencyInput(totalAmount, LAK_CURRENCY_OPTION);
@@ -221,7 +224,7 @@ export function usePaymentDialogWorkflow({
     }
   }, [isSplitPayment, language, loadExchangeRates, open, totalAmount, user]);
 
-  // à¸ªà¸à¸¸à¸¥à¹€à¸‡à¸´à¸™à¸—à¸µà¹ˆà¹€à¸¥à¸·à¸­à¸à¸«à¸¥à¸¸à¸”à¸ˆà¸²à¸à¸£à¸²à¸¢à¸à¸²à¸£ (à¹‚à¸«à¸¥à¸”à¸­à¸±à¸•à¸£à¸²à¹ƒà¸«à¸¡à¹ˆ/à¸ªà¸¥à¸±à¸šà¸£à¹‰à¸²à¸™) = à¸à¸¥à¸±à¸šà¹„à¸›à¹ƒà¸Šà¹‰ LAK
+  // สกุลเงินที่เลือกหลุดจากรายการ (โหลดอัตราใหม่/สลับร้าน) = กลับไปใช้ LAK
   useResetOnDeps([currencyOptions, currencyValue], () => {
     if (!currencyOptions.some((option) => option.value === currencyValue))
       setCurrencyValue(LAK_CURRENCY_VALUE);
@@ -300,32 +303,23 @@ export function usePaymentDialogWorkflow({
     );
   }
 
-  // ทั้ง 3 ปุ่มคีย์แพดด้านล่างเริ่มด้วยการอ่านช่วงที่เลือกอยู่เหมือนกัน: ตำแหน่ง caret ที่ผู้ใช้เห็น
-  // อยู่บนข้อความที่ใส่ตัวคั่นหลักพันแล้ว ต้องแปลงกลับเป็นตำแหน่งบนค่าดิบก่อนจะตัดต่อสตริง
-  function activeAmountSelection() {
+  function insertKeypadValue(value: string) {
+    if (!activeTenderField || activeTab === "arrears") return;
     const input = activeAmountInputRef.current;
+    const currentValue = activeInputValue;
     const displayStart =
       input?.selectionStart ?? activeInputDisplayValue.length;
     const displayEnd = input?.selectionEnd ?? activeInputDisplayValue.length;
-
-    return {
-      currentValue: activeInputValue,
-      start: rawCaretFromDisplayCaret(
-        activeInputDisplayValue,
-        displayStart,
-        allowDecimalAmount,
-      ),
-      end: rawCaretFromDisplayCaret(
-        activeInputDisplayValue,
-        displayEnd,
-        allowDecimalAmount,
-      ),
-    };
-  }
-
-  function insertKeypadValue(value: string) {
-    if (!activeTenderField || activeTab === "arrears") return;
-    const { currentValue, start, end } = activeAmountSelection();
+    const start = rawCaretFromDisplayCaret(
+      activeInputDisplayValue,
+      displayStart,
+      allowDecimalAmount,
+    );
+    const end = rawCaretFromDisplayCaret(
+      activeInputDisplayValue,
+      displayEnd,
+      allowDecimalAmount,
+    );
     const nextValue = `${currentValue.slice(0, start)}${value}${currentValue.slice(end)}`;
     replaceActiveAmount(nextValue, start + value.length);
   }
@@ -333,7 +327,21 @@ export function usePaymentDialogWorkflow({
   function insertDecimal() {
     if (!allowDecimalAmount || !activeTenderField || activeTab === "arrears")
       return;
-    const { currentValue, start, end } = activeAmountSelection();
+    const input = activeAmountInputRef.current;
+    const currentValue = activeInputValue;
+    const displayStart =
+      input?.selectionStart ?? activeInputDisplayValue.length;
+    const displayEnd = input?.selectionEnd ?? activeInputDisplayValue.length;
+    const start = rawCaretFromDisplayCaret(
+      activeInputDisplayValue,
+      displayStart,
+      allowDecimalAmount,
+    );
+    const end = rawCaretFromDisplayCaret(
+      activeInputDisplayValue,
+      displayEnd,
+      allowDecimalAmount,
+    );
     const selectedText = currentValue.slice(start, end);
     if (currentValue.includes(".") && !selectedText.includes("."))
       return focusActiveAmount(
@@ -347,7 +355,21 @@ export function usePaymentDialogWorkflow({
 
   function backspaceActiveAmount() {
     if (!activeTenderField || activeTab === "arrears") return;
-    const { currentValue, start, end } = activeAmountSelection();
+    const input = activeAmountInputRef.current;
+    const currentValue = activeInputValue;
+    const displayStart =
+      input?.selectionStart ?? activeInputDisplayValue.length;
+    const displayEnd = input?.selectionEnd ?? activeInputDisplayValue.length;
+    const start = rawCaretFromDisplayCaret(
+      activeInputDisplayValue,
+      displayStart,
+      allowDecimalAmount,
+    );
+    const end = rawCaretFromDisplayCaret(
+      activeInputDisplayValue,
+      displayEnd,
+      allowDecimalAmount,
+    );
     if (start !== end)
       return replaceActiveAmount(
         `${currentValue.slice(0, start)}${currentValue.slice(end)}`,

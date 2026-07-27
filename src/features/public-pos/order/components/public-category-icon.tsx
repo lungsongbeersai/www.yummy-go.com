@@ -1,7 +1,7 @@
 "use client";
 
 import { CategoryIcon } from "@/features/settings/category/category-icon";
-import { publicCategoryIconName } from "@/features/public-pos/order/menu-render";
+import { publicCategoryIconName } from "@/features/public-pos/order/utils";
 import { cn } from "@/lib/utils";
 
 export function PublicCategoryIcon({ className, icon }: { className?: string; icon?: string | null }) {

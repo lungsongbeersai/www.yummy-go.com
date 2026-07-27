@@ -25,7 +25,7 @@ import type { SelectedTableCartPanelWorkflow } from "./hooks/use-selected-table-
 import type { PaymentDialogProps } from "./payment-dialog";
 import { TableActionsOverlay } from "./table-actions-overlay";
 import { TableQrDialog } from "./table-qr-dialog";
-import { cartItemActionUuid } from "@/features/pos/table-selection/cart-readers";
+import { cartItemActionUuid } from "./utils";
 
 const PaymentDialog = dynamic<PaymentDialogProps>(
   () => import("./payment-dialog").then((mod) => mod.PaymentDialog),

@@ -3,20 +3,23 @@
 import { isActiveStatus, StatusBadge } from "@/components/common/status-badge";
 import { Users } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Spinner } from "@/components/ui/spinner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { SettingsCrudShell, SettingsCrudToolbar } from "@/features/settings/shared/settings-crud-shell";
 import {
-  SettingsListSurface,
   SettingsMobileCard,
   SettingsMobileList,
   SettingsMobileMeta,
   SettingsMobileMetaGrid,
+  SettingsModuleShell,
+  SettingsPaginationFooter,
   SettingsRowActions,
   SettingsTableScroll,
-} from "@/features/settings/shared/settings-shell";
+  SettingsToolbar,
+  SettingsEmptyRecords,} from "@/features/settings/shared/settings-shell";
 import { useSettingsCrudController } from "@/features/settings/shared/use-settings-crud-controller";
 import { PAGE_LIMIT_OPTIONS } from "@/lib/pagination";
 import type { UrlPaginationState } from "@/lib/url-pagination";
@@ -83,8 +86,39 @@ export function CustomerSettingsPage({ initialPagination }: { initialPagination:
   const { t } = useTranslation();
   const title = t("settings.modules.customer.title");
   const description = t("settings.modules.customer.description");
-  const listTitle = t("settings.customerList");
-  const controller = useSettingsCrudController<Customer, SaveCustomerInput, FetchCustomersParams>({
+  const {
+    allSelected,
+    applyFilters,
+    backgroundLoading,
+    changeLimit,
+    deleteTarget,
+    dialogOpen,
+    editing,
+    fullLoading,
+    limit,
+    onDialogOpenChange,
+    openCreate,
+    openEdit,
+    orderBy,
+    page,
+    pageEnd,
+    pageStart,
+    remove,
+    rowId,
+    rows,
+    save,
+    saving,
+    search,
+    selectedRows,
+    setDeleteTarget,
+    setOrderBy,
+    setPage,
+    setSearch,
+    toggleAll,
+    toggleSelected,
+    total,
+    totalPages
+  } = useSettingsCrudController<Customer, SaveCustomerInput, FetchCustomersParams>({
     buildInput: ({ editing: editingRow, formData, storeUuid }) => customerFormInput(formData, storeUuid, editingRow),
     idKey: "customer_uuid",
     initialPagination,
@@ -99,8 +133,6 @@ export function CustomerSettingsPage({ initialPagination }: { initialPagination:
       return null;
     }
   });
-  const { allSelected, openEdit, pageStart, rowId, rows, selectedRows, setDeleteTarget, toggleAll, toggleSelected } =
-    controller;
 
   const table = rows.length ? (
     <SettingsTableScroll>
@@ -196,41 +228,100 @@ export function CustomerSettingsPage({ initialPagination }: { initialPagination:
     </SettingsMobileList>
   ) : null;
 
-  return (
-    <SettingsCrudShell
-      addLabel={`${t("actions.add")} ${t("nav.customer")}`}
-      cardTitle={listTitle}
-      controller={controller}
-      description={description}
-      formDialog={
-        <CustomerFormDialog
-          editing={controller.editing}
-          open={controller.dialogOpen}
-          saving={controller.saving}
-          onOpenChange={controller.onDialogOpenChange}
-          onSubmit={controller.save}
-        />
-      }
-      listSurface={
-        <SettingsListSurface
-          backgroundLoading={controller.backgroundLoading}
-          emptyIcon={<Users aria-hidden />}
-          emptyTitle={title.toLowerCase()}
-          hasRows={rows.length > 0}
-          listTitle={listTitle}
-          mobileList={mobileList}
-          refreshLabel={t("settings.refreshingCustomerList")}
-          table={table}
-          toolbar={
-            <SettingsCrudToolbar
-              controller={controller}
-              limitOptions={PAGE_LIMIT_OPTIONS}
-              orderOptions={ORDER_OPTIONS.map((option) => ({ label: t(`common.${option.labelKey}`), value: option.value }))}
-            />
-          }
-        />
-      }
-      title={title}
+  const toolbar = (
+    <SettingsToolbar
+      state={{
+        search,
+        limit,
+        orderBy,
+        limitOptions: PAGE_LIMIT_OPTIONS,
+        orderOptions: ORDER_OPTIONS.map((option) => ({ label: t(`common.${option.labelKey}`), value: option.value })),
+        selectedCount: selectedRows.size,
+        onApply: applyFilters,
+        onLimit: changeLimit,
+        onOrder: (nextOrder) => {
+          setOrderBy(nextOrder);
+          setPage(1);
+        },
+        onSearch: setSearch
+      }}
     />
+  );
+
+  const listSurface = (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="shrink-0 border-b border-border bg-card/95 px-3 py-2.5 backdrop-blur sm:px-4 lg:px-5">
+        <div className="flex min-w-0 flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
+          <div className="min-w-0">
+            <p className="text-sm font-black">{t("settings.customerList")}</p>
+          </div>
+          <div className="min-w-0 xl:max-w-[48rem]">{toolbar}</div>
+        </div>
+        {backgroundLoading ? (
+          <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+            <Spinner aria-hidden />
+            {t("settings.refreshingCustomerList")}
+          </div>
+        ) : null}
+      </div>
+      {rows.length ? (
+        <>
+          <div className="hidden min-h-0 flex-1 md:flex">{table}</div>
+          <div className="min-h-0 flex-1 overflow-y-auto md:hidden">{mobileList}</div>
+        </>
+      ) : (
+        <SettingsEmptyRecords icon={<Users aria-hidden />} title={title.toLowerCase()} />
+      )}
+    </div>
+  );
+
+  return (
+    <>
+      <SettingsModuleShell
+        addLabel={`${t("actions.add")} ${t("nav.customer")}`}
+        cardTitle={t("settings.customerList")}
+        description={description}
+        emptyDescription={t("empty.adjustSearch")}
+        emptyTitle={t("settings.noRecords", { title: title.toLowerCase() })}
+        footer={
+          rows.length ? (
+            <SettingsPaginationFooter
+              page={page}
+              pageEnd={pageEnd}
+              pageStart={pageStart}
+              total={total}
+              totalPages={totalPages}
+              onPageChange={setPage}
+            />
+          ) : undefined
+        }
+        hideCardHeader
+        loading={fullLoading}
+        loadingLabel={t("settings.loading", { title })}
+        table={listSurface}
+        title={title}
+        onAdd={openCreate}
+      />
+      <CustomerFormDialog
+        editing={editing}
+        open={dialogOpen}
+        saving={saving}
+        onOpenChange={onDialogOpenChange}
+        onSubmit={save}
+      />
+      <ConfirmDialog
+        cancelLabel={t("actions.cancel")}
+        confirmLabel={t("actions.delete")}
+        description={t("settings.deleteConfirm")}
+        open={Boolean(deleteTarget)}
+        title={t("actions.delete")}
+        onConfirm={() => {
+          if (deleteTarget) void remove(deleteTarget);
+        }}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) setDeleteTarget(null);
+        }}
+      />
+    </>
   );
 }

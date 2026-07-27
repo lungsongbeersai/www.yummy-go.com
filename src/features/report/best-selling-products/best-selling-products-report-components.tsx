@@ -51,7 +51,9 @@ import type {
 } from "@/stores/report-store";
 import { SortableReportTableHead } from "../report-sort-table-head";
 import {
-  ReportBaseFilterFields,
+  ReportBranchField,
+  ReportDateRangeFields,
+  ReportPageLimitField,
   ReportSelectField,
 } from "../shared/report-filter-fields";
 import { ReportSummaryCardsGrid, type ReportSummaryCard } from "../shared/report-metric-display";
@@ -221,20 +223,27 @@ function BestSellingFilterFields({
   }
 
   return (
-    <ReportBaseFilterFields
-      branchLoading={branchLoading}
-      branchLocked={branchLocked}
-      branchOptions={branchOptions}
-      branchUuid={draftFilters.branchUuid}
-      dateFrom={draftFilters.dateFrom}
-      dateTo={draftFilters.dateTo}
-      idPrefix={idPrefix}
-      limit={draftFilters.limit}
-      onBranchChange={(value) => patch({ branchUuid: value })}
-      onDateFromChange={(value) => patch({ dateFrom: value })}
-      onDateToChange={(value) => patch({ dateTo: value })}
-      onLimitChange={(value) => patch({ limit: value })}
-    >
+    <>
+      <ReportBranchField
+        branchLoading={branchLoading}
+        branchLocked={branchLocked}
+        fieldClassName="min-w-0 gap-1.5 sm:col-span-2 lg:col-span-4"
+        id={`${idPrefix}-branch`}
+        options={branchOptions}
+        triggerClassName="h-10 w-full rounded-md"
+        value={draftFilters.branchUuid}
+        onValueChange={(value) => patch({ branchUuid: value })}
+      />
+      <ReportDateRangeFields
+        dateFrom={draftFilters.dateFrom}
+        dateTo={draftFilters.dateTo}
+        fieldClassName="min-w-0 gap-1.5 lg:col-span-4"
+        idPrefix={idPrefix}
+        inputClassName="h-10 rounded-md text-sm"
+        withNativeName
+        onDateFromChange={(value) => patch({ dateFrom: value })}
+        onDateToChange={(value) => patch({ dateTo: value })}
+      />
       <ReportSelectField
         disabled={groupLoading || !groupOptions.length}
         fieldClassName="min-w-0 gap-1.5 lg:col-span-4"
@@ -245,7 +254,14 @@ function BestSellingFilterFields({
         value={draftFilters.groupUuid}
         onValueChange={(value) => patch({ groupUuid: value })}
       />
-    </ReportBaseFilterFields>
+      <ReportPageLimitField
+        fieldClassName="min-w-0 gap-1.5 lg:col-span-6"
+        id={`${idPrefix}-limit`}
+        triggerClassName="h-10 w-full rounded-md"
+        value={draftFilters.limit}
+        onValueChange={(value) => patch({ limit: value })}
+      />
+    </>
   );
 }
 

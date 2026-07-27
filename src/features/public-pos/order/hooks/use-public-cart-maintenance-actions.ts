@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { CartItem, CartOrder, ChangeType } from "@/services/pos";
 import { usePublicPosStore } from "@/stores/public-pos-store";
 import type { ToastInput } from "@/stores/toast-store";
-import { getConfirmableOrderPayload, getOrderItemUuid } from "@/features/public-pos/order/cart-domain";
+import { getConfirmableOrderPayload, getOrderItemUuid } from "../utils";
 
 type PublicPosState = ReturnType<typeof usePublicPosStore.getState>;
 

@@ -18,8 +18,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 import { optionalString } from "@/lib/values";
 import { SelectedTableCartPanel } from "../table-selection/selected-table-cart-panel";
-import { PRODUCT_GRID_CLASS } from "@/features/pos/order-customer/menu-structure";
-import { productModeLabel } from "@/features/pos/order-customer/product-classification";
+import { PRODUCT_GRID_CLASS, productModeLabel } from "./order-customer-utils";
 import {
   EmployeeCategoryRail,
   EmployeeCategorySidebar,

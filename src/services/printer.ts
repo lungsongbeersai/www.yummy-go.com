@@ -1,6 +1,7 @@
-// Public surface of the printer service; the implementation is split by concern
-// into the sibling modules (types, config-api, agent-transport, print-jobs).
-// Importers use "@/services/printer" and never reach into the submodules.
+// Thin barrel re-exporting the printer service's full public surface.
+// The implementation lives in src/services/printer/{types,config-api,
+// agent-transport,print-jobs}.ts (P3.4 split) — kept as a barrel so
+// printer-store.ts and every other importer needs zero changes.
 export { AGENT_URL } from "@/config/printer-agent";
 export {
   getPrinterErrorMessage,

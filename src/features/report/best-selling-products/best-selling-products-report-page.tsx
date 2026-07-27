@@ -3,10 +3,11 @@
 import { useRef, useState } from "react";
 import { Trophy } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { AppPagination } from "@/components/common/app-pagination";
 import { LoadingState } from "@/components/common/loading-state";
 import type { UrlPaginationState } from "@/lib/url-pagination";
 import { ReportPageShell } from "../shared/report-page-shell";
-import { ReportDataCard, useReportChrome } from "../shared/report-standard-page";
+import { ReportTableCard } from "../shared/report-table-card";
 import {
   BestSellingExportSurface,
   BestSellingFilterSheet,
@@ -24,7 +25,12 @@ export function BestSellingProductsReportPage({ initialPagination }: { initialPa
   const exportReportRef = useRef<HTMLDivElement>(null);
   const [summaryVisible, setSummaryVisible] = useState(false);
   const report = useBestSellingProductsReportWorkflow(exportReportRef, initialPagination, summaryVisible);
-  const chrome = useReportChrome(report, [report.groupError]);
+  const exportTitle =
+    report.exporting === "excel"
+      ? t("report.exportingExcel")
+      : report.exporting === "pdf"
+        ? t("report.exportingPdf")
+        : t("report.preparingPrint");
 
   return (
     <ReportPageShell
@@ -36,8 +42,13 @@ export function BestSellingProductsReportPage({ initialPagination }: { initialPa
       dateTo={report.appliedFilters.dateTo}
       loading={report.loading}
       exporting={Boolean(report.exporting)}
-      exportingTitle={chrome.exportTitle}
-      errors={chrome.errors}
+      exportingTitle={exportTitle}
+      errors={[
+        !report.branchUuid ? t("report.branchRequired") : null,
+        report.branchError,
+        report.groupError,
+        report.error,
+      ]}
       filterSheet={
         <BestSellingFilterSheet
           branchLoading={report.branchLoading}
@@ -61,8 +72,7 @@ export function BestSellingProductsReportPage({ initialPagination }: { initialPa
       onOpenFilters={report.openMobileFilters}
       onRefresh={() => void report.load()}
       table={
-        <ReportDataCard
-          report={report}
+        <ReportTableCard
           cardClassName="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden border-border bg-card shadow-sm"
           contentClassName="flex min-h-0 flex-1 flex-col p-0"
           contentWrapperClassName="min-h-0 min-w-0 flex-1 overflow-auto overscroll-x-contain overscroll-y-auto"
@@ -80,6 +90,23 @@ export function BestSellingProductsReportPage({ initialPagination }: { initialPa
           renderLoading={() => <LoadingState label={t("report.bestSelling.loading")} variant="reportTable" />}
           emptyTitle={t("report.bestSelling.noData")}
           emptyDescription={t("report.bestSelling.adjustFilters")}
+          loading={report.loading}
+          rowsLength={report.rows.length}
+          selectedCount={report.rowSelection.selectedCount}
+          exportDisabled={report.exportDisabled}
+          exporting={report.exporting}
+          footer={
+            <AppPagination
+              page={report.page}
+              rangeLabel={report.paginationRangeLabel}
+              totalPages={report.totalPages}
+              onPageChange={report.setPage}
+            />
+          }
+          onClearSelection={report.rowSelection.clearSelection}
+          onExportExcel={() => void report.exportExcel()}
+          onExportPdf={() => void report.exportPdf()}
+          onRefresh={() => void report.load()}
         >
           <BestSellingProductsTable
             groups={report.groups}
@@ -94,14 +121,14 @@ export function BestSellingProductsReportPage({ initialPagination }: { initialPa
             onToggleRow={report.rowSelection.toggleRow}
             onToggleRows={report.rowSelection.toggleRows}
           />
-        </ReportDataCard>
+        </ReportTableCard>
       }
       exportSurface={
         report.exporting === "pdf" || report.exporting === "print" ? (
           <BestSellingExportSurface
             cards={report.summaryCards}
             containerRef={exportReportRef}
-            dateRange={chrome.dateRangeLabel}
+            dateRange={`${t("report.reportDate")}: ${report.appliedFilters.dateFrom} - ${report.appliedFilters.dateTo}`}
             groups={report.renderedExportData.groups}
             showSummary={summaryVisible}
             sortByLabel={report.sortByLabel}

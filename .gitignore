@@ -19,17 +19,3 @@ next-env.d.ts
 
 # agent-generated skill files (Codex)
 .agents/skills/
-
-# per-machine Claude Code settings
-.claude/settings.local.json
-
-# browser-automation / test-runner artifacts from agent sessions
-.playwright-mcp/
-test-results/
-
-# script run artifacts — outputs/menu-units/*.xlsx stays tracked, it is the
-# fixture behind src/services/product/import-menu-products-script.test.ts
-outputs/menu-import/
-outputs/product-import-template/
-outputs/menu-units/*
-!outputs/menu-units/*.xlsx

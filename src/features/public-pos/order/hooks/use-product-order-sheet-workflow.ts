@@ -12,7 +12,19 @@ import type {
   PublicAddToCartPayload,
   PublicSelectedTopping,
 } from "../types";
-import { changePublicToppingQty, defaultOrderQty, getModalBasePrice, getProductModalMode, getPublicOrderPriceTotals, isDetailAvailable, isToppingAvailable, maxAvailableQty, productModeLabel, promotionQuantity, togglePublicToppingQty } from "@/features/public-pos/order/product-domain";
+import {
+  changePublicToppingQty,
+  defaultOrderQty,
+  getModalBasePrice,
+  getPublicOrderPriceTotals,
+  getProductModalMode,
+  isDetailAvailable,
+  isToppingAvailable,
+  maxAvailableQty,
+  productModeLabel,
+  promotionQuantity,
+  togglePublicToppingQty,
+} from "../utils";
 
 export interface ProductOrderSheetProps {
   open: boolean;

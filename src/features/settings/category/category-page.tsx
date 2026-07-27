@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { CategoryFormDialog } from "@/features/settings/category/category-form-dialog";
 import { CategoryListSurface } from "@/features/settings/category/category-list";
 import {
@@ -13,7 +14,11 @@ import {
   rowStoreUuid,
   type GroupOption
 } from "@/features/settings/category/category-utils";
-import { SettingsCrudShell, SettingsCrudToolbar } from "@/features/settings/shared/settings-crud-shell";
+import {
+  SettingsModuleShell,
+  SettingsPaginationFooter,
+  SettingsToolbar,
+} from "@/features/settings/shared/settings-shell";
 import { useOptionRowSelection } from "@/features/settings/shared/use-option-row-selection";
 import { useSettingsCrudController } from "@/features/settings/shared/use-settings-crud-controller";
 import { useResetOnChange } from "@/hooks/use-reset-on-change";
@@ -38,7 +43,35 @@ export function CategorySettingsPage({ initialPagination }: { initialPagination:
 
   const title = t("settings.modules.category.title");
   const description = t("settings.modules.category.description");
-  const controller = useSettingsCrudController<Category, SaveCategoryInput, FetchCategoriesParams>({
+  const {
+    applyFilters,
+    changeLimit,
+    deleteTarget,
+    backgroundLoading,
+    dialogOpen,
+    editing,
+    fullLoading,
+    limit,
+    onDialogOpenChange,
+    openCreate,
+    openEdit,
+    orderBy,
+    page,
+    remove,
+    requestParams,
+    rows: storeRows,
+    saving,
+    search,
+    setDeleteTarget,
+    setOrderBy,
+    setPage,
+    setSearch,
+    showToast,
+    storeUuid,
+    save,
+    total,
+    totalPages: baseTotalPages
+  } = useSettingsCrudController<Category, SaveCategoryInput, FetchCategoriesParams>({
     buildInput: ({ editing: editingRow, formData, storeUuid: scopedStoreUuid }) => {
       const groupUuid = String(formData.get("group_uuid_fk") ?? "").trim();
       const nameLa = String(formData.get("cate_name_la") ?? "").trim();
@@ -64,18 +97,6 @@ export function CategorySettingsPage({ initialPagination }: { initialPagination:
       return null;
     }
   });
-  const {
-    backgroundLoading,
-    limit,
-    openEdit,
-    page,
-    requestParams,
-    rows: storeRows,
-    setDeleteTarget,
-    showToast,
-    storeUuid,
-    totalPages: baseTotalPages
-  } = controller;
 
   const [displayRows, setDisplayRows] = useState<Category[]>(storeRows);
   const orderedRows = displayRows.length === storeRows.length ? displayRows : storeRows;
@@ -153,57 +174,98 @@ export function CategorySettingsPage({ initialPagination }: { initialPagination:
     }
   }
 
-  // หน้านี้คำนวณ rows/แบ่งหน้า/การเลือกแถวเอง (โหมดจัดเรียงแบบ optimistic + limit="All")
-  // จึงทับค่าจาก controller ก่อนส่งให้ chrome ใช้
-  const chrome = { ...controller, pageEnd, pageStart, rows, selectedRows, totalPages };
+  const toolbar = (
+    <SettingsToolbar
+      state={{
+        search,
+        limit,
+        orderBy,
+        limitOptions: PAGE_LIMIT_OPTIONS,
+        orderOptions: [
+          { label: t("common.oldestFirst"), value: "1" },
+          { label: t("common.newestFirst"), value: "-1" }
+        ],
+        selectedCount: selectedRows.size,
+        onApply: applyFilters,
+        onLimit: changeLimit,
+        onOrder: (nextOrder) => {
+          setOrderBy(nextOrder);
+          setPage(1);
+        },
+        onSearch: setSearch
+      }}
+    />
+  );
 
   return (
-    <SettingsCrudShell
-      addLabel={`${t("actions.add")} ${t("nav.category")}`}
-      cardTitle={t("settings.categoryList")}
-      controller={chrome}
-      description={description}
-      formDialog={
-        <CategoryFormDialog
-          editing={controller.editing}
-          groupOptions={groupOptions}
-          open={controller.dialogOpen}
-          saving={controller.saving}
-          title={title}
-          onOpenChange={controller.onDialogOpenChange}
-          onSubmit={controller.save}
-        />
-      }
-      listSurface={
-        <CategoryListSurface
-          allSelected={allSelected}
-          backgroundLoading={backgroundLoading}
-          dragEnabled={dragEnabled}
-          ids={ids}
-          pageStart={pageStart}
-          rows={rows}
-          selectedRows={selectedRows}
-          title={title}
-          toolbar={
-            <SettingsCrudToolbar
-              controller={chrome}
-              limitOptions={PAGE_LIMIT_OPTIONS}
-              orderOptions={[
-                { label: t("common.oldestFirst"), value: "1" },
-                { label: t("common.newestFirst"), value: "-1" }
-              ]}
+    <>
+      <SettingsModuleShell
+        addLabel={`${t("actions.add")} ${t("nav.category")}`}
+        cardTitle={t("settings.categoryList")}
+        description={description}
+        emptyDescription={t("empty.adjustSearch")}
+        emptyTitle={t("settings.noRecords", { title: title.toLowerCase() })}
+        footer={
+          rows.length ? (
+            <SettingsPaginationFooter
+              page={page}
+              pageEnd={pageEnd}
+              pageStart={pageStart}
+              total={total}
+              totalPages={totalPages}
+              onPageChange={setPage}
             />
-          }
-          onDelete={setDeleteTarget}
-          onEdit={openEdit}
-          onReorder={(nextRows) => {
-            void persistOrder(nextRows);
-          }}
-          onToggleAll={toggleAll}
-          onToggleSelected={toggleSelected}
-        />
-      }
-      title={title}
-    />
+          ) : undefined
+        }
+        hideCardHeader
+        loading={fullLoading}
+        loadingLabel={t("settings.loading", { title })}
+        table={
+          <CategoryListSurface
+            allSelected={allSelected}
+            backgroundLoading={backgroundLoading}
+            dragEnabled={dragEnabled}
+            ids={ids}
+            pageStart={pageStart}
+            rows={rows}
+            selectedRows={selectedRows}
+            title={title}
+            toolbar={toolbar}
+            onDelete={setDeleteTarget}
+            onEdit={openEdit}
+            onReorder={(nextRows) => {
+              void persistOrder(nextRows);
+            }}
+            onToggleAll={toggleAll}
+            onToggleSelected={toggleSelected}
+          />
+        }
+        title={title}
+        onAdd={openCreate}
+      />
+      <CategoryFormDialog
+        editing={editing}
+        groupOptions={groupOptions}
+        open={dialogOpen}
+        saving={saving}
+        title={title}
+        onOpenChange={onDialogOpenChange}
+        onSubmit={save}
+      />
+      <ConfirmDialog
+        cancelLabel={t("actions.cancel")}
+        confirmLabel={t("actions.delete")}
+        confirmPending={saving}
+        description={t("settings.deleteConfirm")}
+        open={Boolean(deleteTarget)}
+        title={t("actions.delete")}
+        onConfirm={() => {
+          if (deleteTarget) void remove(deleteTarget);
+        }}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) setDeleteTarget(null);
+        }}
+      />
+    </>
   );
 }

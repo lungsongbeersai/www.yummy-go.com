@@ -19,8 +19,7 @@ import {
   publicQrScanRequestKey,
   type PublicQrScanState,
 } from "@/features/public-pos/order/public-qr-scan-state";
-import { totalCartQty } from "@/features/public-pos/order/cart-domain";
-import { tableStatusLabel } from "@/features/public-pos/order/menu-render";
+import { tableStatusLabel, totalCartQty } from "@/features/public-pos/order/utils";
 
 export function usePublicPosBootstrap({
   token,

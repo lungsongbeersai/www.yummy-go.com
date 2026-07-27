@@ -1,0 +1,13 @@
+- generic [active] [ref=f3e1]:
+  - heading "A) plain — weights 400 / 700 / 900 (font-size 14px)" [level=2] [ref=f3e2]
+  - generic [ref=f3e4]: ສຸກກີ້ ຫົວປານ້ຳຂອງ
+  - generic [ref=f3e6]: ສຸກກີ້ ຫົວປານ້ຳຂອງ
+  - generic [ref=f3e8]: ສຸກກີ້ ຫົວປານ້ຳຂອງ
+  - 'heading "B) จำลองการ์ดเมนู POS: line-clamp-2 + leading-5 + font-black (กรอบชมพู)" [level=2] [ref=f3e9]'
+  - generic [ref=f3e10]: ສຸກກີ້ ຫົວປານ້ຳຂອງ ສຸກກີ້
+  - heading "C) จำลอง truncate + font-black (กรอบฟ้า)" [level=2] [ref=f3e11]
+  - generic [ref=f3e12]: ສຸກກີ້ ຫົວປານ້ຳຂອງ
+  - heading "D) line-clamp-2 แต่ line-height 1.6 (กรอบเขียว)" [level=2] [ref=f3e13]
+  - generic [ref=f3e14]: ສຸກກີ້ ຫົວປານ້ຳຂອງ ສຸກກີ້
+  - heading "E) ขนาดใหญ่ 28px weight 900 (ดูรูปทรง mark ชัดๆ)" [level=2] [ref=f3e15]
+  - generic [ref=f3e16]: ສຸກກີ້ ຫົວປານ້ຳຂອງ

@@ -20,7 +20,14 @@ import {
   type PublicMenuKind,
 } from "@/stores/public-pos-store";
 import type { ProductActionState } from "../types";
-import { formatMoney, getProductActionState, getProductBlockedState, hasPromo, productBlockedLabel, publicProductCardPrice } from "@/features/public-pos/order/product-domain";
+import {
+  formatMoney,
+  getProductActionState,
+  getProductBlockedState,
+  hasPromo,
+  productBlockedLabel,
+  publicProductCardPrice,
+} from "../utils";
 import { ProductMedia } from "./public-product-media";
 
 export const ProductCard = memo(function ProductCard({

@@ -15,6 +15,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
+  DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Field, FieldLabel } from "@/components/ui/field";
@@ -32,10 +33,11 @@ import { EmptyState } from "@/components/common/empty-state";
 import { SearchInput } from "@/components/common/search-input";
 import { LoadingState } from "@/components/common/loading-state";
 import { cn } from "@/lib/utils";
-import { AgentFileMenuItems, PrinterDownloadsMenu } from "./printer-downloads-menu";
+import { AgentPlatformIcon, PrinterDownloadsMenu } from "./printer-downloads-menu";
 import { PrinterListCards } from "./printer-list-cards";
 import { PrinterListTable } from "./printer-list-table";
 import {
+  agentDownloadUrl,
   PRINTER_SETUP_DOWNLOAD_URL,
   STATUS_ALL,
   TYPE_ALL,
@@ -133,11 +135,55 @@ export function PrinterPage() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-80">
                 <DropdownMenuGroup>
-                  <AgentFileMenuItems
-                    activeAgentFiles={printer.activeAgentFiles}
-                    agentFilesFailed={printer.agentFilesFailed}
-                    loadingAgentFiles={printer.loadingAgentFiles}
-                  />
+                  {printer.loadingAgentFiles ? (
+                    <DropdownMenuItem disabled>
+                      <Spinner />
+                      {t("printer.loadingAgentFiles")}
+                    </DropdownMenuItem>
+                  ) : printer.agentFilesFailed ? (
+                    <DropdownMenuItem disabled>
+                      {t("printer.agentFilesLoadFailed")}
+                    </DropdownMenuItem>
+                  ) : printer.activeAgentFiles.length ? (
+                    printer.activeAgentFiles.map((file) => {
+                      const platformKey = file.file_platform
+                        .trim()
+                        .toLowerCase();
+                      const platformLabel = t(
+                        `printer.agentPlatform.${platformKey}`,
+                        {
+                          defaultValue:
+                            file.file_platform || t("printer.agent"),
+                        },
+                      );
+                      const url = agentDownloadUrl(file);
+
+                      return (
+                        <DropdownMenuItem key={file.agent_file_uuid} asChild>
+                          <a
+                            href={url}
+                            target="_blank"
+                            rel="noreferrer"
+                            download={file.file_name}
+                          >
+                            <AgentPlatformIcon platform={file.file_platform} />
+                            <span className="flex min-w-0 flex-col">
+                              <span className="truncate font-semibold">
+                                {platformLabel}
+                              </span>
+                              <span className="truncate text-xs text-muted-foreground">
+                                {file.file_name}
+                              </span>
+                            </span>
+                          </a>
+                        </DropdownMenuItem>
+                      );
+                    })
+                  ) : (
+                    <DropdownMenuItem disabled>
+                      {t("printer.noAgentFiles")}
+                    </DropdownMenuItem>
+                  )}
                 </DropdownMenuGroup>
               </DropdownMenuContent>
             </DropdownMenu>

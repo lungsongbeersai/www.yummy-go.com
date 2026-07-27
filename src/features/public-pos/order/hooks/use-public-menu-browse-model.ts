@@ -6,8 +6,12 @@ import {
   PUBLIC_MENU_KIND,
 } from "@/stores/public-pos-store";
 import { PRODUCT_RENDER_CHUNK } from "../constants";
-import { flattenStatusProducts, getRenderedMenuSections, hasMoreMenuToRender } from "@/features/public-pos/order/menu-render";
-import { hasRemoteProductImage } from "@/features/public-pos/order/product-domain";
+import {
+  flattenStatusProducts,
+  getRenderedMenuSections,
+  hasMoreMenuToRender,
+  hasRemoteProductImage,
+} from "../utils";
 
 interface UsePublicMenuBrowseModelParams {
   collapsedCateUuids: string[];

@@ -8,7 +8,13 @@ import {
   useState,
 } from "react";
 import { useResetOnChange } from "@/hooks/use-reset-on-change";
-import { addPublicSearchHistoryItem, clearPublicSearchHistory, publicSearchHistoryKey, readPublicSearchHistory, writePublicSearchHistory } from "@/features/public-pos/order/search-history";
+import {
+  addPublicSearchHistoryItem,
+  clearPublicSearchHistory,
+  publicSearchHistoryKey,
+  readPublicSearchHistory,
+  writePublicSearchHistory,
+} from "@/features/public-pos/order/utils";
 
 export function usePublicSearch({
   branchUuid,

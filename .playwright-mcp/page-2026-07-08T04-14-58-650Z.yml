@@ -1,0 +1,12 @@
+- generic [active] [ref=e1]:
+  - region "ກຳລັງໂຫຼດ" [ref=e50]
+  - region "Notifications alt+T":
+    - list:
+      - listitem [ref=e60]:
+        - button "Close toast" [ref=e61] [cursor=pointer]:
+          - img [ref=e62]
+        - img [ref=e66]
+        - generic [ref=e70]: ຍິນດີຕ້ອນຮັບກັບຄືນ
+  - button "Open Next.js Dev Tools" [ref=e45] [cursor=pointer]:
+    - img [ref=e46]
+  - alert [ref=e49]
