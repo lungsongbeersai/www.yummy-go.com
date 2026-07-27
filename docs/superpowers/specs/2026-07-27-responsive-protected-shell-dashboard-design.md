@@ -1,7 +1,7 @@
 # Responsive Protected Shell and Dashboard Design
 
 **Date:** 2026-07-27
-**Status:** Approved in conversation
+**Status:** Design direction approved; written spec awaiting review
 **Normative reference:** `Design.md`
 
 ## Goal
@@ -89,8 +89,8 @@ Use Tailwind's existing mobile-first breakpoints. Do not introduce a new device 
 | Viewport | Shell composition |
 |---|---|
 | `<768px` | 60px header plus safe-area inset, no sidebar, fixed bottom navigation |
-| `768px–1279px` | 64px header, 72px collapsed rail, expandable to 210px |
-| `>=1280px` | 64px header, 210px expanded rail, collapsible to 72px |
+| `768px–1279px` | 64px header, collapsible rail supporting 72px and 210px |
+| `>=1280px` | 64px header, collapsible rail supporting 210px and 72px |
 
 Reference validation canvases:
 
@@ -163,6 +163,13 @@ Active state:
 - no filled green tile;
 - `aria-current="page"` for the active destination;
 - an optional non-color POS attention indicator only when backed by real state.
+
+Active matching is destination-specific rather than a shared `/pos` prefix:
+
+- Tables is active only on `/pos/tables`;
+- POS is active only on `/pos/order`;
+- Reports is active on `/report/*`;
+- More is not marked active merely because the current route appears in its Sheet.
 
 Both Sheets require:
 
@@ -374,7 +381,8 @@ Dashboard request failure:
 Navigation-data failure:
 
 - continue using the existing static menu fallback;
-- never expose permission-restricted destinations because the permission request failed.
+- apply the existing static role-status filters;
+- do not introduce any fallback destination that is not already present in the current static menu.
 
 ### 12. File boundaries
 
