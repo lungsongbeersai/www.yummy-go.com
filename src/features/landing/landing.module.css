@@ -280,6 +280,162 @@
   box-shadow: 0 0 14px rgba(59, 130, 246, 0.5);
 }
 
+/* ---------- graphics quality ---------- */
+.qualitySwitch {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.qualityTrigger {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  font-size: 13px;
+  color: #7d93bd;
+  border: 1px solid rgba(96, 165, 250, 0.25);
+  background: rgba(10, 18, 36, 0.7);
+  transition: color 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+}
+.qualityTrigger:hover {
+  color: #cfe2ff;
+  border-color: rgba(124, 183, 255, 0.7);
+}
+.qualityTrigger[data-open="true"] {
+  color: #04101f;
+  border-color: transparent;
+  background: linear-gradient(135deg, #60a5fa, #22d3ee);
+  box-shadow: 0 0 14px rgba(59, 130, 246, 0.5);
+}
+.qualityTrigger:focus-visible {
+  outline: 2px solid #7cb7ff;
+  outline-offset: 2px;
+}
+
+.qualityPanel {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 70;
+  width: 268px;
+  max-width: calc(100vw - 28px);
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(96, 165, 250, 0.28);
+  background: rgba(7, 13, 27, 0.97);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  box-shadow: 0 22px 60px rgba(2, 6, 18, 0.75), 0 0 32px rgba(59, 130, 246, 0.14);
+}
+
+.qualityFieldset {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.qualityLegend {
+  padding: 0 0 10px;
+  font-family: var(--font-jetbrains-mono), monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #6f86b3;
+}
+
+.qualityOption {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: center;
+  gap: 2px;
+  min-height: 44px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+.qualityOption:hover {
+  background: rgba(96, 165, 250, 0.1);
+}
+.qualityOption[data-active="true"] {
+  border-color: rgba(96, 165, 250, 0.5);
+  background: rgba(37, 99, 235, 0.18);
+}
+.qualityOption:focus-within {
+  outline: 2px solid #7cb7ff;
+  outline-offset: 1px;
+}
+
+/* ซ่อนแต่ยังโฟกัสได้ เพื่อคง keyboard navigation ของ radio group ตามมาตรฐาน */
+.qualityRadio {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.qualityOptionLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #a9bce0;
+}
+.qualityOption[data-active="true"] .qualityOptionLabel {
+  color: #eaf2ff;
+}
+
+.qualityOptionTier {
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-family: var(--font-jetbrains-mono), monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  color: #22d3ee;
+  border: 1px solid rgba(34, 211, 238, 0.35);
+  background: rgba(34, 211, 238, 0.1);
+}
+
+.qualityOptionHint {
+  font-size: 11.5px;
+  line-height: 1.35;
+  color: #6f86b3;
+}
+
+.qualityStats {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 12px 0 0;
+  padding-top: 11px;
+  border-top: 1px solid rgba(96, 165, 250, 0.16);
+}
+
+.qualityStatsValue {
+  font-family: var(--font-jetbrains-mono), monospace;
+  font-size: 13px;
+  font-weight: 600;
+  color: #7cb7ff;
+}
+
+.qualityStatsHint {
+  font-size: 11px;
+  color: #5c7099;
+}
+
 .loginBtn {
   padding: 10px 18px;
   border-radius: 12px;
@@ -1931,6 +2087,18 @@
   .playCircle:hover {
     transform: none;
     filter: none;
+  }
+
+  .qualityOption:hover {
+    background: none;
+  }
+
+  .qualityTrigger:hover {
+    color: #7d93bd;
+    border-color: rgba(96, 165, 250, 0.25);
+  }
+  .qualityTrigger[data-open="true"]:hover {
+    color: #04101f;
   }
 }
 

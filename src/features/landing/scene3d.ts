@@ -1,16 +1,24 @@
 import type { BufferGeometry, Material, Mesh, Object3D, Sprite, Texture } from "three";
+import { calculateSceneDpr, type SceneProfile } from "@/features/landing/scene-quality";
 import {
-  calculateSceneDpr,
-  getFrameDecision,
-  selectSceneProfile,
-  type SceneProfile
-} from "@/features/landing/scene-quality";
-import type { SceneApi } from "@/features/landing/scene-api";
+  EMPTY_FPS_SAMPLE,
+  getAdaptiveScale,
+  getFrameDelta,
+  pushFpsSample,
+  type FpsSample
+} from "@/features/landing/scene-performance";
+import type { SceneApi, SceneStats } from "@/features/landing/scene-api";
 
-export type { SceneApi } from "@/features/landing/scene-api";
+export type { SceneApi, SceneStats } from "@/features/landing/scene-api";
+
+/** จำนวนหน้าต่างวัด FPS ที่ต้องรอหลังปรับ scale ก่อนจะปรับอีกครั้ง (~2 วินาที) */
+const ADAPTIVE_COOLDOWN_WINDOWS = 3;
 
 interface SceneOptions {
-  profile?: SceneProfile;
+  profile: SceneProfile;
+  /** โหมด Auto เท่านั้น — ลด/เพิ่ม render scale ตาม FPS ที่วัดได้จริง */
+  adaptive?: boolean;
+  onStats?: (stats: SceneStats) => void;
 }
 
 interface SatelliteMotion {
@@ -42,15 +50,10 @@ function makeGlowTexture(): HTMLCanvasElement {
   return canvas;
 }
 
-export async function initScene(canvas: HTMLCanvasElement, opts: SceneOptions = {}): Promise<SceneApi | null> {
+export async function initScene(canvas: HTMLCanvasElement, opts: SceneOptions): Promise<SceneApi | null> {
   const THREE = await import("three");
   const coarsePointer = window.matchMedia("(pointer: coarse)").matches;
-  const profile = opts.profile ?? selectSceneProfile({
-    viewportWidth: window.innerWidth,
-    coarsePointer,
-    reducedMotion: false
-  });
-  if (!profile) return null;
+  const { profile, adaptive = false, onStats } = opts;
 
   let renderer: import("three").WebGLRenderer;
   try {
@@ -71,10 +74,14 @@ export async function initScene(canvas: HTMLCanvasElement, opts: SceneOptions = 
   const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 200);
   camera.position.set(0, 0.4, 16);
 
+  let renderScale = 1;
+
   const resizeRenderer = () => {
     const width = Math.max(1, window.innerWidth);
     const height = Math.max(1, window.innerHeight);
-    renderer.setPixelRatio(calculateSceneDpr(width, height, window.devicePixelRatio || 1, profile));
+    renderer.setPixelRatio(
+      calculateSceneDpr(width, height, window.devicePixelRatio || 1, profile, renderScale)
+    );
     renderer.setSize(width, height, false);
     camera.aspect = width / height;
     camera.updateProjectionMatrix();
@@ -273,6 +280,19 @@ export async function initScene(canvas: HTMLCanvasElement, opts: SceneOptions = 
   let resizeFrame = 0;
   let previousFrameTime: number | null = null;
   let elapsedTime = 0;
+  let fpsSample: FpsSample = EMPTY_FPS_SAMPLE;
+  let measuredFps = 0;
+  let adaptiveCooldown = 0;
+
+  const readStats = (): SceneStats => ({
+    fps: measuredFps,
+    dpr: Math.round(renderer.getPixelRatio() * 100) / 100,
+    tier: profile.tier,
+    adaptive,
+    renderScale
+  });
+
+  const emitStats = () => onStats?.(readStats());
 
   const raycaster = new THREE.Raycaster();
   const normalizedPointer = new THREE.Vector2();
@@ -340,25 +360,26 @@ export async function initScene(canvas: HTMLCanvasElement, opts: SceneOptions = 
 
     normalizedPointer.set(targetPointer.x, targetPointer.y);
     raycaster.setFromCamera(normalizedPointer, camera);
+    // hover เป็นเรื่องของอุปกรณ์ชี้ตำแหน่ง ไม่ใช่ระดับคุณภาพ — จอสัมผัสไม่มี hover จริง
     hovering =
-      profile.quality === "desktop" &&
-      heroProgress < 0.5 &&
-      raycaster.ray.distanceToPoint(corePosition) < 3.6;
+      !coarsePointer && heroProgress < 0.5 && raycaster.ray.distanceToPoint(corePosition) < 3.6;
 
     core.rotation.y += deltaSeconds * 0.12 + spin.y * deltaSeconds * 60;
     core.rotation.x += deltaSeconds * 0.03 + spin.x * deltaSeconds * 60;
-    spin.x *= Math.max(0, 1 - deltaSeconds * 2.2);
-    spin.y *= Math.max(0, 1 - deltaSeconds * 2.2);
+    // ใช้ exponential decay ไม่ใช่ (1 - k*dt) เพื่อให้ผลลัพธ์เท่ากันทุกเฟรมเรต (60/120/144Hz)
+    const spinDecay = Math.exp(-2.2 * deltaSeconds);
+    spin.x *= spinDecay;
+    spin.y *= spinDecay;
     inner.rotation.y -= deltaSeconds * 0.2;
     inner.rotation.x = currentPointer.y * 0.22;
     outerWire.rotation.y -= deltaSeconds * 0.05;
 
     const targetScale = 1 + (hovering ? 0.06 : 0) + flash * 0.1;
-    core.scale.x += (targetScale - core.scale.x) * deltaSeconds * 6;
+    core.scale.x += (targetScale - core.scale.x) * (1 - Math.exp(-6 * deltaSeconds));
     core.scale.y = core.scale.z = core.scale.x;
 
     wireMaterial.opacity = Math.min(1, 0.5 + (hovering ? 0.28 : 0) + flash * 0.4);
-    wireMaterial.color.lerp(hovering ? cyan : blue, Math.min(1, deltaSeconds * 5));
+    wireMaterial.color.lerp(hovering ? cyan : blue, 1 - Math.exp(-5 * deltaSeconds));
     glow.material.opacity = 0.4 + Math.sin(time * 1.4) * 0.07 + flash * 0.3 + (hovering ? 0.1 : 0);
 
     rings.forEach((ring, index) => {
@@ -409,16 +430,37 @@ export async function initScene(canvas: HTMLCanvasElement, opts: SceneOptions = 
     renderer.render(scene, camera);
   };
 
+  // วัด FPS แล้วให้โหมด Auto ปรับ render scale เอง (โหมดที่ผู้ใช้เลือก tier เองจะไม่ถูกแตะ)
+  const trackPerformance = (rawSeconds: number) => {
+    fpsSample = pushFpsSample(fpsSample, rawSeconds);
+    if (!fpsSample.settled) return;
+
+    measuredFps = fpsSample.fps;
+
+    if (adaptive && adaptiveCooldown <= 0) {
+      const nextScale = getAdaptiveScale(renderScale, measuredFps);
+      if (nextScale !== renderScale) {
+        renderScale = nextScale;
+        adaptiveCooldown = ADAPTIVE_COOLDOWN_WINDOWS;
+        resizeRenderer();
+      }
+    } else if (adaptiveCooldown > 0) {
+      adaptiveCooldown -= 1;
+    }
+
+    emitStats();
+  };
+
   const onAnimationFrame = (now: number) => {
     animationFrame = 0;
     if (!active || disposed) return;
 
-    const decision = getFrameDecision(now, previousFrameTime, profile.maxFps);
-    if (decision.shouldRender) {
-      previousFrameTime = decision.frameTime;
-      elapsedTime += decision.deltaSeconds;
-      renderFrame(decision.deltaSeconds, elapsedTime);
-    }
+    // ไม่มี frame cap แล้ว — rAF คุมจังหวะตามรีเฟรชจริงของจอ (60/120/144Hz)
+    const frame = getFrameDelta(now, previousFrameTime);
+    previousFrameTime = frame.frameTime;
+    elapsedTime += frame.deltaSeconds;
+    renderFrame(frame.deltaSeconds, elapsedTime);
+    trackPerformance(frame.rawSeconds);
 
     if (active && !disposed) animationFrame = window.requestAnimationFrame(onAnimationFrame);
   };
@@ -442,6 +484,7 @@ export async function initScene(canvas: HTMLCanvasElement, opts: SceneOptions = 
   if (coarsePointer) window.addEventListener("deviceorientation", onOrientation, { passive: true });
 
   renderFrame(0, elapsedTime);
+  emitStats();
 
   return {
     onScroll(nextHeroProgress, nextTotalProgress) {
@@ -452,13 +495,16 @@ export async function initScene(canvas: HTMLCanvasElement, opts: SceneOptions = 
       if (disposed || active === nextActive) return;
       active = nextActive;
       previousFrameTime = null;
+      fpsSample = EMPTY_FPS_SAMPLE;
 
       if (active) {
         animationFrame = window.requestAnimationFrame(onAnimationFrame);
-      } else if (animationFrame) {
-        window.cancelAnimationFrame(animationFrame);
+      } else {
+        if (animationFrame) window.cancelAnimationFrame(animationFrame);
         animationFrame = 0;
+        measuredFps = 0;
       }
+      emitStats();
     },
     pulse,
     dispose() {
