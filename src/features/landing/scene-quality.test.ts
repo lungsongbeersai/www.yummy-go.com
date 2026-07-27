@@ -51,7 +51,8 @@ describe("SCENE_PROFILES", () => {
       maxPixels: 900_000,
       antialias: false,
       stars: 500,
-      dust: 60
+      dust: 60,
+      bloom: 0
     });
     expect(SCENE_PROFILES.medium).toEqual({
       tier: "medium",
@@ -59,7 +60,8 @@ describe("SCENE_PROFILES", () => {
       maxPixels: 2_200_000,
       antialias: false,
       stars: 1_100,
-      dust: 130
+      dust: 130,
+      bloom: 0
     });
     expect(SCENE_PROFILES.high).toEqual({
       tier: "high",
@@ -67,7 +69,8 @@ describe("SCENE_PROFILES", () => {
       maxPixels: 4_000_000,
       antialias: true,
       stars: 1_800,
-      dust: 200
+      dust: 200,
+      bloom: 0.85
     });
     expect(SCENE_PROFILES.ultra).toEqual({
       tier: "ultra",
@@ -75,7 +78,8 @@ describe("SCENE_PROFILES", () => {
       maxPixels: 8_300_000,
       antialias: true,
       stars: 3_000,
-      dust: 320
+      dust: 320,
+      bloom: 1.05
     });
   });
 
@@ -86,7 +90,16 @@ describe("SCENE_PROFILES", () => {
       expect(tiers[index].maxPixels).toBeGreaterThan(tiers[index - 1].maxPixels);
       expect(tiers[index].stars).toBeGreaterThan(tiers[index - 1].stars);
       expect(tiers[index].dust).toBeGreaterThan(tiers[index - 1].dust);
+      expect(tiers[index].bloom).toBeGreaterThanOrEqual(tiers[index - 1].bloom);
     }
+  });
+
+  it("enables bloom only on the tiers that can afford the extra passes", () => {
+    expect(SCENE_PROFILES.low.bloom).toBe(0);
+    expect(SCENE_PROFILES.medium.bloom).toBe(0);
+    expect(SCENE_PROFILES.high.bloom).toBeGreaterThan(0);
+    // ultra ตรงกับค่าต้นฉบับใน Claude Design (scene3d.js ใช้ 1.05)
+    expect(SCENE_PROFILES.ultra.bloom).toBe(1.05);
   });
 });
 
