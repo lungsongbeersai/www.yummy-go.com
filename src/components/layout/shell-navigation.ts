@@ -1,5 +1,6 @@
 import type { Route } from "next";
 import type { MenuItem } from "@/config/menu";
+import { orderCustomerUrl } from "@/features/pos/order-customer/menu-structure";
 import {
   routeBreadcrumbs,
   type RouteBreadcrumbItem,
@@ -168,11 +169,7 @@ function hasNonHeaderItem(items: MenuItem[]): boolean {
 
 function posOrderHref(tableUuid: string, tableName: string): Route {
   if (!tableUuid) return "/pos/tables";
-  const params = new URLSearchParams({
-    table_uuid: tableUuid,
-    table_name: tableName,
-  });
-  return `/pos/order?${params.toString()}` as Route;
+  return orderCustomerUrl({ tableName, tableUuid });
 }
 
 export function deriveShellDestinations({
