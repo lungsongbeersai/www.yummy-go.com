@@ -1,7 +1,7 @@
 # Responsive Protected Shell and Dashboard Design
 
 **Date:** 2026-07-27
-**Status:** Design direction approved; written spec awaiting review
+**Status:** Superseded on 2026-07-28 by `docs/superpowers/plans/2026-07-27-responsive-protected-shell-dashboard.md`; do not implement this Dashboard-heavy design
 **Normative reference:** `Design.md`
 
 ## Goal

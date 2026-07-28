@@ -1,1034 +1,229 @@
-# Responsive Protected Shell and Dashboard Implementation Plan
+# Mobile Protected Navigation Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** สร้าง protected AppShell แบบ adaptive สำหรับ mobile, tablet และ desktop ให้ทุก protected route มี header และ navigation ที่สอดคล้องกัน พร้อมทำ Dashboard เป็นหน้าจอแรกที่ใช้ Quiet Service Ledger เต็มรูปแบบ และให้ปุ่ม refresh ใน header โหลดข้อมูลด้วย branch/filter ที่ apply ล่าสุดโดยไม่ล้าง draft filter
+**Status:** Approved scope for `feature-28`; permission/routing hardening was completed on `feature-27`
 
-**Architecture:** คงเส้นทาง `protected layout → AuthGuard → AppShell → feature` เดิม แต่แยก AppShell ให้เป็น orchestration, header, rail, bottom navigation, navigation sheets และ page-owned refresh registry โดย navigation ทุกแบบใช้ permission-filtered menu tree ชุดเดียวกัน ส่วน Dashboard ยังเรียกข้อมูลผ่าน `DashboardPage → useDashboardStore.load → dashboard service` และเพิ่ม pure helpers สำหรับ request/reconciliation ที่ทดสอบได้ใน Node
+**Goal:** ทำให้ protected layout บนจอเล็กเป็น mobile app ที่ใช้งานคล่อง มี navigation ตามสิทธิ์, feedback ทันทีเมื่อเปลี่ยนหน้า และทำงานถูกต้องกับ safe area, keyboard และ Android back โดยไม่ redesign Dashboard หรือเปลี่ยน desktop โดยไม่จำเป็น
 
-**Tech Stack:** Next.js 16.2, React 19, TypeScript, Tailwind CSS v4, Zustand 5, shadcn/ui local primitives (new-york), Radix primitives ผ่าน `radix-ui`, Lucide, i18next และ Vitest แบบ Node environment
+**Architecture:** คง data flow `protected layout → AuthGuard → AppShell → feature` และใช้ permission-filtered menu tree ชุดเดียวกับ desktop. Desktop (`md+`) คง header/sidebar เดิม; mobile (`<md`) ใช้ top app bar, permission-aware bottom navigation และ `More` drawer. Route transition ใช้ state ชุดเดียวใน protected shell และ Capacitor ใช้ system-bar/back contract กลางหนึ่งจุด
+
+**Tech Stack:** Next.js 16 App Router, React 19, TypeScript, Tailwind CSS v4, Zustand, local shadcn/ui primitives, i18next และ Capacitor 8
+
+## ข้อสรุปต่อแผนเดิม
+
+❌ แผนเดิมไม่ควรถูกนำไปทำต่อทั้งชุด เพราะยาว 1,035 บรรทัดและรวม Dashboard redesign, design-token overhaul, filter Drawer และการ refactor component ที่ไม่เกี่ยวกับเป้าหมาย navigation โดยตรง. Fixed-slot `shell-navigation.ts` ที่เคยสร้างไว้ไม่ตรงกับ permission-aware design และถูกถอดก่อนเปิด `feature-28`; คงเฉพาะ page-refresh registry ที่ใช้ร่วมได้
+
+ปัญหาที่พบจากโค้ดปัจจุบันและต้องแก้ในขอบเขตนี้:
+
+- Mobile header แสดง hamburger, back, title, theme, notification, language และ profile ในแถวเดียว และแสดง back แม้หน้า root
+- Mobile sidebar ยังเป็น desktop menu ที่เปิดใน left Sheet
+- `AppShell` ซ่อน shared header/sidebar ทั้งหมดบน protected POS และมี `<main>` ซ้อนกันสองชั้น
+- ต้องสร้าง navigation model ขนาดเล็กจาก permission tree จริงบน `feature-28`; ห้ามคืน fixed `Dashboard/Tables/POS/Reports/More` model เดิม
+- permission menu มี fail-open paths: API menu ว่าง/error แล้ว fallback ไป static menu, role ไม่ตรงแล้ว fallback ไป `roles[0]`, และ empty group อาจกลายเป็นลิงก์
+- Protected routes จำนวนมาก render แบบ dynamic; ไม่มี pending feedback ระหว่างกดลิงก์กับ route commit และไม่มี middleware/proxy ที่อธิบาย delay
+- Android target SDK 36 แต่ safe area/system bars มีหลาย owner และ legacy `StatusBar` options บางตัวไม่มีผลแล้ว
+- ยังไม่มี Android hardware-back integration และ repo ไม่มี native `ios/` project
+
+## Keep / Remove / Simplify
+
+| การตัดสินใจ | รายการ |
+| --- | --- |
+| **Keep** | page-refresh registry ที่มีอยู่, permission API/cache, desktop header/sidebar, existing feature skeletons, typed routes, i18n และ local shadcn primitives |
+| **Remove จากแผน** | Dashboard visual redesign, Quiet Service Ledger tokens, Dashboard filter/refresh reconciliation, Reports Sheet แยกอีกชุด, fixed `Dashboard/Tables/POS/Reports/More` model เดิม, blanket UI refactor และ test/commit steps ที่ละเอียดเกินงาน |
+| **Simplify** | เพิ่ม mobile navigation component เดียว, `More` drawer เดียว, navigation-pending pattern เดียว, safe-area owner เดียว และ targeted pure tests/device checks เท่านั้น |
+
+## Mobile navigation ที่แนะนำ
+
+### Top app bar
+
+- ซ้าย: back เฉพาะ non-root route ที่มี parent/history ที่มีความหมาย
+- กลาง/พื้นที่หลัก: localized page title แบบ truncate ได้
+- ขวา: refresh เฉพาะหน้าที่ register callback; ระหว่าง refresh ใช้ spinner ในปุ่มเดิม
+- Theme, language, notification, profile และ logout ย้ายเข้า `More` บน mobile เพื่อลดความแน่นของ header
+- Desktop header คง composition เดิม
+
+### Bottom navigation
+
+แสดง `More` และ primary destinations สูงสุดสี่รายการ โดยเลือกเฉพาะ leaf/group ที่มีสิทธิ์จาก runtime permission tree ตามลำดับความถี่นี้:
+
+1. Dashboard — `/`
+2. ขายหน้าร้าน — `/pos/tables`; ถือว่า active ต่อเนื่องบน `/pos/order`
+3. รายการขาย — `/sales/sales-list`
+4. สินค้า — `/products`
+5. Stock — `/stock` เป็น fallback เมื่อรายการก่อนหน้าไม่มีสิทธิ์
+6. Reports — ใช้ report child แรกที่ได้รับสิทธิ์เป็น fallback สุดท้าย และ active บน `/report/*`
+
+หลักการคือ “สูงสุดสี่” ไม่ใช่บังคับให้ครบสี่: ห้ามแสดง disabled placeholder และห้ามเลื่อน route ที่ไม่มีสิทธิ์ขึ้นมาเติมช่อง. ลำดับนี้ทำให้ Sales Staff ได้ทางเข้าหน้าร้านเร็ว ขณะที่ Accounting/Warehouse สามารถได้ Reports/Stock เมื่อ operational routes ถูก permission tree ตัดออก โดยไม่ hard-code entitlement ตาม role
+
+ไม่ใช้ `Tables` และ `POS` เป็นสอง tab เพราะทั้งคู่ลง `/pos/tables` เมื่อไม่มี current table และกินหนึ่งช่องสำหรับ workflow เดียวกัน. `/pos/order` เป็น focused child flow: แสดง contextual back ไป Tables และซ่อน bottom bar เพื่อลดการออกจากบิลโดยไม่ตั้งใจ
+
+### More
+
+- ใช้ bottom `Drawer` เดียว สูงไม่เกิน visible viewport และรองรับ swipe/Escape/back
+- แสดง permission-filtered tree ที่เหลือแบบ grouped list โดยตัด primary destinations ออก
+- `More` เป็น active section เมื่ออยู่บน secondary route
+- ส่วนท้ายรวม account/preferences actions; ไม่สร้าง mobile sidebar หรือ Reports drawer ซ้ำ
+
+### Back และ transition
+
+- Root destination ที่แสดงใน bottom bar ไม่มี back
+- Focused route ใช้ deterministic parent เช่น `/pos/order → /pos/tables`, `/products/form → /products`, `/printers/form → /printers`
+- Secondary route ใช้ internal history ถ้ามี; direct deep link fallback ไป authorized primary ตัวแรก
+- Android back ปิด Drawer/Dialog ก่อน, จากนั้นใช้กฎเดียวกับ header back; เมื่ออยู่ root จึง minimize app
+- Header/bottom bar คงอยู่ระหว่าง navigation; หน้าปัจจุบันคง interactive จน destination commit แล้วใช้ mobile-only enter transition สั้น ๆ พร้อมเคารพ `prefers-reduced-motion`
+
+### Loading feedback pattern เดียว
+
+ใช้ thin progress line ใต้ app header เป็น route-transition indicator เพียงแบบเดียว:
+
+- pressed/focus state เปลี่ยนภายในหนึ่ง frame
+- progress ปรากฏเมื่อ transition เกินประมาณ 120ms เพื่อลด flash
+- same-target tap ถูก ignore ขณะ pending; different target เปลี่ยน intent ได้
+- คงหน้าปัจจุบันไว้และไม่ใช้ blocking overlay หรือเพิ่ม protected-route skeleton อีกชั้น
+- offline ถูกตรวจทันที; timeout ประมาณ 10 วินาทีคืน control และแสดง localized Retry
+- route/render failure ใช้ protected error boundary; feature API loading หลัง route commit ใช้ skeleton/error ของ feature เดิมและไม่ทำให้ route progress ค้าง
+- คง `<Link>` default prefetch ก่อน และเพิ่ม targeted prefetch เฉพาะเมื่อ production trace พิสูจน์ว่าจำเป็น
+
+แนวทางนี้ตรงกับ Next.js ที่ระบุว่า dynamic navigation อาจรอ server response และให้ใช้ pending feedback/prefetch อย่างเจาะจง: [Linking and Navigating](https://nextjs.org/docs/app/getting-started/linking-and-navigating), [useLinkStatus](https://nextjs.org/docs/app/api-reference/functions/use-link-status)
 
 ## Global Constraints
 
-- Source of truth คือ `Design.md` และสเปกที่อนุมัติแล้ว: `docs/superpowers/specs/2026-07-27-responsive-protected-shell-dashboard-design.md`
-- ขอบเขต shell ครอบเฉพาะ `src/app/(protected)/**`; ห้ามเปลี่ยน composition ของ `/login`, `/home`, `/policy`, public `/pos`, `/q/[token]` และ `/customer-display`
-- Shared header และ navigation ต้องแสดงบน protected `/pos/tables` และ `/pos/order`; เนื้อหา POS ยังเป็น task-specific workspace ไม่ถูกแปลงเป็น management page
-- Mobile ใช้ `<768px`, tablet/desktop เริ่มที่ `md` 768px และ desktop layout ใช้ `xl` 1280px; ห้ามเพิ่ม breakpoint สำหรับ device ใหม่
-- Geometry ที่อนุมัติ: mobile header row 60px, tablet/desktop header row 64px, rail 210px/72px, mobile bottom navigation 64px บวก safe area
-- Touch target ของ shell อย่างน้อย 44px และ Android production variant อย่างน้อย 48px; icon-only action ทุกปุ่มต้องมี localized `aria-label`, focus-visible state และ tooltip เมื่อ pointer รองรับ hover
-- Mobile bottom navigation มี 5 ตำแหน่งคงที่: Dashboard, Tables, POS, Reports, More; availability และ Sheet content ต้อง derive จาก permission-filtered menu tree เดียวกับ rail
-- POS destination ใช้ `usePosStore.tableUuid/tableName` กับ `orderCustomerUrl()` ที่มีอยู่; ถ้าไม่มี table ให้ไป `/pos/tables`
-- Reports เปิด bottom Sheet เพราะไม่มี `/report` index; More เปิด complete permission-filtered tree; disabled item ยังแสดงพร้อมคำอธิบาย
-- Dashboard เป็น feature เดียวใน phase นี้ที่ register shared-header refresh; ห้ามย้าย refresh ของทุก feature เข้าสู่ header
-- Dashboard refresh ใช้ active branch, `appliedFilters`, language และ current top; ต้องไม่เรียก browser reload หรือ `router.refresh()` และต้องไม่แก้ `filters` draft ที่ยังไม่ apply
-- Store ต้องเก็บข้อมูลเดิมขณะ refresh/error ตาม behavior ปัจจุบัน; initial load เท่านั้นที่ใช้ full Dashboard skeleton
-- ใช้ semantic HSL triplets เพื่อคงรูปแบบ `hsl(var(--token))` และ Android WebView compatibility; ห้ามเพิ่มสี raw hex ใหม่ใน feature components
-- หนึ่ง protected screen ต้องมี `<main>` เพียงหนึ่งตัว โดย `SidebarInset` เป็น main landmark และ content wrapper ภายในเป็น `<div>`
-- ใช้ `internalRoute()` สำหรับ runtime-sourced menu paths; navigation จริงใช้ `Link`; Sheet trigger ใช้ `button`
-- ห้ามเพิ่ม UI kit, state manager หรือ runtime dependency ที่ซ้ำกับ stack เดิม; official shadcn `Collapsible` ใช้ registry CLI และ package `radix-ui` ที่มีอยู่
-- Route files ใต้ `src/app/` ต้องยังบาง; components ห้ามเรียก service โดยตรง; Dashboard เรียก action จาก Zustand store เท่านั้น
-- TypeScript ห้าม `any`; props/models ใช้ `interface`; unions/aliases ใช้ `type`
-- i18n ต้องเพิ่มทั้ง `public/locales/la/common.json` และ `public/locales/en/common.json`; Lao เป็นภาษาหลักและ label ต้องไม่ถูกตัดจนเข้าใจผิด
-- ทุก code task ใช้ TDD เท่าที่ pure behavior ทดสอบได้: เพิ่ม focused test → ยืนยัน RED → เขียน minimal implementation → ยืนยัน GREEN → typecheck/lint ตามความเสี่ยง
-- Component DOM tests ไม่ถูกเพิ่มใน phase นี้ เพราะ test suite ปัจจุบันเป็น Node; interaction/layout ตรวจด้วย browser skill
-- ก่อนแก้ UI ให้อ่านและใช้ `frontend-design`, `shadcn`, `tailwind-4-docs` และ `vercel-react-best-practices`; ก่อนส่งมอบใช้ `web-design-guidelines`, `browser:control-in-app-browser` และ `superpowers:verification-before-completion`
-- Worktree มี user changes อยู่แล้ว โดยเฉพาะ `src/components/layout/app-shell.tsx`, `src/lib/routes.ts`, permission files และ package files; บันทึก `git diff` ก่อนแก้ รักษาพฤติกรรม breadcrumb group ที่ไม่สร้างลิงก์ไป route 404 และ stage เฉพาะไฟล์/hunk ของ task นี้
-- ทุก commit checkpoint ต้องรัน `git diff --cached --check` ก่อน commit และห้ามรวม `.env`, `.superpowers/`, `outputs/` หรือไฟล์ unrelated
-
-## File and Responsibility Map
-
-| Layer | Files | Responsibility |
-| --- | --- | --- |
-| Shell model | `src/components/layout/shell-navigation.ts` | Permission filtering, route matching, breadcrumb resolution, fixed/POS route mode, bottom-destination derivation และ report extraction แบบ pure |
-| Refresh state | `src/components/layout/page-refresh-state.ts`, `page-refresh-context.tsx` | Stale-safe registration reducer, provider, registration hook และ header consumer |
-| Shell orchestration | `src/components/layout/app-shell.tsx` | Store wiring, route mode, effective rail state, one-main composition และ shared data source |
-| Shell presentation | `app-header.tsx`, `app-sidebar.tsx`, `app-breadcrumb.tsx` | Responsive header, accessible rail/collapsibles และ breadcrumb presentation |
-| Mobile navigation | `app-bottom-nav.tsx`, `app-navigation-sheet.tsx` | Five fixed destinations, active marker, Reports Sheet, More Sheet และ safe-area handling |
-| UI primitives/tokens | `src/components/ui/collapsible.tsx`, `button.tsx`, `sidebar.tsx`, `src/app/globals.css`, `src/app/layout.tsx` | Official primitives, touch sizes, semantic palette, shell geometry, dark mode และ browser theme color |
-| POS adaptation | `src/features/pos/order-customer/order-customer-view.tsx`, `src/features/pos/table-selection/table-selection-page.tsx` | ตัด global controls ที่ซ้ำกับ shared header และเว้น mobile cart CTA เหนือ bottom nav |
-| Dashboard state | `src/features/dashboard/overview/dashboard-view-model.ts`, `dashboard-page.tsx` | Request parameter builder, draft-safe filter reconciliation, refresh registration, error/retry wiring และ section order |
-| Dashboard presentation | `components/dashboard-filters.tsx`, `components/dashboard-widgets.tsx`, `dashboard.css` | Mobile Drawer, desktop inline filters, quiet metric/ledger hierarchy และ responsive spacing |
-| Localization | `public/locales/la/common.json`, `public/locales/en/common.json` | Bottom-nav, Sheet, refresh, rail, overflow และ accessibility labels |
+- ห้าม redesign Dashboard หรือ management pages ในงานนี้
+- ห้ามเพิ่ม UI kit, state manager หรือ navigation/loading dependency
+- Runtime menu ต้อง fail closed; cache ใช้ได้เฉพาะ store/role/language key เดิม
+- Menu visibility ไม่ใช่ security boundary; backend authorization ยังคงเป็นตัวบังคับสิทธิ์จริง
+- Route files ใต้ `src/app/` ต้องบาง และ runtime paths ต้องผ่าน `internalRoute()`
+- Mobile shell targets อย่างน้อย 44px; Capacitor Android อย่างน้อย 48px
+- ใช้ Lao/English labels, light/dark mode, focus-visible และ reduced motion
+- Public `/pos`, `/q/[token]`, `/login`, `/home`, `/customer-display` และ Electron customer display อยู่นอกขอบเขต
+- เก็บ existing dirty-worktree changes และห้าม overwrite งานที่ไม่เกี่ยวข้อง
 
 ---
 
-### Task 1: Lock the permission-aware shell navigation model
-
-**Files:**
-
-- Create: `src/components/layout/shell-navigation.ts`
-- Create: `src/components/layout/shell-navigation.test.ts`
-- Verify: `src/config/menu.ts`
-- Verify: `src/config/sidebar-permission-menu.ts`
-- Verify: `src/features/pos/order-customer/menu-structure.ts`
-
-**Interfaces:**
-
-- Consumes: permission-filtered `MenuItem[]`, pathname, user status, current POS table identity
-- Produces: filtered menu tree, breadcrumb trail, route mode, report children และ five `ShellDestinationState` records
-
-- [ ] เพิ่ม RED tests สำหรับ role filtering, exact/prefix active matching, non-routable parent breadcrumb, fixed/POS route mode, report extraction, five destination order, current-table POS URL และ no-table fallback
-
-```ts
-it("keeps the POS destination distinct from Tables and resumes the current table", () => {
-  const destinations = deriveShellDestinations({
-    items: menuFixture,
-    pathname: "/pos/order",
-    tableName: "A 01",
-    tableUuid: "table-1",
-  });
-
-  expect(destinations.map((item) => item.id)).toEqual([
-    "dashboard",
-    "tables",
-    "pos",
-    "reports",
-    "more",
-  ]);
-  expect(destinations.find((item) => item.id === "tables")?.active).toBe(false);
-  expect(destinations.find((item) => item.id === "pos")).toMatchObject({
-    active: true,
-    enabled: true,
-    href: "/pos/order?table_uuid=table-1&table_name=A+01",
-  });
-});
-
-it("does not turn permission API group paths into breadcrumb links", () => {
-  const trail = resolveBreadcrumbs(
-    [{
-      path: "/report",
-      title: "report_menu",
-      children: [{ path: "/report/daily-sales", title: "daily_sales_report" }],
-    }],
-    "/report/daily-sales",
-  );
-
-  expect(trail).toEqual([
-    { disabled: undefined, label: undefined, path: undefined, title: "report_menu" },
-    {
-      disabled: undefined,
-      label: undefined,
-      path: "/report/daily-sales",
-      title: "daily_sales_report",
-    },
-  ]);
-});
-```
-
-- [ ] รัน focused test และยืนยัน RED เพราะโมดูลยังไม่มี
-
-```powershell
-npx.cmd vitest run src/components/layout/shell-navigation.test.ts
-```
-
-- [ ] ย้าย pure navigation functions จาก `app-shell.tsx` และเพิ่ม contract ต่อไปนี้ โดยคง `item.children?.length ? undefined : item.path` สำหรับ breadcrumb parent
-
-```ts
-export const SHELL_DESTINATION_IDS = [
-  "dashboard",
-  "tables",
-  "pos",
-  "reports",
-  "more",
-] as const;
-
-export type ShellDestinationId = (typeof SHELL_DESTINATION_IDS)[number];
-export type ShellDestinationAction = "reports" | "more";
-
-export interface ShellDestinationState {
-  active: boolean;
-  action?: ShellDestinationAction;
-  enabled: boolean;
-  href?: Route;
-  id: ShellDestinationId;
-}
-
-export interface ShellRouteMode {
-  fixedContent: boolean;
-  mobileBackHref: Route | null;
-  posWorkspace: boolean;
-}
-
-export function shellRouteIsActive(
-  id: ShellDestinationId,
-  pathname: string,
-): boolean {
-  if (id === "dashboard") return pathname === "/";
-  if (id === "tables") return pathname === "/pos/tables";
-  if (id === "pos") return pathname === "/pos/order";
-  if (id === "reports") return pathname.startsWith("/report/");
-  return false;
-}
-```
-
-- [ ] ให้ `deriveShellDestinations()` ตรวจ availability ด้วย recursive path lookup ใน `items`, ให้ POS ใช้ permission เดียวกับ `/pos/tables`, ให้ Reports enabled เมื่อมี child ที่ไม่ disabled และให้ More enabled เมื่อ tree มี non-header item อย่างน้อยหนึ่งรายการ
-- [ ] ให้ `reportMenuItems()` หา group ด้วย `title === "report_menu"` และคืน children ตามลำดับเดิมโดยไม่ลบ disabled items
-- [ ] ให้ `shellRouteMode()` คืน `mobileBackHref: "/pos/tables"` เฉพาะ `/pos/order`, force `posWorkspace` สำหรับ protected POS สองหน้า และใช้ fixed path/prefix ชุดเดิมของ AppShell
-- [ ] รัน focused test และ existing POS URL test ให้ GREEN
-
-```powershell
-npx.cmd vitest run src/components/layout/shell-navigation.test.ts src/features/pos/order-customer/order-customer-utils.test.ts
-npm.cmd run typecheck
-```
-
-- [ ] Commit/checkpoint โดย stage เฉพาะสองไฟล์ใหม่
-
-```powershell
-git add -- src/components/layout/shell-navigation.ts src/components/layout/shell-navigation.test.ts
-git diff --cached --check
-git commit -m "test(shell): lock responsive navigation model"
-```
-
----
-
-### Task 2: Add a stale-safe page refresh registry
-
-**Files:**
-
-- Create: `src/components/layout/page-refresh-state.ts`
-- Create: `src/components/layout/page-refresh-state.test.ts`
-- Create: `src/components/layout/page-refresh-context.tsx`
-
-**Interfaces:**
-
-- Consumes: feature-owned callback, busy state, disabled state และ localized label
-- Produces: one current `PageRefreshRegistration` for the shared header
-
-- [ ] เพิ่ม RED reducer tests สำหรับ register, replace, matching unregister และ stale unregister ที่ห้ามลบ registration ใหม่
-
-```ts
-it("ignores an unregister event from a stale route registration", () => {
-  const dashboard = registration("dashboard");
-  const reports = registration("reports");
-  const current = reducePageRefreshRegistration(
-    reducePageRefreshRegistration(null, { type: "register", registration: dashboard }),
-    { type: "register", registration: reports },
-  );
-
-  expect(
-    reducePageRefreshRegistration(current, {
-      type: "unregister",
-      id: dashboard.id,
-    }),
-  ).toBe(reports);
-});
-```
-
-- [ ] รัน focused test และยืนยัน RED
-
-```powershell
-npx.cmd vitest run src/components/layout/page-refresh-state.test.ts
-```
-
-- [ ] เขียน pure state contract และ reducer
-
-```ts
-export interface PageRefreshRegistration {
-  busy: boolean;
-  disabled: boolean;
-  id: string;
-  label: string;
-  refresh: () => Promise<void> | void;
-}
-
-export type PageRefreshEvent =
-  | { type: "register"; registration: PageRefreshRegistration }
-  | { type: "unregister"; id: string };
-
-export function reducePageRefreshRegistration(
-  state: PageRefreshRegistration | null,
-  event: PageRefreshEvent,
-): PageRefreshRegistration | null {
-  if (event.type === "register") return event.registration;
-  return state?.id === event.id ? null : state;
-}
-```
-
-- [ ] สร้าง provider และ hooks โดยให้ `usePageRefreshRegistration()` ใช้ `useId()` เป็น owner id, register ใน effect และ unregister id เดิมใน cleanup
-
-```tsx
-export interface UsePageRefreshRegistrationOptions {
-  busy?: boolean;
-  disabled?: boolean;
-  label: string;
-  onRefresh: () => Promise<void> | void;
-}
-
-export function usePageRefreshRegistration({
-  busy = false,
-  disabled = false,
-  label,
-  onRefresh,
-}: UsePageRefreshRegistrationOptions) {
-  const id = useId();
-  const context = useContext(PageRefreshContext);
-
-  useEffect(() => {
-    context.register({
-      busy,
-      disabled,
-      id,
-      label,
-      refresh: onRefresh,
-    });
-    return () => context.unregister(id);
-  }, [busy, context, disabled, id, label, onRefresh]);
-}
-```
-
-- [ ] ให้ `usePageRefreshAction()` throw ข้อความชัดเจนเมื่ออยู่นอก provider และคืน registration nullable เมื่ออยู่ใน provider
-- [ ] รัน focused test, typecheck และ lint เฉพาะไฟล์
-
-```powershell
-npx.cmd vitest run src/components/layout/page-refresh-state.test.ts
-npm.cmd run typecheck
-npx.cmd eslint src/components/layout/page-refresh-state.ts src/components/layout/page-refresh-state.test.ts src/components/layout/page-refresh-context.tsx
-```
-
-- [ ] Commit/checkpoint
-
-```powershell
-git add -- src/components/layout/page-refresh-state.ts src/components/layout/page-refresh-state.test.ts src/components/layout/page-refresh-context.tsx
-git diff --cached --check
-git commit -m "feat(shell): add page refresh registry"
-```
-
----
-
-### Task 3: Establish Quiet Service Ledger tokens and shell geometry
-
-**Files:**
-
-- Create: `src/components/layout/design-token-contract.test.ts`
-- Create: `src/components/ui/button.test.ts`
-- Modify: `src/app/globals.css`
-- Modify: `src/app/layout.tsx`
-- Modify: `src/components/ui/button.tsx`
-- Modify: `src/components/layout/notification-menu.tsx`
-
-**Interfaces:**
-
-- Consumes: existing shadcn semantic token names and Android compatibility classes
-- Produces: approved light/dark ledger palette, shell CSS variables, 44px default icon controls และ theme-color metadata
-
-- [ ] เพิ่ม RED source-contract test สำหรับ exact approved colors และ button variant test สำหรับ 44px icon size
-
-```ts
-it("declares the approved ledger palette in light and dark modes", () => {
-  const css = readFileSync(
-    fileURLToPath(new URL("../../app/globals.css", import.meta.url)),
-    "utf8",
-  );
-
-  expect(css).toContain("--ledger-canvas: 42 38% 95%");
-  expect(css).toContain("--ledger-surface: 38 100% 98%");
-  expect(css).toContain("--ledger-ink: 30 12% 13%");
-  expect(css).toContain("--ledger-brand-marker: 142 76% 36%");
-  expect(css).toContain("--ledger-action: 142 72% 29%");
-  expect(css).toContain("--ledger-error: 4 76% 40%");
-  expect(css).toContain("--ledger-warning: 33 92% 33%");
-  expect(css).toContain("--ledger-dark-canvas: 45 10% 8%");
-  expect(css).toContain("--ledger-dark-brand: 142 71% 45%");
-});
-
-it("uses a 44px target for the default icon button", () => {
-  expect(buttonVariants({ size: "icon" })).toContain("size-11");
-});
-```
-
-- [ ] รัน focused tests และยืนยัน RED
-
-```powershell
-npx.cmd vitest run src/components/layout/design-token-contract.test.ts src/components/ui/button.test.ts
-```
-
-- [ ] เพิ่ม ledger variables แล้ว map semantic tokens ปัจจุบันเข้าหา variables เหล่านี้ โดยคงรูป `hsl(var(--token))` ใน `@theme`
-
-```css
-:root {
-  --ledger-canvas: 42 38% 95%;
-  --ledger-surface: 38 100% 98%;
-  --ledger-ink: 30 12% 13%;
-  --ledger-muted-ink: 36 7% 41%;
-  --ledger-border: 37 21% 84%;
-  --ledger-brand-marker: 142 76% 36%;
-  --ledger-action: 142 72% 29%;
-  --ledger-selected: 141 84% 93%;
-  --ledger-error: 4 76% 40%;
-  --ledger-warning: 33 92% 33%;
-  --ledger-dark-canvas: 45 10% 8%;
-  --ledger-dark-surface: 40 10% 11%;
-  --ledger-dark-ink: 39 37% 93%;
-  --ledger-dark-muted-ink: 33 12% 69%;
-  --ledger-dark-border: 35 12% 20%;
-  --ledger-dark-brand: 142 71% 45%;
-  --ledger-dark-selected: 143 45% 16%;
-  --ledger-dark-error: 6 100% 84%;
-  --ledger-dark-warning: 36 85% 68%;
-}
-```
-
-- [ ] Map อย่างน้อย `background`, `foreground`, `card`, `popover`, `muted`, `muted-foreground`, `accent`, `primary`, `destructive`, `border`, `input`, `ring`, `sidebar-*`, `success` และ `warning` ทั้ง light/dark; ห้ามลบ Android compatibility overrides เดิม
-- [ ] เพิ่ม low-level shell variables และ fixed-content sizing โดยไม่ใส่ Dashboard selectors ใน globals
-
-```css
-:root {
-  --app-shell-header-row-height: 4rem;
-  --app-shell-header-height:
-    calc(var(--app-shell-header-row-height) + env(safe-area-inset-top, 0px));
-  --app-shell-rail-width: 13.125rem;
-  --app-shell-rail-collapsed-width: 4.5rem;
-  --app-shell-bottom-nav-height: 4rem;
-  --app-shell-bottom-nav-total:
-    calc(var(--app-shell-bottom-nav-height) + env(safe-area-inset-bottom, 0px));
-}
-
-@media (max-width: 767.98px) {
-  :root {
-    --app-shell-header-row-height: 3.75rem;
-  }
-}
-```
-
-- [ ] เปลี่ยน `buttonVariants({ size: "icon" })` เป็น `size-11`; ให้ shell ใช้ `icon` และห้ามขยาย `iconSm` แบบ global เพราะ dense non-shell controls อยู่นอกขอบเขตนี้
-- [ ] เปลี่ยน status colors ที่แตะใน `notification-menu.tsx` จาก raw emerald/amber/red เป็น semantic `text-success`, `text-warning`, `text-destructive` และ background alpha ที่สัมพันธ์กัน
-- [ ] เพิ่ม light/dark `themeColor` ใน exported `viewport` ของ `src/app/layout.tsx`
-
-```ts
-themeColor: [
-  { color: "#F7F4ED", media: "(prefers-color-scheme: light)" },
-  { color: "#171613", media: "(prefers-color-scheme: dark)" },
-],
-```
-
-- [ ] รัน focused tests, typecheck และ lint
-
-```powershell
-npx.cmd vitest run src/components/layout/design-token-contract.test.ts src/components/ui/button.test.ts
-npm.cmd run typecheck
-npx.cmd eslint src/app/layout.tsx src/components/ui/button.tsx src/components/layout/notification-menu.tsx
-```
-
-- [ ] Commit/checkpoint โดยตรวจ diff ของ globals ว่าไม่มี public-route composition selector ถูกเพิ่ม
-
-```powershell
-git add -- src/app/globals.css src/app/layout.tsx src/components/ui/button.tsx src/components/ui/button.test.ts src/components/layout/notification-menu.tsx src/components/layout/design-token-contract.test.ts
-git diff --cached --check
-git commit -m "style(shell): add ledger tokens and responsive geometry"
-```
-
----
-
-### Task 4: Split AppShell into responsive header, rail, and one-main orchestration
-
-**Files:**
-
-- Create via shadcn registry: `src/components/ui/collapsible.tsx`
-- Create: `src/components/layout/app-header.tsx`
-- Create: `src/components/layout/app-sidebar.tsx`
-- Create: `src/components/layout/app-breadcrumb.tsx`
-- Modify: `src/components/layout/app-shell.tsx`
-- Modify: `src/components/ui/sidebar.tsx`
-- Modify: `public/locales/la/common.json`
-- Modify: `public/locales/en/common.json`
-- Verify: `src/components/layout/shell-navigation.test.ts`
-
-**Interfaces:**
-
-- Consumes: filtered menu tree, breadcrumb trail, route mode, auth/app/permission stores และ current refresh registration
-- Produces: sticky safe-area header, accessible 210px/72px rail, effective 72px POS rail และ exactly one main landmark
-
-- [ ] บันทึก pre-existing diffs ของ `app-shell.tsx`, locale files และ package files; รักษา breadcrumb behavior ที่ user แก้ไว้เมื่อตัด pure logic ออก
-
-```powershell
-git diff -- src/components/layout/app-shell.tsx public/locales/la/common.json public/locales/en/common.json package.json package-lock.json
-```
-
-- [ ] ใช้ shadcn skill ตรวจ registry component แล้วเพิ่ม official Collapsible แบบ dry-run ก่อน; package `radix-ui` มีอยู่แล้วจึงคาดว่าจะสร้าง source file โดยไม่เพิ่ม dependency
-
-```powershell
-npx.cmd shadcn@latest add collapsible --dry-run
-npx.cmd shadcn@latest add collapsible
-git diff -- src/components/ui/collapsible.tsx package.json package-lock.json
-```
-
-- [ ] หาก CLI แตะ package files นอกเหนือจาก dependency ที่จำเป็นจริง ให้รักษา user hunks เดิมและไม่ stage package files ใน checkpoint นี้
-- [ ] ย้าย breadcrumb JSX ไป `AppBreadcrumb`; ใช้ `resolveBreadcrumbs()` จาก Task 1 และ localized `aria-label={t("app.breadcrumbs")}`
-- [ ] ย้าย menu/profile presentation ไป `AppSidebar`; nested group ใช้ official `Collapsible`, `CollapsibleTrigger asChild`, `CollapsibleContent` และ `aria-expanded`
-
-```tsx
-<Collapsible
-  open={openTitles.includes(item.title)}
-  onOpenChange={(open) => setMenuOpen(item.title, open)}
->
-  <CollapsibleTrigger asChild>
-    <SidebarMenuButton
-      aria-expanded={openTitles.includes(item.title)}
-      isActive={hasActiveRoute(item, pathname)}
-      tooltip={menuItemLabel(item, t)}
-    >
-      <MenuIcon item={item} />
-      <span>{menuItemLabel(item, t)}</span>
-      <ChevronDown data-icon="inline-end" />
-    </SidebarMenuButton>
-  </CollapsibleTrigger>
-  <CollapsibleContent>
-    <SidebarMenuSub>{renderChildren(item.children)}</SidebarMenuSub>
-  </CollapsibleContent>
-</Collapsible>
-```
-
-- [ ] ย้าย header ไป `AppHeader`; mobile แสดง optional back, current title, registered refresh, notifications และ overflow เท่านั้น; desktop/tablet แสดง rail trigger, branch identity/breadcrumb, refresh, theme, notifications, language และ profile
-- [ ] Mobile overflow ใช้ `DropdownMenuSub` สำหรับ Lao/English, store `toggleTheme`, edit-profile route และ logout; ห้าม nest `LanguageSwitch`/`ThemeToggle` dropdown ภายใน dropdown อีกชั้น
-- [ ] Header refresh render เฉพาะเมื่อ registry ไม่เป็น null; busy ใช้ `RefreshCcw` animation ที่หยุดเมื่อ reduced motion และปุ่ม disabled ขณะ busy/disabled
-
-```tsx
-{refreshAction ? (
-  <Button
-    type="button"
-    variant="ghost"
-    size="icon"
-    aria-busy={refreshAction.busy}
-    aria-label={refreshAction.label}
-    disabled={refreshAction.busy || refreshAction.disabled}
-    onClick={() => void refreshAction.refresh()}
-  >
-    <RefreshCcw
-      className={cn(
-        refreshAction.busy && "animate-spin motion-reduce:animate-none",
-      )}
-    />
-  </Button>
-) : null}
-```
-
-- [ ] ทำ `AppShell` เป็น orchestration เท่านั้น: derive menu หนึ่งครั้ง, resolve route mode/breadcrumbs, wrap ด้วย `PageRefreshProvider`, control `SidebarProvider` และส่ง props ไป presentation components
-
-```tsx
-const routeMode = shellRouteMode(pathname);
-const effectiveCollapsed = routeMode.posWorkspace ? true : collapsed;
-
-return (
-  <PageRefreshProvider>
-    <SidebarProvider
-      className="app-protected-shell"
-      open={!effectiveCollapsed}
-      onOpenChange={(open) => {
-        if (!routeMode.posWorkspace) setCollapsed(!open);
-      }}
-      style={{
-        "--sidebar-width": "var(--app-shell-rail-width)",
-        "--sidebar-width-icon": "var(--app-shell-rail-collapsed-width)",
-      } as React.CSSProperties}
-    >
-      <a className="app-skip-link" href="#main-content">
-        {t("app.skipToContent")}
-      </a>
-      <AppHeader routeMode={routeMode} />
-      <AppSidebar menuItems={menuItems} pathname={pathname} />
-      <SidebarInset id="main-content">
-        <div
-          className="app-shell-content"
-          data-fixed-content={routeMode.fixedContent}
-        >
-          {children}
-        </div>
-      </SidebarInset>
-    </SidebarProvider>
-  </PageRefreshProvider>
-);
-```
-
-- [ ] ลบ nested `<main>` เดิม; fixed screen wrapper ใช้ height ที่หัก header และบน mobile หัก bottom-nav total หลัง Task 5
-- [ ] ปรับ `SidebarProvider` default vars เป็น 210px/72px, row minimum 44px, active state เป็น 2px marker ไม่มี filled green tile และส่ง localized label ให้ `SidebarTrigger`/`SidebarRail`
-- [ ] Wrap icon-only header actions ด้วย Tooltip ที่แสดงเฉพาะ media `(pointer: fine)`; mobile/touch ยังคงมี localized `aria-label` และ 44px target โดยไม่พึ่ง Tooltip
-- [ ] เพิ่ม locale keys อย่างน้อย `app.currentPage`, `app.more`, `app.navigation`, `app.reportsNavigation`, `app.refreshingPage`, `app.profileMenu`, `app.languageLao`, `app.languageEnglish`
-- [ ] รัน navigation tests, typecheck และ lint
-
-```powershell
-npx.cmd vitest run src/components/layout/shell-navigation.test.ts src/components/layout/page-refresh-state.test.ts
-npm.cmd run typecheck
-npx.cmd eslint src/components/layout/app-shell.tsx src/components/layout/app-header.tsx src/components/layout/app-sidebar.tsx src/components/layout/app-breadcrumb.tsx src/components/ui/sidebar.tsx src/components/ui/collapsible.tsx
-```
-
-- [ ] Commit/checkpoint โดย stage เฉพาะ shell, Collapsible และ locale hunks ที่เกี่ยวข้อง
-
-```powershell
-git add -- src/components/layout/app-shell.tsx src/components/layout/app-header.tsx src/components/layout/app-sidebar.tsx src/components/layout/app-breadcrumb.tsx src/components/ui/sidebar.tsx src/components/ui/collapsible.tsx public/locales/la/common.json public/locales/en/common.json
-git diff --cached --check
-git commit -m "refactor(shell): split adaptive header and rail"
-```
-
----
-
-### Task 5: Add mobile bottom navigation and permission-aware Sheets
-
-**Files:**
-
-- Create: `src/components/layout/app-bottom-nav.tsx`
-- Create: `src/components/layout/app-navigation-sheet.tsx`
-- Modify: `src/components/layout/app-shell.tsx`
-- Modify: `src/app/globals.css`
-- Modify: `public/locales/la/common.json`
-- Modify: `public/locales/en/common.json`
-- Modify: `src/components/layout/shell-navigation.test.ts`
-
-**Interfaces:**
-
-- Consumes: shared filtered menu tree, pathname และ current `usePosStore` table
-- Produces: five mobile destinations, Reports Sheet, More Sheet, active marker และ safe-area content offset
-
-- [ ] ขยาย RED tests ให้ยืนยัน destination ที่ permission ไม่มีอยู่ยังรักษาตำแหน่ง 5 ช่องแต่ `enabled: false`, Reports disabled เมื่อไม่มี usable report และ More tree รับ menu tree ชุดเดิมโดยไม่สร้าง route ใหม่
-
-```ts
-it("keeps five stable slots and disables destinations missing from permissions", () => {
-  const destinations = deriveShellDestinations({
-    items: [{ path: "/", title: "dashboard" }],
-    pathname: "/",
-    tableName: "",
-    tableUuid: "",
-  });
-
-  expect(destinations).toHaveLength(5);
-  expect(destinations.find((item) => item.id === "dashboard")?.enabled).toBe(true);
-  expect(destinations.find((item) => item.id === "tables")?.enabled).toBe(false);
-  expect(destinations.find((item) => item.id === "pos")?.enabled).toBe(false);
-  expect(destinations.find((item) => item.id === "reports")?.enabled).toBe(false);
-});
-```
-
-- [ ] รัน focused test และยืนยัน RED สำหรับ availability case ใหม่
-
-```powershell
-npx.cmd vitest run src/components/layout/shell-navigation.test.ts
-```
-
-- [ ] สร้าง `AppNavigationSheet` ด้วย shadcn `Sheet side="bottom"`; Reports render report children, More render complete permission-filtered tree; links ปิด Sheet หลัง navigation และ disabled rows ใช้ `aria-disabled` พร้อม `t("common.unavailable")`
-
-```tsx
-<SheetContent
-  side="bottom"
-  className="max-h-[80dvh] overscroll-contain rounded-t-2xl pb-[calc(1rem+env(safe-area-inset-bottom,0px))]"
->
-  <SheetHeader>
-    <SheetTitle>{title}</SheetTitle>
-    <SheetDescription>{description}</SheetDescription>
-  </SheetHeader>
-  <nav aria-label={title} className="overflow-y-auto overscroll-contain">
-    {children}
-  </nav>
-</SheetContent>
-```
-
-- [ ] สร้าง `AppBottomNav` ด้วย Lucide `LayoutDashboard`, `Table2`, `ShoppingCart`, `BarChart3`, `Menu`; link destinations ใช้ `Link`, sheet destinations ใช้ `button`, ทุก target สูงอย่างน้อย 44px
-- [ ] ใช้ `deriveShellDestinations()` และ `usePosStore` selector; active state ใส่ `aria-current="page"` และ pseudo/child marker 2px ด้านบนโดยไม่เติมพื้นเขียวทั้งปุ่ม; destination ที่ disabled render เป็น disabled button พร้อมคำอธิบายและห้าม fallback ไป `/`
-
-```tsx
-if (destination.action) {
-  return (
-    <AppNavigationSheet
-      action={destination.action}
-      destination={destination}
-      menuItems={menuItems}
-      triggerIcon={Icon}
-      triggerLabel={label}
-    />
-  );
-}
-
-if (!destination.enabled || !destination.href) {
-  return (
-    <button
-      type="button"
-      aria-disabled="true"
-      disabled
-      title={t("common.unavailable")}
-      className="relative flex min-h-11 flex-col items-center justify-center gap-0.5"
-    >
-      <Icon />
-      <span className="max-w-full truncate text-[11px] font-semibold">{label}</span>
-    </button>
-  );
-}
-
-return (
-  <Link
-    href={destination.href}
-    aria-current={destination.active ? "page" : undefined}
-    className="group relative flex min-h-11 flex-col items-center justify-center gap-0.5"
-  >
-    <span
-      aria-hidden="true"
-      className="absolute inset-x-3 top-0 h-0.5 rounded-full bg-transparent group-aria-[current=page]:bg-success"
-    />
-    <Icon />
-    <span className="max-w-full truncate text-[11px] font-semibold">{label}</span>
-  </Link>
-);
-```
-
-- [ ] Reports/More branches ต้อง render ผ่าน `SheetTrigger asChild` ก่อน branch link/disabled ด้านบน เพื่อไม่ตีความ action destination ว่าไม่มี `href` แล้วปิดใช้งาน
-
-- [ ] Mount `AppBottomNav` ใน `AppShell` หลัง `SidebarInset`; CSS แสดงเฉพาะ `<768px`, fixed bottom, `z-40`, safe-area padding และไม่ render ใน public routesเพราะ component อยู่ใน protected shell
-- [ ] เพิ่ม mobile main padding/fixed-height calculation
-
-```css
-@media (max-width: 767.98px) {
-  .app-shell-content {
-    padding-bottom: var(--app-shell-bottom-nav-total);
-  }
-
-  .app-shell-content[data-fixed-content="true"] {
-    height:
-      calc(100dvh - var(--app-shell-header-height) - var(--app-shell-bottom-nav-total));
-    padding-bottom: 0;
-    overflow: hidden;
-  }
-}
-```
-
-- [ ] เพิ่ม locale labels/descriptions สำหรับ Dashboard, Tables, POS, Reports, More, Reports Sheet, More Sheet และ disabled explanation ทั้ง Lao/English
-- [ ] รัน tests, typecheck และ lint
-
-```powershell
-npx.cmd vitest run src/components/layout/shell-navigation.test.ts src/components/layout/page-refresh-state.test.ts src/features/pos/order-customer/order-customer-utils.test.ts
-npm.cmd run typecheck
-npx.cmd eslint src/components/layout/app-bottom-nav.tsx src/components/layout/app-navigation-sheet.tsx src/components/layout/app-shell.tsx
-```
-
-- [ ] Commit/checkpoint
-
-```powershell
-git add -- src/components/layout/app-bottom-nav.tsx src/components/layout/app-navigation-sheet.tsx src/components/layout/app-shell.tsx src/components/layout/shell-navigation.test.ts src/app/globals.css public/locales/la/common.json public/locales/en/common.json
-git diff --cached --check
-git commit -m "feat(shell): add mobile bottom navigation"
-```
-
----
-
-### Task 6: Adapt protected POS workspaces to the shared shell
-
-**Files:**
-
-- Modify: `src/features/pos/order-customer/order-customer-view.tsx`
-- Modify: `src/features/pos/table-selection/table-selection-page.tsx`
-- Modify: `src/app/globals.css`
-- Verify: `src/features/pos/order-customer/order-customer-utils.test.ts`
-- Verify: `src/components/layout/shell-navigation.test.ts`
-
-**Interfaces:**
-
-- Consumes: shared header/rail/bottom-nav geometry
-- Produces: protected POS screens without duplicate global controls and mobile cart CTA above bottom navigation
-
-- [ ] บันทึก screenshots/DOM structure ปัจจุบันของ `/pos/tables` และ `/pos/order` ก่อนแก้เพื่อเทียบว่า table, search, category, cart และ payment actions ยังอยู่ครบ
-- [ ] ใน `order-customer-view.tsx` ลบ local back action, `LanguageSwitch` และ `ThemeToggle` ที่ซ้ำกับ shared header; คง employee sort, product search, category navigation, local data refresh และ cart actionเป็น workspace toolbar
-- [ ] ใน `table-selection-page.tsx` ลบ local back, notification, language และ theme controls; คง clock, table filters และ local data refresh โดยลด toolbar เป็น 52–56px ไม่สร้าง global header ชั้นที่สอง
-- [ ] ห้าม register POS refresh เข้าสู่ shared headerใน phase นี้; local refresh ยังเรียก `refreshAll()`/`load()` เดิมตาม exclusion ในสเปก
-- [ ] ให้ management-screen rail preference ไม่เปลี่ยนเมื่อเข้า POS: `AppShell` force effective collapse เท่านั้นและห้ามเรียก `setCollapsed(true)` สำหรับ route POS
-- [ ] เพิ่ม protected-shell override เฉพาะ floating mobile cart CTA; ห้ามเปลี่ยน root `--pos-system-bottom-safe-area` ที่ public POS/dialog portals ใช้
-
-```css
-@media (max-width: 767.98px) {
-  .app-protected-shell .pos-safe-bottom-offset {
-    bottom: calc(0.75rem + var(--app-shell-bottom-nav-total));
-  }
-}
-```
-
-- [ ] ตรวจ z-index ให้ cart CTA อยู่เหนือ content แต่ไม่บัง Sheet และไม่ทับ bottom navigation; focus order ต้องเป็น shared header → POS toolbar/content → bottom navigation
-- [ ] รัน existing POS/helper tests, typecheck และ lint
-
-```powershell
-npx.cmd vitest run src/features/pos/order-customer/order-customer-utils.test.ts src/components/layout/shell-navigation.test.ts
-npm.cmd run typecheck
-npx.cmd eslint src/features/pos/order-customer/order-customer-view.tsx src/features/pos/table-selection/table-selection-page.tsx
-```
-
-- [ ] Commit/checkpoint
-
-```powershell
-git add -- src/features/pos/order-customer/order-customer-view.tsx src/features/pos/table-selection/table-selection-page.tsx src/app/globals.css
-git diff --cached --check
-git commit -m "style(pos): fit protected workspaces inside shared shell"
-```
-
----
-
-### Task 7: Register Dashboard refresh without losing draft filters
-
-**Files:**
-
-- Modify: `src/features/dashboard/overview/dashboard-view-model.ts`
-- Modify: `src/features/dashboard/overview/dashboard-view-model.test.ts`
-- Modify: `src/features/dashboard/overview/dashboard-page.tsx`
-- Modify: `src/features/dashboard/overview/components/dashboard-widgets.tsx`
-- Verify: `src/stores/dashboard-store.ts`
-
-**Interfaces:**
-
-- Consumes: active branch, applied filters, current language/top และ Dashboard store `load`
-- Produces: exact refresh params, draft-safe response reconciliation, header registration และ inline retry
-
-- [ ] เพิ่ม RED pure tests สำหรับ exact request params และ filter reconciliation ทั้งกรณี clean draft กับ dirty draft
-- [ ] เพิ่ม local `dashboardFilters(startDate, endDate)` test factory ที่คืน `DashboardFilters` ครบทุก field เพื่อให้ test fixtures typed และอ่านง่าย
-
-```ts
-it("builds refresh params from the applied state", () => {
-  expect(
-    createDashboardRequestParams({
-      branchUuid: "branch-1",
-      filters: {
-        end_date: "2026-07-27",
-        periodMonth: 7,
-        periodType: "daily",
-        periodYear: 2026,
-        start_date: "2026-07-01",
-      },
-      language: "la",
-      top: "20",
-    }),
-  ).toEqual({
-    branch_uuid_fk: "branch-1",
-    end_date: "2026-07-27",
-    lang: "la",
-    start_date: "2026-07-01",
-    top: "20",
-  });
-});
-
-it("keeps unsaved draft dates when a refresh response reconciles applied dates", () => {
-  const applied = dashboardFilters("2026-07-01", "2026-07-27");
-  const draft = dashboardFilters("2026-06-01", "2026-06-30");
-  const result = reconcileDashboardFilters({
-    applied,
-    draft,
-    response: { start_date: "2026-07-01", end_date: "2026-07-27" },
-  });
-
-  expect(result.applied).toMatchObject({
-    start_date: "2026-07-01",
-    end_date: "2026-07-27",
-  });
-  expect(result.draft).toBe(draft);
-});
-```
-
-- [ ] รัน focused test และยืนยัน RED
-
-```powershell
-npx.cmd vitest run src/features/dashboard/overview/dashboard-view-model.test.ts
-```
-
-- [ ] ย้าย `filtersFromRequestParams()` และ `filtersKey()` จาก page ไป view model แล้วเพิ่ม contracts ต่อไปนี้
-
-```ts
-export interface CreateDashboardRequestParamsInput {
-  branchUuid: string;
-  filters: DashboardFilters;
-  language: string;
-  top: string;
-}
-
-export interface ReconcileDashboardFiltersInput {
-  applied: DashboardFilters;
-  draft: DashboardFilters;
-  response: Pick<DashboardFilters, "end_date" | "start_date">;
-}
-
-export interface ReconciledDashboardFilters {
-  applied: DashboardFilters;
-  draft: DashboardFilters;
-}
-```
-
-- [ ] ให้ `reconcileDashboardFilters()` merge backend dates เข้า applied เสมอ แต่ merge เข้า draft เฉพาะเมื่อ `filtersKey(draft) === filtersKey(applied)` ก่อน response
-- [ ] เปลี่ยน `DashboardPage.load()` ให้สร้าง params ด้วย `createDashboardRequestParams()` และเพิ่ม stable `refreshDashboard` ที่เรียก `load(appliedFilters, top)`
-- [ ] Register refresh หลังสร้าง callback; label ใช้ i18n, busy ใช้ `loading`, disabled เมื่อไม่มี active branch
-
-```tsx
-const refreshDashboard = useCallback(
-  () => load(appliedFilters, top),
-  [appliedFilters, load, top],
-);
-
-usePageRefreshRegistration({
-  busy: loading,
-  disabled: !activeBranchUuid,
-  label: t("dashboard.refreshDashboard"),
-  onRefresh: refreshDashboard,
-});
-```
-
-- [ ] เปลี่ยน response sync เดิมให้ใช้ `reconcileDashboardFilters()` ภายใน `useResetOnDeps`; ห้ามให้ refresh/top/language change เขียนทับ dirty draft
-- [ ] ขยาย `ErrorBanner` ให้รับ `actionLabel`/`onAction`, ใช้ semantic Alert presentation และแสดง retry แบบ inline; Dashboard error retry เรียก `refreshDashboard`, branch error retry เรียก `loadBranches(storeUuid, userBranchUuid)`
-- [ ] คง initial-load guard เดิมที่คืน `LoadingState` เมื่อ `loading && !data`; เมื่อมี data แล้ว refresh ห้ามแทนหน้าด้วย skeleton หรือ clear cards
-- [ ] รัน focused tests, chart boundary, refresh reducer, typecheck และ lint
-
-```powershell
-npx.cmd vitest run src/features/dashboard/overview/dashboard-view-model.test.ts src/features/dashboard/overview/dashboard-chart-boundary.test.ts src/components/layout/page-refresh-state.test.ts
-npm.cmd run typecheck
-npx.cmd eslint src/features/dashboard/overview/dashboard-page.tsx src/features/dashboard/overview/dashboard-view-model.ts src/features/dashboard/overview/components/dashboard-widgets.tsx
-```
-
-- [ ] Commit/checkpoint
-
-```powershell
-git add -- src/features/dashboard/overview/dashboard-view-model.ts src/features/dashboard/overview/dashboard-view-model.test.ts src/features/dashboard/overview/dashboard-page.tsx src/features/dashboard/overview/components/dashboard-widgets.tsx
-git diff --cached --check
-git commit -m "feat(dashboard): add draft-safe header refresh"
-```
-
----
-
-### Task 8: Reshape Dashboard content and responsive filters
-
-**Files:**
-
-- Create: `src/features/dashboard/overview/components/dashboard-filters.tsx`
-- Modify: `src/features/dashboard/overview/dashboard-view-model.ts`
-- Modify: `src/features/dashboard/overview/dashboard-view-model.test.ts`
-- Modify: `src/features/dashboard/overview/components/dashboard-widgets.tsx`
-- Modify: `src/features/dashboard/overview/dashboard-page.tsx`
-- Modify: `src/features/dashboard/overview/dashboard.css`
-- Modify: `public/locales/la/common.json`
-- Modify: `public/locales/en/common.json`
-- Verify: `src/features/dashboard/overview/dashboard-chart-boundary.test.ts`
-
-**Interfaces:**
-
-- Consumes: existing Dashboard copy/model/filter props
-- Produces: mobile filter Drawer, tablet/desktop inline filter bar และ approved information order with quiet ledger styling
-
-- [ ] เพิ่ม pure assertion ใน view-model test ว่า filter summary ใช้ applied branch/date context ไม่ใช้ dirty draft; หาก summary helper ยังไม่มีให้เพิ่ม `dashboardFilterSummary()` เป็น pure export
-
-```ts
-it("summarizes the applied date range independently from draft filters", () => {
-  expect(
-    dashboardFilterSummary({
-      branchLabel: "Vientiane 1",
-      filters: dashboardFilters("2026-07-01", "2026-07-27"),
-    }),
-  ).toBe("Vientiane 1 · 2026-07-01 – 2026-07-27");
-});
-```
-
-- [ ] รัน focused test และยืนยัน RED
-
-```powershell
-npx.cmd vitest run src/features/dashboard/overview/dashboard-view-model.test.ts
-```
-
-- [ ] ย้าย existing `DashboardFilterBar` ออกจาก `dashboard-widgets.tsx` ไป `dashboard-filters.tsx`; แยก fields ออกจาก actions เพื่อใช้ form ชุดเดียวทั้ง inline และ Drawer
-
-```ts
-export interface DashboardFilterFieldsProps {
-  activeBranchUuid: string;
-  branchLoading: boolean;
-  branchOptions: SelectOption[];
-  copy: DashboardCopy;
-  filters: DashboardFilters;
-  monthOptions: SelectOption[];
-  onBranchChange: (value: string) => void;
-  onFilterChange: (patch: Partial<DashboardFilters>) => void;
-  onPeriodMonthChange: (value: string) => void;
-  onPeriodTypeChange: (value: string) => void;
-  onPeriodYearChange: (value: string) => void;
-  periodTypeOptions: SelectOption[];
-  yearOptions: SelectOption[];
-}
-
-export interface DashboardResponsiveFiltersProps
-  extends DashboardFilterFieldsProps {
-  loading: boolean;
-  onApply: () => void;
-  onReset: () => void;
-  summary: string;
-}
-```
-
-- [ ] Mobile `<md` แสดง compact context button แล้วเปิด shadcn `Drawer`; Apply เรียก `onApply()` แล้วปิด, Reset เรียก `onReset()` โดยคง Drawer เปิดให้ตรวจค่า, Cancel ปิดโดยไม่ apply และ draft state ยังอยู่
-- [ ] Tablet/desktop `md+` แสดง inline filter surface; controls wrap เป็นสองแถวเมื่อพื้นที่ไม่พอและห้ามสร้าง horizontal document scroll
-- [ ] เปลี่ยน composition order ใน `DashboardPage` เป็น:
-  1. `DashboardHeader`
-  2. `DashboardResponsiveFilters`
-  3. branch/dashboard inline errors และ no-data state
-  4. `DashboardHeroStrip`
-  5. `DashboardPaymentSummaryStrip`
-  6. `DashboardRevenueAccountingGrid`
-  7. `DashboardOperationsGrid`
-  8. `DashboardProductsParetoGrid`
-  9. `DashboardFooter`
-- [ ] Refactor `dashboard.css` ให้ใช้ semantic tokens: flat surfaces, 1px borders, radius 12–16px, no decorative gradients/heavy shadows, 16px mobile margin, 24–32px tablet/desktop padding, 12px mobile gap และ 16px larger gap
-- [ ] Mobile metrics ใช้ labelled rows/compact two-column blocksแทนการบีบ desktop grid; chart sections มี minimum readable height และ legend wrap; top-products rows ไม่เกิด horizontal scroll
-- [ ] Dark mode ใช้ token hierarchy เดียวกัน; success/warning/error ทุกจุดมี icon/text เพิ่มจากสี; refresh state ไม่ทำ layout shift
-- [ ] เพิ่ม filter Drawer title/description/summary labels และ Dashboard refresh labelทั้ง Lao/English
-- [ ] รัน focused Dashboard tests, typecheck และ lint
-
-```powershell
-npx.cmd vitest run src/features/dashboard/overview/dashboard-view-model.test.ts src/features/dashboard/overview/dashboard-chart-boundary.test.ts
-npm.cmd run typecheck
-npx.cmd eslint src/features/dashboard/overview/dashboard-page.tsx src/features/dashboard/overview/components/dashboard-filters.tsx src/features/dashboard/overview/components/dashboard-widgets.tsx
-```
-
-- [ ] Commit/checkpoint
-
-```powershell
-git add -- src/features/dashboard/overview/components/dashboard-filters.tsx src/features/dashboard/overview/components/dashboard-widgets.tsx src/features/dashboard/overview/dashboard-page.tsx src/features/dashboard/overview/dashboard-view-model.ts src/features/dashboard/overview/dashboard-view-model.test.ts src/features/dashboard/overview/dashboard.css public/locales/la/common.json public/locales/en/common.json
-git diff --cached --check
-git commit -m "style(dashboard): apply responsive ledger layout"
-```
-
----
-
-### Task 9: Run full verification and responsive interaction review
-
-**Files:**
-
-- Verify all files changed in Tasks 1–8
-- Modify only files required to fix failures found by this task
-
-**Automated evidence:**
-
-- [ ] Run all focused suites together
-
-```powershell
-npx.cmd vitest run src/components/layout/shell-navigation.test.ts src/components/layout/page-refresh-state.test.ts src/components/layout/design-token-contract.test.ts src/components/ui/button.test.ts src/features/dashboard/overview/dashboard-view-model.test.ts src/features/dashboard/overview/dashboard-chart-boundary.test.ts src/features/pos/order-customer/order-customer-utils.test.ts
-```
-
-- [ ] Run repository-wide tests, typecheck และ lint; บันทึก exact failing file หากมี pre-existing failure และห้ามอ้างว่า pass จน command exit 0
-
-```powershell
-npm.cmd test
-npm.cmd run typecheck
-npm.cmd run lint
-```
-
-**Browser and accessibility evidence:**
-
-- [ ] ใช้ browser skill เปิด authenticated protected app และตรวจ 393×852, 768px, 1024×1366, 1280px และ 1440px ทั้ง light/dark
-- [ ] ในทุก width ยืนยัน `document.querySelectorAll("main").length === 1` และ `document.documentElement.scrollWidth <= document.documentElement.clientWidth`
-- [ ] ที่ 393×852 ยืนยัน header ไม่ล้น, bottom nav มี 5 ช่อง, active marker 2px, Reports/More Sheet เปิด-ปิดและคืน focus, content/CTA ไม่ถูก safe area หรือ nav บัง
-- [ ] ที่ 768/1024/1280/1440 ยืนยัน rail 210px/72px, collapse persistence, nested `aria-expanded`, breadcrumb ไม่ link group route, header target อย่างน้อย 44px และ POS force compact railโดยไม่เปลี่ยน persisted preference
-- [ ] ใช้ keyboard เท่านั้นตรวจ skip link, header, rail, Dashboard filters, Drawer/Sheets และ bottom nav; focus ต้องมองเห็นและ modal focus ต้องไม่หลุด
-- [ ] เปิด reduced motion แล้ว refresh Dashboard; icon ห้ามหมุนต่อเมื่อ reduced motion และไม่มี content flash/layout shift
-- [ ] แก้ draft filter โดยไม่กด Apply แล้วกด header refresh; ยืนยัน request ใช้ applied dates/branch/top และ draft inputs ยังเป็นค่าที่แก้อยู่
-- [ ] ทำ Dashboard request fail หลังมี data; ยืนยัน data/branch/applied/draft คงอยู่, inline error แสดง และ retry สำเร็จได้
-- [ ] ตรวจ protected `/pos/tables` และ `/pos/order`: shared header แสดง, local global controls ไม่ซ้ำ, search/category/cart/payment ใช้งานได้ และ mobile cart CTA อยู่เหนือ bottom nav
-- [ ] Regression check `/products`, `/sales/sales-list`, อย่างน้อยหนึ่ง `/settings/*`, อย่างน้อยหนึ่ง `/report/*`, public `/pos`, `/q/[token]`, `/login` และ `/customer-display`
-- [ ] ตรวจ Lao-first labels ที่ 393px, Android 48px overrides, Electron window resize และ dark-mode contrast ตาม `web-design-guidelines`
-
-**Final checkpoint:**
-
-- [ ] ตรวจ diff/stat และค้นหา unsafe route cast, browser reload และ raw feature colors
-
-```powershell
-git diff --check
-rg -n "as Route|window\\.location\\.reload|router\\.refresh" src/components/layout src/features/dashboard/overview
-rg -n "#[0-9A-Fa-f]{6}" src/components/layout src/features/dashboard/overview
-git status --short
-```
-
-- [ ] ถ้า Task 9 ต้องแก้โค้ด ให้ rerun command ที่เกี่ยวข้อง, stage ด้วย explicit paths ของไฟล์ที่ Task 9 แก้จริง, รัน `git diff --cached --check` และ commit message `fix(shell): close responsive verification gaps`; ถ้าไม่มี diff ใหม่ไม่ต้องสร้าง empty commit
-
-- [ ] ใช้ `superpowers:verification-before-completion` ตรวจ evidence ชุดสุดท้ายก่อนรายงานว่าเสร็จ
+### Task 1: วัด navigation ก่อนแก้
+
+**Files:** ไม่มี source change
+
+- [ ] ใช้ fresh production build หรือ production deployment วัด cold/warm cache, Slow 3G และ offline แยกเวลา `tap → RSC request → route commit → feature API`
+- [ ] ตรวจ primary link, More item, breadcrumb, POS table → order และ query-only pagination ว่าความช้ามาจาก `?_rsc`, JS chunk, legacy redirect หรือ backend API
+- [ ] ยืนยันว่า `AuthGuard`/`AppShell` ไม่ remount และไม่มี middleware/proxy latency
+- [ ] บันทึก baseline ใน task/PR notes; ห้ามเริ่ม refactor auth/data layer หาก trace ไม่ชี้ไปที่ส่วนนั้น
+
+### Task 2: สร้าง permission-aware mobile navigation model
+
+**Files:** สร้าง `src/components/layout/mobile-navigation-model.ts` และ focused test; อ่าน menu จาก `src/stores/permissions-sidebar-store.ts`
+
+- [ ] ใช้ permission menu ที่ harden แล้วบน `feature-27`; ตัด empty groups และนับเฉพาะ navigable leaves
+- [ ] หา report group จาก canonical `/report/*` ไม่ผูกกับ opaque `menu_id`
+- [ ] เปลี่ยน destination model เป็น primary candidates สูงสุดสี่รายการ + remaining `More`, active section, root/focused mode และ deterministic back fallback
+
+### Task 3: เชื่อม foundation ที่มีอยู่เข้ากับ AppShell
+
+**Files:** `src/components/layout/app-shell.tsx`, `src/components/layout/mobile-navigation-model.ts`, `src/components/layout/page-refresh-context.tsx`, `src/components/ui/sidebar.tsx`
+
+- [ ] ให้ `AppShell` ใช้ permission-aware model ใหม่โดยไม่สร้างสำเนา helper อีกชุด
+- [ ] ครอบ protected content ด้วย existing `PageRefreshProvider`
+- [ ] ทำให้มี `<main>` เพียงหนึ่งตัวโดยไม่เปลี่ยน desktop geometry
+- [ ] คง desktop header/sidebar/collapse/POS immersive behavior; ปิด mobile sidebar trigger เพราะ `More` รับหน้าที่แทน
+
+### Task 4: สร้าง mobile header, bottom navigation และ More drawer
+
+**Files:** สร้าง `src/components/layout/mobile-shell-navigation.tsx`; แก้ `src/components/layout/app-shell.tsx`, `src/app/globals.css`, `public/locales/la/common.json`, `public/locales/en/common.json`
+
+- [ ] สร้าง top app bar, conditional back/title/refresh และ bottom navigation ตาม model ใน Task 2
+- [ ] สร้าง `More` drawer จาก menu tree ชุดเดียวกับ desktop โดยตัด primary items และรวม account/preferences actions
+- [ ] รองรับ 320–767px, portrait/landscape, long Lao labels, light/dark, focus trap, keyboard navigation และ touch targets
+- [ ] เพิ่ม content offsets เฉพาะเมื่อ bottom bar แสดง; focused route ไม่เหลือช่องว่างด้านล่าง
+
+### Task 5: เพิ่ม route-transition feedback แบบเดียว
+
+**Files:** สร้าง `src/components/layout/route-navigation-feedback.tsx`; แก้ `src/components/layout/app-shell.tsx`, `src/components/common/back-button.tsx`, `src/stores/toast-store.ts`, `src/app/(protected)/error.tsx`, `src/app/globals.css`
+
+- [ ] ใช้ shared protected-navigation state สำหรับ shell links และ programmatic route buttons ที่อยู่ในขอบเขต
+- [ ] เพิ่ม immediate pressed state, delayed progress line, same-target dedupe, last-intent-wins และ clear state เมื่อ pathname/search params commit
+- [ ] เพิ่ม offline/timeout/failure message พร้อม Retry โดยไม่บังทั้งแอป
+- [ ] รักษา default prefetch; แก้ redirect หรือเพิ่ม targeted prefetch เฉพาะ bottleneck ที่ Task 1 พิสูจน์
+
+### Task 6: เชื่อม contextual refresh และ focused flows
+
+**Files:** `src/features/dashboard/overview/dashboard-page.tsx`, `src/features/pos/table-selection/table-selection-page.tsx`, `src/features/pos/order-customer/order-customer-view.tsx`, `src/features/sales/sales-list/*`, `src/features/product/list/*`, `src/components/layout/page-refresh-context.tsx`
+
+- [ ] Register callback ที่มีอยู่แล้วเฉพาะ frequent mobile screens; หน้าที่ไม่มี callback ไม่แสดง refresh
+- [ ] ซ่อน mobile-local refresh/back controls ที่ซ้ำกับ app bar แต่คง desktop controls เดิม
+- [ ] ให้ `/pos/order` ใช้ mobile app bar, back ไป Tables, ไม่มี bottom bar และไม่ให้ cart/payment CTA ถูก shell บัง
+- [ ] ระหว่าง refresh คงข้อมูลเดิมและใช้ spinner ใน refresh action; ห้ามใช้ `router.refresh()` แทน feature store action
+
+### Task 7: ทำ Capacitor mobile contract ให้มี owner เดียว
+
+**Files:** `capacitor.config.ts`, `package.json`, `package-lock.json`, `src/app/providers.tsx`, `src/app/globals.css`, สร้าง `src/hooks/use-capacitor-back-navigation.ts`, `android/app/src/main/java/com/yummygo/app/MainActivity.java`, `android/app/src/main/AndroidManifest.xml`, `android/app/src/main/res/values/styles.xml`; อาจสร้าง minimal `capacitor-web/` fallback assets
+
+- [ ] ใช้ Capacitor 8 `SystemBars` และ canonical `--safe-area-inset-{top,right,bottom,left}` variables; ลบ native padding, UA/pointer heuristic และ legacy `StatusBar` ownership ที่ซ้ำ
+- [ ] Sync system-bar icon contrast กับ app theme; ตั้ง iOS `contentInset: "never"` และลบ invalid `iosScheme: "https"`
+- [ ] เพิ่ม official `@capacitor/app` เพื่อใช้ hardware-back hierarchy; sync Android native project
+- [ ] ใช้ `adjustResize` + `visualViewport` เป็น keyboard policy แรก: ซ่อน bottom bar เมื่อ IME เปิดและคง focused field/action ให้เห็น; เพิ่ม `@capacitor/keyboard` เฉพาะเมื่อ device test พิสูจน์ว่าจำเป็น
+- [ ] ทำ `webDir/errorPath` ให้ clean `cap sync android` ใช้งานได้และแสดง local connection failure โดยไม่อ้างว่าแอปทำงาน offline
+
+อ้างอิง: [Capacitor SystemBars](https://capacitorjs.com/docs/apis/system-bars), [Capacitor App/backButton](https://capacitorjs.com/docs/apis/app), [Capacitor config](https://capacitorjs.com/docs/config)
+
+### Task 8: ตรวจรับแบบ targeted
+
+**Automated:** `npm test`, `npm run typecheck`, `npm run lint`, focused permission/navigation/back tests, `npx cap sync android` และ Android debug build
+
+- [ ] ทดสอบ permission roles 1–6, empty/error/cache states, primary selection, More filtering, active/root/focused routes และ deterministic back
+- [ ] ทดสอบ repeated taps, changed intent, current-route no-op, cold/warm prefetch, offline, timeout, render failure และ feature API failure
+- [ ] ตรวจ light/dark, reduced motion, keyboard-only, screen reader labels, no horizontal scroll และหนึ่ง `<main>`
+- [ ] ทำ manual matrix ตาม acceptance criteria ด้านล่าง
+
+## Main files expected to change
+
+- Shell/model: `src/components/layout/app-shell.tsx`, `mobile-navigation-model.ts`, `mobile-shell-navigation.tsx`, `route-navigation-feedback.tsx`, `page-refresh-context.tsx`
+- Permission: `src/services/permissions/sidebar.ts`, `src/stores/permissions-sidebar-store.ts` และ focused tests
+- Shared UI: `src/components/common/back-button.tsx`, `src/components/ui/sidebar.tsx`, `src/stores/toast-store.ts`, `src/app/globals.css`
+- Frequent flows: Dashboard, table selection, POS order, sales list และ product list files ที่ register existing refresh/navigation actions
+- Native: `capacitor.config.ts`, package files, `src/app/providers.tsx`, Capacitor back hook, Android `MainActivity`, manifest และ theme
+- Localization: `public/locales/la/common.json`, `public/locales/en/common.json`
+
+## Acceptance criteria
+
+### Desktop (`md+`)
+
+- Header/sidebar/collapse/breadcrumb/POS immersive layout มีหน้าตาและพฤติกรรมเดิม ยกเว้น permission fail-closed และ route feedback ที่ใช้ร่วมกัน
+- Permission API, same-key cache, active state และ disabled state ตรงกันระหว่าง rail กับ mobile model
+- มี `<main>` หนึ่งตัว, keyboard/focus/dark mode ไม่ถดถอย และ navigation failure ไม่ทำให้ shell หาย
+
+### Mobile browser
+
+- ที่ 320, 375, 393, 430 และ 767px ไม่มี horizontal scroll; header/title/controls และ bottom bar ไม่ทับ content
+- Root ไม่มี back; secondary/detail มี meaningful back; More แสดงเฉพาะ authorized secondary items และคืน focus เมื่อปิด
+- Touch targets ≥44px, Lao/English ไม่ตัดจนแปลความผิด, light/dark/reduced-motion ผ่าน
+- Tap มี pressed stateทันที; slow navigation แสดง progress pattern เดียว, same-target ไม่ยิงซ้ำ, offline/timeout มี Retry และหน้าเดิมยังใช้งานได้
+- เมื่อ keyboard เปิด focused control ยังเห็นและ bottom bar ไม่ลอยเหนือ keyboard
+
+### Android Capacitor
+
+- `cap sync android` และ debug build ผ่านจาก clean checkout
+- Android 14/15/16, gesture/three-button navigation, portrait/landscape/cutout และ phone/tablet มี inset เพียงครั้งเดียว
+- System-bar contrast เปลี่ยนตาม light/dark; shell targets ≥48px
+- Hardware back ปิด overlay ก่อน, `/pos/order` กลับ Tables, child route ใช้ parent/history และ root จึง minimize โดยไม่ double navigation
+- IME ไม่บัง input/submit, ปิดแล้ว viewport คืนค่า, POS custom keypad ไม่เปิด system keyboard โดยไม่ตั้งใจ
+- Cold/warm start และ slow/offline remote load ไม่มี blank white screen หรือ UI jump ที่ทำให้ใช้งานไม่ได้
+
+### iOS Capacitor
+
+- Web code/config ต้องรองรับ `env(safe-area-inset-*)`, notch/home indicator, keyboard และ UI back โดยไม่ double inset
+- เมื่อมี native target ต้องทดสอบ iPhone จอเล็ก, notch/home indicator และ iPad ทั้งสอง orientation; ไม่มี hardware-back criterion บน iOS
+- `contentInset` กับ CSS safe area ไม่ซ้ำ, status-bar contrast อ่านได้, Drawer/keyboard คืน viewport ถูกต้อง และ reduced motion ปิด transition
+- **ข้อจำกัด:** repo ยังไม่มี `ios/`; จึงยัง claim ว่า iOS ผ่านไม่ได้จนกว่าจะเพิ่ม target และทำ `cap sync ios`/Xcode/device test บน macOS
+
+## Risks and decisions requiring approval
+
+1. **Primary navigation:** อนุมัติ adaptive “สูงสุด 4 + More” และตัด fixed POS tab/Reports drawer หรือไม่
+2. **Focused POS:** อนุมัติให้ `/pos/order` ซ่อน bottom bar และกลับ Tables ก่อนออกจาก workflow หรือไม่
+3. **Permission failure:** แนะนำ fail closed; fresh/offline session ที่ไม่มี same-key cache จะเห็น “โหลดเมนูไม่ได้ + Retry” แทน static menu
+4. **Native dependencies:** เพิ่มเฉพาะ `@capacitor/app`; ยังไม่เพิ่ม `@capacitor/keyboard` จนกว่า `adjustResize`/`visualViewport` จะ fail บนอุปกรณ์จริง
+5. **System bars:** อนุมัติให้ Capacitor 8 `SystemBars` เป็น owner เดียวและถอด legacy/manual Android ownership ที่ขัดกัน
+6. **Remote WebView:** คง `server.url = https://yummy-go.com`; งานนี้ให้ offline feedback/local error page แต่ไม่ทำ offline-capable POS
+7. **iOS:** เลือกว่าจะเพิ่ม `ios/` เป็น phase แยกบน macOS หรือรับรองเฉพาะ cross-platform web/config ใน phase นี้
+
+หยุดหลังอนุมัติแผนนี้; ห้ามเริ่ม implementation ก่อนผู้ใช้ยืนยัน decisions ข้างต้น

@@ -199,7 +199,7 @@ function EntityForm({
     setVatPercent(String(storeBranchNumber(editing, "vat_name", 0)));
     setChargeStatus(String(storeBranchNumber(editing, "charge_status", 2)));
     setChargePercent(String(storeBranchNumber(editing, "charge_name", 0)));
-  });
+  }, { runOnMount: true });
 
   async function handleSubmit(formData: FormData) {
     if (selectedImage) {
