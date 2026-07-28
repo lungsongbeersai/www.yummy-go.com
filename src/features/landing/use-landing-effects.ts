@@ -1,17 +1,18 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import type { RefObject } from "react";
 import type { SceneApi } from "./scene-api";
 
 export interface LandingEffectsRefs {
   rootRef: RefObject<HTMLDivElement | null>;
-  heroRef: RefObject<HTMLElement | null>;
   canvasRef: RefObject<HTMLCanvasElement | null>;
   progressRef: RefObject<HTMLDivElement | null>;
   ringRef: RefObject<HTMLDivElement | null>;
   scrollHintRef: RefObject<HTMLDivElement | null>;
   backTopRef: RefObject<HTMLButtonElement | null>;
+  /** ฉาก 3D ถือครองโดย useLandingScene — ที่นี่แค่ป้อนค่าสกรอลล์ให้ */
+  sceneRef: RefObject<SceneApi | null>;
 }
 
 interface ParallaxElement {
@@ -19,44 +20,21 @@ interface ParallaxElement {
   speed: number;
 }
 
-interface OptionalIdleWindow {
-  requestIdleCallback?: Window["requestIdleCallback"];
-  cancelIdleCallback?: Window["cancelIdleCallback"];
-}
-
 const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
 const FINE_POINTER_QUERY = "(hover: hover) and (pointer: fine)";
 
-function scheduleIdle(callback: () => void): () => void {
-  const idleWindow = window as unknown as OptionalIdleWindow;
-  if (idleWindow.requestIdleCallback && idleWindow.cancelIdleCallback) {
-    const handle = idleWindow.requestIdleCallback(callback, { timeout: 800 });
-    return () => idleWindow.cancelIdleCallback?.(handle);
-  }
-
-  const handle = window.setTimeout(callback, 1);
-  return () => window.clearTimeout(handle);
-}
-
 export function useLandingEffects(refs: LandingEffectsRefs): void {
-  const { rootRef, heroRef, canvasRef, progressRef, ringRef, scrollHintRef, backTopRef } = refs;
-  const sceneRef = useRef<SceneApi | null>(null);
+  const { rootRef, canvasRef, progressRef, ringRef, scrollHintRef, backTopRef, sceneRef } = refs;
 
   useEffect(() => {
     const root = rootRef.current;
-    const hero = heroRef.current;
-    const canvas = canvasRef.current;
     const progress = progressRef.current;
     const ring = ringRef.current;
     const scrollHint = scrollHintRef.current;
     const backTop = backTopRef.current;
-    if (!root || !hero || !canvas) return;
+    if (!root) return;
 
-    let disposed = false;
-    let reducedMotion = window.matchMedia(REDUCED_MOTION_QUERY).matches;
-    let heroVisible = false;
-    let sceneLoadStarted = false;
-    let cancelIdleSceneLoad: (() => void) | null = null;
+    const reducedMotion = window.matchMedia(REDUCED_MOTION_QUERY).matches;
     let scrollFrame = 0;
     let pointerFrame = 0;
     let pointerRectCache = new WeakMap<HTMLElement, DOMRect>();
@@ -67,13 +45,6 @@ export function useLandingEffects(refs: LandingEffectsRefs): void {
       element,
       speed: Number.parseFloat(element.dataset.parallax ?? "0") || 0
     }));
-
-    const setSceneActive = () => {
-      const active = Boolean(sceneRef.current && heroVisible && !document.hidden && !reducedMotion);
-      sceneRef.current?.setActive(active);
-      root.dataset.sceneActive = String(active);
-      if (!active && root.dataset.sceneReady === "true") canvas.style.opacity = "0.18";
-    };
 
     const updateScrollEffects = () => {
       scrollFrame = 0;
@@ -98,7 +69,9 @@ export function useLandingEffects(refs: LandingEffectsRefs): void {
       }
 
       sceneRef.current?.onScroll(heroProgress, totalProgress);
-      if (root.dataset.sceneReady === "true") {
+      // อ่าน canvas ตอนใช้งานเสมอ เพราะการสลับ tier จะ remount <canvas> เป็น node ใหม่
+      const canvas = canvasRef.current;
+      if (canvas && root.dataset.sceneReady === "true") {
         canvas.style.opacity = root.dataset.sceneActive === "true"
           ? Math.max(0.28, 1 - heroProgress * 0.72).toFixed(3)
           : "0.18";
@@ -108,67 +81,6 @@ export function useLandingEffects(refs: LandingEffectsRefs): void {
     const scheduleScrollEffects = () => {
       if (!scrollFrame) scrollFrame = requestAnimationFrame(updateScrollEffects);
     };
-
-    const loadScene = async () => {
-      cancelIdleSceneLoad = null;
-      if (disposed || reducedMotion || !heroVisible || sceneLoadStarted || sceneRef.current) return;
-      sceneLoadStarted = true;
-
-      try {
-        const { initScene } = await import("./scene3d");
-        if (disposed || reducedMotion || !heroVisible) {
-          sceneLoadStarted = false;
-          return;
-        }
-
-        const scene = await initScene(canvas);
-        if (!scene) return;
-        if (disposed || reducedMotion) {
-          scene.dispose();
-          return;
-        }
-
-        sceneRef.current = scene;
-        root.dataset.sceneReady = "true";
-        setSceneActive();
-        scheduleScrollEffects();
-      } catch (error) {
-        sceneLoadStarted = false;
-        console.warn("3D scene unavailable:", error);
-      }
-    };
-
-    const scheduleSceneLoad = () => {
-      if (disposed || reducedMotion || !heroVisible || sceneLoadStarted || cancelIdleSceneLoad) return;
-      cancelIdleSceneLoad = scheduleIdle(() => void loadScene());
-    };
-
-    const disposeScene = () => {
-      cancelIdleSceneLoad?.();
-      cancelIdleSceneLoad = null;
-      sceneRef.current?.dispose();
-      sceneRef.current = null;
-      sceneLoadStarted = false;
-      root.dataset.sceneReady = "false";
-      root.dataset.sceneActive = "false";
-      canvas.style.opacity = "0";
-    };
-
-    const heroObserver = new IntersectionObserver(
-      ([entry]) => {
-        heroVisible = entry?.isIntersecting ?? false;
-        if (heroVisible) {
-          scheduleSceneLoad();
-        } else {
-          cancelIdleSceneLoad?.();
-          cancelIdleSceneLoad = null;
-        }
-        setSceneActive();
-        scheduleScrollEffects();
-      },
-      { threshold: 0.01 }
-    );
-    heroObserver.observe(hero);
 
     const sectionObserver = new IntersectionObserver(
       (entries) => {
@@ -206,21 +118,13 @@ export function useLandingEffects(refs: LandingEffectsRefs): void {
 
     const reducedMotionQuery = window.matchMedia(REDUCED_MOTION_QUERY);
     const onReducedMotionChange = (event: MediaQueryListEvent) => {
-      reducedMotion = event.matches;
-      if (reducedMotion) {
-        revealElements.forEach((element) => {
-          element.dataset.revealed = "true";
-          element.dataset.inView = "true";
-        });
-        disposeScene();
-      } else {
-        scheduleSceneLoad();
-      }
+      if (!event.matches) return;
+      revealElements.forEach((element) => {
+        element.dataset.revealed = "true";
+        element.dataset.inView = "true";
+      });
     };
     reducedMotionQuery.addEventListener("change", onReducedMotionChange);
-
-    const onVisibilityChange = () => setSceneActive();
-    document.addEventListener("visibilitychange", onVisibilityChange);
 
     const onScroll = () => {
       pointerRectCache = new WeakMap<HTMLElement, DOMRect>();
@@ -347,15 +251,11 @@ export function useLandingEffects(refs: LandingEffectsRefs): void {
     scheduleScrollEffects();
 
     return () => {
-      disposed = true;
-      cancelIdleSceneLoad?.();
       if (scrollFrame) cancelAnimationFrame(scrollFrame);
       if (pointerFrame) cancelAnimationFrame(pointerFrame);
-      heroObserver.disconnect();
       sectionObserver.disconnect();
       revealObserver.disconnect();
       reducedMotionQuery.removeEventListener("change", onReducedMotionChange);
-      document.removeEventListener("visibilitychange", onVisibilityChange);
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", onResize);
       if (pointerEffectsEnabled) {
@@ -365,8 +265,6 @@ export function useLandingEffects(refs: LandingEffectsRefs): void {
       }
       resetMagnetic(activeMagnetic);
       resetTilt(activeTilt);
-      sceneRef.current?.dispose();
-      sceneRef.current = null;
     };
-  }, [rootRef, heroRef, canvasRef, progressRef, ringRef, scrollHintRef, backTopRef]);
+  }, [rootRef, canvasRef, progressRef, ringRef, scrollHintRef, backTopRef, sceneRef]);
 }

@@ -315,7 +315,22 @@ export const landingUi = {
   statYears: { en: "Years building software", la: "ປີແຫ່ງການສ້າງຊອບແວ" },
   statSystems: { en: "Systems in production", la: "ລະບົບທີ່ໃຊ້ງານຈິງ" },
   statServices: { en: "Service areas", la: "ຂອບເຂດການບໍລິການ" },
-  backTop: { en: "Back to top", la: "ກັບຄືນເທິງສຸດ" }
+  backTop: { en: "Back to top", la: "ກັບຄືນເທິງສຸດ" },
+  qualityTitle: { en: "Graphics quality", la: "ຄຸນນະພາບພາບກຣາຟິກ" },
+  qualityAuto: { en: "Auto", la: "ອັດຕະໂນມັດ" },
+  qualityAutoHint: { en: "Match this device", la: "ປັບຕາມເຄື່ອງນີ້" },
+  qualityLow: { en: "Low", la: "ຕ່ຳ" },
+  qualityLowHint: { en: "Saves battery", la: "ປະຢັດແບັດເຕີຣີ" },
+  qualityMedium: { en: "Medium", la: "ປານກາງ" },
+  qualityMediumHint: { en: "Balanced", la: "ສົມດຸນ" },
+  qualityHigh: { en: "High", la: "ສູງ" },
+  qualityHighHint: { en: "Sharp on retina screens", la: "ຄົມຊັດເທິງຈໍລະອຽດສູງ" },
+  qualityUltra: { en: "Ultra", la: "ສູງສຸດ" },
+  qualityUltraHint: { en: "Full resolution, needs a strong GPU", la: "ຄວາມລະອຽດເຕັມ ຕ້ອງການ GPU ແຮງ" },
+  qualityFps: { en: "FPS", la: "FPS" },
+  qualityStatsHint: { en: "Live frame rate and render scale", la: "ເຟຣມເຣດ ແລະ ຄວາມລະອຽດຈິງ" },
+  qualityAdaptive: { en: "Auto-scaled to", la: "ປັບຄວາມລະອຽດເປັນ" },
+  qualityOff: { en: "Scene paused", la: "ຢຸດສາກຊົ່ວຄາວ" }
 } as const satisfies Record<string, LocalizedText>;
 
 export type LandingUiKey = keyof typeof landingUi;

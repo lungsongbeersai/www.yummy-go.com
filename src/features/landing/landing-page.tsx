@@ -7,6 +7,7 @@ import { useAppStore } from "@/stores/app-store";
 import { landingUi, pickText } from "./landing-data";
 import styles from "./landing.module.css";
 import { useLandingEffects } from "./use-landing-effects";
+import { useLandingScene } from "./use-landing-scene";
 import { LandingAbout } from "./sections/landing-about";
 import { LandingContact } from "./sections/landing-contact";
 import { LandingFooter } from "./sections/landing-footer";
@@ -41,14 +42,20 @@ export function LandingPage({ className }: LandingPageProps) {
   const scrollHintRef = useRef<HTMLDivElement>(null);
   const backTopRef = useRef<HTMLButtonElement>(null);
 
-  useLandingEffects({
+  const { sceneRef, tier, canvasKey, subscribeStats } = useLandingScene({
     rootRef,
     heroRef,
+    canvasRef
+  });
+
+  useLandingEffects({
+    rootRef,
     canvasRef,
     progressRef,
     ringRef,
     scrollHintRef,
-    backTopRef
+    backTopRef,
+    sceneRef
   });
 
   const backTopLabel = pickText(landingUi.backTop, language);
@@ -60,8 +67,10 @@ export function LandingPage({ className }: LandingPageProps) {
       data-scene-ready="false"
       data-scene-active="false"
     >
-      {/* ฉาก WebGL แบบโต้ตอบได้ (fixed อยู่หลังทุกอย่าง) */}
-      <canvas ref={canvasRef} className={styles.canvas3d} />
+      {/* ฉาก WebGL แบบโต้ตอบได้ (fixed อยู่หลังทุกอย่าง)
+          key ผูกกับ tier เพราะ antialias ตั้งได้ตอนสร้าง WebGL context เท่านั้น
+          และ forceContextLoss() ทำให้ขอ context ใหม่บน canvas เดิมไม่ได้ — ต้อง remount */}
+      <canvas key={canvasKey} ref={canvasRef} className={styles.canvas3d} />
       <div ref={progressRef} className={styles.progressBar} />
       <div ref={ringRef} className={styles.cursorRing} />
       <div className={styles.grain} />
@@ -87,6 +96,8 @@ export function LandingPage({ className }: LandingPageProps) {
         language={language}
         onSetLanguage={setLanguage}
         loginHref={loginHref}
+        sceneTier={tier}
+        subscribeSceneStats={subscribeStats}
       />
 
       <div className={styles.content}>

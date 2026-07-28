@@ -5,20 +5,27 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import type { Language } from "@/lib/language";
+import type { SceneTier } from "@/lib/scene-quality";
 import { landingCompany, landingNavigation, landingUi, pickText } from "../landing-data";
+import type { SceneStatsListener } from "../use-landing-scene";
 import styles from "../landing.module.css";
 import { LandingLangSwitch } from "./landing-lang-switch";
+import { LandingQualitySwitch } from "./landing-quality-switch";
 
 interface LandingHeaderProps {
   language: Language;
   onSetLanguage: (language: Language) => void;
   loginHref: Route;
+  sceneTier: SceneTier | null;
+  subscribeSceneStats: (listener: SceneStatsListener) => () => void;
 }
 
 export function LandingHeader({
   language,
   onSetLanguage,
-  loginHref
+  loginHref,
+  sceneTier,
+  subscribeSceneStats
 }: LandingHeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const text = (key: keyof typeof landingUi) => pickText(landingUi[key], language);
@@ -54,6 +61,11 @@ export function LandingHeader({
           ))}
         </nav>
         <div className={styles.headerActions}>
+          <LandingQualitySwitch
+            language={language}
+            tier={sceneTier}
+            subscribeStats={subscribeSceneStats}
+          />
           <LandingLangSwitch language={language} onSetLanguage={onSetLanguage} />
           <Link href={loginHref} className={styles.loginBtn} data-magnetic>
             {text("btnLogin")}
