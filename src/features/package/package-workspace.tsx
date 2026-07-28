@@ -37,9 +37,10 @@ import type { PackageSortingScope } from "@/stores/package-store";
 
 interface PackageWorkspaceProps {
   billingCycles: BillingCycle[];
-  error: string | null;
   hasLoaded: boolean;
+  hasUsableData: boolean;
   language: Language;
+  loadError: string | null;
   loading: boolean;
   packages: PackageItem[];
   page: number;
@@ -72,9 +73,10 @@ interface PackageWorkspaceProps {
 
 export function PackageWorkspace({
   billingCycles,
-  error,
   hasLoaded,
+  hasUsableData,
   language,
+  loadError,
   loading,
   packages,
   page,
@@ -102,7 +104,8 @@ export function PackageWorkspace({
   onSelectPlan,
 }: PackageWorkspaceProps) {
   const { t } = useTranslation();
-  const initialLoading = !hasLoaded && !error;
+  const blockingLoadError = Boolean(loadError && !hasUsableData);
+  const initialLoading = !hasUsableData && !loadError;
   const navigatorProps = {
     billingCycles,
     planGroups,
@@ -118,30 +121,32 @@ export function PackageWorkspace({
 
   return (
     <section className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <div className="shrink-0 border-b border-border bg-card/80 lg:hidden">
-        {initialLoading ? (
-          <MobileNavigatorSkeleton />
-        ) : (
-          <PackageMobileNavigator {...navigatorProps} />
-        )}
-      </div>
+      {blockingLoadError ? null : (
+        <div className="shrink-0 border-b border-border bg-card/80 lg:hidden">
+          {initialLoading ? (
+            <MobileNavigatorSkeleton />
+          ) : (
+            <PackageMobileNavigator {...navigatorProps} />
+          )}
+        </div>
+      )}
 
-      {error && !hasLoaded ? (
+      {loadError ? (
         <div className="shrink-0 px-3 pt-3 sm:px-4 lg:px-5">
           <Alert variant="destructive">
             <TriangleAlert aria-hidden="true" />
             <AlertTitle>{t("packageManagement.loadFailed")}</AlertTitle>
             <AlertDescription>
-              <p>{error}</p>
+              <p>{loadError}</p>
               <Button
                 type="button"
                 size="sm"
                 variant="outline"
                 className="h-11 sm:h-8"
-                disabled={loading}
+                disabled={loading || refreshing}
                 onClick={onRetry}
               >
-                {loading ? (
+                {loading || refreshing ? (
                   <Spinner data-icon="inline-start" />
                 ) : (
                   <RefreshCw data-icon="inline-start" />
@@ -166,7 +171,7 @@ export function PackageWorkspace({
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain touch-pan-y">
         {initialLoading ? (
           <WorkspaceSkeleton />
-        ) : (
+        ) : blockingLoadError ? null : (
           <div className="min-h-full lg:grid lg:grid-cols-[21rem_minmax(0,1fr)]">
             <PackageDesktopNavigator {...navigatorProps} />
 
@@ -209,7 +214,7 @@ export function PackageWorkspace({
                     />
                   ))}
                 </div>
-              ) : error && !hasLoaded ? null : (
+              ) : (
                 <PackageEmptyState
                   filtered={Boolean(search.trim()) || status !== "all"}
                   scoped={total > 0}
@@ -222,7 +227,7 @@ export function PackageWorkspace({
         )}
       </div>
 
-      {hasLoaded ? (
+      {hasLoaded && hasUsableData ? (
         <footer className="w-full shrink-0 border-t border-border bg-card px-3 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:px-4 lg:px-5">
           <AppPagination
             compact
