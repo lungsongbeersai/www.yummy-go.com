@@ -63,7 +63,7 @@ describe("package payload builders", () => {
         nameEn: "Updated",
         price: 0,
         status: 0,
-        language: "eng",
+        language: "EN",
         details: [
           { id: "detail-1", nameLa: "ລາຍລະອຽດເກົ່າ", nameEn: "Existing detail", status: 1 },
           { nameLa: "ລາຍລະອຽດໃໝ່", nameEn: "New detail", status: 0 }

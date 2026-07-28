@@ -1,4 +1,5 @@
 import { ServiceError } from "@/lib/api";
+import { toApiLanguage } from "@/lib/language";
 import { numberValue } from "@/services/shared/normalize";
 import { requiredItems, requiredText, requiredUuid } from "@/services/shared/validators";
 import type {
@@ -76,7 +77,7 @@ export function buildSavePackagePayload(input: SavePackageInput): SavePackagePay
     package_name_eng: requiredText(input.nameEn, "package name eng"),
     package_price: validPrice(input.price),
     package_status: normalizedStatus(input.status),
-    lang: input.language === "eng" || input.language === "en" ? "eng" : "la",
+    lang: toApiLanguage(input.language),
     details: requiredItems(input.details, "details").map(buildDetailPayload)
   };
 }
