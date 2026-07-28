@@ -1,15 +1,21 @@
-import type { Category } from "@/services/category";
-import type { SaveProductInput, SizeOption } from "@/services/product";
-import type { Size } from "@/services/size";
-import type { Unit } from "@/services/unit";
 import {
   categoryUuid,
   generateProdCode,
   sizeUuid,
   unitUuid,
 } from "@/features/product/form/product-form-utils";
+import type { Category } from "@/services/category";
+import type {
+  Product,
+  SaveProductInput,
+  SizeOption,
+} from "@/services/product";
+import type { Size } from "@/services/size";
+import type { Unit } from "@/services/unit";
+import type { ProductImportReferenceNames } from "@/stores/product-store/import-references";
 
 export type ProductImportType = "normal" | "set";
+export type ProductImportExecutionStatus = "pending" | "succeeded" | "failed";
 
 export interface ProductImportSheetRow {
   rowNumber: number;
@@ -19,6 +25,13 @@ export interface ProductImportSheetRow {
 export interface ProductImportWorkbookRows {
   Normal?: ProductImportSheetRow[];
   Set?: ProductImportSheetRow[];
+}
+
+export interface ProductImportDraftDetail {
+  rowNumber: number;
+  referenceName: string;
+  costPrice: number;
+  salePrice: number;
 }
 
 export interface ProductImportDraft {
@@ -31,11 +44,20 @@ export interface ProductImportDraft {
   productNameEng: string;
   categoryName: string;
   unitName: string;
+  sizeNames: string[];
+  details: ProductImportDraftDetail[];
   detailCount: number;
   salePrice: number;
+  validationErrors: string[];
+  /**
+   * Compatibility alias while the import UI moves execution failures out of
+   * validation state in Task 3.
+   */
   errors: string[];
   warnings: string[];
   payload: SaveProductInput | null;
+  executionStatus: ProductImportExecutionStatus;
+  executionError: string;
 }
 
 export interface ProductImportReferences {
@@ -54,6 +76,21 @@ export interface ProductImportMessages {
   sizeNotFound: (row: number, name: string) => string;
   setOptionNotFound: (row: number, name: string) => string;
   multipleSetPrices: () => string;
+  duplicateCode?: (code: string) => string;
+  duplicateName?: (name: string) => string;
+}
+
+export interface ProductImportAnalysisInput {
+  workbook: ProductImportWorkbookRows;
+  branchUuid: string;
+  existingProducts: Product[];
+  generatedCodeSeed: string;
+  messages?: ProductImportMessages;
+}
+
+export interface ProductImportAnalysis {
+  drafts: ProductImportDraft[];
+  referenceNames: ProductImportReferenceNames;
 }
 
 const DEFAULT_COLOR = "#10B981";
@@ -85,6 +122,12 @@ const SET_HEADERS = [
 type NormalHeader = (typeof NORMAL_HEADERS)[number];
 type SetHeader = (typeof SET_HEADERS)[number];
 
+interface NormalizedImportRow<H extends string> {
+  productIndex: number;
+  rowNumber: number;
+  values: Record<H, string>;
+}
+
 const DEFAULT_IMPORT_MESSAGES: ProductImportMessages = {
   required: (field) => `${field} is required`,
   rowRequired: (row, field) => `Row ${row}: ${field} is required`,
@@ -92,15 +135,22 @@ const DEFAULT_IMPORT_MESSAGES: ProductImportMessages = {
   unitNotFound: (name) => `Unit not found: ${name}`,
   sizeNotFound: (row, name) => `Row ${row}: Size not found: ${name}`,
   setOptionNotFound: (row, name) => `Row ${row}: Set option not found: ${name}`,
-  multipleSetPrices: () => "Set has multiple Set Price values. The first price will be used.",
+  multipleSetPrices: () =>
+    "Set has multiple Set Price values. The first price will be used.",
+  duplicateCode: (code) => `Duplicate product code: ${code}`,
+  duplicateName: (name) => `Duplicate product name: ${name}`,
 };
 
 function cleanText(value: unknown) {
-  return String(value ?? "").replace(/\s+/g, " ").trim();
+  return String(value ?? "").replace(/\s+/gu, " ").trim();
 }
 
-function keyText(value: unknown) {
-  return cleanText(value).toLocaleLowerCase("lo");
+export function normalizeProductImportKey(value: unknown): string {
+  return String(value ?? "")
+    .normalize("NFKC")
+    .replace(/\s+/gu, " ")
+    .trim()
+    .toLocaleLowerCase("lo");
 }
 
 function numberValue(value: unknown) {
@@ -109,16 +159,10 @@ function numberValue(value: unknown) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-// function firstText(row: Record<string, unknown>, keys: string[]) {
-//   for (const key of keys) {
-//     const value = cleanText(row[key]);
-//     if (value) return value;
-//   }
-//   return "";
-// }
-
 function optionLabel(row: Record<string, unknown>, keys: string[]) {
-  return keys.map((key) => keyText(row[key])).filter(Boolean);
+  return keys
+    .map((key) => normalizeProductImportKey(row[key]))
+    .filter(Boolean);
 }
 
 function matchOption<T extends Record<string, unknown>>(
@@ -127,56 +171,119 @@ function matchOption<T extends Record<string, unknown>>(
   keys: string[],
   rowId: (row: T | null | undefined) => string,
 ) {
-  const target = keyText(value);
+  const target = normalizeProductImportKey(value);
   if (!target) return "";
   const match = rows.find((row) => optionLabel(row, keys).includes(target));
   return rowId(match);
 }
 
-function required(value: string, label: string, errors: string[], messages: ProductImportMessages) {
+function required(
+  value: string,
+  label: string,
+  errors: string[],
+  messages: ProductImportMessages,
+) {
   if (!value) errors.push(messages.required(label));
 }
 
-function rowRequired(value: string, row: number, label: string, errors: string[], messages: ProductImportMessages) {
+function rowRequired(
+  value: string,
+  row: number,
+  label: string,
+  errors: string[],
+  messages: ProductImportMessages,
+) {
   if (!value) errors.push(messages.rowRequired(row, label));
 }
 
-function makeGroupKey(type: ProductImportType, code: string, nameLa: string, nameEng: string, category: string, unit: string) {
-  return [type, code || nameLa, nameEng, category, unit].map(keyText).join("::");
-}
-
-function displayCode(code: string, index: number) {
-  return code || `${generateProdCode()}-${index + 1}`;
-}
-
-function normalizeRows<H extends string>(rows: ProductImportSheetRow[] | undefined, headers: readonly H[]) {
-  const normalized: Array<{ rowNumber: number; values: Record<H, string> }> = [];
-  const previous: Partial<Record<H, string>> = {};
+function normalizeRows<H extends string>(
+  rows: ProductImportSheetRow[] | undefined,
+  headers: readonly H[],
+  identityHeaders: readonly H[],
+  inheritedHeaders: readonly H[],
+) {
+  const normalized: NormalizedImportRow<H>[] = [];
+  let previous: Partial<Record<H, string>> = {};
+  let productIndex = -1;
 
   rows?.forEach((row) => {
-    const firstCell = cleanText(row.values[headers[0]]);
-    const values = {} as Record<H, string>;
+    const directValues = {} as Record<H, string>;
     headers.forEach((header) => {
-      const text = cleanText(row.values[header]);
-      values[header] = text || previous[header] || "";
+      directValues[header] = cleanText(row.values[header]);
     });
 
-    const hasAnyValue = headers.some((header) => cleanText(row.values[header]));
+    const hasAnyValue = headers.some((header) => directValues[header]);
     if (!hasAnyValue) return;
-    if (/^(enter |import defaults:)/i.test(firstCell)) return;
+    if (/^(enter |import defaults:)/i.test(directValues[headers[0]])) return;
 
-    headers.forEach((header) => {
-      const directValue = cleanText(row.values[header]);
-      if (directValue) previous[header] = directValue;
+    const startsProduct =
+      productIndex < 0 ||
+      identityHeaders.some((header) => Boolean(directValues[header]));
+    if (startsProduct) {
+      productIndex += 1;
+      previous = {};
+    }
+
+    const values = { ...directValues };
+    inheritedHeaders.forEach((header) => {
+      if (!values[header]) values[header] = previous[header] ?? "";
     });
-    normalized.push({ rowNumber: row.rowNumber, values });
+    inheritedHeaders.forEach((header) => {
+      if (values[header]) previous[header] = values[header];
+    });
+
+    normalized.push({ productIndex, rowNumber: row.rowNumber, values });
   });
 
   return normalized;
 }
 
-export function sheetRowsFromAoA(rows: unknown[][], headers: readonly string[]): ProductImportSheetRow[] {
-  const headerIndex = rows.findIndex((row) => headers.every((header) => row.map(cleanText).includes(header)));
+function normalizedNormalRows(rows: ProductImportSheetRow[] | undefined) {
+  return normalizeRows(
+    rows,
+    NORMAL_HEADERS,
+    ["Product Code", "Product Name (Lao)", "Product Name (English)"],
+    [
+      "Product Code",
+      "Product Name (Lao)",
+      "Product Name (English)",
+      "Category",
+      "Unit",
+    ],
+  );
+}
+
+function normalizedSetRows(rows: ProductImportSheetRow[] | undefined) {
+  return normalizeRows(
+    rows,
+    SET_HEADERS,
+    ["Product Code", "Set Name (Lao)", "Set Name (English)"],
+    [
+      "Product Code",
+      "Set Name (Lao)",
+      "Set Name (English)",
+      "Category",
+      "Unit",
+      "Set Price",
+    ],
+  );
+}
+
+function groupRows<H extends string>(rows: NormalizedImportRow<H>[]) {
+  const groups = new Map<number, NormalizedImportRow<H>[]>();
+  rows.forEach((row) => {
+    groups.set(row.productIndex, [...(groups.get(row.productIndex) ?? []), row]);
+  });
+  return [...groups.values()];
+}
+
+export function sheetRowsFromAoA(
+  rows: unknown[][],
+  headers: readonly string[],
+): ProductImportSheetRow[] {
+  const headerIndex = rows.findIndex((row) =>
+    headers.every((header) => row.map(cleanText).includes(header)),
+  );
   if (headerIndex < 0) return [];
 
   const headerRow = rows[headerIndex].map(cleanText);
@@ -189,192 +296,443 @@ export function sheetRowsFromAoA(rows: unknown[][], headers: readonly string[]):
   });
 }
 
+function uniqueImportNames(values: string[]) {
+  const names = new Map<string, string>();
+  values.forEach((value) => {
+    const cleaned = cleanText(value);
+    const key = normalizeProductImportKey(cleaned);
+    if (key && !names.has(key)) names.set(key, cleaned);
+  });
+  return [...names.values()];
+}
+
+function pushUnique(target: string[], value: string) {
+  if (value && !target.includes(value)) target.push(value);
+}
+
+function createDrafts(
+  workbook: ProductImportWorkbookRows,
+  branchUuid: string,
+  messages: ProductImportMessages,
+) {
+  const drafts: ProductImportDraft[] = [];
+
+  groupRows(normalizedNormalRows(workbook.Normal)).forEach((rows) => {
+    const first = rows[0]?.values;
+    if (!first) return;
+    const validationErrors: string[] = [];
+    const details = rows.map((row) => {
+      const referenceName = row.values["Size Name"];
+      rowRequired(
+        referenceName,
+        row.rowNumber,
+        "Size Name",
+        validationErrors,
+        messages,
+      );
+      return {
+        rowNumber: row.rowNumber,
+        referenceName,
+        costPrice: numberValue(row.values["Cost Price"]),
+        salePrice: numberValue(row.values["Sale Price"]),
+      };
+    });
+
+    required(
+      first["Product Name (Lao)"],
+      "Product Name (Lao)",
+      validationErrors,
+      messages,
+    );
+    required(first.Category, "Category", validationErrors, messages);
+    required(first.Unit, "Unit", validationErrors, messages);
+
+    drafts.push({
+      key: `normal-row-${rows[0]?.rowNumber ?? drafts.length}`,
+      type: "normal",
+      sheetName: "Normal",
+      rowNumbers: rows.map((row) => row.rowNumber),
+      productCode: first["Product Code"],
+      productNameLa: first["Product Name (Lao)"],
+      productNameEng:
+        first["Product Name (English)"] || first["Product Name (Lao)"],
+      categoryName: first.Category,
+      unitName: first.Unit,
+      sizeNames: uniqueImportNames(
+        details.map((detail) => detail.referenceName),
+      ),
+      details,
+      detailCount: details.length,
+      salePrice: details[0]?.salePrice ?? 0,
+      validationErrors,
+      errors: validationErrors,
+      warnings: [],
+      payload: null,
+      executionStatus: "pending",
+      executionError: "",
+    });
+  });
+
+  groupRows(normalizedSetRows(workbook.Set)).forEach((rows) => {
+    const first = rows[0]?.values;
+    if (!first) return;
+    const validationErrors: string[] = [];
+    const setPrices = rows.map((row) => numberValue(row.values["Set Price"]));
+    const setPrice = setPrices[0] ?? 0;
+    const details = rows.map((row) => {
+      const referenceName = row.values["Set Option / Product Name"];
+      rowRequired(
+        referenceName,
+        row.rowNumber,
+        "Set Option / Product Name",
+        validationErrors,
+        messages,
+      );
+      return {
+        rowNumber: row.rowNumber,
+        referenceName,
+        costPrice: numberValue(row.values["Cost Price"]),
+        salePrice: numberValue(row.values["Set Price"]),
+      };
+    });
+
+    required(
+      first["Set Name (Lao)"],
+      "Set Name (Lao)",
+      validationErrors,
+      messages,
+    );
+    required(first.Category, "Category", validationErrors, messages);
+    required(first.Unit, "Unit", validationErrors, messages);
+
+    const warnings =
+      new Set(setPrices).size > 1 ? [messages.multipleSetPrices()] : [];
+    drafts.push({
+      key: `set-row-${rows[0]?.rowNumber ?? drafts.length}`,
+      type: "set",
+      sheetName: "Set",
+      rowNumbers: rows.map((row) => row.rowNumber),
+      productCode: first["Product Code"],
+      productNameLa: first["Set Name (Lao)"],
+      productNameEng:
+        first["Set Name (English)"] || first["Set Name (Lao)"],
+      categoryName: first.Category,
+      unitName: first.Unit,
+      sizeNames: uniqueImportNames(
+        details.map((detail) => detail.referenceName),
+      ),
+      details,
+      detailCount: details.length,
+      salePrice: setPrice,
+      validationErrors,
+      errors: validationErrors,
+      warnings,
+      payload: null,
+      executionStatus: "pending",
+      executionError: "",
+    });
+  });
+
+  return drafts.map((draft) => ({
+    ...draft,
+    payload: draft.validationErrors.length
+      ? null
+      : buildDraftPayload(draft, branchUuid, "", "", () => ""),
+  }));
+}
+
+function productNameKeys(product: Product) {
+  return uniqueImportNames([
+    cleanText(product.prod_name),
+    cleanText(product.prod_name_la),
+    cleanText(product.prod_name_eng),
+  ]).map(normalizeProductImportKey);
+}
+
+function appendDuplicateErrors(
+  drafts: ProductImportDraft[],
+  existingProducts: Product[],
+  messages: ProductImportMessages,
+) {
+  const existingCodes = new Set(
+    existingProducts
+      .map((product) => normalizeProductImportKey(product.prod_code))
+      .filter(Boolean),
+  );
+  const existingNames = new Set(existingProducts.flatMap(productNameKeys));
+  const workbookCodeCounts = new Map<string, number>();
+  const workbookNameCounts = new Map<string, number>();
+
+  drafts.forEach((draft) => {
+    const codeKey = normalizeProductImportKey(draft.productCode);
+    if (codeKey) {
+      workbookCodeCounts.set(
+        codeKey,
+        (workbookCodeCounts.get(codeKey) ?? 0) + 1,
+      );
+    }
+    new Set(
+      [draft.productNameLa, draft.productNameEng]
+        .map(normalizeProductImportKey)
+        .filter(Boolean),
+    ).forEach((nameKey) => {
+      workbookNameCounts.set(
+        nameKey,
+        (workbookNameCounts.get(nameKey) ?? 0) + 1,
+      );
+    });
+  });
+
+  drafts.forEach((draft) => {
+    const codeKey = normalizeProductImportKey(draft.productCode);
+    if (
+      codeKey &&
+      (existingCodes.has(codeKey) || (workbookCodeCounts.get(codeKey) ?? 0) > 1)
+    ) {
+      pushUnique(
+        draft.validationErrors,
+        messages.duplicateCode?.(draft.productCode) ??
+          DEFAULT_IMPORT_MESSAGES.duplicateCode?.(draft.productCode) ??
+          `Duplicate product code: ${draft.productCode}`,
+      );
+    }
+
+    const draftNames = new Map<string, string>();
+    [draft.productNameLa, draft.productNameEng].forEach((name) => {
+      const nameKey = normalizeProductImportKey(name);
+      if (nameKey && !draftNames.has(nameKey)) draftNames.set(nameKey, name);
+    });
+    draftNames.forEach((name, nameKey) => {
+      if (
+        existingNames.has(nameKey) ||
+        (workbookNameCounts.get(nameKey) ?? 0) > 1
+      ) {
+        pushUnique(
+          draft.validationErrors,
+          messages.duplicateName?.(name) ??
+            DEFAULT_IMPORT_MESSAGES.duplicateName?.(name) ??
+            `Duplicate product name: ${name}`,
+        );
+      }
+    });
+
+    draft.errors = draft.validationErrors;
+    if (draft.validationErrors.length) draft.payload = null;
+  });
+}
+
+function assignGeneratedCodes(
+  drafts: ProductImportDraft[],
+  existingProducts: Product[],
+  generatedCodeSeed: string,
+) {
+  const reservedCodes = new Set(
+    existingProducts
+      .map((product) => normalizeProductImportKey(product.prod_code))
+      .filter(Boolean),
+  );
+  drafts.forEach((draft) => {
+    const codeKey = normalizeProductImportKey(draft.productCode);
+    if (codeKey) reservedCodes.add(codeKey);
+  });
+
+  const seed = cleanText(generatedCodeSeed) || "IMPORT";
+  let sequence = 1;
+  drafts.forEach((draft) => {
+    if (draft.productCode) return;
+    let candidate = `${seed}-${sequence}`;
+    while (reservedCodes.has(normalizeProductImportKey(candidate))) {
+      sequence += 1;
+      candidate = `${seed}-${sequence}`;
+    }
+    draft.productCode = candidate;
+    reservedCodes.add(normalizeProductImportKey(candidate));
+    sequence += 1;
+  });
+}
+
+function referenceNamesFromDrafts(
+  drafts: ProductImportDraft[],
+): ProductImportReferenceNames {
+  const validDrafts = drafts.filter(
+    (draft) => draft.validationErrors.length === 0,
+  );
+  return {
+    categoryNames: uniqueImportNames(
+      validDrafts.map((draft) => draft.categoryName),
+    ),
+    unitNames: uniqueImportNames(validDrafts.map((draft) => draft.unitName)),
+    normalSizeNames: uniqueImportNames(
+      validDrafts
+        .filter((draft) => draft.type === "normal")
+        .flatMap((draft) =>
+          draft.details.map((detail) => detail.referenceName),
+        ),
+    ),
+    setSizeNames: uniqueImportNames(
+      validDrafts
+        .filter((draft) => draft.type === "set")
+        .flatMap((draft) =>
+          draft.details.map((detail) => detail.referenceName),
+        ),
+    ),
+  };
+}
+
+export function analyzeProductImportWorkbook({
+  workbook,
+  branchUuid,
+  existingProducts,
+  generatedCodeSeed,
+  messages = DEFAULT_IMPORT_MESSAGES,
+}: ProductImportAnalysisInput): ProductImportAnalysis {
+  const drafts = createDrafts(workbook, branchUuid, messages);
+  assignGeneratedCodes(drafts, existingProducts, generatedCodeSeed);
+  appendDuplicateErrors(drafts, existingProducts, messages);
+
+  drafts.forEach((draft) => {
+    if (!draft.validationErrors.length) {
+      draft.payload = buildDraftPayload(draft, branchUuid, "", "", () => "");
+    }
+  });
+
+  return {
+    drafts,
+    referenceNames: referenceNamesFromDrafts(drafts),
+  };
+}
+
+export function productImportReferenceNames(
+  workbook: ProductImportWorkbookRows,
+): ProductImportReferenceNames {
+  return analyzeProductImportWorkbook({
+    workbook,
+    branchUuid: "",
+    existingProducts: [],
+    generatedCodeSeed: "IMPORT",
+  }).referenceNames;
+}
+
+function buildDraftPayload(
+  draft: ProductImportDraft,
+  branchUuid: string,
+  categoryId: string,
+  unitId: string,
+  detailId: (detail: ProductImportDraftDetail) => string,
+): SaveProductInput {
+  const base = {
+    branch_uuid_fk: branchUuid,
+    cate_uuid_fk: categoryId,
+    unite_uuid_fk: unitId,
+    prod_code: draft.productCode,
+    prod_name_la: draft.productNameLa,
+    prod_name_eng: draft.productNameEng || draft.productNameLa,
+    prod_order_point: DEFAULT_ORDER_POINT,
+    prod_notification: 1,
+    status_sort_fk: draft.type === "set" ? 2 : 1,
+    prod_set_price: draft.type === "set" ? draft.salePrice : 0,
+    prod_status_imge: 2,
+    prod_image: DEFAULT_COLOR,
+    prod_topping_status: 1,
+    toppings: [],
+  };
+
+  if (draft.type === "set") {
+    return {
+      ...base,
+      details: draft.details.map((detail) => ({
+        size_uuid_fk: detailId(detail),
+        pro_detail_bprice: detail.costPrice,
+        pro_detail_qty_stock: DEFAULT_STOCK_QTY,
+        pro_detail_stock: 2,
+        pro_detail_enabled: 1,
+        pro_detail_status: 2,
+      })),
+    };
+  }
+
+  return {
+    ...base,
+    details: draft.details.map((detail) => ({
+      size_uuid_fk: detailId(detail),
+      pro_detail_bprice: detail.costPrice,
+      pro_detail_sprice: detail.salePrice,
+      pro_detail_qty_stock: DEFAULT_STOCK_QTY,
+      pro_detail_stock: 2,
+      pro_detail_enabled: 1,
+    })),
+  };
+}
+
 export function buildProductImportDrafts(
   workbook: ProductImportWorkbookRows,
   references: ProductImportReferences,
   messages: ProductImportMessages = DEFAULT_IMPORT_MESSAGES,
 ) {
-  const drafts: ProductImportDraft[] = [];
-  const categoryKeys = ["cate_name", "cate_name_la", "cate_name_eng", "category_name", "category_name_la", "category_name_eng"];
-  const unitKeys = ["unite_name", "unite_name_la", "unite_name_eng", "unit_name", "unit_name_la", "unit_name_eng"];
+  const analysis = analyzeProductImportWorkbook({
+    workbook,
+    branchUuid: references.branchUuid,
+    existingProducts: [],
+    generatedCodeSeed: generateProdCode(),
+    messages,
+  });
+  const categoryKeys = [
+    "cate_name",
+    "cate_name_la",
+    "cate_name_eng",
+    "category_name",
+    "category_name_la",
+    "category_name_eng",
+  ];
+  const unitKeys = [
+    "unite_name",
+    "unite_name_la",
+    "unite_name_eng",
+    "unit_name",
+    "unit_name_la",
+    "unit_name_eng",
+  ];
   const sizeKeys = ["size_name", "size_name_la", "size_name_eng"];
 
-  const normalGroups = new Map<string, Array<{ rowNumber: number; values: Record<NormalHeader, string> }>>();
-  normalizeRows(workbook.Normal, NORMAL_HEADERS).forEach((row) => {
-    const code = row.values["Product Code"];
-    const key = makeGroupKey(
-      "normal",
-      code,
-      row.values["Product Name (Lao)"],
-      row.values["Product Name (English)"],
-      row.values.Category,
-      row.values.Unit,
+  return analysis.drafts.map((draft) => {
+    if (draft.validationErrors.length) return draft;
+    const categoryId = matchOption(
+      references.categories,
+      draft.categoryName,
+      categoryKeys,
+      categoryUuid,
     );
-    normalGroups.set(key, [...(normalGroups.get(key) ?? []), row]);
-  });
-
-  Array.from(normalGroups.values()).forEach((rows, index) => {
-    const first = rows[0]?.values;
-    if (!first) return;
-    const errors: string[] = [];
-    const warnings: string[] = [];
-    const code = displayCode(first["Product Code"], drafts.length + index);
-    const categoryId = matchOption(references.categories, first.Category, categoryKeys, categoryUuid);
-    const unitId = matchOption(references.units, first.Unit, unitKeys, unitUuid);
-
-    required(first["Product Name (Lao)"], "Product Name (Lao)", errors, messages);
-    required(first.Category, "Category", errors, messages);
-    required(first.Unit, "Unit", errors, messages);
-    if (first.Category && !categoryId) errors.push(messages.categoryNotFound(first.Category));
-    if (first.Unit && !unitId) errors.push(messages.unitNotFound(first.Unit));
-
-    const details = rows.map((row) => {
-      const sizeNameValue = row.values["Size Name"];
-      const costPrice = numberValue(row.values["Cost Price"]);
-      const salePrice = numberValue(row.values["Sale Price"]);
-      const sizeId = matchOption(references.sizes, sizeNameValue, sizeKeys, sizeUuid);
-
-      rowRequired(sizeNameValue, row.rowNumber, "Size Name", errors, messages);
-      if (sizeNameValue && !sizeId) errors.push(messages.sizeNotFound(row.rowNumber, sizeNameValue));
-
-      return {
-        size_uuid_fk: sizeId,
-        pro_detail_bprice: costPrice,
-        pro_detail_sprice: salePrice,
-        pro_detail_qty_stock: DEFAULT_STOCK_QTY,
-        pro_detail_stock: 2,
-        pro_detail_enabled: 1,
-      };
-    });
-
-    drafts.push({
-      key: `normal-${drafts.length}`,
-      type: "normal",
-      sheetName: "Normal",
-      rowNumbers: rows.map((row) => row.rowNumber),
-      productCode: code,
-      productNameLa: first["Product Name (Lao)"],
-      productNameEng: first["Product Name (English)"] || first["Product Name (Lao)"],
-      categoryName: first.Category,
-      unitName: first.Unit,
-      detailCount: details.length,
-      salePrice: details[0]?.pro_detail_sprice ?? 0,
-      errors,
-      warnings,
-      payload: errors.length
-        ? null
-        : {
-            branch_uuid_fk: references.branchUuid,
-            cate_uuid_fk: categoryId,
-            unite_uuid_fk: unitId,
-            prod_code: code,
-            prod_name_la: first["Product Name (Lao)"],
-            prod_name_eng: first["Product Name (English)"] || first["Product Name (Lao)"],
-            prod_order_point: DEFAULT_ORDER_POINT,
-            prod_notification: 1,
-            status_sort_fk: 1,
-            prod_set_price: 0,
-            prod_status_imge: 2,
-            prod_image: DEFAULT_COLOR,
-            prod_topping_status: 1,
-            details,
-            toppings: [],
-          },
-    });
-  });
-
-  const setGroups = new Map<string, Array<{ rowNumber: number; values: Record<SetHeader, string> }>>();
-  normalizeRows(workbook.Set, SET_HEADERS).forEach((row) => {
-    const code = row.values["Product Code"];
-    const key = makeGroupKey(
-      "set",
-      code,
-      row.values["Set Name (Lao)"],
-      row.values["Set Name (English)"],
-      row.values.Category,
-      row.values.Unit,
+    const unitId = matchOption(
+      references.units,
+      draft.unitName,
+      unitKeys,
+      unitUuid,
     );
-    setGroups.set(key, [...(setGroups.get(key) ?? []), row]);
+    const detailRows =
+      draft.type === "set" ? references.setSizes : references.sizes;
+
+    return {
+      ...draft,
+      payload: buildDraftPayload(
+        draft,
+        references.branchUuid,
+        categoryId,
+        unitId,
+        (detail) =>
+          matchOption(detailRows, detail.referenceName, sizeKeys, sizeUuid),
+      ),
+    };
   });
-
-  Array.from(setGroups.values()).forEach((rows, index) => {
-    const first = rows[0]?.values;
-    if (!first) return;
-    const errors: string[] = [];
-    const warnings: string[] = [];
-    const code = displayCode(first["Product Code"], drafts.length + index);
-    const categoryId = matchOption(references.categories, first.Category, categoryKeys, categoryUuid);
-    const unitId = matchOption(references.units, first.Unit, unitKeys, unitUuid);
-    const setPrices = rows.map((row) => numberValue(row.values["Set Price"]));
-    const setPrice = setPrices[0] ?? 0;
-
-    required(first["Set Name (Lao)"], "Set Name (Lao)", errors, messages);
-    required(first.Category, "Category", errors, messages);
-    required(first.Unit, "Unit", errors, messages);
-    if (first.Category && !categoryId) errors.push(messages.categoryNotFound(first.Category));
-    if (first.Unit && !unitId) errors.push(messages.unitNotFound(first.Unit));
-    if (new Set(setPrices).size > 1) warnings.push(messages.multipleSetPrices());
-
-    const details = rows.map((row) => {
-      const optionName = row.values["Set Option / Product Name"];
-      const costPrice = numberValue(row.values["Cost Price"]);
-      const sizeId = matchOption(references.setSizes, optionName, sizeKeys, sizeUuid);
-
-      rowRequired(optionName, row.rowNumber, "Set Option / Product Name", errors, messages);
-      if (optionName && !sizeId) errors.push(messages.setOptionNotFound(row.rowNumber, optionName));
-
-      return {
-        size_uuid_fk: sizeId,
-        pro_detail_bprice: costPrice,
-        pro_detail_qty_stock: DEFAULT_STOCK_QTY,
-        pro_detail_stock: 2,
-        pro_detail_enabled: 1,
-        pro_detail_status: 2,
-      };
-    });
-
-    drafts.push({
-      key: `set-${drafts.length}`,
-      type: "set",
-      sheetName: "Set",
-      rowNumbers: rows.map((row) => row.rowNumber),
-      productCode: code,
-      productNameLa: first["Set Name (Lao)"],
-      productNameEng: first["Set Name (English)"] || first["Set Name (Lao)"],
-      categoryName: first.Category,
-      unitName: first.Unit,
-      detailCount: details.length,
-      salePrice: setPrice,
-      errors,
-      warnings,
-      payload: errors.length
-        ? null
-        : {
-            branch_uuid_fk: references.branchUuid,
-            cate_uuid_fk: categoryId,
-            unite_uuid_fk: unitId,
-            prod_code: code,
-            prod_name_la: first["Set Name (Lao)"],
-            prod_name_eng: first["Set Name (English)"] || first["Set Name (Lao)"],
-            prod_order_point: DEFAULT_ORDER_POINT,
-            prod_notification: 1,
-            status_sort_fk: 2,
-            prod_set_price: setPrice,
-            prod_status_imge: 2,
-            prod_image: DEFAULT_COLOR,
-            prod_topping_status: 1,
-            details,
-            toppings: [],
-          },
-    });
-  });
-
-  return drafts;
 }
 
 export function productImportSummary(drafts: ProductImportDraft[]) {
-  const ready = drafts.filter((draft) => draft.payload && !draft.errors.length).length;
+  const ready = drafts.filter(
+    (draft) => draft.payload && !draft.validationErrors.length,
+  ).length;
   const invalid = drafts.length - ready;
-  const warnings = drafts.reduce((sum, draft) => sum + draft.warnings.length, 0);
+  const warnings = drafts.reduce(
+    (sum, draft) => sum + draft.warnings.length,
+    0,
+  );
   return { total: drafts.length, ready, invalid, warnings };
 }
