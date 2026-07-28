@@ -61,11 +61,13 @@ export interface PackageState {
   total: number;
   totalPages: number;
   hasLoaded: boolean;
+  catalogReady: boolean;
   loading: boolean;
   refreshing: boolean;
   saving: boolean;
   sortingScope: PackageSortingScope;
   error: string | null;
+  loadError: string | null;
   loadCatalog: (
     query: PackageQuery,
     options?: PackageLoadOptions
@@ -109,6 +111,7 @@ type RequestOutcome<T> = FulfilledRequest<T> | RejectedRequest;
 
 let catalogLoadRequestId = 0;
 let packageLoadRequestId = 0;
+let loadStateRequestId = 0;
 let storeGeneration = 0;
 let loadOperationId = 0;
 let mutationOperationId = 0;
@@ -211,7 +214,7 @@ export const usePackageStore = create<PackageState>((set, get) => {
     try {
       await get().loadCatalog(query, { background: true });
     } catch {
-      // The write succeeded; refresh errors stay in store but must not trigger a duplicate write.
+      // The write succeeded; the catalog loader owns the refresh error state.
     }
   };
 
@@ -230,7 +233,7 @@ export const usePackageStore = create<PackageState>((set, get) => {
     try {
       await get().loadPackages(query, { background: true });
     } catch {
-      // The write succeeded; refresh errors stay in store but must not trigger a duplicate write.
+      // The write succeeded; the package loader owns the refresh error state.
     }
   };
 
@@ -244,24 +247,29 @@ export const usePackageStore = create<PackageState>((set, get) => {
     total: 0,
     totalPages: 1,
     hasLoaded: false,
+    catalogReady: false,
     loading: false,
     refreshing: false,
     saving: false,
     sortingScope: null,
     error: null,
+    loadError: null,
     loadCatalog: async (query, options) => {
       const operationGeneration = storeGeneration;
       const catalogRequestId = ++catalogLoadRequestId;
       const packageRequestId = ++packageLoadRequestId;
+      const requestId = ++loadStateRequestId;
       const isCurrentSession = createSessionGuard();
       const isCurrentOperation = () =>
         operationGeneration === storeGeneration && isCurrentSession();
-      const background = Boolean(options?.background && get().hasLoaded);
+      const isCurrentLoadStateRequest = () =>
+        requestId === loadStateRequestId && isCurrentOperation();
+      const background = Boolean(options?.background && get().catalogReady);
       const loadId = beginLoad(background);
       const queryKey = packageQueryKey(query);
 
       activePackageQueryKey = queryKey;
-      set({ error: null });
+      set({ loadError: null });
 
       try {
         const [
@@ -301,8 +309,6 @@ export const usePackageStore = create<PackageState>((set, get) => {
               methods: methodsResult.value,
               planGroups: planGroupsResult.value,
             });
-          } else if (isCurrentCatalogRequest && referenceFailure) {
-            set({ error: errorMessage(referenceFailure.reason) });
           }
 
           if (
@@ -318,18 +324,19 @@ export const usePackageStore = create<PackageState>((set, get) => {
               totalPages: packagePage.totalPages,
               hasLoaded: true,
             });
-          } else if (
-            isCurrentPackageRequest &&
-            packagePageResult.status === "rejected" &&
-            !referenceFailure
-          ) {
-            set({ error: errorMessage(packagePageResult.reason) });
           }
         }
 
         const requestFailure =
           referenceFailure ??
           (packagePageResult.status === "rejected" ? packagePageResult : null);
+        if (isCurrentLoadStateRequest()) {
+          set(
+            requestFailure
+              ? { loadError: errorMessage(requestFailure.reason) }
+              : { catalogReady: true, loadError: null }
+          );
+        }
         if (requestFailure) throw requestFailure.reason;
       } finally {
         finishLoad(loadId);
@@ -337,21 +344,24 @@ export const usePackageStore = create<PackageState>((set, get) => {
     },
     loadPackages: async (query, options) => {
       const operationGeneration = storeGeneration;
-      const requestId = ++packageLoadRequestId;
+      const packageRequestId = ++packageLoadRequestId;
+      const requestId = ++loadStateRequestId;
       const isCurrentSession = createSessionGuard();
       const isCurrentOperation = () =>
         operationGeneration === storeGeneration && isCurrentSession();
-      const background = Boolean(options?.background && get().hasLoaded);
+      const isCurrentLoadStateRequest = () =>
+        requestId === loadStateRequestId && isCurrentOperation();
+      const background = Boolean(options?.background && get().catalogReady);
       const loadId = beginLoad(background);
       const queryKey = packageQueryKey(query);
 
       activePackageQueryKey = queryKey;
-      set({ error: null });
+      set({ loadError: null });
 
       try {
         const packagePage = await fetchPackagePage(query);
         if (
-          requestId === packageLoadRequestId &&
+          packageRequestId === packageLoadRequestId &&
           activePackageQueryKey === queryKey &&
           isCurrentOperation()
         ) {
@@ -365,12 +375,8 @@ export const usePackageStore = create<PackageState>((set, get) => {
           });
         }
       } catch (error) {
-        if (
-          requestId === packageLoadRequestId &&
-          activePackageQueryKey === queryKey &&
-          isCurrentOperation()
-        ) {
-          set({ error: errorMessage(error) });
+        if (isCurrentLoadStateRequest()) {
+          set({ loadError: errorMessage(error) });
         }
         throw error;
       } finally {
@@ -561,6 +567,7 @@ export const usePackageStore = create<PackageState>((set, get) => {
       storeGeneration += 1;
       catalogLoadRequestId += 1;
       packageLoadRequestId += 1;
+      loadStateRequestId += 1;
       activePackageQueryKey = null;
       activeReorderOperationId = null;
       activeLoadOperations.clear();
@@ -575,11 +582,13 @@ export const usePackageStore = create<PackageState>((set, get) => {
         total: 0,
         totalPages: 1,
         hasLoaded: false,
+        catalogReady: false,
         loading: false,
         refreshing: false,
         saving: false,
         sortingScope: null,
         error: null,
+        loadError: null,
       });
     },
   };

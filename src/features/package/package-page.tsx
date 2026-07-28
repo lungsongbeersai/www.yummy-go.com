@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PackageCog } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { PackageToolbar, type PackageStatusFilter } from "@/features/package/package-toolbar";
@@ -29,11 +29,6 @@ import { useToastStore } from "@/stores/toast-store";
 
 const PACKAGE_PAGE_LIMIT_OPTIONS = [10, 20, 50];
 
-type CatalogLoadOutcome =
-  | { status: "success" }
-  | { status: "error"; message: string }
-  | { status: "stale" };
-
 export function PackagePage({
   initialPagination,
 }: {
@@ -48,10 +43,11 @@ export function PackagePage({
   const responseLimit = usePackageStore((state) => state.limit);
   const total = usePackageStore((state) => state.total);
   const totalPages = usePackageStore((state) => state.totalPages);
-  const hasLoaded = usePackageStore((state) => state.hasLoaded);
+  const catalogReady = usePackageStore((state) => state.catalogReady);
   const loading = usePackageStore((state) => state.loading);
   const refreshing = usePackageStore((state) => state.refreshing);
   const sortingScope = usePackageStore((state) => state.sortingScope);
+  const loadError = usePackageStore((state) => state.loadError);
   const loadCatalog = usePackageStore((state) => state.loadCatalog);
   const sortCycles = usePackageStore((state) => state.sortCycles);
   const sortPlans = usePackageStore((state) => state.sortPlans);
@@ -60,11 +56,8 @@ export function PackagePage({
   const [searchDraft, setSearchDraft] = useState("");
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<PackageStatusFilter>("all");
-  const [hasUsableData, setHasUsableData] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedCycleId, setSelectedCycleId] = useState("");
   const [selectedPlanId, setSelectedPlanId] = useState("");
-  const loadRequestIdRef = useRef(0);
   const {
     goToPage,
     limit: requestedLimit,
@@ -89,35 +82,6 @@ export function PackagePage({
     }),
     [language, pageLimit, queryStatus, requestedPage, search],
   );
-  const runCatalogLoad = useCallback(
-    async (
-      loadQuery: PackageQuery,
-      background: boolean,
-    ): Promise<CatalogLoadOutcome> => {
-      const requestId = loadRequestIdRef.current + 1;
-      loadRequestIdRef.current = requestId;
-      setLoadError(null);
-
-      try {
-        await loadCatalog(loadQuery, { background });
-        if (requestId !== loadRequestIdRef.current) {
-          return { status: "stale" };
-        }
-
-        setHasUsableData(true);
-        return { status: "success" };
-      } catch (loadFailure) {
-        if (requestId !== loadRequestIdRef.current) {
-          return { status: "stale" };
-        }
-
-        const message = errorMessage(loadFailure);
-        setLoadError(message);
-        return { status: "error", message };
-      }
-    },
-    [loadCatalog],
-  );
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => setSearch(searchDraft.trim()), 300);
@@ -126,21 +90,25 @@ export function PackagePage({
 
   useEffect(() => {
     let active = true;
-    const background = usePackageStore.getState().hasLoaded;
+    const background = usePackageStore.getState().catalogReady;
 
-    void runCatalogLoad(query, background).then((outcome) => {
-      if (!active || outcome.status !== "success") return;
-      const loadedTotalPages = Math.max(
-        1,
-        usePackageStore.getState().totalPages,
-      );
-      if (requestedPage > loadedTotalPages) goToPage(loadedTotalPages);
-    });
+    void loadCatalog(query, { background })
+      .then(() => {
+        if (!active) return;
+        const loadedTotalPages = Math.max(
+          1,
+          usePackageStore.getState().totalPages,
+        );
+        if (requestedPage > loadedTotalPages) goToPage(loadedTotalPages);
+      })
+      .catch(() => {
+        // The store owns load errors for UI retries and internal refreshes.
+      });
 
     return () => {
       active = false;
     };
-  }, [goToPage, query, requestedPage, runCatalogLoad]);
+  }, [goToPage, loadCatalog, query, requestedPage]);
 
   const navigation = useMemo(
     () =>
@@ -229,11 +197,12 @@ export function PackagePage({
   }
 
   async function refresh() {
-    const outcome = await runCatalogLoad(query, hasLoaded);
-    if (outcome.status === "error") {
+    try {
+      await loadCatalog(query, { background: catalogReady });
+    } catch (refreshError) {
       showToast({
         title: t("packageManagement.refreshFailed"),
-        description: outcome.message,
+        description: errorMessage(refreshError),
         tone: "error",
       });
     }
@@ -305,8 +274,7 @@ export function PackagePage({
 
       <PackageWorkspace
         billingCycles={navigation.billingCycles}
-        hasLoaded={hasLoaded}
-        hasUsableData={hasUsableData}
+        catalogReady={catalogReady}
         language={language}
         loadError={loadError}
         loading={loading}

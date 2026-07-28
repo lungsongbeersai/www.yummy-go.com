@@ -37,8 +37,7 @@ import type { PackageSortingScope } from "@/stores/package-store";
 
 interface PackageWorkspaceProps {
   billingCycles: BillingCycle[];
-  hasLoaded: boolean;
-  hasUsableData: boolean;
+  catalogReady: boolean;
   language: Language;
   loadError: string | null;
   loading: boolean;
@@ -73,8 +72,7 @@ interface PackageWorkspaceProps {
 
 export function PackageWorkspace({
   billingCycles,
-  hasLoaded,
-  hasUsableData,
+  catalogReady,
   language,
   loadError,
   loading,
@@ -104,8 +102,8 @@ export function PackageWorkspace({
   onSelectPlan,
 }: PackageWorkspaceProps) {
   const { t } = useTranslation();
-  const blockingLoadError = Boolean(loadError && !hasUsableData);
-  const initialLoading = !hasUsableData && !loadError;
+  const blockingLoadError = Boolean(loadError && !catalogReady);
+  const initialLoading = !catalogReady && !loadError;
   const navigatorProps = {
     billingCycles,
     planGroups,
@@ -227,7 +225,7 @@ export function PackageWorkspace({
         )}
       </div>
 
-      {hasLoaded && hasUsableData ? (
+      {catalogReady ? (
         <footer className="w-full shrink-0 border-t border-border bg-card px-3 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:px-4 lg:px-5">
           <AppPagination
             compact

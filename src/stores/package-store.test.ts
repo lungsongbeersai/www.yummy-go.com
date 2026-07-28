@@ -101,6 +101,7 @@ describe("package store request ownership", () => {
 
     expect(usePackageStore.getState()).toMatchObject({
       error: null,
+      loadError: null,
       loading: false,
       refreshing: false,
       total: 2,
@@ -135,7 +136,7 @@ describe("package store request ownership", () => {
     });
   });
 
-  it("commits a current catalog reference error when its package query is superseded", async () => {
+  it("does not commit a stale catalog reference error when its package query is superseded", async () => {
     const cycles = deferred<BillingCycle[]>();
     const oldPage = deferred<PackagePageResult>();
     const currentPage = deferred<PackagePageResult>();
@@ -154,8 +155,118 @@ describe("package store request ownership", () => {
     await expect(oldLoad).rejects.toThrow("catalog failed");
 
     expect(usePackageStore.getState()).toMatchObject({
-      error: "catalog failed",
+      error: null,
+      loadError: null,
       total: 2,
+    });
+  });
+
+  it("retains catalog readiness after subscribers unsubscribe and remount", async () => {
+    const observedReadiness: boolean[] = [];
+    fetchPackagePageMock.mockResolvedValueOnce(pageResult(1));
+    const unsubscribe = usePackageStore.subscribe((state) => {
+      observedReadiness.push(state.catalogReady);
+    });
+
+    await usePackageStore.getState().loadCatalog(queryA);
+    unsubscribe();
+
+    const remountedSnapshot = usePackageStore.getState();
+    expect(observedReadiness).toContain(true);
+    expect(remountedSnapshot.catalogReady).toBe(true);
+  });
+
+  it("clears catalog readiness and load errors on reset", () => {
+    usePackageStore.setState({
+      catalogReady: true,
+      loadError: "catalog failed",
+    });
+
+    usePackageStore.getState().reset();
+
+    expect(usePackageStore.getState()).toMatchObject({
+      catalogReady: false,
+      loadError: null,
+    });
+  });
+
+  it("preserves catalog readiness and exposes a refresh load error", async () => {
+    fetchPackagePageMock.mockResolvedValue(pageResult(1));
+    await usePackageStore.getState().loadCatalog(queryA);
+    fetchBillingCyclesMock.mockRejectedValueOnce(new Error("refresh failed"));
+
+    await expect(
+      usePackageStore
+        .getState()
+        .loadCatalog(queryA, { background: true })
+    ).rejects.toThrow("refresh failed");
+
+    expect(usePackageStore.getState()).toMatchObject({
+      catalogReady: true,
+      loadError: "refresh failed",
+      total: 1,
+    });
+  });
+
+  it("keeps the catalog unready when an initial reference request fails", async () => {
+    fetchBillingCyclesMock.mockRejectedValueOnce(new Error("cycles failed"));
+    fetchPackagePageMock.mockResolvedValueOnce(pageResult(1));
+
+    await expect(
+      usePackageStore.getState().loadCatalog(queryA)
+    ).rejects.toThrow("cycles failed");
+
+    expect(usePackageStore.getState()).toMatchObject({
+      catalogReady: false,
+      hasLoaded: true,
+      loadError: "cycles failed",
+      total: 1,
+    });
+  });
+
+  it("keeps mutation failures out of the catalog load error", async () => {
+    usePackageStore.setState({ loadError: "existing load failure" });
+    savePackageMock.mockRejectedValueOnce(new Error("save failed"));
+
+    await expect(
+      usePackageStore.getState().save(saveInput, queryA)
+    ).rejects.toThrow("save failed");
+
+    expect(usePackageStore.getState()).toMatchObject({
+      error: "save failed",
+      loadError: "existing load failure",
+    });
+  });
+
+  it("does not let a stale catalog failure replace current load state", async () => {
+    fetchPackagePageMock.mockResolvedValueOnce(pageResult(1));
+    await usePackageStore.getState().loadCatalog(queryA);
+
+    const oldCycles = deferred<BillingCycle[]>();
+    const oldPage = deferred<PackagePageResult>();
+    const currentPage = deferred<PackagePageResult>();
+    fetchBillingCyclesMock.mockReturnValueOnce(oldCycles.promise);
+    fetchPackagePageMock
+      .mockReturnValueOnce(oldPage.promise)
+      .mockReturnValueOnce(currentPage.promise);
+
+    const oldLoad = usePackageStore.getState().loadCatalog(queryA, {
+      background: true,
+    });
+    const currentLoad = usePackageStore
+      .getState()
+      .loadPackages(queryB, { background: true });
+
+    currentPage.reject(new Error("current request failed"));
+    await expect(currentLoad).rejects.toThrow("current request failed");
+    oldCycles.reject(new Error("stale request failed"));
+    oldPage.resolve(pageResult(3));
+    await expect(oldLoad).rejects.toThrow("stale request failed");
+
+    expect(usePackageStore.getState()).toMatchObject({
+      catalogReady: true,
+      loadError: "current request failed",
+      total: 1,
     });
   });
 
@@ -165,7 +276,7 @@ describe("package store request ownership", () => {
     fetchPackagePageMock
       .mockReturnValueOnce(foregroundPage.promise)
       .mockReturnValueOnce(backgroundPage.promise);
-    usePackageStore.setState({ hasLoaded: true });
+    usePackageStore.setState({ catalogReady: true, hasLoaded: true });
 
     const foregroundLoad = usePackageStore.getState().loadPackages(queryA);
     const backgroundLoad = usePackageStore
@@ -218,7 +329,37 @@ describe("package store request ownership", () => {
     write.reject(new Error("reorder failed"));
     await expect(firstSort).rejects.toThrow("reorder failed");
     expect(usePackageStore.getState().billingCycles).toBe(previousCycles);
-    expect(usePackageStore.getState().sortingScope).toBeNull();
+    expect(usePackageStore.getState()).toMatchObject({
+      loadError: null,
+      sortingScope: null,
+    });
+  });
+
+  it("exposes an internal post-reorder refresh failure as a load error", async () => {
+    const cycles: BillingCycle[] = [
+      { id: "monthly", name: "Monthly", months: 1, status: 1, sortOrder: 1 },
+      { id: "annual", name: "Annual", months: 12, status: 1, sortOrder: 2 },
+    ];
+    reorderBillingCyclesMock.mockResolvedValueOnce();
+    fetchPackagePageMock.mockRejectedValueOnce(
+      new Error("post-reorder refresh failed")
+    );
+    usePackageStore.setState({
+      billingCycles: cycles,
+      catalogReady: true,
+      hasLoaded: true,
+    });
+
+    await expect(
+      usePackageStore.getState().sortCycles([...cycles].reverse(), queryA)
+    ).resolves.toBeUndefined();
+
+    expect(usePackageStore.getState()).toMatchObject({
+      catalogReady: true,
+      error: null,
+      loadError: "post-reorder refresh failed",
+      sortingScope: null,
+    });
   });
 
   it("does not refresh a stale mutation query over the latest user query", async () => {
@@ -252,7 +393,8 @@ describe("package store request ownership", () => {
       usePackageStore.getState().save(saveInput, queryA)
     ).resolves.toBeUndefined();
     expect(usePackageStore.getState()).toMatchObject({
-      error: "refresh failed",
+      error: null,
+      loadError: "refresh failed",
       saving: false,
       total: 1,
     });
