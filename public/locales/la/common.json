@@ -25,13 +25,16 @@
     "customerDisplay": "ຈໍລູກຄ້າ",
     "expandSidebar": "ຂະຫຍາຍແຖບເມນູ",
     "getHelp": "ຊ່ວຍເຫຼືອ",
+    "menuLoading": "ກຳລັງໂຫຼດເມນູນຳທາງ",
+    "menuUnavailable": "ບໍ່ສາມາດໂຫຼດເມນູນຳທາງໄດ້",
     "openMenu": "ເປີດເມນູ",
     "posWorkspace": "ພື້ນທີ່ POS",
     "publicMenu": "ເມນູສາທາລະນະ",
     "skipToContent": "ຂ້າມໄປຫາເນື້ອຫາ",
     "tagline": "ລະບົບຮ້ານອາຫານທີ່ສ້າງໃໝ່ໃຫ້ສະອາດຂຶ້ນ.",
     "theme": "ຮູບແບບສີ",
-    "toggleTheme": "ປ່ຽນຮູບແບບສີ"
+    "toggleTheme": "ປ່ຽນຮູບແບບສີ",
+    "retryMenu": "ລອງໂຫຼດເມນູໃໝ່"
   },
   "auth": {
     "accessWorkspace": "ປ້ອນຂໍ້ມູນຂອງທ່ານເພື່ອເຂົ້າສູ່ລະບົບ",

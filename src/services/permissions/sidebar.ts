@@ -1,6 +1,7 @@
 import { apiRequest, ServiceError } from "@/lib/api";
 import { normalizeMenuIconName } from "@/lib/menu-icons";
 import { toApiLanguage } from "@/lib/language";
+import { canonicalRoute } from "@/lib/routes";
 import { booleanFlag, numberValue, text } from "@/services/shared/normalize";
 import { requiredText } from "@/services/shared/validators";
 
@@ -100,7 +101,7 @@ function normalizeSubMenu(
 ): SidebarPermissionMenuItem | null {
   if (!canShowSubMenu(submenu, roleId)) return null;
 
-  const path = text(submenu.sub_path);
+  const path = canonicalRoute(text(submenu.sub_path));
   const label = text(submenu.sub_title, path);
   const title = text(submenu.sub_id, path || label);
   if (!path && !label) return null;
@@ -114,7 +115,7 @@ function normalizeSubMenu(
 }
 
 function normalizeMenu(menu: RawSidebarPermissionMenu, roleId: number): SidebarPermissionMenuItem | null {
-  const path = text(menu.menu_path);
+  const path = canonicalRoute(text(menu.menu_path));
   const label = text(menu.menu_title, path);
   const title = text(menu.menu_id, path || label);
   if (!path && !label) return null;
@@ -162,7 +163,9 @@ export function normalizeSidebarPermissionMenuResponse(
   roleId: number
 ) {
   const roles = responseRoles(response);
-  const selectedRole = roles.find((role) => numberValue(role.role_id) === Number(roleId)) ?? roles[0];
+  const selectedRole = roles.find(
+    (role) => numberValue(role.role_id) === Number(roleId),
+  );
   const menus = Array.isArray(selectedRole?.menus) ? selectedRole.menus : [];
 
   return sortByOrder(

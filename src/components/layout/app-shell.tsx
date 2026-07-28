@@ -12,6 +12,7 @@ import {
   LogOut,
   PanelLeftClose,
   PanelLeftOpen,
+  RefreshCw,
   UserPen,
 } from "lucide-react";
 import { internalRoute } from "@/lib/routes";
@@ -37,6 +38,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Sidebar,
   SidebarContent,
@@ -66,7 +68,7 @@ import { MenuIcon } from "@/components/common/menu-icon";
 import { LanguageSwitch } from "@/components/layout/language-switch";
 import { NotificationMenu } from "@/components/layout/notification-menu";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
-import sideMenu, { type MenuItem } from "@/config/menu";
+import type { MenuItem } from "@/config/menu";
 import {
   routeBreadcrumbs,
   type RouteBreadcrumbItem,
@@ -79,7 +81,10 @@ import {
   useAuthStore,
   type AuthUser,
 } from "@/stores/auth-store";
-import { usePermissionsSidebarStore } from "@/stores/permissions-sidebar-store";
+import {
+  sidebarMenuCacheKey,
+  usePermissionsSidebarStore,
+} from "@/stores/permissions-sidebar-store";
 
 type BreadcrumbTrailItem = RouteBreadcrumbItem;
 
@@ -103,21 +108,6 @@ function menuItemLabel(
   t: (key: string) => string,
 ) {
   return item.label || t(menuKey(item.title));
-}
-
-function isAllowed(item: MenuItem, userStatus?: number) {
-  if (!item.allowedStatus?.length) return true;
-  return (
-    typeof userStatus === "number" && item.allowedStatus.includes(userStatus)
-  );
-}
-
-function filterMenu(items: MenuItem[], userStatus?: number): MenuItem[] {
-  return items.flatMap((item) => {
-    if (!isAllowed(item, userStatus)) return [];
-    if (!item.children?.length) return [item];
-    return [{ ...item, children: filterMenu(item.children, userStatus) }];
-  });
 }
 
 function isExactRoute(pathname: string, path?: string) {
@@ -164,7 +154,10 @@ function findBreadcrumbs(
       {
         disabled: item.disabled,
         label: item.label,
-        path: item.path,
+        // เมนูที่มีลูกเป็นกลุ่ม ไม่ใช่ปลายทาง — permission API ส่ง menu_path ของกลุ่มมาด้วย
+        // (/sale, /cancel, /report ซึ่งไม่มีหน้าจริง) ถ้าปล่อยไว้ breadcrumb จะทำเป็นลิงก์แล้วพาไป 404
+        // ตัดทิ้งทุกกลุ่มรวม /settings ตามที่ตกลงไว้ — หน้ารวมตั้งค่าเหลือทางเข้าทาง URL ตรงเท่านั้น
+        path: item.children?.length ? undefined : item.path,
         title: item.title,
       },
     ];
@@ -216,20 +209,34 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const collapsed = useAppStore((state) => state.collapsed);
   const setCollapsed = useAppStore((state) => state.setCollapsed);
   const sidebarItems = usePermissionsSidebarStore((state) => state.items);
+  const sidebarError = usePermissionsSidebarStore((state) => state.error);
+  const sidebarLoading = usePermissionsSidebarStore((state) => state.loading);
+  const sidebarRequestKey = usePermissionsSidebarStore(
+    (state) => state.requestKey,
+  );
   const clearSidebarMenu = usePermissionsSidebarStore((state) => state.clearActive);
   const loadSidebarMenu = usePermissionsSidebarStore((state) => state.load);
   const storeUuid = authStoreUuid(user);
-  const staticMenuItems = useMemo(
-    () => filterMenu(sideMenu, user?.status),
-    [user?.status],
-  );
+  const targetSidebarRequestKey =
+    storeUuid && typeof user?.status === "number"
+      ? sidebarMenuCacheKey(storeUuid, user.status, i18n.language)
+      : "";
+  const sidebarKeyMatches =
+    Boolean(targetSidebarRequestKey) &&
+    sidebarRequestKey === targetSidebarRequestKey;
   const permissionMenuItems = useMemo(
-    () => sidebarPermissionMenuItemsToMenuItems(sidebarItems),
-    [sidebarItems],
+    () =>
+      sidebarPermissionMenuItemsToMenuItems(
+        sidebarKeyMatches ? sidebarItems : [],
+      ),
+    [sidebarItems, sidebarKeyMatches],
   );
-  const menuItems = permissionMenuItems.length
-    ? permissionMenuItems
-    : staticMenuItems;
+  const menuItems = permissionMenuItems;
+  const menuLoading =
+    Boolean(targetSidebarRequestKey) &&
+    (!sidebarKeyMatches || sidebarLoading) &&
+    menuItems.length === 0;
+  const menuError = sidebarKeyMatches ? sidebarError : null;
   const breadcrumbs = useMemo(() => {
     const home: BreadcrumbTrailItem = { path: "/", title: "dashboard" };
     const trail = resolveBreadcrumbs(menuItems, pathname);
@@ -314,6 +321,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     });
   }
 
+  function retrySidebarMenu() {
+    if (!storeUuid || typeof user?.status !== "number") return;
+    void loadSidebarMenu(storeUuid, user.status, i18n.language);
+  }
+
   return (
     <SidebarProvider
       open={!collapsed}
@@ -354,9 +366,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       >
         {!immersiveScreen ? (
           <AppSidebar
+            error={menuError}
+            loading={menuLoading}
             menuItems={menuItems}
             openMenus={openMenus}
             pathname={pathname}
+            retry={retrySidebarMenu}
             toggleMenu={toggleMenu}
           />
         ) : null}
@@ -549,14 +564,20 @@ function AppHeader({
 }
 
 function AppSidebar({
+  error,
+  loading,
   menuItems,
   openMenus,
   pathname,
+  retry,
   toggleMenu,
 }: {
+  error: string | null;
+  loading: boolean;
   menuItems: MenuItem[];
   openMenus: Set<string>;
   pathname: string;
+  retry: () => void;
   toggleMenu: (title: string) => void;
 }) {
   const { t } = useTranslation();
@@ -725,6 +746,8 @@ function AppSidebar({
     );
   }
 
+  const hasItems = menuItems.length > 0;
+
   return (
     <Sidebar
       collapsible="icon"
@@ -733,9 +756,61 @@ function AppSidebar({
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupContent>
-            <SidebarMenu>
-              {menuItems.map((item) => renderItem(item))}
-            </SidebarMenu>
+            {hasItems ? (
+              <SidebarMenu>
+                {menuItems.map((item) => renderItem(item))}
+              </SidebarMenu>
+            ) : loading ? (
+              <div
+                role="status"
+                aria-label={t("app.menuLoading")}
+                className="flex flex-col gap-2 p-2"
+              >
+                {Array.from({ length: 5 }, (_, index) => (
+                  <Skeleton
+                    key={index}
+                    className={cn(
+                      "h-8 rounded-md",
+                      collapsed ? "w-8" : "w-full",
+                    )}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div
+                role={error ? "alert" : "status"}
+                className={cn(
+                  "m-2 flex flex-col items-center gap-2 rounded-md border border-dashed p-3 text-center",
+                  collapsed && "p-1",
+                )}
+              >
+                <p
+                  className={cn(
+                    "text-xs font-medium text-muted-foreground",
+                    collapsed && "sr-only",
+                  )}
+                >
+                  {t("app.menuUnavailable")}
+                </p>
+                {error && !collapsed ? (
+                  <p className="line-clamp-2 text-[11px] text-destructive">
+                    {error}
+                  </p>
+                ) : null}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size={collapsed ? "icon" : "sm"}
+                  aria-label={t("app.retryMenu")}
+                  onClick={retry}
+                >
+                  <RefreshCw />
+                  <span className={cn(collapsed && "sr-only")}>
+                    {t("app.retryMenu")}
+                  </span>
+                </Button>
+              </div>
+            )}
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>

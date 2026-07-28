@@ -89,6 +89,44 @@ describe("permissions sidebar store", () => {
     expect(state.requestKey).toBe(sidebarMenuCacheKey("store-2", 2, "en"));
   });
 
+  it("does not reuse cached items from a different store, role, or language", async () => {
+    const otherKey = sidebarMenuCacheKey("store-1", 1, "la");
+    usePermissionsSidebarStore.setState({
+      cache: { [otherKey]: menuItems },
+      items: menuItems,
+      requestKey: otherKey,
+    });
+    fetchSidebarPermissionMenuMock.mockRejectedValueOnce(new Error("offline"));
+
+    await usePermissionsSidebarStore.getState().load("store-2", 2, "en");
+
+    expect(usePermissionsSidebarStore.getState()).toMatchObject({
+      items: [],
+      error: "offline",
+      requestKey: sidebarMenuCacheKey("store-2", 2, "en"),
+    });
+  });
+
+  it("shows only same-key cache while a refresh is pending", async () => {
+    const key = sidebarMenuCacheKey("store-1", 1, "la");
+    const pending = deferred<SidebarPermissionMenuItem[]>();
+    usePermissionsSidebarStore.setState({ cache: { [key]: menuItems } });
+    fetchSidebarPermissionMenuMock.mockReturnValueOnce(pending.promise);
+
+    const load = usePermissionsSidebarStore
+      .getState()
+      .load("store-1", 1, "la");
+
+    expect(usePermissionsSidebarStore.getState()).toMatchObject({
+      items: menuItems,
+      loading: true,
+      requestKey: key,
+    });
+
+    pending.resolve(menuItems);
+    await load;
+  });
+
   it("keeps the latest request active when an older response finishes last", async () => {
     const first = deferred<SidebarPermissionMenuItem[]>();
     const second = deferred<SidebarPermissionMenuItem[]>();

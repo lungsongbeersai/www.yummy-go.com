@@ -25,13 +25,16 @@
     "customerDisplay": "Customer display",
     "expandSidebar": "Expand sidebar",
     "getHelp": "Get help",
+    "menuLoading": "Loading navigation",
+    "menuUnavailable": "Navigation is unavailable",
     "openMenu": "Open menu",
     "posWorkspace": "POS workspace",
     "publicMenu": "Public menu",
     "skipToContent": "Skip to content",
     "tagline": "Restaurant operations rebuilt cleanly.",
     "theme": "Theme",
-    "toggleTheme": "Toggle theme"
+    "toggleTheme": "Toggle theme",
+    "retryMenu": "Retry navigation"
   },
   "auth": {
     "accessWorkspace": "Access your Yummy Go workspace.",
