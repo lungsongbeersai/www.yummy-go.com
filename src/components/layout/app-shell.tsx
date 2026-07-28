@@ -68,11 +68,11 @@ import { MenuIcon } from "@/components/common/menu-icon";
 import { LanguageSwitch } from "@/components/layout/language-switch";
 import { NotificationMenu } from "@/components/layout/notification-menu";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
-import type { MenuItem } from "@/config/menu";
 import {
-  routeBreadcrumbs,
-  type RouteBreadcrumbItem,
-} from "@/config/route-breadcrumbs";
+  resolveShellBreadcrumbs,
+  type BreadcrumbTrailItem,
+} from "@/components/layout/shell-breadcrumbs";
+import type { MenuItem } from "@/config/menu";
 import { sidebarPermissionMenuItemsToMenuItems } from "@/config/sidebar-permission-menu";
 import { getStoreLogoUrl, getUserProfileUrl } from "@/lib/image";
 import { useAppStore } from "@/stores/app-store";
@@ -85,8 +85,6 @@ import {
   sidebarMenuCacheKey,
   usePermissionsSidebarStore,
 } from "@/stores/permissions-sidebar-store";
-
-type BreadcrumbTrailItem = RouteBreadcrumbItem;
 
 const POS_ANDROID_SYSTEM_SCREEN_CLASS = "pos-android-system-screen";
 const FIXED_DATA_SCREEN_PATHS = new Set([
@@ -108,10 +106,6 @@ function menuItemLabel(
   t: (key: string) => string,
 ) {
   return item.label || t(menuKey(item.title));
-}
-
-function isExactRoute(pathname: string, path?: string) {
-  return Boolean(path && pathname === path);
 }
 
 function routeIsActive(pathname: string, path?: string) {
@@ -140,53 +134,6 @@ function activeMenuTitles(items: MenuItem[], pathname: string): string[] {
     if (!item.children?.length || !hasActiveRoute(item, pathname)) return [];
     return [item.title, ...activeMenuTitles(item.children, pathname)];
   });
-}
-
-function findBreadcrumbs(
-  items: MenuItem[],
-  pathname: string,
-  trail: BreadcrumbTrailItem[] = [],
-): BreadcrumbTrailItem[] | null {
-  for (const item of items) {
-    if (item.is_header) continue;
-    const nextTrail = [
-      ...trail,
-      {
-        disabled: item.disabled,
-        label: item.label,
-        // เมนูที่มีลูกเป็นกลุ่ม ไม่ใช่ปลายทาง — permission API ส่ง menu_path ของกลุ่มมาด้วย
-        // (/sale, /cancel, /report ซึ่งไม่มีหน้าจริง) ถ้าปล่อยไว้ breadcrumb จะทำเป็นลิงก์แล้วพาไป 404
-        // ตัดทิ้งทุกกลุ่มรวม /settings ตามที่ตกลงไว้ — หน้ารวมตั้งค่าเหลือทางเข้าทาง URL ตรงเท่านั้น
-        path: item.children?.length ? undefined : item.path,
-        title: item.title,
-      },
-    ];
-    if (isExactRoute(pathname, item.path)) return nextTrail;
-    if (item.children?.length) {
-      const match = findBreadcrumbs(item.children, pathname, nextTrail);
-      if (match) return match;
-    }
-  }
-  return null;
-}
-
-function resolveBreadcrumbs(
-  items: MenuItem[],
-  pathname: string,
-): BreadcrumbTrailItem[] | null {
-  const exact = findBreadcrumbs(items, pathname);
-  if (exact) return exact;
-
-  const routeTrail = routeBreadcrumbs[pathname];
-  if (routeTrail) return routeTrail;
-
-  const segments = pathname.split("/").filter(Boolean);
-  for (let i = segments.length - 1; i > 0; i -= 1) {
-    const ancestor = "/" + segments.slice(0, i).join("/");
-    const match = findBreadcrumbs(items, ancestor);
-    if (match) return match;
-  }
-  return null;
 }
 
 function userInitials(user: AuthUser | null) {
@@ -239,7 +186,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const menuError = sidebarKeyMatches ? sidebarError : null;
   const breadcrumbs = useMemo(() => {
     const home: BreadcrumbTrailItem = { path: "/", title: "dashboard" };
-    const trail = resolveBreadcrumbs(menuItems, pathname);
+    const trail = resolveShellBreadcrumbs(menuItems, pathname);
     if (!trail) return [home];
     if (trail[0]?.path === "/") return trail;
     return [home, ...trail];
