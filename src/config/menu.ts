@@ -52,6 +52,7 @@ const Menu: MenuItem[] = [
       { path: "/sales/cancel-history", title: "cancel_history" }
     ]
   },
+  { path: "/package", icon: Package, title: "package_management" },
   { path: "/products", icon: Utensils, title: "menu_add_item" },
   { path: "/stock", icon: Package, title: "stock_quantity" },
   { path: "/printers", icon: Printer, title: "printer_management" },
