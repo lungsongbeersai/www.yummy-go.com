@@ -190,8 +190,21 @@ describe("package store request ownership", () => {
     });
   });
 
-  it("preserves catalog readiness and exposes a refresh load error", async () => {
-    fetchPackagePageMock.mockResolvedValue(pageResult(1));
+  it("preserves the entire stale snapshot when a reference refresh fails", async () => {
+    const previousCycles: BillingCycle[] = [
+      { id: "monthly", name: "Monthly", months: 1, status: 1, sortOrder: 1 },
+    ];
+    const previousPage = pageResult(1);
+    const nextPage: PackagePageResult = {
+      ...pageResult(24),
+      limit: 20,
+      totalPages: 2,
+    };
+    fetchBillingCyclesMock.mockResolvedValueOnce(previousCycles);
+    fetchPackagePageMock
+      .mockResolvedValueOnce(previousPage)
+      .mockResolvedValueOnce(nextPage);
+
     await usePackageStore.getState().loadCatalog(queryA);
     fetchBillingCyclesMock.mockRejectedValueOnce(new Error("refresh failed"));
 
@@ -201,11 +214,109 @@ describe("package store request ownership", () => {
         .loadCatalog(queryA, { background: true })
     ).rejects.toThrow("refresh failed");
 
-    expect(usePackageStore.getState()).toMatchObject({
+    const snapshot = usePackageStore.getState();
+    expect(snapshot.billingCycles).toBe(previousCycles);
+    expect(snapshot.packageGroups).toBe(previousPage.groups);
+    expect(snapshot).toMatchObject({
       catalogReady: true,
       loadError: "refresh failed",
       total: 1,
+      totalPages: 1,
+      limit: 10,
     });
+  });
+
+  it("preserves the entire stale snapshot when the package refresh fails", async () => {
+    const previousCycles: BillingCycle[] = [
+      { id: "monthly", name: "Monthly", months: 1, status: 1, sortOrder: 1 },
+    ];
+    const nextCycles: BillingCycle[] = [
+      { id: "annual", name: "Annual", months: 12, status: 1, sortOrder: 1 },
+    ];
+    const previousPage = pageResult(1);
+    fetchBillingCyclesMock
+      .mockResolvedValueOnce(previousCycles)
+      .mockResolvedValueOnce(nextCycles);
+    fetchPackagePageMock
+      .mockResolvedValueOnce(previousPage)
+      .mockRejectedValueOnce(new Error("packages failed"));
+
+    await usePackageStore.getState().loadCatalog(queryA);
+
+    await expect(
+      usePackageStore
+        .getState()
+        .loadCatalog(queryA, { background: true })
+    ).rejects.toThrow("packages failed");
+
+    const snapshot = usePackageStore.getState();
+    expect(snapshot.billingCycles).toBe(previousCycles);
+    expect(snapshot.packageGroups).toBe(previousPage.groups);
+    expect(snapshot).toMatchObject({
+      catalogReady: true,
+      loadError: "packages failed",
+      total: 1,
+      totalPages: 1,
+      limit: 10,
+    });
+  });
+
+  it("publishes a successful catalog refresh as one complete snapshot", async () => {
+    const previousCycles: BillingCycle[] = [
+      { id: "monthly", name: "Monthly", months: 1, status: 1, sortOrder: 1 },
+    ];
+    const nextCycles: BillingCycle[] = [
+      { id: "annual", name: "Annual", months: 12, status: 1, sortOrder: 1 },
+    ];
+    const previousPage = pageResult(1);
+    const nextPage = pageResult(24);
+    fetchBillingCyclesMock
+      .mockResolvedValueOnce(previousCycles)
+      .mockResolvedValueOnce(nextCycles);
+    fetchPackagePageMock
+      .mockResolvedValueOnce(previousPage)
+      .mockResolvedValueOnce(nextPage);
+
+    await usePackageStore.getState().loadCatalog(queryA);
+
+    let previousBillingCycles = usePackageStore.getState().billingCycles;
+    let previousPackageGroups = usePackageStore.getState().packageGroups;
+    const publishedSnapshots: Array<{
+      hasNextCycles: boolean;
+      hasNextPackages: boolean;
+      total: number;
+    }> = [];
+    const unsubscribe = usePackageStore.subscribe((state) => {
+      if (
+        state.billingCycles === previousBillingCycles &&
+        state.packageGroups === previousPackageGroups
+      ) {
+        return;
+      }
+      previousBillingCycles = state.billingCycles;
+      previousPackageGroups = state.packageGroups;
+      publishedSnapshots.push({
+        hasNextCycles: state.billingCycles === nextCycles,
+        hasNextPackages: state.packageGroups === nextPage.groups,
+        total: state.total,
+      });
+    });
+
+    try {
+      await usePackageStore
+        .getState()
+        .loadCatalog(queryA, { background: true });
+    } finally {
+      unsubscribe();
+    }
+
+    expect(publishedSnapshots).toEqual([
+      {
+        hasNextCycles: true,
+        hasNextPackages: true,
+        total: 24,
+      },
+    ]);
   });
 
   it("keeps the catalog unready when an initial reference request fails", async () => {

@@ -296,9 +296,43 @@ export const usePackageStore = create<PackageState>((set, get) => {
             : planGroupsResult.status === "rejected"
             ? planGroupsResult
             : null;
+        const requestFailure =
+          referenceFailure ??
+          (packagePageResult.status === "rejected" ? packagePageResult : null);
 
         if (isCurrentOperation()) {
           if (
+            billingCyclesResult.status === "fulfilled" &&
+            methodsResult.status === "fulfilled" &&
+            planGroupsResult.status === "fulfilled" &&
+            packagePageResult.status === "fulfilled" &&
+            (isCurrentCatalogRequest || isCurrentPackageRequest)
+          ) {
+            const packagePage = packagePageResult.value;
+            set({
+              ...(isCurrentCatalogRequest
+                ? {
+                    billingCycles: billingCyclesResult.value,
+                    methods: methodsResult.value,
+                    planGroups: planGroupsResult.value,
+                  }
+                : {}),
+              ...(isCurrentPackageRequest
+                ? {
+                    packageGroups: packagePage.groups,
+                    page: packagePage.page,
+                    limit: packagePage.limit,
+                    total: packagePage.total,
+                    totalPages: packagePage.totalPages,
+                    hasLoaded: true,
+                  }
+                : {}),
+              ...(isCurrentLoadStateRequest()
+                ? { catalogReady: true, loadError: null }
+                : {}),
+            });
+          } else if (
+            !get().catalogReady &&
             isCurrentCatalogRequest &&
             billingCyclesResult.status === "fulfilled" &&
             methodsResult.status === "fulfilled" &&
@@ -309,9 +343,8 @@ export const usePackageStore = create<PackageState>((set, get) => {
               methods: methodsResult.value,
               planGroups: planGroupsResult.value,
             });
-          }
-
-          if (
+          } else if (
+            !get().catalogReady &&
             isCurrentPackageRequest &&
             packagePageResult.status === "fulfilled"
           ) {
@@ -327,15 +360,8 @@ export const usePackageStore = create<PackageState>((set, get) => {
           }
         }
 
-        const requestFailure =
-          referenceFailure ??
-          (packagePageResult.status === "rejected" ? packagePageResult : null);
-        if (isCurrentLoadStateRequest()) {
-          set(
-            requestFailure
-              ? { loadError: errorMessage(requestFailure.reason) }
-              : { catalogReady: true, loadError: null }
-          );
+        if (requestFailure && isCurrentLoadStateRequest()) {
+          set({ loadError: errorMessage(requestFailure.reason) });
         }
         if (requestFailure) throw requestFailure.reason;
       } finally {
