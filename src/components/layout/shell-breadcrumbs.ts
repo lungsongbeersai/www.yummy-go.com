@@ -1,0 +1,59 @@
+import type { MenuItem } from "@/config/menu";
+import {
+  routeBreadcrumbs,
+  type RouteBreadcrumbItem,
+} from "@/config/route-breadcrumbs";
+
+export type BreadcrumbTrailItem = RouteBreadcrumbItem;
+
+const NON_PAGE_GROUP_PATHS = new Set(["/sale", "/cancel", "/report"]);
+
+function breadcrumbPath(item: MenuItem) {
+  return item.path && !NON_PAGE_GROUP_PATHS.has(item.path)
+    ? item.path
+    : undefined;
+}
+
+function findBreadcrumbs(
+  items: MenuItem[],
+  pathname: string,
+  trail: BreadcrumbTrailItem[] = [],
+): BreadcrumbTrailItem[] | null {
+  for (const item of items) {
+    if (item.is_header) continue;
+    const nextTrail = [
+      ...trail,
+      {
+        disabled: item.disabled,
+        label: item.label,
+        path: breadcrumbPath(item),
+        title: item.title,
+      },
+    ];
+    if (item.path && pathname === item.path) return nextTrail;
+    if (item.children?.length) {
+      const match = findBreadcrumbs(item.children, pathname, nextTrail);
+      if (match) return match;
+    }
+  }
+  return null;
+}
+
+export function resolveShellBreadcrumbs(
+  items: MenuItem[],
+  pathname: string,
+): BreadcrumbTrailItem[] | null {
+  const exact = findBreadcrumbs(items, pathname);
+  if (exact) return exact;
+
+  const routeTrail = routeBreadcrumbs[pathname];
+  if (routeTrail) return routeTrail;
+
+  const segments = pathname.split("/").filter(Boolean);
+  for (let index = segments.length - 1; index > 0; index -= 1) {
+    const ancestor = `/${segments.slice(0, index).join("/")}`;
+    const match = findBreadcrumbs(items, ancestor);
+    if (match) return match;
+  }
+  return null;
+}

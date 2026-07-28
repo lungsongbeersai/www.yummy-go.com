@@ -37,6 +37,7 @@ export function useLandingEffects(refs: LandingEffectsRefs): void {
     const reducedMotion = window.matchMedia(REDUCED_MOTION_QUERY).matches;
     let scrollFrame = 0;
     let pointerFrame = 0;
+    let scrollEndTimer = 0;
     let pointerRectCache = new WeakMap<HTMLElement, DOMRect>();
 
     const parallaxElements: ParallaxElement[] = Array.from(
@@ -46,40 +47,83 @@ export function useLandingEffects(refs: LandingEffectsRefs): void {
       speed: Number.parseFloat(element.dataset.parallax ?? "0") || 0
     }));
 
+    // scrollHeight เป็น forced synchronous layout — อ่านทุกเฟรมตอนสกรอลล์คือสาเหตุหลัก
+    // ที่เฟรมตก จึงแคชไว้แล้วคำนวณใหม่เฉพาะตอนความสูงเอกสารเปลี่ยนจริง
+    let scrollRange = 0;
+    const measureScrollRange = () => {
+      scrollRange = Math.max(document.documentElement.scrollHeight - window.innerHeight, 0);
+    };
+    measureScrollRange();
+
+    // เก็บค่าที่เขียนล่าสุดไว้ เพื่อไม่สั่ง style/attribute ซ้ำเมื่อค่าไม่เปลี่ยน
+    let lastProgressScale = "";
+    let lastHintOpacity = "";
+    let lastCanvasOpacity = "";
+    let lastBackTopVisible: boolean | null = null;
+
     const updateScrollEffects = () => {
       scrollFrame = 0;
 
-      // Read layout first so the following style mutations can be batched by the browser.
       const scrollY = window.scrollY;
       const viewportHeight = Math.max(window.innerHeight, 1);
-      const scrollRange = Math.max(document.documentElement.scrollHeight - viewportHeight, 0);
       const heroProgress = Math.min(scrollY / viewportHeight, 1);
       const totalProgress = scrollRange > 0 ? Math.min(scrollY / scrollRange, 1) : 0;
       const showBackTop = scrollY > 700;
 
-      if (progress) progress.style.transform = `scaleX(${totalProgress.toFixed(4)})`;
+      const progressScale = `scaleX(${totalProgress.toFixed(4)})`;
+      if (progress && progressScale !== lastProgressScale) {
+        progress.style.transform = progressScale;
+        lastProgressScale = progressScale;
+      }
       for (const { element, speed } of parallaxElements) {
         element.style.translate = `0 ${(scrollY * speed).toFixed(1)}px`;
       }
-      if (scrollHint) scrollHint.style.opacity = scrollY > 60 ? "0" : "1";
-      if (backTop) {
+      const hintOpacity = scrollY > 60 ? "0" : "1";
+      if (scrollHint && hintOpacity !== lastHintOpacity) {
+        scrollHint.style.opacity = hintOpacity;
+        lastHintOpacity = hintOpacity;
+      }
+      if (backTop && showBackTop !== lastBackTopVisible) {
         backTop.dataset.visible = String(showBackTop);
         backTop.tabIndex = showBackTop ? 0 : -1;
         backTop.setAttribute("aria-hidden", String(!showBackTop));
+        lastBackTopVisible = showBackTop;
       }
 
       sceneRef.current?.onScroll(heroProgress, totalProgress);
       // อ่าน canvas ตอนใช้งานเสมอ เพราะการสลับ tier จะ remount <canvas> เป็น node ใหม่
       const canvas = canvasRef.current;
       if (canvas && root.dataset.sceneReady === "true") {
-        canvas.style.opacity = root.dataset.sceneActive === "true"
+        const canvasOpacity = root.dataset.sceneActive === "true"
           ? Math.max(0.28, 1 - heroProgress * 0.72).toFixed(3)
           : "0.18";
+        if (canvasOpacity !== lastCanvasOpacity) {
+          canvas.style.opacity = canvasOpacity;
+          lastCanvasOpacity = canvasOpacity;
+        }
       }
     };
 
     const scheduleScrollEffects = () => {
       if (!scrollFrame) scrollFrame = requestAnimationFrame(updateScrollEffects);
+    };
+
+    // ขณะสกรอลล์ ปิดเอฟเฟกต์ที่บังคับให้ compositor ผสมทั้งจอใหม่ทุกเฟรม (grain/cursor ring)
+    // และให้ฉาก 3D ข้าม bloom — เฟรมเรตจะลงมาอยู่ระดับเดียวคงที่แทนที่จะกระตุกเป็นช่วง
+    const endScroll = () => {
+      scrollEndTimer = 0;
+      root.dataset.scrolling = "false";
+      sceneRef.current?.setScrolling(false);
+    };
+
+    const beginScroll = () => {
+      if (!scrollEndTimer) {
+        root.dataset.scrolling = "true";
+        sceneRef.current?.setScrolling(true);
+      } else {
+        window.clearTimeout(scrollEndTimer);
+      }
+      scrollEndTimer = window.setTimeout(endScroll, 140);
     };
 
     const sectionObserver = new IntersectionObserver(
@@ -126,12 +170,22 @@ export function useLandingEffects(refs: LandingEffectsRefs): void {
     };
     reducedMotionQuery.addEventListener("change", onReducedMotionChange);
 
+    // ความสูงเอกสารเปลี่ยนได้จากรูปที่โหลดเสร็จหรือ layout ที่ปรับตัว — วัดใหม่เมื่อเปลี่ยนจริง
+    // แทนที่จะอ่าน scrollHeight ทุกเฟรมสกรอลล์
+    const documentObserver = new ResizeObserver(() => {
+      measureScrollRange();
+      scheduleScrollEffects();
+    });
+    documentObserver.observe(document.documentElement);
+
     const onScroll = () => {
       pointerRectCache = new WeakMap<HTMLElement, DOMRect>();
+      beginScroll();
       scheduleScrollEffects();
     };
     const onResize = () => {
       pointerRectCache = new WeakMap<HTMLElement, DOMRect>();
+      measureScrollRange();
       scheduleScrollEffects();
     };
     window.addEventListener("scroll", onScroll, { passive: true });
@@ -248,11 +302,20 @@ export function useLandingEffects(refs: LandingEffectsRefs): void {
       document.documentElement.addEventListener("pointerenter", onPointerEnter);
     }
 
+    // ต้นฉบับใน Claude Design ตั้ง `html { scroll-behavior: smooth }` ให้ลิงก์ใน header
+    // เลื่อนนุ่ม — ตั้งจาก JS เพื่อจำกัดผลไว้เฉพาะหน้านี้ ไม่ให้รั่วไปกวนสกรอลล์ของ POS
+    const documentElement = document.documentElement;
+    const previousScrollBehavior = documentElement.style.scrollBehavior;
+    if (!reducedMotion) documentElement.style.scrollBehavior = "smooth";
+
     scheduleScrollEffects();
 
     return () => {
+      documentElement.style.scrollBehavior = previousScrollBehavior;
       if (scrollFrame) cancelAnimationFrame(scrollFrame);
       if (pointerFrame) cancelAnimationFrame(pointerFrame);
+      if (scrollEndTimer) window.clearTimeout(scrollEndTimer);
+      documentObserver.disconnect();
       sectionObserver.disconnect();
       revealObserver.disconnect();
       reducedMotionQuery.removeEventListener("change", onReducedMotionChange);

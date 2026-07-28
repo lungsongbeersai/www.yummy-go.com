@@ -20,7 +20,7 @@ const checks = [
     status: 307,
     location: "/pos?t=phase-1-smoke",
   },
-  { path: "/setting/unite", status: 308, location: "/setting/unit" },
+  { path: "/setting/unite", status: 308, location: "/settings/unit" },
 ];
 
 const child = spawn(process.execPath, [serverPath], {

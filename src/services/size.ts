@@ -13,7 +13,7 @@ export interface SaveSizeInput extends ApiEntity {
   size_name_la: string;
   size_name_eng: string;
   store_uuid_fk: string;
-  status_sort_fk: number;
+  status_sort_fk: 1 | 2;
 }
 export type SaveSizeForStatusInput = SaveSizeInput;
 export interface FetchSizesParams extends FetchParams {}
@@ -36,7 +36,7 @@ function sizeText(input: Record<string, unknown>, key: keyof SaveSizeInput) {
 
 export function sizePayloadForStatus(
   input: Record<string, unknown>,
-  statusSortFk: number
+  statusSortFk: 1 | 2
 ): SaveSizeInput {
   return {
     ...input,
@@ -53,5 +53,5 @@ export const getSizeOptions = (lang = "la", storeUuid?: string) =>
   crud.options({ lang, store_uuid_fk: storeUuid });
 export const saveSize = (input: Record<string, unknown>) => crud.save(sizePayloadForStatus(input, 1));
 export const saveSizeForStatus = (input: SaveSizeForStatusInput) =>
-  crud.save(sizePayloadForStatus(input, Number(input.status_sort_fk || 1)));
+  crud.save(sizePayloadForStatus(input, input.status_sort_fk || 1));
 export const deleteSize = (size_uuid: string) => crud.delete(size_uuid);

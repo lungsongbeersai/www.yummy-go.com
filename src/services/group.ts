@@ -8,7 +8,12 @@ export interface Group extends ApiEntity {
   group_name_eng?: string;
 }
 export type GroupResponse = ApiListResponse<Group>;
-export interface SaveGroupInput extends ApiEntity {}
+export interface SaveGroupInput extends ApiEntity {
+  group_uuid?: string;
+  store_uuid_fk: string;
+  group_name_la: string;
+  group_name_eng: string;
+}
 export interface FetchGroupsParams extends FetchParams {}
 
 const crud = createCrud<Group>(

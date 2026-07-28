@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useResetOnChange } from "@/hooks/use-reset-on-change";
 import { arrayMove } from "@dnd-kit/sortable";
 import { useReducedMotion } from "motion/react";
@@ -9,16 +9,27 @@ import { useTranslation } from "react-i18next";
 import { useAppliedSearch } from "@/hooks/use-applied-search";
 import { useUrlPagination } from "@/hooks/use-url-pagination";
 import { pageLimitSize } from "@/lib/pagination";
+import { normalizeProductImportKey } from "@/lib/product-import";
 import { samePageLimit, type UrlPaginationState } from "@/lib/url-pagination";
 import type { Category } from "@/services/category";
+import type { Group } from "@/services/group";
 import type { Size } from "@/services/size";
 import type { Unit } from "@/services/unit";
 import type { Product, ProductDetail } from "@/services/product";
 import { useAppStore } from "@/stores/app-store";
 import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
 import { useProductStore } from "@/stores/product-store";
+import {
+  executeProductImportDrafts,
+  productMatchesImportPayload,
+  productImportResultTone,
+} from "@/stores/product-store/import-execution";
+import {
+  type ProductImportReferencePlan,
+} from "@/stores/product-store/import-references";
 import { useReferenceStore } from "@/stores/reference-store";
 import { useToastStore } from "@/stores/toast-store";
+import { generateProdCode } from "@/features/product/form/product-form-utils";
 import {
   categoryUuid,
   detailStockSummary,
@@ -34,8 +45,11 @@ import type {
   ProductTableRow
 } from "./product-list-types";
 import {
-  buildProductImportDrafts,
+  analyzeProductImportWorkbook,
+  planProductImportDraftReferences,
+  productImportReferenceConflictApplies,
   productImportSummary,
+  resolveProductImportDrafts,
   sheetRowsFromAoA,
   type ProductImportDraft,
 } from "./product-import-utils";
@@ -46,8 +60,35 @@ import {
 
 const DEFAULT_STATUS_SORT = "1";
 const EMPTY_CATEGORIES: Category[] = [];
-const EMPTY_UNITS: Unit[] = [];
-const EMPTY_SIZES: Size[] = [];
+const EMPTY_GROUPS: Group[] = [];
+
+interface ProductImportReferenceContext {
+  groups: Group[];
+  categories: Category[];
+  units: Unit[];
+  normalSizes: Size[];
+  setSizes: Size[];
+}
+
+function productImportDraftWillCreate(
+  draft: ProductImportDraft,
+  plan: ProductImportReferencePlan | null,
+) {
+  if (!plan) return false;
+  const includesName = (names: string[], value: string) => {
+    const target = normalizeProductImportKey(value);
+    return names.some(
+      (name) => normalizeProductImportKey(name) === target,
+    );
+  };
+  if (includesName(plan.createCategories, draft.categoryName)) return true;
+  if (includesName(plan.createUnits, draft.unitName)) return true;
+  const sizeNames =
+    draft.type === "set" ? plan.createSetSizes : plan.createNormalSizes;
+  return draft.details.some((detail) =>
+    includesName(sizeNames, detail.referenceName),
+  );
+}
 
 export const ALL_CATEGORIES_VALUE = "__all_categories__";
 
@@ -72,8 +113,12 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
   const setCateUuidFk = useProductStore((state) => state.setCateUuidFk);
   const setPageLimit = useProductStore((state) => state.setPageLimit);
   const loadProducts = useProductStore((state) => state.load);
+  const loadAllProductsForImport = useProductStore(
+    (state) => state.loadAllForImport,
+  );
   const loadStatusSorts = useProductStore((state) => state.loadStatusSorts);
   const loadSizesByStatus = useProductStore((state) => state.loadSizesByStatus);
+  const ensureImportReferences = useProductStore((state) => state.ensureImportReferences);
   const saveProduct = useProductStore((state) => state.save);
   const removeProduct = useProductStore((state) => state.remove);
   const updateProductNotification = useProductStore((state) => state.updateProductNotification);
@@ -84,10 +129,10 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
   const sortProductsByCategory = useProductStore((state) => state.sortProductsByCategory);
   const sortProductDetailsByProduct = useProductStore((state) => state.sortProductDetailsByProduct);
   const categories = (useReferenceStore((state) => state.options.categories) ?? EMPTY_CATEGORIES) as Category[];
-  const units = (useReferenceStore((state) => state.options.units) ?? EMPTY_UNITS) as Unit[];
-  const sizes = (useReferenceStore((state) => state.options.sizes) ?? EMPTY_SIZES) as Size[];
+  const groups = (useReferenceStore((state) => state.options.groups) ?? EMPTY_GROUPS) as Group[];
   const categoryLoading = Boolean(useReferenceStore((state) => state.loadingKeys.categories));
   const loadCategories = useReferenceStore((state) => state.loadCategories);
+  const loadGroups = useReferenceStore((state) => state.loadGroups);
   const loadUnits = useReferenceStore((state) => state.loadUnits);
   const loadSizes = useReferenceStore((state) => state.loadSizes);
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
@@ -96,11 +141,23 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
   const [highlightCategoryFilter, setHighlightCategoryFilter] = useState(false);
   const [highlightSearchFilter, setHighlightSearchFilter] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
-  const [importDrafts, setImportDrafts] = useState<ProductImportDraft[]>([]);
+  const [importBaseDrafts, setImportBaseDrafts] = useState<
+    ProductImportDraft[]
+  >([]);
   const [importFileName, setImportFileName] = useState("");
+  const [importReferenceContext, setImportReferenceContext] =
+    useState<ProductImportReferenceContext | null>(null);
+  const [importSucceededKeys, setImportSucceededKeys] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [importDefaultGroupName, setImportDefaultGroupName] = useState("");
   const [importing, setImporting] = useState(false);
   const [importParsing, setImportParsing] = useState(false);
   const [importResult, setImportResult] = useState("");
+  const [importResultTone, setImportResultTone] = useState<
+    "success" | "partial" | "error" | ""
+  >("");
+  const importExecutionLock = useRef(false);
   const [collapsedProducts, setCollapsedProducts] = useState<Set<string>>(() => new Set());
   const [pendingKeys, setPendingKeys] = useState<Set<ProductStatusKey>>(() => new Set());
   const [pendingBulkStockModes, setPendingBulkStockModes] = useState<Record<string, ProductStockModeValue>>({});
@@ -225,6 +282,7 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
   useEffect(() => {
     if (!storeUuid) return;
     Promise.all([
+      loadGroups(language, storeUuid),
       loadCategories(language, storeUuid),
       loadUnits(language, storeUuid),
       loadSizes(language, storeUuid)
@@ -235,7 +293,7 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
         tone: "error"
       });
     });
-  }, [language, loadCategories, loadSizes, loadUnits, showToast, storeUuid, t]);
+  }, [language, loadCategories, loadGroups, loadSizes, loadUnits, showToast, storeUuid, t]);
 
   useEffect(() => {
     if (!samePageLimit(storePageLimit, pageLimit)) setPageLimit(pageLimit);
@@ -544,9 +602,13 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
   }
 
   function resetImportState() {
-    setImportDrafts([]);
+    setImportBaseDrafts([]);
     setImportFileName("");
+    setImportReferenceContext(null);
+    setImportSucceededKeys(new Set());
+    setImportDefaultGroupName("");
     setImportResult("");
+    setImportResultTone("");
   }
 
   const importFieldLabels = useMemo(
@@ -579,12 +641,76 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
         t("product.import.priceGreaterThanZero", { row, field: importFieldLabel(field) }),
       setPriceGreaterThanZero: () => t("product.import.setPriceGreaterThanZero"),
       multipleSetPrices: () => t("product.import.multipleSetPrices"),
+      duplicateCode: (code: string) =>
+        t("product.import.duplicateCode", { code }),
+      duplicateName: (name: string) =>
+        t("product.import.duplicateName", { name }),
     }),
     [importFieldLabel, t]
   );
 
+  const importReferencePlan = useMemo(() => {
+    if (
+      !importReferenceContext ||
+      !importDefaultGroupName.trim()
+    ) {
+      return null;
+    }
+    return planProductImportDraftReferences(importBaseDrafts, {
+      defaultGroupName: importDefaultGroupName,
+      groups: importReferenceContext.groups,
+      categories: importReferenceContext.categories,
+      units: importReferenceContext.units,
+      normalSizes: importReferenceContext.normalSizes,
+      setSizes: importReferenceContext.setSizes,
+    });
+  }, [
+    importBaseDrafts,
+    importDefaultGroupName,
+    importReferenceContext,
+  ]);
+
+  const importDrafts = useMemo(
+    () =>
+      importBaseDrafts.map((draft) => {
+        const validationErrors = [...draft.validationErrors];
+        importReferencePlan?.conflicts
+          .filter((conflict) =>
+            productImportReferenceConflictApplies(draft, conflict),
+          )
+          .forEach((conflict) => {
+            const message =
+              conflict.kind === "group"
+                ? t("product.import.defaultGroupAmbiguous", {
+                    name: conflict.name,
+                  })
+                : conflict.reason === "category-group-mismatch"
+                  ? t("product.import.categoryGroupMismatch", {
+                      name: conflict.name,
+                    })
+                  : t("product.import.referenceAmbiguous", {
+                      name: conflict.name,
+                    });
+            if (!validationErrors.includes(message)) {
+              validationErrors.push(message);
+            }
+          });
+        return {
+          ...draft,
+          validationErrors,
+          payload: validationErrors.length ? null : draft.payload,
+        };
+      }),
+    [importBaseDrafts, importReferencePlan, t],
+  );
+
   async function prepareImportFile(file: File | null) {
-    resetImportState();
+    setImportBaseDrafts([]);
+    setImportFileName("");
+    setImportReferenceContext(null);
+    setImportSucceededKeys(new Set());
+    setImportResult("");
+    setImportResultTone("");
     if (!file) return;
 
     if (!user?.branch_uuid || !storeUuid) {
@@ -622,30 +748,47 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
           ])
         : [];
 
-      const [categoryRows, unitRows, sizeRows, setSizeRows] = await Promise.all([
-        categories.length ? Promise.resolve(categories) : loadCategories(language, storeUuid),
-        units.length ? Promise.resolve(units) : loadUnits(language, storeUuid),
-        sizes.length ? Promise.resolve(sizes) : loadSizes(language, storeUuid),
+      const [
+        groupRows,
+        categoryRows,
+        unitRows,
+        sizeRows,
+        setSizeRows,
+        existingProducts,
+      ] = await Promise.all([
+        loadGroups(language, storeUuid),
+        loadCategories(language, storeUuid),
+        loadUnits(language, storeUuid),
+        loadSizes(language, storeUuid),
         loadSizesByStatus(storeUuid, 2, language),
+        loadAllProductsForImport({
+          branch_uuid_fk: user.branch_uuid,
+          lang: language,
+        }),
       ]);
-      const drafts = buildProductImportDrafts(
-        { Normal: normalRows, Set: setRows },
-        {
-          branchUuid: user.branch_uuid,
-          categories: categoryRows,
-          units: unitRows,
-          sizes: sizeRows,
-          setSizes: setSizeRows,
-        },
-        importMessages
-      );
+      const analysis = analyzeProductImportWorkbook({
+        workbook: { Normal: normalRows, Set: setRows },
+        branchUuid: user.branch_uuid,
+        existingProducts,
+        generatedCodeSeed: generateProdCode(),
+        messages: importMessages,
+      });
 
-      setImportDrafts(drafts);
-      if (!drafts.length) {
+      setImportReferenceContext({
+        groups: groupRows,
+        categories: categoryRows,
+        units: unitRows,
+        normalSizes: sizeRows,
+        setSizes: setSizeRows as Size[],
+      });
+      setImportBaseDrafts(analysis.drafts);
+      if (!analysis.drafts.length) {
         setImportResult(t("product.import.noRows"));
+        setImportResultTone("error");
       }
     } catch (error) {
-      setImportDrafts([]);
+      setImportReferenceContext(null);
+      setImportBaseDrafts([]);
       setImportResult(
         error instanceof ProductImportWorkbookError
           ? t(`product.import.errors.${error.code}`, {
@@ -655,51 +798,211 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
             ? error.message
             : t("toasts.pleaseTryAgain"),
       );
+      setImportResultTone("error");
     } finally {
       setImportParsing(false);
     }
   }
 
   async function importProductsFromDrafts() {
-    const readyDrafts = importDrafts.filter(
-      (draft): draft is ProductImportDraft & { payload: NonNullable<ProductImportDraft["payload"]> } =>
-        Boolean(draft.payload) && !draft.errors.length
+    if (importExecutionLock.current) return;
+    if (!importDefaultGroupName.trim()) {
+      showToast({
+        title: t("settings.saveFailed"),
+        description: t("product.import.defaultGroupRequired", {
+          defaultValue: "Default Group is required",
+        }),
+        tone: "error",
+      });
+      return;
+    }
+    if (!user?.branch_uuid || !storeUuid) {
+      showToast({
+        title: t("settings.saveFailed"),
+        description: t("settings.branchRequired"),
+        tone: "error",
+      });
+      return;
+    }
+    if (!importReferencePlan) {
+      showToast({
+        title: t("settings.saveFailed"),
+        description: t("product.import.noValidRows"),
+        tone: "error",
+      });
+      return;
+    }
+    const executableDrafts = importDrafts.filter(
+      (draft) =>
+        draft.executionStatus !== "succeeded" &&
+        !draft.validationErrors.length &&
+        Boolean(draft.payload),
     );
-    if (!readyDrafts.length) {
+    if (!executableDrafts.length) {
       showToast({ title: t("settings.saveFailed"), description: t("product.import.noValidRows"), tone: "error" });
       return;
     }
 
+    importExecutionLock.current = true;
     setImporting(true);
-    let success = 0;
-    let failed = 0;
 
     try {
-      for (const draft of readyDrafts) {
-        try {
-          await saveProduct(draft.payload!);
-          success += 1;
-        } catch (error) {
-          failed += 1;
-          draft.errors.push(error instanceof Error ? error.message : t("toasts.pleaseTryAgain"));
-        }
-      }
-
-      setImportDrafts([...importDrafts]);
-      const resultMessage = t("product.import.result", { success, failed });
-      setImportResult(resultMessage);
-      showToast({
-        title: success ? t("product.saved") : t("settings.saveFailed"),
-        description: resultMessage,
-        tone: success ? "success" : "error",
+      const references = await ensureImportReferences({
+        storeUuid,
+        language,
+        plan: importReferencePlan,
       });
-      await load();
+      const resolvedDrafts = resolveProductImportDrafts(
+        importDrafts,
+        {
+          branchUuid: user.branch_uuid,
+          categories: references.categories,
+          units: references.units,
+          sizes: references.sizes,
+          setSizes: references.setSizes,
+        },
+        importMessages,
+        { requireReferences: true },
+      );
+      const executableKeys = new Set(
+        executableDrafts.map((draft) => draft.key),
+      );
+      const result = await executeProductImportDrafts(
+        resolvedDrafts,
+        importSucceededKeys,
+        saveProduct,
+        async (candidates) => {
+          const persistedProducts = await loadAllProductsForImport({
+            branch_uuid_fk: user.branch_uuid,
+            lang: language,
+          });
+          return new Set(
+            candidates
+              .filter(({ payload }) =>
+                persistedProducts.some((product) =>
+                  productMatchesImportPayload(product, payload),
+                ),
+              )
+              .map(({ key }) => key),
+          );
+        },
+      );
+      const nextSucceededKeys = new Set(result.succeededKeys);
+      const newlySucceeded = result.succeededKeys.filter(
+        (key) => !importSucceededKeys.has(key),
+      ).length;
+      const unresolved = resolvedDrafts.filter(
+        (draft) =>
+          executableKeys.has(draft.key) && draft.validationErrors.length,
+      ).length;
+      const failed = Object.keys(result.failures).length + unresolved;
+
+      setImportSucceededKeys(nextSucceededKeys);
+      setImportBaseDrafts((current) => {
+        const resolvedByKey = new Map(
+          resolvedDrafts.map((draft) => [draft.key, draft]),
+        );
+        return current.map((draft) => {
+          const resolved = resolvedByKey.get(draft.key);
+          if (!resolved) return draft;
+          const executionError = result.failures[draft.key] ?? "";
+          const shouldKeepResolvedValidation =
+            executableKeys.has(draft.key) &&
+            resolved.validationErrors.length > 0;
+          const validationErrors = shouldKeepResolvedValidation
+            ? resolved.validationErrors
+            : draft.validationErrors;
+          return {
+            ...draft,
+            payload: resolved.payload,
+            validationErrors,
+            executionStatus: nextSucceededKeys.has(draft.key)
+              ? "succeeded"
+              : executionError
+                ? "failed"
+                : draft.executionStatus,
+            executionError,
+          };
+        });
+      });
+
+      const resultMessage = t("product.import.result", {
+        success: newlySucceeded,
+        failed,
+      });
+      setImportResult(resultMessage);
+      const resultTone = productImportResultTone(newlySucceeded, failed);
+      setImportResultTone(resultTone);
+      showToast({
+        title:
+          resultTone === "success"
+            ? t("product.saved")
+            : resultTone === "partial"
+              ? t("product.import.partialTitle")
+              : t("settings.saveFailed"),
+        description: resultMessage,
+        tone:
+          resultTone === "success"
+            ? "success"
+            : resultTone === "partial"
+              ? "info"
+              : "error",
+      });
+
+      try {
+        const [
+          refreshedGroups,
+          refreshedCategories,
+          refreshedUnits,
+          refreshedSizes,
+          refreshedSetSizes,
+        ] = await Promise.all([
+          loadGroups(language, storeUuid),
+          loadCategories(language, storeUuid),
+          loadUnits(language, storeUuid),
+          loadSizes(language, storeUuid),
+          loadSizesByStatus(storeUuid, 2, language),
+          load(),
+        ]);
+        setImportReferenceContext({
+          groups: refreshedGroups,
+          categories: refreshedCategories,
+          units: refreshedUnits,
+          normalSizes: refreshedSizes,
+          setSizes: refreshedSetSizes as Size[],
+        });
+      } catch (error) {
+        showToast({
+          title: t("product.import.refreshFailed"),
+          description:
+            error instanceof Error
+              ? error.message
+              : t("toasts.pleaseTryAgain"),
+          tone: "info",
+        });
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : t("toasts.pleaseTryAgain");
+      setImportResult(message);
+      setImportResultTone("error");
+      showToast({
+        title: t("settings.saveFailed"),
+        description: message,
+        tone: "error",
+      });
     } finally {
       setImporting(false);
+      importExecutionLock.current = false;
     }
   }
 
   const importSummary = productImportSummary(importDrafts);
+  const importWillCreate = useCallback(
+    (draft: ProductImportDraft) =>
+      productImportDraftWillCreate(draft, importReferencePlan),
+    [importReferencePlan],
+  );
 
   return {
     t,
@@ -724,10 +1027,15 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
     setImportDialogOpen,
     importDrafts,
     importFileName,
+    importGroupOptions: groups,
+    importDefaultGroupName,
+    setImportDefaultGroupName,
     importSummary,
     importParsing,
     importing,
     importResult,
+    importResultTone,
+    importWillCreate,
     filteredRows,
     selectedRows,
     selectedProductRows,

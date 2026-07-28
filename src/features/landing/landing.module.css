@@ -102,6 +102,27 @@
   opacity: 0.18;
 }
 
+/* mix-blend-mode บนเลเยอร์ fixed เต็มจอบังคับให้ compositor ผสมทั้งหน้าจอใหม่ทุกเฟรม
+   ระหว่างสกรอลล์จึงปิดไว้ — grain มี opacity 0.05 อยู่แล้ว ตาแทบไม่เห็นความต่าง
+   แต่ได้เฟรมเรตคงที่แทนที่จะกระตุก */
+.page[data-scrolling="true"] .grain,
+.page[data-scrolling="true"] .cursorRing {
+  display: none;
+}
+
+/* เครื่องระดับ low/medium ไม่ควรต้องแบก backdrop blur เต็มความกว้าง + blend ทั้งจอ */
+.page[data-scene-tier="low"] .grain,
+.page[data-scene-tier="medium"] .grain {
+  display: none;
+}
+
+.page[data-scene-tier="low"] .header,
+.page[data-scene-tier="medium"] .header {
+  background: rgba(5, 10, 21, 0.97);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
 .progressBar {
   position: fixed;
   top: 0;
@@ -940,12 +961,13 @@
 }
 
 /* ---------- sections (โครงร่วม) ---------- */
+/* ไม่ใช้ content-visibility: auto ตรงนี้ — มันให้เบราว์เซอร์เดาความสูง section ที่ยังไม่เข้าจอ
+   ทำให้ (1) ลิงก์ใน header กระโดดผิดตำแหน่งตอนโหลดครั้งแรก และ (2) เฟรมตกเป็นช่วงๆ
+   เพราะทุก section ที่เลื่อนเข้าจอต้อง layout+paint ใหม่ทั้งก้อนในเฟรมเดียว */
 .section {
   position: relative;
   padding: 110px clamp(16px, 5vw, 64px);
   scroll-margin-top: 80px;
-  content-visibility: auto;
-  contain-intrinsic-size: auto 800px;
 }
 
 .sectionNarrow {

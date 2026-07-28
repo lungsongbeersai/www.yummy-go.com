@@ -38,6 +38,11 @@ import {
   withProductDetailSort,
   withProductSort
 } from "@/stores/product-store/helpers";
+import {
+  ensureProductImportReferences,
+  type EnsureProductImportReferencesInput,
+  type ProductImportResolvedReferences,
+} from "@/stores/product-store/import-references";
 
 interface ProductState {
   rows: Product[];
@@ -56,8 +61,12 @@ interface ProductState {
   setCateUuidFk: (cateUuidFk: string) => void;
   setPageLimit: (pageLimit: PageLimit) => void;
   load: (params?: FetchProductsParams) => Promise<Product[]>;
+  loadAllForImport: (params: FetchProductsParams) => Promise<Product[]>;
   loadStatusSorts: (lang?: string) => Promise<StatusSort[]>;
   loadSizesByStatus: (storeUuid: string, statusSort: number, lang?: string) => Promise<SizeOption[]>;
+  ensureImportReferences: (
+    input: EnsureProductImportReferencesInput,
+  ) => Promise<ProductImportResolvedReferences>;
   createSizeForStatus: (input: SaveSizeForStatusInput) => Promise<SizeOption>;
   deleteSizeForStatus: (sizeUuid: string) => Promise<void>;
   save: (input: SaveProductInput) => Promise<Product>;
@@ -123,6 +132,15 @@ export const useProductStore = create<ProductState>((set, get) => ({
       throw error;
     }
   },
+  loadAllForImport: async (params) => {
+    const result = await getProducts({
+      ...params,
+      search: "",
+      cate_uuid_fk: "",
+      limit: "All",
+    });
+    return result.data ?? [];
+  },
   loadStatusSorts: async (lang) => {
     const isCurrentSession = createSessionGuard();
     const statusSorts = await getStatusSorts(lang);
@@ -140,6 +158,7 @@ export const useProductStore = create<ProductState>((set, get) => ({
     }
     return sizesByStatus;
   },
+  ensureImportReferences: (input) => ensureProductImportReferences(input),
   createSizeForStatus: async (input) => {
     const size = await saveSizeForStatus(input);
     return size as SizeOption;

@@ -15,7 +15,14 @@ export interface Category extends ApiEntity {
   group_name_eng?: string;
 }
 export type CategoryResponse = ApiListResponse<Category>;
-export interface SaveCategoryInput extends ApiEntity {}
+export interface SaveCategoryInput extends ApiEntity {
+  cate_uuid?: string;
+  store_uuid_fk: string;
+  group_uuid_fk: string;
+  cate_name_la: string;
+  cate_name_eng: string;
+  cate_icon: string;
+}
 export interface FetchCategoriesParams extends FetchParams {}
 export interface SortCategoryItem { cate_uuid: string; cate_sort: number }
 export interface SortCategoryInput { store_uuid_fk: string; items: SortCategoryItem[] }

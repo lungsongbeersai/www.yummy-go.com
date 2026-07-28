@@ -1,5 +1,12 @@
 import type { BufferGeometry, Material, Mesh, Object3D, Sprite, Texture } from "three";
-import { calculateSceneDpr, type SceneProfile } from "@/features/landing/scene-quality";
+import type { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
+import type { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
+import {
+  BLOOM_RADIUS,
+  BLOOM_THRESHOLD,
+  calculateSceneDpr,
+  type SceneProfile
+} from "@/features/landing/scene-quality";
 import {
   EMPTY_FPS_SAMPLE,
   getAdaptiveScale,
@@ -75,6 +82,8 @@ export async function initScene(canvas: HTMLCanvasElement, opts: SceneOptions): 
   camera.position.set(0, 0.4, 16);
 
   let renderScale = 1;
+  let composer: EffectComposer | null = null;
+  let bloomPass: UnrealBloomPass | null = null;
 
   const resizeRenderer = () => {
     const width = Math.max(1, window.innerWidth);
@@ -83,9 +92,52 @@ export async function initScene(canvas: HTMLCanvasElement, opts: SceneOptions): 
       calculateSceneDpr(width, height, window.devicePixelRatio || 1, profile, renderScale)
     );
     renderer.setSize(width, height, false);
+    // composer มี render target ของตัวเอง ต้องตาม pixel ratio ไม่งั้น bloom จะคมไม่เท่าฉาก
+    // setSize ของ composer ส่งขนาด x pixelRatio ต่อให้ทุก pass เอง bloom จึงปรับ target ตามให้แล้ว
+    composer?.setPixelRatio(renderer.getPixelRatio());
+    composer?.setSize(width, height);
     camera.aspect = width / height;
     camera.updateProjectionMatrix();
   };
+
+  // Bloom คือสิ่งที่ทำให้เส้น wireframe/วงแหวน/ดาว เรืองแสงแบบต้นฉบับใน Claude Design
+  // three ขนส่ง postprocessing มาในแพ็กเกจอยู่แล้ว จึงไม่ต้องเพิ่ม dependency ใดๆ
+  if (profile.bloom > 0) {
+    try {
+      const [{ EffectComposer: Composer }, { RenderPass }, { UnrealBloomPass: BloomPass }] =
+        await Promise.all([
+          import("three/examples/jsm/postprocessing/EffectComposer.js"),
+          import("three/examples/jsm/postprocessing/RenderPass.js"),
+          import("three/examples/jsm/postprocessing/UnrealBloomPass.js")
+        ]);
+
+      // EffectComposer สร้าง render target เองโดยไม่มี MSAA — ต้องส่งเข้าไปเอง
+      // ไม่งั้น tier ที่เปิด antialias จะเสีย MSAA ไปทันทีที่เปิด bloom
+      const size = renderer.getSize(new THREE.Vector2());
+      const pixelRatio = renderer.getPixelRatio();
+      const target = new THREE.WebGLRenderTarget(
+        Math.max(1, size.width * pixelRatio),
+        Math.max(1, size.height * pixelRatio),
+        { type: THREE.HalfFloatType, samples: profile.antialias ? 4 : 0 }
+      );
+
+      composer = new Composer(renderer, target);
+      composer.addPass(new RenderPass(scene, camera));
+      bloomPass = new BloomPass(
+        new THREE.Vector2(window.innerWidth, window.innerHeight),
+        profile.bloom,
+        BLOOM_RADIUS,
+        BLOOM_THRESHOLD
+      );
+      composer.addPass(bloomPass);
+    } catch (error) {
+      // ฉากยังใช้งานได้เต็มรูปแบบโดยไม่มี bloom จึงไม่ต้องล้มทั้งฉาก
+      console.warn("[scene3d] bloom unavailable - rendering without postprocessing", error);
+      composer = null;
+      bloomPass = null;
+    }
+  }
+
   resizeRenderer();
 
   scene.add(new THREE.AmbientLight(0x16244a, 1.15));
@@ -270,6 +322,7 @@ export async function initScene(canvas: HTMLCanvasElement, opts: SceneOptions): 
   let punch = 0;
   let flash = 0;
   let hovering = false;
+  let scrolling = false;
   let dragging = false;
   let lastPointerX = 0;
   let lastPointerY = 0;
@@ -427,7 +480,10 @@ export async function initScene(canvas: HTMLCanvasElement, opts: SceneOptions): 
       shockwave.mesh.quaternion.copy(camera.quaternion);
     });
 
-    renderer.render(scene, camera);
+    // ระหว่างสกรอลล์ เบราว์เซอร์ต้องใช้ GPU ไปกับ layout/composite ของหน้าอยู่แล้ว
+    // ข้าม bloom (หลาย pass + render target เพิ่ม) เพื่อให้เฟรมเรตนิ่งแทนที่จะกระตุกเป็นช่วง
+    if (composer && !scrolling) composer.render();
+    else renderer.render(scene, camera);
   };
 
   // วัด FPS แล้วให้โหมด Auto ปรับ render scale เอง (โหมดที่ผู้ใช้เลือก tier เองจะไม่ถูกแตะ)
@@ -506,6 +562,12 @@ export async function initScene(canvas: HTMLCanvasElement, opts: SceneOptions): 
       }
       emitStats();
     },
+    setScrolling(nextScrolling) {
+      if (disposed || scrolling === nextScrolling) return;
+      scrolling = nextScrolling;
+      // รีเซ็ตหน้าต่างวัด เพราะช่วงข้าม/กลับเข้า bloom เป็นคนละภาระงานกัน
+      fpsSample = EMPTY_FPS_SAMPLE;
+    },
     pulse,
     dispose() {
       if (disposed) return;
@@ -550,6 +612,10 @@ export async function initScene(canvas: HTMLCanvasElement, opts: SceneOptions): 
       geometries.forEach((geometry) => geometry.dispose());
       textures.forEach((texture) => texture.dispose());
       materials.forEach((material) => material.dispose());
+      bloomPass?.dispose();
+      composer?.dispose();
+      composer = null;
+      bloomPass = null;
       scene.clear();
       renderer.renderLists.dispose();
       renderer.dispose();

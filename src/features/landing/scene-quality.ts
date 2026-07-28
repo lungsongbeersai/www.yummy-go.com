@@ -19,6 +19,8 @@ export interface SceneProfile {
   antialias: boolean;
   stars: number;
   dust: number;
+  /** ความแรง UnrealBloom (0 = ปิด) — ต้นฉบับใน Claude Design ใช้ 1.05 บนเดสก์ท็อป */
+  bloom: number;
 }
 
 export interface DeviceCapability {
@@ -45,7 +47,8 @@ export const SCENE_PROFILES = {
     maxPixels: 900_000,
     antialias: false,
     stars: 500,
-    dust: 60
+    dust: 60,
+    bloom: 0
   },
   medium: {
     tier: "medium",
@@ -53,7 +56,8 @@ export const SCENE_PROFILES = {
     maxPixels: 2_200_000,
     antialias: false,
     stars: 1_100,
-    dust: 130
+    dust: 130,
+    bloom: 0
   },
   high: {
     tier: "high",
@@ -61,7 +65,8 @@ export const SCENE_PROFILES = {
     maxPixels: 4_000_000,
     antialias: true,
     stars: 1_800,
-    dust: 200
+    dust: 200,
+    bloom: 0.85
   },
   ultra: {
     tier: "ultra",
@@ -69,9 +74,14 @@ export const SCENE_PROFILES = {
     maxPixels: 8_300_000,
     antialias: true,
     stars: 3_000,
-    dust: 320
+    dust: 320,
+    bloom: 1.05
   }
 } as const satisfies Record<SceneTier, SceneProfile>;
+
+/** ค่า radius/threshold ของ UnrealBloom — ตรงกับต้นฉบับ scene3d.js ใน Claude Design */
+export const BLOOM_RADIUS = 0.55;
+export const BLOOM_THRESHOLD = 0.2;
 
 /** ต่ำกว่านี้ภาพเละจนไม่ช่วยอะไร ยอมเฟรมตกดีกว่า */
 export const MIN_SCENE_DPR = 0.5;

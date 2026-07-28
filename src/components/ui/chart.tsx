@@ -53,9 +53,28 @@ export function ChartContainer({
     [config, style]
   );
 
+  // รอให้กล่องมีขนาดจริงก่อนค่อย mount กราฟ — ถ้า ancestor กว้าง 0 ตอน mount
+  // (เช่นถูกฝังใน iframe ของเครื่องมือ preview) recharts จะวัดได้ 0×0 แล้ว log warning ทิ้งไว้
+  // ขนาดของ wrapper มาจาก CSS (w-full/aspect-video, h-72, size-40) ไม่ได้มาจากเนื้อหา
+  // จึงไม่เกิด feedback loop กับ ResizeObserver
+  const wrapperRef = React.useRef<HTMLDivElement>(null);
+  const [hasSize, setHasSize] = React.useState(false);
+  React.useEffect(() => {
+    const node = wrapperRef.current;
+    if (!node) return;
+
+    const observer = new ResizeObserver(([entry]) => {
+      const { height, width } = entry.contentRect;
+      setHasSize(width > 0 && height > 0);
+    });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <ChartContext.Provider value={contextValue}>
       <div
+        ref={wrapperRef}
         data-chart={chartId}
         className={cn(
           "flex aspect-video justify-center text-xs",
@@ -71,7 +90,7 @@ export function ChartContainer({
         style={chartStyle}
         {...props}
       >
-        <ResponsiveContainer>{children}</ResponsiveContainer>
+        {hasSize ? <ResponsiveContainer>{children}</ResponsiveContainer> : null}
       </div>
     </ChartContext.Provider>
   );

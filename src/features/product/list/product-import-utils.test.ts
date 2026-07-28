@@ -1,8 +1,17 @@
 import { describe, expect, it } from "vitest";
 import type { Category } from "@/services/category";
+import type { Product } from "@/services/product";
 import type { Size } from "@/services/size";
 import type { Unit } from "@/services/unit";
-import { buildProductImportDrafts, sheetRowsFromAoA } from "./product-import-utils";
+import {
+  analyzeProductImportWorkbook,
+  buildProductImportDrafts,
+  normalizeProductImportKey,
+  planProductImportDraftReferences,
+  productImportReferenceNames,
+  resolveProductImportDrafts,
+  sheetRowsFromAoA,
+} from "./product-import-utils";
 
 const references = {
   branchUuid: "branch-1",
@@ -25,6 +34,88 @@ const references = {
 };
 
 describe("product import utils", () => {
+  it("starts a new product at an explicit identity and only inherits product fields for continuation rows", () => {
+    const rows = sheetRowsFromAoA(
+      [
+        ["Product Code", "Product Name (Lao)", "Product Name (English)", "Category", "Unit", "Size Name", "Cost Price", "Sale Price"],
+        ["P-001", "ເຝີ", "Noodle soup", "Noodles", "Bowl", "Regular", "25000", "35000"],
+        ["", "", "", "", "", "Large", "", ""],
+        ["P-002", "ເຂົ້າ", "Rice", "Noodles", "Bowl", "Regular", "30000", "40000"],
+      ],
+      ["Product Code", "Product Name (Lao)", "Product Name (English)", "Category", "Unit", "Size Name", "Cost Price", "Sale Price"],
+    );
+
+    const analysis = analyzeProductImportWorkbook({
+      workbook: { Normal: rows },
+      branchUuid: "branch-1",
+      existingProducts: [],
+      generatedCodeSeed: "AUTO",
+    });
+
+    expect(analysis.drafts).toHaveLength(2);
+    expect(analysis.drafts[0]).toMatchObject({
+      productCode: "P-001",
+      productNameLa: "ເຝີ",
+      rowNumbers: [2, 3],
+      details: [
+        { rowNumber: 2, referenceName: "Regular", costPrice: 25000, salePrice: 35000 },
+        { rowNumber: 3, referenceName: "Large", costPrice: 0, salePrice: 0 },
+      ],
+    });
+    expect(analysis.drafts[1]).toMatchObject({
+      productCode: "P-002",
+      productNameLa: "ເຂົ້າ",
+      rowNumbers: [4],
+    });
+  });
+
+  it("normalizes Unicode compatibility forms consistently", () => {
+    expect(normalizeProductImportKey("  ＡＢＣ　123  ")).toBe("abc 123");
+    expect(normalizeProductImportKey("ＡＢＣ")).toBe(
+      normalizeProductImportKey("ABC"),
+    );
+  });
+
+  it("reports duplicate workbook and database identities and reserves generated codes", () => {
+    const rows = sheetRowsFromAoA(
+      [
+        ["Product Code", "Product Name (Lao)", "Product Name (English)", "Category", "Unit", "Size Name", "Cost Price", "Sale Price"],
+        ["", "Generated", "", "Noodles", "Bowl", "Regular", "10", "20"],
+        ["AUTO-2", "First", "", "Noodles", "Bowl", "Regular", "10", "20"],
+        ["AUTO-2", "Second", "", "Noodles", "Bowl", "Regular", "10", "20"],
+        ["DB-1", "Existing name", "", "Noodles", "Bowl", "Regular", "10", "20"],
+      ],
+      ["Product Code", "Product Name (Lao)", "Product Name (English)", "Category", "Unit", "Size Name", "Cost Price", "Sale Price"],
+    );
+    const existingProducts = [
+      {
+        prod_uuid: "existing-1",
+        prod_code: "AUTO-1",
+        prod_name_la: "Other",
+      },
+      {
+        prod_uuid: "existing-2",
+        prod_code: "DB-1",
+        prod_name_la: "Existing name",
+      },
+    ] as Product[];
+
+    const analysis = analyzeProductImportWorkbook({
+      workbook: { Normal: rows },
+      branchUuid: "branch-1",
+      existingProducts,
+      generatedCodeSeed: "AUTO",
+    });
+
+    expect(analysis.drafts[0]?.productCode).toBe("AUTO-3");
+    expect(analysis.drafts[1]?.validationErrors.join(" ")).toMatch(/duplicate.*code/i);
+    expect(analysis.drafts[2]?.validationErrors.join(" ")).toMatch(/duplicate.*code/i);
+    expect(analysis.drafts[3]?.validationErrors.join(" ")).toMatch(
+      /duplicate.*(code|name)/i,
+    );
+    expect(analysis.referenceNames.categoryNames).toEqual(["Noodles"]);
+  });
+
   it("builds normal product payloads from template rows and ignores template notes", () => {
     const rows = sheetRowsFromAoA(
       [
@@ -39,8 +130,9 @@ describe("product import utils", () => {
 
     const [draft] = buildProductImportDrafts({ Normal: rows }, references);
 
-    expect(draft.errors).toEqual([]);
+    expect(draft.validationErrors).toEqual([]);
     expect(draft.detailCount).toBe(2);
+    expect(draft.sizeNames).toEqual(["Regular", "Large"]);
     expect(draft.payload).toMatchObject({
       branch_uuid_fk: "branch-1",
       cate_uuid_fk: "cat-noodle",
@@ -70,7 +162,11 @@ describe("product import utils", () => {
 
     const [draft] = buildProductImportDrafts({ Set: rows }, references);
 
-    expect(draft.errors).toEqual([]);
+    expect(draft.validationErrors).toEqual([]);
+    expect(draft.sizeNames).toEqual([
+      "Coffee + sandwich",
+      "Tea + sandwich",
+    ]);
     expect(draft.payload).toMatchObject({
       status_sort_fk: 2,
       prod_set_price: 45000,
@@ -103,12 +199,12 @@ describe("product import utils", () => {
       references,
     );
 
-    expect(normalDraft.errors).toEqual([]);
+    expect(normalDraft.validationErrors).toEqual([]);
     expect(normalDraft.payload?.details?.[0]).toMatchObject({
       pro_detail_bprice: 0,
       pro_detail_sprice: 0,
     });
-    expect(setDraft.errors).toEqual([]);
+    expect(setDraft.validationErrors).toEqual([]);
     expect(setDraft.payload?.prod_set_price).toBe(0);
     expect(setDraft.payload?.details?.[0]).toMatchObject({
       pro_detail_bprice: 0,
@@ -116,7 +212,7 @@ describe("product import utils", () => {
     });
   });
 
-  it("reports missing references instead of creating invalid payloads", () => {
+  it("keeps missing references importable and collects names for auto-create", () => {
     const rows = sheetRowsFromAoA(
       [
         ["Product Code", "Product Name (Lao)", "Product Name (English)", "Category", "Unit", "Size Name", "Cost Price", "Sale Price"],
@@ -127,7 +223,86 @@ describe("product import utils", () => {
 
     const [draft] = buildProductImportDrafts({ Normal: rows }, references);
 
-    expect(draft.payload).toBeNull();
-    expect(draft.errors).toContain("Category not found: Missing");
+    expect(draft.validationErrors).toEqual([]);
+    expect(draft.payload).toMatchObject({
+      cate_uuid_fk: "",
+      unite_uuid_fk: "unit-bowl",
+      details: [expect.objectContaining({ size_uuid_fk: "size-regular" })],
+    });
+    expect(productImportReferenceNames({ Normal: rows })).toEqual({
+      categoryNames: ["Missing"],
+      unitNames: ["Bowl"],
+      normalSizeNames: ["Regular"],
+      setSizeNames: [],
+    });
+  });
+
+  it("blocks execution when ensured references still have no UUID", () => {
+    const rows = sheetRowsFromAoA(
+      [
+        ["Product Code", "Product Name (Lao)", "Product Name (English)", "Category", "Unit", "Size Name", "Cost Price", "Sale Price"],
+        ["P-001", "Unknown", "", "Missing", "Bowl", "Regular", "10", "20"],
+      ],
+      ["Product Code", "Product Name (Lao)", "Product Name (English)", "Category", "Unit", "Size Name", "Cost Price", "Sale Price"],
+    );
+    const analysis = analyzeProductImportWorkbook({
+      workbook: { Normal: rows },
+      branchUuid: "branch-1",
+      existingProducts: [],
+      generatedCodeSeed: "AUTO",
+    });
+
+    const [resolved] = resolveProductImportDrafts(
+      analysis.drafts,
+      references,
+      undefined,
+      { requireReferences: true },
+    );
+
+    expect(resolved.validationErrors).toContain("Category not found: Missing");
+    expect(resolved.payload).toBeNull();
+  });
+
+  it("does not plan master data for a draft with a reference conflict", () => {
+    const rows = sheetRowsFromAoA(
+      [
+        ["Product Code", "Product Name (Lao)", "Product Name (English)", "Category", "Unit", "Size Name", "Cost Price", "Sale Price"],
+        ["P-001", "Blocked", "", "New category", "Plate", "Regular", "10", "20"],
+        ["P-002", "Safe", "", "Food", "Bowl", "Regular", "10", "20"],
+      ],
+      ["Product Code", "Product Name (Lao)", "Product Name (English)", "Category", "Unit", "Size Name", "Cost Price", "Sale Price"],
+    );
+    const analysis = analyzeProductImportWorkbook({
+      workbook: { Normal: rows },
+      branchUuid: "branch-1",
+      existingProducts: [],
+      generatedCodeSeed: "AUTO",
+    });
+
+    const plan = planProductImportDraftReferences(analysis.drafts, {
+      defaultGroupName: "Imported",
+      groups: [{ group_uuid: "group-import", group_name_la: "Imported" }],
+      categories: [
+        {
+          cate_uuid: "cat-food",
+          cate_name_la: "Food",
+          group_uuid_fk: "group-import",
+        },
+      ],
+      units: [
+        { unite_uuid: "unit-1", unite_name_la: "Plate" },
+        { unite_uuid: "unit-2", unite_name_eng: "Ｐｌａｔｅ" },
+      ],
+      normalSizes: references.sizes,
+      setSizes: [],
+    });
+
+    expect(plan.conflicts).toContainEqual({
+      kind: "unit",
+      name: "Plate",
+      reason: "ambiguous",
+    });
+    expect(plan.createCategories).toEqual([]);
+    expect(plan.createUnits).toEqual(["Bowl"]);
   });
 });

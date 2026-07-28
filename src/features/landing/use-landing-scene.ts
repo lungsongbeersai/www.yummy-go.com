@@ -96,6 +96,9 @@ export function useLandingScene({ rootRef, heroRef, canvasRef }: LandingSceneRef
     const canvas = canvasRef.current;
     if (!root || !hero || !canvas || !tier) return;
 
+    // CSS ใช้ค่านี้ปิดเอฟเฟกต์ที่แพงกับ compositor บนเครื่องระดับล่าง
+    root.dataset.sceneTier = tier;
+
     let disposed = false;
     let reducedMotion = window.matchMedia(REDUCED_MOTION_QUERY).matches;
     let heroVisible = false;

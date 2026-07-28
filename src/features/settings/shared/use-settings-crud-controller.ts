@@ -90,15 +90,23 @@ export function useSettingsCrudController<
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Row | null>(null);
 
-  const scope = useMemo(() => getScope?.(storeUuid, user) ?? {}, [getScope, storeUuid, user]);
+  const scope = getScope?.(storeUuid, user) ?? {};
   const missingRequiredScope = Boolean(requiredScopeKey && !String(scope[requiredScopeKey] ?? "").trim());
   const requiredScopeDescription = requiredScopeMessage ?? t("settings.branchRequired");
   const { appliedSearch, applySearch } = useAppliedSearch(search);
   const hasLoadedRef = useLatestValue(hasLoaded);
-  const requestParams = useMemo<Params>(
-    () => ({ search: appliedSearch, page, limit, orderBy, lang: language, ...scope }) as Params,
-    [appliedSearch, language, limit, orderBy, page, scope]
-  );
+  // requestParams เป็น dep ของ load() ที่ useEffect ด้านล่างเรียก — identity ต้องนิ่งเมื่อ "ค่า" ไม่เปลี่ยน
+  // ไม่งั้นจะวนยิง API ไม่รู้จบ (render → load → set state → render). scope มาจาก inline arrow ของ
+  // call site ซึ่ง identity เปลี่ยนทุก render จึงผูก memo กับ key ที่เป็นค่าจริง ไม่ใช่ reference
+  const requestParamsKey = JSON.stringify({
+    search: appliedSearch,
+    page,
+    limit,
+    orderBy,
+    lang: language,
+    ...scope
+  });
+  const requestParams = useMemo<Params>(() => JSON.parse(requestParamsKey) as Params, [requestParamsKey]);
   const pageSize = optionPageSize(limit, rows.length);
   const totalPages = optionTotalPages(storeTotalPages, total, pageSize);
   const { start: pageStart, end: pageEnd } = optionPageRange(rows.length, page, pageSize);
