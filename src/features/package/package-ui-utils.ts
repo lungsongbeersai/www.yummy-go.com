@@ -1,10 +1,62 @@
 import type {
+  BillingCycle,
   PackageBillingGroup,
   PackageItem,
   PackageMethod,
   PackagePlan,
   PackagePlanGroup,
 } from "@/services/package";
+
+export interface ActivePackageNavigation {
+  billingCycles: BillingCycle[];
+  planGroups: PackagePlanGroup[];
+  cycleId: string;
+  planId: string;
+}
+
+export function activePackageNavigation(
+  cycles: BillingCycle[],
+  groups: PackagePlanGroup[],
+  selectedCycleId: string,
+  selectedPlanId: string,
+): ActivePackageNavigation {
+  const billingCycles = cycles.filter((cycle) => cycle.status === 1);
+  if (!billingCycles.length) {
+    return { billingCycles: [], planGroups: [], cycleId: "", planId: "" };
+  }
+
+  const activeCycleIds = new Set(billingCycles.map((cycle) => cycle.id));
+  const planGroups = groups.flatMap((group) => {
+    if (group.status !== 1 || !activeCycleIds.has(group.billingCycleId)) {
+      return [];
+    }
+
+    return [
+      {
+        ...group,
+        plans: group.plans.filter(
+          (plan) =>
+            plan.billingCycleId === group.billingCycleId &&
+            plan.status === 1 &&
+            plan.methodStatus === 1,
+        ),
+      },
+    ];
+  });
+  const cycleId = activeCycleIds.has(selectedCycleId)
+    ? selectedCycleId
+    : billingCycles[0].id;
+  const group =
+    planGroups.find((item) => item.billingCycleId === cycleId) ?? null;
+  const selectedPlanIsValid = Boolean(
+    group?.plans.some((plan) => plan.id === selectedPlanId),
+  );
+  const planId = selectedPlanIsValid
+    ? selectedPlanId
+    : (group?.plans[0]?.id ?? "");
+
+  return { billingCycles, planGroups, cycleId, planId };
+}
 
 export function firstPlanId(groups: PackagePlanGroup[]): string {
   if (!groups.length) return "";

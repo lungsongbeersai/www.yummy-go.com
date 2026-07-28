@@ -5,6 +5,7 @@ import { PackageCog } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { PackageToolbar, type PackageStatusFilter } from "@/features/package/package-toolbar";
 import {
+  activePackageNavigation,
   firstPlanId,
   packageRange,
   packagesForPlan,
@@ -38,6 +39,8 @@ export function PackagePage({
   const billingCycles = usePackageStore((state) => state.billingCycles);
   const planGroups = usePackageStore((state) => state.planGroups);
   const packageGroups = usePackageStore((state) => state.packageGroups);
+  const responsePage = usePackageStore((state) => state.page);
+  const responseLimit = usePackageStore((state) => state.limit);
   const total = usePackageStore((state) => state.total);
   const totalPages = usePackageStore((state) => state.totalPages);
   const hasLoaded = usePackageStore((state) => state.hasLoaded);
@@ -55,12 +58,17 @@ export function PackagePage({
   const [status, setStatus] = useState<PackageStatusFilter>("all");
   const [selectedCycleId, setSelectedCycleId] = useState("");
   const [selectedPlanId, setSelectedPlanId] = useState("");
-  const { goToPage, limit, page, resetPage } = useUrlPagination({
+  const {
+    goToPage,
+    limit: requestedLimit,
+    page: requestedPage,
+    resetPage,
+  } = useUrlPagination({
     defaultLimit: 10,
     initialPagination,
     limitOptions: PACKAGE_PAGE_LIMIT_OPTIONS,
   });
-  const pageLimit = typeof limit === "number" ? limit : 10;
+  const pageLimit = typeof requestedLimit === "number" ? requestedLimit : 10;
   const queryStatus =
     status === "1" ? 1 : status === "2" ? 2 : ("all" as const);
   const query = useMemo<PackageQuery>(
@@ -68,11 +76,11 @@ export function PackagePage({
       language,
       limit: pageLimit,
       orderBy: "asc",
-      page,
+      page: requestedPage,
       search,
       status: queryStatus,
     }),
-    [language, page, pageLimit, queryStatus, search],
+    [language, pageLimit, queryStatus, requestedPage, search],
   );
 
   useEffect(() => {
@@ -91,7 +99,7 @@ export function PackagePage({
           1,
           usePackageStore.getState().totalPages,
         );
-        if (page > loadedTotalPages) goToPage(loadedTotalPages);
+        if (requestedPage > loadedTotalPages) goToPage(loadedTotalPages);
       })
       .catch(() => {
         // The store owns the request error; the workspace renders an inline retry.
@@ -100,48 +108,51 @@ export function PackagePage({
     return () => {
       active = false;
     };
-  }, [goToPage, loadCatalog, page, query]);
+  }, [goToPage, loadCatalog, query, requestedPage]);
 
-  const selection = useMemo(() => {
-    const requestedCycle = billingCycles.find(
-      (cycle) => cycle.id === selectedCycleId,
-    );
-    const requestedPlan = planById(planGroups, selectedPlanId);
-    const fallbackPlan = planById(planGroups, firstPlanId(planGroups));
-    const cycleId =
-      requestedCycle?.id ??
-      requestedPlan?.billingCycleId ??
-      fallbackPlan?.billingCycleId ??
-      billingCycles[0]?.id ??
-      planGroups[0]?.billingCycleId ??
-      "";
-    const group =
-      planGroups.find((item) => item.billingCycleId === cycleId) ?? null;
-    const plan =
-      requestedPlan?.billingCycleId === cycleId
-        ? requestedPlan
-        : (group?.plans[0] ?? null);
-    const cycleName =
-      requestedCycle?.id === cycleId
-        ? requestedCycle.name
-        : (billingCycles.find((cycle) => cycle.id === cycleId)?.name ??
-          group?.billingCycleName ??
-          "");
+  const navigation = useMemo(
+    () =>
+      activePackageNavigation(
+        billingCycles,
+        planGroups,
+        selectedCycleId,
+        selectedPlanId,
+      ),
+    [billingCycles, planGroups, selectedCycleId, selectedPlanId],
+  );
+  const selectedPlan = useMemo(
+    () => planById(navigation.planGroups, navigation.planId),
+    [navigation.planGroups, navigation.planId],
+  );
+  const selectedCycleName =
+    navigation.billingCycles.find(
+      (cycle) => cycle.id === navigation.cycleId,
+    )?.name ??
+    navigation.planGroups.find(
+      (group) => group.billingCycleId === navigation.cycleId,
+    )?.billingCycleName ??
+    "";
 
-    return { cycleId, cycleName, group, plan };
+  useEffect(() => {
+    if (selectedCycleId !== navigation.cycleId) {
+      setSelectedCycleId(navigation.cycleId);
+    }
+    if (selectedPlanId !== navigation.planId) {
+      setSelectedPlanId(navigation.planId);
+    }
   }, [
-    billingCycles,
-    planGroups,
+    navigation.cycleId,
+    navigation.planId,
     selectedCycleId,
     selectedPlanId,
   ]);
 
   const visiblePackages = useMemo(
     () =>
-      selection.plan
-        ? packagesForPlan(packageGroups, selection.plan.id)
+      selectedPlan
+        ? packagesForPlan(packageGroups, selectedPlan.id)
         : [],
-    [packageGroups, selection.plan],
+    [packageGroups, selectedPlan],
   );
   const currentPageRowCount = useMemo(
     () =>
@@ -150,7 +161,12 @@ export function PackagePage({
         .flatMap((method) => method.packages).length,
     [packageGroups],
   );
-  const range = packageRange(page, pageLimit, total, currentPageRowCount);
+  const range = packageRange(
+    responsePage,
+    responseLimit,
+    total,
+    currentPageRowCount,
+  );
 
   function changeSearch(value: string) {
     if (value === searchDraft) return;
@@ -167,12 +183,14 @@ export function PackagePage({
   function selectCycle(cycleId: string) {
     setSelectedCycleId(cycleId);
     const group =
-      planGroups.find((item) => item.billingCycleId === cycleId) ?? null;
+      navigation.planGroups.find(
+        (item) => item.billingCycleId === cycleId,
+      ) ?? null;
     setSelectedPlanId(group ? firstPlanId([group]) : "");
   }
 
   function selectPlan(planId: string) {
-    const plan = planById(planGroups, planId);
+    const plan = planById(navigation.planGroups, planId);
     if (!plan) return;
     setSelectedCycleId(plan.billingCycleId);
     setSelectedPlanId(plan.id);
@@ -243,7 +261,7 @@ export function PackagePage({
           </div>
 
           <PackageToolbar
-            canAddPackage={Boolean(selection.plan)}
+            canAddPackage={Boolean(selectedPlan)}
             refreshing={loading || refreshing}
             search={searchDraft}
             status={status}
@@ -255,21 +273,21 @@ export function PackagePage({
       </header>
 
       <PackageWorkspace
-        billingCycles={billingCycles}
+        billingCycles={navigation.billingCycles}
         error={error}
         hasLoaded={hasLoaded}
         language={language}
         loading={loading}
         packages={visiblePackages}
-        page={page}
-        planGroups={planGroups}
+        page={responsePage}
+        planGroups={navigation.planGroups}
         rangeEnd={range.end}
         rangeStart={range.start}
         refreshing={refreshing}
         search={search}
-        selectedCycleId={selection.cycleId}
-        selectedCycleName={selection.cycleName}
-        selectedPlan={selection.plan}
+        selectedCycleId={navigation.cycleId}
+        selectedCycleName={selectedCycleName}
+        selectedPlan={selectedPlan}
         sortingScope={sortingScope}
         status={status}
         total={total}

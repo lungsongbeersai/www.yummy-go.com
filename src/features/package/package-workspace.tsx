@@ -126,7 +126,7 @@ export function PackageWorkspace({
         )}
       </div>
 
-      {error ? (
+      {error && !hasLoaded ? (
         <div className="shrink-0 px-3 pt-3 sm:px-4 lg:px-5">
           <Alert variant="destructive">
             <TriangleAlert aria-hidden="true" />

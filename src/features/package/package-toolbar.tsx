@@ -57,7 +57,7 @@ export function PackageToolbar({
       >
         <SelectTrigger
           aria-label={t("packageManagement.statusLabel")}
-          className="h-11 w-full min-w-0 sm:h-8 sm:w-36"
+          className="h-11! w-full min-w-0 sm:h-8! sm:w-36"
           size="sm"
         >
           <SelectValue />

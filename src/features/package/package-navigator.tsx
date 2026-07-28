@@ -97,7 +97,7 @@ export function PackageMobileNavigator({
           <Select value={selectedCycleId} onValueChange={onSelectCycle}>
             <SelectTrigger
               aria-label={t("packageManagement.billingCycle")}
-              className="h-11 min-w-0 flex-1"
+              className="h-11! min-w-0 flex-1"
             >
               <SelectValue />
             </SelectTrigger>
@@ -148,7 +148,7 @@ export function PackageMobileNavigator({
           >
             <SelectTrigger
               aria-label={t("packageManagement.plan")}
-              className="h-11 min-w-0 flex-1"
+              className="h-11! min-w-0 flex-1"
             >
               <SelectValue placeholder={t("packageManagement.plan")} />
             </SelectTrigger>

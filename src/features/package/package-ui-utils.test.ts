@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type {
+  BillingCycle,
   PackageBillingGroup,
   PackageMethod,
   PackagePlan,
   PackagePlanGroup,
 } from "@/services/package";
 import {
+  activePackageNavigation,
   availableMethods,
   firstPlanId,
   packageRange,
@@ -62,6 +64,30 @@ const methods: PackageMethod[] = [
   {
     id: "method-professional",
     name: "Professional",
+    status: 1,
+    sortOrder: 2,
+  },
+];
+
+const billingCycles: BillingCycle[] = [
+  {
+    id: "cycle-inactive",
+    name: "Inactive",
+    months: 0,
+    status: 2,
+    sortOrder: 0,
+  },
+  {
+    id: "cycle-monthly",
+    name: "Monthly",
+    months: 1,
+    status: 1,
+    sortOrder: 1,
+  },
+  {
+    id: "cycle-yearly",
+    name: "Yearly",
+    months: 12,
     status: 1,
     sortOrder: 2,
   },
@@ -136,6 +162,60 @@ const packageGroups: PackageBillingGroup[] = [
 ];
 
 describe("package UI helpers", () => {
+  it("selects the first active cycle without skipping to a later cycle that has an active plan", () => {
+    const inactivePlan: PackagePlan = {
+      ...monthlyPlan,
+      id: "plan-monthly-inactive",
+      status: 2,
+    };
+    const inactiveMethodPlan: PackagePlan = {
+      ...monthlyPlan,
+      id: "plan-monthly-inactive-method",
+      methodStatus: 2,
+    };
+    const navigation = activePackageNavigation(
+      billingCycles,
+      [
+        {
+          ...planGroups[0],
+          plans: [inactivePlan, inactiveMethodPlan],
+        },
+        planGroups[1],
+        {
+          ...planGroups[1],
+          billingCycleId: "cycle-inactive",
+          status: 2,
+        },
+      ],
+      "",
+      "",
+    );
+
+    expect(navigation.billingCycles.map((cycle) => cycle.id)).toEqual([
+      "cycle-monthly",
+      "cycle-yearly",
+    ]);
+    expect(navigation.planGroups.map((group) => group.billingCycleId)).toEqual([
+      "cycle-monthly",
+      "cycle-yearly",
+    ]);
+    expect(navigation.planGroups[0]?.plans).toEqual([]);
+    expect(navigation.cycleId).toBe("cycle-monthly");
+    expect(navigation.planId).toBe("");
+  });
+
+  it("keeps a valid active user selection when it is not first in catalog order", () => {
+    const navigation = activePackageNavigation(
+      [billingCycles[1], billingCycles[2]],
+      [planGroups[0], planGroups[1]],
+      "cycle-yearly",
+      "plan-yearly-professional",
+    );
+
+    expect(navigation.cycleId).toBe("cycle-yearly");
+    expect(navigation.planId).toBe("plan-yearly-professional");
+  });
+
   it("selects the first plan from normalized sorted plan groups", () => {
     expect(firstPlanId(planGroups)).toBe("plan-monthly-starter");
     expect(firstPlanId([])).toBe("");
@@ -153,9 +233,9 @@ describe("package UI helpers", () => {
     expect(packagesForPlan(packageGroups, "missing-plan")).toEqual([]);
   });
 
-  it("calculates the visible range from backend pagination metadata", () => {
-    expect(packageRange(2, 10, 24, 10)).toEqual({ start: 11, end: 20 });
-    expect(packageRange(3, 10, 24, 4)).toEqual({ start: 21, end: 24 });
+  it("calculates the visible range from one backend response snapshot", () => {
+    expect(packageRange(2, 20, 45, 20)).toEqual({ start: 21, end: 40 });
+    expect(packageRange(3, 20, 45, 5)).toEqual({ start: 41, end: 45 });
     expect(packageRange(1, 10, 0, 0)).toEqual({ start: 0, end: 0 });
   });
 
