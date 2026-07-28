@@ -3,6 +3,7 @@ import type { ProductImportDraft } from "@/features/product/list/product-import-
 import type { Product } from "@/services/product";
 import {
   executeProductImportDrafts,
+  productMatchesImportPayload,
   productImportResultTone,
 } from "./import-execution";
 
@@ -72,11 +73,13 @@ describe("executeProductImportDrafts", () => {
       drafts,
       new Set(),
       save,
+      async () => new Set(),
     );
     const second = await executeProductImportDrafts(
       drafts,
       new Set(first.succeededKeys),
       save,
+      async () => new Set(),
     );
 
     expect(first).toEqual({
@@ -103,10 +106,103 @@ describe("executeProductImportDrafts", () => {
       [invalid, missingPayload],
       new Set(),
       save,
+      async () => new Set(),
     );
 
     expect(save).not.toHaveBeenCalled();
     expect(result).toEqual({ succeededKeys: [], failures: {} });
+  });
+
+  it("reconciles a committed save after the response is lost and never sends it again", async () => {
+    const products: Product[] = [];
+    const save = vi.fn(async (payload) => {
+      products.push({
+        prod_uuid: "saved-ambiguous",
+        prod_code: payload.prod_code,
+        prod_name_la: payload.prod_name_la,
+        branch_uuid_fk: payload.branch_uuid_fk,
+      });
+      throw new Error("network timeout");
+    });
+    const reconcile = vi.fn(
+      async (
+        candidates: ReadonlyArray<{
+          key: string;
+          payload: NonNullable<ProductImportDraft["payload"]>;
+        }>,
+      ) =>
+        new Set(
+          candidates
+            .filter(({ payload }) =>
+              products.some((product) =>
+                productMatchesImportPayload(product, payload),
+              ),
+            )
+            .map(({ key }) => key),
+        ),
+    );
+    const drafts = [draft("ambiguous-key", "AMBIGUOUS")];
+
+    const first = await executeProductImportDrafts(
+      drafts,
+      new Set(),
+      save,
+      reconcile,
+    );
+    const second = await executeProductImportDrafts(
+      drafts,
+      new Set(first.succeededKeys),
+      save,
+      reconcile,
+    );
+
+    expect(first).toEqual({
+      succeededKeys: ["ambiguous-key"],
+      failures: {},
+    });
+    expect(second).toEqual(first);
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(reconcile).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("productMatchesImportPayload", () => {
+  it("requires the same branch, normalized code, and at least one matching name", () => {
+    const payload = draft("match-key", "ＡＢＣ  123").payload!;
+
+    expect(
+      productMatchesImportPayload(
+        {
+          prod_uuid: "product-1",
+          prod_code: "abc 123",
+          prod_name: "ＡＢＣ 123",
+          branch_uuid_fk: "branch-1",
+        },
+        payload,
+      ),
+    ).toBe(true);
+    expect(
+      productMatchesImportPayload(
+        {
+          prod_uuid: "product-2",
+          prod_code: "abc 123",
+          prod_name: "Different product",
+          branch_uuid_fk: "branch-1",
+        },
+        payload,
+      ),
+    ).toBe(false);
+    expect(
+      productMatchesImportPayload(
+        {
+          prod_uuid: "product-3",
+          prod_code: "abc 123",
+          prod_name: "ＡＢＣ 123",
+          branch_uuid_fk: "branch-2",
+        },
+        payload,
+      ),
+    ).toBe(false);
   });
 });
 

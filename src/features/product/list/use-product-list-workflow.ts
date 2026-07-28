@@ -21,6 +21,7 @@ import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
 import { useProductStore } from "@/stores/product-store";
 import {
   executeProductImportDrafts,
+  productMatchesImportPayload,
   productImportResultTone,
 } from "@/stores/product-store/import-execution";
 import {
@@ -870,6 +871,21 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
         resolvedDrafts,
         importSucceededKeys,
         saveProduct,
+        async (candidates) => {
+          const persistedProducts = await loadAllProductsForImport({
+            branch_uuid_fk: user.branch_uuid,
+            lang: language,
+          });
+          return new Set(
+            candidates
+              .filter(({ payload }) =>
+                persistedProducts.some((product) =>
+                  productMatchesImportPayload(product, payload),
+                ),
+              )
+              .map(({ key }) => key),
+          );
+        },
       );
       const nextSucceededKeys = new Set(result.succeededKeys);
       const newlySucceeded = result.succeededKeys.filter(
