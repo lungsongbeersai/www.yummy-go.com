@@ -107,6 +107,58 @@ describe("package store request ownership", () => {
     });
   });
 
+  it("commits current catalog references when its package query is superseded", async () => {
+    const cycles = deferred<BillingCycle[]>();
+    const oldPage = deferred<PackagePageResult>();
+    const currentPage = deferred<PackagePageResult>();
+    const currentCycles: BillingCycle[] = [
+      { id: "monthly", name: "Monthly", months: 1, status: 1, sortOrder: 1 },
+    ];
+    fetchBillingCyclesMock.mockReturnValueOnce(cycles.promise);
+    fetchPackagePageMock
+      .mockReturnValueOnce(oldPage.promise)
+      .mockReturnValueOnce(currentPage.promise);
+
+    const oldLoad = usePackageStore.getState().loadCatalog(queryA);
+    const currentLoad = usePackageStore.getState().loadPackages(queryB);
+
+    currentPage.resolve(pageResult(2));
+    await currentLoad;
+    cycles.resolve(currentCycles);
+    oldPage.resolve(pageResult(1));
+    await oldLoad;
+
+    expect(usePackageStore.getState().billingCycles).toBe(currentCycles);
+    expect(usePackageStore.getState()).toMatchObject({
+      error: null,
+      total: 2,
+    });
+  });
+
+  it("commits a current catalog reference error when its package query is superseded", async () => {
+    const cycles = deferred<BillingCycle[]>();
+    const oldPage = deferred<PackagePageResult>();
+    const currentPage = deferred<PackagePageResult>();
+    fetchBillingCyclesMock.mockReturnValueOnce(cycles.promise);
+    fetchPackagePageMock
+      .mockReturnValueOnce(oldPage.promise)
+      .mockReturnValueOnce(currentPage.promise);
+
+    const oldLoad = usePackageStore.getState().loadCatalog(queryA);
+    const currentLoad = usePackageStore.getState().loadPackages(queryB);
+
+    currentPage.resolve(pageResult(2));
+    await currentLoad;
+    oldPage.resolve(pageResult(1));
+    cycles.reject(new Error("catalog failed"));
+    await expect(oldLoad).rejects.toThrow("catalog failed");
+
+    expect(usePackageStore.getState()).toMatchObject({
+      error: "catalog failed",
+      total: 2,
+    });
+  });
+
   it("keeps the foreground busy flag while an older foreground load is still active", async () => {
     const foregroundPage = deferred<PackagePageResult>();
     const backgroundPage = deferred<PackagePageResult>();
@@ -150,8 +202,11 @@ describe("package store request ownership", () => {
     const firstSort = usePackageStore
       .getState()
       .sortCycles([...previousCycles].reverse(), queryA);
-    await usePackageStore.getState().sortCycles(previousCycles, queryA);
+    const secondSort = usePackageStore
+      .getState()
+      .sortCycles(previousCycles, queryA);
 
+    await expect(secondSort).rejects.toMatchObject({ statusCode: 409 });
     expect(reorderBillingCyclesMock).toHaveBeenCalledTimes(1);
     expect(usePackageStore.getState()).toMatchObject({
       sortingScope: "cycles",

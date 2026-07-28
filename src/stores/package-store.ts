@@ -1,6 +1,7 @@
 "use client";
 
 import { create } from "zustand";
+import { ServiceError } from "@/lib/api";
 import {
   createPackagePlan as createPackagePlanRequest,
   fetchBillingCycles,
@@ -94,6 +95,18 @@ export interface PackageState {
 
 type LoadOperationKind = "foreground" | "background";
 
+interface FulfilledRequest<T> {
+  status: "fulfilled";
+  value: T;
+}
+
+interface RejectedRequest {
+  status: "rejected";
+  reason: unknown;
+}
+
+type RequestOutcome<T> = FulfilledRequest<T> | RejectedRequest;
+
 let catalogLoadRequestId = 0;
 let packageLoadRequestId = 0;
 let storeGeneration = 0;
@@ -114,6 +127,16 @@ function packageQueryKey(query: PackageQuery): string {
     query.limit ?? 10,
     query.orderBy ?? "asc",
   ]);
+}
+
+async function captureRequest<T>(
+  promise: Promise<T>
+): Promise<RequestOutcome<T>> {
+  try {
+    return { status: "fulfilled", value: await promise };
+  } catch (reason) {
+    return { status: "rejected", reason };
+  }
 }
 
 function loadBusyState(): Pick<PackageState, "loading" | "refreshing"> {
@@ -159,7 +182,9 @@ export const usePackageStore = create<PackageState>((set, get) => {
   };
 
   const beginReorder = () => {
-    if (activeReorderOperationId !== null) return null;
+    if (activeReorderOperationId !== null) {
+      throw new ServiceError("A package reorder is already in progress", 409);
+    }
     const operationId = ++reorderOperationId;
     activeReorderOperationId = operationId;
     return operationId;
@@ -239,51 +264,73 @@ export const usePackageStore = create<PackageState>((set, get) => {
       set({ error: null });
 
       try {
-        const [billingCycles, methods, planGroups, packagePage] =
-          await Promise.all([
-            fetchBillingCycles(query.language),
-            fetchPackageMethods(query.language),
-            fetchPackagePlanGroups(query.language),
-            fetchPackagePage(query),
-          ]);
-
-        if (!isCurrentOperation() || activePackageQueryKey !== queryKey) {
-          return;
-        }
-
+        const [
+          billingCyclesResult,
+          methodsResult,
+          planGroupsResult,
+          packagePageResult,
+        ] = await Promise.all([
+          captureRequest(fetchBillingCycles(query.language)),
+          captureRequest(fetchPackageMethods(query.language)),
+          captureRequest(fetchPackagePlanGroups(query.language)),
+          captureRequest(fetchPackagePage(query)),
+        ]);
         const isCurrentCatalogRequest =
           catalogRequestId === catalogLoadRequestId;
         const isCurrentPackageRequest =
-          packageRequestId === packageLoadRequestId;
-        if (!isCurrentCatalogRequest && !isCurrentPackageRequest) return;
+          packageRequestId === packageLoadRequestId &&
+          activePackageQueryKey === queryKey;
+        const referenceFailure =
+          billingCyclesResult.status === "rejected"
+            ? billingCyclesResult
+            : methodsResult.status === "rejected"
+            ? methodsResult
+            : planGroupsResult.status === "rejected"
+            ? planGroupsResult
+            : null;
 
-        set({
-          ...(isCurrentCatalogRequest
-            ? { billingCycles, methods, planGroups }
-            : {}),
-          ...(isCurrentPackageRequest
-            ? {
-                packageGroups: packagePage.groups,
-                page: packagePage.page,
-                limit: packagePage.limit,
-                total: packagePage.total,
-                totalPages: packagePage.totalPages,
-                hasLoaded: true,
-              }
-            : {}),
-        });
-      } catch (error) {
-        if (isCurrentOperation() && activePackageQueryKey === queryKey) {
-          const isCurrentCatalogRequest =
-            catalogRequestId === catalogLoadRequestId;
-          const isCurrentPackageRequest =
-            packageRequestId === packageLoadRequestId;
+        if (isCurrentOperation()) {
+          if (
+            isCurrentCatalogRequest &&
+            billingCyclesResult.status === "fulfilled" &&
+            methodsResult.status === "fulfilled" &&
+            planGroupsResult.status === "fulfilled"
+          ) {
+            set({
+              billingCycles: billingCyclesResult.value,
+              methods: methodsResult.value,
+              planGroups: planGroupsResult.value,
+            });
+          } else if (isCurrentCatalogRequest && referenceFailure) {
+            set({ error: errorMessage(referenceFailure.reason) });
+          }
 
-          if (isCurrentCatalogRequest && isCurrentPackageRequest) {
-            set({ error: errorMessage(error) });
+          if (
+            isCurrentPackageRequest &&
+            packagePageResult.status === "fulfilled"
+          ) {
+            const packagePage = packagePageResult.value;
+            set({
+              packageGroups: packagePage.groups,
+              page: packagePage.page,
+              limit: packagePage.limit,
+              total: packagePage.total,
+              totalPages: packagePage.totalPages,
+              hasLoaded: true,
+            });
+          } else if (
+            isCurrentPackageRequest &&
+            packagePageResult.status === "rejected" &&
+            !referenceFailure
+          ) {
+            set({ error: errorMessage(packagePageResult.reason) });
           }
         }
-        throw error;
+
+        const requestFailure =
+          referenceFailure ??
+          (packagePageResult.status === "rejected" ? packagePageResult : null);
+        if (requestFailure) throw requestFailure.reason;
       } finally {
         finishLoad(loadId);
       }
@@ -376,7 +423,6 @@ export const usePackageStore = create<PackageState>((set, get) => {
       const isCurrentOperation = () =>
         operationGeneration === storeGeneration && isCurrentSession();
       const reorderId = beginReorder();
-      if (reorderId === null) return;
 
       const previousBillingCycles = get().billingCycles;
       const orderedCycles = withCycleOrder(cycles);
@@ -415,7 +461,6 @@ export const usePackageStore = create<PackageState>((set, get) => {
       const isCurrentOperation = () =>
         operationGeneration === storeGeneration && isCurrentSession();
       const reorderId = beginReorder();
-      if (reorderId === null) return;
 
       const previousPlanGroups = get().planGroups;
       const orderedPlanGroups = replacePlanGroupOrder(
@@ -466,7 +511,6 @@ export const usePackageStore = create<PackageState>((set, get) => {
       const isCurrentOperation = () =>
         operationGeneration === storeGeneration && isCurrentSession();
       const reorderId = beginReorder();
-      if (reorderId === null) return;
 
       const previousPackageGroups = get().packageGroups;
       const orderedPackageGroups = replacePackageDetailOrder(
