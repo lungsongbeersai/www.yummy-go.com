@@ -7,7 +7,9 @@ import {
   analyzeProductImportWorkbook,
   buildProductImportDrafts,
   normalizeProductImportKey,
+  planProductImportDraftReferences,
   productImportReferenceNames,
+  resolveProductImportDrafts,
   sheetRowsFromAoA,
 } from "./product-import-utils";
 
@@ -128,7 +130,7 @@ describe("product import utils", () => {
 
     const [draft] = buildProductImportDrafts({ Normal: rows }, references);
 
-    expect(draft.errors).toEqual([]);
+    expect(draft.validationErrors).toEqual([]);
     expect(draft.detailCount).toBe(2);
     expect(draft.sizeNames).toEqual(["Regular", "Large"]);
     expect(draft.payload).toMatchObject({
@@ -160,7 +162,7 @@ describe("product import utils", () => {
 
     const [draft] = buildProductImportDrafts({ Set: rows }, references);
 
-    expect(draft.errors).toEqual([]);
+    expect(draft.validationErrors).toEqual([]);
     expect(draft.sizeNames).toEqual([
       "Coffee + sandwich",
       "Tea + sandwich",
@@ -197,12 +199,12 @@ describe("product import utils", () => {
       references,
     );
 
-    expect(normalDraft.errors).toEqual([]);
+    expect(normalDraft.validationErrors).toEqual([]);
     expect(normalDraft.payload?.details?.[0]).toMatchObject({
       pro_detail_bprice: 0,
       pro_detail_sprice: 0,
     });
-    expect(setDraft.errors).toEqual([]);
+    expect(setDraft.validationErrors).toEqual([]);
     expect(setDraft.payload?.prod_set_price).toBe(0);
     expect(setDraft.payload?.details?.[0]).toMatchObject({
       pro_detail_bprice: 0,
@@ -221,7 +223,7 @@ describe("product import utils", () => {
 
     const [draft] = buildProductImportDrafts({ Normal: rows }, references);
 
-    expect(draft.errors).toEqual([]);
+    expect(draft.validationErrors).toEqual([]);
     expect(draft.payload).toMatchObject({
       cate_uuid_fk: "",
       unite_uuid_fk: "unit-bowl",
@@ -233,5 +235,74 @@ describe("product import utils", () => {
       normalSizeNames: ["Regular"],
       setSizeNames: [],
     });
+  });
+
+  it("blocks execution when ensured references still have no UUID", () => {
+    const rows = sheetRowsFromAoA(
+      [
+        ["Product Code", "Product Name (Lao)", "Product Name (English)", "Category", "Unit", "Size Name", "Cost Price", "Sale Price"],
+        ["P-001", "Unknown", "", "Missing", "Bowl", "Regular", "10", "20"],
+      ],
+      ["Product Code", "Product Name (Lao)", "Product Name (English)", "Category", "Unit", "Size Name", "Cost Price", "Sale Price"],
+    );
+    const analysis = analyzeProductImportWorkbook({
+      workbook: { Normal: rows },
+      branchUuid: "branch-1",
+      existingProducts: [],
+      generatedCodeSeed: "AUTO",
+    });
+
+    const [resolved] = resolveProductImportDrafts(
+      analysis.drafts,
+      references,
+      undefined,
+      { requireReferences: true },
+    );
+
+    expect(resolved.validationErrors).toContain("Category not found: Missing");
+    expect(resolved.payload).toBeNull();
+  });
+
+  it("does not plan master data for a draft with a reference conflict", () => {
+    const rows = sheetRowsFromAoA(
+      [
+        ["Product Code", "Product Name (Lao)", "Product Name (English)", "Category", "Unit", "Size Name", "Cost Price", "Sale Price"],
+        ["P-001", "Blocked", "", "New category", "Plate", "Regular", "10", "20"],
+        ["P-002", "Safe", "", "Food", "Bowl", "Regular", "10", "20"],
+      ],
+      ["Product Code", "Product Name (Lao)", "Product Name (English)", "Category", "Unit", "Size Name", "Cost Price", "Sale Price"],
+    );
+    const analysis = analyzeProductImportWorkbook({
+      workbook: { Normal: rows },
+      branchUuid: "branch-1",
+      existingProducts: [],
+      generatedCodeSeed: "AUTO",
+    });
+
+    const plan = planProductImportDraftReferences(analysis.drafts, {
+      defaultGroupName: "Imported",
+      groups: [{ group_uuid: "group-import", group_name_la: "Imported" }],
+      categories: [
+        {
+          cate_uuid: "cat-food",
+          cate_name_la: "Food",
+          group_uuid_fk: "group-import",
+        },
+      ],
+      units: [
+        { unite_uuid: "unit-1", unite_name_la: "Plate" },
+        { unite_uuid: "unit-2", unite_name_eng: "Ｐｌａｔｅ" },
+      ],
+      normalSizes: references.sizes,
+      setSizes: [],
+    });
+
+    expect(plan.conflicts).toContainEqual({
+      kind: "unit",
+      name: "Plate",
+      reason: "ambiguous",
+    });
+    expect(plan.createCategories).toEqual([]);
+    expect(plan.createUnits).toEqual(["Bowl"]);
   });
 });

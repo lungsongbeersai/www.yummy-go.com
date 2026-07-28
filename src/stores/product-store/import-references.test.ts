@@ -246,6 +246,87 @@ describe("ensureProductImportReferences", () => {
     expect(result.group?.group_uuid).toBe("group-existing");
   });
 
+  it("rejects a stale category-create plan when the name now exists in another group", async () => {
+    const saveCategory = vi.fn();
+
+    await expect(
+      ensureProductImportReferences(
+        {
+          storeUuid: "store-1",
+          language: "la",
+          plan: {
+            group: {
+              action: "reuse",
+              name: "Imported",
+              uuid: "group-import",
+            },
+            conflicts: [],
+            createCategories: ["Food"],
+            createUnits: [],
+            createNormalSizes: [],
+            createSetSizes: [],
+          },
+        },
+        {
+          getGroups: vi.fn().mockResolvedValue([
+            { group_uuid: "group-import", group_name_la: "Imported" },
+          ]),
+          getCategories: vi.fn().mockResolvedValue([
+            {
+              cate_uuid: "cat-other",
+              cate_name_la: "Food",
+              group_uuid_fk: "group-other",
+            },
+          ]),
+          getUnits: vi.fn().mockResolvedValue([]),
+          getSizes: vi.fn().mockResolvedValue([]),
+          saveGroup: vi.fn(),
+          saveCategory,
+          saveUnit: vi.fn(),
+          saveSizeForStatus: vi.fn(),
+        },
+      ),
+    ).rejects.toThrow(/category.*group/i);
+
+    expect(saveCategory).not.toHaveBeenCalled();
+  });
+
+  it("rejects a stale create plan when a reference name is now ambiguous", async () => {
+    const saveUnit = vi.fn();
+
+    await expect(
+      ensureProductImportReferences(
+        {
+          storeUuid: "store-1",
+          language: "la",
+          plan: {
+            group: null,
+            conflicts: [],
+            createCategories: [],
+            createUnits: ["Plate"],
+            createNormalSizes: [],
+            createSetSizes: [],
+          },
+        },
+        {
+          getGroups: vi.fn().mockResolvedValue([]),
+          getCategories: vi.fn().mockResolvedValue([]),
+          getUnits: vi.fn().mockResolvedValue([
+            { unite_uuid: "unit-1", unite_name_la: "Plate" },
+            { unite_uuid: "unit-2", unite_name_eng: "Plate" },
+          ]),
+          getSizes: vi.fn().mockResolvedValue([]),
+          saveGroup: vi.fn(),
+          saveCategory: vi.fn(),
+          saveUnit,
+          saveSizeForStatus: vi.fn(),
+        },
+      ),
+    ).rejects.toThrow(/unit.*ambiguous/i);
+
+    expect(saveUnit).not.toHaveBeenCalled();
+  });
+
   it("refetches the status bucket when Size create omits size_uuid", async () => {
     let normalSizeReads = 0;
     const getSizes = vi.fn().mockImplementation(

@@ -13,7 +13,13 @@ import type {
 } from "@/services/product";
 import type { Size } from "@/services/size";
 import type { Unit } from "@/services/unit";
-import type { ProductImportReferenceNames } from "@/stores/product-store/import-references";
+import {
+  planProductImportReferences,
+  type ProductImportReferenceConflict,
+  type ProductImportReferenceNames,
+  type ProductImportReferencePlan,
+  type ProductImportReferencePlanInput,
+} from "@/stores/product-store/import-references";
 
 export type ProductImportType = "normal" | "set";
 export type ProductImportExecutionStatus = "pending" | "succeeded" | "failed";
@@ -51,11 +57,6 @@ export interface ProductImportDraft {
   detailCount: number;
   salePrice: number;
   validationErrors: string[];
-  /**
-   * Compatibility alias while the import UI moves execution failures out of
-   * validation state in Task 3.
-   */
-  errors: string[];
   warnings: string[];
   payload: SaveProductInput | null;
   executionStatus: ProductImportExecutionStatus;
@@ -95,6 +96,15 @@ export interface ProductImportAnalysis {
   referenceNames: ProductImportReferenceNames;
 }
 
+export interface ResolveProductImportDraftOptions {
+  requireReferences?: boolean;
+}
+
+export type ProductImportDraftReferenceContext = Omit<
+  ProductImportReferencePlanInput,
+  keyof ProductImportReferenceNames
+>;
+
 const DEFAULT_COLOR = "#10B981";
 const DEFAULT_ORDER_POINT = 10;
 const DEFAULT_STOCK_QTY = 100;
@@ -120,9 +130,6 @@ const SET_HEADERS = [
   "Cost Price",
   "Set Price",
 ] as const;
-
-type NormalHeader = (typeof NORMAL_HEADERS)[number];
-type SetHeader = (typeof SET_HEADERS)[number];
 
 interface NormalizedImportRow<H extends string> {
   productIndex: number;
@@ -359,7 +366,6 @@ function createDrafts(
       detailCount: details.length,
       salePrice: details[0]?.salePrice ?? 0,
       validationErrors,
-      errors: validationErrors,
       warnings: [],
       payload: null,
       executionStatus: "pending",
@@ -419,7 +425,6 @@ function createDrafts(
       detailCount: details.length,
       salePrice: setPrice,
       validationErrors,
-      errors: validationErrors,
       warnings,
       payload: null,
       executionStatus: "pending",
@@ -509,8 +514,6 @@ function appendDuplicateErrors(
         );
       }
     });
-
-    draft.errors = draft.validationErrors;
     if (draft.validationErrors.length) draft.payload = null;
   });
 }
@@ -545,7 +548,7 @@ function assignGeneratedCodes(
   });
 }
 
-function referenceNamesFromDrafts(
+export function productImportReferenceNamesFromDrafts(
   drafts: ProductImportDraft[],
 ): ProductImportReferenceNames {
   const validDrafts = drafts.filter(
@@ -573,6 +576,56 @@ function referenceNamesFromDrafts(
   };
 }
 
+export function productImportReferenceConflictApplies(
+  draft: ProductImportDraft,
+  conflict: ProductImportReferenceConflict,
+) {
+  const conflictName = normalizeProductImportKey(conflict.name);
+  if (conflict.kind === "group") return true;
+  if (conflict.kind === "category") {
+    return normalizeProductImportKey(draft.categoryName) === conflictName;
+  }
+  if (conflict.kind === "unit") {
+    return normalizeProductImportKey(draft.unitName) === conflictName;
+  }
+  if (
+    (conflict.kind === "normalSize" && draft.type !== "normal") ||
+    (conflict.kind === "setSize" && draft.type !== "set")
+  ) {
+    return false;
+  }
+  return draft.details.some(
+    (detail) =>
+      normalizeProductImportKey(detail.referenceName) === conflictName,
+  );
+}
+
+export function planProductImportDraftReferences(
+  drafts: ProductImportDraft[],
+  context: ProductImportDraftReferenceContext,
+): ProductImportReferencePlan {
+  const validDrafts = drafts.filter(
+    (draft) => draft.validationErrors.length === 0,
+  );
+  const initialPlan = planProductImportReferences({
+    ...context,
+    ...productImportReferenceNamesFromDrafts(validDrafts),
+  });
+  const safeDrafts = validDrafts.filter(
+    (draft) =>
+      !initialPlan.conflicts.some((conflict) =>
+        productImportReferenceConflictApplies(draft, conflict),
+      ),
+  );
+  if (safeDrafts.length === validDrafts.length) return initialPlan;
+
+  const safePlan = planProductImportReferences({
+    ...context,
+    ...productImportReferenceNamesFromDrafts(safeDrafts),
+  });
+  return { ...safePlan, conflicts: initialPlan.conflicts };
+}
+
 export function analyzeProductImportWorkbook({
   workbook,
   branchUuid,
@@ -592,7 +645,7 @@ export function analyzeProductImportWorkbook({
 
   return {
     drafts,
-    referenceNames: referenceNamesFromDrafts(drafts),
+    referenceNames: productImportReferenceNamesFromDrafts(drafts),
   };
 }
 
@@ -612,7 +665,7 @@ function buildDraftPayload(
   branchUuid: string,
   categoryId: string,
   unitId: string,
-  detailId: (detail: ProductImportDraftDetail) => string,
+  detailId: (detail: ProductImportDraftDetail, index: number) => string,
 ): SaveProductInput {
   const base = {
     branch_uuid_fk: branchUuid,
@@ -634,8 +687,8 @@ function buildDraftPayload(
   if (draft.type === "set") {
     return {
       ...base,
-      details: draft.details.map((detail) => ({
-        size_uuid_fk: detailId(detail),
+      details: draft.details.map((detail, index) => ({
+        size_uuid_fk: detailId(detail, index),
         pro_detail_bprice: detail.costPrice,
         pro_detail_qty_stock: DEFAULT_STOCK_QTY,
         pro_detail_stock: 2,
@@ -647,8 +700,8 @@ function buildDraftPayload(
 
   return {
     ...base,
-    details: draft.details.map((detail) => ({
-      size_uuid_fk: detailId(detail),
+    details: draft.details.map((detail, index) => ({
+      size_uuid_fk: detailId(detail, index),
       pro_detail_bprice: detail.costPrice,
       pro_detail_sprice: detail.salePrice,
       pro_detail_qty_stock: DEFAULT_STOCK_QTY,
@@ -670,6 +723,15 @@ export function buildProductImportDrafts(
     generatedCodeSeed: generateProdCode(),
     messages,
   });
+  return resolveProductImportDrafts(analysis.drafts, references, messages);
+}
+
+export function resolveProductImportDrafts(
+  drafts: ProductImportDraft[],
+  references: ProductImportReferences,
+  messages: ProductImportMessages = DEFAULT_IMPORT_MESSAGES,
+  options: ResolveProductImportDraftOptions = {},
+) {
   const categoryKeys = [
     "cate_name",
     "cate_name_la",
@@ -688,8 +750,8 @@ export function buildProductImportDrafts(
   ];
   const sizeKeys = ["size_name", "size_name_la", "size_name_eng"];
 
-  return analysis.drafts.map((draft) => {
-    if (draft.validationErrors.length) return draft;
+  return drafts.map((draft) => {
+    const validationErrors = [...draft.validationErrors];
     const categoryId = matchOption(
       references.categories,
       draft.categoryName,
@@ -704,29 +766,69 @@ export function buildProductImportDrafts(
     );
     const detailRows =
       draft.type === "set" ? references.setSizes : references.sizes;
+    const detailIds = draft.details.map((detail) =>
+      matchOption(detailRows, detail.referenceName, sizeKeys, sizeUuid),
+    );
+
+    if (options.requireReferences) {
+      if (!categoryId) {
+        pushUnique(
+          validationErrors,
+          messages.categoryNotFound(draft.categoryName),
+        );
+      }
+      if (!unitId) {
+        pushUnique(validationErrors, messages.unitNotFound(draft.unitName));
+      }
+      draft.details.forEach((detail, index) => {
+        if (detailIds[index]) return;
+        pushUnique(
+          validationErrors,
+          draft.type === "set"
+            ? messages.setOptionNotFound(
+                detail.rowNumber,
+                detail.referenceName,
+              )
+            : messages.sizeNotFound(detail.rowNumber, detail.referenceName),
+        );
+      });
+    }
 
     return {
       ...draft,
-      payload: buildDraftPayload(
-        draft,
-        references.branchUuid,
-        categoryId,
-        unitId,
-        (detail) =>
-          matchOption(detailRows, detail.referenceName, sizeKeys, sizeUuid),
-      ),
+      validationErrors,
+      payload: validationErrors.length
+        ? null
+        : buildDraftPayload(
+            draft,
+            references.branchUuid,
+            categoryId,
+            unitId,
+            (_detail, index) => detailIds[index] ?? "",
+          ),
     };
   });
 }
 
 export function productImportSummary(drafts: ProductImportDraft[]) {
   const ready = drafts.filter(
-    (draft) => draft.payload && !draft.validationErrors.length,
+    (draft) =>
+      draft.executionStatus !== "succeeded" &&
+      draft.payload &&
+      !draft.validationErrors.length,
   ).length;
-  const invalid = drafts.length - ready;
+  const invalid = drafts.filter(
+    (draft) => draft.validationErrors.length > 0,
+  ).length;
+  const succeeded = drafts.filter(
+    (draft) => draft.executionStatus === "succeeded",
+  ).length;
+  const failed = drafts.filter(
+    (draft) => draft.executionStatus === "failed",
+  ).length;
   const warnings = drafts.reduce(
     (sum, draft) => sum + draft.warnings.length,
     0,
   );
-  return { total: drafts.length, ready, invalid, warnings };
+  return { total: drafts.length, ready, invalid, warnings, succeeded, failed };
 }

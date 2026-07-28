@@ -370,7 +370,10 @@ async function createPlannedRows<T extends Record<string, unknown>>({
   const resolvedRows = [...rows];
   for (const name of uniqueNames(names)) {
     const existingMatches = matchingRows(resolvedRows, name, nameKeys);
-    if (distinctIds(existingMatches, idKey).size === 1) continue;
+    if (existingMatches.length) {
+      if (distinctIds(existingMatches, idKey).size === 1) continue;
+      throw new Error(`${label} is ambiguous: ${name}`);
+    }
 
     const created = await create(name);
     const resolved = await resolveCreatedRow({
@@ -468,6 +471,21 @@ export async function ensureProductImportReferences(
     throw new Error("Default Group is required for Category creation");
   }
   const groupUuid = group ? requiredUuid(group, "group_uuid", "Group") : "";
+
+  plan.createCategories.forEach((name) => {
+    const matches = matchingRows(categories, name, CATEGORY_NAME_KEYS);
+    if (!matches.length) return;
+    const belongsToTargetGroup = matches.every(
+      (category) =>
+        cleanImportName(category.group_uuid_fk) === groupUuid,
+    );
+    if (
+      !belongsToTargetGroup ||
+      distinctIds(matches, "cate_uuid").size !== 1
+    ) {
+      throw new Error(`Category group conflict: ${name}`);
+    }
+  });
 
   const resolvedCategories = await createPlannedRows({
     names: plan.createCategories,

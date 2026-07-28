@@ -19,7 +19,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import type { ProductListWorkflow } from "./use-product-list-workflow";
 
 export function ProductImportDialog({ workflow }: { workflow: ProductListWorkflow }) {
-  const ready = workflow.importSummary.ready > 0 && !workflow.importing && !workflow.importParsing;
+  const ready =
+    workflow.importSummary.ready > 0 &&
+    Boolean(workflow.importDefaultGroupName.trim()) &&
+    !workflow.importing &&
+    !workflow.importParsing;
   const busy = workflow.importing || workflow.importParsing;
 
   return (
@@ -62,6 +66,45 @@ export function ProductImportDialog({ workflow }: { workflow: ProductListWorkflo
               <FieldDescription>{workflow.t("product.import.defaultsDescription")}</FieldDescription>
             </Field>
 
+            <Field className="rounded-md border bg-muted/20 p-3">
+              <FieldLabel htmlFor="product-import-default-group">
+                {workflow.t("product.import.defaultGroup", {
+                  defaultValue: "Default Group",
+                })}
+              </FieldLabel>
+              <Input
+                id="product-import-default-group"
+                list="product-import-group-options"
+                disabled={busy || workflow.importSummary.succeeded > 0}
+                value={workflow.importDefaultGroupName}
+                placeholder={workflow.t("product.import.defaultGroupPlaceholder", {
+                  defaultValue: "Choose or enter a group name",
+                })}
+                onChange={(event) =>
+                  workflow.setImportDefaultGroupName(event.currentTarget.value)
+                }
+              />
+              <datalist id="product-import-group-options">
+                {workflow.importGroupOptions.map((group) => {
+                  const name = String(
+                    group.group_name ??
+                      group.group_name_la ??
+                      group.group_name_eng ??
+                      "",
+                  );
+                  return name ? (
+                    <option key={group.group_uuid} value={name} />
+                  ) : null;
+                })}
+              </datalist>
+              <FieldDescription>
+                {workflow.t("product.import.defaultGroupDescription", {
+                  defaultValue:
+                    "Existing groups are reused. A new group is created automatically when needed.",
+                })}
+              </FieldDescription>
+            </Field>
+
             <Alert>
               <Info />
               <AlertTitle>{workflow.t("product.import.summaryTitle")}</AlertTitle>
@@ -74,9 +117,14 @@ export function ProductImportDialog({ workflow }: { workflow: ProductListWorkflo
                   <FileSpreadsheet data-icon="inline-start" />
                   <span className="truncate">{workflow.importFileName}</span>
                 </Badge>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   <Badge className="justify-center bg-primary/10 text-primary">
                     {workflow.t("product.import.readyCount", { count: workflow.importSummary.ready })}
+                  </Badge>
+                  <Badge className="justify-center border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
+                    {workflow.t("product.import.succeededCount", {
+                      count: workflow.importSummary.succeeded,
+                    })}
                   </Badge>
                   <Badge
                     className={
@@ -102,8 +150,20 @@ export function ProductImportDialog({ workflow }: { workflow: ProductListWorkflo
             </div>
 
             {workflow.importResult ? (
-              <Alert>
-                <AlertCircle />
+              <Alert
+                className={
+                  workflow.importResultTone === "success"
+                    ? "border-emerald-500/40"
+                    : workflow.importResultTone === "partial"
+                      ? "border-amber-500/40"
+                      : "border-destructive/40"
+                }
+              >
+                {workflow.importResultTone === "success" ? (
+                  <CheckCircle2 />
+                ) : (
+                  <AlertCircle />
+                )}
                 <AlertTitle>{workflow.t("product.import.statusTitle")}</AlertTitle>
                 <AlertDescription>{workflow.importResult}</AlertDescription>
               </Alert>
@@ -123,14 +183,18 @@ export function ProductImportDialog({ workflow }: { workflow: ProductListWorkflo
                       <TableHead>{workflow.t("product.import.product")}</TableHead>
                       <TableHead>{workflow.t("product.import.category")}</TableHead>
                       <TableHead>{workflow.t("product.import.unit")}</TableHead>
-                      <TableHead className="text-right">{workflow.t("product.import.options")}</TableHead>
+                      <TableHead>{workflow.t("product.import.sizeOrOption")}</TableHead>
                       <TableHead className="text-right">{workflow.t("product.import.price")}</TableHead>
                       <TableHead>{workflow.t("product.import.status")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {workflow.importDrafts.map((draft) => {
-                      const valid = Boolean(draft.payload) && !draft.errors.length;
+                      const valid =
+                        Boolean(draft.payload) &&
+                        !draft.validationErrors.length;
+                      const willCreate =
+                        valid && workflow.importWillCreate(draft);
                       return (
                         <TableRow key={draft.key}>
                           <TableCell>
@@ -144,20 +208,45 @@ export function ProductImportDialog({ workflow }: { workflow: ProductListWorkflo
                           </TableCell>
                           <TableCell className="max-w-[12rem] truncate">{draft.categoryName || "-"}</TableCell>
                           <TableCell className="max-w-[10rem] truncate">{draft.unitName || "-"}</TableCell>
-                          <TableCell className="text-right">{draft.detailCount}</TableCell>
+                          <TableCell
+                            className="max-w-[14rem] truncate font-medium"
+                            title={draft.sizeNames.join(", ")}
+                          >
+                            {draft.sizeNames.join(", ") || "-"}
+                          </TableCell>
                           <TableCell className="text-right tabular-nums">{draft.salePrice.toLocaleString()}</TableCell>
                           <TableCell className="max-w-[22rem]">
-                            {valid ? (
+                            {draft.executionStatus === "succeeded" ? (
+                              <span className="inline-flex items-center gap-1 text-sm font-medium text-emerald-700 dark:text-emerald-300">
+                                <CheckCircle2 data-icon="inline-start" />
+                                {workflow.t("product.import.succeeded")}
+                              </span>
+                            ) : !valid ? (
+                              <div className="flex flex-col gap-1 text-xs text-destructive">
+                                <span className="font-medium">
+                                  {workflow.t("product.import.conflict")}
+                                </span>
+                                {draft.validationErrors.slice(0, 3).map((error) => (
+                                  <span key={error}>{error}</span>
+                                ))}
+                              </div>
+                            ) : draft.executionStatus === "failed" ? (
+                              <div className="flex flex-col gap-1 text-xs text-destructive">
+                                <span className="font-medium">
+                                  {workflow.t("product.import.failed")}
+                                </span>
+                                <span>{draft.executionError}</span>
+                              </div>
+                            ) : willCreate ? (
+                              <span className="inline-flex items-center gap-1 text-sm font-medium text-amber-700 dark:text-amber-300">
+                                <Info data-icon="inline-start" />
+                                {workflow.t("product.import.willCreate")}
+                              </span>
+                            ) : (
                               <span className="inline-flex items-center gap-1 text-sm font-medium text-primary">
                                 <CheckCircle2 data-icon="inline-start" />
                                 {workflow.t("product.import.ready")}
                               </span>
-                            ) : (
-                              <div className="flex flex-col gap-1 text-xs text-destructive">
-                                {draft.errors.slice(0, 3).map((error) => (
-                                  <span key={error}>{error}</span>
-                                ))}
-                              </div>
                             )}
                             {draft.warnings.length ? (
                               <p className="mt-1 text-xs text-muted-foreground">{draft.warnings.join(", ")}</p>
@@ -187,7 +276,12 @@ export function ProductImportDialog({ workflow }: { workflow: ProductListWorkflo
           </Button>
           <Button type="button" disabled={!ready} onClick={() => void workflow.importProductsFromDrafts()}>
             {workflow.importing ? <Spinner data-icon="inline-start" /> : <Upload data-icon="inline-start" />}
-            {workflow.t("product.import.importButton", { count: workflow.importSummary.ready })}
+            {workflow.t(
+              workflow.importSummary.failed
+                ? "product.import.retryButton"
+                : "product.import.importButton",
+              { count: workflow.importSummary.ready },
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>
