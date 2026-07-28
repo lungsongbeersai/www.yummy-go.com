@@ -8,7 +8,12 @@ export interface Unit extends ApiEntity {
   unite_name_eng?: string;
 }
 export type UnitResponse = ApiListResponse<Unit>;
-export interface SaveUnitInput extends ApiEntity {}
+export interface SaveUnitInput extends ApiEntity {
+  unite_uuid: string;
+  store_uuid_fk: string;
+  unite_name_la: string;
+  unite_name_eng: string;
+}
 export interface FetchUnitsParams extends FetchParams {}
 
 const crud = createCrud<Unit>(

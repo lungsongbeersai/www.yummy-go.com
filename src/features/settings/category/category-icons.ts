@@ -1,3 +1,6 @@
+export { DEFAULT_CATEGORY_ICON } from "@/lib/category-defaults";
+import { DEFAULT_CATEGORY_ICON } from "@/lib/category-defaults";
+
 export interface CategoryIconOption {
   labelKey: string;
   value: string;
@@ -23,8 +26,6 @@ export interface CategoryIconPickerOption extends CategoryIconOption {
   label: string;
   searchText: string;
 }
-
-export const DEFAULT_CATEGORY_ICON = "mdi:folder-outline";
 
 export const CATEGORY_ICON_GROUPS: Array<{ value: CategoryIconGroup; labelKey: string }> = [
   { value: "all", labelKey: "settings.categoryIconGroups.all" },

@@ -4,6 +4,7 @@ import {
   sizeUuid,
   unitUuid,
 } from "@/features/product/form/product-form-utils";
+import { normalizeProductImportKey } from "@/lib/product-import";
 import type { Category } from "@/services/category";
 import type {
   Product,
@@ -16,6 +17,7 @@ import type { ProductImportReferenceNames } from "@/stores/product-store/import-
 
 export type ProductImportType = "normal" | "set";
 export type ProductImportExecutionStatus = "pending" | "succeeded" | "failed";
+export { normalizeProductImportKey } from "@/lib/product-import";
 
 export interface ProductImportSheetRow {
   rowNumber: number;
@@ -143,14 +145,6 @@ const DEFAULT_IMPORT_MESSAGES: ProductImportMessages = {
 
 function cleanText(value: unknown) {
   return String(value ?? "").replace(/\s+/gu, " ").trim();
-}
-
-export function normalizeProductImportKey(value: unknown): string {
-  return String(value ?? "")
-    .normalize("NFKC")
-    .replace(/\s+/gu, " ")
-    .trim()
-    .toLocaleLowerCase("lo");
 }
 
 function numberValue(value: unknown) {
