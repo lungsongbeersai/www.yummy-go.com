@@ -179,7 +179,7 @@ function DetailRow({
           type="button"
           aria-label={`${t("packageManagement.dragToReorder")} ${name}`}
           className={cn(
-            "flex size-6 shrink-0 cursor-grab items-center justify-center rounded text-muted-foreground",
+            "flex size-11 shrink-0 cursor-grab items-center justify-center rounded text-muted-foreground touch-none sm:size-6",
             disabled && "cursor-not-allowed opacity-60",
           )}
           {...attributes}
