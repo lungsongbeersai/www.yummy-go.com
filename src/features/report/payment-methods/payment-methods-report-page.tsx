@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { CreditCard } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { AppPagination } from "@/components/common/app-pagination";
 import { Badge } from "@/components/ui/badge";
@@ -34,10 +33,8 @@ export function PaymentMethodsReportPage({ initialPagination }: { initialPaginat
 
   return (
     <ReportPageShell
+      accessibleTitle={report.reportTitle}
       variant="compact"
-      icon={CreditCard}
-      title={report.reportTitle}
-      description={t("report.paymentMethodsReport.description")}
       dateFrom={report.appliedFilters.dateFrom}
       dateTo={report.appliedFilters.dateTo}
       loading={report.loading}
@@ -85,7 +82,6 @@ export function PaymentMethodsReportPage({ initialPagination }: { initialPaginat
           contentClassName="p-0"
           contentWrapperClassName="min-w-0 overflow-x-auto overscroll-x-contain"
           headerVariant="compact"
-          icon={CreditCard}
           title={report.reportTitle}
           subtitle={
             report.rows.length ? (
@@ -114,7 +110,6 @@ export function PaymentMethodsReportPage({ initialPagination }: { initialPaginat
           onClearSelection={report.rowSelection.clearSelection}
           onExportExcel={() => void report.exportExcel()}
           onExportPdf={() => void report.exportPdf()}
-          onRefresh={() => void report.load()}
         >
           <PaymentMethodsTable
             reportTotal={report.reportTotal}

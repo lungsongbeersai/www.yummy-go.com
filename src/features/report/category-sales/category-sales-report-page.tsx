@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { FolderTree } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { AppPagination } from "@/components/common/app-pagination";
 import { LoadingState } from "@/components/common/loading-state";
@@ -33,10 +32,8 @@ export function CategorySalesReportPage({ initialPagination }: { initialPaginati
 
   return (
     <ReportPageShell
+      accessibleTitle={report.reportTitle}
       variant="spacious"
-      icon={FolderTree}
-      title={report.reportTitle}
-      description={t("report.categorySales.description")}
       dateFrom={report.appliedFilters.dateFrom}
       dateTo={report.appliedFilters.dateTo}
       loading={report.loading}
@@ -74,7 +71,6 @@ export function CategorySalesReportPage({ initialPagination }: { initialPaginati
           contentClassName="flex min-h-0 flex-1 flex-col p-0"
           contentWrapperClassName="min-h-0 md:flex-1 md:overflow-auto"
           headerVariant="spacious"
-          icon={FolderTree}
           title={report.reportTitle}
           skeletonMode="always"
           renderLoading={() => <LoadingState label={t("report.categorySales.loading")} variant="reportTable" />}
@@ -96,7 +92,6 @@ export function CategorySalesReportPage({ initialPagination }: { initialPaginati
           onClearSelection={report.rowSelection.clearSelection}
           onExportExcel={() => void report.exportExcel()}
           onExportPdf={() => void report.exportPdf()}
-          onRefresh={() => void report.load()}
         >
           <CategorySalesTable
             groups={report.groups}

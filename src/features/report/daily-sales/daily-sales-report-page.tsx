@@ -1,7 +1,7 @@
 "use client";
 
 import { type CSSProperties, useRef, useState } from "react";
-import { BarChart3, Eye, EyeOff, RefreshCcw, SlidersHorizontal } from "lucide-react";
+import { Eye, EyeOff, RefreshCcw, SlidersHorizontal } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { AppPagination } from "@/components/common/app-pagination";
 import { FilterHeaderToolbar } from "@/components/common/filter-header-toolbar";
@@ -45,18 +45,7 @@ export function DailySalesReportPage({
         style={layoutStyle}
       >
         <div className="flex min-h-full w-full min-w-0 flex-col gap-2 p-2 sm:p-3 lg:h-full lg:min-h-0">
-          <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 text-xs font-bold text-primary">
-                <BarChart3 className="size-4" />
-                {t("nav.report_menu")}
-              </div>
-              <h1 className="truncate text-xl font-black tracking-normal text-foreground sm:text-2xl">
-                {t("report.dailySalesTitle")}
-              </h1>
-              <p className="text-xs text-muted-foreground sm:text-sm">{t("report.dailySalesDescription")}</p>
-            </div>
-          </div>
+          <h1 className="sr-only">{t("report.dailySalesTitle")}</h1>
 
           <FilterHeaderToolbar
             dateRange={{
@@ -153,7 +142,6 @@ export function DailySalesReportPage({
               onExpandAllBills: report.expandAllBills,
               onExportExcel: () => void report.exportExcel(),
               onExportPdf: () => void report.exportPdf(),
-              onRefresh: () => void report.load(),
               onSearchChange: (search) => report.applyTableHeaderFilters({ search }),
               onTypePageChange: (typePage) => report.applyTableHeaderFilters({ typePage }),
             }}

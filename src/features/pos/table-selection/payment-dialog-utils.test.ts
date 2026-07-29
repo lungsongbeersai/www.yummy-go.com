@@ -11,11 +11,13 @@ import {
   amountInput,
   buildInvoicePrintData,
   currencyMoney,
+  customerUuidOf,
   defaultCustomerFromRows,
-  defaultCustomerSearchTerm,
   defaultCurrencyInput,
   displayCaretFromRawCaret,
   exchangeCurrencyOptions,
+  firstCustomerAutoSelectAction,
+  firstCustomerListParams,
   formatAmountInputDisplay,
   LAK_CURRENCY_OPTION,
   paymentAmounts,
@@ -78,11 +80,39 @@ const translate = (key: string, options?: Record<string, unknown>) =>
   options?.percent ? `${key}:${options.percent}` : key;
 
 describe("payment dialog helpers", () => {
-  it("finds default customer terms by language and exact name", () => {
-    const laoCustomer = {
-      customer_uuid: "default-la",
-      customer_name: " ລູກຄ້າທົ່ວໄປ ",
-    } as Customer;
+  it("builds the first-created-customer request without a name search", () => {
+    expect(firstCustomerListParams("store-1", "la")).toEqual({
+      store_uuid_fk: "store-1",
+      page: 1,
+      limit: 1,
+      search: "",
+      sort_by: "ASC",
+      lang: "la",
+    });
+  });
+
+  it("loads the automatic customer only once per payment open cycle", () => {
+    const initial = {
+      attempted: false,
+      customerCreateOpen: false,
+      customerUuid: "",
+      open: true,
+      storeUuid: "store-1",
+    };
+
+    expect(firstCustomerAutoSelectAction(initial)).toBe("load");
+    expect(
+      firstCustomerAutoSelectAction({ ...initial, attempted: true }),
+    ).toBe("none");
+    expect(
+      firstCustomerAutoSelectAction({ ...initial, customerCreateOpen: true }),
+    ).toBe("none");
+    expect(
+      firstCustomerAutoSelectAction({ ...initial, open: false }),
+    ).toBe("reset");
+  });
+
+  it("finds a customer by exact name for the create fallback", () => {
     const englishCustomer = {
       customer_uuid: "default-en",
       customer_name: "Customer",
@@ -92,16 +122,16 @@ describe("payment dialog helpers", () => {
       customer_name: "customer1",
     } as Customer;
 
-    expect(defaultCustomerSearchTerm("la")).toBe("ລູກຄ້າທົ່ວໄປ");
-    expect(defaultCustomerSearchTerm("eng")).toBe("customer");
-    expect(defaultCustomerSearchTerm("en")).toBe("customer");
     expect(defaultCustomerFromRows([similarCustomer], "customer")).toBeNull();
     expect(defaultCustomerFromRows([similarCustomer, englishCustomer], "customer")).toBe(
       englishCustomer,
     );
-    expect(
-      defaultCustomerFromRows([laoCustomer], defaultCustomerSearchTerm("la")),
-    ).toBe(laoCustomer);
+  });
+
+  it("allows customer creation to fall back when the API omits the created row", () => {
+    expect(customerUuidOf(undefined)).toBe("");
+    expect(customerUuidOf(null)).toBe("");
+    expect(customerUuidOf(customer)).toBe("customer-1");
   });
 
   it("calculates payment amounts and validation", () => {

@@ -1,0 +1,81 @@
+import { createElement } from "react";
+import { renderToString } from "react-dom/server";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { CartOrder, PosTable } from "@/services/pos";
+import type { PaymentDialogProps } from "../payment-dialog-types";
+
+vi.mock("react-i18next", () => ({
+  useTranslation: () => ({
+    t: (key: string) => key,
+  }),
+}));
+
+vi.mock("./use-payment-customers", () => ({
+  usePaymentCustomers: () => ({
+    customerCreateOpen: false,
+    customerOpen: false,
+    customerUuid: "customer-1",
+    selectedCustomerOption: null,
+  }),
+}));
+
+import { useAppStore } from "@/stores/app-store";
+import { useAuthStore } from "@/stores/auth-store";
+import { useReferenceStore } from "@/stores/reference-store";
+import { usePaymentDialogWorkflow } from "./use-payment-dialog-workflow";
+
+function WorkflowHarness(props: PaymentDialogProps) {
+  const { activeInputDisplayValue } = usePaymentDialogWorkflow(props);
+  return createElement("output", null, activeInputDisplayValue);
+}
+
+const orders = [
+  {
+    order_uuid: "order-1",
+    order_invoice: "INV-1",
+  } as CartOrder,
+];
+
+const table: PosTable = {
+  table_uuid: "table-1",
+  table_name: "A1",
+  table_status: 2,
+};
+
+const summary = {
+  grandTotal: 5_461_500,
+  orderDiscount: 0,
+  orderVat: null,
+  serviceRate: null,
+  serviceTotal: 0,
+  subtotal: 5_461_500,
+  tax: 0,
+  taxRate: null,
+  vatTotal: null,
+} as PaymentDialogProps["summary"];
+
+describe("payment dialog workflow", () => {
+  beforeEach(() => {
+    useAppStore.setState({ language: "la" });
+    useAuthStore.setState({ user: null });
+    useReferenceStore.setState({
+      options: {},
+      loadingKeys: {},
+    });
+  });
+
+  it("prefills cash received with the amount due on the first open", () => {
+    const html = renderToString(
+      createElement(WorkflowHarness, {
+        onCompleted: async () => undefined,
+        onOpenChange: () => undefined,
+        open: true,
+        orders,
+        summary,
+        table,
+      }),
+    );
+
+    expect(html).toBe("<output>5,461,500</output>");
+  });
+});

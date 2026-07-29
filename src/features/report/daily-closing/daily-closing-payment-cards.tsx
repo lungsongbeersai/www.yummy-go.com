@@ -1,7 +1,9 @@
 "use client";
 
 import { useTranslation } from "react-i18next";
+import { Card, CardContent } from "@/components/ui/card";
 import { money } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import type { DailyStoreClosingReport } from "@/stores/report-store";
 import { dailyClosingLabel } from "./daily-closing-report-utils";
 
@@ -20,12 +22,12 @@ const CARD_STYLES: Record<PaymentCardVariant, { card: string; label: string; val
     value: "text-foreground",
   },
   primary: {
-    card: "border-primary/40 bg-primary/5",
-    label: "text-primary/80",
+    card: "border-border border-l-4 border-l-primary bg-card",
+    label: "text-primary",
     value: "text-primary",
   },
   danger: {
-    card: "border-destructive/40 bg-destructive/5",
+    card: "border-border border-l-4 border-l-destructive bg-card",
     label: "text-destructive",
     value: "text-destructive",
   },
@@ -95,10 +97,19 @@ export function DailyClosingPaymentCards({
         {cards.map((card) => {
           const styles = CARD_STYLES[card.variant];
           return (
-            <article key={card.key} className={`rounded-xl border p-4 ${styles.card}`}>
-              <p className={`truncate text-xs font-semibold ${styles.label}`}>{card.label}</p>
-              <p className={`mt-1 text-lg font-black tabular-nums ${styles.value}`}>{card.value}</p>
-            </article>
+            <Card
+              key={card.key}
+              className={cn("overflow-hidden shadow-sm", styles.card)}
+            >
+              <CardContent className="p-4">
+                <p className={cn("truncate text-xs font-semibold", styles.label)}>
+                  {card.label}
+                </p>
+                <p className={cn("mt-1 text-lg font-black tabular-nums", styles.value)}>
+                  {card.value}
+                </p>
+              </CardContent>
+            </Card>
           );
         })}
       </div>

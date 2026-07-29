@@ -128,10 +128,10 @@ export function BestSellingSummaryCards({
       cardClassName={(card) => {
         const tone = summaryCardTone(cardByLabel.get(card.key));
         return cn(
-          "border",
-          tone === "primary" && "border-primary/20 bg-primary/5 shadow-primary/5",
-          tone === "danger" && "border-destructive/20 bg-destructive/5 shadow-destructive/5",
-          tone === "neutral" && "border-border bg-muted/20",
+          "border bg-card",
+          tone === "primary" && "border-primary/40 border-l-4 border-l-primary",
+          tone === "danger" && "border-destructive/40 border-l-4 border-l-destructive",
+          tone === "neutral" && "border-border",
         );
       }}
       labelClassName={(card) => {
@@ -388,7 +388,7 @@ export function BestSellingProductsTable({
   return (
     <div className="hidden w-full min-w-0 md:block">
       <Table className="w-max min-w-full table-auto text-xs">
-        <TableHeader className="[&_th]:sticky [&_th]:top-0 [&_th]:z-30 [&_th]:h-9 [&_th]:whitespace-nowrap [&_th]:border-b [&_th]:border-border [&_th]:bg-muted/80 [&_th]:px-2 [&_th]:shadow-sm [&_th]:backdrop-blur">
+        <TableHeader className="[&_th]:sticky [&_th]:top-0 [&_th]:z-30 [&_th]:h-9 [&_th]:whitespace-nowrap [&_th]:border-b [&_th]:border-border [&_th]:bg-muted [&_th]:px-2 [&_th]:shadow-sm">
           <TableRow>
             <TableHead className="w-10 text-center">
               <ReportIndeterminateCheckbox
@@ -624,12 +624,15 @@ function BestSellingSummaryFooterRow({
   );
 
   return (
-    <TableRow className="border-t border-primary/25 bg-primary/5 hover:bg-primary/10">
+    <TableRow className="border-t-2 border-primary bg-muted font-bold text-foreground hover:bg-muted">
       <TableCell className={summaryFooterCellClass("left")} colSpan={5}>
         <div className="flex min-w-64 items-center gap-2">
-          <span className="inline-flex h-6 items-center rounded-full bg-background/80 px-2 text-xs font-black uppercase text-primary ring-1 ring-primary/20">
+          <Badge
+            variant="outline"
+            className="h-6 border-primary/30 bg-muted px-2 text-xs font-black uppercase text-primary"
+          >
             {summaryLabel}
-          </span>
+          </Badge>
           {productCount > 0 ? (
             <span className="truncate text-xs font-semibold text-muted-foreground">
               {t("report.bestSelling.rowsLabel", { count: productCount })}
@@ -693,7 +696,7 @@ function metricValueClass(value: unknown, key: string, strong = false) {
 function summaryMetricCellClass(value: unknown, key: string) {
   return cn(
     summaryFooterCellClass("right"),
-    "font-semibold",
+    "font-bold",
     firstNumber(value) === 0 && "text-muted-foreground",
     key.includes("discount") && firstNumber(value) > 0 && "font-black text-destructive",
     key === "final_total" && "font-black text-foreground",
@@ -702,7 +705,7 @@ function summaryMetricCellClass(value: unknown, key: string) {
 
 function summaryFooterCellClass(align: "left" | "right" = "left") {
   return cn(
-    "sticky bottom-0 z-20 h-10 whitespace-nowrap border-t border-primary/25 bg-primary/10 px-2 py-2 backdrop-blur supports-[backdrop-filter]:bg-primary/10",
+    "sticky bottom-0 z-20 h-10 whitespace-nowrap border-t-2 border-primary bg-muted px-2 py-2 font-bold text-foreground",
     align === "right" ? "text-right tabular-nums" : "text-left",
   );
 }
@@ -828,7 +831,7 @@ function MetricPill({
   value: unknown;
 }) {
   return (
-    <div className="min-w-0 rounded-md border border-border bg-muted/20 px-2 py-1">
+    <div className="min-w-0 rounded-md border border-border bg-muted px-2 py-1">
       <p className="truncate text-[11px] font-bold text-muted-foreground">
         {label}
       </p>

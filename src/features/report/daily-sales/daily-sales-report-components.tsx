@@ -9,9 +9,6 @@ import {
   Eye,
   EyeOff,
   FileSpreadsheet,
-  FileText,
-  ReceiptText,
-  RefreshCcw,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { EmptyState } from "@/components/common/empty-state";
@@ -19,7 +16,8 @@ import { SearchInput } from "@/components/common/search-input";
 import { LoadingState } from "@/components/common/loading-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Spinner } from "@/components/ui/spinner";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -80,7 +78,6 @@ interface ReportTableActionsProps {
   onExpandAllBills: () => void;
   onExportExcel: () => void;
   onExportPdf: () => void;
-  onRefresh: () => void;
   onSearchChange: (search: string) => void;
   onTypePageChange: (typePage: ReportTab) => void;
 }
@@ -106,12 +103,11 @@ export function DailySalesSummaryCards({
           <Card
             key={card.label}
             className={cn(
-              "overflow-hidden border shadow-sm",
-              tone === "primary" &&
-                "border-primary/20 bg-primary/5 shadow-primary/5",
+              "overflow-hidden border bg-card shadow-sm",
+              tone === "primary" && "border-primary/40 border-s-4 border-s-primary",
               tone === "danger" &&
-                "border-destructive/20 bg-destructive/5 shadow-destructive/5",
-              tone === "neutral" && "border-border bg-muted/20",
+                "border-destructive/40 border-s-4 border-s-destructive",
+              tone === "neutral" && "border-border",
             )}
           >
             <CardContent className="p-4">
@@ -229,7 +225,7 @@ export function DailySalesTableCard({
           </div>
         ) : rowsLength ? (
           <>
-            <div className="min-h-0 flex-1 overflow-auto">{children}</div>
+            <div className="min-h-0 flex-1 scroll-pb-10 overflow-auto">{children}</div>
             <div className="shrink-0 bg-card">{footer}</div>
           </>
         ) : (
@@ -261,7 +257,6 @@ function ReportTableActions({
   onExpandAllBills,
   onExportExcel,
   onExportPdf,
-  onRefresh,
   onSearchChange,
   onTypePageChange,
 }: ReportTableActionsProps) {
@@ -271,152 +266,118 @@ function ReportTableActions({
   const disabled = loading || Boolean(exporting);
 
   return (
-    <CardHeader className="shrink-0 border-b border-border bg-card/95 px-2 py-2 sm:px-3">
-      <div className="grid w-full min-w-0 grid-cols-1 items-center gap-2 2xl:grid-cols-[minmax(180px,16rem)_minmax(18rem,20rem)_minmax(16rem,1fr)_auto]">
-        <div className="flex min-w-0 items-center gap-2">
-          <div className="grid size-8 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
-            {isDetail ? (
-              <FileText aria-hidden="true" />
-            ) : (
-              <ReceiptText aria-hidden="true" />
-            )}
-          </div>
-
-          <div className="min-w-0 flex-1">
-            <CardTitle className="truncate text-sm font-black">
-              {isDetail
-                ? t("report.detailedSalesReport")
-                : t("report.salesReportByBill")}
-            </CardTitle>
-
-            {selectedDisplayCount > 0 ? (
-              <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5">
-                <Badge className="h-6 max-w-full truncate border-primary/20 bg-primary/10 px-2 text-xs text-primary">
-                  {isDetail
-                    ? t("report.selectedBillsForPrint", {
-                        count: selectedDisplayCount,
-                      })
-                    : t("report.selectedForExport", {
-                        count: selectedDisplayCount,
-                      })}
-                </Badge>
-
-                <Button
-                  type="button"
-                  size="xs"
-                  variant="ghost"
-                  className="h-6 px-2 text-xs text-muted-foreground"
-                  onClick={onClearSelection}
-                >
-                  {t("report.clearSelection")}
-                </Button>
-              </div>
-            ) : null}
-          </div>
-        </div>
-
-        <div className="min-w-0">
-          <ReportTypeSwitch
-            disabled={disabled}
-            value={typePage}
-            onChange={onTypePageChange}
-          />
-        </div>
-
-        <SearchInput
-          className="min-w-0"
-          inputClassName="text-sm"
-          ariaLabel={t("actions.search")}
-          placeholder={t("actions.search")}
-          disabled={!branchUuid || Boolean(exporting)}
-          value={search}
-          onChange={onSearchChange}
-        />
-
-        <div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5 2xl:flex-nowrap">
-          {isDetail && billGroupsLength ? (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-9 min-w-9 rounded-md px-2.5"
+    <CardHeader className="shrink-0 border-b border-border bg-card px-2 py-2 sm:px-3">
+      <div className="flex w-full min-w-0 flex-col gap-2">
+        <div className="grid w-full min-w-0 grid-cols-1 gap-2 md:grid-cols-[minmax(0,20rem)_minmax(0,1fr)] md:items-center xl:grid-cols-[minmax(18rem,20rem)_minmax(16rem,1fr)_auto]">
+          <div className="min-w-0">
+            <ReportTypeSwitch
               disabled={disabled}
-              onClick={
-                allDetailGroupsExpanded ? onCollapseAllBills : onExpandAllBills
-              }
-            >
-              {allDetailGroupsExpanded ? (
-                <ChevronDown data-icon="inline-start" />
-              ) : (
-                <ChevronRight data-icon="inline-start" />
-              )}
-              {/* <span className="hidden sm:inline">
-                {allDetailGroupsExpanded
-                  ? t("actions.collapseAll")
-                  : t("actions.expandAll")}
-              </span> */}
-            </Button>
-          ) : null}
+              value={typePage}
+              onChange={onTypePageChange}
+            />
+          </div>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+          <SearchInput
+            className="min-w-0"
+            inputClassName="text-sm"
+            ariaLabel={t("actions.search")}
+            placeholder={t("actions.search")}
+            disabled={!branchUuid || Boolean(exporting)}
+            value={search}
+            onChange={onSearchChange}
+          />
+
+          <div className="flex min-w-0 flex-wrap items-center justify-start gap-1.5 md:col-span-2 md:justify-end xl:col-span-1 xl:flex-nowrap">
+            {isDetail && billGroupsLength ? (
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
-                aria-label={t("common.export")}
+                aria-label={
+                  allDetailGroupsExpanded
+                    ? t("actions.collapseAll")
+                    : t("actions.expandAll")
+                }
                 className="h-9 min-w-9 rounded-md px-2.5"
-                disabled={exportDisabled}
+                disabled={disabled}
+                onClick={
+                  allDetailGroupsExpanded
+                    ? onCollapseAllBills
+                    : onExpandAllBills
+                }
               >
-                {exporting === "excel" || exporting === "pdf" ? (
-                  <RefreshCcw
-                    className="animate-spin"
-                    data-icon="inline-start"
-                  />
+                {allDetailGroupsExpanded ? (
+                  <ChevronDown data-icon="inline-start" />
                 ) : (
-                  <Download data-icon="inline-start" />
+                  <ChevronRight data-icon="inline-start" />
                 )}
-                <span className="hidden sm:inline">{t("common.export")}</span>
-                <ChevronDown data-icon="inline-end" />
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-44">
-              <DropdownMenuGroup>
-                <DropdownMenuItem
-                  disabled={exportDisabled}
-                  onSelect={onExportExcel}
-                >
-                  <FileSpreadsheet data-icon="inline-start" />
-                  {t("report.exportExcel")}
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  disabled={exportDisabled}
-                  onSelect={onExportPdf}
-                >
-                  <Download data-icon="inline-start" />
-                  {t("report.exportPdf")}
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
+            ) : null}
 
-
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            aria-label={t("actions.refresh")}
-            className="h-9 min-w-9 rounded-md border border-border/60 px-2.5 text-muted-foreground hover:text-foreground"
-            disabled={loading || !branchUuid || Boolean(exporting)}
-            onClick={onRefresh}
-          >
-            <RefreshCcw
-              className={loading ? "animate-spin" : undefined}
-              data-icon="inline-start"
-            />
-            {/* <span className="hidden sm:inline">{t("actions.refresh")}</span> */}
-          </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  aria-label={t("common.export")}
+                  className="h-9 min-w-9 rounded-md px-2.5"
+                  disabled={exportDisabled}
+                >
+                  {exporting === "excel" || exporting === "pdf" ? (
+                    <Spinner aria-hidden="true" data-icon="inline-start" />
+                  ) : (
+                    <Download data-icon="inline-start" />
+                  )}
+                  <span className="hidden sm:inline">{t("common.export")}</span>
+                  <ChevronDown data-icon="inline-end" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-44">
+                <DropdownMenuGroup>
+                  <DropdownMenuItem
+                    disabled={exportDisabled}
+                    onSelect={onExportExcel}
+                  >
+                    <FileSpreadsheet data-icon="inline-start" />
+                    {t("report.exportExcel")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    disabled={exportDisabled}
+                    onSelect={onExportPdf}
+                  >
+                    <Download data-icon="inline-start" />
+                    {t("report.exportPdf")}
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
+
+        {selectedDisplayCount > 0 ? (
+          <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+            <Badge className="h-6 max-w-full truncate border-primary/20 bg-primary/10 px-2 text-xs text-primary">
+              {isDetail
+                ? t("report.selectedBillsForPrint", {
+                    count: selectedDisplayCount,
+                  })
+                : t("report.selectedForExport", {
+                    count: selectedDisplayCount,
+                  })}
+            </Badge>
+
+            <Button
+              type="button"
+              size="xs"
+              variant="ghost"
+              className="h-6 px-2 text-xs text-muted-foreground"
+              onClick={onClearSelection}
+            >
+              {t("report.clearSelection")}
+            </Button>
+          </div>
+        ) : null}
       </div>
     </CardHeader>
   );
@@ -465,4 +426,3 @@ function ReportTypeSwitch({
     </ToggleGroup>
   );
 }
-

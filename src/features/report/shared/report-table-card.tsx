@@ -1,13 +1,13 @@
 "use client";
 
-import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
-import { ChevronDown, Download, FileSpreadsheet, RefreshCcw } from "lucide-react";
+import { ChevronDown, Download, FileSpreadsheet } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { EmptyState } from "@/components/common/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Spinner } from "@/components/ui/spinner";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,7 +31,6 @@ export interface ReportTableCardProps {
   // ปุ่ม/ตัวควบคุมเฉพาะรายงาน วางก่อนปุ่ม export เช่น dropdown เรียงลำดับของ best-selling
   headerExtras?: ReactNode;
   headerVariant: "compact" | "spacious";
-  icon: LucideIcon;
   loading: boolean;
   renderLoading: () => ReactNode;
   rowsLength: number;
@@ -46,11 +45,9 @@ export interface ReportTableCardProps {
   onClearSelection: () => void;
   onExportExcel: () => void;
   onExportPdf: () => void;
-  onRefresh: () => void;
 }
 
-// การ์ดตารางมาตรฐานของหน้ารายงาน: header (ไอคอน+ชื่อ+badge เลือกแถว+dropdown export+ปุ่ม refresh)
-// และสถานะ loading/ว่าง/มีข้อมูล ที่ทั้ง 3 รายงานเกือบเหมือนกันทุกเส้น (เดิมก๊อปวางไว้ทั้งไฟล์)
+// การ์ดตารางมาตรฐาน: plain-text title, selection state, actions/export และสถานะ loading/ว่าง/มีข้อมูล
 export function ReportTableCard({
   cardClassName,
   children,
@@ -63,7 +60,6 @@ export function ReportTableCard({
   footer,
   headerExtras,
   headerVariant,
-  icon: Icon,
   loading,
   renderLoading,
   rowsLength,
@@ -75,7 +71,6 @@ export function ReportTableCard({
   onClearSelection,
   onExportExcel,
   onExportPdf,
-  onRefresh,
 }: ReportTableCardProps) {
   const { t } = useTranslation();
   const showSkeleton = skeletonMode === "always" ? loading : loading && !rowsLength;
@@ -93,7 +88,7 @@ export function ReportTableCard({
             disabled={exportDisabled}
           >
             {exporting === "excel" || exporting === "pdf" ? (
-              <RefreshCcw className="animate-spin" data-icon="inline-start" />
+              <Spinner aria-hidden="true" data-icon="inline-start" />
             ) : (
               <Download data-icon="inline-start" />
             )}
@@ -103,7 +98,7 @@ export function ReportTableCard({
         ) : (
           <Button type="button" variant="outline" size="sm" className="h-9" disabled={exportDisabled}>
             {exporting === "excel" || exporting === "pdf" ? (
-              <RefreshCcw className="animate-spin" data-icon="inline-start" />
+              <Spinner aria-hidden="true" data-icon="inline-start" />
             ) : (
               <Download data-icon="inline-start" />
             )}
@@ -126,33 +121,6 @@ export function ReportTableCard({
       </DropdownMenuContent>
     </DropdownMenu>
   );
-
-  const refreshButton =
-    headerVariant === "compact" ? (
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        aria-label={t("actions.refresh")}
-        className="h-9 min-w-9 rounded-md border border-border/60 px-2.5 text-muted-foreground hover:text-foreground"
-        disabled={loading || Boolean(exporting)}
-        onClick={onRefresh}
-      >
-        <RefreshCcw className={loading ? "animate-spin" : undefined} data-icon="inline-start" />
-      </Button>
-    ) : (
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        className="h-9"
-        disabled={loading || Boolean(exporting)}
-        onClick={onRefresh}
-      >
-        <RefreshCcw className={loading ? "animate-spin" : undefined} data-icon="inline-start" />
-        {t("actions.refresh")}
-      </Button>
-    );
 
   const selectionBadge =
     selectedCount > 0 ? (
@@ -188,20 +156,15 @@ export function ReportTableCard({
   return (
     <Card className={cardClassName}>
       {headerVariant === "compact" ? (
-        <CardHeader className="shrink-0 border-b border-border bg-card/95 px-2 py-2 sm:px-3">
+        <CardHeader className="shrink-0 border-b border-border bg-card px-2 py-2 sm:px-3">
           <div className="grid w-full min-w-0 grid-cols-1 items-center gap-2 2xl:grid-cols-[minmax(180px,16rem)_minmax(0,1fr)_auto]">
-            <div className="flex min-w-0 items-center gap-2">
-              <div className="grid size-8 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
-                <Icon aria-hidden="true" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <CardTitle className="truncate text-sm font-black">{title}</CardTitle>
-                {subtitle}
-                {selectionBadge}
-              </div>
+            <div className="min-w-0">
+              <CardTitle className="truncate text-sm font-semibold">{title}</CardTitle>
+              {subtitle}
+              {selectionBadge}
               {showLoadingBadge && loading && rowsLength ? (
                 <Badge className="h-7 w-fit border-border bg-muted px-2 text-xs text-muted-foreground">
-                  <RefreshCcw className="animate-spin" data-icon="inline-start" />
+                  <Spinner aria-hidden="true" data-icon="inline-start" />
                   {t("common.loading")}
                 </Badge>
               ) : null}
@@ -210,17 +173,13 @@ export function ReportTableCard({
             <div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5 2xl:col-start-3 2xl:flex-nowrap">
               {headerExtras}
               {exportMenu}
-              {refreshButton}
             </div>
           </div>
         </CardHeader>
       ) : (
         <CardHeader className="flex shrink-0 flex-col gap-3 border-b border-border bg-card px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0">
-            <CardTitle className="flex min-w-0 items-center gap-2 text-base font-black">
-              <Icon className="size-4 shrink-0" />
-              <span className="truncate">{title}</span>
-            </CardTitle>
+            <CardTitle className="truncate text-base font-semibold">{title}</CardTitle>
             {subtitle}
             {selectionBadge}
           </div>
@@ -228,7 +187,6 @@ export function ReportTableCard({
           <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end">
             {headerExtras}
             {exportMenu}
-            {refreshButton}
           </div>
         </CardHeader>
       )}

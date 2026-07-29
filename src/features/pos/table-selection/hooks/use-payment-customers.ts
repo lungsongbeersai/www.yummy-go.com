@@ -15,7 +15,8 @@ import {
   customerUuidOf,
   dedupeCustomers,
   defaultCustomerFromRows,
-  defaultCustomerSearchTerm,
+  firstCustomerAutoSelectAction,
+  firstCustomerListParams,
   withSelectedCustomer,
 } from "../payment-dialog-utils";
 
@@ -47,6 +48,7 @@ export function usePaymentCustomers({
   const [customerSearchLoading, setCustomerSearchLoading] = useState(false);
   const listRequestIdRef = useRef(0);
   const defaultRequestIdRef = useRef(0);
+  const autoSelectAttemptedRef = useRef(false);
   const selectionVersionRef = useRef(0);
   const selectedCustomerRef = useRef<Customer | null>(null);
 
@@ -149,30 +151,37 @@ export function usePaymentCustomers({
   }, [customerOpen, customerSearch, language, loadCustomers, open, storeUuid]);
 
   useEffect(() => {
-    if (!open || customerUuid || !storeUuid || customerCreateOpen) return;
+    const action = firstCustomerAutoSelectAction({
+      attempted: autoSelectAttemptedRef.current,
+      customerCreateOpen,
+      customerUuid,
+      open,
+      storeUuid,
+    });
+    if (action === "reset") {
+      autoSelectAttemptedRef.current = false;
+      return;
+    }
+    if (action === "none") return;
+    autoSelectAttemptedRef.current = true;
 
     const requestId = defaultRequestIdRef.current + 1;
     defaultRequestIdRef.current = requestId;
     const selectionVersion = selectionVersionRef.current;
-    const term = defaultCustomerSearchTerm(language);
 
     void (async () => {
       try {
-        const rows = await loadCustomers({
-          store_uuid_fk: storeUuid,
-          page: 1,
-          limit: CUSTOMER_SEARCH_LIMIT,
-          search: term,
-          lang: toApiLanguage(language),
-        });
+        const rows = await loadCustomers(
+          firstCustomerListParams(storeUuid, language),
+        );
         if (
           defaultRequestIdRef.current !== requestId ||
           selectionVersionRef.current !== selectionVersion
         )
           return;
 
-        const customer = defaultCustomerFromRows(rows, term);
-        if (customer) selectCustomer(customer);
+        const customer = rows[0] ?? null;
+        if (customerUuidOf(customer)) selectCustomer(customer);
       } catch {
         return;
       }
@@ -256,10 +265,7 @@ export function usePaymentCustomers({
               lang: toApiLanguage(language),
             });
             const options = dedupeCustomers(rows);
-            nextCustomer =
-              defaultCustomerFromRows(options, name) ??
-              options.find((customer) => Boolean(customerUuidOf(customer))) ??
-              null;
+            nextCustomer = defaultCustomerFromRows(options, name);
             setCustomerOptions(withSelectedCustomer(options, nextCustomer));
           } catch {
             nextCustomer = null;

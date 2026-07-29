@@ -1,5 +1,7 @@
+import { apiRequest } from "@/lib/api";
 import { createCrud } from "@/services/shared/crud";
 import type { ApiEntity, ApiListResponse, FetchParams } from "@/services/shared/types";
+import { requiredUuid } from "@/services/shared/validators";
 
 export interface Customer extends ApiEntity {
   customer_uuid: string;
@@ -23,6 +25,10 @@ export interface SaveCustomerInput extends ApiEntity {
   store_uuid_fk?: string;
 }
 
+interface SaveCustomerResponse extends ApiEntity {
+  data?: Customer | null;
+}
+
 const crud = createCrud<Customer>(
   {
     fetch: "/api/v1/customer/list",
@@ -33,7 +39,7 @@ const crud = createCrud<Customer>(
 );
 
 export const getCustomers = (params: FetchCustomersParams = {}) => crud.list(params);
-export const saveCustomer = (input: SaveCustomerInput) => {
+export const saveCustomer = async (input: SaveCustomerInput) => {
   const status = input.customer_status === "" || input.customer_status === undefined || input.customer_status === null ? 1 : input.customer_status;
   const payload: SaveCustomerInput = {
     store_uuid_fk: input.store_uuid_fk,
@@ -45,6 +51,34 @@ export const saveCustomer = (input: SaveCustomerInput) => {
     customer_status: Number(status)
   };
 
-  return crud.save(payload);
+  const result = await apiRequest<SaveCustomerResponse>(
+    "post",
+    "/api/v1/customer/create",
+    { data: payload },
+    "Failed to save data"
+  );
+  const responseCustomer =
+    result.data ??
+    (typeof result.customer_uuid === "string" ? result : null);
+  const responseUuid = responseCustomer?.customer_uuid;
+
+  // Customer create responses are inconsistent: some return the row at the
+  // top level and some return only a success message. Keep the service contract
+  // stable so payment can select the row or reload it by name.
+  return {
+    ...payload,
+    ...(responseCustomer ?? {}),
+    customer_uuid:
+      typeof responseUuid === "string"
+        ? responseUuid.trim()
+        : String(payload.customer_uuid ?? "").trim()
+  } as Customer;
 };
-export const deleteCustomer = (customer_uuid: string) => crud.delete(customer_uuid);
+export async function deleteCustomer(customer_uuid: string) {
+  await apiRequest(
+    "delete",
+    "/api/v1/customer/delete",
+    { params: { customer_uuid: requiredUuid(customer_uuid, "customer_uuid") } },
+    "Failed to delete data"
+  );
+}
