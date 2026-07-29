@@ -113,13 +113,15 @@ export function PackagePage() {
     }
     return prices;
   }, [navigation.planGroups, packageGroups]);
+  // total มาจาก backend เป็นจำนวนทั้งแคตตาล็อก (ทุกรอบบิล ไม่กรองตาม cycle ที่เลือกอยู่)
+  // shownCount ต้องนับข้ามทุก billing cycle ที่โหลดมาแล้วเช่นกัน ไม่ใช่แค่ plans ของ cycle
+  // ที่แสดงอยู่ ไม่งั้นเทียบกันคนละ scope แล้ว truncated banner จะค้างจริงทั้งที่โหลดครบแล้ว
   const shownCount = useMemo(
     () =>
-      plans.reduce(
-        (count, plan) => count + packagesForPlan(packageGroups, plan.id).length,
-        0,
-      ),
-    [packageGroups, plans],
+      packageGroups
+        .flatMap((group) => group.methods)
+        .flatMap((method) => method.packages).length,
+    [packageGroups],
   );
 
   function changeStatus(value: PackageStatusFilter) {

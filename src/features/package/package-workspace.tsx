@@ -79,6 +79,10 @@ export function PackageWorkspace({
 }: PackageWorkspaceProps) {
   const { t } = useTranslation();
   const initialLoading = loading && !catalogReady;
+  // เมื่อยังไม่เคยโหลดสำเร็จเลย loadError ต้องบล็อกทั้งหน้าเพราะไม่มีข้อมูลให้แสดง
+  // แต่ถ้า catalogReady แล้ว (เช่น error มาจาก background refresh หลัง save) ห้ามเป่าข้อมูลเดิมทิ้ง —
+  // แสดง error เป็น banner เฉยๆ แล้วให้ grid ที่มีอยู่แสดงต่อไปตามปกติ
+  const blockingLoadError = Boolean(loadError && !catalogReady);
 
   return (
     <section className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -98,10 +102,8 @@ export function PackageWorkspace({
         ) : null}
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain touch-pan-y px-3 py-3 sm:px-4 lg:px-5">
-        {initialLoading ? (
-          <PricingGridSkeleton />
-        ) : loadError ? (
+      {loadError ? (
+        <div className="shrink-0 px-3 pt-3 sm:px-4 lg:px-5">
           <Alert variant="destructive">
             <TriangleAlert aria-hidden="true" />
             <AlertTitle>{t("packageManagement.loadFailed")}</AlertTitle>
@@ -124,7 +126,13 @@ export function PackageWorkspace({
               </Button>
             </AlertDescription>
           </Alert>
-        ) : billingCycles.length === 0 ? (
+        </div>
+      ) : null}
+
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain touch-pan-y px-3 py-3 sm:px-4 lg:px-5">
+        {initialLoading ? (
+          <PricingGridSkeleton />
+        ) : blockingLoadError ? null : billingCycles.length === 0 ? (
           <Empty className="min-h-72 border border-border">
             <EmptyHeader>
               <EmptyMedia variant="icon">
