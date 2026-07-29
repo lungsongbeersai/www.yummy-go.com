@@ -1428,7 +1428,17 @@
     "planSaveFailed": "Could not create the store type.",
     "saveFailed": "Could not save the package.",
     "refreshFailed": "Could not refresh packages.",
-    "reorderFailed": "Could not save the new order."
+    "reorderFailed": "Could not save the new order.",
+    "arrange": "Arrange",
+    "arrangeDone": "Done arranging",
+    "arrangeHint": "Drag to reorder billing cycles, store types, and package details.",
+    "perMonth": "/month",
+    "perCycle": "/{{months}} months",
+    "monthlyEquivalent": "{{price}} per month",
+    "savingsBadge": "Save {{percent}}%",
+    "createPackageHere": "Create a package",
+    "createPackageHint": "This store type has no package yet.",
+    "truncated": "Showing {{shown}} of {{total}} packages."
   },
   "profile": {
     "title": "Edit profile",

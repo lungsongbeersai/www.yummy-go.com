@@ -1429,7 +1429,17 @@
     "planSaveFailed": "ບໍ່ສາມາດສ້າງປະເພດຮ້ານໄດ້.",
     "saveFailed": "ບໍ່ສາມາດບັນທຶກແພັກເກດໄດ້.",
     "refreshFailed": "ບໍ່ສາມາດໂຫຼດແພັກເກດໃໝ່ໄດ້.",
-    "reorderFailed": "ບໍ່ສາມາດບັນທຶກລຳດັບໃໝ່ໄດ້."
+    "reorderFailed": "ບໍ່ສາມາດບັນທຶກລຳດັບໃໝ່ໄດ້.",
+    "arrange": "ຈັດລຳດັບ",
+    "arrangeDone": "ຈັດລຳດັບແລ້ວ",
+    "arrangeHint": "ລາກເພື່ອຈັດລຳດັບຮອບບິນ, ປະເພດຮ້ານ ແລະ ລາຍລະອຽດແພັກເກດ.",
+    "perMonth": "/ເດືອນ",
+    "perCycle": "/{{months}} ເດືອນ",
+    "monthlyEquivalent": "{{price}} ຕໍ່ເດືອນ",
+    "savingsBadge": "ປະຫຍັດ {{percent}}%",
+    "createPackageHere": "ສ້າງແພັກເກດ",
+    "createPackageHint": "ປະເພດຮ້ານນີ້ຍັງບໍ່ມີແພັກເກດ.",
+    "truncated": "ສະແດງ {{shown}} ຈາກ {{total}} ແພັກເກດ."
   },
   "profile": {
     "title": "ແກ້ໄຂໂປຣໄຟລ໌",
