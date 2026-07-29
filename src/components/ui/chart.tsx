@@ -53,19 +53,24 @@ export function ChartContainer({
     [config, style]
   );
 
-  // รอให้กล่องมีขนาดจริงก่อนค่อย mount กราฟ — ถ้า ancestor กว้าง 0 ตอน mount
-  // (เช่นถูกฝังใน iframe ของเครื่องมือ preview) recharts จะวัดได้ 0×0 แล้ว log warning ทิ้งไว้
+  // recharts ตั้ง state ขนาดเริ่มต้นจาก initialDimension ซึ่ง default เป็น -1 แล้วเรียก warn()
+  // ระหว่าง render ก่อน effect ที่วัดขนาดจะทำงาน ทุก ResponsiveContainer จึง log
+  // "width(-1) and height(-1)" หนึ่งครั้งตอน mount ไม่ว่ากล่องจะมีขนาดจริงหรือไม่
+  // จึงวัดขนาดเองก่อนแล้วส่งเป็น initialDimension ให้ render แรกได้เลขบวกไปเลย
   // ขนาดของ wrapper มาจาก CSS (w-full/aspect-video, h-72, size-40) ไม่ได้มาจากเนื้อหา
   // จึงไม่เกิด feedback loop กับ ResizeObserver
   const wrapperRef = React.useRef<HTMLDivElement>(null);
-  const [hasSize, setHasSize] = React.useState(false);
+  const [size, setSize] = React.useState<{ width: number; height: number } | null>(null);
   React.useEffect(() => {
     const node = wrapperRef.current;
     if (!node) return;
 
     const observer = new ResizeObserver(([entry]) => {
       const { height, width } = entry.contentRect;
-      setHasSize(width > 0 && height > 0);
+      if (width <= 0 || height <= 0) return;
+      // วัดครั้งเดียวพอ หลัง mount แล้ว ResponsiveContainer มี ResizeObserver ของตัวเองตามขนาดต่อ
+      setSize({ width, height });
+      observer.disconnect();
     });
     observer.observe(node);
     return () => observer.disconnect();
@@ -90,7 +95,9 @@ export function ChartContainer({
         style={chartStyle}
         {...props}
       >
-        {hasSize ? <ResponsiveContainer>{children}</ResponsiveContainer> : null}
+        {size ? (
+          <ResponsiveContainer initialDimension={size}>{children}</ResponsiveContainer>
+        ) : null}
       </div>
     </ChartContext.Provider>
   );
