@@ -9,7 +9,10 @@ import type {
 import {
   activePackageNavigation,
   availableMethods,
+  cycleSavingsPercent,
   firstPlanId,
+  monthlyEquivalentPrice,
+  orderedPlanColumns,
   packageRange,
   packagesForPlan,
   planById,
@@ -390,5 +393,88 @@ describe("package form validation", () => {
         ],
       }),
     ).toBeNull();
+  });
+});
+
+describe("monthlyEquivalentPrice", () => {
+  it("divides a cycle price across its months", () => {
+    expect(monthlyEquivalentPrice(1_200_000, 12)).toBe(100_000);
+  });
+
+  it("returns the price unchanged for a one-month cycle", () => {
+    expect(monthlyEquivalentPrice(400_000, 1)).toBe(400_000);
+  });
+
+  it("falls back to the price when months is zero or negative", () => {
+    expect(monthlyEquivalentPrice(400_000, 0)).toBe(400_000);
+    expect(monthlyEquivalentPrice(400_000, -3)).toBe(400_000);
+  });
+
+  it("rounds to a whole kip", () => {
+    expect(monthlyEquivalentPrice(1_000_000, 3)).toBe(333_333);
+  });
+});
+
+describe("cycleSavingsPercent", () => {
+  it("returns the discount against paying monthly for the same span", () => {
+    expect(cycleSavingsPercent(100_000, 1_020_000, 12)).toBe(15);
+  });
+
+  it("returns null when the cycle price matches the monthly total", () => {
+    expect(cycleSavingsPercent(400_000, 400_000, 1)).toBeNull();
+  });
+
+  it("returns null when the cycle costs more than paying monthly", () => {
+    expect(cycleSavingsPercent(100_000, 1_400_000, 12)).toBeNull();
+  });
+
+  it("returns null when either price is missing or months is invalid", () => {
+    expect(cycleSavingsPercent(0, 1_020_000, 12)).toBeNull();
+    expect(cycleSavingsPercent(100_000, 0, 12)).toBeNull();
+    expect(cycleSavingsPercent(100_000, 1_020_000, 0)).toBeNull();
+  });
+});
+
+describe("orderedPlanColumns", () => {
+  it("returns an empty list for a missing group", () => {
+    expect(orderedPlanColumns(null)).toEqual([]);
+  });
+
+  it("orders plans by sort order", () => {
+    const group = {
+      billingCycleId: "cycle-1",
+      billingCycleName: "Monthly",
+      months: 1,
+      status: 1,
+      sortOrder: 1,
+      plans: [
+        { id: "plan-b", billingCycleId: "cycle-1", methodId: "m-b", methodName: "B", methodStatus: 1, status: 1, sortOrder: 2 },
+        { id: "plan-a", billingCycleId: "cycle-1", methodId: "m-a", methodName: "A", methodStatus: 1, status: 1, sortOrder: 1 }
+      ]
+    };
+
+    expect(orderedPlanColumns(group).map((plan) => plan.id)).toEqual([
+      "plan-a",
+      "plan-b"
+    ]);
+  });
+
+  it("breaks sort-order ties by id so equal values never reshuffle", () => {
+    const group = {
+      billingCycleId: "cycle-1",
+      billingCycleName: "Monthly",
+      months: 1,
+      status: 1,
+      sortOrder: 1,
+      plans: [
+        { id: "plan-z", billingCycleId: "cycle-1", methodId: "m-z", methodName: "Z", methodStatus: 1, status: 1, sortOrder: 1 },
+        { id: "plan-a", billingCycleId: "cycle-1", methodId: "m-a", methodName: "A", methodStatus: 1, status: 1, sortOrder: 1 }
+      ]
+    };
+
+    expect(orderedPlanColumns(group).map((plan) => plan.id)).toEqual([
+      "plan-a",
+      "plan-z"
+    ]);
   });
 });

@@ -152,3 +152,32 @@ export function validatePackageDraft(draft: {
 
   return null;
 }
+
+export function monthlyEquivalentPrice(price: number, months: number): number {
+  if (months <= 1) return price;
+  return Math.round(price / months);
+}
+
+// เทียบราคาต่อรอบกับการจ่ายรายเดือนตลอดช่วงเดียวกัน คืน null เมื่อเทียบไม่ได้
+// หรือไม่ได้ประหยัด เพื่อให้ฝั่ง UI ซ่อน badge ไปเลยแทนที่จะโชว์ 0%
+export function cycleSavingsPercent(
+  monthlyPrice: number,
+  cyclePrice: number,
+  months: number,
+): number | null {
+  if (monthlyPrice <= 0 || cyclePrice <= 0 || months <= 1) return null;
+
+  const monthlyTotal = monthlyPrice * months;
+  const savings = Math.round(((monthlyTotal - cyclePrice) / monthlyTotal) * 100);
+  return savings > 0 ? savings : null;
+}
+
+export function orderedPlanColumns(
+  group: PackagePlanGroup | null,
+): PackagePlan[] {
+  if (!group) return [];
+  return [...group.plans].sort(
+    (left, right) =>
+      left.sortOrder - right.sortOrder || left.id.localeCompare(right.id),
+  );
+}
