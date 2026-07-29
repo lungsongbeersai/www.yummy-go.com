@@ -20,7 +20,11 @@ import { cn } from "@/lib/utils";
 import { optionalString } from "@/lib/values";
 import { SelectedTableCartPanel } from "../table-selection/selected-table-cart-panel";
 import { productMedia } from "./product-media";
-import { PRODUCT_GRID_CLASS, productModeLabel } from "./order-customer-utils";
+import {
+  PRODUCT_GRID_CLASS,
+  PRODUCT_GRID_MOBILE_COLUMNS,
+  productModeLabel,
+} from "./order-customer-utils";
 import {
   EmployeeCategoryRail,
   EmployeeCategorySidebar,
@@ -92,15 +96,18 @@ export function OrderCustomerView({
     zones,
   } = workflow;
 
-  // การ์ดใบแรกที่มีรูปจริงคือ LCP ของหน้านี้ — ปล่อยให้ lazy จะดีเลย์ LCP และ Next เตือนตอน dev
-  // preload แค่ใบเดียวพอ ใบที่เหลือยัง lazy ไว้เหมือนเดิม (แนวเดียวกับเมนู QR ฝั่งลูกค้า)
-  const preloadImageIndex = useMemo(
-    () =>
-      activeProducts.findIndex(
-        (entry) => productMedia(entry.product).type === "image",
-      ),
-    [activeProducts],
-  );
+  // การ์ดแถวแรกคือ LCP ของหน้านี้ ปล่อยให้ lazy จะดีเลย์ LCP และ Next เตือนตอน dev
+  // grid เป็น 2 คอลัมน์บนมือถือ/แท็บเล็ต (จอหลักของแคชเชียร์) การ์ดสองใบแรกจึงกว้างเท่ากันเป๊ะ
+  // และเบราว์เซอร์เลือกใบไหนเป็น LCP ก็ได้ — preload ใบเดียวไม่พอ ต้องครอบทั้งแถว
+  // ไม่ preload มากกว่านี้เพราะบนเดสก์ท็อป grid ขยายเป็น auto-fill ที่การ์ดเล็กลงจนไม่ใช่ LCP
+  const preloadImageIndexes = useMemo(() => {
+    const indexes = new Set<number>();
+    for (const [index, entry] of activeProducts.entries()) {
+      if (indexes.size >= PRODUCT_GRID_MOBILE_COLUMNS) break;
+      if (productMedia(entry.product).type === "image") indexes.add(index);
+    }
+    return indexes;
+  }, [activeProducts]);
 
   return (
     <div
@@ -250,7 +257,7 @@ export function OrderCustomerView({
                       activeSort={activeSort}
                       disabled={Boolean(loadingProductUuid) || saving}
                       entry={entry}
-                      imagePreload={index === preloadImageIndex}
+                      imagePreload={preloadImageIndexes.has(index)}
                       loading={loadingProductUuid === entry.product.prodUuid}
                       onAction={openOrAddProduct}
                     />

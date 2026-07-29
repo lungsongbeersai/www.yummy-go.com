@@ -23,6 +23,8 @@ export type ProductSortStatus = ProductSortStatusType;
 export const MAX_ORDER_QTY = 99;
 export const PRODUCT_GRID_CLASS =
   "grid grid-cols-2 gap-2.5 md:grid-cols-[repeat(auto-fill,minmax(190px,1fr))]";
+// ต้องตรงกับ grid-cols-2 ด้านบน — ใช้ตัดสินว่า preload รูปกี่ใบให้ครอบการ์ดแถวแรก (LCP)
+export const PRODUCT_GRID_MOBILE_COLUMNS = 2;
 
 export const SORT_TABS: Array<{
   labelKey: string;
