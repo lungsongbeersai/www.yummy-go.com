@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { ArrowLeft, RefreshCcw, ShoppingCart, Utensils } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 import { optionalString } from "@/lib/values";
 import { SelectedTableCartPanel } from "../table-selection/selected-table-cart-panel";
+import { productMedia } from "./product-media";
 import { PRODUCT_GRID_CLASS, productModeLabel } from "./order-customer-utils";
 import {
   EmployeeCategoryRail,
@@ -89,6 +91,16 @@ export function OrderCustomerView({
     toppingQtyByUuid,
     zones,
   } = workflow;
+
+  // การ์ดใบแรกที่มีรูปจริงคือ LCP ของหน้านี้ — ปล่อยให้ lazy จะดีเลย์ LCP และ Next เตือนตอน dev
+  // preload แค่ใบเดียวพอ ใบที่เหลือยัง lazy ไว้เหมือนเดิม (แนวเดียวกับเมนู QR ฝั่งลูกค้า)
+  const preloadImageIndex = useMemo(
+    () =>
+      activeProducts.findIndex(
+        (entry) => productMedia(entry.product).type === "image",
+      ),
+    [activeProducts],
+  );
 
   return (
     <div
@@ -229,7 +241,7 @@ export function OrderCustomerView({
                 <ProductGridSkeleton />
               ) : activeProducts.length ? (
                 <div className={cn(PRODUCT_GRID_CLASS, "pb-24 xl:pb-4")}>
-                  {activeProducts.map((entry) => (
+                  {activeProducts.map((entry, index) => (
                     <EmployeeProductCard
                       key={`${entry.cateUuid}-${entry.product.prodUuid}-${
                         optionalString(entry.product.proDetailUuid) ??
@@ -238,6 +250,7 @@ export function OrderCustomerView({
                       activeSort={activeSort}
                       disabled={Boolean(loadingProductUuid) || saving}
                       entry={entry}
+                      imagePreload={index === preloadImageIndex}
                       loading={loadingProductUuid === entry.product.prodUuid}
                       onAction={openOrAddProduct}
                     />

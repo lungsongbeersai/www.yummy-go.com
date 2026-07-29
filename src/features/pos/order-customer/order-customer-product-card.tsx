@@ -43,12 +43,14 @@ export const EmployeeProductCard = memo(function EmployeeProductCard({
   activeSort,
   disabled,
   entry,
+  imagePreload = false,
   loading,
   onAction,
 }: {
   activeSort: ProductSortStatus;
   entry: ProductCardEntry;
   disabled: boolean;
+  imagePreload?: boolean;
   loading: boolean;
   onAction: (entry: ProductCardEntry) => void;
 }) {
@@ -99,6 +101,7 @@ export const EmployeeProductCard = memo(function EmployeeProductCard({
             blockedState && "grayscale",
           )}
           media={media}
+          preload={imagePreload}
           sizes="(max-width: 767px) 50vw, (max-width: 1279px) 33vw, (max-width: 1535px) 25vw, 300px"
         />
         <ProductBadges activeSort={activeSort} product={product} />
@@ -214,12 +217,14 @@ export function ProductMediaView({
   fallbackIcon = "image",
   imageClassName,
   media,
+  preload = false,
   sizes,
 }: {
   alt: string;
   fallbackIcon?: "chef" | "image" | "utensils";
   imageClassName?: string;
   media: ProductMedia;
+  preload?: boolean;
   sizes: string;
 }) {
   const [imageFailed, setImageFailed] = useState(false);
@@ -245,7 +250,8 @@ export function ProductMediaView({
         unoptimized={isRemoteUrl(media.src)}
         alt={alt}
         className={cn("object-cover", imageClassName)}
-        loading="lazy"
+        preload={preload || undefined}
+        loading={preload ? undefined : "lazy"}
         sizes={sizes}
         src={media.src}
         onError={() => setImageFailed(true)}
