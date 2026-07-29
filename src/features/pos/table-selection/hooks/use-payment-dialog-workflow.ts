@@ -211,7 +211,7 @@ export function usePaymentDialogWorkflow({
     setDueDate("");
     setNote("");
     setConfirmOpen(false);
-  });
+  }, { runOnMount: true });
 
   useEffect(() => {
     if (!open) return;

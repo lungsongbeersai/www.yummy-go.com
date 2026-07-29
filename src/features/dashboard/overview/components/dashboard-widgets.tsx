@@ -224,7 +224,7 @@ export const DashboardHeader = memo(function DashboardHeader({
           {metaItems.map((item, index) => (
             <span
               key={`${item}-${index}`}
-              className={index === 1 ? "font-mono text-foreground" : undefined}
+              className={index === 1 ? "tabular-nums text-foreground" : undefined}
             >
               {index ? (
                 <span className="mr-2 text-muted-foreground">·</span>

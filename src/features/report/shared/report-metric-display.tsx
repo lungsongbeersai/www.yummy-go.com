@@ -32,7 +32,10 @@ export function ReportSummaryCardsGrid<TCard extends ReportSummaryCard>({
   return (
     <section className={cn("grid gap-3", gridClassName)}>
       {cards.map((card) => (
-        <Card key={card.key} className={cn("overflow-hidden shadow-sm", cardClassName?.(card))}>
+        <Card
+          key={card.key}
+          className={cn("overflow-hidden border-border bg-card shadow-sm", cardClassName?.(card))}
+        >
           <CardContent className="p-4">
             <p className={cn("truncate text-xs font-black uppercase", labelClassName?.(card))}>
               {card.label}

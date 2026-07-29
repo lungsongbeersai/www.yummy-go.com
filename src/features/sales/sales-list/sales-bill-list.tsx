@@ -61,7 +61,7 @@ export function SalesBillListPanel({
           </div>
         ) : bills.length ? (
           <>
-            <div className="flex min-h-0 flex-1 flex-col divide-y divide-border overflow-y-auto overscroll-contain">
+            <div className="flex min-h-0 flex-1 flex-col divide-y divide-border xl:overflow-y-auto xl:overscroll-contain">
               {bills.map((bill) => (
                 <BillListItem
                   key={bill.id}

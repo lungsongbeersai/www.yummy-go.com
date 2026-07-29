@@ -231,7 +231,7 @@ export function SummaryReportTable({
   return (
     <div className="w-full min-w-0">
       <Table className="w-max min-w-full table-auto text-xs">
-        <TableHeader className="[&_th]:sticky [&_th]:top-0 [&_th]:z-30 [&_th]:h-9 [&_th]:whitespace-nowrap [&_th]:border-b [&_th]:border-border [&_th]:bg-muted/80 [&_th]:px-2 [&_th]:shadow-sm [&_th]:backdrop-blur">
+        <TableHeader className="[&_th]:sticky [&_th]:top-0 [&_th]:z-30 [&_th]:h-9 [&_th]:whitespace-nowrap [&_th]:border-b [&_th]:border-border [&_th]:bg-muted [&_th]:px-2 [&_th]:shadow-sm">
           <TableRow>
             <TableHead className="w-10 text-center">
               <ReportIndeterminateCheckbox
@@ -450,7 +450,7 @@ function SummaryReportFooterRow({
   summaryLabel: string;
 }) {
   return (
-    <TableRow className="border-t border-primary/25 bg-primary/5 hover:bg-primary/10">
+    <TableRow className="border-t-2 border-primary bg-muted font-bold text-foreground hover:bg-muted">
       <SummaryFooterBlankCell />
       <SummaryFooterBlankCell />
       <SummaryFooterLabelCell
@@ -514,4 +514,3 @@ function SummaryReportFooterRow({
     </TableRow>
   );
 }
-

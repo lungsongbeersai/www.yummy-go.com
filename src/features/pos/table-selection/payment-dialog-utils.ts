@@ -5,9 +5,12 @@ import {
   SplitSquareHorizontal,
 } from "lucide-react";
 import { money } from "@/lib/format";
-import { toLanguage } from "@/lib/language";
+import { toApiLanguage } from "@/lib/language";
 import type { InvoicePrintData } from "@/services/printer/invoice-print-window";
-import type { Customer } from "@/services/customer";
+import type {
+  Customer,
+  FetchCustomersParams,
+} from "@/services/customer";
 import type { Exchange } from "@/services/exchange";
 import {
   OrderChannelEnum,
@@ -105,12 +108,42 @@ export const orderChannelOptions: Array<{
 export const CUSTOMER_SEARCH_LIMIT = 20;
 export const CUSTOMER_SEARCH_DEBOUNCE_MS = 300;
 
-export function customerUuidOf(customer: Customer) {
-  return optionalString(customer.customer_uuid) ?? "";
+export function customerUuidOf(customer: Customer | null | undefined) {
+  return optionalString(customer?.customer_uuid) ?? "";
 }
 
-export function defaultCustomerSearchTerm(language?: string | null) {
-  return toLanguage(language) === "en" ? "customer" : "ລູກຄ້າທົ່ວໄປ";
+export function firstCustomerListParams(
+  storeUuid: string,
+  language?: string | null,
+): FetchCustomersParams {
+  return {
+    store_uuid_fk: storeUuid,
+    page: 1,
+    limit: 1,
+    search: "",
+    sort_by: "ASC",
+    lang: toApiLanguage(language),
+  };
+}
+
+export function firstCustomerAutoSelectAction({
+  attempted,
+  customerCreateOpen,
+  customerUuid,
+  open,
+  storeUuid,
+}: {
+  attempted: boolean;
+  customerCreateOpen: boolean;
+  customerUuid: string;
+  open: boolean;
+  storeUuid: string;
+}): "load" | "none" | "reset" {
+  if (!open) return "reset";
+  if (attempted || customerCreateOpen || customerUuid || !storeUuid) {
+    return "none";
+  }
+  return "load";
 }
 
 export function defaultCustomerFromRows(customers: Customer[], term: string) {

@@ -51,9 +51,12 @@ export function SummaryFooterLabelCell({
   return (
     <TableCell className={summaryFooterCellClass("left")} colSpan={colSpan}>
       <div className="flex min-w-64 items-center gap-2">
-        <span className="inline-flex h-6 items-center rounded-full bg-background/80 px-2 text-xs font-black uppercase text-primary ring-1 ring-primary/20">
+        <Badge
+          variant="outline"
+          className="h-6 border-primary/30 bg-muted px-2 text-xs font-black uppercase text-primary"
+        >
           {label}
-        </span>
+        </Badge>
         {billCount !== null ? (
           <span className="truncate text-xs font-semibold text-muted-foreground">
             {billCountLabel}: {billCount.toLocaleString("en-US")}
@@ -269,7 +272,7 @@ export function ProductImage({ row }: { row: ApiEntity }) {
 
 export function summaryFooterCellClass(align: "left" | "right" = "left") {
   return cn(
-    "sticky bottom-0 z-20 h-10 whitespace-nowrap border-t border-primary/25 bg-primary/10 px-2 py-2 backdrop-blur supports-[backdrop-filter]:bg-primary/10",
+    "sticky bottom-0 z-20 h-10 whitespace-nowrap border-t-2 border-primary bg-muted px-2 py-2 font-bold text-foreground",
     align === "right" && "text-right tabular-nums",
   );
 }
@@ -322,4 +325,3 @@ export function BlankCell({ align = "left" }: { align?: "left" | "right" }) {
     />
   );
 }
-

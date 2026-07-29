@@ -1,19 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import {
-  AlertCircle,
-  CheckCircle2,
-  ClipboardCheck,
-  Printer,
-  RefreshCcw,
-} from "lucide-react";
+import { AlertCircle, Printer } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { BlockingLoadingDialog } from "@/components/common/blocking-loading-dialog";
 import { EmptyState } from "@/components/common/empty-state";
 import { LoadingState } from "@/components/common/loading-state";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { useIsCapacitorNativeApp } from "@/hooks/use-capacitor-native-app";
@@ -55,73 +48,25 @@ export function DailyClosingReportPage() {
       className="h-full min-h-0 min-w-0 overflow-x-hidden overflow-y-auto"
     >
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 p-3 sm:p-4 lg:p-6">
-        <header className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 text-sm font-bold text-primary">
-              <ClipboardCheck aria-hidden="true" />
-              {t("nav.report_menu")}
-            </div>
-            <h1 className="mt-1 text-2xl font-black tracking-tight text-foreground sm:text-3xl">
-              {closing.reportTitle}
-            </h1>
-            <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-              {t("report.dailyClosing.description")}
-            </p>
-          </div>
-
-          <div ref={printActionsRef} className="flex flex-wrap items-center gap-2">
-            {closing.report ? (
-              <Badge
-                variant="outline"
-                className={closing.balanced ? "gap-1.5 text-primary" : "gap-1.5 text-destructive"}
-              >
-                {closing.balanced ? (
-                  <CheckCircle2 aria-hidden="true" />
-                ) : (
-                  <AlertCircle aria-hidden="true" />
-                )}
-                {closing.balanced
-                  ? t("report.dailyClosing.balancedShort")
-                  : t("report.dailyClosing.reviewRequired")}
-              </Badge>
-            ) : null}
-            <Button
-              type="button"
-              variant="outline"
-              disabled={!closing.branchUuid || closing.loading || closing.printing}
-              onClick={() => void closing.load()}
-            >
-              <RefreshCcw
-                data-icon="inline-start"
-                className={closing.loading ? "animate-spin" : undefined}
-                aria-hidden="true"
-              />
-              {t("actions.refresh")}
-            </Button>
-            <Button
-              type="button"
-              disabled={closing.printDisabled || nativeApp}
-              onClick={() => void closing.printReport()}
-            >
-              {closing.printing ? (
-                <Spinner data-icon="inline-start" />
-              ) : (
-                <Printer data-icon="inline-start" aria-hidden="true" />
-              )}
-              {t("report.dailyClosing.printClosingReport")}
-            </Button>
-          </div>
-        </header>
+        <h1 className="sr-only">{t("report.dailyClosing.title")}</h1>
 
         <DailyClosingReportControls
+          actionsRef={printActionsRef}
+          balanced={closing.report ? closing.balanced : null}
           branchLoading={closing.branchLoading}
           branchLocked={!closing.canSelectBranch}
           branchOptions={closing.branchOptions}
           canApply={closing.canApply}
           disabled={closing.loading || closing.printing}
           draftFilters={closing.draftFilters}
+          loading={closing.loading}
+          printDisabled={closing.printDisabled || nativeApp}
+          printing={closing.printing}
+          refreshDisabled={!closing.branchUuid || closing.loading || closing.printing}
           onApply={closing.applyFilters}
           onDraftChange={closing.setDraftFilters}
+          onPrint={() => void closing.printReport()}
+          onRefresh={() => void closing.load()}
         />
 
         {!closing.branchUuid ? (

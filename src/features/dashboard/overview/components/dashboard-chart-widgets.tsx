@@ -352,7 +352,7 @@ function ChannelDonutPanel({ copy, rows }: { copy: DashboardCopy; rows: Breakdow
                   <span className="size-2.5 rounded-sm" style={{ backgroundColor: chartColors[index % chartColors.length] }} />
                   <div className="min-w-0">
                     <p className="truncate font-semibold">{row.label}</p>
-                    <p className="font-mono text-xs text-muted-foreground">
+                    <p className="tabular-nums text-xs text-muted-foreground">
                       {formatNumber(row.count ?? 0)} {copy.orders} / {formatKip(row.value)}
                     </p>
                   </div>
@@ -482,7 +482,7 @@ function InsightCardsPanel({
           <div key={card.label} className={cn("dashboard-insight-tile rounded-lg border p-4", card.className)}>
             <p className="text-[11px] font-semibold uppercase tracking-[0.12em]">{card.label}</p>
             <p className="mt-2 truncate text-lg font-semibold text-foreground">{card.name}</p>
-            <p className="mt-1 font-mono text-xs text-muted-foreground">{card.value}</p>
+            <p className="mt-1 tabular-nums text-xs text-muted-foreground">{card.value}</p>
           </div>
         ))}
       </CardContent>

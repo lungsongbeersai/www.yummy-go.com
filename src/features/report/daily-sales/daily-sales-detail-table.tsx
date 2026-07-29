@@ -142,7 +142,7 @@ export function DetailBillTable({
   return (
     <div className="w-full min-w-0">
       <Table className="w-max min-w-full table-auto text-xs">
-        <TableHeader className="[&_th]:sticky [&_th]:top-0 [&_th]:z-30 [&_th]:h-9 [&_th]:whitespace-nowrap [&_th]:border-b [&_th]:border-border [&_th]:bg-muted/80 [&_th]:px-2 [&_th]:shadow-sm [&_th]:backdrop-blur">
+        <TableHeader className="[&_th]:sticky [&_th]:top-0 [&_th]:z-30 [&_th]:h-9 [&_th]:whitespace-nowrap [&_th]:border-b [&_th]:border-border [&_th]:bg-muted [&_th]:px-2 [&_th]:shadow-sm">
           <TableRow>
             <TableHead className="w-10 text-center">
               <ReportIndeterminateCheckbox
@@ -498,7 +498,7 @@ function DetailReportFooterRow({
   summaryLabel: string;
 }) {
   return (
-    <TableRow className="border-t border-primary/25 bg-primary/5 hover:bg-primary/10">
+    <TableRow className="border-t-2 border-primary bg-muted font-bold text-foreground hover:bg-muted">
       <SummaryFooterBlankCell />
       <SummaryFooterBlankCell />
       <SummaryFooterLabelCell
@@ -563,7 +563,7 @@ function DetailBillSummaryRow({
   summaryLabel: string;
 }) {
   return (
-    <TableRow className="border-0 bg-primary/5 hover:bg-primary/5 [&>td]:whitespace-nowrap [&>td]:px-2 [&>td]:py-2">
+    <TableRow className="border-0 bg-muted hover:bg-muted [&>td]:whitespace-nowrap [&>td]:px-2 [&>td]:py-2">
       <TableCell />
       <TableCell />
       <TableCell colSpan={4}>
@@ -646,8 +646,8 @@ function DetailBillAdjustmentRow({
   return (
     <TableRow
       className={cn(
-        "bg-primary/5 hover:bg-primary/5 [&>td]:whitespace-nowrap [&>td]:px-2 [&>td]:py-1",
-        last ? "border-b border-border/80" : "border-0",
+        "bg-muted hover:bg-muted [&>td]:whitespace-nowrap [&>td]:px-2 [&>td]:py-1",
+        last ? "border-b border-border" : "border-0",
       )}
     >
       <TableCell colSpan={10} />
@@ -785,4 +785,3 @@ function dailySalesBillSortValue(
       return groupMoney(group, ["vat"]) ?? 0;
   }
 }
-

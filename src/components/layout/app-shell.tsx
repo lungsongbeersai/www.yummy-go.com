@@ -89,6 +89,7 @@ import {
 const POS_ANDROID_SYSTEM_SCREEN_CLASS = "pos-android-system-screen";
 const FIXED_DATA_SCREEN_PATHS = new Set([
   "/printers",
+  "/package",
   "/products",
   "/stock",
   "/sales/cancel-history",

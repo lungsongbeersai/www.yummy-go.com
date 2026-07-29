@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Trophy } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { AppPagination } from "@/components/common/app-pagination";
 import { LoadingState } from "@/components/common/loading-state";
@@ -34,10 +33,8 @@ export function BestSellingProductsReportPage({ initialPagination }: { initialPa
 
   return (
     <ReportPageShell
+      accessibleTitle={t("report.bestSelling.title")}
       variant="compact"
-      icon={Trophy}
-      title={t("report.bestSelling.title")}
-      description={t("report.bestSelling.description")}
       dateFrom={report.appliedFilters.dateFrom}
       dateTo={report.appliedFilters.dateTo}
       loading={report.loading}
@@ -75,9 +72,8 @@ export function BestSellingProductsReportPage({ initialPagination }: { initialPa
         <ReportTableCard
           cardClassName="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden border-border bg-card shadow-sm"
           contentClassName="flex min-h-0 flex-1 flex-col p-0"
-          contentWrapperClassName="min-h-0 min-w-0 flex-1 overflow-auto overscroll-x-contain overscroll-y-auto"
+          contentWrapperClassName="min-h-0 min-w-0 flex-1 scroll-pb-10 overflow-auto overscroll-x-contain overscroll-y-auto"
           headerVariant="compact"
-          icon={Trophy}
           title={t("report.bestSelling.tableTitle")}
           headerExtras={
             <BestSellingSortDropdown
@@ -106,7 +102,6 @@ export function BestSellingProductsReportPage({ initialPagination }: { initialPa
           onClearSelection={report.rowSelection.clearSelection}
           onExportExcel={() => void report.exportExcel()}
           onExportPdf={() => void report.exportPdf()}
-          onRefresh={() => void report.load()}
         >
           <BestSellingProductsTable
             groups={report.groups}

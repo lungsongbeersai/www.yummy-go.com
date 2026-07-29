@@ -69,7 +69,6 @@ export function useDailyClosingReportWorkflow() {
     activeBranch?.branch_tel ||
     (branchUuid === userBranchUuid ? user?.branch_tel : "") ||
     "";
-  const reportTitle = t("report.dailyClosing.title");
   const paymentDifference = report ? dailyClosingPaymentDifference(report) : 0;
   const itemCount = report ? dailyClosingReportItemCount(report) : 0;
   const balanced = Math.abs(paymentDifference) < 0.01;
@@ -235,7 +234,6 @@ export function useDailyClosingReportWorkflow() {
     printReport,
     printing,
     report,
-    reportTitle,
     setDraftFilters,
     storeName,
     applyFilters,

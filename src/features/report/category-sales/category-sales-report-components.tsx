@@ -453,7 +453,7 @@ export function CategorySalesTable({
                   );
                 })()}
 
-                <TableRow className="border-b-2 border-border bg-primary/10 hover:bg-primary/10">
+                <TableRow className="border-b-2 border-primary bg-muted font-bold text-foreground hover:bg-muted">
                   <TableCell />
                   <TableCell className="font-black text-primary">
                     <span className="sr-only">{t("common.total")}</span>
@@ -637,7 +637,7 @@ export function CategorySalesMobileList({
             ))}
           </div>
 
-          <div className="border-t border-border bg-primary/5 p-3">
+          <div className="border-t-2 border-primary bg-muted p-3">
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <p className="truncate text-sm font-black text-primary">
@@ -673,7 +673,7 @@ function MetricTile({
   const valueClassName = kind === "money" ? financialValueTextClass(value, tone) : "text-foreground";
 
   return (
-    <div className="min-w-0 rounded-md border border-border bg-muted/20 px-2.5 py-2">
+    <div className="min-w-0 rounded-md border border-border bg-muted px-2.5 py-2">
       <p className="truncate text-[10px] font-bold uppercase text-muted-foreground">
         {label}
       </p>

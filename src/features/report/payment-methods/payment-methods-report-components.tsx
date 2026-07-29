@@ -90,8 +90,11 @@ export function PaymentMethodsSummaryCards({
       cardClassName={(card) =>
         cn(
           "border-border bg-card",
-          (card.key === "grand_total" || card.key === "payment_total") && "border-primary/30 bg-primary/5",
-          card.key.includes("discount") && metricNumber(card.value) > 0 && "border-destructive/25 bg-destructive/5"
+          (card.key === "grand_total" || card.key === "payment_total") &&
+            "border-primary/40 border-l-4 border-l-primary",
+          card.key.includes("discount") &&
+            metricNumber(card.value) > 0 &&
+            "border-destructive/40 border-l-4 border-l-destructive"
         )
       }
       labelClassName={() => "text-muted-foreground"}
@@ -283,7 +286,7 @@ export function PaymentMethodsTable({
   return (
     <div className="hidden min-w-0 md:block">
       <Table className="w-max min-w-full table-auto text-[13px]">
-        <TableHeader className="[&_th]:sticky [&_th]:top-0 [&_th]:z-20 [&_th]:h-9 [&_th]:whitespace-nowrap [&_th]:border-b [&_th]:border-border [&_th]:bg-muted/70 [&_th]:px-2 [&_th]:shadow-sm [&_th]:backdrop-blur">
+        <TableHeader className="[&_th]:sticky [&_th]:top-0 [&_th]:z-20 [&_th]:h-9 [&_th]:whitespace-nowrap [&_th]:border-b [&_th]:border-border [&_th]:bg-muted [&_th]:px-2 [&_th]:shadow-sm">
           <TableRow>
             <TableHead className="w-10 text-center">
               <ReportIndeterminateCheckbox
@@ -549,13 +552,16 @@ function PaymentMethodsSummaryRow({
   const { t } = useTranslation();
 
   return (
-    <TableRow className="sticky bottom-0 z-20 border-t border-primary/25 bg-primary/10 hover:bg-primary/10 [&>td]:px-2 [&>td]:py-2.5">
+    <TableRow className="sticky bottom-0 z-20 border-t-2 border-primary bg-muted font-bold text-foreground hover:bg-muted [&>td]:bg-muted [&>td]:px-2 [&>td]:py-2.5">
       <TableCell />
       <TableCell className="whitespace-nowrap">
         <div className="flex min-w-48 items-center gap-2">
-          <span className="inline-flex h-6 items-center rounded-full bg-background/80 px-2 text-xs font-black uppercase text-primary ring-1 ring-primary/20">
+          <Badge
+            variant="outline"
+            className="h-6 border-primary/30 bg-muted px-2 text-xs font-black uppercase text-primary"
+          >
             {t("report.paymentMethodsReport.totalSummary")}
-          </span>
+          </Badge>
           <span className="text-xs font-semibold text-muted-foreground">
             {t("report.paymentMethodsReport.rowsLabel", { count: rows.length })}
           </span>
@@ -571,6 +577,7 @@ function PaymentMethodsSummaryRow({
             className={cn(
               "whitespace-nowrap text-right tabular-nums",
               metricValueClass(field, value),
+              "font-bold",
             )}
           >
             {metric ? displayMetric(value, metric.kind) : String(value)}
@@ -593,12 +600,12 @@ function PaymentMethodsMobileSummary({
   const { t } = useTranslation();
 
   return (
-    <section className="overflow-hidden rounded-md border border-primary/20 bg-primary/5 shadow-sm">
-      <div className="flex items-center justify-between gap-2 border-b border-primary/15 px-3 py-2.5">
+    <section className="overflow-hidden rounded-md border border-l-4 border-primary/40 border-l-primary bg-muted shadow-sm">
+      <div className="flex items-center justify-between gap-2 border-b border-primary/20 px-3 py-2.5">
         <p className="text-sm font-black text-primary">
           {t("report.paymentMethodsReport.totalSummary")}
         </p>
-        <Badge className="border-primary/20 bg-background/80 text-primary">
+        <Badge className="border-primary/30 bg-card text-primary">
           {t("report.paymentMethodsReport.rowsLabel", { count: rows.length })}
         </Badge>
       </div>
@@ -609,7 +616,7 @@ function PaymentMethodsMobileSummary({
           return (
             <div
               key={field}
-              className="min-w-0 rounded-md border border-border bg-background/80 px-2.5 py-1.5"
+              className="min-w-0 rounded-md border border-border bg-card px-2.5 py-1.5"
             >
               <p className="truncate text-[10px] font-bold text-muted-foreground">
                 {metric?.label ?? field}
@@ -618,6 +625,7 @@ function PaymentMethodsMobileSummary({
                 className={cn(
                   "truncate text-xs tabular-nums",
                   metricValueClass(field, value),
+                  "font-bold",
                 )}
               >
                 {metric ? displayMetric(value, metric.kind) : String(value)}

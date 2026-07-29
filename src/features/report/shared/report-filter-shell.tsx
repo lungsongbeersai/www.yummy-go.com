@@ -1,11 +1,12 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { RefreshCcw, SlidersHorizontal } from "lucide-react";
+import { SlidersHorizontal } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { DateFilterButton } from "@/components/common/date-filter-button";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Dialog,
   DialogClose,
@@ -38,9 +39,7 @@ export function ReportApplyButton({
       disabled={loading || !canApply}
       onClick={onApply}
     >
-      {loading ? (
-        <RefreshCcw className="animate-spin" data-icon="inline-start" />
-      ) : null}
+      {loading ? <Spinner aria-hidden="true" data-icon="inline-start" /> : null}
       {t("report.apply")}
     </Button>
   );
