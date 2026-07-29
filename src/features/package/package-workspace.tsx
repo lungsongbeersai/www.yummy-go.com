@@ -19,6 +19,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { PackageCycleToggle } from "@/features/package/package-cycle-toggle";
 import { PackagePricingGrid } from "@/features/package/package-pricing-grid";
+import type { PackageStatusFilter } from "@/features/package/package-toolbar";
 import type { Language } from "@/lib/language";
 import type {
   BillingCycle,
@@ -42,6 +43,7 @@ interface PackageWorkspaceProps {
   reorderDisabled: boolean;
   selectedCycleId: string;
   shownCount: number;
+  status: PackageStatusFilter;
   total: number;
   onAddPackage: (planId: string) => void;
   onAddPlan: () => void;
@@ -67,6 +69,7 @@ export function PackageWorkspace({
   reorderDisabled,
   selectedCycleId,
   shownCount,
+  status,
   total,
   onAddPackage,
   onAddPlan,
@@ -154,6 +157,7 @@ export function PackageWorkspace({
               plans={plans}
               monthlyPriceByMethodId={monthlyPriceByMethodId}
               reorderDisabled={reorderDisabled}
+              status={status}
               onAddPackage={onAddPackage}
               onAddPlan={onAddPlan}
               onEditPackage={onEditPackage}

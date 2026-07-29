@@ -28,7 +28,7 @@ import {
 import { errorMessage } from "@/stores/store-utils";
 import { useToastStore } from "@/stores/toast-store";
 
-export const PACKAGE_FETCH_LIMIT = 50;
+const PACKAGE_FETCH_LIMIT = 50;
 
 export function PackagePage() {
   const { t } = useTranslation();
@@ -82,14 +82,8 @@ export function PackagePage() {
   }, [loadCatalog, query]);
 
   const navigation = useMemo(
-    () =>
-      activePackageNavigation(
-        billingCycles,
-        planGroups,
-        selectedCycleId,
-        selectedPlanId,
-      ),
-    [billingCycles, planGroups, selectedCycleId, selectedPlanId],
+    () => activePackageNavigation(billingCycles, planGroups, selectedCycleId),
+    [billingCycles, planGroups, selectedCycleId],
   );
 
   // ไม่ต้องเขียน navigation.cycleId กลับเข้า state — activePackageNavigation() resolve
@@ -282,6 +276,7 @@ export function PackagePage() {
         reorderDisabled={sortingScope !== null}
         selectedCycleId={navigation.cycleId}
         shownCount={shownCount}
+        status={status}
         total={total}
         onAddPackage={openCreatePackage}
         onAddPlan={() => setPlanDialogOpen(true)}

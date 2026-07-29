@@ -11,18 +11,16 @@ export interface ActivePackageNavigation {
   billingCycles: BillingCycle[];
   planGroups: PackagePlanGroup[];
   cycleId: string;
-  planId: string;
 }
 
 export function activePackageNavigation(
   cycles: BillingCycle[],
   groups: PackagePlanGroup[],
   selectedCycleId: string,
-  selectedPlanId: string,
 ): ActivePackageNavigation {
   const billingCycles = cycles.filter((cycle) => cycle.status === 1);
   if (!billingCycles.length) {
-    return { billingCycles: [], planGroups: [], cycleId: "", planId: "" };
+    return { billingCycles: [], planGroups: [], cycleId: "" };
   }
 
   const activeCycleIds = new Set(billingCycles.map((cycle) => cycle.id));
@@ -46,28 +44,8 @@ export function activePackageNavigation(
   const cycleId = activeCycleIds.has(selectedCycleId)
     ? selectedCycleId
     : billingCycles[0].id;
-  const group =
-    planGroups.find((item) => item.billingCycleId === cycleId) ?? null;
-  const selectedPlanIsValid = Boolean(
-    group?.plans.some((plan) => plan.id === selectedPlanId),
-  );
-  const planId = selectedPlanIsValid
-    ? selectedPlanId
-    : (group?.plans[0]?.id ?? "");
 
-  return { billingCycles, planGroups, cycleId, planId };
-}
-
-export function planById(
-  groups: PackagePlanGroup[],
-  planId: string,
-): PackagePlan | null {
-  if (!planId) return null;
-  return (
-    groups
-      .flatMap((group) => group.plans)
-      .find((plan) => plan.id === planId) ?? null
-  );
+  return { billingCycles, planGroups, cycleId };
 }
 
 export function packagesForPlan(

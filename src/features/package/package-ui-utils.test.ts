@@ -13,7 +13,6 @@ import {
   monthlyEquivalentPrice,
   orderedPlanColumns,
   packagesForPlan,
-  planById,
   validatePackageDraft,
   validatePlanDraft,
 } from "./package-ui-utils";
@@ -191,7 +190,6 @@ describe("package UI helpers", () => {
         },
       ],
       "",
-      "",
     );
 
     expect(navigation.billingCycles.map((cycle) => cycle.id)).toEqual([
@@ -204,24 +202,16 @@ describe("package UI helpers", () => {
     ]);
     expect(navigation.planGroups[0]?.plans).toEqual([]);
     expect(navigation.cycleId).toBe("cycle-monthly");
-    expect(navigation.planId).toBe("");
   });
 
-  it("keeps a valid active user selection when it is not first in catalog order", () => {
+  it("keeps a valid active user cycle selection when it is not first in catalog order", () => {
     const navigation = activePackageNavigation(
       [billingCycles[1], billingCycles[2]],
       [planGroups[0], planGroups[1]],
       "cycle-yearly",
-      "plan-yearly-professional",
     );
 
     expect(navigation.cycleId).toBe("cycle-yearly");
-    expect(navigation.planId).toBe("plan-yearly-professional");
-  });
-
-  it("finds a plan across billing-cycle groups", () => {
-    expect(planById(planGroups, "plan-yearly-professional")).toEqual(yearlyPlan);
-    expect(planById(planGroups, "missing-plan")).toBeNull();
   });
 
   it("flattens only packages belonging to the selected plan", () => {
@@ -409,6 +399,10 @@ describe("cycleSavingsPercent", () => {
 
   it("returns null when the cycle price matches the monthly total", () => {
     expect(cycleSavingsPercent(400_000, 400_000, 1)).toBeNull();
+  });
+
+  it("returns null when the cycle price exactly equals the monthly total", () => {
+    expect(cycleSavingsPercent(100_000, 1_200_000, 12)).toBeNull();
   });
 
   it("returns null when the cycle costs more than paying monthly", () => {

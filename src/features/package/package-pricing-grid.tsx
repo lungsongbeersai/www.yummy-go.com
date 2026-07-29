@@ -1,15 +1,14 @@
 "use client";
 
 import { closestCenter, DndContext, type DragEndEvent } from "@dnd-kit/core";
-import { restrictToHorizontalAxis } from "@dnd-kit/modifiers";
 import {
   arrayMove,
   SortableContext,
   useSortable,
-  horizontalListSortingStrategy,
+  rectSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Plus } from "lucide-react";
+import { GripVertical, Plus, SearchX } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { useReorderSensors } from "@/hooks/use-reorder-sensors";
@@ -22,6 +21,7 @@ import type {
   PackagePlan,
 } from "@/services/package";
 import { PackagePriceCard } from "@/features/package/package-price-card";
+import type { PackageStatusFilter } from "@/features/package/package-toolbar";
 import {
   cycleSavingsPercent,
   packagesForPlan,
@@ -35,6 +35,7 @@ interface PackagePricingGridProps {
   plans: PackagePlan[];
   monthlyPriceByMethodId: Map<string, number>;
   reorderDisabled: boolean;
+  status: PackageStatusFilter;
   onAddPackage: (planId: string) => void;
   onAddPlan: () => void;
   onEditPackage: (item: PackageItem) => void;
@@ -50,6 +51,7 @@ export function PackagePricingGrid({
   plans,
   monthlyPriceByMethodId,
   reorderDisabled,
+  status,
   onAddPackage,
   onAddPlan,
   onEditPackage,
@@ -71,11 +73,10 @@ export function PackagePricingGrid({
   return (
     <DndContext
       collisionDetection={closestCenter}
-      modifiers={[restrictToHorizontalAxis]}
       sensors={sensors}
       onDragEnd={handleDragEnd}
     >
-      <SortableContext items={planIds} strategy={horizontalListSortingStrategy}>
+      <SortableContext items={planIds} strategy={rectSortingStrategy}>
         <div className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-[repeat(auto-fit,minmax(16rem,1fr))]">
           {plans.map((plan) => (
             <PlanColumn
@@ -87,6 +88,7 @@ export function PackagePricingGrid({
               packages={packagesForPlan(packageGroups, plan.id)}
               plan={plan}
               reorderDisabled={reorderDisabled}
+              status={status}
               onAddPackage={onAddPackage}
               onEditPackage={onEditPackage}
               onReorderDetails={onReorderDetails}
@@ -108,6 +110,7 @@ function PlanColumn({
   packages,
   plan,
   reorderDisabled,
+  status,
   onAddPackage,
   onEditPackage,
   onReorderDetails,
@@ -119,6 +122,7 @@ function PlanColumn({
   packages: PackageItem[];
   plan: PackagePlan;
   reorderDisabled: boolean;
+  status: PackageStatusFilter;
   onAddPackage: (planId: string) => void;
   onEditPackage: (item: PackageItem) => void;
   onReorderDetails: (packageId: string, details: PackageDetail[]) => void;
@@ -170,7 +174,7 @@ function PlanColumn({
             onReorderDetails={(details) => onReorderDetails(item.id, details)}
           />
         ))
-      ) : (
+      ) : status === "all" ? (
         <button
           type="button"
           className="flex min-h-40 min-w-0 cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-card/40 p-4 text-center transition hover:border-primary hover:bg-primary/5"
@@ -184,6 +188,18 @@ function PlanColumn({
             {t("packageManagement.createPackageHint")}
           </span>
         </button>
+      ) : (
+        // สถานะกรองไม่ตรงกับแพ็กเกจที่มีอยู่จริง (ไม่ใช่ "ยังไม่มีแพ็กเกจ") ห้ามให้กดสร้าง
+        // เพราะแผนนี้อาจมีแพ็กเกจอยู่แล้ว การกดสร้างจะได้แพ็กเกจซ้ำใต้แผนเดียวกัน
+        <div className="flex min-h-40 min-w-0 flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-card/40 p-4 text-center">
+          <SearchX aria-hidden className="size-5 text-muted-foreground" />
+          <span className="text-sm font-bold text-foreground">
+            {t("packageManagement.noResultsTitle")}
+          </span>
+          <span className="text-xs text-muted-foreground">
+            {t("packageManagement.noResultsDescription")}
+          </span>
+        </div>
       )}
     </section>
   );

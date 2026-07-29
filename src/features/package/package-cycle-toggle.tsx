@@ -110,7 +110,7 @@ function SortableCycleChip({
       type="button"
       aria-label={`${t("packageManagement.dragToReorder")} ${cycle.name}`}
       className={cn(
-        "flex h-11 min-w-0 cursor-grab items-center gap-2 rounded-md border border-border bg-card px-3 text-sm font-bold sm:h-8",
+        "flex h-11 min-w-0 cursor-grab touch-none items-center gap-2 rounded-md border border-border bg-card px-3 text-sm font-bold sm:h-8",
         isDragging && "z-10 opacity-80 shadow-md",
         disabled && "cursor-not-allowed opacity-60",
       )}
