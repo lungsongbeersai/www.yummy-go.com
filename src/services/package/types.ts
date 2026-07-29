@@ -119,6 +119,8 @@ export interface SavePackageInput {
 
 export interface RawBillingCycleDto {
   billing_cycle_uuid?: unknown;
+  // /packages/plans/fetch คืน id ของรอบบิลเป็น *_fk ส่วน /packages/fetch_limit คืนเป็น *_uuid
+  billing_cycle_uuid_fk?: unknown;
   billing_cycle_name?: unknown;
   billing_cycle_name_la?: unknown;
   billing_cycle_name_eng?: unknown;

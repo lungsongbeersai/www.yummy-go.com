@@ -22,4 +22,19 @@ describe("shared translation resources", () => {
     expect(laCommon.app.changeLanguage).toBeTruthy();
     expect(laCommon.nav.package_management).toBeTruthy();
   });
+
+  it.each([
+    "planDialogDescription",
+    "packageDialogDescription",
+    "packageDetailsDescription",
+    "noMethodsAvailable",
+    "discardTitle",
+    "discardDescription",
+    "discardAction",
+    "removeDetail",
+    "planSaveFailed",
+  ] as const)("defines package form copy for %s in both languages", (key) => {
+    expect(enCommon.packageManagement[key]).toBeTruthy();
+    expect(laCommon.packageManagement[key]).toBeTruthy();
+  });
 });

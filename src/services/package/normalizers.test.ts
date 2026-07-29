@@ -56,32 +56,32 @@ describe("package normalizers", () => {
       normalizePackagePlanGroups({
         data: [
           {
-            billing_cycle_uuid: "cycle-annual",
+            billing_cycle_uuid_fk: "cycle-annual",
             billing_cycle_name: "Annual",
             billing_cycle_months: "12",
             billing_cycle_status: "2",
             sort_order: "2"
           },
           {
-            billing_cycle_uuid: "cycle-monthly",
+            billing_cycle_uuid_fk: "cycle-monthly",
             billing_cycle_name: "Monthly",
             billing_cycle_months: "1",
             sort_order: "1",
-            package_plans: [
+            package_methods: [
               {
                 package_plan_uuid: "plan-2",
                 package_method_uuid_fk: "method-2",
                 package_method_name: "Transfer",
                 package_method_status: "2",
                 package_plan_status: "2",
-                package_plan_sort_order: "2"
+                sort_order: "2"
               },
               {
                 package_plan_uuid: "plan-1",
                 package_method_uuid_fk: "method-1",
                 package_method_name: "Cash",
                 package_plan_status: "1",
-                package_plan_sort_order: "1"
+                sort_order: "1"
               }
             ]
           }

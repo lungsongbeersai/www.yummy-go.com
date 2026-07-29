@@ -110,3 +110,45 @@ export function availableMethods(
   );
   return methods.filter((method) => !connectedMethodIds.has(method.id));
 }
+
+export function validatePlanDraft(draft: {
+  billingCycleId: string;
+  methodId: string;
+}): "billingCycle" | "method" | null {
+  if (!draft.billingCycleId.trim()) return "billingCycle";
+  if (!draft.methodId.trim()) return "method";
+  return null;
+}
+
+export function validatePackageDraft(draft: {
+  planId: string;
+  nameLa: string;
+  nameEn: string;
+  price: string;
+  details: Array<{ nameLa: string; nameEn: string }>;
+}):
+  | "plan"
+  | "nameLa"
+  | "nameEn"
+  | "price"
+  | "details"
+  | "detailNameLa"
+  | "detailNameEn"
+  | null {
+  if (!draft.planId.trim()) return "plan";
+  if (!draft.nameLa.trim()) return "nameLa";
+  if (!draft.nameEn.trim()) return "nameEn";
+
+  const price = draft.price.trim();
+  if (!price || !Number.isFinite(Number(price)) || Number(price) < 0) {
+    return "price";
+  }
+  if (!draft.details.length) return "details";
+
+  for (const detail of draft.details) {
+    if (!detail.nameLa.trim()) return "detailNameLa";
+    if (!detail.nameEn.trim()) return "detailNameEn";
+  }
+
+  return null;
+}

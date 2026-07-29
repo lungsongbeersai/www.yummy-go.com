@@ -13,6 +13,8 @@ import {
   packageRange,
   packagesForPlan,
   planById,
+  validatePackageDraft,
+  validatePlanDraft,
 } from "./package-ui-utils";
 
 const monthlyPlan: PackagePlan = {
@@ -244,5 +246,149 @@ describe("package UI helpers", () => {
       methods[1],
     ]);
     expect(availableMethods(methods, null)).toEqual(methods);
+  });
+
+  it("excludes a method connected by an inactive plan", () => {
+    const groupWithInactivePlan: PackagePlanGroup = {
+      ...planGroups[0],
+      plans: [
+        monthlyPlan,
+        {
+          ...monthlyPlan,
+          id: "plan-monthly-professional-inactive",
+          methodId: "method-professional",
+          methodName: "Professional",
+          status: 2,
+          sortOrder: 2,
+        },
+      ],
+    };
+
+    expect(availableMethods(methods, groupWithInactivePlan)).toEqual([]);
+  });
+});
+
+describe("package form validation", () => {
+  it("returns the first missing plan draft field", () => {
+    expect(
+      validatePlanDraft({ billingCycleId: "", methodId: "" }),
+    ).toBe("billingCycle");
+    expect(
+      validatePlanDraft({
+        billingCycleId: "cycle-monthly",
+        methodId: "",
+      }),
+    ).toBe("method");
+    expect(
+      validatePlanDraft({
+        billingCycleId: "cycle-monthly",
+        methodId: "method-starter",
+      }),
+    ).toBeNull();
+  });
+
+  it.each([
+    {
+      draft: {
+        planId: "",
+        nameLa: "ແພັກເກດ",
+        nameEn: "Package",
+        price: "100",
+        details: [{ nameLa: "ລາຍລະອຽດ", nameEn: "Detail" }],
+      },
+      expected: "plan",
+    },
+    {
+      draft: {
+        planId: "plan-1",
+        nameLa: "   ",
+        nameEn: "Package",
+        price: "100",
+        details: [{ nameLa: "ລາຍລະອຽດ", nameEn: "Detail" }],
+      },
+      expected: "nameLa",
+    },
+    {
+      draft: {
+        planId: "plan-1",
+        nameLa: "ແພັກເກດ",
+        nameEn: "   ",
+        price: "100",
+        details: [{ nameLa: "ລາຍລະອຽດ", nameEn: "Detail" }],
+      },
+      expected: "nameEn",
+    },
+    {
+      draft: {
+        planId: "plan-1",
+        nameLa: "ແພັກເກດ",
+        nameEn: "Package",
+        price: "-1",
+        details: [{ nameLa: "ລາຍລະອຽດ", nameEn: "Detail" }],
+      },
+      expected: "price",
+    },
+    {
+      draft: {
+        planId: "plan-1",
+        nameLa: "ແພັກເກດ",
+        nameEn: "Package",
+        price: "Infinity",
+        details: [{ nameLa: "ລາຍລະອຽດ", nameEn: "Detail" }],
+      },
+      expected: "price",
+    },
+    {
+      draft: {
+        planId: "plan-1",
+        nameLa: "ແພັກເກດ",
+        nameEn: "Package",
+        price: "100",
+        details: [],
+      },
+      expected: "details",
+    },
+    {
+      draft: {
+        planId: "plan-1",
+        nameLa: "ແພັກເກດ",
+        nameEn: "Package",
+        price: "100",
+        details: [{ nameLa: "   ", nameEn: "Detail" }],
+      },
+      expected: "detailNameLa",
+    },
+    {
+      draft: {
+        planId: "plan-1",
+        nameLa: "ແພັກເກດ",
+        nameEn: "Package",
+        price: "100",
+        details: [{ nameLa: "ລາຍລະອຽດ", nameEn: "   " }],
+      },
+      expected: "detailNameEn",
+    },
+  ])(
+    "returns $expected for the first invalid package field",
+    ({ draft, expected }) => {
+      expect(validatePackageDraft(draft)).toBe(expected);
+    },
+  );
+
+  it("accepts a complete package draft with a zero price", () => {
+    expect(
+      validatePackageDraft({
+        planId: "plan-1",
+        nameLa: " ແພັກເກດ ",
+        nameEn: " Package ",
+        price: "0",
+        details: [
+          {
+            nameLa: " ລາຍລະອຽດ ",
+            nameEn: " Detail ",
+          },
+        ],
+      }),
+    ).toBeNull();
   });
 });

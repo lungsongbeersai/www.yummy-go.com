@@ -177,8 +177,10 @@ export function normalizePackageMethods(raw: unknown): PackageMethod[] {
 export function normalizePackagePlanGroups(raw: unknown): PackagePlanGroup[] {
   const groups = recordsFrom(raw).map((item) => {
     const cycle = item as RawBillingCycleDto;
-    const billingCycleId = text(cycle.billing_cycle_uuid);
-    const plans = nestedRecords(item, "package_plans", "plans").map((plan) =>
+    // /packages/plans/fetch ห่อ plan ไว้ใน package_methods และเรียก id ของรอบบิลว่า *_fk
+    // (ต่างจาก /packages/fetch_limit ที่ใช้ billing_cycle_uuid) — อ่านผิดคีย์แล้วกลุ่มจะว่างทั้งหมด
+    const billingCycleId = text(cycle.billing_cycle_uuid_fk ?? cycle.billing_cycle_uuid);
+    const plans = nestedRecords(item, "package_methods", "package_plans", "plans").map((plan) =>
       normalizePlan(plan as RawPackagePlanDto, billingCycleId)
     );
 
