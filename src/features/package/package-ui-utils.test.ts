@@ -10,10 +10,8 @@ import {
   activePackageNavigation,
   availableMethods,
   cycleSavingsPercent,
-  firstPlanId,
   monthlyEquivalentPrice,
   orderedPlanColumns,
-  packageRange,
   packagesForPlan,
   planById,
   validatePackageDraft,
@@ -221,11 +219,6 @@ describe("package UI helpers", () => {
     expect(navigation.planId).toBe("plan-yearly-professional");
   });
 
-  it("selects the first plan from normalized sorted plan groups", () => {
-    expect(firstPlanId(planGroups)).toBe("plan-monthly-starter");
-    expect(firstPlanId([])).toBe("");
-  });
-
   it("finds a plan across billing-cycle groups", () => {
     expect(planById(planGroups, "plan-yearly-professional")).toEqual(yearlyPlan);
     expect(planById(planGroups, "missing-plan")).toBeNull();
@@ -236,12 +229,6 @@ describe("package UI helpers", () => {
       expect.objectContaining({ id: "package-pro" }),
     ]);
     expect(packagesForPlan(packageGroups, "missing-plan")).toEqual([]);
-  });
-
-  it("calculates the visible range from one backend response snapshot", () => {
-    expect(packageRange(2, 20, 45, 20)).toEqual({ start: 21, end: 40 });
-    expect(packageRange(3, 20, 45, 5)).toEqual({ start: 41, end: 45 });
-    expect(packageRange(1, 10, 0, 0)).toEqual({ start: 0, end: 0 });
   });
 
   it("excludes methods already connected to the selected billing cycle", () => {

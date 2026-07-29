@@ -1,8 +1,7 @@
 "use client";
 
-import { PackagePlus, RefreshCw } from "lucide-react";
+import { ArrowUpDown, RefreshCw } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { SearchInput } from "@/components/common/search-input";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -17,43 +16,29 @@ import { Spinner } from "@/components/ui/spinner";
 export type PackageStatusFilter = "all" | "1" | "2";
 
 interface PackageToolbarProps {
-  canAddPackage: boolean;
+  arranging: boolean;
   refreshing: boolean;
-  search: string;
   status: PackageStatusFilter;
-  onAddPackage?: () => void;
   onRefresh: () => void;
-  onSearchChange: (value: string) => void;
+  onToggleArrange: () => void;
   onStatusChange: (value: PackageStatusFilter) => void;
 }
 
 export function PackageToolbar({
-  canAddPackage,
+  arranging,
   refreshing,
-  search,
   status,
-  onAddPackage,
   onRefresh,
-  onSearchChange,
+  onToggleArrange,
   onStatusChange,
 }: PackageToolbarProps) {
   const { t } = useTranslation();
 
   return (
-    <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-2 sm:flex sm:items-center sm:justify-end">
-      <SearchInput
-        ariaLabel={t("packageManagement.searchPlaceholder")}
-        className="col-span-2 h-11 min-w-0 sm:col-span-1 sm:h-8 sm:w-56 lg:w-72"
-        placeholder={t("packageManagement.searchPlaceholder")}
-        value={search}
-        onChange={onSearchChange}
-      />
-
+    <div className="flex min-w-0 flex-wrap items-center gap-2 sm:justify-end">
       <Select
         value={status}
-        onValueChange={(value) =>
-          onStatusChange(value as PackageStatusFilter)
-        }
+        onValueChange={(value) => onStatusChange(value as PackageStatusFilter)}
       >
         <SelectTrigger
           aria-label={t("packageManagement.statusLabel")}
@@ -74,6 +59,20 @@ export function PackageToolbar({
       <Button
         type="button"
         size="sm"
+        variant={arranging ? "default" : "outline"}
+        className="h-11 sm:h-8"
+        aria-pressed={arranging}
+        onClick={onToggleArrange}
+      >
+        <ArrowUpDown data-icon="inline-start" />
+        {arranging
+          ? t("packageManagement.arrangeDone")
+          : t("packageManagement.arrange")}
+      </Button>
+
+      <Button
+        type="button"
+        size="sm"
         variant="outline"
         className="size-11 px-0 sm:size-auto sm:h-8 sm:px-3"
         aria-label={t("packageManagement.refresh")}
@@ -86,17 +85,6 @@ export function PackageToolbar({
           <RefreshCw data-icon="inline-start" />
         )}
         <span className="hidden lg:inline">{t("packageManagement.refresh")}</span>
-      </Button>
-
-      <Button
-        type="button"
-        size="sm"
-        className="col-span-2 h-11 sm:col-span-1 sm:h-8"
-        disabled={!canAddPackage || !onAddPackage}
-        onClick={onAddPackage}
-      >
-        <PackagePlus data-icon="inline-start" />
-        {t("packageManagement.addPackage")}
       </Button>
     </div>
   );

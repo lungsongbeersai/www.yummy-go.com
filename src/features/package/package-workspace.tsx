@@ -2,7 +2,6 @@
 
 import { PackageOpen, RefreshCw, TriangleAlert } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { AppPagination } from "@/components/common/app-pagination";
 import {
   Alert,
   AlertDescription,
@@ -11,7 +10,6 @@ import {
 import { Button } from "@/components/ui/button";
 import {
   Empty,
-  EmptyContent,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
@@ -19,118 +17,91 @@ import {
 } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
-import { PackageCard } from "@/features/package/package-card";
-import {
-  PackageDesktopNavigator,
-  PackageMobileNavigator,
-} from "@/features/package/package-navigator";
-import type { PackageStatusFilter } from "@/features/package/package-toolbar";
+import { PackageCycleToggle } from "@/features/package/package-cycle-toggle";
+import { PackagePricingGrid } from "@/features/package/package-pricing-grid";
 import type { Language } from "@/lib/language";
 import type {
   BillingCycle,
+  PackageBillingGroup,
   PackageDetail,
   PackageItem,
   PackagePlan,
-  PackagePlanGroup,
 } from "@/services/package";
-import type { PackageSortingScope } from "@/stores/package-store";
 
 interface PackageWorkspaceProps {
+  arranging: boolean;
   billingCycles: BillingCycle[];
   catalogReady: boolean;
   language: Language;
   loadError: string | null;
   loading: boolean;
-  packages: PackageItem[];
-  page: number;
-  planGroups: PackagePlanGroup[];
-  rangeEnd: number;
-  rangeStart: number;
-  refreshing: boolean;
-  search: string;
+  months: number;
+  monthlyPriceByMethodId: Map<string, number>;
+  packageGroups: PackageBillingGroup[];
+  plans: PackagePlan[];
+  reorderDisabled: boolean;
   selectedCycleId: string;
-  selectedCycleName: string;
-  selectedPlan: PackagePlan | null;
-  sortingScope: PackageSortingScope;
-  status: PackageStatusFilter;
+  shownCount: number;
   total: number;
-  totalPages: number;
-  onAddPackage?: () => void;
-  onAddPlan?: () => void;
-  onEditPackage?: (item: PackageItem) => void;
-  onPageChange: (page: number) => void;
+  onAddPackage: (planId: string) => void;
+  onAddPlan: () => void;
+  onEditPackage: (item: PackageItem) => void;
   onReorderCycles: (cycles: BillingCycle[]) => void;
-  onReorderDetails: (
-    packageId: string,
-    details: PackageDetail[],
-  ) => void;
-  onReorderPlans: (cycleId: string, plans: PackagePlan[]) => void;
+  onReorderDetails: (packageId: string, details: PackageDetail[]) => void;
+  onReorderPlans: (plans: PackagePlan[]) => void;
   onRetry: () => void;
   onSelectCycle: (cycleId: string) => void;
-  onSelectPlan: (planId: string) => void;
 }
 
 export function PackageWorkspace({
+  arranging,
   billingCycles,
   catalogReady,
   language,
   loadError,
   loading,
-  packages,
-  page,
-  planGroups,
-  rangeEnd,
-  rangeStart,
-  refreshing,
-  search,
+  months,
+  monthlyPriceByMethodId,
+  packageGroups,
+  plans,
+  reorderDisabled,
   selectedCycleId,
-  selectedCycleName,
-  selectedPlan,
-  sortingScope,
-  status,
+  shownCount,
   total,
-  totalPages,
   onAddPackage,
   onAddPlan,
   onEditPackage,
-  onPageChange,
   onReorderCycles,
   onReorderDetails,
   onReorderPlans,
   onRetry,
   onSelectCycle,
-  onSelectPlan,
 }: PackageWorkspaceProps) {
   const { t } = useTranslation();
-  const blockingLoadError = Boolean(loadError && !catalogReady);
-  const initialLoading = !catalogReady && !loadError;
-  const navigatorProps = {
-    billingCycles,
-    planGroups,
-    selectedCycleId,
-    selectedPlanId: selectedPlan?.id ?? "",
-    sortingScope,
-    onAddPlan,
-    onReorderCycles,
-    onReorderPlans,
-    onSelectCycle,
-    onSelectPlan,
-  };
+  const initialLoading = loading && !catalogReady;
 
   return (
     <section className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      {blockingLoadError ? null : (
-        <div className="shrink-0 border-b border-border bg-card/80 lg:hidden">
-          {initialLoading ? (
-            <MobileNavigatorSkeleton />
-          ) : (
-            <PackageMobileNavigator {...navigatorProps} />
-          )}
-        </div>
-      )}
+      <div className="shrink-0 border-b border-border bg-card/80 px-3 py-3 sm:px-4 lg:px-5">
+        <PackageCycleToggle
+          arranging={arranging}
+          cycles={billingCycles}
+          reorderDisabled={reorderDisabled}
+          selectedCycleId={selectedCycleId}
+          onReorder={onReorderCycles}
+          onSelect={onSelectCycle}
+        />
+        {arranging ? (
+          <p className="mt-2 text-xs text-muted-foreground">
+            {t("packageManagement.arrangeHint")}
+          </p>
+        ) : null}
+      </div>
 
-      {loadError ? (
-        <div className="shrink-0 px-3 pt-3 sm:px-4 lg:px-5">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain touch-pan-y px-3 py-3 sm:px-4 lg:px-5">
+        {initialLoading ? (
+          <PricingGridSkeleton />
+        ) : loadError ? (
           <Alert variant="destructive">
             <TriangleAlert aria-hidden="true" />
             <AlertTitle>{t("packageManagement.loadFailed")}</AlertTitle>
@@ -141,10 +112,10 @@ export function PackageWorkspace({
                 size="sm"
                 variant="outline"
                 className="h-11 sm:h-8"
-                disabled={loading || refreshing}
+                disabled={loading}
                 onClick={onRetry}
               >
-                {loading || refreshing ? (
+                {loading ? (
                   <Spinner data-icon="inline-start" />
                 ) : (
                   <RefreshCw data-icon="inline-start" />
@@ -153,189 +124,61 @@ export function PackageWorkspace({
               </Button>
             </AlertDescription>
           </Alert>
-        </div>
-      ) : null}
-
-      {refreshing ? (
-        <div
-          className="flex shrink-0 items-center gap-2 px-4 py-2 text-xs font-medium text-muted-foreground lg:px-5"
-          role="status"
-        >
-          <Spinner aria-hidden="true" />
-          {t("packageManagement.refreshing")}
-        </div>
-      ) : null}
-
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain touch-pan-y">
-        {initialLoading ? (
-          <WorkspaceSkeleton />
-        ) : blockingLoadError ? null : (
-          <div className="min-h-full lg:grid lg:grid-cols-[21rem_minmax(0,1fr)]">
-            <PackageDesktopNavigator {...navigatorProps} />
-
-            <main className="min-w-0 p-3 sm:p-4 lg:p-5">
-              <div className="mb-4 flex min-w-0 flex-wrap items-end justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold text-muted-foreground">
-                    {t("packageManagement.plan")}
-                  </p>
-                  <h2 className="mt-1 truncate text-xl font-black tracking-tight text-foreground">
-                    {selectedCycleName || t("packageManagement.billingCycle")}
-                    {selectedPlan ? ` · ${selectedPlan.methodName}` : ""}
-                  </h2>
-                </div>
-                <Button
-                  type="button"
-                  size="sm"
-                  className="h-11 sm:h-8"
-                  disabled={!selectedPlan || !onAddPackage}
-                  onClick={onAddPackage}
-                >
-                  <PackageOpen data-icon="inline-start" />
-                  {t("packageManagement.addPackage")}
-                </Button>
-              </div>
-
-              {packages.length ? (
-                <div className="grid min-w-0 grid-cols-1 gap-4 2xl:grid-cols-2">
-                  {packages.map((item) => (
-                    <PackageCard
-                      key={item.id}
-                      item={item}
-                      language={language}
-                      reorderDisabled={sortingScope !== null}
-                      sorting={sortingScope === `details:${item.id}`}
-                      onEdit={onEditPackage}
-                      onReorderDetails={(details) =>
-                        onReorderDetails(item.id, details)
-                      }
-                    />
-                  ))}
-                </div>
-              ) : (
-                <PackageEmptyState
-                  filtered={Boolean(search.trim()) || status !== "all"}
-                  scoped={total > 0}
-                  canAdd={Boolean(selectedPlan && onAddPackage)}
-                  onAddPackage={onAddPackage}
-                />
-              )}
-            </main>
-          </div>
+        ) : billingCycles.length === 0 ? (
+          <Empty className="min-h-72 border border-border">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <PackageOpen aria-hidden="true" />
+              </EmptyMedia>
+              <EmptyTitle>{t("packageManagement.emptyTitle")}</EmptyTitle>
+              <EmptyDescription>
+                {t("packageManagement.emptyDescription")}
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        ) : (
+          <>
+            <PackagePricingGrid
+              arranging={arranging}
+              language={language}
+              months={months}
+              packageGroups={packageGroups}
+              plans={plans}
+              monthlyPriceByMethodId={monthlyPriceByMethodId}
+              reorderDisabled={reorderDisabled}
+              onAddPackage={onAddPackage}
+              onAddPlan={onAddPlan}
+              onEditPackage={onEditPackage}
+              onReorderDetails={onReorderDetails}
+              onReorderPlans={onReorderPlans}
+            />
+            {total > shownCount ? (
+              <p className="shrink-0 px-1 py-2 text-xs text-muted-foreground">
+                {t("packageManagement.truncated", { shown: shownCount, total })}
+              </p>
+            ) : null}
+          </>
         )}
       </div>
-
-      {catalogReady ? (
-        <footer className="w-full shrink-0 border-t border-border bg-card px-3 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:px-4 lg:px-5">
-          <AppPagination
-            compact
-            className="w-full"
-            disabled={loading || refreshing}
-            page={page}
-            rangeLabel={t("packageManagement.range", {
-              start: rangeStart,
-              end: rangeEnd,
-              total,
-            })}
-            totalPages={totalPages}
-            onPageChange={onPageChange}
-          />
-        </footer>
-      ) : null}
     </section>
   );
 }
 
-function PackageEmptyState({
-  canAdd,
-  filtered,
-  scoped,
-  onAddPackage,
-}: {
-  canAdd: boolean;
-  filtered: boolean;
-  scoped: boolean;
-  onAddPackage?: () => void;
-}) {
-  const { t } = useTranslation();
-  const title = scoped
-    ? t("packageManagement.scopedEmptyTitle")
-    : filtered
-      ? t("packageManagement.noResultsTitle")
-      : t("packageManagement.emptyTitle");
-  const description = scoped
-    ? t("packageManagement.scopedEmptyDescription")
-    : filtered
-      ? t("packageManagement.noResultsDescription")
-      : t("packageManagement.emptyDescription");
-
+function PricingGridSkeleton() {
   return (
-    <Empty className="min-h-72 border border-border">
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <PackageOpen aria-hidden="true" />
-        </EmptyMedia>
-        <EmptyTitle>{title}</EmptyTitle>
-        <EmptyDescription>{description}</EmptyDescription>
-      </EmptyHeader>
-      {canAdd ? (
-        <EmptyContent>
-          <Button type="button" className="h-11 sm:h-10" onClick={onAddPackage}>
-            <PackageOpen data-icon="inline-start" />
-            {t("packageManagement.addPackage")}
-          </Button>
-        </EmptyContent>
-      ) : null}
-    </Empty>
-  );
-}
-
-function MobileNavigatorSkeleton() {
-  return (
-    <div className="grid grid-cols-1 gap-3 p-3 sm:grid-cols-2 sm:p-4">
-      <div className="flex flex-col gap-1.5">
-        <Skeleton className="h-3 w-24" />
-        <Skeleton className="h-11 w-full" />
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <Skeleton className="h-3 w-20" />
-        <Skeleton className="h-11 w-full" />
-      </div>
-    </div>
-  );
-}
-
-function WorkspaceSkeleton() {
-  return (
-    <div className="min-h-full lg:grid lg:grid-cols-[21rem_minmax(0,1fr)]">
-      <div className="hidden border-r border-border bg-card/60 p-4 lg:flex lg:flex-col lg:gap-3">
-        <Skeleton className="h-4 w-32" />
-        {Array.from({ length: 3 }, (_, index) => (
-          <Skeleton key={index} className="h-28 w-full" />
-        ))}
-      </div>
-      <div className="p-3 sm:p-4 lg:p-5">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <div className="flex flex-col gap-2">
-            <Skeleton className="h-3 w-20" />
-            <Skeleton className="h-7 w-52" />
+    <div className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+      {Array.from({ length: 4 }, (_, index) => (
+        <div key={index} className="flex flex-col gap-3">
+          <Skeleton className="h-5 w-2/3" />
+          <div className="flex flex-col gap-4 rounded-lg border border-border bg-card p-4">
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-8 w-32" />
+            <Skeleton className="h-14 w-full" />
+            <Skeleton className="h-14 w-full" />
+            <Skeleton className="h-8 w-full" />
           </div>
-          <Skeleton className="h-9 w-32" />
         </div>
-        <div className="grid grid-cols-1 gap-4 2xl:grid-cols-2">
-          {Array.from({ length: 4 }, (_, index) => (
-            <div
-              key={index}
-              className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4"
-            >
-              <Skeleton className="h-6 w-2/3" />
-              <Skeleton className="h-7 w-32" />
-              <Skeleton className="h-14 w-full" />
-              <Skeleton className="h-14 w-full" />
-            </div>
-          ))}
-        </div>
-      </div>
+      ))}
     </div>
   );
 }

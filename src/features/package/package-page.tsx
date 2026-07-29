@@ -8,14 +8,10 @@ import { PackageFormDialog } from "@/features/package/package-form-dialog";
 import { PackagePlanDialog } from "@/features/package/package-plan-dialog";
 import {
   activePackageNavigation,
-  firstPlanId,
-  packageRange,
+  orderedPlanColumns,
   packagesForPlan,
-  planById,
 } from "@/features/package/package-ui-utils";
 import { PackageWorkspace } from "@/features/package/package-workspace";
-import { useUrlPagination } from "@/hooks/use-url-pagination";
-import type { UrlPaginationState } from "@/lib/url-pagination";
 import type {
   BillingCycle,
   CreatePackagePlanInput,
@@ -32,23 +28,16 @@ import {
 import { errorMessage } from "@/stores/store-utils";
 import { useToastStore } from "@/stores/toast-store";
 
-const PACKAGE_PAGE_LIMIT_OPTIONS = [10, 20, 50];
+export const PACKAGE_FETCH_LIMIT = 50;
 
-export function PackagePage({
-  initialPagination,
-}: {
-  initialPagination: UrlPaginationState;
-}) {
+export function PackagePage() {
   const { t } = useTranslation();
   const language = useAppStore((state) => state.language);
   const billingCycles = usePackageStore((state) => state.billingCycles);
   const methods = usePackageStore((state) => state.methods);
   const planGroups = usePackageStore((state) => state.planGroups);
   const packageGroups = usePackageStore((state) => state.packageGroups);
-  const responsePage = usePackageStore((state) => state.page);
-  const responseLimit = usePackageStore((state) => state.limit);
   const total = usePackageStore((state) => state.total);
-  const totalPages = usePackageStore((state) => state.totalPages);
   const catalogReady = usePackageStore((state) => state.catalogReady);
   const loading = usePackageStore((state) => state.loading);
   const refreshing = usePackageStore((state) => state.refreshing);
@@ -62,66 +51,35 @@ export function PackagePage({
   const sortPlans = usePackageStore((state) => state.sortPlans);
   const sortDetails = usePackageStore((state) => state.sortDetails);
   const showToast = useToastStore((state) => state.show);
-  const [searchDraft, setSearchDraft] = useState("");
-  const [search, setSearch] = useState("");
   const [status, setStatus] = useState<PackageStatusFilter>("all");
   const [selectedCycleId, setSelectedCycleId] = useState("");
   const [selectedPlanId, setSelectedPlanId] = useState("");
+  const [arranging, setArranging] = useState(false);
   const [planDialogOpen, setPlanDialogOpen] = useState(false);
   const [packageDialogOpen, setPackageDialogOpen] = useState(false);
   const [editingPackage, setEditingPackage] =
     useState<PackageItem | null>(null);
-  const {
-    goToPage,
-    limit: requestedLimit,
-    page: requestedPage,
-    resetPage,
-  } = useUrlPagination({
-    defaultLimit: 10,
-    initialPagination,
-    limitOptions: PACKAGE_PAGE_LIMIT_OPTIONS,
-  });
-  const pageLimit = typeof requestedLimit === "number" ? requestedLimit : 10;
   const queryStatus =
     status === "1" ? 1 : status === "2" ? 2 : ("all" as const);
   const query = useMemo<PackageQuery>(
     () => ({
       language,
-      limit: pageLimit,
+      limit: PACKAGE_FETCH_LIMIT,
       orderBy: "asc",
-      page: requestedPage,
-      search,
+      page: 1,
+      search: "",
       status: queryStatus,
     }),
-    [language, pageLimit, queryStatus, requestedPage, search],
+    [language, queryStatus],
   );
 
   useEffect(() => {
-    const timeoutId = window.setTimeout(() => setSearch(searchDraft.trim()), 300);
-    return () => window.clearTimeout(timeoutId);
-  }, [searchDraft]);
-
-  useEffect(() => {
-    let active = true;
     const background = usePackageStore.getState().catalogReady;
 
-    void loadCatalog(query, { background })
-      .then(() => {
-        if (!active) return;
-        const loadedTotalPages = Math.max(
-          1,
-          usePackageStore.getState().totalPages,
-        );
-        if (requestedPage > loadedTotalPages) goToPage(loadedTotalPages);
-      })
-      .catch(() => {
-        // The store owns load errors for UI retries and internal refreshes.
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [goToPage, loadCatalog, query, requestedPage]);
+    void loadCatalog(query, { background }).catch(() => {
+      // The store owns load errors for UI retries and internal refreshes.
+    });
+  }, [loadCatalog, query]);
 
   const navigation = useMemo(
     () =>
@@ -133,73 +91,48 @@ export function PackagePage({
       ),
     [billingCycles, planGroups, selectedCycleId, selectedPlanId],
   );
-  const selectedPlan = useMemo(
-    () => planById(navigation.planGroups, navigation.planId),
-    [navigation.planGroups, navigation.planId],
-  );
-  const selectedCycleName =
-    navigation.billingCycles.find(
-      (cycle) => cycle.id === navigation.cycleId,
-    )?.name ??
-    navigation.planGroups.find(
-      (group) => group.billingCycleId === navigation.cycleId,
-    )?.billingCycleName ??
-    "";
 
-  // ไม่ต้องเขียน navigation.cycleId/planId กลับเข้า state — activePackageNavigation() resolve
+  // ไม่ต้องเขียน navigation.cycleId กลับเข้า state — activePackageNavigation() resolve
   // ค่าที่ใช้จริงจาก selection ดิบทุกครั้งอยู่แล้ว (fallback เป็นตัวแรกที่ active ถ้า selection ไม่ valid)
   // ทุกจุดที่ render อ่านจาก navigation.* ส่วน state ดิบเก็บไว้แค่ "ผู้ใช้เลือกอะไร" เท่านั้น
-  const visiblePackages = useMemo(
+  const activeGroup =
+    navigation.planGroups.find(
+      (group) => group.billingCycleId === navigation.cycleId,
+    ) ?? null;
+  const plans = useMemo(() => orderedPlanColumns(activeGroup), [activeGroup]);
+  const months = activeGroup?.months ?? 1;
+  // ราคาต่อเดือนของแต่ละประเภทร้าน ใช้เป็นฐานคำนวณ badge ส่วนลดของรอบบิลอื่น
+  const monthlyPriceByMethodId = useMemo(() => {
+    const monthlyGroup = navigation.planGroups.find(
+      (group) => group.months === 1,
+    );
+    const prices = new Map<string, number>();
+    for (const plan of monthlyGroup?.plans ?? []) {
+      const [first] = packagesForPlan(packageGroups, plan.id);
+      if (first) prices.set(plan.methodId, first.price);
+    }
+    return prices;
+  }, [navigation.planGroups, packageGroups]);
+  const shownCount = useMemo(
     () =>
-      selectedPlan
-        ? packagesForPlan(packageGroups, selectedPlan.id)
-        : [],
-    [packageGroups, selectedPlan],
+      plans.reduce(
+        (count, plan) => count + packagesForPlan(packageGroups, plan.id).length,
+        0,
+      ),
+    [packageGroups, plans],
   );
-  const currentPageRowCount = useMemo(
-    () =>
-      packageGroups
-        .flatMap((group) => group.methods)
-        .flatMap((method) => method.packages).length,
-    [packageGroups],
-  );
-  const range = packageRange(
-    responsePage,
-    responseLimit,
-    total,
-    currentPageRowCount,
-  );
-
-  function changeSearch(value: string) {
-    if (value === searchDraft) return;
-    setSearchDraft(value);
-    resetPage();
-  }
 
   function changeStatus(value: PackageStatusFilter) {
     if (value === status) return;
     setStatus(value);
-    resetPage();
   }
 
   function selectCycle(cycleId: string) {
     setSelectedCycleId(cycleId);
-    const group =
-      navigation.planGroups.find(
-        (item) => item.billingCycleId === cycleId,
-      ) ?? null;
-    setSelectedPlanId(group ? firstPlanId([group]) : "");
   }
 
-  function selectPlan(planId: string) {
-    const plan = planById(navigation.planGroups, planId);
-    if (!plan) return;
-    setSelectedCycleId(plan.billingCycleId);
-    setSelectedPlanId(plan.id);
-  }
-
-  function openCreatePackage() {
-    if (!selectedPlan) return;
+  function openCreatePackage(planId: string) {
+    setSelectedPlanId(planId);
     setEditingPackage(null);
     setPackageDialogOpen(true);
   }
@@ -276,8 +209,8 @@ export function PackagePage({
       .catch((reorderError) => showReorderError(reorderError));
   }
 
-  function reorderPlans(cycleId: string, plans: PackagePlan[]) {
-    void sortPlans(cycleId, plans, query)
+  function reorderPlans(reorderedPlans: PackagePlan[]) {
+    void sortPlans(navigation.cycleId, reorderedPlans, query)
       .then(() => showReorderSuccess())
       .catch((reorderError) => showReorderError(reorderError));
   }
@@ -323,48 +256,39 @@ export function PackagePage({
           </div>
 
           <PackageToolbar
-            canAddPackage={Boolean(selectedPlan)}
+            arranging={arranging}
             refreshing={loading || refreshing}
-            search={searchDraft}
             status={status}
-            onAddPackage={openCreatePackage}
             onRefresh={() => void refresh()}
-            onSearchChange={changeSearch}
             onStatusChange={changeStatus}
+            onToggleArrange={() => setArranging((value) => !value)}
           />
         </div>
       </header>
 
       <PackageWorkspace
+        arranging={arranging}
         billingCycles={navigation.billingCycles}
         catalogReady={catalogReady}
         language={language}
         loadError={loadError}
         loading={loading}
-        packages={visiblePackages}
-        page={responsePage}
-        planGroups={navigation.planGroups}
-        rangeEnd={range.end}
-        rangeStart={range.start}
-        refreshing={refreshing}
-        search={search}
+        months={months}
+        monthlyPriceByMethodId={monthlyPriceByMethodId}
+        packageGroups={packageGroups}
+        plans={plans}
+        reorderDisabled={sortingScope !== null}
         selectedCycleId={navigation.cycleId}
-        selectedCycleName={selectedCycleName}
-        selectedPlan={selectedPlan}
-        sortingScope={sortingScope}
-        status={status}
+        shownCount={shownCount}
         total={total}
-        totalPages={Math.max(1, totalPages)}
-        onPageChange={goToPage}
+        onAddPackage={openCreatePackage}
+        onAddPlan={() => setPlanDialogOpen(true)}
+        onEditPackage={openEditPackage}
         onReorderCycles={reorderCycles}
         onReorderDetails={reorderDetails}
         onReorderPlans={reorderPlans}
         onRetry={() => void refresh()}
-        onAddPackage={openCreatePackage}
-        onAddPlan={() => setPlanDialogOpen(true)}
-        onEditPackage={openEditPackage}
         onSelectCycle={selectCycle}
-        onSelectPlan={selectPlan}
       />
 
       <PackagePlanDialog
@@ -384,7 +308,7 @@ export function PackagePage({
         open={packageDialogOpen}
         planGroups={navigation.planGroups}
         saving={saving}
-        selectedPlanId={selectedPlan?.id ?? ""}
+        selectedPlanId={selectedPlanId}
         onOpenChange={changePackageDialogOpen}
         onSubmit={submitPackage}
       />
