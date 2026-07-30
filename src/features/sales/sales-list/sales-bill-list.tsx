@@ -39,7 +39,7 @@ export function SalesBillListPanel({
   const { t } = useTranslation();
 
   return (
-    <Card className="min-h-0 overflow-hidden border-border bg-card shadow-sm xl:flex xl:min-h-0 xl:flex-col">
+    <Card className="flex min-h-0 flex-col overflow-hidden rounded-none border-x-0 border-b-0 border-border bg-card shadow-none xl:min-h-0 xl:border-r">
       <CardHeader className="shrink-0 border-b border-border bg-card px-3 py-2.5">
         <div className="flex w-full min-w-0 items-center justify-between gap-3">
           <div className="min-w-0">
@@ -61,7 +61,9 @@ export function SalesBillListPanel({
           </div>
         ) : bills.length ? (
           <>
-            <div className="flex min-h-0 flex-1 flex-col divide-y divide-border xl:overflow-y-auto xl:overscroll-contain">
+            {/* ต้องเลื่อนได้ทุกขนาดจอ ไม่ใช่เฉพาะ xl — ตอนนี้การ์ดเป็น flex เต็มความสูงทุกจอแล้ว
+                ถ้าลิสต์ไม่เลื่อนเอง แถวจะทะลุออกไปอยู่ใต้แถบเลื่อนหน้าที่ปักไว้ล่างสุด */}
+            <div className="flex min-h-0 flex-1 flex-col divide-y divide-border overflow-y-auto overscroll-contain">
               {bills.map((bill) => (
                 <BillListItem
                   key={bill.id}

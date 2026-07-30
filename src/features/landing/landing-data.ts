@@ -80,6 +80,7 @@ export const landingCompany = {
 export const landingNavigation: LandingNavItem[] = [
   { id: "about", href: "#about", label: { en: "About", la: "ກ່ຽວກັບ" } },
   { id: "services", href: "#services", label: { en: "Services", la: "ບໍລິການ" } },
+  { id: "pricing", href: "#pricing", label: { en: "Pricing", la: "ລາຄາ" } },
   { id: "projects", href: "#projects", label: { en: "Projects", la: "ໂປຣເຈັກ" } },
   { id: "tutorials", href: "#tutorials", label: { en: "Tutorials", la: "ວິດີໂອສອນ" } },
   { id: "technology", href: "#technology", label: { en: "Technology", la: "ເທັກໂນໂລຊີ" } },
@@ -266,6 +267,22 @@ export const landingUi = {
   aboutTitle: { en: "Building real systems for real businesses", la: "ສ້າງລະບົບຕົວຈິງ ສຳລັບທຸລະກິດຕົວຈິງ" },
   servicesKicker: { en: "Services", la: "ບໍລິການ" },
   servicesTitle: { en: "What we can build for you", la: "ສິ່ງທີ່ພວກເຮົາສ້າງໃຫ້ທ່ານໄດ້" },
+  pricingKicker: { en: "Pricing", la: "ລາຄາ" },
+  pricingTitle: {
+    en: "Choose the plan that fits your shop",
+    la: "ເລືອກແພັກເກັດທີ່ເໝາະກັບຮ້ານຂອງທ່ານ"
+  },
+  pricingSubtitle: {
+    en: "Every plan includes setup support and free updates.",
+    la: "ທຸກແພັກເກັດລວມການຕິດຕັ້ງ ແລະ ອັບເດດຟຣີ."
+  },
+  pricingSavings: { en: "save {value}%", la: "ປະຢັດ {value}%" },
+  pricingCta: { en: "Get this plan", la: "ເອົາແພັກເກັດນີ້" },
+  pricingHelp: {
+    en: "Not sure which one? Talk to us.",
+    la: "ຍັງບໍ່ແນ່ໃຈວ່າອັນໃດ? ລົມກັບພວກເຮົາໄດ້ເລີຍ."
+  },
+  pricingHelpCta: { en: "Contact us", la: "ຕິດຕໍ່ພວກເຮົາ" },
   projectsKicker: { en: "Projects", la: "ໂປຣເຈັກ" },
   projectsTitle: { en: "Systems in production", la: "ລະບົບທີ່ໃຊ້ງານຈິງ" },
   btnViewProject: { en: "View Project", la: "ເບິ່ງໂປຣເຈັກ" },

@@ -5,6 +5,7 @@ import {
   memo,
   useCallback,
   useMemo,
+  type ReactNode,
   type RefObject,
 } from "react";
 import {
@@ -20,7 +21,7 @@ import {
   ReportOfficialHeader,
   ReportSignatures,
 } from "@/lib/export/official-layout";
-import { ReportFilterSheet } from "../shared/report-filter-shell";
+import { ReportFilterCard, ReportFilterSheet } from "../shared/report-filter-shell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -196,7 +197,45 @@ export function BestSellingFilterSheet({
   );
 }
 
-function BestSellingFilterFields({
+// จอ lg ขึ้นไปกรองได้จากหน้าเลย โครงเดียวกับ /settings/store และหน้ารายงานขายประจำวัน
+export function BestSellingFilterBar({
+  actions,
+  branchLoading,
+  branchLocked,
+  branchOptions,
+  canApply,
+  draftFilters,
+  groupLoading,
+  groupOptions,
+  loading,
+  onApply,
+  onDraftChange,
+}: FilterProps & { actions?: ReactNode }) {
+  return (
+    <ReportFilterCard
+      actions={actions}
+      canApply={canApply}
+      actionsClassName="lg:col-span-4 xl:col-span-1"
+      className="hidden shrink-0 rounded-none border-x-0 border-t-0 shadow-none lg:block"
+      contentClassName="grid min-w-0 items-end gap-3 px-3 py-3 sm:grid-cols-2 lg:grid-cols-12 xl:grid-cols-[repeat(5,minmax(0,1fr))_auto]"
+      loading={loading}
+      onApply={onApply}
+    >
+      <BestSellingFilterFields
+        branchLoading={branchLoading}
+        branchLocked={branchLocked}
+        branchOptions={branchOptions}
+        draftFilters={draftFilters}
+        groupLoading={groupLoading}
+        groupOptions={groupOptions}
+        idPrefix="best-selling"
+        onDraftChange={onDraftChange}
+      />
+    </ReportFilterCard>
+  );
+}
+
+export function BestSellingFilterFields({
   branchLoading,
   branchLocked,
   branchOptions,
@@ -226,7 +265,7 @@ function BestSellingFilterFields({
       <ReportBranchField
         branchLoading={branchLoading}
         branchLocked={branchLocked}
-        fieldClassName="min-w-0 gap-1.5 sm:col-span-2 lg:col-span-4"
+        fieldClassName="min-w-0 gap-1.5 sm:col-span-2 lg:col-span-4 xl:col-span-1"
         id={`${idPrefix}-branch`}
         options={branchOptions}
         triggerClassName="h-10 w-full rounded-md"
@@ -236,7 +275,7 @@ function BestSellingFilterFields({
       <ReportDateRangeFields
         dateFrom={draftFilters.dateFrom}
         dateTo={draftFilters.dateTo}
-        fieldClassName="min-w-0 gap-1.5 lg:col-span-4"
+        fieldClassName="min-w-0 gap-1.5 lg:col-span-4 xl:col-span-1"
         idPrefix={idPrefix}
         inputClassName="h-10 rounded-md text-sm"
         withNativeName
@@ -245,7 +284,7 @@ function BestSellingFilterFields({
       />
       <ReportSelectField
         disabled={groupLoading || !groupOptions.length}
-        fieldClassName="min-w-0 gap-1.5 lg:col-span-4"
+        fieldClassName="min-w-0 gap-1.5 lg:col-span-4 xl:col-span-1"
         id={`${idPrefix}-group`}
         label={t("report.bestSelling.filters.group")}
         options={groupOptions}
@@ -254,7 +293,7 @@ function BestSellingFilterFields({
         onValueChange={(value) => patch({ groupUuid: value })}
       />
       <ReportPageLimitField
-        fieldClassName="min-w-0 gap-1.5 lg:col-span-6"
+        fieldClassName="min-w-0 gap-1.5 lg:col-span-4 xl:col-span-1"
         id={`${idPrefix}-limit`}
         triggerClassName="h-10 w-full rounded-md"
         value={draftFilters.limit}

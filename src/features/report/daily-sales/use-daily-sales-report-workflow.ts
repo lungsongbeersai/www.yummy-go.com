@@ -360,7 +360,7 @@ export function useDailySalesReportWorkflow(
   }
 
   function applyTableHeaderFilters(
-    patch: Pick<Partial<ReportFilters>, "paymentMethod" | "typePage" | "search">,
+    patch: Pick<Partial<ReportFilters>, "paymentMethod" | "typePage">,
   ) {
     const nextFilters = normalizeBranchFilters({
       ...appliedFilters,

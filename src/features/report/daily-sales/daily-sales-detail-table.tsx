@@ -141,8 +141,8 @@ export function DetailBillTable({
   );
   return (
     <div className="w-full min-w-0">
-      <Table className="w-max min-w-full table-auto text-xs">
-        <TableHeader className="[&_th]:sticky [&_th]:top-0 [&_th]:z-30 [&_th]:h-9 [&_th]:whitespace-nowrap [&_th]:border-b [&_th]:border-border [&_th]:bg-muted [&_th]:px-2 [&_th]:shadow-sm">
+      <Table className="w-max min-w-full table-auto text-sm">
+        <TableHeader className="[&_th]:sticky [&_th]:top-0 [&_th]:z-30 [&_th]:h-9 [&_th]:whitespace-nowrap [&_th]:border-b [&_th]:border-border [&_th]:bg-muted [&_th]:px-2 [&_th]:text-xs [&_th]:font-medium [&_th]:text-muted-foreground">
           <TableRow>
             <TableHead className="w-10 text-center">
               <ReportIndeterminateCheckbox
@@ -332,13 +332,13 @@ export function DetailBillTable({
                       >
                         {expanded ? <ChevronDown /> : <ChevronRight />}
                       </Button>
-                      <span className="text-xs font-black text-muted-foreground">
+                      <span className="text-xs tabular-nums text-muted-foreground">
                         {pageStart + index}
                       </span>
                     </div>
                   </TableCell>
 
-                  <TableCell className="font-black">
+                  <TableCell className="font-semibold">
                     {group.invoiceNumber}
                   </TableCell>
                   <TableCell>{formatDate(group.saleDate)}</TableCell>
@@ -359,7 +359,7 @@ export function DetailBillTable({
                       <OptionalMoneyCell
                         value={groupSellingPriceTotal(group)}
                       />
-                      <TableCell className="text-right font-black tabular-nums">
+                      <TableCell className="text-right font-semibold tabular-nums">
                         {groupQuantity(group).toLocaleString("en-US")}
                       </TableCell>
                       <OptionalMoneyCell value={group.toppingTotal} />
@@ -434,7 +434,7 @@ export function DetailBillTable({
                           <OptionalMoneyCell
                             value={itemMoney(item, ["sale_price"])}
                           />
-                          <TableCell className="text-right font-black tabular-nums">
+                          <TableCell className="text-right font-semibold tabular-nums">
                             {itemQuantity(item).toLocaleString("en-US")}
                           </TableCell>
                           <OptionalMoneyCell
@@ -498,7 +498,7 @@ function DetailReportFooterRow({
   summaryLabel: string;
 }) {
   return (
-    <TableRow className="border-t-2 border-primary bg-muted font-bold text-foreground hover:bg-muted">
+    <TableRow className="border-t-2 border-primary bg-primary/5 font-semibold text-foreground hover:bg-primary/5">
       <SummaryFooterBlankCell />
       <SummaryFooterBlankCell />
       <SummaryFooterLabelCell
@@ -567,12 +567,12 @@ function DetailBillSummaryRow({
       <TableCell />
       <TableCell />
       <TableCell colSpan={4}>
-        <span className="text-xs font-black uppercase text-primary">
+        <span className="text-xs font-semibold text-primary">
           {summaryLabel}
         </span>
       </TableCell>
       <OptionalMoneyCell value={groupSellingPriceTotal(group)} strong />
-      <TableCell className="text-right font-black tabular-nums">
+      <TableCell className="text-right font-semibold tabular-nums">
         {groupQuantity(group).toLocaleString("en-US")}
       </TableCell>
       <OptionalMoneyCell value={group.toppingTotal} strong />
@@ -694,11 +694,11 @@ function adjustmentValueClass(tone: MoneyCellTone, value: number) {
     tone === "discount" && value === 0 && "opacity-70",
     tone === "service" &&
       value > 0 &&
-      "font-black text-sky-700 dark:text-sky-300",
-    tone === "total" && "font-black text-primary",
+      "font-semibold text-sky-700 dark:text-sky-300",
+    tone === "total" && "font-semibold text-primary",
     tone === "vat" &&
       value > 0 &&
-      "font-black text-amber-700 dark:text-amber-300",
+      "font-semibold text-amber-700 dark:text-amber-300",
     tone === "default" && "font-semibold text-foreground",
     value === 0 &&
       tone !== "discount" &&

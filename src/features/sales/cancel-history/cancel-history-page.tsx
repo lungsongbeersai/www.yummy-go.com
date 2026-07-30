@@ -14,14 +14,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import {
-  Popover,
-  PopoverContent,
-  PopoverDescription,
-  PopoverHeader,
-  PopoverTitle,
-  PopoverTrigger
-} from "@/components/ui/popover";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -67,7 +59,6 @@ export function CancelHistoryPage({ initialPagination }: { initialPagination: Ur
     ...defaultCancelHistoryFilters(branchUuid),
     limit: initialPagination.limit
   }));
-  const [desktopFiltersOpen, setDesktopFiltersOpen] = useState(false);
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
   const { changeLimit, goToPage, page, resetPage } = useUrlPagination({
     initialPagination,
@@ -130,35 +121,22 @@ export function CancelHistoryPage({ initialPagination }: { initialPagination: Ur
     changeLimit(draftFilters.limit);
   }
 
-  function applyDesktopFilters() {
-    if (!canApply) return;
-    applyFilters();
-    setDesktopFiltersOpen(false);
-  }
-
   function applyMobileFilters() {
     applyFilters();
     setMobileFilterOpen(false);
   }
 
-  function openHeaderFilters() {
-    if (typeof window !== "undefined" && window.matchMedia("(min-width: 640px)").matches) {
-      setDesktopFiltersOpen(true);
-      return;
-    }
-    setMobileFilterOpen(true);
-  }
-
   return (
-    <div className="h-full min-h-0 overflow-y-auto bg-muted/20 xl:overflow-hidden">
-      <div className="mx-auto flex w-full max-w-375 flex-col gap-2 p-2 sm:gap-3 sm:p-3 lg:p-4 xl:h-full xl:min-h-0">
+    // เต็มหน้าจอแบบ /settings/store: ไม่มี padding รอบนอก ตารางกินความสูงที่เหลือทั้งหมด
+    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-muted/20">
+      <div className="flex shrink-0 flex-col gap-2 border-b border-border bg-card px-2 py-2 sm:px-3">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <div className="flex items-center gap-2 text-sm font-bold text-primary">
               <History className="size-4" />
               {t("nav.sales")}
             </div>
-            <h1 className="text-2xl font-black tracking-normal text-foreground">{t("cancelHistory.title")}</h1>
+            <h1 className="text-2xl font-bold tracking-normal text-foreground">{t("cancelHistory.title")}</h1>
             <p className="text-sm text-muted-foreground">{t("cancelHistory.subtitle")}</p>
           </div>
         </div>
@@ -167,7 +145,7 @@ export function CancelHistoryPage({ initialPagination }: { initialPagination: Ur
           dateRange={{
             ariaLabel: `${t("cancelHistory.filters")}: ${dateRangeLabel}`,
             label: dateRangeLabel,
-            onClick: openHeaderFilters
+            onClick: () => setMobileFilterOpen(true)
           }}
           extraChips={
             <>
@@ -183,30 +161,18 @@ export function CancelHistoryPage({ initialPagination }: { initialPagination: Ur
             </>
           }
           filterControl={
-            <>
-              <CancelHistoryFilterPopover
-                branchLabel={branchLabel}
-                canApply={canApply}
-                draftFilters={draftFilters}
-                loading={loading}
-                open={desktopFiltersOpen}
-                onApply={applyDesktopFilters}
-                onDraftChange={patchDraft}
-                onOpenChange={setDesktopFiltersOpen}
-                onRefresh={() => void load()}
-              />
-              <Button
-                type="button"
-                variant="outline"
-                size="iconSm"
-                className="h-9 w-9 shrink-0 sm:hidden"
-                aria-label={t("cancelHistory.filters")}
-                onClick={() => setMobileFilterOpen(true)}
-              >
-                <SlidersHorizontal data-icon="inline-start" />
-                <span className="sr-only">{t("cancelHistory.filters")}</span>
-              </Button>
-            </>
+            // จอ lg ขึ้นไปมีแถบตัวกรองอยู่บนหน้าแล้ว ปุ่มนี้จึงเหลือไว้ให้จอเล็กที่ยังใช้ sheet
+            <Button
+              type="button"
+              variant="outline"
+              size="iconSm"
+              className="h-9 w-9 shrink-0 lg:hidden"
+              aria-label={t("cancelHistory.filters")}
+              onClick={() => setMobileFilterOpen(true)}
+            >
+              <SlidersHorizontal data-icon="inline-start" />
+              <span className="sr-only">{t("cancelHistory.filters")}</span>
+            </Button>
           }
           refreshControl={
             <Button
@@ -224,6 +190,15 @@ export function CancelHistoryPage({ initialPagination }: { initialPagination: Ur
           }
         />
 
+        <CancelHistoryFilterBar
+          branchLabel={branchLabel}
+          canApply={canApply}
+          draftFilters={draftFilters}
+          loading={loading}
+          onApply={applyFilters}
+          onDraftChange={patchDraft}
+        />
+
         <CancelHistoryFilterSheet
           branchLabel={branchLabel}
           canApply={canApply}
@@ -235,15 +210,21 @@ export function CancelHistoryPage({ initialPagination }: { initialPagination: Ur
           onOpenChange={setMobileFilterOpen}
         />
 
-        {!branchUuid ? (
-          <CancelHistoryError
-            title={t("cancelHistory.branchRequired")}
-            description={t("cancelHistory.branchRequiredDescription")}
-          />
-        ) : null}
-        {error ? <CancelHistoryError title={t("cancelHistory.loadFailed")} description={error} /> : null}
+      </div>
 
-        <CancelHistoryTableCard
+      {!branchUuid || error ? (
+        <div className="flex shrink-0 flex-col gap-2 px-2 py-2 sm:px-3">
+          {!branchUuid ? (
+            <CancelHistoryError
+              title={t("cancelHistory.branchRequired")}
+              description={t("cancelHistory.branchRequiredDescription")}
+            />
+          ) : null}
+          {error ? <CancelHistoryError title={t("cancelHistory.loadFailed")} description={error} /> : null}
+        </div>
+      ) : null}
+
+      <CancelHistoryTableCard
           footer={
             <CancelHistoryPagination
               page={page}
@@ -255,70 +236,46 @@ export function CancelHistoryPage({ initialPagination }: { initialPagination: Ur
           loading={loading}
           rowsLength={bills.length}
         >
-          <CancelHistoryTable rows={bills} startIndex={range.start} />
-          <CancelHistoryMobileList rows={bills} />
-        </CancelHistoryTableCard>
-      </div>
+        <CancelHistoryTable rows={bills} startIndex={range.start} />
+        <CancelHistoryMobileList rows={bills} />
+      </CancelHistoryTableCard>
     </div>
   );
 }
 
-function CancelHistoryFilterPopover({
+// จอ lg ขึ้นไปกรองได้จากหน้าเลย โครงเดียวกับ /settings/store — เดิมเป็น Popover ที่ต้องกดเปิดก่อน
+function CancelHistoryFilterBar({
   branchLabel,
   canApply,
   draftFilters,
   loading,
-  open,
   onApply,
-  onDraftChange,
-  onOpenChange,
-  onRefresh
+  onDraftChange
 }: {
   branchLabel: string;
   canApply: boolean;
   draftFilters: CancelHistoryFilters;
   loading: boolean;
-  open: boolean;
   onApply: () => void;
   onDraftChange: (patch: Partial<CancelHistoryFilters>) => void;
-  onOpenChange: (open: boolean) => void;
-  onRefresh: () => void;
 }) {
   const { t } = useTranslation();
 
   return (
-    <Popover open={open} onOpenChange={onOpenChange}>
-      <PopoverTrigger asChild>
-        <Button type="button" variant="outline" size="sm" className="hidden h-9 shrink-0 sm:inline-flex">
-          <SlidersHorizontal data-icon="inline-start" />
-          {t("cancelHistory.filters")}
+    <Card className="hidden min-w-0 shrink-0 rounded-none border-x-0 border-t-0 border-border bg-card shadow-none lg:block">
+      <CardContent className="grid min-w-0 items-end gap-3 px-3 py-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-[repeat(5,minmax(0,1fr))_auto]">
+        <CancelHistoryFilterFields
+          branchLabel={branchLabel}
+          draftFilters={draftFilters}
+          idPrefix="cancel-history"
+          onDraftChange={onDraftChange}
+        />
+        <Button type="button" className="h-9 min-w-24" disabled={loading || !canApply} onClick={onApply}>
+          {loading ? <RefreshCcw className="animate-spin" data-icon="inline-start" /> : null}
+          {t("cancelHistory.apply")}
         </Button>
-      </PopoverTrigger>
-      <PopoverContent align="end" className="hidden w-[calc(100vw-2rem)] max-w-4xl p-0 sm:block">
-        <PopoverHeader className="border-b border-border px-4 py-3">
-          <PopoverTitle className="text-sm font-black">{t("cancelHistory.filters")}</PopoverTitle>
-          <PopoverDescription className="text-xs">{t("cancelHistory.subtitle")}</PopoverDescription>
-        </PopoverHeader>
-        <div className="grid grid-cols-2 gap-3 p-4 lg:grid-cols-5">
-          <CancelHistoryFilterFields
-            branchLabel={branchLabel}
-            draftFilters={draftFilters}
-            idPrefix="cancel-history"
-            onDraftChange={onDraftChange}
-          />
-        </div>
-        <div className="flex justify-end gap-2 border-t border-border px-4 py-3">
-          <Button type="button" variant="outline" size="sm" className="h-9" disabled={loading || !canApply} onClick={onRefresh}>
-            <RefreshCcw className={loading ? "animate-spin" : undefined} data-icon="inline-start" />
-            {t("actions.refresh")}
-          </Button>
-          <Button type="button" size="sm" className="h-9" disabled={loading || !canApply} onClick={onApply}>
-            {loading ? <RefreshCcw className="animate-spin" data-icon="inline-start" /> : null}
-            {t("cancelHistory.apply")}
-          </Button>
-        </div>
-      </PopoverContent>
-    </Popover>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -475,10 +432,10 @@ function CancelHistoryTableCard({
   const { t } = useTranslation();
 
   return (
-    <Card className="min-h-0 overflow-hidden border-border bg-card shadow-sm xl:flex xl:flex-1 xl:flex-col">
+    <Card className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-none border-x-0 border-b-0 border-border bg-card shadow-none">
       <CardHeader className="flex shrink-0 flex-col gap-2 border-b border-border bg-card px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <CardTitle className="flex min-w-0 items-center gap-2 text-base font-black">
+          <CardTitle className="flex min-w-0 items-center gap-2 text-base font-semibold">
             <History />
             <span className="truncate">{t("cancelHistory.tableTitle")}</span>
           </CardTitle>
@@ -491,10 +448,10 @@ function CancelHistoryTableCard({
           </div>
         ) : rowsLength ? (
           <>
-            <div className="min-h-0 md:flex-1 md:overflow-auto md:overscroll-x-contain md:overscroll-y-auto">
+            <div className="min-h-0 flex-1 overflow-auto overscroll-x-contain overscroll-y-auto">
               {children}
             </div>
-            <div className="shrink-0 bg-card">{footer}</div>
+            <div className="shrink-0 border-t border-border bg-card">{footer}</div>
           </>
         ) : (
           <div className="p-4 md:min-h-[320px]">

@@ -47,7 +47,10 @@ export function SalesBillDetailPanel({
 }: SalesBillDetailPanelProps) {
   const { t } = useTranslation();
   const drawer = variant === "drawer";
-  const cardClass = cn("min-h-0 overflow-hidden border-border bg-card shadow-sm xl:flex xl:min-h-0 xl:flex-col", className);
+  const cardClass = cn(
+    "min-h-0 overflow-hidden rounded-none border-x-0 border-b-0 border-border bg-card shadow-none xl:flex xl:min-h-0 xl:flex-col",
+    className
+  );
   const cancelUnavailableDescriptionId = `sales-list-cancel-unavailable-${variant}`;
 
   if (!bill) {

@@ -1,13 +1,13 @@
 "use client";
 
-import { useCallback, type RefObject } from "react";
-import { CreditCard } from "lucide-react";
+import type { ReactNode, RefObject } from "react";
+import { ArrowLeftRight, Banknote, CreditCard, HandCoins } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {
   ReportOfficialHeader,
   ReportSignatures,
 } from "@/lib/export/official-layout";
-import { ReportFilterSheet } from "../shared/report-filter-shell";
+import { ReportFilterCard, ReportFilterSheet } from "../shared/report-filter-shell";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -25,7 +25,6 @@ import type {
   PaymentMethodReportRow,
   PaymentMethodSummaryCard,
 } from "@/stores/report-store";
-import { SortableReportTableHead } from "../report-sort-table-head";
 import {
   ReportBranchField,
   ReportDateRangeFields,
@@ -38,7 +37,6 @@ import {
   ReportIndeterminateCheckbox,
   selectionStateForVisibleIds,
 } from "../shared/report-row-selection";
-import { useLocalTableSort } from "../shared/report-sort-utils";
 import type {
   PaymentMethodsReportFilters,
   PaymentMethodsRowMetricConfig,
@@ -144,7 +142,43 @@ export function PaymentMethodsFilterSheet({
   );
 }
 
-function PaymentMethodsFilterFields({
+// จอ lg ขึ้นไปกรองได้จากหน้าเลย โครงเดียวกับ /settings/store และหน้ารายงานขายประจำวัน
+export function PaymentMethodsFilterBar({
+  actions,
+  branchLoading,
+  branchLocked,
+  branchOptions,
+  canApply,
+  draftFilters,
+  loading,
+  methodOptions,
+  onApply,
+  onDraftChange,
+}: FilterProps & { actions?: ReactNode }) {
+  return (
+    <ReportFilterCard
+      actions={actions}
+      canApply={canApply}
+      actionsClassName="lg:col-span-4 xl:col-span-1"
+      className="hidden shrink-0 rounded-none border-x-0 border-t-0 shadow-none lg:block"
+      contentClassName="grid min-w-0 items-end gap-3 px-3 py-3 sm:grid-cols-2 lg:grid-cols-12 xl:grid-cols-[repeat(5,minmax(0,1fr))_auto]"
+      loading={loading}
+      onApply={onApply}
+    >
+      <PaymentMethodsFilterFields
+        branchLoading={branchLoading}
+        branchLocked={branchLocked}
+        branchOptions={branchOptions}
+        draftFilters={draftFilters}
+        idPrefix="payment-methods"
+        methodOptions={methodOptions}
+        onDraftChange={onDraftChange}
+      />
+    </ReportFilterCard>
+  );
+}
+
+export function PaymentMethodsFilterFields({
   branchLoading,
   branchLocked,
   branchOptions,
@@ -170,7 +204,7 @@ function PaymentMethodsFilterFields({
       <ReportBranchField
         branchLoading={branchLoading}
         branchLocked={branchLocked}
-        fieldClassName="min-w-0 gap-1.5 sm:col-span-2 lg:col-span-4"
+        fieldClassName="min-w-0 gap-1.5 sm:col-span-2 lg:col-span-4 xl:col-span-1"
         id={`${idPrefix}-branch`}
         options={branchOptions}
         triggerClassName="h-10 w-full rounded-md"
@@ -180,7 +214,7 @@ function PaymentMethodsFilterFields({
       <ReportDateRangeFields
         dateFrom={draftFilters.dateFrom}
         dateTo={draftFilters.dateTo}
-        fieldClassName="min-w-0 gap-1.5 lg:col-span-4"
+        fieldClassName="min-w-0 gap-1.5 lg:col-span-4 xl:col-span-1"
         idPrefix={idPrefix}
         inputClassName="h-10 rounded-md text-sm"
         withNativeName
@@ -188,7 +222,7 @@ function PaymentMethodsFilterFields({
         onDateToChange={(value) => patch({ dateTo: value })}
       />
       <ReportPaymentMethodField
-        fieldClassName="min-w-0 gap-1.5 lg:col-span-4"
+        fieldClassName="min-w-0 gap-1.5 lg:col-span-4 xl:col-span-1"
         id={`${idPrefix}-payment-method`}
         options={methodOptions}
         triggerClassName="h-10 w-full rounded-md"
@@ -196,13 +230,56 @@ function PaymentMethodsFilterFields({
         onValueChange={(value) => patch({ paymentMethod: value })}
       />
       <ReportPageLimitField
-        fieldClassName="min-w-0 gap-1.5 lg:col-span-6"
+        fieldClassName="min-w-0 gap-1.5 lg:col-span-4 xl:col-span-1"
         id={`${idPrefix}-limit`}
         triggerClassName="h-10 w-full rounded-md"
         value={draftFilters.limit}
         onValueChange={(value) => patch({ limit: value })}
       />
     </>
+  );
+}
+
+// เอกลักษณ์ประจำวิธีชำระ: ไอคอนคนละตัว + สีคนละโทน — แยกออกจากกันได้แม้มองผ่าน ๆ
+// และไม่ได้ใช้สีเป็นตัวบอกอย่างเดียว (Design.md §10) เพราะไอคอนกับชื่อกำกับอยู่เสมอ
+//
+// จับคู่จาก code ก่อนแล้วค่อยดูชื่อ เพราะ backend อาจส่ง payment_method_code เป็นตัวเลข
+// จับไม่ได้ = คืนโทนกลาง ดีกว่าเดาผิดแล้วติดสีให้วิธีชำระผิดตัว
+//
+// เลือกจากจานสี emerald / sky / violet เพราะทั้งสามมีค่า fallback อยู่ใน .android-webview-compat
+// ของ globals.css แล้ว (teal ที่ Design.md §4 แนะนำไม่มี) จึงเรนเดอร์ได้บน Android WebView รุ่นเก่า
+const PAYMENT_METHOD_IDENTITIES = [
+  {
+    match: /cash|ສົດ|สด/,
+    Icon: Banknote,
+    chipClass: "bg-emerald-500/12 text-emerald-600 dark:text-emerald-400",
+    accentClass: "bg-emerald-500"
+  },
+  {
+    match: /transfer|bank|ໂອນ|โอน/,
+    Icon: ArrowLeftRight,
+    chipClass: "bg-sky-500/12 text-sky-600 dark:text-sky-400",
+    accentClass: "bg-sky-500"
+  },
+  {
+    match: /debt|credit|ໜີ້|ຕິດ|เชื่อ/,
+    Icon: HandCoins,
+    chipClass: "bg-violet-500/12 text-violet-600 dark:text-violet-400",
+    accentClass: "bg-violet-500"
+  }
+] as const;
+
+const DEFAULT_PAYMENT_METHOD_IDENTITY = {
+  Icon: CreditCard,
+  chipClass: "bg-primary/10 text-primary",
+  accentClass: "bg-primary"
+};
+
+function paymentMethodIdentity(row: PaymentMethodReportRow) {
+  const key = `${row.paymentMethodCode} ${row.paymentMethodName}`.toLowerCase();
+  return (
+    PAYMENT_METHOD_IDENTITIES.find((identity) => identity.match.test(key)) ??
+    DEFAULT_PAYMENT_METHOD_IDENTITY
   );
 }
 
@@ -252,6 +329,10 @@ type PaymentMetricByField = Partial<
   Record<keyof PaymentMethodReportRow, PaymentMethodsRowMetricConfig>
 >;
 
+// รายงานนี้มีวิธีชำระแค่ 3 แบบ แต่มีตัวชี้วัด 12 ตัว — ตารางแบบ "แถว = วิธีชำระ" จึงกลับด้านกับ
+// รูปร่างข้อมูล: ได้ 3 แถวลอยอยู่บนหน้าเต็มจอ และต้องเลื่อนแนวนอน 12 คอลัมน์เพื่ออ่านวิธีเดียว
+// สลับแกนเป็น "แถว = ตัวชี้วัด, คอลัมน์ = วิธีชำระ" แทน — เทียบ 3 วิธีได้ในบรรทัดเดียวซึ่งเป็น
+// คำถามจริงของรายงานนี้ และ 12 แถวเติมความสูงหน้าเต็มพอดีโดยไม่ต้องเลื่อนแนวนอน
 export function PaymentMethodsTable({
   reportTotal,
   rows,
@@ -266,117 +347,142 @@ export function PaymentMethodsTable({
   onToggleRows: (rows: PaymentMethodReportRow[], selected: boolean) => void;
 }) {
   const { t } = useTranslation();
-  const metricByField = Object.fromEntries(
-    paymentMethodRowMetricConfigs(t).map((metric) => [metric.field, metric]),
-  ) as PaymentMetricByField;
-  const totalPaymentAmount = paymentTotalAmount(reportTotal, rows);
-  const getSortValue = useCallback(
-    (row: PaymentMethodReportRow, key: keyof PaymentMethodReportRow) =>
-      row[key],
-    [],
+  const metrics = paymentMethodRowMetricConfigs(t);
+  const totalPaymentAmount = paymentTotalAmount(reportTotal);
+  const visibleIds = rows.map(paymentMethodReportRowId);
+  const { allVisibleSelected, someVisibleSelected } = selectionStateForVisibleIds(
+    visibleIds,
+    selectedRowIds,
   );
-  const { sort, sortedRows, toggleSort } = useLocalTableSort(
-    rows,
-    getSortValue,
-  );
-  const visibleIds = sortedRows.map(paymentMethodReportRowId);
-  const { allVisibleSelected, someVisibleSelected } =
-    selectionStateForVisibleIds(visibleIds, selectedRowIds);
 
   return (
     <div className="hidden min-w-0 md:block">
-      <Table className="w-max min-w-full table-auto text-[13px]">
-        <TableHeader className="[&_th]:sticky [&_th]:top-0 [&_th]:z-20 [&_th]:h-9 [&_th]:whitespace-nowrap [&_th]:border-b [&_th]:border-border [&_th]:bg-muted [&_th]:px-2 [&_th]:shadow-sm">
-          <TableRow>
-            <TableHead className="w-10 text-center">
-              <ReportIndeterminateCheckbox
-                aria-label={t("common.selectAll")}
-                checked={allVisibleSelected}
-                indeterminate={!allVisibleSelected && someVisibleSelected}
-                onChange={(event) =>
-                  onToggleRows(sortedRows, event.target.checked)
-                }
-              />
-            </TableHead>
-            <SortableReportTableHead
-              sort={sort}
-              sortKey="paymentMethodName"
-              className="min-w-[220px]"
-              onSort={toggleSort}
-            >
-              {t("report.paymentMethodsReport.columns.paymentMethod")}
-            </SortableReportTableHead>
+      <div className="grid gap-3 border-b border-border p-3 sm:grid-cols-2 lg:grid-cols-3">
+        {rows.map((row) => (
+          <PaymentMethodShareCard key={paymentMethodReportRowId(row)} row={row} total={totalPaymentAmount} />
+        ))}
+      </div>
 
-            {PAYMENT_METHOD_TABLE_FIELDS.map(({ field, minWidth }) => {
-              const metric = metricByField[field];
+      <Table className="w-full table-auto text-sm">
+        <TableHeader className="[&_th]:sticky [&_th]:top-0 [&_th]:z-20 [&_th]:h-10 [&_th]:whitespace-nowrap [&_th]:border-b [&_th]:border-border [&_th]:bg-muted [&_th]:px-3 [&_th]:text-xs [&_th]:font-medium [&_th]:text-muted-foreground">
+          <TableRow>
+            <TableHead className="min-w-56">
+              <span className="inline-flex items-center gap-2">
+                <ReportIndeterminateCheckbox
+                  aria-label={t("common.selectAll")}
+                  checked={allVisibleSelected}
+                  indeterminate={!allVisibleSelected && someVisibleSelected}
+                  onChange={(event) => onToggleRows(rows, event.target.checked)}
+                />
+                {t("report.paymentMethodsReport.columns.paymentMethod")}
+              </span>
+            </TableHead>
+
+            {/* ติ๊กเลือกย้ายมาอยู่หัวคอลัมน์ — ยังกรองวิธีชำระก่อน export ได้เหมือนเดิม */}
+            {rows.map((row) => {
+              const id = paymentMethodReportRowId(row);
+              const { Icon, chipClass } = paymentMethodIdentity(row);
               return (
-                <SortableReportTableHead
-                  key={field}
-                  align="right"
-                  sort={sort}
-                  sortKey={field}
-                  className={cn(minWidth, "text-right text-[12px]")}
-                  onSort={toggleSort}
-                >
-                  {metric?.label ?? field}
-                </SortableReportTableHead>
+                <TableHead key={id} className="min-w-32 text-right">
+                  <span className="inline-flex items-center justify-end gap-2">
+                    <Checkbox
+                      aria-label={t("common.selectRow", { name: row.paymentMethodName })}
+                      checked={selectedRowIds.has(id)}
+                      onChange={(event) => onToggleRow(row, event.target.checked)}
+                    />
+                    <span className={cn("grid size-5 shrink-0 place-items-center rounded", chipClass)}>
+                      <Icon className="size-3" aria-hidden="true" />
+                    </span>
+                    <span className="truncate font-semibold text-foreground">{row.paymentMethodName}</span>
+                  </span>
+                </TableHead>
               );
             })}
+
+            <TableHead className="min-w-32 text-right font-semibold text-foreground">
+              {t("report.paymentMethodsReport.totalSummary")}
+            </TableHead>
           </TableRow>
         </TableHeader>
-        <TableBody>
-          {sortedRows.map((row, index) => (
-            <TableRow
-              key={`${row.paymentMethodCode}-${row.sortOrder}`}
-              className={cn(
-                "bg-card hover:bg-muted/25 [&>td]:px-2 [&>td]:py-2.5",
-                index % 2 === 1 && "bg-muted/10",
-                selectedRowIds.has(paymentMethodReportRowId(row)) &&
-                  "bg-primary/5 hover:bg-primary/10",
-              )}
-            >
-              <TableCell className="w-10 text-center">
-                <Checkbox
-                  aria-label={t("common.selectRow", {
-                    name: row.paymentMethodName,
-                  })}
-                  checked={selectedRowIds.has(paymentMethodReportRowId(row))}
-                  onChange={(event) => onToggleRow(row, event.target.checked)}
-                />
-              </TableCell>
-              <TableCell className="whitespace-nowrap">
-                <PaymentMethodNameCell
-                  row={row}
-                  totalPaymentAmount={totalPaymentAmount}
-                />
-              </TableCell>
 
-              {PAYMENT_METHOD_TABLE_FIELDS.map(({ field }) => {
-                const metric = metricByField[field];
-                return (
+        <TableBody>
+          {metrics.map((metric, index) => {
+            // ยอดรวมมาจาก summary ที่ backend คำนวณมาให้ ไม่บวกแถวเองที่ frontend
+            // (ตัวเลขฝั่งหลังบ้านผ่านเงื่อนไข exclude_order_is_cancelled / exclude_order_item_status
+            //  ซึ่งหน้าบ้านไม่รู้ การบวกเองจึงมีโอกาสได้เลขที่ไม่ตรงกับรายงานจริง)
+            const columnTotal = reportTotal[metric.summaryKey];
+            const grand = metric.key === "grand_total";
+
+            return (
+              <TableRow
+                key={metric.key}
+                className={cn(
+                  "[&>td]:px-3 [&>td]:py-2.5",
+                  index % 2 === 1 && "bg-muted/10",
+                  grand && "border-t-2 border-primary bg-primary/5 hover:bg-primary/5",
+                )}
+              >
+                <TableCell className={cn("whitespace-nowrap", grand ? "font-semibold text-foreground" : "text-muted-foreground")}>
+                  {metric.label}
+                </TableCell>
+
+                {rows.map((row) => (
                   <TableCell
-                    key={field}
+                    key={paymentMethodReportRowId(row)}
                     className={cn(
                       "whitespace-nowrap text-right tabular-nums",
-                      metricValueClass(field, row[field]),
+                      grand ? "text-base font-semibold text-primary" : financialTextClass(metric.key, row[metric.field]),
                     )}
                   >
-                    {metric
-                      ? displayMetric(row[field], metric.kind)
-                      : String(row[field] ?? "-")}
+                    {displayMetric(row[metric.field], metric.kind)}
                   </TableCell>
-                );
-              })}
-            </TableRow>
-          ))}
+                ))}
 
-          <PaymentMethodsSummaryRow
-            metricByField={metricByField}
-            reportTotal={reportTotal}
-            rows={rows}
-          />
+                <TableCell
+                  className={cn(
+                    "whitespace-nowrap text-right tabular-nums",
+                    grand ? "text-base font-semibold text-primary" : "font-medium text-foreground",
+                  )}
+                >
+                  {displayMetric(columnTotal, metric.kind)}
+                </TableCell>
+              </TableRow>
+            );
+          })}
         </TableBody>
       </Table>
+    </div>
+  );
+}
+
+// การ์ดหัวเรื่องต่อวิธีชำระ: ยอดเงินกับสัดส่วนของยอดรวม อ่านได้ทันทีโดยไม่ต้องไล่ตาราง
+function PaymentMethodShareCard({
+  row,
+  total,
+}: {
+  row: PaymentMethodReportRow;
+  total: number;
+}) {
+  const share = paymentShare(row.paymentAmount, total);
+  const { Icon, chipClass, accentClass } = paymentMethodIdentity(row);
+
+  return (
+    <div className="min-w-0 rounded-lg border border-border bg-card p-3">
+      <div className="flex min-w-0 items-center gap-2">
+        <div className={cn("grid size-8 shrink-0 place-items-center rounded-md", chipClass)}>
+          <Icon className="size-4" aria-hidden="true" />
+        </div>
+        <p className="min-w-0 truncate text-sm font-semibold text-foreground">{row.paymentMethodName}</p>
+      </div>
+      <p className="mt-2 truncate text-xl font-semibold tabular-nums text-foreground">
+        {displayMetric(row.paymentAmount, "money")}
+      </p>
+      <div className="mt-2 flex items-center gap-2">
+        <div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-muted">
+          <div className={cn("h-full rounded-full", accentClass)} style={{ width: `${share}%` }} />
+        </div>
+        <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{Math.round(share)}%</span>
+      </div>
     </div>
   );
 }
@@ -396,7 +502,7 @@ export function PaymentMethodsMobileList({
   const metricByField = Object.fromEntries(
     paymentMethodRowMetricConfigs(t).map((metric) => [metric.field, metric]),
   ) as PaymentMetricByField;
-  const totalPaymentAmount = paymentTotalAmount(reportTotal, rows);
+  const totalPaymentAmount = paymentTotalAmount(reportTotal);
   const detailFields = PAYMENT_METHOD_TABLE_FIELDS.filter(
     ({ field }) => field !== "billCount" && field !== "grandTotal",
   );
@@ -511,80 +617,26 @@ function PaymentMethodNameCell({
   totalPaymentAmount: number;
 }) {
   const share = paymentShare(row.paymentAmount, totalPaymentAmount);
+  const { Icon, chipClass, accentClass } = paymentMethodIdentity(row);
 
   return (
     <div className="min-w-0">
       <div className="flex items-center gap-2">
-        <div className="grid size-8 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
-          <CreditCard className="size-4" aria-hidden="true" />
+        <div className={cn("grid size-8 shrink-0 place-items-center rounded-md", chipClass)}>
+          <Icon className="size-4" aria-hidden="true" />
         </div>
         <div className="min-w-0">
-          <p className="truncate font-black">{row.paymentMethodName}</p>
-          <p className="text-[11px] font-semibold text-muted-foreground">
-            {row.paymentMethodCode}
-          </p>
+          <p className="truncate font-semibold">{row.paymentMethodName}</p>
+          <p className="text-xs text-muted-foreground">{row.paymentMethodCode}</p>
         </div>
       </div>
       <div className="mt-2 flex items-center gap-2">
         <div className="h-1.5 min-w-16 flex-1 overflow-hidden rounded-full bg-muted">
-          <div
-            className="h-full rounded-full bg-primary"
-            style={{ width: `${share}%` }}
-          />
+          <div className={cn("h-full rounded-full", accentClass)} style={{ width: `${share}%` }} />
         </div>
-        <span className="text-[11px] font-bold tabular-nums text-muted-foreground">
-          {share.toFixed(1)}%
-        </span>
+        <span className="text-xs tabular-nums text-muted-foreground">{share.toFixed(1)}%</span>
       </div>
     </div>
-  );
-}
-
-function PaymentMethodsSummaryRow({
-  metricByField,
-  reportTotal,
-  rows,
-}: {
-  metricByField: PaymentMetricByField;
-  reportTotal: Record<string, unknown>;
-  rows: PaymentMethodReportRow[];
-}) {
-  const { t } = useTranslation();
-
-  return (
-    <TableRow className="sticky bottom-0 z-20 border-t-2 border-primary bg-muted font-bold text-foreground hover:bg-muted [&>td]:bg-muted [&>td]:px-2 [&>td]:py-2.5">
-      <TableCell />
-      <TableCell className="whitespace-nowrap">
-        <div className="flex min-w-48 items-center gap-2">
-          <Badge
-            variant="outline"
-            className="h-6 border-primary/30 bg-muted px-2 text-xs font-black uppercase text-primary"
-          >
-            {t("report.paymentMethodsReport.totalSummary")}
-          </Badge>
-          <span className="text-xs font-semibold text-muted-foreground">
-            {t("report.paymentMethodsReport.rowsLabel", { count: rows.length })}
-          </span>
-        </div>
-      </TableCell>
-
-      {PAYMENT_METHOD_TABLE_FIELDS.map(({ field, summaryKey }) => {
-        const metric = metricByField[field];
-        const value = summaryValue(reportTotal, rows, field, summaryKey);
-        return (
-          <TableCell
-            key={field}
-            className={cn(
-              "whitespace-nowrap text-right tabular-nums",
-              metricValueClass(field, value),
-              "font-bold",
-            )}
-          >
-            {metric ? displayMetric(value, metric.kind) : String(value)}
-          </TableCell>
-        );
-      })}
-    </TableRow>
   );
 }
 
@@ -701,17 +753,14 @@ function summaryValue(
   return rows.reduce((total, row) => total + metricNumber(row[field]), 0);
 }
 
-function paymentTotalAmount(
-  reportTotal: Record<string, unknown>,
-  rows: PaymentMethodReportRow[],
-) {
+// ฐานคำนวณสัดส่วน % ของแต่ละวิธีชำระ อ่านจาก summary ของ backend เท่านั้น
+// เดิมมี fallback บวก paymentAmount ของทุกแถวเอง ซึ่งได้ตัวเลขคนละชุดกับรายงานจริง
+// เพราะหลังบ้านกรอง exclude_order_is_cancelled / exclude_order_item_status ไว้ก่อนแล้ว
+function paymentTotalAmount(reportTotal: Record<string, unknown>) {
   const paymentTotal = metricNumber(reportTotal.payment_total);
   if (paymentTotal > 0) return paymentTotal;
 
-  const grandTotal = metricNumber(reportTotal.grand_total);
-  if (grandTotal > 0) return grandTotal;
-
-  return rows.reduce((total, row) => total + row.paymentAmount, 0);
+  return metricNumber(reportTotal.grand_total);
 }
 
 function paymentShare(value: number, total: number) {
@@ -721,11 +770,13 @@ function paymentShare(value: number, total: number) {
 
 function financialTextClass(key: string, value: unknown, strong = false) {
   const number = metricNumber(value);
-  const isDiscount = key.includes("discount");
+  // เดิมเช็ค key.includes("discount") ทำให้ after_discount_item / after_discount_bill
+  // ซึ่งเป็น "ยอดคงเหลือหลังหักส่วนลด" ถูกทาสีแดงเหมือนเป็นยอดที่ถูกหักไป อ่านแล้วเข้าใจผิด
+  const isDiscount = key.startsWith("discount");
   const isTotal = key === "total" || key.includes("total") || key.includes("amount");
 
   return cn(
-    (strong || isTotal || (isDiscount && number > 0)) && "font-black",
+    (strong || isTotal || (isDiscount && number > 0)) && "font-semibold",
     number === 0 && "text-muted-foreground",
     isDiscount && number > 0 && "text-destructive",
     !isDiscount && number > 0 && "text-foreground"
@@ -766,18 +817,20 @@ export function PaymentMethodsExportSurface({
   containerRef,
   dateRange,
   methodLabel,
+  reportTotal,
   rows,
   title,
 }: {
   containerRef: RefObject<HTMLDivElement | null>;
   dateRange: string;
   methodLabel: string;
+  reportTotal: Record<string, unknown>;
   rows: PaymentMethodReportRow[];
   title: string;
 }) {
   const { t } = useTranslation();
   const rowMetrics = paymentMethodExportMetricConfigs(t);
-  const totals = paymentMethodExportTotals(rows, rowMetrics);
+  const totals = paymentMethodExportTotals(reportTotal, rowMetrics);
 
   return (
     <div ref={containerRef} className="report-print-surface">

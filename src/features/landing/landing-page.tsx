@@ -13,6 +13,7 @@ import { LandingContact } from "./sections/landing-contact";
 import { LandingFooter } from "./sections/landing-footer";
 import { LandingHeader } from "./sections/landing-header";
 import { LandingHero } from "./sections/landing-hero";
+import { LandingPricing } from "./sections/landing-pricing";
 import { LandingProjects } from "./sections/landing-projects";
 import { LandingServices } from "./sections/landing-services";
 import { LandingTutorials } from "./sections/landing-tutorials";
@@ -108,6 +109,7 @@ export function LandingPage({ className }: LandingPageProps) {
         />
         <LandingAbout language={language} />
         <LandingServices language={language} />
+        <LandingPricing language={language} />
         <LandingProjects language={language} loginHref={loginHref} />
         <LandingTutorials language={language} />
         <LandingWhy language={language} />

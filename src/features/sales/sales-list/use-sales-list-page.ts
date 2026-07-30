@@ -67,7 +67,6 @@ export function useSalesListPage(initialPagination: UrlPaginationState) {
   const [appliedFilters, setAppliedFilters] = useState<SalesListFilters>(() =>
     defaultSalesListFilters(userBranchUuid, initialPagination.limit)
   );
-  const [searchText, setSearchText] = useState("");
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
   const [mobileDetailOpen, setMobileDetailOpen] = useState(false);
   const isDesktop = useMediaQuery(SALES_LIST_DESKTOP_MEDIA_QUERY);
@@ -142,20 +141,6 @@ export function useSalesListPage(initialPagination: UrlPaginationState) {
     setMobileDetailOpen(false);
   });
 
-  useEffect(() => {
-    const search = searchText.trim();
-    const timer = window.setTimeout(() => {
-      if (appliedFilters.search === search) return;
-      setDraftFilters((current) => ({ ...current, search }));
-      setAppliedFilters((current) => ({ ...current, search }));
-      resetPage();
-      setSelectedBillId("");
-      setMobileDetailOpen(false);
-    }, 350);
-
-    return () => window.clearTimeout(timer);
-  }, [appliedFilters.search, resetPage, searchText]);
-
   // บิลชุดใหม่ = คงตัวที่เลือกไว้ถ้ายังอยู่ ไม่งั้นเลือกใบแรก
   useResetOnChange(bills, () => {
     setSelectedBillId((current) => {
@@ -217,7 +202,7 @@ export function useSalesListPage(initialPagination: UrlPaginationState) {
 
   function applyFilters() {
     if (!canApply) return;
-    const nextFilters = { ...draftFilters, search: searchText.trim() };
+    const nextFilters = { ...draftFilters, search: draftFilters.search.trim() };
     setSelectedBranch(nextFilters.branchUuid);
     setDraftFilters(nextFilters);
     setAppliedFilters(nextFilters);
@@ -366,13 +351,11 @@ export function useSalesListPage(initialPagination: UrlPaginationState) {
     reprintReceipt,
     reportTotal,
     safeTotalPages,
-    searchText,
     selectBill,
     selectedBill,
     selectedBillId,
     setMobileDetailOpen,
     setMobileFilterOpen,
-    setSearchText,
     setSummaryVisible,
     summaryVisible
   };

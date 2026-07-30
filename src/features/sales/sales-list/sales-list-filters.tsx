@@ -1,20 +1,13 @@
 "use client";
 
-import { useState } from "react";
 import { Eye, EyeOff, RefreshCcw, SlidersHorizontal } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { FilterHeaderToolbar } from "@/components/common/filter-header-toolbar";
+import { SearchInput } from "@/components/common/search-input";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import {
-  Popover,
-  PopoverContent,
-  PopoverDescription,
-  PopoverHeader,
-  PopoverTitle,
-  PopoverTrigger
-} from "@/components/ui/popover";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import type { DailySaleItemsOrder } from "@/services/report";
@@ -44,40 +37,22 @@ interface SalesListFilterProps {
 interface SalesListHeaderProps extends SalesListFilterProps {
   appliedFilters: SalesListFilters;
   onMobileFiltersOpen: () => void;
-  onSearchChange: (value: string) => void;
   onSummaryToggle: () => void;
-  searchText: string;
   summaryControlsId: string;
   summaryVisible: boolean;
 }
 
 export function SalesListHeader({
   appliedFilters,
-  branchLabel,
-  branchLoading,
-  branchOptions,
   canApply,
-  draftFilters,
   loading,
-  searchText,
   summaryControlsId,
   summaryVisible,
-  onApply,
-  onDraftChange,
   onMobileFiltersOpen,
   onRefresh,
-  onSearchChange,
   onSummaryToggle
 }: SalesListHeaderProps) {
   const { t } = useTranslation();
-  const [desktopFiltersOpen, setDesktopFiltersOpen] = useState(false);
-
-  function applyDesktopFilters() {
-    if (!canApply) return;
-    onApply();
-    setDesktopFiltersOpen(false);
-  }
-
   const dateRangeLabel = `${appliedFilters.dateFrom} - ${appliedFilters.dateTo}`;
 
   return (
@@ -85,35 +60,21 @@ export function SalesListHeader({
       dateRange={{
         ariaLabel: `${t("salesList.filters")}: ${dateRangeLabel}`,
         label: dateRangeLabel,
-        onClick: () => setDesktopFiltersOpen(true)
+        onClick: onMobileFiltersOpen
       }}
       filterControl={
-        <>
-          <SalesListFilterPopover
-            branchLabel={branchLabel}
-            branchLoading={branchLoading}
-            branchOptions={branchOptions}
-            canApply={canApply}
-            draftFilters={draftFilters}
-            loading={loading}
-            open={desktopFiltersOpen}
-            onApply={applyDesktopFilters}
-            onDraftChange={onDraftChange}
-            onOpenChange={setDesktopFiltersOpen}
-            onRefresh={onRefresh}
-          />
-          <Button
-            type="button"
-            variant="outline"
-            size="iconSm"
-            className="size-11 shrink-0 sm:hidden"
-            aria-label={t("salesList.filters")}
-            onClick={onMobileFiltersOpen}
-          >
-            <SlidersHorizontal data-icon="inline-start" />
-            <span className="sr-only">{t("salesList.filters")}</span>
-          </Button>
-        </>
+        // จอ lg ขึ้นไปมีแถบตัวกรองอยู่บนหน้าแล้ว ปุ่มนี้จึงเหลือไว้ให้จอเล็กที่ยังใช้ sheet
+        <Button
+          type="button"
+          variant="outline"
+          size="iconSm"
+          className="size-11 shrink-0 sm:size-9 lg:hidden"
+          aria-label={t("salesList.filters")}
+          onClick={onMobileFiltersOpen}
+        >
+          <SlidersHorizontal data-icon="inline-start" />
+          <span className="sr-only">{t("salesList.filters")}</span>
+        </Button>
       }
       refreshControl={
         <Button
@@ -129,12 +90,6 @@ export function SalesListHeader({
           <span className="sr-only">{t("actions.refresh")}</span>
         </Button>
       }
-      search={{
-        ariaLabel: t("actions.search"),
-        placeholder: t("actions.search"),
-        value: searchText,
-        onChange: onSearchChange
-      }}
       summaryControl={
         <Button
           type="button"
@@ -154,61 +109,36 @@ export function SalesListHeader({
   );
 }
 
-interface SalesListFilterPopoverProps extends SalesListFilterProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}
-
-function SalesListFilterPopover({
+// จอ lg ขึ้นไปกรองได้จากหน้าเลย โครงเดียวกับ /settings/store — เดิมเป็น Popover ที่ต้องกดเปิดก่อน
+export function SalesListFilterBar({
   branchLabel,
   branchLoading,
   branchOptions,
   canApply,
   draftFilters,
   loading,
-  open,
   onApply,
-  onDraftChange,
-  onOpenChange,
-  onRefresh
-}: SalesListFilterPopoverProps) {
+  onDraftChange
+}: SalesListFilterProps) {
   const { t } = useTranslation();
 
   return (
-    <Popover open={open} onOpenChange={onOpenChange}>
-      <PopoverTrigger asChild>
-        <Button type="button" variant="outline" size="sm" className="hidden h-9 shrink-0 sm:inline-flex">
-          <SlidersHorizontal data-icon="inline-start" />
-          {t("salesList.filters")}
+    <Card className="hidden min-w-0 shrink-0 rounded-none border-x-0 border-t-0 border-border bg-card shadow-none lg:block">
+      <CardContent className="grid min-w-0 items-end gap-3 px-3 py-3 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-[repeat(7,minmax(0,1fr))_auto]">
+        <SalesListFilterFields
+          branchLabel={branchLabel}
+          branchLoading={branchLoading}
+          branchOptions={branchOptions}
+          draftFilters={draftFilters}
+          idPrefix="sales-list"
+          onDraftChange={onDraftChange}
+        />
+        <Button type="button" className="h-9 min-w-24" disabled={loading || !canApply} onClick={onApply}>
+          {loading ? <RefreshCcw className="animate-spin" data-icon="inline-start" /> : null}
+          {t("salesList.apply")}
         </Button>
-      </PopoverTrigger>
-      <PopoverContent align="end" className="hidden w-[calc(100vw-2rem)] max-w-4xl p-0 sm:block">
-        <PopoverHeader className="border-b border-border px-4 py-3">
-          <PopoverTitle className="text-sm font-semibold">{t("salesList.filters")}</PopoverTitle>
-          <PopoverDescription className="text-xs">{t("salesList.subtitle")}</PopoverDescription>
-        </PopoverHeader>
-        <div className="grid grid-cols-2 gap-3 p-4 lg:grid-cols-6">
-          <SalesListFilterFields
-            branchLabel={branchLabel}
-            branchLoading={branchLoading}
-            branchOptions={branchOptions}
-            draftFilters={draftFilters}
-            idPrefix="sales-list"
-            onDraftChange={onDraftChange}
-          />
-        </div>
-        <div className="flex justify-end gap-2 border-t border-border px-4 py-3">
-          <Button type="button" variant="outline" size="sm" className="h-9" disabled={loading || !canApply} onClick={onRefresh}>
-            <RefreshCcw className={loading ? "animate-spin" : undefined} data-icon="inline-start" />
-            {t("actions.refresh")}
-          </Button>
-          <Button type="button" size="sm" className="h-9" disabled={loading || !canApply} onClick={onApply}>
-            {loading ? <RefreshCcw className="animate-spin" data-icon="inline-start" /> : null}
-            {t("salesList.apply")}
-          </Button>
-        </div>
-      </PopoverContent>
-    </Popover>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -234,7 +164,7 @@ export function SalesListFilterSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="max-h-[88dvh] gap-0 overflow-hidden rounded-t-xl p-0 sm:hidden">
+      <SheetContent side="bottom" className="max-h-[88dvh] gap-0 overflow-hidden rounded-t-xl p-0 lg:hidden">
         <SheetHeader className="shrink-0 border-b border-border px-4 py-3 pr-12 text-left">
           <SheetTitle className="text-base font-semibold">{t("salesList.filters")}</SheetTitle>
           <SheetDescription>{t("salesList.subtitle")}</SheetDescription>
@@ -292,6 +222,18 @@ function SalesListFilterFields({
 
   return (
     <>
+      <Field className="gap-1.5 sm:col-span-2 lg:col-span-1">
+        <FieldLabel htmlFor={`${idPrefix}-search`} className="text-xs font-medium text-muted-foreground">
+          {t("actions.search")}
+        </FieldLabel>
+        <SearchInput
+          id={`${idPrefix}-search`}
+          ariaLabel={t("actions.search")}
+          placeholder={t("actions.search")}
+          value={draftFilters.search}
+          onChange={(value) => onDraftChange({ search: value })}
+        />
+      </Field>
       {/* แท็บเล็ต (2 คอลัมน์): สาขากินเต็มแถว วันที่เริ่ม-สิ้นสุดจึงได้อยู่แถวเดียวกัน — จอ lg เป็น 6 คอลัมน์อยู่แล้วจึงคืนเป็น 1 ช่อง */}
       <Field className="gap-1.5 sm:col-span-2 lg:col-span-1">
         <FieldLabel htmlFor={`${idPrefix}-branch`} className="text-xs font-medium text-muted-foreground">

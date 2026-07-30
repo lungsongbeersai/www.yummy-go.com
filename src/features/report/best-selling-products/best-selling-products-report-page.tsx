@@ -9,6 +9,7 @@ import { ReportPageShell } from "../shared/report-page-shell";
 import { ReportTableCard } from "../shared/report-table-card";
 import {
   BestSellingExportSurface,
+  BestSellingFilterBar,
   BestSellingFilterSheet,
   BestSellingProductsMobileList,
   BestSellingProductsTable,
@@ -46,6 +47,21 @@ export function BestSellingProductsReportPage({ initialPagination }: { initialPa
         report.groupError,
         report.error,
       ]}
+      inlineFilters={(actions) => (
+        <BestSellingFilterBar
+          actions={actions}
+          branchLoading={report.branchLoading}
+          branchLocked={!report.canSelectBranch}
+          branchOptions={report.branchOptions}
+          canApply={report.canApply}
+          draftFilters={report.draftFilters}
+          groupLoading={report.groupLoading}
+          groupOptions={report.groupOptions}
+          loading={report.loading}
+          onApply={report.applyFilters}
+          onDraftChange={report.setDraftFilters}
+        />
+      )}
       filterSheet={
         <BestSellingFilterSheet
           branchLoading={report.branchLoading}
@@ -70,9 +86,9 @@ export function BestSellingProductsReportPage({ initialPagination }: { initialPa
       onRefresh={() => void report.load()}
       table={
         <ReportTableCard
-          cardClassName="min-h-0 min-w-0 overflow-hidden border-border bg-card shadow-sm md:sticky md:top-3 md:flex md:max-h-[calc(100dvh-var(--app-shell-header-height)-1.5rem)] md:flex-col"
+          cardClassName="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-none border-x-0 border-b-0 border-border bg-card shadow-none"
           contentClassName="flex min-h-0 flex-1 flex-col p-0"
-          contentWrapperClassName="min-h-0 min-w-0 scroll-pb-10 md:flex-1 md:overflow-auto"
+          contentWrapperClassName="min-h-0 min-w-0 flex-1 scroll-pb-10 overflow-auto"
           headerVariant="spacious"
           title={t("report.bestSelling.tableTitle")}
           headerExtras={

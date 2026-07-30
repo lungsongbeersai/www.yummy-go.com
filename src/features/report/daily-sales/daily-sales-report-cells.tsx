@@ -53,7 +53,7 @@ export function SummaryFooterLabelCell({
       <div className="flex min-w-64 items-center gap-2">
         <Badge
           variant="outline"
-          className="h-6 border-primary/30 bg-muted px-2 text-xs font-black uppercase text-primary"
+          className="h-6 border-primary/30 bg-muted px-2 text-xs font-semibold text-primary"
         >
           {label}
         </Badge>
@@ -83,7 +83,7 @@ export function SummaryFooterMoneyCell({
       className={cn(
         summaryFooterCellClass("right"),
         (strong || tone === "total" || (tone === "discount" && value > 0)) &&
-          "font-black",
+          "font-semibold",
         tone === "total" && "text-foreground",
         tone === "discount" && value > 0 && "text-destructive",
         value === 0 && "text-muted-foreground",
@@ -101,7 +101,7 @@ export function SummaryFooterNumberCell({ value }: { value: number | null }) {
     <TableCell
       className={cn(
         summaryFooterCellClass("right"),
-        "font-black",
+        "font-semibold",
         value === 0 && "text-muted-foreground",
       )}
     >
@@ -291,7 +291,7 @@ export function MoneyCell({
       className={cn(
         "whitespace-nowrap px-2 text-right tabular-nums",
         (strong || tone === "total" || (tone === "discount" && value > 0)) &&
-          "font-black",
+          "font-semibold",
         tone === "total" && "text-foreground",
         tone === "discount" && value > 0 && "text-destructive",
         value === 0 && "text-muted-foreground",

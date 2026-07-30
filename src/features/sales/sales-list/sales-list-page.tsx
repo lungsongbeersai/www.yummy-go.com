@@ -6,7 +6,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import type { UrlPaginationState } from "@/lib/url-pagination";
 import { SalesBillDetailDrawer, SalesBillDetailPanel } from "./sales-bill-detail";
 import { SalesBillListPanel } from "./sales-bill-list";
-import { SalesListFilterSheet, SalesListHeader } from "./sales-list-filters";
+import { SalesListFilterBar, SalesListFilterSheet, SalesListHeader } from "./sales-list-filters";
 import { SalesListSummaryCards } from "./sales-list-summary-cards";
 import { firstNumber } from "./sales-list-utils";
 import { useSalesListPage } from "./use-sales-list-page";
@@ -18,8 +18,9 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
   const page = useSalesListPage(initialPagination);
 
   return (
-    <div className="h-full min-h-0 overflow-y-auto bg-muted/20 xl:overflow-hidden">
-      <div className="mx-auto flex w-full max-w-375 flex-col gap-2 p-2 sm:gap-3 sm:p-3 lg:p-4 xl:h-full xl:min-h-0">
+    // เต็มหน้าจอแบบ /settings/store: ไม่มี padding รอบนอก และไม่จำกัดความกว้างกลางจออีก
+    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-muted/20">
+      <div className="shrink-0 border-b border-border bg-card px-2 py-2 sm:px-3 lg:hidden">
         <SalesListHeader
           appliedFilters={page.appliedFilters}
           branchLabel={page.branchLabel}
@@ -28,15 +29,26 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
           canApply={page.canApply}
           draftFilters={page.draftFilters}
           loading={page.loading}
-          searchText={page.searchText}
           summaryControlsId={SALES_LIST_SUMMARY_CARDS_ID}
           summaryVisible={page.summaryVisible}
           onApply={page.applyFilters}
           onDraftChange={page.patchDraft}
           onMobileFiltersOpen={() => page.setMobileFilterOpen(true)}
           onRefresh={() => void page.load()}
-          onSearchChange={page.setSearchText}
           onSummaryToggle={() => page.setSummaryVisible((visible) => !visible)}
+        />
+      </div>
+
+      <SalesListFilterBar
+          branchLabel={page.branchLabel}
+          branchLoading={page.branchLoading}
+          branchOptions={page.branchOptions}
+          canApply={page.canApply}
+          draftFilters={page.draftFilters}
+          loading={page.loading}
+          onApply={page.applyFilters}
+          onDraftChange={page.patchDraft}
+          onRefresh={() => void page.load()}
         />
 
         <SalesListFilterSheet
@@ -53,24 +65,30 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
           onRefresh={() => void page.load()}
         />
 
-        {!page.branchUuid ? (
-          <SalesListError
-            title={t("salesList.branchRequired")}
-            description={t("salesList.branchRequiredDescription")}
-          />
+        {/* ส่วนที่ไม่ใช่ตารางต้องมีระยะในของตัวเอง เพราะพ่อแม่ไม่มี padding แล้ว */}
+        {!page.branchUuid || page.error ? (
+          <div className="flex shrink-0 flex-col gap-2 px-2 py-2 sm:px-3">
+            {!page.branchUuid ? (
+              <SalesListError
+                title={t("salesList.branchRequired")}
+                description={t("salesList.branchRequiredDescription")}
+              />
+            ) : null}
+            {page.error ? <SalesListError title={t("salesList.loadFailed")} description={page.error} /> : null}
+          </div>
         ) : null}
-        {page.error ? <SalesListError title={t("salesList.loadFailed")} description={page.error} /> : null}
 
-        <div id={SALES_LIST_SUMMARY_CARDS_ID} hidden={!page.summaryVisible}>
+        <div id={SALES_LIST_SUMMARY_CARDS_ID} className="shrink-0 px-2 py-2 sm:px-3" hidden={!page.summaryVisible}>
           <SalesListSummaryCards reportTotal={page.reportTotal} />
         </div>
 
         {page.initialLoading ? (
-          <div className="min-w-0 xl:min-h-0 xl:flex-1">
+          <div className="min-w-0 flex-1 p-3">
             <LoadingState label={t("salesList.loading")} variant="splitPanel" />
           </div>
         ) : (
-          <div className="grid min-w-0 gap-2 sm:gap-3 xl:min-h-0 xl:flex-1 xl:grid-cols-[minmax(20rem,27rem)_minmax(0,1fr)]">
+          // ไม่มี padding และไม่มี gap — สองแผงชนขอบจอและชนกันเอง ใช้เส้น 1px คั่นแทนช่องว่าง
+          <div className="grid min-h-0 min-w-0 flex-1 overflow-hidden xl:grid-cols-[minmax(20rem,27rem)_minmax(0,1fr)]">
             <SalesBillListPanel
               bills={page.bills}
               loading={page.loading}
@@ -91,9 +109,8 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
               printingBillId={page.printingBillId}
               onReprint={(group) => void page.reprintReceipt(group)}
             />
-          </div>
-        )}
-      </div>
+        </div>
+      )}
       <SalesBillDetailDrawer
         bill={page.selectedBill}
         cancelSaleHref={page.cancelSaleHref}

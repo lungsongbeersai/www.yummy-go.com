@@ -230,8 +230,8 @@ export function SummaryReportTable({
 
   return (
     <div className="w-full min-w-0">
-      <Table className="w-max min-w-full table-auto text-xs">
-        <TableHeader className="[&_th]:sticky [&_th]:top-0 [&_th]:z-30 [&_th]:h-9 [&_th]:whitespace-nowrap [&_th]:border-b [&_th]:border-border [&_th]:bg-muted [&_th]:px-2 [&_th]:shadow-sm">
+      <Table className="w-max min-w-full table-auto text-sm">
+        <TableHeader className="[&_th]:sticky [&_th]:top-0 [&_th]:z-30 [&_th]:h-9 [&_th]:whitespace-nowrap [&_th]:border-b [&_th]:border-border [&_th]:bg-muted [&_th]:px-2 [&_th]:text-xs [&_th]:font-medium [&_th]:text-muted-foreground">
           <TableRow>
             <TableHead className="w-10 text-center">
               <ReportIndeterminateCheckbox
@@ -321,7 +321,7 @@ export function SummaryReportTable({
                   />
                 </TableCell>
 
-                <TableCell className="w-px text-center text-xs font-black text-muted-foreground">
+                <TableCell className="w-px text-center text-xs tabular-nums text-muted-foreground">
                   {pageStart + index}
                 </TableCell>
 
@@ -370,8 +370,8 @@ function summaryCellClass(row: ApiEntity, column: SummaryColumn) {
     "h-9 whitespace-nowrap px-2 text-xs",
     column.minWidth,
     column.align === "right" && "text-right tabular-nums",
-    column.key === "invoice" && "font-black",
-    column.key === "total" && "font-black",
+    column.key === "invoice" && "font-semibold",
+    column.key === "total" && "font-semibold",
     firstNumber(value) === 0 &&
       [
         "amount",
@@ -450,7 +450,7 @@ function SummaryReportFooterRow({
   summaryLabel: string;
 }) {
   return (
-    <TableRow className="border-t-2 border-primary bg-muted font-bold text-foreground hover:bg-muted">
+    <TableRow className="border-t-2 border-primary bg-primary/5 font-semibold text-foreground hover:bg-primary/5">
       <SummaryFooterBlankCell />
       <SummaryFooterBlankCell />
       <SummaryFooterLabelCell

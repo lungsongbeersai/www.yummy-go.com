@@ -29,6 +29,10 @@ export type PaymentMethodsMetricConfig = {
 
 export type PaymentMethodsRowMetricConfig = PaymentMethodsMetricConfig & {
   field: keyof PaymentMethodReportRow;
+  // คีย์ของตัวเลขเดียวกันในก้อน summary ที่ backend ส่งมา — ชื่อไม่ตรงกับ key ของแถวทุกตัว
+  // (service_charge vs sum_servicecharge, vat vs sum_vate) จึงต้องผูกไว้ให้ชัดตรงนี้
+  // ยอดรวมอ่านจากค่านี้เสมอ ห้ามบวกแถวเอาเองที่ frontend
+  summaryKey: string;
 };
 
 export type PaymentMethodsSummaryCard = PaymentMethodSummaryCard;

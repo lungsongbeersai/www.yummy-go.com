@@ -123,7 +123,7 @@ export function usePaymentMethodsReportWorkflow(
           },
           {
             title: t("report.excel.rows"),
-            rows: exportPaymentMethodRows(data.rows, t)
+            rows: exportPaymentMethodRows(data.rows, t, data.reportTotal)
           }
         ],
         officialReportExcelLayout(t, data.reportName || context.reportTitle)

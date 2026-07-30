@@ -73,7 +73,9 @@ export function AppPagination({
         </p>
       ) : null}
 
-      <div className="flex min-w-0 shrink-0 items-center gap-2">
+      {/* มีหน้าเดียวก็ไม่ต้องมีปุ่มเลื่อนหน้า — เหลือไว้แค่ label บอกช่วงข้อมูล
+          (หน้าอย่างรายงานวิธีชำระมี 3 แถวคงที่ ปุ่มพวกนี้กดไม่ได้อยู่แล้ว) */}
+      <div className={cn("flex min-w-0 shrink-0 items-center gap-2", pageCount <= 1 && "hidden")}>
         <div className={cn("items-center gap-2", hasHiddenPages ? "flex" : "flex sm:hidden")}>
           <span className="shrink-0 text-xs font-medium text-muted-foreground">
             {t("common.pageLabel")}
