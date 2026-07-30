@@ -1,20 +1,43 @@
 "use client";
 
-import { useEffect, useRef, useMemo, type ChangeEvent, type ReactNode } from "react";
-import { Crop, ImageIcon, ImagePlus, MoveHorizontal, MoveVertical, X, ZoomIn } from "lucide-react";
+import { useEffect, useRef, useMemo, useState, type ChangeEvent, type CSSProperties } from "react";
+import Cropper, { type Area } from "react-easy-crop";
+import "react-easy-crop/react-easy-crop.css";
+import { Crop, ImageIcon, ImagePlus, X, ZoomIn } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from "@/components/ui/dialog";
 import { Field, FieldDescription, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
 
+export type CropArea = Area;
+
 export type CropState = {
+  // ตำแหน่ง/ซูมของ cropper — เก็บไว้เพื่อให้เปิดกล่องซ้ำแล้วปรับต่อจากเดิมได้ ไม่ใช่เริ่มใหม่
   x: number;
   y: number;
   zoom: number;
+  // areaPixels = พิกัดจริงบนรูปต้นฉบับ ใช้วาดลง canvas ตอนบันทึก
+  // areaPercent = สัดส่วน ใช้คำนวณรูปตัวอย่างด้วย CSS ล้วน ไม่ต้องเข้ารหัสรูปใหม่
+  // เก็บทั้งคู่เพราะรูปตัวอย่างกับผลลัพธ์จะได้มาจากตัวเลขชุดเดียวกัน (ของเดิมคำนวณคนละสูตรจนไม่ตรงกัน)
+  areaPixels: CropArea | null;
+  areaPercent: CropArea | null;
 };
 
-export const DEFAULT_CROP: CropState = { x: 50, y: 50, zoom: 1 };
+export const DEFAULT_CROP: CropState = { x: 0, y: 0, zoom: 1, areaPixels: null, areaPercent: null };
+
+const MIN_ZOOM = 1;
+const MAX_ZOOM = 4;
+const OUTPUT_SIZE = 512;
 
 function fileExtension(type: string) {
   if (type.includes("png")) return "png";
@@ -38,28 +61,31 @@ function loadImage(file: File, errorMessage: string) {
   });
 }
 
+// ผู้ใช้ที่ไม่เปิดกล่องตัดรูปเลยต้องได้รูปที่ใช้งานได้ — ตัดจัตุรัสกลางภาพให้
+function centerSquareArea(image: HTMLImageElement): CropArea {
+  const size = Math.min(image.naturalWidth, image.naturalHeight);
+  return {
+    height: size,
+    width: size,
+    x: (image.naturalWidth - size) / 2,
+    y: (image.naturalHeight - size) / 2
+  };
+}
+
 export async function cropImageFile(file: File, crop: CropState, imageLoadFailed: string) {
   const image = await loadImage(file, imageLoadFailed);
-  const side = 512;
   const canvas = document.createElement("canvas");
-  canvas.width = side;
-  canvas.height = side;
+  canvas.width = OUTPUT_SIZE;
+  canvas.height = OUTPUT_SIZE;
   const context = canvas.getContext("2d");
   if (!context) return file;
 
-  const baseScale = Math.max(side / image.naturalWidth, side / image.naturalHeight) * crop.zoom;
-  const renderedWidth = image.naturalWidth * baseScale;
-  const renderedHeight = image.naturalHeight * baseScale;
-  const left = (side - renderedWidth) * (crop.x / 100);
-  const top = (side - renderedHeight) * (crop.y / 100);
-  const sourceX = Math.max(0, -left / baseScale);
-  const sourceY = Math.max(0, -top / baseScale);
-  const sourceSize = Math.min(image.naturalWidth - sourceX, image.naturalHeight - sourceY, side / baseScale);
+  const area = crop.areaPixels ?? centerSquareArea(image);
   const outputType = file.type || "image/jpeg";
 
   context.fillStyle = "#ffffff";
-  context.fillRect(0, 0, side, side);
-  context.drawImage(image, sourceX, sourceY, sourceSize, sourceSize, 0, 0, side, side);
+  context.fillRect(0, 0, OUTPUT_SIZE, OUTPUT_SIZE);
+  context.drawImage(image, area.x, area.y, area.width, area.height, 0, 0, OUTPUT_SIZE, OUTPUT_SIZE);
 
   const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, outputType, 0.92));
   if (!blob) return file;
@@ -69,40 +95,123 @@ export async function cropImageFile(file: File, crop: CropState, imageLoadFailed
   return new File([blob], `${basename}-crop.${extension}`, { type: outputType });
 }
 
-function CropRange({
-  disabled,
-  icon,
-  label,
-  max,
-  min,
-  onChange,
-  step = 1,
-  value
+// ย่อรูปให้กรอบที่เลือกไว้พอดีกับกล่องตัวอย่าง แล้วเลื่อนจุดเริ่มไปที่มุมของกรอบ
+// ใช้ค่าเปอร์เซ็นต์ชุดเดียวกับที่ cropper คืนมา รูปตัวอย่างจึงตรงกับไฟล์ที่จะบันทึกเสมอ
+function cropPreviewStyle(src: string, area: CropArea | null): CSSProperties | undefined {
+  if (!src) return undefined;
+  if (!area) return { backgroundImage: `url("${src}")`, backgroundPosition: "center", backgroundSize: "cover" };
+
+  return {
+    backgroundImage: `url("${src}")`,
+    backgroundPosition: `${area.width < 100 ? (area.x / (100 - area.width)) * 100 : 0}% ${
+      area.height < 100 ? (area.y / (100 - area.height)) * 100 : 0
+    }%`,
+    backgroundRepeat: "no-repeat",
+    backgroundSize: `${area.width > 0 ? 10000 / area.width : 100}% ${area.height > 0 ? 10000 / area.height : 100}%`
+  };
+}
+
+function ImageCropDialog({
+  onConfirm,
+  onOpenChange,
+  open,
+  src,
+  title,
+  value,
+  zoomLabel
 }: {
-  disabled?: boolean;
-  icon: ReactNode;
-  label: string;
-  max: number;
-  min: number;
-  onChange: (value: number) => void;
-  step?: number;
-  value: number;
+  onConfirm: (crop: CropState) => void;
+  onOpenChange: (open: boolean) => void;
+  open: boolean;
+  src: string;
+  title: string;
+  value: CropState;
+  zoomLabel: string;
 }) {
   return (
-    <Field className="gap-2" data-disabled={disabled ? "true" : undefined}>
-      <FieldLabel className="text-xs font-black text-muted-foreground">
-        {icon}
-        {label}
-      </FieldLabel>
-      <Slider
-        disabled={disabled}
-        max={max}
-        min={min}
-        step={step}
-        value={[value]}
-        onValueChange={(values) => onChange(Number(values[0] ?? value))}
-      />
-    </Field>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[92dvh] gap-3 overflow-hidden p-4 sm:p-6">
+        {/* เนื้อในแยกเป็นคอมโพเนนต์ของตัวเองเพราะ Radix ถอด portal ทิ้งตอนปิด
+            การเปิดใหม่จึง mount ใหม่และหยิบค่าที่บันทึกไว้เป็นค่าตั้งต้นเอง ไม่ต้อง sync ด้วย effect */}
+        <ImageCropDialogBody
+          src={src}
+          title={title}
+          value={value}
+          zoomLabel={zoomLabel}
+          onCancel={() => onOpenChange(false)}
+          onConfirm={(next) => {
+            onConfirm(next);
+            onOpenChange(false);
+          }}
+        />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ImageCropDialogBody({
+  onCancel,
+  onConfirm,
+  src,
+  title,
+  value,
+  zoomLabel
+}: {
+  onCancel: () => void;
+  onConfirm: (crop: CropState) => void;
+  src: string;
+  title: string;
+  value: CropState;
+  zoomLabel: string;
+}) {
+  const { t } = useTranslation();
+  const [draft, setDraft] = useState<CropState>(value);
+
+  return (
+    <>
+      <DialogHeader className="pr-10">
+        <DialogTitle>{title}</DialogTitle>
+        <DialogDescription>{t("settings.storeBranch.cropDragHint")}</DialogDescription>
+      </DialogHeader>
+      {/* ความสูงผูกกับ dvh — รูปกับตัวปรับจึงอยู่ในสายตาพร้อมกันเสมอ ไม่ว่าจอจะเตี้ยแค่ไหน */}
+      <div className="relative h-[min(50dvh,20rem)] w-full shrink-0 overflow-hidden rounded-lg bg-black">
+        <Cropper
+          aspect={1}
+          crop={{ x: draft.x, y: draft.y }}
+          image={src}
+          maxZoom={MAX_ZOOM}
+          minZoom={MIN_ZOOM}
+          showGrid
+          zoom={draft.zoom}
+          onCropChange={(point) => setDraft((current) => ({ ...current, x: point.x, y: point.y }))}
+          onCropComplete={(areaPercent, areaPixels) =>
+            setDraft((current) => ({ ...current, areaPercent, areaPixels }))
+          }
+          onZoomChange={(zoom) => setDraft((current) => ({ ...current, zoom }))}
+        />
+      </div>
+      <Field className="gap-2">
+        <FieldLabel className="text-xs font-medium text-muted-foreground">
+          <ZoomIn className="size-3.5" />
+          {zoomLabel}
+        </FieldLabel>
+        <Slider
+          max={MAX_ZOOM}
+          min={MIN_ZOOM}
+          step={0.01}
+          value={[draft.zoom]}
+          onValueChange={(values) => setDraft((current) => ({ ...current, zoom: Number(values[0] ?? current.zoom) }))}
+        />
+      </Field>
+      <DialogFooter>
+        <Button className="min-h-11 sm:min-h-9" type="button" variant="outline" onClick={onCancel}>
+          {t("actions.cancel")}
+        </Button>
+        <Button className="min-h-11 sm:min-h-9" type="button" onClick={() => onConfirm(draft)}>
+          {t("actions.save")}
+        </Button>
+      </DialogFooter>
+    </>
   );
 }
 
@@ -113,7 +222,6 @@ export function SettingsImageCropPanel({
   emptyLabel,
   existingSrc,
   fieldId,
-  horizontalLabel,
   onCropChange,
   onFileChange,
   saving,
@@ -125,7 +233,6 @@ export function SettingsImageCropPanel({
   sideBorderAt = "md",
   title,
   uploadLabel,
-  verticalLabel,
   zoomLabel
 }: {
   crop: CropState;
@@ -134,7 +241,6 @@ export function SettingsImageCropPanel({
   emptyLabel: string;
   existingSrc: string;
   fieldId?: string;
-  horizontalLabel: string;
   onCropChange: (crop: CropState) => void;
   onFileChange: (file: File | null) => void;
   saving: boolean;
@@ -146,16 +252,15 @@ export function SettingsImageCropPanel({
   sideBorderAt?: "md" | "lg";
   title: string;
   uploadLabel: string;
-  verticalLabel: string;
   zoomLabel: string;
 }) {
   // object URL ของไฟล์ที่เพิ่งเลือก ถ้ายังไม่เลือกก็ใช้รูปเดิมของเรคคอร์ด
   const objectUrl = useMemo(() => (selectedFile ? URL.createObjectURL(selectedFile) : ""), [selectedFile]);
   const previewSrc = objectUrl || existingSrc;
   const inputDisabled = Boolean(disabled || saving);
-  const cropDisabled = inputDisabled || !selectedFile;
   const sideBorderClass = sideBorderAt === "lg" ? "lg:border-b-0 lg:border-r" : "md:border-b-0 md:border-r";
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [cropOpen, setCropOpen] = useState(false);
 
   useEffect(() => {
     if (!objectUrl) return;
@@ -166,6 +271,8 @@ export function SettingsImageCropPanel({
     const file = event.target.files?.[0] ?? null;
     onCropChange(DEFAULT_CROP);
     onFileChange(file);
+    // เลือกไฟล์แล้วเข้าหน้าตัดรูปทันทีแบบเดียวกับแอปแชท — ไม่ต้องหาปุ่มเอง
+    if (file) setCropOpen(true);
   }
 
   function handleOpenFileDialog() {
@@ -203,16 +310,8 @@ export function SettingsImageCropPanel({
           onClick={handleOpenFileDialog}
         >
           <span
-            className="grid aspect-square w-full place-items-center overflow-hidden rounded-lg bg-muted bg-cover bg-center"
-            style={
-              previewSrc
-                ? {
-                    backgroundImage: `url("${previewSrc}")`,
-                    backgroundPosition: `${crop.x}% ${crop.y}%`,
-                    backgroundSize: `${Math.round(100 * crop.zoom)}% auto`
-                  }
-                : undefined
-            }
+            className="grid aspect-square w-full place-items-center overflow-hidden rounded-lg bg-muted"
+            style={cropPreviewStyle(previewSrc, crop.areaPercent)}
           >
             {!previewSrc ? <ImageIcon className="size-8 text-muted-foreground" /> : null}
             <span className="sr-only">{emptyLabel}</span>
@@ -238,45 +337,31 @@ export function SettingsImageCropPanel({
           </Field>
 
           {selectedFile ? (
-            <>
-              <Button type="button" variant="outline" className="w-full" disabled={inputDisabled} onClick={handleRemoveImage}>
-                <X className="size-4" />
-                {removeLabel}
+            <div className="grid grid-cols-2 gap-2">
+              <Button type="button" variant="outline" disabled={inputDisabled} onClick={() => setCropOpen(true)}>
+                <Crop className="size-4" />
+                <span className="truncate">{title}</span>
               </Button>
-              <FieldGroup className="gap-4 rounded-lg border border-border bg-card p-3">
-                <CropRange
-                  disabled={cropDisabled}
-                  icon={<ZoomIn className="size-3.5" />}
-                  label={zoomLabel}
-                  max={2.5}
-                  min={1}
-                  step={0.05}
-                  value={crop.zoom}
-                  onChange={(zoom) => onCropChange({ ...crop, zoom })}
-                />
-                <CropRange
-                  disabled={cropDisabled}
-                  icon={<MoveHorizontal className="size-3.5" />}
-                  label={horizontalLabel}
-                  max={100}
-                  min={0}
-                  value={crop.x}
-                  onChange={(x) => onCropChange({ ...crop, x })}
-                />
-                <CropRange
-                  disabled={cropDisabled}
-                  icon={<MoveVertical className="size-3.5" />}
-                  label={verticalLabel}
-                  max={100}
-                  min={0}
-                  value={crop.y}
-                  onChange={(y) => onCropChange({ ...crop, y })}
-                />
-              </FieldGroup>
-            </>
+              <Button type="button" variant="outline" disabled={inputDisabled} onClick={handleRemoveImage}>
+                <X className="size-4" />
+                <span className="truncate">{removeLabel}</span>
+              </Button>
+            </div>
           ) : null}
         </FieldGroup>
       </FieldSet>
+
+      {selectedFile && objectUrl ? (
+        <ImageCropDialog
+          open={cropOpen}
+          src={objectUrl}
+          title={title}
+          value={crop}
+          zoomLabel={zoomLabel}
+          onConfirm={onCropChange}
+          onOpenChange={setCropOpen}
+        />
+      ) : null}
     </aside>
   );
 }

@@ -5,7 +5,7 @@ import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { FormattedNumberInput } from "@/components/common/formatted-number-input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
@@ -36,7 +36,7 @@ import {
   productToppingName,
   toppingUuid,
 } from "./product-form-utils";
-import { ProductFormSectionNumber } from "./product-form-section-number";
+import { ProductFormSectionHeader } from "./product-form-section-header";
 import type { ProductFormWorkflow } from "./use-product-form-workflow";
 
 export function ProductFormToppingsSection({ form }: { form: ProductFormWorkflow }) {
@@ -75,30 +75,30 @@ export function ProductFormToppingsSection({ form }: { form: ProductFormWorkflow
   } = form;
 
   return (
-    <>          <Card>
-            <CardHeader className="flex-row items-start justify-between gap-3">
-              <div className="flex min-w-0 items-start gap-3">
-                <ProductFormSectionNumber value="5" />
-                <div className="min-w-0">
-                  <CardTitle>{t("product.sections.toppings")}</CardTitle>
-                  <p className="mt-1 text-xs text-muted-foreground">{t("product.sections.toppingsHint")}</p>
-                </div>
-              </div>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                disabled={!storeUuid || toppingSaving}
-                onClick={() => {
-                  setProdToppingStatus(TOPPING_HAS);
-                  setToppingDialogOpen(true);
-                }}
-              >
-                <Plus data-icon="inline-start" />
-                {t("actions.add")} {t("nav.topping")}
-              </Button>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-4">
+    <>
+      <Card>
+        <ProductFormSectionHeader
+          number="5"
+          title={t("product.sections.toppings")}
+          hint={t("product.sections.toppingsHint")}
+          action={
+            <Button
+              className="max-sm:w-full"
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={!storeUuid || toppingSaving}
+              onClick={() => {
+                setProdToppingStatus(TOPPING_HAS);
+                setToppingDialogOpen(true);
+              }}
+            >
+              <Plus data-icon="inline-start" />
+              {t("actions.add")} {t("nav.topping")}
+            </Button>
+          }
+        />
+        <CardContent className="flex flex-col gap-4">
             <Field>
               <FieldLabel>{t("product.toppingMode")}</FieldLabel>
               <div className="grid gap-2 sm:grid-cols-2">
@@ -117,7 +117,7 @@ export function ProductFormToppingsSection({ form }: { form: ProductFormWorkflow
                         <Check className="size-3" />
                       </span>
                       <span className="min-w-0">
-                        <span className="block truncate text-sm font-black">{choice.label}</span>
+                        <span className="block truncate text-sm font-semibold">{choice.label}</span>
                         <span className="mt-1 block text-xs leading-5 text-muted-foreground">{choice.hint}</span>
                       </span>
                     </Button>
@@ -215,7 +215,7 @@ export function ProductFormToppingsSection({ form }: { form: ProductFormWorkflow
                 <FieldSet className="gap-4 rounded-md border bg-muted/10 p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <FieldLegend className="mb-1 text-sm font-black">
+                      <FieldLegend className="mb-1 text-sm font-semibold">
                         {editingToppingUuid ? t("settings.editRecord") : t("settings.newRecord")}
                       </FieldLegend>
                       <FieldDescription>{t("fields.topping_price")}</FieldDescription>
@@ -259,7 +259,7 @@ export function ProductFormToppingsSection({ form }: { form: ProductFormWorkflow
                 <div className="flex min-h-0 flex-col gap-3 rounded-md border bg-muted/10 p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-sm font-black">{t("settings.modules.topping.title")}</p>
+                      <p className="text-sm font-semibold">{t("settings.modules.topping.title")}</p>
                       <p className="text-xs text-muted-foreground">{t("common.total")}: {toppingOptions.length}</p>
                     </div>
                     <Badge>{t("common.selectedCount", { count: selectedToppings.length })}</Badge>
@@ -299,7 +299,7 @@ export function ProductFormToppingsSection({ form }: { form: ProductFormWorkflow
                             className="h-auto min-w-0 flex-1 flex-col items-start justify-start px-0 py-0 text-left hover:bg-transparent"
                             onClick={() => editTopping(topping)}
                           >
-                            <span className="block truncate text-sm font-black">{label}</span>
+                            <span className="block truncate text-sm font-semibold">{label}</span>
                             <span className="mt-1 block truncate text-xs text-muted-foreground">
                               {String(topping.topping_name_eng ?? "") || t("fields.nameEn")}
                             </span>

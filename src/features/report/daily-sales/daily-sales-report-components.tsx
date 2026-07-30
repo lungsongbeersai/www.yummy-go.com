@@ -226,7 +226,10 @@ export function DailySalesTableCard({
         ) : rowsLength ? (
           <>
             <div className="min-h-0 flex-1 scroll-pb-10 overflow-auto">{children}</div>
-            <div className="shrink-0 bg-card">{footer}</div>
+            {/* ระยะในและเส้นคั่นเดียวกับ footer ของหน้าอื่นที่ใช้ AppPagination — เดิมไม่มีทั้งคู่ */}
+            <div className="shrink-0 border-t border-border bg-card px-4 py-3 text-sm text-muted-foreground">
+              {footer}
+            </div>
           </>
         ) : (
           <div className="min-h-80 p-4">

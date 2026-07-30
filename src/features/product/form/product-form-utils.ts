@@ -747,7 +747,8 @@ export function entityLabel(
 
 export function choiceCardClass(active: boolean) {
   return cn(
-    "flex min-h-20 w-full items-start justify-start gap-3 rounded-lg border p-3 text-left transition",
+    // min-h-16 = p-3 บน/ล่าง (24px) + สองบรรทัด (40px) พอดี — เดิม min-h-20 เหลือที่ว่างเปล่า 16px ทุกใบ
+    "flex min-h-16 w-full items-start justify-start gap-3 rounded-lg border p-3 text-left transition",
     active
       ? "border-primary bg-primary/5 text-foreground ring-1 ring-primary/20"
       : "border-border bg-card hover:border-primary/40 hover:bg-muted/40",

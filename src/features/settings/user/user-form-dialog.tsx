@@ -86,14 +86,12 @@ export function UserFormDialog({
                 existingSrc={profileSrc}
                 fileSupportText={t("settings.storeBranch.imageSupport")}
                 fieldId="login_profile"
-                horizontalLabel={t("settings.storeBranch.horizontal")}
                 previewMaxClassName="max-w-[10rem] sm:max-w-56 lg:max-w-none"
                 removeLabel={t("settings.storeBranch.cancelImage")}
                 saving={saving}
                 selectedFile={selectedProfileImage}
                 title={t("settings.userProfileSection")}
                 uploadLabel={t("settings.storeBranch.uploadImage")}
-                verticalLabel={t("settings.storeBranch.vertical")}
                 zoomLabel={t("settings.storeBranch.zoom")}
                 onCropChange={onCropChange}
                 onFileChange={onFileChange}

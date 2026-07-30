@@ -6,7 +6,7 @@ import { FormattedNumberInput } from "@/components/common/formatted-number-input
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -42,7 +42,7 @@ import {
   sizeName,
   sizeUuid,
 } from "./product-form-utils";
-import { ProductFormSectionNumber } from "./product-form-section-number";
+import { ProductFormSectionHeader } from "./product-form-section-header";
 import type { ProductFormWorkflow } from "./use-product-form-workflow";
 
 const NO_SET_PRODUCT_OPTION_VALUE = "__no-set-products__";
@@ -88,31 +88,36 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
   const detailItemLabel = statusSortFk === "2" ? t("pos.product") : t("fields.size");
   const showNoSetProductOptions = statusSortFk === "2" && !sizeOptions.length;
   const sizeSelectKey = showNoSetProductOptions ? "empty" : sizeOptions.length ? "ready" : "loading";
-  const labelRowClass = "flex min-h-8 items-center justify-between gap-2";
+  const labelRowClass = "flex min-h-7 items-center justify-between gap-2";
 
   return (
     <>
       <Card>
-            <CardHeader className="flex-col items-stretch gap-3 md:flex-row md:items-start">
-              <ProductFormSectionNumber value="3" />
-              <div className="min-w-0 flex-1">
-                <CardTitle>{t("product.sections.details")}</CardTitle>
-                <p className="mt-1 text-xs text-muted-foreground">{t("product.sections.detailsHint")}</p>
-              </div>
-              <div className="flex flex-col gap-2 sm:flex-row md:justify-end">
-                <Button type="button" size="sm" variant="outline" disabled={bulkStockSaving} onClick={addDetail}>
-                  <Plus data-icon="inline-start" />
-                  {t("product.addDetail")}
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-4">
-              <Alert>
-                <Info />
-                <AlertTitle>{typeLabel}</AlertTitle>
-                <AlertDescription>{detailModeHint}</AlertDescription>
-              </Alert>
-            {details.map((row, index) => {
+        <ProductFormSectionHeader
+          number="3"
+          title={t("product.sections.details")}
+          hint={t("product.sections.detailsHint")}
+          action={
+            <Button
+              className="max-sm:w-full"
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={bulkStockSaving}
+              onClick={addDetail}
+            >
+              <Plus data-icon="inline-start" />
+              {t("product.addDetail")}
+            </Button>
+          }
+        />
+        <CardContent className="flex flex-col gap-4">
+          <Alert>
+            <Info />
+            <AlertTitle>{typeLabel}</AlertTitle>
+            <AlertDescription>{detailModeHint}</AlertDescription>
+          </Alert>
+          {details.map((row, index) => {
               const selectedSize = sizeOptions.find((size) => sizeUuid(size) === row.size_uuid_fk);
               const selectedSizeLabel = selectedSize
                 ? entityLabel(selectedSize, "size_name_eng", "size_name_la", language, sizeName(selectedSize) || row.size_uuid_fk)
@@ -137,7 +142,7 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
               <FieldSet key={row.id} className="gap-4 rounded-md border border-border bg-muted/20 p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
-                    <FieldLegend className="mb-1 text-sm font-black">#{index + 1}</FieldLegend>
+                    <FieldLegend className="mb-1 text-sm font-semibold tabular-nums">#{index + 1}</FieldLegend>
                     <FieldDescription className="text-xs">{selectedSizeLabel}</FieldDescription>
                   </div>
                   <Button
@@ -371,15 +376,14 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
             </CardContent>
       </Card>
       <Card>
-        <CardHeader className="flex-row items-start justify-start gap-3">
-          <ProductFormSectionNumber value="4" />
-          <div className="min-w-0">
-            <CardTitle>{t("product.stockBulk.label")}</CardTitle>
-            <p className="mt-1 text-xs text-muted-foreground">{t("product.stockBulk.label")}</p>
-          </div>
-        </CardHeader>
+        {/* หัวข้อกับคำอธิบายเคยเป็นคีย์เดียวกัน (stockBulk.label) จึงพิมพ์ข้อความซ้ำสองบรรทัด */}
+        <ProductFormSectionHeader
+          number="4"
+          title={t("product.stockBulk.label")}
+          hint={t("product.stockBulk.hint")}
+        />
         <CardContent>
-          <div className="flex items-center gap-3 rounded-md border border-border bg-card px-4 py-3 shadow-sm">
+          <div className="flex items-center gap-3 rounded-md border border-border bg-muted/20 px-4 py-3">
             <Switch
               checked={detailStockState === "deduct"}
               disabled={!details.length || bulkStockSaving}
@@ -404,7 +408,7 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
             <FieldSet className="gap-4 rounded-md border bg-muted/10 p-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <FieldLegend className="mb-1 text-sm font-black">
+                  <FieldLegend className="mb-1 text-sm font-semibold">
                     {editingSetOptionUuid ? t("settings.editRecord") : t("settings.newRecord")}
                   </FieldLegend>
                   <FieldDescription>{t("product.setProductOptionFormHint")}</FieldDescription>
@@ -443,7 +447,7 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
             <div className="flex min-h-0 flex-col gap-3 rounded-md border bg-muted/10 p-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-sm font-black">{t("product.setProductOptions")}</p>
+                  <p className="text-sm font-semibold">{t("product.setProductOptions")}</p>
                   <p className="text-xs text-muted-foreground">{t("common.total")}: {setOptionOptions.length}</p>
                 </div>
                 <Badge>{t("common.selectedCount", { count: details.filter((row) => row.size_uuid_fk).length })}</Badge>
@@ -478,7 +482,7 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
                         className="h-auto min-w-0 flex-1 flex-col items-start justify-start px-0 py-0 text-left hover:bg-transparent"
                         onClick={() => editSetOption(size)}
                       >
-                        <span className="block truncate text-sm font-black">{label}</span>
+                        <span className="block truncate text-sm font-semibold">{label}</span>
                         <span className="mt-1 block truncate text-xs text-muted-foreground">
                           {String(size.size_name_eng ?? "") || t("fields.nameEn")}
                         </span>

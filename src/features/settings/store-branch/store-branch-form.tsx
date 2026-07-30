@@ -232,7 +232,6 @@ function EntityForm({
             existingSrc={existingSrc}
             fileSupportText={labels.imageSupport}
             fieldId={`${recordKey}-${imageFieldName}`}
-            horizontalLabel={labels.horizontal}
             previewMaxClassName="max-w-[10rem] sm:max-w-56 lg:max-w-none"
             removeLabel={labels.cancelImage}
             saving={saving}
@@ -240,7 +239,6 @@ function EntityForm({
             sideBorderAt="lg"
             title={labels.cropImage}
             uploadLabel={labels.uploadImage}
-            verticalLabel={labels.vertical}
             zoomLabel={labels.zoom}
             onCropChange={setCrop}
             onFileChange={setSelectedImage}

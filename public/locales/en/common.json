@@ -1314,6 +1314,7 @@
       "allDeduct": "All deduct stock",
       "allNoDeduct": "All do not cut stock",
       "deductAll": "Deduct stock for all sizes",
+      "hint": "Set the stock mode for every detail row at once.",
       "label": "Stock for all sizes",
       "mixed": "Mixed stock modes",
       "noDeductAll": "Do not cut stock for all sizes"
@@ -2243,6 +2244,7 @@
       "contactHint": "Keep account and contact details clear for staff and reports.",
       "cancelImage": "Cancel image",
       "cropHint": "Choose an image, then crop it before saving.",
+      "cropDragHint": "Drag the image to reposition it. Scroll or pinch to zoom.",
       "cropImage": "Crop image",
       "current": "Current",
       "deleteFailed": "Delete failed",

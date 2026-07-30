@@ -145,7 +145,10 @@ export function ReportTableCard({
   ) : rowsLength ? (
     <>
       <div className={contentWrapperClassName}>{children}</div>
-      <div className="shrink-0 bg-card">{footer}</div>
+      {/* ต้องเป็น block และมีขอบ/ระยะในเท่ากับ footer ของหน้าอื่นที่ใช้ AppPagination
+          (settings, product, stock, cancel-history) — เดิมไม่มี padding และไม่มีเส้นคั่นเลย
+          ทำให้แถบเลื่อนหน้าของรายงานติดขอบตารางและดูไม่เหมือนที่อื่นทั้งระบบ */}
+      <div className="shrink-0 border-t border-border bg-card px-4 py-3 text-sm text-muted-foreground">{footer}</div>
     </>
   ) : (
     <div className="p-4 md:min-h-80">
