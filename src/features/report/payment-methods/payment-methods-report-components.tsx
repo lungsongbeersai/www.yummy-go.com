@@ -438,10 +438,14 @@ export function PaymentMethodsTable({
                   </TableCell>
                 ))}
 
+                {/* ใช้กติกาสีเดียวกับคอลัมน์ของแต่ละวิธีชำระ — ไม่งั้นส่วนลดจะแดงเฉพาะฝั่งซ้าย
+                    แต่ยอดรวมของแถวเดียวกันกลับเป็นสีปกติ อ่านแล้วเหมือนคนละความหมาย */}
                 <TableCell
                   className={cn(
-                    "whitespace-nowrap text-right tabular-nums",
-                    grand ? "text-base font-semibold text-primary" : "font-medium text-foreground",
+                    "whitespace-nowrap text-right font-medium tabular-nums",
+                    grand
+                      ? "text-base font-semibold text-primary"
+                      : financialTextClass(metric.key, columnTotal),
                   )}
                 >
                   {displayMetric(columnTotal, metric.kind)}
