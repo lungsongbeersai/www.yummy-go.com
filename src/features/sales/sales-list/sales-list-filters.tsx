@@ -184,7 +184,7 @@ function SalesListFilterPopover({
       </PopoverTrigger>
       <PopoverContent align="end" className="hidden w-[calc(100vw-2rem)] max-w-4xl p-0 sm:block">
         <PopoverHeader className="border-b border-border px-4 py-3">
-          <PopoverTitle className="text-sm font-black">{t("salesList.filters")}</PopoverTitle>
+          <PopoverTitle className="text-sm font-semibold">{t("salesList.filters")}</PopoverTitle>
           <PopoverDescription className="text-xs">{t("salesList.subtitle")}</PopoverDescription>
         </PopoverHeader>
         <div className="grid grid-cols-2 gap-3 p-4 lg:grid-cols-6">
@@ -236,7 +236,7 @@ export function SalesListFilterSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="max-h-[88dvh] gap-0 overflow-hidden rounded-t-xl p-0 sm:hidden">
         <SheetHeader className="shrink-0 border-b border-border px-4 py-3 pr-12 text-left">
-          <SheetTitle className="text-base font-black">{t("salesList.filters")}</SheetTitle>
+          <SheetTitle className="text-base font-semibold">{t("salesList.filters")}</SheetTitle>
           <SheetDescription>{t("salesList.subtitle")}</SheetDescription>
         </SheetHeader>
         <div className="min-h-0 overflow-y-auto p-4">
@@ -292,8 +292,9 @@ function SalesListFilterFields({
 
   return (
     <>
-      <Field className="gap-1.5">
-        <FieldLabel htmlFor={`${idPrefix}-branch`} className="text-xs font-bold text-muted-foreground">
+      {/* แท็บเล็ต (2 คอลัมน์): สาขากินเต็มแถว วันที่เริ่ม-สิ้นสุดจึงได้อยู่แถวเดียวกัน — จอ lg เป็น 6 คอลัมน์อยู่แล้วจึงคืนเป็น 1 ช่อง */}
+      <Field className="gap-1.5 sm:col-span-2 lg:col-span-1">
+        <FieldLabel htmlFor={`${idPrefix}-branch`} className="text-xs font-medium text-muted-foreground">
           {t("nav.branch")}
         </FieldLabel>
         <Select
@@ -316,7 +317,7 @@ function SalesListFilterFields({
         </Select>
       </Field>
       <Field className="gap-1.5">
-        <FieldLabel htmlFor={`${idPrefix}-date-from`} className="text-xs font-bold text-muted-foreground">
+        <FieldLabel htmlFor={`${idPrefix}-date-from`} className="text-xs font-medium text-muted-foreground">
           {t("salesList.dateFrom")}
         </FieldLabel>
         <Input
@@ -329,7 +330,7 @@ function SalesListFilterFields({
         />
       </Field>
       <Field className="gap-1.5">
-        <FieldLabel htmlFor={`${idPrefix}-date-to`} className="text-xs font-bold text-muted-foreground">
+        <FieldLabel htmlFor={`${idPrefix}-date-to`} className="text-xs font-medium text-muted-foreground">
           {t("salesList.dateTo")}
         </FieldLabel>
         <Input
@@ -342,7 +343,7 @@ function SalesListFilterFields({
         />
       </Field>
       <Field className="gap-1.5">
-        <FieldLabel htmlFor={`${idPrefix}-limit`} className="text-xs font-bold text-muted-foreground">
+        <FieldLabel htmlFor={`${idPrefix}-limit`} className="text-xs font-medium text-muted-foreground">
           {t("common.rowsPerPage")}
         </FieldLabel>
         <Select
@@ -364,7 +365,7 @@ function SalesListFilterFields({
         </Select>
       </Field>
       <Field className="gap-1.5">
-        <FieldLabel htmlFor={`${idPrefix}-payment-method`} className="text-xs font-bold text-muted-foreground">
+        <FieldLabel htmlFor={`${idPrefix}-payment-method`} className="text-xs font-medium text-muted-foreground">
           {t("salesList.paymentMethod")}
         </FieldLabel>
         <Select
@@ -386,7 +387,7 @@ function SalesListFilterFields({
         </Select>
       </Field>
       <Field className="gap-1.5">
-        <FieldLabel htmlFor={`${idPrefix}-order`} className="text-xs font-bold text-muted-foreground">
+        <FieldLabel htmlFor={`${idPrefix}-order`} className="text-xs font-medium text-muted-foreground">
           {t("salesList.orderBy")}
         </FieldLabel>
         <Select

@@ -72,7 +72,6 @@ import type {
 } from "./best-selling-products-report-types";
 import {
   bestSellingGroupMetricConfigs,
-  bestSellingGroupMetrics,
   bestSellingProductRowId,
   bestSellingProductMetricConfigs,
   bestSellingProductMetrics,
@@ -386,9 +385,9 @@ export function BestSellingProductsTable({
     selectionStateForVisibleIds(visibleIds, selectedRowIds);
 
   return (
-    <div className="hidden w-full min-w-0 md:block">
-      <Table className="w-max min-w-full table-auto text-xs">
-        <TableHeader className="[&_th]:sticky [&_th]:top-0 [&_th]:z-30 [&_th]:h-9 [&_th]:whitespace-nowrap [&_th]:border-b [&_th]:border-border [&_th]:bg-muted [&_th]:px-2 [&_th]:shadow-sm">
+    <div className="hidden min-w-0 md:block">
+      <Table className="w-max min-w-full table-auto text-[13px]">
+        <TableHeader className="[&_th]:sticky [&_th]:top-0 [&_th]:z-30 [&_th]:whitespace-nowrap [&_th]:border-b [&_th]:border-border [&_th]:bg-background [&_th]:px-3 [&_th]:shadow-sm">
           <TableRow>
             <TableHead className="w-10 text-center">
               <ReportIndeterminateCheckbox
@@ -455,7 +454,7 @@ export function BestSellingProductsTable({
             ))}
           </TableRow>
         </TableHeader>
-        <TableBody>
+        <TableBody className="[&_td]:px-3">
           {sortedGroupRows.map(({ group, rows: groupRows }) => {
             const groupIds = groupRows.map(bestSellingProductRowId);
             const groupSelection = selectionStateForVisibleIds(
@@ -465,68 +464,79 @@ export function BestSellingProductsTable({
 
             return (
               <Fragment key={group.id}>
-              <TableRow className="border-b border-border/80 bg-muted/25 hover:bg-muted/25">
-                <TableCell className="w-10 text-center">
-                  <ReportIndeterminateCheckbox
-                    aria-label={t("common.selectRow", { name: group.name })}
-                    checked={groupSelection.allVisibleSelected}
-                    indeterminate={
-                      !groupSelection.allVisibleSelected &&
-                      groupSelection.someVisibleSelected
-                    }
-                    onChange={(event) =>
-                      onToggleRows(groupRows, event.target.checked)
-                    }
+                <TableRow className="border-t-2 border-border bg-muted/50 hover:bg-muted/50">
+                  <TableCell className="w-10 text-center">
+                    <ReportIndeterminateCheckbox
+                      aria-label={t("common.selectRow", { name: group.name })}
+                      checked={groupSelection.allVisibleSelected}
+                      indeterminate={
+                        !groupSelection.allVisibleSelected &&
+                        groupSelection.someVisibleSelected
+                      }
+                      onChange={(event) =>
+                        onToggleRows(groupRows, event.target.checked)
+                      }
+                    />
+                  </TableCell>
+                  <TableCell
+                    colSpan={4 + productMetrics.length}
+                    className="py-3"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-black text-foreground">
+                        {group.name}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {t("report.bestSelling.groupSummary", {
+                          products: group.productCount,
+                          qty: formatNumber(group.qtyTotal),
+                        })}
+                      </p>
+                    </div>
+                  </TableCell>
+                </TableRow>
+                {groupRows.map((item, index) => (
+                  <BestSellingProductRow
+                    key={item.id}
+                    item={item}
+                    metrics={productMetrics}
+                    rank={index + 1}
+                    selectLabel={t("common.selectRow", {
+                      name: item.productName,
+                    })}
+                    selected={selectedRowIds.has(bestSellingProductRowId(item))}
+                    onToggleRow={onToggleRow}
                   />
-                </TableCell>
-                <TableCell colSpan={4} className="px-2 py-2">
-                  <div className="min-w-0">
-                    <p className="truncate font-black text-foreground">
-                      {group.name}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {t("report.bestSelling.groupSummary", {
-                        products: group.productCount,
-                        qty: formatNumber(group.qtyTotal),
-                      })}
-                    </p>
-                  </div>
-                </TableCell>
-                {productMetrics.map((metric) => {
-                  const groupMetric = groupMetricByKey.get(metric.key);
-                  return (
-                    <TableCell
-                      key={metric.key}
-                      className={metricValueClass(
-                        groupMetric ? Number(group[groupMetric.field] ?? 0) : null,
-                        metric.key,
-                        true,
-                      )}
-                    >
-                      {groupMetric
-                        ? displayMetric(
-                            group[groupMetric.field],
-                            groupMetric.kind,
-                          )
-                        : "-"}
-                    </TableCell>
-                  );
-                })}
-              </TableRow>
-              {groupRows.map((item, index) => (
-                <BestSellingProductRow
-                  key={item.id}
-                  item={item}
-                  index={index}
-                  metrics={productMetrics}
-                  rank={index + 1}
-                  selectLabel={t("common.selectRow", {
-                    name: item.productName,
+                ))}
+                <TableRow className="border-b-2 border-primary bg-muted font-bold text-foreground hover:bg-muted">
+                  <TableCell />
+                  <TableCell
+                    colSpan={4}
+                    className="font-black text-primary"
+                  >
+                    {t("common.total")}
+                  </TableCell>
+                  {productMetrics.map((metric) => {
+                    const groupMetric = groupMetricByKey.get(metric.key);
+                    const value = groupMetric
+                      ? group[groupMetric.field]
+                      : null;
+
+                    return (
+                      <TableCell
+                        key={metric.key}
+                        className={cn(
+                          metricValueClass(value, metric.key, true),
+                          metric.key === "final_total" && "text-primary",
+                        )}
+                      >
+                        {groupMetric
+                          ? displayMetric(value, groupMetric.kind)
+                          : "-"}
+                      </TableCell>
+                    );
                   })}
-                  selected={selectedRowIds.has(bestSellingProductRowId(item))}
-                  onToggleRow={onToggleRow}
-                />
-              ))}
+                </TableRow>
               </Fragment>
             );
           })}
@@ -546,7 +556,6 @@ export function BestSellingProductsTable({
 
 const BestSellingProductRow = memo(function BestSellingProductRow({
   item,
-  index,
   metrics,
   rank,
   selectLabel,
@@ -554,7 +563,6 @@ const BestSellingProductRow = memo(function BestSellingProductRow({
   onToggleRow,
 }: {
   item: BestSellingProductItem;
-  index: number;
   metrics: ReturnType<typeof bestSellingProductMetricConfigs>;
   rank: number;
   selectLabel: string;
@@ -564,8 +572,7 @@ const BestSellingProductRow = memo(function BestSellingProductRow({
   return (
     <TableRow
       className={cn(
-        "h-9 border-b border-border/80",
-        index % 2 === 1 && "bg-muted/15",
+        "hover:bg-muted/20",
         selected && "bg-primary/5 hover:bg-primary/10",
       )}
     >
@@ -576,20 +583,25 @@ const BestSellingProductRow = memo(function BestSellingProductRow({
           onChange={(event) => onToggleRow(item, event.target.checked)}
         />
       </TableCell>
-      <TableCell className="whitespace-nowrap px-2 py-2 text-center">
-        <Badge className="h-6 min-w-9 justify-center px-2 text-xs tabular-nums">
+      <TableCell className="text-center">
+        <Badge
+          variant="outline"
+          className="h-6 min-w-9 justify-center bg-muted px-2 text-xs tabular-nums"
+        >
           #{rank}
         </Badge>
       </TableCell>
-      <TableCell className="max-w-80 whitespace-normal px-2 py-2">
-        <p className="font-semibold leading-snug text-foreground">
-          {item.productName}
-        </p>
+      <TableCell className="max-w-80 whitespace-normal">
+        <div className="ml-6 min-w-40 border-l border-border/70 pl-3">
+          <p className="font-bold leading-snug text-foreground">
+            {item.productName}
+          </p>
+        </div>
       </TableCell>
-      <TableCell className="whitespace-nowrap px-2 py-2 text-muted-foreground">
+      <TableCell className="whitespace-nowrap text-muted-foreground">
         {item.productCode}
       </TableCell>
-      <TableCell className="whitespace-nowrap px-2 py-2 text-muted-foreground">
+      <TableCell className="whitespace-nowrap text-muted-foreground">
         {item.categoryName}
       </TableCell>
       {/* <TableCell className="whitespace-nowrap px-2 py-2 text-muted-foreground">
@@ -682,7 +694,7 @@ function metricValueClass(value: unknown, key: string, strong = false) {
   const numericValue = value === null ? null : firstNumber(value);
 
   return cn(
-    "whitespace-nowrap px-2 py-2 text-right font-semibold tabular-nums",
+    "whitespace-nowrap px-3 py-2 text-right font-semibold tabular-nums",
     strong && "font-black",
     numericValue === 0 && "text-muted-foreground",
     key.includes("discount") &&
@@ -728,9 +740,9 @@ export function BestSellingProductsMobileList({
       {groups.map((group) => (
         <section
           key={group.id}
-          className="rounded-md border border-border bg-background"
+          className="overflow-hidden rounded-md border border-border bg-card shadow-sm"
         >
-          <div className="border-b border-border bg-muted/25 p-3">
+          <div className="bg-muted/40 px-3 py-3">
             <div className="flex items-start gap-3">
               <ReportIndeterminateCheckbox
                 aria-label={t("common.selectRow", { name: group.name })}
@@ -765,55 +777,67 @@ export function BestSellingProductsMobileList({
                 </p>
               </div>
             </div>
-            <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-              {bestSellingGroupMetrics(group, t).map((metric) => (
-                <MetricPill
-                  key={metric.key}
-                  label={metric.label}
-                  value={metric.value}
-                  kind={metric.kind}
-                />
-              ))}
-            </div>
           </div>
-          <div className="flex flex-col">
+          <div className="divide-y divide-border">
             {group.items.map((item, index) => (
               <div
                 key={item.id}
                 className={cn(
-                  "flex items-start gap-3 border-b border-border/70 p-3 last:border-b-0",
+                  "py-3 pr-3",
                   selectedRowIds.has(bestSellingProductRowId(item)) &&
                     "bg-primary/5",
                 )}
               >
-                <Checkbox
-                  aria-label={t("common.selectRow", { name: item.productName })}
-                  checked={selectedRowIds.has(bestSellingProductRowId(item))}
-                  onChange={(event) => onToggleRow(item, event.target.checked)}
-                />
-                <Badge className="h-7 min-w-10 justify-center px-2 text-xs tabular-nums">
-                  #{index + 1}
-                </Badge>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold leading-snug text-foreground">
-                    {item.productName}
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {item.productCode} / {item.categoryName} / {item.groupName}
-                  </p>
-                  <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
-                    {bestSellingProductMetrics(item, t).map((metric) => (
-                      <MetricPill
-                        key={metric.key}
-                        label={metric.label}
-                        value={metric.value}
-                        kind={metric.kind}
-                      />
-                    ))}
+                <div className="ml-3 flex items-start gap-3 border-l border-border/70 pl-3">
+                  <Checkbox
+                    aria-label={t("common.selectRow", { name: item.productName })}
+                    className="mt-0.5"
+                    checked={selectedRowIds.has(bestSellingProductRowId(item))}
+                    onChange={(event) => onToggleRow(item, event.target.checked)}
+                  />
+                  <Badge
+                    variant="outline"
+                    className="h-7 min-w-10 justify-center bg-muted px-2 text-xs tabular-nums"
+                  >
+                    #{index + 1}
+                  </Badge>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold leading-snug text-foreground">
+                      {item.productName}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {item.productCode} / {item.categoryName}
+                    </p>
+                    <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+                      {bestSellingProductMetrics(item, t).map((metric) => (
+                        <MetricPill
+                          key={metric.key}
+                          label={metric.label}
+                          value={metric.value}
+                          kind={metric.kind}
+                        />
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
             ))}
+          </div>
+          <div className="border-t-2 border-primary bg-muted p-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-black text-primary">
+                  {t("common.total")}
+                </p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {t("report.bestSelling.columns.qty")}:{" "}
+                  {displayMetric(group.qtyTotal, "number")}
+                </p>
+              </div>
+              <p className="shrink-0 text-sm font-black tabular-nums text-primary">
+                {displayMetric(group.finalTotal, "money")}
+              </p>
+            </div>
           </div>
         </section>
       ))}
@@ -831,11 +855,11 @@ function MetricPill({
   value: unknown;
 }) {
   return (
-    <div className="min-w-0 rounded-md border border-border bg-muted px-2 py-1">
-      <p className="truncate text-[11px] font-bold text-muted-foreground">
+    <div className="min-w-0 rounded-md border border-border bg-muted px-2.5 py-2">
+      <p className="truncate text-[10px] font-bold uppercase text-muted-foreground">
         {label}
       </p>
-      <p className="truncate font-black tabular-nums text-foreground">
+      <p className="truncate text-xs font-black tabular-nums text-foreground">
         {displayMetric(value, kind)}
       </p>
     </div>

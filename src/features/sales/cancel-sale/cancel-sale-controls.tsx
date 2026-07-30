@@ -194,7 +194,6 @@ export function SalesListPaginationFooter({
   return (
     <div className="shrink-0 border-t border-border px-3 py-2.5 pb-[calc(0.625rem+env(safe-area-inset-bottom))] text-sm text-muted-foreground">
       <AppPagination
-        compact
         disabled={loading}
         page={page}
         rangeLabel={t("common.showingRange", { start: pageStart, end: pageEnd, total })}

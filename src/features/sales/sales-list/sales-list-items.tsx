@@ -5,7 +5,6 @@ import Image from "next/image";
 import { BadgePercent, ShoppingBag, StickyNote, Tag, Utensils } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { EmptyState } from "@/components/common/empty-state";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { ApiEntity } from "@/services/shared/types";
 import {
@@ -55,15 +54,16 @@ function SalesListItemCard({ item }: { item: ApiEntity }) {
         <SalesListItemMedia media={media} title={itemProductName(item)} />
         <div className="min-w-0">
           <div className="flex min-w-0 items-start justify-between gap-2">
-            <p className="min-w-0 wrap-break-word text-[15px] font-black leading-5 text-foreground">
+            {/* มือถืออ่านที่ระยะไกลกว่าและเป็นบริบทอ่านล้วน จึงใช้ 16/24 แล้วลดเป็น 14/20 (Design.md §5 UI) บนจอใหญ่ */}
+            <p className="min-w-0 wrap-break-word text-base leading-6 font-semibold text-foreground sm:text-sm">
               {itemProductName(item)}
             </p>
-            <p className="max-w-32 shrink-0 truncate text-right text-[15px] font-black leading-5 text-foreground tabular-nums">
+            <p className="max-w-32 shrink-0 truncate text-right text-base leading-6 font-semibold text-foreground tabular-nums sm:text-sm">
               {moneyValue(total)}
             </p>
           </div>
 
-          <div className="mt-1.5 grid gap-0.5">
+          <div className="mt-1 grid gap-0.5">
             <SalesListItemDetailRow icon={<Tag />} tone="price">
               <span className="tabular-nums">
                 {qty.toLocaleString("en-US")} x {moneyValue(unitPrice)}
@@ -86,12 +86,6 @@ function SalesListItemCard({ item }: { item: ApiEntity }) {
                 <span>{note}</span>
               </SalesListItemDetailRow>
             ) : null}
-          </div>
-
-          <div className="mt-2 flex min-w-0 justify-end">
-            <Badge className="h-9 rounded-full border-border bg-muted px-3 text-sm font-black text-muted-foreground">
-              x{qty.toLocaleString("en-US")}
-            </Badge>
           </div>
         </div>
       </div>
@@ -151,7 +145,7 @@ function SalesListItemDetailRow({
   return (
     <div
       className={cn(
-        "flex min-w-0 items-start justify-between gap-2 text-[11px] font-bold leading-4.5 sm:text-xs",
+        "flex min-w-0 items-start justify-between gap-2 text-xs leading-5",
         tone === "price" && "text-foreground/75",
         tone === "discount" && "text-destructive",
         tone === "note" && "text-muted-foreground",
@@ -167,7 +161,7 @@ function SalesListItemDetailRow({
       {right ? (
         <span
           className={cn(
-            "shrink-0 text-right font-black tabular-nums",
+            "shrink-0 text-right font-medium tabular-nums",
             tone === "discount" ? "text-destructive" : "text-foreground/75"
           )}
         >

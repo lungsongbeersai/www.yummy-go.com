@@ -10,13 +10,18 @@ import { authStoreUuid, type AuthUser } from "@/stores/auth-store";
 import { useCustomerStore } from "@/stores/customer-store";
 import { useToastStore } from "@/stores/toast-store";
 import {
+  advanceFirstCustomerAutoSelect,
+  canApplyFirstCustomerAutoSelect,
   CUSTOMER_SEARCH_DEBOUNCE_MS,
   CUSTOMER_SEARCH_LIMIT,
+  createFirstCustomerAutoSelectState,
   customerUuidOf,
   dedupeCustomers,
   defaultCustomerFromRows,
-  firstCustomerAutoSelectAction,
+  firstCustomerFromRows,
   firstCustomerListParams,
+  invalidateFirstCustomerAutoSelect,
+  preserveFirstCustomerAutoSelect,
   withSelectedCustomer,
 } from "../payment-dialog-utils";
 
@@ -47,15 +52,22 @@ export function usePaymentCustomers({
   );
   const [customerSearchLoading, setCustomerSearchLoading] = useState(false);
   const listRequestIdRef = useRef(0);
-  const defaultRequestIdRef = useRef(0);
-  const autoSelectAttemptedRef = useRef(false);
-  const selectionVersionRef = useRef(0);
+  const autoSelectStateRef = useRef(createFirstCustomerAutoSelectState());
   const selectedCustomerRef = useRef<Customer | null>(null);
+  const mountedRef = useRef(false);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   const resetCustomers = useCallback(() => {
     listRequestIdRef.current += 1;
-    defaultRequestIdRef.current += 1;
-    selectionVersionRef.current += 1;
+    autoSelectStateRef.current = invalidateFirstCustomerAutoSelect(
+      autoSelectStateRef.current,
+    );
     selectedCustomerRef.current = null;
     setCustomerUuid("");
     setCustomerOpen(false);
@@ -71,7 +83,9 @@ export function usePaymentCustomers({
     const uuid = customerUuidOf(customer);
     if (!uuid) return;
 
-    selectionVersionRef.current += 1;
+    autoSelectStateRef.current = invalidateFirstCustomerAutoSelect(
+      autoSelectStateRef.current,
+    );
     selectedCustomerRef.current = customer;
     setCustomerUuid(uuid);
     setSelectedCustomer(customer);
@@ -151,53 +165,68 @@ export function usePaymentCustomers({
   }, [customerOpen, customerSearch, language, loadCustomers, open, storeUuid]);
 
   useEffect(() => {
-    const action = firstCustomerAutoSelectAction({
-      attempted: autoSelectAttemptedRef.current,
-      customerCreateOpen,
-      customerUuid,
-      open,
-      storeUuid,
-    });
-    if (action === "reset") {
-      autoSelectAttemptedRef.current = false;
-      return;
-    }
-    if (action === "none") return;
-    autoSelectAttemptedRef.current = true;
+    const transition = advanceFirstCustomerAutoSelect(
+      autoSelectStateRef.current,
+      {
+        customerCreateOpen,
+        customerUuid,
+        open,
+        storeUuid,
+      },
+    );
+    autoSelectStateRef.current = transition.state;
+    if (transition.action !== "load" || !transition.request) return;
+    const request = transition.request;
 
-    const requestId = defaultRequestIdRef.current + 1;
-    defaultRequestIdRef.current = requestId;
-    const selectionVersion = selectionVersionRef.current;
-
+    // Strict Mode replays effect cleanup; only real resets or user intent may
+    // invalidate this one request for the current payment-open cycle.
     void (async () => {
       try {
         const rows = await loadCustomers(
           firstCustomerListParams(storeUuid, language),
         );
         if (
-          defaultRequestIdRef.current !== requestId ||
-          selectionVersionRef.current !== selectionVersion
+          !canApplyFirstCustomerAutoSelect(
+            autoSelectStateRef.current,
+            request,
+            mountedRef.current,
+          )
         )
           return;
 
-        const customer = rows[0] ?? null;
-        if (customerUuidOf(customer)) selectCustomer(customer);
+        const customer = firstCustomerFromRows(rows);
+        if (customer) selectCustomer(customer);
       } catch {
         return;
       }
     })();
 
     return () => {
-      if (defaultRequestIdRef.current === requestId) {
-        defaultRequestIdRef.current += 1;
-      }
+      autoSelectStateRef.current = preserveFirstCustomerAutoSelect(
+        autoSelectStateRef.current,
+      );
     };
-  }, [customerCreateOpen, customerUuid, language, loadCustomers, open, selectCustomer, storeUuid]);
+  }, [
+    customerCreateOpen,
+    customerUuid,
+    language,
+    loadCustomers,
+    open,
+    selectCustomer,
+    storeUuid,
+  ]);
 
   const handleCustomerOpenChange = useCallback((nextOpen: boolean) => {
     setCustomerOpen(nextOpen);
-    if (nextOpen) setCustomerSearch("");
-    else setCustomerSearchLoading(false);
+    if (nextOpen) {
+      // Opening the list is an explicit user choice, so its normal fetch must win.
+      autoSelectStateRef.current = invalidateFirstCustomerAutoSelect(
+        autoSelectStateRef.current,
+      );
+      setCustomerSearch("");
+    } else {
+      setCustomerSearchLoading(false);
+    }
   }, []);
 
   const handleCustomerSelect = useCallback(
@@ -215,6 +244,9 @@ export function usePaymentCustomers({
       return;
     }
 
+    autoSelectStateRef.current = invalidateFirstCustomerAutoSelect(
+      autoSelectStateRef.current,
+    );
     setCustomerOpen(false);
     setCustomerSearch("");
     setCustomerCreateOpen(true);

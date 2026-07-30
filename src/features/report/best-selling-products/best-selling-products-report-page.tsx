@@ -34,7 +34,7 @@ export function BestSellingProductsReportPage({ initialPagination }: { initialPa
   return (
     <ReportPageShell
       accessibleTitle={t("report.bestSelling.title")}
-      variant="compact"
+      variant="spacious"
       dateFrom={report.appliedFilters.dateFrom}
       dateTo={report.appliedFilters.dateTo}
       loading={report.loading}
@@ -70,10 +70,10 @@ export function BestSellingProductsReportPage({ initialPagination }: { initialPa
       onRefresh={() => void report.load()}
       table={
         <ReportTableCard
-          cardClassName="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden border-border bg-card shadow-sm"
+          cardClassName="min-h-0 min-w-0 overflow-hidden border-border bg-card shadow-sm md:sticky md:top-3 md:flex md:max-h-[calc(100dvh-var(--app-shell-header-height)-1.5rem)] md:flex-col"
           contentClassName="flex min-h-0 flex-1 flex-col p-0"
-          contentWrapperClassName="min-h-0 min-w-0 flex-1 scroll-pb-10 overflow-auto overscroll-x-contain overscroll-y-auto"
-          headerVariant="compact"
+          contentWrapperClassName="min-h-0 min-w-0 scroll-pb-10 md:flex-1 md:overflow-auto"
+          headerVariant="spacious"
           title={t("report.bestSelling.tableTitle")}
           headerExtras={
             <BestSellingSortDropdown
