@@ -1,12 +1,12 @@
 "use client";
 
-import { Fragment, useCallback, type RefObject } from "react";
+import { Fragment, useCallback, type ReactNode, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ReportOfficialHeader,
   ReportSignatures,
 } from "@/lib/export/official-layout";
-import { ReportFilterSheet } from "../shared/report-filter-shell";
+import { ReportFilterCard, ReportFilterSheet } from "../shared/report-filter-shell";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table,
@@ -137,7 +137,42 @@ export function CategorySalesFilterSheet({
   );
 }
 
-function CategorySalesFilterFields({
+// จอ lg ขึ้นไปกรองได้จากหน้าเลย โครงเดียวกับ /settings/store และหน้ารายงานขายประจำวัน
+export function CategorySalesFilterBar({
+  actions,
+  branchLoading,
+  branchLocked,
+  branchOptions,
+  canApply,
+  draftFilters,
+  loading,
+  methodOptions,
+  onApply,
+  onDraftChange,
+}: FilterProps & { actions?: ReactNode }) {
+  return (
+    <ReportFilterCard
+      actions={actions}
+      canApply={canApply}
+      className="hidden shrink-0 rounded-none border-x-0 border-t-0 shadow-none lg:block"
+      contentClassName="grid min-w-0 items-end gap-3 px-3 py-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-[repeat(6,minmax(0,1fr))_auto]"
+      loading={loading}
+      onApply={onApply}
+    >
+      <CategorySalesFilterFields
+        branchLoading={branchLoading}
+        branchLocked={branchLocked}
+        branchOptions={branchOptions}
+        draftFilters={draftFilters}
+        idPrefix="category-sales"
+        methodOptions={methodOptions}
+        onDraftChange={onDraftChange}
+      />
+    </ReportFilterCard>
+  );
+}
+
+export function CategorySalesFilterFields({
   branchLoading,
   branchLocked,
   branchOptions,

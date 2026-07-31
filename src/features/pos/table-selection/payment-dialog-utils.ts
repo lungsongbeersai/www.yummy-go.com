@@ -112,6 +112,95 @@ export function customerUuidOf(customer: Customer | null | undefined) {
   return optionalString(customer?.customer_uuid) ?? "";
 }
 
+export interface FirstCustomerAutoSelectState {
+  attempted: boolean;
+  generation: number;
+}
+
+export interface FirstCustomerAutoSelectContext {
+  customerCreateOpen: boolean;
+  customerUuid: string;
+  open: boolean;
+  storeUuid: string;
+}
+
+export interface FirstCustomerAutoSelectRequest {
+  generation: number;
+}
+
+type FirstCustomerAutoSelectAction = "load" | "none" | "preserve" | "reset";
+
+export interface FirstCustomerAutoSelectTransition {
+  action: FirstCustomerAutoSelectAction;
+  request: FirstCustomerAutoSelectRequest | null;
+  state: FirstCustomerAutoSelectState;
+}
+
+export function createFirstCustomerAutoSelectState(): FirstCustomerAutoSelectState {
+  return { attempted: false, generation: 0 };
+}
+
+export function invalidateFirstCustomerAutoSelect(
+  state: FirstCustomerAutoSelectState,
+): FirstCustomerAutoSelectState {
+  return { ...state, generation: state.generation + 1 };
+}
+
+export function preserveFirstCustomerAutoSelect(
+  state: FirstCustomerAutoSelectState,
+): FirstCustomerAutoSelectState {
+  return state;
+}
+
+export function canApplyFirstCustomerAutoSelect(
+  state: FirstCustomerAutoSelectState,
+  request: FirstCustomerAutoSelectRequest,
+  mounted: boolean,
+): boolean {
+  return mounted && state.generation === request.generation;
+}
+
+export function advanceFirstCustomerAutoSelect(
+  state: FirstCustomerAutoSelectState,
+  context: FirstCustomerAutoSelectContext,
+): FirstCustomerAutoSelectTransition {
+  if (!context.open) {
+    return {
+      action: "reset",
+      request: null,
+      state: {
+        attempted: false,
+        generation: state.generation + 1,
+      },
+    };
+  }
+  if (
+    context.customerCreateOpen ||
+    context.customerUuid ||
+    !context.storeUuid
+  ) {
+    return { action: "none", request: null, state };
+  }
+  if (state.attempted) {
+    return { action: "preserve", request: null, state };
+  }
+
+  const nextState = {
+    attempted: true,
+    generation: state.generation + 1,
+  };
+  return {
+    action: "load",
+    request: { generation: nextState.generation },
+    state: nextState,
+  };
+}
+
+export function firstCustomerFromRows(customers: Customer[]) {
+  const customer = customers[0] ?? null;
+  return customerUuidOf(customer) ? customer : null;
+}
+
 export function firstCustomerListParams(
   storeUuid: string,
   language?: string | null,
@@ -124,26 +213,6 @@ export function firstCustomerListParams(
     sort_by: "ASC",
     lang: toApiLanguage(language),
   };
-}
-
-export function firstCustomerAutoSelectAction({
-  attempted,
-  customerCreateOpen,
-  customerUuid,
-  open,
-  storeUuid,
-}: {
-  attempted: boolean;
-  customerCreateOpen: boolean;
-  customerUuid: string;
-  open: boolean;
-  storeUuid: string;
-}): "load" | "none" | "reset" {
-  if (!open) return "reset";
-  if (attempted || customerCreateOpen || customerUuid || !storeUuid) {
-    return "none";
-  }
-  return "load";
 }
 
 export function defaultCustomerFromRows(customers: Customer[], term: string) {

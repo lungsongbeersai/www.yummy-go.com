@@ -1,6 +1,8 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+import { SearchInput } from "@/components/common/search-input";
 import { Badge } from "@/components/ui/badge";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -14,11 +16,7 @@ import {
 } from "@/components/ui/select";
 import { PAGE_LIMIT_OPTIONS, isAllPageLimit } from "@/lib/pagination";
 import { reportOrderLabel, reportOrderOptions } from "../shared/report-sort-utils";
-import {
-  ReportFilterCard,
-  ReportFilterSheet,
-  ReportMobileFilterSummary,
-} from "../shared/report-filter-shell";
+import { ReportFilterCard, ReportFilterSheet } from "../shared/report-filter-shell";
 import type {
   DetailPaginationBasis,
   ReportBranchOption,
@@ -41,7 +39,10 @@ type ReportFilterProps = {
   onDraftChange: (filters: ReportFilters) => void;
 };
 
+// จอ lg ขึ้นไปมีที่ว่างพอให้ตัวกรองอยู่บนหน้าเลย ไม่ต้องเปิด modal เพื่อเปลี่ยนแค่สาขา
+// (ก่อนหน้านี้คอมโพเนนต์นี้ถูกเขียนไว้แต่ไม่มีใครเรียก ทุกขนาดจอจึงถูกบังคับให้ใช้ modal)
 export function DailySalesFilterBar({
+  actions,
   branchLoading,
   branchLocked,
   branchOptions,
@@ -51,11 +52,13 @@ export function DailySalesFilterBar({
   loading,
   onApply,
   onDraftChange,
-}: ReportFilterProps) {
+}: ReportFilterProps & { actions?: ReactNode }) {
   return (
     <ReportFilterCard
+      actions={actions}
       canApply={canApply}
-      contentClassName="grid min-w-0 gap-3 p-3 sm:p-4 lg:grid-cols-4 lg:items-end 2xl:grid-cols-[repeat(7,minmax(0,1fr))_auto]"
+      className="hidden shrink-0 rounded-none border-x-0 border-t-0 shadow-none lg:block"
+      contentClassName="grid min-w-0 items-end gap-3 px-3 py-3 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-[repeat(7,minmax(0,1fr))_auto]"
       loading={loading}
       onApply={onApply}
     >
@@ -113,61 +116,45 @@ export function DailySalesFilterSheet({
   );
 }
 
-export function MobileReportFilterSummary({
+// จอเล็กยังต้องใช้ modal แต่ต้องอ่านออกได้ว่า "ตอนนี้กรองอะไรอยู่" โดยไม่ต้องเปิดเข้าไปดู
+// เดิมมีคอมโพเนนต์ทำหน้าที่นี้อยู่แล้วแต่ไม่มีใครเรียก และยังซ้ำกับ FilterHeaderToolbar
+// (ปุ่มวันที่/ปุ่มเปิดตัวกรอง) จึงเหลือไว้แค่ส่วนที่ให้ข้อมูลจริงคือแถว badge
+export function AppliedFilterBadges({
   branchLabel,
   detailPaginationBasis,
   filters,
-  onOpen,
 }: {
   branchLabel: string;
   detailPaginationBasis: DetailPaginationBasis;
   filters: ReportFilters;
-  onOpen: () => void;
 }) {
   const { t } = useTranslation();
-  const typeLabel =
-    filters.typePage === "bill"
-      ? t("report.salesReportByBill")
-      : t("report.detailedSalesReport");
-  const paymentLabel = paymentMethodLabel(t, filters.paymentMethod);
-  const limitCount = isAllPageLimit(filters.limit)
-    ? t("common.all")
-    : filters.limit;
+  const limitCount = isAllPageLimit(filters.limit) ? t("common.all") : filters.limit;
   const limitLabel =
     filters.typePage === "detail"
       ? detailPaginationBasis === "bills"
         ? t("report.billsPerPageValue", { count: limitCount })
         : t("report.linesPerPageValue", { count: limitCount })
       : t("report.rowsPerPageValue", { count: limitCount });
-  const dateRangeLabel = `${filters.dateFrom} - ${filters.dateTo}`;
+  const badges = [
+    branchLabel,
+    paymentMethodLabel(t, filters.paymentMethod),
+    reportOrderLabel(t, filters.orderBy),
+    limitLabel,
+    filters.search
+  ].filter(Boolean);
 
   return (
-    <ReportMobileFilterSummary dateRangeLabel={dateRangeLabel} onOpen={onOpen}
-      badges={
-        <>
-          <Badge className="h-6 max-w-44 truncate border-border bg-muted px-2 text-[11px] text-muted-foreground">
-            {branchLabel}
-          </Badge>
-          <Badge className="h-6 max-w-32 truncate px-2 text-[11px]">
-            {typeLabel}
-          </Badge>
-          <Badge className="h-6 border-border bg-muted px-2 text-[11px] text-muted-foreground">
-            {paymentLabel}
-          </Badge>
-          {filters.search ? (
-            <Badge className="h-6 max-w-36 truncate border-border bg-muted px-2 text-[11px] text-muted-foreground">
-              {filters.search}
-            </Badge>
-          ) : null}
-          <Badge className="h-6 border-border bg-muted px-2 text-[11px] text-muted-foreground">
-            {limitLabel}
-          </Badge>
-          <Badge className="h-6 border-border bg-muted px-2 text-[11px] text-muted-foreground">
-            {reportOrderLabel(t, filters.orderBy)}
-          </Badge>
-        </>
-      }
-    />
+    <div className="flex min-w-0 flex-wrap gap-1.5">
+      {badges.map((label) => (
+        <Badge
+          key={label}
+          className="h-6 max-w-44 truncate border-border bg-muted px-2 text-xs font-normal text-muted-foreground"
+        >
+          {label}
+        </Badge>
+      ))}
+    </div>
   );
 }
 
@@ -196,10 +183,23 @@ function ReportFilterFields({
 
   return (
     <>
+      {/* ค้นหาเป็นตัวกรองปกติ = มีผลตอนกดปุ่ม "ໃຊ້" เหมือนช่องอื่น (เดิมอยู่หัวตารางและกรองทันทีที่พิมพ์) */}
+      <Field className="min-w-0 gap-1.5">
+        <FieldLabel htmlFor={`${idPrefix}-search`} className="text-xs font-medium text-muted-foreground">
+          {t("actions.search")}
+        </FieldLabel>
+        <SearchInput
+          id={`${idPrefix}-search`}
+          ariaLabel={t("actions.search")}
+          placeholder={t("actions.search")}
+          value={draftFilters.search}
+          onChange={(value) => patch({ search: value })}
+        />
+      </Field>
       <Field className="min-w-0 gap-1.5">
         <FieldLabel
           htmlFor={`${idPrefix}-branch`}
-          className="text-xs font-bold text-muted-foreground"
+          className="text-xs font-medium text-muted-foreground"
         >
           {t("nav.branch")}
         </FieldLabel>
@@ -225,7 +225,7 @@ function ReportFilterFields({
       <Field className="min-w-0 gap-1.5">
         <FieldLabel
           htmlFor={`${idPrefix}-date-from`}
-          className="text-xs font-bold text-muted-foreground"
+          className="text-xs font-medium text-muted-foreground"
         >
           {t("report.filters.dateFrom")}
         </FieldLabel>
@@ -239,7 +239,7 @@ function ReportFilterFields({
       <Field className="min-w-0 gap-1.5">
         <FieldLabel
           htmlFor={`${idPrefix}-date-to`}
-          className="text-xs font-bold text-muted-foreground"
+          className="text-xs font-medium text-muted-foreground"
         >
           {t("report.filters.dateTo")}
         </FieldLabel>
@@ -253,7 +253,7 @@ function ReportFilterFields({
       <Field className="min-w-0 gap-1.5">
         <FieldLabel
           htmlFor={`${idPrefix}-payment-method`}
-          className="text-xs font-bold text-muted-foreground"
+          className="text-xs font-medium text-muted-foreground"
         >
           {t("report.filters.paymentMethod")}
         </FieldLabel>
@@ -280,7 +280,7 @@ function ReportFilterFields({
       <Field className="min-w-0 gap-1.5">
         <FieldLabel
           htmlFor={`${idPrefix}-order-by`}
-          className="text-xs font-bold text-muted-foreground"
+          className="text-xs font-medium text-muted-foreground"
         >
           {t("report.filters.orderBy")}
         </FieldLabel>
@@ -307,7 +307,7 @@ function ReportFilterFields({
       <Field className="min-w-0 gap-1.5">
         <FieldLabel
           htmlFor={`${idPrefix}-limit`}
-          className="text-xs font-bold text-muted-foreground"
+          className="text-xs font-medium text-muted-foreground"
         >
           {draftFilters.typePage === "detail"
             ? detailPaginationBasis === "bills"

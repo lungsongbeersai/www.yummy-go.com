@@ -5,10 +5,14 @@ import { Drawer as DrawerPrimitive } from "vaul"
 
 import { cn } from "@/lib/utils"
 
+// vaul ตั้ง autoFocus=false เป็นค่าเริ่มต้น (preventDefault ใน onOpenAutoFocus) โฟกัสจึงค้างอยู่ที่ปุ่ม
+// ที่กดเปิด drawer ซึ่งตอนนั้นถูก Radix ครอบ aria-hidden ไปแล้ว → Chrome เตือน "Blocked aria-hidden on an
+// element because its descendant retained focus" คืนค่าเป็นพฤติกรรมมาตรฐานของ Radix Dialog แทน
 function Drawer({
+  autoFocus = true,
   ...props
 }: React.ComponentProps<typeof DrawerPrimitive.Root>) {
-  return <DrawerPrimitive.Root data-slot="drawer" {...props} />
+  return <DrawerPrimitive.Root data-slot="drawer" autoFocus={autoFocus} {...props} />
 }
 
 function DrawerTrigger({

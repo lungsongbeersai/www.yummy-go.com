@@ -1,4 +1,4 @@
-import { apiRequest } from "@/lib/api";
+import { apiRequest, publicApiRequest } from "@/lib/api";
 import { toApiLanguage } from "@/lib/language";
 import {
   normalizeBillingCycles,
@@ -81,6 +81,27 @@ export async function fetchPackagePage(params: FetchPackagePageParams): Promise<
       page: params.page ?? 1,
       limit: params.limit ?? 10,
       orderBy: params.orderBy ?? "asc"
+    }
+  });
+
+  return normalizePackagePage(result);
+}
+
+// เวอร์ชันสำหรับหน้าเว็บก่อนล็อกอิน — ต้องยิงผ่าน publicApiClient เท่านั้น
+// apiRequest แนบ Bearer token และตอบ 401 ด้วยการ logout + เด้งไป /login
+// ผู้เยี่ยมชมที่ยังไม่มีบัญชีจึงจะโดนเตะออกจากหน้าแรกทันทีถ้าใช้ตัวเดิม
+//
+// ไม่ส่ง limit เลย — ฝั่ง API จะตอบ limit: "all" คืนมาครบทุกแพ็กเกจในหน้าเดียว
+// (ส่ง limit ไปจะได้แค่หน้าแรกตามจำนวนที่ส่ง ซึ่งไม่พอสำหรับหน้าแสดงราคา)
+// package_status = 1 คือเฉพาะที่เปิดใช้งาน — แพ็กเกจที่ปิดไว้เป็นข้อมูลภายใน ไม่ควรให้ผู้ที่ยังไม่ล็อกอินเห็น
+export async function fetchPublicPackages(language?: string): Promise<PackagePageResult> {
+  const result = await publicApiRequest<PackagePageResponse>("get", "/api/v1/packages/fetch_limit", {
+    params: {
+      lang: toApiLanguage(language),
+      package_status: 1,
+      search: "",
+      page: 1,
+      orderBy: "asc"
     }
   });
 

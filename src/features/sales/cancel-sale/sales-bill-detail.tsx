@@ -68,7 +68,7 @@ export function SalesBillDetailPanel({
   onReprintReceipt: () => void;
 }) {
   return (
-    <aside className="hidden min-h-0 flex-col overflow-hidden rounded-lg border border-border bg-card md:flex">
+    <aside className="hidden min-h-0 flex-col overflow-hidden rounded-none border-0 bg-card md:flex">
       <SalesBillDetailContent
         bill={bill}
         canCancel={canCancel}

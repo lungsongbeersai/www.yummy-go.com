@@ -46,86 +46,155 @@ export function SalesBillDetailPanel({
   variant = "panel"
 }: SalesBillDetailPanelProps) {
   const { t } = useTranslation();
-  const [openingCancelSale, setOpeningCancelSale] = useState(false);
   const drawer = variant === "drawer";
+  const cardClass = cn(
+    "min-h-0 overflow-hidden rounded-none border-x-0 border-b-0 border-border bg-card shadow-none xl:flex xl:min-h-0 xl:flex-col",
+    className
+  );
   const cancelUnavailableDescriptionId = `sales-list-cancel-unavailable-${variant}`;
 
-  return (
-    <Card className={cn("min-h-0 overflow-hidden border-border bg-card shadow-sm xl:flex xl:min-h-0 xl:flex-col", className)}>
-      {!bill ? (
+  if (!bill) {
+    return (
+      <Card className={cardClass}>
         <div className="flex min-h-96 flex-1 items-center justify-center p-4">
           <EmptyState title={t("salesList.noSelection")} description={t("salesList.selectBillHint")} />
         </div>
-      ) : (
-        <>
-          <CardHeader className="flex-col items-stretch gap-2 border-b border-border px-3 py-2.5 md:flex-row md:items-start md:justify-between md:px-4">
-            <div className="min-w-0 flex-1">
-              <CardTitle className="truncate text-base font-black">{t("salesList.billDetail")}</CardTitle>
-              <BillHeaderFacts bill={bill} compact={drawer} />
-            </div>
-            <div className="flex w-full shrink-0 flex-col gap-1.5 md:w-auto md:items-end">
-              <div className={cn("grid w-full gap-2 min-[430px]:grid-cols-2", !drawer && "md:flex md:w-auto")}>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="min-h-11 w-full shrink-0 md:h-9 md:min-h-9 md:w-auto"
-                  disabled={!canReprintReceipt || !textValue(readValue(bill.raw, ["order_uuid"]), "") || Boolean(printingBillId) || loading}
-                  onClick={() => onReprint(bill)}
-                >
-                  {printingBillId === bill.id ? <RefreshCcw className="animate-spin" data-icon="inline-start" /> : <Printer data-icon="inline-start" />}
-                  <span className="truncate">
-                    {printingBillId === bill.id ? t("salesList.reprintingReceipt") : t("salesList.reprintReceipt")}
-                  </span>
-                </Button>
-                {cancelSaleHref ? (
-                  <Button asChild className="min-h-11 w-full shrink-0 md:h-9 md:min-h-9 md:w-auto" size="md" variant="danger">
-                    <Link
-                      aria-busy={openingCancelSale}
-                      aria-disabled={openingCancelSale}
-                      href={cancelSaleHref}
-                      onClick={(event) => {
-                        if (openingCancelSale) {
-                          event.preventDefault();
-                          return;
-                        }
-                        setOpeningCancelSale(true);
-                      }}
-                    >
-                      {openingCancelSale ? <Spinner data-icon="inline-start" /> : <Ban data-icon="inline-start" />}
-                      <span className="truncate">
-                        {openingCancelSale ? t("cancelSale.openingCancelPage") : t("cancelSale.cancelBill")}
-                      </span>
-                    </Link>
-                  </Button>
-                ) : (
-                  <Button
-                    aria-describedby={cancelUnavailableDescriptionId}
-                    className="min-h-11 w-full shrink-0 md:h-9 md:min-h-9 md:w-auto"
-                    disabled
-                    type="button"
-                    variant="danger"
-                  >
-                    <Ban data-icon="inline-start" />
-                    <span className="truncate">{t("cancelSale.cancelBill")}</span>
-                  </Button>
-                )}
-              </div>
-              {!cancelSaleHref ? (
-                <p id={cancelUnavailableDescriptionId} className="max-w-sm text-xs leading-snug text-muted-foreground md:text-right">
-                  {t("cancelSale.cancelUnavailable")}
-                </p>
-              ) : null}
-            </div>
-          </CardHeader>
-          <CardContent className="flex min-h-0 flex-1 flex-col p-0">
-            <div className="min-h-0 flex-1 overflow-auto p-2 sm:p-3">
+      </Card>
+    );
+  }
+
+  const heading = (
+    <>
+      <CardTitle className="truncate text-base font-semibold">{t("salesList.billDetail")}</CardTitle>
+      <BillHeaderFacts bill={bill} compact={drawer} />
+    </>
+  );
+  const actions = (
+    <BillDetailActions
+      bill={bill}
+      cancelSaleHref={cancelSaleHref}
+      canReprintReceipt={canReprintReceipt}
+      descriptionId={cancelUnavailableDescriptionId}
+      drawer={drawer}
+      loading={loading}
+      printingBillId={printingBillId}
+      onReprint={onReprint}
+    />
+  );
+
+  // มือถือมีความสูงจำกัด หัวแผงจึงเลื่อนหายไปพร้อมเนื้อหาเพื่อคืนพื้นที่ให้รายการสินค้า
+  // แล้วปักยอดสรุปกับปุ่มสั่งงานไว้ล่างสุดในระยะนิ้วโป้ง — ทั้งคู่ต้องเข้าถึงได้ตลอดโดยไม่ต้องเลื่อนกลับ
+  if (drawer) {
+    return (
+      <Card className={cardClass}>
+        <CardContent className="flex min-h-0 flex-1 flex-col p-0">
+          <div className="min-h-0 flex-1 overflow-auto">
+            <div className="border-b border-border px-3 py-2.5">{heading}</div>
+            <div className="p-2">
               <SalesListItems items={bill.items} />
             </div>
-            <SelectedBillSummary bill={bill} />
-          </CardContent>
-        </>
-      )}
+          </div>
+          <SelectedBillSummary bill={bill} />
+          <div className="shrink-0 border-t border-border bg-card px-3 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+            {actions}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className={cardClass}>
+      <CardHeader className="flex-col items-stretch gap-2 border-b border-border px-3 py-2.5 md:flex-row md:items-start md:justify-between md:px-4">
+        <div className="min-w-0 flex-1">{heading}</div>
+        {actions}
+      </CardHeader>
+      <CardContent className="flex min-h-0 flex-1 flex-col p-0">
+        <div className="min-h-0 flex-1 overflow-auto p-2 sm:p-3">
+          <SalesListItems items={bill.items} />
+        </div>
+        <SelectedBillSummary bill={bill} />
+      </CardContent>
     </Card>
+  );
+}
+
+function BillDetailActions({
+  bill,
+  cancelSaleHref,
+  canReprintReceipt,
+  descriptionId,
+  drawer,
+  loading,
+  onReprint,
+  printingBillId
+}: {
+  bill: DailySaleItemsBillGroup;
+  cancelSaleHref: Route | null;
+  canReprintReceipt: boolean;
+  descriptionId: string;
+  drawer: boolean;
+  loading: boolean;
+  onReprint: (group: DailySaleItemsBillGroup) => void;
+  printingBillId: string;
+}) {
+  const { t } = useTranslation();
+  const [openingCancelSale, setOpeningCancelSale] = useState(false);
+  const reprinting = printingBillId === bill.id;
+
+  return (
+    <div className={cn("flex w-full shrink-0 flex-col gap-1.5", !drawer && "md:w-auto md:items-end")}>
+      {/* บังคับสองปุ่มเรียงคู่เสมอ — เรียงแนวตั้งบนจอ 393px กินความสูงที่ต้องเก็บไว้ให้รายการสินค้า */}
+      <div className={cn("grid w-full grid-cols-2 gap-2", !drawer && "md:flex md:w-auto")}>
+        <Button
+          type="button"
+          variant="outline"
+          className="min-h-11 w-full shrink-0 md:h-9 md:min-h-9 md:w-auto"
+          disabled={!canReprintReceipt || !textValue(readValue(bill.raw, ["order_uuid"]), "") || Boolean(printingBillId) || loading}
+          onClick={() => onReprint(bill)}
+        >
+          {reprinting ? <RefreshCcw className="animate-spin" data-icon="inline-start" /> : <Printer data-icon="inline-start" />}
+          <span className="truncate">{reprinting ? t("salesList.reprintingReceipt") : t("salesList.reprintReceipt")}</span>
+        </Button>
+        {cancelSaleHref ? (
+          <Button asChild className="min-h-11 w-full shrink-0 md:h-9 md:min-h-9 md:w-auto" size="md" variant="danger">
+            <Link
+              aria-busy={openingCancelSale}
+              aria-disabled={openingCancelSale}
+              href={cancelSaleHref}
+              onClick={(event) => {
+                if (openingCancelSale) {
+                  event.preventDefault();
+                  return;
+                }
+                setOpeningCancelSale(true);
+              }}
+            >
+              {openingCancelSale ? <Spinner data-icon="inline-start" /> : <Ban data-icon="inline-start" />}
+              <span className="truncate">
+                {openingCancelSale ? t("cancelSale.openingCancelPage") : t("cancelSale.cancelBill")}
+              </span>
+            </Link>
+          </Button>
+        ) : (
+          <Button
+            aria-describedby={descriptionId}
+            className="min-h-11 w-full shrink-0 md:h-9 md:min-h-9 md:w-auto"
+            disabled
+            type="button"
+            variant="danger"
+          >
+            <Ban data-icon="inline-start" />
+            <span className="truncate">{t("cancelSale.cancelBill")}</span>
+          </Button>
+        )}
+      </div>
+      {!cancelSaleHref ? (
+        <p id={descriptionId} className="max-w-sm text-xs leading-snug text-muted-foreground md:text-right">
+          {t("cancelSale.cancelUnavailable")}
+        </p>
+      ) : null}
+    </div>
   );
 }
 
@@ -236,15 +305,15 @@ function BillHeaderFact({
   return (
     <span
       className={cn(
-        "inline-flex w-full min-w-0 items-center gap-1.5 rounded-md border border-border/80 bg-background px-2 py-1 text-xs text-muted-foreground shadow-sm",
+        "inline-flex w-full min-w-0 items-center gap-1.5 rounded-md border border-border bg-muted/40 px-2 py-1 text-xs leading-5 text-muted-foreground",
         compact ? "" : "md:w-auto md:max-w-56 2xl:max-w-64"
       )}
       title={`${item.label}: ${item.value}`}
     >
       <span className="flex size-3.5 shrink-0 items-center justify-center text-muted-foreground/80 [&_svg]:size-3.5">{item.icon}</span>
       <span className="min-w-0 truncate">
-        <span className="font-medium">{item.label}: </span>
-        <span className="font-semibold text-foreground/85">{item.value}</span>
+        <span>{item.label}: </span>
+        <span className="font-medium text-foreground">{item.value}</span>
       </span>
     </span>
   );
@@ -256,19 +325,6 @@ interface SummaryMetric {
   label: string;
   tone: SummaryMetricTone;
   value: number;
-}
-
-function summaryMetricClass(tone: SummaryMetricTone) {
-  const classes = {
-    amount: "border-primary/20 bg-primary/10 text-primary",
-    discount: "border-destructive/20 bg-destructive/10 text-destructive",
-    total: "border-primary/20 bg-primary/10 text-primary",
-    service: "border-border bg-muted/35 text-foreground",
-    topping: "border-border bg-muted/35 text-foreground",
-    vat: "border-border bg-muted/35 text-foreground"
-  } satisfies Record<SummaryMetricTone, string>;
-
-  return classes[tone];
 }
 
 function SelectedBillSummary({ bill }: { bill: DailySaleItemsBillGroup }) {
@@ -291,22 +347,35 @@ function SelectedBillSummary({ bill }: { bill: DailySaleItemsBillGroup }) {
   ];
   const metrics = allMetrics.filter((metric) => metric.tone === "amount" || metric.tone === "total" || metric.value > 0);
 
+  const lineItems = metrics.filter((metric) => metric.tone !== "total");
+  const totalMetric = metrics.find((metric) => metric.tone === "total");
+
   return (
     <div className="shrink-0 border-t border-border bg-card px-3 py-3 sm:px-4">
-      <p className="text-sm font-black">{t("salesList.billSummary")}</p>
-      <div className="mt-2 flex flex-col divide-y divide-border overflow-hidden rounded-md border border-border">
-        {metrics.map((metric) => (
-          <div
-            key={metric.label}
-            className={cn(
-              "flex min-w-0 items-center justify-between gap-3 px-3 py-2",
-              summaryMetricClass(metric.tone)
-            )}
-          >
-            <p className="truncate text-xs font-bold opacity-80">{metric.label}</p>
-            <p className="shrink-0 text-sm font-black tabular-nums">{money(metric.value)}</p>
+      <p className="text-xs font-medium text-muted-foreground">{t("salesList.billSummary")}</p>
+      {/* แถวย่อยพื้นเรียบทั้งหมด เหลือสีเฉพาะส่วนลด และยกยอดสุทธิเป็นจุดโฟกัสเดียวของแผง */}
+      <div className="mt-2 overflow-hidden rounded-md border border-border">
+        <div className="flex flex-col divide-y divide-border">
+          {lineItems.map((metric) => (
+            <div key={metric.label} className="flex min-w-0 items-center justify-between gap-3 px-3 py-2">
+              <p className="truncate text-xs leading-5 text-muted-foreground">{metric.label}</p>
+              <p
+                className={cn(
+                  "shrink-0 text-sm leading-5 tabular-nums",
+                  metric.tone === "discount" ? "text-destructive" : "text-foreground"
+                )}
+              >
+                {metric.tone === "discount" ? `-${money(metric.value)}` : money(metric.value)}
+              </p>
+            </div>
+          ))}
+        </div>
+        {totalMetric ? (
+          <div className="flex min-w-0 items-center justify-between gap-3 border-t-2 border-primary/20 bg-primary/5 px-3 py-2.5">
+            <p className="truncate text-sm font-medium text-foreground">{totalMetric.label}</p>
+            <p className="shrink-0 text-lg font-bold leading-7 tabular-nums text-primary">{money(totalMetric.value)}</p>
           </div>
-        ))}
+        ) : null}
       </div>
     </div>
   );

@@ -22,14 +22,14 @@ export function SalesListHeader({ loading, onRefresh }: { loading: boolean; onRe
   const { t } = useTranslation();
 
   return (
-    <div className="flex shrink-0 items-center justify-between gap-3 px-4 py-3 lg:px-5">
+    <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border bg-card px-3 py-3 sm:px-4 lg:px-5">
       <div className="flex min-w-0 items-center gap-3">
         <div className="hidden size-10 shrink-0 items-center justify-center rounded-md border border-border bg-card text-primary sm:flex">
           <ReceiptText />
         </div>
         <div className="min-w-0">
-          <div className="text-xs font-bold uppercase text-muted-foreground">{t("nav.sales")}</div>
-          <h1 className="truncate text-xl font-black leading-tight">{t("cancelSale.title")}</h1>
+          <div className="text-xs font-medium text-muted-foreground">{t("nav.sales")}</div>
+          <h1 className="truncate text-xl font-bold leading-tight">{t("cancelSale.title")}</h1>
           <p className="hidden max-w-2xl truncate text-xs text-muted-foreground md:block">{t("cancelSale.subtitle")}</p>
         </div>
       </div>
@@ -194,7 +194,6 @@ export function SalesListPaginationFooter({
   return (
     <div className="shrink-0 border-t border-border px-3 py-2.5 pb-[calc(0.625rem+env(safe-area-inset-bottom))] text-sm text-muted-foreground">
       <AppPagination
-        compact
         disabled={loading}
         page={page}
         rangeLabel={t("common.showingRange", { start: pageStart, end: pageEnd, total })}

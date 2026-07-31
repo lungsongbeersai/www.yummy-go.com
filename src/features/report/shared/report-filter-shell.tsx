@@ -1,9 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { SlidersHorizontal } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { DateFilterButton } from "@/components/common/date-filter-button";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
@@ -47,29 +45,41 @@ export function ReportApplyButton({
 
 // การ์ดแถบตัวกรอง (จอใหญ่): Card + grid ของ fields + ปุ่ม apply
 // contentClassName กำหนด layout ของ grid ต่อรายงาน (จำนวนคอลัมน์ต่างกัน)
+// actions = ปุ่มไอคอนท้ายแถว (รีเฟรช/สลับการ์ดสรุป) วางไว้ที่นี่เพื่อไม่ให้ซ้ำกับแถบเครื่องมือของจอเล็ก
 export function ReportFilterCard({
+  actions,
+  actionsClassName,
   canApply,
   children,
+  className,
   contentClassName,
   loading,
   onApply,
 }: {
+  actions?: ReactNode;
+  // ช่องของปุ่ม "ใช้" ในกริด — รายงานที่ field มี col-span ของตัวเองต้องกำหนดช่องนี้ให้ตรงกันด้วย
+  actionsClassName?: string;
   canApply: boolean;
   children: ReactNode;
+  className?: string;
   contentClassName: string;
   loading: boolean;
   onApply: () => void;
 }) {
   return (
-    <Card className="min-w-0 border-border bg-card shadow-sm">
+    <Card className={cn("min-w-0 border-border bg-card shadow-sm", className)}>
       <CardContent className={contentClassName}>
         {children}
-        <ReportApplyButton
-          canApply={canApply}
-          className="h-9 min-w-28"
-          loading={loading}
-          onApply={onApply}
-        />
+        {/* flex-wrap เป็นตัวกันพลาด: ถ้าช่องในกริดแคบกว่าปุ่ม+ไอคอนรวมกัน ให้ตกบรรทัดแทนที่จะถูกตัดหาย */}
+        <div className={cn("flex min-w-0 flex-wrap items-center gap-2", actionsClassName)}>
+          <ReportApplyButton
+            canApply={canApply}
+            className="h-9 min-w-20 flex-1"
+            loading={loading}
+            onApply={onApply}
+          />
+          {actions}
+        </div>
       </CardContent>
     </Card>
   );
@@ -102,7 +112,7 @@ export function ReportFilterSheet({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-5xl">
         <DialogHeader className="shrink-0 border-b border-border px-4 py-3 pr-12 text-left">
-          <DialogTitle className="text-base font-black">
+          <DialogTitle className="text-base font-semibold">
             {t("report.filters.currentFilters")}
           </DialogTitle>
           <DialogDescription>{description}</DialogDescription>
@@ -120,44 +130,5 @@ export function ReportFilterSheet({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
-}
-
-// แถบสรุปตัวกรอง (จอเล็ก): ปุ่มช่วงวันที่ + แถว Badge สรุป + ปุ่มเปิดตัวกรอง
-// badges = Badge เฉพาะของแต่ละรายงาน
-export function ReportMobileFilterSummary({
-  badges,
-  dateRangeLabel,
-  onOpen,
-}: {
-  badges: ReactNode;
-  dateRangeLabel: string;
-  onOpen: () => void;
-}) {
-  const { t } = useTranslation();
-
-  return (
-    <div className="rounded-md border border-border bg-card p-2 shadow-sm">
-      <div className="flex items-center justify-between gap-2">
-        <div className="min-w-0">
-          <DateFilterButton
-            ariaLabel={`${t("report.filters.openFilters")}: ${dateRangeLabel}`}
-            className="h-8 max-w-full rounded-md border-border/70 bg-muted/50 px-2 text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground"
-            label={dateRangeLabel}
-            onClick={onOpen}
-          />
-          <div className="mt-1 flex min-w-0 flex-wrap gap-1">{badges}</div>
-        </div>
-        <Button
-          type="button"
-          size="sm"
-          className="h-9 shrink-0 px-3"
-          onClick={onOpen}
-        >
-          <SlidersHorizontal data-icon="inline-start" />
-          {t("report.filters.openFilters")}
-        </Button>
-      </div>
-    </div>
   );
 }

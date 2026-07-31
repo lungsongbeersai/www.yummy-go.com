@@ -2,17 +2,9 @@
 
 import type { ReactNode } from "react";
 import { BlockingLoadingDialog } from "@/components/common/blocking-loading-dialog";
-import {
-  ChevronDown,
-  ChevronRight,
-  Download,
-  Eye,
-  EyeOff,
-  FileSpreadsheet,
-} from "lucide-react";
+import { ChevronDown, ChevronRight, Download, FileSpreadsheet } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { EmptyState } from "@/components/common/empty-state";
-import { SearchInput } from "@/components/common/search-input";
 import { LoadingState } from "@/components/common/loading-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -43,12 +35,6 @@ interface DailySalesSummaryCardsProps {
   summaryCards: SummaryCards;
 }
 
-interface ReportSummaryToggleProps {
-  controlsId: string;
-  expanded: boolean;
-  onToggle: () => void;
-}
-
 interface ReportExportLoadingDialogProps {
   exporting: ReportExportAction | null;
   progress: ReportExportProgress | null;
@@ -65,11 +51,9 @@ interface DailySalesTableCardProps {
 interface ReportTableActionsProps {
   allDetailGroupsExpanded: boolean;
   billGroupsLength: number;
-  branchUuid: string | null;
   exportDisabled: boolean;
   exporting: ReportExportAction | null;
   loading: boolean;
-  search: string;
   selectedBillCount: number;
   selectedCount: number;
   typePage: ReportTab;
@@ -78,7 +62,6 @@ interface ReportTableActionsProps {
   onExpandAllBills: () => void;
   onExportExcel: () => void;
   onExportPdf: () => void;
-  onSearchChange: (search: string) => void;
   onTypePageChange: (typePage: ReportTab) => void;
 }
 
@@ -94,34 +77,24 @@ export function DailySalesSummaryCards({
   summaryCards,
 }: DailySalesSummaryCardsProps) {
   return (
-    <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
+    <section className="grid shrink-0 gap-2 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
       {cards.map((card) => {
         const value = summaryCardValue(summaryCards, reportTotal, card.keys);
         const tone = summaryCardTone(card);
 
         return (
-          <Card
-            key={card.label}
-            className={cn(
-              "overflow-hidden border bg-card shadow-sm",
-              tone === "primary" && "border-primary/40 border-s-4 border-s-primary",
-              tone === "danger" &&
-                "border-destructive/40 border-s-4 border-s-destructive",
-              tone === "neutral" && "border-border",
-            )}
-          >
-            <CardContent className="p-4">
+          // ป้ายกำกับเงียบเหมือนกันทุกใบ แล้วให้ "ตัวเลข" เป็นตัวบอกโทน — เดิมทั้ง 6 ใบ
+          // มีทั้งแถบสีซ้าย ป้ายสี และตัวเลขหนา 900 พร้อมกัน จนไม่มีใบไหนเด่นกว่ากัน
+          // (uppercase ไม่มีผลกับอักษรลาวอยู่แล้ว)
+          <Card key={card.label} className="overflow-hidden border-border bg-card shadow-none">
+            <CardContent className="p-3">
+              <p className="truncate text-xs leading-5 text-muted-foreground">{card.label}</p>
               <p
                 className={cn(
-                  "truncate text-xs font-black uppercase",
-                  tone === "primary" && "text-primary",
-                  tone === "danger" && "text-destructive",
-                  tone === "neutral" && "text-muted-foreground",
+                  "mt-0.5 truncate text-lg leading-7 font-semibold tabular-nums",
+                  tone === "danger" ? "text-destructive" : "text-foreground",
                 )}
               >
-                {card.label}
-              </p>
-              <p className="mt-2 truncate text-xl font-black tabular-nums text-foreground">
                 {card.kind === "money"
                   ? money(firstNumber(value))
                   : firstNumber(value).toLocaleString("en-US")}
@@ -145,36 +118,6 @@ function summaryCardTone(card: SummaryCardConfig) {
 
   if (card.kind === "money") return "primary";
   return "neutral";
-}
-
-export function ReportSummaryToggle({
-  controlsId,
-  expanded,
-  onToggle,
-}: ReportSummaryToggleProps) {
-  const { t } = useTranslation();
-  const label = expanded ? t("report.hideSummary") : t("report.showSummary");
-
-  return (
-    <div className="flex">
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        className="h-9 whitespace-nowrap"
-        aria-controls={controlsId}
-        aria-expanded={expanded}
-        onClick={onToggle}
-      >
-        {expanded ? (
-          <EyeOff data-icon="inline-start" aria-hidden="true" />
-        ) : (
-          <Eye data-icon="inline-start" aria-hidden="true" />
-        )}
-        {label}
-      </Button>
-    </div>
-  );
 }
 
 export function ReportExportLoadingDialog({
@@ -212,7 +155,7 @@ export function DailySalesTableCard({
   const { t } = useTranslation();
 
   return (
-    <Card className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden border-border bg-card shadow-sm">
+    <Card className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-none border-x-0 border-b-0 border-border bg-card shadow-none">
       <ReportTableActions {...actions} />
 
       <CardContent
@@ -226,7 +169,10 @@ export function DailySalesTableCard({
         ) : rowsLength ? (
           <>
             <div className="min-h-0 flex-1 scroll-pb-10 overflow-auto">{children}</div>
-            <div className="shrink-0 bg-card">{footer}</div>
+            {/* ระยะในและเส้นคั่นเดียวกับ footer ของหน้าอื่นที่ใช้ AppPagination — เดิมไม่มีทั้งคู่ */}
+            <div className="shrink-0 border-t border-border bg-card px-4 py-3 text-sm text-muted-foreground">
+              {footer}
+            </div>
           </>
         ) : (
           <div className="min-h-80 p-4">
@@ -244,11 +190,9 @@ export function DailySalesTableCard({
 function ReportTableActions({
   allDetailGroupsExpanded,
   billGroupsLength,
-  branchUuid,
   exportDisabled,
   exporting,
   loading,
-  search,
   selectedBillCount,
   selectedCount,
   typePage,
@@ -257,7 +201,6 @@ function ReportTableActions({
   onExpandAllBills,
   onExportExcel,
   onExportPdf,
-  onSearchChange,
   onTypePageChange,
 }: ReportTableActionsProps) {
   const { t } = useTranslation();
@@ -268,8 +211,10 @@ function ReportTableActions({
   return (
     <CardHeader className="shrink-0 border-b border-border bg-card px-2 py-2 sm:px-3">
       <div className="flex w-full min-w-0 flex-col gap-2">
-        <div className="grid w-full min-w-0 grid-cols-1 gap-2 md:grid-cols-[minmax(0,20rem)_minmax(0,1fr)] md:items-center xl:grid-cols-[minmax(18rem,20rem)_minmax(16rem,1fr)_auto]">
-          <div className="min-w-0">
+        {/* โครงคงที่ 2 แถบ: ซ้าย = สลับมุมมอง + ค้นหา / ขวา = ปุ่มสั่งงาน
+            เดิม grid สลับโครง 3 แบบตาม breakpoint ทำให้ปุ่ม export กระโดดข้ามแถวไปมา */}
+        <div className="flex w-full min-w-0 flex-wrap items-center gap-2">
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
             <ReportTypeSwitch
               disabled={disabled}
               value={typePage}
@@ -277,29 +222,16 @@ function ReportTableActions({
             />
           </div>
 
-          <SearchInput
-            className="min-w-0"
-            inputClassName="text-sm"
-            ariaLabel={t("actions.search")}
-            placeholder={t("actions.search")}
-            disabled={!branchUuid || Boolean(exporting)}
-            value={search}
-            onChange={onSearchChange}
-          />
-
-          <div className="flex min-w-0 flex-wrap items-center justify-start gap-1.5 md:col-span-2 md:justify-end xl:col-span-1 xl:flex-nowrap">
+          <div className="flex min-w-0 shrink-0 items-center gap-1.5">
             {isDetail && billGroupsLength ? (
+              // เดิมเป็นไอคอนเปล่าไม่มีข้อความและไม่มี tooltip — เดาไม่ออกว่าปุ่มทำอะไร
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
-                aria-label={
-                  allDetailGroupsExpanded
-                    ? t("actions.collapseAll")
-                    : t("actions.expandAll")
-                }
                 className="h-9 min-w-9 rounded-md px-2.5"
                 disabled={disabled}
+                title={allDetailGroupsExpanded ? t("actions.collapseAll") : t("actions.expandAll")}
                 onClick={
                   allDetailGroupsExpanded
                     ? onCollapseAllBills
@@ -311,6 +243,12 @@ function ReportTableActions({
                 ) : (
                   <ChevronRight data-icon="inline-start" />
                 )}
+                <span className="hidden sm:inline">
+                  {allDetailGroupsExpanded ? t("actions.collapseAll") : t("actions.expandAll")}
+                </span>
+                <span className="sr-only sm:hidden">
+                  {allDetailGroupsExpanded ? t("actions.collapseAll") : t("actions.expandAll")}
+                </span>
               </Button>
             ) : null}
 
@@ -411,7 +349,7 @@ function ReportTypeSwitch({
               : t("report.detailedSalesReport")
           }
           className={cn(
-            "h-7 min-w-0 rounded-sm px-2 text-xs font-black",
+            "h-7 min-w-0 rounded-sm px-2 text-xs font-medium data-[state=on]:font-semibold",
             "data-[state=on]:bg-background data-[state=on]:text-foreground data-[state=on]:shadow-sm",
             "text-muted-foreground hover:text-foreground",
           )}

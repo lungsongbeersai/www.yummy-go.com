@@ -8,6 +8,7 @@ import type { UrlPaginationState } from "@/lib/url-pagination";
 import { ReportPageShell } from "../shared/report-page-shell";
 import { ReportTableCard } from "../shared/report-table-card";
 import {
+  CategorySalesFilterBar,
   CategorySalesFilterSheet,
   CategorySalesExportSurface,
   CategorySalesMobileList,
@@ -44,6 +45,20 @@ export function CategorySalesReportPage({ initialPagination }: { initialPaginati
         report.branchError,
         report.error,
       ]}
+      inlineFilters={(actions) => (
+        <CategorySalesFilterBar
+          actions={actions}
+          branchLoading={report.branchLoading}
+          branchLocked={!report.canSelectBranch}
+          branchOptions={report.branchOptions}
+          canApply={report.canApply}
+          draftFilters={report.draftFilters}
+          loading={report.loading}
+          methodOptions={report.methodOptions}
+          onApply={report.applyFilters}
+          onDraftChange={report.setDraftFilters}
+        />
+      )}
       filterSheet={
         <CategorySalesFilterSheet
           branchLoading={report.branchLoading}
@@ -67,9 +82,9 @@ export function CategorySalesReportPage({ initialPagination }: { initialPaginati
       onRefresh={() => void report.load()}
       table={
         <ReportTableCard
-          cardClassName="min-h-0 min-w-0 overflow-hidden border-border bg-card shadow-sm md:sticky md:top-3 md:flex md:max-h-[calc(100dvh-var(--app-shell-header-height)-1.5rem)] md:flex-col"
+          cardClassName="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-none border-x-0 border-b-0 border-border bg-card shadow-none"
           contentClassName="flex min-h-0 flex-1 flex-col p-0"
-          contentWrapperClassName="min-h-0 md:flex-1 md:overflow-auto"
+          contentWrapperClassName="min-h-0 flex-1 overflow-auto"
           headerVariant="spacious"
           title={report.reportTitle}
           skeletonMode="always"

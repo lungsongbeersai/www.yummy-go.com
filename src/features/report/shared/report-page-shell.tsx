@@ -20,6 +20,11 @@ export interface ReportPageShellProps {
   // แถบ badge เฉพาะรายงาน วางถัดจากปุ่มช่วงวันที่ (payment-methods เท่านั้นที่ใช้)
   extraChips?: ReactNode;
   filterSheet: ReactNode;
+  // แถบตัวกรองแบบอยู่บนหน้าเลย (จอ lg ขึ้นไป) — ตัวมันเองรับผิดชอบซ่อนตัวเองบนจอเล็ก
+  // โครงเดียวกับ /settings/store: จอเล็กใช้ sheet, จอใหญ่กรองได้จากหน้าโดยไม่ต้องเปิดอะไร
+  // รับเป็นฟังก์ชันเพื่อให้ shell ส่งปุ่มรีเฟรช/สลับการ์ดสรุปชุดเดียวกันลงไปวางท้ายแถบได้
+  // (บน lg แถบเครื่องมือด้านบนถูกซ่อน ปุ่มสองตัวนี้จึงต้องมีที่อยู่ใหม่)
+  inlineFilters?: (actions: ReactNode) => ReactNode;
   loading: boolean;
   summary: ReactNode;
   summaryCardsId: string;
@@ -42,6 +47,7 @@ export function ReportPageShell({
   exportSurface,
   extraChips,
   filterSheet,
+  inlineFilters,
   loading,
   summary,
   summaryCardsId,
@@ -108,22 +114,25 @@ export function ReportPageShell({
 
   return (
     <>
+      {/* เต็มหน้าจอแบบ /settings/store: ไม่มี padding รอบนอก แถบตัวกรองกับตารางชนขอบ
+          และตารางกินความสูงที่เหลือทั้งหมด แทนที่จะลอยอยู่ในกรอบที่มีขอบรอบด้าน
+          variant "spacious" ยังเลื่อนทั้งหน้าได้ เพราะตารางของมันสูงกว่าจอ */}
       <div
         className={
           variant === "compact"
-            ? "h-full min-h-0 min-w-0 overflow-x-hidden overflow-y-auto lg:overflow-hidden"
-            : "h-full min-h-0 min-w-0 overflow-x-hidden overflow-y-auto"
+            ? "flex h-full min-h-0 min-w-0 flex-col overflow-hidden"
+            : "flex h-full min-h-0 min-w-0 flex-col overflow-x-hidden overflow-y-auto"
         }
       >
+        <h1 className="sr-only">{accessibleTitle}</h1>
+
         <div
           className={
-            variant === "compact"
-              ? "flex min-h-full w-full min-w-0 flex-col gap-2 p-2 sm:p-3 lg:h-full lg:min-h-0"
-              : "mx-auto flex w-full max-w-full flex-col gap-3 p-3 sm:p-4 lg:p-4 2xl:max-w-375"
+            inlineFilters
+              ? "shrink-0 border-b border-border bg-card px-2 py-2 sm:px-3 lg:hidden"
+              : "shrink-0 border-b border-border bg-card px-2 py-2 sm:px-3"
           }
         >
-          <h1 className="sr-only">{accessibleTitle}</h1>
-
           <FilterHeaderToolbar
             dateRange={{
               ariaLabel: `${t("report.filters.openFilters")}: ${dateRangeLabel}`,
@@ -136,17 +145,27 @@ export function ReportPageShell({
             refreshControl={refreshControl}
             summaryControl={summaryControl}
           />
-
-          {filterSheet}
-
-          {errorBanners}
-
-          <div id={summaryCardsId} hidden={!summaryVisible}>
-            {summary}
-          </div>
-
-          {table}
         </div>
+
+        {inlineFilters?.(
+          <>
+            {summaryControl}
+            {refreshControl}
+          </>,
+        )}
+
+        {filterSheet}
+
+        {/* ส่วนที่ไม่ใช่ตารางต้องมีระยะในของตัวเอง เพราะพ่อแม่ไม่มี padding แล้ว */}
+        {errorBanners.length ? (
+          <div className="flex shrink-0 flex-col gap-2 px-2 py-2 sm:px-3">{errorBanners}</div>
+        ) : null}
+
+        <div id={summaryCardsId} className="shrink-0 px-2 py-2 sm:px-3" hidden={!summaryVisible}>
+          {summary}
+        </div>
+
+        {table}
       </div>
       {exportSurface}
       <BlockingLoadingDialog

@@ -1,6 +1,6 @@
 "use client";
 
-import { type CSSProperties, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Eye, EyeOff, RefreshCcw, SlidersHorizontal } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { AppPagination } from "@/components/common/app-pagination";
@@ -14,7 +14,11 @@ import {
   ReportExportLoadingDialog,
 } from "./daily-sales-report-components";
 import { DailySalesExportSurface } from "./daily-sales-report-export-surface";
-import { DailySalesFilterSheet } from "./daily-sales-report-filters";
+import {
+  AppliedFilterBadges,
+  DailySalesFilterBar,
+  DailySalesFilterSheet,
+} from "./daily-sales-report-filters";
 import {
   DetailBillTable,
   SummaryReportTable,
@@ -32,71 +36,97 @@ export function DailySalesReportPage({
   const exportReportRef = useRef<HTMLDivElement>(null);
   const [summaryVisible, setSummaryVisible] = useState(false);
   const report = useDailySalesReportWorkflow(exportReportRef, initialPagination, summaryVisible);
-  const layoutStyle = {
-    "--daily-sales-filter-height": "0px",
-  } as CSSProperties;
   const canApplyFilters = Boolean(report.draftFilters.branchUuid || report.defaultBranchUuid);
   const dateRangeLabel = `${report.appliedFilters.dateFrom} - ${report.appliedFilters.dateTo}`;
+  const controlsDisabled = report.loading || Boolean(report.exporting);
+  const summaryToggleLabel = summaryVisible ? t("report.hideSummary") : t("report.showSummary");
+  const refreshButton = (
+    <Button
+      type="button"
+      variant="outline"
+      size="iconSm"
+      className="h-9 w-9 shrink-0"
+      aria-label={t("actions.refresh")}
+      disabled={controlsDisabled}
+      onClick={() => void report.load()}
+    >
+      <RefreshCcw className={report.loading ? "animate-spin" : undefined} data-icon="inline-start" />
+      <span className="sr-only">{t("actions.refresh")}</span>
+    </Button>
+  );
+  const summaryToggleButton = (
+    <Button
+      type="button"
+      variant="outline"
+      size="iconSm"
+      className="h-9 w-9 shrink-0"
+      aria-controls={SUMMARY_CARDS_ID}
+      aria-expanded={summaryVisible}
+      aria-label={summaryToggleLabel}
+      onClick={() => setSummaryVisible((visible) => !visible)}
+    >
+      {summaryVisible ? <EyeOff data-icon="inline-start" /> : <Eye data-icon="inline-start" />}
+      <span className="sr-only">{summaryToggleLabel}</span>
+    </Button>
+  );
 
   return (
     <>
-      <div
-        className="h-full min-h-0 min-w-0 overflow-x-hidden overflow-y-auto lg:overflow-hidden"
-        style={layoutStyle}
-      >
-        <div className="flex min-h-full w-full min-w-0 flex-col gap-2 p-2 sm:p-3 lg:h-full lg:min-h-0">
-          <h1 className="sr-only">{t("report.dailySalesTitle")}</h1>
+      {/* เต็มหน้าจอแบบ /settings/store: ไม่มี padding รอบนอก แถบตัวกรองกับตารางชนขอบ
+          และตารางกินความสูงที่เหลือทั้งหมด (flex-1) แทนที่จะลอยอยู่ในกรอบ */}
+      <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
+        <h1 className="sr-only">{t("report.dailySalesTitle")}</h1>
 
-          <FilterHeaderToolbar
-            dateRange={{
-              ariaLabel: `${t("report.filters.openFilters")}: ${dateRangeLabel}`,
-              disabled: report.loading || Boolean(report.exporting),
-              label: dateRangeLabel,
-              onClick: report.openMobileFilters,
-            }}
-            filterControl={
-              <Button
-                type="button"
-                variant="outline"
-                size="iconSm"
-                className="h-9 w-9 shrink-0"
-                aria-label={t("report.filters.openFilters")}
-                disabled={report.loading || Boolean(report.exporting)}
-                onClick={report.openMobileFilters}
-              >
-                <SlidersHorizontal data-icon="inline-start" />
-                <span className="sr-only">{t("report.filters.openFilters")}</span>
-              </Button>
+        {/* จอเล็ก: แถบเครื่องมือมาตรฐาน + แถว badge บอกตัวกรองที่ใช้อยู่ (แก้ค่าผ่าน modal) */}
+        <div className="flex shrink-0 flex-col gap-2 border-b border-border bg-card px-2 py-2 sm:px-3 lg:hidden">
+            <FilterHeaderToolbar
+              dateRange={{
+                ariaLabel: `${t("report.filters.openFilters")}: ${dateRangeLabel}`,
+                disabled: controlsDisabled,
+                label: dateRangeLabel,
+                onClick: report.openMobileFilters,
+              }}
+              filterControl={
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="iconSm"
+                  className="h-9 w-9 shrink-0"
+                  aria-label={t("report.filters.openFilters")}
+                  disabled={controlsDisabled}
+                  onClick={report.openMobileFilters}
+                >
+                  <SlidersHorizontal data-icon="inline-start" />
+                  <span className="sr-only">{t("report.filters.openFilters")}</span>
+                </Button>
+              }
+              refreshControl={refreshButton}
+              summaryControl={summaryToggleButton}
+            />
+            <AppliedFilterBadges
+              branchLabel={report.activeBranchLabel}
+              detailPaginationBasis={report.detailPageBasis}
+              filters={report.appliedFilters}
+            />
+          </div>
+
+          {/* จอ lg ขึ้นไป: ตัวกรองอยู่บนหน้าเลย ไม่ต้องเปิด modal เพื่อเปลี่ยนค่าเดียว */}
+          <DailySalesFilterBar
+            actions={
+              <>
+                {summaryToggleButton}
+                {refreshButton}
+              </>
             }
-            refreshControl={
-              <Button
-                type="button"
-                variant="outline"
-                size="iconSm"
-                className="h-9 w-9 shrink-0"
-                aria-label={t("actions.refresh")}
-                disabled={report.loading || Boolean(report.exporting)}
-                onClick={() => void report.load()}
-              >
-                <RefreshCcw className={report.loading ? "animate-spin" : undefined} data-icon="inline-start" />
-                <span className="sr-only">{t("actions.refresh")}</span>
-              </Button>
-            }
-            summaryControl={
-              <Button
-                type="button"
-                variant="outline"
-                size="iconSm"
-                className="h-9 w-9 shrink-0"
-                aria-controls={SUMMARY_CARDS_ID}
-                aria-expanded={summaryVisible}
-                aria-label={summaryVisible ? t("report.hideSummary") : t("report.showSummary")}
-                onClick={() => setSummaryVisible((visible) => !visible)}
-              >
-                {summaryVisible ? <EyeOff data-icon="inline-start" /> : <Eye data-icon="inline-start" />}
-                <span className="sr-only">{summaryVisible ? t("report.hideSummary") : t("report.showSummary")}</span>
-              </Button>
-            }
+            branchLoading={report.branchLoading}
+            branchLocked={!report.canSelectBranch}
+            branchOptions={report.branchOptions}
+            canApply={canApplyFilters}
+            detailPaginationBasis={report.detailPageBasis}
+            draftFilters={report.draftFilters}
+            loading={report.loading}
+            onApply={report.applyFilters}
+            onDraftChange={report.setDraftFilters}
           />
 
           <DailySalesFilterSheet
@@ -113,27 +143,30 @@ export function DailySalesReportPage({
             onOpenChange={report.handleMobileFilterOpenChange}
           />
 
-          {!report.branchUuid ? <ReportError message={t("report.branchRequired")} /> : null}
-          {report.branchError ? <ReportError message={report.branchError} /> : null}
-          {report.error ? <ReportError message={report.error} /> : null}
-
-          <div id={SUMMARY_CARDS_ID} hidden={!summaryVisible}>
-            <DailySalesSummaryCards
-              cards={report.cards}
-              reportTotal={report.reportTotal}
-              summaryCards={report.summaryCards}
-            />
+        {/* ส่วนที่ไม่ใช่ตารางยังต้องมีระยะในของตัวเอง เพราะพ่อแม่ไม่มี padding แล้ว */}
+        {report.branchUuid && !report.branchError && !report.error ? null : (
+          <div className="flex shrink-0 flex-col gap-2 px-2 py-2 sm:px-3">
+            {!report.branchUuid ? <ReportError message={t("report.branchRequired")} /> : null}
+            {report.branchError ? <ReportError message={report.branchError} /> : null}
+            {report.error ? <ReportError message={report.error} /> : null}
           </div>
+        )}
+
+        <div id={SUMMARY_CARDS_ID} className="shrink-0 px-2 py-2 sm:px-3" hidden={!summaryVisible}>
+          <DailySalesSummaryCards
+            cards={report.cards}
+            reportTotal={report.reportTotal}
+            summaryCards={report.summaryCards}
+          />
+        </div>
 
           <DailySalesTableCard
             actions={{
               allDetailGroupsExpanded: report.allDetailGroupsExpanded,
               billGroupsLength: report.billGroups.length,
-              branchUuid: report.branchUuid,
               exportDisabled: report.exportDisabled,
               exporting: report.exporting,
               loading: report.loading,
-              search: report.appliedFilters.search,
               selectedCount: report.selectedCount,
               selectedBillCount: report.selectedBillCount,
               typePage: report.appliedFilters.typePage,
@@ -142,7 +175,6 @@ export function DailySalesReportPage({
               onExpandAllBills: report.expandAllBills,
               onExportExcel: () => void report.exportExcel(),
               onExportPdf: () => void report.exportPdf(),
-              onSearchChange: (search) => report.applyTableHeaderFilters({ search }),
               onTypePageChange: (typePage) => report.applyTableHeaderFilters({ typePage }),
             }}
             footer={
@@ -182,8 +214,7 @@ export function DailySalesReportPage({
                 onToggleRows={report.toggleReportRows}
               />
             )}
-          </DailySalesTableCard>
-        </div>
+        </DailySalesTableCard>
       </div>
 
       <ReportExportLoadingDialog exporting={report.exporting} progress={report.exportProgress} />

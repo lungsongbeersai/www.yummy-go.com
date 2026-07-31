@@ -43,18 +43,18 @@ const totalMetricDefinitions = [
 ] as const satisfies readonly TotalMetricDefinition[];
 
 const rowMetricDefinitions = [
-  { field: "billCount", key: "bill_count", kind: "number", labelKey: "report.paymentMethodsReport.columns.billsCount" },
-  { field: "productPriceTotal", key: "product_price_total", kind: "money", labelKey: "report.paymentMethodsReport.columns.productPriceTotal" },
-  { field: "toppingTotal", key: "topping_total", kind: "money", labelKey: "report.paymentMethodsReport.columns.toppingTotal" },
-  { field: "total", key: "total", kind: "money", labelKey: "report.paymentMethodsReport.columns.total" },
-  { field: "discountItemAmount", key: "discount_item_amount", kind: "money", labelKey: "report.paymentMethodsReport.columns.itemDiscount" },
-  { field: "afterDiscountItem", key: "after_discount_item", kind: "money", labelKey: "report.categorySales.columns.afterDiscountItem" },
-  { field: "billTotal", key: "bill_total", kind: "money", labelKey: "report.paymentMethodsReport.columns.billTotal" },
-  { field: "discountBill", key: "discount_bill", kind: "money", labelKey: "report.paymentMethodsReport.columns.discountBill" },
-  { field: "afterDiscountBill", key: "after_discount_bill", kind: "money", labelKey: "report.categorySales.columns.afterDiscountBill" },
-  { field: "serviceCharge", key: "service_charge", kind: "money", labelKey: "report.paymentMethodsReport.columns.serviceCharge" },
-  { field: "vat", key: "vat", kind: "money", labelKey: "report.paymentMethodsReport.columns.vat" },
-  { field: "grandTotal", key: "grand_total", kind: "money", labelKey: "report.paymentMethodsReport.columns.grandTotal" }
+  { field: "billCount", key: "bill_count", summaryKey: "bill_count", kind: "number", labelKey: "report.paymentMethodsReport.columns.billsCount" },
+  { field: "productPriceTotal", key: "product_price_total", summaryKey: "product_price_total", kind: "money", labelKey: "report.paymentMethodsReport.columns.productPriceTotal" },
+  { field: "toppingTotal", key: "topping_total", summaryKey: "topping_total", kind: "money", labelKey: "report.paymentMethodsReport.columns.toppingTotal" },
+  { field: "total", key: "total", summaryKey: "total", kind: "money", labelKey: "report.paymentMethodsReport.columns.total" },
+  { field: "discountItemAmount", key: "discount_item_amount", summaryKey: "discount_item_amount", kind: "money", labelKey: "report.paymentMethodsReport.columns.itemDiscount" },
+  { field: "afterDiscountItem", key: "after_discount_item", summaryKey: "after_discount_item", kind: "money", labelKey: "report.categorySales.columns.afterDiscountItem" },
+  { field: "billTotal", key: "bill_total", summaryKey: "bill_total", kind: "money", labelKey: "report.paymentMethodsReport.columns.billTotal" },
+  { field: "discountBill", key: "discount_bill", summaryKey: "discount_bill", kind: "money", labelKey: "report.paymentMethodsReport.columns.discountBill" },
+  { field: "afterDiscountBill", key: "after_discount_bill", summaryKey: "after_discount_bill", kind: "money", labelKey: "report.categorySales.columns.afterDiscountBill" },
+  { field: "serviceCharge", key: "service_charge", summaryKey: "sum_servicecharge", kind: "money", labelKey: "report.paymentMethodsReport.columns.serviceCharge" },
+  { field: "vat", key: "vat", summaryKey: "sum_vate", kind: "money", labelKey: "report.paymentMethodsReport.columns.vat" },
+  { field: "grandTotal", key: "grand_total", summaryKey: "grand_total", kind: "money", labelKey: "report.paymentMethodsReport.columns.grandTotal" }
 ] as const satisfies readonly RowMetricDefinition[];
 
 export { firstNumber };
@@ -67,6 +67,7 @@ export function paymentMethodRowMetricConfigs(t: (key: string) => string): Payme
   return rowMetricDefinitions.map((definition) => ({
     field: definition.field,
     key: definition.key,
+    summaryKey: definition.summaryKey,
     kind: definition.kind,
     label: t(definition.labelKey)
   }));
@@ -98,13 +99,13 @@ export function paymentMethodExportMetricConfigs(
   );
 }
 
+// อ่านยอดรวมจาก summary ที่ backend ส่งมา ไม่บวกแถวเองที่ frontend —
+// ไม่งั้นตัวเลขรวมในไฟล์ export จะไม่ตรงกับที่แสดงบนหน้าจอ ซึ่งอ่านจาก summary เหมือนกัน
 export function paymentMethodExportTotals(
-  rows: PaymentMethodReportRow[],
+  reportTotal: ApiEntity,
   metrics: PaymentMethodsRowMetricConfig[]
 ) {
-  return metrics.map((metric) =>
-    rows.reduce((total, row) => total + firstNumber(row[metric.field]), 0)
-  );
+  return metrics.map((metric) => firstNumber(reportTotal[metric.summaryKey]));
 }
 
 export function paymentMethodsFileBaseName(filters: PaymentMethodsReportFilters) {
@@ -113,10 +114,14 @@ export function paymentMethodsFileBaseName(filters: PaymentMethodsReportFilters)
 
 // ตาราง export มีแถวรวมท้ายตารางแบบเดียวกับ footer ของตารางบนหน้าจอ
 // จึงไม่ต้องมี section สรุปแยกต่างหากอีก
-export function exportPaymentMethodRows(rows: PaymentMethodReportRow[], t: (key: string) => string) {
+export function exportPaymentMethodRows(
+  rows: PaymentMethodReportRow[],
+  t: (key: string) => string,
+  reportTotal: ApiEntity
+) {
   const metrics = paymentMethodExportMetricConfigs(t);
   const methodColumn = t("report.paymentMethodsReport.columns.paymentMethod");
-  const totals = paymentMethodExportTotals(rows, metrics);
+  const totals = paymentMethodExportTotals(reportTotal, metrics);
 
   return [
     ...rows.map((row) => ({

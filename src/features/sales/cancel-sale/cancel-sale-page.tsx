@@ -276,8 +276,8 @@ export function CancelSalePage({
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-muted/20">
       <SalesListHeader loading={loading || detailLoading} onRefresh={() => void load()} />
-      <div className="grid min-h-0 flex-1 gap-3 px-3 pb-3 md:grid-cols-[minmax(0,3fr)_minmax(20rem,2fr)] lg:px-5 lg:pb-5">
-        <section className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-border bg-card">
+      <div className="grid min-h-0 flex-1 overflow-hidden md:grid-cols-[minmax(0,3fr)_minmax(20rem,2fr)]">
+        <section className="flex min-h-0 flex-col overflow-hidden rounded-none border-0 border-border bg-card md:border-r">
           <SalesListToolbar
             dateOptions={safeDateOptions}
             dateSelect={dateSelect}

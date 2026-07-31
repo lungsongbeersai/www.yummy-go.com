@@ -109,7 +109,18 @@ describe("payment method report helpers", () => {
   });
 
   it("exports table rows without code/bill columns and appends a totals row", () => {
-    const exported = exportPaymentMethodRows([row, { ...row, paymentMethodName: "Transfer", vat: 9000 }], t);
+    // ตั้งค่า summary ให้ "ไม่เท่ากับ" ผลบวกของสองแถวโดยตั้งใจ เพื่อพิสูจน์ว่าแถวรวมอ่านจาก
+    // summary ของ backend จริง ไม่ได้บวกแถวเองที่ frontend (หลังบ้านกรองบิลที่ถูกยกเลิกออกก่อนแล้ว)
+    const reportTotal = {
+      grand_total: 3_000_000,
+      sum_vate: 120_000,
+      product_price_total: 2_600_000
+    };
+    const exported = exportPaymentMethodRows(
+      [row, { ...row, paymentMethodName: "Transfer", vat: 9000 }],
+      t,
+      reportTotal
+    );
 
     expect(exported).toHaveLength(3);
     expect(exported[0]).toEqual({
@@ -132,8 +143,14 @@ describe("payment method report helpers", () => {
 
     expect(exported[2]).toMatchObject({
       "Payment method": "report.paymentMethodsReport.totalSummary",
-      "Grand total": 3102564,
-      VAT: 150026
+      "Grand total": 3_000_000,
+      VAT: 120_000,
+      "Product price total": 2_600_000
     });
+    // ผลบวกของสองแถวคือ 3,102,564 / 150,026 — ถ้าตัวเลขนี้โผล่มาแปลว่ากลับไปคำนวณเองแล้ว
+    expect(exported[2]["Grand total"]).not.toBe(3_102_564);
+    expect(exported[2].VAT).not.toBe(150_026);
+    // เมตริกที่ backend ไม่ได้ส่ง summary มาให้ ต้องเป็น 0 ไม่ใช่เดาจากแถว
+    expect(exported[2]["Topping total"]).toBe(0);
   });
 });

@@ -87,7 +87,7 @@ export function TableListSection({
                     <Badge>{(zone.tables ?? []).length}</Badge>
                   </div>
                 ) : null}
-                <div className="grid grid-cols-[repeat(auto-fill,minmax(min(128px,100%),1fr))] gap-2 sm:grid-cols-[repeat(auto-fill,minmax(min(136px,100%),1fr))] lg:grid-cols-[repeat(auto-fill,minmax(min(154px,100%),1fr))] xl:grid-cols-[repeat(auto-fill,minmax(min(176px,100%),1fr))]">
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(min(150px,100%),1fr))] gap-2 sm:grid-cols-[repeat(auto-fill,minmax(min(164px,100%),1fr))] lg:grid-cols-[repeat(auto-fill,minmax(min(180px,100%),1fr))] xl:grid-cols-[repeat(auto-fill,minmax(min(200px,100%),1fr))]">
                   {(zone.tables ?? []).map((table) => (
                     <TableCard key={table.table_uuid} selected={selectedTable?.table_uuid === table.table_uuid} table={table} onOpen={onSelectTable} />
                   ))}
@@ -202,7 +202,7 @@ function TableCard({
         className="h-auto w-full items-stretch justify-start rounded-none p-0 text-left hover:bg-transparent"
         onClick={() => onOpen(table)}
       >
-        <CardContent className="flex min-h-28 w-full flex-col p-0 sm:min-h-[7.75rem] lg:min-h-32 xl:min-h-36">
+        <CardContent className="flex min-h-36 w-full flex-col p-0 sm:min-h-38 lg:min-h-40 xl:min-h-44">
           <div
             className={cn(
               "relative flex flex-1 flex-col items-center justify-center px-2 py-3 sm:px-3 sm:py-4",

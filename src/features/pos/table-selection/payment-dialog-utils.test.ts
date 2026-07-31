@@ -16,13 +16,18 @@ import {
   defaultCurrencyInput,
   displayCaretFromRawCaret,
   exchangeCurrencyOptions,
-  firstCustomerAutoSelectAction,
+  advanceFirstCustomerAutoSelect,
+  canApplyFirstCustomerAutoSelect,
+  createFirstCustomerAutoSelectState,
+  firstCustomerFromRows,
   firstCustomerListParams,
   formatAmountInputDisplay,
+  invalidateFirstCustomerAutoSelect,
   LAK_CURRENCY_OPTION,
   paymentAmounts,
   paymentNote,
   paymentValidation,
+  preserveFirstCustomerAutoSelect,
   quickCashAmounts,
   rawCaretFromDisplayCaret,
   withReceiptPrintLabels,
@@ -91,25 +96,69 @@ describe("payment dialog helpers", () => {
     });
   });
 
-  it("loads the automatic customer only once per payment open cycle", () => {
-    const initial = {
-      attempted: false,
+  it("keeps one automatic request valid through Strict Mode replay", () => {
+    const context = {
       customerCreateOpen: false,
       customerUuid: "",
       open: true,
       storeUuid: "store-1",
     };
+    const firstSetup = advanceFirstCustomerAutoSelect(
+      createFirstCustomerAutoSelectState(),
+      context,
+    );
+    expect(firstSetup.action).toBe("load");
+    expect(firstSetup.request).not.toBeNull();
+    if (!firstSetup.request) throw new Error("Expected an automatic request");
 
-    expect(firstCustomerAutoSelectAction(initial)).toBe("load");
+    const replaySetup = advanceFirstCustomerAutoSelect(
+      preserveFirstCustomerAutoSelect(firstSetup.state),
+      context,
+    );
+    expect(replaySetup.action).toBe("preserve");
+    expect(replaySetup.request).toBeNull();
     expect(
-      firstCustomerAutoSelectAction({ ...initial, attempted: true }),
-    ).toBe("none");
+      [firstSetup, replaySetup].filter((setup) => setup.request).length,
+    ).toBe(1);
+    const selectedAfterReplay = canApplyFirstCustomerAutoSelect(
+      replaySetup.state,
+      firstSetup.request,
+      true,
+    )
+      ? firstCustomerFromRows([
+          customer,
+          { ...customer, customer_uuid: "customer-2" },
+        ])
+      : null;
+    expect(selectedAfterReplay).toBe(customer);
     expect(
-      firstCustomerAutoSelectAction({ ...initial, customerCreateOpen: true }),
-    ).toBe("none");
-    expect(
-      firstCustomerAutoSelectAction({ ...initial, open: false }),
-    ).toBe("reset");
+      canApplyFirstCustomerAutoSelect(
+        replaySetup.state,
+        firstSetup.request,
+        false,
+      ),
+    ).toBe(false);
+
+    for (const interaction of ["dropdown", "create"] as const) {
+      const interrupted = invalidateFirstCustomerAutoSelect(replaySetup.state);
+      expect(
+        canApplyFirstCustomerAutoSelect(
+          interrupted,
+          firstSetup.request,
+          true,
+        ),
+        interaction,
+      ).toBe(false);
+    }
+
+    const closed = advanceFirstCustomerAutoSelect(replaySetup.state, {
+      ...context,
+      open: false,
+    });
+    const reopened = advanceFirstCustomerAutoSelect(closed.state, context);
+    expect(closed.action).toBe("reset");
+    expect(reopened.action).toBe("load");
+    expect(reopened.request?.generation).not.toBe(firstSetup.request.generation);
   });
 
   it("finds a customer by exact name for the create fallback", () => {

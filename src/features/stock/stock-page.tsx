@@ -242,10 +242,11 @@ function StockResults({
         )}
       </div>
 
+      {/* ตัวครอบต้องเป็น block ไม่ใช่ flex — AppPagination ดัน label/ปุ่มด้วย justify-between ของตัวเอง
+          ถ้าเป็นลูกของ flex มันจะหดเท่าเนื้อหาแล้วดันไม่ออก (ทุกหน้าอื่นครอบด้วย block เหมือนกันหมด) */}
       {stock.rows.length ? (
-        <footer className="flex shrink-0 flex-col gap-2 border-t border-border bg-card px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:flex-row sm:items-center sm:justify-between lg:px-5">
+        <footer className="shrink-0 border-t border-border bg-card px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] text-sm text-muted-foreground lg:px-5">
           <AppPagination
-            compact
             disabled={stock.loading}
             page={stock.page}
             rangeLabel={t("common.showingRange", {

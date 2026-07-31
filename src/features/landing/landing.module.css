@@ -29,7 +29,7 @@
 }
 
 .mono {
-  font-family: var(--font-jetbrains-mono), monospace;
+  font-family: var(--font-jetbrains-mono), var(--font-noto-sans-lao), monospace;
 }
 
 /* ---------- keyframes ---------- */
@@ -286,7 +286,7 @@
   border-radius: 8px;
   border: none;
   cursor: pointer;
-  font-family: var(--font-jetbrains-mono), monospace;
+  font-family: var(--font-jetbrains-mono), var(--font-noto-sans-lao), monospace;
   font-size: 11.5px;
   font-weight: 600;
   letter-spacing: 0.5px;
@@ -364,7 +364,7 @@
 
 .qualityLegend {
   padding: 0 0 10px;
-  font-family: var(--font-jetbrains-mono), monospace;
+  font-family: var(--font-jetbrains-mono), var(--font-noto-sans-lao), monospace;
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 1px;
@@ -421,7 +421,7 @@
 .qualityOptionTier {
   padding: 2px 7px;
   border-radius: 999px;
-  font-family: var(--font-jetbrains-mono), monospace;
+  font-family: var(--font-jetbrains-mono), var(--font-noto-sans-lao), monospace;
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.4px;
@@ -446,7 +446,7 @@
 }
 
 .qualityStatsValue {
-  font-family: var(--font-jetbrains-mono), monospace;
+  font-family: var(--font-jetbrains-mono), var(--font-noto-sans-lao), monospace;
   font-size: 13px;
   font-weight: 600;
   color: #7cb7ff;
@@ -709,7 +709,7 @@
   top: 18%;
   width: 230px;
   animation: floatPanelB 11s ease-in-out infinite;
-  font-family: var(--font-jetbrains-mono), monospace;
+  font-family: var(--font-jetbrains-mono), var(--font-noto-sans-lao), monospace;
   font-size: 10px;
   line-height: 1.9;
 }
@@ -788,7 +788,7 @@
   background: rgba(13, 24, 48, 0.5);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  font-family: var(--font-jetbrains-mono), monospace;
+  font-family: var(--font-jetbrains-mono), var(--font-noto-sans-lao), monospace;
   font-size: 12px;
   letter-spacing: 1.5px;
   text-transform: uppercase;
@@ -899,7 +899,7 @@
   align-items: center;
 }
 .statValue {
-  font-family: var(--font-jetbrains-mono), monospace;
+  font-family: var(--font-jetbrains-mono), var(--font-noto-sans-lao), monospace;
   font-size: clamp(26px, 3vw, 38px);
   font-weight: 700;
   color: #eaf2ff;
@@ -913,7 +913,7 @@
 }
 
 .interactHint {
-  font-family: var(--font-jetbrains-mono), monospace;
+  font-family: var(--font-jetbrains-mono), var(--font-noto-sans-lao), monospace;
   font-size: 11px;
   letter-spacing: 1.5px;
   text-transform: uppercase;
@@ -953,7 +953,7 @@
   animation: wheelDot 1.8s ease-in-out infinite;
 }
 .scrollHintLabel {
-  font-family: var(--font-jetbrains-mono), monospace;
+  font-family: var(--font-jetbrains-mono), var(--font-noto-sans-lao), monospace;
   font-size: 10.5px;
   letter-spacing: 2px;
   text-transform: uppercase;
@@ -1014,7 +1014,7 @@
 }
 
 .kicker {
-  font-family: var(--font-jetbrains-mono), monospace;
+  font-family: var(--font-jetbrains-mono), var(--font-noto-sans-lao), monospace;
   font-size: 12px;
   letter-spacing: 2px;
   text-transform: uppercase;
@@ -1086,7 +1086,7 @@
   border: 1px solid rgba(96, 165, 250, 0.35);
   display: grid;
   place-items: center;
-  font-family: var(--font-jetbrains-mono), monospace;
+  font-family: var(--font-jetbrains-mono), var(--font-noto-sans-lao), monospace;
   font-size: 9px;
   color: #a8d0ff;
   text-transform: uppercase;
@@ -1160,7 +1160,7 @@
   box-shadow: 0 0 22px rgba(59, 130, 246, 0.3);
   display: grid;
   place-items: center;
-  font-family: var(--font-jetbrains-mono), monospace;
+  font-family: var(--font-jetbrains-mono), var(--font-noto-sans-lao), monospace;
   font-size: 10px;
   color: #cfe2ff;
   text-transform: uppercase;
@@ -1265,7 +1265,7 @@
 }
 
 .projectShotLabel {
-  font-family: var(--font-jetbrains-mono), monospace;
+  font-family: var(--font-jetbrains-mono), var(--font-noto-sans-lao), monospace;
   font-size: 12px;
   color: #6f8ec4;
   text-align: center;
@@ -1298,7 +1298,7 @@
 .projectTag {
   padding: 5px 13px;
   border-radius: 999px;
-  font-family: var(--font-jetbrains-mono), monospace;
+  font-family: var(--font-jetbrains-mono), var(--font-noto-sans-lao), monospace;
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 1px;
@@ -1484,7 +1484,7 @@
   padding: 3px 9px;
   border-radius: 7px;
   background: rgba(4, 8, 18, 0.8);
-  font-family: var(--font-jetbrains-mono), monospace;
+  font-family: var(--font-jetbrains-mono), var(--font-noto-sans-lao), monospace;
   font-size: 11px;
   color: #a9bce0;
 }
@@ -1495,7 +1495,7 @@
   left: 10px;
   padding: 3px 10px;
   border-radius: 999px;
-  font-family: var(--font-jetbrains-mono), monospace;
+  font-family: var(--font-jetbrains-mono), var(--font-noto-sans-lao), monospace;
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 1px;
@@ -1512,7 +1512,7 @@
 }
 
 .videoProject {
-  font-family: var(--font-jetbrains-mono), monospace;
+  font-family: var(--font-jetbrains-mono), var(--font-noto-sans-lao), monospace;
   font-size: 11px;
   color: #38bdf8;
   text-transform: uppercase;
@@ -1569,7 +1569,7 @@
   box-shadow: 0 0 18px rgba(59, 130, 246, 0.3);
   display: grid;
   place-items: center;
-  font-family: var(--font-jetbrains-mono), monospace;
+  font-family: var(--font-jetbrains-mono), var(--font-noto-sans-lao), monospace;
   font-size: 10px;
   color: #cfe2ff;
   text-transform: uppercase;
@@ -1619,7 +1619,7 @@
   border: 1px dashed rgba(124, 183, 255, 0.5);
   display: inline-grid;
   place-items: center;
-  font-family: var(--font-jetbrains-mono), monospace;
+  font-family: var(--font-jetbrains-mono), var(--font-noto-sans-lao), monospace;
   font-size: 8px;
   color: #6f8ec4;
 }
@@ -1764,7 +1764,7 @@
 }
 
 .slotLabel {
-  font-family: var(--font-jetbrains-mono), monospace;
+  font-family: var(--font-jetbrains-mono), var(--font-noto-sans-lao), monospace;
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 1.5px;
@@ -1776,7 +1776,7 @@
   border-radius: 12px;
   border: 1px dashed rgba(124, 183, 255, 0.35);
   background: rgba(6, 12, 26, 0.4);
-  font-family: var(--font-jetbrains-mono), monospace;
+  font-family: var(--font-jetbrains-mono), var(--font-noto-sans-lao), monospace;
   font-size: 12px;
   color: #6f8ec4;
 }
@@ -1851,7 +1851,7 @@
 }
 
 .footerColLabel {
-  font-family: var(--font-jetbrains-mono), monospace;
+  font-family: var(--font-jetbrains-mono), var(--font-noto-sans-lao), monospace;
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 1.5px;
@@ -1871,7 +1871,7 @@
   padding: 12px 15px;
   border-radius: 11px;
   border: 1px dashed rgba(124, 183, 255, 0.3);
-  font-family: var(--font-jetbrains-mono), monospace;
+  font-family: var(--font-jetbrains-mono), var(--font-noto-sans-lao), monospace;
   font-size: 11.5px;
   color: #6f8ec4;
 }
@@ -2163,4 +2163,181 @@
     opacity: 1;
     transform: none;
   }
+}
+
+/* ---------- pricing (แพ็กเกจสมาชิก ดึงจาก API) ---------- */
+.pricingSubtitle {
+  margin-top: 10px;
+  font-size: 15px;
+  line-height: 1.6;
+  color: #8ea1c7;
+}
+
+.pricingCycles {
+  display: inline-flex;
+  gap: 4px;
+  margin: 0 auto 28px;
+  padding: 4px;
+  border-radius: 14px;
+  background: rgba(8, 15, 32, 0.85);
+  border: 1px solid rgba(96, 165, 250, 0.18);
+}
+
+.pricingCycleBtn {
+  min-height: 44px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: #8ea1c7;
+  cursor: pointer;
+  transition: background 0.25s ease, color 0.25s ease;
+}
+.pricingCycleBtn:hover {
+  color: #eaf2ff;
+}
+.pricingCycleBtnActive {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.45), rgba(34, 211, 238, 0.22));
+  color: #eaf2ff;
+  box-shadow: 0 0 22px rgba(59, 130, 246, 0.28);
+}
+
+.pricingGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
+  gap: 18px;
+}
+
+.pricingCard {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 28px 24px;
+  border-radius: 20px;
+  background: linear-gradient(155deg, rgba(17, 31, 61, 0.95), rgba(8, 15, 32, 0.98));
+  border: 1px solid rgba(96, 165, 250, 0.18);
+  overflow: hidden;
+  transition: transform 0.25s ease-out, box-shadow 0.35s ease, border-color 0.35s ease;
+}
+.pricingCard:hover {
+  box-shadow: 0 18px 50px rgba(2, 6, 18, 0.6), 0 0 40px rgba(59, 130, 246, 0.3);
+  border-color: rgba(124, 183, 255, 0.55);
+}
+.pricingCard[data-tilt-active="true"] {
+  will-change: transform;
+}
+.pricingCard[data-tilt-active="true"] .glare {
+  opacity: 1;
+}
+
+.pricingMethod {
+  font-family: var(--font-jetbrains-mono), var(--font-noto-sans-lao), monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: #7cb7ff;
+  margin-bottom: 10px;
+}
+
+.pricingName {
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: #eaf2ff;
+}
+
+.pricingPriceRow {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 14px;
+}
+
+.pricingPrice {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.15;
+  color: #ffffff;
+  font-variant-numeric: tabular-nums;
+}
+
+.pricingCycleUnit {
+  font-size: 13px;
+  color: #8ea1c7;
+}
+
+.pricingSavings {
+  align-self: flex-start;
+  margin-top: 10px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #6ee7b7;
+  background: rgba(16, 185, 129, 0.14);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+.pricingFeatures {
+  list-style: none;
+  margin: 20px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+
+/* เครื่องหมายถูกวาดด้วย border 2 ด้านแล้วหมุน 45° — สื่อว่า "รวมอยู่ในแพ็กเกจนี้"
+   ชัดกว่าจุดกลมที่ไม่ได้บอกอะไร และไม่ต้องเพิ่ม DOM หรือไลบรารีไอคอนเข้าหน้านี้ */
+.pricingFeature {
+  position: relative;
+  padding-left: 28px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: #b9c8e4;
+}
+.pricingFeature::before {
+  content: "";
+  position: absolute;
+  left: 6px;
+  top: 4px;
+  width: 6px;
+  height: 12px;
+  border: solid #22d3ee;
+  border-width: 0 2px 2px 0;
+  border-radius: 1px;
+  transform: rotate(45deg);
+}
+
+.pricingCta {
+  margin-top: 24px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 18px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #eaf2ff;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.9), rgba(34, 211, 238, 0.65));
+  box-shadow: 0 0 26px rgba(59, 130, 246, 0.32);
+  transition: filter 0.25s ease, box-shadow 0.35s ease;
+}
+.pricingCta:hover {
+  filter: brightness(1.08);
+  box-shadow: 0 0 34px rgba(59, 130, 246, 0.48);
+}
+
+.pricingHelp {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 28px;
+  font-size: 14px;
+  color: #8ea1c7;
 }

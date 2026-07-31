@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import type { UrlPaginationState } from "@/lib/url-pagination";
 import {
   PaymentMethodsExportSurface,
+  PaymentMethodsFilterBar,
   PaymentMethodsFilterSheet,
   PaymentMethodsLoadingSkeleton,
   PaymentMethodsMobileList,
@@ -55,6 +56,20 @@ export function PaymentMethodsReportPage({ initialPagination }: { initialPaginat
           </Badge>
         </>
       }
+      inlineFilters={(actions) => (
+        <PaymentMethodsFilterBar
+          actions={actions}
+          branchLoading={report.branchLoading}
+          branchLocked={!report.canSelectBranch}
+          branchOptions={report.branchOptions}
+          canApply={report.canApply}
+          draftFilters={report.draftFilters}
+          loading={report.loading}
+          methodOptions={report.methodOptions}
+          onApply={report.applyFilters}
+          onDraftChange={report.setDraftFilters}
+        />
+      )}
       filterSheet={
         <PaymentMethodsFilterSheet
           branchLoading={report.branchLoading}
@@ -78,9 +93,9 @@ export function PaymentMethodsReportPage({ initialPagination }: { initialPaginat
       onRefresh={() => void report.load()}
       table={
         <ReportTableCard
-          cardClassName="min-w-0 overflow-hidden border-border bg-card shadow-sm"
-          contentClassName="p-0"
-          contentWrapperClassName="min-w-0 overflow-x-auto overscroll-x-contain"
+          cardClassName="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-none border-x-0 border-b-0 border-border bg-card shadow-none"
+          contentClassName="flex min-h-0 flex-1 flex-col p-0"
+          contentWrapperClassName="min-h-0 min-w-0 flex-1 overflow-auto overscroll-contain"
           headerVariant="compact"
           title={report.reportTitle}
           subtitle={
@@ -132,6 +147,7 @@ export function PaymentMethodsReportPage({ initialPagination }: { initialPaginat
             containerRef={exportReportRef}
             dateRange={`${t("report.reportDate")}: ${report.appliedFilters.dateFrom} - ${report.appliedFilters.dateTo}`}
             methodLabel={report.activePaymentMethodLabel}
+            reportTotal={report.renderedExportData.reportTotal}
             rows={report.renderedExportData.rows}
             title={report.renderedExportData.reportName || report.reportTitle}
           />

@@ -51,7 +51,7 @@ import {
   unitUuid,
 } from "./product-form-utils";
 import { ProductFormDetailsSection } from "./product-form-details-section";
-import { ProductFormSectionNumber } from "./product-form-section-number";
+import { ProductFormSectionHeader } from "./product-form-section-header";
 import { ProductFormToppingsSection } from "./product-form-toppings-section";
 import type { ProductFormWorkflow } from "./use-product-form-workflow";
 
@@ -122,14 +122,16 @@ export function ProductFormView({ form }: { form: ProductFormWorkflow }) {
     saveSizeFromDialog,
     changeStatusSort,
   } = form;
-  const labelRowClass = "flex min-h-8 items-center justify-between gap-2";
+  // ความสูงล็อกไว้เท่าปุ่ม size="xs" (h-7) พอดี — ป้ายกำกับในกริดแถวเดียวกันจึงตรงกัน
+  // ไม่ว่าช่องไหนจะมีปุ่ม "+ เพิ่ม" หรือไม่ (เดิม min-h-8 สูงเกินปุ่มไป 4px ทุกแถว)
+  const labelRowClass = "flex min-h-7 items-center justify-between gap-2";
 
   return (
     <div className="flex min-h-full flex-col gap-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0">
           <BackButton fallbackHref="/products" label={t("product.title")} />
-          <h1 className="mt-2 text-2xl font-black">{title}</h1>
+          <h1 className="mt-2 text-2xl font-bold">{title}</h1>
           <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
             {t("product.formDescription")}
           </p>
@@ -184,7 +186,8 @@ export function ProductFormView({ form }: { form: ProductFormWorkflow }) {
                 {t("product.formSummaryHint")}
               </p>
             </CardHeader>
-            <CardContent className="flex flex-col gap-4">
+            {/* gap-3 ไม่ใช่ gap-4 — เส้นคั่นแต่ละเส้นเคยได้ระยะห่างข้างละ 16px รวมเป็น 32px ต่อเส้น */}
+            <CardContent className="flex flex-col gap-3">
               <div
                 className="mx-auto grid size-40 max-w-full place-items-center overflow-hidden rounded-md border border-border bg-muted bg-cover bg-center sm:size-44"
                 style={
@@ -200,10 +203,10 @@ export function ProductFormView({ form }: { form: ProductFormWorkflow }) {
                 ) : null}
               </div>
               <div className="min-w-0">
-                <p className="truncate text-lg font-black">
+                <p className="truncate text-lg font-semibold">
                   {prodNameLa || prodNameEng || title}
                 </p>
-                <p className="truncate text-xs font-semibold text-muted-foreground">
+                <p className="truncate text-xs tabular-nums text-muted-foreground">
                   {prodCode}
                 </p>
               </div>
@@ -254,7 +257,8 @@ export function ProductFormView({ form }: { form: ProductFormWorkflow }) {
               </div>
               <Separator />
               <div className="flex flex-col gap-2">
-                <p className="text-xs font-black uppercase text-muted-foreground">
+                {/* ไม่ใช้ uppercase — อักษรลาวไม่มีตัวพิมพ์ใหญ่ ใส่ไปก็มีผลแค่กับข้อความอังกฤษที่ปนมา */}
+                <p className="text-xs font-medium text-muted-foreground">
                   {t("product.quickCheck")}
                 </p>
                 <div className="grid gap-1.5">
@@ -287,7 +291,9 @@ export function ProductFormView({ form }: { form: ProductFormWorkflow }) {
                   ))}
                 </div>
               </div>
-              <Button type="submit" disabled={saveDisabled} className="w-full">
+              {/* บน xl แผงนี้ลอยติดจอตลอด ปุ่มล่างสุดของฟอร์มจึงซ้ำซ้อน — สลับกันโชว์ทีละตัว
+                  (จอเล็กแผงนี้อยู่ "เหนือ" ฟอร์มทั้งหมด ปุ่มบันทึกตรงนี้จะมาก่อนกรอกข้อมูล) */}
+              <Button type="submit" disabled={saveDisabled} className="hidden w-full xl:inline-flex">
                 {saveNotice === "saved" ? (
                   <Check data-icon="inline-start" />
                 ) : saveDisabled ? (
@@ -303,17 +309,13 @@ export function ProductFormView({ form }: { form: ProductFormWorkflow }) {
 
         <div className="flex min-w-0 flex-col gap-4">
           <Card>
-            <CardHeader className="flex-row items-start justify-start gap-3">
-              <ProductFormSectionNumber value="1" />
-              <div className="min-w-0">
-                <CardTitle>{t("product.sections.image")}</CardTitle>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {t("product.sections.imageHint")}
-                </p>
-              </div>
-            </CardHeader>
+            <ProductFormSectionHeader
+              number="1"
+              title={t("product.sections.image")}
+              hint={t("product.sections.imageHint")}
+            />
             <CardContent className="p-0">
-              <div className="flex flex-col gap-4 p-4 lg:p-5">
+              <div className="flex flex-col gap-4 p-4">
                 <Field>
                   <FieldLabel>{t("product.imageMode")}</FieldLabel>
                   <div className="grid gap-2 sm:grid-cols-2">
@@ -332,7 +334,7 @@ export function ProductFormView({ form }: { form: ProductFormWorkflow }) {
                             <Check className="size-3" />
                           </span>
                           <span className="min-w-0">
-                            <span className="block truncate text-sm font-black">
+                            <span className="block truncate text-sm font-semibold">
                               {choice.label}
                             </span>
                             <span className="mt-1 block text-xs leading-5 text-muted-foreground">
@@ -353,20 +355,18 @@ export function ProductFormView({ form }: { form: ProductFormWorkflow }) {
                   existingSrc={existingSrc}
                   fileSupportText={t("settings.storeBranch.imageSupport")}
                   fieldId="prod-image"
-                  horizontalLabel={t("settings.storeBranch.horizontal")}
                   previewMaxClassName="max-w-44 sm:max-w-52"
                   removeLabel={t("settings.storeBranch.cancelImage")}
                   saving={saving}
                   selectedFile={selectedImage}
                   title={t("settings.storeBranch.cropImage")}
                   uploadLabel={t("settings.storeBranch.uploadImage")}
-                  verticalLabel={t("settings.storeBranch.vertical")}
                   zoomLabel={t("settings.storeBranch.zoom")}
                   onCropChange={setCrop}
                   onFileChange={setSelectedImage}
                 />
               ) : (
-                <div className="flex flex-col gap-3 p-4 lg:p-5">
+                <div className="flex flex-col gap-4 p-4">
                   <Field>
                     <FieldLabel htmlFor="prod-color-choice">
                       {t("product.color")}
@@ -451,15 +451,11 @@ export function ProductFormView({ form }: { form: ProductFormWorkflow }) {
           </Card>
 
           <Card>
-            <CardHeader className="flex-row items-start justify-start gap-3">
-              <ProductFormSectionNumber value="2" />
-              <div className="min-w-0">
-                <CardTitle>{t("product.sections.general")}</CardTitle>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {t("product.sections.generalHint")}
-                </p>
-              </div>
-            </CardHeader>
+            <ProductFormSectionHeader
+              number="2"
+              title={t("product.sections.general")}
+              hint={t("product.sections.generalHint")}
+            />
             <CardContent>
               <FieldGroup className="grid gap-4 md:grid-cols-2">
                 <Field className="md:col-span-2">
@@ -482,7 +478,7 @@ export function ProductFormView({ form }: { form: ProductFormWorkflow }) {
                             <Check className="size-3" />
                           </span>
                           <span className="min-w-0">
-                            <span className="block truncate text-sm font-black">
+                            <span className="block truncate text-sm font-semibold">
                               {choice.label}
                             </span>
                             <span className="mt-1 block text-xs leading-5 text-muted-foreground">
@@ -698,8 +694,8 @@ export function ProductFormView({ form }: { form: ProductFormWorkflow }) {
 
           <ProductFormToppingsSection form={form} />
 
-          <div className="flex justify-end">
-            <Button type="submit" disabled={saveDisabled}>
+          <div className="flex justify-end xl:hidden">
+            <Button type="submit" disabled={saveDisabled} className="max-sm:w-full">
               {saveNotice === "saved" ? (
                 <Check data-icon="inline-start" />
               ) : saveDisabled ? (
