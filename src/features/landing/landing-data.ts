@@ -213,10 +213,15 @@ export const landingFeatures: LandingFeature[] = [
 //
 // ชื่อไฟล์มี hash ของเนื้อหาต่อท้าย เพราะเปลี่ยนรูปโดยใช้ชื่อเดิมแล้ว /_next/image
 // กับ Cloudflare จะยังเสิร์ฟรูปเก่า — เปลี่ยนชื่อ = URL เปลี่ยน = cache หลุดทุกชั้น
+//
+// ต้นทางบีบไว้ที่ q92 เพราะ Next re-encode ทับอีกชั้นก่อนส่งให้ผู้ใช้
+// ถ้าต้นทางบีบแรงตั้งแต่แรกจะเสียคุณภาพสองรอบ — ขนาดไฟล์ต้นทางกระทบแค่ repo
+// ไม่กระทบ bandwidth ของผู้เข้าชม เพราะสิ่งที่ดาวน์โหลดคือไฟล์ที่ Next แปลงแล้ว
+//
 // เปลี่ยนรูปใหม่: ต้องเป็น 16:9 (ไม่งั้น object-fit: cover เฉือนบน-ล่างทิ้ง)
 // แล้วตั้งชื่อไฟล์ด้วย hash ใหม่ พร้อมแก้ path ตรงนี้
 export const landingShowcase: LandingShowcase = {
-  image: "/landing/banner-yummy-go.079d6e65.webp",
+  image: "/landing/banner-yummy-go.bbe9b20f.webp",
   alt: "Yummy-go restaurant management system on desktop, tablet and phone — table plan, menu ordering and billing"
 };
 

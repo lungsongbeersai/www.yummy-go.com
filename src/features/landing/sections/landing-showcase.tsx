@@ -32,7 +32,7 @@ export function LandingShowcase({ language, loginHref }: LandingShowcaseProps) {
               src={landingShowcase.image}
               alt={landingShowcase.alt}
               fill
-              quality={80}
+              quality={75}
               sizes="(max-width: 800px) 92vw, 1068px"
               className={styles.projectImage}
             />
