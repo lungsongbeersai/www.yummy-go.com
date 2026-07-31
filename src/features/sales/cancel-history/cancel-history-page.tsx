@@ -317,7 +317,7 @@ function CancelHistoryFilterSheet({
             />
           </FieldGroup>
         </div>
-        <SheetFooter className="grid-cols-2 gap-2 border-t border-border bg-card/95 px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur [display:grid]">
+        <SheetFooter className="grid-cols-2 gap-2 border-t border-border bg-card/95 px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur grid">
           <SheetClose asChild>
             <Button type="button" variant="outline">
               {t("actions.close")}
@@ -443,7 +443,7 @@ function CancelHistoryTableCard({
       </CardHeader>
       <CardContent className="flex min-h-0 flex-1 flex-col p-0">
         {loading ? (
-          <div className="p-4 md:min-h-[320px]">
+          <div className="p-4 md:min-h-80">
             <LoadingState label={t("cancelHistory.loading")} variant="reportTable" />
           </div>
         ) : rowsLength ? (
@@ -454,7 +454,7 @@ function CancelHistoryTableCard({
             <div className="shrink-0 border-t border-border bg-card">{footer}</div>
           </>
         ) : (
-          <div className="p-4 md:min-h-[320px]">
+          <div className="p-4 md:min-h-80">
             <EmptyState title={t("cancelHistory.noData")} description={t("cancelHistory.adjustFilters")} />
           </div>
         )}
@@ -472,19 +472,19 @@ function CancelHistoryTable({ rows, startIndex }: { rows: CancelHistoryBill[]; s
 
   return (
     <div className="hidden min-w-0 md:block">
-      <Table className="min-w-[1880px] text-[13px]">
+      <Table className="min-w-470 text-[13px]">
         <TableHeader className="sticky top-0 z-20 bg-background/95 shadow-sm backdrop-blur">
           <TableRow>
-            <TableHead className="w-[72px] whitespace-nowrap bg-background/95 text-center">{t("cancelHistory.columns.no")}</TableHead>
-            <TableHead className="min-w-[130px] whitespace-nowrap bg-background/95">{t("cancelHistory.columns.invoice")}</TableHead>
-            <TableHead className="min-w-[170px] whitespace-nowrap bg-background/95">{t("cancelHistory.columns.cancelledAt")}</TableHead>
-            <TableHead className="min-w-[240px] bg-background/95">{t("cancelHistory.columns.reason")}</TableHead>
-            <TableHead className="min-w-[140px] whitespace-nowrap bg-background/95">{t("cancelHistory.columns.status")}</TableHead>
-            <TableHead className="min-w-[110px] whitespace-nowrap bg-background/95">{t("cancelHistory.columns.table")}</TableHead>
-            <TableHead className="min-w-[220px] whitespace-nowrap bg-background/95">{t("cancelHistory.columns.branch")}</TableHead>
-            <TableHead className="min-w-[120px] whitespace-nowrap bg-background/95">{t("cancelHistory.columns.orderDate")}</TableHead>
+            <TableHead className="w-18 whitespace-nowrap bg-background/95 text-center">{t("cancelHistory.columns.no")}</TableHead>
+            <TableHead className="min-w-32.5 whitespace-nowrap bg-background/95">{t("cancelHistory.columns.invoice")}</TableHead>
+            <TableHead className="min-w-42.5 whitespace-nowrap bg-background/95">{t("cancelHistory.columns.cancelledAt")}</TableHead>
+            <TableHead className="min-w-60 bg-background/95">{t("cancelHistory.columns.reason")}</TableHead>
+            <TableHead className="min-w-35 whitespace-nowrap bg-background/95">{t("cancelHistory.columns.status")}</TableHead>
+            <TableHead className="min-w-27.5 whitespace-nowrap bg-background/95">{t("cancelHistory.columns.table")}</TableHead>
+            <TableHead className="min-w-55 whitespace-nowrap bg-background/95">{t("cancelHistory.columns.branch")}</TableHead>
+            <TableHead className="min-w-30 whitespace-nowrap bg-background/95">{t("cancelHistory.columns.orderDate")}</TableHead>
             {metrics.map((metric) => (
-              <TableHead key={metric.field} className="min-w-[126px] whitespace-nowrap bg-background/95 text-right">
+              <TableHead key={metric.field} className="min-w-31.5 whitespace-nowrap bg-background/95 text-right">
                 {metric.label}
               </TableHead>
             ))}
@@ -498,12 +498,12 @@ function CancelHistoryTable({ rows, startIndex }: { rows: CancelHistoryBill[]; s
               </TableCell>
               <TableCell className="whitespace-nowrap font-black tabular-nums">{row.invoice || "-"}</TableCell>
               <TableCell className="whitespace-nowrap text-muted-foreground">{dateTime(row.cancelledAt)}</TableCell>
-              <TableCell className="max-w-[280px] whitespace-normal font-medium">{row.cancelReason || "-"}</TableCell>
+              <TableCell className="max-w-70 whitespace-normal font-medium">{row.cancelReason || "-"}</TableCell>
               <TableCell className="whitespace-nowrap">
                 <StatusBadge status={row.statusName || row.statusCode} />
               </TableCell>
               <TableCell className="whitespace-nowrap">{row.tableName || "-"}</TableCell>
-              <TableCell className="max-w-[260px] truncate">{row.branchName || "-"}</TableCell>
+              <TableCell className="max-w-65 truncate">{row.branchName || "-"}</TableCell>
               <TableCell className="whitespace-nowrap text-muted-foreground">{row.orderDate || "-"}</TableCell>
               {metrics.map((metric) => (
                 <TableCell key={metric.field} className="whitespace-nowrap text-right font-black tabular-nums">
@@ -533,7 +533,7 @@ function CancelHistoryMobileList({ rows }: { rows: CancelHistoryBill[] }) {
               </div>
               <StatusBadge status={row.statusName || row.statusCode} />
             </div>
-            <p className="mt-2 break-words text-sm font-medium">{row.cancelReason || "-"}</p>
+            <p className="mt-2 wrap-break-word text-sm font-medium">{row.cancelReason || "-"}</p>
             <div className="mt-2 flex flex-wrap gap-1">
               <Badge className="border-border bg-muted px-2 text-[11px] text-muted-foreground">
                 {t("cancelHistory.columns.table")}: {row.tableName || "-"}
