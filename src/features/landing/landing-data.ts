@@ -209,9 +209,13 @@ export const landingFeatures: LandingFeature[] = [
 
 // แบนเนอร์ 1672x941 (16:9) = 1.57x ของกล่องแสดงผล 1068px — คมพอบนจอ retina
 // รูปนี้มีข้อความครบในตัว (แบรนด์ tagline ฟีเจอร์ ปุ่ม) section จึงไม่มีหัวข้อกำกับ
-// ถ้าเปลี่ยนรูป ต้องเป็น 16:9 เท่านั้น ไม่งั้น object-fit: cover จะเฉือนบน-ล่างทิ้ง
+//
+// ชื่อไฟล์มี hash ของเนื้อหาต่อท้าย เพราะเปลี่ยนรูปโดยใช้ชื่อเดิมแล้ว /_next/image
+// กับ Cloudflare จะยังเสิร์ฟรูปเก่า — เปลี่ยนชื่อ = URL เปลี่ยน = cache หลุดทุกชั้น
+// เปลี่ยนรูปใหม่: ต้องเป็น 16:9 (ไม่งั้น object-fit: cover เฉือนบน-ล่างทิ้ง)
+// แล้วตั้งชื่อไฟล์ด้วย hash ใหม่ พร้อมแก้ path ตรงนี้
 export const landingShowcase: LandingShowcase = {
-  image: "/landing/banner-yummy-go.webp",
+  image: "/landing/banner-yummy-go.079d6e65.webp",
   alt: "Yummy-go restaurant management system on desktop, tablet and phone — table plan, menu ordering and billing"
 };
 
