@@ -33,9 +33,11 @@ export interface LandingFeature {
   description: LocalizedText;
 }
 
-export interface LandingShowcase {
+export interface LandingShowcaseItem {
+  id: string;
   image: string;
   alt: string;
+  caption: LocalizedText;
 }
 
 export interface LandingVideo {
@@ -190,11 +192,23 @@ export const landingFeatures: LandingFeature[] = [
   }
 ];
 
-// เหลือแค่ภาพ — จุดเด่นแบบ chip ถูกตัดออกเพราะซ้ำกับ landingFeatures ทั้ง 4 ข้อ
-export const landingShowcase: LandingShowcase = {
-  image: "/landing/banner_project_yummy-go.webp",
-  alt: "Yummy Go restaurant POS and ordering system on laptop and mobile devices"
-};
+// ภาพหน้าจอจริงจากแอป ขนาด 1280x720 ทั้งคู่ — สัดส่วนต้องตรงกันไม่งั้นกริดดูไม่เรียบ
+// ใส่ 2 ใบเพราะกริดกว้าง 1112px ให้ 2 คอลัมน์พอดี (ใบละ 542px) ซึ่งเป็นความกว้าง
+// ต่ำสุดที่ยังเห็นโครงหน้าจอ POS ออก — ย่อกว่านี้ตัวหนังสือในแอปจะอ่านไม่ได้
+export const landingShowcase: LandingShowcaseItem[] = [
+  {
+    id: "counter",
+    image: "/landing/screen-pos-order.webp",
+    alt: "Yummy Go counter checkout screen with menu grid and open order",
+    caption: { en: "Counter checkout", la: "ຄິດໄລ່ເງິນໜ້າເຄົາເຕີ" }
+  },
+  {
+    id: "tables",
+    image: "/landing/screen-tables.webp",
+    alt: "Yummy Go table plan showing free and occupied tables by zone",
+    caption: { en: "Table plan", la: "ຜັງໂຕະ" }
+  }
+];
 
 export const landingVideos: LandingVideo[] = [
   {

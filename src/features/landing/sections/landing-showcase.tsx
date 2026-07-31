@@ -23,36 +23,39 @@ export function LandingShowcase({ language, loginHref }: LandingShowcaseProps) {
         <h2 className={styles.sectionTitle}>{text("showcaseTitle")}</h2>
       </div>
       <div className={styles.projectsGrid}>
-        {/* projectCard มี transition ของตัวเอง (รวม opacity สำหรับ reveal แล้ว) จึงไม่ใส่ class reveal ซ้ำ */}
-        <article data-reveal data-tilt className={styles.projectCard}>
-          <Link
-            href={loginHref}
-            className={styles.projectCardLink}
-            aria-label={`${text("btnLogin")}: ${landingShowcase.alt}`}
-          />
-          <div className={styles.projectOrb} />
-          <div data-glare className={styles.glare} />
-          <div className={`${styles.projectShot} ${styles.projectShotWithImage}`}>
-            <Image
-              src={landingShowcase.image}
-              alt={landingShowcase.alt}
-              fill
-              quality={60}
-              sizes="(max-width: 800px) 90vw, 60vw"
-              className={styles.projectImage}
+        {landingShowcase.map((item) => (
+          // projectCard มี transition ของตัวเอง (รวม opacity สำหรับ reveal แล้ว) จึงไม่ใส่ class reveal ซ้ำ
+          <article key={item.id} data-reveal data-tilt className={styles.projectCard}>
+            <Link
+              href={loginHref}
+              className={styles.projectCardLink}
+              aria-label={`${text("btnLogin")}: ${pickText(item.caption, language)}`}
             />
-          </div>
-          <div className={styles.projectBody}>
-            <div className={styles.projectActions}>
-              <a href={loginHref} className={styles.btnSmallPrimary}>
-                {text("btnLoginNow")}
-              </a>
-              <a href="#trial" className={styles.btnSmallLink}>
-                {text("btnAskTrial")} →
-              </a>
+            <div className={styles.projectOrb} />
+            <div data-glare className={styles.glare} />
+            <div className={`${styles.projectShot} ${styles.projectShotWithImage}`}>
+              <Image
+                src={item.image}
+                alt={item.alt}
+                fill
+                quality={72}
+                sizes="(max-width: 800px) 90vw, 45vw"
+                className={styles.projectImage}
+              />
             </div>
-          </div>
-        </article>
+            <div className={styles.projectBody}>
+              <div className={styles.projectCaption}>{pickText(item.caption, language)}</div>
+            </div>
+          </article>
+        ))}
+      </div>
+      <div data-reveal className={`${styles.reveal} ${styles.showcaseActions}`}>
+        <a href={loginHref} className={styles.btnSmallPrimary}>
+          {text("btnLoginNow")}
+        </a>
+        <a href="#trial" className={styles.btnSmallLink}>
+          {text("btnAskTrial")} →
+        </a>
       </div>
     </section>
   );

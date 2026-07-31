@@ -34,10 +34,10 @@ export interface TrialMessageLabels {
 // ไม่งั้นปุ่มขอทดลองใช้จะถูก disable ตาม buildTrialLink ที่คืน null
 export const landingContact: LandingContact = {
   email: "",
-  phone: "",
+  phone: "020 54 555 597",
   line: "", // LINE Official Account ID เช่น @yummygo
   whatsapp: "", // เบอร์รูปแบบสากล เช่น 8562012345678
-  facebook: "", // URL เต็ม
+  facebook: "https://www.facebook.com/share/1H8L4DMjtd/", // URL เต็ม
   address: ""
 };
 

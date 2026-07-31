@@ -1234,9 +1234,29 @@
   overflow: hidden;
 }
 
+/* ภาพหน้าจอเป็น 16:9 — ผูกสัดส่วนไว้แทนความสูงตายตัวของ .projectShot
+   ไม่งั้น object-fit: cover จะเฉือนบน-ล่างทิ้งเมื่อการ์ดกว้างขึ้น */
 .projectShotWithImage {
   border-style: solid;
   background: #02060d;
+  height: auto;
+  aspect-ratio: 16 / 9;
+}
+
+.projectCaption {
+  position: relative;
+  z-index: 5;
+  font-weight: 600;
+  font-size: 16px;
+  color: #eaf2ff;
+}
+
+.showcaseActions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 32px;
 }
 
 .projectImage {
