@@ -1,63 +1,94 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <!-- Base application theme. -->
-    <style name="AppTheme" parent="Theme.AppCompat.Light.NoActionBar">
+    <!-- Theme หลัก -->
+    <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
         <item name="colorPrimary">@color/colorPrimary</item>
         <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
         <item name="colorAccent">@color/colorAccent</item>
 
-        <!-- App background หลัง splash -->
-        <item name="android:windowBackground">#16a34a</item>
-        <item name="android:statusBarColor">#16a34a</item>
-        <item name="android:navigationBarColor">#16a34a</item>
-
-        <!-- พื้นหลังเขียว ใช้ status bar icon สีขาว -->
-        <item name="android:windowLightStatusBar">false</item>
-        <item name="android:windowLightNavigationBar">false</item>
-
+        <!-- ป้องกัน Android บังคับเปลี่ยนสี -->
         <item name="android:forceDarkAllowed">false</item>
 
-        <item name="windowActionBar">false</item>
-        <item name="windowNoTitle">true</item>
+        <!-- Theme สำหรับเลือกวันที่ -->
+        <item name="android:datePickerDialogTheme">
+            @style/YummyGoDatePickerDialog
+        </item>
+
+        <!-- Theme สำหรับเลือกเวลา -->
+        <item name="android:timePickerDialogTheme">
+            @style/YummyGoDatePickerDialog
+        </item>
     </style>
 
-    <!-- Main app theme หลังจาก splash หาย -->
-    <style name="AppTheme.NoActionBar" parent="Theme.AppCompat.Light.NoActionBar">
+
+    <!-- Theme หน้าหลักของ Capacitor -->
+    <style name="AppTheme.NoActionBar"
+        parent="Theme.AppCompat.Light.NoActionBar">
+
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowActionBar">false</item>
+
         <item name="colorPrimary">@color/colorPrimary</item>
         <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
         <item name="colorAccent">@color/colorAccent</item>
 
-        <!-- ช่วง WebView โหลด จะไม่เห็นพื้นหลังขาว -->
-        <item name="android:windowBackground">#16a34a</item>
-        <item name="android:background">#16a34a</item>
-
-        <item name="android:statusBarColor">#16a34a</item>
-        <item name="android:navigationBarColor">#16a34a</item>
-
-        <item name="android:windowLightStatusBar">false</item>
-        <item name="android:windowLightNavigationBar">false</item>
-
         <item name="android:forceDarkAllowed">false</item>
 
-        <item name="windowActionBar">false</item>
-        <item name="windowNoTitle">true</item>
+        <item name="android:datePickerDialogTheme">
+            @style/YummyGoDatePickerDialog
+        </item>
+
+        <item name="android:timePickerDialogTheme">
+            @style/YummyGoDatePickerDialog
+        </item>
     </style>
 
-    <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
-    <!-- พื้นหลังเขียวเต็มจอ -->
-    <item name="windowSplashScreenBackground">@color/splash_background</item>
 
-    <!-- ใช้ icon กลางจอแบบ square ไม่บีบ -->
-    <item name="windowSplashScreenAnimatedIcon">@drawable/splash</item>
+    <!-- Theme ของกล่องเลือกวันที่ -->
+    <style name="YummyGoDatePickerDialog"
+        parent="Theme.AppCompat.Light.Dialog.Alert">
 
-    <!-- พื้นหลังหลัง icon -->
-    <item name="windowSplashScreenIconBackgroundColor">@color/splash_background</item>
+        <!-- พื้นหลังให้เป็นสีขาว -->
+        <item name="android:windowBackground">@android:color/white</item>
 
-    <!-- หลัง splash จบ เข้า theme หลัก -->
-    <item name="postSplashScreenTheme">@style/AppTheme.NoActionBar</item>
+        <!-- สีของวันที่ที่เลือก -->
+        <item name="colorAccent">@color/colorAccent</item>
+        <item name="android:colorAccent">@color/colorAccent</item>
 
-    <item name="android:forceDarkAllowed">false</item>
-</style>
+        <!-- สีข้อความ -->
+        <item name="android:textColorPrimary">#111827</item>
+        <item name="android:textColorSecondary">#4B5563</item>
+
+        <!-- สีปุ่มตกลงและยกเลิก -->
+        <item name="buttonBarPositiveButtonStyle">
+            @style/YummyGoDatePickerButton
+        </item>
+
+        <item name="buttonBarNegativeButtonStyle">
+            @style/YummyGoDatePickerButton
+        </item>
+
+        <item name="buttonBarNeutralButtonStyle">
+            @style/YummyGoDatePickerButton
+        </item>
+    </style>
+
+
+    <!-- ปุ่มตกลงและยกเลิก -->
+    <style name="YummyGoDatePickerButton"
+        parent="Widget.AppCompat.Button.ButtonBar.AlertDialog">
+
+        <item name="android:textColor">@color/colorAccent</item>
+    </style>
+
+
+    <!-- Splash Screen -->
+    <style name="AppTheme.NoActionBarLaunch"
+        parent="Theme.SplashScreen">
+
+        <item name="android:background">@drawable/splash</item>
+        <item name="windowSplashScreenBackground">@color/colorPrimary</item>
+    </style>
 
 </resources>

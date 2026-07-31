@@ -1,7 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="colorPrimary">#16a34a</color>
-    <color name="colorPrimaryDark">#16a34a</color>
-    <color name="colorAccent">#16a34a</color>
-    <color name="splash_background">#16a34a</color>
+
+    <!-- สีหลักของแอป -->
+    <color name="colorPrimary">#16A34A</color>
+
+    <!-- สีเขียวเข้ม -->
+    <color name="colorPrimaryDark">#15803D</color>
+
+    <!-- สีปุ่มและวันที่ที่เลือก -->
+    <color name="colorAccent">#16A34A</color>
+
+    <!-- สีพื้นหลัง -->
+    <color name="backgroundColor">#FFFFFF</color>
+
 </resources>
