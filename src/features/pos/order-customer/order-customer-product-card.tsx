@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
+import { IMAGE_CROP_ASPECT_CLASS } from "@/config/image-crop";
 import { money } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { CateProductItem } from "@/services/pos";
@@ -91,7 +92,7 @@ export const EmployeeProductCard = memo(function EmployeeProductCard({
         interactionDisabled && "cursor-not-allowed",
       )}
     >
-      <div className="relative aspect-square overflow-hidden bg-muted bg-cover bg-center">
+      <div className={cn("relative overflow-hidden bg-muted", IMAGE_CROP_ASPECT_CLASS)}>
         <ProductMediaView
           alt={product.prodName}
           fallbackIcon="utensils"
@@ -249,7 +250,7 @@ export function ProductMediaView({
         fill
         unoptimized={isRemoteUrl(media.src)}
         alt={alt}
-        className={cn("object-cover", imageClassName)}
+        className={cn("object-contain", imageClassName)}
         preload={preload || undefined}
         loading={preload ? undefined : "lazy"}
         sizes={sizes}
@@ -367,7 +368,7 @@ export function ProductGridSkeleton() {
           aria-hidden="true"
           className="overflow-hidden rounded-lg border-border bg-card"
         >
-          <Skeleton className="aspect-square w-full rounded-none bg-muted" />
+          <Skeleton className={cn("w-full rounded-none bg-muted", IMAGE_CROP_ASPECT_CLASS)} />
           <CardContent className="flex min-h-40 flex-col gap-2 p-2.5 sm:p-3">
             <Skeleton className="h-5 w-5/6 bg-muted" />
             <Skeleton className="h-4 w-3/4 bg-muted" />

@@ -26,7 +26,7 @@ export function ProductMedia({ className, row }: { className?: string; row: Prod
           alt={String(row.prod_name ?? row.prod_name_la ?? row.prod_name_eng ?? "Product")}
           fill
           sizes="64px"
-          className="object-cover"
+          className="object-contain"
         />
       ) : color ? null : (
         <Package className="text-muted-foreground" />

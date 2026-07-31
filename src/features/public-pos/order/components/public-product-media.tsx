@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { AlertCircle, ImageIcon, Utensils } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { IMAGE_CROP_ASPECT_CLASS } from "@/config/image-crop";
 import { cn } from "@/lib/utils";
 import { ProductImageStatus } from "@/config/pos-constants";
 import type { CateProductItem, ProdItem } from "@/services/pos";
@@ -29,10 +30,10 @@ export function ProductMedia({
     isHexColor(colorCandidate)
       ? colorCandidate
       : "";
-  // รูปสินค้าถูก crop เป็น 1:1 เสมอ (cropImageFile → 512x512) กล่องแสดงผลจึงต้องเป็น 1:1 ด้วย
-  // ไม่งั้น object-cover จะตัดซ้ำอีกรอบ = สิ่งที่เห็นไม่ตรงกับที่ผู้ใช้ crop ไว้
-  // ยกเว้น listThumb ที่สูงเต็มแถวและใช้ object-contain อยู่แล้วจึงเห็นรูปครบ
-  const mediaClass = variant === "listThumb" ? "h-full" : "aspect-square";
+  // รูปสินค้าในระบบมีสัดส่วนปนกันตั้งแต่แนวตั้งถึง 16:9 เพราะมาจาก 2 เส้นทาง
+  // (ผ่านเครื่องมือตัดรูป กับอัปตรงโดยไม่ตัด) จึงใช้ object-contain ให้เห็นรูปครบตามที่ตัดไว้จริง
+  // กล่องยังคงสัดส่วนมาตรฐานไว้ให้กริดเรียงสวย รูปที่ตัดมาตรงสัดส่วนแล้วจะเต็มกล่องพอดีไม่มีขอบ
+  const mediaClass = variant === "listThumb" ? "h-full" : IMAGE_CROP_ASPECT_CLASS;
   const imageSizes =
     variant === "sheetThumb" || variant === "listThumb"
       ? "96px"
@@ -55,7 +56,8 @@ export function ProductMedia({
           quality={60}
           sizes={imageSizes}
           className={cn(
-            variant === "listThumb" ? "object-contain p-1.5" : "object-cover",
+            "object-contain",
+            variant === "listThumb" ? "p-1.5" : "",
             blockedState ? "saturate-[0.65]" : "",
           )}
         />

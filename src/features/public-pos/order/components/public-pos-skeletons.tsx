@@ -26,7 +26,7 @@ export function RailSkeleton() {
             key={index}
             className="w-44 flex-none overflow-hidden rounded-xl border border-emerald-100 bg-white dark:border-border dark:bg-background sm:w-auto"
           >
-            <Skeleton className="aspect-square w-full" />
+            <Skeleton className="aspect-[4/3] w-full" />
             <div className="grid min-h-36 gap-1.5 p-2.5">
               <Skeleton className="h-5 w-4/5" />
               <Skeleton className="h-5 w-1/2" />
@@ -92,7 +92,7 @@ function CategoryLoadingGrid() {
           key={index}
           className="overflow-hidden rounded-lg border border-emerald-100 bg-white dark:border-border dark:bg-background"
         >
-          <Skeleton className="aspect-square w-full" />
+          <Skeleton className="aspect-[4/3] w-full" />
           <div className="grid min-h-36 gap-1.5 p-2.5">
             <Skeleton className="h-5 w-4/5" />
             <Skeleton className="h-5 w-1/2" />

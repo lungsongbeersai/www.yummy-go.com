@@ -17,6 +17,12 @@ import {
 import { Field, FieldDescription, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
+import {
+  IMAGE_CROP_ASPECT,
+  IMAGE_CROP_ASPECT_CLASS,
+  IMAGE_CROP_OUTPUT_HEIGHT,
+  IMAGE_CROP_OUTPUT_WIDTH
+} from "@/config/image-crop";
 import { cn } from "@/lib/utils";
 
 export type CropArea = Area;
@@ -37,7 +43,6 @@ export const DEFAULT_CROP: CropState = { x: 0, y: 0, zoom: 1, areaPixels: null, 
 
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 4;
-const OUTPUT_SIZE = 512;
 
 function fileExtension(type: string) {
   if (type.includes("png")) return "png";
@@ -61,31 +66,45 @@ function loadImage(file: File, errorMessage: string) {
   });
 }
 
-// ผู้ใช้ที่ไม่เปิดกล่องตัดรูปเลยต้องได้รูปที่ใช้งานได้ — ตัดจัตุรัสกลางภาพให้
-function centerSquareArea(image: HTMLImageElement): CropArea {
-  const size = Math.min(image.naturalWidth, image.naturalHeight);
+// ผู้ใช้ที่ไม่เปิดกล่องตัดรูปเลยต้องได้รูปที่ใช้งานได้ — ตัดกรอบกลางภาพตามสัดส่วนมาตรฐานให้
+function centerCropArea(image: HTMLImageElement): CropArea {
+  const { naturalHeight, naturalWidth } = image;
+  const wide = naturalWidth / naturalHeight > IMAGE_CROP_ASPECT;
+  const width = wide ? naturalHeight * IMAGE_CROP_ASPECT : naturalWidth;
+  const height = wide ? naturalHeight : naturalWidth / IMAGE_CROP_ASPECT;
+
   return {
-    height: size,
-    width: size,
-    x: (image.naturalWidth - size) / 2,
-    y: (image.naturalHeight - size) / 2
+    height,
+    width,
+    x: (naturalWidth - width) / 2,
+    y: (naturalHeight - height) / 2
   };
 }
 
 export async function cropImageFile(file: File, crop: CropState, imageLoadFailed: string) {
   const image = await loadImage(file, imageLoadFailed);
   const canvas = document.createElement("canvas");
-  canvas.width = OUTPUT_SIZE;
-  canvas.height = OUTPUT_SIZE;
+  canvas.width = IMAGE_CROP_OUTPUT_WIDTH;
+  canvas.height = IMAGE_CROP_OUTPUT_HEIGHT;
   const context = canvas.getContext("2d");
   if (!context) return file;
 
-  const area = crop.areaPixels ?? centerSquareArea(image);
+  const area = crop.areaPixels ?? centerCropArea(image);
   const outputType = file.type || "image/jpeg";
 
   context.fillStyle = "#ffffff";
-  context.fillRect(0, 0, OUTPUT_SIZE, OUTPUT_SIZE);
-  context.drawImage(image, area.x, area.y, area.width, area.height, 0, 0, OUTPUT_SIZE, OUTPUT_SIZE);
+  context.fillRect(0, 0, IMAGE_CROP_OUTPUT_WIDTH, IMAGE_CROP_OUTPUT_HEIGHT);
+  context.drawImage(
+    image,
+    area.x,
+    area.y,
+    area.width,
+    area.height,
+    0,
+    0,
+    IMAGE_CROP_OUTPUT_WIDTH,
+    IMAGE_CROP_OUTPUT_HEIGHT
+  );
 
   const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, outputType, 0.92));
   if (!blob) return file;
@@ -176,7 +195,7 @@ function ImageCropDialogBody({
       {/* ความสูงผูกกับ dvh — รูปกับตัวปรับจึงอยู่ในสายตาพร้อมกันเสมอ ไม่ว่าจอจะเตี้ยแค่ไหน */}
       <div className="relative h-[min(50dvh,20rem)] w-full shrink-0 overflow-hidden rounded-lg bg-black">
         <Cropper
-          aspect={1}
+          aspect={IMAGE_CROP_ASPECT}
           crop={{ x: draft.x, y: draft.y }}
           image={src}
           maxZoom={MAX_ZOOM}
@@ -310,7 +329,10 @@ export function SettingsImageCropPanel({
           onClick={handleOpenFileDialog}
         >
           <span
-            className="grid aspect-square w-full place-items-center overflow-hidden rounded-lg bg-muted"
+            className={cn(
+              "grid w-full place-items-center overflow-hidden rounded-lg bg-muted",
+              IMAGE_CROP_ASPECT_CLASS
+            )}
             style={cropPreviewStyle(previewSrc, crop.areaPercent)}
           >
             {!previewSrc ? <ImageIcon className="size-8 text-muted-foreground" /> : null}
