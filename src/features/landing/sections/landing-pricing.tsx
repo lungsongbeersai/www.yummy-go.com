@@ -132,7 +132,7 @@ export function LandingPricing({ language }: LandingPricingProps) {
                 </ul>
               ) : null}
 
-              <a className={styles.pricingCta} href="#contact">
+              <a className={styles.pricingCta} href="#trial">
                 {pickText(landingUi.pricingCta, language)}
               </a>
             </div>
@@ -141,7 +141,7 @@ export function LandingPricing({ language }: LandingPricingProps) {
 
         <div data-reveal className={`${styles.reveal} ${styles.pricingHelp}`}>
           <span>{pickText(landingUi.pricingHelp, language)}</span>
-          <a className={styles.btnSmallLink} href="#contact">
+          <a className={styles.btnSmallLink} href="#trial">
             {pickText(landingUi.pricingHelpCta, language)}
           </a>
         </div>
