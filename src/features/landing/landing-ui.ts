@@ -52,6 +52,8 @@ export const landingUi = {
     en: "Learn how to run your shop on Yummy-go, step by step.",
     la: "ຮຽນຮູ້ວິທີດຳເນີນຮ້ານດ້ວຍ Yummy-go ເທື່ອລະຂັ້ນຕອນ."
   },
+  // ใช้คำเดียวกับที่แอปใช้อยู่ (nav.coming_soon ใน locales)
+  tutorialsSoon: { en: "Soon", la: "ໄວໆນີ້" },
   testimonialsKicker: { en: "Customers", la: "ລູກຄ້າ" },
   testimonialsTitle: { en: "What shop owners say", la: "ເຈົ້າຂອງຮ້ານເວົ້າແນວໃດ" },
   faqKicker: { en: "FAQ", la: "ຄຳຖາມພົບບ່ອຍ" },

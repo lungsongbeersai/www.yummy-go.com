@@ -99,6 +99,7 @@ export const landingNavigation: LandingNavItem[] = [
   { id: "about", href: "#about", label: { en: "About", la: "ກ່ຽວກັບ" } },
   { id: "features", href: "#features", label: { en: "Features", la: "ຟີເຈີ" } },
   { id: "platforms", href: "#platforms", label: { en: "Platforms", la: "ແພລດຟອມ" } },
+  { id: "tutorials", href: "#tutorials", label: { en: "Tutorials", la: "ວິດີໂອສອນ" } },
   { id: "pricing", href: "#pricing", label: { en: "Pricing", la: "ລາຄາ" } },
   { id: "trial", href: "#trial", label: { en: "Free trial", la: "ທົດລອງໃຊ້ຟຣີ" } }
 ];
