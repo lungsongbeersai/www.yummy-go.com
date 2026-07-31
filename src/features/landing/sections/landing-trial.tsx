@@ -69,6 +69,7 @@ export function LandingTrial({ language }: LandingSectionProps) {
     setSent(true);
   };
 
+  // โชว์ครบทุกช่องแม้ยังไม่ได้กรอก — ช่องว่างขึ้นป้าย "ໄວໆນີ້" แทนการซ่อน
   // เบอร์กับอีเมลกดโทร/กดส่งเมลได้เลย ที่อยู่ไม่มีปลายทางให้กด
   const contactSlots = [
     {
@@ -84,7 +85,7 @@ export function LandingTrial({ language }: LandingSectionProps) {
       href: landingContact.email ? `mailto:${landingContact.email}` : ""
     },
     { label: text("contactAddressLabel"), value: landingContact.address, icon: MapPin, href: "" }
-  ].filter((slot) => slot.value);
+  ];
 
   const requiredNote = text("fieldRequired");
 
@@ -164,47 +165,51 @@ export function LandingTrial({ language }: LandingSectionProps) {
             </button>
           </div>
         </form>
-        {contactSlots.length || landingContact.facebook ? (
-          <div className={styles.contactCard}>
-            <div className={styles.contactCardTitle}>{text("trialCardTitle")}</div>
-            {contactSlots.map((slot) => {
-              const Icon = slot.icon;
-              const body = (
-                <>
-                  <Icon aria-hidden className={styles.slotIcon} />
-                  <span>{slot.value}</span>
-                </>
-              );
+        <div className={styles.contactCard}>
+          <div className={styles.contactCardTitle}>{text("trialCardTitle")}</div>
+          {contactSlots.map((slot) => {
+            const Icon = slot.icon;
+            const body = (
+              <>
+                <Icon aria-hidden className={styles.slotIcon} />
+                <span>{slot.value || text("contentSoon")}</span>
+              </>
+            );
 
-              return (
-                <div key={slot.label} className={styles.contactSlot}>
-                  <div className={styles.slotLabel}>{slot.label}</div>
-                  {slot.href ? (
-                    <a href={slot.href} className={`${styles.slotValue} ${styles.slotValueLink}`}>
-                      {body}
-                    </a>
-                  ) : (
-                    <div className={styles.slotValue}>{body}</div>
-                  )}
-                </div>
-              );
-            })}
-            {landingContact.facebook ? (
-              <div className={styles.socialRow}>
-                <div className={styles.slotLabel}>{text("contactSocialLabel")}</div>
-                <a
-                  href={landingContact.facebook}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={styles.socialSquare}
-                  aria-label="Facebook"
-                >
-                  <Facebook aria-hidden className={styles.socialIcon} />
-                </a>
+            return (
+              <div key={slot.label} className={styles.contactSlot}>
+                <div className={styles.slotLabel}>{slot.label}</div>
+                {slot.href ? (
+                  <a href={slot.href} className={`${styles.slotValue} ${styles.slotValueLink}`}>
+                    {body}
+                  </a>
+                ) : (
+                  <div className={slot.value ? styles.slotValue : `${styles.slotValue} ${styles.slotValueSoon}`}>
+                    {body}
+                  </div>
+                )}
               </div>
-            ) : null}
+            );
+          })}
+          <div className={styles.socialRow}>
+            <div className={styles.slotLabel}>{text("contactSocialLabel")}</div>
+            {landingContact.facebook ? (
+              <a
+                href={landingContact.facebook}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={styles.socialSquare}
+                aria-label="Facebook"
+              >
+                <Facebook aria-hidden className={styles.socialIcon} />
+              </a>
+            ) : (
+              <div className={`${styles.socialSquare} ${styles.socialSquareSoon}`} aria-hidden>
+                <Facebook className={styles.socialIcon} />
+              </div>
+            )}
           </div>
-        ) : null}
+        </div>
       </div>
     </section>
   );

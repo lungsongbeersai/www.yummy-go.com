@@ -270,7 +270,14 @@ export const landingSteps: LandingStep[] = [
 
 // ⚠️ ใส่รีวิวจากลูกค้าจริงเท่านั้น — ห้ามแต่งขึ้นเอง
 // ว่างไว้ = section ซ่อนตัวเอง ไม่มีอะไรขึ้นเว็บจนกว่าจะมีของจริง
-export const landingTestimonials: LandingTestimonial[] = [];
+// ยังไม่มีรีวิวจากลูกค้าจริง — quote/name/shop ว่างไว้ ให้ section เรนเดอร์เป็นโครงว่าง
+// พร้อมป้าย "ໄວໆນີ້" ห้ามเติมรีวิวสมมติเด็ดขาด เพราะเป็นการอ้างคำพูดของคนที่ไม่มีจริง
+// เติมทีละใบได้ พอใส่ quote การ์ดนั้นจะกลายเป็นรีวิวจริงเอง
+export const landingTestimonials: LandingTestimonial[] = [
+  { id: "t1", quote: { en: "", la: "" }, name: "", shop: "" },
+  { id: "t2", quote: { en: "", la: "" }, name: "", shop: "" },
+  { id: "t3", quote: { en: "", la: "" }, name: "", shop: "" }
+];
 
 // ⚠️ คำตอบที่ยังว่าง = section จะข้ามข้อนั้นไป เติมได้ทีละข้อ
 export const landingFaq: LandingFaqItem[] = [

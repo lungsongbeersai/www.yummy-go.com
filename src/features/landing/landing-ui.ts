@@ -54,6 +54,8 @@ export const landingUi = {
   },
   // ใช้คำเดียวกับที่แอปใช้อยู่ (nav.coming_soon ใน locales)
   tutorialsSoon: { en: "Soon", la: "ໄວໆນີ້" },
+  // ป้ายกำกับช่องที่ยังไม่มีเนื้อหา — โชว์โครงไว้ให้เห็น ไม่ซ่อน ไม่แต่งของปลอม
+  contentSoon: { en: "Coming soon", la: "ໄວໆນີ້" },
   testimonialsKicker: { en: "Customers", la: "ລູກຄ້າ" },
   testimonialsTitle: { en: "What shop owners say", la: "ເຈົ້າຂອງຮ້ານເວົ້າແນວໃດ" },
   faqKicker: { en: "FAQ", la: "ຄຳຖາມພົບບ່ອຍ" },

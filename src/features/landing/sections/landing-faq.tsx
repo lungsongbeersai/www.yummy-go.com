@@ -11,10 +11,8 @@ interface LandingSectionProps {
 
 export function LandingFaq({ language }: LandingSectionProps) {
   const text = (key: keyof typeof landingUi) => pickText(landingUi[key], language);
-  // ข้อที่ยังไม่มีคำตอบให้ข้ามไป — ถามแล้วไม่ตอบแย่กว่าไม่ถาม
-  const items = landingFaq.filter((item) => pickText(item.answer, language).trim());
 
-  if (!items.length) return null;
+  if (!landingFaq.length) return null;
 
   return (
     <section id="faq" className={`${styles.section} ${styles.sectionNarrow}`}>
@@ -25,15 +23,22 @@ export function LandingFaq({ language }: LandingSectionProps) {
       <div data-reveal className={`${styles.reveal} ${styles.faqList}`}>
         {/* details/summary เป็น accordion ของเบราว์เซอร์เอง — คีย์บอร์ดและ screen reader
             ใช้งานได้ครบโดยไม่ต้องเขียน JS หรือจัดการ aria เพิ่ม */}
-        {items.map((item) => (
-          <details key={item.id} className={styles.faqItem}>
-            <summary className={styles.faqQuestion}>
-              <span>{pickText(item.question, language)}</span>
-              <span aria-hidden="true" className={styles.faqMark} />
-            </summary>
-            <div className={styles.faqAnswer}>{pickText(item.answer, language)}</div>
-          </details>
-        ))}
+        {landingFaq.map((item) => {
+          const answer = pickText(item.answer, language).trim();
+
+          return (
+            <details key={item.id} className={styles.faqItem}>
+              <summary className={styles.faqQuestion}>
+                <span>{pickText(item.question, language)}</span>
+                {answer ? null : <span className={styles.faqSoon}>{text("contentSoon")}</span>}
+                <span aria-hidden="true" className={styles.faqMark} />
+              </summary>
+              <div className={answer ? styles.faqAnswer : `${styles.faqAnswer} ${styles.faqAnswerSoon}`}>
+                {answer || text("contentSoon")}
+              </div>
+            </details>
+          );
+        })}
       </div>
       <div data-reveal className={`${styles.reveal} ${styles.faqMore}`}>
         <span>{text("faqMoreQuestions")}</span>
