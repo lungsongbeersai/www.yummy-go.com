@@ -45,7 +45,7 @@ export function LandingHeader({
         <a href="#top" className={styles.brand}>
           <Image
             src={landingCompany.logo}
-            alt="PLC Lao Developer logo"
+            alt={`${landingCompany.name} logo`}
             width={46}
             height={46}
             className={styles.brandLogo}

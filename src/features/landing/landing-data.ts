@@ -1,5 +1,5 @@
 // ============================================================
-// PLC Lao Developer — เนื้อหาหน้าแนะนำบริษัท (landing page)
+// Yummy-go — เนื้อหาหน้าแนะนำบริษัท (landing page)
 // เป็น single source of truth ของหน้านี้ ภายหลังสามารถย้ายไป
 // ดึงจาก API/CMS ได้โดย UI ไม่ต้องแก้ (อ่านจากโครงสร้างนี้เท่านั้น)
 // ============================================================
@@ -57,20 +57,21 @@ export function pickText(text: LocalizedText, language: Language): string {
 }
 
 export const landingCompany = {
-  name: "PLC Lao Developer",
+  name: "Yummy-go",
   foundedYear: 2002,
-  logo: "/landing/plc-logo-96.webp",
+  // ใช้ไอคอนแบรนด์ตัวเดียวกับ root layout / login / app-shell เพื่อให้เอกลักษณ์ตรงกันทั้งแอป
+  logo: "/brand/icon.png",
   tagline: {
     en: "We Build Modern Web Apps, Mobile Apps, and Business Systems",
     la: "ພວກເຮົາສ້າງເວັບແອັບ, ໂມບາຍແອັບ ແລະ ລະບົບທຸລະກິດທີ່ທັນສະໄໝ"
   },
   description: {
-    en: "Founded in 2002, PLC Lao Developer creates scalable digital solutions for restaurants, insurance businesses, and modern companies.",
-    la: "ກໍ່ຕັ້ງໃນປີ 2002, PLC Lao Developer ສ້າງໂຊລູຊັນດິຈິຕອນທີ່ຂະຫຍາຍໄດ້ ສຳລັບຮ້ານອາຫານ, ທຸລະກິດປະກັນໄພ ແລະ ບໍລິສັດສະໄໝໃໝ່."
+    en: "Founded in 2002, Yummy-go creates scalable digital solutions for restaurants, insurance businesses, and modern companies.",
+    la: "ກໍ່ຕັ້ງໃນປີ 2002, Yummy-go ສ້າງໂຊລູຊັນດິຈິຕອນທີ່ຂະຫຍາຍໄດ້ ສຳລັບຮ້ານອາຫານ, ທຸລະກິດປະກັນໄພ ແລະ ບໍລິສັດສະໄໝໃໝ່."
   },
   about: {
-    en: "PLC Lao Developer develops web applications, mobile applications, business software, backend systems, dashboards, and digital platforms. We focus on building scalable, reliable, and easy-to-use systems for real business operations.",
-    la: "PLC Lao Developer ພັດທະນາເວັບແອັບພລິເຄຊັນ, ໂມບາຍແອັບພລິເຄຊັນ, ຊອບແວທຸລະກິດ, ລະບົບ backend, ແດັດບອດ ແລະ ແພລດຟອມດິຈິຕອນ. ພວກເຮົາເນັ້ນການສ້າງລະບົບທີ່ຂະຫຍາຍໄດ້, ເຊື່ອຖືໄດ້ ແລະ ໃຊ້ງ່າຍ ສຳລັບການດຳເນີນທຸລະກິດຕົວຈິງ."
+    en: "Yummy-go develops web applications, mobile applications, business software, backend systems, dashboards, and digital platforms. We focus on building scalable, reliable, and easy-to-use systems for real business operations.",
+    la: "Yummy-go ພັດທະນາເວັບແອັບພລິເຄຊັນ, ໂມບາຍແອັບພລິເຄຊັນ, ຊອບແວທຸລະກິດ, ລະບົບ backend, ແດັດບອດ ແລະ ແພລດຟອມດິຈິຕອນ. ພວກເຮົາເນັ້ນການສ້າງລະບົບທີ່ຂະຫຍາຍໄດ້, ເຊື່ອຖືໄດ້ ແລະ ໃຊ້ງ່າຍ ສຳລັບການດຳເນີນທຸລະກິດຕົວຈິງ."
   },
   contactEmail: "",
   phone: "",

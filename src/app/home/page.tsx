@@ -28,11 +28,11 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "PLC Lao Developer — Web Apps, Mobile Apps & Business Systems",
+  title: "Yummy-go — Web Apps, Mobile Apps & Business Systems",
   description:
-    "Founded in 2002, PLC Lao Developer creates scalable digital solutions for restaurants, insurance businesses, and modern companies.",
+    "Founded in 2002, Yummy-go creates scalable digital solutions for restaurants, insurance businesses, and modern companies.",
   icons: {
-    icon: "/landing/plc-logo.png"
+    icon: "/brand/icon.png"
   }
 };
 

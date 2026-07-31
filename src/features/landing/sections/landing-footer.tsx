@@ -23,7 +23,7 @@ export function LandingFooter({ language, onSetLanguage }: LandingFooterProps) {
             <div className={styles.footerBrandRow}>
               <Image
                 src={landingCompany.logo}
-                alt="PLC Lao Developer logo"
+                alt={`${landingCompany.name} logo`}
                 width={46}
                 height={46}
                 className={styles.brandLogo}
