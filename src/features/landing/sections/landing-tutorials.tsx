@@ -10,17 +10,30 @@ interface LandingSectionProps {
 }
 
 export function LandingTutorials({ language }: LandingSectionProps) {
+  // การ์ดวิดีโอที่กดไม่ได้ทำให้หน้าดูค้างงาน — โชว์เฉพาะข้อที่มีลิงก์จริง
+  // ยังไม่มีสักข้อ = ซ่อนทั้ง section
+  const videos = landingVideos.filter((video) => video.url.trim());
+
+  if (!videos.length) return null;
+
   return (
     <section id="tutorials" className={`${styles.section} ${styles.band}`}>
       <div className={styles.bandInner}>
         <div data-reveal className={`${styles.reveal} ${styles.tutorialsHead}`}>
-          <div className={styles.kicker}>▶</div>
+          <div className={styles.kicker}>{pickText(landingUi.tutorialsKicker, language)}</div>
           <h2 className={styles.tutorialsTitle}>{pickText(landingUi.tutorialsTitle, language)}</h2>
           <p className={styles.tutorialsSubtitle}>{pickText(landingUi.tutorialsSubtitle, language)}</p>
         </div>
         <div data-reveal className={`${styles.reveal} ${styles.videosGrid}`}>
-          {landingVideos.map((video) => (
-            <div key={video.id} data-tilt className={styles.videoCard}>
+          {videos.map((video) => (
+            <a
+              key={video.id}
+              href={video.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              data-tilt
+              className={styles.videoCard}
+            >
               <div data-glare className={styles.glare} />
               <div className={styles.videoThumb}>
                 <div className={styles.playCircle}>
@@ -33,7 +46,7 @@ export function LandingTutorials({ language }: LandingSectionProps) {
                 <div className={styles.videoTitle}>{pickText(video.title, language)}</div>
                 <div className={styles.videoDesc}>{pickText(video.description, language)}</div>
               </div>
-            </div>
+            </a>
           ))}
         </div>
       </div>

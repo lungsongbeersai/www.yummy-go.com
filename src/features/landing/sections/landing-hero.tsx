@@ -86,25 +86,6 @@ export function LandingHero({
             <div className={styles.chartLineShort} />
           </div>
 
-          <div className={`${styles.glassPanel} ${styles.panelCode}`}>
-            <div className={styles.codeBlue}>
-              const <span className={styles.codeWhite}>system</span> = {"{"}
-            </div>
-            <div className={styles.codeDim}>
-              pos: <span className={styles.codeAccent}>true</span>,
-            </div>
-            <div className={styles.codeDim}>
-              reports: <span className={styles.codeAccent}>live</span>,
-            </div>
-            <div className={styles.codeDim}>
-              scale: <span className={styles.codeCyan}>&quot;cloud&quot;</span>
-            </div>
-            <div className={styles.codeBlue}>
-              {"}"}
-              <span className={styles.caret} />
-            </div>
-          </div>
-
           <div className={`${styles.glassPanel} ${styles.panelMobile}`}>
             <div className={styles.mobileNotch} />
             <div className={styles.mobileScreen} />

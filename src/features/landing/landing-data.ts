@@ -38,17 +38,38 @@ export interface LandingShowcase {
   alt: string;
 }
 
+export interface LandingPlatform {
+  id: string;
+  label: LocalizedText;
+}
+
+export interface LandingStep {
+  id: string;
+  title: LocalizedText;
+  description: LocalizedText;
+}
+
+export interface LandingTestimonial {
+  id: string;
+  quote: LocalizedText;
+  name: string;
+  shop: string;
+}
+
+export interface LandingFaqItem {
+  id: string;
+  question: LocalizedText;
+  answer: LocalizedText;
+}
+
 export interface LandingVideo {
   id: string;
   title: LocalizedText;
   description: LocalizedText;
   duration: string;
   category: string;
-}
-
-export interface LandingPlatform {
-  id: string;
-  label: LocalizedText;
+  /** ลิงก์วิดีโอจริง — ว่างไว้ = การ์ดยังไม่พร้อม section จะซ่อนตัวเอง */
+  url: string;
 }
 
 export function pickText(text: LocalizedText, language: Language): string {
@@ -73,25 +94,21 @@ export const landingCompany = {
   }
 } as const;
 
+// เรียงตามลำดับ section จริง — showcase ไม่มีหัวข้อจึงไม่เป็นปลายทางของเมนู
 export const landingNavigation: LandingNavItem[] = [
   { id: "about", href: "#about", label: { en: "About", la: "ກ່ຽວກັບ" } },
   { id: "features", href: "#features", label: { en: "Features", la: "ຟີເຈີ" } },
-  { id: "pricing", href: "#pricing", label: { en: "Pricing", la: "ລາຄາ" } },
-  { id: "showcase", href: "#showcase", label: { en: "See it working", la: "ເບິ່ງການໃຊ້ງານຈິງ" } },
-  { id: "tutorials", href: "#tutorials", label: { en: "Tutorials", la: "ວິດີໂອສອນ" } },
   { id: "platforms", href: "#platforms", label: { en: "Platforms", la: "ແພລດຟອມ" } },
+  { id: "pricing", href: "#pricing", label: { en: "Pricing", la: "ລາຄາ" } },
   { id: "trial", href: "#trial", label: { en: "Free trial", la: "ທົດລອງໃຊ້ຟຣີ" } }
 ];
 
-// รวมจุดขายไว้ที่เดียว — 3 ข้อท้ายย้ายมาจาก section "Why choose us" ที่ถูกยุบ
-// เพราะอีก 4 ข้อของ section นั้นซ้ำกับ landingFeatures และ landingPlatforms
+// เหลือเฉพาะข้อที่ไม่ซ้ำกับ section อื่น — "ใช้ได้ทุกอุปกรณ์" ไปอยู่ที่ Platforms,
+// "ข้อมูลยอดขายสด" กับ "รองรับหลายสาขา" ไปอยู่ที่ Features แล้ว
 export const landingHighlights: LandingHighlight[] = [
   { id: "allinone", icon: "all", title: { en: "Everything in one system", la: "ທຸກຢ່າງໃນລະບົບດຽວ" } },
-  { id: "anydevice", icon: "dev", title: { en: "Works on any device", la: "ໃຊ້ໄດ້ທຸກອຸປະກອນ" } },
-  { id: "bilingual", icon: "lang", title: { en: "Lao and English", la: "ພາສາລາວ ແລະ ອັງກິດ" } },
-  { id: "livedata", icon: "live", title: { en: "Live sales data", la: "ຂໍ້ມູນຍອດຂາຍສົດ" } },
-  { id: "multibranch", icon: "brc", title: { en: "Built for multiple branches", la: "ຮອງຮັບຫຼາຍສາຂາ" } },
   { id: "lao", icon: "lao", title: { en: "Built for Lao restaurants", la: "ສ້າງມາເພື່ອຮ້ານອາຫານລາວ" } },
+  { id: "bilingual", icon: "lang", title: { en: "Lao and English", la: "ພາສາລາວ ແລະ ອັງກິດ" } },
   { id: "easy", icon: "esy", title: { en: "Staff learn it quickly", la: "ພະນັກງານຮຽນຮູ້ໄດ້ໄວ" } },
   { id: "support", icon: "sla", title: { en: "Setup help and updates", la: "ຊ່ວຍຕິດຕັ້ງ ແລະ ອັບເດດ" } }
 ];
@@ -198,6 +215,100 @@ export const landingShowcase: LandingShowcase = {
   alt: "Yummy-go restaurant management system on desktop, tablet and phone — table plan, menu ordering and billing"
 };
 
+export const landingPlatforms: LandingPlatform[] = [
+  { id: "web", label: { en: "Web browser", la: "ເບຣົາເຊີເວັບ" } },
+  { id: "windows", label: { en: "Windows desktop", la: "Windows ເດັສທັອບ" } },
+  { id: "android", label: { en: "Android", la: "Android" } },
+  { id: "display", label: { en: "Customer display", la: "ຈໍລູກຄ້າ" } }
+];
+
+// ขั้นตอนจริงตามลำดับการตั้งค่าในแอป (สาขา → เมนู → โต๊ะ/QR → เปิดขาย)
+export const landingSteps: LandingStep[] = [
+  {
+    id: "signup",
+    title: { en: "Ask for a trial", la: "ຂໍທົດລອງໃຊ້" },
+    description: {
+      en: "Tell us about your shop and we set up your store and branch for you.",
+      la: "ບອກຂໍ້ມູນຮ້ານຂອງທ່ານ ແລ້ວພວກເຮົາຕັ້ງຄ່າຮ້ານ ແລະ ສາຂາໃຫ້."
+    }
+  },
+  {
+    id: "menu",
+    title: { en: "Add your menu", la: "ເພີ່ມເມນູຂອງທ່ານ" },
+    description: {
+      en: "Create categories, products, sizes, and toppings the way your shop sells them.",
+      la: "ສ້າງໝວດໝູ່, ສິນຄ້າ, ຂະໜາດ ແລະ ທ໋ອບປິ້ງ ຕາມທີ່ຮ້ານຂອງທ່ານຂາຍຈິງ."
+    }
+  },
+  {
+    id: "tables",
+    title: { en: "Set up tables and QR", la: "ຕັ້ງໂຕະ ແລະ QR" },
+    description: {
+      en: "Lay out your zones and tables, then print the QR code for each table.",
+      la: "ຈັດໂຊນ ແລະ ໂຕະ ຈາກນັ້ນພິມ QR ຕິດແຕ່ລະໂຕະ."
+    }
+  },
+  {
+    id: "open",
+    title: { en: "Open your shop", la: "ເປີດຮ້ານ" },
+    description: {
+      en: "Take orders, print receipts, and watch today's sales come in live.",
+      la: "ຮັບອໍເດີ, ພິມບິນ ແລະ ເບິ່ງຍອດຂາຍມື້ນີ້ເຂົ້າມາສົດໆ."
+    }
+  }
+];
+
+// ⚠️ ใส่รีวิวจากลูกค้าจริงเท่านั้น — ห้ามแต่งขึ้นเอง
+// ว่างไว้ = section ซ่อนตัวเอง ไม่มีอะไรขึ้นเว็บจนกว่าจะมีของจริง
+export const landingTestimonials: LandingTestimonial[] = [];
+
+// ⚠️ คำตอบที่ยังว่าง = section จะข้ามข้อนั้นไป เติมได้ทีละข้อ
+export const landingFaq: LandingFaqItem[] = [
+  {
+    id: "internet",
+    question: { en: "Do I need an internet connection?", la: "ຕ້ອງມີອິນເຕີເນັດບໍ?" },
+    answer: {
+      en: "Yes. Yummy-go keeps your menu, orders, and reports on the server so every device and branch sees the same data.",
+      la: "ຕ້ອງມີ. Yummy-go ເກັບເມນູ, ອໍເດີ ແລະ ລາຍງານໄວ້ເທິງເຊີບເວີ ເພື່ອໃຫ້ທຸກອຸປະກອນ ແລະ ທຸກສາຂາເຫັນຂໍ້ມູນຊຸດດຽວກັນ."
+    }
+  },
+  {
+    id: "printer",
+    question: { en: "Which receipt printers work with it?", la: "ໃຊ້ໄດ້ກັບເຄື່ອງພິມແບບໃດ?" },
+    answer: {
+      en: "Printers connected through the local printer agent on Windows, and network printers over TCP on Android.",
+      la: "ເຄື່ອງພິມທີ່ຕໍ່ຜ່ານໂປຣແກຣມຊ່ວຍພິມເທິງ Windows ແລະ ເຄື່ອງພິມເຄືອຂ່າຍຜ່ານ TCP ເທິງ Android."
+    }
+  },
+  {
+    id: "devices",
+    question: { en: "What can I run it on?", la: "ໃຊ້ໄດ້ເທິງອຸປະກອນໃດແດ່?" },
+    answer: {
+      en: "A web browser on any computer, a Windows desktop app, an Android device, and a second screen for customers.",
+      la: "ເບຣົາເຊີເທິງຄອມໃດກໍໄດ້, ແອັບເດັສທັອບ Windows, ອຸປະກອນ Android ແລະ ຈໍທີສອງສຳລັບລູກຄ້າ."
+    }
+  },
+  {
+    id: "branches",
+    question: { en: "Can I manage more than one branch?", la: "ຄຸມຫຼາຍສາຂາໄດ້ບໍ?" },
+    answer: {
+      en: "Yes. One account covers every branch, and you control what each staff member can see.",
+      la: "ໄດ້. ບັນຊີດຽວຄຸມໄດ້ທຸກສາຂາ ແລະ ກຳນົດໄດ້ວ່າພະນັກງານແຕ່ລະຄົນເຫັນຫຍັງໄດ້ແດ່."
+    }
+  },
+  {
+    id: "trial",
+    question: { en: "How long is the free trial?", la: "ທົດລອງໃຊ້ຟຣີໄດ້ດົນປານໃດ?" },
+    answer: { en: "", la: "" }
+  },
+  {
+    id: "migrate",
+    question: { en: "Can you move my existing menu over?", la: "ຍ້າຍເມນູເກົ່າມາໃຫ້ໄດ້ບໍ?" },
+    answer: { en: "", la: "" }
+  }
+];
+
+// ⚠️ ใส่ url ของวิดีโอจริงเมื่อพร้อม — ทุกข้อ url ว่าง = section ซ่อนตัวเอง
 export const landingVideos: LandingVideo[] = [
   {
     id: "tv1",
@@ -207,7 +318,8 @@ export const landingVideos: LandingVideo[] = [
       la: "ສ້າງສາຂາ, ໂຕະ ແລະ ບັນຊີພະນັກງານ."
     },
     duration: "--:--",
-    category: "Basics"
+    category: "Basics",
+    url: ""
   },
   {
     id: "tv2",
@@ -217,7 +329,8 @@ export const landingVideos: LandingVideo[] = [
       la: "ເພີ່ມໝວດໝູ່, ສິນຄ້າ, ຂະໜາດ ແລະ ທ໋ອບປິ້ງ."
     },
     duration: "--:--",
-    category: "Menu"
+    category: "Menu",
+    url: ""
   },
   {
     id: "tv3",
@@ -227,7 +340,8 @@ export const landingVideos: LandingVideo[] = [
       la: "ໃຊ້ໜ້າເຄົາເຕີ, ເປີດໂຕະ ແລະ ປິດບິນ."
     },
     duration: "--:--",
-    category: "POS"
+    category: "POS",
+    url: ""
   },
   {
     id: "tv4",
@@ -237,15 +351,9 @@ export const landingVideos: LandingVideo[] = [
       la: "ເບິ່ງວ່າຫຍັງຂາຍດີ ແລະ ມື້ນີ້ປິດຮ້ານແນວໃດ."
     },
     duration: "--:--",
-    category: "Reports"
+    category: "Reports",
+    url: ""
   }
-];
-
-export const landingPlatforms: LandingPlatform[] = [
-  { id: "web", label: { en: "Web browser", la: "ເບຣົາເຊີເວັບ" } },
-  { id: "windows", label: { en: "Windows desktop", la: "Windows ເດັສທັອບ" } },
-  { id: "android", label: { en: "Android", la: "Android" } },
-  { id: "display", label: { en: "Customer display", la: "ຈໍລູກຄ້າ" } }
 ];
 
 // จำนวนหน้ารายงานใต้ /report — นับ route ตอน build ไม่ได้ ต้องอัปเดตเมื่อเพิ่มรายงาน

@@ -16,8 +16,11 @@ import { LandingHeader } from "./sections/landing-header";
 import { LandingHero } from "./sections/landing-hero";
 import { LandingPricing } from "./sections/landing-pricing";
 import { LandingShowcase } from "./sections/landing-showcase";
+import { LandingSteps } from "./sections/landing-steps";
+import { LandingTestimonials } from "./sections/landing-testimonials";
 import { LandingTrial } from "./sections/landing-trial";
 import { LandingTutorials } from "./sections/landing-tutorials";
+import { LandingFaq } from "./sections/landing-faq";
 import { LandingPlatforms } from "./sections/landing-platforms";
 
 interface LandingPageProps {
@@ -108,12 +111,18 @@ export function LandingPage({ className }: LandingPageProps) {
           heroRef={heroRef}
           scrollHintRef={scrollHintRef}
         />
+        {/* แบนเนอร์อยู่ติดใต้ hero — เป็นภาพโปรดักต์ภาพเดียวของหน้า ต้องมาก่อนที่จะเริ่มอธิบาย
+            ส่วนราคามาท้าย ๆ หลังคนเห็นแล้วว่าได้อะไรบ้าง ไม่ใช่ขอเงินตั้งแต่ยังไม่เห็นของ */}
+        <LandingShowcase language={language} loginHref={loginHref} />
         <LandingAbout language={language} />
         <LandingFeatures language={language} />
-        <LandingPricing language={language} />
-        <LandingShowcase language={language} loginHref={loginHref} />
-        <LandingTutorials language={language} />
         <LandingPlatforms language={language} />
+        <LandingSteps language={language} />
+        {/* สามอันนี้ซ่อนตัวเองเมื่อยังไม่มีเนื้อหาจริง จึงวางไว้ได้เลยโดยหน้าไม่โหว่ */}
+        <LandingTutorials language={language} />
+        <LandingTestimonials language={language} />
+        <LandingPricing language={language} />
+        <LandingFaq language={language} />
         <LandingTrial language={language} />
         <LandingFooter language={language} onSetLanguage={setLanguage} />
       </div>

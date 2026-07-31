@@ -39,16 +39,25 @@ export const landingUi = {
   pricingHelpCta: { en: "Ask for a trial", la: "ຂໍທົດລອງໃຊ້" },
   btnLoginNow: { en: "Sign In", la: "ເຂົ້າສູ່ລະບົບ" },
   btnAskTrial: { en: "Ask for a trial", la: "ຂໍທົດລອງໃຊ້" },
-  tutorialsTitle: { en: "Tutorial Videos", la: "ວິດີໂອສອນ" },
-  tutorialsSubtitle: {
-    en: "Learn how to run your shop on Yummy-go, step by step.",
-    la: "ຮຽນຮູ້ວິທີດຳເນີນຮ້ານດ້ວຍ Yummy-go ເທື່ອລະຂັ້ນຕອນ."
-  },
   platformsKicker: { en: "Platforms", la: "ແພລດຟອມ" },
   platformsTitle: {
     en: "Use it wherever you work",
     la: "ໃຊ້ໄດ້ທຸກບ່ອນທີ່ທ່ານເຮັດວຽກ"
   },
+  stepsKicker: { en: "Getting started", la: "ເລີ່ມຕົ້ນໃຊ້ງານ" },
+  stepsTitle: { en: "Up and running in four steps", la: "ພ້ອມໃຊ້ງານໃນສີ່ຂັ້ນຕອນ" },
+  tutorialsKicker: { en: "Tutorials", la: "ວິດີໂອສອນ" },
+  tutorialsTitle: { en: "Tutorial Videos", la: "ວິດີໂອສອນ" },
+  tutorialsSubtitle: {
+    en: "Learn how to run your shop on Yummy-go, step by step.",
+    la: "ຮຽນຮູ້ວິທີດຳເນີນຮ້ານດ້ວຍ Yummy-go ເທື່ອລະຂັ້ນຕອນ."
+  },
+  testimonialsKicker: { en: "Customers", la: "ລູກຄ້າ" },
+  testimonialsTitle: { en: "What shop owners say", la: "ເຈົ້າຂອງຮ້ານເວົ້າແນວໃດ" },
+  faqKicker: { en: "FAQ", la: "ຄຳຖາມພົບບ່ອຍ" },
+  faqTitle: { en: "Questions before you start", la: "ຄຳຖາມກ່ອນເລີ່ມໃຊ້" },
+  faqMoreQuestions: { en: "Still have a question?", la: "ຍັງມີຄຳຖາມອີກບໍ?" },
+  faqMoreCta: { en: "Ask us", la: "ຖາມພວກເຮົາ" },
   trialKicker: { en: "Free trial", la: "ທົດລອງໃຊ້ຟຣີ" },
   trialTitle: { en: "Try Yummy-go at your shop", la: "ລອງໃຊ້ Yummy-go ທີ່ຮ້ານຂອງທ່ານ" },
   trialSubtitle: {
