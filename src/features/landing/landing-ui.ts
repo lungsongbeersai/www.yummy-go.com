@@ -37,8 +37,6 @@ export const landingUi = {
     la: "ຍັງບໍ່ແນ່ໃຈວ່າແພັກເກັດໃດ? ຂໍທົດລອງໃຊ້ກ່ອນໄດ້."
   },
   pricingHelpCta: { en: "Ask for a trial", la: "ຂໍທົດລອງໃຊ້" },
-  showcaseKicker: { en: "See it working", la: "ເບິ່ງການໃຊ້ງານຈິງ" },
-  showcaseTitle: { en: "One system, counter to kitchen", la: "ລະບົບດຽວ ຈາກເຄົາເຕີເຖິງຄົວ" },
   btnLoginNow: { en: "Sign In", la: "ເຂົ້າສູ່ລະບົບ" },
   btnAskTrial: { en: "Ask for a trial", la: "ຂໍທົດລອງໃຊ້" },
   tutorialsTitle: { en: "Tutorial Videos", la: "ວິດີໂອສອນ" },

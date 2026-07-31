@@ -2,7 +2,6 @@
 
 import type { Route } from "next";
 import Image from "next/image";
-import Link from "next/link";
 import type { Language } from "@/lib/language";
 import { landingShowcase, pickText } from "../landing-data";
 import { landingUi } from "../landing-ui";
@@ -17,44 +16,35 @@ export function LandingShowcase({ language, loginHref }: LandingShowcaseProps) {
   const text = (key: keyof typeof landingUi) => pickText(landingUi[key], language);
 
   return (
+    // ไม่มีหัวข้อกำกับ — แบนเนอร์มีแบรนด์ tagline และฟีเจอร์ครบในตัวอยู่แล้ว
+    // ใส่หัวข้อจะไปแข่งกับข้อความในรูปเอง
     <section id="showcase" className={`${styles.section} ${styles.sectionProjects}`}>
-      <div data-reveal className={`${styles.reveal} ${styles.sectionHead}`}>
-        <div className={styles.kicker}>{text("showcaseKicker")}</div>
-        <h2 className={styles.sectionTitle}>{text("showcaseTitle")}</h2>
-      </div>
       <div className={styles.projectsGrid}>
-        {landingShowcase.map((item) => (
-          // projectCard มี transition ของตัวเอง (รวม opacity สำหรับ reveal แล้ว) จึงไม่ใส่ class reveal ซ้ำ
-          <article key={item.id} data-reveal data-tilt className={styles.projectCard}>
-            <Link
-              href={loginHref}
-              className={styles.projectCardLink}
-              aria-label={`${text("btnLogin")}: ${pickText(item.caption, language)}`}
+        {/* projectCard มี transition ของตัวเอง (รวม opacity สำหรับ reveal แล้ว) จึงไม่ใส่ class reveal ซ้ำ */}
+        <article data-reveal data-tilt className={styles.projectCard}>
+          {/* ในรูปมีปุ่ม "ເລີ່ມໃຊ້ງານດຽວນີ້" วาดติดมา ซึ่งกดไม่ได้จริง
+              คลุมทั้งการ์ดด้วยลิงก์ไปฟอร์มขอทดลองใช้ เพื่อให้กดตรงปุ่มในรูปแล้วได้ผล */}
+          <a href="#trial" className={styles.projectCardLink} aria-label={text("btnAskTrial")} />
+          <div className={styles.projectOrb} />
+          <div data-glare className={styles.glare} />
+          <div className={`${styles.projectShot} ${styles.projectShotWithImage}`}>
+            <Image
+              src={landingShowcase.image}
+              alt={landingShowcase.alt}
+              fill
+              quality={80}
+              sizes="(max-width: 800px) 92vw, 1068px"
+              className={styles.projectImage}
             />
-            <div className={styles.projectOrb} />
-            <div data-glare className={styles.glare} />
-            <div className={`${styles.projectShot} ${styles.projectShotWithImage}`}>
-              <Image
-                src={item.image}
-                alt={item.alt}
-                fill
-                quality={72}
-                sizes="(max-width: 800px) 90vw, 45vw"
-                className={styles.projectImage}
-              />
-            </div>
-            <div className={styles.projectBody}>
-              <div className={styles.projectCaption}>{pickText(item.caption, language)}</div>
-            </div>
-          </article>
-        ))}
+          </div>
+        </article>
       </div>
       <div data-reveal className={`${styles.reveal} ${styles.showcaseActions}`}>
-        <a href={loginHref} className={styles.btnSmallPrimary}>
-          {text("btnLoginNow")}
+        <a href="#trial" className={styles.btnSmallPrimary}>
+          {text("btnAskTrial")}
         </a>
-        <a href="#trial" className={styles.btnSmallLink}>
-          {text("btnAskTrial")} →
+        <a href={loginHref} className={styles.btnSmallLink}>
+          {text("btnLoginNow")} →
         </a>
       </div>
     </section>
