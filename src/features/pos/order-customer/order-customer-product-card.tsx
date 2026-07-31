@@ -91,7 +91,7 @@ export const EmployeeProductCard = memo(function EmployeeProductCard({
         interactionDisabled && "cursor-not-allowed",
       )}
     >
-      <div className="relative aspect-square overflow-hidden bg-muted bg-cover bg-center md:aspect-4/3">
+      <div className="relative aspect-square overflow-hidden bg-muted bg-cover bg-center">
         <ProductMediaView
           alt={product.prodName}
           fallbackIcon="utensils"
@@ -367,7 +367,7 @@ export function ProductGridSkeleton() {
           aria-hidden="true"
           className="overflow-hidden rounded-lg border-border bg-card"
         >
-          <Skeleton className="aspect-square w-full rounded-none bg-muted md:aspect-4/3" />
+          <Skeleton className="aspect-square w-full rounded-none bg-muted" />
           <CardContent className="flex min-h-40 flex-col gap-2 p-2.5 sm:p-3">
             <Skeleton className="h-5 w-5/6 bg-muted" />
             <Skeleton className="h-4 w-3/4 bg-muted" />

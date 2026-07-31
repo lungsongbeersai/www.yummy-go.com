@@ -29,14 +29,10 @@ export function ProductMedia({
     isHexColor(colorCandidate)
       ? colorCandidate
       : "";
-  const mediaClass =
-    variant === "sheet"
-      ? "aspect-[16/9]"
-      : variant === "sheetThumb"
-        ? "aspect-square"
-        : variant === "listThumb"
-          ? "h-full"
-          : "aspect-[4/3]";
+  // รูปสินค้าถูก crop เป็น 1:1 เสมอ (cropImageFile → 512x512) กล่องแสดงผลจึงต้องเป็น 1:1 ด้วย
+  // ไม่งั้น object-cover จะตัดซ้ำอีกรอบ = สิ่งที่เห็นไม่ตรงกับที่ผู้ใช้ crop ไว้
+  // ยกเว้น listThumb ที่สูงเต็มแถวและใช้ object-contain อยู่แล้วจึงเห็นรูปครบ
+  const mediaClass = variant === "listThumb" ? "h-full" : "aspect-square";
   const imageSizes =
     variant === "sheetThumb" || variant === "listThumb"
       ? "96px"

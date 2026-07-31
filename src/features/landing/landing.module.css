@@ -1551,28 +1551,73 @@
   color: #38bdf8;
 }
 
+/* ต้นแบบใช้กรอบประสื่อว่า "ยังไม่มีข้อมูล" — ช่องพวกนี้มีค่าจริงแล้วจึงเป็นกรอบทึบ
+   ช่องที่ยังว่างถูกกรองออกตั้งแต่ชั้น component ไม่ได้เรนเดอร์มาถึงตรงนี้ */
 .slotValue {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   padding: 13px 16px;
   border-radius: 12px;
-  border: 1px dashed rgba(124, 183, 255, 0.35);
-  background: rgba(6, 12, 26, 0.4);
+  border: 1px solid rgba(96, 165, 250, 0.28);
+  background: rgba(6, 12, 26, 0.55);
   font-family: var(--font-jetbrains-mono), var(--font-noto-sans-lao), monospace;
-  font-size: 12px;
-  color: #6f8ec4;
+  font-size: 13px;
+  color: #c8d8f5;
+}
+
+.slotIcon {
+  width: 17px;
+  height: 17px;
+  flex-shrink: 0;
+  color: #38bdf8;
+}
+
+.slotValueLink {
+  transition: border-color 0.25s ease, background 0.25s ease, color 0.25s ease;
+}
+.slotValueLink:hover {
+  border-color: rgba(124, 183, 255, 0.75);
+  background: rgba(13, 23, 46, 0.85);
+  color: #eaf2ff;
+}
+.slotValueLink:focus-visible {
+  outline: 2px solid rgba(124, 183, 255, 0.9);
+  outline-offset: 2px;
 }
 
 .socialRow {
   display: flex;
-  gap: 10px;
+  flex-direction: column;
+  gap: 7px;
   margin-top: 2px;
 }
 
+/* 44px = ขนาดพื้นที่แตะขั้นต่ำตามเกณฑ์ touch target */
 .socialSquare {
-  width: 42px;
-  height: 42px;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
   border-radius: 12px;
-  border: 1px dashed rgba(124, 183, 255, 0.35);
-  background: rgba(6, 12, 26, 0.4);
+  border: 1px solid rgba(96, 165, 250, 0.28);
+  background: rgba(6, 12, 26, 0.55);
+  color: #7cb7ff;
+  transition: border-color 0.25s ease, background 0.25s ease, color 0.25s ease;
+}
+.socialSquare:hover {
+  border-color: rgba(124, 183, 255, 0.75);
+  background: rgba(13, 23, 46, 0.85);
+  color: #eaf2ff;
+}
+.socialSquare:focus-visible {
+  outline: 2px solid rgba(124, 183, 255, 0.9);
+  outline-offset: 2px;
+}
+
+.socialIcon {
+  width: 20px;
+  height: 20px;
 }
 
 /* ---------- footer ---------- */

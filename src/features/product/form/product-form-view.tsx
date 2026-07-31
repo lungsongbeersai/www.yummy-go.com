@@ -694,7 +694,9 @@ export function ProductFormView({ form }: { form: ProductFormWorkflow }) {
 
           <ProductFormToppingsSection form={form} />
 
-          <div className="flex justify-end xl:hidden">
+          {/* ฟอร์มยาว 5 ส่วน กรอกจบแล้วสายตาอยู่ล่างสุด จึงมีปุ่มบันทึกปิดท้ายทุกขนาดจอ
+              ไม่ได้ซ้ำซ้อนกับปุ่มใน sidebar เพราะ sidebar โผล่เฉพาะ xl ขึ้นไป */}
+          <div className="flex justify-end">
             <Button type="submit" disabled={saveDisabled} className="max-sm:w-full">
               {saveNotice === "saved" ? (
                 <Check data-icon="inline-start" />

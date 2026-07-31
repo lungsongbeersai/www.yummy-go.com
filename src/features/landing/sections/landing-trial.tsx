@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { FormEvent } from "react";
+import { Facebook, Mail, MapPin, Phone } from "lucide-react";
 import type { Language } from "@/lib/language";
 import { pickText } from "../landing-data";
 import { landingUi } from "../landing-ui";
@@ -68,10 +69,21 @@ export function LandingTrial({ language }: LandingSectionProps) {
     setSent(true);
   };
 
+  // เบอร์กับอีเมลกดโทร/กดส่งเมลได้เลย ที่อยู่ไม่มีปลายทางให้กด
   const contactSlots = [
-    { label: text("contactEmailLabel"), value: landingContact.email },
-    { label: text("contactPhoneLabel"), value: landingContact.phone },
-    { label: text("contactAddressLabel"), value: landingContact.address }
+    {
+      label: text("contactPhoneLabel"),
+      value: landingContact.phone,
+      icon: Phone,
+      href: landingContact.phone ? `tel:${landingContact.phone.replace(/\s/g, "")}` : ""
+    },
+    {
+      label: text("contactEmailLabel"),
+      value: landingContact.email,
+      icon: Mail,
+      href: landingContact.email ? `mailto:${landingContact.email}` : ""
+    },
+    { label: text("contactAddressLabel"), value: landingContact.address, icon: MapPin, href: "" }
   ].filter((slot) => slot.value);
 
   const requiredNote = text("fieldRequired");
@@ -155,21 +167,40 @@ export function LandingTrial({ language }: LandingSectionProps) {
         {contactSlots.length || landingContact.facebook ? (
           <div className={styles.contactCard}>
             <div className={styles.contactCardTitle}>{text("trialCardTitle")}</div>
-            {contactSlots.map((slot) => (
-              <div key={slot.label} className={styles.contactSlot}>
-                <div className={styles.slotLabel}>{slot.label}</div>
-                <div className={styles.slotValue}>{slot.value}</div>
-              </div>
-            ))}
+            {contactSlots.map((slot) => {
+              const Icon = slot.icon;
+              const body = (
+                <>
+                  <Icon aria-hidden className={styles.slotIcon} />
+                  <span>{slot.value}</span>
+                </>
+              );
+
+              return (
+                <div key={slot.label} className={styles.contactSlot}>
+                  <div className={styles.slotLabel}>{slot.label}</div>
+                  {slot.href ? (
+                    <a href={slot.href} className={`${styles.slotValue} ${styles.slotValueLink}`}>
+                      {body}
+                    </a>
+                  ) : (
+                    <div className={styles.slotValue}>{body}</div>
+                  )}
+                </div>
+              );
+            })}
             {landingContact.facebook ? (
               <div className={styles.socialRow}>
+                <div className={styles.slotLabel}>{text("contactSocialLabel")}</div>
                 <a
                   href={landingContact.facebook}
                   target="_blank"
                   rel="noopener noreferrer"
                   className={styles.socialSquare}
-                  aria-label={text("contactSocialLabel")}
-                />
+                  aria-label="Facebook"
+                >
+                  <Facebook aria-hidden className={styles.socialIcon} />
+                </a>
               </div>
             ) : null}
           </div>
