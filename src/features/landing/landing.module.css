@@ -1257,28 +1257,6 @@
   gap: 16px;
 }
 
-.projectDesc {
-  margin: 0;
-  font-size: 15px;
-  line-height: 1.7;
-  color: #9db0d6;
-  text-wrap: pretty;
-}
-
-.featureChips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-.featureChip {
-  padding: 6px 13px;
-  border-radius: 999px;
-  font-size: 12.5px;
-  color: #a9bce0;
-  border: 1px solid rgba(96, 165, 250, 0.25);
-  background: rgba(59, 130, 246, 0.08);
-}
-
 .projectActions {
   position: relative;
   z-index: 5;
@@ -1433,55 +1411,6 @@
 }
 
 /* ---------- why choose us ---------- */
-.whyRow {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 16px;
-}
-
-.whyCard {
-  position: relative;
-  flex: 1 1 240px;
-  max-width: 300px;
-  padding: 24px 22px;
-  border-radius: 18px;
-  background: linear-gradient(155deg, rgba(17, 31, 61, 0.94), rgba(8, 15, 32, 0.97));
-  border: 1px solid rgba(96, 165, 250, 0.2);
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  transition: transform 0.35s ease, box-shadow 0.35s ease, border-color 0.35s ease;
-}
-.whyCard:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 0 34px rgba(59, 130, 246, 0.3);
-  border-color: rgba(124, 183, 255, 0.55);
-}
-
-.whyIcon {
-  flex-shrink: 0;
-  width: 42px;
-  height: 42px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.4), rgba(34, 211, 238, 0.2));
-  border: 1px solid rgba(96, 165, 250, 0.4);
-  box-shadow: 0 0 18px rgba(59, 130, 246, 0.3);
-  display: grid;
-  place-items: center;
-  font-family: var(--font-jetbrains-mono), var(--font-noto-sans-lao), monospace;
-  font-size: 10px;
-  color: #cfe2ff;
-  text-transform: uppercase;
-}
-
-.whyTitle {
-  font-size: 15px;
-  font-weight: 600;
-  color: #dce8ff;
-  line-height: 1.45;
-}
-
 /* ---------- technology ---------- */
 .techRow {
   display: flex;
@@ -1951,7 +1880,6 @@
   .serviceCard,
   .projectCard,
   .videoCard,
-  .whyCard,
   .techPill,
   .projectImage,
   .playCircle {
@@ -1962,7 +1890,6 @@
   .serviceCard:hover,
   .projectCard:hover,
   .videoCard:hover,
-  .whyCard:hover,
   .techPill:hover {
     transform: none;
     box-shadow: none;

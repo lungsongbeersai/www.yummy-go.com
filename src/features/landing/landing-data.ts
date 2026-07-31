@@ -36,7 +36,6 @@ export interface LandingFeature {
 export interface LandingShowcase {
   image: string;
   alt: string;
-  points: LocalizedText[];
 }
 
 export interface LandingVideo {
@@ -84,12 +83,17 @@ export const landingNavigation: LandingNavItem[] = [
   { id: "trial", href: "#trial", label: { en: "Free trial", la: "ທົດລອງໃຊ້ຟຣີ" } }
 ];
 
+// รวมจุดขายไว้ที่เดียว — 3 ข้อท้ายย้ายมาจาก section "Why choose us" ที่ถูกยุบ
+// เพราะอีก 4 ข้อของ section นั้นซ้ำกับ landingFeatures และ landingPlatforms
 export const landingHighlights: LandingHighlight[] = [
   { id: "allinone", icon: "all", title: { en: "Everything in one system", la: "ທຸກຢ່າງໃນລະບົບດຽວ" } },
   { id: "anydevice", icon: "dev", title: { en: "Works on any device", la: "ໃຊ້ໄດ້ທຸກອຸປະກອນ" } },
   { id: "bilingual", icon: "lang", title: { en: "Lao and English", la: "ພາສາລາວ ແລະ ອັງກິດ" } },
   { id: "livedata", icon: "live", title: { en: "Live sales data", la: "ຂໍ້ມູນຍອດຂາຍສົດ" } },
-  { id: "multibranch", icon: "brc", title: { en: "Built for multiple branches", la: "ຮອງຮັບຫຼາຍສາຂາ" } }
+  { id: "multibranch", icon: "brc", title: { en: "Built for multiple branches", la: "ຮອງຮັບຫຼາຍສາຂາ" } },
+  { id: "lao", icon: "lao", title: { en: "Built for Lao restaurants", la: "ສ້າງມາເພື່ອຮ້ານອາຫານລາວ" } },
+  { id: "easy", icon: "esy", title: { en: "Staff learn it quickly", la: "ພະນັກງານຮຽນຮູ້ໄດ້ໄວ" } },
+  { id: "support", icon: "sla", title: { en: "Setup help and updates", la: "ຊ່ວຍຕິດຕັ້ງ ແລະ ອັບເດດ" } }
 ];
 
 // icon เป็นข้อความสั้นที่เรนเดอร์ตรง ๆ ไม่ใช่ icon font
@@ -186,15 +190,10 @@ export const landingFeatures: LandingFeature[] = [
   }
 ];
 
+// เหลือแค่ภาพ — จุดเด่นแบบ chip ถูกตัดออกเพราะซ้ำกับ landingFeatures ทั้ง 4 ข้อ
 export const landingShowcase: LandingShowcase = {
   image: "/landing/banner_project_yummy-go.webp",
-  alt: "Yummy Go restaurant POS and ordering system on laptop and mobile devices",
-  points: [
-    { en: "Order at the counter or at the table", la: "ຮັບອໍເດີໜ້າເຄົາເຕີ ຫຼື ທີ່ໂຕະ" },
-    { en: "Customers order from their own phone", la: "ລູກຄ້າສັ່ງຈາກມືຖືຕົນເອງ" },
-    { en: "Receipts print straight to the kitchen", la: "ບິນພິມອອກຄົວໄດ້ທັນທີ" },
-    { en: "Today's sales, updated live", la: "ຍອດຂາຍມື້ນີ້ ອັບເດດສົດ" }
-  ]
+  alt: "Yummy Go restaurant POS and ordering system on laptop and mobile devices"
 };
 
 export const landingVideos: LandingVideo[] = [
@@ -238,16 +237,6 @@ export const landingVideos: LandingVideo[] = [
     duration: "--:--",
     category: "Reports"
   }
-];
-
-export const landingWhyChooseUs: LandingHighlight[] = [
-  { id: "fast", icon: "fst", title: { en: "Fast at the counter", la: "ໄວໜ້າເຄົາເຕີ" } },
-  { id: "offline", icon: "dsk", title: { en: "Runs as a desktop app", la: "ໃຊ້ເປັນແອັບເດັສທັອບໄດ້" } },
-  { id: "lao", icon: "lao", title: { en: "Built for Lao restaurants", la: "ສ້າງມາເພື່ອຮ້ານອາຫານລາວ" } },
-  { id: "easy", icon: "esy", title: { en: "Staff learn it quickly", la: "ພະນັກງານຮຽນຮູ້ໄດ້ໄວ" } },
-  { id: "qr", icon: "qr", title: { en: "QR ordering included", la: "ມີການສັ່ງຜ່ານ QR ໃຫ້ພ້ອມ" } },
-  { id: "report", icon: "rpt", title: { en: "Reports you actually use", la: "ລາຍງານທີ່ໃຊ້ໄດ້ຈິງ" } },
-  { id: "support", icon: "sla", title: { en: "Setup help and updates", la: "ຊ່ວຍຕິດຕັ້ງ ແລະ ອັບເດດ" } }
 ];
 
 export const landingPlatforms: LandingPlatform[] = [

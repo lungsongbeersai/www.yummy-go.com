@@ -18,7 +18,7 @@ import { LandingPricing } from "./sections/landing-pricing";
 import { LandingShowcase } from "./sections/landing-showcase";
 import { LandingTrial } from "./sections/landing-trial";
 import { LandingTutorials } from "./sections/landing-tutorials";
-import { LandingPlatforms, LandingWhy } from "./sections/landing-why-tech";
+import { LandingPlatforms } from "./sections/landing-platforms";
 
 interface LandingPageProps {
   // class ตัวแปรฟอนต์ (Space Grotesk / JetBrains Mono) ส่งมาจาก route ซึ่งโหลดผ่าน next/font
@@ -113,7 +113,6 @@ export function LandingPage({ className }: LandingPageProps) {
         <LandingPricing language={language} />
         <LandingShowcase language={language} loginHref={loginHref} />
         <LandingTutorials language={language} />
-        <LandingWhy language={language} />
         <LandingPlatforms language={language} />
         <LandingTrial language={language} />
         <LandingFooter language={language} onSetLanguage={setLanguage} />

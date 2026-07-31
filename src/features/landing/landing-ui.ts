@@ -46,8 +46,6 @@ export const landingUi = {
     en: "Learn how to run your shop on Yummy-go, step by step.",
     la: "ຮຽນຮູ້ວິທີດຳເນີນຮ້ານດ້ວຍ Yummy-go ເທື່ອລະຂັ້ນຕອນ."
   },
-  whyKicker: { en: "Why choose us", la: "ເປັນຫຍັງຕ້ອງເລືອກພວກເຮົາ" },
-  whyTitle: { en: "Why shops choose Yummy-go", la: "ເປັນຫຍັງຮ້ານຈຶ່ງເລືອກ Yummy-go" },
   platformsKicker: { en: "Platforms", la: "ແພລດຟອມ" },
   platformsTitle: {
     en: "Use it wherever you work",

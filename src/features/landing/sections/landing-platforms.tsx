@@ -1,31 +1,12 @@
 "use client";
 
 import type { Language } from "@/lib/language";
-import { landingPlatforms, landingWhyChooseUs, pickText } from "../landing-data";
+import { landingPlatforms, pickText } from "../landing-data";
 import { landingUi } from "../landing-ui";
 import styles from "../landing.module.css";
 
 interface LandingSectionProps {
   language: Language;
-}
-
-export function LandingWhy({ language }: LandingSectionProps) {
-  return (
-    <section id="why" className={`${styles.section} ${styles.sectionNarrow}`}>
-      <div data-reveal className={`${styles.reveal} ${styles.sectionHead}`}>
-        <div className={styles.kicker}>{pickText(landingUi.whyKicker, language)}</div>
-        <h2 className={styles.sectionTitle}>{pickText(landingUi.whyTitle, language)}</h2>
-      </div>
-      <div data-reveal className={`${styles.reveal} ${styles.whyRow}`}>
-        {landingWhyChooseUs.map((item) => (
-          <div key={item.id} className={styles.whyCard}>
-            <div className={styles.whyIcon}>{item.icon}</div>
-            <div className={styles.whyTitle}>{pickText(item.title, language)}</div>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
 }
 
 export function LandingPlatforms({ language }: LandingSectionProps) {

@@ -43,14 +43,6 @@ export function LandingShowcase({ language, loginHref }: LandingShowcaseProps) {
             />
           </div>
           <div className={styles.projectBody}>
-            <p className={styles.projectDesc}>{text("showcaseTitle")}</p>
-            <div className={styles.featureChips}>
-              {landingShowcase.points.map((point) => (
-                <span key={point.en} className={styles.featureChip}>
-                  {pickText(point, language)}
-                </span>
-              ))}
-            </div>
             <div className={styles.projectActions}>
               <a href={loginHref} className={styles.btnSmallPrimary}>
                 {text("btnLoginNow")}
