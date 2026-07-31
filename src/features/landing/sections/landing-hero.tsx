@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
 import type { RefObject } from "react";
 import type { Language } from "@/lib/language";
-import { landingCompany, landingProjects, landingServices, landingUi, pickText } from "../landing-data";
+import { landingCompany, landingFeatures, landingPlatforms, pickText, REPORT_COUNT } from "../landing-data";
+import { landingUi } from "../landing-ui";
 import { createParticleStyles } from "../landing-particles";
 import styles from "../landing.module.css";
 
@@ -47,11 +48,10 @@ export function LandingHero({
   }, [reducedMotion]);
 
   const taglineWords = pickText(landingCompany.tagline, language).split(" ");
-  const yearsTarget = new Date().getFullYear() - landingCompany.foundedYear;
   const stats = [
-    { value: `${Math.round(countProgress * yearsTarget)}+`, label: text("statYears") },
-    { value: String(Math.round(countProgress * landingProjects.length)), label: text("statSystems") },
-    { value: String(Math.round(countProgress * landingServices.length)), label: text("statServices") }
+    { value: String(Math.round(countProgress * landingFeatures.length)), label: text("statFeatures") },
+    { value: String(Math.round(countProgress * landingPlatforms.length)), label: text("statPlatforms") },
+    { value: String(Math.round(countProgress * REPORT_COUNT)), label: text("statReports") }
   ];
 
   return (
@@ -128,13 +128,13 @@ export function LandingHero({
         </h1>
         <p className={styles.heroDesc}>{pickText(landingCompany.description, language)}</p>
         <div className={styles.heroActions}>
-          <a href="#projects" className={styles.btnPrimary} data-magnetic>
-            {text("btnExplore")}
+          <a href="#trial" className={styles.btnPrimary} data-magnetic>
+            {text("btnTrial")}
           </a>
-          <a href="#tutorials" className={styles.btnGhost} data-magnetic>
-            {text("btnTutorials")}
+          <a href="#features" className={styles.btnGhost} data-magnetic>
+            {text("btnFeatures")}
           </a>
-          <a href="#contact" className={styles.btnLink}>
+          <a href="#trial" className={styles.btnLink}>
             {text("btnContact")} →
           </a>
         </div>

@@ -28,9 +28,9 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Yummy-go — Web Apps, Mobile Apps & Business Systems",
+  title: "Yummy-go — ລະບົບ POS ຮ້ານອາຫານ | Restaurant POS System",
   description:
-    "Founded in 2002, Yummy-go creates scalable digital solutions for restaurants, insurance businesses, and modern companies.",
+    "ລະບົບ POS ຮ້ານອາຫານຄົບຊຸດ — ອໍເດີ, ໂຕະ, ສັ່ງຜ່ານ QR, ພິມບິນ, ສະຕັອກ ແລະ ລາຍງານ. ໃຊ້ໄດ້ທັງເວັບ, Windows ແລະ Android.",
   icons: {
     icon: "/brand/icon.png"
   }

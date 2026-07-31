@@ -2,7 +2,8 @@
 
 import Image from "next/image";
 import type { Language } from "@/lib/language";
-import { landingCompany, landingProjects, landingServices, landingUi, pickText } from "../landing-data";
+import { landingCompany, landingFeatures, landingPlatforms, pickText } from "../landing-data";
+import { landingUi } from "../landing-ui";
 import styles from "../landing.module.css";
 import { LandingLangSwitch } from "./landing-lang-switch";
 
@@ -34,24 +35,26 @@ export function LandingFooter({ language, onSetLanguage }: LandingFooterProps) {
             <LandingLangSwitch language={language} onSetLanguage={onSetLanguage} className={styles.footerLangSwitch} />
           </div>
           <div className={styles.footerCol}>
-            <div className={styles.footerColLabel}>{text("footerProjects")}</div>
-            {landingProjects.map((project) => (
-              <a key={project.id} href="#projects" className={styles.footerLink}>
-                {project.name}
+            <div className={styles.footerColLabel}>{text("footerFeatures")}</div>
+            {landingFeatures.slice(0, 5).map((feature) => (
+              <a key={feature.id} href="#features" className={styles.footerLink}>
+                {pickText(feature.title, language)}
               </a>
             ))}
           </div>
           <div className={styles.footerCol}>
-            <div className={styles.footerColLabel}>{text("footerServices")}</div>
-            {landingServices.slice(0, 4).map((service) => (
-              <a key={service.id} href="#services" className={styles.footerLink}>
-                {pickText(service.title, language)}
+            <div className={styles.footerColLabel}>{text("footerPlatforms")}</div>
+            {landingPlatforms.map((platform) => (
+              <a key={platform.id} href="#platforms" className={styles.footerLink}>
+                {pickText(platform.label, language)}
               </a>
             ))}
           </div>
           <div className={styles.footerCol}>
-            <div className={styles.footerColLabel}>{text("footerContact")}</div>
-            <div className={styles.footerTba}>{text("placeholderTba")}</div>
+            <div className={styles.footerColLabel}>{text("footerTrial")}</div>
+            <a href="#trial" className={styles.footerLink}>
+              {text("btnAskTrial")}
+            </a>
           </div>
         </div>
         <div className={styles.footerBottom}>

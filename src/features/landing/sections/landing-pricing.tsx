@@ -5,7 +5,8 @@ import { money } from "@/lib/format";
 import type { Language } from "@/lib/language";
 import type { PackageBillingGroup, PackageItem } from "@/services/package";
 import { usePublicPackageStore } from "@/stores/public-package-store";
-import { landingUi, pickText } from "../landing-data";
+import { pickText } from "../landing-data";
+import { landingUi } from "../landing-ui";
 import styles from "../landing.module.css";
 
 interface LandingPricingProps {

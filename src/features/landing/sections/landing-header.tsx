@@ -6,7 +6,8 @@ import Image from "next/image";
 import Link from "next/link";
 import type { Language } from "@/lib/language";
 import type { SceneTier } from "@/lib/scene-quality";
-import { landingCompany, landingNavigation, landingUi, pickText } from "../landing-data";
+import { landingCompany, landingNavigation, pickText } from "../landing-data";
+import { landingUi } from "../landing-ui";
 import type { SceneStatsListener } from "../use-landing-scene";
 import styles from "../landing.module.css";
 import { LandingLangSwitch } from "./landing-lang-switch";
@@ -70,7 +71,7 @@ export function LandingHeader({
           <Link href={loginHref} className={styles.loginBtn} data-magnetic>
             {text("btnLogin")}
           </Link>
-          <a href="#contact" className={styles.navCta} data-magnetic>
+          <a href="#trial" className={styles.navCta} data-magnetic>
             {text("navCta")}
           </a>
           <button
@@ -97,7 +98,7 @@ export function LandingHeader({
             <Link href={loginHref} onClick={() => setMenuOpen(false)} className={styles.mobileLogin}>
               {text("btnLogin")}
             </Link>
-            <a href="#contact" onClick={() => setMenuOpen(false)} className={styles.mobileCta}>
+            <a href="#trial" onClick={() => setMenuOpen(false)} className={styles.mobileCta}>
               {text("navCta")}
             </a>
           </nav>
