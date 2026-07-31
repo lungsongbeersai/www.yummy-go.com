@@ -706,13 +706,13 @@ export function PaymentMethodsLoadingSkeleton() {
         ))}
       </div>
       <div className="hidden overflow-hidden rounded-md border border-border md:block">
-        <div className="grid min-w-[1180px] grid-cols-[12rem_repeat(10,minmax(7rem,1fr))] gap-3 border-b border-border bg-muted/30 px-3 py-3">
+        <div className="grid min-w-295 grid-cols-[12rem_repeat(10,minmax(7rem,1fr))] gap-3 border-b border-border bg-muted/30 px-3 py-3">
           {Array.from({ length: 11 }).map((_, index) => (
             <Skeleton key={index} className="h-4" />
           ))}
         </div>
         {Array.from({ length: 7 }).map((_, rowIndex) => (
-          <div key={rowIndex} className="grid min-w-[1180px] grid-cols-[12rem_repeat(10,minmax(7rem,1fr))] gap-3 border-b border-border/70 px-3 py-3 last:border-b-0">
+          <div key={rowIndex} className="grid min-w-295 grid-cols-[12rem_repeat(10,minmax(7rem,1fr))] gap-3 border-b border-border/70 px-3 py-3 last:border-b-0">
             {Array.from({ length: 11 }).map((__, cellIndex) => (
               <Skeleton key={cellIndex} className="h-5" />
             ))}

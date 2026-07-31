@@ -1,7 +1,8 @@
 "use client";
 
 import type { Language } from "@/lib/language";
-import { landingCompany, landingHighlights, landingUi, pickText } from "../landing-data";
+import { landingCompany, landingHighlights, pickText } from "../landing-data";
+import { landingUi } from "../landing-ui";
 import styles from "../landing.module.css";
 
 interface LandingSectionProps {

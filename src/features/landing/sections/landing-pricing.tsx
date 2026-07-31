@@ -5,7 +5,8 @@ import { money } from "@/lib/format";
 import type { Language } from "@/lib/language";
 import type { PackageBillingGroup, PackageItem } from "@/services/package";
 import { usePublicPackageStore } from "@/stores/public-package-store";
-import { landingUi, pickText } from "../landing-data";
+import { pickText } from "../landing-data";
+import { landingUi } from "../landing-ui";
 import styles from "../landing.module.css";
 
 interface LandingPricingProps {
@@ -131,7 +132,7 @@ export function LandingPricing({ language }: LandingPricingProps) {
                 </ul>
               ) : null}
 
-              <a className={styles.pricingCta} href="#contact">
+              <a className={styles.pricingCta} href="#trial">
                 {pickText(landingUi.pricingCta, language)}
               </a>
             </div>
@@ -140,7 +141,7 @@ export function LandingPricing({ language }: LandingPricingProps) {
 
         <div data-reveal className={`${styles.reveal} ${styles.pricingHelp}`}>
           <span>{pickText(landingUi.pricingHelp, language)}</span>
-          <a className={styles.btnSmallLink} href="#contact">
+          <a className={styles.btnSmallLink} href="#trial">
             {pickText(landingUi.pricingHelpCta, language)}
           </a>
         </div>

@@ -373,7 +373,7 @@ function CartItemMedia({ item }: { item: CartItem }) {
           loading="lazy"
           quality={60}
           sizes="64px"
-          className="object-cover"
+          className="object-contain"
         />
       </div>
     );

@@ -1,7 +1,10 @@
 // ============================================================
-// PLC Lao Developer — เนื้อหาหน้าแนะนำบริษัท (landing page)
+// Yummy-go — เนื้อหาหน้าแนะนำผลิตภัณฑ์ (landing page)
 // เป็น single source of truth ของหน้านี้ ภายหลังสามารถย้ายไป
 // ดึงจาก API/CMS ได้โดย UI ไม่ต้องแก้ (อ่านจากโครงสร้างนี้เท่านั้น)
+//
+// ทุกฟีเจอร์ที่เขียนไว้ต้องมี route หรือโค้ดรองรับจริง — ห้ามเคลมเกิน
+// ข้อความ UI (ปุ่ม/หัวข้อ/ป้ายกำกับ) อยู่ที่ landing-ui.ts
 // ============================================================
 
 import type { Language } from "@/lib/language";
@@ -23,33 +26,50 @@ export interface LandingHighlight {
   title: LocalizedText;
 }
 
-export interface LandingService {
+export interface LandingFeature {
   id: string;
   icon: string;
   title: LocalizedText;
   description: LocalizedText;
 }
 
-export interface LandingProject {
+export interface LandingShowcase {
+  image: string;
+  alt: string;
+}
+
+export interface LandingPlatform {
   id: string;
-  name: string;
-  category: LocalizedText;
+  label: LocalizedText;
+}
+
+export interface LandingStep {
+  id: string;
+  title: LocalizedText;
   description: LocalizedText;
-  features: { la: string[]; en: string[] };
+}
+
+export interface LandingTestimonial {
+  id: string;
+  quote: LocalizedText;
+  name: string;
+  shop: string;
+}
+
+export interface LandingFaqItem {
+  id: string;
+  question: LocalizedText;
+  answer: LocalizedText;
 }
 
 export interface LandingVideo {
   id: string;
-  projectId: string;
   title: LocalizedText;
   description: LocalizedText;
   duration: string;
   category: string;
-}
-
-export interface LandingTech {
-  id: string;
-  name: string;
+  /** ลิงก์วิดีโอจริง — ว่างไว้ = การ์ดยังไม่พร้อม section จะซ่อนตัวเอง */
+  url: string;
 }
 
 export function pickText(text: LocalizedText, language: Language): string {
@@ -57,297 +77,301 @@ export function pickText(text: LocalizedText, language: Language): string {
 }
 
 export const landingCompany = {
-  name: "PLC Lao Developer",
-  foundedYear: 2002,
-  logo: "/landing/plc-logo-96.webp",
+  name: "Yummy-go",
+  // ไอคอนแบรนด์ตัวเดียวกับ root layout / login / app-shell เพื่อให้เอกลักษณ์ตรงกันทั้งแอป
+  logo: "/brand/icon.png",
   tagline: {
-    en: "We Build Modern Web Apps, Mobile Apps, and Business Systems",
-    la: "ພວກເຮົາສ້າງເວັບແອັບ, ໂມບາຍແອັບ ແລະ ລະບົບທຸລະກິດທີ່ທັນສະໄໝ"
+    en: "The Restaurant POS That Runs Your Whole Shop",
+    la: "ລະບົບ POS ຮ້ານອາຫານ ທີ່ຄຸມທັງຮ້ານໄດ້ໃນບ່ອນດຽວ"
   },
   description: {
-    en: "Founded in 2002, PLC Lao Developer creates scalable digital solutions for restaurants, insurance businesses, and modern companies.",
-    la: "ກໍ່ຕັ້ງໃນປີ 2002, PLC Lao Developer ສ້າງໂຊລູຊັນດິຈິຕອນທີ່ຂະຫຍາຍໄດ້ ສຳລັບຮ້ານອາຫານ, ທຸລະກິດປະກັນໄພ ແລະ ບໍລິສັດສະໄໝໃໝ່."
+    en: "Yummy-go handles orders, tables, QR self-ordering, receipts, stock, and reports — on web, Windows, and Android.",
+    la: "Yummy-go ຄຸມອໍເດີ, ໂຕະ, ການສັ່ງເອງຜ່ານ QR, ການພິມບິນ, ສະຕັອກ ແລະ ລາຍງານ — ໃຊ້ໄດ້ທັງເວັບ, Windows ແລະ Android."
   },
   about: {
-    en: "PLC Lao Developer develops web applications, mobile applications, business software, backend systems, dashboards, and digital platforms. We focus on building scalable, reliable, and easy-to-use systems for real business operations.",
-    la: "PLC Lao Developer ພັດທະນາເວັບແອັບພລິເຄຊັນ, ໂມບາຍແອັບພລິເຄຊັນ, ຊອບແວທຸລະກິດ, ລະບົບ backend, ແດັດບອດ ແລະ ແພລດຟອມດິຈິຕອນ. ພວກເຮົາເນັ້ນການສ້າງລະບົບທີ່ຂະຫຍາຍໄດ້, ເຊື່ອຖືໄດ້ ແລະ ໃຊ້ງ່າຍ ສຳລັບການດຳເນີນທຸລະກິດຕົວຈິງ."
-  },
-  contactEmail: "",
-  phone: "",
-  address: ""
+    en: "Yummy-go is a complete point-of-sale system for restaurants and cafés. Take orders at the counter or at the table, let customers order for themselves by scanning a QR code, print receipts to your kitchen and counter printers, track stock, and see today's sales the moment they happen. One account covers every branch.",
+    la: "Yummy-go ເປັນລະບົບຂາຍໜ້າຮ້ານຄົບຊຸດ ສຳລັບຮ້ານອາຫານ ແລະ ຄາເຟ່. ຮັບອໍເດີໜ້າເຄົາເຕີ ຫຼື ທີ່ໂຕະ, ໃຫ້ລູກຄ້າສະແກນ QR ສັ່ງເອງ, ພິມບິນອອກເຄື່ອງພິມຄົວ ແລະ ເຄົາເຕີ, ຕິດຕາມສະຕັອກ ແລະ ເບິ່ງຍອດຂາຍມື້ນີ້ໄດ້ທັນທີ. ບັນຊີດຽວຄຸມໄດ້ທຸກສາຂາ."
+  }
 } as const;
 
+// เรียงตามลำดับ section จริง — showcase ไม่มีหัวข้อจึงไม่เป็นปลายทางของเมนู
 export const landingNavigation: LandingNavItem[] = [
   { id: "about", href: "#about", label: { en: "About", la: "ກ່ຽວກັບ" } },
-  { id: "services", href: "#services", label: { en: "Services", la: "ບໍລິການ" } },
-  { id: "pricing", href: "#pricing", label: { en: "Pricing", la: "ລາຄາ" } },
-  { id: "projects", href: "#projects", label: { en: "Projects", la: "ໂປຣເຈັກ" } },
+  { id: "features", href: "#features", label: { en: "Features", la: "ຟີເຈີ" } },
+  { id: "platforms", href: "#platforms", label: { en: "Platforms", la: "ແພລດຟອມ" } },
   { id: "tutorials", href: "#tutorials", label: { en: "Tutorials", la: "ວິດີໂອສອນ" } },
-  { id: "technology", href: "#technology", label: { en: "Technology", la: "ເທັກໂນໂລຊີ" } },
-  { id: "contact", href: "#contact", label: { en: "Contact", la: "ຕິດຕໍ່" } }
+  { id: "pricing", href: "#pricing", label: { en: "Pricing", la: "ລາຄາ" } },
+  { id: "trial", href: "#trial", label: { en: "Free trial", la: "ທົດລອງໃຊ້ຟຣີ" } }
 ];
 
+// เหลือเฉพาะข้อที่ไม่ซ้ำกับ section อื่น — "ใช้ได้ทุกอุปกรณ์" ไปอยู่ที่ Platforms,
+// "ข้อมูลยอดขายสด" กับ "รองรับหลายสาขา" ไปอยู่ที่ Features แล้ว
 export const landingHighlights: LandingHighlight[] = [
-  { id: "founded", icon: "est", title: { en: "Founded in 2002", la: "ກໍ່ຕັ້ງໃນປີ 2002" } },
-  { id: "webapp", icon: "dev", title: { en: "Web & App Development", la: "ພັດທະນາເວັບ ແລະ ແອັບ" } },
-  { id: "bizsoft", icon: "biz", title: { en: "Business Software", la: "ຊອບແວທຸລະກິດ" } },
-  { id: "backend", icon: "api", title: { en: "Backend-ready Systems", la: "ລະບົບພ້ອມ Backend" } },
-  { id: "support", icon: "sla", title: { en: "Long-term Support", la: "ການສະໜັບສະໜູນໄລຍະຍາວ" } }
+  { id: "allinone", icon: "all", title: { en: "Everything in one system", la: "ທຸກຢ່າງໃນລະບົບດຽວ" } },
+  { id: "lao", icon: "lao", title: { en: "Built for Lao restaurants", la: "ສ້າງມາເພື່ອຮ້ານອາຫານລາວ" } },
+  { id: "bilingual", icon: "lang", title: { en: "Lao and English", la: "ພາສາລາວ ແລະ ອັງກິດ" } },
+  { id: "easy", icon: "esy", title: { en: "Staff learn it quickly", la: "ພະນັກງານຮຽນຮູ້ໄດ້ໄວ" } },
+  { id: "support", icon: "sla", title: { en: "Setup help and updates", la: "ຊ່ວຍຕິດຕັ້ງ ແລະ ອັບເດດ" } }
 ];
 
-export const landingServices: LandingService[] = [
+// icon เป็นข้อความสั้นที่เรนเดอร์ตรง ๆ ไม่ใช่ icon font
+export const landingFeatures: LandingFeature[] = [
   {
-    id: "web",
-    icon: "web",
-    title: { en: "Web Application Development", la: "ພັດທະນາເວັບແອັບພລິເຄຊັນ" },
-    description: {
-      en: "Fast, scalable web apps built for real business workflows.",
-      la: "ເວັບແອັບໄວ ແລະ ຂະຫຍາຍໄດ້ ສ້າງເພື່ອຂັ້ນຕອນທຸລະກິດຕົວຈິງ."
-    }
-  },
-  {
-    id: "mobile",
-    icon: "app",
-    title: { en: "Mobile Application Development", la: "ພັດທະນາໂມບາຍແອັບພລິເຄຊັນ" },
-    description: {
-      en: "Native-quality mobile apps for iOS and Android.",
-      la: "ໂມບາຍແອັບຄຸນນະພາບສູງ ສຳລັບ iOS ແລະ Android."
-    }
-  },
-  {
-    id: "bms",
-    icon: "biz",
-    title: { en: "Business Management Systems", la: "ລະບົບບໍລິຫານທຸລະກິດ" },
-    description: {
-      en: "End-to-end systems that run daily business operations.",
-      la: "ລະບົບຄົບວົງຈອນ ສຳລັບການດຳເນີນງານປະຈຳວັນ."
-    }
-  },
-  {
-    id: "pos",
+    id: "counter",
     icon: "pos",
-    title: { en: "POS Systems", la: "ລະບົບ POS" },
+    title: { en: "Counter Checkout", la: "ຄິດໄລ່ເງິນໜ້າເຄົາເຕີ" },
     description: {
-      en: "Point-of-sale systems for retail and restaurants.",
-      la: "ລະບົບຂາຍໜ້າຮ້ານ ສຳລັບຮ້ານຄ້າ ແລະ ຮ້ານອາຫານ."
+      en: "Ring up orders and take payment at the counter in a few taps.",
+      la: "ຮັບອໍເດີ ແລະ ຮັບຊຳລະໜ້າເຄົາເຕີ ດ້ວຍການແຕະບໍ່ເທົ່າໃດເທື່ອ."
     }
   },
   {
-    id: "dash",
+    id: "tables",
+    icon: "tbl",
+    title: { en: "Table Plan & Live Alerts", la: "ຜັງໂຕະ ແລະ ແຈ້ງເຕືອນສົດ" },
+    description: {
+      en: "See which tables are free or busy, and get alerted the moment one needs attention.",
+      la: "ເບິ່ງໄດ້ວ່າໂຕະໃດວ່າງ ຫຼື ບໍ່ວ່າງ ແລະ ຖືກແຈ້ງເຕືອນທັນທີເມື່ອມີໂຕະຕ້ອງການບໍລິການ."
+    }
+  },
+  {
+    id: "qr",
+    icon: "qr",
+    title: { en: "QR Self-Ordering", la: "ລູກຄ້າສະແກນ QR ສັ່ງເອງ" },
+    description: {
+      en: "Customers scan the QR code on their table and order straight from their phone.",
+      la: "ລູກຄ້າສະແກນ QR ເທິງໂຕະ ແລ້ວສັ່ງຈາກມືຖືໄດ້ເລີຍ."
+    }
+  },
+  {
+    id: "menu",
+    icon: "mnu",
+    title: { en: "Menu & Product Management", la: "ຈັດການເມນູ ແລະ ສິນຄ້າ" },
+    description: {
+      en: "Categories, sizes, toppings, units, and groups — set up your menu the way your shop works.",
+      la: "ໝວດໝູ່, ຂະໜາດ, ທ໋ອບປິ້ງ, ຫົວໜ່ວຍ ແລະ ກຸ່ມ — ຕັ້ງເມນູໃຫ້ຕົງກັບວິທີເຮັດວຽກຂອງຮ້ານ."
+    }
+  },
+  {
+    id: "reports",
     icon: "rpt",
-    title: { en: "Dashboard & Reporting Systems", la: "ລະບົບແດັດບອດ ແລະ ລາຍງານ" },
+    title: { en: "Sales Reports", la: "ລາຍງານຍອດຂາຍ" },
     description: {
-      en: "Live dashboards and reports that drive decisions.",
-      la: "ແດັດບອດສົດ ແລະ ລາຍງານ ເພື່ອການຕັດສິນໃຈ."
+      en: "Daily sales, daily closing, best sellers, sales by category, and payment methods.",
+      la: "ຂາຍປະຈຳວັນ, ປິດຮ້ານປະຈຳວັນ, ສິນຄ້າຂາຍດີ, ຍອດຂາຍຕາມໝວດໝູ່ ແລະ ວິທີຊຳລະ."
     }
   },
   {
-    id: "api",
-    icon: "api",
-    title: { en: "Backend / API Development", la: "ພັດທະນາ Backend / API" },
+    id: "stock",
+    icon: "stk",
+    title: { en: "Stock & Low-Stock Alerts", la: "ສະຕັອກ ແລະ ແຈ້ງເຕືອນສະຕັອກຕ່ຳ" },
     description: {
-      en: "Secure, well-structured APIs and backend services.",
-      la: "API ແລະ ບໍລິການ backend ທີ່ປອດໄພ ແລະ ມີໂຄງສ້າງດີ."
+      en: "Track what you have left and get warned before an item runs out.",
+      la: "ຕິດຕາມຈຳນວນທີ່ເຫຼືອ ແລະ ຖືກເຕືອນກ່ອນສິນຄ້າຈະໝົດ."
     }
   },
   {
-    id: "uiux",
-    icon: "ux",
-    title: { en: "UI/UX Design", la: "ອອກແບບ UI/UX" },
+    id: "print",
+    icon: "prn",
+    title: { en: "Receipt Printing", la: "ພິມບິນ" },
     description: {
-      en: "Clean, modern interfaces users understand instantly.",
-      la: "ອິນເຕີເຟດສະອາດ ທັນສະໄໝ ໃຊ້ງ່າຍ."
+      en: "Print to counter and kitchen printers from the browser, desktop, or an Android device.",
+      la: "ພິມອອກເຄື່ອງພິມເຄົາເຕີ ແລະ ຄົວ ຈາກເບຣົາເຊີ, ເດັສທັອບ ຫຼື ອຸປະກອນ Android."
     }
   },
   {
-    id: "maint",
-    icon: "ops",
-    title: { en: "System Maintenance & Future Upgrades", la: "ບຳລຸງຮັກສາ ແລະ ອັບເກຣດລະບົບ" },
+    id: "branches",
+    icon: "brc",
+    title: { en: "Multiple Branches & User Roles", la: "ຫຼາຍສາຂາ ແລະ ສິດທິຜູ້ໃຊ້" },
     description: {
-      en: "Long-term maintenance, monitoring, and upgrades.",
-      la: "ບຳລຸງຮັກສາ, ຕິດຕາມ ແລະ ອັບເກຣດໄລຍະຍາວ."
+      en: "Run every branch from one account, and control what each staff member can see.",
+      la: "ຄຸມທຸກສາຂາຈາກບັນຊີດຽວ ແລະ ກຳນົດໄດ້ວ່າພະນັກງານແຕ່ລະຄົນເຫັນຫຍັງໄດ້ແດ່."
+    }
+  },
+  {
+    id: "currency",
+    icon: "cur",
+    title: { en: "Multi-Currency & Exchange Rates", la: "ຫຼາຍສະກຸນເງິນ ແລະ ອັດຕາແລກປ່ຽນ" },
+    description: {
+      en: "Accept more than one currency and set your own exchange rate.",
+      la: "ຮັບໄດ້ຫຼາຍກວ່າໜຶ່ງສະກຸນເງິນ ແລະ ຕັ້ງອັດຕາແລກປ່ຽນເອງໄດ້."
+    }
+  },
+  {
+    id: "cancel",
+    icon: "cnl",
+    title: { en: "Bill Cancellation & History", la: "ຍົກເລີກບິນ ແລະ ປະຫວັດ" },
+    description: {
+      en: "Cancel a bill when you need to — every cancellation stays on record.",
+      la: "ຍົກເລີກບິນໄດ້ເມື່ອຈຳເປັນ — ທຸກການຍົກເລີກຖືກບັນທຶກໄວ້."
     }
   }
 ];
 
-export const landingProjects: LandingProject[] = [
+// แบนเนอร์ 1672x941 (16:9) = 1.57x ของกล่องแสดงผล 1068px — คมพอบนจอ retina
+// รูปนี้มีข้อความครบในตัว (แบรนด์ tagline ฟีเจอร์ ปุ่ม) section จึงไม่มีหัวข้อกำกับ
+//
+// ชื่อไฟล์มี hash ของเนื้อหาต่อท้าย เพราะเปลี่ยนรูปโดยใช้ชื่อเดิมแล้ว /_next/image
+// กับ Cloudflare จะยังเสิร์ฟรูปเก่า — เปลี่ยนชื่อ = URL เปลี่ยน = cache หลุดทุกชั้น
+//
+// ต้นทางบีบไว้ที่ q92 เพราะ Next re-encode ทับอีกชั้นก่อนส่งให้ผู้ใช้
+// ถ้าต้นทางบีบแรงตั้งแต่แรกจะเสียคุณภาพสองรอบ — ขนาดไฟล์ต้นทางกระทบแค่ repo
+// ไม่กระทบ bandwidth ของผู้เข้าชม เพราะสิ่งที่ดาวน์โหลดคือไฟล์ที่ Next แปลงแล้ว
+//
+// เปลี่ยนรูปใหม่: ต้องเป็น 16:9 (ไม่งั้น object-fit: cover เฉือนบน-ล่างทิ้ง)
+// แล้วตั้งชื่อไฟล์ด้วย hash ใหม่ พร้อมแก้ path ตรงนี้
+export const landingShowcase: LandingShowcase = {
+  image: "/landing/banner-yummy-go.bbe9b20f.webp",
+  alt: "Yummy-go restaurant management system on desktop, tablet and phone — table plan, menu ordering and billing"
+};
+
+export const landingPlatforms: LandingPlatform[] = [
+  { id: "web", label: { en: "Web browser", la: "ເບຣົາເຊີເວັບ" } },
+  { id: "windows", label: { en: "Windows desktop", la: "Windows ເດັສທັອບ" } },
+  { id: "android", label: { en: "Android", la: "Android" } },
+  { id: "display", label: { en: "Customer display", la: "ຈໍລູກຄ້າ" } }
+];
+
+// ขั้นตอนจริงตามลำดับการตั้งค่าในแอป (สาขา → เมนู → โต๊ะ/QR → เปิดขาย)
+export const landingSteps: LandingStep[] = [
   {
-    id: "yummy-go",
-    name: "yummy-go",
-    category: { en: "Restaurant System", la: "ລະບົບຮ້ານອາຫານ" },
+    id: "signup",
+    title: { en: "Ask for a trial", la: "ຂໍທົດລອງໃຊ້" },
     description: {
-      en: "A restaurant management platform for POS, orders, sales, reports, and restaurant operations.",
-      la: "ແພລດຟອມບໍລິຫານຮ້ານອາຫານ ສຳລັບ POS, ອໍເດີ, ຍອດຂາຍ, ລາຍງານ ແລະ ການດຳເນີນງານຮ້ານອາຫານ."
-    },
-    features: {
-      en: ["POS management", "Order management", "Sales reports", "Restaurant operation tools", "User-friendly interface"],
-      la: ["ບໍລິຫານ POS", "ຈັດການອໍເດີ", "ລາຍງານຍອດຂາຍ", "ເຄື່ອງມືດຳເນີນງານຮ້ານອາຫານ", "ອິນເຕີເຟດໃຊ້ງ່າຍ"]
+      en: "Tell us about your shop and we set up your store and branch for you.",
+      la: "ບອກຂໍ້ມູນຮ້ານຂອງທ່ານ ແລ້ວພວກເຮົາຕັ້ງຄ່າຮ້ານ ແລະ ສາຂາໃຫ້."
     }
   },
   {
-    id: "oac-instuce",
-    name: "OAC InStuce",
-    category: { en: "Insurance System", la: "ລະບົບປະກັນໄພ" },
+    id: "menu",
+    title: { en: "Add your menu", la: "ເພີ່ມເມນູຂອງທ່ານ" },
     description: {
-      en: "An insurance management platform for customers, policies, workflow tracking, reports, and insurance business operations.",
-      la: "ແພລດຟອມບໍລິຫານປະກັນໄພ ສຳລັບລູກຄ້າ, ກົມທັນ, ຕິດຕາມຂັ້ນຕອນ, ລາຍງານ ແລະ ການດຳເນີນທຸລະກິດປະກັນໄພ."
-    },
-    features: {
-      en: ["Customer management", "Policy management", "Insurance workflow", "Reports", "Business operation tools"],
-      la: ["ຈັດການລູກຄ້າ", "ຈັດການກົມທັນ", "ຂັ້ນຕອນປະກັນໄພ", "ລາຍງານ", "ເຄື່ອງມືດຳເນີນທຸລະກິດ"]
+      en: "Create categories, products, sizes, and toppings the way your shop sells them.",
+      la: "ສ້າງໝວດໝູ່, ສິນຄ້າ, ຂະໜາດ ແລະ ທ໋ອບປິ້ງ ຕາມທີ່ຮ້ານຂອງທ່ານຂາຍຈິງ."
+    }
+  },
+  {
+    id: "tables",
+    title: { en: "Set up tables and QR", la: "ຕັ້ງໂຕະ ແລະ QR" },
+    description: {
+      en: "Lay out your zones and tables, then print the QR code for each table.",
+      la: "ຈັດໂຊນ ແລະ ໂຕະ ຈາກນັ້ນພິມ QR ຕິດແຕ່ລະໂຕະ."
+    }
+  },
+  {
+    id: "open",
+    title: { en: "Open your shop", la: "ເປີດຮ້ານ" },
+    description: {
+      en: "Take orders, print receipts, and watch today's sales come in live.",
+      la: "ຮັບອໍເດີ, ພິມບິນ ແລະ ເບິ່ງຍອດຂາຍມື້ນີ້ເຂົ້າມາສົດໆ."
     }
   }
 ];
 
+// ⚠️ ใส่รีวิวจากลูกค้าจริงเท่านั้น — ห้ามแต่งขึ้นเอง
+// ว่างไว้ = section ซ่อนตัวเอง ไม่มีอะไรขึ้นเว็บจนกว่าจะมีของจริง
+// ยังไม่มีรีวิวจากลูกค้าจริง — quote/name/shop ว่างไว้ ให้ section เรนเดอร์เป็นโครงว่าง
+// พร้อมป้าย "ໄວໆນີ້" ห้ามเติมรีวิวสมมติเด็ดขาด เพราะเป็นการอ้างคำพูดของคนที่ไม่มีจริง
+// เติมทีละใบได้ พอใส่ quote การ์ดนั้นจะกลายเป็นรีวิวจริงเอง
+export const landingTestimonials: LandingTestimonial[] = [
+  { id: "t1", quote: { en: "", la: "" }, name: "", shop: "" },
+  { id: "t2", quote: { en: "", la: "" }, name: "", shop: "" },
+  { id: "t3", quote: { en: "", la: "" }, name: "", shop: "" }
+];
+
+// ⚠️ คำตอบที่ยังว่าง = section จะข้ามข้อนั้นไป เติมได้ทีละข้อ
+export const landingFaq: LandingFaqItem[] = [
+  {
+    id: "internet",
+    question: { en: "Do I need an internet connection?", la: "ຕ້ອງມີອິນເຕີເນັດບໍ?" },
+    answer: {
+      en: "Yes. Yummy-go keeps your menu, orders, and reports on the server so every device and branch sees the same data.",
+      la: "ຕ້ອງມີ. Yummy-go ເກັບເມນູ, ອໍເດີ ແລະ ລາຍງານໄວ້ເທິງເຊີບເວີ ເພື່ອໃຫ້ທຸກອຸປະກອນ ແລະ ທຸກສາຂາເຫັນຂໍ້ມູນຊຸດດຽວກັນ."
+    }
+  },
+  {
+    id: "printer",
+    question: { en: "Which receipt printers work with it?", la: "ໃຊ້ໄດ້ກັບເຄື່ອງພິມແບບໃດ?" },
+    answer: {
+      en: "Printers connected through the local printer agent on Windows, and network printers over TCP on Android.",
+      la: "ເຄື່ອງພິມທີ່ຕໍ່ຜ່ານໂປຣແກຣມຊ່ວຍພິມເທິງ Windows ແລະ ເຄື່ອງພິມເຄືອຂ່າຍຜ່ານ TCP ເທິງ Android."
+    }
+  },
+  {
+    id: "devices",
+    question: { en: "What can I run it on?", la: "ໃຊ້ໄດ້ເທິງອຸປະກອນໃດແດ່?" },
+    answer: {
+      en: "A web browser on any computer, a Windows desktop app, an Android device, and a second screen for customers.",
+      la: "ເບຣົາເຊີເທິງຄອມໃດກໍໄດ້, ແອັບເດັສທັອບ Windows, ອຸປະກອນ Android ແລະ ຈໍທີສອງສຳລັບລູກຄ້າ."
+    }
+  },
+  {
+    id: "branches",
+    question: { en: "Can I manage more than one branch?", la: "ຄຸມຫຼາຍສາຂາໄດ້ບໍ?" },
+    answer: {
+      en: "Yes. One account covers every branch, and you control what each staff member can see.",
+      la: "ໄດ້. ບັນຊີດຽວຄຸມໄດ້ທຸກສາຂາ ແລະ ກຳນົດໄດ້ວ່າພະນັກງານແຕ່ລະຄົນເຫັນຫຍັງໄດ້ແດ່."
+    }
+  },
+  {
+    id: "trial",
+    question: { en: "How long is the free trial?", la: "ທົດລອງໃຊ້ຟຣີໄດ້ດົນປານໃດ?" },
+    answer: { en: "", la: "" }
+  },
+  {
+    id: "migrate",
+    question: { en: "Can you move my existing menu over?", la: "ຍ້າຍເມນູເກົ່າມາໃຫ້ໄດ້ບໍ?" },
+    answer: { en: "", la: "" }
+  }
+];
+
+// ⚠️ ใส่ url ของวิดีโอจริงเมื่อพร้อม — ทุกข้อ url ว่าง = section ซ่อนตัวเอง
 export const landingVideos: LandingVideo[] = [
   {
     id: "tv1",
-    projectId: "yummy-go",
-    title: { en: "Getting Started with yummy-go", la: "ເລີ່ມຕົ້ນໃຊ້ yummy-go" },
-    description: { en: "Set up your restaurant, menu, and staff accounts.", la: "ຕັ້ງຄ່າຮ້ານອາຫານ, ເມນູ ແລະ ບັນຊີພະນັກງານ." },
+    title: { en: "Setting up your shop", la: "ຕັ້ງຄ່າຮ້ານຂອງທ່ານ" },
+    description: {
+      en: "Create your branch, tables, and staff accounts.",
+      la: "ສ້າງສາຂາ, ໂຕະ ແລະ ບັນຊີພະນັກງານ."
+    },
     duration: "--:--",
-    category: "Basics"
+    category: "Basics",
+    url: ""
   },
   {
     id: "tv2",
-    projectId: "yummy-go",
-    title: { en: "Using the POS & Orders", la: "ການໃຊ້ POS ແລະ ອໍເດີ" },
-    description: { en: "Take orders, process payments, and manage tables.", la: "ຮັບອໍເດີ, ຊຳລະເງິນ ແລະ ຈັດການໂຕະ." },
+    title: { en: "Building your menu", la: "ສ້າງເມນູຂອງທ່ານ" },
+    description: {
+      en: "Add categories, products, sizes, and toppings.",
+      la: "ເພີ່ມໝວດໝູ່, ສິນຄ້າ, ຂະໜາດ ແລະ ທ໋ອບປິ້ງ."
+    },
     duration: "--:--",
-    category: "POS"
+    category: "Menu",
+    url: ""
   },
   {
     id: "tv3",
-    projectId: "oac-instuce",
-    title: { en: "OAC InStuce Overview", la: "ພາບລວມ OAC InStuce" },
-    description: { en: "A full tour of the insurance management dashboard.", la: "ທົວລະບົບແດັດບອດບໍລິຫານປະກັນໄພ." },
+    title: { en: "Taking orders and payment", la: "ຮັບອໍເດີ ແລະ ຮັບຊຳລະ" },
+    description: {
+      en: "Run the counter, open tables, and close bills.",
+      la: "ໃຊ້ໜ້າເຄົາເຕີ, ເປີດໂຕະ ແລະ ປິດບິນ."
+    },
     duration: "--:--",
-    category: "Basics"
+    category: "POS",
+    url: ""
   },
   {
     id: "tv4",
-    projectId: "oac-instuce",
-    title: { en: "Managing Policies & Workflow", la: "ຈັດການກົມທັນ ແລະ ຂັ້ນຕອນ" },
-    description: { en: "Create policies and track the insurance workflow.", la: "ສ້າງກົມທັນ ແລະ ຕິດຕາມຂັ້ນຕອນປະກັນໄພ." },
+    title: { en: "Reading your sales reports", la: "ອ່ານລາຍງານຍອດຂາຍ" },
+    description: {
+      en: "Find out what sells and how the day closed.",
+      la: "ເບິ່ງວ່າຫຍັງຂາຍດີ ແລະ ມື້ນີ້ປິດຮ້ານແນວໃດ."
+    },
     duration: "--:--",
-    category: "Workflow"
+    category: "Reports",
+    url: ""
   }
 ];
 
-export const landingWhyChooseUs: LandingHighlight[] = [
-  { id: "tech", icon: "mod", title: { en: "Modern Technology", la: "ເທັກໂນໂລຊີທັນສະໄໝ" } },
-  { id: "custom", icon: "cus", title: { en: "Custom Software Development", la: "ພັດທະນາຊອບແວຕາມຄວາມຕ້ອງການ" } },
-  { id: "bizdesign", icon: "biz", title: { en: "Business-focused Design", la: "ອອກແບບເນັ້ນທຸລະກິດ" } },
-  { id: "scale", icon: "scl", title: { en: "Scalable Backend", la: "Backend ຂະຫຍາຍໄດ້" } },
-  { id: "future", icon: "fut", title: { en: "Future-ready Architecture", la: "ສະຖາປັດຕະຍະກຳພ້ອມອະນາຄົດ" } },
-  { id: "ui", icon: "ux", title: { en: "Clean UI/UX", la: "UI/UX ສະອາດ" } },
-  { id: "support", icon: "sla", title: { en: "Long-term Support", la: "ສະໜັບສະໜູນໄລຍະຍາວ" } }
-];
-
-export const landingTechnologies: LandingTech[] = [
-  { id: "t1", name: "Frontend" },
-  { id: "t2", name: "Backend" },
-  { id: "t3", name: "Database" },
-  { id: "t4", name: "Mobile" },
-  { id: "t5", name: "Cloud" },
-  { id: "t6", name: "API" },
-  { id: "t7", name: "Security" },
-  { id: "t8", name: "Reporting" }
-];
-
-// ข้อความ UI ทั้งหมดของหน้า landing (ปุ่ม/หัวข้อ/ป้ายกำกับ) — สองภาษา
-export const landingUi = {
-  navCta: { en: "Contact Us", la: "ຕິດຕໍ່ພວກເຮົາ" },
-  btnLogin: { en: "Sign In", la: "ເຂົ້າສູ່ລະບົບ" },
-  heroBadge: { en: "Software company · Since 2002", la: "ບໍລິສັດຊອບແວ · ຕັ້ງແຕ່ 2002" },
-  btnExplore: { en: "Explore Projects", la: "ເບິ່ງໂປຣເຈັກ" },
-  btnTutorials: { en: "Watch Tutorials", la: "ເບິ່ງວິດີໂອສອນ" },
-  btnContact: { en: "Contact Us", la: "ຕິດຕໍ່ພວກເຮົາ" },
-  aboutKicker: { en: "About the company", la: "ກ່ຽວກັບບໍລິສັດ" },
-  aboutTitle: { en: "Building real systems for real businesses", la: "ສ້າງລະບົບຕົວຈິງ ສຳລັບທຸລະກິດຕົວຈິງ" },
-  servicesKicker: { en: "Services", la: "ບໍລິການ" },
-  servicesTitle: { en: "What we can build for you", la: "ສິ່ງທີ່ພວກເຮົາສ້າງໃຫ້ທ່ານໄດ້" },
-  pricingKicker: { en: "Pricing", la: "ລາຄາ" },
-  pricingTitle: {
-    en: "Choose the plan that fits your shop",
-    la: "ເລືອກແພັກເກັດທີ່ເໝາະກັບຮ້ານຂອງທ່ານ"
-  },
-  pricingSubtitle: {
-    en: "Every plan includes setup support and free updates.",
-    la: "ທຸກແພັກເກັດລວມການຕິດຕັ້ງ ແລະ ອັບເດດຟຣີ."
-  },
-  pricingSavings: { en: "save {value}%", la: "ປະຢັດ {value}%" },
-  pricingCta: { en: "Get this plan", la: "ເອົາແພັກເກັດນີ້" },
-  pricingHelp: {
-    en: "Not sure which one? Talk to us.",
-    la: "ຍັງບໍ່ແນ່ໃຈວ່າອັນໃດ? ລົມກັບພວກເຮົາໄດ້ເລີຍ."
-  },
-  pricingHelpCta: { en: "Contact us", la: "ຕິດຕໍ່ພວກເຮົາ" },
-  projectsKicker: { en: "Projects", la: "ໂປຣເຈັກ" },
-  projectsTitle: { en: "Systems in production", la: "ລະບົບທີ່ໃຊ້ງານຈິງ" },
-  btnViewProject: { en: "View Project", la: "ເບິ່ງໂປຣເຈັກ" },
-  btnWatchTutorial: { en: "Watch Tutorial", la: "ເບິ່ງວິດີໂອສອນ" },
-  btnRequestDemo: { en: "Request Demo", la: "ຂໍເດໂມ" },
-  tutorialsTitle: { en: "Tutorial Videos", la: "ວິດີໂອສອນ" },
-  tutorialsSubtitle: {
-    en: "Learn how to use our systems step by step.",
-    la: "ຮຽນຮູ້ວິທີໃຊ້ລະບົບຂອງພວກເຮົາເທື່ອລະຂັ້ນຕອນ."
-  },
-  filterAll: { en: "All", la: "ທັງໝົດ" },
-  whyKicker: { en: "Why choose us", la: "ເປັນຫຍັງຕ້ອງເລືອກພວກເຮົາ" },
-  whyTitle: { en: "A partner for the long run", la: "ຄູ່ຮ່ວມງານໄລຍະຍາວ" },
-  techKicker: { en: "Technology", la: "ເທັກໂນໂລຊີ" },
-  techTitle: { en: "Capability across the full stack", la: "ຄວາມສາມາດຄົບທຸກຊັ້ນເທັກໂນໂລຊີ" },
-  contactKicker: { en: "Contact", la: "ຕິດຕໍ່" },
-  contactTitle: { en: "Let's build your system", la: "ມາສ້າງລະບົບຂອງທ່ານກັນ" },
-  contactSubtitle: {
-    en: "Tell us about your business and what you need.",
-    la: "ບອກພວກເຮົາກ່ຽວກັບທຸລະກິດ ແລະ ສິ່ງທີ່ທ່ານຕ້ອງການ."
-  },
-  fieldName: { en: "Name", la: "ຊື່" },
-  fieldEmail: { en: "Email or phone", la: "ອີເມວ ຫຼື ເບີໂທ" },
-  fieldMessage: { en: "Message", la: "ຂໍ້ຄວາມ" },
-  btnSend: { en: "Send Message", la: "ສົ່ງຂໍ້ຄວາມ" },
-  btnCustom: { en: "Request a Custom System", la: "ຂໍລະບົບຕາມຄວາມຕ້ອງການ" },
-  contactCardTitle: { en: "Company contact", la: "ຂໍ້ມູນຕິດຕໍ່ບໍລິສັດ" },
-  contactEmailLabel: { en: "Email", la: "ອີເມວ" },
-  contactPhoneLabel: { en: "Phone", la: "ເບີໂທ" },
-  contactAddressLabel: { en: "Address", la: "ທີ່ຢູ່" },
-  contactSocialLabel: { en: "Social media", la: "ໂຊຊຽວມີເດຍ" },
-  placeholderTba: { en: "To be added", la: "ຈະເພີ່ມພາຍຫຼັງ" },
-  footerProjects: { en: "Projects", la: "ໂປຣເຈັກ" },
-  footerServices: { en: "Services", la: "ບໍລິການ" },
-  footerContact: { en: "Contact", la: "ຕິດຕໍ່" },
-  footerDesc: {
-    en: "Web apps, mobile apps, and business systems — built to scale since 2002.",
-    la: "ເວັບແອັບ, ໂມບາຍແອັບ ແລະ ລະບົບທຸລະກິດ — ສ້າງເພື່ອຂະຫຍາຍ ຕັ້ງແຕ່ 2002."
-  },
-  copyrightSuffix: { en: "All rights reserved.", la: "ສະຫງວນລິຂະສິດ." },
-  formSent: {
-    en: "Thank you — your message is ready to send once contact details are connected.",
-    la: "ຂອບໃຈ — ຂໍ້ຄວາມຂອງທ່ານພ້ອມສົ່ງ ເມື່ອເຊື່ອມຕໍ່ຂໍ້ມູນຕິດຕໍ່ແລ້ວ."
-  },
-  scrollHint: { en: "Scroll to explore", la: "ເລື່ອນລົງເພື່ອສຳຫຼວດ" },
-  interactHint: { en: "Click or drag the background", la: "ຄລິກ ຫຼື ລາກພື້ນຫຼັງ" },
-  statYears: { en: "Years building software", la: "ປີແຫ່ງການສ້າງຊອບແວ" },
-  statSystems: { en: "Systems in production", la: "ລະບົບທີ່ໃຊ້ງານຈິງ" },
-  statServices: { en: "Service areas", la: "ຂອບເຂດການບໍລິການ" },
-  backTop: { en: "Back to top", la: "ກັບຄືນເທິງສຸດ" },
-  qualityTitle: { en: "Graphics quality", la: "ຄຸນນະພາບພາບກຣາຟິກ" },
-  qualityAuto: { en: "Auto", la: "ອັດຕະໂນມັດ" },
-  qualityAutoHint: { en: "Match this device", la: "ປັບຕາມເຄື່ອງນີ້" },
-  qualityLow: { en: "Low", la: "ຕ່ຳ" },
-  qualityLowHint: { en: "Saves battery", la: "ປະຢັດແບັດເຕີຣີ" },
-  qualityMedium: { en: "Medium", la: "ປານກາງ" },
-  qualityMediumHint: { en: "Balanced", la: "ສົມດຸນ" },
-  qualityHigh: { en: "High", la: "ສູງ" },
-  qualityHighHint: { en: "Sharp on retina screens", la: "ຄົມຊັດເທິງຈໍລະອຽດສູງ" },
-  qualityUltra: { en: "Ultra", la: "ສູງສຸດ" },
-  qualityUltraHint: { en: "Full resolution, needs a strong GPU", la: "ຄວາມລະອຽດເຕັມ ຕ້ອງການ GPU ແຮງ" },
-  qualityFps: { en: "FPS", la: "FPS" },
-  qualityStatsHint: { en: "Live frame rate and render scale", la: "ເຟຣມເຣດ ແລະ ຄວາມລະອຽດຈິງ" },
-  qualityAdaptive: { en: "Auto-scaled to", la: "ປັບຄວາມລະອຽດເປັນ" },
-  qualityOff: { en: "Scene paused", la: "ຢຸດສາກຊົ່ວຄາວ" }
-} as const satisfies Record<string, LocalizedText>;
-
-export type LandingUiKey = keyof typeof landingUi;
+// จำนวนหน้ารายงานใต้ /report — นับ route ตอน build ไม่ได้ ต้องอัปเดตเมื่อเพิ่มรายงาน
+export const REPORT_COUNT = 5;

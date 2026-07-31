@@ -319,7 +319,7 @@ export function DataTable<T extends Record<string, unknown>>({
   return (
     <div className="flex flex-col gap-3">
       <div className="overflow-x-auto">
-        <Table className="min-w-[820px]">
+        <Table className="min-w-205">
           {header}
           {draggable ? (
             <DndContext

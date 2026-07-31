@@ -644,7 +644,7 @@ function CartProductMedia({
           alt={title}
           fill
           sizes={compact ? "40px" : "(max-width: 640px) 40px, 44px"}
-          className="object-cover"
+          className="object-contain"
         />
       ) : media.type === "color" ? (
         <>

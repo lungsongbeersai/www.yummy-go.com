@@ -81,7 +81,7 @@ export function CartSheetContent({
           "overflow-hidden border-border bg-background p-0",
           isMobile
             ? "mx-auto max-h-[92dvh] w-full max-w-xl rounded-t-2xl"
-            : "h-dvh max-h-none w-full max-w-[30rem] rounded-none border-l sm:max-w-[30rem]"
+            : "h-dvh max-h-none w-full max-w-120 rounded-none border-l sm:max-w-120"
         )}
       >
         <DrawerHeader className="border-b border-border bg-background/95 px-4 py-3 text-left backdrop-blur">
