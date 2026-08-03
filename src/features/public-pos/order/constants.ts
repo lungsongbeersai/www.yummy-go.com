@@ -1,7 +1,15 @@
+import type { PublicPosAccent } from "./types";
+
+// โทน accent ของหน้าสั่งอาหารสาธารณะ — แก้ค่านี้จุดเดียวเปลี่ยนทั้งหน้า
+// ตั้งต้นเป็น emerald ให้ตรงสีแบรนด์เดิม และตรง data-props ของไฟล์ดีไซน์
+export const PUBLIC_POS_ACCENT: PublicPosAccent = "emerald";
+
 export const PRODUCT_RENDER_CHUNK = 12;
 export const RAIL_RENDER_CHUNK = 12;
+// auto-fill ตามดีไซน์ — คอลัมน์ปรับตามความกว้างจริงแทนการไล่ breakpoint
+// ทำให้จอคั่นกลางอย่างแท็บเล็ตแนวตั้งไม่เหลือช่องว่างค้างท้ายแถว
 export const PRODUCT_GRID_CLASS =
-  "grid grid-cols-2 gap-3 max-[359px]:grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5";
+  "grid grid-cols-[repeat(auto-fill,minmax(clamp(152px,42vw,222px),1fr))] gap-[clamp(12px,2vw,18px)]";
 export const CATEGORY_ANCHOR_FALLBACK_Y = 132;
 export const CATEGORY_TAIL_SPACER_HEIGHT = "clamp(140px, 18dvh, 220px)";
 export const CATEGORY_SCROLL_SUPPRESS_MS = 1800;

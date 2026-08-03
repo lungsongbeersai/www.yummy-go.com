@@ -252,7 +252,10 @@ export function ProductMediaView({
         alt={alt}
         className={cn("object-contain", imageClassName)}
         preload={preload || undefined}
-        loading={preload ? undefined : "lazy"}
+        // เมนูโหลดฝั่ง client หลัง mount — URL รูปไม่มีใน HTML ตอน SSR
+        // <link rel=preload> จึงช่วยไม่ได้ ต้องสั่ง eager/high ที่แท็กรูปตรง ๆ
+        loading={preload ? "eager" : "lazy"}
+        fetchPriority={preload ? "high" : undefined}
         sizes={sizes}
         src={media.src}
         onError={() => setImageFailed(true)}

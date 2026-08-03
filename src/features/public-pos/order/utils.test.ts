@@ -22,6 +22,7 @@ import {
   getCartReceiptTotals,
   getConfirmableOrderPayload,
   getDirectAddListPayload,
+  formatMoney,
   getProductActionState,
   getProductBlockedState,
   getProductModalMode,
@@ -36,6 +37,7 @@ import {
   normalizePublicProductLayoutMode,
   normalizePublicSearchHistory,
   promotionQuantity,
+  productNeedsModal,
   publicProductCardPrice,
   statusSectionLabel,
   totalCartQty,
@@ -173,6 +175,12 @@ describe("public menu category reset helpers", () => {
 });
 
 describe("public POS product helpers", () => {
+  it("uses the Kip symbol without abbreviating product prices", () => {
+    expect(formatMoney(300_000, "en")).toBe("300,000 ₭");
+    expect(formatMoney(899_000, "la")).toBe("899,000 ₭");
+    expect(formatMoney(0, "la")).toBe("0 ₭");
+  });
+
   it("uses the minimum as a starting price when enabled options have a price range", () => {
     expect(
       publicProductCardPrice(
@@ -295,7 +303,7 @@ describe("public POS product helpers", () => {
     { label: "empty", value: "" },
     { label: "non-finite", value: Number.POSITIVE_INFINITY },
   ])(
-    "keeps public numeric coercion for $label product status",
+    "keeps public numeric coercion for $label product status in the normal menu",
     ({ value }) => {
       const statusSortFk = productStatus(value);
 
@@ -307,17 +315,42 @@ describe("public POS product helpers", () => {
             promoState: "NONE",
             statusSortFk,
           }),
-          promotionStatus,
+          normalStatus,
         ),
       ).toBeNull();
       expect(
         getProductActionState(
           product({ statusSortFk }),
-          setStatus,
+          normalStatus,
         ),
       ).toBe("add");
     },
   );
+
+  it("always routes set-menu products through the modal", () => {
+    const setProduct = product({ statusSortFk: normalStatus });
+
+    expect(getProductActionState(setProduct, setStatus)).toBe("choose");
+    expect(getDirectAddListPayload(setProduct, setStatus, [])).toEqual({
+      ok: false,
+      reason: "needs-modal",
+    });
+    expect(productNeedsModal(setProduct, prodItem(), setStatus)).toBe(true);
+  });
+
+  it("uses promotion-menu context when the product payload reports a normal status", () => {
+    expect(
+      getProductBlockedState(
+        product({
+          promoExpired: true,
+          promoMsg: "",
+          promoState: "NONE",
+          statusSortFk: normalStatus,
+        }),
+        promotionStatus,
+      ),
+    ).toBe("promotion-ended");
+  });
 
   it("keeps public non-finite count coercion behavior", () => {
     expect(

@@ -62,7 +62,7 @@ export function CartTotalRow({
     <div
       className={cn(
         "flex items-center justify-between gap-3",
-        muted ? "text-muted-foreground" : ""
+        muted ? "text-yg-muted" : "text-yg-ink"
       )}
     >
       <span>{label}</span>
@@ -142,7 +142,7 @@ export function CartGroup({
           <div
             key={uuid || index}
             className={cn(
-              "rounded-xl border border-border/70 bg-background p-2.5 shadow-sm",
+              "rounded-2xl border border-yg-line bg-yg-panel p-3",
               isCanceledCartItem(item)
                 ? "border-destructive/20 bg-destructive/5"
                 : ""
@@ -157,17 +157,17 @@ export function CartGroup({
                       {titleText}
                     </p>
                     {showSizeName ? (
-                      <p className="text-xs font-medium text-muted-foreground">
+                      <p className="text-xs font-medium text-yg-muted">
                         {sizeName}
                       </p>
                     ) : null}
                   </div>
                   <div className="shrink-0 text-right">
-                    <p className="text-sm font-semibold tabular-nums text-primary">
+                    <p className="font-yg-number text-[17px] font-semibold text-yg-accent-strong tabular-nums">
                       {formatMoney(itemTotal, lang)}
                     </p>
                     {qty > 1 ? (
-                      <p className="text-[10px] tabular-nums text-muted-foreground">
+                      <p className="text-[10px] tabular-nums text-yg-faint">
                         {qty} × {formatMoney(itemTotal / qty, lang)}
                       </p>
                     ) : null}
@@ -186,7 +186,7 @@ export function CartGroup({
                     </Badge>
                   ) : null}
                   {promotion.hasPromotion ? (
-                    <Badge className="h-5 rounded-md border border-amber-200 bg-amber-50 px-1.5 py-0 text-[10px] font-medium text-amber-700 dark:border-amber-500/35 dark:bg-amber-950/35 dark:text-amber-200">
+                    <Badge className="h-5 rounded-md border border-yg-accent-line bg-yg-accent-soft px-1.5 py-0 text-[10px] font-bold text-yg-accent-strong">
                       {t("pos.buyShort")} {promotion.saleQty}{" "}
                       {t("pos.getShort")} {promotion.freeQty}
                       {promotion.totalReceiveQty &&
@@ -222,12 +222,12 @@ export function CartGroup({
                   </div>
                 ) : null}
                 {item.detail?.order_it_note ? (
-                  <p className="mt-1 line-clamp-2 rounded-md bg-slate-50 px-1.5 py-1 text-xs font-medium text-muted-foreground dark:bg-muted/50">
+                  <p className="mt-1 line-clamp-2 rounded-lg bg-yg-panel2 px-2 py-1 text-xs font-medium text-yg-muted">
                     {item.detail.order_it_note}
                   </p>
                 ) : null}
                 {discountAmount > 0 ? (
-                  <p className="mt-1 text-[11px] font-medium text-amber-700 dark:text-amber-200">
+                  <p className="mt-1 text-[11px] font-medium text-yg-accent-strong">
                     {t("pos.itemDiscount")}: -
                     {formatMoney(discountAmount, lang)}
                   </p>
@@ -249,7 +249,7 @@ export function CartGroup({
                         <Minus aria-hidden="true" />
                       </Button>
                       <output
-                        className="grid h-10 min-w-9 place-items-center rounded-md border border-border px-2 text-sm font-semibold tabular-nums"
+                        className="grid h-10 min-w-9 place-items-center rounded-lg border border-yg-line bg-yg-bg2 px-2 font-yg-mono text-sm font-semibold text-yg-ink tabular-nums"
                         aria-live="polite"
                       >
                         {qty}
@@ -282,7 +282,7 @@ export function CartGroup({
                         type="button"
                         variant="outline"
                         size="icon"
-                        className="h-11 w-11 rounded-md text-primary"
+                        className="size-11 rounded-xl text-yg-accent-strong hover:bg-yg-panel-hover"
                         disabled={saving}
                         aria-label={t("pos.editNote")}
                         title={t("pos.editNote")}
@@ -365,7 +365,7 @@ function CartItemMedia({ item }: { item: CartItem }) {
 
   if (imageUrl) {
     return (
-      <div className="relative size-14 shrink-0 overflow-hidden rounded-md bg-emerald-50 dark:bg-muted">
+      <div className="relative size-14 shrink-0 overflow-hidden rounded-xl border border-yg-line">
         <Image
           src={imageUrl}
           alt={cartItemTitle(item)}
@@ -391,7 +391,7 @@ function CartItemMedia({ item }: { item: CartItem }) {
   }
 
   return (
-    <div className="grid size-14 shrink-0 place-items-center rounded-md bg-emerald-50 text-muted-foreground dark:bg-muted">
+    <div className="grid size-14 shrink-0 place-items-center rounded-xl border border-yg-line bg-yg-panel2 text-yg-faint">
       <ImageIcon className="size-6" aria-hidden="true" />
     </div>
   );

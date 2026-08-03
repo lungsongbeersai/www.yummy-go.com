@@ -15,6 +15,7 @@ import {
   CategoryDeferredPlaceholder,
 } from "./public-pos-skeletons";
 import { ProductCard } from "./public-product-card";
+import { PublicSectionHeading } from "./public-section-heading";
 
 const PublicCategoryIcon = dynamic(
   () =>
@@ -130,29 +131,29 @@ export const ProductCategorySection = memo(function ProductCategorySection({
       data-cate-uuid={category.cateUuid}
       className="mt-7 scroll-mt-36 first:mt-0 sm:mt-8 [contain-intrinsic-size:720px] [content-visibility:auto]"
     >
-      <div className="mb-2 flex min-w-0 items-center gap-2">
-        <span className="grid size-8 shrink-0 place-items-center rounded-full border border-primary/10 bg-primary/10 text-primary shadow-sm shadow-emerald-950/5">
-          <PublicCategoryIcon icon={category.cateIcon} className="size-5" />
-        </span>
-        <h2 className="min-w-0 flex-1 truncate text-base font-black leading-6">
-          {category.cateName}
-        </h2>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="size-11 shrink-0 rounded-full text-muted-foreground hover:bg-primary/10 hover:text-primary"
-          aria-label={category.cateName}
-          aria-expanded={!collapsed}
-          onClick={() => onToggleCollapse(category.cateUuid)}
-        >
-          {collapsed ? (
-            <ChevronDown className="size-4" />
-          ) : (
-            <ChevronUp className="size-4" />
-          )}
-        </Button>
-      </div>
+      <PublicSectionHeading
+        eyebrow={t("pos.menuEyebrowMenu")}
+        title={category.cateName}
+        icon={<PublicCategoryIcon icon={category.cateIcon} className="size-5" />}
+        meta={t("pos.itemCount", { count: totalProducts })}
+        action={
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="size-11 shrink-0 rounded-xl text-yg-muted hover:bg-yg-panel-hover hover:text-yg-ink"
+            aria-label={category.cateName}
+            aria-expanded={!collapsed}
+            onClick={() => onToggleCollapse(category.cateUuid)}
+          >
+            {collapsed ? (
+              <ChevronDown className="size-4" />
+            ) : (
+              <ChevronUp className="size-4" />
+            )}
+          </Button>
+        }
+      />
 
       {collapsed ? null : loadingVisible ? (
         <CategoryCompactLoading />
@@ -179,7 +180,7 @@ export const ProductCategorySection = memo(function ProductCategorySection({
           ))}
         </div>
       ) : (
-        <div className="rounded-lg border border-dashed border-emerald-100 bg-white/75 p-4 text-center text-sm font-semibold text-muted-foreground dark:border-border dark:bg-background/75">
+        <div className="rounded-2xl border border-dashed border-yg-line bg-yg-panel2 p-4 text-center text-sm font-semibold text-yg-muted">
           {t("pos.noProductsInCategory")}
         </div>
       )}

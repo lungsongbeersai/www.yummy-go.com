@@ -43,18 +43,18 @@ export function PublicQrDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[calc(100dvh-2rem)] gap-0 overflow-hidden p-0 sm:max-w-105">
+      <DialogContent className="max-h-[calc(100dvh-2rem)] gap-0 overflow-hidden rounded-[26px] border-yg-line bg-linear-to-b from-yg-bg2 to-yg-bg p-0 font-yg-sans text-yg-ink sm:max-w-105">
         <DialogHeader className="px-5 pb-3 pt-5 pr-12 text-left">
-          <DialogTitle className="text-xl font-black leading-6">
+          <DialogTitle className="lao-tone-text font-yg-sans text-xl font-semibold leading-snug text-yg-ink">
             {t("pos.qrCode")}
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-yg-muted">
             {t("pos.publicQrDescription", { table: displayTableName })}
           </DialogDescription>
         </DialogHeader>
 
         <div className="grid place-items-center px-5 pb-5">
-          <div className="grid place-items-center rounded-2xl border border-border bg-muted/30 p-4 shadow-inner">
+          <div className="grid place-items-center rounded-[20px] border border-yg-line bg-yg-panel p-4">
             {dataUrl ? (
               <Image
                 src={dataUrl}
@@ -62,19 +62,20 @@ export function PublicQrDialog({
                 width={260}
                 height={260}
                 unoptimized
-                className="size-58 rounded-xl bg-background object-contain p-2 shadow-sm sm:size-65"
+                // พื้นขาวคงที่ทั้งสองโหมด — QR ต้องมี quiet zone สว่างจึงสแกนติด
+                className="size-58 rounded-2xl bg-white object-contain p-2 sm:size-65"
               />
             ) : targetUrl ? (
-              <Skeleton className="size-58 rounded-xl sm:size-65" />
+              <Skeleton className="size-58 rounded-2xl sm:size-65" />
             ) : (
-              <div className="grid size-58 place-items-center rounded-xl bg-muted text-muted-foreground sm:size-65">
+              <div className="grid size-58 place-items-center rounded-2xl bg-yg-panel2 text-yg-faint sm:size-65">
                 <ImageIcon className="size-8" />
               </div>
             )}
           </div>
         </div>
 
-        <DialogFooter className="border-t border-border bg-muted/30 p-3 sm:p-4">
+        <DialogFooter className="border-t border-yg-line bg-yg-bg/45 p-3.5 backdrop-blur-md sm:p-4">
           <div className="grid w-full grid-cols-2 gap-2">
             <Tooltip>
               <TooltipTrigger asChild>

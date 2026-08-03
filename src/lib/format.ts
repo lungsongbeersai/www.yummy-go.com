@@ -3,16 +3,14 @@ export function money(value?: number | string | null, currency = "₭") {
   return `${amount.toLocaleString("lo-LA", { maximumFractionDigits: 0 })} ${currency}`;
 }
 
-// Locale-aware variant used by the public QR menu (public-pos/order), which
-// always shows amounts suffixed "LAK" regardless of the staff POS's "₭"
-// (P3.3 relocated these from product-domain.ts; kept as separate named
-// functions rather than folded into money() so neither surface's visible
-// output changes).
-export function formatMoney(price: number, lang: string) {
-  if (!Number.isFinite(price) || price <= 0) return "0 LAK";
+// Public QR prices keep the full amount and use the Kip symbol. A fixed
+// grouping locale avoids punctuation changing when the interface language does.
+export function formatMoney(price: number, _lang: string) {
+  // Keep the existing call signature; QR-menu price punctuation is language-independent.
+  void _lang;
+  if (!Number.isFinite(price) || price <= 0) return "0 ₭";
 
-  const locale = lang === "en" ? "en-US" : "lo-LA";
-  return `${new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(price)} LAK`;
+  return `${new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(price)} ₭`;
 }
 
 export function formatShortDate(value: string, lang: string) {

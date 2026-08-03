@@ -9,6 +9,7 @@ export {
   type SceneTier
 } from "@/lib/scene-quality";
 
+
 export interface SceneProfile {
   tier: SceneTier;
   /** เพดาน devicePixelRatio ของ tier นี้ (คุมความคมชัด) */

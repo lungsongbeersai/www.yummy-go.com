@@ -9,7 +9,6 @@ import {
   SlidersHorizontal,
   Sparkles,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
@@ -29,6 +28,12 @@ import {
   publicProductCardPrice,
 } from "../utils";
 import { ProductMedia } from "./public-product-media";
+
+const CARD_SURFACE_CLASS =
+  "h-full gap-0 overflow-hidden rounded-[20px] border-yg-line bg-yg-panel py-0 shadow-[0_18px_40px_-26px_rgb(0_0_0/0.45)] backdrop-blur-md transition-[border-color,box-shadow,transform] dark:shadow-[0_18px_40px_-26px_rgb(0_0_0/0.8)] motion-reduce:transition-none";
+
+const CARD_INTERACTIVE_CLASS =
+  "hover:-translate-y-1 hover:border-yg-accent-line hover:shadow-[0_26px_54px_-26px_rgb(0_0_0/0.55)] active:translate-y-0 dark:hover:shadow-[0_26px_54px_-26px_rgb(0_0_0/0.9)] motion-reduce:transform-none";
 
 export const ProductCard = memo(function ProductCard({
   product,
@@ -80,14 +85,12 @@ export const ProductCard = memo(function ProductCard({
   const actionLabel = getActionLabel({
     actionState,
     blockedLabel,
-    hasActualChoices,
     detailed: false,
     t,
   });
   const detailedActionLabel = getActionLabel({
     actionState,
     blockedLabel,
-    hasActualChoices,
     detailed: true,
     t,
   });
@@ -115,16 +118,14 @@ export const ProductCard = memo(function ProductCard({
     return (
       <Card
         className={cn(
-          "h-full overflow-hidden rounded-xl border-emerald-100 bg-white shadow-sm shadow-emerald-950/5 transition-[border-color,box-shadow,transform] motion-reduce:transition-none dark:border-border dark:bg-background",
-          isBlocked
-            ? "bg-muted/25 dark:bg-muted/20"
-            : "active:scale-[0.99] hover:border-primary/35 hover:shadow-md motion-reduce:transform-none",
+          CARD_SURFACE_CLASS,
+          isBlocked ? "" : CARD_INTERACTIVE_CLASS,
         )}
       >
         <Button
           type="button"
           variant="ghost"
-          className="flex min-h-28 w-full items-stretch gap-2.5 rounded-none p-2 text-left hover:bg-primary/5 focus-visible:ring-inset aria-disabled:cursor-not-allowed aria-disabled:hover:bg-transparent disabled:opacity-100"
+          className="flex min-h-28 w-full items-stretch gap-3 rounded-none p-2.5 text-left hover:bg-yg-panel-hover focus-visible:ring-inset aria-disabled:cursor-not-allowed aria-disabled:hover:bg-transparent disabled:opacity-100"
           onClick={handleClick}
           disabled={loading}
           aria-busy={loading || undefined}
@@ -133,7 +134,7 @@ export const ProductCard = memo(function ProductCard({
         >
           <div
             ref={mediaRef}
-            className="relative h-24 w-24 shrink-0 overflow-hidden rounded-lg border border-emerald-100 bg-emerald-50 dark:border-border dark:bg-muted"
+            className="relative size-24 shrink-0 overflow-hidden rounded-2xl border border-yg-line"
           >
             <ProductMedia
               product={product}
@@ -144,14 +145,9 @@ export const ProductCard = memo(function ProductCard({
             />
           </div>
 
-          <CardContent className="flex min-w-0 flex-1 gap-2.5 p-0.5">
+          <CardContent className="flex min-w-0 flex-1 gap-3 p-0">
             <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-              <p
-                className={cn(
-                  "lao-tone-text line-clamp-2 text-sm font-black leading-5 text-foreground",
-                  isBlocked ? "text-foreground/75 dark:text-foreground/80" : "",
-                )}
-              >
+              <p className="lao-tone-text line-clamp-2 font-yg-serif text-[15px] font-semibold leading-snug text-yg-ink">
                 {product.prodName}
               </p>
 
@@ -170,15 +166,17 @@ export const ProductCard = memo(function ProductCard({
               </div>
             </div>
 
-            <div className="flex w-32 shrink-0 items-end justify-end">
-              <ProductActionPill
-                actionState={actionState}
-                hasActualChoices={hasActualChoices}
-                label={actionLabel}
-                loading={loading}
-                compact
-              />
-            </div>
+            {isBlocked ? null : (
+              <div className="flex shrink-0 items-end justify-end">
+                <ProductActionPill
+                  actionState={actionState}
+                  hasActualChoices={hasActualChoices}
+                  label={actionLabel}
+                  loading={loading}
+                  compact
+                />
+              </div>
+            )}
           </CardContent>
         </Button>
       </Card>
@@ -188,15 +186,13 @@ export const ProductCard = memo(function ProductCard({
   return (
     <Card
       className={cn(
-        "h-full overflow-hidden rounded-xl border-emerald-100 bg-white shadow-sm shadow-emerald-950/5 transition-[border-color,box-shadow,transform] motion-reduce:transition-none dark:border-border dark:bg-background",
+        CARD_SURFACE_CLASS,
         variant === "rail"
           ? "w-44 flex-none snap-start"
           : variant === "railGrid"
             ? "w-44 flex-none snap-start sm:w-auto"
             : "min-w-0",
-        isBlocked
-          ? "bg-muted/25 dark:bg-muted/20"
-          : "active:scale-[0.99] hover:border-primary/35 hover:shadow-md motion-reduce:transform-none",
+        isBlocked ? "" : CARD_INTERACTIVE_CLASS,
       )}
     >
       <Button
@@ -221,32 +217,34 @@ export const ProductCard = memo(function ProductCard({
           ) : null}
         </div>
 
-        <CardContent className="flex min-h-36 flex-1 flex-col gap-1.5 p-2.5">
-          <p
-            className={cn(
-              "lao-tone-text line-clamp-2 min-h-10 text-sm font-black leading-5 text-foreground",
-              isBlocked ? "text-foreground/75 dark:text-foreground/80" : "",
-            )}
-          >
+        <CardContent className="flex min-h-36 flex-1 flex-col gap-2 p-3.5 max-[419px]:gap-1 max-[419px]:py-3">
+          <p className="lao-tone-text line-clamp-2 min-h-10 font-yg-serif text-[15px] font-semibold leading-snug text-yg-ink">
             {product.prodName}
           </p>
 
-          <ProductPriceLabel
-            price={price}
-            lang={lang}
-            blocked={isBlocked}
-          />
+          {/* การ์ดสองคอลัมน์บนมือถือเหลือพื้นที่ราคาไม่พอเมื่อปุ่ม 44px อยู่แถวเดียวกัน
+              ให้ราคาเต็มแถว แล้วใช้ metadata กับปุ่มร่วมแถวล่างเพื่อคงความสูงเดิม */}
+          <div className="mt-auto flex items-end justify-between gap-2 max-[419px]:grid max-[419px]:grid-cols-[minmax(0,1fr)_auto] max-[419px]:gap-x-2 max-[419px]:gap-y-1">
+            <div className="min-w-0 flex-1 max-[419px]:contents">
+              <ProductPriceLabel
+                price={price}
+                lang={lang}
+                blocked={isBlocked}
+              />
+              {choiceMeta ? <ProductChoiceMeta label={choiceMeta} /> : null}
+            </div>
 
-          <div className="flex min-h-5 min-w-0 items-center">
-            {choiceMeta ? <ProductChoiceMeta label={choiceMeta} /> : null}
+            {isBlocked ? null : (
+              <div className="shrink-0 max-[419px]:col-start-2 max-[419px]:row-start-2">
+                <ProductActionPill
+                  actionState={actionState}
+                  hasActualChoices={hasActualChoices}
+                  label={actionLabel}
+                  loading={loading}
+                />
+              </div>
+            )}
           </div>
-
-          <ProductActionPill
-            actionState={actionState}
-            hasActualChoices={hasActualChoices}
-            label={actionLabel}
-            loading={loading}
-          />
         </CardContent>
       </Button>
     </Card>
@@ -270,7 +268,10 @@ function ProductPriceLabel({
     if (blocked) {
       return (
         <span
-          className={cn("min-h-7", compact ? "min-h-5" : "")}
+          className={cn(
+            "block min-h-7",
+            compact ? "min-h-5" : "max-[419px]:col-span-2",
+          )}
           aria-hidden="true"
         />
       );
@@ -279,8 +280,8 @@ function ProductPriceLabel({
     return (
       <p
         className={cn(
-          "min-h-7 text-xs font-semibold leading-4 text-muted-foreground",
-          compact ? "min-h-5" : "",
+          "min-h-7 text-xs font-semibold leading-4 text-yg-muted",
+          compact ? "min-h-5" : "max-[419px]:col-span-2",
         )}
       >
         {t("pos.chooseToSeePrice")}
@@ -291,19 +292,24 @@ function ProductPriceLabel({
   return (
     <p
       className={cn(
-        "min-h-7 min-w-0 leading-5 tabular-nums",
-        compact ? "min-h-5" : "",
+        "flex min-h-7 min-w-0 items-baseline gap-1",
+        compact
+          ? "min-h-5"
+          : "max-[419px]:col-span-2 max-[419px]:flex-col max-[419px]:items-start max-[419px]:gap-0.5",
       )}
     >
       {price.kind === "starting" ? (
-        <span className="mr-1 text-[11px] font-bold text-muted-foreground">
+        <span className="shrink-0 text-[10px] font-bold text-yg-faint">
           {t("pos.startingAt")}
         </span>
       ) : null}
       <span
         className={cn(
-          "text-[15px] font-black text-primary",
-          blocked ? "text-foreground/65 dark:text-foreground/70" : "",
+          "max-w-full font-yg-number text-[22px] font-semibold leading-none tabular-nums",
+          compact
+            ? "truncate"
+            : "whitespace-nowrap max-[419px]:text-[clamp(18px,5.2vw,22px)]",
+          blocked ? "text-yg-muted" : "text-yg-accent-strong",
         )}
       >
         {formatMoney(price.value, lang)}
@@ -314,8 +320,8 @@ function ProductPriceLabel({
 
 function ProductChoiceMeta({ label }: { label: string }) {
   return (
-    <span className="flex min-w-0 items-center gap-1 text-xs font-semibold text-muted-foreground">
-      <SlidersHorizontal className="size-3.5 shrink-0" aria-hidden="true" />
+    <span className="mt-0.5 flex min-w-0 items-center gap-1 text-[11px] font-semibold text-yg-faint">
+      <SlidersHorizontal className="size-3 shrink-0" aria-hidden="true" />
       <span className="truncate">{label}</span>
     </span>
   );
@@ -331,18 +337,18 @@ function ProductPromoBadge({
   compact?: boolean;
 }) {
   return (
-    <Badge
+    <span
       className={cn(
-        "max-w-full gap-1 border-amber-300 bg-amber-50 text-[11px] font-black text-amber-800 dark:border-amber-500/50 dark:bg-amber-950/85 dark:text-amber-100",
+        "inline-flex max-w-full items-center gap-1 border border-yg-accent-line bg-yg-accent-soft font-extrabold tracking-wide text-yg-accent-strong",
         overlay
-          ? "absolute left-2 top-2 h-6 max-w-[calc(100%-1rem)] rounded-full px-2 py-0 shadow-sm backdrop-blur-sm"
-          : "h-5 rounded-md px-1.5 py-0",
-        compact ? "text-[10px]" : "",
+          ? "absolute left-2.5 top-2.5 h-6 max-w-[calc(100%-1.25rem)] rounded-lg px-2 text-[10px] backdrop-blur-md"
+          : "h-5 rounded-md px-1.5 text-[10px]",
+        compact ? "text-[9px]" : "",
       )}
     >
-      <Sparkles className="size-3 shrink-0" aria-hidden="true" />
+      <Sparkles className="size-2.5 shrink-0" aria-hidden="true" />
       <span className="truncate">{label}</span>
-    </Badge>
+    </span>
   );
 }
 
@@ -359,28 +365,30 @@ function ProductActionPill({
   loading: boolean;
   compact?: boolean;
 }) {
-  const primaryAction =
-    actionState === "add" ||
-    (actionState === "choose" && hasActualChoices);
+  const isAdd = actionState === "add";
+  const isChoose = actionState === "choose" && hasActualChoices;
   const blocked = actionState === "blocked";
   const Icon = blocked
     ? AlertCircle
-    : actionState === "add"
+    : isAdd
       ? Plus
-      : actionState === "choose" && hasActualChoices
+      : isChoose
         ? SlidersHorizontal
         : ChevronRight;
+  // ปุ่ม "เพิ่ม" เป็นไอคอนล้วนทรงจัตุรัสตามดีไซน์ ที่เหลือมีข้อความกำกับ
+  const iconOnly = isAdd && !loading;
 
   return (
     <span
       className={cn(
-        "mt-auto flex min-w-0 items-center justify-center gap-1.5 rounded-lg px-3 font-black leading-none",
-        compact ? "h-9 max-w-32 text-[11px]" : "h-10 w-full text-xs",
+        "flex h-11 min-w-0 shrink-0 items-center justify-center gap-1.5 rounded-2xl border text-xs font-extrabold leading-none transition-[filter,transform] motion-reduce:transition-none",
+        iconOnly ? "w-11 px-0" : "px-3.5",
+        compact ? "max-w-32" : "",
         blocked
-          ? "border border-slate-200 bg-slate-100 text-muted-foreground dark:border-border dark:bg-muted"
-          : primaryAction
-            ? "bg-primary text-primary-foreground shadow-sm shadow-emerald-950/10"
-            : "border border-primary/20 bg-primary/5 text-primary dark:bg-primary/10",
+          ? "border-yg-line bg-yg-panel2 text-yg-muted"
+          : isChoose
+            ? "border-yg-accent-line bg-yg-accent-soft text-yg-accent-strong"
+            : "border-yg-accent bg-yg-accent text-yg-on-accent shadow-[0_8px_20px_-10px_var(--yg-accent)]",
       )}
     >
       {loading ? (
@@ -388,7 +396,7 @@ function ProductActionPill({
       ) : (
         <Icon className="size-4 shrink-0" aria-hidden="true" />
       )}
-      <span className="truncate">{label}</span>
+      {iconOnly ? null : <span className="truncate">{label}</span>}
     </span>
   );
 }
@@ -411,21 +419,19 @@ function getAccessiblePriceLabel(
 function getActionLabel({
   actionState,
   blockedLabel,
-  hasActualChoices,
   detailed,
   t,
 }: {
   actionState: ProductActionState;
   blockedLabel: string;
-  hasActualChoices: boolean;
   detailed: boolean;
   t: ReturnType<typeof useTranslation>["t"];
 }) {
   if (actionState === "blocked") return blockedLabel;
-  if (actionState === "choose" && hasActualChoices) {
+  if (actionState === "choose") {
     return t(detailed ? "pos.chooseOptionsAction" : "pos.chooseOptions");
   }
-  if (actionState === "view" || actionState === "choose") {
+  if (actionState === "view") {
     return t(detailed ? "pos.viewDetailsAction" : "pos.viewDetails");
   }
   return t("pos.addItem");

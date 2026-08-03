@@ -23,14 +23,14 @@ export function ScrollJumpControls({
   const Icon = scrollToTop ? ArrowUp : ArrowDown;
 
   return (
-    <div className="fixed bottom-[calc(6.25rem+env(safe-area-inset-bottom))] right-3 z-40 sm:right-5">
+    <div className="fixed right-3 bottom-[calc(7rem+env(safe-area-inset-bottom))] z-40 sm:right-5">
       <Tooltip>
         <TooltipTrigger asChild>
           <Button
             type="button"
             variant="outline"
             size="icon"
-            className="size-11 rounded-full border-emerald-100 bg-background/95 text-muted-foreground shadow-lg shadow-emerald-950/10 backdrop-blur-xl hover:border-primary/30 hover:bg-primary/10 hover:text-primary dark:border-border"
+            className="size-11 rounded-full border-yg-line bg-yg-bg2/85 text-yg-muted shadow-[0_12px_30px_-12px_rgb(0_0_0/0.5)] backdrop-blur-xl hover:border-yg-accent-line hover:bg-yg-panel-hover hover:text-yg-accent-strong"
             aria-label={label}
             onClick={onScroll}
           >

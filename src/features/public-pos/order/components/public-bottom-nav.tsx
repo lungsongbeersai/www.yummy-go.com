@@ -3,7 +3,6 @@
 import type { ReactNode, RefObject } from "react";
 import { useTranslation } from "react-i18next";
 import { Bell, Share2, ShoppingBag, Utensils } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -29,38 +28,36 @@ export function BottomNav({
   const staffComingSoon = t("pos.comingSoon");
 
   return (
-    <nav className="pointer-events-none fixed inset-x-0 bottom-0 z-30 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:px-4 lg:bottom-3 lg:px-0">
-      <div className="pointer-events-auto mx-auto max-w-5xl rounded-3xl border border-emerald-100 bg-background/95 p-1.5 shadow-[0_-8px_28px_rgba(15,23,42,0.10)] backdrop-blur-xl lg:max-w-2xl dark:border-border dark:bg-background/95">
-        <div className="grid h-16 grid-cols-4 gap-1">
-          <BottomNavButton
-            icon={<Utensils />}
-            label={t("pos.navMenu")}
-            ariaLabel={t("pos.menu")}
-            onClick={onMenu}
-            active
-          />
-          <BottomNavButton
-            icon={<ShoppingBag />}
-            label={t("pos.navCart")}
-            ariaLabel={t("pos.basket")}
-            onClick={onCart}
-            badge={cartQty}
-            buttonRef={cartTargetRef}
-          />
-          <BottomNavButton
-            icon={<Share2 />}
-            label={t("pos.navQr")}
-            ariaLabel={t("pos.qrCode")}
-            onClick={onShare}
-          />
-          <BottomNavButton
-            icon={<Bell />}
-            label={t("pos.navStaff")}
-            ariaLabel={t("pos.callWaiter")}
-            description={staffComingSoon}
-            disabled
-          />
-        </div>
+    <nav className="fixed bottom-[max(clamp(14px,3vw,22px),env(safe-area-inset-bottom))] left-1/2 z-50 w-[min(92vw,520px)] -translate-x-1/2 rounded-[26px] border border-yg-line bg-yg-bg2/85 p-2 shadow-[0_20px_50px_-18px_rgb(0_0_0/0.45)] backdrop-blur-xl backdrop-saturate-150 dark:shadow-[0_20px_50px_-18px_rgb(0_0_0/0.85)]">
+      <div className="grid h-13.5 grid-cols-4">
+        <BottomNavButton
+          icon={<Utensils />}
+          label={t("pos.navMenu")}
+          ariaLabel={t("pos.menu")}
+          onClick={onMenu}
+          active
+        />
+        <BottomNavButton
+          icon={<ShoppingBag />}
+          label={t("pos.navCart")}
+          ariaLabel={t("pos.basket")}
+          onClick={onCart}
+          badge={cartQty}
+          buttonRef={cartTargetRef}
+        />
+        <BottomNavButton
+          icon={<Share2 />}
+          label={t("pos.navQr")}
+          ariaLabel={t("pos.qrCode")}
+          onClick={onShare}
+        />
+        <BottomNavButton
+          icon={<Bell />}
+          label={t("pos.navStaff")}
+          ariaLabel={t("pos.callWaiter")}
+          description={staffComingSoon}
+          disabled
+        />
       </div>
     </nav>
   );
@@ -100,11 +97,12 @@ function BottomNavButton({
       variant="ghost"
       size="md"
       className={cn(
-        "relative h-full w-full min-w-0 flex-col gap-1 rounded-2xl px-1 text-xs font-bold leading-none transition-[background-color,color,transform,box-shadow] active:scale-[0.98] motion-reduce:transform-none motion-reduce:transition-none",
-        active
-          ? "bg-primary/10 text-primary shadow-sm shadow-emerald-950/5 hover:bg-primary/15"
-          : "text-muted-foreground hover:bg-muted/70 hover:text-foreground",
-        disabled ? "opacity-45 hover:bg-transparent hover:text-muted-foreground" : "",
+        "relative h-full w-full min-w-0 flex-col gap-1 rounded-[18px] px-1 py-0 text-[10.5px] font-bold leading-none transition-[background-color,color] hover:bg-yg-panel-hover motion-reduce:transition-none",
+        active ? "text-yg-accent-strong" : "text-yg-muted",
+        // ดีไซน์ใช้ opacity .4 ซึ่งรวมกับสี muted แล้วอ่านไม่ออก ยกเป็น .55
+        disabled
+          ? "opacity-55 hover:bg-transparent hover:text-yg-muted"
+          : "hover:text-yg-ink",
       )}
       aria-label={accessibleLabel}
       disabled={disabled}
@@ -112,28 +110,35 @@ function BottomNavButton({
       title={buttonTitle}
       onClick={onClick}
     >
+      {active ? (
+        <span
+          aria-hidden="true"
+          className="absolute top-0 h-0.75 w-6.5 rounded-full bg-yg-accent shadow-[0_0_10px_var(--yg-accent)]"
+        />
+      ) : null}
+
       <span
         className={cn(
-          "relative grid size-8 place-items-center rounded-full text-current transition-colors motion-reduce:transition-none",
-          active
-            ? "bg-primary text-primary-foreground shadow-sm shadow-emerald-950/15"
-            : "bg-muted/70",
-          disabled ? "bg-muted/50" : "",
+          "relative grid size-8 place-items-center rounded-xl transition-colors motion-reduce:transition-none",
+          active ? "bg-yg-accent-soft text-yg-accent-strong" : "text-current",
         )}
       >
         <span
-          className="[&_svg]:size-[18px] [&_svg]:stroke-[2.1]"
+          className="[&_svg]:size-4.5 [&_svg]:stroke-2"
           aria-hidden="true"
         >
           {icon}
         </span>
         {badge && badge > 0 ? (
-          <Badge className="absolute -right-2 -top-1 h-4 min-w-4 justify-center rounded-full border border-background bg-primary px-1 py-0 text-[9px] font-black leading-none text-primary-foreground shadow-sm">
+          <span className="absolute -right-2.5 -top-1 grid h-4 min-w-4 place-items-center rounded-full border-2 border-yg-bg2 bg-yg-accent px-1 text-[9px] font-extrabold leading-none text-yg-on-accent">
             {badgeLabel}
-          </Badge>
+          </span>
         ) : null}
       </span>
-      <span className="block max-w-full truncate text-center">{label}</span>
+
+      <span className="lao-tone-text block max-w-full truncate text-center">
+        {label}
+      </span>
     </Button>
   );
 

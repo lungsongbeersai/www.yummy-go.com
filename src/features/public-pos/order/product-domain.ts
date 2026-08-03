@@ -229,14 +229,22 @@ export function toppingDisplayName(topping: ProdTopping, lang: string) {
   );
 }
 
-// Public ordering intentionally preserves direct Number(...) coercion from
-// its pre-P3.3 implementation; shared classification receives those resolved
-// values without imposing staff POS fallback semantics.
+// The rail/category context is authoritative for special menus because some
+// listing payloads report the base product status as normal. Normal-menu
+// products still preserve the public POS's direct Number(...) coercion.
 function publicProductStatusSort(
   product: CateProductItem,
   activeStatusSortFk: number,
 ) {
-  return Number(product.statusSortFk ?? activeStatusSortFk);
+  const activeStatus = Number(activeStatusSortFk);
+  if (
+    activeStatus === publicMenuKindToStatusSortFk(PUBLIC_MENU_KIND.SET) ||
+    activeStatus === publicMenuKindToStatusSortFk(PUBLIC_MENU_KIND.PROMOTION)
+  ) {
+    return activeStatus;
+  }
+
+  return Number(product.statusSortFk ?? activeStatus);
 }
 
 export function isPromotionEnded(
@@ -313,8 +321,9 @@ export function productNeedsModal(
 ) {
   const enabledDetails = (item.details ?? []).filter(isDetailAvailable);
   const enabledToppings = (item.toppings ?? []).filter(isToppingAvailable);
-  const productStatusSort = Number(
-    product.statusSortFk ?? activeStatusSortFk,
+  const productStatusSort = publicProductStatusSort(
+    product,
+    activeStatusSortFk,
   );
   return (
     product.hasOptions === true ||
@@ -339,8 +348,9 @@ export function canDirectAddFromList(
 ) {
   const detailUuid = String(product.proDetailUuid ?? "").trim();
   const price = Number(product.proDetailSprice ?? product.prodPrice);
-  const productStatusSort = Number(
-    product.statusSortFk ?? activeStatusSortFk,
+  const productStatusSort = publicProductStatusSort(
+    product,
+    activeStatusSortFk,
   );
   return (
     Boolean(detailUuid) &&

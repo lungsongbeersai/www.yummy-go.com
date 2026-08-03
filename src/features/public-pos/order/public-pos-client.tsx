@@ -4,20 +4,23 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AlertCircle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/stores/app-store";
 import { ProductBrowse } from "@/features/public-pos/order/components/product-browse";
 import { PublicHeader } from "@/features/public-pos/order/components/public-header";
 import { PublicPosLoadingScreen } from "@/features/public-pos/order/components/public-pos-skeletons";
 import { usePublicPosBootstrap } from "@/features/public-pos/order/hooks/use-public-pos-bootstrap";
+import { usePublicPosThemeScope } from "@/features/public-pos/order/hooks/use-public-pos-theme-scope";
+import { PUBLIC_POS_ACCENT } from "@/features/public-pos/order/constants";
 
 export function PublicPosClient({
   token,
   queryLang,
+  fontClassName,
 }: {
   token: string;
   queryLang: string | null;
+  fontClassName: string;
 }) {
   const { t } = useTranslation();
   const theme = useAppStore((state) => state.theme);
@@ -38,60 +41,55 @@ export function PublicPosClient({
   const errorTitle =
     table && !qrDisabled ? t("pos.productLoadFailed") : t("pos.qrScanFailed");
   const canOrder = Boolean(table && !qrDisabled && !isPublicLoading);
+  usePublicPosThemeScope(fontClassName);
 
   return (
     <main
-      className="min-h-screen bg-[#f3fbf7] pb-[calc(6.5rem+env(safe-area-inset-bottom))] text-slate-950 dark:bg-app dark:text-foreground"
+      data-yg-menu=""
+      data-yg-accent={PUBLIC_POS_ACCENT}
+      className={cn(
+        fontClassName,
+        "yg-shell relative min-h-dvh font-yg-sans text-yg-ink antialiased",
+        "pb-[calc(7.5rem+env(safe-area-inset-bottom))]",
+      )}
     >
-      <PublicHeader
-        table={table}
-        statusLabel={statusLabel}
-        theme={theme}
-        cartQty={cartQty}
-        canOpenCart={canOrder}
-        onToggleTheme={toggleTheme}
-        onOpenCart={() => setCartOpen(true)}
-      />
+      <ShellAmbience />
 
-      <div className="mx-auto w-full max-w-5xl px-2.5 py-2 sm:px-4 sm:py-3">
+      <div className="relative mx-auto flex w-full max-w-280 flex-col gap-[clamp(20px,3.2vw,32px)] px-(--yg-gutter) pt-[clamp(16px,3.4vw,34px)]">
+        <PublicHeader
+          table={table}
+          statusLabel={statusLabel}
+          theme={theme}
+          cartQty={cartQty}
+          canOpenCart={canOrder}
+          onToggleTheme={toggleTheme}
+          onOpenCart={() => setCartOpen(true)}
+        />
+
         <section
           className={cn(
             "flex w-full flex-col gap-3",
             !table || isPublicLoading
-              ? "mx-auto min-h-[calc(100dvh-130px)] max-w-2xl justify-center"
+              ? "mx-auto min-h-[calc(100dvh-220px)] max-w-2xl justify-center"
               : "",
           )}
         >
           {isPublicLoading ? <PublicPosLoadingScreen /> : null}
 
           {languageReady && !isPublicLoading && error ? (
-            <Alert variant="destructive">
-              <AlertCircle />
-              <AlertTitle>{errorTitle}</AlertTitle>
-              <AlertDescription>
-                <p>{error}</p>
-                {canRetryScan ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={retryScan}
-                  >
-                    {t("actions.tryAgain")}
-                  </Button>
-                ) : null}
-              </AlertDescription>
-            </Alert>
+            <PublicPosAlert
+              title={errorTitle}
+              description={error}
+              actionLabel={canRetryScan ? t("actions.tryAgain") : ""}
+              onAction={retryScan}
+            />
           ) : null}
 
           {languageReady && !isPublicLoading && qrDisabled ? (
-            <Alert variant="destructive">
-              <AlertCircle />
-              <AlertTitle>{t("pos.qrDisabled")}</AlertTitle>
-              <AlertDescription>
-                {t("pos.qrDisabledDescription")}
-              </AlertDescription>
-            </Alert>
+            <PublicPosAlert
+              title={t("pos.qrDisabled")}
+              description={t("pos.qrDisabledDescription")}
+            />
           ) : null}
 
           {canOrder ? (
@@ -105,5 +103,62 @@ export function PublicPosClient({
         </section>
       </div>
     </main>
+  );
+}
+
+/** แสงพื้นหลังสองก้อนตามดีไซน์ — ตรึงกับ viewport และคลิปในตัวเอง
+ *  เพื่อไม่ให้ต้องใส่ overflow:hidden ที่ shell ซึ่งจะทำให้ sticky ของแถบหมวดตาย */
+function ShellAmbience() {
+  return (
+    <div
+      aria-hidden="true"
+      className="pointer-events-none fixed inset-0 -z-10 overflow-hidden"
+    >
+      <div
+        className="yg-glow-orb absolute top-[-14%] right-[-6%] h-[min(60vw,540px)] w-[min(60vw,540px)] rounded-full blur-[20px]"
+        style={{
+          background: "radial-gradient(circle, var(--yg-glow1), transparent 66%)",
+        }}
+      />
+      <div
+        className="absolute bottom-[4%] left-[-12%] h-[min(55vw,460px)] w-[min(55vw,460px)] rounded-full blur-[26px]"
+        style={{
+          background: "radial-gradient(circle, var(--yg-glow2), transparent 68%)",
+        }}
+      />
+    </div>
+  );
+}
+
+function PublicPosAlert({
+  title,
+  description,
+  actionLabel = "",
+  onAction,
+}: {
+  title: string;
+  description: string;
+  actionLabel?: string;
+  onAction?: () => void;
+}) {
+  return (
+    <Alert className="border-destructive/40 bg-destructive/10 text-yg-ink backdrop-blur-md">
+      <AlertCircle className="text-destructive" />
+      <AlertTitle className="font-yg-serif text-base font-semibold">
+        {title}
+      </AlertTitle>
+      <AlertDescription className="text-yg-muted">
+        <p>{description}</p>
+        {actionLabel ? (
+          <button
+            type="button"
+            onClick={onAction}
+            className="mt-2 inline-flex h-11 items-center justify-center rounded-xl border border-yg-accent-line bg-yg-accent-soft px-4 text-xs font-extrabold text-yg-accent-strong transition-[filter,transform] outline-none hover:brightness-110 focus-visible:ring-2 focus-visible:ring-yg-accent focus-visible:ring-offset-2 focus-visible:ring-offset-yg-bg active:translate-y-px motion-reduce:transition-none"
+          >
+            {actionLabel}
+          </button>
+        ) : null}
+      </AlertDescription>
+    </Alert>
   );
 }
