@@ -16,7 +16,20 @@ import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import type { ProductImportDraft } from "./product-import-utils";
 import type { ProductListWorkflow } from "./use-product-list-workflow";
+
+/** A set has one price; a normal product prices each size, so show the spread. */
+function draftPriceLabel(draft: ProductImportDraft) {
+  if (draft.type === "set") return draft.salePrice.toLocaleString();
+
+  const prices = draft.details.map((detail) => detail.salePrice);
+  const low = Math.min(...prices);
+  const high = Math.max(...prices);
+  return low === high
+    ? low.toLocaleString()
+    : `${low.toLocaleString()} - ${high.toLocaleString()}`;
+}
 
 export function ProductImportDialog({ workflow }: { workflow: ProductListWorkflow }) {
   const ready =
@@ -35,8 +48,10 @@ export function ProductImportDialog({ workflow }: { workflow: ProductListWorkflo
         if (!open) workflow.resetImportState();
       }}
     >
-      <DialogContent className="max-h-[calc(100vh-2rem)] overflow-hidden p-0 sm:max-w-6xl">
-        <DialogHeader className="border-b border-border px-4 py-4 pr-12 sm:px-6">
+      {/* Flex column, not the base grid: grid auto rows refuse to shrink under
+          max-h, which pushes the footer past overflow-hidden on short screens. */}
+      <DialogContent className="flex max-h-[calc(100vh-2rem)] flex-col overflow-hidden p-0 sm:max-w-6xl">
+        <DialogHeader className="shrink-0 border-b border-border px-4 py-4 pr-12 sm:px-6">
           <div className="flex items-start gap-3">
             <span className="flex size-10 shrink-0 items-center justify-center rounded-md border bg-muted text-primary">
               <FileSpreadsheet />
@@ -48,7 +63,7 @@ export function ProductImportDialog({ workflow }: { workflow: ProductListWorkflo
           </div>
         </DialogHeader>
 
-        <div className="grid min-h-0 gap-4 overflow-y-auto px-4 py-4 lg:grid-cols-[minmax(16rem,20rem)_minmax(0,1fr)] sm:px-6">
+        <div className="grid min-h-0 flex-1 gap-4 overflow-y-auto px-4 py-4 lg:grid-cols-[minmax(16rem,20rem)_minmax(0,1fr)] sm:px-6">
           <aside className="flex min-w-0 flex-col gap-4">
             <Field className="rounded-md border bg-muted/20 p-3">
               <FieldLabel htmlFor="product-import-file">{workflow.t("product.import.excelFile")}</FieldLabel>
@@ -214,7 +229,9 @@ export function ProductImportDialog({ workflow }: { workflow: ProductListWorkflo
                           >
                             {draft.sizeNames.join(", ") || "-"}
                           </TableCell>
-                          <TableCell className="text-right tabular-nums">{draft.salePrice.toLocaleString()}</TableCell>
+                          <TableCell className="text-right tabular-nums">
+                            {draftPriceLabel(draft)}
+                          </TableCell>
                           <TableCell className="max-w-[22rem]">
                             {draft.executionStatus === "succeeded" ? (
                               <span className="inline-flex items-center gap-1 text-sm font-medium text-emerald-700 dark:text-emerald-300">
@@ -237,6 +254,11 @@ export function ProductImportDialog({ workflow }: { workflow: ProductListWorkflo
                                 </span>
                                 <span>{draft.executionError}</span>
                               </div>
+                            ) : draft.targetProductUuid ? (
+                              <span className="inline-flex items-center gap-1 text-sm font-medium text-sky-700 dark:text-sky-300">
+                                <Info data-icon="inline-start" />
+                                {workflow.t("product.import.addsSizes")}
+                              </span>
                             ) : willCreate ? (
                               <span className="inline-flex items-center gap-1 text-sm font-medium text-amber-700 dark:text-amber-300">
                                 <Info data-icon="inline-start" />
@@ -262,7 +284,7 @@ export function ProductImportDialog({ workflow }: { workflow: ProductListWorkflo
           </section>
         </div>
 
-        <DialogFooter className="border-t border-border px-4 py-3 sm:px-6">
+        <DialogFooter className="shrink-0 border-t border-border px-4 py-3 sm:px-6">
           <Button
             type="button"
             variant="outline"

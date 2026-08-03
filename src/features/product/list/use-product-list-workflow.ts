@@ -643,8 +643,8 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
       multipleSetPrices: () => t("product.import.multipleSetPrices"),
       duplicateCode: (code: string) =>
         t("product.import.duplicateCode", { code }),
-      duplicateName: (name: string) =>
-        t("product.import.duplicateName", { name }),
+      duplicateSize: (row: number, name: string) =>
+        t("product.import.duplicateSize", { row, name }),
     }),
     [importFieldLabel, t]
   );

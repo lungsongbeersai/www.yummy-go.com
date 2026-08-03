@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 /** หัวข้อ section ตามดีไซน์ — eyebrow ตัวเล็กเว้นห่าง ทับด้วยชื่อ serif
+ *  eyebrow/icon เป็นของเสริม ไม่ใส่ก็เหลือแค่ชื่อ section ล้วน ๆ
  *  ช่อง meta ทางขวาใช้ได้ทั้งจำนวนรายการและปุ่ม */
 export function PublicSectionHeading({
   eyebrow,
@@ -13,7 +14,7 @@ export function PublicSectionHeading({
   action,
   className,
 }: {
-  eyebrow: string;
+  eyebrow?: string;
   title: string;
   icon?: ReactNode;
   meta?: ReactNode;
@@ -34,10 +35,17 @@ export function PublicSectionHeading({
           </span>
         ) : null}
         <div className="min-w-0">
-          <span className="block text-[10.5px] font-extrabold uppercase tracking-[0.22em] text-yg-accent">
-            {eyebrow}
-          </span>
-          <h2 className="lao-tone-text mt-0.5 truncate font-yg-serif text-[clamp(20px,4.4vw,28px)] font-semibold leading-tight text-yg-ink">
+          {eyebrow ? (
+            <span className="block text-[10.5px] font-extrabold uppercase tracking-[0.22em] text-yg-accent">
+              {eyebrow}
+            </span>
+          ) : null}
+          <h2
+            className={cn(
+              "lao-tone-text truncate font-yg-serif text-[clamp(20px,4.4vw,28px)] font-semibold leading-tight text-yg-ink",
+              eyebrow ? "mt-0.5" : "",
+            )}
+          >
             {title}
           </h2>
         </div>

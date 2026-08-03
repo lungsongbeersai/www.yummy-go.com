@@ -132,7 +132,6 @@ export const ProductCategorySection = memo(function ProductCategorySection({
       className="mt-7 scroll-mt-36 first:mt-0 sm:mt-8 [contain-intrinsic-size:720px] [content-visibility:auto]"
     >
       <PublicSectionHeading
-        eyebrow={t("pos.menuEyebrowMenu")}
         title={category.cateName}
         icon={<PublicCategoryIcon icon={category.cateIcon} className="size-5" />}
         action={

@@ -8,6 +8,7 @@ import { normalizeProductImportKey } from "@/lib/product-import";
 import type { Category } from "@/services/category";
 import type {
   Product,
+  SaveProductDetailInput,
   SaveProductInput,
   SizeOption,
 } from "@/services/product";
@@ -56,6 +57,13 @@ export interface ProductImportDraft {
   details: ProductImportDraftDetail[];
   detailCount: number;
   salePrice: number;
+  /** Set when the draft adds sizes to a product that already exists in the branch. */
+  targetProductUuid: string;
+  /**
+   * Sizes already stored on the target product. The save endpoint replaces the
+   * whole detail list, so they are resent unchanged alongside the new sizes.
+   */
+  existingDetails: SaveProductDetailInput[];
   validationErrors: string[];
   warnings: string[];
   payload: SaveProductInput | null;
@@ -80,7 +88,7 @@ export interface ProductImportMessages {
   setOptionNotFound: (row: number, name: string) => string;
   multipleSetPrices: () => string;
   duplicateCode?: (code: string) => string;
-  duplicateName?: (name: string) => string;
+  duplicateSize?: (row: number, name: string) => string;
 }
 
 export interface ProductImportAnalysisInput {
@@ -147,7 +155,7 @@ const DEFAULT_IMPORT_MESSAGES: ProductImportMessages = {
   multipleSetPrices: () =>
     "Set has multiple Set Price values. The first price will be used.",
   duplicateCode: (code) => `Duplicate product code: ${code}`,
-  duplicateName: (name) => `Duplicate product name: ${name}`,
+  duplicateSize: (row, name) => `Row ${row}: Size already exists: ${name}`,
 };
 
 function cleanText(value: unknown) {
@@ -365,6 +373,8 @@ function createDrafts(
       details,
       detailCount: details.length,
       salePrice: details[0]?.salePrice ?? 0,
+      targetProductUuid: "",
+      existingDetails: [],
       validationErrors,
       warnings: [],
       payload: null,
@@ -424,6 +434,8 @@ function createDrafts(
       details,
       detailCount: details.length,
       salePrice: setPrice,
+      targetProductUuid: "",
+      existingDetails: [],
       validationErrors,
       warnings,
       payload: null,
@@ -448,19 +460,190 @@ function productNameKeys(product: Product) {
   ]).map(normalizeProductImportKey);
 }
 
-function appendDuplicateErrors(
+function draftNameKeys(draft: ProductImportDraft) {
+  return [
+    ...new Set(
+      [draft.productNameLa, draft.productNameEng]
+        .map(normalizeProductImportKey)
+        .filter(Boolean),
+    ),
+  ];
+}
+
+function numberOr(value: unknown, fallback: number) {
+  if (value === null || value === undefined || value === "") return fallback;
+  const parsed = numberValue(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function isSetProduct(product: Product) {
+  return numberOr(product.status_sort_fk, 1) === 2;
+}
+
+/**
+ * The save endpoint replaces a product's whole detail list, so an update that
+ * adds one size has to resend the sizes the product already has.
+ */
+function existingProductDetails(product: Product): SaveProductDetailInput[] {
+  const setProduct = isSetProduct(product);
+  return (product.details ?? [])
+    .map((detail) => {
+      const detailUuid = cleanText(
+        detail.pro_detail_uuid ??
+          detail.prod_detail_uuid ??
+          detail.product_detail_uuid ??
+          detail.detail_uuid,
+      );
+      return {
+        ...(detailUuid ? { pro_detail_uuid: detailUuid } : {}),
+        size_uuid_fk: cleanText(detail.size_uuid_fk ?? detail.size_uuid),
+        pro_detail_bprice: numberOr(detail.pro_detail_bprice, 0),
+        pro_detail_sprice: numberOr(detail.pro_detail_sprice, 0),
+        pro_detail_qty_stock: numberOr(
+          detail.pro_detail_qty_stock ?? detail.qty_stock,
+          DEFAULT_STOCK_QTY,
+        ),
+        pro_detail_stock: numberOr(detail.pro_detail_stock, 2),
+        pro_detail_enabled: numberOr(detail.pro_detail_enabled, 1),
+        pro_detail_status: numberOr(
+          detail.pro_detail_status,
+          setProduct ? 2 : 1,
+        ),
+      };
+    })
+    .filter((detail) => detail.size_uuid_fk);
+}
+
+function message<A extends unknown[]>(
+  messages: ProductImportMessages,
+  key: "duplicateCode" | "duplicateSize",
+  fallback: string,
+  ...args: A
+) {
+  const resolve = messages[key] ?? DEFAULT_IMPORT_MESSAGES[key];
+  return (
+    (resolve as ((...values: A) => string) | undefined)?.(...args) ?? fallback
+  );
+}
+
+function foldDraft(
+  owner: ProductImportDraft,
+  draft: ProductImportDraft,
+  messages: ProductImportMessages,
+) {
+  const takenSizes = new Set(
+    owner.details.map((detail) => normalizeProductImportKey(detail.referenceName)),
+  );
+
+  draft.details.forEach((detail) => {
+    const sizeKey = normalizeProductImportKey(detail.referenceName);
+    if (sizeKey && takenSizes.has(sizeKey)) {
+      pushUnique(
+        owner.warnings,
+        message(
+          messages,
+          "duplicateSize",
+          `Row ${detail.rowNumber}: Size already exists: ${detail.referenceName}`,
+          detail.rowNumber,
+          detail.referenceName,
+        ),
+      );
+      return;
+    }
+    if (sizeKey) takenSizes.add(sizeKey);
+    owner.details.push(detail);
+  });
+
+  owner.rowNumbers = [...owner.rowNumbers, ...draft.rowNumbers];
+  owner.detailCount = owner.details.length;
+  owner.sizeNames = uniqueImportNames(
+    owner.details.map((detail) => detail.referenceName),
+  );
+  if (owner.type === "set" && draft.salePrice !== owner.salePrice) {
+    pushUnique(owner.warnings, messages.multipleSetPrices());
+  }
+  draft.validationErrors.forEach((error) =>
+    pushUnique(owner.validationErrors, error),
+  );
+  draft.warnings.forEach((warning) => pushUnique(owner.warnings, warning));
+}
+
+/**
+ * A product name is an identity, not a uniqueness constraint: rows repeating a
+ * name describe more sizes of one product. Same-name drafts fold into the first
+ * one, and a name already in the branch turns the draft into an update that
+ * appends its sizes to that product instead of creating a duplicate.
+ */
+function mergeDraftsByProductName(
   drafts: ProductImportDraft[],
   existingProducts: Product[],
   messages: ProductImportMessages,
 ) {
+  const existingByName = new Map<string, Product>();
+  existingProducts.forEach((product) => {
+    if (!cleanText(product.prod_uuid)) return;
+    productNameKeys(product).forEach((nameKey) => {
+      if (nameKey && !existingByName.has(nameKey)) {
+        existingByName.set(nameKey, product);
+      }
+    });
+  });
+
+  const merged: ProductImportDraft[] = [];
+  const ownerByAlias = new Map<string, ProductImportDraft>();
+
+  drafts.forEach((draft) => {
+    const nameKeys = draftNameKeys(draft);
+    const existing = nameKeys
+      .map((nameKey) => existingByName.get(nameKey))
+      .find(
+        (product): product is Product =>
+          Boolean(product) &&
+          isSetProduct(product as Product) === (draft.type === "set"),
+      );
+
+    const aliases = nameKeys.map((nameKey) => `${draft.type}:${nameKey}`);
+    if (existing) aliases.unshift(`product:${cleanText(existing.prod_uuid)}`);
+
+    const owner = aliases
+      .map((alias) => ownerByAlias.get(alias))
+      .find((candidate): candidate is ProductImportDraft => Boolean(candidate));
+    if (owner) {
+      foldDraft(owner, draft, messages);
+      aliases.forEach((alias) => ownerByAlias.set(alias, owner));
+      return;
+    }
+
+    if (existing) {
+      draft.targetProductUuid = cleanText(existing.prod_uuid);
+      draft.productCode = cleanText(existing.prod_code) || draft.productCode;
+      draft.existingDetails = existingProductDetails(existing);
+    }
+    aliases.forEach((alias) => ownerByAlias.set(alias, draft));
+    merged.push(draft);
+  });
+
+  return merged;
+}
+
+function appendDuplicateCodeErrors(
+  drafts: ProductImportDraft[],
+  existingProducts: Product[],
+  messages: ProductImportMessages,
+) {
+  // Codes belonging to a product a draft updates are its own, not a collision.
+  const targetedProductUuids = new Set(
+    drafts.map((draft) => draft.targetProductUuid).filter(Boolean),
+  );
   const existingCodes = new Set(
     existingProducts
+      .filter(
+        (product) => !targetedProductUuids.has(cleanText(product.prod_uuid)),
+      )
       .map((product) => normalizeProductImportKey(product.prod_code))
       .filter(Boolean),
   );
-  const existingNames = new Set(existingProducts.flatMap(productNameKeys));
   const workbookCodeCounts = new Map<string, number>();
-  const workbookNameCounts = new Map<string, number>();
 
   drafts.forEach((draft) => {
     const codeKey = normalizeProductImportKey(draft.productCode);
@@ -470,16 +653,6 @@ function appendDuplicateErrors(
         (workbookCodeCounts.get(codeKey) ?? 0) + 1,
       );
     }
-    new Set(
-      [draft.productNameLa, draft.productNameEng]
-        .map(normalizeProductImportKey)
-        .filter(Boolean),
-    ).forEach((nameKey) => {
-      workbookNameCounts.set(
-        nameKey,
-        (workbookNameCounts.get(nameKey) ?? 0) + 1,
-      );
-    });
   });
 
   drafts.forEach((draft) => {
@@ -490,30 +663,14 @@ function appendDuplicateErrors(
     ) {
       pushUnique(
         draft.validationErrors,
-        messages.duplicateCode?.(draft.productCode) ??
-          DEFAULT_IMPORT_MESSAGES.duplicateCode?.(draft.productCode) ??
+        message(
+          messages,
+          "duplicateCode",
           `Duplicate product code: ${draft.productCode}`,
+          draft.productCode,
+        ),
       );
     }
-
-    const draftNames = new Map<string, string>();
-    [draft.productNameLa, draft.productNameEng].forEach((name) => {
-      const nameKey = normalizeProductImportKey(name);
-      if (nameKey && !draftNames.has(nameKey)) draftNames.set(nameKey, name);
-    });
-    draftNames.forEach((name, nameKey) => {
-      if (
-        existingNames.has(nameKey) ||
-        (workbookNameCounts.get(nameKey) ?? 0) > 1
-      ) {
-        pushUnique(
-          draft.validationErrors,
-          messages.duplicateName?.(name) ??
-            DEFAULT_IMPORT_MESSAGES.duplicateName?.(name) ??
-            `Duplicate product name: ${name}`,
-        );
-      }
-    });
     if (draft.validationErrors.length) draft.payload = null;
   });
 }
@@ -633,9 +790,13 @@ export function analyzeProductImportWorkbook({
   generatedCodeSeed,
   messages = DEFAULT_IMPORT_MESSAGES,
 }: ProductImportAnalysisInput): ProductImportAnalysis {
-  const drafts = createDrafts(workbook, branchUuid, messages);
+  const drafts = mergeDraftsByProductName(
+    createDrafts(workbook, branchUuid, messages),
+    existingProducts,
+    messages,
+  );
   assignGeneratedCodes(drafts, existingProducts, generatedCodeSeed);
-  appendDuplicateErrors(drafts, existingProducts, messages);
+  appendDuplicateCodeErrors(drafts, existingProducts, messages);
 
   drafts.forEach((draft) => {
     if (!draft.validationErrors.length) {
@@ -668,6 +829,7 @@ function buildDraftPayload(
   detailId: (detail: ProductImportDraftDetail, index: number) => string,
 ): SaveProductInput {
   const base = {
+    ...(draft.targetProductUuid ? { prod_uuid: draft.targetProductUuid } : {}),
     branch_uuid_fk: branchUuid,
     cate_uuid_fk: categoryId,
     unite_uuid_fk: unitId,
@@ -684,31 +846,39 @@ function buildDraftPayload(
     toppings: [],
   };
 
-  if (draft.type === "set") {
-    return {
-      ...base,
-      details: draft.details.map((detail, index) => ({
-        size_uuid_fk: detailId(detail, index),
-        pro_detail_bprice: detail.costPrice,
-        pro_detail_qty_stock: DEFAULT_STOCK_QTY,
-        pro_detail_stock: 2,
-        pro_detail_enabled: 1,
-        pro_detail_status: 2,
-      })),
-    };
-  }
+  // Sizes the target product already has stay untouched; sheet rows pointing at
+  // one of them are skipped so an update only ever appends.
+  const takenSizeIds = new Set(
+    draft.existingDetails.map((detail) => detail.size_uuid_fk).filter(Boolean),
+  );
+  const addedDetails: SaveProductDetailInput[] = [];
 
-  return {
-    ...base,
-    details: draft.details.map((detail, index) => ({
-      size_uuid_fk: detailId(detail, index),
-      pro_detail_bprice: detail.costPrice,
-      pro_detail_sprice: detail.salePrice,
-      pro_detail_qty_stock: DEFAULT_STOCK_QTY,
-      pro_detail_stock: 2,
-      pro_detail_enabled: 1,
-    })),
-  };
+  draft.details.forEach((detail, index) => {
+    const sizeId = detailId(detail, index);
+    if (sizeId && takenSizeIds.has(sizeId)) return;
+    if (sizeId) takenSizeIds.add(sizeId);
+    addedDetails.push(
+      draft.type === "set"
+        ? {
+            size_uuid_fk: sizeId,
+            pro_detail_bprice: detail.costPrice,
+            pro_detail_qty_stock: DEFAULT_STOCK_QTY,
+            pro_detail_stock: 2,
+            pro_detail_enabled: 1,
+            pro_detail_status: 2,
+          }
+        : {
+            size_uuid_fk: sizeId,
+            pro_detail_bprice: detail.costPrice,
+            pro_detail_sprice: detail.salePrice,
+            pro_detail_qty_stock: DEFAULT_STOCK_QTY,
+            pro_detail_stock: 2,
+            pro_detail_enabled: 1,
+          },
+    );
+  });
+
+  return { ...base, details: [...draft.existingDetails, ...addedDetails] };
 }
 
 export function buildProductImportDrafts(

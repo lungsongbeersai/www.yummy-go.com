@@ -1,7 +1,6 @@
 "use client";
 
 import { memo, useEffect, useRef } from "react";
-import { useTranslation } from "react-i18next";
 import { Plus, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -43,7 +42,6 @@ export const StatusRailSection = memo(function StatusRailSection({
   ) => void;
   onRevealMore: (statusKind: PublicMenuKind, totalProducts: number) => void;
 }) {
-  const { t } = useTranslation();
   const visibleProducts = products.slice(0, visibleCount);
   const useDesktopGrid = products.length <= 5;
   const priorityProductUuid = priorityFirstImage
@@ -82,7 +80,6 @@ export const StatusRailSection = memo(function StatusRailSection({
   return (
     <section className="[contain-intrinsic-size:320px] [content-visibility:auto]">
       <PublicSectionHeading
-        eyebrow={t("pos.menuEyebrowFeatured")}
         title={title}
         icon={<Sparkles className="size-4" aria-hidden="true" />}
       />

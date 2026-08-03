@@ -1,6 +1,5 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import { useRef, useSyncExternalStore, type ReactNode } from "react";
 import { Grid2X2, List, Loader2, Search } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -24,6 +23,7 @@ import {
 import { BottomNav } from "./public-bottom-nav";
 import { CartFlyAnimationLayer } from "./cart-fly-animation-layer";
 import { CartSheet } from "./cart-sheet";
+import { PublicCategoryMenu } from "./public-category-menu";
 import { PublicMenuHero } from "./public-menu-hero";
 import { PublicQrDialog } from "./public-qr-dialog";
 import {
@@ -38,14 +38,6 @@ import {
 import { ProductOrderSheet } from "./product-order-sheet";
 import { ScrollJumpControls } from "./scroll-jump-controls";
 import { HorizontalScrollArrows } from "./horizontal-scroll-arrows";
-
-const PublicCategoryIcon = dynamic(
-  () =>
-    import("@/features/public-pos/order/components/public-category-icon").then(
-      (mod) => mod.PublicCategoryIcon,
-    ),
-  { ssr: false },
-);
 
 export function ProductBrowseContent({
   workflow,
@@ -121,7 +113,7 @@ export function ProductBrowseContent({
 
   return (
     <div className="flex flex-col gap-3">
-      <PublicMenuHero onSearch={search.openSearchSheet} />
+      {/* <PublicMenuHero onSearch={search.openSearchSheet} /> */}
 
       <div
         ref={categoryBarRef}
@@ -180,32 +172,40 @@ export function ProductBrowseContent({
               onValueChange={handleTabChange}
               className="gap-0"
             >
-              <div className="relative">
-                <div ref={categoryRailRef} className="yg-rail overflow-x-auto">
-                  <TabsList className="h-11 w-max justify-start gap-2 bg-transparent p-0">
-                    {visibleCategoryTabs.map((category) => (
-                      <TabsTrigger
-                        key={category.cateUuid}
-                        value={category.cateUuid}
-                        ref={(element) => {
-                          categoryTabRefs.current[category.cateUuid] = element;
-                        }}
-                        className="h-11 flex-none gap-2 rounded-full border border-yg-line bg-yg-panel px-4 text-[13px] font-bold text-yg-muted shadow-none backdrop-blur-md data-[state=active]:border-yg-accent data-[state=active]:bg-yg-accent data-[state=active]:text-yg-on-accent data-[state=active]:shadow-[0_8px_20px_-8px_var(--yg-accent)]"
-                      >
-                        {jumpingCateUuid === category.cateUuid ? (
-                          <Loader2 className="size-4 shrink-0 animate-spin" />
-                        ) : (
-                          <PublicCategoryIcon icon={category.cateIcon} />
-                        )}
+              <div className="flex items-center gap-2">
+                <div className="relative min-w-0 flex-1">
+                  <div ref={categoryRailRef} className="yg-rail overflow-x-auto">
+                    <TabsList className="h-11 w-max justify-start gap-2 bg-transparent p-0">
+                      {visibleCategoryTabs.map((category) => (
+                        <TabsTrigger
+                          key={category.cateUuid}
+                          value={category.cateUuid}
+                          ref={(element) => {
+                            categoryTabRefs.current[category.cateUuid] = element;
+                          }}
+                          className="h-11 flex-none gap-2 rounded-full border border-yg-line bg-yg-panel px-4 text-[13px] font-bold text-yg-muted shadow-none backdrop-blur-md data-[state=active]:border-yg-accent data-[state=active]:bg-yg-accent data-[state=active]:text-yg-on-accent data-[state=active]:shadow-[0_8px_20px_-8px_var(--yg-accent)]"
+                        >
+                          {jumpingCateUuid === category.cateUuid ? (
+                            <Loader2 className="size-4 shrink-0 animate-spin" />
+                          ) : null}
 
-                        <span className="lao-tone-text min-w-0 max-w-30 truncate sm:max-w-40">
-                          {category.cateName}
-                        </span>
-                      </TabsTrigger>
-                    ))}
-                  </TabsList>
+                          <span className="lao-tone-text min-w-0 max-w-30 truncate sm:max-w-40">
+                            {category.cateName}
+                          </span>
+                        </TabsTrigger>
+                      ))}
+                    </TabsList>
+                  </div>
+                  <HorizontalScrollArrows scrollRef={categoryRailRef} />
                 </div>
-                <HorizontalScrollArrows scrollRef={categoryRailRef} />
+
+                {/* อยู่นอกแถบเลื่อน — กดถึงได้เสมอไม่ต้องเลื่อนหา ใช้ตอนหมวดเยอะจนแถบ pill ไม่พอ */}
+                <PublicCategoryMenu
+                  categories={visibleCategoryTabs}
+                  activeCateUuid={activeValue}
+                  jumpingCateUuid={jumpingCateUuid}
+                  onSelect={handleTabChange}
+                />
               </div>
             </Tabs>
           ) : null}

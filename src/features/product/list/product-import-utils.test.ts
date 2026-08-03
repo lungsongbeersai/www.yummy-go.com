@@ -69,6 +69,35 @@ describe("product import utils", () => {
     });
   });
 
+  it("folds rows that repeat the same product name into one product with multiple sizes", () => {
+    const rows = sheetRowsFromAoA(
+      [
+        ["Product Code", "Product Name (Lao)", "Product Name (English)", "Category", "Unit", "Size Name", "Cost Price", "Sale Price"],
+        ["", "ເຂົ້າຜັດ", "Fried Rice", "Food", "Plate", "ໄກ່", "20000", "45000"],
+        ["", "ເຂົ້າຜັດ", "Fried Rice", "Food", "Plate", "ໝູ", "20000", "45000"],
+        ["", "ເຂົ້າຜັດ", "Fried Rice", "Food", "Plate", "ງົວ", "22000", "50000"],
+        ["", "ເຂົ້າຜັດ", "Fried Rice", "Food", "Plate", "ທະເລ", "22000", "50000"],
+      ],
+      ["Product Code", "Product Name (Lao)", "Product Name (English)", "Category", "Unit", "Size Name", "Cost Price", "Sale Price"],
+    );
+
+    const analysis = analyzeProductImportWorkbook({
+      workbook: { Normal: rows },
+      branchUuid: "branch-1",
+      existingProducts: [],
+      generatedCodeSeed: "AUTO",
+    });
+
+    expect(analysis.drafts).toHaveLength(1);
+    expect(analysis.drafts[0]?.validationErrors).toEqual([]);
+    expect(analysis.drafts[0]?.detailCount).toBe(4);
+    expect(analysis.drafts[0]?.sizeNames).toEqual(["ໄກ່", "ໝູ", "ງົວ", "ທະເລ"]);
+    // Each folded row keeps its own price.
+    expect(analysis.drafts[0]?.details.map((detail) => detail.salePrice)).toEqual([
+      45000, 45000, 50000, 50000,
+    ]);
+  });
+
   it("normalizes Unicode compatibility forms consistently", () => {
     expect(normalizeProductImportKey("  ＡＢＣ　123  ")).toBe("abc 123");
     expect(normalizeProductImportKey("ＡＢＣ")).toBe(
@@ -76,7 +105,7 @@ describe("product import utils", () => {
     );
   });
 
-  it("reports duplicate workbook and database identities and reserves generated codes", () => {
+  it("reports duplicate codes and reserves generated codes", () => {
     const rows = sheetRowsFromAoA(
       [
         ["Product Code", "Product Name (Lao)", "Product Name (English)", "Category", "Unit", "Size Name", "Cost Price", "Sale Price"],
@@ -110,10 +139,73 @@ describe("product import utils", () => {
     expect(analysis.drafts[0]?.productCode).toBe("AUTO-3");
     expect(analysis.drafts[1]?.validationErrors.join(" ")).toMatch(/duplicate.*code/i);
     expect(analysis.drafts[2]?.validationErrors.join(" ")).toMatch(/duplicate.*code/i);
-    expect(analysis.drafts[3]?.validationErrors.join(" ")).toMatch(
-      /duplicate.*(code|name)/i,
-    );
+    // The name matches a stored product, so the row updates it and reuses its
+    // code instead of colliding with it.
+    expect(analysis.drafts[3]).toMatchObject({
+      targetProductUuid: "existing-2",
+      productCode: "DB-1",
+      validationErrors: [],
+    });
     expect(analysis.referenceNames.categoryNames).toEqual(["Noodles"]);
+  });
+
+  it("appends sheet rows as new sizes on a product that already exists", () => {
+    const rows = sheetRowsFromAoA(
+      [
+        ["Product Code", "Product Name (Lao)", "Product Name (English)", "Category", "Unit", "Size Name", "Cost Price", "Sale Price"],
+        ["", "ເຂົ້າຜັດ", "Fried Rice", "Noodles", "Bowl", "Large", "22000", "50000"],
+        ["", "ເຂົ້າຜັດ", "Fried Rice", "Noodles", "Bowl", "Regular", "20000", "45000"],
+      ],
+      ["Product Code", "Product Name (Lao)", "Product Name (English)", "Category", "Unit", "Size Name", "Cost Price", "Sale Price"],
+    );
+    const existingProducts = [
+      {
+        prod_uuid: "prod-fried-rice",
+        prod_code: "P-900",
+        prod_name_la: "ເຂົ້າຜັດ",
+        prod_name_eng: "Fried Rice",
+        status_sort_fk: 1,
+        details: [
+          {
+            pro_detail_uuid: "detail-regular",
+            size_uuid_fk: "size-regular",
+            pro_detail_bprice: 19000,
+            pro_detail_sprice: 44000,
+            pro_detail_qty_stock: 7,
+            pro_detail_stock: 1,
+            pro_detail_enabled: 1,
+          },
+        ],
+      },
+    ] as Product[];
+
+    const analysis = analyzeProductImportWorkbook({
+      workbook: { Normal: rows },
+      branchUuid: "branch-1",
+      existingProducts,
+      generatedCodeSeed: "AUTO",
+    });
+    const [resolved] = resolveProductImportDrafts(analysis.drafts, references);
+
+    expect(analysis.drafts).toHaveLength(1);
+    expect(resolved.validationErrors).toEqual([]);
+    expect(resolved.payload?.prod_uuid).toBe("prod-fried-rice");
+    // "Regular" already exists on the product, so only "Large" is appended and
+    // the stored row keeps its own uuid, price and stock.
+    expect(resolved.payload?.details).toEqual([
+      expect.objectContaining({
+        pro_detail_uuid: "detail-regular",
+        size_uuid_fk: "size-regular",
+        pro_detail_sprice: 44000,
+        pro_detail_qty_stock: 7,
+        pro_detail_stock: 1,
+      }),
+      expect.objectContaining({
+        size_uuid_fk: "size-large",
+        pro_detail_bprice: 22000,
+        pro_detail_sprice: 50000,
+      }),
+    ]);
   });
 
   it("builds normal product payloads from template rows and ignores template notes", () => {
