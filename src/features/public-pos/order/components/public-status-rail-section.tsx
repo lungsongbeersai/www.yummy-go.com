@@ -85,7 +85,6 @@ export const StatusRailSection = memo(function StatusRailSection({
         eyebrow={t("pos.menuEyebrowFeatured")}
         title={title}
         icon={<Sparkles className="size-4" aria-hidden="true" />}
-        meta={t("pos.itemCount", { count: products.length })}
       />
 
       {visibleProducts.length ? (

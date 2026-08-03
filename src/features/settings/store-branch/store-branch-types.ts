@@ -28,6 +28,7 @@ export interface StoreBranchLabels {
   email: string;
   emailPlaceholder: string;
   general: string;
+  hasTables: string;
   horizontal: string;
   imageLoadFailed: string;
   imageSupport: string;
@@ -37,6 +38,7 @@ export interface StoreBranchLabels {
   nameLa: string;
   noBranch: string;
   noStore: string;
+  noTables: string;
   open: string;
   phone: string;
   plc: string;
@@ -59,6 +61,8 @@ export interface StoreBranchLabels {
   storeList: string;
   storeNameRequired: string;
   storeRequired: string;
+  tableStatus: string;
+  tableStatusHint: string;
   taxBilling: string;
   taxBillingHint: string;
   type: string;

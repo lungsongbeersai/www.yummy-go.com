@@ -135,7 +135,6 @@ export const ProductCategorySection = memo(function ProductCategorySection({
         eyebrow={t("pos.menuEyebrowMenu")}
         title={category.cateName}
         icon={<PublicCategoryIcon icon={category.cateIcon} className="size-5" />}
-        meta={t("pos.itemCount", { count: totalProducts })}
         action={
           <Button
             type="button"

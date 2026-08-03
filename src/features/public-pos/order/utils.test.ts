@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ProductImageStatus, type ProductSortStatus } from "@/config/pos-constants";
+import { normalizePublicPosAccent } from "@/features/public-pos/order/public-pos-accent";
 import {
   type CartItem,
   type CartOrder,
@@ -273,6 +274,16 @@ describe("public POS product helpers", () => {
     expect(normalizePublicProductLayoutMode("list")).toBe("list");
     expect(normalizePublicProductLayoutMode("table")).toBe("grid");
     expect(normalizePublicProductLayoutMode(null)).toBe("grid");
+  });
+
+  it("normalizes accents with emerald as the safe fallback", () => {
+    expect(normalizePublicPosAccent("emerald")).toBe("emerald");
+    expect(normalizePublicPosAccent("gold")).toBe("gold");
+    expect(normalizePublicPosAccent("rose")).toBe("rose");
+    // ค่าที่ค้างใน localStorage จากเวอร์ชันก่อนต้องไม่ทำให้หน้าไม่มีสี accent
+    expect(normalizePublicPosAccent("violet")).toBe("emerald");
+    expect(normalizePublicPosAccent(null)).toBe("emerald");
+    expect(normalizePublicPosAccent(undefined)).toBe("emerald");
   });
 
   it("blocks sold-out and expired promotion products before choosing actions", () => {

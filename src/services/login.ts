@@ -16,6 +16,7 @@ interface LoginApiResponse {
   store_uuid_fk?: string;
   store_name?: string;
   store_logo?: string;
+  store_table_status?: number;
 }
 
 export interface LoginResult {
@@ -53,7 +54,8 @@ export async function checkLogin(login_email: string, login_password: string): P
       store_uuid: data.store_uuid_fk ?? "",
       store_uuid_fk: data.store_uuid_fk ?? "",
       store_name: data.store_name ?? "",
-      store_logo: data.store_logo ?? ""
+      store_logo: data.store_logo ?? "",
+      store_table_status: Number(data.store_table_status) === 2 ? 2 : 1
     }
   };
 }

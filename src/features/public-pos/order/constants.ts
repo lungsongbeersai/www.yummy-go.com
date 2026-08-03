@@ -1,8 +1,14 @@
 import type { PublicPosAccent } from "./types";
 
-// โทน accent ของหน้าสั่งอาหารสาธารณะ — แก้ค่านี้จุดเดียวเปลี่ยนทั้งหน้า
-// ตั้งต้นเป็น emerald ให้ตรงสีแบรนด์เดิม และตรง data-props ของไฟล์ดีไซน์
-export const PUBLIC_POS_ACCENT: PublicPosAccent = "emerald";
+// โทน accent ตั้งต้น — ใช้เมื่อยังไม่เคยเลือกเอง หรือตอน server render
+// emerald ให้ตรงสีแบรนด์เดิม และตรง data-props ของไฟล์ดีไซน์
+export const DEFAULT_PUBLIC_POS_ACCENT: PublicPosAccent = "emerald";
+export const PUBLIC_POS_ACCENTS: readonly PublicPosAccent[] = [
+  "emerald",
+  "gold",
+  "rose",
+];
+export const PUBLIC_POS_ACCENT_STORAGE_KEY = "yummy-go-public-pos-accent";
 
 export const PRODUCT_RENDER_CHUNK = 12;
 export const RAIL_RENDER_CHUNK = 12;

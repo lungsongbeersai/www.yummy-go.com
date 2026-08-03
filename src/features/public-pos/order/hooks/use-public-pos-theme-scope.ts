@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { PUBLIC_POS_ACCENT } from "../constants";
+import type { PublicPosAccent } from "../types";
 
 /** มิเรอร์สโคปธีม Nightfall ไปที่ <body>
  *
@@ -16,19 +16,29 @@ import { PUBLIC_POS_ACCENT } from "../constants";
  *  <main> ยังถือ attribute ชุดเดียวกันไว้เอง เพื่อให้เนื้อหาหลักมีสไตล์ครบ
  *  ตั้งแต่เฟรมแรกโดยไม่ต้องรอ effect รอบนี้
  */
-export function usePublicPosThemeScope(fontClassName: string) {
+export function usePublicPosThemeScope(
+  fontClassName: string,
+  accent: PublicPosAccent,
+) {
   useEffect(() => {
     const { body } = document;
     const fontClasses = fontClassName.split(" ").filter(Boolean);
 
     body.setAttribute("data-yg-menu", "");
-    body.setAttribute("data-yg-accent", PUBLIC_POS_ACCENT);
     body.classList.add(...fontClasses);
 
     return () => {
       body.removeAttribute("data-yg-menu");
-      body.removeAttribute("data-yg-accent");
       body.classList.remove(...fontClasses);
     };
   }, [fontClassName]);
+
+  // แยก effect ของ accent ออกมา เพราะเปลี่ยนได้ตลอดจาก popover
+  // ถ้ารวมกับก้อนบน การสลับสีจะถอด/ใส่ attribute ทั้งชุดใหม่ทุกครั้ง
+  useEffect(() => {
+    document.body.setAttribute("data-yg-accent", accent);
+    return () => {
+      document.body.removeAttribute("data-yg-accent");
+    };
+  }, [accent]);
 }

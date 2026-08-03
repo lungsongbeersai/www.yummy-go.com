@@ -20,6 +20,10 @@ export function storeBranchNumber(row: StoreBranchRow, key: string, fallback = 0
   return Number.isFinite(parsed) && raw !== "" && raw !== undefined && raw !== null ? parsed : fallback;
 }
 
+export function storeTableStatusValue(value: unknown) {
+  return Number(value) === 2 ? 2 : 1;
+}
+
 export function storeBranchId(row: StoreBranchRow, kind: StoreBranchKind) {
   return storeBranchValue(row, kind === "store" ? "store_uuid" : "branch_uuid");
 }
@@ -29,6 +33,14 @@ export function storeBranchName(row: StoreBranchRow, kind: StoreBranchKind) {
     return storeBranchValue(row, "store_name", storeBranchValue(row, "store_name_la", storeBranchValue(row, "store_name_eng", "-")));
   }
   return storeBranchValue(row, "branch_name", storeBranchValue(row, "branch_name_la", storeBranchValue(row, "branch_name_eng", "-")));
+}
+
+export function storeAuthUserUpdate(row: StoreBranchRow) {
+  return {
+    store_logo: storeBranchValue(row, "store_logo"),
+    store_name: storeBranchName(row, "store"),
+    store_table_status: storeTableStatusValue(row?.store_table_status)
+  };
 }
 
 export function storeBranchMediaKey(row: StoreBranchRow, kind: StoreBranchKind) {
@@ -78,7 +90,8 @@ export function buildStorePayload({
   logo,
   nameEng,
   nameLa,
-  status
+  status,
+  tableStatus
 }: {
   active: string;
   editing: StoreBranchRow;
@@ -87,6 +100,7 @@ export function buildStorePayload({
   nameEng: string;
   nameLa: string;
   status: string;
+  tableStatus: string;
 }): SaveStoreInput {
   const id = storeBranchId(editing, "store");
   const payload: SaveStoreInput = {
@@ -94,7 +108,8 @@ export function buildStorePayload({
     store_name_eng: nameEng.trim(),
     store_email: email.trim(),
     store_status: Number(status || 2),
-    store_active: Number(active || 1)
+    store_active: Number(active || 1),
+    store_table_status: storeTableStatusValue(tableStatus)
   };
   if (id) payload.store_uuid = id;
   if (logo) payload.store_logo = logo;

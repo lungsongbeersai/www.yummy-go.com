@@ -12,9 +12,12 @@ export interface Store extends ApiEntity {
   store_logo?: string;
   store_status?: number;
   store_active?: number;
+  store_table_status?: number;
 }
 export type StoreResponse = ApiListResponse<Store>;
-export interface SaveStoreInput extends ApiEntity {}
+export interface SaveStoreInput extends ApiEntity {
+  store_table_status?: number;
+}
 export interface FetchStoresParams extends FetchParams {}
 
 const crud = createCrud<Store>(

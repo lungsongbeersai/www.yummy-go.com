@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { DEFAULT_CROP, SettingsImageCropPanel, cropImageFile, type CropState } from "@/features/settings/shared/settings-image-crop";
+import { cn } from "@/lib/utils";
 import {
   SettingsDialogBody,
   SettingsDialogContent,
@@ -25,6 +26,7 @@ import {
   storeBranchId,
   storeBranchNumber,
   storeBranchValue,
+  storeTableStatusValue,
   type StoreBranchKind
 } from "./store-branch-utils";
 import type { StoreBranchLabels, StoreBranchSettingsRow } from "./store-branch-types";
@@ -97,6 +99,8 @@ function FormSavingOverlay({ labels, onCancel }: { labels: StoreBranchLabels; on
 }
 
 function FormSelectField({
+  className,
+  description,
   disabled,
   id,
   label,
@@ -105,6 +109,8 @@ function FormSelectField({
   options,
   value
 }: {
+  className?: string;
+  description?: string;
   disabled?: boolean;
   id: string;
   label: string;
@@ -113,12 +119,14 @@ function FormSelectField({
   options: Array<{ label: string; value: string }>;
   value: string;
 }) {
+  const descriptionId = description ? `${id}-description` : undefined;
+
   return (
-    <Field className="gap-2">
+    <Field className={cn("gap-2", className)} data-disabled={disabled || undefined}>
       <FieldLabel htmlFor={id}>{label}</FieldLabel>
       <input name={name} type="hidden" value={value} readOnly />
       <Select disabled={disabled} value={value} onValueChange={onValueChange}>
-        <SelectTrigger id={id} className="w-full">
+        <SelectTrigger id={id} className="w-full" aria-describedby={descriptionId}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent position="popper">
@@ -131,6 +139,7 @@ function FormSelectField({
           </SelectGroup>
         </SelectContent>
       </Select>
+      {description ? <FieldDescription id={descriptionId}>{description}</FieldDescription> : null}
     </Field>
   );
 }
@@ -170,6 +179,7 @@ function EntityForm({
   const [branchAddress, setBranchAddress] = useState("");
   const [storeStatus, setStoreStatus] = useState("2");
   const [storeActive, setStoreActive] = useState("1");
+  const [storeTableStatus, setStoreTableStatus] = useState("1");
   const [vatStatus, setVatStatus] = useState("2");
   const [vatPercent, setVatPercent] = useState("0");
   const [chargeStatus, setChargeStatus] = useState("2");
@@ -195,6 +205,7 @@ function EntityForm({
     setBranchAddress(storeBranchValue(editing, "branch_address"));
     setStoreStatus(String(storeBranchNumber(editing, "store_status", 2)));
     setStoreActive(String(storeBranchNumber(editing, "store_active", 1)));
+    setStoreTableStatus(String(storeTableStatusValue(storeBranchValue(editing, "store_table_status", "1"))));
     setVatStatus(String(storeBranchNumber(editing, "vat_status", 2)));
     setVatPercent(String(storeBranchNumber(editing, "vat_name", 0)));
     setChargeStatus(String(storeBranchNumber(editing, "charge_status", 2)));
@@ -369,6 +380,20 @@ function EntityForm({
                     options={[
                       { label: labels.open, value: "1" },
                       { label: labels.closed, value: "2" }
+                    ]}
+                  />
+                  <FormSelectField
+                    className="sm:col-span-2"
+                    description={labels.tableStatusHint}
+                    disabled={disabled}
+                    id={`${recordKey}-store-table-status`}
+                    label={labels.tableStatus}
+                    name="store_table_status"
+                    value={storeTableStatus}
+                    onValueChange={setStoreTableStatus}
+                    options={[
+                      { label: labels.hasTables, value: "1" },
+                      { label: labels.noTables, value: "2" }
                     ]}
                   />
                 </FieldGroup>

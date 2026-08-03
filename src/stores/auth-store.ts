@@ -20,16 +20,42 @@ export interface AuthUser {
   store_uuid_fk?: string;
   store_name: string;
   store_logo: string;
+  store_table_status: number;
 }
 
-export function authStoreUuid(user: AuthUser | null | undefined) {
+type AuthStoreUuidSource = { store_uuid?: string; store_uuid_fk?: string } | null | undefined;
+type NormalizableAuthUser = Omit<AuthUser, "store_uuid" | "store_uuid_fk" | "store_table_status"> &
+  Partial<Pick<AuthUser, "store_uuid" | "store_uuid_fk" | "store_table_status">>;
+
+interface PersistedAuthState {
+  token?: string | null;
+  user?: NormalizableAuthUser | null;
+  isLoggedIn?: boolean;
+  rememberMe?: boolean;
+}
+
+export function authStoreUuid(user: AuthStoreUuidSource) {
   return user?.store_uuid || user?.store_uuid_fk || "";
 }
 
-function normalizeAuthUser(user: AuthUser | null) {
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function normalizeAuthUser(user: NormalizableAuthUser | null): AuthUser | null {
   if (!user) return user;
   const storeUuid = authStoreUuid(user);
-  return { ...user, store_uuid: storeUuid, store_uuid_fk: storeUuid };
+  const storeTableStatus = Number(user.store_table_status) === 2 ? 2 : 1;
+  return { ...user, store_uuid: storeUuid, store_uuid_fk: storeUuid, store_table_status: storeTableStatus };
+}
+
+function normalizePersistedAuthState(persistedState: unknown): PersistedAuthState {
+  if (!isRecord(persistedState)) return {};
+  const state = persistedState as PersistedAuthState;
+  return {
+    ...state,
+    user: isRecord(state.user) ? normalizeAuthUser(state.user as NormalizableAuthUser) : null
+  };
 }
 
 interface AuthState {
@@ -140,6 +166,8 @@ export const useAuthStore = create<AuthState>()(
     {
       name: STORAGE_KEY,
       storage: createJSONStorage(() => dualStorage),
+      version: 1,
+      migrate: (persistedState) => normalizePersistedAuthState(persistedState),
       partialize: ({ token, user, isLoggedIn, rememberMe }) => ({
         token,
         user,

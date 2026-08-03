@@ -1,11 +1,13 @@
 "use client";
 
 import { useTranslation } from "react-i18next";
-import { Moon, ShoppingBag, Sun } from "lucide-react";
+import { ShoppingBag } from "lucide-react";
 import { LanguageSwitch } from "@/components/layout/language-switch";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { QRScanResponse } from "@/services/public-pos";
+import type { PublicPosAccent } from "../types";
+import { PublicTweaksPopover } from "./public-tweaks-popover";
 
 // ปุ่มในดีไซน์เป็น 38px แต่ยกเป็น 44px (h-11) ตามขนาดพื้นที่แตะขั้นต่ำที่โปรเจกต์ใช้อยู่
 const HEADER_BUTTON_CLASS =
@@ -15,16 +17,20 @@ export function PublicHeader({
   table,
   statusLabel,
   theme,
+  accent,
   cartQty,
   canOpenCart,
+  onAccentChange,
   onToggleTheme,
   onOpenCart,
 }: {
   table: QRScanResponse | null;
   statusLabel: string;
   theme: string;
+  accent: PublicPosAccent;
   cartQty: number;
   canOpenCart: boolean;
+  onAccentChange: (accent: PublicPosAccent) => void;
   onToggleTheme: () => void;
   onOpenCart: () => void;
 }) {
@@ -71,20 +77,13 @@ export function PublicHeader({
           className={HEADER_BUTTON_CLASS}
         />
 
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          aria-label={t("app.theme")}
-          onClick={onToggleTheme}
-          className={HEADER_BUTTON_CLASS}
-        >
-          {theme === "dark" ? (
-            <Sun className="size-[18px]" />
-          ) : (
-            <Moon className="size-[18px]" />
-          )}
-        </Button>
+        <PublicTweaksPopover
+          accent={accent}
+          theme={theme}
+          onAccentChange={onAccentChange}
+          onToggleTheme={onToggleTheme}
+          triggerClassName={HEADER_BUTTON_CLASS}
+        />
 
         <Button
           type="button"

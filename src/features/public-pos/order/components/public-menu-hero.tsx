@@ -2,13 +2,17 @@
 
 import { useTranslation } from "react-i18next";
 import { Search, Sparkles } from "lucide-react";
+import { HeroBurger } from "./public-hero-burger";
 
 /** Hero ของเมนูสาธารณะ
  *
- *  ดีไซน์ต้นทางเรนเดอร์ torus knot + wireframe icosahedron ด้วย three.js
- *  แทนด้วยงานประกอบ CSS ล้วน (วงโคจร + แสงนวล + ตะแกรงละเอียด) เพราะหน้านี้
- *  ลูกค้าเปิดผ่าน QR ด้วยเน็ตร้าน การเพิ่ม dependency ~170KB gzip เพื่องานตกแต่ง
- *  ล้วนไม่คุ้ม — งานประกอบนี้ให้ความรู้สึกใกล้เคียงที่ขนาด hero จริงโดยเสีย 0 KB
+ *  ส่วนตกแต่งมีสองชั้นซ้อนกัน — ชั้นล่างเป็นงานประกอบ CSS ล้วน (วงโคจร + แสงนวล
+ *  + ตะแกรง) ซึ่งแสดงทันทีโดยไม่มีต้นทุนดาวน์โหลด ชั้นบนเป็นเบอร์เกอร์ 3D
+ *  ที่ค่อยจางเข้ามาทับเมื่อโหลดเสร็จ
+ *
+ *  ทำเป็นสองชั้นเพราะโมเดลถูก gate ไว้หลายด่าน (reduced-motion, สเปกเครื่อง,
+ *  โหมดประหยัดเน็ต, WebGL, ต้องเลื่อนเข้าจอก่อน) เครื่องที่ไม่ผ่านจะไม่โหลด
+ *  อะไรเลยและยังได้ hero ที่ดูสมบูรณ์อยู่ ไม่ต้องมี state สลับหรือ fallback แยก
  */
 export function PublicMenuHero({ onSearch }: { onSearch: () => void }) {
   const { t } = useTranslation();
@@ -22,6 +26,8 @@ export function PublicMenuHero({ onSearch }: { onSearch: () => void }) {
         style={{ background: "var(--yg-hero)" }}
       />
       <HeroOrnament />
+      {/* กรอบเดียวกับวงโคจรของ ornament เพื่อให้เบอร์เกอร์มาแทนที่ตรงตำแหน่งพอดี */}
+      <HeroBurger className="z-1 right-[8%] top-1/2 h-[min(78vw,360px)] w-[min(78vw,360px)] -translate-y-1/2" />
       <div
         aria-hidden="true"
         className="absolute inset-0 z-2"

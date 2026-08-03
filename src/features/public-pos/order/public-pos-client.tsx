@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { AlertCircle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -11,7 +11,13 @@ import { PublicHeader } from "@/features/public-pos/order/components/public-head
 import { PublicPosLoadingScreen } from "@/features/public-pos/order/components/public-pos-skeletons";
 import { usePublicPosBootstrap } from "@/features/public-pos/order/hooks/use-public-pos-bootstrap";
 import { usePublicPosThemeScope } from "@/features/public-pos/order/hooks/use-public-pos-theme-scope";
-import { PUBLIC_POS_ACCENT } from "@/features/public-pos/order/constants";
+import { DEFAULT_PUBLIC_POS_ACCENT } from "@/features/public-pos/order/constants";
+import {
+  readPublicPosAccent,
+  subscribePublicPosAccent,
+  writePublicPosAccent,
+} from "@/features/public-pos/order/public-pos-accent";
+import type { PublicPosAccent } from "@/features/public-pos/order/types";
 
 export function PublicPosClient({
   token,
@@ -26,6 +32,13 @@ export function PublicPosClient({
   const theme = useAppStore((state) => state.theme);
   const toggleTheme = useAppStore((state) => state.toggleTheme);
   const [cartOpen, setCartOpen] = useState(false);
+  // server render ใช้ค่าตั้งต้นเสมอ ฝั่ง client sync จาก localStorage โดยไม่มี effect
+  // แพตเทิร์นเดียวกับปุ่มสลับ grid/list
+  const accent = useSyncExternalStore(
+    subscribePublicPosAccent,
+    readPublicPosAccent,
+    (): PublicPosAccent => DEFAULT_PUBLIC_POS_ACCENT,
+  );
   const {
     activeLanguage,
     canRetryScan,
@@ -41,12 +54,12 @@ export function PublicPosClient({
   const errorTitle =
     table && !qrDisabled ? t("pos.productLoadFailed") : t("pos.qrScanFailed");
   const canOrder = Boolean(table && !qrDisabled && !isPublicLoading);
-  usePublicPosThemeScope(fontClassName);
+  usePublicPosThemeScope(fontClassName, accent);
 
   return (
     <main
       data-yg-menu=""
-      data-yg-accent={PUBLIC_POS_ACCENT}
+      data-yg-accent={accent}
       className={cn(
         fontClassName,
         "yg-shell relative min-h-dvh font-yg-sans text-yg-ink antialiased",
@@ -60,8 +73,10 @@ export function PublicPosClient({
           table={table}
           statusLabel={statusLabel}
           theme={theme}
+          accent={accent}
           cartQty={cartQty}
           canOpenCart={canOrder}
+          onAccentChange={writePublicPosAccent}
           onToggleTheme={toggleTheme}
           onOpenCart={() => setCartOpen(true)}
         />

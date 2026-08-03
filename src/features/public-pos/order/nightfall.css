@@ -10,55 +10,58 @@
 
 [data-yg-menu] {
   /* Daylight — โหมดสว่าง ไม่มีในไฟล์ดีไซน์ (Nightfall เป็นดาร์คล้วน)
-     สร้างขึ้นใหม่เป็นคู่โทนอุ่นให้ต่อเนื่องกัน ไม่ใช่พลิกพื้นหลังเฉย ๆ */
+     ใช้ขาว-เขียวชุดเดียวกับหน้า /pos เดิม: พื้น #f3fbf7, การ์ดขาวทึบ,
+     เส้นขอบ emerald-100, accent = --primary เดิม hsl(160 74% 28%)
+     ค่า contrast ในคอมเมนต์วัดบนการ์ดขาว #ffffff ซึ่งเป็นเคสที่หินที่สุด */
   color-scheme: light;
 
   /* ระยะขอบด้านข้างของหน้า — แหล่งเดียวที่ทั้ง container และ rail ที่กินเต็มขอบ
      (-mx แล้ว px กลับ) อ้างอิงร่วมกัน ค่าตามไฟล์ดีไซน์ */
   --yg-gutter: clamp(14px, 3.6vw, 38px);
 
-  --yg-bg: #fbf7f0;
+  --yg-bg: #f3fbf7;
   --yg-bg2: #ffffff;
-  --yg-panel: rgb(38 28 16 / 0.035);
-  --yg-panel2: rgb(38 28 16 / 0.02);
-  --yg-panel-hover: rgb(38 28 16 / 0.06);
-  --yg-line: rgb(60 45 28 / 0.14);
-  --yg-line2: rgb(60 45 28 / 0.07);
+  /* การ์ดในดีไซน์เดิมเป็นขาวทึบ ไม่ใช่แผ่นโปร่งแบบ Nightfall */
+  --yg-panel: #ffffff;
+  --yg-panel2: rgb(236 253 245 / 0.55); /* emerald-50 */
+  --yg-panel-hover: rgb(209 250 229 / 0.5); /* emerald-100 */
+  --yg-line: #d1fae5; /* emerald-100 */
+  --yg-line2: rgb(209 250 229 / 0.6);
 
-  --yg-ink: #1f1912; /* 16.30:1 */
-  --yg-muted: #6b5f51; /* 5.82:1 */
-  --yg-faint: #736858; /* 5.11:1 */
+  --yg-ink: #020617; /* slate-950 — 20.17:1 */
+  --yg-muted: #5d6979; /* 5.58:1 */
+  --yg-faint: #65707f; /* 5.03:1 */
 
-  --yg-media-a: #f2eadd;
-  --yg-media-b: #e8decf;
+  --yg-media-a: #ecfdf5; /* emerald-50 */
+  --yg-media-b: #f1f5f9; /* slate-100 */
 
   /* accent ตั้งต้น = emerald ให้ตรงแบรนด์ Yummy Go และตรง data-props ของไฟล์ดีไซน์
      บล็อก [data-yg-accent="..."] ข้างล่างจะ override เป็น gold / rose */
-  --yg-accent: #127a4b; /* ปุ่มทึบ, 5.03:1 เมื่อใช้เป็นขอบ/UI */
-  --yg-accent-strong: #0a6038; /* ใช้เป็นสีตัวอักษร ราคา/หัวข้อ 7.17:1 */
-  --yg-accent-soft: rgb(18 122 75 / 0.13);
-  --yg-accent-line: rgb(18 122 75 / 0.34);
-  --yg-on-accent: #f2fff8; /* 5.22:1 บนปุ่มทึบ */
-  --yg-glow1: rgb(18 122 75 / 0.1);
-  --yg-glow2: rgb(70 120 220 / 0.07);
+  --yg-accent: #127c59; /* = --primary เดิม, 5.18:1 เป็นขอบ/UI */
+  --yg-accent-strong: #0b6046; /* ใช้เป็นสีตัวอักษร ราคา/หัวข้อ 7.57:1 */
+  --yg-accent-soft: rgb(18 124 89 / 0.1);
+  --yg-accent-line: rgb(18 124 89 / 0.28);
+  --yg-on-accent: #ffffff; /* 5.18:1 บนปุ่มทึบ */
+  --yg-glow1: rgb(18 124 89 / 0.12);
+  --yg-glow2: rgb(70 120 220 / 0.06);
 
   --yg-shell: radial-gradient(
     140% 90% at 82% -8%,
-    #fff6e6 0%,
-    #fbf7f0 46%,
-    #f4eee4 100%
+    #e9f8f1 0%,
+    #f3fbf7 46%,
+    #eef8f3 100%
   );
-  --yg-scrim: rgb(40 30 20 / 0.42);
-  --yg-media-glow: rgb(18 122 75 / 0.1);
+  --yg-scrim: rgb(15 23 42 / 0.45);
+  --yg-media-glow: rgb(18 124 89 / 0.1);
 
-  --yg-hero: linear-gradient(120deg, #fffaf1 0%, #fbf6ec 60%, #fff3df 100%);
+  --yg-hero: linear-gradient(120deg, #ffffff 0%, #f5fcf9 60%, #e6f7ef 100%);
   /* ม่านไล่สีจากซ้ายไปขวา ให้ตัวอักษรอ่านออกทับส่วนตกแต่งที่อยู่ทางขวา */
   --yg-hero-scrim: linear-gradient(
     100deg,
-    rgb(255 250 241 / 0.94) 0%,
-    rgb(255 250 241 / 0.72) 40%,
-    rgb(255 250 241 / 0.12) 74%,
-    rgb(255 250 241 / 0) 100%
+    rgb(255 255 255 / 0.94) 0%,
+    rgb(255 255 255 / 0.72) 40%,
+    rgb(255 255 255 / 0.12) 74%,
+    rgb(255 255 255 / 0) 100%
   );
 }
 
@@ -116,12 +119,12 @@
    ถ้ายกค่าโทนสว่างของ Nightfall มาวางบนพื้น #fbf7f0 จะได้ราว 1.4:1 อ่านไม่ออก */
 
 [data-yg-menu][data-yg-accent="gold"] {
-  --yg-accent: #8f6318; /* 4.96:1 เป็นขอบ/UI */
-  --yg-accent-strong: #7d5512; /* 6.18:1 เป็นตัวอักษร */
-  --yg-accent-soft: rgb(143 99 24 / 0.13);
-  --yg-accent-line: rgb(143 99 24 / 0.34);
-  --yg-on-accent: #fff8ec; /* 5.02:1 บนปุ่มทึบ */
-  --yg-glow1: rgb(143 99 24 / 0.1);
+  --yg-accent: #8f6318; /* 5.30:1 เป็นขอบ/UI บนการ์ดขาว */
+  --yg-accent-strong: #7d5512; /* 6.60:1 เป็นตัวอักษร */
+  --yg-accent-soft: rgb(143 99 24 / 0.1);
+  --yg-accent-line: rgb(143 99 24 / 0.28);
+  --yg-on-accent: #ffffff; /* 5.30:1 บนปุ่มทึบ */
+  --yg-glow1: rgb(143 99 24 / 0.12);
 }
 
 :where(.dark) [data-yg-menu][data-yg-accent="gold"] {
@@ -134,12 +137,12 @@
 }
 
 [data-yg-menu][data-yg-accent="rose"] {
-  --yg-accent: #b3455f; /* 5.00:1 */
-  --yg-accent-strong: #98304a; /* 6.88:1 */
-  --yg-accent-soft: rgb(179 69 95 / 0.13);
-  --yg-accent-line: rgb(179 69 95 / 0.34);
-  --yg-on-accent: #fff4f6; /* 4.96:1 */
-  --yg-glow1: rgb(179 69 95 / 0.1);
+  --yg-accent: #b3455f; /* 5.34:1 บนการ์ดขาว */
+  --yg-accent-strong: #98304a; /* 7.35:1 */
+  --yg-accent-soft: rgb(179 69 95 / 0.1);
+  --yg-accent-line: rgb(179 69 95 / 0.28);
+  --yg-on-accent: #ffffff; /* 5.34:1 */
+  --yg-glow1: rgb(179 69 95 / 0.12);
 }
 
 :where(.dark) [data-yg-menu][data-yg-accent="rose"] {
@@ -274,7 +277,7 @@
    ต้องเขียนค่าตรง ๆ เพราะ --yg-* ถูกสโคปไว้ใต้ [data-yg-menu] ซึ่งอยู่ลึกกว่า body
    เบราว์เซอร์ที่ไม่รองรับ :has() จะเห็นพื้นเดิมเฉพาะตอนดึงเกินขอบเท่านั้น */
 html:has([data-yg-menu]) body {
-  background: #fbf7f0;
+  background: #f3fbf7;
 }
 
 html.dark:has([data-yg-menu]) body {
