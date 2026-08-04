@@ -1,13 +1,13 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { memo, useCallback, useEffect, useRef } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { CateProductItem, CateWithProducts } from "@/services/pos";
 import type { PublicMenuKind } from "@/stores/public-pos-store";
-import { PRODUCT_GRID_CLASS } from "../constants";
+import { LCP_PRIORITY_IMAGE_COUNT, PRODUCT_GRID_CLASS } from "../constants";
 import type { PublicProductLayoutMode } from "../types";
 import { hasRemoteProductImage } from "../utils";
 import {
@@ -24,6 +24,8 @@ const PublicCategoryIcon = dynamic(
     ),
   { ssr: false },
 );
+
+const EMPTY_PRIORITY_SET: ReadonlySet<string> = new Set();
 
 export const ProductCategorySection = memo(function ProductCategorySection({
   category,
@@ -71,10 +73,19 @@ export const ProductCategorySection = memo(function ProductCategorySection({
   const sectionRef = useRef<HTMLElement | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const loadingVisible = loading || jumping;
-  const priorityProductUuid = priorityFirstImage
-    ? (products.find((product) => hasRemoteProductImage(product))?.prodUuid ??
-      "")
-    : "";
+  // การ์ดในกริดเดียวกันเรนเดอร์ขนาดเท่ากันหมด จึง "เสมอกัน" สำหรับ LCP — มาร์ค eager
+  // ทุกใบในโควตานี้แทนที่จะเลือกแค่ใบแรก เพราะใบที่ชนะจริงไม่ใช่ใบแรกในลิสต์เสมอไป
+  const priorityProductUuids = useMemo(() => {
+    if (!priorityFirstImage) return EMPTY_PRIORITY_SET;
+
+    const uuids = new Set<string>();
+    for (const product of products) {
+      if (!hasRemoteProductImage(product)) continue;
+      uuids.add(product.prodUuid);
+      if (uuids.size >= LCP_PRIORITY_IMAGE_COUNT) break;
+    }
+    return uuids;
+  }, [priorityFirstImage, products]);
 
   const setSectionRef = useCallback(
     (element: HTMLElement | null) => {
@@ -171,7 +182,7 @@ export const ProductCategorySection = memo(function ProductCategorySection({
               statusKind={statusKind}
               lang={lang}
               loading={loadingProductUuid === product.prodUuid}
-              imagePreload={product.prodUuid === priorityProductUuid}
+              imagePreload={priorityProductUuids.has(product.prodUuid)}
               variant={layoutMode}
               onProductClick={onProductClick}
             />

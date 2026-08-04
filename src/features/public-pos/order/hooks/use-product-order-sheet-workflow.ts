@@ -24,6 +24,7 @@ import {
   productModeLabel,
   promotionQuantity,
   togglePublicToppingQty,
+  toppingMaxQty,
 } from "../utils";
 
 export interface ProductOrderSheetProps {
@@ -174,6 +175,7 @@ export function useProductOrderSheetWorkflow({
         current,
         toppingUuid,
         rememberedToppingQtyByUuid[toppingUuid] ?? 1,
+        toppingMaxQty(topping),
       ),
     );
   };
@@ -185,7 +187,7 @@ export function useProductOrderSheetWorkflow({
     if (!isToppingAvailable(topping)) return;
 
     setToppingQtyByUuid((current) =>
-      changePublicToppingQty(current, toppingUuid, nextQty),
+      changePublicToppingQty(current, toppingUuid, nextQty, toppingMaxQty(topping)),
     );
   };
 

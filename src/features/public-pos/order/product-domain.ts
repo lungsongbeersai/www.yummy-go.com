@@ -532,10 +532,18 @@ export function buildPublicOrderInput({
   };
 }
 
+// ทอปปิ้งราคา 0 (แถมฟรี ไม่คิดเงินเพิ่ม) เพิ่มได้แค่ 1 ชิ้น — เพิ่มหลายชิ้นไม่ทำให้ราคาต่างกัน
+// แต่ตัวเลขจำนวนที่ขึ้น (เช่น "3 ชิ้น") ทำให้ลูกค้าเข้าใจผิดว่าจะได้ของเพิ่มหรือถูกคิดเงินเพิ่ม
+export function toppingMaxQty(topping?: ProdTopping | null) {
+  if (!topping) return MAX_OPEN_QTY;
+  return numeric(topping.toppingPrice) > 0 ? MAX_OPEN_QTY : 1;
+}
+
 export function changePublicToppingQty(
   current: Record<string, number>,
   toppingUuid: string,
   qty: number,
+  maxQty: number = MAX_OPEN_QTY,
 ) {
   const normalizedQty = Number.isFinite(qty) ? Math.floor(qty) : 0;
   if (normalizedQty < 1) {
@@ -546,7 +554,7 @@ export function changePublicToppingQty(
 
   return {
     ...current,
-    [toppingUuid]: Math.min(MAX_OPEN_QTY, normalizedQty),
+    [toppingUuid]: Math.min(maxQty, normalizedQty),
   };
 }
 
@@ -554,11 +562,13 @@ export function togglePublicToppingQty(
   current: Record<string, number>,
   toppingUuid: string,
   rememberedQty = 1,
+  maxQty: number = MAX_OPEN_QTY,
 ) {
   return changePublicToppingQty(
     current,
     toppingUuid,
     current[toppingUuid] ? 0 : rememberedQty,
+    maxQty,
   );
 }
 

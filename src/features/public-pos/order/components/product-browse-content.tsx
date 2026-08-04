@@ -270,7 +270,7 @@ export function ProductBrowseContent({
       {renderedMenuSections.length ? (
         <div className="flex flex-col">
           {renderedMenuSections.map(
-            ({ category, products, loaded, loading }, index) => (
+            ({ category, products, loaded, loading }) => (
               <ProductCategorySection
                 key={category.cateUuid}
                 category={category}
@@ -283,7 +283,7 @@ export function ProductBrowseContent({
                 lang={lang}
                 statusKind={PUBLIC_MENU_KIND.NORMAL}
                 layoutMode={productLayoutMode}
-                priorityFirstImage={index === 0}
+                priorityFirstImage
                 loadingProductUuid={cartActions.loadingProductUuid}
                 onEnsureLoad={ensureNormalCategoryProducts}
                 onProductClick={cartActions.handleProductClick}

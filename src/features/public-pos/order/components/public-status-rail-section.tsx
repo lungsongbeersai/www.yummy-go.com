@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useEffect, useRef } from "react";
+import { memo, useEffect, useMemo, useRef } from "react";
 import { Plus, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -9,12 +9,15 @@ import {
   PUBLIC_MENU_KIND,
   type PublicMenuKind,
 } from "@/stores/public-pos-store";
+import { LCP_PRIORITY_IMAGE_COUNT } from "../constants";
 import type { PublicDisplayProduct } from "../types";
 import { hasRemoteProductImage } from "../utils";
 import { RailSkeleton } from "./public-pos-skeletons";
 import { ProductCard } from "./public-product-card";
 import { PublicSectionHeading } from "./public-section-heading";
 import { HorizontalScrollArrows } from "./horizontal-scroll-arrows";
+
+const EMPTY_PRIORITY_SET: ReadonlySet<string> = new Set();
 
 export const StatusRailSection = memo(function StatusRailSection({
   title,
@@ -44,10 +47,19 @@ export const StatusRailSection = memo(function StatusRailSection({
 }) {
   const visibleProducts = products.slice(0, visibleCount);
   const useDesktopGrid = products.length <= 5;
-  const priorityProductUuid = priorityFirstImage
-    ? (visibleProducts.find(({ product }) => hasRemoteProductImage(product))
-        ?.product.prodUuid ?? "")
-    : "";
+  // การ์ดในแถวเดียวกันเรนเดอร์ขนาดเท่ากันหมด จึง "เสมอกัน" สำหรับ LCP — มาร์ค eager
+  // ทุกใบในโควตานี้แทนที่จะเลือกแค่ใบแรก เพราะใบที่ชนะจริงไม่ใช่ใบแรกในลิสต์เสมอไป
+  const priorityProductUuids = useMemo(() => {
+    if (!priorityFirstImage) return EMPTY_PRIORITY_SET;
+
+    const uuids = new Set<string>();
+    for (const { product } of visibleProducts) {
+      if (!hasRemoteProductImage(product)) continue;
+      uuids.add(product.prodUuid);
+      if (uuids.size >= LCP_PRIORITY_IMAGE_COUNT) break;
+    }
+    return uuids;
+  }, [priorityFirstImage, visibleProducts]);
   const railRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -111,7 +123,7 @@ export const StatusRailSection = memo(function StatusRailSection({
                   statusKind={statusKind}
                   lang={lang}
                   loading={loadingProductUuid === product.prodUuid}
-                  imagePreload={product.prodUuid === priorityProductUuid}
+                  imagePreload={priorityProductUuids.has(product.prodUuid)}
                   onProductClick={onProductClick}
                   variant={useDesktopGrid ? "railGrid" : "rail"}
                 />

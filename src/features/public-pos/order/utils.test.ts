@@ -7,6 +7,7 @@ import {
   type CateProductItem,
   type ProdDetail,
   type ProdItem,
+  type ProdTopping,
 } from "@/services/pos";
 import {
   PUBLIC_MENU_KIND,
@@ -43,6 +44,7 @@ import {
   statusSectionLabel,
   totalCartQty,
   togglePublicToppingQty,
+  toppingMaxQty,
   visibleProductCountForCategory,
   withCategoryPathVisibleCounts,
 } from "@/features/public-pos/order/utils";
@@ -529,6 +531,28 @@ describe("public POS order payload helper", () => {
     expect(togglePublicToppingQty({}, "top-1")).toEqual({ "top-1": 1 });
     expect(togglePublicToppingQty({ "top-1": 2 }, "top-1")).toEqual({});
     expect(togglePublicToppingQty({}, "top-1", 3)).toEqual({ "top-1": 3 });
+  });
+
+  it("caps a free topping (price 0) at qty 1 so it can't be stacked", () => {
+    const freeTopping = { toppingPrice: 0 } as ProdTopping;
+    const paidTopping = { toppingPrice: 5000 } as ProdTopping;
+
+    expect(toppingMaxQty(freeTopping)).toBe(1);
+    expect(toppingMaxQty(paidTopping)).toBe(99);
+    expect(toppingMaxQty(null)).toBe(99);
+
+    expect(
+      changePublicToppingQty({}, "top-1", 5, toppingMaxQty(freeTopping)),
+    ).toEqual({ "top-1": 1 });
+    expect(
+      changePublicToppingQty({}, "top-1", 5, toppingMaxQty(paidTopping)),
+    ).toEqual({ "top-1": 5 });
+
+    // rememberedQty ที่มากกว่า 1 (เช่นค้างจากก่อนสลับ available/unavailable)
+    // ต้องยังถูกจำกัดที่ 1 เมื่อทอปปิ้งนั้นฟรี
+    expect(
+      togglePublicToppingQty({}, "top-1", 4, toppingMaxQty(freeTopping)),
+    ).toEqual({ "top-1": 1 });
   });
 
   it("builds the public QR create-order contract", () => {

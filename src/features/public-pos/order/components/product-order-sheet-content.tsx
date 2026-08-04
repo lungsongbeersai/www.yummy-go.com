@@ -34,7 +34,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import type { ProdDetail, ProdTopping } from "@/services/pos";
-import { MAX_OPEN_QTY } from "../constants";
 import type { ProductOrderSheetWorkflow } from "../hooks/use-product-order-sheet-workflow";
 import {
   defaultOrderQty,
@@ -46,6 +45,7 @@ import {
   numeric,
   productPriceFromDetail,
   toppingDisplayName,
+  toppingMaxQty,
 } from "../utils";
 import { ProductMedia } from "./public-product-media";
 
@@ -602,7 +602,7 @@ function ProductToppingRow({
               variant="ghost"
               aria-label={t("pos.increaseTopping", { name: label })}
               className="size-9 rounded-lg bg-yg-accent-soft text-yg-accent-strong hover:bg-yg-accent-line"
-              disabled={saving || qty >= MAX_OPEN_QTY}
+              disabled={saving || qty >= toppingMaxQty(topping)}
               onClick={() => onChangeQty(qty + 1)}
             >
               <Plus aria-hidden="true" />
