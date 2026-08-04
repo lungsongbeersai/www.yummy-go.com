@@ -39,6 +39,7 @@ export function TableSelectionPage() {
   const [now, setNow] = useState(() => new Date());
 
   const branchUuid = user?.branch_uuid ?? "";
+  const skipTableSelection = user?.store_table_status === 2;
 
   const load = useCallback(async (zoneUuid = selectedZoneUuid) => {
     if (!branchUuid) return [];
@@ -69,7 +70,16 @@ export function TableSelectionPage() {
     updateTableCustomerOrderState
   });
 
-  useEffect(() => { void load(); }, [load]);
+  // ร้านไม่มีโต๊ะ (store_table_status === 2) ข้ามหน้าเลือกโต๊ะไปเลย —
+  // ไม่ยิง loadTables และไม่ render grid ระหว่างรอ redirect
+  useEffect(() => {
+    if (skipTableSelection) router.replace("/pos/order");
+  }, [router, skipTableSelection]);
+
+  useEffect(() => {
+    if (skipTableSelection) return;
+    void load();
+  }, [load, skipTableSelection]);
   useEffect(() => { const interval = window.setInterval(() => setNow(new Date()), 1000); return () => window.clearInterval(interval); }, []);
 
   function selectTable(table: PosTable) {
@@ -77,6 +87,8 @@ export function TableSelectionPage() {
     if (table.table_name) params.set("table_name", table.table_name);
     router.push(`/pos/order?${params.toString()}`);
   }
+
+  if (skipTableSelection) return null;
 
   return (
     <div data-pos-pattern="true" className="relative h-full min-h-0 overflow-hidden bg-[url('/pos/background_wide.webp')] bg-cover bg-top">

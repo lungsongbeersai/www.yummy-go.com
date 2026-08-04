@@ -1,5 +1,6 @@
 "use client";
 
+import { useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { Check, Moon, Palette, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,7 +10,12 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { PUBLIC_POS_ACCENTS } from "../constants";
+import { DEFAULT_PUBLIC_POS_HERO_VISIBLE, PUBLIC_POS_ACCENTS } from "../constants";
+import {
+  readPublicPosHeroVisible,
+  subscribePublicPosHeroVisible,
+  writePublicPosHeroVisible,
+} from "../public-pos-hero-visibility";
 import type { PublicPosAccent } from "../types";
 
 // ตัวอย่างสีในปุ่มเลือกต้องเป็นค่าคงที่ อ่านจาก --yg-accent ไม่ได้
@@ -35,6 +41,13 @@ export function PublicTweaksPopover({
 }) {
   const { t } = useTranslation();
   const isDark = theme === "dark";
+  // server render/hydration ใช้ค่าปิดเสมอ ฝั่ง client sync จาก localStorage โดยไม่มี effect
+  // แพตเทิร์นเดียวกับ productLayoutMode / accent
+  const heroVisible = useSyncExternalStore(
+    subscribePublicPosHeroVisible,
+    readPublicPosHeroVisible,
+    (): boolean => DEFAULT_PUBLIC_POS_HERO_VISIBLE,
+  );
 
   return (
     <Popover>
@@ -108,8 +121,49 @@ export function PublicTweaksPopover({
             ))}
           </div>
         </div>
+
+        <div className="mt-3 flex items-center justify-between gap-3 rounded-2xl border border-yg-line bg-yg-panel2 px-3 py-2.5">
+          <span className="min-w-0 flex-1 text-xs font-bold text-yg-ink">
+            {t("pos.tweaksHeroVisible")}
+          </span>
+          <HeroVisibleSwitch
+            checked={heroVisible}
+            onCheckedChange={writePublicPosHeroVisible}
+          />
+        </div>
       </PopoverContent>
     </Popover>
+  );
+}
+
+// สวิตช์ตัวนี้เขียนขึ้นเองแทนที่จะใช้ Switch จาก @/components/ui — ตัวนั้น hardcode
+// bg-primary/bg-input ของธีมกลางแอป ไม่ผูกกับ token --yg-accent ที่สลับสีตาม accent ที่เลือกไว้
+function HeroVisibleSwitch({
+  checked,
+  onCheckedChange,
+}: {
+  checked: boolean;
+  onCheckedChange: (checked: boolean) => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={() => onCheckedChange(!checked)}
+      className={cn(
+        "relative inline-flex h-6.5 w-12 shrink-0 items-center rounded-full border transition-colors outline-none focus-visible:ring-2 focus-visible:ring-yg-accent focus-visible:ring-offset-2 focus-visible:ring-offset-yg-bg2 motion-reduce:transition-none",
+        checked ? "border-yg-accent bg-yg-accent" : "border-yg-line bg-yg-panel",
+      )}
+    >
+      <span
+        aria-hidden="true"
+        className={cn(
+          "inline-block size-5 rounded-full bg-white shadow-sm transition-transform motion-reduce:transition-none",
+          checked ? "translate-x-5.5" : "translate-x-0.5",
+        )}
+      />
+    </button>
   );
 }
 

@@ -103,7 +103,7 @@ export function buildStaffOrderInput({
   if (!userUuid) throw new Error("order_created_by is required");
 
   return {
-    table_uuid_fk: tableUuid,
+    ...(tableUuid ? { table_uuid_fk: tableUuid } : {}),
     branch_uuid_fk: branchUuid,
     lang,
     order_created_by: userUuid,

@@ -12,6 +12,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsContent, TabsList } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import type { PosZone } from "@/services/pos";
+import { useAuthStore } from "@/stores/auth-store";
 import {
   CartDiscountDialog,
   CartNoteDialog,
@@ -71,6 +72,7 @@ export function SelectedTableCartPanelContent({
   const { t } = useTranslation();
   const selectedTable = workflow.selectedTable;
   const customerDisplay = workflow.customerDisplay;
+  const isNoTableStore = useAuthStore((state) => state.user?.store_table_status === 2);
 
   return (
     <Card
@@ -108,7 +110,9 @@ export function SelectedTableCartPanelContent({
                 <span className="truncate">
                   {selectedTable
                     ? `${t("nav.table")}: ${selectedTable.table_name}`
-                    : t("pos.selectTableToContinue")}
+                    : isNoTableStore
+                      ? t("pos.counterCartComingSoon")
+                      : t("pos.selectTableToContinue")}
                 </span>
               </p>
               {workflow.invoice ? (

@@ -10,6 +10,12 @@ export const PUBLIC_POS_ACCENTS: readonly PublicPosAccent[] = [
 ];
 export const PUBLIC_POS_ACCENT_STORAGE_KEY = "yummy-go-public-pos-accent";
 
+// สลับจาก Tweaks — ปิดไว้เป็นค่าเริ่มต้นเพราะ hero กินพื้นที่จอมาก
+// ร้านที่อยากได้หน้าตาแบบกระชับ (โดยเฉพาะจอมือถือ) ไม่ต้องเลื่อนผ่านมันทุกครั้ง
+export const DEFAULT_PUBLIC_POS_HERO_VISIBLE = false;
+export const PUBLIC_POS_HERO_VISIBLE_STORAGE_KEY =
+  "yummy-go-public-pos-hero-visible";
+
 export const PRODUCT_RENDER_CHUNK = 12;
 export const RAIL_RENDER_CHUNK = 12;
 // auto-fill ตามดีไซน์ — คอลัมน์ปรับตามความกว้างจริงแทนการไล่ breakpoint

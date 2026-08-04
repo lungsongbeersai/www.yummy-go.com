@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
 import { OrderCustomerPage } from "@/features/pos/order-customer/order-customer-page";
 import { firstUrlParam } from "@/lib/url-pagination";
 
@@ -9,13 +8,13 @@ export const metadata: Metadata = {
 
 export default async function Page(props: PageProps<"/pos/order">) {
   const params = await props.searchParams;
-  const tableUuid = firstUrlParam(params.table_uuid);
 
-  if (!tableUuid) redirect("/pos/tables");
-
+  // store_table_status (ร้านไม่มีโต๊ะ) อยู่ใน auth store ฝั่ง client เท่านั้น
+  // เซิร์ฟเวอร์ตัดสินใจไม่ได้ว่าต้องมี table_uuid หรือไม่ — guard ย้ายไปที่
+  // useOrderCustomerWorkflow แทน
   return (
     <OrderCustomerPage
-      initialTableUuid={tableUuid}
+      initialTableUuid={firstUrlParam(params.table_uuid)}
       initialTableName={firstUrlParam(params.table_name)}
     />
   );

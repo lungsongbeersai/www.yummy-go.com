@@ -182,7 +182,7 @@ export interface CreateOrderItem extends ApiEntity {
 }
 export interface CreateOrderInput extends ApiEntity {
   table_uuid?: string;
-  table_uuid_fk: string;
+  table_uuid_fk?: string;
   branch_uuid_fk: string;
   order_created_by: string;
   order_source: OrderSource;

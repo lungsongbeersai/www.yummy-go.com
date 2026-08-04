@@ -322,7 +322,7 @@ function ProductChoiceMeta({ label }: { label: string }) {
   return (
     <span className="mt-0.5 flex min-w-0 items-center gap-1 text-[11px] font-semibold text-yg-faint">
       <SlidersHorizontal className="size-3 shrink-0" aria-hidden="true" />
-      <span className="truncate">{label}</span>
+      <span className="lao-tone-text truncate">{label}</span>
     </span>
   );
 }
@@ -347,7 +347,7 @@ function ProductPromoBadge({
       )}
     >
       <Sparkles className="size-2.5 shrink-0" aria-hidden="true" />
-      <span className="truncate">{label}</span>
+      <span className="lao-tone-text truncate">{label}</span>
     </span>
   );
 }
@@ -396,7 +396,9 @@ function ProductActionPill({
       ) : (
         <Icon className="size-4 shrink-0" aria-hidden="true" />
       )}
-      {iconOnly ? null : <span className="truncate">{label}</span>}
+      {iconOnly ? null : (
+        <span className="lao-tone-text truncate">{label}</span>
+      )}
     </span>
   );
 }

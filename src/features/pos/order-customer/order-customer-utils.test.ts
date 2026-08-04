@@ -513,6 +513,21 @@ describe("order customer helpers", () => {
     });
   });
 
+  it("omits table_uuid_fk for counter orders with no table", () => {
+    const input = buildStaffOrderInput({
+      branchUuid: "branch-1",
+      detail: detail({ proDetailCusQtyBuy: 2 }),
+      lang: "lo",
+      noteText: "",
+      quantity: defaultOrderQty(detail({ proDetailCusQtyBuy: 2 })),
+      tableUuid: "",
+      toppings: [],
+      userUuid: "user-1",
+    });
+
+    expect(input).not.toHaveProperty("table_uuid_fk");
+  });
+
   it("builds staff set order items from every available product detail", () => {
     const setProduct: ProdItem = {
       ...normalizeProdItem(null, product({ statusSortFk: ProductSortStatus.SET })),

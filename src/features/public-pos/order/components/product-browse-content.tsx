@@ -10,9 +10,14 @@ import { cn } from "@/lib/utils";
 import { PUBLIC_MENU_KIND } from "@/stores/public-pos-store";
 import {
   CATEGORY_TAIL_SPACER_HEIGHT,
+  DEFAULT_PUBLIC_POS_HERO_VISIBLE,
   RAIL_RENDER_CHUNK,
 } from "../constants";
 import type { PublicBrowseWorkflow } from "../hooks/use-public-browse-workflow";
+import {
+  readPublicPosHeroVisible,
+  subscribePublicPosHeroVisible,
+} from "../public-pos-hero-visibility";
 import type { PublicProductLayoutMode } from "../types";
 import {
   readPublicProductLayoutMode,
@@ -50,6 +55,12 @@ export function ProductBrowseContent({
     subscribePublicProductLayoutMode,
     readPublicProductLayoutMode,
     (): PublicProductLayoutMode => "grid",
+  );
+  // ปิดเป็นค่าเริ่มต้น สลับได้จาก Tweaks — แพตเทิร์นเดียวกับ productLayoutMode
+  const heroVisible = useSyncExternalStore(
+    subscribePublicPosHeroVisible,
+    readPublicPosHeroVisible,
+    (): boolean => DEFAULT_PUBLIC_POS_HERO_VISIBLE,
   );
   const categoryRailRef = useRef<HTMLDivElement | null>(null);
   const {
@@ -113,7 +124,9 @@ export function ProductBrowseContent({
 
   return (
     <div className="flex flex-col gap-3">
-      {/* <PublicMenuHero onSearch={search.openSearchSheet} /> */}
+      {heroVisible ? (
+        <PublicMenuHero onSearch={search.openSearchSheet} />
+      ) : null}
 
       <div
         ref={categoryBarRef}
@@ -196,7 +209,7 @@ export function ProductBrowseContent({
                       ))}
                     </TabsList>
                   </div>
-                  <HorizontalScrollArrows scrollRef={categoryRailRef} />
+                  {/* <HorizontalScrollArrows scrollRef={categoryRailRef} /> */}
                 </div>
 
                 {/* อยู่นอกแถบเลื่อน — กดถึงได้เสมอไม่ต้องเลื่อนหา ใช้ตอนหมวดเยอะจนแถบ pill ไม่พอ */}
@@ -247,7 +260,7 @@ export function ProductBrowseContent({
           railVisibleCounts[PUBLIC_MENU_KIND.SET] ?? RAIL_RENDER_CHUNK
         }
         loading={setMenu.loading}
-        priorityFirstImage={!hasPromotionImage && hasSetImage}
+        priorityFirstImage={hasSetImage}
         lang={lang}
         loadingProductUuid={cartActions.loadingProductUuid}
         onProductClick={cartActions.handleProductClick}
@@ -270,9 +283,7 @@ export function ProductBrowseContent({
                 lang={lang}
                 statusKind={PUBLIC_MENU_KIND.NORMAL}
                 layoutMode={productLayoutMode}
-                priorityFirstImage={
-                  !hasPromotionImage && !hasSetImage && index === 0
-                }
+                priorityFirstImage={index === 0}
                 loadingProductUuid={cartActions.loadingProductUuid}
                 onEnsureLoad={ensureNormalCategoryProducts}
                 onProductClick={cartActions.handleProductClick}

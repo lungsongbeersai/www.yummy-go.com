@@ -243,7 +243,11 @@ export function useOrderCustomerWorkflow({
           userUuid: user?.uuid ?? "",
         }),
       );
-      await loadCartStore({ table_uuid: initialTableUuid, lang: language });
+      // fetch_cart ยังไม่รองรับ table_uuid ว่าง (ร้านไม่มีโต๊ะ) — ข้าม refresh
+      // ตะกร้าไปก่อนจนกว่า backend จะรองรับ
+      if (initialTableUuid) {
+        await loadCartStore({ table_uuid: initialTableUuid, lang: language });
+      }
       setNewOrderFocusKey((key) => key + 1);
       showToast({ title: t("pos.orderCreated"), tone: "success" });
     },
@@ -359,6 +363,15 @@ export function useOrderCustomerWorkflow({
     setTable(initialTableUuid, initialTableName);
   }, [initialTableName, initialTableUuid, setTable]);
 
+  // ร้านมีโต๊ะ (store_table_status !== 2) ต้องมี table_uuid เสมอ — เดิม guard นี้
+  // เป็น server redirect ใน page.tsx แต่ store_table_status อ่านได้จาก client
+  // เท่านั้น จึงย้ายมาเช็คที่นี่ ร้านไม่มีโต๊ะ (status 2) ปล่อยผ่านแม้ไม่มีโต๊ะ
+  useEffect(() => {
+    if (!initialTableUuid && user?.store_table_status !== 2) {
+      router.replace("/pos/tables");
+    }
+  }, [initialTableUuid, router, user?.store_table_status]);
+
   useResetOnDeps([initialTableName, initialTableUuid], () => {
     setCartSheetOpen(false);
   });
@@ -401,7 +414,8 @@ export function useOrderCustomerWorkflow({
   }, [language, resolvePrinterDeviceContext, user?.uuid]);
 
   function openTablesPage() {
-    router.replace("/pos/tables");
+    // ร้านไม่มีโต๊ะไม่มีหน้าเลือกโต๊ะให้กลับไป — ปุ่ม "ย้อนกลับ" จึงออกไปหน้าแรกแทน
+    router.replace(user?.store_table_status === 2 ? "/" : "/pos/tables");
   }
 
   async function refreshAll() {
