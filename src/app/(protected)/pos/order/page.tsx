@@ -11,10 +11,10 @@ export default async function Page(props: PageProps<"/pos/order">) {
 
   // store_table_status (ร้านไม่มีโต๊ะ) อยู่ใน auth store ฝั่ง client เท่านั้น
   // เซิร์ฟเวอร์ตัดสินใจไม่ได้ว่าต้องมี table_uuid หรือไม่ — guard ย้ายไปที่
-  // useOrderCustomerWorkflow แทน order_uuid ใช้ตามบิลของร้านไม่มีโต๊ะข้ามการรีเฟรชหน้า
+  // useOrderCustomerWorkflow แทน (order_uuid ของร้านไม่มีโต๊ะเก็บใน pos-store/
+  // localStorage ไม่ผ่าน URL แล้ว — ดู src/stores/pos-store.ts)
   return (
     <OrderCustomerPage
-      initialOrderUuid={firstUrlParam(params.order_uuid)}
       initialTableUuid={firstUrlParam(params.table_uuid)}
       initialTableName={firstUrlParam(params.table_name)}
     />

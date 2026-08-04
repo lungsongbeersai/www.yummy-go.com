@@ -849,6 +849,10 @@ export function useSelectedTableCartPanelWorkflow({
   async function handlePaymentCompleted() {
     if (paymentContext?.kind === "split") {
       setSplitSelectedItemUuids(new Set());
+    } else if (paymentContext?.kind === "full" && user?.store_table_status === 2) {
+      // ร้านไม่มีโต๊ะ: จ่ายเงินเต็มบิลแล้ว เลิกยึด order_uuid เดิม รอบถัดไปเปิดบิลใหม่
+      // (split ยังไม่เคลียร์ เพราะอาจเหลือรายการค้างจ่ายอยู่ใน order เดียวกัน)
+      usePosStore.getState().setCounterOrderUuid("");
     }
     await onTableActionComplete();
   }

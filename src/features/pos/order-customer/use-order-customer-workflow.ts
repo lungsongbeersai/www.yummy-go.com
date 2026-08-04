@@ -42,13 +42,11 @@ import { cartForTable, cartQuantityCount } from "../table-selection/utils";
 export type OrderCustomerWorkflowInput = {
   initialTableUuid: string;
   initialTableName: string;
-  initialOrderUuid: string;
 };
 
 export function useOrderCustomerWorkflow({
   initialTableUuid,
   initialTableName,
-  initialOrderUuid,
 }: OrderCustomerWorkflowInput) {
   const { t } = useTranslation();
   const router = useRouter();
@@ -77,6 +75,12 @@ export function useOrderCustomerWorkflow({
   const createOrder = usePosStore((state) => state.createOrder);
   const setTable = usePosStore((state) => state.setTable);
   const setActiveSort = usePosStore((state) => state.setActiveSort);
+  // ร้านไม่มีโต๊ะ (store_table_status === 2): ไม่มี table_uuid ให้ยึด จึงใช้
+  // order_uuid ของบิลแรกที่สร้างเป็นตัวยึดแทนสำหรับ fetch_cart/refresh ต่อ ๆ ไป
+  // เก็บใน pos-store (persist ลง localStorage) ไม่ใช่ local state เพื่อไม่ให้บิล
+  // ที่ยังไม่จ่ายเงินหายไปตอนรีเฟรชหน้า/ปิดแท็บ/ย้อนกลับมาใหม่
+  const counterOrderUuid = usePosStore((state) => state.counterOrderUuid);
+  const setCounterOrderUuid = usePosStore((state) => state.setCounterOrderUuid);
   const resolvePrinterDeviceContext = usePrinterStore(
     (state) => state.resolveDeviceContext,
   );
@@ -98,9 +102,6 @@ export function useOrderCustomerWorkflow({
   const [fetchedPrinterContext, setFetchedPrinterContext] =
     useState<PrinterDeviceContext | null>(null);
   const printerContext = user?.uuid ? fetchedPrinterContext : null;
-  // ร้านไม่มีโต๊ะ (store_table_status === 2): ไม่มี table_uuid ให้ยึด จึงใช้
-  // order_uuid ของบิลแรกที่สร้างเป็นตัวยึดแทนสำหรับ fetch_cart/refresh ต่อ ๆ ไป
-  const [counterOrderUuid, setCounterOrderUuid] = useState(initialOrderUuid);
 
   const selectedTable = useMemo(() => {
     if (initialTableUuid) {
@@ -277,13 +278,13 @@ export function useOrderCustomerWorkflow({
       if (initialTableUuid) {
         await loadCartStore({ table_uuid: initialTableUuid, lang: language });
       } else {
-        // ร้านไม่มีโต๊ะ: บิลแรกที่สร้างได้ order_uuid มาเป็นตัวยึด — เก็บไว้ใน
-        // state และ URL เพื่อให้รีเฟรชหน้าแล้วยังตามบิลเดิมต่อได้ backend รวม
-        // รายการที่สั่งเพิ่มทีหลังเข้าบิลเดียวกันให้เองโดยไม่ต้องส่ง order_uuid กลับไป
+        // ร้านไม่มีโต๊ะ: บิลแรกที่สร้างได้ order_uuid มาเป็นตัวยึด — เก็บลง
+        // pos-store (persist ลง localStorage) เพื่อให้รีเฟรชหน้า/ปิดแท็บ/กลับมาใหม่
+        // ยังตามบิลเดิมต่อได้ backend รวมรายการที่สั่งเพิ่มทีหลังเข้าบิลเดียวกันให้
+        // เองโดยไม่ต้องส่ง order_uuid กลับไป
         const nextOrderUuid = optionalString(response.order_uuid) ?? counterOrderUuid;
         if (nextOrderUuid && nextOrderUuid !== counterOrderUuid) {
           setCounterOrderUuid(nextOrderUuid);
-          router.replace(`/pos/order?order_uuid=${encodeURIComponent(nextOrderUuid)}`);
         }
         if (nextOrderUuid && branchUuid) {
           await loadCartStore({
@@ -303,7 +304,7 @@ export function useOrderCustomerWorkflow({
       initialTableUuid,
       language,
       loadCartStore,
-      router,
+      setCounterOrderUuid,
       showToast,
       t,
       user?.branch_uuid,

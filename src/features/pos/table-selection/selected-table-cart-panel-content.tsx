@@ -81,6 +81,12 @@ export function SelectedTableCartPanelContent({
   const counterCartItems = isNoTableStore
     ? [...workflow.newOrderDisplayItems, ...workflow.historyItems]
     : [];
+  // สั่งเพิ่มสินค้าแต่ละครั้งจะเรียก loadCart รีเฟรชตะกร้าใหม่เสมอ ถ้าโชว์
+  // skeleton ทุกครั้งที่ loading จะเห็นรายการเดิมหายวับแล้วโผล่กลับมาทุกครั้ง (กระพริบ)
+  // จึงโชว์ skeleton เฉพาะตอนโหลดครั้งแรกที่ยังไม่มีรายการอะไรให้เห็นเลย
+  const hasCartItems = isNoTableStore
+    ? counterCartItems.length > 0
+    : workflow.newOrderDisplayItems.length > 0 || workflow.historyItems.length > 0;
 
   return (
     <Card
@@ -173,7 +179,7 @@ export function SelectedTableCartPanelContent({
         </CardHeader>
 
         <CardContent className="pos-soft-light-zone pos-dark-zone relative min-h-0 flex-1 overflow-hidden bg-background p-0 text-foreground">
-          {loading ? (
+          {loading && !hasCartItems ? (
             <CartPanelLoading />
           ) : (
             <div className="h-full min-h-0 overflow-y-auto overscroll-contain bg-muted/35 dark:bg-background">
