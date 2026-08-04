@@ -78,24 +78,24 @@ export function CartSheetContent({
       <DrawerContent
         aria-busy={loading || saving || confirming}
         className={cn(
-          "overflow-hidden border-border bg-background p-0",
+          "yg-shell overflow-hidden border-yg-line p-0 font-yg-sans text-yg-ink",
           isMobile
-            ? "mx-auto max-h-[92dvh] w-full max-w-xl rounded-t-2xl"
+            ? "mx-auto max-h-[92dvh] w-full max-w-xl rounded-t-[26px]"
             : "h-dvh max-h-none w-full max-w-120 rounded-none border-l sm:max-w-120"
         )}
       >
-        <DrawerHeader className="border-b border-border bg-background/95 px-4 py-3 text-left backdrop-blur">
+        <DrawerHeader className="border-b border-yg-line bg-yg-bg2/85 px-4 py-3.5 text-left backdrop-blur-xl">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <DrawerTitle className="truncate text-base font-semibold leading-5">
+              <DrawerTitle className="lao-tone-text truncate font-yg-sans text-lg font-semibold leading-snug text-yg-ink">
                 {t("pos.basket")}
               </DrawerTitle>
-              <DrawerDescription className="text-xs">
+              <DrawerDescription className="text-xs font-medium text-yg-muted">
                 {orderMeta || t("pos.newOrder")}
               </DrawerDescription>
             </div>
             <div className="flex shrink-0 items-center gap-1">
-              <Badge variant="secondary" className="h-7 rounded-full px-2.5">
+              <Badge className="h-7 rounded-full border-yg-accent-line bg-yg-accent-soft px-2.5 text-[11px] font-extrabold text-yg-accent-strong">
                 {totalItemQty} {t("pos.cartItems")}
               </Badge>
               <DrawerClose asChild>
@@ -103,7 +103,7 @@ export function CartSheetContent({
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="size-11 rounded-full"
+                  className="size-11 rounded-xl text-yg-muted hover:bg-yg-panel-hover hover:text-yg-ink"
                   aria-label={t("actions.close")}
                   disabled={saving || confirming}
                 >
@@ -114,7 +114,7 @@ export function CartSheetContent({
           </div>
         </DrawerHeader>
 
-        <div className="min-h-0 flex-1 overscroll-contain overflow-y-auto bg-muted/20 px-3 py-3">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3.5 py-3.5">
           {loading ? <CartSheetLoadingSkeleton /> : null}
 
           {!loading && !allItems.length ? (
@@ -152,13 +152,13 @@ export function CartSheetContent({
         </div>
 
         {loading || allItems.length ? (
-          <DrawerFooter className="border-t border-border bg-background p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+          <DrawerFooter className="border-t border-yg-line bg-yg-bg/45 p-3.5 pb-[calc(1rem+env(safe-area-inset-bottom))] backdrop-blur-md">
             {loading ? (
               <CartSheetFooterSkeleton />
             ) : (
               <>
                 <div
-                  className="grid gap-1.5 rounded-xl border border-border bg-muted/40 p-3 text-xs"
+                  className="grid gap-1.5 rounded-2xl border border-yg-line bg-yg-panel p-3.5 text-xs"
                   aria-live="polite"
                   aria-atomic="true"
                 >
@@ -201,8 +201,10 @@ export function CartSheetContent({
                   ) : null}
                   <Separator className="my-1" />
                   <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm font-semibold">{t("common.total")}</p>
-                    <output className="text-base font-semibold tabular-nums text-primary">
+                    <p className="text-sm font-extrabold text-yg-ink">
+                      {t("common.total")}
+                    </p>
+                    <output className="font-yg-number text-[22px] font-semibold text-yg-accent-strong tabular-nums">
                       {formatMoney(total, lang)}
                     </output>
                   </div>
@@ -210,7 +212,7 @@ export function CartSheetContent({
                 {confirmableItemQty > 0 ? (
                   <Button
                     type="button"
-                    className="h-12 w-full rounded-lg"
+                    className="h-13.5 w-full rounded-2xl bg-yg-accent text-[15px] font-extrabold text-yg-on-accent shadow-[0_12px_30px_-12px_var(--yg-accent)] hover:bg-yg-accent hover:brightness-105 disabled:opacity-55 disabled:shadow-none"
                     onClick={onConfirmKitchen}
                     disabled={!confirmableItems.length || saving || confirming}
                   >
@@ -222,7 +224,7 @@ export function CartSheetContent({
                     {t("pos.confirmOrderItems", { count: confirmableItemQty })}
                   </Button>
                 ) : (
-                  <Alert className="border-primary/20 bg-primary/5 text-primary">
+                  <Alert className="border-yg-accent-line bg-yg-accent-soft text-yg-accent-strong">
                     <CircleCheck aria-hidden="true" />
                     <AlertTitle>{t("pos.allItemsSubmitted")}</AlertTitle>
                   </Alert>
@@ -257,7 +259,7 @@ function CartSheetLoadingSkeleton() {
             (__, itemIndex) => (
               <div
                 key={itemIndex}
-                className="rounded-xl border border-emerald-100 bg-white p-2.5 shadow-sm shadow-emerald-950/5 dark:border-border dark:bg-background"
+                className="rounded-2xl border border-yg-line bg-yg-panel p-3"
               >
                 <div className="grid grid-cols-[52px_minmax(0,1fr)] gap-2.5">
                   <Skeleton className="size-12 rounded-lg" />
@@ -289,19 +291,19 @@ function CartSheetLoadingSkeleton() {
 function CartSheetFooterSkeleton() {
   return (
     <>
-      <div className="grid gap-2 rounded-xl border border-emerald-100 bg-emerald-50/45 p-2.5 dark:border-border dark:bg-muted/30">
+      <div className="grid gap-2 rounded-2xl border border-yg-line bg-yg-panel p-3">
         <div className="flex items-center justify-between gap-3">
           <Skeleton className="h-4 w-20" />
           <Skeleton className="h-4 w-24" />
         </div>
-        <div className="flex items-center justify-between gap-3 border-t border-emerald-100 pt-2 dark:border-border">
+        <div className="flex items-center justify-between gap-3 border-t border-yg-line pt-2">
           <Skeleton className="h-5 w-12" />
           <Skeleton className="h-5 w-28" />
         </div>
       </div>
       <div className="grid grid-cols-2 gap-2">
-        <Skeleton className="h-11 rounded-md" />
-        <Skeleton className="h-11 rounded-md" />
+        <Skeleton className="h-13.5 rounded-2xl" />
+        <Skeleton className="h-13.5 rounded-2xl" />
       </div>
     </>
   );

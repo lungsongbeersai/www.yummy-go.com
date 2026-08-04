@@ -24,6 +24,8 @@ export interface PublicDisplayProduct {
   statusKind: PublicMenuKind;
 }
 
+// ค่าที่ใส่ใน data-yg-accent — ต้องตรงกับบล็อกที่ประกาศไว้ใน nightfall.css
+export type PublicPosAccent = "emerald" | "gold" | "rose";
 export type ProductBlockedState = "promotion-ended" | "sold-out";
 export type ProductActionState = "blocked" | "choose" | "add" | "view";
 export type PublicProductLayoutMode = "grid" | "list";

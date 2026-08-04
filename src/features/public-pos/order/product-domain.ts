@@ -229,14 +229,22 @@ export function toppingDisplayName(topping: ProdTopping, lang: string) {
   );
 }
 
-// Public ordering intentionally preserves direct Number(...) coercion from
-// its pre-P3.3 implementation; shared classification receives those resolved
-// values without imposing staff POS fallback semantics.
+// The rail/category context is authoritative for special menus because some
+// listing payloads report the base product status as normal. Normal-menu
+// products still preserve the public POS's direct Number(...) coercion.
 function publicProductStatusSort(
   product: CateProductItem,
   activeStatusSortFk: number,
 ) {
-  return Number(product.statusSortFk ?? activeStatusSortFk);
+  const activeStatus = Number(activeStatusSortFk);
+  if (
+    activeStatus === publicMenuKindToStatusSortFk(PUBLIC_MENU_KIND.SET) ||
+    activeStatus === publicMenuKindToStatusSortFk(PUBLIC_MENU_KIND.PROMOTION)
+  ) {
+    return activeStatus;
+  }
+
+  return Number(product.statusSortFk ?? activeStatus);
 }
 
 export function isPromotionEnded(
@@ -313,8 +321,9 @@ export function productNeedsModal(
 ) {
   const enabledDetails = (item.details ?? []).filter(isDetailAvailable);
   const enabledToppings = (item.toppings ?? []).filter(isToppingAvailable);
-  const productStatusSort = Number(
-    product.statusSortFk ?? activeStatusSortFk,
+  const productStatusSort = publicProductStatusSort(
+    product,
+    activeStatusSortFk,
   );
   return (
     product.hasOptions === true ||
@@ -339,8 +348,9 @@ export function canDirectAddFromList(
 ) {
   const detailUuid = String(product.proDetailUuid ?? "").trim();
   const price = Number(product.proDetailSprice ?? product.prodPrice);
-  const productStatusSort = Number(
-    product.statusSortFk ?? activeStatusSortFk,
+  const productStatusSort = publicProductStatusSort(
+    product,
+    activeStatusSortFk,
   );
   return (
     Boolean(detailUuid) &&
@@ -522,10 +532,18 @@ export function buildPublicOrderInput({
   };
 }
 
+// ทอปปิ้งราคา 0 (แถมฟรี ไม่คิดเงินเพิ่ม) เพิ่มได้แค่ 1 ชิ้น — เพิ่มหลายชิ้นไม่ทำให้ราคาต่างกัน
+// แต่ตัวเลขจำนวนที่ขึ้น (เช่น "3 ชิ้น") ทำให้ลูกค้าเข้าใจผิดว่าจะได้ของเพิ่มหรือถูกคิดเงินเพิ่ม
+export function toppingMaxQty(topping?: ProdTopping | null) {
+  if (!topping) return MAX_OPEN_QTY;
+  return numeric(topping.toppingPrice) > 0 ? MAX_OPEN_QTY : 1;
+}
+
 export function changePublicToppingQty(
   current: Record<string, number>,
   toppingUuid: string,
   qty: number,
+  maxQty: number = MAX_OPEN_QTY,
 ) {
   const normalizedQty = Number.isFinite(qty) ? Math.floor(qty) : 0;
   if (normalizedQty < 1) {
@@ -536,7 +554,7 @@ export function changePublicToppingQty(
 
   return {
     ...current,
-    [toppingUuid]: Math.min(MAX_OPEN_QTY, normalizedQty),
+    [toppingUuid]: Math.min(maxQty, normalizedQty),
   };
 }
 
@@ -544,11 +562,13 @@ export function togglePublicToppingQty(
   current: Record<string, number>,
   toppingUuid: string,
   rememberedQty = 1,
+  maxQty: number = MAX_OPEN_QTY,
 ) {
   return changePublicToppingQty(
     current,
     toppingUuid,
     current[toppingUuid] ? 0 : rememberedQty,
+    maxQty,
   );
 }
 

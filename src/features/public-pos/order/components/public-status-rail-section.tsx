@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useEffect, useRef } from "react";
+import { memo, useEffect, useMemo, useRef } from "react";
 import { Plus, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -9,11 +9,15 @@ import {
   PUBLIC_MENU_KIND,
   type PublicMenuKind,
 } from "@/stores/public-pos-store";
+import { LCP_PRIORITY_IMAGE_COUNT } from "../constants";
 import type { PublicDisplayProduct } from "../types";
 import { hasRemoteProductImage } from "../utils";
 import { RailSkeleton } from "./public-pos-skeletons";
 import { ProductCard } from "./public-product-card";
+import { PublicSectionHeading } from "./public-section-heading";
 import { HorizontalScrollArrows } from "./horizontal-scroll-arrows";
+
+const EMPTY_PRIORITY_SET: ReadonlySet<string> = new Set();
 
 export const StatusRailSection = memo(function StatusRailSection({
   title,
@@ -43,10 +47,19 @@ export const StatusRailSection = memo(function StatusRailSection({
 }) {
   const visibleProducts = products.slice(0, visibleCount);
   const useDesktopGrid = products.length <= 5;
-  const priorityProductUuid = priorityFirstImage
-    ? (visibleProducts.find(({ product }) => hasRemoteProductImage(product))
-        ?.product.prodUuid ?? "")
-    : "";
+  // การ์ดในแถวเดียวกันเรนเดอร์ขนาดเท่ากันหมด จึง "เสมอกัน" สำหรับ LCP — มาร์ค eager
+  // ทุกใบในโควตานี้แทนที่จะเลือกแค่ใบแรก เพราะใบที่ชนะจริงไม่ใช่ใบแรกในลิสต์เสมอไป
+  const priorityProductUuids = useMemo(() => {
+    if (!priorityFirstImage) return EMPTY_PRIORITY_SET;
+
+    const uuids = new Set<string>();
+    for (const { product } of visibleProducts) {
+      if (!hasRemoteProductImage(product)) continue;
+      uuids.add(product.prodUuid);
+      if (uuids.size >= LCP_PRIORITY_IMAGE_COUNT) break;
+    }
+    return uuids;
+  }, [priorityFirstImage, visibleProducts]);
   const railRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -78,19 +91,17 @@ export const StatusRailSection = memo(function StatusRailSection({
 
   return (
     <section className="[contain-intrinsic-size:320px] [content-visibility:auto]">
-      <div className="mb-2 flex items-center gap-2">
-        <span className="grid size-6 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground">
-          <Sparkles className="size-3.5" aria-hidden="true" />
-        </span>
-        <h2 className="text-base font-black leading-6">{title}</h2>
-      </div>
+      <PublicSectionHeading
+        title={title}
+        icon={<Sparkles className="size-4" aria-hidden="true" />}
+      />
 
       {visibleProducts.length ? (
         <div className="relative">
           <div
             ref={railRef}
             className={cn(
-              "-mx-2 overflow-x-auto overscroll-x-contain px-2 pb-1 scrollbar-none [&::-webkit-scrollbar]:hidden",
+              "yg-rail -mx-(--yg-gutter) overflow-x-auto overscroll-x-contain px-(--yg-gutter) pb-2",
               useDesktopGrid
                 ? "sm:mx-0 sm:overflow-visible sm:px-0"
                 : "",
@@ -98,7 +109,7 @@ export const StatusRailSection = memo(function StatusRailSection({
           >
             <div
               className={cn(
-                "flex w-max snap-x snap-mandatory gap-3",
+                "flex w-max snap-x snap-mandatory gap-[clamp(12px,2vw,18px)]",
                 useDesktopGrid
                   ? "sm:grid sm:w-full sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
                   : "",
@@ -112,7 +123,7 @@ export const StatusRailSection = memo(function StatusRailSection({
                   statusKind={statusKind}
                   lang={lang}
                   loading={loadingProductUuid === product.prodUuid}
-                  imagePreload={product.prodUuid === priorityProductUuid}
+                  imagePreload={priorityProductUuids.has(product.prodUuid)}
                   onProductClick={onProductClick}
                   variant={useDesktopGrid ? "railGrid" : "rail"}
                 />
@@ -122,7 +133,7 @@ export const StatusRailSection = memo(function StatusRailSection({
                   type="button"
                   variant="outline"
                   className={cn(
-                    "grid h-auto w-14 flex-none snap-start place-items-center self-stretch rounded-xl border border-emerald-100 bg-white text-primary shadow-sm shadow-emerald-950/5 hover:border-primary/30 hover:bg-primary/5 dark:border-border dark:bg-background",
+                    "grid h-auto w-14 flex-none snap-start place-items-center self-stretch rounded-[20px] border-yg-line bg-yg-panel text-yg-accent-strong backdrop-blur-md hover:border-yg-accent-line hover:bg-yg-panel-hover hover:text-yg-accent-strong",
                     useDesktopGrid ? "sm:min-h-64 sm:w-full" : "",
                   )}
                   onClick={() =>

@@ -6,12 +6,13 @@ import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsContent, TabsList } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import type { PosZone } from "@/services/pos";
+import { useAuthStore } from "@/stores/auth-store";
 import {
   CartDiscountDialog,
   CartNoteDialog,
@@ -42,6 +43,7 @@ function PaymentDialogLoadingFallback() {
     <Dialog open>
       <DialogContent showCloseButton={false} className="w-full max-w-[320px] text-center" aria-busy="true">
         <DialogTitle className="sr-only">{t("common.loading")}</DialogTitle>
+        <DialogDescription className="sr-only">{t("pos.paymentDialogLoadingDescription")}</DialogDescription>
         <div className="flex flex-col items-center gap-3">
           <div className="grid size-11 place-items-center rounded-lg bg-primary/10 text-primary">
             <Spinner className="text-primary" />
@@ -58,6 +60,7 @@ export function SelectedTableCartPanelContent({
   loading,
   onTableActionComplete,
   showCreateEmployeeOrderAction,
+  showTableFeatures = true,
   variant,
   workflow,
 }: {
@@ -65,12 +68,25 @@ export function SelectedTableCartPanelContent({
   loading: boolean;
   onTableActionComplete: (nextTableUuid?: string) => Promise<void>;
   showCreateEmployeeOrderAction: boolean;
+  showTableFeatures?: boolean;
   variant: "side" | "sheet";
   workflow: SelectedTableCartPanelWorkflow;
 }) {
   const { t } = useTranslation();
   const selectedTable = workflow.selectedTable;
   const customerDisplay = workflow.customerDisplay;
+  const isNoTableStore = useAuthStore((state) => state.user?.store_table_status === 2);
+  // ร้านไม่มีโต๊ะ: create_order สร้างรายการด้วยสถานะยืนยันแล้วเสมอ (ไม่ผ่าน
+  // สถานะ "ใหม่/รอยืนยัน") จึงไม่มี tab ให้แยก — รวมเป็นลิสต์เดียว
+  const counterCartItems = isNoTableStore
+    ? [...workflow.newOrderDisplayItems, ...workflow.historyItems]
+    : [];
+  // สั่งเพิ่มสินค้าแต่ละครั้งจะเรียก loadCart รีเฟรชตะกร้าใหม่เสมอ ถ้าโชว์
+  // skeleton ทุกครั้งที่ loading จะเห็นรายการเดิมหายวับแล้วโผล่กลับมาทุกครั้ง (กระพริบ)
+  // จึงโชว์ skeleton เฉพาะตอนโหลดครั้งแรกที่ยังไม่มีรายการอะไรให้เห็นเลย
+  const hasCartItems = isNoTableStore
+    ? counterCartItems.length > 0
+    : workflow.newOrderDisplayItems.length > 0 || workflow.historyItems.length > 0;
 
   return (
     <Card
@@ -90,11 +106,13 @@ export function SelectedTableCartPanelContent({
           className={cn(
             "relative block shrink-0 overflow-hidden border-b border-white/10 text-white dark:bg-black/25",
             variant === "side"
-              ? "px-3 pb-2.5 pt-3"
+              ? "px-3 pb-2 pt-2.5"
               : "px-4 pb-2.5 pt-3 pr-12",
           )}
         >
-          <div className="relative flex min-w-0 items-center justify-between gap-3">
+          {/* min-h กันความสูงลดฮวบตอนไม่มีเลขบิล (ไม่งั้นจะเตี้ยกว่า header หลักฝั่งซ้าย
+              ที่ยึดความสูงจากปุ่มไอคอน size-11 — ให้ตรงกับ md:h-11 ของ header ฝั่งนั้น) */}
+          <div className="relative flex min-h-9.5 min-w-0 items-center justify-between gap-3">
             <div className="flex min-w-0 flex-col gap-0.5">
               <p
                 className={cn(
@@ -107,8 +125,12 @@ export function SelectedTableCartPanelContent({
                 <ReceiptText className="size-5 shrink-0" />
                 <span className="truncate">
                   {selectedTable
-                    ? `${t("nav.table")}: ${selectedTable.table_name}`
-                    : t("pos.selectTableToContinue")}
+                    ? isNoTableStore
+                      ? selectedTable.table_name
+                      : `${t("nav.table")}: ${selectedTable.table_name}`
+                    : isNoTableStore
+                      ? t("pos.counterCartEmpty")
+                      : t("pos.selectTableToContinue")}
                 </span>
               </p>
               {workflow.invoice ? (
@@ -129,60 +151,45 @@ export function SelectedTableCartPanelContent({
             </Badge>
           </div>
 
-          <TabsList
-            className={cn(
-              "pos-soft-light-zone grid w-full grid-cols-2 rounded-xl bg-white/15 p-1 text-white shadow-inner backdrop-blur-sm",
-              variant === "side" ? "mt-2 h-10" : "mt-2.5 h-11",
-            )}
-          >
-            <CartTabTrigger
-              active={workflow.activeTab === "new"}
-              count={workflow.newOrderDisplayItems.length}
-              disabled={!workflow.hasSelectedTable}
-              label={t("pos.newOrder")}
-              shortLabel={t("pos.newOrderShort")}
-              value="new"
-            />
-            <CartTabTrigger
-              active={workflow.activeTab === "history"}
-              count={workflow.historyItems.length}
-              disabled={!workflow.hasSelectedTable}
-              label={t("pos.orderHistory")}
-              shortLabel={t("pos.orderHistoryShort")}
-              value="history"
-            />
-          </TabsList>
+          {isNoTableStore ? null : (
+            <TabsList
+              className={cn(
+                "pos-soft-light-zone grid w-full grid-cols-2 rounded-xl bg-white/15 p-1 text-white shadow-inner backdrop-blur-sm",
+                variant === "side" ? "mt-2 h-10" : "mt-2.5 h-11",
+              )}
+            >
+              <CartTabTrigger
+                active={workflow.activeTab === "new"}
+                count={workflow.newOrderDisplayItems.length}
+                disabled={!workflow.hasSelectedTable}
+                label={t("pos.newOrder")}
+                shortLabel={t("pos.newOrderShort")}
+                value="new"
+              />
+              <CartTabTrigger
+                active={workflow.activeTab === "history"}
+                count={workflow.historyItems.length}
+                disabled={!workflow.hasSelectedTable}
+                label={t("pos.orderHistory")}
+                shortLabel={t("pos.orderHistoryShort")}
+                value="history"
+              />
+            </TabsList>
+          )}
         </CardHeader>
 
         <CardContent className="pos-soft-light-zone pos-dark-zone relative min-h-0 flex-1 overflow-hidden bg-background p-0 text-foreground">
-          {loading ? (
+          {loading && !hasCartItems ? (
             <CartPanelLoading />
           ) : (
             <div className="h-full min-h-0 overflow-y-auto overscroll-contain bg-muted/35 dark:bg-background">
-              <TabsContent value="new">
-                <CartTabItems
-                  editable
-                  compact={variant === "side"}
-                  actingItemUuid={workflow.actingItemUuid}
-                  actionDisabled={workflow.cartActionsLocked}
-                  canConfirmKitchenItem={workflow.canConfirmKitchenItem}
-                  items={workflow.newOrderDisplayItems}
-                  updatingItemUuid={workflow.updatingItemUuid}
-                  onChangeQty={workflow.changeCartItemQty}
-                  onConfirmKitchen={workflow.confirmSingleItemToKitchen}
-                  onConfirmServed={workflow.markItemServed}
-                  onEditNote={workflow.openNoteDialog}
-                  onItemDiscount={workflow.openItemDiscountDialog}
-                  onOpenItemAction={workflow.openItemAction}
-                />
-              </TabsContent>
-              <TabsContent value="history">
+              {isNoTableStore ? (
                 <CartTabItems
                   compact={variant === "side"}
                   actingItemUuid={workflow.actingItemUuid}
                   actionDisabled={workflow.cartActionsLocked}
                   canConfirmKitchenItem={workflow.canConfirmKitchenItem}
-                  items={workflow.historyItems}
+                  items={counterCartItems}
                   canSplitItem={workflow.canSplitItem}
                   splitSelectionDisabled={!workflow.canSelectSplitItems}
                   splitSelectedItemUuids={workflow.splitSelectedItemUuids}
@@ -195,7 +202,47 @@ export function SelectedTableCartPanelContent({
                   onOpenItemAction={workflow.openItemAction}
                   onToggleSplitItem={workflow.toggleSplitItem}
                 />
-              </TabsContent>
+              ) : (
+                <>
+                  <TabsContent value="new">
+                    <CartTabItems
+                      editable
+                      compact={variant === "side"}
+                      actingItemUuid={workflow.actingItemUuid}
+                      actionDisabled={workflow.cartActionsLocked}
+                      canConfirmKitchenItem={workflow.canConfirmKitchenItem}
+                      items={workflow.newOrderDisplayItems}
+                      updatingItemUuid={workflow.updatingItemUuid}
+                      onChangeQty={workflow.changeCartItemQty}
+                      onConfirmKitchen={workflow.confirmSingleItemToKitchen}
+                      onConfirmServed={workflow.markItemServed}
+                      onEditNote={workflow.openNoteDialog}
+                      onItemDiscount={workflow.openItemDiscountDialog}
+                      onOpenItemAction={workflow.openItemAction}
+                    />
+                  </TabsContent>
+                  <TabsContent value="history">
+                    <CartTabItems
+                      compact={variant === "side"}
+                      actingItemUuid={workflow.actingItemUuid}
+                      actionDisabled={workflow.cartActionsLocked}
+                      canConfirmKitchenItem={workflow.canConfirmKitchenItem}
+                      items={workflow.historyItems}
+                      canSplitItem={workflow.canSplitItem}
+                      splitSelectionDisabled={!workflow.canSelectSplitItems}
+                      splitSelectedItemUuids={workflow.splitSelectedItemUuids}
+                      updatingItemUuid={workflow.updatingItemUuid}
+                      onChangeQty={workflow.changeCartItemQty}
+                      onConfirmKitchen={workflow.confirmSingleItemToKitchen}
+                      onConfirmServed={workflow.markItemServed}
+                      onEditNote={workflow.openNoteDialog}
+                      onItemDiscount={workflow.openItemDiscountDialog}
+                      onOpenItemAction={workflow.openItemAction}
+                      onToggleSplitItem={workflow.toggleSplitItem}
+                    />
+                  </TabsContent>
+                </>
+              )}
             </div>
           )}
         </CardContent>
@@ -232,17 +279,17 @@ export function SelectedTableCartPanelContent({
                 ? workflow.openEmployeeOrderPage
                 : undefined
             }
-            onCreateTableQr={workflow.openTableQr}
+            onCreateTableQr={showTableFeatures ? workflow.openTableQr : undefined}
             onCustomerDisplay={() =>
               void customerDisplay.openCustomerDisplayScreen()
             }
             onPayBill={workflow.openFullPayment}
             onPaySplitSelection={workflow.requestSelectedSplitPayment}
-            onTableActions={workflow.openTableActions}
+            onTableActions={showTableFeatures ? workflow.openTableActions : undefined}
           />
         </CardFooter>
       </Tabs>
-      {selectedTable ? (
+      {selectedTable && showTableFeatures ? (
         <TableActionsOverlay
           branchUuid={workflow.user?.branch_uuid}
           fallbackZones={allZones}
@@ -254,7 +301,7 @@ export function SelectedTableCartPanelContent({
           onOpenChange={workflow.setTableActionsOpen}
         />
       ) : null}
-      {selectedTable ? (
+      {selectedTable && showTableFeatures ? (
         <TableQrDialog
           open={workflow.tableQrOpen}
           table={selectedTable}
@@ -292,6 +339,7 @@ export function SelectedTableCartPanelContent({
       {selectedTable &&
       workflow.paymentContext?.tableUuid === selectedTable.table_uuid ? (
         <PaymentDialog
+          hasRealTable={showTableFeatures}
           open
           orders={workflow.paymentContext.orders}
           paymentKind={workflow.paymentContext.kind}

@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { ProductImageStatus, type ProductSortStatus } from "@/config/pos-constants";
+import { normalizePublicPosAccent } from "@/features/public-pos/order/public-pos-accent";
 import {
   type CartItem,
   type CartOrder,
   type CateProductItem,
   type ProdDetail,
   type ProdItem,
+  type ProdTopping,
 } from "@/services/pos";
 import {
   PUBLIC_MENU_KIND,
@@ -22,6 +24,7 @@ import {
   getCartReceiptTotals,
   getConfirmableOrderPayload,
   getDirectAddListPayload,
+  formatMoney,
   getProductActionState,
   getProductBlockedState,
   getProductModalMode,
@@ -36,10 +39,12 @@ import {
   normalizePublicProductLayoutMode,
   normalizePublicSearchHistory,
   promotionQuantity,
+  productNeedsModal,
   publicProductCardPrice,
   statusSectionLabel,
   totalCartQty,
   togglePublicToppingQty,
+  toppingMaxQty,
   visibleProductCountForCategory,
   withCategoryPathVisibleCounts,
 } from "@/features/public-pos/order/utils";
@@ -173,6 +178,12 @@ describe("public menu category reset helpers", () => {
 });
 
 describe("public POS product helpers", () => {
+  it("uses the Kip symbol without abbreviating product prices", () => {
+    expect(formatMoney(300_000, "en")).toBe("300,000 ₭");
+    expect(formatMoney(899_000, "la")).toBe("899,000 ₭");
+    expect(formatMoney(0, "la")).toBe("0 ₭");
+  });
+
   it("uses the minimum as a starting price when enabled options have a price range", () => {
     expect(
       publicProductCardPrice(
@@ -267,6 +278,16 @@ describe("public POS product helpers", () => {
     expect(normalizePublicProductLayoutMode(null)).toBe("grid");
   });
 
+  it("normalizes accents with emerald as the safe fallback", () => {
+    expect(normalizePublicPosAccent("emerald")).toBe("emerald");
+    expect(normalizePublicPosAccent("gold")).toBe("gold");
+    expect(normalizePublicPosAccent("rose")).toBe("rose");
+    // ค่าที่ค้างใน localStorage จากเวอร์ชันก่อนต้องไม่ทำให้หน้าไม่มีสี accent
+    expect(normalizePublicPosAccent("violet")).toBe("emerald");
+    expect(normalizePublicPosAccent(null)).toBe("emerald");
+    expect(normalizePublicPosAccent(undefined)).toBe("emerald");
+  });
+
   it("blocks sold-out and expired promotion products before choosing actions", () => {
     expect(
       getProductBlockedState(product({ canAdd: false }), normalStatus),
@@ -295,7 +316,7 @@ describe("public POS product helpers", () => {
     { label: "empty", value: "" },
     { label: "non-finite", value: Number.POSITIVE_INFINITY },
   ])(
-    "keeps public numeric coercion for $label product status",
+    "keeps public numeric coercion for $label product status in the normal menu",
     ({ value }) => {
       const statusSortFk = productStatus(value);
 
@@ -307,17 +328,42 @@ describe("public POS product helpers", () => {
             promoState: "NONE",
             statusSortFk,
           }),
-          promotionStatus,
+          normalStatus,
         ),
       ).toBeNull();
       expect(
         getProductActionState(
           product({ statusSortFk }),
-          setStatus,
+          normalStatus,
         ),
       ).toBe("add");
     },
   );
+
+  it("always routes set-menu products through the modal", () => {
+    const setProduct = product({ statusSortFk: normalStatus });
+
+    expect(getProductActionState(setProduct, setStatus)).toBe("choose");
+    expect(getDirectAddListPayload(setProduct, setStatus, [])).toEqual({
+      ok: false,
+      reason: "needs-modal",
+    });
+    expect(productNeedsModal(setProduct, prodItem(), setStatus)).toBe(true);
+  });
+
+  it("uses promotion-menu context when the product payload reports a normal status", () => {
+    expect(
+      getProductBlockedState(
+        product({
+          promoExpired: true,
+          promoMsg: "",
+          promoState: "NONE",
+          statusSortFk: normalStatus,
+        }),
+        promotionStatus,
+      ),
+    ).toBe("promotion-ended");
+  });
 
   it("keeps public non-finite count coercion behavior", () => {
     expect(
@@ -485,6 +531,28 @@ describe("public POS order payload helper", () => {
     expect(togglePublicToppingQty({}, "top-1")).toEqual({ "top-1": 1 });
     expect(togglePublicToppingQty({ "top-1": 2 }, "top-1")).toEqual({});
     expect(togglePublicToppingQty({}, "top-1", 3)).toEqual({ "top-1": 3 });
+  });
+
+  it("caps a free topping (price 0) at qty 1 so it can't be stacked", () => {
+    const freeTopping = { toppingPrice: 0 } as ProdTopping;
+    const paidTopping = { toppingPrice: 5000 } as ProdTopping;
+
+    expect(toppingMaxQty(freeTopping)).toBe(1);
+    expect(toppingMaxQty(paidTopping)).toBe(99);
+    expect(toppingMaxQty(null)).toBe(99);
+
+    expect(
+      changePublicToppingQty({}, "top-1", 5, toppingMaxQty(freeTopping)),
+    ).toEqual({ "top-1": 1 });
+    expect(
+      changePublicToppingQty({}, "top-1", 5, toppingMaxQty(paidTopping)),
+    ).toEqual({ "top-1": 5 });
+
+    // rememberedQty ที่มากกว่า 1 (เช่นค้างจากก่อนสลับ available/unavailable)
+    // ต้องยังถูกจำกัดที่ 1 เมื่อทอปปิ้งนั้นฟรี
+    expect(
+      togglePublicToppingQty({}, "top-1", 4, toppingMaxQty(freeTopping)),
+    ).toEqual({ "top-1": 1 });
   });
 
   it("builds the public QR create-order contract", () => {

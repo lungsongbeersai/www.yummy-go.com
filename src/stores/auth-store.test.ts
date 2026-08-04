@@ -63,7 +63,8 @@ function authUser(uuid: string): AuthUser {
     branch_address: "",
     store_uuid: `${uuid}-store`,
     store_name: "Store",
-    store_logo: ""
+    store_logo: "",
+    store_table_status: 2
   };
 }
 
@@ -120,6 +121,15 @@ describe("auth store session isolation", () => {
     expect(useAuthStore.getState().user?.uuid).toBe("user-2");
     expect(useProductStore.getState().search).toBe("");
     expect(usePermissionsSidebarStore.getState().requestKey).toBe("");
+  });
+
+  it("defaults a legacy session without table status to a store with tables", () => {
+    const legacyUser: Partial<AuthUser> = { ...authUser("legacy-user") };
+    delete legacyUser.store_table_status;
+
+    useAuthStore.getState().login("legacy-token", legacyUser as AuthUser);
+
+    expect(useAuthStore.getState().user?.store_table_status).toBe(1);
   });
 
   it("does not let an older login response overwrite the active session", async () => {

@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useResetOnDeps } from "@/hooks/use-reset-on-change";
 import type { CateWithProducts } from "@/services/pos";
 import type { PublicPosCategoryTab } from "@/stores/public-pos-store/helpers";
 import {
@@ -529,11 +528,11 @@ export function usePublicCategoryScroll({
     };
   }, [updateScrollJumpEdgeFromViewport]);
 
-  useResetOnDeps([activeCateUuid, defaultActiveCateUuid], () => {
-    if (defaultActiveCateUuid && !activeCateUuid) {
-      setStableActiveCateUuid(defaultActiveCateUuid);
-    }
-  });
+  // เดิมมี block ที่เขียน activeCateUuid + store ให้เท่ากับ defaultActiveCateUuid ตอนยังไม่มีหมวดที่เลือก
+  // ถูกถอดออกเพราะเป็นการ mirror ค่าที่ derive ได้อยู่แล้ว (activeValue ด้านบน fallback ให้แล้ว
+  // และผู้อ่าน selectedCateUuid ทุกจุดก็ fallback เป็น defaultCateUuid/หมวดแรกเองอยู่แล้ว)
+  // ที่สำคัญกว่านั้นคือมันรันระหว่าง render จึงไปเรียก setter ของ Zustand กับสั่ง scroll DOM ตอน render
+  // การเลือกหมวดจริงเกิดจากการกดแท็บ/scroll spy ซึ่งเรียก setStableActiveCateUuid นอก render อยู่แล้ว
 
   return useMemo(
     () => ({

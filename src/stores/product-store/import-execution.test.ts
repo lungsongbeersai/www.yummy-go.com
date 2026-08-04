@@ -33,6 +33,8 @@ function draft(
     ],
     detailCount: 1,
     salePrice: 20,
+    targetProductUuid: "",
+    existingDetails: [],
     validationErrors,
     warnings: [],
     payload: {

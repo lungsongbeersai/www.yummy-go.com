@@ -8,6 +8,7 @@ import {
   isStorePlc,
   missingBranchField,
   missingStoreField,
+  storeAuthUserUpdate,
   storeBranchName
 } from "@/features/settings/store-branch/store-branch-utils";
 
@@ -20,14 +21,16 @@ describe("store branch utils", () => {
         email: " plc@example.com ",
         nameEng: "PLC",
         nameLa: " ຮ້ານ ",
-        status: "1"
+        status: "1",
+        tableStatus: "1"
       })
     ).toEqual({
       store_name_la: "ຮ້ານ",
       store_name_eng: "PLC",
       store_email: "plc@example.com",
       store_status: 1,
-      store_active: 1
+      store_active: 1,
+      store_table_status: 1
     });
 
     expect(
@@ -37,7 +40,8 @@ describe("store branch utils", () => {
         email: "store@example.com",
         nameEng: "",
         nameLa: "Store",
-        status: "2"
+        status: "2",
+        tableStatus: "2"
       })
     ).toEqual({
       store_uuid: "store-1",
@@ -45,8 +49,61 @@ describe("store branch utils", () => {
       store_name_eng: "",
       store_email: "store@example.com",
       store_status: 2,
-      store_active: 2
+      store_active: 2,
+      store_table_status: 2
     });
+  });
+
+  it("defaults missing store table status to has tables", () => {
+    expect(
+      buildStorePayload({
+        active: "1",
+        editing: null,
+        email: "store@example.com",
+        nameEng: "Store",
+        nameLa: "Store",
+        status: "2",
+        tableStatus: ""
+      })
+    ).toMatchObject({ store_table_status: 1 });
+  });
+
+  it("defaults invalid store table status to has tables", () => {
+    for (const tableStatus of ["0", "3", "invalid"]) {
+      expect(
+        buildStorePayload({
+          active: "1",
+          editing: null,
+          email: "store@example.com",
+          nameEng: "Store",
+          nameLa: "Store",
+          status: "2",
+          tableStatus
+        })
+      ).toMatchObject({ store_table_status: 1 });
+    }
+  });
+
+  it("builds active store auth updates with table status", () => {
+    expect(
+      storeAuthUserUpdate({
+        store_logo: "logo.jpg",
+        store_name_la: "Store LA",
+        store_table_status: 2
+      })
+    ).toEqual({
+      store_logo: "logo.jpg",
+      store_name: "Store LA",
+      store_table_status: 2
+    });
+
+    expect(
+      storeAuthUserUpdate({
+        store_logo: "logo.jpg",
+        store_name: "Store",
+        store_table_status: 3
+      })
+    ).toMatchObject({ store_table_status: 1 });
   });
 
   it("builds create and edit branch payloads", () => {

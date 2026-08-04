@@ -6,6 +6,7 @@ import {
   canDirectAddFromList,
   clampOrderQuantity,
   changeToppingQty,
+  counterOrderTable,
   countSelectedToppings,
   defaultOrderQty,
   firstAvailableDetail,
@@ -122,6 +123,14 @@ describe("order customer helpers", () => {
     expect(orderCustomerUrl({ tableUuid: "table 1", tableName: "A&B" })).toBe(
       "/pos/order?table_uuid=table+1&table_name=A%26B",
     );
+  });
+
+  it("builds a synthetic table identity for counter orders (no real table)", () => {
+    expect(counterOrderTable("order-1", "Counter order")).toMatchObject({
+      table_uuid: "order-1",
+      table_name: "Counter order",
+      table_status: TableStatus.OCCUPIED,
+    });
   });
 
   it("flattens category products and picks first sort with products", () => {
@@ -511,6 +520,21 @@ describe("order customer helpers", () => {
         },
       ],
     });
+  });
+
+  it("omits table_uuid_fk for counter orders with no table", () => {
+    const input = buildStaffOrderInput({
+      branchUuid: "branch-1",
+      detail: detail({ proDetailCusQtyBuy: 2 }),
+      lang: "lo",
+      noteText: "",
+      quantity: defaultOrderQty(detail({ proDetailCusQtyBuy: 2 })),
+      tableUuid: "",
+      toppings: [],
+      userUuid: "user-1",
+    });
+
+    expect(input).not.toHaveProperty("table_uuid_fk");
   });
 
   it("builds staff set order items from every available product detail", () => {

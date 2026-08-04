@@ -30,6 +30,7 @@ import {
   buildStorePayload,
   missingBranchField,
   missingStoreField,
+  storeAuthUserUpdate,
   storeBranchId,
   storeBranchName,
   storeBranchValue,
@@ -100,7 +101,8 @@ function StoreSettingsPage({ initialPagination }: { initialPagination: UrlPagina
         logo: null,
         nameEng: String(formData.get("store_name_eng") ?? ""),
         nameLa: String(formData.get("store_name_la") ?? ""),
-        status: String(formData.get("store_status") ?? "2")
+        status: String(formData.get("store_status") ?? "2"),
+        tableStatus: String(formData.get("store_table_status") ?? "1")
       }),
     idKey: "store_uuid",
     initialPagination,
@@ -173,7 +175,8 @@ function StoreSettingsPage({ initialPagination }: { initialPagination: UrlPagina
       logo: logo instanceof File && logo.size ? logo : null,
       nameEng: String(formData.get("store_name_eng") ?? ""),
       nameLa: String(formData.get("store_name_la") ?? ""),
-      status: String(formData.get("store_status") ?? "2")
+      status: String(formData.get("store_status") ?? "2"),
+      tableStatus: String(formData.get("store_table_status") ?? "1")
     });
     const missing = missingStoreField({ email: String(input.store_email ?? ""), nameLa: String(input.store_name_la ?? "") });
     if (missing) {
@@ -186,10 +189,7 @@ function StoreSettingsPage({ initialPagination }: { initialPagination: UrlPagina
       const nextRows = await loadStoreRows(requestParams, { background: true });
       const updated = id ? nextRows.find((row) => storeBranchId(row, "store") === id) : null;
       if (updated && id === storeUuid) {
-        updateUser({
-          store_logo: storeBranchValue(updated, "store_logo"),
-          store_name: storeBranchName(updated, "store")
-        });
+        updateUser(storeAuthUserUpdate(updated));
       }
       showToast({ title: labels.saved, tone: "success" });
       resetForm();

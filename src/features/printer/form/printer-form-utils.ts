@@ -41,6 +41,33 @@ export function textValue(value: unknown) {
   return value === null || value === undefined ? "" : String(value);
 }
 
+// จำกัดให้พิมพ์ได้เฉพาะตัวเลขกับจุด และเติม "." อัตโนมัติหลังครบ 3 หลักในแต่ละ octet
+// (สูงสุด 4 octet) — เทียบความยาวกับ previousValue เพื่อไม่เติมจุดซ้ำตอนกด backspace
+export function formatIpInput(rawValue: string, previousValue: string) {
+  const isDeleting = rawValue.length < previousValue.length;
+  const cleaned = rawValue.replace(/[^0-9.]/g, "");
+
+  const groups: string[] = [""];
+  for (const char of cleaned) {
+    const last = groups.length - 1;
+    if (char === ".") {
+      if (groups.length < 4 && groups[last] !== "") groups.push("");
+      continue;
+    }
+    if (groups[last].length < 3) {
+      groups[last] += char;
+    } else if (groups.length < 4) {
+      groups.push(char);
+    }
+  }
+
+  const lastGroup = groups[groups.length - 1];
+  const shouldAutoDot =
+    !isDeleting && groups.length < 4 && lastGroup.length === 3;
+
+  return groups.join(".") + (shouldAutoDot ? "." : "");
+}
+
 export function categoryLabel(category: Category, language: string) {
   const english = language.startsWith("en");
   const primary = english ? category.cate_name_eng : category.cate_name_la;

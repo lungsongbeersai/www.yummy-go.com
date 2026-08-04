@@ -80,7 +80,7 @@ function CartFlyAnimationItem({
 
   return (
     <div
-      className="fixed overflow-hidden rounded-2xl border border-white/80 bg-background shadow-2xl shadow-emerald-950/20 will-change-transform"
+      className="fixed overflow-hidden rounded-2xl border border-yg-accent-line bg-yg-bg2 shadow-[0_18px_40px_-16px_var(--yg-accent)] will-change-transform"
       style={{
         left: startX,
         top: startY,
@@ -111,7 +111,7 @@ function FlyProductMedia({ product }: { product: CateProductItem | ProdItem }) {
 
   if (imageUrl) {
     return (
-      <div className="relative h-full w-full bg-emerald-50 dark:bg-muted">
+      <div className="relative h-full w-full bg-yg-media-b">
         <Image
           src={imageUrl}
           alt=""
@@ -137,7 +137,7 @@ function FlyProductMedia({ product }: { product: CateProductItem | ProdItem }) {
   }
 
   return (
-    <div className="grid h-full w-full place-items-center bg-emerald-50 text-primary dark:bg-muted">
+    <div className="grid h-full w-full place-items-center bg-yg-media-b text-yg-accent-strong">
       <ImageIcon className="size-8" />
     </div>
   );

@@ -182,7 +182,7 @@ export interface CreateOrderItem extends ApiEntity {
 }
 export interface CreateOrderInput extends ApiEntity {
   table_uuid?: string;
-  table_uuid_fk: string;
+  table_uuid_fk?: string;
   branch_uuid_fk: string;
   order_created_by: string;
   order_source: OrderSource;
@@ -311,7 +311,11 @@ export interface FetchCartResponse extends ApiEntity {
   totals?: CartTotals;
   status_rule?: FetchCartStatusRule;
 }
-export interface FetchCartParams { table_uuid: string; lang?: string }
+// ร้านมีโต๊ะ query ด้วย table_uuid; ร้านไม่มีโต๊ะ (store_table_status === 2)
+// query ด้วย order_uuid ของบิลปัจจุบัน + branch_uuid_fk แทน
+export type FetchCartParams =
+  | { table_uuid: string; lang?: string }
+  | { order_uuid: string; branch_uuid_fk: string; lang?: string };
 export interface MoveTableItem extends ApiEntity {}
 export interface MoveTableZone extends ApiEntity { zone_uuid?: string; zone_name?: string; tables?: MoveTableItem[] }
 export interface FetchJoinMoveTableParams { branch_uuid_fk?: string; table_status?: number | ""; lang?: string }

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useResetOnDeps } from "@/hooks/use-reset-on-change";
+import { optionalString } from "@/lib/values";
 import type { ProdDetail, ProdItem } from "@/services/pos";
 import type { PrinterDeviceContext } from "@/services/printer";
 import { useAppStore } from "@/stores/app-store";
@@ -15,6 +16,7 @@ import { useToastStore } from "@/stores/toast-store";
 import {
   buildStaffOrderInput,
   changeToppingQty,
+  counterOrderTable,
   firstAvailableDetail,
   flattenProducts,
   getModalUnitPrice,
@@ -51,6 +53,7 @@ export function useOrderCustomerWorkflow({
   const isMobile = useIsMobile();
   const user = useAuthStore((state) => state.user);
   const branchUuid = user?.branch_uuid ?? "";
+  const isNoTableStore = user?.store_table_status === 2;
   const language = useAppStore((state) => state.language);
   const showToast = useToastStore((state) => state.show);
   const zones = usePosStore((state) => state.zones);
@@ -72,6 +75,12 @@ export function useOrderCustomerWorkflow({
   const createOrder = usePosStore((state) => state.createOrder);
   const setTable = usePosStore((state) => state.setTable);
   const setActiveSort = usePosStore((state) => state.setActiveSort);
+  // ร้านไม่มีโต๊ะ (store_table_status === 2): ไม่มี table_uuid ให้ยึด จึงใช้
+  // order_uuid ของบิลแรกที่สร้างเป็นตัวยึดแทนสำหรับ fetch_cart/refresh ต่อ ๆ ไป
+  // เก็บใน pos-store (persist ลง localStorage) ไม่ใช่ local state เพื่อไม่ให้บิล
+  // ที่ยังไม่จ่ายเงินหายไปตอนรีเฟรชหน้า/ปิดแท็บ/ย้อนกลับมาใหม่
+  const counterOrderUuid = usePosStore((state) => state.counterOrderUuid);
+  const setCounterOrderUuid = usePosStore((state) => state.setCounterOrderUuid);
   const resolvePrinterDeviceContext = usePrinterStore(
     (state) => state.resolveDeviceContext,
   );
@@ -94,20 +103,26 @@ export function useOrderCustomerWorkflow({
     useState<PrinterDeviceContext | null>(null);
   const printerContext = user?.uuid ? fetchedPrinterContext : null;
 
-  const selectedTable = useMemo(
-    () =>
-      selectedOrderTable({
+  const selectedTable = useMemo(() => {
+    if (initialTableUuid) {
+      return selectedOrderTable({
         tableName: initialTableName,
         tableUuid: initialTableUuid,
         zones,
-      }),
-    [initialTableName, initialTableUuid, zones],
-  );
+      });
+    }
+    if (counterOrderUuid) {
+      return counterOrderTable(counterOrderUuid, t("pos.counterOrderLabel"));
+    }
+    return null;
+  }, [counterOrderUuid, initialTableName, initialTableUuid, t, zones]);
 
-  const selectedCart = useMemo(
-    () => cartForTable(cart, initialTableUuid),
-    [cart, initialTableUuid],
-  );
+  const selectedCart = useMemo(() => {
+    // fetch_cart ของออเดอร์เคาน์เตอร์ query ด้วย order_uuid + branch_uuid_fk
+    // อยู่แล้ว (ขอบเขตแคบพอ) จึงไม่ต้อง filter ด้วย cartForTable ซ้ำแบบโต๊ะ
+    if (!initialTableUuid) return cart;
+    return cartForTable(cart, initialTableUuid);
+  }, [cart, initialTableUuid]);
   const activeProducts = useMemo(
     () => flattenProducts(menuBySort[activeSort]),
     [activeSort, menuBySort],
@@ -147,10 +162,18 @@ export function useOrderCustomerWorkflow({
   );
 
   const loadCart = useCallback(async () => {
-    if (!initialTableUuid) return;
+    if (!initialTableUuid && !counterOrderUuid) return;
 
     try {
-      await loadCartStore({ table_uuid: initialTableUuid, lang: language });
+      if (initialTableUuid) {
+        await loadCartStore({ table_uuid: initialTableUuid, lang: language });
+      } else if (branchUuid) {
+        await loadCartStore({
+          branch_uuid_fk: branchUuid,
+          order_uuid: counterOrderUuid,
+          lang: language,
+        });
+      }
     } catch (error) {
       showToast({
         title: t("pos.orderFailed"),
@@ -158,7 +181,15 @@ export function useOrderCustomerWorkflow({
         tone: "error",
       });
     }
-  }, [initialTableUuid, language, loadCartStore, showToast, t]);
+  }, [
+    branchUuid,
+    counterOrderUuid,
+    initialTableUuid,
+    language,
+    loadCartStore,
+    showToast,
+    t,
+  ]);
 
   const loadTablesForBranch = useCallback(async () => {
     if (!branchUuid) return [];
@@ -229,7 +260,7 @@ export function useOrderCustomerWorkflow({
       quantity: number;
       toppings: SelectedTopping[];
     }) => {
-      await createOrder(
+      const response = await createOrder(
         buildStaffOrderInput({
           branchUuid: user?.branch_uuid ?? "",
           detail,
@@ -243,15 +274,37 @@ export function useOrderCustomerWorkflow({
           userUuid: user?.uuid ?? "",
         }),
       );
-      await loadCartStore({ table_uuid: initialTableUuid, lang: language });
+
+      if (initialTableUuid) {
+        await loadCartStore({ table_uuid: initialTableUuid, lang: language });
+      } else {
+        // ร้านไม่มีโต๊ะ: บิลแรกที่สร้างได้ order_uuid มาเป็นตัวยึด — เก็บลง
+        // pos-store (persist ลง localStorage) เพื่อให้รีเฟรชหน้า/ปิดแท็บ/กลับมาใหม่
+        // ยังตามบิลเดิมต่อได้ backend รวมรายการที่สั่งเพิ่มทีหลังเข้าบิลเดียวกันให้
+        // เองโดยไม่ต้องส่ง order_uuid กลับไป
+        const nextOrderUuid = optionalString(response.order_uuid) ?? counterOrderUuid;
+        if (nextOrderUuid && nextOrderUuid !== counterOrderUuid) {
+          setCounterOrderUuid(nextOrderUuid);
+        }
+        if (nextOrderUuid && branchUuid) {
+          await loadCartStore({
+            branch_uuid_fk: branchUuid,
+            order_uuid: nextOrderUuid,
+            lang: language,
+          });
+        }
+      }
       setNewOrderFocusKey((key) => key + 1);
       showToast({ title: t("pos.orderCreated"), tone: "success" });
     },
     [
+      branchUuid,
+      counterOrderUuid,
       createOrder,
       initialTableUuid,
       language,
       loadCartStore,
+      setCounterOrderUuid,
       showToast,
       t,
       user?.branch_uuid,
@@ -359,6 +412,15 @@ export function useOrderCustomerWorkflow({
     setTable(initialTableUuid, initialTableName);
   }, [initialTableName, initialTableUuid, setTable]);
 
+  // ร้านมีโต๊ะ (store_table_status !== 2) ต้องมี table_uuid เสมอ — เดิม guard นี้
+  // เป็น server redirect ใน page.tsx แต่ store_table_status อ่านได้จาก client
+  // เท่านั้น จึงย้ายมาเช็คที่นี่ ร้านไม่มีโต๊ะ (status 2) ปล่อยผ่านแม้ไม่มีโต๊ะ
+  useEffect(() => {
+    if (!initialTableUuid && user?.store_table_status !== 2) {
+      router.replace("/pos/tables");
+    }
+  }, [initialTableUuid, router, user?.store_table_status]);
+
   useResetOnDeps([initialTableName, initialTableUuid], () => {
     setCartSheetOpen(false);
   });
@@ -401,7 +463,8 @@ export function useOrderCustomerWorkflow({
   }, [language, resolvePrinterDeviceContext, user?.uuid]);
 
   function openTablesPage() {
-    router.replace("/pos/tables");
+    // ร้านไม่มีโต๊ะไม่มีหน้าเลือกโต๊ะให้กลับไป — ปุ่ม "ย้อนกลับ" จึงออกไปหน้าแรกแทน
+    router.replace(user?.store_table_status === 2 ? "/" : "/pos/tables");
   }
 
   async function refreshAll() {
@@ -526,7 +589,18 @@ export function useOrderCustomerWorkflow({
       return;
     }
 
-    await loadCartStore({ table_uuid: targetUuid, lang: language });
+    if (targetUuid) {
+      await loadCartStore({ table_uuid: targetUuid, lang: language });
+      return;
+    }
+
+    if (counterOrderUuid && branchUuid) {
+      await loadCartStore({
+        branch_uuid_fk: branchUuid,
+        order_uuid: counterOrderUuid,
+        lang: language,
+      });
+    }
   }
 
   return {
@@ -571,6 +645,7 @@ export function useOrderCustomerWorkflow({
     setProductSheetOpen,
     setQty,
     setSearch,
+    showTableFeatures: !isNoTableStore,
     submitSearch,
     submitSelectedProduct,
     t,

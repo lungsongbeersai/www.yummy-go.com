@@ -1,13 +1,13 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { memo, useCallback, useEffect, useRef } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { CateProductItem, CateWithProducts } from "@/services/pos";
 import type { PublicMenuKind } from "@/stores/public-pos-store";
-import { PRODUCT_GRID_CLASS } from "../constants";
+import { LCP_PRIORITY_IMAGE_COUNT, PRODUCT_GRID_CLASS } from "../constants";
 import type { PublicProductLayoutMode } from "../types";
 import { hasRemoteProductImage } from "../utils";
 import {
@@ -15,6 +15,7 @@ import {
   CategoryDeferredPlaceholder,
 } from "./public-pos-skeletons";
 import { ProductCard } from "./public-product-card";
+import { PublicSectionHeading } from "./public-section-heading";
 
 const PublicCategoryIcon = dynamic(
   () =>
@@ -23,6 +24,8 @@ const PublicCategoryIcon = dynamic(
     ),
   { ssr: false },
 );
+
+const EMPTY_PRIORITY_SET: ReadonlySet<string> = new Set();
 
 export const ProductCategorySection = memo(function ProductCategorySection({
   category,
@@ -70,10 +73,19 @@ export const ProductCategorySection = memo(function ProductCategorySection({
   const sectionRef = useRef<HTMLElement | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const loadingVisible = loading || jumping;
-  const priorityProductUuid = priorityFirstImage
-    ? (products.find((product) => hasRemoteProductImage(product))?.prodUuid ??
-      "")
-    : "";
+  // การ์ดในกริดเดียวกันเรนเดอร์ขนาดเท่ากันหมด จึง "เสมอกัน" สำหรับ LCP — มาร์ค eager
+  // ทุกใบในโควตานี้แทนที่จะเลือกแค่ใบแรก เพราะใบที่ชนะจริงไม่ใช่ใบแรกในลิสต์เสมอไป
+  const priorityProductUuids = useMemo(() => {
+    if (!priorityFirstImage) return EMPTY_PRIORITY_SET;
+
+    const uuids = new Set<string>();
+    for (const product of products) {
+      if (!hasRemoteProductImage(product)) continue;
+      uuids.add(product.prodUuid);
+      if (uuids.size >= LCP_PRIORITY_IMAGE_COUNT) break;
+    }
+    return uuids;
+  }, [priorityFirstImage, products]);
 
   const setSectionRef = useCallback(
     (element: HTMLElement | null) => {
@@ -130,29 +142,27 @@ export const ProductCategorySection = memo(function ProductCategorySection({
       data-cate-uuid={category.cateUuid}
       className="mt-7 scroll-mt-36 first:mt-0 sm:mt-8 [contain-intrinsic-size:720px] [content-visibility:auto]"
     >
-      <div className="mb-2 flex min-w-0 items-center gap-2">
-        <span className="grid size-8 shrink-0 place-items-center rounded-full border border-primary/10 bg-primary/10 text-primary shadow-sm shadow-emerald-950/5">
-          <PublicCategoryIcon icon={category.cateIcon} className="size-5" />
-        </span>
-        <h2 className="min-w-0 flex-1 truncate text-base font-black leading-6">
-          {category.cateName}
-        </h2>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="size-11 shrink-0 rounded-full text-muted-foreground hover:bg-primary/10 hover:text-primary"
-          aria-label={category.cateName}
-          aria-expanded={!collapsed}
-          onClick={() => onToggleCollapse(category.cateUuid)}
-        >
-          {collapsed ? (
-            <ChevronDown className="size-4" />
-          ) : (
-            <ChevronUp className="size-4" />
-          )}
-        </Button>
-      </div>
+      <PublicSectionHeading
+        title={category.cateName}
+        icon={<PublicCategoryIcon icon={category.cateIcon} className="size-5" />}
+        action={
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="size-11 shrink-0 rounded-xl text-yg-muted hover:bg-yg-panel-hover hover:text-yg-ink"
+            aria-label={category.cateName}
+            aria-expanded={!collapsed}
+            onClick={() => onToggleCollapse(category.cateUuid)}
+          >
+            {collapsed ? (
+              <ChevronDown className="size-4" />
+            ) : (
+              <ChevronUp className="size-4" />
+            )}
+          </Button>
+        }
+      />
 
       {collapsed ? null : loadingVisible ? (
         <CategoryCompactLoading />
@@ -172,14 +182,14 @@ export const ProductCategorySection = memo(function ProductCategorySection({
               statusKind={statusKind}
               lang={lang}
               loading={loadingProductUuid === product.prodUuid}
-              imagePreload={product.prodUuid === priorityProductUuid}
+              imagePreload={priorityProductUuids.has(product.prodUuid)}
               variant={layoutMode}
               onProductClick={onProductClick}
             />
           ))}
         </div>
       ) : (
-        <div className="rounded-lg border border-dashed border-emerald-100 bg-white/75 p-4 text-center text-sm font-semibold text-muted-foreground dark:border-border dark:bg-background/75">
+        <div className="rounded-2xl border border-dashed border-yg-line bg-yg-panel2 p-4 text-center text-sm font-semibold text-yg-muted">
           {t("pos.noProductsInCategory")}
         </div>
       )}

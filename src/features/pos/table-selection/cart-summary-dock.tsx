@@ -56,12 +56,12 @@ export function CartSummaryDock({
   newOrderCount: number;
   onBillDiscount: () => void;
   onConfirm: () => void;
-  onCreateTableQr: () => void;
+  onCreateTableQr?: () => void;
   onCreateEmployeeOrder?: () => void;
   onCustomerDisplay: () => void;
   onPayBill: () => void;
   onPaySplitSelection?: () => void;
-  onTableActions: () => void;
+  onTableActions?: () => void;
   serviceLabel: string;
   splitSelectedCount?: number;
   splitSelectedTotal?: number;
@@ -192,15 +192,19 @@ export function CartSummaryDock({
                   </Badge>
                 ) : null}
               </DropdownMenuItem>
-              <DropdownMenuItem disabled={actionsDisabled} onSelect={onTableActions}>
-                <Shuffle data-icon="inline-start" />
-                <span>{t("pos.tableActions")}</span>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem disabled={actionsDisabled} onSelect={onCreateTableQr}>
-                <QrCode data-icon="inline-start" />
-                <span>{t("pos.createTableQr")}</span>
-              </DropdownMenuItem>
+              {onTableActions ? (
+                <DropdownMenuItem disabled={actionsDisabled} onSelect={onTableActions}>
+                  <Shuffle data-icon="inline-start" />
+                  <span>{t("pos.tableActions")}</span>
+                </DropdownMenuItem>
+              ) : null}
+              {onCreateTableQr ? (
+                <DropdownMenuItem disabled={actionsDisabled} onSelect={onCreateTableQr}>
+                  <QrCode data-icon="inline-start" />
+                  <span>{t("pos.createTableQr")}</span>
+                </DropdownMenuItem>
+              ) : null}
+              {onTableActions || onCreateTableQr ? <DropdownMenuSeparator /> : null}
               <DropdownMenuItem disabled={actionsDisabled} onSelect={onCustomerDisplay}>
                 <Monitor data-icon="inline-start" />
                 <span>{t("pos.customerDisplayScreen")}</span>

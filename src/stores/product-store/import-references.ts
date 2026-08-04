@@ -334,13 +334,15 @@ async function resolveCreatedRow<T extends Record<string, unknown>>({
   nameKeys,
   reload,
 }: {
-  created: T;
+  // The create endpoints answer with an empty envelope on some backends, so
+  // saveEntity hands back undefined rather than the stored row.
+  created: T | undefined;
   idKey: string;
   name: string;
   nameKeys: string[];
   reload: () => Promise<T[]>;
 }) {
-  if (cleanImportName(created[idKey])) return created;
+  if (created && cleanImportName(created[idKey])) return created;
   for (let attempt = 0; attempt < 2; attempt += 1) {
     const matches = matchingRows(await reload(), name, nameKeys);
     if (distinctIds(matches, idKey).size === 1) {
@@ -364,7 +366,7 @@ async function createPlannedRows<T extends Record<string, unknown>>({
   idKey: string;
   label: string;
   nameKeys: string[];
-  create: (name: string) => Promise<T>;
+  create: (name: string) => Promise<T | undefined>;
   reload: () => Promise<T[]>;
 }) {
   const resolvedRows = [...rows];

@@ -212,6 +212,59 @@ describe("ensureProductImportReferences", () => {
     );
   });
 
+  it("resolves references by reloading when a create endpoint answers with no row", async () => {
+    // Some backends reply to /create with an empty envelope, so saveEntity
+    // returns undefined instead of the stored row.
+    const saveGroup = vi.fn().mockResolvedValue(undefined);
+    const saveCategory = vi.fn().mockResolvedValue(undefined);
+    const getGroups = vi
+      .fn()
+      .mockResolvedValueOnce([])
+      .mockResolvedValue([
+        { group_uuid: "group-import", group_name_la: "Imported" },
+      ]);
+    const getCategories = vi
+      .fn()
+      .mockResolvedValueOnce([])
+      .mockResolvedValue([
+        {
+          cate_uuid: "category-food",
+          cate_name_la: "Food",
+          group_uuid_fk: "group-import",
+        },
+      ]);
+
+    const result = await ensureProductImportReferences(
+      {
+        storeUuid: "store-1",
+        language: "la",
+        plan: {
+          group: { action: "create", name: "Imported" },
+          conflicts: [],
+          createCategories: ["Food"],
+          createUnits: [],
+          createNormalSizes: [],
+          createSetSizes: [],
+        },
+      },
+      {
+        getGroups,
+        getCategories,
+        getUnits: vi.fn().mockResolvedValue([]),
+        getSizes: vi.fn().mockResolvedValue([]),
+        saveGroup,
+        saveCategory,
+        saveUnit: vi.fn(),
+        saveSizeForStatus: vi.fn(),
+      },
+    );
+
+    expect(result.group?.group_uuid).toBe("group-import");
+    expect(result.categories).toContainEqual(
+      expect.objectContaining({ cate_uuid: "category-food" }),
+    );
+  });
+
   it("reuses a concurrently-created group instead of creating a duplicate", async () => {
     const saveGroup = vi.fn();
 

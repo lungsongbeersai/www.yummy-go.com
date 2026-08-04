@@ -1,6 +1,6 @@
 "use client";
 
-import { Save } from "lucide-react";
+import { RefreshCw, Save } from "lucide-react";
 import { BackButton } from "@/components/common/back-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -25,7 +25,12 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import type { SearchPrinterResult } from "@/services/printer";
 import { CheckboxOptionList } from "./printer-form-fields";
-import { toggleAllValues, toggleValue, type ConnectType } from "./printer-form-utils";
+import {
+  formatIpInput,
+  toggleAllValues,
+  toggleValue,
+  type ConnectType,
+} from "./printer-form-utils";
 import { usePrinterForm } from "./use-printer-form";
 
 export function PrinterFormPage() {
@@ -105,9 +110,25 @@ export function PrinterFormPage() {
                 {form.connectType === "usb" ? (
                   <>
                     <Field>
-                      <FieldLabel htmlFor="printer-usb-device">
-                        {t("printer.selectedPrinter")}
-                      </FieldLabel>
+                      <div className="flex items-center justify-between gap-2">
+                        <FieldLabel htmlFor="printer-usb-device">
+                          {t("printer.selectedPrinter")}
+                        </FieldLabel>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="xs"
+                          disabled={form.searching || form.saving}
+                          onClick={() => void form.searchUsbDevices(true)}
+                        >
+                          {form.searching ? (
+                            <Spinner data-icon="inline-start" />
+                          ) : (
+                            <RefreshCw data-icon="inline-start" />
+                          )}
+                          {t("actions.refresh")}
+                        </Button>
+                      </div>
                       <Select
                         value={form.selectedDevice}
                         disabled={!form.found.length || form.searching || form.saving}
@@ -165,8 +186,11 @@ export function PrinterFormPage() {
                         value={form.ip}
                         disabled={form.saving}
                         placeholder="192.168.100.75"
+                        inputMode="decimal"
                         required
-                        onChange={(event) => form.setIp(event.target.value)}
+                        onChange={(event) =>
+                          form.setIp(formatIpInput(event.target.value, form.ip))
+                        }
                       />
                     </Field>
                     <Field>

@@ -89,7 +89,7 @@ export function HorizontalScrollArrows({
     });
   };
   const buttonClassName = cn(
-    "absolute top-1/2 z-10 size-11 -translate-y-1/2 rounded-full border border-primary/20 bg-background/95 text-primary shadow-lg shadow-emerald-950/10 backdrop-blur-sm transition-[color,background-color,opacity] hover:bg-primary hover:text-primary-foreground disabled:opacity-0 motion-reduce:transition-none",
+    "absolute top-1/2 z-10 size-11 -translate-y-1/2 rounded-full border border-yg-line bg-yg-bg2/90 text-yg-accent-strong shadow-[0_12px_30px_-12px_rgb(0_0_0/0.5)] backdrop-blur-md transition-[color,background-color,opacity] hover:border-yg-accent hover:bg-yg-accent hover:text-yg-on-accent disabled:opacity-0 motion-reduce:transition-none",
     className,
   );
 

@@ -20,6 +20,7 @@ const user: AuthUser = {
   status: 1,
   store_logo: "",
   store_name: "Store",
+  store_table_status: 1,
   store_uuid: "store-1",
   uuid: "user-1",
 };

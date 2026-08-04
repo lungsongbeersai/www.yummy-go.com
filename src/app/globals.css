@@ -1,4 +1,7 @@
 @import "tailwindcss";
+/* token ของหน้า /pos ต้อง import เข้า entry เดียวกับ tailwindcss
+   ไม่งั้น Tailwind v4 จะไม่เห็น @theme ในไฟล์นั้นและไม่ generate utility ให้ */
+@import "../features/public-pos/order/nightfall.css";
 
 @custom-variant dark (&:is(.dark *));
 

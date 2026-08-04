@@ -37,7 +37,7 @@ export function PaymentStat({
       </p>
       <p
         className={cn(
-          "mt-0.5 leading-tight font-black tabular-nums [overflow-wrap:anywhere] sm:mt-1",
+          "mt-0.5 leading-tight font-black tabular-nums wrap-anywhere sm:mt-1",
           hero
             ? "text-base min-[380px]:text-lg sm:text-2xl lg:text-4xl"
             : "text-xs min-[380px]:text-sm min-[430px]:text-base sm:text-lg lg:text-xl",
@@ -116,9 +116,13 @@ export function PosNumpad({
     "h-full min-h-11 min-w-0 rounded-md text-lg font-black tabular-nums sm:text-2xl";
   const actionClass =
     "h-full min-h-11 min-w-0 rounded-md px-2 text-xs font-black sm:text-sm";
+  // "พอดี" เป็น shortcut ช่วยกรอกให้ ไม่ใช่ undo แบบ backspace/ล้าง จึงให้สี primary
+  // อ่อน ๆ แยกความหมาย ส่วน confirm ให้เป็นสี primary เต็มเพราะเป็น action เดียวกับ
+  // ปุ่ม "ยืนยันรับเงิน" หลัก — กันไม่ให้หน้าตาเหมือนปุ่มล้าง/backspace จนกดผิด
+  const exactClass = cn(actionClass, "border-primary/40 text-primary hover:bg-primary/10");
 
   return (
-    <div className="grid h-full min-h-[12.25rem] grid-cols-4 grid-rows-4 gap-1.5 min-[430px]:gap-2 sm:min-h-56 lg:min-h-0">
+    <div className="grid h-full min-h-49 grid-cols-4 grid-rows-4 gap-1.5 min-[430px]:gap-2 sm:min-h-56 lg:min-h-0">
       {["7", "8", "9"].map((value) => (
         <Button
           key={value}
@@ -178,8 +182,8 @@ export function PosNumpad({
       ))}
       <Button
         type="button"
-        variant="secondary"
-        className={actionClass}
+        variant="outline"
+        className={exactClass}
         onPointerDown={keepAmountFocus}
         onClick={onExact}
       >
@@ -216,7 +220,7 @@ export function PosNumpad({
       </Button>
       <Button
         type="button"
-        variant="secondary"
+        variant="default"
         className={actionClass}
         disabled={processing}
         onPointerDown={keepAmountFocus}
