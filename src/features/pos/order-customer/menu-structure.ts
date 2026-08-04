@@ -103,6 +103,18 @@ export function selectedOrderTable({
   );
 }
 
+// ร้านไม่มีโต๊ะ (store_table_status === 2): ใช้ order_uuid ของบิลปัจจุบันแทน
+// table_uuid เป็น identity ให้ SelectedTableCartPanel/useSelectedTableCartPanelWorkflow
+// ใช้ pipeline เดิม (hasSelectedTable, cartOrdersBelongToTable ฯลฯ) ได้โดยไม่ต้องแก้
+export function counterOrderTable(orderUuid: string, tableName: string): PosTable {
+  return {
+    table_uuid: orderUuid,
+    table_name: tableName,
+    table_status: TableStatus.OCCUPIED,
+    number_of_seats: 0,
+  };
+}
+
 export function orderCustomerUrl({
   tableName,
   tableUuid,

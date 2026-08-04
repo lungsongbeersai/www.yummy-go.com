@@ -88,6 +88,7 @@ export function OrderCustomerView({
     setProductSheetOpen,
     setQty,
     setSearch,
+    showTableFeatures,
     submitSearch,
     submitSelectedProduct,
     t,
@@ -163,7 +164,7 @@ export function OrderCustomerView({
             />
           </div>
 
-          <div className="relative hidden min-w-0 items-center gap-2 md:flex">
+          <div className="relative hidden min-w-0 items-center gap-2 md:flex md:h-11">
             <Button
               type="button"
               variant="ghost"
@@ -299,6 +300,7 @@ export function OrderCustomerView({
               newOrderFocusKey={newOrderFocusKey}
               printerContext={printerContext}
               showCreateEmployeeOrderAction={false}
+              showTableFeatures={showTableFeatures}
               table={selectedTable}
               onCartRefresh={loadCart}
               onTableActionComplete={handleTableActionComplete}
@@ -343,6 +345,7 @@ export function OrderCustomerView({
             newOrderFocusKey={newOrderFocusKey}
             printerContext={printerContext}
             showCreateEmployeeOrderAction={false}
+            showTableFeatures={showTableFeatures}
             table={selectedTable}
             variant="sheet"
             onCartRefresh={loadCart}

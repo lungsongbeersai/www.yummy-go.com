@@ -220,7 +220,7 @@ function ProductOrderForm({
               <span className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-yg-accent">
                 {modeLabel || t("pos.product")}
               </span>
-              <TitleTag className="lao-tone-text break-words font-yg-sans text-[clamp(21px,5vw,26px)] font-semibold leading-snug text-yg-ink">
+              <TitleTag className="lao-tone-text wrap-break-word font-yg-sans text-[clamp(21px,5vw,26px)] font-semibold leading-snug text-yg-ink">
                 {product.prodName}
               </TitleTag>
               {product.uniteName ? (
@@ -554,7 +554,7 @@ function ProductToppingRow({
           onChange={onToggle}
           className="size-5 border-yg-faint data-[state=checked]:border-yg-accent data-[state=checked]:bg-yg-accent data-[state=checked]:text-yg-on-accent"
         />
-        <span className="lao-tone-text line-clamp-2 min-w-0 break-words">
+        <span className="lao-tone-text line-clamp-2 min-w-0 wrap-break-word">
           {label}
         </span>
         {!enabled ? (

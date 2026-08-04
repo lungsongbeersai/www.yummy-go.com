@@ -46,6 +46,7 @@ export function SelectedTableCartPanel({
   table,
   variant = "side",
   showCreateEmployeeOrderAction = true,
+  showTableFeatures = true,
   onCartRefresh,
   onTableActionComplete,
 }: {
@@ -57,6 +58,7 @@ export function SelectedTableCartPanel({
   table: PosTable | null;
   variant?: "side" | "sheet";
   showCreateEmployeeOrderAction?: boolean;
+  showTableFeatures?: boolean;
   onCartRefresh: () => Promise<void>;
   onTableActionComplete: (nextTableUuid?: string) => Promise<void>;
 }) {
@@ -74,6 +76,7 @@ export function SelectedTableCartPanel({
       allZones={allZones}
       loading={loading}
       showCreateEmployeeOrderAction={showCreateEmployeeOrderAction}
+      showTableFeatures={showTableFeatures}
       variant={variant}
       workflow={workflow}
       onTableActionComplete={onTableActionComplete}

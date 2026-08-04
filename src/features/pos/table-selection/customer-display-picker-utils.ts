@@ -1,4 +1,5 @@
 export const CUSTOMER_DISPLAY_TARGET_STORAGE_KEY = "yummy-go:customer-display-target";
+export type CustomerDisplayPickerMode = "browser-fallback" | "browser-window-management" | "electron";
 export const BROWSER_CUSTOMER_DISPLAY_TARGET_STORAGE_KEY = "yummy-go:customer-display-browser-target";
 
 export type BrowserCustomerDisplayScreenLike = {
@@ -62,6 +63,11 @@ export function customerDisplayPosition(display: Pick<ElectronDisplay, "x" | "y"
 
 export function browserCustomerDisplayPosition(display: Pick<BrowserCustomerDisplayScreen, "left" | "top">) {
   return `x ${display.left}, y ${display.top}`;
+}
+
+// จอ primary คือจอที่แคชเชียร์มองอยู่ (POS) จึงไม่ใช่ candidate ที่เปิดจอลูกค้าได้จริง
+export function electronSecondaryDisplays(info: ElectronDisplayInfo | null | undefined) {
+  return (info?.displays ?? []).filter((display) => !display.isPrimary);
 }
 
 export function activeCustomerDisplay(info: ElectronDisplayInfo | null | undefined) {
@@ -158,6 +164,12 @@ export function normalizeBrowserCustomerDisplayInfo(
   };
 }
 
+// isCurrent = จอที่หน้าต่างเบราว์เซอร์นี้เปิดอยู่ (ของแคชเชียร์) จึงตัดออกจาก
+// candidate เหมือน isPrimary ของฝั่ง Electron
+export function browserSecondaryScreens(info: BrowserCustomerDisplayInfo | null | undefined) {
+  return (info?.screens ?? []).filter((screen) => !screen.isPrimary && !screen.isCurrent);
+}
+
 export function defaultBrowserCustomerDisplayKey(
   info: BrowserCustomerDisplayInfo | null | undefined,
   preferredKey: string | null | undefined
@@ -209,4 +221,34 @@ export function closeBrowserCustomerDisplayWindow(
 
   popup.close();
   return true;
+}
+
+// รวม logic การตัดสิน UI ของทั้ง 3 mode (electron / browser-window-management /
+// browser-fallback) ให้เหลือ state เดียวกัน กันไม่ให้แต่ละ mode แยกเขียนเงื่อนไข
+// เองจนหลุด edge case แบบที่เคยเกิด (โชว์การ์ดจอที่เลือกได้ทั้งที่ไม่มีจอลูกค้าจริง)
+export type CustomerDisplayPickerViewState =
+  | "unsupported"
+  | "loading"
+  | "no-screens"
+  | "no-secondary"
+  | "single-secondary"
+  | "multi-secondary";
+
+export function customerDisplayPickerViewState({
+  loading,
+  mode,
+  secondaryCount,
+  totalCount
+}: {
+  loading: boolean;
+  mode: CustomerDisplayPickerMode;
+  secondaryCount: number;
+  totalCount: number;
+}): CustomerDisplayPickerViewState {
+  if (mode === "browser-fallback") return "unsupported";
+  if (loading) return "loading";
+  if (totalCount === 0) return "no-screens";
+  if (secondaryCount === 0) return "no-secondary";
+  if (secondaryCount === 1) return "single-secondary";
+  return "multi-secondary";
 }

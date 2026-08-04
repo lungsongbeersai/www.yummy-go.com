@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useResetOnDeps } from "@/hooks/use-reset-on-change";
+import { optionalString } from "@/lib/values";
 import type { ProdDetail, ProdItem } from "@/services/pos";
 import type { PrinterDeviceContext } from "@/services/printer";
 import { useAppStore } from "@/stores/app-store";
@@ -15,6 +16,7 @@ import { useToastStore } from "@/stores/toast-store";
 import {
   buildStaffOrderInput,
   changeToppingQty,
+  counterOrderTable,
   firstAvailableDetail,
   flattenProducts,
   getModalUnitPrice,
@@ -40,17 +42,20 @@ import { cartForTable, cartQuantityCount } from "../table-selection/utils";
 export type OrderCustomerWorkflowInput = {
   initialTableUuid: string;
   initialTableName: string;
+  initialOrderUuid: string;
 };
 
 export function useOrderCustomerWorkflow({
   initialTableUuid,
   initialTableName,
+  initialOrderUuid,
 }: OrderCustomerWorkflowInput) {
   const { t } = useTranslation();
   const router = useRouter();
   const isMobile = useIsMobile();
   const user = useAuthStore((state) => state.user);
   const branchUuid = user?.branch_uuid ?? "";
+  const isNoTableStore = user?.store_table_status === 2;
   const language = useAppStore((state) => state.language);
   const showToast = useToastStore((state) => state.show);
   const zones = usePosStore((state) => state.zones);
@@ -93,21 +98,30 @@ export function useOrderCustomerWorkflow({
   const [fetchedPrinterContext, setFetchedPrinterContext] =
     useState<PrinterDeviceContext | null>(null);
   const printerContext = user?.uuid ? fetchedPrinterContext : null;
+  // ร้านไม่มีโต๊ะ (store_table_status === 2): ไม่มี table_uuid ให้ยึด จึงใช้
+  // order_uuid ของบิลแรกที่สร้างเป็นตัวยึดแทนสำหรับ fetch_cart/refresh ต่อ ๆ ไป
+  const [counterOrderUuid, setCounterOrderUuid] = useState(initialOrderUuid);
 
-  const selectedTable = useMemo(
-    () =>
-      selectedOrderTable({
+  const selectedTable = useMemo(() => {
+    if (initialTableUuid) {
+      return selectedOrderTable({
         tableName: initialTableName,
         tableUuid: initialTableUuid,
         zones,
-      }),
-    [initialTableName, initialTableUuid, zones],
-  );
+      });
+    }
+    if (counterOrderUuid) {
+      return counterOrderTable(counterOrderUuid, t("pos.counterOrderLabel"));
+    }
+    return null;
+  }, [counterOrderUuid, initialTableName, initialTableUuid, t, zones]);
 
-  const selectedCart = useMemo(
-    () => cartForTable(cart, initialTableUuid),
-    [cart, initialTableUuid],
-  );
+  const selectedCart = useMemo(() => {
+    // fetch_cart ของออเดอร์เคาน์เตอร์ query ด้วย order_uuid + branch_uuid_fk
+    // อยู่แล้ว (ขอบเขตแคบพอ) จึงไม่ต้อง filter ด้วย cartForTable ซ้ำแบบโต๊ะ
+    if (!initialTableUuid) return cart;
+    return cartForTable(cart, initialTableUuid);
+  }, [cart, initialTableUuid]);
   const activeProducts = useMemo(
     () => flattenProducts(menuBySort[activeSort]),
     [activeSort, menuBySort],
@@ -147,10 +161,18 @@ export function useOrderCustomerWorkflow({
   );
 
   const loadCart = useCallback(async () => {
-    if (!initialTableUuid) return;
+    if (!initialTableUuid && !counterOrderUuid) return;
 
     try {
-      await loadCartStore({ table_uuid: initialTableUuid, lang: language });
+      if (initialTableUuid) {
+        await loadCartStore({ table_uuid: initialTableUuid, lang: language });
+      } else if (branchUuid) {
+        await loadCartStore({
+          branch_uuid_fk: branchUuid,
+          order_uuid: counterOrderUuid,
+          lang: language,
+        });
+      }
     } catch (error) {
       showToast({
         title: t("pos.orderFailed"),
@@ -158,7 +180,15 @@ export function useOrderCustomerWorkflow({
         tone: "error",
       });
     }
-  }, [initialTableUuid, language, loadCartStore, showToast, t]);
+  }, [
+    branchUuid,
+    counterOrderUuid,
+    initialTableUuid,
+    language,
+    loadCartStore,
+    showToast,
+    t,
+  ]);
 
   const loadTablesForBranch = useCallback(async () => {
     if (!branchUuid) return [];
@@ -229,7 +259,7 @@ export function useOrderCustomerWorkflow({
       quantity: number;
       toppings: SelectedTopping[];
     }) => {
-      await createOrder(
+      const response = await createOrder(
         buildStaffOrderInput({
           branchUuid: user?.branch_uuid ?? "",
           detail,
@@ -243,19 +273,37 @@ export function useOrderCustomerWorkflow({
           userUuid: user?.uuid ?? "",
         }),
       );
-      // fetch_cart ยังไม่รองรับ table_uuid ว่าง (ร้านไม่มีโต๊ะ) — ข้าม refresh
-      // ตะกร้าไปก่อนจนกว่า backend จะรองรับ
+
       if (initialTableUuid) {
         await loadCartStore({ table_uuid: initialTableUuid, lang: language });
+      } else {
+        // ร้านไม่มีโต๊ะ: บิลแรกที่สร้างได้ order_uuid มาเป็นตัวยึด — เก็บไว้ใน
+        // state และ URL เพื่อให้รีเฟรชหน้าแล้วยังตามบิลเดิมต่อได้ backend รวม
+        // รายการที่สั่งเพิ่มทีหลังเข้าบิลเดียวกันให้เองโดยไม่ต้องส่ง order_uuid กลับไป
+        const nextOrderUuid = optionalString(response.order_uuid) ?? counterOrderUuid;
+        if (nextOrderUuid && nextOrderUuid !== counterOrderUuid) {
+          setCounterOrderUuid(nextOrderUuid);
+          router.replace(`/pos/order?order_uuid=${encodeURIComponent(nextOrderUuid)}`);
+        }
+        if (nextOrderUuid && branchUuid) {
+          await loadCartStore({
+            branch_uuid_fk: branchUuid,
+            order_uuid: nextOrderUuid,
+            lang: language,
+          });
+        }
       }
       setNewOrderFocusKey((key) => key + 1);
       showToast({ title: t("pos.orderCreated"), tone: "success" });
     },
     [
+      branchUuid,
+      counterOrderUuid,
       createOrder,
       initialTableUuid,
       language,
       loadCartStore,
+      router,
       showToast,
       t,
       user?.branch_uuid,
@@ -540,7 +588,18 @@ export function useOrderCustomerWorkflow({
       return;
     }
 
-    await loadCartStore({ table_uuid: targetUuid, lang: language });
+    if (targetUuid) {
+      await loadCartStore({ table_uuid: targetUuid, lang: language });
+      return;
+    }
+
+    if (counterOrderUuid && branchUuid) {
+      await loadCartStore({
+        branch_uuid_fk: branchUuid,
+        order_uuid: counterOrderUuid,
+        lang: language,
+      });
+    }
   }
 
   return {
@@ -585,6 +644,7 @@ export function useOrderCustomerWorkflow({
     setProductSheetOpen,
     setQty,
     setSearch,
+    showTableFeatures: !isNoTableStore,
     submitSearch,
     submitSelectedProduct,
     t,

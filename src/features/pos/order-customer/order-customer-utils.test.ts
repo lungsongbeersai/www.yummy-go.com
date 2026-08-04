@@ -6,6 +6,7 @@ import {
   canDirectAddFromList,
   clampOrderQuantity,
   changeToppingQty,
+  counterOrderTable,
   countSelectedToppings,
   defaultOrderQty,
   firstAvailableDetail,
@@ -122,6 +123,14 @@ describe("order customer helpers", () => {
     expect(orderCustomerUrl({ tableUuid: "table 1", tableName: "A&B" })).toBe(
       "/pos/order?table_uuid=table+1&table_name=A%26B",
     );
+  });
+
+  it("builds a synthetic table identity for counter orders (no real table)", () => {
+    expect(counterOrderTable("order-1", "Counter order")).toMatchObject({
+      table_uuid: "order-1",
+      table_name: "Counter order",
+      table_status: TableStatus.OCCUPIED,
+    });
   });
 
   it("flattens category products and picks first sort with products", () => {

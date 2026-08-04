@@ -5,13 +5,16 @@ import {
   browserCustomerDisplayWindowFeatures,
   browserCustomerDisplayWindowIsActive,
   browserDisplayIsConnected,
+  browserSecondaryScreens,
   closeBrowserCustomerDisplayWindow,
   customerDisplayIdFromStorage,
+  customerDisplayPickerViewState,
   customerDisplayPosition,
   customerDisplayResolution,
   defaultBrowserCustomerDisplayKey,
   defaultCustomerDisplayId,
   displayIsConnected,
+  electronSecondaryDisplays,
   normalizeBrowserCustomerDisplayInfo,
   type BrowserCustomerDisplayScreenLike
 } from "./customer-display-picker-utils";
@@ -167,6 +170,48 @@ describe("customer display picker helpers", () => {
     expect(browserCustomerDisplayPosition(info.screens[1])).toBe("x 1920, y 0");
     expect(browserCustomerDisplayWindowFeatures(info.screens[1])).toContain("left=1920");
     expect(browserCustomerDisplayWindowFeatures()).toContain("width=1200");
+  });
+
+  it("excludes the primary display from the electron secondary candidate list", () => {
+    expect(electronSecondaryDisplays(displayInfo())).toEqual([secondary]);
+    expect(electronSecondaryDisplays(displayInfo({ displays: [primary], hasSecondary: false }))).toEqual([]);
+    expect(electronSecondaryDisplays(null)).toEqual([]);
+  });
+
+  it("excludes the primary and current screen from the browser secondary candidate list", () => {
+    const info = normalizeBrowserCustomerDisplayInfo(
+      { currentScreen: browserPrimary, screens: [browserPrimary, browserSecondary] },
+      true
+    );
+
+    expect(browserSecondaryScreens(info)).toEqual([info.screens[1]]);
+    expect(browserSecondaryScreens(null)).toEqual([]);
+  });
+
+  it("derives one shared picker view state across all three modes", () => {
+    expect(
+      customerDisplayPickerViewState({ loading: false, mode: "browser-fallback", secondaryCount: 5, totalCount: 5 })
+    ).toBe("unsupported");
+    expect(
+      customerDisplayPickerViewState({ loading: true, mode: "electron", secondaryCount: 0, totalCount: 0 })
+    ).toBe("loading");
+    expect(
+      customerDisplayPickerViewState({ loading: false, mode: "electron", secondaryCount: 0, totalCount: 0 })
+    ).toBe("no-screens");
+    expect(
+      customerDisplayPickerViewState({ loading: false, mode: "electron", secondaryCount: 0, totalCount: 1 })
+    ).toBe("no-secondary");
+    expect(
+      customerDisplayPickerViewState({
+        loading: false,
+        mode: "browser-window-management",
+        secondaryCount: 1,
+        totalCount: 2
+      })
+    ).toBe("single-secondary");
+    expect(
+      customerDisplayPickerViewState({ loading: false, mode: "electron", secondaryCount: 2, totalCount: 3 })
+    ).toBe("multi-secondary");
   });
 
   it("tracks and closes browser customer display popup windows", () => {

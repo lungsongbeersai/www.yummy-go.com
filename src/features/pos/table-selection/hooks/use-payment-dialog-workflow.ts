@@ -74,6 +74,7 @@ import {
 const EMPTY_EXCHANGES: Exchange[] = [];
 
 export function usePaymentDialogWorkflow({
+  hasRealTable = true,
   onCompleted,
   onOpenChange,
   open,
@@ -452,7 +453,7 @@ export function usePaymentDialogWorkflow({
     try {
       const paymentPayload = {
         order_uuid: orderUuid,
-        table_uuid: table.table_uuid,
+        ...(hasRealTable ? { table_uuid: table.table_uuid } : {}),
         customer_uuid_fk: customers.customerUuid,
         payment_method: selectedTab.method,
         amount: totalAmount,
