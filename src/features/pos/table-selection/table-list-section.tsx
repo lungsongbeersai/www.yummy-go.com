@@ -164,10 +164,8 @@ function ZoneChip({
       className={cn(
         "h-10 shrink-0 rounded-full px-3.5 font-black shadow-sm transition",
         active ? "shadow-primary/20" : "border-border bg-card hover:border-primary/30 hover:bg-primary/5",
-        // มีออเดอร์ใหม่ = กะพริบพื้นหลังแดงอ่อนทับสี active/inactive เดิมไปเลย
-        // (สถานะ "กำลังดูโซนนี้อยู่" ยังบอกได้จากไอคอนถูกข้างหน้า) — ใช้โทนอ่อน +
-        // ตัวหนังสือ/badge สีแดงเข้มแทน แทนที่จะกะพริบพื้นแดงเข้มทึบทั้งชิป
-        hasAlert && "pos-alert-flash border border-destructive/30 text-destructive"
+        // ใช้ ring กะพริบแทนพื้นหลังกะพริบ — พื้นหลังกะพริบชนสี text-destructive จนคอนทราสต์ไม่ผ่าน WCAG AA
+        hasAlert && "pos-chip-alert-ring"
       )}
       onClick={onClick}
     >
@@ -237,19 +235,21 @@ function TableCard({
   const busy = tableStatus(table) === "busy";
   const hasUpdate = Boolean(table.customer_order_state);
   const seats = tableSeatCount(table);
+  // hasUpdate ใช้โทนแดง (destructive) แทนเขียว (primary) ที่ busy ใช้ เพื่อให้แยกกันได้ชัดจากระยะไกล
+  // แต่ต้องเป็นพื้นทึบนิ่ง ไม่ใช่ text สีแดง — กันปัญหาคอนทราสต์แบบเดียวกับ ZoneChip
   const cardToneClass = hasUpdate
-    ? "pos-table-card-alert border-destructive/70 bg-primary/15"
+    ? "pos-table-card-alert border-destructive/70"
     : busy
       ? "border-primary/75 bg-primary/10"
       : "border-border";
-  const bodyToneClass = hasUpdate ? "bg-primary/45" : busy ? "bg-primary/35" : "bg-card";
+  const bodyToneClass = hasUpdate ? "bg-destructive/18" : busy ? "bg-primary/35" : "bg-card";
   const footerToneClass = hasUpdate
-    ? "border-primary/50 bg-primary/20"
+    ? "border-destructive/30 bg-destructive/12"
     : busy
       ? "border-primary/35 bg-primary/15"
       : "border-border bg-muted/50";
   const statusDotClass = busy ? "bg-destructive" : "bg-primary";
-  const statusTextClass = busy ? "text-destructive" : "text-primary";
+  const statusTextClass = hasUpdate ? "text-foreground" : busy ? "text-destructive" : "text-primary";
 
   return (
     <Card
