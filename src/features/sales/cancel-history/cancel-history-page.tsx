@@ -2,20 +2,18 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useResetOnChange } from "@/hooks/use-reset-on-change";
-import { History, RefreshCcw, SlidersHorizontal } from "lucide-react";
+import { History, RefreshCcw } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { AppPagination } from "@/components/common/app-pagination";
 import { EmptyState } from "@/components/common/empty-state";
-import { FilterHeaderToolbar } from "@/components/common/filter-header-toolbar";
 import { LoadingState } from "@/components/common/loading-state";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Sheet, SheetClose, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useUrlPagination } from "@/hooks/use-url-pagination";
 import { dateTime } from "@/lib/format";
@@ -59,7 +57,6 @@ export function CancelHistoryPage({ initialPagination }: { initialPagination: Ur
     ...defaultCancelHistoryFilters(branchUuid),
     limit: initialPagination.limit
   }));
-  const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
   const { changeLimit, goToPage, page, resetPage } = useUrlPagination({
     initialPagination,
     limitOptions: CANCEL_HISTORY_LIMIT_OPTIONS
@@ -68,8 +65,6 @@ export function CancelHistoryPage({ initialPagination }: { initialPagination: Ur
   const range = cancelHistoryRange(responsePage || page, appliedFilters.limit, bills.length, total);
   const rangeLabel = t("cancelHistory.range", { end: range.end, start: range.start, total });
   const canApply = Boolean(branchUuid && draftFilters.startDate && draftFilters.endDate);
-  const dateRangeLabel = `${appliedFilters.startDate} - ${appliedFilters.endDate}`;
-  const orderLabel = t(appliedFilters.orderBy === "ASC" ? "common.oldestFirst" : "common.newestFirst");
 
   // สลับสาขา = อัปเดต filter, กลับหน้าแรก และล้างประวัติถ้าไม่มีสาขา
   useResetOnChange(branchUuid, () => {
@@ -121,11 +116,6 @@ export function CancelHistoryPage({ initialPagination }: { initialPagination: Ur
     changeLimit(draftFilters.limit);
   }
 
-  function applyMobileFilters() {
-    applyFilters();
-    setMobileFilterOpen(false);
-  }
-
   return (
     // เต็มหน้าจอแบบ /settings/store: ไม่มี padding รอบนอก ตารางกินความสูงที่เหลือทั้งหมด
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-muted/20">
@@ -141,55 +131,6 @@ export function CancelHistoryPage({ initialPagination }: { initialPagination: Ur
           </div>
         </div>
 
-        <FilterHeaderToolbar
-          dateRange={{
-            ariaLabel: `${t("cancelHistory.filters")}: ${dateRangeLabel}`,
-            label: dateRangeLabel,
-            onClick: () => setMobileFilterOpen(true)
-          }}
-          extraChips={
-            <>
-              <Badge className="h-7 max-w-48 truncate border-border bg-muted px-2 text-xs text-muted-foreground">
-                {branchLabel}
-              </Badge>
-              <Badge className="h-7 border-border bg-muted px-2 text-xs text-muted-foreground">
-                {appliedFilters.limit}
-              </Badge>
-              <Badge className="h-7 max-w-36 truncate px-2 text-xs">
-                {orderLabel}
-              </Badge>
-            </>
-          }
-          filterControl={
-            // จอ lg ขึ้นไปมีแถบตัวกรองอยู่บนหน้าแล้ว ปุ่มนี้จึงเหลือไว้ให้จอเล็กที่ยังใช้ sheet
-            <Button
-              type="button"
-              variant="outline"
-              size="iconSm"
-              className="h-9 w-9 shrink-0 lg:hidden"
-              aria-label={t("cancelHistory.filters")}
-              onClick={() => setMobileFilterOpen(true)}
-            >
-              <SlidersHorizontal data-icon="inline-start" />
-              <span className="sr-only">{t("cancelHistory.filters")}</span>
-            </Button>
-          }
-          refreshControl={
-            <Button
-              type="button"
-              variant="outline"
-              size="iconSm"
-              className="h-9 w-9 shrink-0"
-              aria-label={t("actions.refresh")}
-              disabled={loading || !canApply}
-              onClick={() => void load()}
-            >
-              <RefreshCcw className={loading ? "animate-spin" : undefined} data-icon="inline-start" />
-              <span className="sr-only">{t("actions.refresh")}</span>
-            </Button>
-          }
-        />
-
         <CancelHistoryFilterBar
           branchLabel={branchLabel}
           canApply={canApply}
@@ -198,18 +139,6 @@ export function CancelHistoryPage({ initialPagination }: { initialPagination: Ur
           onApply={applyFilters}
           onDraftChange={patchDraft}
         />
-
-        <CancelHistoryFilterSheet
-          branchLabel={branchLabel}
-          canApply={canApply}
-          draftFilters={draftFilters}
-          loading={loading}
-          open={mobileFilterOpen}
-          onApply={applyMobileFilters}
-          onDraftChange={patchDraft}
-          onOpenChange={setMobileFilterOpen}
-        />
-
       </div>
 
       {!branchUuid || error ? (
@@ -262,7 +191,7 @@ function CancelHistoryFilterBar({
   const { t } = useTranslation();
 
   return (
-    <Card className="hidden min-w-0 shrink-0 rounded-none border-x-0 border-t-0 border-border bg-card shadow-none lg:block">
+    <Card className="min-w-0 shrink-0 rounded-none border-x-0 border-t-0 border-border bg-card shadow-none">
       <CardContent className="grid min-w-0 items-end gap-3 px-3 py-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-[repeat(5,minmax(0,1fr))_auto]">
         <CancelHistoryFilterFields
           branchLabel={branchLabel}
@@ -276,60 +205,6 @@ function CancelHistoryFilterBar({
         </Button>
       </CardContent>
     </Card>
-  );
-}
-
-function CancelHistoryFilterSheet({
-  branchLabel,
-  canApply,
-  draftFilters,
-  loading,
-  open,
-  onApply,
-  onDraftChange,
-  onOpenChange
-}: {
-  branchLabel: string;
-  canApply: boolean;
-  draftFilters: CancelHistoryFilters;
-  loading: boolean;
-  open: boolean;
-  onApply: () => void;
-  onDraftChange: (patch: Partial<CancelHistoryFilters>) => void;
-  onOpenChange: (open: boolean) => void;
-}) {
-  const { t } = useTranslation();
-
-  return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="max-h-[88dvh] gap-0 overflow-hidden rounded-t-xl p-0 sm:hidden">
-        <SheetHeader className="shrink-0 border-b border-border px-4 py-3 pr-12 text-left">
-          <SheetTitle className="text-base font-black">{t("cancelHistory.filters")}</SheetTitle>
-          <SheetDescription>{t("cancelHistory.title")}</SheetDescription>
-        </SheetHeader>
-        <div className="min-h-0 overflow-y-auto p-4">
-          <FieldGroup className="grid gap-3">
-            <CancelHistoryFilterFields
-              branchLabel={branchLabel}
-              draftFilters={draftFilters}
-              idPrefix="cancel-history-mobile"
-              onDraftChange={onDraftChange}
-            />
-          </FieldGroup>
-        </div>
-        <SheetFooter className="grid-cols-2 gap-2 border-t border-border bg-card/95 px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur grid">
-          <SheetClose asChild>
-            <Button type="button" variant="outline">
-              {t("actions.close")}
-            </Button>
-          </SheetClose>
-          <Button type="button" disabled={loading || !canApply} onClick={onApply}>
-            {loading ? <RefreshCcw className="animate-spin" data-icon="inline-start" /> : null}
-            {t("cancelHistory.apply")}
-          </Button>
-        </SheetFooter>
-      </SheetContent>
-    </Sheet>
   );
 }
 

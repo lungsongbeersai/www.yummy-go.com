@@ -194,6 +194,37 @@ export interface CreateOrderInput extends ApiEntity {
   items: CreateOrderItem[];
 }
 export interface CreateOrderResponse extends ApiEntity { status: string; message: string; order_uuid?: string }
+export interface InitOrderWithoutTableInput extends ApiEntity {
+  branch_uuid_fk: string;
+  order_source: OrderSource;
+  order_channel: OrderChannel;
+}
+// ร้านไม่มีโต๊ะ (store_table_status === 2): backend ผูก "บิลที่เปิดค้างอยู่" กับ
+// login token ของแคชเชียร์เอง — เรียกตอนเข้าหน้าออเดอร์เพื่อสร้างบิลใหม่ (created)
+// หรือดึงบิลเดิมที่ยังไม่จ่ายเงินกลับมาต่อ (resumed) แทนการ persist order_uuid ฝั่ง client
+export interface InitOrderWithoutTableResponse extends ApiEntity {
+  status: string;
+  message: string;
+  created: boolean;
+  resumed: boolean;
+  mode: string;
+  order_uuid: string;
+  order_invoice?: string;
+  branch_uuid_fk?: string;
+  table_uuid_fk?: string | null;
+  order_created_by?: string;
+  order_status?: number;
+  order_check_bill?: number;
+  order_qty?: number;
+  order_total?: number;
+  order_grand_total?: number;
+  order_paid_total?: number;
+  order_balance?: number;
+  store_uuid_fk?: string;
+  store_table_status?: number;
+  use_table?: boolean;
+  show_table?: boolean;
+}
 export type ChangeType = "INCREASE" | "DECREASE";
 export interface UpdateQtyInput { order_item_uuid: string; change_type: ChangeType; change_qty: number }
 export interface UpdateQtyResponse extends ApiEntity {}

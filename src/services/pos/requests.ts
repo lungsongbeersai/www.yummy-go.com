@@ -29,6 +29,8 @@ import type {
   FetchJoinMoveTableResponse,
   FetchPosParams,
   GetProdItemParams,
+  InitOrderWithoutTableInput,
+  InitOrderWithoutTableResponse,
   ItemDiscountInput,
   ItemDiscountResponse,
   JoinTableMultiInput,
@@ -104,6 +106,12 @@ export async function getProdItem(params: GetProdItemParams) {
 export function createOrder(input: CreateOrderInput) {
   requiredItems(input.items);
   return apiRequest<CreateOrderResponse>("post", "/api/v1/pos/create_order", { data: input });
+}
+
+// ร้านไม่มีโต๊ะ: backend ผูกบิลที่เปิดค้างไว้กับ login token ของแคชเชียร์เอง
+// เรียกตอนเข้าหน้าออเดอร์เพื่อสร้างบิลใหม่หรือดึงบิลเดิมที่ยังไม่จ่ายเงินกลับมาต่อ
+export function initOrderWithoutTable(input: InitOrderWithoutTableInput) {
+  return apiRequest<InitOrderWithoutTableResponse>("post", "/api/v1/pos/init_order_without_table", { data: input });
 }
 
 export const updateOrderItemQty = (input: UpdateQtyInput) =>

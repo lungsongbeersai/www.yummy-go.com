@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useResetOnDeps } from "@/hooks/use-reset-on-change";
+import { OrderChannelEnum, OrderSourceEnum } from "@/config/pos-constants";
 import { optionalString } from "@/lib/values";
 import type { ProdDetail, ProdItem } from "@/services/pos";
 import type { PrinterDeviceContext } from "@/services/printer";
@@ -73,12 +74,13 @@ export function useOrderCustomerWorkflow({
   const resetMenu = usePosStore((state) => state.resetMenu);
   const loadProductItem = usePosStore((state) => state.loadProductItem);
   const createOrder = usePosStore((state) => state.createOrder);
+  const initOrderWithoutTable = usePosStore((state) => state.initOrderWithoutTable);
   const setTable = usePosStore((state) => state.setTable);
   const setActiveSort = usePosStore((state) => state.setActiveSort);
   // ร้านไม่มีโต๊ะ (store_table_status === 2): ไม่มี table_uuid ให้ยึด จึงใช้
-  // order_uuid ของบิลแรกที่สร้างเป็นตัวยึดแทนสำหรับ fetch_cart/refresh ต่อ ๆ ไป
-  // เก็บใน pos-store (persist ลง localStorage) ไม่ใช่ local state เพื่อไม่ให้บิล
-  // ที่ยังไม่จ่ายเงินหายไปตอนรีเฟรชหน้า/ปิดแท็บ/ย้อนกลับมาใหม่
+  // order_uuid ของบิลที่เปิดอยู่แทนสำหรับ fetch_cart/refresh ต่อ ๆ ไป — ได้มาจาก
+  // init_order_without_table (เรียกตอนเข้าหน้านี้ ดู effect ด้านล่าง) ซึ่ง backend
+  // ผูกไว้กับ login token เอง ไม่ต้อง persist ฝั่ง client
   const counterOrderUuid = usePosStore((state) => state.counterOrderUuid);
   const setCounterOrderUuid = usePosStore((state) => state.setCounterOrderUuid);
   const resolvePrinterDeviceContext = usePrinterStore(
@@ -420,6 +422,43 @@ export function useOrderCustomerWorkflow({
       router.replace("/pos/tables");
     }
   }, [initialTableUuid, router, user?.store_table_status]);
+
+  // ร้านไม่มีโต๊ะ: เข้าหน้านี้ปุ๊บขอ order_uuid ของบิลที่เปิดค้างอยู่ (หรือสร้างใหม่)
+  // จาก backend ทันที ไม่ต้องรอให้กดเพิ่มสินค้าก่อนถึงจะรู้ว่าเป็นบิลไหน — ทำให้
+  // ตะกร้าโชว์รายการที่ค้างจ่ายจากรอบก่อนได้ตั้งแต่เปิดหน้า
+  useEffect(() => {
+    if (initialTableUuid || isNoTableStore !== true || !branchUuid || counterOrderUuid) return;
+
+    let cancelled = false;
+    void (async () => {
+      try {
+        await initOrderWithoutTable({
+          branch_uuid_fk: branchUuid,
+          order_source: OrderSourceEnum.POS,
+          order_channel: OrderChannelEnum.DINE_IN,
+        });
+      } catch (error) {
+        if (cancelled) return;
+        showToast({
+          title: t("pos.orderFailed"),
+          description: error instanceof Error ? error.message : "",
+          tone: "error",
+        });
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    branchUuid,
+    counterOrderUuid,
+    initOrderWithoutTable,
+    initialTableUuid,
+    isNoTableStore,
+    showToast,
+    t,
+  ]);
 
   useResetOnDeps([initialTableName, initialTableUuid], () => {
     setCartSheetOpen(false);

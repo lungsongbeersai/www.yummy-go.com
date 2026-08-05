@@ -1,7 +1,6 @@
 "use client";
 
 import { create } from "zustand";
-import { createJSONStorage, persist, type StateStorage } from "zustand/middleware";
 import {
   getPrinters,
   resolvePrinterDeviceContext,
@@ -33,6 +32,8 @@ import type {
   FetchJoinMoveTableParams,
   FetchPosParams,
   GetProdItemParams,
+  InitOrderWithoutTableInput,
+  InitOrderWithoutTableResponse,
   ItemDiscountInput,
   JoinTableMultiInput,
   MoveTableInput,
@@ -62,20 +63,6 @@ import {
 } from "@/stores/pos-store/helpers";
 import { createSessionGuard, registerSessionStoreReset } from "@/stores/session-store-registry";
 import { errorMessage } from "@/stores/store-utils";
-
-// localStorage ไม่มีอยู่จริงตอน SSR/test (Vitest รันด้วย environment: "node")
-// ต้องกันไว้เหมือน dualStorage ของ auth-store ไม่งั้น persist middleware จะ
-// throw ทุกครั้งที่ set() ถูกเรียก
-const isBrowser = typeof window !== "undefined";
-const browserLocalStorage: StateStorage = {
-  getItem: (name) => (isBrowser ? localStorage.getItem(name) : null),
-  setItem: (name, value) => {
-    if (isBrowser) localStorage.setItem(name, value);
-  },
-  removeItem: (name) => {
-    if (isBrowser) localStorage.removeItem(name);
-  }
-};
 
 async function fetchTables(params: FetchPosParams) {
   const result = await posService.getPosTables(params);
@@ -194,7 +181,8 @@ interface PosState {
   tableUuid: string;
   tableName: string;
   // ร้านไม่มีโต๊ะ (store_table_status === 2): order_uuid ของบิลที่กำลังเปิดอยู่
-  // เก็บใน localStorage เพื่อไม่ให้หายตอนรีเฟรช/ปิดแท็บ/ย้ายหน้าก่อนจ่ายเงิน
+  // backend ผูกไว้กับ login token เอง (ดู initOrderWithoutTable) จึงไม่ต้อง
+  // persist ฝั่ง client — เรียก init ใหม่ทุกครั้งที่เข้าหน้านี้ก็ได้ค่าเดิมกลับมา
   counterOrderUuid: string;
   loading: boolean;
   loadingCart: boolean;
@@ -222,6 +210,7 @@ interface PosState {
   loadProductItem: (params: GetProdItemParams) => Promise<ProdItem>;
   loadCart: (params: FetchCartParams) => Promise<CartOrder | CartOrder[] | null>;
   createOrder: (input: CreateOrderInput) => Promise<CreateOrderResponse>;
+  initOrderWithoutTable: (input: InitOrderWithoutTableInput) => Promise<InitOrderWithoutTableResponse>;
   updateQty: (input: UpdateQtyInput) => ReturnType<typeof posService.updateOrderItemQty>;
   applyItemDiscount: (input: ItemDiscountInput) => ReturnType<typeof posService.applyItemDiscount>;
   applyBillDiscount: (input: BillDiscountInput) => ReturnType<typeof posService.applyBillDiscount>;
@@ -244,9 +233,368 @@ interface PosState {
   reset: () => void;
 }
 
-export const usePosStore = create<PosState>()(
-  persist(
-    (set, get) => ({
+export const usePosStore = create<PosState>((set, get) => ({
+  zones: [],
+  zoneOptions: [],
+  products: [],
+  ...initialPosMenuState(),
+  selectedProduct: null,
+  cart: null,
+  joinMoveZones: [],
+  tableQr: null,
+  orderHistory: [],
+  lastPayment: null,
+  lastSplitBill: null,
+  lastKitchenConfirm: null,
+  lastInvoice: null,
+  tableUuid: "",
+  tableName: "",
+  counterOrderUuid: "",
+  loading: false,
+  loadingCart: false,
+  saving: false,
+  error: null,
+  setZones: (zones) => set({ zones }),
+  setProducts: (products) => set({ products }),
+  setActiveSort: (activeSort) => set({ activeSort }),
+  resetMenu: () => {
+    posMenuLifecycleVersion += 1;
+    set(initialPosMenuState());
+  },
+  setCart: (cart) => set({ cart }),
+  setTable: (tableUuid, tableName = "") => set({ tableUuid, tableName }),
+  setCounterOrderUuid: (orderUuid) => set({ counterOrderUuid: orderUuid }),
+  updateTableCustomerOrderState: (tableUuid, customerOrderState) =>
+    set((state) => ({
+      zones: updateZonesTableOrderState(state.zones, tableUuid, customerOrderState)
+    })),
+  loadTables: async (params) => {
+    const isCurrentSession = createSessionGuard();
+    set({ loading: true, error: null });
+    try {
+      const zones = await fetchTables(params);
+      if (isCurrentSession()) {
+        set({
+          zones,
+          ...(!params.zone_uuid ? { zoneOptions: zones } : {}),
+          loading: false
+        });
+      }
+      return zones;
+    } catch (error) {
+      if (isCurrentSession()) set({ error: errorMessage(error), loading: false });
+      throw error;
+    }
+  },
+  refreshTables: async (params) => {
+    const isCurrentSession = createSessionGuard();
+    try {
+      const zones = await fetchTables(params);
+      if (isCurrentSession()) {
+        set({
+          zones,
+          ...(!params.zone_uuid ? { zoneOptions: zones } : {})
+        });
+      }
+      return zones;
+    } catch (error) {
+      if (isCurrentSession()) set({ error: errorMessage(error) });
+      throw error;
+    }
+  },
+  loadProductCategories: async (params) => {
+    const isCurrentSession = createSessionGuard();
+    try {
+      const result = await posService.fetchCateProducts(params);
+      const categories = result.categories ?? [];
+      if (isCurrentSession()) {
+        set({
+          products: categories.flatMap((category: CateWithProducts) => category.products ?? []),
+          error: null
+        });
+      }
+      return result;
+    } catch (error) {
+      if (isCurrentSession()) set({ error: errorMessage(error) });
+      throw error;
+    }
+  },
+  loadMenu: async ({
+    branchUuid,
+    language,
+    cateUuid = "",
+    query = "",
+    refreshCategories = false
+  }) => {
+    const isCurrentSession = createSessionGuard();
+    const menuLifecycleVersion = posMenuLifecycleVersion;
+    const isCurrentMenuLifecycle = () =>
+      isCurrentSession() &&
+      menuLifecycleVersion === posMenuLifecycleVersion;
+    if (!branchUuid) {
+      get().resetMenu();
+      return emptyPosMenuBySort();
+    }
+
+    set({ loadingMenu: true, error: null });
+    try {
+      let nextCateUuid = textValue(cateUuid);
+      const nextQuery = query ?? "";
+
+      if (refreshCategories) {
+        const catalog = await get().loadProductCategories({
+          branchUuidFk: branchUuid,
+          lang: language,
+          search: "",
+          statusSortFk: ProductSortStatus.NORMAL
+        });
+        const categories = catalog.categories ?? [];
+        nextCateUuid = nextPosMenuCategoryUuid({
+          categories,
+          defaultCateUuid: catalog.defaultCateUuid,
+          requestedCateUuid: nextCateUuid,
+          selectedCateUuid: catalog.selectedCateUuid
+        });
+        if (isCurrentMenuLifecycle()) set({ categories });
+      }
+
+      const searchQuery = nextQuery.trim();
+      let menuBySort = emptyPosMenuBySort();
+      if (nextCateUuid || searchQuery) {
+        const request = (statusSortFk: ProductSortStatusType) =>
+          get().loadProductCategories({
+            branchUuidFk: branchUuid,
+            ...(searchQuery ? {} : { cateUuid: nextCateUuid }),
+            lang: language,
+            search: searchQuery,
+            statusSortFk
+          });
+        const [normal, setMenu, promotion] = await Promise.all([
+          request(ProductSortStatus.NORMAL),
+          request(ProductSortStatus.SET),
+          request(ProductSortStatus.PROMOTION)
+        ]);
+        menuBySort = {
+          [ProductSortStatus.NORMAL]: normal.categories ?? [],
+          [ProductSortStatus.SET]: setMenu.categories ?? [],
+          [ProductSortStatus.PROMOTION]: promotion.categories ?? []
+        };
+      }
+
+      if (isCurrentMenuLifecycle()) {
+        set((state) => ({
+          activeSort:
+            countPosMenuProducts(menuBySort[state.activeSort]) > 0
+              ? state.activeSort
+              : firstPosMenuStatusWithProducts(menuBySort),
+          selectedCateUuid: nextCateUuid,
+          submittedSearch: nextQuery,
+          menuBySort
+        }));
+      }
+      return menuBySort;
+    } catch (error) {
+      if (isCurrentMenuLifecycle()) set({ error: errorMessage(error) });
+      throw error;
+    } finally {
+      if (isCurrentMenuLifecycle()) set({ loadingMenu: false });
+    }
+  },
+  loadProducts: async (params) => {
+    const isCurrentSession = createSessionGuard();
+    set({ loading: true, error: null });
+    try {
+      const result = await posService.fetchCateProducts(params);
+      const products = (result.categories ?? []).flatMap((category) => category.products ?? []);
+      if (isCurrentSession()) set({ products, loading: false });
+      return products;
+    } catch (error) {
+      if (isCurrentSession()) set({ error: errorMessage(error), loading: false });
+      throw error;
+    }
+  },
+  loadProductItem: async (params) => {
+    const isCurrentSession = createSessionGuard();
+    const selectedProduct = await posService.getProdItem(params);
+    if (isCurrentSession()) set({ selectedProduct });
+    return selectedProduct;
+  },
+  loadCart: async (params) => {
+    const isCurrentSession = createSessionGuard();
+    set({ loadingCart: true, error: null });
+    try {
+      const result = await posService.fetchCart(params);
+      const cart = result.orders ?? result.data ?? null;
+      if (isCurrentSession()) set({ cart, loadingCart: false });
+      return cart;
+    } catch (error) {
+      if (isCurrentSession()) set({ error: errorMessage(error), loadingCart: false });
+      throw error;
+    }
+  },
+  createOrder: async (input) => {
+    const isCurrentSession = createSessionGuard();
+    set({ saving: true, error: null });
+    try {
+      const result = await posService.createOrder(input);
+      if (isCurrentSession()) set({ saving: false });
+      return result;
+    } catch (error) {
+      if (isCurrentSession()) set({ error: errorMessage(error), saving: false });
+      throw error;
+    }
+  },
+  initOrderWithoutTable: async (input) => {
+    const isCurrentSession = createSessionGuard();
+    try {
+      const result = await posService.initOrderWithoutTable(input);
+      if (isCurrentSession()) set({ counterOrderUuid: textValue(result.order_uuid) });
+      return result;
+    } catch (error) {
+      if (isCurrentSession()) set({ error: errorMessage(error) });
+      throw error;
+    }
+  },
+  updateQty: (input) => posService.updateOrderItemQty(input),
+  applyItemDiscount: (input) => posService.applyItemDiscount(input),
+  applyBillDiscount: (input) => posService.applyBillDiscount(input),
+  deleteItem: (orderItemUuid) => posService.deleteOrderItem(orderItemUuid),
+  loadJoinMoveTables: async (params) => {
+    const isCurrentSession = createSessionGuard();
+    const result = await posService.fetchJoinMoveTables(params);
+    const joinMoveZones = result.data ?? [];
+    if (isCurrentSession()) set({ joinMoveZones });
+    return joinMoveZones;
+  },
+  moveTable: (input) => posService.moveTable(input),
+  joinTables: (input) => posService.joinTableMulti(input),
+  loadTableQr: async (tableUuid) => {
+    const isCurrentSession = createSessionGuard();
+    const tableQr = await posService.createTableQR({ table_uuid: tableUuid });
+    if (isCurrentSession()) set({ tableQr });
+    return tableQr;
+  },
+  confirmKitchen: async (input) => {
+    const isCurrentSession = createSessionGuard();
+    try {
+      const printer = await resolvePosPrinterContext(input);
+      assertCurrentSession(isCurrentSession);
+
+      const payload = {
+        order_uuid: input.order_uuid,
+        login_uuid_fk: input.login_uuid_fk,
+        order_item_uuids: input.order_item_uuids,
+        lang: input.lang,
+        device_code: printer.device_code,
+        agent_id: printer.agent_id,
+        print_mode: printer.print_mode,
+      };
+
+      const lastKitchenConfirm = await posService.confirmToKitchen(payload);
+
+      // การพิมพ์ครัวเป็นหน้าที่ของ workflow ฝั่ง UI (executeKitchenAck) ที่เดียว
+      // — เดิม store รันงานพิมพ์ซ้อนอีกชั้นด้วย print_job_uuid เดียวกัน ทำให้พิมพ์/ack ซ้ำ
+      // และรอบสองถูก backend รายงานเป็น fail ปลอม ("ພິມບໍ່ສຳເລັດ 1/1") ทั้งที่งานแรกสำเร็จ
+      if (isCurrentSession()) set({ lastKitchenConfirm });
+      return lastKitchenConfirm;
+    } catch (error) {
+      if (isCurrentSession()) set({ error: errorMessage(error) });
+      throw error;
+    }
+
+  },
+  confirmServed: (input) => posService.confirmOrderItemServed(input),
+  cancelItem: (input) => posService.cancelOrderItem(input),
+  updateNote: (input) => posService.updateOrderNote(input),
+  createPayment: async (input) => {
+    const isCurrentSession = createSessionGuard();
+    const printer = await resolvePosPrinterContext(input);
+    assertCurrentSession(isCurrentSession);
+
+    const lastPayment = await posService.createPayment({
+      ...input,
+      device_code: printer.device_code,
+      agent_id: printer.agent_id,
+      print_mode: printer.print_mode
+    });
+    if (isCurrentSession()) set({ lastPayment });
+    return lastPayment;
+  },
+  splitBill: async (input) => {
+    const isCurrentSession = createSessionGuard();
+    const printer = await resolvePosPrinterContext(input);
+    assertCurrentSession(isCurrentSession);
+
+    const lastSplitBill = await posService.splitBill({
+      ...input,
+      device_code: printer.device_code,
+      agent_id: printer.agent_id,
+      print_mode: printer.print_mode
+    });
+    if (isCurrentSession()) set({ lastSplitBill });
+    return lastSplitBill;
+  },
+  createTableQr: async (params) => {
+    const isCurrentSession = createSessionGuard();
+    const printer = await resolvePosPrinterContext(params);
+    assertCurrentSession(isCurrentSession);
+
+    const tableQr = await posService.createTableQR({
+      ...params,
+      device_code: printer.device_code,
+      agent_id: printer.agent_id,
+      print_mode: printer.print_mode
+    });
+    if (isCurrentSession()) set({ tableQr });
+    return tableQr;
+  },
+  printInvoice: async (params) => {
+    const isCurrentSession = createSessionGuard();
+    const printer = await resolvePosPrinterContext(params);
+    assertCurrentSession(isCurrentSession);
+
+    const lastInvoice = await posService.printInvoice({
+      login_uuid_fk: params.login_uuid_fk,
+      order_uuid: params.order_uuid,
+      lang: params.lang,
+      document_type: "invoice",
+      device_code: printer.device_code,
+      agent_id: printer.agent_id,
+      print_mode: printer.print_mode
+    });
+    if (isCurrentSession()) set({ lastInvoice });
+    return lastInvoice;
+  },
+  reprintReceipt: async (params) => {
+    const isCurrentSession = createSessionGuard();
+    const printer = await resolvePosPrinterContext(params);
+    assertCurrentSession(isCurrentSession);
+
+    const response = await posService.reprintReceipt({
+      order_uuid: params.order_uuid,
+      login_uuid_fk: params.login_uuid_fk,
+      lang: params.lang,
+      device_code: printer.device_code,
+      agent_id: printer.agent_id,
+      print_mode: printer.print_mode
+    });
+    assertCurrentSession(isCurrentSession);
+    const printJobUuid = textValue(response.print_job?.print_job_uuid);
+
+    if (!printJobUuid) return null;
+
+    return {
+      print_job_uuid: printJobUuid,
+      login_uuid_fk: params.login_uuid_fk,
+      device_code: printer.device_code,
+      agent_id: printer.agent_id,
+      print_mode: printer.print_mode
+    };
+  },
+  setOrderHistory: (orders) => set({ orderHistory: posService.cartOrdersToHistory(orders) }),
+  reset: () => {
+    posMenuLifecycleVersion += 1;
+    set({
       zones: [],
       zoneOptions: [],
       products: [],
@@ -266,367 +614,9 @@ export const usePosStore = create<PosState>()(
       loading: false,
       loadingCart: false,
       saving: false,
-      error: null,
-      setZones: (zones) => set({ zones }),
-      setProducts: (products) => set({ products }),
-      setActiveSort: (activeSort) => set({ activeSort }),
-      resetMenu: () => {
-        posMenuLifecycleVersion += 1;
-        set(initialPosMenuState());
-      },
-      setCart: (cart) => set({ cart }),
-      setTable: (tableUuid, tableName = "") => set({ tableUuid, tableName }),
-      setCounterOrderUuid: (orderUuid) => set({ counterOrderUuid: orderUuid }),
-      updateTableCustomerOrderState: (tableUuid, customerOrderState) =>
-        set((state) => ({
-          zones: updateZonesTableOrderState(state.zones, tableUuid, customerOrderState)
-        })),
-      loadTables: async (params) => {
-        const isCurrentSession = createSessionGuard();
-        set({ loading: true, error: null });
-        try {
-          const zones = await fetchTables(params);
-          if (isCurrentSession()) {
-            set({
-              zones,
-              ...(!params.zone_uuid ? { zoneOptions: zones } : {}),
-              loading: false
-            });
-          }
-          return zones;
-        } catch (error) {
-          if (isCurrentSession()) set({ error: errorMessage(error), loading: false });
-          throw error;
-        }
-      },
-      refreshTables: async (params) => {
-        const isCurrentSession = createSessionGuard();
-        try {
-          const zones = await fetchTables(params);
-          if (isCurrentSession()) {
-            set({
-              zones,
-              ...(!params.zone_uuid ? { zoneOptions: zones } : {})
-            });
-          }
-          return zones;
-        } catch (error) {
-          if (isCurrentSession()) set({ error: errorMessage(error) });
-          throw error;
-        }
-      },
-      loadProductCategories: async (params) => {
-        const isCurrentSession = createSessionGuard();
-        try {
-          const result = await posService.fetchCateProducts(params);
-          const categories = result.categories ?? [];
-          if (isCurrentSession()) {
-            set({
-              products: categories.flatMap((category: CateWithProducts) => category.products ?? []),
-              error: null
-            });
-          }
-          return result;
-        } catch (error) {
-          if (isCurrentSession()) set({ error: errorMessage(error) });
-          throw error;
-        }
-      },
-      loadMenu: async ({
-        branchUuid,
-        language,
-        cateUuid = "",
-        query = "",
-        refreshCategories = false
-      }) => {
-        const isCurrentSession = createSessionGuard();
-        const menuLifecycleVersion = posMenuLifecycleVersion;
-        const isCurrentMenuLifecycle = () =>
-          isCurrentSession() &&
-          menuLifecycleVersion === posMenuLifecycleVersion;
-        if (!branchUuid) {
-          get().resetMenu();
-          return emptyPosMenuBySort();
-        }
-
-        set({ loadingMenu: true, error: null });
-        try {
-          let nextCateUuid = textValue(cateUuid);
-          const nextQuery = query ?? "";
-
-          if (refreshCategories) {
-            const catalog = await get().loadProductCategories({
-              branchUuidFk: branchUuid,
-              lang: language,
-              search: "",
-              statusSortFk: ProductSortStatus.NORMAL
-            });
-            const categories = catalog.categories ?? [];
-            nextCateUuid = nextPosMenuCategoryUuid({
-              categories,
-              defaultCateUuid: catalog.defaultCateUuid,
-              requestedCateUuid: nextCateUuid,
-              selectedCateUuid: catalog.selectedCateUuid
-            });
-            if (isCurrentMenuLifecycle()) set({ categories });
-          }
-
-          const searchQuery = nextQuery.trim();
-          let menuBySort = emptyPosMenuBySort();
-          if (nextCateUuid || searchQuery) {
-            const request = (statusSortFk: ProductSortStatusType) =>
-              get().loadProductCategories({
-                branchUuidFk: branchUuid,
-                ...(searchQuery ? {} : { cateUuid: nextCateUuid }),
-                lang: language,
-                search: searchQuery,
-                statusSortFk
-              });
-            const [normal, setMenu, promotion] = await Promise.all([
-              request(ProductSortStatus.NORMAL),
-              request(ProductSortStatus.SET),
-              request(ProductSortStatus.PROMOTION)
-            ]);
-            menuBySort = {
-              [ProductSortStatus.NORMAL]: normal.categories ?? [],
-              [ProductSortStatus.SET]: setMenu.categories ?? [],
-              [ProductSortStatus.PROMOTION]: promotion.categories ?? []
-            };
-          }
-
-          if (isCurrentMenuLifecycle()) {
-            set((state) => ({
-              activeSort:
-                countPosMenuProducts(menuBySort[state.activeSort]) > 0
-                  ? state.activeSort
-                  : firstPosMenuStatusWithProducts(menuBySort),
-              selectedCateUuid: nextCateUuid,
-              submittedSearch: nextQuery,
-              menuBySort
-            }));
-          }
-          return menuBySort;
-        } catch (error) {
-          if (isCurrentMenuLifecycle()) set({ error: errorMessage(error) });
-          throw error;
-        } finally {
-          if (isCurrentMenuLifecycle()) set({ loadingMenu: false });
-        }
-      },
-      loadProducts: async (params) => {
-        const isCurrentSession = createSessionGuard();
-        set({ loading: true, error: null });
-        try {
-          const result = await posService.fetchCateProducts(params);
-          const products = (result.categories ?? []).flatMap((category) => category.products ?? []);
-          if (isCurrentSession()) set({ products, loading: false });
-          return products;
-        } catch (error) {
-          if (isCurrentSession()) set({ error: errorMessage(error), loading: false });
-          throw error;
-        }
-      },
-      loadProductItem: async (params) => {
-        const isCurrentSession = createSessionGuard();
-        const selectedProduct = await posService.getProdItem(params);
-        if (isCurrentSession()) set({ selectedProduct });
-        return selectedProduct;
-      },
-      loadCart: async (params) => {
-        const isCurrentSession = createSessionGuard();
-        set({ loadingCart: true, error: null });
-        try {
-          const result = await posService.fetchCart(params);
-          const cart = result.orders ?? result.data ?? null;
-          if (isCurrentSession()) set({ cart, loadingCart: false });
-          return cart;
-        } catch (error) {
-          if (isCurrentSession()) set({ error: errorMessage(error), loadingCart: false });
-          throw error;
-        }
-      },
-      createOrder: async (input) => {
-        const isCurrentSession = createSessionGuard();
-        set({ saving: true, error: null });
-        try {
-          const result = await posService.createOrder(input);
-          if (isCurrentSession()) set({ saving: false });
-          return result;
-        } catch (error) {
-          if (isCurrentSession()) set({ error: errorMessage(error), saving: false });
-          throw error;
-        }
-      },
-      updateQty: (input) => posService.updateOrderItemQty(input),
-      applyItemDiscount: (input) => posService.applyItemDiscount(input),
-      applyBillDiscount: (input) => posService.applyBillDiscount(input),
-      deleteItem: (orderItemUuid) => posService.deleteOrderItem(orderItemUuid),
-      loadJoinMoveTables: async (params) => {
-        const isCurrentSession = createSessionGuard();
-        const result = await posService.fetchJoinMoveTables(params);
-        const joinMoveZones = result.data ?? [];
-        if (isCurrentSession()) set({ joinMoveZones });
-        return joinMoveZones;
-      },
-      moveTable: (input) => posService.moveTable(input),
-      joinTables: (input) => posService.joinTableMulti(input),
-      loadTableQr: async (tableUuid) => {
-        const isCurrentSession = createSessionGuard();
-        const tableQr = await posService.createTableQR({ table_uuid: tableUuid });
-        if (isCurrentSession()) set({ tableQr });
-        return tableQr;
-      },
-      confirmKitchen: async (input) => {
-        const isCurrentSession = createSessionGuard();
-        try {
-          const printer = await resolvePosPrinterContext(input);
-          assertCurrentSession(isCurrentSession);
-
-          const payload = {
-            order_uuid: input.order_uuid,
-            login_uuid_fk: input.login_uuid_fk,
-            order_item_uuids: input.order_item_uuids,
-            lang: input.lang,
-            device_code: printer.device_code,
-            agent_id: printer.agent_id,
-            print_mode: printer.print_mode,
-          };
-
-          const lastKitchenConfirm = await posService.confirmToKitchen(payload);
-
-          // การพิมพ์ครัวเป็นหน้าที่ของ workflow ฝั่ง UI (executeKitchenAck) ที่เดียว
-          // — เดิม store รันงานพิมพ์ซ้อนอีกชั้นด้วย print_job_uuid เดียวกัน ทำให้พิมพ์/ack ซ้ำ
-          // และรอบสองถูก backend รายงานเป็น fail ปลอม ("ພິມບໍ່ສຳເລັດ 1/1") ทั้งที่งานแรกสำเร็จ
-          if (isCurrentSession()) set({ lastKitchenConfirm });
-          return lastKitchenConfirm;
-        } catch (error) {
-          if (isCurrentSession()) set({ error: errorMessage(error) });
-          throw error;
-        }
-
-      },
-      confirmServed: (input) => posService.confirmOrderItemServed(input),
-      cancelItem: (input) => posService.cancelOrderItem(input),
-      updateNote: (input) => posService.updateOrderNote(input),
-      createPayment: async (input) => {
-        const isCurrentSession = createSessionGuard();
-        const printer = await resolvePosPrinterContext(input);
-        assertCurrentSession(isCurrentSession);
-
-        const lastPayment = await posService.createPayment({
-          ...input,
-          device_code: printer.device_code,
-          agent_id: printer.agent_id,
-          print_mode: printer.print_mode
-        });
-        if (isCurrentSession()) set({ lastPayment });
-        return lastPayment;
-      },
-      splitBill: async (input) => {
-        const isCurrentSession = createSessionGuard();
-        const printer = await resolvePosPrinterContext(input);
-        assertCurrentSession(isCurrentSession);
-
-        const lastSplitBill = await posService.splitBill({
-          ...input,
-          device_code: printer.device_code,
-          agent_id: printer.agent_id,
-          print_mode: printer.print_mode
-        });
-        if (isCurrentSession()) set({ lastSplitBill });
-        return lastSplitBill;
-      },
-      createTableQr: async (params) => {
-        const isCurrentSession = createSessionGuard();
-        const printer = await resolvePosPrinterContext(params);
-        assertCurrentSession(isCurrentSession);
-
-        const tableQr = await posService.createTableQR({
-          ...params,
-          device_code: printer.device_code,
-          agent_id: printer.agent_id,
-          print_mode: printer.print_mode
-        });
-        if (isCurrentSession()) set({ tableQr });
-        return tableQr;
-      },
-      printInvoice: async (params) => {
-        const isCurrentSession = createSessionGuard();
-        const printer = await resolvePosPrinterContext(params);
-        assertCurrentSession(isCurrentSession);
-
-        const lastInvoice = await posService.printInvoice({
-          login_uuid_fk: params.login_uuid_fk,
-          order_uuid: params.order_uuid,
-          lang: params.lang,
-          document_type: "invoice",
-          device_code: printer.device_code,
-          agent_id: printer.agent_id,
-          print_mode: printer.print_mode
-        });
-        if (isCurrentSession()) set({ lastInvoice });
-        return lastInvoice;
-      },
-      reprintReceipt: async (params) => {
-        const isCurrentSession = createSessionGuard();
-        const printer = await resolvePosPrinterContext(params);
-        assertCurrentSession(isCurrentSession);
-
-        const response = await posService.reprintReceipt({
-          order_uuid: params.order_uuid,
-          login_uuid_fk: params.login_uuid_fk,
-          lang: params.lang,
-          device_code: printer.device_code,
-          agent_id: printer.agent_id,
-          print_mode: printer.print_mode
-        });
-        assertCurrentSession(isCurrentSession);
-        const printJobUuid = textValue(response.print_job?.print_job_uuid);
-
-        if (!printJobUuid) return null;
-
-        return {
-          print_job_uuid: printJobUuid,
-          login_uuid_fk: params.login_uuid_fk,
-          device_code: printer.device_code,
-          agent_id: printer.agent_id,
-          print_mode: printer.print_mode
-        };
-      },
-      setOrderHistory: (orders) => set({ orderHistory: posService.cartOrdersToHistory(orders) }),
-      reset: () => {
-        posMenuLifecycleVersion += 1;
-        set({
-          zones: [],
-          zoneOptions: [],
-          products: [],
-          ...initialPosMenuState(),
-          selectedProduct: null,
-          cart: null,
-          joinMoveZones: [],
-          tableQr: null,
-          orderHistory: [],
-          lastPayment: null,
-          lastSplitBill: null,
-          lastKitchenConfirm: null,
-          lastInvoice: null,
-          tableUuid: "",
-          tableName: "",
-          loading: false,
-          loadingCart: false,
-          saving: false,
-          error: null
-        });
-      }
-    }),
-    {
-      name: "yummy-go-pos-counter-order",
-      storage: createJSONStorage(() => browserLocalStorage),
-      // เก็บแค่ counterOrderUuid — ฟิลด์อื่นในสโตร์นี้เป็นข้อมูลชั่วคราวของหน้าจอ
-      // ปัจจุบัน (cart, zones, menu ฯลฯ) ไม่ควร persist ข้ามการโหลดหน้าใหม่
-      partialize: (state) => ({ counterOrderUuid: state.counterOrderUuid })
-    }
-  )
-);
+      error: null
+    });
+  }
+}));
 
 registerSessionStoreReset("pos", () => usePosStore.getState().reset());
