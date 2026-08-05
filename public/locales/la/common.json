@@ -399,32 +399,15 @@
   },
   "notifications": {
     "empty": "ບໍ່ມີການແຈ້ງເຕືອນໃໝ່",
-    "markAllRead": "ໝາຍວ່າອ່ານທັງໝົດ",
-    "title": "ການແຈ້ງເຕືອນ",
-    "relative": {
-      "justNow": "ຫາກໍ່",
-      "minutesAgo": "{{count}} ນາທີຜ່ານມາ",
-      "hoursAgo": "{{count}} ຊົ່ວໂມງຜ່ານມາ",
-      "daysAgo": "{{count}} ມື້ຜ່ານມາ"
+    "liveOrders": {
+      "title": "ອໍເດີໃໝ່",
+      "item": "ໂຕະ {{table}} · {{zone}}"
     },
-    "mock": {
-      "newOrder": {
-        "title": "ມີອໍເດີໃໝ່",
-        "description": "ໂຕະ 4 ສັ່ງ 3 ລາຍການ."
-      },
-      "lowStock": {
-        "title": "ສິນຄ້າໃກ້ໝົດ",
-        "description": "ນ້ຳເຊື່ອມລາເຕ້ເຢັນກຳລັງຈະໝົດ."
-      },
-      "printerOffline": {
-        "title": "ເຄື່ອງພິມຫຼຸດ",
-        "description": "ເຄື່ອງພິມຫ້ອງຄົວ KP-01 ຂາດການເຊື່ອມຕໍ່."
-      },
-      "welcome": {
-        "title": "ຍິນດີຕ້ອນຮັບສູ່ Yummy Go",
-        "description": "ເລີ່ມຕົ້ນທີ່ dashboard ໄດ້ເລີຍ."
-      }
-    }
+    "newOrderToast": {
+      "title": "ມີອໍເດີໃໝ່",
+      "description": "ໂຕະ {{table}} ({{zone}}) ສັ່ງອາຫານໃໝ່."
+    },
+    "title": "ການແຈ້ງເຕືອນ"
   },
   "pos": {
     "menu": "ເມນູ",
@@ -525,6 +508,7 @@
     "sumGrandTotal": "ຍອດລວມສະຫຼຸບ",
     "tableSelectionNewOrder": "ອໍເດີ້ໃໝ່",
     "selectedTable": "ເລືອກແລ້ວ",
+    "zoneNewOrderAria": "{{zone}} ມີອໍເດີໃໝ່ {{count}} ລາຍການ",
     "tableActions": "ຈັດການໂຕະ",
     "tableActionsDescription": "ຍ້າຍ ຫຼື ລວມອໍເດີສຳລັບ {{table}}.",
     "createTableQr": "ສ້າງ QR ໂຕະ",

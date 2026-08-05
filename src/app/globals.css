@@ -1610,6 +1610,25 @@ html.theme-transition-active[data-theme-transition-direction="ltr"]::view-transi
   }
 }
 
+/* ดึงสายตาไปที่กระดิ่งแจ้งเตือนขณะมีออเดอร์ใหม่ค้างอยู่ — บนหน้า POS พื้นหลัง
+   เป็นสี primary เดียวกับ badge เดิม ทำให้กลืนกันจนมองไม่เห็น จึงต้องมีทั้ง
+   วงแหวน pulse และสี badge (bg-destructive) ที่ตัดกับพื้นหลังชัดเจนกว่า */
+.notification-bell-alert {
+  animation: notification-bell-alert-pulse 1.6s ease-in-out infinite;
+  will-change: box-shadow;
+}
+
+@keyframes notification-bell-alert-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 hsl(var(--destructive) / 0.5);
+  }
+
+  50% {
+    box-shadow: 0 0 0 6px hsl(var(--destructive) / 0.15);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -1633,6 +1652,12 @@ html.theme-transition-active[data-theme-transition-direction="ltr"]::view-transi
     box-shadow:
       0 0 0 2px hsl(var(--destructive) / 0.45),
       0 14px 32px -28px hsl(var(--primary) / 0.65);
+    will-change: auto;
+  }
+
+  .notification-bell-alert {
+    animation: none;
+    box-shadow: 0 0 0 2px hsl(var(--destructive) / 0.5);
     will-change: auto;
   }
 }

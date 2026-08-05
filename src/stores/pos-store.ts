@@ -264,9 +264,13 @@ export const usePosStore = create<PosState>((set, get) => ({
   setCart: (cart) => set({ cart }),
   setTable: (tableUuid, tableName = "") => set({ tableUuid, tableName }),
   setCounterOrderUuid: (orderUuid) => set({ counterOrderUuid: orderUuid }),
+  // patch ทั้ง zones (มุมมองที่กรองอยู่) และ zoneOptions (รายการเต็มทุกโซน)
+  // ไม่งั้น badge ระดับโซนที่ต้องอ่านจาก zoneOptions จะไม่เห็นออเดอร์ใหม่ของ
+  // โซนอื่นที่ไม่ได้เลือกดูอยู่
   updateTableCustomerOrderState: (tableUuid, customerOrderState) =>
     set((state) => ({
-      zones: updateZonesTableOrderState(state.zones, tableUuid, customerOrderState)
+      zones: updateZonesTableOrderState(state.zones, tableUuid, customerOrderState),
+      zoneOptions: updateZonesTableOrderState(state.zoneOptions, tableUuid, customerOrderState)
     })),
   loadTables: async (params) => {
     const isCurrentSession = createSessionGuard();

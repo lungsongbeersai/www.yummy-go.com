@@ -1,15 +1,12 @@
 "use client";
 
-import type { Route } from "next";
-import Link from "next/link";
-import { useState, type ReactNode } from "react";
-import { Ban, CreditCard, Printer, ReceiptText, RefreshCcw, UserRound } from "lucide-react";
+import type { ReactNode } from "react";
+import { CreditCard, Printer, ReceiptText, RefreshCcw, UserRound } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { EmptyState } from "@/components/common/empty-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
-import { Spinner } from "@/components/ui/spinner";
 import { money } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { DailySaleItemsBillGroup } from "@/stores/report-store";
@@ -26,7 +23,6 @@ import {
 
 interface SalesBillDetailPanelProps {
   bill: DailySaleItemsBillGroup | null;
-  cancelSaleHref: Route | null;
   canReprintReceipt: boolean;
   className?: string;
   loading: boolean;
@@ -37,7 +33,6 @@ interface SalesBillDetailPanelProps {
 
 export function SalesBillDetailPanel({
   bill,
-  cancelSaleHref,
   canReprintReceipt,
   className,
   loading,
@@ -51,7 +46,6 @@ export function SalesBillDetailPanel({
     "min-h-0 overflow-hidden rounded-none border-x-0 border-b-0 border-border bg-card shadow-none xl:flex xl:min-h-0 xl:flex-col",
     className
   );
-  const cancelUnavailableDescriptionId = `sales-list-cancel-unavailable-${variant}`;
 
   if (!bill) {
     return (
@@ -72,9 +66,7 @@ export function SalesBillDetailPanel({
   const actions = (
     <BillDetailActions
       bill={bill}
-      cancelSaleHref={cancelSaleHref}
       canReprintReceipt={canReprintReceipt}
-      descriptionId={cancelUnavailableDescriptionId}
       drawer={drawer}
       loading={loading}
       printingBillId={printingBillId}
@@ -121,86 +113,40 @@ export function SalesBillDetailPanel({
 
 function BillDetailActions({
   bill,
-  cancelSaleHref,
   canReprintReceipt,
-  descriptionId,
   drawer,
   loading,
   onReprint,
   printingBillId
 }: {
   bill: DailySaleItemsBillGroup;
-  cancelSaleHref: Route | null;
   canReprintReceipt: boolean;
-  descriptionId: string;
   drawer: boolean;
   loading: boolean;
   onReprint: (group: DailySaleItemsBillGroup) => void;
   printingBillId: string;
 }) {
   const { t } = useTranslation();
-  const [openingCancelSale, setOpeningCancelSale] = useState(false);
   const reprinting = printingBillId === bill.id;
 
   return (
-    <div className={cn("flex w-full shrink-0 flex-col gap-1.5", !drawer && "md:w-auto md:items-end")}>
-      {/* บังคับสองปุ่มเรียงคู่เสมอ — เรียงแนวตั้งบนจอ 393px กินความสูงที่ต้องเก็บไว้ให้รายการสินค้า */}
-      <div className={cn("grid w-full grid-cols-2 gap-2", !drawer && "md:flex md:w-auto")}>
-        <Button
-          type="button"
-          variant="outline"
-          className="min-h-11 w-full shrink-0 md:h-9 md:min-h-9 md:w-auto"
-          disabled={!canReprintReceipt || !textValue(readValue(bill.raw, ["order_uuid"]), "") || Boolean(printingBillId) || loading}
-          onClick={() => onReprint(bill)}
-        >
-          {reprinting ? <RefreshCcw className="animate-spin" data-icon="inline-start" /> : <Printer data-icon="inline-start" />}
-          <span className="truncate">{reprinting ? t("salesList.reprintingReceipt") : t("salesList.reprintReceipt")}</span>
-        </Button>
-        {cancelSaleHref ? (
-          <Button asChild className="min-h-11 w-full shrink-0 md:h-9 md:min-h-9 md:w-auto" size="md" variant="danger">
-            <Link
-              aria-busy={openingCancelSale}
-              aria-disabled={openingCancelSale}
-              href={cancelSaleHref}
-              onClick={(event) => {
-                if (openingCancelSale) {
-                  event.preventDefault();
-                  return;
-                }
-                setOpeningCancelSale(true);
-              }}
-            >
-              {openingCancelSale ? <Spinner data-icon="inline-start" /> : <Ban data-icon="inline-start" />}
-              <span className="truncate">
-                {openingCancelSale ? t("cancelSale.openingCancelPage") : t("cancelSale.cancelBill")}
-              </span>
-            </Link>
-          </Button>
-        ) : (
-          <Button
-            aria-describedby={descriptionId}
-            className="min-h-11 w-full shrink-0 md:h-9 md:min-h-9 md:w-auto"
-            disabled
-            type="button"
-            variant="danger"
-          >
-            <Ban data-icon="inline-start" />
-            <span className="truncate">{t("cancelSale.cancelBill")}</span>
-          </Button>
-        )}
-      </div>
-      {!cancelSaleHref ? (
-        <p id={descriptionId} className="max-w-sm text-xs leading-snug text-muted-foreground md:text-right">
-          {t("cancelSale.cancelUnavailable")}
-        </p>
-      ) : null}
+    <div className={cn("flex w-full shrink-0", !drawer && "md:w-auto")}>
+      <Button
+        type="button"
+        variant="outline"
+        className="min-h-11 w-full shrink-0 md:h-9 md:min-h-9 md:w-auto"
+        disabled={!canReprintReceipt || !textValue(readValue(bill.raw, ["order_uuid"]), "") || Boolean(printingBillId) || loading}
+        onClick={() => onReprint(bill)}
+      >
+        {reprinting ? <RefreshCcw className="animate-spin" data-icon="inline-start" /> : <Printer data-icon="inline-start" />}
+        <span className="truncate">{reprinting ? t("salesList.reprintingReceipt") : t("salesList.reprintReceipt")}</span>
+      </Button>
     </div>
   );
 }
 
 interface SalesBillDetailDrawerProps {
   bill: DailySaleItemsBillGroup | null;
-  cancelSaleHref: Route | null;
   canReprintReceipt: boolean;
   loading: boolean;
   onOpenChange: (open: boolean) => void;
@@ -211,7 +157,6 @@ interface SalesBillDetailDrawerProps {
 
 export function SalesBillDetailDrawer({
   bill,
-  cancelSaleHref,
   canReprintReceipt,
   loading,
   onOpenChange,
@@ -231,7 +176,6 @@ export function SalesBillDetailDrawer({
         <div className="min-h-0 flex-1 overflow-hidden">
           <SalesBillDetailPanel
             bill={bill}
-            cancelSaleHref={cancelSaleHref}
             canReprintReceipt={canReprintReceipt}
             className="flex h-full flex-col rounded-none border-0 shadow-none"
             loading={loading}
@@ -319,7 +263,7 @@ function BillHeaderFact({
   );
 }
 
-type SummaryMetricTone = "amount" | "discount" | "total" | "service" | "topping" | "vat";
+type SummaryMetricTone = "amount" | "discount" | "total" | "service" | "vat";
 
 interface SummaryMetric {
   label: string;
@@ -339,7 +283,6 @@ function SelectedBillSummary({ bill }: { bill: DailySaleItemsBillGroup }) {
     calculatedRateLabel(bill.vatAmount, vatBase);
   const allMetrics: SummaryMetric[] = [
     { label: t("salesList.amount"), tone: "amount", value: bill.amountTotal },
-    { label: t("salesList.toppings"), tone: "topping", value: bill.toppingTotal },
     { label: t("salesList.discount"), tone: "discount", value: bill.discountTotal },
     { label: summaryMetricLabel(t("salesList.serviceCharge"), serviceRate), tone: "service", value: bill.serviceChargeAmount },
     { label: summaryMetricLabel(t("salesList.vat"), vatRate), tone: "vat", value: bill.vatAmount },

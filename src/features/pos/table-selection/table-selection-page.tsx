@@ -31,43 +31,31 @@ export function TableSelectionPage() {
   const loading = usePosStore((state) => state.loading);
   const loadTables = usePosStore((state) => state.loadTables);
   const refreshTables = usePosStore((state) => state.refreshTables);
-  const updateTableCustomerOrderState = usePosStore((state) => state.updateTableCustomerOrderState);
   const showToast = useToastStore((state) => state.show);
   const [search, setSearch] = useState("");
-  const [selectedZoneUuid, setSelectedZoneUuid] = useState("");
   const [statusFilter, setStatusFilter] = useState<TableStatusFilter>("all");
   const [now, setNow] = useState(() => new Date());
 
   const branchUuid = user?.branch_uuid ?? "";
   const skipTableSelection = user?.store_table_status === 2;
 
-  const load = useCallback(async (zoneUuid = selectedZoneUuid) => {
+  // ไม่ส่ง zone_uuid เลย — โหลดทุกโซนมาแสดงพร้อมกันเสมอ การ "เลือกโซน" ที่หน้า
+  // จอเป็นแค่การเลื่อนไปยัง section นั้น (ดู scrollToZone ใน table-list-section.tsx)
+  // ไม่ใช่การกรองข้อมูล เพราะกรองแล้วจะซ่อนโต๊ะ/ป้ายออเดอร์ใหม่ของโซนอื่นไปหมด
+  const load = useCallback(async () => {
     if (!branchUuid) return [];
     try {
-      return await loadTables({ branch_uuid_fk: branchUuid, zone_uuid: zoneUuid, lang: language });
+      return await loadTables({ branch_uuid_fk: branchUuid, zone_uuid: "", lang: language });
     } catch (error) {
       showToast({ title: t("pos.failedTables"), description: error instanceof Error ? error.message : "", tone: "error" });
       return [];
     }
-  }, [branchUuid, language, loadTables, selectedZoneUuid, showToast, t]);
+  }, [branchUuid, language, loadTables, showToast, t]);
 
-  const showOrderError = useCallback((error: unknown) => {
-    showToast({ title: t("pos.orderFailed"), description: error instanceof Error ? error.message : "", tone: "error" });
-  }, [showToast, t]);
-
-  // No table stays selected on this screen anymore (tapping a table
-  // navigates to the order page), so the alert hook only refreshes the
-  // table grid and plays the new-order sound.
   useTableAlerts({
     branchUuid: user?.branch_uuid,
     language,
-    onCartRefreshError: showOrderError,
-    refreshSelectedCart: async () => null,
-    refreshTables,
-    selectedTableUuid: "",
-    selectedZoneUuid,
-    setSelectedTable: () => undefined,
-    updateTableCustomerOrderState
+    refreshTables
   });
 
   // ร้านไม่มีโต๊ะ (store_table_status === 2) ข้ามหน้าเลือกโต๊ะไปเลย —
@@ -108,7 +96,7 @@ export function TableSelectionPage() {
             </Button>
           </div>
         </header>
-        <TableListSection loading={loading} search={search} selectedTable={null} selectedZoneUuid={selectedZoneUuid} statusFilter={statusFilter} zoneOptions={zoneOptions} zones={zones} onSearchChange={setSearch} onSelectTable={selectTable} onStatusFilterChange={setStatusFilter} onZoneChange={setSelectedZoneUuid} />
+        <TableListSection loading={loading} search={search} selectedTable={null} statusFilter={statusFilter} zoneOptions={zoneOptions} zones={zones} onSearchChange={setSearch} onSelectTable={selectTable} onStatusFilterChange={setStatusFilter} />
       </div>
     </div>
   );

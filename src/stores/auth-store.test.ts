@@ -7,7 +7,6 @@ import { getProducts, type Product } from "@/services/product";
 import { useAuthStore, type AuthUser } from "@/stores/auth-store";
 import { useBranchStore } from "@/stores/branch-store";
 import { useDashboardStore } from "@/stores/dashboard-store";
-import { useNotificationStore } from "@/stores/notification-store";
 import { useProductStore } from "@/stores/product-store";
 import { useReferenceStore } from "@/stores/reference-store";
 import { usePermissionsSidebarStore } from "@/stores/permissions-sidebar-store";
@@ -87,7 +86,6 @@ describe("auth store session isolation", () => {
   it("resets loaded user-scoped stores on logout", () => {
     useAuthStore.getState().login("token-1", authUser("user-1"));
     useDashboardStore.setState({ data: { owner: "user-1" } });
-    useNotificationStore.getState().clear();
     useProductStore.setState({ search: "private products" });
     useReferenceStore.setState({ storeUuid: "user-1-store", selectedUser: { login_uuid: "user-1" } });
     usePermissionsSidebarStore.setState({ requestKey: "user-1:1:la" });
@@ -102,7 +100,6 @@ describe("auth store session isolation", () => {
       loading: false
     });
     expect(useDashboardStore.getState().data).toBeNull();
-    expect(useNotificationStore.getState().items).toHaveLength(4);
     expect(useProductStore.getState().search).toBe("");
     expect(useReferenceStore.getState()).toMatchObject({ storeUuid: "", selectedUser: null });
     expect(usePermissionsSidebarStore.getState().requestKey).toBe("");
