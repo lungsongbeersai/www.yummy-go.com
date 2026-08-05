@@ -1588,6 +1588,25 @@ html.theme-transition-active[data-theme-transition-direction="ltr"]::view-transi
   }
 }
 
+/* ใช้กับ ZoneChip ที่มีออเดอร์ใหม่ค้างอยู่ — กะพริบพื้นหลังแดงโทนอ่อน (ไม่ใช่แดง
+   เข้มทึบ) จับคู่กับตัวหนังสือ/badge สี destructive เข้มแทนที่จะเป็นสีขาวบนพื้น
+   แดงเข้ม จึงคุม alpha ให้อยู่ในช่วงอ่อนได้โดยไม่มีปัญหาคอนทราสต์ */
+.pos-alert-flash {
+  animation: pos-alert-flash 1.2s ease-in-out infinite;
+  will-change: background-color;
+}
+
+@keyframes pos-alert-flash {
+  0%,
+  100% {
+    background-color: hsl(var(--destructive) / 0.14);
+  }
+
+  50% {
+    background-color: hsl(var(--destructive) / 0.3);
+  }
+}
+
 .pos-table-card-alert {
   animation: pos-table-card-alert-pulse 1.35s ease-in-out infinite;
   will-change: box-shadow, transform;
@@ -1644,6 +1663,12 @@ html.theme-transition-active[data-theme-transition-direction="ltr"]::view-transi
   html.theme-transition-active::view-transition-old(root),
   html.theme-transition-active::view-transition-new(root) {
     animation: none;
+    will-change: auto;
+  }
+
+  .pos-alert-flash {
+    animation: none;
+    background-color: hsl(var(--destructive) / 0.22);
     will-change: auto;
   }
 

@@ -154,6 +154,8 @@ function ZoneChip({
   label: string;
   onClick: () => void;
 }) {
+  const hasAlert = alertCount > 0;
+
   return (
     <Button
       type="button"
@@ -161,19 +163,20 @@ function ZoneChip({
       variant={active ? "default" : "outline"}
       className={cn(
         "h-10 shrink-0 rounded-full px-3.5 font-black shadow-sm transition",
-        active ? "shadow-primary/20" : "border-border bg-card hover:border-primary/30 hover:bg-primary/5"
+        active ? "shadow-primary/20" : "border-border bg-card hover:border-primary/30 hover:bg-primary/5",
+        // มีออเดอร์ใหม่ = กะพริบพื้นหลังแดงอ่อนทับสี active/inactive เดิมไปเลย
+        // (สถานะ "กำลังดูโซนนี้อยู่" ยังบอกได้จากไอคอนถูกข้างหน้า) — ใช้โทนอ่อน +
+        // ตัวหนังสือ/badge สีแดงเข้มแทน แทนที่จะกะพริบพื้นแดงเข้มทึบทั้งชิป
+        hasAlert && "pos-alert-flash border border-destructive/30 text-destructive"
       )}
       onClick={onClick}
     >
       {active ? <Check data-icon="inline-start" /> : null}
       <span className="max-w-40 truncate">{label}</span>
-      {alertCount > 0 ? (
+      {hasAlert ? (
         <Badge
           aria-label={alertAriaLabel}
-          className={cn(
-            "ml-1 min-w-4.5 justify-center border-transparent px-1 text-[10px]",
-            active ? "bg-primary-foreground/20 text-primary-foreground" : "bg-destructive text-destructive-foreground"
-          )}
+          className="ml-1 min-w-4.5 justify-center border-transparent bg-destructive px-1 text-[10px] text-destructive-foreground"
         >
           {alertCount}
         </Badge>
