@@ -27,22 +27,7 @@ export interface SalesListFilters {
 
 export type SalesListBranchOption = ReportBranchOption;
 
-export type CancelSaleDateSelect = "today" | "yesterday";
-
 export { localDateInputValue };
-
-export function cancelDateSelectForSaleDate(value: unknown, now = new Date()): CancelSaleDateSelect | null {
-  const raw = textValue(value, "").trim();
-  if (!raw) return null;
-
-  const localDate = /^\d{4}-\d{2}-\d{2}/.exec(raw)?.[0] ?? localDateInputValue(new Date(raw));
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(localDate)) return null;
-
-  if (localDate === localDateInputValue(now)) return "today";
-
-  const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
-  return localDate === localDateInputValue(yesterday) ? "yesterday" : null;
-}
 
 export function defaultSalesListFilters(branchUuid: string, limit: PageLimit): SalesListFilters {
   const today = localDateInputValue();

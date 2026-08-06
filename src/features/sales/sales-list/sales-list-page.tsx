@@ -102,7 +102,6 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
             />
             <SalesBillDetailPanel
               bill={page.selectedBill}
-              cancelSaleHref={page.cancelSaleHref}
               className="hidden xl:flex"
               canReprintReceipt={page.canReprintReceipt}
               loading={page.loading}
@@ -113,7 +112,6 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
       )}
       <SalesBillDetailDrawer
         bill={page.selectedBill}
-        cancelSaleHref={page.cancelSaleHref}
         canReprintReceipt={page.canReprintReceipt}
         loading={page.loading}
         open={page.mobileDetailOpen}

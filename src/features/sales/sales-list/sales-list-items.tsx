@@ -63,7 +63,7 @@ function SalesListItemCard({ item }: { item: ApiEntity }) {
             </p>
           </div>
 
-          <div className="mt-1 grid gap-0.5">
+          <div className="mt-1 grid grid-cols-[max-content_auto_1fr] items-start gap-x-2 gap-y-0.5">
             <SalesListItemDetailRow icon={<Tag />} tone="price">
               <span className="tabular-nums">
                 {qty.toLocaleString("en-US")} x {moneyValue(unitPrice)}
@@ -145,28 +145,31 @@ function SalesListItemDetailRow({
   return (
     <div
       className={cn(
-        "flex min-w-0 items-start justify-between gap-2 text-xs leading-5",
+        "contents text-xs leading-5",
         tone === "price" && "text-foreground/75",
         tone === "discount" && "text-destructive",
         tone === "note" && "text-muted-foreground",
         tone === "topping" && "text-muted-foreground",
-        tone === "muted" && "text-muted-foreground",
-        className
+        tone === "muted" && "text-muted-foreground"
       )}
     >
-      <span className="flex min-w-0 items-start gap-1.5">
+      {/* แถวที่ไม่มี value (ราคาต่อหน่วย/โน้ต) กินเต็มทั้ง 3 คอลัมน์ ไม่งั้นความยาวข้อความจะไปดันคอลัมน์ label ของแถวอื่นให้กว้างเกินจำเป็น */}
+      <span className={cn("flex min-w-0 items-start gap-1.5", !right && "col-span-3", className)}>
         {icon ? <span className="mt-0.5 flex size-3.5 shrink-0 items-center justify-center [&_svg]:size-3.5">{icon}</span> : null}
         <span className="min-w-0 wrap-break-word">{children}</span>
       </span>
       {right ? (
-        <span
-          className={cn(
-            "shrink-0 text-right font-medium tabular-nums",
-            tone === "discount" ? "text-destructive" : "text-foreground/75"
-          )}
-        >
-          {right}
-        </span>
+        <>
+          <span className="text-foreground/50">=</span>
+          <span
+            className={cn(
+              "text-left font-medium tabular-nums",
+              tone === "discount" ? "text-destructive" : "text-foreground/75"
+            )}
+          >
+            {right}
+          </span>
+        </>
       ) : null}
     </div>
   );
@@ -179,24 +182,24 @@ function SalesListItemToppings({ item }: { item: ApiEntity }) {
 
   if (!toppings.length && toppingTotal <= 0) return null;
 
-  return (
-    <div className="grid gap-0.5">
-      {toppings.length ? (
-        toppings.map((topping, index) => (
-          <SalesListItemDetailRow
-            key={`${topping.name}-${index}`}
-            className="pl-5"
-            tone="topping"
-            right={topping.total > 0 ? `+${moneyValue(topping.total)}` : null}
-          >
-            + {topping.name}{topping.qty > 0 ? ` x${topping.qty.toLocaleString("en-US")}` : ""}
-          </SalesListItemDetailRow>
-        ))
-      ) : (
-        <SalesListItemDetailRow className="pl-5" tone="topping" right={`+${moneyValue(toppingTotal)}`}>
-          + {t("pos.toppingTotal")}
+  // ห้ามครอบ div grid ซ้อนตรงนี้ — แถว topping ต้องเป็นลูกโดยตรงของกริดเดียวกับแถวอื่น
+  // ไม่งั้นคอลัมน์ label/=/value จะไม่ align กับแถวข้างนอก (คนละกริดกัน)
+  return toppings.length ? (
+    <>
+      {toppings.map((topping, index) => (
+        <SalesListItemDetailRow
+          key={`${topping.name}-${index}`}
+          className="pl-3"
+          tone="topping"
+          right={topping.total > 0 ? `+${moneyValue(topping.total)}` : null}
+        >
+          + {topping.name}{topping.qty > 0 ? ` x${topping.qty.toLocaleString("en-US")}` : ""}
         </SalesListItemDetailRow>
-      )}
-    </div>
+      ))}
+    </>
+  ) : (
+    <SalesListItemDetailRow className="pl-3" tone="topping" right={`+${moneyValue(toppingTotal)}`}>
+      + {t("pos.toppingTotal")}
+    </SalesListItemDetailRow>
   );
 }

@@ -398,32 +398,15 @@
   },
   "notifications": {
     "empty": "You're all caught up",
-    "markAllRead": "Mark all as read",
-    "title": "Notifications",
-    "relative": {
-      "justNow": "Just now",
-      "minutesAgo": "{{count}}m ago",
-      "hoursAgo": "{{count}}h ago",
-      "daysAgo": "{{count}}d ago"
+    "liveOrders": {
+      "title": "New order",
+      "item": "Table {{table}} · {{zone}}"
     },
-    "mock": {
-      "newOrder": {
-        "title": "New order received",
-        "description": "Table 4 placed an order for 3 items."
-      },
-      "lowStock": {
-        "title": "Low stock alert",
-        "description": "Iced latte syrup is running low."
-      },
-      "printerOffline": {
-        "title": "Printer offline",
-        "description": "Kitchen printer KP-01 lost connection."
-      },
-      "welcome": {
-        "title": "Welcome to Yummy Go",
-        "description": "Explore the dashboard to get started."
-      }
-    }
+    "newOrderToast": {
+      "title": "New order received",
+      "description": "Table {{table}} in {{zone}} placed a new order."
+    },
+    "title": "Notifications"
   },
   "pos": {
     "menu": "Menu",
@@ -510,6 +493,7 @@
     "sumGrandTotal": "Sum grand total",
     "tableSelectionNewOrder": "New order",
     "selectedTable": "Selected",
+    "zoneNewOrderAria": "{{zone}} has {{count}} new order(s)",
     "tableActions": "Table actions",
     "tableActionsDescription": "Move or join orders for {{table}}.",
     "createTableQr": "Create table QR",

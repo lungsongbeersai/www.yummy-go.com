@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { Check, Search, UserRound } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { EmptyState } from "@/components/common/empty-state";
@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { zoneOrderAlertCount } from "@/lib/pos/order-alerts";
 import type { PosTable, PosZone } from "@/services/pos";
 import type { TableStatusFilter } from "./types";
 import { filterZones, tableCount, tableSeatCount, tableStatus } from "./utils";
@@ -18,14 +19,12 @@ interface TableListSectionProps {
   loading: boolean;
   search: string;
   selectedTable: PosTable | null;
-  selectedZoneUuid: string;
   statusFilter: TableStatusFilter;
   zoneOptions: PosZone[];
   zones: PosZone[];
   onSearchChange: (value: string) => void;
   onSelectTable: (table: PosTable) => void;
   onStatusFilterChange: (value: TableStatusFilter) => void;
-  onZoneChange: (value: string) => void;
 }
 
 export function TableListSection({
@@ -33,33 +32,65 @@ export function TableListSection({
   onSearchChange,
   onSelectTable,
   onStatusFilterChange,
-  onZoneChange,
   search,
   selectedTable,
-  selectedZoneUuid,
   statusFilter,
   zoneOptions,
   zones
 }: TableListSectionProps) {
   const { t } = useTranslation();
+  // ทุกโซนแสดงพร้อมกันเสมอ (ไม่ยิง fetch ซ้ำตอนเปลี่ยนโซน) — คลิกชิปแค่เลื่อน
+  // จอไปยัง section ของโซนนั้น ค่านี้จึงเป็นแค่ state ไว้ไฮไลต์ชิปที่กดล่าสุด
+  const [selectedZoneUuid, setSelectedZoneUuid] = useState("");
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const zoneSectionRefs = useRef(new Map<string, HTMLElement>());
   const visibleZones = useMemo(() => filterZones(zones, search, statusFilter), [search, statusFilter, zones]);
   const allTables = useMemo(() => zones.flatMap((zone) => zone.tables ?? []), [zones]);
   const filterOptions = zoneOptions.length ? zoneOptions : zones;
   const hasVisibleTables = tableCount(visibleZones) > 0;
+  const totalOrderAlertCount = useMemo(
+    () => filterOptions.reduce((sum, zone) => sum + zoneOrderAlertCount(zone), 0),
+    [filterOptions]
+  );
   const statusCounts = useMemo(() => {
     const busy = allTables.filter((table) => tableStatus(table) === "busy").length;
     const updates = allTables.filter((table) => Boolean(table.customer_order_state)).length;
     return { all: allTables.length, busy, free: allTables.length - busy, update: updates };
   }, [allTables]);
 
+  const scrollToZone = useCallback((zoneUuid: string) => {
+    setSelectedZoneUuid(zoneUuid);
+    if (!zoneUuid) {
+      scrollContainerRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+    zoneSectionRefs.current.get(zoneUuid)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
+
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-background">
       <div className="flex shrink-0 flex-col gap-3 border-b border-border bg-background px-4 py-3 shadow-sm xl:px-5">
         <div className="flex gap-2 overflow-x-auto pb-1">
-          <ZoneChip active={!selectedZoneUuid} label={t("common.all")} onClick={() => onZoneChange("")} />
-          {filterOptions.map((zone) => (
-            <ZoneChip key={zone.zone_uuid} active={selectedZoneUuid === zone.zone_uuid} label={zone.zone_name} onClick={() => onZoneChange(zone.zone_uuid)} />
-          ))}
+          <ZoneChip
+            active={!selectedZoneUuid}
+            alertCount={totalOrderAlertCount}
+            alertAriaLabel={t("pos.zoneNewOrderAria", { zone: t("common.all"), count: totalOrderAlertCount })}
+            label={t("common.all")}
+            onClick={() => scrollToZone("")}
+          />
+          {filterOptions.map((zone) => {
+            const alertCount = zoneOrderAlertCount(zone);
+            return (
+              <ZoneChip
+                key={zone.zone_uuid}
+                active={selectedZoneUuid === zone.zone_uuid}
+                alertCount={alertCount}
+                alertAriaLabel={t("pos.zoneNewOrderAria", { zone: zone.zone_name, count: alertCount })}
+                label={zone.zone_name}
+                onClick={() => scrollToZone(zone.zone_uuid)}
+              />
+            );
+          })}
         </div>
         <div className="flex flex-col gap-2.5 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex gap-2 overflow-x-auto pb-1">
@@ -74,13 +105,20 @@ export function TableListSection({
           </div>
         </div>
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 xl:p-5">
+      <div ref={scrollContainerRef} className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 xl:p-5">
         {loading ? (
           <LoadingState label={t("pos.loadingTables")} variant="posGrid" />
         ) : hasVisibleTables ? (
           <div className="flex min-w-0 flex-col gap-4 pb-4">
             {visibleZones.map((zone) => (
-              <section key={zone.zone_uuid} className="flex flex-col gap-3">
+              <section
+                key={zone.zone_uuid}
+                ref={(el) => {
+                  if (el) zoneSectionRefs.current.set(zone.zone_uuid, el);
+                  else zoneSectionRefs.current.delete(zone.zone_uuid);
+                }}
+                className="flex flex-col gap-3"
+              >
                 {filterOptions.length > 1 ? (
                   <div className="flex flex-wrap items-center gap-2">
                     <h2 className="text-sm font-black text-muted-foreground">{zone.zone_name}</h2>
@@ -103,7 +141,21 @@ export function TableListSection({
   );
 }
 
-function ZoneChip({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
+function ZoneChip({
+  active,
+  alertAriaLabel,
+  alertCount = 0,
+  label,
+  onClick
+}: {
+  active: boolean;
+  alertAriaLabel?: string;
+  alertCount?: number;
+  label: string;
+  onClick: () => void;
+}) {
+  const hasAlert = alertCount > 0;
+
   return (
     <Button
       type="button"
@@ -111,12 +163,22 @@ function ZoneChip({ active, label, onClick }: { active: boolean; label: string; 
       variant={active ? "default" : "outline"}
       className={cn(
         "h-10 shrink-0 rounded-full px-3.5 font-black shadow-sm transition",
-        active ? "shadow-primary/20" : "border-border bg-card hover:border-primary/30 hover:bg-primary/5"
+        active ? "shadow-primary/20" : "border-border bg-card hover:border-primary/30 hover:bg-primary/5",
+        // ใช้ ring กะพริบแทนพื้นหลังกะพริบ — พื้นหลังกะพริบชนสี text-destructive จนคอนทราสต์ไม่ผ่าน WCAG AA
+        hasAlert && "pos-chip-alert-ring"
       )}
       onClick={onClick}
     >
       {active ? <Check data-icon="inline-start" /> : null}
       <span className="max-w-40 truncate">{label}</span>
+      {hasAlert ? (
+        <Badge
+          aria-label={alertAriaLabel}
+          className="ml-1 min-w-4.5 justify-center border-transparent bg-destructive px-1 text-[10px] text-destructive-foreground"
+        >
+          {alertCount}
+        </Badge>
+      ) : null}
     </Button>
   );
 }
@@ -173,19 +235,21 @@ function TableCard({
   const busy = tableStatus(table) === "busy";
   const hasUpdate = Boolean(table.customer_order_state);
   const seats = tableSeatCount(table);
+  // hasUpdate ใช้โทนแดง (destructive) แทนเขียว (primary) ที่ busy ใช้ เพื่อให้แยกกันได้ชัดจากระยะไกล
+  // แต่ต้องเป็นพื้นทึบนิ่ง ไม่ใช่ text สีแดง — กันปัญหาคอนทราสต์แบบเดียวกับ ZoneChip
   const cardToneClass = hasUpdate
-    ? "pos-table-card-alert border-destructive/70 bg-primary/15"
+    ? "pos-table-card-alert border-destructive/70"
     : busy
       ? "border-primary/75 bg-primary/10"
       : "border-border";
-  const bodyToneClass = hasUpdate ? "bg-primary/45" : busy ? "bg-primary/35" : "bg-card";
+  const bodyToneClass = hasUpdate ? "bg-destructive/18" : busy ? "bg-primary/35" : "bg-card";
   const footerToneClass = hasUpdate
-    ? "border-primary/50 bg-primary/20"
+    ? "border-destructive/30 bg-destructive/12"
     : busy
       ? "border-primary/35 bg-primary/15"
       : "border-border bg-muted/50";
   const statusDotClass = busy ? "bg-destructive" : "bg-primary";
-  const statusTextClass = busy ? "text-destructive" : "text-primary";
+  const statusTextClass = hasUpdate ? "text-foreground" : busy ? "text-destructive" : "text-primary";
 
   return (
     <Card

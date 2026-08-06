@@ -2,6 +2,7 @@
 
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { useResetOnDeps } from "@/hooks/use-reset-on-change";
+import { usePosOrderAlertListener } from "@/hooks/use-pos-order-alert-listener";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
@@ -164,6 +165,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   );
   const clearSidebarMenu = usePermissionsSidebarStore((state) => state.clearActive);
   const loadSidebarMenu = usePermissionsSidebarStore((state) => state.load);
+  usePosOrderAlertListener({ branchUuid: user?.branch_uuid, language: i18n.language });
   const storeUuid = authStoreUuid(user);
   const targetSidebarRequestKey =
     storeUuid && typeof user?.status === "number"

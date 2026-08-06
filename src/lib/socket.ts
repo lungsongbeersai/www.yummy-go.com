@@ -19,6 +19,10 @@ export interface TableAlertPayload {
 
 type TableAlertHandler = (payload: TableAlertPayload) => void;
 
+export function isTableAlertForBranch(payload: TableAlertPayload, branchUuid: string) {
+  return Boolean(payload.table_uuid) && (!payload.branch_uuid_fk || payload.branch_uuid_fk === branchUuid);
+}
+
 function socketUrl() {
   return process.env.NEXT_PUBLIC_SOCKET_URL || process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BASE_URL || "";
 }

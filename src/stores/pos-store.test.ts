@@ -376,6 +376,17 @@ describe("POS store menu and table browse state", () => {
     });
   });
 
+  it("patches the customer order flag in both zones and zoneOptions", () => {
+    const table = { table_uuid: "table-1", table_name: "T1", table_status: 2, customer_order_state: false };
+    const zoneWithTable = { ...zone("zone-1"), tables: [table] };
+    usePosStore.setState({ zones: [zoneWithTable], zoneOptions: [zoneWithTable] });
+
+    usePosStore.getState().updateTableCustomerOrderState("table-1", true);
+
+    expect(usePosStore.getState().zones[0]?.tables[0]).toMatchObject({ customer_order_state: true });
+    expect(usePosStore.getState().zoneOptions[0]?.tables[0]).toMatchObject({ customer_order_state: true });
+  });
+
   it("drops full-zone results returned after a session reset", async () => {
     const response = deferred<Awaited<ReturnType<typeof getPosTables>>>();
     getPosTablesMock.mockReturnValueOnce(response.promise);

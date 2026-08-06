@@ -3,7 +3,6 @@ import type { DailySaleItemsBillGroup } from "@/stores/report-store";
 import {
   billMetaText,
   billNeedsPaymentAttention,
-  cancelDateSelectForSaleDate,
   calculatedRateLabel,
   itemToppingNames,
   itemToppingTotal,
@@ -45,19 +44,6 @@ function bill(overrides: Partial<DailySaleItemsBillGroup> = {}): DailySaleItemsB
 }
 
 describe("sales list utils", () => {
-  it("maps only today's and yesterday's bills to cancel-sale date filters", () => {
-    const now = new Date(2026, 6, 15, 12);
-
-    expect(cancelDateSelectForSaleDate("2026-07-15 09:30:00", now)).toBe("today");
-    expect(cancelDateSelectForSaleDate("2026-07-14", now)).toBe("yesterday");
-    expect(cancelDateSelectForSaleDate("2026-07-13", now)).toBeNull();
-    expect(cancelDateSelectForSaleDate("invalid", now)).toBeNull();
-  });
-
-  it("handles yesterday across month boundaries", () => {
-    expect(cancelDateSelectForSaleDate("2026-06-30", new Date(2026, 6, 1, 8))).toBe("yesterday");
-  });
-
   it("marks unpaid and debt bills for attention", () => {
     expect(billNeedsPaymentAttention(bill({ debtAmount: 25000 }))).toBe(true);
     expect(billNeedsPaymentAttention(bill({ paymentMethodCode: "debt" }))).toBe(true);
