@@ -175,6 +175,7 @@ export function DailySalesReportPage({
               onExpandAllBills: report.expandAllBills,
               onExportExcel: () => void report.exportExcel(),
               onExportPdf: () => void report.exportPdf(),
+              onPrintReport: () => void report.printReport(),
               onTypePageChange: (typePage) => report.applyTableHeaderFilters({ typePage }),
             }}
             footer={

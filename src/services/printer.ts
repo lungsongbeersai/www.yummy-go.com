@@ -33,6 +33,7 @@ export type {
   DefaultCategoryGroupDetail,
   ExecuteInvoicePrintInput,
   ExecuteKitchenPrintInput,
+  ExecuteReportPrintInput,
   FetchPrinterResponse,
   FetchPrintersForLocalAgentParams,
   FetchPrintersParams,
@@ -99,5 +100,6 @@ export {
   ackPrintJob,
   executeInvoicePrintJobs,
   executeKitchenPrintJobs,
+  executeReportPrintJobs,
   getPendingPrintJobs
 } from "@/services/printer/print-jobs";

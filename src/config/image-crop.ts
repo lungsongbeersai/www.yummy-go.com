@@ -14,3 +14,11 @@ export const IMAGE_CROP_ASPECT_CLASS = "aspect-[4/3]";
 
 export const IMAGE_CROP_OUTPUT_WIDTH = 640;
 export const IMAGE_CROP_OUTPUT_HEIGHT = Math.round(IMAGE_CROP_OUTPUT_WIDTH / IMAGE_CROP_ASPECT);
+
+// QR โอนเงินของสาขา — แสดงในกล่อง aspect-square เสมอ (payment-dialog-content, customer-display)
+// ต้องแยกจาก IMAGE_CROP_ASPECT ของรูปสินค้า ไม่งั้นตัด 4:3 แล้วไปอัดใน กรอบสี่เหลี่ยมจัตุรัสจนเหลือพื้นที่ขาวรอบ QR
+export const QR_CROP_ASPECT = 1;
+export const QR_CROP_ASPECT_CLASS = "aspect-square";
+
+export const QR_CROP_OUTPUT_WIDTH = 640;
+export const QR_CROP_OUTPUT_HEIGHT = 640;

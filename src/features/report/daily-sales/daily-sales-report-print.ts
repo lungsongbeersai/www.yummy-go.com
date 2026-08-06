@@ -1,5 +1,6 @@
-import { money } from "@/lib/format";
+import { dateTime, money } from "@/lib/format";
 import { firstNumberOrZero, readValue, textValue } from "@/lib/values";
+import type { ReportPrintOp } from "@/services/report";
 import type { ApiEntity } from "@/services/shared/types";
 import type { AuthUser } from "@/stores/auth-store";
 import type {
@@ -19,12 +20,13 @@ export interface DailySalesPrintLabels {
   cancelledBills: string;
   cashReceived: string;
   categoryTotal: string;
-  change: string;
   debt: string;
   discount: string;
   grandTotal: string;
   group: string;
   period: string;
+  printedAt: string;
+  printedBy: string;
   product: string;
   quantity: string;
   revenueSummary: string;
@@ -232,7 +234,8 @@ export function renderDailySalesPrintHtml(data: DailySalesPrintData) {
     <section class="meta">
       ${receiptMetaRowHtml(labels.period, `${data.dateFrom} - ${data.dateTo}`)}
       ${receiptMetaRowHtml(labels.billCount, summary.activeBillCount)}
-      ${receiptMetaRowHtml("Cashier", data.cashier)}
+      ${receiptMetaRowHtml(labels.printedBy, data.cashier)}
+      ${receiptMetaRowHtml(labels.printedAt, dateTime(new Date().toISOString()))}
     </section>
     <div class="divider"></div>
     <div class="columns strong"><span>${escapeHtml(labels.product)}</span><span>${escapeHtml(labels.quantity)}</span><span>${escapeHtml(labels.totalAmount)}</span></div>
@@ -251,7 +254,6 @@ export function renderDailySalesPrintHtml(data: DailySalesPrintData) {
       <h2 class="section-title">${escapeHtml(labels.revenueSummary)}</h2>
       ${totalRow(labels.cashReceived, summary.cashReceived)}
       ${totalRow(labels.transferReceived, summary.transferReceived)}
-      ${totalRow(labels.change, summary.change)}
       ${totalRow(labels.debt, summary.debt)}
       <div class="total-row"><span>${escapeHtml(labels.cancelledBills)} (${summary.cancelledBillCount})</span><span>${escapeHtml(money(summary.cancelledAmount))}</span></div>
     </section>`;
@@ -265,4 +267,43 @@ export function renderDailySalesPrintHtml(data: DailySalesPrintData) {
 
 function formatQuantity(value: number) {
   return Number.isInteger(value) ? String(value) : value.toFixed(2).replace(/0+$/, "").replace(/\.$/, "");
+}
+
+// สรุปย่อสำหรับพิมพ์ผ่าน printer agent — ตัดรายการสินค้า/หมวดหมู่ออกตามการตัดสินใจของ product owner
+export function buildDailySalesReportOps(data: DailySalesPrintData): ReportPrintOp[] {
+  const { labels, summary } = data;
+  const lr = (left: string, right: number, bold = false): ReportPrintOp => ({
+    type: "lr",
+    left,
+    right: money(right),
+    bold,
+    size: bold ? 26 : 24
+  });
+
+  return [
+    // ลำดับหัวใบเสร็จต้องตรงกับ receiptHeaderHtml: ชื่อร้าน(หนา) -> ชื่อสาขา -> หัวข้อรายงาน(ใหญ่สุด)
+    ...(data.storeName ? [{ type: "text", text: data.storeName, align: "center", bold: true, size: 24 } as ReportPrintOp] : []),
+    ...(data.branchName ? [{ type: "text", text: data.branchName, align: "center", size: 22 } as ReportPrintOp] : []),
+    { type: "text", text: labels.title, align: "center", bold: true, size: 32 },
+    { type: "line" },
+    { type: "text", text: `${labels.period}: ${data.dateFrom} - ${data.dateTo}`, align: "left", size: 24 },
+    { type: "text", text: `${labels.printedBy}: ${data.cashier}`, align: "left", size: 24 },
+    { type: "text", text: `${labels.printedAt}: ${dateTime(new Date().toISOString())}`, align: "left", size: 20 },
+    { type: "line" },
+    { type: "lr", left: labels.billCount, right: String(summary.activeBillCount), bold: false, size: 24 },
+    { type: "lr", left: labels.totalQuantity, right: formatQuantity(summary.totalQuantity), bold: false, size: 24 },
+    lr(labels.subtotal, summary.subtotal),
+    lr(labels.discount, -summary.discount),
+    lr(labels.serviceCharge, summary.serviceCharge),
+    lr(labels.vat, summary.vat),
+    { type: "line" },
+    { ...lr(labels.grandTotal, summary.grandTotal, true), size: 30 },
+    { type: "line" },
+    { type: "text", text: labels.revenueSummary, align: "center", bold: true, size: 26 },
+    lr(labels.cashReceived, summary.cashReceived),
+    lr(labels.transferReceived, summary.transferReceived),
+    lr(labels.debt, summary.debt),
+    { type: "lr", left: `${labels.cancelledBills} (${summary.cancelledBillCount})`, right: money(summary.cancelledAmount), bold: false, size: 22 },
+    { type: "blank", n: 2 }
+  ];
 }

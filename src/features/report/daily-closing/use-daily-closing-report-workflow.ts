@@ -3,16 +3,19 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useResetOnChange } from "@/hooks/use-reset-on-change";
+import { isCapacitorNativeApp } from "@/lib/capacitor-platform";
 import { localDateInputValue } from "@/lib/format";
 import { useAppStore } from "@/stores/app-store";
 import { useAuthStore } from "@/stores/auth-store";
 import { useBranchStore } from "@/stores/branch-store";
+import { usePrinterStore } from "@/stores/printer-store";
 import { useDailyStoreClosingReportStore } from "@/stores/report-store";
 import { useToastStore } from "@/stores/toast-store";
 import { openReceiptPrintWindow, renderReceiptPrintWindow } from "../shared/report-receipt-print";
 import { useReportBranchSelection } from "../shared/use-report-branch-selection";
 import type { DailyClosingReportFilters } from "./daily-closing-report-types";
 import {
+  buildDailyClosingReportOps,
   type DailyClosingPrintData,
   renderDailyClosingPrintHtml,
 } from "./daily-closing-report-print";
@@ -32,6 +35,9 @@ export function useDailyClosingReportWorkflow() {
   const loading = useDailyStoreClosingReportStore((state) => state.loading);
   const report = useDailyStoreClosingReportStore((state) => state.report);
   const loadReport = useDailyStoreClosingReportStore((state) => state.load);
+  const executeReport = usePrinterStore((state) => state.executeReport);
+  const resolveDeviceContext = usePrinterStore((state) => state.resolveDeviceContext);
+  const submitReportPrint = usePrinterStore((state) => state.submitReportPrint);
   const showToast = useToastStore((state) => state.show);
   const today = useMemo(() => localDateInputValue(), []);
 
@@ -170,37 +176,98 @@ export function useDailyClosingReportWorkflow() {
   async function printReport() {
     if (printDisabled) return;
 
-    const printWindow = openReceiptPrintWindow();
-    if (!printWindow) {
-      showToast({
-        title: t("report.printFailed"),
-        description: t("report.printPopupBlocked"),
-        tone: "error",
-      });
-      return;
+    setPrinting(true);
+    let printWindow: Window | null = null;
+
+    // เปิด/เรนเดอร์หน้าต่างพิมพ์เบราว์เซอร์ — ใช้เป็นแผนสำรองเท่านั้น เรียกเมื่อพิมพ์ผ่าน printer agent ไม่สำเร็จ
+    async function fallbackToBrowserPrint(
+      printData: DailyClosingPrintData,
+      existingWindow: Window | null,
+    ): Promise<Window | null> {
+      const targetWindow = existingWindow ?? openReceiptPrintWindow();
+      if (!targetWindow) {
+        showToast({ title: t("report.printFailed"), description: t("report.printPopupBlocked"), tone: "error" });
+        return null;
+      }
+
+      renderReceiptPrintWindow(targetWindow, renderDailyClosingPrintHtml(printData));
+      showToast({ title: t("report.printReady"), tone: "success" });
+      return targetWindow;
     }
 
-    setPrinting(true);
     try {
       const loaded = await load();
-      if (!loaded) {
-        printWindow.close();
-        return;
-      }
+      if (!loaded) return;
 
       const latestReport = useDailyStoreClosingReportStore.getState().report;
       if (!latestReport) throw new Error(t("report.noData"));
 
-      renderReceiptPrintWindow(
-        printWindow,
-        renderDailyClosingPrintHtml(buildPrintData(latestReport, appliedFilters.date)),
-      );
+      const printData = buildPrintData(latestReport, appliedFilters.date);
+
+      // แยก try ของการพิมพ์ผ่าน agent ออกจากแผนสำรอง กันไม่ให้ fallback ที่พังซ้ำถูกจับแล้วเรียกซ้ำสอง
+      let agentPrintOutcome: "success" | "fallback" | "failed" = "failed";
+      try {
+        const resolvedContext = await resolveDeviceContext({
+          login_uuid_fk: user?.uuid ?? "",
+          lang: language,
+        });
+        const response = await submitReportPrint({
+          device_code: resolvedContext.device_code ?? "",
+          report_key: "daily_closing",
+          report_title: printLabels.title,
+          lang: language,
+          report_payload: {
+            business_date: latestReport.filters.date,
+            grand_total: latestReport.summary.grandTotal,
+          },
+          print_document: {
+            paper_width_mm: 80,
+            copies: 1,
+            cut_mode: "per_ticket",
+            ops: buildDailyClosingReportOps(printData),
+            browser_payload: { title: printLabels.title, html: renderDailyClosingPrintHtml(printData) },
+          },
+        });
+
+        if (!response.pending_query) {
+          agentPrintOutcome = "fallback";
+        } else {
+          let printStarted = false;
+          const printResult = await executeReport({
+            pending_query: response.pending_query,
+            login_uuid_fk: user?.uuid ?? "",
+            onProgress: ({ phase }) => {
+              if (phase === "printing") printStarted = true;
+            },
+          });
+
+          if (printResult.successCount > 0 && printResult.failedCount === 0) {
+            agentPrintOutcome = "success";
+          } else if (printResult.failedCount > 0 && printStarted && !isCapacitorNativeApp()) {
+            agentPrintOutcome = "fallback";
+          }
+        }
+      } catch {
+        agentPrintOutcome = "fallback";
+      }
+
+      if (agentPrintOutcome === "success") {
+        showToast({ title: t("report.printReady"), tone: "success" });
+        return;
+      }
+
+      if (agentPrintOutcome === "fallback") {
+        printWindow = await fallbackToBrowserPrint(printData, printWindow);
+        return;
+      }
+
       showToast({
-        title: t("report.printReady"),
-        tone: "success",
+        title: t("report.printFailed"),
+        description: t("report.printMissingJob"),
+        tone: "error",
       });
     } catch (printError) {
-      printWindow.close();
+      printWindow?.close();
       showToast({
         title: t("report.printFailed"),
         description: printError instanceof Error ? printError.message : "",

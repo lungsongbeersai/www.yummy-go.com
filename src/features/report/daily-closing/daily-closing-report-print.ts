@@ -1,8 +1,10 @@
 import { money } from "@/lib/format";
+import type { ReportPrintOp } from "@/services/report";
 import { escapeHtml } from "@/services/printer/invoice-print-window";
 import {
   receiptDocumentHtml,
   receiptHeaderHtml,
+  receiptHeadlineTotalHtml,
   receiptMetaRowHtml,
   receiptTotalRowHtml,
 } from "../shared/report-receipt-print";
@@ -60,7 +62,6 @@ interface DailyClosingItemPriceFields {
 // สไตล์เฉพาะของใบปิดยอด (ต่อยอดจาก RECEIPT_80MM_BASE_STYLES):
 // สองคอลัมน์ (ชื่อสินค้า + ราคาฐาน × จำนวน | ยอดรวม) และช่องลายเซ็น
 const DAILY_CLOSING_EXTRA_STYLES = `
-      .columns,
       .row {
         display: grid;
         grid-template-columns: minmax(0, 1fr) 23mm;
@@ -68,7 +69,6 @@ const DAILY_CLOSING_EXTRA_STYLES = `
         align-items: start;
       }
 
-      .columns > span:last-child,
       .row > span:last-child {
         text-align: right;
         font-variant-numeric: tabular-nums;
@@ -104,28 +104,28 @@ const DAILY_CLOSING_EXTRA_STYLES = `
       }
 
       .signatures {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 8mm;
-        margin-top: 20mm;
+        margin-top: 24mm;
+        padding-top: 4mm;
         page-break-inside: avoid;
         break-inside: avoid;
       }
 
-      .signature {
-        min-width: 0;
-        text-align: center;
-      }
-
-      .signature-line {
-        border-top: 1px dotted #111;
-      }
-
-      .signature p {
+      .signature-row {
+        display: flex;
+        justify-content: space-between;
         margin-top: 1.5mm;
         font-size: 10px;
       }
+
+      .signature-line {
+        letter-spacing: 1px;
+      }
 `;
+
+// เส้นลายเซ็นแบบจุด — ใช้ string เดียวกันทั้ง HTML และ ops เพราะเครื่องพิมพ์วาดเส้นแบ่งครึ่งแบบ
+// CSS border ไม่ได้ ต้องพิมพ์เป็นตัวอักษรจริง วางเป็นแถว lr/flex เดียวกับแถวชื่อด้านล่าง
+// (ไม่ใช่ข้อความ 1 บรรทัดตรงกลาง) เพื่อให้จุดแต่ละท่อนอยู่ตรงเหนือชื่อของตัวเองพอดี
+const SIGNATURE_DOTS = ".".repeat(18);
 
 // เนื้อหาใบเสร็จไม่รวม html/head/style/script
 // ใช้ร่วมกันระหว่างหน้าพิมพ์และ preview บนหน้าจอ
@@ -214,7 +214,7 @@ export function renderDailyClosingReceiptBody(
             `<p style="text-align:center">${escapeHtml(labels.noData)}</p>`
           }
 
-          <div class="category-total row strong">
+          <div class="category-total row">
             <span>
               ${escapeHtml(groupTotalLabel)} ${escapeHtml(groupName)}
             </span>
@@ -242,9 +242,9 @@ export function renderDailyClosingReceiptBody(
 
     <div class="divider"></div>
 
-    <div class="columns strong">
+    <div class="row">
       <span>${escapeHtml(labels.product)}</span>
-      <span>${escapeHtml(totalAmountLabel)}</span>
+      <span>${escapeHtml(withoutEnglishSuffix(totalAmountLabel))}</span>
     </div>
 
     ${
@@ -255,7 +255,7 @@ export function renderDailyClosingReceiptBody(
     <div class="divider"></div>
 
     <section>
-      <div class="total-row strong">
+      <div class="total-row">
         <span>
           ${escapeHtml(
             dailyClosingLabel(
@@ -291,13 +291,12 @@ export function renderDailyClosingReceiptBody(
         report.summary.vat,
       )}
 
-      ${totalRow(
+      ${receiptHeadlineTotalHtml(
         dailyClosingLabel(
           apiLabels.grandTotal,
           labels.grandTotal,
         ),
         report.summary.grandTotal,
-        "grand-total",
       )}
     </section>
 
@@ -333,7 +332,6 @@ export function renderDailyClosingReceiptBody(
           labels.paymentTotal,
         ),
         report.paymentSummary.paymentTotal,
-        "strong",
       )}
 
       ${numberedTotalRow(
@@ -347,14 +345,13 @@ export function renderDailyClosingReceiptBody(
     </section>
 
     <footer class="signatures">
-      <div class="signature employee-signature">
-        <div class="signature-line"></div>
-        <p>${escapeHtml(labels.employeeSignature)}</p>
+      <div class="signature-row signature-line">
+        <span>${SIGNATURE_DOTS}</span>
+        <span>${SIGNATURE_DOTS}</span>
       </div>
-
-      <div class="signature store-manager-signature">
-        <div class="signature-line"></div>
-        <p>${escapeHtml(labels.storeManagerSignature)}</p>
+      <div class="signature-row">
+        <span class="employee-signature">${escapeHtml(labels.employeeSignature)}</span>
+        <span class="store-manager-signature">${escapeHtml(labels.storeManagerSignature)}</span>
       </div>
     </footer>
   `;
@@ -391,6 +388,116 @@ export function renderDailyClosingReceiptPreviewDoc(
       }
 `,
   });
+}
+
+// เวอร์ชันพิมพ์ผ่าน printer agent — ต้องละเอียดครบเหมือน renderDailyClosingReceiptBody
+// เพราะใบปิดยอดใช้กระทบยอดตอนปิดกะ ต่างจาก daily-sales ที่ตัดรายการสินค้าออกได้
+export function buildDailyClosingReportOps(
+  data: DailyClosingPrintData,
+): ReportPrintOp[] {
+  const { labels, report } = data;
+  const apiLabels = report.labels;
+
+  const lr = (left: string, right: number, bold = false): ReportPrintOp => ({
+    type: "lr",
+    left,
+    right: money(right),
+    bold,
+    size: bold ? 26 : 24,
+  });
+
+  const groupTotalLabel = dailyClosingLabel(apiLabels.groupTotal, labels.groupTotal);
+  const discountLabel = dailyClosingLabel(apiLabels.discountAmount, labels.discount);
+  const totalAmountLabel = dailyClosingLabel(apiLabels.totalAmount, labels.totalAmount);
+
+  const toppingOp = (topping: DailyClosingReportItem["toppings"][number]): ReportPrintOp => {
+    const quantity = topping.qty > 0 ? ` × ${formatNumber(topping.qty)}` : "";
+    const price = topping.price === null ? "" : ` · ${money(topping.price)}`;
+    return { type: "text", text: `+ ${topping.name}${quantity}${price}`, align: "left", size: 18 };
+  };
+
+  const itemOps = (item: DailyClosingReportItem): ReportPrintOp[] => {
+    const basePrice = getItemBasePrice(item);
+    return [
+      lr(item.productName || "-", item.totalAmount),
+      {
+        type: "text",
+        text: `${money(basePrice)} × ${formatNumber(item.totalQty)}`,
+        align: "left",
+        size: 20,
+      },
+      ...item.toppings.filter((topping) => topping.name).map(toppingOp),
+    ];
+  };
+
+  // แต่ละกลุ่มปิดท้ายด้วย line เพื่อแทน border-bottom ของ .category-total ใน HTML
+  const groupOps: ReportPrintOp[] = report.groups.flatMap((group) => {
+    const groupName = group.name || dailyClosingLabel(apiLabels.noGroup, "-");
+    const products: ReportPrintOp[] = group.items.length
+      ? group.items.flatMap(itemOps)
+      : [{ type: "text", text: labels.noData, align: "center", size: 22 }];
+
+    return [
+      { type: "text", text: `${labels.group}: ${groupName}`, align: "left", bold: true, size: 26 },
+      ...products,
+      lr(`${groupTotalLabel} ${groupName}`, group.totalAmount),
+      { type: "line" },
+    ];
+  });
+
+  return [
+    // ลำดับหัวใบเสร็จต้องตรงกับ receiptHeaderHtml: ชื่อร้าน(หนา) -> ชื่อสาขา -> หัวข้อรายงาน(ใหญ่สุด)
+    ...(data.storeName ? [{ type: "text", text: data.storeName, align: "center", bold: true, size: 24 } as ReportPrintOp] : []),
+    ...(data.branchName ? [{ type: "text", text: data.branchName, align: "center", size: 22 } as ReportPrintOp] : []),
+    { type: "text", text: labels.title, align: "center", bold: true, size: 32 },
+    { type: "line" },
+    { type: "text", text: `${labels.businessDate}: ${data.businessDate}`, align: "left", size: 24 },
+    { type: "text", text: `${labels.cashier}: ${data.cashier}`, align: "left", size: 24 },
+    { type: "line" },
+    // ตัดเหลือแค่ภาษาลาว (withoutEnglishSuffix) แล้วข้อความสั้นพอจะแชร์แถวเดียวกับ "Product" ได้อย่างปลอดภัย
+    // ต่างจากตอนที่ยังมี " / English" ต่อท้ายซึ่งเคยล้นจนพิมพ์ออกมาผิดรูป
+    { type: "lr", left: labels.product, right: withoutEnglishSuffix(totalAmountLabel), bold: false, size: 24 },
+    ...groupOps,
+    {
+      type: "lr",
+      left: dailyClosingLabel(apiLabels.totalQty, labels.totalQuantity),
+      right: `${formatNumber(report.summary.totalQty)} ${labels.items}`,
+      bold: false,
+      size: 24,
+    },
+    lr(totalAmountLabel, report.summary.totalAmount),
+    lr(discountLabel, -report.summary.discountAmount),
+    lr(dailyClosingLabel(apiLabels.serviceCharge, labels.serviceCharge), report.summary.serviceCharge),
+    lr(dailyClosingLabel(apiLabels.vat, labels.vat), report.summary.vat),
+    { type: "line" },
+    // ยืนยันจากพิมพ์จริงหลายรอบแล้วว่า bold/size บนแถว type "lr" printer agent ไม่ใช้เลย
+    // (ต่างจาก type "text" ที่หัวใบเสร็จ/ชื่อร้านมีขนาดต่างจากเนื้อหาปกติชัดเจนบนกระดาษจริง)
+    // จึงเก็บจุดเน้นสูงสุดไว้ที่ยอดรวมทั้งหมดจุดเดียว โดยแยกเป็น text 2 บรรทัดแทน lr บรรทัดเดียว
+    // ส่วนแถว lr อื่น (ยอดรวมกลุ่ม, จำนวนรวม, ยอดรับชำระ) ตัด bold/size ที่ไม่มีผลจริงออกเพื่อไม่ให้โค้ดหลอกตา
+    { type: "text", text: dailyClosingLabel(apiLabels.grandTotal, labels.grandTotal), align: "left", bold: true, size: 26 },
+    { type: "text", text: money(report.summary.grandTotal), align: "right", bold: true, size: 32 },
+    { type: "line" },
+    { type: "text", text: labels.revenueSummary, align: "center", bold: true, size: 26 },
+    lr(`1. ${dailyClosingLabel(apiLabels.cash, labels.cash)}`, report.paymentSummary.cash),
+    lr(`2. ${dailyClosingLabel(apiLabels.transfer, labels.transfer)}`, report.paymentSummary.transfer),
+    lr(`3. ${dailyClosingLabel(apiLabels.credit, labels.credit)}`, report.paymentSummary.credit),
+    lr(
+      `4. ${dailyClosingLabel(apiLabels.paymentTotal, labels.paymentTotal)}`,
+      report.paymentSummary.paymentTotal,
+    ),
+    lr(
+      `5. ${dailyClosingLabel(apiLabels.cancelBill, labels.cancelledBills)} (${formatNumber(
+        report.cancelSummary.billCount,
+      )})`,
+      report.cancelSummary.totalAmount,
+    ),
+    // เว้นบรรทัดว่างเพิ่มให้พื้นที่เซ็นชื่อหายใจ + ใช้แถว lr เดียวกับแถวชื่อสำหรับเส้นจุด
+    // (ตรงกับ SIGNATURE_DOTS ที่ใช้ใน HTML) เพื่อให้จุดแต่ละฝั่งอยู่ตรงเหนือชื่อของตัวเองพอดี
+    { type: "blank", n: 3 },
+    { type: "lr", left: SIGNATURE_DOTS, right: SIGNATURE_DOTS, bold: false, size: 20 },
+    { type: "lr", left: labels.employeeSignature, right: labels.storeManagerSignature, bold: false, size: 20 },
+    { type: "blank", n: 2 },
+  ];
 }
 
 function getItemBasePrice(
@@ -461,4 +568,10 @@ function formatNumber(value: number) {
     : value.toLocaleString("en-US", {
         maximumFractionDigits: 2,
       });
+}
+
+// backend ส่ง label การเงินเป็นคู่ "ລາວ / English" เสมอ — แถวหัวตารางนี้ต้องอยู่คนละบรรทัด
+// กับ "สินค้า" (กันล้นบรรทัดแบบที่เคยพังตอนพิมพ์จริง) จึงมีที่ว่างพอสำหรับภาษาลาวอย่างเดียว
+function withoutEnglishSuffix(label: string) {
+  return label.split(" / ")[0];
 }

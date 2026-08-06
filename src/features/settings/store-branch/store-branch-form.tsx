@@ -12,6 +12,12 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { DEFAULT_CROP, SettingsImageCropPanel, cropImageFile, type CropState } from "@/features/settings/shared/settings-image-crop";
+import {
+  QR_CROP_ASPECT,
+  QR_CROP_ASPECT_CLASS,
+  QR_CROP_OUTPUT_HEIGHT,
+  QR_CROP_OUTPUT_WIDTH
+} from "@/config/image-crop";
 import { cn } from "@/lib/utils";
 import {
   SettingsDialogBody,
@@ -214,7 +220,12 @@ function EntityForm({
 
   async function handleSubmit(formData: FormData) {
     if (selectedImage) {
-      const croppedFile = await cropImageFile(selectedImage, crop, labels.imageLoadFailed);
+      const croppedFile = await cropImageFile(
+        selectedImage,
+        crop,
+        labels.imageLoadFailed,
+        kind === "branch" ? { aspect: QR_CROP_ASPECT, outputHeight: QR_CROP_OUTPUT_HEIGHT, outputWidth: QR_CROP_OUTPUT_WIDTH } : undefined
+      );
       formData.set(imageFieldName, croppedFile);
     }
     await onSubmit(formData);
@@ -235,6 +246,8 @@ function EntityForm({
       <SettingsDialogBody className="p-0 sm:p-0">
         <div className="grid min-h-full gap-4 p-4 lg:grid-cols-[20rem_minmax(0,1fr)] lg:p-5">
           <SettingsImageCropPanel
+            aspect={kind === "branch" ? QR_CROP_ASPECT : undefined}
+            aspectClass={kind === "branch" ? QR_CROP_ASPECT_CLASS : undefined}
             crop={crop}
             className="rounded-lg border border-border lg:max-h-[calc(100dvh-12rem)] lg:overflow-y-auto"
             description={labels.cropHint}

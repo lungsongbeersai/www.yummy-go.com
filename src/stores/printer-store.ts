@@ -8,6 +8,7 @@ import {
   dispatchPrintJob,
   executeInvoicePrintJobs,
   executeKitchenPrintJobs,
+  executeReportPrintJobs,
   getAgentFiles,
   fetchPrinterCategoryRole,
   getCategoryRoles,
@@ -32,6 +33,7 @@ import {
   type DefaultCategoryByRoleInput,
   type ExecuteInvoicePrintInput,
   type ExecuteKitchenPrintInput,
+  type ExecuteReportPrintInput,
   type FetchPrintersForLocalAgentParams,
   type FetchPrintersParams,
   type PendingPrintJobData,
@@ -51,6 +53,7 @@ import { createSessionGuard, registerSessionStoreReset } from "@/stores/session-
 import { errorMessage } from "@/stores/store-utils";
 import { printMobileEscposOverTcp } from "@/services/printer/mobile-tcp";
 import { Capacitor } from "@capacitor/core";
+import { printReport, type ReportPrintInput, type ReportPrintResponse } from "@/services/report";
 
 type AgentStatus = "unchecked" | "connected" | "offline";
 
@@ -101,6 +104,8 @@ interface PrinterState {
   ack: (payload: AckPayload) => ReturnType<typeof ackPrintJob>;
   executeKitchen: (input: ExecuteKitchenPrintInput) => ReturnType<typeof executeKitchenPrintJobs>;
   executeInvoice: (input: ExecuteInvoicePrintInput) => ReturnType<typeof executeInvoicePrintJobs>;
+  executeReport: (input: ExecuteReportPrintInput) => ReturnType<typeof executeReportPrintJobs>;
+  submitReportPrint: (input: ReportPrintInput) => Promise<ReportPrintResponse>;
   reset: () => void;
 }
 
@@ -463,6 +468,8 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
   ack: (payload) => ackPrintJob(payload),
   executeKitchen: (input) => executeKitchenPrintJobs(input),
   executeInvoice: (input) => executeInvoicePrintJobs(input),
+  executeReport: (input) => executeReportPrintJobs(input),
+  submitReportPrint: (input) => printReport(input),
   reset: () =>
     set({
       printers: [],

@@ -67,11 +67,11 @@ function loadImage(file: File, errorMessage: string) {
 }
 
 // ผู้ใช้ที่ไม่เปิดกล่องตัดรูปเลยต้องได้รูปที่ใช้งานได้ — ตัดกรอบกลางภาพตามสัดส่วนมาตรฐานให้
-function centerCropArea(image: HTMLImageElement): CropArea {
+function centerCropArea(image: HTMLImageElement, aspect: number): CropArea {
   const { naturalHeight, naturalWidth } = image;
-  const wide = naturalWidth / naturalHeight > IMAGE_CROP_ASPECT;
-  const width = wide ? naturalHeight * IMAGE_CROP_ASPECT : naturalWidth;
-  const height = wide ? naturalHeight : naturalWidth / IMAGE_CROP_ASPECT;
+  const wide = naturalWidth / naturalHeight > aspect;
+  const width = wide ? naturalHeight * aspect : naturalWidth;
+  const height = wide ? naturalHeight : naturalWidth / aspect;
 
   return {
     height,
@@ -81,30 +81,29 @@ function centerCropArea(image: HTMLImageElement): CropArea {
   };
 }
 
-export async function cropImageFile(file: File, crop: CropState, imageLoadFailed: string) {
+export async function cropImageFile(
+  file: File,
+  crop: CropState,
+  imageLoadFailed: string,
+  options?: { aspect?: number; outputHeight?: number; outputWidth?: number }
+) {
+  const aspect = options?.aspect ?? IMAGE_CROP_ASPECT;
+  const outputWidth = options?.outputWidth ?? IMAGE_CROP_OUTPUT_WIDTH;
+  const outputHeight = options?.outputHeight ?? IMAGE_CROP_OUTPUT_HEIGHT;
+
   const image = await loadImage(file, imageLoadFailed);
   const canvas = document.createElement("canvas");
-  canvas.width = IMAGE_CROP_OUTPUT_WIDTH;
-  canvas.height = IMAGE_CROP_OUTPUT_HEIGHT;
+  canvas.width = outputWidth;
+  canvas.height = outputHeight;
   const context = canvas.getContext("2d");
   if (!context) return file;
 
-  const area = crop.areaPixels ?? centerCropArea(image);
+  const area = crop.areaPixels ?? centerCropArea(image, aspect);
   const outputType = file.type || "image/jpeg";
 
   context.fillStyle = "#ffffff";
-  context.fillRect(0, 0, IMAGE_CROP_OUTPUT_WIDTH, IMAGE_CROP_OUTPUT_HEIGHT);
-  context.drawImage(
-    image,
-    area.x,
-    area.y,
-    area.width,
-    area.height,
-    0,
-    0,
-    IMAGE_CROP_OUTPUT_WIDTH,
-    IMAGE_CROP_OUTPUT_HEIGHT
-  );
+  context.fillRect(0, 0, outputWidth, outputHeight);
+  context.drawImage(image, area.x, area.y, area.width, area.height, 0, 0, outputWidth, outputHeight);
 
   const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, outputType, 0.92));
   if (!blob) return file;
@@ -131,6 +130,7 @@ function cropPreviewStyle(src: string, area: CropArea | null): CSSProperties | u
 }
 
 function ImageCropDialog({
+  aspect,
   onConfirm,
   onOpenChange,
   open,
@@ -139,6 +139,7 @@ function ImageCropDialog({
   value,
   zoomLabel
 }: {
+  aspect: number;
   onConfirm: (crop: CropState) => void;
   onOpenChange: (open: boolean) => void;
   open: boolean;
@@ -153,6 +154,7 @@ function ImageCropDialog({
         {/* เนื้อในแยกเป็นคอมโพเนนต์ของตัวเองเพราะ Radix ถอด portal ทิ้งตอนปิด
             การเปิดใหม่จึง mount ใหม่และหยิบค่าที่บันทึกไว้เป็นค่าตั้งต้นเอง ไม่ต้อง sync ด้วย effect */}
         <ImageCropDialogBody
+          aspect={aspect}
           src={src}
           title={title}
           value={value}
@@ -169,6 +171,7 @@ function ImageCropDialog({
 }
 
 function ImageCropDialogBody({
+  aspect,
   onCancel,
   onConfirm,
   src,
@@ -176,6 +179,7 @@ function ImageCropDialogBody({
   value,
   zoomLabel
 }: {
+  aspect: number;
   onCancel: () => void;
   onConfirm: (crop: CropState) => void;
   src: string;
@@ -195,7 +199,7 @@ function ImageCropDialogBody({
       {/* ความสูงผูกกับ dvh — รูปกับตัวปรับจึงอยู่ในสายตาพร้อมกันเสมอ ไม่ว่าจอจะเตี้ยแค่ไหน */}
       <div className="relative h-[min(50dvh,20rem)] w-full shrink-0 overflow-hidden rounded-lg bg-black">
         <Cropper
-          aspect={IMAGE_CROP_ASPECT}
+          aspect={aspect}
           crop={{ x: draft.x, y: draft.y }}
           image={src}
           maxZoom={MAX_ZOOM}
@@ -235,6 +239,8 @@ function ImageCropDialogBody({
 }
 
 export function SettingsImageCropPanel({
+  aspect = IMAGE_CROP_ASPECT,
+  aspectClass = IMAGE_CROP_ASPECT_CLASS,
   crop,
   description,
   disabled,
@@ -254,6 +260,8 @@ export function SettingsImageCropPanel({
   uploadLabel,
   zoomLabel
 }: {
+  aspect?: number;
+  aspectClass?: string;
   crop: CropState;
   description: string;
   disabled?: boolean;
@@ -329,10 +337,7 @@ export function SettingsImageCropPanel({
           onClick={handleOpenFileDialog}
         >
           <span
-            className={cn(
-              "grid w-full place-items-center overflow-hidden rounded-lg bg-muted",
-              IMAGE_CROP_ASPECT_CLASS
-            )}
+            className={cn("grid w-full place-items-center overflow-hidden rounded-lg bg-muted", aspectClass)}
             style={cropPreviewStyle(previewSrc, crop.areaPercent)}
           >
             {!previewSrc ? <ImageIcon className="size-8 text-muted-foreground" /> : null}
@@ -375,6 +380,7 @@ export function SettingsImageCropPanel({
 
       {selectedFile && objectUrl ? (
         <ImageCropDialog
+          aspect={aspect}
           open={cropOpen}
           src={objectUrl}
           title={title}

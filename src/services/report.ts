@@ -8,6 +8,7 @@ import type {
   PaymentMethodReportFilter,
 } from "@/config/report-filters";
 import type { ApiEntity, PageLimit } from "@/services/shared/types";
+import type { PendingPrintJobsParams } from "@/services/printer";
 export {
   BEST_SELLING_PRODUCTS_SORT_OPTIONS,
   DAILY_SALES_BILL_PAYMENT_METHOD_OPTIONS,
@@ -291,6 +292,54 @@ export interface BestSellingProductsReportResponse extends ApiEntity {
   pagination?: unknown;
   report?: unknown;
   status?: string;
+}
+
+export interface ReportPrintOp {
+  type: "text" | "line" | "lr" | "blank";
+  text?: string;
+  align?: "left" | "center" | "right";
+  bold?: boolean;
+  size?: number;
+  left?: string;
+  right?: string;
+  n?: number;
+}
+
+export interface ReportPrintBrowserPayload {
+  title: string;
+  html: string;
+}
+
+export interface ReportPrintDocument {
+  paper_width_mm: number;
+  copies: number;
+  cut_mode: string;
+  ops: ReportPrintOp[];
+  browser_payload?: ReportPrintBrowserPayload;
+}
+
+export interface ReportPrintInput {
+  device_code: string;
+  report_key: string;
+  report_title: string;
+  lang: string;
+  report_payload?: ApiEntity;
+  print_document: ReportPrintDocument;
+}
+
+export interface ReportPrintResponse extends ApiEntity {
+  report_key?: string;
+  report_title?: string;
+  print_mode?: string;
+  printer?: ApiEntity;
+  print_job?: ApiEntity;
+  next_action?: ApiEntity;
+  pending_query?: PendingPrintJobsParams;
+  reason?: string | null;
+}
+
+export function printReport(input: ReportPrintInput) {
+  return apiRequest<ReportPrintResponse>("post", "/api/v1/pos/report/print", { data: input });
 }
 
 interface ReportRequestParams {
