@@ -29,6 +29,7 @@ import type {
   AckResponse,
   ExecuteInvoicePrintInput,
   ExecuteKitchenPrintInput,
+  ExecuteReportPrintInput,
   KitchenPrintResult,
   PendingPrintItem,
   PendingPrintJobData,
@@ -526,4 +527,8 @@ export async function executeKitchenPrintJobs(input: ExecuteKitchenPrintInput): 
 
 export async function executeInvoicePrintJobs(input: ExecuteInvoicePrintInput): Promise<KitchenPrintResult> {
   return executePrintJobs(input, { ack: false });
+}
+
+export async function executeReportPrintJobs(input: ExecuteReportPrintInput): Promise<KitchenPrintResult> {
+  return executePrintJobs(input, { ack: true });
 }

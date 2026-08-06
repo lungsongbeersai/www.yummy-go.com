@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import { BlockingLoadingDialog } from "@/components/common/blocking-loading-dialog";
-import { ChevronDown, ChevronRight, Download, FileSpreadsheet } from "lucide-react";
+import { ChevronDown, ChevronRight, Download, FileSpreadsheet, Printer } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { EmptyState } from "@/components/common/empty-state";
 import { LoadingState } from "@/components/common/loading-state";
@@ -62,6 +62,7 @@ interface ReportTableActionsProps {
   onExpandAllBills: () => void;
   onExportExcel: () => void;
   onExportPdf: () => void;
+  onPrintReport: () => void;
   onTypePageChange: (typePage: ReportTab) => void;
 }
 
@@ -201,6 +202,7 @@ function ReportTableActions({
   onExpandAllBills,
   onExportExcel,
   onExportPdf,
+  onPrintReport,
   onTypePageChange,
 }: ReportTableActionsProps) {
   const { t } = useTranslation();
@@ -262,7 +264,7 @@ function ReportTableActions({
                   className="h-9 min-w-9 rounded-md px-2.5"
                   disabled={exportDisabled}
                 >
-                  {exporting === "excel" || exporting === "pdf" ? (
+                  {exporting === "excel" || exporting === "pdf" || exporting === "print" ? (
                     <Spinner aria-hidden="true" data-icon="inline-start" />
                   ) : (
                     <Download data-icon="inline-start" />
@@ -286,6 +288,13 @@ function ReportTableActions({
                   >
                     <Download data-icon="inline-start" />
                     {t("report.exportPdf")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    disabled={exportDisabled}
+                    onSelect={onPrintReport}
+                  >
+                    <Printer data-icon="inline-start" />
+                    {t("report.print")}
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
               </DropdownMenuContent>

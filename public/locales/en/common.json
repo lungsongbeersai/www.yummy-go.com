@@ -1743,6 +1743,7 @@
     "preparingPrint": "Preparing print",
     "print": "Print",
     "printFailed": "Print failed",
+    "printMissingJob": "No report print job returned",
     "printPopupBlocked": "Allow popups to open the print window.",
     "officialHeader": {
       "line1": "Lao People’s Democratic Republic",
@@ -1764,6 +1765,8 @@
       "grandTotal": "Grand total",
       "group": "Group",
       "period": "Period",
+      "printedAt": "Printed at",
+      "printedBy": "Printed by",
       "revenueSummary": "Revenue summary",
       "subtotal": "Subtotal",
       "title": "Daily sales summary"

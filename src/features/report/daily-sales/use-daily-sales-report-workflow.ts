@@ -11,6 +11,7 @@ import {
 } from "react";
 import { useResetOnDeps } from "@/hooks/use-reset-on-change";
 import { useTranslation } from "react-i18next";
+import { isCapacitorNativeApp } from "@/lib/capacitor-platform";
 import { localDateInputValue } from "@/lib/format";
 import { pageLimitSize } from "@/lib/pagination";
 import type { UrlPaginationState } from "@/lib/url-pagination";
@@ -18,6 +19,7 @@ import type { ApiEntity } from "@/services/shared/types";
 import { useAppStore } from "@/stores/app-store";
 import { useAuthStore } from "@/stores/auth-store";
 import { useBranchStore } from "@/stores/branch-store";
+import { usePrinterStore } from "@/stores/printer-store";
 import { useReportBranchSelection } from "../shared/use-report-branch-selection";
 import {
   type DailySalesBillGroup,
@@ -43,6 +45,7 @@ import {
 } from "./daily-sales-report-utils";
 import {
   buildDailySalesPrintData,
+  buildDailySalesReportOps,
   renderDailySalesPrintHtml,
 } from "./daily-sales-report-print";
 import {
@@ -112,6 +115,9 @@ export function useDailySalesReportWorkflow(
   const billTotalPages = useDailySalesBillReportStore((state) => state.totalPages);
   const loadBillReport = useDailySalesBillReportStore((state) => state.load);
   const loadBillExportData = useDailySalesBillReportStore((state) => state.loadExportData);
+  const executeReport = usePrinterStore((state) => state.executeReport);
+  const resolveDeviceContext = usePrinterStore((state) => state.resolveDeviceContext);
+  const submitReportPrint = usePrinterStore((state) => state.submitReportPrint);
   const showToast = useToastStore((state) => state.show);
   const today = useMemo(() => localDateInputValue(), []);
 
@@ -659,13 +665,26 @@ export function useDailySalesReportWorkflow(
     if (loading || exporting) return;
     if (!user) return;
 
-    const printWindow = openReceiptPrintWindow();
-    if (!printWindow) {
-      showToast({ title: t("report.printFailed"), description: t("report.printPopupBlocked"), tone: "error" });
-      return;
+    setExporting("print");
+    let printWindow: Window | null = null;
+
+    // เปิด/เรนเดอร์หน้าต่างพิมพ์เบราว์เซอร์ — ใช้เป็นแผนสำรองเท่านั้น เรียกเมื่อพิมพ์ผ่าน printer agent ไม่สำเร็จ
+    // คืนค่าหน้าต่างที่เปิดกลับไปให้ผู้เรียก assign เอง เพื่อให้ catch ด้านนอก narrow type ได้ถูกต้อง
+    async function fallbackToBrowserPrint(
+      printData: ReturnType<typeof buildDailySalesPrintData>,
+      existingWindow: Window | null,
+    ): Promise<Window | null> {
+      const targetWindow = existingWindow ?? openReceiptPrintWindow();
+      if (!targetWindow) {
+        showToast({ title: t("report.printFailed"), description: t("report.printPopupBlocked"), tone: "error" });
+        return null;
+      }
+
+      renderReceiptPrintWindow(targetWindow, renderDailySalesPrintHtml(printData));
+      showToast({ title: t("report.printReady"), tone: "success" });
+      return targetWindow;
     }
 
-    setExporting("print");
     try {
       const categoryPaymentMethod = detailPaymentMethodParam(appliedFilters.paymentMethod);
       const [, categorySales] = await Promise.all([
@@ -692,42 +711,102 @@ export function useDailySalesReportWorkflow(
       const bills = useDailySaleItemsStore.getState().bills;
       if (!bills.length && !categorySales.groups.length) throw new Error(t("report.noData"));
 
-      renderReceiptPrintWindow(printWindow, renderDailySalesPrintHtml(buildDailySalesPrintData({
+      const labels = {
+        billCount: t("report.dailyPrint.billCount"),
+        cancelledBills: t("report.dailyPrint.cancelledBills"),
+        cashReceived: t("report.columns.cashReceived"),
+        categoryTotal: t("report.dailyPrint.categoryTotal"),
+        debt: t("report.columns.debtAmount"),
+        discount: t("report.columns.discount"),
+        grandTotal: t("report.dailyPrint.grandTotal"),
+        group: t("report.dailyPrint.group"),
+        period: t("report.dailyPrint.period"),
+        printedAt: t("report.dailyPrint.printedAt"),
+        printedBy: t("report.dailyPrint.printedBy"),
+        product: t("report.columns.productName"),
+        quantity: t("report.columns.quantity"),
+        revenueSummary: t("report.dailyPrint.revenueSummary"),
+        serviceCharge: t("report.columns.serviceCharge"),
+        subtotal: t("report.dailyPrint.subtotal"),
+        title: t("report.dailyPrint.title"),
+        totalAmount: t("report.columns.totalAmount"),
+        totalQuantity: t("report.cards.totalQuantity"),
+        transferReceived: t("report.columns.transferReceived"),
+        vat: t("report.columns.vat"),
+      };
+
+      const data = buildDailySalesPrintData({
         bills,
         dateFrom: appliedFilters.dateFrom,
         dateTo: appliedFilters.dateTo,
-        labels: {
-          billCount: t("report.dailyPrint.billCount"),
-          cancelledBills: t("report.dailyPrint.cancelledBills"),
-          cashReceived: t("report.columns.cashReceived"),
-          categoryTotal: t("report.dailyPrint.categoryTotal"),
-          change: t("report.columns.changeAmount"),
-          debt: t("report.columns.debtAmount"),
-          discount: t("report.columns.discount"),
-          grandTotal: t("report.dailyPrint.grandTotal"),
-          group: t("report.dailyPrint.group"),
-          period: t("report.dailyPrint.period"),
-          product: t("report.columns.productName"),
-          quantity: t("report.columns.quantity"),
-          revenueSummary: t("report.dailyPrint.revenueSummary"),
-          serviceCharge: t("report.columns.serviceCharge"),
-          subtotal: t("report.dailyPrint.subtotal"),
-          title: t("report.dailyPrint.title"),
-          totalAmount: t("report.columns.totalAmount"),
-          totalQuantity: t("report.cards.totalQuantity"),
-          transferReceived: t("report.columns.transferReceived"),
-          vat: t("report.columns.vat"),
-        },
+        labels,
         salesGroups: categorySales.groups,
         user,
-      })));
+      });
+
+      // แยก try ของการพิมพ์ผ่าน agent ออกจากแผนสำรอง กันไม่ให้ fallback ที่พังซ้ำถูกจับแล้วเรียกซ้ำสอง
+      let agentPrintOutcome: "success" | "fallback" | "failed" = "failed";
+      try {
+        const resolvedContext = await resolveDeviceContext({ login_uuid_fk: user.uuid, lang: language });
+        const response = await submitReportPrint({
+          device_code: resolvedContext.device_code ?? "",
+          report_key: "daily_sales",
+          report_title: labels.title,
+          lang: language,
+          report_payload: {
+            date_from: appliedFilters.dateFrom,
+            date_to: appliedFilters.dateTo,
+            grand_total: data.summary.grandTotal,
+            bill_count: data.summary.activeBillCount,
+          },
+          print_document: {
+            paper_width_mm: 80,
+            copies: 1,
+            cut_mode: "per_ticket",
+            ops: buildDailySalesReportOps(data),
+            browser_payload: { title: labels.title, html: renderDailySalesPrintHtml(data) },
+          },
+        });
+
+        if (!response.pending_query) {
+          agentPrintOutcome = "fallback";
+        } else {
+          let printStarted = false;
+          const printResult = await executeReport({
+            pending_query: response.pending_query,
+            login_uuid_fk: user.uuid,
+            onProgress: ({ phase }) => {
+              if (phase === "printing") printStarted = true;
+            },
+          });
+
+          if (printResult.successCount > 0 && printResult.failedCount === 0) {
+            agentPrintOutcome = "success";
+          } else if (printResult.failedCount > 0 && printStarted && !isCapacitorNativeApp()) {
+            agentPrintOutcome = "fallback";
+          }
+        }
+      } catch {
+        agentPrintOutcome = "fallback";
+      }
+
+      if (agentPrintOutcome === "success") {
+        showToast({ title: t("report.printReady"), tone: "success" });
+        return;
+      }
+
+      if (agentPrintOutcome === "fallback") {
+        printWindow = await fallbackToBrowserPrint(data, printWindow);
+        return;
+      }
 
       showToast({
-        title: t("report.printReady"),
-        tone: "success",
+        title: t("report.printFailed"),
+        description: t("report.printMissingJob"),
+        tone: "error",
       });
     } catch (error) {
-      printWindow.close();
+      printWindow?.close();
       showToast({
         title: t("report.printFailed"),
         description: error instanceof Error ? error.message : "",

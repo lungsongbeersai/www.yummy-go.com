@@ -7,6 +7,7 @@ import type { AuthUser } from "@/stores/auth-store";
 import type { DailySaleItemsBillGroup } from "@/stores/report-store";
 import {
   buildDailySalesPrintData,
+  buildDailySalesReportOps,
   renderDailySalesPrintHtml,
 } from "./daily-sales-report-print";
 
@@ -173,5 +174,74 @@ describe("buildDailySalesPrintData", () => {
     expect(html).toContain(`body class="${WINDOW_OPEN_FONT_CLASS_NAME}"`);
     expect(html).toContain("document.fonts?.ready");
     expect(html.indexOf("grand-total")).toBeLessThan(html.indexOf("revenueSummary"));
+  });
+});
+
+describe("buildDailySalesReportOps", () => {
+  it("gives every lr op an explicit bold flag so the printer agent never receives an inconsistent op shape", () => {
+    const data = buildDailySalesPrintData({
+      bills: [bill(), bill({ cancelled: true, id: "cancelled", lineTotal: 99 })],
+      dateFrom: "2026-07-13",
+      dateTo: "2026-07-13",
+      labels,
+      user,
+    });
+
+    const ops = buildDailySalesReportOps(data);
+    const lrOps = ops.filter((op) => op.type === "lr");
+
+    expect(lrOps.length).toBeGreaterThan(0);
+    lrOps.forEach((op) => {
+      expect(typeof op.bold).toBe("boolean");
+    });
+  });
+
+  it("orders the header like receiptHeaderHtml: store name, then branch, then title", () => {
+    const data = buildDailySalesPrintData({
+      bills: [bill()],
+      dateFrom: "2026-07-13",
+      dateTo: "2026-07-13",
+      labels,
+      user,
+    });
+
+    const ops = buildDailySalesReportOps(data);
+    const storeIndex = ops.findIndex((op) => op.text === user.store_name);
+    const branchIndex = ops.findIndex((op) => op.text === user.branch_name);
+    const titleIndex = ops.findIndex((op) => op.text === "title");
+
+    expect(storeIndex).toBeGreaterThanOrEqual(0);
+    expect(branchIndex).toBeGreaterThan(storeIndex);
+    expect(titleIndex).toBeGreaterThan(branchIndex);
+  });
+
+  it("prints bill count and total quantity as plain numbers, not money-formatted", () => {
+    const data = buildDailySalesPrintData({
+      bills: [bill()],
+      dateFrom: "2026-07-13",
+      dateTo: "2026-07-13",
+      labels,
+      user,
+    });
+
+    const ops = buildDailySalesReportOps(data);
+    const billCountOp = ops.find((op) => op.left === "billCount");
+    const totalQuantityOp = ops.find((op) => op.left === "totalQuantity");
+
+    expect(billCountOp?.right).toBe(String(data.summary.activeBillCount));
+    expect(totalQuantityOp?.right).not.toContain("₭");
+  });
+
+  it("omits the per-category product breakdown from the condensed summary", () => {
+    const data = buildDailySalesPrintData({
+      bills: [bill({ items: [{ group_name: "Food", product_name: "Rice", qty: 2, total: 100 }] })],
+      dateFrom: "2026-07-13",
+      dateTo: "2026-07-13",
+      labels,
+      user,
+    });
+
+    const ops = buildDailySalesReportOps(data);
+    expect(ops.some((op) => op.text === "Rice")).toBe(false);
   });
 });

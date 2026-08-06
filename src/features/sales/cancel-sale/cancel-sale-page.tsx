@@ -8,14 +8,16 @@ import {
   openLocalInvoicePrintWindow,
   type InvoicePrintData
 } from "@/services/printer/invoice-print-window";
-import { useIsCapacitorNativeApp } from "@/hooks/use-capacitor-native-app";
 import { useUrlPagination } from "@/hooks/use-url-pagination";
+import { isCapacitorNativeApp } from "@/lib/capacitor-platform";
 import type { UrlPaginationState } from "@/lib/url-pagination";
 import type { CancelableBill, CancelableDateOption } from "@/services/cancel";
 import type { SortOrder } from "@/services/shared/types";
 import { useAppStore } from "@/stores/app-store";
 import { useAuthStore } from "@/stores/auth-store";
 import { useCancelStore } from "@/stores/cancel-store";
+import { usePosStore } from "@/stores/pos-store";
+import { usePrinterStore } from "@/stores/printer-store";
 import { useToastStore } from "@/stores/toast-store";
 import { CancelBillDialog } from "./cancel-bill-dialog";
 import { SalesBillDetailPanel, SalesBillMobileSheet } from "./sales-bill-detail";
@@ -59,9 +61,10 @@ export function CancelSalePage({
   const cancelBill = useCancelStore((state) => state.cancelBill);
   const clearSelectedBill = useCancelStore((state) => state.clearSelectedBill);
   const resetBills = useCancelStore((state) => state.reset);
+  const requestReprintReceipt = usePosStore((state) => state.reprintReceipt);
+  const executeInvoice = usePrinterStore((state) => state.executeInvoice);
   const showToast = useToastStore((state) => state.show);
   const branchUuid = user?.branch_uuid ?? "";
-  const nativeApp = useIsCapacitorNativeApp();
 
   const [dateSelect, setDateSelect] = useState(initialDateSelect);
   const [orderBy, setOrderBy] = useState<SortOrder>("DESC");
@@ -85,7 +88,7 @@ export function CancelSalePage({
   const detailOrderUuid = billUuid(detailSource);
   const detailCanCancel = billCanCancel(selectedBill, selectedListBill);
   const cancelOrderUuid = detailOrderUuid;
-  const canReprintReceipt = Boolean(detailOrderUuid && user?.uuid && !receiptPrintingOrderUuid && !nativeApp);
+  const canReprintReceipt = Boolean(detailOrderUuid && user?.uuid && !receiptPrintingOrderUuid);
   const reprintingReceipt = Boolean(detailOrderUuid && receiptPrintingOrderUuid === detailOrderUuid);
   const rowsRange = pageBounds(page, limit, bills.length, total);
   const safeTotalPages = Math.max(1, totalPages);
@@ -224,15 +227,57 @@ export function CancelSalePage({
     const orderUuid = billUuid(detailSource);
     if (!orderUuid || !user?.uuid || receiptPrintingOrderUuid) return;
 
-    const receiptData = buildSalesListInvoicePrintData({
-      bill: detailSource,
-      translate: (key, options) => String(t(key, options)),
-      user
-    });
-
     setReceiptPrintingOrderUuid(orderUuid);
     try {
-      await openReceiptPrintWindow(receiptData, "");
+      const pendingQuery = await requestReprintReceipt({
+        order_uuid: orderUuid,
+        login_uuid_fk: user.uuid,
+        lang: language
+      });
+
+      if (!pendingQuery) {
+        showToast({
+          title: t("cancelSale.reprintReceiptFailed"),
+          description: t("cancelSale.reprintReceiptMissingJob"),
+          tone: "error"
+        });
+        return;
+      }
+
+      let printStarted = false;
+      const printResult = await executeInvoice({
+        pending_query: pendingQuery,
+        login_uuid_fk: user.uuid,
+        onProgress: ({ phase }) => {
+          if (phase === "printing") printStarted = true;
+        }
+      });
+
+      if (printResult.successCount > 0 && printResult.failedCount === 0) {
+        showToast({ title: t("cancelSale.reprintReceiptSuccess"), tone: "success" });
+        return;
+      }
+
+      if (printResult.total === 0) {
+        showToast({
+          title: t("cancelSale.reprintReceiptFailed"),
+          description: t("cancelSale.reprintReceiptMissingJob"),
+          tone: "error"
+        });
+        return;
+      }
+
+      if (printResult.failedCount > 0 && printStarted && !isCapacitorNativeApp()) {
+        const receiptData = buildSalesListInvoicePrintData({
+          bill: detailSource,
+          translate: (key, options) => String(t(key, options)),
+          user
+        });
+        await openReceiptPrintWindow(receiptData, "");
+        return;
+      }
+
+      showToast({ title: t("cancelSale.reprintReceiptFailed"), tone: "error" });
     } catch (printError) {
       showToast({
         title: t("cancelSale.reprintReceiptFailed"),

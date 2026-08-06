@@ -29,6 +29,9 @@ export const RECEIPT_80MM_BASE_STYLES = `
       .total-row { display: flex; justify-content: space-between; gap: 2mm; padding: 0.45mm 0; }
       .total-row span:last-child { flex-shrink: 0; text-align: right; font-variant-numeric: tabular-nums; }
       .grand-total { margin-top: 0.8mm; padding: 1mm 0; border-top: 1px solid #111; border-bottom: 1px double #111; font-size: 14px; font-weight: 900; }
+      .headline-total { margin-top: 0.8mm; padding: 1mm 0; border-top: 1px solid #111; border-bottom: 1px double #111; }
+      .headline-total-label { margin: 0; font-size: 12px; font-weight: 800; }
+      .headline-total-value { margin: 0.3mm 0 0; font-size: 16px; font-weight: 900; text-align: right; font-variant-numeric: tabular-nums; }
       .section-title { text-align: center; }
       .meta { text-align: left; }
       @media print { html, body { width: 74mm; } }
@@ -95,6 +98,19 @@ export function receiptTotalRowHtml(label: string, value: number, className = ""
     <div class="total-row${className ? ` ${className}` : ""}">
       <span>${escapeHtml(label)}</span>
       <span>${escapeHtml(money(displayValue))}</span>
+    </div>
+  `;
+}
+
+// บล็อก 2 บรรทัดสำหรับยอดที่ต้องเน้นที่สุด — คู่กับ 2 ops แบบ "text" (label/value)
+// เพราะ bold/size บน op type "lr" เครื่องพิมพ์จริงไม่ใช้เลย (ยืนยันจากพิมพ์จริงหลายรอบ)
+export function receiptHeadlineTotalHtml(label: string, value: number) {
+  const displayValue = Object.is(value, -0) ? 0 : value;
+
+  return `
+    <div class="headline-total">
+      <p class="headline-total-label">${escapeHtml(label)}</p>
+      <p class="headline-total-value">${escapeHtml(money(displayValue))}</p>
     </div>
   `;
 }

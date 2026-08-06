@@ -8,6 +8,7 @@ import { RECEIPT_80MM_BASE_STYLES } from "@/features/report/shared/report-receip
 import type { DailyStoreClosingReport } from "@/stores/report-store";
 import {
   type DailyClosingPrintData,
+  buildDailyClosingReportOps,
   renderDailyClosingPrintHtml,
 } from "./daily-closing-report-print";
 
@@ -117,7 +118,10 @@ describe("daily closing report print", () => {
     expect(html).toContain("@page { size: 80mm 297mm; margin: 3mm; }");
     expect(html).toContain("html, body { width: 74mm");
     expect(html).toContain("grid-template-columns: minmax(0, 1fr) 23mm");
-    expect(html).toContain('class="total-row grand-total"');
+    expect(html).toContain('class="headline-total"');
+    expect(html).toContain('class="headline-total-label"');
+    expect(html).toContain('class="headline-total-value"');
+    expect(html).not.toContain('class="total-row grand-total"');
     expect(html).toContain(`href="${WINDOW_OPEN_FONT_STYLESHEET_HREF}"`);
     expect(html).toContain(`body class="${WINDOW_OPEN_FONT_CLASS_NAME}"`);
     expect(html).toContain("document.fonts?.ready");
@@ -169,5 +173,142 @@ describe("daily closing report print", () => {
     expect(html.indexOf("employee-signature")).toBeLessThan(html.indexOf("store-manager-signature"));
     expect(html).toContain("Store manager signature");
     expect(html).toContain("Employee signature");
+  });
+
+  it("renders the product/total-amount column header as a single row", () => {
+    const html = renderDailyClosingPrintHtml(printData());
+
+    expect(html).toContain('class="row"');
+    expect(html).toContain("<span>Product</span>");
+    expect(html).not.toContain('class="column-total-label"');
+  });
+
+  it("keeps only the Lao half of the bilingual backend label on the column header, dropping the English suffix that previously overflowed and broke a physical print", () => {
+    const data = printData();
+    data.report.labels.totalAmount = "ລວມເປັນເງິນ / Total Amount";
+
+    const html = renderDailyClosingPrintHtml(data);
+
+    expect(html).toContain("<span>ລວມເປັນເງິນ</span>");
+    // The dedicated Total Amount summary row further down still gets the full bilingual label.
+    expect(html).toContain("ລວມເປັນເງິນ / Total Amount");
+  });
+
+  it("de-emphasizes group total, total quantity, and payment total rows to match the plain lr rows the printer actually renders", () => {
+    const html = renderDailyClosingPrintHtml(printData());
+
+    expect(html).not.toContain('class="category-total row strong"');
+    expect(html).toContain('class="category-total row"');
+    expect(html).not.toContain('class="total-row strong"');
+  });
+});
+
+describe("buildDailyClosingReportOps", () => {
+  it("gives every lr op an explicit bold flag so the printer agent never receives an inconsistent op shape", () => {
+    const ops = buildDailyClosingReportOps(printData());
+    const lrOps = ops.filter((op) => op.type === "lr");
+
+    expect(lrOps.length).toBeGreaterThan(0);
+    lrOps.forEach((op) => {
+      expect(typeof op.bold).toBe("boolean");
+    });
+  });
+
+  it("matches the browser receipt's full detail: per-product breakdown, total quantity with unit, and revenue summary", () => {
+    const ops = buildDailyClosingReportOps(printData());
+
+    expect(ops.some((op) => op.left === "Rice <Large>")).toBe(true);
+    expect(ops.some((op) => op.text?.includes("Egg & meat"))).toBe(true);
+
+    const totalQtyOp = ops.find((op) => op.left === "Total quantity");
+    expect(totalQtyOp?.right).toBe("2 items");
+    expect(totalQtyOp?.bold).toBe(false);
+    expect(totalQtyOp?.size).toBe(24);
+
+    expect(ops.some((op) => op.left === "1. Cash")).toBe(true);
+    expect(ops.some((op) => op.left === "5. Cancelled bills (1)")).toBe(true);
+  });
+
+  it("prints the column header as a single lr row using only the Lao half of the bilingual backend label, now short enough to safely share one line", () => {
+    const data = printData();
+    data.report.labels.totalAmount = "ລວມເປັນເງິນ / Total Amount";
+
+    const ops = buildDailyClosingReportOps(data);
+    const headerOp = ops.find((op) => op.left === "Product");
+
+    expect(headerOp?.type).toBe("lr");
+    expect(headerOp?.right).toBe("ລວມເປັນເງິນ");
+    expect(headerOp?.bold).toBe(false);
+
+    // The dedicated Total Amount summary row further down still gets the full bilingual label.
+    const summaryOp = ops.find((op) => op.left === "ລວມເປັນເງິນ / Total Amount");
+    expect(summaryOp).toBeTruthy();
+  });
+
+  it("orders the header like receiptHeaderHtml: store name, then branch, then title", () => {
+    const ops = buildDailyClosingReportOps(printData());
+    const storeIndex = ops.findIndex((op) => op.text === "Store");
+    const branchIndex = ops.findIndex((op) => op.text === "Central");
+    const titleIndex = ops.findIndex((op) => op.text === "Daily store closing report");
+
+    expect(storeIndex).toBeGreaterThanOrEqual(0);
+    expect(branchIndex).toBeGreaterThan(storeIndex);
+    expect(titleIndex).toBeGreaterThan(branchIndex);
+  });
+
+  it("closes each group with a divider line, matching the browser receipt's category-total border", () => {
+    const ops = buildDailyClosingReportOps(printData());
+    const groupTotalIndex = ops.findIndex((op) => op.left === "Group total Food & Drink");
+
+    expect(groupTotalIndex).toBeGreaterThanOrEqual(0);
+    expect(ops[groupTotalIndex + 1]?.type).toBe("line");
+    expect(ops[groupTotalIndex]?.bold).toBe(false);
+    expect(ops[groupTotalIndex]?.size).toBe(24);
+  });
+
+  it("keeps the payment total row plain like the other revenue-summary rows, since bold on lr does nothing physically", () => {
+    const ops = buildDailyClosingReportOps(printData());
+    const paymentTotalOp = ops.find((op) => op.left === "4. Payments received");
+
+    expect(paymentTotalOp?.bold).toBe(false);
+    expect(paymentTotalOp?.size).toBe(24);
+  });
+
+  it("keeps signature prompts as printable placeholders, each under its own dot-line lr row so the dots land directly above their own name", () => {
+    const ops = buildDailyClosingReportOps(printData());
+    const html = renderDailyClosingPrintHtml(printData());
+    const signatureRow = ops.find((op) => op.left === "Employee signature");
+    const dotsRow = ops[ops.indexOf(signatureRow!) - 1];
+
+    expect(signatureRow?.right).toBe("Store manager signature");
+    expect(dotsRow?.type).toBe("lr");
+    expect(dotsRow?.left).toBe(dotsRow?.right);
+    expect(dotsRow?.left).toMatch(/^\.+$/);
+
+    // The ops dot text must appear verbatim in the HTML preview too (1:1 parity).
+    expect(html).toContain(`<span>${dotsRow?.left}</span>`);
+  });
+
+  it("prints the grand total as two bold text ops instead of an lr row, since the printer agent was found to ignore bold/size on type \"lr\"", () => {
+    const ops = buildDailyClosingReportOps(printData());
+    const labelOp = ops.find((op) => op.text === "Grand total");
+    const amountOp = ops[ops.indexOf(labelOp!) + 1];
+
+    expect(labelOp?.type).toBe("text");
+    expect(labelOp?.bold).toBe(true);
+    expect(amountOp?.type).toBe("text");
+    expect(amountOp?.align).toBe("right");
+    expect(amountOp?.bold).toBe(true);
+    expect(ops.some((op) => op.type === "lr" && op.left?.includes("Grand total"))).toBe(false);
+  });
+
+  it("gives the signature area extra leading space before the dot-line, more than the standard blank spacing used elsewhere", () => {
+    const ops = buildDailyClosingReportOps(printData());
+    const signatureRow = ops.find((op) => op.left === "Employee signature");
+    const dotsRow = ops[ops.indexOf(signatureRow!) - 1];
+    const blankRow = ops[ops.indexOf(dotsRow) - 1];
+
+    expect(blankRow?.type).toBe("blank");
+    expect(blankRow?.n).toBeGreaterThanOrEqual(3);
   });
 });

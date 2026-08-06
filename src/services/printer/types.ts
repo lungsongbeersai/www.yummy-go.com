@@ -298,6 +298,7 @@ export interface ExecuteKitchenPrintInput {
   onProgress?: (progress: PrintProgress) => void;
 }
 export type ExecuteInvoicePrintInput = ExecuteKitchenPrintInput;
+export type ExecuteReportPrintInput = ExecuteKitchenPrintInput;
 
 export type CheckPrinterAgentConnectionResult =
   | { ok: true; agent: AgentInfo }

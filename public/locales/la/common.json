@@ -1751,6 +1751,7 @@
     "preparingPrint": "ກຳລັງກຽມໜ້າພິມ",
     "print": "ພິມ",
     "printFailed": "ພິມບໍ່ສຳເລັດ",
+    "printMissingJob": "ບໍ່ພົບຂໍ້ມູນສຳລັບພິມລາຍງານ",
     "printPopupBlocked": "ກະລຸນາອະນຸຍາດ popup ເພື່ອເປີດໜ້າພິມ",
     "officialHeader": {
       "line1": "ສາທາລະນະລັດ ປະຊາທິປະໄຕ ປະຊາຊົນລາວ",
@@ -1772,6 +1773,8 @@
       "grandTotal": "ລວມທັງໝົດ",
       "group": "ກຸ່ມ",
       "period": "ຊ່ວງວັນທີ",
+      "printedAt": "ພິມເມື່ອ",
+      "printedBy": "ພິມໂດຍ",
       "revenueSummary": "ສະຫຼຸບລາຍຮັບ",
       "subtotal": "ຍອດກ່ອນລວມ",
       "title": "ສະຫຼຸບຍອດຂາຍປະຈຳວັນ"
