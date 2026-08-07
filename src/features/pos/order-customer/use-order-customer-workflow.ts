@@ -579,7 +579,11 @@ export function useOrderCustomerWorkflow({
     });
     if (selectionIssue) {
       showToast({
-        title: orderSelectionIssueLabel(selectionIssue, t),
+        title: orderSelectionIssueLabel(
+          selectionIssue,
+          t,
+          orderQuantityRules(detail, productMode, selectedProduct),
+        ),
         description:
           selectionIssue === "detail-unavailable" ||
           selectionIssue === "stock-insufficient"

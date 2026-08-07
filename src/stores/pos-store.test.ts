@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { resolvePrinterDeviceContext } from "@/services/printer";
 import {
   confirmToKitchen,
+  fetchCart,
   fetchCateProducts,
   getPosTables,
   reprintReceipt,
@@ -9,6 +10,7 @@ import {
   ProductSortStatus,
   type CateWithProducts,
   type ConfirmToKitchenResponse,
+  type FetchCartResponse,
   type PosZone,
   type ReprintReceiptResponse,
   type SplitBillResponse
@@ -30,6 +32,7 @@ vi.mock("@/services/pos", async (importOriginal) => {
   return {
     ...actual,
     confirmToKitchen: vi.fn(),
+    fetchCart: vi.fn(),
     fetchCateProducts: vi.fn(),
     getPosTables: vi.fn(),
     reprintReceipt: vi.fn(),
@@ -38,6 +41,7 @@ vi.mock("@/services/pos", async (importOriginal) => {
 });
 
 const confirmToKitchenMock = vi.mocked(confirmToKitchen);
+const fetchCartMock = vi.mocked(fetchCart);
 const fetchCateProductsMock = vi.mocked(fetchCateProducts);
 const getPosTablesMock = vi.mocked(getPosTables);
 const reprintReceiptMock = vi.mocked(reprintReceipt);
@@ -555,5 +559,39 @@ describe("POS store menu and table browse state", () => {
       selectedCateUuid: "",
       submittedSearch: "",
     });
+  });
+});
+
+describe("POS store cart requests", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    usePosStore.getState().reset();
+  });
+
+  it("keeps the result of the most recently issued loadCart call when an older request resolves later", async () => {
+    const store = usePosStore.getState();
+
+    const staleResponse = deferred<FetchCartResponse>();
+    fetchCartMock.mockReturnValueOnce(staleResponse.promise).mockResolvedValueOnce({
+      status: "success",
+      message: "ok",
+      orders: [{ order_uuid: "order-fresh" }],
+    });
+
+    const staleLoad = store.loadCart({ table_uuid: "table-1" });
+    await vi.waitFor(() => expect(fetchCartMock).toHaveBeenCalledOnce());
+
+    const freshLoad = store.loadCart({ table_uuid: "table-1" });
+    await freshLoad;
+
+    // request เก่าเพิ่งมาถึงตอนนี้ (mock ตอบทีหลังของจริง) — ต้องไม่ทับผลของ request ใหม่กว่า
+    staleResponse.resolve({
+      status: "success",
+      message: "ok",
+      orders: [{ order_uuid: "order-stale" }],
+    });
+    await staleLoad;
+
+    expect(usePosStore.getState().cart).toEqual([{ order_uuid: "order-fresh" }]);
   });
 });

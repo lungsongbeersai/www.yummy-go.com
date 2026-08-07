@@ -157,6 +157,12 @@ export function useProductOrderSheetWorkflow({
     setQty(validQty);
   };
 
+  // ต่างจาก handleQty (ปุ่ม +/- ที่ snap เข้ากรอบเสมอ) — พิมพ์เองต้องปล่อยค่าดิบไหลเข้า selectionIssue
+  // ให้ตรวจจริง ไม่งั้นพิมพ์เกินสต็อกแล้วโดน snap เงียบๆ จะไม่มีทางเห็น Alert เตือนเลย
+  const handleQtyInput = (nextQty: number) => {
+    setQty(Number.isFinite(nextQty) ? Math.max(0, Math.floor(nextQty)) : minQty);
+  };
+
   const handleToppingToggle = (toppingUuid: string) => {
     const topping = toppings.find(
       (item) => item.prodToppingUuid === toppingUuid,
@@ -211,6 +217,7 @@ export function useProductOrderSheetWorkflow({
     details,
     handleDetailSelect,
     handleQty,
+    handleQtyInput,
     handleSubmit,
     handleToppingQty,
     handleToppingToggle,
@@ -219,6 +226,7 @@ export function useProductOrderSheetWorkflow({
     lineTotal,
     loading,
     maxQty,
+    maxSelectableQty,
     mediaRef,
     minQty,
     mode,

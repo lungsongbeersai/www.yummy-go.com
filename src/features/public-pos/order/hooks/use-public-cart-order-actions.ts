@@ -78,6 +78,7 @@ export function usePublicCartOrderActions({
   const directAddingRef = useRef(false);
 
   const handleAddToCart = usePublicAddToCartAction({
+    cart,
     cartStatusRule,
     createOrder,
     ensureCartLoaded,
@@ -110,10 +111,14 @@ export function usePublicCartOrderActions({
     handleDeleteItem,
     handleNoteDialogOpenChange,
     handleOpenNoteDialog,
+    handleOpenQuantityDialog,
+    handleQuantityDialogOpenChange,
+    handleSubmitQuantity,
     handleUpdateItemNote,
     handleUpdateItemQty,
     noteDraft,
     noteTarget,
+    quantityTarget,
     setNoteDraft,
   } = usePublicCartMaintenanceActions({
     cart,
@@ -140,12 +145,16 @@ export function usePublicCartOrderActions({
     handleProductClick,
     handleNoteDialogOpenChange,
     handleOpenNoteDialog,
+    handleOpenQuantityDialog,
+    handleQuantityDialogOpenChange,
+    handleSubmitQuantity,
     handleUpdateItemNote,
     handleDeleteItem,
     handleConfirmKitchen,
     handleUpdateItemQty,
     noteDraft,
     noteTarget,
+    quantityTarget,
     setNoteDraft,
   };
 }

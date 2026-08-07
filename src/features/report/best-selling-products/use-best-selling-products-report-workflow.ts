@@ -1,16 +1,26 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, type RefObject } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
 import { createSingleSheetReportWorkbook } from "@/lib/export/excel";
 import { officialReportExcelLayout } from "@/lib/export/official-layout";
+import { isCapacitorNativeApp } from "@/lib/capacitor-platform";
 import type { UrlPaginationState } from "@/lib/url-pagination";
 import { useAppStore } from "@/stores/app-store";
+import { useAuthStore } from "@/stores/auth-store";
 import { useBestSellingProductsReportStore } from "@/stores/report-store";
 import { useGroupStore } from "@/stores/group-store";
+import { usePrinterStore } from "@/stores/printer-store";
+import { useToastStore } from "@/stores/toast-store";
 import { exportInfoRows } from "../shared/report-export-info";
+import { openReceiptPrintWindow, renderReceiptPrintWindow } from "../shared/report-receipt-print";
 import { useStandardReportWorkflow } from "../shared/use-standard-report-workflow";
 import type { BestSellingExportData, BestSellingProductsFilters } from "./best-selling-products-report-types";
+import {
+  buildBestSellingPrintData,
+  buildBestSellingReportOps,
+  renderBestSellingPrintHtml,
+} from "./best-selling-products-report-print";
 import {
   ALL_GROUPS_VALUE,
   bestSellingFileBaseName,
@@ -34,6 +44,12 @@ export function useBestSellingProductsReportWorkflow(
 ) {
   const { t } = useTranslation();
   const language = useAppStore((state) => state.language);
+  const user = useAuthStore((state) => state.user);
+  const showToast = useToastStore((state) => state.show);
+  const executeReport = usePrinterStore((state) => state.executeReport);
+  const resolveDeviceContext = usePrinterStore((state) => state.resolveDeviceContext);
+  const submitReportPrint = usePrinterStore((state) => state.submitReportPrint);
+  const [printing, setPrinting] = useState(false);
   const groupRows = useGroupStore((state) => state.rows);
   const groupError = useGroupStore((state) => state.error);
   const groupLoading = useGroupStore((state) => state.loading);
@@ -191,14 +207,142 @@ export function useBestSellingProductsReportWorkflow(
     report.setPage(1);
   }
 
+  async function printReport() {
+    if (report.loading || report.exporting || printing) return;
+    if (!user) return;
+
+    setPrinting(true);
+    let printWindow: Window | null = null;
+
+    // เปิด/เรนเดอร์หน้าต่างพิมพ์เบราว์เซอร์ — ใช้เป็นแผนสำรองเท่านั้น เรียกเมื่อพิมพ์ผ่าน printer agent ไม่สำเร็จ
+    async function fallbackToBrowserPrint(
+      printData: ReturnType<typeof buildBestSellingPrintData>,
+      existingWindow: Window | null,
+    ): Promise<Window | null> {
+      const targetWindow = existingWindow ?? openReceiptPrintWindow();
+      if (!targetWindow) {
+        showToast({ title: t("report.printFailed"), description: t("report.printPopupBlocked"), tone: "error" });
+        return null;
+      }
+
+      renderReceiptPrintWindow(targetWindow, renderBestSellingPrintHtml(printData));
+      showToast({ title: t("report.printReady"), tone: "success" });
+      return targetWindow;
+    }
+
+    try {
+      const printLabels = {
+        grandTotal: t("report.bestSelling.columns.finalTotal"),
+        period: t("report.dailyPrint.period"),
+        printedAt: t("report.dailyPrint.printedAt"),
+        printedBy: t("report.dailyPrint.printedBy"),
+        title: t("report.bestSelling.title"),
+      };
+
+      // rows บนหน้าจอถูกแบ่งหน้า (จำกัดจำนวนต่อหน้า) ใบพิมพ์ต้อง Top N จากชุดข้อมูลเต็มเสมอ
+      // ไม่งั้นเมนูที่มีสินค้าเยอะจะจัดอันดับผิดถ้าสินค้าอันดับสูงตกไปอยู่คนละหน้า
+      const exportData = await loadExportData({
+        branch_uuid_fk: report.branchUuid,
+        date_from: report.appliedFilters.dateFrom,
+        date_to: report.appliedFilters.dateTo,
+        group_uuid_fk: groupParam(report.appliedFilters.groupUuid),
+        lang: language,
+        sort_by: report.appliedFilters.sortBy,
+      });
+
+      const data = buildBestSellingPrintData({
+        dateFrom: report.appliedFilters.dateFrom,
+        dateTo: report.appliedFilters.dateTo,
+        labels: printLabels,
+        othersLabel: (count) => t("report.bestSelling.othersCombined", { count }),
+        rows: exportData.rows,
+        summary: exportData.summary,
+        user,
+      });
+
+      // แยก try ของการพิมพ์ผ่าน agent ออกจากแผนสำรอง กันไม่ให้ fallback ที่พังซ้ำถูกจับแล้วเรียกซ้ำสอง
+      let agentPrintOutcome: "success" | "fallback" | "failed" = "failed";
+      try {
+        const resolvedContext = await resolveDeviceContext({ login_uuid_fk: user.uuid, lang: language });
+        const response = await submitReportPrint({
+          device_code: resolvedContext.device_code ?? "",
+          report_key: "best_selling_products",
+          report_title: printLabels.title,
+          lang: language,
+          report_payload: {
+            date_from: report.appliedFilters.dateFrom,
+            date_to: report.appliedFilters.dateTo,
+            grand_total: data.grandTotal,
+          },
+          print_document: {
+            paper_width_mm: 80,
+            copies: 1,
+            cut_mode: "per_ticket",
+            ops: buildBestSellingReportOps(data),
+            browser_payload: { title: printLabels.title, html: renderBestSellingPrintHtml(data) },
+          },
+        });
+
+        if (!response.pending_query) {
+          agentPrintOutcome = "fallback";
+        } else {
+          let printStarted = false;
+          const printResult = await executeReport({
+            pending_query: response.pending_query,
+            login_uuid_fk: user.uuid,
+            onProgress: ({ phase }) => {
+              if (phase === "printing") printStarted = true;
+            },
+          });
+
+          if (printResult.successCount > 0 && printResult.failedCount === 0) {
+            agentPrintOutcome = "success";
+          } else if (printResult.failedCount > 0 && printStarted && !isCapacitorNativeApp()) {
+            agentPrintOutcome = "fallback";
+          }
+        }
+      } catch {
+        agentPrintOutcome = "fallback";
+      }
+
+      if (agentPrintOutcome === "success") {
+        showToast({ title: t("report.printReady"), tone: "success" });
+        return;
+      }
+
+      if (agentPrintOutcome === "fallback") {
+        printWindow = await fallbackToBrowserPrint(data, printWindow);
+        return;
+      }
+
+      showToast({
+        title: t("report.printFailed"),
+        description: t("report.printMissingJob"),
+        tone: "error",
+      });
+    } catch (error) {
+      printWindow?.close();
+      showToast({
+        title: t("report.printFailed"),
+        description: error instanceof Error ? error.message : "",
+        tone: "error",
+      });
+    } finally {
+      setPrinting(false);
+    }
+  }
+
   return {
     ...report,
     activeBranchLabel,
     activeGroupLabel,
+    exportDisabled: report.exportDisabled || printing,
+    exporting: report.exporting ?? (printing ? "print" : null),
     groupError,
     groupLoading,
     groupOptions,
     groups,
+    printReport,
     renderedExportData,
     rows,
     sortByLabel,

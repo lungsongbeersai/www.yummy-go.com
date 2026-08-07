@@ -38,9 +38,13 @@ export interface CartSheetProps {
   onNoteOpen: (item: CartItem) => void;
   onNoteOpenChange: (open: boolean) => void;
   onUpdateNote: () => void;
+  onQuantityOpen: (item: CartItem) => void;
+  onQuantityOpenChange: (open: boolean) => void;
+  onSubmitQuantity: (qty: number) => void;
   onConfirmKitchen: () => void;
   noteDraft: string;
   noteTarget: CartItem | null;
+  quantityTarget: CartItem | null;
 }
 
 export interface CartSheetGroup {
@@ -64,9 +68,13 @@ export function usePublicCartSheetWorkflow({
   onNoteOpen,
   onNoteOpenChange,
   onUpdateNote,
+  onQuantityOpen,
+  onQuantityOpenChange,
+  onSubmitQuantity,
   onConfirmKitchen,
   noteDraft,
   noteTarget,
+  quantityTarget,
 }: CartSheetProps) {
   const { t } = useTranslation();
   const receipt = cart[0] ?? null;
@@ -174,11 +182,15 @@ export function usePublicCartSheetWorkflow({
     onNoteOpen,
     onNoteOpenChange,
     onOpenChange,
+    onQuantityOpen,
+    onQuantityOpenChange,
+    onSubmitQuantity,
     onUpdateNote,
     onUpdateQty,
     noteDraft,
     noteTarget,
     open,
+    quantityTarget,
     saving,
     statusRule,
     tableName,

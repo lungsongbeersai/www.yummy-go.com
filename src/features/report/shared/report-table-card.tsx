@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { ChevronDown, Download, FileSpreadsheet } from "lucide-react";
+import { ChevronDown, Download, FileSpreadsheet, Printer } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { EmptyState } from "@/components/common/empty-state";
 import { Badge } from "@/components/ui/badge";
@@ -45,6 +45,8 @@ export interface ReportTableCardProps {
   onClearSelection: () => void;
   onExportExcel: () => void;
   onExportPdf: () => void;
+  // ยังไม่ทุกรายงานรองรับ auto print ผ่าน printer agent — ไม่ส่ง prop นี้มาก็ไม่โชว์ตัวเลือกพิมพ์
+  onExportPrint?: () => void;
 }
 
 // การ์ดตารางมาตรฐาน: plain-text title, selection state, actions/export และสถานะ loading/ว่าง/มีข้อมูล
@@ -71,9 +73,11 @@ export function ReportTableCard({
   onClearSelection,
   onExportExcel,
   onExportPdf,
+  onExportPrint,
 }: ReportTableCardProps) {
   const { t } = useTranslation();
   const showSkeleton = skeletonMode === "always" ? loading : loading && !rowsLength;
+  const isBusy = exporting === "excel" || exporting === "pdf" || exporting === "print";
 
   const exportMenu = (
     <DropdownMenu>
@@ -87,7 +91,7 @@ export function ReportTableCard({
             className="h-9 min-w-9 rounded-md px-2.5"
             disabled={exportDisabled}
           >
-            {exporting === "excel" || exporting === "pdf" ? (
+            {isBusy ? (
               <Spinner aria-hidden="true" data-icon="inline-start" />
             ) : (
               <Download data-icon="inline-start" />
@@ -97,7 +101,7 @@ export function ReportTableCard({
           </Button>
         ) : (
           <Button type="button" variant="outline" size="sm" className="h-9" disabled={exportDisabled}>
-            {exporting === "excel" || exporting === "pdf" ? (
+            {isBusy ? (
               <Spinner aria-hidden="true" data-icon="inline-start" />
             ) : (
               <Download data-icon="inline-start" />
@@ -117,6 +121,12 @@ export function ReportTableCard({
             <Download data-icon="inline-start" />
             {t("report.exportPdf")}
           </DropdownMenuItem>
+          {onExportPrint ? (
+            <DropdownMenuItem disabled={exportDisabled} onSelect={onExportPrint}>
+              <Printer data-icon="inline-start" />
+              {t("report.print")}
+            </DropdownMenuItem>
+          ) : null}
         </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>

@@ -29,6 +29,7 @@ import { cn } from "@/lib/utils";
 import type { PublicCartSheetWorkflow } from "../hooks/use-public-cart-sheet-workflow";
 import { formatMoney } from "../utils";
 import { CartNoteDialog } from "./cart-note-dialog";
+import { CartQuantityDialog } from "./cart-quantity-dialog";
 import { CartGroup, CartTotalRow } from "./cart-sheet-items";
 
 export function CartSheetContent({
@@ -53,11 +54,15 @@ export function CartSheetContent({
     onNoteOpen,
     onNoteOpenChange,
     onOpenChange,
+    onQuantityOpen,
+    onQuantityOpenChange,
+    onSubmitQuantity,
     onUpdateNote,
     onUpdateQty,
     noteDraft,
     noteTarget,
     open,
+    quantityTarget,
     saving,
     statusRule,
     tableName,
@@ -145,6 +150,7 @@ export function CartSheetContent({
                     onUpdateQty={onUpdateQty}
                     onDeleteItem={onDeleteItem}
                     onOpenNote={onNoteOpen}
+                    onOpenQuantity={onQuantityOpen}
                   />
                 ) : null
               )
@@ -241,6 +247,13 @@ export function CartSheetContent({
         onNoteChange={onNoteChange}
         onOpenChange={onNoteOpenChange}
         onSubmit={onUpdateNote}
+      />
+      <CartQuantityDialog
+        item={quantityTarget}
+        open={Boolean(quantityTarget)}
+        pending={saving}
+        onOpenChange={onQuantityOpenChange}
+        onSubmit={onSubmitQuantity}
       />
     </Drawer>
   );

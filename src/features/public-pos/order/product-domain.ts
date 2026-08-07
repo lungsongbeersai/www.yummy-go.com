@@ -31,7 +31,6 @@ import { MAX_OPEN_QTY } from "@/features/public-pos/order/constants";
 import type {
   ProductActionState,
   ProductModalMode,
-  PromotionQuantitySource,
   PublicAddToCartPayload,
   PublicSelectedTopping,
 } from "@/features/public-pos/order/types";
@@ -413,38 +412,11 @@ export function defaultOrderQty(detail?: ProdDetail | null) {
   return Number.isFinite(qty) && qty > 0 ? qty : 1;
 }
 
-export function positiveQuantity(value: unknown) {
-  const qty = Number(value);
-  return Number.isFinite(qty) && qty > 0 ? qty : undefined;
-}
-
-export function promotionQuantity(
-  source?: PromotionQuantitySource,
-  orderQty?: number,
-) {
-  const saleQty =
-    positiveQuantity(source?.sale_qty) ??
-    positiveQuantity(source?.order_it_promo_sale_qty) ??
-    positiveQuantity(source?.proDetailCusQtyBuy) ??
-    0;
-  const freeQty =
-    positiveQuantity(source?.free_qty) ??
-    positiveQuantity(source?.proDetailCusQtyFree) ??
-    positiveQuantity(source?.order_it_promo_free_qty) ??
-    0;
-  const lineFreeQty = positiveQuantity(source?.order_it_promo_free_qty) ?? 0;
-  const hasPromotion = saleQty > 0 && freeQty > 0;
-
-  return {
-    hasPromotion,
-    saleQty,
-    freeQty,
-    qtyStep: hasPromotion ? saleQty : 1,
-    totalReceiveQty:
-      positiveQuantity(source?.total_receive_qty) ??
-      (hasPromotion && orderQty ? orderQty + lineFreeQty : null),
-  };
-}
+// P3.3: relocated to src/lib/pos/cart-quantity.ts, alongside the staff POS's
+// shared use of the same "buy X get Y free" step rule — re-exported
+// unchanged under the original names so this module's importers (incl. the
+// utils.ts barrel) don't need to change.
+export { positiveQuantity, promotionQuantity } from "@/lib/pos/cart-quantity";
 
 export function productPriceFromDetail(detail?: ProdDetail | null) {
   return numeric(detail?.proDetailSprice ?? detail?.price);

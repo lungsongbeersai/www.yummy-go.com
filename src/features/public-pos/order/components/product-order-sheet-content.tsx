@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { AlertCircle, Check, Minus, Plus, ShoppingBag, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -48,6 +48,7 @@ import {
   toppingMaxQty,
 } from "../utils";
 import { ProductMedia } from "./public-product-media";
+import { ProductQuantityDialog } from "./product-quantity-dialog";
 
 const PANEL_CLASS =
   "flex flex-col gap-0 overflow-hidden border-yg-line bg-linear-to-b from-yg-bg2 to-yg-bg p-0 font-yg-sans text-yg-ink shadow-[0_40px_100px_-30px_rgb(0_0_0/0.55)] dark:shadow-[0_40px_100px_-30px_rgb(0_0_0/0.85)] motion-reduce:transition-none motion-reduce:data-[state=closed]:animate-none motion-reduce:data-[state=open]:animate-none";
@@ -187,11 +188,14 @@ function ProductOrderForm({
     hasSelectableDetails,
     lang,
     loading,
+    maxSelectableQty,
     mode,
     modeLabel,
     note,
     onNoteChange,
     product,
+    qty,
+    quantityMeta,
     saving,
     selectedDetail,
     selectedToppings,
@@ -199,7 +203,16 @@ function ProductOrderForm({
     toppingQtyByUuid,
     toppings,
   } = workflow;
-  const issueLabel = selectionIssue ? t(`pos.${selectionIssue}`) : "";
+  // "invalidQuantity" ครอบทั้งกรณีพิมพ์เกินสต็อกและพิมพ์ไม่ตรงขั้นของโปรฯ — เลือกข้อความที่เจาะจง
+  // กว่าตามสาเหตุจริงแทนข้อความรวมๆ ให้รู้ว่าต้องแก้เป็นเท่าไหร่
+  const issueLabel =
+    !selectionIssue
+      ? ""
+      : selectionIssue === "invalidQuantity" && qty > maxSelectableQty
+        ? t("pos.insufficientStockMax", { max: maxSelectableQty })
+        : selectionIssue === "invalidQuantity" && quantityMeta.qtyStep > 1
+          ? t("pos.editQuantityInvalidStep", { step: quantityMeta.qtyStep })
+          : t(`pos.${selectionIssue}`);
 
   return (
     <form
@@ -623,14 +636,18 @@ function ProductQuantityRow({
   const { t } = useTranslation();
   const {
     handleQty,
+    handleQtyInput,
     maxQty,
+    maxSelectableQty,
     minQty,
+    product,
     qty,
     qtyStep,
     quantityMeta,
     saving,
     selectedDetail,
   } = workflow;
+  const [qtyDialogOpen, setQtyDialogOpen] = useState(false);
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -650,9 +667,16 @@ function ProductQuantityRow({
           >
             <Minus aria-hidden="true" />
           </Button>
-          <output className="min-w-10 text-center font-yg-mono text-[17px] font-semibold text-yg-ink tabular-nums">
+          <Button
+            type="button"
+            variant="ghost"
+            aria-label={t("pos.editQuantity")}
+            className="h-11 min-w-10 rounded-xl px-2 text-center font-yg-mono text-[17px] font-semibold text-yg-ink tabular-nums hover:bg-yg-panel-hover"
+            disabled={!selectedDetail || saving}
+            onClick={() => setQtyDialogOpen(true)}
+          >
             {qty}
-          </output>
+          </Button>
           <Button
             type="button"
             size="icon"
@@ -671,6 +695,18 @@ function ProductQuantityRow({
           {t("pos.orderStep", { count: qtyStep })}
         </p>
       ) : null}
+      <ProductQuantityDialog
+        maxQty={maxSelectableQty}
+        open={qtyDialogOpen}
+        productTitle={product?.prodName ?? ""}
+        quantityMeta={quantityMeta}
+        qty={qty}
+        onOpenChange={setQtyDialogOpen}
+        onSubmit={(nextQty) => {
+          handleQtyInput(nextQty);
+          setQtyDialogOpen(false);
+        }}
+      />
     </div>
   );
 }

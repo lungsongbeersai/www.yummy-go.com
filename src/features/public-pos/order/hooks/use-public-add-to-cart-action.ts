@@ -3,6 +3,7 @@
 import type { TFunction } from "i18next";
 import { useCallback } from "react";
 import type {
+  CartOrder,
   CateProductItem,
   ProdItem,
 } from "@/services/pos";
@@ -13,12 +14,15 @@ import type { PublicAddToCartPayload } from "../types";
 import {
   buildPublicOrderInput,
   findExistingCartItem,
+  getCartItemQty,
   getOrderItemUuid,
 } from "../utils";
+import { useCartQuantityClampWarning } from "./use-cart-quantity-clamp-warning";
 
 type PublicPosState = ReturnType<typeof usePublicPosStore.getState>;
 
 interface UsePublicAddToCartActionParams {
+  cart: CartOrder[];
   cartStatusRule: Parameters<typeof findExistingCartItem>[3];
   createOrder: PublicPosState["createOrder"];
   ensureCartLoaded: PublicPosState["ensureCartLoaded"];
@@ -36,6 +40,7 @@ interface UsePublicAddToCartActionParams {
 }
 
 export function usePublicAddToCartAction({
+  cart,
   cartStatusRule,
   createOrder,
   ensureCartLoaded,
@@ -48,6 +53,8 @@ export function usePublicAddToCartAction({
   token,
   updateQty,
 }: UsePublicAddToCartActionParams) {
+  const { trackIncrease } = useCartQuantityClampWarning({ cart, t, toast });
+
   return useCallback(
     async (
       product: ProdItem,
@@ -83,6 +90,10 @@ export function usePublicAddToCartAction({
             change_type: "INCREASE",
             change_qty: payload.qty,
           });
+          // เพิ่มสินค้าที่มีอยู่แล้วซ้ำจากเมนู = ยิง updateQty ตรงๆ คนละจุดกับตอนแก้จำนวนในตะกร้า
+          // (use-public-cart-maintenance-actions.ts) ต้อง track เองด้วย ไม่งั้นทางนี้จะไม่มีการเตือน
+          // สต็อกไม่พอเลย แล้วโชว์ toast สำเร็จ (บรรทัดล่าง) ทั้งที่ backend อาจปรับจำนวนลงจริง
+          trackIncrease(orderItemUuid, getCartItemQty(existingItem) + payload.qty);
         } else {
           await createOrder(
             token,
@@ -119,6 +130,7 @@ export function usePublicAddToCartAction({
       t,
       toast,
       token,
+      trackIncrease,
       updateQty,
     ],
   );

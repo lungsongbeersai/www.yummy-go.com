@@ -17,6 +17,7 @@ import {
   CartDiscountDialog,
   CartNoteDialog,
   CartPanelLoading,
+  CartQuantityDialog,
   ConfirmAllLoadingDialog,
 } from "./cart-dialogs";
 import { CartSummaryDock } from "./cart-summary-dock";
@@ -200,6 +201,7 @@ export function SelectedTableCartPanelContent({
                   onEditNote={workflow.openNoteDialog}
                   onItemDiscount={workflow.openItemDiscountDialog}
                   onOpenItemAction={workflow.openItemAction}
+                  onOpenQuantityDialog={workflow.openQuantityDialog}
                   onToggleSplitItem={workflow.toggleSplitItem}
                 />
               ) : (
@@ -219,6 +221,7 @@ export function SelectedTableCartPanelContent({
                       onEditNote={workflow.openNoteDialog}
                       onItemDiscount={workflow.openItemDiscountDialog}
                       onOpenItemAction={workflow.openItemAction}
+                      onOpenQuantityDialog={workflow.openQuantityDialog}
                     />
                   </TabsContent>
                   <TabsContent value="history">
@@ -238,6 +241,7 @@ export function SelectedTableCartPanelContent({
                       onEditNote={workflow.openNoteDialog}
                       onItemDiscount={workflow.openItemDiscountDialog}
                       onOpenItemAction={workflow.openItemAction}
+                      onOpenQuantityDialog={workflow.openQuantityDialog}
                       onToggleSplitItem={workflow.toggleSplitItem}
                     />
                   </TabsContent>
@@ -382,6 +386,16 @@ export function SelectedTableCartPanelContent({
           if (!nextOpen) workflow.setNoteTarget(null);
         }}
         onSubmit={() => void workflow.saveNote()}
+      />
+      <CartQuantityDialog
+        item={workflow.quantityTarget}
+        open={Boolean(workflow.quantityTarget)}
+        pending={workflow.quantityPending}
+        onOpenChange={(nextOpen) => {
+          if (workflow.quantityPending) return;
+          if (!nextOpen) workflow.setQuantityTarget(null);
+        }}
+        onSubmit={(qty) => void workflow.submitQuantityChange(qty)}
       />
       <CartDiscountDialog
         draft={workflow.itemDiscountDraft}

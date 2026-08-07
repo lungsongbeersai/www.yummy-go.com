@@ -204,7 +204,7 @@ export function ProductOptionsForm({
     toppings: selectedToppings,
   });
   const submitIssue = selectionIssue
-    ? orderSelectionIssueLabel(selectionIssue, t)
+    ? orderSelectionIssueLabel(selectionIssue, t, quantityRules)
     : null;
   const canSubmit = !selectionIssue;
 
@@ -572,10 +572,13 @@ function QuantityControl({
     return draft && Number.isFinite(parsed) ? parsed : qty;
   }
 
+  // พิมพ์เกินสต็อกแล้ว blur/Enter ต้องไม่ตัดค่ากลับให้เงียบๆ — ปล่อยค่าที่พิมพ์จริงขึ้นไปให้
+  // getOrderSelectionIssue ตรวจ แล้วขึ้น Alert "สต็อกไม่พอ" ให้ผู้ใช้เห็นว่าทำไมส่งออเดอร์ไม่ได้
+  // (ปุ่ม +/- ยังจำกัดด้วย rules ผ่าน changeBy/actionableQty ตามเดิม จุดนี้แก้แค่ทางพิมพ์เอง)
   function commit(value = draftNumber()) {
-    const nextQty = clampOrderQuantity(value, rules);
-    setDraft(String(nextQty));
-    if (nextQty !== qty) onQtyChange(nextQty);
+    const normalized = Number.isFinite(value) ? Math.max(0, Math.floor(value)) : qty;
+    setDraft(String(normalized));
+    if (normalized !== qty) onQtyChange(normalized);
   }
 
   function changeBy(direction: -1 | 1) {

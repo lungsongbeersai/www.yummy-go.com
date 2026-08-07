@@ -50,12 +50,13 @@ export type OrderSelectionIssue =
   | "detail-unavailable"
   | "price-invalid"
   | "quantity-invalid"
+  | "quantity-exceeds-stock"
   | "stock-insufficient"
   | "topping-invalid";
 export type ProductCardPrice =
   | { kind: "exact" | "starting"; value: number }
   | { kind: "unavailable" | "variable"; value: null };
-export type Translate = (key: string) => string;
+export type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 export function emptyMenuBySort(): MenuBySort {
   return emptyPosMenuBySort();

@@ -74,6 +74,10 @@ function textValue(value: unknown) {
 }
 
 let posMenuLifecycleVersion = 0;
+// เพิ่มทุกครั้งที่เรียก loadCart (ต่างจาก posMenuLifecycleVersion ที่เพิ่มเฉพาะตอน reset) — กัน
+// response ของ request เก่าที่ค้างอยู่ (เช่น สลับแท็บระหว่างที่ยิง updateQty ค้างอยู่) มาถึงหลัง
+// request ใหม่กว่าแล้วเขียนทับ cart ด้วยข้อมูลเก่ากว่า
+let posCartFetchVersion = 0;
 
 function initialPosMenuState() {
   return {
@@ -425,14 +429,17 @@ export const usePosStore = create<PosState>((set, get) => ({
   },
   loadCart: async (params) => {
     const isCurrentSession = createSessionGuard();
+    const requestVersion = ++posCartFetchVersion;
+    const isCurrentCartRequest = () =>
+      isCurrentSession() && requestVersion === posCartFetchVersion;
     set({ loadingCart: true, error: null });
     try {
       const result = await posService.fetchCart(params);
       const cart = result.orders ?? result.data ?? null;
-      if (isCurrentSession()) set({ cart, loadingCart: false });
+      if (isCurrentCartRequest()) set({ cart, loadingCart: false });
       return cart;
     } catch (error) {
-      if (isCurrentSession()) set({ error: errorMessage(error), loadingCart: false });
+      if (isCurrentCartRequest()) set({ error: errorMessage(error), loadingCart: false });
       throw error;
     }
   },
