@@ -1,10 +1,11 @@
 "use client";
 
-import type { KeyboardEvent } from "react";
+import { useState, type KeyboardEvent } from "react";
 import {
   BadgePercent,
   Banknote,
   Delete,
+  Hash,
   Percent,
   RotateCcw,
 } from "lucide-react";
@@ -37,10 +38,20 @@ import {
 } from "@/components/ui/toggle-group";
 import { money } from "@/lib/format";
 import { formatNumberInput } from "@/lib/number-format";
+import {
+  appendCartQuantityDigit,
+  checkCartQuantity,
+  MAX_CART_ITEM_QTY,
+  promotionQuantity,
+  type CartQuantityKeypadKey
+} from "@/lib/pos/cart-quantity";
 import { cn } from "@/lib/utils";
+import type { CartItem } from "@/services/pos";
 import type { ConfirmAllProgress, DiscountDraft } from "./types";
 import {
   appendDiscountCalculatorInput,
+  cartItemName,
+  cartItemQty,
   discountDraftValue,
   discountDraftWithType,
   normalizeDiscountType,
@@ -158,6 +169,202 @@ export function CartNoteDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+const QTY_KEYPAD_KEYS = [
+  "7", "8", "9",
+  "4", "5", "6",
+  "1", "2", "3",
+  "clear", "0", "delete"
+] as const satisfies readonly CartQuantityKeypadKey[];
+
+export function CartQuantityDialog({
+  item,
+  onOpenChange,
+  onSubmit,
+  open,
+  pending
+}: {
+  item: CartItem | null;
+  onOpenChange: (open: boolean) => void;
+  onSubmit: (qty: number) => void;
+  open: boolean;
+  pending: boolean;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        aria-busy={pending}
+        className="flex max-h-[calc(100dvh-1rem)] max-w-[calc(100%-1rem)] flex-col gap-0 overflow-hidden p-0 motion-reduce:animate-none motion-reduce:transition-none sm:max-w-100"
+      >
+        {/* เนื้อในแยกเป็นคอมโพเนนต์ของตัวเองเพราะ Radix ถอด portal ทิ้งตอนปิด
+            การเปิดใหม่จึง mount ใหม่และหยิบจำนวนปัจจุบันของ item เป็นค่าตั้งต้นเอง ไม่ต้อง sync ด้วย effect */}
+        {item ? (
+          <CartQuantityDialogBody
+            item={item}
+            pending={pending}
+            onCancel={() => onOpenChange(false)}
+            onSubmit={onSubmit}
+          />
+        ) : null}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function CartQuantityDialogBody({
+  item,
+  onCancel,
+  onSubmit,
+  pending
+}: {
+  item: CartItem;
+  onCancel: () => void;
+  onSubmit: (qty: number) => void;
+  pending: boolean;
+}) {
+  const { t } = useTranslation();
+  const qty = cartItemQty(item);
+  const promotion = promotionQuantity(item.detail, qty);
+  const [draft, setDraft] = useState(String(qty));
+  const check = checkCartQuantity(draft, promotion.qtyStep, MAX_CART_ITEM_QTY);
+  const invalid = check.error !== null;
+  const helpText = promotion.hasPromotion
+    ? t("pos.editQuantityPromoHelp", {
+        buy: promotion.saleQty,
+        free: promotion.freeQty,
+        step: promotion.qtyStep
+      })
+    : t("pos.editQuantityHelp", { max: MAX_CART_ITEM_QTY });
+  const errorText =
+    check.error === "max"
+      ? t("pos.editQuantityMaxExceeded", { max: MAX_CART_ITEM_QTY })
+      : check.error === "step"
+        ? t("pos.editQuantityInvalidStep", { step: promotion.qtyStep })
+        : t("pos.editQuantityInvalid");
+
+  function pressKey(key: CartQuantityKeypadKey) {
+    if (pending) return;
+    setDraft((current) => appendCartQuantityDigit(current, key, MAX_CART_ITEM_QTY));
+  }
+
+  return (
+    <>
+      <DialogHeader className="shrink-0 px-5 pb-4 pr-16 pt-5 text-left">
+        <div className="flex min-w-0 items-start gap-3">
+          <div
+            aria-hidden="true"
+            className="grid size-11 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary"
+          >
+            <Hash className="size-5" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <DialogTitle className="text-balance text-xl leading-tight">
+              {t("pos.editQuantity")}
+            </DialogTitle>
+            <DialogDescription className="mt-1 truncate text-pretty leading-relaxed">
+              {cartItemName(item)}
+            </DialogDescription>
+          </div>
+        </div>
+      </DialogHeader>
+      <Separator />
+
+      <div className="min-h-0 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5">
+        <FieldGroup className="gap-4">
+          <Field data-invalid={invalid} className="gap-2">
+            <FieldTitle id="cart-quantity-value-label">{t("pos.qty")}</FieldTitle>
+            <div
+              className={cn(
+                "rounded-xl border border-border bg-muted/30 p-4 shadow-inner",
+                invalid && "border-destructive/60"
+              )}
+            >
+              <output
+                role="status"
+                aria-atomic="true"
+                aria-labelledby="cart-quantity-value-label"
+                aria-live="polite"
+                className={cn(
+                  "block text-right text-4xl font-black tabular-nums text-foreground",
+                  invalid && "text-destructive"
+                )}
+              >
+                {draft || "0"}
+              </output>
+            </div>
+            {invalid ? <FieldError>{errorText}</FieldError> : <FieldDescription>{helpText}</FieldDescription>}
+          </Field>
+
+          <Field className="gap-2">
+            <FieldTitle id="cart-quantity-keypad-label" className="sr-only">
+              {t("pos.qty")}
+            </FieldTitle>
+            <div
+              role="group"
+              aria-labelledby="cart-quantity-keypad-label"
+              className="grid grid-cols-3 gap-2"
+            >
+              {QTY_KEYPAD_KEYS.map((key) => {
+                const isDelete = key === "delete";
+                const isClear = key === "clear";
+                const ariaLabel = isDelete
+                  ? t("pos.backspaceAmount")
+                  : isClear
+                    ? t("actions.clear")
+                    : key;
+
+                return (
+                  <Button
+                    key={key}
+                    type="button"
+                    size="lg"
+                    variant={isDelete || isClear ? "secondary" : "outline"}
+                    aria-keyshortcuts={isDelete ? "Backspace Delete" : undefined}
+                    aria-label={ariaLabel}
+                    title={isDelete || isClear ? ariaLabel : undefined}
+                    className={cn(
+                      "h-14 w-full touch-manipulation rounded-xl text-lg font-black tabular-nums",
+                      isClear && "text-destructive"
+                    )}
+                    disabled={pending}
+                    onClick={() => pressKey(key)}
+                  >
+                    {isDelete ? (
+                      <Delete aria-hidden="true" />
+                    ) : isClear ? (
+                      <RotateCcw aria-hidden="true" />
+                    ) : (
+                      key
+                    )}
+                  </Button>
+                );
+              })}
+            </div>
+          </Field>
+        </FieldGroup>
+      </div>
+
+      <Separator />
+      <DialogFooter className="grid shrink-0 grid-cols-2 bg-muted/20 p-4 sm:grid-cols-2 sm:px-5">
+        <Button type="button" size="lg" variant="outline" className="w-full touch-manipulation" disabled={pending} onClick={onCancel}>
+          {t("actions.cancel")}
+        </Button>
+        <Button
+          type="button"
+          size="lg"
+          className="w-full touch-manipulation"
+          disabled={pending || invalid}
+          onClick={() => {
+            if (check.value !== null) onSubmit(check.value);
+          }}
+        >
+          {pending ? <Spinner data-icon="inline-start" /> : null}
+          {t("actions.save")}
+        </Button>
+      </DialogFooter>
+    </>
   );
 }
 

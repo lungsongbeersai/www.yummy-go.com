@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { useIsCapacitorNativeApp } from "@/hooks/use-capacitor-native-app";
 import { money } from "@/lib/format";
+import { DailyClosingPaymentCards } from "./daily-closing-payment-cards";
 import { DailyClosingReportControls } from "./daily-closing-report-controls";
 import { DailyClosingReceiptPreview } from "./daily-closing-receipt-preview";
 import { useDailyClosingReportWorkflow } from "./use-daily-closing-report-workflow";
@@ -88,6 +89,8 @@ export function DailyClosingReportPage() {
             })}
           />
         ) : null}
+
+        {closing.report ? <DailyClosingPaymentCards report={closing.report} /> : null}
 
         {closing.loading || showInitialLoading ? (
           <LoadingState label={t("report.dailyClosing.loading")} variant="page" />

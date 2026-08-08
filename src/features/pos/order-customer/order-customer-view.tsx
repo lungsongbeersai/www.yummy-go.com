@@ -176,7 +176,7 @@ export function OrderCustomerView({
               <ArrowLeft data-icon="inline-start" />
             </Button>
 
-            <div className="grid min-w-0 flex-1 gap-2 lg:grid-cols-[17rem_minmax(14rem,1fr)]">
+            <div className="grid min-w-0 flex-1 gap-2 md:grid-cols-[9rem_minmax(10rem,1fr)] lg:grid-cols-[17rem_minmax(14rem,1fr)]">
               <EmployeeSortTabs
                 activeSort={activeSort}
                 className="w-full"

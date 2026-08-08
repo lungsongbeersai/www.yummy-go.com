@@ -136,7 +136,7 @@ export function EmployeeSearchForm({
           <Search data-icon="inline-start" />
         )}
         {showSearchLabel ? (
-          <span className="hidden sm:inline">{t("actions.search")}</span>
+          <span className="hidden lg:inline">{t("actions.search")}</span>
         ) : null}
       </Button>
     </form>

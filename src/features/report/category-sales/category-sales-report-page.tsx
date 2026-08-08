@@ -107,6 +107,7 @@ export function CategorySalesReportPage({ initialPagination }: { initialPaginati
           onClearSelection={report.rowSelection.clearSelection}
           onExportExcel={() => void report.exportExcel()}
           onExportPdf={() => void report.exportPdf()}
+          onExportPrint={() => void report.printReport()}
         >
           <CategorySalesTable
             groups={report.groups}

@@ -371,9 +371,13 @@ export function ProductBrowseContent({
         onNoteOpen={cartActions.handleOpenNoteDialog}
         onNoteOpenChange={cartActions.handleNoteDialogOpenChange}
         onUpdateNote={cartActions.handleUpdateItemNote}
+        onQuantityOpen={cartActions.handleOpenQuantityDialog}
+        onQuantityOpenChange={cartActions.handleQuantityDialogOpenChange}
+        onSubmitQuantity={cartActions.handleSubmitQuantity}
         onConfirmKitchen={cartActions.handleConfirmKitchen}
         noteDraft={cartActions.noteDraft}
         noteTarget={cartActions.noteTarget}
+        quantityTarget={cartActions.quantityTarget}
       />
     </div>
   );

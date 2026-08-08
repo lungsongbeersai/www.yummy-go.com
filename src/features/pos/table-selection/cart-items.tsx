@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { TabsTrigger } from "@/components/ui/tabs";
 import { money } from "@/lib/format";
+import { promotionQuantity } from "@/lib/pos/cart-quantity";
 import { cn } from "@/lib/utils";
 import type { CartItem } from "@/services/pos";
 import type { CartItemAction, CartTab } from "./types";
@@ -69,6 +70,7 @@ export function CartTabItems({
   onEditNote,
   onItemDiscount,
   onOpenItemAction,
+  onOpenQuantityDialog,
   onToggleSplitItem,
   splitSelectionDisabled = false,
   splitSelectedItemUuids,
@@ -81,12 +83,13 @@ export function CartTabItems({
   compact?: boolean;
   editable?: boolean;
   items: CartItem[];
-  onChangeQty: (item: CartItem, change: 1 | -1) => void;
+  onChangeQty: (item: CartItem, changeQty: number) => void;
   onConfirmKitchen: (item: CartItem) => void;
   onConfirmServed: (item: CartItem) => void;
   onEditNote: (item: CartItem) => void;
   onItemDiscount: (item: CartItem) => void;
   onOpenItemAction: (action: CartItemAction, item: CartItem) => void;
+  onOpenQuantityDialog: (item: CartItem) => void;
   onToggleSplitItem?: (item: CartItem) => void;
   splitSelectionDisabled?: boolean;
   splitSelectedItemUuids?: Set<string>;
@@ -119,6 +122,7 @@ export function CartTabItems({
             onEditNote={onEditNote}
             onItemDiscount={onItemDiscount}
             onOpenItemAction={onOpenItemAction}
+            onOpenQuantityDialog={onOpenQuantityDialog}
             onToggleSplitItem={onToggleSplitItem}
           />
         );
@@ -155,6 +159,7 @@ function CartItemRow({
   onEditNote,
   onItemDiscount,
   onOpenItemAction,
+  onOpenQuantityDialog,
   onToggleSplitItem,
   splitEligible,
   splitSelectionDisabled,
@@ -167,12 +172,13 @@ function CartItemRow({
   compact: boolean;
   editable: boolean;
   item: CartItem;
-  onChangeQty: (item: CartItem, change: 1 | -1) => void;
+  onChangeQty: (item: CartItem, changeQty: number) => void;
   onConfirmKitchen: (item: CartItem) => void;
   onConfirmServed: (item: CartItem) => void;
   onEditNote: (item: CartItem) => void;
   onItemDiscount: (item: CartItem) => void;
   onOpenItemAction: (action: CartItemAction, item: CartItem) => void;
+  onOpenQuantityDialog: (item: CartItem) => void;
   onToggleSplitItem?: (item: CartItem) => void;
   splitEligible: boolean;
   splitSelectionDisabled?: boolean;
@@ -182,6 +188,7 @@ function CartItemRow({
   const { t } = useTranslation();
   const detail = item.detail;
   const qty = cartItemQty(item);
+  const qtyStep = promotionQuantity(detail, qty).qtyStep;
   const total = cartItemTotal(item);
   const rawTitle = cartItemName(item);
   const media = cartItemMedia(item);
@@ -414,8 +421,10 @@ function CartItemRow({
                 compact={compact}
                 qty={qty}
                 updating={updating}
-                onDecrease={() => onChangeQty(item, -1)}
-                onIncrease={() => onChangeQty(item, 1)}
+                onDecrease={() => onChangeQty(item, -qtyStep)}
+                onIncrease={() => onChangeQty(item, qtyStep)}
+                onOpenQuantityDialog={() => onOpenQuantityDialog(item)}
+                qtyStep={qtyStep}
               />
             ) : (
               <CartQuantityBadge compact={compact} qty={qty} />
@@ -703,13 +712,17 @@ function CartQuantityStepper({
   compact,
   onDecrease,
   onIncrease,
+  onOpenQuantityDialog,
   qty,
+  qtyStep,
   updating
 }: {
   compact: boolean;
   onDecrease: () => void;
   onIncrease: () => void;
+  onOpenQuantityDialog: () => void;
   qty: number;
+  qtyStep: number;
   updating: boolean;
 }) {
   const { t } = useTranslation();
@@ -731,19 +744,25 @@ function CartQuantityStepper({
           "rounded-full text-muted-foreground hover:bg-muted",
           compact ? "size-8" : "size-10",
         )}
-        disabled={locked || qty <= 1}
+        disabled={locked || qty <= qtyStep}
         onClick={onDecrease}
       >
         <Minus className={compact ? "size-3.5" : undefined} />
       </Button>
-      <span
+      <Button
+        aria-label={t("pos.editQuantity")}
+        type="button"
+        size="iconSm"
+        variant="ghost"
         className={cn(
-          "text-center font-black text-foreground tabular-nums",
-          compact ? "min-w-7 text-[13px]" : "min-w-9 text-sm",
+          "min-w-7 rounded-full px-1 text-center font-black text-foreground tabular-nums hover:bg-muted",
+          compact ? "h-8 text-[13px]" : "h-10 text-sm",
         )}
+        disabled={locked}
+        onClick={onOpenQuantityDialog}
       >
         {updating ? <Spinner /> : qty}
-      </span>
+      </Button>
       <Button
         aria-label={`${t("pos.qty")} +`}
         type="button"

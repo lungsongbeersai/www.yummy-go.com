@@ -1,14 +1,25 @@
 "use client";
 
-import { useEffect, useRef, type RefObject } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
 import { createSingleSheetReportWorkbook } from "@/lib/export/excel";
 import { officialReportExcelLayout } from "@/lib/export/official-layout";
+import { isCapacitorNativeApp } from "@/lib/capacitor-platform";
 import type { UrlPaginationState } from "@/lib/url-pagination";
+import { useAppStore } from "@/stores/app-store";
+import { useAuthStore } from "@/stores/auth-store";
 import { usePaymentMethodsReportStore } from "@/stores/report-store";
+import { usePrinterStore } from "@/stores/printer-store";
+import { useToastStore } from "@/stores/toast-store";
 import { exportInfoRows } from "../shared/report-export-info";
+import { openReceiptPrintWindow, renderReceiptPrintWindow } from "../shared/report-receipt-print";
 import { useStandardReportWorkflow } from "../shared/use-standard-report-workflow";
 import type { PaymentMethodsExportData, PaymentMethodsReportFilters } from "./payment-methods-report-types";
+import {
+  buildPaymentMethodsPrintData,
+  buildPaymentMethodsReportOps,
+  renderPaymentMethodsPrintHtml,
+} from "./payment-methods-report-print";
 import {
   emptyExportData,
   exportPaymentMethodRows,
@@ -25,6 +36,13 @@ export function usePaymentMethodsReportWorkflow(
   initialPagination: UrlPaginationState
 ) {
   const { t } = useTranslation();
+  const language = useAppStore((state) => state.language);
+  const user = useAuthStore((state) => state.user);
+  const showToast = useToastStore((state) => state.show);
+  const executeReport = usePrinterStore((state) => state.executeReport);
+  const resolveDeviceContext = usePrinterStore((state) => state.resolveDeviceContext);
+  const submitReportPrint = usePrinterStore((state) => state.submitReportPrint);
+  const [printing, setPrinting] = useState(false);
   const cards = usePaymentMethodsReportStore((state) => state.cards);
   const paymentMethods = usePaymentMethodsReportStore((state) => state.paymentMethods);
   const reportName = usePaymentMethodsReportStore((state) => state.reportName);
@@ -149,12 +167,128 @@ export function usePaymentMethodsReportWorkflow(
     };
   });
 
+  async function printReport() {
+    if (report.loading || report.exporting || printing) return;
+    if (!user) return;
+
+    setPrinting(true);
+    let printWindow: Window | null = null;
+
+    // เปิด/เรนเดอร์หน้าต่างพิมพ์เบราว์เซอร์ — ใช้เป็นแผนสำรองเท่านั้น เรียกเมื่อพิมพ์ผ่าน printer agent ไม่สำเร็จ
+    async function fallbackToBrowserPrint(
+      printData: ReturnType<typeof buildPaymentMethodsPrintData>,
+      existingWindow: Window | null,
+    ): Promise<Window | null> {
+      const targetWindow = existingWindow ?? openReceiptPrintWindow();
+      if (!targetWindow) {
+        showToast({ title: t("report.printFailed"), description: t("report.printPopupBlocked"), tone: "error" });
+        return null;
+      }
+
+      renderReceiptPrintWindow(targetWindow, renderPaymentMethodsPrintHtml(printData));
+      showToast({ title: t("report.printReady"), tone: "success" });
+      return targetWindow;
+    }
+
+    try {
+      const printLabels = {
+        grandTotal: t("report.paymentMethodsReport.columns.grandTotal"),
+        period: t("report.dailyPrint.period"),
+        printedAt: t("report.dailyPrint.printedAt"),
+        printedBy: t("report.dailyPrint.printedBy"),
+        title: reportTitle,
+      };
+
+      const data = buildPaymentMethodsPrintData({
+        dateFrom: report.appliedFilters.dateFrom,
+        dateTo: report.appliedFilters.dateTo,
+        labels: printLabels,
+        reportTotal,
+        rows,
+        user,
+      });
+
+      // แยก try ของการพิมพ์ผ่าน agent ออกจากแผนสำรอง กันไม่ให้ fallback ที่พังซ้ำถูกจับแล้วเรียกซ้ำสอง
+      let agentPrintOutcome: "success" | "fallback" | "failed" = "failed";
+      try {
+        const resolvedContext = await resolveDeviceContext({ login_uuid_fk: user.uuid, lang: language });
+        const response = await submitReportPrint({
+          device_code: resolvedContext.device_code ?? "",
+          report_key: "payment_methods",
+          report_title: printLabels.title,
+          lang: language,
+          report_payload: {
+            date_from: report.appliedFilters.dateFrom,
+            date_to: report.appliedFilters.dateTo,
+            grand_total: data.grandTotal,
+          },
+          print_document: {
+            paper_width_mm: 80,
+            copies: 1,
+            cut_mode: "per_ticket",
+            ops: buildPaymentMethodsReportOps(data),
+            browser_payload: { title: printLabels.title, html: renderPaymentMethodsPrintHtml(data) },
+          },
+        });
+
+        if (!response.pending_query) {
+          agentPrintOutcome = "fallback";
+        } else {
+          let printStarted = false;
+          const printResult = await executeReport({
+            pending_query: response.pending_query,
+            login_uuid_fk: user.uuid,
+            onProgress: ({ phase }) => {
+              if (phase === "printing") printStarted = true;
+            },
+          });
+
+          if (printResult.successCount > 0 && printResult.failedCount === 0) {
+            agentPrintOutcome = "success";
+          } else if (printResult.failedCount > 0 && printStarted && !isCapacitorNativeApp()) {
+            agentPrintOutcome = "fallback";
+          }
+        }
+      } catch {
+        agentPrintOutcome = "fallback";
+      }
+
+      if (agentPrintOutcome === "success") {
+        showToast({ title: t("report.printReady"), tone: "success" });
+        return;
+      }
+
+      if (agentPrintOutcome === "fallback") {
+        printWindow = await fallbackToBrowserPrint(data, printWindow);
+        return;
+      }
+
+      showToast({
+        title: t("report.printFailed"),
+        description: t("report.printMissingJob"),
+        tone: "error",
+      });
+    } catch (error) {
+      printWindow?.close();
+      showToast({
+        title: t("report.printFailed"),
+        description: error instanceof Error ? error.message : "",
+        tone: "error",
+      });
+    } finally {
+      setPrinting(false);
+    }
+  }
+
   return {
     ...report,
     activeBranchLabel,
     activePaymentMethodLabel,
     cards,
+    exportDisabled: report.exportDisabled || printing,
+    exporting: report.exporting ?? (printing ? "print" : null),
     methodOptions,
+    printReport,
     renderedExportData: renderedExportData ?? emptyExportData(),
     reportTitle,
     reportTotal,

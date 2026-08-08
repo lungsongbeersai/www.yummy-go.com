@@ -5,7 +5,8 @@ import { useCallback, useEffect, useState } from "react";
 import type { CartItem, CartOrder, ChangeType } from "@/services/pos";
 import { usePublicPosStore } from "@/stores/public-pos-store";
 import type { ToastInput } from "@/stores/toast-store";
-import { getConfirmableOrderPayload, getOrderItemUuid } from "../utils";
+import { getCartItemQty, getConfirmableOrderPayload, getOrderItemUuid } from "../utils";
+import { useCartQuantityClampWarning } from "./use-cart-quantity-clamp-warning";
 
 type PublicPosState = ReturnType<typeof usePublicPosStore.getState>;
 
@@ -42,9 +43,15 @@ export function usePublicCartMaintenanceActions({
 }: UsePublicCartMaintenanceActionsParams) {
   const [noteTarget, setNoteTarget] = useState<CartItem | null>(null);
   const [noteDraft, setNoteDraft] = useState("");
+  const [quantityTarget, setQuantityTarget] = useState<CartItem | null>(null);
+  const { clearPending, trackIncrease } = useCartQuantityClampWarning({ cart, t, toast });
 
   const handleUpdateItemQty = useCallback(
     async (orderItemUuid: string, changeType: ChangeType, changeQty = 1) => {
+      const currentItem = cart
+        .flatMap((order) => order.items ?? [])
+        .find((item) => getOrderItemUuid(item) === orderItemUuid);
+
       try {
         await updateQty({
           t: token,
@@ -52,15 +59,56 @@ export function usePublicCartMaintenanceActions({
           change_type: changeType,
           change_qty: changeQty,
         });
+        // เช็คสต็อกได้แค่ตอนเพิ่มจำนวน — ลดจำนวนไม่มีทางชนเพดานสต็อก และถ้าเทียบด้วยจะพลาดโทษสต็อก
+        // ผิดให้กรณีอื่น เช่นเครื่องอื่นแก้ไอเทมเดียวกันพร้อมกันจนได้ค่าน้อยกว่าที่เครื่องนี้ขอลด
+        if (changeType === "INCREASE") {
+          const requestedQty = (currentItem ? getCartItemQty(currentItem) : 0) + changeQty;
+          trackIncrease(orderItemUuid, requestedQty);
+        }
+        return true;
       } catch (error) {
+        clearPending();
         toast({
           title: t("pos.orderFailed"),
           description: error instanceof Error ? error.message : undefined,
           tone: "error",
         });
+        return false;
       }
     },
-    [t, toast, token, updateQty],
+    [cart, clearPending, t, toast, token, trackIncrease, updateQty],
+  );
+
+  const handleOpenQuantityDialog = useCallback((item: CartItem) => {
+    setQuantityTarget(item);
+  }, []);
+
+  const handleQuantityDialogOpenChange = useCallback((open: boolean) => {
+    if (open) return;
+    setQuantityTarget(null);
+  }, []);
+
+  const handleSubmitQuantity = useCallback(
+    async (newQty: number) => {
+      const orderItemUuid = quantityTarget
+        ? getOrderItemUuid(quantityTarget)
+        : null;
+      if (!orderItemUuid || !quantityTarget) return;
+
+      const delta = newQty - getCartItemQty(quantityTarget);
+      if (delta === 0) {
+        setQuantityTarget(null);
+        return;
+      }
+
+      const success = await handleUpdateItemQty(
+        orderItemUuid,
+        delta > 0 ? "INCREASE" : "DECREASE",
+        Math.abs(delta),
+      );
+      if (success) setQuantityTarget(null);
+    },
+    [handleUpdateItemQty, quantityTarget],
   );
 
   const handleDeleteItem = useCallback(
@@ -153,10 +201,14 @@ export function usePublicCartMaintenanceActions({
     handleDeleteItem,
     handleNoteDialogOpenChange,
     handleOpenNoteDialog,
+    handleOpenQuantityDialog,
+    handleQuantityDialogOpenChange,
+    handleSubmitQuantity,
     handleUpdateItemNote,
     handleUpdateItemQty,
     noteDraft,
     noteTarget,
+    quantityTarget,
     setNoteDraft,
   };
 }

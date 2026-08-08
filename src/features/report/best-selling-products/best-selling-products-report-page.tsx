@@ -118,6 +118,7 @@ export function BestSellingProductsReportPage({ initialPagination }: { initialPa
           onClearSelection={report.rowSelection.clearSelection}
           onExportExcel={() => void report.exportExcel()}
           onExportPdf={() => void report.exportPdf()}
+          onExportPrint={() => void report.printReport()}
         >
           <BestSellingProductsTable
             groups={report.groups}

@@ -125,6 +125,7 @@ export function PaymentMethodsReportPage({ initialPagination }: { initialPaginat
           onClearSelection={report.rowSelection.clearSelection}
           onExportExcel={() => void report.exportExcel()}
           onExportPdf={() => void report.exportPdf()}
+          onExportPrint={() => void report.printReport()}
         >
           <PaymentMethodsTable
             reportTotal={report.reportTotal}

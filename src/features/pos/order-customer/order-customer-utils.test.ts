@@ -22,6 +22,7 @@ import {
   normalizeProdItem,
   orderCustomerUrl,
   orderQuantityRules,
+  orderSelectionIssueLabel,
   ProductSortStatus,
   productCardPrice,
   productNeedsModal,
@@ -472,6 +473,29 @@ describe("order customer helpers", () => {
         quantity: 3,
         toppings: [],
       }),
+    ).toBe("quantity-exceeds-stock");
+    // เหลือสต็อกดิบ 1 ชิ้น แต่โปรฯ บังคับซื้อขั้นต่ำ 3 — ไม่ถึง 1 ชุดของโปรฯ เลย ต่างจาก
+    // "quantity-exceeds-stock" ที่ยังพอมีให้สั่งอยู่ แค่พิมพ์เกินของที่เหลือ
+    expect(
+      getOrderSelectionIssue({
+        detail: detail({
+          cutStock: 1,
+          qtyStock: 1,
+          proDetailCusQtyBuy: 3,
+          proDetailCusQtyFree: 2,
+        }),
+        mode: "promotion",
+        quantity: 3,
+        toppings: [],
+      }),
+    ).toBe("stock-insufficient");
+    expect(
+      getOrderSelectionIssue({
+        detail: detail({ cutStock: 1, qtyStock: 5 }),
+        mode: "normal",
+        quantity: 0,
+        toppings: [],
+      }),
     ).toBe("quantity-invalid");
     expect(
       getOrderSelectionIssue({
@@ -491,6 +515,38 @@ describe("order customer helpers", () => {
         toppings: [],
       }),
     ).toThrow("price-invalid");
+  });
+
+  it("tells the user the actual stock/step number instead of a generic message", () => {
+    const t = (key: string, options?: Record<string, unknown>) =>
+      options ? `${key}:${JSON.stringify(options)}` : key;
+
+    const limitedStockRules = orderQuantityRules(
+      detail({ cutStock: 1, qtyStock: 2 }),
+      "normal",
+    );
+    expect(
+      orderSelectionIssueLabel("quantity-exceeds-stock", t, limitedStockRules),
+    ).toBe(`pos.insufficientStockMax:${JSON.stringify({ max: 2 })}`);
+    expect(orderSelectionIssueLabel("quantity-exceeds-stock", t)).toBe(
+      "pos.insufficientStock",
+    );
+
+    const promoRules = orderQuantityRules(
+      detail({ proDetailCusQtyBuy: 3, proDetailCusQtyFree: 2 }),
+      "promotion",
+    );
+    expect(
+      orderSelectionIssueLabel("quantity-invalid", t, promoRules),
+    ).toBe(`pos.editQuantityInvalidStep:${JSON.stringify({ step: 3 })}`);
+
+    const normalRules = orderQuantityRules(detail(), "normal");
+    expect(orderSelectionIssueLabel("quantity-invalid", t, normalRules)).toBe(
+      "pos.invalidQuantity",
+    );
+    expect(orderSelectionIssueLabel("stock-insufficient", t)).toBe(
+      "pos.outOfStock",
+    );
   });
 
   it("normalizes default quantity and builds staff order payload", () => {

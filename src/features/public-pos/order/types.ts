@@ -30,23 +30,9 @@ export type ProductBlockedState = "promotion-ended" | "sold-out";
 export type ProductActionState = "blocked" | "choose" | "add" | "view";
 export type PublicProductLayoutMode = "grid" | "list";
 export type ProductModalMode = "normal" | "set" | "promotion";
-// promotionQuantity() reads this off EITHER a catalog ProdDetail (not yet in
-// cart: proDetailCusQtyBuy/Free) OR a cart line's CartItemDetail (server's
-// resolved snapshot: sale_qty/free_qty/order_it_promo_*/total_receive_qty).
-// A plain ProdDetail | CartItemDetail union doesn't typecheck here because
-// each field only exists on one side; this lists the read surface directly
-// so both callers stay structurally assignable without a runtime cast.
-export type PromotionQuantitySource =
-  | {
-      sale_qty?: number;
-      order_it_promo_sale_qty?: number;
-      proDetailCusQtyBuy?: number;
-      free_qty?: number;
-      proDetailCusQtyFree?: number;
-      order_it_promo_free_qty?: number;
-      total_receive_qty?: number;
-    }
-  | null;
+// P3.3: relocated to src/lib/pos/cart-quantity.ts, re-exported unchanged so
+// this module's importers don't need to change.
+export type { PromotionQuantitySource } from "@/lib/pos/cart-quantity";
 export type ScrollJumpEdge = "top" | "bottom";
 
 export interface RectSnapshot {
