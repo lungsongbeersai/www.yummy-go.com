@@ -1,7 +1,7 @@
 {
   "android": {
     "enabled": true,
-    "latestVersion": "1.0.2",
+    "latestVersion": "1.0.3",
     "latestBuild": 4,
     "forceUpdate": false,
     "storeUrl": "https://play.google.com/store/apps/details?id=com.yummygo.app",
