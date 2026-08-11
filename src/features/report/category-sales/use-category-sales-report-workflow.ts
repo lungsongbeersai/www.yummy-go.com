@@ -44,7 +44,7 @@ export function useCategorySalesReportWorkflow(
   const user = useAuthStore((state) => state.user);
   const showToast = useToastStore((state) => state.show);
   const executeReport = usePrinterStore((state) => state.executeReport);
-  const resolveDeviceContext = usePrinterStore((state) => state.resolveDeviceContext);
+  const resolveDeviceIdentity = usePrinterStore((state) => state.resolveDeviceIdentity);
   const submitReportPrint = usePrinterStore((state) => state.submitReportPrint);
   const [printing, setPrinting] = useState(false);
   const selectedBranch = useBranchStore((state) => state.getSelectedBranch());
@@ -256,7 +256,7 @@ export function useCategorySalesReportWorkflow(
       // แยก try ของการพิมพ์ผ่าน agent ออกจากแผนสำรอง กันไม่ให้ fallback ที่พังซ้ำถูกจับแล้วเรียกซ้ำสอง
       let agentPrintOutcome: "success" | "fallback" | "failed" = "failed";
       try {
-        const resolvedContext = await resolveDeviceContext({ login_uuid_fk: user.uuid, lang: language });
+        const resolvedContext = await resolveDeviceIdentity();
         const response = await submitReportPrint({
           device_code: resolvedContext.device_code ?? "",
           report_key: "category_sales",
