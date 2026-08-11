@@ -164,6 +164,8 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
   const [selectedRows, setSelectedRows] = useState<Set<string>>(() => new Set());
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
   const [bulkEditing, setBulkEditing] = useState(false);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
   const [statusSortFk, setStatusSortFk] = useState(DEFAULT_STATUS_SORT);
   const {
     changeLimit,
@@ -395,6 +397,7 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
   function clearSelection() {
     setSelectedRows(new Set());
     setBulkEditOpen(false);
+    setBulkDeleteOpen(false);
   }
 
   async function remove(row: Product) {
@@ -598,6 +601,31 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
       });
     } finally {
       setBulkEditing(false);
+    }
+  }
+
+  async function removeSelectedProducts() {
+    if (!selectedProductRows.length) return;
+    const removingAllRows = selectedProductRows.length === rows.length;
+
+    setBulkDeleting(true);
+    try {
+      await Promise.all(selectedProductRows.map((row) => removeProduct(row.prod_uuid)));
+      showToast({
+        title: t("product.bulkDeleted", { count: selectedProductRows.length }),
+        tone: "success"
+      });
+      setBulkDeleteOpen(false);
+      clearSelection();
+      if (removingAllRows && page > 1) goToPage(page - 1);
+    } catch (error) {
+      showToast({
+        title: t("settings.deleteFailed"),
+        description: error instanceof Error ? error.message : "",
+        tone: "error"
+      });
+    } finally {
+      setBulkDeleting(false);
     }
   }
 
@@ -1043,6 +1071,10 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
     bulkEditOpen,
     setBulkEditOpen,
     bulkEditing,
+    bulkDeleteOpen,
+    setBulkDeleteOpen,
+    bulkDeleting,
+    removeSelectedProducts,
     deleteTarget,
     setDeleteTarget,
     orderEditTarget,

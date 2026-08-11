@@ -81,6 +81,16 @@ function centerCropArea(image: HTMLImageElement, aspect: number): CropArea {
   };
 }
 
+async function canvasToFile(canvas: HTMLCanvasElement, sourceFile: File, suffix: string) {
+  const outputType = sourceFile.type || "image/jpeg";
+  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, outputType, 0.92));
+  if (!blob) return sourceFile;
+
+  const extension = fileExtension(outputType);
+  const basename = sourceFile.name.replace(/\.[^.]+$/, "") || "image";
+  return new File([blob], `${basename}-${suffix}.${extension}`, { type: outputType });
+}
+
 export async function cropImageFile(
   file: File,
   crop: CropState,
@@ -99,18 +109,50 @@ export async function cropImageFile(
   if (!context) return file;
 
   const area = crop.areaPixels ?? centerCropArea(image, aspect);
-  const outputType = file.type || "image/jpeg";
 
   context.fillStyle = "#ffffff";
   context.fillRect(0, 0, outputWidth, outputHeight);
   context.drawImage(image, area.x, area.y, area.width, area.height, 0, 0, outputWidth, outputHeight);
 
-  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, outputType, 0.92));
-  if (!blob) return file;
+  return canvasToFile(canvas, file, "crop");
+}
 
-  const extension = fileExtension(outputType);
-  const basename = file.name.replace(/\.[^.]+$/, "") || "image";
-  return new File([blob], `${basename}-crop.${extension}`, { type: outputType });
+// โหมด "ไม่ครอบตัด" — ย่อภาพทั้งใบให้พอดีกึ่งกลางกรอบ 4:3 แล้วเติมพื้นขาวรอบ ๆ แทนการซูม/ตัดขอบ
+// วาดลง canvas ขนาดเดียวกับ cropImageFile เพื่อให้ผลลัพธ์เป็น 4:3 เสมอ จุดแสดงผลอื่นในระบบที่ใช้กรอบ 4:3 อยู่แล้วจึงไม่ต้องแก้อะไรเพิ่ม
+export async function containImageFile(
+  file: File,
+  imageLoadFailed: string,
+  options?: { outputHeight?: number; outputWidth?: number }
+) {
+  const outputWidth = options?.outputWidth ?? IMAGE_CROP_OUTPUT_WIDTH;
+  const outputHeight = options?.outputHeight ?? IMAGE_CROP_OUTPUT_HEIGHT;
+
+  const image = await loadImage(file, imageLoadFailed);
+  const canvas = document.createElement("canvas");
+  canvas.width = outputWidth;
+  canvas.height = outputHeight;
+  const context = canvas.getContext("2d");
+  if (!context) return file;
+
+  const scale = Math.min(outputWidth / image.naturalWidth, outputHeight / image.naturalHeight);
+  const drawWidth = image.naturalWidth * scale;
+  const drawHeight = image.naturalHeight * scale;
+
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, outputWidth, outputHeight);
+  context.drawImage(
+    image,
+    0,
+    0,
+    image.naturalWidth,
+    image.naturalHeight,
+    (outputWidth - drawWidth) / 2,
+    (outputHeight - drawHeight) / 2,
+    drawWidth,
+    drawHeight
+  );
+
+  return canvasToFile(canvas, file, "fit");
 }
 
 // ย่อรูปให้กรอบที่เลือกไว้พอดีกับกล่องตัวอย่าง แล้วเลื่อนจุดเริ่มไปที่มุมของกรอบ

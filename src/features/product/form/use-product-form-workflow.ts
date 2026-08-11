@@ -25,6 +25,7 @@ import { useToastStore } from "@/stores/toast-store";
 import { useUnitStore } from "@/stores/unit-store";
 import type {
   BinaryFlag,
+  ImageFitMode,
   SizeSelectOption,
   StatusSortFk,
 } from "./product-form-types";
@@ -161,6 +162,7 @@ export function useProductFormWorkflow() {
   const [prodStatusImge, setProdStatusImge] = useState<BinaryFlag>("2");
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [crop, setCrop] = useState<CropState>(DEFAULT_CROP);
+  const [imageFitMode, setImageFitMode] = useState<ImageFitMode>("crop");
   const [colorValue, setColorValue] = useState(DEFAULT_COLOR);
   const [colorChoice, setColorChoice] = useState(CUSTOM_COLOR_VALUE);
   const [storedDefaults, setStoredDefaults] = useState(EMPTY_PRODUCT_FORM_DEFAULTS);
@@ -258,6 +260,7 @@ export function useProductFormWorkflow() {
   const { productImagePayload, selectedImagePreview } = useProductImageWorkflow({
     colorValue,
     crop,
+    imageFitMode,
     imageLoadFailedLabel: t("settings.storeBranch.imageLoadFailed"),
     prodStatusImge,
     rawExistingImage,
@@ -365,6 +368,7 @@ export function useProductFormWorkflow() {
     }
     setSelectedImage(null);
     setCrop(DEFAULT_CROP);
+    setImageFitMode("crop");
     if (editing.details?.length) {
       setDetails(editing.details.map((detail) => detailFromProduct(detail, nextStatus)));
     }
@@ -601,6 +605,7 @@ export function useProductFormWorkflow() {
     setProdStatusImge("2");
     setSelectedImage(null);
     setCrop(DEFAULT_CROP);
+    setImageFitMode("crop");
     setColorValue(DEFAULT_COLOR);
     setDetails([emptyDetail("1")]);
     resetToppingSelection();
@@ -856,6 +861,8 @@ export function useProductFormWorkflow() {
     setSelectedImage,
     crop,
     setCrop,
+    imageFitMode,
+    setImageFitMode,
     colorValue,
     setColorValue,
     colorChoice,

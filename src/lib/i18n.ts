@@ -20,7 +20,7 @@ if (!i18n.isInitialized) {
         en: { common: enCommon }
       },
       interpolation: { escapeValue: false },
-      initImmediate: false,
+      initAsync: false,
       react: { useSuspense: false }
     });
 
