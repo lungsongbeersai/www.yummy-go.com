@@ -25,7 +25,6 @@ import {
   orderSelectionIssueLabel,
   ProductSortStatus,
   productCardPrice,
-  productGridColumnsForWidth,
   productNeedsModal,
   productOptionCount,
   selectedOrderTable,
@@ -151,18 +150,6 @@ describe("order customer helpers", () => {
       },
     ]);
     expect(firstStatusWithProducts(menu)).toBe(ProductSortStatus.SET);
-  });
-
-  it("derives the product grid column count from the measured container width", () => {
-    // มือถือใช้ grid-cols-2 คงที่ ไม่ว่าความกว้างที่วัดได้จะเป็นเท่าไหร่
-    expect(productGridColumnsForWidth(1200, true)).toBe(2);
-    // ยังไม่วัดความกว้าง (0 หรือค่าไม่ถูกต้อง) — fallback เป็นค่าเดียวกับมือถือ
-    expect(productGridColumnsForWidth(0, false)).toBe(2);
-    expect(productGridColumnsForWidth(Number.NaN, false)).toBe(2);
-    // md ขึ้นไปเป็น auto-fill — คำนวณจำนวนคอลัมน์จากความกว้างจริงด้วยสูตรเดียวกับ CSS
-    // (การ์ดขั้นต่ำ 190px + gap 10px ต่อคอลัมน์)
-    expect(productGridColumnsForWidth(806, false)).toBe(4);
-    expect(productGridColumnsForWidth(1406, false)).toBe(7);
   });
 
   it("chooses the next category path without losing requested category", () => {

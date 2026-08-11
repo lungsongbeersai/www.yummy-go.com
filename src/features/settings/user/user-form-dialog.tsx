@@ -8,6 +8,7 @@ import { Field, FieldDescription, FieldGroup, FieldLabel, FieldLegend, FieldSet 
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
+import { AVATAR_CROP_ASPECT, AVATAR_CROP_ASPECT_CLASS } from "@/config/image-crop";
 import { SettingsImageCropPanel, type CropState } from "@/features/settings/shared/settings-image-crop";
 import { useResetOnChange } from "@/hooks/use-reset-on-change";
 import type { Role, User } from "@/services/user";
@@ -79,6 +80,8 @@ export function UserFormDialog({
           <div className="min-h-0 flex-1 overflow-y-auto lg:grid lg:grid-cols-[19rem_minmax(0,1fr)] lg:overflow-hidden">
             <div className="border-b border-border bg-muted/20 lg:min-h-0 lg:border-b-0 lg:border-r">
               <SettingsImageCropPanel
+                aspect={AVATAR_CROP_ASPECT}
+                aspectClass={AVATAR_CROP_ASPECT_CLASS}
                 crop={crop}
                 className="shrink-0 lg:overflow-y-auto"
                 description={t("settings.profileImageHint")}

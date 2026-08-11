@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useResetOnDeps } from "@/hooks/use-reset-on-change";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
+import { AVATAR_CROP_ASPECT, AVATAR_CROP_OUTPUT_HEIGHT, AVATAR_CROP_OUTPUT_WIDTH } from "@/config/image-crop";
 import {
   DEFAULT_CROP,
   cropImageFile,
@@ -169,7 +170,11 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
 
   async function submitUserForm(formData: FormData) {
     if (selectedProfileImage) {
-      const croppedFile = await cropImageFile(selectedProfileImage, crop, t("settings.storeBranch.imageLoadFailed"));
+      const croppedFile = await cropImageFile(selectedProfileImage, crop, t("settings.storeBranch.imageLoadFailed"), {
+        aspect: AVATAR_CROP_ASPECT,
+        outputHeight: AVATAR_CROP_OUTPUT_HEIGHT,
+        outputWidth: AVATAR_CROP_OUTPUT_WIDTH
+      });
       formData.set("login_profile", croppedFile);
     }
     await save(formData);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo } from "react";
 import { ArrowLeft, RefreshCcw, ShoppingCart, Utensils } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,7 +22,7 @@ import { SelectedTableCartPanel } from "../table-selection/selected-table-cart-p
 import { productMedia } from "./product-media";
 import {
   PRODUCT_GRID_CLASS,
-  productGridColumnsForWidth,
+  PRODUCT_GRID_PRELOAD_COUNT,
   productModeLabel,
 } from "./order-customer-utils";
 import {
@@ -98,36 +98,17 @@ export function OrderCustomerView({
   } = workflow;
 
   // การ์ดแถวแรกคือ LCP ของหน้านี้ ปล่อยให้ lazy จะดีเลย์ LCP และ Next เตือนตอน dev
-  // md ขึ้นไป grid เป็น auto-fill จำนวนคอลัมน์ไม่คงที่ (ขึ้นกับความกว้างจริงของกล่อง หัก sidebar/
-  // แผงตะกร้าแล้ว) เลยวัดความกว้างจริงด้วย ResizeObserver แทนการเดาคงที่ — เดาผิดเคยทำให้การ์ด
-  // แถวแรกบางใบหลุด preload ทั้งที่เป็น LCP จริง
-  const gridRef = useRef<HTMLDivElement>(null);
-  const [gridWidth, setGridWidth] = useState(0);
-
-  useEffect(() => {
-    const node = gridRef.current;
-    if (!node || isMobile) return;
-
-    const observer = new ResizeObserver(([entry]) => {
-      if (entry) setGridWidth(entry.contentRect.width);
-    });
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [isMobile]);
-
-  const gridColumns = useMemo(
-    () => productGridColumnsForWidth(gridWidth, isMobile),
-    [gridWidth, isMobile],
-  );
-
+  // เคยลองวัดความกว้างกล่องจริงด้วย ResizeObserver มาก่อน แต่ใช้ไม่ได้จริง — หน้านี้ SSR ตอนโหลดครั้งแรก
+  // HTML ที่ส่งมาถึงเบราว์เซอร์จึงมี loading attribute ตายตัวไปแล้วก่อน JS จะรันด้วยซ้ำ วัดฝั่ง client
+  // จึงช้าเกินไปเสมอ ใช้จำนวนคงที่ที่มากพอแทน (ดูเหตุผลที่ PRODUCT_GRID_PRELOAD_COUNT)
   const preloadImageIndexes = useMemo(() => {
     const indexes = new Set<number>();
     for (const [index, entry] of activeProducts.entries()) {
-      if (indexes.size >= gridColumns) break;
+      if (indexes.size >= PRODUCT_GRID_PRELOAD_COUNT) break;
       if (productMedia(entry.product).type === "image") indexes.add(index);
     }
     return indexes;
-  }, [activeProducts, gridColumns]);
+  }, [activeProducts]);
 
   return (
     <div
@@ -267,7 +248,7 @@ export function OrderCustomerView({
               {loadingMenu ? (
                 <ProductGridSkeleton />
               ) : activeProducts.length ? (
-                <div ref={gridRef} className={cn(PRODUCT_GRID_CLASS, "pb-24 xl:pb-4")}>
+                <div className={cn(PRODUCT_GRID_CLASS, "pb-24 xl:pb-4")}>
                   {activeProducts.map((entry, index) => (
                     <EmployeeProductCard
                       key={`${entry.cateUuid}-${entry.product.prodUuid}-${
