@@ -23,24 +23,14 @@ export type ProductSortStatus = ProductSortStatusType;
 export const MAX_ORDER_QTY = 99;
 export const PRODUCT_GRID_CLASS =
   "grid grid-cols-2 gap-2.5 md:grid-cols-[repeat(auto-fill,minmax(190px,1fr))]";
-// ต้องตรงกับ grid-cols-2 ด้านบน — ใช้ตัดสินว่า preload รูปกี่ใบให้ครอบการ์ดแถวแรก (LCP) ตอนยังไม่รู้ความกว้างจริง
-export const PRODUCT_GRID_MOBILE_COLUMNS = 2;
-// ต้องตรงกับ minmax(190px, 1fr) และ gap-2.5 (10px) ใน PRODUCT_GRID_CLASS ด้านบน
-export const PRODUCT_GRID_MIN_CARD_PX = 190;
-export const PRODUCT_GRID_GAP_PX = 10;
-
-// md ขึ้นไปกริดเป็น auto-fill คอลัมน์ไม่คงที่ (ขึ้นกับความกว้างจริงของกล่อง ไม่ใช่ของหน้าจอ —
-// มี sidebar 154px กับแผงตะกร้าหักออกไปแล้ว) เดาจำนวนคอลัมน์แบบ static เคยผิดจนรูปแถวแรก
-// บางใบไม่ถูก preload ทั้งที่เป็น LCP จริง คำนวณด้วยสูตรเดียวกับ CSS แทนการเดา
-export function productGridColumnsForWidth(containerWidth: number, isMobile: boolean) {
-  if (isMobile) return PRODUCT_GRID_MOBILE_COLUMNS;
-  if (!Number.isFinite(containerWidth) || containerWidth <= 0) return PRODUCT_GRID_MOBILE_COLUMNS;
-
-  return Math.max(
-    1,
-    Math.floor((containerWidth + PRODUCT_GRID_GAP_PX) / (PRODUCT_GRID_MIN_CARD_PX + PRODUCT_GRID_GAP_PX))
-  );
-}
+// md ขึ้นไป grid เป็น auto-fill (จำนวนคอลัมน์จริงขึ้นกับความกว้างของกล่อง วัดได้แค่ฝั่งเบราว์เซอร์
+// หลัง layout เท่านั้น) แต่ preload ต้องถูกตั้งแต่ HTML ที่ SSR ออกมาให้ทัน paint แรกสุด — วัดความกว้าง
+// จริงด้วย JS ตอน mount แล้วช่วยไม่ได้ เพราะรูปมักโหลดเสร็จเร็วกว่าที่ React จะ re-render ทัน
+// (เคยลองมาแล้ว ยังเจอ warning ซ้ำ) จึง preload แบบ "จำนวนคงที่ที่มากพอ" แทนการคำนวณให้แม่นเป๊ะ —
+// ครอบคลุมทุกความกว้างหน้าจอที่ใช้งานจริงได้ (เกิน sizes prop ของการ์ดเองที่ tier กว้างสุดคือ 4 คอลัมน์
+// ที่ 1535px) แลกกับ preload เกินจำเป็นไปบ้างในบางเลย์เอาต์ ซึ่งเป็นแค่ fetch priority hint ไม่ใช่การ
+// บังคับโหลดรูปที่มองไม่เห็น ต้นทุนจึงต่ำกว่าความเสี่ยงที่จะพลาด LCP จริงมาก
+export const PRODUCT_GRID_PRELOAD_COUNT = 6;
 
 export const SORT_TABS: Array<{
   labelKey: string;

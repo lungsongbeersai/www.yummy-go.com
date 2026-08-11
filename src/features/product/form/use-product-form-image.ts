@@ -1,13 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useMemo } from "react";
-import { containImageFile, cropImageFile, type CropState } from "@/features/settings/shared/settings-image-crop";
-import type { BinaryFlag, ImageFitMode } from "./product-form-types";
+import { cropImageFile, type CropState } from "@/features/settings/shared/settings-image-crop";
+import type { BinaryFlag } from "./product-form-types";
 
 interface ProductImageWorkflowOptions {
   colorValue: string;
   crop: CropState;
-  imageFitMode: ImageFitMode;
   imageLoadFailedLabel: string;
   prodStatusImge: BinaryFlag;
   rawExistingImage: string;
@@ -17,7 +16,6 @@ interface ProductImageWorkflowOptions {
 export function useProductImageWorkflow({
   colorValue,
   crop,
-  imageFitMode,
   imageLoadFailedLabel,
   prodStatusImge,
   rawExistingImage,
@@ -37,13 +35,9 @@ export function useProductImageWorkflow({
 
   const productImagePayload = useCallback(async () => {
     if (prodStatusImge === "2") return colorValue;
-    if (selectedImage) {
-      return imageFitMode === "contain"
-        ? containImageFile(selectedImage, imageLoadFailedLabel)
-        : cropImageFile(selectedImage, crop, imageLoadFailedLabel);
-    }
+    if (selectedImage) return cropImageFile(selectedImage, crop, imageLoadFailedLabel);
     return rawExistingImage && !rawExistingImage.startsWith("#") ? rawExistingImage : undefined;
-  }, [colorValue, crop, imageFitMode, imageLoadFailedLabel, prodStatusImge, rawExistingImage, selectedImage]);
+  }, [colorValue, crop, imageLoadFailedLabel, prodStatusImge, rawExistingImage, selectedImage]);
 
   return { productImagePayload, selectedImagePreview };
 }

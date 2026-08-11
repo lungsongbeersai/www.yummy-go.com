@@ -22,3 +22,12 @@ export const QR_CROP_ASPECT_CLASS = "aspect-square";
 
 export const QR_CROP_OUTPUT_WIDTH = 640;
 export const QR_CROP_OUTPUT_HEIGHT = 640;
+
+// รูปโปรไฟล์ผู้ใช้ — ทุกจุดที่แสดงผล (header, รายชื่อผู้ใช้ใน settings/user) ใช้ Avatar ของ shadcn
+// ซึ่งเป็นวงกลม 1:1 เสมอ ครอปตอนอัปโหลดต้องเป็นสี่เหลี่ยมจัตุรัสให้ตรงกัน ไม่งั้นถูก object-fit
+// ครอปซ้ำแบบสุ่มโดย Avatar อีกที จนภาพที่ตั้งใจครอปไว้ผิดเพี้ยน
+export const AVATAR_CROP_ASPECT = 1;
+export const AVATAR_CROP_ASPECT_CLASS = "aspect-square";
+
+export const AVATAR_CROP_OUTPUT_WIDTH = 640;
+export const AVATAR_CROP_OUTPUT_HEIGHT = 640;

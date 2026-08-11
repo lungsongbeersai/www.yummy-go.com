@@ -12,6 +12,7 @@
     "expandAll": "ຂະຫຍາຍທັງໝົດ",
     "new": "ເພີ່ມໃໝ່",
     "refresh": "ໂຫຼດໃໝ່",
+    "reset": "ຣີເຊັດ",
     "save": "ບັນທຶກ",
     "search": "ຄົ້ນຫາ",
     "signOut": "ອອກລະບົບ",
@@ -1238,12 +1239,6 @@
     "setProductOptionFormHint": "ໃສ່ຊື່ສິນຄ້າທີ່ຈະໃຊ້ເປັນລາຍການໃນຊຸດ.",
     "setProductOptionHint": "ສ້າງລາຍການສິນຄ້າສໍາລັບຊຸດອາຫານ ແລ້ວລະບົບຈະເລືອກໃນແຖວນີ້ອັດຕະໂນມັດ.",
     "setProductOptionSaved": "ເພີ່ມສິນຄ້າແລ້ວ",
-    "imageFitMode": {
-      "contain": "ບໍ່ຕັດຮູບ",
-      "containHint": "ສະແດງຮູບເຕັມທັງໃບໃນກອບ ບໍ່ຕັດຂອບ.",
-      "crop": "ຕັດຮູບ",
-      "cropHint": "ຕັດ ແລະ ຊູມຮູບໃຫ້ເຕັມກອບ."
-    },
     "imageMode": "ຮູບແບບຮູບ/ສີ",
     "import": {
       "button": "ນຳເຂົ້າ Excel",
