@@ -3,7 +3,8 @@ import type { CapacitorConfig } from "@capacitor/cli";
 const config: CapacitorConfig = {
   appId: "com.yummygo.app",
   appName: "Yummy Go",
-  webDir: "out",
+  // ตัวแอปใช้ production URL; ไฟล์ fallback นี้ทำให้ native project sync/build ได้แบบทำซ้ำได้
+  webDir: "capacitor-web",
 
   server: {
     url: "https://yummy-go.com",

@@ -15,6 +15,7 @@
     "reset": "Reset",
     "save": "Save",
     "search": "Search",
+    "selectDate": "Select date",
     "signOut": "Sign out",
     "tryAgain": "Try again"
   },
@@ -37,8 +38,17 @@
     "toggleTheme": "Toggle theme",
     "retryMenu": "Retry navigation"
   },
+  "appUpdate": {
+    "currentVersion": "Current version",
+    "description": "A new Yummy Go version is available on {{storeName}}.",
+    "later": "Later",
+    "latestVersion": "Latest version",
+    "requiredDescription": "You must update Yummy Go from {{storeName}} before continuing.",
+    "title": "New version available",
+    "updateNow": "Update now"
+  },
   "auth": {
-    "accessWorkspace": "Access your Yummy Go workspace.",
+    "accessWorkspace": "Sign in to your restaurant POS workspace.",
     "cleanInterface": "Clean POS Pro interface",
     "continueWithGoogle": "Continue with Google",
     "email": "Email",
@@ -56,6 +66,7 @@
     "signIn": "Sign in",
     "signingIn": "Signing in...",
     "unavailable": "Not available yet",
+    "version": "Version {{version}}",
     "welcomeBack": "Welcome back"
   },
   "common": {

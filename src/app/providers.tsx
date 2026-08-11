@@ -15,6 +15,7 @@ import { LANGUAGE_COOKIE, type Language } from "@/lib/language";
 import { useAppStore, type ThemeMode } from "@/stores/app-store";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { AppUpdateChecker } from "@/features/app-update/app-update-checker";
 
 interface ProvidersProps {
   children: React.ReactNode;
@@ -188,6 +189,7 @@ export function Providers({ children, initialLanguage }: ProvidersProps) {
     <I18nextProvider i18n={i18n}>
       <TooltipProvider delayDuration={150}>
         {children}
+        <AppUpdateChecker />
         <Toaster />
       </TooltipProvider>
     </I18nextProvider>

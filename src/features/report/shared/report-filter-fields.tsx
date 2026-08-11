@@ -2,7 +2,6 @@
 
 import { useTranslation } from "react-i18next";
 import { Field, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -14,6 +13,7 @@ import {
 import { PAGE_LIMIT_OPTIONS } from "@/lib/pagination";
 import type { PaymentMethodReportFilter } from "@/config/report-filters";
 import type { PageLimit } from "@/services/shared/types";
+import { ReportDateInput } from "./report-date-input";
 
 export interface ReportFieldOption {
   label: string;
@@ -129,14 +129,14 @@ export function ReportDateField({
       <FieldLabel htmlFor={id} className="text-xs font-bold text-muted-foreground">
         {label}
       </FieldLabel>
-      <Input
+      <ReportDateInput
         id={id}
         name={name}
-        type="date"
+        label={label}
         value={value}
         autoComplete={name ? "off" : undefined}
         className={inputClassName}
-        onChange={(event) => onChange(event.target.value)}
+        onValueChange={onChange}
       />
     </Field>
   );

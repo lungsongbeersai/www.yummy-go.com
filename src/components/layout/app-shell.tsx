@@ -14,6 +14,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   RefreshCw,
+  ShieldCheck,
   UserPen,
 } from "lucide-react";
 import { internalRoute } from "@/lib/routes";
@@ -499,6 +500,12 @@ function AppHeader({
               <Link href="/profile">
                 <UserPen />
                 {t("actions.editProfile")}
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href="/policy">
+                <ShieldCheck />
+                {t("policy.title")}
               </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />

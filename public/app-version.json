@@ -1,0 +1,18 @@
+{
+  "android": {
+    "enabled": true,
+    "latestVersion": "1.0.2",
+    "latestBuild": 3,
+    "forceUpdate": false,
+    "storeUrl": "https://play.google.com/store/apps/details?id=com.yummygo.app",
+    "nativeStoreUrl": "market://details?id=com.yummygo.app"
+  },
+  "ios": {
+    "enabled": false,
+    "latestVersion": "1.0",
+    "latestBuild": 2,
+    "forceUpdate": false,
+    "storeUrl": "https://apps.apple.com/us/app/yummy-go/id6792033783",
+    "nativeStoreUrl": "itms-apps://itunes.apple.com/app/id6792033783"
+  }
+}

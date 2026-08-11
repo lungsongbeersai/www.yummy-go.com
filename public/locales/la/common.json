@@ -15,6 +15,7 @@
     "reset": "ຣີເຊັດ",
     "save": "ບັນທຶກ",
     "search": "ຄົ້ນຫາ",
+    "selectDate": "ເລືອກວັນທີ",
     "signOut": "ອອກຈາກລະບົບ",
     "tryAgain": "ລອງໃໝ່"
   },
@@ -37,8 +38,17 @@
     "toggleTheme": "ປ່ຽນຮູບແບບສີ",
     "retryMenu": "ລອງໂຫຼດເມນູໃໝ່"
   },
+  "appUpdate": {
+    "currentVersion": "ເວີຊັນປັດຈຸບັນ",
+    "description": "ມີ Yummy Go ເວີຊັນໃໝ່ຢູ່ໃນ {{storeName}}.",
+    "later": "ໄວ້ພາຍຫຼັງ",
+    "latestVersion": "ເວີຊັນຫຼ້າສຸດ",
+    "requiredDescription": "ຕ້ອງອັບເດດ Yummy Go ຈາກ {{storeName}} ກ່ອນຈຶ່ງຈະສາມາດໃຊ້ງານຕໍ່ໄດ້.",
+    "title": "ມີແອັບເວີຊັນໃໝ່",
+    "updateNow": "ອັບເດດຕອນນີ້"
+  },
   "auth": {
-    "accessWorkspace": "ປ້ອນຂໍ້ມູນຂອງທ່ານເພື່ອເຂົ້າສູ່ລະບົບ",
+    "accessWorkspace": "ເຂົ້າສູ່ລະບົບ POS ຂອງຮ້ານອາຫານ",
     "cleanInterface": "ອິນເຕີເຟດ POS Pro ທີ່ສະອາດ",
     "continueWithGoogle": "ທົດລອງໃຊ້",
     "email": "ອີເມວ",
@@ -56,6 +66,7 @@
     "signIn": "ເຂົ້າລະບົບ",
     "signingIn": "ກຳລັງເຂົ້າລະບົບ...",
     "unavailable": "ຍັງບໍ່ພ້ອມໃຊ້ງານ",
+    "version": "ເວີຊັນ {{version}}",
     "welcomeBack": "ຍິນດີຕ້ອນຮັບກັບຄືນ"
   },
   "common": {

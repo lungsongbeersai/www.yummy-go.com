@@ -1,0 +1,11 @@
+Yummy Go is a restaurant point-of-sale workspace for authorized staff of registered restaurants and cafes.
+
+After signing in, staff can:
+- View table availability and open a table
+- Create and update dine-in orders
+- Browse products and categories, then add product options and notes
+- Record payments and prepare receipts
+- Review sales, payments, categories, best-selling products, and daily closing reports
+- Manage products, tables, customers, users, and branch settings according to their assigned permissions
+
+An active business account is required. Accounts are issued and managed by each restaurant's administrator. Yummy Go is an operational business tool; it is not a consumer food delivery or restaurant discovery app.

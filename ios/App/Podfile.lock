@@ -1,0 +1,53 @@
+PODS:
+  - BlueSocket (2.0.4)
+  - Capacitor (8.4.2):
+    - CapacitorCordova
+  - CapacitorApp (8.1.1):
+    - Capacitor
+  - CapacitorAppLauncher (8.0.1):
+    - Capacitor
+  - CapacitorCordova (8.4.2)
+  - CapacitorStatusBar (8.0.2):
+    - Capacitor
+  - DeedarbCapacitorTcpSocket (7.2.1):
+    - BlueSocket
+    - Capacitor
+
+DEPENDENCIES:
+  - "Capacitor (from `../../node_modules/@capacitor/ios`)"
+  - "CapacitorApp (from `../../node_modules/@capacitor/app`)"
+  - "CapacitorAppLauncher (from `../../node_modules/@capacitor/app-launcher`)"
+  - "CapacitorCordova (from `../../node_modules/@capacitor/ios`)"
+  - "CapacitorStatusBar (from `../../node_modules/@capacitor/status-bar`)"
+  - "DeedarbCapacitorTcpSocket (from `../../node_modules/@deedarb/capacitor-tcp-socket`)"
+
+SPEC REPOS:
+  trunk:
+    - BlueSocket
+
+EXTERNAL SOURCES:
+  Capacitor:
+    :path: "../../node_modules/@capacitor/ios"
+  CapacitorApp:
+    :path: "../../node_modules/@capacitor/app"
+  CapacitorAppLauncher:
+    :path: "../../node_modules/@capacitor/app-launcher"
+  CapacitorCordova:
+    :path: "../../node_modules/@capacitor/ios"
+  CapacitorStatusBar:
+    :path: "../../node_modules/@capacitor/status-bar"
+  DeedarbCapacitorTcpSocket:
+    :path: "../../node_modules/@deedarb/capacitor-tcp-socket"
+
+SPEC CHECKSUMS:
+  BlueSocket: cc33e2bded4b680ff14200b4160ed459602b9205
+  Capacitor: 52f999235b8bd6a7d01694753f4f4d54d182e3a3
+  CapacitorApp: 305bd13c44f6f9d164e2ee66a4faa956ed8c0e06
+  CapacitorAppLauncher: 43949ccc5aaa5139a1ebe27a98c0a4d76c883fa7
+  CapacitorCordova: 345eacdc4c8282415446aea4acd8c77d82480bd4
+  CapacitorStatusBar: 01d5763b4ed720de5ce2edbc938de6a98f4c8f32
+  DeedarbCapacitorTcpSocket: 1b964dc4e5585f4329158dc57b725948c39ff314
+
+PODFILE CHECKSUM: ad0cfa8fc8fabd93d4c8cbe697348f2a8f6becde
+
+COCOAPODS: 1.16.2

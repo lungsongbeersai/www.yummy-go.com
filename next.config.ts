@@ -5,8 +5,22 @@ import { fileURLToPath } from "url";
 const appDir = dirname(fileURLToPath(import.meta.url));
 
 const nextConfig: NextConfig = {
+  allowedDevOrigins: ["127.0.0.1"],
   output: "standalone",
   typedRoutes: true,
+  async headers() {
+    return [
+      {
+        source: "/app-version.json",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "no-store, no-cache, must-revalidate, max-age=0"
+          }
+        ]
+      }
+    ];
+  },
   async redirects() {
     return [
       {

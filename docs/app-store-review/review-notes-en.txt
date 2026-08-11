@@ -1,0 +1,30 @@
+Hello App Review,
+
+This submission addresses the issues reported for Guidelines 4.2.2, 2.3, and 2.3.3.
+
+Guideline 4.2.2 — Minimum Functionality
+The native app now opens directly to the restaurant POS sign-in screen instead of the public marketing page. After signing in with the review account below, the reviewer can use the operational POS features: table management, order creation, product selection, payment workflow, receipt preparation, sales history, and reports. Non-functional placeholder actions were removed from the sign-in screen.
+
+Guideline 2.3 — Accurate Metadata
+The description now states that Yummy Go is a business workspace for authorized restaurant staff and lists only functionality available in this build.
+
+Guideline 2.3.3 — Accurate Screenshots
+The iPhone and iPad screenshots show the current authenticated interface used by this build, including table management, ordering, cart totals, and product management. No login, splash, or marketing screen is used as a primary screenshot.
+
+Review account
+Email: [REPLACE WITH REVIEW ACCOUNT EMAIL]
+Password: [REPLACE WITH REVIEW ACCOUNT PASSWORD]
+
+The account does not require OTP. It contains fictional sample restaurant data and will remain active throughout the review.
+
+Suggested review path
+1. Sign in with the review account.
+2. Open Tables and select occupied table T01 to view the existing sample order.
+3. Browse the menu, product options, quantities, cart totals, service charge, and tax. The reviewer may also create an order on an available table.
+4. Open Sales to use the date and status filters and inspect available records.
+5. Open Reports to use the daily sales and product-report filters.
+6. Open Products to view the menu management interface.
+
+Internet access is required because the app synchronizes restaurant operational data with the Yummy Go service.
+
+If any additional information is required, please reply in App Store Connect and we will respond promptly.

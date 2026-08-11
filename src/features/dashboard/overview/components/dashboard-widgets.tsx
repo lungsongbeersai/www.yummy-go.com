@@ -17,7 +17,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Field, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -28,6 +27,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { ReportDateInput } from "@/features/report/shared/report-date-input";
 import type {
   DashboardFilters,
   DashboardWarning,
@@ -130,13 +130,13 @@ const DateControl = memo(function DateControl({
       >
         {label}
       </FieldLabel>
-      <Input
+      <ReportDateInput
         id={name}
         name={name}
-        type="date"
+        label={label}
         value={value}
-        className="font-mono text-[13px] font-semibold"
-        onChange={(event) => onChange(event.target.value)}
+        className="h-7 border-transparent bg-transparent px-0 font-mono text-[13px] font-semibold shadow-none hover:bg-transparent"
+        onValueChange={onChange}
       />
     </Field>
   );

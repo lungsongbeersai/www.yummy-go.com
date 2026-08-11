@@ -5,7 +5,6 @@ import { useTranslation } from "react-i18next";
 import { SearchInput } from "@/components/common/search-input";
 import { Badge } from "@/components/ui/badge";
 import { Field, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -16,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { PAGE_LIMIT_OPTIONS, isAllPageLimit } from "@/lib/pagination";
 import { reportOrderLabel, reportOrderOptions } from "../shared/report-sort-utils";
+import { ReportDateInput } from "../shared/report-date-input";
 import { ReportFilterCard, ReportFilterSheet } from "../shared/report-filter-shell";
 import type {
   DetailPaginationBasis,
@@ -229,11 +229,11 @@ function ReportFilterFields({
         >
           {t("report.filters.dateFrom")}
         </FieldLabel>
-        <Input
+        <ReportDateInput
           id={`${idPrefix}-date-from`}
-          type="date"
+          label={t("report.filters.dateFrom")}
           value={draftFilters.dateFrom}
-          onChange={(event) => patch({ dateFrom: event.target.value })}
+          onValueChange={(dateFrom) => patch({ dateFrom })}
         />
       </Field>
       <Field className="min-w-0 gap-1.5">
@@ -243,11 +243,11 @@ function ReportFilterFields({
         >
           {t("report.filters.dateTo")}
         </FieldLabel>
-        <Input
+        <ReportDateInput
           id={`${idPrefix}-date-to`}
-          type="date"
+          label={t("report.filters.dateTo")}
           value={draftFilters.dateTo}
-          onChange={(event) => patch({ dateTo: event.target.value })}
+          onValueChange={(dateTo) => patch({ dateTo })}
         />
       </Field>
       <Field className="min-w-0 gap-1.5">

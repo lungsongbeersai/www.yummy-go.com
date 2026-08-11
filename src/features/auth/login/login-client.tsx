@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { Eye, EyeOff } from "lucide-react";
@@ -11,7 +12,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
+import {
+  getDisplayedAppVersion,
+  WEB_APP_VERSION,
+} from "@/lib/installed-app-version";
 import { safeInternalRedirect } from "@/lib/safe-internal-redirect";
 import { useAuthStore } from "@/stores/auth-store";
 import { useToastStore } from "@/stores/toast-store";
@@ -30,12 +34,25 @@ export function LoginClient() {
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
+  const [displayedVersion, setDisplayedVersion] = useState(WEB_APP_VERSION);
 
   const redirect = safeInternalRedirect(searchParams.get("redirect"));
 
   useEffect(() => {
     if (hydrated && isLoggedIn) router.replace(redirect);
   }, [hydrated, isLoggedIn, redirect, router]);
+
+  useEffect(() => {
+    let active = true;
+
+    void getDisplayedAppVersion().then((version) => {
+      if (active) setDisplayedVersion(version);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -133,18 +150,6 @@ export function LoginClient() {
                     >
                       {t("auth.password")} <span className="text-red-500">*</span>
                     </FieldLabel>
-
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      disabled
-                      aria-disabled="true"
-                      title={t("auth.unavailable")}
-                      className="h-auto shrink-0 px-0 text-xs font-black text-emerald-600 hover:bg-transparent hover:text-emerald-700 disabled:pointer-events-none disabled:opacity-70"
-                    >
-                      {t("auth.forgotPassword")}
-                    </Button>
                   </div>
 
                   <div className="relative">
@@ -207,37 +212,18 @@ export function LoginClient() {
                 </Button>
               </form>
 
-              <p className="mt-5 text-center text-sm font-semibold text-slate-500">
-                {t("auth.noAccount")}{" "}
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  disabled
-                  aria-disabled="true"
-                  title={t("auth.unavailable")}
-                  className="h-auto px-0 font-black text-emerald-600 hover:bg-transparent disabled:pointer-events-none disabled:opacity-70"
-                >
-                  {t("auth.register")}
-                </Button>
+              <p className="mt-5 text-center text-xs font-semibold leading-5 text-slate-500">
+                {t("auth.version", { version: displayedVersion })}
               </p>
 
-              <div className="my-6 flex items-center gap-3 text-xs font-bold text-slate-400">
-                <Separator className="flex-1 bg-slate-200" />
-                <span>{t("auth.or")}</span>
-                <Separator className="flex-1 bg-slate-200" />
+              <div className="mt-3 text-center">
+                <Link
+                  href="/policy"
+                  className="inline-flex min-h-11 items-center rounded-md px-3 text-xs font-black text-emerald-700 underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                >
+                  {t("policy.title")}
+                </Link>
               </div>
-
-              <Button
-                type="button"
-                variant="outline"
-                className="h-12 w-full rounded-lg border-slate-200 bg-white text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:text-slate-400"
-                disabled
-                aria-disabled="true"
-                title={t("auth.unavailable")}
-              >
-                {t("auth.continueWithGoogle")}
-              </Button>
             </CardContent>
           </Card>
         </section>

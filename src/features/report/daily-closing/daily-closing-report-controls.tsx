@@ -13,7 +13,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -25,6 +24,7 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 import type { ReportBranchOption } from "../shared/report-branch-options";
+import { ReportDateInput } from "../shared/report-date-input";
 import type { DailyClosingReportFilters } from "./daily-closing-report-types";
 
 interface DailyClosingReportControlsProps {
@@ -112,14 +112,14 @@ export function DailyClosingReportControls({
                 <FieldLabel htmlFor="daily-closing-date">
                   {t("report.dailyClosing.businessDate")}
                 </FieldLabel>
-                <Input
+                <ReportDateInput
                   id="daily-closing-date"
-                  type="date"
+                  label={t("report.dailyClosing.businessDate")}
                   className="h-11 sm:h-10"
                   value={draftFilters.date}
                   disabled={disabled}
-                  onChange={(event) =>
-                    onDraftChange({ ...draftFilters, date: event.target.value })
+                  onValueChange={(date) =>
+                    onDraftChange({ ...draftFilters, date })
                   }
                 />
               </Field>
