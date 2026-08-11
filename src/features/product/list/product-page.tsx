@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FileSpreadsheet, PencilLine, Plus, Search } from "lucide-react";
+import { FileSpreadsheet, PencilLine, Plus, Search, Trash2 } from "lucide-react";
 import { AppPagination } from "@/components/common/app-pagination";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { EmptyState } from "@/components/common/empty-state";
@@ -188,11 +188,22 @@ export function ProductPage({ initialPagination }: { initialPagination: UrlPagin
                     {t("common.selectedCount", { count: product.selectedRows.size })}
                   </Badge>
                   <div className="flex flex-wrap items-center gap-2">
-                    <Button type="button" size="xs" variant="outline" disabled={product.bulkEditing} onClick={() => product.setBulkEditOpen(true)}>
+                    <Button type="button" size="xs" variant="outline" disabled={product.bulkEditing || product.bulkDeleting} onClick={() => product.setBulkEditOpen(true)}>
                       <PencilLine data-icon="inline-start" />
                       {t("actions.edit")}
                     </Button>
-                    <Button type="button" size="xs" variant="ghost" disabled={product.bulkEditing} onClick={product.clearSelection}>
+                    <Button
+                      type="button"
+                      size="xs"
+                      variant="outline"
+                      className="text-destructive hover:text-destructive"
+                      disabled={product.bulkEditing || product.bulkDeleting}
+                      onClick={() => product.setBulkDeleteOpen(true)}
+                    >
+                      <Trash2 data-icon="inline-start" />
+                      {t("actions.delete")}
+                    </Button>
+                    <Button type="button" size="xs" variant="ghost" disabled={product.bulkEditing || product.bulkDeleting} onClick={product.clearSelection}>
                       {t("actions.clear")}
                     </Button>
                   </div>
@@ -242,6 +253,18 @@ export function ProductPage({ initialPagination }: { initialPagination: UrlPagin
         }}
         onOpenChange={(nextOpen) => {
           if (!nextOpen) product.setDeleteTarget(null);
+        }}
+      />
+      <ConfirmDialog
+        cancelLabel={t("actions.cancel")}
+        confirmLabel={t("actions.delete")}
+        confirmPending={product.bulkDeleting}
+        description={t("product.bulkDeleteConfirm", { count: product.selectedRows.size })}
+        open={product.bulkDeleteOpen}
+        title={t("actions.delete")}
+        onConfirm={() => void product.removeSelectedProducts()}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) product.setBulkDeleteOpen(false);
         }}
       />
       <ProductImportDialog workflow={product} />

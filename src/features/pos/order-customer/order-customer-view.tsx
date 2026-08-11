@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, RefreshCcw, ShoppingCart, Utensils } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,7 +22,7 @@ import { SelectedTableCartPanel } from "../table-selection/selected-table-cart-p
 import { productMedia } from "./product-media";
 import {
   PRODUCT_GRID_CLASS,
-  PRODUCT_GRID_MOBILE_COLUMNS,
+  productGridColumnsForWidth,
   productModeLabel,
 } from "./order-customer-utils";
 import {
@@ -98,17 +98,36 @@ export function OrderCustomerView({
   } = workflow;
 
   // การ์ดแถวแรกคือ LCP ของหน้านี้ ปล่อยให้ lazy จะดีเลย์ LCP และ Next เตือนตอน dev
-  // grid เป็น 2 คอลัมน์บนมือถือ/แท็บเล็ต (จอหลักของแคชเชียร์) การ์ดสองใบแรกจึงกว้างเท่ากันเป๊ะ
-  // และเบราว์เซอร์เลือกใบไหนเป็น LCP ก็ได้ — preload ใบเดียวไม่พอ ต้องครอบทั้งแถว
-  // ไม่ preload มากกว่านี้เพราะบนเดสก์ท็อป grid ขยายเป็น auto-fill ที่การ์ดเล็กลงจนไม่ใช่ LCP
+  // md ขึ้นไป grid เป็น auto-fill จำนวนคอลัมน์ไม่คงที่ (ขึ้นกับความกว้างจริงของกล่อง หัก sidebar/
+  // แผงตะกร้าแล้ว) เลยวัดความกว้างจริงด้วย ResizeObserver แทนการเดาคงที่ — เดาผิดเคยทำให้การ์ด
+  // แถวแรกบางใบหลุด preload ทั้งที่เป็น LCP จริง
+  const gridRef = useRef<HTMLDivElement>(null);
+  const [gridWidth, setGridWidth] = useState(0);
+
+  useEffect(() => {
+    const node = gridRef.current;
+    if (!node || isMobile) return;
+
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry) setGridWidth(entry.contentRect.width);
+    });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [isMobile]);
+
+  const gridColumns = useMemo(
+    () => productGridColumnsForWidth(gridWidth, isMobile),
+    [gridWidth, isMobile],
+  );
+
   const preloadImageIndexes = useMemo(() => {
     const indexes = new Set<number>();
     for (const [index, entry] of activeProducts.entries()) {
-      if (indexes.size >= PRODUCT_GRID_MOBILE_COLUMNS) break;
+      if (indexes.size >= gridColumns) break;
       if (productMedia(entry.product).type === "image") indexes.add(index);
     }
     return indexes;
-  }, [activeProducts]);
+  }, [activeProducts, gridColumns]);
 
   return (
     <div
@@ -248,7 +267,7 @@ export function OrderCustomerView({
               {loadingMenu ? (
                 <ProductGridSkeleton />
               ) : activeProducts.length ? (
-                <div className={cn(PRODUCT_GRID_CLASS, "pb-24 xl:pb-4")}>
+                <div ref={gridRef} className={cn(PRODUCT_GRID_CLASS, "pb-24 xl:pb-4")}>
                   {activeProducts.map((entry, index) => (
                     <EmployeeProductCard
                       key={`${entry.cateUuid}-${entry.product.prodUuid}-${

@@ -1160,6 +1160,8 @@
     "addDetail": "Add detail",
     "addSetProductOption": "Add set product",
     "branchRequired": "A branch must be selected first",
+    "bulkDeleteConfirm": "Delete {{count}} selected products?",
+    "bulkDeleted": "{{count}} products deleted",
     "buyQty": "Buy",
     "choiceHints": {
       "color": "Use a color tile when there is no product photo.",
@@ -1235,6 +1237,12 @@
     "setProductOptionFormHint": "Enter the product name used as an item inside this food set.",
     "setProductOptionHint": "Create a product option for this food set, then select it in this row automatically.",
     "setProductOptionSaved": "Set product added",
+    "imageFitMode": {
+      "contain": "No crop",
+      "containHint": "Show the whole photo inside the frame, with no cropping.",
+      "crop": "Crop",
+      "cropHint": "Crop and zoom the photo to fill the frame."
+    },
     "imageMode": "Image mode",
     "import": {
       "button": "Import Excel",

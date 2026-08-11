@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import type { FormEvent } from "react";
-import { Facebook, Mail, MapPin, Phone } from "lucide-react";
+import type { FormEvent, SVGProps } from "react";
+import { Mail, MapPin, Phone } from "lucide-react";
 import type { Language } from "@/lib/language";
 import { pickText } from "../landing-data";
 import { landingUi } from "../landing-ui";
@@ -12,6 +12,26 @@ import styles from "../landing.module.css";
 
 interface LandingSectionProps {
   language: Language;
+}
+
+// lucide-react 1.x ตัดไอคอนแบรนด์ทั้งหมดออก (ปัญหาลิขสิทธิ์) — ใช้ไอคอนโครงเส้นแบบเดียวกับไอคอนอื่นในแถวนี้แทน
+function FacebookIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
+      <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
+    </svg>
+  );
 }
 
 const EMPTY_FORM: TrialRequest = {
@@ -201,11 +221,11 @@ export function LandingTrial({ language }: LandingSectionProps) {
                 className={styles.socialSquare}
                 aria-label="Facebook"
               >
-                <Facebook aria-hidden className={styles.socialIcon} />
+                <FacebookIcon aria-hidden className={styles.socialIcon} />
               </a>
             ) : (
               <div className={`${styles.socialSquare} ${styles.socialSquareSoon}`} aria-hidden>
-                <Facebook className={styles.socialIcon} />
+                <FacebookIcon className={styles.socialIcon} />
               </div>
             )}
           </div>
