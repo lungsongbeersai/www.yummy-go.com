@@ -4,7 +4,6 @@ import type { Size } from "@/services/size";
 export type StatusSortFk = "1" | "2" | "3";
 export type BinaryFlag = "1" | "2";
 export type DetailStockSummary = "deduct" | "noDeduct" | "mixed";
-export type ImageFitMode = "crop" | "contain";
 
 export type SizeSelectOption =
   | Size

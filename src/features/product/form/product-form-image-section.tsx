@@ -1,17 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useRef, type ChangeEvent } from "react";
-import { Check, ImageIcon, ImagePlus, X } from "lucide-react";
+import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Field,
-  FieldDescription,
-  FieldGroup,
-  FieldLabel,
-  FieldLegend,
-  FieldSet,
-} from "@/components/ui/field";
+import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -21,11 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { IMAGE_CROP_ASPECT_CLASS } from "@/config/image-crop";
 import { SettingsImageCropPanel } from "@/features/settings/shared/settings-image-crop";
-import { cn } from "@/lib/utils";
-import type { ImageFitMode } from "./product-form-types";
 import {
   CUSTOM_COLOR_VALUE,
   DEFAULT_COLOR,
@@ -38,106 +26,12 @@ import {
 import { ProductFormSectionHeader } from "./product-form-section-header";
 import type { ProductFormWorkflow } from "./use-product-form-workflow";
 
-// แท็บ "ไม่ครอบตัด" ไม่มีกล่อง Cropper — จัดการไฟล์เองแบบง่าย ๆ (เลือกไฟล์ + พรีวิว + เอาออก)
-function ProductImageContainPanel({
-  existingSrc,
-  imageSupportText,
-  removeLabel,
-  saving,
-  selectedImage,
-  setSelectedImage,
-  title,
-  uploadLabel,
-}: {
-  existingSrc: string;
-  imageSupportText: string;
-  removeLabel: string;
-  saving: boolean;
-  selectedImage: File | null;
-  setSelectedImage: (file: File | null) => void;
-  title: string;
-  uploadLabel: string;
-}) {
-  const objectUrl = useMemo(() => (selectedImage ? URL.createObjectURL(selectedImage) : ""), [selectedImage]);
-  const previewSrc = objectUrl || existingSrc;
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (!objectUrl) return;
-    return () => URL.revokeObjectURL(objectUrl);
-  }, [objectUrl]);
-
-  function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
-    setSelectedImage(event.target.files?.[0] ?? null);
-  }
-
-  function handleRemove() {
-    if (fileInputRef.current) fileInputRef.current.value = "";
-    setSelectedImage(null);
-  }
-
-  return (
-    <aside className="flex min-h-0 flex-col gap-4 border-b border-border bg-muted/20 p-4 md:border-r md:border-b-0">
-      <FieldSet className="gap-4">
-        <FieldLegend className="mb-1 text-sm font-black">{title}</FieldLegend>
-
-        <Button
-          type="button"
-          variant="ghost"
-          aria-label={uploadLabel}
-          className="mx-auto h-auto w-full max-w-44 overflow-hidden rounded-xl border border-border bg-background p-2 hover:bg-background disabled:opacity-100 sm:max-w-52"
-          disabled={saving}
-          onClick={() => fileInputRef.current?.click()}
-        >
-          <span
-            className={cn(
-              "grid w-full place-items-center overflow-hidden rounded-lg bg-muted bg-contain bg-center bg-no-repeat",
-              IMAGE_CROP_ASPECT_CLASS
-            )}
-            style={previewSrc ? { backgroundImage: `url("${previewSrc}")` } : undefined}
-          >
-            {!previewSrc ? <ImageIcon className="size-8 text-muted-foreground" /> : null}
-          </span>
-        </Button>
-
-        <FieldGroup className="gap-4">
-          <Field className="gap-2">
-            <Button type="button" variant="outline" className="w-full" disabled={saving} onClick={() => fileInputRef.current?.click()}>
-              <ImagePlus className="size-4" />
-              {uploadLabel}
-            </Button>
-            <Input
-              ref={fileInputRef}
-              id="prod-image-contain"
-              className="sr-only"
-              disabled={saving}
-              type="file"
-              accept="image/jpeg,image/png,image/gif"
-              onChange={handleFileChange}
-            />
-            <FieldDescription>{imageSupportText}</FieldDescription>
-          </Field>
-
-          {selectedImage ? (
-            <Button type="button" variant="outline" disabled={saving} onClick={handleRemove}>
-              <X className="size-4" />
-              <span className="truncate">{removeLabel}</span>
-            </Button>
-          ) : null}
-        </FieldGroup>
-      </FieldSet>
-    </aside>
-  );
-}
-
 export function ProductFormImageSection({ form }: { form: ProductFormWorkflow }) {
   const {
     t,
     imageModeChoices,
     prodStatusImge,
     setProdStatusImge,
-    imageFitMode,
-    setImageFitMode,
     existingSrc,
     selectedImage,
     setSelectedImage,
@@ -190,53 +84,23 @@ export function ProductFormImageSection({ form }: { form: ProductFormWorkflow })
         </div>
 
         {prodStatusImge === "1" ? (
-          <Tabs
-            value={imageFitMode}
-            onValueChange={(value) => setImageFitMode(value as ImageFitMode)}
-          >
-            <div className="flex flex-col gap-2 px-4 pb-4">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="crop">{t("product.imageFitMode.crop")}</TabsTrigger>
-                <TabsTrigger value="contain">{t("product.imageFitMode.contain")}</TabsTrigger>
-              </TabsList>
-              <FieldDescription>
-                {imageFitMode === "crop"
-                  ? t("product.imageFitMode.cropHint")
-                  : t("product.imageFitMode.containHint")}
-              </FieldDescription>
-            </div>
-            <TabsContent value="crop">
-              <SettingsImageCropPanel
-                crop={crop}
-                description={t("settings.storeBranch.cropHint")}
-                emptyLabel={t("fields.prod_image")}
-                existingSrc={existingSrc}
-                fileSupportText={t("settings.storeBranch.imageSupport")}
-                fieldId="prod-image"
-                previewMaxClassName="max-w-44 sm:max-w-52"
-                removeLabel={t("settings.storeBranch.cancelImage")}
-                saving={saving}
-                selectedFile={selectedImage}
-                title={t("settings.storeBranch.cropImage")}
-                uploadLabel={t("settings.storeBranch.uploadImage")}
-                zoomLabel={t("settings.storeBranch.zoom")}
-                onCropChange={setCrop}
-                onFileChange={setSelectedImage}
-              />
-            </TabsContent>
-            <TabsContent value="contain">
-              <ProductImageContainPanel
-                existingSrc={existingSrc}
-                imageSupportText={t("settings.storeBranch.imageSupport")}
-                removeLabel={t("settings.storeBranch.cancelImage")}
-                saving={saving}
-                selectedImage={selectedImage}
-                setSelectedImage={setSelectedImage}
-                title={t("product.imageFitMode.contain")}
-                uploadLabel={t("settings.storeBranch.uploadImage")}
-              />
-            </TabsContent>
-          </Tabs>
+          <SettingsImageCropPanel
+            crop={crop}
+            description={t("settings.storeBranch.cropHint")}
+            emptyLabel={t("fields.prod_image")}
+            existingSrc={existingSrc}
+            fileSupportText={t("settings.storeBranch.imageSupport")}
+            fieldId="prod-image"
+            previewMaxClassName="max-w-44 sm:max-w-52"
+            removeLabel={t("settings.storeBranch.cancelImage")}
+            saving={saving}
+            selectedFile={selectedImage}
+            title={t("settings.storeBranch.cropImage")}
+            uploadLabel={t("settings.storeBranch.uploadImage")}
+            zoomLabel={t("settings.storeBranch.zoom")}
+            onCropChange={setCrop}
+            onFileChange={setSelectedImage}
+          />
         ) : (
           <div className="flex flex-col gap-4 p-4">
             <Field>

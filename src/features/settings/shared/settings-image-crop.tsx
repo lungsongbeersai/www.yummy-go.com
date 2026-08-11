@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useMemo, useState, type ChangeEvent, type CSSProperties } from "react";
-import Cropper, { type Area } from "react-easy-crop";
+import Cropper, { type Area, type MediaSize } from "react-easy-crop";
 import "react-easy-crop/react-easy-crop.css";
-import { Crop, ImageIcon, ImagePlus, X, ZoomIn } from "lucide-react";
+import { Crop, ImageIcon, ImagePlus, RotateCcw, X, ZoomIn } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import {
@@ -43,6 +43,8 @@ export const DEFAULT_CROP: CropState = { x: 0, y: 0, zoom: 1, areaPixels: null, 
 
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 4;
+// ให้ซูมออกได้ไกลกว่าจุด "เห็นภาพเต็มพอดีกรอบ" อีกครึ่งหนึ่ง เผื่อผู้ใช้อยากเว้นขอบขาวรอบรูปเพิ่ม
+const MIN_ZOOM_OUT_FACTOR = 0.5;
 
 function fileExtension(type: string) {
   if (type.includes("png")) return "png";
@@ -66,19 +68,28 @@ function loadImage(file: File, errorMessage: string) {
   });
 }
 
-// ผู้ใช้ที่ไม่เปิดกล่องตัดรูปเลยต้องได้รูปที่ใช้งานได้ — ตัดกรอบกลางภาพตามสัดส่วนมาตรฐานให้
-function centerCropArea(image: HTMLImageElement, aspect: number): CropArea {
+// ผู้ใช้ที่ไม่เปิดกล่องตัดรูปเลย (หรือเปิดแล้วไม่ปรับอะไร) ต้องได้รูปที่ใช้งานได้ — ให้เห็นภาพเต็มใบ
+// กึ่งกลางกรอบเสมอ ตรงกับที่ตัวครอปเองก็เปิดมาแบบเห็นภาพเต็มเป็นค่าเริ่มต้น (ดู getContainZoom ด้านล่าง)
+// กรอบที่คำนวณได้จึงอาจ "ใหญ่กว่า" ตัวรูปจริงในมิติใดมิติหนึ่ง (x/y ติดลบได้) — canvas drawImage
+// รองรับ source rect ที่เกินขอบภาพตามสเปกอยู่แล้ว ส่วนที่เกินจะไม่ถูกวาด เหลือพื้นขาวที่ fill ไว้ก่อน
+export function containCropArea(image: Pick<HTMLImageElement, "naturalHeight" | "naturalWidth">, aspect: number): CropArea {
   const { naturalHeight, naturalWidth } = image;
-  const wide = naturalWidth / naturalHeight > aspect;
-  const width = wide ? naturalHeight * aspect : naturalWidth;
-  const height = wide ? naturalHeight : naturalWidth / aspect;
+  const imageAspect = naturalWidth / naturalHeight;
 
-  return {
-    height,
-    width,
-    x: (naturalWidth - width) / 2,
-    y: (naturalHeight - height) / 2
-  };
+  if (imageAspect > aspect) {
+    const height = naturalWidth / aspect;
+    return { width: naturalWidth, height, x: 0, y: (naturalHeight - height) / 2 };
+  }
+
+  const width = naturalHeight * aspect;
+  return { width, height: naturalHeight, x: (naturalWidth - width) / 2, y: 0 };
+}
+
+// zoom ของ react-easy-crop เป็นตัวคูณบนฐาน "cover" ของตัวมันเอง (zoom=1 คือครอบเต็มกรอบเสมอ)
+// ต้องการให้เปิดมาแล้ว "เห็นภาพเต็ม" (contain) จึงต้องคำนวณ zoom ที่ต่ำกว่า 1 เอง แล้วตั้งเป็นค่าเริ่มต้น
+// (การซูมออกไกลกว่านี้อีกยังมีประโยชน์ — เว้นขอบขาวรอบรูปเพิ่ม ดู MIN_ZOOM_OUT_FACTOR)
+export function getContainZoom(mediaAspect: number, aspect: number) {
+  return Math.min(aspect / mediaAspect, mediaAspect / aspect);
 }
 
 async function canvasToFile(canvas: HTMLCanvasElement, sourceFile: File, suffix: string) {
@@ -108,7 +119,7 @@ export async function cropImageFile(
   const context = canvas.getContext("2d");
   if (!context) return file;
 
-  const area = crop.areaPixels ?? centerCropArea(image, aspect);
+  const area = crop.areaPixels ?? containCropArea(image, aspect);
 
   context.fillStyle = "#ffffff";
   context.fillRect(0, 0, outputWidth, outputHeight);
@@ -117,55 +128,20 @@ export async function cropImageFile(
   return canvasToFile(canvas, file, "crop");
 }
 
-// โหมด "ไม่ครอบตัด" — ย่อภาพทั้งใบให้พอดีกึ่งกลางกรอบ 4:3 แล้วเติมพื้นขาวรอบ ๆ แทนการซูม/ตัดขอบ
-// วาดลง canvas ขนาดเดียวกับ cropImageFile เพื่อให้ผลลัพธ์เป็น 4:3 เสมอ จุดแสดงผลอื่นในระบบที่ใช้กรอบ 4:3 อยู่แล้วจึงไม่ต้องแก้อะไรเพิ่ม
-export async function containImageFile(
-  file: File,
-  imageLoadFailed: string,
-  options?: { outputHeight?: number; outputWidth?: number }
-) {
-  const outputWidth = options?.outputWidth ?? IMAGE_CROP_OUTPUT_WIDTH;
-  const outputHeight = options?.outputHeight ?? IMAGE_CROP_OUTPUT_HEIGHT;
-
-  const image = await loadImage(file, imageLoadFailed);
-  const canvas = document.createElement("canvas");
-  canvas.width = outputWidth;
-  canvas.height = outputHeight;
-  const context = canvas.getContext("2d");
-  if (!context) return file;
-
-  const scale = Math.min(outputWidth / image.naturalWidth, outputHeight / image.naturalHeight);
-  const drawWidth = image.naturalWidth * scale;
-  const drawHeight = image.naturalHeight * scale;
-
-  context.fillStyle = "#ffffff";
-  context.fillRect(0, 0, outputWidth, outputHeight);
-  context.drawImage(
-    image,
-    0,
-    0,
-    image.naturalWidth,
-    image.naturalHeight,
-    (outputWidth - drawWidth) / 2,
-    (outputHeight - drawHeight) / 2,
-    drawWidth,
-    drawHeight
-  );
-
-  return canvasToFile(canvas, file, "fit");
-}
-
 // ย่อรูปให้กรอบที่เลือกไว้พอดีกับกล่องตัวอย่าง แล้วเลื่อนจุดเริ่มไปที่มุมของกรอบ
 // ใช้ค่าเปอร์เซ็นต์ชุดเดียวกับที่ cropper คืนมา รูปตัวอย่างจึงตรงกับไฟล์ที่จะบันทึกเสมอ
 function cropPreviewStyle(src: string, area: CropArea | null): CSSProperties | undefined {
   if (!src) return undefined;
   if (!area) return { backgroundImage: `url("${src}")`, backgroundPosition: "center", backgroundSize: "cover" };
 
+  // area กว้าง/สูงเกิน 100% ได้เมื่อเป็นกรอบแบบเห็นภาพเต็ม (กรอบใหญ่กว่าตัวรูป) — กรณีนั้น
+  // ไม่มีพื้นที่ให้เลื่อน ต้องกึ่งกลางเสมอ ไม่ใช่ชิดซ้าย/บนแบบตอน area เท่ากับ 100% พอดี
+  const positionX = area.width < 100 ? `${(area.x / (100 - area.width)) * 100}%` : "50%";
+  const positionY = area.height < 100 ? `${(area.y / (100 - area.height)) * 100}%` : "50%";
+
   return {
     backgroundImage: `url("${src}")`,
-    backgroundPosition: `${area.width < 100 ? (area.x / (100 - area.width)) * 100 : 0}% ${
-      area.height < 100 ? (area.y / (100 - area.height)) * 100 : 0
-    }%`,
+    backgroundPosition: `${positionX} ${positionY}`,
     backgroundRepeat: "no-repeat",
     backgroundSize: `${area.width > 0 ? 10000 / area.width : 100}% ${area.height > 0 ? 10000 / area.height : 100}%`
   };
@@ -231,6 +207,26 @@ function ImageCropDialogBody({
 }) {
   const { t } = useTranslation();
   const [draft, setDraft] = useState<CropState>(value);
+  // fitZoom = ซูมที่เห็นภาพเต็มพอดีกรอบ (ค่าเริ่มต้น และค่าที่ปุ่ม "รีเซ็ต" กลับไปหา)
+  // minZoom = ซูมออกได้ไกลกว่านั้นอีกหน่อย เผื่อผู้ใช้อยากเว้นขอบขาวรอบรูปเพิ่มเอง
+  const [fitZoom, setFitZoom] = useState(MIN_ZOOM);
+  const [minZoom, setMinZoom] = useState(MIN_ZOOM);
+
+  // เปิดกล่องมาแล้วเห็นภาพเต็มใบก่อนเสมอ (ไม่ซูมครอบเต็มกรอบให้อัตโนมัติแบบเดิม) ผู้ใช้ค่อยซูม/ลากเพื่อ
+  // ครอปเองถ้าต้องการ — คำนวณ zoom ที่ "เห็นภาพเต็ม" ได้ก็ต่อเมื่อรู้ขนาดจริงของรูป จึงต้องรอ media โหลดเสร็จ
+  // ถ้าเคยครอปรูปนี้มาก่อนแล้ว (areaPixels มีค่า) ให้เคารพตำแหน่ง/ซูมเดิม ไม่รีเซ็ตทับ
+  function handleMediaLoaded(mediaSize: MediaSize) {
+    const containZoom = getContainZoom(mediaSize.naturalWidth / mediaSize.naturalHeight, aspect);
+    setFitZoom(containZoom);
+    setMinZoom(containZoom * MIN_ZOOM_OUT_FACTOR);
+    if (!value.areaPixels) {
+      setDraft((current) => ({ ...current, zoom: containZoom }));
+    }
+  }
+
+  function resetCrop() {
+    setDraft({ x: 0, y: 0, zoom: fitZoom, areaPixels: null, areaPercent: null });
+  }
 
   return (
     <>
@@ -245,13 +241,19 @@ function ImageCropDialogBody({
           crop={{ x: draft.x, y: draft.y }}
           image={src}
           maxZoom={MAX_ZOOM}
-          minZoom={MIN_ZOOM}
+          minZoom={minZoom}
+          // react-easy-crop เองบังคับพื้นที่ที่รายงานผ่าน onCropComplete ไม่ให้เกิน 100% ของรูปเสมอเมื่อเปิดค่านี้
+          // (default ของไลบรารี) — ที่ zoom >= 1 ไม่มีผลเพราะพื้นที่คำนวณได้ไม่เกิน 100% อยู่แล้ว แต่ที่ zoom < 1
+          // (โหมดเห็นภาพเต็ม) พื้นที่จริงต้องเกินตัวรูป (ถูก letterbox) ถ้าปล่อยให้ clamp จะได้พื้นที่แบบครอบเต็ม
+          // กรอบ (cover) กลับมาแทน ไม่ตรงกับภาพที่เห็นในกล่องพรีวิว จึงต้องปิดเฉพาะช่วง zoom < 1
+          restrictPosition={draft.zoom >= 1}
           showGrid
           zoom={draft.zoom}
           onCropChange={(point) => setDraft((current) => ({ ...current, x: point.x, y: point.y }))}
           onCropComplete={(areaPercent, areaPixels) =>
             setDraft((current) => ({ ...current, areaPercent, areaPixels }))
           }
+          onMediaLoaded={handleMediaLoaded}
           onZoomChange={(zoom) => setDraft((current) => ({ ...current, zoom }))}
         />
       </div>
@@ -262,13 +264,17 @@ function ImageCropDialogBody({
         </FieldLabel>
         <Slider
           max={MAX_ZOOM}
-          min={MIN_ZOOM}
+          min={minZoom}
           step={0.01}
           value={[draft.zoom]}
           onValueChange={(values) => setDraft((current) => ({ ...current, zoom: Number(values[0] ?? current.zoom) }))}
         />
       </Field>
       <DialogFooter>
+        <Button className="min-h-11 sm:mr-auto sm:min-h-9" type="button" variant="ghost" onClick={resetCrop}>
+          <RotateCcw data-icon="inline-start" />
+          {t("actions.reset")}
+        </Button>
         <Button className="min-h-11 sm:min-h-9" type="button" variant="outline" onClick={onCancel}>
           {t("actions.cancel")}
         </Button>

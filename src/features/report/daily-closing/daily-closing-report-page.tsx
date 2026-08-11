@@ -9,7 +9,6 @@ import { LoadingState } from "@/components/common/loading-state";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { useIsCapacitorNativeApp } from "@/hooks/use-capacitor-native-app";
 import { money } from "@/lib/format";
 import { DailyClosingPaymentCards } from "./daily-closing-payment-cards";
 import { DailyClosingReportControls } from "./daily-closing-report-controls";
@@ -18,7 +17,6 @@ import { useDailyClosingReportWorkflow } from "./use-daily-closing-report-workfl
 
 export function DailyClosingReportPage() {
   const { t } = useTranslation();
-  const nativeApp = useIsCapacitorNativeApp();
   const closing = useDailyClosingReportWorkflow();
   const showInitialLoading = Boolean(!closing.report && !closing.error && closing.branchUuid);
 
@@ -40,7 +38,7 @@ export function DailyClosingReportPage() {
     return () => observer.disconnect();
   }, []);
 
-  const showFloatingPrint = printActionsHidden && Boolean(closing.report) && !nativeApp;
+  const showFloatingPrint = printActionsHidden && Boolean(closing.report);
 
   return (
     <div
@@ -60,7 +58,7 @@ export function DailyClosingReportPage() {
           disabled={closing.loading || closing.printing}
           draftFilters={closing.draftFilters}
           loading={closing.loading}
-          printDisabled={closing.printDisabled || nativeApp}
+          printDisabled={closing.printDisabled}
           printing={closing.printing}
           refreshDisabled={!closing.branchUuid || closing.loading || closing.printing}
           onApply={closing.applyFilters}
