@@ -10,10 +10,18 @@ import {
   DayPicker,
   getDefaultClassNames,
   type DayButton,
+  type DropdownProps,
 } from "react-day-picker"
 
 import { cn } from "@/lib/utils"
 import { Button, buttonVariants } from "@/components/ui/button"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 function Calendar({
   className,
@@ -73,19 +81,8 @@ function Calendar({
           "flex h-(--cell-size) w-full items-center justify-center gap-1.5 text-sm font-medium",
           defaultClassNames.dropdowns
         ),
-        dropdown_root: cn(
-          "relative rounded-md border border-input shadow-xs has-focus:border-ring has-focus:ring-[3px] has-focus:ring-ring/50",
-          defaultClassNames.dropdown_root
-        ),
-        dropdown: cn(
-          "absolute inset-0 bg-popover opacity-0",
-          defaultClassNames.dropdown
-        ),
         caption_label: cn(
-          "font-medium select-none",
-          captionLayout === "label"
-            ? "text-sm"
-            : "flex h-8 items-center gap-1 rounded-md pr-1 pl-2 text-sm [&>svg]:size-3.5 [&>svg]:text-muted-foreground",
+          "text-sm font-medium select-none",
           defaultClassNames.caption_label
         ),
         month_grid: cn("w-full border-collapse", defaultClassNames.month_grid),
@@ -163,6 +160,7 @@ function Calendar({
           )
         },
         DayButton: CalendarDayButton,
+        Dropdown: CalendarDropdown,
         WeekNumber: ({ children, ...props }) => {
           return (
             <td {...props}>
@@ -214,6 +212,59 @@ function CalendarDayButton({
       )}
       {...props}
     />
+  )
+}
+
+// react-day-picker renders month/year dropdowns as a native <select>, whose
+// options popup is drawn by the OS/browser and ignores the Popover's bounds
+// (overflows off-screen on mobile). Swap in shadcn's Select so the options
+// list is portaled and clipped to the viewport instead.
+function CalendarDropdown({
+  value,
+  onChange,
+  options,
+  disabled,
+  className,
+  "aria-label": ariaLabel,
+}: DropdownProps) {
+  const selected = options?.find((option) => option.value === value)
+
+  return (
+    <Select
+      value={value?.toString()}
+      onValueChange={(next) => {
+        onChange?.({
+          target: { value: next },
+        } as React.ChangeEvent<HTMLSelectElement>)
+      }}
+      disabled={disabled}
+    >
+      <SelectTrigger
+        size="sm"
+        aria-label={ariaLabel}
+        className={cn(
+          // relative: month_caption sits under Nav's absolute inset-x-0 bar,
+          // which otherwise intercepts clicks meant for this trigger.
+          "relative h-8 gap-1 px-2 py-0 font-medium",
+          className
+        )}
+      >
+        <SelectValue>{selected?.label}</SelectValue>
+      </SelectTrigger>
+      <SelectContent align="center" className="min-w-24">
+        {options?.map(
+          ({ value: optionValue, label, disabled: optionDisabled }) => (
+            <SelectItem
+              key={optionValue}
+              value={optionValue.toString()}
+              disabled={optionDisabled}
+            >
+              {label}
+            </SelectItem>
+          )
+        )}
+      </SelectContent>
+    </Select>
   )
 }
 

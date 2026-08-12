@@ -1462,6 +1462,7 @@
     "title": "ແກ້ໄຂໂປຣໄຟລ໌",
     "subtitle": "ປັບປຸງຂໍ້ມູນບັນຊີ ແລະ ລະຫັດຜ່ານຂອງທ່ານ.",
     "passwordChanged": "ປ່ຽນລະຫັດຜ່ານແລ້ວ",
+    "changePasswordFailed": "ປ່ຽນລະຫັດຜ່ານບໍ່ສຳເລັດ",
     "saved": "ບັນທຶກໂປຣໄຟລ໌ແລ້ວ",
     "sections": {
       "account": "ບັນຊີ",
@@ -1484,7 +1485,10 @@
       "updatePassword": "ປັບປຸງລະຫັດຜ່ານ"
     },
     "validation": {
-      "passwordMismatch": "ລະຫັດຜ່ານໃໝ່ບໍ່ຕົງກັນ."
+      "passwordMismatch": "ລະຫັດຜ່ານໃໝ່ບໍ່ຕົງກັນ.",
+      "passwordMinLength": "ລະຫັດຜ່ານໃໝ່ຕ້ອງມີຢ່າງໜ້ອຍ {{count}} ຕົວອັກສອນ.",
+      "passwordRequired": "ກະລຸນາປ້ອນລະຫັດຜ່ານໃຫ້ຄົບທຸກຊ່ອງ.",
+      "passwordSameAsOld": "ລະຫັດຜ່ານໃໝ່ຕ້ອງບໍ່ຊ້ຳກັບລະຫັດຜ່ານປັດຈຸບັນ."
     }
   },
   "report": {
@@ -1647,6 +1651,7 @@
       "cash": "ເງິນສົດ",
       "closingContext": "ຂໍ້ມູນການປິດຮ້ານ",
       "credit": "ຕິດໜີ້",
+      "currencyUnit": "ກີບ",
       "discountAmount": "ສ່ວນຫຼຸດ",
       "employeeSignature": "ລາຍເຊັນພະນັກງານ",
       "grandTotal": "ຍອດສຸດທິ",
@@ -2201,6 +2206,8 @@
     "zoneDetailsHint": "ຕັ້ງຊື່ພື້ນທີ່ທີ່ໃຊ້ຈັດກຸ່ມໂຕະ.",
     "zoneList": "ລາຍການໂຊນ",
     "zoneNameRequired": "ກະລຸນາໃສ່ຊື່ໂຊນພາສາລາວ.",
+    "changePassword": "ປ່ຽນລະຫັດຜ່ານ",
+    "changePasswordHint": "ຢືນຢັນລະຫັດຜ່ານປັດຈຸບັນ ແລ້ວຕັ້ງລະຫັດຜ່ານໃໝ່. ປ່ຽນໄດ້ສະເພາະບັນຊີທີ່ທ່ານເຂົ້າສູ່ລະບົບຢູ່ເທົ່ານັ້ນ.",
     "emailPlaceholder": "name@example.com",
     "passwordCreateHint": "ຕ້ອງມີສຳລັບຜູ້ໃຊ້ໃໝ່.",
     "passwordEditHint": "ປ່ອຍວ່າງໄວ້ເພື່ອເກັບລະຫັດຜ່ານເດີມ.",

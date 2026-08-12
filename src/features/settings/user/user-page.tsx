@@ -17,6 +17,7 @@ import {
 } from "@/features/settings/shared/settings-shell";
 import { useSettingsCrudController } from "@/features/settings/shared/use-settings-crud-controller";
 import { PAGE_LIMIT_OPTIONS } from "@/lib/pagination";
+import type { ChangePasswordValues } from "@/lib/password";
 import type { UrlPaginationState } from "@/lib/url-pagination";
 import type { FetchUsersParams, Role, SaveUserInput, User } from "@/services/user";
 import type { SortOrder } from "@/services/shared/types";
@@ -24,6 +25,7 @@ import { useReferenceStore } from "@/stores/reference-store";
 import { useUserStore } from "@/stores/user-store";
 import { UserFormDialog } from "./user-form-dialog";
 import { UserListSurface } from "./user-list";
+import { UserPasswordDialog } from "./user-password-dialog";
 import {
   buildUserSaveInput,
   isProtectedUser,
@@ -42,9 +44,12 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
   const { t } = useTranslation();
   const loadRoles = useReferenceStore((state) => state.loadRoles);
   const userProfileUrl = useReferenceStore((state) => state.userProfileUrl);
+  const changePassword = useReferenceStore((state) => state.changePassword);
+  const changingPassword = useReferenceStore((state) => Boolean(state.loadingKeys.password));
   const [fetchedRoles, setFetchedRoles] = useState<Role[]>([]);
   const [selectedProfileImage, setSelectedProfileImage] = useState<File | null>(null);
   const [crop, setCrop] = useState<CropState>(DEFAULT_CROP);
+  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
 
   const title = t("settings.modules.user.title");
   const description = t("settings.modules.user.description");
@@ -185,6 +190,24 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
     await crudRemove(row);
   }
 
+  async function submitPasswordChange(values: ChangePasswordValues) {
+    try {
+      await changePassword({
+        login_uuid: currentLoginUuid,
+        old_password: values.oldPassword,
+        new_password: values.newPassword
+      });
+      showToast({ title: t("profile.passwordChanged"), tone: "success" });
+      setPasswordDialogOpen(false);
+    } catch (error) {
+      showToast({
+        title: t("profile.changePasswordFailed"),
+        description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
+        tone: "error"
+      });
+    }
+  }
+
   const toolbar = (
     <SettingsToolbar
       state={{
@@ -216,6 +239,7 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
       selectedRows={selectedRows}
       title={title}
       toolbar={toolbar}
+      onChangePassword={() => setPasswordDialogOpen(true)}
       onDelete={setDeleteTarget}
       onEdit={openEdit}
       onToggleAll={toggleAll}
@@ -266,6 +290,16 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
         onFileChange={setSelectedProfileImage}
         onOpenChange={onDialogOpenChange}
         onSubmit={submitUserForm}
+      />
+      <UserPasswordDialog
+        email={user?.email ?? ""}
+        open={passwordDialogOpen}
+        saving={changingPassword}
+        onOpenChange={(nextOpen) => {
+          if (changingPassword) return;
+          setPasswordDialogOpen(nextOpen);
+        }}
+        onSubmit={submitPasswordChange}
       />
       <ConfirmDialog
         cancelLabel={t("actions.cancel")}

@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { UsersRound } from "lucide-react";
+import { KeyRound, UsersRound } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Spinner } from "@/components/ui/spinner";
@@ -34,6 +34,7 @@ export function UserListSurface({
   selectedRows,
   title,
   toolbar,
+  onChangePassword,
   onDelete,
   onEdit,
   onToggleAll,
@@ -48,6 +49,7 @@ export function UserListSurface({
   selectedRows: Set<string>;
   title: string;
   toolbar: ReactNode;
+  onChangePassword: (row: User) => void;
   onDelete: (row: User) => void;
   onEdit: (row: User) => void;
   onToggleAll: (checked: boolean) => void;
@@ -81,6 +83,7 @@ export function UserListSurface({
               profileUrl={profileUrl}
               rows={rows}
               selectedRows={selectedRows}
+              onChangePassword={onChangePassword}
               onDelete={onDelete}
               onEdit={onEdit}
               onToggleAll={onToggleAll}
@@ -93,6 +96,7 @@ export function UserListSurface({
               profileUrl={profileUrl}
               rows={rows}
               selectedRows={selectedRows}
+              onChangePassword={onChangePassword}
               onDelete={onDelete}
               onEdit={onEdit}
               onToggleSelected={onToggleSelected}
@@ -106,9 +110,51 @@ export function UserListSurface({
   );
 }
 
+// เปลี่ยนรหัสผ่านได้เฉพาะบัญชีของตัวเอง — API ต้องยืนยัน old_password ซึ่งแอดมินไม่รู้ของลูกน้อง
+// (แอดมินตั้งรหัสใหม่ให้ลูกน้องได้ผ่านช่องรหัสผ่านในฟอร์มแก้ไขผู้ใช้แทน)
+function UserRowActions({
+  currentRow,
+  onChangePassword,
+  onDelete,
+  onEdit,
+  protectedRow,
+  row
+}: {
+  currentRow: boolean;
+  onChangePassword: (row: User) => void;
+  onDelete: (row: User) => void;
+  onEdit: (row: User) => void;
+  protectedRow: boolean;
+  row: User;
+}) {
+  const { t } = useTranslation();
+
+  return (
+    <SettingsRowActions
+      row={row}
+      editDisabled={protectedRow}
+      deleteDisabled={protectedRow}
+      actions={
+        currentRow
+          ? [
+              {
+                label: t("settings.changePassword"),
+                icon: <KeyRound aria-hidden />,
+                onSelect: onChangePassword
+              }
+            ]
+          : undefined
+      }
+      onEdit={onEdit}
+      onDelete={onDelete}
+    />
+  );
+}
+
 function UserDesktopTable({
   allSelected,
   currentLoginUuid,
+  onChangePassword,
   onDelete,
   onEdit,
   onToggleAll,
@@ -120,6 +166,7 @@ function UserDesktopTable({
 }: {
   allSelected: boolean;
   currentLoginUuid: string;
+  onChangePassword: (row: User) => void;
   onDelete: (row: User) => void;
   onEdit: (row: User) => void;
   onToggleAll: (checked: boolean) => void;
@@ -156,6 +203,7 @@ function UserDesktopTable({
               row={row}
               rowNumber={pageStart + index}
               selectedRows={selectedRows}
+              onChangePassword={onChangePassword}
               onDelete={onDelete}
               onEdit={onEdit}
               onToggleSelected={onToggleSelected}
@@ -169,6 +217,7 @@ function UserDesktopTable({
 
 function UserTableRow({
   currentLoginUuid,
+  onChangePassword,
   onDelete,
   onEdit,
   onToggleSelected,
@@ -178,6 +227,7 @@ function UserTableRow({
   selectedRows
 }: {
   currentLoginUuid: string;
+  onChangePassword: (row: User) => void;
   onDelete: (row: User) => void;
   onEdit: (row: User) => void;
   onToggleSelected: (id: string, checked: boolean) => void;
@@ -216,12 +266,13 @@ function UserTableRow({
         <UserActiveBadge status={userValue(row, "login_active", "1")} />
       </TableCell>
       <TableCell className="text-right">
-        <SettingsRowActions
+        <UserRowActions
+          currentRow={currentRow}
+          protectedRow={protectedRow}
           row={row}
-          editDisabled={protectedRow}
-          deleteDisabled={protectedRow}
-          onEdit={onEdit}
+          onChangePassword={onChangePassword}
           onDelete={onDelete}
+          onEdit={onEdit}
         />
       </TableCell>
     </TableRow>
@@ -230,6 +281,7 @@ function UserTableRow({
 
 function UserMobileList({
   currentLoginUuid,
+  onChangePassword,
   onDelete,
   onEdit,
   onToggleSelected,
@@ -238,6 +290,7 @@ function UserMobileList({
   selectedRows
 }: {
   currentLoginUuid: string;
+  onChangePassword: (row: User) => void;
   onDelete: (row: User) => void;
   onEdit: (row: User) => void;
   onToggleSelected: (id: string, checked: boolean) => void;
@@ -254,6 +307,7 @@ function UserMobileList({
           profileUrl={profileUrl}
           row={row}
           selectedRows={selectedRows}
+          onChangePassword={onChangePassword}
           onDelete={onDelete}
           onEdit={onEdit}
           onToggleSelected={onToggleSelected}
@@ -265,6 +319,7 @@ function UserMobileList({
 
 function UserMobileCard({
   currentLoginUuid,
+  onChangePassword,
   onDelete,
   onEdit,
   onToggleSelected,
@@ -273,6 +328,7 @@ function UserMobileCard({
   selectedRows
 }: {
   currentLoginUuid: string;
+  onChangePassword: (row: User) => void;
   onDelete: (row: User) => void;
   onEdit: (row: User) => void;
   onToggleSelected: (id: string, checked: boolean) => void;
@@ -290,12 +346,13 @@ function UserMobileCard({
   return (
     <SettingsMobileCard
       actions={
-        <SettingsRowActions
+        <UserRowActions
+          currentRow={currentRow}
+          protectedRow={protectedRow}
           row={row}
-          editDisabled={protectedRow}
-          deleteDisabled={protectedRow}
-          onEdit={onEdit}
+          onChangePassword={onChangePassword}
           onDelete={onDelete}
+          onEdit={onEdit}
         />
       }
       badges={<UserBadges currentRow={currentRow} protectedRow={protectedRow} />}

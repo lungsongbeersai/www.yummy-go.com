@@ -91,6 +91,7 @@ function printData(): DailyClosingPrintData {
       cash: "Cash",
       cashier: "Cashier",
       credit: "Credit",
+      currencyUnit: "kip",
       discount: "Discount",
       employeeSignature: "Employee signature",
       grandTotal: "Grand total",
@@ -271,8 +272,8 @@ describe("buildDailyClosingReportOps", () => {
     expect(headerOp?.bold).toBe(false);
 
     // The dedicated Total Amount summary row further down still gets the full bilingual label,
-    // plus the "(Kib)" suffix the daily-closing report adds now that ₭ is stripped from every amount.
-    const summaryOp = ops.find((op) => op.left === "ລວມເປັນເງິນ / Total Amount (Kib)");
+    // plus the "(kip)" currency-unit suffix the daily-closing report adds now that ₭ is stripped from every amount.
+    const summaryOp = ops.find((op) => op.left === "ລວມເປັນເງິນ / Total Amount (kip)");
     expect(summaryOp).toBeTruthy();
   });
 

@@ -1,6 +1,7 @@
 import { apiRequest, ServiceError } from "@/lib/api";
 import { toApiLanguage } from "@/lib/language";
 import { createCrud } from "@/services/shared/crud";
+import { requiredText } from "@/services/shared/validators";
 import type { ApiDataResponse, ApiEntity, ApiListResponse, FetchParams } from "@/services/shared/types";
 export { getUserProfileUrl } from "@/lib/image";
 
@@ -42,6 +43,11 @@ export interface FetchUsersParams extends FetchParams {
   roles_id_fk?: number | string;
   branch_uuid_fk?: string;
 }
+export interface ChangePasswordInput {
+  login_uuid: string;
+  old_password: string;
+  new_password: string;
+}
 
 const crud = createCrud<User>(
   {
@@ -72,3 +78,19 @@ export async function getRoles(lang = "la", roles_id: number | string = "") {
 export const saveUser = (input: SaveUserInput) => crud.save(input);
 export const deleteUser = (login_uuid: string) => crud.delete(login_uuid);
 export const canCreateUser = (status?: number) => status === 1 || status === 2;
+// self-service เท่านั้น — backend ตรวจ old_password จึงเปลี่ยนได้แค่บัญชีที่ผู้เรียกรู้รหัสเดิม
+// (คนละทางกับ saveUser ที่แอดมินตั้ง login_password ให้ลูกน้องได้ผ่าน register/create)
+export async function changeUserPassword(input: ChangePasswordInput) {
+  await apiRequest(
+    "post",
+    "/api/v1/register/change_password",
+    {
+      data: {
+        login_uuid: requiredText(input.login_uuid, "login_uuid"),
+        old_password: requiredText(input.old_password, "old_password"),
+        new_password: requiredText(input.new_password, "new_password")
+      }
+    },
+    "Failed to change password"
+  );
+}

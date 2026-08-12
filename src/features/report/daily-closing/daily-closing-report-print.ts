@@ -17,6 +17,7 @@ export interface DailyClosingPrintLabels {
   cash: string;
   cashier: string;
   credit: string;
+  currencyUnit: string;
   discount: string;
   employeeSignature: string;
   grandTotal: string;
@@ -124,6 +125,7 @@ const DAILY_CLOSING_EXTRA_STYLES = `
 
       .section-title {
         padding-top: 1mm;
+        padding-bottom: 2mm;
       }
 
       /* receiptHeadlineTotalHtml (shared) เรียง label/value เป็น <p> ซ้อนกันคนละบรรทัดโดย default
@@ -185,12 +187,12 @@ export function renderDailyClosingReceiptBody(
     apiLabels.discountAmount,
     labels.discount,
   );
-  // เติม "(Kib)" ต่อท้ายป้าย "ລວມເປັນເງິນ / Total Amount" เพราะใบปิดยอดตัดสัญลักษณ์ ₭ ออกจากทุกตัวเลขแล้ว
-  // (withoutEnglishSuffix ที่ใช้กับป้ายนี้ในหัวคอลัมน์สินค้ายังตัดได้ปกติ เพราะตัดที่ " / " ตัวแรกก่อนถึง "(Kib)")
+  // เติมหน่วยเงิน (เช่น "(ກີບ)") ต่อท้ายป้าย "ລວມເປັນເງິນ / Total Amount" เพราะใบปิดยอดตัดสัญลักษณ์ ₭ ออกจากทุกตัวเลขแล้ว
+  // (withoutEnglishSuffix ที่ใช้กับป้ายนี้ในหัวคอลัมน์สินค้ายังตัดได้ปกติ เพราะตัดที่ " / " ตัวแรกก่อนถึง "(...)")
   const totalAmountLabel = `${dailyClosingLabel(
     apiLabels.totalAmount,
     labels.totalAmount,
-  )} (Kib)`;
+  )} (${labels.currencyUnit})`;
 
   const groups = report.groups
     .map((group) => {
@@ -476,8 +478,8 @@ export function buildDailyClosingReportOps(
 
   const groupTotalLabel = dailyClosingLabel(apiLabels.groupTotal, labels.groupTotal);
   const discountLabel = dailyClosingLabel(apiLabels.discountAmount, labels.discount);
-  // เติม "(Kib)" ต่อท้ายเหมือนฝั่ง HTML — ดู renderDailyClosingReceiptBody
-  const totalAmountLabel = `${dailyClosingLabel(apiLabels.totalAmount, labels.totalAmount)} (Kib)`;
+  // เติมหน่วยเงินต่อท้ายเหมือนฝั่ง HTML — ดู renderDailyClosingReceiptBody
+  const totalAmountLabel = `${dailyClosingLabel(apiLabels.totalAmount, labels.totalAmount)} (${labels.currencyUnit})`;
 
   const toppingOp = (topping: DailyClosingReportItem["toppings"][number]): ReportPrintOp => {
     const quantity = topping.qty > 0 ? ` × ${formatNumber(topping.qty)}` : "";

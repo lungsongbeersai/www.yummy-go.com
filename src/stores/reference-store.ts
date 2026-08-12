@@ -14,7 +14,15 @@ import { getStoreOptions, resetStorePassword, type Store } from "@/services/stor
 import { getTableOptions, type ZoneGroup } from "@/services/table";
 import { getToppingOptions, type Topping } from "@/services/topping";
 import { getUnitOptions, type Unit } from "@/services/unit";
-import { canCreateUser, getRoles, getUserById, type Role, type User } from "@/services/user";
+import {
+  canCreateUser,
+  changeUserPassword,
+  getRoles,
+  getUserById,
+  type ChangePasswordInput,
+  type Role,
+  type User
+} from "@/services/user";
 import { getZoneOptions, type Zone } from "@/services/zone";
 import type { ApiEntity } from "@/services/shared/types";
 import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
@@ -72,6 +80,7 @@ interface ReferenceState {
   loadRoles: (lang?: string, rolesId?: number | string) => Promise<Role[]>;
   loadUser: (loginUuid: string) => Promise<User>;
   resetPassword: (email: string) => Promise<void>;
+  changePassword: (input: ChangePasswordInput) => Promise<void>;
   sortCategoryRows: (input: SortCategoryInput) => ReturnType<typeof sortCategories>;
   canCreateUser: () => boolean;
   branchQrUrl: (filename: string) => string;
@@ -103,6 +112,27 @@ export const useReferenceStore = create<ReferenceState>((set) => {
       if (isCurrentRequest()) {
         set((state) => ({
           loadingKeys: { ...state.loadingKeys, [key]: false },
+          error: errorMessage(error)
+        }));
+      }
+      throw error;
+    }
+  }
+
+  // reset (แอดมินส่งลิงก์ให้ร้าน) กับ change (เจ้าของบัญชียืนยันรหัสเดิม) ใช้ loading key เดียวกัน
+  // เพราะเป็น mutation รหัสผ่านเหมือนกันและไม่มีทางยิงพร้อมกันจาก UI เดียว
+  async function runPasswordRequest(request: () => Promise<void>) {
+    const isCurrentRequest = createReferenceRequestGuard("password");
+    set((state) => ({ loadingKeys: { ...state.loadingKeys, password: true }, error: null }));
+    try {
+      await request();
+      if (isCurrentRequest()) {
+        set((state) => ({ loadingKeys: { ...state.loadingKeys, password: false } }));
+      }
+    } catch (error) {
+      if (isCurrentRequest()) {
+        set((state) => ({
+          loadingKeys: { ...state.loadingKeys, password: false },
           error: errorMessage(error)
         }));
       }
@@ -165,24 +195,8 @@ export const useReferenceStore = create<ReferenceState>((set) => {
         throw error;
       }
     },
-    resetPassword: async (email) => {
-      const isCurrentRequest = createReferenceRequestGuard("password");
-      set((state) => ({ loadingKeys: { ...state.loadingKeys, password: true }, error: null }));
-      try {
-        await resetStorePassword(email);
-        if (isCurrentRequest()) {
-          set((state) => ({ loadingKeys: { ...state.loadingKeys, password: false } }));
-        }
-      } catch (error) {
-        if (isCurrentRequest()) {
-          set((state) => ({
-            loadingKeys: { ...state.loadingKeys, password: false },
-            error: errorMessage(error)
-          }));
-        }
-        throw error;
-      }
-    },
+    resetPassword: (email) => runPasswordRequest(() => resetStorePassword(email)),
+    changePassword: (input) => runPasswordRequest(() => changeUserPassword(input)),
     sortCategoryRows: (input) => sortCategories(input),
     canCreateUser: () => canCreateUser(useAuthStore.getState().user?.status),
     branchQrUrl: getBranchQrUrl,

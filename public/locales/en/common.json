@@ -1461,6 +1461,7 @@
     "title": "Edit profile",
     "subtitle": "Update your account details and password.",
     "passwordChanged": "Password changed",
+    "changePasswordFailed": "Password change failed",
     "saved": "Profile saved",
     "sections": {
       "account": "Account",
@@ -1483,7 +1484,10 @@
       "updatePassword": "Update password"
     },
     "validation": {
-      "passwordMismatch": "New passwords do not match."
+      "passwordMismatch": "New passwords do not match.",
+      "passwordMinLength": "The new password must be at least {{count}} characters.",
+      "passwordRequired": "Fill in every password field.",
+      "passwordSameAsOld": "The new password must differ from the current one."
     }
   },
   "report": {
@@ -1639,6 +1643,7 @@
       "cash": "Cash",
       "closingContext": "Closing context",
       "credit": "Credit",
+      "currencyUnit": "kip",
       "discountAmount": "Discount",
       "employeeSignature": "Employee signature",
       "grandTotal": "Grand total",
@@ -2193,6 +2198,8 @@
     "zoneDetailsHint": "Name the dining area used when grouping tables.",
     "zoneList": "Zone list",
     "zoneNameRequired": "Enter the Lao zone name.",
+    "changePassword": "Change password",
+    "changePasswordHint": "Confirm your current password, then set a new one. You can only change the account you are signed in with.",
     "emailPlaceholder": "name@example.com",
     "passwordCreateHint": "Required for new users.",
     "passwordEditHint": "Leave blank to keep the current password.",

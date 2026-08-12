@@ -1,36 +1,63 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { useChangePasswordForm } from "@/hooks/use-change-password-form";
 import { useResetOnChange } from "@/hooks/use-reset-on-change";
 import { useTranslation } from "react-i18next";
 import { Save, UserCircle } from "lucide-react";
+import { ChangePasswordFields } from "@/components/common/change-password-fields";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldContent, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
 import { useAuthStore } from "@/stores/auth-store";
+import { useReferenceStore } from "@/stores/reference-store";
+import { useToastStore } from "@/stores/toast-store";
 
 export function ProfilePage() {
   const { t } = useTranslation();
   const user = useAuthStore((state) => state.user);
+  const showToast = useToastStore((state) => state.show);
+  const changePassword = useReferenceStore((state) => state.changePassword);
+  const changingPassword = useReferenceStore((state) => Boolean(state.loadingKeys.password));
+  const { error, reset, setValue, validate, values } = useChangePasswordForm();
 
   const [displayName, setDisplayName] = useState(user?.email ?? "");
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
 
-  // สลับผู้ใช้ = แสดงชื่อของผู้ใช้คนใหม่
-  useResetOnChange(user?.email, () => setDisplayName(user?.email ?? ""));
+  // สลับผู้ใช้ = แสดงชื่อของผู้ใช้คนใหม่ และล้างฟอร์มรหัสผ่านที่ค้างอยู่ของคนก่อน
+  useResetOnChange(user?.email, () => {
+    setDisplayName(user?.email ?? "");
+    reset();
+  });
 
-  // Backend ยังไม่มี endpoint สำหรับบันทึกโปรไฟล์/เปลี่ยนรหัสผ่าน — ปิดปุ่ม submit
-  // ไว้ก่อน (coming soon) แทนที่จะยิง toast สำเร็จหลอกๆ ไม่มีผลจริง
+  // Backend ยังไม่มี endpoint สำหรับบันทึกชื่อ/อีเมลโปรไฟล์ — ปิดปุ่ม submit ไว้ก่อน
+  // (coming soon) แทนที่จะยิง toast สำเร็จหลอกๆ ไม่มีผลจริง
   function submitAccount(event: FormEvent) {
     event.preventDefault();
   }
 
-  function submitPassword(event: FormEvent) {
+  async function submitPassword(event: FormEvent) {
     event.preventDefault();
+    const payload = validate();
+    if (!payload) return;
+
+    try {
+      await changePassword({
+        login_uuid: user?.uuid ?? "",
+        old_password: payload.oldPassword,
+        new_password: payload.newPassword
+      });
+      showToast({ title: t("profile.passwordChanged"), tone: "success" });
+      reset();
+    } catch (requestError) {
+      showToast({
+        title: t("profile.changePasswordFailed"),
+        description: requestError instanceof Error ? requestError.message : t("toasts.pleaseTryAgain"),
+        tone: "error"
+      });
+    }
   }
 
   return (
@@ -107,55 +134,23 @@ export function ProfilePage() {
       <Card>
         <CardHeader>
           <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-2">
-              <CardTitle>{t("profile.sections.password")}</CardTitle>
-              <Badge variant="secondary">{t("nav.coming_soon")}</Badge>
-            </div>
+            <CardTitle>{t("profile.sections.password")}</CardTitle>
             <p className="text-[13px] text-muted-foreground">{t("profile.sections.passwordHint")}</p>
           </div>
         </CardHeader>
         <CardContent>
           <form onSubmit={submitPassword} className="flex flex-col gap-5">
-            <Field>
-              <FieldContent>
-                <FieldLabel htmlFor="currentPassword">{t("profile.fields.currentPassword")}</FieldLabel>
-                <Input
-                  id="currentPassword"
-                  type="password"
-                  value={currentPassword}
-                  onChange={(event) => setCurrentPassword(event.target.value)}
-                  autoComplete="current-password"
-                />
-              </FieldContent>
-            </Field>
-            <Field>
-              <FieldContent>
-                <FieldLabel htmlFor="newPassword">{t("profile.fields.newPassword")}</FieldLabel>
-                <Input
-                  id="newPassword"
-                  type="password"
-                  value={newPassword}
-                  onChange={(event) => setNewPassword(event.target.value)}
-                  autoComplete="new-password"
-                />
-              </FieldContent>
-            </Field>
-            <Field>
-              <FieldContent>
-                <FieldLabel htmlFor="confirmPassword">{t("profile.fields.confirmPassword")}</FieldLabel>
-                <Input
-                  id="confirmPassword"
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(event) => setConfirmPassword(event.target.value)}
-                  autoComplete="new-password"
-                />
-              </FieldContent>
-            </Field>
+            <ChangePasswordFields
+              disabled={changingPassword}
+              error={error}
+              idPrefix="profile-password"
+              values={values}
+              onValueChange={setValue}
+            />
             <div className="flex justify-end">
-              <Button type="submit" size="sm" className="gap-2" disabled>
-                <Save className="size-4" />
-                {t("profile.actions.updatePassword")}
+              <Button className="gap-2" disabled={changingPassword || !user?.uuid} size="sm" type="submit">
+                {changingPassword ? <Spinner /> : <Save className="size-4" />}
+                {changingPassword ? t("common.processing") : t("profile.actions.updatePassword")}
               </Button>
             </div>
           </form>
