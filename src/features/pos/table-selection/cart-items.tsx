@@ -17,7 +17,7 @@ import { promotionQuantity } from "@/lib/pos/cart-quantity";
 import { cn } from "@/lib/utils";
 import type { CartItem } from "@/services/pos";
 import type { CartItemAction, CartTab } from "./types";
-import { cartItemActionUuid, cartItemBaseUnitPrice, cartItemDisplayName, cartItemMedia, cartItemName, cartItemQty, cartItemStatus, cartItemTotal, cartItemUuid, cartToppingDisplay, differentNumber, formatPlainValue, formatPositiveMoneyValue, formatQuantityValue, formatRate, isCanceledCartItem, isServedCartItem, optionalBoolean, optionalNumber, optionalString, positiveNumber, type CartItemMedia } from "./utils";
+import { cartItemActionUuid, cartItemBaseUnitPrice, cartItemDisplayName, cartItemMedia, cartItemName, cartItemQty, cartItemStatus, cartItemTotal, cartItemUuid, cartToppingDisplay, formatPlainValue, formatPositiveMoneyValue, formatQuantityValue, formatRate, isCanceledCartItem, isServedCartItem, optionalBoolean, optionalNumber, optionalString, positiveNumber, type CartItemMedia } from "./utils";
 
 export function CartTabTrigger({
   active,
@@ -227,17 +227,10 @@ function CartItemRow({
         ? `${formatRate(discountValue)}%`
         : money(discountValue)
       : formatPositiveMoneyValue(discountAmount);
-  const hasQuantitySummary =
-    differentNumber(totalReceiveQty, orderQty) ||
-    differentNumber(saleQty, orderQty) ||
-    promoSaleQty !== null ||
-    promoFreeQty !== null ||
-    freeQty !== null;
   const hasDetailContent = Boolean(
     displayUnitPrice !== null ||
     originalTotal !== null ||
     hasPromo ||
-    hasQuantitySummary ||
     hasDiscount ||
     affectsTotal === false ||
     toppings.length ||
@@ -382,8 +375,6 @@ function CartItemRow({
                   receiveQty={promoReceiveQty}
                 />
               ) : null}
-
-              {!hasPromo && hasQuantitySummary ? <CartQuantitySummary saleQty={saleQty} totalReceiveQty={totalReceiveQty} /> : null}
 
               {hasDiscount && discountLabel ? (
                 <CartDetailRow
@@ -591,28 +582,6 @@ function CartPromoBlock({
   return (
     <CartDetailRow icon={<Gift />} tone="promo">
       {[buyFreeText, receiveQty !== null ? `${t("pos.receiveShort")} ${formatQuantityValue(receiveQty)}` : null].filter(Boolean).join(" / ")}
-    </CartDetailRow>
-  );
-}
-
-function CartQuantitySummary({
-  saleQty,
-  totalReceiveQty
-}: {
-  saleQty: number | null;
-  totalReceiveQty: number | null;
-}) {
-  const { t } = useTranslation();
-  const items = [
-    { label: t("pos.totalReceiveQty"), value: totalReceiveQty },
-    { label: t("pos.saleQty"), value: saleQty }
-  ].filter((item): item is { label: string; value: number } => item.value !== null && item.value > 0);
-
-  if (!items.length) return null;
-
-  return (
-    <CartDetailRow tone="muted">
-      {items.map((item) => `${item.label}: ${formatQuantityValue(item.value)}`).join(" / ")}
     </CartDetailRow>
   );
 }

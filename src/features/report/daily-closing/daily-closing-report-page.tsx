@@ -9,7 +9,6 @@ import { LoadingState } from "@/components/common/loading-state";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { money } from "@/lib/format";
 import { DailyClosingPaymentCards } from "./daily-closing-payment-cards";
 import { DailyClosingReportControls } from "./daily-closing-report-controls";
 import { DailyClosingReceiptPreview } from "./daily-closing-receipt-preview";
@@ -50,7 +49,6 @@ export function DailyClosingReportPage() {
 
         <DailyClosingReportControls
           actionsRef={printActionsRef}
-          balanced={closing.report ? closing.balanced : null}
           branchLoading={closing.branchLoading}
           branchLocked={!closing.canSelectBranch}
           branchOptions={closing.branchOptions}
@@ -78,14 +76,6 @@ export function DailyClosingReportPage() {
         ) : null}
         {closing.error ? (
           <ReportAlert title={t("report.dailyClosing.loadFailed")} description={closing.error} />
-        ) : null}
-        {closing.report && !closing.balanced ? (
-          <ReportAlert
-            title={t("report.dailyClosing.unbalanced")}
-            description={t("report.dailyClosing.unbalancedDescription", {
-              amount: money(closing.paymentDifference),
-            })}
-          />
         ) : null}
 
         {closing.report ? <DailyClosingPaymentCards report={closing.report} /> : null}

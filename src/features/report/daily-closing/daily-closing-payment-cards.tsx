@@ -49,37 +49,37 @@ export function DailyClosingPaymentCards({ report }: DailyClosingPaymentCardsPro
     {
       key: "grandTotal",
       label: dailyClosingLabel(apiLabels.grandTotal, t("report.dailyClosing.grandTotal")),
-      value: money(summary.grandTotal),
+      value: money(summary.grandTotal, ""),
       variant: "primary",
     },
     {
       key: "cash",
       label: dailyClosingLabel(apiLabels.cash, t("report.dailyClosing.cash")),
-      value: money(paymentSummary.cash),
+      value: money(paymentSummary.cash, ""),
       variant: "default",
     },
     {
       key: "transfer",
       label: dailyClosingLabel(apiLabels.transfer, t("report.dailyClosing.transfer")),
-      value: money(paymentSummary.transfer),
+      value: money(paymentSummary.transfer, ""),
       variant: "default",
     },
     {
       key: "credit",
       label: dailyClosingLabel(apiLabels.credit, t("report.dailyClosing.credit")),
-      value: money(paymentSummary.credit),
+      value: money(paymentSummary.credit, ""),
       variant: "default",
     },
     {
       key: "paymentTotal",
       label: dailyClosingLabel(apiLabels.paymentTotal, t("report.dailyClosing.paymentTotal")),
-      value: money(paymentSummary.paymentTotal),
+      value: money(paymentSummary.paymentTotal, ""),
       variant: "default",
     },
     {
       key: "cancel",
       label: `${dailyClosingLabel(apiLabels.cancelBill, t("report.dailyClosing.cancelBill"))} (${cancelSummary.billCount.toLocaleString("en-US")})`,
-      value: money(cancelSummary.totalAmount),
+      value: money(cancelSummary.totalAmount, ""),
       variant: "danger",
     },
   ];

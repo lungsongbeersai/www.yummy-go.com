@@ -91,26 +91,31 @@ export function receiptDocumentHtml({
 </html>`;
 }
 
-export function receiptTotalRowHtml(label: string, value: number, className = "") {
+export function receiptTotalRowHtml(
+  label: string,
+  value: number,
+  className = "",
+  currency?: string,
+) {
   const displayValue = Object.is(value, -0) ? 0 : value;
 
   return `
     <div class="total-row${className ? ` ${className}` : ""}">
       <span>${escapeHtml(label)}</span>
-      <span>${escapeHtml(money(displayValue))}</span>
+      <span>${escapeHtml(currency === undefined ? money(displayValue) : money(displayValue, currency))}</span>
     </div>
   `;
 }
 
 // บล็อก 2 บรรทัดสำหรับยอดที่ต้องเน้นที่สุด — คู่กับ 2 ops แบบ "text" (label/value)
 // เพราะ bold/size บน op type "lr" เครื่องพิมพ์จริงไม่ใช้เลย (ยืนยันจากพิมพ์จริงหลายรอบ)
-export function receiptHeadlineTotalHtml(label: string, value: number) {
+export function receiptHeadlineTotalHtml(label: string, value: number, currency?: string) {
   const displayValue = Object.is(value, -0) ? 0 : value;
 
   return `
     <div class="headline-total">
       <p class="headline-total-label">${escapeHtml(label)}</p>
-      <p class="headline-total-value">${escapeHtml(money(displayValue))}</p>
+      <p class="headline-total-value">${escapeHtml(currency === undefined ? money(displayValue) : money(displayValue, currency))}</p>
     </div>
   `;
 }

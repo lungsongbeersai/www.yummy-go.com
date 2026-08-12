@@ -43,6 +43,11 @@ function printData(): DailyClosingPrintData {
         totalQty: 0,
       },
     ],
+    orderChannels: [
+      { billCount: 9, channel: 1, grandTotal: 9572453, key: "order-channel-1", name: "Dine-in" },
+      { billCount: 0, channel: 2, grandTotal: 0, key: "order-channel-2", name: "Takeaway" },
+      { billCount: 0, channel: 3, grandTotal: 0, key: "order-channel-3", name: "Delivery" },
+    ],
     labels: {
       cancelAmount: "",
       cancelBill: "",
@@ -93,6 +98,7 @@ function printData(): DailyClosingPrintData {
       groupTotal: "Group total",
       items: "items",
       noData: "No data",
+      orderChannelSummary: "Sales summary by order channel",
       paymentTotal: "Payments received",
       product: "Product",
       quantity: "Quantity",
@@ -133,7 +139,7 @@ describe("daily closing report print", () => {
     expect(html).toContain("Food &amp; Drink");
     expect(html).toContain("Rice &lt;Large&gt;");
     expect(html).not.toContain("Rice <Large>");
-    expect(html).toContain(`+ Egg &amp; meat × 2 · ${money(5000)}`);
+    expect(html).toContain(`+ Egg &amp; meat × 2 · ${money(5000, "")}`);
     expect(html).not.toContain("Egg & meat");
   });
 
@@ -141,7 +147,7 @@ describe("daily closing report print", () => {
     const html = renderDailyClosingPrintHtml(printData());
 
     expect(html).toMatch(/Total quantity\s*<\/span>\s*<span>\s*2\s*items\s*<\/span>/);
-    expect(html).toContain(`${money(60000)} × 1`);
+    expect(html).toContain(`${money(60000, "")} × 1`);
     expect(html).not.toContain("Unit price");
     expect(html).toContain("Cancelled bills (1)");
   });
@@ -158,7 +164,9 @@ describe("daily closing report print", () => {
     const data = printData();
     data.report.summary.discountAmount = 0;
 
-    expect(renderDailyClosingPrintHtml(data)).not.toContain("-0 ₭");
+    // Checks the rendered value itself (">-0<"), not a bare "-0" substring — the business date
+    // "2026-07-10" already contains "-0" (from "-07-") and would false-positive a looser check.
+    expect(renderDailyClosingPrintHtml(data)).not.toContain(">-0<");
   });
 
   it("omits the difference row and places employee and manager signatures left to right", () => {
@@ -201,6 +209,28 @@ describe("daily closing report print", () => {
     expect(html).toContain('class="category-total row"');
     expect(html).not.toContain('class="total-row strong"');
   });
+
+  it("renders a numbered sales-by-order-channel section after the revenue summary", () => {
+    const html = renderDailyClosingPrintHtml(printData());
+
+    expect(html).toContain("Sales summary by order channel");
+    expect(html.indexOf("Sales summary by order channel")).toBeGreaterThan(
+      html.indexOf("Revenue summary"),
+    );
+    expect(html).toContain("<span>1. Dine-in (9)</span>");
+    expect(html).toContain(`<span>${money(9572453, "")}</span>`);
+    expect(html).toContain("<span>2. Takeaway (0)</span>");
+    expect(html).toContain("<span>3. Delivery (0)</span>");
+  });
+
+  it("omits the order-channel section entirely when the API returns no channels", () => {
+    const data = printData();
+    data.report.orderChannels = [];
+
+    const html = renderDailyClosingPrintHtml(data);
+
+    expect(html).not.toContain("Sales summary by order channel");
+  });
 });
 
 describe("buildDailyClosingReportOps", () => {
@@ -240,8 +270,9 @@ describe("buildDailyClosingReportOps", () => {
     expect(headerOp?.right).toBe("ລວມເປັນເງິນ");
     expect(headerOp?.bold).toBe(false);
 
-    // The dedicated Total Amount summary row further down still gets the full bilingual label.
-    const summaryOp = ops.find((op) => op.left === "ລວມເປັນເງິນ / Total Amount");
+    // The dedicated Total Amount summary row further down still gets the full bilingual label,
+    // plus the "(Kib)" suffix the daily-closing report adds now that ₭ is stripped from every amount.
+    const summaryOp = ops.find((op) => op.left === "ລວມເປັນເງິນ / Total Amount (Kib)");
     expect(summaryOp).toBeTruthy();
   });
 
@@ -310,5 +341,34 @@ describe("buildDailyClosingReportOps", () => {
 
     expect(blankRow?.type).toBe("blank");
     expect(blankRow?.n).toBeGreaterThanOrEqual(3);
+  });
+
+  it("prints a numbered sales-by-order-channel section between the revenue summary and the signature area", () => {
+    const ops = buildDailyClosingReportOps(printData());
+
+    const titleIndex = ops.findIndex((op) => op.text === "Sales summary by order channel");
+    expect(titleIndex).toBeGreaterThanOrEqual(0);
+    expect(ops[titleIndex - 1]?.type).toBe("line");
+
+    const channelOp = ops.find((op) => op.left === "1. Dine-in (9)");
+    expect(channelOp?.type).toBe("lr");
+    expect(channelOp?.right).toBe(money(9572453, ""));
+
+    expect(ops.some((op) => op.left === "2. Takeaway (0)")).toBe(true);
+    expect(ops.some((op) => op.left === "3. Delivery (0)")).toBe(true);
+
+    const cancelIndex = ops.findIndex((op) => op.left?.startsWith("5. Cancelled bills"));
+    const blankIndex = ops.findIndex((op) => op.type === "blank");
+    expect(titleIndex).toBeGreaterThan(cancelIndex);
+    expect(titleIndex).toBeLessThan(blankIndex);
+  });
+
+  it("omits the order-channel ops entirely when the API returns no channels", () => {
+    const data = printData();
+    data.report.orderChannels = [];
+
+    const ops = buildDailyClosingReportOps(data);
+
+    expect(ops.some((op) => op.text === "Sales summary by order channel")).toBe(false);
   });
 });

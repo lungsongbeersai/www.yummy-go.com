@@ -25,6 +25,7 @@ export interface DailyClosingPrintLabels {
   items: string;
   revenueSummary: string;
   noData: string;
+  orderChannelSummary: string;
   paymentTotal: string;
   product: string;
   serviceCharge: string;
@@ -61,7 +62,13 @@ interface DailyClosingItemPriceFields {
 
 // สไตล์เฉพาะของใบปิดยอด (ต่อยอดจาก RECEIPT_80MM_BASE_STYLES):
 // สองคอลัมน์ (ชื่อสินค้า + ราคาฐาน × จำนวน | ยอดรวม) และช่องลายเซ็น
+// body บังคับ bold ทั้งใบ (เฉพาะรายงานนี้ ไม่กระทบใบเสร็จอื่นที่ใช้ RECEIPT_80MM_BASE_STYLES ร่วมกัน)
+// เพื่อให้อ่านง่ายตอนกระทบยอดปิดกะ — ส่วนหัวข้อ/ยอดรวมที่ตั้ง font-weight ไว้สูงกว่าอยู่แล้ว (800/900) ยังคงเด่นกว่าเดิม
 const DAILY_CLOSING_EXTRA_STYLES = `
+      body {
+        font-weight: 700;
+      }
+
       .row {
         display: grid;
         grid-template-columns: minmax(0, 1fr) 23mm;
@@ -88,7 +95,7 @@ const DAILY_CLOSING_EXTRA_STYLES = `
         margin-top: 0.3mm;
         color: #444;
         font-size: 10px;
-        font-weight: 600;
+        font-weight: 700;
         line-height: 1.2;
         font-variant-numeric: tabular-nums;
       }
@@ -99,8 +106,42 @@ const DAILY_CLOSING_EXTRA_STYLES = `
         padding-left: 1.5mm;
         color: #333;
         font-size: 10px;
-        font-weight: 500;
+        font-weight: 700;
         line-height: 1.2;
+      }
+
+      /* แถวในใบปิดยอดชิดกันเกินไป (โดยเฉพาะหลัง body บังคับ bold ทั้งใบด้านบน ทำให้ตัวหนังสือหนาขึ้นแต่ระยะเดิมไม่เปลี่ยน)
+         ใช้ padding-top แทน margin-top ตรง .category/.section-title เพราะ margin ของ h2 ด้านในจะ collapse
+         กับ margin ของ section/element ที่ครอบไว้ (กลายเป็นค่า max ไม่ใช่ค่าบวกกัน) padding ไม่ collapse จึงเห็นผลจริง
+         เฉพาะรายงานนี้ ไม่แตะ .total-row ฐานที่ report อื่นใช้ร่วมกัน */
+      .category {
+        padding-top: 2mm;
+      }
+
+      .total-row {
+        padding-top: 0.9mm;
+      }
+
+      .section-title {
+        padding-top: 1mm;
+      }
+
+      /* receiptHeadlineTotalHtml (shared) เรียง label/value เป็น <p> ซ้อนกันคนละบรรทัดโดย default
+         เฉพาะใบปิดยอดต้องการให้ "ລວມທັງໝົດ" กับยอดเงินอยู่บรรทัดเดียวกัน จึงบังคับเป็น flex row ที่นี่
+         (ไม่แตะ RECEIPT_80MM_BASE_STYLES เพราะรายงานอื่นยังใช้เวอร์ชันซ้อนบรรทัดเดิม) */
+      .headline-total {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 2mm;
+      }
+
+      .headline-total-label {
+        margin: 0;
+      }
+
+      .headline-total-value {
+        margin: 0;
       }
 
       .signatures {
@@ -125,7 +166,7 @@ const DAILY_CLOSING_EXTRA_STYLES = `
 // เส้นลายเซ็นแบบจุด — ใช้ string เดียวกันทั้ง HTML และ ops เพราะเครื่องพิมพ์วาดเส้นแบ่งครึ่งแบบ
 // CSS border ไม่ได้ ต้องพิมพ์เป็นตัวอักษรจริง วางเป็นแถว lr/flex เดียวกับแถวชื่อด้านล่าง
 // (ไม่ใช่ข้อความ 1 บรรทัดตรงกลาง) เพื่อให้จุดแต่ละท่อนอยู่ตรงเหนือชื่อของตัวเองพอดี
-const SIGNATURE_DOTS = ".".repeat(18);
+const SIGNATURE_DOTS = ".".repeat(26);
 
 // เนื้อหาใบเสร็จไม่รวม html/head/style/script
 // ใช้ร่วมกันระหว่างหน้าพิมพ์และ preview บนหน้าจอ
@@ -144,10 +185,12 @@ export function renderDailyClosingReceiptBody(
     apiLabels.discountAmount,
     labels.discount,
   );
-  const totalAmountLabel = dailyClosingLabel(
+  // เติม "(Kib)" ต่อท้ายป้าย "ລວມເປັນເງິນ / Total Amount" เพราะใบปิดยอดตัดสัญลักษณ์ ₭ ออกจากทุกตัวเลขแล้ว
+  // (withoutEnglishSuffix ที่ใช้กับป้ายนี้ในหัวคอลัมน์สินค้ายังตัดได้ปกติ เพราะตัดที่ " / " ตัวแรกก่อนถึง "(Kib)")
+  const totalAmountLabel = `${dailyClosingLabel(
     apiLabels.totalAmount,
     labels.totalAmount,
-  );
+  )} (Kib)`;
 
   const groups = report.groups
     .map((group) => {
@@ -158,7 +201,7 @@ export function renderDailyClosingReceiptBody(
         .map((item) => {
           const basePrice = getItemBasePrice(item);
 
-          const priceAndQuantity = `${money(basePrice)} × ${formatNumber(
+          const priceAndQuantity = `${money(basePrice, "")} × ${formatNumber(
             item.totalQty,
           )}`;
 
@@ -173,7 +216,7 @@ export function renderDailyClosingReceiptBody(
               const price =
                 topping.price === null
                   ? ""
-                  : ` · ${money(topping.price)}`;
+                  : ` · ${money(topping.price, "")}`;
 
               return `
                 <span class="product-topping">
@@ -197,7 +240,7 @@ export function renderDailyClosingReceiptBody(
                 ${toppings}
               </span>
 
-              <span>${escapeHtml(money(item.totalAmount))}</span>
+              <span>${escapeHtml(money(item.totalAmount, ""))}</span>
             </div>
           `;
         })
@@ -219,7 +262,7 @@ export function renderDailyClosingReceiptBody(
               ${escapeHtml(groupTotalLabel)} ${escapeHtml(groupName)}
             </span>
 
-            <span>${escapeHtml(money(group.totalAmount))}</span>
+            <span>${escapeHtml(money(group.totalAmount, ""))}</span>
           </div>
         </section>
       `;
@@ -297,6 +340,7 @@ export function renderDailyClosingReceiptBody(
           labels.grandTotal,
         ),
         report.summary.grandTotal,
+        "",
       )}
     </section>
 
@@ -343,6 +387,30 @@ export function renderDailyClosingReceiptBody(
         report.cancelSummary.totalAmount,
       )}
     </section>
+
+    ${
+      report.orderChannels.length
+        ? `
+    <div class="divider"></div>
+
+    <section>
+      <h2 class="section-title">
+        ${escapeHtml(labels.orderChannelSummary)}
+      </h2>
+
+      ${report.orderChannels
+        .map((channel, channelIndex) =>
+          numberedTotalRow(
+            channelIndex + 1,
+            `${channel.name || "-"} (${formatNumber(channel.billCount)})`,
+            channel.grandTotal,
+          ),
+        )
+        .join("")}
+    </section>
+  `
+        : ""
+    }
 
     <footer class="signatures">
       <div class="signature-row signature-line">
@@ -401,18 +469,19 @@ export function buildDailyClosingReportOps(
   const lr = (left: string, right: number, bold = false): ReportPrintOp => ({
     type: "lr",
     left,
-    right: money(right),
+    right: money(right, ""),
     bold,
     size: bold ? 26 : 24,
   });
 
   const groupTotalLabel = dailyClosingLabel(apiLabels.groupTotal, labels.groupTotal);
   const discountLabel = dailyClosingLabel(apiLabels.discountAmount, labels.discount);
-  const totalAmountLabel = dailyClosingLabel(apiLabels.totalAmount, labels.totalAmount);
+  // เติม "(Kib)" ต่อท้ายเหมือนฝั่ง HTML — ดู renderDailyClosingReceiptBody
+  const totalAmountLabel = `${dailyClosingLabel(apiLabels.totalAmount, labels.totalAmount)} (Kib)`;
 
   const toppingOp = (topping: DailyClosingReportItem["toppings"][number]): ReportPrintOp => {
     const quantity = topping.qty > 0 ? ` × ${formatNumber(topping.qty)}` : "";
-    const price = topping.price === null ? "" : ` · ${money(topping.price)}`;
+    const price = topping.price === null ? "" : ` · ${money(topping.price, "")}`;
     return { type: "text", text: `+ ${topping.name}${quantity}${price}`, align: "left", size: 18 };
   };
 
@@ -422,13 +491,26 @@ export function buildDailyClosingReportOps(
       lr(item.productName || "-", item.totalAmount),
       {
         type: "text",
-        text: `${money(basePrice)} × ${formatNumber(item.totalQty)}`,
+        text: `${money(basePrice, "")} × ${formatNumber(item.totalQty)}`,
         align: "left",
         size: 20,
       },
       ...item.toppings.filter((topping) => topping.name).map(toppingOp),
     ];
   };
+
+  const orderChannelOps: ReportPrintOp[] = report.orderChannels.length
+    ? [
+        { type: "line" },
+        { type: "text", text: labels.orderChannelSummary, align: "center", bold: true, size: 26 },
+        ...report.orderChannels.map((channel, channelIndex) =>
+          lr(
+            `${channelIndex + 1}. ${channel.name || "-"} (${formatNumber(channel.billCount)})`,
+            channel.grandTotal,
+          ),
+        ),
+      ]
+    : [];
 
   // แต่ละกลุ่มปิดท้ายด้วย line เพื่อแทน border-bottom ของ .category-total ใน HTML
   const groupOps: ReportPrintOp[] = report.groups.flatMap((group) => {
@@ -475,7 +557,7 @@ export function buildDailyClosingReportOps(
     // จึงเก็บจุดเน้นสูงสุดไว้ที่ยอดรวมทั้งหมดจุดเดียว โดยแยกเป็น text 2 บรรทัดแทน lr บรรทัดเดียว
     // ส่วนแถว lr อื่น (ยอดรวมกลุ่ม, จำนวนรวม, ยอดรับชำระ) ตัด bold/size ที่ไม่มีผลจริงออกเพื่อไม่ให้โค้ดหลอกตา
     { type: "text", text: dailyClosingLabel(apiLabels.grandTotal, labels.grandTotal), align: "left", bold: true, size: 26 },
-    { type: "text", text: money(report.summary.grandTotal), align: "right", bold: true, size: 32 },
+    { type: "text", text: money(report.summary.grandTotal, ""), align: "right", bold: true, size: 32 },
     { type: "line" },
     { type: "text", text: labels.revenueSummary, align: "center", bold: true, size: 26 },
     lr(`1. ${dailyClosingLabel(apiLabels.cash, labels.cash)}`, report.paymentSummary.cash),
@@ -491,6 +573,7 @@ export function buildDailyClosingReportOps(
       )})`,
       report.cancelSummary.totalAmount,
     ),
+    ...orderChannelOps,
     // เว้นบรรทัดว่างเพิ่มให้พื้นที่เซ็นชื่อหายใจ + ใช้แถว lr เดียวกับแถวชื่อสำหรับเส้นจุด
     // (ตรงกับ SIGNATURE_DOTS ที่ใช้ใน HTML) เพื่อให้จุดแต่ละฝั่งอยู่ตรงเหนือชื่อของตัวเองพอดี
     { type: "blank", n: 3 },
@@ -550,7 +633,8 @@ function totalRow(
   value: number,
   className = "",
 ) {
-  return receiptTotalRowHtml(label, value, className);
+  // ตัดสัญลักษณ์ ₭ ออกจากตัวเลขในใบปิดยอดทุกจุด (ดูเหตุผลที่ totalAmountLabel ด้านบน)
+  return receiptTotalRowHtml(label, value, className, "");
 }
 
 function numberedTotalRow(

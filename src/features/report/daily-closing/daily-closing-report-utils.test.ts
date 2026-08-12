@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import type { DailyStoreClosingReport } from "@/stores/report-store";
 import {
   dailyClosingLabel,
-  dailyClosingPaymentDifference,
   dailyClosingReportItemCount,
 } from "./daily-closing-report-utils";
 
@@ -39,6 +38,7 @@ function reportFixture(): DailyStoreClosingReport {
         totalQty: 0,
       },
     ],
+    orderChannels: [],
     labels: {
       cancelAmount: "",
       cancelBill: "",
@@ -69,10 +69,6 @@ function reportFixture(): DailyStoreClosingReport {
 }
 
 describe("daily closing report utils", () => {
-  it("calculates the payment reconciliation difference", () => {
-    expect(dailyClosingPaymentDifference(reportFixture())).toBe(500);
-  });
-
   it("counts item rows without treating topping quantities as product quantities", () => {
     expect(dailyClosingReportItemCount(reportFixture())).toBe(2);
   });

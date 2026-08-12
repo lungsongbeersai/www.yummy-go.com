@@ -1,4 +1,5 @@
 export interface DailyClosingReportFilters {
   branchUuid: string;
-  date: string;
+  dateFrom: string;
+  dateTo: string;
 }

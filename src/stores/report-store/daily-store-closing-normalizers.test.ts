@@ -114,6 +114,7 @@ describe("normalizeDailyStoreClosingReportResponse", () => {
         filters: { date: "2026-07-11" },
         groups: null,
         labels: null,
+        order_channels: null,
         payment_summary: null,
         summary: null,
       },
@@ -121,9 +122,36 @@ describe("normalizeDailyStoreClosingReportResponse", () => {
 
     expect(report.filters.date).toBe("2026-07-11");
     expect(report.groups).toEqual([]);
+    expect(report.orderChannels).toEqual([]);
     expect(report.summary.grandTotal).toBe(0);
     expect(report.paymentSummary.paymentTotal).toBe(0);
     expect(report.cancelSummary).toEqual({ billCount: 0, totalAmount: 0 });
     expect(report.labels.reportName).toBe("");
+  });
+
+  it("normalizes the order channel sales summary", () => {
+    const report = normalizeDailyStoreClosingReportResponse({
+      data: {
+        order_channels: [
+          {
+            order_channel: 1,
+            order_channel_name: "ນັ່ງກິນຢູ່ຮ້ານ",
+            bill_count: 9,
+            grand_total: 9572453,
+          },
+          {
+            order_channel: 2,
+            order_channel_name: "ສັ່ງກັບບ້ານ",
+            bill_count: 0,
+            grand_total: 0,
+          },
+        ],
+      },
+    });
+
+    expect(report.orderChannels).toEqual([
+      { billCount: 9, channel: 1, grandTotal: 9572453, key: "order-channel-1", name: "ນັ່ງກິນຢູ່ຮ້ານ" },
+      { billCount: 0, channel: 2, grandTotal: 0, key: "order-channel-2", name: "ສັ່ງກັບບ້ານ" },
+    ]);
   });
 });

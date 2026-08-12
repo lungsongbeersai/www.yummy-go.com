@@ -1,26 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { CalendarDays } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { localDateInputValue } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -79,6 +64,15 @@ export function reportDateDisplayValue(value: string) {
   return `${twoDigits(day)}/${twoDigits(month)}/${year}`;
 }
 
+// เที่ยงคืนตาม local time เสมอ (ไม่ใช้ UTC) กันวันเพี้ยนข้ามคืนตอนแปลงกลับไป-มากับ Calendar ของ react-day-picker
+function partsToDate({ day, month, year }: DateParts) {
+  return new Date(year, month - 1, day);
+}
+
+function dateToParts(date: Date): DateParts {
+  return { day: date.getDate(), month: date.getMonth() + 1, year: date.getFullYear() };
+}
+
 export function ReportDateInput({
   autoComplete,
   className,
@@ -91,47 +85,18 @@ export function ReportDateInput({
 }: ReportDateInputProps) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
-  const [draft, setDraft] = useState<DateParts>(() => reportDateParts(value));
-  const dayOptions = useMemo(
-    () => Array.from({ length: daysInMonth(draft.year, draft.month) }, (_, index) => index + 1),
-    [draft.month, draft.year],
-  );
-  const yearOptions = useMemo(() => {
-    const currentYear = new Date().getFullYear();
-    const lastYear = Math.max(currentYear + 5, draft.year);
-    const firstYear = Math.min(1970, draft.year);
-    return Array.from({ length: lastYear - firstYear + 1 }, (_, index) => lastYear - index);
-  }, [draft.year]);
+  const selectedDate = partsToDate(reportDateParts(value));
 
-  function updateYear(nextYear: number) {
-    setDraft((current) => ({
-      ...current,
-      day: Math.min(current.day, daysInMonth(nextYear, current.month)),
-      year: nextYear,
-    }));
-  }
-
-  function updateMonth(nextMonth: number) {
-    setDraft((current) => ({
-      ...current,
-      day: Math.min(current.day, daysInMonth(current.year, nextMonth)),
-      month: nextMonth,
-    }));
-  }
-
-  function handleOpenChange(nextOpen: boolean) {
-    if (nextOpen) setDraft(reportDateParts(value));
-    setOpen(nextOpen);
-  }
-
-  function confirmDate() {
-    onValueChange(reportDateValue(draft));
-    setOpen(false);
-  }
+  // date-fns ไม่มี locale ภาษาลาว (lo) ให้ dropdown เดือนของ react-day-picker ใช้
+  // จึงใช้ชื่อเดือนชุดเดียวกับหน้า dashboard (dashboard.months) แทน ให้ตรงภาษาระบบเสมอ
+  const monthNames = t("dashboard.months", { returnObjects: true });
+  const formatMonthDropdown = Array.isArray(monthNames)
+    ? (date: Date) => (monthNames as string[])[date.getMonth()]
+    : undefined;
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
         <Button
           id={id}
           type="button"
@@ -146,78 +111,24 @@ export function ReportDateInput({
           <span>{reportDateDisplayValue(value)}</span>
           <CalendarDays aria-hidden="true" className="text-muted-foreground" />
         </Button>
-      </DialogTrigger>
+      </PopoverTrigger>
 
       {name ? <input type="hidden" name={name} value={value} autoComplete={autoComplete} /> : null}
 
-      <DialogContent className="max-h-[calc(100dvh-2rem)] max-w-sm overflow-y-auto p-4 sm:p-6">
-        <DialogHeader className="pr-10 text-left">
-          <DialogTitle>{label}</DialogTitle>
-          <DialogDescription className="sr-only">{label}</DialogDescription>
-        </DialogHeader>
-
-        <div className="grid grid-cols-3 gap-2">
-          <DatePartSelect
-            label="DD"
-            value={draft.day}
-            options={dayOptions}
-            onValueChange={(day) => setDraft((current) => ({ ...current, day }))}
-          />
-          <DatePartSelect
-            label="MM"
-            value={draft.month}
-            options={Array.from({ length: 12 }, (_, index) => index + 1)}
-            onValueChange={updateMonth}
-          />
-          <DatePartSelect
-            label="YYYY"
-            value={draft.year}
-            options={yearOptions}
-            onValueChange={updateYear}
-          />
-        </div>
-
-        <DialogFooter className="grid grid-cols-2 gap-2 sm:grid-cols-2">
-          <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-            {t("actions.cancel")}
-          </Button>
-          <Button type="button" onClick={confirmDate}>
-            {t("actions.selectDate")}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function DatePartSelect({
-  label,
-  options,
-  value,
-  onValueChange,
-}: {
-  label: string;
-  options: number[];
-  value: number;
-  onValueChange: (value: number) => void;
-}) {
-  return (
-    <div className="grid gap-1.5">
-      <span className="text-xs font-semibold text-muted-foreground">{label}</span>
-      <Select value={String(value)} onValueChange={(nextValue) => onValueChange(Number(nextValue))}>
-        <SelectTrigger className="h-11 w-full px-2 tabular-nums">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent position="popper">
-          <SelectGroup>
-            {options.map((option) => (
-              <SelectItem key={option} value={String(option)}>
-                {label === "YYYY" ? option : twoDigits(option)}
-              </SelectItem>
-            ))}
-          </SelectGroup>
-        </SelectContent>
-      </Select>
-    </div>
+      <PopoverContent className="w-auto p-0" align="start">
+        <Calendar
+          mode="single"
+          captionLayout="dropdown"
+          formatters={formatMonthDropdown ? { formatMonthDropdown } : undefined}
+          selected={selectedDate}
+          defaultMonth={selectedDate}
+          onSelect={(date) => {
+            if (!date) return;
+            onValueChange(reportDateValue(dateToParts(date)));
+            setOpen(false);
+          }}
+        />
+      </PopoverContent>
+    </Popover>
   );
 }

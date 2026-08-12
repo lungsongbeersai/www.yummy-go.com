@@ -106,6 +106,7 @@ export function ReportBranchField({
 }
 
 interface ReportDateFieldProps {
+  disabled?: boolean;
   fieldClassName?: string;
   id: string;
   inputClassName?: string;
@@ -116,6 +117,7 @@ interface ReportDateFieldProps {
 }
 
 export function ReportDateField({
+  disabled,
   fieldClassName,
   id,
   inputClassName,
@@ -125,7 +127,7 @@ export function ReportDateField({
   onChange,
 }: ReportDateFieldProps) {
   return (
-    <Field className={fieldClassName ?? "gap-1.5"}>
+    <Field className={fieldClassName ?? "gap-1.5"} data-disabled={disabled}>
       <FieldLabel htmlFor={id} className="text-xs font-bold text-muted-foreground">
         {label}
       </FieldLabel>
@@ -136,6 +138,7 @@ export function ReportDateField({
         value={value}
         autoComplete={name ? "off" : undefined}
         className={inputClassName}
+        disabled={disabled}
         onValueChange={onChange}
       />
     </Field>
@@ -147,6 +150,7 @@ export function ReportDateField({
 export function ReportDateRangeFields({
   dateFrom,
   dateTo,
+  disabled,
   fieldClassName,
   idPrefix,
   inputClassName,
@@ -156,6 +160,7 @@ export function ReportDateRangeFields({
 }: {
   dateFrom: string;
   dateTo: string;
+  disabled?: boolean;
   fieldClassName?: string;
   idPrefix: string;
   inputClassName?: string;
@@ -168,6 +173,7 @@ export function ReportDateRangeFields({
   return (
     <>
       <ReportDateField
+        disabled={disabled}
         fieldClassName={fieldClassName}
         id={`${idPrefix}-date-from`}
         inputClassName={inputClassName}
@@ -177,6 +183,7 @@ export function ReportDateRangeFields({
         onChange={onDateFromChange}
       />
       <ReportDateField
+        disabled={disabled}
         fieldClassName={fieldClassName}
         id={`${idPrefix}-date-to`}
         inputClassName={inputClassName}

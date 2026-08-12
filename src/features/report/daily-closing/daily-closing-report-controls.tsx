@@ -1,15 +1,8 @@
 "use client";
 
 import type { RefObject } from "react";
-import {
-  AlertCircle,
-  CheckCircle2,
-  Printer,
-  RefreshCcw,
-  Search,
-} from "lucide-react";
+import { Printer, RefreshCcw, Search } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
@@ -22,14 +15,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
-import { cn } from "@/lib/utils";
 import type { ReportBranchOption } from "../shared/report-branch-options";
-import { ReportDateInput } from "../shared/report-date-input";
+import { ReportDateRangeFields } from "../shared/report-filter-fields";
 import type { DailyClosingReportFilters } from "./daily-closing-report-types";
 
 interface DailyClosingReportControlsProps {
   actionsRef: RefObject<HTMLDivElement | null>;
-  balanced: boolean | null;
   branchLoading: boolean;
   branchLocked: boolean;
   branchOptions: ReportBranchOption[];
@@ -48,7 +39,6 @@ interface DailyClosingReportControlsProps {
 
 export function DailyClosingReportControls({
   actionsRef,
-  balanced,
   branchLoading,
   branchLocked,
   branchOptions,
@@ -78,7 +68,7 @@ export function DailyClosingReportControls({
               onApply();
             }}
           >
-            <FieldGroup className="grid gap-3 md:grid-cols-[minmax(14rem,1.4fr)_minmax(12rem,1fr)_auto] md:items-end">
+            <FieldGroup className="grid gap-3 md:grid-cols-[minmax(12rem,1.2fr)_minmax(8.5rem,1fr)_minmax(8.5rem,1fr)_auto] md:items-end">
               <Field className="gap-1.5" data-disabled={branchLocked || disabled}>
                 <FieldLabel htmlFor="daily-closing-branch">
                   {t("fields.branch_uuid_fk")}
@@ -108,21 +98,20 @@ export function DailyClosingReportControls({
                 </Select>
               </Field>
 
-              <Field className="gap-1.5" data-disabled={disabled}>
-                <FieldLabel htmlFor="daily-closing-date">
-                  {t("report.dailyClosing.businessDate")}
-                </FieldLabel>
-                <ReportDateInput
-                  id="daily-closing-date"
-                  label={t("report.dailyClosing.businessDate")}
-                  className="h-11 sm:h-10"
-                  value={draftFilters.date}
-                  disabled={disabled}
-                  onValueChange={(date) =>
-                    onDraftChange({ ...draftFilters, date })
-                  }
-                />
-              </Field>
+              <ReportDateRangeFields
+                dateFrom={draftFilters.dateFrom}
+                dateTo={draftFilters.dateTo}
+                disabled={disabled}
+                fieldClassName="gap-1.5"
+                idPrefix="daily-closing"
+                inputClassName="h-11 sm:h-10"
+                onDateFromChange={(dateFrom) =>
+                  onDraftChange({ ...draftFilters, dateFrom })
+                }
+                onDateToChange={(dateTo) =>
+                  onDraftChange({ ...draftFilters, dateTo })
+                }
+              />
 
               <Button
                 type="submit"
@@ -139,24 +128,6 @@ export function DailyClosingReportControls({
             ref={actionsRef}
             className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end 2xl:shrink-0"
           >
-            {balanced !== null ? (
-              <Badge
-                variant={balanced ? "outline" : "destructive"}
-                className={cn(
-                  "min-h-8 justify-center px-3",
-                  balanced && "border-primary text-primary",
-                )}
-              >
-                {balanced ? (
-                  <CheckCircle2 aria-hidden="true" />
-                ) : (
-                  <AlertCircle aria-hidden="true" />
-                )}
-                {balanced
-                  ? t("report.dailyClosing.balancedShort")
-                  : t("report.dailyClosing.reviewRequired")}
-              </Badge>
-            ) : null}
             <Button
               type="button"
               variant="outline"

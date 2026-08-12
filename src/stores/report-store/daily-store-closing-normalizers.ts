@@ -72,11 +72,20 @@ export interface DailyStoreClosingCancelSummary {
   totalAmount: number;
 }
 
+export interface DailyStoreClosingOrderChannel {
+  billCount: number;
+  channel: number;
+  grandTotal: number;
+  key: string;
+  name: string;
+}
+
 export interface DailyStoreClosingReport {
   cancelSummary: DailyStoreClosingCancelSummary;
   filters: DailyStoreClosingFilters;
   groups: DailyStoreClosingGroup[];
   labels: DailyStoreClosingLabels;
+  orderChannels: DailyStoreClosingOrderChannel[];
   paymentSummary: DailyStoreClosingPaymentSummary;
   summary: DailyStoreClosingSummary;
 }
@@ -170,6 +179,16 @@ function normalizeGroups(value: unknown): DailyStoreClosingGroup[] {
   });
 }
 
+function normalizeOrderChannels(value: unknown): DailyStoreClosingOrderChannel[] {
+  return records(value).map((channel, channelIndex) => ({
+    billCount: numberValue(channel.bill_count),
+    channel: numberValue(channel.order_channel),
+    grandTotal: numberValue(channel.grand_total),
+    key: `order-channel-${channelIndex + 1}`,
+    name: textValue(channel.order_channel_name),
+  }));
+}
+
 export function normalizeDailyStoreClosingReportResponse(
   response: DailyStoreClosingReportResponse
 ): DailyStoreClosingReport {
@@ -186,11 +205,15 @@ export function normalizeDailyStoreClosingReportResponse(
     },
     filters: {
       branchUuid: textValue(filters.branch_uuid_fk),
-      date: textValue(filters.date),
+      // เผื่อ endpoint /daily_closing ตัวใหม่คืน filters เป็น date_from/date_to แทน date เดี่ยว
+      // ค่านี้เป็นแค่ echo จาก backend เก็บไว้เผื่อใช้ที่อื่น — businessDate ที่ใช้แสดงจริงบนใบเสร็จ
+      // คำนวณฝั่ง client จาก appliedFilters.dateFrom/dateTo แล้ว (ดู use-daily-closing-report-workflow.ts)
+      date: textValue(filters.date || filters.date_from),
       lang: textValue(filters.lang || root.lang),
     },
     groups: normalizeGroups(root.groups),
     labels: normalizeLabels(root.labels),
+    orderChannels: normalizeOrderChannels(root.order_channels),
     paymentSummary: {
       cash: numberValue(paymentSummary.cash),
       credit: numberValue(paymentSummary.credit),

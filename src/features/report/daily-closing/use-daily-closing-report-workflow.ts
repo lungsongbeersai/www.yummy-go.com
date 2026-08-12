@@ -12,6 +12,7 @@ import { usePrinterStore } from "@/stores/printer-store";
 import { useDailyStoreClosingReportStore } from "@/stores/report-store";
 import { useToastStore } from "@/stores/toast-store";
 import { openReceiptPrintWindow, renderReceiptPrintWindow } from "../shared/report-receipt-print";
+import { reportDateDisplayValue } from "../shared/report-date-input";
 import { useReportBranchSelection } from "../shared/use-report-branch-selection";
 import type { DailyClosingReportFilters } from "./daily-closing-report-types";
 import {
@@ -19,10 +20,16 @@ import {
   type DailyClosingPrintData,
   renderDailyClosingPrintHtml,
 } from "./daily-closing-report-print";
-import {
-  dailyClosingPaymentDifference,
-  dailyClosingReportItemCount,
-} from "./daily-closing-report-utils";
+import { dailyClosingReportItemCount } from "./daily-closing-report-utils";
+
+// ใบปิดยอดยังโชว์วันที่บรรทัดเดียว — ถ้าเลือกช่วงวันเดียว (from === to) แสดงวันเดียวเหมือนเดิม
+// ถ้าเลือกหลายวันแสดงเป็นช่วง "DD/MM/YYYY - DD/MM/YYYY"
+function formatBusinessDateRange(dateFrom: string, dateTo: string) {
+  if (!dateFrom) return "";
+  const fromDisplay = reportDateDisplayValue(dateFrom);
+  if (!dateTo || dateTo === dateFrom) return fromDisplay;
+  return `${fromDisplay} - ${reportDateDisplayValue(dateTo)}`;
+}
 
 export function useDailyClosingReportWorkflow() {
   const { t } = useTranslation();
@@ -43,7 +50,8 @@ export function useDailyClosingReportWorkflow() {
 
   const [draftFilters, setDraftFilters] = useState<DailyClosingReportFilters>({
     branchUuid: user?.branch_uuid ?? "",
-    date: today,
+    dateFrom: today,
+    dateTo: today,
   });
   const [appliedFilters, setAppliedFilters] = useState<DailyClosingReportFilters>(draftFilters);
   const [printing, setPrinting] = useState(false);
@@ -75,10 +83,10 @@ export function useDailyClosingReportWorkflow() {
     activeBranch?.branch_tel ||
     (branchUuid === userBranchUuid ? user?.branch_tel : "") ||
     "";
-  const paymentDifference = report ? dailyClosingPaymentDifference(report) : 0;
   const itemCount = report ? dailyClosingReportItemCount(report) : 0;
-  const balanced = Math.abs(paymentDifference) < 0.01;
-  const canApply = Boolean((draftFilters.branchUuid || defaultBranchUuid) && draftFilters.date);
+  const canApply = Boolean(
+    (draftFilters.branchUuid || defaultBranchUuid) && draftFilters.dateFrom && draftFilters.dateTo,
+  );
   const printDisabled = loading || printing || !branchUuid || !report;
   const cashier = user?.email?.split("@")[0] || user?.email || "-";
   const storeName = user?.store_name || "Yummy Go";
@@ -98,6 +106,7 @@ export function useDailyClosingReportWorkflow() {
       // ดึงคำว่า "ລາຍການ" จาก locale
       items: t("salesList.summary.items"),
       noData: t("report.dailyClosing.noData"),
+      orderChannelSummary: t("report.dailyClosing.orderChannelSummary"),
       paymentTotal: t("report.dailyClosing.paymentTotal"),
       product: t("report.dailyClosing.product"),
       quantity: t("report.columns.quantity"),
@@ -116,7 +125,9 @@ export function useDailyClosingReportWorkflow() {
   const buildPrintData = useCallback(
     (reportArg: NonNullable<typeof report>, businessDate: string): DailyClosingPrintData => ({
       branchName: activeBranchLabel,
-      businessDate: reportArg.filters.date || businessDate,
+      // ใช้ค่าจาก filter ฝั่ง client เสมอ (ไม่พึ่ง reportArg.filters.date จาก backend อีกต่อไป)
+      // เพราะ backend สะท้อนกลับมาแค่ค่าเดียว แสดงเป็นช่วงวันที่ไม่ได้
+      businessDate,
       cashier,
       labels: printLabels,
       report: reportArg,
@@ -125,9 +136,11 @@ export function useDailyClosingReportWorkflow() {
     [activeBranchLabel, cashier, printLabels, storeName],
   );
 
+  const businessDateRange = formatBusinessDateRange(appliedFilters.dateFrom, appliedFilters.dateTo);
+
   const previewData = useMemo(
-    () => (report ? buildPrintData(report, appliedFilters.date) : null),
-    [appliedFilters.date, buildPrintData, report],
+    () => (report ? buildPrintData(report, businessDateRange) : null),
+    [businessDateRange, buildPrintData, report],
   );
 
   // เมื่อรายการสาขาเปลี่ยน ให้ปรับ Filter เพื่อให้สาขาที่เลือกยังใช้งานได้
@@ -137,12 +150,13 @@ export function useDailyClosingReportWorkflow() {
   });
 
   const load = useCallback(async () => {
-    if (!branchUuid || !appliedFilters.date) return false;
+    if (!branchUuid || !appliedFilters.dateFrom || !appliedFilters.dateTo) return false;
 
     try {
       await loadReport({
         branch_uuid_fk: branchUuid,
-        date: appliedFilters.date,
+        date_from: appliedFilters.dateFrom,
+        date_to: appliedFilters.dateTo,
         lang: language,
       });
       return true;
@@ -154,7 +168,7 @@ export function useDailyClosingReportWorkflow() {
       });
       return false;
     }
-  }, [appliedFilters.date, branchUuid, language, loadReport, showToast, t]);
+  }, [appliedFilters.dateFrom, appliedFilters.dateTo, branchUuid, language, loadReport, showToast, t]);
 
   useEffect(() => {
     void load();
@@ -164,7 +178,8 @@ export function useDailyClosingReportWorkflow() {
     const nextFilters = normalizeBranchFilters(draftFilters);
     const unchanged =
       nextFilters.branchUuid === appliedFilters.branchUuid &&
-      nextFilters.date === appliedFilters.date;
+      nextFilters.dateFrom === appliedFilters.dateFrom &&
+      nextFilters.dateTo === appliedFilters.dateTo;
 
     if (nextFilters.branchUuid) setSelectedBranch(nextFilters.branchUuid);
     setDraftFilters(nextFilters);
@@ -202,7 +217,7 @@ export function useDailyClosingReportWorkflow() {
       const latestReport = useDailyStoreClosingReportStore.getState().report;
       if (!latestReport) throw new Error(t("report.noData"));
 
-      const printData = buildPrintData(latestReport, appliedFilters.date);
+      const printData = buildPrintData(latestReport, businessDateRange);
 
       // แยก try ของการพิมพ์ผ่าน agent ออกจากแผนสำรอง กันไม่ให้ fallback ที่พังซ้ำถูกจับแล้วเรียกซ้ำสอง
       let agentPrintOutcome: "success" | "fallback" | "failed" = "failed";
@@ -214,7 +229,8 @@ export function useDailyClosingReportWorkflow() {
           report_title: printLabels.title,
           lang: language,
           report_payload: {
-            business_date: latestReport.filters.date,
+            date_from: appliedFilters.dateFrom,
+            date_to: appliedFilters.dateTo,
             grand_total: latestReport.summary.grandTotal,
           },
           print_document: {
@@ -280,7 +296,6 @@ export function useDailyClosingReportWorkflow() {
     activeBranchLabel,
     activeBranchTel,
     appliedFilters,
-    balanced,
     branchError: branchSelectionError,
     branchLoading: branchSelectionLoading,
     branchOptions,
@@ -292,7 +307,6 @@ export function useDailyClosingReportWorkflow() {
     itemCount,
     load,
     loading,
-    paymentDifference,
     previewData,
     printDisabled,
     printReport,

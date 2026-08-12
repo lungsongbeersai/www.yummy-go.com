@@ -1,6 +1,7 @@
 export function money(value?: number | string | null, currency = "₭") {
   const amount = Number(value ?? 0);
-  return `${amount.toLocaleString("lo-LA", { maximumFractionDigits: 0 })} ${currency}`;
+  const formatted = amount.toLocaleString("lo-LA", { maximumFractionDigits: 0 });
+  return currency ? `${formatted} ${currency}` : formatted;
 }
 
 // Public QR prices keep the full amount and use the Kip symbol. A fixed

@@ -1,9 +1,5 @@
 import type { DailyStoreClosingReport } from "@/stores/report-store";
 
-export function dailyClosingPaymentDifference(report: DailyStoreClosingReport) {
-  return report.paymentSummary.paymentTotal - report.summary.grandTotal;
-}
-
 export function dailyClosingReportItemCount(report: DailyStoreClosingReport) {
   return report.groups.reduce((total, group) => total + group.items.length, 0);
 }

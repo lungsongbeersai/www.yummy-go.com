@@ -36,10 +36,6 @@ export function formatPlainValue(...values: unknown[]) {
   return optionalString(...values);
 }
 
-export function differentNumber(left: number | null, right: number | null) {
-  return left !== null && right !== null && left !== right;
-}
-
 export function formatRate(value: number | null) {
   if (value === null) return null;
   return Number.isInteger(value)

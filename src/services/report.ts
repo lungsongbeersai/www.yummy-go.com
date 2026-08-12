@@ -101,7 +101,8 @@ export interface FetchCategorySalesReportParams {
 
 export interface FetchDailyStoreClosingReportParams {
   branch_uuid_fk: string;
-  date: string;
+  date_from: string;
+  date_to: string;
   lang?: string;
 }
 
@@ -269,6 +270,7 @@ export interface DailyStoreClosingReportResponse extends ApiEntity {
   labels?: unknown;
   lang?: string;
   message?: string;
+  order_channels?: unknown;
   payment_summary?: unknown;
   status?: string;
   summary?: unknown;
@@ -409,9 +411,10 @@ export function getCategorySalesReport(params: FetchCategorySalesReportParams) {
 
 export function getDailyStoreClosingReport(params: FetchDailyStoreClosingReportParams) {
   if (!params.branch_uuid_fk) throw new ServiceError("branch_uuid_fk is required", 400);
-  if (!params.date) throw new ServiceError("date is required", 400);
+  if (!params.date_from) throw new ServiceError("date_from is required", 400);
+  if (!params.date_to) throw new ServiceError("date_to is required", 400);
 
-  return reportRequest<DailyStoreClosingReportResponse>("/api/v1/report_all/group_sale_report", params);
+  return reportRequest<DailyStoreClosingReportResponse>("/api/v1/report_all/daily_closing", params);
 }
 
 export function getBestSellingProductsReport(params: FetchBestSellingProductsReportParams) {
