@@ -1704,6 +1704,30 @@ a[href]:not([aria-disabled="true"]),
   -webkit-tap-highlight-color: hsl(var(--primary) / 0.12);
 }
 
+/* ปุ่มขนาด 28–40px เหมาะกับเมาส์แต่พลาดง่ายเมื่อใช้ด้วยนิ้วใน WebView
+   ขยายเฉพาะ native shell เพื่อรักษาความหนาแน่นของหน้าเว็บเดสก์ท็อป */
+.capacitor-native button,
+.capacitor-native input[type="button"],
+.capacitor-native input[type="reset"],
+.capacitor-native input[type="submit"],
+.capacitor-native [role="button"],
+.capacitor-native [data-slot="button"] {
+  min-block-size: 2.75rem;
+  min-inline-size: 2.75rem;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.capacitor-native button:not(:disabled):not([aria-disabled="true"]):active,
+.capacitor-native input[type="button"]:not(:disabled):not([aria-disabled="true"]):active,
+.capacitor-native input[type="reset"]:not(:disabled):not([aria-disabled="true"]):active,
+.capacitor-native input[type="submit"]:not(:disabled):not([aria-disabled="true"]):active,
+.capacitor-native [role="button"]:not([aria-disabled="true"]):active {
+  opacity: 0.78;
+  transition-duration: 0ms;
+}
+
 .pos-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));

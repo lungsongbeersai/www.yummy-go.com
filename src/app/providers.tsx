@@ -11,6 +11,10 @@ import {
   CAPACITOR_ANDROID_CLASS,
   getAndroidWebViewCompatInfo,
 } from "@/lib/android-webview-compat";
+import {
+  CAPACITOR_IOS_CLASS,
+  CAPACITOR_NATIVE_CLASS,
+} from "@/lib/capacitor-platform";
 import { LANGUAGE_COOKIE, type Language } from "@/lib/language";
 import { useAppStore, type ThemeMode } from "@/stores/app-store";
 import { Toaster } from "@/components/ui/sonner";
@@ -65,10 +69,12 @@ function cssSupports(property: string, value: string) {
   return typeof CSS !== "undefined" && typeof CSS.supports === "function" && CSS.supports(property, value);
 }
 
-function applyAndroidWebViewCompatClasses() {
+function applyCapacitorPlatformClasses() {
+  const isNativePlatform = Capacitor.isNativePlatform();
+  const platform = Capacitor.getPlatform();
   const info = getAndroidWebViewCompatInfo({
-    isNativePlatform: Capacitor.isNativePlatform(),
-    platform: Capacitor.getPlatform(),
+    isNativePlatform,
+    platform,
     userAgent: window.navigator.userAgent,
     cssSupports,
     storageValue: readAndroidWebViewCompatOverride(),
@@ -76,6 +82,8 @@ function applyAndroidWebViewCompatClasses() {
   const targets = [document.documentElement, document.body].filter(Boolean);
 
   targets.forEach((target) => {
+    target.classList.toggle(CAPACITOR_NATIVE_CLASS, isNativePlatform);
+    target.classList.toggle(CAPACITOR_IOS_CLASS, isNativePlatform && platform === "ios");
     target.classList.toggle(CAPACITOR_ANDROID_CLASS, info.isAndroidNative);
     target.classList.toggle(ANDROID_WEBVIEW_COMPAT_CLASS, info.needsCompat);
   });
@@ -83,7 +91,12 @@ function applyAndroidWebViewCompatClasses() {
 
   return () => {
     targets.forEach((target) => {
-      target.classList.remove(CAPACITOR_ANDROID_CLASS, ANDROID_WEBVIEW_COMPAT_CLASS);
+      target.classList.remove(
+        CAPACITOR_NATIVE_CLASS,
+        CAPACITOR_IOS_CLASS,
+        CAPACITOR_ANDROID_CLASS,
+        ANDROID_WEBVIEW_COMPAT_CLASS,
+      );
     });
     delete document.documentElement.dataset.androidWebviewCompat;
   };
@@ -103,10 +116,10 @@ export function Providers({ children, initialLanguage }: ProvidersProps) {
   }
 
   useEffect(() => {
-    const cleanupAndroidWebViewCompatClasses = applyAndroidWebViewCompatClasses();
+    const cleanupCapacitorPlatformClasses = applyCapacitorPlatformClasses();
     void useAppStore.persist.rehydrate();
 
-    return cleanupAndroidWebViewCompatClasses;
+    return cleanupCapacitorPlatformClasses;
   }, []);
 
   useEffect(() => {

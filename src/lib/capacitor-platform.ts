@@ -1,5 +1,8 @@
 import { Capacitor } from "@capacitor/core";
 
+export const CAPACITOR_NATIVE_CLASS = "capacitor-native";
+export const CAPACITOR_IOS_CLASS = "capacitor-ios";
+
 export function isCapacitorNativeApp() {
   return typeof window !== "undefined" && Capacitor.isNativePlatform();
 }
