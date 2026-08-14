@@ -26,7 +26,7 @@ import type {
 } from "@/services/pos";
 import type { Exchange } from "@/services/exchange";
 import { useAppStore } from "@/stores/app-store";
-import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
+import { useAuthStore } from "@/stores/auth-store";
 import { usePosStore } from "@/stores/pos-store";
 import { usePrinterStore } from "@/stores/printer-store";
 import { useReferenceStore } from "@/stores/reference-store";
@@ -52,10 +52,12 @@ import {
   displayCaretFromRawCaret,
   exchangeCurrencyOptions,
   firstOrderUuid,
+  formatCurrencyInput,
   formatAmountInputDisplay,
   LAK_CURRENCY_OPTION,
   LAK_CURRENCY_VALUE,
   paymentAmounts,
+  paymentCurrencyAmounts,
   paymentNote,
   paymentTabs,
   paymentValidation,
@@ -146,6 +148,25 @@ export function usePaymentDialogWorkflow({
       totalAmount,
     ],
   );
+  const currencyPayment = useMemo(
+    () =>
+      paymentCurrencyAmounts(
+        activeTab,
+        totalAmount,
+        cashInput,
+        splitCashInput,
+        splitTransferInput,
+        selectedCurrency,
+      ),
+    [
+      activeTab,
+      cashInput,
+      selectedCurrency,
+      splitCashInput,
+      splitTransferInput,
+      totalAmount,
+    ],
+  );
   const activeExactAmount = activeTenderField
     ? activeExactAmountLak(activeTenderField, totalAmount, payment)
     : totalAmount;
@@ -216,13 +237,9 @@ export function usePaymentDialogWorkflow({
 
   useEffect(() => {
     if (!open) return;
-    const storeUuid = authStoreUuid(user);
-    if (storeUuid) {
-      void loadExchangeRates({
-        store_uuid_fk: storeUuid,
-        lang: toApiLanguage(language),
-      }).catch(() => undefined);
-    }
+    void loadExchangeRates({
+      lang: toApiLanguage(language),
+    }).catch(() => undefined);
   }, [isSplitPayment, language, loadExchangeRates, open, totalAmount, user]);
 
   // สกุลเงินที่เลือกหลุดจากรายการ (โหลดอัตราใหม่/สลับร้าน) = กลับไปใช้ LAK
@@ -460,6 +477,19 @@ export function usePaymentDialogWorkflow({
         cash_payment_amount: payment.cash,
         transfer_payment_amount: payment.transfer,
         change_amount: payment.change,
+        payment_currency: selectedCurrency.code,
+        foreign_paid: formatCurrencyInput(
+          currencyPayment.foreignPaid,
+          selectedCurrency,
+        ),
+        foreign_cash_paid: formatCurrencyInput(
+          currencyPayment.foreignCashPaid,
+          selectedCurrency,
+        ),
+        foreign_transfer_paid: formatCurrencyInput(
+          currencyPayment.foreignTransferPaid,
+          selectedCurrency,
+        ),
         due_date: activeTab === "arrears" ? dueDate || undefined : undefined,
         note: paymentNote(activeTab, note),
         login_uuid_fk: user.uuid,
@@ -606,6 +636,19 @@ export function usePaymentDialogWorkflow({
             cash_payment_amount: payment.cash,
             transfer_payment_amount: payment.transfer,
             change_amount: payment.change,
+            payment_currency: selectedCurrency.code,
+            foreign_paid: formatCurrencyInput(
+              currencyPayment.foreignPaid,
+              selectedCurrency,
+            ),
+            foreign_cash_paid: formatCurrencyInput(
+              currencyPayment.foreignCashPaid,
+              selectedCurrency,
+            ),
+            foreign_transfer_paid: formatCurrencyInput(
+              currencyPayment.foreignTransferPaid,
+              selectedCurrency,
+            ),
             note: paymentNote(activeTab, note),
             lang: toLanguage(language),
             login_uuid_fk: user.uuid,

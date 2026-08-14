@@ -25,6 +25,7 @@ import {
   invalidateFirstCustomerAutoSelect,
   LAK_CURRENCY_OPTION,
   paymentAmounts,
+  paymentCurrencyAmounts,
   paymentNote,
   paymentValidation,
   preserveFirstCustomerAutoSelect,
@@ -38,7 +39,14 @@ const usd = {
   code: "USD",
   label: "USD",
   rate: 20000,
-};
+} as const;
+
+const thb = {
+  value: "thb",
+  code: "THB",
+  label: "THB",
+  rate: 690,
+} as const;
 
 function order(): CartOrder {
   return {
@@ -208,6 +216,28 @@ describe("payment dialog helpers", () => {
     expect(paymentValidation("cash", "order-1", 50000, mixed, "")).toBe(
       "pos.paymentCustomerRequired",
     );
+  });
+
+  it("keeps LAK due unchanged while foreign tender creates real LAK change", () => {
+    const dueLak = 3_174_369;
+    const payment = paymentAmounts("cash", dueLak, "4600.54", "", "", 690);
+    const currencyPayment = paymentCurrencyAmounts(
+      "cash",
+      dueLak,
+      "4600.54",
+      "",
+      "",
+      thb,
+    );
+
+    expect(defaultCurrencyInput(dueLak, thb)).toBe("4600.54");
+    expect(payment).toMatchObject({ received: 3_174_373, change: 4 });
+    expect(currencyPayment).toEqual({
+      foreignCashPaid: 4600.54,
+      foreignTransferPaid: 0,
+      foreignPaid: 4600.54,
+    });
+    expect(dueLak).toBe(3_174_369);
   });
 
   it("formats currency input and caret positions", () => {

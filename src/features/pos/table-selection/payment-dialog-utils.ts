@@ -40,10 +40,11 @@ export type PaymentTab = "cash" | "transfer" | "cash_transfer" | "arrears";
 export type PaymentKind = "full" | "split";
 export type SplitTenderField = "cash" | "transfer";
 export type TenderField = "cash" | "split_cash" | "split_transfer";
+export type PaymentCurrencyCode = "LAK" | "THB" | "USD";
 
 export type PaymentCurrencyOption = {
   value: string;
-  code: string;
+  code: PaymentCurrencyCode;
   label: string;
   rate: number;
   base?: boolean;
@@ -349,25 +350,80 @@ export function paymentAmounts(
   splitTransferInput: string,
   rate: number,
 ) {
+  const transferForeignAmount =
+    safeRate(rate) === 1
+      ? Math.ceil(total)
+      : Math.ceil((total / safeRate(rate)) * 100) / 100;
+  const foreignCash =
+    tab === "cash"
+      ? parseAmount(cashInput)
+      : tab === "cash_transfer"
+        ? parseAmount(splitCashInput)
+        : 0;
+  const foreignTransfer =
+    tab === "transfer"
+      ? transferForeignAmount
+      : tab === "cash_transfer"
+        ? parseAmount(splitTransferInput)
+        : 0;
   const cash =
     tab === "cash"
-      ? toLakAmount(cashInput, rate)
+      ? toLakAmount(String(foreignCash), rate)
       : tab === "cash_transfer"
-        ? toLakAmount(splitCashInput, rate)
+        ? toLakAmount(String(foreignCash), rate)
         : 0;
+  const received = toLakAmount(
+    addCurrencyInputAmounts([String(foreignCash), String(foreignTransfer)]),
+    rate,
+  );
   const transfer =
     tab === "transfer"
-      ? total
+      ? received
       : tab === "cash_transfer"
-        ? toLakAmount(splitTransferInput, rate)
+        ? Math.max(0, received - cash)
         : 0;
-  const received = cash + transfer;
   return {
     cash,
     transfer,
     received,
     change: Math.max(0, received - total),
     balance: Math.max(0, total - received),
+  };
+}
+
+export function paymentCurrencyAmounts(
+  tab: PaymentTab,
+  totalLak: number,
+  cashInput: string,
+  splitCashInput: string,
+  splitTransferInput: string,
+  currency: PaymentCurrencyOption,
+) {
+  const foreignCashPaid =
+    tab === "cash"
+      ? parseAmount(cashInput)
+      : tab === "cash_transfer"
+        ? parseAmount(splitCashInput)
+        : 0;
+  const foreignTransferPaid =
+    tab === "transfer"
+      ? defaultCurrencyAmount(totalLak, currency)
+      : tab === "cash_transfer"
+        ? parseAmount(splitTransferInput)
+        : 0;
+
+  return {
+    foreignCashPaid: roundCurrencyAmount(foreignCashPaid, currency),
+    foreignTransferPaid: roundCurrencyAmount(foreignTransferPaid, currency),
+    foreignPaid: roundCurrencyAmount(
+      parseAmount(
+        addCurrencyInputAmounts([
+          String(foreignCashPaid),
+          String(foreignTransferPaid),
+        ]),
+      ),
+      currency,
+    ),
   };
 }
 
@@ -451,7 +507,39 @@ export function displayCaretFromRawCaret(
 }
 
 export function toLakAmount(value: string, rate: number) {
-  return Math.round(parseAmount(value) * safeRate(rate));
+  try {
+    const amount = decimalUnits(value, 2);
+    const exchange = decimalUnits(String(safeRate(rate)), 6);
+    const denominator = amount.scale * exchange.scale;
+    const product = amount.units * exchange.units;
+    const rounded = (product + denominator / BigInt(2)) / denominator;
+    return rounded <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(rounded) : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function decimalUnits(value: string, maxFractionDigits: number) {
+  const text = value.trim().replace(/,/g, "");
+  if (!/^\d+(?:\.\d+)?$/.test(text)) throw new Error("invalid decimal");
+  const [whole, fraction = ""] = text.split(".");
+  if (fraction.length > maxFractionDigits) throw new Error("invalid scale");
+  const scale = BigInt(10) ** BigInt(fraction.length);
+  return {
+    units: BigInt(whole) * scale + BigInt(fraction || "0"),
+    scale,
+  };
+}
+
+function addCurrencyInputAmounts(values: string[]) {
+  const scale = BigInt(100);
+  const total = values.reduce((sum, value) => {
+    const parsed = decimalUnits(value, 2);
+    return sum + parsed.units * (scale / parsed.scale);
+  }, BigInt(0));
+  const whole = total / scale;
+  const fraction = String(total % scale).padStart(2, "0");
+  return `${whole}.${fraction}`;
 }
 
 export function safeRate(rate: number) {
@@ -533,6 +621,10 @@ export function currencyOptionLabel(option: PaymentCurrencyOption) {
   return `${option.label} (${option.icon})`;
 }
 
+function isPaymentCurrencyCode(value: string): value is PaymentCurrencyCode {
+  return value === "LAK" || value === "THB" || value === "USD";
+}
+
 export function exchangeCurrencyOptions(exchanges: Exchange[]) {
   const seen = new Set([LAK_CURRENCY_OPTION.code]);
   const options = [LAK_CURRENCY_OPTION];
@@ -552,6 +644,7 @@ export function exchangeCurrencyOptions(exchanges: Exchange[]) {
     const status = Number(exchange.ex_status ?? 1);
     if (
       !code ||
+      !isPaymentCurrencyCode(code) ||
       !value ||
       code === LAK_CURRENCY_OPTION.code ||
       seen.has(code) ||
@@ -726,5 +819,3 @@ export function withReceiptPrintLabels(data: InvoicePrintData, translate: Transl
     title: translate("pos.receiptPrintTitle"),
   };
 }
-
-

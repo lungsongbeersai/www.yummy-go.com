@@ -1,4 +1,4 @@
-import { apiRequest, ServiceError } from "@/lib/api";
+import { apiRequest } from "@/lib/api";
 import { toApiLanguage } from "@/lib/language";
 import { createCrud } from "@/services/shared/crud";
 import type { ApiEntity, ApiListResponse, FetchParams } from "@/services/shared/types";
@@ -18,7 +18,7 @@ export type ExchangeResponse = ApiListResponse<Exchange>;
 export interface SaveExchangeInput extends ApiEntity {}
 export interface FetchExchangesParams extends FetchParams {}
 export interface FetchAllExchangesParams extends FetchParams {
-  store_uuid_fk: string;
+  store_uuid_fk?: string;
 }
 
 const crud = createCrud<Exchange>(
@@ -32,11 +32,9 @@ const crud = createCrud<Exchange>(
 );
 
 export const getExchanges = (params: FetchExchangesParams = {}) => crud.list(params);
-export async function getAllExchanges(params: FetchAllExchangesParams) {
-  if (!params.store_uuid_fk?.trim()) throw new ServiceError("store_uuid_fk is required", 400);
+export async function getAllExchanges(params: FetchAllExchangesParams = {}) {
   return apiRequest<ExchangeResponse>("get", "/api/v1/exchange/fetch_all", {
     params: {
-      store_uuid_fk: params.store_uuid_fk,
       lang: toApiLanguage(params.lang)
     }
   });

@@ -409,6 +409,10 @@ export interface PaymentInput extends ApiEntity {
   cash_payment_amount: number;
   transfer_payment_amount: number;
   change_amount?: number;
+  payment_currency?: "LAK" | "THB" | "USD";
+  foreign_paid?: string | number;
+  foreign_cash_paid?: string | number;
+  foreign_transfer_paid?: string | number;
   paid_at?: string | null;
   due_date?: string;
   note?: string;
@@ -427,6 +431,9 @@ export interface PaymentRecord extends ApiEntity {
   cash_payment_amount?: string | number;
   transfer_payment_amount?: string | number;
   change_amount?: string | number;
+  payment_currency?: "LAK" | "THB" | "USD";
+  exchange_rate?: string | number;
+  foreign_paid?: string | number;
   due_date?: string | null;
   payment_status?: number;
   note?: string;
@@ -468,6 +475,10 @@ export interface SplitBillInput extends ApiEntity {
   cash_payment_amount: number;
   transfer_payment_amount: number;
   change_amount: number;
+  payment_currency?: "LAK" | "THB" | "USD";
+  foreign_paid?: string | number;
+  foreign_cash_paid?: string | number;
+  foreign_transfer_paid?: string | number;
   due_date?: string;
   note: string;
   lang: "la" | "en";
