@@ -23,7 +23,6 @@ import { usePrinterStore } from "@/stores/printer-store";
 import { useReportBranchSelection } from "../shared/use-report-branch-selection";
 import {
   type DailySalesBillGroup,
-  useCategorySalesReportStore,
   useDailySaleItemsStore,
   useDailySalesBillReportStore,
   useDailySalesOrderReportStore,
@@ -66,7 +65,6 @@ import {
 } from "./daily-sales-report-export-utils";
 import {
   billPaymentMethodParam,
-  detailPaymentMethodParam,
   paymentMethodLabel,
   reportRecordId,
   reportTotalFromBillGroups,
@@ -106,7 +104,6 @@ export function useDailySalesReportWorkflow(
   const loadDetailReport = useDailySalesOrderReportStore((state) => state.load);
   const loadDetailExportData = useDailySalesOrderReportStore((state) => state.loadExportData);
   const loadDailySaleItems = useDailySaleItemsStore((state) => state.load);
-  const loadCategorySalesExportData = useCategorySalesReportStore((state) => state.loadExportData);
   const billRows = useDailySalesBillReportStore((state) => state.rows);
   const billSummary = useDailySalesBillReportStore((state) => state.summary);
   const billLoading = useDailySalesBillReportStore((state) => state.loading);
@@ -686,51 +683,40 @@ export function useDailySalesReportWorkflow(
     }
 
     try {
-      const categoryPaymentMethod = detailPaymentMethodParam(appliedFilters.paymentMethod);
-      const [, categorySales] = await Promise.all([
-        loadDailySaleItems({
-          branch_uuid_fk: branchUuid,
-          date_from: appliedFilters.dateFrom,
-          date_to: appliedFilters.dateTo,
-          lang: language,
-          limit: "All",
-          orderBy: appliedFilters.orderBy,
-          page: 1,
-          payment_method: billPaymentMethodParam(appliedFilters.paymentMethod),
-          search: appliedFilters.search,
-        }),
-        loadCategorySalesExportData({
-          branch_uuid_fk: branchUuid,
-          date_from: appliedFilters.dateFrom,
-          date_to: appliedFilters.dateTo,
-          lang: language,
-          orderBy: appliedFilters.orderBy,
-          payment_method: categoryPaymentMethod === "mixed" ? "all" : categoryPaymentMethod,
-        }),
-      ]);
+      await loadDailySaleItems({
+        branch_uuid_fk: branchUuid,
+        date_from: appliedFilters.dateFrom,
+        date_to: appliedFilters.dateTo,
+        lang: language,
+        limit: "All",
+        orderBy: appliedFilters.orderBy,
+        page: 1,
+        payment_method: billPaymentMethodParam(appliedFilters.paymentMethod),
+        search: appliedFilters.search,
+      });
       const bills = useDailySaleItemsStore.getState().bills;
-      if (!bills.length && !categorySales.groups.length) throw new Error(t("report.noData"));
+      if (!bills.length) throw new Error(t("report.noData"));
 
       const labels = {
         billCount: t("report.dailyPrint.billCount"),
         cancelledBills: t("report.dailyPrint.cancelledBills"),
         cashReceived: t("report.columns.cashReceived"),
-        categoryTotal: t("report.dailyPrint.categoryTotal"),
+        dateTotal: t("report.dailyPrint.dateTotal"),
         debt: t("report.columns.debtAmount"),
         discount: t("report.columns.discount"),
         grandTotal: t("report.dailyPrint.grandTotal"),
-        group: t("report.dailyPrint.group"),
+        invoiceNumber: t("report.dailyPrint.invoiceNumber"),
+        items: t("report.dailyPrint.items"),
         period: t("report.dailyPrint.period"),
         printedAt: t("report.dailyPrint.printedAt"),
         printedBy: t("report.dailyPrint.printedBy"),
-        product: t("report.columns.productName"),
-        quantity: t("report.columns.quantity"),
         revenueSummary: t("report.dailyPrint.revenueSummary"),
+        saleDate: t("report.dailyPrint.saleDate"),
         serviceCharge: t("report.columns.serviceCharge"),
         subtotal: t("report.dailyPrint.subtotal"),
+        table: t("report.dailyPrint.table"),
         title: t("report.dailyPrint.title"),
         totalAmount: t("report.columns.totalAmount"),
-        totalQuantity: t("report.cards.totalQuantity"),
         transferReceived: t("report.columns.transferReceived"),
         vat: t("report.columns.vat"),
       };
@@ -740,7 +726,6 @@ export function useDailySalesReportWorkflow(
         dateFrom: appliedFilters.dateFrom,
         dateTo: appliedFilters.dateTo,
         labels,
-        salesGroups: categorySales.groups,
         user,
       });
 

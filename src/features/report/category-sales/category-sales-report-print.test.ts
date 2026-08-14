@@ -73,7 +73,7 @@ describe("renderCategorySalesPrintHtml", () => {
   it("renders the shared 80mm receipt base with quantity inline and a headline grand total block", () => {
     const html = renderCategorySalesPrintHtml(printData());
 
-    expect(html).toContain("@page { size: 80mm 297mm");
+    expect(html).toContain("@page { size: 80mm auto");
     expect(html).toContain("Food (8)");
     expect(html).toContain("Drink (4)");
     expect(html).toContain('class="headline-total"');

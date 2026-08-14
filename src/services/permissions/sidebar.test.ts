@@ -82,13 +82,13 @@ describe("sidebar menu service helpers", () => {
 
     expect(menus.map((menu) => menu.title)).toEqual(["sales", "settings"]);
     expect(menus[0]).toMatchObject({
-      iconName: "mdi:cart-outline",
+      iconName: "shopping-cart",
       label: "Sales",
       path: "/sale"
     });
     expect(menus[1]).toMatchObject({
       badgeText: "News",
-      iconName: "mdi:unknown-icon",
+      iconName: "unknown-icon",
       label: "Settings",
       path: "/settings"
     });
@@ -234,14 +234,14 @@ describe("sidebar menu service helpers", () => {
   it("keeps serializable menu icon names for runtime rendering", () => {
     const [sales, fallback] = sidebarPermissionMenuItemsToMenuItems([
       {
-        iconName: "mdi:cart-outline",
+        iconName: "shopping-cart",
         label: "Sales",
         path: "/sale",
         source: "permission-api",
         title: "sales"
       },
       {
-        iconName: "mdi:file-document-outline",
+        iconName: "file-text",
         label: "Fallback",
         path: "/fallback",
         source: "permission-api",
@@ -250,8 +250,8 @@ describe("sidebar menu service helpers", () => {
     ]);
 
     expect(sales?.icon).toBeUndefined();
-    expect(sales?.iconName).toBe("mdi:cart-outline");
+    expect(sales?.iconName).toBe("shopping-cart");
     expect(fallback?.icon).toBeUndefined();
-    expect(fallback?.iconName).toBe("mdi:file-document-outline");
+    expect(fallback?.iconName).toBe("file-text");
   });
 });
