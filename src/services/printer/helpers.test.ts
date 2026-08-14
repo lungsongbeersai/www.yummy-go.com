@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { agentBase, failPayload, mapPrinter, parseInterfaceValue } from "@/services/printer/helpers";
+import {
+  agentBase,
+  failPayload,
+  getPrinterErrorMessage,
+  mapPrinter,
+  parseInterfaceValue
+} from "@/services/printer/helpers";
 
 describe("printer helpers", () => {
   it("normalizes agent base URLs", () => {
@@ -17,6 +23,18 @@ describe("printer helpers", () => {
       mode: "usb",
       systemPrinterName: "Receipt Printer"
     });
+  });
+
+  it("uses the printer agent response instead of the generic HTTP error", () => {
+    const error = Object.assign(new Error("Request failed with status code 500"), {
+      response: {
+        data: {
+          error: "connect EHOSTUNREACH 192.168.100.78:9100"
+        }
+      }
+    });
+
+    expect(getPrinterErrorMessage(error)).toBe("connect EHOSTUNREACH 192.168.100.78:9100");
   });
 
   it("maps loose printer API rows into stable printer objects", () => {

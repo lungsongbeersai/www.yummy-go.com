@@ -12,8 +12,27 @@ export function textValue(value: unknown) {
   return String(value ?? "").trim();
 }
 
-export const getPrinterErrorMessage = (error: unknown) =>
-  error instanceof Error ? error.message : typeof error === "string" ? error : "Unknown printer error";
+function objectValue(value: unknown): Record<string, unknown> | null {
+  return value !== null && typeof value === "object" ? value as Record<string, unknown> : null;
+}
+
+function nonEmptyString(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : "";
+}
+
+export function getPrinterErrorMessage(error: unknown) {
+  const response = objectValue(objectValue(error)?.response);
+  const responseData = response?.data;
+  const payload = objectValue(responseData);
+  const agentMessage =
+    nonEmptyString(payload?.error) ||
+    nonEmptyString(payload?.message) ||
+    nonEmptyString(responseData);
+
+  if (agentMessage) return agentMessage;
+  if (error instanceof Error) return error.message;
+  return nonEmptyString(error) || "Unknown printer error";
+}
 
 export function agentBase(defaultAgentUrl: string, agentUrl?: string) {
   return (agentUrl?.trim() || defaultAgentUrl).replace(/\/+$/, "");

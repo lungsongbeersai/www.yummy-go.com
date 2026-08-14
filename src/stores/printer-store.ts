@@ -13,6 +13,7 @@ import {
   fetchPrinterCategoryRole,
   getCategoryRoles,
   getDefaultCategoryByRole,
+  getPrinterErrorMessage,
   getPendingPrintJobs,
   getPrinterOptions,
   getPrinterRoles,
@@ -414,7 +415,7 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
       phase = "done";
       if (isCurrentSession()) set({ printing: false });
     } catch (error) {
-      const message = error instanceof Error ? error.message : errorMessage(error);
+      const message = getPrinterErrorMessage(error);
       const finalMessage = `[${phase}] ${message}`;
 
       console.error("[printer-test] failed", {
