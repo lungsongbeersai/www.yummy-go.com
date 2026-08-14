@@ -1463,17 +1463,17 @@
     "subtitle": "ປັບປຸງຂໍ້ມູນບັນຊີ ແລະ ລະຫັດຜ່ານຂອງທ່ານ.",
     "passwordChanged": "ປ່ຽນລະຫັດຜ່ານແລ້ວ",
     "changePasswordFailed": "ປ່ຽນລະຫັດຜ່ານບໍ່ສຳເລັດ",
-    "saved": "ບັນທຶກໂປຣໄຟລ໌ແລ້ວ",
+    "avatarUpdated": "ອັບເດດຮູບໂປຣໄຟລ໌ແລ້ວ",
+    "avatarUpdateFailed": "ອັບເດດຮູບໂປຣໄຟລ໌ບໍ່ສຳເລັດ",
     "sections": {
       "account": "ບັນຊີ",
-      "accountHint": "ຊື່ ແລະ ຂໍ້ມູນຕິດຕໍ່ຂອງທ່ານ.",
+      "accountHint": "ອີເມວບັນຊີຂອງທ່ານ.",
       "avatar": "ຮູບໂປຣໄຟລ໌",
       "avatarHint": "ອັບໂຫລດຮູບເພື່ອປ່ຽນຮູບໂປຣໄຟລ໌.",
       "password": "ປ່ຽນລະຫັດຜ່ານ",
       "passwordHint": "ໃຊ້ລະຫັດຜ່ານທີ່ປອດໄພ ແລະ ບໍ່ຊ້ຳກັບບ່ອນອື່ນ."
     },
     "fields": {
-      "displayName": "ຊື່ສະແດງ",
       "email": "ອີເມວ",
       "currentPassword": "ລະຫັດຜ່ານປັດຈຸບັນ",
       "newPassword": "ລະຫັດຜ່ານໃໝ່",

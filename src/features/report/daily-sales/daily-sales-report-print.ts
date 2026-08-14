@@ -72,12 +72,6 @@ export interface DailySalesPrintData {
   summary: DailySalesPrintSummary;
 }
 
-// เส้นคั่นฝั่ง auto print (printer agent) ใช้ข้อความ "-" ยาวแทน { type: "line" } เพราะเครื่องพิมพ์จริงพิมพ์
-// { type: "line" } ออกมาเป็นเส้น underscore ต่อกัน ไม่ใช่เส้นประ (ยืนยันจากการพิมพ์ทดสอบ) — เฉพาะฝั่ง thermal
-// เท่านั้น ฝั่ง window.open ใช้ CSS border แทน (ดูเหตุผลที่ .divider ใน DAILY_SALES_EXTRA_STYLES) เพราะ
-// border ยืดเต็มความกว้างแถวเสมอ ต่างจากตัวอักษรที่นับจำนวนตายตัวแล้วสั้นกว่าแถวจริงบนจอ
-const RECEIPT_DIVIDER_TEXT = "---------------------";
-
 // ใบพิมพ์นี้ตาม spec ต้องแสดงเลขคั่นหลักพันด้วยลูกน้ำล้วนๆ ไม่มีสัญลักษณ์สกุลเงิน — เลี่ยง money()
 // เพราะ locale "lo-LA" ของฟังก์ชันนั้นคั่นหลักพันด้วยจุด ("150.000") ไม่ใช่ลูกน้ำ
 function plainMoney(value: number) {
@@ -89,15 +83,16 @@ function formatQuantity(value: number) {
   return Number.isInteger(value) ? String(value) : value.toFixed(2).replace(/0+$/, "").replace(/\.$/, "");
 }
 
-// รวมเลขบิลกับเลขโต๊ะไว้ในช่องเดียวกัน เช่น "120826-0011 (ໂຕະ 4)" ให้เหลือแค่ 2 คอลัมน์ (left/right)
+// นำหน้าด้วยเลขลำดับบิลของวันนั้น (เริ่ม 1 ใหม่ทุกวันที่ขาย) รูปแบบ "1./ " แล้วรวมเลขบิลกับจำนวนรายการไว้ใน
+// ช่องเดียวกัน เช่น "1./ 120826-0011 (2 ລາຍການ)" ให้เหลือแค่ 2 คอลัมน์ (left/right)
 // ต้องได้ข้อความชุดเดียวกันเป๊ะทั้ง auto print และ window.open ถึงจะหน้าตาตรงกัน
-function invoiceLeftLabel(invoice: DailySalesPrintInvoice, labels: DailySalesPrintLabels) {
-  return `${invoice.invoiceNumber} (${labels.table} ${invoice.tableName})`;
+function invoiceLeftLabel(sequence: number, invoice: DailySalesPrintInvoice, labels: DailySalesPrintLabels) {
+  return `${sequence}./ ${invoice.invoiceNumber} (${formatQuantity(invoice.quantity)} ${labels.items})`;
 }
 
-// แถวย่อยใต้แถวหลักของแต่ละบิล บอกจำนวนรายการในบิลนั้น เช่น "2 ລາຍການ"
-function invoiceItemsLabel(invoice: DailySalesPrintInvoice, labels: DailySalesPrintLabels) {
-  return `${formatQuantity(invoice.quantity)} ${labels.items}`;
+// แถวย่อยใต้แถวหลักของแต่ละบิล บอกโต๊ะของบิลนั้น เช่น "ໂຕະ 4"
+function invoiceTableLabel(invoice: DailySalesPrintInvoice, labels: DailySalesPrintLabels) {
+  return `${labels.table} ${invoice.tableName}`;
 }
 
 function groupBillsByDate(bills: DailySaleItemsBillGroup[]): DailySalesPrintDateGroup[] {
@@ -167,15 +162,18 @@ export function buildDailySalesPrintData({
 
 // ฟอนต์พิมพ์ใบเสร็จ (Saysettha OT / Times) มีแค่ font-weight: 400 ไฟล์เดียว ไม่มีตัวหนาจริง —
 // font-weight: bold ทาง CSS จึงไม่มีผลอะไรเลยกับฟอนต์นี้ ใช้เส้นขอบ/ขนาดตัวอักษรแยกลำดับความสำคัญแทน
-// เส้นคั่นในเบราว์เซอร์ใช้ CSS border เต็มความกว้างแถว (ไม่ใช่ตัวอักษร "-" พิมพ์ซ้ำแบบฝั่ง auto print) เพราะ
-// border สั้นแค่ไหนก็ยืดเต็ม container เสมอ ต่างจากตัวอักษรที่นับจำนวนตายตัวแล้วยาวไม่พอ ทำให้เส้นดูสั้น/ขาดช่วง
-// ใช้ solid (ไม่ใช่ dashed ของ .divider ฐาน) ให้เหมือน .grand-total ที่เห็นแล้วว่าเต็มแถวชัดเจนดี
+// เส้นคั่นฝั่ง auto print กลับมาใช้ { type: "line" } (ยืนยันจากการพิมพ์ทดสอบจริงแล้วว่าออกมาเป็นเส้นเต็มปกติ)
+// ฝั่ง window.open จึงกลับไปใช้ CSS border เต็มความกว้างแถวให้ตรงกัน (ใช้ solid ไม่ใช่ dashed ของ .divider ฐาน
+// ให้เหมือน .grand-total ที่เห็นแล้วว่าเต็มแถวชัดเจนดี)
 const DAILY_SALES_EXTRA_STYLES = `
       .divider { border-top: 1px solid #111; }
       /* ระยะห่างในกลุ่มวันเดียวกัน (หัววันที่ -> ตาราง) ให้แน่นเพราะเป็นเนื้อหาเดียวกัน
          ส่วนระยะห่าง "ระหว่าง" กลุ่มวันที่ (เมื่อมีมากกว่า 1 วัน) ให้เว้นชัดเจนกว่า เพื่อบอกว่าเริ่มส่วนใหม่ */
       .date-group { margin: 0 0 1mm; }
       .date-group + .date-group { margin-top: 2.5mm; }
+      /* เส้นคั่น "ระหว่าง" วันที่ (ไม่ใช่เส้นใต้หัววันที่) เว้นระยะเพิ่มด้านล่างให้วันที่ถัดไปหายใจ แทนที่จะ
+         เพิ่มเส้นคั่นซ้อนอีกเส้นประกบข้อความบรรทัดเดียว ซึ่งจะดูรกกว่า */
+      .divider-section { margin-bottom: 2mm; }
       .date-group h2 { margin: 0 0 0.8mm; padding-bottom: 0.5mm; border-bottom: 1px solid #111; font-size: 12px; }
       .invoice-table-header { border-bottom: 1px solid #111; padding-bottom: 0.5mm; margin-bottom: 0.5mm; }
       .invoice-items { margin: 0 0 0.65mm 4mm; font-size: 10px; }
@@ -187,13 +185,18 @@ export function renderDailySalesPrintHtml(data: DailySalesPrintData) {
   const row = (left: string, amount: number, className = "") => `
     <div class="total-row${className ? ` ${className}` : ""}"><span>${escapeHtml(left)}</span><span>${escapeHtml(plainMoney(amount))}</span></div>`;
 
-  const dateGroups = data.dateGroups.map((group) => `
+  // หัวตาราง "ເລກທີ່ບິນ / ຍອດລວມ" แสดงครั้งเดียวบนสุด ไม่วนซ้ำต่อวันที่ — วันที่แต่ละกลุ่มอยู่ใต้หัวตารางนี้แทน
+  const invoiceHeaderHtml = `<div class="total-row invoice-table-header"><span>${escapeHtml(labels.invoiceNumber)}</span><span>${escapeHtml(labels.totalAmount)}</span></div>`;
+
+  const sectionDividerHtml = `<div class="divider divider-section"></div>`;
+
+  const dateGroups = data.dateGroups.map((group, index) => `
     <section class="date-group">
+      ${index > 0 ? sectionDividerHtml : ""}
       <h2>${escapeHtml(labels.saleDate)}: ${escapeHtml(group.date)}</h2>
-      <div class="total-row invoice-table-header"><span>${escapeHtml(labels.invoiceNumber)}</span><span>${escapeHtml(labels.totalAmount)}</span></div>
-      ${group.invoices.map((invoice) => `
-        ${row(invoiceLeftLabel(invoice, labels), invoice.amount)}
-        <p class="invoice-items">${escapeHtml(invoiceItemsLabel(invoice, labels))}</p>`).join("")}
+      ${group.invoices.map((invoice, invoiceIndex) => `
+        ${row(invoiceLeftLabel(invoiceIndex + 1, invoice, labels), invoice.amount)}
+        <p class="invoice-items">${escapeHtml(invoiceTableLabel(invoice, labels))}</p>`).join("")}
       ${dividerHtml}
       ${row(labels.dateTotal, group.totalAmount, "strong")}
     </section>`).join("");
@@ -211,6 +214,7 @@ export function renderDailySalesPrintHtml(data: DailySalesPrintData) {
       ${receiptMetaRowHtml(labels.printedAt, dateTime(new Date().toISOString()))}
     </section>
     ${dividerHtml}
+    ${invoiceHeaderHtml}
     ${dateGroups || `<p style="text-align:center">-</p>`}
     ${dividerHtml}
     <section>
@@ -240,59 +244,65 @@ export function renderDailySalesPrintHtml(data: DailySalesPrintData) {
 // จึงรวมจำนวนเข้ากับเลขบิลในฝั่ง left ตาม convention เดียวกับรายงานอื่น (เช่น best-selling-products)
 export function buildDailySalesReportOps(data: DailySalesPrintData): ReportPrintOp[] {
   const { labels, summary } = data;
-  const divider: ReportPrintOp = { type: "text", text: RECEIPT_DIVIDER_TEXT, align: "left", size: 20 };
+  const divider: ReportPrintOp = { type: "line" };
   const lr = (left: string, right: number, bold = false): ReportPrintOp => ({
     type: "lr",
     left,
     right: plainMoney(right),
     bold,
-    size: bold ? 26 : 24
+    size: bold ? 30 : 28
   });
 
-  // เว้นบรรทัดว่าง "ระหว่าง" กลุ่มวันที่ (ไม่ใช่ในกลุ่มเดียวกัน) — หัววันที่กับตารางของมันเป็นเนื้อหาเดียวกัน
-  // จึงติดกันไว้ ส่วนช่องว่างไปอยู่ก่อนกลุ่มวันที่ถัดไปแทน เพื่อให้เห็นชัดว่าเริ่มส่วนใหม่
+  // เส้นคั่น "ระหว่าง" วันที่ (ไม่ใช่ในวันเดียวกัน) วางไว้หลังยอดรวมของวันก่อนหน้า — คั่นให้เห็นชัดว่าเริ่มวันที่ใหม่
+  // เว้นบรรทัดว่างต่อท้ายเส้นคั่นนี้ (ไม่ใช่เพิ่มเส้นคั่นซ้อนอีกเส้น) ให้วันที่ถัดไปหายใจ ตรงกับฝั่ง window.open
+  // ที่ใช้ margin-bottom บน .divider-section แทน
   const dateGroupOps: ReportPrintOp[] = data.dateGroups.flatMap((group, index) => [
-    ...(index > 0 ? [{ type: "blank", n: 1 } as ReportPrintOp] : []),
-    { type: "text", text: `${labels.saleDate}: ${group.date}`, align: "left", bold: true, size: 22 },
-    // ฝั่ง HTML มีเส้นคั่น 2 จุดรอบส่วนหัวตาราง: .date-group h2 border-bottom (ใต้วันที่) และ
-    // .invoice-table-header border-bottom (ใต้หัวตาราง) — ฝั่งนี้ต้องมีให้ครบทั้ง 2 จุดเหมือนกัน
-    divider,
-    { type: "lr", left: labels.invoiceNumber, right: labels.totalAmount, bold: true, size: 20 },
+    ...(index > 0 ? [divider, { type: "blank", n: 1 } as ReportPrintOp] : []),
+    { type: "text", text: `${labels.saleDate}: ${group.date}`, align: "left", bold: true, size: 26 },
+    // ฝั่ง HTML มี .date-group h2 border-bottom ใต้วันที่ — ฝั่งนี้ต้องมีให้ตรงกัน
     divider,
     // แถวจำนวนรายการ เยื้องเข้าไปด้วยช่องว่างนำหน้า (เครื่องพิมพ์ thermal ไม่รองรับ CSS margin) —
     // เป็น op ชนิด "text" เพราะ size บน "lr" เครื่องจริงไม่ใช้ ต้องใช้ "text" ถึงจะเล็กกว่าแถวหลักจริง
-    ...group.invoices.flatMap((invoice): ReportPrintOp[] => [
-      lr(invoiceLeftLabel(invoice, labels), invoice.amount),
-      { type: "text", text: `  ${invoiceItemsLabel(invoice, labels)}`, align: "left", size: 20 },
+    ...group.invoices.flatMap((invoice, invoiceIndex): ReportPrintOp[] => [
+      lr(invoiceLeftLabel(invoiceIndex + 1, invoice, labels), invoice.amount),
+      { type: "text", text: `  ${invoiceTableLabel(invoice, labels)}`, align: "left", size: 24 },
     ]),
+    // ฝั่ง HTML มีเส้นคั่นก่อนแถว dateTotal เสมอ (ดู dividerHtml ก่อน row(labels.dateTotal, ...) ใน
+    // renderDailySalesPrintHtml) — ฝั่งนี้ต้องมีให้ตรงกัน
+    divider,
     lr(labels.dateTotal, group.totalAmount, true),
   ]);
 
   return [
     // ลำดับหัวใบเสร็จต้องตรงกับ receiptHeaderHtml: ชื่อร้าน(หนา) -> ชื่อสาขา -> หัวข้อรายงาน(ใหญ่สุด)
-    ...(data.storeName ? [{ type: "text", text: data.storeName, align: "center", bold: true, size: 24 } as ReportPrintOp] : []),
-    ...(data.branchName ? [{ type: "text", text: data.branchName, align: "center", size: 22 } as ReportPrintOp] : []),
-    { type: "text", text: labels.title, align: "center", bold: true, size: 32 },
+    ...(data.storeName ? [{ type: "text", text: data.storeName, align: "center", bold: true, size: 28 } as ReportPrintOp] : []),
+    ...(data.branchName ? [{ type: "text", text: data.branchName, align: "center", size: 26 } as ReportPrintOp] : []),
+    { type: "text", text: labels.title, align: "center", bold: true, size: 36 },
     divider,
-    { type: "text", text: `${labels.period}: ${data.dateFrom} - ${data.dateTo}`, align: "left", size: 24 },
-    { type: "text", text: `${labels.printedBy}: ${data.cashier}`, align: "left", size: 24 },
-    { type: "text", text: `${labels.printedAt}: ${dateTime(new Date().toISOString())}`, align: "left", size: 20 },
+    { type: "text", text: `${labels.period}: ${data.dateFrom} - ${data.dateTo}`, align: "left", size: 28 },
+    { type: "text", text: `${labels.printedBy}: ${data.cashier}`, align: "left", size: 28 },
+    { type: "text", text: `${labels.printedAt}: ${dateTime(new Date().toISOString())}`, align: "left", size: 24 },
+    divider,
+    // หัวตาราง "ເລກທີ່ບິນ / ຍອດລວມ" แสดงครั้งเดียวบนสุด ไม่วนซ้ำต่อวันที่ — ฝั่ง HTML แถวนี้ไม่มี class "strong"
+    // จึงไม่ตัวหนา ฝั่งนี้ต้องตรงกัน แล้วตามด้วย divider จำลอง .invoice-table-header border-bottom ของฝั่ง HTML
+    { type: "lr", left: labels.invoiceNumber, right: labels.totalAmount, bold: false, size: 24 },
     divider,
     ...dateGroupOps,
     divider,
-    { type: "text", text: labels.revenueSummary, align: "center", bold: true, size: 26 },
-    { type: "lr", left: labels.billCount, right: String(summary.activeBillCount), bold: false, size: 24 },
+    { type: "text", text: labels.revenueSummary, align: "center", bold: true, size: 30 },
+    // ฝั่ง HTML ใช้ class="total-row strong" กับแถวนี้ (ตัวหนา) — ฝั่งนี้ต้องตรงกัน
+    { type: "lr", left: labels.billCount, right: String(summary.activeBillCount), bold: true, size: 28 },
     lr(labels.subtotal, summary.subtotal),
     lr(labels.discount, -summary.discount),
     lr(labels.serviceCharge, summary.serviceCharge),
     lr(labels.vat, summary.vat),
     divider,
-    { ...lr(labels.grandTotal, summary.grandTotal, true), size: 30 },
+    { ...lr(labels.grandTotal, summary.grandTotal, true), size: 34 },
     divider,
     lr(labels.cashReceived, summary.cashReceived),
     lr(labels.transferReceived, summary.transferReceived),
     lr(labels.debt, summary.debt),
-    { type: "lr", left: `${labels.cancelledBills} (${summary.cancelledBillCount})`, right: plainMoney(summary.cancelledAmount), bold: false, size: 22 },
+    { type: "lr", left: `${labels.cancelledBills} (${summary.cancelledBillCount})`, right: plainMoney(summary.cancelledAmount), bold: false, size: 26 },
     { type: "blank", n: 2 }
   ];
 }

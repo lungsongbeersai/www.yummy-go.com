@@ -4,14 +4,24 @@ import { useState, type FormEvent } from "react";
 import { useChangePasswordForm } from "@/hooks/use-change-password-form";
 import { useResetOnChange } from "@/hooks/use-reset-on-change";
 import { useTranslation } from "react-i18next";
-import { Save, UserCircle } from "lucide-react";
+import { Save } from "lucide-react";
 import { ChangePasswordFields } from "@/components/common/change-password-fields";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldContent, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
+import {
+  AVATAR_CROP_ASPECT,
+  AVATAR_CROP_ASPECT_CLASS,
+  AVATAR_CROP_OUTPUT_HEIGHT,
+  AVATAR_CROP_OUTPUT_WIDTH
+} from "@/config/image-crop";
+import {
+  DEFAULT_CROP,
+  SettingsImageCropPanel,
+  cropImageFile,
+  type CropState
+} from "@/features/settings/shared/settings-image-crop";
 import { useAuthStore } from "@/stores/auth-store";
 import { useReferenceStore } from "@/stores/reference-store";
 import { useToastStore } from "@/stores/toast-store";
@@ -19,23 +29,48 @@ import { useToastStore } from "@/stores/toast-store";
 export function ProfilePage() {
   const { t } = useTranslation();
   const user = useAuthStore((state) => state.user);
+  const updateAuthUser = useAuthStore((state) => state.updateUser);
   const showToast = useToastStore((state) => state.show);
   const changePassword = useReferenceStore((state) => state.changePassword);
   const changingPassword = useReferenceStore((state) => Boolean(state.loadingKeys.password));
+  const updateProfileImage = useReferenceStore((state) => state.updateProfileImage);
+  const savingAvatar = useReferenceStore((state) => Boolean(state.loadingKeys.profileImage));
+  const userProfileUrl = useReferenceStore((state) => state.userProfileUrl);
   const { error, reset, setValue, validate, values } = useChangePasswordForm();
 
-  const [displayName, setDisplayName] = useState(user?.email ?? "");
+  const [selectedAvatarFile, setSelectedAvatarFile] = useState<File | null>(null);
+  const [avatarCrop, setAvatarCrop] = useState<CropState>(DEFAULT_CROP);
+  const profileSrc = user?.profile ? userProfileUrl(user.profile) : "";
 
-  // สลับผู้ใช้ = แสดงชื่อของผู้ใช้คนใหม่ และล้างฟอร์มรหัสผ่านที่ค้างอยู่ของคนก่อน
+  // สลับผู้ใช้ = ล้างฟอร์มรหัสผ่านและรูปที่เลือกค้างไว้ของคนก่อน
   useResetOnChange(user?.email, () => {
-    setDisplayName(user?.email ?? "");
     reset();
+    setSelectedAvatarFile(null);
+    setAvatarCrop(DEFAULT_CROP);
   });
 
-  // Backend ยังไม่มี endpoint สำหรับบันทึกชื่อ/อีเมลโปรไฟล์ — ปิดปุ่ม submit ไว้ก่อน
-  // (coming soon) แทนที่จะยิง toast สำเร็จหลอกๆ ไม่มีผลจริง
-  function submitAccount(event: FormEvent) {
+  async function submitAvatar(event: FormEvent) {
     event.preventDefault();
+    if (!selectedAvatarFile || !user?.uuid) return;
+
+    try {
+      const croppedFile = await cropImageFile(selectedAvatarFile, avatarCrop, t("settings.storeBranch.imageLoadFailed"), {
+        aspect: AVATAR_CROP_ASPECT,
+        outputHeight: AVATAR_CROP_OUTPUT_HEIGHT,
+        outputWidth: AVATAR_CROP_OUTPUT_WIDTH
+      });
+      const updated = await updateProfileImage({ login_uuid: user.uuid, profile: croppedFile });
+      if (updated?.login_profile) updateAuthUser({ profile: updated.login_profile });
+      showToast({ title: t("profile.avatarUpdated"), tone: "success" });
+      setSelectedAvatarFile(null);
+      setAvatarCrop(DEFAULT_CROP);
+    } catch (requestError) {
+      showToast({
+        title: t("profile.avatarUpdateFailed"),
+        description: requestError instanceof Error ? requestError.message : t("toasts.pleaseTryAgain"),
+        tone: "error"
+      });
+    }
   }
 
   async function submitPassword(event: FormEvent) {
@@ -75,59 +110,51 @@ export function ProfilePage() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="grid size-20 place-items-center rounded-full bg-muted text-muted-foreground">
-              <UserCircle className="size-12" />
+          <form onSubmit={submitAvatar} className="flex flex-col gap-4">
+            <SettingsImageCropPanel
+              aspect={AVATAR_CROP_ASPECT}
+              aspectClass={AVATAR_CROP_ASPECT_CLASS}
+              className="max-w-xs rounded-lg border-0 bg-transparent p-0 md:border-0"
+              crop={avatarCrop}
+              description={t("settings.profileImageHint")}
+              emptyLabel={t("profile.sections.avatar")}
+              existingSrc={profileSrc}
+              fieldId="profile-avatar"
+              fileSupportText={t("settings.storeBranch.imageSupport")}
+              previewMaxClassName="max-w-40 sm:max-w-48"
+              removeLabel={t("settings.storeBranch.cancelImage")}
+              saving={savingAvatar}
+              selectedFile={selectedAvatarFile}
+              title={t("profile.actions.changePhoto")}
+              uploadLabel={t("profile.actions.changePhoto")}
+              zoomLabel={t("settings.storeBranch.zoom")}
+              onCropChange={setAvatarCrop}
+              onFileChange={setSelectedAvatarFile}
+            />
+            <div className="flex justify-end">
+              <Button className="gap-2" disabled={savingAvatar || !selectedAvatarFile} size="sm" type="submit">
+                {savingAvatar ? <Spinner /> : <Save className="size-4" />}
+                {savingAvatar ? t("common.processing") : t("profile.actions.save")}
+              </Button>
             </div>
-            <Button type="button" variant="outline" size="sm" disabled>
-              {t("profile.actions.changePhoto")}
-            </Button>
-          </div>
+          </form>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
           <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-2">
-              <CardTitle>{t("profile.sections.account")}</CardTitle>
-              <Badge variant="secondary">{t("nav.coming_soon")}</Badge>
-            </div>
+            <CardTitle>{t("profile.sections.account")}</CardTitle>
             <p className="text-[13px] text-muted-foreground">{t("profile.sections.accountHint")}</p>
           </div>
         </CardHeader>
         <CardContent>
-          <form onSubmit={submitAccount} className="flex flex-col gap-5">
-            <Field>
-              <FieldContent>
-                <FieldLabel htmlFor="displayName">{t("profile.fields.displayName")}</FieldLabel>
-                <Input
-                  id="displayName"
-                  value={displayName}
-                  onChange={(event) => setDisplayName(event.target.value)}
-                />
-              </FieldContent>
-            </Field>
-            <Field>
-              <FieldContent>
-                <FieldLabel htmlFor="email">{t("profile.fields.email")}</FieldLabel>
-                <Input
-                  id="email"
-                  type="email"
-                  value={user?.email ?? ""}
-                  placeholder="abc@gmail.com"
-                  disabled
-                  readOnly
-                />
-              </FieldContent>
-            </Field>
-            <div className="flex justify-end">
-              <Button type="submit" size="sm" className="gap-2" disabled>
-                <Save className="size-4" />
-                {t("profile.actions.save")}
-              </Button>
-            </div>
-          </form>
+          <Field>
+            <FieldContent>
+              <FieldLabel>{t("profile.fields.email")}</FieldLabel>
+              <p className="text-sm">{user?.email ?? "-"}</p>
+            </FieldContent>
+          </Field>
         </CardContent>
       </Card>
 

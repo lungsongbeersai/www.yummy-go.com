@@ -1462,17 +1462,17 @@
     "subtitle": "Update your account details and password.",
     "passwordChanged": "Password changed",
     "changePasswordFailed": "Password change failed",
-    "saved": "Profile saved",
+    "avatarUpdated": "Profile photo updated",
+    "avatarUpdateFailed": "Failed to update profile photo",
     "sections": {
       "account": "Account",
-      "accountHint": "Your name and contact information.",
+      "accountHint": "Your account email address.",
       "avatar": "Profile photo",
       "avatarHint": "Upload an image to personalize your account.",
       "password": "Change password",
       "passwordHint": "Use a strong password you don't reuse elsewhere."
     },
     "fields": {
-      "displayName": "Display name",
       "email": "Email",
       "currentPassword": "Current password",
       "newPassword": "New password",
