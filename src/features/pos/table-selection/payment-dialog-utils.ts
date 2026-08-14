@@ -817,6 +817,7 @@ export function buildInvoicePrintData({
     }),
     labels: {
       address: translate("fields.branch_address"),
+      amountDueByCurrency: translate("pos.invoicePrintAmountDueByCurrency"),
       cashier: translate("pos.invoicePrintStaff"),
       customer: translate("pos.customer"),
       date: translate("pos.invoicePrintDate"),

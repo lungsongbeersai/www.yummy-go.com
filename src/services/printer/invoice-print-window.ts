@@ -56,7 +56,10 @@ export type InvoicePrintData = {
     | "total"
     | "vat",
     string
-  > & { currentExchangeRate?: string };
+  > & {
+    amountDueByCurrency?: string;
+    currentExchangeRate?: string;
+  };
 
   contentWidthMm: number;
   paperHeightMm: number;
@@ -431,6 +434,11 @@ export function renderInvoiceExchangeRates(data: InvoicePrintData) {
       ${data.exchangeRates
         .map((item) => invoiceTotalRow(`1 ${item.code}`, `${formatInvoiceExchangeRate(item.rate)} LAK`))
         .join("")}
+      <p class="total-row strong"><span>${escapeHtml(data.labels.amountDueByCurrency ?? "Amount Due by Currency")}</span><span></span></p>
+      ${invoiceTotalRow("LAK", `${formatInvoiceExchangeRate(data.total)} LAK`)}
+      ${data.exchangeRates
+        .map((item) => invoiceTotalRow(item.code, `${formatInvoiceForeignDue(data.total, item.rate)} ${item.code}`))
+        .join("")}
     </section>`;
 }
 
@@ -439,6 +447,14 @@ export function formatInvoiceExchangeRate(value: number) {
     minimumFractionDigits: 0,
     maximumFractionDigits: 6,
   }).format(value);
+}
+
+export function formatInvoiceForeignDue(totalLak: number, rate: number) {
+  const due = rate > 0 ? Math.ceil((totalLak / rate) * 100) / 100 : 0;
+  return new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(due);
 }
 
 export function renderInvoiceQr(data: InvoicePrintData) {

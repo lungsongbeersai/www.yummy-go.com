@@ -362,6 +362,10 @@ describe("payment dialog helpers", () => {
     expect(html).toContain("690 LAK");
     expect(html).toContain("1 USD");
     expect(html).toContain("23,000 LAK");
+    expect(html).toContain("pos.invoicePrintAmountDueByCurrency");
+    expect(html).toContain("20,000 LAK");
+    expect(html).toContain("28.99 THB");
+    expect(html).toContain("0.87 USD");
     expect(html).toContain(`href="${WINDOW_OPEN_FONT_STYLESHEET_HREF}"`);
     expect(html).toContain(`body class="${WINDOW_OPEN_FONT_CLASS_NAME}"`);
     expect(html).toContain("document.fonts?.ready");
