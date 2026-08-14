@@ -242,6 +242,7 @@ export const EmployeeCategorySidebar = memo(function EmployeeCategorySidebar({
               ))
             : categories.map((category) => {
                 const active = category.cateUuid === selectedCateUuid;
+                const categoryLabel = category.cateName?.trim() || t("pos.menu");
                 return (
                   <Tooltip key={category.cateUuid}>
                     <TooltipTrigger asChild>
@@ -250,7 +251,7 @@ export const EmployeeCategorySidebar = memo(function EmployeeCategorySidebar({
                         aria-pressed={active}
                         variant="ghost"
                         className={cn(
-                          "h-auto min-h-[5.625rem] w-full flex-col gap-1 rounded-lg border border-white/20 bg-white/10 px-2 py-2 text-white/90 shadow-sm shadow-black/5 hover:border-white/45 hover:bg-white/20 hover:text-white focus-visible:ring-white/60",
+                          "h-auto min-h-[5.625rem] w-full shrink-0 flex-col gap-1 rounded-lg border border-white/20 bg-white/10 px-2 py-2 text-white/90 shadow-sm shadow-black/5 hover:border-white/45 hover:bg-white/20 hover:text-white focus-visible:ring-white/60",
                           active &&
                             "border-white bg-white text-primary shadow-lg shadow-black/15 hover:bg-white hover:text-primary"
                         )}
@@ -260,13 +261,13 @@ export const EmployeeCategorySidebar = memo(function EmployeeCategorySidebar({
                           icon={category.cateIcon}
                           className="size-6 shrink-0"
                         />
-                        <span className="line-clamp-3 max-w-full break-words text-center text-xs font-black leading-4">
-                          {category.cateName}
+                        <span className="block w-full shrink-0 whitespace-normal break-words text-center text-xs font-black leading-4">
+                          {categoryLabel}
                         </span>
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent side="right">
-                      {category.cateName || t("pos.menu")}
+                      {categoryLabel}
                     </TooltipContent>
                   </Tooltip>
                 );
@@ -286,6 +287,8 @@ export const EmployeeCategoryRail = memo(function EmployeeCategoryRail({
   selectedCateUuid: string;
   onSelectCategory: (cateUuid: string) => void;
 }) {
+  const { t } = useTranslation();
+
   if (!categories.length) return null;
 
   return (
@@ -294,6 +297,7 @@ export const EmployeeCategoryRail = memo(function EmployeeCategoryRail({
         <div className="flex gap-2">
           {categories.map((category) => {
             const active = category.cateUuid === selectedCateUuid;
+            const categoryLabel = category.cateName?.trim() || t("pos.menu");
             return (
               <Button
                 key={category.cateUuid}
@@ -302,7 +306,7 @@ export const EmployeeCategoryRail = memo(function EmployeeCategoryRail({
                 variant="ghost"
                 size="sm"
                 className={cn(
-                  "h-11 max-w-47.5 rounded-2xl border border-white/15 bg-black/20 px-3 text-sm font-black text-white hover:border-white/45 hover:bg-white/10 hover:text-white",
+                  "h-auto min-h-11 max-w-47.5 shrink-0 rounded-2xl border border-white/15 bg-black/20 px-3 py-2 text-sm font-black text-white hover:border-white/45 hover:bg-white/10 hover:text-white",
                   active &&
                     "border-white bg-white text-primary hover:bg-white hover:text-primary"
                 )}
@@ -312,7 +316,9 @@ export const EmployeeCategoryRail = memo(function EmployeeCategoryRail({
                   icon={category.cateIcon}
                   className="size-5 shrink-0"
                 />
-                <span className="truncate">{category.cateName}</span>
+                <span className="min-w-0 flex-1 whitespace-normal break-words text-center leading-5">
+                  {categoryLabel}
+                </span>
               </Button>
             );
           })}
