@@ -26,6 +26,7 @@ import {
   LAK_CURRENCY_OPTION,
   paymentAmounts,
   paymentCurrencyAmounts,
+  paymentIsExactSettlement,
   paymentNote,
   paymentValidation,
   preserveFirstCustomerAutoSelect,
@@ -218,9 +219,26 @@ describe("payment dialog helpers", () => {
     );
   });
 
-  it("keeps LAK due unchanged while foreign tender creates real LAK change", () => {
+  it("settles the rounded foreign due as exact while larger tender creates change", () => {
     const dueLak = 3_174_369;
     const payment = paymentAmounts("cash", dueLak, "4600.54", "", "", 690);
+    const settleExact = paymentIsExactSettlement(
+      "cash",
+      dueLak,
+      "4600.54",
+      "",
+      "",
+      thb,
+    );
+    const exactPayment = paymentAmounts(
+      "cash",
+      dueLak,
+      "4600.54",
+      "",
+      "",
+      690,
+      settleExact,
+    );
     const currencyPayment = paymentCurrencyAmounts(
       "cash",
       dueLak,
@@ -232,6 +250,12 @@ describe("payment dialog helpers", () => {
 
     expect(defaultCurrencyInput(dueLak, thb)).toBe("4600.54");
     expect(payment).toMatchObject({ received: 3_174_373, change: 4 });
+    expect(settleExact).toBe(true);
+    expect(exactPayment).toMatchObject({
+      received: 3_174_369,
+      change: 0,
+      balance: 0,
+    });
     expect(currencyPayment).toEqual({
       foreignCashPaid: 4600.54,
       foreignTransferPaid: 0,

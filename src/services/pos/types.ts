@@ -413,6 +413,7 @@ export interface PaymentInput extends ApiEntity {
   foreign_paid?: string | number;
   foreign_cash_paid?: string | number;
   foreign_transfer_paid?: string | number;
+  settle_exact?: boolean;
   paid_at?: string | null;
   due_date?: string;
   note?: string;
@@ -479,6 +480,7 @@ export interface SplitBillInput extends ApiEntity {
   foreign_paid?: string | number;
   foreign_cash_paid?: string | number;
   foreign_transfer_paid?: string | number;
+  settle_exact?: boolean;
   due_date?: string;
   note: string;
   lang: "la" | "en";

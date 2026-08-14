@@ -58,6 +58,7 @@ import {
   LAK_CURRENCY_VALUE,
   paymentAmounts,
   paymentCurrencyAmounts,
+  paymentIsExactSettlement,
   paymentNote,
   paymentTabs,
   paymentValidation,
@@ -129,6 +130,25 @@ export function usePaymentDialogWorkflow({
     LAK_CURRENCY_OPTION;
   const allowDecimalAmount = currencyAllowsDecimal(selectedCurrency);
   const activeTenderField = activeAmountField(activeTab, activeSplitField);
+  const settleExact = useMemo(
+    () =>
+      paymentIsExactSettlement(
+        activeTab,
+        totalAmount,
+        cashInput,
+        splitCashInput,
+        splitTransferInput,
+        selectedCurrency,
+      ),
+    [
+      activeTab,
+      cashInput,
+      selectedCurrency,
+      splitCashInput,
+      splitTransferInput,
+      totalAmount,
+    ],
+  );
   const payment = useMemo(
     () =>
       paymentAmounts(
@@ -138,11 +158,13 @@ export function usePaymentDialogWorkflow({
         splitCashInput,
         splitTransferInput,
         selectedCurrency.rate,
+        settleExact,
       ),
     [
       activeTab,
       cashInput,
       selectedCurrency.rate,
+      settleExact,
       splitCashInput,
       splitTransferInput,
       totalAmount,
@@ -490,6 +512,7 @@ export function usePaymentDialogWorkflow({
           currencyPayment.foreignTransferPaid,
           selectedCurrency,
         ),
+        settle_exact: settleExact,
         due_date: activeTab === "arrears" ? dueDate || undefined : undefined,
         note: paymentNote(activeTab, note),
         login_uuid_fk: user.uuid,
@@ -649,6 +672,7 @@ export function usePaymentDialogWorkflow({
               currencyPayment.foreignTransferPaid,
               selectedCurrency,
             ),
+            settle_exact: settleExact,
             note: paymentNote(activeTab, note),
             lang: toLanguage(language),
             login_uuid_fk: user.uuid,

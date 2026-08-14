@@ -349,6 +349,7 @@ export function paymentAmounts(
   splitCashInput: string,
   splitTransferInput: string,
   rate: number,
+  settleExact = false,
 ) {
   const transferForeignAmount =
     safeRate(rate) === 1
@@ -366,22 +367,26 @@ export function paymentAmounts(
       : tab === "cash_transfer"
         ? parseAmount(splitTransferInput)
         : 0;
-  const cash =
+  const convertedCash =
     tab === "cash"
       ? toLakAmount(String(foreignCash), rate)
       : tab === "cash_transfer"
         ? toLakAmount(String(foreignCash), rate)
         : 0;
-  const received = toLakAmount(
+  const convertedReceived = toLakAmount(
     addCurrencyInputAmounts([String(foreignCash), String(foreignTransfer)]),
     rate,
   );
-  const transfer =
+  const convertedTransfer =
     tab === "transfer"
-      ? received
+      ? convertedReceived
       : tab === "cash_transfer"
-        ? Math.max(0, received - cash)
+        ? Math.max(0, convertedReceived - convertedCash)
         : 0;
+  const cash = settleExact && tab === "cash" ? total : convertedCash;
+  const transfer =
+    settleExact && tab === "transfer" ? total : convertedTransfer;
+  const received = cash + transfer;
   return {
     cash,
     transfer,
@@ -389,6 +394,33 @@ export function paymentAmounts(
     change: Math.max(0, received - total),
     balance: Math.max(0, total - received),
   };
+}
+
+export function paymentIsExactSettlement(
+  tab: PaymentTab,
+  totalLak: number,
+  cashInput: string,
+  splitCashInput: string,
+  splitTransferInput: string,
+  currency: PaymentCurrencyOption,
+) {
+  if (tab === "transfer") return true;
+
+  const expected = defaultCurrencyInput(totalLak, currency);
+  if (tab === "cash") {
+    return Boolean(cashInput) &&
+      formatCurrencyInput(parseAmount(cashInput), currency) === expected;
+  }
+
+  if (tab === "cash_transfer") {
+    const paid = addCurrencyInputAmounts([
+      splitCashInput || "0",
+      splitTransferInput || "0",
+    ]);
+    return formatCurrencyInput(parseAmount(paid), currency) === expected;
+  }
+
+  return false;
 }
 
 export function paymentCurrencyAmounts(
