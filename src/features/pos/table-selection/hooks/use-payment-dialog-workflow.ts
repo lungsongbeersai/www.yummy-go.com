@@ -635,6 +635,7 @@ export function usePaymentDialogWorkflow({
     }
 
     const invoicePrintData = buildInvoicePrintData({
+      exchangeRates: currencyOptions,
       invoice,
       orders,
       qrUrl: branchQrUrl,

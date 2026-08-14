@@ -24,6 +24,11 @@ export type InvoicePrintTopping = {
   total: number | null;
 };
 
+export type InvoicePrintExchangeRate = {
+  code: "THB" | "USD" | string;
+  rate: number;
+};
+
 export type InvoicePrintData = {
   branchAddress: string;
   branchName: string;
@@ -31,6 +36,7 @@ export type InvoicePrintData = {
   cashier: string;
   customer: string | null;
   discount: number;
+  exchangeRates?: InvoicePrintExchangeRate[];
   invoice: string | null;
   items: InvoicePrintItem[];
   labels: Record<
@@ -50,7 +56,7 @@ export type InvoicePrintData = {
     | "total"
     | "vat",
     string
-  >;
+  > & { currentExchangeRate?: string };
 
   contentWidthMm: number;
   paperHeightMm: number;
@@ -201,6 +207,7 @@ function renderInvoiceReceiptBody(data: InvoicePrintData) {
       ${renderInvoiceItems(data)}
       <div class="divider"></div>
       ${renderInvoiceTotals(data)}
+      ${renderInvoiceExchangeRates(data)}
       ${renderInvoiceQr(data)}
       <p class="footer">${escapeHtml(data.labels.thankYou)}</p>`;
 }
@@ -412,6 +419,26 @@ export function renderInvoiceTotals(data: InvoicePrintData) {
     data.vat > 0 ? invoiceTotalRow(data.labels.vat, money(data.vat)) : "",
     invoiceTotalRow(data.labels.total, money(data.total), true),
   ].join("")}</section>`;
+}
+
+export function renderInvoiceExchangeRates(data: InvoicePrintData) {
+  if (!data.exchangeRates?.length) return "";
+
+  return `
+    <div class="divider"></div>
+    <section class="totals">
+      <p class="total-row strong"><span>${escapeHtml(data.labels.currentExchangeRate ?? "Current Exchange Rate")}</span><span></span></p>
+      ${data.exchangeRates
+        .map((item) => invoiceTotalRow(`1 ${item.code}`, `${formatInvoiceExchangeRate(item.rate)} LAK`))
+        .join("")}
+    </section>`;
+}
+
+export function formatInvoiceExchangeRate(value: number) {
+  return new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 6,
+  }).format(value);
 }
 
 export function renderInvoiceQr(data: InvoicePrintData) {

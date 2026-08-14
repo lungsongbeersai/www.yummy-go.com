@@ -318,6 +318,11 @@ describe("payment dialog helpers", () => {
 
   it("builds escaped invoice print HTML data", () => {
     const data = buildInvoicePrintData({
+      exchangeRates: [
+        LAK_CURRENCY_OPTION,
+        { value: "thb", code: "THB", label: "THB", rate: 690 },
+        { value: "usd", code: "USD", label: "USD", rate: 23000 },
+      ],
       invoice: "INV-1",
       orders: [order()],
       qrUrl: "https://example.com/qr.png",
@@ -352,6 +357,11 @@ describe("payment dialog helpers", () => {
     });
     expect(html).toContain("&lt;Store&gt;");
     expect(html).toContain("&lt;VIP&gt;");
+    expect(html).toContain("pos.invoicePrintCurrentExchangeRate");
+    expect(html).toContain("1 THB");
+    expect(html).toContain("690 LAK");
+    expect(html).toContain("1 USD");
+    expect(html).toContain("23,000 LAK");
     expect(html).toContain(`href="${WINDOW_OPEN_FONT_STYLESHEET_HREF}"`);
     expect(html).toContain(`body class="${WINDOW_OPEN_FONT_CLASS_NAME}"`);
     expect(html).toContain("document.fonts?.ready");

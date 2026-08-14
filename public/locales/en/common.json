@@ -698,6 +698,7 @@
     "invoicePrintCashier": "Cashier",
     "invoicePrintTotalAmount": "Total amount",
     "invoicePrintDiscount": "Discount",
+    "invoicePrintCurrentExchangeRate": "Current Exchange Rate",
     "invoicePrintVatWithPercent": "VAT ({{percent}}%)",
     "invoicePrintAmountToPay": "Amount to pay",
     "invoicePrintThankYou": "Thank you for your support",

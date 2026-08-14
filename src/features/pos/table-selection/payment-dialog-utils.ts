@@ -713,6 +713,7 @@ export function paymentNote(tab: PaymentTab, note: string) {
 }
 
 export function buildInvoicePrintData({
+  exchangeRates = [],
   invoice,
   orders,
   qrUrl,
@@ -722,6 +723,7 @@ export function buildInvoicePrintData({
   translate,
   user,
 }: {
+  exchangeRates?: PaymentCurrencyOption[];
   invoice: string | null;
   orders: CartOrder[];
   qrUrl: string | null;
@@ -747,6 +749,15 @@ export function buildInvoicePrintData({
         )
       : null,
     discount: positiveNumber(summary.orderDiscount) ?? 0,
+    exchangeRates: exchangeRates
+      .filter(
+        (currency) =>
+          !currency.base &&
+          ["THB", "USD"].includes(currency.code) &&
+          Number.isFinite(currency.rate) &&
+          currency.rate > 0,
+      )
+      .map((currency) => ({ code: currency.code, rate: currency.rate })),
     invoice,
     items: visibleCartItems(orders).map((item) => {
       const qty = cartItemQty(item);
@@ -810,6 +821,7 @@ export function buildInvoicePrintData({
       customer: translate("pos.customer"),
       date: translate("pos.invoicePrintDate"),
       discount: translate("pos.invoicePrintDiscount"),
+      currentExchangeRate: translate("pos.invoicePrintCurrentExchangeRate"),
       invoice: translate("pos.invoicePrintNumber"),
       price: translate("pos.price"),
       service: serviceRate

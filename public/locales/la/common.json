@@ -701,6 +701,7 @@
     "invoicePrintCashier": "ພະນັກງານຂາຍ",
     "invoicePrintTotalAmount": "ຍອດລວມ",
     "invoicePrintDiscount": "ສ່ວນຫຼຸດ",
+    "invoicePrintCurrentExchangeRate": "ອັດຕາແລກປ່ຽນປັດຈຸບັນ",
     "invoicePrintVatWithPercent": "VAT ({{percent}}%)",
     "invoicePrintAmountToPay": "ມູນຄ່າຕ້ອງຊຳລະ",
     "invoicePrintThankYou": "( ຂອບໃຈລູກຄ້າທຸກທ່ານທີ່ອຸດໜູນ )",
