@@ -88,10 +88,15 @@ export function renderPaymentMethodsPrintHtml(data: PaymentMethodsPrintData) {
   return receiptDocumentHtml({ bodyHtml, title: labels.title });
 }
 
+// { type: "line" } พิมพ์ออกมาเป็นเส้น underscore ต่อกันบนเครื่องจริง (ยืนยันจากการพิมพ์ทดสอบ) ไม่ใช่เส้นประ —
+// ใช้ข้อความ "-" ยาวแทน ซึ่งพิมพ์ได้ถูกต้อง (เหมือน daily-sales)
+const RECEIPT_DIVIDER_TEXT = "---------------------";
+
 // เวอร์ชันพิมพ์ผ่าน printer agent — ยอดรวมทั้งหมดจุดเดียวเป็น text 2 บรรทัด (เน้นสูงสุด)
 // แถวต่อวิธีชำระเป็น lr เรียบๆ เพราะพิมพ์จริงยืนยันแล้วว่า bold/size บน type "lr" ไม่มีผล
 export function buildPaymentMethodsReportOps(data: PaymentMethodsPrintData): ReportPrintOp[] {
   const { labels, rows } = data;
+  const divider: ReportPrintOp = { type: "text", text: RECEIPT_DIVIDER_TEXT, align: "left", size: 20 };
   const lr = (left: string, right: number): ReportPrintOp => ({
     type: "lr",
     left,
@@ -104,13 +109,13 @@ export function buildPaymentMethodsReportOps(data: PaymentMethodsPrintData): Rep
     ...(data.storeName ? [{ type: "text", text: data.storeName, align: "center", bold: true, size: 24 } as ReportPrintOp] : []),
     ...(data.branchName ? [{ type: "text", text: data.branchName, align: "center", size: 22 } as ReportPrintOp] : []),
     { type: "text", text: labels.title, align: "center", bold: true, size: 32 },
-    { type: "line" },
+    divider,
     { type: "text", text: `${labels.period}: ${data.dateFrom} - ${data.dateTo}`, align: "left", size: 24 },
     { type: "text", text: `${labels.printedBy}: ${data.cashier}`, align: "left", size: 24 },
     { type: "text", text: `${labels.printedAt}: ${dateTime(new Date().toISOString())}`, align: "left", size: 20 },
-    { type: "line" },
+    divider,
     ...rows.map((row) => lr(`${row.name} (${row.billCount})`, row.grandTotal)),
-    { type: "line" },
+    divider,
     { type: "text", text: labels.grandTotal, align: "left", bold: true, size: 26 },
     { type: "text", text: money(data.grandTotal), align: "right", bold: true, size: 32 },
     { type: "blank", n: 2 },

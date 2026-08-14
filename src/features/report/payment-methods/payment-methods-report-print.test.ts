@@ -83,7 +83,7 @@ describe("renderPaymentMethodsPrintHtml", () => {
   it("renders the shared 80mm receipt base with bill count inline and a headline grand total block", () => {
     const html = renderPaymentMethodsPrintHtml(printData());
 
-    expect(html).toContain("@page { size: 80mm 297mm");
+    expect(html).toContain("@page { size: 80mm auto");
     expect(html).toContain("Cash (5)");
     expect(html).toContain("Transfer (3)");
     expect(html).toContain('class="headline-total"');

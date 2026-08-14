@@ -1,8 +1,9 @@
 import { apiRequest, ServiceError } from "@/lib/api";
+import { toFormData } from "@/lib/form-data";
 import { toApiLanguage } from "@/lib/language";
 import { createCrud } from "@/services/shared/crud";
 import { requiredText } from "@/services/shared/validators";
-import type { ApiDataResponse, ApiEntity, ApiListResponse, FetchParams } from "@/services/shared/types";
+import type { ApiDataResponse, ApiEntity, ApiListResponse, ApiMessageResponse, FetchParams } from "@/services/shared/types";
 export { getUserProfileUrl } from "@/lib/image";
 
 export interface User extends ApiEntity {
@@ -48,6 +49,16 @@ export interface ChangePasswordInput {
   old_password: string;
   new_password: string;
 }
+export interface UpdateProfileImageInput {
+  login_uuid: string;
+  profile: File;
+}
+// รูปแบบ response ของ endpoint นี้ไม่ใช่ envelope { data } ปกติ — คืนฟิลด์แบนตรงๆ ระดับบนสุด
+export interface UpdateProfileImageResponse extends ApiMessageResponse {
+  login_uuid: string;
+  login_profile: string;
+  login_profile_raw?: string;
+}
 
 const crud = createCrud<User>(
   {
@@ -92,5 +103,19 @@ export async function changeUserPassword(input: ChangePasswordInput) {
       }
     },
     "Failed to change password"
+  );
+}
+// self-service เท่านั้น — อัปเดตแค่รูปโปรไฟล์ของบัญชีตัวเอง
+export async function updateProfileImage(input: UpdateProfileImageInput) {
+  return apiRequest<UpdateProfileImageResponse>(
+    "post",
+    "/api/v1/register/update_profile",
+    {
+      data: toFormData({
+        login_uuid: requiredText(input.login_uuid, "login_uuid"),
+        login_profile: input.profile
+      })
+    },
+    "Failed to update profile image"
   );
 }

@@ -6,11 +6,6 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const collection = JSON.parse(fs.readFileSync(path.join(root, "node_modules/@iconify-json/mdi/icons.json"), "utf8"));
 const targets = [
   {
-    exportName: "MENU_MDI_ICONS",
-    output: "src/lib/menu-mdi-icons.generated.ts",
-    sources: ["src/lib/menu-icons.ts"]
-  },
-  {
     exportName: "CATEGORY_MDI_ICONS",
     output: "src/features/settings/category/category-mdi-icons.generated.ts",
     sources: ["src/features/settings/category/category-icons.ts"]

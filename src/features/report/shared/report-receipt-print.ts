@@ -13,8 +13,11 @@ import {
 
 // ฐานสไตล์ใบเสร็จ 80mm ที่ทุกรายงานใช้ร่วมกัน — สิ่งที่เห็นบนจอต้องตรงกับ
 // สิ่งที่ออกจากเครื่องพิมพ์ 1:1 แต่ละรายงานเพิ่มเฉพาะ layout คอลัมน์ของตัวเอง
+//
+// height: auto (ไม่ใช่ค่าคงที่แบบ A4) เพราะกระดาษ thermal ม้วนต่อเนื่อง ไม่มีขนาดหน้าตายตัว
+// ถ้า fix ความสูงไว้ ใบเสร็จที่ยาวเกินความสูงนั้นจะถูกตัดแบ่งเป็นหลาย "หน้า" ทั้งที่เครื่องพิมพ์จริงพิมพ์รวดเดียวจบ
 export const RECEIPT_80MM_BASE_STYLES = `
-      @page { size: 80mm 297mm; margin: 3mm; }
+      @page { size: 80mm auto; margin: 3mm; }
       * { box-sizing: border-box; }
       html, body { width: 74mm; margin: 0; background: #fff; color: #111; }
       body { font-size: 11px; line-height: 1.3; }

@@ -1,21 +1,20 @@
 "use client";
 
 import type { ComponentProps } from "react";
-import { MdiIcon } from "@/components/common/mdi-icon";
-import { MENU_MDI_ICONS } from "@/lib/menu-mdi-icons.generated";
-import { DEFAULT_MENU_ICON, normalizeMenuIconValue } from "@/lib/menu-icons";
+import { FileText } from "lucide-react";
+import { DynamicIcon, type IconName } from "lucide-react/dynamic";
+import { normalizeMenuIconValue } from "@/lib/menu-icons";
 
-type MenuIconProps = Omit<ComponentProps<typeof MdiIcon>, "fallbackValue" | "icons" | "value"> & {
+type MenuIconProps = Omit<ComponentProps<typeof DynamicIcon>, "fallback" | "name"> & {
   value?: unknown;
 };
 
 export function MenuIcon({ value, ...props }: MenuIconProps) {
   return (
-    <MdiIcon
+    <DynamicIcon
       aria-hidden
-      fallbackValue={DEFAULT_MENU_ICON}
-      icons={MENU_MDI_ICONS}
-      value={normalizeMenuIconValue(value)}
+      fallback={() => <FileText aria-hidden />}
+      name={normalizeMenuIconValue(value) as IconName}
       {...props}
     />
   );

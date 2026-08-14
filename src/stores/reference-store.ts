@@ -19,8 +19,11 @@ import {
   changeUserPassword,
   getRoles,
   getUserById,
+  updateProfileImage as updateProfileImageRequest,
   type ChangePasswordInput,
   type Role,
+  type UpdateProfileImageInput,
+  type UpdateProfileImageResponse,
   type User
 } from "@/services/user";
 import { getZoneOptions, type Zone } from "@/services/zone";
@@ -45,7 +48,7 @@ type ReferenceKey =
   | "tables"
   | "roles";
 
-type ReferenceRequestKey = ReferenceKey | "user" | "password";
+type ReferenceRequestKey = ReferenceKey | "user" | "password" | "profileImage";
 
 let referenceRequestId = 0;
 const latestReferenceRequests = new Map<ReferenceRequestKey, number>();
@@ -61,7 +64,7 @@ interface ReferenceState {
   storeUuid: string;
   options: Partial<Record<ReferenceKey, ApiEntity[]>>;
   selectedUser: User | null;
-  loadingKeys: Partial<Record<ReferenceKey | "user" | "password" | "sort", boolean>>;
+  loadingKeys: Partial<Record<ReferenceKey | "user" | "password" | "profileImage" | "sort", boolean>>;
   error: string | null;
   setActiveStore: (storeUuid: string) => void;
   loadStores: (lang?: string) => Promise<Store[]>;
@@ -81,6 +84,7 @@ interface ReferenceState {
   loadUser: (loginUuid: string) => Promise<User>;
   resetPassword: (email: string) => Promise<void>;
   changePassword: (input: ChangePasswordInput) => Promise<void>;
+  updateProfileImage: (input: UpdateProfileImageInput) => Promise<UpdateProfileImageResponse>;
   sortCategoryRows: (input: SortCategoryInput) => ReturnType<typeof sortCategories>;
   canCreateUser: () => boolean;
   branchQrUrl: (filename: string) => string;
@@ -197,6 +201,25 @@ export const useReferenceStore = create<ReferenceState>((set) => {
     },
     resetPassword: (email) => runPasswordRequest(() => resetStorePassword(email)),
     changePassword: (input) => runPasswordRequest(() => changeUserPassword(input)),
+    updateProfileImage: async (input) => {
+      const isCurrentRequest = createReferenceRequestGuard("profileImage");
+      set((state) => ({ loadingKeys: { ...state.loadingKeys, profileImage: true }, error: null }));
+      try {
+        const updated = await updateProfileImageRequest(input);
+        if (isCurrentRequest()) {
+          set((state) => ({ loadingKeys: { ...state.loadingKeys, profileImage: false } }));
+        }
+        return updated;
+      } catch (error) {
+        if (isCurrentRequest()) {
+          set((state) => ({
+            loadingKeys: { ...state.loadingKeys, profileImage: false },
+            error: errorMessage(error)
+          }));
+        }
+        throw error;
+      }
+    },
     sortCategoryRows: (input) => sortCategories(input),
     canCreateUser: () => canCreateUser(useAuthStore.getState().user?.status),
     branchQrUrl: getBranchQrUrl,

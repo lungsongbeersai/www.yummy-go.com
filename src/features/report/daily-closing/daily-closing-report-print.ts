@@ -460,6 +460,10 @@ export function renderDailyClosingReceiptPreviewDoc(
   });
 }
 
+// { type: "line" } พิมพ์ออกมาเป็นเส้น underscore ต่อกันบนเครื่องจริง (ยืนยันจากการพิมพ์ทดสอบ) ไม่ใช่เส้นประ —
+// ใช้ข้อความ "-" ยาวแทน ซึ่งพิมพ์ได้ถูกต้อง (เหมือน daily-sales)
+const RECEIPT_DIVIDER_TEXT = "---------------------";
+
 // เวอร์ชันพิมพ์ผ่าน printer agent — ต้องละเอียดครบเหมือน renderDailyClosingReceiptBody
 // เพราะใบปิดยอดใช้กระทบยอดตอนปิดกะ ต่างจาก daily-sales ที่ตัดรายการสินค้าออกได้
 export function buildDailyClosingReportOps(
@@ -467,6 +471,7 @@ export function buildDailyClosingReportOps(
 ): ReportPrintOp[] {
   const { labels, report } = data;
   const apiLabels = report.labels;
+  const divider: ReportPrintOp = { type: "text", text: RECEIPT_DIVIDER_TEXT, align: "left", size: 20 };
 
   const lr = (left: string, right: number, bold = false): ReportPrintOp => ({
     type: "lr",
@@ -503,7 +508,7 @@ export function buildDailyClosingReportOps(
 
   const orderChannelOps: ReportPrintOp[] = report.orderChannels.length
     ? [
-        { type: "line" },
+        divider,
         { type: "text", text: labels.orderChannelSummary, align: "center", bold: true, size: 26 },
         ...report.orderChannels.map((channel, channelIndex) =>
           lr(
@@ -525,7 +530,7 @@ export function buildDailyClosingReportOps(
       { type: "text", text: `${labels.group}: ${groupName}`, align: "left", bold: true, size: 26 },
       ...products,
       lr(`${groupTotalLabel} ${groupName}`, group.totalAmount),
-      { type: "line" },
+      divider,
     ];
   });
 
@@ -534,10 +539,10 @@ export function buildDailyClosingReportOps(
     ...(data.storeName ? [{ type: "text", text: data.storeName, align: "center", bold: true, size: 24 } as ReportPrintOp] : []),
     ...(data.branchName ? [{ type: "text", text: data.branchName, align: "center", size: 22 } as ReportPrintOp] : []),
     { type: "text", text: labels.title, align: "center", bold: true, size: 32 },
-    { type: "line" },
+    divider,
     { type: "text", text: `${labels.businessDate}: ${data.businessDate}`, align: "left", size: 24 },
     { type: "text", text: `${labels.cashier}: ${data.cashier}`, align: "left", size: 24 },
-    { type: "line" },
+    divider,
     // ตัดเหลือแค่ภาษาลาว (withoutEnglishSuffix) แล้วข้อความสั้นพอจะแชร์แถวเดียวกับ "Product" ได้อย่างปลอดภัย
     // ต่างจากตอนที่ยังมี " / English" ต่อท้ายซึ่งเคยล้นจนพิมพ์ออกมาผิดรูป
     { type: "lr", left: labels.product, right: withoutEnglishSuffix(totalAmountLabel), bold: false, size: 24 },
@@ -553,14 +558,14 @@ export function buildDailyClosingReportOps(
     lr(discountLabel, -report.summary.discountAmount),
     lr(dailyClosingLabel(apiLabels.serviceCharge, labels.serviceCharge), report.summary.serviceCharge),
     lr(dailyClosingLabel(apiLabels.vat, labels.vat), report.summary.vat),
-    { type: "line" },
+    divider,
     // ยืนยันจากพิมพ์จริงหลายรอบแล้วว่า bold/size บนแถว type "lr" printer agent ไม่ใช้เลย
     // (ต่างจาก type "text" ที่หัวใบเสร็จ/ชื่อร้านมีขนาดต่างจากเนื้อหาปกติชัดเจนบนกระดาษจริง)
     // จึงเก็บจุดเน้นสูงสุดไว้ที่ยอดรวมทั้งหมดจุดเดียว โดยแยกเป็น text 2 บรรทัดแทน lr บรรทัดเดียว
     // ส่วนแถว lr อื่น (ยอดรวมกลุ่ม, จำนวนรวม, ยอดรับชำระ) ตัด bold/size ที่ไม่มีผลจริงออกเพื่อไม่ให้โค้ดหลอกตา
     { type: "text", text: dailyClosingLabel(apiLabels.grandTotal, labels.grandTotal), align: "left", bold: true, size: 26 },
     { type: "text", text: money(report.summary.grandTotal, ""), align: "right", bold: true, size: 32 },
-    { type: "line" },
+    divider,
     { type: "text", text: labels.revenueSummary, align: "center", bold: true, size: 26 },
     lr(`1. ${dailyClosingLabel(apiLabels.cash, labels.cash)}`, report.paymentSummary.cash),
     lr(`2. ${dailyClosingLabel(apiLabels.transfer, labels.transfer)}`, report.paymentSummary.transfer),

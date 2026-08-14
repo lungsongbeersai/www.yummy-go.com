@@ -123,7 +123,7 @@ describe("renderBestSellingPrintHtml", () => {
       }),
     );
 
-    expect(html).toContain("@page { size: 80mm 297mm");
+    expect(html).toContain("@page { size: 80mm auto");
     expect(html).toContain("1. Rice (5)");
     expect(html).toContain('class="headline-total"');
     expect(html).not.toContain('class="total-row grand-total"');

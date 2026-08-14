@@ -122,7 +122,7 @@ describe("daily closing report print", () => {
     const html = renderDailyClosingPrintHtml(printData());
 
     expect(html).toContain(RECEIPT_80MM_BASE_STYLES);
-    expect(html).toContain("@page { size: 80mm 297mm; margin: 3mm; }");
+    expect(html).toContain("@page { size: 80mm auto; margin: 3mm; }");
     expect(html).toContain("html, body { width: 74mm");
     expect(html).toContain("grid-template-columns: minmax(0, 1fr) 23mm");
     expect(html).toContain('class="headline-total"');
@@ -288,14 +288,22 @@ describe("buildDailyClosingReportOps", () => {
     expect(titleIndex).toBeGreaterThan(branchIndex);
   });
 
-  it("closes each group with a divider line, matching the browser receipt's category-total border", () => {
+  it("closes each group with a dashed-text divider, matching the browser receipt's category-total border", () => {
     const ops = buildDailyClosingReportOps(printData());
     const groupTotalIndex = ops.findIndex((op) => op.left === "Group total Food & Drink");
 
     expect(groupTotalIndex).toBeGreaterThanOrEqual(0);
-    expect(ops[groupTotalIndex + 1]?.type).toBe("line");
+    expect(ops[groupTotalIndex + 1]?.type).toBe("text");
+    expect(ops[groupTotalIndex + 1]?.text).toBe("---------------------");
     expect(ops[groupTotalIndex]?.bold).toBe(false);
     expect(ops[groupTotalIndex]?.size).toBe(24);
+  });
+
+  it("never emits a line op — it prints as a run of underscores on the real printer — uses dashed text instead", () => {
+    const ops = buildDailyClosingReportOps(printData());
+
+    expect(ops.some((op) => op.type === "line")).toBe(false);
+    expect(ops.filter((op) => op.type === "text" && op.text === "---------------------").length).toBeGreaterThan(0);
   });
 
   it("keeps the payment total row plain like the other revenue-summary rows, since bold on lr does nothing physically", () => {
@@ -349,7 +357,8 @@ describe("buildDailyClosingReportOps", () => {
 
     const titleIndex = ops.findIndex((op) => op.text === "Sales summary by order channel");
     expect(titleIndex).toBeGreaterThanOrEqual(0);
-    expect(ops[titleIndex - 1]?.type).toBe("line");
+    expect(ops[titleIndex - 1]?.type).toBe("text");
+    expect(ops[titleIndex - 1]?.text).toBe("---------------------");
 
     const channelOp = ops.find((op) => op.left === "1. Dine-in (9)");
     expect(channelOp?.type).toBe("lr");

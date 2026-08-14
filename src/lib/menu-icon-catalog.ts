@@ -1,8 +1,6 @@
-import mdiIconCollection from "@iconify-json/mdi/icons.json";
-import type { IconifyJSON } from "@iconify/types";
+import { iconNames } from "lucide-react/dynamic";
 import {
   DEFAULT_MENU_ICON,
-  LEGACY_MENU_ICON_ALIASES,
   MENU_ICON_COMPATIBILITY_VALUES,
   MENU_ICON_RESULT_LIMIT,
   menuIconLabel,
@@ -13,15 +11,8 @@ import {
   type MenuIconPickerResult
 } from "@/lib/menu-icons";
 
-const mdiIcons = mdiIconCollection as IconifyJSON;
-
-function iconNameFromValue(value: string) {
-  return value.slice(4);
-}
-
-const PRIORITY_MENU_ICON_NAMES = MENU_ICON_COMPATIBILITY_VALUES.map(iconNameFromValue);
-const PRIORITY_MENU_ICON_ORDER = new Map(PRIORITY_MENU_ICON_NAMES.map((name, index) => [name, index]));
-const MENU_ICON_NAMES = Object.keys(mdiIcons.icons).sort((a, b) => {
+const PRIORITY_MENU_ICON_ORDER = new Map(MENU_ICON_COMPATIBILITY_VALUES.map((name, index) => [name, index]));
+const MENU_ICON_NAMES = [...iconNames].sort((a, b) => {
   const priorityA = PRIORITY_MENU_ICON_ORDER.get(a);
   const priorityB = PRIORITY_MENU_ICON_ORDER.get(b);
 
@@ -31,20 +22,13 @@ const MENU_ICON_NAMES = Object.keys(mdiIcons.icons).sort((a, b) => {
 
   return a.localeCompare(b);
 });
-const MENU_ICON_NAME_SET = new Set(MENU_ICON_NAMES);
-const LEGACY_SEARCH_TERMS_BY_VALUE = Object.entries(LEGACY_MENU_ICON_ALIASES).reduce<Record<string, string[]>>(
-  (terms, [legacyName, iconValue]) => {
-    terms[iconValue] = [...(terms[iconValue] ?? []), legacyName];
-    return terms;
-  },
-  {}
-);
+const MENU_ICON_NAME_SET = new Set<string>(MENU_ICON_NAMES);
 
 export const MENU_ICON_TOTAL = MENU_ICON_NAMES.length;
 
 export function normalizeMenuIconName(value: unknown) {
   const normalized = normalizeMenuIconValue(value);
-  return MENU_ICON_NAME_SET.has(iconNameFromValue(normalized)) ? normalized : DEFAULT_MENU_ICON;
+  return MENU_ICON_NAME_SET.has(normalized) ? normalized : DEFAULT_MENU_ICON;
 }
 
 export const DEFAULT_MENU_ICON_OPTION: MenuIconPickerOption = {
@@ -55,15 +39,13 @@ export const DEFAULT_MENU_ICON_OPTION: MenuIconPickerOption = {
 };
 
 const MENU_ICON_OPTIONS: MenuIconPickerOption[] = MENU_ICON_NAMES.map((name) => {
-  const value = `mdi:${name}`;
-  const label = menuIconLabel(value);
-  const legacyTerms = LEGACY_SEARCH_TERMS_BY_VALUE[value] ?? [];
+  const label = menuIconLabel(name);
 
   return {
     letter: name.charAt(0).toUpperCase() as MenuIconLetterFilter,
     label,
-    searchText: [value, name, name.replaceAll("-", " "), label, ...legacyTerms].join(" ").toLowerCase(),
-    value
+    searchText: [name, name.replaceAll("-", " "), label].join(" ").toLowerCase(),
+    value: name
   };
 });
 
