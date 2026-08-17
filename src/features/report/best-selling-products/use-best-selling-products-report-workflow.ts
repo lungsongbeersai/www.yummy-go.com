@@ -235,6 +235,8 @@ export function useBestSellingProductsReportWorkflow(
         grandTotal: t("report.bestSelling.columns.finalTotal"),
         groupLabel: t("report.bestSelling.printGroupLabel"),
         groupTotal: t("report.bestSelling.printGroupTotal"),
+        itemsHeaderLeft: t("report.bestSelling.columns.product"),
+        itemsHeaderRight: t("report.columns.totalAmount"),
         period: t("report.dailyPrint.period"),
         printedAt: t("report.dailyPrint.printedAt"),
         printedBy: t("report.dailyPrint.printedBy"),

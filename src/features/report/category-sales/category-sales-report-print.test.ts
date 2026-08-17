@@ -26,7 +26,9 @@ const user: AuthUser = {
 const labels: CategorySalesPrintLabels = {
   grandTotal: "Grand total",
   groupLabel: "Group",
-  groupTotal: "Total Sales (Group Summary)",
+  groupTotal: "Total Sales",
+  itemsHeaderLeft: "Product",
+  itemsHeaderRight: "Total amount",
   period: "Period",
   printedAt: "Printed at",
   printedBy: "Printed by",
@@ -153,8 +155,8 @@ describe("renderCategorySalesPrintHtml", () => {
     );
     const html = renderCategorySalesPrintHtml(printData([drinks, food], { grand_total: 30000 }));
 
-    expect(html).toContain("Total Sales (Group Summary)");
-    expect(html).toContain('class="headline-total"');
+    expect(html).toContain("Total Sales");
+    expect(html).toContain('class="total-row grand-total"');
   });
 
   it("does not print the subtotal/discount/service/vat breakdown, since that is the daily-closing/daily-sales report's job", () => {
@@ -205,20 +207,16 @@ describe("buildCategorySalesReportOps", () => {
 
     expect(ops.some((op) => op.text === "Group: Drinks")).toBe(true);
     expect(ops.some((op) => op.text === "Group: Food")).toBe(true);
-    expect(ops.filter((op) => op.left === "Total Sales (Group Summary)")).toHaveLength(2);
+    expect(ops.filter((op) => op.left === "Total Sales")).toHaveLength(2);
   });
 
-  it("prints the grand total as two bold text ops instead of an lr row, matching the daily-sales/daily-closing/payment-methods pattern since bold/size on lr does nothing physically", () => {
+  it("prints the grand total as a single bold lr row at size 34, matching daily-sales exactly", () => {
     const ops = buildCategorySalesReportOps(printData());
-    const labelOp = ops.find((op) => op.text === "Grand total");
-    const amountOp = ops[ops.indexOf(labelOp!) + 1];
+    const grandTotalOp = ops.find((op) => op.left === "Grand total");
 
-    expect(labelOp?.type).toBe("text");
-    expect(labelOp?.bold).toBe(true);
-    expect(amountOp?.type).toBe("text");
-    expect(amountOp?.align).toBe("right");
-    expect(amountOp?.bold).toBe(true);
-    expect(ops.some((op) => op.type === "lr" && op.left === "Grand total")).toBe(false);
+    expect(grandTotalOp?.type).toBe("lr");
+    expect(grandTotalOp?.bold).toBe(true);
+    expect(grandTotalOp?.size).toBe(34);
   });
 
   it("does not print the subtotal/discount/service/vat breakdown, since that is the daily-closing/daily-sales report's job", () => {

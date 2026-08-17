@@ -1538,7 +1538,7 @@
       "loading": "Loading best selling products",
       "noData": "No best selling products",
       "printGroupLabel": "Group",
-      "printGroupTotal": "Total Sales (Group Summary)",
+      "printGroupTotal": "Total Sales",
       "rowsLabel": "{{count}} product(s)",
       "sortOptions": {
         "date_asc": "Date ASC",
@@ -1634,7 +1634,7 @@
       "loadFailed": "Failed to load category sales report",
       "loading": "Loading category sales report",
       "noData": "No category sales report data",
-      "printGroupTotal": "Total Sales (Group Summary)",
+      "printGroupTotal": "Total Sales",
       "rowsLabel": "{{count}} category row(s)",
       "title": "Sales report by category"
     },

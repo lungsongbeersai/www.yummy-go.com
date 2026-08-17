@@ -193,6 +193,8 @@ export function usePaymentMethodsReportWorkflow(
     try {
       const printLabels = {
         grandTotal: t("report.paymentMethodsReport.columns.grandTotal"),
+        itemsHeaderLeft: t("report.paymentMethodsReport.columns.paymentMethod"),
+        itemsHeaderRight: t("report.columns.totalAmount"),
         period: t("report.dailyPrint.period"),
         printedAt: t("report.dailyPrint.printedAt"),
         printedBy: t("report.dailyPrint.printedBy"),
