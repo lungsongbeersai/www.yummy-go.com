@@ -2,7 +2,8 @@ import { dateTime, money } from "@/lib/format";
 import type { ReportPrintOp } from "@/services/report";
 import type { ApiEntity } from "@/services/shared/types";
 import type { AuthUser } from "@/stores/auth-store";
-import type { BestSellingProductItem } from "@/stores/report-store";
+import type { BestSellingProductGroup } from "@/stores/report-store";
+import { escapeHtml } from "@/services/printer/invoice-print-window";
 import { firstNumber, summaryValue } from "./best-selling-products-report-utils";
 import {
   receiptDocumentHtml,
@@ -12,26 +13,29 @@ import {
   receiptTotalRowHtml,
 } from "../shared/report-receipt-print";
 
-const TOP_N = 10;
 const GRAND_TOTAL_KEYS = ["final_total", "total", "revenue_total", "amount"];
 
 export interface BestSellingPrintLabels {
   grandTotal: string;
+  groupLabel: string;
+  groupTotal: string;
   period: string;
   printedAt: string;
   printedBy: string;
   title: string;
 }
 
-export interface BestSellingPrintRow {
+export interface BestSellingPrintItem {
+  categoryName: string;
   finalTotal: number;
   name: string;
   qty: number;
   rank: number;
 }
 
-export interface BestSellingPrintOthers {
-  label: string;
+export interface BestSellingPrintGroup {
+  items: BestSellingPrintItem[];
+  name: string;
   total: number;
 }
 
@@ -41,61 +45,82 @@ export interface BestSellingPrintData {
   dateFrom: string;
   dateTo: string;
   grandTotal: number;
+  groups: BestSellingPrintGroup[];
   labels: BestSellingPrintLabels;
-  others: BestSellingPrintOthers | null;
-  rows: BestSellingPrintRow[];
   storeName: string;
 }
 
 // รายงานนี้มีไว้ตอบว่า "สินค้าไหนขายดี/ขายไม่ดี" เพื่อตัดสินใจเรื่องเมนู/สต็อก — ไม่ใช่ดูโครงสร้างยอดขาย
-// จึงตัด subtotal/discount/service/vat ออกเหมือนอีก 2 รายงาน เหลือแค่อันดับ + จำนวนขาย + ยอดขายต่อสินค้า
-// จำกัด Top 10 ให้พอดีกระดาษ 80mm ที่เหลือรวมเป็นแถว "อื่นๆ" แถวเดียว (label ต้องแปลข้างนอกเพราะขึ้นกับ
-// จำนวนที่เหลือจริง ซึ่งรู้ได้หลังตัด Top N แล้วเท่านั้น)
+// จึงตัด subtotal/discount/service/vat/ราคาต่อหน่วยออกเหมือนเดิม เหลือแค่อันดับ + จำนวนขาย + ยอดขายต่อสินค้า
+// แบ่งเป็นหมวดตามกลุ่มสินค้าเหมือนบนหน้าจอ (ไม่จำกัด Top N อีกต่อไป — สอดคล้องกับ daily-sales/daily-closing
+// ที่ไม่จำกัดจำนวนรายการต่อกลุ่มเช่นกัน) เลขลำดับเริ่มนับ 1 ใหม่ทุกกลุ่ม ตรงกับที่แสดงบนตาราง
+// (ไม่ใช้ item.rank ซึ่งเป็นลำดับรวมทั้งรายงาน ไม่ใช่ลำดับภายในกลุ่ม)
 export function buildBestSellingPrintData({
   dateFrom,
   dateTo,
+  groups,
   labels,
-  othersLabel,
-  rows,
   summary,
   user,
 }: {
   dateFrom: string;
   dateTo: string;
+  groups: BestSellingProductGroup[];
   labels: BestSellingPrintLabels;
-  othersLabel: (count: number) => string;
-  rows: BestSellingProductItem[];
   summary: ApiEntity;
   user: AuthUser;
 }): BestSellingPrintData {
-  const topRows = rows.slice(0, TOP_N).map((row) => ({
-    finalTotal: row.finalTotal,
-    name: row.productName,
-    qty: row.qty,
-    rank: row.rank,
-  }));
-  const remaining = rows.slice(TOP_N);
-
   return {
     branchName: user.branch_name,
     cashier: user.email?.split("@")[0] || user.email || "-",
     dateFrom,
     dateTo,
     grandTotal: firstNumber(summaryValue(summary, GRAND_TOTAL_KEYS)),
+    groups: groups.map((group) => ({
+      items: group.items.map((item, index) => ({
+        categoryName: item.categoryName,
+        finalTotal: item.finalTotal,
+        name: item.productName,
+        qty: item.qty,
+        rank: index + 1,
+      })),
+      name: group.name,
+      total: group.finalTotal,
+    })),
     labels,
-    others: remaining.length
-      ? {
-          label: othersLabel(remaining.length),
-          total: remaining.reduce((sum, row) => sum + row.finalTotal, 0),
-        }
-      : null,
-    rows: topRows,
     storeName: user.store_name,
   };
 }
 
+// สไตล์เฉพาะของใบพิมพ์นี้ (ต่อยอดจาก RECEIPT_80MM_BASE_STYLES ที่มี .category-total ให้แล้ว):
+// แต่ละกลุ่มมีระยะห่างด้านบนเล็กน้อยกันชนกับกลุ่มก่อนหน้า และหมวดหมู่ของแต่ละสินค้าเยื้องเข้าไปเป็นบรรทัดย่อย
+const BEST_SELLING_EXTRA_STYLES = `
+      .category { padding-top: 2mm; }
+      .category-item + .category-item { margin-top: 1.5mm; }
+      .product-category { margin: 0.2mm 0 0 4mm; font-size: 9px; color: #444; }
+`;
+
 export function renderBestSellingPrintHtml(data: BestSellingPrintData) {
-  const { labels, others, rows } = data;
+  const { groups, labels } = data;
+
+  const groupsHtml = groups
+    .map(
+      (group) => `
+    <section class="category">
+      <h2>${escapeHtml(labels.groupLabel)}: ${escapeHtml(group.name)}</h2>
+      ${group.items
+        .map(
+          (item) => `
+        <div class="category-item">
+          ${receiptTotalRowHtml(`${item.rank}. ${item.name} (${item.qty})`, item.finalTotal)}
+          <p class="product-category">${escapeHtml(item.categoryName)}</p>
+        </div>`,
+        )
+        .join("")}
+      ${receiptTotalRowHtml(labels.groupTotal, group.total, "category-total")}
+    </section>`,
+    )
+    .join("");
 
   const bodyHtml = `
     ${receiptHeaderHtml({ branchName: data.branchName, storeName: data.storeName, title: labels.title })}
@@ -105,26 +130,21 @@ export function renderBestSellingPrintHtml(data: BestSellingPrintData) {
       ${receiptMetaRowHtml(labels.printedBy, data.cashier)}
       ${receiptMetaRowHtml(labels.printedAt, dateTime(new Date().toISOString()))}
     </section>
-    <div class="divider"></div>
-    <section>
-      ${rows.map((row) => receiptTotalRowHtml(`${row.rank}. ${row.name} (${row.qty})`, row.finalTotal)).join("")}
-      ${others ? receiptTotalRowHtml(others.label, others.total) : ""}
-    </section>
-    <div class="divider"></div>
+    
+    ${groupsHtml || `<p style="text-align:center">-</p>`}
+    
     ${receiptHeadlineTotalHtml(labels.grandTotal, data.grandTotal)}`;
 
-  return receiptDocumentHtml({ bodyHtml, title: labels.title });
+  return receiptDocumentHtml({ bodyHtml, extraStyles: BEST_SELLING_EXTRA_STYLES, title: labels.title });
 }
 
-// { type: "line" } พิมพ์ออกมาเป็นเส้น underscore ต่อกันบนเครื่องจริง (ยืนยันจากการพิมพ์ทดสอบ) ไม่ใช่เส้นประ —
-// ใช้ข้อความ "-" ยาวแทน ซึ่งพิมพ์ได้ถูกต้อง (เหมือน daily-sales)
-const RECEIPT_DIVIDER_TEXT = "---------------------";
-
-// เวอร์ชันพิมพ์ผ่าน printer agent — ยอดรวมทั้งหมดจุดเดียวเป็น text 2 บรรทัด (เน้นสูงสุด)
-// แถวสินค้า/อื่นๆ เป็น lr เรียบๆ เพราะพิมพ์จริงยืนยันแล้วว่า bold/size บน type "lr" ไม่มีผล
+// เวอร์ชันพิมพ์ผ่าน printer agent — แต่ละกลุ่มปิดท้ายด้วย divider แทน border-bottom ของ .category-total ใน HTML
+// แถวสินค้า/ยอดรวมกลุ่มเป็น lr เรียบๆ เพราะพิมพ์จริงยืนยันแล้วว่า bold/size บน type "lr" ไม่มีผล
+// ยอดรวมทั้งใบยังคงเป็น text 2 บรรทัดแยก (เน้นสูงสุดจุดเดียว) เหมือนเดิม
+// ใช้ { type: "line" } ตรงกับ daily-sales (ยืนยันจากพิมพ์จริงแล้วว่าออกมาเป็นเส้นเต็มปกติ)
 export function buildBestSellingReportOps(data: BestSellingPrintData): ReportPrintOp[] {
-  const { labels, others, rows } = data;
-  const divider: ReportPrintOp = { type: "text", text: RECEIPT_DIVIDER_TEXT, align: "left", size: 20 };
+  const { groups, labels } = data;
+  const divider: ReportPrintOp = { type: "line" };
   const lr = (left: string, right: number): ReportPrintOp => ({
     type: "lr",
     left,
@@ -132,6 +152,19 @@ export function buildBestSellingReportOps(data: BestSellingPrintData): ReportPri
     bold: false,
     size: 24,
   });
+
+  const groupOps: ReportPrintOp[] = groups.flatMap((group) => [
+    { type: "text", text: `${labels.groupLabel}: ${group.name}`, align: "left", bold: true, size: 26 },
+    // เว้นบรรทัดว่างคั่นระหว่างสินค้า (ไม่ใช่ก่อนตัวแรกหรือหลังตัวสุดท้าย) ให้ตรงกับ margin ของ
+    // .category-item ฝั่ง HTML — ป้ายหมวดหมู่ใช้ size เล็กกว่าแถวหลักเหมือนฝั่ง HTML ที่เล็กกว่าเช่นกัน
+    ...group.items.flatMap((item, index): ReportPrintOp[] => [
+      ...(index > 0 ? [{ type: "blank", n: 1 } as ReportPrintOp] : []),
+      lr(`${item.rank}. ${item.name} (${item.qty})`, item.finalTotal),
+      { type: "text", text: `  ${item.categoryName}`, align: "left", size: 20 },
+    ]),
+    lr(labels.groupTotal, group.total),
+    divider,
+  ]);
 
   return [
     ...(data.storeName ? [{ type: "text", text: data.storeName, align: "center", bold: true, size: 24 } as ReportPrintOp] : []),
@@ -142,9 +175,7 @@ export function buildBestSellingReportOps(data: BestSellingPrintData): ReportPri
     { type: "text", text: `${labels.printedBy}: ${data.cashier}`, align: "left", size: 24 },
     { type: "text", text: `${labels.printedAt}: ${dateTime(new Date().toISOString())}`, align: "left", size: 20 },
     divider,
-    ...rows.map((row) => lr(`${row.rank}. ${row.name} (${row.qty})`, row.finalTotal)),
-    ...(others ? [lr(others.label, others.total)] : []),
-    divider,
+    ...groupOps,
     { type: "text", text: labels.grandTotal, align: "left", bold: true, size: 26 },
     { type: "text", text: money(data.grandTotal), align: "right", bold: true, size: 32 },
     { type: "blank", n: 2 },

@@ -1482,7 +1482,6 @@
     },
     "actions": {
       "changePhoto": "Change photo",
-      "save": "Save changes",
       "updatePassword": "Update password"
     },
     "validation": {
@@ -1538,7 +1537,8 @@
       "loadFailed": "Failed to load best selling products",
       "loading": "Loading best selling products",
       "noData": "No best selling products",
-      "othersCombined": "Others ({{count}} products)",
+      "printGroupLabel": "Group",
+      "printGroupTotal": "Total Sales (Group Summary)",
       "rowsLabel": "{{count}} product(s)",
       "sortOptions": {
         "date_asc": "Date ASC",
@@ -1634,6 +1634,7 @@
       "loadFailed": "Failed to load category sales report",
       "loading": "Loading category sales report",
       "noData": "No category sales report data",
+      "printGroupTotal": "Total Sales (Group Summary)",
       "rowsLabel": "{{count}} category row(s)",
       "title": "Sales report by category"
     },

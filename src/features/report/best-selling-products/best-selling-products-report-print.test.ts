@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AuthUser } from "@/stores/auth-store";
-import type { BestSellingProductItem } from "@/stores/report-store";
+import type { BestSellingProductGroup, BestSellingProductItem } from "@/stores/report-store";
 import {
   buildBestSellingPrintData,
   buildBestSellingReportOps,
@@ -25,6 +25,8 @@ const user: AuthUser = {
 
 const labels: BestSellingPrintLabels = {
   grandTotal: "Grand total",
+  groupLabel: "Group",
+  groupTotal: "Total Sales (Group Summary)",
   period: "Period",
   printedAt: "Printed at",
   printedBy: "Printed by",
@@ -34,15 +36,15 @@ const labels: BestSellingPrintLabels = {
 function item(overrides: Partial<BestSellingProductItem> = {}): BestSellingProductItem {
   return {
     billDiscountShare: 0,
-    categoryName: "Food",
+    categoryName: "Soft Drink",
     charge: 0,
     finalTotal: 10000,
     groupId: "group-1",
-    groupName: "Food",
+    groupName: "Drinks",
     id: "item-1",
     itemDiscount: 0,
     productCode: "P1",
-    productName: "Rice",
+    productName: "Coca Cola",
     qty: 5,
     rank: 1,
     salePrice: 2000,
@@ -52,127 +54,148 @@ function item(overrides: Partial<BestSellingProductItem> = {}): BestSellingProdu
   };
 }
 
-function rowsOf(count: number) {
+function group(overrides: Partial<BestSellingProductGroup> = {}, items: BestSellingProductItem[] = [item()]): BestSellingProductGroup {
+  return {
+    billDiscountShare: 0,
+    charge: 0,
+    finalTotal: items.reduce((total, current) => total + current.finalTotal, 0),
+    id: "group-1",
+    itemDiscount: 0,
+    items,
+    name: "Drinks",
+    productCount: items.length,
+    qtyTotal: items.reduce((total, current) => total + current.qty, 0),
+    subtotal: items.reduce((total, current) => total + current.subtotal, 0),
+    vat: 0,
+    ...overrides,
+  };
+}
+
+function manyItems(count: number) {
   return Array.from({ length: count }, (_, index) =>
-    item({ finalTotal: 1000, id: `item-${index + 1}`, productName: `Product ${index + 1}`, qty: 1, rank: index + 1 }),
+    item({ finalTotal: 1000, id: `item-${index + 1}`, productName: `Product ${index + 1}`, qty: 1 }),
   );
 }
 
-const othersLabel = (count: number) => `Others (${count} products)`;
-
 describe("buildBestSellingPrintData", () => {
-  it("keeps only rank, name, qty, and revenue per product, dropping the per-metric financial breakdown", () => {
+  it("keeps only rank, name, qty, category, and revenue per product, dropping the per-metric financial breakdown", () => {
     const data = buildBestSellingPrintData({
       dateFrom: "2026-07-13",
       dateTo: "2026-07-13",
+      groups: [group()],
       labels,
-      othersLabel,
-      rows: [item()],
       summary: { final_total: 10000 },
       user,
     });
 
-    expect(data.rows).toEqual([{ finalTotal: 10000, name: "Rice", qty: 5, rank: 1 }]);
+    expect(data.groups).toEqual([
+      {
+        items: [{ categoryName: "Soft Drink", finalTotal: 10000, name: "Coca Cola", qty: 5, rank: 1 }],
+        name: "Drinks",
+        total: 10000,
+      },
+    ]);
     expect(data.grandTotal).toBe(10000);
-    expect(data.others).toBeNull();
   });
 
-  it("caps the printed list at the top 10 and combines the rest into a single others row", () => {
-    const rows = rowsOf(13);
+  it("does not cap the items printed per group, unlike the old top-10 design", () => {
+    const items = manyItems(13);
     const data = buildBestSellingPrintData({
       dateFrom: "2026-07-13",
       dateTo: "2026-07-13",
+      groups: [group({}, items)],
       labels,
-      othersLabel,
-      rows,
       summary: { final_total: 13000 },
       user,
     });
 
-    expect(data.rows).toHaveLength(10);
-    expect(data.rows[0]).toEqual({ finalTotal: 1000, name: "Product 1", qty: 1, rank: 1 });
-    expect(data.others).toEqual({ label: "Others (3 products)", total: 3000 });
+    expect(data.groups[0].items).toHaveLength(13);
   });
 
-  it("does not show an others row when there are 10 or fewer products", () => {
+  it("renumbers items starting at 1 within each group, ignoring the report-wide rank field", () => {
+    const items = [
+      item({ id: "a", productName: "A", rank: 7 }),
+      item({ id: "b", productName: "B", rank: 9 }),
+    ];
     const data = buildBestSellingPrintData({
       dateFrom: "2026-07-13",
       dateTo: "2026-07-13",
+      groups: [group({}, items)],
       labels,
-      othersLabel,
-      rows: rowsOf(10),
-      summary: { final_total: 10000 },
+      summary: {},
       user,
     });
 
-    expect(data.others).toBeNull();
+    expect(data.groups[0].items.map((entry) => entry.rank)).toEqual([1, 2]);
+  });
+
+  it("keeps groups in the order given, each carrying its own total", () => {
+    const drinks = group({ finalTotal: 10000, id: "g1", name: "Drinks" });
+    const food = group({ finalTotal: 20000, id: "g2", name: "Food" }, [item({ finalTotal: 20000, id: "food-1" })]);
+    const data = buildBestSellingPrintData({
+      dateFrom: "2026-07-13",
+      dateTo: "2026-07-13",
+      groups: [drinks, food],
+      labels,
+      summary: { final_total: 30000 },
+      user,
+    });
+
+    expect(data.groups.map((entry) => entry.name)).toEqual(["Drinks", "Food"]);
+    expect(data.groups.map((entry) => entry.total)).toEqual([10000, 20000]);
+    expect(data.grandTotal).toBe(30000);
   });
 });
 
 describe("renderBestSellingPrintHtml", () => {
-  it("renders the shared 80mm receipt base with rank/name/qty inline and a headline grand total block", () => {
-    const html = renderBestSellingPrintHtml(
+  function html(groups: BestSellingProductGroup[], summary: Record<string, number> = { final_total: 10000 }) {
+    return renderBestSellingPrintHtml(
       buildBestSellingPrintData({
         dateFrom: "2026-07-13",
         dateTo: "2026-07-13",
+        groups,
         labels,
-        othersLabel,
-        rows: [item()],
-        summary: { final_total: 10000 },
+        summary,
         user,
       }),
     );
+  }
 
-    expect(html).toContain("@page { size: 80mm auto");
-    expect(html).toContain("1. Rice (5)");
-    expect(html).toContain('class="headline-total"');
-    expect(html).not.toContain('class="total-row grand-total"');
+  it("renders the shared 80mm receipt base with a group heading, rank/name/qty inline, and category subline", () => {
+    const output = html([group()]);
+
+    expect(output).toContain("@page { size: 80mm auto");
+    expect(output).toContain("Group: Drinks");
+    expect(output).toContain("1. Coca Cola (5)");
+    expect(output).toContain('class="product-category">Soft Drink');
   });
 
-  it("renders the others row when the product list overflows the top 10", () => {
-    const html = renderBestSellingPrintHtml(
-      buildBestSellingPrintData({
-        dateFrom: "2026-07-13",
-        dateTo: "2026-07-13",
-        labels,
-        othersLabel,
-        rows: rowsOf(13),
-        summary: { final_total: 13000 },
-        user,
-      }),
-    );
+  it("renders a total row per group and a headline grand total block for the whole report", () => {
+    const drinks = group({ finalTotal: 10000, id: "g1", name: "Drinks" });
+    const food = group({ finalTotal: 20000, id: "g2", name: "Food" }, [item({ finalTotal: 20000, id: "food-1" })]);
+    const output = html([drinks, food], { final_total: 30000 });
 
-    expect(html).toContain("Others (3 products)");
+    expect(output).toContain("Total Sales (Group Summary)");
+    expect(output).toContain('class="headline-total"');
   });
 
   it("does not print the subtotal/discount/service/vat breakdown, since that is the daily-closing/daily-sales report's job", () => {
-    const html = renderBestSellingPrintHtml(
-      buildBestSellingPrintData({
-        dateFrom: "2026-07-13",
-        dateTo: "2026-07-13",
-        labels,
-        othersLabel,
-        rows: [item()],
-        summary: { final_total: 10000 },
-        user,
-      }),
-    );
+    const output = html([group()]);
 
-    expect(html).not.toContain("Subtotal");
-    expect(html).not.toContain("Discount");
-    expect(html).not.toContain("VAT");
+    expect(output).not.toContain("Subtotal");
+    expect(output).not.toContain("Discount");
+    expect(output).not.toContain("VAT");
   });
 });
 
 describe("buildBestSellingReportOps", () => {
-  function printData() {
+  function printData(groups: BestSellingProductGroup[] = [group()]) {
     return buildBestSellingPrintData({
       dateFrom: "2026-07-13",
       dateTo: "2026-07-13",
+      groups,
       labels,
-      othersLabel,
-      rows: rowsOf(13),
-      summary: { final_total: 13000 },
+      summary: { final_total: 10000 },
       user,
     });
   }
@@ -198,15 +221,21 @@ describe("buildBestSellingReportOps", () => {
     expect(titleIndex).toBeGreaterThan(branchIndex);
   });
 
-  it("prints exactly 10 ranked product rows plus one others row when the list overflows", () => {
-    const ops = buildBestSellingReportOps(printData());
-
+  it("prints every product row for a group without capping at 10", () => {
+    const ops = buildBestSellingReportOps(printData([group({}, manyItems(13))]));
     const productRows = ops.filter((op) => op.type === "lr" && /^\d+\. Product \d+/.test(op.left ?? ""));
-    const othersRow = ops.find((op) => op.left === "Others (3 products)");
 
-    expect(productRows).toHaveLength(10);
-    expect(othersRow?.type).toBe("lr");
-    expect(othersRow?.bold).toBe(false);
+    expect(productRows).toHaveLength(13);
+  });
+
+  it("prints a group heading and a group total row for each group", () => {
+    const drinks = group({ finalTotal: 10000, id: "g1", name: "Drinks" });
+    const food = group({ finalTotal: 20000, id: "g2", name: "Food" }, [item({ finalTotal: 20000, id: "food-1" })]);
+    const ops = buildBestSellingReportOps(printData([drinks, food]));
+
+    expect(ops.some((op) => op.text === "Group: Drinks")).toBe(true);
+    expect(ops.some((op) => op.text === "Group: Food")).toBe(true);
+    expect(ops.filter((op) => op.left === "Total Sales (Group Summary)")).toHaveLength(2);
   });
 
   it("prints the grand total as two bold text ops instead of an lr row, matching the daily-sales/daily-closing pattern since bold/size on lr does nothing physically", () => {

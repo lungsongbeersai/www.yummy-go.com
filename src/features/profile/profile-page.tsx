@@ -49,12 +49,13 @@ export function ProfilePage() {
     setAvatarCrop(DEFAULT_CROP);
   });
 
-  async function submitAvatar(event: FormEvent) {
-    event.preventDefault();
+  // เรียกจากปุ่ม "บันทึก" ในกล่องครอปรูปเอง ไม่ใช่ปุ่มนอกกล่อง — รับค่า crop ตรงจาก dialog เพื่อไม่ให้
+  // เจอค่า avatarCrop ที่ยัง sync ไม่ทัน (setState ของ React ไม่ synchronous)
+  async function saveAvatar(crop: CropState) {
     if (!selectedAvatarFile || !user?.uuid) return;
 
     try {
-      const croppedFile = await cropImageFile(selectedAvatarFile, avatarCrop, t("settings.storeBranch.imageLoadFailed"), {
+      const croppedFile = await cropImageFile(selectedAvatarFile, crop, t("settings.storeBranch.imageLoadFailed"), {
         aspect: AVATAR_CROP_ASPECT,
         outputHeight: AVATAR_CROP_OUTPUT_HEIGHT,
         outputWidth: AVATAR_CROP_OUTPUT_WIDTH
@@ -70,6 +71,7 @@ export function ProfilePage() {
         description: requestError instanceof Error ? requestError.message : t("toasts.pleaseTryAgain"),
         tone: "error"
       });
+      throw requestError;
     }
   }
 
@@ -110,34 +112,28 @@ export function ProfilePage() {
           </div>
         </CardHeader>
         <CardContent>
-          <form onSubmit={submitAvatar} className="flex flex-col gap-4">
-            <SettingsImageCropPanel
-              aspect={AVATAR_CROP_ASPECT}
-              aspectClass={AVATAR_CROP_ASPECT_CLASS}
-              className="max-w-xs rounded-lg border-0 bg-transparent p-0 md:border-0"
-              crop={avatarCrop}
-              description={t("settings.profileImageHint")}
-              emptyLabel={t("profile.sections.avatar")}
-              existingSrc={profileSrc}
-              fieldId="profile-avatar"
-              fileSupportText={t("settings.storeBranch.imageSupport")}
-              previewMaxClassName="max-w-40 sm:max-w-48"
-              removeLabel={t("settings.storeBranch.cancelImage")}
-              saving={savingAvatar}
-              selectedFile={selectedAvatarFile}
-              title={t("profile.actions.changePhoto")}
-              uploadLabel={t("profile.actions.changePhoto")}
-              zoomLabel={t("settings.storeBranch.zoom")}
-              onCropChange={setAvatarCrop}
-              onFileChange={setSelectedAvatarFile}
-            />
-            <div className="flex justify-end">
-              <Button className="gap-2" disabled={savingAvatar || !selectedAvatarFile} size="sm" type="submit">
-                {savingAvatar ? <Spinner /> : <Save className="size-4" />}
-                {savingAvatar ? t("common.processing") : t("profile.actions.save")}
-              </Button>
-            </div>
-          </form>
+          <SettingsImageCropPanel
+            aspect={AVATAR_CROP_ASPECT}
+            aspectClass={AVATAR_CROP_ASPECT_CLASS}
+            className=" rounded-lg border-0 bg-transparent p-0 md:border-0"
+            crop={avatarCrop}
+            description={t("settings.profileImageHint")}
+            emptyLabel={t("profile.sections.avatar")}
+            existingSrc={profileSrc}
+            fieldId="profile-avatar"
+            fileSupportText={t("settings.storeBranch.imageSupport")}
+            previewMaxClassName="max-w-40 sm:max-w-48"
+            previewShape="circle"
+            removeLabel={t("settings.storeBranch.cancelImage")}
+            saving={savingAvatar}
+            selectedFile={selectedAvatarFile}
+            title={t("profile.actions.changePhoto")}
+            uploadLabel={t("profile.actions.changePhoto")}
+            zoomLabel={t("settings.storeBranch.zoom")}
+            onCropChange={setAvatarCrop}
+            onFileChange={setSelectedAvatarFile}
+            onSave={saveAvatar}
+          />
         </CardContent>
       </Card>
 

@@ -17,6 +17,7 @@ import {
 import { Field, FieldDescription, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
+import { Spinner } from "@/components/ui/spinner";
 import {
   IMAGE_CROP_ASPECT,
   IMAGE_CROP_ASPECT_CLASS,
@@ -149,8 +150,10 @@ function cropPreviewStyle(src: string, area: CropArea | null): CSSProperties | u
 
 function ImageCropDialog({
   aspect,
+  cropShape,
   onConfirm,
   onOpenChange,
+  onSave,
   open,
   src,
   title,
@@ -158,8 +161,10 @@ function ImageCropDialog({
   zoomLabel
 }: {
   aspect: number;
+  cropShape: "rect" | "round";
   onConfirm: (crop: CropState) => void;
   onOpenChange: (open: boolean) => void;
+  onSave?: (crop: CropState) => Promise<void> | void;
   open: boolean;
   src: string;
   title: string;
@@ -173,6 +178,7 @@ function ImageCropDialog({
             การเปิดใหม่จึง mount ใหม่และหยิบค่าที่บันทึกไว้เป็นค่าตั้งต้นเอง ไม่ต้อง sync ด้วย effect */}
         <ImageCropDialogBody
           aspect={aspect}
+          cropShape={cropShape}
           src={src}
           title={title}
           value={value}
@@ -182,6 +188,7 @@ function ImageCropDialog({
             onConfirm(next);
             onOpenChange(false);
           }}
+          onSave={onSave}
         />
       </DialogContent>
     </Dialog>
@@ -190,16 +197,20 @@ function ImageCropDialog({
 
 function ImageCropDialogBody({
   aspect,
+  cropShape,
   onCancel,
   onConfirm,
+  onSave,
   src,
   title,
   value,
   zoomLabel
 }: {
   aspect: number;
+  cropShape: "rect" | "round";
   onCancel: () => void;
   onConfirm: (crop: CropState) => void;
+  onSave?: (crop: CropState) => Promise<void> | void;
   src: string;
   title: string;
   value: CropState;
@@ -207,6 +218,7 @@ function ImageCropDialogBody({
 }) {
   const { t } = useTranslation();
   const [draft, setDraft] = useState<CropState>(value);
+  const [submitting, setSubmitting] = useState(false);
   // fitZoom = ซูมที่เห็นภาพเต็มพอดีกรอบ (ค่าเริ่มต้น และค่าที่ปุ่ม "รีเซ็ต" กลับไปหา)
   // minZoom = ซูมออกได้ไกลกว่านั้นอีกหน่อย เผื่อผู้ใช้อยากเว้นขอบขาวรอบรูปเพิ่มเอง
   const [fitZoom, setFitZoom] = useState(MIN_ZOOM);
@@ -228,6 +240,24 @@ function ImageCropDialogBody({
     setDraft({ x: 0, y: 0, zoom: fitZoom, areaPixels: null, areaPercent: null });
   }
 
+  // เมื่อมี onSave ปุ่มนี้คือปุ่มบันทึกจริง (อัปโหลดเข้าเซิร์ฟเวอร์) ไม่ใช่แค่ยืนยันค่าครอปแล้วปิดกล่อง
+  // ถ้าอัปโหลดพลาด ให้กล่องเปิดค้างไว้ (caller เป็นคน toast error เอง) ไม่ปิดเหมือนสำเร็จ
+  async function handleSaveClick() {
+    if (!onSave) {
+      onConfirm(draft);
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await onSave(draft);
+      onConfirm(draft);
+    } catch {
+      // stay open on failure
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   return (
     <>
       <DialogHeader className="pr-10">
@@ -239,6 +269,7 @@ function ImageCropDialogBody({
         <Cropper
           aspect={aspect}
           crop={{ x: draft.x, y: draft.y }}
+          cropShape={cropShape}
           image={src}
           maxZoom={MAX_ZOOM}
           minZoom={minZoom}
@@ -271,15 +302,22 @@ function ImageCropDialogBody({
         />
       </Field>
       <DialogFooter>
-        <Button className="min-h-11 sm:mr-auto sm:min-h-9" type="button" variant="ghost" onClick={resetCrop}>
+        <Button
+          className="min-h-11 sm:mr-auto sm:min-h-9"
+          disabled={submitting}
+          type="button"
+          variant="ghost"
+          onClick={resetCrop}
+        >
           <RotateCcw data-icon="inline-start" />
           {t("actions.reset")}
         </Button>
-        <Button className="min-h-11 sm:min-h-9" type="button" variant="outline" onClick={onCancel}>
+        <Button className="min-h-11 sm:min-h-9" disabled={submitting} type="button" variant="outline" onClick={onCancel}>
           {t("actions.cancel")}
         </Button>
-        <Button className="min-h-11 sm:min-h-9" type="button" onClick={() => onConfirm(draft)}>
-          {t("actions.save")}
+        <Button className="min-h-11 gap-2 sm:min-h-9" disabled={submitting} type="button" onClick={handleSaveClick}>
+          {submitting ? <Spinner /> : null}
+          {submitting ? t("common.processing") : t("actions.save")}
         </Button>
       </DialogFooter>
     </>
@@ -297,6 +335,8 @@ export function SettingsImageCropPanel({
   fieldId,
   onCropChange,
   onFileChange,
+  onSave,
+  previewShape = "square",
   saving,
   selectedFile,
   fileSupportText,
@@ -318,6 +358,9 @@ export function SettingsImageCropPanel({
   fieldId?: string;
   onCropChange: (crop: CropState) => void;
   onFileChange: (file: File | null) => void;
+  onSave?: (crop: CropState) => Promise<void> | void;
+  // "circle" ใช้กับรูปโปรไฟล์ผู้ใช้ — ให้กรอบพรีวิวตรงกับ Avatar วงกลมของ shadcn ที่ไปแสดงผลจริง (ดู AVATAR_CROP_ASPECT_CLASS)
+  previewShape?: "square" | "circle";
   saving: boolean;
   selectedFile: File | null;
   fileSupportText: string;
@@ -378,14 +421,19 @@ export function SettingsImageCropPanel({
           variant="ghost"
           aria-label={uploadLabel}
           className={cn(
-            "mx-auto h-auto w-full overflow-hidden rounded-xl border border-border bg-background p-2 hover:bg-background disabled:opacity-100",
+            "mx-auto h-auto w-full overflow-hidden border border-border bg-background p-2 hover:bg-background disabled:opacity-100",
+            previewShape === "circle" ? "rounded-full" : "rounded-xl",
             previewMaxClassName
           )}
           disabled={inputDisabled}
           onClick={handleOpenFileDialog}
         >
           <span
-            className={cn("grid w-full place-items-center overflow-hidden rounded-lg bg-muted", aspectClass)}
+            className={cn(
+              "grid w-full place-items-center overflow-hidden bg-muted",
+              previewShape === "circle" ? "rounded-full" : "rounded-lg",
+              aspectClass
+            )}
             style={cropPreviewStyle(previewSrc, crop.areaPercent)}
           >
             {!previewSrc ? <ImageIcon className="size-8 text-muted-foreground" /> : null}
@@ -429,6 +477,7 @@ export function SettingsImageCropPanel({
       {selectedFile && objectUrl ? (
         <ImageCropDialog
           aspect={aspect}
+          cropShape={previewShape === "circle" ? "round" : "rect"}
           open={cropOpen}
           src={objectUrl}
           title={title}
@@ -436,6 +485,7 @@ export function SettingsImageCropPanel({
           zoomLabel={zoomLabel}
           onConfirm={onCropChange}
           onOpenChange={setCropOpen}
+          onSave={onSave}
         />
       ) : null}
     </aside>

@@ -233,14 +233,16 @@ export function useBestSellingProductsReportWorkflow(
     try {
       const printLabels = {
         grandTotal: t("report.bestSelling.columns.finalTotal"),
+        groupLabel: t("report.bestSelling.printGroupLabel"),
+        groupTotal: t("report.bestSelling.printGroupTotal"),
         period: t("report.dailyPrint.period"),
         printedAt: t("report.dailyPrint.printedAt"),
         printedBy: t("report.dailyPrint.printedBy"),
         title: t("report.bestSelling.title"),
       };
 
-      // rows บนหน้าจอถูกแบ่งหน้า (จำกัดจำนวนต่อหน้า) ใบพิมพ์ต้อง Top N จากชุดข้อมูลเต็มเสมอ
-      // ไม่งั้นเมนูที่มีสินค้าเยอะจะจัดอันดับผิดถ้าสินค้าอันดับสูงตกไปอยู่คนละหน้า
+      // rows/groups บนหน้าจอถูกแบ่งหน้า (จำกัดจำนวนต่อหน้า) ใบพิมพ์ต้องใช้ชุดข้อมูลเต็มเสมอ
+      // ไม่งั้นกลุ่ม/สินค้าที่ตกไปอยู่คนละหน้าจะหายไปจากใบพิมพ์
       const exportData = await loadExportData({
         branch_uuid_fk: report.branchUuid,
         date_from: report.appliedFilters.dateFrom,
@@ -253,9 +255,8 @@ export function useBestSellingProductsReportWorkflow(
       const data = buildBestSellingPrintData({
         dateFrom: report.appliedFilters.dateFrom,
         dateTo: report.appliedFilters.dateTo,
+        groups: exportData.groups,
         labels: printLabels,
-        othersLabel: (count) => t("report.bestSelling.othersCombined", { count }),
-        rows: exportData.rows,
         summary: exportData.summary,
         user,
       });

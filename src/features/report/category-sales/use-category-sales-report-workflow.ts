@@ -227,6 +227,8 @@ export function useCategorySalesReportWorkflow(
     try {
       const printLabels = {
         grandTotal: t("report.categorySales.columns.grandTotal"),
+        groupLabel: t("report.categorySales.columns.group"),
+        groupTotal: t("report.categorySales.printGroupTotal"),
         period: t("report.dailyPrint.period"),
         printedAt: t("report.dailyPrint.printedAt"),
         printedBy: t("report.dailyPrint.printedBy"),

@@ -275,13 +275,13 @@ export function TableQrDialog({
         </DialogHeader>
 
         <div className="flex min-h-0 flex-col gap-4 overflow-y-auto px-5 pb-5">
-          <div className="grid place-items-center rounded-2xl border border-border bg-muted/30 p-4 shadow-inner">
+          <div className="grid place-items-center rounded-2xl bg-muted p-6">
             {pending ? (
               <Skeleton className="size-58 rounded-xl sm:size-65" />
             ) : previewUrl ? (
-              <Image src={previewUrl} alt={`${table.table_name} QR`} width={260} height={260} unoptimized className="size-58 rounded-xl bg-background object-contain p-2 shadow-sm sm:size-65" />
+              <Image src={previewUrl} alt={`${table.table_name} QR`} width={260} height={260} unoptimized className="size-58 rounded-xl bg-background object-contain p-2 sm:size-65" />
             ) : (
-              <div className="grid size-58 place-items-center rounded-xl bg-muted text-muted-foreground sm:size-65">
+              <div className="grid size-58 place-items-center rounded-xl bg-background text-muted-foreground sm:size-65">
                 <QrCodeIcon />
               </div>
             )}
@@ -402,7 +402,7 @@ function isLocalBrowser() {
 }
 
 function createFallbackQrDataUrl(value: string) {
-  return QRCode.toDataURL(value, { errorCorrectionLevel: "M", margin: 1, width: 320 });
+  return QRCode.toDataURL(value, { errorCorrectionLevel: "M", margin: 2, width: 320 });
 }
 
 function normalizePublicUrl(value: string) {
