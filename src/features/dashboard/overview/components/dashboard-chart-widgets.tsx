@@ -148,7 +148,7 @@ function EmptyPanel({ label }: { label: string }) {
 
 function MiniFact({ label, title, value }: { label: string; title: string; value: string }) {
   return (
-    <div className="dashboard-mini-fact rounded-lg border border-border bg-card px-3 py-2">
+    <div className="rounded-lg border border-border bg-muted/38 px-3 py-2">
       <p className="text-[11px] font-black uppercase text-muted-foreground">{label}</p>
       <p className="mt-1 truncate text-sm font-black">{title}</p>
       <p className="mt-1 text-xs text-muted-foreground">{value}</p>
@@ -544,20 +544,20 @@ function ProductsTablePanel({
   );
 
   return (
-    <Card className="dashboard-card dashboard-products-card overflow-hidden">
-      <CardHeader className="dashboard-card-header flex-row items-center justify-between border-b px-4 py-3">
+    <Card className="overflow-hidden shadow-sm">
+      <CardHeader className={cn(dashboardCardHeaderClass, "flex-row items-center justify-between border-b")}>
         <div className="min-w-0">
           <CardTitle className="truncate text-sm font-semibold">{copy.topProducts}</CardTitle>
           <p className="mt-1 truncate text-xs text-muted-foreground">{products.length} {copy.products}</p>
         </div>
-        <div className="dashboard-products-actions flex shrink-0 items-center gap-2">
-          <div className="dashboard-chart-tabs">
-            <Button size="sm" type="button" variant={sortMode === "qty" ? "outline" : "ghost"} onClick={() => setSortMode("qty")}>{copy.byQty}</Button>
-            <Button size="sm" type="button" variant={sortMode === "revenue" ? "outline" : "ghost"} onClick={() => setSortMode("revenue")}>{copy.byRevenue}</Button>
+        <div className="flex min-w-max shrink-0 items-center gap-2">
+          <div className="inline-flex gap-0.5 rounded-lg bg-muted/40 p-0.5">
+            <Button size="sm" type="button" variant={sortMode === "qty" ? "outline" : "ghost"} className="h-8 rounded-md border-transparent font-medium shadow-none data-[variant=outline]:border-border data-[variant=outline]:bg-card data-[variant=outline]:text-primary data-[variant=outline]:shadow-sm" onClick={() => setSortMode("qty")}>{copy.byQty}</Button>
+            <Button size="sm" type="button" variant={sortMode === "revenue" ? "outline" : "ghost"} className="h-8 rounded-md border-transparent font-medium shadow-none data-[variant=outline]:border-border data-[variant=outline]:bg-card data-[variant=outline]:text-primary data-[variant=outline]:shadow-sm" onClick={() => setSortMode("revenue")}>{copy.byRevenue}</Button>
           </div>
           <div className="w-28 shrink-0">
             <Select disabled={loading} value={top} onValueChange={onTopChange}>
-              <SelectTrigger className="h-8 w-full font-mono text-xs">
+              <SelectTrigger className="h-8 w-full rounded-lg bg-card font-mono text-xs font-bold">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent position="popper">
@@ -573,8 +573,8 @@ function ProductsTablePanel({
       </CardHeader>
       <CardContent className="p-0">
         {sortedProducts.length ? (
-          <div className="dashboard-table-wrap overflow-x-auto">
-            <Table className="dashboard-products-table ">
+          <div className="app-sidebar-scroll overflow-x-auto">
+            <Table className="[&_thead_tr]:border-border [&_thead_tr]:bg-muted/38 [&_th]:h-9.5 [&_th]:text-[0.68rem] [&_th]:font-semibold [&_th]:tracking-[0.1em] [&_th]:text-muted-foreground [&_th]:uppercase [&_td]:h-12.5 [&_td]:border-border [&_tbody_tr:hover]:bg-muted/38">
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-12">#</TableHead>
@@ -590,7 +590,7 @@ function ProductsTablePanel({
                     <TableCell className={cn("font-mono font-semibold text-muted-foreground", index < 3 && "text-primary")}>#{product.rank}</TableCell>
                     <TableCell>
                       <div className="dashboard-product-cell flex min-w-0 items-center gap-3">
-                        <Avatar className="dashboard-product-avatar rounded-md" size="lg">
+                        <Avatar className="rounded-md border border-border bg-muted/38 [&_img]:object-cover" size="lg">
                           {product.hasImage ? <AvatarImage alt={product.name} src={product.image} /> : null}
                           <AvatarFallback>{product.name.slice(0, 1)}</AvatarFallback>
                         </Avatar>
@@ -656,21 +656,21 @@ function ParetoPanel({ copy, products }: { copy: DashboardCopy; products: Produc
   } satisfies ChartConfig;
 
   return (
-    <Card className="dashboard-card dashboard-pareto-card overflow-hidden">
-      <CardHeader className="dashboard-card-header border-b px-4 py-3">
+    <Card className="overflow-hidden shadow-sm">
+      <CardHeader className={cn(dashboardCardHeaderClass, "border-b")}>
         <div className="min-w-0">
           <CardTitle className="text-sm font-semibold">{copy.pareto}</CardTitle>
           <p className="text-xs text-muted-foreground">{copy.paretoHint}</p>
         </div>
-        <div className="dashboard-chart-tabs">
-          <Button size="sm" type="button" variant={metric === "revenue" ? "outline" : "ghost"} onClick={() => setMetric("revenue")}>{copy.revenue}</Button>
-          <Button size="sm" type="button" variant={metric === "qty" ? "outline" : "ghost"} onClick={() => setMetric("qty")}>{copy.qty}</Button>
+        <div className="inline-flex gap-0.5 rounded-lg bg-muted/40 p-0.5">
+          <Button size="sm" type="button" variant={metric === "revenue" ? "outline" : "ghost"} className="h-8 rounded-md border-transparent font-medium shadow-none data-[variant=outline]:border-border data-[variant=outline]:bg-card data-[variant=outline]:text-primary data-[variant=outline]:shadow-sm" onClick={() => setMetric("revenue")}>{copy.revenue}</Button>
+          <Button size="sm" type="button" variant={metric === "qty" ? "outline" : "ghost"} className="h-8 rounded-md border-transparent font-medium shadow-none data-[variant=outline]:border-border data-[variant=outline]:bg-card data-[variant=outline]:text-primary data-[variant=outline]:shadow-sm" onClick={() => setMetric("qty")}>{copy.qty}</Button>
         </div>
       </CardHeader>
       <CardContent className="p-4">
         {data.length ? (
           <>
-            <ChartContainer config={config} className="dashboard-pareto-chart h-72 w-full">
+            <ChartContainer config={config} className="h-72 w-full overflow-visible">
               <ComposedChart data={data} margin={{ bottom: 48, left: 0, right: 0, top: 16 }}>
                 <CartesianGrid vertical={false} strokeDasharray="2 4" />
                 <XAxis dataKey="label" angle={-30} textAnchor="end" height={62} interval={0} tickLine={false} axisLine={false} tick={{ fontSize: 10 }} />
@@ -711,7 +711,7 @@ export const DashboardProductsParetoGrid = memo(function DashboardProductsPareto
   topOptions: SelectOption[];
 }) {
   return (
-    <div className="dashboard-products-grid grid gap-4 xl:grid-cols-[1.3fr_1fr]">
+    <div className="grid gap-4 xl:grid-cols-[1.3fr_1fr]">
       <ProductsTablePanel copy={copy} loading={loading} products={products} top={top} topOptions={topOptions} onTopChange={onTopChange} />
       <ParetoPanel copy={copy} products={products} />
     </div>
