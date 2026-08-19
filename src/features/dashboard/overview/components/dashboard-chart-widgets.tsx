@@ -320,15 +320,15 @@ function ChannelDonutPanel({ copy, rows }: { copy: DashboardCopy; rows: Breakdow
   const config = { value: { label: copy.revenue, color: "hsl(var(--primary))" } } satisfies ChartConfig;
 
   return (
-    <Card className="dashboard-card dashboard-channel-card overflow-hidden">
-      <CardHeader className="dashboard-card-header flex-row items-center justify-between border-b px-4 py-3">
+    <Card className="overflow-hidden shadow-sm">
+      <CardHeader className={cn(dashboardCardHeaderClass, "flex-row items-center justify-between border-b")}>
         <div>
           <CardTitle className="text-sm font-semibold">{copy.orderChannels}</CardTitle>
           <p className="mt-1 text-xs text-muted-foreground">{rows.length} {copy.channels}</p>
         </div>
         <span className="font-mono text-xs text-muted-foreground">{formatKip(total)}</span>
       </CardHeader>
-      <CardContent className="dashboard-channel-content  grid gap-4 p-4 md:grid-cols-[10.5rem_1fr] xl:grid-cols-1">
+      <CardContent className="grid items-center gap-4 p-4 md:grid-cols-[10.5rem_1fr] xl:grid-cols-1">
         {rows.length ? (
           <>
             <div className="relative mx-auto size-40">
@@ -348,7 +348,7 @@ function ChannelDonutPanel({ copy, rows }: { copy: DashboardCopy; rows: Breakdow
             </div>
             <div className="flex flex-col gap-3">
               {rows.map((row, index) => (
-                <div key={row.key} className="dashboard-channel-row grid grid-cols-[auto_1fr_auto] items-center gap-2 text-sm">
+                <div key={row.key} className="grid grid-cols-[auto_1fr_auto] items-center gap-2.5 text-[0.78rem] max-md:grid-cols-[auto_minmax(0,1fr)]">
                   <span className="size-2.5 rounded-sm" style={{ backgroundColor: chartColors[index % chartColors.length] }} />
                   <div className="min-w-0">
                     <p className="truncate font-semibold">{row.label}</p>
@@ -356,7 +356,7 @@ function ChannelDonutPanel({ copy, rows }: { copy: DashboardCopy; rows: Breakdow
                       {formatNumber(row.count ?? 0)} {copy.orders} / {formatKip(row.value)}
                     </p>
                   </div>
-                  <div className="dashboard-channel-share">
+                  <div className="flex min-w-33 flex-col items-end gap-0.5 font-mono text-[0.7rem] text-muted-foreground [&>span:last-child]:font-bold [&>span:last-child]:text-foreground max-md:col-start-2 max-md:items-start">
                     <span>{copy.orderShare}: {formatPercent(row.orderPercent)}</span>
                     <span>{copy.revenueShare}: {formatPercent(row.revenuePercent || row.percent)}</span>
                   </div>
@@ -388,8 +388,8 @@ function TableStatusPanel({ copy, summary }: { copy: DashboardCopy; summary: Row
   ];
 
   return (
-    <Card className="dashboard-card dashboard-table-status-card overflow-hidden">
-      <CardHeader className="dashboard-card-header flex-row items-center justify-between border-b px-4 py-3">
+    <Card className="overflow-hidden shadow-sm">
+      <CardHeader className={cn(dashboardCardHeaderClass, "flex-row items-center justify-between border-b")}>
         <div>
           <CardTitle className="text-sm font-semibold">{copy.tableStatus}</CardTitle>
           <p className="mt-1 text-xs text-muted-foreground">{formatNumber(total)} {copy.tables}</p>
@@ -473,15 +473,15 @@ function InsightCardsPanel({
   ].filter((card): card is { className: string; label: string; name: string; value: string } => Boolean(card));
 
   return (
-    <Card className="dashboard-card dashboard-insight-card overflow-hidden">
-      <CardHeader className="dashboard-card-header border-b px-4 py-3">
+    <Card className="overflow-hidden shadow-sm">
+      <CardHeader className={cn(dashboardCardHeaderClass, "border-b")}>
         <CardTitle className="text-sm font-semibold">{copy.insights}</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-3 p-4">
         {cards.map((card) => (
-          <div key={card.label} className={cn("dashboard-insight-tile rounded-lg border p-4", card.className)}>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.12em]">{card.label}</p>
-            <p className="mt-2 truncate text-lg font-semibold text-foreground">{card.name}</p>
+          <div key={card.label} className={cn("rounded-[10px] border p-4", card.className)}>
+            <p className="text-[0.66rem] font-semibold tracking-[0.14em] uppercase">{card.label}</p>
+            <p className="mt-2 truncate text-[1.08rem] tracking-[-0.01em] font-semibold text-foreground">{card.name}</p>
             <p className="mt-1 tabular-nums text-xs text-muted-foreground">{card.value}</p>
           </div>
         ))}
@@ -508,7 +508,7 @@ export const DashboardOperationsGrid = memo(function DashboardOperationsGrid({
   tableSummary: Row;
 }) {
   return (
-    <div className="dashboard-operations-grid grid gap-4 xl:grid-cols-3">
+    <div className="grid gap-4 xl:grid-cols-3">
       <ChannelDonutPanel copy={copy} rows={channelRows} />
       <TableStatusPanel copy={copy} summary={tableSummary} />
       <InsightCardsPanel
