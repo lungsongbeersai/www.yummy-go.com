@@ -20,9 +20,9 @@ export interface ReportFieldOption {
   value: string;
 }
 
-// ทุกช่องกรอกของฟอร์มตัวกรองรายงาน "ความกว้าง/ความสูง" ต่างกันตาม grid ของแต่ละรายงาน
-// (บางหน้าใช้ h-10 rounded-md ชัดเจน บางหน้าใช้ความสูงมาตรฐานของ Select) จึงรับ className
-// ของ Field/Trigger มาจากผู้เรียกเสมอ แทนที่จะเดางเดียวให้ทุกหน้า
+// ค่าเริ่มต้นของทุกช่องคือความสูงมาตรฐานของ Select/Button (h-7) ให้ตรงกันทุกหน้า
+// บางรายงาน (daily-closing, best-selling-products, payment-methods) ตั้งใจใช้สเกล h-10
+// ทั้งฟอร์มแทน จึงยังรับ triggerClassName/inputClassName จากผู้เรียกไว้ให้ override ได้
 interface ReportSelectFieldProps {
   disabled?: boolean;
   fieldClassName?: string;

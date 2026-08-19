@@ -7,7 +7,7 @@ import { SearchInput } from "@/components/common/search-input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Field, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
+import { ReportDateInput } from "@/features/report/shared/report-date-input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import type { DailySaleItemsOrder } from "@/services/report";
@@ -67,7 +67,7 @@ export function SalesListHeader({
         <Button
           type="button"
           variant="outline"
-          size="iconSm"
+          size="icon-sm"
           className="size-11 shrink-0 sm:size-9 lg:hidden"
           aria-label={t("salesList.filters")}
           onClick={onMobileFiltersOpen}
@@ -80,7 +80,7 @@ export function SalesListHeader({
         <Button
           type="button"
           variant="outline"
-          size="iconSm"
+          size="icon-sm"
           className="size-11 shrink-0 sm:size-9"
           aria-label={t("actions.refresh")}
           disabled={loading || !canApply}
@@ -94,7 +94,7 @@ export function SalesListHeader({
         <Button
           type="button"
           variant="outline"
-          size="iconSm"
+          size="icon-sm"
           className="size-11 shrink-0 sm:size-9"
           aria-controls={summaryControlsId}
           aria-expanded={summaryVisible}
@@ -262,26 +262,24 @@ function SalesListFilterFields({
         <FieldLabel htmlFor={`${idPrefix}-date-from`} className="text-xs font-medium text-muted-foreground">
           {t("salesList.dateFrom")}
         </FieldLabel>
-        <Input
+        <ReportDateInput
           id={`${idPrefix}-date-from`}
-          className="h-11"
-          name={`${idPrefix}-date-from`}
-          type="date"
+          label={t("salesList.dateFrom")}
           value={draftFilters.dateFrom}
-          onChange={(event) => onDraftChange({ dateFrom: event.target.value })}
+          onValueChange={(dateFrom) => onDraftChange({ dateFrom })}
+          className="h-11"
         />
       </Field>
       <Field className="gap-1.5">
         <FieldLabel htmlFor={`${idPrefix}-date-to`} className="text-xs font-medium text-muted-foreground">
           {t("salesList.dateTo")}
         </FieldLabel>
-        <Input
+        <ReportDateInput
           id={`${idPrefix}-date-to`}
-          className="h-11"
-          name={`${idPrefix}-date-to`}
-          type="date"
+          label={t("salesList.dateTo")}
           value={draftFilters.dateTo}
-          onChange={(event) => onDraftChange({ dateTo: event.target.value })}
+          onValueChange={(dateTo) => onDraftChange({ dateTo })}
+          className="h-11"
         />
       </Field>
       <Field className="gap-1.5">

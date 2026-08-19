@@ -268,7 +268,6 @@ export function BestSellingFilterFields({
         fieldClassName="min-w-0 gap-1.5 sm:col-span-2 lg:col-span-4 xl:col-span-1"
         id={`${idPrefix}-branch`}
         options={branchOptions}
-        triggerClassName="h-10 w-full rounded-md"
         value={draftFilters.branchUuid}
         onValueChange={(value) => patch({ branchUuid: value })}
       />
@@ -277,7 +276,6 @@ export function BestSellingFilterFields({
         dateTo={draftFilters.dateTo}
         fieldClassName="min-w-0 gap-1.5 lg:col-span-4 xl:col-span-1"
         idPrefix={idPrefix}
-        inputClassName="h-10 rounded-md text-sm"
         withNativeName
         onDateFromChange={(value) => patch({ dateFrom: value })}
         onDateToChange={(value) => patch({ dateTo: value })}
@@ -288,14 +286,12 @@ export function BestSellingFilterFields({
         id={`${idPrefix}-group`}
         label={t("report.bestSelling.filters.group")}
         options={groupOptions}
-        triggerClassName="h-10 w-full rounded-md"
         value={draftFilters.groupUuid}
         onValueChange={(value) => patch({ groupUuid: value })}
       />
       <ReportPageLimitField
         fieldClassName="min-w-0 gap-1.5 lg:col-span-4 xl:col-span-1"
         id={`${idPrefix}-limit`}
-        triggerClassName="h-10 w-full rounded-md"
         value={draftFilters.limit}
         onValueChange={(value) => patch({ limit: value })}
       />
@@ -433,8 +429,8 @@ export function BestSellingProductsTable({
                 aria-label={t("common.selectAll")}
                 checked={allVisibleSelected}
                 indeterminate={!allVisibleSelected && someVisibleSelected}
-                onChange={(event) =>
-                  onToggleRows(visibleRows, event.target.checked)
+                onCheckedChange={(checked) =>
+                                  onToggleRows(visibleRows, checked as boolean)
                 }
               />
             </TableHead>
@@ -512,8 +508,8 @@ export function BestSellingProductsTable({
                         !groupSelection.allVisibleSelected &&
                         groupSelection.someVisibleSelected
                       }
-                      onChange={(event) =>
-                        onToggleRows(groupRows, event.target.checked)
+                      onCheckedChange={(checked) =>
+                                              onToggleRows(groupRows, checked as boolean)
                       }
                     />
                   </TableCell>
@@ -619,7 +615,7 @@ const BestSellingProductRow = memo(function BestSellingProductRow({
         <Checkbox
           aria-label={selectLabel}
           checked={selected}
-          onChange={(event) => onToggleRow(item, event.target.checked)}
+                  onCheckedChange={(checked) => onToggleRow(item, checked as boolean)}
         />
       </TableCell>
       <TableCell className="text-center">
@@ -802,8 +798,8 @@ export function BestSellingProductsMobileList({
                     selectedRowIds,
                   ).someVisibleSelected
                 }
-                onChange={(event) =>
-                  onToggleRows(group.items, event.target.checked)
+                onCheckedChange={(checked) =>
+                                  onToggleRows(group.items, checked as boolean)
                 }
               />
               <div className="min-w-0 flex-1">
@@ -832,7 +828,7 @@ export function BestSellingProductsMobileList({
                     aria-label={t("common.selectRow", { name: item.productName })}
                     className="mt-0.5"
                     checked={selectedRowIds.has(bestSellingProductRowId(item))}
-                    onChange={(event) => onToggleRow(item, event.target.checked)}
+                    onCheckedChange={(checked) => onToggleRow(item, checked as boolean)}
                   />
                   <Badge
                     variant="outline"

@@ -193,8 +193,6 @@
 }
 
 .dashboard-filter-actions button {
-  height: 2rem;
-  min-height: 2rem;
   padding-inline: 0.75rem;
   white-space: nowrap;
 }

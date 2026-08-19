@@ -15,6 +15,7 @@ import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ReportDateInput } from "@/features/report/shared/report-date-input";
 import { useUrlPagination } from "@/hooks/use-url-pagination";
 import { dateTime } from "@/lib/format";
 import type { UrlPaginationState } from "@/lib/url-pagination";
@@ -233,22 +234,24 @@ function CancelHistoryFilterFields({
         <FieldLabel htmlFor={`${idPrefix}-start-date`} className="text-xs font-bold text-muted-foreground">
           {t("cancelHistory.startDate")}
         </FieldLabel>
-        <Input
+        <ReportDateInput
           id={`${idPrefix}-start-date`}
-          type="date"
+          label={t("cancelHistory.startDate")}
           value={draftFilters.startDate}
-          onChange={(event) => onDraftChange({ startDate: event.target.value })}
+          onValueChange={(startDate) => onDraftChange({ startDate })}
+          className="h-7 px-2 text-xs/relaxed"
         />
       </Field>
       <Field className="gap-1.5">
         <FieldLabel htmlFor={`${idPrefix}-end-date`} className="text-xs font-bold text-muted-foreground">
           {t("cancelHistory.endDate")}
         </FieldLabel>
-        <Input
+        <ReportDateInput
           id={`${idPrefix}-end-date`}
-          type="date"
+          label={t("cancelHistory.endDate")}
           value={draftFilters.endDate}
-          onChange={(event) => onDraftChange({ endDate: event.target.value })}
+          onValueChange={(endDate) => onDraftChange({ endDate })}
+          className="h-7 px-2 text-xs/relaxed"
         />
       </Field>
       <Field className="gap-1.5">

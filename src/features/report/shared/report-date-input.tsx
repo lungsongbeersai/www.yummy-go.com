@@ -103,10 +103,7 @@ export function ReportDateInput({
           variant="outline"
           disabled={disabled}
           aria-label={label}
-          className={cn(
-            "w-full justify-between bg-background px-3 font-normal tabular-nums",
-            className,
-          )}
+          className={cn("w-full justify-between bg-background font-normal tabular-nums", className)}
         >
           <span>{reportDateDisplayValue(value)}</span>
           <CalendarDays aria-hidden="true" className="text-muted-foreground" />

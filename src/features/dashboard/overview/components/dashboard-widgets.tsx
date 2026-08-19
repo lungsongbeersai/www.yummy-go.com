@@ -319,7 +319,6 @@ export const DashboardFilterBar = memo(function DashboardFilterBar({
         </div>
         <div className="dashboard-filter-actions">
           <Button
-            size="sm"
             type="button"
             variant="outline"
             onClick={onReset}
@@ -327,7 +326,6 @@ export const DashboardFilterBar = memo(function DashboardFilterBar({
             {copy.reset}
           </Button>
           <Button
-            size="sm"
             type="button"
             disabled={loading || !activeBranchUuid}
             onClick={onApply}

@@ -82,7 +82,7 @@ export function DailyClosingReportControls({
                 >
                   <SelectTrigger
                     id="daily-closing-branch"
-                    className="h-11 w-full sm:h-10"
+                    className="w-full"
                   >
                     <SelectValue placeholder={t("report.dailyClosing.selectBranch")} />
                   </SelectTrigger>
@@ -104,7 +104,6 @@ export function DailyClosingReportControls({
                 disabled={disabled}
                 fieldClassName="gap-1.5"
                 idPrefix="daily-closing"
-                inputClassName="h-11 sm:h-10"
                 onDateFromChange={(dateFrom) =>
                   onDraftChange({ ...draftFilters, dateFrom })
                 }
@@ -115,7 +114,6 @@ export function DailyClosingReportControls({
 
               <Button
                 type="submit"
-                className="h-11 sm:h-10"
                 disabled={!canApply || disabled}
               >
                 <Search data-icon="inline-start" aria-hidden="true" />
@@ -131,7 +129,7 @@ export function DailyClosingReportControls({
             <Button
               type="button"
               variant="outline"
-              className="h-11 w-full sm:h-10 sm:w-auto"
+              className="h-10 w-full sm:w-auto"
               disabled={refreshDisabled}
               onClick={onRefresh}
             >
@@ -144,7 +142,7 @@ export function DailyClosingReportControls({
             </Button>
             <Button
               type="button"
-              className="h-11 w-full sm:h-10 sm:w-auto"
+              className="h-10 w-full sm:w-auto"
               disabled={printDisabled}
               onClick={onPrint}
             >

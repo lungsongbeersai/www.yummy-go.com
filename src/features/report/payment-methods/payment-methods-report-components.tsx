@@ -207,7 +207,6 @@ export function PaymentMethodsFilterFields({
         fieldClassName="min-w-0 gap-1.5 sm:col-span-2 lg:col-span-4 xl:col-span-1"
         id={`${idPrefix}-branch`}
         options={branchOptions}
-        triggerClassName="h-10 w-full rounded-md"
         value={draftFilters.branchUuid}
         onValueChange={(value) => patch({ branchUuid: value })}
       />
@@ -216,7 +215,6 @@ export function PaymentMethodsFilterFields({
         dateTo={draftFilters.dateTo}
         fieldClassName="min-w-0 gap-1.5 lg:col-span-4 xl:col-span-1"
         idPrefix={idPrefix}
-        inputClassName="h-10 rounded-md text-sm"
         withNativeName
         onDateFromChange={(value) => patch({ dateFrom: value })}
         onDateToChange={(value) => patch({ dateTo: value })}
@@ -225,14 +223,12 @@ export function PaymentMethodsFilterFields({
         fieldClassName="min-w-0 gap-1.5 lg:col-span-4 xl:col-span-1"
         id={`${idPrefix}-payment-method`}
         options={methodOptions}
-        triggerClassName="h-10 w-full rounded-md"
         value={draftFilters.paymentMethod}
         onValueChange={(value) => patch({ paymentMethod: value })}
       />
       <ReportPageLimitField
         fieldClassName="min-w-0 gap-1.5 lg:col-span-4 xl:col-span-1"
         id={`${idPrefix}-limit`}
-        triggerClassName="h-10 w-full rounded-md"
         value={draftFilters.limit}
         onValueChange={(value) => patch({ limit: value })}
       />
@@ -372,7 +368,7 @@ export function PaymentMethodsTable({
                   aria-label={t("common.selectAll")}
                   checked={allVisibleSelected}
                   indeterminate={!allVisibleSelected && someVisibleSelected}
-                  onChange={(event) => onToggleRows(rows, event.target.checked)}
+                  onCheckedChange={(checked) => onToggleRows(rows, checked as boolean)}
                 />
                 {t("report.paymentMethodsReport.columns.paymentMethod")}
               </span>
@@ -388,7 +384,7 @@ export function PaymentMethodsTable({
                     <Checkbox
                       aria-label={t("common.selectRow", { name: row.paymentMethodName })}
                       checked={selectedRowIds.has(id)}
-                      onChange={(event) => onToggleRow(row, event.target.checked)}
+                                            onCheckedChange={(checked) => onToggleRow(row, checked as boolean)}
                     />
                     <span className={cn("grid size-5 shrink-0 place-items-center rounded", chipClass)}>
                       <Icon className="size-3" aria-hidden="true" />
@@ -530,7 +526,7 @@ export function PaymentMethodsMobileList({
                 })}
                 className="mt-1"
                 checked={selectedRowIds.has(paymentMethodReportRowId(row))}
-                onChange={(event) => onToggleRow(row, event.target.checked)}
+                                onCheckedChange={(checked) => onToggleRow(row, checked as boolean)}
               />
               <PaymentMethodNameCell
                 row={row}
