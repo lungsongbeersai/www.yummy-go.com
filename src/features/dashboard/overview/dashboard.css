@@ -103,45 +103,6 @@
   font-size: 0.76rem;
 }
 
-.dashboard-channel-content {
-  align-items: center;
-}
-
-.dashboard-channel-row {
-  gap: 0.625rem;
-  font-size: 0.78rem;
-}
-
-.dashboard-channel-share {
-  display: flex;
-  min-width: 8.25rem;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0.15rem;
-  font-family: var(--font-geist-mono, ui-monospace), "Noto Sans Lao", monospace;
-  font-size: 0.7rem;
-  color: var(--dashboard-muted);
-}
-
-.dashboard-channel-share span:last-child {
-  color: var(--dashboard-ink);
-  font-weight: 700;
-}
-
-.dashboard-insight-tile {
-  border-radius: 10px;
-}
-
-.dashboard-insight-tile p:first-child {
-  font-size: 0.66rem;
-  letter-spacing: 0.14em;
-}
-
-.dashboard-insight-tile p:nth-child(2) {
-  font-size: 1.08rem;
-  letter-spacing: -0.01em;
-}
-
 .dashboard-table-wrap {
   scrollbar-width: thin;
   scrollbar-color: hsl(var(--muted-foreground) / 0.45) transparent;
@@ -203,17 +164,6 @@
 @media (max-width: 1279px) {
   .dashboard-screen {
     max-width: 100%;
-  }
-}
-
-@media (max-width: 767px) {
-  .dashboard-channel-row {
-    grid-template-columns: auto minmax(0, 1fr);
-  }
-
-  .dashboard-channel-share {
-    grid-column: 2;
-    align-items: flex-start;
   }
 }
 
