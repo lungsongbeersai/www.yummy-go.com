@@ -683,7 +683,7 @@ export function DashboardChartGridFallback({
 }) {
   if (variant === "revenue") {
     return (
-      <div className="dashboard-revenue-grid grid gap-4 xl:grid-cols-[1.7fr_1fr]">
+      <div className="grid gap-4 xl:grid-cols-[1.7fr_1fr]">
         <DashboardChartFallbackCard />
         <DashboardChartFallbackCard rows={5} />
       </div>
@@ -692,7 +692,7 @@ export function DashboardChartGridFallback({
 
   if (variant === "operations") {
     return (
-      <div className="dashboard-operations-grid grid gap-4 xl:grid-cols-3">
+      <div className="grid gap-4 xl:grid-cols-3">
         <DashboardChartFallbackCard rows={3} />
         <DashboardChartFallbackCard rows={3} />
         <DashboardChartFallbackCard rows={3} />
@@ -701,7 +701,7 @@ export function DashboardChartGridFallback({
   }
 
   return (
-    <div className="dashboard-products-grid grid gap-4 xl:grid-cols-[1.3fr_1fr]">
+    <div className="grid gap-4 xl:grid-cols-[1.3fr_1fr]">
       <DashboardChartFallbackCard rows={6} />
       <DashboardChartFallbackCard rows={3} />
     </div>
