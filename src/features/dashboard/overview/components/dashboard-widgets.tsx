@@ -135,7 +135,7 @@ const DateControl = memo(function DateControl({
         name={name}
         label={label}
         value={value}
-        className="h-7 border-transparent bg-transparent px-0 font-mono text-[13px] font-semibold shadow-none hover:bg-transparent"
+        className="h-7 border-transparent bg-transparent px-0 font-mono text-[13px] font-semibold shadow-none hover:bg-transparent max-md:min-h-[2.35rem]"
         onValueChange={onChange}
       />
     </Field>
@@ -321,10 +321,11 @@ export const DashboardFilterBar = memo(function DashboardFilterBar({
             />
           ) : null}
         </div>
-        <div className="flex min-w-max items-center justify-end gap-2 max-md:justify-stretch *:whitespace-nowrap max-md:*:flex-1 max-md:*:w-full">
+        <div className="flex min-w-max self-center justify-end gap-2 max-md:justify-stretch *:whitespace-nowrap max-md:*:flex-1 max-md:*:w-full">
           <Button
             type="button"
             variant="outline"
+            className="max-md:min-h-[2.35rem]"
             onClick={onReset}
           >
             {copy.reset}
@@ -332,6 +333,7 @@ export const DashboardFilterBar = memo(function DashboardFilterBar({
           <Button
             type="button"
             disabled={loading || !activeBranchUuid}
+            className="max-md:min-h-[2.35rem]"
             onClick={onApply}
           >
             {copy.apply}
