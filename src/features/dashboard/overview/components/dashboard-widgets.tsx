@@ -52,6 +52,8 @@ const paymentSummaryIconMap = {
   transfer: CreditCard,
 };
 const moneyUnits = new Set(["k", "kip", "kib", "lak", "₭", "ກີບ"]);
+export const dashboardCardHeaderClass =
+  "min-h-15 border-border bg-card/82 px-4 py-3.5";
 
 type FilterBarProps = {
   activeBranchUuid: string;
@@ -659,8 +661,8 @@ function DashboardChartFallbackCard({
   rows?: number;
 }) {
   return (
-    <Card className={cn("dashboard-card overflow-hidden", className)}>
-      <CardHeader className="dashboard-card-header border-b px-4 py-3">
+    <Card className={cn("overflow-hidden shadow-sm", className)}>
+      <CardHeader className={cn(dashboardCardHeaderClass, "border-b")}>
         <Skeleton className="h-4 w-36" />
         <Skeleton className="mt-2 h-3 w-48" />
       </CardHeader>

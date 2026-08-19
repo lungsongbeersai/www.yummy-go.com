@@ -35,21 +35,6 @@
   box-shadow: var(--dashboard-shadow-sm);
 }
 
-.dashboard-screen .dashboard-card {
-  box-shadow: var(--dashboard-shadow-sm);
-}
-
-.dashboard-screen .dashboard-card-header {
-  min-height: 3.75rem;
-  border-color: var(--dashboard-line);
-  background: hsl(var(--card) / 0.82);
-  padding: 0.875rem 1rem;
-}
-
-.dashboard-screen .dashboard-card-header h2 {
-  letter-spacing: 0.01em;
-}
-
 .dashboard-head-actions>button {
   height: 2.5rem;
   border-radius: 0.55rem;
