@@ -103,60 +103,6 @@
   font-size: 0.76rem;
 }
 
-.dashboard-table-wrap {
-  scrollbar-width: thin;
-  scrollbar-color: hsl(var(--muted-foreground) / 0.45) transparent;
-}
-
-.dashboard-products-table thead tr {
-  border-color: var(--dashboard-line);
-  background: var(--dashboard-surface-2);
-}
-
-.dashboard-products-table th {
-  height: 2.35rem;
-  color: var(--dashboard-muted);
-  font-size: 0.68rem;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.dashboard-products-table td {
-  height: 3.05rem;
-  border-color: var(--dashboard-line);
-}
-
-.dashboard-products-table tbody tr:hover {
-  background: var(--dashboard-surface-2);
-}
-
-.dashboard-product-avatar {
-  border: 1px solid var(--dashboard-line);
-  background: var(--dashboard-surface-2);
-}
-
-.dashboard-product-avatar img {
-  object-fit: cover;
-}
-
-.dashboard-products-actions {
-  min-width: max-content;
-}
-
-.dashboard-products-actions [role="combobox"] {
-  height: 2rem;
-  border-radius: 0.5rem;
-  background: hsl(var(--card));
-  font-weight: 700;
-}
-
-.dashboard-mini-fact {
-  border-color: var(--dashboard-line);
-  border-radius: 8px;
-  background: var(--dashboard-surface-2);
-}
-
 .dashboard-footer {
   color: hsl(var(--muted-foreground) / 0.78);
 }
