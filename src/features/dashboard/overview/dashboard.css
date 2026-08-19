@@ -87,147 +87,12 @@
   white-space: nowrap;
 }
 
-.dashboard-query-card {
-  border-radius: 10px;
-}
-
-.dashboard-query-content {
-  padding: 0.5rem 0.75rem;
-}
-
-.dashboard-query-content>.inline-flex,
-.dashboard-query-content>.shrink-0:first-child {
-  border-color: hsl(var(--primary) / 0.2);
-  border-radius: 999px;
-  background: var(--dashboard-green-tint);
-  color: var(--dashboard-green);
-  font-size: 0.66rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.dashboard-query-content>.shrink-0:first-child svg {
-  width: 0.85rem;
-  height: 0.85rem;
-}
-
-.dashboard-query-kv {
-  border-color: var(--dashboard-line);
-}
-
-.dashboard-query-kv span:first-child {
-  font-size: 0.66rem;
-  letter-spacing: 0.06em;
-}
-
-.dashboard-query-kv span:last-child {
-  font-size: 0.72rem;
-}
-
-.dashboard-warning-banner {
-  display: flex;
-  align-items: center;
-  grid-template-columns: none;
-  border-color: hsl(38 92% 48% / 0.45);
-  border-radius: 10px;
-  background: var(--dashboard-amber-soft);
-  color: var(--dashboard-amber);
-  padding: 0.75rem 0.95rem;
-}
-
-.dashboard-warning-banner [data-slot="alert-title"] {
-  min-width: max-content;
-  color: var(--dashboard-ink);
-}
-
-.dashboard-warning-banner [data-slot="alert-description"] {
-  display: flex;
-  flex: 1;
-  grid-column: auto;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-.dashboard-warning-banner [data-slot="alert-description"],
-.dashboard-warning-banner .dashboard-warning-body {
-  color: var(--dashboard-ink);
-}
-
-.dashboard-payment-summary-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 0.625rem;
-  margin-top: -0.25rem;
-}
-
-.dashboard-payment-summary-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.25fr) repeat(3, minmax(0, 1fr));
-  gap: 0.75rem;
-}
-
 .dashboard-payment-card {
   overflow: hidden;
   border-color: var(--dashboard-line);
   border-radius: 12px;
   background: var(--dashboard-surface);
   box-shadow: var(--dashboard-shadow-sm);
-}
-
-.dashboard-payment-card-content {
-  display: flex;
-  flex-direction: row;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 1.25rem 1.5rem;
-}
-
-.dashboard-payment-card-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.5rem;
-  height: 2.5rem;
-  border-radius: 9999px;
-  background: hsl(var(--primary) / 0.1);
-  color: hsl(var(--primary));
-  margin-top: 0.25rem;
-}
-
-.dashboard-payment-card-icon svg {
-  width: 1.1rem;
-  height: 1.1rem;
-}
-
-.dashboard-payment-card-total {
-  border-color: hsl(var(--primary) / 0.18);
-  background: linear-gradient(135deg, var(--dashboard-green-tint), var(--dashboard-surface));
-}
-
-.dashboard-payment-card-total .dashboard-payment-card-icon,
-.dashboard-payment-card-cash .dashboard-payment-card-icon {
-  background: var(--dashboard-green-tint);
-  color: var(--dashboard-green);
-}
-
-.dashboard-payment-card-transfer .dashboard-payment-card-icon {
-  background: var(--dashboard-surface-2);
-  color: var(--dashboard-green);
-}
-
-.dashboard-payment-card-debt {
-  border-color: hsl(var(--destructive) / 0.2);
-}
-
-.dashboard-payment-card-debt .dashboard-payment-card-icon {
-  background: var(--dashboard-rose-soft);
-  color: var(--dashboard-rose);
-}
-
-.dashboard-payment-card-debt .dashboard-payment-card-content p:last-child {
-  color: var(--dashboard-rose);
 }
 
 .dashboard-payment-mixed-alert {
@@ -565,42 +430,18 @@
     max-width: 100%;
   }
 
-  .dashboard-payment-summary-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .dashboard-payment-card-total {
-    grid-column: 1 / -1;
-  }
-
   .dashboard-hero-grid {
     min-height: auto;
   }
 }
 
 @media (max-width: 767px) {
-  .dashboard-payment-summary-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .dashboard-payment-card-total {
-    grid-column: auto;
-  }
-
-  .dashboard-payment-card-content {
-    min-height: 4.6rem;
-  }
-
   .dashboard-channel-row {
     grid-template-columns: auto minmax(0, 1fr);
   }
 
   .dashboard-channel-share {
     grid-column: 2;
-    align-items: flex-start;
-  }
-
-  .dashboard-query-content {
     align-items: flex-start;
   }
 

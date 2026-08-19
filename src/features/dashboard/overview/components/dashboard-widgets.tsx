@@ -1,11 +1,9 @@
 "use client";
 
-import { memo, useState } from "react";
+import { memo } from "react";
 import {
   AlertTriangle,
   Banknote,
-  Code2,
-  Copy,
   CreditCard,
   ReceiptText,
   RefreshCcw,
@@ -13,7 +11,6 @@ import {
   WalletCards,
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Field, FieldLabel } from "@/components/ui/field";
@@ -353,11 +350,19 @@ function paymentSummaryTone(card: PaymentSummaryCard) {
   const key = card.key.toLowerCase();
 
   if (card.important || key.includes("payment_total") || key.includes("total"))
-    return "dashboard-payment-card-total";
+    return {
+      card: "border-primary/18 bg-gradient-to-br from-primary/7 to-card",
+      icon: "bg-primary/10 text-primary",
+    };
   if (key.includes("debt") || key.includes("balance"))
-    return "dashboard-payment-card-debt";
-  if (key.includes("transfer")) return "dashboard-payment-card-transfer";
-  return "dashboard-payment-card-cash";
+    return {
+      card: "border-destructive/20",
+      icon: "bg-destructive/10 text-destructive",
+      value: "text-destructive",
+    };
+  if (key.includes("transfer"))
+    return { card: "", icon: "bg-muted/34 text-primary" };
+  return { card: "", icon: "bg-primary/7 text-primary" };
 }
 
 function paymentSummaryIcon(card: PaymentSummaryCard) {
@@ -412,7 +417,7 @@ export const DashboardPaymentSummaryStrip = memo(
     if (!cards.length && !mixedDetails.length && !messages.length) return null;
 
     return (
-      <div className="dashboard-payment-summary-stack">
+      <div className="-mt-1 flex flex-col gap-2.5">
         <div
           aria-label={copy.paymentSplit}
           className="grid grid-cols-1 overflow-hidden rounded-xl border border-border md:flex"
@@ -426,14 +431,21 @@ export const DashboardPaymentSummaryStrip = memo(
                 key={card.key}
                 className={cn(
                   "flex-1 min-w-0",
-                  paymentSummaryTone(card),
                   !isLastItem &&
                     "border-b border-border md:border-b-0 md:border-r",
+                  // Tone comes last so its border-color (e.g. border-primary/18 on the
+                  // total card) always wins the tailwind-merge conflict against the
+                  // neutral border-border above — otherwise cards that aren't the last
+                  // item in the row silently lose their tinted border.
+                  paymentSummaryTone(card).card,
                 )}
               >
-                <CardContent className="dashboard-payment-card-content">
+                <CardContent className="flex flex-row items-start justify-between gap-4 px-6 py-5">
                   <div
-                    className="dashboard-payment-card-icon"
+                    className={cn(
+                      "mt-1 flex size-10 items-center justify-center rounded-full [&>svg]:size-[1.1rem]",
+                      paymentSummaryTone(card).icon,
+                    )}
                     aria-hidden="true"
                   >
                     <Icon />
@@ -446,6 +458,7 @@ export const DashboardPaymentSummaryStrip = memo(
                       className={cn(
                         "mt-1 wrap-break-word font-mono font-semibold leading-tight",
                         card.important ? "text-2xl" : "text-xl",
+                        paymentSummaryTone(card).value,
                       )}
                     >
                       {formatKip(card.value)}
@@ -476,75 +489,6 @@ export const ErrorBanner = memo(function ErrorBanner({
   );
 });
 
-export const DashboardQueryBar = memo(function DashboardQueryBar({
-  activeBranchUuid,
-  copy,
-  requestParams,
-}: {
-  activeBranchUuid: string;
-  copy: DashboardCopy;
-  requestParams: Row;
-}) {
-  const [copied, setCopied] = useState(false);
-  const params = [
-    ["branch_uuid_fk", text(requestParams.branch_uuid_fk, activeBranchUuid)],
-    ["start_date", text(requestParams.start_date, "")],
-    ["end_date", text(requestParams.end_date, "")],
-    ["lang", text(requestParams.lang, "")],
-    ["top", text(requestParams.top, "")],
-  ].filter(([, value]) => value);
-  const query = params
-    .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
-    .join("&");
-
-  async function copyQuery() {
-    await navigator.clipboard?.writeText(
-      `/api/v1/dashboard/executive?${query}`,
-    );
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1500);
-  }
-
-  return (
-    <Card className="dashboard-query-card overflow-hidden">
-      <CardContent className="dashboard-query-content flex min-w-0 items-center gap-2 overflow-x-auto p-2 text-xs">
-        <Badge className="shrink-0 border-primary/20 bg-primary/10 px-3 py-1.5 text-primary">
-          <Code2 />
-          {copy.activeQuery}
-        </Badge>
-        {params.map(([key, value]) => (
-          <div
-            key={key}
-            className="dashboard-query-kv flex shrink-0 items-baseline gap-2 border-r border-dashed border-border px-2 last:border-r-0"
-          >
-            <span className="font-bold uppercase tracking-wide text-muted-foreground">
-              {key}
-            </span>
-            <span
-              className={cn(
-                "font-mono font-semibold",
-                key === "branch_uuid_fk" && "text-primary",
-              )}
-            >
-              {value || "-"}
-            </span>
-          </div>
-        ))}
-        <Button
-          className="ml-auto shrink-0"
-          size="sm"
-          variant="outline"
-          type="button"
-          onClick={copyQuery}
-        >
-          <Copy data-icon="inline-start" />
-          {copied ? copy.copied : copy.copyQuery}
-        </Button>
-      </CardContent>
-    </Card>
-  );
-});
-
 export const DashboardWarningBanner = memo(function DashboardWarningBanner({
   copy,
   warnings,
@@ -555,10 +499,10 @@ export const DashboardWarningBanner = memo(function DashboardWarningBanner({
   if (!warnings.length) return null;
 
   return (
-    <Alert className="dashboard-warning-banner border-amber-500/30 bg-amber-500/10 text-amber-700">
+    <Alert className="flex grid-cols-none items-center rounded-[10px] border-warning/45 bg-warning/10 px-3.5 py-3 text-warning">
       <AlertTriangle />
-      <AlertTitle className="font-black">{copy.warnings}</AlertTitle>
-      <AlertDescription className="dashboard-warning-body flex flex-col gap-1 text-foreground">
+      <AlertTitle className="min-w-max font-black text-foreground">{copy.warnings}</AlertTitle>
+      <AlertDescription className="flex flex-1 grid-cols-none items-center justify-between gap-4 text-foreground">
         {warnings.map((warning) => (
           <span key={warning.key}>{warningMessage(copy, warning)}</span>
         ))}
