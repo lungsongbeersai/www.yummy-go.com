@@ -715,7 +715,7 @@ export const DashboardFooter = memo(function DashboardFooter({}: {
   requestParams: Row;
 }) {
   return (
-    <div className="dashboard-footer flex flex-wrap justify-between gap-2 pt-2 text-xs text-muted-foreground">
+    <div className="flex flex-wrap justify-between gap-2 pt-2 text-xs text-muted-foreground/78">
       {/* {activeBranchUuid ? <span>{copy.branch} <span className="font-mono">{activeBranchUuid}</span></span> : null} */}
       {/* {details.length ? <span className="font-mono">{details.join(" / ")}</span> : null} */}
     </div>

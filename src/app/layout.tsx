@@ -6,7 +6,6 @@ import { Providers } from "@/app/providers";
 import { DEFAULT_LANGUAGE, LANGUAGE_COOKIE, toLanguage } from "@/lib/language";
 import { WINDOW_OPEN_FONT_STYLESHEET_HREF } from "@/lib/window-open-fonts";
 import "./globals.css";
-import "@/features/dashboard/overview/dashboard.css";
 
 const notoSansLao = Noto_Sans_Lao({
   subsets: ["lao"],

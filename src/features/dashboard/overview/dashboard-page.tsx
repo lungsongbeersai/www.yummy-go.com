@@ -370,7 +370,7 @@ export function DashboardPage() {
     return <LoadingState label={t("common.loading")} variant="dashboard" />;
 
   return (
-    <div className="dashboard-screen flex flex-col gap-4">
+    <div className="mx-auto flex w-full max-w-[1480px] flex-col gap-4 tabular-nums max-xl:max-w-full">
       <DashboardHeader
         copy={copy}
         filtersMeta={model.filters}
