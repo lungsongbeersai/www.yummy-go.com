@@ -44,6 +44,18 @@ import {
 
 type RevenueChartMode = "orders" | "payments" | "revenue";
 
+// Shared classes for the segmented mode/metric tab groups (revenue/payments/orders,
+// products qty/revenue, pareto metric) so the active-state styling stays in sync
+// across all 7 tab buttons instead of drifting per call site.
+const dashboardTabsWrapperClass = "inline-flex gap-0.5 rounded-lg bg-muted/40 p-0.5";
+
+function dashboardTabButtonClass(active: boolean) {
+  return cn(
+    "h-8 rounded-md border-transparent font-medium shadow-none",
+    active && "border-border bg-card text-primary shadow-sm"
+  );
+}
+
 const toneClasses: Record<Tone, { bar: string; soft: string; text: string }> = {
   primary: {
     bar: "bg-primary",
@@ -234,7 +246,7 @@ export const DashboardRevenueAccountingGrid = memo(function DashboardRevenueAcco
 
   return (
     <div className="grid gap-4 xl:grid-cols-[1.7fr_1fr]">
-      <Card className="overflow-hidden shadow-sm">
+      <Card className="overflow-hidden rounded-xl shadow-sm">
         <CardHeader className={cn(dashboardCardHeaderClass, "flex-row items-center justify-between border-b")}>
           <div className="min-w-0">
             <CardTitle className="truncate text-sm font-semibold">{copy.dailySales}</CardTitle>
@@ -249,10 +261,10 @@ export const DashboardRevenueAccountingGrid = memo(function DashboardRevenueAcco
                 </span>
               ))}
             </div>
-            <div className="inline-flex gap-0.5 rounded-lg bg-muted/40 p-0.5">
-              <Button size="sm" type="button" variant={chartMode === "revenue" ? "outline" : "ghost"} className="h-8 rounded-md border-transparent font-medium shadow-none data-[variant=outline]:border-border data-[variant=outline]:bg-card data-[variant=outline]:text-primary data-[variant=outline]:shadow-sm" onClick={() => setChartMode("revenue")}>{copy.revenue}</Button>
-              <Button size="sm" type="button" variant={chartMode === "payments" ? "outline" : "ghost"} className="h-8 rounded-md border-transparent font-medium shadow-none data-[variant=outline]:border-border data-[variant=outline]:bg-card data-[variant=outline]:text-primary data-[variant=outline]:shadow-sm" onClick={() => setChartMode("payments")}>{copy.payments}</Button>
-              <Button size="sm" type="button" variant={chartMode === "orders" ? "outline" : "ghost"} className="h-8 rounded-md border-transparent font-medium shadow-none data-[variant=outline]:border-border data-[variant=outline]:bg-card data-[variant=outline]:text-primary data-[variant=outline]:shadow-sm" onClick={() => setChartMode("orders")}>{copy.orders}</Button>
+            <div className={dashboardTabsWrapperClass}>
+              <Button size="sm" type="button" variant="ghost" className={dashboardTabButtonClass(chartMode === "revenue")} onClick={() => setChartMode("revenue")}>{copy.revenue}</Button>
+              <Button size="sm" type="button" variant="ghost" className={dashboardTabButtonClass(chartMode === "payments")} onClick={() => setChartMode("payments")}>{copy.payments}</Button>
+              <Button size="sm" type="button" variant="ghost" className={dashboardTabButtonClass(chartMode === "orders")} onClick={() => setChartMode("orders")}>{copy.orders}</Button>
             </div>
           </div>
         </CardHeader>
@@ -267,7 +279,7 @@ export const DashboardRevenueAccountingGrid = memo(function DashboardRevenueAcco
         </CardContent>
       </Card>
 
-      <Card className="overflow-hidden shadow-sm">
+      <Card className="overflow-hidden rounded-xl shadow-sm">
         <CardHeader className={cn(dashboardCardHeaderClass, "flex-row items-center justify-between border-b")}>
           <div>
             <CardTitle className="text-sm font-semibold">{copy.accounting}</CardTitle>
@@ -320,7 +332,7 @@ function ChannelDonutPanel({ copy, rows }: { copy: DashboardCopy; rows: Breakdow
   const config = { value: { label: copy.revenue, color: "hsl(var(--primary))" } } satisfies ChartConfig;
 
   return (
-    <Card className="overflow-hidden shadow-sm">
+    <Card className="overflow-hidden rounded-xl shadow-sm">
       <CardHeader className={cn(dashboardCardHeaderClass, "flex-row items-center justify-between border-b")}>
         <div>
           <CardTitle className="text-sm font-semibold">{copy.orderChannels}</CardTitle>
@@ -388,7 +400,7 @@ function TableStatusPanel({ copy, summary }: { copy: DashboardCopy; summary: Row
   ];
 
   return (
-    <Card className="overflow-hidden shadow-sm">
+    <Card className="overflow-hidden rounded-xl shadow-sm">
       <CardHeader className={cn(dashboardCardHeaderClass, "flex-row items-center justify-between border-b")}>
         <div>
           <CardTitle className="text-sm font-semibold">{copy.tableStatus}</CardTitle>
@@ -473,7 +485,7 @@ function InsightCardsPanel({
   ].filter((card): card is { className: string; label: string; name: string; value: string } => Boolean(card));
 
   return (
-    <Card className="overflow-hidden shadow-sm">
+    <Card className="overflow-hidden rounded-xl shadow-sm">
       <CardHeader className={cn(dashboardCardHeaderClass, "border-b")}>
         <CardTitle className="text-sm font-semibold">{copy.insights}</CardTitle>
       </CardHeader>
@@ -544,16 +556,16 @@ function ProductsTablePanel({
   );
 
   return (
-    <Card className="overflow-hidden shadow-sm">
+    <Card className="overflow-hidden rounded-xl shadow-sm">
       <CardHeader className={cn(dashboardCardHeaderClass, "flex-row items-center justify-between border-b")}>
         <div className="min-w-0">
           <CardTitle className="truncate text-sm font-semibold">{copy.topProducts}</CardTitle>
           <p className="mt-1 truncate text-xs text-muted-foreground">{products.length} {copy.products}</p>
         </div>
         <div className="flex min-w-max shrink-0 items-center gap-2">
-          <div className="inline-flex gap-0.5 rounded-lg bg-muted/40 p-0.5">
-            <Button size="sm" type="button" variant={sortMode === "qty" ? "outline" : "ghost"} className="h-8 rounded-md border-transparent font-medium shadow-none data-[variant=outline]:border-border data-[variant=outline]:bg-card data-[variant=outline]:text-primary data-[variant=outline]:shadow-sm" onClick={() => setSortMode("qty")}>{copy.byQty}</Button>
-            <Button size="sm" type="button" variant={sortMode === "revenue" ? "outline" : "ghost"} className="h-8 rounded-md border-transparent font-medium shadow-none data-[variant=outline]:border-border data-[variant=outline]:bg-card data-[variant=outline]:text-primary data-[variant=outline]:shadow-sm" onClick={() => setSortMode("revenue")}>{copy.byRevenue}</Button>
+          <div className={dashboardTabsWrapperClass}>
+            <Button size="sm" type="button" variant="ghost" className={dashboardTabButtonClass(sortMode === "qty")} onClick={() => setSortMode("qty")}>{copy.byQty}</Button>
+            <Button size="sm" type="button" variant="ghost" className={dashboardTabButtonClass(sortMode === "revenue")} onClick={() => setSortMode("revenue")}>{copy.byRevenue}</Button>
           </div>
           <div className="w-28 shrink-0">
             <Select disabled={loading} value={top} onValueChange={onTopChange}>
@@ -656,15 +668,15 @@ function ParetoPanel({ copy, products }: { copy: DashboardCopy; products: Produc
   } satisfies ChartConfig;
 
   return (
-    <Card className="overflow-hidden shadow-sm">
+    <Card className="overflow-hidden rounded-xl shadow-sm">
       <CardHeader className={cn(dashboardCardHeaderClass, "border-b")}>
         <div className="min-w-0">
           <CardTitle className="text-sm font-semibold">{copy.pareto}</CardTitle>
           <p className="text-xs text-muted-foreground">{copy.paretoHint}</p>
         </div>
-        <div className="inline-flex gap-0.5 rounded-lg bg-muted/40 p-0.5">
-          <Button size="sm" type="button" variant={metric === "revenue" ? "outline" : "ghost"} className="h-8 rounded-md border-transparent font-medium shadow-none data-[variant=outline]:border-border data-[variant=outline]:bg-card data-[variant=outline]:text-primary data-[variant=outline]:shadow-sm" onClick={() => setMetric("revenue")}>{copy.revenue}</Button>
-          <Button size="sm" type="button" variant={metric === "qty" ? "outline" : "ghost"} className="h-8 rounded-md border-transparent font-medium shadow-none data-[variant=outline]:border-border data-[variant=outline]:bg-card data-[variant=outline]:text-primary data-[variant=outline]:shadow-sm" onClick={() => setMetric("qty")}>{copy.qty}</Button>
+        <div className={dashboardTabsWrapperClass}>
+          <Button size="sm" type="button" variant="ghost" className={dashboardTabButtonClass(metric === "revenue")} onClick={() => setMetric("revenue")}>{copy.revenue}</Button>
+          <Button size="sm" type="button" variant="ghost" className={dashboardTabButtonClass(metric === "qty")} onClick={() => setMetric("qty")}>{copy.qty}</Button>
         </div>
       </CardHeader>
       <CardContent className="p-4">

@@ -260,9 +260,12 @@ export const DashboardFilterBar = memo(function DashboardFilterBar({
       <CardContent className="grid grid-cols-[minmax(0,1fr)_max-content] max-md:grid-cols-1 items-end gap-2.5 max-md:gap-2 p-1.5">
         <div
           className={cn(
-            "grid min-w-0 items-stretch gap-2 max-md:grid-cols-1 grid-cols-[minmax(11rem,1.25fr)_minmax(8.5rem,0.85fr)_repeat(2,minmax(9.5rem,1fr))]",
+            // Below md: single column. Between md and the 54rem filter-bar container
+            // width: 2 columns (fields wrap to a second row instead of squeezing/
+            // overflowing). At 54rem+ container width: the full field-per-column layout.
+            "grid min-w-0 items-stretch gap-2 grid-cols-1 md:grid-cols-2 @[54rem]/dashboard-filter:grid-cols-[minmax(11rem,1.25fr)_minmax(8.5rem,0.85fr)_repeat(2,minmax(9.5rem,1fr))]",
             filters.periodType === "yearly" &&
-              "grid-cols-[minmax(11rem,1.25fr)_minmax(8.5rem,0.85fr)_minmax(8.5rem,0.85fr)]",
+              "@[54rem]/dashboard-filter:grid-cols-[minmax(11rem,1.25fr)_minmax(8.5rem,0.85fr)_minmax(8.5rem,0.85fr)]",
           )}
           data-period-type={filters.periodType}
         >
@@ -598,7 +601,7 @@ export const DashboardHeroStrip = memo(function DashboardHeroStrip({
   ];
 
   return (
-    <Card className="overflow-hidden rounded-xl">
+    <Card className="overflow-hidden rounded-xl shadow-sm">
       <div className="grid min-h-35 md:grid-cols-2 xl:grid-cols-[1.45fr_repeat(3,minmax(0,1fr))]">
         {metrics.map((metric, index) => (
           <div
@@ -661,7 +664,7 @@ function DashboardChartFallbackCard({
   rows?: number;
 }) {
   return (
-    <Card className={cn("overflow-hidden shadow-sm", className)}>
+    <Card className={cn("overflow-hidden rounded-xl shadow-sm", className)}>
       <CardHeader className={cn(dashboardCardHeaderClass, "border-b")}>
         <Skeleton className="h-4 w-36" />
         <Skeleton className="mt-2 h-3 w-48" />
