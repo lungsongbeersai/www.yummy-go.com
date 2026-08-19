@@ -376,27 +376,25 @@ export function DashboardPage() {
         filtersMeta={model.filters}
         section={model.section}
       />
-      <div className="dashboard-filter-slot">
-        <div className="dashboard-filter-lock">
-          <DashboardFilterBar
-            activeBranchUuid={activeBranchUuid}
-            branchLoading={branchLoading}
-            branchOptions={branchOptions}
-            copy={copy}
-            filters={filters}
-            loading={loading}
-            monthOptions={monthOptions}
-            onApply={handleApply}
-            onBranchChange={setSelectedBranch}
-            onFilterChange={handleFilterChange}
-            onPeriodMonthChange={handlePeriodMonthChange}
-            onPeriodTypeChange={handlePeriodTypeChange}
-            onPeriodYearChange={handlePeriodYearChange}
-            onReset={handleReset}
-            periodTypeOptions={periodTypeOptions}
-            yearOptions={yearOptions}
-          />
-        </div>
+      <div className="lg:sticky lg:z-[35] lg:top-[calc(var(--app-shell-header-height)+0.75rem)]">
+        <DashboardFilterBar
+          activeBranchUuid={activeBranchUuid}
+          branchLoading={branchLoading}
+          branchOptions={branchOptions}
+          copy={copy}
+          filters={filters}
+          loading={loading}
+          monthOptions={monthOptions}
+          onApply={handleApply}
+          onBranchChange={setSelectedBranch}
+          onFilterChange={handleFilterChange}
+          onPeriodMonthChange={handlePeriodMonthChange}
+          onPeriodTypeChange={handlePeriodTypeChange}
+          onPeriodYearChange={handlePeriodYearChange}
+          onReset={handleReset}
+          periodTypeOptions={periodTypeOptions}
+          yearOptions={yearOptions}
+        />
       </div>
       <DashboardPaymentSummaryStrip
         cards={model.paymentSummaryCards}

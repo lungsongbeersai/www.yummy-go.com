@@ -89,12 +89,12 @@ const SelectControl = memo(function SelectControl({
   value: string;
 }) {
   return (
-    <Field className="dashboard-filter-field min-w-0">
+    <Field className="min-h-[3.4rem] min-w-0 gap-0.5 rounded-[0.55rem] border border-border bg-muted/35 px-2.5 pb-1 pt-1.5 hover:border-border/90 dark:bg-muted/42">
       <FieldLabel className="text-[11px] font-bold text-muted-foreground">
         {label}
       </FieldLabel>
       <Select disabled={disabled} value={value} onValueChange={onChange}>
-        <SelectTrigger className="w-full text-[13px] font-semibold">
+        <SelectTrigger className="h-7 w-full min-w-0 border-transparent bg-transparent px-0 font-mono text-[13px] font-semibold shadow-none hover:bg-transparent data-[state=open]:bg-transparent max-md:min-h-[2.35rem]">
           <SelectValue placeholder={label} />
         </SelectTrigger>
         <SelectContent position="popper">
@@ -123,7 +123,7 @@ const DateControl = memo(function DateControl({
   value: string;
 }) {
   return (
-    <Field className="dashboard-filter-field min-w-0">
+    <Field className="min-h-[3.4rem] min-w-0 gap-0.5 rounded-[0.55rem] border border-border bg-muted/35 px-2.5 pb-1 pt-1.5 hover:border-border/90 dark:bg-muted/42">
       <FieldLabel
         className="text-[11px] font-bold text-muted-foreground"
         htmlFor={name}
@@ -215,7 +215,7 @@ export const DashboardHeader = memo(function DashboardHeader({
   ].filter(Boolean);
 
   return (
-    <div className="dashboard-page-head flex flex-wrap items-end justify-between gap-4">
+    <div className="flex flex-wrap items-end justify-between gap-4 px-0.5">
       <div className="min-w-0 flex-1">
         <h1 className="text-2xl font-semibold leading-tight tracking-normal md:text-[1.65rem]">
           {sectionTitle}
@@ -257,10 +257,14 @@ export const DashboardFilterBar = memo(function DashboardFilterBar({
   yearOptions,
 }: FilterBarProps) {
   return (
-    <Card className="dashboard-filter-card border-border bg-card shadow-sm">
-      <CardContent className="dashboard-filter-content">
+    <Card className="@container/dashboard-filter z-[15] rounded-xl border-border bg-card/94 shadow-md backdrop-blur-md">
+      <CardContent className="grid grid-cols-[minmax(0,1fr)_max-content] max-md:grid-cols-1 items-end gap-2.5 max-md:gap-2 p-1.5">
         <div
-          className="dashboard-filter-selects"
+          className={cn(
+            "grid min-w-0 items-stretch gap-2 max-md:grid-cols-1 grid-cols-[minmax(11rem,1.25fr)_minmax(8.5rem,0.85fr)_repeat(2,minmax(9.5rem,1fr))]",
+            filters.periodType === "yearly" &&
+              "grid-cols-[minmax(11rem,1.25fr)_minmax(8.5rem,0.85fr)_minmax(8.5rem,0.85fr)]",
+          )}
           data-period-type={filters.periodType}
         >
           <SelectControl
@@ -317,7 +321,7 @@ export const DashboardFilterBar = memo(function DashboardFilterBar({
             />
           ) : null}
         </div>
-        <div className="dashboard-filter-actions">
+        <div className="flex min-w-max items-center justify-end gap-2 max-md:justify-stretch *:whitespace-nowrap max-md:*:flex-1 max-md:*:w-full">
           <Button
             type="button"
             variant="outline"
