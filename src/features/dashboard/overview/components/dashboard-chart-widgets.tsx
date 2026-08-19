@@ -23,7 +23,7 @@ import { Empty, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empt
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
-import type { DashboardCopy } from "./dashboard-widgets";
+import { type DashboardCopy, dashboardCardHeaderClass } from "./dashboard-widgets";
 import type {
   AccountingRow,
   BreakdownRow,
@@ -187,7 +187,7 @@ function DashboardRevenueChart({
   const isOrders = mode === "orders";
 
   return (
-    <ChartContainer config={config} className="dashboard-main-chart  w-full">
+    <ChartContainer config={config} className="w-full overflow-visible">
       <ComposedChart data={chartRows} margin={{ bottom: 0, left: 0, right: 0, top: 14 }}>
         <CartesianGrid vertical={false} strokeDasharray="2 4" />
         <XAxis dataKey="label" axisLine={false} tickLine={false} minTickGap={16} />
@@ -233,15 +233,15 @@ export const DashboardRevenueAccountingGrid = memo(function DashboardRevenueAcco
   ];
 
   return (
-    <div className="dashboard-revenue-grid grid gap-4 xl:grid-cols-[1.7fr_1fr]">
-      <Card className="dashboard-card dashboard-chart-card overflow-hidden">
-        <CardHeader className="dashboard-card-header flex-row items-center justify-between border-b px-4 py-3">
+    <div className="grid gap-4 xl:grid-cols-[1.7fr_1fr]">
+      <Card className="overflow-hidden shadow-sm">
+        <CardHeader className={cn(dashboardCardHeaderClass, "flex-row items-center justify-between border-b")}>
           <div className="min-w-0">
             <CardTitle className="truncate text-sm font-semibold">{copy.dailySales}</CardTitle>
             <p className="mt-1 truncate text-xs text-muted-foreground">{copy.dailySalesSubtitle}</p>
           </div>
-          <div className="dashboard-chart-tools flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-            <div className="dashboard-chart-legend flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center justify-end gap-3 text-xs text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-3">
               {legendItems.map((item) => (
                 <span key={item.label} className="inline-flex items-center gap-1.5">
                   <span className={cn("size-2 rounded-sm", item.className)} />
@@ -249,14 +249,14 @@ export const DashboardRevenueAccountingGrid = memo(function DashboardRevenueAcco
                 </span>
               ))}
             </div>
-            <div className="dashboard-chart-tabs">
-              <Button size="sm" type="button" variant={chartMode === "revenue" ? "outline" : "ghost"} onClick={() => setChartMode("revenue")}>{copy.revenue}</Button>
-              <Button size="sm" type="button" variant={chartMode === "payments" ? "outline" : "ghost"} onClick={() => setChartMode("payments")}>{copy.payments}</Button>
-              <Button size="sm" type="button" variant={chartMode === "orders" ? "outline" : "ghost"} onClick={() => setChartMode("orders")}>{copy.orders}</Button>
+            <div className="inline-flex gap-0.5 rounded-lg bg-muted/40 p-0.5">
+              <Button size="sm" type="button" variant={chartMode === "revenue" ? "outline" : "ghost"} className="h-8 rounded-md border-transparent font-medium shadow-none data-[variant=outline]:border-border data-[variant=outline]:bg-card data-[variant=outline]:text-primary data-[variant=outline]:shadow-sm" onClick={() => setChartMode("revenue")}>{copy.revenue}</Button>
+              <Button size="sm" type="button" variant={chartMode === "payments" ? "outline" : "ghost"} className="h-8 rounded-md border-transparent font-medium shadow-none data-[variant=outline]:border-border data-[variant=outline]:bg-card data-[variant=outline]:text-primary data-[variant=outline]:shadow-sm" onClick={() => setChartMode("payments")}>{copy.payments}</Button>
+              <Button size="sm" type="button" variant={chartMode === "orders" ? "outline" : "ghost"} className="h-8 rounded-md border-transparent font-medium shadow-none data-[variant=outline]:border-border data-[variant=outline]:bg-card data-[variant=outline]:text-primary data-[variant=outline]:shadow-sm" onClick={() => setChartMode("orders")}>{copy.orders}</Button>
             </div>
           </div>
         </CardHeader>
-        <CardContent className="dashboard-chart-body p-3">
+        <CardContent className="px-3 pt-2 pb-3.5">
           <DashboardRevenueChart
             copy={copy}
             mode={chartMode}
@@ -267,8 +267,8 @@ export const DashboardRevenueAccountingGrid = memo(function DashboardRevenueAcco
         </CardContent>
       </Card>
 
-      <Card className="dashboard-card dashboard-ledger-card overflow-hidden">
-        <CardHeader className="dashboard-card-header flex-row items-center justify-between border-b px-4 py-3">
+      <Card className="overflow-hidden shadow-sm">
+        <CardHeader className={cn(dashboardCardHeaderClass, "flex-row items-center justify-between border-b")}>
           <div>
             <CardTitle className="text-sm font-semibold">{copy.accounting}</CardTitle>
             <p className="mt-1 text-xs text-muted-foreground">{copy.ledger}</p>
@@ -281,8 +281,8 @@ export const DashboardRevenueAccountingGrid = memo(function DashboardRevenueAcco
                 <div
                   key={row.key}
                   className={cn(
-                    "dashboard-ledger-row flex items-center justify-between gap-3 border-b border-dashed py-2 text-sm last:border-b-0",
-                    row.important && "dashboard-ledger-total mt-2 rounded-md border border-border bg-primary/10 px-3 font-semibold"
+                    "flex items-center justify-between gap-3 border-b border-dashed border-border py-2.5 text-sm last:border-b-0",
+                    row.important && "-mx-1 mt-2 rounded-md border border-primary/14 bg-primary/7 px-3 font-semibold"
                   )}
                 >
                   <span className="min-w-0 truncate text-muted-foreground">{row.label}</span>
