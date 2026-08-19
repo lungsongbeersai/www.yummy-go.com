@@ -155,7 +155,7 @@ function SparkPreview({
   primary?: boolean;
   values: number[];
 }) {
-  if (!values.length) return <div className="dashboard-spark-empty" />;
+  if (!values.length) return <div className="h-8.5" />;
   const max = Math.max(1, ...values);
   const width = 150;
   const height = 34;
@@ -171,8 +171,8 @@ function SparkPreview({
     <svg
       aria-hidden
       className={cn(
-        "dashboard-spark dashboard-spark-line",
-        primary && "dashboard-spark-line-primary",
+        "mt-3.5 h-8.5 w-full text-primary",
+        primary && "text-primary-foreground/72",
       )}
       viewBox={`0 0 ${width} ${height}`}
       preserveAspectRatio="none"
@@ -596,15 +596,18 @@ export const DashboardHeroStrip = memo(function DashboardHeroStrip({
   ];
 
   return (
-    <Card className="dashboard-hero-card overflow-hidden">
-      <div className="dashboard-hero-grid grid md:grid-cols-2 xl:grid-cols-[1.45fr_repeat(3,minmax(0,1fr))]">
-        {metrics.map((metric) => (
+    <Card className="overflow-hidden rounded-xl">
+      <div className="grid min-h-35 md:grid-cols-2 xl:grid-cols-[1.45fr_repeat(3,minmax(0,1fr))]">
+        {metrics.map((metric, index) => (
           <div
             key={metric.label}
             className={cn(
-              "dashboard-hero-kpi min-w-0 p-4",
+              "min-w-0 max-md:min-h-32 border-border p-4.5 pb-4",
+              index === 0 ? "border-t-0" : "border-t",
+              "md:border-t md:[&:nth-child(-n+2)]:border-t-0 md:[&:nth-child(2n)]:border-l",
+              "xl:border-t-0 xl:[&:nth-child(n+2)]:border-l xl:[&:nth-child(n+5)]:border-t",
               metric.primary &&
-                "dashboard-hero-kpi-primary relative overflow-hidden bg-primary text-primary-foreground xl:row-span-2",
+                "relative overflow-hidden bg-gradient-to-br from-primary to-primary/80 text-primary-foreground xl:row-span-2",
               !metric.primary && "bg-card",
             )}
           >
@@ -618,13 +621,10 @@ export const DashboardHeroStrip = memo(function DashboardHeroStrip({
             >
               {metric.label}
             </p>
-            <p
-              className={cn(
-                "mt-2 truncate font-mono text-2xl font-semibold",
-                metric.rose && "text-destructive",
-              )}
-            >
-              {metric.value}
+            <p className="mt-2.5 truncate font-mono text-2xl leading-tight font-semibold tracking-tight md:text-[1.7rem]">
+              <span className={cn(metric.rose && "text-destructive")}>
+                {metric.value}
+              </span>
             </p>
             <p
               className={cn(
