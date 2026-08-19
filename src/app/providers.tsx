@@ -195,6 +195,8 @@ export function Providers({ children, initialLanguage }: ProvidersProps) {
       void i18n.changeLanguage(language);
     }
     document.documentElement.lang = language;
+    document.documentElement.classList.toggle("font-lao", language === "la");
+    document.documentElement.classList.toggle("font-sans", language !== "la");
     document.cookie = `${LANGUAGE_COOKIE}=${language}; path=/; max-age=31536000; samesite=lax`;
   }, [hydrated, language, mounted]);
 

@@ -289,7 +289,7 @@ export function SettingsToolbar({ state }: { state: SettingsToolbarState }) {
         <Button
           aria-label={searchLabel}
           className={cn("shrink-0 rounded-none border-y-0 border-r-0", isMobile ? "h-10 px-3" : "h-8 px-3")}
-          size={isMobile ? "md" : "sm"}
+          size={isMobile ? "default" : "sm"}
           type="button"
           variant="outline"
           onClick={state.onApply}
@@ -440,7 +440,7 @@ export function SettingsMobileCard({
           aria-label={selectLabel}
           checked={checked}
           className="mt-1"
-          onChange={(event) => onCheckedChange?.(event.target.checked)}
+          onCheckedChange={(checked) => onCheckedChange?.(checked as boolean)}
         />
       ) : null}
       {leading ? <div className="shrink-0">{leading}</div> : null}
@@ -539,7 +539,7 @@ export function SettingsRowActions<T>({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button aria-label={t("common.actions")} size="iconSm" type="button" variant="ghost">
+        <Button aria-label={t("common.actions")} size="icon-sm" type="button" variant="ghost">
           <Menu />
         </Button>
       </DropdownMenuTrigger>

@@ -6,7 +6,7 @@ import { Button, type ButtonProps } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAppStore } from "@/stores/app-store";
 
-type ThemeToggleProps = Pick<ButtonProps, "className" | "size" | "variant">;
+type ThemeToggleProps = Partial<Pick<ButtonProps, "className" | "size" | "variant">>;
 
 export function ThemeToggle({ className, size = "icon", variant = "outline" }: ThemeToggleProps = {}) {
   const { t } = useTranslation();

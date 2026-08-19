@@ -38,7 +38,8 @@ Act as a senior product engineer and technical peer, not a code generator that a
 - **TypeScript**: never `any`; `interface` for props/models; `type` for unions/aliases; `as const` over enums.
 - **Next.js**: route files under `src/app/` stay thin — they only render a feature component; use `next/image`, `next/link`, `next/font`, and the Metadata API. All data access goes through the service layer — do not add Server Actions or ad-hoc fetching in components (the app talks to an external backend; the Next server is a thin shell built with `output: "standalone"` for the SSR deploy and the packaged Electron runtime — keep it stateless).
 - **Zustand**: one store per domain; actions live in the store; components call store actions, never services directly.
-- **UI**: shadcn/ui first — install missing official components rather than hand-rolling; preserve dark mode in everything you touch; use skeleton loading states; use AlertDialog for destructive actions.
+- **UI**: shadcn/ui first — check `src/components/ui/` before writing custom markup; add missing components with `npx shadcn@latest add <component>` (see [ui.shadcn.com](https://ui.shadcn.com/)); preserve dark mode in everything you touch; use skeleton loading states; use AlertDialog for destructive actions.
+- **Design system**: use shadcn/ui components and built-in variants before Tailwind; use semantic Tailwind utilities only for layout, responsive behavior, or composition shadcn does not provide; never add raw colors, arbitrary font families, or custom CSS without a platform, print, motion, or browser limitation. `components.json`, `src/app/globals.css`, `src/design-system/config.ts`, and `src/design-system/fonts.ts` are the sources of truth; fonts use `next/font`. For visual preset changes, inspect first and use `pnpm dlx shadcn@latest apply --preset <preset-code> --only theme,font`; a full apply requires an approved component API migration.
 - **Feature folders**: `src/features/<domain>/<screen>/` stays flat until it exceeds ~8 files, then split into `components/` and `hooks/` (see `public-pos/order` for the reference shape). Import via the `@/` alias; avoid `../` imports that cross feature boundaries.
 - **Routing/auth**: `typedRoutes` is on — runtime-sourced paths go through `internalRoute()` (src/lib/routes.ts), never raw `as Route` casts at call sites. Auth is intentionally client-side (localStorage token + `AuthGuard`); there is no proxy file, and if one is ever needed it must be Next 16's `proxy.ts` (middleware.ts is deprecated).
 
@@ -51,6 +52,9 @@ Act as a senior product engineer and technical peer, not a code generator that a
 - `npm test` — Vitest, runs all `src/**/*.test.ts`
 - `npx vitest run src/services/report.test.ts` — run a single test file
 - `npm run build` — production Next.js build
+- `npx shadcn@latest add <component>` — install shadcn/ui components into `src/components/ui/` (run without args to list available components)
+- `npx shadcn@latest search` — search component registries
+- `npx shadcn@latest docs <component>` — get docs and example URLs for a component
 
 Tests are colocated `.test.ts` files (node environment, globals enabled). They cover pure logic only — services, store helpers, validators — not components.
 

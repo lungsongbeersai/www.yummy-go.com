@@ -142,7 +142,7 @@ export function AppPagination({
                 <PaginationItem key={item} className="hidden sm:flex">
                   <Button
                     type="button"
-                    size="iconSm"
+                    size="icon-sm"
                     variant="ghost"
                     className={cn(
                       CONTROL_CELL,
@@ -201,7 +201,7 @@ function PaginationAction({
   return (
     <Button
       type="button"
-      size="iconSm"
+      size="icon-sm"
       className={cn(CONTROL_CELL, "text-muted-foreground")}
       aria-label={label}
       disabled={disabled}

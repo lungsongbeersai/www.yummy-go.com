@@ -204,7 +204,7 @@ function DashboardRevenueChart({
         <CartesianGrid vertical={false} strokeDasharray="2 4" />
         <XAxis dataKey="label" axisLine={false} tickLine={false} minTickGap={16} />
         <YAxis axisLine={false} tickLine={false} tickFormatter={isOrders ? (value) => formatNumber(value) : formatKip} width={isOrders ? 42 : 96} />
-        <Tooltip content={<ChartTooltipContent valueFormatter={(value, name) => name === copy.orders ? formatNumber(value) : formatKip(value)} />} />
+        <Tooltip content={<ChartTooltipContent formatter={(value, name) => name === copy.orders ? formatNumber(value) : formatKip(value)} />} />
         {mode === "payments" ? (
           <>
             <Bar dataKey="cash" stackId="payments" fill="var(--color-cash)" radius={[2, 2, 0, 0]} barSize={10} />
@@ -688,7 +688,7 @@ function ParetoPanel({ copy, products }: { copy: DashboardCopy; products: Produc
                 <XAxis dataKey="label" angle={-30} textAnchor="end" height={62} interval={0} tickLine={false} axisLine={false} tick={{ fontSize: 10 }} />
                 <YAxis yAxisId="money" axisLine={false} tickLine={false} tickFormatter={metric === "revenue" ? formatKip : formatNumber} width={metric === "revenue" ? 96 : 42} />
                 <YAxis yAxisId="percent" orientation="right" axisLine={false} tickLine={false} tickFormatter={(value) => `${value}%`} width={36} />
-                <Tooltip content={<ChartTooltipContent valueFormatter={(value, name) => name === copy.cumulativePercent ? `${formatNumber(value, 1)}%` : metricFormatter(value)} />} />
+                <Tooltip content={<ChartTooltipContent formatter={(value, name) => name === copy.cumulativePercent ? `${formatNumber(value, 1)}%` : metricFormatter(value)} />} />
                 <Bar yAxisId="money" dataKey={metric === "revenue" ? "revenue" : "qty"} fill="var(--color-value)" radius={[2, 2, 0, 0]} />
                 <Line yAxisId="percent" dataKey="cumulativePercent" type="monotone" stroke="var(--color-cumulativePercent)" strokeWidth={2} dot={{ r: 3 }} />
               </ComposedChart>

@@ -174,7 +174,7 @@ export function TableFormDialog({
                           aria-label={t("settings.tableChargeTooltip")}
                           className="size-6 rounded-full text-muted-foreground hover:bg-muted"
                           disabled={saving}
-                          size="iconSm"
+                          size="icon-sm"
                           type="button"
                           variant="ghost"
                         >

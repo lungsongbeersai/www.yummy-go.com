@@ -513,7 +513,7 @@ function CartItemActionMenu({
         <Button
           aria-label={t("common.actions")}
           type="button"
-          size="iconSm"
+          size="icon-sm"
           variant="ghost"
           className="size-8 shrink-0 rounded-full text-muted-foreground hover:bg-muted"
           disabled={disabled || pending}
@@ -707,7 +707,7 @@ function CartQuantityStepper({
       <Button
         aria-label={`${t("pos.qty")} -`}
         type="button"
-        size="iconSm"
+        size="icon-sm"
         variant="ghost"
         className={cn(
           "rounded-full text-muted-foreground hover:bg-muted",
@@ -721,7 +721,7 @@ function CartQuantityStepper({
       <Button
         aria-label={t("pos.editQuantity")}
         type="button"
-        size="iconSm"
+        size="icon-sm"
         variant="ghost"
         className={cn(
           "min-w-7 rounded-full px-1 text-center font-black text-foreground tabular-nums hover:bg-muted",
@@ -735,7 +735,7 @@ function CartQuantityStepper({
       <Button
         aria-label={`${t("pos.qty")} +`}
         type="button"
-        size="iconSm"
+        size="icon-sm"
         variant="ghost"
         className={cn(
           "rounded-full text-muted-foreground hover:bg-muted",

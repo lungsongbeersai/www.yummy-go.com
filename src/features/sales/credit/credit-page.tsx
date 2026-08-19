@@ -542,7 +542,7 @@ function CreditBillsTable(props: CreditBillsTableProps) {
             <TableRow>
               <TableHead className="w-12">
                 {props.mode === "multiple" ? (
-                  <Checkbox disabled={props.disabled} checked={allSelected} onChange={(event) => props.onSelectAll(event.target.checked)} aria-label={props.t("credit.selectAll")} />
+                  <Checkbox disabled={props.disabled} checked={allSelected} onCheckedChange={(checked) => props.onSelectAll(checked as boolean)} aria-label={props.t("credit.selectAll")} />
                 ) : null}
               </TableHead>
               <TableHead>{props.t("credit.invoice")}</TableHead>
@@ -564,7 +564,7 @@ function CreditBillsTable(props: CreditBillsTableProps) {
               return (
                 <TableRow key={bill.payment_uuid} data-state={selected ? "selected" : undefined}>
                   <TableCell>
-                    <Checkbox disabled={props.disabled} checked={selected} onChange={(event) => props.onSelect(bill, event.target.checked)} aria-label={`${props.t("credit.invoice")} ${bill.invoice_no}`} />
+                    <Checkbox disabled={props.disabled} checked={selected} onCheckedChange={(checked) => props.onSelect(bill, checked as boolean)} aria-label={`${props.t("credit.invoice")} ${bill.invoice_no}`} />
                   </TableCell>
                   <TableCell className="font-bold">{bill.invoice_no || "-"}</TableCell>
                   <TableCell>{dateLabel(bill.sale_date)}</TableCell>

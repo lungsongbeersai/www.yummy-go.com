@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { Check, Pencil, Plus, RefreshCcw, Save, Search, Trash2 } from "lucide-react";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
@@ -163,7 +163,7 @@ export function ProductFormToppingsSection({ form }: { form: ProductFormWorkflow
                           <Checkbox
                             aria-label={label}
                             checked={Boolean(selected)}
-                            onChange={(event) => toggleTopping(uuid, event.target.checked)}
+                            onCheckedChange={(checked) => toggleTopping(uuid, checked as boolean)}
                           />
                           <FieldContent className="min-w-0">
                             <FieldLabel className="truncate">
@@ -307,7 +307,7 @@ export function ProductFormToppingsSection({ form }: { form: ProductFormWorkflow
                           {selected ? <Badge className="shrink-0">{selected.topping_price || "0"}</Badge> : null}
                           <Button
                             type="button"
-                            size="iconSm"
+                            size="icon-sm"
                             variant="ghost"
                             aria-label={t("actions.edit")}
                             onClick={() => editTopping(topping)}
@@ -316,7 +316,7 @@ export function ProductFormToppingsSection({ form }: { form: ProductFormWorkflow
                           </Button>
                           <Button
                             type="button"
-                            size="iconSm"
+                            size="icon-sm"
                             variant="ghost"
                             className="text-destructive hover:text-destructive"
                             aria-label={t("actions.delete")}

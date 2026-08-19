@@ -233,7 +233,7 @@ function DetailTitleRow({
           {reprintingReceipt ? <Spinner data-icon="inline-start" /> : <Printer data-icon="inline-start" />}
           <span className="truncate">{reprintingReceipt ? t("cancelSale.reprintingReceipt") : t("cancelSale.reprintReceipt")}</span>
         </Button>
-        <Button className="w-full min-w-0 shrink-0" disabled={!bill || !canCancel || loading} size="sm" type="button" variant="danger" onClick={onCancel}>
+        <Button className="w-full min-w-0 shrink-0" disabled={!bill || !canCancel || loading} size="sm" type="button" variant="destructive" onClick={onCancel}>
           <Ban data-icon="inline-start" />
           <span className="truncate">{t("cancelSale.cancelBill")}</span>
         </Button>

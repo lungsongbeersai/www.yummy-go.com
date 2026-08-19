@@ -66,7 +66,7 @@ export function ReportPageShell({
     <Button
       type="button"
       variant="outline"
-      size="iconSm"
+      size="icon-sm"
       className="h-9 w-9 shrink-0"
       aria-label={t("report.filters.openFilters")}
       disabled={controlsDisabled}
@@ -81,7 +81,7 @@ export function ReportPageShell({
     <Button
       type="button"
       variant="outline"
-      size="iconSm"
+      size="icon-sm"
       className="h-9 w-9 shrink-0"
       aria-label={t("actions.refresh")}
       disabled={controlsDisabled}
@@ -96,7 +96,7 @@ export function ReportPageShell({
     <Button
       type="button"
       variant="outline"
-      size="iconSm"
+      size="icon-sm"
       className="h-9 w-9 shrink-0"
       aria-controls={summaryCardsId}
       aria-expanded={summaryVisible}

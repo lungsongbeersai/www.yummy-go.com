@@ -254,7 +254,7 @@ export function PrinterPage() {
 
             <Button
               className="h-9 w-9 shrink-0"
-              size="iconSm"
+              size="icon-sm"
               variant="outline"
               aria-label={t("actions.refresh")}
               onClick={printer.load}

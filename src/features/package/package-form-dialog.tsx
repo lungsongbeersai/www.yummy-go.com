@@ -609,7 +609,7 @@ function PackageDetailDraftRow({
       <div className="flex flex-wrap items-center justify-end gap-1">
         <Button
           type="button"
-          size="iconSm"
+          size="icon-sm"
           variant="ghost"
           className="size-11"
           aria-label={`${t("packageManagement.moveUp")} ${rowLabel}`}
@@ -621,7 +621,7 @@ function PackageDetailDraftRow({
         </Button>
         <Button
           type="button"
-          size="iconSm"
+          size="icon-sm"
           variant="ghost"
           className="size-11"
           aria-label={`${t("packageManagement.moveDown")} ${rowLabel}`}
@@ -633,7 +633,7 @@ function PackageDetailDraftRow({
         </Button>
         <Button
           type="button"
-          size="iconSm"
+          size="icon-sm"
           variant="ghost"
           className="size-11 text-destructive"
           aria-label={`${t("packageManagement.removeDetail")} ${rowLabel}`}

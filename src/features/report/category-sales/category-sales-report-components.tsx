@@ -292,9 +292,7 @@ export function CategorySalesTable({
                 aria-label={t("common.selectAll")}
                 checked={allVisibleSelected}
                 indeterminate={!allVisibleSelected && someVisibleSelected}
-                onChange={(event) =>
-                  onToggleRows(visibleRows, event.target.checked)
-                }
+                onCheckedChange={(checked) => onToggleRows(visibleRows, checked as boolean)}
               />
             </TableHead>
             <SortableReportTableHead
@@ -405,9 +403,7 @@ export function CategorySalesTable({
                           selectedRowIds,
                         ).someVisibleSelected
                       }
-                      onChange={(event) =>
-                        onToggleRows(group.rows, event.target.checked)
-                      }
+                      onCheckedChange={(checked) => onToggleRows(group.rows, checked as boolean)}
                     />
                   </TableCell>
                   <TableCell colSpan={9} className="py-3">
@@ -443,9 +439,7 @@ export function CategorySalesTable({
                                 name: row.productName,
                               })}
                               checked={selectedRowIds.has(categorySalesRowId(row))}
-                              onChange={(event) =>
-                                onToggleRow(row, event.target.checked)
-                              }
+                              onCheckedChange={(checked) => onToggleRow(row, checked as boolean)}
                             />
                           </TableCell>
                           <TableCell>
@@ -572,9 +566,7 @@ export function CategorySalesMobileList({
                     selectedRowIds,
                   ).someVisibleSelected
                 }
-                onChange={(event) =>
-                  onToggleRows(group.rows, event.target.checked)
-                }
+                onCheckedChange={(checked) => onToggleRows(group.rows, checked as boolean)}
               />
               <div className="min-w-0 flex-1">
                 <h3 className="truncate text-sm font-black">
@@ -606,7 +598,7 @@ export function CategorySalesMobileList({
                     })}
                     className="mt-0.5"
                     checked={selectedRowIds.has(categorySalesRowId(row))}
-                    onChange={(event) => onToggleRow(row, event.target.checked)}
+                    onCheckedChange={(checked) => onToggleRow(row, checked as boolean)}
                   />
                   <div className="min-w-0 flex-1">
                   <div className="min-w-0">
@@ -873,3 +865,5 @@ export function CategorySalesExportSurface({
     </div>
   );
 }
+
+

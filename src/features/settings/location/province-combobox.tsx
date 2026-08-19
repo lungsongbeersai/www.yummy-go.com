@@ -78,7 +78,6 @@ export function ProvinceCombobox({
         <PopoverContent
           align="start"
           className="w-[var(--radix-popover-trigger-width)] overflow-hidden p-0"
-          portalled={false}
           side="bottom"
           sideOffset={6}
           onTouchMove={(event) => event.stopPropagation()}

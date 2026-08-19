@@ -158,7 +158,7 @@ export function CartGroup({
           <AlertDialogFooter>
             <AlertDialogCancel>{t("actions.cancel")}</AlertDialogCancel>
             <AlertDialogAction
-              variant="danger"
+              variant="destructive"
               onClick={() => {
                 if (deleteTarget) onDeleteItem(deleteTarget.uuid);
                 setDeleteTarget(null);

@@ -375,7 +375,7 @@ function SortableMainMenuCard({
         aria-label={t("permissionMenu.reorderMain")}
         className="cursor-grab active:cursor-grabbing"
         disabled={sortDisabled}
-        size="iconSm"
+        size="icon-sm"
         type="button"
         variant="ghost"
         {...attributes}
@@ -461,7 +461,7 @@ function SortableSubMenuCard({
         aria-label={t("permissionMenu.reorderSub")}
         className="cursor-grab active:cursor-grabbing"
         disabled={busy}
-        size="iconSm"
+        size="icon-sm"
         type="button"
         variant="ghost"
         {...attributes}
@@ -492,7 +492,7 @@ function SortableSubMenuCard({
         <Button
           aria-label={t("permissionMenu.editSub")}
           disabled={busy}
-          size="iconSm"
+          size="icon-sm"
           type="button"
           variant="ghost"
           onClick={() => onEdit(menu, submenu)}
@@ -503,7 +503,7 @@ function SortableSubMenuCard({
           aria-label={t("permissionMenu.deleteSub")}
           className="text-destructive hover:text-destructive"
           disabled={busy}
-          size="iconSm"
+          size="icon-sm"
           type="button"
           variant="ghost"
           onClick={() => onDelete(menu, submenu)}
@@ -535,7 +535,7 @@ function ReorderButtons({
       <Button
         aria-label={t("permissionMenu.moveUp", { title: itemTitle })}
         disabled={busy || isFirst}
-        size="iconSm"
+        size="icon-sm"
         type="button"
         variant="ghost"
         onClick={() => onMove("up")}
@@ -545,7 +545,7 @@ function ReorderButtons({
       <Button
         aria-label={t("permissionMenu.moveDown", { title: itemTitle })}
         disabled={busy || isLast}
-        size="iconSm"
+        size="icon-sm"
         type="button"
         variant="ghost"
         onClick={() => onMove("down")}

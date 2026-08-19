@@ -140,7 +140,7 @@ export function CustomerSettingsPage({ initialPagination }: { initialPagination:
         <TableHeader className="sticky top-0 z-10 bg-muted/95 backdrop-blur">
           <TableRow>
             <TableHead className="w-10 px-2">
-              <Checkbox aria-label={t("common.selectAll")} checked={allSelected} onChange={(event) => toggleAll(event.target.checked)} />
+              <Checkbox aria-label={t("common.selectAll")} checked={allSelected} onCheckedChange={(checked) => toggleAll(checked as boolean)} />
             </TableHead>
             <TableHead className="w-px whitespace-nowrap px-2 text-center">{t("fields.no")}</TableHead>
             <TableHead>{t("nav.customer")}</TableHead>
@@ -158,7 +158,7 @@ export function CustomerSettingsPage({ initialPagination }: { initialPagination:
             return (
               <TableRow key={id || index} className="h-14" data-state={selected ? "selected" : undefined}>
                 <TableCell className="w-10 px-2">
-                  <Checkbox aria-label={t("common.selectRow", { name })} checked={selected} onChange={(event) => toggleSelected(id, event.target.checked)} />
+                  <Checkbox aria-label={t("common.selectRow", { name })} checked={selected} onCheckedChange={(checked) => toggleSelected(id, checked as boolean)} />
                 </TableCell>
                 <TableCell className="w-px whitespace-nowrap px-2 text-center text-sm font-black text-muted-foreground">{pageStart + index}</TableCell>
                 <TableCell className="max-w-[28rem]">

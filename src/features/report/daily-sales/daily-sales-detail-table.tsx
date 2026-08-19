@@ -149,9 +149,7 @@ export function DetailBillTable({
                 aria-label={t("common.selectAll")}
                 checked={allVisibleSelected}
                 indeterminate={!allVisibleSelected && someVisibleSelected}
-                onChange={(event) =>
-                  onToggleRows(visibleItems, event.target.checked)
-                }
+                onCheckedChange={(checked) => onToggleRows(visibleItems, checked as boolean)}
               />
             </TableHead>
 
@@ -310,9 +308,7 @@ export function DetailBillTable({
                       })}
                       checked={groupSelected}
                       indeterminate={groupPartiallySelected}
-                      onChange={(event) =>
-                        onToggleRows(group.items, event.target.checked)
-                      }
+                      onCheckedChange={(checked) => onToggleRows(group.items, checked as boolean)}
                     />
                   </TableCell>
 
@@ -320,7 +316,7 @@ export function DetailBillTable({
                     <div className="flex items-center justify-center gap-2">
                       <Button
                         type="button"
-                        size="iconSm"
+                        size="icon-sm"
                         variant="ghost"
                         aria-expanded={expanded}
                         aria-label={
@@ -416,9 +412,7 @@ export function DetailBillTable({
                                 ),
                               })}
                               checked={selected}
-                              onChange={(event) =>
-                                onToggleRow(item, event.target.checked)
-                              }
+                              onCheckedChange={(checked) => onToggleRow(item, checked as boolean)}
                             />
                           </TableCell>
 
@@ -785,3 +779,4 @@ function dailySalesBillSortValue(
       return groupMoney(group, ["vat"]) ?? 0;
   }
 }
+

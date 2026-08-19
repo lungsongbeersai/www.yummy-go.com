@@ -1,18 +1,12 @@
 import type { Metadata, Viewport } from "next";
 import { cookies } from "next/headers";
-import { Noto_Sans_Lao } from "next/font/google";
 import Script from "next/script";
 import { Providers } from "@/app/providers";
+import { appFontVariables } from "@/design-system/fonts";
 import { DEFAULT_LANGUAGE, LANGUAGE_COOKIE, toLanguage } from "@/lib/language";
 import { WINDOW_OPEN_FONT_STYLESHEET_HREF } from "@/lib/window-open-fonts";
 import "./globals.css";
-
-const notoSansLao = Noto_Sans_Lao({
-  subsets: ["lao"],
-  weight: ["400", "500", "600", "700", "900"],
-  display: "swap",
-  variable: "--font-noto-sans-lao"
-});
+import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: {
@@ -54,7 +48,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const initialLanguage = toLanguage(cookieStore.get(LANGUAGE_COOKIE)?.value ?? DEFAULT_LANGUAGE);
 
   return (
-    <html lang={initialLanguage} className={notoSansLao.variable} suppressHydrationWarning>
+    <html
+      lang={initialLanguage}
+      className={cn(initialLanguage === "la" ? "font-lao" : "font-sans", appFontVariables)}
+      suppressHydrationWarning
+    >
       <head>
         <link rel="stylesheet" href={WINDOW_OPEN_FONT_STYLESHEET_HREF} />
         <Script

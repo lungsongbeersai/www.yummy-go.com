@@ -214,7 +214,7 @@ export function ProductPage({ initialPagination }: { initialPagination: UrlPagin
                   <Checkbox
                     aria-label={t("common.selectAll")}
                     checked={product.allSelected}
-                    onChange={(event) => product.toggleAllSelected(event.target.checked)}
+                    onCheckedChange={(checked) => product.toggleAllSelected(checked as boolean)}
                   />
                   <span className="truncate">{t("common.selectAll")}</span>
                 </Label>

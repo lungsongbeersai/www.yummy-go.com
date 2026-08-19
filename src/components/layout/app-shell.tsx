@@ -50,7 +50,6 @@ import {
   SidebarGroupLabel,
   SidebarInset,
   SidebarMenu,
-  SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuSub,
@@ -467,7 +466,7 @@ function AppHeader({
       </div>
 
       <div className="flex shrink-0 items-center gap-1 md:gap-2">
-        <ThemeToggle variant="ghost" />
+        <ThemeToggle variant="ghost" className={undefined} size={undefined} />
         <NotificationMenu />
         <LanguageSwitch />
         <DropdownMenu>
@@ -557,7 +556,9 @@ function AppSidebar({
             {icon}
             <span>{title}</span>
             {!collapsed ? (
-              <SidebarMenuBadge>{t("nav.coming_soon")}</SidebarMenuBadge>
+              <Badge variant="secondary" className="ml-auto shrink-0 rounded-full text-[10px]">
+                {t("nav.coming_soon")}
+              </Badge>
             ) : null}
           </SidebarMenuButton>
         ) : (
@@ -566,9 +567,9 @@ function AppSidebar({
               {icon}
               <span className="min-w-0 flex-1 truncate">{title}</span>
               {item.badgeText && !collapsed ? (
-                <SidebarMenuBadge className="max-w-16 truncate" translate="no">
+                <Badge variant="secondary" className="ml-auto max-w-16 shrink-0 truncate" translate="no">
                   {item.badgeText}
-                </SidebarMenuBadge>
+                </Badge>
               ) : null}
             </Link>
           </SidebarMenuButton>
@@ -655,7 +656,7 @@ function AppSidebar({
                 <span>{title}</span>
                 <ChevronRight
                   aria-hidden="true"
-                  className="sidebar-submenu-cue pointer-events-none absolute right-0.5 top-1/2 size-3 -translate-y-1/2 rounded-full border"
+                  className="pointer-events-none absolute bottom-0.5 right-0.5 size-3 rounded-full bg-sidebar p-0.5 text-sidebar-primary"
                 />
               </SidebarMenuButton>
             </DropdownMenuTrigger>
@@ -679,9 +680,9 @@ function AppSidebar({
           {icon}
           <span className="min-w-0 flex-1 truncate">{title}</span>
           {item.badgeText ? (
-            <SidebarMenuBadge className="max-w-16 truncate" translate="no">
+            <Badge variant="secondary" className="ml-auto max-w-16 shrink-0 truncate" translate="no">
               {item.badgeText}
-            </SidebarMenuBadge>
+            </Badge>
           ) : null}
           <ChevronDown
             className={cn(
@@ -708,7 +709,7 @@ function AppSidebar({
   return (
     <Sidebar
       collapsible="icon"
-      className="app-sidebar-panel border-r border-sidebar-border"
+      className="app-sidebar-panel top-(--app-shell-header-height) h-[calc(100svh-var(--app-shell-header-height))] border-r border-sidebar-border"
     >
       <SidebarContent>
         <SidebarGroup>

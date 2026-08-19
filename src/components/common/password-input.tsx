@@ -30,7 +30,7 @@ export const PasswordInput = React.forwardRef<HTMLInputElement, React.InputHTMLA
           aria-pressed={visible}
           className="absolute inset-y-0 right-0 h-full w-11 rounded-l-none text-muted-foreground hover:bg-transparent hover:text-foreground"
           disabled={disabled}
-          size="iconSm"
+          size="icon-sm"
           type="button"
           variant="ghost"
           onClick={() => setVisible((current) => !current)}

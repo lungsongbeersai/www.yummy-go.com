@@ -238,9 +238,7 @@ export function SummaryReportTable({
                 aria-label={t("common.selectAll")}
                 checked={allVisibleSelected}
                 indeterminate={!allVisibleSelected && someVisibleSelected}
-                onChange={(event) =>
-                  onToggleRows(sortedRows, event.target.checked)
-                }
+                onCheckedChange={(checked) => onToggleRows(sortedRows, checked as boolean)}
               />
             </TableHead>
 
@@ -317,7 +315,7 @@ export function SummaryReportTable({
                       ),
                     })}
                     checked={selected}
-                    onChange={(event) => onToggleRow(row, event.target.checked)}
+                    onCheckedChange={(checked) => onToggleRow(row, checked as boolean)}
                   />
                 </TableCell>
 
@@ -514,3 +512,4 @@ function SummaryReportFooterRow({
     </TableRow>
   );
 }
+

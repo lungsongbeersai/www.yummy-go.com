@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { Info, Pencil, Plus, RefreshCcw, Save, Search, Trash2 } from "lucide-react";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
@@ -147,7 +147,7 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
                   </div>
                   <Button
                     type="button"
-                    size="iconSm"
+                    size="icon-sm"
                     variant="ghost"
                     disabled={details.length <= 1}
                     aria-label={t("actions.delete")}
@@ -490,7 +490,7 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
                       {selected ? <Badge className="shrink-0">{t("common.active")}</Badge> : null}
                       <Button
                         type="button"
-                        size="iconSm"
+                        size="icon-sm"
                         variant="ghost"
                         aria-label={t("actions.edit")}
                         disabled={setOptionSaving}
@@ -500,8 +500,8 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
                       </Button>
                       <Button
                         type="button"
-                        size="iconSm"
-                        variant="danger"
+                        size="icon-sm"
+                        variant="destructive"
                         aria-label={t("actions.delete")}
                         disabled={setOptionSaving}
                         onClick={() => setDeletingSetOptionUuid(uuid)}

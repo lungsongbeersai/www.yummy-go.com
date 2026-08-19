@@ -196,7 +196,7 @@ function LocationTable({
         <TableHeader className="sticky top-0 z-10 bg-muted/95 backdrop-blur">
           <TableRow>
             <TableHead className="w-10 px-2">
-              <Checkbox aria-label={t("common.selectAll")} checked={allSelected} onChange={(event) => onToggleAll(event.target.checked)} />
+              <Checkbox aria-label={t("common.selectAll")} checked={allSelected} onCheckedChange={(checked) => onToggleAll(checked as boolean)} />
             </TableHead>
             <TableHead className="w-px whitespace-nowrap px-2 text-center">{labels.no}</TableHead>
             <TableHead>{kind === "province" ? labels.province : labels.district}</TableHead>
@@ -314,7 +314,7 @@ function LocationTableRow({
         <Checkbox
           aria-label={t("common.selectRow", { name })}
           checked={selected}
-          onChange={(event) => onToggleSelected(id, event.target.checked)}
+                  onCheckedChange={(checked) => onToggleSelected(id, checked as boolean)}
         />
       </TableCell>
       <TableCell className="w-px whitespace-nowrap px-2 text-center text-sm font-black tabular-nums text-muted-foreground">{rowNumber}</TableCell>

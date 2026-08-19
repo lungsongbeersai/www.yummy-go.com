@@ -71,7 +71,7 @@ export function CancelBillDialog({
             <Button disabled={cancelling} type="button" variant="outline" onClick={() => onOpenChange(false)}>
               {t("actions.cancel")}
             </Button>
-            <Button disabled={cancelling || !reason.trim()} type="submit" variant="danger">
+            <Button disabled={cancelling || !reason.trim()} type="submit" variant="destructive">
               {cancelling ? <Spinner data-icon="inline-start" /> : <Ban data-icon="inline-start" />}
               {t("cancelSale.confirmCancel")}
             </Button>

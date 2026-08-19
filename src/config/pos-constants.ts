@@ -24,3 +24,14 @@ export const PaymentMethod = {
   ARREARS: 4,
 } as const;
 export type PaymentMethod = (typeof PaymentMethod)[keyof typeof PaymentMethod];
+
+// สถานะของ order_item ใน customer_order_queue — ORDERED (0) ไม่มีหน้าใช้งานตอนนี้
+// (ยังไม่มี API เปลี่ยนสถานะ 0→1) แต่ยังคงนิยามไว้ให้ครบตาม backend
+export const OrderItemStatus = {
+  ORDERED: 0,
+  WAITING_CONFIRM: 1,
+  SENT_TO_KITCHEN: 2,
+  SERVED: 4,
+  CANCELLED: 9,
+} as const;
+export type OrderItemStatus = (typeof OrderItemStatus)[keyof typeof OrderItemStatus];

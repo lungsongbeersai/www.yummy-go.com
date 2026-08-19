@@ -95,7 +95,7 @@ function BottomNavButton({
     <Button
       type="button"
       variant="ghost"
-      size="md"
+      size="default"
       className={cn(
         "relative h-full w-full min-w-0 flex-col gap-1 rounded-[18px] px-1 py-0 text-[10.5px] font-bold leading-none transition-[background-color,color] hover:bg-yg-panel-hover motion-reduce:transition-none",
         active ? "text-yg-accent-strong" : "text-yg-muted",

@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  createElement,
   useCallback,
   useMemo,
   useState,
@@ -103,21 +102,13 @@ export function useReportRowSelection<Row>({
 
 export function ReportIndeterminateCheckbox({
   indeterminate = false,
+  checked,
   ...props
 }: CheckboxProps & { indeterminate?: boolean }) {
-  // indeterminate ตั้งผ่าน DOM property เท่านั้น (ไม่มี attribute ให้ React จัดการ)
-  // ใช้ ref callback แทน effect: identity เปลี่ยนตาม indeterminate React จึงถอด/ต่อ ref
-  // ให้ใหม่และค่าถูกเซ็ตทันทีตอน commit โดยไม่ต้องรอ effect รอบถัดไป
-  const setIndeterminateRef = useCallback(
-    (node: HTMLInputElement | null) => {
-      if (node) node.indeterminate = indeterminate;
-    },
-    [indeterminate]
+  return (
+    <Checkbox
+      checked={indeterminate ? "indeterminate" : checked}
+      {...props}
+    />
   );
-
-  return createElement(Checkbox, {
-    ref: setIndeterminateRef,
-    "aria-checked": indeterminate ? "mixed" : props.checked ? "true" : "false",
-    ...props,
-  });
 }

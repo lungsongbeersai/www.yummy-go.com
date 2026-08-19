@@ -397,7 +397,7 @@ function LayoutModeButton({
   return (
     <Button
       type="button"
-      size="iconSm"
+      size="icon-sm"
       variant="ghost"
       className={cn(
         "size-9 rounded-xl",

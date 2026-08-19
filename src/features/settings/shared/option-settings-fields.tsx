@@ -250,7 +250,7 @@ function FlagPicker({
               onChange={(event) => setSearch(event.target.value)}
             />
             {search ? (
-              <Button aria-label="Clear search" disabled={disabled} size="iconSm" type="button" variant="ghost" onClick={() => setSearch("")}>
+              <Button aria-label="Clear search" disabled={disabled} size="icon-sm" type="button" variant="ghost" onClick={() => setSearch("")}>
                 <X aria-hidden />
               </Button>
             ) : null}

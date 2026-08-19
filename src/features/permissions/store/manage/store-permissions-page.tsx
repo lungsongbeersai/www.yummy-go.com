@@ -106,15 +106,15 @@ function menuSelection(menu: StorePermissionMenu, checked: Set<string>) {
 
 function PermissionCheckbox({
   indeterminate,
+  checked,
   ...props
 }: ComponentProps<typeof Checkbox> & { indeterminate?: boolean }) {
-  const ref = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (ref.current) ref.current.indeterminate = Boolean(indeterminate);
-  }, [indeterminate]);
-
-  return <Checkbox ref={ref} {...props} />;
+  return (
+    <Checkbox
+      checked={indeterminate ? "indeterminate" : checked}
+      {...props}
+    />
+  );
 }
 
 export function StorePermissionsPage() {
@@ -496,7 +496,7 @@ function PermissionTable({
                       checked={selection.allChecked}
                       disabled={saving || !selection.total}
                       indeterminate={indeterminate}
-                      onChange={(event) => onToggleMenu(menu.menu_id, event.target.checked)}
+                      onCheckedChange={(checked) => onToggleMenu(menu.menu_id, checked as boolean)}
                     />
                   </TableCell>
                   <TableCell colSpan={2} className="px-2 py-0">
@@ -539,7 +539,7 @@ function PermissionTable({
                             aria-label={submenu.sub_title || submenu.sub_path || submenu.sub_id}
                             checked={checked}
                             disabled={saving}
-                            onChange={(event) => onToggleSubmenu(submenu.sub_id, event.target.checked)}
+                            onCheckedChange={(checked) => onToggleSubmenu(submenu.sub_id, checked as boolean)}
                           />
                         </TableCell>
                         <TableCell className="max-w-[32rem]">

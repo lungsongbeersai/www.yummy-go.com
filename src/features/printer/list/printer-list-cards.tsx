@@ -134,7 +134,7 @@ function PrinterCard({
 
       <div className="mt-auto flex items-center justify-end gap-1.5 p-3 sm:p-4">
         <Button
-          size="iconSm"
+          size="icon-sm"
           variant="outline"
           aria-label={t("printer.testPrinter")}
           disabled={
@@ -154,7 +154,7 @@ function PrinterCard({
         </Button>
 
         <Button
-          size="iconSm"
+          size="icon-sm"
           variant="outline"
           aria-label={
             row.is_active
@@ -174,7 +174,7 @@ function PrinterCard({
         </Button>
 
         <Button
-          size="iconSm"
+          size="icon-sm"
           variant="outline"
           aria-label={t("actions.edit")}
           onClick={() =>
@@ -189,8 +189,8 @@ function PrinterCard({
         </Button>
 
         <Button
-          size="iconSm"
-          variant="danger"
+          size="icon-sm"
+          variant="destructive"
           aria-label={t("actions.delete")}
           onClick={() => onDelete(row)}
         >

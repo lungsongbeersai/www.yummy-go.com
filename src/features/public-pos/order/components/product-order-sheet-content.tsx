@@ -539,7 +539,7 @@ function ProductToppingRow({
   const label = toppingDisplayName(topping, lang) || t("pos.toppings");
   const unitPrice = numeric(topping.toppingPrice);
   const id = `public-product-topping-${topping.prodToppingUuid}`;
-  const checkboxRef = useRef<HTMLInputElement>(null);
+  const checkboxRef = useRef<HTMLButtonElement>(null);
 
   return (
     <Field

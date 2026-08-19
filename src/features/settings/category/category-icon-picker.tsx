@@ -130,7 +130,7 @@ export function CategoryIconPicker({
               onChange={(event) => setSearch(event.target.value)}
             />
             {search ? (
-              <Button aria-label={t("common.clear")} disabled={disabled} size="iconSm" type="button" variant="ghost" onClick={() => setSearch("")}>
+              <Button aria-label={t("common.clear")} disabled={disabled} size="icon-sm" type="button" variant="ghost" onClick={() => setSearch("")}>
                 <X aria-hidden />
               </Button>
             ) : null}

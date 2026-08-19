@@ -167,7 +167,7 @@ export function LoginClient() {
                     <Button
                       type="button"
                       variant="ghost"
-                      size="iconSm"
+                      size="icon-sm"
                       aria-label={showPassword ? t("auth.hidePassword") : t("auth.showPassword")}
                       aria-pressed={showPassword}
                       onClick={() => setShowPassword((value) => !value)}
@@ -189,7 +189,7 @@ export function LoginClient() {
                         id="login-remember"
                         name="remember"
                         checked={remember}
-                        onChange={(event) => setRemember(event.target.checked)}
+                        onCheckedChange={(checked) => setRemember(checked as boolean)}
                         className="h-4 w-4 rounded border-slate-300 data-[state=checked]:border-emerald-600 data-[state=checked]:bg-emerald-600"
                       />
 

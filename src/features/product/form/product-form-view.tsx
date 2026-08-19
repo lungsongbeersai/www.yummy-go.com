@@ -346,7 +346,7 @@ export function ProductFormView({ form }: { form: ProductFormWorkflow }) {
                     <Input id="prod-code" value={prodCode} readOnly required />
                     <Button
                       type="button"
-                      size="md"
+                      size="default"
                       variant="outline"
                       onClick={() => setProdCode(generateProdCode())}
                     >

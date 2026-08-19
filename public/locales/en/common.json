@@ -71,7 +71,7 @@
   },
   "common": {
     "active": "Active",
-    "actions": "Actions",
+    "actions": "Manage",
     "all": "All",
     "balance": "Outstanding",
     "asc": "ASC",
@@ -373,6 +373,7 @@
     "menu_add_item": "Add menu item",
     "monthly_sales_report": "Monthly sales report",
     "order": "Order",
+    "order_queue": "Order Queue",
     "package_management": "Package management",
     "printer_list": "Printer list",
     "printer_management": "Printer management",
@@ -419,6 +420,37 @@
       "description": "Table {{table}} in {{zone}} placed a new order."
     },
     "title": "Notifications"
+  },
+  "orderQueue": {
+    "title": "Order Queue",
+    "tabs": {
+      "waitingConfirm": "New Orders",
+      "sentToKitchen": "Sent to kitchen",
+      "served": "Served",
+      "cancelled": "Cancelled"
+    },
+    "columns": {
+      "table": "Table",
+      "productName": "Product Name",
+      "qty": "Qty",
+      "note": "Note"
+    },
+    "confirmToKitchen": "Confirm",
+    "cancelDisabledTooltip": "Not available yet",
+    "confirmSuccess": "Sent {{count}} order(s) to the kitchen",
+    "confirmError": "Failed to send orders to the kitchen",
+    "confirmServed": "Mark as served",
+    "confirmServedSuccess": "Marked {{count}} item(s) as served",
+    "confirmServedError": "Failed to mark items as served",
+    "cancelDialogTitle": "Cancel order item(s)",
+    "cancelDialogDescription": "This will cancel {{count}} selected item(s). This action will be recorded with your reason.",
+    "cancelReasonLabel": "Cancel reason",
+    "cancelReasonPlaceholder": "Item made by mistake",
+    "cancelReasonRequired": "Cancel reason is required.",
+    "cancelDialogConfirm": "Confirm cancel",
+    "cancelSuccess": "Cancelled {{count}} item(s)",
+    "cancelError": "Failed to cancel items",
+    "loadError": "Failed to load the order queue"
   },
   "pos": {
     "menu": "Menu",

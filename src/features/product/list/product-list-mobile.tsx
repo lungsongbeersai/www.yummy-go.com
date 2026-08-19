@@ -68,7 +68,7 @@ function SortableMobileItem({
     <Button
       aria-label={handleLabel}
       title={handleLabel}
-      size="iconSm"
+      size="icon-sm"
       type="button"
       variant="outline"
       className="cursor-grab touch-none active:cursor-grabbing"
@@ -82,7 +82,7 @@ function SortableMobileItem({
       aria-disabled
       aria-label={handleHint ?? handleLabel}
       title={handleHint ?? handleLabel}
-      size="iconSm"
+      size="icon-sm"
       type="button"
       variant="outline"
       className="opacity-50"
@@ -92,7 +92,7 @@ function SortableMobileItem({
     </Button>
   ) : (
     <span title={handleHint ?? handleLabel}>
-      <Button aria-label={handleHint ?? handleLabel} size="iconSm" type="button" variant="outline" disabled>
+      <Button aria-label={handleHint ?? handleLabel} size="icon-sm" type="button" variant="outline" disabled>
         <GripVertical aria-hidden />
       </Button>
     </span>
@@ -141,7 +141,7 @@ function ProductMobileCard({
           aria-label={workflow.t("common.selectRow", { name: productName(row, workflow.language) })}
           checked={selected}
           className="mt-1"
-          onChange={(event) => workflow.toggleSelected(row.prod_uuid, event.target.checked)}
+          onCheckedChange={(checked) => workflow.toggleSelected(row.prod_uuid, checked as boolean)}
         />
         <ProductMedia row={row} className="size-16" />
         <div className="min-w-0 flex-1">

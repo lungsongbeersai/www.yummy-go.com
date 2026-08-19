@@ -136,7 +136,7 @@ function SortableRow({
     <Button
       aria-label={handleLabel}
       title={handleLabel}
-      size="iconSm"
+      size="icon-sm"
       type="button"
       variant="ghost"
       className="cursor-grab touch-none active:cursor-grabbing"
@@ -150,7 +150,7 @@ function SortableRow({
       aria-disabled
       aria-label={handleHint ?? handleLabel}
       title={handleHint ?? handleLabel}
-      size="iconSm"
+      size="icon-sm"
       type="button"
       variant="ghost"
       className="opacity-50"
@@ -160,7 +160,7 @@ function SortableRow({
     </Button>
   ) : (
     <span title={handleHint ?? handleLabel}>
-      <Button aria-label={handleHint ?? handleLabel} size="iconSm" type="button" variant="ghost" disabled>
+      <Button aria-label={handleHint ?? handleLabel} size="icon-sm" type="button" variant="ghost" disabled>
         <GripVertical aria-hidden />
       </Button>
     </span>
@@ -319,7 +319,7 @@ export function ProductListTable({ workflow }: { workflow: ProductListWorkflow }
               <Checkbox
                 aria-label={workflow.t("common.selectAll")}
                 checked={workflow.allSelected}
-                onChange={(event) => workflow.toggleAllSelected(event.target.checked)}
+                onCheckedChange={(checked) => workflow.toggleAllSelected(checked as boolean)}
               />
             </TableHead>
             <TableHead className="w-28 text-center">{workflow.t("common.order")}</TableHead>
@@ -328,7 +328,7 @@ export function ProductListTable({ workflow }: { workflow: ProductListWorkflow }
               <div className="flex items-center gap-2">
                 <Button
                   type="button"
-                  size="iconSm"
+                  size="icon-sm"
                   variant="ghost"
                   aria-label={
                     workflow.allDetailsExpanded ? workflow.t("actions.collapseAll") : workflow.t("actions.expandAll")
@@ -386,7 +386,7 @@ export function ProductListTable({ workflow }: { workflow: ProductListWorkflow }
                   <Checkbox
                     aria-label={workflow.t("common.selectRow", { name: productName(row, workflow.language) })}
                     checked={selected}
-                    onChange={(event) => workflow.toggleSelected(row.prod_uuid, event.target.checked)}
+                    onCheckedChange={(checked) => workflow.toggleSelected(row.prod_uuid, checked as boolean)}
                   />
                 </TableCell>
                 <TableCell>
@@ -404,7 +404,7 @@ export function ProductListTable({ workflow }: { workflow: ProductListWorkflow }
                   <div className="flex min-w-0 items-center gap-3">
                     <Button
                       type="button"
-                      size="iconSm"
+                      size="icon-sm"
                       variant="ghost"
                       aria-label={`${workflow.t("product.sections.details")} ${productName(row, workflow.language)}`}
                       aria-expanded={expanded}

@@ -42,7 +42,7 @@ export function ProductListActions({
       <DropdownMenuTrigger asChild>
         <Button
           type="button"
-          size="iconSm"
+          size="icon-sm"
           variant="ghost"
           aria-label={workflow.t("common.actions")}
         >

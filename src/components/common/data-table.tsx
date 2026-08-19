@@ -80,6 +80,10 @@ interface DataTableProps<T extends Record<string, unknown>> {
   onDelete?: (row: T) => void;
   actions?: TableRowAction<T>[];
   selectable?: boolean;
+  // ค่าเริ่มต้นของ selection ตอน mount เท่านั้น (ไม่ใช่ controlled) — ใช้ตอนอยากให้ทุกแถว
+  // ติ๊กไว้ล่วงหน้าทันทีที่โหลดข้อมูลใหม่ ผู้เรียกต้องบังคับ remount (เช่นเปลี่ยน key)
+  // เองถ้าต้องการรีเซ็ต selection ตาม defaultSelectedIds ชุดใหม่
+  defaultSelectedIds?: Set<string>;
   onSelectionChange?: (selected: T[]) => void;
   draggable?: boolean;
   onReorder?: (rows: T[]) => void;
@@ -102,6 +106,7 @@ export function DataTable<T extends Record<string, unknown>>({
   onDelete,
   actions = [],
   selectable = false,
+  defaultSelectedIds,
   onSelectionChange,
   draggable = false,
   onReorder,
@@ -114,7 +119,7 @@ export function DataTable<T extends Record<string, unknown>>({
   const totalColumns =
     columns.length + (draggable ? 1 : 0) + (selectable ? 1 : 0) + (showActions ? 1 : 0);
 
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [selected, setSelected] = useState<Set<string>>(() => new Set(defaultSelectedIds));
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState<PageLimit>(initialPageSize);
 
@@ -182,7 +187,7 @@ export function DataTable<T extends Record<string, unknown>>({
   const renderActions = (row: T) => (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button aria-label={t("common.actions")} size="iconSm" type="button" variant="ghost">
+        <Button aria-label={t("common.actions")} size="icon-sm" type="button" variant="ghost">
           <Menu />
         </Button>
       </DropdownMenuTrigger>
@@ -273,7 +278,7 @@ export function DataTable<T extends Record<string, unknown>>({
                   <Checkbox
                     aria-label={t("common.actions")}
                     checked={isSelected}
-                    onChange={() => toggleRow(id)}
+                    onCheckedChange={() => toggleRow(id)}
                   />
                 </TableCell>
               ) : null}
@@ -297,7 +302,7 @@ export function DataTable<T extends Record<string, unknown>>({
             <Checkbox
               aria-label="select all"
               checked={allVisibleSelected}
-              onChange={togglePage}
+              onCheckedChange={togglePage}
             />
           </TableHead>
         ) : null}
@@ -421,7 +426,7 @@ function SortableRow({
         <Button
           type="button"
           variant="ghost"
-          size="iconSm"
+          size="icon-sm"
           aria-label={reorderLabel}
           className="text-muted-foreground hover:text-foreground"
           {...attributes}
@@ -432,7 +437,7 @@ function SortableRow({
       </TableCell>
       {selectable ? (
         <TableCell className="w-10">
-          <Checkbox aria-label={selectLabel} checked={selected} onChange={onToggle} />
+          <Checkbox aria-label={selectLabel} checked={selected} onCheckedChange={onToggle} />
         </TableCell>
       ) : null}
       {children}

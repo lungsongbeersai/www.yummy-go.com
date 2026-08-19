@@ -197,7 +197,7 @@ function CategoryTable({
         const cells = (
           <>
             <TableCell className="w-10 px-2">
-              <Checkbox aria-label={t("common.selectRow", { name })} checked={selected} onChange={(event) => onToggleSelected(id, event.target.checked)} />
+              <Checkbox aria-label={t("common.selectRow", { name })} checked={selected} onCheckedChange={(checked) => onToggleSelected(id, checked as boolean)} />
             </TableCell>
             <TableCell className="w-px whitespace-nowrap px-2 text-center text-sm font-black tabular-nums text-muted-foreground">{pageStart + index}</TableCell>
             <TableCell className="max-w-[30rem]">
@@ -238,7 +238,7 @@ function CategoryTable({
         <TableRow>
           {dragEnabled ? <TableHead className="w-10 px-2" aria-hidden /> : null}
           <TableHead className="w-10 px-2">
-            <Checkbox aria-label={t("common.selectAll")} checked={allSelected} onChange={(event) => onToggleAll(event.target.checked)} />
+            <Checkbox aria-label={t("common.selectAll")} checked={allSelected} onCheckedChange={(checked) => onToggleAll(checked as boolean)} />
           </TableHead>
           <TableHead className="w-px whitespace-nowrap px-2 text-center">{t("fields.no")}</TableHead>
           <TableHead>{t("nav.category")}</TableHead>
@@ -271,7 +271,7 @@ function SortableCategoryRow({ children, id, selected }: { children: ReactNode; 
   return (
     <TableRow ref={setNodeRef} style={style} data-state={selected ? "selected" : undefined} className={cn("h-14", isDragging && "shadow-md")}>
       <TableCell className="w-10 px-2">
-        <Button aria-label={t("common.reorder")} size="iconSm" type="button" variant="ghost" {...attributes} {...listeners}>
+        <Button aria-label={t("common.reorder")} size="icon-sm" type="button" variant="ghost" {...attributes} {...listeners}>
           <GripVertical aria-hidden />
         </Button>
       </TableCell>

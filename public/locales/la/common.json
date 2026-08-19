@@ -374,6 +374,7 @@
     "menu_add_item": "ເພີ່ມລາຍການເມນູ",
     "monthly_sales_report": "ລາຍງານຂາຍປະຈຳເດືອນ",
     "order": "ອໍເດີ",
+    "order_queue": "ຄິວອໍເດີ",
     "package_management": "ຈັດການແພັກເກດ",
     "printer_list": "ລາຍການເຄື່ອງພິມ",
     "printer_management": "ຈັດການເຄື່ອງພິມ",
@@ -420,6 +421,37 @@
       "description": "ໂຕະ {{table}} ({{zone}}) ສັ່ງອາຫານໃໝ່."
     },
     "title": "ການແຈ້ງເຕືອນ"
+  },
+  "orderQueue": {
+    "title": "ຄິວອໍເດີ",
+    "tabs": {
+      "waitingConfirm": "ລໍຖ້າຢືນຢັນ",
+      "sentToKitchen": "ສົ່ງຄົວແລ້ວ",
+      "served": "ເສີບແລ້ວ",
+      "cancelled": "ຍົກເລີກ"
+    },
+    "columns": {
+      "table": "ໂຕະ",
+      "productName": "ຊື່ສິນຄ້າ",
+      "qty": "ຈຳນວນ",
+      "note": "ໝາຍເຫດ"
+    },
+    "confirmToKitchen": "ຢືນຢັນ",
+    "cancelDisabledTooltip": "ຍັງບໍ່ພ້ອມໃຊ້ງານ",
+    "confirmSuccess": "ສົ່ງ {{count}} ອໍເດີເຂົ້າຄົວແລ້ວ",
+    "confirmError": "ສົ່ງເຂົ້າຄົວບໍ່ສຳເລັດ",
+    "confirmServed": "ເສີບແລ້ວ",
+    "confirmServedSuccess": "ຢືນຢັນເສີບ {{count}} ລາຍການແລ້ວ",
+    "confirmServedError": "ຢືນຢັນເສີບບໍ່ສຳເລັດ",
+    "cancelDialogTitle": "ຍົກເລີກລາຍການອໍເດີ",
+    "cancelDialogDescription": "ຈະຍົກເລີກ {{count}} ລາຍການທີ່ເລືອກໄວ້ ລະບົບຈະບັນທຶກເຫດຜົນທີ່ທ່ານໃສ່ໄວ້",
+    "cancelReasonLabel": "ເຫດຜົນທີ່ຍົກເລີກ",
+    "cancelReasonPlaceholder": "ສັ່ງຜິດລາຍການ",
+    "cancelReasonRequired": "ກະລຸນາລະບຸເຫດຜົນທີ່ຍົກເລີກ",
+    "cancelDialogConfirm": "ຢືນຢັນຍົກເລີກ",
+    "cancelSuccess": "ຍົກເລີກ {{count}} ລາຍການແລ້ວ",
+    "cancelError": "ຍົກເລີກລາຍການບໍ່ສຳເລັດ",
+    "loadError": "ໂຫຼດຄິວອໍເດີບໍ່ສຳເລັດ"
   },
   "pos": {
     "menu": "ເມນູ",

@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useRef } from "react";
 import { Checkbox, type CheckboxProps } from "@/components/ui/checkbox";
 import {
   Field,
@@ -13,20 +12,12 @@ import { safeId, type CheckboxOption } from "./printer-form-utils";
 
 export function IndeterminateCheckbox({
   indeterminate = false,
+  checked,
   ...props
 }: CheckboxProps & { indeterminate?: boolean }) {
-  const checkboxRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (checkboxRef.current) {
-      checkboxRef.current.indeterminate = indeterminate;
-    }
-  }, [indeterminate]);
-
   return (
     <Checkbox
-      ref={checkboxRef}
-      aria-checked={indeterminate ? "mixed" : props.checked ? "true" : "false"}
+      checked={indeterminate ? "indeterminate" : checked}
       {...props}
     />
   );
@@ -77,7 +68,7 @@ export function CheckboxOptionList({
               id={selectAllId}
               checked={allSelected}
               indeterminate={someSelected}
-              onChange={(event) => onToggleAll(event.currentTarget.checked)}
+              onCheckedChange={(checked) => onToggleAll(checked as boolean)}
             />
             <FieldLabel htmlFor={selectAllId} className="font-black">
               {selectAllLabel}

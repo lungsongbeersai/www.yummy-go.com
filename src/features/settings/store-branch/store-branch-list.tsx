@@ -147,7 +147,7 @@ function StoreBranchTable({
         <TableHeader className="sticky top-0 z-10 bg-muted/95 backdrop-blur">
           <TableRow>
             <TableHead className="w-10 px-2">
-              <Checkbox aria-label={labels.selectAll} checked={allSelected} onChange={(event) => onToggleAllSelected(event.target.checked)} />
+              <Checkbox aria-label={labels.selectAll} checked={allSelected} onCheckedChange={(checked) => onToggleAllSelected(checked as boolean)} />
             </TableHead>
             <TableHead className="w-px whitespace-nowrap px-2 text-center">{t("fields.no")}</TableHead>
             <TableHead>{kind === "store" ? labels.store : labels.branch}</TableHead>
@@ -178,7 +178,7 @@ function StoreBranchTable({
             return (
               <TableRow key={id || rowIndex} className="h-14" data-state={selected ? "selected" : undefined}>
                 <TableCell className="w-10 px-2">
-                  <Checkbox aria-label={t("common.selectRow", { name })} checked={selected} onChange={(event) => onToggleSelected(id, event.target.checked)} />
+                  <Checkbox aria-label={t("common.selectRow", { name })} checked={selected} onCheckedChange={(checked) => onToggleSelected(id, checked as boolean)} />
                 </TableCell>
                 <TableCell className="w-px whitespace-nowrap px-2 text-center text-sm font-black tabular-nums text-muted-foreground">
                   {rowNumber}

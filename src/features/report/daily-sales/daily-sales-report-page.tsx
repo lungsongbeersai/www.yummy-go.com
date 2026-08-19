@@ -44,7 +44,7 @@ export function DailySalesReportPage({
     <Button
       type="button"
       variant="outline"
-      size="iconSm"
+      size="icon-sm"
       className="h-9 w-9 shrink-0"
       aria-label={t("actions.refresh")}
       disabled={controlsDisabled}
@@ -58,7 +58,7 @@ export function DailySalesReportPage({
     <Button
       type="button"
       variant="outline"
-      size="iconSm"
+      size="icon-sm"
       className="h-9 w-9 shrink-0"
       aria-controls={SUMMARY_CARDS_ID}
       aria-expanded={summaryVisible}
@@ -90,7 +90,7 @@ export function DailySalesReportPage({
                 <Button
                   type="button"
                   variant="outline"
-                  size="iconSm"
+                  size="icon-sm"
                   className="h-9 w-9 shrink-0"
                   aria-label={t("report.filters.openFilters")}
                   disabled={controlsDisabled}

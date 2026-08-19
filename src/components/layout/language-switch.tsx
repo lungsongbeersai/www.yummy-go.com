@@ -1,17 +1,11 @@
 "use client";
 
 import Image from "next/image";
-import { ChevronDown } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { LANGUAGES, type Language } from "@/lib/language";
 import { cn } from "@/lib/utils";
-import { Button, type ButtonProps } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger
-} from "@/components/ui/dropdown-menu";
+import { type ButtonProps } from "@/components/ui/button";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useAppStore } from "@/stores/app-store";
 
 const LANGUAGE_META: Record<Language, { flag: string; short: string }> = {
@@ -37,49 +31,41 @@ function LanguageFlagImage({ src }: { src: string }) {
 
 export function LanguageSwitch({
   className,
-  contentAlign = "end",
+  contentAlign: _contentAlign = "end",
   showShort = true,
-  size,
+  size = "sm",
   variant = "ghost"
 }: LanguageSwitchProps = {}) {
   const { t } = useTranslation();
   const language = useAppStore((state) => state.language);
   const setLanguage = useAppStore((state) => state.setLanguage);
-  const current = LANGUAGE_META[language];
-
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          type="button"
-          variant={variant}
-          size={size}
-          aria-label={t("app.changeLanguage")}
-          className={cn(
-            "h-11 min-w-11 gap-1.5 px-2 font-black sm:h-10 sm:min-w-10",
-            className,
-          )}
-        >
-          <LanguageFlagImage src={current.flag} />
-          {showShort ? <span className="hidden sm:inline">{current.short}</span> : null}
-          {showShort ? <ChevronDown className="hidden sm:block" data-icon="inline-end" /> : null}
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align={contentAlign} className="w-32">
-        {LANGUAGES.map((item) => {
-          const meta = LANGUAGE_META[item.code];
-          return (
-            <DropdownMenuItem
-              key={item.code}
-              onSelect={() => setLanguage(item.code)}
-              className="font-semibold"
-            >
-              <LanguageFlagImage src={meta.flag} />
-              {meta.short}
-            </DropdownMenuItem>
-          );
-        })}
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <ToggleGroup
+      type="single"
+      value={language}
+      variant={variant === "outline" ? "outline" : "default"}
+      size={size === "sm" ? "sm" : "default"}
+      spacing={0}
+      aria-label={t("app.changeLanguage")}
+      className={cn("h-8 sm:h-7", className)}
+      onValueChange={(value) => {
+        if (value) setLanguage(value as Language);
+      }}
+    >
+      {LANGUAGES.map((item) => {
+        const meta = LANGUAGE_META[item.code];
+        return (
+          <ToggleGroupItem
+            key={item.code}
+            value={item.code}
+            aria-label={meta.short}
+            className="h-full gap-1 px-2 font-semibold text-[12px]"
+          >
+            <LanguageFlagImage src={meta.flag} />
+            {showShort ? <span className="hidden sm:inline">{meta.short}</span> : null}
+          </ToggleGroupItem>
+        );
+      })}
+    </ToggleGroup>
   );
 }

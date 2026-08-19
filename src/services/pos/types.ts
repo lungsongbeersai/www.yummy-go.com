@@ -1,6 +1,7 @@
 import type { ApiEntity } from "@/services/shared/types";
 import {
   OrderChannelEnum as OrderChannelEnumValue,
+  OrderItemStatus as OrderItemStatusValue,
   OrderSourceEnum as OrderSourceEnumValue,
   PaymentMethod as PaymentMethodValue,
   ProductImageStatus as ProductImageStatusValue,
@@ -9,6 +10,7 @@ import {
 } from "@/config/pos-constants";
 import type {
   OrderChannel as OrderChannelType,
+  OrderItemStatus as OrderItemStatusType,
   OrderSource as OrderSourceType,
   PaymentMethod as PaymentMethodType,
   ProductImageStatus as ProductImageStatusType,
@@ -22,6 +24,8 @@ export const ProductImageStatus = ProductImageStatusValue;
 export type ProductImageStatus = ProductImageStatusType;
 export const TableStatus = TableStatusValue;
 export type TableStatus = TableStatusType;
+export const OrderItemStatus = OrderItemStatusValue;
+export type OrderItemStatus = OrderItemStatusType;
 export const OrderSourceEnum = OrderSourceEnumValue;
 export type OrderSource = OrderSourceType;
 export const OrderChannelEnum = OrderChannelEnumValue;
@@ -576,7 +580,64 @@ export interface ConfirmToKitchenResponse extends ApiEntity {
   pending_query?: ConfirmToKitchenPendingQuery;
 }
 export interface ConfirmOrderItemServedInput { order_it_uuid: string }
-export interface CancelOrderItemInput { order_it_uuid: string }
+// device_code/agent_id/print_mode/cancel_reason เป็น optional เพราะ endpoint เดียวกันนี้
+// ถูกเรียกจากตะกร้า POS แบบเดิม (order_it_uuid อย่างเดียว ไม่มี field พวกนี้) ด้วย
+export interface CancelOrderItemInput {
+  order_it_uuid: string;
+  device_code?: string;
+  agent_id?: string;
+  print_mode?: string;
+  cancel_reason?: string;
+  lang?: string;
+}
+
+export interface ConfirmOrderItemsServedInput {
+  order_item_uuids: string[];
+  lang?: string;
+}
+
+export interface OrderQueueTopping {
+  prod_topping_uuid_fk: string;
+  topping_name: string;
+  topping_qty: number;
+  topping_total_qty: number;
+}
+export interface OrderQueueItem extends ApiEntity {
+  order_uuid: string;
+  table_name: string;
+  order_item_uuid: string;
+  title: string;
+  order_qty: number;
+  order_note: string;
+  order_item_status: number;
+  order_item_status_text: string;
+  toppings: OrderQueueTopping[];
+}
+export interface FetchOrderQueueParams {
+  branch_uuid_fk: string;
+  status: number;
+  lang?: string;
+}
+// endpoint นี้ไม่ได้ห่อ envelope มาตรฐาน { status: "success", data } — `status` คือรหัส
+// สถานะออเดอร์ตัวเลขตัวเดียวกับที่ query ไป (ดู order-queue-requests.ts ที่ bypass apiRequest)
+export interface FetchOrderQueueResponse {
+  status: number;
+  message: string;
+  status_name: string;
+  total: number;
+  data: OrderQueueItem[];
+}
+export interface SendToKitchenInput {
+  order_uuids: string[];
+  device_code?: string;
+  agent_id?: string;
+  print_mode?: string;
+  lang?: string;
+}
+export interface SendToKitchenResponse extends ApiEntity {
+  status: string;
+  message: string;
+}
 export interface CreateTableQRRequest extends ApiEntity {
   table_uuid: string;
   // optional: เส้นทางดู/รีเฟรช QR (loadTableQr) ไม่ต้องส่ง identity ของเครื่องพิมพ์

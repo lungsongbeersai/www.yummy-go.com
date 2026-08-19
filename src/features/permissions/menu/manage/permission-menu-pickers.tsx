@@ -183,7 +183,7 @@ export function IconPickerButton({
                   {search ? (
                     <Button
                       aria-label={t("permissionMenu.clearIconSearch")}
-                      size="iconSm"
+                      size="icon-sm"
                       type="button"
                       variant="ghost"
                       onClick={() => setSearch("")}
@@ -323,7 +323,7 @@ export function PathPicker({
             aria-label={t("permissionMenu.openPathSuggestions")}
             disabled={disabled}
             role="combobox"
-            size="iconSm"
+            size="icon-sm"
             type="button"
             variant="outline"
           >
@@ -333,7 +333,6 @@ export function PathPicker({
         <PopoverContent
           align="end"
           className="w-80 max-w-[calc(100vw-2rem)] overflow-hidden p-0"
-          portalled={false}
           side="bottom"
           sideOffset={6}
           onTouchMove={(event) => event.stopPropagation()}
