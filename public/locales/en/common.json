@@ -33,6 +33,7 @@
     "posWorkspace": "POS workspace",
     "publicMenu": "Public menu",
     "skipToContent": "Skip to content",
+    "switchToLanguage": "Switch to {{language}}",
     "tagline": "Restaurant operations rebuilt cleanly.",
     "theme": "Theme",
     "toggleTheme": "Toggle theme",

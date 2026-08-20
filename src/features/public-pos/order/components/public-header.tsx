@@ -71,9 +71,9 @@ export function PublicHeader({
 
       <div className="flex shrink-0 items-center gap-1 rounded-[18px] border border-yg-line bg-yg-panel p-1 backdrop-blur-md">
         <LanguageSwitch
+          compact
           size="icon"
           variant="ghost"
-          showShort={false}
           className={HEADER_BUTTON_CLASS}
         />
 

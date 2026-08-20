@@ -195,8 +195,7 @@ export function OrderCustomerView({
             <div className="ml-auto flex shrink-0 items-center gap-2">
               <LanguageSwitch
                 className="size-11 border border-white/25 bg-white/15 text-white shadow-sm hover:bg-white/25 hover:text-white"
-                contentAlign="end"
-                showShort={false}
+                compact
                 size="icon"
                 variant="ghost"
               />
