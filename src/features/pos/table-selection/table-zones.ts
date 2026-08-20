@@ -24,14 +24,10 @@ export type TableVisualStatus =
   | "occupied"
   | "awaitingPayment";
 
-// customer_order_state คือออเดอร์ใหม่ที่ลูกค้ายิงเข้ามาแบบสด ๆ จึงเด่นกว่า table_status
-// เสมอ ยกเว้นโต๊ะที่ไม่ว่างอยู่แล้ว (status 2) ซึ่งหมายถึงลูกค้าสั่งอาหารเพิ่ม ไม่ใช่
-// ออเดอร์แรกของโต๊ะ — กรณีนี้ยังคงโชว์เป็น "ไม่ว่าง" ปกติ แค่เพิ่ม ring กะพริบเตือน
-// (ดู hasAdditionalOrderAlert ใน table-list-section.tsx)
+// customer_order_state คือออเดอร์ใหม่ที่ลูกค้ายิงเข้ามาแบบสด ๆ จึงต้องเด่นกว่า
+// table_status เสมอ (แม้โต๊ะจะไม่ว่างอยู่แล้วก็ตาม — ลูกค้าสั่งเพิ่มก็ยังต้องเด่น)
 export function tableVisualStatus(table: PosTable): TableVisualStatus {
-  if (table.customer_order_state && Number(table.table_status) !== TableStatus.OCCUPIED) {
-    return "newOrder";
-  }
+  if (table.customer_order_state) return "newOrder";
 
   switch (Number(table.table_status)) {
     case TableStatus.AWAITING_CONFIRM:
