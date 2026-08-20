@@ -14,7 +14,31 @@ import type {
 } from "./types";
 
 export function tableStatus(table: PosTable) {
-  return Number(table.table_status) === TableStatus.OCCUPIED ? "busy" : "free";
+  return Number(table.table_status) === TableStatus.AVAILABLE ? "free" : "busy";
+}
+
+export type TableVisualStatus =
+  | "awaitingConfirm"
+  | "newOrder"
+  | "available"
+  | "occupied"
+  | "awaitingPayment";
+
+// customer_order_state คือออเดอร์ที่ลูกค้ายิงเข้ามาแต่พนักงานยังไม่กดยืนยัน จึงต้อง
+// เด่นกว่า table_status เสมอ (มีทั้งออเดอร์ใหม่ค้างยืนยัน "และ" โต๊ะไม่ว่างพร้อมกันได้)
+export function tableVisualStatus(table: PosTable): TableVisualStatus {
+  if (table.customer_order_state) return "awaitingConfirm";
+
+  switch (Number(table.table_status)) {
+    case TableStatus.NEW_ORDER:
+      return "newOrder";
+    case TableStatus.OCCUPIED:
+      return "occupied";
+    case TableStatus.AWAITING_PAYMENT:
+      return "awaitingPayment";
+    default:
+      return "available";
+  }
 }
 
 // datetime_in จาก backend เป็น "YYYY-MM-DD HH:mm:ss" เสมอ — ตัดด้วย regex แทนการ
@@ -144,8 +168,7 @@ export function tableActionTableStatus(
     table.status,
     table.table_status_fk,
   );
-  if (status === TableStatus.OCCUPIED) return "busy";
-  if (status === TableStatus.AVAILABLE) return "free";
+  if (status !== null) return status === TableStatus.AVAILABLE ? "free" : "busy";
 
   const statusText = optionalString(
     table.table_status_text,

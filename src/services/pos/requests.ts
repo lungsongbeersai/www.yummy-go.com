@@ -75,7 +75,7 @@ function buildGetProdItemBody(params: GetProdItemParams) {
 
 export async function getPosTables(params: FetchPosParams) {
   requiredText(params.branch_uuid_fk, "branch_uuid_fk");
-  return apiRequest<PosResponse>("get", "/api/v1/pos/fetch_table", {
+  return apiRequest<PosResponse>("get", "/api/v1/posAll/fetch_table", {
     params: { ...params, lang: toApiLanguage(params.lang) }
   });
 }

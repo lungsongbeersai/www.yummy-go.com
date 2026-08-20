@@ -13,7 +13,15 @@ import { cn } from "@/lib/utils";
 import { zoneOrderAlertCount } from "@/lib/pos/order-alerts";
 import type { PosTable, PosZone } from "@/services/pos";
 import type { TableStatusFilter } from "./types";
-import { filterZones, tableCheckInTime, tableCount, tableSeatCount, tableStatus } from "./utils";
+import {
+  filterZones,
+  tableCheckInTime,
+  tableCount,
+  tableSeatCount,
+  tableStatus,
+  tableVisualStatus,
+  type TableVisualStatus
+} from "./utils";
 
 interface TableListSectionProps {
   loading: boolean;
@@ -218,9 +226,54 @@ function StatusChip({
 
 function dotClass(status: "free" | "busy" | "update") {
   if (status === "busy") return "bg-destructive";
-  if (status === "update") return "bg-primary";
-  return "bg-primary";
+  if (status === "update") return "bg-warning";
+  return "bg-success";
 }
+
+// สไตล์ต่อสถานะ 5 แบบ: customer_order_state (ลอออเดอร์รอยืนยัน) มี priority สูงกว่า
+// table_status เสมอ — ดู tableVisualStatus() ใน table-zones.ts สำหรับลำดับการตัดสินใจ
+const STATUS_STYLE: Record<
+  TableVisualStatus,
+  { card: string; body: string; footer: string; dot: string; text: string }
+> = {
+  awaitingConfirm: {
+    card: "pos-table-card-alert border-warning bg-warning/10",
+    body: "bg-warning/20",
+    footer: "border-warning/30 bg-warning/15",
+    dot: "bg-warning",
+    text: "text-warning"
+  },
+  newOrder: {
+    card: "border-destructive bg-destructive/10",
+    body: "bg-destructive/20",
+    footer: "border-destructive/30 bg-destructive/15",
+    dot: "bg-destructive",
+    text: "text-destructive"
+  },
+  available: {
+    card: "border-border",
+    body: "bg-card",
+    footer: "border-border bg-muted/50",
+    dot: "bg-success",
+    text: "text-success"
+  },
+  // "ไม่ว่าง" ตั้งใจไม่ใช้เขียว (สื่อว่าง) และไม่ใช้พื้นแดงเต็ม (ชนกับ newOrder/awaitingConfirm
+  // ที่ต้องการความสนใจสูงกว่า) — ใช้พื้นกลาง + accent แดงที่ label/จุดสถานะแทน
+  occupied: {
+    card: "border-border bg-muted/40",
+    body: "bg-muted/60",
+    footer: "border-border bg-muted/70",
+    dot: "bg-destructive",
+    text: "text-destructive"
+  },
+  awaitingPayment: {
+    card: "border-pending bg-pending/10",
+    body: "bg-pending/20",
+    footer: "border-pending/30 bg-pending/15",
+    dot: "bg-pending",
+    text: "text-pending"
+  }
+};
 
 function TableCard({
   selected,
@@ -232,25 +285,21 @@ function TableCard({
   onOpen: (table: PosTable) => void;
 }) {
   const { t } = useTranslation();
+  const visualStatus = tableVisualStatus(table);
   const busy = tableStatus(table) === "busy";
-  const hasUpdate = Boolean(table.customer_order_state);
   const seats = tableSeatCount(table);
   const checkInTime = busy ? tableCheckInTime(table) : null;
-  // hasUpdate ใช้โทนแดง (destructive) แทนเขียว (primary) ที่ busy ใช้ เพื่อให้แยกกันได้ชัดจากระยะไกล
-  // แต่ต้องเป็นพื้นทึบนิ่ง ไม่ใช่ text สีแดง — กันปัญหาคอนทราสต์แบบเดียวกับ ZoneChip
-  const cardToneClass = hasUpdate
-    ? "pos-table-card-alert border-destructive/70"
-    : busy
-      ? "border-primary/75 bg-primary/10"
-      : "border-border";
-  const bodyToneClass = hasUpdate ? "bg-destructive/18" : busy ? "bg-primary/35" : "bg-card";
-  const footerToneClass = hasUpdate
-    ? "border-destructive/30 bg-destructive/12"
-    : busy
-      ? "border-primary/35 bg-primary/15"
-      : "border-border bg-muted/50";
-  const statusDotClass = busy ? "bg-destructive" : "bg-primary";
-  const statusTextClass = hasUpdate ? "text-foreground" : busy ? "text-destructive" : "text-primary";
+  const style = STATUS_STYLE[visualStatus];
+  const statusLabel =
+    visualStatus === "awaitingConfirm"
+      ? t("pos.tableSelectionNewOrder")
+      : visualStatus === "newOrder"
+        ? t("pos.tableStatusNewOrder")
+        : visualStatus === "awaitingPayment"
+          ? t("pos.tableStatusAwaitingPayment")
+          : visualStatus === "occupied"
+            ? t("common.busy")
+            : t("common.free");
 
   return (
     <Card
@@ -259,7 +308,7 @@ function TableCard({
       aria-pressed={selected}
       className={cn(
         "cursor-pointer overflow-hidden rounded-xl bg-card p-0 shadow-sm outline-none transition hover:border-primary/70 hover:shadow-md focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30",
-        cardToneClass,
+        style.card,
         selected && "border-primary/90 bg-primary/10 shadow-lg shadow-primary/15 ring-2 ring-primary ring-offset-2 ring-offset-background"
       )}
       onClick={() => onOpen(table)}
@@ -273,29 +322,19 @@ function TableCard({
         <div
           className={cn(
             "relative flex flex-1 flex-col items-center justify-center px-2 py-3 sm:px-3 sm:py-4",
-            bodyToneClass
+            style.body
           )}
         >
           {selected ? (
-            <Badge
-              className={cn(
-                "absolute left-2 z-10 max-w-[calc(100%-4rem)] gap-1 rounded-full border-primary/30 bg-primary px-2 py-0.5 text-[10px] font-black text-primary-foreground shadow-sm [&_svg]:size-3 [&_svg]:shrink-0 sm:left-3",
-                hasUpdate ? "top-5" : "top-2 sm:top-3"
-              )}
-            >
+            <Badge className="absolute left-2 top-2 z-10 max-w-[calc(100%-4rem)] gap-1 rounded-full border-primary/30 bg-primary px-2 py-0.5 text-[10px] font-black text-primary-foreground shadow-sm [&_svg]:size-3 [&_svg]:shrink-0 sm:left-3 sm:top-3">
               <Check aria-hidden="true" />
               <span className="truncate">{t("pos.selectedTable")}</span>
-            </Badge>
-          ) : null}
-          {hasUpdate ? (
-            <Badge className="absolute left-1/2 top-0 h-4 -translate-x-1/2 rounded-b-[10px] rounded-t-none border-transparent bg-destructive px-3 py-0 text-[9px] font-bold leading-4 tracking-wide text-destructive-foreground shadow-none">
-              NEW
             </Badge>
           ) : null}
           <span
             className={cn(
               "absolute right-2.5 top-2.5 size-3 rounded-full border-[3px] border-background shadow-sm sm:right-3 sm:top-3",
-              statusDotClass
+              style.dot
             )}
           />
           <span className="text-xs font-medium text-muted-foreground">
@@ -304,14 +343,14 @@ function TableCard({
           <span className="mt-1 text-[19px] font-bold leading-none tracking-normal text-foreground sm:text-[22px]">
             {table.table_name}
           </span>
-          <span className={cn("mt-1.5 text-xs font-semibold sm:mt-2", statusTextClass)}>
-            {busy ? t("common.busy") : t("common.free")}
+          <span className={cn("mt-1.5 text-xs font-semibold sm:mt-2", style.text)}>
+            {statusLabel}
           </span>
         </div>
         <div
           className={cn(
             "flex h-8 items-center gap-1.5 border-t px-3 text-xs text-muted-foreground sm:h-8.5",
-            footerToneClass
+            style.footer
           )}
         >
           <UserRound />

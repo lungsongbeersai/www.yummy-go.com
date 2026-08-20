@@ -6,7 +6,7 @@ export const ProductImageStatus = { IMAGE: 1, COLOR: 2 } as const;
 export type ProductImageStatus =
   (typeof ProductImageStatus)[keyof typeof ProductImageStatus];
 
-export const TableStatus = { AVAILABLE: 1, OCCUPIED: 2 } as const;
+export const TableStatus = { NEW_ORDER: 0, AVAILABLE: 1, OCCUPIED: 2, AWAITING_PAYMENT: 3 } as const;
 export type TableStatus = (typeof TableStatus)[keyof typeof TableStatus];
 
 export const OrderSourceEnum = { POS: 1, QR: 2, ONLINE: 3 } as const;

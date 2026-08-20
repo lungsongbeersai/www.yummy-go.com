@@ -26,6 +26,8 @@
   --warning-foreground: hsl(0 0% 100%);
   --success: hsl(152 68% 32%);
   --success-foreground: hsl(0 0% 100%);
+  --pending: hsl(25 90% 45%);
+  --pending-foreground: hsl(0 0% 100%);
   --border: oklch(0.925 0.005 214.3);
   --input: oklch(0.925 0.005 214.3);
   --ring: oklch(0.723 0.014 214.4);
@@ -70,6 +72,8 @@
   --warning-foreground: hsl(26 83% 12%);
   --success: hsl(152 55% 55%);
   --success-foreground: hsl(152 60% 10%);
+  --pending: hsl(25 90% 60%);
+  --pending-foreground: hsl(25 80% 12%);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.56 0.021 213.5);
@@ -219,6 +223,8 @@ html[data-font-scale="lg"] {
   --color-warning-foreground: var(--warning-foreground);
   --color-success: var(--success);
   --color-success-foreground: var(--success-foreground);
+  --color-pending: var(--pending);
+  --color-pending-foreground: var(--pending-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
