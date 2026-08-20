@@ -315,7 +315,7 @@ function ProductBadges({
           </Badge>
         ) : null}
         {showBuyFree ? (
-          <Badge className="h-6 rounded-full bg-amber-300 px-1.5 py-0 text-xs font-black leading-none text-amber-950 shadow-sm sm:h-7 sm:px-2">
+          <Badge className="h-6 rounded-full bg-warning px-1.5 py-0 text-xs font-black leading-none text-warning-foreground shadow-sm sm:h-7 sm:px-2">
             {t("pos.buyShort")} {product.customerBuy} {t("pos.freeShort")}{" "}
             {product.customerFree}
           </Badge>
