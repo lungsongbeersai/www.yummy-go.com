@@ -843,13 +843,10 @@ html {
   --muted-foreground: hsl(215 13% 42%);
   --accent: hsl(210 26% 93%);
   --accent-foreground: hsl(224 42% 11%);
-  --primary: hsl(160 74% 28%);
-  --primary-foreground: hsl(0 0% 100%);
   --secondary: hsl(205 78% 94%);
   --secondary-foreground: hsl(211 47% 22%);
   --border: hsl(214 28% 87%);
   --input: hsl(214 28% 87%);
-  --ring: hsl(160 74% 28%);
 }
 
 .dark .pos-dark-zone {
@@ -863,13 +860,10 @@ html {
   --muted-foreground: hsl(215 14% 68%);
   --accent: hsl(218 18% 17%);
   --accent-foreground: hsl(210 28% 94%);
-  --primary: hsl(151 68% 43%);
-  --primary-foreground: hsl(155 50% 8%);
   --secondary: hsl(216 23% 17%);
   --secondary-foreground: hsl(210 28% 94%);
   --border: hsl(218 18% 20%);
   --input: hsl(218 18% 20%);
-  --ring: hsl(151 68% 43%);
 }
 
 .pos-safe-bottom-padding {
