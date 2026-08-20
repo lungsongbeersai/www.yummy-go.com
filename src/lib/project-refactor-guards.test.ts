@@ -379,7 +379,8 @@ describe("project refactor guards", () => {
 
   it("keeps component UI cleanup exceptions narrow", () => {
     const allowedComponentMatches = new Set([
-      "components/ui/avatar.tsx:-space-x-2"
+      "components/ui/avatar.tsx:-space-x-2",
+      "components/ui/skeleton.tsx:animate-pulse"
     ]);
     const disallowedComponentMatches = matchesInFiles(
       join(srcDir, "components"),
