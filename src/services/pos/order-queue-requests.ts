@@ -48,7 +48,7 @@ export const sendToKitchen = (input: SendToKitchenInput) => {
 
   return apiRequest<SendToKitchenResponse>(
     "patch",
-    "/api/v1/pos/customer_order_queue/send_to_kitchen",
+    "/api/v1/posAll/customer_order_queue/send_to_kitchen",
     {
       data: {
         order_item_uuids: input.order_item_uuids,
@@ -71,7 +71,7 @@ export const confirmOrderItemsServed = (
 
   return apiRequest<{ status: string; message: string }>(
     "patch",
-    "/api/v1/pos/confirm_order_item_served",
+    "/api/v1/posAll/confirm_order_item_served",
     {
       data: {
         order_item_uuids: input.order_item_uuids,
