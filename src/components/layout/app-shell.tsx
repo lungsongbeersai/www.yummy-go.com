@@ -67,6 +67,7 @@ import {
 } from "@/components/ui/tooltip";
 import { MenuIcon } from "@/components/common/menu-icon";
 import { LanguageSwitch } from "@/components/layout/language-switch";
+import { FloatingSettingsButton } from "@/components/layout/floating-settings-button";
 import { NotificationMenu } from "@/components/layout/notification-menu";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import {
@@ -298,6 +299,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       >
         {t("app.skipToContent")}
       </a>
+      <FloatingSettingsButton />
       {!immersiveScreen ? (
         <AppHeader
           breadcrumbs={breadcrumbs}

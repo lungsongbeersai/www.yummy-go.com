@@ -85,6 +85,94 @@
   --chart-5: oklch(0.448 0.119 151.328);
 }
 
+/* ธีมสี accent เลือกได้จากปุ่มลอยตั้งค่า (floating-settings-button) — เก็บ L/C เดิม
+   ของ preset เขียว (ค่าเริ่มต้น) ไว้ทุกตัว เปลี่ยนแค่ hue (H) เพื่อให้ contrast/ความสว่าง
+   เท่าเดิมทุกสี ไม่ต้องไล่เช็ค accessibility ใหม่ทีละสี */
+[data-theme-color="blue"] {
+  --primary: oklch(0.508 0.118 250);
+  --primary-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.508 0.118 250);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.92 0.05 250);
+  --sidebar-accent-foreground: oklch(0.24 0.06 250);
+  --sidebar-ring: oklch(0.508 0.118 250);
+}
+.dark[data-theme-color="blue"] {
+  --primary: oklch(0.432 0.095 250);
+  --primary-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.696 0.17 250);
+  --sidebar-primary-foreground: oklch(0.22 0 0);
+  --sidebar-accent: oklch(0.32 0.07 250);
+  --sidebar-accent-foreground: oklch(0.98 0.01 250);
+  --sidebar-ring: oklch(0.696 0.17 250);
+}
+
+[data-theme-color="amber"] {
+  --primary: oklch(0.508 0.118 70);
+  --primary-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.508 0.118 70);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.92 0.05 70);
+  --sidebar-accent-foreground: oklch(0.24 0.06 70);
+  --sidebar-ring: oklch(0.508 0.118 70);
+}
+.dark[data-theme-color="amber"] {
+  --primary: oklch(0.432 0.095 70);
+  --primary-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.696 0.17 70);
+  --sidebar-primary-foreground: oklch(0.22 0 0);
+  --sidebar-accent: oklch(0.32 0.07 70);
+  --sidebar-accent-foreground: oklch(0.98 0.01 70);
+  --sidebar-ring: oklch(0.696 0.17 70);
+}
+
+[data-theme-color="rose"] {
+  --primary: oklch(0.508 0.118 25);
+  --primary-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.508 0.118 25);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.92 0.05 25);
+  --sidebar-accent-foreground: oklch(0.24 0.06 25);
+  --sidebar-ring: oklch(0.508 0.118 25);
+}
+.dark[data-theme-color="rose"] {
+  --primary: oklch(0.432 0.095 25);
+  --primary-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.696 0.17 25);
+  --sidebar-primary-foreground: oklch(0.22 0 0);
+  --sidebar-accent: oklch(0.32 0.07 25);
+  --sidebar-accent-foreground: oklch(0.98 0.01 25);
+  --sidebar-ring: oklch(0.696 0.17 25);
+}
+
+[data-theme-color="violet"] {
+  --primary: oklch(0.508 0.118 305);
+  --primary-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.508 0.118 305);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.92 0.05 305);
+  --sidebar-accent-foreground: oklch(0.24 0.06 305);
+  --sidebar-ring: oklch(0.508 0.118 305);
+}
+.dark[data-theme-color="violet"] {
+  --primary: oklch(0.432 0.095 305);
+  --primary-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.696 0.17 305);
+  --sidebar-primary-foreground: oklch(0.22 0 0);
+  --sidebar-accent: oklch(0.32 0.07 305);
+  --sidebar-accent-foreground: oklch(0.98 0.01 305);
+  --sidebar-ring: oklch(0.696 0.17 305);
+}
+
+/* ขนาดตัวอักษรที่ปรับจากปุ่มลอยตั้งค่า — สเกล root font-size แล้วให้ Tailwind
+   ที่อิง rem ทั้งระบบขยาย/หดตามไปด้วยโดยไม่ต้องแก้ class ทีละจุด */
+html[data-font-scale="sm"] {
+  font-size: 93.75%;
+}
+html[data-font-scale="lg"] {
+  font-size: 106.25%;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

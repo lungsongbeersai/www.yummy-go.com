@@ -16,7 +16,7 @@ import {
   CAPACITOR_NATIVE_CLASS,
 } from "@/lib/capacitor-platform";
 import { LANGUAGE_COOKIE, type Language } from "@/lib/language";
-import { useAppStore, type ThemeMode } from "@/stores/app-store";
+import { useAppStore, type FontScale, type ThemeColor, type ThemeMode } from "@/stores/app-store";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppUpdateChecker } from "@/features/app-update/app-update-checker";
@@ -41,6 +41,14 @@ function applyDocumentTheme(theme: ThemeMode) {
   root.classList.toggle("dark", theme === "dark");
   root.dataset.theme = theme;
   root.style.colorScheme = theme;
+}
+
+function applyDocumentThemeColor(themeColor: ThemeColor) {
+  document.documentElement.dataset.themeColor = themeColor;
+}
+
+function applyDocumentFontScale(fontScale: FontScale) {
+  document.documentElement.dataset.fontScale = fontScale;
 }
 
 function shouldReduceThemeMotion() {
@@ -108,6 +116,8 @@ export function Providers({ children, initialLanguage }: ProvidersProps) {
   const themeTransitionIdRef = useRef(0);
   const themeTransitionCleanupTimerRef = useRef<number | null>(null);
   const theme = useAppStore((state) => state.theme);
+  const themeColor = useAppStore((state) => state.themeColor);
+  const fontScale = useAppStore((state) => state.fontScale);
   const language = useAppStore((state) => state.language);
   const hydrated = useAppStore((state) => state.hydrated);
 
@@ -188,6 +198,16 @@ export function Providers({ children, initialLanguage }: ProvidersProps) {
     },
     []
   );
+
+  useEffect(() => {
+    if (!mounted || !hydrated) return;
+    applyDocumentThemeColor(themeColor);
+  }, [hydrated, mounted, themeColor]);
+
+  useEffect(() => {
+    if (!mounted || !hydrated) return;
+    applyDocumentFontScale(fontScale);
+  }, [fontScale, hydrated, mounted]);
 
   useEffect(() => {
     if (!mounted || !hydrated) return;

@@ -37,7 +37,25 @@
     "tagline": "ລະບົບຮ້ານອາຫານທີ່ສ້າງໃໝ່ໃຫ້ສະອາດຂຶ້ນ.",
     "theme": "ຮູບແບບສີ",
     "toggleTheme": "ປ່ຽນຮູບແບບສີ",
-    "retryMenu": "ລອງໂຫຼດເມນູໃໝ່"
+    "retryMenu": "ລອງໂຫຼດເມນູໃໝ່",
+    "appearance": {
+      "openSettings": "ຕັ້ງຄ່າການສະແດງຜົນ",
+      "title": "ການສະແດງຜົນ",
+      "colorLabel": "ສີຫຼັກ",
+      "fontSizeLabel": "ຂະໜາດຕົວອັກສອນ",
+      "colors": {
+        "green": "ຂຽວ (ຄ່າເລີ່ມຕົ້ນ)",
+        "blue": "ຟ້າ",
+        "amber": "ສົ້ມ",
+        "rose": "ຊົມພູ",
+        "violet": "ມ່ວງ"
+      },
+      "fontSizes": {
+        "sm": "ນ້ອຍ",
+        "md": "ປົກກະຕິ",
+        "lg": "ໃຫຍ່"
+      }
+    }
   },
   "appUpdate": {
     "currentVersion": "ເວີຊັນປັດຈຸບັນ",

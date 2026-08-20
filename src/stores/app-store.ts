@@ -5,15 +5,21 @@ import { persist } from "zustand/middleware";
 import { DEFAULT_LANGUAGE, type Language } from "@/lib/language";
 
 export type ThemeMode = "light" | "dark";
+export type ThemeColor = "green" | "blue" | "amber" | "rose" | "violet";
+export type FontScale = "sm" | "md" | "lg";
 
 interface AppState {
   theme: ThemeMode;
+  themeColor: ThemeColor;
+  fontScale: FontScale;
   language: Language;
   sidebarOpen: boolean;
   collapsed: boolean;
   hydrated: boolean;
   setTheme: (theme: ThemeMode) => void;
   toggleTheme: () => void;
+  setThemeColor: (themeColor: ThemeColor) => void;
+  setFontScale: (fontScale: FontScale) => void;
   setLanguage: (language: Language) => void;
   setSidebarOpen: (open: boolean) => void;
   setCollapsed: (collapsed: boolean) => void;
@@ -25,12 +31,16 @@ export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
       theme: "light",
+      themeColor: "green",
+      fontScale: "md",
       language: DEFAULT_LANGUAGE,
       sidebarOpen: false,
       collapsed: false,
       hydrated: false,
       setTheme: (theme) => set({ theme }),
       toggleTheme: () => set({ theme: get().theme === "dark" ? "light" : "dark" }),
+      setThemeColor: (themeColor) => set({ themeColor }),
+      setFontScale: (fontScale) => set({ fontScale }),
       setLanguage: (language) => set({ language }),
       setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
       setCollapsed: (collapsed) => set({ collapsed }),
@@ -39,7 +49,13 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: "yummy-go-app",
-      partialize: ({ theme, language, collapsed }) => ({ theme, language, collapsed }),
+      partialize: ({ theme, themeColor, fontScale, language, collapsed }) => ({
+        theme,
+        themeColor,
+        fontScale,
+        language,
+        collapsed
+      }),
       skipHydration: true,
       onRehydrateStorage: () => (state) => state?.setHydrated(true)
     }

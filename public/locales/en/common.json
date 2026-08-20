@@ -37,7 +37,25 @@
     "tagline": "Restaurant operations rebuilt cleanly.",
     "theme": "Theme",
     "toggleTheme": "Toggle theme",
-    "retryMenu": "Retry navigation"
+    "retryMenu": "Retry navigation",
+    "appearance": {
+      "openSettings": "Appearance settings",
+      "title": "Appearance",
+      "colorLabel": "Accent color",
+      "fontSizeLabel": "Text size",
+      "colors": {
+        "green": "Green (default)",
+        "blue": "Blue",
+        "amber": "Amber",
+        "rose": "Rose",
+        "violet": "Violet"
+      },
+      "fontSizes": {
+        "sm": "Small",
+        "md": "Default",
+        "lg": "Large"
+      }
+    }
   },
   "appUpdate": {
     "currentVersion": "Current version",
