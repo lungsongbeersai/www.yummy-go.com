@@ -288,6 +288,9 @@ function TableCard({
   const seats = tableSeatCount(table);
   const checkInTime = busy ? tableCheckInTime(table) : null;
   const style = STATUS_STYLE[visualStatus];
+  // status 2 (ไม่ว่าง) + customer_order_state true = ลูกค้าสั่งเพิ่มระหว่างนั่งอยู่แล้ว
+  // ไม่ใช่ออเดอร์แรก จึงคงสีไม่ว่างไว้ตามปกติ แต่เพิ่ม ring กะพริบดึงสายตาพนักงาน
+  const hasAdditionalOrderAlert = visualStatus === "occupied" && Boolean(table.customer_order_state);
   const statusLabel =
     visualStatus === "awaitingConfirm"
       ? t("pos.tableSelectionNewOrder")
@@ -307,6 +310,7 @@ function TableCard({
       className={cn(
         "cursor-pointer overflow-hidden rounded-xl bg-card p-0 shadow-sm outline-none transition hover:border-primary/70 hover:shadow-md focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30",
         style.card,
+        hasAdditionalOrderAlert && "pos-table-card-alert",
         selected && "border-primary/90 bg-primary/10 shadow-lg shadow-primary/15 ring-2 ring-primary ring-offset-2 ring-offset-background"
       )}
       onClick={() => onOpen(table)}
