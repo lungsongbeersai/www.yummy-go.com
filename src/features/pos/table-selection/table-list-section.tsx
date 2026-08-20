@@ -257,12 +257,14 @@ const STATUS_STYLE: Record<
     dot: "bg-success",
     text: "text-success"
   },
+  // พื้นเขียว (success) สื่อว่า "โต๊ะนี้เปิดขายอยู่" ตามที่ระบุ แต่ตัวหนังสือ/จุดสถานะ
+  // ใช้แดง (destructive) เป็น accent แยกจาก available (เขียวทั้งคู่) ให้ต่างชัดจากระยะไกล
   occupied: {
     card: "border-success bg-success/10",
     body: "bg-success/20",
     footer: "border-success/30 bg-success/15",
-    dot: "bg-success",
-    text: "text-success"
+    dot: "bg-destructive",
+    text: "text-destructive"
   },
   awaitingPayment: {
     card: "border-pending bg-pending/10",
