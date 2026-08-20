@@ -23,14 +23,14 @@ export function PaymentStat({
       className={cn(
         "rounded-lg border border-border bg-card p-1.5 sm:p-3",
         strong && "border-primary/40",
-        hero && "border-primary bg-primary text-primary-foreground",
+        hero && "border-primary/30 bg-primary/10 text-primary",
         className,
       )}
     >
       <p
         className={cn(
           "truncate text-xs font-semibold text-muted-foreground",
-          hero && "text-primary-foreground/80",
+          hero && "text-primary/70",
         )}
       >
         {label}

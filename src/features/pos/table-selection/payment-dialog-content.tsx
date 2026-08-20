@@ -142,14 +142,14 @@ function PaymentSummaryStrip({ items }: { items: PaymentSummaryStripItem[] }) {
               hero
                 ? "col-span-2 flex items-center justify-between gap-3 border-b border-border"
                 : index === 1 && "border-r border-border",
-              primary && "border-primary bg-primary text-primary-foreground",
+              primary && "border-primary/30 bg-primary/10 text-primary",
               item.tone === "strong" && "bg-muted/40",
             )}
           >
             <p
               className={cn(
                 "line-clamp-2 text-[10px] leading-tight font-semibold text-muted-foreground min-[390px]:text-[11px]",
-                primary && "text-primary-foreground/80",
+                primary && "text-primary/70",
               )}
             >
               {item.label}
