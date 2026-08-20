@@ -100,7 +100,7 @@ export function ProductOrderSheetContent({
           aria-busy={loading || saving}
           className={cn(
             PANEL_CLASS,
-            "h-[calc(100dvh-0.5rem)] max-h-none rounded-t-[26px]",
+            "h-[calc(100dvh-0.5rem)] max-h-none rounded-t-[26px] data-[side=bottom]:h-[calc(100dvh-0.5rem)]",
           )}
           onEscapeKeyDown={(event) => {
             if (saving) event.preventDefault();

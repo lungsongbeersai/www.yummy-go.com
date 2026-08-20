@@ -89,7 +89,7 @@ export function ProductOptionsOverlay({
         <SheetContent
           showCloseButton={false}
           side="bottom"
-          className="pos-soft-light-zone pos-dark-zone flex h-[calc(100dvh-8px)] max-h-none flex-col gap-0 overflow-hidden rounded-t-2xl border-border bg-background p-0 text-foreground motion-reduce:transition-none motion-reduce:data-[state=closed]:animate-none motion-reduce:data-[state=open]:animate-none"
+          className="pos-soft-light-zone pos-dark-zone flex h-[calc(100dvh-8px)] max-h-none flex-col gap-0 overflow-hidden rounded-t-2xl border-border bg-background p-0 text-foreground data-[side=bottom]:h-[calc(100dvh-8px)] motion-reduce:transition-none motion-reduce:data-[state=closed]:animate-none motion-reduce:data-[state=open]:animate-none"
         >
           <SheetHeader className="shrink-0 flex-row items-start justify-between gap-3 border-b border-border px-4 py-3 text-left">
             <div className="min-w-0">

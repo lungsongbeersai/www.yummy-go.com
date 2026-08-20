@@ -59,7 +59,7 @@ export function PublicSearchSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
-        className="yg-shell inset-0 flex h-dvh max-h-dvh w-screen max-w-none flex-col gap-0 overflow-hidden border-0 p-0 font-yg-sans text-yg-ink"
+        className="yg-shell inset-0 flex h-dvh max-h-dvh w-screen max-w-none flex-col gap-0 overflow-hidden border-0 p-0 font-yg-sans text-yg-ink data-[side=bottom]:h-dvh"
       >
         <SheetHeader className="shrink-0 border-b border-yg-line bg-yg-bg2/85 px-4 py-4 text-left backdrop-blur-xl">
           <div className="flex min-w-0 items-center gap-3 pr-10">

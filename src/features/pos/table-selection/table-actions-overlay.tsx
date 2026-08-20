@@ -326,7 +326,7 @@ export function TableActionsOverlay({
           <SheetContent
             side="bottom"
             showCloseButton={!pending}
-            className="h-[90dvh] max-h-none gap-0 overflow-hidden rounded-t-2xl p-0"
+            className="h-[90dvh] max-h-none gap-0 overflow-hidden rounded-t-2xl p-0 data-[side=bottom]:h-[90dvh]"
           >
             <SheetHeader className="shrink-0 border-b border-border p-4 pr-14">
               <div className="flex min-w-0 items-center gap-3 text-left">

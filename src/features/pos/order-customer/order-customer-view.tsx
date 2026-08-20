@@ -325,7 +325,7 @@ export function OrderCustomerView({
         <SheetContent
           data-pos-pattern="true"
           side="bottom"
-          className="h-[calc(100dvh-8px)] max-h-none gap-0 overflow-hidden rounded-t-2xl border-white/20 bg-[image:linear-gradient(color-mix(in_oklch,var(--primary)_45%,transparent),color-mix(in_oklch,var(--primary)_45%,transparent)),url('/pos/background_wide.webp')] bg-cover bg-top p-0 text-white dark:border-primary/30 dark:bg-none dark:bg-background"
+          className="h-[calc(100dvh-8px)] max-h-none gap-0 overflow-hidden rounded-t-2xl border-white/20 bg-[image:linear-gradient(color-mix(in_oklch,var(--primary)_45%,transparent),color-mix(in_oklch,var(--primary)_45%,transparent)),url('/pos/background_wide.webp')] bg-cover bg-top p-0 text-white data-[side=bottom]:h-[calc(100dvh-8px)] dark:border-primary/30 dark:bg-none dark:bg-background"
         >
           <SheetTitle className="sr-only">{t("pos.currentCart")}</SheetTitle>
           <SelectedTableCartPanel
