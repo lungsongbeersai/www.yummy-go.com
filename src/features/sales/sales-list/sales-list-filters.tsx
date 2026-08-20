@@ -132,6 +132,7 @@ export function SalesListFilterBar({
           draftFilters={draftFilters}
           idPrefix="sales-list"
           onDraftChange={onDraftChange}
+          onSearchEnter={onApply}
         />
         <Button type="button" className="h-9 min-w-24" disabled={loading || !canApply} onClick={onApply}>
           {loading ? <RefreshCcw className="animate-spin" data-icon="inline-start" /> : null}
@@ -178,6 +179,7 @@ export function SalesListFilterSheet({
               draftFilters={draftFilters}
               idPrefix="sales-list-mobile"
               onDraftChange={onDraftChange}
+              onSearchEnter={onApply}
             />
           </div>
         </div>
@@ -208,6 +210,7 @@ interface SalesListFilterFieldsProps {
   draftFilters: SalesListFilters;
   idPrefix: string;
   onDraftChange: (patch: Partial<SalesListFilters>) => void;
+  onSearchEnter?: () => void;
 }
 
 function SalesListFilterFields({
@@ -216,7 +219,8 @@ function SalesListFilterFields({
   branchOptions,
   draftFilters,
   idPrefix,
-  onDraftChange
+  onDraftChange,
+  onSearchEnter
 }: SalesListFilterFieldsProps) {
   const { t } = useTranslation();
 
@@ -232,6 +236,8 @@ function SalesListFilterFields({
           placeholder={t("actions.search")}
           value={draftFilters.search}
           onChange={(value) => onDraftChange({ search: value })}
+          onEnter={onSearchEnter}
+          className="h-11 bg-background"
         />
       </Field>
       {/* แท็บเล็ต (2 คอลัมน์): สาขากินเต็มแถว วันที่เริ่ม-สิ้นสุดจึงได้อยู่แถวเดียวกัน — จอ lg เป็น 6 คอลัมน์อยู่แล้วจึงคืนเป็น 1 ช่อง */}
@@ -244,7 +250,7 @@ function SalesListFilterFields({
           disabled={branchLoading || branchOptions.length <= 1}
           onValueChange={(value) => onDraftChange({ branchUuid: value })}
         >
-          <SelectTrigger id={`${idPrefix}-branch`} className="h-11 w-full">
+          <SelectTrigger id={`${idPrefix}-branch`} className="h-11 w-full data-[size=default]:h-11">
             <SelectValue placeholder={branchLabel || t("nav.branch")} />
           </SelectTrigger>
           <SelectContent>
@@ -290,7 +296,7 @@ function SalesListFilterFields({
           value={String(draftFilters.limit)}
           onValueChange={(value) => onDraftChange({ limit: Number(value) as PageLimit })}
         >
-          <SelectTrigger id={`${idPrefix}-limit`} className="h-11 w-full">
+          <SelectTrigger id={`${idPrefix}-limit`} className="h-11 w-full data-[size=default]:h-11">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -312,7 +318,7 @@ function SalesListFilterFields({
           value={draftFilters.paymentMethod}
           onValueChange={(value) => onDraftChange({ paymentMethod: value as SalesListPaymentMethod })}
         >
-          <SelectTrigger id={`${idPrefix}-payment-method`} className="h-11 w-full">
+          <SelectTrigger id={`${idPrefix}-payment-method`} className="h-11 w-full data-[size=default]:h-11">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -334,7 +340,7 @@ function SalesListFilterFields({
           value={draftFilters.orderBy}
           onValueChange={(value) => onDraftChange({ orderBy: value as DailySaleItemsOrder })}
         >
-          <SelectTrigger id={`${idPrefix}-order`} className="h-11 w-full">
+          <SelectTrigger id={`${idPrefix}-order`} className="h-11 w-full data-[size=default]:h-11">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
