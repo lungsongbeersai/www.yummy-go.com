@@ -40,7 +40,7 @@ export function CartTabTrigger({
       disabled={disabled}
       aria-label={`${label}: ${count}`}
       title={label}
-      className="h-full min-w-0 gap-1.5 rounded-lg px-2.5 text-[13px] font-black text-white/80 transition-colors data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
+      className="h-full min-w-0 gap-1.5 rounded-lg px-2.5 text-[13px] font-black text-white/80 transition-colors hover:text-white data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
     >
       <span className="min-w-0 truncate sm:hidden">{shortLabel ?? label}</span>
       <span className="hidden min-w-0 truncate sm:inline">{label}</span>
