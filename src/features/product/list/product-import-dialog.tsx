@@ -136,7 +136,7 @@ export function ProductImportDialog({ workflow }: { workflow: ProductListWorkflo
                   <Badge className="justify-center bg-primary/10 text-primary">
                     {workflow.t("product.import.readyCount", { count: workflow.importSummary.ready })}
                   </Badge>
-                  <Badge className="justify-center border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
+                  <Badge className="justify-center border-success/30 bg-success/10 text-success">
                     {workflow.t("product.import.succeededCount", {
                       count: workflow.importSummary.succeeded,
                     })}
@@ -168,9 +168,9 @@ export function ProductImportDialog({ workflow }: { workflow: ProductListWorkflo
               <Alert
                 className={
                   workflow.importResultTone === "success"
-                    ? "border-emerald-500/40"
+                    ? "border-success/40"
                     : workflow.importResultTone === "partial"
-                      ? "border-amber-500/40"
+                      ? "border-warning/40"
                       : "border-destructive/40"
                 }
               >
@@ -234,7 +234,7 @@ export function ProductImportDialog({ workflow }: { workflow: ProductListWorkflo
                           </TableCell>
                           <TableCell className="max-w-[22rem]">
                             {draft.executionStatus === "succeeded" ? (
-                              <span className="inline-flex items-center gap-1 text-sm font-medium text-emerald-700 dark:text-emerald-300">
+                              <span className="inline-flex items-center gap-1 text-sm font-medium text-success">
                                 <CheckCircle2 data-icon="inline-start" />
                                 {workflow.t("product.import.succeeded")}
                               </span>
@@ -260,7 +260,7 @@ export function ProductImportDialog({ workflow }: { workflow: ProductListWorkflo
                                 {workflow.t("product.import.addsSizes")}
                               </span>
                             ) : willCreate ? (
-                              <span className="inline-flex items-center gap-1 text-sm font-medium text-amber-700 dark:text-amber-300">
+                              <span className="inline-flex items-center gap-1 text-sm font-medium text-warning">
                                 <Info data-icon="inline-start" />
                                 {workflow.t("product.import.willCreate")}
                               </span>
