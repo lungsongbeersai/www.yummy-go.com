@@ -244,7 +244,7 @@ const STATUS_STYLE: Record<
     text: "text-warning"
   },
   newOrder: {
-    card: "border-destructive bg-destructive/10",
+    card: "pos-table-card-alert border-destructive bg-destructive/10",
     body: "bg-destructive/20",
     footer: "border-destructive/30 bg-destructive/15",
     dot: "bg-destructive",
