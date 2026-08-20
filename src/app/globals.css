@@ -787,46 +787,46 @@ html {
 .capacitor-android .login-light-zone .login-input {
   appearance: none;
   -webkit-appearance: none;
-  background-color: #ffffff !important;
-  border-color: #10b981 !important;
+  background-color: var(--card) !important;
+  border-color: var(--primary) !important;
   box-shadow: 0 1px 2px 0 rgba(15, 23, 42, 0.06) !important;
-  color: #1e293b !important;
-  caret-color: #059669;
+  color: var(--foreground) !important;
+  caret-color: var(--primary);
   outline: none !important;
 }
 
 .capacitor-android .login-light-zone .login-input:focus {
-  border-color: #10b981 !important;
+  border-color: var(--primary) !important;
   box-shadow:
     0 0 0 4px rgba(16, 185, 129, 0.12),
     0 1px 2px 0 rgba(15, 23, 42, 0.06) !important;
 }
 
 .capacitor-android .login-light-zone .login-input::placeholder {
-  color: #94a3b8 !important;
+  color: var(--muted-foreground) !important;
 }
 
 .capacitor-android .login-light-zone .login-submit-button {
   appearance: none;
   -webkit-appearance: none;
-  background-color: #059669 !important;
-  border-color: #059669 !important;
-  color: #ffffff !important;
+  background-color: var(--primary) !important;
+  border-color: var(--primary) !important;
+  color: var(--primary-foreground) !important;
   opacity: 1 !important;
   box-shadow: 0 18px 34px -24px rgba(5, 150, 105, 0.95) !important;
 }
 
 .capacitor-android .login-light-zone .login-submit-button:hover,
 .capacitor-android .login-light-zone .login-submit-button:focus {
-  background-color: #047857 !important;
-  border-color: #047857 !important;
-  color: #ffffff !important;
+  background-color: color-mix(in srgb, var(--primary) 85%, black) !important;
+  border-color: color-mix(in srgb, var(--primary) 85%, black) !important;
+  color: var(--primary-foreground) !important;
 }
 
 .capacitor-android .login-light-zone .login-submit-button:disabled {
-  background-color: #059669 !important;
-  border-color: #059669 !important;
-  color: #ffffff !important;
+  background-color: var(--primary) !important;
+  border-color: var(--primary) !important;
+  color: var(--primary-foreground) !important;
   opacity: 0.7 !important;
 }
 
@@ -905,7 +905,7 @@ html {
 
 .login-light-zone .login-input-group,
 .login-light-zone .login-input-group [data-slot="input-group-addon"] {
-  background: #ffffff !important;
+  background: var(--card) !important;
 }
 
 .login-light-zone .login-input-group input {
@@ -916,7 +916,7 @@ html {
 .login-light-zone input:-webkit-autofill:hover,
 .login-light-zone input:-webkit-autofill:focus,
 .login-light-zone input:-webkit-autofill:active {
-  box-shadow: 0 0 0 1000px #ffffff inset !important;
+  box-shadow: 0 0 0 1000px var(--card) inset !important;
   -webkit-text-fill-color: var(--foreground) !important;
   caret-color: var(--foreground);
 }

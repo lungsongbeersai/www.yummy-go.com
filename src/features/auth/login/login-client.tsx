@@ -73,10 +73,10 @@ export function LoginClient() {
   }
 
   return (
-    <main className="login-light-zone relative min-h-screen min-h-[100dvh] overflow-x-hidden overflow-y-auto bg-[#f6fbf9] text-slate-950">
+    <main className="login-light-zone relative min-h-screen min-h-[100dvh] overflow-x-hidden overflow-y-auto bg-background text-foreground">
       <div className="absolute right-4 top-4 z-30 flex items-center gap-2 sm:right-6 sm:top-6">
         <LanguageSwitch
-          className="border border-slate-200 bg-white/95 text-slate-700 shadow-sm backdrop-blur hover:bg-white"
+          className="border border-border bg-card/95 text-muted-foreground shadow-sm backdrop-blur hover:bg-card"
           variant="outline"
         />
       </div>
@@ -95,15 +95,15 @@ export function LoginClient() {
             className="object-cover object-center"
           />
 
-          <div className="login-hero-overlay absolute inset-0 bg-white/20" />
-          <div className="absolute inset-y-0 right-0 w-40 bg-gradient-to-pr from-transparent to-[#f6fbf9]" />
+          <div className="login-hero-overlay absolute inset-0 bg-card/20" />
+          <div className="absolute inset-y-0 right-0 w-40 bg-gradient-to-pr from-transparent to-background" />
         </section>
 
         <section className="login-panel-section flex min-h-screen min-h-[100dvh] items-center justify-center px-4 py-16 sm:px-6 lg:px-12">
-          <Card className="login-card w-full max-w-md rounded-[22px] border border-slate-200/80 bg-white/95 shadow-[0_24px_70px_-42px_rgba(15,23,42,0.5)] backdrop-blur">
+          <Card className="login-card w-full max-w-md rounded-[22px] border-border/80 bg-card/95 shadow-[0_24px_70px_-42px_rgba(15,23,42,0.5)] backdrop-blur">
             <CardContent className="px-6 py-8 sm:px-8 sm:py-9">
               <div className="mb-7 text-center">
-                <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full border border-slate-200 bg-white shadow-[0_16px_36px_-26px_rgba(15,23,42,0.55)]">
+                <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full border border-border bg-card shadow-[0_16px_36px_-26px_rgba(15,23,42,0.55)]">
                   <Image
                     src="/brand/icon.png"
                     alt="Yummy Go"
@@ -114,19 +114,19 @@ export function LoginClient() {
                   />
                 </div>
 
-                <h1 className="text-2xl font-black leading-tight tracking-tight text-slate-950 sm:text-[1.7rem]">
+                <h1 className="text-2xl font-black leading-tight tracking-tight text-foreground sm:text-[1.7rem]">
                   {t("auth.signIn")}
                 </h1>
 
-                <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
+                <p className="mt-2 text-sm font-semibold leading-6 text-muted-foreground">
                   {t("auth.accessWorkspace")}
                 </p>
               </div>
 
               <form className="flex flex-col gap-5" onSubmit={onSubmit}>
                 <Field>
-                  <FieldLabel htmlFor="login-email" className="text-sm font-black text-slate-600">
-                    {t("auth.email")} <span className="text-red-500">*</span>
+                  <FieldLabel htmlFor="login-email" className="text-sm font-black text-muted-foreground">
+                    {t("auth.email")} <span className="text-destructive">*</span>
                   </FieldLabel>
 
                   <Input
@@ -138,7 +138,7 @@ export function LoginClient() {
                     autoComplete="email"
                     spellCheck={false}
                     required
-                    className="login-input h-12 rounded-lg border-slate-200 bg-white px-4 text-sm font-semibold text-slate-800 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 focus-visible:border-emerald-500 focus-visible:ring-4 focus-visible:ring-emerald-500/10"
+                    className="login-input h-12 rounded-lg border-border bg-card px-4 text-sm font-semibold text-foreground shadow-sm outline-none transition placeholder:text-muted-foreground focus:border-primary focus:ring-4 focus:ring-primary/10 focus-visible:border-primary focus-visible:ring-4 focus-visible:ring-primary/10"
                   />
                 </Field>
 
@@ -146,9 +146,9 @@ export function LoginClient() {
                   <div className="flex items-center justify-between gap-3">
                     <FieldLabel
                       htmlFor="login-password"
-                      className="text-sm font-black text-slate-600"
+                      className="text-sm font-black text-muted-foreground"
                     >
-                      {t("auth.password")} <span className="text-red-500">*</span>
+                      {t("auth.password")} <span className="text-destructive">*</span>
                     </FieldLabel>
                   </div>
 
@@ -161,7 +161,7 @@ export function LoginClient() {
                       type={showPassword ? "text" : "password"}
                       autoComplete="current-password"
                       required
-                      className="login-input h-12 rounded-lg border-slate-200 bg-white px-4 pr-12 text-sm font-semibold text-slate-800 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 focus-visible:border-emerald-500 focus-visible:ring-4 focus-visible:ring-emerald-500/10"
+                      className="login-input h-12 rounded-lg border-border bg-card px-4 pr-12 text-sm font-semibold text-foreground shadow-sm outline-none transition placeholder:text-muted-foreground focus:border-primary focus:ring-4 focus:ring-primary/10 focus-visible:border-primary focus-visible:ring-4 focus-visible:ring-primary/10"
                     />
 
                     <Button
@@ -171,7 +171,7 @@ export function LoginClient() {
                       aria-label={showPassword ? t("auth.hidePassword") : t("auth.showPassword")}
                       aria-pressed={showPassword}
                       onClick={() => setShowPassword((value) => !value)}
-                      className="absolute right-0 top-1/2 grid h-12 w-12 -translate-y-1/2 place-items-center rounded-md text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
+                      className="absolute right-0 top-1/2 grid h-12 w-12 -translate-y-1/2 place-items-center rounded-md text-muted-foreground transition hover:bg-accent hover:text-foreground"
                     >
                       {showPassword ? (
                         <EyeOff aria-hidden="true" />
@@ -190,12 +190,12 @@ export function LoginClient() {
                         name="remember"
                         checked={remember}
                         onCheckedChange={(checked) => setRemember(checked as boolean)}
-                        className="h-4 w-4 rounded border-slate-300 data-[state=checked]:border-emerald-600 data-[state=checked]:bg-emerald-600"
+                        className="h-4 w-4 rounded border-border data-[state=checked]:border-primary data-[state=checked]:bg-primary"
                       />
 
                       <FieldLabel
                         htmlFor="login-remember"
-                        className="text-sm font-black text-slate-700"
+                        className="text-sm font-black text-foreground"
                       >
                         {t("auth.rememberMe")}
                       </FieldLabel>
@@ -205,21 +205,21 @@ export function LoginClient() {
 
                 <Button
                   type="submit"
-                  className="login-submit-button mt-1 h-12 w-full rounded-lg bg-emerald-600 text-base font-black text-white shadow-[0_18px_34px_-24px_rgba(5,150,105,0.95)] transition hover:bg-emerald-700"
+                  className="login-submit-button mt-1 h-12 w-full rounded-lg bg-primary text-base font-black text-primary-foreground shadow-[0_18px_34px_-24px_rgba(5,150,105,0.95)] transition hover:bg-primary/90"
                   disabled={loading}
                 >
                   {loading ? t("auth.signingIn") : t("auth.signIn")}
                 </Button>
               </form>
 
-              <p className="mt-5 text-center text-xs font-semibold leading-5 text-slate-500">
+              <p className="mt-5 text-center text-xs font-semibold leading-5 text-muted-foreground">
                 {t("auth.version", { version: displayedVersion })}
               </p>
 
               <div className="mt-3 text-center">
                 <Link
                   href="/policy"
-                  className="inline-flex min-h-11 items-center rounded-md px-3 text-xs font-black text-emerald-700 underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                  className="inline-flex min-h-11 items-center rounded-md px-3 text-xs font-black text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                 >
                   {t("policy.title")}
                 </Link>
