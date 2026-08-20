@@ -83,7 +83,7 @@ export function TableSelectionPage() {
       <div aria-hidden="true" data-pos-pattern-overlay="true" className="pointer-events-none absolute inset-0 bg-primary/45 dark:bg-black/55" />
       <div className="relative flex h-full min-h-0 flex-col overflow-hidden">
         <header className="relative flex h-18 shrink-0 items-center justify-between overflow-hidden px-3 text-primary-foreground shadow-sm sm:h-20 sm:px-4">
-          <Button aria-label={t("actions.back")} className="relative size-11 rounded-full border border-primary-foreground/20 bg-primary-foreground/10 px-0 text-primary-foreground shadow-sm backdrop-blur-sm hover:bg-primary-foreground/20 dark:border-white/20 dark:bg-white/10 dark:text-white dark:hover:bg-white/20 dark:hover:text-white" type="button" variant="ghost" onClick={() => router.replace("/")}>
+          <Button aria-label={t("actions.back")} className={headerIconButtonClass} size="icon" type="button" variant="ghost" onClick={() => router.replace("/")}>
             <ChevronLeft />
           </Button>
           <p className="absolute left-1/2 top-1/2 max-w-55 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap text-[20px] font-black leading-none tracking-wide text-primary-foreground dark:text-white sm:text-[28px]">{formatClock(now)}</p>
@@ -91,7 +91,7 @@ export function TableSelectionPage() {
             <NotificationMenu triggerClassName={cn(headerIconButtonClass, "hidden min-[430px]:inline-flex")} triggerVariant="ghost" />
             <LanguageSwitch className={cn(headerIconButtonClass, "hidden min-[500px]:inline-flex")} contentAlign="end" showShort={false} size="icon" variant="ghost" />
             <ThemeToggle className={headerIconButtonClass} size="icon" variant="ghost" />
-            <Button aria-label={t("actions.refresh")} className={headerIconButtonClass} type="button" variant="ghost" onClick={() => void load()}>
+            <Button aria-label={t("actions.refresh")} className={headerIconButtonClass} size="icon" type="button" variant="ghost" onClick={() => void load()}>
               <RefreshCcw />
             </Button>
           </div>
