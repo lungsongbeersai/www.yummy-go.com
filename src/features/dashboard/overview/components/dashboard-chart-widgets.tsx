@@ -90,12 +90,12 @@ const toneClasses: Record<Tone, { bar: string; soft: string; text: string }> = {
 };
 
 const chartColors = [
-  "hsl(var(--primary))",
-  "hsl(var(--primary) / 0.72)",
+  "var(--primary)",
+  "color-mix(in oklch, var(--primary) 72%, transparent)",
   "hsl(38 92% 50%)",
-  "hsl(var(--destructive))",
-  "hsl(var(--muted-foreground))",
-  "hsl(var(--primary) / 0.42)"
+  "var(--destructive)",
+  "var(--muted-foreground)",
+  "color-mix(in oklch, var(--primary) 42%, transparent)"
 ];
 
 function paymentLabel(rows: BreakdownRow[], terms: string[], fallback: string) {
@@ -187,12 +187,12 @@ function DashboardRevenueChart({
     label: row.day || row.date
   }));
   const config = {
-    cash: { label: paymentLabel(paymentRows, ["cash"], copy.cash), color: "hsl(var(--primary))" },
-    transfer: { label: paymentLabel(paymentRows, ["transfer"], copy.transfer), color: "hsl(var(--primary) / 0.62)" },
-    mixed: { label: copy.mixed, color: "hsl(var(--primary) / 0.38)" },
-    balance: { label: paymentLabel(paymentRows, ["debt", "balance"], copy.debt), color: "hsl(var(--destructive))" },
+    cash: { label: paymentLabel(paymentRows, ["cash"], copy.cash), color: "var(--primary)" },
+    transfer: { label: paymentLabel(paymentRows, ["transfer"], copy.transfer), color: "color-mix(in oklch, var(--primary) 62%, transparent)" },
+    mixed: { label: copy.mixed, color: "color-mix(in oklch, var(--primary) 38%, transparent)" },
+    balance: { label: paymentLabel(paymentRows, ["debt", "balance"], copy.debt), color: "var(--destructive)" },
     orders: { label: copy.orders, color: "hsl(38 92% 50%)" },
-    revenue: { label: copy.revenue, color: "hsl(var(--primary))" }
+    revenue: { label: copy.revenue, color: "var(--primary)" }
   } satisfies ChartConfig;
 
   if (!rows.length) return <EmptyPanel label={copy.noData} />;
@@ -329,7 +329,7 @@ function ChannelDonutPanel({ copy, rows }: { copy: DashboardCopy; rows: Breakdow
     (selected, row) => (!selected || row.value > selected.value ? row : selected),
     undefined
   );
-  const config = { value: { label: copy.revenue, color: "hsl(var(--primary))" } } satisfies ChartConfig;
+  const config = { value: { label: copy.revenue, color: "var(--primary)" } } satisfies ChartConfig;
 
   return (
     <Card className="overflow-hidden rounded-xl shadow-sm">
@@ -663,7 +663,7 @@ function ParetoPanel({ copy, products }: { copy: DashboardCopy; products: Produc
   const totalMetric = data.reduce((sum, item) => sum + metricValue(item), 0);
   const topTwoShare = data.slice(0, 2).reduce((sum, product) => sum + metricValue(product), 0) / Math.max(1, totalMetric) * 100;
   const config = {
-    value: { label: metric === "revenue" ? copy.revenue : copy.qty, color: "hsl(var(--primary))" },
+    value: { label: metric === "revenue" ? copy.revenue : copy.qty, color: "var(--primary)" },
     cumulativePercent: { label: copy.cumulativePercent, color: "hsl(38 92% 50%)" }
   } satisfies ChartConfig;
 
