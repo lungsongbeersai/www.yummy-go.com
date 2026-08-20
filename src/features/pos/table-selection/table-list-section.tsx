@@ -237,7 +237,7 @@ const STATUS_STYLE: Record<
   { card: string; body: string; footer: string; dot: string; text: string }
 > = {
   awaitingConfirm: {
-    card: "pos-table-card-alert border-warning bg-warning/10",
+    card: "border-warning bg-warning/10",
     body: "bg-warning/20",
     footer: "border-warning/30 bg-warning/15",
     dot: "bg-warning",
