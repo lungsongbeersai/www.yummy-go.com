@@ -123,13 +123,13 @@ export function OrderCustomerView({
         data-pos-pattern-overlay="true"
         className="pointer-events-none absolute inset-0 bg-primary/45 dark:hidden"
       />
-      <div className="relative grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden xl:grid-cols-[154px_minmax(0,1fr)_clamp(320px,20vw,360px)]">
-        <header className="relative shrink-0 overflow-hidden border-b border-white/15 bg-transparent px-3 py-2 text-white shadow-[0_1px_0_rgb(255_255_255/0.08)] sm:px-3.5 md:py-1.5 xl:col-span-2">
+      <div className="relative grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden lg:grid-cols-[154px_minmax(0,1fr)_clamp(320px,20vw,360px)]">
+        <header className="relative shrink-0 overflow-hidden border-b border-white/15 bg-transparent px-3 py-2 text-white shadow-[0_1px_0_rgb(255_255_255/0.08)] sm:px-3.5 lg:py-1.5 lg:col-span-2">
           <div
             aria-hidden="true"
             className="pointer-events-none absolute inset-0 bg-black/10"
           />
-          <div className="relative flex min-w-0 flex-col gap-2 md:hidden">
+          <div className="relative flex min-w-0 flex-col gap-2 lg:hidden">
             <EmployeeSortTabs
               activeSort={activeSort}
               onSortChange={(status) => setActiveSort(status)}
@@ -167,7 +167,7 @@ export function OrderCustomerView({
             />
           </div>
 
-          <div className="relative hidden min-w-0 items-center gap-2 md:flex md:h-11">
+          <div className="relative hidden min-w-0 items-center gap-2 lg:flex lg:h-11">
             <Button
               type="button"
               variant="ghost"
@@ -179,7 +179,7 @@ export function OrderCustomerView({
               <ArrowLeft data-icon="inline-start" />
             </Button>
 
-            <div className="grid min-w-0 flex-1 gap-2 md:grid-cols-[9rem_minmax(10rem,1fr)] lg:grid-cols-[17rem_minmax(14rem,1fr)]">
+            <div className="grid min-w-0 flex-1 grid-cols-[17rem_minmax(14rem,1fr)] gap-2">
               <EmployeeSortTabs
                 activeSort={activeSort}
                 className="w-full"
@@ -221,7 +221,7 @@ export function OrderCustomerView({
               <Button
                 type="button"
                 variant="ghost"
-                className="hidden h-11 border border-white/25 bg-white/15 text-white shadow-sm hover:bg-white/25 hover:text-white sm:inline-flex xl:hidden"
+                className="hidden h-11 border border-white/25 bg-white/15 text-white shadow-sm hover:bg-white/25 hover:text-white sm:inline-flex lg:hidden"
                 onClick={() => void openCartSheet()}
               >
                 <ShoppingCart data-icon="inline-start" />
@@ -234,7 +234,7 @@ export function OrderCustomerView({
           </div>
         </header>
 
-        <div className="grid min-h-0 overflow-hidden md:grid-cols-[154px_minmax(0,1fr)] xl:col-span-2">
+        <div className="grid min-h-0 overflow-hidden md:grid-cols-[154px_minmax(0,1fr)] lg:col-span-2">
           <EmployeeCategorySidebar
             categories={categories}
             loading={loadingMenu && !categories.length}
@@ -250,7 +250,7 @@ export function OrderCustomerView({
               {loadingMenu ? (
                 <ProductGridSkeleton />
               ) : activeProducts.length ? (
-                <div className={cn(PRODUCT_GRID_CLASS, "pb-24 xl:pb-4")}>
+                <div className={cn(PRODUCT_GRID_CLASS, "pb-24 lg:pb-4")}>
                   {activeProducts.map((entry, index) => (
                     <EmployeeProductCard
                       key={`${entry.cateUuid}-${entry.product.prodUuid}-${
@@ -293,7 +293,7 @@ export function OrderCustomerView({
           </section>
         </div>
 
-        <aside className="relative col-start-3 row-span-2 row-start-1 hidden min-h-0 overflow-hidden bg-transparent xl:block">
+        <aside className="relative col-start-3 row-span-2 row-start-1 hidden min-h-0 overflow-hidden bg-transparent lg:block">
           <div className="relative h-full min-h-0">
             <SelectedTableCartPanel
               allZones={zones}
