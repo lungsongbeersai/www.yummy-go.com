@@ -743,43 +743,43 @@ html {
 }
 
 .pos-soft-light-zone {
-  --background: 210 38% 98%;
-  --foreground: 224 42% 11%;
-  --card: 0 0% 100%;
-  --card-foreground: 224 42% 11%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 224 42% 11%;
-  --muted: 210 26% 93%;
-  --muted-foreground: 215 13% 42%;
-  --accent: 210 26% 93%;
-  --accent-foreground: 224 42% 11%;
-  --primary: 160 74% 28%;
-  --primary-foreground: 0 0% 100%;
-  --secondary: 205 78% 94%;
-  --secondary-foreground: 211 47% 22%;
-  --border: 214 28% 87%;
-  --input: 214 28% 87%;
-  --ring: 160 74% 28%;
+  --background: hsl(210 38% 98%);
+  --foreground: hsl(224 42% 11%);
+  --card: hsl(0 0% 100%);
+  --card-foreground: hsl(224 42% 11%);
+  --popover: hsl(0 0% 100%);
+  --popover-foreground: hsl(224 42% 11%);
+  --muted: hsl(210 26% 93%);
+  --muted-foreground: hsl(215 13% 42%);
+  --accent: hsl(210 26% 93%);
+  --accent-foreground: hsl(224 42% 11%);
+  --primary: hsl(160 74% 28%);
+  --primary-foreground: hsl(0 0% 100%);
+  --secondary: hsl(205 78% 94%);
+  --secondary-foreground: hsl(211 47% 22%);
+  --border: hsl(214 28% 87%);
+  --input: hsl(214 28% 87%);
+  --ring: hsl(160 74% 28%);
 }
 
 .dark .pos-dark-zone {
-  --background: 220 26% 8%;
-  --foreground: 210 28% 94%;
-  --card: 220 24% 11%;
-  --card-foreground: 210 28% 94%;
-  --popover: 220 24% 11%;
-  --popover-foreground: 210 28% 94%;
-  --muted: 218 18% 17%;
-  --muted-foreground: 215 14% 68%;
-  --accent: 218 18% 17%;
-  --accent-foreground: 210 28% 94%;
-  --primary: 151 68% 43%;
-  --primary-foreground: 155 50% 8%;
-  --secondary: 216 23% 17%;
-  --secondary-foreground: 210 28% 94%;
-  --border: 218 18% 20%;
-  --input: 218 18% 20%;
-  --ring: 151 68% 43%;
+  --background: hsl(220 26% 8%);
+  --foreground: hsl(210 28% 94%);
+  --card: hsl(220 24% 11%);
+  --card-foreground: hsl(210 28% 94%);
+  --popover: hsl(220 24% 11%);
+  --popover-foreground: hsl(210 28% 94%);
+  --muted: hsl(218 18% 17%);
+  --muted-foreground: hsl(215 14% 68%);
+  --accent: hsl(218 18% 17%);
+  --accent-foreground: hsl(210 28% 94%);
+  --primary: hsl(151 68% 43%);
+  --primary-foreground: hsl(155 50% 8%);
+  --secondary: hsl(216 23% 17%);
+  --secondary-foreground: hsl(210 28% 94%);
+  --border: hsl(218 18% 20%);
+  --input: hsl(218 18% 20%);
+  --ring: hsl(151 68% 43%);
 }
 
 .pos-safe-bottom-padding {
@@ -791,25 +791,25 @@ html {
 }
 
 .login-light-zone {
-  --background: 210 38% 98%;
-  --foreground: 224 42% 11%;
-  --card: 0 0% 100%;
-  --card-foreground: 224 42% 11%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 224 42% 11%;
-  --muted: 210 26% 93%;
-  --muted-foreground: 215 13% 42%;
-  --accent: 210 26% 93%;
-  --accent-foreground: 224 42% 11%;
-  --primary: 160 74% 28%;
-  --primary-foreground: 0 0% 100%;
-  --secondary: 205 78% 94%;
-  --secondary-foreground: 211 47% 22%;
-  --destructive: 0 72% 45%;
-  --destructive-foreground: 0 0% 100%;
-  --border: 214 28% 87%;
-  --input: 214 28% 87%;
-  --ring: 160 74% 28%;
+  --background: hsl(210 38% 98%);
+  --foreground: hsl(224 42% 11%);
+  --card: hsl(0 0% 100%);
+  --card-foreground: hsl(224 42% 11%);
+  --popover: hsl(0 0% 100%);
+  --popover-foreground: hsl(224 42% 11%);
+  --muted: hsl(210 26% 93%);
+  --muted-foreground: hsl(215 13% 42%);
+  --accent: hsl(210 26% 93%);
+  --accent-foreground: hsl(224 42% 11%);
+  --primary: hsl(160 74% 28%);
+  --primary-foreground: hsl(0 0% 100%);
+  --secondary: hsl(205 78% 94%);
+  --secondary-foreground: hsl(211 47% 22%);
+  --destructive: hsl(0 72% 45%);
+  --destructive-foreground: hsl(0 0% 100%);
+  --border: hsl(214 28% 87%);
+  --input: hsl(214 28% 87%);
+  --ring: hsl(160 74% 28%);
   color-scheme: light;
 }
 
