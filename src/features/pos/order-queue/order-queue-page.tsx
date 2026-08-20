@@ -11,7 +11,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { DataTable, type TableColumn } from "@/components/common/data-table";
 import { LoadingState } from "@/components/common/loading-state";
 import { cn } from "@/lib/utils";
-import { useOrderQueueAlerts } from "@/features/pos/order-queue/hooks/use-order-queue-alerts";
+import { useOrderQueueAlerts } from "@/features/pos/order-queue/use-order-queue-alerts";
 import { OrderQueueCancelDialog } from "@/features/pos/order-queue/order-queue-cancel-dialog";
 import { OrderItemStatus, type OrderItemStatus as OrderItemStatusType } from "@/config/pos-constants";
 import type { OrderQueueItem } from "@/services/pos";

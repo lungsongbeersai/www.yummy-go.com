@@ -18,7 +18,7 @@ import {
   // DashboardQueryBar,
   ErrorBanner,
   type DashboardCopy,
-} from "@/features/dashboard/overview/components/dashboard-widgets";
+} from "@/features/dashboard/overview/dashboard-widgets";
 import {
   applyPeriodMonth,
   applyPeriodType,
@@ -148,7 +148,7 @@ function filtersKey(filters: Pick<DashboardFilters, "end_date" | "start_date">) 
 
 const DashboardRevenueAccountingGrid = dynamic(
   () =>
-    import("./components/dashboard-chart-widgets").then(
+    import("./dashboard-chart-widgets").then(
       (module) => module.DashboardRevenueAccountingGrid,
     ),
   {
@@ -159,7 +159,7 @@ const DashboardRevenueAccountingGrid = dynamic(
 
 const DashboardOperationsGrid = dynamic(
   () =>
-    import("./components/dashboard-chart-widgets").then(
+    import("./dashboard-chart-widgets").then(
       (module) => module.DashboardOperationsGrid,
     ),
   {
@@ -170,7 +170,7 @@ const DashboardOperationsGrid = dynamic(
 
 const DashboardProductsParetoGrid = dynamic(
   () =>
-    import("./components/dashboard-chart-widgets").then(
+    import("./dashboard-chart-widgets").then(
       (module) => module.DashboardProductsParetoGrid,
     ),
   {

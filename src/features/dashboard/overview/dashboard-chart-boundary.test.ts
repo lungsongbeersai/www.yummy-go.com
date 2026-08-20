@@ -24,11 +24,11 @@ describe("dashboard chart bundle boundary", () => {
       .filter((path) => readFileSync(path, "utf8").includes("from \"recharts\""))
       .map(normalizedRelativePath);
 
-    expect(filesWithRecharts).toEqual(["components/dashboard-chart-widgets.tsx"]);
+    expect(filesWithRecharts).toEqual(["dashboard-chart-widgets.tsx"]);
   });
 
   it("keeps lightweight dashboard widgets free from chart primitives", () => {
-    const widgets = readFileSync(join(overviewDir, "components", "dashboard-widgets.tsx"), "utf8");
+    const widgets = readFileSync(join(overviewDir, "dashboard-widgets.tsx"), "utf8");
 
     expect(widgets).not.toContain("from \"recharts\"");
     expect(widgets).not.toContain("@/components/ui/chart");
