@@ -6,6 +6,8 @@ import { useTranslation } from "react-i18next";
 import { useShallow } from "zustand/react/shallow";
 import { Card, CardContent } from "@/components/ui/card";
 import { LoadingState } from "@/components/common/loading-state";
+import { Spinner } from "@/components/ui/spinner";
+import { cn } from "@/lib/utils";
 import {
   DashboardChartGridFallback,
   DashboardFilterBar,
@@ -396,14 +398,6 @@ export function DashboardPage() {
           yearOptions={yearOptions}
         />
       </div>
-      <DashboardPaymentSummaryStrip
-        cards={model.paymentSummaryCards}
-        copy={copy}
-        paymentSummary={model.paymentSummary}
-        warnings={model.warnings}
-      />
-      {/* <DashboardQueryBar activeBranchUuid={activeBranchUuid} copy={copy} requestParams={model.requestParams} /> */}
-
       {branchError ? <ErrorBanner message={branchError} /> : null}
       {error ? <ErrorBanner message={error} /> : null}
 
@@ -415,38 +409,61 @@ export function DashboardPage() {
         </Card>
       ) : null}
 
-      <DashboardHeroStrip
-        copy={copy}
-        kpis={model.kpis}
-        periodLabel={periodLabel}
-        section={model.section}
-        trendRows={model.trendRows}
-      />
-      <DashboardRevenueAccountingGrid
-        accountingRows={model.accountingRows}
-        copy={copy}
-        paymentRows={model.paymentRows}
-        paymentTrendRows={model.paymentTrendRows}
-        peakRevenueDay={model.peakRevenueDay}
-        trendRows={model.trendRows}
-      />
-      <DashboardOperationsGrid
-        channelRows={model.channelRows}
-        copy={copy}
-        highestRevenueProduct={model.highestRevenueProduct}
-        insights={model.insights}
-        mainOrderChannel={model.mainOrderChannel}
-        productSummary={productSummary}
-        tableSummary={model.tableSummary}
-      />
-      <DashboardProductsParetoGrid
-        copy={copy}
-        loading={loading}
-        products={model.productRows}
-        top={top}
-        topOptions={topOptions}
-        onTopChange={handleTopChange}
-      />
+      <div
+        aria-busy={loading}
+        className={cn(
+          "relative flex flex-col gap-4 transition-opacity",
+          loading && "pointer-events-none opacity-60",
+        )}
+      >
+        {loading ? (
+          <div className="pointer-events-none absolute inset-x-0 top-2 z-10 flex justify-center">
+            <span className="flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground shadow-sm">
+              <Spinner className="size-3.5" />
+              {t("common.loading")}
+            </span>
+          </div>
+        ) : null}
+        <DashboardPaymentSummaryStrip
+          cards={model.paymentSummaryCards}
+          copy={copy}
+          paymentSummary={model.paymentSummary}
+          warnings={model.warnings}
+        />
+        {/* <DashboardQueryBar activeBranchUuid={activeBranchUuid} copy={copy} requestParams={model.requestParams} /> */}
+        <DashboardHeroStrip
+          copy={copy}
+          kpis={model.kpis}
+          periodLabel={periodLabel}
+          section={model.section}
+          trendRows={model.trendRows}
+        />
+        <DashboardRevenueAccountingGrid
+          accountingRows={model.accountingRows}
+          copy={copy}
+          paymentRows={model.paymentRows}
+          paymentTrendRows={model.paymentTrendRows}
+          peakRevenueDay={model.peakRevenueDay}
+          trendRows={model.trendRows}
+        />
+        <DashboardOperationsGrid
+          channelRows={model.channelRows}
+          copy={copy}
+          highestRevenueProduct={model.highestRevenueProduct}
+          insights={model.insights}
+          mainOrderChannel={model.mainOrderChannel}
+          productSummary={productSummary}
+          tableSummary={model.tableSummary}
+        />
+        <DashboardProductsParetoGrid
+          copy={copy}
+          loading={loading}
+          products={model.productRows}
+          top={top}
+          topOptions={topOptions}
+          onTopChange={handleTopChange}
+        />
+      </div>
       <DashboardFooter
         activeBranchUuid={activeBranchUuid}
         copy={copy}
