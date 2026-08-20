@@ -240,7 +240,7 @@ function CartItemRow({
   );
   const isCanceled = isCanceledCartItem(item);
   const canDelete = statusValue === 0 || statusValue === 1;
-  const canCancel = !editable && statusValue !== 0 && statusValue !== 1 && !isCanceled;
+  const canCancel = !editable && statusValue !== 0 && statusValue !== 1 && !isCanceled && !isServedCartItem(item);
   const canConfirmServed = !editable && statusValue !== 0 && statusValue !== 1 && !isCanceled && !isServedCartItem(item);
   const splitSelectable = Boolean(splitEligible && itemUuid && onToggleSplitItem);
   const splitEnabled = splitSelectable && !splitSelectionDisabled;
