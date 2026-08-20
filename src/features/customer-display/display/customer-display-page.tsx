@@ -159,41 +159,41 @@ export function CustomerDisplayPage() {
               ) : null}
             </div>
             {paymentMode ? (
-              <div className="rounded-xl bg-white p-5 text-slate-950 lg:p-6">
+              <div className="rounded-xl bg-card p-5 text-card-foreground lg:p-6">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-sm font-bold uppercase text-slate-500">{t("pos.branchQr")}</p>
+                    <p className="text-sm font-bold uppercase text-muted-foreground">{t("pos.branchQr")}</p>
                     <p className="mt-2 text-4xl font-black lg:text-5xl">{money(paymentAmount)}</p>
                   </div>
                   <Badge className="rounded-full px-3 py-1 font-black">{t("pos.paymentTransfer")}</Badge>
                 </div>
 
-                <div className="mt-5 grid min-h-72 place-items-center rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div className="mt-5 grid min-h-72 place-items-center rounded-xl border border-border bg-muted p-4">
                   {payment?.qrUrl ? (
                     <Image
                       alt={t("pos.branchQr")}
-                      className="aspect-square w-full max-w-[min(48dvh,22rem)] rounded-xl bg-white object-contain p-3 shadow-sm"
+                      className="aspect-square w-full max-w-[min(48dvh,22rem)] rounded-xl bg-card object-contain p-3 shadow-sm"
                       height={360}
                       src={payment.qrUrl}
                       unoptimized
                       width={360}
                     />
                   ) : (
-                    <div className="grid gap-3 text-center text-slate-500">
+                    <div className="grid gap-3 text-center text-muted-foreground">
                       <Landmark className="mx-auto h-16 w-16" />
                       <p className="text-sm font-bold">{t("pos.noBranchQr")}</p>
                     </div>
                   )}
                 </div>
 
-                <div className="mt-5 grid gap-2 text-sm font-bold text-slate-500">
+                <div className="mt-5 grid gap-2 text-sm font-bold text-muted-foreground">
                   <p>{payment?.qrUrl ? t("pos.transferPaymentHint") : t("pos.noBranchQr")}</p>
                   <div className="flex flex-wrap items-center gap-2">
                     {payload?.table_name ? (
-                      <Badge className="border-slate-200 bg-slate-100 text-slate-700">{payload.table_name}</Badge>
+                      <Badge className="border-border bg-muted text-foreground">{payload.table_name}</Badge>
                     ) : null}
                     {payment?.invoice || payload?.invoice ? (
-                      <Badge className="border-slate-200 bg-slate-100 text-slate-700">
+                      <Badge className="border-border bg-muted text-foreground">
                         {payment?.invoice ?? payload?.invoice}
                       </Badge>
                     ) : null}
@@ -201,22 +201,22 @@ export function CustomerDisplayPage() {
                 </div>
               </div>
             ) : (
-              <div className="rounded-xl bg-white p-6 text-slate-950">
-                <p className="text-sm font-bold uppercase text-slate-500">{t("common.total")}</p>
+              <div className="rounded-xl bg-card p-6 text-card-foreground">
+                <p className="text-sm font-bold uppercase text-muted-foreground">{t("common.total")}</p>
                 <p className="mt-3 text-5xl font-black">{money(total)}</p>
                 {summaryRows.length ? (
-                  <div className="mt-6 flex flex-col gap-2 border-t border-slate-200 pt-4 text-sm font-bold">
+                  <div className="mt-6 flex flex-col gap-2 border-t border-border pt-4 text-sm font-bold">
                     {summaryRows.map((row) => (
                       <div key={row.label} className="flex items-center justify-between gap-3">
-                        <span className="text-slate-500">{row.label}</span>
-                        <span className={row.discount ? "text-red-600" : "text-slate-950"}>
+                        <span className="text-muted-foreground">{row.label}</span>
+                        <span className={row.discount ? "text-destructive" : "text-card-foreground"}>
                           {row.discount ? "-" : ""}{money(row.value)}
                         </span>
                       </div>
                     ))}
                   </div>
                 ) : null}
-                <p className="mt-6 text-sm text-slate-500">{t("customerDisplay.thanks")}</p>
+                <p className="mt-6 text-sm text-muted-foreground">{t("customerDisplay.thanks")}</p>
               </div>
             )}
           </CardContent>
