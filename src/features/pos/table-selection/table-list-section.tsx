@@ -209,7 +209,7 @@ function StatusChip({
     >
       {dot ? <span className={cn("size-2.5 rounded-full", active ? "bg-primary-foreground" : dotClass(dot))} /> : null}
       <span>{label}</span>
-      <Badge className={cn("ml-1 border-transparent px-1.5", active ? "bg-primary-foreground/20 text-primary-foreground" : "bg-muted")}>
+      <Badge className={cn("ml-1 border-transparent px-1.5", active ? "bg-primary-foreground/20 text-primary-foreground" : "bg-muted text-muted-foreground")}>
         {value}
       </Badge>
     </Button>
