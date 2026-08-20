@@ -253,6 +253,19 @@ function CartItemRow({
 
   return (
     <div
+      role={splitEnabled ? "button" : undefined}
+      tabIndex={splitEnabled ? 0 : undefined}
+      onClick={splitEnabled ? toggleSplitSelection : undefined}
+      onKeyDown={
+        splitEnabled
+          ? (event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                toggleSplitSelection();
+              }
+            }
+          : undefined
+      }
       className={cn(
         "border-b border-border/80 bg-background transition-colors last:border-b-0 hover:bg-muted/20",
         compact ? "px-2.5 py-2" : "px-2.5 py-2.5 sm:px-3",
@@ -260,6 +273,7 @@ function CartItemRow({
           "border-l-4 border-l-amber-400 bg-amber-50/70 hover:bg-amber-50 dark:border-l-amber-500 dark:bg-amber-950/20 dark:hover:bg-amber-950/30",
         isCanceled && "bg-destructive/5 hover:bg-destructive/10",
         splitSelectable && !splitEnabled && "cursor-not-allowed opacity-60",
+        splitEnabled && "cursor-pointer",
         splitSelected && "border-l-4 border-l-primary bg-primary/5 hover:bg-primary/10"
       )}
     >
@@ -282,13 +296,14 @@ function CartItemRow({
               compact && "size-9",
               splitEnabled ? "cursor-pointer" : "cursor-not-allowed"
             )}
+            onClick={(event) => event.stopPropagation()}
           >
             <Checkbox
               aria-label={t("common.selectRow", { name: title })}
               checked={Boolean(splitSelected)}
               disabled={!splitEnabled}
               className="mt-0.5 size-5 rounded-md border-primary/50 bg-background shadow-sm"
-              onChange={toggleSplitSelection}
+              onCheckedChange={toggleSplitSelection}
             />
           </Label>
         ) : null}
@@ -336,6 +351,7 @@ function CartItemRow({
                 </Badge>
               ) : null}
             </div>
+            <div onClick={(event) => event.stopPropagation()}>
             <CartItemActionMenu
               canCancel={canCancel}
               canDelete={canDelete}
@@ -352,6 +368,7 @@ function CartItemRow({
               onEditNote={() => onEditNote(item)}
               onItemDiscount={() => onItemDiscount(item)}
             />
+            </div>
           </div>
 
           {hasDetailContent ? (
