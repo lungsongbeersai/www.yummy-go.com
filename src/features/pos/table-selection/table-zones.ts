@@ -24,14 +24,14 @@ export type TableVisualStatus =
   | "occupied"
   | "awaitingPayment";
 
-// customer_order_state คือออเดอร์ที่ลูกค้ายิงเข้ามาแต่พนักงานยังไม่กดยืนยัน จึงต้อง
-// เด่นกว่า table_status เสมอ (มีทั้งออเดอร์ใหม่ค้างยืนยัน "และ" โต๊ะไม่ว่างพร้อมกันได้)
+// customer_order_state คือออเดอร์ใหม่ที่ลูกค้ายิงเข้ามาแบบสด ๆ จึงต้องเด่นกว่า
+// table_status เสมอ (มีทั้งออเดอร์ใหม่เข้ามา "และ" โต๊ะไม่ว่างพร้อมกันได้)
 export function tableVisualStatus(table: PosTable): TableVisualStatus {
-  if (table.customer_order_state) return "awaitingConfirm";
+  if (table.customer_order_state) return "newOrder";
 
   switch (Number(table.table_status)) {
-    case TableStatus.NEW_ORDER:
-      return "newOrder";
+    case TableStatus.AWAITING_CONFIRM:
+      return "awaitingConfirm";
     case TableStatus.OCCUPIED:
       return "occupied";
     case TableStatus.AWAITING_PAYMENT:

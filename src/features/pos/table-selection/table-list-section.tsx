@@ -257,14 +257,12 @@ const STATUS_STYLE: Record<
     dot: "bg-success",
     text: "text-success"
   },
-  // "ไม่ว่าง" ตั้งใจไม่ใช้เขียว (สื่อว่าง) และไม่ใช้พื้นแดงเต็ม (ชนกับ newOrder/awaitingConfirm
-  // ที่ต้องการความสนใจสูงกว่า) — ใช้พื้นกลาง + accent แดงที่ label/จุดสถานะแทน
   occupied: {
-    card: "border-border bg-muted/40",
-    body: "bg-muted/60",
-    footer: "border-border bg-muted/70",
-    dot: "bg-destructive",
-    text: "text-destructive"
+    card: "border-success bg-success/10",
+    body: "bg-success/20",
+    footer: "border-success/30 bg-success/15",
+    dot: "bg-success",
+    text: "text-success"
   },
   awaitingPayment: {
     card: "border-pending bg-pending/10",
