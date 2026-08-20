@@ -628,7 +628,7 @@ export interface FetchOrderQueueResponse {
   data: OrderQueueItem[];
 }
 export interface SendToKitchenInput {
-  order_uuids: string[];
+  order_item_uuids: string[];
   device_code?: string;
   agent_id?: string;
   print_mode?: string;

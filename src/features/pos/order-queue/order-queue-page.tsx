@@ -169,11 +169,11 @@ export function OrderQueuePage() {
 
   async function handleConfirm() {
     if (!branchUuid || !user?.uuid || !selectedRows.length) return;
-    const orderUuids = Array.from(new Set(selectedRows.map((row) => row.order_uuid)));
+    const orderItemUuids = selectedRows.map((row) => row.order_item_uuid);
 
     try {
-      await sendToKitchen({ order_uuids: orderUuids, branch_uuid_fk: branchUuid, login_uuid_fk: user.uuid, lang: language });
-      showToast({ title: t("orderQueue.confirmSuccess", { count: orderUuids.length }), tone: "success" });
+      await sendToKitchen({ order_item_uuids: orderItemUuids, branch_uuid_fk: branchUuid, login_uuid_fk: user.uuid, lang: language });
+      showToast({ title: t("orderQueue.confirmSuccess", { count: orderItemUuids.length }), tone: "success" });
     } catch (error) {
       showToast({
         title: t("orderQueue.confirmError"),
