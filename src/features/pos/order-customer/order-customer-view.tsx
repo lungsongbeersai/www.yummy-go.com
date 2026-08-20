@@ -42,6 +42,9 @@ import {
 } from "./order-customer-product-options";
 import type { OrderCustomerWorkflow } from "./use-order-customer-workflow";
 
+const headerIconButtonClass =
+  "size-11 shrink-0 rounded-full border border-white/25 bg-white/15 text-white shadow-sm hover:bg-white/25 hover:text-white";
+
 export function OrderCustomerView({
   workflow,
 }: {
@@ -170,7 +173,7 @@ export function OrderCustomerView({
               variant="ghost"
               size="icon"
               aria-label={t("actions.back")}
-              className="size-11 shrink-0 rounded-full border border-white/20 bg-white/15 text-white shadow-sm hover:bg-white/25 hover:text-white"
+              className={headerIconButtonClass}
               onClick={openTablesPage}
             >
               <ArrowLeft data-icon="inline-start" />
@@ -194,13 +197,13 @@ export function OrderCustomerView({
 
             <div className="ml-auto flex shrink-0 items-center gap-2">
               <LanguageSwitch
-                className="size-11 border border-white/25 bg-white/15 text-white shadow-sm hover:bg-white/25 hover:text-white"
+                className={headerIconButtonClass}
                 compact
                 size="icon"
                 variant="ghost"
               />
               <ThemeToggle
-                className="size-11 border border-white/25 bg-white/15 text-white shadow-sm hover:bg-white/25 hover:text-white"
+                className={headerIconButtonClass}
                 size="icon"
                 variant="ghost"
               />
@@ -209,7 +212,7 @@ export function OrderCustomerView({
                 variant="ghost"
                 size="icon"
                 aria-label={t("actions.refresh")}
-                className="size-11 border border-white/25 bg-white/15 text-white shadow-sm hover:bg-white/25 hover:text-white"
+                className={headerIconButtonClass}
                 disabled={loadingTables || loadingMenu}
                 onClick={() => void refreshAll()}
               >
