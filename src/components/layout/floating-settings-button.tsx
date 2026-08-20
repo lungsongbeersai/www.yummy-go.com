@@ -13,18 +13,9 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { cn } from "@/lib/utils";
 import { useAppStore, type FontScale, type ThemeColor } from "@/stores/app-store";
 
 const THEME_COLORS: readonly ThemeColor[] = ["emerald", "blue", "amber", "rose", "violet"];
-
-const THEME_COLOR_SWATCH_CLASS: Record<ThemeColor, string> = {
-  emerald: "bg-[#047857]",
-  blue: "bg-[#1d4ed8]",
-  amber: "bg-[#b45309]",
-  rose: "bg-[#be123c]",
-  violet: "bg-[#6d28d9]",
-};
 
 const FONT_SCALES: readonly FontScale[] = ["sm", "md", "lg"];
 
@@ -64,10 +55,12 @@ export function FloatingSettingsButton() {
                 key={color}
                 htmlFor={`theme-color-${color}`}
                 title={t(`app.appearance.colors.${color}`)}
-                className={cn(
-                  "relative flex size-8 cursor-pointer items-center justify-center rounded-full ring-1 ring-foreground/10 ring-offset-2 ring-offset-popover transition-shadow has-data-[state=checked]:ring-2 has-data-[state=checked]:ring-foreground/60",
-                  THEME_COLOR_SWATCH_CLASS[color],
-                )}
+                // scope-preview this option's own --primary via the same [data-theme-color]
+                // selector the app uses globally, so the swatch can never drift from the
+                // real preset (no separate hex map to keep in sync) - explicit even for
+                // emerald so the swatch doesn't just inherit whatever theme is active
+                data-theme-color={color}
+                className="relative flex size-8 cursor-pointer items-center justify-center rounded-full bg-primary ring-1 ring-foreground/10 ring-offset-2 ring-offset-popover transition-shadow has-data-[state=checked]:ring-2 has-data-[state=checked]:ring-foreground/60"
               >
                 <RadioGroupItem
                   id={`theme-color-${color}`}

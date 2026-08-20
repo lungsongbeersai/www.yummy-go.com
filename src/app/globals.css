@@ -94,6 +94,25 @@
    (เป็นค่า emerald-700/800 ของ Tailwind อยู่แล้ว) ส่วน preset อื่นดึงจากชุดสี
    Tailwind จริง (700/800 ใน light, 500 เป็น sidebar chip ใน dark) ไม่ผสมสูตรเอง
    เพื่อให้ได้สีที่เข้ม/อิ่มตัวสมจริงทุกเฉด ไม่มีสีไหนดูหม่นกว่าตัวอื่น */
+[data-theme-color="emerald"] {
+  --primary: oklch(0.508 0.118 165.612);
+  --primary-foreground: oklch(0.979 0.021 166.113);
+  --sidebar-primary: oklch(0.508 0.118 165.612);
+  --sidebar-primary-foreground: oklch(0.979 0.021 166.113);
+  --sidebar-accent: oklch(0.92 0.05 165);
+  --sidebar-accent-foreground: oklch(0.24 0.06 165);
+  --sidebar-ring: oklch(0.508 0.118 165.612);
+}
+.dark[data-theme-color="emerald"] {
+  --primary: oklch(0.432 0.095 166.913);
+  --primary-foreground: oklch(0.979 0.021 166.113);
+  --sidebar-primary: oklch(0.696 0.17 162.48);
+  --sidebar-primary-foreground: oklch(0.262 0.051 172.552);
+  --sidebar-accent: oklch(0.32 0.07 165);
+  --sidebar-accent-foreground: oklch(0.98 0.01 166);
+  --sidebar-ring: oklch(0.696 0.17 162.48);
+}
+
 [data-theme-color="blue"] {
   --primary: #1d4ed8;
   --primary-foreground: oklch(0.985 0 0);
