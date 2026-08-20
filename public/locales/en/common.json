@@ -44,7 +44,7 @@
       "colorLabel": "Accent color",
       "fontSizeLabel": "Text size",
       "colors": {
-        "green": "Green (default)",
+        "emerald": "Emerald (default)",
         "blue": "Blue",
         "amber": "Amber",
         "rose": "Rose",

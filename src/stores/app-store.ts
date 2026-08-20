@@ -5,7 +5,7 @@ import { persist } from "zustand/middleware";
 import { DEFAULT_LANGUAGE, type Language } from "@/lib/language";
 
 export type ThemeMode = "light" | "dark";
-export type ThemeColor = "green" | "blue" | "amber" | "rose" | "violet";
+export type ThemeColor = "emerald" | "blue" | "amber" | "rose" | "violet";
 export type FontScale = "sm" | "md" | "lg";
 
 interface AppState {
@@ -31,7 +31,7 @@ export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
       theme: "light",
-      themeColor: "green",
+      themeColor: "emerald",
       fontScale: "md",
       language: DEFAULT_LANGUAGE,
       sidebarOpen: false,

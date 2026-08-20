@@ -85,83 +85,85 @@
   --chart-5: oklch(0.448 0.119 151.328);
 }
 
-/* ธีมสี accent เลือกได้จากปุ่มลอยตั้งค่า (floating-settings-button) — เก็บ L/C เดิม
-   ของ preset เขียว (ค่าเริ่มต้น) ไว้ทุกตัว เปลี่ยนแค่ hue (H) เพื่อให้ contrast/ความสว่าง
-   เท่าเดิมทุกสี ไม่ต้องไล่เช็ค accessibility ใหม่ทีละสี */
+/* ธีมสี accent เลือกได้จากปุ่มลอยตั้งค่า (floating-settings-button) — ค่าเริ่มต้น
+   (ไม่ใส่ data-theme-color หรือ ="emerald") ใช้ --primary ของ :root/.dark เดิมตรงๆ
+   (เป็นค่า emerald-700/800 ของ Tailwind อยู่แล้ว) ส่วน preset อื่นดึงจากชุดสี
+   Tailwind จริง (700/800 ใน light, 500 เป็น sidebar chip ใน dark) ไม่ผสมสูตรเอง
+   เพื่อให้ได้สีที่เข้ม/อิ่มตัวสมจริงทุกเฉด ไม่มีสีไหนดูหม่นกว่าตัวอื่น */
 [data-theme-color="blue"] {
-  --primary: oklch(0.508 0.118 250);
+  --primary: #1d4ed8;
   --primary-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.508 0.118 250);
+  --sidebar-primary: #1d4ed8;
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.92 0.05 250);
-  --sidebar-accent-foreground: oklch(0.24 0.06 250);
-  --sidebar-ring: oklch(0.508 0.118 250);
+  --sidebar-accent: #dbeafe;
+  --sidebar-accent-foreground: #1e40af;
+  --sidebar-ring: #1d4ed8;
 }
 .dark[data-theme-color="blue"] {
-  --primary: oklch(0.432 0.095 250);
+  --primary: #1e40af;
   --primary-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.696 0.17 250);
-  --sidebar-primary-foreground: oklch(0.22 0 0);
-  --sidebar-accent: oklch(0.32 0.07 250);
-  --sidebar-accent-foreground: oklch(0.98 0.01 250);
-  --sidebar-ring: oklch(0.696 0.17 250);
+  --sidebar-primary: #3b82f6;
+  --sidebar-primary-foreground: #172554;
+  --sidebar-accent: #1e3a8a;
+  --sidebar-accent-foreground: #dbeafe;
+  --sidebar-ring: #3b82f6;
 }
 
 [data-theme-color="amber"] {
-  --primary: oklch(0.508 0.118 70);
+  --primary: #b45309;
   --primary-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.508 0.118 70);
+  --sidebar-primary: #b45309;
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.92 0.05 70);
-  --sidebar-accent-foreground: oklch(0.24 0.06 70);
-  --sidebar-ring: oklch(0.508 0.118 70);
+  --sidebar-accent: #fef3c7;
+  --sidebar-accent-foreground: #92400e;
+  --sidebar-ring: #b45309;
 }
 .dark[data-theme-color="amber"] {
-  --primary: oklch(0.432 0.095 70);
+  --primary: #92400e;
   --primary-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.696 0.17 70);
-  --sidebar-primary-foreground: oklch(0.22 0 0);
-  --sidebar-accent: oklch(0.32 0.07 70);
-  --sidebar-accent-foreground: oklch(0.98 0.01 70);
-  --sidebar-ring: oklch(0.696 0.17 70);
+  --sidebar-primary: #f59e0b;
+  --sidebar-primary-foreground: #451a03;
+  --sidebar-accent: #78350f;
+  --sidebar-accent-foreground: #fef3c7;
+  --sidebar-ring: #f59e0b;
 }
 
 [data-theme-color="rose"] {
-  --primary: oklch(0.508 0.118 25);
+  --primary: #be123c;
   --primary-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.508 0.118 25);
+  --sidebar-primary: #be123c;
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.92 0.05 25);
-  --sidebar-accent-foreground: oklch(0.24 0.06 25);
-  --sidebar-ring: oklch(0.508 0.118 25);
+  --sidebar-accent: #ffe4e6;
+  --sidebar-accent-foreground: #9f1239;
+  --sidebar-ring: #be123c;
 }
 .dark[data-theme-color="rose"] {
-  --primary: oklch(0.432 0.095 25);
+  --primary: #9f1239;
   --primary-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.696 0.17 25);
-  --sidebar-primary-foreground: oklch(0.22 0 0);
-  --sidebar-accent: oklch(0.32 0.07 25);
-  --sidebar-accent-foreground: oklch(0.98 0.01 25);
-  --sidebar-ring: oklch(0.696 0.17 25);
+  --sidebar-primary: #f43f5e;
+  --sidebar-primary-foreground: #4c0519;
+  --sidebar-accent: #881337;
+  --sidebar-accent-foreground: #ffe4e6;
+  --sidebar-ring: #f43f5e;
 }
 
 [data-theme-color="violet"] {
-  --primary: oklch(0.508 0.118 305);
+  --primary: #6d28d9;
   --primary-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.508 0.118 305);
+  --sidebar-primary: #6d28d9;
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.92 0.05 305);
-  --sidebar-accent-foreground: oklch(0.24 0.06 305);
-  --sidebar-ring: oklch(0.508 0.118 305);
+  --sidebar-accent: #ede9fe;
+  --sidebar-accent-foreground: #5b21b6;
+  --sidebar-ring: #6d28d9;
 }
 .dark[data-theme-color="violet"] {
-  --primary: oklch(0.432 0.095 305);
+  --primary: #5b21b6;
   --primary-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.696 0.17 305);
-  --sidebar-primary-foreground: oklch(0.22 0 0);
-  --sidebar-accent: oklch(0.32 0.07 305);
-  --sidebar-accent-foreground: oklch(0.98 0.01 305);
-  --sidebar-ring: oklch(0.696 0.17 305);
+  --sidebar-primary: #8b5cf6;
+  --sidebar-primary-foreground: #2e1065;
+  --sidebar-accent: #4c1d95;
+  --sidebar-accent-foreground: #ede9fe;
+  --sidebar-ring: #8b5cf6;
 }
 
 /* ขนาดตัวอักษรที่ปรับจากปุ่มลอยตั้งค่า — สเกล root font-size แล้วให้ Tailwind

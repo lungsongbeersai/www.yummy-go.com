@@ -16,14 +16,14 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { cn } from "@/lib/utils";
 import { useAppStore, type FontScale, type ThemeColor } from "@/stores/app-store";
 
-const THEME_COLORS: readonly ThemeColor[] = ["green", "blue", "amber", "rose", "violet"];
+const THEME_COLORS: readonly ThemeColor[] = ["emerald", "blue", "amber", "rose", "violet"];
 
 const THEME_COLOR_SWATCH_CLASS: Record<ThemeColor, string> = {
-  green: "bg-[oklch(0.508_0.118_165.612)]",
-  blue: "bg-[oklch(0.508_0.118_250)]",
-  amber: "bg-[oklch(0.508_0.118_70)]",
-  rose: "bg-[oklch(0.508_0.118_25)]",
-  violet: "bg-[oklch(0.508_0.118_305)]",
+  emerald: "bg-[#047857]",
+  blue: "bg-[#1d4ed8]",
+  amber: "bg-[#b45309]",
+  rose: "bg-[#be123c]",
+  violet: "bg-[#6d28d9]",
 };
 
 const FONT_SCALES: readonly FontScale[] = ["sm", "md", "lg"];

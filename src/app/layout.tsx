@@ -24,7 +24,7 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-const THEME_COLORS = ["green", "blue", "amber", "rose", "violet"];
+const THEME_COLORS = ["emerald", "blue", "amber", "rose", "violet"];
 const FONT_SCALES = ["sm", "md", "lg"];
 
 const themeBootstrapScript = `
@@ -34,7 +34,7 @@ const themeBootstrapScript = `
     var parsed = stored ? JSON.parse(stored) : null;
     var state = parsed && parsed.state ? parsed.state : null;
     var theme = state && state.theme === "dark" ? "dark" : "light";
-    var themeColor = state && ${JSON.stringify(THEME_COLORS)}.indexOf(state.themeColor) !== -1 ? state.themeColor : "green";
+    var themeColor = state && ${JSON.stringify(THEME_COLORS)}.indexOf(state.themeColor) !== -1 ? state.themeColor : "emerald";
     var fontScale = state && ${JSON.stringify(FONT_SCALES)}.indexOf(state.fontScale) !== -1 ? state.fontScale : "md";
     var root = document.documentElement;
     root.classList.toggle("dark", theme === "dark");
@@ -46,7 +46,7 @@ const themeBootstrapScript = `
     var fallbackRoot = document.documentElement;
     fallbackRoot.classList.remove("dark");
     fallbackRoot.dataset.theme = "light";
-    fallbackRoot.dataset.themeColor = "green";
+    fallbackRoot.dataset.themeColor = "emerald";
     fallbackRoot.dataset.fontScale = "md";
     fallbackRoot.style.colorScheme = "light";
   }
