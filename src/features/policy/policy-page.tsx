@@ -18,7 +18,7 @@ export function PolicyPage() {
   const sections = translatedArray<PolicySection>(t("policy.sections", { returnObjects: true }));
 
   return (
-    <main className="min-h-screen bg-slate-50 text-slate-800">
+    <main className="min-h-screen bg-background text-foreground">
       <section className="relative overflow-hidden bg-linear-to-br from-emerald-700 via-green-600 to-lime-500 px-4 py-16 text-white md:py-20">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.22),transparent_35%)]" />
 
@@ -56,33 +56,33 @@ export function PolicyPage() {
 
       <section className="px-4 py-10 md:py-14">
         <div className="mx-auto grid max-w-5xl gap-8 lg:grid-cols-[280px_1fr]">
-          <aside className="h-fit rounded-3xl border border-slate-200 bg-white p-6 shadow-sm lg:sticky lg:top-6">
-            <h2 className="text-lg font-semibold text-slate-950">
+          <aside className="h-fit rounded-3xl border border-border bg-card p-6 shadow-sm lg:sticky lg:top-6">
+            <h2 className="text-lg font-semibold text-card-foreground">
               {t("policy.summary.title")}
             </h2>
 
-            <p className="mt-3 text-sm leading-6 text-slate-600">
+            <p className="mt-3 text-sm leading-6 text-muted-foreground">
               {t("policy.summary.description")}
             </p>
 
             <div className="mt-6 flex flex-col gap-3 text-sm">
-              <div className="rounded-2xl bg-emerald-50 p-4 text-emerald-800">
+              <div className="rounded-2xl bg-primary/10 p-4 text-primary">
                 {t("policy.summary.noSell")}
               </div>
 
-              <div className="rounded-2xl bg-slate-50 p-4 text-slate-700">
+              <div className="rounded-2xl bg-muted p-4 text-muted-foreground">
                 {t("policy.summary.purposeOnly")}
               </div>
             </div>
           </aside>
 
           <div className="flex flex-col gap-6">
-            <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
-              <h2 className="text-2xl font-bold text-slate-950">
+            <section className="rounded-3xl border border-border bg-card p-6 shadow-sm md:p-8">
+              <h2 className="text-2xl font-bold text-card-foreground">
                 {t("policy.about.title")}
               </h2>
 
-              <div className="mt-4 flex flex-col gap-4 leading-8 text-slate-700">
+              <div className="mt-4 flex flex-col gap-4 leading-8 text-muted-foreground">
                 {aboutParagraphs.map((paragraph) => (
                   <p key={paragraph}>{paragraph}</p>
                 ))}
@@ -92,13 +92,13 @@ export function PolicyPage() {
             {sections.map((section) => (
               <section
                 key={section.title}
-                className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-8"
+                className="rounded-3xl border border-border bg-card p-6 shadow-sm md:p-8"
               >
-                <h2 className="text-xl font-bold text-slate-950">
+                <h2 className="text-xl font-bold text-card-foreground">
                   {section.title}
                 </h2>
 
-                <div className="mt-4 leading-8 text-slate-700 [&_p+ul]:mt-2 [&_ul]:list-disc [&_ul]:space-y-1 [&_ul]:pl-5">
+                <div className="mt-4 leading-8 text-muted-foreground [&_p+ul]:mt-2 [&_ul]:list-disc [&_ul]:space-y-1 [&_ul]:pl-5">
                   {(section.paragraphs ?? []).map((paragraph) => (
                     <p key={paragraph}>{paragraph}</p>
                   ))}
@@ -113,23 +113,23 @@ export function PolicyPage() {
               </section>
             ))}
 
-            <section className="rounded-3xl border border-emerald-200 bg-emerald-50 p-6 shadow-sm md:p-8">
-              <h2 className="text-xl font-bold text-slate-950">
+            <section className="rounded-3xl border border-primary/20 bg-primary/5 p-6 shadow-sm md:p-8">
+              <h2 className="text-xl font-bold text-foreground">
                 {t("policy.contact.title")}
               </h2>
 
-              <p className="mt-4 leading-8 text-slate-700">
+              <p className="mt-4 leading-8 text-foreground/80">
                 {t("policy.contact.description")}
               </p>
 
-              <div className="mt-5 rounded-2xl bg-white p-5 ring-1 ring-emerald-100">
-                <p className="text-sm font-medium text-slate-500">
+              <div className="mt-5 rounded-2xl bg-card p-5 ring-1 ring-primary/15">
+                <p className="text-sm font-medium text-muted-foreground">
                   {t("policy.contact.emailLabel")}
                 </p>
 
                 <a
                   href={`mailto:${t("policy.contact.email")}`}
-                  className="mt-1 inline-block font-semibold text-emerald-700 hover:text-emerald-800"
+                  className="mt-1 inline-block font-semibold text-primary hover:text-primary/80"
                 >
                   {t("policy.contact.email")}
                 </a>
