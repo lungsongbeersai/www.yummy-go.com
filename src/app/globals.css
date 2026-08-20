@@ -356,7 +356,7 @@ html {
 .android-webview-compat [data-slot="dropdown-menu-content"],
 .android-webview-compat [data-slot="select-content"],
 .android-webview-compat [data-slot="popover-content"] {
-  background: hsl(var(--popover)) !important;
+  background: var(--popover) !important;
 }
 
 .android-webview-compat [data-pos-pattern] {
@@ -428,7 +428,7 @@ html {
 .android-webview-compat .text-primary-foreground\/80,
 .android-webview-compat .text-muted-foreground\/55,
 .android-webview-compat .text-muted-foreground\/80 {
-  color: hsl(var(--foreground)) !important;
+  color: var(--foreground) !important;
 }
 
 .android-webview-compat .bg-white\/35 {
@@ -827,8 +827,8 @@ html {
 .login-light-zone input:-webkit-autofill:focus,
 .login-light-zone input:-webkit-autofill:active {
   box-shadow: 0 0 0 1000px #ffffff inset !important;
-  -webkit-text-fill-color: hsl(var(--foreground)) !important;
-  caret-color: hsl(var(--foreground));
+  -webkit-text-fill-color: var(--foreground) !important;
+  caret-color: var(--foreground);
 }
 
 html.data-screen-scroll-lock,
@@ -841,7 +841,7 @@ body.data-screen-scroll-lock {
 body {
   margin: 0;
   background-attachment: fixed;
-  color: hsl(var(--foreground));
+  color: var(--foreground);
   font-family:
     var(--font-noto-sans-lao),
     "Aptos",
@@ -912,7 +912,7 @@ html.theme-transition-active[data-theme-transition-direction="ltr"]::view-transi
 
 .dark body {
   background:
-    linear-gradient(135deg, hsl(var(--app)) 0%, hsl(var(--muted) / 0.38) 100%);
+    linear-gradient(135deg, hsl(var(--app)) 0%, color-mix(in oklch, var(--muted) 38%, transparent) 100%);
   background-attachment: fixed;
 }
 
@@ -949,19 +949,19 @@ html.theme-transition-active[data-theme-transition-direction="ltr"]::view-transi
   background: var(--sidebar);
   box-shadow:
     12px 0 30px -28px rgb(15 23 42 / 0.55),
-    inset -1px 0 0 hsl(var(--sidebar-border));
+    inset -1px 0 0 var(--sidebar-border);
   backdrop-filter: blur(12px);
   backface-visibility: hidden;
 }
 
 .app-sidebar-scroll {
   scrollbar-width: thin;
-  scrollbar-color: hsl(var(--muted-foreground) / 0.45) transparent;
+  scrollbar-color: color-mix(in oklch, var(--muted-foreground) 45%, transparent) transparent;
 }
 
 .settings-table-scroll {
   scrollbar-width: thin;
-  scrollbar-color: hsl(var(--muted-foreground) / 0.45) transparent;
+  scrollbar-color: color-mix(in oklch, var(--muted-foreground) 45%, transparent) transparent;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
 }
@@ -988,21 +988,21 @@ html.theme-transition-active[data-theme-transition-direction="ltr"]::view-transi
 }
 
 .sidebar-submenu-cue {
-  background: hsl(var(--sidebar));
-  border-color: hsl(var(--sidebar-border));
-  color: hsl(var(--sidebar-foreground) / 0.72);
+  background: var(--sidebar);
+  border-color: var(--sidebar-border);
+  color: color-mix(in oklch, var(--sidebar-foreground) 72%, transparent);
 }
 
 [data-sidebar="menu-button"]:hover .sidebar-submenu-cue,
 [data-sidebar="menu-button"]:focus-visible .sidebar-submenu-cue {
-  background: hsl(var(--sidebar-accent));
-  color: hsl(var(--sidebar-accent-foreground));
+  background: var(--sidebar-accent);
+  color: var(--sidebar-accent-foreground);
 }
 
 [data-sidebar="menu-button"][data-active="true"] .sidebar-submenu-cue {
-  background: hsl(var(--sidebar-primary-foreground) / 0.18);
-  border-color: hsl(var(--sidebar-primary-foreground) / 0.35);
-  color: hsl(var(--sidebar-primary-foreground));
+  background: color-mix(in oklch, var(--sidebar-primary-foreground) 18%, transparent);
+  border-color: color-mix(in oklch, var(--sidebar-primary-foreground) 35%, transparent);
+  color: var(--sidebar-primary-foreground);
 }
 
 .dark .app-sidebar-panel {
@@ -1262,9 +1262,9 @@ html.theme-transition-active[data-theme-transition-direction="ltr"]::view-transi
   display: flex;
   justify-content: center;
   padding: clamp(16px, 4vw, 40px);
-  border: 1px solid hsl(var(--border));
+  border: 1px solid var(--border);
   border-radius: 12px;
-  background: hsl(var(--muted));
+  background: var(--muted);
 }
 
 .daily-closing-receipt-frame {
@@ -1560,7 +1560,7 @@ html.theme-transition-active[data-theme-transition-direction="ltr"]::view-transi
   background: linear-gradient(
     90deg,
     transparent,
-    hsl(var(--background) / 0.62),
+    color-mix(in oklch, var(--background) 62%, transparent),
     transparent
   );
   animation: skeleton-shimmer 1.35s ease-in-out infinite;
@@ -1592,15 +1592,15 @@ html.theme-transition-active[data-theme-transition-direction="ltr"]::view-transi
   0%,
   100% {
     box-shadow:
-      0 0 0 0 hsl(var(--destructive) / 0.45),
-      0 14px 32px -28px hsl(var(--primary) / 0.65);
+      0 0 0 0 color-mix(in oklch, var(--destructive) 45%, transparent),
+      0 14px 32px -28px color-mix(in oklch, var(--primary) 65%, transparent);
     transform: translateY(0);
   }
 
   50% {
     box-shadow:
-      0 0 0 5px hsl(var(--destructive) / 0.2),
-      0 18px 42px -24px hsl(var(--primary) / 0.85);
+      0 0 0 5px color-mix(in oklch, var(--destructive) 20%, transparent),
+      0 18px 42px -24px color-mix(in oklch, var(--primary) 85%, transparent);
     transform: translateY(-1px);
   }
 }
@@ -1616,11 +1616,11 @@ html.theme-transition-active[data-theme-transition-direction="ltr"]::view-transi
 @keyframes notification-bell-alert-pulse {
   0%,
   100% {
-    box-shadow: 0 0 0 0 hsl(var(--destructive) / 0.5);
+    box-shadow: 0 0 0 0 color-mix(in oklch, var(--destructive) 50%, transparent);
   }
 
   50% {
-    box-shadow: 0 0 0 6px hsl(var(--destructive) / 0.15);
+    box-shadow: 0 0 0 6px color-mix(in oklch, var(--destructive) 15%, transparent);
   }
 }
 
@@ -1634,11 +1634,11 @@ html.theme-transition-active[data-theme-transition-direction="ltr"]::view-transi
 @keyframes pos-chip-alert-ring-pulse {
   0%,
   100% {
-    box-shadow: 0 0 0 0 hsl(var(--destructive) / 0.55);
+    box-shadow: 0 0 0 0 color-mix(in oklch, var(--destructive) 55%, transparent);
   }
 
   50% {
-    box-shadow: 0 0 0 6px hsl(var(--destructive) / 0.18);
+    box-shadow: 0 0 0 6px color-mix(in oklch, var(--destructive) 18%, transparent);
   }
 }
 
@@ -1663,20 +1663,20 @@ html.theme-transition-active[data-theme-transition-direction="ltr"]::view-transi
   .pos-table-card-alert {
     animation: none;
     box-shadow:
-      0 0 0 2px hsl(var(--destructive) / 0.45),
-      0 14px 32px -28px hsl(var(--primary) / 0.65);
+      0 0 0 2px color-mix(in oklch, var(--destructive) 45%, transparent),
+      0 14px 32px -28px color-mix(in oklch, var(--primary) 65%, transparent);
     will-change: auto;
   }
 
   .notification-bell-alert {
     animation: none;
-    box-shadow: 0 0 0 2px hsl(var(--destructive) / 0.5);
+    box-shadow: 0 0 0 2px color-mix(in oklch, var(--destructive) 50%, transparent);
     will-change: auto;
   }
 
   .pos-chip-alert-ring {
     animation: none;
-    box-shadow: 0 0 0 2px hsl(var(--destructive) / 0.5);
+    box-shadow: 0 0 0 2px color-mix(in oklch, var(--destructive) 50%, transparent);
     will-change: auto;
   }
 }
@@ -1696,7 +1696,7 @@ a[href]:not([aria-disabled="true"]),
 [role="button"]:not([aria-disabled="true"]) {
   cursor: pointer;
   touch-action: manipulation;
-  -webkit-tap-highlight-color: hsl(var(--primary) / 0.12);
+  -webkit-tap-highlight-color: color-mix(in oklch, var(--primary) 12%, transparent);
 }
 
 /* ปุ่มขนาด 28–40px เหมาะกับเมาส์แต่พลาดง่ายเมื่อใช้ด้วยนิ้วใน WebView
