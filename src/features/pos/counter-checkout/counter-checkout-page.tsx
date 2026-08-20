@@ -69,7 +69,7 @@ export function CounterCheckoutPage() {
                         <Badge>{table.table_status === 2 ? t("common.busy") : t("common.free")}</Badge>
                       </div>
                       {table.customer_order_state ? (
-                        <p className="mt-3 rounded-md bg-amber-100 px-2 py-1 text-xs font-bold text-amber-800 dark:bg-amber-400/15 dark:text-amber-200">
+                        <p className="mt-3 rounded-md bg-warning/15 px-2 py-1 text-xs font-bold text-warning">
                           {t("pos.customerUpdate")}
                         </p>
                       ) : (
