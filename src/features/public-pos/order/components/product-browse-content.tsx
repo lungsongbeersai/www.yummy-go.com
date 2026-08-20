@@ -188,7 +188,7 @@ export function ProductBrowseContent({
               <div className="flex items-center gap-2">
                 <div className="relative min-w-0 flex-1">
                   <div ref={categoryRailRef} className="yg-rail overflow-x-auto">
-                    <TabsList className="h-11 w-max justify-start gap-2 bg-transparent p-0">
+                    <TabsList className="h-11 w-max justify-start gap-2 bg-transparent p-0 group-data-horizontal/tabs:h-11">
                       {visibleCategoryTabs.map((category) => (
                         <TabsTrigger
                           key={category.cateUuid}

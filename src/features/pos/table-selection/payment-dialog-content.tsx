@@ -321,7 +321,7 @@ export function PaymentDialogContent({
               data-pos-keypad-ignore="true"
             >
               <div className="grid gap-1.5 md:min-h-0 md:grid-rows-[auto_minmax(0,1fr)] md:gap-3 lg:h-full">
-                <TabsList className="grid h-auto grid-cols-2 gap-1 rounded-lg bg-muted p-1 sm:grid-cols-4 md:grid-cols-2 md:gap-1.5 md:p-1.5">
+                <TabsList className="grid h-auto grid-cols-2 gap-1 rounded-lg bg-muted p-1 group-data-horizontal/tabs:h-auto sm:grid-cols-4 md:grid-cols-2 md:gap-1.5 md:p-1.5">
                   {paymentTabs.map((tab) => {
                     const Icon = tab.icon;
                     return (

@@ -156,7 +156,9 @@ export function SelectedTableCartPanelContent({
             <TabsList
               className={cn(
                 "pos-soft-light-zone grid w-full grid-cols-2 rounded-xl bg-white/15 p-1 text-white shadow-inner backdrop-blur-sm",
-                variant === "side" ? "mt-2 h-10" : "mt-2.5 h-11",
+                variant === "side"
+                  ? "mt-2 h-10 group-data-horizontal/tabs:h-10"
+                  : "mt-2.5 h-11 group-data-horizontal/tabs:h-11",
               )}
             >
               <CartTabTrigger

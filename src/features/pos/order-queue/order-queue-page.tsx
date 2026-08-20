@@ -249,7 +249,7 @@ export function OrderQueuePage() {
       <Card className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-none border-x-0 border-b-0">
         <Tabs value={String(status)} onValueChange={handleTabChange} className="flex min-h-0 flex-1 flex-col gap-0">
           <CardHeader className="shrink-0 border-t border-border/70 bg-muted/10 px-4 py-4 lg:px-8 lg:py-5">
-            <TabsList variant="line" className="h-auto w-full items-start justify-between gap-0 bg-transparent p-0">
+            <TabsList variant="line" className="h-auto w-full items-start justify-between gap-0 bg-transparent p-0 group-data-horizontal/tabs:h-auto">
               {TABS.map((tab, index) => {
                 const currentIndex = TABS.findIndex((item) => item.status === status);
                 const isActive = status === tab.status;
