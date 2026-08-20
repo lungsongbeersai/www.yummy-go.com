@@ -218,18 +218,6 @@ export function OrderCustomerView({
               >
                 {loadingTables || loadingMenu ? <Spinner /> : <RefreshCcw />}
               </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                className="hidden h-11 border border-white/25 bg-white/15 text-white shadow-sm hover:bg-white/25 hover:text-white sm:inline-flex lg:hidden"
-                onClick={() => void openCartSheet()}
-              >
-                <ShoppingCart data-icon="inline-start" />
-                <span className="hidden sm:inline">{t("pos.currentCart")}</span>
-                <Badge className="min-w-6 justify-center rounded-full border-white/30 bg-white text-primary">
-                  {cartCount}
-                </Badge>
-              </Button>
             </div>
           </div>
         </header>
@@ -314,7 +302,7 @@ export function OrderCustomerView({
       <Button
         type="button"
         aria-label={t("pos.currentCart")}
-        className="pos-safe-bottom-offset fixed right-4 z-40 h-12 max-w-[calc(100vw-2rem)] rounded-full border border-primary/20 bg-primary px-4 text-sm font-black text-primary-foreground shadow-[0_16px_34px_-20px_rgb(15_23_42/0.9)] hover:bg-primary/90 active:scale-[0.98] sm:hidden"
+        className="pos-safe-bottom-offset fixed right-4 z-40 h-12 max-w-[calc(100vw-2rem)] rounded-full border border-primary/20 bg-primary px-4 text-sm font-black text-primary-foreground shadow-[0_16px_34px_-20px_rgb(15_23_42/0.9)] hover:bg-primary/90 active:scale-[0.98] lg:hidden"
         onClick={() => void openCartSheet()}
       >
         <ShoppingCart data-icon="inline-start" />
