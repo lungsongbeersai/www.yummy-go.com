@@ -79,8 +79,8 @@ export function TableSelectionPage() {
   if (skipTableSelection) return null;
 
   return (
-    <div data-pos-pattern="true" className="relative h-full min-h-0 overflow-hidden bg-[url('/pos/background_wide.webp')] bg-cover bg-top">
-      <div aria-hidden="true" data-pos-pattern-overlay="true" className="pointer-events-none absolute inset-0 bg-primary/45 dark:bg-black/55" />
+    <div data-pos-pattern="true" className="relative h-full min-h-0 overflow-hidden bg-[url('/pos/background_wide.webp')] bg-cover bg-top dark:bg-none dark:bg-background">
+      <div aria-hidden="true" data-pos-pattern-overlay="true" className="pointer-events-none absolute inset-0 bg-primary/45 dark:hidden" />
       <div className="relative flex h-full min-h-0 flex-col overflow-hidden">
         <header className="relative flex h-18 shrink-0 items-center justify-between overflow-hidden px-3 text-primary-foreground shadow-sm sm:h-20 sm:px-4">
           <Button aria-label={t("actions.back")} className={headerIconButtonClass} size="icon" type="button" variant="ghost" onClick={() => router.replace("/")}>

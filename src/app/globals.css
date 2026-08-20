@@ -455,13 +455,19 @@ html {
   background-size: cover !important;
 }
 
+.dark.android-webview-compat [data-pos-pattern],
+.dark .android-webview-compat [data-pos-pattern] {
+  background-image: none !important;
+  background-color: var(--background) !important;
+}
+
 .android-webview-compat [data-pos-pattern-overlay] {
   background: rgba(5, 150, 105, 0.28) !important;
 }
 
 .dark.android-webview-compat [data-pos-pattern-overlay],
 .dark .android-webview-compat [data-pos-pattern-overlay] {
-  background: rgba(0, 0, 0, 0.38) !important;
+  display: none !important;
 }
 
 .android-webview-compat .bg-white\/10,

@@ -116,12 +116,12 @@ export function OrderCustomerView({
   return (
     <div
       data-pos-pattern="true"
-      className="relative h-full min-h-0 overflow-hidden bg-[url('/pos/background_wide.webp')] bg-cover bg-top text-foreground"
+      className="relative h-full min-h-0 overflow-hidden bg-[url('/pos/background_wide.webp')] bg-cover bg-top text-foreground dark:bg-none dark:bg-background"
     >
       <div
         aria-hidden="true"
         data-pos-pattern-overlay="true"
-        className="pointer-events-none absolute inset-0 bg-primary/45 dark:bg-black/55"
+        className="pointer-events-none absolute inset-0 bg-primary/45 dark:hidden"
       />
       <div className="relative grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden xl:grid-cols-[154px_minmax(0,1fr)_clamp(320px,20vw,360px)]">
         <header className="relative shrink-0 overflow-hidden border-b border-white/15 bg-transparent px-3 py-2 text-white shadow-[0_1px_0_rgb(255_255_255/0.08)] sm:px-3.5 md:py-1.5 xl:col-span-2">
@@ -337,7 +337,7 @@ export function OrderCustomerView({
         <SheetContent
           data-pos-pattern="true"
           side="bottom"
-          className="h-[calc(100dvh-8px)] max-h-none gap-0 overflow-hidden rounded-t-2xl border-white/20 bg-[url('/pos/background_wide.webp')] bg-cover bg-top p-0 text-white dark:border-primary/30"
+          className="h-[calc(100dvh-8px)] max-h-none gap-0 overflow-hidden rounded-t-2xl border-white/20 bg-[url('/pos/background_wide.webp')] bg-cover bg-top p-0 text-white dark:border-primary/30 dark:bg-none dark:bg-background"
         >
           <SheetTitle className="sr-only">{t("pos.currentCart")}</SheetTitle>
           <SelectedTableCartPanel
