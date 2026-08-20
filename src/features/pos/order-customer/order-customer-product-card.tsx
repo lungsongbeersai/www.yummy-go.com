@@ -86,7 +86,7 @@ export const EmployeeProductCard = memo(function EmployeeProductCard({
   return (
     <Card
       className={cn(
-        "group relative flex min-w-0 flex-col overflow-hidden rounded-lg border-border/80 bg-card text-card-foreground shadow-sm [contain-intrinsic-size:320px] [content-visibility:auto]",
+        "group relative flex min-w-0 flex-col overflow-hidden rounded-lg border-border/80 bg-card pt-0 text-card-foreground shadow-sm [contain-intrinsic-size:320px] [content-visibility:auto]",
         !interactionDisabled &&
           "cursor-pointer transition-[transform,border-color,box-shadow] duration-200 motion-safe:hover:-translate-y-0.5 hover:border-primary/45 hover:shadow-md motion-reduce:transition-none",
         interactionDisabled && "cursor-not-allowed",
@@ -369,7 +369,7 @@ export function ProductGridSkeleton() {
         <Card
           key={index}
           aria-hidden="true"
-          className="overflow-hidden rounded-lg border-border bg-card"
+          className="overflow-hidden rounded-lg border-border bg-card pt-0"
         >
           <Skeleton className={cn("w-full rounded-none bg-muted", IMAGE_CROP_ASPECT_CLASS)} />
           <CardContent className="flex min-h-40 flex-col gap-2 p-2.5 sm:p-3">
