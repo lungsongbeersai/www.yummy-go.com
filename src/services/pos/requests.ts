@@ -105,7 +105,7 @@ export async function getProdItem(params: GetProdItemParams) {
 
 export function createOrder(input: CreateOrderInput) {
   requiredItems(input.items);
-  return apiRequest<CreateOrderResponse>("post", "/api/v1/pos/create_order", { data: input });
+  return apiRequest<CreateOrderResponse>("post", "/api/v1/posAll/create_order", { data: input });
 }
 
 // ร้านไม่มีโต๊ะ: backend ผูกบิลที่เปิดค้างไว้กับ login token ของแคชเชียร์เอง

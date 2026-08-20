@@ -103,7 +103,7 @@ export function customerCreateOrder(t: string, input: CustomerCreateOrderInput) 
   requiredItems(input.items);
   return publicApiRequest<CreateOrderResponse>(
     "post",
-    `/api/v1/pos/customer/create_order?t=${encodeURIComponent(requiredToken(t))}`,
+    `/api/v1/posAll/customer/create_order?t=${encodeURIComponent(requiredToken(t))}`,
     { data: input }
   );
 }
