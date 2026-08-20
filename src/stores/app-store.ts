@@ -8,6 +8,9 @@ export type ThemeMode = "light" | "dark";
 export type ThemeColor = "emerald" | "blue" | "amber" | "rose" | "violet";
 export type FontScale = "sm" | "md" | "lg";
 
+const THEME_COLORS: readonly ThemeColor[] = ["emerald", "blue", "amber", "rose", "violet"];
+const FONT_SCALES: readonly FontScale[] = ["sm", "md", "lg"];
+
 interface AppState {
   theme: ThemeMode;
   themeColor: ThemeColor;
@@ -57,7 +60,12 @@ export const useAppStore = create<AppState>()(
         collapsed
       }),
       skipHydration: true,
-      onRehydrateStorage: () => (state) => state?.setHydrated(true)
+      onRehydrateStorage: () => (state) => {
+        if (!state) return;
+        if (!THEME_COLORS.includes(state.themeColor)) state.setThemeColor("emerald");
+        if (!FONT_SCALES.includes(state.fontScale)) state.setFontScale("md");
+        state.setHydrated(true);
+      }
     }
   )
 );
