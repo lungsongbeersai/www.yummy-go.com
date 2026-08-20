@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useRef, useState } from "react";
-import { Check, Search, UserRound } from "lucide-react";
+import { Check, Clock, Search, UserRound } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { EmptyState } from "@/components/common/empty-state";
 import { LoadingState } from "@/components/common/loading-state";
@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 import { zoneOrderAlertCount } from "@/lib/pos/order-alerts";
 import type { PosTable, PosZone } from "@/services/pos";
 import type { TableStatusFilter } from "./types";
-import { filterZones, tableCount, tableSeatCount, tableStatus } from "./utils";
+import { filterZones, tableCheckInTime, tableCount, tableSeatCount, tableStatus } from "./utils";
 
 interface TableListSectionProps {
   loading: boolean;
@@ -235,6 +235,7 @@ function TableCard({
   const busy = tableStatus(table) === "busy";
   const hasUpdate = Boolean(table.customer_order_state);
   const seats = tableSeatCount(table);
+  const checkInTime = busy ? tableCheckInTime(table) : null;
   // hasUpdate ใช้โทนแดง (destructive) แทนเขียว (primary) ที่ busy ใช้ เพื่อให้แยกกันได้ชัดจากระยะไกล
   // แต่ต้องเป็นพื้นทึบนิ่ง ไม่ใช่ text สีแดง — กันปัญหาคอนทราสต์แบบเดียวกับ ZoneChip
   const cardToneClass = hasUpdate
@@ -315,6 +316,12 @@ function TableCard({
         >
           <UserRound />
           <span>{seats || "-"}</span>
+          {checkInTime ? (
+            <span className="ml-auto flex items-center gap-1">
+              <Clock className="size-3.5" />
+              {checkInTime}
+            </span>
+          ) : null}
         </div>
       </CardContent>
     </Card>

@@ -17,6 +17,13 @@ export function tableStatus(table: PosTable) {
   return Number(table.table_status) === TableStatus.OCCUPIED ? "busy" : "free";
 }
 
+// datetime_in จาก backend เป็น "YYYY-MM-DD HH:mm:ss" เสมอ — ตัดด้วย regex แทนการ
+// parse ผ่าน Date() เพื่อเลี่ยงปัญหา timezone/รูปแบบที่ไม่ใช่ ISO ในบาง engine
+export function tableCheckInTime(table: PosTable) {
+  const match = /(\d{2}):(\d{2})(?::\d{2})?\s*$/.exec(table.datetime_in ?? "");
+  return match ? `${match[1]}:${match[2]}` : null;
+}
+
 export function tableSeatCount(table: PosTable) {
   const value =
     table.number_of_seats ??
