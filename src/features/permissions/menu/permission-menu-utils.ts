@@ -2,7 +2,7 @@ import { FileText } from "lucide-react";
 import {
   PROJECT_ROUTE_OPTIONS,
   type PickerOption
-} from "@/features/permissions/menu/manage/permission-menu-options";
+} from "@/features/permissions/menu/permission-menu-options";
 import { menuIconLabel, normalizeMenuIconValue } from "@/lib/menu-icons";
 import type { PermissionMainMenu, PermissionSubMenu } from "@/services/permissions/menu-admin";
 

@@ -97,7 +97,7 @@ describe("curated MDI icon data", () => {
 
     const fallbackSource = fs.readFileSync(path.join(root, "src/lib/mdi-icon-data.ts"), "utf8");
     const pickerSource = fs.readFileSync(
-      path.join(root, "src/features/permissions/menu/manage/permission-menu-pickers.tsx"),
+      path.join(root, "src/features/permissions/menu/permission-menu-pickers.tsx"),
       "utf8"
     );
     expect(fallbackSource).toContain('import("@iconify-json/mdi/icons.json")');
