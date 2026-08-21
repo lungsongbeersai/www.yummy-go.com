@@ -1,12 +1,15 @@
 "use client";
 
-import { Check, ReceiptText, RefreshCcw, SlidersHorizontal } from "lucide-react";
+import { useState } from "react";
+import { RefreshCcw, SlidersHorizontal } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { AppPagination } from "@/components/common/app-pagination";
+import { FilterHeaderToolbar } from "@/components/common/filter-header-toolbar";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Sheet, SheetClose, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetClose, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 import type { CancelableDateOption } from "@/services/cancel";
@@ -18,48 +21,33 @@ import {
   orderOptions
 } from "./cancel-sale-utils";
 
-export function SalesListHeader({ loading, onRefresh }: { loading: boolean; onRefresh: () => void }) {
-  const { t } = useTranslation();
-
-  return (
-    <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border bg-card px-3 py-3 sm:px-4 lg:px-5">
-      <div className="flex min-w-0 items-center gap-3">
-        <div className="hidden size-10 shrink-0 items-center justify-center rounded-md border border-border bg-card text-primary sm:flex">
-          <ReceiptText />
-        </div>
-        <div className="min-w-0">
-          <div className="text-xs font-medium text-muted-foreground">{t("nav.sales")}</div>
-          <h1 className="truncate text-xl font-bold leading-tight">{t("cancelSale.title")}</h1>
-          <p className="hidden max-w-2xl truncate text-xs text-muted-foreground md:block">{t("cancelSale.subtitle")}</p>
-        </div>
-      </div>
-      <Button disabled={loading} size="sm" type="button" variant="outline" onClick={onRefresh}>
-        {loading ? <Spinner data-icon="inline-start" /> : <RefreshCcw data-icon="inline-start" />}
-        {t("actions.refresh")}
-      </Button>
-    </div>
-  );
-}
-
 export function SalesListToolbar({
   dateOptions,
   dateSelect,
   limit,
+  loading,
   orderBy,
   onDateChange,
   onLimitChange,
-  onOrderChange
+  onOrderChange,
+  onRefresh
 }: {
   dateOptions: CancelableDateOption[];
   dateSelect: string;
   limit: PageLimit;
+  loading: boolean;
   orderBy: SortOrder;
   onDateChange: (value: string) => void;
   onLimitChange: (value: string) => void;
   onOrderChange: (value: SortOrder) => void;
+  onRefresh: () => void;
 }) {
   const { t } = useTranslation();
+  const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
   const filterLabel = t("settings.filterTitle");
+  const currentDateLabel = dateOptionLabel(
+    dateOptions.find((option) => dateOptionValue(option) === dateSelect) ?? dateOptions[0]
+  );
 
   function renderDateSelect(id: string, triggerClassName: string) {
     return (
@@ -122,53 +110,88 @@ export function SalesListToolbar({
   }
 
   return (
-    <div className="shrink-0 border-b border-border bg-card px-3 py-2.5 sm:px-4 lg:px-5">
-      <div className="grid w-full grid-cols-[minmax(0,1fr)_2.75rem] items-center gap-2 lg:hidden">
-        {renderDateSelect("sales-list-mobile-date", "h-10")}
-        <Sheet>
-          <SheetTrigger asChild>
-            <Button aria-label={filterLabel} className="size-10 px-0" type="button" variant="outline">
-              <SlidersHorizontal />
+    <>
+      {/* จอ lg ขึ้นไปมีแถบตัวกรองอยู่บนหน้าแล้ว แถบนี้จึงเหลือไว้ให้จอเล็กที่ยังใช้ sheet — โครงเดียวกับ sales-list */}
+      <div className="shrink-0 border-b border-border bg-card px-2 py-2 sm:px-3 lg:hidden">
+        <FilterHeaderToolbar
+          dateRange={{
+            ariaLabel: `${t("cancelSale.dateFilter")}: ${currentDateLabel}`,
+            label: currentDateLabel,
+            onClick: () => setMobileFilterOpen(true)
+          }}
+          filterControl={
+            <Button
+              aria-label={filterLabel}
+              className="size-11 shrink-0 sm:size-9"
+              size="icon-sm"
+              type="button"
+              variant="outline"
+              onClick={() => setMobileFilterOpen(true)}
+            >
+              <SlidersHorizontal data-icon="inline-start" />
+              <span className="sr-only">{filterLabel}</span>
             </Button>
-          </SheetTrigger>
-          <SheetContent className="max-h-[85dvh] gap-0 overflow-hidden rounded-t-lg p-0" side="bottom">
-            <SheetHeader className="border-b border-border px-4 py-3 pr-12 text-left">
-              <SheetTitle>{filterLabel}</SheetTitle>
-              <SheetDescription>{t("settings.filterDescription")}</SheetDescription>
-            </SheetHeader>
-            <div className="grid gap-4 overflow-y-auto px-4 py-4">
-              <Field className="gap-2">
-                <FieldLabel htmlFor="sales-list-mobile-limit">{t("common.rowsPerPage")}</FieldLabel>
-                {renderLimitSelect("sales-list-mobile-limit", "h-11")}
-              </Field>
-              <Field className="gap-2">
-                <FieldLabel htmlFor="sales-list-mobile-order">{t("common.order")}</FieldLabel>
-                {renderOrderSelect("sales-list-mobile-order", "h-11")}
-              </Field>
-            </div>
-            <SheetFooter className="border-t border-border px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:flex-row">
-              <SheetClose asChild>
-                <Button type="button" variant="outline">
-                  {t("actions.cancel")}
-                </Button>
-              </SheetClose>
-              <SheetClose asChild>
-                <Button type="button">
-                  <Check data-icon="inline-start" />
-                  {t("actions.apply")}
-                </Button>
-              </SheetClose>
-            </SheetFooter>
-          </SheetContent>
-        </Sheet>
+          }
+          refreshControl={
+            <Button
+              aria-label={t("actions.refresh")}
+              className="size-11 shrink-0 sm:size-9"
+              disabled={loading}
+              size="icon-sm"
+              type="button"
+              variant="outline"
+              onClick={onRefresh}
+            >
+              {loading ? <Spinner data-icon="inline-start" /> : <RefreshCcw data-icon="inline-start" />}
+              <span className="sr-only">{t("actions.refresh")}</span>
+            </Button>
+          }
+        />
       </div>
 
-      <div className="hidden w-full min-w-0 items-center gap-2 lg:flex">
-        <div className="w-[18rem] max-w-full flex-none xl:w-[20rem]">{renderDateSelect("sales-list-desktop-date", "h-8")}</div>
-        <div className="ml-auto w-28 flex-none">{renderLimitSelect("sales-list-desktop-limit", "h-8")}</div>
-        <div className="w-28 flex-none">{renderOrderSelect("sales-list-desktop-order", "h-8")}</div>
-      </div>
-    </div>
+      {/* py-0 กัน py ฐานของ Card (16px) บวกซ้อนกับ py ของ CardContent ด้านล่าง — ดู sales-list-filters.tsx */}
+      <Card className="hidden min-w-0 shrink-0 rounded-none border-x-0 border-t-0 border-border bg-card py-0 shadow-none lg:block">
+        <CardContent className="flex min-w-0 items-center gap-2 px-3 py-2.5">
+          <div className="w-[16rem] max-w-full flex-none xl:w-[18rem]">{renderDateSelect("cancel-sale-desktop-date", "h-9")}</div>
+          <div className="w-28 flex-none">{renderLimitSelect("cancel-sale-desktop-limit", "h-9")}</div>
+          <div className="w-32 flex-none">{renderOrderSelect("cancel-sale-desktop-order", "h-9")}</div>
+          <Button className="ml-auto h-9" disabled={loading} size="sm" type="button" variant="outline" onClick={onRefresh}>
+            {loading ? <Spinner data-icon="inline-start" /> : <RefreshCcw data-icon="inline-start" />}
+            {t("actions.refresh")}
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Sheet open={mobileFilterOpen} onOpenChange={setMobileFilterOpen}>
+        <SheetContent className="max-h-[85dvh] gap-0 overflow-hidden rounded-t-xl p-0 lg:hidden" side="bottom">
+          <SheetHeader className="border-b border-border px-4 py-3 pr-12 text-left">
+            <SheetTitle>{filterLabel}</SheetTitle>
+            <SheetDescription>{t("settings.filterDescription")}</SheetDescription>
+          </SheetHeader>
+          <div className="grid gap-4 overflow-y-auto px-4 py-4">
+            <Field className="gap-2">
+              <FieldLabel htmlFor="cancel-sale-mobile-date">{t("cancelSale.dateFilter")}</FieldLabel>
+              {renderDateSelect("cancel-sale-mobile-date", "h-11")}
+            </Field>
+            <Field className="gap-2">
+              <FieldLabel htmlFor="cancel-sale-mobile-limit">{t("common.rowsPerPage")}</FieldLabel>
+              {renderLimitSelect("cancel-sale-mobile-limit", "h-11")}
+            </Field>
+            <Field className="gap-2">
+              <FieldLabel htmlFor="cancel-sale-mobile-order">{t("common.order")}</FieldLabel>
+              {renderOrderSelect("cancel-sale-mobile-order", "h-11")}
+            </Field>
+          </div>
+          <SheetFooter className="border-t border-border px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+            <SheetClose asChild>
+              <Button type="button" variant="outline">
+                {t("actions.close")}
+              </Button>
+            </SheetClose>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
+    </>
   );
 }
 
@@ -192,7 +215,7 @@ export function SalesListPaginationFooter({
   const { t } = useTranslation();
 
   return (
-    <div className="shrink-0 border-t border-border px-3 py-2.5 pb-[calc(0.625rem+env(safe-area-inset-bottom))] text-sm text-muted-foreground">
+    <div className="shrink-0 border-t border-border bg-muted/20 px-3 py-2.5 pb-[calc(0.625rem+env(safe-area-inset-bottom))] text-sm text-muted-foreground sm:px-4 sm:py-3">
       <AppPagination
         disabled={loading}
         page={page}

@@ -138,7 +138,7 @@ export function customerUpdateOrderNote(params: CustomerUpdateOrderNoteInput) {
 export function customerConfirmKitchen(params: CustomerConfirmKitchenInput) {
   return publicApiRequest<ConfirmToKitchenResponse>(
     "patch",
-    `/api/v1/pos/customer/confirm_to_kitchen?t=${encodeURIComponent(requiredToken(params.t))}`,
+    `/api/v1/posAll/customer/confirm_to_kitchen?t=${encodeURIComponent(requiredToken(params.t))}`,
     { data: params }
   );
 }

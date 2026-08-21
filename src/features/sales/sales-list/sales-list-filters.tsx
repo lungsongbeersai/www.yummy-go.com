@@ -4,10 +4,12 @@ import { Eye, EyeOff, RefreshCcw, SlidersHorizontal } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { FilterHeaderToolbar } from "@/components/common/filter-header-toolbar";
 import { SearchInput } from "@/components/common/search-input";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { ReportDateInput } from "@/features/report/shared/report-date-input";
+import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import type { DailySaleItemsOrder } from "@/services/report";
@@ -21,6 +23,15 @@ import {
   type SalesListFilters,
   type SalesListPaymentMethod
 } from "./sales-list-utils";
+
+// เงื่อนไข "ไม่ใช่ค่าเริ่มต้น" ของฟิลด์รอง — ใช้ตัดสินว่าจะโชว์ badge บอกจำนวนตัวกรองที่ซ่อนอยู่ใน popover หรือไม่
+function secondaryFilterCount(filters: SalesListFilters) {
+  let count = 0;
+  if (filters.limit !== SALES_LIST_LIMIT_OPTIONS[0]) count += 1;
+  if (filters.paymentMethod !== "All") count += 1;
+  if (filters.orderBy !== "DESC") count += 1;
+  return count;
+}
 
 interface SalesListFilterProps {
   branchLabel: string;
@@ -109,7 +120,8 @@ export function SalesListHeader({
   );
 }
 
-// จอ lg ขึ้นไปกรองได้จากหน้าเลย โครงเดียวกับ /settings/store — เดิมเป็น Popover ที่ต้องกดเปิดก่อน
+// จอ lg ขึ้นไปกรองได้จากหน้าเลย — เหลือแค่ฟิลด์หลักที่ใช้บ่อย (ค้นหา/สาขา/ช่วงวันที่) ตลอดเวลา
+// ส่วนฟิลด์รอง (จำนวนแถว/วิธีชำระ/เรียงลำดับ) ย้ายเข้า popover กันแถบยาวเกินไปจนดูอึดอัด
 export function SalesListFilterBar({
   branchLabel,
   branchLoading,
@@ -121,11 +133,14 @@ export function SalesListFilterBar({
   onDraftChange
 }: SalesListFilterProps) {
   const { t } = useTranslation();
+  const secondaryCount = secondaryFilterCount(draftFilters);
 
+  // Card ฐานมี py-(--card-spacing) ของตัวเอง (16px) ถ้าไม่ล้างด้วย py-0 จะบวกซ้อนกับ py ของ CardContent
+  // ด้านล่างอีกชั้น กลายเป็นช่องว่างเหนือแถบตัวกรองใหญ่เกินจริง — ให้ CardContent คุมระยะในเพียงจุดเดียว
   return (
-    <Card className="hidden min-w-0 shrink-0 rounded-none border-x-0 border-t-0 border-border bg-card shadow-none lg:block">
-      <CardContent className="grid min-w-0 items-end gap-3 px-3 py-3 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-[repeat(7,minmax(0,1fr))_auto]">
-        <SalesListFilterFields
+    <Card className="hidden min-w-0 shrink-0 rounded-none border-x-0 border-t-0 border-border bg-card py-0 shadow-none lg:block">
+      <CardContent className="flex min-w-0 flex-wrap items-end gap-3 px-3 py-2.5">
+        <SalesListPrimaryFields
           branchLabel={branchLabel}
           branchLoading={branchLoading}
           branchOptions={branchOptions}
@@ -134,6 +149,31 @@ export function SalesListFilterBar({
           onDraftChange={onDraftChange}
           onSearchEnter={onApply}
         />
+
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button type="button" variant="outline" className="relative h-9">
+              <SlidersHorizontal data-icon="inline-start" />
+              {t("salesList.moreFilters")}
+              {secondaryCount ? (
+                <Badge className="ml-1 h-4.5 min-w-4.5 justify-center rounded-full border-transparent bg-primary px-1 text-[10px] text-primary-foreground">
+                  {secondaryCount}
+                </Badge>
+              ) : null}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="start" className="w-72">
+            <PopoverTitle>{t("salesList.moreFilters")}</PopoverTitle>
+            <div className="grid gap-3">
+              <SalesListSecondaryFields
+                draftFilters={draftFilters}
+                idPrefix="sales-list"
+                onDraftChange={onDraftChange}
+              />
+            </div>
+          </PopoverContent>
+        </Popover>
+
         <Button type="button" className="h-9 min-w-24" disabled={loading || !canApply} onClick={onApply}>
           {loading ? <RefreshCcw className="animate-spin" data-icon="inline-start" /> : null}
           {t("salesList.apply")}
@@ -172,7 +212,7 @@ export function SalesListFilterSheet({
         </SheetHeader>
         <div className="min-h-0 overflow-y-auto p-4">
           <div className="grid gap-3">
-            <SalesListFilterFields
+            <SalesListPrimaryFields
               branchLabel={branchLabel}
               branchLoading={branchLoading}
               branchOptions={branchOptions}
@@ -180,6 +220,11 @@ export function SalesListFilterSheet({
               idPrefix="sales-list-mobile"
               onDraftChange={onDraftChange}
               onSearchEnter={onApply}
+            />
+            <SalesListSecondaryFields
+              draftFilters={draftFilters}
+              idPrefix="sales-list-mobile"
+              onDraftChange={onDraftChange}
             />
           </div>
         </div>
@@ -203,7 +248,7 @@ export function SalesListFilterSheet({
   );
 }
 
-interface SalesListFilterFieldsProps {
+interface SalesListPrimaryFieldsProps {
   branchLabel: string;
   branchLoading: boolean;
   branchOptions: SalesListBranchOption[];
@@ -213,7 +258,8 @@ interface SalesListFilterFieldsProps {
   onSearchEnter?: () => void;
 }
 
-function SalesListFilterFields({
+// ฟิลด์ที่ใช้บ่อยที่สุด — โชว์ตลอดทั้งบนแถบ desktop และ sheet มือถือ
+function SalesListPrimaryFields({
   branchLabel,
   branchLoading,
   branchOptions,
@@ -221,12 +267,12 @@ function SalesListFilterFields({
   idPrefix,
   onDraftChange,
   onSearchEnter
-}: SalesListFilterFieldsProps) {
+}: SalesListPrimaryFieldsProps) {
   const { t } = useTranslation();
 
   return (
     <>
-      <Field className="gap-1.5 sm:col-span-2 lg:col-span-1">
+      <Field className="min-w-48 flex-1 gap-1.5 sm:col-span-2 lg:col-span-1">
         <FieldLabel htmlFor={`${idPrefix}-search`} className="text-xs font-medium text-muted-foreground">
           {t("actions.search")}
         </FieldLabel>
@@ -237,11 +283,11 @@ function SalesListFilterFields({
           value={draftFilters.search}
           onChange={(value) => onDraftChange({ search: value })}
           onEnter={onSearchEnter}
-          className="h-11 bg-background"
+          className="h-11 bg-background lg:h-9"
         />
       </Field>
-      {/* แท็บเล็ต (2 คอลัมน์): สาขากินเต็มแถว วันที่เริ่ม-สิ้นสุดจึงได้อยู่แถวเดียวกัน — จอ lg เป็น 6 คอลัมน์อยู่แล้วจึงคืนเป็น 1 ช่อง */}
-      <Field className="gap-1.5 sm:col-span-2 lg:col-span-1">
+      {/* แท็บเล็ต (2 คอลัมน์): สาขากินเต็มแถว วันที่เริ่ม-สิ้นสุดจึงได้อยู่แถวเดียวกัน */}
+      <Field className="gap-1.5 sm:col-span-2 lg:w-52 lg:flex-none">
         <FieldLabel htmlFor={`${idPrefix}-branch`} className="text-xs font-medium text-muted-foreground">
           {t("nav.branch")}
         </FieldLabel>
@@ -250,7 +296,7 @@ function SalesListFilterFields({
           disabled={branchLoading || branchOptions.length <= 1}
           onValueChange={(value) => onDraftChange({ branchUuid: value })}
         >
-          <SelectTrigger id={`${idPrefix}-branch`} className="h-11 w-full data-[size=default]:h-11">
+          <SelectTrigger id={`${idPrefix}-branch`} className="h-11 w-full data-[size=default]:h-11 lg:h-9">
             <SelectValue placeholder={branchLabel || t("nav.branch")} />
           </SelectTrigger>
           <SelectContent>
@@ -264,7 +310,7 @@ function SalesListFilterFields({
           </SelectContent>
         </Select>
       </Field>
-      <Field className="gap-1.5">
+      <Field className="gap-1.5 lg:w-40 lg:flex-none">
         <FieldLabel htmlFor={`${idPrefix}-date-from`} className="text-xs font-medium text-muted-foreground">
           {t("salesList.dateFrom")}
         </FieldLabel>
@@ -273,10 +319,10 @@ function SalesListFilterFields({
           label={t("salesList.dateFrom")}
           value={draftFilters.dateFrom}
           onValueChange={(dateFrom) => onDraftChange({ dateFrom })}
-          className="h-11"
+          className="h-11 lg:h-9"
         />
       </Field>
-      <Field className="gap-1.5">
+      <Field className="gap-1.5 lg:w-40 lg:flex-none">
         <FieldLabel htmlFor={`${idPrefix}-date-to`} className="text-xs font-medium text-muted-foreground">
           {t("salesList.dateTo")}
         </FieldLabel>
@@ -285,9 +331,29 @@ function SalesListFilterFields({
           label={t("salesList.dateTo")}
           value={draftFilters.dateTo}
           onValueChange={(dateTo) => onDraftChange({ dateTo })}
-          className="h-11"
+          className="h-11 lg:h-9"
         />
       </Field>
+    </>
+  );
+}
+
+interface SalesListSecondaryFieldsProps {
+  draftFilters: SalesListFilters;
+  idPrefix: string;
+  onDraftChange: (patch: Partial<SalesListFilters>) => void;
+}
+
+// ฟิลด์ที่ใช้น้อยกว่า — desktop ซ่อนไว้ใน popover "ตัวกรองเพิ่มเติม", มือถือต่อท้ายฟิลด์หลักใน sheet เดิม
+function SalesListSecondaryFields({
+  draftFilters,
+  idPrefix,
+  onDraftChange
+}: SalesListSecondaryFieldsProps) {
+  const { t } = useTranslation();
+
+  return (
+    <>
       <Field className="gap-1.5">
         <FieldLabel htmlFor={`${idPrefix}-limit`} className="text-xs font-medium text-muted-foreground">
           {t("common.rowsPerPage")}
@@ -296,7 +362,7 @@ function SalesListFilterFields({
           value={String(draftFilters.limit)}
           onValueChange={(value) => onDraftChange({ limit: Number(value) as PageLimit })}
         >
-          <SelectTrigger id={`${idPrefix}-limit`} className="h-11 w-full data-[size=default]:h-11">
+          <SelectTrigger id={`${idPrefix}-limit`} className="h-11 w-full data-[size=default]:h-11 lg:h-9">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -318,7 +384,7 @@ function SalesListFilterFields({
           value={draftFilters.paymentMethod}
           onValueChange={(value) => onDraftChange({ paymentMethod: value as SalesListPaymentMethod })}
         >
-          <SelectTrigger id={`${idPrefix}-payment-method`} className="h-11 w-full data-[size=default]:h-11">
+          <SelectTrigger id={`${idPrefix}-payment-method`} className="h-11 w-full data-[size=default]:h-11 lg:h-9">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -340,7 +406,7 @@ function SalesListFilterFields({
           value={draftFilters.orderBy}
           onValueChange={(value) => onDraftChange({ orderBy: value as DailySaleItemsOrder })}
         >
-          <SelectTrigger id={`${idPrefix}-order`} className="h-11 w-full data-[size=default]:h-11">
+          <SelectTrigger id={`${idPrefix}-order`} className="h-11 w-full data-[size=default]:h-11 lg:h-9">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

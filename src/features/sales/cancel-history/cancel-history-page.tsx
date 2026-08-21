@@ -121,14 +121,15 @@ export function CancelHistoryPage({ initialPagination }: { initialPagination: Ur
     // เต็มหน้าจอแบบ /settings/store: ไม่มี padding รอบนอก ตารางกินความสูงที่เหลือทั้งหมด
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-muted/20">
       <div className="flex shrink-0 flex-col gap-2 border-b border-border bg-card px-2 py-2 sm:px-3">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <div className="flex items-center gap-2 text-sm font-bold text-primary">
-              <History className="size-4" />
-              {t("nav.sales")}
-            </div>
-            <h1 className="text-2xl font-bold tracking-normal text-foreground">{t("cancelHistory.title")}</h1>
-            <p className="text-sm text-muted-foreground">{t("cancelHistory.subtitle")}</p>
+        {/* หัวข้อรวมเป็นแถวเดียว (ไอคอน+ชื่อ+คำอธิบาย) แทนที่จะ stack 3 บรรทัด (label/h1/subtitle) เดิม
+            ที่กินพื้นที่แนวตั้งเกินจำเป็น — เหลือพื้นที่ให้ตารางด้านล่างมากขึ้น ตรงกับ pattern ของหน้าอื่น */}
+        <div className="flex min-w-0 items-center gap-2.5">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <History className="size-4.5" />
+          </span>
+          <div className="min-w-0">
+            <h1 className="truncate text-base font-black text-foreground">{t("cancelHistory.title")}</h1>
+            <p className="truncate text-xs text-muted-foreground">{t("cancelHistory.subtitle")}</p>
           </div>
         </div>
 
@@ -191,8 +192,9 @@ function CancelHistoryFilterBar({
 }) {
   const { t } = useTranslation();
 
+  // py-0 กัน py ฐานของ Card (16px) บวกซ้อนกับ py ของ CardContent ด้านล่าง — ดูคำอธิบายเดียวกันใน sales-list-filters.tsx
   return (
-    <Card className="min-w-0 shrink-0 rounded-none border-x-0 border-t-0 border-border bg-card shadow-none">
+    <Card className="min-w-0 shrink-0 rounded-none border-x-0 border-t-0 border-border bg-card py-0 shadow-none">
       <CardContent className="grid min-w-0 items-end gap-3 px-3 py-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-[repeat(5,minmax(0,1fr))_auto]">
         <CancelHistoryFilterFields
           branchLabel={branchLabel}
@@ -309,8 +311,9 @@ function CancelHistoryTableCard({
 }) {
   const { t } = useTranslation();
 
+  // py-0 กัน py ฐานของ Card บวกซ้อนกับ py ของ CardHeader ด้านล่าง — ดูคำอธิบายเดียวกันใน sales-list-filters.tsx
   return (
-    <Card className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-none border-x-0 border-b-0 border-border bg-card shadow-none">
+    <Card className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-none border-x-0 border-b-0 border-border bg-card py-0 shadow-none">
       <CardHeader className="flex shrink-0 flex-col gap-2 border-b border-border bg-card px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <CardTitle className="flex min-w-0 items-center gap-2 text-base font-semibold">

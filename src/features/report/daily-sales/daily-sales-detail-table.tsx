@@ -294,8 +294,8 @@ export function DetailBillTable({
                       !group.cancelled &&
                       !groupNeedsAttention &&
                       "border-l-4 border-l-primary/60 bg-primary/5 hover:bg-primary/10",
-                    groupNeedsAttention &&
-                      "bg-red-50 hover:bg-red-100/70 dark:bg-red-950/25 dark:hover:bg-red-950/35",
+                    // ค้างชำระ = ต้องระวัง ไม่ใช่ error — --warning แทนสีแดงดิบ (ดูคำอธิบายเดียวกันใน daily-sales-report-cells.tsx)
+                    groupNeedsAttention && "bg-warning/10 hover:bg-warning/15",
                     group.cancelled &&
                       "border-l-4 border-l-destructive/60 bg-destructive/5 hover:bg-destructive/10",
                   )}
@@ -395,8 +395,7 @@ export function DetailBillTable({
                           key={`${rowKey(item, itemIndex)}-${itemIndex}`}
                           className={cn(
                             "border-b border-border/80 bg-background hover:bg-muted/20 [&>td]:whitespace-nowrap [&>td]:px-2 [&>td]:py-2",
-                            groupNeedsAttention &&
-                              "bg-red-50/70 hover:bg-red-50/70 dark:bg-red-950/20 dark:hover:bg-red-950/20",
+                            groupNeedsAttention && "bg-warning/5 hover:bg-warning/10",
                             selected &&
                               !isCancelledRow(item) &&
                               !isPaymentAttentionRow(item) &&

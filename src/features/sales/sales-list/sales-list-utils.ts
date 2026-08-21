@@ -139,13 +139,15 @@ export function summaryMetricLabel(label: string, rate: string) {
   return rate ? `${label} (${rate})` : label;
 }
 
+// สีสถานะแยกจาก --primary (สีธีมที่ผู้ใช้ปรับเองได้ 5 แบบ) เสมอ — ถ้าใช้ primary แทนความหมาย
+// "สำเร็จ" ป้ายจะเปลี่ยนสีตามธีมที่เลือกไปด้วย (เช่น กลายเป็นสีชมพู) ซึ่งสื่อความหมายผิด
 export function statusBadgeClass(value: unknown) {
   const status = textValue(value, "").toLowerCase();
   if (status.includes("cancel") || status.includes("void") || status === "0") {
     return "border-destructive/25 bg-destructive/10 text-destructive";
   }
   if (status.includes("active") || status.includes("paid") || status.includes("success") || status === "1") {
-    return "border-primary/20 bg-primary/10 text-primary";
+    return "border-success/25 bg-success/10 text-success";
   }
   return "border-border bg-muted text-muted-foreground";
 }

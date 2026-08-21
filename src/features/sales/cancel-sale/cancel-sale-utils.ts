@@ -425,13 +425,15 @@ export function buildSalesListInvoicePrintData({
   };
 }
 
+// --primary เปลี่ยนตามธีมที่ผู้ใช้เลือก ห้ามใช้สื่อความหมายสถานะ (สำเร็จ/ยกเลิก) — ใช้ --success/--destructive
+// ที่ hue คงที่แทน ดู [[card-padding-fix]] ที่ sales-list ทำไว้แล้วสำหรับหลักการเดียวกัน
 export function statusClass(source: BillSource) {
   const status = billStatus(source).toLowerCase();
   if (status.includes("cancel") || status.includes("void") || status === "0") {
     return "border-destructive/25 bg-destructive/10 text-destructive";
   }
   if (status.includes("paid") || status.includes("success") || status.includes("active") || status === "1") {
-    return "border-primary/20 bg-primary/10 text-primary";
+    return "border-success/25 bg-success/10 text-success";
   }
   return "border-border bg-muted text-muted-foreground";
 }
@@ -439,8 +441,8 @@ export function statusClass(source: BillSource) {
 export function statusDotClass(source: BillSource) {
   const status = billStatus(source).toLowerCase();
   if (status.includes("cancel") || status.includes("void") || status === "0") return "bg-destructive";
-  if (status.includes("paid") || status.includes("success") || status.includes("active") || status === "1") return "bg-primary";
-  return billCanCancel(source) ? "bg-primary" : "bg-muted-foreground";
+  if (status.includes("paid") || status.includes("success") || status.includes("active") || status === "1") return "bg-success";
+  return billCanCancel(source) ? "bg-info" : "bg-muted-foreground";
 }
 
 export function dateOptionValue(option: CancelableDateOption) {
@@ -459,5 +461,5 @@ export function pageBounds(page: number, limit: PageLimit, rowCount: number, tot
 
 export function shouldOpenMobileDetail() {
   if (typeof window === "undefined") return false;
-  return window.matchMedia("(max-width: 767px)").matches;
+  return !window.matchMedia("(min-width: 1280px)").matches;
 }

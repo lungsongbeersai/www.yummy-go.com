@@ -1,19 +1,15 @@
 "use client";
 
-import {
-  ChevronLeft,
-  ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
-} from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {
   Pagination,
   PaginationContent,
   PaginationEllipsis,
   PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
 } from "@/components/ui/pagination";
-import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -23,15 +19,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-
-// Design.md §3.2/§3.6 — แถบเลื่อนหน้าอ่านเป็น "เครื่องมือชิ้นเดียว": กรอบเดียว เส้นคั่นบาง ไม่มีเงา
-// §6 control radius 10–11px, §5 ตัวเลขใช้ tabular numerals
-const CONTROL_SHELL =
-  "inline-flex items-stretch divide-x divide-border overflow-hidden rounded-[10px] border border-border bg-card";
-// §6/§10 ต้องการเป้าแตะ 44px — คงไว้บนจอสัมผัส ส่วน sm+ ลดเป็น 36px ตาม §2
-// ("preserve fast scanning...even when that requires tighter spacing") เพราะแผงบิลกว้างต่ำสุด 320px
-const CONTROL_CELL =
-  "relative size-11 shrink-0 rounded-none shadow-none focus-visible:z-10 focus-visible:ring-inset sm:size-9";
 
 type AppPaginationProps = {
   className?: string;
@@ -56,9 +43,13 @@ export function AppPagination({
   const pageItems = paginationItems(currentPage, pageCount);
   const canGoBack = currentPage > 1 && !disabled;
   const canGoNext = currentPage < pageCount && !disabled;
-  // §3.7 progressive disclosure — ช่องกระโดดหน้าโผล่เฉพาะตอนที่มีหน้าถูกซ่อนหลัง "…"
-  // (บนมือถือโผล่เสมอ เพราะที่นั่นไม่ได้แสดงปุ่มเลขหน้า)
+  // จอแคบ/หน้าเยอะเกินไม่โชว์ปุ่มเลขหน้า — ใช้ช่องกระโดดหน้าแทน กันแถบล้นจอ
   const hasHiddenPages = pageItems.some((item) => item === "ellipsis");
+
+  function goToPage(target: number) {
+    if (disabled) return;
+    onPageChange(target);
+  }
 
   return (
     <div
@@ -73,8 +64,7 @@ export function AppPagination({
         </p>
       ) : null}
 
-      {/* มีหน้าเดียวก็ไม่ต้องมีปุ่มเลื่อนหน้า — เหลือไว้แค่ label บอกช่วงข้อมูล
-          (หน้าอย่างรายงานวิธีชำระมี 3 แถวคงที่ ปุ่มพวกนี้กดไม่ได้อยู่แล้ว) */}
+      {/* มีหน้าเดียวก็ไม่ต้องมีปุ่มเลื่อนหน้า — เหลือไว้แค่ label บอกช่วงข้อมูล */}
       <div className={cn("flex min-w-0 shrink-0 items-center gap-2", pageCount <= 1 && "hidden")}>
         <div className={cn("items-center gap-2", hasHiddenPages ? "flex" : "flex sm:hidden")}>
           <span className="shrink-0 text-xs font-medium text-muted-foreground">
@@ -83,11 +73,11 @@ export function AppPagination({
           <Select
             value={String(currentPage)}
             disabled={disabled}
-            onValueChange={(value) => onPageChange(Number(value))}
+            onValueChange={(value) => goToPage(Number(value))}
           >
             <SelectTrigger
               aria-label={t("common.pageLabel")}
-              className="h-11 w-16 rounded-[10px] bg-card tabular-nums text-foreground sm:h-9 sm:w-20"
+              className="h-8 w-16 tabular-nums text-foreground"
             >
               <SelectValue />
             </SelectTrigger>
@@ -112,104 +102,64 @@ export function AppPagination({
           aria-label={t("common.pagination")}
           className="mx-0 w-auto max-w-full justify-end overflow-x-auto overscroll-x-contain"
         >
-          <PaginationContent className={cn(CONTROL_SHELL, "min-w-max flex-nowrap gap-0")}>
-            <PaginationItem className="flex">
-              <PaginationAction
-                disabled={!canGoBack}
-                label={t("common.previousShort")}
-                onClick={() => onPageChange(1)}
-              >
-                <ChevronsLeft aria-hidden="true" />
-              </PaginationAction>
-            </PaginationItem>
-            <PaginationItem className="flex">
-              <PaginationAction
-                disabled={!canGoBack}
-                label={t("common.previousPage")}
-                onClick={() => onPageChange(currentPage - 1)}
-              >
-                <ChevronLeft aria-hidden="true" />
-              </PaginationAction>
+          <PaginationContent className="min-w-max flex-nowrap">
+            <PaginationItem>
+              <PaginationPrevious
+                aria-disabled={!canGoBack}
+                aria-label={t("common.previousPage")}
+                className={cn(!canGoBack && "pointer-events-none opacity-50")}
+                href="#"
+                tabIndex={canGoBack ? undefined : -1}
+                text={t("common.previousShort")}
+                onClick={(event) => {
+                  event.preventDefault();
+                  goToPage(currentPage - 1);
+                }}
+              />
             </PaginationItem>
 
-            {/* จอแคบซ่อนเลขหน้าไว้ ใช้ช่องกระโดดหน้าด้านซ้ายแทน เพื่อไม่ให้แถบล้นออกนอกจอ */}
             {pageItems.map((item, index) =>
               item === "ellipsis" ? (
                 <PaginationItem key={`ellipsis-${index}`} className="hidden sm:flex">
-                  <PaginationEllipsis className="size-11 text-muted-foreground sm:size-9" />
+                  <PaginationEllipsis />
                 </PaginationItem>
               ) : (
                 <PaginationItem key={item} className="hidden sm:flex">
-                  <Button
-                    type="button"
-                    size="icon-sm"
-                    variant="ghost"
-                    className={cn(
-                      CONTROL_CELL,
-                      "tabular-nums",
-                      item === currentPage
-                        // §4/§15 เขียวคือ "หมุด" บอกตำแหน่งปัจจุบัน — มีได้ช่องเดียวในแถบนี้
-                        ? "bg-primary font-semibold text-primary-foreground hover:bg-primary"
-                        : "font-medium text-foreground",
-                    )}
+                  <PaginationLink
                     aria-current={item === currentPage ? "page" : undefined}
-                    disabled={disabled}
-                    onClick={() => onPageChange(item)}
+                    aria-disabled={disabled}
+                    className={cn("tabular-nums", disabled && "pointer-events-none opacity-50")}
+                    href="#"
+                    isActive={item === currentPage}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      goToPage(item);
+                    }}
                   >
                     {item}
-                  </Button>
+                  </PaginationLink>
                 </PaginationItem>
               ),
             )}
 
-            <PaginationItem className="flex">
-              <PaginationAction
-                disabled={!canGoNext}
-                label={t("common.nextPage")}
-                onClick={() => onPageChange(currentPage + 1)}
-              >
-                <ChevronRight aria-hidden="true" />
-              </PaginationAction>
-            </PaginationItem>
-            <PaginationItem className="flex">
-              <PaginationAction
-                disabled={!canGoNext}
-                label={t("common.nextShort")}
-                onClick={() => onPageChange(pageCount)}
-              >
-                <ChevronsRight aria-hidden="true" />
-              </PaginationAction>
+            <PaginationItem>
+              <PaginationNext
+                aria-disabled={!canGoNext}
+                aria-label={t("common.nextPage")}
+                className={cn(!canGoNext && "pointer-events-none opacity-50")}
+                href="#"
+                tabIndex={canGoNext ? undefined : -1}
+                text={t("common.nextShort")}
+                onClick={(event) => {
+                  event.preventDefault();
+                  goToPage(currentPage + 1);
+                }}
+              />
             </PaginationItem>
           </PaginationContent>
         </Pagination>
       </div>
     </div>
-  );
-}
-
-function PaginationAction({
-  children,
-  disabled,
-  label,
-  onClick,
-}: {
-  children: React.ReactNode;
-  disabled: boolean;
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <Button
-      type="button"
-      size="icon-sm"
-      className={cn(CONTROL_CELL, "text-muted-foreground")}
-      aria-label={label}
-      disabled={disabled}
-      variant="ghost"
-      onClick={onClick}
-    >
-      {children}
-    </Button>
   );
 }
 

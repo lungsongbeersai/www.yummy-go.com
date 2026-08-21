@@ -11,6 +11,11 @@ export type FontScale = "sm" | "md" | "lg";
 const THEME_COLORS: readonly ThemeColor[] = ["emerald", "blue", "amber", "rose", "violet"];
 const FONT_SCALES: readonly FontScale[] = ["sm", "md", "lg"];
 
+export interface FloatingButtonPosition {
+  x: number;
+  y: number;
+}
+
 interface AppState {
   theme: ThemeMode;
   themeColor: ThemeColor;
@@ -19,6 +24,7 @@ interface AppState {
   sidebarOpen: boolean;
   collapsed: boolean;
   hydrated: boolean;
+  floatingButtonPosition: FloatingButtonPosition | null;
   setTheme: (theme: ThemeMode) => void;
   toggleTheme: () => void;
   setThemeColor: (themeColor: ThemeColor) => void;
@@ -28,6 +34,7 @@ interface AppState {
   setCollapsed: (collapsed: boolean) => void;
   toggleCollapsed: () => void;
   setHydrated: (hydrated: boolean) => void;
+  setFloatingButtonPosition: (position: FloatingButtonPosition | null) => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -40,6 +47,7 @@ export const useAppStore = create<AppState>()(
       sidebarOpen: false,
       collapsed: false,
       hydrated: false,
+      floatingButtonPosition: null,
       setTheme: (theme) => set({ theme }),
       toggleTheme: () => set({ theme: get().theme === "dark" ? "light" : "dark" }),
       setThemeColor: (themeColor) => set({ themeColor }),
@@ -48,16 +56,18 @@ export const useAppStore = create<AppState>()(
       setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
       setCollapsed: (collapsed) => set({ collapsed }),
       toggleCollapsed: () => set({ collapsed: !get().collapsed }),
-      setHydrated: (hydrated) => set({ hydrated })
+      setHydrated: (hydrated) => set({ hydrated }),
+      setFloatingButtonPosition: (floatingButtonPosition) => set({ floatingButtonPosition })
     }),
     {
       name: "yummy-go-app",
-      partialize: ({ theme, themeColor, fontScale, language, collapsed }) => ({
+      partialize: ({ theme, themeColor, fontScale, language, collapsed, floatingButtonPosition }) => ({
         theme,
         themeColor,
         fontScale,
         language,
-        collapsed
+        collapsed,
+        floatingButtonPosition
       }),
       skipHydration: true,
       onRehydrateStorage: () => (state) => {

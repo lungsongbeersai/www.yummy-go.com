@@ -370,7 +370,10 @@ export function ProductListTable({ workflow }: { workflow: ProductListWorkflow }
               <SortableRow
                 key={row.prod_uuid}
                 className={cn(
-                  "bg-card data-[state=selected]:bg-primary/5 [&>td]:whitespace-nowrap [&>td]:py-3",
+                  // แถบสลับสีอ่อนๆ ต่อแถว ช่วยตาไล่ตามแถวในตารางที่มีคอลัมน์เยอะ (13 คอลัมน์) — เดิมทุกแถวสีเดียวกันหมด
+                  // ดูเป็นผืนเดียวรวมกัน data-[state=selected] ยังชนะอยู่เพราะ specificity ของ attribute selector สูงกว่า
+                  index % 2 === 1 ? "bg-muted/10" : "bg-card",
+                  "data-[state=selected]:bg-primary/5 [&>td]:whitespace-nowrap [&>td]:py-3",
                   expanded && "border-l-4 border-l-primary/50"
                 )}
                 dragEnabled={workflow.canSortProducts}

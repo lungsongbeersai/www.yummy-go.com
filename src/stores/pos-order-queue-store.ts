@@ -1,12 +1,14 @@
 "use client";
 
 import { create } from "zustand";
+import { optionalString } from "@/lib/values";
 import * as posService from "@/services/pos";
 import {
   OrderItemStatus,
   type OrderItemStatus as OrderItemStatusType,
   type OrderQueueItem
 } from "@/services/pos";
+import { executeKitchenPrintJobs } from "@/services/printer";
 import { resolvePosPrinterContext } from "@/stores/pos-store/printer-context";
 import {
   createSessionGuard,
@@ -113,13 +115,40 @@ export const usePosOrderQueueStore = create<PosOrderQueueState>((set, get) => ({
         lang: params.lang
       });
 
-      await posService.sendToKitchen({
+      const response = await posService.sendToKitchen({
         order_item_uuids: params.order_item_uuids,
         device_code: printer.device_code,
         agent_id: printer.agent_id,
         print_mode: printer.print_mode,
         lang: params.lang
       });
+
+      // send_to_kitchen ยืนยันสถานะออเดอร์ให้แล้วตั้งแต่ตอน response กลับมา (เหมือน confirmToKitchen)
+      // print_job_uuid ที่ได้มาต้องส่งเข้า pending → ack ต่อ ถึงจะสั่งพิมพ์ครัวจริง — พิมพ์พลาดไม่ถือว่า
+      // ยืนยันออเดอร์ล้มเหลว จึงไม่ throw ทับ error ของ flow นี้ แค่ log ไว้
+      const printJobUuid = optionalString(
+        response.print_job?.print_job_uuid,
+        response.pending_query?.print_job_uuid
+      );
+
+      if (printJobUuid) {
+        const loginUuid = optionalString(
+          response.pending_query?.login_uuid_fk,
+          response.login_uuid_fk,
+          params.login_uuid_fk
+        );
+
+        await executeKitchenPrintJobs({
+          print_job: response.print_job,
+          pending_query: response.pending_query,
+          login_uuid_fk: loginUuid ?? undefined,
+          device_code: printer.device_code,
+          agent_id: printer.agent_id,
+          print_mode: printer.print_mode
+        }).catch((error) => {
+          console.error("[pos-order-queue] kitchen print failed", error);
+        });
+      }
 
       if (isCurrentSession()) {
         set({ saving: false });

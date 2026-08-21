@@ -168,7 +168,7 @@ describe("daily sales report basic helpers", () => {
       "destructive",
     );
     expect(statusClass({}, "Cancelled bill")).toContain("bg-destructive");
-    expect(statusClass({}, "ຊຳລະແລ້ວ")).toContain("text-primary");
+    expect(statusClass({}, "ຊຳລະແລ້ວ")).toContain("text-success");
     expect(statusClass({}, "ໜີ້ຄ້າງ")).toContain("amber");
     expect(statusClass({}, "Pending payment")).toContain("sky");
     expect(isPaymentAttentionRow({ debt_amount: 12000 })).toBe(true);

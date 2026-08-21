@@ -332,10 +332,10 @@ describe("sales list utils", () => {
   it("keeps status badge classes stable for cancelled, paid, and pending rows", () => {
     expect(statusClass(source({ status: "cancelled" }))).toContain("text-destructive");
     expect(statusDotClass(source({ status: "0" }))).toBe("bg-destructive");
-    expect(statusClass(source({ status: "paid" }))).toContain("text-primary");
-    expect(statusDotClass(source({ status: "success" }))).toBe("bg-primary");
+    expect(statusClass(source({ status: "paid" }))).toContain("text-success");
+    expect(statusDotClass(source({ status: "success" }))).toBe("bg-success");
     expect(statusClass(source({ status: "pending" }))).toContain("text-muted-foreground");
-    expect(statusDotClass(source({ can_cancel: "1", status: "pending" }))).toBe("bg-primary");
+    expect(statusDotClass(source({ can_cancel: "1", status: "pending" }))).toBe("bg-info");
     expect(statusDotClass(source({ status: "pending" }))).toBe("bg-muted-foreground");
   });
 

@@ -637,6 +637,9 @@ export interface SendToKitchenInput {
 export interface SendToKitchenResponse extends ApiEntity {
   status: string;
   message: string;
+  login_uuid_fk?: string;
+  print_job?: ConfirmToKitchenPrintJob;
+  pending_query?: ConfirmToKitchenPendingQuery;
 }
 export interface CreateTableQRRequest extends ApiEntity {
   table_uuid: string;

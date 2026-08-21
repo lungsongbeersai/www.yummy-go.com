@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { EmptyState } from "@/components/common/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -54,6 +55,7 @@ export function SalesBillDetailPanel({
   bill,
   canCancel,
   canReprintReceipt,
+  className,
   loading,
   reprintingReceipt,
   onCancel,
@@ -62,13 +64,15 @@ export function SalesBillDetailPanel({
   bill: BillSource;
   canCancel: boolean;
   canReprintReceipt: boolean;
+  className?: string;
   loading: boolean;
   reprintingReceipt: boolean;
   onCancel: () => void;
   onReprintReceipt: () => void;
 }) {
+  // py-0 กัน py ฐานของ Card บวกซ้อนกับ py ของเนื้อหาด้านใน — ดูคำอธิบายเดียวกันใน sales-list-filters.tsx
   return (
-    <aside className="hidden min-h-0 flex-col overflow-hidden rounded-none border-0 bg-card md:flex">
+    <Card className={cn("hidden min-h-0 flex-col overflow-hidden rounded-none border-x-0 border-b-0 border-border bg-card py-0 shadow-none xl:flex", className)}>
       <SalesBillDetailContent
         bill={bill}
         canCancel={canCancel}
@@ -78,7 +82,7 @@ export function SalesBillDetailPanel({
         onCancel={onCancel}
         onReprintReceipt={onReprintReceipt}
       />
-    </aside>
+    </Card>
   );
 }
 
@@ -107,7 +111,7 @@ export function SalesBillMobileSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="max-h-[88dvh] gap-0 overflow-hidden rounded-t-lg p-0 md:hidden">
+      <SheetContent side="bottom" className="max-h-[88dvh] gap-0 overflow-hidden rounded-t-lg p-0 xl:hidden">
         <SheetHeader className="border-b border-border px-4 py-3 pr-12 text-left">
           <SheetTitle>{bill ? billInvoice(bill) : t("cancelSale.billDetail")}</SheetTitle>
           <SheetDescription>{bill ? billDate(bill) : t("cancelSale.selectBillHint")}</SheetDescription>

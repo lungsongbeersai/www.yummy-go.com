@@ -282,7 +282,8 @@ export function statusClass(row: ApiEntity, value: unknown) {
     status.includes("ຊຳລະແລ້ວ") ||
     status === "1"
   ) {
-    return "border-primary/35 bg-primary/15 text-primary";
+    // --primary เปลี่ยนตามธีมที่ผู้ใช้เลือก ห้ามใช้สื่อความหมายสถานะ — ใช้ --success ที่ hue คงที่แทน
+    return "border-success/35 bg-success/15 text-success";
   }
   if (
     status.includes("debt") ||

@@ -66,8 +66,10 @@ export function ReportFilterCard({
   loading: boolean;
   onApply: () => void;
 }) {
+  // py-0 กัน py ฐานของ Card (16px) บวกซ้อนกับ py ที่ contentClassName ของแต่ละหน้ารายงานกำหนดเอง
+  // (เช่น py-3) — component นี้ใช้ร่วมกันทุกหน้ารายงาน แก้จุดเดียวที่นี่ครอบคลุมทั้งหมด
   return (
-    <Card className={cn("min-w-0 border-border bg-card shadow-sm", className)}>
+    <Card className={cn("min-w-0 border-border bg-card py-0 shadow-sm", className)}>
       <CardContent className={contentClassName}>
         {children}
         {/* flex-wrap เป็นตัวกันพลาด: ถ้าช่องในกริดแคบกว่าปุ่ม+ไอคอนรวมกัน ให้ตกบรรทัดแทนที่จะถูกตัดหาย */}

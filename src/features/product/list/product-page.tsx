@@ -56,7 +56,8 @@ export function ProductPage({ initialPagination }: { initialPagination: UrlPagin
         </div>
       </div>
 
-      <Card className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-none border-x-0 border-b-0">
+      {/* py-0 กัน py ฐานของ Card (16px) บวกซ้อนกับ py ของ CardHeader ด้านล่าง — ดูคำอธิบายเดียวกันใน sales-list-filters.tsx */}
+      <Card className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-none border-x-0 border-b-0 py-0">
         <CardHeader className="shrink-0 border-t border-border/70 bg-muted/10 px-4 py-2 lg:px-5 lg:py-3">
           <div className="grid w-full gap-2 lg:gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(22rem,30rem)] xl:items-end">
             <section className="grid min-w-0 grid-cols-2 gap-2 md:grid-cols-[minmax(18rem,1fr)_minmax(12rem,18rem)_minmax(7rem,9rem)]">
@@ -64,6 +65,9 @@ export function ProductPage({ initialPagination }: { initialPagination: UrlPagin
                 <FieldLabel htmlFor="product-search-filter" className="sr-only text-xs font-bold text-muted-foreground md:not-sr-only">
                   {t("actions.search")}
                 </FieldLabel>
+                {/* เดิมมี Search icon 2 จุดในกล่องเดียว (ไอคอนซ้าย static + ปุ่มขวามีทั้งไอคอน+ข้อความ "ค้นหา")
+                    ดูซ้ำซ้อนและรก — เหลือไอคอนซ้ายจุดเดียวเป็นตัวบอกว่าเป็นช่องค้นหา ปุ่มขวาเหลือแค่ไอคอน
+                    กด/Enter ยังค้นหาได้เหมือนเดิม แค่ไม่ต้องมีคำว่า "ค้นหา" ซ้ำกับ label ด้านบนอีกจุด */}
                 <InputGroup className="h-9 bg-background md:h-10">
                   <InputGroupAddon>
                     <Search />
@@ -81,14 +85,13 @@ export function ProductPage({ initialPagination }: { initialPagination: UrlPagin
                   />
                   <InputGroupAddon align="inline-end">
                     <InputGroupButton
-                      size="sm"
+                      size="icon-sm"
                       variant="ghost"
                       disabled={product.loading}
                       aria-label={t("actions.search")}
                       onClick={product.applyFilters}
                     >
-                      {product.loading ? <Spinner data-icon="inline-start" /> : <Search data-icon="inline-start" />}
-                      <span className="hidden sm:inline">{t("actions.search")}</span>
+                      {product.loading ? <Spinner /> : <Search />}
                     </InputGroupButton>
                   </InputGroupAddon>
                 </InputGroup>
@@ -104,10 +107,13 @@ export function ProductPage({ initialPagination }: { initialPagination: UrlPagin
                   onOpenChange={product.setCategoryDropdownOpen}
                   onValueChange={product.changeCategory}
                 >
+                  {/* SelectTrigger ฐานมี data-[size=default]:h-7 ซึ่ง specificity สูงกว่า h-9/md:h-10 เฉยๆ (attribute selector
+                      ชนะ class เดี่ยวเสมอ) ทำให้ความสูงจริงยังเป็น 28px ไม่ใช่ 36/40px ตามที่ตั้งใจ — ต้อง gate ด้วย
+                      data-[size=default]: ให้ specificity เท่ากันถึงจะชนะ ดู pattern เดียวกันใน sales-list-filters.tsx */}
                   <SelectTrigger
                     id="product-category-filter"
                     aria-invalid={product.highlightCategoryFilter || undefined}
-                    className="h-9 w-full bg-background md:h-10"
+                    className="h-9 w-full bg-background data-[size=default]:h-9 md:h-10 md:data-[size=default]:h-10"
                   >
                     <SelectValue />
                   </SelectTrigger>
@@ -133,7 +139,10 @@ export function ProductPage({ initialPagination }: { initialPagination: UrlPagin
                   {t("common.rowsPerPage")}
                 </FieldLabel>
                 <Select value={String(product.pageLimit)} onValueChange={product.changePageLimit}>
-                  <SelectTrigger id="product-limit-filter" className="h-9 w-full bg-background md:h-10">
+                  <SelectTrigger
+                    id="product-limit-filter"
+                    className="h-9 w-full bg-background data-[size=default]:h-9 md:h-10 md:data-[size=default]:h-10"
+                  >
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent position="popper" align="end">

@@ -470,7 +470,7 @@ function AppHeader({
       <div className="flex shrink-0 items-center gap-1 md:gap-2">
         <ThemeToggle variant="ghost" className={undefined} size={undefined} />
         <NotificationMenu />
-        <LanguageSwitch />
+        <LanguageSwitch compact size="icon" />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button

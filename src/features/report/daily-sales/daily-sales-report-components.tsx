@@ -87,7 +87,7 @@ export function DailySalesSummaryCards({
           // ป้ายกำกับเงียบเหมือนกันทุกใบ แล้วให้ "ตัวเลข" เป็นตัวบอกโทน — เดิมทั้ง 6 ใบ
           // มีทั้งแถบสีซ้าย ป้ายสี และตัวเลขหนา 900 พร้อมกัน จนไม่มีใบไหนเด่นกว่ากัน
           // (uppercase ไม่มีผลกับอักษรลาวอยู่แล้ว)
-          <Card key={card.label} className="overflow-hidden border-border bg-card shadow-none">
+          <Card key={card.label} className="overflow-hidden border-border bg-card py-0 shadow-none">
             <CardContent className="p-3">
               <p className="truncate text-xs leading-5 text-muted-foreground">{card.label}</p>
               <p
@@ -155,8 +155,9 @@ export function DailySalesTableCard({
 }: DailySalesTableCardProps) {
   const { t } = useTranslation();
 
+  // py-0 กัน py ฐานของ Card บวกซ้อนกับ py ของ CardHeader ใน ReportTableActions ด้านล่าง
   return (
-    <Card className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-none border-x-0 border-b-0 border-border bg-card shadow-none">
+    <Card className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-none border-x-0 border-b-0 border-border bg-card py-0 shadow-none">
       <ReportTableActions {...actions} />
 
       <CardContent
@@ -338,11 +339,14 @@ function ReportTypeSwitch({
   const { t } = useTranslation();
 
   return (
+    // เดิม w-full ไม่มี max-width กำกับ + พ่อแม่เป็น flex-1 (ReportTableActions) ทำให้ toggle
+    // ยืดเต็มความกว้างที่เหลือทั้งหมด (เกือบเต็มจอ) ปุ่ม 2 อันเลยกลายเป็นแท่งยักษ์มีที่ว่างเยอะเกินจริง
+    // — ใส่ max-w กันไว้ให้เป็น segmented control ขนาดพอดีคำเหมือนที่อื่นในแอป
     <ToggleGroup
       type="single"
       value={value}
       disabled={disabled}
-      className="grid h-9 w-full grid-cols-2 rounded-md border border-border bg-muted/70 p-1"
+      className="grid h-9 w-full max-w-sm grid-cols-2 rounded-md border border-border bg-muted/70 p-1"
       onValueChange={(nextValue) => {
         if (nextValue === "bill" || nextValue === "detail")
           onChange(nextValue);

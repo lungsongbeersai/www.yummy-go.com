@@ -42,8 +42,9 @@ export function SalesBillDetailPanel({
 }: SalesBillDetailPanelProps) {
   const { t } = useTranslation();
   const drawer = variant === "drawer";
+  // py-0 กัน py ฐานของ Card บวกซ้อนกับ py ของ CardHeader/CardContent ด้านล่าง — ดูคำอธิบายเดียวกันใน sales-list-filters.tsx
   const cardClass = cn(
-    "min-h-0 overflow-hidden rounded-none border-x-0 border-b-0 border-border bg-card shadow-none xl:flex xl:min-h-0 xl:flex-col",
+    "min-h-0 overflow-hidden rounded-none border-x-0 border-b-0 border-border bg-card py-0 shadow-none xl:flex xl:min-h-0 xl:flex-col",
     className
   );
 

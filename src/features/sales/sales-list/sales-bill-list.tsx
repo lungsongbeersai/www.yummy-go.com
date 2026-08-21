@@ -38,8 +38,9 @@ export function SalesBillListPanel({
 }: SalesBillListPanelProps) {
   const { t } = useTranslation();
 
+  // py-0 กัน py ฐานของ Card (16px) บวกซ้อนกับ py ของ CardHeader ด้านล่าง — ดูคำอธิบายเดียวกันใน sales-list-filters.tsx
   return (
-    <Card className="flex min-h-0 flex-col overflow-hidden rounded-none border-x-0 border-b-0 border-border bg-card shadow-none xl:min-h-0 xl:border-r">
+    <Card className="flex min-h-0 flex-col overflow-hidden rounded-none border-x-0 border-b-0 border-border bg-card py-0 shadow-none xl:min-h-0 xl:border-r">
       <CardHeader className="shrink-0 border-b border-border bg-card px-3 py-2.5">
         <div className="flex w-full min-w-0 items-center justify-between gap-3">
           <div className="min-w-0">
@@ -103,12 +104,13 @@ function BillListItem({
       variant="ghost"
       className={cn(
         "relative h-auto w-full shrink-0 touch-manipulation flex-col items-stretch justify-start gap-1 overflow-hidden rounded-none px-3 py-2.5 text-left shadow-none transition-colors focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset",
+        // ค้างชำระ = ต้องระวัง ไม่ใช่ error/ยกเลิก จึงใช้ warning แยกจาก destructive
         needsPaymentAttention
-          ? "bg-destructive/10 hover:bg-destructive/15"
+          ? "bg-warning/10 hover:bg-warning/15"
           : "hover:bg-muted/60",
         selected &&
           (needsPaymentAttention
-            ? "bg-destructive/15 hover:bg-destructive/15"
+            ? "bg-warning/15 hover:bg-warning/15"
             : "bg-primary/10 hover:bg-primary/10")
       )}
       aria-pressed={selected}
@@ -119,7 +121,7 @@ function BillListItem({
           aria-hidden="true"
           className={cn(
             "absolute inset-y-2 left-0 w-0.5 rounded-r-full",
-            needsPaymentAttention ? "bg-destructive" : "bg-primary"
+            needsPaymentAttention ? "bg-warning" : "bg-primary"
           )}
         />
       ) : null}
@@ -160,7 +162,7 @@ function BillListItem({
 
       {/* บิลค้างชำระได้บรรทัดของตัวเอง — เป็นเคสส่วนน้อย แถวที่สูงกว่าจึงกลายเป็นสัญญาณให้สังเกต */}
       {needsPaymentAttention ? (
-        <p className="min-w-0 truncate text-xs font-medium leading-5 text-destructive">
+        <p className="min-w-0 truncate text-xs font-medium leading-5 text-warning">
           {bill.debtAmount > 0 ? `${t("salesList.debt")}: ${money(bill.debtAmount)}` : t("salesList.debt")}
         </p>
       ) : null}

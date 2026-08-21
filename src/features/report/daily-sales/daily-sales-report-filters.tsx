@@ -1,10 +1,13 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { SlidersHorizontal } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { SearchInput } from "@/components/common/search-input";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
+import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -27,6 +30,17 @@ import {
   paymentMethodOptions,
 } from "./daily-sales-report-utils";
 
+// เงื่อนไข "ไม่ใช่ค่าเริ่มต้น" ของฟิลด์รอง — ใช้ตัดสินว่าจะโชว์ badge บอกจำนวนตัวกรองที่ซ่อนอยู่ใน popover หรือไม่
+// (limit เทียบกับตัวเลือกแรกของ PAGE_LIMIT_OPTIONS เป็นค่าประมาณ ไม่ใช่ default ที่แท้จริงของทุกหน้า
+// แต่พอใช้เป็นสัญญาณคร่าวๆ ว่าผู้ใช้ปรับค่าจากที่ตั้งไว้แต่แรกหรือยัง)
+function secondaryFilterCount(filters: ReportFilters) {
+  let count = 0;
+  if (String(filters.limit) !== String(PAGE_LIMIT_OPTIONS[0])) count += 1;
+  if (filters.paymentMethod !== "All") count += 1;
+  if (filters.orderBy !== "DESC") count += 1;
+  return count;
+}
+
 type ReportFilterProps = {
   branchLoading: boolean;
   branchLocked: boolean;
@@ -41,6 +55,9 @@ type ReportFilterProps = {
 
 // จอ lg ขึ้นไปมีที่ว่างพอให้ตัวกรองอยู่บนหน้าเลย ไม่ต้องเปิด modal เพื่อเปลี่ยนแค่สาขา
 // (ก่อนหน้านี้คอมโพเนนต์นี้ถูกเขียนไว้แต่ไม่มีใครเรียก ทุกขนาดจอจึงถูกบังคับให้ใช้ modal)
+// เดิมมี 7 ฟิลด์วางเรียงกันหมด กว้างพอจะไม่ตกบรรทัดแค่จอ 2xl (1536px+) — จอทำงานทั่วไป (lg-2xl)
+// เห็นตัวกรองตกเป็น 2 แถวจนดูอึดอัด จึงเหลือแค่ฟิลด์ที่ใช้บ่อย (ค้นหา/สาขา/ช่วงวันที่) ไว้แถวเดียว
+// ฟิลด์รอง (วิธีชำระ/เรียงลำดับ/จำนวนต่อหน้า) ย้ายเข้า popover "ตัวกรองเพิ่มเติม" แบบเดียวกับ sales-list
 export function DailySalesFilterBar({
   actions,
   branchLoading,
@@ -53,24 +70,51 @@ export function DailySalesFilterBar({
   onApply,
   onDraftChange,
 }: ReportFilterProps & { actions?: ReactNode }) {
+  const { t } = useTranslation();
+  const secondaryCount = secondaryFilterCount(draftFilters);
+
   return (
     <ReportFilterCard
       actions={actions}
       canApply={canApply}
       className="hidden shrink-0 rounded-none border-x-0 border-t-0 shadow-none lg:block"
-      contentClassName="grid min-w-0 items-end gap-3 px-3 py-3 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-[repeat(7,minmax(0,1fr))_auto]"
+      contentClassName="flex min-w-0 flex-wrap items-end gap-3 px-3 py-2.5"
       loading={loading}
       onApply={onApply}
     >
-      <ReportFilterFields
+      <DailySalesPrimaryFields
         branchLoading={branchLoading}
         branchLocked={branchLocked}
         branchOptions={branchOptions}
-        detailPaginationBasis={detailPaginationBasis}
         draftFilters={draftFilters}
         idPrefix="report"
         onDraftChange={onDraftChange}
       />
+
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button type="button" variant="outline" className="relative h-9">
+            <SlidersHorizontal data-icon="inline-start" />
+            {t("report.filters.moreFilters")}
+            {secondaryCount ? (
+              <Badge className="ml-1 h-4.5 min-w-4.5 justify-center rounded-full border-transparent bg-primary px-1 text-[10px] text-primary-foreground">
+                {secondaryCount}
+              </Badge>
+            ) : null}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent align="start" className="w-72">
+          <PopoverTitle>{t("report.filters.moreFilters")}</PopoverTitle>
+          <div className="grid gap-3">
+            <DailySalesSecondaryFields
+              detailPaginationBasis={detailPaginationBasis}
+              draftFilters={draftFilters}
+              idPrefix="report"
+              onDraftChange={onDraftChange}
+            />
+          </div>
+        </PopoverContent>
+      </Popover>
     </ReportFilterCard>
   );
 }
@@ -103,10 +147,15 @@ export function DailySalesFilterSheet({
       onApply={onApply}
       onOpenChange={onOpenChange}
     >
-      <ReportFilterFields
+      <DailySalesPrimaryFields
         branchLoading={branchLoading}
         branchLocked={branchLocked}
         branchOptions={branchOptions}
+        draftFilters={draftFilters}
+        idPrefix="report-mobile"
+        onDraftChange={onDraftChange}
+      />
+      <DailySalesSecondaryFields
         detailPaginationBasis={detailPaginationBasis}
         draftFilters={draftFilters}
         idPrefix="report-mobile"
@@ -158,11 +207,11 @@ export function AppliedFilterBadges({
   );
 }
 
-function ReportFilterFields({
+// ฟิลด์ที่ใช้บ่อยที่สุด — โชว์ตลอดทั้งบนแถบ desktop และ sheet มือถือ
+function DailySalesPrimaryFields({
   branchLoading,
   branchLocked,
   branchOptions,
-  detailPaginationBasis,
   draftFilters,
   idPrefix,
   onDraftChange,
@@ -170,7 +219,6 @@ function ReportFilterFields({
   branchLoading: boolean;
   branchLocked: boolean;
   branchOptions: ReportBranchOption[];
-  detailPaginationBasis: DetailPaginationBasis;
   draftFilters: ReportFilters;
   idPrefix: string;
   onDraftChange: (filters: ReportFilters) => void;
@@ -184,7 +232,7 @@ function ReportFilterFields({
   return (
     <>
       {/* ค้นหาเป็นตัวกรองปกติ = มีผลตอนกดปุ่ม "ໃຊ້" เหมือนช่องอื่น (เดิมอยู่หัวตารางและกรองทันทีที่พิมพ์) */}
-      <Field className="min-w-0 gap-1.5">
+      <Field className="min-w-48 flex-1 gap-1.5 sm:col-span-2 lg:col-span-1">
         <FieldLabel htmlFor={`${idPrefix}-search`} className="text-xs font-medium text-muted-foreground">
           {t("actions.search")}
         </FieldLabel>
@@ -194,9 +242,10 @@ function ReportFilterFields({
           placeholder={t("actions.search")}
           value={draftFilters.search}
           onChange={(value) => patch({ search: value })}
+          className="h-11 bg-background lg:h-9"
         />
       </Field>
-      <Field className="min-w-0 gap-1.5">
+      <Field className="gap-1.5 lg:w-52 lg:flex-none">
         <FieldLabel
           htmlFor={`${idPrefix}-branch`}
           className="text-xs font-medium text-muted-foreground"
@@ -208,7 +257,10 @@ function ReportFilterFields({
           disabled={branchLoading || branchLocked || branchOptions.length <= 1}
           onValueChange={(value) => patch({ branchUuid: value })}
         >
-          <SelectTrigger id={`${idPrefix}-branch`} className="w-full">
+          {/* data-[size=default]: ต้องมาคู่กับ h-* เฉยๆ เสมอ — SelectTrigger ฐานมี data-[size=default]:h-7
+              specificity สูงกว่า class เดี่ยว ถ้าไม่ gate แบบนี้ความสูงจริงจะยังเป็น 28px ไม่ขยับตามที่ตั้งใจ
+              (บั๊กเดียวกับที่เจอใน product-page.tsx ทำให้ช่องค้นหากับ select สูงไม่เท่ากัน) */}
+          <SelectTrigger id={`${idPrefix}-branch`} className="h-11 w-full data-[size=default]:h-11 lg:h-9">
             <SelectValue placeholder={t("nav.branch")} />
           </SelectTrigger>
           <SelectContent>
@@ -222,7 +274,7 @@ function ReportFilterFields({
           </SelectContent>
         </Select>
       </Field>
-      <Field className="min-w-0 gap-1.5">
+      <Field className="gap-1.5 lg:w-40 lg:flex-none">
         <FieldLabel
           htmlFor={`${idPrefix}-date-from`}
           className="text-xs font-medium text-muted-foreground"
@@ -234,9 +286,10 @@ function ReportFilterFields({
           label={t("report.filters.dateFrom")}
           value={draftFilters.dateFrom}
           onValueChange={(dateFrom) => patch({ dateFrom })}
+          className="h-11 lg:h-9"
         />
       </Field>
-      <Field className="min-w-0 gap-1.5">
+      <Field className="gap-1.5 lg:w-40 lg:flex-none">
         <FieldLabel
           htmlFor={`${idPrefix}-date-to`}
           className="text-xs font-medium text-muted-foreground"
@@ -248,8 +301,33 @@ function ReportFilterFields({
           label={t("report.filters.dateTo")}
           value={draftFilters.dateTo}
           onValueChange={(dateTo) => patch({ dateTo })}
+          className="h-11 lg:h-9"
         />
       </Field>
+    </>
+  );
+}
+
+// ฟิลด์ที่ใช้น้อยกว่า — desktop ซ่อนไว้ใน popover "ตัวกรองเพิ่มเติม", มือถือต่อท้ายฟิลด์หลักใน sheet เดิม
+function DailySalesSecondaryFields({
+  detailPaginationBasis,
+  draftFilters,
+  idPrefix,
+  onDraftChange,
+}: {
+  detailPaginationBasis: DetailPaginationBasis;
+  draftFilters: ReportFilters;
+  idPrefix: string;
+  onDraftChange: (filters: ReportFilters) => void;
+}) {
+  const { t } = useTranslation();
+
+  function patch(patch: Partial<ReportFilters>) {
+    onDraftChange({ ...draftFilters, ...patch });
+  }
+
+  return (
+    <>
       <Field className="min-w-0 gap-1.5">
         <FieldLabel
           htmlFor={`${idPrefix}-payment-method`}
@@ -263,7 +341,7 @@ function ReportFilterFields({
             patch({ paymentMethod: value as ReportFilters["paymentMethod"] })
           }
         >
-          <SelectTrigger id={`${idPrefix}-payment-method`} className="w-full">
+          <SelectTrigger id={`${idPrefix}-payment-method`} className="h-11 w-full data-[size=default]:h-11 lg:h-9">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -290,7 +368,7 @@ function ReportFilterFields({
             patch({ orderBy: value as ReportFilters["orderBy"] })
           }
         >
-          <SelectTrigger id={`${idPrefix}-order-by`} className="w-full">
+          <SelectTrigger id={`${idPrefix}-order-by`} className="h-11 w-full data-[size=default]:h-11 lg:h-9">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -321,7 +399,7 @@ function ReportFilterFields({
             patch({ limit: value === "All" ? "All" : Number(value) })
           }
         >
-          <SelectTrigger id={`${idPrefix}-limit`} className="w-full">
+          <SelectTrigger id={`${idPrefix}-limit`} className="h-11 w-full data-[size=default]:h-11 lg:h-9">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

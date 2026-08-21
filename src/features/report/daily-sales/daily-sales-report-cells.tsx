@@ -143,8 +143,9 @@ export function tableRowClass(row: ApiEntity, index: number) {
   return cn(
     "group border-b border-border/80",
     index % 2 === 1 && "bg-muted/15",
-    isPaymentAttentionRow(row) &&
-      "bg-red-50 hover:bg-red-100/70 dark:bg-red-950/25 dark:hover:bg-red-950/35",
+    // ค้างชำระ = ต้องระวัง ไม่ใช่ error/ยกเลิก จึงใช้ --warning (โทนคงที่) แทนสีแดงดิบเดิม
+    // (bg-red-50/dark:bg-red-950 ผิดหลัก "ห้ามใช้สีดิบ" ของโปรเจกต์ และชนกับความหมายของ cancelled ด้านล่าง)
+    isPaymentAttentionRow(row) && "bg-warning/10 hover:bg-warning/15",
     isCancelledRow(row) &&
       "border-l-4 border-l-destructive/60 bg-destructive/5 hover:bg-destructive/10",
   );

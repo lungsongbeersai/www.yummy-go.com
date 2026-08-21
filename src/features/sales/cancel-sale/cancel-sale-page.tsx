@@ -21,8 +21,8 @@ import { usePrinterStore } from "@/stores/printer-store";
 import { useToastStore } from "@/stores/toast-store";
 import { CancelBillDialog } from "./cancel-bill-dialog";
 import { SalesBillDetailPanel, SalesBillMobileSheet } from "./sales-bill-detail";
-import { SalesListContent } from "./cancel-sale-cards";
-import { SalesListHeader, SalesListPaginationFooter, SalesListToolbar } from "./cancel-sale-controls";
+import { SalesBillListPanel } from "./cancel-sale-cards";
+import { SalesListToolbar } from "./cancel-sale-controls";
 import {
   INITIAL_DATE_SELECT,
   SALES_LIST_LIMIT_OPTIONS,
@@ -309,51 +309,47 @@ export function CancelSalePage({
 
   if (!branchUuid) {
     return (
-      <div className="flex h-full min-h-0 flex-col overflow-hidden">
-        <SalesListHeader loading={false} onRefresh={() => undefined} />
-        <div className="flex min-h-0 flex-1 items-center justify-center p-4">
-          <EmptyState title={t("cancelSale.branchRequired")} description={t("cancelSale.branchRequiredDescription")} />
-        </div>
+      <div className="flex h-full min-h-0 flex-col items-center justify-center overflow-hidden bg-muted/20 p-4">
+        <EmptyState title={t("cancelSale.branchRequired")} description={t("cancelSale.branchRequiredDescription")} />
       </div>
     );
   }
 
   return (
+    // เต็มหน้าจอแบบ /sales/sales-list: toolbar ลอยอยู่บนแยกจากแผงลิสต์ ไม่ใช่ header ใหญ่ + section เดียว
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-muted/20">
-      <SalesListHeader loading={loading || detailLoading} onRefresh={() => void load()} />
-      <div className="grid min-h-0 flex-1 overflow-hidden md:grid-cols-[minmax(0,3fr)_minmax(20rem,2fr)]">
-        <section className="flex min-h-0 flex-col overflow-hidden rounded-none border-0 border-border bg-card md:border-r">
-          <SalesListToolbar
-            dateOptions={safeDateOptions}
-            dateSelect={dateSelect}
-            limit={limit}
-            orderBy={orderBy}
-            onDateChange={updateDate}
-            onLimitChange={updateLimit}
-            onOrderChange={updateOrder}
-          />
-          <SalesListContent
-            bills={bills}
-            error={error}
-            loading={loading}
-            selectedOrderUuid={selectedOrderUuid}
-            onSelect={selectBill}
-          />
-          <SalesListPaginationFooter
-            loading={loading}
-            page={page}
-            pageEnd={rowsRange.end}
-            pageStart={rowsRange.start}
-            total={total}
-            totalPages={safeTotalPages}
-            onPageChange={goToPage}
-          />
-        </section>
+      <SalesListToolbar
+        dateOptions={safeDateOptions}
+        dateSelect={dateSelect}
+        limit={limit}
+        loading={loading || detailLoading}
+        orderBy={orderBy}
+        onDateChange={updateDate}
+        onLimitChange={updateLimit}
+        onOrderChange={updateOrder}
+        onRefresh={() => void load()}
+      />
+
+      <div className="grid min-h-0 flex-1 overflow-hidden xl:grid-cols-[minmax(20rem,27rem)_minmax(0,1fr)]">
+        <SalesBillListPanel
+          bills={bills}
+          error={error}
+          loading={loading}
+          page={page}
+          pageEnd={rowsRange.end}
+          pageStart={rowsRange.start}
+          selectedOrderUuid={selectedOrderUuid}
+          total={total}
+          totalPages={safeTotalPages}
+          onPageChange={goToPage}
+          onSelect={selectBill}
+        />
 
         <SalesBillDetailPanel
           bill={detailSource}
           canCancel={detailCanCancel}
           canReprintReceipt={canReprintReceipt}
+          className="hidden xl:flex"
           loading={detailLoading}
           reprintingReceipt={reprintingReceipt}
           onCancel={openCancelDialog}

@@ -1,15 +1,20 @@
 "use client"
 
-import { useTheme } from "next-themes"
 import { Toaster as Sonner, type ToasterProps } from "sonner"
 import { CircleCheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon, Loader2Icon } from "lucide-react"
+import { useAppStore } from "@/stores/app-store"
 
 const Toaster = ({ ...props }: ToasterProps) => {
-  const { theme = "system" } = useTheme()
+  // แอปนี้ไม่ได้ใช้ next-themes ตั้งค่าโหมดมืด/สว่างจริง (สลับผ่าน useAppStore + toggle class
+  // "dark" บน <html> เอง) — ก่อนหน้านี้อ่าน theme จาก next-themes' useTheme() ที่ไม่มี
+  // ThemeProvider ครอบอยู่เลย จึงได้ theme="system" เสมอไม่ว่าแอปจะอยู่โหมดไหนจริงๆ Sonner เลย
+  // เลือกชุดสีข้อความของตัวเองตาม prefers-color-scheme ของเครื่อง ซึ่งอาจสวนทางกับพื้นหลังจริง
+  // ของ toast (ที่มาจาก --popover ของแอป) ทำให้ตัวหนังสือกลายเป็นสีขาวบนพื้นสีขาว มองไม่เห็น
+  const theme = useAppStore((state) => state.theme)
 
   return (
     <Sonner
-      theme={theme as ToasterProps["theme"]}
+      theme={theme}
       position="top-center"
       className="toaster group"
       icons={{
