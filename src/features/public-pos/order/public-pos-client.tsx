@@ -4,6 +4,7 @@ import { useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { AlertCircle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/stores/app-store";
 import { ProductBrowse } from "@/features/public-pos/order/components/product-browse";
@@ -165,13 +166,13 @@ function PublicPosAlert({
       <AlertDescription className="text-yg-muted">
         <p>{description}</p>
         {actionLabel ? (
-          <button
+          <Button
             type="button"
             onClick={onAction}
-            className="mt-2 inline-flex h-11 items-center justify-center rounded-xl border border-yg-accent-line bg-yg-accent-soft px-4 text-xs font-extrabold text-yg-accent-strong transition-[filter,transform] outline-none hover:brightness-110 focus-visible:ring-2 focus-visible:ring-yg-accent focus-visible:ring-offset-2 focus-visible:ring-offset-yg-bg active:translate-y-px motion-reduce:transition-none"
+            className="mt-2 h-11 rounded-xl border border-yg-accent-line bg-yg-accent-soft px-4 text-xs font-extrabold text-yg-accent-strong transition-[filter,transform] hover:bg-yg-accent-soft hover:brightness-110 focus-visible:ring-yg-accent focus-visible:ring-offset-yg-bg motion-reduce:transition-none"
           >
             {actionLabel}
-          </button>
+          </Button>
         ) : null}
       </AlertDescription>
     </Alert>

@@ -9,6 +9,7 @@ import {
   Printer as PrinterIcon,
   Trash2,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -59,73 +60,80 @@ function PrinterCard({
   const router = useRouter();
 
   return (
-    <article className="flex h-full flex-col overflow-hidden rounded-lg border border-border bg-card shadow-sm">
-      <div className="flex min-w-0 items-start gap-3 p-3 sm:p-4">
-        <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary sm:size-11">
+    <article
+      className={cn(
+        "flex h-full flex-col overflow-hidden rounded-lg border bg-card shadow-sm transition-shadow hover:shadow-md",
+        row.is_active
+          ? "border-border"
+          : "border-destructive/50 bg-destructive/5",
+      )}
+    >
+      <div className="flex min-w-0 items-center gap-3 p-3 sm:p-4">
+        <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
           <PrinterIcon className="size-4" />
         </span>
 
         <div className="min-w-0 flex-1">
-          <div className="flex min-w-0 items-start justify-between gap-2">
-            <div className="min-w-0">
-              <p className="truncate text-sm font-black sm:text-base">
-                {row.printer_name}
-              </p>
-              <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                {row.device_code || row.agent_name || "-"}
-              </p>
-            </div>
+          <p className="truncate text-sm font-black sm:text-base">
+            {row.printer_name}
+          </p>
+          <p className="mt-0.5 truncate text-xs text-muted-foreground">
+            {row.device_code || row.agent_name || "-"}
+          </p>
+        </div>
 
-            <PrinterStatusBadge
-              active={row.is_active}
-              label={
-                row.is_active ? statusLabels.active : statusLabels.inactive
-              }
+        <PrinterStatusBadge
+          active={row.is_active}
+          label={row.is_active ? statusLabels.active : statusLabels.inactive}
+        />
+      </div>
+
+      <Separator />
+
+      <div className="flex min-w-0 flex-1 flex-col gap-3 p-3 sm:p-4">
+        <div className="grid gap-2 sm:grid-cols-2">
+          <PrinterDetailMetric
+            label={t("fields.connectType")}
+            value={
+              <Badge className="w-fit whitespace-nowrap">
+                {row.connect_type.toUpperCase()}
+              </Badge>
+            }
+          />
+          <PrinterDetailMetric
+            label={t("fields.interfaceValue")}
+            value={
+              <span className="block truncate font-mono text-xs sm:text-sm">
+                {row.interface_value || "-"}
+              </span>
+            }
+          />
+        </div>
+
+        <div className="min-w-0 rounded-md bg-muted/15 p-2.5">
+          <p className="text-xs text-muted-foreground">{t("printer.roles")}</p>
+          <div className="mt-1.5">
+            <BadgeList
+              emptyLabel={t("printer.noRoles")}
+              items={roleItemsByPrinter.get(row.print_config_uuid) ?? []}
+              max={Infinity}
             />
           </div>
+        </div>
 
-          <div className="mt-3 grid gap-2 sm:grid-cols-2">
-            <PrinterDetailMetric
-              label={t("fields.connectType")}
-              value={
-                <Badge className="w-fit whitespace-nowrap">
-                  {row.connect_type.toUpperCase()}
-                </Badge>
-              }
+        <div className="min-w-0 rounded-md bg-muted/15 p-2.5">
+          <p className="text-xs text-muted-foreground">
+            {t("printer.categories")}
+          </p>
+          <div className="mt-1.5">
+            <BadgeList
+              emptyLabel={t("printer.noCategories")}
+              items={printerCategories(row, categories).map((category) => ({
+                label: categoryLabel(category, language),
+                value: category.cate_uuid,
+              }))}
+              max={Infinity}
             />
-            <PrinterDetailMetric
-              label={t("fields.interfaceValue")}
-              value={
-                <span className="block truncate font-mono text-xs sm:text-sm">
-                  {row.interface_value || "-"}
-                </span>
-              }
-            />
-          </div>
-
-          <div className="mt-3 flex flex-col gap-2.5">
-            <div>
-              <p className="mb-1 text-xs font-semibold text-muted-foreground">
-                {t("printer.roles")}
-              </p>
-              <BadgeList
-                emptyLabel={t("printer.noRoles")}
-                items={roleItemsByPrinter.get(row.print_config_uuid) ?? []}
-              />
-            </div>
-
-            <div>
-              <p className="mb-1 text-xs font-semibold text-muted-foreground">
-                {t("printer.categories")}
-              </p>
-              <BadgeList
-                emptyLabel={t("printer.noCategories")}
-                items={printerCategories(row, categories).map((category) => ({
-                  label: categoryLabel(category, language),
-                  value: category.cate_uuid,
-                }))}
-              />
-            </div>
           </div>
         </div>
       </div>
@@ -203,9 +211,9 @@ function PrinterCard({
 
 export function PrinterListCards(props: PrinterListCardsProps) {
   return (
-    <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden lg:hidden">
+    <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] sm:p-3">
-        <div className="grid gap-2 sm:gap-3 md:grid-cols-2">
+        <div className="grid gap-2 sm:gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {props.filteredRows.map((row) => (
             <PrinterCard key={row.print_config_uuid} row={row} {...props} />
           ))}

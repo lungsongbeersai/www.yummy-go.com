@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsList } from "@/components/ui/tabs";
@@ -199,9 +200,9 @@ export function TableActionsOverlay({
 
       <div className="flex min-w-0 items-center gap-2">
         <div className="relative min-w-0 flex-1">
-          <label htmlFor={`table-actions-search-${variant}`} className="sr-only">
+          <Label htmlFor={`table-actions-search-${variant}`} className="sr-only">
             {t("actions.search")}
-          </label>
+          </Label>
           <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             id={`table-actions-search-${variant}`}

@@ -55,11 +55,16 @@ export function PrinterListTable({
   const router = useRouter();
 
   return (
-    <div className="hidden h-full min-h-0 flex-1 flex-col overflow-hidden lg:flex">
+    <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
       <div className="settings-table-scroll min-h-0 flex-1 overflow-auto">
         <DataTable<PrinterTableRow>
         rows={filteredRows}
         idKey="print_config_uuid"
+        rowClassName={(row) =>
+          row.is_active
+            ? undefined
+            : "border-l-4 border-l-destructive bg-destructive/5 hover:bg-destructive/10"
+        }
         columns={[
           {
             key: "row_number",

@@ -24,6 +24,7 @@ import { useReferenceStore } from "@/stores/reference-store";
 import { useToastStore } from "@/stores/toast-store";
 import { useResetOnDeps } from "@/hooks/use-reset-on-change";
 import {
+  assignedPrinterNamesByValue,
   categoryLabel,
   initialPrinterFormValues,
   printerFormValues,
@@ -70,12 +71,34 @@ export function usePrinterForm() {
       ) ?? null,
     [printConfigUuid, printers],
   );
+  const roleAssignments = useMemo(
+    () =>
+      assignedPrinterNamesByValue(
+        printers,
+        printConfigUuid,
+        (printer) => printer.role_codes,
+      ),
+    [printers, printConfigUuid],
+  );
+  const categoryAssignments = useMemo(
+    () =>
+      assignedPrinterNamesByValue(
+        printers,
+        printConfigUuid,
+        (printer) => printer.cate_uuid_fk,
+      ),
+    [printers, printConfigUuid],
+  );
   const roleOptions = useMemo(
     () =>
       roles
-        .map((role) => ({ label: role.role_name, value: role.role_code }))
+        .map((role) => ({
+          label: role.role_name,
+          value: role.role_code,
+          assignedTo: roleAssignments.get(role.role_code) ?? [],
+        }))
         .filter((role) => role.value),
-    [roles],
+    [roleAssignments, roles],
   );
   const categoryOptions = useMemo(
     () =>
@@ -83,9 +106,10 @@ export function usePrinterForm() {
         .map((category) => ({
           label: categoryLabel(category, language),
           value: category.cate_uuid,
+          assignedTo: categoryAssignments.get(category.cate_uuid) ?? [],
         }))
         .filter((category) => category.value),
-    [categories, language],
+    [categories, categoryAssignments, language],
   );
 
   // seed จาก store ที่อาจมีข้อมูลค้างอยู่แล้วตั้งแต่ render แรก (เข้าจากหน้า list)

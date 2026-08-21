@@ -11,6 +11,7 @@ import { Button, type ButtonProps } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger
@@ -59,9 +60,9 @@ export function NotificationMenu({
             >
               {hasUnread ? <BellRing data-icon="inline-start" /> : <Bell data-icon="inline-start" />}
               {hasUnread ? (
-                <span className="absolute -right-0.5 -top-0.5 grid min-h-4 min-w-4 place-items-center rounded-full bg-destructive px-1 text-[10px] font-bold leading-none text-destructive-foreground">
+                <Badge className="absolute right-2 top-2 h-4 min-w-4 justify-center bg-destructive px-1 text-[10px] leading-none text-destructive-foreground sm:right-1 sm:top-1">
                   {badgeText}
-                </span>
+                </Badge>
               ) : null}
             </Button>
           </DropdownMenuTrigger>
@@ -80,19 +81,19 @@ export function NotificationMenu({
             {t("notifications.empty")}
           </div>
         ) : (
-          <ul className="max-h-80 overflow-y-auto py-1">
-            <li className="flex items-center gap-2 px-3 pb-1 pt-2">
+          <div className="max-h-80 overflow-y-auto py-1">
+            <div className="flex items-center gap-2 px-3 pb-1 pt-2">
               <span className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
                 {t("notifications.liveOrders.title")}
               </span>
               <Badge className="h-4.5 min-w-4.5 justify-center border-transparent bg-destructive px-1 text-[10px] text-destructive-foreground">
                 {orderAlerts.length}
               </Badge>
-            </li>
+            </div>
             {orderAlerts.map((alert) => (
               <LiveOrderAlertRow key={alert.tableUuid} alert={alert} onSelect={() => openTableOrder(alert)} />
             ))}
-          </ul>
+          </div>
         )}
       </DropdownMenuContent>
     </DropdownMenu>
@@ -103,20 +104,16 @@ function LiveOrderAlertRow({ alert, onSelect }: { alert: OrderAlertEntry; onSele
   const { t } = useTranslation();
 
   return (
-    <li>
-      <Button
-        type="button"
-        variant="ghost"
-        onClick={onSelect}
-        className="h-auto w-full items-center justify-start gap-3 rounded-none bg-muted/30 px-3 py-2.5 text-left font-normal hover:bg-muted/60"
-      >
-        <span className="grid size-8 shrink-0 place-items-center rounded-full bg-primary/15 text-primary">
-          <UtensilsCrossed className="size-4" aria-hidden />
-        </span>
-        <p className="min-w-0 flex-1 truncate text-[13px] font-semibold">
-          {t("notifications.liveOrders.item", { table: alert.tableName, zone: alert.zoneName })}
-        </p>
-      </Button>
-    </li>
+    <DropdownMenuItem
+      className="min-h-0 gap-3 rounded-none bg-muted/30 px-3 py-2.5 focus:bg-muted/60"
+      onSelect={onSelect}
+    >
+      <span className="grid size-8 shrink-0 place-items-center rounded-full bg-primary/15 text-primary">
+        <UtensilsCrossed className="size-4" aria-hidden />
+      </span>
+      <p className="min-w-0 flex-1 truncate text-[13px] font-semibold">
+        {t("notifications.liveOrders.item", { table: alert.tableName, zone: alert.zoneName })}
+      </p>
+    </DropdownMenuItem>
   );
 }

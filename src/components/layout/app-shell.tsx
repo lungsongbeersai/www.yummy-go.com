@@ -428,7 +428,7 @@ function AppHeader({
             <TooltipTrigger asChild>
               <SidebarTrigger
                 aria-label={t("app.openMenu")}
-                className="shrink-0 md:hidden"
+                className="size-11 shrink-0 sm:size-9 md:hidden"
               />
             </TooltipTrigger>
             <TooltipContent side="bottom">{t("app.openMenu")}</TooltipContent>
@@ -438,8 +438,7 @@ function AppHeader({
               <Button
                 type="button"
                 variant="ghost"
-                size="icon"
-                className="shrink-0 text-primary md:hidden"
+                className="size-11 shrink-0 text-primary sm:size-9 md:hidden"
                 aria-label={t("actions.back")}
                 onClick={() => router.back()}
               >
@@ -467,34 +466,40 @@ function AppHeader({
         </div>
       </div>
 
-      <div className="flex shrink-0 items-center gap-1 md:gap-2">
-        <ThemeToggle variant="ghost" className={undefined} size={undefined} />
-        <NotificationMenu />
-        <LanguageSwitch compact size="icon" />
+      <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+        <ThemeToggle variant="ghost" className="size-11 sm:size-9" />
+        <NotificationMenu triggerClassName="size-11 sm:size-9" />
+        <LanguageSwitch compact size="icon" className="size-11 sm:size-9" />
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              className="h-10 min-w-10 gap-2 px-0 sm:px-2"
-            >
-              <Avatar className="size-9">
-                {profileSrc ? (
-                  <AvatarImage
-                    src={profileSrc}
-                    alt={user?.email ?? "Profile"}
-                  />
-                ) : null}
-                <AvatarFallback>{userInitials(user)}</AvatarFallback>
-              </Avatar>
-              <span className="hidden max-w-28 truncate font-bold lg:inline">
-                {t("common.actions")}
-              </span>
-              <ChevronDown className="hidden sm:block" data-icon="inline-end" />
-            </Button>
-          </DropdownMenuTrigger>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  aria-label={user?.email ?? t("profile.sections.account")}
+                  className="h-11 min-w-11 gap-2 px-0 sm:h-10 sm:min-w-10 sm:px-2"
+                >
+                  <Avatar className="size-9">
+                    {profileSrc ? (
+                      <AvatarImage
+                        src={profileSrc}
+                        alt={user?.email ?? "Profile"}
+                      />
+                    ) : null}
+                    <AvatarFallback>{userInitials(user)}</AvatarFallback>
+                  </Avatar>
+                  <span className="hidden max-w-52 truncate font-bold xl:inline">
+                    {user?.email ?? t("profile.sections.account")}
+                  </span>
+                  <ChevronDown className="hidden sm:block" data-icon="inline-end" />
+                </Button>
+              </DropdownMenuTrigger>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" sideOffset={8}>{user?.email ?? t("profile.sections.account")}</TooltipContent>
+          </Tooltip>
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuLabel className="truncate">
-              {user?.email ?? t("settings.modules.user.title")}
+              {user?.email ?? t("profile.sections.account")}
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
@@ -847,11 +852,15 @@ function AppBreadcrumb({
             <BreadcrumbSeparator />
             <BreadcrumbItem>
               <DropdownMenu>
-                <DropdownMenuTrigger
-                  aria-label={t("app.breadcrumbs")}
-                  className="flex items-center justify-center rounded-md p-1 hover:text-foreground"
-                >
-                  <BreadcrumbEllipsis className="size-4" />
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    aria-label={t("app.breadcrumbs")}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    <BreadcrumbEllipsis />
+                  </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start">
                   {middle.map((item) => {

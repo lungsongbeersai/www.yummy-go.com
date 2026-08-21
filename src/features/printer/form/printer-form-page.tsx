@@ -231,6 +231,7 @@ export function PrinterFormPage() {
               emptyLabel={t("printer.noRoles")}
               name="printer-role"
               options={form.roleOptions}
+              required
               selectAllLabel={t("common.selectAll")}
               selected={form.selectedRoles}
               onToggle={(value) =>

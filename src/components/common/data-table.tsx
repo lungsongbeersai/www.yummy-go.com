@@ -90,6 +90,7 @@ interface DataTableProps<T extends Record<string, unknown>> {
   pagination?: boolean;
   pageSize?: PageLimit;
   pageSizeOptions?: PageLimit[];
+  rowClassName?: (row: T) => string | undefined;
 }
 
 function cellAlignClass(align?: "left" | "right" | "center") {
@@ -112,7 +113,8 @@ export function DataTable<T extends Record<string, unknown>>({
   onReorder,
   pagination = false,
   pageSize: initialPageSize = DEFAULT_PAGE_LIMIT,
-  pageSizeOptions = PAGE_LIMIT_OPTIONS
+  pageSizeOptions = PAGE_LIMIT_OPTIONS,
+  rowClassName
 }: DataTableProps<T>) {
   const { t } = useTranslation();
   const showActions = Boolean(onEdit || actions.length || onDelete);
@@ -272,7 +274,11 @@ export function DataTable<T extends Record<string, unknown>>({
             );
           }
           return (
-            <TableRow key={id} data-state={isSelected ? "selected" : undefined}>
+            <TableRow
+              key={id}
+              data-state={isSelected ? "selected" : undefined}
+              className={rowClassName?.(row)}
+            >
               {selectable ? (
                 <TableCell className="w-10">
                   <Checkbox

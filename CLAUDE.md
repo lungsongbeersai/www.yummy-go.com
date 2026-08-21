@@ -33,7 +33,6 @@ Act as a senior product engineer and technical peer, not a code generator that a
 
 ## Coding Conventions
 
-- Reuse before creating: check existing components → hooks → stores → utilities first.
 - Prefer simple solutions; avoid over-engineering; keep files small and focused; match existing project patterns.
 - **TypeScript**: never `any`; `interface` for props/models; `type` for unions/aliases; `as const` over enums.
 - **Next.js**: route files under `src/app/` stay thin — they only render a feature component; use `next/image`, `next/link`, `next/font`, and the Metadata API. All data access goes through the service layer — do not add Server Actions or ad-hoc fetching in components (the app talks to an external backend; the Next server is a thin shell built with `output: "standalone"` for the SSR deploy and the packaged Electron runtime — keep it stateless).
@@ -50,7 +49,7 @@ Act as a senior product engineer and technical peer, not a code generator that a
 - `npm run typecheck` — `tsc --noEmit` (run this to verify changes; build is slow)
 - `npm run lint` — ESLint
 - `npm test` — Vitest, runs all `src/**/*.test.ts`
-- `npx vitest run src/services/report.test.ts` — run a single test file
+- `npx vitest run src/services/report/requests.test.ts` — run a single test file
 - `npm run build` — production Next.js build
 - `npx shadcn@latest add <component>` — install shadcn/ui components into `src/components/ui/` (run without args to list available components)
 - `npx shadcn@latest search` — search component registries
@@ -58,7 +57,7 @@ Act as a senior product engineer and technical peer, not a code generator that a
 
 Tests are colocated `.test.ts` files (node environment, globals enabled). They cover pure logic only — services, store helpers, validators — not components.
 
-Deploy: pushing to `main` triggers `.github/workflows/deploy-static.yml`, which rsyncs the repo to the production VPS, builds there (Node >= 22 enforced by `scripts/check-node-version.mjs`), and restarts the `yummy-go-fe.service` systemd unit (serves https://yummy-go.com behind Cloudflare DNS proxy). `electron:pack` builds the Windows NSIS installer locally (stages the standalone Next runtime via `electron:stage`).
+Deploy: pushing to `main` triggers `.github/workflows/deploy-static.yml`, which rsyncs the repo to the production VPS, builds there (Node >= 22 enforced by `scripts/check-node-version.mjs`), and restarts the `yummy-go-fe.service` systemd unit (serves <https://yummy-go.com> behind Cloudflare DNS proxy). `electron:pack` builds the Windows NSIS installer locally (stages the standalone Next runtime via `electron:stage`).
 
 ## Architecture
 
@@ -73,6 +72,7 @@ route page (thin) → feature component (src/features/<domain>/)
 
 - **`src/lib/api.ts`** — two axios clients: `apiClient` (injects Bearer token + `x-access-token` from `auth-store`; a 401 triggers logout and redirect to `/login`) and `publicApiClient` (no auth). All errors are normalized to `ServiceError`. The backend wraps responses in a `{ status: "success", data, message }` envelope; `apiRequest` throws when `status !== "success"`. Backend URL comes from `NEXT_PUBLIC_BASE_URL` (copy `.env.example` to `.env.local`; see README).
 - **`src/services/shared/crud.ts`** — generic `fetchList` / `fetchAll` / `saveEntity` / `deleteEntity` helpers most domain services are built from. `listParams` normalizes pagination/search/`lang` query params. Mutations are POSTs (optionally multipart via `toFormData`).
+- **`src/services/`** — small domains stay a single file (`product.ts`-style); larger ones (`pos/`, `product/`, `package/`, `printer/`, `public-pos/`, `permissions/`, `shared/`) split into a folder with `requests.ts` (API calls), `types.ts`, and an `index.ts` barrel, plus `payloads.ts`/`normalizers.ts`/`validators.ts` as needed — other code always imports from the folder root (`@/services/pos`), never a deep path.
 - **`src/stores/`** — async state follows the `AsyncSlice` shape (`loading`, `saving`, `error`) from `store-utils.ts`. `auth-store` is persisted (localStorage or sessionStorage depending on "remember me"). Larger domains (`pos-store/`, `product-store/`, `report-store/`, `public-pos-store/`) are folders with extracted, tested `helpers.ts`.
 - **`src/features/`** — all substantial UI. Domain folders typically split into `list/` and `form/` (CRUD screens) or per-screen subfolders (e.g. `pos/counter-checkout`, `pos/table-selection`).
 - **`src/platform/`** — platform-runtime contracts shared with non-web shells (currently `electron/next-server-contract.ts`, compiled into the Electron build; tested pure logic).

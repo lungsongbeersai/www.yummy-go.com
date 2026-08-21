@@ -11,6 +11,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useReorderSensors } from "@/hooks/use-reorder-sensors";
 import { cn } from "@/lib/utils";
@@ -105,12 +106,13 @@ function SortableCycleChip({
     useSortable({ id: cycle.id, disabled });
 
   return (
-    <button
+    <Button
       ref={setNodeRef}
       type="button"
+      variant="outline"
       aria-label={`${t("packageManagement.dragToReorder")} ${cycle.name}`}
       className={cn(
-        "flex h-11 min-w-0 cursor-grab touch-none items-center gap-2 rounded-md border border-border bg-card px-3 text-sm font-bold sm:h-8",
+        "h-11 min-w-0 cursor-grab touch-none bg-card px-3 text-sm font-bold sm:h-8",
         isDragging && "z-10 opacity-80 shadow-md",
         disabled && "cursor-not-allowed opacity-60",
       )}
@@ -120,6 +122,6 @@ function SortableCycleChip({
     >
       <GripVertical aria-hidden className="size-4 shrink-0 text-muted-foreground" />
       <span className="truncate">{cycle.name}</span>
-    </button>
+    </Button>
   );
 }

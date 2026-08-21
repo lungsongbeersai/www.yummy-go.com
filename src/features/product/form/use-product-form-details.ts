@@ -6,6 +6,8 @@ import type { ToastInput } from "@/stores/toast-store";
 import type { BinaryFlag, DetailRow, StatusSortFk } from "./product-form-types";
 import { detailStockSummary, emptyDetail } from "./product-form-utils";
 
+const TRACK_STOCK: BinaryFlag = "1";
+
 interface ProductFormDetailsOptions {
   isEditing: boolean;
   showToast: (toast: ToastInput) => void;
@@ -25,7 +27,15 @@ export function useProductFormDetails({
   const [bulkStockSaving, setBulkStockSaving] = useState(false);
 
   function addDetail() {
-    setDetails((current) => [...current, emptyDetail(statusSortFk)]);
+    setDetails((current) => {
+      const next = emptyDetail(statusSortFk);
+      // ถ้าไซซ์ทั้งหมดตั้ง "ตัดสะต๊อก" ไว้อยู่แล้ว ไซซ์ใหม่ควรตามไปด้วย ไม่งั้นผู้ใช้ต้อง
+      // มาติ๊กเปิดเองทีละแถวทุกครั้งที่เพิ่มไซซ์ ทั้งที่ตั้งใจให้ทุกไซซ์ตัดสะต๊อกอยู่แล้ว
+      if (detailStockSummary(current) === "deduct") {
+        next.pro_detail_stock = TRACK_STOCK;
+      }
+      return [...current, next];
+    });
   }
 
   function updateDetail(id: string, patch: Partial<DetailRow>) {

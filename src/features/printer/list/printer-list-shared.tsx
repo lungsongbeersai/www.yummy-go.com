@@ -3,6 +3,7 @@
 import { type ReactNode } from "react";
 import { Power, PowerOff } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
@@ -41,14 +42,18 @@ export function BadgeList({
       {overflow.length ? (
         <Popover>
           <PopoverTrigger asChild>
-            <button type="button" className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring/50">
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-auto rounded-full border-transparent p-0 hover:bg-transparent"
+            >
               <Badge
                 variant="outline"
                 className="cursor-pointer bg-muted/70 font-semibold text-muted-foreground hover:bg-muted"
               >
                 +{overflow.length}
               </Badge>
-            </button>
+            </Button>
           </PopoverTrigger>
           <PopoverContent align="start" className="w-64">
             <div className="flex flex-wrap gap-1">

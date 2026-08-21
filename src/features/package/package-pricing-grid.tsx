@@ -142,18 +142,20 @@ function PlanColumn({
     >
       <header className="flex min-w-0 items-center gap-2">
         {arranging ? (
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon"
             aria-label={`${t("packageManagement.dragToReorder")} ${plan.methodName}`}
             className={cn(
-              "flex size-11 shrink-0 cursor-grab items-center justify-center rounded text-muted-foreground touch-none sm:size-6",
+              "size-11 shrink-0 cursor-grab touch-none text-muted-foreground sm:size-6",
               reorderDisabled && "cursor-not-allowed opacity-60",
             )}
             {...attributes}
             {...listeners}
           >
             <GripVertical aria-hidden className="size-4" />
-          </button>
+          </Button>
         ) : null}
         <h2 className="min-w-0 truncate text-sm font-black text-foreground">
           {plan.methodName}
@@ -175,19 +177,20 @@ function PlanColumn({
           />
         ))
       ) : status === "all" ? (
-        <button
+        <Button
           type="button"
-          className="flex min-h-40 min-w-0 cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-card/40 p-4 text-center transition hover:border-primary hover:bg-primary/5"
+          variant="outline"
+          className="flex min-h-40 w-full flex-col gap-2 border-dashed bg-card/40 hover:border-primary hover:bg-primary/5"
           onClick={() => onAddPackage(plan.id)}
         >
           <Plus aria-hidden className="size-5 text-primary" />
           <span className="text-sm font-bold text-foreground">
             {t("packageManagement.createPackageHere")}
           </span>
-          <span className="text-xs text-muted-foreground">
+          <span className="text-xs font-normal text-muted-foreground">
             {t("packageManagement.createPackageHint")}
           </span>
-        </button>
+        </Button>
       ) : (
         // สถานะกรองไม่ตรงกับแพ็กเกจที่มีอยู่จริง (ไม่ใช่ "ยังไม่มีแพ็กเกจ") ห้ามให้กดสร้าง
         // เพราะแผนนี้อาจมีแพ็กเกจอยู่แล้ว การกดสร้างจะได้แพ็กเกจซ้ำใต้แผนเดียวกัน

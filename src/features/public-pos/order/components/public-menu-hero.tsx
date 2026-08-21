@@ -2,6 +2,7 @@
 
 import { useTranslation } from "react-i18next";
 import { Search, Sparkles } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { HeroBurger } from "./public-hero-burger";
 
 /** Hero ของเมนูสาธารณะ
@@ -54,27 +55,28 @@ export function PublicMenuHero({ onSearch }: { onSearch: () => void }) {
 
         <div className="mt-1 flex max-w-110 gap-2.5">
           {/* อ่านอย่างเดียว กดแล้วเปิด search sheet เดิม — พฤติกรรมเดียวกับแถบค้นหาที่มีอยู่ */}
-          <button
+          <Button
             type="button"
+            variant="outline"
             onClick={onSearch}
             aria-haspopup="dialog"
-            className="relative h-12.5 min-w-0 flex-1 rounded-[15px] border border-yg-line bg-yg-bg/50 pl-10 pr-4 text-left text-sm font-medium text-yg-faint backdrop-blur-sm transition-colors outline-none hover:border-yg-accent-line hover:text-yg-muted focus-visible:ring-2 focus-visible:ring-yg-accent focus-visible:ring-offset-2 focus-visible:ring-offset-yg-bg motion-reduce:transition-none"
+            className="relative h-12.5 min-w-0 flex-1 justify-start rounded-[15px] border-yg-line bg-yg-bg/50 pl-10 pr-4 text-sm font-medium text-yg-faint backdrop-blur-sm hover:border-yg-accent-line hover:bg-yg-bg/50 hover:text-yg-muted focus-visible:ring-yg-accent focus-visible:ring-offset-yg-bg motion-reduce:transition-none"
           >
             <Search
               className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2"
               aria-hidden="true"
             />
             {searchLabel}
-          </button>
+          </Button>
 
-          <button
+          <Button
             type="button"
             onClick={onSearch}
             aria-label={searchLabel}
-            className="h-12.5 flex-none rounded-[15px] bg-yg-accent px-5.5 text-sm font-extrabold text-yg-on-accent shadow-[0_8px_22px_-8px_var(--yg-accent)] transition-[filter,transform] outline-none hover:brightness-105 focus-visible:ring-2 focus-visible:ring-yg-accent focus-visible:ring-offset-2 focus-visible:ring-offset-yg-bg active:translate-y-px motion-reduce:transition-none"
+            className="h-12.5 flex-none rounded-[15px] bg-yg-accent px-5.5 text-sm font-extrabold text-yg-on-accent shadow-[0_8px_22px_-8px_var(--yg-accent)] hover:bg-yg-accent hover:brightness-105 focus-visible:ring-yg-accent focus-visible:ring-offset-yg-bg motion-reduce:transition-none"
           >
             {t("pos.searchSubmit")}
-          </button>
+          </Button>
         </div>
       </div>
     </section>

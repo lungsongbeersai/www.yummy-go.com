@@ -37,6 +37,7 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableFooter,
   TableHead,
   TableHeader,
   TableRow,
@@ -576,14 +577,14 @@ export function BestSellingProductsTable({
             );
           })}
         </TableBody>
-        <tfoot className="sticky bottom-0 z-20">
+        <TableFooter className="sticky bottom-0 z-20 bg-transparent">
           <BestSellingSummaryFooterRow
             productMetrics={productMetrics}
             summary={summary}
             summaryCards={summaryCards}
             summaryLabel={t("report.summary")}
           />
-        </tfoot>
+        </TableFooter>
       </Table>
     </div>
   );

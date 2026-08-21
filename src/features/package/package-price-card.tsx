@@ -175,18 +175,20 @@ function DetailRow({
       style={{ transform: CSS.Transform.toString(transform), transition }}
     >
       {arranging ? (
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="icon"
           aria-label={`${t("packageManagement.dragToReorder")} ${name}`}
           className={cn(
-            "flex size-11 shrink-0 cursor-grab items-center justify-center rounded text-muted-foreground touch-none sm:size-6",
+            "size-11 shrink-0 cursor-grab touch-none text-muted-foreground sm:size-6",
             disabled && "cursor-not-allowed opacity-60",
           )}
           {...attributes}
           {...listeners}
         >
           <GripVertical aria-hidden className="size-4" />
-        </button>
+        </Button>
       ) : (
         <Check aria-hidden className="size-4 shrink-0 text-primary" />
       )}

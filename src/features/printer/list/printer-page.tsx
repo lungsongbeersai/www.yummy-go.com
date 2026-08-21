@@ -1,11 +1,14 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import {
   AlertTriangle,
   Download,
+  LayoutGrid,
   Plus,
   RefreshCcw,
+  Table2,
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -28,6 +31,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { EmptyState } from "@/components/common/empty-state";
 import { SearchInput } from "@/components/common/search-input";
@@ -49,6 +53,7 @@ import { usePrinterPage } from "./use-printer-page";
 export function PrinterPage() {
   const printer = usePrinterPage();
   const { t } = printer;
+  const [viewMode, setViewMode] = useState<"table" | "cards">("table");
 
   const listViewProps = {
     categories: printer.categories,
@@ -103,7 +108,7 @@ export function PrinterPage() {
             <Button
               asChild
               className="shadow-sm"
-              size="sm"
+              size="lg"
               type="button"
               variant="outline"
             >
@@ -121,7 +126,7 @@ export function PrinterPage() {
               <DropdownMenuTrigger asChild>
                 <Button
                   className="shadow-sm"
-                  size="sm"
+                  size="lg"
                   type="button"
                   variant="outline"
                 >
@@ -188,7 +193,7 @@ export function PrinterPage() {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <Button asChild className="shadow-sm" size="sm" variant="outline">
+            <Button asChild className="shadow-sm" size="lg" variant="outline">
               <a
                 href="/downloads/laoscript8.msi"
                 download
@@ -199,7 +204,7 @@ export function PrinterPage() {
               </a>
             </Button>
 
-            <Button asChild className="shadow-sm" size="sm" variant="outline">
+            <Button asChild className="shadow-sm" size="lg" variant="outline">
               <a
                 href={PRINTER_SETUP_DOWNLOAD_URL}
                 target="_blank"
@@ -213,7 +218,7 @@ export function PrinterPage() {
           </div>
 
           <Link
-            className={cn(buttonVariants({ size: "sm" }), "shadow-sm")}
+            className={cn(buttonVariants({ size: "lg" }), "shadow-sm")}
             href="/printers/form"
           >
             <Plus data-icon="inline-start" />
@@ -235,6 +240,23 @@ export function PrinterPage() {
                 total: printer.printers.length,
               })}
             </p>
+            <ToggleGroup
+              type="single"
+              variant="outline"
+              size="sm"
+              value={viewMode}
+              aria-label={t("printer.viewMode")}
+              onValueChange={(value) => {
+                if (value === "table" || value === "cards") setViewMode(value);
+              }}
+            >
+              <ToggleGroupItem value="table" aria-label={t("printer.tableView")}>
+                <Table2 />
+              </ToggleGroupItem>
+              <ToggleGroupItem value="cards" aria-label={t("printer.cardView")}>
+                <LayoutGrid />
+              </ToggleGroupItem>
+            </ToggleGroup>
           </div>
 
           <div className="grid grid-cols-[minmax(0,1fr)_2.25rem] gap-2 md:grid-cols-[minmax(0,1fr)_2.25rem_10rem_10rem] lg:grid-cols-[minmax(0,1fr)_2.25rem_10rem_10rem]">
@@ -269,7 +291,7 @@ export function PrinterPage() {
                 </FieldLabel>
                 <SelectTrigger
                   id="printer-type-filter"
-                  className="h-9 w-full bg-background font-semibold"
+                  className="h-9 w-full bg-background text-sm font-semibold"
                 >
                   <SelectValue />
                 </SelectTrigger>
@@ -296,7 +318,7 @@ export function PrinterPage() {
                 </FieldLabel>
                 <SelectTrigger
                   id="printer-status-filter"
-                  className="h-9 w-full bg-background font-semibold"
+                  className="h-9 w-full bg-background text-sm font-semibold"
                 >
                   <SelectValue />
                 </SelectTrigger>
@@ -352,8 +374,11 @@ export function PrinterPage() {
             </div>
           ) : printer.filteredRows.length ? (
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-              <PrinterListTable {...listViewProps} />
-              <PrinterListCards {...listViewProps} />
+              {viewMode === "table" ? (
+                <PrinterListTable {...listViewProps} />
+              ) : (
+                <PrinterListCards {...listViewProps} />
+              )}
             </div>
           ) : (
             <div className="flex min-h-0 flex-1 items-center justify-center p-4">

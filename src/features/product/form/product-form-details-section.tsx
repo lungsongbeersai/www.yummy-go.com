@@ -97,19 +97,6 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
           number="3"
           title={t("product.sections.details")}
           hint={t("product.sections.detailsHint")}
-          action={
-            <Button
-              className="max-sm:w-full"
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={bulkStockSaving}
-              onClick={addDetail}
-            >
-              <Plus data-icon="inline-start" />
-              {t("product.addDetail")}
-            </Button>
-          }
         />
         <CardContent className="flex flex-col gap-4">
           <Alert>
@@ -256,7 +243,7 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
                         </SelectContent>
                       </Select>
                     ) : (
-                      <div className="flex min-h-10 items-center rounded-md border border-border bg-muted/25 px-3">
+                      <div className="flex h-7 items-center rounded-md border border-border bg-muted/25 px-3">
                         <Badge className={rowStockClass}>{rowStockLabel}</Badge>
                       </div>
                     )}
@@ -373,7 +360,17 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
               </FieldSet>
               );
             })}
-            </CardContent>
+          <Button
+            type="button"
+            variant="outline"
+            className="flex min-h-24 w-full flex-col items-center justify-center gap-2 border-dashed"
+            disabled={bulkStockSaving}
+            onClick={addDetail}
+          >
+            <Plus aria-hidden className="size-5" />
+            <span className="text-sm font-bold">{t("product.addDetail")}</span>
+          </Button>
+        </CardContent>
       </Card>
       <Card>
         {/* หัวข้อกับคำอธิบายเคยเป็นคีย์เดียวกัน (stockBulk.label) จึงพิมพ์ข้อความซ้ำสองบรรทัด */}

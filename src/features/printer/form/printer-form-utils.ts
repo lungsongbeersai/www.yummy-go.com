@@ -1,12 +1,24 @@
 import { parseInterfaceValue, AGENT_URL } from "@/config/printer-agent";
 import type { AgentInfo, Printer } from "@/services/printer";
 import type { Category } from "@/services/category";
+import { cn } from "@/lib/utils";
 
 export type ConnectType = "usb" | "tcp";
 
 export interface CheckboxOption {
   label: string;
   value: string;
+  assignedTo?: string[];
+}
+
+// สไตล์เดียวกับ choiceCardClass ในฟอร์มสินค้า — ให้แถวที่ติ๊กแล้วเด่นขึ้นมาทันที ไม่ต้องเพ่งดูแค่ checkbox เล็กๆ
+export function optionRowClass(active: boolean) {
+  return cn(
+    "rounded-md border p-3 transition",
+    active
+      ? "border-primary bg-primary/5 ring-1 ring-primary/20"
+      : "border-border hover:border-primary/30 hover:bg-muted/30",
+  );
 }
 
 export function safeId(prefix: string, value: string) {
@@ -73,6 +85,28 @@ export function categoryLabel(category: Category, language: string) {
   const primary = english ? category.cate_name_eng : category.cate_name_la;
   const fallback = english ? category.cate_name_la : category.cate_name_eng;
   return primary || fallback || category.cate_name || category.cate_uuid;
+}
+
+// เอาไว้เตือนตอนเลือก role/category ว่า "ตอนนี้ผูกอยู่กับเครื่องพิมพ์ไหนแล้วบ้าง" (ไม่รวมเครื่องที่กำลังแก้ไขอยู่)
+// เพราะ role/category ผูกได้หลายเครื่องพร้อมกัน ผู้ใช้จึงต้องเห็นก่อนว่าเลือกซ้ำแล้วจะมีผลกับเครื่องอื่นด้วย
+export function assignedPrinterNamesByValue(
+  printers: Printer[],
+  excludePrintConfigUuid: string,
+  values: (printer: Printer) => string[],
+) {
+  const map = new Map<string, string[]>();
+  printers.forEach((printer) => {
+    if (printer.print_config_uuid === excludePrintConfigUuid) return;
+    const name = printer.printer_name;
+    if (!name) return;
+    values(printer).forEach((value) => {
+      if (!value) return;
+      const names = map.get(value) ?? [];
+      if (!names.includes(name)) names.push(name);
+      map.set(value, names);
+    });
+  });
+  return map;
 }
 
 export function categoryUuids(printer: Printer | null) {

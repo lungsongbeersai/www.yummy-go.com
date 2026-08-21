@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslation } from "react-i18next";
+import { cn } from "@/lib/utils";
 import { Checkbox, type CheckboxProps } from "@/components/ui/checkbox";
 import {
   Field,
@@ -8,7 +10,7 @@ import {
   FieldLegend,
   FieldSet,
 } from "@/components/ui/field";
-import { safeId, type CheckboxOption } from "./printer-form-utils";
+import { optionRowClass, safeId, type CheckboxOption } from "./printer-form-utils";
 
 export function IndeterminateCheckbox({
   indeterminate = false,
@@ -29,6 +31,7 @@ export function CheckboxOptionList({
   legend,
   name,
   options,
+  required = false,
   selectAllLabel,
   selected,
   onToggle,
@@ -39,11 +42,13 @@ export function CheckboxOptionList({
   legend: string;
   name: string;
   options: CheckboxOption[];
+  required?: boolean;
   selectAllLabel: string;
   selected: string[];
   onToggle: (value: string) => void;
   onToggleAll: (checked: boolean) => void;
 }) {
+  const { t } = useTranslation();
   const optionValues = options.map((option) => option.value);
   const selectedCount = optionValues.filter((value) =>
     selected.includes(value),
@@ -51,12 +56,33 @@ export function CheckboxOptionList({
   const allSelected = selectedCount === options.length;
   const someSelected = selectedCount > 0 && !allSelected;
   const selectAllId = safeId(name, "select-all");
+  const missingRequired = required && selectedCount === 0;
 
   return (
     <FieldSet className="gap-4 rounded-lg border border-border bg-card p-4">
-      <div>
-        <FieldLegend className="mb-1 text-sm font-black">{legend}</FieldLegend>
-        <FieldDescription>{description}</FieldDescription>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <FieldLegend className="mb-1 text-sm font-black">
+            {legend}
+            {required ? <span className="text-destructive"> *</span> : null}
+          </FieldLegend>
+          <FieldDescription>{description}</FieldDescription>
+        </div>
+        {options.length ? (
+          <span
+            className={cn(
+              "shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold tabular-nums",
+              missingRequired
+                ? "bg-destructive/10 text-destructive"
+                : "bg-muted text-muted-foreground",
+            )}
+          >
+            {t("printer.selectedCount", {
+              selected: selectedCount,
+              total: options.length,
+            })}
+          </span>
+        ) : null}
       </div>
       {options.length ? (
         <div className="grid gap-2 sm:grid-cols-2">
@@ -76,18 +102,28 @@ export function CheckboxOptionList({
           </Field>
           {options.map((option) => {
             const id = safeId(name, option.value);
+            const checked = selected.includes(option.value);
             return (
               <Field
                 key={option.value}
                 orientation="horizontal"
-                className="rounded-md border border-border p-3"
+                className={optionRowClass(checked)}
               >
                 <Checkbox
                   id={id}
-                  checked={selected.includes(option.value)}
-                  onChange={() => onToggle(option.value)}
+                  checked={checked}
+                  onCheckedChange={() => onToggle(option.value)}
                 />
-                <FieldLabel htmlFor={id}>{option.label}</FieldLabel>
+                <div className="min-w-0 flex-1">
+                  <FieldLabel htmlFor={id}>{option.label}</FieldLabel>
+                  {option.assignedTo?.length ? (
+                    <FieldDescription className="mt-0.5 truncate text-[11px]">
+                      {t("printer.alreadyAssignedTo", {
+                        printers: option.assignedTo.join(", "),
+                      })}
+                    </FieldDescription>
+                  ) : null}
+                </div>
               </Field>
             );
           })}

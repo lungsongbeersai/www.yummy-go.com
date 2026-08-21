@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FileSpreadsheet, PencilLine, Plus, Search, Trash2 } from "lucide-react";
+import { PencilLine, Plus, Search, Trash2, Upload } from "lucide-react";
 import { AppPagination } from "@/components/common/app-pagination";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { EmptyState } from "@/components/common/empty-state";
@@ -45,11 +45,11 @@ export function ProductPage({ initialPagination }: { initialPagination: UrlPagin
           <p className="text-base font-black text-primary">{t("product.title")}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button type="button" size="sm" variant="outline" className="shadow-sm" onClick={() => product.setImportDialogOpen(true)}>
-            <FileSpreadsheet data-icon="inline-start" />
+          <Button type="button" size="lg" variant="outline" className="shadow-sm" onClick={() => product.setImportDialogOpen(true)}>
+            <Upload data-icon="inline-start" />
             {t("product.import.button")}
           </Button>
-          <Link className={cn(buttonVariants({ size: "sm" }), "shadow-sm")} href="/products/form">
+          <Link className={cn(buttonVariants({ size: "lg" }), "shadow-sm")} href="/products/form">
             <Plus data-icon="inline-start" />
             {t("product.newProduct")}
           </Link>

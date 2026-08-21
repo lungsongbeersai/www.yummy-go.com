@@ -1,21 +1,12 @@
 "use client";
 
-import {
-  Bell,
-  Check,
-  ImageIcon,
-  Layers3,
-  Plus,
-  RefreshCcw,
-  Save,
-  Utensils,
-} from "lucide-react";
+import { Check, Plus, RefreshCcw, Save } from "lucide-react";
 import { BackButton } from "@/components/common/back-button";
 import { FormattedNumberInput } from "@/components/common/formatted-number-input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
@@ -26,9 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
-import { IMAGE_CROP_ASPECT_CLASS } from "@/config/image-crop";
 import { cn } from "@/lib/utils";
 import { CategoryFormDialog } from "@/features/settings/category/category-form-dialog";
 import { OptionFormDialog } from "@/features/settings/shared/option-settings-page";
@@ -58,7 +47,6 @@ export function ProductFormView({ form }: { form: ProductFormWorkflow }) {
     saveNotice,
     saveDisabled,
     saveButtonLabel,
-    previewSrc,
     typeLabel,
     imageLabel,
     toppingCount,
@@ -66,9 +54,6 @@ export function ProductFormView({ form }: { form: ProductFormWorkflow }) {
     groupOptions,
     unitOptions,
     productTypeChoices,
-    requiredChecks,
-    completedChecks,
-    readyToSave,
     prodCode,
     setProdCode,
     prodNameLa,
@@ -86,8 +71,6 @@ export function ProductFormView({ form }: { form: ProductFormWorkflow }) {
     statusSortFk,
     prodSetPrice,
     setProdSetPrice,
-    prodStatusImge,
-    colorValue,
     prodToppingStatus,
     categoryDialogOpen,
     setCategoryDialogOpen,
@@ -159,140 +142,8 @@ export function ProductFormView({ form }: { form: ProductFormWorkflow }) {
           event.preventDefault();
           void submit();
         }}
-        className="grid gap-4 xl:grid-cols-[minmax(16rem,20rem)_minmax(0,1fr)]"
+        className="flex flex-col gap-4"
       >
-        <aside className="flex flex-col gap-4 xl:sticky xl:top-4 xl:self-start">
-          <Card>
-            <CardHeader className="flex-col items-start">
-              <CardTitle>{t("product.formSummary")}</CardTitle>
-              <p className="text-xs text-muted-foreground">
-                {t("product.formSummaryHint")}
-              </p>
-            </CardHeader>
-            {/* gap-3 ไม่ใช่ gap-4 — เส้นคั่นแต่ละเส้นเคยได้ระยะห่างข้างละ 16px รวมเป็น 32px ต่อเส้น */}
-            <CardContent className="flex flex-col gap-3">
-              <div
-                className={cn(
-                  "mx-auto grid w-40 max-w-full place-items-center overflow-hidden rounded-md border border-border bg-muted bg-contain bg-center bg-no-repeat sm:w-44",
-                  IMAGE_CROP_ASPECT_CLASS,
-                )}
-                style={
-                  prodStatusImge === "2"
-                    ? { backgroundColor: colorValue }
-                    : previewSrc
-                    ? { backgroundImage: `url("${previewSrc}")` }
-                    : undefined
-                }
-              >
-                {prodStatusImge === "1" && !previewSrc ? (
-                  <ImageIcon className="size-10 text-muted-foreground" />
-                ) : null}
-              </div>
-              <div className="min-w-0">
-                <p className="truncate text-lg font-semibold">
-                  {prodNameLa || prodNameEng || title}
-                </p>
-                <p className="truncate text-xs tabular-nums text-muted-foreground">
-                  {prodCode}
-                </p>
-              </div>
-              <Badge
-                className={cn(
-                  "w-fit",
-                  readyToSave && "border-primary/30 bg-primary/10 text-primary",
-                )}
-              >
-                {readyToSave
-                  ? t("product.readyToSave")
-                  : t("product.needRequiredFields", {
-                      completed: completedChecks,
-                      total: requiredChecks.length,
-                    })}
-              </Badge>
-              <Separator />
-              <div className="grid gap-3 text-sm">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="flex items-center gap-2 text-muted-foreground">
-                    <Layers3 className="size-4" />
-                    {t("product.type")}
-                  </span>
-                  <span className="font-semibold">{typeLabel}</span>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <span className="flex items-center gap-2 text-muted-foreground">
-                    <Bell className="size-4" />
-                    {t("product.notification.label")}
-                  </span>
-                  <span className="font-semibold">
-                    {prodNotification === "1"
-                      ? t("product.notification.on")
-                      : t("product.notification.off")}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <span className="flex items-center gap-2 text-muted-foreground">
-                    <Utensils className="size-4" />
-                    {t("product.sections.toppings")}
-                  </span>
-                  <span className="font-semibold">
-                    {prodToppingStatus === TOPPING_HAS
-                      ? toppingCount
-                      : t("product.topping.no")}
-                  </span>
-                </div>
-              </div>
-              <Separator />
-              <div className="flex flex-col gap-2">
-                {/* ไม่ใช้ uppercase — อักษรลาวไม่มีตัวพิมพ์ใหญ่ ใส่ไปก็มีผลแค่กับข้อความอังกฤษที่ปนมา */}
-                <p className="text-xs font-medium text-muted-foreground">
-                  {t("product.quickCheck")}
-                </p>
-                <div className="grid gap-1.5">
-                  {requiredChecks.map((item) => (
-                    <div
-                      key={item.label}
-                      className="flex items-center gap-2 text-xs"
-                    >
-                      <span
-                        className={cn(
-                          "grid size-4 shrink-0 place-items-center rounded-full border",
-                          item.done
-                            ? "border-primary bg-primary text-primary-foreground"
-                            : "border-border text-transparent",
-                        )}
-                      >
-                        <Check className="size-3" />
-                      </span>
-                      <span
-                        className={cn(
-                          "truncate",
-                          item.done
-                            ? "text-foreground"
-                            : "text-muted-foreground",
-                        )}
-                      >
-                        {item.label}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              {/* บน xl แผงนี้ลอยติดจอตลอด ปุ่มล่างสุดของฟอร์มจึงซ้ำซ้อน — สลับกันโชว์ทีละตัว
-                  (จอเล็กแผงนี้อยู่ "เหนือ" ฟอร์มทั้งหมด ปุ่มบันทึกตรงนี้จะมาก่อนกรอกข้อมูล) */}
-              <Button type="submit" disabled={saveDisabled} className="hidden w-full xl:inline-flex">
-                {saveNotice === "saved" ? (
-                  <Check data-icon="inline-start" />
-                ) : saveDisabled ? (
-                  <Spinner data-icon="inline-start" />
-                ) : (
-                  <Save data-icon="inline-start" />
-                )}
-                {saveButtonLabel}
-              </Button>
-            </CardContent>
-          </Card>
-        </aside>
-
         <div className="flex min-w-0 flex-col gap-4">
           <ProductFormImageSection form={form} />
 

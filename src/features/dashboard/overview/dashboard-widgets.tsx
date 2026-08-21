@@ -425,30 +425,23 @@ export const DashboardPaymentSummaryStrip = memo(
       <div className="-mt-1 flex flex-col gap-2.5">
         <div
           aria-label={copy.paymentSplit}
-          className="grid grid-cols-1 overflow-hidden rounded-xl border border-border md:flex"
+          className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-4"
         >
-          {cards.map((card, index) => {
+          {cards.map((card) => {
             const Icon = paymentSummaryIcon(card);
-            const isLastItem = index === cards.length - 1;
 
             return (
               <div
                 key={card.key}
                 className={cn(
-                  "flex-1 min-w-0",
-                  !isLastItem &&
-                    "border-b border-border md:border-b-0 md:border-r",
-                  // Tone comes last so its border-color (e.g. border-primary/18 on the
-                  // total card) always wins the tailwind-merge conflict against the
-                  // neutral border-border above — otherwise cards that aren't the last
-                  // item in the row silently lose their tinted border.
+                  "min-w-0 overflow-hidden rounded-xl border border-border",
                   paymentSummaryTone(card).card,
                 )}
               >
-                <CardContent className="flex flex-row items-start justify-between gap-4 px-6 py-5">
+                <CardContent className="flex flex-row items-start gap-3 px-3.5 py-3.5 sm:gap-4 sm:px-6 sm:py-5">
                   <div
                     className={cn(
-                      "mt-1 flex size-10 items-center justify-center rounded-full [&>svg]:size-[1.1rem]",
+                      "mt-1 flex size-9 shrink-0 items-center justify-center rounded-full sm:size-10 [&>svg]:size-4 sm:[&>svg]:size-[1.1rem]",
                       paymentSummaryTone(card).icon,
                     )}
                     aria-hidden="true"
@@ -461,10 +454,11 @@ export const DashboardPaymentSummaryStrip = memo(
                     </p>
                     <p
                       className={cn(
-                        "mt-1 wrap-break-word font-mono font-semibold leading-tight",
-                        card.important ? "text-2xl" : "text-xl",
+                        "mt-1 truncate font-mono font-semibold leading-tight",
+                        card.important ? "text-lg sm:text-2xl" : "text-base sm:text-xl",
                         paymentSummaryTone(card).value,
                       )}
+                      title={formatKip(card.value)}
                     >
                       {formatKip(card.value)}
                     </p>
