@@ -235,8 +235,7 @@ export function getCartItemStatus(item: CartItem, t: TFunction) {
   if (status === 9 || isCanceledCartItem(item)) {
     return {
       label: apiLabel || t("pos.cartStatusCanceled"),
-      className:
-        "border-red-200 bg-red-50 text-red-700 dark:border-red-500/35 dark:bg-red-950/35 dark:text-red-200",
+      className: "border-destructive/30 bg-destructive/10 text-destructive",
       Icon: Ban,
     };
   }
@@ -244,8 +243,7 @@ export function getCartItemStatus(item: CartItem, t: TFunction) {
   if (status === 0) {
     return {
       label: apiLabel || t("pos.cartStatusWaiting"),
-      className:
-        "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/35 dark:bg-amber-950/35 dark:text-amber-200",
+      className: "border-warning/30 bg-warning/10 text-warning",
       Icon: Clock3,
     };
   }
@@ -253,8 +251,7 @@ export function getCartItemStatus(item: CartItem, t: TFunction) {
   if (status === 1) {
     return {
       label: apiLabel || t("pos.cartStatusWaitingConfirm"),
-      className:
-        "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-500/35 dark:bg-sky-950/35 dark:text-sky-200",
+      className: "border-info/30 bg-info/10 text-info",
       Icon: Clock3,
     };
   }
@@ -262,8 +259,7 @@ export function getCartItemStatus(item: CartItem, t: TFunction) {
   if (status === 2) {
     return {
       label: apiLabel || t("pos.cartStatusSentKitchen"),
-      className:
-        "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/35 dark:bg-emerald-950/35 dark:text-emerald-200",
+      className: "border-success/30 bg-success/10 text-success",
       Icon: ChefHat,
     };
   }
@@ -271,16 +267,14 @@ export function getCartItemStatus(item: CartItem, t: TFunction) {
   if (status === 4) {
     return {
       label: apiLabel || t("pos.cartStatusServed"),
-      className:
-        "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/35 dark:bg-emerald-950/35 dark:text-emerald-200",
+      className: "border-success/30 bg-success/10 text-success",
       Icon: CheckCircle2,
     };
   }
 
   return {
     label: apiLabel || t("pos.cartStatusCooking"),
-    className:
-      "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-500/35 dark:bg-sky-950/35 dark:text-sky-200",
+    className: "border-info/30 bg-info/10 text-info",
     Icon: Send,
   };
 }

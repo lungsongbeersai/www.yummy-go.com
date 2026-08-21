@@ -5,7 +5,6 @@
 export { AGENT_URL } from "@/config/printer-agent";
 export {
   getPrinterErrorMessage,
-  getRoleColor,
   parseInterfaceValue,
   tcpInterfaceValue
 } from "@/services/printer/helpers";

@@ -97,8 +97,6 @@ export function mapPrinter(item: Record<string, unknown>): Printer {
 
 export { parseInterfaceValue, tcpInterfaceValue } from "@/config/printer-agent";
 
-export const getRoleColor = () => "bg-emerald-100 text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-200";
-
 export function assertAgentOk(data: { ok?: boolean; error?: string; message?: string }, fallback: string) {
   if (data.ok === false) throw new ServiceError(data.error || data.message || fallback, 500);
 }

@@ -269,8 +269,7 @@ function CartItemRow({
       className={cn(
         "border-b border-border/80 bg-background transition-colors last:border-b-0 hover:bg-muted/20",
         compact ? "px-2.5 py-2" : "px-2.5 py-2.5 sm:px-3",
-        isWaitingConfirm &&
-          "border-l-4 border-l-amber-400 bg-amber-50/70 hover:bg-amber-50 dark:border-l-amber-500 dark:bg-amber-950/20 dark:hover:bg-amber-950/30",
+        isWaitingConfirm && "border-l-4 border-l-warning bg-warning/10 hover:bg-warning/15",
         isCanceled && "bg-destructive/5 hover:bg-destructive/10",
         splitSelectable && !splitEnabled && "cursor-not-allowed opacity-60",
         splitEnabled && "cursor-pointer",
@@ -331,7 +330,7 @@ function CartItemRow({
                     isCanceled
                       ? "bg-destructive text-destructive-foreground"
                       : isWaitingConfirm
-                        ? "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
+                        ? "bg-warning/15 text-warning"
                         : "bg-secondary text-secondary-foreground"
                   )}
                 >
