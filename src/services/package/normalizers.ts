@@ -1,5 +1,5 @@
 import { asRecords } from "@/services/shared/validators";
-import { numberValue, text } from "@/services/shared/normalize";
+import { numberValue, text } from "@/services/shared/normalizers";
 import type {
   BillingCycle,
   PackageBillingGroup,

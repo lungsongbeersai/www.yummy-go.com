@@ -1,6 +1,6 @@
 import { ServiceError, apiRequest } from "@/lib/api";
 import { toApiLanguage } from "@/lib/language";
-import { booleanFlag, numberValue, text } from "@/services/shared/normalize";
+import { booleanFlag, numberValue, text } from "@/services/shared/normalizers";
 import { requiredText } from "@/services/shared/validators";
 import type { ApiDataResponse, ApiListResponse } from "@/services/shared/types";
 

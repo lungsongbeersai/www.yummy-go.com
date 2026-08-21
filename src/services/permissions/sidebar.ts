@@ -2,7 +2,7 @@ import { apiRequest, ServiceError } from "@/lib/api";
 import { normalizeMenuIconName } from "@/lib/menu-icons";
 import { toApiLanguage } from "@/lib/language";
 import { canonicalRoute } from "@/lib/routes";
-import { booleanFlag, numberValue, text } from "@/services/shared/normalize";
+import { booleanFlag, numberValue, text } from "@/services/shared/normalizers";
 import { requiredText } from "@/services/shared/validators";
 
 const SIDEBAR_MENU_ENDPOINT = "/api/v1/permission/menu";

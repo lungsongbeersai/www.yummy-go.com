@@ -2,7 +2,7 @@ import { apiRequest } from "@/lib/api";
 import { toApiLanguage } from "@/lib/language";
 import { normalizeMenuIconName } from "@/lib/menu-icons";
 import { deleteEntity, saveEntity } from "@/services/shared/crud";
-import { numberValue, text } from "@/services/shared/normalize";
+import { numberValue, text } from "@/services/shared/normalizers";
 import { requiredText } from "@/services/shared/validators";
 import type { ApiListResponse, ApiMessageResponse } from "@/services/shared/types";
 

@@ -2,7 +2,7 @@ import { apiRequest } from "@/lib/api";
 import { toFormData } from "@/lib/form-data";
 import { toApiLanguage } from "@/lib/language";
 import { requiredUuid } from "@/services/shared/validators";
-import { saveProductPayload } from "@/services/product/payload";
+import { saveProductPayload } from "@/services/product/payloads";
 import {
   enabledPatch,
   notificationPatch,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizeProductImagePayload, saveProductPayload } from "@/services/product/payload";
+import { normalizeProductImagePayload, saveProductPayload } from "@/services/product/payloads";
 
 describe("product payload helpers", () => {
   it("extracts uploaded file names from absolute image URLs", () => {

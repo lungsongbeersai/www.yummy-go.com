@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { booleanFlag, numberValue, text } from "@/services/shared/normalize";
+import { booleanFlag, numberValue, text } from "@/services/shared/normalizers";
 
 describe("shared normalize helpers", () => {
   it("trims text and falls back when empty", () => {

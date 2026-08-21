@@ -1,6 +1,6 @@
 import { ServiceError } from "@/lib/api";
 import { toApiLanguage } from "@/lib/language";
-import { numberValue } from "@/services/shared/normalize";
+import { numberValue } from "@/services/shared/normalizers";
 import { requiredItems, requiredText, requiredUuid } from "@/services/shared/validators";
 import type {
   BillingCycle,
