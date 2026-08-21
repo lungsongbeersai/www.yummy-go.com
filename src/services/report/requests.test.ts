@@ -8,7 +8,7 @@ import {
   getDailySalesBillReport,
   getDailySalesOrderReport,
   getPaymentMethodsReport
-} from "./report";
+} from "./requests";
 
 vi.mock("@/lib/api", async () => {
   const actual = await vi.importActual<typeof import("@/lib/api")>("@/lib/api");
