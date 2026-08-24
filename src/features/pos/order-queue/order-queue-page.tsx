@@ -11,6 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { FieldLabel } from "@/components/ui/field";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { BlockingLoadingDialog } from "@/components/common/blocking-loading-dialog";
 import { EmptyState } from "@/components/common/empty-state";
 import { LoadingState } from "@/components/common/loading-state";
 import { cn } from "@/lib/utils";
@@ -102,6 +103,9 @@ export function OrderQueuePage() {
   const [cancelReason, setCancelReason] = useState("");
   const [reasonTouched, setReasonTouched] = useState(false);
   const reasonInvalid = reasonTouched && !cancelReason.trim();
+  // ยกเลิกทีละรายการ (ดู cancelOrderItems ใน pos-order-queue-store.ts) — ใช้ progress นี้แสดง
+  // BlockingLoadingDialog ระหว่างประมวลผล แทนที่จะรอเงียบ ๆ จนกว่าทุกรายการจะยกเลิกเสร็จ
+  const [cancelProgress, setCancelProgress] = useState<{ completed: number; total: number } | null>(null);
 
   const groups = useMemo(() => groupOrderQueueRows(items), [items]);
   const selectedIds = useMemo(() => new Set(selectedRows.map((row) => row.order_item_uuid)), [selectedRows]);
@@ -203,22 +207,26 @@ export function OrderQueuePage() {
     if (!branchUuid || !user?.uuid || !reason || !selectedRows.length || saving) return;
     const orderItemUuids = selectedRows.map((row) => row.order_item_uuid);
 
+    setCancelDialogOpen(false);
+    setCancelProgress({ completed: 0, total: orderItemUuids.length });
     try {
       await cancelOrderItems({
         order_item_uuids: orderItemUuids,
         branch_uuid_fk: branchUuid,
         login_uuid_fk: user.uuid,
         cancel_reason: reason,
-        lang: language
+        lang: language,
+        onProgress: (completed, total) => setCancelProgress({ completed, total })
       });
       showToast({ title: t("orderQueue.cancelSuccess", { count: orderItemUuids.length }), tone: "success" });
-      setCancelDialogOpen(false);
     } catch (error) {
       showToast({
         title: t("orderQueue.cancelError"),
         description: error instanceof Error ? error.message : undefined,
         tone: "error"
       });
+    } finally {
+      setCancelProgress(null);
     }
   }
 
@@ -364,6 +372,22 @@ export function OrderQueuePage() {
         onReasonBlur={() => setReasonTouched(true)}
         onReasonChange={setCancelReason}
         onSubmit={() => void submitCancel()}
+      />
+
+      <BlockingLoadingDialog
+        description={
+          cancelProgress
+            ? t("orderQueue.cancelProgressDetail", { completed: cancelProgress.completed, total: cancelProgress.total })
+            : undefined
+        }
+        open={Boolean(cancelProgress)}
+        progressLabel={
+          cancelProgress
+            ? t("orderQueue.cancelProgressDetail", { completed: cancelProgress.completed, total: cancelProgress.total })
+            : undefined
+        }
+        progressValue={cancelProgress ? Math.round((cancelProgress.completed / Math.max(cancelProgress.total, 1)) * 100) : null}
+        title={t("orderQueue.cancelDialogTitle")}
       />
     </div>
   );

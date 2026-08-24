@@ -8,7 +8,7 @@ import {
   type OrderItemStatus as OrderItemStatusType,
   type OrderQueueRow
 } from "@/services/pos";
-import { executeKitchenPrintJobs } from "@/services/printer";
+import { executeInvoicePrintJobs, executeKitchenPrintJobs } from "@/services/printer";
 import { resolvePosPrinterContext } from "@/stores/pos-store/printer-context";
 import {
   createSessionGuard,
@@ -40,6 +40,9 @@ interface CancelOrderItemsParams {
   login_uuid_fk: string;
   cancel_reason: string;
   lang?: string;
+  // เรียกหลังยกเลิกแต่ละรายการสำเร็จ (ก่อนพิมพ์ใบเสร็จของรายการนั้น) — ให้ UI แสดง progress
+  // "กำลังยกเลิก x/N" ระหว่างประมวลผลทีละรายการ
+  onProgress?: (completed: number, total: number) => void;
 }
 
 interface PosOrderQueueState extends AsyncSlice {
@@ -228,18 +231,50 @@ export const usePosOrderQueueStore = create<PosOrderQueueState>((set, get) => ({
         lang: params.lang
       });
 
-      await Promise.all(
-        params.order_item_uuids.map((order_it_uuid) =>
-          posService.cancelOrderItem({
-            order_it_uuid,
+      // ยกเลิกทีละรายการ (ไม่ใช่ Promise.all ยิงพร้อมกัน) — แต่ละรายการมี print job/pending
+      // query ของตัวเองที่ต้องพิมพ์ใบเสร็จยกเลิกตามลำดับ ยิงพร้อมกันจะชนกันที่ agent เครื่องพิมพ์
+      // เดียวกัน onProgress แจ้ง UI ทุกครั้งที่ยกเลิกรายการหนึ่งเสร็จ (ก่อนพิมพ์ของรายการนั้น)
+      const total = params.order_item_uuids.length;
+      for (let index = 0; index < total; index++) {
+        const orderItUuid = params.order_item_uuids[index];
+        const response = await posService.cancelOrderItem({
+          order_it_uuid: orderItUuid,
+          login_uuid_fk: params.login_uuid_fk,
+          device_code: printer.device_code,
+          agent_id: printer.agent_id,
+          print_mode: printer.print_mode,
+          cancel_reason: params.cancel_reason,
+          lang: params.lang
+        });
+
+        // ใบเสร็จยกเลิก: ack:false (executeInvoicePrintJobs) เหมือน pos-store.ts cancelItem —
+        // cancel_order_item ปิดสถานะไปแล้วตั้งแต่ตัว PATCH เอง พิมพ์พลาดจึงไม่ throw ทับ ไม่หยุด
+        // ลูป แค่ log ไว้ (เหมือน sendToKitchen ด้านบน)
+        const printJobUuid = optionalString(
+          response.print_job?.print_job_uuid,
+          response.pending_query?.print_job_uuid
+        );
+
+        if (printJobUuid) {
+          const loginUuid = optionalString(
+            response.pending_query?.login_uuid_fk,
+            params.login_uuid_fk
+          );
+
+          await executeInvoicePrintJobs({
+            print_job: response.print_job,
+            pending_query: response.pending_query,
+            login_uuid_fk: loginUuid ?? undefined,
             device_code: printer.device_code,
             agent_id: printer.agent_id,
-            print_mode: printer.print_mode,
-            cancel_reason: params.cancel_reason,
-            lang: params.lang
-          })
-        )
-      );
+            print_mode: printer.print_mode
+          }).catch((error) => {
+            console.error("[pos-order-queue] cancel receipt print failed", error);
+          });
+        }
+
+        params.onProgress?.(index + 1, total);
+      }
 
       if (isCurrentSession()) {
         set({ saving: false });

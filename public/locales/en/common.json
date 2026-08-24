@@ -464,6 +464,7 @@
     "confirmServedError": "Failed to mark items as served",
     "cancelDialogTitle": "Cancel order item(s)",
     "cancelDialogDescription": "This will cancel {{count}} selected item(s). This action will be recorded with your reason.",
+    "cancelProgressDetail": "{{completed}} / {{total}} items",
     "cancelReasonLabel": "Cancel reason",
     "cancelReasonPlaceholder": "Item made by mistake",
     "cancelReasonRequired": "Cancel reason is required.",
