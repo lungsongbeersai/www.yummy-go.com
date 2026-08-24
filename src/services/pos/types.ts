@@ -609,11 +609,8 @@ export interface ConfirmOrderItemsServedInput {
   lang?: string;
 }
 
-// ยืนยันจาก response จริงของ backend (2026-08-24) — endpoint นี้ตอบ envelope มาตรฐาน
-// { status: "success" | "error" } ไม่ใช่ status ตัวเลขแบบที่เอกสารเก่าระบุไว้ และคืนข้อมูล
-// "ทุก section" กลับมาพร้อมกันเสมอ (ไม่ filter ตาม query `status` — query แค่กำหนดว่า section
-// ไหนตั้ง selected: true) แต่ละ order รวม item ไว้เป็น items[] ซ้อนอยู่ข้างใน ไม่ใช่ item
-// รายตัวแบบ flat ต้อง flatten เอาเองฝั่ง frontend (ดู order-queue-normalizers.ts)
+// endpoint ตอบ envelope มาตรฐานและคืนทุก section; query status กำหนดว่า section ใด selected
+// และมี items[] จริง ส่วน section อื่นคืนเฉพาะ total กับ items: []
 export interface OrderQueueItem {
   order_item_uuid: string;
   order_item_status: number;
@@ -632,7 +629,20 @@ export interface OrderQueueOrderTable {
   table_uuid: string;
   table_name: string;
   table_status: number;
+  table_date_in?: string | null;
+  table_time_in?: string | null;
+  opened_at?: string | null;
+  open_minutes?: number | null;
 }
+// schema ปัจจุบันของ /posAll/customer_order_queue: backend ใส่ข้อมูล order/table
+// ลงในแต่ละ item โดยตรง เพื่อลด nesting และให้หน้า queue ใช้งานได้ทันที
+export interface FlatOrderQueueItem extends OrderQueueItem {
+  order_uuid: string;
+  invoice: string | null;
+  created_at: string | null;
+  table: OrderQueueOrderTable | null;
+}
+// schema เดิมยังรองรับไว้ระหว่าง frontend/backend rolling deploy คนละเวอร์ชัน
 export interface OrderQueueOrder {
   order_uuid: string;
   invoice: string;
@@ -645,10 +655,11 @@ export interface OrderQueueSection {
   status: number;
   total: number;
   selected: boolean;
-  // มีแค่ section ที่ selected: true (ตรงกับ query `status`) เท่านั้นที่ orders[] จะมีข้อมูลจริง
-  // — section อื่นได้ total ที่ถูกต้อง (ใช้ทำ badge ได้) แต่ orders เป็น [] เสมอแม้ total > 0
-  // ดังนั้นต้อง fetch ใหม่ทุกครั้งที่สลับ tab จะเอา orders มา flatten ไม่ได้จาก response เก่า
-  orders: OrderQueueOrder[];
+  // มีแค่ section ที่ selected: true เท่านั้นที่ items[] มีข้อมูลจริง ส่วน section อื่นมี total
+  // สำหรับ badge แต่ items เป็น [] จึงต้อง fetch ใหม่เมื่อสลับ tab
+  items?: FlatOrderQueueItem[];
+  // fallback ชั่วคราวสำหรับ backend schema เดิมที่คืน orders[].items[]
+  orders?: OrderQueueOrder[];
 }
 export interface FetchOrderQueueParams {
   branch_uuid_fk: string;

@@ -80,8 +80,8 @@ export const usePosOrderQueueStore = create<PosOrderQueueState>((set, get) => ({
 
     try {
       const status = get().status;
-      // endpoint คืนทุก section (ทุกสถานะ) มาพร้อมกันเสมอ ไม่ filter ตาม query `status` ให้ —
-      // ต้องหา section ที่ตรงกับ tab ปัจจุบันแล้ว flatten orders[].items[] เอาเอง
+      // endpoint คืนทุก section มาพร้อมกัน แต่เติม items เฉพาะ section ที่เลือกตาม status
+      // ต้องหา section ของ tab ปัจจุบันก่อน normalize เป็นแถวที่ store/UI ใช้ร่วมกัน
       const response = await posService.fetchOrderQueue({
         branch_uuid_fk: params.branch_uuid_fk,
         status,
