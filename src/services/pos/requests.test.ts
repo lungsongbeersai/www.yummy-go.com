@@ -322,7 +322,7 @@ describe("pos requests", () => {
       order_item_uuids: ["item-1"]
     } as Parameters<typeof printInvoice>[0] & { order_item_uuids: string[] });
 
-    expect(apiMocks.apiRequest).toHaveBeenCalledWith("post", "/api/v1/pos/print_invoice", {
+    expect(apiMocks.apiRequest).toHaveBeenCalledWith("post", "/api/v1/posAll/print_invoice", {
       data: {
         login_uuid_fk: "login-1",
         order_uuid: "order-1",

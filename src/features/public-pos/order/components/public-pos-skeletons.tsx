@@ -1,9 +1,17 @@
 "use client";
 
+import { useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { Loader2, Search, Utensils } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PRODUCT_GRID_CLASS } from "@/features/public-pos/order/constants";
+import {
+  DEFAULT_PUBLIC_POS_HERO_VISIBLE,
+  PRODUCT_GRID_CLASS,
+} from "@/features/public-pos/order/constants";
+import {
+  readPublicPosHeroVisible,
+  subscribePublicPosHeroVisible,
+} from "@/features/public-pos/order/public-pos-hero-visibility";
 
 const SKELETON_CARD_CLASS =
   "overflow-hidden rounded-[20px] border border-yg-line bg-yg-panel";
@@ -110,6 +118,13 @@ function CategoryLoadingGrid() {
 
 export function PublicPosLoadingScreen() {
   const { t } = useTranslation();
+  // ต้องเช็คค่าเดียวกับหน้าจริง (ปิดเป็นค่าเริ่มต้น) ไม่งั้น skeleton จะมีบล็อก hero
+  // ค้างอยู่เสมอ พอโหลดเสร็จแล้วหน้าจริงไม่มี hero เนื้อหาทั้งหมดจะกระโดดขึ้นแรง
+  const heroVisible = useSyncExternalStore(
+    subscribePublicPosHeroVisible,
+    readPublicPosHeroVisible,
+    (): boolean => DEFAULT_PUBLIC_POS_HERO_VISIBLE,
+  );
 
   return (
     <section
@@ -119,7 +134,9 @@ export function PublicPosLoadingScreen() {
       className="flex w-full flex-col gap-4"
     >
       {/* โครงเดียวกับ hero จริง ไม่ให้เลย์เอาต์กระโดดตอนข้อมูลมาถึง */}
-      <Skeleton className="h-[clamp(310px,42vw,420px)] w-full rounded-[28px]" />
+      {heroVisible ? (
+        <Skeleton className="h-[clamp(310px,42vw,420px)] w-full rounded-[28px]" />
+      ) : null}
 
       <div className="flex flex-col gap-2">
         <div className="flex gap-2">
@@ -130,7 +147,6 @@ export function PublicPosLoadingScreen() {
             />
             <Skeleton className="h-4 flex-1" />
           </div>
-          <Skeleton className="size-11 rounded-2xl" />
           <Skeleton className="h-11 w-22 rounded-2xl" />
         </div>
         <div className="flex gap-2 overflow-hidden">

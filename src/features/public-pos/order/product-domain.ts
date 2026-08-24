@@ -74,10 +74,11 @@ function hasPriceValue(value: unknown) {
 
 export function publicProductCardPrice(
   product: CateProductItem,
+  isSet = false,
 ):
   | { kind: "exact" | "starting"; value: number }
   | { kind: "variable"; value: null } {
-  if (Number(product.countOptionEnabled ?? 0) > 1) {
+  if (!isSet && Number(product.countOptionEnabled ?? 0) > 1) {
     const minPrice = positivePrice(product.minPrice);
     if (minPrice === null) return { kind: "variable", value: null };
 

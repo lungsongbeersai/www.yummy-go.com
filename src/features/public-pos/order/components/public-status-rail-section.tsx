@@ -13,7 +13,7 @@ import { LCP_PRIORITY_IMAGE_COUNT } from "../constants";
 import type { PublicDisplayProduct } from "../types";
 import { hasRemoteProductImage } from "../utils";
 import { RailSkeleton } from "./public-pos-skeletons";
-import { ProductCard } from "./public-product-card";
+import { ProductCard, SetProductCard } from "./public-product-card";
 import { PublicSectionHeading } from "./public-section-heading";
 import { HorizontalScrollArrows } from "./horizontal-scroll-arrows";
 
@@ -29,6 +29,7 @@ export const StatusRailSection = memo(function StatusRailSection({
   loadingProductUuid,
   onProductClick,
   onRevealMore,
+  cardKind = "product",
 }: {
   title: string;
   products: PublicDisplayProduct[];
@@ -44,6 +45,9 @@ export const StatusRailSection = memo(function StatusRailSection({
     sourceRect?: DOMRect | null,
   ) => void;
   onRevealMore: (statusKind: PublicMenuKind, totalProducts: number) => void;
+  // ชุด (SET) มีการ์ดของตัวเอง (SetProductCard) — เนื้อหาน้อยกว่าสินค้าทั่วไป
+  // (ไม่มี choice meta, ราคาคงที่เสมอ) จึงไม่ reserve พื้นที่แบบเดียวกับ ProductCard
+  cardKind?: "product" | "set";
 }) {
   const visibleProducts = products.slice(0, visibleCount);
   const useDesktopGrid = products.length <= 5;
@@ -115,19 +119,32 @@ export const StatusRailSection = memo(function StatusRailSection({
                   : "",
               )}
             >
-              {visibleProducts.map(({ product, cateUuid, statusKind }) => (
-                <ProductCard
-                  key={`${statusKind}:${product.prodUuid}`}
-                  product={product}
-                  cateUuid={cateUuid}
-                  statusKind={statusKind}
-                  lang={lang}
-                  loading={loadingProductUuid === product.prodUuid}
-                  imagePreload={priorityProductUuids.has(product.prodUuid)}
-                  onProductClick={onProductClick}
-                  variant={useDesktopGrid ? "railGrid" : "rail"}
-                />
-              ))}
+              {visibleProducts.map(({ product, cateUuid, statusKind }) =>
+                cardKind === "set" ? (
+                  <SetProductCard
+                    key={`${statusKind}:${product.prodUuid}`}
+                    product={product}
+                    cateUuid={cateUuid}
+                    lang={lang}
+                    loading={loadingProductUuid === product.prodUuid}
+                    imagePreload={priorityProductUuids.has(product.prodUuid)}
+                    onProductClick={onProductClick}
+                    variant={useDesktopGrid ? "railGrid" : "rail"}
+                  />
+                ) : (
+                  <ProductCard
+                    key={`${statusKind}:${product.prodUuid}`}
+                    product={product}
+                    cateUuid={cateUuid}
+                    statusKind={statusKind}
+                    lang={lang}
+                    loading={loadingProductUuid === product.prodUuid}
+                    imagePreload={priorityProductUuids.has(product.prodUuid)}
+                    onProductClick={onProductClick}
+                    variant={useDesktopGrid ? "railGrid" : "rail"}
+                  />
+                ),
+              )}
               {visibleProducts.length < products.length ? (
                 <Button
                   type="button"

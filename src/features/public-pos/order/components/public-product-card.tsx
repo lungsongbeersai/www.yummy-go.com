@@ -15,6 +15,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 import type { CateProductItem } from "@/services/pos";
 import {
+  PUBLIC_MENU_KIND,
   publicMenuKindToStatusSortFk,
   type PublicMenuKind,
 } from "@/stores/public-pos-store";
@@ -29,8 +30,11 @@ import {
 } from "../utils";
 import { ProductMedia } from "./public-product-media";
 
+// ตัด backdrop-blur-md ออก — การ์ดมีหลายสิบใบต่อหน้าจอ แต่ละใบเป็น backdrop-filter
+// region ของตัวเอง เปลืองแรง GPU ตอนเลื่อนหน้ามาก แลกกับเอฟเฟกต์กระจกฝ้าโหมดมืด
+// ที่บางลง (ยังมี border/shadow กำหนดขอบการ์ดชัดอยู่)
 const CARD_SURFACE_CLASS =
-  "h-full gap-0 overflow-hidden rounded-[20px] border-yg-line bg-yg-panel py-0 shadow-[0_18px_40px_-26px_rgb(0_0_0/0.45)] backdrop-blur-md transition-[border-color,box-shadow,transform] dark:shadow-[0_18px_40px_-26px_rgb(0_0_0/0.8)] motion-reduce:transition-none";
+  "h-full gap-0 overflow-hidden rounded-[20px] border-yg-line bg-yg-panel py-0 shadow-[0_18px_40px_-26px_rgb(0_0_0/0.45)] transition-[border-color,box-shadow,transform] dark:shadow-[0_18px_40px_-26px_rgb(0_0_0/0.8)] motion-reduce:transition-none";
 
 const CARD_INTERACTIVE_CLASS =
   "hover:-translate-y-1 hover:border-yg-accent-line hover:shadow-[0_26px_54px_-26px_rgb(0_0_0/0.55)] active:translate-y-0 dark:hover:shadow-[0_26px_54px_-26px_rgb(0_0_0/0.9)] motion-reduce:transform-none";
@@ -245,6 +249,120 @@ export const ProductCard = memo(function ProductCard({
               </div>
             )}
           </div>
+        </CardContent>
+      </Button>
+    </Card>
+  );
+});
+
+/** การ์ดชุด (SET) — โครงต่างจาก ProductCard ตั้งใจ: ไม่มีแถว choice meta,
+ *  ไม่มีข้อความ "เลือกเพื่อดูราคา" (ชุดมีราคาคงที่เสมอ), เหลือปุ่มเดียวคือ "ดู"
+ *  ที่เปิดโมดัลรายการที่รวมอยู่ในชุดเสมอ — เนื้อหาน้อยกว่าการ์ดสินค้าทั่วไป
+ *  จึงไม่ reserve พื้นที่ (min-h/line-clamp-2) แบบเดียวกัน ไม่งั้นการ์ดจะสูงเกินจำเป็น */
+export const SetProductCard = memo(function SetProductCard({
+  product,
+  cateUuid,
+  lang,
+  loading,
+  onProductClick,
+  imagePreload = false,
+  variant = "rail",
+}: {
+  product: CateProductItem;
+  cateUuid: string;
+  lang: string;
+  loading: boolean;
+  onProductClick: (
+    product: CateProductItem,
+    cateUuid: string,
+    statusKind: PublicMenuKind,
+    sourceRect?: DOMRect | null,
+  ) => void;
+  imagePreload?: boolean;
+  variant?: "rail" | "railGrid";
+}) {
+  const { t } = useTranslation();
+  const mediaRef = useRef<HTMLDivElement | null>(null);
+  const statusKind = PUBLIC_MENU_KIND.SET;
+  const price = publicProductCardPrice(product, true);
+  const priceValue = price.kind === "variable" ? null : price.value;
+  const statusSortFk = publicMenuKindToStatusSortFk(statusKind);
+  const blockedState = getProductBlockedState(product, statusSortFk);
+  const blocked = Boolean(blockedState);
+  const blockedLabel = productBlockedLabel(blockedState, product, t);
+  const viewLabel = t("pos.viewDetails");
+  const accessibleLabel = [
+    product.prodName,
+    blocked ? blockedLabel : priceValue !== null ? formatMoney(priceValue, lang) : "",
+    blocked ? "" : viewLabel,
+  ]
+    .filter(Boolean)
+    .join(", ");
+  const handleClick = useCallback(() => {
+    if (blocked || loading) return;
+    onProductClick(
+      product,
+      cateUuid,
+      statusKind,
+      mediaRef.current?.getBoundingClientRect(),
+    );
+  }, [blocked, cateUuid, loading, onProductClick, product, statusKind]);
+
+  return (
+    <Card
+      className={cn(
+        CARD_SURFACE_CLASS,
+        variant === "rail" ? "w-44 flex-none snap-start" : "w-44 flex-none snap-start sm:w-auto",
+        blocked ? "" : CARD_INTERACTIVE_CLASS,
+      )}
+    >
+      <Button
+        type="button"
+        variant="ghost"
+        className="flex h-full w-full flex-col items-stretch justify-start rounded-none p-0 text-left hover:bg-transparent focus-visible:ring-inset aria-disabled:cursor-not-allowed disabled:opacity-100"
+        onClick={handleClick}
+        disabled={loading}
+        aria-busy={loading || undefined}
+        aria-disabled={blocked || undefined}
+        aria-label={accessibleLabel}
+      >
+        <div ref={mediaRef} className="relative w-full">
+          <ProductMedia
+            product={product}
+            blockedState={blockedState}
+            blockedLabel={blockedLabel}
+            preload={imagePreload}
+          />
+        </div>
+
+        <CardContent className="flex flex-col gap-1.5 p-3">
+          <p className="lao-tone-text truncate font-yg-serif text-[13px] font-semibold leading-snug text-yg-ink">
+            {product.prodName}
+          </p>
+
+          {/* จองพื้นที่ราคา/ปุ่มไว้เสมอ (ว่างเปล่าเมื่อไม่มีข้อมูล) ไม่งั้นการ์ดที่หมด
+              (ไม่มีราคา/ไม่มีปุ่ม) จะเตี้ยกว่าใบข้างๆ ในแถวเดียวกัน */}
+          <p
+            className={cn(
+              "min-h-5 font-yg-number text-sm font-semibold tabular-nums",
+              blocked ? "text-yg-muted" : "text-yg-accent-strong",
+            )}
+          >
+            {priceValue !== null ? formatMoney(priceValue, lang) : ""}
+          </p>
+
+          {blocked ? (
+            <span className="h-8" aria-hidden="true" />
+          ) : (
+            <span className="flex h-8 items-center justify-center gap-1 rounded-xl border border-yg-accent-line bg-yg-accent-soft text-[11px] font-extrabold text-yg-accent-strong">
+              {loading ? (
+                <Spinner />
+              ) : (
+                <ChevronRight className="size-3.5 shrink-0" aria-hidden="true" />
+              )}
+              <span className="lao-tone-text truncate">{viewLabel}</span>
+            </span>
+          )}
         </CardContent>
       </Button>
     </Card>

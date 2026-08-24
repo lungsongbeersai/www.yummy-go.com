@@ -19,16 +19,16 @@ export function tableStatus(table: PosTable) {
 
 export type TableVisualStatus =
   | "awaitingConfirm"
-  | "newOrder"
   | "available"
   | "occupied"
+  | "cashierOrder"
+  | "callStaff"
   | "awaitingPayment";
 
-// customer_order_state คือออเดอร์ใหม่ที่ลูกค้ายิงเข้ามาแบบสด ๆ จึงต้องเด่นกว่า
-// table_status เสมอ (แม้โต๊ะจะไม่ว่างอยู่แล้วก็ตาม — ลูกค้าสั่งเพิ่มก็ยังต้องเด่น)
+// สีของการ์ดมาจาก table_status ล้วน ๆ (6 สถานะ) — customer_order_state ไม่ผูกกับสี
+// อีกต่อไป แต่ใช้เป็น ring กะพริบซ้อนทับเพื่อบอกว่ามีออเดอร์ใหม่เข้ามาสด ๆ
+// (ดู tableHasOrderAlert() ด้านล่าง)
 export function tableVisualStatus(table: PosTable): TableVisualStatus {
-  if (table.customer_order_state) return "newOrder";
-
   switch (Number(table.table_status)) {
     case TableStatus.AWAITING_CONFIRM:
       return "awaitingConfirm";
@@ -36,9 +36,17 @@ export function tableVisualStatus(table: PosTable): TableVisualStatus {
       return "occupied";
     case TableStatus.AWAITING_PAYMENT:
       return "awaitingPayment";
+    case TableStatus.CASHIER_CREATING_ORDER:
+      return "cashierOrder";
+    case TableStatus.CALL_STAFF:
+      return "callStaff";
     default:
       return "available";
   }
+}
+
+export function tableHasOrderAlert(table: PosTable) {
+  return Boolean(table.customer_order_state);
 }
 
 // datetime_in จาก backend เป็น "YYYY-MM-DD HH:mm:ss" เสมอ — ตัดด้วย regex แทนการ

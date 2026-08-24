@@ -6,7 +6,16 @@ export const ProductImageStatus = { IMAGE: 1, COLOR: 2 } as const;
 export type ProductImageStatus =
   (typeof ProductImageStatus)[keyof typeof ProductImageStatus];
 
-export const TableStatus = { AWAITING_CONFIRM: 0, AVAILABLE: 1, OCCUPIED: 2, AWAITING_PAYMENT: 3 } as const;
+// เรียงเลขตามลำดับ 1-6 ที่กำหนดไว้ (ไม่ใช่ backend ยืนยัน — ถ้า API ส่งเลขอื่นมา
+// ให้แก้แค่ตรงนี้จุดเดียว)
+export const TableStatus = {
+  AVAILABLE: 1,
+  OCCUPIED: 2,
+  CASHIER_CREATING_ORDER: 3,
+  AWAITING_CONFIRM: 4,
+  CALL_STAFF: 5,
+  AWAITING_PAYMENT: 6,
+} as const;
 export type TableStatus = (typeof TableStatus)[keyof typeof TableStatus];
 
 export const OrderSourceEnum = { POS: 1, QR: 2, ONLINE: 3 } as const;

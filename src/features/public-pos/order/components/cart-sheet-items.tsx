@@ -414,7 +414,9 @@ function CartItemMedia({ item }: { item: CartItem }) {
         className="grid size-14 shrink-0 place-items-center rounded-md"
         style={{ backgroundColor: colorSwatch }}
       >
-        <Utensils className="size-6 text-background/85" aria-hidden="true" />
+        <span className="grid size-8 place-items-center rounded-full bg-black/20 text-white backdrop-blur-sm">
+          <Utensils className="size-4" aria-hidden="true" />
+        </span>
       </div>
     );
   }

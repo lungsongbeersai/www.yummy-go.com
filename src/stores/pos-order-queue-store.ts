@@ -6,7 +6,7 @@ import * as posService from "@/services/pos";
 import {
   OrderItemStatus,
   type OrderItemStatus as OrderItemStatusType,
-  type OrderQueueItem
+  type OrderQueueRow
 } from "@/services/pos";
 import { executeKitchenPrintJobs } from "@/services/printer";
 import { resolvePosPrinterContext } from "@/stores/pos-store/printer-context";
@@ -44,7 +44,7 @@ interface CancelOrderItemsParams {
 
 interface PosOrderQueueState extends AsyncSlice {
   status: OrderItemStatusType;
-  items: OrderQueueItem[];
+  items: OrderQueueRow[];
   total: number;
   setStatus: (status: OrderItemStatusType) => void;
   load: (params: LoadParams) => Promise<void>;
@@ -56,7 +56,7 @@ interface PosOrderQueueState extends AsyncSlice {
 
 const initialState = {
   status: OrderItemStatus.WAITING_CONFIRM as OrderItemStatusType,
-  items: [] as OrderQueueItem[],
+  items: [] as OrderQueueRow[],
   total: 0,
   loading: false,
   saving: false,
@@ -76,16 +76,20 @@ export const usePosOrderQueueStore = create<PosOrderQueueState>((set, get) => ({
     set({ loading: true, error: null });
 
     try {
-      const result = await posService.fetchOrderQueue({
+      const status = get().status;
+      // endpoint คืนทุก section (ทุกสถานะ) มาพร้อมกันเสมอ ไม่ filter ตาม query `status` ให้ —
+      // ต้องหา section ที่ตรงกับ tab ปัจจุบันแล้ว flatten orders[].items[] เอาเอง
+      const response = await posService.fetchOrderQueue({
         branch_uuid_fk: params.branch_uuid_fk,
-        status: get().status,
+        status,
         lang: params.lang
       });
+      const section = posService.findOrderQueueSection(response, status);
 
       if (isCurrentSession()) {
         set({
-          items: result.data ?? [],
-          total: result.total ?? 0,
+          items: posService.flattenOrderQueueSection(section),
+          total: section?.total ?? 0,
           loading: false
         });
       }
@@ -96,6 +100,8 @@ export const usePosOrderQueueStore = create<PosOrderQueueState>((set, get) => ({
           loading: false
         });
       }
+
+      throw error;
     }
   },
 

@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  type FormEvent,
-  useCallback,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useResetOnChange } from "@/hooks/use-reset-on-change";
 import {
   addPublicSearchHistoryItem,
@@ -69,14 +63,6 @@ export function usePublicSearch({
     setSearchOpen(true);
   }, [searchText]);
 
-  const handleSearchSubmit = useCallback(
-    (event: FormEvent<HTMLFormElement>) => {
-      event.preventDefault();
-      openSearchSheet();
-    },
-    [openSearchSheet],
-  );
-
   const clearSearchHistory = useCallback(() => {
     setSearchHistory([]);
     clearPublicSearchHistory(searchHistoryKey);
@@ -118,7 +104,6 @@ export function usePublicSearch({
     submittedSearch,
     searchRun,
     openSearchSheet,
-    handleSearchSubmit,
     clearSearchHistory,
     handleSearchSheetSubmit,
     handleSearchHistorySelect,

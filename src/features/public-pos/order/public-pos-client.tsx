@@ -130,8 +130,11 @@ function ShellAmbience() {
       aria-hidden="true"
       className="pointer-events-none fixed inset-0 -z-10 overflow-hidden"
     >
+      {/* ก้อนนี้ scale/opacity เคลื่อนไหวตลอดเวลาที่หน้าเปิดอยู่ — blur filter บนอิลิเมนต์ที่
+          animate transform ทำให้เบราว์เซอร์ต้อง re-rasterize blur ใหม่ทุกเฟรม (แพงบน mobile GPU)
+          ตัด blur ออก ใช้ soft fade จาก radial-gradient เองแทน (transparent 66%) หน้าตาแทบไม่ต่าง */}
       <div
-        className="yg-glow-orb absolute top-[-14%] right-[-6%] h-[min(60vw,540px)] w-[min(60vw,540px)] rounded-full blur-[20px]"
+        className="yg-glow-orb absolute top-[-14%] right-[-6%] h-[min(60vw,540px)] w-[min(60vw,540px)] rounded-full"
         style={{
           background: "radial-gradient(circle, var(--yg-glow1), transparent 66%)",
         }}

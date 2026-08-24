@@ -271,6 +271,27 @@ describe("public POS product helpers", () => {
     ).toEqual({ kind: "variable", value: null });
   });
 
+  it("always shows the set's fixed price, ignoring its unrelated countOptionEnabled", () => {
+    // ຊຸດ (SET): count_option_enabled ໝາຍເຖິງຈຳນວນຊ່ອງເລືອກພາຍໃນຊຸດ ບໍ່ແມ່ນຈຳນວນ
+    // ຕົວແປລາຄາ — ຕ້ອງບໍ່ຕົກໄປທາງ min/max price ຄືສິນຄ້າທົ່ວໄປທີ່ມີ 2+ ຕົວເລືອກ
+    const setProduct = product({
+      countOptionEnabled: 2,
+      proDetailSprice: 220000,
+      minPrice: undefined,
+      maxPrice: undefined,
+    });
+
+    expect(publicProductCardPrice(setProduct, true)).toEqual({
+      kind: "exact",
+      value: 220000,
+    });
+    // ຄ່າເລີ່ມຕົ້ນ (isSet=false) ຍັງເປັນ "variable" ຄືເດີມສຳລັບສິນຄ້າທົ່ວໄປທີ່ຂໍ້ມູນຄືກັນ
+    expect(publicProductCardPrice(setProduct)).toEqual({
+      kind: "variable",
+      value: null,
+    });
+  });
+
   it("normalizes product layout modes with grid as the safe fallback", () => {
     expect(normalizePublicProductLayoutMode("grid")).toBe("grid");
     expect(normalizePublicProductLayoutMode("list")).toBe("list");

@@ -9,6 +9,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { DEFAULT_PUBLIC_POS_HERO_VISIBLE, PUBLIC_POS_ACCENTS } from "../constants";
 import {
@@ -126,44 +127,15 @@ export function PublicTweaksPopover({
           <span className="min-w-0 flex-1 text-xs font-bold text-yg-ink">
             {t("pos.tweaksHeroVisible")}
           </span>
-          <HeroVisibleSwitch
+          <Switch
             checked={heroVisible}
             onCheckedChange={writePublicPosHeroVisible}
+            className="border-yg-line data-checked:bg-yg-accent data-unchecked:bg-yg-panel focus-visible:border-yg-accent focus-visible:ring-yg-accent/30"
+            thumbClassName="bg-white dark:data-checked:bg-yg-bg2 dark:data-unchecked:bg-yg-ink"
           />
         </div>
       </PopoverContent>
     </Popover>
-  );
-}
-
-// สวิตช์ตัวนี้เขียนขึ้นเองแทนที่จะใช้ Switch จาก @/components/ui — ตัวนั้น hardcode
-// bg-primary/bg-input ของธีมกลางแอป ไม่ผูกกับ token --yg-accent ที่สลับสีตาม accent ที่เลือกไว้
-function HeroVisibleSwitch({
-  checked,
-  onCheckedChange,
-}: {
-  checked: boolean;
-  onCheckedChange: (checked: boolean) => void;
-}) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      onClick={() => onCheckedChange(!checked)}
-      className={cn(
-        "relative inline-flex h-6.5 w-12 shrink-0 items-center rounded-full border transition-colors outline-none focus-visible:ring-2 focus-visible:ring-yg-accent focus-visible:ring-offset-2 focus-visible:ring-offset-yg-bg2 motion-reduce:transition-none",
-        checked ? "border-yg-accent bg-yg-accent" : "border-yg-line bg-yg-panel",
-      )}
-    >
-      <span
-        aria-hidden="true"
-        className={cn(
-          "inline-block size-5 rounded-full bg-white shadow-sm transition-transform motion-reduce:transition-none",
-          checked ? "translate-x-5.5" : "translate-x-0.5",
-        )}
-      />
-    </button>
   );
 }
 

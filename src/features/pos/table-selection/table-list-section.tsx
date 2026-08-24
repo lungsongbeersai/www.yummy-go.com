@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useMemo, useRef, useState } from "react";
-import { Check, Clock, Search, UserRound } from "lucide-react";
+import Link from "next/link";
+import { Check, Clock, MapPinPlus, Plus, Search, UserRound } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { EmptyState } from "@/components/common/empty-state";
 import { LoadingState } from "@/components/common/loading-state";
@@ -9,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { cn } from "@/lib/utils";
 import { zoneOrderAlertCount } from "@/lib/pos/order-alerts";
 import type { PosTable, PosZone } from "@/services/pos";
@@ -17,11 +19,17 @@ import {
   filterZones,
   tableCheckInTime,
   tableCount,
+  tableHasOrderAlert,
   tableSeatCount,
   tableStatus,
   tableVisualStatus,
   type TableVisualStatus
 } from "./utils";
+
+// ToggleGroup (Radix) ไม่รับค่าว่าง "" เป็น item value ได้จริง (สงวนไว้แทน
+// "ไม่มีอะไรถูกเลือก") จึงใช้ sentinel นี้แทนโซน "ทั้งหมด" แล้วแปลงกลับเป็น "" ตอน
+// เรียก scrollToZone
+const ZONE_ALL_VALUE = "__all__";
 
 interface TableListSectionProps {
   loading: boolean;
@@ -78,38 +86,71 @@ export function TableListSection({
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-background">
       <div className="flex shrink-0 flex-col gap-3 border-b border-border bg-background px-4 py-3 shadow-sm xl:px-5">
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          <ZoneChip
-            active={!selectedZoneUuid}
-            alertCount={totalOrderAlertCount}
-            alertAriaLabel={t("pos.zoneNewOrderAria", { zone: t("common.all"), count: totalOrderAlertCount })}
-            label={t("common.all")}
-            onClick={() => scrollToZone("")}
-          />
-          {filterOptions.map((zone) => {
-            const alertCount = zoneOrderAlertCount(zone);
-            return (
-              <ZoneChip
-                key={zone.zone_uuid}
-                active={selectedZoneUuid === zone.zone_uuid}
-                alertCount={alertCount}
-                alertAriaLabel={t("pos.zoneNewOrderAria", { zone: zone.zone_name, count: alertCount })}
-                label={zone.zone_name}
-                onClick={() => scrollToZone(zone.zone_uuid)}
-              />
-            );
-          })}
+        <div className="flex items-center gap-2">
+          <ToggleGroup
+            aria-label={t("pos.zoneJumpAria")}
+            className="min-w-0 flex-1 justify-start overflow-x-auto pb-1"
+            type="single"
+            value={selectedZoneUuid || ZONE_ALL_VALUE}
+            onValueChange={(value) => {
+              if (!value) return;
+              scrollToZone(value === ZONE_ALL_VALUE ? "" : value);
+            }}
+          >
+            <ZoneToggleItem
+              active={!selectedZoneUuid}
+              alertAriaLabel={t("pos.zoneNewOrderAria", { zone: t("common.all"), count: totalOrderAlertCount })}
+              alertCount={totalOrderAlertCount}
+              label={t("common.all")}
+              value={ZONE_ALL_VALUE}
+            />
+            {filterOptions.map((zone) => {
+              const alertCount = zoneOrderAlertCount(zone);
+              return (
+                <ZoneToggleItem
+                  key={zone.zone_uuid}
+                  active={selectedZoneUuid === zone.zone_uuid}
+                  alertAriaLabel={t("pos.zoneNewOrderAria", { zone: zone.zone_name, count: alertCount })}
+                  alertCount={alertCount}
+                  label={zone.zone_name}
+                  value={zone.zone_uuid}
+                />
+              );
+            })}
+          </ToggleGroup>
+          <div className="flex shrink-0 gap-2">
+            <Button asChild aria-label={t("pos.addZone")} className="h-10 rounded-full px-3.5 font-black shadow-sm" size="sm" type="button" variant="outline">
+              <Link href="/settings/zone">
+                <MapPinPlus aria-hidden="true" data-icon="inline-start" />
+                <span className="hidden sm:inline" aria-hidden="true">{t("pos.addZone")}</span>
+              </Link>
+            </Button>
+            <Button asChild aria-label={t("pos.addTable")} className="h-10 rounded-full px-3.5 font-black shadow-sm" size="sm" type="button" variant="outline">
+              <Link href="/settings/table">
+                <Plus aria-hidden="true" data-icon="inline-start" />
+                <span className="hidden sm:inline" aria-hidden="true">{t("pos.addTable")}</span>
+              </Link>
+            </Button>
+          </div>
         </div>
         <div className="flex flex-col gap-2.5 xl:flex-row xl:items-center xl:justify-between">
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            <StatusChip active={statusFilter === "all"} label={t("common.all")} value={statusCounts.all} onClick={() => onStatusFilterChange("all")} />
-            <StatusChip active={statusFilter === "free"} dot="free" label={t("common.free")} value={statusCounts.free} onClick={() => onStatusFilterChange("free")} />
-            <StatusChip active={statusFilter === "busy"} dot="busy" label={t("common.busy")} value={statusCounts.busy} onClick={() => onStatusFilterChange("busy")} />
-            <StatusChip active={statusFilter === "update"} dot="update" label={t("pos.tableSelectionNewOrder")} value={statusCounts.update} onClick={() => onStatusFilterChange("update")} />
-          </div>
+          <ToggleGroup
+            aria-label={t("pos.statusFilterAria")}
+            className="justify-start overflow-x-auto pb-1"
+            type="single"
+            value={statusFilter}
+            onValueChange={(value) => {
+              if (value) onStatusFilterChange(value as TableStatusFilter);
+            }}
+          >
+            <StatusToggleItem active={statusFilter === "all"} label={t("common.all")} value="all" valueCount={statusCounts.all} />
+            <StatusToggleItem active={statusFilter === "free"} dot="free" label={t("common.free")} value="free" valueCount={statusCounts.free} />
+            <StatusToggleItem active={statusFilter === "busy"} dot="busy" label={t("common.busy")} value="busy" valueCount={statusCounts.busy} />
+            <StatusToggleItem active={statusFilter === "update"} dot="update" label={t("pos.tableSelectionNewOrder")} value="update" valueCount={statusCounts.update} />
+          </ToggleGroup>
           <div className="relative min-w-0 w-full xl:w-[320px]">
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input className="h-10.5 rounded-full border-border bg-muted/35 pl-9 shadow-none" value={search} placeholder={t("actions.search")} onChange={(event) => onSearchChange(event.target.value)} />
+            <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input aria-label={t("actions.search")} className="h-10.5 rounded-full border-border bg-muted/35 pl-9 shadow-none" placeholder={t("actions.search")} type="search" value={search} onChange={(event) => onSearchChange(event.target.value)} />
           </div>
         </div>
       </div>
@@ -145,82 +186,80 @@ export function TableListSection({
           <EmptyState title={t("common.noData")} description={t("empty.adjustSearch")} />
         )}
       </div>
+      <StatusLegend />
     </div>
   );
 }
 
-function ZoneChip({
+// ToggleGroupItem แทน Button+active-prop แบบเดิม (shadcn rule: option set 2-7
+// ตัวเลือกใช้ ToggleGroup แทนการ loop Button คุม active เอง) — ได้ roving-tabindex
+// และ keyboard nav (arrow key ระหว่างตัวเลือก) มาฟรีจาก Radix โดยไม่ต้องเขียนเอง
+function ZoneToggleItem({
   active,
   alertAriaLabel,
   alertCount = 0,
   label,
-  onClick
+  value
 }: {
   active: boolean;
   alertAriaLabel?: string;
   alertCount?: number;
   label: string;
-  onClick: () => void;
+  value: string;
 }) {
   const hasAlert = alertCount > 0;
 
   return (
-    <Button
-      type="button"
-      size="sm"
-      variant={active ? "default" : "outline"}
+    <ToggleGroupItem
       className={cn(
-        "h-10 shrink-0 rounded-full px-3.5 font-black shadow-sm transition",
-        active ? "shadow-primary/20" : "border-border bg-card hover:border-primary/30 hover:bg-primary/5",
+        "h-10 gap-1 rounded-full border border-transparent px-3.5 font-black shadow-sm transition data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow-primary/20",
+        !active && "border-border bg-card hover:border-primary/30 hover:bg-primary/5",
         // ใช้ ring กะพริบแทนพื้นหลังกะพริบ — พื้นหลังกะพริบชนสี text-destructive จนคอนทราสต์ไม่ผ่าน WCAG AA
         hasAlert && "pos-chip-alert-ring"
       )}
-      onClick={onClick}
+      value={value}
     >
-      {active ? <Check data-icon="inline-start" /> : null}
+      {active ? <Check aria-hidden="true" data-icon="inline-start" /> : null}
       <span className="max-w-40 truncate">{label}</span>
       {hasAlert ? (
         <Badge
           aria-label={alertAriaLabel}
-          className="ml-1 min-w-4.5 justify-center border-transparent bg-destructive px-1 text-[10px] text-destructive-foreground"
+          className="ml-1 min-w-4.5 justify-center border-transparent bg-destructive px-1 text-[10px] tabular-nums text-destructive-foreground"
         >
           {alertCount}
         </Badge>
       ) : null}
-    </Button>
+    </ToggleGroupItem>
   );
 }
 
-function StatusChip({
+function StatusToggleItem({
   active,
   dot,
   label,
-  onClick,
-  value
+  value,
+  valueCount
 }: {
   active: boolean;
   dot?: "free" | "busy" | "update";
   label: string;
-  onClick: () => void;
-  value: number;
+  value: TableStatusFilter;
+  valueCount: number;
 }) {
   return (
-    <Button
-      type="button"
-      size="sm"
-      variant={active ? "default" : "outline"}
+    <ToggleGroupItem
       className={cn(
-        "h-10 shrink-0 rounded-full px-3.5 font-black shadow-sm transition",
-        active ? "shadow-primary/20" : "border-border bg-card hover:border-primary/30 hover:bg-primary/5"
+        "h-10 gap-1 rounded-full border border-transparent px-3.5 font-black shadow-sm transition data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow-primary/20",
+        !active && "border-border bg-card hover:border-primary/30 hover:bg-primary/5"
       )}
-      onClick={onClick}
+      value={value}
     >
-      {dot ? <span className={cn("size-2.5 rounded-full", active ? "bg-primary-foreground" : dotClass(dot))} /> : null}
+      {dot ? <span aria-hidden="true" className={cn("size-2.5 rounded-full", active ? "bg-primary-foreground" : dotClass(dot))} /> : null}
       <span>{label}</span>
-      <Badge className={cn("ml-1 border-transparent px-1.5", active ? "bg-primary-foreground/20 text-primary-foreground" : "bg-muted text-muted-foreground")}>
-        {value}
+      <Badge className={cn("ml-1 border-transparent px-1.5 tabular-nums", active ? "bg-primary-foreground/20 text-primary-foreground" : "bg-muted text-muted-foreground")}>
+        {valueCount}
       </Badge>
-    </Button>
+    </ToggleGroupItem>
   );
 }
 
@@ -230,50 +269,104 @@ function dotClass(status: "free" | "busy" | "update") {
   return "bg-success";
 }
 
-// สไตล์ต่อสถานะ 5 แบบ: customer_order_state (ลอออเดอร์รอยืนยัน) มี priority สูงกว่า
-// table_status เสมอ — ดู tableVisualStatus() ใน table-zones.ts สำหรับลำดับการตัดสินใจ
+// สไตล์ต่อสถานะ 6 แบบ ผูกกับ table_status ล้วน ๆ (ดู tableVisualStatus() ใน
+// table-zones.ts) — พื้นใช้สีฮิวหลักผสมความโปร่งใสต่ำ (/12-/15) แทนขั้นพาสเทลทึบ
+// (100/200) ให้ได้โทนหม่น ๆ ออกเกรย์ตามที่อ้างอิงไว้ ตัวอักษรใช้เฉด 900 ให้ contrast
+// สูงกับพื้น จุดกลมมุมขวายังคงสีเข้มไว้ให้กวาดสายตาแยกสถานะได้ไว
+// `card` ไม่มี ring สีต่อสถานะแล้ว — ขอบใช้สีเทา/ดำกลาง ๆ ตัวเดียวร่วมกันทุกสถานะ
+// (ring-border ใน TableCard) ให้พื้นหลังเป็นตัวสื่อสถานะอย่างเดียว ไม่ให้ขอบแย่งซีน
 const STATUS_STYLE: Record<
   TableVisualStatus,
   { card: string; body: string; footer: string; dot: string; text: string }
 > = {
-  awaitingConfirm: {
-    card: "border-warning bg-warning/10",
-    body: "bg-warning/20",
-    footer: "border-warning/30 bg-warning/15",
-    dot: "bg-warning",
-    text: "text-warning"
-  },
-  newOrder: {
-    card: "pos-table-card-alert border-destructive bg-destructive/10",
-    body: "bg-destructive/20",
-    footer: "border-destructive/30 bg-destructive/15",
-    dot: "bg-destructive",
-    text: "text-destructive"
-  },
   available: {
-    card: "border-border",
-    body: "bg-card",
-    footer: "border-border bg-muted/50",
-    dot: "bg-success",
-    text: "text-success"
+    card: "bg-background",
+    body: "bg-background",
+    footer: "border-green-200 bg-muted/50",
+    dot: "bg-green-600",
+    text: "text-green-600"
   },
-  // พื้นเขียว (success) สื่อว่า "โต๊ะนี้เปิดขายอยู่" ตามที่ระบุ แต่ตัวหนังสือ/จุดสถานะ
-  // ใช้แดง (destructive) เป็น accent แยกจาก available (เขียวทั้งคู่) ให้ต่างชัดจากระยะไกล
   occupied: {
-    card: "border-success bg-success/10",
-    body: "bg-success/20",
-    footer: "border-success/30 bg-success/15",
-    dot: "bg-destructive",
-    text: "text-destructive"
+    card: "bg-green-600/15",
+    body: "bg-green-600/15",
+    footer: "border-green-600/25 bg-green-600/10",
+    dot: "bg-red-700",
+    text: "text-red-700"
+  },
+  cashierOrder: {
+    card: "bg-blue-600/15",
+    body: "bg-blue-600/15",
+    footer: "border-blue-600/25 bg-blue-600/10",
+    dot: "bg-blue-600",
+    text: "text-blue-900"
+  },
+  awaitingConfirm: {
+    card: "bg-amber-600/15",
+    body: "bg-amber-600/15",
+    footer: "border-amber-600/25 bg-amber-600/10",
+    dot: "bg-amber-700",
+    text: "text-amber-900"
+  },
+  callStaff: {
+    card: "bg-purple-600/15",
+    body: "bg-purple-600/15",
+    footer: "border-purple-600/25 bg-purple-600/10",
+    dot: "bg-purple-600",
+    text: "text-purple-900"
   },
   awaitingPayment: {
-    card: "border-pending bg-pending/10",
-    body: "bg-pending/20",
-    footer: "border-pending/30 bg-pending/15",
-    dot: "bg-pending",
-    text: "text-pending"
+    card: "bg-orange-600/15",
+    body: "bg-orange-600/15",
+    footer: "border-orange-600/25 bg-orange-600/10",
+    dot: "bg-orange-600",
+    text: "text-orange-900"
   }
 };
+
+// customer_order_state: true ต้องแดงเสมอ ไม่ว่า table_status จะเป็นอะไร — ทับ
+// STATUS_STYLE ทั้งก้อนแทนการเรียงสี ring ไว้ข้างบนแบบเดิม (ดู hasOrderAlert ใน TableCard)
+const ORDER_ALERT_STYLE = {
+  card: "bg-red-600/15",
+  body: "bg-red-600/15",
+  footer: "border-red-600/30 bg-red-600/10",
+  dot: "bg-red-700",
+  text: "text-red-700"
+};
+
+// เรียงตามลำดับ 1-6 ที่กำหนดไว้ (ดู TableStatus ใน pos-constants.ts) — ใช้ร่วมกัน
+// ทั้งป้ายสถานะบนการ์ดและ legend สีที่ sticky footer ด้านล่าง
+const STATUS_LABEL_KEY: Record<TableVisualStatus, string> = {
+  available: "common.free",
+  occupied: "common.busy",
+  cashierOrder: "pos.tableStatusCashierOrder",
+  awaitingConfirm: "pos.tableSelectionNewOrder",
+  callStaff: "pos.tableStatusCallStaff",
+  awaitingPayment: "pos.tableStatusAwaitingPayment"
+};
+
+const STATUS_LEGEND_ORDER: TableVisualStatus[] = [
+  "available",
+  "occupied",
+  "cashierOrder",
+  "awaitingConfirm",
+  "callStaff",
+  "awaitingPayment"
+];
+
+function StatusLegend() {
+  const { t } = useTranslation();
+
+  return (
+    <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-border bg-background/95 px-4 py-2 text-xs text-muted-foreground backdrop-blur-sm xl:px-5">
+      {STATUS_LEGEND_ORDER.map((status) => (
+        <span key={status} className="flex items-center gap-1.5">
+          <span aria-hidden="true" className={cn("size-2.5 shrink-0 rounded-full", STATUS_STYLE[status].dot)} />
+          {t(STATUS_LABEL_KEY[status])}
+        </span>
+      ))}
+    </div>
+  );
+}
 
 function TableCard({
   selected,
@@ -289,17 +382,9 @@ function TableCard({
   const busy = tableStatus(table) === "busy";
   const seats = tableSeatCount(table);
   const checkInTime = busy ? tableCheckInTime(table) : null;
-  const style = STATUS_STYLE[visualStatus];
-  const statusLabel =
-    visualStatus === "awaitingConfirm"
-      ? t("pos.tableSelectionNewOrder")
-      : visualStatus === "newOrder"
-        ? t("pos.tableStatusNewOrder")
-        : visualStatus === "awaitingPayment"
-          ? t("pos.tableStatusAwaitingPayment")
-          : visualStatus === "occupied"
-            ? t("common.busy")
-            : t("common.free");
+  const hasOrderAlert = tableHasOrderAlert(table);
+  const style = hasOrderAlert ? ORDER_ALERT_STYLE : STATUS_STYLE[visualStatus];
+  const statusLabel = hasOrderAlert ? t("pos.tableStatusNewOrderAlert") : t(STATUS_LABEL_KEY[visualStatus]);
 
   return (
     <Card
@@ -307,9 +392,11 @@ function TableCard({
       tabIndex={0}
       aria-pressed={selected}
       className={cn(
-        "cursor-pointer overflow-hidden rounded-xl bg-card p-0 shadow-sm outline-none transition hover:border-primary/70 hover:shadow-md focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30",
+        "cursor-pointer overflow-hidden rounded-xl bg-card p-0 shadow-sm outline-none ring-border transition hover:ring-primary/70 hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring/30",
         style.card,
-        selected && "border-primary/90 bg-primary/10 shadow-lg shadow-primary/15 ring-2 ring-primary ring-offset-2 ring-offset-background"
+        // ring กะพริบซ้อนทับสีสถานะเดิม — บอกว่ามีออเดอร์ใหม่เข้ามาสด ๆ โดยไม่เปลี่ยนสีการ์ด
+        hasOrderAlert && "pos-table-card-alert",
+        selected && "bg-primary/10 shadow-lg shadow-primary/15 ring-2 ring-primary ring-offset-2 ring-offset-background"
       )}
       onClick={() => onOpen(table)}
       onKeyDown={(event) => {
@@ -332,6 +419,7 @@ function TableCard({
             </Badge>
           ) : null}
           <span
+            aria-hidden="true"
             className={cn(
               "absolute right-2.5 top-2.5 size-3 rounded-full border-[3px] border-background shadow-sm sm:right-3 sm:top-3",
               style.dot
@@ -353,11 +441,11 @@ function TableCard({
             style.footer
           )}
         >
-          <UserRound />
+          <UserRound aria-hidden="true" className="size-3.5" />
           <span>{seats || "-"}</span>
           {checkInTime ? (
             <span className="ml-auto flex items-center gap-1">
-              <Clock className="size-3.5" />
+              <Clock aria-hidden="true" className="size-3.5" />
               {checkInTime}
             </span>
           ) : null}

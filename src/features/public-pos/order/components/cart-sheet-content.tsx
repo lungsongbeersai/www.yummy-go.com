@@ -6,14 +6,14 @@ import { Alert, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  Drawer,
-  DrawerClose,
-  DrawerContent,
-  DrawerDescription,
-  DrawerFooter,
-  DrawerHeader,
-  DrawerTitle,
-} from "@/components/ui/drawer";
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import {
   Empty,
   EmptyDescription,
@@ -75,12 +75,10 @@ export function CartSheetContent({
     .join(" · ");
 
   return (
-    <Drawer
-      open={open}
-      onOpenChange={onOpenChange}
-      direction={isMobile ? "bottom" : "right"}
-    >
-      <DrawerContent
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent
+        side={isMobile ? "bottom" : "right"}
+        showCloseButton={false}
         aria-busy={loading || saving || confirming}
         className={cn(
           "yg-shell overflow-hidden border-yg-line p-0 font-yg-sans text-yg-ink",
@@ -89,21 +87,21 @@ export function CartSheetContent({
             : "h-dvh max-h-none w-full max-w-120 rounded-none border-l sm:max-w-120"
         )}
       >
-        <DrawerHeader className="border-b border-yg-line bg-yg-bg2/85 px-4 py-3.5 text-left backdrop-blur-xl">
+        <SheetHeader className="border-b border-yg-line bg-yg-bg2/85 px-4 py-3.5 text-left backdrop-blur-xl">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <DrawerTitle className="lao-tone-text truncate font-yg-sans text-lg font-semibold leading-snug text-yg-ink">
+              <SheetTitle className="lao-tone-text truncate font-yg-sans text-lg font-semibold leading-snug text-yg-ink">
                 {t("pos.basket")}
-              </DrawerTitle>
-              <DrawerDescription className="text-xs font-medium text-yg-muted">
+              </SheetTitle>
+              <SheetDescription className="text-xs font-medium text-yg-muted">
                 {orderMeta || t("pos.newOrder")}
-              </DrawerDescription>
+              </SheetDescription>
             </div>
             <div className="flex shrink-0 items-center gap-1">
               <Badge className="h-7 rounded-full border-yg-accent-line bg-yg-accent-soft px-2.5 text-[11px] font-extrabold text-yg-accent-strong">
                 {totalItemQty} {t("pos.cartItems")}
               </Badge>
-              <DrawerClose asChild>
+              <SheetClose asChild>
                 <Button
                   type="button"
                   variant="ghost"
@@ -114,10 +112,10 @@ export function CartSheetContent({
                 >
                   <X aria-hidden="true" />
                 </Button>
-              </DrawerClose>
+              </SheetClose>
             </div>
           </div>
-        </DrawerHeader>
+        </SheetHeader>
 
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3.5 py-3.5">
           {loading ? <CartSheetLoadingSkeleton /> : null}
@@ -158,7 +156,7 @@ export function CartSheetContent({
         </div>
 
         {loading || allItems.length ? (
-          <DrawerFooter className="border-t border-yg-line bg-yg-bg/45 p-3.5 pb-[calc(1rem+env(safe-area-inset-bottom))] backdrop-blur-md">
+          <SheetFooter className="border-t border-yg-line bg-yg-bg/45 p-3.5 pb-[calc(1rem+env(safe-area-inset-bottom))] backdrop-blur-md">
             {loading ? (
               <CartSheetFooterSkeleton />
             ) : (
@@ -237,9 +235,9 @@ export function CartSheetContent({
                 )}
               </>
             )}
-          </DrawerFooter>
+          </SheetFooter>
         ) : null}
-      </DrawerContent>
+      </SheetContent>
       <CartNoteDialog
         note={noteDraft}
         open={Boolean(noteTarget)}
@@ -255,7 +253,7 @@ export function CartSheetContent({
         onOpenChange={onQuantityOpenChange}
         onSubmit={onSubmitQuantity}
       />
-    </Drawer>
+    </Sheet>
   );
 }
 

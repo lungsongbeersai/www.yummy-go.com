@@ -7,6 +7,7 @@ import { ProductSortStatus } from "@/services/pos";
 import type {
   BillDiscountInput,
   CancelOrderItemInput,
+  CancelOrderItemResponse,
   CartOrder,
   CateProductItem,
   CateWithProducts,
@@ -150,7 +151,7 @@ interface PosState {
   loadTableQr: (tableUuid: string) => Promise<TableQRResponse>;
   confirmKitchen: (input: ConfirmToKitchenInput) => Promise<ConfirmToKitchenResponse>;
   confirmServed: (input: ConfirmOrderItemServedInput) => ReturnType<typeof posService.confirmOrderItemServed>;
-  cancelItem: (input: CancelOrderItemInput) => ReturnType<typeof posService.cancelOrderItem>;
+  cancelItem: (input: CancelOrderItemInput) => Promise<CancelOrderItemResponse>;
   updateNote: (input: UpdateOrderNoteInput) => ReturnType<typeof posService.updateOrderNote>;
   createPayment: (input: PaymentInput) => Promise<PaymentResponse>;
   splitBill: (input: SplitBillInput) => Promise<SplitBillResponse>;
@@ -440,7 +441,22 @@ export const usePosStore = create<PosState>((set, get) => ({
 
   },
   confirmServed: (input) => posService.confirmOrderItemServed(input),
-  cancelItem: (input) => posService.cancelOrderItem(input),
+  cancelItem: async (input) => {
+    const isCurrentSession = createSessionGuard();
+    // login_uuid_fk เป็น optional บน CancelOrderItemInput — ไม่มีก็ข้าม resolve printer ไปเลย
+    // (ยกเลิกยังสำเร็จตามปกติ แค่ไม่มี print_job ให้พิมพ์ใบเสร็จยกเลิกต่อ)
+    const printer = input.login_uuid_fk
+      ? await resolvePosPrinterContext({ ...input, login_uuid_fk: input.login_uuid_fk })
+      : null;
+    assertCurrentSession(isCurrentSession);
+
+    return posService.cancelOrderItem({
+      ...input,
+      device_code: printer?.device_code ?? input.device_code,
+      agent_id: printer?.agent_id ?? input.agent_id,
+      print_mode: printer?.print_mode ?? input.print_mode,
+    });
+  },
   updateNote: (input) => posService.updateOrderNote(input),
   createPayment: async (input) => {
     const isCurrentSession = createSessionGuard();

@@ -554,7 +554,7 @@ function ProductToppingRow({
       <FieldLabel
         htmlFor={id}
         className={cn(
-          "min-h-11 min-w-40 flex-1 cursor-pointer items-center gap-3 text-sm font-bold text-yg-ink",
+          "min-h-11 min-w-40 flex-1 cursor-pointer items-center gap-3 text-sm font-bold text-yg-ink has-data-checked:bg-transparent dark:has-data-checked:bg-transparent",
           !enabled && "cursor-not-allowed",
         )}
       >
@@ -564,7 +564,7 @@ function ProductToppingRow({
           name={`topping-${topping.prodToppingUuid}`}
           checked={selected}
           disabled={!enabled || saving}
-          onChange={onToggle}
+          onCheckedChange={onToggle}
           className="size-5 border-yg-faint data-[state=checked]:border-yg-accent data-[state=checked]:bg-yg-accent data-[state=checked]:text-yg-on-accent"
         />
         <span className="lao-tone-text line-clamp-2 min-w-0 wrap-break-word">

@@ -267,6 +267,9 @@ html[data-font-scale="lg"] {
 
 html {
   min-height: 100%;
+  /* กัน scroll chaining ไม่ให้ลากบานลอย (Drawer/Sheet) แล้วหน้าหลังบานเลื่อนตามบน
+     Chrome/Android — vaul ล็อก body ด้วย position:fixed เฉพาะ Safari เท่านั้น */
+  overscroll-behavior: none;
 }
 
 @media (pointer: coarse) {
@@ -1116,6 +1119,7 @@ body {
   margin: 0;
   background-attachment: fixed;
   color: var(--foreground);
+  overscroll-behavior: none;
   font-family:
     var(--font-noto-sans-lao),
     "Aptos",
@@ -1898,7 +1902,7 @@ html.theme-transition-active[data-theme-transition-direction="ltr"]::view-transi
   }
 }
 
-/* ใช้กับ ZoneChip ที่มีออเดอร์ใหม่ค้างอยู่ — ring กะพริบไม่แตะพื้นหลัง/ตัวหนังสือ
+/* ใช้กับ ZoneToggleItem ที่มีออเดอร์ใหม่ค้างอยู่ — ring กะพริบไม่แตะพื้นหลัง/ตัวหนังสือ
    ของชิปเลย จึงไม่มีทางทำให้คอนทราสต์ตกเหมือนของเดิมที่กะพริบพื้นหลัง */
 .pos-chip-alert-ring {
   animation: pos-chip-alert-ring-pulse 1.4s ease-in-out infinite;

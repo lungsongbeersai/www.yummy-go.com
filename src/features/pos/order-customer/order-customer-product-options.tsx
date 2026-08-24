@@ -499,13 +499,13 @@ function ToppingOptionRow({
       )}
     >
       <FieldLabel
-        className="min-h-11 min-w-18 flex-1 cursor-pointer items-center gap-3 text-sm font-black"
+        className="min-h-11 min-w-18 flex-1 cursor-pointer items-center gap-3 text-sm font-black has-data-checked:bg-transparent dark:has-data-checked:bg-transparent"
       >
         <Checkbox
           id={id}
           checked={selected}
           className="size-5"
-          onChange={onToggle}
+          onCheckedChange={onToggle}
         />
         <span className="truncate">{label}</span>
       </FieldLabel>

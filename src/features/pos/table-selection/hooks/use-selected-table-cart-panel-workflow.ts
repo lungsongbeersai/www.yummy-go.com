@@ -97,6 +97,7 @@ export function useSelectedTableCartPanelWorkflow({
   const applyItemDiscount = usePosStore((state) => state.applyItemDiscount);
   const applyBillDiscount = usePosStore((state) => state.applyBillDiscount);
   const executeKitchen = usePrinterStore((state) => state.executeKitchen);
+  const executeInvoice = usePrinterStore((state) => state.executeInvoice);
   const showToast = useToastStore((state) => state.show);
   const selectedTable = table?.table_uuid ? table : null;
   const hasSelectedTable = Boolean(selectedTable);
@@ -503,6 +504,38 @@ export function useSelectedTableCartPanelWorkflow({
     });
   }
 
+  // ใบเสร็จยกเลิก: พิมพ์ผ่าน executeInvoice (ack:false) ไม่ใช่ executeKitchen (ack:true) —
+  // cancel_order_item เปลี่ยนสถานะ order item เสร็จตั้งแต่ตัว PATCH เอง ใบเสร็จที่พิมพ์ตามมา
+  // เป็นแค่เอกสารพิสูจน์ ไม่ใช่ trigger ปิดงานแบบใบสั่งครัว จึงพิมพ์ไม่สำเร็จก็ไม่ throw
+  // (ไม่ทำให้การยกเลิกที่สำเร็จแล้วดูเหมือนล้มเหลว) แค่รายงานผลกลับไปให้ toast รอง
+  async function executeCancelReceiptPrint(
+    response: Awaited<ReturnType<typeof cancelItem>>,
+    fallbackLoginUuid: string,
+    printerCtx?: PrinterDeviceContext | null,
+  ) {
+    const printJob = response.print_job;
+    const printJobUuid = optionalString(
+      printJob?.print_job_uuid,
+      response.pending_query?.print_job_uuid,
+    );
+    if (!printJobUuid) return { successCount: 0, failedCount: 0, total: 0 };
+
+    const loginUuid = optionalString(
+      response.pending_query?.login_uuid_fk,
+      fallbackLoginUuid,
+    );
+    if (!loginUuid) return { successCount: 0, failedCount: 0, total: 0 };
+
+    return executeInvoice({
+      print_job: printJob,
+      pending_query: response.pending_query,
+      login_uuid_fk: loginUuid,
+      device_code: printerCtx?.device_code,
+      agent_id: printerCtx?.agent_id,
+      print_mode: printerCtx?.print_mode,
+    });
+  }
+
   // เมื่อมาถึงจุดนี้ confirmKitchen ผ่านครบทุกกลุ่มแล้ว (ถ้าพลาดจะถูกโยนไปเข้า catch)
   // ⇒ ยืนยันออเดอร์สำเร็จเสมอ ส่วนปัญหาการพิมพ์แจ้งแยกต่างหาก ไม่ปนกับผลการยืนยันออเดอร์
   function showKitchenConfirmResult(result: {
@@ -664,13 +697,27 @@ export function useSelectedTableCartPanelWorkflow({
     setActingItemUuid(actionTargetUuid);
     try {
       const successKey = itemActionTarget.action === "delete" ? "pos.itemActionSuccess" : "pos.itemCancelSuccess";
+      let cancelPrintResult: { successCount: number; failedCount: number; total: number; errorMessage?: string } | null = null;
       if (itemActionTarget.action === "delete") {
         await deleteItem(actionTargetUuid);
       } else {
-        await cancelItem({ order_it_uuid: actionTargetUuid });
+        const response = await cancelItem({ order_it_uuid: actionTargetUuid, login_uuid_fk: user?.uuid });
+        cancelPrintResult = await executeCancelReceiptPrint(response, user?.uuid ?? "", activePrinterContext);
       }
       await onTableActionComplete();
       showToast({ title: t(successKey), tone: "success" });
+      if (cancelPrintResult && cancelPrintResult.failedCount > 0) {
+        showToast({
+          title: t("report.printFailed"),
+          description: [
+            `${cancelPrintResult.failedCount}/${cancelPrintResult.total || cancelPrintResult.failedCount}`,
+            cancelPrintResult.errorMessage,
+          ]
+            .filter(Boolean)
+            .join(" — "),
+          tone: "info",
+        });
+      }
       setItemActionTarget(null);
     } catch (error) {
       showToast({

@@ -584,11 +584,24 @@ export interface ConfirmOrderItemServedInput { order_it_uuid: string }
 // ถูกเรียกจากตะกร้า POS แบบเดิม (order_it_uuid อย่างเดียว ไม่มี field พวกนี้) ด้วย
 export interface CancelOrderItemInput {
   order_it_uuid: string;
+  // ต้องมีให้ resolvePosPrinterContext() หา printer ก่อนพิมพ์ใบเสร็จยกเลิกได้ — เป็น optional
+  // เพราะ pos-order-queue-store เรียก endpoint นี้ตรง ๆ (resolve printer เองแยกต่างหากอยู่แล้ว)
+  login_uuid_fk?: string;
   device_code?: string;
   agent_id?: string;
   print_mode?: string;
   cancel_reason?: string;
   lang?: string;
+}
+// print_job/pending_query เหมือน ConfirmToKitchenResponse — แต่พิมพ์ผ่าน executeInvoicePrintJobs
+// (ack:false) ไม่ใช่ executeKitchenPrintJobs (ack:true) เพราะ cancel_order_item เปลี่ยนสถานะ
+// order item เสร็จสิ้นไปแล้วที่ตัว PATCH เอง ใบเสร็จยกเลิกที่พิมพ์ตามมาเป็นแค่เอกสารพิสูจน์
+// ไม่ใช่ trigger เปลี่ยนสถานะเพิ่มเติมแบบใบสั่งครัว
+export interface CancelOrderItemResponse extends ApiEntity {
+  status: string;
+  message: string;
+  print_job?: ConfirmToKitchenPrintJob;
+  pending_query?: ConfirmToKitchenPendingQuery;
 }
 
 export interface ConfirmOrderItemsServedInput {
@@ -596,36 +609,74 @@ export interface ConfirmOrderItemsServedInput {
   lang?: string;
 }
 
-export interface OrderQueueTopping {
-  prod_topping_uuid_fk: string;
-  topping_name: string;
-  topping_qty: number;
-  topping_total_qty: number;
-}
-export interface OrderQueueItem extends ApiEntity {
-  order_uuid: string;
-  table_name: string;
+// ยืนยันจาก response จริงของ backend (2026-08-24) — endpoint นี้ตอบ envelope มาตรฐาน
+// { status: "success" | "error" } ไม่ใช่ status ตัวเลขแบบที่เอกสารเก่าระบุไว้ และคืนข้อมูล
+// "ทุก section" กลับมาพร้อมกันเสมอ (ไม่ filter ตาม query `status` — query แค่กำหนดว่า section
+// ไหนตั้ง selected: true) แต่ละ order รวม item ไว้เป็น items[] ซ้อนอยู่ข้างใน ไม่ใช่ item
+// รายตัวแบบ flat ต้อง flatten เอาเองฝั่ง frontend (ดู order-queue-normalizers.ts)
+export interface OrderQueueItem {
   order_item_uuid: string;
-  title: string;
-  order_qty: number;
-  order_note: string;
   order_item_status: number;
-  order_item_status_text: string;
-  toppings: OrderQueueTopping[];
+  product_name: string;
+  // อาจเป็น URL รูปสินค้า หรือ hex color (เช่น "#10B981") เมื่อสินค้าไม่มีรูป — ดูตัวอย่างการ
+  // แยกสองแบบนี้ใน pos/table-selection/cart-items.tsx (cartItemMedia)
+  product_image: string;
+  qty: number;
+  note: string;
+  kitchen_print_queued: boolean;
+  can_send_to_kitchen: boolean;
+  can_confirm_served: boolean;
+}
+// ร้านไม่มีโต๊ะ (store_table_status === 2) ทำให้ order.table เป็น null ได้
+export interface OrderQueueOrderTable {
+  table_uuid: string;
+  table_name: string;
+  table_status: number;
+}
+export interface OrderQueueOrder {
+  order_uuid: string;
+  invoice: string;
+  table: OrderQueueOrderTable | null;
+  items: OrderQueueItem[];
+}
+export interface OrderQueueSection {
+  key: string;
+  title: string;
+  status: number;
+  total: number;
+  selected: boolean;
+  // มีแค่ section ที่ selected: true (ตรงกับ query `status`) เท่านั้นที่ orders[] จะมีข้อมูลจริง
+  // — section อื่นได้ total ที่ถูกต้อง (ใช้ทำ badge ได้) แต่ orders เป็น [] เสมอแม้ total > 0
+  // ดังนั้นต้อง fetch ใหม่ทุกครั้งที่สลับ tab จะเอา orders มา flatten ไม่ได้จาก response เก่า
+  orders: OrderQueueOrder[];
 }
 export interface FetchOrderQueueParams {
   branch_uuid_fk: string;
   status: number;
   lang?: string;
 }
-// endpoint นี้ไม่ได้ห่อ envelope มาตรฐาน { status: "success", data } — `status` คือรหัส
-// สถานะออเดอร์ตัวเลขตัวเดียวกับที่ query ไป (ดู order-queue-requests.ts ที่ bypass apiRequest)
 export interface FetchOrderQueueResponse {
-  status: number;
+  status: string;
   message: string;
-  status_name: string;
-  total: number;
-  data: OrderQueueItem[];
+  selected: string;
+  sections: OrderQueueSection[];
+}
+// แถวที่ flatten แล้ว — รวม context ระดับ order (table_name/invoice) เข้ากับ item แต่ละตัว
+// เพราะหน้า order-queue ต้องการโครงสร้าง flat หนึ่งแถวต่อหนึ่ง order_item (แต่ยัง group กลับ
+// เป็นก้อนต่อออเดอร์ได้ตาม order_uuid — ดู groupOrderQueueRows ใน order-queue-view.ts)
+export interface OrderQueueRow extends ApiEntity {
+  order_item_uuid: string;
+  order_uuid: string;
+  order_invoice: string;
+  table_name: string | null;
+  order_item_status: number;
+  product_name: string;
+  product_image: string;
+  qty: number;
+  note: string;
+  kitchen_print_queued: boolean;
+  can_send_to_kitchen: boolean;
+  can_confirm_served: boolean;
 }
 export interface SendToKitchenInput {
   order_item_uuids: string[];

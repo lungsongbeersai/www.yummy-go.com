@@ -131,7 +131,9 @@ function FlyProductMedia({ product }: { product: CateProductItem | ProdItem }) {
         className="grid h-full w-full place-items-center"
         style={{ backgroundColor: colorSwatch }}
       >
-        <Utensils className="size-8 text-background/85 drop-shadow" />
+        <span className="grid size-10 place-items-center rounded-full bg-black/20 text-white backdrop-blur-sm">
+          <Utensils className="size-5" aria-hidden="true" />
+        </span>
       </div>
     );
   }

@@ -1,4 +1,4 @@
-import { apiClient, apiRequest, ServiceError } from "@/lib/api";
+import { apiRequest } from "@/lib/api";
 import { toApiLanguage } from "@/lib/language";
 import { requiredItems, requiredText } from "@/services/shared/validators";
 import type {
@@ -9,38 +9,21 @@ import type {
   SendToKitchenResponse
 } from "@/services/pos/types";
 
-function normalizeError(error: unknown, fallback = "Request failed") {
-  if (error instanceof ServiceError) return error;
-
-  return new ServiceError(
-    error instanceof Error ? error.message : fallback,
-    500,
-    error
-  );
-}
-
-// endpoint นี้ตอบ { status: <รหัสสถานะออเดอร์ตัวเลข>, data, ... } ไม่ใช่ envelope
-// มาตรฐาน { status: "success" } จึงเรียก apiClient ตรง ข้าม apiRequest/assertApiSuccess
-// เพื่อไม่ให้โดน throw ผิดพลาดทุกครั้งที่ status ที่ query ไปไม่ใช่ "success"
 export async function fetchOrderQueue(params: FetchOrderQueueParams) {
   requiredText(params.branch_uuid_fk, "branch_uuid_fk");
 
-  try {
-    const response = await apiClient.get<FetchOrderQueueResponse>(
-      "/api/v1/posAll/customer_order_queue",
-      {
-        params: {
-          branch_uuid_fk: params.branch_uuid_fk,
-          status: params.status,
-          lang: toApiLanguage(params.lang)
-        }
+  return apiRequest<FetchOrderQueueResponse>(
+    "get",
+    "/api/v1/posAll/customer_order_queue",
+    {
+      params: {
+        branch_uuid_fk: params.branch_uuid_fk,
+        status: params.status,
+        lang: toApiLanguage(params.lang)
       }
-    );
-
-    return response.data;
-  } catch (error) {
-    throw normalizeError(error, "Failed to fetch order queue");
-  }
+    },
+    "Failed to fetch order queue"
+  );
 }
 
 export const sendToKitchen = (input: SendToKitchenInput) => {

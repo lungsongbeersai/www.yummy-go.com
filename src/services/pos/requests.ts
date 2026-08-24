@@ -13,6 +13,7 @@ import type {
   BillDiscountInput,
   BillDiscountResponse,
   CancelOrderItemInput,
+  CancelOrderItemResponse,
   CartOrder,
   ConfirmOrderItemServedInput,
   ConfirmToKitchenInput,
@@ -163,7 +164,7 @@ export const confirmOrderItemServed = (input: ConfirmOrderItemServedInput) =>
   });
 
 export const cancelOrderItem = (input: CancelOrderItemInput) =>
-  apiRequest<{ status: string; message: string }>("patch", "/api/v1/pos/cancel_order_item", { data: input });
+  apiRequest<CancelOrderItemResponse>("patch", "/api/v1/posAll/cancel_order_item", { data: input });
 
 export const updateOrderNote = (input: UpdateOrderNoteInput) =>
   apiRequest<UpdateOrderNoteResponse>("patch", "/api/v1/pos/update_note", { data: input });
@@ -189,7 +190,7 @@ export const createTableQR = (params: CreateTableQRRequest) =>
   });
 
 export const printInvoice = (params: PrintInvoiceRequest) =>
-  apiRequest<PrintInvoiceResponse>("post", "/api/v1/pos/print_invoice", {
+  apiRequest<PrintInvoiceResponse>("post", "/api/v1/posAll/print_invoice", {
     data: {
       login_uuid_fk: params.login_uuid_fk,
       order_uuid: params.order_uuid,

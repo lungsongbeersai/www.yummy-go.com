@@ -4,7 +4,6 @@ import { useRef, useSyncExternalStore, type ReactNode } from "react";
 import { Grid2X2, List, Loader2, Search } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { PUBLIC_MENU_KIND } from "@/stores/public-pos-store";
@@ -128,35 +127,43 @@ export function ProductBrowseContent({
         <PublicMenuHero onSearch={search.openSearchSheet} />
       ) : null}
 
+      {/* บาร์นี้ sticky ตลอดการเลื่อน — เดิมมี backdrop-blur-xl ซึ่งบังคับให้เบราว์เซอร์
+          re-blur พื้นหลังทุกเฟรมขณะเลื่อน (สาเหตุหลักของอาการกระตุกบนจอ 120Hz)
+          ตัด blur ออก ใช้พื้นทึบเกือบเต็ม (opacity สูง) แทน หน้าตาแทบไม่ต่างแต่ compositing ถูกกว่ามาก */}
       <div
         ref={categoryBarRef}
-        className="yg-rise yg-rise-1 sticky top-0 z-20 -mx-(--yg-gutter) bg-yg-bg/85 px-(--yg-gutter) py-2 backdrop-blur-xl"
+        className="yg-rise yg-rise-1 sticky top-0 z-20 -mx-(--yg-gutter) bg-yg-bg/95 px-(--yg-gutter) py-2"
       >
         <div className="mx-auto flex max-w-280 flex-col gap-2">
-          <form className="flex gap-2" onSubmit={search.handleSearchSubmit}>
-            <div className="relative min-w-0 flex-1">
-              <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-yg-faint" />
-
-              <Input
-                className="h-11 cursor-pointer rounded-2xl border-yg-line bg-yg-panel pl-10 text-sm font-medium text-yg-ink shadow-none backdrop-blur-md placeholder:text-yg-faint focus-visible:border-yg-accent-line focus-visible:ring-yg-accent/40"
-                value={search.searchText}
-                readOnly
-                aria-expanded={search.searchOpen}
-                aria-haspopup="dialog"
-                onClick={search.openSearchSheet}
-                onFocus={search.openSearchSheet}
-                placeholder={t("pos.searchMenu")}
-              />
-            </div>
-
+          <div className="flex gap-2">
             <Button
-              type="submit"
-              size="icon"
-              className="size-11 rounded-2xl bg-yg-accent text-yg-on-accent shadow-[0_8px_20px_-10px_var(--yg-accent)] hover:bg-yg-accent hover:brightness-105"
-              aria-label={t("pos.searchMenu")}
+              type="button"
+              variant="outline"
+              onClick={search.openSearchSheet}
+              aria-haspopup="dialog"
+              aria-expanded={search.searchOpen}
               disabled={loadingMenu}
+              className="relative h-11 min-w-0 flex-1 justify-start rounded-2xl border-yg-line bg-yg-panel pl-10 pr-4 text-sm font-medium shadow-none backdrop-blur-md hover:border-yg-accent-line hover:bg-yg-panel disabled:opacity-100"
             >
-              {loadingMenu ? <Loader2 className="animate-spin" /> : <Search />}
+              {loadingMenu ? (
+                <Loader2
+                  className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 animate-spin text-yg-faint"
+                  aria-hidden="true"
+                />
+              ) : (
+                <Search
+                  className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-yg-faint"
+                  aria-hidden="true"
+                />
+              )}
+              <span
+                className={cn(
+                  "truncate",
+                  search.searchText ? "text-yg-ink" : "text-yg-faint",
+                )}
+              >
+                {search.searchText || t("pos.searchMenu")}
+              </span>
             </Button>
 
             <div
@@ -177,7 +184,7 @@ export function ProductBrowseContent({
                 onClick={() => handleProductLayoutModeChange("list")}
               />
             </div>
-          </form>
+          </div>
 
           {visibleCategoryTabs.length ? (
             <Tabs
@@ -265,6 +272,7 @@ export function ProductBrowseContent({
         loadingProductUuid={cartActions.loadingProductUuid}
         onProductClick={cartActions.handleProductClick}
         onRevealMore={revealMoreRailProducts}
+        cardKind="set"
       />
 
       {renderedMenuSections.length ? (
