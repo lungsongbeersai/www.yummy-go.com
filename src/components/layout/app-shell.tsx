@@ -72,6 +72,15 @@ import { FloatingSettingsButton } from "@/components/layout/floating-settings-bu
 import { NotificationMenu } from "@/components/layout/notification-menu";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import {
+  activeMenuTitles,
+  hasActiveRoute,
+  isFixedDataScreen,
+  isImmersiveScreen,
+  menuItemLabel,
+  routeIsActive,
+  userInitials,
+} from "@/components/layout/shell-menu-helpers";
+import {
   resolveShellBreadcrumbs,
   type BreadcrumbTrailItem,
 } from "@/components/layout/shell-breadcrumbs";
@@ -90,67 +99,6 @@ import {
 } from "@/stores/permissions-sidebar-store";
 
 const POS_ANDROID_SYSTEM_SCREEN_CLASS = "pos-android-system-screen";
-const FIXED_DATA_SCREEN_PATHS = new Set([
-  "/printers",
-  "/package",
-  "/products",
-  "/stock",
-  "/sales/cancel-history",
-  "/sales/cancel-sale",
-  "/sales/sales-list"
-]);
-const FIXED_DATA_SCREEN_PREFIXES = ["/settings/", "/report/"] as const;
-
-function menuKey(title: string) {
-  return `nav.${title}`;
-}
-
-function menuItemLabel(
-  item: Pick<MenuItem, "label" | "title">,
-  t: (key: string) => string,
-) {
-  return item.label || t(menuKey(item.title));
-}
-
-function routeIsActive(pathname: string, path?: string) {
-  if (!path) return false;
-  if (path === "/") return pathname === "/";
-  return pathname === path || pathname.startsWith(`${path}/`);
-}
-
-function hasActiveRoute(item: MenuItem, pathname: string): boolean {
-  if (routeIsActive(pathname, item.path)) return true;
-  return (
-    item.children?.some((child) => hasActiveRoute(child, pathname)) ?? false
-  );
-}
-
-function isFixedDataScreen(pathname: string, immersiveScreen: boolean) {
-  return (
-    immersiveScreen ||
-    FIXED_DATA_SCREEN_PATHS.has(pathname) ||
-    FIXED_DATA_SCREEN_PREFIXES.some((prefix) => pathname.startsWith(prefix))
-  );
-}
-
-function activeMenuTitles(items: MenuItem[], pathname: string): string[] {
-  return items.flatMap((item) => {
-    if (!item.children?.length || !hasActiveRoute(item, pathname)) return [];
-    return [item.title, ...activeMenuTitles(item.children, pathname)];
-  });
-}
-
-function userInitials(user: AuthUser | null) {
-  const source = user?.store_name || user?.branch_name || user?.email || "YG";
-  return (
-    source
-      .split(/[^\p{L}\p{N}]+/u)
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((part) => part[0]?.toUpperCase())
-      .join("") || "YG"
-  );
-}
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -196,11 +144,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     if (trail[0]?.path === "/") return trail;
     return [home, ...trail];
   }, [menuItems, pathname]);
-  const immersiveScreen =
-    pathname === "/pos/tables" ||
-    pathname === "/pos/order";
+  const immersiveScreen = isImmersiveScreen(pathname);
   const dashboardScreen = pathname === "/";
-  const fixedDataScreen = isFixedDataScreen(pathname, immersiveScreen);
+  const fixedDataScreen = isFixedDataScreen(pathname);
   const [openMenus, setOpenMenus] = useState<Set<string>>(
     () => new Set(activeMenuTitles(menuItems, pathname)),
   );
