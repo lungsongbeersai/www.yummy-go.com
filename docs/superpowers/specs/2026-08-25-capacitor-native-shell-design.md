@@ -130,9 +130,9 @@ Several things outside `app-shell.tsx` read the web shell's DOM/CSS contract. Th
 
 A single thin progress line under the Capacitor top bar, shown only once a navigation exceeds ~120ms (avoids flashing on instant transitions), covering the gap between tapping a link and the RSC route commit. No blocking overlay, no per-route skeleton beyond what features already render.
 
-### 9. Motion
+### 9. Motion — deferred, not implemented in this pass
 
-Tab switches and drill-in/back transitions use the existing `motion` dependency (already used in `product-list-mobile.tsx`) for a light fade/slide — no new animation dependency, and no attempt to build a full native page-stack; Next.js App Router already owns real routing/back behavior.
+An earlier draft of this spec called for `motion`-driven fade/slide on tab switches. Dropped on review: animating a content swap in App Router means an `AnimatePresence` keyed on `pathname` wrapping `children`, which fights scroll restoration and Suspense boundaries, and reflows exactly the `fixedDataScreen` layouts whose height math §7 works to keep stable. §8's progress line already covers the real need (feedback that a tap registered). Revisit as its own change once the shell is stable on device — with a working shell to test against, the risk becomes measurable instead of speculative.
 
 ## Testing
 
@@ -147,5 +147,6 @@ Visual/interaction behavior of the bottom nav, side rail, "More" sheet, and top 
 
 ## Open follow-ups (explicitly out of scope for this pass)
 
+- Page-transition motion (§9) — deferred with reasons, revisit against a working shell.
 - Redesigning individual feature screens (POS order/tables as native-style card lists instead of data tables) — a separate, later spec if wanted.
 - iOS: this spec targets the Android Capacitor build in place today; the same shell should work for iOS once/if that platform is added, but hasn't been verified against it.
