@@ -107,6 +107,10 @@ describe("isDestinationActive", () => {
     expect(isDestinationActive(sales, "/sales/sales-list")).toBe(true);
   });
 
+  it("matches a pathname that hits only the group's own path", () => {
+    expect(isDestinationActive(sales, "/sale")).toBe(true);
+  });
+
   it("does not treat the dashboard as a prefix of everything", () => {
     expect(isDestinationActive(dashboard, "/")).toBe(true);
     expect(isDestinationActive(dashboard, "/products")).toBe(false);
