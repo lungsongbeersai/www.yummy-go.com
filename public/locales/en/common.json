@@ -39,6 +39,9 @@
     "theme": "Theme",
     "toggleTheme": "Toggle theme",
     "retryMenu": "Retry navigation",
+    "more": "More",
+    "navigation": "Main navigation",
+    "moreNavigation": "More menu",
     "appearance": {
       "openSettings": "Appearance settings",
       "title": "Appearance",

@@ -1298,6 +1298,39 @@ html.theme-transition-active[data-theme-transition-direction="ltr"]::view-transi
   box-shadow: none;
 }
 
+/* Capacitor shell: top bar สั้นกว่าเว็บ และมี bottom nav กินพื้นที่ล่างเพิ่ม
+   คง --app-shell-header-height ไว้เพราะ dashboard sticky และ .app-shell-body
+   คำนวณความสูงจากตัวแปรนี้ */
+.app-shell[data-platform="capacitor"] {
+  --app-shell-header-height: 56px;
+  --app-shell-bottom-nav-height: calc(64px + env(safe-area-inset-bottom, 0px));
+  --app-shell-side-rail-width: 0px;
+}
+
+/* คีย์บอร์ด Android ดัน bottom bar ขึ้นมาทับช่องกรอก — ยุบความสูงทิ้งระหว่างพิมพ์ */
+.app-shell[data-platform="capacitor"][data-keyboard-open="true"] {
+  --app-shell-bottom-nav-height: 0px;
+}
+
+@media (min-width: 768px) {
+  .app-shell[data-platform="capacitor"] {
+    --app-shell-bottom-nav-height: 0px;
+    --app-shell-side-rail-width: 88px;
+  }
+}
+
+.native-top-bar {
+  background: color-mix(in oklch, var(--card) 96%, transparent);
+  box-shadow: 0 10px 30px -28px rgb(15 23 42 / 0.45);
+  backdrop-filter: blur(24px);
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+.dark .native-top-bar {
+  background: hsl(var(--app) / 0.85);
+  box-shadow: none;
+}
+
 .ui-card {
   box-shadow: 0 16px 40px -34px rgb(15 23 42 / 0.55);
 }
