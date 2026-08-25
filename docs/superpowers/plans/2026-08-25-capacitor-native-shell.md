@@ -1126,7 +1126,10 @@ export function NativeAppShell({ children }: { children: React.ReactNode }) {
         id="app-main-content"
         tabIndex={-1}
         className={cn(
-          "min-w-0 flex-1 pb-(--app-shell-bottom-nav-height)",
+          // app-shell-body คือ class ที่ globals.css ใช้คำนวณความสูงจริงจาก
+          // --app-shell-header-height (ดู .app-shell-body / [data-fixed-screen="true"] .app-shell-body
+          // ที่เพิ่มใน Step 2) — ขาด class นี้แล้ว dashboard sticky และหน้า fixed-data จะไม่ได้ความสูงที่ถูกต้อง
+          "app-shell-body min-w-0 flex-1 pb-(--app-shell-bottom-nav-height)",
           fixedDataScreen ? "min-h-0 overflow-hidden" : "overflow-visible",
         )}
       >
@@ -1422,7 +1425,10 @@ Add state inside `NativeAppShell`, above the `return`:
 Then restructure the returned tree so the rail sits beside the content while the bottom bar overlays it. Replace the `<main>` element and everything after `<NativeTopBar ... />` with:
 
 ```tsx
-      <div className="flex min-h-0 w-full flex-1">
+      {/* app-shell-body moves here from <main> — this div, not <main> alone, is now the
+          flex-1 row occupying the space below the top bar (side rail + content side by
+          side), matching how the web shell's .app-shell-body wraps sidebar + main together */}
+      <div className="app-shell-body flex min-h-0 w-full flex-1">
         <NativeSideRail
           model={model}
           moreOpen={moreOpen}
@@ -1448,6 +1454,8 @@ Then restructure the returned tree so the rail sits beside the content while the
         pathname={pathname}
       />
 ```
+
+Also remove the now-redundant `app-shell-body` class from `<main>` itself (added in Task 4 Step 4) — it moved to the wrapping `<div>` above, and `<main>` keeps only `min-w-0 flex-1 pb-(--app-shell-bottom-nav-height)` plus the `fixedDataScreen` conditional.
 
 - [ ] **Step 5: Verify**
 
@@ -1858,9 +1866,10 @@ import {
   resolveAndroidBackAction,
   type NativeNavigationModel,
 } from "@/components/layout/native-navigation-model";
-import { isCapacitorNativeApp } from "@/lib/capacitor-platform";
 import { internalRoute } from "@/lib/routes";
 
+// ไม่เช็ค isCapacitorNativeApp() ที่นี่ — hook นี้ mount ได้เฉพาะใต้ NativeAppShell
+// ซึ่ง (protected)/layout.tsx เลือกให้ก็ต่อเมื่อ isCapacitorNativeApp() true อยู่แล้ว (Task 4 Step 5)
 export function useAndroidBackButton({
   model,
   onCloseOverlay,
@@ -1875,8 +1884,6 @@ export function useAndroidBackButton({
   const router = useRouter();
 
   useEffect(() => {
-    if (!isCapacitorNativeApp()) return;
-
     // addListener คืน Promise ของ handle — ต้องเก็บไว้ถอดตอน unmount ไม่งั้น listener ซ้อนกันทุกครั้งที่ deps เปลี่ยน
     const handle = App.addListener("backButton", ({ canGoBack }) => {
       const action = resolveAndroidBackAction({
