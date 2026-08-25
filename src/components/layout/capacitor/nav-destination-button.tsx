@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import { MoreHorizontal } from "lucide-react";
 import { MenuIcon } from "@/components/common/menu-icon";
+import { NativeRouteProgress } from "@/components/layout/capacitor/route-progress";
 import { menuItemLabel } from "@/components/layout/shell-menu-helpers";
 import {
   isDestinationActive,
@@ -37,7 +38,7 @@ export function NavDestinationButton({
       href={internalRoute(destination.path)}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "flex min-h-12 min-w-0 flex-none flex-col items-center justify-center gap-1 rounded-md px-1 py-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "relative flex min-h-12 min-w-0 flex-none flex-col items-center justify-center gap-1 rounded-md px-1 py-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         active
           ? "text-primary"
           : "text-muted-foreground hover:text-foreground",
@@ -47,6 +48,7 @@ export function NavDestinationButton({
       <span className="w-full truncate text-center text-[11px] font-semibold leading-tight">
         {label}
       </span>
+      <NativeRouteProgress />
     </Link>
   );
 }

@@ -19,6 +19,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { MenuIcon } from "@/components/common/menu-icon";
+import { NativeRouteProgress } from "@/components/layout/capacitor/route-progress";
 import {
   menuItemLabel,
   routeIsActive,
@@ -183,7 +184,7 @@ function MoreLink({
       aria-current={active ? "page" : undefined}
       onClick={onNavigate}
       className={cn(
-        "flex min-h-12 items-center gap-3 rounded-md px-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "relative flex min-h-12 items-center gap-3 rounded-md px-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         indented && "pl-10",
         active ? "font-semibold text-primary" : "hover:bg-accent",
       )}
@@ -192,6 +193,7 @@ function MoreLink({
         <MenuIcon value={item.iconName} className="size-5 shrink-0" />
       ) : null}
       <span className="truncate">{label}</span>
+      <NativeRouteProgress />
     </Link>
   );
 }
