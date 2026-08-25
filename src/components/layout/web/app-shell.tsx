@@ -1,11 +1,11 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { useResetOnDeps } from "@/hooks/use-reset-on-change";
 import { usePosOrderAlertListener } from "@/hooks/use-pos-order-alert-listener";
 import { useIsCapacitorNativeApp } from "@/hooks/use-capacitor-native-app";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import {
   ChevronDown,
@@ -74,96 +74,40 @@ import { ThemeToggle } from "@/components/layout/theme-toggle";
 import {
   activeMenuTitles,
   hasActiveRoute,
-  isFixedDataScreen,
-  isImmersiveScreen,
   menuItemLabel,
   routeIsActive,
   userInitials,
 } from "@/components/layout/shell-menu-helpers";
-import {
-  resolveShellBreadcrumbs,
-  type BreadcrumbTrailItem,
-} from "@/components/layout/shell-breadcrumbs";
+import { type BreadcrumbTrailItem } from "@/components/layout/shell-breadcrumbs";
+import { useAppShellData } from "@/components/layout/use-app-shell-data";
 import type { MenuItem } from "@/config/menu";
-import { sidebarPermissionMenuItemsToMenuItems } from "@/config/sidebar-permission-menu";
 import { getStoreLogoUrl, getUserProfileUrl } from "@/lib/image";
 import { useAppStore } from "@/stores/app-store";
-import {
-  authStoreUuid,
-  useAuthStore,
-  type AuthUser,
-} from "@/stores/auth-store";
-import {
-  sidebarMenuCacheKey,
-  usePermissionsSidebarStore,
-} from "@/stores/permissions-sidebar-store";
+import { useAuthStore, type AuthUser } from "@/stores/auth-store";
 
 const POS_ANDROID_SYSTEM_SCREEN_CLASS = "pos-android-system-screen";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
   const { i18n, t } = useTranslation();
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
   const collapsed = useAppStore((state) => state.collapsed);
   const setCollapsed = useAppStore((state) => state.setCollapsed);
-  const sidebarItems = usePermissionsSidebarStore((state) => state.items);
-  const sidebarError = usePermissionsSidebarStore((state) => state.error);
-  const sidebarLoading = usePermissionsSidebarStore((state) => state.loading);
-  const sidebarRequestKey = usePermissionsSidebarStore(
-    (state) => state.requestKey,
-  );
-  const clearSidebarMenu = usePermissionsSidebarStore((state) => state.clearActive);
-  const loadSidebarMenu = usePermissionsSidebarStore((state) => state.load);
   usePosOrderAlertListener({ branchUuid: user?.branch_uuid, language: i18n.language });
-  const storeUuid = authStoreUuid(user);
-  const targetSidebarRequestKey =
-    storeUuid && typeof user?.status === "number"
-      ? sidebarMenuCacheKey(storeUuid, user.status, i18n.language)
-      : "";
-  const sidebarKeyMatches =
-    Boolean(targetSidebarRequestKey) &&
-    sidebarRequestKey === targetSidebarRequestKey;
-  const permissionMenuItems = useMemo(
-    () =>
-      sidebarPermissionMenuItemsToMenuItems(
-        sidebarKeyMatches ? sidebarItems : [],
-      ),
-    [sidebarItems, sidebarKeyMatches],
-  );
-  const menuItems = permissionMenuItems;
-  const menuLoading =
-    Boolean(targetSidebarRequestKey) &&
-    (!sidebarKeyMatches || sidebarLoading) &&
-    menuItems.length === 0;
-  const menuError = sidebarKeyMatches ? sidebarError : null;
-  const breadcrumbs = useMemo(() => {
-    const home: BreadcrumbTrailItem = { path: "/", title: "dashboard" };
-    const trail = resolveShellBreadcrumbs(menuItems, pathname);
-    if (!trail) return [home];
-    if (trail[0]?.path === "/") return trail;
-    return [home, ...trail];
-  }, [menuItems, pathname]);
-  const immersiveScreen = isImmersiveScreen(pathname);
-  const dashboardScreen = pathname === "/";
-  const fixedDataScreen = isFixedDataScreen(pathname);
+  const {
+    breadcrumbs,
+    dashboardScreen,
+    fixedDataScreen,
+    immersiveScreen,
+    menuError,
+    menuItems,
+    menuLoading,
+    pathname,
+    retrySidebarMenu,
+  } = useAppShellData();
   const [openMenus, setOpenMenus] = useState<Set<string>>(
     () => new Set(activeMenuTitles(menuItems, pathname)),
   );
-
-  useEffect(() => {
-    if (!storeUuid || typeof user?.status !== "number") {
-      clearSidebarMenu();
-      return;
-    }
-    void loadSidebarMenu(storeUuid, user.status, i18n.language);
-  }, [
-    clearSidebarMenu,
-    i18n.language,
-    loadSidebarMenu,
-    storeUuid,
-    user?.status,
-  ]);
 
   useEffect(() => {
     if (!fixedDataScreen) return;
@@ -217,11 +161,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       }
       return next;
     });
-  }
-
-  function retrySidebarMenu() {
-    if (!storeUuid || typeof user?.status !== "number") return;
-    void loadSidebarMenu(storeUuid, user.status, i18n.language);
   }
 
   return (
