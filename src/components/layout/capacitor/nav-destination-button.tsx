@@ -2,9 +2,14 @@
 
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
+import { MoreHorizontal } from "lucide-react";
 import { MenuIcon } from "@/components/common/menu-icon";
 import { menuItemLabel } from "@/components/layout/shell-menu-helpers";
-import type { NativeDestination } from "@/components/layout/native-navigation-model";
+import {
+  isDestinationActive,
+  type NativeDestination,
+  type NativeNavigationModel,
+} from "@/components/layout/native-navigation-model";
 import { internalRoute } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import type { MenuItem } from "@/config/menu";
@@ -32,7 +37,7 @@ export function NavDestinationButton({
       href={internalRoute(destination.path)}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "flex min-h-12 min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-md px-1 py-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "flex min-h-12 min-w-0 flex-none flex-col items-center justify-center gap-1 rounded-md px-1 py-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         active
           ? "text-primary"
           : "text-muted-foreground hover:text-foreground",
@@ -64,7 +69,7 @@ export function NavMoreButton({
       aria-label={label}
       onClick={onClick}
       className={cn(
-        "flex min-h-12 min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-md px-1 py-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "flex min-h-12 min-w-0 flex-none flex-col items-center justify-center gap-1 rounded-md px-1 py-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         active ? "text-primary" : "text-muted-foreground hover:text-foreground",
       )}
     >
@@ -73,5 +78,43 @@ export function NavMoreButton({
         {label}
       </span>
     </button>
+  );
+}
+
+// รายการปุ่ม nav ที่ใช้ร่วมกันทั้ง bottom bar และ side rail — เหลือแค่ <nav> wrapper ที่ต่างกันใน caller แต่ละตัว
+export function NativeNavItems({
+  model,
+  moreOpen,
+  onMoreClick,
+  pathname,
+}: {
+  model: NativeNavigationModel;
+  moreOpen: boolean;
+  onMoreClick: () => void;
+  pathname: string;
+}) {
+  const { t } = useTranslation();
+  const anyDirectActive = model.direct.some((destination) =>
+    isDestinationActive(destination, pathname),
+  );
+
+  return (
+    <>
+      {model.direct.map((destination) => (
+        <NavDestinationButton
+          key={destination.path}
+          active={isDestinationActive(destination, pathname)}
+          destination={destination}
+        />
+      ))}
+      {model.more.length ? (
+        <NavMoreButton
+          active={moreOpen || !anyDirectActive}
+          icon={<MoreHorizontal className="size-5 shrink-0" />}
+          label={t("app.more")}
+          onClick={onMoreClick}
+        />
+      ) : null}
+    </>
   );
 }
