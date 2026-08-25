@@ -275,6 +275,14 @@ function dotClass(status: "free" | "busy" | "update") {
 // สูงกับพื้น จุดกลมมุมขวายังคงสีเข้มไว้ให้กวาดสายตาแยกสถานะได้ไว
 // `card` ไม่มี ring สีต่อสถานะแล้ว — ขอบใช้สีเทา/ดำกลาง ๆ ตัวเดียวร่วมกันทุกสถานะ
 // (ring-border ใน TableCard) ให้พื้นหลังเป็นตัวสื่อสถานะอย่างเดียว ไม่ให้ขอบแย่งซีน
+// ทุกคู่สีมี dark: กำกับเสมอ — ค่า raw ({color}-600/15 + text-{color}-900) ที่ไม่มี
+// dark: จะจางจนแยกไม่ออกบนพื้นเข้ม (bg blend เป็นเกือบดำ + ตัวอักษรก็เกือบดำ ⇒ กลืนกัน)
+// รอบแรกลอง dark:bg-{color}-500/20 แต่ 500 เป็นเฉดกลางที่ยังสดเกินไป ผสมแล้วกลายเป็น
+// บล็อกสีทึบดูหนักตา จึงเปลี่ยนมาใช้เฉดเข้มสุด (950) ที่ opacity ต่ำแทน ให้ยังคงหม่น
+// รอบสอง: ตัวอักษรยังใช้ dark:text-{color}-300 ซึ่งเป็นฮิวเดียวกับพื้น (แค่ต่าง shade)
+// — ฮิวเดียวกันทั้งคู่เสี่ยง contrast ตกได้ง่ายมาก (สังเกตุจาก UI จริง) จึงเลิกให้ตัวอักษร
+// สถานะใช้สีต่อฮิวในโหมดมืด เปลี่ยนเป็น text-foreground กลาง ๆ แทน (เหมือนชื่อโต๊ะ/label
+// "โต๊ะ" ที่อ่านออกชัดอยู่แล้ว) ให้สีสถานะสื่อผ่านพื้นหลัง + จุดกลมมุมขวาสองจุดนี้พอ
 const STATUS_STYLE: Record<
   TableVisualStatus,
   { card: string; body: string; footer: string; dot: string; text: string }
@@ -282,55 +290,55 @@ const STATUS_STYLE: Record<
   available: {
     card: "bg-background",
     body: "bg-background",
-    footer: "border-green-200 bg-muted/50",
-    dot: "bg-green-600",
-    text: "text-green-600"
+    footer: "border-green-200 bg-muted/50 dark:border-green-800/50",
+    dot: "bg-green-600 dark:bg-green-500",
+    text: "text-green-600 dark:text-green-400"
   },
   occupied: {
-    card: "bg-green-600/15",
-    body: "bg-green-600/15",
-    footer: "border-green-600/25 bg-green-600/10",
-    dot: "bg-red-700",
-    text: "text-red-700"
+    card: "bg-green-600/15 dark:bg-green-950/40",
+    body: "bg-green-600/15 dark:bg-green-950/40",
+    footer: "border-green-600/25 bg-green-600/10 dark:border-green-800/40 dark:bg-green-900/25",
+    dot: "bg-red-700 dark:bg-red-400",
+    text: "text-red-700 dark:text-foreground"
   },
   cashierOrder: {
-    card: "bg-blue-600/15",
-    body: "bg-blue-600/15",
-    footer: "border-blue-600/25 bg-blue-600/10",
-    dot: "bg-blue-600",
-    text: "text-blue-900"
+    card: "bg-blue-600/15 dark:bg-blue-950/40",
+    body: "bg-blue-600/15 dark:bg-blue-950/40",
+    footer: "border-blue-600/25 bg-blue-600/10 dark:border-blue-800/40 dark:bg-blue-900/25",
+    dot: "bg-blue-600 dark:bg-blue-400",
+    text: "text-blue-900 dark:text-foreground"
   },
   awaitingConfirm: {
-    card: "bg-amber-600/15",
-    body: "bg-amber-600/15",
-    footer: "border-amber-600/25 bg-amber-600/10",
-    dot: "bg-amber-700",
-    text: "text-amber-900"
+    card: "bg-amber-600/15 dark:bg-amber-950/40",
+    body: "bg-amber-600/15 dark:bg-amber-950/40",
+    footer: "border-amber-600/25 bg-amber-600/10 dark:border-amber-800/40 dark:bg-amber-900/25",
+    dot: "bg-amber-700 dark:bg-amber-400",
+    text: "text-amber-900 dark:text-foreground"
   },
   callStaff: {
-    card: "bg-purple-600/15",
-    body: "bg-purple-600/15",
-    footer: "border-purple-600/25 bg-purple-600/10",
-    dot: "bg-purple-600",
-    text: "text-purple-900"
+    card: "bg-purple-600/15 dark:bg-purple-950/40",
+    body: "bg-purple-600/15 dark:bg-purple-950/40",
+    footer: "border-purple-600/25 bg-purple-600/10 dark:border-purple-800/40 dark:bg-purple-900/25",
+    dot: "bg-purple-600 dark:bg-purple-400",
+    text: "text-purple-900 dark:text-foreground"
   },
   awaitingPayment: {
-    card: "bg-orange-600/15",
-    body: "bg-orange-600/15",
-    footer: "border-orange-600/25 bg-orange-600/10",
-    dot: "bg-orange-600",
-    text: "text-orange-900"
+    card: "bg-orange-600/15 dark:bg-orange-950/40",
+    body: "bg-orange-600/15 dark:bg-orange-950/40",
+    footer: "border-orange-600/25 bg-orange-600/10 dark:border-orange-800/40 dark:bg-orange-900/25",
+    dot: "bg-orange-600 dark:bg-orange-400",
+    text: "text-orange-900 dark:text-foreground"
   }
 };
 
 // customer_order_state: true ต้องแดงเสมอ ไม่ว่า table_status จะเป็นอะไร — ทับ
 // STATUS_STYLE ทั้งก้อนแทนการเรียงสี ring ไว้ข้างบนแบบเดิม (ดู hasOrderAlert ใน TableCard)
 const ORDER_ALERT_STYLE = {
-  card: "bg-red-600/15",
-  body: "bg-red-600/15",
-  footer: "border-red-600/30 bg-red-600/10",
-  dot: "bg-red-700",
-  text: "text-red-700"
+  card: "bg-red-600/15 dark:bg-red-950/40",
+  body: "bg-red-600/15 dark:bg-red-950/40",
+  footer: "border-red-600/30 bg-red-600/10 dark:border-red-800/40 dark:bg-red-900/25",
+  dot: "bg-red-700 dark:bg-red-400",
+  text: "text-red-700 dark:text-foreground"
 };
 
 // เรียงตามลำดับ 1-6 ที่กำหนดไว้ (ดู TableStatus ใน pos-constants.ts) — ใช้ร่วมกัน

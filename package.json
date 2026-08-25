@@ -8,6 +8,7 @@
   "main": "dist-electron/electron/main.js",
   "scripts": {
     "preinstall": "node scripts/check-node-version.mjs",
+    "postinstall": "patch-package",
     "verify:node": "node scripts/check-node-version.mjs",
     "dev": "next dev",
     "dev:desktop": "concurrently -k -n NEXT,ELECTRON -c cyan,green \"next dev\" \"wait-on http://localhost:3000 && npm run electron:dev\"",
@@ -85,6 +86,7 @@
     "electron-builder": "^26.8.1",
     "eslint": "^9.16.0",
     "eslint-config-next": "^16.3.0",
+    "patch-package": "^8.0.1",
     "postcss": "^8.5.6",
     "tailwindcss": "^4.2.1",
     "typescript": "^5.7.2",

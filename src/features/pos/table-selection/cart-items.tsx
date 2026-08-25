@@ -40,14 +40,17 @@ export function CartTabTrigger({
       disabled={disabled}
       aria-label={`${label}: ${count}`}
       title={label}
-      className="h-full min-w-0 gap-1.5 rounded-lg px-2.5 text-[13px] font-black text-white/80 transition-colors hover:text-white data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
+      // data-active: (ตัว variant เดียวกับที่ TabsTrigger ฐานใช้เอง) แทน data-[state=active]:
+      // ของเดิม — สอง syntax นี้ต่างกันเป็นคนละ utility ในสาย twMerge ทำให้ merge ไม่ชนกันจริง
+      // ผลลัพธ์เลยเดายากว่าใครชนะ ใช้ variant เดียวกันเพื่อให้ค่านี้ override ฐานได้ชัวร์เสมอ
+      className="h-full min-w-0 gap-1.5 rounded-lg px-2.5 text-[13px] font-black text-white/80 transition-colors hover:text-white data-active:bg-primary data-active:text-primary-foreground data-active:shadow-sm dark:data-active:bg-primary dark:data-active:text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60"
     >
       <span className="min-w-0 truncate sm:hidden">{shortLabel ?? label}</span>
       <span className="hidden min-w-0 truncate sm:inline">{label}</span>
       <Badge
         className={cn(
           "h-6 shrink-0 rounded-full border-transparent px-2 text-xs font-black",
-          active ? "bg-primary/10 text-primary" : "bg-white/15 text-white"
+          active ? "bg-primary-foreground/20 text-primary-foreground" : "bg-white/15 text-white"
         )}
       >
         {count}

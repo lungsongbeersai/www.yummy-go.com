@@ -134,10 +134,10 @@ export const EmployeeProductCard = memo(function EmployeeProductCard({
           aria-hidden="true"
           className={cn(
             "flex h-11 w-full items-center justify-center gap-2 rounded-lg border px-2 text-xs font-black sm:px-3 sm:text-sm",
-            actionState === "add" &&
+            (actionState === "add" ||
+              actionState === "choose" ||
+              actionState === "view") &&
               "border-primary bg-primary text-primary-foreground shadow-sm",
-            (actionState === "choose" || actionState === "view") &&
-              "border-primary/45 bg-primary/5 text-primary",
             actionState === "blocked" &&
               "border-destructive/20 bg-destructive/10 text-destructive",
           )}

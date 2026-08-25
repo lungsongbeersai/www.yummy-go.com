@@ -5,11 +5,19 @@ import {
   DayPicker,
   getDefaultClassNames,
   type DayButton,
+  type DropdownProps,
   type Locale,
 } from "react-day-picker"
 
 import { cn } from "@/lib/utils"
 import { Button, buttonVariants } from "@/components/ui/button"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon } from "lucide-react"
 
 function Calendar({
@@ -164,6 +172,11 @@ function Calendar({
         DayButton: ({ ...props }) => (
           <CalendarDayButton locale={locale} {...props} />
         ),
+        // ทับ dropdown เดือน/ปีของ react-day-picker เอง — ของเดิมใช้ <select> จริงซ่อนด้วย
+        // opacity-0 ทับ caption ที่เห็น พอแตะใน Capacitor WebView ระบบ Android เปิด native
+        // select picker ของตัวเอง (ธีมสีเขียว ระยะห่างเมนูใหญ่) ซึ่ง CSS หน้าเว็บแต่งไม่ได้เลย
+        // เปลี่ยนมาใช้ Select ของ shadcn (Radix, render เองล้วน) หน้าตาจะตรงกันทั้งเว็บและแอป
+        Dropdown: CalendarDropdown,
         WeekNumber: ({ children, ...props }) => {
           return (
             <td {...props}>
@@ -216,6 +229,45 @@ function CalendarDayButton({
       )}
       {...props}
     />
+  )
+}
+
+function CalendarDropdown({
+  value,
+  options,
+  onChange,
+  disabled,
+  "aria-label": ariaLabel,
+}: DropdownProps) {
+  const selected = options?.find((option) => option.value === value)
+
+  return (
+    <Select
+      value={value?.toString()}
+      disabled={disabled}
+      onValueChange={(next) => {
+        onChange?.({ target: { value: next } } as React.ChangeEvent<HTMLSelectElement>)
+      }}
+    >
+      <SelectTrigger
+        size="sm"
+        aria-label={ariaLabel}
+        className="h-(--cell-size) w-fit border-0 bg-transparent px-1.5 font-medium shadow-none hover:bg-accent"
+      >
+        <SelectValue>{selected?.label}</SelectValue>
+      </SelectTrigger>
+      {/* position="popper" ตั้งใจ — item-aligned (ค่า default) วัดตำแหน่งเองด้วย getBoundingClientRect
+          ของ ref ภายใน (selectedItem/viewport ฯลฯ) ซึ่งเปราะเวลาซ้อนอยู่ใน Popover ที่ positioned
+          เองอยู่แล้ว (Calendar ใช้ใน report-date-input.tsx) — popper ใช้ engine เดียวกับ Popover เอง
+          จึงเสถียรกว่าเวลาซ้อนกัน */}
+      <SelectContent position="popper" align="start" className="max-h-64 min-w-24">
+        {options?.map((option) => (
+          <SelectItem key={option.value} value={option.value.toString()} disabled={option.disabled}>
+            {option.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   )
 }
 

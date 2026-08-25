@@ -25,6 +25,9 @@ next-env.d.ts
 .claude/skills/tailwind-4-docs/references/docs/
 .claude/skills/tailwind-4-docs/references/docs-index.tsx
 
+# read-only Flutter reference project (UX exploration only, never part of this repo's build)
+.claude/ExampleApp/
+
 # local agent session state (may contain credentials)
 .superpowers/
 

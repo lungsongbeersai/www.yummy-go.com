@@ -112,7 +112,21 @@ export function ReportDateInput({
 
       {name ? <input type="hidden" name={name} value={value} autoComplete={autoComplete} /> : null}
 
-      <PopoverContent className="w-auto p-0" align="start">
+      <PopoverContent
+        className="w-auto p-0"
+        align="start"
+        // Calendar ซ้อน Select (เดือน/ปี) ไว้ข้างใน ทั้งคู่ portal ไป body แยกกันเป็น
+        // [data-radix-popper-content-wrapper] คนละก้อน — บนทัชสกรีน pointerdown→pointerup→click
+        // ยิงติดกันเร็วมาก ทำให้ dismiss-detection ของ Popover เข้าใจผิดว่าแตะ "นอก" ตัวเอง
+        // ทั้งที่จริงแตะ dropdown ของ Select ที่ซ้อนอยู่ (เจอผ่านการจำลอง touch event ตรงๆ)
+        // กันด้วยการเช็คว่าปลายทางอยู่ใน popper wrapper อื่นไหม ถ้าใช่ไม่ต้องปิด
+        onPointerDownOutside={(event) => {
+          const target = event.target as HTMLElement | null;
+          if (target?.closest("[data-radix-popper-content-wrapper]")) {
+            event.preventDefault();
+          }
+        }}
+      >
         <Calendar
           mode="single"
           captionLayout="dropdown"

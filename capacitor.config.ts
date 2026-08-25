@@ -7,8 +7,10 @@ const config: CapacitorConfig = {
   webDir: "capacitor-web",
 
   server: {
-    url: "https://yummy-go.com",
-    cleartext: false,
+    // DEV ONLY: ชี้เข้า dev server ในเครื่องผ่าน `adb reverse tcp:3000 tcp:3000`
+    // ต้องเปลี่ยนกลับเป็น https://yummy-go.com ก่อน sync/build ตัว release จริง
+    url: "http://localhost:3000",
+    cleartext: true,
     androidScheme: "https",
     iosScheme: "https",
   },

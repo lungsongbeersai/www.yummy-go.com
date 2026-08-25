@@ -1978,8 +1978,12 @@ a[href]:not([aria-disabled="true"]),
 }
 
 /* ปุ่มขนาด 28–40px เหมาะกับเมาส์แต่พลาดง่ายเมื่อใช้ด้วยนิ้วใน WebView
-   ขยายเฉพาะ native shell เพื่อรักษาความหนาแน่นของหน้าเว็บเดสก์ท็อป */
-.capacitor-native button,
+   ขยายเฉพาะ native shell เพื่อรักษาความหนาแน่นของหน้าเว็บเดสก์ท็อป
+   ยกเว้น checkbox/switch/radio — Radix เรนเดอร์เป็น <button role="..."> ด้วยเหตุผลด้าน
+   a11y เท่านั้น ไม่ใช่ปุ่มจริง และแต่ละตัวมี after:-inset-x-3 after:-inset-y-2 ขยาย
+   hit-area แบบมองไม่เห็นอยู่แล้ว ถ้าปล่อยให้กฎนี้จับด้วยจะบังคับกล่อง/pill ให้ใหญ่ผิดสัดส่วน
+   (เช่น Switch 28×16.6px กลายเป็นก้อนเกือบสี่เหลี่ยม 44×44px) */
+.capacitor-native button:not([role="checkbox"]):not([role="switch"]):not([role="radio"]),
 .capacitor-native input[type="button"],
 .capacitor-native input[type="reset"],
 .capacitor-native input[type="submit"],

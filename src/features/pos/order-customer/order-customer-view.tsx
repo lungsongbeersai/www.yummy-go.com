@@ -42,8 +42,11 @@ import {
 } from "./order-customer-product-options";
 import type { OrderCustomerWorkflow } from "./use-order-customer-workflow";
 
+// สี white/black แบบ glass เดิมออกแบบไว้สำหรับพื้นหลังรูปภาพโหมดสว่างเท่านั้น (bg_wide.webp)
+// โหมดมืดไม่มีรูปพื้นหลัง (dark:bg-none dark:bg-background) เลยเหลือแต่กระจกใสซ้อนพื้นเข้ม
+// เกือบดำ มองแทบไม่เห็นขอบ/พื้นปุ่ม จึงต้องมี dark: ทับด้วย token การ์ดปกติของแอป
 const headerIconButtonClass =
-  "size-11 shrink-0 rounded-full border border-white/25 bg-white/15 text-white shadow-sm hover:bg-white/25 hover:text-white";
+  "size-11 shrink-0 rounded-full border border-white/25 bg-white/15 text-white shadow-sm hover:bg-white/25 hover:text-white dark:border-border dark:bg-card dark:text-foreground dark:hover:bg-accent dark:hover:text-foreground";
 
 export function OrderCustomerView({
   workflow,
@@ -140,7 +143,7 @@ export function OrderCustomerView({
                 variant="ghost"
                 size="icon"
                 aria-label={t("actions.back")}
-                className="size-11 shrink-0 rounded-full bg-white/15 text-white shadow-sm hover:bg-white/25 hover:text-white"
+                className="size-11 shrink-0 rounded-full bg-white/15 text-white shadow-sm hover:bg-white/25 hover:text-white dark:bg-card dark:text-foreground dark:hover:bg-accent dark:hover:text-foreground"
                 onClick={openTablesPage}
               >
                 <ArrowLeft data-icon="inline-start" />

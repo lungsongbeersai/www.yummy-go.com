@@ -3,6 +3,7 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { useResetOnDeps } from "@/hooks/use-reset-on-change";
 import { usePosOrderAlertListener } from "@/hooks/use-pos-order-alert-listener";
+import { useIsCapacitorNativeApp } from "@/hooks/use-capacitor-native-app";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
@@ -363,6 +364,7 @@ function AppHeader({
 }) {
   const { t } = useTranslation();
   const router = useRouter();
+  const isCapacitorNativeApp = useIsCapacitorNativeApp();
   const currentBreadcrumb = breadcrumbs[breadcrumbs.length - 1] ?? {
     title: "dashboard",
   };
@@ -467,6 +469,24 @@ function AppHeader({
       </div>
 
       <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+        {isCapacitorNativeApp ? (
+          // Capacitor ไม่มี pull-to-refresh/ปุ่ม reload ของเบราว์เซอร์ให้ผู้ใช้ ต้องมีทางรีโหลด
+          // เอง โดยเฉพาะช่วง dev ที่ server.url ชี้ dev server ในเครื่อง
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                className="size-11 shrink-0 sm:size-9"
+                aria-label={t("app.refreshApp")}
+                onClick={() => window.location.reload()}
+              >
+                <RefreshCw />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">{t("app.refreshApp")}</TooltipContent>
+          </Tooltip>
+        ) : null}
         <ThemeToggle variant="ghost" className="size-11 sm:size-9" />
         <NotificationMenu triggerClassName="size-11 sm:size-9" />
         <LanguageSwitch compact size="icon" className="size-11 sm:size-9" />

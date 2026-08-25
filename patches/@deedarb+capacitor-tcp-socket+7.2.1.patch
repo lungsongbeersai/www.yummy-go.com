@@ -1,0 +1,13 @@
+diff --git a/node_modules/@deedarb/capacitor-tcp-socket/android/build.gradle b/node_modules/@deedarb/capacitor-tcp-socket/android/build.gradle
+index 3d335a6..4062c71 100644
+--- a/node_modules/@deedarb/capacitor-tcp-socket/android/build.gradle
++++ b/node_modules/@deedarb/capacitor-tcp-socket/android/build.gradle
+@@ -30,7 +30,7 @@ android {
+     buildTypes {
+         release {
+             minifyEnabled false
+-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
++            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+         }
+     }
+     lintOptions {

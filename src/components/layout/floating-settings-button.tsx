@@ -174,7 +174,14 @@ export function FloatingSettingsButton() {
             "fixed z-40 size-11 touch-none rounded-full shadow-lg transition-none",
             !position && "right-3 top-1/2 -translate-y-1/2"
           )}
-          style={position ? { left: position.x, top: position.y } : undefined}
+          style={{
+            // globals.css ตั้ง touch-action: manipulation ให้ทุก <button> แบบ unlayered ⇒
+            // ชนะ utility class touch-none (อยู่ใน Tailwind layer) เสมอไม่ว่า specificity เท่าไหร่
+            // ผลคือ Android เห็น pointerdown แล้วตีความ finger-move เป็น native scroll ทันที
+            // ปุ่มเลยลากไม่ขยับ ต้องบังคับด้วย inline style ซึ่งชนะทุก external stylesheet
+            touchAction: "none",
+            ...(position ? { left: position.x, top: position.y } : null)
+          }}
           onClick={handleClick}
           onPointerCancel={handlePointerUp}
           onPointerDown={handlePointerDown}
