@@ -8,6 +8,7 @@ import { useAppShellData } from "@/components/layout/use-app-shell-data";
 import { buildNativeNavigationModel } from "@/components/layout/native-navigation-model";
 import { NativeTopBar } from "@/components/layout/capacitor/top-bar";
 import { NativeBottomNav } from "@/components/layout/capacitor/bottom-nav";
+import { NativeMoreSheet } from "@/components/layout/capacitor/more-sheet";
 import { NativeSideRail } from "@/components/layout/capacitor/side-rail";
 import { useAuthStore } from "@/stores/auth-store";
 
@@ -87,6 +88,13 @@ export function NativeAppShell({ children }: { children: React.ReactNode }) {
         model={model}
         moreOpen={moreOpen}
         onMoreClick={() => setMoreOpen(true)}
+        pathname={pathname}
+      />
+
+      <NativeMoreSheet
+        model={model}
+        onOpenChange={setMoreOpen}
+        open={moreOpen}
         pathname={pathname}
       />
     </div>
