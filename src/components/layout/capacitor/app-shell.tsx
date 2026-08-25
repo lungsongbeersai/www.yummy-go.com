@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { usePosOrderAlertListener } from "@/hooks/use-pos-order-alert-listener";
 import { cn } from "@/lib/utils";
 import { useAppShellData } from "@/components/layout/use-app-shell-data";
 import { buildNativeNavigationModel } from "@/components/layout/native-navigation-model";
 import { NativeTopBar } from "@/components/layout/capacitor/top-bar";
+import { NativeBottomNav } from "@/components/layout/capacitor/bottom-nav";
+import { NativeSideRail } from "@/components/layout/capacitor/side-rail";
 import { useAuthStore } from "@/stores/auth-store";
 
 export function NativeAppShell({ children }: { children: React.ReactNode }) {
@@ -23,6 +25,7 @@ export function NativeAppShell({ children }: { children: React.ReactNode }) {
     () => buildNativeNavigationModel(menuItems),
     [menuItems],
   );
+  const [moreOpen, setMoreOpen] = useState(false);
 
   // หน้าที่มี scroll ภายในของตัวเองต้องล็อก document ไม่งั้น Android เลื่อนสองชั้น
   useEffect(() => {
@@ -58,19 +61,34 @@ export function NativeAppShell({ children }: { children: React.ReactNode }) {
         pathname={pathname}
       />
 
-      <main
-        id="app-main-content"
-        tabIndex={-1}
-        className={cn(
-          // app-shell-body คือ class ที่ globals.css ใช้คำนวณความสูงจริงจาก
-          // --app-shell-header-height (ดู .app-shell-body / [data-fixed-screen="true"] .app-shell-body
-          // ที่เพิ่มใน Step 2) — ขาด class นี้แล้ว dashboard sticky และหน้า fixed-data จะไม่ได้ความสูงที่ถูกต้อง
-          "app-shell-body min-w-0 flex-1 pb-(--app-shell-bottom-nav-height)",
-          fixedDataScreen ? "min-h-0 overflow-hidden" : "overflow-visible",
-        )}
-      >
-        {children}
-      </main>
+      {/* app-shell-body moves here from <main> — this div, not <main> alone, is now the
+          flex-1 row occupying the space below the top bar (side rail + content side by
+          side), matching how the web shell's .app-shell-body wraps sidebar + main together */}
+      <div className="app-shell-body flex min-h-0 w-full flex-1">
+        <NativeSideRail
+          model={model}
+          moreOpen={moreOpen}
+          onMoreClick={() => setMoreOpen(true)}
+          pathname={pathname}
+        />
+        <main
+          id="app-main-content"
+          tabIndex={-1}
+          className={cn(
+            "min-w-0 flex-1 pb-(--app-shell-bottom-nav-height)",
+            fixedDataScreen ? "min-h-0 overflow-hidden" : "overflow-visible",
+          )}
+        >
+          {children}
+        </main>
+      </div>
+
+      <NativeBottomNav
+        model={model}
+        moreOpen={moreOpen}
+        onMoreClick={() => setMoreOpen(true)}
+        pathname={pathname}
+      />
     </div>
   );
 }
