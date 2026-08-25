@@ -45,8 +45,11 @@ A separate Flutter proof-of-concept at `.claude/ExampleApp/flutter_application_1
 - `(protected)/layout.tsx` is `<AuthGuard><AppShell>{children}</AppShell></AuthGuard>`. `AuthGuard` is client-only and renders `LoadingState` until the zustand auth store hydrates and the user is confirmed logged in — the shell itself is never part of the server-rendered HTML. This means there is no wrong-shell flash to solve: nothing shell-shaped paints before the client already knows `Capacitor.isNativePlatform()`.
 - `/pos/tables` and `/pos/order` are today's only "immersive" routes (`AppShell` hides its header for them). The new Capacitor shell keeps its nav chrome visible on these routes too (already agreed).
 - The project already depends on `motion` (framer-motion successor) and uses per-viewport component variants toggled by Tailwind breakpoints elsewhere (`product-list-mobile.tsx` / `product-list-table.tsx`, switched via `md:hidden`) — reuse both patterns, no new dependency.
-- shadcn `sheet.tsx` and `drawer.tsx` already exist; `accordion` does not yet (`npx shadcn@latest add accordion`, needed for the "More" sheet's grouped items).
-- Capacitor's Android target ships `@capacitor/app` is not currently a dependency — needed for the hardware back-button listener (see §6).
+- shadcn `sheet.tsx`, `drawer.tsx`, and `progress.tsx` already exist; `accordion` does not yet (`npx shadcn@latest add accordion`, needed for the "More" sheet's grouped items).
+- `@capacitor/app` (`^8.1.1`) is **already** a dependency, already used by `src/lib/installed-app-version.ts`, and already synced into both native projects (`android/capacitor.settings.gradle`, `ios/App/Podfile`). The hardware back-button listener (§6) needs no new dependency and no native re-sync.
+- `src/hooks/use-mobile.ts` already exports `MOBILE_BREAKPOINT = 768` and a `useSyncExternalStore`-based `useIsMobile()`. Reuse it; do not introduce a second breakpoint source.
+- `AppShell` is imported from exactly one place (`src/app/(protected)/layout.tsx`), so moving it under `web/` is a one-line import change with no other call sites to update.
+- The only drill-in routes under `(protected)` are `/products/form`, `/printers/form`, and `/pos/order` (which requires `table_uuid` and guards client-side) — §5's back-fallback table is complete as written, not a sample.
 
 ## Design Decisions
 
@@ -79,7 +82,8 @@ Both `bottom-nav.tsx` and `side-rail.tsx` take the same `menuItems` the web side
 
 - Phone and tablet show the same 3 direct destinations + More — only the chrome shape differs (bottom bar vs. side rail). Confirmed over the Flutter reference's asymmetric 3/6 split: consistency was preferred over maximizing tablet density.
 - A direct destination with children (e.g. a "Sales" entry whose children are open-table-sale/order-queue/sales-list/cancel-sale/cancel-history) links to its first child's path, mirroring the Flutter reference's same resolution.
-- Breakpoint is Tailwind's existing `md` (768px), not a new value — matches every other breakpoint already in `app-shell.tsx`.
+- Breakpoint is 768px — Tailwind's existing `md`, and the same value `src/hooks/use-mobile.ts` already exports as `MOBILE_BREAKPOINT`. No new breakpoint value or second source of truth.
+- Prefer the project's existing CSS-toggle pattern for the phone/tablet swap (render both, hide one with `md:hidden` / `hidden md:flex`, as `product-list-mobile.tsx` and `product-list-table.tsx` already do) over a JS branch on `useIsMobile()`. CSS avoids a layout flash on first paint and on rotation. Reach for `useIsMobile()` only where behavior — not just layout — must genuinely differ (e.g. whether the "More" sheet or the rail's own overflow owns a given item), and never to duplicate what a class can express.
 - If `menuItems.length <= 3`, there is no "More" entry at all — no disabled placeholder is shown for a role with few permitted sections.
 
 ### 3. "More" sheet
@@ -99,7 +103,7 @@ A shadcn `Sheet` (`side="bottom"`, near full height) lists `menuItems.slice(3)`.
 
 ### 6. Android hardware back button
 
-Add `@capacitor/app` and listen for `backButton` in the Capacitor shell only (`use-android-back-button.ts`, mounted from `capacitor/app-shell.tsx`). Priority order per press:
+Listen for `@capacitor/app`'s `backButton` event in the Capacitor shell only (`use-android-back-button.ts`, mounted from `capacitor/app-shell.tsx`). The plugin is already installed and synced — this is new listener code, not a new dependency. Priority order per press:
 
 1. If the "More" sheet (or any open Sheet/Dialog) is open, close it.
 2. Otherwise, apply the same resolution as the top bar's back button (§5's deterministic parent, or browser history if no parent rule applies).
