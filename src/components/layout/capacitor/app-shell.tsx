@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { usePosOrderAlertListener } from "@/hooks/use-pos-order-alert-listener";
 import { cn } from "@/lib/utils";
 import { useAppShellData } from "@/components/layout/use-app-shell-data";
 import { buildNativeNavigationModel } from "@/components/layout/native-navigation-model";
+import { useAndroidBackButton } from "@/components/layout/capacitor/use-android-back-button";
+import { useKeyboardVisible } from "@/components/layout/capacitor/use-keyboard-visible";
 import { NativeTopBar } from "@/components/layout/capacitor/top-bar";
 import { NativeBottomNav } from "@/components/layout/capacitor/bottom-nav";
 import { NativeMoreSheet } from "@/components/layout/capacitor/more-sheet";
@@ -27,6 +29,15 @@ export function NativeAppShell({ children }: { children: React.ReactNode }) {
     [menuItems],
   );
   const [moreOpen, setMoreOpen] = useState(false);
+  const keyboardVisible = useKeyboardVisible();
+  const closeMore = useCallback(() => setMoreOpen(false), []);
+
+  useAndroidBackButton({
+    model,
+    onCloseOverlay: closeMore,
+    overlayOpen: moreOpen,
+    pathname,
+  });
 
   // หน้าที่มี scroll ภายในของตัวเองต้องล็อก document ไม่งั้น Android เลื่อนสองชั้น
   useEffect(() => {
@@ -47,6 +58,7 @@ export function NativeAppShell({ children }: { children: React.ReactNode }) {
         fixedDataScreen ? "h-dvh overflow-hidden" : "min-h-dvh",
       )}
       data-fixed-screen={fixedDataScreen ? "true" : "false"}
+      data-keyboard-open={keyboardVisible ? "true" : "false"}
       data-platform="capacitor"
     >
       <a
