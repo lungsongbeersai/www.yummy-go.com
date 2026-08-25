@@ -57,7 +57,7 @@ A separate Flutter proof-of-concept at `.claude/ExampleApp/flutter_application_1
 
 ```
 src/components/layout/
-  use-app-shell-data.ts        # NEW — extracted from AppShell: menu resolution, breadcrumbs, active-route
+  use-app-shell-data.ts        # NEW — extracted from AppShell: menu resolution, breadcrumbs, active-route, isFixedDataScreen
   shell-breadcrumbs.ts         # existing, unchanged — reused by the hook
   floating-settings-button.tsx / language-switch.tsx / notification-menu.tsx / theme-toggle.tsx / auth-guard.tsx
                                # existing, unchanged — genuinely shared by both shells
@@ -68,8 +68,9 @@ src/components/layout/
     bottom-nav.tsx             # NEW — phone, <768px
     side-rail.tsx              # NEW — tablet, >=768px
     top-bar.tsx                # NEW — title + back, profile popup trigger
-    more-sheet.tsx             # NEW — remaining menu items
+    more-sheet.tsx             # NEW — remaining menu items + Appearance section (§7)
     use-android-back-button.ts # NEW — §6
+    use-keyboard-visible.ts    # NEW — visualViewport, hides bottom nav on IME (§7)
 ```
 
 `(protected)/layout.tsx` picks `AppShell` (web) or `NativeAppShell` (capacitor) via `useIsCapacitorNativeApp()`. No SSR/User-Agent detection is added: `AuthGuard` already gates all shell rendering behind client-side auth hydration, so the correct shell is the first shell either platform ever paints — there is nothing to race against.
@@ -80,7 +81,7 @@ Rejected: a single `AppShell` with inline branching for both chrome styles (bloa
 
 Both `bottom-nav.tsx` and `side-rail.tsx` take the same `menuItems` the web sidebar already computes (via the shared hook): the first 3 items are direct destinations, the rest go under "More". This is deliberately not a curated list of paths — the real `/api/v1/permission/menu` response already carries the intended order via `menu_sort`, and taking it as given keeps the native shell automatically correct per role/company without a second navigation model to maintain (the exact failure mode that sank the earlier `shell-navigation.ts` attempt in `feature-27`).
 
-- Phone and tablet show the same 3 direct destinations + More — only the chrome shape differs (bottom bar vs. side rail). Confirmed over the Flutter reference's asymmetric 3/6 split: consistency was preferred over maximizing tablet density.
+- Phone and tablet show the same 3 direct destinations + More — only the chrome shape differs (bottom bar vs. side rail). Chosen over the Flutter reference's asymmetric 3/6 split for cross-device consistency. Residual risk to re-check on a real tablet: a 3-item rail leaves an visibly empty column where 6 would read as better-used space; unlike Flutter's `NavigationRail`, a CSS rail scrolls for free, so raising the tablet count later is a one-constant change.
 - A direct destination with children (e.g. a "Sales" entry whose children are open-table-sale/order-queue/sales-list/cancel-sale/cancel-history) links to its first child's path, mirroring the Flutter reference's same resolution.
 - Breakpoint is 768px — Tailwind's existing `md`, and the same value `src/hooks/use-mobile.ts` already exports as `MOBILE_BREAKPOINT`. No new breakpoint value or second source of truth.
 - Prefer the project's existing CSS-toggle pattern for the phone/tablet swap (render both, hide one with `md:hidden` / `hidden md:flex`, as `product-list-mobile.tsx` and `product-list-table.tsx` already do) over a JS branch on `useIsMobile()`. CSS avoids a layout flash on first paint and on rotation. Reach for `useIsMobile()` only where behavior — not just layout — must genuinely differ (e.g. whether the "More" sheet or the rail's own overflow owns a given item), and never to duplicate what a class can express.
@@ -109,11 +110,27 @@ Listen for `@capacitor/app`'s `backButton` event in the Capacitor shell only (`u
 2. Otherwise, apply the same resolution as the top bar's back button (§5's deterministic parent, or browser history if no parent rule applies).
 3. At a root destination with nothing to close or resolve, minimize the app (do not call `history.back()` past the app's own root, and do not exit/kill the process).
 
-### 7. Route-transition feedback
+### 7. Shell geometry, CSS coupling, and safe area
+
+Several things outside `app-shell.tsx` read the web shell's DOM/CSS contract. The native shell must satisfy that contract rather than let it silently break — this is what makes "shell-only, don't touch features" actually achievable.
+
+**Keep the `.app-shell` class and `--app-shell-header-height` on the native root.** `globals.css` scopes `.app-shell-body`'s `calc(100dvh - var(--app-shell-header-height))` sizing to `.app-shell`, and `dashboard-page.tsx:381` positions a sticky element at `top-[calc(var(--app-shell-header-height)+0.75rem)]`. If the native root drops either, dashboard's sticky offset resolves to an invalid `calc` and fixed-height screens lose their viewport math. The native shell reuses both, setting the variable to its own top-bar height, and adds `data-platform="capacitor"` for native-only overrides.
+
+**Add a separate `--app-shell-bottom-nav-height`; do NOT fold it into `--pos-system-bottom-safe-area`.** The existing variable is consumed by *modal* surfaces (`order-customer-product-options.tsx`'s `SheetFooter`, `payment-dialog-content.tsx`'s footer). Those render in portals above the bottom nav, so adding nav height there would produce dead space under a sheet, not clearance. Page content is the thing that sits *under* the nav, so the nav's height applies as bottom padding on the native shell's `<main>` only.
+
+**Replicate the fixed-data-screen scroll lock.** The web shell adds `data-screen-scroll-lock` to `html`/`body` for `FIXED_DATA_SCREEN_PATHS` + prefixes (products, printers, package, stock, sales lists, `settings/*`, `report/*`). Without it those screens double-scroll on Android. `isFixedDataScreen()` is pure logic — it moves into `use-app-shell-data.ts` and both shells call it, rather than being copied.
+
+**Hide the bottom nav while the soft keyboard is open**, detected via `visualViewport` resize. Android `adjustResize` otherwise rides a fixed bottom bar up on top of the IME, eating input space. No `@capacitor/keyboard` dependency is needed for this. (`useSuppressSoftKeyboard` in `pos/table-selection` is a separate concern — POS numeric input — and is not touched.)
+
+**Drop `FloatingSettingsButton` from the native shell.** It is a draggable desktop-web affordance, and its `clampPosition()` reads `document.querySelector(".app-header")` to avoid the header — a DOM coupling that would need preserving for no user benefit on a phone. Its two real settings (theme color, font scale) move into an "Appearance" section of the "More" sheet, which is where a native app puts them.
+
+**`SidebarProvider` is not needed.** Verified: `useSidebar`/`SidebarProvider`/`SidebarTrigger` have zero consumers outside `components/ui/sidebar.tsx` and the web `app-shell.tsx`. The native shell can omit the provider entirely without breaking any feature.
+
+### 8. Route-transition feedback
 
 A single thin progress line under the Capacitor top bar, shown only once a navigation exceeds ~120ms (avoids flashing on instant transitions), covering the gap between tapping a link and the RSC route commit. No blocking overlay, no per-route skeleton beyond what features already render.
 
-### 8. Motion
+### 9. Motion
 
 Tab switches and drill-in/back transitions use the existing `motion` dependency (already used in `product-list-mobile.tsx`) for a light fade/slide — no new animation dependency, and no attempt to build a full native page-stack; Next.js App Router already owns real routing/back behavior.
 
@@ -124,6 +141,7 @@ Per project convention, only pure logic gets colocated `.test.ts` coverage:
 - Core/More derivation (`menuItems.slice(0, 3)` / rest, and first-child resolution for a destination with children).
 - Deterministic back-fallback resolution per route (§5).
 - Android back-button priority resolution logic (§6), independent of the actual `@capacitor/app` listener wiring.
+- `isFixedDataScreen()` after it moves into the shared hook — it currently has no direct coverage and both shells will depend on it (§7).
 
 Visual/interaction behavior of the bottom nav, side rail, "More" sheet, and top bar is verified manually in the browser/device per the project's existing verification approach — not unit-tested.
 
