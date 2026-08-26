@@ -18,6 +18,23 @@ import {
   usePermissionsSidebarStore,
 } from "@/stores/permissions-sidebar-store";
 
+const DATA_SCREEN_SCROLL_LOCK_CLASS = "data-screen-scroll-lock";
+const POS_ANDROID_SYSTEM_SCREEN_CLASS = "pos-android-system-screen";
+
+function useDocumentClass(className: string, active: boolean) {
+  useEffect(() => {
+    if (!active) return;
+    const { body, documentElement } = document;
+    documentElement.classList.add(className);
+    body.classList.add(className);
+
+    return () => {
+      documentElement.classList.remove(className);
+      body.classList.remove(className);
+    };
+  }, [active, className]);
+}
+
 // ทั้ง web shell และ capacitor shell ใช้เมนู/breadcrumb ชุดเดียวกัน — รวมไว้ที่นี่จุดเดียว
 // เพื่อไม่ให้เกิด navigation model ชุดที่สองที่หลุดจากสิทธิ์จริง (ปัญหาเดิมของ shell-navigation.ts)
 export function useAppShellData() {
@@ -85,11 +102,23 @@ export function useAppShellData() {
     void loadSidebarMenu(storeUuid, user.status, i18n.language);
   }
 
+  const fixedDataScreen = isFixedDataScreen(pathname);
+  const immersiveScreen = isImmersiveScreen(pathname);
+
+  // หน้าที่มี scroll ภายในของตัวเองต้องล็อก document ไม่งั้นเลื่อนสองชั้น
+  useDocumentClass(DATA_SCREEN_SCROLL_LOCK_CLASS, fixedDataScreen);
+  // หน้า POS แบบเต็มจอบน Android ต้องกันพื้นที่ให้ system bar — globals.css ใช้ class นี้
+  // ลด --pos-system-bottom-safe-area ให้ footer ของ dialog ไม่มีช่องว่างเกิน
+  useDocumentClass(
+    POS_ANDROID_SYSTEM_SCREEN_CLASS,
+    immersiveScreen && /android/i.test(navigator.userAgent),
+  );
+
   return {
     breadcrumbs,
     dashboardScreen: pathname === "/",
-    fixedDataScreen: isFixedDataScreen(pathname),
-    immersiveScreen: isImmersiveScreen(pathname),
+    fixedDataScreen,
+    immersiveScreen,
     menuError,
     menuItems,
     menuLoading,

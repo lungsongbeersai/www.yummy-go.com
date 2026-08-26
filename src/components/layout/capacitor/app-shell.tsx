@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { usePosOrderAlertListener } from "@/hooks/use-pos-order-alert-listener";
 import { cn } from "@/lib/utils";
@@ -17,8 +17,15 @@ import { useAuthStore } from "@/stores/auth-store";
 export function NativeAppShell({ children }: { children: React.ReactNode }) {
   const { i18n, t } = useTranslation();
   const user = useAuthStore((state) => state.user);
-  const { breadcrumbs, fixedDataScreen, menuItems, pathname } =
-    useAppShellData();
+  const {
+    breadcrumbs,
+    fixedDataScreen,
+    menuError,
+    menuItems,
+    menuLoading,
+    pathname,
+    retrySidebarMenu,
+  } = useAppShellData();
   usePosOrderAlertListener({
     branchUuid: user?.branch_uuid,
     language: i18n.language,
@@ -39,17 +46,7 @@ export function NativeAppShell({ children }: { children: React.ReactNode }) {
     pathname,
   });
 
-  // หน้าที่มี scroll ภายในของตัวเองต้องล็อก document ไม่งั้น Android เลื่อนสองชั้น
-  useEffect(() => {
-    if (!fixedDataScreen) return;
-    document.documentElement.classList.add("data-screen-scroll-lock");
-    document.body.classList.add("data-screen-scroll-lock");
-
-    return () => {
-      document.documentElement.classList.remove("data-screen-scroll-lock");
-      document.body.classList.remove("data-screen-scroll-lock");
-    };
-  }, [fixedDataScreen]);
+  // scroll-lock และ pos-android-system-screen จัดการอยู่ใน useAppShellData ร่วมกับ web shell
 
   return (
     <div
@@ -79,9 +76,12 @@ export function NativeAppShell({ children }: { children: React.ReactNode }) {
           side), matching how the web shell's .app-shell-body wraps sidebar + main together */}
       <div className="app-shell-body flex min-h-0 w-full flex-1">
         <NativeSideRail
+          error={menuError}
+          loading={menuLoading}
           model={model}
           moreOpen={moreOpen}
           onMoreClick={() => setMoreOpen(true)}
+          onRetry={retrySidebarMenu}
           pathname={pathname}
         />
         <main
@@ -97,9 +97,12 @@ export function NativeAppShell({ children }: { children: React.ReactNode }) {
       </div>
 
       <NativeBottomNav
+        error={menuError}
+        loading={menuLoading}
         model={model}
         moreOpen={moreOpen}
         onMoreClick={() => setMoreOpen(true)}
+        onRetry={retrySidebarMenu}
         pathname={pathname}
       />
 

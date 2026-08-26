@@ -50,10 +50,8 @@ describe("hasActiveRoute", () => {
 
 describe("activeMenuTitles", () => {
   it("returns only groups that wrap the active route", () => {
-    expect(activeMenuTitles(items, "/sales/sales-list")).toEqual([
-      "sales",
-      "sales_list",
-    ]);
+    // sales_list เป็น leaf จึงไม่อยู่ในผลลัพธ์ — sidebar อ่านค่านี้เพื่อกางกลุ่มเท่านั้น
+    expect(activeMenuTitles(items, "/sales/sales-list")).toEqual(["sales"]);
   });
 
   it("returns nothing when the active route sits outside every group", () => {

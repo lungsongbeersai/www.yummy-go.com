@@ -37,10 +37,11 @@ export function hasActiveRoute(item: MenuItem, pathname: string): boolean {
   );
 }
 
+// คืนเฉพาะ title ของกลุ่มที่มีลูก เพราะผู้ใช้ค่าเดียวคือ openMenus ของ sidebar ซึ่งอ่านสถานะ
+// กาง/หุบของกลุ่มเท่านั้น — leaf ไม่เคยถูกอ่าน ใส่เข้าไปได้แต่ทำให้ setOpenMenus ทำงานเปล่า ๆ ทุกครั้งที่เปลี่ยนหน้า
 export function activeMenuTitles(items: MenuItem[], pathname: string): string[] {
   return items.flatMap((item) => {
-    if (!hasActiveRoute(item, pathname)) return [];
-    if (!item.children?.length) return [item.title];
+    if (!item.children?.length || !hasActiveRoute(item, pathname)) return [];
     return [item.title, ...activeMenuTitles(item.children, pathname)];
   });
 }

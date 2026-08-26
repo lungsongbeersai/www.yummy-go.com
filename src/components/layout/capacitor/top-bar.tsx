@@ -44,7 +44,8 @@ export function NativeTopBar({
   const router = useRouter();
   const logout = useAuthStore((state) => state.logout);
   const user = useAuthStore((state) => state.user);
-  const current = breadcrumbs[breadcrumbs.length - 1] ?? { title: "dashboard" };
+  // useAppShellData ใส่ home ไว้เสมอ อาเรย์จึงไม่มีทางว่าง — ไม่ต้องมี fallback
+  const current = breadcrumbs[breadcrumbs.length - 1];
   const title = menuItemLabel(current, t);
   const showBack = shouldShowBackButton(model, pathname);
 
@@ -65,7 +66,7 @@ export function NativeTopBar({
           variant="ghost"
           size="icon"
           aria-label={t("actions.back")}
-          className="size-11 shrink-0 text-primary"
+          className="size-12 shrink-0 text-primary"
           onClick={goBack}
         >
           <ChevronLeft />
@@ -79,7 +80,7 @@ export function NativeTopBar({
       </h1>
 
       <div className="flex shrink-0 items-center">
-        <NotificationMenu triggerClassName="size-11" />
+        <NotificationMenu triggerClassName="size-12" />
         <NativeProfileMenu logout={logout} user={user} />
       </div>
     </header>
@@ -103,7 +104,7 @@ function NativeProfileMenu({
           variant="ghost"
           size="icon"
           aria-label={user?.email ?? t("profile.sections.account")}
-          className="size-11"
+          className="size-12"
         >
           <Avatar className="size-8">
             {profileSrc ? (

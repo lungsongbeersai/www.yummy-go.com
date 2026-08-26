@@ -13,11 +13,16 @@ export function useKeyboardVisible() {
     const viewport = window.visualViewport;
     if (!viewport) return;
 
-    function sync() {
-      if (!viewport) return;
-      const occluded = window.innerHeight - viewport.height;
-      setVisible(occluded > window.innerHeight * KEYBOARD_MIN_HEIGHT_RATIO);
-    }
+    // เทียบกับความสูงตอน mount ไม่ใช่ window.innerHeight สด ๆ เพราะ AndroidManifest ตั้ง
+    // adjustResize ⇒ ตอนคีย์บอร์ดขึ้น window หดตามไปด้วย ผลต่างจะเป็น ~0 และตรวจไม่เจอเลย
+    // ยังต้องยืนยันบนเครื่องจริงอีกที เพราะ adjustResize/adjustPan ต่างกันตาม OEM
+    const baseHeight = document.documentElement.clientHeight;
+
+    // arrow ที่ผูกกับ const ทำให้ TS คง narrowing ของ viewport ไว้ ต่างจาก function declaration
+    const sync = () => {
+      const occluded = baseHeight - viewport.height;
+      setVisible(occluded > baseHeight * KEYBOARD_MIN_HEIGHT_RATIO);
+    };
 
     sync();
     viewport.addEventListener("resize", sync);

@@ -85,8 +85,6 @@ import { getStoreLogoUrl, getUserProfileUrl } from "@/lib/image";
 import { useAppStore } from "@/stores/app-store";
 import { useAuthStore, type AuthUser } from "@/stores/auth-store";
 
-const POS_ANDROID_SYSTEM_SCREEN_CLASS = "pos-android-system-screen";
-
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { i18n, t } = useTranslation();
   const user = useAuthStore((state) => state.user);
@@ -109,36 +107,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     () => new Set(activeMenuTitles(menuItems, pathname)),
   );
 
-  useEffect(() => {
-    if (!fixedDataScreen) return;
-    document.documentElement.classList.add("data-screen-scroll-lock");
-    document.body.classList.add("data-screen-scroll-lock");
-
-    return () => {
-      document.documentElement.classList.remove("data-screen-scroll-lock");
-      document.body.classList.remove("data-screen-scroll-lock");
-    };
-  }, [fixedDataScreen]);
-
-  useEffect(() => {
-    const isAndroid = /android/i.test(window.navigator.userAgent);
-    const shouldReserveAndroidSystemBar = immersiveScreen && isAndroid;
-    const root = document.documentElement;
-    const body = document.body;
-
-    if (shouldReserveAndroidSystemBar) {
-      root.classList.add(POS_ANDROID_SYSTEM_SCREEN_CLASS);
-      body.classList.add(POS_ANDROID_SYSTEM_SCREEN_CLASS);
-    } else {
-      root.classList.remove(POS_ANDROID_SYSTEM_SCREEN_CLASS);
-      body.classList.remove(POS_ANDROID_SYSTEM_SCREEN_CLASS);
-    }
-
-    return () => {
-      root.classList.remove(POS_ANDROID_SYSTEM_SCREEN_CLASS);
-      body.classList.remove(POS_ANDROID_SYSTEM_SCREEN_CLASS);
-    };
-  }, [immersiveScreen]);
+  // scroll-lock และ pos-android-system-screen ย้ายไปอยู่ใน useAppShellData แล้ว
+  // เพื่อให้ shell ทั้งสองฝั่งได้พฤติกรรมเดียวกันโดยไม่ต้องคัดลอก effect
 
   // เปลี่ยนหน้า = กางเมนูที่ครอบเส้นทางปัจจุบันไว้เสมอ
   useResetOnDeps([menuItems, pathname], () => {

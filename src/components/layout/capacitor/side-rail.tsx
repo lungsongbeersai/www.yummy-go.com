@@ -5,14 +5,20 @@ import type { NativeNavigationModel } from "@/components/layout/native-navigatio
 import { NativeNavItems } from "@/components/layout/capacitor/nav-destination-button";
 
 export function NativeSideRail({
+  error,
+  loading,
   model,
   moreOpen,
   onMoreClick,
+  onRetry,
   pathname,
 }: {
+  error: string | null;
+  loading: boolean;
   model: NativeNavigationModel;
   moreOpen: boolean;
   onMoreClick: () => void;
+  onRetry: () => void;
   pathname: string;
 }) {
   const { t } = useTranslation();
@@ -24,9 +30,12 @@ export function NativeSideRail({
       className="hidden w-(--app-shell-side-rail-width) shrink-0 flex-col gap-1 overflow-y-auto border-r border-border bg-card px-1 py-2 md:flex"
     >
       <NativeNavItems
+        error={error}
+        loading={loading}
         model={model}
         moreOpen={moreOpen}
         onMoreClick={onMoreClick}
+        onRetry={onRetry}
         pathname={pathname}
       />
     </nav>
