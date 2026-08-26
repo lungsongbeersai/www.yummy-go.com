@@ -1319,16 +1319,11 @@ html.theme-transition-active[data-theme-transition-direction="ltr"]::view-transi
   }
 }
 
+/* Flutter reference: AppBar พื้นหลัง transparent, elevation 0 เสมอ (ไม่มีแม้ตอน scroll) —
+   กลืนกับพื้นหลังหน้าเพจไปเลย ไม่ใช่ผิว card ลอยแยก */
 .native-top-bar {
-  background: color-mix(in oklch, var(--card) 96%, transparent);
-  box-shadow: 0 10px 30px -28px rgb(15 23 42 / 0.45);
-  backdrop-filter: blur(24px);
+  background: var(--background);
   padding-top: env(safe-area-inset-top, 0px);
-}
-
-.dark .native-top-bar {
-  background: hsl(var(--app) / 0.85);
-  box-shadow: none;
 }
 
 @keyframes native-route-progress {

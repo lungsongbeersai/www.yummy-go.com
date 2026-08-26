@@ -59,7 +59,7 @@ export function NativeTopBar({
   }
 
   return (
-    <header className="native-top-bar sticky top-0 z-40 flex h-(--app-shell-header-height) w-full shrink-0 items-center gap-1 border-b border-border px-1 sm:px-2">
+    <header className="native-top-bar sticky top-0 z-40 flex h-(--app-shell-header-height) w-full shrink-0 items-center gap-1 px-1 sm:px-2">
       {showBack ? (
         <Button
           type="button"
@@ -71,9 +71,7 @@ export function NativeTopBar({
         >
           <ChevronLeft />
         </Button>
-      ) : (
-        <span aria-hidden="true" className="w-2 shrink-0" />
-      )}
+      ) : null}
 
       <h1 className="min-w-0 flex-1 truncate px-1 text-base font-bold">
         {title}
@@ -114,7 +112,7 @@ function NativeProfileMenu({
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-64">
+      <DropdownMenuContent align="end" className="w-80">
         <DropdownMenuLabel className="truncate">
           {user?.email ?? t("profile.sections.account")}
         </DropdownMenuLabel>
