@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, CircleUserRound, LogOut, ShieldCheck, UserPen } from "lucide-react";
+import { ChevronLeft, LogOut, ShieldCheck, UserPen } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -97,8 +97,6 @@ function NativeProfileMenu({
 
   return (
     <DropdownMenu>
-      {/* trigger เป็นไอคอนกลาง ๆ เสมอ ไม่โชว์รูป/สีตัวย่อ — รูปจริงไปอยู่ในดรอปดาวน์แทน
-          (ตาม Flutter reference: account_circle_outlined เฉย ๆ บน top bar) */}
       <DropdownMenuTrigger asChild>
         <Button
           variant="ghost"
@@ -106,20 +104,17 @@ function NativeProfileMenu({
           aria-label={user?.email ?? t("profile.sections.account")}
           className="size-12"
         >
-          <CircleUserRound className="size-6" strokeWidth={1.5} />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-80">
-        <DropdownMenuLabel className="flex items-center gap-3 py-2">
-          <Avatar className="size-9 shrink-0">
+          <Avatar className="size-8">
             {profileSrc ? (
               <AvatarImage src={profileSrc} alt={user?.email ?? "Profile"} />
             ) : null}
             <AvatarFallback>{userInitials(user)}</AvatarFallback>
           </Avatar>
-          <span className="min-w-0 truncate font-normal">
-            {user?.email ?? t("profile.sections.account")}
-          </span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-80">
+        <DropdownMenuLabel className="truncate">
+          {user?.email ?? t("profile.sections.account")}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         {/* theme/language ย้ายมาไว้ในนี้แทนไอคอนแยกบน top bar — จอมือถือไม่มีที่พอ */}

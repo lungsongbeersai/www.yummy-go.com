@@ -1298,11 +1298,12 @@ html.theme-transition-active[data-theme-transition-direction="ltr"]::view-transi
   box-shadow: none;
 }
 
-/* Capacitor shell: top bar สั้นกว่าเว็บ และมี bottom nav กินพื้นที่ล่างเพิ่ม
+/* Capacitor shell: มี bottom nav กินพื้นที่ล่างเพิ่ม
    คง --app-shell-header-height ไว้เพราะ dashboard sticky และ .app-shell-body
-   คำนวณความสูงจากตัวแปรนี้ */
+   คำนวณความสูงจากตัวแปรนี้ — ใช้ 64px เท่ากับ breakpoint มือถือของเว็บเอง (ไม่ใช่ 56dp ของ
+   Flutter ตรง ๆ เพราะฟอนต์ Lao ในระบบนี้กินพื้นที่ต่างจาก Flutter ค่าเดียวกันแล้วจะดูอึดอัดกว่า) */
 .app-shell[data-platform="capacitor"] {
-  --app-shell-header-height: 56px;
+  --app-shell-header-height: 64px;
   --app-shell-bottom-nav-height: calc(64px + env(safe-area-inset-bottom, 0px));
   --app-shell-side-rail-width: 0px;
 }
