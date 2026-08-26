@@ -8,8 +8,6 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Sheet,
   SheetContent,
@@ -17,8 +15,8 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { MenuIcon } from "@/components/common/menu-icon";
+import { AppearanceControls } from "@/components/layout/appearance-controls";
 import { NativeRouteProgress } from "@/components/layout/capacitor/route-progress";
 import {
   menuItemLabel,
@@ -28,20 +26,6 @@ import type { NativeNavigationModel } from "@/components/layout/native-navigatio
 import type { MenuItem } from "@/config/menu";
 import { internalRoute } from "@/lib/routes";
 import { cn } from "@/lib/utils";
-import {
-  useAppStore,
-  type FontScale,
-  type ThemeColor,
-} from "@/stores/app-store";
-
-const THEME_COLORS: readonly ThemeColor[] = [
-  "emerald",
-  "blue",
-  "amber",
-  "rose",
-  "violet",
-];
-const FONT_SCALES: readonly FontScale[] = ["sm", "md", "lg"];
 
 export function NativeMoreSheet({
   model,
@@ -64,9 +48,12 @@ export function NativeMoreSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
-        className="h-[85dvh] overscroll-contain px-0 pb-[env(safe-area-inset-bottom,0px)]"
+        // ต้องประกาศความสูงซ้ำด้วย data-[side=bottom]: ด้วย เพราะ SheetContent ฐานมี
+        // data-[side=bottom]:h-auto ซึ่ง specificity เท่ากันแต่ประกาศทีหลัง ⇒ ชนะ h-[85dvh] เปล่า ๆ
+        // (แพทเทิร์นเดียวกับ order-customer-product-options.tsx / order-customer-view.tsx)
+        className="h-[85dvh] overscroll-contain px-0 pb-[env(safe-area-inset-bottom,0px)] data-[side=bottom]:h-[85dvh]"
       >
-        <SheetHeader className="px-4">
+        <SheetHeader className="shrink-0 px-4">
           <SheetTitle>{t("app.moreNavigation")}</SheetTitle>
         </SheetHeader>
 
@@ -81,7 +68,7 @@ export function NativeMoreSheet({
                   pathname={pathname}
                 />
               ) : (
-                <MoreLeaf
+                <MoreLink
                   key={item.path ?? item.title}
                   item={item}
                   onNavigate={close}
@@ -132,20 +119,6 @@ function MoreGroup({
         ))}
       </AccordionContent>
     </AccordionItem>
-  );
-}
-
-function MoreLeaf({
-  item,
-  onNavigate,
-  pathname,
-}: {
-  item: MenuItem;
-  onNavigate: () => void;
-  pathname: string;
-}) {
-  return (
-    <MoreLink item={item} onNavigate={onNavigate} pathname={pathname} />
   );
 }
 
@@ -202,10 +175,6 @@ function MoreLink({
 // บนแอปจริงการตั้งค่าหน้าตาอยู่ในรายการแบบ Settings — ย้ายมาไว้ที่นี่แทน
 function AppearanceSection() {
   const { t } = useTranslation();
-  const themeColor = useAppStore((state) => state.themeColor);
-  const setThemeColor = useAppStore((state) => state.setThemeColor);
-  const fontScale = useAppStore((state) => state.fontScale);
-  const setFontScale = useAppStore((state) => state.setFontScale);
 
   return (
     <section className="flex flex-col gap-4 px-2">
@@ -213,59 +182,7 @@ function AppearanceSection() {
         {t("app.appearance.title")}
       </h2>
 
-      <div className="flex flex-col gap-2">
-        <Label className="text-xs font-semibold text-muted-foreground">
-          {t("app.appearance.colorLabel")}
-        </Label>
-        <RadioGroup
-          value={themeColor}
-          onValueChange={(value) => setThemeColor(value as ThemeColor)}
-          className="flex flex-row flex-wrap gap-3"
-        >
-          {THEME_COLORS.map((color) => (
-            <Label
-              key={color}
-              htmlFor={`native-theme-color-${color}`}
-              data-theme-color={color}
-              className="relative flex size-11 cursor-pointer items-center justify-center rounded-full bg-primary ring-1 ring-foreground/10 ring-offset-2 ring-offset-background transition-shadow has-data-[state=checked]:ring-2 has-data-[state=checked]:ring-foreground/60"
-            >
-              <RadioGroupItem
-                id={`native-theme-color-${color}`}
-                value={color}
-                className="sr-only"
-              />
-              <span className="sr-only">
-                {t(`app.appearance.colors.${color}`)}
-              </span>
-            </Label>
-          ))}
-        </RadioGroup>
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <Label className="text-xs font-semibold text-muted-foreground">
-          {t("app.appearance.fontSizeLabel")}
-        </Label>
-        <ToggleGroup
-          type="single"
-          variant="outline"
-          value={fontScale}
-          onValueChange={(value) => {
-            if (value) setFontScale(value as FontScale);
-          }}
-          className="w-full"
-        >
-          {FONT_SCALES.map((scale) => (
-            <ToggleGroupItem
-              key={scale}
-              value={scale}
-              className="h-11 flex-1 text-xs font-bold"
-            >
-              {t(`app.appearance.fontSizes.${scale}`)}
-            </ToggleGroupItem>
-          ))}
-        </ToggleGroup>
-      </div>
+      <AppearanceControls idPrefix="native-theme-color" size="touch" />
     </section>
   );
 }

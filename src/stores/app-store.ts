@@ -8,8 +8,10 @@ export type ThemeMode = "light" | "dark";
 export type ThemeColor = "emerald" | "blue" | "amber" | "rose" | "violet";
 export type FontScale = "sm" | "md" | "lg";
 
-const THEME_COLORS: readonly ThemeColor[] = ["emerald", "blue", "amber", "rose", "violet"];
-const FONT_SCALES: readonly FontScale[] = ["sm", "md", "lg"];
+// แหล่งความจริงเดียวของค่าที่ใช้ได้ — UI ตั้งค่าหน้าตาทุกตัว (AppearanceControls) อ่านจากที่นี่
+// แทนการประกาศ array ซ้ำในแต่ละ component ซึ่งเคยหลุดออกจากกันมาแล้ว
+export const THEME_COLORS: readonly ThemeColor[] = ["emerald", "blue", "amber", "rose", "violet"];
+export const FONT_SCALES: readonly FontScale[] = ["sm", "md", "lg"];
 
 export interface FloatingButtonPosition {
   x: number;
