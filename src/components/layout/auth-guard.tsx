@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { LoadingState } from "@/components/common/loading-state";
@@ -15,6 +15,10 @@ export function unauthenticatedEntryPath(pathname: string, nativeApp: boolean) {
   return `${entryPath}?redirect=${encodeURIComponent(pathname)}`;
 }
 
+// เครื่องที่ session ค้างไว้แล้ว hydrate เร็วมาก (<100ms) จน NativeLoadingScreen ไม่ทันโชว์ให้เห็นเลย —
+// บังคับโชว์ splash แบรนด์อย่างน้อยเท่านี้เสมอตอนเปิดแอป (ตาม pattern ของแอป reference ที่ล็อกเวลาไว้คงที่)
+const MIN_NATIVE_SPLASH_MS = 1200;
+
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const { t } = useTranslation();
   const router = useRouter();
@@ -22,6 +26,12 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   const hydrated = useAuthStore((state) => state.hydrated);
   const isLoggedIn = useAuthStore((state) => state.isLoggedIn);
   const isNativeApp = useIsCapacitorNativeApp();
+  const [minSplashElapsed, setMinSplashElapsed] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setMinSplashElapsed(true), MIN_NATIVE_SPLASH_MS);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -31,7 +41,9 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     }
   }, [hydrated, isLoggedIn, pathname, router]);
 
-  if (!hydrated || !isLoggedIn) {
+  const showNativeSplash = isNativeApp && !minSplashElapsed;
+
+  if (!hydrated || !isLoggedIn || showNativeSplash) {
     return isNativeApp ? (
       <NativeLoadingScreen />
     ) : (

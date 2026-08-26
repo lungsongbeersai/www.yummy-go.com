@@ -7,7 +7,7 @@ import { Spinner } from "@/components/ui/spinner";
 export function NativeLoadingScreen() {
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-background">
-      <div className="flex size-24 items-center justify-center rounded-full border border-border bg-card shadow-[0_16px_36px_-26px_rgba(15,23,42,0.55)]">
+      <div className="flex size-24 items-center justify-center rounded-3xl border border-border bg-card shadow-[0_16px_36px_-26px_rgba(15,23,42,0.55)]">
         <Image
           src="/brand/icon.png"
           alt="Yummy Go"
