@@ -59,7 +59,7 @@ export function NativeTopBar({
   }
 
   return (
-    <header className="native-top-bar sticky top-0 z-40 flex h-(--app-shell-header-height) w-full shrink-0 items-center gap-1 px-1 sm:px-2">
+    <header className="native-top-bar sticky top-0 z-40 flex min-h-(--app-shell-header-height) w-full shrink-0 items-center gap-1 px-2 sm:px-3">
       {showBack ? (
         <Button
           type="button"
@@ -73,7 +73,7 @@ export function NativeTopBar({
         </Button>
       ) : null}
 
-      <h1 className="min-w-0 flex-1 truncate px-1 text-base font-bold">
+      <h1 className="min-w-0 flex-1 truncate px-1 text-lg font-bold">
         {title}
       </h1>
 
@@ -104,7 +104,7 @@ function NativeProfileMenu({
           aria-label={user?.email ?? t("profile.sections.account")}
           className="size-12"
         >
-          <Avatar className="size-8">
+          <Avatar className="size-9">
             {profileSrc ? (
               <AvatarImage src={profileSrc} alt={user?.email ?? "Profile"} />
             ) : null}

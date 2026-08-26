@@ -446,15 +446,34 @@
   },
   "orderQueue": {
     "title": "Order Queue",
+    "subtitle": "Oldest tickets stay at the top",
     "tabs": {
       "waitingConfirm": "New Orders",
       "sentToKitchen": "Sent to kitchen",
+      "customerPending": "Waiting for customer",
       "served": "Served",
       "cancelled": "Cancelled"
     },
     "noTable": "No table",
     "itemCount": "{{count}} item",
     "itemCount_other": "{{count}} items",
+    "queueHint": "{{count}} tickets · oldest has waited {{minutes}} min",
+    "queuePosition": "#{{position}}",
+    "openMinutesAgo": "{{count}} min ago",
+    "hoursMinutes": "{{hours}}h {{minutes}}m",
+    "arrivedAt": "arrived {{time}}",
+    "orderNumber": "Ticket",
+    "wait": "Wait",
+    "arrived": "Arrived",
+    "deselectAll": "Deselect all",
+    "kitchenPrintQueued": "Print queued",
+    "readyToSend": "Ready to send",
+    "waiting": "Waiting",
+    "readyToServe": "Ready to serve",
+    "inKitchen": "In kitchen",
+    "served": "Served",
+    "cancelled": "Cancelled",
+    "waitingCustomer": "Waiting for customer",
     "emptyTitle": "No orders here",
     "emptyDescription": "There's nothing in \"{{tab}}\" right now.",
     "groupSelectAria": "Select all for {{table}}",
@@ -1016,29 +1035,29 @@
     "unsavedChanges": "Unsaved changes"
   },
   "permissionMenu": {
-      "addMain": "Add main menu",
-      "addSub": "Add submenu",
-      "badgeHide": "Do not show badge",
-      "badgeHint": "Show a small badge next to the menu name.",
-      "badgeShow": "Show badge",
-      "badgeTextHint": "Text shown inside the badge.",
-      "badgeTextPlaceholder": "New",
-      "badgeTextValue": "Badge: {{text}}",
-      "badgeValue": "Badge {{count}}",
-      "builderTitle": "Menu builder",
-      "changeIcon": "Change icon",
-      "clearIconSearch": "Clear icon search",
-      "collapseAll": "Collapse all",
-      "collapseMenu": "Collapse {{title}}",
-      "columns": {
-        "actions": "Actions",
-        "badge": "Badge",
-        "menu": "Menu",
-        "no": "No.",
-        "path": "Path",
-        "status": "Status",
-        "submenus": "Submenus"
-      },
+    "addMain": "Add main menu",
+    "addSub": "Add submenu",
+    "badgeHide": "Do not show badge",
+    "badgeHint": "Show a small badge next to the menu name.",
+    "badgeShow": "Show badge",
+    "badgeTextHint": "Text shown inside the badge.",
+    "badgeTextPlaceholder": "New",
+    "badgeTextValue": "Badge: {{text}}",
+    "badgeValue": "Badge {{count}}",
+    "builderTitle": "Menu builder",
+    "changeIcon": "Change icon",
+    "clearIconSearch": "Clear icon search",
+    "collapseAll": "Collapse all",
+    "collapseMenu": "Collapse {{title}}",
+    "columns": {
+      "actions": "Actions",
+      "badge": "Badge",
+      "menu": "Menu",
+      "no": "No.",
+      "path": "Path",
+      "status": "Status",
+      "submenus": "Submenus"
+    },
     "createMain": "Create main menu",
     "createSub": "Create submenu",
     "deleteFailed": "Delete failed",
@@ -1052,9 +1071,9 @@
     "editSub": "Edit submenu",
     "emptyDescription": "Create a main menu before adding submenu records.",
     "emptyTitle": "No menu records",
-      "expandAll": "Expand all",
-      "expandMenu": "Expand {{title}}",
-      "fields": {
+    "expandAll": "Expand all",
+    "expandMenu": "Expand {{title}}",
+    "fields": {
       "menuBadge": "Badge",
       "menuBadgeText": "Badge text",
       "menuIcon": "Icon",
@@ -1070,75 +1089,75 @@
       "subTitleEng": "Sub title (English)",
       "subTitleLa": "Sub title (Lao)"
     },
-      "iconHint": "Choose the icon shown in the navigation.",
-      "iconDialogDescription": "Pick the icon that will appear in the navigation menu.",
-      "iconDialogTitle": "Choose navigation icon",
-      "iconResultsCount": "Showing {{shown}} of {{total}}",
-      "icons": {
-        "currency": "Currency",
-        "file": "File",
-        "fileLegacy": "File (legacy)",
-        "grid": "Grid",
-        "home": "Home",
-        "layers": "Layers",
-        "list": "List",
-        "location": "Location",
-        "package": "Package",
-        "palette": "Palette",
-        "printer": "Printer",
-        "report": "Report",
-        "settings": "Settings",
-        "shoppingCart": "Shopping cart",
-        "size": "Size",
-        "store": "Store",
-        "table": "Table",
-        "tags": "Tags",
-        "users": "Users",
-        "utensils": "Utensils"
-      },
-      "kicker": "PLC only",
-      "loadMoreIcons": "Load more icons",
-      "loadFailed": "Menu load failed",
-      "loading": "Loading menu permissions",
-      "mainDeleted": "Main menu deleted",
-      "mainEditDescription": "Update the menu name, path, icon, and display behavior.",
-      "mainFormDescription": "Set the menu name, path, icon, and display behavior.",
-      "mainList": "Main menu list",
-      "mainListHint": "Select a menu to manage details and submenus.",
-      "mainMenus": "Main menus",
-      "mainSaved": "Main menu saved",
-      "mainUpdated": "Main menu updated",
-      "menuStatusHide": "Hide submenus",
-      "menuStatusHint": "Enable this when the main menu has submenus.",
-      "menuStatusShow": "Show submenus",
-      "manualPathPlaceholder": "Type a path, for example /, sale, or /saleorder",
-      "moveDown": "Move {{title}} down",
-      "moveUp": "Move {{title}} up",
-      "noIconsFound": "No icons found",
-      "noMainSearchDescription": "Clear search or try another menu title, path, or submenu.",
-      "noMainSearchResults": "No matching menus",
-      "noPathsFound": "No paths found",
-      "noSubmenus": "No submenus",
-      "noSubmenusDescription": "Add submenu records under the selected main menu.",
-      "openPathSuggestions": "Open path suggestions",
-      "pathHint": "Choose a route suggestion or type a path manually.",
-      "reorderMain": "Reorder main menu",
-      "reorderSub": "Reorder submenu",
-      "routeSuggestions": "Route suggestions",
-      "saveFailed": "Save failed",
-      "savingSort": "Saving order",
-      "searchIcon": "Search icon",
-      "searchMain": "Search main menus",
-      "searchMainPlaceholder": "Search menu, path, or submenu",
-      "searchPath": "Search path",
-      "selectedIcon": "Selected icon",
-      "selectedMenu": "Selected menu",
-      "selectMenuDescription": "Choose a menu on the left to edit details and manage submenus.",
-      "selectMenuTitle": "Select a main menu",
-      "selectIcon": "Select icon",
-      "selectPath": "Select path",
-      "sortPausedBySearch": "Sorting pauses while searching",
-      "sortFailed": "Sort failed",
+    "iconHint": "Choose the icon shown in the navigation.",
+    "iconDialogDescription": "Pick the icon that will appear in the navigation menu.",
+    "iconDialogTitle": "Choose navigation icon",
+    "iconResultsCount": "Showing {{shown}} of {{total}}",
+    "icons": {
+      "currency": "Currency",
+      "file": "File",
+      "fileLegacy": "File (legacy)",
+      "grid": "Grid",
+      "home": "Home",
+      "layers": "Layers",
+      "list": "List",
+      "location": "Location",
+      "package": "Package",
+      "palette": "Palette",
+      "printer": "Printer",
+      "report": "Report",
+      "settings": "Settings",
+      "shoppingCart": "Shopping cart",
+      "size": "Size",
+      "store": "Store",
+      "table": "Table",
+      "tags": "Tags",
+      "users": "Users",
+      "utensils": "Utensils"
+    },
+    "kicker": "PLC only",
+    "loadMoreIcons": "Load more icons",
+    "loadFailed": "Menu load failed",
+    "loading": "Loading menu permissions",
+    "mainDeleted": "Main menu deleted",
+    "mainEditDescription": "Update the menu name, path, icon, and display behavior.",
+    "mainFormDescription": "Set the menu name, path, icon, and display behavior.",
+    "mainList": "Main menu list",
+    "mainListHint": "Select a menu to manage details and submenus.",
+    "mainMenus": "Main menus",
+    "mainSaved": "Main menu saved",
+    "mainUpdated": "Main menu updated",
+    "menuStatusHide": "Hide submenus",
+    "menuStatusHint": "Enable this when the main menu has submenus.",
+    "menuStatusShow": "Show submenus",
+    "manualPathPlaceholder": "Type a path, for example /, sale, or /saleorder",
+    "moveDown": "Move {{title}} down",
+    "moveUp": "Move {{title}} up",
+    "noIconsFound": "No icons found",
+    "noMainSearchDescription": "Clear search or try another menu title, path, or submenu.",
+    "noMainSearchResults": "No matching menus",
+    "noPathsFound": "No paths found",
+    "noSubmenus": "No submenus",
+    "noSubmenusDescription": "Add submenu records under the selected main menu.",
+    "openPathSuggestions": "Open path suggestions",
+    "pathHint": "Choose a route suggestion or type a path manually.",
+    "reorderMain": "Reorder main menu",
+    "reorderSub": "Reorder submenu",
+    "routeSuggestions": "Route suggestions",
+    "saveFailed": "Save failed",
+    "savingSort": "Saving order",
+    "searchIcon": "Search icon",
+    "searchMain": "Search main menus",
+    "searchMainPlaceholder": "Search menu, path, or submenu",
+    "searchPath": "Search path",
+    "selectedIcon": "Selected icon",
+    "selectedMenu": "Selected menu",
+    "selectMenuDescription": "Choose a menu on the left to edit details and manage submenus.",
+    "selectMenuTitle": "Select a main menu",
+    "selectIcon": "Select icon",
+    "selectPath": "Select path",
+    "sortPausedBySearch": "Sorting pauses while searching",
+    "sortFailed": "Sort failed",
     "sortSaved": "Order saved",
     "subDeleted": "Submenu deleted",
     "subEditDescription": "Update this submenu under {{title}} using the create API.",
@@ -2355,23 +2374,74 @@
       "zoom": "Zoom"
     },
     "modules": {
-      "branch": { "title": "Branches", "description": "Restaurant branch details." },
-      "category": { "title": "Categories", "description": "Menu categories." },
-      "color": { "title": "Colors", "description": "Product color swatches." },
-      "currency": { "title": "Currencies", "description": "Accepted currencies." },
-      "customer": { "title": "Customers", "description": "Customer records." },
-      "district": { "title": "Districts", "description": "District master data." },
-      "exchange": { "title": "Exchange rates", "description": "Currency exchange rates." },
-      "group": { "title": "Food groups", "description": "Top-level food grouping." },
-      "province": { "title": "Provinces", "description": "Province master data." },
-      "size": { "title": "Sizes", "description": "Product size options." },
-      "store": { "title": "Stores", "description": "Store profiles and account status." },
-      "table": { "title": "Tables", "description": "Dining table setup." },
-      "topping": { "title": "Toppings", "description": "Extra item options." },
-      "unit": { "title": "Units", "description": "Product units." },
-      "unite": { "title": "Units", "description": "Product units." },
-      "user": { "title": "Users", "description": "Staff user accounts." },
-      "zone": { "title": "Zones", "description": "Dining zones and table areas." }
+      "branch": {
+        "title": "Branches",
+        "description": "Restaurant branch details."
+      },
+      "category": {
+        "title": "Categories",
+        "description": "Menu categories."
+      },
+      "color": {
+        "title": "Colors",
+        "description": "Product color swatches."
+      },
+      "currency": {
+        "title": "Currencies",
+        "description": "Accepted currencies."
+      },
+      "customer": {
+        "title": "Customers",
+        "description": "Customer records."
+      },
+      "district": {
+        "title": "Districts",
+        "description": "District master data."
+      },
+      "exchange": {
+        "title": "Exchange rates",
+        "description": "Currency exchange rates."
+      },
+      "group": {
+        "title": "Food groups",
+        "description": "Top-level food grouping."
+      },
+      "province": {
+        "title": "Provinces",
+        "description": "Province master data."
+      },
+      "size": {
+        "title": "Sizes",
+        "description": "Product size options."
+      },
+      "store": {
+        "title": "Stores",
+        "description": "Store profiles and account status."
+      },
+      "table": {
+        "title": "Tables",
+        "description": "Dining table setup."
+      },
+      "topping": {
+        "title": "Toppings",
+        "description": "Extra item options."
+      },
+      "unit": {
+        "title": "Units",
+        "description": "Product units."
+      },
+      "unite": {
+        "title": "Units",
+        "description": "Product units."
+      },
+      "user": {
+        "title": "Users",
+        "description": "Staff user accounts."
+      },
+      "zone": {
+        "title": "Zones",
+        "description": "Dining zones and table areas."
+      }
     }
   },
   "toasts": {
@@ -2405,7 +2475,9 @@
     "sections": [
       {
         "title": "1. Information We Collect",
-        "paragraphs": ["We may collect information that is necessary to provide and improve our restaurant POS and management services."],
+        "paragraphs": [
+          "We may collect information that is necessary to provide and improve our restaurant POS and management services."
+        ],
         "list": [
           "Restaurant or business account information",
           "User login and account details",
@@ -2416,7 +2488,9 @@
       },
       {
         "title": "2. How We Use Information",
-        "paragraphs": ["We use collected information to operate and improve Yummy Go."],
+        "paragraphs": [
+          "We use collected information to operate and improve Yummy Go."
+        ],
         "list": [
           "Provide restaurant POS and order management services",
           "Process orders, receipts, kitchen tickets, and sales records",
@@ -2428,27 +2502,39 @@
       },
       {
         "title": "3. Data Sharing",
-        "paragraphs": ["We do not sell personal information to third parties. We may share information only when necessary to provide our services, comply with legal obligations, protect users, or maintain the security and reliability of our systems."]
+        "paragraphs": [
+          "We do not sell personal information to third parties. We may share information only when necessary to provide our services, comply with legal obligations, protect users, or maintain the security and reliability of our systems."
+        ]
       },
       {
         "title": "4. Data Security",
-        "paragraphs": ["We use reasonable technical and organizational measures to protect user data from unauthorized access, loss, misuse, alteration, or disclosure. However, no method of electronic storage or transmission is completely secure."]
+        "paragraphs": [
+          "We use reasonable technical and organizational measures to protect user data from unauthorized access, loss, misuse, alteration, or disclosure. However, no method of electronic storage or transmission is completely secure."
+        ]
       },
       {
         "title": "5. Data Retention",
-        "paragraphs": ["We retain information only as long as necessary to provide our services, comply with legal requirements, resolve disputes, maintain business records, and support restaurant operations."]
+        "paragraphs": [
+          "We retain information only as long as necessary to provide our services, comply with legal requirements, resolve disputes, maintain business records, and support restaurant operations."
+        ]
       },
       {
         "title": "6. User Rights",
-        "paragraphs": ["Users may contact us to request access, correction, or deletion of their information, subject to legal, security, and business requirements."]
+        "paragraphs": [
+          "Users may contact us to request access, correction, or deletion of their information, subject to legal, security, and business requirements."
+        ]
       },
       {
         "title": "7. Children’s Privacy",
-        "paragraphs": ["Yummy Go is intended for business and restaurant use. It is not directed to children under the age required by applicable law, and we do not knowingly collect personal information from children."]
+        "paragraphs": [
+          "Yummy Go is intended for business and restaurant use. It is not directed to children under the age required by applicable law, and we do not knowingly collect personal information from children."
+        ]
       },
       {
         "title": "8. Changes to This Policy",
-        "paragraphs": ["We may update this Privacy Policy from time to time. Any changes will be posted on this page with an updated effective date."]
+        "paragraphs": [
+          "We may update this Privacy Policy from time to time. Any changes will be posted on this page with an updated effective date."
+        ]
       }
     ],
     "contact": {

@@ -20,16 +20,22 @@ import type {
 
 export const ProductSortStatus = ProductSortStatusValue;
 export type ProductSortStatus = ProductSortStatusType;
+
 export const ProductImageStatus = ProductImageStatusValue;
 export type ProductImageStatus = ProductImageStatusType;
+
 export const TableStatus = TableStatusValue;
 export type TableStatus = TableStatusType;
+
 export const OrderItemStatus = OrderItemStatusValue;
 export type OrderItemStatus = OrderItemStatusType;
+
 export const OrderSourceEnum = OrderSourceEnumValue;
 export type OrderSource = OrderSourceType;
+
 export const OrderChannelEnum = OrderChannelEnumValue;
 export type OrderChannel = OrderChannelType;
+
 export const PaymentMethod = PaymentMethodValue;
 export type PaymentMethod = PaymentMethodType;
 
@@ -41,30 +47,38 @@ export interface PosTable extends ApiEntity {
   number_of_seats?: number | string | null;
   customer_order_state?: boolean;
 }
+
 export interface PosZone extends ApiEntity {
   zone_uuid: string;
   zone_name: string;
   tables: PosTable[];
 }
+
 export interface PosResponse extends ApiEntity {
   status: string;
   message: string;
   data: PosZone[];
 }
+
 export interface FetchPosParams {
   branch_uuid_fk: string;
   zone_uuid?: string;
   lang?: string;
 }
-export interface EmitTableStatusResponse extends ApiEntity { ok?: boolean; customer_order_state?: boolean }
+
+export interface EmitTableStatusResponse extends ApiEntity {
+  ok?: boolean;
+  customer_order_state?: boolean;
+}
+
 export interface ProdDetail {
   proDetailUuid: string;
-  proDetailId?: string | number;
-  proDetailSort?: string | number;
+  proDetailId?: number | string;
+  proDetailSort?: number | string;
   sizeUuidFk?: string;
   sizeName?: string;
-  price?: string | number;
-  proDetailSprice?: string | number;
+  price?: number | string;
+  proDetailSprice?: number | string;
   qtyStock?: number;
   proDetailQtyStock?: number | string;
   proDetailEnabled?: number;
@@ -78,6 +92,7 @@ export interface ProdDetail {
   proDetailETime?: string | null;
   defaultQty?: number;
 }
+
 export interface ProdTopping {
   prodToppingUuid: string;
   toppingUuidFk?: string;
@@ -85,10 +100,11 @@ export interface ProdTopping {
   toppingName?: string;
   toppingNameLa?: string;
   toppingNameEng?: string;
-  toppingPrice?: string | number;
+  toppingPrice?: number | string;
   toppingEnabled?: number;
   toppingStatus?: number;
 }
+
 export interface ProdItem {
   prodUuid: string;
   prodCode?: string;
@@ -105,6 +121,7 @@ export interface ProdItem {
   details: ProdDetail[];
   toppings: ProdTopping[];
 }
+
 export interface GetProdItemParams {
   prodUuid: string;
   lang?: string;
@@ -112,6 +129,7 @@ export interface GetProdItemParams {
   search?: string;
   statusSortFk?: ProductSortStatus;
 }
+
 export interface PosProduct {
   prodUuid: string;
   prodCode?: string;
@@ -130,6 +148,7 @@ export interface PosProduct {
   uniteName?: string;
   prodSetPrice?: number | string | null;
 }
+
 export interface CateProductItem extends PosProduct {
   proDetailSprice?: number | string;
   minPrice?: number | string;
@@ -148,6 +167,7 @@ export interface CateProductItem extends PosProduct {
   customerFree?: number;
   proDetailUuid?: string;
 }
+
 export interface CateWithProducts {
   cateUuid: string;
   cateName: string;
@@ -168,12 +188,43 @@ export interface FetchCateProductsResponse {
   defaultCateUuid?: string;
   total?: number;
 }
-export interface FetchCateProductsParams { branchUuidFk: string; cateUuid?: string; search?: string; statusSortFk?: ProductSortStatus; lang?: string }
-export interface CartToppingPayload { prod_topping_uuid_fk: string; topping_qty: number }
-export interface OrderItemOption { label: string; qty: number; price?: number; type?: "size" | "topping" }
-export interface OrderItem extends ApiEntity { id?: number; title?: string; price?: number; quantity?: number }
-export interface OrderHistory extends ApiEntity { id: number; timestamp: string; items: OrderItem[]; subtotal: number }
+
+export interface FetchCateProductsParams {
+  branchUuidFk: string;
+  cateUuid?: string;
+  search?: string;
+  statusSortFk?: ProductSortStatus;
+  lang?: string;
+}
+
+export interface CartToppingPayload {
+  prod_topping_uuid_fk: string;
+  topping_qty: number;
+}
+
+export interface OrderItemOption {
+  label: string;
+  qty: number;
+  price?: number;
+  type?: "size" | "topping";
+}
+
+export interface OrderItem extends ApiEntity {
+  id?: number;
+  title?: string;
+  price?: number;
+  quantity?: number;
+}
+
+export interface OrderHistory extends ApiEntity {
+  id: number;
+  timestamp: string;
+  items: OrderItem[];
+  subtotal: number;
+}
+
 export type CreateOrderTopping = CartToppingPayload;
+
 export interface CreateOrderItem extends ApiEntity {
   prod_detail_uuid_fk: string;
   order_it_qty: number;
@@ -184,6 +235,7 @@ export interface CreateOrderItem extends ApiEntity {
   pro_detail_uuid_fk?: string;
   qty?: number;
 }
+
 export interface CreateOrderInput extends ApiEntity {
   table_uuid?: string;
   table_uuid_fk?: string;
@@ -197,15 +249,24 @@ export interface CreateOrderInput extends ApiEntity {
   lang?: string;
   items: CreateOrderItem[];
 }
-export interface CreateOrderResponse extends ApiEntity { status: string; message: string; order_uuid?: string }
+
+export interface CreateOrderResponse extends ApiEntity {
+  status: string;
+  message: string;
+  order_uuid?: string;
+}
+
 export interface InitOrderWithoutTableInput extends ApiEntity {
   branch_uuid_fk: string;
   order_source: OrderSource;
   order_channel: OrderChannel;
 }
-// ร้านไม่มีโต๊ะ (store_table_status === 2): backend ผูก "บิลที่เปิดค้างอยู่" กับ
-// login token ของแคชเชียร์เอง — เรียกตอนเข้าหน้าออเดอร์เพื่อสร้างบิลใหม่ (created)
-// หรือดึงบิลเดิมที่ยังไม่จ่ายเงินกลับมาต่อ (resumed) แทนการ persist order_uuid ฝั่ง client
+
+// ร้านไม่มีโต๊ะ (store_table_status === 2): backend ผูก
+// "บิลที่เปิดค้างอยู่" กับ login token ของแคชเชียร์เอง
+// เรียกตอนเข้าหน้าออเดอร์เพื่อสร้างบิลใหม่ (created)
+// หรือดึงบิลเดิมที่ยังไม่จ่ายเงินกลับมาต่อ (resumed)
+// แทนการ persist order_uuid ฝั่ง client
 export interface InitOrderWithoutTableResponse extends ApiEntity {
   status: string;
   message: string;
@@ -229,22 +290,35 @@ export interface InitOrderWithoutTableResponse extends ApiEntity {
   use_table?: boolean;
   show_table?: boolean;
 }
+
 export type ChangeType = "INCREASE" | "DECREASE";
-export interface UpdateQtyInput { order_item_uuid: string; change_type: ChangeType; change_qty: number }
+
+export interface UpdateQtyInput {
+  order_item_uuid: string;
+  change_type: ChangeType;
+  change_qty: number;
+}
+
 export interface UpdateQtyResponse extends ApiEntity {}
+
 export type DiscountTypeCode = "PCT" | "AMT";
+
 export interface ItemDiscountInput extends ApiEntity {
   order_item_uuid: string;
   order_it_discount_type: DiscountTypeCode;
   order_it_discount_value: number;
 }
+
 export interface ItemDiscountResponse extends ApiEntity {}
+
 export interface BillDiscountInput extends ApiEntity {
   order_uuid: string;
   order_discount_type: DiscountTypeCode;
   order_discount_value: number;
 }
+
 export interface BillDiscountResponse extends ApiEntity {}
+
 export interface CartTotals extends ApiEntity {
   total?: number;
   subtotal?: number;
@@ -258,6 +332,7 @@ export interface CartTotals extends ApiEntity {
   order_vat_amount?: number;
   order_grand_total?: number;
 }
+
 export interface CartTopping extends ApiEntity {
   prod_topping_uuid?: string;
   prod_topping_uuid_fk?: string;
@@ -266,6 +341,7 @@ export interface CartTopping extends ApiEntity {
   topping_price?: number;
   topping_line_total?: number;
 }
+
 export interface CartItemDetail extends ApiEntity {
   size_name?: string;
   order_it_qty?: number;
@@ -288,6 +364,7 @@ export interface CartItemDetail extends ApiEntity {
   order_it_status_text?: string;
   affects_total?: boolean;
 }
+
 export interface CartItem extends ApiEntity {
   order_item_uuid?: string;
   order_it_uuid?: string;
@@ -304,6 +381,7 @@ export interface CartItem extends ApiEntity {
   detail?: CartItemDetail;
   toppings?: CartTopping[];
 }
+
 export interface CartOrder extends ApiEntity {
   order_uuid: string;
   order_invoice?: string;
@@ -334,10 +412,12 @@ export interface CartOrder extends ApiEntity {
   vat_rate?: number;
   service_charge_rate?: number;
 }
+
 export interface FetchCartStatusRule extends ApiEntity {
   not_confirmed_status?: number;
   total_counts_statuses?: number[];
 }
+
 export interface FetchCartResponse extends ApiEntity {
   status: string;
   message: string;
@@ -346,28 +426,65 @@ export interface FetchCartResponse extends ApiEntity {
   totals?: CartTotals;
   status_rule?: FetchCartStatusRule;
 }
-// ร้านมีโต๊ะ query ด้วย table_uuid; ร้านไม่มีโต๊ะ (store_table_status === 2)
+
+// ร้านมีโต๊ะ query ด้วย table_uuid;
+// ร้านไม่มีโต๊ะ (store_table_status === 2)
 // query ด้วย order_uuid ของบิลปัจจุบัน + branch_uuid_fk แทน
 export type FetchCartParams =
-  | { table_uuid: string; lang?: string }
-  | { order_uuid: string; branch_uuid_fk: string; lang?: string };
+  | {
+      table_uuid: string;
+      lang?: string;
+    }
+  | {
+      order_uuid: string;
+      branch_uuid_fk: string;
+      lang?: string;
+    };
+
 export interface MoveTableItem extends ApiEntity {}
-export interface MoveTableZone extends ApiEntity { zone_uuid?: string; zone_name?: string; tables?: MoveTableItem[] }
-export interface FetchJoinMoveTableParams { branch_uuid_fk?: string; table_status?: number | ""; lang?: string }
-export interface FetchJoinMoveTableResponse extends ApiEntity { data?: MoveTableZone[] }
-export interface MoveTableInput { from_table_uuid: string; to_table_uuid: string }
+
+export interface MoveTableZone extends ApiEntity {
+  zone_uuid?: string;
+  zone_name?: string;
+  tables?: MoveTableItem[];
+}
+
+export interface FetchJoinMoveTableParams {
+  branch_uuid_fk?: string;
+  table_status?: number | "";
+  lang?: string;
+}
+
+export interface FetchJoinMoveTableResponse extends ApiEntity {
+  data?: MoveTableZone[];
+}
+
+export interface MoveTableInput {
+  from_table_uuid: string;
+  to_table_uuid: string;
+}
+
 export interface MoveTableResponse extends ApiEntity {}
-export interface JoinTableMultiInput { from_table_uuids: string[]; to_table_uuid: string }
+
+export interface JoinTableMultiInput {
+  from_table_uuids: string[];
+  to_table_uuid: string;
+}
+
 export interface JoinTableMergedFrom extends ApiEntity {}
+
 export interface JoinTableMultiResponse extends ApiEntity {}
+
 export interface TableQRNextAction extends ApiEntity {
   print_endpoint?: string;
 }
+
 export interface TableQRSummary extends ApiEntity {
   table_status?: number;
   branch_uuid_fk?: string;
   zone_uuid_fk?: string;
 }
+
 export interface TableQRResponse extends ApiEntity {
   status?: string;
   message?: string;
@@ -400,9 +517,16 @@ export interface TableQRResponse extends ApiEntity {
   fallback_print?: unknown;
   reason?: string | null;
 }
+
 export interface DeleteOrderItemResponse extends ApiEntity {}
-export interface UpdateOrderNoteInput { order_it_uuid: string; order_it_note: string }
+
+export interface UpdateOrderNoteInput {
+  order_it_uuid: string;
+  order_it_note: string;
+}
+
 export interface UpdateOrderNoteResponse extends ApiEntity {}
+
 export interface PaymentInput extends ApiEntity {
   order_uuid: string;
   table_uuid?: string;
@@ -427,6 +551,7 @@ export interface PaymentInput extends ApiEntity {
   agent_id?: string;
   print_mode?: string;
 }
+
 export interface PaymentRecord extends ApiEntity {
   payment_uuid?: string;
   order_uuid_fk?: string;
@@ -444,6 +569,7 @@ export interface PaymentRecord extends ApiEntity {
   note?: string;
   paid_at?: string;
 }
+
 export interface PaymentTotals extends ApiEntity {
   order_grand_total?: number;
   order_balance?: number;
@@ -452,6 +578,7 @@ export interface PaymentTotals extends ApiEntity {
   paid_transfer?: number;
   change?: number;
 }
+
 export interface PaymentResponse extends ApiEntity {
   status?: string;
   message?: string;
@@ -468,6 +595,7 @@ export interface PaymentResponse extends ApiEntity {
   ack_template?: ConfirmToKitchenAckTemplate;
   fallback_print?: ApiEntity | null;
 }
+
 export interface SplitBillInput extends ApiEntity {
   order_uuid: string;
   table_uuid?: string;
@@ -493,13 +621,18 @@ export interface SplitBillInput extends ApiEntity {
   agent_id?: string;
   print_mode?: string;
 }
+
 export interface SplitBillOrderSummary extends ApiEntity {}
+
 export interface SplitBillTotals extends ApiEntity {}
+
 export interface SplitBillPaymentSummary extends ApiEntity {}
+
 export interface SplitBillResponseData extends ApiEntity {
   new_order?: CartOrder;
   source_order?: CartOrder;
 }
+
 export interface SplitBillResponse extends ApiEntity {
   status?: string;
   message?: string;
@@ -514,6 +647,7 @@ export interface SplitBillResponse extends ApiEntity {
   source_order?: CartOrder;
   data?: SplitBillResponseData;
 }
+
 export interface ConfirmToKitchenInput {
   order_uuid: string;
   login_uuid_fk: string;
@@ -523,7 +657,9 @@ export interface ConfirmToKitchenInput {
   agent_id?: string;
   print_mode?: string;
 }
+
 export interface ConfirmSummary extends ApiEntity {}
+
 export interface ConfirmToKitchenPrintJob extends ApiEntity {
   print_job_uuid?: string;
   job_status?: string;
@@ -546,7 +682,9 @@ export interface ConfirmToKitchenPrintJob extends ApiEntity {
   ack_success_payload?: ApiEntity;
   ack_failed_payload?: ApiEntity;
 }
+
 export interface ConfirmToKitchenNextAction extends ApiEntity {}
+
 export interface ConfirmToKitchenPendingQuery {
   print_job_uuid: string;
   login_uuid_fk: string;
@@ -554,8 +692,11 @@ export interface ConfirmToKitchenPendingQuery {
   agent_id?: string;
   print_mode?: string;
 }
+
 export interface ConfirmToKitchenAckTemplate extends ApiEntity {}
+
 export interface ConfirmPartialItem extends ApiEntity {}
+
 export interface ConfirmToKitchenResponse extends ApiEntity {
   status: string;
   message: string;
@@ -579,129 +720,177 @@ export interface ConfirmToKitchenResponse extends ApiEntity {
   print_job?: ConfirmToKitchenPrintJob;
   pending_query?: ConfirmToKitchenPendingQuery;
 }
-export interface ConfirmOrderItemServedInput { order_it_uuid: string }
-// device_code/agent_id/print_mode/cancel_reason เป็น optional เพราะ endpoint เดียวกันนี้
-// ถูกเรียกจากตะกร้า POS แบบเดิม (order_it_uuid อย่างเดียว ไม่มี field พวกนี้) ด้วย
-export interface CancelOrderItemInput {
+
+export interface ConfirmOrderItemServedInput {
   order_it_uuid: string;
-  // ต้องมีให้ resolvePosPrinterContext() หา printer ก่อนพิมพ์ใบเสร็จยกเลิกได้ — เป็น optional
-  // เพราะ pos-order-queue-store เรียก endpoint นี้ตรง ๆ (resolve printer เองแยกต่างหากอยู่แล้ว)
-  login_uuid_fk?: string;
-  device_code?: string;
-  agent_id?: string;
-  print_mode?: string;
-  cancel_reason?: string;
+}
+
+// ============================================================
+// ORDER QUEUE
+// ============================================================
+//
+// Backend response (new):
+//
+// {
+//   status: "success",
+//   message: "success",
+//   selected: "waiting_to_send",
+//   sections: [
+//     {
+//       key: "waiting_to_send",
+//       title: "ລໍຖ້າສົ່ງຄົົວ",
+//       status: 1,
+//       total: 2,
+//       selected: true,
+//       items: [
+//         {
+//           order_item_uuid: "...",
+//           table_name: "T11",
+//           order_it_q: 408,
+//           order_it_date_time: "2026-08-24 00:00:00",
+//           open_minutes: 2355,
+//           order_item_status: 1,
+//           product_name: "...",
+//           product_image: "...",
+//           qty: 1,
+//           note: "",
+//           kitchen_print_queued: false,
+//           can_send_to_kitchen: true,
+//           can_confirm_served: false
+//         }
+//       ]
+//     }
+//   ]
+// }
+//
+// Frontend uses the API response as the source of truth.
+// There is no orders[] nesting anymore.
+// There is no flattenOrderQueueSection() step anymore.
+//
+
+export interface OrderQueueItem {
+  order_item_uuid: string;
+
+  table_name: string | null;
+
+  order_it_q: number;
+
+  order_it_date_time: string;
+
+  open_minutes: number;
+
+  order_item_status: number;
+
+  product_name: string;
+
+  product_image: string;
+
+  qty: number;
+
+  note: string;
+
+  kitchen_print_queued: boolean;
+
+  can_send_to_kitchen: boolean;
+
+  can_confirm_served: boolean;
+}
+
+export interface OrderQueueSection {
+  key: string;
+
+  title: string;
+
+  status: number;
+
+  total: number;
+
+  selected: boolean;
+
+  items: OrderQueueItem[];
+}
+
+export interface FetchOrderQueueParams {
+  branch_uuid_fk: string;
+
+  status: number;
+
   lang?: string;
 }
-// print_job/pending_query เหมือน ConfirmToKitchenResponse — แต่พิมพ์ผ่าน executeInvoicePrintJobs
-// (ack:false) ไม่ใช่ executeKitchenPrintJobs (ack:true) เพราะ cancel_order_item เปลี่ยนสถานะ
-// order item เสร็จสิ้นไปแล้วที่ตัว PATCH เอง ใบเสร็จยกเลิกที่พิมพ์ตามมาเป็นแค่เอกสารพิสูจน์
-// ไม่ใช่ trigger เปลี่ยนสถานะเพิ่มเติมแบบใบสั่งครัว
-export interface CancelOrderItemResponse extends ApiEntity {
+
+export interface FetchOrderQueueResponse {
   status: string;
+
   message: string;
+
+  selected: string;
+
+  sections: OrderQueueSection[];
+}
+
+export interface SendToKitchenInput {
+  order_item_uuids: string[];
+
+  device_code?: string;
+
+  agent_id?: string;
+
+  print_mode?: string;
+
+  lang?: string;
+}
+
+export interface SendToKitchenResponse extends ApiEntity {
+  status: string;
+
+  message: string;
+
+  login_uuid_fk?: string;
+
   print_job?: ConfirmToKitchenPrintJob;
+
   pending_query?: ConfirmToKitchenPendingQuery;
 }
 
 export interface ConfirmOrderItemsServedInput {
   order_item_uuids: string[];
+
   lang?: string;
 }
 
-// ยืนยันจาก response จริงของ backend (2026-08-24) — endpoint นี้ตอบ envelope มาตรฐาน
-// { status: "success" | "error" } ไม่ใช่ status ตัวเลขแบบที่เอกสารเก่าระบุไว้ และคืนข้อมูล
-// "ทุก section" กลับมาพร้อมกันเสมอ (ไม่ filter ตาม query `status` — query แค่กำหนดว่า section
-// ไหนตั้ง selected: true) แต่ละ order รวม item ไว้เป็น items[] ซ้อนอยู่ข้างใน ไม่ใช่ item
-// รายตัวแบบ flat ต้อง flatten เอาเองฝั่ง frontend (ดู order-queue-normalizers.ts)
-export interface OrderQueueItem {
-  order_item_uuid: string;
-  order_item_status: number;
-  product_name: string;
-  // อาจเป็น URL รูปสินค้า หรือ hex color (เช่น "#10B981") เมื่อสินค้าไม่มีรูป — ดูตัวอย่างการ
-  // แยกสองแบบนี้ใน pos/table-selection/cart-items.tsx (cartItemMedia)
-  product_image: string;
-  qty: number;
-  note: string;
-  kitchen_print_queued: boolean;
-  can_send_to_kitchen: boolean;
-  can_confirm_served: boolean;
-}
-// ร้านไม่มีโต๊ะ (store_table_status === 2) ทำให้ order.table เป็น null ได้
-export interface OrderQueueOrderTable {
-  table_uuid: string;
-  table_name: string;
-  table_status: number;
-}
-export interface OrderQueueOrder {
-  order_uuid: string;
-  invoice: string;
-  table: OrderQueueOrderTable | null;
-  items: OrderQueueItem[];
-}
-export interface OrderQueueSection {
-  key: string;
-  title: string;
-  status: number;
-  total: number;
-  selected: boolean;
-  // มีแค่ section ที่ selected: true (ตรงกับ query `status`) เท่านั้นที่ orders[] จะมีข้อมูลจริง
-  // — section อื่นได้ total ที่ถูกต้อง (ใช้ทำ badge ได้) แต่ orders เป็น [] เสมอแม้ total > 0
-  // ดังนั้นต้อง fetch ใหม่ทุกครั้งที่สลับ tab จะเอา orders มา flatten ไม่ได้จาก response เก่า
-  orders: OrderQueueOrder[];
-}
-export interface FetchOrderQueueParams {
-  branch_uuid_fk: string;
-  status: number;
-  lang?: string;
-}
-export interface FetchOrderQueueResponse {
-  status: string;
-  message: string;
-  selected: string;
-  sections: OrderQueueSection[];
-}
-// แถวที่ flatten แล้ว — รวม context ระดับ order (table_name/invoice) เข้ากับ item แต่ละตัว
-// เพราะหน้า order-queue ต้องการโครงสร้าง flat หนึ่งแถวต่อหนึ่ง order_item (แต่ยัง group กลับ
-// เป็นก้อนต่อออเดอร์ได้ตาม order_uuid — ดู groupOrderQueueRows ใน order-queue-view.ts)
-export interface OrderQueueRow extends ApiEntity {
-  order_item_uuid: string;
-  order_uuid: string;
-  order_invoice: string;
-  table_name: string | null;
-  order_item_status: number;
-  product_name: string;
-  product_image: string;
-  qty: number;
-  note: string;
-  kitchen_print_queued: boolean;
-  can_send_to_kitchen: boolean;
-  can_confirm_served: boolean;
-}
-export interface SendToKitchenInput {
-  order_item_uuids: string[];
-  device_code?: string;
-  agent_id?: string;
-  print_mode?: string;
-  lang?: string;
-}
-export interface SendToKitchenResponse extends ApiEntity {
-  status: string;
-  message: string;
+// device_code/agent_id/print_mode/cancel_reason เป็น optional
+// เพราะ endpoint เดียวกันนี้ถูกเรียกจากตะกร้า POS แบบเดิม
+// ด้วย order_it_uuid อย่างเดียว
+export interface CancelOrderItemInput {
+  order_it_uuid: string;
+
   login_uuid_fk?: string;
+
+  device_code?: string;
+
+  agent_id?: string;
+
+  print_mode?: string;
+
+  cancel_reason?: string;
+
+  lang?: string;
+}
+
+// print_job/pending_query เหมือน ConfirmToKitchenResponse
+// แต่พิมพ์ผ่าน executeInvoicePrintJobs (ack:false)
+// ไม่ใช่ executeKitchenPrintJobs (ack:true)
+// เพราะ cancel_order_item เปลี่ยนสถานะ order item เสร็จแล้ว
+export interface CancelOrderItemResponse extends ApiEntity {
+  status: string;
+
+  message: string;
+
   print_job?: ConfirmToKitchenPrintJob;
+
   pending_query?: ConfirmToKitchenPendingQuery;
 }
-export interface CreateTableQRRequest extends ApiEntity {
-  table_uuid: string;
-  // optional: เส้นทางดู/รีเฟรช QR (loadTableQr) ไม่ต้องส่ง identity ของเครื่องพิมพ์
-  login_uuid_fk?: string;
-  lang?: string;
-  device_code?: string;
-  agent_id?: string;
-  print_mode?: string;
-}
-export interface CreateTableQRResponse extends TableQRResponse {}
+
 export interface PrintInvoiceRequest extends ApiEntity {
   order_uuid: string;
   login_uuid_fk: string;
@@ -711,6 +900,7 @@ export interface PrintInvoiceRequest extends ApiEntity {
   agent_id?: string;
   print_mode?: string;
 }
+
 export interface PrintInvoiceResponse extends ApiEntity {
   status?: string;
   message?: string;
@@ -723,6 +913,7 @@ export interface PrintInvoiceResponse extends ApiEntity {
   totals?: PaymentTotals;
   fallback_print?: ApiEntity | null;
 }
+
 export interface ReprintReceiptRequest {
   order_uuid: string;
   login_uuid_fk: string;
@@ -731,9 +922,11 @@ export interface ReprintReceiptRequest {
   agent_id?: string;
   print_mode?: string;
 }
+
 export interface ReprintReceiptPrintJob {
   print_job_uuid?: string;
 }
+
 export interface ReprintReceiptResponse {
   print_job?: ReprintReceiptPrintJob | null;
 }

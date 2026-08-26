@@ -34,8 +34,8 @@ export const PaymentMethod = {
 } as const;
 export type PaymentMethod = (typeof PaymentMethod)[keyof typeof PaymentMethod];
 
-// สถานะของ order_item ใน customer_order_queue — ORDERED (0) ไม่มีหน้าใช้งานตอนนี้
-// (ยังไม่มี API เปลี่ยนสถานะ 0→1) แต่ยังคงนิยามไว้ให้ครบตาม backend
+// สถานะของ order_item ใน customer_order_queue — ORDERED (0) แสดงในแท็บคิวได้
+// แต่ยังไม่มี API เปลี่ยนสถานะ 0→1 ดังนั้นแท็บนั้นเป็นแบบดูอย่างเดียว
 export const OrderItemStatus = {
   ORDERED: 0,
   WAITING_CONFIRM: 1,

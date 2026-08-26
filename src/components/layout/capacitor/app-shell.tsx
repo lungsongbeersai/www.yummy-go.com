@@ -12,6 +12,8 @@ import { NativeTopBar } from "@/components/layout/capacitor/top-bar";
 import { NativeBottomNav } from "@/components/layout/capacitor/bottom-nav";
 import { NativeMoreSheet } from "@/components/layout/capacitor/more-sheet";
 import { NativeSideRail } from "@/components/layout/capacitor/side-rail";
+import { usePullToRefresh } from "@/components/layout/capacitor/use-pull-to-refresh";
+import { NativePullToRefreshIndicator } from "@/components/layout/capacitor/pull-to-refresh-indicator";
 import { useAuthStore } from "@/stores/auth-store";
 
 export function NativeAppShell({ children }: { children: React.ReactNode }) {
@@ -38,6 +40,9 @@ export function NativeAppShell({ children }: { children: React.ReactNode }) {
   const [moreOpen, setMoreOpen] = useState(false);
   const keyboardVisible = useKeyboardVisible();
   const closeMore = useCallback(() => setMoreOpen(false), []);
+  // ปิดบนหน้า fixedDataScreen (เช่น POS order/table) เพราะหน้าเหล่านี้มี scroll area
+  // ของตัวเองแยกจาก document — ดึงที่ขอบบนสุดของหน้าจะไปชนกับท่าทางภายในจอนั้นแทน
+  const { pullDistance, refreshing, threshold } = usePullToRefresh(!fixedDataScreen);
 
   useAndroidBackButton({
     model,
@@ -69,6 +74,12 @@ export function NativeAppShell({ children }: { children: React.ReactNode }) {
         breadcrumbs={breadcrumbs}
         model={model}
         pathname={pathname}
+      />
+
+      <NativePullToRefreshIndicator
+        pullDistance={pullDistance}
+        refreshing={refreshing}
+        threshold={threshold}
       />
 
       {/* app-shell-body moves here from <main> — this div, not <main> alone, is now the

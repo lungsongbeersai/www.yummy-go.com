@@ -5,7 +5,10 @@ import { fileURLToPath } from "url";
 const appDir = dirname(fileURLToPath(import.meta.url));
 
 const nextConfig: NextConfig = {
-  allowedDevOrigins: ["127.0.0.1"],
+  // 192.168.100.247 คือ LAN IP เครื่อง dev ปัจจุบัน ให้ Capacitor Android ทดสอบผ่าน Wi-Fi ได้
+  // (ไม่งั้น Next dev server บล็อก /_next/static/chunks/*.js เป็น 403 ทุกไฟล์ เพราะ origin ไม่อยู่ใน allowlist)
+  // เปลี่ยนค่านี้ถ้า PC เปลี่ยนเครือข่าย — เช็คด้วย `ipconfig` (adapter Wi-Fi)
+  allowedDevOrigins: ["127.0.0.1", "192.168.100.247"],
   output: "standalone",
   typedRoutes: true,
   async headers() {
