@@ -1,5 +1,6 @@
 package com.yummygo.app;
 
+import android.content.res.Configuration;
 import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
@@ -20,9 +21,15 @@ import androidx.webkit.WebViewFeature;
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
+  // ตรงกับ --background จริงของเว็บแอป (globals.css): oklch(1 0 0) โหมดสว่าง,
+  // oklch(0.148 0.004 228.8) โหมดมืด — ให้แถบระบบกลืนกับพื้นหลังแอปทั้งสองธีม
+  private static final int STATUS_BAR_COLOR_LIGHT = Color.WHITE;
+  private static final int STATUS_BAR_COLOR_DARK = Color.parseColor("#0F131A");
+
   @Override
   public void onCreate(Bundle savedInstanceState) {
-    AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
+    // เดิมบังคับ MODE_NIGHT_NO (ปิด dark mode ระดับ native ตลอด) เปลี่ยนเป็นตามเครื่องจริง
+    AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM);
     super.onCreate(savedInstanceState);
 
     hardenWebViewRendering();
@@ -32,16 +39,21 @@ public class MainActivity extends BridgeActivity {
     // ให้แอปวาดเต็มจอ แล้วเราจัด safe area เองจาก native
     WindowCompat.setDecorFitsSystemWindows(window, false);
 
-    // สี Status Bar และ Navigation Bar
-    window.setStatusBarColor(Color.WHITE);
-    window.setNavigationBarColor(Color.WHITE);
+    boolean isDarkMode =
+      (getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK)
+        == Configuration.UI_MODE_NIGHT_YES;
+    int barColor = isDarkMode ? STATUS_BAR_COLOR_DARK : STATUS_BAR_COLOR_LIGHT;
 
-    // ให้ icon ด้านบน/ล่างเป็นสีเข้ม เพราะพื้นหลังสีขาว
+    // สี Status Bar และ Navigation Bar — ตามโหมดสว่าง/มืดของเครื่อง ไม่ใช่ค่าคงที่
+    window.setStatusBarColor(barColor);
+    window.setNavigationBarColor(barColor);
+
+    // ไอคอนเข้มบนพื้นหลังสว่าง / ไอคอนอ่อนบนพื้นหลังมืด
     WindowInsetsControllerCompat controller =
       new WindowInsetsControllerCompat(window, window.getDecorView());
 
-    controller.setAppearanceLightStatusBars(true);
-    controller.setAppearanceLightNavigationBars(true);
+    controller.setAppearanceLightStatusBars(!isDarkMode);
+    controller.setAppearanceLightNavigationBars(!isDarkMode);
 
     // เพิ่ม padding ให้ root view ตาม Status Bar / Navigation Bar
     // เพื่อไม่ให้ WebView ชนด้านบนและด้านล่าง
