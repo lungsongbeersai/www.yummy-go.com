@@ -1,6 +1,5 @@
 package com.yummygo.app;
 
-import android.content.res.Configuration;
 import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
@@ -28,8 +27,10 @@ public class MainActivity extends BridgeActivity {
 
   @Override
   public void onCreate(Bundle savedInstanceState) {
-    // เดิมบังคับ MODE_NIGHT_NO (ปิด dark mode ระดับ native ตลอด) เปลี่ยนเป็นตามเครื่องจริง
-    AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM);
+    // ธีมคุมโดยแอปเอง (สวิตช์ในแอป) ไม่ใช่ OS — ปิด native dark mode ไว้เฉย ๆ กันสับสน,
+    // ต้อง register ก่อน super.onCreate ตามข้อกำหนดของ Capacitor
+    AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
+    registerPlugin(NativeThemePlugin.class);
     super.onCreate(savedInstanceState);
 
     hardenWebViewRendering();
@@ -39,21 +40,9 @@ public class MainActivity extends BridgeActivity {
     // ให้แอปวาดเต็มจอ แล้วเราจัด safe area เองจาก native
     WindowCompat.setDecorFitsSystemWindows(window, false);
 
-    boolean isDarkMode =
-      (getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK)
-        == Configuration.UI_MODE_NIGHT_YES;
-    int barColor = isDarkMode ? STATUS_BAR_COLOR_DARK : STATUS_BAR_COLOR_LIGHT;
-
-    // สี Status Bar และ Navigation Bar — ตามโหมดสว่าง/มืดของเครื่อง ไม่ใช่ค่าคงที่
-    window.setStatusBarColor(barColor);
-    window.setNavigationBarColor(barColor);
-
-    // ไอคอนเข้มบนพื้นหลังสว่าง / ไอคอนอ่อนบนพื้นหลังมืด
-    WindowInsetsControllerCompat controller =
-      new WindowInsetsControllerCompat(window, window.getDecorView());
-
-    controller.setAppearanceLightStatusBars(!isDarkMode);
-    controller.setAppearanceLightNavigationBars(!isDarkMode);
+    // ค่าเริ่มต้นก่อนเว็บแอป hydrate เสร็จ (ธีม default ของแอปคือสว่าง) — เว็บแอปจะเรียก
+    // NativeTheme.setDarkMode ทับด้วยค่าจริงจาก app-store ทันทีที่ hydrate เสร็จ
+    applyBarColors(false);
 
     // เพิ่ม padding ให้ root view ตาม Status Bar / Navigation Bar
     // เพื่อไม่ให้ WebView ชนด้านบนและด้านล่าง
@@ -71,6 +60,21 @@ public class MainActivity extends BridgeActivity {
 
       return insets;
     });
+  }
+
+  // เรียกจาก onCreate (ค่าเริ่มต้น) และจาก NativeThemePlugin (เว็บแอป sync ธีมจริงมาให้)
+  public void applyBarColors(boolean isDark) {
+    Window window = getWindow();
+    int barColor = isDark ? STATUS_BAR_COLOR_DARK : STATUS_BAR_COLOR_LIGHT;
+
+    window.setStatusBarColor(barColor);
+    window.setNavigationBarColor(barColor);
+
+    WindowInsetsControllerCompat controller =
+      new WindowInsetsControllerCompat(window, window.getDecorView());
+
+    controller.setAppearanceLightStatusBars(!isDark);
+    controller.setAppearanceLightNavigationBars(!isDark);
   }
 
   private void hardenWebViewRendering() {

@@ -16,6 +16,7 @@ import {
   CAPACITOR_NATIVE_CLASS,
 } from "@/lib/capacitor-platform";
 import { LANGUAGE_COOKIE, type Language } from "@/lib/language";
+import { syncNativeStatusBarTheme } from "@/lib/native-theme-bridge";
 import { useAppStore, type FontScale, type ThemeColor, type ThemeMode } from "@/stores/app-store";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -41,6 +42,8 @@ function applyDocumentTheme(theme: ThemeMode) {
   root.classList.toggle("dark", theme === "dark");
   root.dataset.theme = theme;
   root.style.colorScheme = theme;
+  // status/navigation bar (Capacitor Android) ต้องตามธีมที่ผู้ใช้เลือกในแอป ไม่ใช่ธีมของ OS
+  syncNativeStatusBarTheme(theme === "dark");
 }
 
 function applyDocumentThemeColor(themeColor: ThemeColor) {
