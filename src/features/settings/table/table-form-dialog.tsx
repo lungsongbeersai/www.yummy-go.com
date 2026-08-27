@@ -132,6 +132,21 @@ export function TableFormDialog({
                       step={1}
                     />
                   </Field>
+                  {editing ? null : (
+                    <Field>
+                      <FieldLabel htmlFor="create_count">{t("settings.tableCreateCountLabel")}</FieldLabel>
+                      <FormattedNumberInput
+                        id="create_count"
+                        name="create_count"
+                        autoComplete="off"
+                        defaultValue="1"
+                        disabled={saving}
+                        min={1}
+                        step={1}
+                      />
+                      <FieldDescription>{t("settings.tableCreateCountHint")}</FieldDescription>
+                    </Field>
+                  )}
                 </FieldGroup>
               </FieldSet>
 

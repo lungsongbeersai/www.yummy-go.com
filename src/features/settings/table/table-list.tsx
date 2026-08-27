@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, type ReactNode } from "react";
-import { ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown, Map as MapIcon, Table2 } from "lucide-react";
+import { ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown, Map as MapIcon, Table2, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -42,6 +42,7 @@ export function TableListSurface({
   toolbar,
   zoneById,
   onDelete,
+  onDeleteSelected,
   onEdit,
   onToggleAll,
   onToggleAllZones,
@@ -59,6 +60,7 @@ export function TableListSurface({
   toolbar: ReactNode;
   zoneById: Map<string, Zone>;
   onDelete: (row: DiningTable) => void;
+  onDeleteSelected: () => void;
   onEdit: (row: DiningTable) => void;
   onToggleAll: (checked: boolean) => void;
   onToggleAllZones: (collapsed: boolean) => void;
@@ -67,6 +69,7 @@ export function TableListSurface({
 }) {
   const { t } = useTranslation();
   const hasGroups = groupedRows.length > 0;
+  const hasSelection = selectedRows.size > 0;
   const groupToggleAction = hasGroups ? (
     <Button
       size="xs"
@@ -78,6 +81,20 @@ export function TableListSurface({
       {allCollapsed ? t("actions.expandAll") : t("actions.collapseAll")}
     </Button>
   ) : null;
+  const deleteSelectedAction = hasSelection ? (
+    <Button
+      size="xs"
+      type="button"
+      variant="destructive"
+      onClick={onDeleteSelected}
+    >
+      <Trash2 data-icon="inline-start" />
+      {t("actions.deleteSelected")}
+      <Badge className="border-transparent bg-destructive-foreground/20 px-1.5 text-destructive-foreground tabular-nums">
+        {selectedRows.size}
+      </Badge>
+    </Button>
+  ) : null;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -87,6 +104,7 @@ export function TableListSurface({
             <div className="flex min-w-0 flex-wrap items-center gap-2">
               <p className="text-sm font-black">{t("settings.tableList")}</p>
               {groupToggleAction}
+              {deleteSelectedAction}
             </div>
           </div>
           <div className="min-w-0 xl:max-w-[48rem]">{toolbar}</div>

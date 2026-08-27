@@ -14,6 +14,7 @@ import { useOptionRowSelection } from "@/features/settings/shared/use-option-row
 import { useSettingsCrudController } from "@/features/settings/shared/use-settings-crud-controller";
 import { PAGE_LIMIT_OPTIONS } from "@/lib/pagination";
 import type { UrlPaginationState } from "@/lib/url-pagination";
+import { deleteTables } from "@/services/table";
 import type { FetchTablesParams, SaveTableInput, Table as DiningTable, TableListRow } from "@/services/table";
 import type { Zone } from "@/services/zone";
 import { useBranchStore } from "@/stores/branch-store";
@@ -52,6 +53,8 @@ export function TableSettingsPage({ initialPagination }: { initialPagination: Ur
   const [fetchedZoneOptions, setFetchedZoneOptions] = useState<Zone[]>([]);
   const [lastSavedZoneUuid, setLastSavedZoneUuid] = useState("");
   const [collapsedZones, setCollapsedZones] = useState<Set<string>>(() => new Set());
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   const title = t("settings.modules.table.title");
   const description = t("settings.modules.table.description");
@@ -93,6 +96,7 @@ export function TableSettingsPage({ initialPagination }: { initialPagination: Ur
       return buildTablePayload({
         branchUuid: currentUser?.branch_uuid ?? "",
         chargeStatus: String(formData.get("charge_status") ?? "2").trim(),
+        createCount: String(formData.get("create_count") ?? "").trim(),
         editing: editingTable,
         nameEng: String(formData.get("table_name_eng") ?? "").trim(),
         nameLa: String(formData.get("table_name_la") ?? "").trim(),
@@ -237,6 +241,7 @@ export function TableSettingsPage({ initialPagination }: { initialPagination: Ur
     const nameEng = String(formData.get("table_name_eng") ?? "").trim();
     const seats = String(formData.get("table_qty") ?? "").trim();
     const chargeStatus = String(formData.get("charge_status") ?? "2").trim();
+    const createCount = String(formData.get("create_count") ?? "").trim();
     const missing = missingTableField({ branchUuid, nameLa, zoneUuid });
 
     if (missing) {
@@ -245,7 +250,7 @@ export function TableSettingsPage({ initialPagination }: { initialPagination: Ur
     }
 
     try {
-      await saveTableRow(buildTablePayload({ branchUuid, chargeStatus, editing: editingTable, nameEng, nameLa, seats, zoneUuid }));
+      await saveTableRow(buildTablePayload({ branchUuid, chargeStatus, createCount, editing: editingTable, nameEng, nameLa, seats, zoneUuid }));
       showToast({ title: t("settings.saved"), tone: "success" });
       setLastSavedZoneUuid(zoneUuid);
       setDialogOpen(false);
@@ -275,6 +280,27 @@ export function TableSettingsPage({ initialPagination }: { initialPagination: Ur
         description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
         tone: "error"
       });
+    }
+  }
+
+  async function removeSelectedRows() {
+    const ids = Array.from(selectedRows);
+    if (!ids.length) return;
+    setBulkDeleting(true);
+    try {
+      await deleteTables(ids);
+      showToast({ title: t("settings.deleted"), tone: "success" });
+      setBulkDeleteOpen(false);
+      toggleAll(false);
+      await loadTableRows(requestParams, { background: true });
+    } catch (error) {
+      showToast({
+        title: t("settings.deleteFailed"),
+        description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
+        tone: "error"
+      });
+    } finally {
+      setBulkDeleting(false);
     }
   }
 
@@ -310,6 +336,7 @@ export function TableSettingsPage({ initialPagination }: { initialPagination: Ur
       toolbar={toolbar}
       zoneById={zoneById}
       onDelete={setDeleteTarget}
+      onDeleteSelected={() => setBulkDeleteOpen(true)}
       onEdit={openEdit}
       onToggleAll={toggleAll}
       onToggleAllZones={setAllZonesCollapsed}
@@ -371,6 +398,16 @@ export function TableSettingsPage({ initialPagination }: { initialPagination: Ur
         onOpenChange={(nextOpen) => {
           if (!nextOpen) setDeleteTarget(null);
         }}
+      />
+      <ConfirmDialog
+        cancelLabel={t("actions.cancel")}
+        confirmLabel={t("actions.deleteSelected")}
+        confirmPending={bulkDeleting}
+        description={t("settings.deleteSelectedConfirm", { count: selectedRows.size })}
+        open={bulkDeleteOpen}
+        title={t("settings.deleteSelectedTitle")}
+        onConfirm={() => void removeSelectedRows()}
+        onOpenChange={setBulkDeleteOpen}
       />
     </>
   );

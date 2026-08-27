@@ -1,3 +1,4 @@
+import { apiRequest } from "@/lib/api";
 import { createCrud } from "@/services/shared/crud";
 import type { ApiEntity, ApiListResponse, FetchParams } from "@/services/shared/types";
 
@@ -38,6 +39,9 @@ export interface SaveTableInput extends ApiEntity {
   table_qty?: number | string;
   number_of_seats?: number | string;
   charge_status?: number | string;
+  // มีผลเฉพาะตอนสร้างใหม่ (table_uuid ว่าง) — backend สร้างต่อจากชื่อ table_name_la/eng
+  // ให้เองตามจำนวนนี้ (เช่น "ໂຕະ 1" + create_count "5" = ໂຕະ 1-5), ไม่มีผลตอนแก้ไข
+  create_count?: number | string;
 }
 export interface FetchTablesParams extends FetchParams {}
 
@@ -66,7 +70,14 @@ export const saveTable = (input: SaveTableInput) => {
   };
 
   if (qty !== undefined && qty !== null && qty !== "") payload.table_qty = Number(qty);
+  if (input.create_count !== undefined && input.create_count !== null && input.create_count !== "") {
+    payload.create_count = String(input.create_count);
+  }
 
   return crud.save(payload);
 };
 export const deleteTable = (table_uuid: string) => crud.delete(table_uuid);
+export const deleteTables = (table_uuids: string[]) =>
+  apiRequest<{ status: string; message: string }>("delete", "/api/v1/table/delete", {
+    data: { table_uuids }
+  });

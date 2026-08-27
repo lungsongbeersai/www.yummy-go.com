@@ -153,6 +153,7 @@ export function missingTableField({
 export function buildTablePayload({
   branchUuid,
   chargeStatus,
+  createCount,
   editing,
   nameEng,
   nameLa,
@@ -161,6 +162,7 @@ export function buildTablePayload({
 }: {
   branchUuid: string;
   chargeStatus: string;
+  createCount?: string;
   editing: DiningTable | null;
   nameEng: string;
   nameLa: string;
@@ -177,5 +179,16 @@ export function buildTablePayload({
   };
   const trimmedSeats = stripNumberFormat(seats);
   if (trimmedSeats) payload.table_qty = Number(trimmedSeats);
+
+  // สร้างหลายโต๊ะพร้อมกันมีความหมายเฉพาะตอนสร้างใหม่เท่านั้น — ตอนแก้ไขไม่ส่ง create_count
+  // เลย (ฟอร์มก็ไม่แสดง field นี้ตอน editing ด้วย ดู table-form-dialog.tsx)
+  if (!editing && createCount) {
+    const trimmedCount = stripNumberFormat(createCount);
+    const countNum = Number(trimmedCount);
+    if (trimmedCount && Number.isFinite(countNum) && countNum > 1) {
+      payload.create_count = String(countNum);
+    }
+  }
+
   return payload;
 }
