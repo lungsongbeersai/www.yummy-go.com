@@ -106,7 +106,7 @@ function NavButton({
       <span className="relative [&_svg]:size-4.5 [&_svg]:stroke-2" aria-hidden="true">
         {icon}
         {badge && badge > 0 ? (
-          <span className="absolute -right-2 -top-1.5 grid h-4 min-w-4 place-items-center rounded-full border-2 border-yg-bg2 bg-yg-accent px-1 text-[9px] font-extrabold leading-none text-yg-on-accent">
+          <span className="absolute -right-2 -top-1.5 grid h-4 min-w-4 place-items-center rounded-full border-2 border-yg-bg2 bg-yg-accent px-1 text-2xs font-extrabold leading-none text-yg-on-accent">
             {badgeLabel}
           </span>
         ) : null}

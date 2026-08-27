@@ -38,7 +38,7 @@ export function ProductMedia({ className, row }: { className?: string; row: Prod
 export function DetailMetric({ label, value }: { label: string; value: string }) {
   return (
     <div className="min-w-0">
-      <p className="text-[11px] font-semibold text-muted-foreground">{label}</p>
+      <p className="text-2xs font-semibold text-muted-foreground">{label}</p>
       <p className="mt-0.5 truncate font-mono text-xs font-semibold">{value}</p>
     </div>
   );

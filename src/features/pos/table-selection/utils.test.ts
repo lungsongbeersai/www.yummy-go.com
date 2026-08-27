@@ -25,7 +25,7 @@ import {
   newOrderTabItems,
   newOrderConfirmGroups,
   normalizeDiscountType,
-  pruneSelectedItemUuids,
+  pruneSelectedItemQuantities,
   splitPaymentSelection,
   visibleCartItems,
 } from "./utils";
@@ -393,9 +393,9 @@ describe("table selection utils", () => {
   it("builds split payment selection for one order", () => {
     const cart = cartOrder();
     const fullSummary = cartSummary(cart);
-    const selection = splitPaymentSelection([cart], new Set(["item-1"]));
+    const selection = splitPaymentSelection([cart], new Map([["item-1", 2]]));
     expect(selection?.orderUuid).toBe("order-1");
-    expect(selection?.itemUuids).toEqual(["item-1"]);
+    expect(selection?.orderItemUuids).toEqual([{ "item-1": 2 }]);
     expect(selection?.summary).toMatchObject({
       subtotal: 24000,
       itemDiscount: 4000,
@@ -407,13 +407,43 @@ describe("table selection utils", () => {
     expect(cartDisplaySummary(fullSummary, null)).toBe(fullSummary);
   });
 
+  it("prorates the item total when only part of its quantity is selected", () => {
+    // item-1: order_it_qty 2, gross_total 24000, discount 4000 — เลือกจ่ายแค่ 1 ใน 2
+    // (เช่น เบียร์ 10 ขวด จ่ายก่อน 2 ขวด) ยอด/discount ต้องถูกสเกลลงครึ่งหนึ่งตามสัดส่วน
+    const cart = cartOrder();
+    const selection = splitPaymentSelection([cart], new Map([["item-1", 1]]));
+    expect(selection?.orderItemUuids).toEqual([{ "item-1": 1 }]);
+    expect(selection?.summary).toMatchObject({
+      subtotal: 12000,
+      itemDiscount: 2000,
+      grandTotal: 10000,
+    });
+  });
+
   it("prunes split selections that are no longer eligible", () => {
-    const current = new Set(["item-1", "item-2"]);
-    const unchanged = pruneSelectedItemUuids(current, ["item-1", "item-2"]);
-    const pruned = pruneSelectedItemUuids(current, ["item-1", null]);
+    const current = new Map([
+      ["item-1", 2],
+      ["item-2", 1],
+    ]);
+    const eligibleItems: CartItem[] = [
+      { order_it_uuid: "item-1", detail: { order_it_qty: 2 } },
+      { order_it_uuid: "item-2", detail: { order_it_qty: 1 } },
+    ];
+    const unchanged = pruneSelectedItemQuantities(current, eligibleItems);
+    const pruned = pruneSelectedItemQuantities(current, [eligibleItems[0]]);
 
     expect(unchanged).toBe(current);
-    expect([...pruned]).toEqual(["item-1"]);
+    expect([...pruned.entries()]).toEqual([["item-1", 2]]);
+  });
+
+  it("clamps a selected quantity down when the item's own quantity shrinks", () => {
+    const current = new Map([["item-1", 2]]);
+    const eligibleItems: CartItem[] = [
+      { order_it_uuid: "item-1", detail: { order_it_qty: 1 } },
+    ];
+    const clamped = pruneSelectedItemQuantities(current, eligibleItems);
+
+    expect([...clamped.entries()]).toEqual([["item-1", 1]]);
   });
 
   it("shows topping qty and total as returned by the backend", () => {

@@ -41,6 +41,10 @@ export interface PrinterCategory extends ApiEntity {
   cate_name_la?: string;
   cate_name_eng?: string;
 }
+// backend เพิ่งเพิ่ม mapping_type — เลือกได้อย่างใดอย่างหนึ่งเท่านั้นระหว่างโซนกับหมวดหมู่
+// ต่อเครื่องพิมพ์หนึ่งเครื่อง คนละฟิลด์กันตามชนิด: ZONE ใช้ zone_uuid_fk, CATEGORY ใช้ cate_uuid_fk
+// (ไม่ใช่ฟิลด์เดียวกันใช้ซ้ำ — ทั้งสองฟิลด์แยกกันจริงบน wire)
+export type PrinterMappingType = "ZONE" | "CATEGORY";
 export interface Printer extends ApiEntity {
   print_config_id?: string;
   print_config_uuid: string;
@@ -62,8 +66,13 @@ export interface Printer extends ApiEntity {
   updated_at?: string;
   font_size?: number;
   role_codes: string[];
+  // เครื่องพิมพ์ที่บันทึกไว้ก่อน backend เพิ่ม mapping_type จะไม่มีฟิลด์นี้มา — ถือว่าเป็น
+  // CATEGORY (พฤติกรรมเดิมก่อนมีโซน) ดู mappingTypeOf() ใน printer-form-utils.ts
+  mapping_type?: PrinterMappingType;
   categories?: PrinterCategory[];
   cate_uuid_fk: string[];
+  // มีค่าเฉพาะเครื่องพิมพ์ที่ mapping_type = ZONE เท่านั้น — คนละฟิลด์กับ cate_uuid_fk
+  zone_uuid_fk?: string[];
 }
 export interface PrinterRole extends ApiEntity { role_code: string; role_name: string }
 export interface AgentFile extends ApiEntity {
@@ -105,6 +114,9 @@ export interface SavePrinterInput extends ApiEntity {
   interface_value?: string;
   paper_width_mm: number;
   role_codes: string[];
+  mapping_type: PrinterMappingType;
+  // ตัวเลือกที่ผู้ใช้เลือกไว้ (โซนหรือหมวดหมู่ แล้วแต่ mapping_type) — savePrinter() ใน
+  // config-api.ts เป็นจุดเดียวที่แปลงเป็นฟิลด์ wire ที่ถูกต้อง (zone_uuid_fk หรือ cate_uuid_fk)
   cate_uuid_fk?: string[];
   agent_url: string;
   agent_id: string;
@@ -283,7 +295,13 @@ export interface PrinterDeviceContext {
 export interface AckAppliedItem extends ApiEntity { }
 export interface AckResponse extends ApiEntity { }
 export interface KitchenPrintResult { successCount: number; failedCount: number; total: number; errorMessage?: string }
-export interface DefaultCategoryByRoleInput extends ApiEntity { login_uuid_fk: string; role_codes: string[]; lang?: string }
+export interface DefaultCategoryByRoleInput extends ApiEntity {
+  login_uuid_fk: string;
+  role_codes: string[];
+  mapping_type: PrinterMappingType;
+  print_config_uuid_fk?: string;
+  lang?: string;
+}
 export interface DefaultCategoryGroupDetail extends ApiEntity { }
 export interface DefaultCategoryGroup extends ApiEntity { }
 export interface DefaultCategoryByRoleResponse extends ApiEntity { }

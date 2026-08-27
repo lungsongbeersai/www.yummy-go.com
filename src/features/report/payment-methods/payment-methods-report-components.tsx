@@ -534,7 +534,7 @@ export function PaymentMethodsMobileList({
               />
             </div>
             <div className="shrink-0 text-right">
-              <p className="text-[11px] font-bold text-muted-foreground">
+              <p className="text-2xs font-bold text-muted-foreground">
                 {t("report.paymentMethodsReport.columns.grandTotal")}
               </p>
               <p
@@ -550,7 +550,7 @@ export function PaymentMethodsMobileList({
 
           <div className="grid grid-cols-2 divide-x divide-border border-b border-border">
             <div className="px-3 py-2 text-center">
-              <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+              <p className="text-2xs font-bold uppercase tracking-wide text-muted-foreground">
                 {t("report.paymentMethodsReport.columns.billsCount")}
               </p>
               <p className="text-sm font-black tabular-nums">
@@ -558,7 +558,7 @@ export function PaymentMethodsMobileList({
               </p>
             </div>
             <div className="px-3 py-2 text-center">
-              <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+              <p className="text-2xs font-bold uppercase tracking-wide text-muted-foreground">
                 {t("report.paymentMethodsReport.columns.total")}
               </p>
               <p
@@ -580,7 +580,7 @@ export function PaymentMethodsMobileList({
                   key={field}
                   className="min-w-0 rounded-md border border-border bg-background/70 px-2.5 py-1.5"
                 >
-                  <p className="truncate text-[10px] font-bold text-muted-foreground">
+                  <p className="truncate text-2xs font-bold text-muted-foreground">
                     {metric?.label ?? field}
                   </p>
                   <p
@@ -670,7 +670,7 @@ function PaymentMethodsMobileSummary({
               key={field}
               className="min-w-0 rounded-md border border-border bg-card px-2.5 py-1.5"
             >
-              <p className="truncate text-[10px] font-bold text-muted-foreground">
+              <p className="truncate text-2xs font-bold text-muted-foreground">
                 {metric?.label ?? field}
               </p>
               <p

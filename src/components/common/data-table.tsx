@@ -350,7 +350,7 @@ export function DataTable<T extends Record<string, unknown>>({
       </div>
 
       {pagination || selectable ? (
-        <div className="flex flex-wrap items-center justify-between gap-4 px-1 text-[13px] text-muted-foreground">
+        <div className="flex flex-wrap items-center justify-between gap-4 px-1 text-sm text-muted-foreground">
           <div className="min-w-0">
             {selectable
               ? t("common.selected", { count: selected.size, total: totalRows })

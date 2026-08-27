@@ -119,7 +119,9 @@ export function CartSummaryDock({
           >
             {summaryTitle}
           </span>
-          <span className={cn("min-w-0 text-right font-black tabular-nums", compact ? "text-[26px] leading-7" : "text-[28px] leading-8")}>
+          {/* ยอดรวมคือตัวเลขสำคัญที่สุดบนจอ — ใหญ่สุดในสเกลที่ยังไม่เสี่ยงล้นกล่อง
+              (ไม่มี truncate เพราะตัดตัวเลขยอดเงินทิ้งไม่ได้ ยอดกีบหลักล้านจึงต้องพอดี) */}
+          <span className={cn("min-w-0 text-right font-black tabular-nums", compact ? "text-xl leading-7" : "text-2xl leading-8")}>
             {money(summary.grandTotal)}
           </span>
         </div>
@@ -187,7 +189,7 @@ export function CartSummaryDock({
                 {discountPending ? <Spinner data-icon="inline-start" /> : <BadgePercent data-icon="inline-start" />}
                 <span className="min-w-0 flex-1 truncate">{t("pos.billDiscount")}</span>
                 {billDiscountValueLabel ? (
-                  <Badge className="ml-auto shrink-0 rounded-md bg-warning px-1.5 py-0.5 text-[11px] font-black leading-4 text-warning-foreground">
+                  <Badge className="ml-auto shrink-0 rounded-md bg-warning px-1.5 py-0.5 text-2xs font-black leading-4 text-warning-foreground">
                     {billDiscountValueLabel}
                   </Badge>
                 ) : null}
@@ -245,7 +247,7 @@ export function CartSummaryDock({
           {primaryBadgeCount > 0 ? (
             <Badge
               className={cn(
-                "absolute right-1.5 top-1.5 z-10 min-w-6 justify-center rounded-full px-1.5 py-0.5 text-[10px] font-black shadow-sm",
+                "absolute right-1.5 top-1.5 z-10 min-w-6 justify-center rounded-full px-1.5 py-0.5 text-2xs font-black shadow-sm",
                 primaryDisabled
                   ? "border-primary/30 bg-primary text-primary-foreground"
                   : "border-primary-foreground/30 bg-primary-foreground text-primary"

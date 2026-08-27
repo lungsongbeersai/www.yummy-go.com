@@ -108,7 +108,7 @@ export function ProfilePage() {
         <CardHeader>
           <div className="flex flex-col gap-1">
             <CardTitle>{t("profile.sections.avatar")}</CardTitle>
-            <p className="text-[13px] text-muted-foreground">{t("profile.sections.avatarHint")}</p>
+            <p className="text-sm text-muted-foreground">{t("profile.sections.avatarHint")}</p>
           </div>
         </CardHeader>
         <CardContent>
@@ -141,7 +141,7 @@ export function ProfilePage() {
         <CardHeader>
           <div className="flex flex-col gap-1">
             <CardTitle>{t("profile.sections.account")}</CardTitle>
-            <p className="text-[13px] text-muted-foreground">{t("profile.sections.accountHint")}</p>
+            <p className="text-sm text-muted-foreground">{t("profile.sections.accountHint")}</p>
           </div>
         </CardHeader>
         <CardContent>
@@ -158,7 +158,7 @@ export function ProfilePage() {
         <CardHeader>
           <div className="flex flex-col gap-1">
             <CardTitle>{t("profile.sections.password")}</CardTitle>
-            <p className="text-[13px] text-muted-foreground">{t("profile.sections.passwordHint")}</p>
+            <p className="text-sm text-muted-foreground">{t("profile.sections.passwordHint")}</p>
           </div>
         </CardHeader>
         <CardContent>

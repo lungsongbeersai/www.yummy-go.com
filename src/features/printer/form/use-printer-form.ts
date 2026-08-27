@@ -16,8 +16,9 @@ import {
   isBrowserPrinterAgentId,
   tcpInterfaceValue,
 } from "@/config/printer-agent";
-import type { AgentInfo } from "@/services/printer";
+import type { AgentInfo, PrinterMappingType } from "@/services/printer";
 import type { Category } from "@/services/category";
+import type { Zone } from "@/services/zone";
 import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
 import { usePrinterStore } from "@/stores/printer-store";
 import { useReferenceStore } from "@/stores/reference-store";
@@ -27,12 +28,15 @@ import {
   assignedPrinterNamesByValue,
   categoryLabel,
   initialPrinterFormValues,
+  mappingTypeOf,
   printerFormValues,
   textValue,
+  zoneLabel,
   type ConnectType,
 } from "./printer-form-utils";
 
 const EMPTY_CATEGORIES: Category[] = [];
+const EMPTY_ZONES: Zone[] = [];
 
 export function usePrinterForm() {
   const { i18n, t } = useTranslation();
@@ -61,9 +65,13 @@ export function usePrinterForm() {
   const categories = (useReferenceStore((state) => state.options.categories) ??
     EMPTY_CATEGORIES) as Category[];
   const loadCategories = useReferenceStore((state) => state.loadCategories);
+  const zones = (useReferenceStore((state) => state.options.zones) ??
+    EMPTY_ZONES) as Zone[];
+  const loadZones = useReferenceStore((state) => state.loadZones);
 
   const language = i18n.language;
   const storeUuid = authStoreUuid(user);
+  const branchUuid = user?.branch_uuid;
   const editing = useMemo(
     () =>
       printers.find(
@@ -80,12 +88,23 @@ export function usePrinterForm() {
       ),
     [printers, printConfigUuid],
   );
+  // เครื่องพิมพ์แต่ละเครื่องมี mapping_type ของตัวเอง — ต้องกรองก่อนอ่าน ไม่งั้นเครื่องที่ตั้ง
+  // เป็นโซนจะไม่มี cate_uuid_fk ที่มีความหมาย (backend เก็บโซนไว้ที่ zone_uuid_fk คนละฟิลด์)
   const categoryAssignments = useMemo(
     () =>
       assignedPrinterNamesByValue(
         printers,
         printConfigUuid,
-        (printer) => printer.cate_uuid_fk,
+        (printer) => (mappingTypeOf(printer) === "CATEGORY" ? printer.cate_uuid_fk : []),
+      ),
+    [printers, printConfigUuid],
+  );
+  const zoneAssignments = useMemo(
+    () =>
+      assignedPrinterNamesByValue(
+        printers,
+        printConfigUuid,
+        (printer) => (mappingTypeOf(printer) === "ZONE" ? (printer.zone_uuid_fk ?? []) : []),
       ),
     [printers, printConfigUuid],
   );
@@ -111,6 +130,17 @@ export function usePrinterForm() {
         .filter((category) => category.value),
     [categories, categoryAssignments, language],
   );
+  const zoneOptions = useMemo(
+    () =>
+      zones
+        .map((zone) => ({
+          label: zoneLabel(zone, language),
+          value: zone.zone_uuid,
+          assignedTo: zoneAssignments.get(zone.zone_uuid) ?? [],
+        }))
+        .filter((zone) => zone.value),
+    [zones, zoneAssignments, language],
+  );
 
   // seed จาก store ที่อาจมีข้อมูลค้างอยู่แล้วตั้งแต่ render แรก (เข้าจากหน้า list)
   // แทนที่ effect เดิมซึ่ง setState หลัง mount — ผลลัพธ์เท่ากันแต่ไม่มี cascading render
@@ -130,8 +160,14 @@ export function usePrinterForm() {
   const [selectedRoles, setSelectedRoles] = useState<string[]>(
     initialForm.selectedRoles,
   );
+  const [mappingType, setMappingType] = useState<PrinterMappingType>(
+    initialForm.mappingType,
+  );
   const [selectedCategories, setSelectedCategories] = useState<string[]>(
     initialForm.selectedCategories,
+  );
+  const [selectedZones, setSelectedZones] = useState<string[]>(
+    initialForm.selectedZones,
   );
   const [selectedDevice, setSelectedDevice] = useState(
     initialForm.selectedDevice,
@@ -169,6 +205,7 @@ export function usePrinterForm() {
         loadPrintersForLocalAgent({ login_uuid_fk: userUuid, lang: language }),
         loadRoles(language),
         storeUuid ? loadCategories(language, storeUuid) : Promise.resolve([]),
+        loadZones(language, branchUuid),
       ]);
     } catch (error) {
       showToast({
@@ -178,10 +215,12 @@ export function usePrinterForm() {
       });
     }
   }, [
+    branchUuid,
     language,
     loadCategories,
     loadPrintersForLocalAgent,
     loadRoles,
+    loadZones,
     showToast,
     storeUuid,
     t,
@@ -206,7 +245,9 @@ export function usePrinterForm() {
     setPort(values.port);
     setPaperWidth(values.paperWidth);
     setSelectedRoles(values.selectedRoles);
+    setMappingType(values.mappingType);
     setSelectedCategories(values.selectedCategories);
+    setSelectedZones(values.selectedZones);
     setSelectedDevice(values.selectedDevice);
     setAgentUrl(values.agentUrl);
     setAgentId(values.agentId);
@@ -342,7 +383,11 @@ export function usePrinterForm() {
         interface_value: nextInterfaceValue,
         paper_width_mm: Number(paperWidth || 80),
         role_codes: selectedRoles,
-        cate_uuid_fk: selectedCategories,
+        // เลือกได้อย่างใดอย่างหนึ่งเท่านั้น — ส่ง id ของโซนหรือหมวดหมู่ตาม mappingType
+        // savePrinter() ใน config-api.ts เป็นจุดที่แปลงเป็นฟิลด์ wire ที่ถูกต้อง
+        // (zone_uuid_fk หรือ cate_uuid_fk คนละฟิลด์กัน)
+        mapping_type: mappingType,
+        cate_uuid_fk: mappingType === "ZONE" ? selectedZones : selectedCategories,
         agent_url: nextAgentUrl,
         agent_id: nextAgentId,
         agent_name: nextAgentName,
@@ -367,7 +412,10 @@ export function usePrinterForm() {
     searching,
     found,
     roleOptions,
+    mappingType,
+    setMappingType,
     categoryOptions,
+    zoneOptions,
     connectType,
     setConnectType,
     displayName,
@@ -384,6 +432,8 @@ export function usePrinterForm() {
     setSelectedRoles,
     selectedCategories,
     setSelectedCategories,
+    selectedZones,
+    setSelectedZones,
     selectedDevice,
     usbSelectDescription,
     canSubmit,

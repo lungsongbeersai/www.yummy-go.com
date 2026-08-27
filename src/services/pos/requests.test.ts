@@ -154,7 +154,7 @@ describe("pos requests", () => {
       lang: "la"
     });
 
-    expect(apiMocks.apiRequest).toHaveBeenCalledWith("get", "/api/v1/pos/fetch_cate_products", {
+    expect(apiMocks.apiRequest).toHaveBeenCalledWith("get", "/api/v1/posAll/fetch_cate_products", {
       params: {
         branch_uuid_fk: "branch-1",
         cate_uuid: "cate-1",
@@ -227,7 +227,7 @@ describe("pos requests", () => {
       lang: "en"
     });
 
-    expect(apiMocks.apiRequest).toHaveBeenCalledWith("post", "/api/v1/pos/get_prod_item", {
+    expect(apiMocks.apiRequest).toHaveBeenCalledWith("post", "/api/v1/posAll/get_prod_item", {
       data: {
         prod_uuid: "prod-1",
         lang: "eng"
@@ -349,7 +349,7 @@ describe("pos requests", () => {
       print_mode: "windows_agent"
     });
 
-    expect(apiMocks.apiRequest).toHaveBeenCalledWith("post", "/api/v1/pos/reprint_receipt", {
+    expect(apiMocks.apiRequest).toHaveBeenCalledWith("post", "/api/v1/posAll/reprint_receipt", {
       data: {
         order_uuid: "order-1",
         login_uuid_fk: "login-1",
@@ -374,7 +374,7 @@ describe("pos requests", () => {
       print_mode: "agent"
     });
 
-    expect(apiMocks.apiRequest).toHaveBeenCalledWith("patch", "/api/v1/pos/confirm_to_kitchen", {
+    expect(apiMocks.apiRequest).toHaveBeenCalledWith("patch", "/api/v1/posAll/confirm_to_kitchen", {
       data: {
         order_uuid: "order-1",
         login_uuid_fk: "login-1",
@@ -399,7 +399,7 @@ describe("pos requests", () => {
       print_mode: "windows_agent"
     });
 
-    expect(apiMocks.apiRequest).toHaveBeenCalledWith("patch", "/api/v1/pos/confirm_to_kitchen", {
+    expect(apiMocks.apiRequest).toHaveBeenCalledWith("patch", "/api/v1/posAll/confirm_to_kitchen", {
       data: {
         login_uuid_fk: "fc445438-e617-471c-9af3-262ae747932f",
         order_uuid: "8ea2f7a8-e21a-4d55-b8d6-70df22e1376b",
@@ -432,7 +432,7 @@ describe("pos requests", () => {
       print_mode: "windows_agent"
     });
 
-    expect(apiMocks.apiRequest).toHaveBeenCalledWith("post", "/api/v1/pos/payment", {
+    expect(apiMocks.apiRequest).toHaveBeenCalledWith("post", "/api/v1/posAll/payment", {
       data: {
         order_uuid: "order-1",
         table_uuid: "table-5",
@@ -459,7 +459,7 @@ describe("pos requests", () => {
     await splitBill({
       order_uuid: "order-1",
       table_uuid: "table-5",
-      order_item_uuids: ["item-1"],
+      order_item_uuids: [{ "item-1": 2 }],
       document_type: "receipt",
       customer_uuid_fk: "customer-1",
       payment_method: 1,
@@ -476,11 +476,11 @@ describe("pos requests", () => {
       print_mode: "windows_agent"
     });
 
-    expect(apiMocks.apiRequest).toHaveBeenCalledWith("post", "/api/v1/pos/split_bill", {
+    expect(apiMocks.apiRequest).toHaveBeenCalledWith("post", "/api/v1/posAll/split_bill", {
       data: {
         order_uuid: "order-1",
         table_uuid: "table-5",
-        order_item_uuids: ["item-1"],
+        order_item_uuids: [{ "item-1": 2 }],
         document_type: "receipt",
         customer_uuid_fk: "customer-1",
         payment_method: 1,
@@ -506,7 +506,7 @@ describe("pos requests", () => {
 
     await splitBill({
       order_uuid: "532f836f-d580-4244-b2fa-615526292b73",
-      order_item_uuids: ["221aa39e-a6b7-4fcb-be26-dc0255bc10d2"],
+      order_item_uuids: [{ "221aa39e-a6b7-4fcb-be26-dc0255bc10d2": 2 }],
       document_type: "invoice",
       order_channel: 1,
       customer_uuid_fk: "95eed663-1bad-4b2d-99c8-07676be13e94",
@@ -523,10 +523,10 @@ describe("pos requests", () => {
       print_mode: "windows_agent"
     });
 
-    expect(apiMocks.apiRequest).toHaveBeenCalledWith("post", "/api/v1/pos/split_bill", {
+    expect(apiMocks.apiRequest).toHaveBeenCalledWith("post", "/api/v1/posAll/split_bill", {
       data: {
         order_uuid: "532f836f-d580-4244-b2fa-615526292b73",
-        order_item_uuids: ["221aa39e-a6b7-4fcb-be26-dc0255bc10d2"],
+        order_item_uuids: [{ "221aa39e-a6b7-4fcb-be26-dc0255bc10d2": 2 }],
         document_type: "invoice",
         order_channel: 1,
         customer_uuid_fk: "95eed663-1bad-4b2d-99c8-07676be13e94",
@@ -557,7 +557,7 @@ describe("pos requests", () => {
       print_mode: "windows_agent"
     });
 
-    expect(apiMocks.apiRequest).toHaveBeenCalledWith("get", "/api/v1/pos/admin/create_table_qr", {
+    expect(apiMocks.apiRequest).toHaveBeenCalledWith("get", "/api/v1/posAll/admin/create_table_qr", {
       params: {
         table_uuid: "table-1",
         lang: "la",
@@ -582,7 +582,7 @@ describe("pos requests", () => {
       print_mode: "mobile_wifi"
     });
 
-    expect(apiMocks.apiRequest).toHaveBeenCalledWith("patch", "/api/v1/pos/confirm_to_kitchen", {
+    expect(apiMocks.apiRequest).toHaveBeenCalledWith("patch", "/api/v1/posAll/confirm_to_kitchen", {
       data: {
         order_uuid: "order-1",
         login_uuid_fk: "login-1",
@@ -616,7 +616,7 @@ describe("pos requests", () => {
       print_mode: "mobile_wifi"
     });
 
-    expect(apiMocks.apiRequest).toHaveBeenCalledWith("post", "/api/v1/pos/payment", {
+    expect(apiMocks.apiRequest).toHaveBeenCalledWith("post", "/api/v1/posAll/payment", {
       data: {
         order_uuid: "order-1",
         table_uuid: "table-5",

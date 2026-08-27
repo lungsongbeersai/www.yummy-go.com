@@ -118,7 +118,7 @@ export function CartGroup({
         </h3>
         <Badge
           variant="secondary"
-          className="h-5 rounded-full px-1.5 py-0 text-[10px]"
+          className="h-5 rounded-full px-1.5 py-0 text-2xs"
         >
           {items.length}
         </Badge>
@@ -236,11 +236,11 @@ function CartItemCard({
               ) : null}
             </div>
             <div className="shrink-0 text-right">
-              <p className="font-yg-number text-[17px] font-semibold text-yg-accent-strong tabular-nums">
+              <p className="font-yg-number text-base font-semibold text-yg-accent-strong tabular-nums">
                 {formatMoney(itemTotal, lang)}
               </p>
               {qty > 1 ? (
-                <p className="text-[10px] tabular-nums text-yg-faint">
+                <p className="text-2xs tabular-nums text-yg-faint">
                   {qty} × {formatMoney(itemTotal / qty, lang)}
                 </p>
               ) : null}
@@ -250,7 +250,7 @@ function CartItemCard({
             {showItemStatus ? (
               <Badge
                 className={cn(
-                  "h-5 gap-1 rounded-md border px-1.5 py-0 text-[10px] font-medium leading-4",
+                  "h-5 gap-1 rounded-md border px-1.5 py-0 text-2xs font-medium leading-4",
                   status.className
                 )}
               >
@@ -259,7 +259,7 @@ function CartItemCard({
               </Badge>
             ) : null}
             {promotion.hasPromotion ? (
-              <Badge className="h-5 rounded-md border border-yg-accent-line bg-yg-accent-soft px-1.5 py-0 text-[10px] font-bold text-yg-accent-strong">
+              <Badge className="h-5 rounded-md border border-yg-accent-line bg-yg-accent-soft px-1.5 py-0 text-2xs font-bold text-yg-accent-strong">
                 {t("pos.buyShort")} {promotion.saleQty}{" "}
                 {t("pos.getShort")} {promotion.freeQty}
                 {promotion.totalReceiveQty && promotion.totalReceiveQty > qty
@@ -278,7 +278,7 @@ function CartItemCard({
                   <Badge
                     key={`${topping.topping_name}-${toppingIndex}`}
                     variant="secondary"
-                    className="h-auto rounded-full px-1.5 py-0.5 text-[10px] font-medium"
+                    className="h-auto rounded-full px-1.5 py-0.5 text-2xs font-medium"
                   >
                     {topping.topping_name}
                     {toppingQty > 0 ? ` x${toppingQty}` : ""}
@@ -296,7 +296,7 @@ function CartItemCard({
             </p>
           ) : null}
           {discountAmount > 0 ? (
-            <p className="mt-1 text-[11px] font-medium text-yg-accent-strong">
+            <p className="mt-1 text-2xs font-medium text-yg-accent-strong">
               {t("pos.itemDiscount")}: -{formatMoney(discountAmount, lang)}
             </p>
           ) : null}
@@ -340,7 +340,7 @@ function CartItemCard({
             ) : (
               <Badge
                 variant="secondary"
-                className="h-5 rounded-full px-1.5 py-0 text-[10px] font-medium"
+                className="h-5 rounded-full px-1.5 py-0 text-2xs font-medium"
               >
                 {t("pos.quantityValue", { count: qty })}
               </Badge>

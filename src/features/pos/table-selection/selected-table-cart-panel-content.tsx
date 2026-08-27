@@ -115,14 +115,7 @@ export function SelectedTableCartPanelContent({
               ที่ยึดความสูงจากปุ่มไอคอน size-11 — ให้ตรงกับ md:h-11 ของ header ฝั่งนั้น) */}
           <div className="relative flex min-h-9.5 min-w-0 items-center justify-between gap-3">
             <div className="flex min-w-0 flex-col gap-0.5">
-              <p
-                className={cn(
-                  "flex min-w-0 items-center gap-2 truncate font-black text-white",
-                  variant === "sheet"
-                    ? "text-[17px] leading-5"
-                    : "text-[17px] leading-5",
-                )}
-              >
+              <p className="flex min-w-0 items-center gap-2 truncate text-base font-black leading-5 text-white">
                 <ReceiptText className="size-5 shrink-0" />
                 <span className="truncate">
                   {selectedTable
@@ -135,7 +128,7 @@ export function SelectedTableCartPanelContent({
                 </span>
               </p>
               {workflow.invoice ? (
-                <p className="truncate text-[11px] font-bold leading-4 text-white/75">
+                <p className="truncate text-2xs font-bold leading-4 text-white/75">
                   {t("pos.invoice")}: {workflow.invoice}
                 </p>
               ) : null}
@@ -144,7 +137,7 @@ export function SelectedTableCartPanelContent({
               className={cn(
                 "shrink-0 rounded-full border-white/20 bg-white/15 font-black text-white shadow-none",
                 variant === "side"
-                  ? "h-7 px-2.5 text-[11px]"
+                  ? "h-7 px-2.5 text-2xs"
                   : "h-8 px-3 text-xs",
               )}
             >
@@ -210,6 +203,7 @@ export function SelectedTableCartPanelContent({
                   onItemDiscount={workflow.openItemDiscountDialog}
                   onOpenItemAction={workflow.openItemAction}
                   onOpenQuantityDialog={workflow.openQuantityDialog}
+                  onSetSplitItemQuantity={workflow.setSplitItemQuantity}
                   onToggleSplitItem={workflow.toggleSplitItem}
                 />
               ) : (
@@ -250,6 +244,7 @@ export function SelectedTableCartPanelContent({
                       onItemDiscount={workflow.openItemDiscountDialog}
                       onOpenItemAction={workflow.openItemAction}
                       onOpenQuantityDialog={workflow.openQuantityDialog}
+                      onSetSplitItemQuantity={workflow.setSplitItemQuantity}
                       onToggleSplitItem={workflow.toggleSplitItem}
                     />
                   </TabsContent>

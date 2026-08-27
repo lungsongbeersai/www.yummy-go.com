@@ -148,7 +148,7 @@ function PaymentSummaryStrip({ items }: { items: PaymentSummaryStripItem[] }) {
           >
             <p
               className={cn(
-                "line-clamp-2 text-[10px] leading-tight font-semibold text-muted-foreground min-[390px]:text-[11px]",
+                "line-clamp-2 text-2xs leading-tight font-semibold text-muted-foreground min-[390px]:text-2xs",
                 primary && "text-primary/70",
               )}
             >
@@ -476,7 +476,7 @@ export function PaymentDialogContent({
                     </Field>
 
                     <Field className="col-start-1 row-start-2 min-w-0 gap-1 sm:col-start-auto sm:row-start-auto md:gap-1.5">
-                      <FieldLabel className="truncate text-[11px] font-semibold text-muted-foreground md:text-sm md:text-foreground">
+                      <FieldLabel className="truncate text-2xs font-semibold text-muted-foreground md:text-sm md:text-foreground">
                         {t("pos.orderChannel")}
                       </FieldLabel>
                       <Select
@@ -506,7 +506,7 @@ export function PaymentDialogContent({
                       </Select>
                     </Field>
                     <Field className="col-span-2 col-start-2 row-start-2 min-w-0 gap-1 sm:col-span-1 sm:col-start-auto sm:row-start-auto md:gap-1.5">
-                      <FieldLabel className="truncate text-[11px] font-semibold text-muted-foreground md:text-sm md:text-foreground">
+                      <FieldLabel className="truncate text-2xs font-semibold text-muted-foreground md:text-sm md:text-foreground">
                         {t("pos.paymentCurrency")}
                       </FieldLabel>
                       <Select

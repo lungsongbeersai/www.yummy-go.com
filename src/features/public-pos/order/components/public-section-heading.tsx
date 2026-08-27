@@ -53,7 +53,7 @@ export function PublicSectionHeading({
 
       <div className="flex shrink-0 items-center gap-2">
         {meta ? (
-          <span className="whitespace-nowrap font-yg-mono text-[11px] font-semibold text-yg-faint">
+          <span className="whitespace-nowrap font-yg-mono text-2xs font-semibold text-yg-faint">
             {meta}
           </span>
         ) : null}

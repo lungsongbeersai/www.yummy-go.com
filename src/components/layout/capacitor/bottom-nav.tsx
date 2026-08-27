@@ -8,16 +8,12 @@ export function NativeBottomNav({
   error,
   loading,
   model,
-  moreOpen,
-  onMoreClick,
   onRetry,
   pathname,
 }: {
   error: string | null;
   loading: boolean;
   model: NativeNavigationModel;
-  moreOpen: boolean;
-  onMoreClick: () => void;
   onRetry: () => void;
   pathname: string;
 }) {
@@ -37,8 +33,6 @@ export function NativeBottomNav({
         error={error}
         loading={loading}
         model={model}
-        moreOpen={moreOpen}
-        onMoreClick={onMoreClick}
         onRetry={onRetry}
         pathname={pathname}
       />

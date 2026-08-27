@@ -198,12 +198,19 @@
 }
 
 /* ขนาดตัวอักษรที่ปรับจากปุ่มลอยตั้งค่า — สเกล root font-size แล้วให้ Tailwind
-   ที่อิง rem ทั้งระบบขยาย/หดตามไปด้วยโดยไม่ต้องแก้ class ทีละจุด */
+   ที่อิง rem ทั้งระบบขยาย/หดตามไปด้วยโดยไม่ต้องแก้ class ทีละจุด
+   5 ขั้น อิง 16px = root font-size เริ่มต้นของเบราว์เซอร์ (md ไม่ต้องมี rule เพราะคือ 100% เดิม) */
+html[data-font-scale="xs"] {
+  font-size: 75%; /* 12px */
+}
 html[data-font-scale="sm"] {
-  font-size: 93.75%;
+  font-size: 87.5%; /* 14px */
 }
 html[data-font-scale="lg"] {
-  font-size: 106.25%;
+  font-size: 112.5%; /* 18px */
+}
+html[data-font-scale="xl"] {
+  font-size: 125%; /* 20px */
 }
 
 @theme inline {
@@ -259,6 +266,24 @@ html[data-font-scale="lg"] {
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+
+  /* สเกลตัวอักษรของระบบ — ขั้นบันไดเดียวใช้ทั้งแอป ห้ามใช้ text-[Npx] ที่ไหนอีก
+     เพราะค่า px ไม่ขยาย/หดตาม html[data-font-scale] (ตัวเลือกขนาดตัวอักษรของผู้ใช้)
+     ที่ทำงานด้วยการสเกล root font-size แล้วให้ค่าที่อิง rem ตามไปเอง
+
+       text-2xs   11px  ป้าย badge, ตัวนับ, label จิ๋ว          (เพิ่มใหม่)
+       text-xs    12px  caption, meta รอง, ตารางแน่น ๆ         (Tailwind)
+       text-sm    14px  ตัวอักษรหลักของ UI                      (Tailwind)
+       text-base  16px  เนื้อความที่ต้องเน้น, body ของ dialog    (Tailwind)
+       text-lg    18px  หัวข้อ card/section                     (Tailwind)
+       text-xl    20px  หัวข้อหน้า (จอมือถือ)                    (Tailwind)
+       text-2xl   24px  หัวข้อหน้า (เดสก์ท็อป), ตัวเลข KPI       (Tailwind)
+       text-3xl+  30px+ ตัวเลขเด่นบน dashboard, หน้า marketing   (Tailwind)
+
+     ต่ำกว่า 11px ไม่มีในสเกลโดยตั้งใจ — ภาษาลาวซ้อนสระบน/วรรณยุกต์ล่าง พอเล็กกว่านี้
+     เครื่องหมายจะทับกันจนอ่านไม่ออก (ต่างจากอักษรละตินที่ 9-10px ยังพอไหว) */
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1rem;
 }
 
 * {
@@ -1064,7 +1089,9 @@ html {
 }
 
 .pos-safe-bottom-offset {
-  bottom: calc(1rem + var(--pos-system-bottom-safe-area));
+  /* fixed position เลยไม่กิน padding-bottom ของ main ที่กันความสูง native bottom nav ไว้แล้ว
+     ต้องบวก --app-shell-bottom-nav-height เองตรงนี้ (เว็บไม่ประกาศตัวแปรนี้ ใช้ fallback 0px) */
+  bottom: calc(1rem + var(--pos-system-bottom-safe-area) + var(--app-shell-bottom-nav-height, 0px));
 }
 
 .login-light-zone {
@@ -1300,11 +1327,13 @@ html.theme-transition-active[data-theme-transition-direction="ltr"]::view-transi
 
 /* Capacitor shell: มี bottom nav กินพื้นที่ล่างเพิ่ม
    คง --app-shell-header-height ไว้เพราะ dashboard sticky และ .app-shell-body
-   คำนวณความสูงจากตัวแปรนี้ — ใช้ 72px (มากกว่า breakpoint มือถือของเว็บ 64px อีกนิด เพราะ
-   แถบนี้ต้องมี padding-top กันพื้นที่ status bar เพิ่มด้วย .native-top-bar ใช้ min-h ไม่ใช่ h
-   คงที่ ไม่งั้น padding-top จะแย่งพื้นที่จากแถวปุ่ม/ไตเติลจนดูเตี้ยเกินไป) */
+   คำนวณความสูงจากตัวแปรนี้ — .native-top-bar ใช้ min-h ไม่ใช่ h คงที่ แล้วเอา
+   padding-top กันพื้นที่ status bar (env(safe-area-inset-top)) มาหักออกจากงบ min-h
+   นี้เอง (~24-32px บนจอส่วนใหญ่) เดิมตั้ง 72px ไว้เผื่อ status bar แล้ว แต่พื้นที่
+   เนื้อหาจริงที่เหลือ (~40-48px) ยังเตี้ยกว่ามาตรฐาน Material app bar (56dp) พอสมควร
+   จึงปรับขึ้นเป็น 88px ให้แถวไอคอน/ไตเติลมีที่หายใจใกล้เคียงมาตรฐานมากขึ้น */
 .app-shell[data-platform="capacitor"] {
-  --app-shell-header-height: 72px;
+  --app-shell-header-height: 88px;
   --app-shell-bottom-nav-height: calc(64px + env(safe-area-inset-bottom, 0px));
   --app-shell-side-rail-width: 0px;
 }
@@ -1972,6 +2001,55 @@ html.theme-transition-active[data-theme-transition-direction="ltr"]::view-transi
   }
 }
 
+/* ใช้กับสถานะโต๊ะที่ค้างรอ "อีกฝ่าย" กดยืนยัน (cashierOrder/awaitingConfirm) — สีวงแหวน
+   มาจาก --ring-rgb (ดู .pos-ring-* ด้านล่าง) ไม่ใช่ currentColor/color-mix() ตรง ๆ
+   เพราะทดสอบจริงแล้วพบว่า color-mix(in oklch, currentColor ...) ไม่ interpolate ต่อเนื่อง
+   ในเบราว์เซอร์นี้เลย (กระโดดตรงไปค่ากึ่งกลางทันทีแล้วค้าง ไม่ไล่เฉดระหว่างทาง) กลายเป็น
+   วาบกระตุกแทนที่จะนุ่ม — rgb(var(--ring-rgb) / alpha%) ทดสอบแล้ว interpolate เฟรมต่อเฟรม
+   ได้จริง ทั้งค่า alpha และระยะ spread ไล่โค้งตาม cubic-bezier ปกติ
+   รอบแรกตั้ง alpha ต่ำสุดไว้เผื่อไม่ให้ "หายไปเลย" (0%→55%) แต่ผลคือจางจนแทบมองไม่เห็น —
+   รอบนี้เปลี่ยนแนว: มีวงแหวนคมชัด (2px, 70%) ตลอดเวลาเป็นฐาน แล้วพองสว่างฟุ้งออกช่วง 50%
+   (2.5px ทึบขึ้น + ฮาโลอีกชั้นกว้าง 10px) แทน — ไม่มีจังหวะไหนที่จางจนมองไม่เห็นอีก */
+.pos-status-ring-pulse {
+  animation: pos-status-ring-pulse 2.2s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  will-change: box-shadow;
+}
+
+@keyframes pos-status-ring-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 2px rgb(var(--ring-rgb) / 70%);
+  }
+
+  50% {
+    box-shadow:
+      0 0 0 2.5px rgb(var(--ring-rgb) / 95%),
+      0 0 0 10px rgb(var(--ring-rgb) / 28%);
+  }
+}
+
+/* --ring-rgb: ค่าสีจริงที่ดึงมาจาก theme เดียวกับจุด dot ของแต่ละสถานะ (blue-600/
+   red-700 โหมดสว่าง, blue-400/red-400 โหมดมืด) เขียนเป็นเลข r g b ตรง ๆ เพราะ
+   rgb()/oklch() ที่มี var()/color-mix() ซ้อนเป็นสี "คำนวณ" ยังใช้แทน currentColor
+   แบบ animate ไม่ได้ (ดูเหตุผลด้านบน) awaiting-confirm เปลี่ยนจาก amber เป็น red ตาม
+   STATUS_STYLE ใหม่ (table-list-section.tsx) — ค่า rgb ดึงตรงจาก --color-red-700/
+   --color-red-400 ใน @theme ของไฟล์นี้ (#b91c1c / #f87171) */
+.pos-ring-cashier-order {
+  --ring-rgb: 21 93 252;
+}
+
+.pos-ring-awaiting-confirm {
+  --ring-rgb: 185 28 28;
+}
+
+.dark .pos-ring-cashier-order {
+  --ring-rgb: 80 162 255;
+}
+
+.dark .pos-ring-awaiting-confirm {
+  --ring-rgb: 248 113 113;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -2009,6 +2087,12 @@ html.theme-transition-active[data-theme-transition-direction="ltr"]::view-transi
     box-shadow: 0 0 0 2px color-mix(in oklch, var(--destructive) 50%, transparent);
     will-change: auto;
   }
+
+  .pos-status-ring-pulse {
+    animation: none;
+    box-shadow: 0 0 0 2px rgb(var(--ring-rgb) / 70%);
+    will-change: auto;
+  }
 }
 
 button,
@@ -2029,12 +2113,41 @@ a[href]:not([aria-disabled="true"]),
   -webkit-tap-highlight-color: color-mix(in oklch, var(--primary) 12%, transparent);
 }
 
+/* tap-highlight-color วาดเป็นสี่เหลี่ยมตามกรอบจริงของ element เสมอ ไม่มองตาม
+   border-radius เลย — ปุ่มวงกลม (HorizontalScrollArrows) จึงเห็นเป็นกล่องเหลี่ยมตอนแตะ
+   ปิดเฉพาะปุ่มกลุ่มนี้ ใช้ selector ที่ specificity สูงกว่ากฎด้านบนจงใจ (ไม่ใช่แค่ชนะ
+   ตามลำดับ) กันกรณีลำดับไฟล์ถูกจัดใหม่ในอนาคต */
+button.scroll-arrow-button:not(:disabled):not([aria-disabled="true"]) {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* POS นี้เป็นแอปแตะ ไม่ใช่แอปอ่าน/แก้ข้อความ — long-press โดน context menu ของระบบ
+   (คัดลอก/แชร์/เลือกทั้งหมด) ผุดขึ้นมาระหว่างใช้งานจริงสร้างความรำคาญ/สับสน (เช่น
+   long-press ชื่อสินค้าในการ์ดตอนกำลังจะกดสั่ง) ปิด selection/callout ทั้งแอปที่ระดับ
+   root แล้วให้ inherit ลงไปทุก element (user-select เป็น inherited property) เปิดกลับ
+   เฉพาะ input/textarea/[contenteditable] ที่ผู้ใช้ต้อง select-all/paste จริงตอนแก้ไข
+   ข้อความ (ช่องค้นหา/หมายเหตุ) ถ้าปิดของสองอย่างนี้ด้วยจะพิมพ์/แก้ข้อความลำบาก */
+.capacitor-native {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.capacitor-native input:not([type="button"]):not([type="submit"]):not([type="reset"]),
+.capacitor-native textarea,
+.capacitor-native [contenteditable="true"] {
+  -webkit-touch-callout: default;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 /* ปุ่มขนาด 28–40px เหมาะกับเมาส์แต่พลาดง่ายเมื่อใช้ด้วยนิ้วใน WebView
    ขยายเฉพาะ native shell เพื่อรักษาความหนาแน่นของหน้าเว็บเดสก์ท็อป
    ยกเว้น checkbox/switch/radio — Radix เรนเดอร์เป็น <button role="..."> ด้วยเหตุผลด้าน
    a11y เท่านั้น ไม่ใช่ปุ่มจริง และแต่ละตัวมี after:-inset-x-3 after:-inset-y-2 ขยาย
    hit-area แบบมองไม่เห็นอยู่แล้ว ถ้าปล่อยให้กฎนี้จับด้วยจะบังคับกล่อง/pill ให้ใหญ่ผิดสัดส่วน
-   (เช่น Switch 28×16.6px กลายเป็นก้อนเกือบสี่เหลี่ยม 44×44px) */
+   (เช่น Switch 28×16.6px กลายเป็นก้อนเกือบสี่เหลี่ยม 44×44px) — selection ปิดไปแล้วจาก
+   กฎ root ด้านบน ไม่ต้องตั้งซ้ำที่นี่ */
 .capacitor-native button:not([role="checkbox"]):not([role="switch"]):not([role="radio"]),
 .capacitor-native input[type="button"],
 .capacitor-native input[type="reset"],
@@ -2043,9 +2156,6 @@ a[href]:not([aria-disabled="true"]),
 .capacitor-native [data-slot="button"] {
   min-block-size: 2.75rem;
   min-inline-size: 2.75rem;
-  -webkit-touch-callout: none;
-  -webkit-user-select: none;
-  user-select: none;
 }
 
 .capacitor-native button:not(:disabled):not([aria-disabled="true"]):active,

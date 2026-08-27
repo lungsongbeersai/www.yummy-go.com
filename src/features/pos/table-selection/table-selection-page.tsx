@@ -8,10 +8,12 @@ import { LanguageSwitch } from "@/components/layout/language-switch";
 import { NotificationMenu } from "@/components/layout/notification-menu";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { Button } from "@/components/ui/button";
+import { useIsCapacitorNativeApp } from "@/hooks/use-capacitor-native-app";
 import { cn } from "@/lib/utils";
 import type { PosTable } from "@/services/pos";
 import { useAppStore } from "@/stores/app-store";
 import { useAuthStore } from "@/stores/auth-store";
+import { useNativeHeaderStore } from "@/stores/native-header-store";
 import { usePosStore } from "@/stores/pos-store";
 import { useToastStore } from "@/stores/toast-store";
 import { TableListSection } from "./table-list-section";
@@ -32,6 +34,8 @@ export function TableSelectionPage() {
   const loadTables = usePosStore((state) => state.loadTables);
   const refreshTables = usePosStore((state) => state.refreshTables);
   const showToast = useToastStore((state) => state.show);
+  const isCapacitorNativeApp = useIsCapacitorNativeApp();
+  const setHeaderRefreshAction = useNativeHeaderStore((state) => state.setRefreshAction);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<TableStatusFilter>("all");
   const [now, setNow] = useState(() => new Date());
@@ -68,7 +72,24 @@ export function TableSelectionPage() {
     if (skipTableSelection) return;
     void load();
   }, [load, skipTableSelection]);
-  useEffect(() => { const interval = window.setInterval(() => setNow(new Date()), 1000); return () => window.clearInterval(interval); }, []);
+
+  // นาฬิกาในหัวข้อสีเขียวมีแค่ฝั่งเว็บ (ดูเหตุผลเรื่อง header ด้านล่าง) — ไม่ต้องนับ
+  // ทุกวินาทีทิ้งเปล่า ๆ บน Capacitor ที่ไม่ได้เรนเดอร์มันอยู่แล้ว
+  useEffect(() => {
+    if (isCapacitorNativeApp) return;
+    const interval = window.setInterval(() => setNow(new Date()), 1000);
+    return () => window.clearInterval(interval);
+  }, [isCapacitorNativeApp]);
+
+  // ปุ่มรีเฟรชย้ายเข้า NativeTopBar (capacitor/top-bar.tsx) แทนแถวโซนในตัวหน้า —
+  // ลงทะเบียน action ผ่าน store กลางเพราะ top bar เรนเดอร์อยู่คนละต้นไม้กับหน้านี้
+  // (ดู native-header-store.ts) ต้องเคลียร์ตอน unmount ไม่งั้นปุ่มจะค้างอยู่ในหน้าอื่น
+  // ที่ไม่มีอะไรให้รีเฟรช ชี้ closure ของ load() เก่าของหน้านี้
+  useEffect(() => {
+    if (!isCapacitorNativeApp) return;
+    setHeaderRefreshAction({ loading, onClick: () => void load() });
+    return () => setHeaderRefreshAction(null);
+  }, [isCapacitorNativeApp, loading, load, setHeaderRefreshAction]);
 
   function selectTable(table: PosTable) {
     const params = new URLSearchParams({ table_uuid: table.table_uuid });
@@ -78,6 +99,28 @@ export function TableSelectionPage() {
 
   if (skipTableSelection) return null;
 
+  // ฝั่งเว็บ (web/app-shell.tsx) ซ่อน AppHeader ทั้งก้อนบนหน้า immersive แบบนี้ (ดู
+  // !immersiveScreen ใน app-shell.tsx) หน้านี้จึงไม่มี header ของ shell ให้เลย ต้องมี
+  // header สีเขียว + พื้นหลังลายของตัวเองไว้ — ต่างจาก Capacitor ที่ NativeTopBar โชว์
+  // อยู่แล้วทุกหน้ารวมหน้านี้ด้วย (ตามที่ตกลงกันไว้) ใส่ซ้ำจะกลายเป็น header 2 ชั้น
+  if (isCapacitorNativeApp) {
+    return (
+      <div className="flex h-full min-h-0 flex-col overflow-hidden">
+        <TableListSection
+          loading={loading}
+          search={search}
+          selectedTable={null}
+          statusFilter={statusFilter}
+          zoneOptions={zoneOptions}
+          zones={zones}
+          onSearchChange={setSearch}
+          onSelectTable={selectTable}
+          onStatusFilterChange={setStatusFilter}
+        />
+      </div>
+    );
+  }
+
   return (
     <div data-pos-pattern="true" className="relative h-full min-h-0 overflow-hidden bg-[url('/pos/background_wide.webp')] bg-cover bg-top dark:bg-none dark:bg-background">
       <div aria-hidden="true" data-pos-pattern-overlay="true" className="pointer-events-none absolute inset-0 bg-primary/45 dark:hidden" />
@@ -86,7 +129,7 @@ export function TableSelectionPage() {
           <Button aria-label={t("actions.back")} className={headerIconButtonClass} size="icon" type="button" variant="ghost" onClick={() => router.replace("/")}>
             <ChevronLeft />
           </Button>
-          <p className="absolute left-1/2 top-1/2 max-w-55 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap text-[20px] font-black leading-none tracking-wide tabular-nums text-primary-foreground dark:text-white sm:text-[28px]">{formatClock(now)}</p>
+          <p className="absolute left-1/2 top-1/2 max-w-55 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap text-xl font-black leading-none tracking-wide tabular-nums text-primary-foreground dark:text-white sm:text-3xl">{formatClock(now)}</p>
           <div className="relative flex min-w-0 items-center gap-1.5">
             <NotificationMenu triggerClassName={cn(headerIconButtonClass, "hidden min-[430px]:inline-flex")} triggerVariant="ghost" />
             <LanguageSwitch className={cn(headerIconButtonClass, "hidden min-[500px]:inline-flex")} compact size="icon" variant="ghost" />

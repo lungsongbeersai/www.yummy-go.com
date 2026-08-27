@@ -129,7 +129,7 @@ function BillListItem({
         <span className="flex min-w-0 items-center gap-1.5">
           <span className="truncate text-sm font-semibold leading-6 text-foreground">{bill.invoiceNumber}</span>
           {bill.status ? (
-            <Badge className={cn("max-w-20 shrink-0 truncate px-1.5 py-0 text-[10px] leading-4", statusBadgeClass(bill.status))}>
+            <Badge className={cn("max-w-20 shrink-0 truncate px-1.5 py-0 text-2xs leading-4", statusBadgeClass(bill.status))}>
               {bill.status}
             </Badge>
           ) : null}

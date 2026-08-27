@@ -197,7 +197,7 @@ function ProductCardPriceLabel({
       )}
     >
       {price.kind === "starting" ? (
-        <span className="shrink-0 text-[11px] font-semibold leading-4 text-muted-foreground">
+        <span className="shrink-0 text-2xs font-semibold leading-4 text-muted-foreground">
           {t("pos.startingAt")}
         </span>
       ) : null}

@@ -1,5 +1,5 @@
 import { optionalBoolean, optionalNumber, optionalString } from "@/lib/values";
-import type { CartItem, CartOrder } from "@/services/pos";
+import type { CartItem, CartOrder, SplitBillItemQuantity } from "@/services/pos";
 import {
   cartItemActionUuid,
   cartItemQty,
@@ -7,6 +7,9 @@ import {
   cartItemTotal,
   cartSummary,
 } from "./cart-readers";
+
+// uuid ของรายการ -> จำนวนที่เลือกแยกจ่าย (1..จำนวนเต็มของรายการนั้น)
+export type SplitItemQuantities = Map<string, number>;
 
 export interface FullBillPaymentEligibilityInput {
   currentOrderUuid: string | null;
@@ -49,17 +52,62 @@ export function splitItemGrossTotal(item: CartItem) {
   return cartItemTotal(item);
 }
 
+function scaleAmount(value: number | null | undefined, ratio: number) {
+  return value === null || value === undefined ? undefined : value * ratio;
+}
+
+// เลือกจ่ายแค่บางส่วนของจำนวนในรายการ (เช่น เบียร์ 10 ขวด จ่ายก่อน 2 ขวด) — สเกลทุกช่อง
+// ยอด/จำนวนใน detail ด้วยอัตราส่วนเดียวกัน (selectedQty/fullQty) เพื่อให้ reader อื่น ๆ
+// (cartItemTotal, cartItemBaseUnitPrice, splitItemGrossTotal) อ่านค่าที่ถูกต้องต่อโดยไม่ต้องแก้ตัวมันเอง
+// เพราะราคาต่อหน่วย (unit_price) ไม่ถูกแตะ ส่วน qty กับยอดรวมสเกลไปด้วยกันเสมอ
+function proratedSplitItem(item: CartItem, selectedQty: number): CartItem {
+  const fullQty = cartItemQty(item);
+  if (selectedQty >= fullQty || fullQty <= 0) return item;
+
+  const ratio = selectedQty / fullQty;
+  const detail = item.detail;
+  if (!detail) return { ...item, qty: selectedQty };
+
+  return {
+    ...item,
+    detail: {
+      ...detail,
+      order_it_qty: selectedQty,
+      total_receive_qty:
+        detail.total_receive_qty !== undefined
+          ? selectedQty
+          : detail.total_receive_qty,
+      gross_total: scaleAmount(detail.gross_total, ratio),
+      net_total: scaleAmount(detail.net_total, ratio),
+      base_line_total: scaleAmount(detail.base_line_total, ratio),
+      topping_line_total: scaleAmount(detail.topping_line_total, ratio),
+      order_it_discount_amount: scaleAmount(
+        detail.order_it_discount_amount,
+        ratio,
+      ),
+    },
+  };
+}
+
 export function splitPaymentSelection(
   orders: CartOrder[],
-  selectedItemUuids: Set<string>,
+  selectedItemQuantities: SplitItemQuantities,
 ) {
-  if (!selectedItemUuids.size) return null;
+  if (!selectedItemQuantities.size) return null;
 
   for (const order of orders) {
-    const selectedItems = (order.items ?? []).filter((item) => {
-      const itemUuid = cartItemActionUuid(item);
-      return Boolean(itemUuid && selectedItemUuids.has(itemUuid));
-    });
+    const selectedItems = (order.items ?? [])
+      .filter((item) => {
+        const itemUuid = cartItemActionUuid(item);
+        return Boolean(itemUuid && selectedItemQuantities.has(itemUuid));
+      })
+      .map((item) => {
+        const itemUuid = cartItemActionUuid(item);
+        const selectedQty = itemUuid
+          ? (selectedItemQuantities.get(itemUuid) ?? cartItemQty(item))
+          : cartItemQty(item);
+        return proratedSplitItem(item, selectedQty);
+      });
     const orderUuid = optionalString(order.order_uuid);
     if (!orderUuid || selectedItems.length === 0) continue;
 
@@ -89,9 +137,15 @@ export function splitPaymentSelection(
       (sum, item) => sum + cartItemQty(item),
       0,
     );
-    const itemUuids = selectedItems
-      .map(cartItemActionUuid)
-      .filter((uuid): uuid is string => Boolean(uuid));
+    // ต่อ backend คือคู่ { order_it_uuid: จำนวนที่แยกจ่าย } หนึ่งคู่ต่อหนึ่ง element
+    // ไม่ใช่ object เดียวรวมกันหลาย uuid — อ่านจำนวนจาก selectedItems ที่ prorate แล้ว
+    // (cartItemQty จะได้ค่าที่ถูก clamp/scale ไว้แล้วจาก proratedSplitItem ด้านบน)
+    const orderItemUuids: SplitBillItemQuantity[] = selectedItems
+      .map((item) => {
+        const uuid = cartItemActionUuid(item);
+        return uuid ? { [uuid]: cartItemQty(item) } : null;
+      })
+      .filter((entry): entry is SplitBillItemQuantity => entry !== null);
     const selectedOrder: CartOrder = {
       ...order,
       items: selectedItems,
@@ -134,7 +188,7 @@ export function splitPaymentSelection(
     };
 
     return {
-      itemUuids,
+      orderItemUuids,
       orderUuid,
       orders: [selectedOrder],
       summary,
@@ -144,25 +198,32 @@ export function splitPaymentSelection(
   return null;
 }
 
-export function pruneSelectedItemUuids(
-  selectedItemUuids: Set<string>,
-  eligibleItemUuids: Array<string | null | undefined>,
+// ตัดรายการที่หลุดจากบิลออก และ clamp จำนวนที่ติ๊กไว้ไม่ให้เกินจำนวนเต็มปัจจุบันของรายการนั้น
+// (เผื่อจำนวนของรายการถูกแก้จากที่อื่นระหว่างที่ติ๊กเลือกไว้สำหรับแยกบิลอยู่)
+export function pruneSelectedItemQuantities(
+  selectedItemQuantities: SplitItemQuantities,
+  eligibleItems: CartItem[],
 ) {
-  const eligibleUuids = new Set(
-    eligibleItemUuids.filter((uuid): uuid is string => Boolean(uuid)),
-  );
+  const eligibleQtyByUuid = new Map<string, number>();
+  eligibleItems.forEach((item) => {
+    const uuid = cartItemActionUuid(item);
+    if (uuid) eligibleQtyByUuid.set(uuid, cartItemQty(item));
+  });
   let changed = false;
-  const next = new Set<string>();
+  const next = new Map<string, number>();
 
-  selectedItemUuids.forEach((uuid) => {
-    if (eligibleUuids.has(uuid)) {
-      next.add(uuid);
-    } else {
+  selectedItemQuantities.forEach((qty, uuid) => {
+    const fullQty = eligibleQtyByUuid.get(uuid);
+    if (fullQty === undefined) {
       changed = true;
+      return;
     }
+    const clamped = Math.min(Math.max(qty, 1), fullQty);
+    if (clamped !== qty) changed = true;
+    next.set(uuid, clamped);
   });
 
-  return changed ? next : selectedItemUuids;
+  return changed ? next : selectedItemQuantities;
 }
 
 export function cartDisplaySummary(

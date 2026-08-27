@@ -91,10 +91,16 @@ export function AppearanceControls({
           className="w-full"
         >
           {FONT_SCALES.map((scale) => (
+            // whitespace-normal + text-2xs ให้คำเต็ม (Smallest/Largest) ตัดขึ้นบรรทัดสองได้
+            // แทนที่จะโดน whitespace-nowrap ของ Toggle ฐานตัดล้นออกนอกปุ่ม — 5 ปุ่มคำเต็มในแถว
+            // เดียวบนจอมือถือแคบ ต้องยอมให้ 2 บรรทัดแทนบีบเป็นตัวย่อ/ตัวเลข
             <ToggleGroupItem
               key={scale}
               value={scale}
-              className={cn("flex-1 text-xs font-bold", touch && "h-12")}
+              className={cn(
+                "h-auto min-h-8 flex-1 whitespace-normal px-1 py-1 text-center text-2xs leading-tight font-bold",
+                touch && "min-h-12",
+              )}
             >
               {t(`app.appearance.fontSizes.${scale}`)}
             </ToggleGroupItem>

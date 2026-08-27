@@ -422,7 +422,7 @@ export function BestSellingProductsTable({
 
   return (
     <div className="hidden min-w-0 md:block">
-      <Table className="w-max min-w-full table-auto text-[13px]">
+      <Table className="w-max min-w-full table-auto text-sm">
         <TableHeader className="[&_th]:sticky [&_th]:top-0 [&_th]:z-30 [&_th]:whitespace-nowrap [&_th]:border-b [&_th]:border-border [&_th]:bg-background [&_th]:px-3 [&_th]:shadow-sm">
           <TableRow>
             <TableHead className="w-10 text-center">
@@ -892,7 +892,7 @@ function MetricPill({
 }) {
   return (
     <div className="min-w-0 rounded-md border border-border bg-muted px-2.5 py-2">
-      <p className="truncate text-[10px] font-bold uppercase text-muted-foreground">
+      <p className="truncate text-2xs font-bold uppercase text-muted-foreground">
         {label}
       </p>
       <p className="truncate text-xs font-black tabular-nums text-foreground">

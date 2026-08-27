@@ -85,7 +85,7 @@ export async function fetchCateProducts(params: FetchCateProductsParams) {
   requiredText(params.branchUuidFk, "branch_uuid_fk");
   const response = await apiRequest<ApiFetchCateProductsResponse>(
     "get",
-    "/api/v1/pos/fetch_cate_products",
+    "/api/v1/posAll/fetch_cate_products",
     {
       params: buildFetchCateProductsQuery(params),
     },
@@ -96,7 +96,7 @@ export async function fetchCateProducts(params: FetchCateProductsParams) {
 export async function getProdItem(params: GetProdItemParams) {
   const result = await apiRequest<ApiProdItemResponse>(
     "post",
-    "/api/v1/pos/get_prod_item",
+    "/api/v1/posAll/get_prod_item",
     {
       data: buildGetProdItemBody(params),
     },
@@ -112,41 +112,41 @@ export function createOrder(input: CreateOrderInput) {
 // ร้านไม่มีโต๊ะ: backend ผูกบิลที่เปิดค้างไว้กับ login token ของแคชเชียร์เอง
 // เรียกตอนเข้าหน้าออเดอร์เพื่อสร้างบิลใหม่หรือดึงบิลเดิมที่ยังไม่จ่ายเงินกลับมาต่อ
 export function initOrderWithoutTable(input: InitOrderWithoutTableInput) {
-  return apiRequest<InitOrderWithoutTableResponse>("post", "/api/v1/pos/init_order_without_table", { data: input });
+  return apiRequest<InitOrderWithoutTableResponse>("post", "/api/v1/posAll/init_order_without_table", { data: input });
 }
 
 export const updateOrderItemQty = (input: UpdateQtyInput) =>
-  apiRequest<UpdateQtyResponse>("patch", "/api/v1/pos/order_item/update_qty", { data: input });
+  apiRequest<UpdateQtyResponse>("patch", "/api/v1/posAll/order_item/update_qty", { data: input });
 
 export const applyItemDiscount = (input: ItemDiscountInput) =>
-  apiRequest<ItemDiscountResponse>("patch", "/api/v1/pos/item_discount", { data: input });
+  apiRequest<ItemDiscountResponse>("patch", "/api/v1/posAll/item_discount", { data: input });
 
 export const applyBillDiscount = (input: BillDiscountInput) =>
-  apiRequest<BillDiscountResponse>("patch", "/api/v1/pos/bill_discount", { data: input });
+  apiRequest<BillDiscountResponse>("patch", "/api/v1/posAll/bill_discount", { data: input });
 
 export const fetchCart = (params: FetchCartParams) =>
-  apiRequest<FetchCartResponse>("get", "/api/v1/pos/fetch_cart", {
+  apiRequest<FetchCartResponse>("get", "/api/v1/posAll/fetch_cart", {
     params: { ...params, lang: toApiLanguage(params.lang) }
   });
 
 export const deleteOrderItem = (order_item_uuid: string) =>
-  apiRequest<DeleteOrderItemResponse>("delete", "/api/v1/pos/delete_order_item", {
+  apiRequest<DeleteOrderItemResponse>("delete", "/api/v1/posAll/delete_order_item", {
     params: { order_it_uuid: order_item_uuid }
   });
 
 export const fetchJoinMoveTables = (params: FetchJoinMoveTableParams) =>
-  apiRequest<FetchJoinMoveTableResponse>("get", "/api/v1/pos/fetch_join_move_table", {
+  apiRequest<FetchJoinMoveTableResponse>("get", "/api/v1/posAll/fetch_join_move_table", {
     params: { ...params, lang: toApiLanguage(params.lang) }
   });
 
 export const moveTable = (input: MoveTableInput) =>
-  apiRequest<MoveTableResponse>("post", "/api/v1/pos/move_table", { data: input });
+  apiRequest<MoveTableResponse>("post", "/api/v1/posAll/move_table", { data: input });
 
 export const joinTableMulti = (input: JoinTableMultiInput) =>
-  apiRequest<JoinTableMultiResponse>("post", "/api/v1/pos/join_table_multi", { data: input });
+  apiRequest<JoinTableMultiResponse>("post", "/api/v1/posAll/join_table_multi", { data: input });
 
 export const confirmToKitchen = (input: ConfirmToKitchenInput) =>
-  apiRequest<ConfirmToKitchenResponse>("patch", "/api/v1/pos/confirm_to_kitchen", {
+  apiRequest<ConfirmToKitchenResponse>("patch", "/api/v1/posAll/confirm_to_kitchen", {
     data: {
       order_uuid: input.order_uuid,
       login_uuid_fk: input.login_uuid_fk,
@@ -159,7 +159,7 @@ export const confirmToKitchen = (input: ConfirmToKitchenInput) =>
   });
 
 export const confirmOrderItemServed = (input: ConfirmOrderItemServedInput) =>
-  apiRequest<{ status: string; message: string }>("patch", "/api/v1/pos/confirm_order_item_served", {
+  apiRequest<{ status: string; message: string }>("patch", "/api/v1/posAll/confirm_order_item_served", {
     data: input
   });
 
@@ -167,18 +167,18 @@ export const cancelOrderItem = (input: CancelOrderItemInput) =>
   apiRequest<CancelOrderItemResponse>("patch", "/api/v1/posAll/cancel_order_item", { data: input });
 
 export const updateOrderNote = (input: UpdateOrderNoteInput) =>
-  apiRequest<UpdateOrderNoteResponse>("patch", "/api/v1/pos/update_note", { data: input });
+  apiRequest<UpdateOrderNoteResponse>("patch", "/api/v1/posAll/update_note", { data: input });
 
 export const createPayment = (input: PaymentInput) =>
-  apiRequest<PaymentResponse>("post", "/api/v1/pos/payment", {
+  apiRequest<PaymentResponse>("post", "/api/v1/posAll/payment", {
     data: { ...input, lang: toApiLanguage(input.lang) }
   });
 
 export const splitBill = (input: SplitBillInput) =>
-  apiRequest<SplitBillResponse>("post", "/api/v1/pos/split_bill", { data: input });
+  apiRequest<SplitBillResponse>("post", "/api/v1/posAll/split_bill", { data: input });
 
 export const createTableQR = (params: CreateTableQRRequest) =>
-  apiRequest<CreateTableQRResponse>("get", "/api/v1/pos/admin/create_table_qr", {
+  apiRequest<CreateTableQRResponse>("get", "/api/v1/posAll/admin/create_table_qr", {
     params: {
       table_uuid: params.table_uuid,
       lang: toApiLanguage(params.lang),
@@ -203,7 +203,7 @@ export const printInvoice = (params: PrintInvoiceRequest) =>
   });
 
 export const reprintReceipt = (params: ReprintReceiptRequest) =>
-  apiRequest<ReprintReceiptResponse>("post", "/api/v1/pos/reprint_receipt", {
+  apiRequest<ReprintReceiptResponse>("post", "/api/v1/posAll/reprint_receipt", {
     data: {
       order_uuid: params.order_uuid,
       login_uuid_fk: params.login_uuid_fk,

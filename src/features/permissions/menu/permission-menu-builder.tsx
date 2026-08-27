@@ -398,7 +398,7 @@ function SortableMainMenuCard({
           <span className="flex min-w-0 items-center gap-2">
             <span className="truncate text-sm font-black">{menu.menu_title || "-"}</span>
             {badgeText ? (
-              <Badge className="max-w-20 shrink-0 truncate px-1.5 text-[10px]" translate="no">
+              <Badge className="max-w-20 shrink-0 truncate px-1.5 text-2xs" translate="no">
                 {badgeText}
               </Badge>
             ) : null}

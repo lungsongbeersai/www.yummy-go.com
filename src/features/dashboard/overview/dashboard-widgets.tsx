@@ -89,11 +89,11 @@ const SelectControl = memo(function SelectControl({
 }) {
   return (
     <Field className="min-h-[3.4rem] min-w-0 gap-0.5 rounded-[0.55rem] border border-border bg-muted/35 px-2.5 pb-1 pt-1.5 hover:border-border/90 dark:bg-muted/42">
-      <FieldLabel className="text-[11px] font-bold text-muted-foreground">
+      <FieldLabel className="text-2xs font-bold text-muted-foreground">
         {label}
       </FieldLabel>
       <Select disabled={disabled} value={value} onValueChange={onChange}>
-        <SelectTrigger className="h-7 w-full min-w-0 border-transparent bg-transparent px-0 font-mono text-[13px] font-semibold shadow-none hover:bg-transparent data-[state=open]:bg-transparent max-md:min-h-[2.35rem]">
+        <SelectTrigger className="h-7 w-full min-w-0 border-transparent bg-transparent px-0 font-mono text-sm font-semibold shadow-none hover:bg-transparent data-[state=open]:bg-transparent max-md:min-h-[2.35rem]">
           <SelectValue placeholder={label} />
         </SelectTrigger>
         <SelectContent position="popper">
@@ -124,7 +124,7 @@ const DateControl = memo(function DateControl({
   return (
     <Field className="min-h-[3.4rem] min-w-0 gap-0.5 rounded-[0.55rem] border border-border bg-muted/35 px-2.5 pb-1 pt-1.5 hover:border-border/90 dark:bg-muted/42">
       <FieldLabel
-        className="text-[11px] font-bold text-muted-foreground"
+        className="text-2xs font-bold text-muted-foreground"
         htmlFor={name}
       >
         {label}
@@ -134,7 +134,7 @@ const DateControl = memo(function DateControl({
         name={name}
         label={label}
         value={value}
-        className="h-7 border-transparent bg-transparent px-0 font-mono text-[13px] font-semibold shadow-none hover:bg-transparent max-md:min-h-[2.35rem]"
+        className="h-7 border-transparent bg-transparent px-0 font-mono text-sm font-semibold shadow-none hover:bg-transparent max-md:min-h-[2.35rem]"
         onValueChange={onChange}
       />
     </Field>
@@ -612,7 +612,7 @@ export const DashboardHeroStrip = memo(function DashboardHeroStrip({
           >
             <p
               className={cn(
-                "text-[11px] font-semibold uppercase tracking-[0.12em]",
+                "text-2xs font-semibold uppercase tracking-[0.12em]",
                 metric.primary
                   ? "text-primary-foreground/75"
                   : "text-muted-foreground",

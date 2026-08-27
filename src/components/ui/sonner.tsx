@@ -17,6 +17,15 @@ const Toaster = ({ ...props }: ToasterProps) => {
       theme={theme}
       position="top-center"
       className="toaster group"
+      // richColors ต้องเปิดเอง — ไม่งั้น sonner ใช้แค่ --normal-* กับทุก type เหมือนกันหมด
+      // (--success-bg/--warning-bg/... ที่ set ไว้ใน style ด้านล่างจะไม่มีผลอะไรเลยถ้าไม่เปิด)
+      richColors
+      // ที่จอแคบ (มือถือ/Capacitor) sonner ใช้ --mobile-offset-top แทน --offset-top เฉย ๆ
+      // (ดู sonner base CSS: @media max-width:600px บังคับ top ตัวนี้) ต้องเซ็ตทั้งคู่ ไม่งั้น
+      // บนแอป native ที่จอแคบเสมอ ตัว toast จะไปทับแถบสถานะ (นาฬิกา/แบตเตอรี่/สัญญาณ) แทนที่จะ
+      // เว้นพื้นที่ตาม safe-area-inset-top ให้จริง
+      offset={{ top: "calc(env(safe-area-inset-top, 0px) + 16px)" }}
+      mobileOffset={{ top: "calc(env(safe-area-inset-top, 0px) + 16px)" }}
       icons={{
         success: (
           <CircleCheckIcon className="size-4" />
@@ -39,6 +48,20 @@ const Toaster = ({ ...props }: ToasterProps) => {
           "--normal-bg": "var(--popover)",
           "--normal-text": "var(--popover-foreground)",
           "--normal-border": "var(--border)",
+          // โทนสีต่อชนิด toast ผูกกับ design token เดิมของแอป (--success/--warning/--destructive/--info)
+          // แทนสี default ของ sonner เอง ให้ error/warning/success แยกออกจากกันชัดเจนตั้งแต่มองแวบแรก
+          "--success-bg": "color-mix(in oklch, var(--success) 12%, var(--popover))",
+          "--success-border": "color-mix(in oklch, var(--success) 45%, var(--border))",
+          "--success-text": "var(--success)",
+          "--error-bg": "color-mix(in oklch, var(--destructive) 12%, var(--popover))",
+          "--error-border": "color-mix(in oklch, var(--destructive) 45%, var(--border))",
+          "--error-text": "var(--destructive)",
+          "--warning-bg": "color-mix(in oklch, var(--warning) 12%, var(--popover))",
+          "--warning-border": "color-mix(in oklch, var(--warning) 45%, var(--border))",
+          "--warning-text": "var(--warning)",
+          "--info-bg": "color-mix(in oklch, var(--info) 12%, var(--popover))",
+          "--info-border": "color-mix(in oklch, var(--info) 45%, var(--border))",
+          "--info-text": "var(--info)",
           "--border-radius": "var(--radius)",
           fontFamily: "var(--font-sans), var(--font-noto-sans-lao)",
         } as React.CSSProperties

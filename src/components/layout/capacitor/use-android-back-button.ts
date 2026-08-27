@@ -18,13 +18,9 @@ const OPEN_OVERLAY_SELECTOR =
 // ซึ่ง (protected)/layout.tsx เลือกให้ก็ต่อเมื่อ isCapacitorNativeApp() true อยู่แล้ว (Task 4 Step 5)
 export function useAndroidBackButton({
   model,
-  onCloseOverlay,
-  overlayOpen,
   pathname,
 }: {
   model: NativeNavigationModel;
-  onCloseOverlay: () => void;
-  overlayOpen: boolean;
   pathname: string;
 }) {
   const router = useRouter();
@@ -44,14 +40,10 @@ export function useAndroidBackButton({
       const action = resolveAndroidBackAction({
         canGoBack,
         model,
-        overlayOpen,
         pathname,
       });
 
       switch (action.type) {
-        case "close-overlay":
-          onCloseOverlay();
-          return;
         case "navigate":
           router.push(internalRoute(action.path));
           return;
@@ -68,5 +60,5 @@ export function useAndroidBackButton({
     return () => {
       void handle.then((listener) => listener.remove());
     };
-  }, [model, onCloseOverlay, overlayOpen, pathname, router]);
+  }, [model, pathname, router]);
 }

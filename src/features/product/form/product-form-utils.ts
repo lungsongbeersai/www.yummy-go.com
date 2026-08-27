@@ -757,7 +757,7 @@ export function choiceCardClass(active: boolean) {
 
 export function choiceMarkClass(active: boolean) {
   return cn(
-    "mt-0.5 grid size-5 shrink-0 place-items-center rounded-full border text-[10px]",
+    "mt-0.5 grid size-5 shrink-0 place-items-center rounded-full border text-2xs",
     active
       ? "border-primary bg-primary text-primary-foreground"
       : "border-border bg-background text-transparent",

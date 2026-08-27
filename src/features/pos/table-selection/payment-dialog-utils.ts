@@ -20,6 +20,7 @@ import {
 import type {
   CartOrder,
   PosTable,
+  SplitBillItemQuantity,
 } from "@/services/pos";
 import type { AuthUser } from "@/stores/auth-store";
 import {
@@ -465,7 +466,7 @@ export function paymentValidation(
   total: number,
   payment: ReturnType<typeof paymentAmounts>,
   customerUuid: string,
-  splitBillItemUuids?: string[],
+  splitBillItemUuids?: SplitBillItemQuantity[],
 ) {
   if (!orderUuid) return "pos.paymentMissingOrder";
   if (splitBillItemUuids && splitBillItemUuids.length === 0)

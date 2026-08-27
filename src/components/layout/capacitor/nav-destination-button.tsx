@@ -17,7 +17,7 @@ import { internalRoute } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import type { MenuItem } from "@/config/menu";
 
-function DestinationIcon({ item }: { item: MenuItem }) {
+export function DestinationIcon({ item }: { item: MenuItem }) {
   const Icon = item.icon;
   if (Icon) return <Icon className="size-5 shrink-0" />;
   if (item.iconName) return <MenuIcon value={item.iconName} className="size-5 shrink-0" />;
@@ -47,7 +47,7 @@ export function NavDestinationButton({
       )}
     >
       <DestinationIcon item={destination.item} />
-      <span className="w-full truncate text-center text-[11px] font-semibold leading-tight">
+      <span className="w-full truncate text-center text-2xs font-semibold leading-tight">
         {label}
       </span>
       <NativeRouteProgress />
@@ -59,33 +59,26 @@ export function NavMoreButton({
   active,
   icon,
   label,
-  moreOpen,
-  onClick,
 }: {
   active: boolean;
   icon: React.ReactNode;
   label: string;
-  moreOpen: boolean;
-  onClick: () => void;
 }) {
   return (
-    <button
-      type="button"
-      aria-haspopup="dialog"
-      // active รวมสถานะ "ไม่มี direct ไหน active" ไว้ด้วย จึงใช้แทน aria-expanded ไม่ได้
-      aria-expanded={moreOpen}
-      aria-label={label}
-      onClick={onClick}
+    <Link
+      href={internalRoute("/more")}
+      aria-current={active ? "page" : undefined}
       className={cn(
-        "flex min-h-12 min-w-0 flex-none flex-col items-center justify-center gap-1 rounded-md px-1 py-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "relative flex min-h-12 min-w-0 flex-none flex-col items-center justify-center gap-1 rounded-md px-1 py-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         active ? "text-primary" : "text-muted-foreground hover:text-foreground",
       )}
     >
       {icon}
-      <span className="w-full truncate text-center text-[11px] font-semibold leading-tight">
+      <span className="w-full truncate text-center text-2xs font-semibold leading-tight">
         {label}
       </span>
-    </button>
+      <NativeRouteProgress />
+    </Link>
   );
 }
 
@@ -94,16 +87,12 @@ export function NativeNavItems({
   error,
   loading,
   model,
-  moreOpen,
-  onMoreClick,
   onRetry,
   pathname,
 }: {
   error: string | null;
   loading: boolean;
   model: NativeNavigationModel;
-  moreOpen: boolean;
-  onMoreClick: () => void;
   onRetry: () => void;
   pathname: string;
 }) {
@@ -162,11 +151,9 @@ export function NativeNavItems({
       ))}
       {model.more.length ? (
         <NavMoreButton
-          active={moreOpen || !anyDirectActive}
+          active={!anyDirectActive}
           icon={<MoreHorizontal className="size-5 shrink-0" />}
           label={t("app.more")}
-          moreOpen={moreOpen}
-          onClick={onMoreClick}
         />
       ) : null}
     </>

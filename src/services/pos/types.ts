@@ -518,6 +518,19 @@ export interface TableQRResponse extends ApiEntity {
   reason?: string | null;
 }
 
+export interface CreateTableQRRequest {
+  table_uuid: string;
+  lang?: string;
+  login_uuid_fk?: string;
+  device_code?: string;
+  agent_id?: string;
+  print_mode?: string;
+}
+
+// endpoint admin/create_table_qr คืน shape เดียวกับ TableQRResponse (สร้าง/regenerate
+// QR โต๊ะทั้งคู่) แยกชื่อไว้เพราะฝั่ง caller ต้องแยกแยะว่ามาจาก action ไหน
+export type CreateTableQRResponse = TableQRResponse;
+
 export interface DeleteOrderItemResponse extends ApiEntity {}
 
 export interface UpdateOrderNoteInput {
@@ -596,10 +609,14 @@ export interface PaymentResponse extends ApiEntity {
   fallback_print?: ApiEntity | null;
 }
 
+// รายการละ 1 คู่เสมอ: { [order_it_uuid]: จำนวนที่แยกจ่าย } — แยกจ่ายบางส่วนของ
+// รายการเดียวกันได้ (เช่น เบียร์ 10 ขวด จ่ายก่อน 2 ขวด ที่เหลือ 8 ขวดยังค้างอยู่)
+export type SplitBillItemQuantity = Record<string, number>;
+
 export interface SplitBillInput extends ApiEntity {
   order_uuid: string;
   table_uuid?: string;
-  order_item_uuids: string[];
+  order_item_uuids: SplitBillItemQuantity[];
   document_type: "receipt" | "invoice";
   order_channel: OrderChannel;
   customer_uuid_fk: string;

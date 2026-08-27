@@ -215,7 +215,7 @@ describe("POS store session follow-up requests", () => {
 
     const input = {
       order_uuid: "532f836f-d580-4244-b2fa-615526292b73",
-      order_item_uuids: ["221aa39e-a6b7-4fcb-be26-dc0255bc10d2"],
+      order_item_uuids: [{ "221aa39e-a6b7-4fcb-be26-dc0255bc10d2": 2 }],
       document_type: "invoice" as const,
       order_channel: 1 as const,
       customer_uuid_fk: "95eed663-1bad-4b2d-99c8-07676be13e94",

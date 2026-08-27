@@ -8,7 +8,12 @@ import {
   withCustomerDisplayPaymentMode,
 } from "@/features/customer-display/shared/customer-display-sync";
 import { getBranchQrUrl } from "@/lib/image";
-import type { CartItem, CartOrder, PosTable } from "@/services/pos";
+import type {
+  CartItem,
+  CartOrder,
+  PosTable,
+  SplitBillItemQuantity,
+} from "@/services/pos";
 import type { PrintProgress, PrinterDeviceContext } from "@/services/printer";
 import { useAppStore } from "@/stores/app-store";
 import { useAuthStore } from "@/stores/auth-store";
@@ -49,9 +54,10 @@ import {
   normalizeDiscountType,
   optionalNumber,
   optionalString,
-  pruneSelectedItemUuids,
+  pruneSelectedItemQuantities,
   splitPaymentSelection,
   visibleCartItems,
+  type SplitItemQuantities,
 } from "../utils";
 import { useCustomerDisplayWorkflow } from "./use-customer-display-workflow";
 import { useResetOnChange, useResetOnDeps } from "@/hooks/use-reset-on-change";
@@ -61,7 +67,7 @@ type CartPanelData = CartOrder | CartOrder[] | null;
 type PaymentContext = {
   kind: "full" | "split";
   orders: CartOrder[];
-  splitBillItemUuids?: string[];
+  splitBillItemUuids?: SplitBillItemQuantity[];
   summary: ReturnType<typeof cartSummary>;
   tableUuid: string;
 };
@@ -177,9 +183,8 @@ export function useSelectedTableCartPanelWorkflow({
   const [paymentContext, setPaymentContext] = useState<PaymentContext | null>(
     null,
   );
-  const [splitSelectedItemUuids, setSplitSelectedItemUuids] = useState<
-    Set<string>
-  >(() => new Set());
+  const [splitSelectedItemUuids, setSplitSelectedItemUuids] =
+    useState<SplitItemQuantities>(() => new Map());
   const taxRate = formatRate(summary.taxRate);
   const taxLabel = taxRate
     ? t("pos.taxWithPercent", { percent: taxRate })
@@ -333,7 +338,7 @@ export function useSelectedTableCartPanelWorkflow({
 
     setActiveTab("new");
     setSplitSelectedItemUuids((current) =>
-      current.size ? new Set() : current,
+      current.size ? new Map() : current,
     );
   }, [hasSelectedTable, newOrderFocusKey]);
 
@@ -353,7 +358,7 @@ export function useSelectedTableCartPanelWorkflow({
     setTableActionsOpen(false);
     setTableQrOpen(false);
     setPaymentContext(null);
-    setSplitSelectedItemUuids(new Set());
+    setSplitSelectedItemUuids(new Map());
     setConfirmAllProgress(null);
   });
 
@@ -362,7 +367,7 @@ export function useSelectedTableCartPanelWorkflow({
     if (activeTab === "history") return;
 
     setSplitSelectedItemUuids((current) =>
-      current.size ? new Set() : current,
+      current.size ? new Map() : current,
     );
   });
 
@@ -380,12 +385,11 @@ export function useSelectedTableCartPanelWorkflow({
     setPaymentContext(null);
   });
 
-  // ตัดรายการที่ติ๊กไว้แต่หลุดจากบิลไปแล้วออก — pruneSelectedItemUuids คืน Set เดิม
-  // ถ้าไม่มีอะไรเปลี่ยน จึงไม่เกิด render ซ้ำโดยไม่จำเป็น
+  // ตัดรายการที่ติ๊กไว้แต่หลุดจากบิลไปแล้วออก (และ clamp จำนวนถ้ารายการถูกแก้จำนวนจากที่อื่น)
+  // pruneSelectedItemQuantities คืน Map เดิมถ้าไม่มีอะไรเปลี่ยน จึงไม่เกิด render ซ้ำโดยไม่จำเป็น
   useResetOnChange(splitEligibleItems, () => {
-    const eligibleUuids = splitEligibleItems.map(cartItemActionUuid);
     setSplitSelectedItemUuids((current) =>
-      pruneSelectedItemUuids(current, eligibleUuids),
+      pruneSelectedItemQuantities(current, splitEligibleItems),
     );
   });
 
@@ -891,15 +895,33 @@ export function useSelectedTableCartPanelWorkflow({
         currentSelection?.orderUuid &&
         currentSelection.orderUuid !== itemOrderUuid
       ) {
-        return new Set([itemUuid]);
+        return new Map([[itemUuid, cartItemQty(item)]]);
       }
 
-      const next = new Set(current);
+      const next = new Map(current);
       if (next.has(itemUuid)) {
         next.delete(itemUuid);
       } else {
-        next.add(itemUuid);
+        // ค่าเริ่มต้นตอนติ๊กเลือก = จำนวนเต็มของรายการ ผู้ใช้ค่อยลดด้วย stepper
+        // ถ้าต้องการแยกจ่ายแค่บางส่วน (เช่น เบียร์ 10 ขวด จ่ายก่อน 2 ขวด)
+        next.set(itemUuid, cartItemQty(item));
       }
+      return next;
+    });
+  }
+
+  function setSplitItemQuantity(item: CartItem, quantity: number) {
+    const itemUuid = cartItemActionUuid(item);
+    if (!canSelectSplitItems || !itemUuid) return;
+
+    const fullQty = cartItemQty(item);
+    const clamped = Math.min(Math.max(Math.round(quantity), 1), fullQty);
+
+    setSplitSelectedItemUuids((current) => {
+      if (!current.has(itemUuid) || current.get(itemUuid) === clamped)
+        return current;
+      const next = new Map(current);
+      next.set(itemUuid, clamped);
       return next;
     });
   }
@@ -920,7 +942,7 @@ export function useSelectedTableCartPanelWorkflow({
     setPaymentContext({
       kind: "split",
       orders: splitSelection.orders,
-      splitBillItemUuids: splitSelection.itemUuids,
+      splitBillItemUuids: splitSelection.orderItemUuids,
       summary: splitSelection.summary,
       tableUuid: selectedTable.table_uuid,
     });
@@ -934,7 +956,7 @@ export function useSelectedTableCartPanelWorkflow({
 
     setActiveTab(nextTab);
     if (nextTab !== "history") {
-      setSplitSelectedItemUuids(new Set());
+      setSplitSelectedItemUuids(new Map());
     }
     void onCartRefresh().catch((error) => {
       showToast({
@@ -968,7 +990,7 @@ export function useSelectedTableCartPanelWorkflow({
 
   async function handlePaymentCompleted() {
     if (paymentContext?.kind === "split") {
-      setSplitSelectedItemUuids(new Set());
+      setSplitSelectedItemUuids(new Map());
     } else if (paymentContext?.kind === "full" && user?.store_table_status === 2) {
       // ร้านไม่มีโต๊ะ: จ่ายเงินเต็มบิลแล้ว เลิกยึด order_uuid เดิม รอบถัดไปเปิดบิลใหม่
       // (split ยังไม่เคลียร์ เพราะอาจเหลือรายการค้างจ่ายอยู่ใน order เดียวกัน)
@@ -1065,6 +1087,7 @@ export function useSelectedTableCartPanelWorkflow({
     setNoteTarget,
     setPaymentContext,
     setQuantityTarget,
+    setSplitItemQuantity,
     setTableActionsOpen,
     setTableQrOpen,
     splitSelectedCount,

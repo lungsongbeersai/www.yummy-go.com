@@ -30,5 +30,6 @@ export const routeBreadcrumbs: Record<string, RouteBreadcrumbItem[]> = {
   "/settings/manage-access-permissions": [
     { path: "/settings/manage-access-permissions", title: "manage_access_permissions" }
   ],
-  "/profile": [{ path: "/profile", title: "profile" }]
+  "/profile": [{ path: "/profile", title: "profile" }],
+  "/more": [{ path: "/more", title: "more" }]
 };

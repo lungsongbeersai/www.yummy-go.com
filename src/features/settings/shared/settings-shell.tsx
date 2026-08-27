@@ -231,7 +231,9 @@ export function SettingsModuleHeader({
   return (
     <div className="flex shrink-0 items-start justify-between gap-3 px-4 py-3 lg:px-5">
       <div className="min-w-0 flex-1">
-        <BackButton fallbackHref="/settings" label={t("settings.title")} />
+        {/* หน้า hub /settings ถูกลบแล้ว (เข้าถึงแต่ละโมดูลตรง ๆ ผ่าน dropdown ใน More/sidebar) —
+            ไม่มีประวัติให้ back() ก็กลับไปหน้าหลักแทน */}
+        <BackButton fallbackHref="/" label={t("settings.title")} />
         <h1 className="mt-1 text-xl font-black">{title}</h1>
         <p className="mt-0.5 hidden max-w-2xl truncate text-xs text-muted-foreground sm:block">{description}</p>
       </div>

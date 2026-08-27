@@ -45,10 +45,12 @@ const CategoryIconView = dynamic(
 export function EmployeeSortTabs({
   activeSort,
   className,
+  neutral = false,
   onSortChange,
 }: {
   activeSort: ProductSortStatus;
   className?: string;
+  neutral?: boolean;
   onSortChange: (status: ProductSortStatus) => void;
 }) {
   const { t } = useTranslation();
@@ -68,9 +70,12 @@ export function EmployeeSortTabs({
             aria-pressed={active}
             variant="ghost"
             className={cn(
-              "h-11 justify-center rounded-full border border-white/20 bg-white/15 px-3 text-xs font-bold text-white shadow-sm hover:border-white/45 hover:bg-white/25 hover:text-white dark:border-border dark:bg-card dark:text-foreground dark:hover:bg-accent dark:hover:text-foreground sm:text-sm",
+              "h-8 justify-center rounded-full border px-2.5 text-xs font-bold shadow-sm",
+              neutral
+                ? "border-border bg-card text-foreground hover:bg-accent hover:text-foreground"
+                : "border-white/20 bg-white/15 text-white hover:border-white/45 hover:bg-white/25 hover:text-white dark:border-border dark:bg-card dark:text-foreground dark:hover:bg-accent dark:hover:text-foreground",
               active &&
-                "border-primary/20 bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground dark:border-primary/20 dark:bg-primary dark:text-primary-foreground dark:hover:bg-primary/90 dark:hover:text-primary-foreground"
+                "border-primary/20 bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
             )}
             onClick={() => onSortChange(tab.status)}
           >
@@ -85,6 +90,7 @@ export function EmployeeSortTabs({
 export function EmployeeSearchForm({
   className,
   loading,
+  neutral = false,
   onSearchChange,
   onSearchSubmit,
   search,
@@ -92,6 +98,7 @@ export function EmployeeSearchForm({
 }: {
   className?: string;
   loading: boolean;
+  neutral?: boolean;
   onSearchChange: (value: string) => void;
   onSearchSubmit: () => void;
   search: string;
@@ -111,12 +118,20 @@ export function EmployeeSearchForm({
       <div className="relative min-w-0 flex-1">
         <Search
           aria-hidden="true"
-          className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-white/70 dark:text-muted-foreground"
+          className={cn(
+            "pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2",
+            neutral ? "text-muted-foreground" : "text-white/70 dark:text-muted-foreground"
+          )}
         />
         <Input
           aria-label={t("pos.searchMenu")}
           autoComplete="off"
-          className="h-11 rounded-full border-white/25 bg-white/15 pl-9 font-semibold text-white shadow-sm placeholder:text-white/65 dark:border-border dark:bg-card dark:text-foreground dark:placeholder:text-muted-foreground"
+          className={cn(
+            "h-11 rounded-full pl-9 font-semibold shadow-sm",
+            neutral
+              ? "border-border bg-card text-foreground placeholder:text-muted-foreground"
+              : "border-white/25 bg-white/15 text-white placeholder:text-white/65 dark:border-border dark:bg-card dark:text-foreground dark:placeholder:text-muted-foreground"
+          )}
           name="menu-search"
           placeholder={t("pos.searchMenu")}
           spellCheck={false}
@@ -145,9 +160,11 @@ export function EmployeeSearchForm({
 
 export function EmployeeMobileHeaderActions({
   loading,
+  neutral = false,
   onRefresh,
 }: {
   loading: boolean;
+  neutral?: boolean;
   onRefresh: () => void;
 }) {
   const { t } = useTranslation();
@@ -167,7 +184,12 @@ export function EmployeeMobileHeaderActions({
           variant="ghost"
           size="icon"
           aria-label={t("common.actions")}
-          className="size-11 shrink-0 rounded-full border border-white/25 bg-white/15 text-white shadow-sm hover:bg-white/25 hover:text-white dark:border-border dark:bg-card dark:text-foreground dark:hover:bg-accent dark:hover:text-foreground"
+          className={cn(
+            "size-11 shrink-0 rounded-full border shadow-sm",
+            neutral
+              ? "border-border bg-card text-foreground hover:bg-accent hover:text-foreground"
+              : "border-white/25 bg-white/15 text-white hover:bg-white/25 hover:text-white dark:border-border dark:bg-card dark:text-foreground dark:hover:bg-accent dark:hover:text-foreground"
+          )}
         >
           <MoreHorizontal data-icon="inline-start" />
         </Button>
@@ -215,29 +237,38 @@ export function EmployeeMobileHeaderActions({
 export const EmployeeCategorySidebar = memo(function EmployeeCategorySidebar({
   categories,
   loading,
+  neutral = false,
   selectedCateUuid,
   onSelectCategory,
 }: {
   categories: CateWithProducts[];
   loading: boolean;
+  neutral?: boolean;
   selectedCateUuid: string;
   onSelectCategory: (cateUuid: string) => void;
 }) {
   const { t } = useTranslation();
 
   return (
-    <aside className="relative hidden min-h-0 overflow-hidden bg-transparent p-1.5 text-white md:flex dark:text-foreground">
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 bg-black/10 dark:hidden"
-      />
+    <aside
+      className={cn(
+        "relative hidden min-h-0 overflow-hidden bg-transparent p-1.5 md:flex",
+        neutral ? "text-foreground" : "text-white dark:text-foreground"
+      )}
+    >
+      {!neutral ? (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 bg-black/10 dark:hidden"
+        />
+      ) : null}
       <div className="relative flex min-h-0 flex-1 flex-col gap-2">
         <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain pr-1">
           {loading
             ? Array.from({ length: 6 }).map((_, index) => (
                 <Skeleton
                   key={index}
-                  className="h-[5.625rem] rounded-lg bg-white/20"
+                  className={cn("h-[5.625rem] rounded-lg", neutral ? "bg-muted" : "bg-white/20")}
                 />
               ))
             : categories.map((category) => {
@@ -251,9 +282,12 @@ export const EmployeeCategorySidebar = memo(function EmployeeCategorySidebar({
                         aria-pressed={active}
                         variant="ghost"
                         className={cn(
-                          "h-auto min-h-[5.625rem] w-full shrink-0 flex-col gap-1 rounded-lg border border-white/20 bg-white/10 px-2 py-2 text-white/90 shadow-sm shadow-black/5 hover:border-white/45 hover:bg-white/20 hover:text-white focus-visible:ring-white/60 dark:border-border dark:bg-card dark:text-foreground/90 dark:shadow-black/20 dark:hover:border-primary/40 dark:hover:bg-accent dark:hover:text-foreground dark:focus-visible:ring-ring/60",
+                          "h-auto min-h-[5.625rem] w-full shrink-0 flex-col gap-1 rounded-lg border px-2 py-2 shadow-sm",
+                          neutral
+                            ? "border-border bg-card text-foreground/90 hover:border-primary/40 hover:bg-accent hover:text-foreground focus-visible:ring-ring/60"
+                            : "border-white/20 bg-white/10 text-white/90 shadow-black/5 hover:border-white/45 hover:bg-white/20 hover:text-white focus-visible:ring-white/60 dark:border-border dark:bg-card dark:text-foreground/90 dark:shadow-black/20 dark:hover:border-primary/40 dark:hover:bg-accent dark:hover:text-foreground dark:focus-visible:ring-ring/60",
                           active &&
-                            "border-white bg-white text-primary shadow-lg shadow-black/15 hover:bg-white hover:text-primary dark:border-primary/20 dark:bg-primary dark:text-primary-foreground dark:shadow-primary/20 dark:hover:bg-primary/90 dark:hover:text-primary-foreground"
+                            "border-primary/20 bg-primary text-primary-foreground shadow-primary/20 hover:bg-primary/90 hover:text-primary-foreground"
                         )}
                         onClick={() => onSelectCategory(category.cateUuid)}
                       >
@@ -280,10 +314,12 @@ export const EmployeeCategorySidebar = memo(function EmployeeCategorySidebar({
 
 export const EmployeeCategoryRail = memo(function EmployeeCategoryRail({
   categories,
+  neutral = false,
   selectedCateUuid,
   onSelectCategory,
 }: {
   categories: CateWithProducts[];
+  neutral?: boolean;
   selectedCateUuid: string;
   onSelectCategory: (cateUuid: string) => void;
 }) {
@@ -293,7 +329,14 @@ export const EmployeeCategoryRail = memo(function EmployeeCategoryRail({
 
   return (
     <div className="-mx-3 overflow-x-auto px-3 pb-1 md:hidden">
-      <div className="w-max min-w-full overflow-hidden rounded-2xl border border-white/20 bg-white/15 p-2 shadow-xl shadow-black/20 dark:border-border dark:bg-card dark:shadow-black/40">
+      <div
+        className={cn(
+          "w-max min-w-full overflow-hidden rounded-2xl border p-1.5 shadow-sm",
+          neutral
+            ? "border-border bg-card"
+            : "border-white/20 bg-white/15 shadow-xl shadow-black/20 dark:border-border dark:bg-card dark:shadow-black/40"
+        )}
+      >
         <div className="flex gap-2">
           {categories.map((category) => {
             const active = category.cateUuid === selectedCateUuid;
@@ -306,16 +349,15 @@ export const EmployeeCategoryRail = memo(function EmployeeCategoryRail({
                 variant="ghost"
                 size="sm"
                 className={cn(
-                  "h-auto min-h-11 max-w-47.5 shrink-0 rounded-2xl border border-white/15 bg-black/20 px-3 py-2 text-sm font-black text-white hover:border-white/45 hover:bg-white/10 hover:text-white dark:border-border dark:bg-card dark:text-foreground dark:hover:border-primary/40 dark:hover:bg-accent dark:hover:text-foreground",
+                  "h-auto min-h-10 max-w-47.5 shrink-0 rounded-2xl border px-3 py-1.5 text-sm font-black",
+                  neutral
+                    ? "border-border bg-muted text-foreground hover:border-primary/40 hover:bg-accent hover:text-foreground"
+                    : "border-white/15 bg-black/20 text-white hover:border-white/45 hover:bg-white/10 hover:text-white dark:border-border dark:bg-card dark:text-foreground dark:hover:border-primary/40 dark:hover:bg-accent dark:hover:text-foreground",
                   active &&
-                    "border-white bg-white text-primary hover:bg-white hover:text-primary dark:border-primary/20 dark:bg-primary dark:text-primary-foreground dark:hover:bg-primary/90 dark:hover:text-primary-foreground"
+                    "border-primary/20 bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
                 )}
                 onClick={() => onSelectCategory(category.cateUuid)}
               >
-                <CategoryIconView
-                  icon={category.cateIcon}
-                  className="size-5 shrink-0"
-                />
                 <span className="min-w-0 flex-1 whitespace-normal break-words text-center leading-5">
                   {categoryLabel}
                 </span>

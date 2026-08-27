@@ -98,7 +98,7 @@ export function CartSheetContent({
               </SheetDescription>
             </div>
             <div className="flex shrink-0 items-center gap-1">
-              <Badge className="h-7 rounded-full border-yg-accent-line bg-yg-accent-soft px-2.5 text-[11px] font-extrabold text-yg-accent-strong">
+              <Badge className="h-7 rounded-full border-yg-accent-line bg-yg-accent-soft px-2.5 text-2xs font-extrabold text-yg-accent-strong">
                 {totalItemQty} {t("pos.cartItems")}
               </Badge>
               <SheetClose asChild>
@@ -208,7 +208,7 @@ export function CartSheetContent({
                     <p className="text-sm font-extrabold text-yg-ink">
                       {t("common.total")}
                     </p>
-                    <output className="font-yg-number text-[22px] font-semibold text-yg-accent-strong tabular-nums">
+                    <output className="font-yg-number text-2xl font-semibold text-yg-accent-strong tabular-nums">
                       {formatMoney(total, lang)}
                     </output>
                   </div>
@@ -216,7 +216,7 @@ export function CartSheetContent({
                 {confirmableItemQty > 0 ? (
                   <Button
                     type="button"
-                    className="h-13.5 w-full rounded-2xl bg-yg-accent text-[15px] font-extrabold text-yg-on-accent shadow-[0_12px_30px_-12px_var(--yg-accent)] hover:bg-yg-accent hover:brightness-105 disabled:opacity-55 disabled:shadow-none"
+                    className="h-13.5 w-full rounded-2xl bg-yg-accent text-base font-extrabold text-yg-on-accent shadow-[0_12px_30px_-12px_var(--yg-accent)] hover:bg-yg-accent hover:brightness-105 disabled:opacity-55 disabled:shadow-none"
                     onClick={onConfirmKitchen}
                     disabled={!confirmableItems.length || saving || confirming}
                   >

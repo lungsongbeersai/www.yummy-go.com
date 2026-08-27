@@ -55,6 +55,8 @@ interface PosOrderQueueState extends AsyncSlice {
   items: OrderQueueItem[];
   sections: OrderQueueSectionSummary[];
   total: number;
+  /** เวลาที่ได้ open_minutes ชุดนี้มา ใช้เป็นจุดอ้างอิงให้ตัวนับเวลารอเดินต่อเองฝั่ง client */
+  loadedAt: number;
 
   setStatus: (status: OrderItemStatusType) => void;
 
@@ -84,6 +86,8 @@ const initialState = {
   sections: [] as OrderQueueSectionSummary[],
 
   total: 0,
+
+  loadedAt: 0,
 
   loading: false,
 
@@ -145,6 +149,7 @@ export const usePosOrderQueueStore =
             items,
             sections: posService.summarizeOrderQueueSections(response),
             total: section?.total ?? items.length,
+            loadedAt: Date.now(),
             loading: false
           });
         }

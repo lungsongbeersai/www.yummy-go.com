@@ -24,7 +24,7 @@ import type {
 } from "./types";
 
 export function printReport(input: ReportPrintInput) {
-  return apiRequest<ReportPrintResponse>("post", "/api/v1/pos/report/print", { data: input });
+  return apiRequest<ReportPrintResponse>("post", "/api/v1/posAll/report/print", { data: input });
 }
 
 interface ReportRequestParams {

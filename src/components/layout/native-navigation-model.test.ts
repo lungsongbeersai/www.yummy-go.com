@@ -92,6 +92,97 @@ describe("buildNativeNavigationModel", () => {
     const model = buildNativeNavigationModel([{ path: "/", title: "dash" }]);
     expect(model.more).toEqual([]);
   });
+
+  it("injects sales-list into more right after cancel-sale, since the sale dropdown bypasses it entirely", () => {
+    const model = buildNativeNavigationModel([
+      { path: "/", title: "dashboard" },
+      {
+        path: "/sale",
+        title: "sales",
+        children: [
+          { path: "/sales/open-table-sale", title: "open_table_sale" },
+          { path: "/sales/sales-list", title: "sales_list" },
+        ],
+      },
+      { path: "/products", title: "menu_add_item" },
+      { path: "/sales/cancel-sale", title: "cancel_sale" },
+      { path: "/printers", title: "printer_management" },
+    ]);
+    // "/sale" ยิงไป /sales/open-table-sale โดยตรง (destinationPath) กิน direct slot
+    // ที่ 2 ไปแล้ว — /sales/sales-list เลยไม่มีทางเข้าถึงทั้งจาก direct และ more เดิม
+    expect(model.direct.map((entry) => entry.path)).toEqual([
+      "/",
+      "/sales/open-table-sale",
+      "/products",
+    ]);
+    expect(model.more.map((item) => item.path)).toEqual([
+      "/sales/cancel-sale",
+      "/sales/sales-list",
+      "/printers",
+    ]);
+  });
+
+  it("injects sales-list after the /cancel group when cancel-sale is nested in its children, matching the real permission API shape", () => {
+    // เมนูจริงจาก permission API มีกลุ่ม "/cancel" แยกต่างหาก ไม่ใช่ /sales/cancel-sale
+    // แบบ flat top-level แบบเทสด้านบน — cancel-sale เป็นลูกอยู่ใน children ของกลุ่มนี้
+    const model = buildNativeNavigationModel([
+      { path: "/", title: "dashboard" },
+      {
+        path: "/sale",
+        title: "sales",
+        children: [
+          { path: "/sales/open-table-sale", title: "open_table_sale" },
+          { path: "/sales/sales-list", title: "sales_list" },
+        ],
+      },
+      { path: "/products", title: "menu_add_item" },
+      {
+        path: "/cancel",
+        title: "cancel_sale_group",
+        children: [
+          { path: "/sales/cancel-sale", title: "cancel_sale" },
+          { path: "/sales/cancel-history", title: "cancel_history" },
+        ],
+      },
+      { path: "/printers", title: "printer_management" },
+    ]);
+    expect(model.more.map((item) => item.path)).toEqual([
+      "/cancel",
+      "/sales/sales-list",
+      "/printers",
+    ]);
+  });
+
+  it("does not inject sales-list when cancel-sale isn't in the menu at all", () => {
+    const model = buildNativeNavigationModel([
+      { path: "/", title: "dashboard" },
+      {
+        path: "/sale",
+        title: "sales",
+        children: [
+          { path: "/sales/open-table-sale", title: "open_table_sale" },
+          { path: "/sales/sales-list", title: "sales_list" },
+        ],
+      },
+      { path: "/products", title: "menu_add_item" },
+      { path: "/printers", title: "printer_management" },
+    ]);
+    expect(model.more.some((item) => item.path === "/sales/sales-list")).toBe(
+      false,
+    );
+  });
+
+  it("does not double-inject sales-list when it's already reachable on its own", () => {
+    const model = buildNativeNavigationModel([
+      { path: "/", title: "dashboard" },
+      { path: "/products", title: "menu_add_item" },
+      { path: "/sales/cancel-sale", title: "cancel_sale" },
+      { path: "/sales/sales-list", title: "sales_list" },
+    ]);
+    expect(
+      model.more.filter((item) => item.path === "/sales/sales-list"),
+    ).toHaveLength(1);
+  });
 });
 
 describe("isDestinationActive", () => {
@@ -149,23 +240,11 @@ describe("shouldShowBackButton", () => {
 describe("resolveAndroidBackAction", () => {
   const model = buildNativeNavigationModel(menu);
 
-  it("closes an open overlay before anything else", () => {
-    expect(
-      resolveAndroidBackAction({
-        canGoBack: true,
-        model,
-        overlayOpen: true,
-        pathname: "/pos/order",
-      }),
-    ).toEqual({ type: "close-overlay" });
-  });
-
   it("prefers the deterministic parent over history", () => {
     expect(
       resolveAndroidBackAction({
         canGoBack: true,
         model,
-        overlayOpen: false,
         pathname: "/products/form",
       }),
     ).toEqual({ path: "/products", type: "navigate" });
@@ -176,7 +255,6 @@ describe("resolveAndroidBackAction", () => {
       resolveAndroidBackAction({
         canGoBack: true,
         model,
-        overlayOpen: false,
         pathname: "/",
       }),
     ).toEqual({ type: "minimize" });
@@ -187,7 +265,6 @@ describe("resolveAndroidBackAction", () => {
       resolveAndroidBackAction({
         canGoBack: true,
         model,
-        overlayOpen: false,
         pathname: "/printers",
       }),
     ).toEqual({ type: "history-back" });
@@ -198,7 +275,6 @@ describe("resolveAndroidBackAction", () => {
       resolveAndroidBackAction({
         canGoBack: false,
         model,
-        overlayOpen: false,
         pathname: "/printers",
       }),
     ).toEqual({ type: "minimize" });

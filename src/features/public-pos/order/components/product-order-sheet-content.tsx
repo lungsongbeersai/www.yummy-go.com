@@ -230,14 +230,14 @@ function ProductOrderForm({
         {product ? (
           <FieldGroup className="gap-4">
             <div className="flex flex-col gap-1.5">
-              <span className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-yg-accent">
+              <span className="text-2xs font-extrabold uppercase tracking-[0.2em] text-yg-accent">
                 {modeLabel || t("pos.product")}
               </span>
               <TitleTag className="lao-tone-text wrap-break-word font-yg-sans text-[clamp(21px,5vw,26px)] font-semibold leading-snug text-yg-ink">
                 {product.prodName}
               </TitleTag>
               {product.uniteName ? (
-                <span className="text-[13px] font-medium text-yg-muted">
+                <span className="text-sm font-medium text-yg-muted">
                   {product.uniteName}
                 </span>
               ) : null}
@@ -263,7 +263,7 @@ function ProductOrderForm({
                 <p className="text-xs font-extrabold text-yg-accent-strong">
                   {t("pos.promoDeal")}
                 </p>
-                <p className="mt-0.5 text-[13px] font-medium text-yg-muted">
+                <p className="mt-0.5 text-sm font-medium text-yg-muted">
                   {getPromoLabel(selectedDetail, t)}
                 </p>
               </div>
@@ -393,7 +393,7 @@ function ProductSizeFieldset({
                       {detail.sizeName || t("pos.size")}
                     </span>
                     {!enabled ? (
-                      <span className="shrink-0 rounded-md border border-yg-line bg-yg-panel2 px-1.5 py-0.5 text-[10px] font-bold text-yg-muted">
+                      <span className="shrink-0 rounded-md border border-yg-line bg-yg-panel2 px-1.5 py-0.5 text-2xs font-bold text-yg-muted">
                         {t("pos.outOfStock")}
                       </span>
                     ) : null}
@@ -410,7 +410,7 @@ function ProductSizeFieldset({
                     </span>
                   ) : null}
                 </span>
-                <span className="shrink-0 text-right font-yg-number text-[19px] font-semibold text-yg-accent-strong tabular-nums">
+                <span className="shrink-0 text-right font-yg-number text-xl font-semibold text-yg-accent-strong tabular-nums">
                   {formatMoney(productPriceFromDetail(detail), lang)}
                 </span>
               </FieldLabel>
@@ -453,7 +453,7 @@ function SetProductFieldset({ details }: { details: ProdDetail[] }) {
               </span>
               <span className="flex shrink-0 items-center gap-2">
                 {!enabled ? (
-                  <span className="rounded-md border border-yg-line bg-yg-panel2 px-1.5 py-0.5 text-[10px] font-bold text-yg-muted">
+                  <span className="rounded-md border border-yg-line bg-yg-panel2 px-1.5 py-0.5 text-2xs font-bold text-yg-muted">
                     {t("pos.outOfStock")}
                   </span>
                 ) : null}
@@ -571,7 +571,7 @@ function ProductToppingRow({
           {label}
         </span>
         {!enabled ? (
-          <span className="shrink-0 rounded-md border border-yg-line bg-yg-panel2 px-1.5 py-0.5 text-[10px] font-bold text-yg-muted">
+          <span className="shrink-0 rounded-md border border-yg-line bg-yg-panel2 px-1.5 py-0.5 text-2xs font-bold text-yg-muted">
             {t("pos.outOfStock")}
           </span>
         ) : null}
@@ -579,11 +579,11 @@ function ProductToppingRow({
 
       <div className="ml-auto flex shrink-0 items-center gap-2">
         <div className="text-right">
-          <p className="font-yg-number text-[17px] font-semibold text-yg-accent-strong tabular-nums">
+          <p className="font-yg-number text-base font-semibold text-yg-accent-strong tabular-nums">
             +{formatMoney(unitPrice * Math.max(1, qty), lang)}
           </p>
           {selected && qty > 1 ? (
-            <p className="text-[11px] font-semibold text-yg-faint tabular-nums">
+            <p className="text-2xs font-semibold text-yg-faint tabular-nums">
               {qty} × {formatMoney(unitPrice, lang)} · {t("pos.perItem")}
             </p>
           ) : null}
@@ -652,7 +652,7 @@ function ProductQuantityRow({
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex items-center justify-between gap-3">
-        <span className="text-[13px] font-extrabold text-yg-ink">
+        <span className="text-sm font-extrabold text-yg-ink">
           {t("pos.qty")}
         </span>
         <div className="flex items-center gap-1 rounded-[15px] border border-yg-line bg-yg-panel p-1">
@@ -671,7 +671,7 @@ function ProductQuantityRow({
             type="button"
             variant="ghost"
             aria-label={t("pos.editQuantity")}
-            className="h-11 min-w-10 rounded-xl px-2 text-center font-yg-mono text-[17px] font-semibold text-yg-ink tabular-nums hover:bg-yg-panel-hover"
+            className="h-11 min-w-10 rounded-xl px-2 text-center font-yg-mono text-base font-semibold text-yg-ink tabular-nums hover:bg-yg-panel-hover"
             disabled={!selectedDetail || saving}
             onClick={() => setQtyDialogOpen(true)}
           >
@@ -691,7 +691,7 @@ function ProductQuantityRow({
         </div>
       </div>
       {quantityMeta.hasPromotion ? (
-        <p className="text-right text-[11px] font-semibold text-yg-accent-strong">
+        <p className="text-right text-2xs font-semibold text-yg-accent-strong">
           {t("pos.orderStep", { count: qtyStep })}
         </p>
       ) : null}
@@ -727,7 +727,7 @@ function ProductOrderFooter({
       ) : (
         <Button
           type="submit"
-          className="h-13.5 w-full rounded-2xl bg-yg-accent text-[15px] font-extrabold text-yg-on-accent shadow-[0_12px_30px_-12px_var(--yg-accent)] hover:bg-yg-accent hover:brightness-105 disabled:opacity-55 disabled:shadow-none"
+          className="h-13.5 w-full rounded-2xl bg-yg-accent text-base font-extrabold text-yg-on-accent shadow-[0_12px_30px_-12px_var(--yg-accent)] hover:bg-yg-accent hover:brightness-105 disabled:opacity-55 disabled:shadow-none"
           disabled={!canSubmit}
         >
           {saving ? (
@@ -751,7 +751,7 @@ function SectionLegend({ label, meta }: { label: string; meta: string }) {
       className="mb-0 flex min-w-0 items-center justify-between gap-3 text-xs font-extrabold tracking-wide text-yg-faint"
     >
       <span>{label}</span>
-      <span className="shrink-0 font-yg-sans text-[11px] font-semibold tabular-nums">
+      <span className="shrink-0 font-yg-sans text-2xs font-semibold tabular-nums">
         {meta}
       </span>
     </FieldLegend>

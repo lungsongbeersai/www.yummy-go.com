@@ -6,7 +6,10 @@ import {
 
 export type BreadcrumbTrailItem = RouteBreadcrumbItem;
 
-const NON_PAGE_GROUP_PATHS = new Set(["/sale", "/cancel", "/report"]);
+// เมนู permission API ส่ง menu_path มาให้ทุกตัวแม้แต่กลุ่ม dropdown (เช่น /sale, /cancel, /report,
+// /settings) แต่กลุ่มเหล่านี้ไม่มีหน้าเพจจริงของตัวเอง (หน้า hub /settings ถูกลบไปแล้ว เข้าถึงแต่ละ
+// โมดูลตรง ๆ ผ่าน dropdown แทน) — breadcrumb ของกลุ่มพวกนี้เลยต้องเป็น label เฉย ๆ ไม่ใช่ลิงก์กดได้
+export const NON_PAGE_GROUP_PATHS = new Set(["/sale", "/cancel", "/report", "/settings"]);
 
 function breadcrumbPath(item: MenuItem) {
   return item.path && !NON_PAGE_GROUP_PATHS.has(item.path)

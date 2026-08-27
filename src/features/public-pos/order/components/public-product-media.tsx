@@ -152,7 +152,7 @@ function ProductMediaStateOverlay({
       <span
         className={cn(
           "lao-tone-text line-clamp-2 text-center font-extrabold tracking-wide text-white",
-          compact ? "text-[10px]" : "text-xs",
+          compact ? "text-2xs" : "text-xs",
         )}
       >
         {label}

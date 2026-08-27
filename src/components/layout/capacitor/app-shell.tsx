@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { usePosOrderAlertListener } from "@/hooks/use-pos-order-alert-listener";
 import { cn } from "@/lib/utils";
@@ -10,7 +10,6 @@ import { useAndroidBackButton } from "@/components/layout/capacitor/use-android-
 import { useKeyboardVisible } from "@/components/layout/capacitor/use-keyboard-visible";
 import { NativeTopBar } from "@/components/layout/capacitor/top-bar";
 import { NativeBottomNav } from "@/components/layout/capacitor/bottom-nav";
-import { NativeMoreSheet } from "@/components/layout/capacitor/more-sheet";
 import { NativeSideRail } from "@/components/layout/capacitor/side-rail";
 import { usePullToRefresh } from "@/components/layout/capacitor/use-pull-to-refresh";
 import { NativePullToRefreshIndicator } from "@/components/layout/capacitor/pull-to-refresh-indicator";
@@ -37,19 +36,12 @@ export function NativeAppShell({ children }: { children: React.ReactNode }) {
     () => buildNativeNavigationModel(menuItems),
     [menuItems],
   );
-  const [moreOpen, setMoreOpen] = useState(false);
   const keyboardVisible = useKeyboardVisible();
-  const closeMore = useCallback(() => setMoreOpen(false), []);
   // ปิดบนหน้า fixedDataScreen (เช่น POS order/table) เพราะหน้าเหล่านี้มี scroll area
   // ของตัวเองแยกจาก document — ดึงที่ขอบบนสุดของหน้าจะไปชนกับท่าทางภายในจอนั้นแทน
   const { pullDistance, refreshing, threshold } = usePullToRefresh(!fixedDataScreen);
 
-  useAndroidBackButton({
-    model,
-    onCloseOverlay: closeMore,
-    overlayOpen: moreOpen,
-    pathname,
-  });
+  useAndroidBackButton({ model, pathname });
 
   // scroll-lock และ pos-android-system-screen จัดการอยู่ใน useAppShellData ร่วมกับ web shell
 
@@ -70,6 +62,8 @@ export function NativeAppShell({ children }: { children: React.ReactNode }) {
         {t("app.skipToContent")}
       </a>
 
+      {/* ทุกหน้ารวม /pos/order, /pos/tables ต้องเห็น header/bottom nav ของ native shell เสมอ
+          ตามที่ตกลงไว้ — แม้หน้าเหล่านี้จะมี header ของตัวเอง (back button/FAB) อยู่แล้วก็ตาม */}
       <NativeTopBar
         breadcrumbs={breadcrumbs}
         model={model}
@@ -90,8 +84,6 @@ export function NativeAppShell({ children }: { children: React.ReactNode }) {
           error={menuError}
           loading={menuLoading}
           model={model}
-          moreOpen={moreOpen}
-          onMoreClick={() => setMoreOpen(true)}
           onRetry={retrySidebarMenu}
           pathname={pathname}
         />
@@ -100,7 +92,11 @@ export function NativeAppShell({ children }: { children: React.ReactNode }) {
           tabIndex={-1}
           className={cn(
             "min-w-0 flex-1 pb-(--app-shell-bottom-nav-height)",
-            fixedDataScreen ? "min-h-0 overflow-hidden" : "overflow-visible",
+            // หน้าปกติ (ไม่ใช่ fixedDataScreen อย่าง POS/product-form) ไม่เคยมี padding
+            // รอบเนื้อหาให้เลยบน Capacitor มาก่อน — ต่างจาก web/app-shell.tsx ที่ให้
+            // "p-4 lg:p-6" เสมอ ผลคือทุกหน้าที่ไม่ได้เผื่อ padding ของตัวเอง (เช่น
+            // order-queue-page.tsx) เนื้อหาแนบขอบจอเป๊ะ ๆ ไม่มีที่หายใจเลย
+            fixedDataScreen ? "min-h-0 overflow-hidden" : "overflow-visible p-3",
           )}
         >
           {children}
@@ -111,16 +107,7 @@ export function NativeAppShell({ children }: { children: React.ReactNode }) {
         error={menuError}
         loading={menuLoading}
         model={model}
-        moreOpen={moreOpen}
-        onMoreClick={() => setMoreOpen(true)}
         onRetry={retrySidebarMenu}
-        pathname={pathname}
-      />
-
-      <NativeMoreSheet
-        model={model}
-        onOpenChange={setMoreOpen}
-        open={moreOpen}
         pathname={pathname}
       />
     </div>

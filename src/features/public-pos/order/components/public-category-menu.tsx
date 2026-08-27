@@ -60,7 +60,7 @@ export function PublicCategoryMenu({
         sideOffset={10}
         className="w-72 rounded-[20px] border-yg-line bg-yg-bg2 p-2 font-yg-sans text-yg-ink shadow-[0_24px_60px_-20px_rgb(0_0_0/0.35)] dark:shadow-[0_24px_60px_-20px_rgb(0_0_0/0.8)]"
       >
-        <p className="px-2 pb-2 pt-1 text-[10px] font-extrabold uppercase tracking-[0.2em] text-yg-accent">
+        <p className="px-2 pb-2 pt-1 text-2xs font-extrabold uppercase tracking-[0.2em] text-yg-accent">
           {label}
         </p>
 

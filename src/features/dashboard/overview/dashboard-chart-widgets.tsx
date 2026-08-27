@@ -161,7 +161,7 @@ function EmptyPanel({ label }: { label: string }) {
 function MiniFact({ label, title, value }: { label: string; title: string; value: string }) {
   return (
     <div className="rounded-lg border border-border bg-muted/38 px-3 py-2">
-      <p className="text-[11px] font-black uppercase text-muted-foreground">{label}</p>
+      <p className="text-2xs font-black uppercase text-muted-foreground">{label}</p>
       <p className="mt-1 truncate text-sm font-black">{title}</p>
       <p className="mt-1 text-xs text-muted-foreground">{value}</p>
     </div>

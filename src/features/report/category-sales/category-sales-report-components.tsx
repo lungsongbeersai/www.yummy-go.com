@@ -284,7 +284,7 @@ export function CategorySalesTable({
 
   return (
     <div className="hidden min-w-0 md:block">
-      <Table className="w-max min-w-full table-auto text-[13px]">
+      <Table className="w-max min-w-full table-auto text-sm">
         <TableHeader className="[&_th]:sticky [&_th]:top-0 [&_th]:z-30 [&_th]:whitespace-nowrap [&_th]:border-b [&_th]:border-border [&_th]:bg-background [&_th]:px-3 [&_th]:shadow-sm">
           <TableRow>
             <TableHead className="w-10 text-center">
@@ -615,7 +615,7 @@ export function CategorySalesMobileList({
                       </p>
                     </div>
                     <div className="shrink-0 text-right">
-                      <p className="text-[11px] font-bold text-muted-foreground">
+                      <p className="text-2xs font-bold text-muted-foreground">
                         {t("report.categorySales.columns.grandTotal")}
                       </p>
                       <p className={cn("text-sm tabular-nums", financialValueTextClass(row.grandTotal, "total"))}>
@@ -701,7 +701,7 @@ function MetricTile({
 
   return (
     <div className="min-w-0 rounded-md border border-border bg-muted px-2.5 py-2">
-      <p className="truncate text-[10px] font-bold uppercase text-muted-foreground">
+      <p className="truncate text-2xs font-bold uppercase text-muted-foreground">
         {label}
       </p>
       <p className={cn("truncate text-xs font-black tabular-nums", valueClassName)}>

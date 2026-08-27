@@ -58,7 +58,7 @@ describe("public pos requests", () => {
 
     expect(apiMocks.publicApiRequest).toHaveBeenCalledWith(
       "get",
-      "/api/v1/pos/customer/fetch_cate_products",
+      "/api/v1/posAll/customer/fetch_cate_products",
       {
         params: {
           t: "table token",
@@ -107,7 +107,7 @@ describe("public pos requests", () => {
 
     expect(apiMocks.publicApiRequest).toHaveBeenCalledWith(
       "post",
-      "/api/v1/pos/customer/get_prod_item?t=table%20token",
+      "/api/v1/posAll/customer/get_prod_item?t=table%20token",
       {
         data: {
           prod_uuid: "prod-1",
@@ -142,7 +142,7 @@ describe("public pos requests", () => {
 
     expect(apiMocks.publicApiRequest).toHaveBeenCalledWith(
       "patch",
-      "/api/v1/pos/customer/update_note?t=table-token",
+      "/api/v1/posAll/customer/update_note?t=table-token",
       {
         data: {
           order_it_uuid: "8e99dfb5-929d-4030-a85c-48ffbaa9a650",

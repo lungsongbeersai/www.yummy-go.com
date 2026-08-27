@@ -3,7 +3,7 @@
 import { toast as sonnerToast } from "sonner";
 import { create } from "zustand";
 
-export type ToastTone = "success" | "error" | "info";
+export type ToastTone = "success" | "error" | "warning" | "info";
 
 export interface ToastInput {
   title: string;
@@ -18,6 +18,7 @@ interface ToastState {
 const toneToToast = {
   success: sonnerToast.success,
   error: sonnerToast.error,
+  warning: sonnerToast.warning,
   info: sonnerToast.info
 } as const;
 

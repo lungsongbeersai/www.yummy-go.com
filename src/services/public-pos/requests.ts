@@ -59,7 +59,7 @@ function buildCustomerProductBody(params: CustomerGetProdItemParams) {
 }
 
 export function scanTableQR(t: string, lang = "la") {
-  return publicApiRequest<QRScanResponse>("get", "/api/v1/pos/customer/qrscan", {
+  return publicApiRequest<QRScanResponse>("get", "/api/v1/posAll/customer/qrscan", {
     params: { t: requiredToken(t), lang: toApiLanguage(lang) }
   });
 }
@@ -72,7 +72,7 @@ export async function fetchCustomerStatusSorts(lang = "la") {
 }
 
 export function fetchCustomerCart(params: CustomerFetchCartParams) {
-  return publicApiRequest<FetchCartResponse>("get", "/api/v1/pos/customer/fetch_cart", {
+  return publicApiRequest<FetchCartResponse>("get", "/api/v1/posAll/customer/fetch_cart", {
     params: { t: requiredToken(params.t), lang: toApiLanguage(params.lang) }
   });
 }
@@ -80,7 +80,7 @@ export function fetchCustomerCart(params: CustomerFetchCartParams) {
 export async function customerFetchCateProducts(params: CustomerFetchCateProductsParams) {
   const response = await publicApiRequest<ApiFetchCateProductsResponse>(
     "get",
-    "/api/v1/pos/customer/fetch_cate_products",
+    "/api/v1/posAll/customer/fetch_cate_products",
     {
       params: buildCustomerCatalogQuery(params),
     },
@@ -91,7 +91,7 @@ export async function customerFetchCateProducts(params: CustomerFetchCateProduct
 export async function customerGetProdItem(params: CustomerGetProdItemParams) {
   const result = await publicApiRequest<ApiProdItemResponse>(
     "post",
-    `/api/v1/pos/customer/get_prod_item?t=${encodeURIComponent(requiredToken(params.token))}`,
+    `/api/v1/posAll/customer/get_prod_item?t=${encodeURIComponent(requiredToken(params.token))}`,
     {
       data: buildCustomerProductBody(params),
     },
@@ -111,13 +111,13 @@ export function customerCreateOrder(t: string, input: CustomerCreateOrderInput) 
 export function customerUpdateQty(params: CustomerUpdateQtyInput) {
   return publicApiRequest<UpdateQtyResponse>(
     "patch",
-    `/api/v1/pos/customer/order_item/update_qty?t=${encodeURIComponent(requiredToken(params.t))}`,
+    `/api/v1/posAll/customer/order_item/update_qty?t=${encodeURIComponent(requiredToken(params.t))}`,
     { data: params }
   );
 }
 
 export function customerDeleteOrderItem(params: CustomerDeleteOrderItemParams) {
-  return publicApiRequest<DeleteOrderItemResponse>("delete", "/api/v1/pos/customer/delete_order_item", {
+  return publicApiRequest<DeleteOrderItemResponse>("delete", "/api/v1/posAll/customer/delete_order_item", {
     params: { t: requiredToken(params.t), order_it_uuid: params.order_it_uuid }
   });
 }
@@ -125,7 +125,7 @@ export function customerDeleteOrderItem(params: CustomerDeleteOrderItemParams) {
 export function customerUpdateOrderNote(params: CustomerUpdateOrderNoteInput) {
   return publicApiRequest<UpdateOrderNoteResponse>(
     "patch",
-    `/api/v1/pos/customer/update_note?t=${encodeURIComponent(requiredToken(params.t))}`,
+    `/api/v1/posAll/customer/update_note?t=${encodeURIComponent(requiredToken(params.t))}`,
     {
       data: {
         order_it_uuid: params.order_it_uuid,
@@ -146,7 +146,7 @@ export function customerConfirmKitchen(params: CustomerConfirmKitchenInput) {
 export function customerEmitTableStatus(params: CustomerEmitTableStatusParams) {
   requiredToken(params.t);
   return publicApiClient
-    .get<EmitTableStatusResponse>("/api/v1/pos/emit_table_status", {
+    .get<EmitTableStatusResponse>("/api/v1/posAll/emit_table_status", {
       params: {
         t: params.t,
         branch_uuid_fk: params.branch_uuid_fk,

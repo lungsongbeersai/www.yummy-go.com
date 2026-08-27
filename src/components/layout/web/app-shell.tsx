@@ -438,7 +438,7 @@ function AppSidebar({
             {icon}
             <span>{title}</span>
             {!collapsed ? (
-              <Badge variant="secondary" className="ml-auto shrink-0 rounded-full text-[10px]">
+              <Badge variant="secondary" className="ml-auto shrink-0 rounded-full text-2xs">
                 {t("nav.coming_soon")}
               </Badge>
             ) : null}
@@ -472,7 +472,7 @@ function AppSidebar({
             className="pointer-events-none opacity-50"
           >
             <span>{title}</span>
-            <Badge className="ml-auto rounded-full text-[10px]">
+            <Badge className="ml-auto rounded-full text-2xs">
               {t("nav.coming_soon")}
             </Badge>
           </SidebarMenuSubButton>
@@ -633,7 +633,7 @@ function AppSidebar({
                   {t("app.menuUnavailable")}
                 </p>
                 {error && !collapsed ? (
-                  <p className="line-clamp-2 text-[11px] text-destructive">
+                  <p className="line-clamp-2 text-2xs text-destructive">
                     {error}
                   </p>
                 ) : null}

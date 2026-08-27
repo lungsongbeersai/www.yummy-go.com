@@ -353,7 +353,7 @@ function CancelHistoryTable({ rows, startIndex }: { rows: CancelHistoryBill[]; s
 
   return (
     <div className="hidden min-w-0 md:block">
-      <Table className="min-w-470 text-[13px]">
+      <Table className="min-w-470 text-sm">
         <TableHeader className="sticky top-0 z-20 bg-background/95 shadow-sm backdrop-blur">
           <TableRow>
             <TableHead className="w-18 whitespace-nowrap bg-background/95 text-center">{t("cancelHistory.columns.no")}</TableHead>
@@ -416,10 +416,10 @@ function CancelHistoryMobileList({ rows }: { rows: CancelHistoryBill[] }) {
             </div>
             <p className="mt-2 wrap-break-word text-sm font-medium">{row.cancelReason || "-"}</p>
             <div className="mt-2 flex flex-wrap gap-1">
-              <Badge className="border-border bg-muted px-2 text-[11px] text-muted-foreground">
+              <Badge className="border-border bg-muted px-2 text-2xs text-muted-foreground">
                 {t("cancelHistory.columns.table")}: {row.tableName || "-"}
               </Badge>
-              <Badge className="max-w-full truncate border-border bg-muted px-2 text-[11px] text-muted-foreground">
+              <Badge className="max-w-full truncate border-border bg-muted px-2 text-2xs text-muted-foreground">
                 {row.branchName || "-"}
               </Badge>
             </div>
@@ -446,7 +446,7 @@ function MetricPill({
 }) {
   return (
     <div className="min-w-0 rounded-md border border-border bg-muted/20 px-2 py-1">
-      <p className="truncate text-[11px] font-bold text-muted-foreground">{label}</p>
+      <p className="truncate text-2xs font-bold text-muted-foreground">{label}</p>
       <p className="truncate font-black tabular-nums text-foreground">{formatCancelHistoryMetric(value, kind)}</p>
     </div>
   );

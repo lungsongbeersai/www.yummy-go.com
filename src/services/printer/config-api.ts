@@ -100,7 +100,12 @@ export async function savePrinter(input: SavePrinterInput) {
     device_code: input.device_code || input.agent_id,
     print_mode: input.print_mode || undefined,
 
-    cate_uuid_fk: input.cate_uuid_fk ?? []
+    // เลือกได้อย่างใดอย่างหนึ่งเท่านั้น — คนละฟิลด์กันตาม mapping_type: ZONE ส่ง zone_uuid_fk,
+    // CATEGORY ส่ง cate_uuid_fk (ไม่ใช่ฟิลด์เดียวกันใช้ซ้ำ)
+    mapping_type: input.mapping_type,
+    ...(input.mapping_type === "ZONE"
+      ? { zone_uuid_fk: input.cate_uuid_fk ?? [] }
+      : { cate_uuid_fk: input.cate_uuid_fk ?? [] })
   };
   const data =
     input.connect_type === "tcp"

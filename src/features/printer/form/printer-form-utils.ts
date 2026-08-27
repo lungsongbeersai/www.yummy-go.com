@@ -1,6 +1,7 @@
 import { parseInterfaceValue, AGENT_URL } from "@/config/printer-agent";
-import type { AgentInfo, Printer } from "@/services/printer";
+import type { AgentInfo, Printer, PrinterMappingType } from "@/services/printer";
 import type { Category } from "@/services/category";
+import type { Zone } from "@/services/zone";
 import { cn } from "@/lib/utils";
 
 export type ConnectType = "usb" | "tcp";
@@ -14,7 +15,7 @@ export interface CheckboxOption {
 // สไตล์เดียวกับ choiceCardClass ในฟอร์มสินค้า — ให้แถวที่ติ๊กแล้วเด่นขึ้นมาทันที ไม่ต้องเพ่งดูแค่ checkbox เล็กๆ
 export function optionRowClass(active: boolean) {
   return cn(
-    "rounded-md border p-3 transition",
+    "cursor-pointer rounded-md border p-3 transition",
     active
       ? "border-primary bg-primary/5 ring-1 ring-primary/20"
       : "border-border hover:border-primary/30 hover:bg-muted/30",
@@ -87,6 +88,13 @@ export function categoryLabel(category: Category, language: string) {
   return primary || fallback || category.cate_name || category.cate_uuid;
 }
 
+export function zoneLabel(zone: Zone, language: string) {
+  const english = language.startsWith("en");
+  const primary = english ? zone.zone_name_eng : zone.zone_name_la;
+  const fallback = english ? zone.zone_name_la : zone.zone_name_eng;
+  return primary || fallback || zone.zone_name || zone.zone_uuid;
+}
+
 // เอาไว้เตือนตอนเลือก role/category ว่า "ตอนนี้ผูกอยู่กับเครื่องพิมพ์ไหนแล้วบ้าง" (ไม่รวมเครื่องที่กำลังแก้ไขอยู่)
 // เพราะ role/category ผูกได้หลายเครื่องพร้อมกัน ผู้ใช้จึงต้องเห็นก่อนว่าเลือกซ้ำแล้วจะมีผลกับเครื่องอื่นด้วย
 export function assignedPrinterNamesByValue(
@@ -109,13 +117,26 @@ export function assignedPrinterNamesByValue(
   return map;
 }
 
+// เครื่องพิมพ์เก่าก่อน backend เพิ่ม mapping_type จะไม่มีฟิลด์นี้มา — ถือว่าเป็น CATEGORY
+// (พฤติกรรมเดิมก่อนมีโซน) ไม่ใช่ปล่อยว่าง ไม่งั้นแก้ไขเครื่องพิมพ์เก่าจะเห็นหมวดหมู่ที่เคยตั้งไว้หายไป
+export function mappingTypeOf(printer: Printer | null): PrinterMappingType {
+  return printer?.mapping_type ?? "CATEGORY";
+}
+
+// ต้องเช็ค mapping_type ก่อนอ่านทุกครั้ง — เครื่องพิมพ์ที่ตั้งเป็นโซนจะไม่มี cate_uuid_fk
+// ที่มีความหมาย (backend เก็บโซนไว้ที่ zone_uuid_fk คนละฟิลด์กัน)
 export function categoryUuids(printer: Printer | null) {
-  if (!printer) return [];
+  if (!printer || mappingTypeOf(printer) !== "CATEGORY") return [];
   if (printer.cate_uuid_fk.length) return printer.cate_uuid_fk;
   return (
     printer.categories?.map((category) => category.cate_uuid).filter(Boolean) ??
     []
   );
+}
+
+export function zoneUuids(printer: Printer | null) {
+  if (!printer || mappingTypeOf(printer) !== "ZONE") return [];
+  return printer.zone_uuid_fk ?? [];
 }
 
 // ค่าฟอร์มที่คำนวณจากเครื่องพิมพ์ที่กำลังแก้ไข (null = โหมดเพิ่มใหม่)
@@ -137,7 +158,9 @@ export function printerFormValues(printer: Printer | null) {
     port: String(connectType === "tcp" ? (parsed.port ?? 9100) : 9100),
     paperWidth: String(printer?.paper_width_mm ?? 80),
     selectedRoles: printer?.role_codes ?? [],
+    mappingType: mappingTypeOf(printer),
     selectedCategories: categoryUuids(printer),
+    selectedZones: zoneUuids(printer),
     selectedDevice: "",
     agentUrl: textValue(printer?.agent_url) || AGENT_URL,
     agentId: printer?.agent_id ?? "",

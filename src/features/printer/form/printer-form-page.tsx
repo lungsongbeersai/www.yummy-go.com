@@ -23,7 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
-import type { SearchPrinterResult } from "@/services/printer";
+import type { PrinterMappingType, SearchPrinterResult } from "@/services/printer";
 import { CheckboxOptionList } from "./printer-form-fields";
 import {
   formatIpInput,
@@ -244,23 +244,74 @@ export function PrinterFormPage() {
               }
             />
 
-            <CheckboxOptionList
-              legend={t("printer.categories")}
-              description={t("printer.categoriesHint")}
-              emptyLabel={t("printer.noCategories")}
-              name="printer-category"
-              options={form.categoryOptions}
-              selectAllLabel={t("common.selectAll")}
-              selected={form.selectedCategories}
-              onToggle={(value) =>
-                form.setSelectedCategories((current) => toggleValue(current, value))
-              }
-              onToggleAll={(checked) =>
-                form.setSelectedCategories((current) =>
-                  toggleAllValues(current, form.categoryOptions, checked),
-                )
-              }
-            />
+            <FieldSet className="gap-4 rounded-lg border border-border bg-card p-4">
+              <div>
+                <FieldLegend className="mb-1 text-sm font-black">
+                  {t("printer.mappingType")}
+                </FieldLegend>
+                <FieldDescription>{t("printer.mappingTypeHint")}</FieldDescription>
+              </div>
+              <Field>
+                <Select
+                  value={form.mappingType}
+                  onValueChange={(value) =>
+                    form.setMappingType(value as PrinterMappingType)
+                  }
+                >
+                  <SelectTrigger id="printer-mapping-type" className="w-full sm:w-64">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent position="popper">
+                    <SelectGroup>
+                      <SelectItem value="ZONE">
+                        {t("printer.mappingTypeZone")}
+                      </SelectItem>
+                      <SelectItem value="CATEGORY">
+                        {t("printer.mappingTypeCategory")}
+                      </SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </Field>
+            </FieldSet>
+
+            {form.mappingType === "ZONE" ? (
+              <CheckboxOptionList
+                legend={t("printer.zones")}
+                description={t("printer.zonesHint")}
+                emptyLabel={t("printer.noZones")}
+                name="printer-zone"
+                options={form.zoneOptions}
+                selectAllLabel={t("common.selectAll")}
+                selected={form.selectedZones}
+                onToggle={(value) =>
+                  form.setSelectedZones((current) => toggleValue(current, value))
+                }
+                onToggleAll={(checked) =>
+                  form.setSelectedZones((current) =>
+                    toggleAllValues(current, form.zoneOptions, checked),
+                  )
+                }
+              />
+            ) : (
+              <CheckboxOptionList
+                legend={t("printer.categories")}
+                description={t("printer.categoriesHint")}
+                emptyLabel={t("printer.noCategories")}
+                name="printer-category"
+                options={form.categoryOptions}
+                selectAllLabel={t("common.selectAll")}
+                selected={form.selectedCategories}
+                onToggle={(value) =>
+                  form.setSelectedCategories((current) => toggleValue(current, value))
+                }
+                onToggleAll={(checked) =>
+                  form.setSelectedCategories((current) =>
+                    toggleAllValues(current, form.categoryOptions, checked),
+                  )
+                }
+              />
+            )}
 
             <div className="flex flex-wrap items-center justify-end gap-2">
               <Button

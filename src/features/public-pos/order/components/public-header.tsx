@@ -41,19 +41,19 @@ export function PublicHeader({
       <div className="flex min-w-0 items-center gap-3">
         <span
           aria-hidden="true"
-          className="grid size-11 flex-none place-items-center rounded-2xl border border-yg-accent-line bg-linear-150 from-yg-panel-hover to-yg-panel font-yg-display text-[19px] font-bold tracking-wide text-yg-accent-strong shadow-[inset_0_1px_0_rgb(255_255_255/0.06)]"
+          className="grid size-11 flex-none place-items-center rounded-2xl border border-yg-accent-line bg-linear-150 from-yg-panel-hover to-yg-panel font-yg-display text-xl font-bold tracking-wide text-yg-accent-strong shadow-[inset_0_1px_0_rgb(255_255_255/0.06)]"
         >
           YG
         </span>
 
         <div className="min-w-0">
-          <p className="text-[10px] font-extrabold uppercase tracking-[0.24em] text-yg-accent">
+          <p className="text-2xs font-extrabold uppercase tracking-[0.24em] text-yg-accent">
             Yummy Go
           </p>
           <div className="mt-0.5 flex min-w-0 items-center gap-2">
             {/* ชื่อโต๊ะมาจาก API และอาจเป็นลาว จึงต้องใช้ stack ที่มี Lao glyph โดยตรง
                 ไม่ปล่อยให้ Latin-only display stack ตกไป DokChampa บน Windows */}
-            <span className="lao-tone-text truncate font-yg-serif text-[19px] font-semibold leading-none text-yg-ink">
+            <span className="lao-tone-text truncate font-yg-serif text-xl font-semibold leading-none text-yg-ink">
               {table?.table_name ?? t("pos.publicMenu")}
             </span>
             {table ? (
@@ -102,7 +102,7 @@ export function PublicHeader({
         >
           <ShoppingBag className="size-[18px]" />
           {cartQty > 0 ? (
-            <span className="absolute -right-1 -top-1 grid min-w-[17px] place-items-center rounded-full border-2 border-yg-bg bg-yg-accent px-1 text-[10px] font-extrabold leading-[13px] text-yg-on-accent">
+            <span className="absolute -right-1 -top-1 grid min-w-[17px] place-items-center rounded-full border-2 border-yg-bg bg-yg-accent px-1 text-2xs font-extrabold leading-[13px] text-yg-on-accent">
               {cartQty > 99 ? "99+" : cartQty}
             </span>
           ) : null}

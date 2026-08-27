@@ -60,7 +60,7 @@ export function NotificationMenu({
             >
               {hasUnread ? <BellRing data-icon="inline-start" /> : <Bell data-icon="inline-start" />}
               {hasUnread ? (
-                <Badge className="absolute right-2 top-2 h-4 min-w-4 justify-center bg-destructive px-1 text-[10px] leading-none text-destructive-foreground sm:right-1 sm:top-1">
+                <Badge className="absolute right-2 top-2 h-4 min-w-4 justify-center bg-destructive px-1 text-2xs leading-none text-destructive-foreground sm:right-1 sm:top-1">
                   {badgeText}
                 </Badge>
               ) : null}
@@ -71,7 +71,7 @@ export function NotificationMenu({
       </Tooltip>
       <DropdownMenuContent align="end" className="w-80 p-0">
         <div className="flex items-center justify-between gap-2 px-3 py-2">
-          <DropdownMenuLabel className="p-0 text-[13px] font-bold">
+          <DropdownMenuLabel className="p-0 text-sm font-bold">
             {t("notifications.title")}
           </DropdownMenuLabel>
         </div>
@@ -83,10 +83,10 @@ export function NotificationMenu({
         ) : (
           <div className="max-h-80 overflow-y-auto py-1">
             <div className="flex items-center gap-2 px-3 pb-1 pt-2">
-              <span className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+              <span className="text-2xs font-bold uppercase tracking-wide text-muted-foreground">
                 {t("notifications.liveOrders.title")}
               </span>
-              <Badge className="h-4.5 min-w-4.5 justify-center border-transparent bg-destructive px-1 text-[10px] text-destructive-foreground">
+              <Badge className="h-4.5 min-w-4.5 justify-center border-transparent bg-destructive px-1 text-2xs text-destructive-foreground">
                 {orderAlerts.length}
               </Badge>
             </div>
@@ -111,7 +111,7 @@ function LiveOrderAlertRow({ alert, onSelect }: { alert: OrderAlertEntry; onSele
       <span className="grid size-8 shrink-0 place-items-center rounded-full bg-primary/15 text-primary">
         <UtensilsCrossed className="size-4" aria-hidden />
       </span>
-      <p className="min-w-0 flex-1 truncate text-[13px] font-semibold">
+      <p className="min-w-0 flex-1 truncate text-sm font-semibold">
         {t("notifications.liveOrders.item", { table: alert.tableName, zone: alert.zoneName })}
       </p>
     </DropdownMenuItem>

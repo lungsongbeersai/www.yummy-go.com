@@ -55,6 +55,7 @@ export type {
   PrinterCategoryRole,
   PrinterDeviceContext,
   PrinterDeviceContextParams,
+  PrinterMappingType,
   PrinterRole,
   PrinterRolesResponse,
   ResolvedPrinter,

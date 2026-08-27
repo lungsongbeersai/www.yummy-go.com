@@ -17,7 +17,7 @@ describe("credit service", () => {
 
   it("loads the customer selector before loading a customer's bills", async () => {
     await fetchCreditData({ branch_uuid: "branch-1", lang: "en" });
-    expect(apiMocks.apiRequest).toHaveBeenCalledWith("get", "/api/v1/pos/credit/payment-selection", {
+    expect(apiMocks.apiRequest).toHaveBeenCalledWith("get", "/api/v1/posAll/credit/payment-selection", {
       params: { branch_uuid: "branch-1", lang: "eng" }
     });
 
@@ -26,7 +26,7 @@ describe("credit service", () => {
       customer_uuid: "customer-1",
       lang: "la"
     });
-    expect(apiMocks.apiRequest).toHaveBeenLastCalledWith("get", "/api/v1/pos/credit/payment-selection", {
+    expect(apiMocks.apiRequest).toHaveBeenLastCalledWith("get", "/api/v1/posAll/credit/payment-selection", {
       params: {
         branch_uuid: "branch-1",
         customer_uuid: "customer-1",
@@ -46,7 +46,7 @@ describe("credit service", () => {
       lang: "la"
     });
 
-    expect(apiMocks.apiRequest).toHaveBeenLastCalledWith("get", "/api/v1/pos/credit/payment-selection", {
+    expect(apiMocks.apiRequest).toHaveBeenLastCalledWith("get", "/api/v1/posAll/credit/payment-selection", {
       params: {
         branch_uuid: "branch-1",
         customer_uuid: "customer-1",
@@ -63,7 +63,7 @@ describe("credit service", () => {
       lang: "en"
     });
 
-    expect(apiMocks.apiRequest).toHaveBeenCalledWith("get", "/api/v1/pos/credit/payment-selection", {
+    expect(apiMocks.apiRequest).toHaveBeenCalledWith("get", "/api/v1/posAll/credit/payment-selection", {
       params: {
         branch_uuid: "branch-1",
         customer_uuid: "customer-1",
@@ -88,7 +88,7 @@ describe("credit service", () => {
       lang: "la"
     });
 
-    expect(apiMocks.apiRequest).toHaveBeenCalledWith("post", "/api/v1/pos/credit/payment", {
+    expect(apiMocks.apiRequest).toHaveBeenCalledWith("post", "/api/v1/posAll/credit/payment", {
       data: {
         request_uuid: "request-1",
         branch_uuid: "branch-1",

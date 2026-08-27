@@ -43,7 +43,7 @@ export function CartTabTrigger({
       // data-active: (ตัว variant เดียวกับที่ TabsTrigger ฐานใช้เอง) แทน data-[state=active]:
       // ของเดิม — สอง syntax นี้ต่างกันเป็นคนละ utility ในสาย twMerge ทำให้ merge ไม่ชนกันจริง
       // ผลลัพธ์เลยเดายากว่าใครชนะ ใช้ variant เดียวกันเพื่อให้ค่านี้ override ฐานได้ชัวร์เสมอ
-      className="h-full min-w-0 gap-1.5 rounded-lg px-2.5 text-[13px] font-black text-white/80 transition-colors hover:text-white data-active:bg-primary data-active:text-primary-foreground data-active:shadow-sm dark:data-active:bg-primary dark:data-active:text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60"
+      className="h-full min-w-0 gap-1.5 rounded-lg px-2.5 text-sm font-black text-white/80 transition-colors hover:text-white data-active:bg-primary data-active:text-primary-foreground data-active:shadow-sm dark:data-active:bg-primary dark:data-active:text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60"
     >
       <span className="min-w-0 truncate sm:hidden">{shortLabel ?? label}</span>
       <span className="hidden min-w-0 truncate sm:inline">{label}</span>
@@ -74,6 +74,7 @@ export function CartTabItems({
   onItemDiscount,
   onOpenItemAction,
   onOpenQuantityDialog,
+  onSetSplitItemQuantity,
   onToggleSplitItem,
   splitSelectionDisabled = false,
   splitSelectedItemUuids,
@@ -93,9 +94,10 @@ export function CartTabItems({
   onItemDiscount: (item: CartItem) => void;
   onOpenItemAction: (action: CartItemAction, item: CartItem) => void;
   onOpenQuantityDialog: (item: CartItem) => void;
+  onSetSplitItemQuantity?: (item: CartItem, quantity: number) => void;
   onToggleSplitItem?: (item: CartItem) => void;
   splitSelectionDisabled?: boolean;
-  splitSelectedItemUuids?: Set<string>;
+  splitSelectedItemUuids?: Map<string, number>;
   updatingItemUuid: string | null;
 }) {
   if (!items.length) return <CartPanelEmpty />;
@@ -105,6 +107,9 @@ export function CartTabItems({
       {items.map((item, index) => {
         const itemUuid = cartItemActionUuid(item);
         const splitEligible = canSplitItem ? canSplitItem(item) : false;
+        const splitSelectedQty = itemUuid
+          ? splitSelectedItemUuids?.get(itemUuid)
+          : undefined;
 
         return (
           <CartItemRow
@@ -117,7 +122,8 @@ export function CartTabItems({
             compact={compact}
             splitEligible={splitEligible}
             splitSelectionDisabled={splitSelectionDisabled}
-            splitSelected={splitEligible && Boolean(itemUuid && splitSelectedItemUuids?.has(itemUuid))}
+            splitSelected={splitEligible && splitSelectedQty !== undefined}
+            splitSelectedQty={splitSelectedQty}
             updating={cartItemUuid(item) === updatingItemUuid}
             onChangeQty={onChangeQty}
             onConfirmKitchen={onConfirmKitchen}
@@ -126,6 +132,7 @@ export function CartTabItems({
             onItemDiscount={onItemDiscount}
             onOpenItemAction={onOpenItemAction}
             onOpenQuantityDialog={onOpenQuantityDialog}
+            onSetSplitItemQuantity={onSetSplitItemQuantity}
             onToggleSplitItem={onToggleSplitItem}
           />
         );
@@ -163,10 +170,12 @@ function CartItemRow({
   onItemDiscount,
   onOpenItemAction,
   onOpenQuantityDialog,
+  onSetSplitItemQuantity,
   onToggleSplitItem,
   splitEligible,
   splitSelectionDisabled,
   splitSelected,
+  splitSelectedQty,
   updating
 }: {
   acting: boolean;
@@ -182,10 +191,12 @@ function CartItemRow({
   onItemDiscount: (item: CartItem) => void;
   onOpenItemAction: (action: CartItemAction, item: CartItem) => void;
   onOpenQuantityDialog: (item: CartItem) => void;
+  onSetSplitItemQuantity?: (item: CartItem, quantity: number) => void;
   onToggleSplitItem?: (item: CartItem) => void;
   splitEligible: boolean;
   splitSelectionDisabled?: boolean;
   splitSelected?: boolean;
+  splitSelectedQty?: number;
   updating: boolean;
 }) {
   const { t } = useTranslation();
@@ -317,8 +328,8 @@ function CartItemRow({
                 className={cn(
                   "min-w-0 wrap-break-word font-black text-foreground",
                   compact
-                    ? "text-[14px] leading-4.5"
-                    : "text-[14px] leading-5 sm:text-[15px]",
+                    ? "text-sm leading-4.5"
+                    : "text-sm leading-5 sm:text-base",
                 )}
               >
                 {title}
@@ -328,8 +339,8 @@ function CartItemRow({
                   className={cn(
                     "rounded-md border-transparent font-black shadow-none",
                     compact
-                      ? "h-5 px-1.5 text-[10px]"
-                      : "h-6 px-2 text-[11px]",
+                      ? "h-5 px-1.5 text-2xs"
+                      : "h-6 px-2 text-2xs",
                     isCanceled
                       ? "bg-destructive text-destructive-foreground"
                       : isWaitingConfirm
@@ -344,8 +355,8 @@ function CartItemRow({
                   className={cn(
                     "rounded-md font-black shadow-none",
                     compact
-                      ? "h-5 px-1.5 text-[10px]"
-                      : "h-6 px-2 text-[11px]",
+                      ? "h-5 px-1.5 text-2xs"
+                      : "h-6 px-2 text-2xs",
                     isCanceled && "bg-destructive text-destructive-foreground"
                   )}
                 >
@@ -420,13 +431,28 @@ function CartItemRow({
             <p
               className={cn(
                 "min-w-0 truncate font-black leading-5 text-foreground tabular-nums",
-                compact ? "text-[14px]" : "text-[14px] sm:text-[15px]",
+                compact ? "text-sm" : "text-sm sm:text-base",
                 isCanceled && "text-destructive",
               )}
             >
               {money(total)}
             </p>
-            {editable ? (
+            {splitSelected && qty > 1 && onSetSplitItemQuantity ? (
+              <div onClick={(event) => event.stopPropagation()}>
+                <SplitQuantityStepper
+                  compact={compact}
+                  qty={splitSelectedQty ?? qty}
+                  maxQty={qty}
+                  disabled={!splitEnabled}
+                  onDecrease={() =>
+                    onSetSplitItemQuantity(item, (splitSelectedQty ?? qty) - 1)
+                  }
+                  onIncrease={() =>
+                    onSetSplitItemQuantity(item, (splitSelectedQty ?? qty) + 1)
+                  }
+                />
+              </div>
+            ) : editable ? (
               <CartQuantityStepper
                 compact={compact}
                 qty={qty}
@@ -464,7 +490,7 @@ function CartDetailRow({
   return (
     <div
       className={cn(
-        "flex min-w-0 items-start justify-between gap-2 text-[11px] font-bold leading-4.5 sm:text-xs",
+        "flex min-w-0 items-start justify-between gap-2 text-2xs font-bold leading-4.5 sm:text-xs",
         tone === "price" && "text-foreground/75",
         tone === "promo" && "text-primary",
         tone === "discount" && "text-destructive",
@@ -696,6 +722,72 @@ function CartToppingsList({
   );
 }
 
+// จำนวนที่เลือกแยกจ่ายของรายการเดียว (1..จำนวนเต็มของรายการ) — คนละอันกับ CartQuantityStepper
+// ที่แก้จำนวนจริงในออเดอร์ ตัวนี้แค่ปรับ selection ฝั่ง client ไม่ยิง API เปลี่ยนจำนวนสินค้า
+function SplitQuantityStepper({
+  compact,
+  disabled,
+  maxQty,
+  onDecrease,
+  onIncrease,
+  qty,
+}: {
+  compact: boolean;
+  disabled: boolean;
+  maxQty: number;
+  onDecrease: () => void;
+  onIncrease: () => void;
+  qty: number;
+}) {
+  const { t } = useTranslation();
+
+  return (
+    <div
+      className={cn(
+        "flex shrink-0 items-center rounded-full border border-primary/50 bg-primary/5 shadow-sm",
+        compact ? "h-9" : "h-11",
+      )}
+    >
+      <Button
+        aria-label={`${t("pos.qty")} -`}
+        type="button"
+        size="icon-sm"
+        variant="ghost"
+        className={cn(
+          "rounded-full text-primary hover:bg-primary/10",
+          compact ? "size-8" : "size-10",
+        )}
+        disabled={disabled || qty <= 1}
+        onClick={onDecrease}
+      >
+        <Minus className={compact ? "size-3.5" : undefined} />
+      </Button>
+      <span
+        className={cn(
+          "min-w-7 text-center font-black text-primary tabular-nums",
+          compact ? "text-sm" : "text-sm sm:text-base",
+        )}
+      >
+        {qty}
+      </span>
+      <Button
+        aria-label={`${t("pos.qty")} +`}
+        type="button"
+        size="icon-sm"
+        variant="ghost"
+        className={cn(
+          "rounded-full text-primary hover:bg-primary/10",
+          compact ? "size-8" : "size-10",
+        )}
+        disabled={disabled || qty >= maxQty}
+        onClick={onIncrease}
+      >
+        <Plus className={compact ? "size-3.5" : undefined} />
+      </Button>
+    </div>
+  );
+}
+
 function CartQuantityStepper({
   compact,
   onDecrease,
@@ -744,7 +836,7 @@ function CartQuantityStepper({
         variant="ghost"
         className={cn(
           "min-w-7 rounded-full px-1 text-center font-black text-foreground tabular-nums hover:bg-muted",
-          compact ? "h-8 text-[13px]" : "h-10 text-sm",
+          compact ? "h-8 text-sm" : "h-10 text-sm",
         )}
         disabled={locked}
         onClick={onOpenQuantityDialog}

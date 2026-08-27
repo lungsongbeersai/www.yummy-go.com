@@ -1379,6 +1379,7 @@ describe("printer API payloads", () => {
       port: 9100,
       paper_width_mm: 80,
       role_codes: ["kitchen"],
+      mapping_type: "CATEGORY",
       agent_url: BROWSER_PRINTER_AGENT_URL,
       agent_id: BROWSER_PRINTER_AGENT_ID,
       agent_name: "Android Phone",
@@ -1400,6 +1401,82 @@ describe("printer API payloads", () => {
         })
       }
     );
+  });
+
+  it("sends zone_uuid_fk (not cate_uuid_fk) when mapping_type is ZONE", async () => {
+    apiMocks.apiRequest.mockResolvedValue({
+      data: {
+        print_config_uuid: "printer-1",
+        printer_name: "Kitchen",
+        connect_type: "tcp",
+        interface_value: "tcp://192.168.1.20:9100",
+        paper_width_mm: 80,
+        is_active: true,
+        role_codes: ["kitchen"],
+        cate_uuid_fk: []
+      }
+    });
+
+    await savePrinter({
+      login_uuid_fk: "login-1",
+      display_name: "Kitchen",
+      connect_type: "tcp",
+      ip: "192.168.1.20",
+      port: 9100,
+      paper_width_mm: 80,
+      role_codes: ["kitchen"],
+      mapping_type: "ZONE",
+      cate_uuid_fk: ["zone-uuid-1", "zone-uuid-2"],
+      agent_url: BROWSER_PRINTER_AGENT_URL,
+      agent_id: BROWSER_PRINTER_AGENT_ID,
+      agent_name: "Android Phone",
+      device_code: "android-phone-web-device-1"
+    });
+
+    const [, , { data }] = apiMocks.apiRequest.mock.calls[0];
+    expect(data).toMatchObject({
+      mapping_type: "ZONE",
+      zone_uuid_fk: ["zone-uuid-1", "zone-uuid-2"]
+    });
+    expect(data).not.toHaveProperty("cate_uuid_fk");
+  });
+
+  it("sends cate_uuid_fk (not zone_uuid_fk) when mapping_type is CATEGORY", async () => {
+    apiMocks.apiRequest.mockResolvedValue({
+      data: {
+        print_config_uuid: "printer-1",
+        printer_name: "Kitchen",
+        connect_type: "tcp",
+        interface_value: "tcp://192.168.1.20:9100",
+        paper_width_mm: 80,
+        is_active: true,
+        role_codes: ["kitchen"],
+        cate_uuid_fk: []
+      }
+    });
+
+    await savePrinter({
+      login_uuid_fk: "login-1",
+      display_name: "Kitchen",
+      connect_type: "tcp",
+      ip: "192.168.1.20",
+      port: 9100,
+      paper_width_mm: 80,
+      role_codes: ["kitchen"],
+      mapping_type: "CATEGORY",
+      cate_uuid_fk: ["cate-uuid-1"],
+      agent_url: BROWSER_PRINTER_AGENT_URL,
+      agent_id: BROWSER_PRINTER_AGENT_ID,
+      agent_name: "Android Phone",
+      device_code: "android-phone-web-device-1"
+    });
+
+    const [, , { data }] = apiMocks.apiRequest.mock.calls[0];
+    expect(data).toMatchObject({
+      mapping_type: "CATEGORY",
+      cate_uuid_fk: ["cate-uuid-1"]
+    });
+    expect(data).not.toHaveProperty("zone_uuid_fk");
   });
 
   it("can request backend ESC/POS render for browser mobile jobs", async () => {

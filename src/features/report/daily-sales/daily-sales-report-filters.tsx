@@ -97,7 +97,7 @@ export function DailySalesFilterBar({
             <SlidersHorizontal data-icon="inline-start" />
             {t("report.filters.moreFilters")}
             {secondaryCount ? (
-              <Badge className="ml-1 h-4.5 min-w-4.5 justify-center rounded-full border-transparent bg-primary px-1 text-[10px] text-primary-foreground">
+              <Badge className="ml-1 h-4.5 min-w-4.5 justify-center rounded-full border-transparent bg-primary px-1 text-2xs text-primary-foreground">
                 {secondaryCount}
               </Badge>
             ) : null}

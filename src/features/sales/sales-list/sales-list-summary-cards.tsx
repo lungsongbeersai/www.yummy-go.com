@@ -89,7 +89,7 @@ function SalesListSummaryCard({
           >
             {card.kind === "money" ? money(value) : value.toLocaleString("en-US")}
           </p>
-          {subtext ? <p className="truncate text-[11px] leading-4 text-muted-foreground">{subtext}</p> : null}
+          {subtext ? <p className="truncate text-2xs leading-4 text-muted-foreground">{subtext}</p> : null}
         </div>
       </CardContent>
     </Card>

@@ -44,11 +44,8 @@ const nextConfig: NextConfig = {
         permanent: true
       },
       // P2.1 route renames — keep old bookmarks/links working; not settled long enough for permanent:true
-      {
-        source: "/setting",
-        destination: "/settings",
-        permanent: false
-      },
+      // (no bare "/setting" entry: the settings hub page was removed — every settings link
+      // is now a real /settings/<module> destination, so only the wildcard below applies)
       {
         source: "/setting/:path*",
         destination: "/settings/:path*",

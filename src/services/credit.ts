@@ -173,7 +173,7 @@ export function fetchCreditData(params: {
   const branchUuid = params.branch_uuid?.trim();
   const customerUuid = params.customer_uuid?.trim();
 
-  return apiRequest<CreditFetchResponse>("get", "/api/v1/pos/credit/payment-selection", {
+  return apiRequest<CreditFetchResponse>("get", "/api/v1/posAll/credit/payment-selection", {
     params: {
       lang: toApiLanguage(params.lang),
       ...(branchUuid ? { branch_uuid: branchUuid } : {}),
@@ -201,7 +201,7 @@ export function fetchCreditPaymentSelection(input: {
 
   return apiRequest<CreditSelectedBillsResponse>(
     "get",
-    "/api/v1/pos/credit/payment-selection",
+    "/api/v1/posAll/credit/payment-selection",
     {
       params: {
         branch_uuid: required(input.branch_uuid, "branch_uuid"),
@@ -217,7 +217,7 @@ export function fetchCreditPaymentSelection(input: {
 export function payCredit(input: PayCreditInput) {
   if (!input.items.length) throw new ServiceError("items is required", 400);
 
-  return apiRequest<PayCreditResponse>("post", "/api/v1/pos/credit/payment", {
+  return apiRequest<PayCreditResponse>("post", "/api/v1/posAll/credit/payment", {
     data: {
       ...input,
       request_uuid: required(input.request_uuid, "request_uuid"),

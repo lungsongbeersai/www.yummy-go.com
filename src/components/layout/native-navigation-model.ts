@@ -22,7 +22,6 @@ export interface NativeNavigationModel {
 }
 
 export type AndroidBackAction =
-  | { type: "close-overlay" }
   | { path: string; type: "navigate" }
   | { type: "history-back" }
   | { type: "minimize" };
@@ -30,7 +29,6 @@ export type AndroidBackAction =
 export interface AndroidBackInput {
   canGoBack: boolean;
   model: NativeNavigationModel;
-  overlayOpen: boolean;
   pathname: string;
 }
 
@@ -41,6 +39,21 @@ export function destinationPath(item: MenuItem): string | undefined {
   if (item.disabled) return undefined;
   return item.path;
 }
+
+// เมนู "เปิดขาย" (/sale) เป็น dropdown ที่ direct ไปหาลูกตัวแรก (/sales/open-table-sale)
+// เท่านั้นตาม destinationPath ด้านบน — ลูกตัวอื่น (/sales/sales-list) เลยเข้าไม่ถึงเลย
+// ทั้งไม่มี dropdown UI ให้กด (bypass ไปแล้ว) และไม่ติดไป more เพราะทั้งก้อนกลายเป็น
+// direct item เดียวไปแล้ว inject รายการนี้กลับเข้า more เอง ต่อท้าย "ยกเลิกบิลขาย"
+// (/sales/cancel-sale) ตามที่ตกลงไว้ — เฉพาะ native model นี้ (ใช้แค่ฝั่ง Capacitor
+// เท่านั้น เว็บยังกาง dropdown ปกติผ่าน AppSidebar ไม่ได้ bypass แบบนี้)
+const NATIVE_INJECTED_SALES_LIST_PATH = "/sales/sales-list";
+const NATIVE_INJECTED_SALES_LIST_ANCHOR_PATH = "/sales/cancel-sale";
+const NATIVE_INJECTED_SALES_LIST_ITEM: MenuItem = {
+  iconName: "clipboard-list",
+  label: "ລາຍການຂາຍ",
+  path: NATIVE_INJECTED_SALES_LIST_PATH,
+  title: "native-injected-sales-list",
+};
 
 export function buildNativeNavigationModel(
   items: MenuItem[],
@@ -57,6 +70,30 @@ export function buildNativeNavigationModel(
       continue;
     }
     more.push(item);
+  }
+
+  // เมนูจริงจาก permission API มีกลุ่ม "/cancel" (ยกเลิกบิลขาย) แยกเป็นของตัวเอง —
+  // /sales/cancel-sale เลยเป็นลูกอยู่ใน children ของกลุ่มนั้น ไม่ใช่ top-level item ตรง ๆ
+  // ใน more ต้องเช็คทั้งสองแบบ ไม่งั้น anchorIndex หาไม่เจอเลยและ inject ไม่ทำงานจริง
+  const matchesAnchor = (item: MenuItem) =>
+    item.path === NATIVE_INJECTED_SALES_LIST_ANCHOR_PATH ||
+    Boolean(
+      item.children?.some(
+        (child) => child.path === NATIVE_INJECTED_SALES_LIST_ANCHOR_PATH,
+      ),
+    );
+  const matchesInjectedPath = (item: MenuItem) =>
+    item.path === NATIVE_INJECTED_SALES_LIST_PATH ||
+    Boolean(
+      item.children?.some(
+        (child) => child.path === NATIVE_INJECTED_SALES_LIST_PATH,
+      ),
+    );
+
+  const anchorIndex = more.findIndex(matchesAnchor);
+  const alreadyReachable = more.some(matchesInjectedPath);
+  if (anchorIndex !== -1 && !alreadyReachable) {
+    more.splice(anchorIndex + 1, 0, NATIVE_INJECTED_SALES_LIST_ITEM);
   }
 
   return { direct, more };
@@ -91,11 +128,8 @@ export function shouldShowBackButton(
 export function resolveAndroidBackAction({
   canGoBack,
   model,
-  overlayOpen,
   pathname,
 }: AndroidBackInput): AndroidBackAction {
-  if (overlayOpen) return { type: "close-overlay" };
-
   const fallback = backFallbackPath(pathname);
   if (fallback) return { path: fallback, type: "navigate" };
 

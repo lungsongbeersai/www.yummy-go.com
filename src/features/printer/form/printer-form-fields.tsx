@@ -108,6 +108,15 @@ export function CheckboxOptionList({
                 key={option.value}
                 orientation="horizontal"
                 className={optionRowClass(checked)}
+                onClick={(event) => {
+                  // Radix Checkbox ซ่อน <input type="checkbox"> ไว้ข้างในเพื่อ sync กับ native form
+                  // และยิง click event ของมันเองทุกครั้งที่ checked เปลี่ยน (ไม่มี role="checkbox")
+                  // ถ้าไม่กันด้วย input ตรงนี้ click นั้นจะ bubble มาเข้า onToggle ซ้ำ กลายเป็น toggle
+                  // วนไม่รู้จบ (setState loop) — label/[role=checkbox] กันคลิกจริงจากผู้ใช้อยู่แล้ว
+                  const target = event.target as HTMLElement;
+                  if (target.closest('label, input, [role="checkbox"]')) return;
+                  onToggle(option.value);
+                }}
               >
                 <Checkbox
                   id={id}
@@ -117,7 +126,7 @@ export function CheckboxOptionList({
                 <div className="min-w-0 flex-1">
                   <FieldLabel htmlFor={id}>{option.label}</FieldLabel>
                   {option.assignedTo?.length ? (
-                    <FieldDescription className="mt-0.5 truncate text-[11px]">
+                    <FieldDescription className="mt-0.5 truncate text-2xs">
                       {t("printer.alreadyAssignedTo", {
                         printers: option.assignedTo.join(", "),
                       })}

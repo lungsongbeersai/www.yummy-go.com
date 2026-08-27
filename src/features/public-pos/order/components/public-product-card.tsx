@@ -151,7 +151,7 @@ export const ProductCard = memo(function ProductCard({
 
           <CardContent className="flex min-w-0 flex-1 gap-3 p-0">
             <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-              <p className="lao-tone-text line-clamp-2 font-yg-serif text-[15px] font-semibold leading-snug text-yg-ink">
+              <p className="lao-tone-text line-clamp-2 font-yg-serif text-base font-semibold leading-snug text-yg-ink">
                 {product.prodName}
               </p>
 
@@ -222,7 +222,7 @@ export const ProductCard = memo(function ProductCard({
         </div>
 
         <CardContent className="flex min-h-36 flex-1 flex-col gap-2 p-3.5 max-[419px]:gap-1 max-[419px]:py-3">
-          <p className="lao-tone-text line-clamp-2 min-h-10 font-yg-serif text-[15px] font-semibold leading-snug text-yg-ink">
+          <p className="lao-tone-text line-clamp-2 min-h-10 font-yg-serif text-base font-semibold leading-snug text-yg-ink">
             {product.prodName}
           </p>
 
@@ -336,7 +336,7 @@ export const SetProductCard = memo(function SetProductCard({
         </div>
 
         <CardContent className="flex flex-col gap-1.5 p-3">
-          <p className="lao-tone-text truncate font-yg-serif text-[13px] font-semibold leading-snug text-yg-ink">
+          <p className="lao-tone-text truncate font-yg-serif text-sm font-semibold leading-snug text-yg-ink">
             {product.prodName}
           </p>
 
@@ -354,7 +354,7 @@ export const SetProductCard = memo(function SetProductCard({
           {blocked ? (
             <span className="h-8" aria-hidden="true" />
           ) : (
-            <span className="flex h-8 items-center justify-center gap-1 rounded-xl border border-yg-accent-line bg-yg-accent-soft text-[11px] font-extrabold text-yg-accent-strong">
+            <span className="flex h-8 items-center justify-center gap-1 rounded-xl border border-yg-accent-line bg-yg-accent-soft text-2xs font-extrabold text-yg-accent-strong">
               {loading ? (
                 <Spinner />
               ) : (
@@ -417,13 +417,13 @@ function ProductPriceLabel({
       )}
     >
       {price.kind === "starting" ? (
-        <span className="shrink-0 text-[10px] font-bold text-yg-faint">
+        <span className="shrink-0 text-2xs font-bold text-yg-faint">
           {t("pos.startingAt")}
         </span>
       ) : null}
       <span
         className={cn(
-          "max-w-full font-yg-number text-[22px] font-semibold leading-none tabular-nums",
+          "max-w-full font-yg-number text-2xl font-semibold leading-none tabular-nums",
           compact
             ? "truncate"
             : "whitespace-nowrap max-[419px]:text-[clamp(18px,5.2vw,22px)]",
@@ -438,7 +438,7 @@ function ProductPriceLabel({
 
 function ProductChoiceMeta({ label }: { label: string }) {
   return (
-    <span className="mt-0.5 flex min-w-0 items-center gap-1 text-[11px] font-semibold text-yg-faint">
+    <span className="mt-0.5 flex min-w-0 items-center gap-1 text-2xs font-semibold text-yg-faint">
       <SlidersHorizontal className="size-3 shrink-0" aria-hidden="true" />
       <span className="lao-tone-text truncate">{label}</span>
     </span>
@@ -459,9 +459,9 @@ function ProductPromoBadge({
       className={cn(
         "inline-flex max-w-full items-center gap-1 border border-yg-accent-line bg-yg-accent-soft font-extrabold tracking-wide text-yg-accent-strong",
         overlay
-          ? "absolute left-2.5 top-2.5 h-6 max-w-[calc(100%-1.25rem)] rounded-lg px-2 text-[10px] backdrop-blur-md"
-          : "h-5 rounded-md px-1.5 text-[10px]",
-        compact ? "text-[9px]" : "",
+          ? "absolute left-2.5 top-2.5 h-6 max-w-[calc(100%-1.25rem)] rounded-lg px-2 text-2xs backdrop-blur-md"
+          : "h-5 rounded-md px-1.5 text-2xs",
+        compact ? "text-2xs" : "",
       )}
     >
       <Sparkles className="size-2.5 shrink-0" aria-hidden="true" />

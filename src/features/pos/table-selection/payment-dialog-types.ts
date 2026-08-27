@@ -1,4 +1,4 @@
-import type { CartOrder, PosTable } from "@/services/pos";
+import type { CartOrder, PosTable, SplitBillItemQuantity } from "@/services/pos";
 import type { cartSummary } from "./utils";
 import type { PaymentKind } from "./payment-dialog-utils";
 
@@ -12,7 +12,7 @@ export interface PaymentDialogProps {
   open: boolean;
   orders: CartOrder[];
   paymentKind?: PaymentKind;
-  splitBillItemUuids?: string[];
+  splitBillItemUuids?: SplitBillItemQuantity[];
   summary: ReturnType<typeof cartSummary>;
   table: PosTable;
 }
