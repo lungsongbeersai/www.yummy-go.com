@@ -16,6 +16,7 @@ import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import type { Category } from "@/services/category";
 import type { Printer } from "@/services/printer";
+import type { Zone } from "@/services/zone";
 import {
   BadgeList,
   PrinterDetailMetric,
@@ -23,12 +24,16 @@ import {
 } from "./printer-list-shared";
 import {
   categoryLabel,
+  mappingTypeOf,
   printerCategories,
+  printerZones,
+  zoneLabel,
   type PrinterTableRow,
 } from "./printer-page-utils";
 
 interface PrinterListCardsProps {
   categories: Category[];
+  zones: Zone[];
   filteredRows: PrinterTableRow[];
   language: string;
   printing: boolean;
@@ -44,6 +49,7 @@ interface PrinterListCardsProps {
 
 function PrinterCard({
   categories,
+  zones,
   language,
   printing,
   roleItemsByPrinter,
@@ -82,10 +88,17 @@ function PrinterCard({
           </p>
         </div>
 
-        <PrinterStatusBadge
-          active={row.is_active}
-          label={row.is_active ? statusLabels.active : statusLabels.inactive}
-        />
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          <PrinterStatusBadge
+            active={row.is_active}
+            label={row.is_active ? statusLabels.active : statusLabels.inactive}
+          />
+          <Badge variant="outline" className="whitespace-nowrap">
+            {mappingTypeOf(row) === "ZONE"
+              ? t("printer.mappingTypeZone")
+              : t("printer.mappingTypeCategory")}
+          </Badge>
+        </div>
       </div>
 
       <Separator />
@@ -134,6 +147,26 @@ function PrinterCard({
               }))}
               max={Infinity}
             />
+          </div>
+        </div>
+
+        <div className="min-w-0 rounded-md bg-muted/15 p-2.5">
+          <p className="text-xs text-muted-foreground">{t("printer.zones")}</p>
+          <div className="mt-1.5">
+            {mappingTypeOf(row) === "ZONE" ? (
+              <BadgeList
+                emptyLabel={t("printer.noZones")}
+                items={printerZones(row, zones).map((zone) => ({
+                  label: zoneLabel(zone, language),
+                  value: zone.zone_uuid,
+                }))}
+                max={Infinity}
+              />
+            ) : (
+              <span className="text-xs text-muted-foreground">
+                {t("printer.noZones")}
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -212,7 +245,7 @@ function PrinterCard({
 export function PrinterListCards(props: PrinterListCardsProps) {
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] sm:p-3">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2 pb-[calc(0.5rem+max(env(safe-area-inset-bottom),var(--app-shell-bottom-nav-height,0px)))] sm:p-3">
         <div className="grid gap-2 sm:gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {props.filteredRows.map((row) => (
             <PrinterCard key={row.print_config_uuid} row={row} {...props} />

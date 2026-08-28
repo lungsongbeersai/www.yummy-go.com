@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
+import { Switch } from "@/components/ui/switch";
 import type { PrinterMappingType, SearchPrinterResult } from "@/services/printer";
 import { CheckboxOptionList } from "./printer-form-fields";
 import {
@@ -222,6 +223,36 @@ export function PrinterFormPage() {
                     onChange={(event) => form.setPaperWidth(event.target.value)}
                   />
                 </Field>
+                <Field
+                  orientation="horizontal"
+                  className="justify-between gap-3 rounded-md border border-border bg-muted/20 px-4 py-3 md:col-span-2"
+                >
+                  <div className="min-w-0">
+                    <FieldLabel htmlFor="printer-sharing-mode">
+                      {t("printer.sharingMode")}
+                    </FieldLabel>
+                    <FieldDescription>
+                      {t("printer.sharingModeHint")}
+                    </FieldDescription>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <span className="text-sm text-muted-foreground">
+                      {form.sharingMode === "SHARED"
+                        ? t("printer.sharingModeShared")
+                        : t("printer.sharingModeDedicated")}
+                    </span>
+                    <Switch
+                      id="printer-sharing-mode"
+                      checked={form.sharingMode === "SHARED"}
+                      disabled={form.saving}
+                      onCheckedChange={(checked) =>
+                        form.setSharingMode(
+                          checked ? "SHARED" : "DEDICATED",
+                        )
+                      }
+                    />
+                  </div>
+                </Field>
               </FieldGroup>
             </FieldSet>
 
@@ -282,6 +313,7 @@ export function PrinterFormPage() {
                 emptyLabel={t("printer.noZones")}
                 name="printer-zone"
                 options={form.zoneOptions}
+                required
                 selectAllLabel={t("common.selectAll")}
                 selected={form.selectedZones}
                 onToggle={(value) =>
@@ -293,43 +325,59 @@ export function PrinterFormPage() {
                   )
                 }
               />
-            ) : (
-              <CheckboxOptionList
-                legend={t("printer.categories")}
-                description={t("printer.categoriesHint")}
-                emptyLabel={t("printer.noCategories")}
-                name="printer-category"
-                options={form.categoryOptions}
-                selectAllLabel={t("common.selectAll")}
-                selected={form.selectedCategories}
-                onToggle={(value) =>
-                  form.setSelectedCategories((current) => toggleValue(current, value))
-                }
-                onToggleAll={(checked) =>
-                  form.setSelectedCategories((current) =>
-                    toggleAllValues(current, form.categoryOptions, checked),
-                  )
-                }
-              />
-            )}
+            ) : null}
 
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                disabled={form.saving}
-                onClick={() => form.router.push("/printers")}
-              >
-                {t("actions.cancel")}
-              </Button>
-              <Button disabled={form.saving || form.loading || !form.canSubmit} type="submit">
-                {form.saving ? (
-                  <Spinner data-icon="inline-start" />
-                ) : (
-                  <Save data-icon="inline-start" />
-                )}
-                {form.saving ? t("common.processing") : t("actions.save")}
-              </Button>
+            {/* backend บังคับ: ZONE ต้องเลือกหมวดหมู่คู่กับโซนด้วยเสมอ ไม่ใช่เลือกอย่างใดอย่างหนึ่ง —
+                hint จึงต้องเปลี่ยนไปตามโหมด ไม่งั้นผู้ใช้จะไม่เข้าใจว่าทำไมบังคับเลือก */}
+            <CheckboxOptionList
+              legend={t("printer.categories")}
+              description={
+                form.mappingType === "ZONE"
+                  ? t("printer.categoriesHintZone")
+                  : t("printer.categoriesHint")
+              }
+              emptyLabel={t("printer.noCategories")}
+              name="printer-category"
+              options={form.categoryOptions}
+              required
+              selectAllLabel={t("common.selectAll")}
+              selected={form.selectedCategories}
+              onToggle={(value) =>
+                form.setSelectedCategories((current) => toggleValue(current, value))
+              }
+              onToggleAll={(checked) =>
+                form.setSelectedCategories((current) =>
+                  toggleAllValues(current, form.categoryOptions, checked),
+                )
+              }
+            />
+
+            <div className="flex flex-col items-end gap-2">
+              {/* สรุปเหตุผลที่ยังบันทึกไม่ได้ — ผู้ใช้ที่เลื่อนผ่าน badge สีแดงด้านบนไปแล้วจะได้รู้ว่าขาดอะไร
+                  โดยไม่ต้องเลื่อนกลับไปหาทีละช่อง */}
+              {!form.saving && form.validationMessage ? (
+                <p className="text-right text-sm text-destructive">
+                  {form.validationMessage}
+                </p>
+              ) : null}
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={form.saving}
+                  onClick={() => form.router.push("/printers")}
+                >
+                  {t("actions.cancel")}
+                </Button>
+                <Button disabled={form.saving || form.loading || !form.canSubmit} type="submit">
+                  {form.saving ? (
+                    <Spinner data-icon="inline-start" />
+                  ) : (
+                    <Save data-icon="inline-start" />
+                  )}
+                  {form.saving ? t("common.processing") : t("actions.save")}
+                </Button>
+              </div>
             </div>
           </form>
         </CardContent>

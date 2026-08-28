@@ -353,7 +353,7 @@ export function TableActionsOverlay({
         </Sheet>
       ) : (
         <Dialog open={open} onOpenChange={updateOpen}>
-          <DialogContent className="top-6 flex max-h-[min(820px,calc(100dvh-3rem))] translate-y-0 flex-col gap-0 overflow-hidden p-0 sm:max-w-[960px]">
+          <DialogContent className="top-6 flex max-h-[min(820px,calc(100dvh-3rem))] translate-y-0 flex-col gap-0 overflow-hidden p-0 duration-200 sm:max-w-[960px]">
             <DialogHeader className="shrink-0 border-b border-border p-5 pr-16">
               <div className="flex min-w-0 items-center gap-3">
                 <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
@@ -383,6 +383,7 @@ export function TableActionsOverlay({
         confirmLabel={actionLabel}
         confirmPending={pending}
         confirmVariant="default"
+        contentClassName="duration-200"
         description={confirmDescription}
         open={confirmOpen}
         title={actionLabel}

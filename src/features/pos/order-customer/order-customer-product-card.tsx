@@ -161,7 +161,7 @@ export const EmployeeProductCard = memo(function EmployeeProductCard({
         variant="ghost"
         aria-busy={loading}
         aria-label={accessibleActionLabel}
-        className="absolute inset-0 z-20 h-auto w-auto touch-manipulation rounded-lg bg-transparent p-0 shadow-none hover:bg-primary/5 active:bg-primary/10 focus-visible:bg-primary/5 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring disabled:pointer-events-auto disabled:cursor-not-allowed disabled:opacity-100"
+        className="absolute inset-0 z-20 h-auto w-auto touch-manipulation rounded-lg bg-transparent p-0 shadow-none transition-transform duration-100 hover:bg-primary/5 active:scale-[0.98] active:bg-primary/15 motion-reduce:transition-none focus-visible:bg-primary/5 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring disabled:pointer-events-auto disabled:cursor-not-allowed disabled:opacity-100"
         disabled={interactionDisabled}
         onClick={() => onAction(entry)}
       />

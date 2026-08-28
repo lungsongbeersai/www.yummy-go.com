@@ -230,7 +230,7 @@ export function ProductPage({ initialPagination }: { initialPagination: UrlPagin
               </div>
               <ProductListTable workflow={product} />
               <ProductListMobile workflow={product} />
-              <div className="shrink-0 border-t border-border px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] text-sm text-muted-foreground">
+              <div className="shrink-0 border-t border-border px-4 py-3 pb-[calc(0.75rem+max(env(safe-area-inset-bottom),var(--app-shell-bottom-nav-height,0px)))] text-sm text-muted-foreground">
                 <AppPagination
                   page={product.page}
                   rangeLabel={t("common.showingRange", {

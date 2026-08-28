@@ -268,7 +268,7 @@ export function TableQrDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[calc(100dvh-2rem)] gap-0 overflow-hidden p-0 sm:max-w-130">
+      <DialogContent className="max-h-[calc(100dvh-2rem)] gap-0 overflow-hidden p-0 duration-200 sm:max-w-130">
         <DialogHeader className="px-5 pb-3 pt-5 pr-12">
           <DialogTitle className="text-xl font-black leading-6">{t("pos.createTableQr")}</DialogTitle>
           <DialogDescription>{t("pos.tableQrDescription", { table: table.table_name })}</DialogDescription>

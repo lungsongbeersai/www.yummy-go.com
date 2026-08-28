@@ -1,5 +1,12 @@
 import type { Category } from "@/services/category";
-import type { Printer, PrinterCategory, PrinterRole } from "@/services/printer";
+import type {
+  Printer,
+  PrinterCategory,
+  PrinterMappingType,
+  PrinterRole,
+  PrinterZone,
+} from "@/services/printer";
+import type { Zone } from "@/services/zone";
 
 export type PrinterTableRow = Printer & { row_number: number };
 
@@ -31,6 +38,27 @@ export function printerCategories(printer: Printer, categories: Category[]) {
   return printer.cate_uuid_fk
     .map((uuid) => categories.find((category) => category.cate_uuid === uuid))
     .filter((category): category is Category => Boolean(category));
+}
+
+// เครื่องพิมพ์เก่าก่อน backend เพิ่ม mapping_type ถือว่าเป็น CATEGORY (ดู mappingTypeOf ใน printer-form-utils.ts)
+export function mappingTypeOf(printer: Printer): PrinterMappingType {
+  return printer.mapping_type ?? "CATEGORY";
+}
+
+export function zoneLabel(zone: Zone | PrinterZone, language: string) {
+  const english = language.startsWith("en");
+  const primary = english ? zone.zone_name_eng : zone.zone_name_la;
+  const fallback = english ? zone.zone_name_la : zone.zone_name_eng;
+  return primary || fallback || zone.zone_name || zone.zone_uuid;
+}
+
+// zone_uuid_fk มีความหมายเฉพาะ mapping_type = ZONE เท่านั้น — printer ประเภท CATEGORY ไม่มีโซนให้แสดง
+export function printerZones(printer: Printer, zones: Zone[]) {
+  if (mappingTypeOf(printer) !== "ZONE") return [];
+  if (printer.zones?.length) return printer.zones;
+  return (printer.zone_uuid_fk ?? [])
+    .map((uuid) => zones.find((zone) => zone.zone_uuid === uuid))
+    .filter((zone): zone is Zone => Boolean(zone));
 }
 
 export function agentDownloadUrl(file: { download_url?: string }) {

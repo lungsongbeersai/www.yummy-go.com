@@ -12,18 +12,23 @@ import { Spinner } from "@/components/ui/spinner";
 import { DataTable } from "@/components/common/data-table";
 import type { Category } from "@/services/category";
 import type { Printer } from "@/services/printer";
+import type { Zone } from "@/services/zone";
 import {
   BadgeList,
   PrinterStatusBadge,
 } from "./printer-list-shared";
 import {
   categoryLabel,
+  mappingTypeOf,
   printerCategories,
+  printerZones,
+  zoneLabel,
   type PrinterTableRow,
 } from "./printer-page-utils";
 
 interface PrinterListTableProps {
   categories: Category[];
+  zones: Zone[];
   filteredRows: PrinterTableRow[];
   language: string;
   printing: boolean;
@@ -39,6 +44,7 @@ interface PrinterListTableProps {
 
 export function PrinterListTable({
   categories,
+  zones,
   filteredRows,
   language,
   printing,
@@ -122,6 +128,18 @@ export function PrinterListTable({
             ),
           },
           {
+            key: "mapping_type",
+            label: t("printer.mappingType"),
+            headClassName: "whitespace-nowrap",
+            render: (row) => (
+              <Badge variant="outline" className="whitespace-nowrap">
+                {mappingTypeOf(row) === "ZONE"
+                  ? t("printer.mappingTypeZone")
+                  : t("printer.mappingTypeCategory")}
+              </Badge>
+            ),
+          },
+          {
             key: "categories",
             label: t("printer.categories"),
             headClassName: "whitespace-nowrap",
@@ -134,6 +152,25 @@ export function PrinterListTable({
                 }))}
               />
             ),
+          },
+          {
+            key: "zones",
+            label: t("printer.zones"),
+            headClassName: "whitespace-nowrap",
+            render: (row) =>
+              mappingTypeOf(row) === "ZONE" ? (
+                <BadgeList
+                  emptyLabel={t("printer.noZones")}
+                  items={printerZones(row, zones).map((zone) => ({
+                    label: zoneLabel(zone, language),
+                    value: zone.zone_uuid,
+                  }))}
+                />
+              ) : (
+                <span className="text-xs text-muted-foreground">
+                  {t("printer.noZones")}
+                </span>
+              ),
           },
           {
             key: "is_active",

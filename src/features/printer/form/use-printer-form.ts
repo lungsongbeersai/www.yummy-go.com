@@ -16,7 +16,13 @@ import {
   isBrowserPrinterAgentId,
   tcpInterfaceValue,
 } from "@/config/printer-agent";
-import type { AgentInfo, PrinterMappingType } from "@/services/printer";
+import type {
+  AgentInfo,
+  DefaultCategoryCategoryDetail,
+  DefaultCategoryZoneDetail,
+  PrinterMappingType,
+  PrinterSharingMode,
+} from "@/services/printer";
 import type { Category } from "@/services/category";
 import type { Zone } from "@/services/zone";
 import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
@@ -62,6 +68,9 @@ export function usePrinterForm() {
   const resolveDeviceIdentity = usePrinterStore(
     (state) => state.resolveDeviceIdentity,
   );
+  const getDefaultCategoryByRole = usePrinterStore(
+    (state) => state.getDefaultCategoryByRole,
+  );
   const categories = (useReferenceStore((state) => state.options.categories) ??
     EMPTY_CATEGORIES) as Category[];
   const loadCategories = useReferenceStore((state) => state.loadCategories);
@@ -88,14 +97,14 @@ export function usePrinterForm() {
       ),
     [printers, printConfigUuid],
   );
-  // เครื่องพิมพ์แต่ละเครื่องมี mapping_type ของตัวเอง — ต้องกรองก่อนอ่าน ไม่งั้นเครื่องที่ตั้ง
-  // เป็นโซนจะไม่มี cate_uuid_fk ที่มีความหมาย (backend เก็บโซนไว้ที่ zone_uuid_fk คนละฟิลด์)
+  // cate_uuid_fk มีความหมายทั้งสอง mapping_type แล้ว (ZONE บังคับเลือกหมวดหมู่คู่กับโซนด้วย)
+  // จึงอ่านได้ตรงๆ ไม่ต้องกรองตาม mapping_type อีกต่อไป
   const categoryAssignments = useMemo(
     () =>
       assignedPrinterNamesByValue(
         printers,
         printConfigUuid,
-        (printer) => (mappingTypeOf(printer) === "CATEGORY" ? printer.cate_uuid_fk : []),
+        (printer) => printer.cate_uuid_fk,
       ),
     [printers, printConfigUuid],
   );
@@ -162,6 +171,9 @@ export function usePrinterForm() {
   );
   const [mappingType, setMappingType] = useState<PrinterMappingType>(
     initialForm.mappingType,
+  );
+  const [sharingMode, setSharingMode] = useState<PrinterSharingMode>(
+    initialForm.sharingMode,
   );
   const [selectedCategories, setSelectedCategories] = useState<string[]>(
     initialForm.selectedCategories,
@@ -246,6 +258,7 @@ export function usePrinterForm() {
     setPaperWidth(values.paperWidth);
     setSelectedRoles(values.selectedRoles);
     setMappingType(values.mappingType);
+    setSharingMode(values.sharingMode);
     setSelectedCategories(values.selectedCategories);
     setSelectedZones(values.selectedZones);
     setSelectedDevice(values.selectedDevice);
@@ -268,17 +281,88 @@ export function usePrinterForm() {
     setDeviceCode((value) => value || nextDeviceCode);
   });
 
+  // แนะนำโซน/หมวดหมู่เริ่มต้นตาม role ที่เลือก (backend ส่ง is_default มาให้) — เฉพาะตอนเพิ่ม
+  // เครื่องพิมพ์ใหม่เท่านั้น (แก้ไขเครื่องเดิมใช้ค่าที่บันทึกไว้แล้วเสมอ) และเติมเฉพาะช่องที่ผู้ใช้
+  // ยังไม่เลือกอะไรเลย ไม่ทับค่าที่ผู้ใช้ติ๊กเองไปแล้ว — ผิดพลาดแบบเงียบได้ เพราะเป็นแค่ suggestion เสริม
+  useEffect(() => {
+    if (isEditing || !userUuid || !selectedRoles.length) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const response = await getDefaultCategoryByRole({
+          login_uuid_fk: userUuid,
+          role_codes: selectedRoles,
+          mapping_type: mappingType,
+          lang: language,
+        });
+        if (cancelled) return;
+        const groups = response.data?.groups ?? [];
+        const zoneGroup = groups.find((group) => group.mapping_type === "ZONE");
+        const categoryGroup = groups.find(
+          (group) => group.mapping_type === "CATEGORY",
+        );
+        if (zoneGroup) {
+          setSelectedZones((current) =>
+            current.length
+              ? current
+              : zoneGroup.details
+                  .filter(
+                    (detail): detail is DefaultCategoryZoneDetail =>
+                      "zone_uuid" in detail && detail.is_default,
+                  )
+                  .map((detail) => detail.zone_uuid),
+          );
+        }
+        if (categoryGroup) {
+          setSelectedCategories((current) =>
+            current.length
+              ? current
+              : categoryGroup.details
+                  .filter(
+                    (detail): detail is DefaultCategoryCategoryDetail =>
+                      "cate_uuid" in detail && detail.is_default,
+                  )
+                  .map((detail) => detail.cate_uuid),
+          );
+        }
+      } catch {
+        // เงียบ — เป็นแค่ suggestion เสริม ไม่คุ้มที่จะโชว์ error รบกวนผู้ใช้
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    getDefaultCategoryByRole,
+    isEditing,
+    language,
+    mappingType,
+    selectedRoles,
+    userUuid,
+  ]);
+
   const hasAgentIdentity =
     Boolean(agentUrl.trim()) &&
     Boolean(agentId.trim()) &&
     Boolean(agentName.trim()) &&
     Boolean(deviceCode.trim());
-  const canSubmit =
-    Boolean(displayName.trim()) &&
-    selectedRoles.length > 0 &&
-    (connectType === "usb"
-      ? Boolean(interfaceValue.trim()) && hasAgentIdentity
-      : Boolean(ip.trim()));
+  // เก็บเหตุผลที่ยังกดบันทึกไม่ได้ไว้เป็นรายการ แทนที่จะรู้แค่ boolean เดียว — ผู้ใช้ที่เลื่อนหน้าจอ
+  // มาเจอปุ่ม Save ที่ถูก disable โดยไม่เห็น badge สีแดงด้านบนแล้ว จะได้รู้ว่าขาดอะไรบ้างจริงๆ
+  const missingFields: string[] = [];
+  if (!displayName.trim()) missingFields.push(t("printer.validationDisplayName"));
+  if (selectedRoles.length === 0) missingFields.push(t("printer.validationRoles"));
+  if (selectedCategories.length === 0) missingFields.push(t("printer.validationCategories"));
+  // backend บังคับ: ZONE ต้องเลือกทั้งโซนและหมวดหมู่คู่กัน
+  if (mappingType === "ZONE" && selectedZones.length === 0) missingFields.push(t("printer.validationZones"));
+  if (connectType === "usb") {
+    if (!interfaceValue.trim() || !hasAgentIdentity) missingFields.push(t("printer.validationUsbDevice"));
+  } else if (!ip.trim()) {
+    missingFields.push(t("printer.validationIp"));
+  }
+  const canSubmit = missingFields.length === 0;
+  const validationMessage = missingFields.length
+    ? t("printer.validationSummary", { fields: missingFields.join(", ") })
+    : "";
 
   const searchUsbDevices = useCallback(
     async (showSuccess = true) => {
@@ -383,11 +467,12 @@ export function usePrinterForm() {
         interface_value: nextInterfaceValue,
         paper_width_mm: Number(paperWidth || 80),
         role_codes: selectedRoles,
-        // เลือกได้อย่างใดอย่างหนึ่งเท่านั้น — ส่ง id ของโซนหรือหมวดหมู่ตาม mappingType
-        // savePrinter() ใน config-api.ts เป็นจุดที่แปลงเป็นฟิลด์ wire ที่ถูกต้อง
-        // (zone_uuid_fk หรือ cate_uuid_fk คนละฟิลด์กัน)
+        // backend บังคับ: ZONE ส่งทั้งโซนและหมวดหมู่ที่เลือกไว้, CATEGORY ส่งแค่หมวดหมู่
+        // savePrinter() ใน config-api.ts เป็นจุดที่ตัด zone_uuid_fk ออกเมื่อไม่ใช่ ZONE
         mapping_type: mappingType,
-        cate_uuid_fk: mappingType === "ZONE" ? selectedZones : selectedCategories,
+        sharing_mode: sharingMode,
+        zone_uuid_fk: selectedZones,
+        cate_uuid_fk: selectedCategories,
         agent_url: nextAgentUrl,
         agent_id: nextAgentId,
         agent_name: nextAgentName,
@@ -414,6 +499,8 @@ export function usePrinterForm() {
     roleOptions,
     mappingType,
     setMappingType,
+    sharingMode,
+    setSharingMode,
     categoryOptions,
     zoneOptions,
     connectType,
@@ -437,6 +524,7 @@ export function usePrinterForm() {
     selectedDevice,
     usbSelectDescription,
     canSubmit,
+    validationMessage,
     selectDevice,
     searchUsbDevices,
     submit,

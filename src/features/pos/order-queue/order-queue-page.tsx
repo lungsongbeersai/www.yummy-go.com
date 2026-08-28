@@ -556,15 +556,22 @@ export function OrderQueuePage() {
           {/* pl-8/pr-8 พอดีกับปุ่มลูกศร size-8 เป๊ะ เฉพาะตอนล้นจริง (tabsRailOverflowing)
               — เผื่อที่ให้แท็บแรก/สุดท้ายไม่โดนปุ่มลูกศรบังจนอ่าน/กดไม่ได้ ตามที่รายงานมา
               บนมือถือ/Capacitor ไม่ใส่ตลอดเพราะจอกว้างที่ไม่มีลูกศรจะเห็นเป็นที่ว่างเกินจำเป็น
-              (เดิม size-9/pl-10 กินพื้นที่มากไปจนแท็บแรกดูห่างขอบจอเกินจำเป็นบนมือถือ) */}
+              (เดิม size-9/pl-10 กินพื้นที่มากไปจนแท็บแรกดูห่างขอบจอเกินจำเป็นบนมือถือ)
+              overflow-y-hidden ตัดเลื่อนแนวตั้งออก — overflow-x ที่ไม่ใช่ visible ทำให้
+              เบราว์เซอร์บังคับ overflow-y เป็น auto ไปด้วยตามสเปก แถวนี้ต้องเลื่อนแนวนอนอย่างเดียว */}
           <div
             ref={tabsRailRef}
             className={cn(
-              "-mx-1 overflow-x-auto px-1 py-1",
+              "-mx-1 overflow-x-auto overflow-y-hidden px-1 py-1",
               tabsRailOverflowing && "pl-8 pr-8"
             )}
           >
-            <TabsList className="h-auto w-full justify-start gap-2 bg-transparent p-0">
+            {/* group-data-horizontal/tabs:h-auto ไม่ใช่แค่ h-auto เฉย ๆ — TabsList พื้นฐาน
+                มี group-data-horizontal/tabs:h-8 (32px) ที่ใช้ attribute selector ทำให้
+                specificity สูงกว่า .h-auto ธรรมดา ชนะเสมอไม่ว่าจะเขียนลำดับคลาสยังไง (แพทเทิร์น
+                เดียวกับ payment-dialog-content.tsx) ไม่งั้นปุ่มแท็บสูง h-10 (40px) โดนตัดขอบ
+                บน-ล่างเพราะ container ถูกบังคับสูงแค่ 32px */}
+            <TabsList className="h-auto w-full justify-start gap-2 bg-transparent p-0 group-data-horizontal/tabs:h-auto">
               {visibleTabs.map((tab) => {
                 const active = status === tab.status;
                 return (

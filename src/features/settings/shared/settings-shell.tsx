@@ -407,7 +407,16 @@ export function SettingsTableScroll({ children }: { children: ReactNode }) {
 }
 
 export function SettingsMobileList({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cn("flex min-h-full flex-col gap-2 p-3", className)}>{children}</div>;
+  return (
+    <div
+      className={cn(
+        "flex min-h-full flex-col gap-2 p-3 pb-[calc(0.75rem+max(env(safe-area-inset-bottom),var(--app-shell-bottom-nav-height,0px)))]",
+        className
+      )}
+    >
+      {children}
+    </div>
+  );
 }
 
 export function SettingsMobileCard({
@@ -510,7 +519,7 @@ export function SettingsPaginationFooter({
   const { t } = useTranslation();
 
   return (
-    <div className="shrink-0 border-t border-border px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] text-sm text-muted-foreground">
+    <div className="shrink-0 border-t border-border px-4 py-3 pb-[calc(0.75rem+max(env(safe-area-inset-bottom),var(--app-shell-bottom-nav-height,0px)))] text-sm text-muted-foreground">
       <AppPagination
         page={page}
         rangeLabel={t("common.showingRange", { start: pageStart, end: pageEnd, total })}
