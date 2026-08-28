@@ -15,13 +15,21 @@ const OFFLINE_ROUTES = new Set([
   "PATCH /api/v1/posAll/customer_order_queue/send_to_kitchen",
   "PATCH /api/v1/posAll/confirm_order_item_served",
   "PATCH /api/v1/posAll/cancel_order_item",
+  "POST /api/v1/posAll/move_table",
+  "POST /api/v1/posAll/join_table_multi",
+  "POST /api/v1/posAll/split_bill",
+  "POST /api/v1/posAll/print_invoice",
+  "POST /api/v1/posAll/reprint_receipt",
   "POST /api/v1/posAll/payment",
+  "GET /api/v1/posAll/admin/create_table_qr",
 ]);
 
 const OFFLINE_GET_ROUTES = new Set([
   "/api/v1/posAll/fetch_table",
   "/api/v1/posAll/fetch_cate_products",
   "/api/v1/posAll/fetch_cart",
+  "/api/v1/posAll/fetch_join_move_table",
+  "/api/v1/posAll/admin/create_table_qr",
   "/api/v1/posAll/customer_order_queue",
   "/api/v1/exchange/fetch_all",
   "/api/v1/currency/fetch_all",
@@ -37,7 +45,9 @@ const LOCAL_READ_ROUTES = new Set([
 
 const LOCAL_PRINT_OWNER_ROUTES = new Set([
   "PATCH /api/v1/posAll/confirm_to_kitchen",
+  "POST /api/v1/posAll/print_invoice",
   "POST /api/v1/posAll/payment",
+  "GET /api/v1/posAll/admin/create_table_qr",
 ]);
 
 export interface LocalSyncIdentity {
@@ -125,7 +135,16 @@ export function needsLocalPrintOwnership(method: HttpMethod, url: string) {
   return LOCAL_PRINT_OWNER_ROUTES.has(routeKey(method, url));
 }
 
-export function withLocalPrintOwnership(options: RequestOptions | undefined): RequestOptions {
+export function withLocalPrintOwnership(
+  options: RequestOptions | undefined,
+  method: HttpMethod = "post",
+): RequestOptions {
+  if (method === "get") {
+    return {
+      ...options,
+      params: { ...record(options?.params), local_agent_print: true },
+    };
+  }
   return {
     ...options,
     data: { ...record(options?.data), local_agent_print: true },
@@ -157,6 +176,26 @@ export function prepareOfflineRequest(
   }
   if (routeKey(method, url) === "POST /api/v1/posAll/payment") {
     data.payment_uuid = String(data.payment_uuid || uuid());
+  }
+  if (routeKey(method, url) === "POST /api/v1/posAll/split_bill") {
+    const newOrderUuid = String(data.new_order_uuid || uuid());
+    data.new_order_uuid = newOrderUuid;
+    data.payment_uuid = String(data.payment_uuid || uuid());
+    data.new_order_invoice = String(
+      data.new_order_invoice ||
+      `OFF-SPLIT-${new Date().toISOString().slice(0, 10).replaceAll("-", "")}-${newOrderUuid.slice(0, 8).toUpperCase()}`,
+    );
+    const requestedItems = Array.isArray(data.order_item_uuids) ? data.order_item_uuids : [];
+    const existingMap = record(data.split_item_uuid_map);
+    data.split_item_uuid_map = Object.fromEntries(
+      requestedItems.flatMap((rawItem) => {
+        const item = record(rawItem);
+        return Object.keys(item).map((sourceUuid) => [
+          sourceUuid,
+          String(existingMap[sourceUuid] || uuid()),
+        ]);
+      }),
+    );
   }
   if ([
     "PATCH /api/v1/posAll/order_item/update_qty",

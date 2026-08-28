@@ -163,7 +163,7 @@ export async function apiRequest<T>(
   let localOwnsPrint = false;
   if (localConfiguration && needsLocalPrintOwnership(method, url)) {
     localOwnsPrint = await localConfiguration;
-    if (localOwnsPrint) requestOptions = withLocalPrintOwnership(requestOptions);
+    if (localOwnsPrint) requestOptions = withLocalPrintOwnership(requestOptions, method);
   }
   if (auth.offlineSession && supportsOfflineRoute(method, url) && typeof window !== "undefined") {
     const local = await requestLocalFallback<T>(method, url, requestOptions, prepared.eventUuid);

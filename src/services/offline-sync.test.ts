@@ -57,15 +57,52 @@ describe("offline sync transport", () => {
     expect(supportsOfflineRoute("get", "/api/v1/permission/menu")).toBe(false);
     expect(supportsOfflineRoute("post", "/api/v1/posAll/get_prod_item")).toBe(true);
     expect(supportsOfflineRoute("post", "/api/v1/posAll/init_order_without_table")).toBe(true);
+    expect(supportsOfflineRoute("get", "/api/v1/posAll/fetch_join_move_table")).toBe(true);
+    expect(supportsOfflineRoute("get", "/api/v1/posAll/admin/create_table_qr")).toBe(true);
+    expect(supportsOfflineRoute("post", "/api/v1/posAll/move_table")).toBe(true);
+    expect(supportsOfflineRoute("post", "/api/v1/posAll/join_table_multi")).toBe(true);
+    expect(supportsOfflineRoute("post", "/api/v1/posAll/split_bill")).toBe(true);
+    expect(supportsOfflineRoute("post", "/api/v1/posAll/print_invoice")).toBe(true);
+    expect(supportsOfflineRoute("post", "/api/v1/posAll/reprint_receipt")).toBe(true);
     expect(supportsOfflineRoute("patch", "/api/v1/posAll/customer_order_queue/send_to_kitchen")).toBe(true);
+  });
+
+  it("assigns stable split order, payment and partial-item UUIDs before the online attempt", () => {
+    const prepared = prepareOfflineRequest("post", "/api/v1/posAll/split_bill", {
+      data: {
+        order_uuid: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        order_item_uuids: [{ "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb": 2 }],
+      },
+    });
+    const data = prepared.options?.data as Record<string, unknown>;
+    expect(data.new_order_uuid).toMatch(/^[0-9a-f-]{36}$/i);
+    expect(data.payment_uuid).toMatch(/^[0-9a-f-]{36}$/i);
+    expect(data.new_order_invoice).toMatch(/^OFF-SPLIT-/);
+    expect(data.split_item_uuid_map).toMatchObject({
+      "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb": expect.stringMatching(/^[0-9a-f-]{36}$/i),
+    });
+  });
+
+  it("assigns a stable Local Agent event to table QR printing", () => {
+    const prepared = prepareOfflineRequest("get", "/api/v1/posAll/admin/create_table_qr", {
+      params: { table_uuid: "table-1" },
+    });
+    expect(prepared.eventUuid).toMatch(/^[0-9a-f-]{36}$/i);
+    expect(prepared.options?.data).toMatchObject({ sync_event_uuid: prepared.eventUuid });
   });
 
   it("marks only physical print mutations for Local Agent ownership", () => {
     expect(needsLocalPrintOwnership("patch", "/api/v1/posAll/confirm_to_kitchen")).toBe(true);
+    expect(needsLocalPrintOwnership("post", "/api/v1/posAll/print_invoice")).toBe(true);
     expect(needsLocalPrintOwnership("post", "/api/v1/posAll/payment")).toBe(true);
+    expect(needsLocalPrintOwnership("get", "/api/v1/posAll/admin/create_table_qr")).toBe(true);
     expect(needsLocalPrintOwnership("post", "/api/v1/posAll/create_order")).toBe(false);
     expect(withLocalPrintOwnership({ data: { order_uuid: "order-1" } }).data).toEqual({
       order_uuid: "order-1",
+      local_agent_print: true,
+    });
+    expect(withLocalPrintOwnership({ params: { table_uuid: "table-1" } }, "get").params).toEqual({
+      table_uuid: "table-1",
       local_agent_print: true,
     });
   });
