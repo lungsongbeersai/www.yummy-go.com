@@ -19,6 +19,9 @@ interface ConfirmDialogProps {
   confirmLabel: string;
   confirmPending?: boolean;
   confirmVariant?: ButtonProps["variant"];
+  // ให้ผู้เรียกเฉพาะจุด override className ของ AlertDialogContent ได้ (เช่น ปรับ duration)
+  // โดยไม่กระทบ call site อื่นทั้งแอปที่ไม่ได้ส่งค่านี้มา
+  contentClassName?: string;
   description: string;
   open: boolean;
   title: string;
@@ -32,6 +35,7 @@ export function ConfirmDialog({
   confirmLabel,
   confirmPending = false,
   confirmVariant = "destructive",
+  contentClassName,
   description,
   open,
   title,
@@ -40,7 +44,7 @@ export function ConfirmDialog({
 }: ConfirmDialogProps) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent size="sm">
+      <AlertDialogContent className={contentClassName} size="sm">
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
           <AlertDialogDescription>{description}</AlertDialogDescription>
