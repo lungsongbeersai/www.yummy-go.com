@@ -2029,17 +2029,16 @@ html.theme-transition-active[data-theme-transition-direction="ltr"]::view-transi
 }
 
 /* --ring-rgb: ค่าสีจริงที่ดึงมาจาก theme เดียวกับจุด dot ของแต่ละสถานะ (blue-600/
-   red-700 โหมดสว่าง, blue-400/red-400 โหมดมืด) เขียนเป็นเลข r g b ตรง ๆ เพราะ
+   amber-600 โหมดสว่าง, blue-400/amber-400 โหมดมืด) เขียนเป็นเลข r g b ตรง ๆ เพราะ
    rgb()/oklch() ที่มี var()/color-mix() ซ้อนเป็นสี "คำนวณ" ยังใช้แทน currentColor
-   แบบ animate ไม่ได้ (ดูเหตุผลด้านบน) awaiting-confirm เปลี่ยนจาก amber เป็น red ตาม
-   STATUS_STYLE ใหม่ (table-list-section.tsx) — ค่า rgb ดึงตรงจาก --color-red-700/
-   --color-red-400 ใน @theme ของไฟล์นี้ (#b91c1c / #f87171) */
+   แบบ animate ไม่ได้ (ดูเหตุผลด้านบน) ค่า rgb ดึงตรงจาก --color-amber-600/
+   --color-amber-400 ใน @theme ของไฟล์นี้ (#d97706 / #fbbf24) */
 .pos-ring-cashier-order {
   --ring-rgb: 21 93 252;
 }
 
 .pos-ring-awaiting-confirm {
-  --ring-rgb: 185 28 28;
+  --ring-rgb: 217 119 6;
 }
 
 .dark .pos-ring-cashier-order {
@@ -2047,7 +2046,7 @@ html.theme-transition-active[data-theme-transition-direction="ltr"]::view-transi
 }
 
 .dark .pos-ring-awaiting-confirm {
-  --ring-rgb: 248 113 113;
+  --ring-rgb: 251 191 36;
 }
 
 @media (prefers-reduced-motion: reduce) {

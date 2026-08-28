@@ -90,7 +90,7 @@ export function TableListSection({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-background">
-      <div className="flex shrink-0 flex-col gap-3 border-b border-border bg-background px-0 py-3 shadow-sm sm:px-4 xl:px-5">
+      <div className="flex shrink-0 flex-col gap-1.5 border-b border-border bg-background px-0 py-1.5 shadow-sm sm:px-4 xl:px-5">
         <div className="flex items-center gap-2">
           <div className="relative min-w-0 flex-1">
             {/* pl-8/pr-8 พอดีกับปุ่มลูกศร size-8 เป๊ะ (ไม่มี buffer เหลือ) เฉพาะตอนล้นจริง
@@ -159,7 +159,7 @@ export function TableListSection({
             </Button>
           </div>
         </div>
-        <div className="flex flex-col gap-2.5 xl:flex-row xl:items-center xl:justify-between">
+        <div className="flex flex-col gap-1.5 xl:flex-row xl:items-center xl:justify-between">
           <div className="relative min-w-0">
             <div
               ref={statusRailRef}
@@ -191,7 +191,14 @@ export function TableListSection({
           </div>
           <div className="relative min-w-0 w-full xl:w-[320px]">
             <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input aria-label={t("actions.search")} className="h-10.5 rounded-full border-border bg-muted/35 pl-9 shadow-none" placeholder={t("actions.search")} type="search" value={search} onChange={(event) => onSearchChange(event.target.value)} />
+            <Input
+              aria-label={t("actions.search")}
+              className="h-9 rounded-full border-border bg-muted/35 pl-9 shadow-none"
+              placeholder={t("actions.search")}
+              type="search"
+              value={search}
+              onChange={(event) => onSearchChange(event.target.value)}
+            />
           </div>
         </div>
       </div>
@@ -253,7 +260,7 @@ function ZoneToggleItem({
   return (
     <ToggleGroupItem
       className={cn(
-        "h-10 gap-1 rounded-full border border-transparent px-3.5 font-black shadow-sm transition data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow-primary/20",
+        "h-8 gap-1 rounded-full border border-transparent px-2.5 text-sm font-black shadow-sm transition data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow-primary/20",
         !active && "border-border bg-card hover:border-primary/30 hover:bg-primary/5",
         // ใช้ ring กะพริบแทนพื้นหลังกะพริบ — พื้นหลังกะพริบชนสี text-destructive จนคอนทราสต์ไม่ผ่าน WCAG AA
         hasAlert && "pos-chip-alert-ring"
@@ -290,7 +297,7 @@ function StatusToggleItem({
   return (
     <ToggleGroupItem
       className={cn(
-        "h-10 gap-1 rounded-full border border-transparent px-3.5 font-black shadow-sm transition data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow-primary/20",
+        "h-8 gap-1 rounded-full border border-transparent px-2.5 text-sm font-black shadow-sm transition data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow-primary/20",
         !active && "border-border bg-card hover:border-primary/30 hover:bg-primary/5"
       )}
       value={value}
@@ -362,15 +369,14 @@ const STATUS_STYLE: Record<TableVisualStatus, TableCardStyle> = {
     text: "text-blue-900 dark:text-foreground",
     ring: "pos-ring-cashier-order"
   },
-  // ใช้เฉดแดงเดียวกับ ORDER_ALERT_STYLE ตรงตัว (การ์ด/จุด/ตัวอักษร) — ตามที่ตกลงไว้ว่า
-  // "รอลูกค้ายืนยัน" เป็นสีแดงล้วน แยกจากป้ายเตือน "ออเดอร์ใหม่" ด้วยจังหวะกะพริบ
-  // (pos-table-card-alert) เท่านั้น ไม่ใช้เฉดต่างกันเพื่อกันชน
+  // เปลี่ยนกลับมาใช้ amber ตามคำขอ — ให้แยกจากป้ายเตือน "ออเดอร์ใหม่" (สีแดงจาก
+  // ORDER_ALERT_STYLE) ได้ทั้งสี ไม่ใช่พึ่งจังหวะกะพริบของวงแหวนอย่างเดียว
   awaitingConfirm: {
-    card: "bg-red-600/15 dark:bg-red-950/40",
-    body: "bg-red-600/15 dark:bg-red-950/40",
-    footer: "border-red-600/25 bg-red-600/10 dark:border-red-800/40 dark:bg-red-900/25",
-    dot: "bg-red-700 dark:bg-red-400",
-    text: "text-red-700 dark:text-foreground",
+    card: "bg-amber-500/15 dark:bg-amber-950/40",
+    body: "bg-amber-500/15 dark:bg-amber-950/40",
+    footer: "border-amber-500/25 bg-amber-500/10 dark:border-amber-800/40 dark:bg-amber-900/25",
+    dot: "bg-amber-600 dark:bg-amber-400",
+    text: "text-amber-900 dark:text-foreground",
     ring: "pos-ring-awaiting-confirm"
   },
   callStaff: {
