@@ -103,6 +103,7 @@ export async function savePrinter(input: SavePrinterInput) {
     // backend บังคับ: ZONE ต้องส่งทั้ง zone_uuid_fk และ cate_uuid_fk (เลือกหมวดหมู่คู่กับโซนเสมอ),
     // CATEGORY ส่งแค่ cate_uuid_fk — คนละฟิลด์กันจริงบน wire ไม่ใช่ฟิลด์เดียวกันใช้ซ้ำ
     mapping_type: input.mapping_type,
+    sharing_mode: input.sharing_mode,
     ...(input.mapping_type === "ZONE"
       ? { zone_uuid_fk: input.zone_uuid_fk ?? [], cate_uuid_fk: input.cate_uuid_fk ?? [] }
       : { cate_uuid_fk: input.cate_uuid_fk ?? [] })

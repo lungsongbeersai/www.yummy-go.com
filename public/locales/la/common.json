@@ -86,6 +86,8 @@
     "noAccount": "ຍັງບໍ່ມີບັນຊີ?",
     "or": "ຫຼື",
     "password": "ລະຫັດຜ່ານ",
+    "pasteFailed": "ອ່ານຄລິບບອດບໍ່ໄດ້",
+    "pasteFromClipboard": "ວາງຈາກຄລິບບອດ",
     "rememberMe": "ຈື່ລະຫັດຜ່ານ",
     "register": "ລົງທະບຽນ",
     "showPassword": "ສະແດງລະຫັດຜ່ານ",

@@ -1,5 +1,10 @@
 import { parseInterfaceValue, AGENT_URL } from "@/config/printer-agent";
-import type { AgentInfo, Printer, PrinterMappingType } from "@/services/printer";
+import type {
+  AgentInfo,
+  Printer,
+  PrinterMappingType,
+  PrinterSharingMode,
+} from "@/services/printer";
 import type { Category } from "@/services/category";
 import type { Zone } from "@/services/zone";
 import { cn } from "@/lib/utils";
@@ -123,6 +128,12 @@ export function mappingTypeOf(printer: Printer | null): PrinterMappingType {
   return printer?.mapping_type ?? "CATEGORY";
 }
 
+// เครื่องพิมพ์เก่าก่อน backend เพิ่ม sharing_mode จะไม่มีฟิลด์นี้มา — ถือว่าเป็น DEDICATED
+// (พฤติกรรมเดิมก่อนมีการแชร์เครื่องพิมพ์) ไม่ใช่ปล่อยว่าง
+export function sharingModeOf(printer: Printer | null): PrinterSharingMode {
+  return printer?.sharing_mode ?? "DEDICATED";
+}
+
 // cate_uuid_fk มีความหมายทั้งสอง mapping_type แล้ว — ZONE ก็บังคับเลือกหมวดหมู่คู่กับโซนด้วย
 // (backend contract ใหม่) จึงอ่านได้ตรงๆ ไม่ต้องกรองตาม mapping_type อีกต่อไป
 export function categoryUuids(printer: Printer | null) {
@@ -159,6 +170,7 @@ export function printerFormValues(printer: Printer | null) {
     paperWidth: String(printer?.paper_width_mm ?? 80),
     selectedRoles: printer?.role_codes ?? [],
     mappingType: mappingTypeOf(printer),
+    sharingMode: sharingModeOf(printer),
     selectedCategories: categoryUuids(printer),
     selectedZones: zoneUuids(printer),
     selectedDevice: "",

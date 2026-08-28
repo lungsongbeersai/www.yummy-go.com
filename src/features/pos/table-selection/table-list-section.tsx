@@ -100,7 +100,7 @@ export function TableListSection({
             <div
               ref={zoneRailRef}
               className={cn(
-                "-mx-1 overflow-x-auto px-1 py-1",
+                "-mx-1 overflow-x-auto overflow-y-hidden px-1 py-1",
                 zoneRailOverflowing && "pl-8 pr-8"
               )}
             >
@@ -164,7 +164,7 @@ export function TableListSection({
             <div
               ref={statusRailRef}
               className={cn(
-                "-mx-1 overflow-x-auto px-1 py-1",
+                "-mx-1 overflow-x-auto overflow-y-hidden px-1 py-1",
                 statusRailOverflowing && "pl-8 pr-8"
               )}
             >

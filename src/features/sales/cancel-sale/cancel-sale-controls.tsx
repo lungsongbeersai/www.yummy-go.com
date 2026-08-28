@@ -215,7 +215,7 @@ export function SalesListPaginationFooter({
   const { t } = useTranslation();
 
   return (
-    <div className="shrink-0 border-t border-border bg-muted/20 px-3 py-2.5 pb-[calc(0.625rem+env(safe-area-inset-bottom))] text-sm text-muted-foreground sm:px-4 sm:py-3">
+    <div className="shrink-0 border-t border-border bg-muted/20 px-3 py-2.5 pb-[calc(0.625rem+max(env(safe-area-inset-bottom),var(--app-shell-bottom-nav-height,0px)))] text-sm text-muted-foreground sm:px-4 sm:py-3">
       <AppPagination
         disabled={loading}
         page={page}

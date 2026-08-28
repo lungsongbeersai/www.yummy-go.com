@@ -5,13 +5,14 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
-import { Eye, EyeOff } from "lucide-react";
+import { ClipboardPaste, Eye, EyeOff } from "lucide-react";
 import { LanguageSwitch } from "@/components/layout/language-switch";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { useIsCapacitorNativeApp } from "@/hooks/use-capacitor-native-app";
 import {
   getDisplayedAppVersion,
   WEB_APP_VERSION,
@@ -19,6 +20,7 @@ import {
 import { safeInternalRedirect } from "@/lib/safe-internal-redirect";
 import { useAuthStore } from "@/stores/auth-store";
 import { useToastStore } from "@/stores/toast-store";
+import { ShadowTextField } from "./shadow-text-field";
 
 export function LoginClient() {
   const { t } = useTranslation();
@@ -35,6 +37,9 @@ export function LoginClient() {
   const [remember, setRemember] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [displayedVersion, setDisplayedVersion] = useState(WEB_APP_VERSION);
+  // เว็บไม่มีปัญหานี้เลย ใช้ <Input> ปกติต่อไป — สลับเป็น ShadowTextField เฉพาะบน
+  // Capacitor เท่านั้น เพื่อจำกัดผลกระทบให้แคบที่สุด
+  const isNative = useIsCapacitorNativeApp();
 
   const redirect = safeInternalRedirect(searchParams.get("redirect"));
 
@@ -53,6 +58,17 @@ export function LoginClient() {
       active = false;
     };
   }, []);
+
+  // ShadowTextField ไม่ใช่ element ที่แก้ไขได้เลย เลยไม่มี native long-press paste ให้ใช้
+  // ต้องมีปุ่มนี้แทนบน native เท่านั้น
+  async function pasteFromClipboard(setValue: (value: string) => void) {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text) setValue(text);
+    } catch {
+      showToast({ title: t("auth.pasteFailed"), tone: "error" });
+    }
+  }
 
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -129,17 +145,44 @@ export function LoginClient() {
                     {t("auth.email")} <span className="text-destructive">*</span>
                   </FieldLabel>
 
-                  <Input
-                    id="login-email"
-                    name="email"
-                    value={email}
-                    onChange={(event) => setEmail(event.target.value)}
-                    type="email"
-                    autoComplete="email"
-                    spellCheck={false}
-                    required
-                    className="login-input h-12 rounded-lg border-border bg-card px-4 text-sm font-semibold text-foreground shadow-sm outline-none transition placeholder:text-muted-foreground focus:border-primary focus:ring-4 focus:ring-primary/10 focus-visible:border-primary focus-visible:ring-4 focus-visible:ring-primary/10"
-                  />
+                  {isNative ? (
+                    <div className="relative">
+                      <ShadowTextField
+                        id="login-email"
+                        name="email"
+                        value={email}
+                        onChange={setEmail}
+                        type="email"
+                        autoComplete="email"
+                        spellCheck={false}
+                        required
+                        className="pr-12"
+                      />
+
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label={t("auth.pasteFromClipboard")}
+                        onClick={() => void pasteFromClipboard(setEmail)}
+                        className="absolute right-0 top-1/2 grid h-12 w-12 -translate-y-1/2 place-items-center rounded-md text-muted-foreground transition hover:bg-accent hover:text-foreground"
+                      >
+                        <ClipboardPaste aria-hidden="true" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <Input
+                      id="login-email"
+                      name="email"
+                      value={email}
+                      onChange={(event) => setEmail(event.target.value)}
+                      type="email"
+                      autoComplete="email"
+                      spellCheck={false}
+                      required
+                      className="login-input h-12 rounded-lg border-border bg-card px-4 text-sm font-semibold text-foreground shadow-sm outline-none transition placeholder:text-muted-foreground focus:border-primary focus:ring-4 focus:ring-primary/10 focus-visible:border-primary focus-visible:ring-4 focus-visible:ring-primary/10"
+                    />
+                  )}
                 </Field>
 
                 <Field>
@@ -153,16 +196,43 @@ export function LoginClient() {
                   </div>
 
                   <div className="relative">
-                    <Input
-                      id="login-password"
-                      name="password"
-                      value={password}
-                      onChange={(event) => setPassword(event.target.value)}
-                      type={showPassword ? "text" : "password"}
-                      autoComplete="current-password"
-                      required
-                      className="login-input h-12 rounded-lg border-border bg-card px-4 pr-12 text-sm font-semibold text-foreground shadow-sm outline-none transition placeholder:text-muted-foreground focus:border-primary focus:ring-4 focus:ring-primary/10 focus-visible:border-primary focus-visible:ring-4 focus-visible:ring-primary/10"
-                    />
+                    {isNative ? (
+                      <ShadowTextField
+                        id="login-password"
+                        name="password"
+                        value={password}
+                        onChange={setPassword}
+                        type={showPassword ? "text" : "password"}
+                        mask={!showPassword}
+                        autoComplete="current-password"
+                        required
+                        className="pr-24"
+                      />
+                    ) : (
+                      <Input
+                        id="login-password"
+                        name="password"
+                        value={password}
+                        onChange={(event) => setPassword(event.target.value)}
+                        type={showPassword ? "text" : "password"}
+                        autoComplete="current-password"
+                        required
+                        className="login-input h-12 rounded-lg border-border bg-card px-4 pr-12 text-sm font-semibold text-foreground shadow-sm outline-none transition placeholder:text-muted-foreground focus:border-primary focus:ring-4 focus:ring-primary/10 focus-visible:border-primary focus-visible:ring-4 focus-visible:ring-primary/10"
+                      />
+                    )}
+
+                    {isNative ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label={t("auth.pasteFromClipboard")}
+                        onClick={() => void pasteFromClipboard(setPassword)}
+                        className="absolute right-12 top-1/2 grid h-12 w-12 -translate-y-1/2 place-items-center rounded-md text-muted-foreground transition hover:bg-accent hover:text-foreground"
+                      >
+                        <ClipboardPaste aria-hidden="true" />
+                      </Button>
+                    ) : null}
 
                     <Button
                       type="button"

@@ -88,7 +88,7 @@ export function LanguageSwitch({
             key={item.code}
             value={item.code}
             aria-label={meta.short}
-            className="h-full gap-1 px-2 font-semibold text-xs"
+            className="h-full gap-1 px-2 font-semibold text-xs data-[state=on]:bg-primary/10 data-[state=on]:text-primary"
           >
             <LanguageFlagImage src={meta.flag} />
             {showShort ? <span className="hidden sm:inline">{meta.short}</span> : null}

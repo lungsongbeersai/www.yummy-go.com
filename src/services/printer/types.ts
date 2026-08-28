@@ -41,10 +41,17 @@ export interface PrinterCategory extends ApiEntity {
   cate_name_la?: string;
   cate_name_eng?: string;
 }
+export interface PrinterZone extends ApiEntity {
+  zone_uuid: string;
+  zone_name?: string;
+  zone_name_la?: string;
+  zone_name_eng?: string;
+}
 // backend เพิ่งเพิ่ม mapping_type — ZONE ต้องเลือกทั้งโซนและหมวดหมู่ (บังคับคู่กัน), CATEGORY
 // เลือกแค่หมวดหมู่ คนละฟิลด์กันตามชนิด: ZONE ใช้ zone_uuid_fk + cate_uuid_fk, CATEGORY ใช้แค่
 // cate_uuid_fk (ไม่ใช่ฟิลด์เดียวกันใช้ซ้ำ — ทั้งสองฟิลด์แยกกันจริงบน wire)
 export type PrinterMappingType = "ZONE" | "CATEGORY";
+export type PrinterSharingMode = "SHARED" | "DEDICATED";
 export interface Printer extends ApiEntity {
   print_config_id?: string;
   print_config_uuid: string;
@@ -69,12 +76,16 @@ export interface Printer extends ApiEntity {
   // เครื่องพิมพ์ที่บันทึกไว้ก่อน backend เพิ่ม mapping_type จะไม่มีฟิลด์นี้มา — ถือว่าเป็น
   // CATEGORY (พฤติกรรมเดิมก่อนมีโซน) ดู mappingTypeOf() ใน printer-form-utils.ts
   mapping_type?: PrinterMappingType;
+  // เครื่องพิมพ์ที่บันทึกไว้ก่อน backend เพิ่ม sharing_mode จะไม่มีฟิลด์นี้มา — ถือว่าเป็น
+  // DEDICATED (พฤติกรรมเดิมก่อนมีการแชร์เครื่องพิมพ์) ดู sharingModeOf() ใน printer-form-utils.ts
+  sharing_mode?: PrinterSharingMode;
   categories?: PrinterCategory[];
   // มีความหมายทั้งสอง mapping_type: CATEGORY ใช้เป็นหมวดหมู่หลัก, ZONE ใช้เป็นหมวดหมู่ที่บังคับ
   // เลือกคู่กับโซน (ดู zone_uuid_fk ด้านล่าง)
   cate_uuid_fk: string[];
   // มีค่าเฉพาะเครื่องพิมพ์ที่ mapping_type = ZONE เท่านั้น — คนละฟิลด์กับ cate_uuid_fk
   zone_uuid_fk?: string[];
+  zones?: PrinterZone[];
 }
 export interface PrinterRole extends ApiEntity { role_code: string; role_name: string }
 export interface AgentFile extends ApiEntity {
@@ -117,6 +128,7 @@ export interface SavePrinterInput extends ApiEntity {
   paper_width_mm: number;
   role_codes: string[];
   mapping_type: PrinterMappingType;
+  sharing_mode: PrinterSharingMode;
   // backend บังคับ: mapping_type = ZONE ต้องส่งทั้ง zone_uuid_fk และ cate_uuid_fk (เลือกหมวดหมู่
   // ด้วยเสมอ); mapping_type = CATEGORY ส่งแค่ cate_uuid_fk — savePrinter() ใน config-api.ts
   // เป็นจุดเดียวที่ตัดฟิลด์ zone_uuid_fk ออกเมื่อไม่ใช่ ZONE

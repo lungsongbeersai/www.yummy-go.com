@@ -21,6 +21,7 @@ import type {
   DefaultCategoryCategoryDetail,
   DefaultCategoryZoneDetail,
   PrinterMappingType,
+  PrinterSharingMode,
 } from "@/services/printer";
 import type { Category } from "@/services/category";
 import type { Zone } from "@/services/zone";
@@ -171,6 +172,9 @@ export function usePrinterForm() {
   const [mappingType, setMappingType] = useState<PrinterMappingType>(
     initialForm.mappingType,
   );
+  const [sharingMode, setSharingMode] = useState<PrinterSharingMode>(
+    initialForm.sharingMode,
+  );
   const [selectedCategories, setSelectedCategories] = useState<string[]>(
     initialForm.selectedCategories,
   );
@@ -254,6 +258,7 @@ export function usePrinterForm() {
     setPaperWidth(values.paperWidth);
     setSelectedRoles(values.selectedRoles);
     setMappingType(values.mappingType);
+    setSharingMode(values.sharingMode);
     setSelectedCategories(values.selectedCategories);
     setSelectedZones(values.selectedZones);
     setSelectedDevice(values.selectedDevice);
@@ -465,6 +470,7 @@ export function usePrinterForm() {
         // backend บังคับ: ZONE ส่งทั้งโซนและหมวดหมู่ที่เลือกไว้, CATEGORY ส่งแค่หมวดหมู่
         // savePrinter() ใน config-api.ts เป็นจุดที่ตัด zone_uuid_fk ออกเมื่อไม่ใช่ ZONE
         mapping_type: mappingType,
+        sharing_mode: sharingMode,
         zone_uuid_fk: selectedZones,
         cate_uuid_fk: selectedCategories,
         agent_url: nextAgentUrl,
@@ -493,6 +499,8 @@ export function usePrinterForm() {
     roleOptions,
     mappingType,
     setMappingType,
+    sharingMode,
+    setSharingMode,
     categoryOptions,
     zoneOptions,
     connectType,

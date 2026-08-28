@@ -57,6 +57,7 @@ export function PrinterPage() {
 
   const listViewProps = {
     categories: printer.categories,
+    zones: printer.zones,
     filteredRows: printer.filteredRows,
     language: printer.language,
     printing: printer.printing,

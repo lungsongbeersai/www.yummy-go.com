@@ -86,6 +86,8 @@
     "noAccount": "Don't have an account?",
     "or": "or",
     "password": "Password",
+    "pasteFailed": "Couldn't read the clipboard",
+    "pasteFromClipboard": "Paste from clipboard",
     "rememberMe": "Remember me",
     "register": "Register",
     "showPassword": "Show password",

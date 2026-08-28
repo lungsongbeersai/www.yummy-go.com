@@ -61,6 +61,8 @@ export type {
   PrinterMappingType,
   PrinterRole,
   PrinterRolesResponse,
+  PrinterSharingMode,
+  PrinterZone,
   ResolvedPrinter,
   SaveCategoryPrinterInput,
   SaveCategoryRoleInput,

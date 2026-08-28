@@ -11,11 +11,11 @@ const config: CapacitorConfig = {
     // เปลี่ยน IP นี้ถ้า PC เปลี่ยนเครือข่าย/เช็คด้วย `ipconfig` (adapter Wi-Fi)
     // ต้องเปลี่ยนกลับเป็น https://yummy-go.com ก่อน sync/build ตัว release จริง
 
-    url: "https://yummy-go.com",
-    cleartext: false,
+    // url: "https://yummy-go.com",
+    // cleartext: false,
 
-    // url: "http://192.168.100.247:3000",
-    // cleartext: true,
+    url: "http://192.168.100.247:3000",
+    cleartext: true,
 
     androidScheme: "https",
     iosScheme: "https",

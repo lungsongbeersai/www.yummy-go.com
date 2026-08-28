@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Category } from "@/services/category";
 import type { Printer } from "@/services/printer";
+import type { Zone } from "@/services/zone";
 import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
 import { usePrinterStore } from "@/stores/printer-store";
 import { useReferenceStore } from "@/stores/reference-store";
@@ -18,6 +19,7 @@ import {
 } from "./printer-page-utils";
 
 const EMPTY_CATEGORIES: Category[] = [];
+const EMPTY_ZONES: Zone[] = [];
 
 export function usePrinterPage() {
   const { i18n, t } = useTranslation();
@@ -42,6 +44,9 @@ export function usePrinterPage() {
   const categories = (useReferenceStore((state) => state.options.categories) ??
     EMPTY_CATEGORIES) as Category[];
   const loadCategories = useReferenceStore((state) => state.loadCategories);
+  const zones = (useReferenceStore((state) => state.options.zones) ??
+    EMPTY_ZONES) as Zone[];
+  const loadZones = useReferenceStore((state) => state.loadZones);
   const [deleteTarget, setDeleteTarget] = useState<Printer | null>(null);
   const [testingUuid, setTestingUuid] = useState("");
   const [togglingUuid, setTogglingUuid] = useState("");
@@ -52,6 +57,7 @@ export function usePrinterPage() {
 
   const language = i18n.language;
   const storeUuid = authStoreUuid(user);
+  const branchUuid = user?.branch_uuid;
   const roleItemsByPrinter = useMemo(
     () =>
       new Map(
@@ -133,6 +139,7 @@ export function usePrinterPage() {
         loadPrintersForLocalAgent({ login_uuid_fk: loginUuid, lang: language }),
         loadRoles(language),
         storeUuid ? loadCategories(language, storeUuid) : Promise.resolve([]),
+        loadZones(language, branchUuid),
       ]);
     } catch (error) {
       showToast({
@@ -142,10 +149,12 @@ export function usePrinterPage() {
       });
     }
   }, [
+    branchUuid,
     language,
     loadCategories,
     loadPrintersForLocalAgent,
     loadRoles,
+    loadZones,
     loginUuid,
     showToast,
     storeUuid,
@@ -253,6 +262,7 @@ export function usePrinterPage() {
     printers,
     printing,
     categories,
+    zones,
     roleItemsByPrinter,
     statusLabels,
     activeAgentFiles,

@@ -132,7 +132,7 @@ export function PackageWorkspace({
         </div>
       ) : null}
 
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain touch-pan-y px-3 py-3 sm:px-4 lg:px-5">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain touch-pan-y px-3 py-3 pb-[calc(0.75rem+max(env(safe-area-inset-bottom),var(--app-shell-bottom-nav-height,0px)))] sm:px-4 lg:px-5">
         {initialLoading ? (
           <PricingGridSkeleton />
         ) : blockingLoadError ? null : billingCycles.length === 0 ? (
