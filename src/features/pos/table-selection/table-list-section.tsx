@@ -260,7 +260,7 @@ function ZoneToggleItem({
   return (
     <ToggleGroupItem
       className={cn(
-        "h-8 gap-1 rounded-full border border-transparent px-2.5 text-sm font-black shadow-sm transition data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow-primary/20",
+        "h-8 gap-1 rounded-full border border-transparent px-2.5 text-sm font-black shadow-sm transition motion-safe:active:scale-95 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow-primary/20",
         !active && "border-border bg-card hover:border-primary/30 hover:bg-primary/5",
         // ใช้ ring กะพริบแทนพื้นหลังกะพริบ — พื้นหลังกะพริบชนสี text-destructive จนคอนทราสต์ไม่ผ่าน WCAG AA
         hasAlert && "pos-chip-alert-ring"
@@ -297,7 +297,7 @@ function StatusToggleItem({
   return (
     <ToggleGroupItem
       className={cn(
-        "h-8 gap-1 rounded-full border border-transparent px-2.5 text-sm font-black shadow-sm transition data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow-primary/20",
+        "h-8 gap-1 rounded-full border border-transparent px-2.5 text-sm font-black shadow-sm transition motion-safe:active:scale-95 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow-primary/20",
         !active && "border-border bg-card hover:border-primary/30 hover:bg-primary/5"
       )}
       value={value}
@@ -481,7 +481,7 @@ function TableCard({
         tabIndex={0}
         aria-pressed={selected}
         className={cn(
-          "cursor-pointer overflow-hidden rounded-xl bg-card p-0 shadow-sm outline-none ring-border transition hover:ring-primary/70 hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring/30",
+          "cursor-pointer overflow-hidden rounded-xl bg-card p-0 shadow-sm outline-none ring-border transition motion-safe:active:scale-[0.97] hover:ring-primary/70 hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring/30",
           style.card,
           // ring กะพริบซ้อนทับสีสถานะเดิม — บอกว่ามีออเดอร์ใหม่เข้ามาสด ๆ โดยไม่เปลี่ยนสีการ์ด
           hasOrderAlert && "pos-table-card-alert",
