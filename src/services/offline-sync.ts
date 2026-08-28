@@ -36,11 +36,37 @@ const OFFLINE_GET_ROUTES = new Set([
   "/api/v1/customer/list",
   "/api/v1/printer/fetch",
   "/api/v1/printer/fetch_all",
+  "/api/v1/branch/fetch_limit",
+  "/api/v1/branch/fetch_all",
+  "/api/v1/groups/fetch_limit",
+  "/api/v1/groups/fetch_all",
+  "/api/v1/category/fetch_limit",
+  "/api/v1/unite/fetch_limit",
+  "/api/v1/unite/fetch_all",
+  "/api/v1/sizes/fetch_limit",
+  "/api/v1/sizes/fetch_all",
+  "/api/v1/topping/fetch_limit",
+  "/api/v1/topping/fetch_all",
+  "/api/v1/colors/fetch_limit",
+  "/api/v1/status/fetch_all",
+  "/api/v1/product/fetch_limit",
+  "/api/v1/product/stock_qty",
+  "/api/v1/register/fetch_limit",
+  "/api/v1/report/sale_report",
+  "/api/v1/report_all/sale_report_bill",
+  "/api/v1/report_all/sale_report_list",
+  "/api/v1/report_all/sale_list",
+  "/api/v1/report_all/payment_summary_by_method",
+  "/api/v1/report_all/group_list",
+  "/api/v1/report_all/daily_closing",
+  "/api/v1/best_selling/best_selling_products",
+  "/api/v1/dashboard/executive",
 ]);
 
 const LOCAL_READ_ROUTES = new Set([
   "POST /api/v1/posAll/get_prod_item",
   "POST /api/v1/posAll/init_order_without_table",
+  "POST /api/v1/status/fetch_size",
 ]);
 
 const LOCAL_PRINT_OWNER_ROUTES = new Set([
@@ -342,7 +368,13 @@ export async function prepareOfflineSession(input: OfflineSessionInput) {
   );
   if (!response.data.ok) return false;
   try {
-    await warmOfflineRoutes(["/", "/login", "/pos/tables", "/pos/order"]);
+    await warmOfflineRoutes([
+      "/", "/login", "/pos/tables", "/pos/order", "/order_manage",
+      "/products", "/stock", "/sales/sales-list", "/report/daily-closing",
+      "/report/daily-sales", "/report/best-selling-products",
+      "/report/payment-methods", "/report/category-sales",
+      "/settings/user", "/settings/branch",
+    ]);
   } catch {
     // Local data/auth is already ready even when this browser cannot use a service worker.
   }

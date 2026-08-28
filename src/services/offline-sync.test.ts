@@ -53,7 +53,18 @@ describe("offline sync transport", () => {
   it("allows GET fallback from the exact local response cache", () => {
     expect(supportsOfflineRoute("get", "/api/v1/posAll/fetch_table")).toBe(true);
     expect(supportsOfflineRoute("get", "/api/v1/posAll/customer_order_queue?status=1")).toBe(true);
-    expect(supportsOfflineRoute("get", "/api/v1/dashboard/executive")).toBe(false);
+    expect(supportsOfflineRoute("get", "/api/v1/product/fetch_limit")).toBe(true);
+    expect(supportsOfflineRoute("get", "/api/v1/product/stock_qty")).toBe(true);
+    expect(supportsOfflineRoute("get", "/api/v1/report_all/sale_list")).toBe(true);
+    expect(supportsOfflineRoute("get", "/api/v1/report_all/daily_closing")).toBe(true);
+    expect(supportsOfflineRoute("get", "/api/v1/report_all/sale_report_bill")).toBe(true);
+    expect(supportsOfflineRoute("get", "/api/v1/report_all/sale_report_list")).toBe(true);
+    expect(supportsOfflineRoute("get", "/api/v1/report_all/payment_summary_by_method")).toBe(true);
+    expect(supportsOfflineRoute("get", "/api/v1/report_all/group_list")).toBe(true);
+    expect(supportsOfflineRoute("get", "/api/v1/best_selling/best_selling_products")).toBe(true);
+    expect(supportsOfflineRoute("get", "/api/v1/register/fetch_limit")).toBe(true);
+    expect(supportsOfflineRoute("post", "/api/v1/status/fetch_size")).toBe(true);
+    expect(supportsOfflineRoute("get", "/api/v1/dashboard/executive")).toBe(true);
     expect(supportsOfflineRoute("get", "/api/v1/permission/menu")).toBe(false);
     expect(supportsOfflineRoute("post", "/api/v1/posAll/get_prod_item")).toBe(true);
     expect(supportsOfflineRoute("post", "/api/v1/posAll/init_order_without_table")).toBe(true);

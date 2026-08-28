@@ -4,7 +4,13 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/stores/auth-store";
 
-const OFFLINE_ROUTES = ["/", "/login", "/pos/tables", "/pos/order"] as const;
+const OFFLINE_ROUTES = [
+  "/", "/login", "/pos/tables", "/pos/order", "/order_manage",
+  "/products", "/stock", "/sales/sales-list", "/report/daily-closing",
+  "/report/daily-sales", "/report/best-selling-products",
+  "/report/payment-methods", "/report/category-sales",
+  "/settings/user", "/settings/branch",
+] as const;
 
 export function OfflineAppRuntime() {
   const router = useRouter();
