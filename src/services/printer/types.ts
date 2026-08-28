@@ -41,9 +41,9 @@ export interface PrinterCategory extends ApiEntity {
   cate_name_la?: string;
   cate_name_eng?: string;
 }
-// backend เพิ่งเพิ่ม mapping_type — เลือกได้อย่างใดอย่างหนึ่งเท่านั้นระหว่างโซนกับหมวดหมู่
-// ต่อเครื่องพิมพ์หนึ่งเครื่อง คนละฟิลด์กันตามชนิด: ZONE ใช้ zone_uuid_fk, CATEGORY ใช้ cate_uuid_fk
-// (ไม่ใช่ฟิลด์เดียวกันใช้ซ้ำ — ทั้งสองฟิลด์แยกกันจริงบน wire)
+// backend เพิ่งเพิ่ม mapping_type — ZONE ต้องเลือกทั้งโซนและหมวดหมู่ (บังคับคู่กัน), CATEGORY
+// เลือกแค่หมวดหมู่ คนละฟิลด์กันตามชนิด: ZONE ใช้ zone_uuid_fk + cate_uuid_fk, CATEGORY ใช้แค่
+// cate_uuid_fk (ไม่ใช่ฟิลด์เดียวกันใช้ซ้ำ — ทั้งสองฟิลด์แยกกันจริงบน wire)
 export type PrinterMappingType = "ZONE" | "CATEGORY";
 export interface Printer extends ApiEntity {
   print_config_id?: string;
@@ -70,6 +70,8 @@ export interface Printer extends ApiEntity {
   // CATEGORY (พฤติกรรมเดิมก่อนมีโซน) ดู mappingTypeOf() ใน printer-form-utils.ts
   mapping_type?: PrinterMappingType;
   categories?: PrinterCategory[];
+  // มีความหมายทั้งสอง mapping_type: CATEGORY ใช้เป็นหมวดหมู่หลัก, ZONE ใช้เป็นหมวดหมู่ที่บังคับ
+  // เลือกคู่กับโซน (ดู zone_uuid_fk ด้านล่าง)
   cate_uuid_fk: string[];
   // มีค่าเฉพาะเครื่องพิมพ์ที่ mapping_type = ZONE เท่านั้น — คนละฟิลด์กับ cate_uuid_fk
   zone_uuid_fk?: string[];
@@ -115,8 +117,10 @@ export interface SavePrinterInput extends ApiEntity {
   paper_width_mm: number;
   role_codes: string[];
   mapping_type: PrinterMappingType;
-  // ตัวเลือกที่ผู้ใช้เลือกไว้ (โซนหรือหมวดหมู่ แล้วแต่ mapping_type) — savePrinter() ใน
-  // config-api.ts เป็นจุดเดียวที่แปลงเป็นฟิลด์ wire ที่ถูกต้อง (zone_uuid_fk หรือ cate_uuid_fk)
+  // backend บังคับ: mapping_type = ZONE ต้องส่งทั้ง zone_uuid_fk และ cate_uuid_fk (เลือกหมวดหมู่
+  // ด้วยเสมอ); mapping_type = CATEGORY ส่งแค่ cate_uuid_fk — savePrinter() ใน config-api.ts
+  // เป็นจุดเดียวที่ตัดฟิลด์ zone_uuid_fk ออกเมื่อไม่ใช่ ZONE
+  zone_uuid_fk?: string[];
   cate_uuid_fk?: string[];
   agent_url: string;
   agent_id: string;
@@ -302,9 +306,34 @@ export interface DefaultCategoryByRoleInput extends ApiEntity {
   print_config_uuid_fk?: string;
   lang?: string;
 }
-export interface DefaultCategoryGroupDetail extends ApiEntity { }
-export interface DefaultCategoryGroup extends ApiEntity { }
-export interface DefaultCategoryByRoleResponse extends ApiEntity { }
+// รายละเอียดต่อกลุ่มมีฟิลด์คนละชุดตาม mapping_type: ZONE ใช้ zone_uuid/zone_name,
+// CATEGORY ใช้ cate_uuid/cate_name — ไม่ใช่ทั้งสองอย่างพร้อมกันในรายการเดียว
+export interface DefaultCategoryZoneDetail extends ApiEntity {
+  zone_uuid: string;
+  zone_name?: string;
+  is_default: boolean;
+}
+export interface DefaultCategoryCategoryDetail extends ApiEntity {
+  cate_uuid: string;
+  cate_name?: string;
+  is_default: boolean;
+}
+export type DefaultCategoryGroupDetail = DefaultCategoryZoneDetail | DefaultCategoryCategoryDetail;
+export interface DefaultCategoryGroup extends ApiEntity {
+  status_sort: number;
+  status_name: PrinterMappingType;
+  mapping_type: PrinterMappingType;
+  details: DefaultCategoryGroupDetail[];
+}
+export interface DefaultCategoryByRoleData extends ApiEntity {
+  lang?: string;
+  role_codes: string[];
+  print_config_uuid_fk?: string | null;
+  selected_from_saved_config: boolean;
+  mapping_type: PrinterMappingType;
+  groups: DefaultCategoryGroup[];
+}
+export type DefaultCategoryByRoleResponse = ApiDataResponse<DefaultCategoryByRoleData>;
 export interface PrintProgress { total: number; completed: number; successCount: number; failedCount: number; phase: "fetching" | "printing" | "done" }
 export interface ExecuteKitchenPrintInput {
   print_job?: ConfirmToKitchenPrintJob;

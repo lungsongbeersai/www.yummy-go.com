@@ -123,10 +123,10 @@ export function mappingTypeOf(printer: Printer | null): PrinterMappingType {
   return printer?.mapping_type ?? "CATEGORY";
 }
 
-// ต้องเช็ค mapping_type ก่อนอ่านทุกครั้ง — เครื่องพิมพ์ที่ตั้งเป็นโซนจะไม่มี cate_uuid_fk
-// ที่มีความหมาย (backend เก็บโซนไว้ที่ zone_uuid_fk คนละฟิลด์กัน)
+// cate_uuid_fk มีความหมายทั้งสอง mapping_type แล้ว — ZONE ก็บังคับเลือกหมวดหมู่คู่กับโซนด้วย
+// (backend contract ใหม่) จึงอ่านได้ตรงๆ ไม่ต้องกรองตาม mapping_type อีกต่อไป
 export function categoryUuids(printer: Printer | null) {
-  if (!printer || mappingTypeOf(printer) !== "CATEGORY") return [];
+  if (!printer) return [];
   if (printer.cate_uuid_fk.length) return printer.cate_uuid_fk;
   return (
     printer.categories?.map((category) => category.cate_uuid).filter(Boolean) ??

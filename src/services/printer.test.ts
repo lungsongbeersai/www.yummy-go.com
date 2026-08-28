@@ -1403,7 +1403,7 @@ describe("printer API payloads", () => {
     );
   });
 
-  it("sends zone_uuid_fk (not cate_uuid_fk) when mapping_type is ZONE", async () => {
+  it("sends both zone_uuid_fk and cate_uuid_fk when mapping_type is ZONE", async () => {
     apiMocks.apiRequest.mockResolvedValue({
       data: {
         print_config_uuid: "printer-1",
@@ -1426,7 +1426,8 @@ describe("printer API payloads", () => {
       paper_width_mm: 80,
       role_codes: ["kitchen"],
       mapping_type: "ZONE",
-      cate_uuid_fk: ["zone-uuid-1", "zone-uuid-2"],
+      zone_uuid_fk: ["zone-uuid-1", "zone-uuid-2"],
+      cate_uuid_fk: ["cate-uuid-1"],
       agent_url: BROWSER_PRINTER_AGENT_URL,
       agent_id: BROWSER_PRINTER_AGENT_ID,
       agent_name: "Android Phone",
@@ -1436,9 +1437,9 @@ describe("printer API payloads", () => {
     const [, , { data }] = apiMocks.apiRequest.mock.calls[0];
     expect(data).toMatchObject({
       mapping_type: "ZONE",
-      zone_uuid_fk: ["zone-uuid-1", "zone-uuid-2"]
+      zone_uuid_fk: ["zone-uuid-1", "zone-uuid-2"],
+      cate_uuid_fk: ["cate-uuid-1"]
     });
-    expect(data).not.toHaveProperty("cate_uuid_fk");
   });
 
   it("sends cate_uuid_fk (not zone_uuid_fk) when mapping_type is CATEGORY", async () => {
