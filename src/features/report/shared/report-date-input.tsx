@@ -120,7 +120,19 @@ export function ReportDateInput({
         // ยิงติดกันเร็วมาก ทำให้ dismiss-detection ของ Popover เข้าใจผิดว่าแตะ "นอก" ตัวเอง
         // ทั้งที่จริงแตะ dropdown ของ Select ที่ซ้อนอยู่ (เจอผ่านการจำลอง touch event ตรงๆ)
         // กันด้วยการเช็คว่าปลายทางอยู่ใน popper wrapper อื่นไหม ถ้าใช่ไม่ต้องปิด
+        //
+        // ของเดิมกัน onPointerDownOutside อย่างเดียว — DismissableLayer ของ Radix (ตัวขับ
+        // การปิด Popover เวลาแตะ/โฟกัสออกนอกตัว) มีอีกเส้นทางคือ onFocusOutside ซึ่งแยกจาก
+        // pointerdown โดยสิ้นเชิง บน Android WebView การแตะปุ่มเลื่อนโฟกัสไปที่ trigger ของ
+        // Select ซึ่งนับเป็น "โฟกัสออกนอก Popover" แล้ว Popover เลยปิดตัวเองผ่านเส้นทางนี้
+        // ก่อนที่ Select จะทันเปิดเมนู เลยดูเหมือนปุ่มเดือน/ปีกดไม่ติดเลย ต้องกันทั้งสองเส้นทาง
         onPointerDownOutside={(event) => {
+          const target = event.target as HTMLElement | null;
+          if (target?.closest("[data-radix-popper-content-wrapper]")) {
+            event.preventDefault();
+          }
+        }}
+        onFocusOutside={(event) => {
           const target = event.target as HTMLElement | null;
           if (target?.closest("[data-radix-popper-content-wrapper]")) {
             event.preventDefault();

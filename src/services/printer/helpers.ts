@@ -42,6 +42,10 @@ function stringValue(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
+function optionalBoolean(value: unknown) {
+  return value === undefined ? undefined : Boolean(value);
+}
+
 function activeLabel(item: Record<string, unknown>) {
   const keys = [
     "is_active_label",
@@ -91,7 +95,12 @@ export function mapPrinter(item: Record<string, unknown>): Printer {
     font_size: item.font_size === undefined ? undefined : Number(item.font_size),
     role_codes: stringArray(item.role_codes),
     categories: Array.isArray(item.categories) ? item.categories as PrinterCategory[] : [],
-    cate_uuid_fk: stringArray(item.cate_uuid_fk)
+    cate_uuid_fk: stringArray(item.cate_uuid_fk),
+    is_owner: optionalBoolean(item.is_owner),
+    is_shared: optionalBoolean(item.is_shared),
+    owner_device_code: item.owner_device_code === undefined ? undefined : String(item.owner_device_code),
+    can_edit: optionalBoolean(item.can_edit),
+    can_delete: optionalBoolean(item.can_delete)
   };
 }
 

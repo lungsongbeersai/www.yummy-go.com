@@ -78,6 +78,10 @@ interface DataTableProps<T extends Record<string, unknown>> {
   idKey: keyof T;
   onEdit?: (row: T) => void;
   onDelete?: (row: T) => void;
+  // เกตสิทธิ์รายแถว (เช่น เครื่องพิมพ์ที่ถูกแชร์มาจากอุปกรณ์อื่นแก้ไข/ลบไม่ได้) — ไม่ระบุ = แก้ไข/ลบได้ทุกแถว
+  // เหมือนเดิม ปุ่มยังโชว์แต่ disabled แทนการซ่อน ผู้ใช้จะได้เห็นว่ามีสิทธิ์นี้อยู่แค่ใช้ไม่ได้กับแถวนี้
+  editable?: (row: T) => boolean;
+  deletable?: (row: T) => boolean;
   actions?: TableRowAction<T>[];
   selectable?: boolean;
   // ค่าเริ่มต้นของ selection ตอน mount เท่านั้น (ไม่ใช่ controlled) — ใช้ตอนอยากให้ทุกแถว
@@ -105,6 +109,8 @@ export function DataTable<T extends Record<string, unknown>>({
   idKey,
   onEdit,
   onDelete,
+  editable,
+  deletable,
   actions = [],
   selectable = false,
   defaultSelectedIds,
@@ -196,7 +202,10 @@ export function DataTable<T extends Record<string, unknown>>({
       <DropdownMenuContent align="end" className="w-44">
         <DropdownMenuGroup>
           {onEdit ? (
-            <DropdownMenuItem onSelect={() => onEdit(row)}>
+            <DropdownMenuItem
+              disabled={editable ? !editable(row) : false}
+              onSelect={() => onEdit(row)}
+            >
               <Pencil />
               {t("actions.edit")}
             </DropdownMenuItem>
@@ -225,7 +234,11 @@ export function DataTable<T extends Record<string, unknown>>({
           <>
             {onEdit || actions.length ? <DropdownMenuSeparator /> : null}
             <DropdownMenuGroup>
-              <DropdownMenuItem variant="destructive" onSelect={() => onDelete(row)}>
+              <DropdownMenuItem
+                variant="destructive"
+                disabled={deletable ? !deletable(row) : false}
+                onSelect={() => onDelete(row)}
+              >
                 <Trash2 />
                 {t("actions.delete")}
               </DropdownMenuItem>

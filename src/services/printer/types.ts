@@ -52,6 +52,7 @@ export interface PrinterZone extends ApiEntity {
 // cate_uuid_fk (ไม่ใช่ฟิลด์เดียวกันใช้ซ้ำ — ทั้งสองฟิลด์แยกกันจริงบน wire)
 export type PrinterMappingType = "ZONE" | "CATEGORY";
 export type PrinterSharingMode = "SHARED" | "DEDICATED";
+export type PrinterSource = "OWN" | "SHARED";
 export interface Printer extends ApiEntity {
   print_config_id?: string;
   print_config_uuid: string;
@@ -86,6 +87,16 @@ export interface Printer extends ApiEntity {
   // มีค่าเฉพาะเครื่องพิมพ์ที่ mapping_type = ZONE เท่านั้น — คนละฟิลด์กับ cate_uuid_fk
   zone_uuid_fk?: string[];
   zones?: PrinterZone[];
+  // เครื่องพิมพ์ที่ผู้ใช้/อุปกรณ์ปัจจุบันเป็นเจ้าของ (ดู device_code) เทียบกับที่เห็นเพราะถูกแชร์มาจากอุปกรณ์อื่น
+  // (sharing_mode = SHARED ของเจ้าของ) — ทั้ง 6 ฟิลด์นี้ backend เพิ่งเพิ่ม เครื่องพิมพ์เก่าอาจไม่มีมา
+  is_owner?: boolean;
+  is_shared?: boolean;
+  printer_source?: PrinterSource;
+  owner_device_code?: string;
+  // สิทธิ์แก้ไข/ลบจริงจาก backend (เจ้าของ = true, เห็นเพราะถูกแชร์มา = false) — UI ต้องเช็คฟิลด์นี้
+  // แทนการอนุมานจาก is_owner เอง เผื่อ backend มีเงื่อนไขสิทธิ์เพิ่มเติมในอนาคต
+  can_edit?: boolean;
+  can_delete?: boolean;
 }
 export interface PrinterRole extends ApiEntity { role_code: string; role_name: string }
 export interface AgentFile extends ApiEntity {

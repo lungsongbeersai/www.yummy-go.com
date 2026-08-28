@@ -14,6 +14,8 @@ import {
   FieldSet,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Select,
   SelectContent,
@@ -23,8 +25,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
-import { Switch } from "@/components/ui/switch";
-import type { PrinterMappingType, SearchPrinterResult } from "@/services/printer";
+import type {
+  PrinterMappingType,
+  PrinterSharingMode,
+  SearchPrinterResult,
+} from "@/services/printer";
 import { CheckboxOptionList } from "./printer-form-fields";
 import {
   formatIpInput,
@@ -223,35 +228,41 @@ export function PrinterFormPage() {
                     onChange={(event) => form.setPaperWidth(event.target.value)}
                   />
                 </Field>
-                <Field
-                  orientation="horizontal"
-                  className="justify-between gap-3 rounded-md border border-border bg-muted/20 px-4 py-3 md:col-span-2"
-                >
-                  <div className="min-w-0">
-                    <FieldLabel htmlFor="printer-sharing-mode">
-                      {t("printer.sharingMode")}
-                    </FieldLabel>
-                    <FieldDescription>
-                      {t("printer.sharingModeHint")}
-                    </FieldDescription>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    <span className="text-sm text-muted-foreground">
-                      {form.sharingMode === "SHARED"
-                        ? t("printer.sharingModeShared")
-                        : t("printer.sharingModeDedicated")}
-                    </span>
-                    <Switch
-                      id="printer-sharing-mode"
-                      checked={form.sharingMode === "SHARED"}
-                      disabled={form.saving}
-                      onCheckedChange={(checked) =>
-                        form.setSharingMode(
-                          checked ? "SHARED" : "DEDICATED",
-                        )
-                      }
-                    />
-                  </div>
+                <Field className="md:col-span-2">
+                  <FieldLabel htmlFor="printer-sharing-mode-shared">
+                    {t("printer.sharingMode")}
+                  </FieldLabel>
+                  <FieldDescription>
+                    {t("printer.sharingModeHint")}
+                  </FieldDescription>
+                  <RadioGroup
+                    value={form.sharingMode}
+                    onValueChange={(value) =>
+                      form.setSharingMode(value as PrinterSharingMode)
+                    }
+                    className="flex flex-row flex-wrap gap-6"
+                  >
+                    <div className="flex items-center gap-3">
+                      <RadioGroupItem
+                        id="printer-sharing-mode-shared"
+                        value="SHARED"
+                        disabled={form.saving}
+                      />
+                      <Label htmlFor="printer-sharing-mode-shared">
+                        {t("printer.sharingModeShared")}
+                      </Label>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <RadioGroupItem
+                        id="printer-sharing-mode-dedicated"
+                        value="DEDICATED"
+                        disabled={form.saving}
+                      />
+                      <Label htmlFor="printer-sharing-mode-dedicated">
+                        {t("printer.sharingModeDedicated")}
+                      </Label>
+                    </div>
+                  </RadioGroup>
                 </Field>
               </FieldGroup>
             </FieldSet>

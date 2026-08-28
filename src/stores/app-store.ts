@@ -6,18 +6,17 @@ import { DEFAULT_LANGUAGE, type Language } from "@/lib/language";
 
 export type ThemeMode = "light" | "dark";
 export type ThemeColor = "emerald" | "blue" | "amber" | "rose" | "violet";
-export type FontScale = "xs" | "sm" | "md" | "lg" | "xl";
+export type FontScale = "sm" | "md" | "lg" | "xl";
 
 // แหล่งความจริงเดียวของค่าที่ใช้ได้ — UI ตั้งค่าหน้าตาทุกตัว (AppearanceControls) อ่านจากที่นี่
 // แทนการประกาศ array ซ้ำในแต่ละ component ซึ่งเคยหลุดออกจากกันมาแล้ว
 export const THEME_COLORS: readonly ThemeColor[] = ["emerald", "blue", "amber", "rose", "violet"];
-export const FONT_SCALES: readonly FontScale[] = ["xs", "sm", "md", "lg", "xl"];
+export const FONT_SCALES: readonly FontScale[] = ["sm", "md", "lg", "xl"];
 
 // px ที่แต่ละขั้นตั้งใจให้ตัวอักษรอ้างอิง (text-base) กลายเป็นจริง ๆ บนจอ — md คือ 16px
 // เดิม (ไม่ scale) ตรงกับ root font-size เริ่มต้นของเบราว์เซอร์พอดี จึงไล่ขั้นละ 2px คูณ/หาร
-// ด้วย 16 ได้ % ที่ลงตัว (75/87.5/100/112.5/125) ไม่ต้องปัดเศษ
+// ด้วย 16 ได้ % ที่ลงตัว (87.5/100/112.5/125) ไม่ต้องปัดเศษ — เอา xs (75%/12px) ออกเพราะเล็กเกินไป
 export const FONT_SCALE_PX: Record<FontScale, number> = {
-  xs: 12,
   sm: 14,
   md: 16,
   lg: 18,

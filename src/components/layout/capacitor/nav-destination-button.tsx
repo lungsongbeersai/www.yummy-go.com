@@ -17,10 +17,16 @@ import { internalRoute } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import type { MenuItem } from "@/config/menu";
 
-export function DestinationIcon({ item }: { item: MenuItem }) {
+export function DestinationIcon({
+  className = "size-5 shrink-0",
+  item,
+}: {
+  className?: string;
+  item: MenuItem;
+}) {
   const Icon = item.icon;
-  if (Icon) return <Icon className="size-5 shrink-0" />;
-  if (item.iconName) return <MenuIcon value={item.iconName} className="size-5 shrink-0" />;
+  if (Icon) return <Icon className={className} />;
+  if (item.iconName) return <MenuIcon value={item.iconName} className={className} />;
   return null;
 }
 
