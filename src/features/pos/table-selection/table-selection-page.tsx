@@ -94,7 +94,14 @@ export function TableSelectionPage() {
   function selectTable(table: PosTable) {
     const params = new URLSearchParams({ table_uuid: table.table_uuid });
     if (table.table_name) params.set("table_name", table.table_name);
-    router.push(`/pos/order?${params.toString()}`);
+    const target = `/pos/order?${params.toString()}` as const;
+    // A document navigation lets the service worker use the warmed /pos/order
+    // shell even when a Next.js RSC prefetch was not completed before Wi-Fi drops.
+    if (navigator.onLine === false) {
+      window.location.assign(target);
+      return;
+    }
+    router.push(target);
   }
 
   if (skipTableSelection) return null;
