@@ -1,0 +1,263 @@
+"use client";
+
+import axios from "axios";
+import { AGENT_URL } from "@/config/printer-agent";
+import type { HttpMethod, RequestOptions } from "@/lib/api";
+
+const OFFLINE_ROUTES = new Set([
+  "POST /api/v1/posAll/create_order",
+  "PATCH /api/v1/posAll/order_item/update_qty",
+  "PATCH /api/v1/posAll/item_discount",
+  "PATCH /api/v1/posAll/bill_discount",
+  "PATCH /api/v1/posAll/update_note",
+  "DELETE /api/v1/posAll/delete_order_item",
+  "PATCH /api/v1/posAll/confirm_to_kitchen",
+  "PATCH /api/v1/posAll/confirm_order_item_served",
+  "PATCH /api/v1/posAll/cancel_order_item",
+  "POST /api/v1/posAll/payment",
+]);
+
+const LOCAL_READ_ROUTES = new Set([
+  "POST /api/v1/posAll/get_prod_item",
+  "POST /api/v1/posAll/init_order_without_table",
+]);
+
+const LOCAL_PRINT_OWNER_ROUTES = new Set([
+  "PATCH /api/v1/posAll/confirm_to_kitchen",
+  "POST /api/v1/posAll/payment",
+]);
+
+export interface LocalSyncIdentity {
+  token: string;
+  actorLoginUuid: string;
+  storeUuid: string;
+  branchUuid: string;
+}
+
+interface LocalAgentResponse<T> {
+  ok: boolean;
+  data?: T;
+  error?: string;
+}
+
+interface PreparedOfflineRequest {
+  eventUuid: string | null;
+  options: RequestOptions | undefined;
+}
+
+function record(value: unknown): Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? { ...value as Record<string, unknown> }
+    : {};
+}
+
+function uuid() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (character) => {
+    const random = Math.floor(Math.random() * 16);
+    const value = character === "x" ? random : (random & 0x3) | 0x8;
+    return value.toString(16);
+  });
+}
+
+function routeKey(method: HttpMethod, url: string) {
+  return `${method.toUpperCase()} ${url.split("?")[0]}`;
+}
+
+function requestParams(url: string, params: Record<string, unknown> | undefined) {
+  const combined: Record<string, unknown> = { ...(params ?? {}) };
+  const query = url.includes("?") ? url.slice(url.indexOf("?") + 1) : "";
+  for (const [key, value] of new URLSearchParams(query).entries()) {
+    const current = combined[key];
+    if (current === undefined) combined[key] = value;
+    else if (Array.isArray(current)) combined[key] = [...current, value];
+    else combined[key] = [current, value];
+  }
+  return combined;
+}
+
+export function supportsOfflineRoute(method: HttpMethod, url: string) {
+  return method === "get" || OFFLINE_ROUTES.has(routeKey(method, url)) || LOCAL_READ_ROUTES.has(routeKey(method, url));
+}
+
+export function needsLocalPrintOwnership(method: HttpMethod, url: string) {
+  return LOCAL_PRINT_OWNER_ROUTES.has(routeKey(method, url));
+}
+
+export function withLocalPrintOwnership(options: RequestOptions | undefined): RequestOptions {
+  return {
+    ...options,
+    data: { ...record(options?.data), local_agent_print: true },
+  };
+}
+
+export function prepareOfflineRequest(
+  method: HttpMethod,
+  url: string,
+  options?: RequestOptions,
+): PreparedOfflineRequest {
+  if (!OFFLINE_ROUTES.has(routeKey(method, url))) return { eventUuid: null, options };
+  const data = record(options?.data);
+  const eventUuid = String(data.sync_event_uuid || uuid());
+  data.sync_event_uuid = eventUuid;
+
+  if (routeKey(method, url) === "POST /api/v1/posAll/create_order") {
+    data.order_uuid = String(data.order_uuid || uuid());
+    data.items = Array.isArray(data.items)
+      ? data.items.map((rawItem) => {
+        const item = record(rawItem);
+        return {
+          ...item,
+          order_it_uuid: String(item.order_it_uuid || item.order_item_uuid || uuid()),
+          stock_event_uuid: String(item.stock_event_uuid || uuid()),
+        };
+      })
+      : [];
+  }
+  if (routeKey(method, url) === "POST /api/v1/posAll/payment") {
+    data.payment_uuid = String(data.payment_uuid || uuid());
+  }
+  if ([
+    "PATCH /api/v1/posAll/order_item/update_qty",
+    "DELETE /api/v1/posAll/delete_order_item",
+    "PATCH /api/v1/posAll/cancel_order_item",
+  ].includes(routeKey(method, url))) {
+    data.stock_event_uuid = String(data.stock_event_uuid || uuid());
+  }
+
+  return {
+    eventUuid,
+    options: {
+      ...options,
+      data,
+      headers: {
+        ...options?.headers,
+        "x-sync-event-uuid": eventUuid,
+      },
+    },
+  };
+}
+
+function onlineApiBase() {
+  return process.env.NEXT_PUBLIC_BASE_URL ?? (typeof window !== "undefined" ? window.location.origin : "");
+}
+
+let configureKey = "";
+let configurePromise: Promise<boolean> | null = null;
+
+function clearFailedConfiguration(expectedKey: string) {
+  if (configureKey !== expectedKey) return;
+  configureKey = "";
+  configurePromise = null;
+}
+
+export function configureLocalSync(identity: LocalSyncIdentity): Promise<boolean> {
+  if (typeof window === "undefined" || !identity.token || !identity.actorLoginUuid) return Promise.resolve(false);
+  const nextKey = `${identity.branchUuid}:${identity.actorLoginUuid}:${identity.token.slice(-12)}`;
+  if (configureKey === nextKey && configurePromise) return configurePromise;
+  configureKey = nextKey;
+  configurePromise = axios.post<LocalAgentResponse<unknown>>(
+    `${AGENT_URL}/local/sync/configure`,
+    {
+      online_api_base: onlineApiBase(),
+      access_token: identity.token,
+      actor_login_uuid: identity.actorLoginUuid,
+      store_uuid: identity.storeUuid,
+      branch_uuid: identity.branchUuid,
+    },
+    { timeout: 2000 },
+  ).then((response) => {
+    const configured = response.data.ok === true;
+    if (!configured) clearFailedConfiguration(nextKey);
+    return configured;
+  }).catch(() => {
+    clearFailedConfiguration(nextKey);
+    return false;
+  });
+  return configurePromise;
+}
+
+export async function requestLocalFallback<T>(
+  method: HttpMethod,
+  url: string,
+  options: RequestOptions | undefined,
+  eventUuid: string | null,
+): Promise<T> {
+  const response = await axios.post<LocalAgentResponse<T>>(
+    `${AGENT_URL}/local/api`,
+    {
+      method: method.toUpperCase(),
+      path: url.split("?")[0],
+      params: requestParams(url, options?.params),
+      data: options?.data ?? {},
+      event_uuid: eventUuid,
+    },
+    { timeout: 10000 },
+  );
+  if (!response.data.ok || response.data.data === undefined) {
+    throw new Error(response.data.error || "Local Agent request failed");
+  }
+  return response.data.data;
+}
+
+export function cacheOnlineResponse(
+  method: HttpMethod,
+  url: string,
+  options: RequestOptions | undefined,
+  response: unknown,
+  branchUuid: string | undefined,
+) {
+  if (typeof window === "undefined") return;
+  if (method === "get") {
+    void axios.post(
+      `${AGENT_URL}/local/cache/record`,
+      {
+        method: "GET",
+        path: url.split("?")[0],
+        params: requestParams(url, options?.params),
+        response,
+        branch_uuid: branchUuid || null,
+      },
+      { timeout: 3000 },
+    ).catch(() => undefined);
+    return;
+  }
+  if (!OFFLINE_ROUTES.has(routeKey(method, url))) return;
+  void axios.post(
+    `${AGENT_URL}/local/mirror`,
+    {
+      method: method.toUpperCase(),
+      path: url.split("?")[0],
+      params: requestParams(url, options?.params),
+      data: options?.data ?? {},
+      response,
+    },
+    { timeout: 3000 },
+  ).catch(() => undefined);
+}
+
+export async function mirrorOnlineResponse(
+  method: HttpMethod,
+  url: string,
+  options: RequestOptions | undefined,
+  response: unknown,
+) {
+  await axios.post(
+    `${AGENT_URL}/local/mirror`,
+    {
+      method: method.toUpperCase(),
+      path: url.split("?")[0],
+      params: requestParams(url, options?.params),
+      data: options?.data ?? {},
+      response,
+    },
+    { timeout: 10000 },
+  );
+}
+
+export function resetLocalSyncConfiguration() {
+  configureKey = "";
+  configurePromise = null;
+}

@@ -94,11 +94,15 @@ async function sendBase64InChunks({
         const chunkIndex = Math.floor(i / safeChunkSize) + 1;
         const chunk = cleanBase64.slice(i, i + safeChunkSize);
 
-        console.log("[mobile-tcp] send chunk", {
-            chunkIndex,
-            totalChunks,
-            chunkLength: chunk.length,
-        });
+        // การ log ทุก chunk ทำให้ WebView ของ iOS/Android ช้าหนักเมื่อใบยาว
+        // เก็บเฉพาะ progress เป็นช่วง ๆ โดยไม่เปลี่ยนข้อมูลที่ส่งเข้า printer
+        if (chunkIndex === 1 || chunkIndex === totalChunks || chunkIndex % 25 === 0) {
+            console.log("[mobile-tcp] send progress", {
+                chunkIndex,
+                totalChunks,
+                chunkLength: chunk.length,
+            });
+        }
 
         await TcpSocket.send({
             client,
@@ -106,7 +110,9 @@ async function sendBase64InChunks({
             encoding: "base64",
         });
 
-        await sleep(delayMs);
+        if (chunkIndex < totalChunks && delayMs > 0) {
+            await sleep(delayMs);
+        }
     }
 
     console.log("[mobile-tcp] all chunks sent", {

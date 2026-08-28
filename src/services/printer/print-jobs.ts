@@ -11,6 +11,7 @@ import {
   assertAgentOk,
   failPayload,
   getPrinterErrorMessage,
+  printerRequestTimeoutMs,
   textValue
 } from "@/services/printer/helpers";
 import {
@@ -200,7 +201,7 @@ async function printKitchenBatchJob(batch: PrintOpsBatchPayload) {
 
   const { data } = await axios.post<PrintOpsBatchAgentResponse>(`${agentBase}/print-ops-batch`, batch, {
     headers: { "x-agent-secret": AGENT_SECRET },
-    timeout: 20000
+    timeout: printerRequestTimeoutMs(batch.jobs)
   });
   assertAgentOk(data, "Print failed");
 }

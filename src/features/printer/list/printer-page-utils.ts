@@ -12,6 +12,13 @@ export type PrinterTableRow = Printer & { row_number: number };
 
 export const TYPE_ALL = "all";
 export const STATUS_ALL = "all";
+export const OWNER_ALL = "all";
+export const OWNER_MINE = "own";
+export const OWNER_SHARED = "shared";
+export type PrinterOwnerFilter =
+  | typeof OWNER_ALL
+  | typeof OWNER_MINE
+  | typeof OWNER_SHARED;
 
 export const XPRINTER_DRIVER_URL =
   "/downloads/drivers/XPrinter%20Driver%20Setup%20V8.2.exe";
@@ -60,6 +67,16 @@ export function canDeletePrinter(printer: Printer) {
 // ไม่งั้นเครื่องพิมพ์เก่าทุกเครื่องจะขึ้น badge "แชร์มา" ผิด ๆ)
 export function isOwnedPrinter(printer: Printer) {
   return printer.is_owner ?? true;
+}
+
+export function matchesPrinterOwnership(
+  printer: Printer,
+  filter: PrinterOwnerFilter,
+) {
+  if (filter === OWNER_ALL) return true;
+  return filter === OWNER_MINE
+    ? isOwnedPrinter(printer)
+    : !isOwnedPrinter(printer);
 }
 
 export function zoneLabel(zone: Zone | PrinterZone, language: string) {

@@ -42,6 +42,9 @@ import { PrinterListCards } from "./printer-list-cards";
 import { PrinterListTable } from "./printer-list-table";
 import {
   agentDownloadUrl,
+  OWNER_ALL,
+  OWNER_MINE,
+  OWNER_SHARED,
   PRINTER_SETUP_DOWNLOAD_URL,
   STATUS_ALL,
   TYPE_ALL,
@@ -260,7 +263,7 @@ export function PrinterPage() {
             </ToggleGroup>
           </div>
 
-          <div className="grid grid-cols-[minmax(0,1fr)_2.25rem] gap-2 md:grid-cols-[minmax(0,1fr)_2.25rem_10rem_10rem] lg:grid-cols-[minmax(0,1fr)_2.25rem_10rem_10rem]">
+          <div className="grid grid-cols-[minmax(0,1fr)_2.25rem] gap-2 md:grid-cols-[minmax(0,1fr)_2.25rem_10rem_10rem_10rem]">
             <Field className="gap-1 md:col-span-1">
               <FieldLabel htmlFor="printer-search-filter" className="sr-only">
                 {t("actions.search")}
@@ -284,6 +287,44 @@ export function PrinterPage() {
             >
               <RefreshCcw />
             </Button>
+
+            <Select
+              value={printer.ownerFilter}
+              onValueChange={(value) => {
+                if (
+                  value === OWNER_ALL ||
+                  value === OWNER_MINE ||
+                  value === OWNER_SHARED
+                ) {
+                  printer.setOwnerFilter(value);
+                }
+              }}
+            >
+              <Field className="col-span-2 gap-1 md:col-span-1">
+                <FieldLabel htmlFor="printer-owner-filter" className="sr-only">
+                  {t("printer.ownerColumn")}
+                </FieldLabel>
+                <SelectTrigger
+                  id="printer-owner-filter"
+                  className="h-9 w-full bg-background text-sm font-semibold"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent position="popper">
+                  <SelectGroup>
+                    <SelectItem value={OWNER_ALL}>
+                      {t("printer.allOwnership")}
+                    </SelectItem>
+                    <SelectItem value={OWNER_MINE}>
+                      {t("printer.myPrinters")}
+                    </SelectItem>
+                    <SelectItem value={OWNER_SHARED}>
+                      {t("printer.sharedPrinters")}
+                    </SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Field>
+            </Select>
 
             <Select value={printer.typeFilter} onValueChange={printer.setTypeFilter}>
               <Field className="col-span-2 gap-1 md:col-span-1">

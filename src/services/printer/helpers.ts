@@ -8,6 +8,19 @@ import { stringArray } from "@/services/shared/validators";
 // Shared across the printer/ submodules (config-api, agent-transport, print-jobs).
 export const AGENT_SECRET = process.env.NEXT_PUBLIC_PRINTER_AGENT_SECRET ?? "";
 
+// งานใบยาวต้องรอทั้ง render และส่งข้อมูลตามความเร็ว buffer ของเครื่องพิมพ์
+// ใช้จำนวน ops คำนวณ timeout เฉพาะ printer transport โดยไม่แตะ timeout API อื่น
+export function printerRequestTimeoutMs(
+  jobs: Array<{ ops?: unknown[] } | null | undefined>
+) {
+  const opsTotal = jobs.reduce(
+    (sum, job) => sum + (Array.isArray(job?.ops) ? job.ops.length : 0),
+    0
+  );
+
+  return Math.min(300_000, Math.max(30_000, 15_000 + opsTotal * 100));
+}
+
 export function textValue(value: unknown) {
   return String(value ?? "").trim();
 }

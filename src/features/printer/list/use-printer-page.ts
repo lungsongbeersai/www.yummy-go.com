@@ -12,6 +12,9 @@ import { useToastStore } from "@/stores/toast-store";
 import {
   agentDownloadUrl,
   categoryLabel,
+  matchesPrinterOwnership,
+  OWNER_ALL,
+  type PrinterOwnerFilter,
   printerCategories,
   roleLabel,
   STATUS_ALL,
@@ -53,6 +56,7 @@ export function usePrinterPage() {
   const [searchText, setSearchText] = useState("");
   const [typeFilter, setTypeFilter] = useState(TYPE_ALL);
   const [statusFilter, setStatusFilter] = useState(STATUS_ALL);
+  const [ownerFilter, setOwnerFilter] = useState<PrinterOwnerFilter>(OWNER_ALL);
   const [agentFilesFailed, setAgentFilesFailed] = useState(false);
 
   const language = i18n.language;
@@ -94,6 +98,7 @@ export function usePrinterPage() {
         const matchesStatus =
           statusFilter === STATUS_ALL ||
           (statusFilter === "active" ? printer.is_active : !printer.is_active);
+        const matchesOwner = matchesPrinterOwnership(printer, ownerFilter);
         const roleText = printer.role_codes
           .map((code) => roleLabel(code, roles))
           .join(" ");
@@ -113,13 +118,17 @@ export function usePrinterPage() {
           .join(" ")
           .toLowerCase();
         return (
-          matchesType && matchesStatus && (!query || searchable.includes(query))
+          matchesType &&
+          matchesStatus &&
+          matchesOwner &&
+          (!query || searchable.includes(query))
         );
       })
       .map((printer, index) => ({ ...printer, row_number: index + 1 }));
   }, [
     categories,
     language,
+    ownerFilter,
     printers,
     roles,
     searchText,
@@ -279,10 +288,12 @@ export function usePrinterPage() {
     searchText,
     typeFilter,
     statusFilter,
+    ownerFilter,
     setDeleteTarget,
     setSearchText,
     setTypeFilter,
     setStatusFilter,
+    setOwnerFilter,
     load,
     loadAgentFilesOnOpen,
     showLaoFontDownloadToast,

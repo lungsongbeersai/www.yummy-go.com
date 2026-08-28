@@ -4,7 +4,8 @@ import {
   failPayload,
   getPrinterErrorMessage,
   mapPrinter,
-  parseInterfaceValue
+  parseInterfaceValue,
+  printerRequestTimeoutMs
 } from "@/services/printer/helpers";
 
 describe("printer helpers", () => {
@@ -23,6 +24,12 @@ describe("printer helpers", () => {
       mode: "usb",
       systemPrinterName: "Receipt Printer"
     });
+  });
+
+  it("allows long receipts enough time without changing other API timeouts", () => {
+    expect(printerRequestTimeoutMs([{ ops: Array(20) }])).toBe(30_000);
+    expect(printerRequestTimeoutMs([{ ops: Array(1200) }])).toBe(135_000);
+    expect(printerRequestTimeoutMs([{ ops: Array(5000) }])).toBe(300_000);
   });
 
   it("uses the printer agent response instead of the generic HTTP error", () => {

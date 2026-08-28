@@ -9,6 +9,7 @@ import {
   AGENT_SECRET,
   agentBase as printerAgentBase,
   assertAgentOk,
+  printerRequestTimeoutMs,
   getPrinterErrorMessage,
   textValue
 } from "@/services/printer/helpers";
@@ -189,7 +190,7 @@ export async function printWithLocalAgent(job: PrintJob, localAgent?: AgentInfo)
 
   const { data } = await axios.post<PrintOpsAgentResponse>(`${printerAgentBase(AGENT_URL)}/print-ops`, job, {
     headers: { "x-agent-secret": AGENT_SECRET },
-    timeout: 10000
+    timeout: printerRequestTimeoutMs([job])
   });
   assertAgentOk(data, "Print failed");
 }
@@ -214,7 +215,7 @@ export async function printBatchWithLocalAgent(
   const payload = { cut_mode: cutMode, jobs };
   const { data } = await axios.post<PrintOpsBatchAgentResponse>(`${agentBase}/print-ops-batch`, payload, {
     headers: { "x-agent-secret": AGENT_SECRET },
-    timeout: 20000
+    timeout: printerRequestTimeoutMs(jobs)
   });
   assertAgentOk(data, "Print failed");
 }

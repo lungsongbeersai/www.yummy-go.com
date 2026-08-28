@@ -2,6 +2,16 @@
 
 import axios, { AxiosError, type AxiosInstance } from "axios";
 import { shouldLogoutForUnauthorized } from "@/lib/unauthorized-session";
+import {
+  cacheOnlineResponse,
+  configureLocalSync,
+  mirrorOnlineResponse,
+  needsLocalPrintOwnership,
+  prepareOfflineRequest,
+  requestLocalFallback,
+  supportsOfflineRoute,
+  withLocalPrintOwnership,
+} from "@/services/offline-sync";
 import { useAuthStore } from "@/stores/auth-store";
 
 const baseURL =
@@ -135,11 +145,66 @@ export async function apiRequest<T>(
   options?: RequestOptions,
   fallback?: string
 ) {
+  const prepared = prepareOfflineRequest(method, url, options);
+  const auth = useAuthStore.getState();
+  let localConfiguration: Promise<boolean> | null = null;
+  if (auth.token && auth.user && supportsOfflineRoute(method, url)) {
+    localConfiguration = configureLocalSync({
+      token: auth.token,
+      actorLoginUuid: auth.user.uuid,
+      storeUuid: auth.user.store_uuid || auth.user.store_uuid_fk || "",
+      branchUuid: auth.user.branch_uuid,
+    });
+  }
+  let requestOptions = prepared.options;
+  let localOwnsPrint = false;
+  if (localConfiguration && needsLocalPrintOwnership(method, url)) {
+    localOwnsPrint = await localConfiguration;
+    if (localOwnsPrint) requestOptions = withLocalPrintOwnership(requestOptions);
+  }
   try {
-    const response = await send<T>(apiClient, method, url, options);
-    return assertApiSuccess(response.data);
+    const response = await send<T>(apiClient, method, url, requestOptions);
+    const data = assertApiSuccess(response.data);
+    if (localOwnsPrint) {
+      try {
+        await mirrorOnlineResponse(method, url, requestOptions, data);
+      } catch {
+        try {
+          await requestLocalFallback<T>(method, url, requestOptions, prepared.eventUuid);
+        } catch (localPrintError) {
+          // Backend already committed the mutation. Preserve its success response
+          // so a Local Agent outage cannot make the cashier repeat a payment.
+          console.error("[SYNC] local print recovery failed after online success", {
+            route: `${method.toUpperCase()} ${url.split("?")[0]}`,
+            message: localPrintError instanceof Error ? localPrintError.message : "Local Agent unavailable",
+          });
+        }
+      }
+    } else if (localConfiguration) {
+      void localConfiguration.then(() => {
+        cacheOnlineResponse(method, url, requestOptions, data, auth.user?.branch_uuid);
+      });
+    } else {
+      cacheOnlineResponse(method, url, requestOptions, data, auth.user?.branch_uuid);
+    }
+    return data;
   } catch (error) {
-    throw normalizeError(error, fallback);
+    const normalized = normalizeError(error, fallback);
+    const isNetworkFailure = normalized.statusCode === 0 || normalized.statusCode === 408;
+    if (isNetworkFailure && supportsOfflineRoute(method, url) && typeof window !== "undefined") {
+      try {
+        if (localConfiguration) await localConfiguration;
+        const local = await requestLocalFallback<T>(method, url, requestOptions, prepared.eventUuid);
+        return assertApiSuccess(local);
+      } catch (localError) {
+        throw new ServiceError(
+          localError instanceof Error ? localError.message : "Local Agent request failed",
+          503,
+          { onlineError: normalized, localError },
+        );
+      }
+    }
+    throw normalized;
   }
 }
 
