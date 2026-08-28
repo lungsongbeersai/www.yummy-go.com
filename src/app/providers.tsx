@@ -21,6 +21,7 @@ import { useAppStore, type FontScale, type ThemeColor, type ThemeMode } from "@/
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppUpdateChecker } from "@/features/app-update/app-update-checker";
+import { OfflineAppRuntime } from "@/features/offline/offline-app-runtime";
 
 interface ProvidersProps {
   children: React.ReactNode;
@@ -227,6 +228,7 @@ export function Providers({ children, initialLanguage }: ProvidersProps) {
     <I18nextProvider i18n={i18n}>
       <TooltipProvider delayDuration={150}>
         {children}
+        <OfflineAppRuntime />
         <AppUpdateChecker />
         <Toaster />
       </TooltipProvider>

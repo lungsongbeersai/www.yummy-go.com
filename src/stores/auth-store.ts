@@ -4,6 +4,7 @@ import { create } from "zustand";
 import { createJSONStorage, persist, type StateStorage } from "zustand/middleware";
 import { disconnectSocket } from "@/lib/socket";
 import { checkLogin } from "@/services/login";
+import { prepareOfflineSession } from "@/services/offline-sync";
 import { resetSessionStores } from "@/stores/session-store-registry";
 import { errorMessage } from "@/stores/store-utils";
 
@@ -32,6 +33,7 @@ interface PersistedAuthState {
   user?: NormalizableAuthUser | null;
   isLoggedIn?: boolean;
   rememberMe?: boolean;
+  offlineSession?: boolean;
 }
 
 export function authStoreUuid(user: AuthStoreUuidSource) {
@@ -63,6 +65,7 @@ interface AuthState {
   user: AuthUser | null;
   isLoggedIn: boolean;
   rememberMe: boolean;
+  offlineSession: boolean;
   hydrated: boolean;
   loading: boolean;
   error: string | null;
@@ -77,12 +80,13 @@ const STORAGE_KEY = "yummy-go-auth";
 const isBrowser = typeof window !== "undefined";
 let loginRequestId = 0;
 
-function authenticatedState(token: string, user: AuthUser, rememberMe: boolean) {
+function authenticatedState(token: string, user: AuthUser, rememberMe: boolean, offlineSession = false) {
   return {
     token,
     user: normalizeAuthUser(user),
     isLoggedIn: true,
     rememberMe,
+    offlineSession,
     loading: false,
     error: null
   };
@@ -118,6 +122,7 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       isLoggedIn: false,
       rememberMe: false,
+      offlineSession: false,
       hydrated: false,
       loading: false,
       error: null,
@@ -133,8 +138,31 @@ export const useAuthStore = create<AuthState>()(
           const result = await checkLogin(email, password);
           if (requestId !== loginRequestId) return null;
 
+          if (result.source === "online") {
+            await prepareOfflineSession({
+              token: result.token,
+              actorLoginUuid: result.user.uuid,
+              storeUuid: authStoreUuid(result.user),
+              branchUuid: result.user.branch_uuid,
+              loginEmail: email,
+              loginPassword: password,
+              loginResponse: {
+                loginEmail: result.user.email,
+                loginStatus: result.user.status,
+                loginProfile: result.user.profile,
+                branchName: result.user.branch_name,
+                branchTel: result.user.branch_tel,
+                branchAddress: result.user.branch_address,
+                storeName: result.user.store_name,
+                storeLogo: result.user.store_logo,
+                storeTableStatus: result.user.store_table_status,
+              },
+            }).catch(() => false);
+          }
+          if (requestId !== loginRequestId) return null;
+
           resetSessionStores();
-          set(authenticatedState(result.token, result.user, rememberMe));
+          set(authenticatedState(result.token, result.user, rememberMe, result.source === "offline"));
           return result.user;
         } catch (error) {
           if (requestId !== loginRequestId) return null;
@@ -152,6 +180,7 @@ export const useAuthStore = create<AuthState>()(
           user: null,
           isLoggedIn: false,
           rememberMe: false,
+          offlineSession: false,
           loading: false,
           error: null
         });
@@ -168,11 +197,12 @@ export const useAuthStore = create<AuthState>()(
       storage: createJSONStorage(() => dualStorage),
       version: 1,
       migrate: (persistedState) => normalizePersistedAuthState(persistedState),
-      partialize: ({ token, user, isLoggedIn, rememberMe }) => ({
+      partialize: ({ token, user, isLoggedIn, rememberMe, offlineSession }) => ({
         token,
         user,
         isLoggedIn,
-        rememberMe
+        rememberMe,
+        offlineSession
       }),
       onRehydrateStorage: () => (state) => {
         if (state?.user) state.updateUser(state.user);

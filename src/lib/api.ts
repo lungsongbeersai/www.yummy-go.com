@@ -67,8 +67,9 @@ function createClient(authenticated: boolean): AxiosInstance {
         const requestToken = String(
           error.config?.headers.get("x-access-token") ?? "",
         );
-        const { isLoggedIn, logout, token } = useAuthStore.getState();
+        const { isLoggedIn, logout, offlineSession, token } = useAuthStore.getState();
         if (
+          !offlineSession &&
           shouldLogoutForUnauthorized({
             currentToken: token,
             isLoggedIn,
@@ -149,18 +150,24 @@ export async function apiRequest<T>(
   const auth = useAuthStore.getState();
   let localConfiguration: Promise<boolean> | null = null;
   if (auth.token && auth.user && supportsOfflineRoute(method, url)) {
-    localConfiguration = configureLocalSync({
-      token: auth.token,
-      actorLoginUuid: auth.user.uuid,
-      storeUuid: auth.user.store_uuid || auth.user.store_uuid_fk || "",
-      branchUuid: auth.user.branch_uuid,
-    });
+    localConfiguration = auth.offlineSession
+      ? Promise.resolve(true)
+      : configureLocalSync({
+        token: auth.token,
+        actorLoginUuid: auth.user.uuid,
+        storeUuid: auth.user.store_uuid || auth.user.store_uuid_fk || "",
+        branchUuid: auth.user.branch_uuid,
+      });
   }
   let requestOptions = prepared.options;
   let localOwnsPrint = false;
   if (localConfiguration && needsLocalPrintOwnership(method, url)) {
     localOwnsPrint = await localConfiguration;
     if (localOwnsPrint) requestOptions = withLocalPrintOwnership(requestOptions);
+  }
+  if (auth.offlineSession && supportsOfflineRoute(method, url) && typeof window !== "undefined") {
+    const local = await requestLocalFallback<T>(method, url, requestOptions, prepared.eventUuid);
+    return assertApiSuccess(local);
   }
   try {
     const response = await send<T>(apiClient, method, url, requestOptions);
@@ -191,7 +198,8 @@ export async function apiRequest<T>(
   } catch (error) {
     const normalized = normalizeError(error, fallback);
     const isNetworkFailure = normalized.statusCode === 0 || normalized.statusCode === 408;
-    if (isNetworkFailure && supportsOfflineRoute(method, url) && typeof window !== "undefined") {
+    const canContinueOffline = isNetworkFailure || (normalized.statusCode === 401 && auth.offlineSession);
+    if (canContinueOffline && supportsOfflineRoute(method, url) && typeof window !== "undefined") {
       try {
         if (localConfiguration) await localConfiguration;
         const local = await requestLocalFallback<T>(method, url, requestOptions, prepared.eventUuid);

@@ -54,6 +54,7 @@ describe("offline sync transport", () => {
     expect(supportsOfflineRoute("get", "/api/v1/posAll/fetch_table")).toBe(true);
     expect(supportsOfflineRoute("post", "/api/v1/posAll/get_prod_item")).toBe(true);
     expect(supportsOfflineRoute("post", "/api/v1/posAll/init_order_without_table")).toBe(true);
+    expect(supportsOfflineRoute("patch", "/api/v1/posAll/customer_order_queue/send_to_kitchen")).toBe(true);
   });
 
   it("marks only physical print mutations for Local Agent ownership", () => {

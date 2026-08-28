@@ -12,6 +12,7 @@ const OFFLINE_ROUTES = new Set([
   "PATCH /api/v1/posAll/update_note",
   "DELETE /api/v1/posAll/delete_order_item",
   "PATCH /api/v1/posAll/confirm_to_kitchen",
+  "PATCH /api/v1/posAll/customer_order_queue/send_to_kitchen",
   "PATCH /api/v1/posAll/confirm_order_item_served",
   "PATCH /api/v1/posAll/cancel_order_item",
   "POST /api/v1/posAll/payment",
@@ -32,6 +33,30 @@ export interface LocalSyncIdentity {
   actorLoginUuid: string;
   storeUuid: string;
   branchUuid: string;
+}
+
+export interface OfflineSessionInput extends LocalSyncIdentity {
+  loginEmail: string;
+  loginPassword: string;
+  loginResponse: {
+    loginEmail: string;
+    loginStatus: number;
+    loginProfile: string;
+    branchName: string;
+    branchTel: string;
+    branchAddress: string;
+    storeName: string;
+    storeLogo: string;
+    storeTableStatus: number;
+  };
+}
+
+interface LocalSyncStatus {
+  bootstrap_complete: boolean;
+  configured?: boolean;
+  store_uuid?: string | null;
+  branch_uuid?: string | null;
+  actor_login_uuid?: string | null;
 }
 
 interface LocalAgentResponse<T> {
@@ -158,17 +183,36 @@ export function configureLocalSync(identity: LocalSyncIdentity): Promise<boolean
   const nextKey = `${identity.branchUuid}:${identity.actorLoginUuid}:${identity.token.slice(-12)}`;
   if (configureKey === nextKey && configurePromise) return configurePromise;
   configureKey = nextKey;
-  configurePromise = axios.post<LocalAgentResponse<unknown>>(
-    `${AGENT_URL}/local/sync/configure`,
-    {
-      online_api_base: onlineApiBase(),
-      access_token: identity.token,
-      actor_login_uuid: identity.actorLoginUuid,
-      store_uuid: identity.storeUuid,
-      branch_uuid: identity.branchUuid,
-    },
-    { timeout: 2000 },
-  ).then((response) => {
+  configurePromise = (async () => {
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      try {
+        const status = await axios.get<LocalAgentResponse<LocalSyncStatus>>(
+          `${AGENT_URL}/local/sync/status`,
+          { timeout: 1500 },
+        );
+        const local = status.data.data;
+        if (
+          status.data.ok && local?.configured &&
+          local.store_uuid === identity.storeUuid &&
+          local.branch_uuid === identity.branchUuid &&
+          local.actor_login_uuid === identity.actorLoginUuid
+        ) return { data: { ok: true } };
+      } catch {
+        // Continue to configure below so the caller receives the existing failure behavior.
+      }
+    }
+    return axios.post<LocalAgentResponse<unknown>>(
+      `${AGENT_URL}/local/sync/configure`,
+      {
+        online_api_base: onlineApiBase(),
+        access_token: identity.token,
+        actor_login_uuid: identity.actorLoginUuid,
+        store_uuid: identity.storeUuid,
+        branch_uuid: identity.branchUuid,
+      },
+      { timeout: 2000 },
+    );
+  })().then((response) => {
     const configured = response.data.ok === true;
     if (!configured) clearFailedConfiguration(nextKey);
     return configured;
@@ -177,6 +221,79 @@ export function configureLocalSync(identity: LocalSyncIdentity): Promise<boolean
     return false;
   });
   return configurePromise;
+}
+
+async function waitForLocalBootstrap(timeoutMs = 45000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    try {
+      const response = await axios.get<LocalAgentResponse<LocalSyncStatus>>(
+        `${AGENT_URL}/local/sync/status`,
+        { timeout: 3000 },
+      );
+      if (response.data.ok && response.data.data?.bootstrap_complete === true) return true;
+    } catch {
+      // Agent may still be starting its first bootstrap page. Poll until the deadline.
+    }
+    await new Promise((resolve) => window.setTimeout(resolve, 500));
+  }
+  return false;
+}
+
+async function warmOfflineRoutes(routes: string[], timeoutMs = 30000) {
+  if (!("serviceWorker" in navigator)) return true;
+  const registration = await navigator.serviceWorker.ready;
+  if (!registration.active) return false;
+  return new Promise<boolean>((resolve) => {
+    const channel = new MessageChannel();
+    const timer = window.setTimeout(() => resolve(false), timeoutMs);
+    channel.port1.onmessage = (event: MessageEvent<{ ok?: boolean }>) => {
+      window.clearTimeout(timer);
+      resolve(event.data?.ok === true);
+    };
+    registration.active?.postMessage(
+      { type: "WARM_OFFLINE_ROUTES", routes },
+      [channel.port2],
+    );
+  });
+}
+
+export async function prepareOfflineSession(input: OfflineSessionInput) {
+  if (typeof window === "undefined") return false;
+  const configured = await configureLocalSync(input);
+  if (!configured || !(await waitForLocalBootstrap())) return false;
+  const response = await axios.post<LocalAgentResponse<unknown>>(
+    `${AGENT_URL}/local/auth/cache`,
+    {
+      login_email: input.loginEmail,
+      login_password: input.loginPassword,
+      response: {
+        status: "success",
+        message: "Login success",
+        token: input.token,
+        login_uuid: input.actorLoginUuid,
+        login_email: input.loginResponse.loginEmail,
+        login_status: input.loginResponse.loginStatus,
+        login_profile: input.loginResponse.loginProfile,
+        branch_uuid: input.branchUuid,
+        branch_name: input.loginResponse.branchName,
+        branch_tel: input.loginResponse.branchTel,
+        branch_address: input.loginResponse.branchAddress,
+        store_uuid_fk: input.storeUuid,
+        store_name: input.loginResponse.storeName,
+        store_logo: input.loginResponse.storeLogo,
+        store_table_status: input.loginResponse.storeTableStatus,
+      },
+    },
+    { timeout: 5000 },
+  );
+  if (!response.data.ok) return false;
+  try {
+    await warmOfflineRoutes(["/", "/login", "/pos/tables", "/pos/order"]);
+  } catch {
+    // Local data/auth is already ready even when this browser cannot use a service worker.
+  }
+  return true;
 }
 
 export async function requestLocalFallback<T>(

@@ -28,6 +28,7 @@ export function LoginClient() {
   const loginWithPassword = useAuthStore((state) => state.loginWithPassword);
   const loading = useAuthStore((state) => state.loading);
   const isLoggedIn = useAuthStore((state) => state.isLoggedIn);
+  const offlineSession = useAuthStore((state) => state.offlineSession);
   const hydrated = useAuthStore((state) => state.hydrated);
 
   const [email, setEmail] = useState("");
@@ -39,8 +40,10 @@ export function LoginClient() {
   const redirect = safeInternalRedirect(searchParams.get("redirect"));
 
   useEffect(() => {
-    if (hydrated && isLoggedIn) router.replace(redirect);
-  }, [hydrated, isLoggedIn, redirect, router]);
+    if (!hydrated || !isLoggedIn) return;
+    if (offlineSession) window.location.replace(redirect);
+    else router.replace(redirect);
+  }, [hydrated, isLoggedIn, offlineSession, redirect, router]);
 
   useEffect(() => {
     let active = true;
@@ -62,7 +65,8 @@ export function LoginClient() {
       if (!user) return;
 
       showToast({ title: t("auth.welcomeBack"), tone: "success" });
-      router.replace(redirect);
+      if (useAuthStore.getState().offlineSession) window.location.replace(redirect);
+      else router.replace(redirect);
     } catch (error) {
       showToast({
         title: t("auth.loginFailed"),

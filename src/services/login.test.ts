@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import axios from "axios";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const apiMocks = vi.hoisted(() => ({
   post: vi.fn()
@@ -43,6 +44,11 @@ describe("login service", () => {
     apiMocks.post.mockReset();
   });
 
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
   it("maps store table status from the login response", async () => {
     apiMocks.post.mockResolvedValue({ data: loginResponse({ store_table_status: 2 }) });
 
@@ -57,5 +63,24 @@ describe("login service", () => {
     await expect(checkLogin("cashier@example.com", "password")).resolves.toMatchObject({
       user: { store_table_status: 1 }
     });
+  });
+
+  it("uses the verified Local Agent credential when the device is offline", async () => {
+    vi.stubGlobal("navigator", { onLine: false });
+    const localPost = vi.spyOn(axios, "post").mockResolvedValue({
+      data: { ok: true, data: { ...loginResponse(), offline: true } }
+    });
+
+    await expect(checkLogin("cashier@example.com", "password")).resolves.toMatchObject({
+      source: "offline",
+      token: "token-1",
+      user: { uuid: "login-1" }
+    });
+    expect(apiMocks.post).not.toHaveBeenCalled();
+    expect(localPost).toHaveBeenCalledWith(
+      expect.stringContaining("/local/auth/login"),
+      { login_email: "cashier@example.com", login_password: "password" },
+      { timeout: 5000 }
+    );
   });
 });
