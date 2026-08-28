@@ -52,6 +52,9 @@ describe("offline sync transport", () => {
 
   it("allows GET fallback from the exact local response cache", () => {
     expect(supportsOfflineRoute("get", "/api/v1/posAll/fetch_table")).toBe(true);
+    expect(supportsOfflineRoute("get", "/api/v1/posAll/customer_order_queue?status=1")).toBe(true);
+    expect(supportsOfflineRoute("get", "/api/v1/dashboard/executive")).toBe(false);
+    expect(supportsOfflineRoute("get", "/api/v1/permission/menu")).toBe(false);
     expect(supportsOfflineRoute("post", "/api/v1/posAll/get_prod_item")).toBe(true);
     expect(supportsOfflineRoute("post", "/api/v1/posAll/init_order_without_table")).toBe(true);
     expect(supportsOfflineRoute("patch", "/api/v1/posAll/customer_order_queue/send_to_kitchen")).toBe(true);

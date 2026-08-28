@@ -18,6 +18,18 @@ const OFFLINE_ROUTES = new Set([
   "POST /api/v1/posAll/payment",
 ]);
 
+const OFFLINE_GET_ROUTES = new Set([
+  "/api/v1/posAll/fetch_table",
+  "/api/v1/posAll/fetch_cate_products",
+  "/api/v1/posAll/fetch_cart",
+  "/api/v1/posAll/customer_order_queue",
+  "/api/v1/exchange/fetch_all",
+  "/api/v1/currency/fetch_all",
+  "/api/v1/customer/list",
+  "/api/v1/printer/fetch",
+  "/api/v1/printer/fetch_all",
+]);
+
 const LOCAL_READ_ROUTES = new Set([
   "POST /api/v1/posAll/get_prod_item",
   "POST /api/v1/posAll/init_order_without_table",
@@ -104,7 +116,9 @@ function requestParams(url: string, params: Record<string, unknown> | undefined)
 }
 
 export function supportsOfflineRoute(method: HttpMethod, url: string) {
-  return method === "get" || OFFLINE_ROUTES.has(routeKey(method, url)) || LOCAL_READ_ROUTES.has(routeKey(method, url));
+  return (method === "get" && OFFLINE_GET_ROUTES.has(url.split("?")[0])) ||
+    OFFLINE_ROUTES.has(routeKey(method, url)) ||
+    LOCAL_READ_ROUTES.has(routeKey(method, url));
 }
 
 export function needsLocalPrintOwnership(method: HttpMethod, url: string) {
@@ -327,7 +341,7 @@ export function cacheOnlineResponse(
   branchUuid: string | undefined,
 ) {
   if (typeof window === "undefined") return;
-  if (method === "get") {
+  if (method === "get" && OFFLINE_GET_ROUTES.has(url.split("?")[0])) {
     void axios.post(
       `${AGENT_URL}/local/cache/record`,
       {
