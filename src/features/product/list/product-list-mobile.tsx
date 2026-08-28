@@ -133,7 +133,7 @@ function ProductMobileCard({
 
   return (
     <div
-      className="overflow-hidden rounded-lg border border-border bg-card p-3 shadow-sm data-[state=selected]:border-primary/60 data-[state=selected]:bg-primary/5"
+      className="overflow-hidden rounded-lg border border-border bg-card p-2.5 shadow-sm data-[state=selected]:border-primary/60 data-[state=selected]:bg-primary/5"
       data-state={selected ? "selected" : undefined}
     >
       <div className="flex min-w-0 items-start gap-3">
@@ -151,9 +151,13 @@ function ProductMobileCard({
               <p className="mt-0.5 truncate text-xs text-muted-foreground">
                 {row.prod_code || "-"} / {unitName(row, workflow.language)}
               </p>
+              {/* แจ้งเตือนย้ายมาอยู่แถวป้ายกำกับนี้แทนกล่อง metric แยกของตัวเอง — เป็นค่าสถานะ
+                  แบบ badge อยู่แล้วเหมือนหมวดหมู่/สถานะเปิดขาย จัดกลุ่มด้วยกันเป็นธรรมชาติกว่า
+                  เปิดพื้นที่ให้ราคา/สต๊อกด้านล่างกว้างขึ้นแทนที่จะแบ่ง 3 คอลัมน์แคบๆ */}
               <div className="mt-1 flex flex-wrap items-center gap-1.5">
                 <Badge className="bg-muted text-muted-foreground">{categoryName(row, workflow.language)}</Badge>
                 <Badge className="bg-primary/10 text-primary">{workflow.activeStatusLabel}</Badge>
+                <ProductStatusBadges row={row} workflow={workflow} />
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-1">
@@ -165,14 +169,17 @@ function ProductMobileCard({
         </div>
       </div>
 
-      <Separator className="my-3" />
+      <Separator className="my-2.5" />
 
-      <div className="grid gap-2 text-xs sm:grid-cols-3">
-        <div className="min-w-0 rounded-md bg-muted/15 p-2">
+      {/* ราคา/สต๊อกเป็นสองตัวเลขที่ต้องใช้บ่อยที่สุดตอนไล่ดูรายการ — รวมเป็นแถบเดียวคั่นกลาง
+          แทนกล่องเดิม 3 กล่องแยกกัน (ราคา/สต๊อก/แจ้งเตือน) ที่บีบทุกอย่างแคบเท่ากันหมดจนอ่านยาก
+          ทั้งที่ราคา/สต๊อกสำคัญกว่าแจ้งเตือนชัดเจน */}
+      <div className="grid grid-cols-2 divide-x divide-border overflow-hidden rounded-md bg-muted/15 text-xs">
+        <div className="min-w-0 p-2">
           <p className="text-muted-foreground">{workflow.t("fields.prod_price")}</p>
           <p className="mt-0.5 truncate font-mono font-semibold tabular-nums">{productPriceLabel(row)}</p>
         </div>
-        <div className="min-w-0 rounded-md bg-muted/15 p-2">
+        <div className="min-w-0 p-2">
           <p className="text-muted-foreground">{workflow.t("fields.qtyStock")}</p>
           <div className="mt-0.5">
             <ProductStockSummaryStatus row={row} workflow={workflow} />
@@ -183,17 +190,9 @@ function ProductMobileCard({
             </p>
           ) : null}
         </div>
-        <div className="min-w-0 rounded-md bg-muted/15 p-2">
-          <span className="text-muted-foreground">{workflow.t("product.notification.label")}</span>
-          <div className="mt-0.5">
-            <ProductStatusBadges row={row} workflow={workflow} />
-          </div>
-        </div>
       </div>
 
-      <Separator className="my-3" />
-
-      <div className="flex flex-col gap-2">
+      <div className="mt-2.5 flex flex-col gap-2">
         <Button
           type="button"
           size="sm"

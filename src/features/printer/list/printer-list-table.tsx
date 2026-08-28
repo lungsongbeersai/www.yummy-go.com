@@ -15,10 +15,14 @@ import type { Printer } from "@/services/printer";
 import type { Zone } from "@/services/zone";
 import {
   BadgeList,
+  PrinterOwnershipBadge,
   PrinterStatusBadge,
 } from "./printer-list-shared";
 import {
+  canDeletePrinter,
+  canEditPrinter,
   categoryLabel,
+  isOwnedPrinter,
   mappingTypeOf,
   printerCategories,
   printerZones,
@@ -66,11 +70,15 @@ export function PrinterListTable({
         <DataTable<PrinterTableRow>
         rows={filteredRows}
         idKey="print_config_uuid"
-        rowClassName={(row) =>
-          row.is_active
-            ? undefined
-            : "border-l-4 border-l-destructive bg-destructive/5 hover:bg-destructive/10"
-        }
+        rowClassName={(row) => {
+          if (!row.is_active) {
+            return "border-l-4 border-l-destructive bg-destructive/5 hover:bg-destructive/10";
+          }
+          if (!isOwnedPrinter(row)) {
+            return "border-l-4 border-l-info bg-info/5 hover:bg-info/10";
+          }
+          return undefined;
+        }}
         columns={[
           {
             key: "row_number",
@@ -98,6 +106,22 @@ export function PrinterListTable({
                   </p>
                 </div>
               </div>
+            ),
+          },
+          {
+            key: "printer_owner",
+            label: t("printer.ownerColumn"),
+            headClassName: "whitespace-nowrap",
+            render: (row) => (
+              <PrinterOwnershipBadge
+                isOwner={isOwnedPrinter(row)}
+                ownerDeviceCode={row.owner_device_code}
+                ownerLabel={t("printer.ownerBadge")}
+                sharedLabel={t("printer.sharedBadgeWithDevice", {
+                  device: row.owner_device_code,
+                })}
+                sharedFallbackLabel={t("printer.sharedBadge")}
+              />
             ),
           },
           {
@@ -224,7 +248,9 @@ export function PrinterListTable({
                 <Power />
               ),
             disabled: (row) =>
-              Boolean(togglingUuid) || !row.print_config_uuid,
+              Boolean(togglingUuid) ||
+              !row.print_config_uuid ||
+              !canEditPrinter(row),
             keepOpenOnSelect: true,
             onSelect: (row) => void onToggle(row),
           },
@@ -237,6 +263,8 @@ export function PrinterListTable({
           )
         }
         onDelete={(row) => onDelete(row)}
+        editable={canEditPrinter}
+        deletable={canDeletePrinter}
       />
       </div>
     </div>

@@ -62,14 +62,16 @@ function Calendar({
           "absolute inset-x-0 top-0 flex w-full items-center justify-between gap-1",
           defaultClassNames.nav
         ),
+        // เหตุผลเดียวกับ CalendarDropdown ด้านล่าง — ปุ่มลูกศรเดือนก่อน/ถัดไปก็เล็กแค่
+        // --cell-size (24px) เหมือนกัน ขยาย hit-area แบบมองไม่เห็นด้วย after:-inset แทน
         button_previous: cn(
           buttonVariants({ variant: buttonVariant }),
-          "size-(--cell-size) p-0 select-none aria-disabled:opacity-50",
+          "relative size-(--cell-size) p-0 select-none after:absolute after:-inset-2.5 aria-disabled:opacity-50",
           defaultClassNames.button_previous
         ),
         button_next: cn(
           buttonVariants({ variant: buttonVariant }),
-          "size-(--cell-size) p-0 select-none aria-disabled:opacity-50",
+          "relative size-(--cell-size) p-0 select-none after:absolute after:-inset-2.5 aria-disabled:opacity-50",
           defaultClassNames.button_next
         ),
         month_caption: cn(
@@ -249,10 +251,14 @@ function CalendarDropdown({
         onChange?.({ target: { value: next } } as React.ChangeEvent<HTMLSelectElement>)
       }}
     >
+      {/* --cell-size (24px) พอดีสำหรับตารางวันที่หนาแน่น แต่เล็กเกินไปสำหรับ tap target
+          จริงของปุ่มเดือน/ปีที่แยกเดี่ยว (ต่ำกว่าเกณฑ์ 44px ตาม Design.md มาก) ขยาย hit-area
+          แบบมองไม่เห็นด้วย after:-inset (แพทเทิร์นเดียวกับ slider.tsx/sidebar.tsx) แทนที่จะ
+          ขยายขนาดที่เห็นจริง กันไม่ให้ header ปฏิทินดูเทอะทะ */}
       <SelectTrigger
         size="sm"
         aria-label={ariaLabel}
-        className="h-(--cell-size) w-fit border-0 bg-transparent px-1.5 font-medium shadow-none hover:bg-accent"
+        className="relative h-(--cell-size) w-fit border-0 bg-transparent px-1.5 font-medium shadow-none after:absolute after:-inset-x-2 after:-inset-y-3 hover:bg-accent"
       >
         <SelectValue>{selected?.label}</SelectValue>
       </SelectTrigger>

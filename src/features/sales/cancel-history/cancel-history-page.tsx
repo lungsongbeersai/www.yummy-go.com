@@ -2,10 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useResetOnChange } from "@/hooks/use-reset-on-change";
-import { History, RefreshCcw } from "lucide-react";
+import { History, RefreshCcw, SlidersHorizontal } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { AppPagination } from "@/components/common/app-pagination";
 import { EmptyState } from "@/components/common/empty-state";
+import { FilterHeaderToolbar } from "@/components/common/filter-header-toolbar";
 import { LoadingState } from "@/components/common/loading-state";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -14,8 +15,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Sheet, SheetClose, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ReportDateInput } from "@/features/report/shared/report-date-input";
+import { ReportDateInput, reportDateDisplayValue } from "@/features/report/shared/report-date-input";
 import { useUrlPagination } from "@/hooks/use-url-pagination";
 import { dateTime } from "@/lib/format";
 import type { UrlPaginationState } from "@/lib/url-pagination";
@@ -58,6 +60,7 @@ export function CancelHistoryPage({ initialPagination }: { initialPagination: Ur
     ...defaultCancelHistoryFilters(branchUuid),
     limit: initialPagination.limit
   }));
+  const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
   const { changeLimit, goToPage, page, resetPage } = useUrlPagination({
     initialPagination,
     limitOptions: CANCEL_HISTORY_LIMIT_OPTIONS
@@ -117,31 +120,71 @@ export function CancelHistoryPage({ initialPagination }: { initialPagination: Ur
     changeLimit(draftFilters.limit);
   }
 
+  function applyMobileFilters() {
+    applyFilters();
+    setMobileFilterOpen(false);
+  }
+
   return (
     // เต็มหน้าจอแบบ /settings/store: ไม่มี padding รอบนอก ตารางกินความสูงที่เหลือทั้งหมด
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-muted/20">
-      <div className="flex shrink-0 flex-col gap-2 border-b border-border bg-card px-2 py-2 sm:px-3">
+      <div className="flex shrink-0 items-center gap-2.5 border-b border-border bg-card px-2 py-2 sm:px-3 lg:border-b-0">
         {/* หัวข้อรวมเป็นแถวเดียว (ไอคอน+ชื่อ+คำอธิบาย) แทนที่จะ stack 3 บรรทัด (label/h1/subtitle) เดิม
             ที่กินพื้นที่แนวตั้งเกินจำเป็น — เหลือพื้นที่ให้ตารางด้านล่างมากขึ้น ตรงกับ pattern ของหน้าอื่น */}
-        <div className="flex min-w-0 items-center gap-2.5">
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-            <History className="size-4.5" />
-          </span>
-          <div className="min-w-0">
-            <h1 className="truncate text-base font-black text-foreground">{t("cancelHistory.title")}</h1>
-            <p className="truncate text-xs text-muted-foreground">{t("cancelHistory.subtitle")}</p>
-          </div>
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+          <History className="size-4.5" />
+        </span>
+        <div className="min-w-0">
+          <h1 className="truncate text-base font-black text-foreground">{t("cancelHistory.title")}</h1>
+          <p className="truncate text-xs text-muted-foreground">{t("cancelHistory.subtitle")}</p>
         </div>
+      </div>
 
-        <CancelHistoryFilterBar
-          branchLabel={branchLabel}
-          canApply={canApply}
-          draftFilters={draftFilters}
-          loading={loading}
-          onApply={applyFilters}
-          onDraftChange={patchDraft}
+      {/* จอ lg ขึ้นไปมีแถบตัวกรองอยู่บนหน้าแล้ว แถบนี้จึงเหลือไว้ให้จอเล็กที่ยังใช้ sheet — โครงเดียวกับ
+          sales-list-filters.tsx/cancel-sale-controls.tsx (ของเดิมโชว์ grid 5 ช่องเต็มตลอดเวลา จอมือถือ
+          เลยเหลือพื้นที่ให้ตารางน้อยมากตามที่รายงานมา) */}
+      <div className="shrink-0 border-b border-border bg-card px-2 py-2 sm:px-3 lg:hidden">
+        <FilterHeaderToolbar
+          dateRange={{
+            ariaLabel: `${t("cancelHistory.filters")}: ${reportDateDisplayValue(appliedFilters.startDate)} - ${reportDateDisplayValue(appliedFilters.endDate)}`,
+            label: `${reportDateDisplayValue(appliedFilters.startDate)} - ${reportDateDisplayValue(appliedFilters.endDate)}`,
+            onClick: () => setMobileFilterOpen(true)
+          }}
+          filterControl={
+            <Button
+              aria-label={t("cancelHistory.filters")}
+              className="size-11 shrink-0 sm:size-9"
+              size="icon-sm"
+              type="button"
+              variant="outline"
+              onClick={() => setMobileFilterOpen(true)}
+            >
+              <SlidersHorizontal data-icon="inline-start" />
+              <span className="sr-only">{t("cancelHistory.filters")}</span>
+            </Button>
+          }
         />
       </div>
+
+      <CancelHistoryFilterBar
+        branchLabel={branchLabel}
+        canApply={canApply}
+        draftFilters={draftFilters}
+        loading={loading}
+        onApply={applyFilters}
+        onDraftChange={patchDraft}
+      />
+
+      <CancelHistoryFilterSheet
+        branchLabel={branchLabel}
+        canApply={canApply}
+        draftFilters={draftFilters}
+        loading={loading}
+        open={mobileFilterOpen}
+        onApply={applyMobileFilters}
+        onDraftChange={patchDraft}
+        onOpenChange={setMobileFilterOpen}
+      />
 
       {!branchUuid || error ? (
         <div className="flex shrink-0 flex-col gap-2 px-2 py-2 sm:px-3">
@@ -193,9 +236,10 @@ function CancelHistoryFilterBar({
   const { t } = useTranslation();
 
   // py-0 กัน py ฐานของ Card (16px) บวกซ้อนกับ py ของ CardContent ด้านล่าง — ดูคำอธิบายเดียวกันใน sales-list-filters.tsx
+  // hidden lg:block — จอเล็กใช้ CancelHistoryFilterToolbar + CancelHistoryFilterSheet แทน (ดูเหตุผลที่เรียกใช้)
   return (
-    <Card className="min-w-0 shrink-0 rounded-none border-x-0 border-t-0 border-border bg-card py-0 shadow-none">
-      <CardContent className="grid min-w-0 items-end gap-3 px-3 py-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-[repeat(5,minmax(0,1fr))_auto]">
+    <Card className="hidden min-w-0 shrink-0 rounded-none border-x-0 border-t-0 border-border bg-card py-0 shadow-none lg:block">
+      <CardContent className="grid min-w-0 items-end gap-3 px-3 py-3 lg:grid-cols-3 xl:grid-cols-[repeat(5,minmax(0,1fr))_auto]">
         <CancelHistoryFilterFields
           branchLabel={branchLabel}
           draftFilters={draftFilters}
@@ -208,6 +252,61 @@ function CancelHistoryFilterBar({
         </Button>
       </CardContent>
     </Card>
+  );
+}
+
+// จอเล็ก — ฟิลด์เดียวกับ CancelHistoryFilterBar ทุกอย่าง แค่ย้ายเข้า sheet แทนโชว์ค้างในหน้า
+function CancelHistoryFilterSheet({
+  branchLabel,
+  canApply,
+  draftFilters,
+  loading,
+  onApply,
+  onDraftChange,
+  onOpenChange,
+  open
+}: {
+  branchLabel: string;
+  canApply: boolean;
+  draftFilters: CancelHistoryFilters;
+  loading: boolean;
+  onApply: () => void;
+  onDraftChange: (patch: Partial<CancelHistoryFilters>) => void;
+  onOpenChange: (open: boolean) => void;
+  open: boolean;
+}) {
+  const { t } = useTranslation();
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="bottom" className="max-h-[85dvh] gap-0 overflow-hidden rounded-t-xl p-0 lg:hidden">
+        <SheetHeader className="shrink-0 border-b border-border px-4 py-3 pr-12 text-left">
+          <SheetTitle className="text-base font-semibold">{t("cancelHistory.filters")}</SheetTitle>
+          <SheetDescription>{t("cancelHistory.subtitle")}</SheetDescription>
+        </SheetHeader>
+        <div className="min-h-0 overflow-y-auto p-4">
+          <div className="grid gap-3">
+            <CancelHistoryFilterFields
+              branchLabel={branchLabel}
+              draftFilters={draftFilters}
+              idPrefix="cancel-history-mobile"
+              onDraftChange={onDraftChange}
+            />
+          </div>
+        </div>
+        <SheetFooter className="grid grid-cols-2 gap-2 border-t border-border bg-card/95 px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur">
+          <SheetClose asChild>
+            <Button type="button" variant="outline">
+              {t("actions.close")}
+            </Button>
+          </SheetClose>
+          <Button type="button" disabled={loading || !canApply} onClick={onApply}>
+            {loading ? <RefreshCcw className="animate-spin" data-icon="inline-start" /> : null}
+            {t("cancelHistory.apply")}
+          </Button>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 }
 
@@ -241,7 +340,7 @@ function CancelHistoryFilterFields({
           label={t("cancelHistory.startDate")}
           value={draftFilters.startDate}
           onValueChange={(startDate) => onDraftChange({ startDate })}
-          className="h-7 px-2 text-xs/relaxed"
+          className="h-11 px-3 lg:h-7 lg:px-2 lg:text-xs/relaxed"
         />
       </Field>
       <Field className="gap-1.5">
@@ -253,7 +352,7 @@ function CancelHistoryFilterFields({
           label={t("cancelHistory.endDate")}
           value={draftFilters.endDate}
           onValueChange={(endDate) => onDraftChange({ endDate })}
-          className="h-7 px-2 text-xs/relaxed"
+          className="h-11 px-3 lg:h-7 lg:px-2 lg:text-xs/relaxed"
         />
       </Field>
       <Field className="gap-1.5">
@@ -261,7 +360,7 @@ function CancelHistoryFilterFields({
           {t("common.rowsPerPage")}
         </FieldLabel>
         <Select value={String(draftFilters.limit)} onValueChange={(value) => onDraftChange({ limit: Number(value) as PageLimit })}>
-          <SelectTrigger id={`${idPrefix}-limit`} className="w-full">
+          <SelectTrigger id={`${idPrefix}-limit`} className="h-11 w-full data-[size=default]:h-11 lg:h-7 lg:data-[size=default]:h-7">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -280,7 +379,7 @@ function CancelHistoryFilterFields({
           {t("cancelHistory.orderBy")}
         </FieldLabel>
         <Select value={draftFilters.orderBy} onValueChange={(value) => onDraftChange({ orderBy: value as CancelHistoryOrder })}>
-          <SelectTrigger id={`${idPrefix}-order`} className="w-full">
+          <SelectTrigger id={`${idPrefix}-order`} className="h-11 w-full data-[size=default]:h-11 lg:h-7 lg:data-[size=default]:h-7">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

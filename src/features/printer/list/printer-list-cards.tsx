@@ -20,10 +20,14 @@ import type { Zone } from "@/services/zone";
 import {
   BadgeList,
   PrinterDetailMetric,
+  PrinterOwnershipBadge,
   PrinterStatusBadge,
 } from "./printer-list-shared";
 import {
+  canDeletePrinter,
+  canEditPrinter,
   categoryLabel,
+  isOwnedPrinter,
   mappingTypeOf,
   printerCategories,
   printerZones,
@@ -69,9 +73,11 @@ function PrinterCard({
     <article
       className={cn(
         "flex h-full flex-col overflow-hidden rounded-lg border bg-card shadow-sm transition-shadow hover:shadow-md",
-        row.is_active
-          ? "border-border"
-          : "border-destructive/50 bg-destructive/5",
+        !row.is_active && "border-destructive/50 bg-destructive/5",
+        row.is_active &&
+          !isOwnedPrinter(row) &&
+          "border-info/40 bg-info/5",
+        row.is_active && isOwnedPrinter(row) && "border-border",
       )}
     >
       <div className="flex min-w-0 items-center gap-3 p-3 sm:p-4">
@@ -80,9 +86,20 @@ function PrinterCard({
         </span>
 
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-black sm:text-base">
-            {row.printer_name}
-          </p>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <p className="truncate text-sm font-black sm:text-base">
+              {row.printer_name}
+            </p>
+            <PrinterOwnershipBadge
+              isOwner={isOwnedPrinter(row)}
+              ownerDeviceCode={row.owner_device_code}
+              ownerLabel={t("printer.ownerBadge")}
+              sharedLabel={t("printer.sharedBadgeWithDevice", {
+                device: row.owner_device_code,
+              })}
+              sharedFallbackLabel={t("printer.sharedBadge")}
+            />
+          </div>
           <p className="mt-0.5 truncate text-xs text-muted-foreground">
             {row.device_code || row.agent_name || "-"}
           </p>
@@ -202,7 +219,11 @@ function PrinterCard({
               ? t("printer.disablePrinter")
               : t("printer.activatePrinter")
           }
-          disabled={Boolean(togglingUuid) || !row.print_config_uuid}
+          disabled={
+            Boolean(togglingUuid) ||
+            !row.print_config_uuid ||
+            !canEditPrinter(row)
+          }
           onClick={() => void onToggle(row)}
         >
           {togglingUuid === row.print_config_uuid ? (
@@ -218,6 +239,7 @@ function PrinterCard({
           size="icon-sm"
           variant="outline"
           aria-label={t("actions.edit")}
+          disabled={!canEditPrinter(row)}
           onClick={() =>
             router.push(
               `/printers/form?print_config_uuid=${encodeURIComponent(
@@ -233,6 +255,7 @@ function PrinterCard({
           size="icon-sm"
           variant="destructive"
           aria-label={t("actions.delete")}
+          disabled={!canDeletePrinter(row)}
           onClick={() => onDelete(row)}
         >
           <Trash2 />

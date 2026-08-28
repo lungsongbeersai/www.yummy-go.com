@@ -147,14 +147,16 @@ function NativeProfileMenu({
           <DropdownMenuSeparator />
           {/* theme/language ย้ายมาไว้ในนี้แทนไอคอนแยกบน top bar — จอมือถือไม่มีที่พอ
               (ThemeToggle = สลับสว่าง/มืดเร็ว ๆ ตรงนี้ คนละอย่างกับ AppearanceControls
-              สี/ขนาดฟอนต์ที่เปิดเป็น dialog จากเมนู "ตั้งค่า" ด้านล่างแทน) */}
-          <div className="flex items-center justify-between gap-2 px-2 py-1.5">
+              สี/ขนาดฟอนต์ที่เปิดเป็น dialog จากเมนู "ตั้งค่า" ด้านล่างแทน)
+              py-1 (ไม่ใช่ py-1.5 แบบ DropdownMenuItem ปกติ) — สองแถวนี้สูงกว่ารายการอื่น
+              อยู่แล้วเพราะมีปุ่มไอคอน size-9 ข้างใน padding เท่ากันเลยดูห่างกันเกินไปตามที่รายงานมา */}
+          <div className="flex items-center justify-between gap-2 px-2 py-1">
             <span className="text-sm text-muted-foreground">
               {t("app.changeLanguage")}
             </span>
             <LanguageSwitch compact size="icon" className="size-9" />
           </div>
-          <div className="flex items-center justify-between gap-2 px-2 py-1.5">
+          <div className="flex items-center justify-between gap-2 px-2 py-1">
             <span className="text-sm text-muted-foreground">{t("app.theme")}</span>
             <ThemeToggle variant="ghost" className="size-9" />
           </div>

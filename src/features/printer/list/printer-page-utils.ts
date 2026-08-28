@@ -45,6 +45,23 @@ export function mappingTypeOf(printer: Printer): PrinterMappingType {
   return printer.mapping_type ?? "CATEGORY";
 }
 
+// เครื่องพิมพ์เก่าก่อน backend เพิ่ม can_edit/can_delete จะไม่มีฟิลด์นี้มา — ถือว่าแก้ไข/ลบได้
+// (พฤติกรรมเดิมก่อนมีการแชร์เครื่องพิมพ์ข้ามอุปกรณ์) ต่างจาก false ที่ backend ส่งมาจริงเมื่อเครื่องพิมพ์
+// ถูกแชร์มาจากอุปกรณ์อื่น (ไม่ใช่เจ้าของ) — ห้ามอนุมานจาก is_owner เอง เผื่อ backend มีเงื่อนไขสิทธิ์เพิ่มเติม
+export function canEditPrinter(printer: Printer) {
+  return printer.can_edit ?? true;
+}
+
+export function canDeletePrinter(printer: Printer) {
+  return printer.can_delete ?? true;
+}
+
+// เครื่องพิมพ์เก่าก่อน backend เพิ่ม is_owner ถือว่าเป็นเจ้าของ (พฤติกรรมเดิมก่อนมีการแชร์ข้ามอุปกรณ์ —
+// ไม่งั้นเครื่องพิมพ์เก่าทุกเครื่องจะขึ้น badge "แชร์มา" ผิด ๆ)
+export function isOwnedPrinter(printer: Printer) {
+  return printer.is_owner ?? true;
+}
+
 export function zoneLabel(zone: Zone | PrinterZone, language: string) {
   const english = language.startsWith("en");
   const primary = english ? zone.zone_name_eng : zone.zone_name_la;

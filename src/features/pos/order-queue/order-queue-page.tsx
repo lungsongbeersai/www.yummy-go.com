@@ -619,7 +619,12 @@ export function OrderQueuePage() {
         ))}
       </Tabs>
 
-      {isSelectable && selectedItems.length > 0 ? (
+      {/* จอมือถือยังใช้พฤติกรรมเดิม (โชว์เฉพาะมีเลือก) เพราะพื้นที่จำกัด — จอแท็บเล็ต/
+          เดสก์ท็อป (isMobile=false, >=768px) โชว์ค้างไว้เสมอเมื่อแท็บนี้มีรายการเลือกได้
+          แล้วปิดใช้งานปุ่มแทนตอนยังไม่ได้เลือกอะไร ตามที่ขอ */}
+      {isSelectable &&
+      selectableItems.length > 0 &&
+      (!isMobile || selectedItems.length > 0) ? (
         <Card
           className="fixed right-4 z-40 max-w-[calc(100vw-2rem)] gap-0 p-0 shadow-lg"
           // เดิมชนกับ NativeBottomNav บน Capacitor เพราะ z-40 เท่ากันแต่นับแค่
@@ -647,7 +652,7 @@ export function OrderQueuePage() {
               type="button"
               variant="ghost"
               className="h-11"
-              disabled={busy}
+              disabled={busy || selectedItems.length === 0}
               onClick={clearSelection}
             >
               <X data-icon="inline-start" />
@@ -672,7 +677,7 @@ export function OrderQueuePage() {
                 <Button
                   type="button"
                   className="h-11 font-black"
-                  disabled={busy}
+                  disabled={busy || selectedItems.length === 0}
                   onClick={() =>
                     void runSendToKitchen(
                       selectedItems.map((item) => item.order_item_uuid)
@@ -689,7 +694,7 @@ export function OrderQueuePage() {
               <Button
                 type="button"
                 className="h-11 font-black"
-                disabled={busy}
+                disabled={busy || selectedItems.length === 0}
                 onClick={() =>
                   void runConfirmServed(
                     selectedItems.map((item) => item.order_item_uuid)
@@ -706,7 +711,7 @@ export function OrderQueuePage() {
                 type="button"
                 variant="destructive"
                 className="h-11 font-black"
-                disabled={busy}
+                disabled={busy || selectedItems.length === 0}
                 onClick={openCancelDialog}
               >
                 <Ban data-icon="inline-start" />

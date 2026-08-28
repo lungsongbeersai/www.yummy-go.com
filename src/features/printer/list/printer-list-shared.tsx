@@ -1,7 +1,7 @@
 "use client";
 
 import { type ReactNode } from "react";
-import { Power, PowerOff } from "lucide-react";
+import { Power, PowerOff, Share2, User } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -95,6 +95,55 @@ export function PrinterStatusBadge({
       )}
     >
       <Icon className="size-3.5 shrink-0" />
+      {label}
+    </Badge>
+  );
+}
+
+// เจ้าของ = เครื่องพิมพ์นี้เพิ่มจากอุปกรณ์ปัจจุบัน (is_owner) ใช้ tone กลาง (muted) เพราะเป็นสถานะปกติ/คาดหวัง
+// ไม่ใช่เจ้าของ = ถูกแชร์มาจากอุปกรณ์อื่น ใช้ --info (ฟ้า) ให้ต่างจาก --warning/--destructive ที่สื่อว่ามีปัญหา —
+// การถูกแชร์มาไม่ใช่ error แค่เป็นข้อมูลบอกที่มาของเครื่องพิมพ์นี้
+export function PrinterOwnershipBadge({
+  isOwner,
+  ownerDeviceCode,
+  ownerLabel,
+  sharedLabel,
+  sharedFallbackLabel,
+  className,
+}: {
+  isOwner: boolean;
+  ownerDeviceCode?: string;
+  ownerLabel: string;
+  sharedLabel: string;
+  sharedFallbackLabel: string;
+  className?: string;
+}) {
+  if (isOwner) {
+    return (
+      <Badge
+        variant="outline"
+        className={cn(
+          "gap-1 rounded-full border-transparent bg-muted font-bold text-muted-foreground",
+          className,
+        )}
+      >
+        <User className="size-3" />
+        {ownerLabel}
+      </Badge>
+    );
+  }
+
+  const label = ownerDeviceCode ? sharedLabel : sharedFallbackLabel;
+  return (
+    <Badge
+      variant="outline"
+      className={cn(
+        "gap-1 rounded-full border-info/30 bg-info/10 font-bold text-info",
+        className,
+      )}
+      title={ownerDeviceCode || undefined}
+    >
+      <Share2 className="size-3" />
       {label}
     </Badge>
   );

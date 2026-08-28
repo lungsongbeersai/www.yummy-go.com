@@ -91,12 +91,25 @@ export function NativeAppShell({ children }: { children: React.ReactNode }) {
           id="app-main-content"
           tabIndex={-1}
           className={cn(
-            "min-w-0 flex-1 pb-(--app-shell-bottom-nav-height)",
+            "min-w-0 flex-1",
             // หน้าปกติ (ไม่ใช่ fixedDataScreen อย่าง POS/product-form) ไม่เคยมี padding
             // รอบเนื้อหาให้เลยบน Capacitor มาก่อน — ต่างจาก web/app-shell.tsx ที่ให้
             // "p-4 lg:p-6" เสมอ ผลคือทุกหน้าที่ไม่ได้เผื่อ padding ของตัวเอง (เช่น
             // order-queue-page.tsx) เนื้อหาแนบขอบจอเป๊ะ ๆ ไม่มีที่หายใจเลย
-            fixedDataScreen ? "min-h-0 overflow-hidden" : "overflow-visible p-3",
+            //
+            // ต้องเป็น "pt-3 px-3" ไม่ใช่ "p-3" — p-3 เป็น shorthand ตั้ง padding ทุกด้าน
+            // รวม padding-bottom ด้วย tailwind-merge เห็นว่าชนกับ pb-(--app-shell-bottom-nav-
+            // height) ด้านบนแล้วตัด class นั้นทิ้งไปเลย (ตัวหลังชนะ) เหลือ padding-bottom
+            // แค่ 0.75rem ไม่พอกันแถบ nav ~64px+ เนื้อหาแถวสุดท้ายเลยโดนแถบ nav บัง
+            //
+            // pb-(--app-shell-bottom-nav-height) ย้ายเข้ามาเฉพาะ branch นี้ — หน้า fixedDataScreen
+            // (products/stock/printers/settings/report ฯลฯ) จัดการ scroll เองข้างในอยู่แล้ว และ
+            // ทุกหน้ามี footer/pagination ของตัวเองที่กันความสูงแถบ nav ไว้แล้ว (ดู stock-page.tsx,
+            // report-table-card.tsx, settings-shell.tsx ฯลฯ) ถ้า main ชั้นนอกกันซ้ำอีกชั้นจะกลาย
+            // เป็นจองพื้นที่ว่างสองรอบซ้อนกัน (~150px) ทำให้ footer ข้างในดูสูงเกินจริงตามที่รายงานมา
+            fixedDataScreen
+              ? "min-h-0 overflow-hidden"
+              : "overflow-visible pb-(--app-shell-bottom-nav-height) pt-3 px-3",
           )}
         >
           {children}
