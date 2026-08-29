@@ -448,6 +448,67 @@ describe("printer service dispatch", () => {
     expect(axiosMocks.post).not.toHaveBeenCalled();
   });
 
+  it("prints a shared Windows Agent TCP batch directly from native mobile", async () => {
+    capacitorMocks.isNativePlatform.mockReturnValue(true);
+    const sharedJob = windowsPrintJob({
+      agent_id: "owner-agent",
+      device_code: "OWNER-PC",
+      agent_url: "http://192.168.1.10:7777",
+      interface_value: "tcp://192.168.1.20:9100"
+    });
+    const ackPayloads: AckPayload[] = [];
+
+    apiMocks.apiRequest.mockImplementation(async (method, url, options) => {
+      if (method === "get" && url === "/api/v1/printer/jobs/pending") {
+        return {
+          print_batch_payloads: [
+            {
+              cut_mode: "per_ticket",
+              agent_id: "owner-agent",
+              device_code: "OWNER-PC",
+              print_mode: "windows_agent",
+              print_client: "agent",
+              interface_value: "tcp://192.168.1.20:9100",
+              job_total: 1,
+              jobs: [sharedJob],
+              mobile_escpos: null
+            }
+          ],
+          ack_success_payload: successAck,
+          ack_failed_payload: failedAck
+        };
+      }
+      if (method === "post" && url === "/api/v1/printer/mobile/render-escpos") {
+        expect(options).toEqual({ data: sharedJob });
+        return { data: { escpos_base64: "SHARED-BASE64" } };
+      }
+      if (method === "post" && url === "/api/v1/printer/jobs/ack") {
+        ackPayloads.push(options?.data as AckPayload);
+        return {};
+      }
+      throw new Error(`Unexpected request ${method} ${url}`);
+    });
+
+    await expect(
+      executeKitchenPrintJobs({
+        pending_query: {
+          print_job_uuid: "job-1",
+          login_uuid_fk: "login-1",
+          device_code: "OWNER-PC",
+          agent_id: "owner-agent",
+          print_mode: "windows_agent"
+        }
+      })
+    ).resolves.toEqual({ successCount: 1, failedCount: 0, total: 1 });
+
+    expect(mobileTcpMocks.printMobileEscposOverTcp).toHaveBeenCalledWith({
+      interface_value: "tcp://192.168.1.20:9100",
+      escpos_base64: "SHARED-BASE64"
+    });
+    expect(axiosMocks.post).not.toHaveBeenCalled();
+    expect(ackPayloads).toEqual([{ ...successAck, login_uuid_fk: "login-1" }]);
+  });
+
   it("falls back before calling the print agent when invoice batch payloads are empty", async () => {
     const progressPhases: string[] = [];
     apiMocks.apiRequest.mockImplementation(async (method, url) => {

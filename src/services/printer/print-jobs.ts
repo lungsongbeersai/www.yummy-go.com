@@ -151,10 +151,16 @@ function isMobilePrintBatch(batch: PrintOpsBatchPayload) {
 
   const printClient = textValue(batch.print_client).toLowerCase();
   const printMode = textValue(batch.print_mode).toLowerCase();
+  const interfaceValue = textValue(
+    batch.mobile_escpos?.interface_value ||
+    batch.interface_value ||
+    batch.jobs?.[0]?.interface_value
+  ).toLowerCase();
 
   return (
     printClient === "mobile_wifi" ||
     printMode === "mobile_wifi" ||
+    interfaceValue.startsWith("tcp://") ||
     Boolean(textValue(batch.mobile_escpos?.escpos_base64))
   );
 }
