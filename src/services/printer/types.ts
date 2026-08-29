@@ -232,6 +232,9 @@ export interface PrintOpsBatchPayload extends ApiEntity {
   paper_width_mm?: number | null;
 
   job_total?: number;
+  // Backend groups physical print jobs by printer. Keep the queue-item IDs on
+  // the group so the client can ACK successful and failed printers separately.
+  print_job_item_uuids?: string[];
   jobs: PrintJob[];
 
   mobile_ready?: boolean;

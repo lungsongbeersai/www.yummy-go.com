@@ -173,6 +173,136 @@ function printBatchJobTotal(batch: PrintOpsBatchPayload) {
   return jobsTotal || declaredTotal || 0;
 }
 
+interface BatchPrintOutcome {
+  errorMessage?: string;
+  itemUuids: string[];
+  success: boolean;
+}
+
+function batchPrintJobItemUuids(batch: PrintOpsBatchPayload) {
+  const itemUuids = [
+    ...(Array.isArray(batch.print_job_item_uuids)
+      ? batch.print_job_item_uuids
+      : []),
+    ...(Array.isArray(batch.jobs)
+      ? batch.jobs.flatMap((job) => [
+        textValue(job.print_job_item_uuid),
+        textValue(job.meta?.print_job_item_uuid),
+      ])
+      : []),
+  ].filter(Boolean);
+
+  return [...new Set(itemUuids)];
+}
+
+function batchAckPayload({
+  failedPayload,
+  outcomes,
+  successPayload,
+}: {
+  failedPayload: AckPayload | null;
+  outcomes: BatchPrintOutcome[];
+  successPayload: AckPayload | null;
+}) {
+  const basePayload = successPayload ?? failedPayload;
+  if (!basePayload) return null;
+
+  const unmappedOutcome = outcomes.find((outcome) => !outcome.itemUuids.length);
+  if (unmappedOutcome) {
+    // Older backends did not expose queue-item IDs on each physical-printer
+    // batch. Preserve the former all-or-nothing ACK for that response because
+    // guessing an item/printer relationship could confirm the wrong order.
+    const failedOutcome = outcomes.find((outcome) => !outcome.success);
+    if (failedOutcome) {
+      return failedPayload
+        ? failPayload(
+          failedPayload,
+          failedOutcome.errorMessage || "Printer batch failed",
+        )
+        : null;
+    }
+    return successPayload;
+  }
+
+  const successByItem = new Map(
+    (successPayload?.results ?? []).map((result) => [
+      result.print_job_item_uuid,
+      result,
+    ]),
+  );
+  const failedByItem = new Map(
+    (failedPayload?.results ?? []).map((result) => [
+      result.print_job_item_uuid,
+      result,
+    ]),
+  );
+  const outcomesByItem = new Map<string, BatchPrintOutcome[]>();
+
+  for (const outcome of outcomes) {
+    for (const itemUuid of outcome.itemUuids) {
+      outcomesByItem.set(itemUuid, [
+        ...(outcomesByItem.get(itemUuid) ?? []),
+        outcome,
+      ]);
+    }
+  }
+
+  const itemUuids = [
+    ...new Set([
+      ...successByItem.keys(),
+      ...failedByItem.keys(),
+      ...outcomesByItem.keys(),
+    ]),
+  ];
+  const results: AckPayload["results"] = [];
+
+  for (const itemUuid of itemUuids) {
+    const itemOutcomes = outcomesByItem.get(itemUuid) ?? [];
+    const successTemplate = successByItem.get(itemUuid);
+    const failedTemplate = failedByItem.get(itemUuid);
+
+    if (itemOutcomes.length) {
+      const failedOutcome = itemOutcomes.find((outcome) => !outcome.success);
+      if (failedOutcome) {
+        results.push({
+          ...failedTemplate,
+          print_job_item_uuid: itemUuid,
+          status: "failed",
+          reason:
+            failedOutcome.errorMessage ||
+            failedTemplate?.reason ||
+            "Printer batch failed",
+        });
+      } else {
+        results.push({
+          ...successTemplate,
+          print_job_item_uuid: itemUuid,
+          status: "success",
+        });
+      }
+      continue;
+    }
+
+    const skippedTemplate =
+      successTemplate?.status === "skipped"
+        ? successTemplate
+        : failedTemplate?.status === "skipped"
+          ? failedTemplate
+          : null;
+    if (skippedTemplate) {
+      results.push(skippedTemplate);
+      continue;
+    }
+
+    // Items rejected before printing exist only in the failed template. ACK
+    // them together with the physical batch results so the job cannot remain
+    // indefinitely pending.
+    if (!successTemplate && failedTemplate) results.push(failedTemplate);
+  }
+
+  return results.length ? { ...basePayload, results } : null;
+}
+
 function pendingFailedBeforePrintTotal(result: PendingPrintJobsResult) {
   // นับเฉพาะที่ backend แจ้งชัดใน print_summary เท่านั้น — ตรวจจาก API จริงแล้ว ack_failed_payload
   // เป็น "template" ให้ client กรอกใช้ตอนพิมพ์พลาด (แถว results เป็น status: "failed" เสมอ)
@@ -276,6 +406,10 @@ async function executePrintJobs(input: ExecuteKitchenPrintInput, options: { ack:
       (sum, batch) => sum + printBatchJobTotal(batch),
       0
     );
+    const outcomes: BatchPrintOutcome[] = [];
+    let successCount = 0;
+    let failedCount = 0;
+    let lastErrorMessage: string | undefined;
 
     input.onProgress?.({
       total,
@@ -285,62 +419,73 @@ async function executePrintJobs(input: ExecuteKitchenPrintInput, options: { ack:
       phase: "printing",
     });
 
-    try {
-      for (const batch of batchPayloads) {
+    for (const [batchIndex, batch] of batchPayloads.entries()) {
+      const batchTotal = printBatchJobTotal(batch);
+      try {
         if (isMobilePrintBatch(batch)) {
           await printKitchenMobileBatch(batch);
         } else {
           await printKitchenBatchJob(batch);
         }
-      }
-    } catch (error) {
-      if (options.ack && globalAckFailed) {
-        await ackPrintJob(
-          ackPayloadWithLogin(
-            failPayload(globalAckFailed, getPrinterErrorMessage(error)),
-            loginUuid
-          )
-        ).catch(() => undefined);
+
+        successCount += batchTotal;
+        outcomes.push({
+          itemUuids: batchPrintJobItemUuids(batch),
+          success: true,
+        });
+      } catch (error) {
+        lastErrorMessage = getPrinterErrorMessage(error);
+        failedCount += batchTotal;
+        outcomes.push({
+          errorMessage: lastErrorMessage,
+          itemUuids: batchPrintJobItemUuids(batch),
+          success: false,
+        });
       }
 
-      input.onProgress?.({
-        total,
-        completed: total,
-        successCount: 0,
-        failedCount: total,
-        phase: "done",
-      });
-
-      return {
-        successCount: 0,
-        failedCount: total,
-        total,
-        errorMessage: getPrinterErrorMessage(error),
-      };
+      if (batchIndex < batchPayloads.length - 1) {
+        input.onProgress?.({
+          total,
+          completed: successCount + failedCount,
+          successCount,
+          failedCount,
+          phase: "printing",
+        });
+      }
     }
 
-    // พิมพ์เสร็จแล้ว (กระดาษออกแล้ว) — ถ้า ack "สำเร็จ" กลับ backend พลาด ไม่ถือเป็นการพิมพ์ล้มเหลว
-    // สำคัญบนแอปมือถือ: เดิมพิมพ์ผ่านแต่ ack พลาด เลยถูกนับเป็น fail ทำให้แจ้งเตือนผิดว่ายืนยันออเดอร์ล้มเหลว
-    if (options.ack && globalAckSuccess) {
+    // ACK ตามผลของแต่ละเครื่อง: กระดาษที่ออกจากเครื่องก่อนหน้าต้องอัปเดต
+    // order item ได้ แม้เครื่องถัดไปจะติดต่อไม่ได้ ไม่ตีทุก batch เป็น failed รวมกัน
+    const ackPayload = options.ack
+      ? batchAckPayload({
+        failedPayload: globalAckFailed,
+        outcomes,
+        successPayload: globalAckSuccess,
+      })
+      : null;
+    if (ackPayload) {
       await ackPrintJob(
-        ackPayloadWithLogin(globalAckSuccess, loginUuid)
+        ackPayloadWithLogin(ackPayload, loginUuid)
       ).catch((error) => {
-        console.error("[printer] kitchen print succeeded but success-ack failed", error);
+        console.error("[printer] kitchen batch ACK failed", error);
       });
     }
 
     input.onProgress?.({
       total,
       completed: total,
-      successCount: total,
-      failedCount: 0,
+      successCount,
+      failedCount,
       phase: "done",
     });
 
     return {
-      successCount: total,
-      failedCount: 0,
+      successCount,
+      failedCount,
       total,
+      ...(failedCount > 0 && lastErrorMessage
+        ? { errorMessage: lastErrorMessage }
+        : {}),
     };
 
   }

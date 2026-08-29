@@ -533,6 +533,105 @@ describe("printer service dispatch", () => {
     expect(ackPayloads).toEqual([{ ...successAck, login_uuid_fk: "login-1" }]);
   });
 
+  it("ACKs successful mobile printer batches when a later printer is unreachable", async () => {
+    capacitorMocks.isNativePlatform.mockReturnValue(true);
+    const ackPayloads: AckPayload[] = [];
+
+    mobileTcpMocks.printMobileEscposOverTcp.mockImplementation(
+      async ({ interface_value }: { interface_value?: string }) => {
+        if (interface_value === "tcp://192.168.100.103:9100") {
+          throw new Error("connect EHOSTUNREACH 192.168.100.103:9100");
+        }
+      },
+    );
+    apiMocks.apiRequest.mockImplementation(async (method, url, options) => {
+      if (method === "get" && url === "/api/v1/printer/jobs/pending") {
+        return {
+          print_batch_payloads: [
+            {
+              cut_mode: "per_ticket",
+              interface_value: "tcp://192.168.100.102:9100",
+              job_total: 1,
+              jobs: [],
+              print_client: "mobile_wifi",
+              print_job_item_uuids: ["item-1"],
+              print_mode: "mobile_wifi",
+              mobile_escpos: {
+                escpos_base64: "FIRST",
+                interface_value: "tcp://192.168.100.102:9100",
+              },
+            },
+            {
+              cut_mode: "per_ticket",
+              interface_value: "tcp://192.168.100.103:9100",
+              job_total: 1,
+              jobs: [],
+              print_client: "mobile_wifi",
+              print_job_item_uuids: ["item-2"],
+              print_mode: "mobile_wifi",
+              mobile_escpos: {
+                escpos_base64: "SECOND",
+                interface_value: "tcp://192.168.100.103:9100",
+              },
+            },
+          ],
+          ack_success_payload: {
+            print_job_uuid: "job-1",
+            results: [
+              { print_job_item_uuid: "item-1", status: "success" },
+              { print_job_item_uuid: "item-2", status: "success" },
+            ],
+          },
+          ack_failed_payload: {
+            print_job_uuid: "job-1",
+            results: [
+              { print_job_item_uuid: "item-1", status: "failed" },
+              { print_job_item_uuid: "item-2", status: "failed" },
+            ],
+          },
+        };
+      }
+      if (method === "post" && url === "/api/v1/printer/jobs/ack") {
+        ackPayloads.push(options?.data as AckPayload);
+        return {};
+      }
+      throw new Error(`Unexpected request ${method} ${url}`);
+    });
+
+    await expect(
+      executeKitchenPrintJobs({
+        pending_query: {
+          print_job_uuid: "job-1",
+          login_uuid_fk: "login-1",
+          device_code: "mobile-device-1",
+          agent_id: "mobile-agent-1",
+          print_mode: "mobile_wifi",
+        },
+      }),
+    ).resolves.toEqual({
+      successCount: 1,
+      failedCount: 1,
+      total: 2,
+      errorMessage: "connect EHOSTUNREACH 192.168.100.103:9100",
+    });
+
+    expect(mobileTcpMocks.printMobileEscposOverTcp).toHaveBeenCalledTimes(2);
+    expect(ackPayloads).toEqual([
+      {
+        print_job_uuid: "job-1",
+        login_uuid_fk: "login-1",
+        results: [
+          { print_job_item_uuid: "item-1", status: "success" },
+          {
+            print_job_item_uuid: "item-2",
+            status: "failed",
+            reason: "connect EHOSTUNREACH 192.168.100.103:9100",
+          },
+        ],
+      },
+    ]);
+  });
+
   it("falls back before calling the print agent when invoice batch payloads are empty", async () => {
     const progressPhases: string[] = [];
     apiMocks.apiRequest.mockImplementation(async (method, url) => {
