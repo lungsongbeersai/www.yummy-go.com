@@ -174,6 +174,12 @@ export function PrinterPage() {
                             target="_blank"
                             rel="noreferrer"
                             download={file.file_name}
+                            onClick={(event) => {
+                              event.currentTarget.href = agentDownloadUrl(
+                                file,
+                                Date.now(),
+                              );
+                            }}
                           >
                             <AgentPlatformIcon platform={file.file_platform} />
                             <span className="flex min-w-0 flex-col">

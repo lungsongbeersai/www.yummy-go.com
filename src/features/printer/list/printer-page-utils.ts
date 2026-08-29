@@ -95,6 +95,21 @@ export function printerZones(printer: Printer, zones: Zone[]) {
     .filter((zone): zone is Zone => Boolean(zone));
 }
 
-export function agentDownloadUrl(file: { download_url?: string }) {
-  return typeof file.download_url === "string" ? file.download_url.trim() : "";
+export function agentDownloadUrl(
+  file: { download_url?: string },
+  cacheBust?: string | number,
+) {
+  const downloadUrl =
+    typeof file.download_url === "string" ? file.download_url.trim() : "";
+
+  if (!downloadUrl || cacheBust === undefined) return downloadUrl;
+
+  try {
+    const url = new URL(downloadUrl);
+    url.searchParams.set("agent_download", String(cacheBust));
+    return url.toString();
+  } catch {
+    const separator = downloadUrl.includes("?") ? "&" : "?";
+    return `${downloadUrl}${separator}agent_download=${encodeURIComponent(String(cacheBust))}`;
+  }
 }

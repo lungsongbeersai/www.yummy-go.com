@@ -1,11 +1,39 @@
 import { describe, expect, it } from "vitest";
 import type { Printer } from "@/services/printer";
 import {
+  agentDownloadUrl,
   matchesPrinterOwnership,
   OWNER_ALL,
   OWNER_MINE,
   OWNER_SHARED,
 } from "./printer-page-utils";
+
+describe("agent download URL", () => {
+  it("adds a fresh cache key without changing the installer path", () => {
+    expect(
+      agentDownloadUrl(
+        {
+          download_url:
+            "https://files.example.com/agent/Yummy-Go%20Printer%20Agent%20Setup%201.0.0.exe",
+        },
+        12345,
+      ),
+    ).toBe(
+      "https://files.example.com/agent/Yummy-Go%20Printer%20Agent%20Setup%201.0.0.exe?agent_download=12345",
+    );
+  });
+
+  it("preserves existing query parameters", () => {
+    expect(
+      agentDownloadUrl(
+        { download_url: "https://files.example.com/agent.exe?token=abc" },
+        "latest",
+      ),
+    ).toBe(
+      "https://files.example.com/agent.exe?token=abc&agent_download=latest",
+    );
+  });
+});
 
 function printer(isOwner?: boolean): Printer {
   return {
