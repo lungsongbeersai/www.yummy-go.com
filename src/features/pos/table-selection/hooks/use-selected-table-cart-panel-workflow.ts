@@ -494,7 +494,16 @@ export function useSelectedTableCartPanelWorkflow({
       printJob?.print_job_uuid,
       response.pending_query?.print_job_uuid,
     );
-    if (!printJobUuid) return { successCount: 0, failedCount: 0, total: 0 };
+    if (!printJobUuid) {
+      return response.print_queue_error?.message
+        ? {
+            successCount: 0,
+            failedCount: 1,
+            total: 1,
+            errorMessage: response.print_queue_error.message,
+          }
+        : { successCount: 0, failedCount: 0, total: 0 };
+    }
 
     const loginUuid = optionalString(
       response.pending_query?.login_uuid_fk,
@@ -546,8 +555,8 @@ export function useSelectedTableCartPanelWorkflow({
     });
   }
 
-  // Backend รับคำขอได้ไม่ได้แปลว่า REQUIRED print สำเร็จแล้ว สถานะ order item
-  // จะยังค้างจน ACK ครบ จึงห้ามแสดงข้อความยืนยันสำเร็จเมื่อพิมพ์พลาดหรือยังรอ owner device.
+  // Backend ยืนยัน order ก่อนส่งงานพิมพ์ จึงต้องแยกข้อความสถานะธุรกิจ
+  // ออกจากผลการพิมพ์ เพื่อไม่ให้ผู้ใช้เข้าใจว่า order ยังไม่ยืนยันเมื่อ printer ล่ม
   function showKitchenConfirmResult(result: {
     successCount: number;
     failedCount: number;
@@ -557,14 +566,14 @@ export function useSelectedTableCartPanelWorkflow({
   }) {
     if (result.failedCount > 0) {
       showToast({
-        title: t("pos.orderConfirmFailed"),
+        title: t("pos.orderConfirmed"),
         description: [
           `${t("report.printFailed")} ${result.failedCount}/${result.total || result.failedCount}`,
           result.errorMessage,
         ]
           .filter(Boolean)
           .join(" — "),
-        tone: "error",
+        tone: "warning",
       });
       return;
     }

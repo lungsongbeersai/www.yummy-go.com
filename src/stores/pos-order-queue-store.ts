@@ -11,7 +11,8 @@ import {
 } from "@/services/pos";
 import {
   executeInvoicePrintJobs,
-  executeKitchenPrintJobs
+  executeKitchenPrintJobs,
+  type KitchenPrintResult
 } from "@/services/printer";
 import { resolvePosPrinterContext } from "@/stores/pos-store/printer-context";
 import {
@@ -64,7 +65,7 @@ interface PosOrderQueueState extends AsyncSlice {
 
   sendToKitchen: (
     params: SendToKitchenParams
-  ) => Promise<void>;
+  ) => Promise<KitchenPrintResult | null>;
 
   confirmServed: (
     params: ConfirmServedParams
@@ -167,7 +168,7 @@ export const usePosOrderQueueStore =
 
     sendToKitchen: async (params) => {
       if (!params.order_item_uuids.length) {
-        return;
+        return null;
       }
 
       const isCurrentSession =
@@ -205,10 +206,9 @@ export const usePosOrderQueueStore =
           });
 
         /*
-         * Backend confirms SKIP items immediately. REQUIRED items stay in
-         * the waiting state until every mapped active printer ACKs success.
-         * A print failure therefore leaves those items available for a safe
-         * retry without changing the existing API response contract.
+         * Backend confirms the selected items before creating printer work.
+         * Print delivery is tracked separately so an unavailable printer
+         * cannot keep the operational order queue at the waiting status.
          */
         const printJobUuid =
           optionalString(
@@ -218,6 +218,8 @@ export const usePosOrderQueueStore =
             response.pending_query
               ?.print_job_uuid
           );
+
+        let printResult: KitchenPrintResult | null = null;
 
         if (printJobUuid) {
           const loginUuid =
@@ -230,7 +232,7 @@ export const usePosOrderQueueStore =
               params.login_uuid_fk
             );
 
-          await executeKitchenPrintJobs({
+          printResult = await executeKitchenPrintJobs({
             print_job:
               response.print_job,
 
@@ -253,7 +255,24 @@ export const usePosOrderQueueStore =
               "[pos-order-queue] kitchen print failed",
               error
             );
+
+            return {
+              successCount: 0,
+              failedCount: 1,
+              total: 1,
+              errorMessage: errorMessage(error)
+            };
           });
+        } else if (response.print_queue_errors?.length) {
+          printResult = {
+            successCount: 0,
+            failedCount: response.print_queue_errors.length,
+            total: response.print_queue_errors.length,
+            errorMessage: response.print_queue_errors
+              .map((item) => item.message)
+              .filter(Boolean)
+              .join(", ")
+          };
         }
 
         if (isCurrentSession()) {
@@ -268,6 +287,8 @@ export const usePosOrderQueueStore =
 
           lang: params.lang
         });
+
+        return printResult;
       } catch (error) {
         if (isCurrentSession()) {
           set({

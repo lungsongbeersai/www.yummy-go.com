@@ -715,6 +715,11 @@ export interface ConfirmToKitchenAckTemplate extends ApiEntity {}
 
 export interface ConfirmPartialItem extends ApiEntity {}
 
+export interface PrintQueueError {
+  order_uuid?: string;
+  message: string;
+}
+
 export interface ConfirmToKitchenResponse extends ApiEntity {
   status: string;
   message: string;
@@ -737,6 +742,7 @@ export interface ConfirmToKitchenResponse extends ApiEntity {
   ack_failed_payload?: ApiEntity;
   print_job?: ConfirmToKitchenPrintJob;
   pending_query?: ConfirmToKitchenPendingQuery;
+  print_queue_error?: PrintQueueError | null;
 }
 
 export interface ConfirmOrderItemServedInput {
@@ -868,6 +874,8 @@ export interface SendToKitchenResponse extends ApiEntity {
   print_job?: ConfirmToKitchenPrintJob;
 
   pending_query?: ConfirmToKitchenPendingQuery;
+
+  print_queue_errors?: PrintQueueError[];
 }
 
 export interface ConfirmOrderItemsServedInput {

@@ -221,16 +221,26 @@ export function OrderQueuePage() {
     if (!branchUuid || !user?.uuid || !orderItemUuids.length) return;
 
     try {
-      await sendToKitchen({
+      const printResult = await sendToKitchen({
         order_item_uuids: orderItemUuids,
         branch_uuid_fk: branchUuid,
         login_uuid_fk: user.uuid,
         lang: language
       });
       clearSelection();
+
+      const printFailed = Number(printResult?.failedCount || 0) > 0;
+      const printPending = printResult?.pending === true;
       showToast({
         title: t("orderQueue.confirmSuccess", { count: orderItemUuids.length }),
-        tone: "success"
+        description: printFailed
+          ? [t("report.printFailed"), printResult?.errorMessage]
+              .filter(Boolean)
+              .join(" — ")
+          : printPending
+            ? t("orderQueue.kitchenPrintQueued")
+            : undefined,
+        tone: printFailed ? "warning" : printPending ? "info" : "success"
       });
     } catch (error) {
       showToast({
