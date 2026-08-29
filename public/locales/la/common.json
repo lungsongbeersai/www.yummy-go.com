@@ -588,6 +588,7 @@
     "publicQrDescription": "ສະແກນ QR code ເພື່ອເປີດເມນູສໍາລັບ {{table}}.",
     "cancelItem": "ຍົກເລີກລາຍການ",
     "cancelItemConfirm": "ຍົກເລີກລາຍການນີ້ບໍ?",
+    "cancelItemQuantityHelp": "ປ້ອນຈຳນວນທີ່ຕ້ອງການຍົກເລີກ (1–{{max}}).",
     "deleteItem": "ລຶບລາຍການ",
     "deleteItemConfirm": "ລຶບລາຍການນີ້ບໍ?",
     "deleteItemDescription": "{{name}} ຈະຖືກລຶບອອກຈາກອໍເດີນີ້.",

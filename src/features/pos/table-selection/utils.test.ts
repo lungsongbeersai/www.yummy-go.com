@@ -466,12 +466,38 @@ describe("table selection utils", () => {
 
     const selection = splitPaymentSelection([cart], new Map([["item-1", 1]]));
 
-    // service = round(100007 * 7%) = 7000
-    // VAT = round((100007 + 7000) * 10%) = 10701
+    // subtotal = 100000, service = 7000, VAT = 11000 (ทุกขั้นปัดหลัก 1,000)
     expect(selection?.summary).toMatchObject({
       serviceTotal: 7000,
-      tax: 10701,
-      grandTotal: 117708,
+      tax: 11000,
+      grandTotal: 118000,
+    });
+  });
+
+  it("rounds the split payment example to whole thousands of kip", () => {
+    const cart = cartOrder({
+      service_charge_rate: 7,
+      vat_rate: 10,
+      items: [
+        {
+          order_it_uuid: "item-1",
+          detail: {
+            order_it_qty: 1,
+            order_it_status: 4,
+            gross_total: 45000,
+            order_it_discount_amount: 0,
+          },
+        },
+      ],
+    });
+
+    const selection = splitPaymentSelection([cart], new Map([["item-1", 1]]));
+
+    expect(selection?.summary).toMatchObject({
+      subtotal: 45000,
+      serviceTotal: 3000,
+      tax: 5000,
+      grandTotal: 53000,
     });
   });
 

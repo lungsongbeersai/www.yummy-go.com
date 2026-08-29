@@ -364,16 +364,31 @@ export function SelectedTableCartPanelContent({
       <ConfirmDialog
         cancelLabel={t("actions.cancel")}
         confirmDisabled={!workflow.actionTargetUuid}
-        confirmLabel={t("pos.cancelItem")}
+        confirmLabel={t("pos.deleteItem")}
         confirmPending={Boolean(workflow.actingItemUuid)}
-        description={t("pos.cancelItemConfirm")}
-        open={Boolean(workflow.itemActionTarget)}
-        title={t("pos.cancelItem")}
+        description={t("pos.deleteItemConfirm")}
+        open={workflow.itemActionTarget?.action === "delete"}
+        title={t("pos.deleteItem")}
         onConfirm={() => void workflow.confirmItemAction()}
         onOpenChange={(nextOpen) => {
           if (workflow.actingItemUuid) return;
           if (!nextOpen) workflow.setItemActionTarget(null);
         }}
+      />
+      <CartQuantityDialog
+        item={
+          workflow.itemActionTarget?.action === "cancel"
+            ? workflow.itemActionTarget.item
+            : null
+        }
+        open={workflow.itemActionTarget?.action === "cancel"}
+        pending={Boolean(workflow.actingItemUuid)}
+        purpose="cancel"
+        onOpenChange={(nextOpen) => {
+          if (workflow.actingItemUuid) return;
+          if (!nextOpen) workflow.setItemActionTarget(null);
+        }}
+        onSubmit={(qty) => void workflow.confirmItemAction(qty)}
       />
       <CartNoteDialog
         note={workflow.noteDraft}

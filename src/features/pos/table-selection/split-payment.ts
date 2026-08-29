@@ -1,4 +1,5 @@
 import { optionalBoolean, optionalNumber, optionalString } from "@/lib/values";
+import { roundLak } from "@/lib/pos/lak-money";
 import type { CartItem, CartOrder, SplitBillItemQuantity } from "@/services/pos";
 import {
   cartItemActionUuid,
@@ -54,10 +55,6 @@ export function splitItemGrossTotal(item: CartItem) {
 
 function scaleAmount(value: number | null | undefined, ratio: number) {
   return value === null || value === undefined ? undefined : value * ratio;
-}
-
-function lakAmount(value: number) {
-  return Math.round(Number.isFinite(value) ? value : 0);
 }
 
 function splitOrderRate({
@@ -135,23 +132,23 @@ export function splitPaymentSelection(
     const orderUuid = optionalString(order.order_uuid);
     if (!orderUuid || selectedItems.length === 0) continue;
 
-    // Backend เก็บเงิน LAK เป็นจำนวนเต็มและปัดส่วนลด/ค่าบริการ/VAT ทีละขั้น
+    // Backend ปัดเงิน LAK เป็นหลัก 1,000 และปัดส่วนลด/ค่าบริการ/VAT ทีละขั้น
     // การคำนวณฝั่งหน้าจอต้องใช้ลำดับเดียวกัน มิฉะนั้นปุ่ม "พอดี" อาจต่างจาก
-    // ยอดที่ Backend ตรวจ 1 กีบและชำระไม่ได้ โดยเฉพาะการแยกจ่ายบนมือถือ
-    const subtotal = lakAmount(
+    // ยอดที่ Backend ตรวจแบบตรงจำนวนและชำระไม่ได้ โดยเฉพาะการแยกจ่ายบนมือถือ
+    const subtotal = roundLak(
       selectedItems.reduce(
         (sum, item) => sum + splitItemGrossTotal(item),
         0,
       ),
     );
-    const totalDiscount = lakAmount(
+    const totalDiscount = roundLak(
       selectedItems.reduce(
         (sum, item) =>
           sum + (optionalNumber(item.detail?.order_it_discount_amount) ?? 0),
         0,
       ),
     );
-    const netTotal = lakAmount(subtotal - totalDiscount);
+    const netTotal = roundLak(subtotal - totalDiscount);
     // service_charge_rate/vat_rate เป็น rate snapshot ของบิลและต้องมีสิทธิ์ก่อน
     // flag/config ปัจจุบัน เพื่อให้ cache เก่าและบิลที่เปิดไว้คิดยอดตรงกับ Backend
     const serviceRate = splitOrderRate({
@@ -170,9 +167,9 @@ export function splitPaymentSelection(
       status: order.branch_vat_status,
       configuredRate: order.vat_name,
     });
-    const serviceTotal = lakAmount(netTotal * (serviceRate / 100));
-    const tax = lakAmount((netTotal + serviceTotal) * (taxRate / 100));
-    const grandTotal = lakAmount(netTotal + serviceTotal + tax);
+    const serviceTotal = roundLak(netTotal * (serviceRate / 100));
+    const tax = roundLak((netTotal + serviceTotal) * (taxRate / 100));
+    const grandTotal = roundLak(netTotal + serviceTotal + tax);
     const orderQty = selectedItems.reduce(
       (sum, item) => sum + cartItemQty(item),
       0,

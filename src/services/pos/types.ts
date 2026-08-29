@@ -881,6 +881,9 @@ export interface ConfirmOrderItemsServedInput {
 export interface CancelOrderItemInput {
   order_it_uuid: string;
 
+  // จำนวนที่ต้องการยกเลิก (1..จำนวนคงเหลือ); ไม่ส่ง = ยกเลิกทั้งรายการแบบเดิม
+  order_it_qty?: number;
+
   login_uuid_fk?: string;
 
   device_code?: string;
@@ -902,6 +905,8 @@ export interface CancelOrderItemResponse extends ApiEntity {
   status: string;
 
   message: string;
+
+  cancelled_qty?: number;
 
   print_job?: ConfirmToKitchenPrintJob;
 

@@ -695,7 +695,7 @@ export function useSelectedTableCartPanelWorkflow({
     }
   }
 
-  async function confirmItemAction() {
+  async function confirmItemAction(cancelQuantity?: number) {
     if (!itemActionTarget || !actionTargetUuid || actingItemUuid) return;
 
     setActingItemUuid(actionTargetUuid);
@@ -705,7 +705,21 @@ export function useSelectedTableCartPanelWorkflow({
       if (itemActionTarget.action === "delete") {
         await deleteItem(actionTargetUuid);
       } else {
-        const response = await cancelItem({ order_it_uuid: actionTargetUuid, login_uuid_fk: user?.uuid });
+        const availableQuantity = cartItemQty(itemActionTarget.item);
+        if (
+          !Number.isInteger(cancelQuantity) ||
+          Number(cancelQuantity) < 1 ||
+          Number(cancelQuantity) > availableQuantity
+        ) {
+          throw new Error(
+            t("pos.cancelItemQuantityHelp", { max: availableQuantity }),
+          );
+        }
+        const response = await cancelItem({
+          order_it_uuid: actionTargetUuid,
+          order_it_qty: Number(cancelQuantity),
+          login_uuid_fk: user?.uuid,
+        });
         cancelPrintResult = await executeCancelReceiptPrint(response, user?.uuid ?? "", activePrinterContext);
       }
       await onTableActionComplete();

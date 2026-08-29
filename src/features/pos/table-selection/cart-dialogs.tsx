@@ -184,13 +184,15 @@ export function CartQuantityDialog({
   onOpenChange,
   onSubmit,
   open,
-  pending
+  pending,
+  purpose = "edit",
 }: {
   item: CartItem | null;
   onOpenChange: (open: boolean) => void;
   onSubmit: (qty: number) => void;
   open: boolean;
   pending: boolean;
+  purpose?: "edit" | "cancel";
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -204,6 +206,7 @@ export function CartQuantityDialog({
           <CartQuantityDialogBody
             item={item}
             pending={pending}
+            purpose={purpose}
             onCancel={() => onOpenChange(false)}
             onSubmit={onSubmit}
           />
@@ -217,36 +220,42 @@ function CartQuantityDialogBody({
   item,
   onCancel,
   onSubmit,
-  pending
+  pending,
+  purpose,
 }: {
   item: CartItem;
   onCancel: () => void;
   onSubmit: (qty: number) => void;
   pending: boolean;
+  purpose: "edit" | "cancel";
 }) {
   const { t } = useTranslation();
   const qty = cartItemQty(item);
   const promotion = promotionQuantity(item.detail, qty);
   const [draft, setDraft] = useState(String(qty));
-  const check = checkCartQuantity(draft, promotion.qtyStep, MAX_CART_ITEM_QTY);
+  const maximumQty = purpose === "cancel" ? qty : MAX_CART_ITEM_QTY;
+  const quantityStep = purpose === "cancel" ? 1 : promotion.qtyStep;
+  const check = checkCartQuantity(draft, quantityStep, maximumQty);
   const invalid = check.error !== null;
-  const helpText = promotion.hasPromotion
+  const helpText = purpose === "cancel"
+    ? t("pos.cancelItemQuantityHelp", { max: maximumQty })
+    : promotion.hasPromotion
     ? t("pos.editQuantityPromoHelp", {
         buy: promotion.saleQty,
         free: promotion.freeQty,
         step: promotion.qtyStep
       })
-    : t("pos.editQuantityHelp", { max: MAX_CART_ITEM_QTY });
+    : t("pos.editQuantityHelp", { max: maximumQty });
   const errorText =
     check.error === "max"
-      ? t("pos.editQuantityMaxExceeded", { max: MAX_CART_ITEM_QTY })
+      ? t("pos.editQuantityMaxExceeded", { max: maximumQty })
       : check.error === "step"
         ? t("pos.editQuantityInvalidStep", { step: promotion.qtyStep })
         : t("pos.editQuantityInvalid");
 
   function pressKey(key: CartQuantityKeypadKey) {
     if (pending) return;
-    setDraft((current) => appendCartQuantityDigit(current, key, MAX_CART_ITEM_QTY));
+    setDraft((current) => appendCartQuantityDigit(current, key, maximumQty));
   }
 
   return (
@@ -261,7 +270,7 @@ function CartQuantityDialogBody({
           </div>
           <div className="min-w-0 flex-1">
             <DialogTitle className="text-balance text-xl leading-tight">
-              {t("pos.editQuantity")}
+              {purpose === "cancel" ? t("pos.cancelItem") : t("pos.editQuantity")}
             </DialogTitle>
             <DialogDescription className="mt-1 truncate text-pretty leading-relaxed">
               {cartItemName(item)}
@@ -355,13 +364,14 @@ function CartQuantityDialogBody({
           type="button"
           size="lg"
           className="w-full touch-manipulation"
+          variant={purpose === "cancel" ? "destructive" : "default"}
           disabled={pending || invalid}
           onClick={() => {
             if (check.value !== null) onSubmit(check.value);
           }}
         >
           {pending ? <Spinner data-icon="inline-start" /> : null}
-          {t("actions.save")}
+          {purpose === "cancel" ? t("pos.cancelItem") : t("actions.save")}
         </Button>
       </DialogFooter>
     </>

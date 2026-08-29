@@ -730,6 +730,7 @@
     "cartStatusCanceled": "Canceled",
     "cancelItem": "Cancel item",
     "cancelItemConfirm": "Cancel this item?",
+    "cancelItemQuantityHelp": "Enter the quantity to cancel (1–{{max}}).",
     "confirmToKitchen": "Confirm to kitchen",
     "confirmToKitchenFailed": "Confirm to kitchen failed",
     "confirmOrderAction": "Confirm order",
