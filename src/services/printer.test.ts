@@ -422,7 +422,7 @@ describe("printer service dispatch", () => {
           remote_shared_print: true,
         },
       })
-    ).resolves.toEqual({ successCount: 0, failedCount: 0, total: 0 });
+    ).resolves.toEqual({ successCount: 0, failedCount: 0, total: 0, pending: true });
 
     expect(apiMocks.apiRequest).not.toHaveBeenCalled();
     expect(axiosMocks.get).not.toHaveBeenCalled();

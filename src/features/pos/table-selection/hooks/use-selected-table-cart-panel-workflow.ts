@@ -546,28 +546,35 @@ export function useSelectedTableCartPanelWorkflow({
     });
   }
 
-  // เมื่อมาถึงจุดนี้ confirmKitchen ผ่านครบทุกกลุ่มแล้ว (ถ้าพลาดจะถูกโยนไปเข้า catch)
-  // ⇒ ยืนยันออเดอร์สำเร็จเสมอ ส่วนปัญหาการพิมพ์แจ้งแยกต่างหาก ไม่ปนกับผลการยืนยันออเดอร์
+  // Backend รับคำขอได้ไม่ได้แปลว่า REQUIRED print สำเร็จแล้ว สถานะ order item
+  // จะยังค้างจน ACK ครบ จึงห้ามแสดงข้อความยืนยันสำเร็จเมื่อพิมพ์พลาดหรือยังรอ owner device.
   function showKitchenConfirmResult(result: {
     successCount: number;
     failedCount: number;
     total: number;
     errorMessage?: string;
+    pending?: boolean;
   }) {
-    showToast({ title: t("pos.orderConfirmed"), tone: "success" });
-
     if (result.failedCount > 0) {
       showToast({
-        title: t("report.printFailed"),
+        title: t("pos.orderConfirmFailed"),
         description: [
-          `${result.failedCount}/${result.total || result.failedCount}`,
+          `${t("report.printFailed")} ${result.failedCount}/${result.total || result.failedCount}`,
           result.errorMessage,
         ]
           .filter(Boolean)
           .join(" — "),
-        tone: "info",
+        tone: "error",
       });
+      return;
     }
+
+    if (result.pending) {
+      showToast({ title: t("orderQueue.kitchenPrintQueued"), tone: "info" });
+      return;
+    }
+
+    showToast({ title: t("pos.orderConfirmed"), tone: "success" });
   }
 
   async function confirmNewOrder() {
@@ -580,7 +587,8 @@ export function useSelectedTableCartPanelWorkflow({
         failedCount: number;
         total: number;
         errorMessage?: string;
-      } = { successCount: 0, failedCount: 0, total: 0 };
+        pending?: boolean;
+      } = { successCount: 0, failedCount: 0, total: 0, pending: false };
       const confirmItemTotal = confirmGroups.reduce(
         (sum, group) => sum + group.itemUuids.length,
         0,
@@ -643,6 +651,7 @@ export function useSelectedTableCartPanelWorkflow({
         printResult.successCount += result.successCount;
         printResult.failedCount += result.failedCount;
         printResult.total += result.total;
+        printResult.pending = printResult.pending || result.pending === true;
         if (result.errorMessage) printResult.errorMessage = result.errorMessage;
       }
 

@@ -438,6 +438,9 @@ async function executePrintJobs(
       successCount: 0,
       failedCount: 0,
       total: 0,
+      // The owner device still has to print and ACK this job. Do not let the
+      // requesting cashier present a queued REQUIRED print as completed.
+      pending: true,
     };
   }
 

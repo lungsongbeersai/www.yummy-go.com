@@ -345,7 +345,13 @@ export interface PrinterDeviceContext {
 }
 export interface AckAppliedItem extends ApiEntity { }
 export interface AckResponse extends ApiEntity { }
-export interface KitchenPrintResult { successCount: number; failedCount: number; total: number; errorMessage?: string }
+export interface KitchenPrintResult {
+  successCount: number;
+  failedCount: number;
+  total: number;
+  errorMessage?: string;
+  pending?: boolean;
+}
 export interface DefaultCategoryByRoleInput extends ApiEntity {
   login_uuid_fk: string;
   role_codes: string[];
