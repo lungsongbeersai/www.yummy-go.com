@@ -19,6 +19,15 @@ export function OfflineAppRuntime() {
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
     let active = true;
+    let reloadingForNewWorker = false;
+
+    const handleControllerChange = () => {
+      if (reloadingForNewWorker) return;
+      reloadingForNewWorker = true;
+      window.location.reload();
+    };
+
+    navigator.serviceWorker.addEventListener("controllerchange", handleControllerChange);
 
     void navigator.serviceWorker.register("/offline-sw.js", { scope: "/" }).then(async () => {
       const registration = await navigator.serviceWorker.ready;
@@ -35,6 +44,7 @@ export function OfflineAppRuntime() {
 
     return () => {
       active = false;
+      navigator.serviceWorker.removeEventListener("controllerchange", handleControllerChange);
     };
   }, [isLoggedIn, router]);
 

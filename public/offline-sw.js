@@ -3,7 +3,9 @@
 const CACHE_PREFIX = "yummy-go-offline-";
 const DOCUMENT_CACHE = `${CACHE_PREFIX}documents-v1`;
 const RSC_CACHE = `${CACHE_PREFIX}rsc-v1`;
-const ASSET_CACHE = `${CACHE_PREFIX}assets-v1`;
+// v2 invalidates the old cache where every /_next/image request could resolve
+// to the first cached image because its query string was ignored.
+const ASSET_CACHE = `${CACHE_PREFIX}assets-v2`;
 const CORE_ROUTES = ["/login"];
 
 function cacheKey(kind, url) {
@@ -135,7 +137,9 @@ self.addEventListener("fetch", (event) => {
   if (isCacheableAsset(url)) {
     event.respondWith((async () => {
       const cache = await caches.open(ASSET_CACHE);
-      const cached = await cache.match(request, { ignoreSearch: true });
+      // Next Image identifies the source, width and quality in the query
+      // string. Ignoring it makes unrelated images share one cache entry.
+      const cached = await cache.match(request, { ignoreSearch: false });
       if (cached) return cached;
       const response = await fetch(request);
       if (response.ok) await cache.put(request, response.clone());
