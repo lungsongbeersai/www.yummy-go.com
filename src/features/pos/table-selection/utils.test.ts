@@ -420,6 +420,61 @@ describe("table selection utils", () => {
     });
   });
 
+  it("includes the stored VAT rate in a split payment even when legacy cache flags are missing", () => {
+    const cart = cartOrder({
+      vat_enabled: undefined,
+      branch_vat_status: undefined,
+      vat_rate: 10,
+      items: [
+        {
+          order_it_uuid: "item-1",
+          detail: {
+            order_it_qty: 1,
+            order_it_status: 2,
+            gross_total: 870000,
+            order_it_discount_amount: 0,
+          },
+        },
+      ],
+    });
+
+    const selection = splitPaymentSelection([cart], new Map([["item-1", 1]]));
+
+    expect(selection?.summary).toMatchObject({
+      subtotal: 870000,
+      tax: 87000,
+      grandTotal: 957000,
+    });
+  });
+
+  it("rounds split service and VAT in the same order as the backend", () => {
+    const cart = cartOrder({
+      service_charge_rate: 7,
+      vat_rate: 10,
+      items: [
+        {
+          order_it_uuid: "item-1",
+          detail: {
+            order_it_qty: 1,
+            order_it_status: 2,
+            gross_total: 100007,
+            order_it_discount_amount: 0,
+          },
+        },
+      ],
+    });
+
+    const selection = splitPaymentSelection([cart], new Map([["item-1", 1]]));
+
+    // service = round(100007 * 7%) = 7000
+    // VAT = round((100007 + 7000) * 10%) = 10701
+    expect(selection?.summary).toMatchObject({
+      serviceTotal: 7000,
+      tax: 10701,
+      grandTotal: 117708,
+    });
+  });
+
   it("prunes split selections that are no longer eligible", () => {
     const current = new Map([
       ["item-1", 2],

@@ -56,6 +56,30 @@ function scaleAmount(value: number | null | undefined, ratio: number) {
   return value === null || value === undefined ? undefined : value * ratio;
 }
 
+function lakAmount(value: number) {
+  return Math.round(Number.isFinite(value) ? value : 0);
+}
+
+function splitOrderRate({
+  snapshotRate,
+  enabled,
+  status,
+  configuredRate,
+}: {
+  snapshotRate: unknown;
+  enabled: unknown;
+  status: unknown;
+  configuredRate: unknown;
+}) {
+  const storedRate = optionalNumber(snapshotRate);
+  if (storedRate !== null) return Math.max(0, storedRate);
+
+  const featureEnabled =
+    optionalBoolean(enabled) ?? optionalNumber(status) === 1;
+  const fallbackRate = optionalNumber(configuredRate) ?? 0;
+  return featureEnabled ? Math.max(0, fallbackRate) : 0;
+}
+
 // เลือกจ่ายแค่บางส่วนของจำนวนในรายการ (เช่น เบียร์ 10 ขวด จ่ายก่อน 2 ขวด) — สเกลทุกช่อง
 // ยอด/จำนวนใน detail ด้วยอัตราส่วนเดียวกัน (selectedQty/fullQty) เพื่อให้ reader อื่น ๆ
 // (cartItemTotal, cartItemBaseUnitPrice, splitItemGrossTotal) อ่านค่าที่ถูกต้องต่อโดยไม่ต้องแก้ตัวมันเอง
@@ -111,28 +135,44 @@ export function splitPaymentSelection(
     const orderUuid = optionalString(order.order_uuid);
     if (!orderUuid || selectedItems.length === 0) continue;
 
-    const subtotal = selectedItems.reduce(
-      (sum, item) => sum + splitItemGrossTotal(item),
-      0,
+    // Backend เก็บเงิน LAK เป็นจำนวนเต็มและปัดส่วนลด/ค่าบริการ/VAT ทีละขั้น
+    // การคำนวณฝั่งหน้าจอต้องใช้ลำดับเดียวกัน มิฉะนั้นปุ่ม "พอดี" อาจต่างจาก
+    // ยอดที่ Backend ตรวจ 1 กีบและชำระไม่ได้ โดยเฉพาะการแยกจ่ายบนมือถือ
+    const subtotal = lakAmount(
+      selectedItems.reduce(
+        (sum, item) => sum + splitItemGrossTotal(item),
+        0,
+      ),
     );
-    const totalDiscount = selectedItems.reduce(
-      (sum, item) =>
-        sum + (optionalNumber(item.detail?.order_it_discount_amount) ?? 0),
-      0,
+    const totalDiscount = lakAmount(
+      selectedItems.reduce(
+        (sum, item) =>
+          sum + (optionalNumber(item.detail?.order_it_discount_amount) ?? 0),
+        0,
+      ),
     );
-    const netTotal = subtotal - totalDiscount;
-    const serviceRate =
-      optionalNumber(order.service_charge_rate, order.charge_name) ?? 0;
-    const taxRate =
-      optionalNumber(order.vat_rate, order.totals?.vat_rate, order.vat_name) ??
-      0;
-    const serviceTotal = optionalBoolean(order.service_enabled)
-      ? netTotal * (serviceRate / 100)
-      : 0;
-    const tax = optionalBoolean(order.vat_enabled)
-      ? (netTotal + serviceTotal) * (taxRate / 100)
-      : 0;
-    const grandTotal = netTotal + serviceTotal + tax;
+    const netTotal = lakAmount(subtotal - totalDiscount);
+    // service_charge_rate/vat_rate เป็น rate snapshot ของบิลและต้องมีสิทธิ์ก่อน
+    // flag/config ปัจจุบัน เพื่อให้ cache เก่าและบิลที่เปิดไว้คิดยอดตรงกับ Backend
+    const serviceRate = splitOrderRate({
+      snapshotRate: order.service_charge_rate,
+      enabled: order.service_enabled,
+      status:
+        optionalNumber(order.branch_charge_status) === 1 &&
+        optionalNumber(order.charge_status) === 1
+          ? 1
+          : 0,
+      configuredRate: order.charge_name,
+    });
+    const taxRate = splitOrderRate({
+      snapshotRate: optionalNumber(order.vat_rate, order.totals?.vat_rate),
+      enabled: order.vat_enabled,
+      status: order.branch_vat_status,
+      configuredRate: order.vat_name,
+    });
+    const serviceTotal = lakAmount(netTotal * (serviceRate / 100));
+    const tax = lakAmount((netTotal + serviceTotal) * (taxRate / 100));
+    const grandTotal = lakAmount(netTotal + serviceTotal + tax);
     const orderQty = selectedItems.reduce(
       (sum, item) => sum + cartItemQty(item),
       0,
