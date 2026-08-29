@@ -127,10 +127,20 @@ export async function savePrinter(input: SavePrinterInput) {
   return mapPrinter(result.data);
 }
 
-export const togglePrinterActive = (print_config_uuid: string) =>
-  apiRequest("post", "/api/v1/printer/set-active", { data: { print_config_uuid } });
-export const deletePrinter = (print_config_uuid: string) =>
-  apiRequest("delete", "/api/v1/printer/delete", { data: { print_config_uuid } });
+export const togglePrinterActive = (print_config_uuid: string, device_code?: string) =>
+  apiRequest("post", "/api/v1/printer/set-active", {
+    data: {
+      print_config_uuid,
+      ...(textValue(device_code) ? { device_code: textValue(device_code) } : {})
+    }
+  });
+export const deletePrinter = (print_config_uuid: string, device_code?: string) =>
+  apiRequest("delete", "/api/v1/printer/delete", {
+    data: {
+      print_config_uuid,
+      ...(textValue(device_code) ? { device_code: textValue(device_code) } : {})
+    }
+  });
 export const buildTestJob = (data: BuildTestJobRequest) =>
   apiRequest<BuildTestJobResponse>("post", "/api/v1/printer/build-test-job", { data });
 

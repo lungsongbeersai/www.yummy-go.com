@@ -45,6 +45,7 @@ import {
   BROWSER_PRINTER_AGENT_ID,
   BROWSER_PRINTER_AGENT_URL,
   ackPrintJob,
+  deletePrinter,
   dispatchPrintJob,
   executeInvoicePrintJobs,
   executeKitchenPrintJobs,
@@ -56,6 +57,7 @@ import {
   resolvePrinterDeviceIdentity,
   savePrinter,
   sendMobileBackendPrintJob,
+  togglePrinterActive,
   type PrintJob
 } from "@/services/printer";
 
@@ -1578,6 +1580,26 @@ describe("printer API payloads", () => {
           lang: "eng"
         }
       }
+    );
+  });
+
+  it("sends local device identity when toggling or deleting an owned shared printer", async () => {
+    apiMocks.apiRequest.mockResolvedValue({ data: {} });
+
+    await togglePrinterActive("printer-1", "INCLUDE");
+    await deletePrinter("printer-1", "INCLUDE");
+
+    expect(apiMocks.apiRequest).toHaveBeenNthCalledWith(
+      1,
+      "post",
+      "/api/v1/printer/set-active",
+      { data: { print_config_uuid: "printer-1", device_code: "INCLUDE" } }
+    );
+    expect(apiMocks.apiRequest).toHaveBeenNthCalledWith(
+      2,
+      "delete",
+      "/api/v1/printer/delete",
+      { data: { print_config_uuid: "printer-1", device_code: "INCLUDE" } }
     );
   });
 

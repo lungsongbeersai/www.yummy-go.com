@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildTestJob,
+  deletePrinter,
   dispatchPrintJob,
   getPendingPrintJobs,
   resolvePrinterDeviceContext,
+  togglePrinterActive,
   type BuildTestJobResponse
 } from "@/services/printer";
 import { usePrinterStore } from "@/stores/printer-store";
@@ -35,9 +37,11 @@ vi.mock("@/services/printer", () => ({
 }));
 
 const buildTestJobMock = vi.mocked(buildTestJob);
+const deletePrinterMock = vi.mocked(deletePrinter);
 const dispatchPrintJobMock = vi.mocked(dispatchPrintJob);
 const getPendingPrintJobsMock = vi.mocked(getPendingPrintJobs);
 const resolvePrinterDeviceContextMock = vi.mocked(resolvePrinterDeviceContext);
+const togglePrinterActiveMock = vi.mocked(togglePrinterActive);
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -51,10 +55,44 @@ describe("printer store", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     usePrinterStore.setState({
+      agent: null,
       error: null,
       printing: false,
-      printers: []
+      printers: [],
+      saving: false
     });
+  });
+
+  it("uses the local Agent device identity for owned shared-printer mutations", async () => {
+    usePrinterStore.setState({
+      agent: {
+        agent_id: "agent-1",
+        agent_name: "Local Agent",
+        device_code: "INCLUDE"
+      },
+      printers: [
+        {
+          print_config_uuid: "printer-1",
+          printer_name: "Shared Kitchen",
+          connect_type: "tcp",
+          interface_value: "tcp://192.168.100.78:9100",
+          paper_width_mm: 80,
+          is_active: true,
+          role_codes: ["kitchen"],
+          cate_uuid_fk: [],
+          is_shared: true,
+          is_owner: true
+        }
+      ]
+    });
+    togglePrinterActiveMock.mockResolvedValue({});
+    deletePrinterMock.mockResolvedValue({});
+
+    await usePrinterStore.getState().toggleActive("printer-1");
+    expect(togglePrinterActiveMock).toHaveBeenCalledWith("printer-1", "INCLUDE");
+
+    await usePrinterStore.getState().remove("printer-1");
+    expect(deletePrinterMock).toHaveBeenCalledWith("printer-1", "INCLUDE");
   });
 
   it("builds a test job with the selected config identity instead of the browser Agent identity", async () => {

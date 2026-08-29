@@ -283,7 +283,7 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
     const isCurrentSession = createSessionGuard();
     set({ saving: true, error: null });
     try {
-      await deletePrinter(printConfigUuid);
+      await deletePrinter(printConfigUuid, textValue(get().agent?.device_code));
       if (isCurrentSession()) {
         set((state) => ({
           printers: state.printers.filter((printer) => printer.print_config_uuid !== printConfigUuid),
@@ -299,7 +299,7 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
     const isCurrentSession = createSessionGuard();
     set({ saving: true, error: null });
     try {
-      await togglePrinterActive(printConfigUuid);
+      await togglePrinterActive(printConfigUuid, textValue(get().agent?.device_code));
       if (isCurrentSession()) {
         set((state) => ({
           printers: state.printers.map((printer) =>
