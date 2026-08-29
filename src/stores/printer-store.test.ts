@@ -52,7 +52,64 @@ describe("printer store", () => {
     vi.clearAllMocks();
     usePrinterStore.setState({
       error: null,
-      printing: false
+      printing: false,
+      printers: []
+    });
+  });
+
+  it("builds a test job with the selected config identity instead of the browser Agent identity", async () => {
+    usePrinterStore.setState({
+      printers: [
+        {
+          print_config_uuid: "printer-1",
+          printer_name: "Kitchen TCP",
+          connect_type: "tcp",
+          interface_value: "tcp://192.168.100.78:9100",
+          paper_width_mm: 80,
+          is_active: true,
+          role_codes: ["kitchen"],
+          cate_uuid_fk: ["category-1"],
+          device_code: "mac-laptop-web-owner",
+          agent_id: "saved-agent",
+          agent_name: "Saved Agent",
+          print_mode: "agent"
+        }
+      ]
+    });
+    resolvePrinterDeviceContextMock.mockResolvedValue({
+      device_code: "installed-agent-device",
+      agent_id: "installed-agent",
+      agent_name: "Installed Agent",
+      print_mode: "local_agent"
+    });
+    buildTestJobMock.mockResolvedValue({
+      data: {
+        printer: {},
+        job: {
+          interface_value: "tcp://192.168.100.78:9100",
+          lang: "la",
+          ops: [],
+          paper_width_mm: 80,
+          printer_type: "receipt"
+        }
+      }
+    } as BuildTestJobResponse);
+    dispatchPrintJobMock.mockResolvedValue();
+
+    await usePrinterStore.getState().test({
+      login_uuid_fk: "login-1",
+      print_config_uuid: "printer-1",
+      lang: "la"
+    });
+
+    expect(buildTestJobMock).toHaveBeenCalledWith({
+      login_uuid_fk: "login-1",
+      print_config_uuid: "printer-1",
+      lang: "la",
+      device_code: "mac-laptop-web-owner",
+      agent_id: "saved-agent",
+      agent_name: "Saved Agent",
+      print_mode: "agent"
     });
   });
 

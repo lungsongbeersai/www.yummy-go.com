@@ -352,10 +352,12 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
 
       const result = await buildTestJob({
         ...input,
-        device_code: printer.device_code,
-        agent_id: printer.agent_id,
-        agent_name: printer.agent_name,
-        print_mode: printer.print_mode,
+        // Build the test job against the row the user actually selected. The
+        // browser identity and installed Agent identity are allowed to differ.
+        device_code: selectedPrinter?.device_code || printer.device_code,
+        agent_id: selectedPrinter?.agent_id || printer.agent_id,
+        agent_name: selectedPrinter?.agent_name || printer.agent_name,
+        print_mode: selectedPrinter?.print_mode || printer.print_mode,
       });
       if (!isCurrentSession()) return;
 
