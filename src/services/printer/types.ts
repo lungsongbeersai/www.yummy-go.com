@@ -91,6 +91,9 @@ export interface Printer extends ApiEntity {
   // (sharing_mode = SHARED ของเจ้าของ) — ทั้ง 6 ฟิลด์นี้ backend เพิ่งเพิ่ม เครื่องพิมพ์เก่าอาจไม่มีมา
   is_owner?: boolean;
   is_shared?: boolean;
+  // Shared rows are returned only while the owner agent heartbeat is fresh.
+  // Kept on the model for defensive UI filtering/debugging.
+  agent_online?: boolean;
   printer_source?: PrinterSource;
   owner_device_code?: string;
   // สิทธิ์แก้ไข/ลบจริงจาก backend (เจ้าของ = true, เห็นเพราะถูกแชร์มา = false) — UI ต้องเช็คฟิลด์นี้

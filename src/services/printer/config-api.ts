@@ -55,7 +55,9 @@ export async function getPrinters(params: FetchPrintersParams) {
       lang: toApiLanguage(params.lang)
     }
   });
-  return printerRowsFromFetchResponse(result).map((item) => mapPrinter(item));
+  return printerRowsFromFetchResponse(result)
+    .map((item) => mapPrinter(item))
+    .filter((printer) => !printer.is_shared || printer.agent_online !== false);
 }
 
 export async function getPrinterOptions(login_uuid_fk: string, lang = "la") {

@@ -111,6 +111,7 @@ export function mapPrinter(item: Record<string, unknown>): Printer {
     cate_uuid_fk: stringArray(item.cate_uuid_fk),
     is_owner: optionalBoolean(item.is_owner),
     is_shared: optionalBoolean(item.is_shared),
+    agent_online: optionalBoolean(item.agent_online),
     owner_device_code: item.owner_device_code === undefined ? undefined : String(item.owner_device_code),
     can_edit: optionalBoolean(item.can_edit),
     can_delete: optionalBoolean(item.can_delete)
