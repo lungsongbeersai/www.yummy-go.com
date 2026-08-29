@@ -1223,6 +1223,33 @@ describe("printer API payloads", () => {
     ]);
   });
 
+  it("keeps the current device's own SHARED printer visible while its agent starts", async () => {
+    apiMocks.apiRequest.mockResolvedValue({
+      data: {
+        data: [
+          {
+            print_config_uuid: "owned-shared-offline",
+            printer_name: "My Shared Printer",
+            connect_type: "usb",
+            interface_value: "cups:POS-80",
+            paper_width_mm: 80,
+            is_active: true,
+            is_owner: true,
+            is_shared: true,
+            agent_online: false,
+            owner_device_code: "device-1",
+          },
+        ],
+      },
+    });
+
+    await expect(
+      getPrinters({ login_uuid_fk: "login-1", device_code: "device-1" })
+    ).resolves.toEqual([
+      expect.objectContaining({ print_config_uuid: "owned-shared-offline" }),
+    ]);
+  });
+
   it("resolves printer device context from fetched printer settings", async () => {
     const storage = mockLocalStorage();
     axiosMocks.get.mockResolvedValue({

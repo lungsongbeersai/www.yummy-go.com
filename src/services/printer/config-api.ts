@@ -57,7 +57,16 @@ export async function getPrinters(params: FetchPrintersParams) {
   });
   return printerRowsFromFetchResponse(result)
     .map((item) => mapPrinter(item))
-    .filter((printer) => !printer.is_shared || printer.agent_online !== false);
+    .filter((printer) => {
+      if (!printer.is_shared || printer.agent_online !== false) return true;
+      if (printer.is_owner === true) return true;
+
+      // Compatibility fallback for API rows produced before is_owner existed.
+      return Boolean(
+        deviceCode &&
+        textValue(printer.owner_device_code ?? printer.device_code) === deviceCode
+      );
+    });
 }
 
 export async function getPrinterOptions(login_uuid_fk: string, lang = "la") {
