@@ -48,6 +48,18 @@ export function cartOrders(cart: CartOrder | CartOrder[] | null) {
   return Array.isArray(cart) ? cart : [cart];
 }
 
+// create/confirm/payment ของโต๊ะยึดบิลเปิดล่าสุดเพียง order_uuid เดียว
+// Backend เรียงบิลล่าสุดมาก่อน ดังนั้นหาก cache เก่าหรือ Backend รุ่นเก่าส่ง
+// duplicate open orders มา ห้ามรวมยอดข้ามบิลแล้วส่ง payment ไปหาแค่บิลแรก
+export function primaryCartOrder(cart: CartOrder | CartOrder[] | null) {
+  const orders = cartOrders(cart);
+  return (
+    orders.find((order) => optionalString(order.order_uuid)) ??
+    orders[0] ??
+    null
+  );
+}
+
 export function cartOrderTableUuid(order: CartOrder) {
   return optionalString(order.table_uuid_fk, order.table_uuid);
 }

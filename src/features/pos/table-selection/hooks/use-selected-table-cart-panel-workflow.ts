@@ -54,6 +54,7 @@ import {
   normalizeDiscountType,
   optionalNumber,
   optionalString,
+  primaryCartOrder,
   pruneSelectedItemQuantities,
   splitPaymentSelection,
   visibleCartItems,
@@ -108,7 +109,12 @@ export function useSelectedTableCartPanelWorkflow({
   const selectedTable = table?.table_uuid ? table : null;
   const hasSelectedTable = Boolean(selectedTable);
   const tableUuid = selectedTable?.table_uuid ?? "";
-  const displayCart = hasSelectedTable ? cart : null;
+  // หนึ่งการชำระต้องผูกกับหนึ่ง order_uuid เท่านั้น บิลซ้ำเก่าของโต๊ะเดียวกัน
+  // ห้ามถูกรวมเข้ายอดหน้าจอ เพราะ Backend จะชำระ/พิมพ์เฉพาะบิลล่าสุด
+  const displayCart = useMemo(
+    () => (hasSelectedTable ? primaryCartOrder(cart) : null),
+    [cart, hasSelectedTable],
+  );
   const orders = useMemo(() => cartOrders(displayCart), [displayCart]);
   const displayItems = useMemo(() => visibleCartItems(displayCart), [displayCart]);
   const newOrderItems = useMemo(

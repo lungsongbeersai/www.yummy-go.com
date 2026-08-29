@@ -25,6 +25,7 @@ import {
   newOrderTabItems,
   newOrderConfirmGroups,
   normalizeDiscountType,
+  primaryCartOrder,
   pruneSelectedItemQuantities,
   splitPaymentSelection,
   visibleCartItems,
@@ -82,6 +83,22 @@ const table: PosTable = {
 };
 
 describe("table selection utils", () => {
+  it("keeps payment scoped to the latest order when legacy open orders coexist", () => {
+    const current = cartOrder({
+      order_uuid: "order-current",
+      totals: { order_grand_total: 598_000 },
+    });
+    const stale = cartOrder({
+      order_uuid: "order-stale",
+      totals: { order_grand_total: 74_000 },
+    });
+
+    const selected = primaryCartOrder([current, stale]);
+
+    expect(selected?.order_uuid).toBe("order-current");
+    expect(cartSummary(selected).grandTotal).toBe(598_000);
+  });
+
   it("keeps the cart unit price separate from topping totals", () => {
     expect(
       cartItemBaseUnitPrice({
