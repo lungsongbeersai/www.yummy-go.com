@@ -5,6 +5,7 @@ import {
   needsLocalPrintOwnership,
   prepareOfflineRequest,
   resetLocalSyncConfiguration,
+  shouldUseLocalPrintOwnership,
   supportsOfflineRoute,
   withLocalPrintOwnership,
 } from "@/services/offline-sync";
@@ -116,6 +117,23 @@ describe("offline sync transport", () => {
       table_uuid: "table-1",
       local_agent_print: true,
     });
+  });
+
+  it("keeps the established Backend print template while the session is online", () => {
+    expect(
+      shouldUseLocalPrintOwnership(
+        false,
+        "patch",
+        "/api/v1/posAll/confirm_to_kitchen",
+      ),
+    ).toBe(false);
+    expect(
+      shouldUseLocalPrintOwnership(
+        true,
+        "patch",
+        "/api/v1/posAll/confirm_to_kitchen",
+      ),
+    ).toBe(true);
   });
 
   it("retries Local Agent configuration after a temporary startup failure", async () => {

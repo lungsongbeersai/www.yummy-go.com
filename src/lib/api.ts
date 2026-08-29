@@ -6,9 +6,9 @@ import {
   cacheOnlineResponse,
   configureLocalSync,
   mirrorOnlineResponse,
-  needsLocalPrintOwnership,
   prepareOfflineRequest,
   requestLocalFallback,
+  shouldUseLocalPrintOwnership,
   supportsOfflineRoute,
   withLocalPrintOwnership,
 } from "@/services/offline-sync";
@@ -161,7 +161,10 @@ export async function apiRequest<T>(
   }
   let requestOptions = prepared.options;
   let localOwnsPrint = false;
-  if (localConfiguration && needsLocalPrintOwnership(method, url)) {
+  if (
+    localConfiguration &&
+    shouldUseLocalPrintOwnership(auth.offlineSession, method, url)
+  ) {
     localOwnsPrint = await localConfiguration;
     if (localOwnsPrint) requestOptions = withLocalPrintOwnership(requestOptions, method);
   }

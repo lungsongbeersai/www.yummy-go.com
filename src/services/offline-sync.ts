@@ -161,6 +161,17 @@ export function needsLocalPrintOwnership(method: HttpMethod, url: string) {
   return LOCAL_PRINT_OWNER_ROUTES.has(routeKey(method, url));
 }
 
+export function shouldUseLocalPrintOwnership(
+  offlineSession: boolean,
+  method: HttpMethod,
+  url: string,
+) {
+  // Online requests must keep the Backend-owned print job because it contains
+  // the established receipt/kitchen template. The Agent builds a fallback
+  // document only after the session has actually switched offline.
+  return offlineSession && needsLocalPrintOwnership(method, url);
+}
+
 export function withLocalPrintOwnership(
   options: RequestOptions | undefined,
   method: HttpMethod = "post",
