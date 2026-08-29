@@ -43,6 +43,7 @@ export type {
   MobileEscposPayload,
   PendingPrintItem,
   PendingPrintJobData,
+  PendingPrintJobRef,
   PendingPrintJobsParams,
   PendingPrintJobsResponse,
   PendingPrintJobsResult,

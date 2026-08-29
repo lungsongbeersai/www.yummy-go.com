@@ -3,6 +3,7 @@
 import { Fragment, useEffect, useState } from "react";
 import { useResetOnDeps } from "@/hooks/use-reset-on-change";
 import { usePosOrderAlertListener } from "@/hooks/use-pos-order-alert-listener";
+import { useSharedPrinterQueue } from "@/hooks/use-shared-printer-queue";
 import { useIsCapacitorNativeApp } from "@/hooks/use-capacitor-native-app";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -92,6 +93,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const collapsed = useAppStore((state) => state.collapsed);
   const setCollapsed = useAppStore((state) => state.setCollapsed);
   usePosOrderAlertListener({ branchUuid: user?.branch_uuid, language: i18n.language });
+  useSharedPrinterQueue();
   const {
     breadcrumbs,
     dashboardScreen,

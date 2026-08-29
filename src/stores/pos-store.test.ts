@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { resolvePrinterDeviceContext } from "@/services/printer";
+import { resolvePrinterDeviceIdentity } from "@/services/printer";
 import {
   confirmToKitchen,
   fetchCart,
@@ -23,7 +23,7 @@ vi.mock("@/services/printer", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/services/printer")>();
   return {
     ...actual,
-    resolvePrinterDeviceContext: vi.fn()
+    resolvePrinterDeviceIdentity: vi.fn()
   };
 });
 
@@ -46,7 +46,7 @@ const fetchCateProductsMock = vi.mocked(fetchCateProducts);
 const getPosTablesMock = vi.mocked(getPosTables);
 const reprintReceiptMock = vi.mocked(reprintReceipt);
 const splitBillMock = vi.mocked(splitBill);
-const resolvePrinterDeviceContextMock = vi.mocked(resolvePrinterDeviceContext);
+const resolvePrinterDeviceIdentityMock = vi.mocked(resolvePrinterDeviceIdentity);
 const originalExecuteKitchen = usePrinterStore.getState().executeKitchen;
 const originalLoadProductCategories =
   usePosStore.getState().loadProductCategories;
@@ -84,8 +84,8 @@ describe("POS store session follow-up requests", () => {
   });
 
   it("does not confirm an order after printer resolution crosses a session boundary", async () => {
-    const context = deferred<Awaited<ReturnType<typeof resolvePrinterDeviceContext>>>();
-    resolvePrinterDeviceContextMock.mockReturnValueOnce(context.promise);
+    const context = deferred<Awaited<ReturnType<typeof resolvePrinterDeviceIdentity>>>();
+    resolvePrinterDeviceIdentityMock.mockReturnValueOnce(context.promise);
 
     const confirm = usePosStore.getState().confirmKitchen({
       order_uuid: "order-1",
@@ -93,9 +93,13 @@ describe("POS store session follow-up requests", () => {
     });
     resetSessionStores();
     context.resolve({
-      agent_id: "agent-1",
-      device_code: "device-1",
-      print_mode: "local_agent"
+      ok: true,
+      agent: {
+        agent_id: "agent-1",
+        agent_name: "Agent",
+        device_code: "device-1",
+        platform: "win32",
+      },
     });
 
     await expect(confirm).rejects.toThrow("Session changed while the request was in progress");
@@ -109,10 +113,14 @@ describe("POS store session follow-up requests", () => {
       successCount: 1,
       total: 1
     });
-    resolvePrinterDeviceContextMock.mockResolvedValueOnce({
-      agent_id: "agent-1",
-      device_code: "device-1",
-      print_mode: "local_agent"
+    resolvePrinterDeviceIdentityMock.mockResolvedValueOnce({
+      ok: true,
+      agent: {
+        agent_id: "agent-1",
+        agent_name: "Agent",
+        device_code: "device-1",
+        platform: "win32",
+      },
     });
     confirmToKitchenMock.mockReturnValueOnce(response.promise);
     usePrinterStore.setState({ executeKitchen: executeKitchenMock });
@@ -138,10 +146,14 @@ describe("POS store session follow-up requests", () => {
   });
 
   it("builds a reprint pending query from the local printer context", async () => {
-    resolvePrinterDeviceContextMock.mockResolvedValueOnce({
-      agent_id: "local-agent",
-      device_code: "local-device",
-      print_mode: "windows_agent"
+    resolvePrinterDeviceIdentityMock.mockResolvedValueOnce({
+      ok: true,
+      agent: {
+        agent_id: "local-agent",
+        agent_name: "Local",
+        device_code: "local-device",
+        platform: "win32",
+      },
     });
     reprintReceiptMock.mockResolvedValueOnce({
       print_job: { print_job_uuid: " job-1 " },
@@ -186,10 +198,14 @@ describe("POS store session follow-up requests", () => {
   });
 
   it("returns null when the reprint response has no usable job UUID", async () => {
-    resolvePrinterDeviceContextMock.mockResolvedValueOnce({
-      agent_id: "agent-1",
-      device_code: "device-1",
-      print_mode: "windows_agent"
+    resolvePrinterDeviceIdentityMock.mockResolvedValueOnce({
+      ok: true,
+      agent: {
+        agent_id: "agent-1",
+        agent_name: "Agent",
+        device_code: "device-1",
+        platform: "win32",
+      },
     });
     reprintReceiptMock.mockResolvedValueOnce({
       print_job: { print_job_uuid: "   " }
@@ -202,10 +218,14 @@ describe("POS store session follow-up requests", () => {
   });
 
   it("adds local printer context to split invoice requests", async () => {
-    resolvePrinterDeviceContextMock.mockResolvedValueOnce({
-      agent_id: "include-f8e4f9",
-      device_code: "INCLUDE",
-      print_mode: "windows_agent"
+    resolvePrinterDeviceIdentityMock.mockResolvedValueOnce({
+      ok: true,
+      agent: {
+        agent_id: "include-f8e4f9",
+        agent_name: "InClude",
+        device_code: "INCLUDE",
+        platform: "win32",
+      },
     });
     const response: SplitBillResponse = {
       print_job: { print_job_uuid: "job-1" },
@@ -239,8 +259,8 @@ describe("POS store session follow-up requests", () => {
   });
 
   it("does not request a reprint after printer resolution crosses a session boundary", async () => {
-    const context = deferred<Awaited<ReturnType<typeof resolvePrinterDeviceContext>>>();
-    resolvePrinterDeviceContextMock.mockReturnValueOnce(context.promise);
+    const context = deferred<Awaited<ReturnType<typeof resolvePrinterDeviceIdentity>>>();
+    resolvePrinterDeviceIdentityMock.mockReturnValueOnce(context.promise);
 
     const reprint = usePosStore.getState().reprintReceipt({
       order_uuid: "order-1",
@@ -248,9 +268,13 @@ describe("POS store session follow-up requests", () => {
     });
     resetSessionStores();
     context.resolve({
-      agent_id: "agent-1",
-      device_code: "device-1",
-      print_mode: "windows_agent"
+      ok: true,
+      agent: {
+        agent_id: "agent-1",
+        agent_name: "Agent",
+        device_code: "device-1",
+        platform: "win32",
+      },
     });
 
     await expect(reprint).rejects.toThrow("Session changed while the request was in progress");
@@ -259,10 +283,14 @@ describe("POS store session follow-up requests", () => {
 
   it("rejects a reprint response returned to a previous session", async () => {
     const response = deferred<ReprintReceiptResponse>();
-    resolvePrinterDeviceContextMock.mockResolvedValueOnce({
-      agent_id: "agent-1",
-      device_code: "device-1",
-      print_mode: "windows_agent"
+    resolvePrinterDeviceIdentityMock.mockResolvedValueOnce({
+      ok: true,
+      agent: {
+        agent_id: "agent-1",
+        agent_name: "Agent",
+        device_code: "device-1",
+        platform: "win32",
+      },
     });
     reprintReceiptMock.mockReturnValueOnce(response.promise);
 

@@ -1,52 +1,17 @@
 import { Capacitor } from "@capacitor/core";
-import { getPrinters, resolvePrinterDeviceContext, type Printer, type PrinterDeviceContextParams } from "@/services/printer";
-import { usePrinterStore } from "@/stores/printer-store";
-import { createSessionGuard } from "@/stores/session-store-registry";
+import { resolvePrinterDeviceIdentity, type PrinterDeviceContextParams } from "@/services/printer";
+import { getBrowserPrinterIdentity } from "@/services/printer/browser-device";
 
 function textValue(value: unknown) {
   return String(value ?? "").trim();
 }
 
-function isMobilePrinterCandidate(printer: Printer) {
-  const connectType = textValue(printer.connect_type).toLowerCase();
-  const printMode = textValue(printer.print_mode).toLowerCase();
-
-  return connectType === "tcp" || printMode === "mobile_wifi";
-}
-
-function pickMobilePrinterFromList(printers: Printer[]) {
-  return printers.find((printer) => printer.is_active && isMobilePrinterCandidate(printer)) ??
-    printers.find((printer) => isMobilePrinterCandidate(printer));
-}
-
-async function pickMobilePrinter(input: { login_uuid_fk?: string; lang?: string }) {
-  const isCurrentSession = createSessionGuard();
-  const printerState = usePrinterStore.getState();
-  const cachedCandidates = [...printerState.printers, ...printerState.options];
-  const cachedPrinter = pickMobilePrinterFromList(cachedCandidates);
-
-  if (cachedPrinter?.device_code) {
-    return cachedPrinter;
-  }
-
-  const loginUuid = textValue(input.login_uuid_fk);
-
-  if (!loginUuid) {
-    return cachedPrinter;
-  }
-
-  const fetchedPrinters = await getPrinters({
-    login_uuid_fk: loginUuid,
-    lang: input.lang
-  });
-
-  const fetchedPrinter = pickMobilePrinterFromList(fetchedPrinters);
-
-  if (fetchedPrinters.length && isCurrentSession()) {
-    usePrinterStore.setState({ printers: fetchedPrinters });
-  }
-
-  return fetchedPrinter ?? cachedPrinter;
+function localPrintMode(platform: unknown, native: boolean) {
+  if (native) return "mobile_wifi";
+  const value = textValue(platform).toLowerCase();
+  if (value.includes("win")) return "windows_agent";
+  if (value.includes("darwin") || value.includes("mac")) return "mac_agent";
+  return undefined;
 }
 
 // ตัว resolve ตัวตนเครื่องพิมพ์/agent ที่ใช้ร่วมกันทุก action ฝั่ง POS ที่ยิงคำสั่งพิมพ์
@@ -58,20 +23,30 @@ export async function resolvePosPrinterContext(
     lang?: string;
   }
 ) {
-  if (Capacitor.isNativePlatform()) {
-    const selectedPrinter = await pickMobilePrinter(input);
+  const native = Capacitor.isNativePlatform();
+  const identity = native
+    ? await getBrowserPrinterIdentity()
+    : await resolvePrinterDeviceIdentity().then((result) => {
+        if (!result.ok) throw new Error(result.error);
+        return result.agent;
+      });
+  const deviceCode = textValue(identity.device_code);
+  const agentId = textValue(identity.agent_id);
 
-    if (!selectedPrinter?.device_code) {
-      throw new Error("mobile printer device_code not found");
-    }
-
-    return {
-      device_code: selectedPrinter.device_code,
-      agent_id: selectedPrinter.agent_id ?? input.agent_id,
-      agent_name: selectedPrinter.agent_name ?? input.agent_name,
-      print_mode: selectedPrinter.print_mode ?? input.print_mode ?? "mobile_wifi"
-    };
+  if (!deviceCode || !agentId) {
+    throw new Error("Printer device identity missing");
   }
 
-  return resolvePrinterDeviceContext(input);
+  const suppliedIdentityMatches =
+    textValue(input.device_code) === deviceCode &&
+    (!textValue(input.agent_id) || textValue(input.agent_id) === agentId);
+
+  return {
+    device_code: deviceCode,
+    agent_id: agentId,
+    agent_name: textValue(identity.agent_name) || input.agent_name,
+    print_mode:
+      (suppliedIdentityMatches ? textValue(input.print_mode) : "") ||
+      localPrintMode(identity.platform, native),
+  };
 }

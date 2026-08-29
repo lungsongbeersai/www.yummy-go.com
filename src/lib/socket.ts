@@ -4,7 +4,8 @@ import { io, type Socket } from "socket.io-client";
 
 const socketEvents = {
   joinBranch: "join_branch",
-  tableAlert: "table_alert"
+  tableAlert: "table_alert",
+  printJobQueued: "print_job_queued",
 } as const;
 
 let socket: Socket | null = null;
@@ -18,6 +19,19 @@ export interface TableAlertPayload {
 }
 
 type TableAlertHandler = (payload: TableAlertPayload) => void;
+
+export interface PrintJobQueuedPayload {
+  branch_uuid_fk?: string;
+  print_job_uuid: string;
+  device_code?: string | null;
+  agent_id?: string | null;
+  print_mode?: string | null;
+  source?: string | null;
+  remote_shared_print?: boolean;
+  [key: string]: unknown;
+}
+
+type PrintJobQueuedHandler = (payload: PrintJobQueuedPayload) => void;
 
 export function isTableAlertForBranch(payload: TableAlertPayload, branchUuid: string) {
   return Boolean(payload.table_uuid) && (!payload.branch_uuid_fk || payload.branch_uuid_fk === branchUuid);
@@ -75,6 +89,15 @@ export function subscribeTableAlerts(branchUuid: string, handler: TableAlertHand
   active.on(socketEvents.tableAlert, handler);
   return () => {
     active.off(socketEvents.tableAlert, handler);
+  };
+}
+
+export function subscribePrintJobs(branchUuid: string, handler: PrintJobQueuedHandler) {
+  if (typeof window === "undefined" || !branchUuid) return () => {};
+  const active = getSocket(branchUuid);
+  active.on(socketEvents.printJobQueued, handler);
+  return () => {
+    active.off(socketEvents.printJobQueued, handler);
   };
 }
 

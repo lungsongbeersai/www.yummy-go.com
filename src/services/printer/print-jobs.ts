@@ -51,6 +51,7 @@ export async function getPendingPrintJobs(params: PendingPrintJobsParams): Promi
     ackSuccess: result.ack_success_payload ?? null,
     ackFailed: result.ack_failed_payload ?? null,
     printSummary: result.print_summary ?? {},
+    pendingJobRefs: result.pending_job_refs ?? [],
   };
 }
 export const ackPrintJob = (payload: AckPayload) =>
@@ -198,6 +199,17 @@ async function executePrintJobs(input: ExecuteKitchenPrintInput, options: { ack:
   const loginUuid = input.pending_query?.login_uuid_fk ?? input.login_uuid_fk;
 
   if (!jobUuid || !loginUuid) {
+    return {
+      successCount: 0,
+      failedCount: 0,
+      total: 0,
+    };
+  }
+
+  if (
+    input.pending_query?.remote_shared_print === true ||
+    input.print_job?.remote_shared_print === true
+  ) {
     return {
       successCount: 0,
       failedCount: 0,

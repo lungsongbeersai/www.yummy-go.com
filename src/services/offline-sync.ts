@@ -143,6 +143,13 @@ function uuid() {
   });
 }
 
+export function offlineSplitInvoice(newOrderUuid: string) {
+  const compactOrderUuid = String(newOrderUuid || "")
+    .replace(/[^0-9a-f]/gi, "")
+    .toUpperCase();
+  return `S${compactOrderUuid.slice(0, 14)}`;
+}
+
 function routeKey(method: HttpMethod, url: string) {
   return `${method.toUpperCase()} ${url.split("?")[0]}`;
 }
@@ -227,8 +234,7 @@ export function prepareOfflineRequest(
     data.new_order_uuid = newOrderUuid;
     data.payment_uuid = String(data.payment_uuid || uuid());
     data.new_order_invoice = String(
-      data.new_order_invoice ||
-      `OFF-SPLIT-${new Date().toISOString().slice(0, 10).replaceAll("-", "")}-${newOrderUuid.slice(0, 8).toUpperCase()}`,
+      data.new_order_invoice || offlineSplitInvoice(newOrderUuid),
     );
     const requestedItems = Array.isArray(data.order_item_uuids) ? data.order_item_uuids : [];
     const existingMap = record(data.split_item_uuid_map);

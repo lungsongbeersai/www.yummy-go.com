@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { usePosOrderAlertListener } from "@/hooks/use-pos-order-alert-listener";
+import { useSharedPrinterQueue } from "@/hooks/use-shared-printer-queue";
 import { cn } from "@/lib/utils";
 import { useAppShellData } from "@/components/layout/use-app-shell-data";
 import { buildNativeNavigationModel } from "@/components/layout/native-navigation-model";
@@ -31,6 +32,7 @@ export function NativeAppShell({ children }: { children: React.ReactNode }) {
     branchUuid: user?.branch_uuid,
     language: i18n.language,
   });
+  useSharedPrinterQueue();
 
   const model = useMemo(
     () => buildNativeNavigationModel(menuItems),

@@ -34,6 +34,7 @@ export interface PendingPrintJobsFullResponse extends ApiEntity {
   print_summary?: ApiEntity;
   ack_success_payload?: AckPayload;
   ack_failed_payload?: AckPayload;
+  pending_job_refs?: PendingPrintJobRef[];
 }
 export interface PrinterCategory extends ApiEntity {
   cate_uuid: string;
@@ -292,6 +293,14 @@ export interface PendingPrintItem extends ApiEntity {
   ack_skipped_payload?: AckPayload | null;
 }
 export interface PendingPrintJobData extends ApiEntity { print_job_uuid: string; print_items: PendingPrintItem[]; cut_mode?: string }
+export interface PendingPrintJobRef extends ApiEntity {
+  print_job_uuid: string;
+  source?: string | null;
+  device_code?: string | null;
+  agent_id?: string | null;
+  print_mode?: string | null;
+  remote_shared_print?: boolean;
+}
 export type PendingPrintJobsResponse = ApiDataResponse<PendingPrintJobData[]>;
 export interface PendingPrintJobsParams {
   print_job_uuid: string;
@@ -307,6 +316,7 @@ export interface PendingPrintJobsResult {
   ackSuccess: AckPayload | null;
   ackFailed: AckPayload | null;
   printSummary: ApiEntity;
+  pendingJobRefs?: PendingPrintJobRef[];
 }
 export interface PrinterDeviceContextParams {
   login_uuid_fk: string;

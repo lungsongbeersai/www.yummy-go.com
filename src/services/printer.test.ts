@@ -403,6 +403,30 @@ describe("printer service dispatch", () => {
     );
   });
 
+  it("leaves a remote SHARED job for the owner device instead of printing on the child", async () => {
+    await expect(
+      executeKitchenPrintJobs({
+        print_job: {
+          print_job_uuid: "shared-job-1",
+          requested_total: 1,
+          remote_shared_print: true,
+        },
+        pending_query: {
+          print_job_uuid: "shared-job-1",
+          login_uuid_fk: "login-1",
+          device_code: "OWNER-PC",
+          agent_id: "owner-agent",
+          print_mode: "windows_agent",
+          remote_shared_print: true,
+        },
+      })
+    ).resolves.toEqual({ successCount: 0, failedCount: 0, total: 0 });
+
+    expect(apiMocks.apiRequest).not.toHaveBeenCalled();
+    expect(axiosMocks.get).not.toHaveBeenCalled();
+    expect(axiosMocks.post).not.toHaveBeenCalled();
+  });
+
   it("prints native mobile wifi invoice batches directly over TCP", async () => {
     capacitorMocks.isNativePlatform.mockReturnValue(true);
     apiMocks.apiRequest.mockImplementation(async (method, url) => {
@@ -1133,7 +1157,16 @@ describe("printer pending jobs", () => {
   });
 
   it("fetches pending jobs scoped by printer identity fields", async () => {
-    apiMocks.apiRequest.mockResolvedValue({ data: [] });
+    apiMocks.apiRequest.mockResolvedValue({
+      data: [],
+      pending_job_refs: [
+        {
+          print_job_uuid: "shared-job-1",
+          device_code: "INCLUDE",
+          remote_shared_print: true,
+        },
+      ],
+    });
 
     const result = await getPendingPrintJobs({
       print_job_uuid: "job-1",
@@ -1154,6 +1187,13 @@ describe("printer pending jobs", () => {
     });
     expect(result.hasBatchPayloads).toBe(false);
     expect(result.batchPayloads).toEqual([]);
+    expect(result.pendingJobRefs).toEqual([
+      {
+        print_job_uuid: "shared-job-1",
+        device_code: "INCLUDE",
+        remote_shared_print: true,
+      },
+    ]);
   });
 
   it("preserves an explicitly empty print_batch_payloads response with failed metadata", async () => {
