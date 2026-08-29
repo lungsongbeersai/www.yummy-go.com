@@ -206,6 +206,7 @@ export async function apiRequest<T>(
       try {
         if (localConfiguration) await localConfiguration;
         const local = await requestLocalFallback<T>(method, url, requestOptions, prepared.eventUuid);
+        useAuthStore.getState().setOfflineSession(true);
         return assertApiSuccess(local);
       } catch (localError) {
         throw new ServiceError(

@@ -107,6 +107,22 @@ describe("auth store session isolation", () => {
     expect(disconnectSocketMock).toHaveBeenCalledOnce();
   });
 
+  it("switches the active transport without replacing the authenticated user", () => {
+    useAuthStore.getState().login("token-1", authUser("user-1"));
+    useAuthStore.getState().setOfflineSession(true);
+    expect(useAuthStore.getState()).toMatchObject({
+      token: "token-1",
+      isLoggedIn: true,
+      offlineSession: true,
+    });
+    useAuthStore.getState().setOfflineSession(false);
+    expect(useAuthStore.getState()).toMatchObject({
+      token: "token-1",
+      isLoggedIn: true,
+      offlineSession: false,
+    });
+  });
+
   it("resets the previous session before applying a new login", () => {
     useAuthStore.getState().login("token-1", authUser("user-1"));
     useProductStore.setState({ search: "user-1 products" });

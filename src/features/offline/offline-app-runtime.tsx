@@ -3,9 +3,10 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/stores/auth-store";
+import { startOfflineTransportMonitor } from "@/stores/offline-transport-monitor";
 
 const OFFLINE_ROUTES = [
-  "/", "/login", "/pos/tables", "/pos/order", "/order_manage",
+  "/", "/login", "/pos", "/pos/tables", "/pos/order", "/order_manage",
   "/products", "/stock", "/sales/sales-list", "/report/daily-closing",
   "/report/daily-sales", "/report/best-selling-products",
   "/report/payment-methods", "/report/category-sales",
@@ -15,6 +16,11 @@ const OFFLINE_ROUTES = [
 export function OfflineAppRuntime() {
   const router = useRouter();
   const isLoggedIn = useAuthStore((state) => state.isLoggedIn);
+
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    return startOfflineTransportMonitor();
+  }, [isLoggedIn]);
 
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;

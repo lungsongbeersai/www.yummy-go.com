@@ -73,6 +73,7 @@ interface AuthState {
   loginWithPassword: (email: string, password: string, rememberMe?: boolean) => Promise<AuthUser | null>;
   logout: () => void;
   updateUser: (updates: Partial<AuthUser>) => void;
+  setOfflineSession: (offlineSession: boolean) => void;
   setHydrated: (hydrated: boolean) => void;
 }
 
@@ -190,6 +191,7 @@ export const useAuthStore = create<AuthState>()(
         const user = get().user;
         if (user) set({ user: normalizeAuthUser({ ...user, ...updates }) });
       },
+      setOfflineSession: (offlineSession) => set({ offlineSession }),
       setHydrated: (hydrated) => set({ hydrated })
     }),
     {

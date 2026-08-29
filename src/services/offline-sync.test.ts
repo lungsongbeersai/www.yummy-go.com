@@ -2,9 +2,12 @@ import axios from "axios";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   configureLocalSync,
+  getLocalSyncStatus,
+  localSyncHasRetryableWork,
   needsLocalPrintOwnership,
   prepareOfflineRequest,
   resetLocalSyncConfiguration,
+  runLocalSyncNow,
   shouldUseLocalPrintOwnership,
   supportsOfflineRoute,
   withLocalPrintOwnership,
@@ -95,6 +98,20 @@ describe("offline sync transport", () => {
     });
   });
 
+  it("assigns a stable cancelled-item UUID for partial cancellation replay", () => {
+    const prepared = prepareOfflineRequest("patch", "/api/v1/posAll/cancel_order_item", {
+      data: {
+        order_it_uuid: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+        order_it_qty: 1,
+      },
+    });
+    expect(prepared.options?.data).toMatchObject({
+      sync_event_uuid: prepared.eventUuid,
+      stock_event_uuid: expect.stringMatching(/^[0-9a-f-]{36}$/i),
+      cancelled_order_item_uuid: expect.stringMatching(/^[0-9a-f-]{36}$/i),
+    });
+  });
+
   it("assigns a stable Local Agent event to table QR printing", () => {
     const prepared = prepareOfflineRequest("get", "/api/v1/posAll/admin/create_table_qr", {
       params: { table_uuid: "table-1" },
@@ -152,5 +169,40 @@ describe("offline sync transport", () => {
     await expect(configureLocalSync(identity)).resolves.toBe(true);
     expect(post).toHaveBeenCalledTimes(2);
     expect(post.mock.calls[0]?.[2]).toMatchObject({ timeout: 2000 });
+  });
+
+  it("does not resume online while retryable local work remains", () => {
+    expect(localSyncHasRetryableWork({
+      bootstrap_complete: true,
+      pending: { pending: 1, processing: 0, failed: 0, blocked: 0 },
+    })).toBe(true);
+    expect(localSyncHasRetryableWork({
+      bootstrap_complete: true,
+      pending: { pending: 0, processing: 0, failed: 0, blocked: 1 },
+    })).toBe(false);
+  });
+
+  it("runs an immediate recovery cycle and confirms the Agent is online", async () => {
+    vi.stubGlobal("window", { location: { origin: "https://pos.example.test" } });
+    const post = vi.spyOn(axios, "post").mockResolvedValue({ data: { ok: true } });
+    const get = vi.spyOn(axios, "get").mockResolvedValue({
+      data: {
+        ok: true,
+        data: {
+          bootstrap_complete: true,
+          connection_state: "ONLINE",
+          pending: { pending: 0, processing: 0, failed: 0, blocked: 0 },
+        },
+      },
+    });
+
+    await expect(runLocalSyncNow()).resolves.toMatchObject({ connection_state: "ONLINE" });
+    await expect(getLocalSyncStatus()).resolves.toMatchObject({ connection_state: "ONLINE" });
+    expect(post).toHaveBeenCalledWith(
+      expect.stringContaining("/local/sync/run"),
+      {},
+      { timeout: 40000 },
+    );
+    expect(get).toHaveBeenCalledOnce();
   });
 });

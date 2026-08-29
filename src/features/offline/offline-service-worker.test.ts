@@ -12,6 +12,10 @@ const offlineRuntime = readFileSync(
   join(testDir, "offline-app-runtime.tsx"),
   "utf8"
 );
+const offlineTransportMonitor = readFileSync(
+  join(testDir, "..", "..", "stores", "offline-transport-monitor.ts"),
+  "utf8"
+);
 
 describe("offline asset cache", () => {
   it("keeps the complete Next Image query in the cache identity", () => {
@@ -32,5 +36,16 @@ describe("offline asset cache", () => {
     expect(offlineRuntime).toContain(
       'navigator.serviceWorker.removeEventListener("controllerchange", handleControllerChange)'
     );
+  });
+
+  it("switches transport on network events and flushes local work before resuming online", () => {
+    expect(offlineRuntime).toContain("startOfflineTransportMonitor()");
+    expect(offlineTransportMonitor).toContain('window.addEventListener("offline", handleOffline)');
+    expect(offlineTransportMonitor).toContain('window.addEventListener("online", handleOnline)');
+    expect(offlineTransportMonitor).toContain("setOfflineSession(true)");
+    expect(offlineTransportMonitor).toContain("runLocalSyncNow()");
+    expect(offlineTransportMonitor).toContain("!localSyncHasRetryableWork(syncedStatus)");
+    expect(offlineTransportMonitor).toContain("setOfflineSession(false)");
+    expect(offlineRuntime).toContain('\"/pos\"');
   });
 });

@@ -99,12 +99,20 @@ export interface OfflineSessionInput extends LocalSyncIdentity {
   };
 }
 
-interface LocalSyncStatus {
+export interface LocalSyncStatus {
   bootstrap_complete: boolean;
   configured?: boolean;
+  connection_state?: "DEGRADED" | "OFFLINE" | "ONLINE" | "SYNCING";
+  consecutive_failures?: number;
   store_uuid?: string | null;
   branch_uuid?: string | null;
   actor_login_uuid?: string | null;
+  pending?: {
+    pending?: number;
+    processing?: number;
+    failed?: number;
+    blocked?: number;
+  };
 }
 
 interface LocalAgentResponse<T> {
@@ -241,6 +249,9 @@ export function prepareOfflineRequest(
   ].includes(routeKey(method, url))) {
     data.stock_event_uuid = String(data.stock_event_uuid || uuid());
   }
+  if (routeKey(method, url) === "PATCH /api/v1/posAll/cancel_order_item") {
+    data.cancelled_order_item_uuid = String(data.cancelled_order_item_uuid || uuid());
+  }
 
   return {
     eventUuid,
@@ -261,6 +272,8 @@ function onlineApiBase() {
 
 let configureKey = "";
 let configurePromise: Promise<boolean> | null = null;
+let localStatusCache: { checkedAt: number; status: LocalSyncStatus } | null = null;
+let localStatusPromise: Promise<LocalSyncStatus | null> | null = null;
 
 function clearFailedConfiguration(expectedKey: string) {
   if (configureKey !== expectedKey) return;
@@ -311,6 +324,56 @@ export function configureLocalSync(identity: LocalSyncIdentity): Promise<boolean
     return false;
   });
   return configurePromise;
+}
+
+export async function getLocalSyncStatus({
+  force = false,
+  maxAgeMs = 1000,
+  timeoutMs = 1000,
+}: {
+  force?: boolean;
+  maxAgeMs?: number;
+  timeoutMs?: number;
+} = {}): Promise<LocalSyncStatus | null> {
+  if (typeof window === "undefined") return null;
+  if (!force && localStatusCache && Date.now() - localStatusCache.checkedAt <= maxAgeMs) {
+    return localStatusCache.status;
+  }
+  if (localStatusPromise) return localStatusPromise;
+  localStatusPromise = axios.get<LocalAgentResponse<LocalSyncStatus>>(
+    `${AGENT_URL}/local/sync/status`,
+    { timeout: timeoutMs },
+  ).then((response) => {
+    if (!response.data.ok || !response.data.data) return null;
+    localStatusCache = { checkedAt: Date.now(), status: response.data.data };
+    return response.data.data;
+  }).catch(() => null).finally(() => {
+    localStatusPromise = null;
+  });
+  return localStatusPromise;
+}
+
+export function localSyncHasRetryableWork(status: LocalSyncStatus | null) {
+  const pending = status?.pending;
+  return Number(pending?.pending || 0) > 0 ||
+    Number(pending?.processing || 0) > 0 ||
+    Number(pending?.failed || 0) > 0;
+}
+
+export async function runLocalSyncNow(): Promise<LocalSyncStatus | null> {
+  if (typeof window === "undefined") return null;
+  localStatusCache = null;
+  try {
+    const response = await axios.post<LocalAgentResponse<unknown>>(
+      `${AGENT_URL}/local/sync/run`,
+      {},
+      { timeout: 40000 },
+    );
+    if (!response.data.ok) return null;
+  } catch {
+    return null;
+  }
+  return getLocalSyncStatus({ force: true, timeoutMs: 1500 });
 }
 
 async function waitForLocalBootstrap(timeoutMs = 45000) {
@@ -473,4 +536,6 @@ export async function mirrorOnlineResponse(
 export function resetLocalSyncConfiguration() {
   configureKey = "";
   configurePromise = null;
+  localStatusCache = null;
+  localStatusPromise = null;
 }
