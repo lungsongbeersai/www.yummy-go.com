@@ -251,6 +251,7 @@ export function PrinterListTable({
               Boolean(togglingUuid) ||
               !row.print_config_uuid ||
               !canEditPrinter(row),
+            visible: canEditPrinter,
             keepOpenOnSelect: true,
             onSelect: (row) => void onToggle(row),
           },
@@ -265,6 +266,8 @@ export function PrinterListTable({
         onDelete={(row) => onDelete(row)}
         editable={canEditPrinter}
         deletable={canDeletePrinter}
+        editVisible={canEditPrinter}
+        deleteVisible={canDeletePrinter}
       />
       </div>
     </div>

@@ -211,55 +211,55 @@ function PrinterCard({
           )}
         </Button>
 
-        <Button
-          size="icon-sm"
-          variant="outline"
-          aria-label={
-            row.is_active
-              ? t("printer.disablePrinter")
-              : t("printer.activatePrinter")
-          }
-          disabled={
-            Boolean(togglingUuid) ||
-            !row.print_config_uuid ||
-            !canEditPrinter(row)
-          }
-          onClick={() => void onToggle(row)}
-        >
-          {togglingUuid === row.print_config_uuid ? (
-            <Spinner />
-          ) : row.is_active ? (
-            <PowerOff />
-          ) : (
-            <Power />
-          )}
-        </Button>
+        {canEditPrinter(row) ? (
+          <>
+            <Button
+              size="icon-sm"
+              variant="outline"
+              aria-label={
+                row.is_active
+                  ? t("printer.disablePrinter")
+                  : t("printer.activatePrinter")
+              }
+              disabled={Boolean(togglingUuid) || !row.print_config_uuid}
+              onClick={() => void onToggle(row)}
+            >
+              {togglingUuid === row.print_config_uuid ? (
+                <Spinner />
+              ) : row.is_active ? (
+                <PowerOff />
+              ) : (
+                <Power />
+              )}
+            </Button>
 
-        <Button
-          size="icon-sm"
-          variant="outline"
-          aria-label={t("actions.edit")}
-          disabled={!canEditPrinter(row)}
-          onClick={() =>
-            router.push(
-              `/printers/form?print_config_uuid=${encodeURIComponent(
-                row.print_config_uuid,
-              )}`,
-            )
-          }
-        >
-          <Pencil />
-        </Button>
+            <Button
+              size="icon-sm"
+              variant="outline"
+              aria-label={t("actions.edit")}
+              onClick={() =>
+                router.push(
+                  `/printers/form?print_config_uuid=${encodeURIComponent(
+                    row.print_config_uuid,
+                  )}`,
+                )
+              }
+            >
+              <Pencil />
+            </Button>
+          </>
+        ) : null}
 
-        <Button
-          size="icon-sm"
-          variant="destructive"
-          aria-label={t("actions.delete")}
-          disabled={!canDeletePrinter(row)}
-          onClick={() => onDelete(row)}
-        >
-          <Trash2 />
-        </Button>
+        {canDeletePrinter(row) ? (
+          <Button
+            size="icon-sm"
+            variant="destructive"
+            aria-label={t("actions.delete")}
+            onClick={() => onDelete(row)}
+          >
+            <Trash2 />
+          </Button>
+        ) : null}
       </div>
     </article>
   );

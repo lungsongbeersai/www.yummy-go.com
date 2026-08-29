@@ -123,7 +123,7 @@ export function printJobAgentBase(job: PrintJob | null | undefined) {
   return printerAgentBase(AGENT_URL, textValue(job?.agent_url) || undefined);
 }
 
-function isPrintJobForAgent(job: PrintJob | null | undefined, agent: AgentInfo) {
+export function isPrintJobForAgent(job: PrintJob | null | undefined, agent: AgentInfo) {
   const jobAgentId = textValue(job?.agent_id);
   const localAgentId = textValue(agent.agent_id);
   if (!jobAgentId || !localAgentId || jobAgentId !== localAgentId) return false;
@@ -185,10 +185,22 @@ export async function resolvePrinterDeviceIdentity(agentUrl = AGENT_URL): Promis
 }
 
 export async function printWithLocalAgent(job: PrintJob, localAgent?: AgentInfo) {
-  const agent = localAgent ?? await getLocalAgentInfo();
-  assertPrintJobForAgent(job, agent);
+  const localBase = printerAgentBase(AGENT_URL);
+  const agent = localAgent ?? await getLocalAgentInfo(localBase);
+  const isLocalJob = isPrintJobForAgent(job, agent);
+  const jobDeviceCode = textValue(job.device_code);
+  const localDeviceCode = textValue(agent.device_code);
+  if (!textValue(job.agent_id) || !jobDeviceCode) {
+    throw new ServiceError("Print job missing agent identity", 409);
+  }
+  if (!isLocalJob && localDeviceCode && jobDeviceCode === localDeviceCode) {
+    throw new ServiceError("Print job belongs to another agent", 409);
+  }
+  const endpoint = isLocalJob
+    ? "/print-ops"
+    : "/print-ops-relay";
 
-  const { data } = await axios.post<PrintOpsAgentResponse>(`${printerAgentBase(AGENT_URL)}/print-ops`, job, {
+  const { data } = await axios.post<PrintOpsAgentResponse>(`${localBase}${endpoint}`, job, {
     headers: { "x-agent-secret": AGENT_SECRET },
     timeout: printerRequestTimeoutMs([job])
   });
@@ -202,18 +214,29 @@ export async function printBatchWithLocalAgent(
 ) {
   if (!jobs.length) return;
 
-  const agentBase = printJobAgentBase(jobs[0]);
-  if (jobs.some((job) => printJobAgentBase(job) !== agentBase)) {
-    throw new ServiceError("Print batch contains multiple agent URLs", 400);
+  const localBase = printerAgentBase(AGENT_URL);
+  const agent = localAgent ?? await getLocalAgentInfo(localBase);
+  if (jobs.some((job) => !textValue(job.agent_id) || !textValue(job.device_code))) {
+    throw new ServiceError("Print job missing agent identity", 409);
   }
-
-  const agent = localAgent ?? await getLocalAgentInfo(agentBase);
-  for (const job of jobs) {
-    assertPrintJobForAgent(job, agent);
+  const localJobs = jobs.filter((job) => isPrintJobForAgent(job, agent));
+  if (localJobs.length > 0 && localJobs.length !== jobs.length) {
+    throw new ServiceError("Print batch contains local and shared printers", 400);
   }
+  const localDeviceCode = textValue(agent.device_code);
+  if (
+    localJobs.length === 0 &&
+    localDeviceCode &&
+    jobs.some((job) => textValue(job.device_code) === localDeviceCode)
+  ) {
+    throw new ServiceError("Print job belongs to another agent", 409);
+  }
+  const endpoint = localJobs.length === jobs.length
+    ? "/print-ops-batch"
+    : "/print-ops-batch-relay";
 
   const payload = { cut_mode: cutMode, jobs };
-  const { data } = await axios.post<PrintOpsBatchAgentResponse>(`${agentBase}/print-ops-batch`, payload, {
+  const { data } = await axios.post<PrintOpsBatchAgentResponse>(`${localBase}${endpoint}`, payload, {
     headers: { "x-agent-secret": AGENT_SECRET },
     timeout: printerRequestTimeoutMs(jobs)
   });

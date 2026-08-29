@@ -50,6 +50,7 @@ import {
   executeKitchenPrintJobs,
   getPendingPrintJobs,
   getPrinters,
+  printBatchWithLocalAgent,
   renderMobileEscpos,
   resolvePrinterDeviceContext,
   resolvePrinterDeviceIdentity,
@@ -182,7 +183,7 @@ describe("printer service dispatch", () => {
     expect(axiosMocks.post).toHaveBeenCalledWith(
       "http://127.0.0.1:7777/print-ops",
       job,
-      expect.objectContaining({ timeout: 10000 })
+      expect.objectContaining({ timeout: 30000 })
     );
   });
 
@@ -221,18 +222,39 @@ describe("printer service dispatch", () => {
     expect(axiosMocks.post).not.toHaveBeenCalled();
   });
 
-  it("rejects jobs that belong to another device", async () => {
+  it("relays jobs that belong to another shared device", async () => {
     axiosMocks.get.mockResolvedValue({
       data: { agent_id: "agent-1", agent_name: "Local", device_code: "device-1" }
     });
+    axiosMocks.post.mockResolvedValue({ data: { ok: true } });
+    const job = printJob({ device_code: "device-2" });
 
-    await expect(dispatchPrintJob(printJob({ device_code: "device-2" }))).rejects.toThrow(
-      "belongs to another agent"
+    await expect(dispatchPrintJob(job)).resolves.toBeUndefined();
+    expect(axiosMocks.post).toHaveBeenCalledWith(
+      "http://127.0.0.1:7777/print-ops-relay",
+      job,
+      expect.objectContaining({ timeout: 30000 })
     );
-    expect(axiosMocks.post).not.toHaveBeenCalled();
   });
 
-  it("falls back to local agent validation when browser device_code is missing", async () => {
+  it("relays a shared printer batch through the child device Agent", async () => {
+    axiosMocks.get.mockResolvedValue({
+      data: { agent_id: "child-agent", agent_name: "Child", device_code: "CHILD-PC" }
+    });
+    axiosMocks.post.mockResolvedValue({ data: { ok: true } });
+    const jobs = [
+      windowsPrintJob({ agent_id: "owner-agent", device_code: "OWNER-PC" }),
+    ];
+
+    await expect(printBatchWithLocalAgent(jobs)).resolves.toBeUndefined();
+    expect(axiosMocks.post).toHaveBeenCalledWith(
+      "http://127.0.0.1:7777/print-ops-batch-relay",
+      { cut_mode: "per_ticket", jobs },
+      expect.objectContaining({ timeout: 30000 })
+    );
+  });
+
+  it("rejects a mismatched agent identity on the local device", async () => {
     const job = printJob({
       agent_id: BROWSER_PRINTER_AGENT_ID,
       device_code: "device-1"
@@ -242,6 +264,7 @@ describe("printer service dispatch", () => {
     });
 
     await expect(dispatchPrintJob(job)).rejects.toThrow("belongs to another agent");
+    expect(axiosMocks.post).not.toHaveBeenCalled();
     expect(apiMocks.apiRequest).not.toHaveBeenCalledWith(
       "post",
       "/api/v1/printer/mobile/render-escpos",
@@ -304,9 +327,9 @@ describe("printer service dispatch", () => {
 
     expect(axiosMocks.post).toHaveBeenCalledTimes(1);
     expect(axiosMocks.post).toHaveBeenCalledWith(
-      "http://10.0.0.20:7777/print-ops-batch",
+      "http://127.0.0.1:7777/print-ops-batch",
       { cut_mode: "per_ticket", jobs: [job, secondJob] },
-      expect.objectContaining({ timeout: 20000 })
+      expect.objectContaining({ timeout: 30000 })
     );
     expect(ackPayloads).toEqual([
       { ...successAck, login_uuid_fk: "login-1" },
@@ -369,14 +392,9 @@ describe("printer service dispatch", () => {
 
     expect(progressPhases).toEqual(["fetching", "printing", "done"]);
     expect(axiosMocks.post).toHaveBeenCalledWith(
-      "http://10.0.0.20:7777/print-ops-batch",
-      {
-        cut_mode: "per_ticket",
-        agent_id: "agent-1",
-        device_code: "device-1",
-        jobs: [job, secondJob]
-      },
-      expect.objectContaining({ timeout: 20000 })
+      "http://127.0.0.1:7777/print-ops-batch",
+      { cut_mode: "per_ticket", jobs: [job, secondJob] },
+      expect.objectContaining({ timeout: 30000 })
     );
     expect(apiMocks.apiRequest).not.toHaveBeenCalledWith(
       "post",
@@ -709,7 +727,7 @@ describe("printer service dispatch", () => {
     expect(axiosMocks.post).toHaveBeenCalledWith(
       "http://127.0.0.1:7777/print-ops-batch",
       { cut_mode: "per_ticket", jobs: [job, secondJob] },
-      expect.objectContaining({ timeout: 20000 })
+      expect.objectContaining({ timeout: 30000 })
     );
     expect(ackPayloads).toEqual([
       {
@@ -777,14 +795,14 @@ describe("printer service dispatch", () => {
     ).resolves.toEqual({ successCount: 2, failedCount: 0, total: 2 });
 
     expect(axiosMocks.post).toHaveBeenCalledWith(
-      "http://10.0.0.20:7777/print-ops-batch",
+      "http://127.0.0.1:7777/print-ops-batch",
       { cut_mode: "per_ticket", jobs: [firstJob] },
-      expect.objectContaining({ timeout: 20000 })
+      expect.objectContaining({ timeout: 30000 })
     );
     expect(axiosMocks.post).toHaveBeenCalledWith(
-      "http://10.0.0.21:7777/print-ops-batch",
+      "http://127.0.0.1:7777/print-ops-batch",
       { cut_mode: "per_ticket", jobs: [secondJob] },
-      expect.objectContaining({ timeout: 20000 })
+      expect.objectContaining({ timeout: 30000 })
     );
     expect(ackPayloads).toEqual([
       { ...successAck, login_uuid_fk: "login-1" },
@@ -1003,7 +1021,7 @@ describe("printer service dispatch", () => {
     expect(axiosMocks.post).toHaveBeenCalledWith(
       "http://127.0.0.1:7777/print-ops-batch",
       { cut_mode: "per_ticket", jobs: [localJob] },
-      expect.objectContaining({ timeout: 20000 })
+      expect.objectContaining({ timeout: 30000 })
     );
     expect(ackPayloads).toEqual([
       { ...successAck, login_uuid_fk: "login-1" },

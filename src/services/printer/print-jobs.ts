@@ -1,23 +1,15 @@
 // Pending print-job fetch/ack + kitchen/invoice print execution (P3.4 split
 // of printer.ts). Depends on agent-transport.ts (dispatch to local agent) and
 // config-api.ts (renderMobileEscpos) — the top of the printer/ import graph.
-import axios from "axios";
 import { apiRequest, ServiceError } from "@/lib/api";
 import { Capacitor } from "@capacitor/core";
-import { AGENT_URL } from "@/config/printer-agent";
 import {
-  AGENT_SECRET,
-  agentBase as printerAgentBase,
-  assertAgentOk,
   failPayload,
   getPrinterErrorMessage,
-  printerRequestTimeoutMs,
   textValue
 } from "@/services/printer/helpers";
 import {
-  assertPrintJobForAgent,
   dispatchPrintJob,
-  getLocalAgentInfo,
   isBrowserDevicePrintJob,
   printBatchWithLocalAgent,
   printJobAgentBase,
@@ -38,7 +30,6 @@ import type {
   PendingPrintJobsParams,
   PendingPrintJobsResult,
   PrintJob,
-  PrintOpsBatchAgentResponse,
   PrintOpsBatchPayload
 } from "@/services/printer/types";
 
@@ -189,21 +180,11 @@ function pendingFailedBeforePrintReason(result: PendingPrintJobsResult) {
 
 async function printKitchenBatchJob(batch: PrintOpsBatchPayload) {
   if (!batch.jobs.length) return;
-
-  const agentBase = printerAgentBase(
-    AGENT_URL,
-    textValue(batch.agent_url) || textValue(batch.jobs[0]?.agent_url) || undefined
+  await printBatchWithLocalAgent(
+    batch.jobs,
+    undefined,
+    textValue(batch.cut_mode) || "per_ticket"
   );
-  const agent = await getLocalAgentInfo(agentBase);
-  for (const job of batch.jobs) {
-    assertPrintJobForAgent(job, agent);
-  }
-
-  const { data } = await axios.post<PrintOpsBatchAgentResponse>(`${agentBase}/print-ops-batch`, batch, {
-    headers: { "x-agent-secret": AGENT_SECRET },
-    timeout: printerRequestTimeoutMs(batch.jobs)
-  });
-  assertAgentOk(data, "Print failed");
 }
 
 async function executePrintJobs(input: ExecuteKitchenPrintInput, options: { ack: boolean }): Promise<KitchenPrintResult> {

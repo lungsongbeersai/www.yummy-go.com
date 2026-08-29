@@ -67,6 +67,7 @@ export interface TableRowAction<T> {
   label: string | ((row: T) => string);
   icon?: ReactNode | ((row: T) => ReactNode);
   disabled?: boolean | ((row: T) => boolean);
+  visible?: boolean | ((row: T) => boolean);
   destructive?: boolean;
   keepOpenOnSelect?: boolean;
   onSelect: (row: T) => void;
@@ -82,6 +83,8 @@ interface DataTableProps<T extends Record<string, unknown>> {
   // เหมือนเดิม ปุ่มยังโชว์แต่ disabled แทนการซ่อน ผู้ใช้จะได้เห็นว่ามีสิทธิ์นี้อยู่แค่ใช้ไม่ได้กับแถวนี้
   editable?: (row: T) => boolean;
   deletable?: (row: T) => boolean;
+  editVisible?: (row: T) => boolean;
+  deleteVisible?: (row: T) => boolean;
   actions?: TableRowAction<T>[];
   selectable?: boolean;
   // ค่าเริ่มต้นของ selection ตอน mount เท่านั้น (ไม่ใช่ controlled) — ใช้ตอนอยากให้ทุกแถว
@@ -111,6 +114,8 @@ export function DataTable<T extends Record<string, unknown>>({
   onDelete,
   editable,
   deletable,
+  editVisible,
+  deleteVisible,
   actions = [],
   selectable = false,
   defaultSelectedIds,
@@ -192,7 +197,16 @@ export function DataTable<T extends Record<string, unknown>>({
     onReorder?.(arrayMove(rows, oldIndex, newIndex));
   }
 
-  const renderActions = (row: T) => (
+  const renderActions = (row: T) => {
+    const showEdit = Boolean(onEdit) && (editVisible ? editVisible(row) : true);
+    const showDelete = Boolean(onDelete) && (deleteVisible ? deleteVisible(row) : true);
+    const visibleActions = actions.filter((action) =>
+      typeof action.visible === "function"
+        ? action.visible(row)
+        : action.visible !== false,
+    );
+
+    return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button aria-label={t("common.actions")} size="icon-sm" type="button" variant="ghost">
@@ -201,16 +215,16 @@ export function DataTable<T extends Record<string, unknown>>({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-44">
         <DropdownMenuGroup>
-          {onEdit ? (
+          {showEdit ? (
             <DropdownMenuItem
               disabled={editable ? !editable(row) : false}
-              onSelect={() => onEdit(row)}
+              onSelect={() => onEdit?.(row)}
             >
               <Pencil />
               {t("actions.edit")}
             </DropdownMenuItem>
           ) : null}
-          {actions.map((action, index) => {
+          {visibleActions.map((action, index) => {
             const label = typeof action.label === "function" ? action.label(row) : action.label;
             const disabled = typeof action.disabled === "function" ? action.disabled(row) : action.disabled;
             const icon = typeof action.icon === "function" ? action.icon(row) : action.icon;
@@ -230,14 +244,14 @@ export function DataTable<T extends Record<string, unknown>>({
             );
           })}
         </DropdownMenuGroup>
-        {onDelete ? (
+        {showDelete ? (
           <>
-            {onEdit || actions.length ? <DropdownMenuSeparator /> : null}
+            {showEdit || visibleActions.length ? <DropdownMenuSeparator /> : null}
             <DropdownMenuGroup>
               <DropdownMenuItem
                 variant="destructive"
                 disabled={deletable ? !deletable(row) : false}
-                onSelect={() => onDelete(row)}
+                onSelect={() => onDelete?.(row)}
               >
                 <Trash2 />
                 {t("actions.delete")}
@@ -247,7 +261,8 @@ export function DataTable<T extends Record<string, unknown>>({
         ) : null}
       </DropdownMenuContent>
     </DropdownMenu>
-  );
+    );
+  };
 
   const renderCells = (row: T) =>
     columns.map((column) => (
