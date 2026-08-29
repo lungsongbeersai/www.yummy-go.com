@@ -551,6 +551,7 @@ describe("printer service dispatch", () => {
             {
               cut_mode: "per_ticket",
               interface_value: "tcp://192.168.100.102:9100",
+              print_config_uuid: "printer-a",
               job_total: 1,
               jobs: [],
               print_client: "mobile_wifi",
@@ -564,6 +565,7 @@ describe("printer service dispatch", () => {
             {
               cut_mode: "per_ticket",
               interface_value: "tcp://192.168.100.103:9100",
+              print_config_uuid: "printer-b",
               job_total: 1,
               jobs: [],
               print_client: "mobile_wifi",
@@ -621,15 +623,188 @@ describe("printer service dispatch", () => {
         print_job_uuid: "job-1",
         login_uuid_fk: "login-1",
         results: [
-          { print_job_item_uuid: "item-1", status: "success" },
+          {
+            print_job_item_uuid: "item-1",
+            status: "success",
+            print_config_uuid: "printer-a",
+            delivery_state: "printed",
+          },
           {
             print_job_item_uuid: "item-2",
             status: "failed",
             reason: "connect EHOSTUNREACH 192.168.100.103:9100",
+            print_config_uuid: "printer-b",
+            delivery_state: "not_sent",
           },
         ],
       },
     ]);
+  });
+
+  it("coalesces duplicate kitchen requests into one physical print", async () => {
+    const job = windowsPrintJob({
+      job_id: "duplicate-job-item-printer",
+      print_config_uuid: "duplicate-printer",
+      print_job_item_uuid: "duplicate-item",
+    });
+    axiosMocks.get.mockResolvedValue({
+      data: { agent_id: "agent-1", agent_name: "Local", device_code: "device-1" }
+    });
+    axiosMocks.post.mockResolvedValue({ data: { ok: true } });
+    apiMocks.apiRequest.mockImplementation(async (method, url) => {
+      if (method === "get" && url === "/api/v1/printer/jobs/pending") {
+        return {
+          print_batch_payloads: [{
+            cut_mode: "per_ticket",
+            print_config_uuid: "duplicate-printer",
+            print_job_item_uuids: ["duplicate-item"],
+            jobs: [job],
+          }],
+          ack_success_payload: {
+            print_job_uuid: "duplicate-job",
+            results: [{ print_job_item_uuid: "duplicate-item", status: "success" }],
+          },
+          ack_failed_payload: {
+            print_job_uuid: "duplicate-job",
+            results: [{ print_job_item_uuid: "duplicate-item", status: "failed" }],
+          },
+        };
+      }
+      if (method === "post" && url === "/api/v1/printer/jobs/ack") return {};
+      throw new Error(`Unexpected request ${method} ${url}`);
+    });
+
+    const input = {
+      pending_query: {
+        print_job_uuid: "duplicate-job",
+        login_uuid_fk: "login-1",
+        device_code: "device-1",
+        agent_id: "agent-1",
+        print_mode: "windows_agent",
+      },
+    };
+    const [first, second] = await Promise.all([
+      executeKitchenPrintJobs(input),
+      executeKitchenPrintJobs(input),
+    ]);
+
+    expect(first).toEqual({ successCount: 1, failedCount: 0, total: 1 });
+    expect(second).toEqual(first);
+    expect(axiosMocks.post).toHaveBeenCalledTimes(1);
+    expect(apiMocks.apiRequest.mock.calls.filter(([, url]) => url === "/api/v1/printer/jobs/pending")).toHaveLength(1);
+    expect(apiMocks.apiRequest.mock.calls.filter(([, url]) => url === "/api/v1/printer/jobs/ack")).toHaveLength(1);
+  });
+
+  it("does not print again when ACK failed after a confirmed send", async () => {
+    const job = windowsPrintJob({
+      job_id: "ack-retry-job-item-printer",
+      print_config_uuid: "ack-retry-printer",
+      print_job_item_uuid: "ack-retry-item",
+    });
+    let ackAttempts = 0;
+    axiosMocks.get.mockResolvedValue({
+      data: { agent_id: "agent-1", agent_name: "Local", device_code: "device-1" }
+    });
+    axiosMocks.post.mockResolvedValue({ data: { ok: true } });
+    apiMocks.apiRequest.mockImplementation(async (method, url) => {
+      if (method === "get" && url === "/api/v1/printer/jobs/pending") {
+        return {
+          print_batch_payloads: [{
+            cut_mode: "per_ticket",
+            print_config_uuid: "ack-retry-printer",
+            print_job_item_uuids: ["ack-retry-item"],
+            jobs: [job],
+          }],
+          ack_success_payload: {
+            print_job_uuid: "ack-retry-job",
+            results: [{ print_job_item_uuid: "ack-retry-item", status: "success" }],
+          },
+          ack_failed_payload: {
+            print_job_uuid: "ack-retry-job",
+            results: [{ print_job_item_uuid: "ack-retry-item", status: "failed" }],
+          },
+        };
+      }
+      if (method === "post" && url === "/api/v1/printer/jobs/ack") {
+        ackAttempts += 1;
+        if (ackAttempts === 1) throw new Error("ACK connection lost");
+        return {};
+      }
+      throw new Error(`Unexpected request ${method} ${url}`);
+    });
+    const input = {
+      pending_query: {
+        print_job_uuid: "ack-retry-job",
+        login_uuid_fk: "login-1",
+        device_code: "device-1",
+        agent_id: "agent-1",
+        print_mode: "windows_agent",
+      },
+    };
+
+    await executeKitchenPrintJobs(input);
+    await executeKitchenPrintJobs(input);
+
+    expect(axiosMocks.post).toHaveBeenCalledTimes(1);
+    expect(ackAttempts).toBe(2);
+  });
+
+  it("runs different printers concurrently and serializes the same printer", async () => {
+    const jobs = {
+      "queue-a1": windowsPrintJob({ job_id: "queue-a1-item-printer", print_config_uuid: "queue-printer-a", print_job_item_uuid: "queue-a1-item" }),
+      "queue-a2": windowsPrintJob({ job_id: "queue-a2-item-printer", print_config_uuid: "queue-printer-a", print_job_item_uuid: "queue-a2-item" }),
+      "queue-b": windowsPrintJob({ job_id: "queue-b-item-printer", print_config_uuid: "queue-printer-b", print_job_item_uuid: "queue-b-item" }),
+    };
+    const starts: string[] = [];
+    let releaseFirstWave: () => void = () => {};
+    const firstWave = new Promise<void>((resolve) => { releaseFirstWave = resolve; });
+    axiosMocks.get.mockResolvedValue({
+      data: { agent_id: "agent-1", agent_name: "Local", device_code: "device-1" }
+    });
+    axiosMocks.post.mockImplementation(async (_url, payload) => {
+      const printerUuid = String(payload.jobs[0].print_config_uuid);
+      starts.push(printerUuid);
+      if (starts.length === 2) releaseFirstWave();
+      await firstWave;
+      return { data: { ok: true } };
+    });
+    apiMocks.apiRequest.mockImplementation(async (method, url, options) => {
+      if (method === "get" && url === "/api/v1/printer/jobs/pending") {
+        const jobUuid = String(options?.params?.print_job_uuid) as keyof typeof jobs;
+        const job = jobs[jobUuid];
+        const itemUuid = `${jobUuid}-item`;
+        return {
+          print_batch_payloads: [{
+            cut_mode: "per_ticket",
+            print_config_uuid: job.print_config_uuid,
+            print_job_item_uuids: [itemUuid],
+            jobs: [job],
+          }],
+          ack_success_payload: { print_job_uuid: jobUuid, results: [{ print_job_item_uuid: itemUuid, status: "success" }] },
+          ack_failed_payload: { print_job_uuid: jobUuid, results: [{ print_job_item_uuid: itemUuid, status: "failed" }] },
+        };
+      }
+      if (method === "post" && url === "/api/v1/printer/jobs/ack") return {};
+      throw new Error(`Unexpected request ${method} ${url}`);
+    });
+    const input = (printJobUuid: keyof typeof jobs) => ({
+      pending_query: {
+        print_job_uuid: printJobUuid,
+        login_uuid_fk: "login-1",
+        device_code: "device-1",
+        agent_id: "agent-1",
+        print_mode: "windows_agent",
+      },
+    });
+
+    await Promise.all([
+      executeKitchenPrintJobs(input("queue-a1")),
+      executeKitchenPrintJobs(input("queue-a2")),
+      executeKitchenPrintJobs(input("queue-b")),
+    ]);
+
+    expect(new Set(starts.slice(0, 2))).toEqual(new Set(["queue-printer-a", "queue-printer-b"]));
+    expect(starts[2]).toBe("queue-printer-a");
   });
 
   it("falls back before calling the print agent when invoice batch payloads are empty", async () => {
@@ -917,12 +1092,12 @@ describe("printer service dispatch", () => {
       {
         print_job_uuid: "job-1",
         login_uuid_fk: "login-1",
-        results: [{ print_job_item_uuid: "item-1", status: "failed", reason: "batch failed" }]
+        results: [{ print_job_item_uuid: "item-1", status: "failed", reason: "batch failed", delivery_state: "unknown" }]
       },
       {
         print_job_uuid: "job-1",
         login_uuid_fk: "login-1",
-        results: [{ print_job_item_uuid: "item-2", status: "failed", reason: "batch failed" }]
+        results: [{ print_job_item_uuid: "item-2", status: "failed", reason: "batch failed", delivery_state: "unknown" }]
       }
     ]);
   });
@@ -1128,7 +1303,7 @@ describe("printer service dispatch", () => {
       {
         print_job_uuid: "job-1",
         login_uuid_fk: "login-1",
-        results: [{ print_job_item_uuid: "item-1", status: "failed", reason: "render failed" }]
+        results: [{ print_job_item_uuid: "item-1", status: "failed", reason: "render failed", delivery_state: "not_sent" }]
       }
     ]);
   });

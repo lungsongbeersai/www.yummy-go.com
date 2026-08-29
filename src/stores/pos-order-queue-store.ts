@@ -205,12 +205,10 @@ export const usePosOrderQueueStore =
           });
 
         /*
-         * Backend confirms the order status when
-         * send_to_kitchen responds successfully.
-         *
-         * Printing is a separate flow.
-         * If printing fails, do not fail the
-         * order confirmation flow.
+         * Backend confirms SKIP items immediately. REQUIRED items stay in
+         * the waiting state until every mapped active printer ACKs success.
+         * A print failure therefore leaves those items available for a safe
+         * retry without changing the existing API response contract.
          */
         const printJobUuid =
           optionalString(

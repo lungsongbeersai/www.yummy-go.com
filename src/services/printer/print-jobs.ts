@@ -5,6 +5,7 @@ import { apiRequest, ServiceError } from "@/lib/api";
 import { Capacitor } from "@capacitor/core";
 import {
   failPayload,
+  getPrinterDeliveryState,
   getPrinterErrorMessage,
   textValue
 } from "@/services/printer/helpers";
@@ -30,8 +31,88 @@ import type {
   PendingPrintJobsParams,
   PendingPrintJobsResult,
   PrintJob,
-  PrintOpsBatchPayload
+  PrintOpsBatchPayload,
+  PrinterDeliveryState,
 } from "@/services/printer/types";
+
+const printerQueues = new Map<string, Promise<void>>();
+const kitchenExecutions = new Map<string, Promise<KitchenPrintResult>>();
+const deliveryLedgerMemory = new Map<string, StoredDelivery>();
+const DELIVERY_LEDGER_PREFIX = "yummy_kitchen_printer_delivery:";
+
+interface StoredDelivery {
+  deliveryState: Exclude<PrinterDeliveryState, "not_sent">;
+  errorMessage?: string;
+}
+
+function runOnPrinterQueue<T>(key: string, task: () => Promise<T>): Promise<T> {
+  const previous = printerQueues.get(key) ?? Promise.resolve();
+  const current = previous.catch(() => undefined).then(task);
+  const tail = current.then(() => undefined, () => undefined);
+  printerQueues.set(key, tail);
+  void tail.finally(() => {
+    if (printerQueues.get(key) === tail) printerQueues.delete(key);
+  });
+  return current;
+}
+
+function printerBatchQueueKey(batch: PrintOpsBatchPayload) {
+  return (
+    textValue(batch.print_config_uuid) ||
+    [
+      textValue(batch.agent_id),
+      textValue(batch.device_code),
+      textValue(batch.interface_value || batch.jobs?.[0]?.interface_value),
+    ].join("|")
+  );
+}
+
+function deliveryLedgerKey(jobUuid: string, batch: PrintOpsBatchPayload) {
+  return `${DELIVERY_LEDGER_PREFIX}${jobUuid}:${printerBatchQueueKey(batch)}`;
+}
+
+function deliveryStorage() {
+  try {
+    return typeof window === "undefined" ? null : window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
+function readStoredDelivery(key: string): StoredDelivery | null {
+  const memoryValue = deliveryLedgerMemory.get(key);
+  if (memoryValue) return memoryValue;
+  try {
+    const raw = deliveryStorage()?.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as StoredDelivery;
+    if (parsed.deliveryState !== "printed" && parsed.deliveryState !== "unknown") {
+      return null;
+    }
+    deliveryLedgerMemory.set(key, parsed);
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function storeDelivery(key: string, delivery: StoredDelivery) {
+  deliveryLedgerMemory.set(key, delivery);
+  try {
+    deliveryStorage()?.setItem(key, JSON.stringify(delivery));
+  } catch {
+    // Memory still protects duplicate requests in the current app session.
+  }
+}
+
+function clearStoredDelivery(key: string) {
+  deliveryLedgerMemory.delete(key);
+  try {
+    deliveryStorage()?.removeItem(key);
+  } catch {
+    // The committed backend ACK is authoritative even if local cleanup fails.
+  }
+}
 
 export async function getPendingPrintJobs(params: PendingPrintJobsParams): Promise<PendingPrintJobsResult> {
   const result = await apiRequest<PendingPrintJobsFullResponse>("get", "/api/v1/printer/jobs/pending", {
@@ -174,8 +255,11 @@ function printBatchJobTotal(batch: PrintOpsBatchPayload) {
 }
 
 interface BatchPrintOutcome {
+  deliveryState: PrinterDeliveryState;
   errorMessage?: string;
   itemUuids: string[];
+  ledgerKey: string;
+  printConfigUuid: string;
   success: boolean;
 }
 
@@ -237,13 +321,9 @@ function batchAckPayload({
     ]),
   );
   const outcomesByItem = new Map<string, BatchPrintOutcome[]>();
-
   for (const outcome of outcomes) {
     for (const itemUuid of outcome.itemUuids) {
-      outcomesByItem.set(itemUuid, [
-        ...(outcomesByItem.get(itemUuid) ?? []),
-        outcome,
-      ]);
+      outcomesByItem.set(itemUuid, [...(outcomesByItem.get(itemUuid) ?? []), outcome]);
     }
   }
 
@@ -262,22 +342,33 @@ function batchAckPayload({
     const failedTemplate = failedByItem.get(itemUuid);
 
     if (itemOutcomes.length) {
-      const failedOutcome = itemOutcomes.find((outcome) => !outcome.success);
-      if (failedOutcome) {
-        results.push({
-          ...failedTemplate,
-          print_job_item_uuid: itemUuid,
-          status: "failed",
-          reason:
-            failedOutcome.errorMessage ||
-            failedTemplate?.reason ||
-            "Printer batch failed",
-        });
-      } else {
+      // One order item may be mapped to several physical printers. Report each
+      // printer independently so backend can gate the item on the full set.
+      for (const outcome of itemOutcomes) {
+        if (!outcome.success) {
+          results.push({
+            ...failedTemplate,
+            print_job_item_uuid: itemUuid,
+            status: "failed",
+            reason:
+              outcome.errorMessage ||
+              failedTemplate?.reason ||
+              "Printer batch failed",
+            ...(outcome.printConfigUuid
+              ? { print_config_uuid: outcome.printConfigUuid }
+              : {}),
+            delivery_state: outcome.deliveryState,
+          });
+          continue;
+        }
         results.push({
           ...successTemplate,
           print_job_item_uuid: itemUuid,
           status: "success",
+          ...(outcome.printConfigUuid
+            ? { print_config_uuid: outcome.printConfigUuid }
+            : {}),
+          delivery_state: "printed",
         });
       }
       continue;
@@ -324,7 +415,10 @@ async function printKitchenBatchJob(batch: PrintOpsBatchPayload) {
   );
 }
 
-async function executePrintJobs(input: ExecuteKitchenPrintInput, options: { ack: boolean }): Promise<KitchenPrintResult> {
+async function executePrintJobs(
+  input: ExecuteKitchenPrintInput,
+  options: { ack: boolean; idempotent?: boolean },
+): Promise<KitchenPrintResult> {
   const jobUuid = input.pending_query?.print_job_uuid ?? input.print_job?.print_job_uuid;
   const loginUuid = input.pending_query?.login_uuid_fk ?? input.login_uuid_fk;
 
@@ -419,31 +513,88 @@ async function executePrintJobs(input: ExecuteKitchenPrintInput, options: { ack:
       phase: "printing",
     });
 
-    for (const [batchIndex, batch] of batchPayloads.entries()) {
-      const batchTotal = printBatchJobTotal(batch);
-      try {
-        if (isMobilePrintBatch(batch)) {
-          await printKitchenMobileBatch(batch);
-        } else {
-          await printKitchenBatchJob(batch);
+    const batchOutcomes = await Promise.all(
+      batchPayloads.map((batch) => {
+        const ledgerKey = deliveryLedgerKey(jobUuid, batch);
+        const stored = options.idempotent ? readStoredDelivery(ledgerKey) : null;
+        const printConfigUuid = textValue(
+          batch.print_config_uuid || batch.jobs?.[0]?.print_config_uuid
+        );
+
+        if (stored) {
+          return Promise.resolve<BatchPrintOutcome>({
+            deliveryState: stored.deliveryState,
+            errorMessage: stored.errorMessage,
+            itemUuids: batchPrintJobItemUuids(batch),
+            ledgerKey,
+            printConfigUuid,
+            success: stored.deliveryState === "printed",
+          });
         }
 
-        successCount += batchTotal;
-        outcomes.push({
-          itemUuids: batchPrintJobItemUuids(batch),
-          success: true,
-        });
-      } catch (error) {
-        lastErrorMessage = getPrinterErrorMessage(error);
-        failedCount += batchTotal;
-        outcomes.push({
-          errorMessage: lastErrorMessage,
-          itemUuids: batchPrintJobItemUuids(batch),
-          success: false,
-        });
-      }
+        return runOnPrinterQueue(printerBatchQueueKey(batch), async () => {
+          // A second request can reach this queue while the first is printing.
+          const queuedStored = options.idempotent
+            ? readStoredDelivery(ledgerKey)
+            : null;
+          if (queuedStored) {
+            return {
+              deliveryState: queuedStored.deliveryState,
+              errorMessage: queuedStored.errorMessage,
+              itemUuids: batchPrintJobItemUuids(batch),
+              ledgerKey,
+              printConfigUuid,
+              success: queuedStored.deliveryState === "printed",
+            };
+          }
 
-      if (batchIndex < batchPayloads.length - 1) {
+          try {
+            if (isMobilePrintBatch(batch)) {
+              await printKitchenMobileBatch(batch);
+            } else {
+              await printKitchenBatchJob(batch);
+            }
+
+            if (options.idempotent) {
+              storeDelivery(ledgerKey, { deliveryState: "printed" });
+            }
+            return {
+              deliveryState: "printed" as const,
+              itemUuids: batchPrintJobItemUuids(batch),
+              ledgerKey,
+              printConfigUuid,
+              success: true,
+            };
+          } catch (error) {
+            const errorMessage = getPrinterErrorMessage(error);
+            const deliveryState = getPrinterDeliveryState(error);
+            if (options.idempotent && deliveryState === "unknown") {
+              storeDelivery(ledgerKey, { deliveryState, errorMessage });
+            }
+            return {
+              deliveryState,
+              errorMessage,
+              itemUuids: batchPrintJobItemUuids(batch),
+              ledgerKey,
+              printConfigUuid,
+              success: false,
+            };
+          }
+        });
+      })
+    );
+
+    for (const [outcomeIndex, outcome] of batchOutcomes.entries()) {
+      const batch = batchPayloads[outcomeIndex];
+      const batchTotal = printBatchJobTotal(batch);
+      outcomes.push(outcome);
+      if (outcome.success) {
+        successCount += batchTotal;
+      } else {
+        failedCount += batchTotal;
+        lastErrorMessage = outcome.errorMessage || lastErrorMessage;
+      }
+      if (outcomeIndex < batchOutcomes.length - 1) {
         input.onProgress?.({
           total,
           completed: successCount + failedCount,
@@ -464,11 +615,18 @@ async function executePrintJobs(input: ExecuteKitchenPrintInput, options: { ack:
       })
       : null;
     if (ackPayload) {
-      await ackPrintJob(
-        ackPayloadWithLogin(ackPayload, loginUuid)
-      ).catch((error) => {
+      try {
+        await ackPrintJob(ackPayloadWithLogin(ackPayload, loginUuid));
+        for (const outcome of outcomes) {
+          if (options.idempotent && outcome.deliveryState !== "not_sent") {
+            clearStoredDelivery(outcome.ledgerKey);
+          }
+        }
+      } catch (error) {
+        // Keep the local ledger. A repeated request will ACK the recorded
+        // result without sending the bytes to this printer again.
         console.error("[printer] kitchen batch ACK failed", error);
-      });
+      }
     }
 
     input.onProgress?.({
@@ -580,9 +738,17 @@ async function executePrintJobs(input: ExecuteKitchenPrintInput, options: { ack:
         continue;
       }
 
+      const deliveryState = item.job && isBrowserDevicePrintJob(item.job)
+        ? "not_sent"
+        : getPrinterDeliveryState(error);
       await ackPrintJob(
         ackPayloadWithLogin(
-          failPayload(item.ack_failed_payload, lastErrorMessage),
+          failPayload(
+            item.ack_failed_payload,
+            lastErrorMessage,
+            deliveryState,
+            textValue(item.job?.print_config_uuid),
+          ),
           loginUuid
         )
       );
@@ -631,7 +797,12 @@ async function executePrintJobs(input: ExecuteKitchenPrintInput, options: { ack:
 
         await ackPrintJob(
           ackPayloadWithLogin(
-            failPayload(item.ack_failed_payload, lastErrorMessage),
+            failPayload(
+              item.ack_failed_payload,
+              lastErrorMessage,
+              getPrinterDeliveryState(error),
+              textValue(item.job?.print_config_uuid),
+            ),
             loginUuid
           )
         );
@@ -667,7 +838,23 @@ async function executePrintJobs(input: ExecuteKitchenPrintInput, options: { ack:
 }
 
 export async function executeKitchenPrintJobs(input: ExecuteKitchenPrintInput): Promise<KitchenPrintResult> {
-  return executePrintJobs(input, { ack: true });
+  const jobUuid = textValue(
+    input.pending_query?.print_job_uuid ?? input.print_job?.print_job_uuid
+  );
+  if (!jobUuid) return executePrintJobs(input, { ack: true, idempotent: true });
+
+  const existing = kitchenExecutions.get(jobUuid);
+  if (existing) return existing;
+
+  const execution = executePrintJobs(input, { ack: true, idempotent: true });
+  kitchenExecutions.set(jobUuid, execution);
+  const cleanup = () => {
+    if (kitchenExecutions.get(jobUuid) === execution) {
+      kitchenExecutions.delete(jobUuid);
+    }
+  };
+  void execution.then(cleanup, cleanup);
+  return execution;
 }
 
 export async function executeInvoicePrintJobs(input: ExecuteInvoicePrintInput): Promise<KitchenPrintResult> {

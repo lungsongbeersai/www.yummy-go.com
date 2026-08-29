@@ -2,7 +2,12 @@ import { ServiceError } from "@/lib/api";
 // Import from types.ts (not the printer.ts barrel) to avoid a circular import:
 // printer.ts re-exports from this file, so importing back from printer.ts here
 // would create a cycle.
-import type { AckPayload, Printer, PrinterCategory } from "@/services/printer/types";
+import type {
+  AckPayload,
+  Printer,
+  PrinterCategory,
+  PrinterDeliveryState,
+} from "@/services/printer/types";
 import { stringArray } from "@/services/shared/validators";
 
 // Shared across the printer/ submodules (config-api, agent-transport, print-jobs).
@@ -45,6 +50,35 @@ export function getPrinterErrorMessage(error: unknown) {
   if (agentMessage) return agentMessage;
   if (error instanceof Error) return error.message;
   return nonEmptyString(error) || "Unknown printer error";
+}
+
+export function getPrinterDeliveryState(error: unknown): Exclude<PrinterDeliveryState, "printed"> {
+  const record = objectValue(error);
+  const response = objectValue(record?.response);
+  const responseData = objectValue(response?.data);
+  const responseHeaders = objectValue(response?.headers);
+  const headerGetter = responseHeaders?.get;
+  const deliveryHeader = typeof headerGetter === "function"
+    ? headerGetter.call(responseHeaders, "x-printer-delivery-state")
+    : responseHeaders?.["x-printer-delivery-state"];
+  const explicit = textValue(
+    responseData?.delivery_state ?? deliveryHeader ?? record?.delivery_state
+  ).toLowerCase();
+
+  if (explicit === "not_sent" || explicit === "unknown") return explicit;
+
+  const code = textValue(record?.code).toUpperCase();
+  const message = getPrinterErrorMessage(error).toUpperCase();
+  const statusCode = Number(record?.statusCode ?? response?.status ?? 0);
+  const definitelyNotSent =
+    statusCode === 400 ||
+    statusCode === 409 ||
+    statusCode === 501 ||
+    ["ECONNREFUSED", "EHOSTUNREACH", "ENETUNREACH", "ENOTFOUND"].some(
+      (token) => code === token || message.includes(token)
+    );
+
+  return definitelyNotSent ? "not_sent" : "unknown";
 }
 
 export function agentBase(defaultAgentUrl: string, agentUrl?: string) {
@@ -124,11 +158,23 @@ export function assertAgentOk(data: { ok?: boolean; error?: string; message?: st
   if (data.ok === false) throw new ServiceError(data.error || data.message || fallback, 500);
 }
 
-export function failPayload(payload: AckPayload, reason: string): AckPayload {
+export function failPayload(
+  payload: AckPayload,
+  reason: string,
+  deliveryState?: Exclude<PrinterDeliveryState, "printed">,
+  printConfigUuid?: string,
+): AckPayload {
   return {
     ...payload,
     results: payload.results.map((item) =>
-      item.status === "failed" && !item.reason ? { ...item, reason } : item
+      item.status === "failed"
+        ? {
+          ...item,
+          ...(!item.reason ? { reason } : {}),
+          ...(deliveryState ? { delivery_state: deliveryState } : {}),
+          ...(printConfigUuid ? { print_config_uuid: printConfigUuid } : {}),
+        }
+        : item
     )
   };
 }

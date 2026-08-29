@@ -28,6 +28,21 @@ type TcpSocketApi = {
     disconnect: (payload: TcpSocketDisconnectPayload) => Promise<unknown>;
 };
 
+function deliveryError(error: unknown, deliveryState: "not_sent" | "unknown") {
+    const wrapped = error instanceof Error
+        ? error
+        : new Error(String(error || "Unknown printer error"));
+
+    try {
+        return Object.assign(wrapped, { delivery_state: deliveryState });
+    } catch {
+        return Object.assign(new Error(wrapped.message), {
+            cause: wrapped,
+            delivery_state: deliveryState,
+        });
+    }
+}
+
 function parseTcpInterface(interfaceValue?: string) {
     const value = String(interfaceValue ?? "").trim();
 
@@ -158,10 +173,15 @@ export async function printMobileEscposOverTcp({
 
     console.log("[mobile-tcp] connect start");
 
-    const connected = await TcpSocket.connect({
-        ipAddress: host,
-        port,
-    });
+    let connected: TcpSocketConnectResult;
+    try {
+        connected = await TcpSocket.connect({
+            ipAddress: host,
+            port,
+        });
+    } catch (error) {
+        throw deliveryError(error, "not_sent");
+    }
 
     console.log("[mobile-tcp] connect success", connected);
 
@@ -187,7 +207,9 @@ export async function printMobileEscposOverTcp({
         await sleep(500);
     } catch (error) {
         console.error("[mobile-tcp] send failed", error);
-        throw error;
+        // Once a send call starts the printer may have received some/all bytes.
+        // Retrying automatically could therefore print a duplicate ticket.
+        throw deliveryError(error, "unknown");
     } finally {
         console.log("[mobile-tcp] disconnect start");
 

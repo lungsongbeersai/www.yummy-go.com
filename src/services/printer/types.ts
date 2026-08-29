@@ -198,7 +198,12 @@ export interface PrintJob extends ApiEntity {
   ops: Record<string, unknown>[];
   meta?: ApiEntity | null;
 }
-export interface PrintOpsAgentResponse extends ApiEntity { ok: boolean; error?: string; message?: string }
+export type PrinterDeliveryState = "printed" | "not_sent" | "unknown";
+export interface PrintOpsAgentResponse extends ApiEntity {
+  ok: boolean;
+  error?: string;
+  message?: string;
+}
 export interface MobileEscposPayload extends ApiEntity {
   type?: string;
   render_mode?: string;
@@ -275,6 +280,8 @@ export interface AckResultItem {
   print_job_item_uuid: string;
   status: "success" | "failed" | "skipped";
   reason?: string;
+  print_config_uuid?: string | null;
+  delivery_state?: PrinterDeliveryState;
 }
 export interface AckPayload {
   login_uuid_fk?: string;
