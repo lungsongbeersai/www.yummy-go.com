@@ -196,6 +196,7 @@ export interface PrintJob extends ApiEntity {
   print_client?: string;
   print_mode?: string;
   cut_mode?: PrinterKitchenCutMode;
+  open_cash_drawer?: boolean;
   print_job_item_uuid?: string;
   requested_by?: string;
   interface_value: string;
