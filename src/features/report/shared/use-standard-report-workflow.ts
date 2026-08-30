@@ -13,7 +13,7 @@ import {
 import { useTranslation } from "react-i18next";
 import { useResetOnChange } from "@/hooks/use-reset-on-change";
 import { useUrlPagination } from "@/hooks/use-url-pagination";
-import { localDateInputValue } from "@/lib/format";
+import { businessDateInputValue } from "@/lib/format";
 import { pageLimitSize } from "@/lib/pagination";
 import type { UrlPaginationState } from "@/lib/url-pagination";
 import { useAppStore } from "@/stores/app-store";
@@ -156,7 +156,7 @@ export function useStandardReportWorkflow<
   const language = useAppStore((state) => state.language);
   const setSelectedBranch = useBranchStore((state) => state.setSelectedBranch);
   const showToast = useToastStore((state) => state.show);
-  const today = useMemo(() => localDateInputValue(), []);
+  const today = useMemo(() => businessDateInputValue(), []);
 
   const {
     branchError,

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useResetOnChange } from "@/hooks/use-reset-on-change";
 import { isCapacitorNativeApp } from "@/lib/capacitor-platform";
-import { localDateInputValue } from "@/lib/format";
+import { businessDateInputValue } from "@/lib/format";
 import { useAppStore } from "@/stores/app-store";
 import { useAuthStore } from "@/stores/auth-store";
 import { useBranchStore } from "@/stores/branch-store";
@@ -46,7 +46,7 @@ export function useDailyClosingReportWorkflow() {
   const resolveDeviceIdentity = usePrinterStore((state) => state.resolveDeviceIdentity);
   const submitReportPrint = usePrinterStore((state) => state.submitReportPrint);
   const showToast = useToastStore((state) => state.show);
-  const today = useMemo(() => localDateInputValue(), []);
+  const today = useMemo(() => businessDateInputValue(), []);
 
   const [draftFilters, setDraftFilters] = useState<DailyClosingReportFilters>({
     branchUuid: user?.branch_uuid ?? "",

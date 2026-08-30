@@ -44,3 +44,31 @@ export function localDateInputValue(date = new Date()) {
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 }
+
+const BUSINESS_TIME_ZONE = "Asia/Vientiane";
+const BUSINESS_DAY_START_HOUR = 6;
+
+// Reports keep sales through 05:59:59 in the prior business day.
+export function businessDateInputValue(date = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    day: "2-digit",
+    hour: "2-digit",
+    hourCycle: "h23",
+    month: "2-digit",
+    timeZone: BUSINESS_TIME_ZONE,
+    year: "numeric",
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  const businessDate = new Date(
+    Date.UTC(Number(values.year), Number(values.month) - 1, Number(values.day)),
+  );
+
+  if (Number(values.hour) < BUSINESS_DAY_START_HOUR) {
+    businessDate.setUTCDate(businessDate.getUTCDate() - 1);
+  }
+
+  const year = businessDate.getUTCFullYear();
+  const month = String(businessDate.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(businessDate.getUTCDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}

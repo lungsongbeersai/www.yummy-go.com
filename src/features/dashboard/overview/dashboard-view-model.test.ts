@@ -122,6 +122,16 @@ describe("dashboard view model", () => {
     });
   });
 
+  it("uses the previous business date through 05:59:59", () => {
+    expect(createDefaultFilters(new Date("2026-08-25T22:59:59.000Z"))).toEqual({
+      end_date: "2026-08-25",
+      periodMonth: 8,
+      periodType: "daily",
+      periodYear: 2026,
+      start_date: "2026-08-25"
+    });
+  });
+
   it("keeps payment summary total cards while excluding totals from payment rows", () => {
     const paymentLines = [
       { important: true, key: "payment_total", label: "Total sales", value: 17046975 },

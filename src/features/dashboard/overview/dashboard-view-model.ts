@@ -1,4 +1,5 @@
 import { Fragment, createElement } from "react";
+import { businessDateInputValue } from "@/lib/format";
 
 export type Row = Record<string, unknown>;
 
@@ -121,13 +122,14 @@ export function toDateInputValue(date = new Date()) {
 }
 
 export function createDefaultFilters(date = new Date()): DashboardFilters {
-  const today = toDateInputValue(date);
+  const today = businessDateInputValue(date);
+  const [periodYear, periodMonth] = today.split("-").map(Number);
 
   return {
     end_date: today,
-    periodMonth: date.getMonth() + 1,
+    periodMonth,
     periodType: "daily",
-    periodYear: date.getFullYear(),
+    periodYear,
     start_date: today
   };
 }

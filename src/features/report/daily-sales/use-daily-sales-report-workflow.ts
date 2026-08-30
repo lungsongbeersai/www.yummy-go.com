@@ -12,7 +12,7 @@ import {
 import { useResetOnDeps } from "@/hooks/use-reset-on-change";
 import { useTranslation } from "react-i18next";
 import { isCapacitorNativeApp } from "@/lib/capacitor-platform";
-import { localDateInputValue } from "@/lib/format";
+import { businessDateInputValue } from "@/lib/format";
 import { pageLimitSize } from "@/lib/pagination";
 import type { UrlPaginationState } from "@/lib/url-pagination";
 import type { ApiEntity } from "@/services/shared/types";
@@ -116,7 +116,7 @@ export function useDailySalesReportWorkflow(
   const resolveDeviceIdentity = usePrinterStore((state) => state.resolveDeviceIdentity);
   const submitReportPrint = usePrinterStore((state) => state.submitReportPrint);
   const showToast = useToastStore((state) => state.show);
-  const today = useMemo(() => localDateInputValue(), []);
+  const today = useMemo(() => businessDateInputValue(), []);
 
   const [draftFilters, setDraftFilters] = useState<ReportFilters>({
     branchUuid: user?.branch_uuid ?? "",
