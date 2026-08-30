@@ -1097,8 +1097,11 @@ describe("printer service dispatch", () => {
 
   it("keeps an interrupted Agent batch pending without a false failed ACK", async () => {
     const ackPayloads: AckPayload[] = [];
-    const job = printJob();
-    const secondJob = printJob({ ops: [{ type: "text", text: "Second" }] });
+    const job = printJob({ cut_mode: "none" });
+    const secondJob = printJob({
+      cut_mode: "none",
+      ops: [{ type: "text", text: "Second" }],
+    });
     axiosMocks.get.mockResolvedValue({
       data: { agent_id: "agent-1", agent_name: "Local", device_code: "device-1" }
     });
@@ -1152,7 +1155,7 @@ describe("printer service dispatch", () => {
 
     expect(axiosMocks.post).toHaveBeenCalledWith(
       "http://127.0.0.1:7777/print-ops-batch",
-      { cut_mode: "per_ticket", jobs: [job, secondJob] },
+      { cut_mode: "none", jobs: [job, secondJob] },
       expect.objectContaining({ timeout: 75000 })
     );
     expect(ackPayloads).toEqual([]);
@@ -1909,6 +1912,7 @@ describe("printer API payloads", () => {
       ip: "192.168.1.20",
       port: 9100,
       paper_width_mm: 80,
+      kitchen_cut_mode: "none",
       role_codes: ["kitchen"],
       mapping_type: "CATEGORY",
       sharing_mode: "DEDICATED",
@@ -1929,7 +1933,8 @@ describe("printer API payloads", () => {
           device_code: "android-phone-web-device-1",
           ip: "192.168.1.20",
           port: 9100,
-          interface_value: "tcp://192.168.1.20:9100"
+          interface_value: "tcp://192.168.1.20:9100",
+          kitchen_cut_mode: "none"
         })
       }
     );
@@ -1956,6 +1961,7 @@ describe("printer API payloads", () => {
       ip: "192.168.1.20",
       port: 9100,
       paper_width_mm: 80,
+      kitchen_cut_mode: "per_ticket",
       role_codes: ["kitchen"],
       mapping_type: "ZONE",
       sharing_mode: "DEDICATED",
@@ -1996,6 +2002,7 @@ describe("printer API payloads", () => {
       ip: "192.168.1.20",
       port: 9100,
       paper_width_mm: 80,
+      kitchen_cut_mode: "per_ticket",
       role_codes: ["kitchen"],
       mapping_type: "CATEGORY",
       sharing_mode: "DEDICATED",

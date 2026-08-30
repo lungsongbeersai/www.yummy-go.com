@@ -103,6 +103,7 @@ export async function savePrinter(input: SavePrinterInput) {
     display_name: input.display_name,
     connect_type: input.connect_type,
     paper_width_mm: input.paper_width_mm,
+    kitchen_cut_mode: input.kitchen_cut_mode,
     role_codes: input.role_codes,
 
     agent_url: isMobileWifi ? "" : input.agent_url || AGENT_URL,

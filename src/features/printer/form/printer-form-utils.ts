@@ -2,6 +2,7 @@ import { parseInterfaceValue, AGENT_URL } from "@/config/printer-agent";
 import type {
   AgentInfo,
   Printer,
+  PrinterKitchenCutMode,
   PrinterMappingType,
   PrinterSharingMode,
 } from "@/services/printer";
@@ -134,6 +135,11 @@ export function sharingModeOf(printer: Printer | null): PrinterSharingMode {
   return printer?.sharing_mode ?? "DEDICATED";
 }
 
+// เครื่องพิมพ์เก่าที่ยังไม่มีค่านี้ต้องคงพฤติกรรมเดิม คือ ตัดหลังทุกใบ
+export function kitchenCutModeOf(printer: Printer | null): PrinterKitchenCutMode {
+  return printer?.kitchen_cut_mode === "none" ? "none" : "per_ticket";
+}
+
 // cate_uuid_fk มีความหมายทั้งสอง mapping_type แล้ว — ZONE ก็บังคับเลือกหมวดหมู่คู่กับโซนด้วย
 // (backend contract ใหม่) จึงอ่านได้ตรงๆ ไม่ต้องกรองตาม mapping_type อีกต่อไป
 export function categoryUuids(printer: Printer | null) {
@@ -168,6 +174,7 @@ export function printerFormValues(printer: Printer | null) {
     ip: connectType === "tcp" ? (parsed.ip ?? "") : "",
     port: String(connectType === "tcp" ? (parsed.port ?? 9100) : 9100),
     paperWidth: String(printer?.paper_width_mm ?? 80),
+    kitchenCutMode: kitchenCutModeOf(printer),
     selectedRoles: printer?.role_codes ?? [],
     mappingType: mappingTypeOf(printer),
     sharingMode: sharingModeOf(printer),

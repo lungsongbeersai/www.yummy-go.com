@@ -169,13 +169,27 @@ function kitchenCutMode(input: ExecuteKitchenPrintInput, pending: PendingPrintJo
   return textValue(input.print_job?.cut_mode) || textValue(pending.find((job) => textValue(job.cut_mode))?.cut_mode) || "per_ticket";
 }
 
-function groupKitchenBatchItems(items: PendingPrintItem[]) {
-  const groups = new Map<string, PendingPrintItem[]>();
+function normalizedKitchenJobCutMode(job: PrintJob, fallback: string) {
+  const mode = textValue(job.cut_mode).trim().toLowerCase();
+  return mode === "none" || mode === "per_ticket" ? mode : fallback;
+}
+
+function groupKitchenBatchItems(items: PendingPrintItem[], fallbackCutMode: string) {
+  const groups = new Map<string, { cutMode: string; items: PendingPrintItem[] }>();
 
   for (const item of items) {
     if (!item.job) continue;
-    const key = printJobAgentBase(item.job);
-    groups.set(key, [...(groups.get(key) ?? []), item]);
+    const cutMode = normalizedKitchenJobCutMode(item.job, fallbackCutMode);
+    const printerKey =
+      textValue(item.job.print_config_uuid) ||
+      [
+        textValue(item.job.interface_value),
+        textValue(item.job.printer_name),
+      ].join("|");
+    const key = [printJobAgentBase(item.job), printerKey, cutMode].join("|");
+    const group = groups.get(key) ?? { cutMode, items: [] };
+    group.items.push(item);
+    groups.set(key, group);
   }
 
   return Array.from(groups.values());
@@ -823,16 +837,16 @@ async function executePrintJobs(
 
   }
 
-  for (const batchGroup of groupKitchenBatchItems(batchItems)) {
+  for (const batchGroup of groupKitchenBatchItems(batchItems, cutMode)) {
     try {
       await printBatchWithLocalAgent(
-        batchGroup.map((item) => item.job as PrintJob),
+        batchGroup.items.map((item) => item.job as PrintJob),
         undefined,
-        cutMode
+        batchGroup.cutMode
       );
 
       if (options.ack) {
-        for (const item of batchGroup) {
+        for (const item of batchGroup.items) {
           if (!item.ack_success_payload) continue;
 
           await ackPrintJob(
@@ -842,12 +856,12 @@ async function executePrintJobs(
           successCount++;
         }
       } else {
-        successCount += batchGroup.length;
+        successCount += batchGroup.items.length;
       }
     } catch (error) {
       lastErrorMessage = getPrinterErrorMessage(error);
       const deliveryState = getPrinterDeliveryState(error);
-      for (const item of batchGroup) {
+      for (const item of batchGroup.items) {
         if (!options.ack || !item.ack_failed_payload) {
           if (deliveryState === "unknown") hasPendingDelivery = true;
           else failedCount++;

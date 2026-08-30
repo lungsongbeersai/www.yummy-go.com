@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { formatIpInput } from "@/features/printer/form/printer-form-utils";
+import {
+  formatIpInput,
+  kitchenCutModeOf,
+} from "@/features/printer/form/printer-form-utils";
 
 describe("formatIpInput", () => {
   it("auto-inserts a dot after every 3 digits while typing forward", () => {
@@ -41,5 +44,16 @@ describe("formatIpInput", () => {
 
   it("keeps an explicit short octet followed by a user-typed dot", () => {
     expect(formatIpInput("19.", "19")).toBe("19.");
+  });
+});
+
+describe("kitchenCutModeOf", () => {
+  it("keeps the legacy default as cutting every kitchen ticket", () => {
+    expect(kitchenCutModeOf(null)).toBe("per_ticket");
+    expect(kitchenCutModeOf({} as never)).toBe("per_ticket");
+  });
+
+  it("restores a saved no-cut printer setting", () => {
+    expect(kitchenCutModeOf({ kitchen_cut_mode: "none" } as never)).toBe("none");
   });
 });

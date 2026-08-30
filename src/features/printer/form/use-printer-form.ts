@@ -20,6 +20,7 @@ import type {
   AgentInfo,
   DefaultCategoryCategoryDetail,
   DefaultCategoryZoneDetail,
+  PrinterKitchenCutMode,
   PrinterMappingType,
   PrinterSharingMode,
 } from "@/services/printer";
@@ -34,6 +35,7 @@ import {
   assignedPrinterNamesByValue,
   categoryLabel,
   initialPrinterFormValues,
+  kitchenCutModeOf,
   mappingTypeOf,
   printerFormValues,
   textValue,
@@ -166,6 +168,9 @@ export function usePrinterForm() {
   const [ip, setIp] = useState(initialForm.ip);
   const [port, setPort] = useState(initialForm.port);
   const [paperWidth, setPaperWidth] = useState(initialForm.paperWidth);
+  const [kitchenCutMode, setKitchenCutMode] = useState<PrinterKitchenCutMode>(
+    initialForm.kitchenCutMode,
+  );
   const [selectedRoles, setSelectedRoles] = useState<string[]>(
     initialForm.selectedRoles,
   );
@@ -256,6 +261,7 @@ export function usePrinterForm() {
     setIp(values.ip);
     setPort(values.port);
     setPaperWidth(values.paperWidth);
+    setKitchenCutMode(kitchenCutModeOf(editing));
     setSelectedRoles(values.selectedRoles);
     setMappingType(values.mappingType);
     setSharingMode(values.sharingMode);
@@ -466,6 +472,7 @@ export function usePrinterForm() {
         port: nextPort,
         interface_value: nextInterfaceValue,
         paper_width_mm: Number(paperWidth || 80),
+        kitchen_cut_mode: kitchenCutMode,
         role_codes: selectedRoles,
         // backend บังคับ: ZONE ส่งทั้งโซนและหมวดหมู่ที่เลือกไว้, CATEGORY ส่งแค่หมวดหมู่
         // savePrinter() ใน config-api.ts เป็นจุดที่ตัด zone_uuid_fk ออกเมื่อไม่ใช่ ZONE
@@ -515,6 +522,8 @@ export function usePrinterForm() {
     setPort,
     paperWidth,
     setPaperWidth,
+    kitchenCutMode,
+    setKitchenCutMode,
     selectedRoles,
     setSelectedRoles,
     selectedCategories,

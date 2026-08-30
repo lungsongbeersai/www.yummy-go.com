@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import type {
+  PrinterKitchenCutMode,
   PrinterMappingType,
   PrinterSharingMode,
   SearchPrinterResult,
@@ -227,6 +228,42 @@ export function PrinterFormPage() {
                     required
                     onChange={(event) => form.setPaperWidth(event.target.value)}
                   />
+                </Field>
+                <Field className="md:col-span-2">
+                  <FieldLabel htmlFor="printer-kitchen-cut-per-ticket">
+                    {t("printer.kitchenCutMode")}
+                  </FieldLabel>
+                  <FieldDescription>
+                    {t("printer.kitchenCutModeHint")}
+                  </FieldDescription>
+                  <RadioGroup
+                    value={form.kitchenCutMode}
+                    onValueChange={(value) =>
+                      form.setKitchenCutMode(value as PrinterKitchenCutMode)
+                    }
+                    className="flex flex-row flex-wrap gap-6"
+                  >
+                    <div className="flex items-center gap-3">
+                      <RadioGroupItem
+                        id="printer-kitchen-cut-per-ticket"
+                        value="per_ticket"
+                        disabled={form.saving}
+                      />
+                      <Label htmlFor="printer-kitchen-cut-per-ticket">
+                        {t("printer.kitchenCutPerTicket")}
+                      </Label>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <RadioGroupItem
+                        id="printer-kitchen-cut-none"
+                        value="none"
+                        disabled={form.saving}
+                      />
+                      <Label htmlFor="printer-kitchen-cut-none">
+                        {t("printer.kitchenCutNone")}
+                      </Label>
+                    </div>
+                  </RadioGroup>
                 </Field>
                 <Field className="md:col-span-2">
                   <FieldLabel htmlFor="printer-sharing-mode-shared">

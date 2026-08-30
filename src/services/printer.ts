@@ -59,6 +59,7 @@ export type {
   PrinterCategoryRole,
   PrinterDeviceContext,
   PrinterDeviceContextParams,
+  PrinterKitchenCutMode,
   PrinterMappingType,
   PrinterRole,
   PrinterRolesResponse,
