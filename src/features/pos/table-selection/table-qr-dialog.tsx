@@ -27,6 +27,10 @@ import { useAuthStore } from "@/stores/auth-store";
 import { usePosStore } from "@/stores/pos-store";
 import { usePrinterStore } from "@/stores/printer-store";
 import { useToastStore } from "@/stores/toast-store";
+import {
+  resolveTableQrPrinterContext,
+  tableQrPrintOutcome,
+} from "./table-qr-printing";
 import { optionalString } from "./utils";
 
 const localQrTargetUrl = "http://localhost:3001/pos/tables";
@@ -46,6 +50,8 @@ export function TableQrDialog({
   const loginUuid = useAuthStore((state) => state.user?.uuid);
   const createTableQr = usePosStore((state) => state.createTableQr);
   const executeInvoice = usePrinterStore((state) => state.executeInvoice);
+  const resolveDeviceContext = usePrinterStore((state) => state.resolveDeviceContext);
+  const resolveDeviceIdentity = usePrinterStore((state) => state.resolveDeviceIdentity);
   const showToast = useToastStore((state) => state.show);
   const nativeApp = useIsCapacitorNativeApp();
   const [pending, setPending] = useState(false);
@@ -77,9 +83,29 @@ export function TableQrDialog({
       return;
     }
 
+    const activeLoginUuid = loginUuid;
     let ignore = false;
 
-    createTableQr({ table_uuid: table.table_uuid, lang: language, login_uuid_fk: loginUuid })
+    async function createQrWithPrinterContext() {
+      // QR ใช้ role q-001 และ Backend ต้องรู้ device/agent ของผู้กดพิมพ์ก่อน
+      // สร้าง queue มิฉะนั้นจะคืน browser fallback แม้มี Auto Print อยู่จริง
+      const printerContext = await resolveTableQrPrinterContext({
+        loginUuid: activeLoginUuid,
+        resolveDeviceContext,
+        resolveDeviceIdentity,
+      });
+
+      return createTableQr({
+        table_uuid: table.table_uuid,
+        lang: language,
+        login_uuid_fk: activeLoginUuid,
+        device_code: printerContext?.device_code,
+        agent_id: printerContext?.agent_id,
+        print_mode: printerContext?.print_mode,
+      });
+    }
+
+    createQrWithPrinterContext()
       .then((result) => {
         if (ignore) return;
         setResponse(result);
@@ -100,7 +126,17 @@ export function TableQrDialog({
     return () => {
       ignore = true;
     };
-  }, [createTableQr, language, loginUuid, open, showToast, table.table_uuid, t]);
+  }, [
+    createTableQr,
+    language,
+    loginUuid,
+    open,
+    resolveDeviceContext,
+    resolveDeviceIdentity,
+    showToast,
+    table.table_uuid,
+    t,
+  ]);
 
   // มีรูป QR จากเซิร์ฟเวอร์แล้ว (หรือยังไม่มี URL) = ไม่ต้องใช้ fallback ที่สร้างเอง
   useResetOnDeps([targetUrl, qrImageUrl], () => {
@@ -170,7 +206,17 @@ export function TableQrDialog({
             login_uuid_fk: loginUuid,
           });
 
-          if (printResult.failedCount > 0) {
+          const printOutcome = tableQrPrintOutcome(printResult);
+          if (printOutcome === "pending") {
+            showToast({
+              title: t("pos.printQr"),
+              description: t("orderQueue.kitchenPrintQueued"),
+              tone: "info",
+            });
+            return;
+          }
+
+          if (printOutcome === "fallback") {
             const imageUrl = await fallbackPrintImageUrl();
             if (imageUrl && canOpenBrowserWindow) {
               openFallbackPrintWindow(imageUrl);
