@@ -28,6 +28,7 @@ import type {
 
 const PRINTER_IDENTITY_MISSING = "Printer device identity missing";
 const LOCAL_AGENT_IDENTITY_KEY = "yummy_local_printer_agent_identity";
+const MAX_AGENT_JOBS_PER_BATCH = 10;
 
 function localAgentStorage() {
   try {
@@ -235,12 +236,18 @@ export async function printBatchWithLocalAgent(
     ? "/print-ops-batch"
     : "/print-ops-batch-relay";
 
-  const payload = { cut_mode: cutMode, jobs };
-  const { data } = await axios.post<PrintOpsBatchAgentResponse>(`${localBase}${endpoint}`, payload, {
-    headers: { "x-agent-secret": AGENT_SECRET },
-    timeout: printerRequestTimeoutMs(jobs)
-  });
-  assertAgentOk(data, "Print failed");
+  // Agent จำกัดหนึ่ง physical batch ไว้ 10 ใบเพื่อคุมหน่วยความจำของ raster
+  // ส่งก้อนย่อยตามลำดับบนเครื่องเดียวกัน แทนการปล่อยให้ทั้งครัว/บาร์ถูกปฏิเสธ
+  // เมื่อออเดอร์หนึ่งมีรายการเกินขีดจำกัด
+  for (let offset = 0; offset < jobs.length; offset += MAX_AGENT_JOBS_PER_BATCH) {
+    const batchJobs = jobs.slice(offset, offset + MAX_AGENT_JOBS_PER_BATCH);
+    const payload = { cut_mode: cutMode, jobs: batchJobs };
+    const { data } = await axios.post<PrintOpsBatchAgentResponse>(`${localBase}${endpoint}`, payload, {
+      headers: { "x-agent-secret": AGENT_SECRET },
+      timeout: printerRequestTimeoutMs(batchJobs)
+    });
+    assertAgentOk(data, "Print failed");
+  }
 }
 
 export async function dispatchPrintJob(

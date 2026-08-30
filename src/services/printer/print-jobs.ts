@@ -39,6 +39,7 @@ const printerQueues = new Map<string, Promise<void>>();
 const kitchenExecutions = new Map<string, Promise<KitchenPrintResult>>();
 const deliveryLedgerMemory = new Map<string, StoredDelivery>();
 const DELIVERY_LEDGER_PREFIX = "yummy_kitchen_printer_delivery:";
+const MAX_AGENT_JOBS_PER_BATCH = 10;
 
 interface StoredDelivery {
   deliveryState: Exclude<PrinterDeliveryState, "not_sent">;
@@ -68,7 +69,11 @@ function printerBatchQueueKey(batch: PrintOpsBatchPayload) {
 }
 
 function deliveryLedgerKey(jobUuid: string, batch: PrintOpsBatchPayload) {
-  return `${DELIVERY_LEDGER_PREFIX}${jobUuid}:${printerBatchQueueKey(batch)}`;
+  const physicalJobs = (Array.isArray(batch.jobs) ? batch.jobs : [])
+    .map((job) => textValue(job.job_id) || textValue(job.print_job_item_uuid) || textValue(job.meta?.print_job_item_uuid))
+    .filter(Boolean)
+    .join("|");
+  return `${DELIVERY_LEDGER_PREFIX}${jobUuid}:${printerBatchQueueKey(batch)}:${physicalJobs}`;
 }
 
 function deliveryStorage() {
@@ -255,6 +260,7 @@ function printBatchJobTotal(batch: PrintOpsBatchPayload) {
 }
 
 interface BatchPrintOutcome {
+  acknowledge: boolean;
   deliveryState: PrinterDeliveryState;
   errorMessage?: string;
   itemUuids: string[];
@@ -279,6 +285,36 @@ function batchPrintJobItemUuids(batch: PrintOpsBatchPayload) {
   return [...new Set(itemUuids)];
 }
 
+function splitOversizedAgentBatches(batches: PrintOpsBatchPayload[]) {
+  return batches.flatMap((batch) => {
+    const jobs = Array.isArray(batch.jobs) ? batch.jobs : [];
+    const printClient = textValue(batch.print_client).toLowerCase();
+    const printMode = textValue(batch.print_mode).toLowerCase();
+    const isMobileBatch =
+      printClient === "mobile_wifi" ||
+      printMode === "mobile_wifi" ||
+      Boolean(textValue(batch.mobile_escpos?.escpos_base64));
+
+    if (isMobileBatch || jobs.length <= MAX_AGENT_JOBS_PER_BATCH) return [batch];
+
+    const chunks: PrintOpsBatchPayload[] = [];
+    for (let offset = 0; offset < jobs.length; offset += MAX_AGENT_JOBS_PER_BATCH) {
+      const chunkJobs = jobs.slice(offset, offset + MAX_AGENT_JOBS_PER_BATCH);
+      chunks.push({
+        ...batch,
+        job_total: chunkJobs.length,
+        jobs: chunkJobs,
+        print_job_item_uuids: batchPrintJobItemUuids({
+          ...batch,
+          jobs: chunkJobs,
+          print_job_item_uuids: [],
+        }),
+      });
+    }
+    return chunks;
+  });
+}
+
 function batchAckPayload({
   failedPayload,
   outcomes,
@@ -291,12 +327,17 @@ function batchAckPayload({
   const basePayload = successPayload ?? failedPayload;
   if (!basePayload) return null;
 
-  const unmappedOutcome = outcomes.find((outcome) => !outcome.itemUuids.length);
+  // ถ้า Agent หลุดหลังเริ่มส่ง เราจะยังไม่ ACK เพื่อให้รอบ poll ถัดไปถาม Agent
+  // ด้วย job_id เดิม ซึ่ง Agent ตอบ replay ได้โดยไม่พิมพ์ซ้ำ
+  const acknowledgedOutcomes = outcomes.filter((outcome) => outcome.acknowledge);
+  if (!acknowledgedOutcomes.length) return null;
+
+  const unmappedOutcome = acknowledgedOutcomes.find((outcome) => !outcome.itemUuids.length);
   if (unmappedOutcome) {
     // Older backends did not expose queue-item IDs on each physical-printer
     // batch. Preserve the former all-or-nothing ACK for that response because
     // guessing an item/printer relationship could confirm the wrong order.
-    const failedOutcome = outcomes.find((outcome) => !outcome.success);
+    const failedOutcome = acknowledgedOutcomes.find((outcome) => !outcome.success);
     if (failedOutcome) {
       return failedPayload
         ? failPayload(
@@ -321,7 +362,7 @@ function batchAckPayload({
     ]),
   );
   const outcomesByItem = new Map<string, BatchPrintOutcome[]>();
-  for (const outcome of outcomes) {
+  for (const outcome of acknowledgedOutcomes) {
     for (const itemUuid of outcome.itemUuids) {
       outcomesByItem.set(itemUuid, [...(outcomesByItem.get(itemUuid) ?? []), outcome]);
     }
@@ -471,7 +512,7 @@ async function executePrintJobs(
   const pendingResult = await getPendingPrintJobs(pendingParams);
 
   const pending = pendingResult.jobs;
-  const batchPayloads = pendingResult.batchPayloads;
+  const batchPayloads = splitOversizedAgentBatches(pendingResult.batchPayloads);
   const globalAckSuccess = pendingResult.ackSuccess;
   const globalAckFailed = pendingResult.ackFailed;
 
@@ -506,6 +547,7 @@ async function executePrintJobs(
     const outcomes: BatchPrintOutcome[] = [];
     let successCount = 0;
     let failedCount = 0;
+    let hasPendingDelivery = false;
     let lastErrorMessage: string | undefined;
 
     input.onProgress?.({
@@ -520,12 +562,14 @@ async function executePrintJobs(
       batchPayloads.map((batch) => {
         const ledgerKey = deliveryLedgerKey(jobUuid, batch);
         const stored = options.idempotent ? readStoredDelivery(ledgerKey) : null;
+        const mobileBatch = isMobilePrintBatch(batch);
         const printConfigUuid = textValue(
           batch.print_config_uuid || batch.jobs?.[0]?.print_config_uuid
         );
 
         if (stored) {
           return Promise.resolve<BatchPrintOutcome>({
+            acknowledge: true,
             deliveryState: stored.deliveryState,
             errorMessage: stored.errorMessage,
             itemUuids: batchPrintJobItemUuids(batch),
@@ -542,6 +586,7 @@ async function executePrintJobs(
             : null;
           if (queuedStored) {
             return {
+              acknowledge: true,
               deliveryState: queuedStored.deliveryState,
               errorMessage: queuedStored.errorMessage,
               itemUuids: batchPrintJobItemUuids(batch),
@@ -552,7 +597,7 @@ async function executePrintJobs(
           }
 
           try {
-            if (isMobilePrintBatch(batch)) {
+            if (mobileBatch) {
               await printKitchenMobileBatch(batch);
             } else {
               await printKitchenBatchJob(batch);
@@ -562,6 +607,7 @@ async function executePrintJobs(
               storeDelivery(ledgerKey, { deliveryState: "printed" });
             }
             return {
+              acknowledge: true,
               deliveryState: "printed" as const,
               itemUuids: batchPrintJobItemUuids(batch),
               ledgerKey,
@@ -571,10 +617,11 @@ async function executePrintJobs(
           } catch (error) {
             const errorMessage = getPrinterErrorMessage(error);
             const deliveryState = getPrinterDeliveryState(error);
-            if (options.idempotent && deliveryState === "unknown") {
+            if (options.idempotent && deliveryState === "unknown" && mobileBatch) {
               storeDelivery(ledgerKey, { deliveryState, errorMessage });
             }
             return {
+              acknowledge: deliveryState !== "unknown" || mobileBatch,
               deliveryState,
               errorMessage,
               itemUuids: batchPrintJobItemUuids(batch),
@@ -593,6 +640,11 @@ async function executePrintJobs(
       outcomes.push(outcome);
       if (outcome.success) {
         successCount += batchTotal;
+      } else if (outcome.deliveryState === "unknown") {
+        // เริ่มส่งข้อมูลแล้วแต่ผลปลายทางไม่ชัดเจน สถานะที่ถูกต้องคือรอยืนยัน
+        // ไม่ใช่แจ้งว่าล้มเหลว ทั้งที่กระดาษอาจพิมพ์ออกแล้ว
+        hasPendingDelivery = true;
+        lastErrorMessage = outcome.errorMessage || lastErrorMessage;
       } else {
         failedCount += batchTotal;
         lastErrorMessage = outcome.errorMessage || lastErrorMessage;
@@ -644,6 +696,7 @@ async function executePrintJobs(
       successCount,
       failedCount,
       total,
+      ...(hasPendingDelivery ? { pending: true } : {}),
       ...(failedCount > 0 && lastErrorMessage
         ? { errorMessage: lastErrorMessage }
         : {}),
@@ -662,6 +715,7 @@ async function executePrintJobs(
   let successCount = 0;
   let failedCount = 0;
   let skippedCount = 0;
+  let hasPendingDelivery = false;
   let lastErrorMessage: string | undefined;
   const batchItems: PendingPrintItem[] = [];
 
@@ -792,9 +846,18 @@ async function executePrintJobs(
       }
     } catch (error) {
       lastErrorMessage = getPrinterErrorMessage(error);
+      const deliveryState = getPrinterDeliveryState(error);
       for (const item of batchGroup) {
         if (!options.ack || !item.ack_failed_payload) {
-          failedCount++;
+          if (deliveryState === "unknown") hasPendingDelivery = true;
+          else failedCount++;
+          continue;
+        }
+
+        if (deliveryState === "unknown") {
+          // Agent จะยืนยัน replay ด้วย job_id เดิมในรอบถัดไป จึงยังไม่บันทึก
+          // failed/unknown ทับ queue ฝั่ง backend ในจังหวะที่ผลจริงยังไม่กลับมา
+          hasPendingDelivery = true;
           continue;
         }
 
@@ -803,7 +866,7 @@ async function executePrintJobs(
             failPayload(
               item.ack_failed_payload,
               lastErrorMessage,
-              getPrinterDeliveryState(error),
+              deliveryState,
               textValue(item.job?.print_config_uuid),
             ),
             loginUuid
@@ -836,6 +899,7 @@ async function executePrintJobs(
     successCount,
     failedCount,
     total: items.length,
+    ...(hasPendingDelivery ? { pending: true } : {}),
     ...(failedCount > 0 && lastErrorMessage ? { errorMessage: lastErrorMessage } : {}),
   };
 }

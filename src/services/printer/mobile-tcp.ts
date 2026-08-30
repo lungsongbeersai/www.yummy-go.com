@@ -6,6 +6,7 @@ type TcpClient = string | number;
 type TcpSocketConnectPayload = {
     ipAddress: string;
     port: number;
+    timeout?: number;
 };
 
 type TcpSocketConnectResult = {
@@ -27,6 +28,11 @@ type TcpSocketApi = {
     send: (payload: TcpSocketSendPayload) => Promise<unknown>;
     disconnect: (payload: TcpSocketDisconnectPayload) => Promise<unknown>;
 };
+
+const MOBILE_TCP_CHUNK_SIZE = 2732;
+const MOBILE_TCP_CHUNK_DELAY_MS = 40;
+const MOBILE_TCP_SEND_TIMEOUT_MS = 15000;
+let mobileTcpQueue: Promise<void> = Promise.resolve();
 
 function deliveryError(error: unknown, deliveryState: "not_sent" | "unknown") {
     const wrapped = error instanceof Error
@@ -75,6 +81,39 @@ async function sleep(ms: number) {
     await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function runOnMobileTcpQueue<T>(task: () => Promise<T>) {
+    // Android plugin เก็บ socket/output stream ไว้เป็นตัวแปรร่วมทั้ง plugin และ
+    // connect ใหม่จะปิด socket เดิม ดังนั้นครัวกับบาร์ห้ามส่งพร้อมกันจากมือถือ
+    const execution = mobileTcpQueue.then(task, task);
+    mobileTcpQueue = execution.then(
+        () => undefined,
+        () => undefined,
+    );
+    return execution;
+}
+
+function mobileTcpFinalDrainMs(base64Length: number) {
+    const estimatedBytes = Math.floor((Math.max(0, base64Length) * 3) / 4);
+    return Math.min(1500, 500 + Math.floor(estimatedBytes / (128 * 1024)) * 250);
+}
+
+async function withSendTimeout<T>(operation: Promise<T>) {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+        return await Promise.race([
+            operation,
+            new Promise<never>((_, reject) => {
+                timer = setTimeout(
+                    () => reject(new Error("Mobile TCP send timed out")),
+                    MOBILE_TCP_SEND_TIMEOUT_MS,
+                );
+            }),
+        ]);
+    } finally {
+        if (timer) clearTimeout(timer);
+    }
+}
+
 async function sendBase64InChunks({
     TcpSocket,
     client,
@@ -119,11 +158,13 @@ async function sendBase64InChunks({
             });
         }
 
-        await TcpSocket.send({
-            client,
-            data: chunk,
-            encoding: "base64",
-        });
+        await withSendTimeout(
+            TcpSocket.send({
+                client,
+                data: chunk,
+                encoding: "base64",
+            }),
+        );
 
         if (chunkIndex < totalChunks && delayMs > 0) {
             await sleep(delayMs);
@@ -135,7 +176,7 @@ async function sendBase64InChunks({
     });
 }
 
-export async function printMobileEscposOverTcp({
+async function printMobileEscposOverTcpNow({
     interface_value,
     escpos_base64,
 }: {
@@ -178,6 +219,7 @@ export async function printMobileEscposOverTcp({
         connected = await TcpSocket.connect({
             ipAddress: host,
             port,
+            timeout: 10,
         });
     } catch (error) {
         throw deliveryError(error, "not_sent");
@@ -198,13 +240,17 @@ export async function printMobileEscposOverTcp({
             TcpSocket,
             client,
             base64: cleanBase64,
-            chunkSize: 4096,
-            delayMs: 80,
+            // 2,732 base64 chars = 2,049 raw bytes. ก้อนเล็กลงช่วยเครื่องที่
+            // buffer น้อย และ 40 ms ทำให้ใบยาวเร็วขึ้นโดยคงการ pacing ไว้
+            chunkSize: MOBILE_TCP_CHUNK_SIZE,
+            delayMs: MOBILE_TCP_CHUNK_DELAY_MS,
         });
 
         console.log("[mobile-tcp] send success");
 
-        await sleep(500);
+        // send() ยืนยันแค่ native socket รับก้อนข้อมูลแล้ว ไม่ได้ยืนยันว่า
+        // printer ระบายก้อนท้ายครบ จึงเว้นเวลาตามขนาดใบก่อน disconnect
+        await sleep(mobileTcpFinalDrainMs(cleanBase64.length));
     } catch (error) {
         console.error("[mobile-tcp] send failed", error);
         // Once a send call starts the printer may have received some/all bytes.
@@ -221,3 +267,15 @@ export async function printMobileEscposOverTcp({
 
     }
 }
+
+export function printMobileEscposOverTcp(input: {
+    interface_value?: string;
+    escpos_base64: string;
+}) {
+    return runOnMobileTcpQueue(() => printMobileEscposOverTcpNow(input));
+}
+
+export const __mobileTcpInternals = {
+    mobileTcpFinalDrainMs,
+    runOnMobileTcpQueue,
+};

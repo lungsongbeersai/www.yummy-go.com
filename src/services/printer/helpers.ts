@@ -23,7 +23,10 @@ export function printerRequestTimeoutMs(
     0
   );
 
-  return Math.min(300_000, Math.max(30_000, 15_000 + opsTotal * 100));
+  // Agent อาจต้องรอคิวเครื่องเดิม รวมเวลา render ใบยาว และส่ง raster แบบหน่วง
+  // ให้ buffer เครื่องพิมพ์ จึงต้องยาวกว่า timeout ฝั่ง relay ของ Agent เล็กน้อย
+  // ไม่เช่นนั้น client จะรายงานล้มเหลวทั้งที่ Agent รับงานและกำลังพิมพ์ต่ออยู่
+  return Math.min(600_000, Math.max(75_000, 45_000 + opsTotal * 150));
 }
 
 export function textValue(value: unknown) {

@@ -27,9 +27,9 @@ describe("printer helpers", () => {
   });
 
   it("allows long receipts enough time without changing other API timeouts", () => {
-    expect(printerRequestTimeoutMs([{ ops: Array(20) }])).toBe(30_000);
-    expect(printerRequestTimeoutMs([{ ops: Array(1200) }])).toBe(135_000);
-    expect(printerRequestTimeoutMs([{ ops: Array(5000) }])).toBe(300_000);
+    expect(printerRequestTimeoutMs([{ ops: Array(20) }])).toBe(75_000);
+    expect(printerRequestTimeoutMs([{ ops: Array(1200) }])).toBe(225_000);
+    expect(printerRequestTimeoutMs([{ ops: Array(5000) }])).toBe(600_000);
   });
 
   it("uses the printer agent response instead of the generic HTTP error", () => {

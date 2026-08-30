@@ -185,7 +185,7 @@ describe("printer service dispatch", () => {
     expect(axiosMocks.post).toHaveBeenCalledWith(
       "http://127.0.0.1:7777/print-ops",
       job,
-      expect.objectContaining({ timeout: 30000 })
+      expect.objectContaining({ timeout: 75000 })
     );
   });
 
@@ -235,7 +235,7 @@ describe("printer service dispatch", () => {
     expect(axiosMocks.post).toHaveBeenCalledWith(
       "http://127.0.0.1:7777/print-ops-relay",
       job,
-      expect.objectContaining({ timeout: 30000 })
+      expect.objectContaining({ timeout: 75000 })
     );
   });
 
@@ -252,7 +252,7 @@ describe("printer service dispatch", () => {
     expect(axiosMocks.post).toHaveBeenCalledWith(
       "http://127.0.0.1:7777/print-ops-batch-relay",
       { cut_mode: "per_ticket", jobs },
-      expect.objectContaining({ timeout: 30000 })
+      expect.objectContaining({ timeout: 75000 })
     );
   });
 
@@ -331,7 +331,7 @@ describe("printer service dispatch", () => {
     expect(axiosMocks.post).toHaveBeenCalledWith(
       "http://127.0.0.1:7777/print-ops-batch",
       { cut_mode: "per_ticket", jobs: [job, secondJob] },
-      expect.objectContaining({ timeout: 30000 })
+      expect.objectContaining({ timeout: 75000 })
     );
     expect(ackPayloads).toEqual([
       { ...successAck, login_uuid_fk: "login-1" },
@@ -346,6 +346,71 @@ describe("printer service dispatch", () => {
         print_mode: "mobile_wifi"
       }
     });
+  });
+
+  it("splits more than ten kitchen tickets for one printer without dropping the batch", async () => {
+    const jobs = Array.from({ length: 12 }, (_, index) =>
+      windowsPrintJob({
+        job_id: `large-batch-job-${index + 1}`,
+        print_job_item_uuid: `large-batch-item-${index + 1}`,
+      })
+    );
+    const successResults = jobs.map((job) => ({
+      print_job_item_uuid: String(job.print_job_item_uuid),
+      status: "success" as const,
+    }));
+    const failedResults = jobs.map((job) => ({
+      print_job_item_uuid: String(job.print_job_item_uuid),
+      status: "failed" as const,
+    }));
+    const sentBatchSizes: number[] = [];
+    const ackPayloads: AckPayload[] = [];
+
+    axiosMocks.get.mockResolvedValue({
+      data: { agent_id: "agent-1", agent_name: "Local", device_code: "device-1" }
+    });
+    axiosMocks.post.mockImplementation(async (_url, payload) => {
+      sentBatchSizes.push(payload.jobs.length);
+      return { data: { ok: true } };
+    });
+    apiMocks.apiRequest.mockImplementation(async (method, url, options) => {
+      if (method === "get" && url === "/api/v1/printer/jobs/pending") {
+        return {
+          print_batch_payloads: [{
+            cut_mode: "per_ticket",
+            print_config_uuid: jobs[0].print_config_uuid,
+            print_job_item_uuids: successResults.map((item) => item.print_job_item_uuid),
+            jobs,
+          }],
+          ack_success_payload: { print_job_uuid: "large-batch", results: successResults },
+          ack_failed_payload: { print_job_uuid: "large-batch", results: failedResults },
+        };
+      }
+      if (method === "post" && url === "/api/v1/printer/jobs/ack") {
+        ackPayloads.push(options?.data as AckPayload);
+        return {};
+      }
+      throw new Error(`Unexpected request ${method} ${url}`);
+    });
+
+    await expect(
+      executeKitchenPrintJobs({
+        pending_query: {
+          print_job_uuid: "large-batch",
+          login_uuid_fk: "login-1",
+          device_code: "device-1",
+          agent_id: "agent-1",
+          print_mode: "windows_agent",
+        },
+      })
+    ).resolves.toEqual({ successCount: 12, failedCount: 0, total: 12 });
+
+    expect(sentBatchSizes).toEqual([10, 2]);
+    expect(ackPayloads).toHaveLength(1);
+    expect(ackPayloads[0].results).toHaveLength(12);
+    expect(new Set(ackPayloads[0].results.map((item) => item.print_job_item_uuid))).toEqual(
+      new Set(successResults.map((item) => item.print_job_item_uuid))
+    );
   });
 
   it("prints invoice pending batch without acking", async () => {
@@ -396,7 +461,7 @@ describe("printer service dispatch", () => {
     expect(axiosMocks.post).toHaveBeenCalledWith(
       "http://127.0.0.1:7777/print-ops-batch",
       { cut_mode: "per_ticket", jobs: [job, secondJob] },
-      expect.objectContaining({ timeout: 30000 })
+      expect.objectContaining({ timeout: 75000 })
     );
     expect(apiMocks.apiRequest).not.toHaveBeenCalledWith(
       "post",
@@ -1030,7 +1095,7 @@ describe("printer service dispatch", () => {
     expect(apiMocks.apiRequest).toHaveBeenCalledTimes(1);
   });
 
-  it("acks all local kitchen batch items as failed when batch printing fails", async () => {
+  it("keeps an interrupted Agent batch pending without a false failed ACK", async () => {
     const ackPayloads: AckPayload[] = [];
     const job = printJob();
     const secondJob = printJob({ ops: [{ type: "text", text: "Second" }] });
@@ -1080,28 +1145,17 @@ describe("printer service dispatch", () => {
       })
     ).resolves.toEqual({
       successCount: 0,
-      failedCount: 2,
+      failedCount: 0,
       total: 2,
-      errorMessage: "batch failed"
+      pending: true
     });
 
     expect(axiosMocks.post).toHaveBeenCalledWith(
       "http://127.0.0.1:7777/print-ops-batch",
       { cut_mode: "per_ticket", jobs: [job, secondJob] },
-      expect.objectContaining({ timeout: 30000 })
+      expect.objectContaining({ timeout: 75000 })
     );
-    expect(ackPayloads).toEqual([
-      {
-        print_job_uuid: "job-1",
-        login_uuid_fk: "login-1",
-        results: [{ print_job_item_uuid: "item-1", status: "failed", reason: "batch failed", delivery_state: "unknown" }]
-      },
-      {
-        print_job_uuid: "job-1",
-        login_uuid_fk: "login-1",
-        results: [{ print_job_item_uuid: "item-2", status: "failed", reason: "batch failed", delivery_state: "unknown" }]
-      }
-    ]);
+    expect(ackPayloads).toEqual([]);
   });
 
   it("splits local kitchen batches by agent URL", async () => {
@@ -1158,12 +1212,12 @@ describe("printer service dispatch", () => {
     expect(axiosMocks.post).toHaveBeenCalledWith(
       "http://127.0.0.1:7777/print-ops-batch",
       { cut_mode: "per_ticket", jobs: [firstJob] },
-      expect.objectContaining({ timeout: 30000 })
+      expect.objectContaining({ timeout: 75000 })
     );
     expect(axiosMocks.post).toHaveBeenCalledWith(
       "http://127.0.0.1:7777/print-ops-batch",
       { cut_mode: "per_ticket", jobs: [secondJob] },
-      expect.objectContaining({ timeout: 30000 })
+      expect.objectContaining({ timeout: 75000 })
     );
     expect(ackPayloads).toEqual([
       { ...successAck, login_uuid_fk: "login-1" },
@@ -1382,7 +1436,7 @@ describe("printer service dispatch", () => {
     expect(axiosMocks.post).toHaveBeenCalledWith(
       "http://127.0.0.1:7777/print-ops-batch",
       { cut_mode: "per_ticket", jobs: [localJob] },
-      expect.objectContaining({ timeout: 30000 })
+      expect.objectContaining({ timeout: 75000 })
     );
     expect(ackPayloads).toEqual([
       { ...successAck, login_uuid_fk: "login-1" },
