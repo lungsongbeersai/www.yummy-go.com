@@ -157,29 +157,21 @@ describe("Android online recovery monitor", () => {
     expect(useAuthStore.getState().isLoggedIn).toBe(true);
     expect(useAuthStore.getState().offlineSession).toBe(true);
     const post = vi.spyOn(axios, "post").mockRejectedValue(new Error("Agent unavailable"));
-    const get = vi.spyOn(axios, "get")
-      .mockRejectedValueOnce(new Error("Agent unavailable"))
-      .mockResolvedValueOnce({
-        data: {
-          status: "success",
-          data: {
-            online: true,
-            store_uuid_fk: "store-1",
-            branch_uuid_fk: "branch-1",
-          },
-        },
-      });
+    vi.spyOn(axios, "get").mockRejectedValue(new Error("Agent unavailable"));
+    const fetch = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal("fetch", fetch);
 
     const stop = startOfflineTransportMonitor();
     try {
       await vi.waitFor(() => expect(post).toHaveBeenCalled());
       await vi.waitFor(() => expect(useAuthStore.getState().offlineSession).toBe(false));
-      expect(get).toHaveBeenCalledWith("/api/v1/sync/health", expect.objectContaining({
-        headers: {
-          Authorization: "Bearer online-token",
-          "x-access-token": "online-token",
-        },
-      }));
+      expect(fetch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          origin: "https://pos.example.test",
+          pathname: "/app-version.json",
+        }),
+        expect.objectContaining({ cache: "no-store", credentials: "same-origin" }),
+      );
     } finally {
       stop();
     }

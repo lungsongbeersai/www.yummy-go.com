@@ -51,15 +51,6 @@ export async function probeConnectivity(): Promise<boolean> {
   if (typeof navigator !== "undefined" && navigator.onLine === false) return false;
   if (typeof window === "undefined") return false;
 
-  const auth = useAuthStore.getState();
-  if (auth.isLoggedIn && auth.token && auth.user) {
-    return probeAndroidBackend({
-      token: auth.token,
-      storeUuid: auth.user.store_uuid || auth.user.store_uuid_fk || "",
-      branchUuid: auth.user.branch_uuid || "",
-    });
-  }
-
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), 5000);
   try {

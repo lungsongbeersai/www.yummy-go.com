@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { useIsAndroidNativeApp } from "@/hooks/use-android-native-app";
 import { useAuthStore } from "@/stores/auth-store";
 import {
+  probeAndroidBackend,
   probeConnectivity,
   requestImmediateReconcile,
 } from "@/stores/offline-transport-monitor";
@@ -24,6 +25,17 @@ import {
 // ยิง reconcile แบบ desktop/electron แล้วรอผลจาก schedule() ภายใน monitor เอง (ไม่ได้ return
 // promise ตรง ๆ) — ให้เวลาสั้น ๆ พอสำหรับ round-trip ไป agent/backend จริงก่อนเช็ค offlineSession อีกที
 const RECONCILE_WAIT_MS = 1500;
+
+async function probeActiveTransport(isAndroidNative: boolean) {
+  if (!isAndroidNative) return probeConnectivity();
+  const auth = useAuthStore.getState();
+  if (!auth.token || !auth.user) return false;
+  return probeAndroidBackend({
+    token: auth.token,
+    storeUuid: auth.user.store_uuid || auth.user.store_uuid_fk || "",
+    branchUuid: auth.user.branch_uuid || "",
+  });
+}
 
 export function OfflineConnectivityDialog() {
   const { t } = useTranslation();
@@ -48,9 +60,10 @@ export function OfflineConnectivityDialog() {
     if (!isLoggedIn || !offlineSession) return;
     let cancelled = false;
     void (async () => {
-      const online = await probeConnectivity();
+      const online = await probeActiveTransport(isAndroidNative);
       if (cancelled) return;
       if (online) {
+        setOpen(false);
         if (isAndroidNative) {
           useAuthStore.getState().setOfflineSession(false);
         } else {
@@ -70,9 +83,11 @@ export function OfflineConnectivityDialog() {
   async function handleReconnect() {
     setChecking(true);
     try {
+      const online = await probeActiveTransport(isAndroidNative);
+      if (!online) return;
+      setOpen(false);
       if (isAndroidNative) {
-        const online = await probeConnectivity();
-        if (online) useAuthStore.getState().setOfflineSession(false);
+        useAuthStore.getState().setOfflineSession(false);
       } else {
         requestImmediateReconcile();
         await new Promise((resolve) => setTimeout(resolve, RECONCILE_WAIT_MS));
