@@ -34,6 +34,12 @@ const MOBILE_TCP_CHUNK_DELAY_MS = 40;
 const MOBILE_TCP_SEND_TIMEOUT_MS = 15000;
 const MOBILE_TCP_MEDIUM_BYTES = 256 * 1024;
 const MOBILE_TCP_LONG_BYTES = 1024 * 1024;
+// เครื่องพิมพ์ราคาประหยัดบางรุ่นปิด TCP session ที่รับ raster ต่อเนื่องนาน
+// ประมาณ 10 วินาที แบ่งที่ขอบคำสั่ง GS v 0 เพื่อให้ต่อ session ใหม่ได้โดย
+// ไม่ตัดกลาง raster band และไม่เพิ่มคำสั่งตัดกระดาษระหว่างใบ
+const MOBILE_TCP_SEGMENT_MAX_BYTES = 128 * 1024;
+const MOBILE_TCP_SEGMENT_DRAIN_MS = 900;
+const MOBILE_TCP_RECONNECT_DELAY_MS = 150;
 const mobileTcpQueues = new Map<string, Promise<void>>();
 
 function deliveryError(error: unknown, deliveryState: "not_sent" | "unknown") {
@@ -77,6 +83,103 @@ function normalizeBase64(value: string) {
         .replace(/^data:[^;]+;base64,/i, "")
         .replace(/\s+/g, "")
         .trim();
+}
+
+function base64ToBytes(base64: string) {
+    const binary = globalThis.atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let index = 0; index < binary.length; index++) {
+        bytes[index] = binary.charCodeAt(index);
+    }
+    return bytes;
+}
+
+function bytesToBase64(bytes: Uint8Array) {
+    let binary = "";
+    const browserChunkSize = 32 * 1024;
+
+    for (let offset = 0; offset < bytes.length; offset += browserChunkSize) {
+        binary += String.fromCharCode(
+            ...bytes.subarray(offset, offset + browserChunkSize),
+        );
+    }
+
+    return globalThis.btoa(binary);
+}
+
+function escposCommandLength(bytes: Uint8Array, offset: number) {
+    const first = bytes[offset];
+    const second = bytes[offset + 1];
+
+    if (first === 0x1b) {
+        if (second === 0x40) return 2; // ESC @
+        if (second === 0x61 || second === 0x33) return 3; // align / line spacing
+        if (second === 0x70) return 5; // cash drawer pulse
+        return null;
+    }
+
+    if (first !== 0x1d) return null;
+    if (second === 0x4c) return 4; // left margin
+
+    if (second === 0x56) {
+        const mode = bytes[offset + 2];
+        return mode === 0x41 || mode === 0x42 ? 4 : 3; // paper cut
+    }
+
+    if (second !== 0x76 || bytes[offset + 2] !== 0x30) return null;
+    if (offset + 8 > bytes.length) return null;
+
+    const bytesPerRow = bytes[offset + 4] | (bytes[offset + 5] << 8);
+    const rows = bytes[offset + 6] | (bytes[offset + 7] << 8);
+    const commandLength = 8 + (bytesPerRow * rows);
+
+    return offset + commandLength <= bytes.length ? commandLength : null;
+}
+
+function splitEscposBase64ForTransport(
+    base64: string,
+    maxSegmentBytes = MOBILE_TCP_SEGMENT_MAX_BYTES,
+) {
+    const cleanBase64 = normalizeBase64(base64);
+    if (!cleanBase64) return [];
+
+    const bytes = base64ToBytes(cleanBase64);
+    const safeMaxBytes = Math.max(8, Math.floor(maxSegmentBytes));
+    if (bytes.length <= safeMaxBytes) return [cleanBase64];
+
+    const commandLengths: number[] = [];
+    for (let offset = 0; offset < bytes.length;) {
+        const commandLength = escposCommandLength(bytes, offset);
+
+        // แบ่งเฉพาะ payload ที่ renderer ของระบบสร้างและตรวจโครงสร้างได้ครบ
+        // ถ้าเป็น ESC/POS รูปแบบอื่นให้คงก้อนเดิมเพื่อไม่ตัดคำสั่งโดยเดา
+        if (!commandLength) return [cleanBase64];
+
+        commandLengths.push(commandLength);
+        offset += commandLength;
+    }
+
+    const segments: string[] = [];
+    let segmentStart = 0;
+    let segmentLength = 0;
+    let cursor = 0;
+
+    for (const commandLength of commandLengths) {
+        if (segmentLength > 0 && segmentLength + commandLength > safeMaxBytes) {
+            segments.push(bytesToBase64(bytes.subarray(segmentStart, cursor)));
+            segmentStart = cursor;
+            segmentLength = 0;
+        }
+
+        cursor += commandLength;
+        segmentLength += commandLength;
+    }
+
+    if (segmentLength > 0) {
+        segments.push(bytesToBase64(bytes.subarray(segmentStart, cursor)));
+    }
+
+    return segments;
 }
 
 async function sleep(ms: number) {
@@ -269,60 +372,99 @@ async function printMobileEscposOverTcpNow({
 
     const TcpSocket = mod.TcpSocket as unknown as TcpSocketApi;
 
-    console.log("[mobile-tcp] connect start");
+    const segments = splitEscposBase64ForTransport(cleanBase64);
+    let completedSegments = 0;
 
-    let connected: TcpSocketConnectResult;
-    try {
-        connected = await TcpSocket.connect({
-            ipAddress: host,
-            port,
-            timeout: 10,
-        });
-    } catch (error) {
-        throw deliveryError(error, "not_sent");
-    }
+    console.log("[mobile-tcp] transport plan", {
+        segments: segments.length,
+        byteEstimate: Math.floor((cleanBase64.length * 3) / 4),
+    });
 
-    console.log("[mobile-tcp] connect success", connected);
+    for (let segmentIndex = 0; segmentIndex < segments.length; segmentIndex++) {
+        const segment = segments[segmentIndex];
+        const sendProfile = mobileTcpSendProfile(segment.length);
+        let connected: TcpSocketConnectResult;
 
-    const client = connected.client;
-    const sendProfile = mobileTcpSendProfile(cleanBase64.length);
-
-    try {
-        console.log("[mobile-tcp] send start", {
-            mode: "base64-chunks",
-            base64Length: cleanBase64.length,
-            byteEstimate: Math.floor((cleanBase64.length * 3) / 4),
-            profile: sendProfile.profile,
+        console.log("[mobile-tcp] connect start", {
+            segment: segmentIndex + 1,
+            segments: segments.length,
         });
 
-        await sendBase64InChunks({
-            TcpSocket,
-            client,
-            base64: cleanBase64,
-            // งานยาวใช้ก้อนเดิมแต่ลดอัตราส่งและพักเป็นช่วง เพื่อไม่ให้ input
-            // buffer/thermal head ของเครื่องราคาประหยัดหยุดกลางใบ
-            ...sendProfile,
-        });
+        try {
+            connected = await TcpSocket.connect({
+                ipAddress: host,
+                port,
+                timeout: 10,
+            });
+        } catch (error) {
+            throw deliveryError(
+                error,
+                completedSegments === 0 ? "not_sent" : "unknown",
+            );
+        }
 
-        console.log("[mobile-tcp] send success");
+        console.log("[mobile-tcp] connect success", connected);
 
-        // send() ยืนยันแค่ native socket รับก้อนข้อมูลแล้ว ไม่ได้ยืนยันว่า
-        // printer ระบายก้อนท้ายครบ จึงเว้นเวลาตามขนาดใบก่อน disconnect
-        await sleep(mobileTcpFinalDrainMs(cleanBase64.length));
-    } catch (error) {
-        console.error("[mobile-tcp] send failed", error);
-        // Once a send call starts the printer may have received some/all bytes.
-        // Retrying automatically could therefore print a duplicate ticket.
-        throw deliveryError(error, "unknown");
-    } finally {
-        console.log("[mobile-tcp] disconnect start");
+        const client = connected.client;
+        let sendSucceeded = false;
 
-        await TcpSocket.disconnect({ client }).catch((error: unknown) => {
-            console.error("[mobile-tcp] disconnect failed", error);
-        });
+        try {
+            console.log("[mobile-tcp] send start", {
+                mode: "base64-chunks",
+                segment: segmentIndex + 1,
+                segments: segments.length,
+                base64Length: segment.length,
+                byteEstimate: Math.floor((segment.length * 3) / 4),
+                profile: sendProfile.profile,
+            });
 
-        console.log("[mobile-tcp] disconnect done");
+            await sendBase64InChunks({
+                TcpSocket,
+                client,
+                base64: segment,
+                ...sendProfile,
+            });
 
+            sendSucceeded = true;
+            console.log("[mobile-tcp] send success", {
+                segment: segmentIndex + 1,
+                segments: segments.length,
+            });
+
+            // send() ยืนยันแค่ native socket รับข้อมูลแล้ว จึงเว้นให้ printer
+            // ระบาย raster ก่อนปิด session และเริ่มช่วงถัดไป
+            await sleep(
+                segmentIndex === segments.length - 1
+                    ? mobileTcpFinalDrainMs(cleanBase64.length)
+                    : MOBILE_TCP_SEGMENT_DRAIN_MS,
+            );
+        } catch (error) {
+            console.warn(
+                "[mobile-tcp] send failed:",
+                error instanceof Error ? error.message : String(error),
+            );
+            // หลังเริ่มส่งแล้วไม่ retry ก้อนเดิมอัตโนมัติ เพราะอาจทำให้ส่วนต้น
+            // ของใบออกซ้ำเมื่อ native socket รับข้อมูลไปบางส่วนแล้ว
+            throw deliveryError(error, "unknown");
+        } finally {
+            console.log("[mobile-tcp] disconnect start");
+
+            await TcpSocket.disconnect({ client }).catch((error: unknown) => {
+                console.warn(
+                    "[mobile-tcp] disconnect failed:",
+                    error instanceof Error ? error.message : String(error),
+                );
+            });
+
+            console.log("[mobile-tcp] disconnect done");
+        }
+
+        if (!sendSucceeded) break;
+        completedSegments += 1;
+
+        if (segmentIndex < segments.length - 1) {
+            await sleep(MOBILE_TCP_RECONNECT_DELAY_MS);
+        }
     }
 }
 
@@ -337,8 +479,10 @@ export function printMobileEscposOverTcp(input: {
 }
 
 export const __mobileTcpInternals = {
+    MOBILE_TCP_SEGMENT_MAX_BYTES,
     mobileTcpFinalDrainMs,
     mobileTcpSendProfile,
     runOnMobileTcpQueue,
     sendBase64InChunks,
+    splitEscposBase64ForTransport,
 };

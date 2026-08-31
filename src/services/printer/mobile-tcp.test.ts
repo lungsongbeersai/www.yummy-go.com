@@ -117,4 +117,48 @@ describe("mobile TCP printer queue", () => {
     expect(Buffer.concat(sent)).toEqual(source);
     expect(TcpSocket.send).toHaveBeenCalledTimes(Math.ceil(source.toString("base64").length / 2732));
   });
+
+  it("splits long renderer payloads only between complete raster commands", () => {
+    const header = Buffer.from([
+      0x1b, 0x40,
+      0x1b, 0x61, 0x00,
+      0x1d, 0x4c, 0x00, 0x00,
+      0x1b, 0x33, 24,
+    ]);
+    const rasterBand = (seed: number) => Buffer.concat([
+      Buffer.from([0x1d, 0x76, 0x30, 0x00, 72, 0x00, 64, 0x00]),
+      Buffer.alloc(72 * 64, seed),
+    ]);
+    const source = Buffer.concat([
+      header,
+      ...Array.from({ length: 30 }, (_, index) => rasterBand(index)),
+      Buffer.from([0x1d, 0x56, 0x01]),
+    ]);
+
+    const segments = __mobileTcpInternals.splitEscposBase64ForTransport(
+      source.toString("base64"),
+      24 * 1024,
+    );
+    const decoded = segments.map((segment) => Buffer.from(segment, "base64"));
+
+    expect(segments.length).toBeGreaterThan(1);
+    expect(Buffer.concat(decoded)).toEqual(source);
+    expect(decoded.every((segment) => segment.length <= 24 * 1024)).toBe(true);
+    for (const continuation of decoded.slice(1)) {
+      expect([...continuation.subarray(0, 4)]).toEqual([0x1d, 0x76, 0x30, 0x00]);
+    }
+  });
+
+  it("keeps unknown ESC/POS payloads intact instead of guessing a split point", () => {
+    const source = Buffer.alloc(
+      __mobileTcpInternals.MOBILE_TCP_SEGMENT_MAX_BYTES + 1,
+      0x41,
+    );
+
+    const segments = __mobileTcpInternals.splitEscposBase64ForTransport(
+      source.toString("base64"),
+    );
+
+    expect(segments).toEqual([source.toString("base64")]);
+  });
 });
