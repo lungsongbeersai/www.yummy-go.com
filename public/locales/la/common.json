@@ -27,8 +27,8 @@
     "agentUnavailableDescription": "ເປີດ ຫຼື ຕິດຕັ້ງ Yummy-Go Printer Agent ໃໝ່ ແລ້ວລອງອີກຄັ້ງ."
   },
   "offlineMode": {
-    "dialogTitle": "ການເຊື່ອມຕໍ່ອິນເຕີເນັດບໍ່ຄົງທີ່",
-    "dialogDescription": "ທ່ານສາມາດໃຊ້ງານໂໝດອອບລາຍຕໍ່ໄດ້ແບບຈຳກັດຟີເຈີ ຫຼື ລອງເຊື່ອມຕໍ່ໃໝ່.",
+    "dialogTitle": "ການເຊື່ອມຕໍ່ Yummy Go ຂັດຂ້ອງ",
+    "dialogDescription": "ເຊີບເວີ ຫຼື ລະບົບຊິງຂໍ້ມູນພາຍໃນບໍ່ພ້ອມໃຊ້ງານຊົ່ວຄາວ. ທ່ານສາມາດໃຊ້ໂໝດອອບລາຍຕໍ່ ຫຼື ລອງເຊື່ອມຕໍ່ໃໝ່.",
     "useOfflineMode": "ໃຊ້ງານໂໝດອອບລາຍ",
     "reconnect": "ເຊື່ອມຕໍ່ໃໝ່",
     "reconnecting": "ກຳລັງກວດສອບ...",

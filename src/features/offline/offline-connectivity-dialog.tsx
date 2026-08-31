@@ -51,9 +51,13 @@ export function OfflineConnectivityDialog() {
       const online = await probeConnectivity();
       if (cancelled) return;
       if (online) {
-        // false positive จาก request เดียว ไม่ใช่เน็ตหลุดจริง — คืนสิทธิ์ทันที กัน route-gating/
-        // เมนูล็อกค้างผิดๆ ไปด้วย ไม่ใช่แค่ไม่โชว์ popup เฉยๆ
-        useAuthStore.getState().setOfflineSession(false);
+        if (isAndroidNative) {
+          useAuthStore.getState().setOfflineSession(false);
+        } else {
+          // ให้ desktop monitor ตรวจคิว Agent/IndexedDB ก่อนออกจาก offline mode เพื่อไม่ให้
+          // การซ่อน popup ทำรายการขายที่ยังไม่ sync หล่นหาย
+          requestImmediateReconcile();
+        }
       } else {
         setOpen(true);
       }
@@ -61,7 +65,7 @@ export function OfflineConnectivityDialog() {
     return () => {
       cancelled = true;
     };
-  }, [isLoggedIn, offlineSession]);
+  }, [isAndroidNative, isLoggedIn, offlineSession]);
 
   async function handleReconnect() {
     setChecking(true);

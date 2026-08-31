@@ -27,8 +27,8 @@
     "agentUnavailableDescription": "Open or reinstall Yummy-Go Printer Agent, then try again."
   },
   "offlineMode": {
-    "dialogTitle": "Internet connection is unstable",
-    "dialogDescription": "You can keep working in offline mode with limited features, or try reconnecting.",
+    "dialogTitle": "Connection to Yummy Go was interrupted",
+    "dialogDescription": "The server or local sync service is temporarily unavailable. You can keep working offline or try reconnecting.",
     "useOfflineMode": "Use Offline Mode",
     "reconnect": "Reconnect",
     "reconnecting": "Checking...",

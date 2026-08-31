@@ -3,7 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   probeAndroidBackend,
   startAndroidOnlineRecoveryMonitor,
+  startOfflineTransportMonitor,
 } from "@/stores/offline-transport-monitor";
+import { resetLocalSyncConfiguration } from "@/services/offline-sync";
 import { useAuthStore, type AuthUser } from "@/stores/auth-store";
 
 function authUser(uuid = "login-1"): AuthUser {
@@ -33,6 +35,7 @@ function installBrowser(online: boolean) {
     removeEventListener: events.removeEventListener.bind(events),
     setTimeout: globalThis.setTimeout.bind(globalThis),
     clearTimeout: globalThis.clearTimeout.bind(globalThis),
+    location: { origin: "https://pos.example.test" },
   });
   return {
     setOnline(nextOnline: boolean) {
@@ -51,11 +54,13 @@ async function flushPromises() {
 describe("Android online recovery monitor", () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    resetLocalSyncConfiguration();
     useAuthStore.getState().login("online-token", authUser());
   });
 
   afterEach(() => {
     useAuthStore.getState().logout();
+    resetLocalSyncConfiguration();
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
     vi.useRealTimers();
@@ -144,5 +149,39 @@ describe("Android online recovery monitor", () => {
     await vi.advanceTimersByTimeAsync(0);
     expect(useAuthStore.getState().offlineSession).toBe(false);
     stop();
+  });
+
+  it("clears a stale desktop offline session when Backend is healthy and no local work is pending", async () => {
+    installBrowser(true);
+    useAuthStore.getState().setOfflineSession(true);
+    expect(useAuthStore.getState().isLoggedIn).toBe(true);
+    expect(useAuthStore.getState().offlineSession).toBe(true);
+    const post = vi.spyOn(axios, "post").mockRejectedValue(new Error("Agent unavailable"));
+    const get = vi.spyOn(axios, "get")
+      .mockRejectedValueOnce(new Error("Agent unavailable"))
+      .mockResolvedValueOnce({
+        data: {
+          status: "success",
+          data: {
+            online: true,
+            store_uuid_fk: "store-1",
+            branch_uuid_fk: "branch-1",
+          },
+        },
+      });
+
+    const stop = startOfflineTransportMonitor();
+    try {
+      await vi.waitFor(() => expect(post).toHaveBeenCalled());
+      await vi.waitFor(() => expect(useAuthStore.getState().offlineSession).toBe(false));
+      expect(get).toHaveBeenCalledWith("/api/v1/sync/health", expect.objectContaining({
+        headers: {
+          Authorization: "Bearer online-token",
+          "x-access-token": "online-token",
+        },
+      }));
+    } finally {
+      stop();
+    }
   });
 });

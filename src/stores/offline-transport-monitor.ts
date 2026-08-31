@@ -50,12 +50,31 @@ export function requestImmediateReconcile() {
 export async function probeConnectivity(): Promise<boolean> {
   if (typeof navigator !== "undefined" && navigator.onLine === false) return false;
   if (typeof window === "undefined") return false;
-  const target = process.env.NEXT_PUBLIC_BASE_URL || window.location.origin;
+
+  const auth = useAuthStore.getState();
+  if (auth.isLoggedIn && auth.token && auth.user) {
+    return probeAndroidBackend({
+      token: auth.token,
+      storeUuid: auth.user.store_uuid || auth.user.store_uuid_fk || "",
+      branchUuid: auth.user.branch_uuid || "",
+    });
+  }
+
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 5000);
   try {
-    await fetch(target, { cache: "no-store", mode: "no-cors" });
-    return true;
+    const target = new URL("/app-version.json", window.location.origin);
+    target.searchParams.set("connectivity", String(Date.now()));
+    const response = await fetch(target, {
+      cache: "no-store",
+      credentials: "same-origin",
+      signal: controller.signal,
+    });
+    return response.ok;
   } catch {
     return false;
+  } finally {
+    window.clearTimeout(timeout);
   }
 }
 
@@ -233,6 +252,15 @@ export function startOfflineTransportMonitor() {
           if (!status) {
             agentUnavailableChecks += 1;
             void persistBrowserAgentUnavailable(localScope, browserOffline).catch(() => undefined);
+            if (!browserOffline && useAuthStore.getState().offlineSession) {
+              const online = await probeConnectivity();
+              const browserQueue = await reconcileBrowserSyncQueue(localScope).catch(() =>
+                getBrowserLocalSyncStatus(localScope),
+              );
+              if (online && !browserLocalSyncHasRetryableWork(browserQueue)) {
+                useAuthStore.getState().setOfflineSession(false);
+              }
+            }
             if (agentUnavailableChecks >= 2) {
               useToastStore.getState().show({
                 id: "offline-agent-unavailable",
