@@ -1,12 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { __mobileTcpInternals } from "@/services/printer/mobile-tcp";
 
 describe("mobile TCP printer queue", () => {
-  it("serializes kitchen and bar sockets because the native plugin owns one active socket", async () => {
+  it("serializes jobs sent to the same physical printer", async () => {
     const events: string[] = [];
     let releaseFirst: (() => void) | undefined;
 
     const first = __mobileTcpInternals.runOnMobileTcpQueue(
+      "tcp://192.168.1.20:9100",
       () => new Promise<void>((resolve) => {
         events.push("kitchen-start");
         releaseFirst = () => {
@@ -15,7 +16,7 @@ describe("mobile TCP printer queue", () => {
         };
       }),
     );
-    const second = __mobileTcpInternals.runOnMobileTcpQueue(async () => {
+    const second = __mobileTcpInternals.runOnMobileTcpQueue("tcp://192.168.1.20:9100", async () => {
       events.push("bar-start");
     });
 
@@ -29,11 +30,11 @@ describe("mobile TCP printer queue", () => {
 
   it("continues the queue after one printer fails", async () => {
     const events: string[] = [];
-    const failed = __mobileTcpInternals.runOnMobileTcpQueue(async () => {
+    const failed = __mobileTcpInternals.runOnMobileTcpQueue("tcp://192.168.1.20:9100", async () => {
       events.push("failed-printer");
       throw new Error("offline");
     });
-    const next = __mobileTcpInternals.runOnMobileTcpQueue(async () => {
+    const next = __mobileTcpInternals.runOnMobileTcpQueue("tcp://192.168.1.20:9100", async () => {
       events.push("next-printer");
     });
 
@@ -42,8 +43,78 @@ describe("mobile TCP printer queue", () => {
     expect(events).toEqual(["failed-printer", "next-printer"]);
   });
 
+  it("runs different physical printers concurrently", async () => {
+    const events: string[] = [];
+    let release: (() => void) | undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+
+    const kitchen = __mobileTcpInternals.runOnMobileTcpQueue(
+      "tcp://192.168.1.20:9100",
+      async () => {
+        events.push("kitchen-start");
+        await gate;
+      },
+    );
+    const bar = __mobileTcpInternals.runOnMobileTcpQueue(
+      "tcp://192.168.1.21:9100",
+      async () => {
+        events.push("bar-start");
+        await gate;
+      },
+    );
+
+    await Promise.resolve();
+    expect(new Set(events)).toEqual(new Set(["kitchen-start", "bar-start"]));
+    release?.();
+    await Promise.all([kitchen, bar]);
+  });
+
   it("keeps a longer final drain for large receipts", () => {
     expect(__mobileTcpInternals.mobileTcpFinalDrainMs(4096)).toBe(500);
     expect(__mobileTcpInternals.mobileTcpFinalDrainMs(1024 * 1024)).toBe(1500);
+    expect(__mobileTcpInternals.mobileTcpFinalDrainMs(2 * 1024 * 1024)).toBe(3000);
+  });
+
+  it("slows and periodically cools only medium and long raster receipts", () => {
+    expect(__mobileTcpInternals.mobileTcpSendProfile(128 * 1024).profile).toBe("short");
+    expect(__mobileTcpInternals.mobileTcpSendProfile(512 * 1024)).toMatchObject({
+      cooldownEveryBytes: 128 * 1024,
+      cooldownMs: 200,
+      delayMs: 50,
+      profile: "medium",
+    });
+    expect(__mobileTcpInternals.mobileTcpSendProfile(2 * 1024 * 1024)).toMatchObject({
+      cooldownEveryBytes: 64 * 1024,
+      cooldownMs: 250,
+      delayMs: 60,
+      profile: "long",
+    });
+  });
+
+  it("sends every byte of a long payload in order before completing", async () => {
+    const source = Buffer.from(Array.from({ length: 256 * 1024 }, (_, index) => index % 251));
+    const sent: Buffer[] = [];
+    const TcpSocket = {
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+      send: vi.fn(async ({ data }: { data: string }) => {
+        sent.push(Buffer.from(data, "base64"));
+      }),
+    };
+
+    await __mobileTcpInternals.sendBase64InChunks({
+      TcpSocket,
+      client: "test-client",
+      base64: source.toString("base64"),
+      chunkSize: 2732,
+      cooldownEveryBytes: 0,
+      cooldownMs: 0,
+      delayMs: 0,
+    });
+
+    expect(Buffer.concat(sent)).toEqual(source);
+    expect(TcpSocket.send).toHaveBeenCalledTimes(Math.ceil(source.toString("base64").length / 2732));
   });
 });

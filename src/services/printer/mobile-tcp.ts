@@ -32,7 +32,9 @@ type TcpSocketApi = {
 const MOBILE_TCP_CHUNK_SIZE = 2732;
 const MOBILE_TCP_CHUNK_DELAY_MS = 40;
 const MOBILE_TCP_SEND_TIMEOUT_MS = 15000;
-let mobileTcpQueue: Promise<void> = Promise.resolve();
+const MOBILE_TCP_MEDIUM_BYTES = 256 * 1024;
+const MOBILE_TCP_LONG_BYTES = 1024 * 1024;
+const mobileTcpQueues = new Map<string, Promise<void>>();
 
 function deliveryError(error: unknown, deliveryState: "not_sent" | "unknown") {
     const wrapped = error instanceof Error
@@ -81,20 +83,61 @@ async function sleep(ms: number) {
     await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function runOnMobileTcpQueue<T>(task: () => Promise<T>) {
-    // Android plugin เก็บ socket/output stream ไว้เป็นตัวแปรร่วมทั้ง plugin และ
-    // connect ใหม่จะปิด socket เดิม ดังนั้นครัวกับบาร์ห้ามส่งพร้อมกันจากมือถือ
-    const execution = mobileTcpQueue.then(task, task);
-    mobileTcpQueue = execution.then(
+function runOnMobileTcpQueue<T>(queueKey: string, task: () => Promise<T>) {
+    // หนึ่งเครื่องพิมพ์ต้องรับงานเรียงลำดับเพื่อไม่ให้ byte ของคนละใบสลับกัน
+    // ส่วนคนละเครื่องทำพร้อมกันได้ เพราะ native plugin แยก socket/output stream
+    // ตาม client แล้ว (ดู patch-package ของ capacitor-tcp-socket)
+    const key = String(queueKey || "mobile-printer").trim().toLowerCase();
+    const previous = mobileTcpQueues.get(key) ?? Promise.resolve();
+    const execution = previous.then(task, task);
+    const tail = execution.then(
         () => undefined,
         () => undefined,
     );
+    mobileTcpQueues.set(key, tail);
+    void tail.finally(() => {
+        if (mobileTcpQueues.get(key) === tail) mobileTcpQueues.delete(key);
+    });
     return execution;
 }
 
 function mobileTcpFinalDrainMs(base64Length: number) {
     const estimatedBytes = Math.floor((Math.max(0, base64Length) * 3) / 4);
-    return Math.min(1500, 500 + Math.floor(estimatedBytes / (128 * 1024)) * 250);
+    if (estimatedBytes > MOBILE_TCP_LONG_BYTES) return 3000;
+    if (estimatedBytes > MOBILE_TCP_MEDIUM_BYTES) return 1500;
+    return 500;
+}
+
+function mobileTcpSendProfile(base64Length: number) {
+    const estimatedBytes = Math.floor((Math.max(0, base64Length) * 3) / 4);
+
+    if (estimatedBytes > MOBILE_TCP_LONG_BYTES) {
+        return {
+            chunkSize: MOBILE_TCP_CHUNK_SIZE,
+            cooldownEveryBytes: 64 * 1024,
+            cooldownMs: 250,
+            delayMs: 60,
+            profile: "long" as const,
+        };
+    }
+
+    if (estimatedBytes > MOBILE_TCP_MEDIUM_BYTES) {
+        return {
+            chunkSize: MOBILE_TCP_CHUNK_SIZE,
+            cooldownEveryBytes: 128 * 1024,
+            cooldownMs: 200,
+            delayMs: 50,
+            profile: "medium" as const,
+        };
+    }
+
+    return {
+        chunkSize: MOBILE_TCP_CHUNK_SIZE,
+        cooldownEveryBytes: 0,
+        cooldownMs: 0,
+        delayMs: MOBILE_TCP_CHUNK_DELAY_MS,
+        profile: "short" as const,
+    };
 }
 
 async function withSendTimeout<T>(operation: Promise<T>) {
@@ -119,12 +162,16 @@ async function sendBase64InChunks({
     client,
     base64,
     chunkSize = 4096,
+    cooldownEveryBytes = 0,
+    cooldownMs = 0,
     delayMs = 80,
 }: {
     TcpSocket: TcpSocketApi;
     client: TcpClient;
     base64: string;
     chunkSize?: number;
+    cooldownEveryBytes?: number;
+    cooldownMs?: number;
     delayMs?: number;
 }) {
     const cleanBase64 = normalizeBase64(base64);
@@ -135,11 +182,14 @@ async function sendBase64InChunks({
 
     const safeChunkSize = Math.max(4, chunkSize - (chunkSize % 4));
     const totalChunks = Math.ceil(cleanBase64.length / safeChunkSize);
+    let bytesSinceCooldown = 0;
 
     console.log("[mobile-tcp] chunk send config", {
         base64Length: cleanBase64.length,
         safeChunkSize,
         totalChunks,
+        cooldownEveryBytes,
+        cooldownMs,
         delayMs,
         byteEstimate: Math.floor((cleanBase64.length * 3) / 4),
     });
@@ -166,8 +216,15 @@ async function sendBase64InChunks({
             }),
         );
 
-        if (chunkIndex < totalChunks && delayMs > 0) {
-            await sleep(delayMs);
+        bytesSinceCooldown += Math.floor((chunk.length * 3) / 4);
+
+        if (chunkIndex < totalChunks) {
+            const shouldCooldown =
+                cooldownEveryBytes > 0 &&
+                bytesSinceCooldown >= cooldownEveryBytes;
+            const pauseMs = shouldCooldown ? cooldownMs : delayMs;
+            if (shouldCooldown) bytesSinceCooldown = 0;
+            if (pauseMs > 0) await sleep(pauseMs);
         }
     }
 
@@ -228,22 +285,23 @@ async function printMobileEscposOverTcpNow({
     console.log("[mobile-tcp] connect success", connected);
 
     const client = connected.client;
+    const sendProfile = mobileTcpSendProfile(cleanBase64.length);
 
     try {
         console.log("[mobile-tcp] send start", {
             mode: "base64-chunks",
             base64Length: cleanBase64.length,
             byteEstimate: Math.floor((cleanBase64.length * 3) / 4),
+            profile: sendProfile.profile,
         });
 
         await sendBase64InChunks({
             TcpSocket,
             client,
             base64: cleanBase64,
-            // 2,732 base64 chars = 2,049 raw bytes. ก้อนเล็กลงช่วยเครื่องที่
-            // buffer น้อย และ 40 ms ทำให้ใบยาวเร็วขึ้นโดยคงการ pacing ไว้
-            chunkSize: MOBILE_TCP_CHUNK_SIZE,
-            delayMs: MOBILE_TCP_CHUNK_DELAY_MS,
+            // งานยาวใช้ก้อนเดิมแต่ลดอัตราส่งและพักเป็นช่วง เพื่อไม่ให้ input
+            // buffer/thermal head ของเครื่องราคาประหยัดหยุดกลางใบ
+            ...sendProfile,
         });
 
         console.log("[mobile-tcp] send success");
@@ -272,10 +330,15 @@ export function printMobileEscposOverTcp(input: {
     interface_value?: string;
     escpos_base64: string;
 }) {
-    return runOnMobileTcpQueue(() => printMobileEscposOverTcpNow(input));
+    return runOnMobileTcpQueue(
+        String(input.interface_value || "mobile-printer"),
+        () => printMobileEscposOverTcpNow(input),
+    );
 }
 
 export const __mobileTcpInternals = {
     mobileTcpFinalDrainMs,
+    mobileTcpSendProfile,
     runOnMobileTcpQueue,
+    sendBase64InChunks,
 };

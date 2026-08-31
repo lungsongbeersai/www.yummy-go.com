@@ -11,3 +11,185 @@ index 3d335a6..4062c71 100644
          }
      }
      lintOptions {
+diff --git a/node_modules/@deedarb/capacitor-tcp-socket/android/src/main/java/com/svend/plugins/tcp/socket/TcpSocketPlugin.java b/node_modules/@deedarb/capacitor-tcp-socket/android/src/main/java/com/svend/plugins/tcp/socket/TcpSocketPlugin.java
+index 78ec7c8..60cb000 100644
+--- a/node_modules/@deedarb/capacitor-tcp-socket/android/src/main/java/com/svend/plugins/tcp/socket/TcpSocketPlugin.java
++++ b/node_modules/@deedarb/capacitor-tcp-socket/android/src/main/java/com/svend/plugins/tcp/socket/TcpSocketPlugin.java
+@@ -20,6 +20,7 @@ import java.net.Socket;
+ import java.net.InetSocketAddress;
+ import java.util.ArrayList;
+ import java.util.Base64;
++import java.util.Collections;
+ import java.util.List;
+ 
+ @CapacitorPlugin(name = "TcpSocket", permissions = {
+@@ -30,9 +31,26 @@ import java.util.List;
+ })
+ public class TcpSocketPlugin extends Plugin {
+ 
+-    private Socket socket;
+-    private DataOutputStream mBufferOut;
+-    private List<Socket> clients = new ArrayList<>();
++    private final List<Socket> clients = Collections.synchronizedList(new ArrayList<>());
++    private final List<DataOutputStream> outputs = Collections.synchronizedList(new ArrayList<>());
++
++    private Socket getClient(int client) {
++        synchronized (clients) {
++            if (client < 0 || client >= clients.size()) {
++                return null;
++            }
++            return clients.get(client);
++        }
++    }
++
++    private DataOutputStream getOutput(int client) {
++        synchronized (outputs) {
++            if (client < 0 || client >= outputs.size()) {
++                return null;
++            }
++            return outputs.get(client);
++        }
++    }
+ 
+     @PluginMethod()
+     public void connect(PluginCall call) {
+@@ -45,21 +63,29 @@ public class TcpSocketPlugin extends Plugin {
+         Integer port = call.getInt("port", 9100);
+         Integer timeout = call.getInt("timeout", 10); // Default 10 second timeout (in seconds)
+ 
++        int clientIndex;
++        Socket clientSocket = new Socket();
+         try {
+-            if (socket != null && socket.isConnected()) {
+-                socket.close();
++            clientSocket.connect(new InetSocketAddress(ipAddress, port), timeout * 1000); // Convert seconds to milliseconds
++            DataOutputStream output = new DataOutputStream(new BufferedOutputStream(clientSocket.getOutputStream()));
++            synchronized (clients) {
++                clientIndex = clients.size();
++                clients.add(clientSocket);
++                outputs.add(output);
+             }
+-            socket = new Socket();
+-            socket.connect(new InetSocketAddress(ipAddress, port), timeout * 1000); // Convert seconds to milliseconds
+-            clients.add(socket);
+         } catch (IOException e) {
++            try {
++                clientSocket.close();
++            } catch (IOException ignored) {
++                // Preserve the original connection error.
++            }
+             Log.d("Connection failed", e.getMessage());
+             call.reject(e.getMessage());
+             return;
+         }
+ 
+         JSObject ret = new JSObject();
+-        ret.put("client", clients.size() - 1);
++        ret.put("client", clientIndex);
+         call.resolve(ret);
+     }
+ 
+@@ -73,30 +99,29 @@ public class TcpSocketPlugin extends Plugin {
+             return;
+         }
+ 
++        final Socket clientSocket = getClient(client);
++        final DataOutputStream output = getOutput(client);
++        if (clientSocket == null || output == null || clientSocket.isClosed()) {
++            call.reject("Invalid client or socket closed");
++            return;
++        }
++
+         Runnable runnable = () -> {
+             try {
+                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+-                    final Socket socket = clients.get(client);
+-                    mBufferOut = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream()));
+                     byte[] decoded = Base64.getDecoder().decode(msg);
+-                    if (mBufferOut != null) {
+-                        mBufferOut.write(decoded);
+-                        mBufferOut.flush();
++                    synchronized (output) {
++                        output.write(decoded);
++                        output.flush();
+                     }
+                 }
+                 call.resolve();
+-            } catch (IOException e) {
++            } catch (IOException | IllegalArgumentException e) {
+                 call.reject(e.getMessage());
+             }
+         };
+ 
+-        Socket socket = clients.get(client);
+-        if (!socket.isConnected()) {
+-            try {
+-                socket.close();
+-            } catch (IOException e) {
+-                call.reject("Generic error");
+-            }
++        if (!clientSocket.isConnected()) {
+             call.reject("Socket not connected");
+             return;
+         }
+@@ -135,13 +160,8 @@ public class TcpSocketPlugin extends Plugin {
+             }
+         };
+ 
+-        Socket socket = clients.get(client);
+-        if (!socket.isConnected()) {
+-            try {
+-                socket.close();
+-            } catch (IOException e) {
+-                call.reject("Generic error");
+-            }
++        Socket socket = getClient(client);
++        if (socket == null || socket.isClosed() || !socket.isConnected()) {
+             call.reject("Socket not connected");
+             return;
+         }
+@@ -156,19 +176,36 @@ public class TcpSocketPlugin extends Plugin {
+             call.reject("No client specified");
+             return;
+         }
+-        if (clients.isEmpty()) {
+-            call.reject("Socket not connected");
++        final Socket socket = getClient(client);
++        final DataOutputStream output = getOutput(client);
++        if (socket == null) {
++            call.reject("Invalid client index");
+             return;
+         }
+-        final Socket socket = clients.get(client);
++        IOException closeError = null;
+         try {
+-            if (!socket.isConnected()) {
+-                socket.close();
+-                call.reject("Socket not connected");
++            if (output != null) {
++                output.close();
+             }
+-            socket.close();
+         } catch (IOException e) {
+-            call.reject(e.getMessage());
++            closeError = e;
++        }
++        try {
++            if (!socket.isClosed()) socket.close();
++        } catch (IOException e) {
++            if (closeError == null) closeError = e;
++        }
++
++        synchronized (clients) {
++            clients.set(client, null);
++        }
++        synchronized (outputs) {
++            outputs.set(client, null);
++        }
++
++        if (closeError != null) {
++            call.reject(closeError.getMessage());
++            return;
+         }
+ 
+         JSObject ret = new JSObject();
