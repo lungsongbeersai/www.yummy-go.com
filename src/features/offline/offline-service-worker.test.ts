@@ -16,6 +16,10 @@ const offlineTransportMonitor = readFileSync(
   join(testDir, "..", "..", "stores", "offline-transport-monitor.ts"),
   "utf8"
 );
+const apiTransport = readFileSync(
+  join(testDir, "..", "..", "lib", "api.ts"),
+  "utf8"
+);
 
 describe("offline asset cache", () => {
   it("keeps the complete Next Image query in the cache identity", () => {
@@ -41,7 +45,7 @@ describe("offline asset cache", () => {
   it("switches transport on network events and flushes local work before resuming online", () => {
     expect(offlineRuntime).toContain("startOfflineTransportMonitor()");
     expect(offlineRuntime).toContain("startAndroidOnlineRecoveryMonitor()");
-    expect(offlineRuntime).toContain('Capacitor.getPlatform() === "android"');
+    expect(offlineRuntime).toContain("isCapacitorAndroidApp()");
     expect(offlineTransportMonitor).toContain('"/api/v1/sync/health"');
     expect(offlineTransportMonitor).toContain('window.addEventListener("offline", handleOffline)');
     expect(offlineTransportMonitor).toContain('window.addEventListener("online", handleOnline)');
@@ -55,5 +59,11 @@ describe("offline asset cache", () => {
     expect(offlineTransportMonitor).toContain("offlineSync.agentUnavailableTitle");
     expect(offlineTransportMonitor).toContain("setOfflineSession(false)");
     expect(offlineRuntime).toContain('\"/pos\"');
+  });
+
+  it("never routes the Capacitor Android app to the Desktop Printer Agent", () => {
+    expect(apiTransport).toContain("const localAgentAvailable = !isCapacitorAndroidApp()");
+    expect(apiTransport).toContain("localAgentAvailable &&");
+    expect(apiTransport).toContain("else if (localAgentAvailable)");
   });
 });

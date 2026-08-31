@@ -2,6 +2,7 @@
 
 import axios, { AxiosError, type AxiosInstance } from "axios";
 import i18n from "@/lib/i18n";
+import { isCapacitorAndroidApp } from "@/lib/capacitor-platform";
 import { shouldLogoutForUnauthorized } from "@/lib/unauthorized-session";
 import {
   cacheOnlineResponse,
@@ -171,19 +172,21 @@ export async function apiRequest<T>(
     actorLoginUuid: auth.user?.uuid || "",
   };
   const browserOnline = typeof navigator === "undefined" ? undefined : navigator.onLine;
-  const routeToLocal = shouldRouteToLocal(
-    auth.offlineSession,
-    browserOnline,
-    method,
-    url,
-    undefined,
-    localScope,
-  );
+  const localAgentAvailable = !isCapacitorAndroidApp();
+  const routeToLocal = localAgentAvailable &&
+    shouldRouteToLocal(
+      auth.offlineSession,
+      browserOnline,
+      method,
+      url,
+      undefined,
+      localScope,
+    );
   if (routeToLocal && !auth.offlineSession) {
     useAuthStore.getState().setOfflineSession(true);
   }
   let localConfiguration: Promise<boolean> | null = null;
-  if (auth.token && auth.user && supportsOfflineRoute(method, url)) {
+  if (localAgentAvailable && auth.token && auth.user && supportsOfflineRoute(method, url)) {
     localConfiguration = routeToLocal
       ? Promise.resolve(true)
       : configureLocalSync({
@@ -251,7 +254,7 @@ export async function apiRequest<T>(
           localScope.storeUuid,
         );
       });
-    } else {
+    } else if (localAgentAvailable) {
       cacheOnlineResponse(
         method,
         url,
@@ -266,7 +269,12 @@ export async function apiRequest<T>(
     const normalized = normalizeError(error, fallback);
     const isNetworkFailure = normalized.statusCode === 0 || normalized.statusCode === 408;
     const canContinueOffline = isNetworkFailure || (normalized.statusCode === 401 && auth.offlineSession);
-    if (canContinueOffline && supportsOfflineRoute(method, url) && typeof window !== "undefined") {
+    if (
+      localAgentAvailable &&
+      canContinueOffline &&
+      supportsOfflineRoute(method, url) &&
+      typeof window !== "undefined"
+    ) {
       try {
         if (localConfiguration) await localConfiguration;
         const fallbackOptions = shouldUseLocalPrintOwnership(true, method, url)

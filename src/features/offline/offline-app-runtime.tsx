@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Capacitor } from "@capacitor/core";
+import { isCapacitorAndroidApp } from "@/lib/capacitor-platform";
 import { useAuthStore } from "@/stores/auth-store";
 import {
   startAndroidOnlineRecoveryMonitor,
@@ -27,7 +27,7 @@ export function OfflineAppRuntime() {
     // Android พิมพ์ผ่าน Native TCP โดยตรงและไม่มี Desktop Printer Agent
     // ที่ 127.0.0.1:7777 จึงตรวจ Backend โดยตรงเพื่อออกจาก offlineSession
     // โดยไม่เริ่ม Agent monitor ของ Desktop
-    if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === "android") {
+    if (isCapacitorAndroidApp()) {
       return startAndroidOnlineRecoveryMonitor();
     }
 
