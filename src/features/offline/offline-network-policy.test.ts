@@ -13,6 +13,9 @@ describe("offline service worker network policy", () => {
     expect(nextConfig).toContain('"https://api.yummy-go.com"');
     expect(nextConfig).toContain('"http://127.0.0.1:7777"');
     expect(nextConfig).toContain('"http://localhost:7777"');
+    expect(nextConfig).toContain('"https://plc-files.sgp1.vultrobjects.com"');
+    expect(nextConfig).toContain('"https://placehold.co"');
+    expect(nextConfig).toContain('"https://flagcdn.com"');
     expect(nextConfig).toContain("`connect-src ${serviceWorkerConnectSources.join(\" \")}`");
   });
 

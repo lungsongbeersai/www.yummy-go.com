@@ -22,12 +22,18 @@ const printerAgentOrigin = originOf(
   process.env.NEXT_PUBLIC_PRINTER_AGENT_URL,
   "http://127.0.0.1:7777",
 );
+const remoteImageOrigins = [
+  "https://plc-files.sgp1.vultrobjects.com",
+  "https://placehold.co",
+  "https://flagcdn.com",
+];
 const serviceWorkerConnectSources = Array.from(new Set([
   "'self'",
   backendOrigin,
   printerAgentOrigin,
   "http://127.0.0.1:7777",
   "http://localhost:7777",
+  ...remoteImageOrigins,
 ]));
 const serviceWorkerCsp = [
   "default-src 'self'",
