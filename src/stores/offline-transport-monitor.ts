@@ -244,13 +244,17 @@ export function startOfflineTransportMonitor() {
             agentUnavailableChecks += 1;
             void persistBrowserAgentUnavailable(localScope, browserOffline).catch(() => undefined);
             if (!browserOffline && useAuthStore.getState().offlineSession) {
-              const online = await probeConnectivity();
-              const browserQueue = await reconcileBrowserSyncQueue(localScope).catch(() =>
-                getBrowserLocalSyncStatus(localScope),
-              );
-              if (online && !browserLocalSyncHasRetryableWork(browserQueue)) {
+              const online = !auth.token.startsWith("local.") && await probeAndroidBackend({
+                token: auth.token,
+                storeUuid: localScope.storeUuid,
+                branchUuid: localScope.branchUuid,
+              });
+              if (online) {
                 useAuthStore.getState().setOfflineSession(false);
               }
+              await reconcileBrowserSyncQueue(localScope).catch(() =>
+                getBrowserLocalSyncStatus(localScope),
+              );
             }
             if (agentUnavailableChecks >= 2) {
               useToastStore.getState().show({
@@ -293,15 +297,27 @@ export function startOfflineTransportMonitor() {
       const hasConnectionFailure = Number(status.consecutive_failures || 0) > 0;
       if (status.connection_state === "OFFLINE" ||
         (status.connection_state === "DEGRADED" && hasConnectionFailure)) {
+        const current = useAuthStore.getState();
+        if (current.token && !current.token.startsWith("local.") && current.user) {
+          const backendOnline = await probeAndroidBackend({
+            token: current.token,
+            storeUuid: current.user.store_uuid || current.user.store_uuid_fk || "",
+            branchUuid: current.user.branch_uuid || "",
+          });
+          if (backendOnline) {
+            current.setOfflineSession(false);
+            return;
+          }
+        }
         useAuthStore.getState().setOfflineSession(true);
         return;
       }
 
-      if (browserLocalSyncHasRetryableWork(browserQueue)) {
-        useAuthStore.getState().setOfflineSession(true);
-      }
-
-      if (useAuthStore.getState().offlineSession) {
+      const shouldRunPendingSync =
+        useAuthStore.getState().offlineSession ||
+        localSyncHasRetryableWork(status) ||
+        browserLocalSyncHasRetryableWork(browserQueue);
+      if (shouldRunPendingSync) {
         if (status.connection_state === "SYNCING") return;
         const syncedStatus = await runLocalSyncNow();
         const reconciledBrowserQueue = await reconcileBrowserSyncQueue(localScope).catch(() => browserQueue);
@@ -314,7 +330,7 @@ export function startOfflineTransportMonitor() {
           if (current.token?.startsWith("local.")) {
             const restored = await restoreOnlineLogin(current.token);
             if (!useAuthStore.getState().resumeOnlineSession(restored.token, restored.user)) return;
-          } else {
+          } else if (current.offlineSession) {
             current.setOfflineSession(false);
           }
         }

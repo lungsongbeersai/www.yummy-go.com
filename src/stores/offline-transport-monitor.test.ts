@@ -151,27 +151,35 @@ describe("Android online recovery monitor", () => {
     stop();
   });
 
-  it("clears a stale desktop offline session when Backend is healthy and no local work is pending", async () => {
+  it("clears a stale desktop offline session as soon as Yummy Go is reachable", async () => {
     installBrowser(true);
     useAuthStore.getState().setOfflineSession(true);
     expect(useAuthStore.getState().isLoggedIn).toBe(true);
     expect(useAuthStore.getState().offlineSession).toBe(true);
     const post = vi.spyOn(axios, "post").mockRejectedValue(new Error("Agent unavailable"));
-    vi.spyOn(axios, "get").mockRejectedValue(new Error("Agent unavailable"));
-    const fetch = vi.fn().mockResolvedValue({ ok: true });
-    vi.stubGlobal("fetch", fetch);
+    const get = vi.spyOn(axios, "get")
+      .mockRejectedValueOnce(new Error("Agent unavailable"))
+      .mockResolvedValueOnce({
+        data: {
+          status: "success",
+          data: {
+            online: true,
+            store_uuid_fk: "store-1",
+            branch_uuid_fk: "branch-1",
+          },
+        },
+      });
 
     const stop = startOfflineTransportMonitor();
     try {
       await vi.waitFor(() => expect(post).toHaveBeenCalled());
       await vi.waitFor(() => expect(useAuthStore.getState().offlineSession).toBe(false));
-      expect(fetch).toHaveBeenCalledWith(
-        expect.objectContaining({
-          origin: "https://pos.example.test",
-          pathname: "/app-version.json",
-        }),
-        expect.objectContaining({ cache: "no-store", credentials: "same-origin" }),
-      );
+      expect(get).toHaveBeenCalledWith("/api/v1/sync/health", expect.objectContaining({
+        headers: {
+          Authorization: "Bearer online-token",
+          "x-access-token": "online-token",
+        },
+      }));
     } finally {
       stop();
     }

@@ -2,6 +2,10 @@ import { defaultCache, PAGES_CACHE_NAME } from "@serwist/next/worker";
 import { NetworkFirst, NetworkOnly, Serwist } from "serwist";
 import type { PrecacheEntry, RuntimeCaching, SerwistGlobalConfig, SerwistPlugin } from "serwist";
 
+declare const process: {
+  env: { NEXT_PUBLIC_PRINTER_AGENT_URL?: string };
+};
+
 declare global {
   interface WorkerGlobalScope extends SerwistGlobalConfig {
     __SW_MANIFEST: (PrecacheEntry | string)[] | undefined;
@@ -11,12 +15,18 @@ declare global {
 declare const self: ServiceWorkerGlobalScope;
 
 const LOGIN_PATH = "/login";
+const LOCAL_AGENT_ORIGIN = new URL(
+  process.env.NEXT_PUBLIC_PRINTER_AGENT_URL ?? "http://127.0.0.1:7777",
+).origin;
 
-// Backend (api.yummy-go.com) เป็น cross-origin เสมอ และมีระบบ cache/queue ของตัวเองอยู่แล้ว
-// (offline-sync.ts: Dexie + Local Printer Agent) ต้องปล่อยผ่าน SW ทั้งหมด ไม่งั้นเกิด cache
-// สองระบบแข่งกัน — /app-version.json ก็ต้องสดเสมอเพราะ AppUpdateChecker poll เช็คเวอร์ชันจากมัน
+// Backend และ Local Agent มีระบบ cache/queue ของตัวเองอยู่แล้ว (offline-sync.ts: Dexie + Agent)
+// ต้องปล่อยผ่าน SW ทั้งหมด ไม่งั้นเกิด cache สองระบบแข่งกัน — /app-version.json ก็ต้องสดเสมอ
+// เพราะ AppUpdateChecker poll เช็คเวอร์ชันจากมัน
 const bypassBackendAndVersionCheck: RuntimeCaching = {
-  matcher: ({ url }) => url.pathname.startsWith("/api/") || url.pathname === "/app-version.json",
+  matcher: ({ url }) =>
+    url.pathname.startsWith("/api/") ||
+    url.pathname === "/app-version.json" ||
+    url.origin === LOCAL_AGENT_ORIGIN,
   handler: new NetworkOnly(),
 };
 

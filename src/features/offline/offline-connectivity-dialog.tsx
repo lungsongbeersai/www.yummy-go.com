@@ -18,7 +18,6 @@ import { useIsAndroidNativeApp } from "@/hooks/use-android-native-app";
 import { useAuthStore } from "@/stores/auth-store";
 import {
   probeAndroidBackend,
-  probeConnectivity,
   requestImmediateReconcile,
 } from "@/stores/offline-transport-monitor";
 
@@ -26,8 +25,7 @@ import {
 // promise ตรง ๆ) — ให้เวลาสั้น ๆ พอสำหรับ round-trip ไป agent/backend จริงก่อนเช็ค offlineSession อีกที
 const RECONCILE_WAIT_MS = 1500;
 
-async function probeActiveTransport(isAndroidNative: boolean) {
-  if (!isAndroidNative) return probeConnectivity();
+async function probeActiveTransport() {
   const auth = useAuthStore.getState();
   if (!auth.token || !auth.user) return false;
   return probeAndroidBackend({
@@ -60,15 +58,14 @@ export function OfflineConnectivityDialog() {
     if (!isLoggedIn || !offlineSession) return;
     let cancelled = false;
     void (async () => {
-      const online = await probeActiveTransport(isAndroidNative);
+      const online = await probeActiveTransport();
       if (cancelled) return;
       if (online) {
         setOpen(false);
-        if (isAndroidNative) {
-          useAuthStore.getState().setOfflineSession(false);
-        } else {
-          // ให้ desktop monitor ตรวจคิว Agent/IndexedDB ก่อนออกจาก offline mode เพื่อไม่ให้
-          // การซ่อน popup ทำรายการขายที่ยังไม่ sync หล่นหาย
+        useAuthStore.getState().setOfflineSession(false);
+        if (!isAndroidNative) {
+          // ให้ desktop monitor เดินคิว Agent/IndexedDB ต่อแยกจากสถานะการเชื่อมต่อ
+          // เพื่อไม่บังคับ request ใหม่ให้อยู่ Offline เพียงเพราะยังมีคิวรอ sync
           requestImmediateReconcile();
         }
       } else {
@@ -83,12 +80,11 @@ export function OfflineConnectivityDialog() {
   async function handleReconnect() {
     setChecking(true);
     try {
-      const online = await probeActiveTransport(isAndroidNative);
+      const online = await probeActiveTransport();
       if (!online) return;
       setOpen(false);
-      if (isAndroidNative) {
-        useAuthStore.getState().setOfflineSession(false);
-      } else {
+      useAuthStore.getState().setOfflineSession(false);
+      if (!isAndroidNative) {
         requestImmediateReconcile();
         await new Promise((resolve) => setTimeout(resolve, RECONCILE_WAIT_MS));
       }

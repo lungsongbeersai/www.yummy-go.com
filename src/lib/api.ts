@@ -10,6 +10,7 @@ import {
   mirrorOnlineResponse,
   prepareOfflineRequest,
   requestLocalFallback,
+  shouldPreferOnlineTransport,
   shouldRouteToLocal,
   shouldUseLocalPrintOwnership,
   supportsOfflineRoute,
@@ -173,7 +174,11 @@ export async function apiRequest<T>(
   };
   const browserOnline = typeof navigator === "undefined" ? undefined : navigator.onLine;
   const localAgentAvailable = !isCapacitorAndroidApp();
-  const routeToLocal = localAgentAvailable &&
+  // A persisted offlineSession or stale Agent status must not permanently pin a
+  // normal Backend JWT to local transport. When the browser has connectivity,
+  // try Backend first and use the existing catch path as the offline fallback.
+  const preferOnlineTransport = shouldPreferOnlineTransport(auth.token, browserOnline);
+  const routeToLocal = localAgentAvailable && !preferOnlineTransport &&
     shouldRouteToLocal(
       auth.offlineSession,
       browserOnline,
@@ -222,6 +227,14 @@ export async function apiRequest<T>(
   try {
     const response = await send<T>(apiClient, method, url, requestOptions);
     const data = assertApiSuccess(response.data);
+    const currentAuth = useAuthStore.getState();
+    if (
+      preferOnlineTransport &&
+      currentAuth.token === auth.token &&
+      currentAuth.offlineSession
+    ) {
+      currentAuth.setOfflineSession(false);
+    }
     if (localOwnsPrint) {
       try {
         await mirrorOnlineResponse(method, url, requestOptions, data, localScope);

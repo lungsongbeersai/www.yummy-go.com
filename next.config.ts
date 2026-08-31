@@ -6,6 +6,35 @@ import withSerwistInit from "@serwist/next";
 const appDir = dirname(fileURLToPath(import.meta.url));
 const capacitorDevOrigin = process.env.CAPACITOR_DEV_ORIGIN?.trim();
 
+function originOf(value: string | undefined, fallback: string) {
+  try {
+    return new URL(value || fallback).origin;
+  } catch {
+    return new URL(fallback).origin;
+  }
+}
+
+const backendOrigin = originOf(
+  process.env.NEXT_PUBLIC_BASE_URL,
+  "https://api.yummy-go.com",
+);
+const printerAgentOrigin = originOf(
+  process.env.NEXT_PUBLIC_PRINTER_AGENT_URL,
+  "http://127.0.0.1:7777",
+);
+const serviceWorkerConnectSources = Array.from(new Set([
+  "'self'",
+  backendOrigin,
+  printerAgentOrigin,
+  "http://127.0.0.1:7777",
+  "http://localhost:7777",
+]));
+const serviceWorkerCsp = [
+  "default-src 'self'",
+  "script-src 'self'",
+  `connect-src ${serviceWorkerConnectSources.join(" ")}`,
+].join("; ");
+
 // InjectManifest (classic mode) ใช้ webpack เท่านั้น — Next.js 16 เปลี่ยน `next build` (ไม่ใช่แค่
 // `next dev`) ให้ใช้ Turbopack เป็นค่าเริ่มต้นด้วยเช่นกัน scripts.build ใน package.json จึงต้องส่ง
 // --webpack ตรงๆ (ไม่งั้น InjectManifest ไม่ทำงานเลย แต่ build จะ "ผ่าน" เงียบๆ โดยไม่มี offline-sw.js)
@@ -44,7 +73,7 @@ const nextConfig: NextConfig = {
         headers: [
           { key: "Content-Type", value: "application/javascript; charset=utf-8" },
           { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
-          { key: "Content-Security-Policy", value: "default-src 'self'; script-src 'self'" }
+          { key: "Content-Security-Policy", value: serviceWorkerCsp }
         ]
       },
       {

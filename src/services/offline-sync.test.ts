@@ -8,6 +8,7 @@ import {
   prepareOfflineRequest,
   resetLocalSyncConfiguration,
   runLocalSyncNow,
+  shouldPreferOnlineTransport,
   shouldRouteToLocal,
   shouldUseLocalPrintOwnership,
   supportsOfflineRoute,
@@ -21,6 +22,13 @@ afterEach(() => {
 });
 
 describe("offline sync transport", () => {
+  it("prefers Backend for a normal token whenever the browser is online", () => {
+    expect(shouldPreferOnlineTransport("backend-token", true)).toBe(true);
+    expect(shouldPreferOnlineTransport("backend-token", undefined)).toBe(true);
+    expect(shouldPreferOnlineTransport("backend-token", false)).toBe(false);
+    expect(shouldPreferOnlineTransport("local.session-token", true)).toBe(false);
+  });
+
   it("keeps unsupported mutations on the existing online-only flow", () => {
     expect(supportsOfflineRoute("post", "/api/v1/product/create")).toBe(false);
     expect(prepareOfflineRequest("post", "/api/v1/product/create", { data: { name: "x" } })).toEqual({

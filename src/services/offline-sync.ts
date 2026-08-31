@@ -206,6 +206,13 @@ export function supportsOfflineRoute(method: HttpMethod, url: string) {
     LOCAL_READ_ROUTES.has(routeKey(method, url));
 }
 
+export function shouldPreferOnlineTransport(
+  token: string | null | undefined,
+  browserOnline: boolean | undefined,
+) {
+  return browserOnline !== false && !token?.startsWith("local.");
+}
+
 export function shouldRouteToLocal(
   offlineSession: boolean,
   browserOnline: boolean | undefined,
