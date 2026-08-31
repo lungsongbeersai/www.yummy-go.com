@@ -40,7 +40,9 @@ describe("offline asset cache", () => {
 
   it("switches transport on network events and flushes local work before resuming online", () => {
     expect(offlineRuntime).toContain("startOfflineTransportMonitor()");
+    expect(offlineRuntime).toContain("startAndroidOnlineRecoveryMonitor()");
     expect(offlineRuntime).toContain('Capacitor.getPlatform() === "android"');
+    expect(offlineTransportMonitor).toContain('"/api/v1/sync/health"');
     expect(offlineTransportMonitor).toContain('window.addEventListener("offline", handleOffline)');
     expect(offlineTransportMonitor).toContain('window.addEventListener("online", handleOnline)');
     expect(offlineTransportMonitor).toContain("setOfflineSession(true)");

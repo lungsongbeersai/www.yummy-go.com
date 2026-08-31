@@ -4,7 +4,10 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Capacitor } from "@capacitor/core";
 import { useAuthStore } from "@/stores/auth-store";
-import { startOfflineTransportMonitor } from "@/stores/offline-transport-monitor";
+import {
+  startAndroidOnlineRecoveryMonitor,
+  startOfflineTransportMonitor,
+} from "@/stores/offline-transport-monitor";
 
 const OFFLINE_ROUTES = [
   "/", "/login", "/pos", "/pos/tables", "/pos/order", "/order_manage",
@@ -22,9 +25,11 @@ export function OfflineAppRuntime() {
     if (!isLoggedIn) return;
 
     // Android พิมพ์ผ่าน Native TCP โดยตรงและไม่มี Desktop Printer Agent
-    // ที่ 127.0.0.1:7777 การเริ่ม monitor นี้บนมือถือจึงแจ้งว่า Agent ปิดอยู่เสมอ
-    // ทั้ง build เดิมและ build ใหม่เลือก native plugin จาก APK/AAB ของตัวเองอยู่แล้ว
-    if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === "android") return;
+    // ที่ 127.0.0.1:7777 จึงตรวจ Backend โดยตรงเพื่อออกจาก offlineSession
+    // โดยไม่เริ่ม Agent monitor ของ Desktop
+    if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === "android") {
+      return startAndroidOnlineRecoveryMonitor();
+    }
 
     return startOfflineTransportMonitor();
   }, [isLoggedIn]);

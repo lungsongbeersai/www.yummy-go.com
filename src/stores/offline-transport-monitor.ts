@@ -1,5 +1,6 @@
 "use client";
 
+import axios from "axios";
 import {
   browserLocalSyncHasRetryableWork,
   configureLocalSync,
@@ -14,6 +15,161 @@ import { restoreOnlineLogin } from "@/services/login";
 import i18n from "@/lib/i18n";
 import { useAuthStore } from "@/stores/auth-store";
 import { useToastStore } from "@/stores/toast-store";
+
+interface AndroidBackendScope {
+  token: string;
+  storeUuid: string;
+  branchUuid: string;
+}
+
+interface AndroidBackendHealthResponse {
+  status?: string;
+  data?: {
+    online?: boolean;
+    store_uuid_fk?: string;
+    branch_uuid_fk?: string;
+  };
+}
+
+type AndroidBackendProbe = (scope: AndroidBackendScope) => Promise<boolean>;
+
+interface AndroidOnlineRecoveryOptions {
+  probeBackend?: AndroidBackendProbe;
+  onlinePollMs?: number;
+  recoveryPollMs?: number;
+  failuresBeforeOffline?: number;
+}
+
+function browserIsOffline() {
+  return navigator.onLine === false;
+}
+
+export async function probeAndroidBackend(scope: AndroidBackendScope) {
+  try {
+    const baseURL = process.env.NEXT_PUBLIC_BASE_URL ??
+      (typeof window !== "undefined" ? window.location?.origin : undefined);
+    const response = await axios.get<AndroidBackendHealthResponse>(
+      "/api/v1/sync/health",
+      {
+        baseURL,
+        timeout: 5000,
+        headers: {
+          Authorization: `Bearer ${scope.token}`,
+          "x-access-token": scope.token,
+        },
+      },
+    );
+    const health = response.data?.data;
+    return response.data?.status === "success" &&
+      health?.online === true &&
+      String(health.store_uuid_fk || "") === scope.storeUuid &&
+      String(health.branch_uuid_fk || "") === scope.branchUuid;
+  } catch {
+    return false;
+  }
+}
+
+export function startAndroidOnlineRecoveryMonitor(
+  options: AndroidOnlineRecoveryOptions = {},
+) {
+  const probeBackend = options.probeBackend ?? probeAndroidBackend;
+  const onlinePollMs = Math.max(2000, options.onlinePollMs ?? 10000);
+  const recoveryPollMs = Math.max(500, options.recoveryPollMs ?? 1500);
+  const failuresBeforeOffline = Math.max(1, options.failuresBeforeOffline ?? 2);
+  let active = true;
+  let timer: number | null = null;
+  let reconciling = false;
+  let consecutiveFailures = 0;
+
+  const schedule = (delayMs: number) => {
+    if (!active) return;
+    if (timer !== null) window.clearTimeout(timer);
+    timer = window.setTimeout(() => void reconcile(), delayMs);
+  };
+
+  const reconcile = async () => {
+    if (!active || reconciling) return;
+    const auth = useAuthStore.getState();
+    if (!auth.isLoggedIn || !auth.token || !auth.user) return;
+
+    if (browserIsOffline()) {
+      consecutiveFailures = failuresBeforeOffline;
+      auth.setOfflineSession(true);
+      schedule(recoveryPollMs);
+      return;
+    }
+
+    const requestIdentity = {
+      token: auth.token,
+      loginUuid: auth.user.uuid,
+    };
+    const scope = {
+      token: auth.token,
+      storeUuid: auth.user.store_uuid || auth.user.store_uuid_fk || "",
+      branchUuid: auth.user.branch_uuid || "",
+    };
+    reconciling = true;
+    let backendOnline = false;
+    try {
+      backendOnline = await probeBackend(scope);
+      if (!active) return;
+
+      const current = useAuthStore.getState();
+      if (
+        !current.isLoggedIn ||
+        current.token !== requestIdentity.token ||
+        current.user?.uuid !== requestIdentity.loginUuid
+      ) {
+        return;
+      }
+
+      if (browserIsOffline()) {
+        consecutiveFailures = failuresBeforeOffline;
+        current.setOfflineSession(true);
+        return;
+      }
+
+      if (backendOnline) {
+        consecutiveFailures = 0;
+        // Android has no Desktop Printer Agent. A normal JWT can therefore
+        // resume online directly after the authenticated Backend probe succeeds.
+        // A local.* token still needs its original Agent-backed restore flow.
+        if (!current.token?.startsWith("local.")) current.setOfflineSession(false);
+        return;
+      }
+
+      consecutiveFailures += 1;
+      if (consecutiveFailures >= failuresBeforeOffline) {
+        current.setOfflineSession(true);
+      }
+    } catch {
+      consecutiveFailures += 1;
+      if (consecutiveFailures >= failuresBeforeOffline) {
+        useAuthStore.getState().setOfflineSession(true);
+      }
+    } finally {
+      reconciling = false;
+      schedule(backendOnline ? onlinePollMs : recoveryPollMs);
+    }
+  };
+
+  const handleOffline = () => {
+    consecutiveFailures = failuresBeforeOffline;
+    useAuthStore.getState().setOfflineSession(true);
+    schedule(0);
+  };
+  const handleOnline = () => schedule(0);
+  window.addEventListener("offline", handleOffline);
+  window.addEventListener("online", handleOnline);
+  void reconcile();
+
+  return () => {
+    active = false;
+    if (timer !== null) window.clearTimeout(timer);
+    window.removeEventListener("offline", handleOffline);
+    window.removeEventListener("online", handleOnline);
+  };
+}
 
 export function startOfflineTransportMonitor() {
   let active = true;
