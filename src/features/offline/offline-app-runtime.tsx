@@ -3,11 +3,6 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Capacitor } from "@capacitor/core";
-import {
-  getInstalledMobileAppVersion,
-  getMobileAppPlatform,
-  supportsAndroidOfflineSync,
-} from "@/lib/installed-app-version";
 import { useAuthStore } from "@/stores/auth-store";
 import { startOfflineTransportMonitor } from "@/stores/offline-transport-monitor";
 
@@ -26,23 +21,12 @@ export function OfflineAppRuntime() {
   useEffect(() => {
     if (!isLoggedIn) return;
 
-    let active = true;
-    let stopMonitor: (() => void) | undefined;
+    // Android พิมพ์ผ่าน Native TCP โดยตรงและไม่มี Desktop Printer Agent
+    // ที่ 127.0.0.1:7777 การเริ่ม monitor นี้บนมือถือจึงแจ้งว่า Agent ปิดอยู่เสมอ
+    // ทั้ง build เดิมและ build ใหม่เลือก native plugin จาก APK/AAB ของตัวเองอยู่แล้ว
+    if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === "android") return;
 
-    async function startCompatibleTransport() {
-      if (Capacitor.isNativePlatform() && getMobileAppPlatform() === "android") {
-        const installed = await getInstalledMobileAppVersion("android");
-        if (!supportsAndroidOfflineSync(installed.build)) return;
-      }
-
-      if (active) stopMonitor = startOfflineTransportMonitor();
-    }
-
-    void startCompatibleTransport();
-    return () => {
-      active = false;
-      stopMonitor?.();
-    };
+    return startOfflineTransportMonitor();
   }, [isLoggedIn]);
 
   useEffect(() => {

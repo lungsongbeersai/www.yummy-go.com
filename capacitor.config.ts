@@ -1,5 +1,7 @@
 import type { CapacitorConfig } from "@capacitor/cli";
 
+const localServerUrl = process.env.CAPACITOR_SERVER_URL?.trim();
+
 const config: CapacitorConfig = {
   appId: "com.yummygo.app",
   appName: "Yummy Go",
@@ -7,15 +9,10 @@ const config: CapacitorConfig = {
   webDir: "capacitor-web",
 
   server: {
-    // DEV ONLY: ชี้เข้า dev server ในเครื่องผ่าน Wi-Fi LAN IP (มือถือกับ PC ต้องอยู่วง Wi-Fi เดียวกัน)
-    // เปลี่ยน IP นี้ถ้า PC เปลี่ยนเครือข่าย/เช็คด้วย `ipconfig` (adapter Wi-Fi)
-    // ต้องเปลี่ยนกลับเป็น https://yummy-go.com ก่อน sync/build ตัว release จริง
-
-    url: "https://yummy-go.com",
-    cleartext: false,
-
-    // url: "http://192.168.100.247:3000",
-    // cleartext: true,
+    // Release ใช้ Production เสมอ ส่วนการทดสอบเครื่องจริงให้กำหนด
+    // CAPACITOR_SERVER_URL=http://<LAN-IP>:3000 เฉพาะคำสั่ง cap run
+    url: localServerUrl || "https://yummy-go.com",
+    cleartext: Boolean(localServerUrl?.startsWith("http://")),
 
     androidScheme: "https",
     iosScheme: "https",
