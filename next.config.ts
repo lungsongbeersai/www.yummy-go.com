@@ -1,9 +1,27 @@
 import type { NextConfig } from "next";
 import { dirname } from "path";
 import { fileURLToPath } from "url";
+import withSerwistInit from "@serwist/next";
 
 const appDir = dirname(fileURLToPath(import.meta.url));
 const capacitorDevOrigin = process.env.CAPACITOR_DEV_ORIGIN?.trim();
+
+// InjectManifest (classic mode) ใช้ webpack เท่านั้น — Next.js 16 เปลี่ยน `next build` (ไม่ใช่แค่
+// `next dev`) ให้ใช้ Turbopack เป็นค่าเริ่มต้นด้วยเช่นกัน scripts.build ใน package.json จึงต้องส่ง
+// --webpack ตรงๆ (ไม่งั้น InjectManifest ไม่ทำงานเลย แต่ build จะ "ผ่าน" เงียบๆ โดยไม่มี offline-sw.js)
+// ทดสอบ service worker จริงต้อง `npm run build && npm start` เท่านั้น — disable ใน dev เพราะ
+// Turbopack ไม่รองรับ InjectManifest ตามคำแนะนำทางการของ @serwist/next เอง
+const withSerwist = withSerwistInit({
+  swSrc: "src/service-worker/sw.ts",
+  swDest: "public/offline-sw.js",
+  swUrl: "/offline-sw.js",
+  cacheOnNavigation: false,
+  // offline-app-runtime.tsx ควบคุมการ register/reload เอง (ต้องจับ controllerchange + postMessage
+  // WARM_OFFLINE_ROUTES ตามจังหวะ login ของแอป) — ปล่อยให้ Serwist auto-register จะ register ซ้ำ
+  register: false,
+  reloadOnOnline: false,
+  disable: process.env.NODE_ENV !== "production",
+});
 
 const nextConfig: NextConfig = {
   // 192.168.100.247 คือ LAN IP เครื่อง dev ปัจจุบัน ให้ Capacitor Android ทดสอบผ่าน Wi-Fi ได้
@@ -15,6 +33,10 @@ const nextConfig: NextConfig = {
   ],
   output: "standalone",
   typedRoutes: true,
+  // withSerwistInit ใส่ webpack() config function ให้เสมอ (แม้ disable:true ในนั้นก็ตาม) — Next.js 16
+  // เห็น webpack key อยู่แล้วปฏิเสธรัน Turbopack ทันทีถ้าไม่มี turbopack key คู่กัน ใส่ {} ว่างไว้แค่
+  // silence check นี้ (dev ยังคงใช้ Turbopack ตามปกติ ไม่ได้เปลี่ยนพฤติกรรมอะไรจริง)
+  turbopack: {},
   async headers() {
     return [
       {
@@ -136,4 +158,4 @@ const nextConfig: NextConfig = {
   }
 };
 
-export default nextConfig;
+export default withSerwist(nextConfig);

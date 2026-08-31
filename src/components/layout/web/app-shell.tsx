@@ -12,6 +12,7 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  Lock,
   LogOut,
   PanelLeftClose,
   PanelLeftOpen,
@@ -435,7 +436,13 @@ function AppSidebar({
 
     return (
       <SidebarMenuItem key={item.path ?? item.title}>
-        {item.disabled || !item.path ? (
+        {item.offlineLocked ? (
+          <SidebarMenuButton disabled tooltip={t("offlineMode.lockedMenuTooltip")}>
+            {icon}
+            <span>{title}</span>
+            {!collapsed ? <Lock className="ml-auto size-3.5 shrink-0 text-muted-foreground" /> : null}
+          </SidebarMenuButton>
+        ) : item.disabled || !item.path ? (
           <SidebarMenuButton disabled tooltip={title}>
             {icon}
             <span>{title}</span>
@@ -468,7 +475,16 @@ function AppSidebar({
 
     return (
       <SidebarMenuSubItem key={item.path ?? item.title}>
-        {item.disabled || !item.path ? (
+        {item.offlineLocked ? (
+          <SidebarMenuSubButton
+            aria-disabled
+            title={t("offlineMode.lockedMenuTooltip")}
+            className="pointer-events-none opacity-50"
+          >
+            <span>{title}</span>
+            <Lock className="ml-auto size-3.5 shrink-0 text-muted-foreground" />
+          </SidebarMenuSubButton>
+        ) : item.disabled || !item.path ? (
           <SidebarMenuSubButton
             aria-disabled
             className="pointer-events-none opacity-50"
@@ -491,6 +507,15 @@ function AppSidebar({
 
   function renderDropdownChild(item: MenuItem) {
     const title = menuItemLabel(item, t);
+
+    if (item.offlineLocked) {
+      return (
+        <DropdownMenuItem key={item.title} disabled>
+          {title}
+          <Lock className="ml-auto size-3.5 shrink-0 text-muted-foreground" />
+        </DropdownMenuItem>
+      );
+    }
 
     if (item.disabled || !item.path) {
       return (

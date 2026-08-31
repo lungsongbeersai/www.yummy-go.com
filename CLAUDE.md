@@ -50,7 +50,7 @@ Act as a senior product engineer and technical peer, not a code generator that a
 - `npm run lint` — ESLint
 - `npm test` — Vitest, runs all `src/**/*.test.ts`
 - `npx vitest run src/services/report/requests.test.ts` — run a single test file
-- `npm run build` — production Next.js build
+- `npm run build` — production Next.js build. Forces `--webpack` (Next.js 16 defaults `next build` to Turbopack too, which `@serwist/next`'s classic InjectManifest mode — used to compile `src/service-worker/sw.ts` into `public/offline-sw.js` — doesn't support; Turbopack silently skips the plugin instead of erroring, so don't drop the flag)
 - `npx shadcn@latest add <component>` — install shadcn/ui components into `src/components/ui/` (run without args to list available components)
 - `npx shadcn@latest search` — search component registries
 - `npx shadcn@latest docs <component>` — get docs and example URLs for a component
@@ -91,5 +91,6 @@ route page (thin) → feature component (src/features/<domain>/)
 - **i18n** — i18next with HTTP backend; locales in `public/locales/{en,la}` (Lao is the primary language). API calls pass a `lang` param via `toApiLanguage`; the language is also stored in a cookie read by the root layout.
 - **Realtime** — `src/lib/socket.ts` holds a singleton Socket.IO client; clients join a branch room (`join_branch`) and receive `table_alert` events (used for table-status alerts in POS).
 - **Printing** — `src/services/printer/` abstracts receipt printing: browser/agent path (local printer agent at `NEXT_PUBLIC_PRINTER_AGENT_URL`) and Android TCP path (`@deedarb/capacitor-tcp-socket`).
+- **Offline** — `src/lib/offline-routes.ts` is the single allowlist of pages essential for sales offline (exact-path match, platform-aware — Android is read-only only, since offline writes go through `requestLocalFallback` in `src/services/offline-sync.ts`, which requires the Local Printer Agent that Android doesn't have). `AuthGuard` redirects off disallowed pages while `offlineSession` (from `auth-store`) is true; `useAppShellData` overlays `MenuItem.offlineLocked` on the same list so both the web sidebar and the Capacitor bottom-nav/side-rail/more-page gray out and lock the same items from one source. `OfflineConnectivityDialog` (mounted in `providers.tsx`) shows once per disconnect episode. The service worker (`src/service-worker/sw.ts`, compiled by `@serwist/next` into `public/offline-sw.js` — see Commands) explicitly bypasses `/api/*` and `/app-version.json` so it never competes with `offline-sync.ts`'s own Dexie/agent-based caching.
 - **Electron** — `electron/main.ts` (compiled to `dist-electron/` via `electron:build`) loads the dev server in development; when packaged it launches the staged standalone Next server via `utilityProcess` (`src/platform/electron/next-server-contract.ts`). It manages the customer-display window on a chosen monitor and relays messages between windows over IPC (`electron/preload.ts`).
 - **Capacitor** — `capacitor.config.ts` + `android/` for the Android build; `Capacitor.isNativePlatform()` and the Android WebView compat helpers in `src/lib/` gate native-specific behavior.

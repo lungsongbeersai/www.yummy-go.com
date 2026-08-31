@@ -34,9 +34,11 @@ export interface AndroidBackInput {
 
 // กลุ่มอย่าง "ขาย" มี menu_path เป็น /sale ซึ่งไม่มีหน้าจริง — ยิงไปลูกตัวแรกที่กดได้แทน
 export function destinationPath(item: MenuItem): string | undefined {
-  const child = item.children?.find((entry) => !entry.disabled && entry.path);
+  const child = item.children?.find(
+    (entry) => !entry.disabled && !entry.offlineLocked && entry.path,
+  );
   if (child?.path) return child.path;
-  if (item.disabled) return undefined;
+  if (item.disabled || item.offlineLocked) return undefined;
   return item.path;
 }
 

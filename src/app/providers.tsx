@@ -22,6 +22,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppUpdateChecker } from "@/features/app-update/app-update-checker";
 import { OfflineAppRuntime } from "@/features/offline/offline-app-runtime";
+import { OfflineConnectivityDialog } from "@/features/offline/offline-connectivity-dialog";
 
 interface ProvidersProps {
   children: React.ReactNode;
@@ -229,6 +230,7 @@ export function Providers({ children, initialLanguage }: ProvidersProps) {
       <TooltipProvider delayDuration={150}>
         {children}
         <OfflineAppRuntime />
+        <OfflineConnectivityDialog />
         <AppUpdateChecker />
         <Toaster />
       </TooltipProvider>

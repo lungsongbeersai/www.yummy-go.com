@@ -1,10 +1,28 @@
 "use client";
 
+import { useState } from "react";
 import { RefreshCw, Save } from "lucide-react";
 import { BackButton } from "@/components/common/back-button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Field,
   FieldDescription,
@@ -14,8 +32,6 @@ import {
   FieldSet,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Select,
   SelectContent,
@@ -27,22 +43,32 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import type {
   PrinterKitchenCutMode,
-  PrinterMappingType,
   PrinterSharingMode,
   SearchPrinterResult,
 } from "@/services/printer";
-import { CheckboxOptionList } from "./printer-form-fields";
+import { CheckboxOptionList, RadioOptionList } from "./printer-form-fields";
 import {
   formatIpInput,
   toggleAllValues,
   toggleValue,
   type ConnectType,
+  type MappingTypeSelection,
 } from "./printer-form-utils";
 import { usePrinterForm } from "./use-printer-form";
 
 export function PrinterFormPage() {
   const form = usePrinterForm();
   const { t } = form;
+  // dialog นี้เป็น UI state ล้วนๆ ของหน้านี้ ไม่เกี่ยวกับ business logic จึงไม่ย้ายเข้า usePrinterForm
+  const [confirmDiscardOpen, setConfirmDiscardOpen] = useState(false);
+
+  function handleCancel() {
+    if (form.isDirty) {
+      setConfirmDiscardOpen(true);
+      return;
+    }
+    form.router.push("/printers");
+  }
 
   return (
     <div className="flex flex-col gap-5">
@@ -53,15 +79,15 @@ export function PrinterFormPage() {
       />
       <Card>
         <CardHeader>
-          <div>
-            <CardTitle>
-              {form.isEditing ? t("printer.edit") : t("printer.add")}
-            </CardTitle>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {t("printer.formHint")}
-            </p>
-          </div>
-          {form.isEditing ? <Badge>{t("actions.edit")}</Badge> : null}
+          <CardTitle>
+            {form.isEditing ? t("printer.edit") : t("printer.add")}
+          </CardTitle>
+          <CardDescription>{t("printer.formHint")}</CardDescription>
+          {form.isEditing ? (
+            <CardAction>
+              <Badge>{t("actions.edit")}</Badge>
+            </CardAction>
+          ) : null}
         </CardHeader>
         <CardContent>
           <form onSubmit={form.submit} className="flex flex-col gap-4">
@@ -82,6 +108,8 @@ export function PrinterFormPage() {
                   </FieldLabel>
                   <Input
                     id="printer-display-name"
+                    name="printer_display_name"
+                    autoComplete="off"
                     value={form.displayName}
                     disabled={form.saving}
                     required
@@ -166,7 +194,7 @@ export function PrinterFormPage() {
                           </SelectGroup>
                         </SelectContent>
                       </Select>
-                      <FieldDescription>
+                      <FieldDescription aria-live="polite">
                         {form.usbSelectDescription}
                       </FieldDescription>
                     </Field>
@@ -190,6 +218,8 @@ export function PrinterFormPage() {
                       </FieldLabel>
                       <Input
                         id="printer-ip"
+                        name="printer_ip"
+                        autoComplete="off"
                         value={form.ip}
                         disabled={form.saving}
                         placeholder="192.168.100.75"
@@ -206,9 +236,12 @@ export function PrinterFormPage() {
                       </FieldLabel>
                       <Input
                         id="printer-port"
+                        name="printer_port"
+                        autoComplete="off"
                         value={form.port}
                         disabled={form.saving}
                         type="number"
+                        inputMode="numeric"
                         required
                         onChange={(event) => form.setPort(event.target.value)}
                       />
@@ -222,121 +255,59 @@ export function PrinterFormPage() {
                   </FieldLabel>
                   <Input
                     id="printer-paper-width"
+                    name="printer_paper_width"
+                    autoComplete="off"
                     value={form.paperWidth}
                     disabled={form.saving}
                     type="number"
+                    inputMode="numeric"
                     required
                     onChange={(event) => form.setPaperWidth(event.target.value)}
                   />
                 </Field>
-                <Field className="md:col-span-2">
-                  <FieldLabel htmlFor="printer-kitchen-cut-per-ticket">
-                    {t("printer.kitchenCutMode")}
-                  </FieldLabel>
-                  <FieldDescription>
-                    {t("printer.kitchenCutModeHint")}
-                  </FieldDescription>
-                  <RadioGroup
-                    value={form.kitchenCutMode}
-                    onValueChange={(value) =>
-                      form.setKitchenCutMode(value as PrinterKitchenCutMode)
-                    }
-                    className="flex flex-row flex-wrap gap-6"
-                  >
-                    <div className="flex items-center gap-3">
-                      <RadioGroupItem
-                        id="printer-kitchen-cut-per-ticket"
-                        value="per_ticket"
-                        disabled={form.saving}
-                      />
-                      <Label htmlFor="printer-kitchen-cut-per-ticket">
-                        {t("printer.kitchenCutPerTicket")}
-                      </Label>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <RadioGroupItem
-                        id="printer-kitchen-cut-none"
-                        value="none"
-                        disabled={form.saving}
-                      />
-                      <Label htmlFor="printer-kitchen-cut-none">
-                        {t("printer.kitchenCutNone")}
-                      </Label>
-                    </div>
-                  </RadioGroup>
-                </Field>
-                <Field className="md:col-span-2">
-                  <FieldLabel htmlFor="printer-sharing-mode-shared">
-                    {t("printer.sharingMode")}
-                  </FieldLabel>
-                  <FieldDescription>
-                    {t("printer.sharingModeHint")}
-                  </FieldDescription>
-                  <RadioGroup
-                    value={form.sharingMode}
-                    onValueChange={(value) =>
-                      form.setSharingMode(value as PrinterSharingMode)
-                    }
-                    className="flex flex-row flex-wrap gap-6"
-                  >
-                    <div className="flex items-center gap-3">
-                      <RadioGroupItem
-                        id="printer-sharing-mode-shared"
-                        value="SHARED"
-                        disabled={form.saving}
-                      />
-                      <Label htmlFor="printer-sharing-mode-shared">
-                        {t("printer.sharingModeShared")}
-                      </Label>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <RadioGroupItem
-                        id="printer-sharing-mode-dedicated"
-                        value="DEDICATED"
-                        disabled={form.saving}
-                      />
-                      <Label htmlFor="printer-sharing-mode-dedicated">
-                        {t("printer.sharingModeDedicated")}
-                      </Label>
-                    </div>
-                  </RadioGroup>
-                </Field>
-                <Field className="md:col-span-2">
-                  <FieldLabel htmlFor="printer-cash-drawer-enabled">
-                    {t("printer.cashDrawerMode")}
-                  </FieldLabel>
-                  <FieldDescription>
-                    {t("printer.cashDrawerModeHint")}
-                  </FieldDescription>
-                  <RadioGroup
-                    value={form.cashDrawerEnabled ? "enabled" : "disabled"}
-                    onValueChange={(value) =>
-                      form.setCashDrawerEnabled(value === "enabled")
-                    }
-                    className="flex flex-row flex-wrap gap-6"
-                  >
-                    <div className="flex items-center gap-3">
-                      <RadioGroupItem
-                        id="printer-cash-drawer-enabled"
-                        value="enabled"
-                        disabled={form.saving}
-                      />
-                      <Label htmlFor="printer-cash-drawer-enabled">
-                        {t("printer.cashDrawerEnabled")}
-                      </Label>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <RadioGroupItem
-                        id="printer-cash-drawer-disabled"
-                        value="disabled"
-                        disabled={form.saving}
-                      />
-                      <Label htmlFor="printer-cash-drawer-disabled">
-                        {t("printer.cashDrawerDisabled")}
-                      </Label>
-                    </div>
-                  </RadioGroup>
-                </Field>
+                <RadioOptionList
+                  className="md:col-span-2"
+                  legend={t("printer.kitchenCutMode")}
+                  description={t("printer.kitchenCutModeHint")}
+                  name="printer-kitchen-cut"
+                  disabled={form.saving}
+                  value={form.kitchenCutMode}
+                  onValueChange={(value) =>
+                    form.setKitchenCutMode(value as PrinterKitchenCutMode)
+                  }
+                  options={[
+                    { value: "per_ticket", label: t("printer.kitchenCutPerTicket") },
+                    { value: "none", label: t("printer.kitchenCutNone") },
+                  ]}
+                />
+                <RadioOptionList
+                  className="md:col-span-2"
+                  legend={t("printer.sharingMode")}
+                  description={t("printer.sharingModeHint")}
+                  name="printer-sharing-mode"
+                  disabled={form.saving}
+                  value={form.sharingMode}
+                  onValueChange={(value) =>
+                    form.setSharingMode(value as PrinterSharingMode)
+                  }
+                  options={[
+                    { value: "SHARED", label: t("printer.sharingModeShared") },
+                    { value: "DEDICATED", label: t("printer.sharingModeDedicated") },
+                  ]}
+                />
+                <RadioOptionList
+                  className="md:col-span-2"
+                  legend={t("printer.cashDrawerMode")}
+                  description={t("printer.cashDrawerModeHint")}
+                  name="printer-cash-drawer"
+                  disabled={form.saving}
+                  value={form.cashDrawerEnabled ? "enabled" : "disabled"}
+                  onValueChange={(value) => form.setCashDrawerEnabled(value === "enabled")}
+                  options={[
+                    { value: "enabled", label: t("printer.cashDrawerEnabled") },
+                    { value: "disabled", label: t("printer.cashDrawerDisabled") },
+                  ]}
+                />
               </FieldGroup>
             </FieldSet>
 
@@ -364,13 +335,17 @@ export function PrinterFormPage() {
                 <FieldLegend className="mb-1 text-sm font-black">
                   {t("printer.mappingType")}
                 </FieldLegend>
-                <FieldDescription>{t("printer.mappingTypeHint")}</FieldDescription>
+                <FieldDescription>
+                  {form.zoneMappingRequired
+                    ? t("printer.mappingTypeZoneRequiredHint")
+                    : t("printer.mappingTypeHint")}
+                </FieldDescription>
               </div>
               <Field>
                 <Select
                   value={form.mappingType}
                   onValueChange={(value) =>
-                    form.setMappingType(value as PrinterMappingType)
+                    form.setMappingType(value as MappingTypeSelection)
                   }
                 >
                   <SelectTrigger id="printer-mapping-type" className="w-full sm:w-64">
@@ -378,6 +353,9 @@ export function PrinterFormPage() {
                   </SelectTrigger>
                   <SelectContent position="popper">
                     <SelectGroup>
+                      <SelectItem value="OFF">
+                        {t("printer.mappingTypeOff")}
+                      </SelectItem>
                       <SelectItem value="ZONE">
                         {t("printer.mappingTypeZone")}
                       </SelectItem>
@@ -412,35 +390,39 @@ export function PrinterFormPage() {
             ) : null}
 
             {/* backend บังคับ: ZONE ต้องเลือกหมวดหมู่คู่กับโซนด้วยเสมอ ไม่ใช่เลือกอย่างใดอย่างหนึ่ง —
-                hint จึงต้องเปลี่ยนไปตามโหมด ไม่งั้นผู้ใช้จะไม่เข้าใจว่าทำไมบังคับเลือก */}
-            <CheckboxOptionList
-              legend={t("printer.categories")}
-              description={
-                form.mappingType === "ZONE"
-                  ? t("printer.categoriesHintZone")
-                  : t("printer.categoriesHint")
-              }
-              emptyLabel={t("printer.noCategories")}
-              name="printer-category"
-              options={form.categoryOptions}
-              required
-              selectAllLabel={t("common.selectAll")}
-              selected={form.selectedCategories}
-              onToggle={(value) =>
-                form.setSelectedCategories((current) => toggleValue(current, value))
-              }
-              onToggleAll={(checked) =>
-                form.setSelectedCategories((current) =>
-                  toggleAllValues(current, form.categoryOptions, checked),
-                )
-              }
-            />
+                hint จึงต้องเปลี่ยนไปตามโหมด ไม่งั้นผู้ใช้จะไม่เข้าใจว่าทำไมบังคับเลือก
+                "OFF" (ค่าเริ่มต้น) ไม่ผูกกับเมนูเลย จึงซ่อนไปทั้งช่อง ไม่ใช่แค่ปล่อยว่างได้ —
+                เครื่องพิมพ์ใบเรียกเก็บเงิน/ใบเสร็จ/รายงานไม่ต้องเห็น checkbox list ว่างๆ นี้เลย */}
+            {form.mappingType !== "OFF" ? (
+              <CheckboxOptionList
+                legend={t("printer.categories")}
+                description={
+                  form.mappingType === "ZONE"
+                    ? t("printer.categoriesHintZone")
+                    : t("printer.categoriesHint")
+                }
+                emptyLabel={t("printer.noCategories")}
+                name="printer-category"
+                options={form.categoryOptions}
+                required={form.mappingType === "ZONE"}
+                selectAllLabel={t("common.selectAll")}
+                selected={form.selectedCategories}
+                onToggle={(value) =>
+                  form.setSelectedCategories((current) => toggleValue(current, value))
+                }
+                onToggleAll={(checked) =>
+                  form.setSelectedCategories((current) =>
+                    toggleAllValues(current, form.categoryOptions, checked),
+                  )
+                }
+              />
+            ) : null}
 
             <div className="flex flex-col items-end gap-2">
               {/* สรุปเหตุผลที่ยังบันทึกไม่ได้ — ผู้ใช้ที่เลื่อนผ่าน badge สีแดงด้านบนไปแล้วจะได้รู้ว่าขาดอะไร
                   โดยไม่ต้องเลื่อนกลับไปหาทีละช่อง */}
               {!form.saving && form.validationMessage ? (
-                <p className="text-right text-sm text-destructive">
+                <p className="text-right text-sm text-destructive" aria-live="polite">
                   {form.validationMessage}
                 </p>
               ) : null}
@@ -449,11 +431,14 @@ export function PrinterFormPage() {
                   type="button"
                   variant="outline"
                   disabled={form.saving}
-                  onClick={() => form.router.push("/printers")}
+                  onClick={handleCancel}
                 >
                   {t("actions.cancel")}
                 </Button>
-                <Button disabled={form.saving || form.loading || !form.canSubmit} type="submit">
+                {/* กดได้เสมอแม้ยังกรอกไม่ครบ — validationMessage ด้านบนบอกเหตุผลอยู่แล้วตลอดเวลา
+                    ปุ่ม submit ที่ถูก disable ล่วงหน้าทำให้ผู้ใช้งงว่าทำไมกดไม่ได้ (ดู submit() ที่ no-op
+                    เองถ้ายัง !canSubmit) */}
+                <Button disabled={form.saving || form.loading} type="submit">
                   {form.saving ? (
                     <Spinner data-icon="inline-start" />
                   ) : (
@@ -466,6 +451,26 @@ export function PrinterFormPage() {
           </form>
         </CardContent>
       </Card>
+
+      <AlertDialog open={confirmDiscardOpen} onOpenChange={setConfirmDiscardOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("printer.discardChangesTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("printer.discardChangesDescription")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("printer.discardChangesStay")}</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => form.router.push("/printers")}
+            >
+              {t("printer.discardChangesLeave")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -21,7 +21,6 @@ import type {
   DefaultCategoryCategoryDetail,
   DefaultCategoryZoneDetail,
   PrinterKitchenCutMode,
-  PrinterMappingType,
   PrinterSharingMode,
 } from "@/services/printer";
 import type { Category } from "@/services/category";
@@ -32,6 +31,7 @@ import { useReferenceStore } from "@/stores/reference-store";
 import { useToastStore } from "@/stores/toast-store";
 import { useResetOnDeps } from "@/hooks/use-reset-on-change";
 import {
+  arraysHaveSameValues,
   assignedPrinterNamesByValue,
   cashDrawerEnabledOf,
   categoryLabel,
@@ -39,9 +39,11 @@ import {
   kitchenCutModeOf,
   mappingTypeOf,
   printerFormValues,
+  requiresZoneMapping,
   textValue,
   zoneLabel,
   type ConnectType,
+  type MappingTypeSelection,
 } from "./printer-form-utils";
 
 const EMPTY_CATEGORIES: Category[] = [];
@@ -178,7 +180,7 @@ export function usePrinterForm() {
   const [selectedRoles, setSelectedRoles] = useState<string[]>(
     initialForm.selectedRoles,
   );
-  const [mappingType, setMappingType] = useState<PrinterMappingType>(
+  const [mappingType, setMappingType] = useState<MappingTypeSelection>(
     initialForm.mappingType,
   );
   const [sharingMode, setSharingMode] = useState<PrinterSharingMode>(
@@ -203,6 +205,24 @@ export function usePrinterForm() {
   );
   const [usbSearchError, setUsbSearchError] = useState("");
   const autoUsbSearchDone = useRef(false);
+  // เก็บค่าอ้างอิงล่าสุดที่มาจากแหล่งข้อมูลจริง (ไม่ใช่ที่ผู้ใช้พิมพ์/ติ๊ก) ไว้เทียบหา isDirty —
+  // ต้องอัปเดตพร้อมกับ reset ด้านล่างเสมอ (เป็น state ไม่ใช่ ref เพราะ react-hooks/refs ห้ามอ่าน
+  // ref.current ระหว่าง render) ไม่งั้นตอนข้อมูลเรคคอร์ดเพิ่งโหลดเสร็จ (เช่น reload หน้าแก้ไขตรงๆ)
+  // จะเทียบกับ initialForm ที่ยังว่างอยู่ แล้วเข้าใจผิดว่าฟอร์ม dirty ทั้งที่ผู้ใช้ยังไม่ได้แตะอะไรเลย
+  const [baseline, setBaseline] = useState(initialForm);
+
+  // เครื่องพิมพ์ครัว/บาร์มักผูกกับโซน — พอเพิ่งเลือก role พวกนี้ (ตอนยังเป็น "ปิด") แนะนำสลับเป็น ZONE
+  // ให้อัตโนมัติ, พอเอา role ครัว/บาร์ออกจนไม่เหลือเลย ก็สลับกลับเป็น "ปิด" ให้เช่นกัน — ทั้งสองทิศทาง
+  // ทำแค่ตอน "เพิ่ง" เปลี่ยนสถานะเท่านั้น (ดู current ก่อน set) เพื่อไม่ทับค่าที่ผู้ใช้เปลี่ยนเป็นหมวดหมู่เอง
+  // ใช้ useResetOnDeps (ทำระหว่าง render) แทน useEffect เพราะ dependency เป็น boolean ไม่ใช่
+  // selectedRoles ตรงๆ จึงยิงเฉพาะตอน "เพิ่ง" กลายเป็น true/false เท่านั้น — setState ตรงๆ ใน effect ต้องห้าม
+  const zoneMappingRequired = requiresZoneMapping(selectedRoles);
+  useResetOnDeps([zoneMappingRequired], () => {
+    setMappingType((current) => {
+      if (zoneMappingRequired) return current === "OFF" ? "ZONE" : current;
+      return current === "ZONE" ? "OFF" : current;
+    });
+  });
 
   const fillAgent = useCallback((nextAgent: AgentInfo, nextAgentUrl = AGENT_URL) => {
     setAgentUrl(
@@ -259,6 +279,7 @@ export function usePrinterForm() {
     if (isEditing && !editing) return;
 
     const values = printerFormValues(editing);
+    setBaseline(values);
     setConnectType(values.connectType);
     setDisplayName(values.displayName);
     setInterfaceValue(values.interfaceValue);
@@ -296,7 +317,7 @@ export function usePrinterForm() {
   // เครื่องพิมพ์ใหม่เท่านั้น (แก้ไขเครื่องเดิมใช้ค่าที่บันทึกไว้แล้วเสมอ) และเติมเฉพาะช่องที่ผู้ใช้
   // ยังไม่เลือกอะไรเลย ไม่ทับค่าที่ผู้ใช้ติ๊กเองไปแล้ว — ผิดพลาดแบบเงียบได้ เพราะเป็นแค่ suggestion เสริม
   useEffect(() => {
-    if (isEditing || !userUuid || !selectedRoles.length) return;
+    if (isEditing || !userUuid || !selectedRoles.length || mappingType === "OFF") return;
     let cancelled = false;
     void (async () => {
       try {
@@ -357,14 +378,36 @@ export function usePrinterForm() {
     Boolean(agentId.trim()) &&
     Boolean(agentName.trim()) &&
     Boolean(deviceCode.trim());
+
+  // ใช้เตือนก่อนออกจากหน้าตอนกด "ยกเลิก" — ไม่รวม agent* / deviceCode เพราะฟิลด์เหล่านั้นถูกเติมเอง
+  // จาก agent ที่ตรวจพบอัตโนมัติ (ดู fillAgent/useResetOnDeps ด้านบน) ไม่ใช่สิ่งที่ผู้ใช้แก้ไข
+  // ถ้านับรวมด้วยจะกลายเป็น dirty เท็จตั้งแต่หน้ายังโหลดไม่ทันที่ผู้ใช้จะแตะอะไรเลย
+  const isDirty =
+    displayName !== baseline.displayName ||
+    connectType !== baseline.connectType ||
+    interfaceValue !== baseline.interfaceValue ||
+    ip !== baseline.ip ||
+    port !== baseline.port ||
+    paperWidth !== baseline.paperWidth ||
+    kitchenCutMode !== baseline.kitchenCutMode ||
+    cashDrawerEnabled !== baseline.cashDrawerEnabled ||
+    mappingType !== baseline.mappingType ||
+    sharingMode !== baseline.sharingMode ||
+    selectedDevice !== baseline.selectedDevice ||
+    !arraysHaveSameValues(selectedRoles, baseline.selectedRoles) ||
+    !arraysHaveSameValues(selectedCategories, baseline.selectedCategories) ||
+    !arraysHaveSameValues(selectedZones, baseline.selectedZones);
   // เก็บเหตุผลที่ยังกดบันทึกไม่ได้ไว้เป็นรายการ แทนที่จะรู้แค่ boolean เดียว — ผู้ใช้ที่เลื่อนหน้าจอ
   // มาเจอปุ่ม Save ที่ถูก disable โดยไม่เห็น badge สีแดงด้านบนแล้ว จะได้รู้ว่าขาดอะไรบ้างจริงๆ
   const missingFields: string[] = [];
   if (!displayName.trim()) missingFields.push(t("printer.validationDisplayName"));
   if (selectedRoles.length === 0) missingFields.push(t("printer.validationRoles"));
-  if (selectedCategories.length === 0) missingFields.push(t("printer.validationCategories"));
-  // backend บังคับ: ZONE ต้องเลือกทั้งโซนและหมวดหมู่คู่กัน
-  if (mappingType === "ZONE" && selectedZones.length === 0) missingFields.push(t("printer.validationZones"));
+  // backend บังคับ: ZONE ต้องเลือกทั้งโซนและหมวดหมู่คู่กัน — CATEGORY (ค่าเริ่มต้น) ปล่อยว่างได้
+  // เพื่อรองรับเครื่องพิมพ์ที่ไม่ผูกกับเมนู เช่น ใบเรียกเก็บเงิน/ใบเสร็จ/รายงาน
+  if (mappingType === "ZONE") {
+    if (selectedZones.length === 0) missingFields.push(t("printer.validationZones"));
+    if (selectedCategories.length === 0) missingFields.push(t("printer.validationCategories"));
+  }
   if (connectType === "usb") {
     if (!interfaceValue.trim() || !hasAgentIdentity) missingFields.push(t("printer.validationUsbDevice"));
   } else if (!ip.trim()) {
@@ -480,9 +523,10 @@ export function usePrinterForm() {
         kitchen_cut_mode: kitchenCutMode,
         cash_drawer_enabled: cashDrawerEnabled,
         role_codes: selectedRoles,
+        // "OFF" (ค่าเริ่มต้น ไม่ผูกกับเมนู) ต้องไม่ส่ง mapping_type เลย ไม่ใช่ส่งเป็นค่าใดค่าหนึ่ง —
         // backend บังคับ: ZONE ส่งทั้งโซนและหมวดหมู่ที่เลือกไว้, CATEGORY ส่งแค่หมวดหมู่
-        // savePrinter() ใน config-api.ts เป็นจุดที่ตัด zone_uuid_fk ออกเมื่อไม่ใช่ ZONE
-        mapping_type: mappingType,
+        // savePrinter() ใน config-api.ts เป็นจุดที่ตัด zone_uuid_fk/cate_uuid_fk ออกตาม mapping_type
+        mapping_type: mappingType === "OFF" ? undefined : mappingType,
         sharing_mode: sharingMode,
         zone_uuid_fk: selectedZones,
         cate_uuid_fk: selectedCategories,
@@ -505,6 +549,7 @@ export function usePrinterForm() {
   return {
     t,
     isEditing,
+    isDirty,
     loading,
     saving,
     searching,
@@ -512,6 +557,7 @@ export function usePrinterForm() {
     roleOptions,
     mappingType,
     setMappingType,
+    zoneMappingRequired,
     sharingMode,
     setSharingMode,
     categoryOptions,

@@ -115,11 +115,15 @@ export async function savePrinter(input: SavePrinterInput) {
 
     // backend บังคับ: ZONE ต้องส่งทั้ง zone_uuid_fk และ cate_uuid_fk (เลือกหมวดหมู่คู่กับโซนเสมอ),
     // CATEGORY ส่งแค่ cate_uuid_fk — คนละฟิลด์กันจริงบน wire ไม่ใช่ฟิลด์เดียวกันใช้ซ้ำ
+    // ไม่มี mapping_type (ผู้ใช้ไม่ได้เปิดผูกกับเมนู) ไม่ส่งทั้ง mapping_type และฟิลด์ทั้งสองนี้เลย —
+    // input.mapping_type เป็น undefined ที่นี่แล้ว axios/JSON.stringify จะตัด key ที่ undefined ทิ้งเอง
     mapping_type: input.mapping_type,
     sharing_mode: input.sharing_mode,
     ...(input.mapping_type === "ZONE"
       ? { zone_uuid_fk: input.zone_uuid_fk ?? [], cate_uuid_fk: input.cate_uuid_fk ?? [] }
-      : { cate_uuid_fk: input.cate_uuid_fk ?? [] })
+      : input.mapping_type === "CATEGORY"
+        ? { cate_uuid_fk: input.cate_uuid_fk ?? [] }
+        : {})
   };
   const data =
     input.connect_type === "tcp"

@@ -6,7 +6,9 @@ import { useTranslation } from "react-i18next";
 import { LoadingState } from "@/components/common/loading-state";
 import { NativeLoadingScreen } from "@/components/layout/capacitor/native-loading-screen";
 import { isCapacitorNativeApp } from "@/lib/capacitor-platform";
+import { getOfflineRedirectPath, isOfflineAllowedPath } from "@/lib/offline-routes";
 import { internalRoute } from "@/lib/routes";
+import { useIsAndroidNativeApp } from "@/hooks/use-android-native-app";
 import { useIsCapacitorNativeApp } from "@/hooks/use-capacitor-native-app";
 import { useAuthStore } from "@/stores/auth-store";
 
@@ -25,7 +27,9 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const hydrated = useAuthStore((state) => state.hydrated);
   const isLoggedIn = useAuthStore((state) => state.isLoggedIn);
+  const offlineSession = useAuthStore((state) => state.offlineSession);
   const isNativeApp = useIsCapacitorNativeApp();
+  const isAndroidNative = useIsAndroidNativeApp();
   const [minSplashElapsed, setMinSplashElapsed] = useState(false);
 
   useEffect(() => {
@@ -40,6 +44,14 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       router.replace(internalRoute(unauthenticatedEntryPath(pathname, isCapacitorNativeApp())));
     }
   }, [hydrated, isLoggedIn, pathname, router]);
+
+  // เน็ตหลุดกลางหน้าที่ไม่รองรับออฟไลน์ (เช่น /settings/user) หรือพิมพ์ URL ตรง ๆ ตอนออฟไลน์
+  // ต้องเด้งไปเพจที่จำเป็นสำหรับงานขายทันที — Android เหลือแค่หน้าที่อ่านอย่างเดียวได้ (ดู offline-routes.ts)
+  useEffect(() => {
+    if (!hydrated || !isLoggedIn || !offlineSession) return;
+    if (isOfflineAllowedPath(pathname, isAndroidNative)) return;
+    router.replace(internalRoute(getOfflineRedirectPath(isAndroidNative)));
+  }, [hydrated, isAndroidNative, isLoggedIn, offlineSession, pathname, router]);
 
   const showNativeSplash = isNativeApp && !minSplashElapsed;
 

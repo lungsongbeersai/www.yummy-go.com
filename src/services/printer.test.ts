@@ -2023,6 +2023,45 @@ describe("printer API payloads", () => {
     expect(data).not.toHaveProperty("zone_uuid_fk");
   });
 
+  it("omits mapping_type, zone_uuid_fk, and cate_uuid_fk when mapping_type is not provided", async () => {
+    apiMocks.apiRequest.mockResolvedValue({
+      data: {
+        print_config_uuid: "printer-1",
+        printer_name: "Receipt",
+        connect_type: "tcp",
+        interface_value: "tcp://192.168.1.20:9100",
+        paper_width_mm: 80,
+        is_active: true,
+        role_codes: ["invoice", "receipt"],
+        cate_uuid_fk: []
+      }
+    });
+
+    await savePrinter({
+      login_uuid_fk: "login-1",
+      display_name: "Receipt",
+      connect_type: "tcp",
+      ip: "192.168.1.20",
+      port: 9100,
+      paper_width_mm: 80,
+      kitchen_cut_mode: "per_ticket",
+      role_codes: ["invoice", "receipt"],
+      sharing_mode: "DEDICATED",
+      agent_url: BROWSER_PRINTER_AGENT_URL,
+      agent_id: BROWSER_PRINTER_AGENT_ID,
+      agent_name: "Android Phone",
+      device_code: "android-phone-web-device-1"
+    });
+
+    const [, , { data }] = apiMocks.apiRequest.mock.calls[0];
+    expect(data).not.toHaveProperty("zone_uuid_fk");
+    expect(data).not.toHaveProperty("cate_uuid_fk");
+    // mapping_type is set but left `undefined` (not conditionally omitted like the fields above) —
+    // JSON.stringify() drops undefined-valued keys, so this is how it actually leaves the wire.
+    expect(data.mapping_type).toBeUndefined();
+    expect(JSON.parse(JSON.stringify(data))).not.toHaveProperty("mapping_type");
+  });
+
   it("can request backend ESC/POS render for browser mobile jobs", async () => {
     const job = printJob({
       agent_id: BROWSER_PRINTER_AGENT_ID,

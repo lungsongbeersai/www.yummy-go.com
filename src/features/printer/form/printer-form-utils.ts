@@ -11,6 +11,23 @@ import type { Zone } from "@/services/zone";
 import { cn } from "@/lib/utils";
 
 export type ConnectType = "usb" | "tcp";
+// ค่าเลือกในฟอร์ม เพิ่ม "OFF" เหนือ PrinterMappingType จริง (ZONE/CATEGORY) เพื่อแทนสถานะ
+// "ปิด ไม่ผูกกับเมนู" — ค่านี้ไม่มีอยู่บน wire เลย ตอน submit ต้องแปลงเป็น undefined
+// เพื่อไม่ส่ง mapping_type (และ zone/cate_uuid_fk) ไปเลย ดู submit() ใน use-printer-form.ts
+export type MappingTypeSelection = PrinterMappingType | "OFF";
+
+// role_code จริงจาก backend (ยืนยันจาก GET /api/v1/printer/roles): สถานีครัว/บาร์เป็นเลขรันต่อสาขา
+// เช่น "k-001"/"k-002" (ห้องครัว 1/2), "b-001"/"b-002" (บาน้ำ 1/2) — เทียบด้วย prefix ไม่ใช่ค่าตรงตัว
+// เพราะแต่ละร้านเพิ่มสถานีใหม่ได้เรื่อยๆ (k-003, b-003, ...) ส่วน invoice/receipt/q-.../report ไม่ผูกโซน
+// ใช้เป็นแค่ตัวช่วยแนะนำ mapping_type = ZONE ให้อัตโนมัติครั้งแรก ไม่ใช่บังคับ ผู้ใช้เปลี่ยนเป็น
+// หมวดหมู่/ปิดเองได้เสมอ (ดู use-printer-form.ts)
+export const ZONE_REQUIRED_ROLE_CODE_PREFIXES = ["k-", "b-"];
+
+export function requiresZoneMapping(roleCodes: string[]) {
+  return roleCodes.some((code) =>
+    ZONE_REQUIRED_ROLE_CODE_PREFIXES.some((prefix) => code.startsWith(prefix)),
+  );
+}
 
 export interface CheckboxOption {
   label: string;
@@ -36,6 +53,15 @@ export function toggleValue(values: string[], value: string) {
   return values.includes(value)
     ? values.filter((item) => item !== value)
     : [...values, value];
+}
+
+// เทียบ "ชุด" ไม่สนลำดับ — toggle/selectAll เรียงลำดับผลลัพธ์ต่างจาก array ต้นฉบับได้
+// (เช่น role_codes จาก backend) ทั้งที่ผู้ใช้ไม่ได้เปลี่ยนรายการที่เลือกจริงๆ
+export function arraysHaveSameValues(a: string[], b: string[]) {
+  if (a.length !== b.length) return false;
+  const sortedA = [...a].sort();
+  const sortedB = [...b].sort();
+  return sortedA.every((value, index) => value === sortedB[index]);
 }
 
 export function toggleAllValues(
@@ -129,6 +155,14 @@ export function mappingTypeOf(printer: Printer | null): PrinterMappingType {
   return printer?.mapping_type ?? "CATEGORY";
 }
 
+// ค่าเริ่มต้นของ select ในฟอร์ม: เครื่องพิมพ์ใหม่ (printer เป็น null) เริ่มที่ "OFF" เพราะ
+// ส่วนใหญ่ไม่ได้ผูกกับเมนู (ใบเรียกเก็บเงิน/ใบเสร็จ/รายงาน) — ต่างจาก mappingTypeOf() ที่เครื่องพิมพ์
+// เก่าที่มีอยู่แล้วแต่ยังไม่มีฟิลด์นี้ต้องคง fallback เป็น CATEGORY ไว้ (ไม่งั้นหมวดหมู่ที่เคยตั้งไว้จะหาย)
+export function initialMappingSelection(printer: Printer | null): MappingTypeSelection {
+  if (!printer) return "OFF";
+  return mappingTypeOf(printer);
+}
+
 // เครื่องพิมพ์เก่าก่อน backend เพิ่ม sharing_mode จะไม่มีฟิลด์นี้มา — ถือว่าเป็น DEDICATED
 // (พฤติกรรมเดิมก่อนมีการแชร์เครื่องพิมพ์) ไม่ใช่ปล่อยว่าง
 export function sharingModeOf(printer: Printer | null): PrinterSharingMode {
@@ -183,7 +217,7 @@ export function printerFormValues(printer: Printer | null) {
     kitchenCutMode: kitchenCutModeOf(printer),
     cashDrawerEnabled: cashDrawerEnabledOf(printer),
     selectedRoles: printer?.role_codes ?? [],
-    mappingType: mappingTypeOf(printer),
+    mappingType: initialMappingSelection(printer),
     sharingMode: sharingModeOf(printer),
     selectedCategories: categoryUuids(printer),
     selectedZones: zoneUuids(printer),

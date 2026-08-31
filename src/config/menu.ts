@@ -22,6 +22,9 @@ export type MenuItem = {
   children?: MenuItem[];
   allowedStatus?: number[];
   disabled?: boolean;
+  // ต่างจาก disabled (แปลว่า "ยังไม่เปิดใช้งาน" แบบถาวร) — offlineLocked คำนวณสดตาม
+  // offlineSession ใน useAppShellData ปลดล็อกเองทันทีที่กลับมาออนไลน์
+  offlineLocked?: boolean;
 };
 
 const disabledReportItems: MenuItem[] = [
