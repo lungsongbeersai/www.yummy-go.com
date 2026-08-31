@@ -5,6 +5,15 @@ import type { InstalledAppVersion, MobileAppPlatform } from "@/lib/app-version";
 
 export const WEB_APP_VERSION = packageJson.version;
 
+// Build 5 (1.0.4) ใช้ Printer Agent/transport รุ่นเดิมและไม่มี Local Sync contract
+// รุ่นใหม่เริ่มเปิด /local/sync/* ตั้งแต่ build 6 เพื่อไม่ให้เว็บที่ deploy ใหม่บังคับ
+// แอปใน Store รุ่นเดิมอัปเดต Printer Agent ทั้งที่การพิมพ์ Online เดิมยังใช้งานได้
+export const ANDROID_OFFLINE_SYNC_MIN_BUILD = 6;
+
+export function supportsAndroidOfflineSync(build: number) {
+  return Number.isSafeInteger(build) && build >= ANDROID_OFFLINE_SYNC_MIN_BUILD;
+}
+
 // แอปรุ่นเก่าที่ไม่มี App plugin ยังต้องมีค่าตั้งต้นสำหรับตรวจอัปเดตและแสดงผล
 const LEGACY_ANDROID_VERSION: InstalledAppVersion = {
   version: "1.0.2",

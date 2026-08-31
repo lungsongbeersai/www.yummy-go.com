@@ -2,6 +2,12 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { Capacitor } from "@capacitor/core";
+import {
+  getInstalledMobileAppVersion,
+  getMobileAppPlatform,
+  supportsAndroidOfflineSync,
+} from "@/lib/installed-app-version";
 import { useAuthStore } from "@/stores/auth-store";
 import { startOfflineTransportMonitor } from "@/stores/offline-transport-monitor";
 
@@ -19,7 +25,24 @@ export function OfflineAppRuntime() {
 
   useEffect(() => {
     if (!isLoggedIn) return;
-    return startOfflineTransportMonitor();
+
+    let active = true;
+    let stopMonitor: (() => void) | undefined;
+
+    async function startCompatibleTransport() {
+      if (Capacitor.isNativePlatform() && getMobileAppPlatform() === "android") {
+        const installed = await getInstalledMobileAppVersion("android");
+        if (!supportsAndroidOfflineSync(installed.build)) return;
+      }
+
+      if (active) stopMonitor = startOfflineTransportMonitor();
+    }
+
+    void startCompatibleTransport();
+    return () => {
+      active = false;
+      stopMonitor?.();
+    };
   }, [isLoggedIn]);
 
   useEffect(() => {
