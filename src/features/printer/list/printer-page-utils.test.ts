@@ -6,6 +6,8 @@ import {
   OWNER_ALL,
   OWNER_MINE,
   OWNER_SHARED,
+  printerCategories,
+  printerZones,
 } from "./printer-page-utils";
 
 describe("agent download URL", () => {
@@ -58,5 +60,42 @@ describe("printer ownership filter", () => {
     expect(matchesPrinterOwnership(printer(false), OWNER_MINE)).toBe(false);
     expect(matchesPrinterOwnership(printer(), OWNER_MINE)).toBe(true);
     expect(matchesPrinterOwnership(printer(false), OWNER_ALL)).toBe(true);
+  });
+});
+
+describe("printerZones / printerCategories", () => {
+  it("dedupes zones by uuid when backend embeds the same zone twice", () => {
+    const row: Printer = {
+      ...printer(),
+      mapping_type: "ZONE",
+      zone_uuid_fk: ["zone-a", "zone-a"],
+      zones: [
+        { zone_uuid: "zone-a", zone_name_eng: "Zone A" },
+        { zone_uuid: "zone-a", zone_name_eng: "Zone A" },
+        { zone_uuid: "zone-b", zone_name_eng: "Zone B" },
+      ],
+    };
+
+    expect(printerZones(row, []).map((zone) => zone.zone_uuid)).toEqual([
+      "zone-a",
+      "zone-b",
+    ]);
+  });
+
+  it("dedupes categories by uuid when backend embeds the same category twice", () => {
+    const row: Printer = {
+      ...printer(),
+      cate_uuid_fk: ["cate-a", "cate-a"],
+      categories: [
+        { cate_uuid: "cate-a", cate_name_eng: "Drink" },
+        { cate_uuid: "cate-a", cate_name_eng: "Drink" },
+        { cate_uuid: "cate-b", cate_name_eng: "Food" },
+      ],
+    };
+
+    expect(printerCategories(row, []).map((category) => category.cate_uuid)).toEqual([
+      "cate-a",
+      "cate-b",
+    ]);
   });
 });

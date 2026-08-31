@@ -40,11 +40,25 @@ export function categoryLabel(
   return primary || fallback || category.cate_name || category.cate_uuid;
 }
 
+// กัน uuid ซ้ำ ไม่ว่าจะมาจาก backend embed ซ้ำเอง (categories/zones) หรือ cate_uuid_fk/zone_uuid_fk ซ้ำ —
+// React ใช้ uuid นี้เป็น key ของ Badge ใน BadgeList โดยตรง ถ้าซ้ำจะเจอ "two children with the same key"
+function dedupeByUuid<T>(items: T[], uuidOf: (item: T) => string) {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    const uuid = uuidOf(item);
+    if (seen.has(uuid)) return false;
+    seen.add(uuid);
+    return true;
+  });
+}
+
 export function printerCategories(printer: Printer, categories: Category[]) {
-  if (printer.categories?.length) return printer.categories;
-  return printer.cate_uuid_fk
-    .map((uuid) => categories.find((category) => category.cate_uuid === uuid))
-    .filter((category): category is Category => Boolean(category));
+  const source = printer.categories?.length
+    ? printer.categories
+    : printer.cate_uuid_fk
+        .map((uuid) => categories.find((category) => category.cate_uuid === uuid))
+        .filter((category): category is Category => Boolean(category));
+  return dedupeByUuid(source, (category) => category.cate_uuid);
 }
 
 // เครื่องพิมพ์เก่าก่อน backend เพิ่ม mapping_type ถือว่าเป็น CATEGORY (ดู mappingTypeOf ใน printer-form-utils.ts)
@@ -89,10 +103,12 @@ export function zoneLabel(zone: Zone | PrinterZone, language: string) {
 // zone_uuid_fk มีความหมายเฉพาะ mapping_type = ZONE เท่านั้น — printer ประเภท CATEGORY ไม่มีโซนให้แสดง
 export function printerZones(printer: Printer, zones: Zone[]) {
   if (mappingTypeOf(printer) !== "ZONE") return [];
-  if (printer.zones?.length) return printer.zones;
-  return (printer.zone_uuid_fk ?? [])
-    .map((uuid) => zones.find((zone) => zone.zone_uuid === uuid))
-    .filter((zone): zone is Zone => Boolean(zone));
+  const source = printer.zones?.length
+    ? printer.zones
+    : (printer.zone_uuid_fk ?? [])
+        .map((uuid) => zones.find((zone) => zone.zone_uuid === uuid))
+        .filter((zone): zone is Zone => Boolean(zone));
+  return dedupeByUuid(source, (zone) => zone.zone_uuid);
 }
 
 export function agentDownloadUrl(

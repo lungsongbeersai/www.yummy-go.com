@@ -15,6 +15,62 @@ import i18n from "@/lib/i18n";
 import { useAuthStore } from "@/stores/auth-store";
 import { useToastStore } from "@/stores/toast-store";
 
+// ปุ่ม "เชื่อมต่อใหม่" ใน OfflineConnectivityDialog สั่ง reconcile ทันทีผ่าน event นี้ แทนที่จะรอ
+// รอบ schedule() ถัดไป (1-15s) — คนละ component กับ monitor เอง จึงใช้ DOM event แทนการส่ง ref ตรงๆ
+const RECONCILE_NOW_EVENT = "yummy-go:offline-reconcile-now";
+
+export function requestImmediateReconcile() {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new Event(RECONCILE_NOW_EVENT));
+}
+
+// เช็คว่าเน็ตกลับมาจริงหรือยัง แยกจาก navigator.onLine เฉยๆ เพราะ onLine บอกแค่ NIC ต่อ ไม่ได้บอก
+// ว่าถึงอินเทอร์เน็ตจริง — ต้องยิงไปที่ backend จริง (api.yummy-go.com, cross-origin เสมอ) ไม่ใช่
+// origin ของ frontend เอง เพราะ frontend ที่กำลังเปิดหน้านี้อยู่มันเข้าถึงได้อยู่แล้วโดยนิยาม จะเช็ค
+// ยังไงก็ผ่าน ไม่ได้พิสูจน์ว่า backend กลับมาจริง — ต้นเหตุที่ offlineSession ค้าง true ทั้งที่เน็ตปกติ
+// mode: "no-cors" เพราะแค่ต้องรู้ว่า network ไปถึง ไม่ต้องอ่าน response (CORS บล็อกอ่านอยู่แล้ว)
+export async function probeConnectivity(): Promise<boolean> {
+  if (typeof navigator !== "undefined" && navigator.onLine === false) return false;
+  if (typeof window === "undefined") return false;
+  const target = process.env.NEXT_PUBLIC_BASE_URL || window.location.origin;
+  try {
+    await fetch(target, { cache: "no-store", mode: "no-cors" });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// Android ไม่มี Local Printer Agent (127.0.0.1:7777) ให้ configureLocalSync/reconcileBrowserSyncQueue
+// พึ่งพา (ดู offline-sync.ts) — เขียนข้อมูลตอนออฟไลน์จึง fail จริง ไม่ใช่แค่รอ sync ตัว monitor เต็ม
+// ด้านล่างจึงใช้ไม่ได้ เหลือแค่ตรวจสถานะเน็ตเพื่อ gate หน้า/เมนู (อ่านอย่างเดียว) กับ popup แจ้งเตือน
+export function startAndroidOfflineMonitor() {
+  let active = true;
+
+  const check = async () => {
+    if (!active) return;
+    if (!useAuthStore.getState().isLoggedIn) return;
+    const online = await probeConnectivity();
+    if (!active) return;
+    useAuthStore.getState().setOfflineSession(!online);
+  };
+
+  const handleOffline = () => useAuthStore.getState().setOfflineSession(true);
+  const handleOnline = () => void check();
+
+  window.addEventListener("offline", handleOffline);
+  window.addEventListener("online", handleOnline);
+  window.addEventListener(RECONCILE_NOW_EVENT, handleOnline);
+  void check();
+
+  return () => {
+    active = false;
+    window.removeEventListener("offline", handleOffline);
+    window.removeEventListener("online", handleOnline);
+    window.removeEventListener(RECONCILE_NOW_EVENT, handleOnline);
+  };
+}
+
 export function startOfflineTransportMonitor() {
   let active = true;
   let timer: number | null = null;
@@ -65,6 +121,18 @@ export function startOfflineTransportMonitor() {
                 description: i18n.t("offlineSync.agentUnavailableDescription"),
                 tone: "error",
               });
+            }
+            // ไม่มี Local Printer Agent ไม่ได้แปลว่าเน็ตหลุด — เบราว์เซอร์ธรรมดาที่ไม่ได้รัน
+            // Electron/Agent ไม่มีทางเข้าเงื่อนไข clear offlineSession ด้านล่างได้เลย (ต้อง
+            // agentConfigured ก่อนเสมอ) ค่านี้เลยค้าง true ตลอดไปถ้าไม่เช็คแยกตรงนี้
+            if (!browserOffline && useAuthStore.getState().offlineSession) {
+              const online = await probeConnectivity();
+              const queue = await reconcileBrowserSyncQueue(localScope).catch(() =>
+                getBrowserLocalSyncStatus(localScope),
+              );
+              if (online && !browserLocalSyncHasRetryableWork(queue)) {
+                useAuthStore.getState().setOfflineSession(false);
+              }
             }
           } else {
             agentUnavailableChecks = 0;
@@ -142,6 +210,7 @@ export function startOfflineTransportMonitor() {
   const handleOnline = () => schedule(0);
   window.addEventListener("offline", handleOffline);
   window.addEventListener("online", handleOnline);
+  window.addEventListener(RECONCILE_NOW_EVENT, handleOnline);
   void reconcile();
 
   return () => {
@@ -149,5 +218,6 @@ export function startOfflineTransportMonitor() {
     if (timer !== null) window.clearTimeout(timer);
     window.removeEventListener("offline", handleOffline);
     window.removeEventListener("online", handleOnline);
+    window.removeEventListener(RECONCILE_NOW_EVENT, handleOnline);
   };
 }

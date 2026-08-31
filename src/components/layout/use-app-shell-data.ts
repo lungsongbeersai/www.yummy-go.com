@@ -4,9 +4,11 @@ import { useEffect, useMemo } from "react";
 import { usePathname } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import {
+  applyOfflineLock,
   isFixedDataScreen,
   isImmersiveScreen,
 } from "@/components/layout/shell-menu-helpers";
+import { useIsAndroidNativeApp } from "@/hooks/use-android-native-app";
 import {
   resolveShellBreadcrumbs,
   type BreadcrumbTrailItem,
@@ -41,6 +43,8 @@ export function useAppShellData() {
   const pathname = usePathname();
   const { i18n } = useTranslation();
   const user = useAuthStore((state) => state.user);
+  const offlineSession = useAuthStore((state) => state.offlineSession);
+  const isAndroidNative = useIsAndroidNativeApp();
   const sidebarItems = usePermissionsSidebarStore((state) => state.items);
   const sidebarError = usePermissionsSidebarStore((state) => state.error);
   const sidebarLoading = usePermissionsSidebarStore((state) => state.loading);
@@ -63,10 +67,14 @@ export function useAppShellData() {
 
   const menuItems = useMemo(
     () =>
-      sidebarPermissionMenuItemsToMenuItems(
-        sidebarKeyMatches ? sidebarItems : [],
+      applyOfflineLock(
+        sidebarPermissionMenuItemsToMenuItems(
+          sidebarKeyMatches ? sidebarItems : [],
+        ),
+        offlineSession,
+        isAndroidNative,
       ),
-    [sidebarItems, sidebarKeyMatches],
+    [isAndroidNative, offlineSession, sidebarItems, sidebarKeyMatches],
   );
 
   const menuLoading =

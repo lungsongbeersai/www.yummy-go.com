@@ -151,11 +151,13 @@ export interface SavePrinterInput extends ApiEntity {
   kitchen_cut_mode: PrinterKitchenCutMode;
   cash_drawer_enabled?: boolean;
   role_codes: string[];
-  mapping_type: PrinterMappingType;
+  // ไม่ส่งเลย (undefined) เมื่อผู้ใช้ไม่ได้เปิดผูกกับเมนู (ค่าเริ่มต้น "OFF" ในฟอร์ม) — ต่างจาก
+  // CATEGORY ที่เป็นการเลือกจริง savePrinter() ใน config-api.ts ต้องคง key นี้หายไปทั้งหมดบน wire
+  mapping_type?: PrinterMappingType;
   sharing_mode: PrinterSharingMode;
   // backend บังคับ: mapping_type = ZONE ต้องส่งทั้ง zone_uuid_fk และ cate_uuid_fk (เลือกหมวดหมู่
-  // ด้วยเสมอ); mapping_type = CATEGORY ส่งแค่ cate_uuid_fk — savePrinter() ใน config-api.ts
-  // เป็นจุดเดียวที่ตัดฟิลด์ zone_uuid_fk ออกเมื่อไม่ใช่ ZONE
+  // ด้วยเสมอ); mapping_type = CATEGORY ส่งแค่ cate_uuid_fk; ไม่มี mapping_type เลยไม่ส่งทั้งคู่ —
+  // savePrinter() ใน config-api.ts เป็นจุดเดียวที่ตัดฟิลด์เหล่านี้ตาม mapping_type
   zone_uuid_fk?: string[];
   cate_uuid_fk?: string[];
   agent_url: string;

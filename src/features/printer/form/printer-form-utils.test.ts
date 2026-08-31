@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  arraysHaveSameValues,
   cashDrawerEnabledOf,
   formatIpInput,
   kitchenCutModeOf,
+  requiresZoneMapping,
 } from "@/features/printer/form/printer-form-utils";
 
 describe("formatIpInput", () => {
@@ -67,5 +69,33 @@ describe("kitchenCutModeOf", () => {
 
   it("restores a saved no-cut printer setting", () => {
     expect(kitchenCutModeOf({ kitchen_cut_mode: "none" } as never)).toBe("none");
+  });
+});
+
+describe("requiresZoneMapping", () => {
+  it("requires zone mapping for numbered kitchen (k-*) and bar (b-*) station roles", () => {
+    expect(requiresZoneMapping(["k-001"])).toBe(true);
+    expect(requiresZoneMapping(["k-002"])).toBe(true);
+    expect(requiresZoneMapping(["b-001"])).toBe(true);
+    expect(requiresZoneMapping(["b-002"])).toBe(true);
+    expect(requiresZoneMapping(["invoice", "b-001"])).toBe(true);
+  });
+
+  it("does not require zone mapping for invoice/receipt/QR-order/report-only roles", () => {
+    expect(requiresZoneMapping(["invoice", "receipt"])).toBe(false);
+    expect(requiresZoneMapping(["q-001"])).toBe(false);
+    expect(requiresZoneMapping(["report"])).toBe(false);
+    expect(requiresZoneMapping([])).toBe(false);
+  });
+});
+
+describe("arraysHaveSameValues", () => {
+  it("ignores order", () => {
+    expect(arraysHaveSameValues(["a", "b"], ["b", "a"])).toBe(true);
+  });
+
+  it("detects a real difference in the selected set", () => {
+    expect(arraysHaveSameValues(["a", "b"], ["a", "c"])).toBe(false);
+    expect(arraysHaveSameValues(["a"], ["a", "b"])).toBe(false);
   });
 });

@@ -1,5 +1,6 @@
 import type { MenuItem } from "@/config/menu";
 import type { AuthUser } from "@/stores/auth-store";
+import { isOfflineAllowedPath } from "@/lib/offline-routes";
 
 const FIXED_DATA_SCREEN_PATHS = new Set([
   "/printers",
@@ -61,6 +62,23 @@ export function userInitials(user: AuthUser | null) {
 
 export function isImmersiveScreen(pathname: string) {
   return IMMERSIVE_SCREEN_PATHS.has(pathname);
+}
+
+// เขียนทับ offlineLocked สดตามสถานะออฟไลน์ปัจจุบัน — ไม่แตะ disabled เดิม (ความหมายคนละอย่าง:
+// disabled = ฟีเจอร์ยังไม่เปิดใช้งานถาวร, offlineLocked = ล็อกชั่วคราวตอนไม่มีเน็ต)
+export function applyOfflineLock(
+  items: MenuItem[],
+  offline: boolean,
+  isAndroidNative: boolean,
+): MenuItem[] {
+  if (!offline) return items;
+  return items.map((item) => ({
+    ...item,
+    offlineLocked: Boolean(item.path) && !isOfflineAllowedPath(item.path!, isAndroidNative),
+    children: item.children
+      ? applyOfflineLock(item.children, offline, isAndroidNative)
+      : item.children,
+  }));
 }
 
 export function isFixedDataScreen(pathname: string) {

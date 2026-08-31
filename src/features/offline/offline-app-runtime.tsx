@@ -2,17 +2,17 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Capacitor } from "@capacitor/core";
+import { isAndroidNativeApp } from "@/lib/capacitor-platform";
+import {
+  getOfflineAllowedPaths,
+  OFFLINE_INFRA_PATHS,
+} from "@/lib/offline-routes";
+import { internalRoute } from "@/lib/routes";
 import { useAuthStore } from "@/stores/auth-store";
-import { startOfflineTransportMonitor } from "@/stores/offline-transport-monitor";
-
-const OFFLINE_ROUTES = [
-  "/", "/login", "/pos", "/pos/tables", "/pos/order", "/order_manage",
-  "/products", "/stock", "/sales/sales-list", "/report/daily-closing",
-  "/report/daily-sales", "/report/best-selling-products",
-  "/report/payment-methods", "/report/category-sales",
-  "/settings/user", "/settings/branch",
-] as const;
+import {
+  startAndroidOfflineMonitor,
+  startOfflineTransportMonitor,
+} from "@/stores/offline-transport-monitor";
 
 export function OfflineAppRuntime() {
   const router = useRouter();
@@ -21,10 +21,11 @@ export function OfflineAppRuntime() {
   useEffect(() => {
     if (!isLoggedIn) return;
 
-    // Android พิมพ์ผ่าน Native TCP โดยตรงและไม่มี Desktop Printer Agent
-    // ที่ 127.0.0.1:7777 การเริ่ม monitor นี้บนมือถือจึงแจ้งว่า Agent ปิดอยู่เสมอ
-    // ทั้ง build เดิมและ build ใหม่เลือก native plugin จาก APK/AAB ของตัวเองอยู่แล้ว
-    if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === "android") return;
+    // Android พิมพ์ผ่าน Native TCP โดยตรงและไม่มี Desktop Printer Agent ที่ 127.0.0.1:7777 ให้
+    // configureLocalSync/reconcileBrowserSyncQueue พึ่งพา (ดู offline-sync.ts) จึงใช้ monitor เต็ม
+    // ของ desktop ไม่ได้ (จะขึ้น "Agent ปิดอยู่" เท็จตลอด) แต่ยังต้องตรวจ online/offline จริงเพื่อ
+    // gate หน้า/เมนู (อ่านอย่างเดียว) กับ popup แจ้งเตือน จึงใช้ monitor เบาแทนแทนที่จะไม่ทำอะไรเลย
+    if (isAndroidNativeApp()) return startAndroidOfflineMonitor();
 
     return startOfflineTransportMonitor();
   }, [isLoggedIn]);
@@ -42,12 +43,14 @@ export function OfflineAppRuntime() {
 
     navigator.serviceWorker.addEventListener("controllerchange", handleControllerChange);
 
+    const warmRoutes = [...OFFLINE_INFRA_PATHS, ...getOfflineAllowedPaths(isAndroidNativeApp())];
+
     void navigator.serviceWorker.register("/offline-sw.js", { scope: "/" }).then(async () => {
       const registration = await navigator.serviceWorker.ready;
       if (!active) return;
-      registration.active?.postMessage({ type: "WARM_OFFLINE_ROUTES", routes: OFFLINE_ROUTES });
+      registration.active?.postMessage({ type: "WARM_OFFLINE_ROUTES", routes: warmRoutes });
       if (isLoggedIn && navigator.onLine) {
-        OFFLINE_ROUTES.forEach((route) => router.prefetch(route));
+        warmRoutes.forEach((route) => router.prefetch(internalRoute(route)));
         void Promise.all([
           import("@/features/pos/table-selection/payment-dialog"),
           import("@/features/pos/order-customer/order-customer-category-icon"),

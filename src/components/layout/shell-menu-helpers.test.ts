@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { MenuItem } from "@/config/menu";
 import {
   activeMenuTitles,
+  applyOfflineLock,
   hasActiveRoute,
   isFixedDataScreen,
   isImmersiveScreen,
@@ -99,5 +100,37 @@ describe("isFixedDataScreen", () => {
 
   it("leaves the dashboard scrollable", () => {
     expect(isFixedDataScreen("/")).toBe(false);
+  });
+});
+
+describe("applyOfflineLock", () => {
+  const menu: MenuItem[] = [
+    { path: "/pos/tables", title: "open_table_sale" },
+    {
+      title: "sales",
+      children: [
+        { path: "/sales/sales-list", title: "sales_list" },
+        { path: "/sales/cancel-sale", title: "cancel_sale" },
+      ],
+    },
+    { path: "/settings/user", title: "user_management" },
+  ];
+
+  it("returns items unchanged while online", () => {
+    const result = applyOfflineLock(menu, false, false);
+    expect(result.every((item) => !item.offlineLocked)).toBe(true);
+  });
+
+  it("locks only paths outside the essential allowlist, recursively", () => {
+    const [openTable, sales, settings] = applyOfflineLock(menu, true, false);
+    expect(openTable.offlineLocked).toBe(false);
+    expect(sales.children?.[0].offlineLocked).toBe(false);
+    expect(sales.children?.[1].offlineLocked).toBe(true);
+    expect(settings.offlineLocked).toBe(true);
+  });
+
+  it("locks write-capable pages too when the platform is Android", () => {
+    const [openTable] = applyOfflineLock(menu, true, true);
+    expect(openTable.offlineLocked).toBe(true);
   });
 });

@@ -9,6 +9,11 @@ release
 *.tsbuildinfo
 next-env.d.ts
 
+# @serwist/next (next.config.ts) generates these from src/service-worker/sw.ts on every build —
+# source of truth is the .ts file, not the compiled output
+public/offline-sw.js
+public/offline-sw.js.map
+
 .vercel
 
 # Local Netlify folder

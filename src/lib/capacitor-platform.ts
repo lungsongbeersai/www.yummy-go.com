@@ -7,6 +7,10 @@ export function isCapacitorNativeApp() {
   return typeof window !== "undefined" && Capacitor.isNativePlatform();
 }
 
+export function isAndroidNativeApp() {
+  return isCapacitorNativeApp() && Capacitor.getPlatform() === "android";
+}
+
 export function canUseWindowOpen() {
   return !isCapacitorNativeApp();
 }
