@@ -72,6 +72,41 @@ async function loginFromLocalAgent(login_email: string, login_password: string) 
   }
 }
 
+function shouldFallbackToLocalLogin(error: unknown) {
+  if (!axios.isAxiosError(error)) return false;
+  if (!error.response || error.code === "ECONNABORTED") return true;
+  const status = Number(error.response.status || 0);
+  return status === 408 || status === 502 || status === 503 || status === 504 ||
+    (status >= 521 && status <= 524) || status === 530;
+}
+
+export async function restoreOnlineLogin(localToken: string): Promise<LoginResult> {
+  if (!localToken.startsWith("local.")) {
+    throw new ServiceError("Local session token is required", 400);
+  }
+
+  try {
+    const response = await axios.post<{
+      ok: boolean;
+      data?: LoginApiResponse;
+      error?: string;
+    }>(
+      `${AGENT_URL}/local/auth/online`,
+      { local_token: localToken },
+      { timeout: 10000 },
+    );
+    if (!response.data.ok || !response.data.data) {
+      throw new Error(response.data.error || "Online session restore failed");
+    }
+    return mapLoginResponse(response.data.data);
+  } catch (error) {
+    const message = axios.isAxiosError(error)
+      ? String((error.response?.data as { error?: string } | undefined)?.error || error.message)
+      : error instanceof Error ? error.message : "Online session restore failed";
+    throw new ServiceError(message, axios.isAxiosError(error) ? (error.response?.status || 503) : 503, error);
+  }
+}
+
 export async function checkLogin(login_email: string, login_password: string): Promise<LoginResult> {
   if (!login_email.trim()) throw new ServiceError("Email is required", 400);
   if (!login_password.trim()) throw new ServiceError("Password is required", 400);
@@ -89,7 +124,7 @@ export async function checkLogin(login_email: string, login_password: string): P
     );
     return mapLoginResponse(data);
   } catch (error) {
-    if (axios.isAxiosError(error) && (!error.response || error.code === "ECONNABORTED")) {
+    if (shouldFallbackToLocalLogin(error)) {
       return loginFromLocalAgent(login_email, login_password);
     }
     throw error;

@@ -6,13 +6,17 @@ import {
   localSyncHasRetryableWork,
   runLocalSyncNow,
 } from "@/services/offline-sync";
+import { restoreOnlineLogin } from "@/services/login";
+import i18n from "@/lib/i18n";
 import { useAuthStore } from "@/stores/auth-store";
+import { useToastStore } from "@/stores/toast-store";
 
 export function startOfflineTransportMonitor() {
   let active = true;
   let timer: number | null = null;
   let reconciling = false;
   let agentConfigured = false;
+  let reportedBlockedCount = 0;
 
   const schedule = (delayMs: number) => {
     if (!active) return;
@@ -45,6 +49,17 @@ export function startOfflineTransportMonitor() {
 
       const status = await getLocalSyncStatus({ force: true, timeoutMs: 1000 });
       if (!status) return;
+      const blockedCount = Number(status.pending?.blocked || 0);
+      if (blockedCount > 0 && blockedCount !== reportedBlockedCount) {
+        reportedBlockedCount = blockedCount;
+        useToastStore.getState().show({
+          title: i18n.t("offlineSync.blockedTitle"),
+          description: i18n.t("offlineSync.blockedDescription", { count: blockedCount }),
+          tone: "warning",
+        });
+      } else if (blockedCount === 0) {
+        reportedBlockedCount = 0;
+      }
       const hasConnectionFailure = Number(status.consecutive_failures || 0) > 0;
       if (status.connection_state === "OFFLINE" ||
         (status.connection_state === "DEGRADED" && hasConnectionFailure)) {
@@ -59,9 +74,17 @@ export function startOfflineTransportMonitor() {
           syncedStatus?.connection_state === "ONLINE" &&
           !localSyncHasRetryableWork(syncedStatus)
         ) {
-          useAuthStore.getState().setOfflineSession(false);
+          const current = useAuthStore.getState();
+          if (current.token?.startsWith("local.")) {
+            const restored = await restoreOnlineLogin(current.token);
+            if (!useAuthStore.getState().resumeOnlineSession(restored.token, restored.user)) return;
+          } else {
+            current.setOfflineSession(false);
+          }
         }
       }
+    } catch {
+      // Keep local transport active until both sync and Backend session restore succeed.
     } finally {
       reconciling = false;
       schedule(agentConfigured

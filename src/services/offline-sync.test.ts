@@ -180,6 +180,33 @@ describe("offline sync transport", () => {
     expect(post.mock.calls[0]?.[2]).toMatchObject({ timeout: 2000 });
   });
 
+  it("reuses the matching Agent scope without sending a local token to Backend", async () => {
+    vi.stubGlobal("window", { location: { origin: "https://pos.example.test" } });
+    vi.stubGlobal("navigator", { onLine: true });
+    const get = vi.spyOn(axios, "get").mockResolvedValue({
+      data: {
+        ok: true,
+        data: {
+          configured: true,
+          bootstrap_complete: true,
+          store_uuid: "store-1",
+          branch_uuid: "branch-1",
+          actor_login_uuid: "login-1",
+        },
+      },
+    });
+    const post = vi.spyOn(axios, "post");
+
+    await expect(configureLocalSync({
+      token: "local.session-token",
+      actorLoginUuid: "login-1",
+      storeUuid: "store-1",
+      branchUuid: "branch-1",
+    })).resolves.toBe(true);
+    expect(get).toHaveBeenCalledOnce();
+    expect(post).not.toHaveBeenCalled();
+  });
+
   it("does not resume online while retryable local work remains", () => {
     expect(localSyncHasRetryableWork({
       bootstrap_complete: true,

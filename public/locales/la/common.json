@@ -20,6 +20,10 @@
     "signOut": "ອອກຈາກລະບົບ",
     "tryAgain": "ລອງໃໝ່"
   },
+  "offlineSync": {
+    "blockedTitle": "ມີລາຍການອອບລາຍທີ່ຕ້ອງກວດສອບ",
+    "blockedDescription": "ມີ {{count}} ລາຍການທີ່ເຊີບເວີປະຕິເສດ. ລະບົບກັບມາອອນລາຍແລ້ວ ແຕ່ຕ້ອງກວດສອບກ່ອນປິດກະ."
+  },
   "app": {
     "breadcrumbs": "ເສັ້ນທາງໜ້າ",
     "changeLanguage": "ປ່ຽນພາສາ",

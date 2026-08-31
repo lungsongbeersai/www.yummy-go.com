@@ -123,6 +123,30 @@ describe("auth store session isolation", () => {
     });
   });
 
+  it("replaces a local token with an online JWT only for the same identity", () => {
+    const currentUser = authUser("user-1");
+    useAuthStore.getState().login("local.session-token", currentUser);
+    useAuthStore.getState().setOfflineSession(true);
+
+    expect(useAuthStore.getState().resumeOnlineSession("online-token", currentUser)).toBe(true);
+    expect(useAuthStore.getState()).toMatchObject({
+      token: "online-token",
+      offlineSession: false,
+      isLoggedIn: true,
+    });
+  });
+
+  it("rejects an online session restored for another login", () => {
+    useAuthStore.getState().login("local.session-token", authUser("user-1"));
+    useAuthStore.getState().setOfflineSession(true);
+
+    expect(useAuthStore.getState().resumeOnlineSession("other-token", authUser("user-2"))).toBe(false);
+    expect(useAuthStore.getState()).toMatchObject({
+      token: "local.session-token",
+      offlineSession: true,
+    });
+  });
+
   it("resets the previous session before applying a new login", () => {
     useAuthStore.getState().login("token-1", authUser("user-1"));
     useProductStore.setState({ search: "user-1 products" });

@@ -18,7 +18,7 @@ vi.mock("@/lib/api", () => ({
   }
 }));
 
-import { checkLogin } from "@/services/login";
+import { checkLogin, restoreOnlineLogin } from "@/services/login";
 
 function loginResponse(overrides: Record<string, unknown> = {}) {
   return {
@@ -81,6 +81,40 @@ describe("login service", () => {
       expect.stringContaining("/local/auth/login"),
       { login_email: "cashier@example.com", login_password: "password" },
       { timeout: 5000 }
+    );
+  });
+
+  it("falls back to Local Agent when the Backend gateway is unavailable", async () => {
+    vi.stubGlobal("navigator", { onLine: true });
+    apiMocks.post.mockRejectedValue({
+      isAxiosError: true,
+      message: "Service unavailable",
+      response: { status: 503 },
+    });
+    vi.spyOn(axios, "post").mockResolvedValue({
+      data: { ok: true, data: { ...loginResponse(), offline: true } }
+    });
+
+    await expect(checkLogin("cashier@example.com", "password")).resolves.toMatchObject({
+      source: "offline",
+      token: "token-1",
+    });
+  });
+
+  it("restores a Backend JWT through the authenticated Local Agent session", async () => {
+    const localPost = vi.spyOn(axios, "post").mockResolvedValue({
+      data: { ok: true, data: loginResponse({ token: "online-token" }) }
+    });
+
+    await expect(restoreOnlineLogin("local.session-token")).resolves.toMatchObject({
+      source: "online",
+      token: "online-token",
+      user: { uuid: "login-1" },
+    });
+    expect(localPost).toHaveBeenCalledWith(
+      expect.stringContaining("/local/auth/online"),
+      { local_token: "local.session-token" },
+      { timeout: 10000 },
     );
   });
 });

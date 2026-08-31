@@ -293,7 +293,8 @@ export function configureLocalSync(identity: LocalSyncIdentity): Promise<boolean
   if (configureKey === nextKey && configurePromise) return configurePromise;
   configureKey = nextKey;
   configurePromise = (async () => {
-    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+    const localSession = identity.token.startsWith("local.");
+    if (localSession || (typeof navigator !== "undefined" && navigator.onLine === false)) {
       try {
         const status = await axios.get<LocalAgentResponse<LocalSyncStatus>>(
           `${AGENT_URL}/local/sync/status`,
@@ -305,12 +306,15 @@ export function configureLocalSync(identity: LocalSyncIdentity): Promise<boolean
           local.store_uuid === identity.storeUuid &&
           local.branch_uuid === identity.branchUuid &&
           local.actor_login_uuid === identity.actorLoginUuid
-        ) return { data: { ok: true } };
+        ) return true;
       } catch {
-        // Continue to configure below so the caller receives the existing failure behavior.
+        // A normal online token can still configure below after a temporary status failure.
       }
+      // Local tokens are intentionally rejected by Backend JWT verification. Reuse only
+      // the already configured matching scope until the Agent restores an online session.
+      if (localSession) return false;
     }
-    return axios.post<LocalAgentResponse<unknown>>(
+    const response = await axios.post<LocalAgentResponse<unknown>>(
       `${AGENT_URL}/local/sync/configure`,
       {
         online_api_base: onlineApiBase(),
@@ -321,8 +325,8 @@ export function configureLocalSync(identity: LocalSyncIdentity): Promise<boolean
       },
       { timeout: 2000 },
     );
-  })().then((response) => {
-    const configured = response.data.ok === true;
+    return response.data.ok === true;
+  })().then((configured) => {
     if (!configured) clearFailedConfiguration(nextKey);
     return configured;
   }).catch(() => {

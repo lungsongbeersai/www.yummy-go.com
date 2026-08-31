@@ -20,6 +20,10 @@
     "signOut": "Sign out",
     "tryAgain": "Try again"
   },
+  "offlineSync": {
+    "blockedTitle": "Offline sync needs review",
+    "blockedDescription": "{{count}} offline transaction(s) were rejected by the server. Online mode is available, but review them before closing the shift."
+  },
   "app": {
     "breadcrumbs": "Breadcrumbs",
     "changeLanguage": "Change language",

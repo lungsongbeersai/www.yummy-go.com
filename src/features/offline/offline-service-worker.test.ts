@@ -45,6 +45,9 @@ describe("offline asset cache", () => {
     expect(offlineTransportMonitor).toContain("setOfflineSession(true)");
     expect(offlineTransportMonitor).toContain("runLocalSyncNow()");
     expect(offlineTransportMonitor).toContain("!localSyncHasRetryableWork(syncedStatus)");
+    expect(offlineTransportMonitor).toContain("restoreOnlineLogin(current.token)");
+    expect(offlineTransportMonitor).toContain("resumeOnlineSession(restored.token, restored.user)");
+    expect(offlineTransportMonitor).toContain("offlineSync.blockedTitle");
     expect(offlineTransportMonitor).toContain("setOfflineSession(false)");
     expect(offlineRuntime).toContain('\"/pos\"');
   });
