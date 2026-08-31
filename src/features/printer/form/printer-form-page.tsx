@@ -301,6 +301,42 @@ export function PrinterFormPage() {
                     </div>
                   </RadioGroup>
                 </Field>
+                <Field className="md:col-span-2">
+                  <FieldLabel htmlFor="printer-cash-drawer-enabled">
+                    {t("printer.cashDrawerMode")}
+                  </FieldLabel>
+                  <FieldDescription>
+                    {t("printer.cashDrawerModeHint")}
+                  </FieldDescription>
+                  <RadioGroup
+                    value={form.cashDrawerEnabled ? "enabled" : "disabled"}
+                    onValueChange={(value) =>
+                      form.setCashDrawerEnabled(value === "enabled")
+                    }
+                    className="flex flex-row flex-wrap gap-6"
+                  >
+                    <div className="flex items-center gap-3">
+                      <RadioGroupItem
+                        id="printer-cash-drawer-enabled"
+                        value="enabled"
+                        disabled={form.saving}
+                      />
+                      <Label htmlFor="printer-cash-drawer-enabled">
+                        {t("printer.cashDrawerEnabled")}
+                      </Label>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <RadioGroupItem
+                        id="printer-cash-drawer-disabled"
+                        value="disabled"
+                        disabled={form.saving}
+                      />
+                      <Label htmlFor="printer-cash-drawer-disabled">
+                        {t("printer.cashDrawerDisabled")}
+                      </Label>
+                    </div>
+                  </RadioGroup>
+                </Field>
               </FieldGroup>
             </FieldSet>
 

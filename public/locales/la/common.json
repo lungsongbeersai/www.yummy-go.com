@@ -22,7 +22,9 @@
   },
   "offlineSync": {
     "blockedTitle": "ມີລາຍການອອບລາຍທີ່ຕ້ອງກວດສອບ",
-    "blockedDescription": "ມີ {{count}} ລາຍການທີ່ເຊີບເວີປະຕິເສດ. ລະບົບກັບມາອອນລາຍແລ້ວ ແຕ່ຕ້ອງກວດສອບກ່ອນປິດກະ."
+    "blockedDescription": "ມີ {{count}} ລາຍການທີ່ເຊີບເວີປະຕິເສດ. ລະບົບກັບມາອອນລາຍແລ້ວ ແຕ່ຕ້ອງກວດສອບກ່ອນປິດກະ.",
+    "agentUnavailableTitle": "Printer Agent ບໍ່ໄດ້ເຮັດວຽກ",
+    "agentUnavailableDescription": "ເປີດ ຫຼື ຕິດຕັ້ງ Yummy-Go Printer Agent ໃໝ່ ແລ້ວລອງອີກຄັ້ງ."
   },
   "app": {
     "breadcrumbs": "ເສັ້ນທາງໜ້າ",
@@ -1235,10 +1237,14 @@
     "sharingModeHint": "ແຊເຄື່ອງພິມນີ້ໃຫ້ອຸປະກອນອື່ນນຳໃຊ້ຮ່ວມກັນ ຫຼື ໃຊ້ສະເພາະອຸປະກອນນີ້.",
     "sharingModeShared": "ແຊປິ່ນເຕີ້",
     "sharingModeDedicated": "ບໍ່ແຊປິ່ນເຕີ້",
-    "kitchenCutMode": "ການຕັດໃບຄົວ",
-    "kitchenCutModeHint": "ໃຊ້ສະເພາະເວລາສົ່ງລາຍການໄປຫ້ອງຄົວ ຫຼື ບາ. ບໍ່ກະທົບໃບເອີ້ນເກັບເງິນ ແລະ ໃບຮັບເງິນ.",
-    "kitchenCutPerTicket": "ຕັດທຸກໃບ",
-    "kitchenCutNone": "ບໍ່ຕັດ",
+    "kitchenCutMode": "ຮູບແບບໃບຄົວ",
+    "kitchenCutModeHint": "ເລືອກແຍກຕັດຕໍ່ລາຍການ ຫຼື 1 ໃບລວມຫຼາຍລາຍການ. ບໍ່ກະທົບໃບເກັບເງິນ ແລະ ໃບຮັບເງິນ.",
+    "kitchenCutPerTicket": "1 ລາຍການຕໍ່ 1 ການຕັດ",
+    "kitchenCutNone": "1 ໃບລວມຫຼາຍລາຍການ",
+    "cashDrawerMode": "ລິ້ນຊັກເກັບເງິນ",
+    "cashDrawerModeHint": "ເລືອກວ່າໃຫ້ເຄື່ອງພິມນີ້ເປີດລິ້ນຊັກເມື່ອເຊັກບິນ ຫຼື ຮັບເງິນຫຼືບໍ່.",
+    "cashDrawerEnabled": "ເປີດເມື່ອເຊັກບິນ/ຮັບເງິນ",
+    "cashDrawerDisabled": "ບໍ່ເປີດ",
     "ownerColumn": "ເຈົ້າຂອງ",
     "ownerBadge": "ຂອງທ່ານ",
     "sharedBadgeWithDevice": "ແຊຈາກ {{device}}",

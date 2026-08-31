@@ -54,6 +54,7 @@ export interface PrinterZone extends ApiEntity {
 export type PrinterMappingType = "ZONE" | "CATEGORY";
 export type PrinterSharingMode = "SHARED" | "DEDICATED";
 export type PrinterKitchenCutMode = "per_ticket" | "none";
+export type PrinterBatchCutMode = PrinterKitchenCutMode | "end";
 export type PrinterSource = "OWN" | "SHARED";
 export interface Printer extends ApiEntity {
   print_config_id?: string;
@@ -72,6 +73,8 @@ export interface Printer extends ApiEntity {
   paper_width_mm: number;
   // ใช้เฉพาะตอนส่งรายการอาหารเข้าครัว/บาร์ ไม่กระทบใบเรียกเก็บเงินและใบรับเงิน
   kitchen_cut_mode?: PrinterKitchenCutMode;
+  // ค่าเดิมของเครื่องพิมพ์ก่อนมี option นี้คือเปิดลิ้นชักเมื่อเช็กบิล/รับเงิน
+  cash_drawer_enabled?: boolean;
   is_active: boolean;
   is_active_label?: string;
   created_at?: string;
@@ -146,6 +149,7 @@ export interface SavePrinterInput extends ApiEntity {
   interface_value?: string;
   paper_width_mm: number;
   kitchen_cut_mode: PrinterKitchenCutMode;
+  cash_drawer_enabled?: boolean;
   role_codes: string[];
   mapping_type: PrinterMappingType;
   sharing_mode: PrinterSharingMode;
@@ -195,7 +199,7 @@ export interface PrintJob extends ApiEntity {
   paper_width_mm: number;
   print_client?: string;
   print_mode?: string;
-  cut_mode?: PrinterKitchenCutMode;
+  cut_mode?: PrinterBatchCutMode;
   open_cash_drawer?: boolean;
   print_job_item_uuid?: string;
   requested_by?: string;

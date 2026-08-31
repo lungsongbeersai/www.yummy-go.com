@@ -399,7 +399,7 @@ export function DashboardPage() {
         />
       </div>
       {branchError ? <ErrorBanner message={branchError} /> : null}
-      {error ? <ErrorBanner message={error} /> : null}
+      {error && error !== branchError ? <ErrorBanner message={error} /> : null}
 
       {!data && !loading ? (
         <Card>

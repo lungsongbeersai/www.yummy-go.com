@@ -33,6 +33,7 @@ import { useToastStore } from "@/stores/toast-store";
 import { useResetOnDeps } from "@/hooks/use-reset-on-change";
 import {
   assignedPrinterNamesByValue,
+  cashDrawerEnabledOf,
   categoryLabel,
   initialPrinterFormValues,
   kitchenCutModeOf,
@@ -171,6 +172,9 @@ export function usePrinterForm() {
   const [kitchenCutMode, setKitchenCutMode] = useState<PrinterKitchenCutMode>(
     initialForm.kitchenCutMode,
   );
+  const [cashDrawerEnabled, setCashDrawerEnabled] = useState(
+    initialForm.cashDrawerEnabled,
+  );
   const [selectedRoles, setSelectedRoles] = useState<string[]>(
     initialForm.selectedRoles,
   );
@@ -262,6 +266,7 @@ export function usePrinterForm() {
     setPort(values.port);
     setPaperWidth(values.paperWidth);
     setKitchenCutMode(kitchenCutModeOf(editing));
+    setCashDrawerEnabled(cashDrawerEnabledOf(editing));
     setSelectedRoles(values.selectedRoles);
     setMappingType(values.mappingType);
     setSharingMode(values.sharingMode);
@@ -473,6 +478,7 @@ export function usePrinterForm() {
         interface_value: nextInterfaceValue,
         paper_width_mm: Number(paperWidth || 80),
         kitchen_cut_mode: kitchenCutMode,
+        cash_drawer_enabled: cashDrawerEnabled,
         role_codes: selectedRoles,
         // backend บังคับ: ZONE ส่งทั้งโซนและหมวดหมู่ที่เลือกไว้, CATEGORY ส่งแค่หมวดหมู่
         // savePrinter() ใน config-api.ts เป็นจุดที่ตัด zone_uuid_fk ออกเมื่อไม่ใช่ ZONE
@@ -524,6 +530,8 @@ export function usePrinterForm() {
     setPaperWidth,
     kitchenCutMode,
     setKitchenCutMode,
+    cashDrawerEnabled,
+    setCashDrawerEnabled,
     selectedRoles,
     setSelectedRoles,
     selectedCategories,

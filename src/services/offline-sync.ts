@@ -3,6 +3,22 @@
 import axios from "axios";
 import { AGENT_URL } from "@/config/printer-agent";
 import type { HttpMethod, RequestOptions } from "@/lib/api";
+import {
+  browserSyncQueueHasRetryableWork,
+  cacheBrowserApiResponse,
+  getBrowserSyncQueueSummary,
+  listBrowserSyncQueue,
+  noteBrowserMutation,
+  persistBrowserSyncStatus,
+  readBrowserApiFallback,
+  stageBrowserSyncRequest,
+  updateBrowserSyncEvent,
+  type BrowserOfflineIdentity,
+  type BrowserOfflineScope,
+  type BrowserOfflineStore,
+  type BrowserSyncEventStatus,
+  type BrowserSyncQueueSummary,
+} from "@/services/offline-db";
 
 const OFFLINE_ROUTES = new Set([
   "POST /api/v1/posAll/create_order",
@@ -121,6 +137,13 @@ interface LocalAgentResponse<T> {
   error?: string;
 }
 
+interface LocalSyncEvent {
+  event_uuid: string;
+  dependencies?: string[];
+  sync_status?: Exclude<BrowserSyncEventStatus, "STAGED">;
+  last_error?: string | null;
+}
+
 interface PreparedOfflineRequest {
   eventUuid: string | null;
   options: RequestOptions | undefined;
@@ -143,13 +166,6 @@ function uuid() {
   });
 }
 
-export function offlineSplitInvoice(newOrderUuid: string) {
-  const compactOrderUuid = String(newOrderUuid || "")
-    .replace(/[^0-9a-f]/gi, "")
-    .toUpperCase();
-  return `S${compactOrderUuid.slice(0, 14)}`;
-}
-
 function routeKey(method: HttpMethod, url: string) {
   return `${method.toUpperCase()} ${url.split("?")[0]}`;
 }
@@ -166,10 +182,50 @@ function requestParams(url: string, params: Record<string, unknown> | undefined)
   return combined;
 }
 
+function isLocalOnlyPrintRoute(method: string, url: string) {
+  return `${method.toUpperCase()} ${url.split("?")[0]}` ===
+    "POST /api/v1/posAll/reprint_receipt";
+}
+
+function isBrowserCacheableRead(method: HttpMethod, url: string) {
+  return (method === "get" && OFFLINE_GET_ROUTES.has(url.split("?")[0])) ||
+    LOCAL_READ_ROUTES.has(routeKey(method, url));
+}
+
+function localEventStatus(value: unknown): Exclude<BrowserSyncEventStatus, "STAGED"> {
+  const status = String(value || "").toUpperCase();
+  if (["PENDING", "PROCESSING", "FAILED", "BLOCKED", "SYNCED"].includes(status)) {
+    return status as Exclude<BrowserSyncEventStatus, "STAGED">;
+  }
+  return "PENDING";
+}
+
 export function supportsOfflineRoute(method: HttpMethod, url: string) {
   return (method === "get" && OFFLINE_GET_ROUTES.has(url.split("?")[0])) ||
     OFFLINE_ROUTES.has(routeKey(method, url)) ||
     LOCAL_READ_ROUTES.has(routeKey(method, url));
+}
+
+export function shouldRouteToLocal(
+  offlineSession: boolean,
+  browserOnline: boolean | undefined,
+  method: HttpMethod,
+  url: string,
+  localStatus: LocalSyncStatus | null | undefined = undefined,
+  expectedScope?: BrowserOfflineScope,
+) {
+  const effectiveStatus = localStatus === undefined ? localStatusCache?.status : localStatus;
+  const statusMatchesScope = !expectedScope || (
+    effectiveStatus?.store_uuid === expectedScope.storeUuid &&
+    effectiveStatus?.branch_uuid === expectedScope.branchUuid
+  );
+  const backendUnavailable = statusMatchesScope && (
+    effectiveStatus?.connection_state === "OFFLINE" ||
+    (effectiveStatus?.connection_state === "DEGRADED" &&
+      Number(effectiveStatus.consecutive_failures || 0) > 0)
+  );
+  return supportsOfflineRoute(method, url) &&
+    (offlineSession || browserOnline === false || backendUnavailable);
 }
 
 export function needsLocalPrintOwnership(method: HttpMethod, url: string) {
@@ -233,9 +289,6 @@ export function prepareOfflineRequest(
     const newOrderUuid = String(data.new_order_uuid || uuid());
     data.new_order_uuid = newOrderUuid;
     data.payment_uuid = String(data.payment_uuid || uuid());
-    data.new_order_invoice = String(
-      data.new_order_invoice || offlineSplitInvoice(newOrderUuid),
-    );
     const requestedItems = Array.isArray(data.order_item_uuids) ? data.order_item_uuids : [];
     const existingMap = record(data.split_item_uuid_map);
     data.split_item_uuid_map = Object.fromEntries(
@@ -356,6 +409,7 @@ export async function getLocalSyncStatus({
   ).then((response) => {
     if (!response.data.ok || !response.data.data) return null;
     localStatusCache = { checkedAt: Date.now(), status: response.data.data };
+    void mirrorBrowserSyncStatus(response.data.data).catch(() => undefined);
     return response.data.data;
   }).catch(() => null).finally(() => {
     localStatusPromise = null;
@@ -462,6 +516,12 @@ export async function prepareOfflineSession(input: OfflineSessionInput) {
   } catch {
     // Local data/auth is already ready even when this browser cannot use a service worker.
   }
+  try {
+    // Persistent storage reduces IndexedDB eviction risk on dedicated POS devices.
+    await navigator.storage?.persist?.();
+  } catch {
+    // Chrome may deny persistence; Agent SQLite still owns durable transactions.
+  }
   return true;
 }
 
@@ -470,22 +530,81 @@ export async function requestLocalFallback<T>(
   url: string,
   options: RequestOptions | undefined,
   eventUuid: string | null,
+  scope: BrowserOfflineIdentity = { storeUuid: "", branchUuid: "", actorLoginUuid: "" },
+  browserStore?: BrowserOfflineStore,
 ): Promise<T> {
-  const response = await axios.post<LocalAgentResponse<T>>(
-    `${AGENT_URL}/local/api`,
-    {
-      method: method.toUpperCase(),
-      path: url.split("?")[0],
-      params: requestParams(url, options?.params),
-      data: options?.data ?? {},
-      event_uuid: eventUuid,
-    },
-    { timeout: 10000 },
-  );
-  if (!response.data.ok || response.data.data === undefined) {
-    throw new Error(response.data.error || "Local Agent request failed");
+  const path = url.split("?")[0];
+  const params = requestParams(url, options?.params);
+  const data = options?.data ?? {};
+  if (eventUuid) {
+    try {
+      await stageBrowserSyncRequest({
+        ...scope,
+        eventUuid,
+        method,
+        path,
+        params,
+        data,
+      }, browserStore);
+    } catch (error) {
+      if (error instanceof Error && error.message === "BROWSER_SYNC_EVENT_PAYLOAD_MISMATCH") {
+        throw error;
+      }
+      // IndexedDB is a resilience mirror. Agent SQLite remains authoritative
+      // if Chrome denies storage or the local quota is temporarily unavailable.
+    }
   }
-  return response.data.data;
+  try {
+    const response = await axios.post<LocalAgentResponse<T>>(
+      `${AGENT_URL}/local/api`,
+      {
+        method: method.toUpperCase(),
+        path,
+        params,
+        data,
+        event_uuid: eventUuid,
+      },
+      { timeout: 10000 },
+    );
+    if (!response.data.ok || response.data.data === undefined) {
+      throw new Error(response.data.error || "Local Agent request failed");
+    }
+    if (eventUuid) {
+      await updateBrowserSyncEvent(eventUuid, {
+        status: isLocalOnlyPrintRoute(method, url) ? "SYNCED" : "PENDING",
+        lastError: null,
+      }, browserStore).catch(() => undefined);
+    } else if (isBrowserCacheableRead(method, url)) {
+      await cacheBrowserApiResponse({
+        ...scope,
+        method,
+        path,
+        params,
+        data,
+        response: response.data.data,
+        source: "AGENT",
+      }, browserStore).catch(() => false);
+    }
+    return response.data.data;
+  } catch (error) {
+    if (eventUuid) {
+      const rejectedByAgent = axios.isAxiosError(error) && Boolean(error.response);
+      await updateBrowserSyncEvent(eventUuid, {
+        status: rejectedByAgent ? "BLOCKED" : "STAGED",
+        lastError: error instanceof Error ? error.message : "Local Agent request failed",
+      }, browserStore).catch(() => undefined);
+      throw error;
+    }
+    const cached = await readBrowserApiFallback<T>({
+      ...scope,
+      method,
+      path,
+      params,
+      data,
+    }, browserStore).catch(() => null);
+    if (cached !== null) return cached;
+    throw error;
+  }
 }
 
 export function cacheOnlineResponse(
@@ -494,8 +613,23 @@ export function cacheOnlineResponse(
   options: RequestOptions | undefined,
   response: unknown,
   branchUuid: string | undefined,
+  storeUuid: string | undefined,
 ) {
   if (typeof window === "undefined") return;
+  const scope = { storeUuid: storeUuid || "", branchUuid: branchUuid || "" };
+  if (isBrowserCacheableRead(method, url)) {
+    void cacheBrowserApiResponse({
+      ...scope,
+      method,
+      path: url.split("?")[0],
+      params: requestParams(url, options?.params),
+      data: options?.data ?? {},
+      response,
+      source: "ONLINE",
+    }).catch(() => false);
+  } else if (OFFLINE_ROUTES.has(routeKey(method, url))) {
+    void noteBrowserMutation(scope).catch(() => undefined);
+  }
   if (method === "get" && OFFLINE_GET_ROUTES.has(url.split("?")[0])) {
     void axios.post(
       `${AGENT_URL}/local/cache/record`,
@@ -529,7 +663,9 @@ export async function mirrorOnlineResponse(
   url: string,
   options: RequestOptions | undefined,
   response: unknown,
+  scope: BrowserOfflineScope = { storeUuid: "", branchUuid: "" },
 ) {
+  await noteBrowserMutation(scope).catch(() => undefined);
   await axios.post(
     `${AGENT_URL}/local/mirror`,
     {
@@ -541,6 +677,107 @@ export async function mirrorOnlineResponse(
     },
     { timeout: 10000 },
   );
+}
+
+async function mirrorBrowserSyncStatus(status: LocalSyncStatus) {
+  if (!status.store_uuid || !status.branch_uuid) return;
+  await persistBrowserSyncStatus({
+    storeUuid: status.store_uuid,
+    branchUuid: status.branch_uuid,
+    actorLoginUuid: status.actor_login_uuid ?? null,
+    connectionState: status.connection_state ?? "DEGRADED",
+    agentAvailable: true,
+    pending: Number(status.pending?.pending || 0),
+    processing: Number(status.pending?.processing || 0),
+    failed: Number(status.pending?.failed || 0),
+    blocked: Number(status.pending?.blocked || 0),
+  });
+}
+
+export async function reconcileBrowserSyncQueue(
+  scope: BrowserOfflineIdentity,
+  browserStore?: BrowserOfflineStore,
+) {
+  const entries = (await listBrowserSyncQueue(scope, browserStore))
+    .filter((entry) => !["SYNCED", "BLOCKED"].includes(entry.status))
+    .slice(0, 50);
+
+  for (const entry of entries) {
+    if (entry.actorLoginUuid !== scope.actorLoginUuid) {
+      await updateBrowserSyncEvent(entry.eventUuid, {
+        status: "BLOCKED",
+        lastError: "BROWSER_SYNC_ACTOR_MISMATCH",
+      }, browserStore);
+      continue;
+    }
+    try {
+      const response = await axios.get<LocalAgentResponse<LocalSyncEvent>>(
+        `${AGENT_URL}/local/sync/events/${encodeURIComponent(entry.eventUuid)}`,
+        { timeout: 1500 },
+      );
+      const event = response.data.data;
+      if (!response.data.ok || !event) break;
+      await updateBrowserSyncEvent(entry.eventUuid, {
+        status: localEventStatus(event.sync_status),
+        dependencies: Array.isArray(event.dependencies) ? event.dependencies.map(String) : [],
+        lastError: event.last_error ?? null,
+      }, browserStore);
+      continue;
+    } catch (error) {
+      if (!axios.isAxiosError(error) || error.response?.status !== 404) break;
+    }
+
+    try {
+      const response = await axios.post<LocalAgentResponse<unknown>>(
+        `${AGENT_URL}/local/api`,
+        {
+          method: entry.method,
+          path: entry.path,
+          params: entry.params,
+          data: entry.data,
+          event_uuid: entry.eventUuid,
+        },
+        { timeout: 10000 },
+      );
+      if (!response.data.ok) throw new Error(response.data.error || "Local Agent request failed");
+      await updateBrowserSyncEvent(entry.eventUuid, {
+        status: isLocalOnlyPrintRoute(entry.method, entry.path) ? "SYNCED" : "PENDING",
+        lastError: null,
+      }, browserStore);
+    } catch (error) {
+      const rejectedByAgent = axios.isAxiosError(error) && Boolean(error.response);
+      await updateBrowserSyncEvent(entry.eventUuid, {
+        status: rejectedByAgent ? "BLOCKED" : "STAGED",
+        lastError: error instanceof Error ? error.message : "Local Agent request failed",
+      }, browserStore).catch(() => undefined);
+      if (!rejectedByAgent) break;
+    }
+  }
+
+  return getBrowserSyncQueueSummary(scope, browserStore);
+}
+
+export function browserLocalSyncHasRetryableWork(summary: BrowserSyncQueueSummary) {
+  return browserSyncQueueHasRetryableWork(summary);
+}
+
+export function getBrowserLocalSyncStatus(
+  scope: BrowserOfflineIdentity,
+  browserStore?: BrowserOfflineStore,
+) {
+  return getBrowserSyncQueueSummary(scope, browserStore);
+}
+
+export function persistBrowserAgentUnavailable(
+  scope: BrowserOfflineScope,
+  browserOffline: boolean,
+  browserStore?: BrowserOfflineStore,
+) {
+  return persistBrowserSyncStatus({
+    ...scope,
+    connectionState: browserOffline ? "OFFLINE" : "DEGRADED",
+    agentAvailable: false,
+  }, browserStore);
 }
 
 export function resetLocalSyncConfiguration() {

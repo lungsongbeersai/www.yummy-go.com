@@ -104,6 +104,7 @@ export async function savePrinter(input: SavePrinterInput) {
     connect_type: input.connect_type,
     paper_width_mm: input.paper_width_mm,
     kitchen_cut_mode: input.kitchen_cut_mode,
+    cash_drawer_enabled: input.cash_drawer_enabled !== false,
     role_codes: input.role_codes,
 
     agent_url: isMobileWifi ? "" : input.agent_url || AGENT_URL,

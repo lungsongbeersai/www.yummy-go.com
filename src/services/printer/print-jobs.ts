@@ -171,7 +171,7 @@ function kitchenCutMode(input: ExecuteKitchenPrintInput, pending: PendingPrintJo
 
 function normalizedKitchenJobCutMode(job: PrintJob, fallback: string) {
   const mode = textValue(job.cut_mode).trim().toLowerCase();
-  return mode === "none" || mode === "per_ticket" ? mode : fallback;
+  return mode === "none" || mode === "end" || mode === "per_ticket" ? mode : fallback;
 }
 
 function groupKitchenBatchItems(items: PendingPrintItem[], fallbackCutMode: string) {

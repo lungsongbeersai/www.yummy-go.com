@@ -1,6 +1,7 @@
 "use client";
 
 import axios, { AxiosError, type AxiosInstance } from "axios";
+import i18n from "@/lib/i18n";
 import { shouldLogoutForUnauthorized } from "@/lib/unauthorized-session";
 import {
   cacheOnlineResponse,
@@ -8,6 +9,7 @@ import {
   mirrorOnlineResponse,
   prepareOfflineRequest,
   requestLocalFallback,
+  shouldRouteToLocal,
   shouldUseLocalPrintOwnership,
   supportsOfflineRoute,
   withLocalPrintOwnership,
@@ -140,6 +142,21 @@ function normalizeError(error: unknown, fallback = "Request failed"): ServiceErr
   return new ServiceError(error instanceof Error ? error.message : fallback, 500, error);
 }
 
+function normalizeLocalError(error: unknown): ServiceError {
+  if (axios.isAxiosError(error) && !error.response) {
+    return new ServiceError(
+      i18n.t("offlineSync.agentUnavailableDescription"),
+      503,
+      error,
+    );
+  }
+  return new ServiceError(
+    error instanceof Error ? error.message : "Local Agent request failed",
+    503,
+    error,
+  );
+}
+
 export async function apiRequest<T>(
   method: HttpMethod,
   url: string,
@@ -148,9 +165,26 @@ export async function apiRequest<T>(
 ) {
   const prepared = prepareOfflineRequest(method, url, options);
   const auth = useAuthStore.getState();
+  const localScope = {
+    storeUuid: auth.user?.store_uuid || auth.user?.store_uuid_fk || "",
+    branchUuid: auth.user?.branch_uuid || "",
+    actorLoginUuid: auth.user?.uuid || "",
+  };
+  const browserOnline = typeof navigator === "undefined" ? undefined : navigator.onLine;
+  const routeToLocal = shouldRouteToLocal(
+    auth.offlineSession,
+    browserOnline,
+    method,
+    url,
+    undefined,
+    localScope,
+  );
+  if (routeToLocal && !auth.offlineSession) {
+    useAuthStore.getState().setOfflineSession(true);
+  }
   let localConfiguration: Promise<boolean> | null = null;
   if (auth.token && auth.user && supportsOfflineRoute(method, url)) {
-    localConfiguration = auth.offlineSession
+    localConfiguration = routeToLocal
       ? Promise.resolve(true)
       : configureLocalSync({
         token: auth.token,
@@ -163,24 +197,40 @@ export async function apiRequest<T>(
   let localOwnsPrint = false;
   if (
     localConfiguration &&
-    shouldUseLocalPrintOwnership(auth.offlineSession, method, url)
+    shouldUseLocalPrintOwnership(routeToLocal, method, url)
   ) {
     localOwnsPrint = await localConfiguration;
     if (localOwnsPrint) requestOptions = withLocalPrintOwnership(requestOptions, method);
   }
-  if (auth.offlineSession && supportsOfflineRoute(method, url) && typeof window !== "undefined") {
-    const local = await requestLocalFallback<T>(method, url, requestOptions, prepared.eventUuid);
-    return assertApiSuccess(local);
+  if (routeToLocal && typeof window !== "undefined") {
+    try {
+      const local = await requestLocalFallback<T>(
+        method,
+        url,
+        requestOptions,
+        prepared.eventUuid,
+        localScope,
+      );
+      return assertApiSuccess(local);
+    } catch (error) {
+      throw normalizeLocalError(error);
+    }
   }
   try {
     const response = await send<T>(apiClient, method, url, requestOptions);
     const data = assertApiSuccess(response.data);
     if (localOwnsPrint) {
       try {
-        await mirrorOnlineResponse(method, url, requestOptions, data);
+        await mirrorOnlineResponse(method, url, requestOptions, data, localScope);
       } catch {
         try {
-          await requestLocalFallback<T>(method, url, requestOptions, prepared.eventUuid);
+          await requestLocalFallback<T>(
+            method,
+            url,
+            requestOptions,
+            prepared.eventUuid,
+            localScope,
+          );
         } catch (localPrintError) {
           // Backend already committed the mutation. Preserve its success response
           // so a Local Agent outage cannot make the cashier repeat a payment.
@@ -192,10 +242,24 @@ export async function apiRequest<T>(
       }
     } else if (localConfiguration) {
       void localConfiguration.then(() => {
-        cacheOnlineResponse(method, url, requestOptions, data, auth.user?.branch_uuid);
+        cacheOnlineResponse(
+          method,
+          url,
+          requestOptions,
+          data,
+          auth.user?.branch_uuid,
+          localScope.storeUuid,
+        );
       });
     } else {
-      cacheOnlineResponse(method, url, requestOptions, data, auth.user?.branch_uuid);
+      cacheOnlineResponse(
+        method,
+        url,
+        requestOptions,
+        data,
+        auth.user?.branch_uuid,
+        localScope.storeUuid,
+      );
     }
     return data;
   } catch (error) {
@@ -205,15 +269,24 @@ export async function apiRequest<T>(
     if (canContinueOffline && supportsOfflineRoute(method, url) && typeof window !== "undefined") {
       try {
         if (localConfiguration) await localConfiguration;
-        const local = await requestLocalFallback<T>(method, url, requestOptions, prepared.eventUuid);
+        const fallbackOptions = shouldUseLocalPrintOwnership(true, method, url)
+          ? withLocalPrintOwnership(requestOptions, method)
+          : requestOptions;
+        const local = await requestLocalFallback<T>(
+          method,
+          url,
+          fallbackOptions,
+          prepared.eventUuid,
+          localScope,
+        );
         useAuthStore.getState().setOfflineSession(true);
         return assertApiSuccess(local);
       } catch (localError) {
-        throw new ServiceError(
-          localError instanceof Error ? localError.message : "Local Agent request failed",
-          503,
-          { onlineError: normalized, localError },
-        );
+        const localFailure = normalizeLocalError(localError);
+        throw new ServiceError(localFailure.message, 503, {
+          onlineError: normalized,
+          localError,
+        });
       }
     }
     throw normalized;

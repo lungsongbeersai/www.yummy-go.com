@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  cashDrawerEnabledOf,
   formatIpInput,
   kitchenCutModeOf,
 } from "@/features/printer/form/printer-form-utils";
@@ -44,6 +45,17 @@ describe("formatIpInput", () => {
 
   it("keeps an explicit short octet followed by a user-typed dot", () => {
     expect(formatIpInput("19.", "19")).toBe("19.");
+  });
+});
+
+describe("cashDrawerEnabledOf", () => {
+  it("keeps the legacy default enabled", () => {
+    expect(cashDrawerEnabledOf(null)).toBe(true);
+    expect(cashDrawerEnabledOf({} as never)).toBe(true);
+  });
+
+  it("restores an explicitly disabled cash drawer", () => {
+    expect(cashDrawerEnabledOf({ cash_drawer_enabled: false } as never)).toBe(false);
   });
 });
 

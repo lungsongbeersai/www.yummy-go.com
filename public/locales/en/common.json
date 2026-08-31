@@ -22,7 +22,9 @@
   },
   "offlineSync": {
     "blockedTitle": "Offline sync needs review",
-    "blockedDescription": "{{count}} offline transaction(s) were rejected by the server. Online mode is available, but review them before closing the shift."
+    "blockedDescription": "{{count}} offline transaction(s) were rejected by the server. Online mode is available, but review them before closing the shift.",
+    "agentUnavailableTitle": "Printer Agent is not running",
+    "agentUnavailableDescription": "Open or reinstall Yummy-Go Printer Agent, then try again."
   },
   "app": {
     "breadcrumbs": "Breadcrumbs",
@@ -1235,10 +1237,14 @@
     "sharingModeHint": "Share this printer with other devices, or keep it dedicated to this device only.",
     "sharingModeShared": "Share Printer",
     "sharingModeDedicated": "Do Not Share Printer",
-    "kitchenCutMode": "Kitchen ticket cutting",
-    "kitchenCutModeHint": "Applies only when sending items to the kitchen or bar. Bills and receipts are unchanged.",
-    "kitchenCutPerTicket": "Cut every ticket",
-    "kitchenCutNone": "Do not cut",
+    "kitchenCutMode": "Kitchen ticket layout",
+    "kitchenCutModeHint": "Choose one cut per item or one sheet containing multiple items. Bills and receipts are unchanged.",
+    "kitchenCutPerTicket": "One item per cut",
+    "kitchenCutNone": "One sheet, multiple items",
+    "cashDrawerMode": "Cash drawer",
+    "cashDrawerModeHint": "Choose whether this printer opens the cash drawer when checking a bill or receiving payment.",
+    "cashDrawerEnabled": "Open on check bill/payment",
+    "cashDrawerDisabled": "Do not open",
     "ownerColumn": "Owner",
     "ownerBadge": "Yours",
     "sharedBadgeWithDevice": "Shared from {{device}}",

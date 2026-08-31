@@ -5,10 +5,10 @@ import {
   getLocalSyncStatus,
   localSyncHasRetryableWork,
   needsLocalPrintOwnership,
-  offlineSplitInvoice,
   prepareOfflineRequest,
   resetLocalSyncConfiguration,
   runLocalSyncNow,
+  shouldRouteToLocal,
   shouldUseLocalPrintOwnership,
   supportsOfflineRoute,
   withLocalPrintOwnership,
@@ -83,6 +83,40 @@ describe("offline sync transport", () => {
     expect(supportsOfflineRoute("patch", "/api/v1/posAll/customer_order_queue/send_to_kitchen")).toBe(true);
   });
 
+  it("routes supported requests to the Agent immediately when the browser is offline", () => {
+    expect(
+      shouldRouteToLocal(false, false, "get", "/api/v1/posAll/fetch_table"),
+    ).toBe(true);
+    expect(
+      shouldRouteToLocal(false, true, "get", "/api/v1/posAll/fetch_table"),
+    ).toBe(false);
+    expect(
+      shouldRouteToLocal(false, true, "get", "/api/v1/posAll/fetch_table", {
+        bootstrap_complete: true,
+        connection_state: "DEGRADED",
+        consecutive_failures: 1,
+      }),
+    ).toBe(true);
+    expect(
+      shouldRouteToLocal(
+        false,
+        true,
+        "get",
+        "/api/v1/posAll/fetch_table",
+        {
+          bootstrap_complete: true,
+          connection_state: "OFFLINE",
+          store_uuid: "store-1",
+          branch_uuid: "branch-1",
+        },
+        { storeUuid: "store-2", branchUuid: "branch-2" },
+      ),
+    ).toBe(false);
+    expect(
+      shouldRouteToLocal(false, false, "post", "/api/v1/product/create"),
+    ).toBe(false);
+  });
+
   it("assigns stable split order, payment and partial-item UUIDs before the online attempt", () => {
     const prepared = prepareOfflineRequest("post", "/api/v1/posAll/split_bill", {
       data: {
@@ -93,18 +127,10 @@ describe("offline sync transport", () => {
     const data = prepared.options?.data as Record<string, unknown>;
     expect(data.new_order_uuid).toMatch(/^[0-9a-f-]{36}$/i);
     expect(data.payment_uuid).toMatch(/^[0-9a-f-]{36}$/i);
-    expect(data.new_order_invoice).toMatch(/^S[0-9A-F]{14}$/);
-    expect(String(data.new_order_invoice)).toHaveLength(15);
+    expect(data).not.toHaveProperty("new_order_invoice");
     expect(data.split_item_uuid_map).toMatchObject({
       "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb": expect.stringMatching(/^[0-9a-f-]{36}$/i),
     });
-  });
-
-  it("keeps the offline split invoice stable and inside order_invoice varchar(15)", () => {
-    const orderUuid = "abcdef12-3456-4abc-8def-0123456789ab";
-    const invoice = offlineSplitInvoice(orderUuid);
-    expect(invoice).toBe("SABCDEF1234564A");
-    expect(offlineSplitInvoice(orderUuid)).toBe(invoice);
   });
 
   it("assigns a stable cancelled-item UUID for partial cancellation replay", () => {

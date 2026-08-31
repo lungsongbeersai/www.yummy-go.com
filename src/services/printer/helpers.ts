@@ -139,6 +139,9 @@ export function mapPrinter(item: Record<string, unknown>): Printer {
     print_mode: item.print_mode === undefined ? undefined : String(item.print_mode),
     paper_width_mm: Number(item.paper_width_mm ?? 80),
     kitchen_cut_mode: item.kitchen_cut_mode === "none" ? "none" : "per_ticket",
+    cash_drawer_enabled: item.cash_drawer_enabled === undefined
+      ? true
+      : Boolean(item.cash_drawer_enabled),
     is_active: Boolean(item.is_active),
     is_active_label: activeLabel(item),
     created_at: item.created_at === undefined ? undefined : String(item.created_at),

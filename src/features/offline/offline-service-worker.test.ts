@@ -44,10 +44,12 @@ describe("offline asset cache", () => {
     expect(offlineTransportMonitor).toContain('window.addEventListener("online", handleOnline)');
     expect(offlineTransportMonitor).toContain("setOfflineSession(true)");
     expect(offlineTransportMonitor).toContain("runLocalSyncNow()");
+    expect(offlineTransportMonitor).toContain("reconcileBrowserSyncQueue(localScope)");
     expect(offlineTransportMonitor).toContain("!localSyncHasRetryableWork(syncedStatus)");
     expect(offlineTransportMonitor).toContain("restoreOnlineLogin(current.token)");
     expect(offlineTransportMonitor).toContain("resumeOnlineSession(restored.token, restored.user)");
     expect(offlineTransportMonitor).toContain("offlineSync.blockedTitle");
+    expect(offlineTransportMonitor).toContain("offlineSync.agentUnavailableTitle");
     expect(offlineTransportMonitor).toContain("setOfflineSession(false)");
     expect(offlineRuntime).toContain('\"/pos\"');
   });

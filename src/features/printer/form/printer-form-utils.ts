@@ -136,8 +136,14 @@ export function sharingModeOf(printer: Printer | null): PrinterSharingMode {
 }
 
 // เครื่องพิมพ์เก่าที่ยังไม่มีค่านี้ต้องคงพฤติกรรมเดิม คือ ตัดหลังทุกใบ
+// ค่า wire เดิม "none" ถูกเก็บไว้เพื่อไม่เปลี่ยน API/DB contract แต่หมายถึง
+// ใบเดียวรวมหลายรายการและตัดครั้งเดียวท้ายชุดที่ physical print boundary
 export function kitchenCutModeOf(printer: Printer | null): PrinterKitchenCutMode {
   return printer?.kitchen_cut_mode === "none" ? "none" : "per_ticket";
+}
+
+export function cashDrawerEnabledOf(printer: Printer | null) {
+  return printer?.cash_drawer_enabled !== false;
 }
 
 // cate_uuid_fk มีความหมายทั้งสอง mapping_type แล้ว — ZONE ก็บังคับเลือกหมวดหมู่คู่กับโซนด้วย
@@ -175,6 +181,7 @@ export function printerFormValues(printer: Printer | null) {
     port: String(connectType === "tcp" ? (parsed.port ?? 9100) : 9100),
     paperWidth: String(printer?.paper_width_mm ?? 80),
     kitchenCutMode: kitchenCutModeOf(printer),
+    cashDrawerEnabled: cashDrawerEnabledOf(printer),
     selectedRoles: printer?.role_codes ?? [],
     mappingType: mappingTypeOf(printer),
     sharingMode: sharingModeOf(printer),
