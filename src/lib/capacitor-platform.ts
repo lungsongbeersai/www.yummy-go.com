@@ -26,6 +26,10 @@ export function isCapacitorAndroidApp() {
   );
 }
 
+export function isAndroidNativeApp() {
+  return isCapacitorAndroidApp();
+}
+
 export function canUseWindowOpen() {
   return !isCapacitorNativeApp();
 }

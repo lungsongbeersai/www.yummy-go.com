@@ -40,6 +40,25 @@ interface AndroidOnlineRecoveryOptions {
   failuresBeforeOffline?: number;
 }
 
+const RECONCILE_NOW_EVENT = "yummy-go:offline-reconcile-now";
+
+export function requestImmediateReconcile() {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new Event(RECONCILE_NOW_EVENT));
+}
+
+export async function probeConnectivity(): Promise<boolean> {
+  if (typeof navigator !== "undefined" && navigator.onLine === false) return false;
+  if (typeof window === "undefined") return false;
+  const target = process.env.NEXT_PUBLIC_BASE_URL || window.location.origin;
+  try {
+    await fetch(target, { cache: "no-store", mode: "no-cors" });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function browserIsOffline() {
   return navigator.onLine === false;
 }
@@ -298,6 +317,7 @@ export function startOfflineTransportMonitor() {
   const handleOnline = () => schedule(0);
   window.addEventListener("offline", handleOffline);
   window.addEventListener("online", handleOnline);
+  window.addEventListener(RECONCILE_NOW_EVENT, handleOnline);
   void reconcile();
 
   return () => {
@@ -305,5 +325,6 @@ export function startOfflineTransportMonitor() {
     if (timer !== null) window.clearTimeout(timer);
     window.removeEventListener("offline", handleOffline);
     window.removeEventListener("online", handleOnline);
+    window.removeEventListener(RECONCILE_NOW_EVENT, handleOnline);
   };
 }
