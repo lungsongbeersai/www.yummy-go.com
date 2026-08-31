@@ -1,17 +1,10 @@
 import { Capacitor } from "@capacitor/core";
+import { printerPrintModeForPlatform } from "@/lib/printer-platform";
 import { resolvePrinterDeviceIdentity, type PrinterDeviceContextParams } from "@/services/printer";
 import { getBrowserPrinterIdentity } from "@/services/printer/browser-device";
 
 function textValue(value: unknown) {
   return String(value ?? "").trim();
-}
-
-function localPrintMode(platform: unknown, native: boolean) {
-  if (native) return "mobile_wifi";
-  const value = textValue(platform).toLowerCase();
-  if (value.includes("win")) return "windows_agent";
-  if (value.includes("darwin") || value.includes("mac")) return "mac_agent";
-  return undefined;
 }
 
 // ตัว resolve ตัวตนเครื่องพิมพ์/agent ที่ใช้ร่วมกันทุก action ฝั่ง POS ที่ยิงคำสั่งพิมพ์
@@ -47,6 +40,6 @@ export async function resolvePosPrinterContext(
     agent_name: textValue(identity.agent_name) || input.agent_name,
     print_mode:
       (suppliedIdentityMatches ? textValue(input.print_mode) : "") ||
-      localPrintMode(identity.platform, native),
+      printerPrintModeForPlatform(identity.platform, native),
   };
 }

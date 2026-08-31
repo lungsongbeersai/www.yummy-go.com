@@ -8,6 +8,7 @@ import {
   getBrowserPrinterIdentity,
   isBrowserPrinterAgentId
 } from "@/services/printer/browser-device";
+import { printerPrintModeForPlatform } from "@/lib/printer-platform";
 
 function storageMock() {
   const values = new Map<string, string>();
@@ -113,5 +114,13 @@ describe("browser printer device identity", () => {
     expect(isBrowserPrinterAgentId("desktop")).toBe(true);
     expect(isBrowserPrinterAgentId("browser")).toBe(false);
     expect(isBrowserPrinterAgentId("agent-1")).toBe(false);
+  });
+
+  it("derives the printer transport from the reported platform", () => {
+    expect(printerPrintModeForPlatform("win32")).toBe("windows_agent");
+    expect(printerPrintModeForPlatform("darwin")).toBe("mac_agent");
+    expect(printerPrintModeForPlatform("Android")).toBe("mobile_wifi");
+    expect(printerPrintModeForPlatform("browser", true)).toBe("mobile_wifi");
+    expect(printerPrintModeForPlatform("linux")).toBeUndefined();
   });
 });
