@@ -99,6 +99,7 @@ describe("mobile TCP printer queue", () => {
     const TcpSocket = {
       connect: vi.fn(),
       disconnect: vi.fn(),
+      read: vi.fn(),
       send: vi.fn(async ({ data }: { data: string }) => {
         sent.push(Buffer.from(data, "base64"));
       }),
@@ -160,5 +161,58 @@ describe("mobile TCP printer queue", () => {
     );
 
     expect(segments).toEqual([source.toString("base64")]);
+  });
+
+  it("decodes native printer status bytes consistently", () => {
+    expect(__mobileTcpInternals.printerStatusByte("AA==")).toBe(0);
+    expect(__mobileTcpInternals.printerStatusByte("YA==")).toBe(0x60);
+    expect(__mobileTcpInternals.printerStatusByte(String.fromCharCode(8))).toBe(8);
+    expect(__mobileTcpInternals.printerStatusByte("")).toBeNull();
+  });
+
+  it("confirms completion only after the printer answers the paper-status command", async () => {
+    const TcpSocket = {
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+      read: vi.fn().mockResolvedValue({ result: "AA==" }),
+      send: vi.fn().mockResolvedValue(undefined),
+    };
+
+    await expect(
+      __mobileTcpInternals.confirmMobilePrinterCompleted({
+        TcpSocket,
+        client: "printer-client",
+      }),
+    ).resolves.toBeUndefined();
+
+    expect(TcpSocket.send).toHaveBeenCalledWith({
+      client: "printer-client",
+      data: Buffer.from([0x1d, 0x72, 0x01]).toString("base64"),
+      encoding: "base64",
+    });
+    expect(TcpSocket.read).toHaveBeenCalledWith({
+      client: "printer-client",
+      expectLen: 1,
+      timeout: 4,
+    });
+  });
+
+  it("keeps delivery unknown when the printer reports paper out", async () => {
+    const TcpSocket = {
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+      read: vi.fn().mockResolvedValue({ result: "YA==" }),
+      send: vi.fn().mockResolvedValue(undefined),
+    };
+
+    await expect(
+      __mobileTcpInternals.confirmMobilePrinterCompleted({
+        TcpSocket,
+        client: "printer-client",
+      }),
+    ).rejects.toMatchObject({
+      delivery_state: "unknown",
+      message: "Printer reported paper out before completion",
+    });
   });
 });

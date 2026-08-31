@@ -875,6 +875,10 @@ export interface SendToKitchenResponse extends ApiEntity {
 
   pending_query?: ConfirmToKitchenPendingQuery;
 
+  print_jobs?: ConfirmToKitchenPrintJob[];
+
+  pending_queries?: ConfirmToKitchenPendingQuery[];
+
   print_queue_errors?: PrintQueueError[];
 }
 

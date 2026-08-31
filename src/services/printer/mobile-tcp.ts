@@ -19,6 +19,16 @@ type TcpSocketSendPayload = {
     encoding?: "utf8" | "base64";
 };
 
+type TcpSocketReadPayload = {
+    client: TcpClient;
+    expectLen: number;
+    timeout?: number;
+};
+
+type TcpSocketReadResult = {
+    result?: string;
+};
+
 type TcpSocketDisconnectPayload = {
     client: TcpClient;
 };
@@ -26,12 +36,14 @@ type TcpSocketDisconnectPayload = {
 type TcpSocketApi = {
     connect: (payload: TcpSocketConnectPayload) => Promise<TcpSocketConnectResult>;
     send: (payload: TcpSocketSendPayload) => Promise<unknown>;
+    read: (payload: TcpSocketReadPayload) => Promise<TcpSocketReadResult>;
     disconnect: (payload: TcpSocketDisconnectPayload) => Promise<unknown>;
 };
 
 const MOBILE_TCP_CHUNK_SIZE = 2732;
 const MOBILE_TCP_CHUNK_DELAY_MS = 40;
 const MOBILE_TCP_SEND_TIMEOUT_MS = 15000;
+const MOBILE_TCP_STATUS_TIMEOUT_MS = 4000;
 const MOBILE_TCP_MEDIUM_BYTES = 256 * 1024;
 const MOBILE_TCP_LONG_BYTES = 1024 * 1024;
 // เครื่องพิมพ์ราคาประหยัดบางรุ่นปิด TCP session ที่รับ raster ต่อเนื่องนาน
@@ -40,6 +52,9 @@ const MOBILE_TCP_LONG_BYTES = 1024 * 1024;
 const MOBILE_TCP_SEGMENT_MAX_BYTES = 128 * 1024;
 const MOBILE_TCP_SEGMENT_DRAIN_MS = 900;
 const MOBILE_TCP_RECONNECT_DELAY_MS = 150;
+// GS r 1 is processed in stream order. A response therefore acts as a barrier
+// after the print/cut commands, unlike socket.flush() which only reaches the OS.
+const ESC_POS_PAPER_STATUS_COMMAND = new Uint8Array([0x1d, 0x72, 0x01]);
 const mobileTcpQueues = new Map<string, Promise<void>>();
 
 function deliveryError(error: unknown, deliveryState: "not_sent" | "unknown") {
@@ -260,6 +275,81 @@ async function withSendTimeout<T>(operation: Promise<T>) {
     }
 }
 
+async function withPrinterStatusTimeout<T>(operation: Promise<T>) {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+        return await Promise.race([
+            operation,
+            new Promise<never>((_, reject) => {
+                timer = setTimeout(
+                    () => reject(new Error("Printer status response timed out")),
+                    MOBILE_TCP_STATUS_TIMEOUT_MS,
+                );
+            }),
+        ]);
+    } finally {
+        if (timer) clearTimeout(timer);
+    }
+}
+
+function printerStatusByte(result?: string) {
+    const value = typeof result === "string" ? result : "";
+    if (!value) return null;
+
+    // Android and iOS return the native read bytes as base64 after the plugin
+    // patch. Keep the raw-byte fallback for Android builds installed before it.
+    if (/^[A-Za-z0-9+/]+={0,2}$/.test(value) && value.length % 4 === 0) {
+        try {
+            const decoded = base64ToBytes(value);
+            if (decoded.length === 1) return decoded[0];
+        } catch {
+            // Fall through to the legacy raw string result.
+        }
+    }
+
+    return value.charCodeAt(0) & 0xff;
+}
+
+async function confirmMobilePrinterCompleted({
+    TcpSocket,
+    client,
+}: {
+    TcpSocket: TcpSocketApi;
+    client: TcpClient;
+}) {
+    try {
+        await withSendTimeout(
+            TcpSocket.send({
+                client,
+                data: bytesToBase64(ESC_POS_PAPER_STATUS_COMMAND),
+                encoding: "base64",
+            }),
+        );
+
+        const response = await withPrinterStatusTimeout(
+            TcpSocket.read({
+                client,
+                expectLen: 1,
+                timeout: Math.ceil(MOBILE_TCP_STATUS_TIMEOUT_MS / 1000),
+            }),
+        );
+        const status = printerStatusByte(response.result);
+
+        if (status === null) {
+            throw new Error("Printer returned an empty completion status");
+        }
+
+        // GS r 1: bits 5 and 6 indicate that the paper-end sensor sees no paper.
+        if ((status & 0x60) !== 0) {
+            throw new Error("Printer reported paper out before completion");
+        }
+
+        console.log("[mobile-tcp] printer completion confirmed", { status });
+    } catch (error) {
+        throw deliveryError(error, "unknown");
+    }
+}
+
 async function sendBase64InChunks({
     TcpSocket,
     client,
@@ -339,9 +429,11 @@ async function sendBase64InChunks({
 async function printMobileEscposOverTcpNow({
     interface_value,
     escpos_base64,
+    require_completion_confirmation = false,
 }: {
     interface_value?: string;
     escpos_base64: string;
+    require_completion_confirmation?: boolean;
 }) {
     const cleanBase64 = normalizeBase64(escpos_base64);
 
@@ -438,6 +530,13 @@ async function printMobileEscposOverTcpNow({
                     ? mobileTcpFinalDrainMs(cleanBase64.length)
                     : MOBILE_TCP_SEGMENT_DRAIN_MS,
             );
+
+            if (
+                require_completion_confirmation &&
+                segmentIndex === segments.length - 1
+            ) {
+                await confirmMobilePrinterCompleted({ TcpSocket, client });
+            }
         } catch (error) {
             console.warn(
                 "[mobile-tcp] send failed:",
@@ -471,6 +570,7 @@ async function printMobileEscposOverTcpNow({
 export function printMobileEscposOverTcp(input: {
     interface_value?: string;
     escpos_base64: string;
+    require_completion_confirmation?: boolean;
 }) {
     return runOnMobileTcpQueue(
         String(input.interface_value || "mobile-printer"),
@@ -480,8 +580,10 @@ export function printMobileEscposOverTcp(input: {
 
 export const __mobileTcpInternals = {
     MOBILE_TCP_SEGMENT_MAX_BYTES,
+    confirmMobilePrinterCompleted,
     mobileTcpFinalDrainMs,
     mobileTcpSendProfile,
+    printerStatusByte,
     runOnMobileTcpQueue,
     sendBase64InChunks,
     splitEscposBase64ForTransport,

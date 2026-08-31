@@ -227,19 +227,23 @@ export function OrderQueuePage() {
         login_uuid_fk: user.uuid,
         lang: language
       });
-      clearSelection();
 
       const printFailed = Number(printResult?.failedCount || 0) > 0;
       const printPending = printResult?.pending === true;
+      if (!printFailed && !printPending) {
+        clearSelection();
+      }
       showToast({
-        title: t("orderQueue.confirmSuccess", { count: orderItemUuids.length }),
+        title: printFailed
+          ? t("orderQueue.confirmError")
+          : printPending
+            ? t("orderQueue.kitchenPrintQueued")
+            : t("orderQueue.confirmSuccess", { count: orderItemUuids.length }),
         description: printFailed
           ? [t("report.printFailed"), printResult?.errorMessage]
               .filter(Boolean)
               .join(" — ")
-          : printPending
-            ? t("orderQueue.kitchenPrintQueued")
-            : undefined,
+          : undefined,
         tone: printFailed ? "warning" : printPending ? "info" : "success"
       });
     } catch (error) {

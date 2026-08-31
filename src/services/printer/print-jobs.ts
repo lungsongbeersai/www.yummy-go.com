@@ -195,7 +195,10 @@ function groupKitchenBatchItems(items: PendingPrintItem[], fallbackCutMode: stri
   return Array.from(groups.values());
 }
 
-async function printKitchenMobileBatch(batch: PrintOpsBatchPayload) {
+async function printKitchenMobileBatch(
+  batch: PrintOpsBatchPayload,
+  requireCompletionConfirmation: boolean,
+) {
   const mobileEscpos = batch.mobile_escpos ?? null;
 
   const batchEscposBase64 = textValue(mobileEscpos?.escpos_base64);
@@ -213,6 +216,9 @@ async function printKitchenMobileBatch(batch: PrintOpsBatchPayload) {
     await printMobileEscposOverTcp({
       interface_value: batchInterfaceValue,
       escpos_base64: batchEscposBase64,
+      ...(requireCompletionConfirmation
+        ? { require_completion_confirmation: true }
+        : {}),
     });
 
     return;
@@ -240,6 +246,9 @@ async function printKitchenMobileBatch(batch: PrintOpsBatchPayload) {
     await printMobileEscposOverTcp({
       interface_value: jobInterfaceValue,
       escpos_base64: escposBase64,
+      ...(requireCompletionConfirmation
+        ? { require_completion_confirmation: true }
+        : {}),
     });
 
   }
@@ -472,7 +481,11 @@ async function printKitchenBatchJob(batch: PrintOpsBatchPayload) {
 
 async function executePrintJobs(
   input: ExecuteKitchenPrintInput,
-  options: { ack: boolean; idempotent?: boolean },
+  options: {
+    ack: boolean;
+    idempotent?: boolean;
+    requireCompletionConfirmation?: boolean;
+  },
 ): Promise<KitchenPrintResult> {
   const jobUuid = input.pending_query?.print_job_uuid ?? input.print_job?.print_job_uuid;
   const loginUuid = input.pending_query?.login_uuid_fk ?? input.login_uuid_fk;
@@ -612,7 +625,10 @@ async function executePrintJobs(
 
           try {
             if (mobileBatch) {
-              await printKitchenMobileBatch(batch);
+              await printKitchenMobileBatch(
+                batch,
+                options.requireCompletionConfirmation === true,
+              );
             } else {
               await printKitchenBatchJob(batch);
             }
@@ -687,7 +703,7 @@ async function executePrintJobs(
       try {
         await ackPrintJob(ackPayloadWithLogin(ackPayload, loginUuid));
         for (const outcome of outcomes) {
-          if (options.idempotent && outcome.deliveryState !== "not_sent") {
+          if (options.idempotent && outcome.deliveryState === "printed") {
             clearStoredDelivery(outcome.ledgerKey);
           }
         }
@@ -927,7 +943,11 @@ export async function executeKitchenPrintJobs(input: ExecuteKitchenPrintInput): 
   const existing = kitchenExecutions.get(jobUuid);
   if (existing) return existing;
 
-  const execution = executePrintJobs(input, { ack: true, idempotent: true });
+  const execution = executePrintJobs(input, {
+    ack: true,
+    idempotent: true,
+    requireCompletionConfirmation: true,
+  });
   kitchenExecutions.set(jobUuid, execution);
   const cleanup = () => {
     if (kitchenExecutions.get(jobUuid) === execution) {

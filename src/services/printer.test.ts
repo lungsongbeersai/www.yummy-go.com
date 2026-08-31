@@ -594,7 +594,8 @@ describe("printer service dispatch", () => {
 
     expect(mobileTcpMocks.printMobileEscposOverTcp).toHaveBeenCalledWith({
       interface_value: "tcp://192.168.1.20:9100",
-      escpos_base64: "SHARED-BASE64"
+      escpos_base64: "SHARED-BASE64",
+      require_completion_confirmation: true
     });
     expect(axiosMocks.post).not.toHaveBeenCalled();
     expect(ackPayloads).toEqual([{ ...successAck, login_uuid_fk: "login-1" }]);

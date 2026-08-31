@@ -4,10 +4,13 @@ import { create } from "zustand";
 import { optionalString } from "@/lib/values";
 import * as posService from "@/services/pos";
 import {
+  type ConfirmToKitchenPendingQuery,
+  type ConfirmToKitchenPrintJob,
   OrderItemStatus,
   type OrderItemStatus as OrderItemStatusType,
   type OrderQueueItem,
-  type OrderQueueSectionSummary
+  type OrderQueueSectionSummary,
+  type SendToKitchenResponse
 } from "@/services/pos";
 import {
   executeInvoicePrintJobs,
@@ -96,6 +99,69 @@ const initialState = {
 
   error: null as string | null
 };
+
+interface KitchenPrintRequest {
+  pending_query?: ConfirmToKitchenPendingQuery;
+  print_job?: ConfirmToKitchenPrintJob;
+}
+
+export function kitchenPrintRequests(
+  response: SendToKitchenResponse
+): KitchenPrintRequest[] {
+  const requests = new Map<string, KitchenPrintRequest>();
+  const printJobs = response.print_jobs?.length
+    ? response.print_jobs
+    : response.print_job
+      ? [response.print_job]
+      : [];
+  const pendingQueries = response.pending_queries?.length
+    ? response.pending_queries
+    : response.pending_query
+      ? [response.pending_query]
+      : [];
+
+  for (const printJob of printJobs) {
+    const printJobUuid = optionalString(printJob.print_job_uuid);
+    if (printJobUuid) {
+      requests.set(printJobUuid, { print_job: printJob });
+    }
+  }
+
+  for (const pendingQuery of pendingQueries) {
+    const printJobUuid = optionalString(pendingQuery.print_job_uuid);
+    if (!printJobUuid) continue;
+    requests.set(printJobUuid, {
+      ...requests.get(printJobUuid),
+      pending_query: pendingQuery
+    });
+  }
+
+  return [...requests.values()];
+}
+
+export function aggregateKitchenPrintResults(
+  results: KitchenPrintResult[]
+): KitchenPrintResult | null {
+  if (!results.length) return null;
+
+  const errorMessages = [
+    ...new Set(results.map((result) => result.errorMessage).filter(Boolean))
+  ];
+
+  return {
+    successCount: results.reduce(
+      (total, result) => total + result.successCount,
+      0
+    ),
+    failedCount: results.reduce(
+      (total, result) => total + result.failedCount,
+      0
+    ),
+    total: results.reduce((total, result) => total + result.total, 0),
+    ...(results.some((result) => result.pending) ? { pending: true } : {}),
+    ...(errorMessages.length ? { errorMessage: errorMessages.join(", ") } : {})
+  };
+}
 
 export const usePosOrderQueueStore =
   create<PosOrderQueueState>((set, get) => ({
@@ -205,57 +271,26 @@ export const usePosOrderQueueStore =
             lang: params.lang
           });
 
-        /*
-         * Backend confirms the selected items before creating printer work.
-         * Print delivery is tracked separately so an unavailable printer
-         * cannot keep the operational order queue at the waiting status.
-         */
-        const printJobUuid =
-          optionalString(
-            response.print_job
-              ?.print_job_uuid,
-
-            response.pending_query
-              ?.print_job_uuid
+        // A checkbox batch can span several orders. Process every backend job
+        // sequentially so no physical ticket is omitted or interleaved.
+        const printResults: KitchenPrintResult[] = [];
+        for (const request of kitchenPrintRequests(response)) {
+          const loginUuid = optionalString(
+            request.pending_query?.login_uuid_fk,
+            request.print_job?.login_uuid_fk,
+            response.login_uuid_fk,
+            params.login_uuid_fk
           );
 
-        let printResult: KitchenPrintResult | null = null;
-
-        if (printJobUuid) {
-          const loginUuid =
-            optionalString(
-              response.pending_query
-                ?.login_uuid_fk,
-
-              response.login_uuid_fk,
-
-              params.login_uuid_fk
-            );
-
-          printResult = await executeKitchenPrintJobs({
-            print_job:
-              response.print_job,
-
-            pending_query:
-              response.pending_query,
-
-            login_uuid_fk:
-              loginUuid ?? undefined,
-
-            device_code:
-              printer.device_code,
-
-            agent_id:
-              printer.agent_id,
-
-            print_mode:
-              printer.print_mode
+          const result = await executeKitchenPrintJobs({
+            print_job: request.print_job,
+            pending_query: request.pending_query,
+            login_uuid_fk: loginUuid ?? undefined,
+            device_code: printer.device_code,
+            agent_id: printer.agent_id,
+            print_mode: printer.print_mode
           }).catch((error) => {
-            console.error(
-              "[pos-order-queue] kitchen print failed",
-              error
-            );
-
+            console.error("[pos-order-queue] kitchen print failed", error);
             return {
               successCount: 0,
               failedCount: 1,
@@ -263,8 +298,11 @@ export const usePosOrderQueueStore =
               errorMessage: errorMessage(error)
             };
           });
-        } else if (response.print_queue_errors?.length) {
-          printResult = {
+          printResults.push(result);
+        }
+
+        if (response.print_queue_errors?.length) {
+          printResults.push({
             successCount: 0,
             failedCount: response.print_queue_errors.length,
             total: response.print_queue_errors.length,
@@ -272,8 +310,10 @@ export const usePosOrderQueueStore =
               .map((item) => item.message)
               .filter(Boolean)
               .join(", ")
-          };
+          });
         }
+
+        const printResult = aggregateKitchenPrintResults(printResults);
 
         if (isCurrentSession()) {
           set({
