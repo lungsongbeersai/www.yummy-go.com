@@ -682,6 +682,10 @@ export interface ConfirmToKitchenPrintJob extends ApiEntity {
   job_status?: string;
   order_uuid?: string;
   requested_total?: number;
+  remote_shared_print?: boolean;
+  requester_device_code?: string;
+  target_device_code?: string;
+  print_batch_uuid?: string;
   login_uuid_fk?: string;
   agent_id?: string;
   agent_name?: string;
@@ -910,10 +914,9 @@ export interface CancelOrderItemInput {
   lang?: string;
 }
 
-// print_job/pending_query เหมือน ConfirmToKitchenResponse
-// แต่พิมพ์ผ่าน executeInvoicePrintJobs (ack:false)
-// ไม่ใช่ executeKitchenPrintJobs (ack:true)
-// เพราะ cancel_order_item เปลี่ยนสถานะ order item เสร็จแล้ว
+// print_job/pending_query เหมือน ConfirmToKitchenResponse แต่ใช้ document executor:
+// ACK ปิดคิวเอกสารเท่านั้น ส่วน backend จะ apply สถานะ/stock หลัง ACK เฉพาะ
+// source=confirm_to_kitchen จึงไม่เปลี่ยนผลยกเลิกที่ endpoint ทำเสร็จแล้ว
 export interface CancelOrderItemResponse extends ApiEntity {
   status: string;
 

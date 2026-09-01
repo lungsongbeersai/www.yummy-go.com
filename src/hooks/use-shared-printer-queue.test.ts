@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { isSharedPrintJobForLocalOwner } from "@/hooks/use-shared-printer-queue";
+import {
+  isSharedPrintJobForLocalOwner,
+  sharedPrintExecutionKind,
+} from "@/hooks/use-shared-printer-queue";
 
 const windowsOwner = {
   agent_id: "windows-agent",
@@ -46,5 +49,26 @@ describe("shared printer owner queue", () => {
         windowsOwner,
       ),
     ).toBe(false);
+  });
+
+  it("uses document semantics for shared invoices and reports", () => {
+    expect(sharedPrintExecutionKind({
+      print_job_uuid: "invoice-job",
+      source: "print_invoice",
+    })).toBe("invoice");
+    expect(sharedPrintExecutionKind({
+      print_job_uuid: "report-job",
+      source: "report",
+    })).toBe("report");
+  });
+
+  it("keeps kitchen semantics for kitchen and unknown sources", () => {
+    expect(sharedPrintExecutionKind({
+      print_job_uuid: "kitchen-job",
+      source: "confirm_to_kitchen",
+    })).toBe("kitchen");
+    expect(sharedPrintExecutionKind({
+      print_job_uuid: "legacy-job",
+    })).toBe("kitchen");
   });
 });

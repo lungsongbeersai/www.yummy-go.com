@@ -1367,6 +1367,18 @@ html.theme-transition-active[data-theme-transition-direction="ltr"]::view-transi
   }
 }
 
+@keyframes native-route-progress-reveal {
+  to {
+    visibility: visible;
+  }
+}
+
+.native-route-progress {
+  /* หน่วงการแสดงเพื่อไม่ให้ navigation ที่เสร็จเร็วทำให้แถบกระพริบ */
+  visibility: hidden;
+  animation: native-route-progress-reveal 0s linear 120ms forwards;
+}
+
 .native-route-progress-bar {
   animation: native-route-progress 1.1s ease-in-out infinite;
 }

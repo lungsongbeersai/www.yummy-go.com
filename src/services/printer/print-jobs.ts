@@ -37,6 +37,7 @@ import type {
 
 const printerQueues = new Map<string, Promise<void>>();
 const kitchenExecutions = new Map<string, Promise<KitchenPrintResult>>();
+const documentExecutions = new Map<string, Promise<KitchenPrintResult>>();
 const deliveryLedgerMemory = new Map<string, StoredDelivery>();
 const DELIVERY_LEDGER_PREFIX = "yummy_kitchen_printer_delivery:";
 const MAX_AGENT_JOBS_PER_BATCH = 10;
@@ -58,14 +59,17 @@ function runOnPrinterQueue<T>(key: string, task: () => Promise<T>): Promise<T> {
 }
 
 function printerBatchQueueKey(batch: PrintOpsBatchPayload) {
-  return (
-    textValue(batch.print_config_uuid) ||
-    [
+  const physicalInterface = textValue(
+    batch.interface_value || batch.jobs?.[0]?.interface_value
+  ).toLowerCase();
+  if (physicalInterface) {
+    return [
       textValue(batch.agent_id),
       textValue(batch.device_code),
-      textValue(batch.interface_value || batch.jobs?.[0]?.interface_value),
-    ].join("|")
-  );
+      physicalInterface,
+    ].join("|");
+  }
+  return textValue(batch.print_config_uuid) || "unknown-printer";
 }
 
 function deliveryLedgerKey(jobUuid: string, batch: PrintOpsBatchPayload) {
@@ -484,6 +488,7 @@ async function executePrintJobs(
   options: {
     ack: boolean;
     idempotent?: boolean;
+    kitchenSemantics?: boolean;
     requireCompletionConfirmation?: boolean;
   },
 ): Promise<KitchenPrintResult> {
@@ -544,10 +549,12 @@ async function executePrintJobs(
   const globalAckFailed = pendingResult.ackFailed;
 
   if (pendingResult.hasBatchPayloads && batchPayloads.length === 0) {
-    // งานครัว (ack:true): backend/agent จัดการคิวพิมพ์และยืนยันสถานะออเดอร์เองทั้งหมด
+    // งานครัว: backend/agent จัดการคิวพิมพ์และยืนยันสถานะออเดอร์เองทั้งหมด
     // เมนูที่ไม่มี config เครื่องพิมพ์ backend รายงานเป็น failed_before_print แต่ยังยืนยันออเดอร์ให้ตามปกติ
-    // จึงไม่ใช่ความล้มเหลวฝั่ง client (workflow ใหม่) — ส่วนงานใบเสร็จ (ack:false) ยังต้องแจ้ง cashier ว่าพิมพ์ไม่ออก
-    const failedCount = options.ack ? 0 : pendingFailedBeforePrintTotal(pendingResult);
+    // จึงไม่ใช่ความล้มเหลวฝั่ง client ส่วนเอกสารยังต้องแจ้ง cashier ว่าพิมพ์ไม่ออก
+    const failedCount = options.kitchenSemantics
+      ? 0
+      : pendingFailedBeforePrintTotal(pendingResult);
     input.onProgress?.({
       total: failedCount,
       completed: failedCount,
@@ -710,7 +717,7 @@ async function executePrintJobs(
       } catch (error) {
         // Keep the local ledger. A repeated request will ACK the recorded
         // result without sending the bytes to this printer again.
-        console.error("[printer] kitchen batch ACK failed", error);
+        console.error("[printer] print batch ACK failed", error);
       }
     }
 
@@ -774,7 +781,7 @@ async function executePrintJobs(
       if (!item.can_print) {
         // งานครัว: เมนูที่พิมพ์ไม่ได้ (เช่น ไม่มี config เครื่องพิมพ์) — backend ยืนยันสถานะออเดอร์ให้เอง
         // ส่ง ack ให้ backend ปิดงานตามปกติ แต่ไม่นับเป็นความล้มเหลวฝั่ง client (workflow ใหม่)
-        if (options.ack) {
+        if (options.kitchenSemantics) {
           if (item.ack_failed_payload) {
             await ackPrintJob(
               ackPayloadWithLogin(
@@ -938,7 +945,13 @@ export async function executeKitchenPrintJobs(input: ExecuteKitchenPrintInput): 
   const jobUuid = textValue(
     input.pending_query?.print_job_uuid ?? input.print_job?.print_job_uuid
   );
-  if (!jobUuid) return executePrintJobs(input, { ack: true, idempotent: true });
+  if (!jobUuid) {
+    return executePrintJobs(input, {
+      ack: true,
+      idempotent: true,
+      kitchenSemantics: true,
+    });
+  }
 
   const existing = kitchenExecutions.get(jobUuid);
   if (existing) return existing;
@@ -946,6 +959,7 @@ export async function executeKitchenPrintJobs(input: ExecuteKitchenPrintInput): 
   const execution = executePrintJobs(input, {
     ack: true,
     idempotent: true,
+    kitchenSemantics: true,
     requireCompletionConfirmation: true,
   });
   kitchenExecutions.set(jobUuid, execution);
@@ -958,10 +972,34 @@ export async function executeKitchenPrintJobs(input: ExecuteKitchenPrintInput): 
   return execution;
 }
 
+function executeDocumentPrintJobs(
+  input: ExecuteInvoicePrintInput,
+): Promise<KitchenPrintResult> {
+  const jobUuid = textValue(
+    input.pending_query?.print_job_uuid ?? input.print_job?.print_job_uuid
+  );
+  if (!jobUuid) {
+    return executePrintJobs(input, { ack: true, idempotent: true });
+  }
+
+  const existing = documentExecutions.get(jobUuid);
+  if (existing) return existing;
+
+  const execution = executePrintJobs(input, { ack: true, idempotent: true });
+  documentExecutions.set(jobUuid, execution);
+  const cleanup = () => {
+    if (documentExecutions.get(jobUuid) === execution) {
+      documentExecutions.delete(jobUuid);
+    }
+  };
+  void execution.then(cleanup, cleanup);
+  return execution;
+}
+
 export async function executeInvoicePrintJobs(input: ExecuteInvoicePrintInput): Promise<KitchenPrintResult> {
-  return executePrintJobs(input, { ack: false });
+  return executeDocumentPrintJobs(input);
 }
 
 export async function executeReportPrintJobs(input: ExecuteReportPrintInput): Promise<KitchenPrintResult> {
-  return executePrintJobs(input, { ack: true });
+  return executeDocumentPrintJobs(input);
 }

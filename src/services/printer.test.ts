@@ -413,8 +413,9 @@ describe("printer service dispatch", () => {
     );
   });
 
-  it("prints invoice pending batch without acking", async () => {
+  it("prints an invoice batch and ACKs its physical delivery", async () => {
     const progressPhases: string[] = [];
+    const ackPayloads: AckPayload[] = [];
     const job = windowsPrintJob();
     const secondJob = windowsPrintJob({
       job_id: "invoice-item-2",
@@ -424,7 +425,7 @@ describe("printer service dispatch", () => {
       data: { agent_id: "agent-1", agent_name: "Local", device_code: "device-1" }
     });
     axiosMocks.post.mockResolvedValue({ data: { ok: true } });
-    apiMocks.apiRequest.mockImplementation(async (method, url) => {
+    apiMocks.apiRequest.mockImplementation(async (method, url, options) => {
       if (method === "get" && url === "/api/v1/printer/jobs/pending") {
         return {
           print_batch_payloads: [
@@ -439,7 +440,8 @@ describe("printer service dispatch", () => {
         };
       }
       if (method === "post" && url === "/api/v1/printer/jobs/ack") {
-        throw new Error("Invoice print should not ack");
+        ackPayloads.push(options?.data as AckPayload);
+        return {};
       }
       throw new Error(`Unexpected request ${method} ${url}`);
     });
@@ -463,11 +465,98 @@ describe("printer service dispatch", () => {
       { cut_mode: "per_ticket", jobs: [job, secondJob] },
       expect.objectContaining({ timeout: 75000 })
     );
-    expect(apiMocks.apiRequest).not.toHaveBeenCalledWith(
-      "post",
-      "/api/v1/printer/jobs/ack",
-      expect.anything()
-    );
+    expect(ackPayloads).toEqual([
+      { ...successAck, login_uuid_fk: "login-1" }
+    ]);
+  });
+
+  it("coalesces concurrent invoice execution for the same document job", async () => {
+    const job = windowsPrintJob({ job_id: "invoice-idempotent-item" });
+    const ackPayloads: AckPayload[] = [];
+    axiosMocks.get.mockResolvedValue({
+      data: { agent_id: "agent-1", agent_name: "Local", device_code: "device-1" }
+    });
+    axiosMocks.post.mockResolvedValue({ data: { ok: true } });
+    apiMocks.apiRequest.mockImplementation(async (method, url, options) => {
+      if (method === "get" && url === "/api/v1/printer/jobs/pending") {
+        return {
+          print_batch_payloads: [{
+            cut_mode: "per_ticket",
+            agent_id: "agent-1",
+            device_code: "device-1",
+            print_config_uuid: job.print_config_uuid,
+            jobs: [job]
+          }],
+          ack_success_payload: successAck
+        };
+      }
+      if (method === "post" && url === "/api/v1/printer/jobs/ack") {
+        ackPayloads.push(options?.data as AckPayload);
+        return {};
+      }
+      throw new Error(`Unexpected request ${method} ${url}`);
+    });
+
+    const input = {
+      pending_query: {
+        print_job_uuid: "invoice-idempotent-job",
+        login_uuid_fk: "login-1",
+        device_code: "device-1",
+        agent_id: "agent-1",
+        print_mode: "windows_agent"
+      }
+    };
+    const [first, second] = await Promise.all([
+      executeInvoicePrintJobs(input),
+      executeInvoicePrintJobs(input)
+    ]);
+
+    expect(first).toEqual({ successCount: 1, failedCount: 0, total: 1 });
+    expect(second).toEqual(first);
+    expect(axiosMocks.post).toHaveBeenCalledTimes(1);
+    expect(ackPayloads).toHaveLength(1);
+  });
+
+  it("retries a lost document ACK without printing the document again", async () => {
+    const job = windowsPrintJob({ job_id: "invoice-ack-retry-item" });
+    let ackAttempts = 0;
+    axiosMocks.get.mockResolvedValue({
+      data: { agent_id: "agent-1", agent_name: "Local", device_code: "device-1" }
+    });
+    axiosMocks.post.mockResolvedValue({ data: { ok: true } });
+    apiMocks.apiRequest.mockImplementation(async (method, url) => {
+      if (method === "get" && url === "/api/v1/printer/jobs/pending") {
+        return {
+          print_batch_payloads: [{
+            cut_mode: "per_ticket",
+            print_config_uuid: job.print_config_uuid,
+            jobs: [job]
+          }],
+          ack_success_payload: successAck
+        };
+      }
+      if (method === "post" && url === "/api/v1/printer/jobs/ack") {
+        ackAttempts += 1;
+        if (ackAttempts === 1) throw new Error("ACK response lost");
+        return {};
+      }
+      throw new Error(`Unexpected request ${method} ${url}`);
+    });
+    const input = {
+      pending_query: {
+        print_job_uuid: "invoice-ack-retry-job",
+        login_uuid_fk: "login-1",
+        device_code: "device-1",
+        agent_id: "agent-1",
+        print_mode: "windows_agent"
+      }
+    };
+
+    await executeInvoicePrintJobs(input);
+    await executeInvoicePrintJobs(input);
+
+    expect(axiosMocks.post).toHaveBeenCalledTimes(1);
+    expect(ackAttempts).toBe(2);
   });
 
   it("leaves a remote SHARED job for the owner device instead of printing on the child", async () => {
@@ -820,8 +909,13 @@ describe("printer service dispatch", () => {
   it("runs different printers concurrently and serializes the same printer", async () => {
     const jobs = {
       "queue-a1": windowsPrintJob({ job_id: "queue-a1-item-printer", print_config_uuid: "queue-printer-a", print_job_item_uuid: "queue-a1-item" }),
-      "queue-a2": windowsPrintJob({ job_id: "queue-a2-item-printer", print_config_uuid: "queue-printer-a", print_job_item_uuid: "queue-a2-item" }),
-      "queue-b": windowsPrintJob({ job_id: "queue-b-item-printer", print_config_uuid: "queue-printer-b", print_job_item_uuid: "queue-b-item" }),
+      "queue-a2": windowsPrintJob({ job_id: "queue-a2-item-printer", print_config_uuid: "queue-printer-a-alias", print_job_item_uuid: "queue-a2-item" }),
+      "queue-b": windowsPrintJob({
+        job_id: "queue-b-item-printer",
+        print_config_uuid: "queue-printer-b",
+        print_job_item_uuid: "queue-b-item",
+        interface_value: "win:BAR-PRINTER",
+      }),
     };
     const starts: string[] = [];
     let releaseFirstWave: () => void = () => {};
@@ -872,7 +966,7 @@ describe("printer service dispatch", () => {
     ]);
 
     expect(new Set(starts.slice(0, 2))).toEqual(new Set(["queue-printer-a", "queue-printer-b"]));
-    expect(starts[2]).toBe("queue-printer-a");
+    expect(starts[2]).toBe("queue-printer-a-alias");
   });
 
   it("falls back before calling the print agent when invoice batch payloads are empty", async () => {

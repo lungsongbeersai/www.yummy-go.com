@@ -523,10 +523,9 @@ export function useSelectedTableCartPanelWorkflow({
     });
   }
 
-  // ใบเสร็จยกเลิก: พิมพ์ผ่าน executeInvoice (ack:false) ไม่ใช่ executeKitchen (ack:true) —
-  // cancel_order_item เปลี่ยนสถานะ order item เสร็จตั้งแต่ตัว PATCH เอง ใบเสร็จที่พิมพ์ตามมา
-  // เป็นแค่เอกสารพิสูจน์ ไม่ใช่ trigger ปิดงานแบบใบสั่งครัว จึงพิมพ์ไม่สำเร็จก็ไม่ throw
-  // (ไม่ทำให้การยกเลิกที่สำเร็จแล้วดูเหมือนล้มเหลว) แค่รายงานผลกลับไปให้ toast รอง
+  // ใบเสร็จยกเลิกใช้ document executor เพื่อ ACK ปิดคิวเอกสาร แต่ backend จะ apply
+  // สถานะ/stock หลัง ACK เฉพาะงานครัว จึงไม่เปลี่ยนผลยกเลิกที่ PATCH ทำเสร็จแล้ว
+  // หากพิมพ์ไม่สำเร็จไม่ throw ทับผลธุรกิจ แค่รายงานผลกลับไปให้ toast รอง
   async function executeCancelReceiptPrint(
     response: Awaited<ReturnType<typeof cancelItem>>,
     fallbackLoginUuid: string,

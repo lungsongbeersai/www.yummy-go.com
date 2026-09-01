@@ -3,7 +3,9 @@
 import { useEffect, useRef } from "react";
 import { subscribePrintJobs, type PrintJobQueuedPayload } from "@/lib/socket";
 import {
+  executeInvoicePrintJobs,
   executeKitchenPrintJobs,
+  executeReportPrintJobs,
   getPendingPrintJobs,
   resolvePrinterDeviceIdentity,
   type AgentInfo,
@@ -13,6 +15,15 @@ import { useAuthStore } from "@/stores/auth-store";
 
 const POLL_INTERVAL_MS = 2500;
 const IDENTITY_REFRESH_MS = 10000;
+const DOCUMENT_PRINT_SOURCES = new Set([
+  "qr_table",
+  "print_invoice",
+  "payment_receipt",
+  "split_bill",
+  "split_invoice",
+  "split_receipt",
+  "cancel_order_item",
+]);
 
 function textValue(value: unknown) {
   return String(value ?? "").trim();
@@ -24,6 +35,17 @@ export function isSharedPrintJobForLocalOwner(ref: PendingPrintJobRef, agent: Ag
     textValue(ref.device_code) === textValue(agent.device_code) &&
     (!textValue(ref.agent_id) || textValue(ref.agent_id) === textValue(agent.agent_id))
   );
+}
+
+export function sharedPrintExecutionKind(
+  ref: PendingPrintJobRef,
+): "kitchen" | "invoice" | "report" {
+  const source = textValue(ref.source);
+  if (source === "report") return "report";
+  if (DOCUMENT_PRINT_SOURCES.has(source)) return "invoice";
+  // Missing/unknown sources keep the legacy kitchen behavior. This is safer
+  // for order state because kitchen ACK requires completion confirmation.
+  return "kitchen";
 }
 
 export function useSharedPrinterQueue() {
@@ -39,6 +61,7 @@ export function useSharedPrinterQueue() {
     if (!loginUuid || !branchUuid || offlineSession) return;
 
     let cancelled = false;
+    const inFlight = inFlightRef.current;
 
     async function localAgent() {
       const cached = identityRef.current;
@@ -54,11 +77,11 @@ export function useSharedPrinterQueue() {
 
     async function processRef(ref: PendingPrintJobRef, agent: AgentInfo) {
       const printJobUuid = textValue(ref.print_job_uuid);
-      if (!printJobUuid || inFlightRef.current.has(printJobUuid)) return;
-      inFlightRef.current.add(printJobUuid);
+      if (!printJobUuid || inFlight.has(printJobUuid)) return;
+      inFlight.add(printJobUuid);
 
       try {
-        const result = await executeKitchenPrintJobs({
+        const input = {
           pending_query: {
             print_job_uuid: printJobUuid,
             login_uuid_fk: loginUuid,
@@ -66,7 +89,13 @@ export function useSharedPrinterQueue() {
             agent_id: textValue(ref.agent_id) || textValue(agent.agent_id),
             print_mode: textValue(ref.print_mode) || undefined,
           },
-        });
+        };
+        const executionKind = sharedPrintExecutionKind(ref);
+        const result = executionKind === "report"
+          ? await executeReportPrintJobs(input)
+          : executionKind === "invoice"
+            ? await executeInvoicePrintJobs(input)
+            : await executeKitchenPrintJobs(input);
 
         if (result.failedCount > 0) {
           console.error("[shared-printer] owner print failed", {
@@ -80,7 +109,7 @@ export function useSharedPrinterQueue() {
           error: error instanceof Error ? error.message : error,
         });
       } finally {
-        inFlightRef.current.delete(printJobUuid);
+        inFlight.delete(printJobUuid);
       }
     }
 
@@ -130,7 +159,7 @@ export function useSharedPrinterQueue() {
       unsubscribe();
       window.clearInterval(interval);
       runningRef.current = false;
-      inFlightRef.current.clear();
+      inFlight.clear();
     };
   }, [offlineSession, user?.branch_uuid, user?.uuid]);
 }
