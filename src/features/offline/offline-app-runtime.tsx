@@ -36,6 +36,12 @@ export function OfflineAppRuntime() {
 
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
+    // ห้าม register ใน dev เสมอ — next.config.ts ปิด InjectManifest ตอน Turbopack dev เพราะไม่รองรับ
+    // (ดู providers.tsx: unregisterStaleServiceWorkersInDev) ถ้า register ที่นี่แบบไม่เช็คโหมด จะไป
+    // แย่ง register ใหม่ทับ SW ที่เพิ่งถูกล้างไป กลายเป็น loop ที่ SW เก่า (จาก `npm run build` ครั้ง
+    // ก่อนหน้าที่ยังไม่ถูกลบออกจาก public/offline-sw.js) พยายาม precache ไฟล์ hash เก่าที่ dev server
+    // ไม่มีจริง (404 รัว ๆ) จนบล็อก fetch ของทั้งหน้ารวมถึง request ล็อกอิน
+    if (process.env.NODE_ENV !== "production") return;
     let active = true;
     let reloadingForNewWorker = false;
 

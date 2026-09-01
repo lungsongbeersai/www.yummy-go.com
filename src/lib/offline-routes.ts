@@ -13,6 +13,7 @@ export const OFFLINE_WRITE_CAPABLE_PATHS = [
   "/pos/tables",
   "/pos/order",
   "/order_manage",
+  "/report/offline-sync",
 ] as const;
 
 // เพจ infra ที่ต้องใช้งานได้เสมอไม่ว่าสถานะออฟไลน์จะเป็นอย่างไร (ไม่ใช่ส่วนหนึ่งของฟีเจอร์

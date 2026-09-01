@@ -1658,6 +1658,32 @@
     "billsPerPage": "ສະແດງ",
     "billsPerPageValue": "{{count}} ບິນ/ໜ້າ",
     "branchRequired": "ບັນຊີນີ້ບໍ່ມີຂໍ້ມູນສາຂາ.",
+    "offlineSync": {
+      "title": "ລາຍການອອບລາຍທີ່ຕ້ອງກວດສອບ",
+      "description": "ລາຍການທີ່ເຊີບເວີປະຕິເສດຕອນຊິງຂໍ້ມູນ ຕ້ອງກວດສອບກ່ອນປິດກະ.",
+      "columns": {
+        "path": "Endpoint",
+        "method": "ວິທີ",
+        "error": "ສາເຫດ",
+        "updatedAt": "ອັບເດດລ່າສຸດ"
+      },
+      "retry": "ລອງໃໝ່",
+      "retrying": "ກຳລັງລອງໃໝ່...",
+      "discard": "ລົບຖິ້ມ",
+      "discarding": "ກຳລັງລົບ...",
+      "confirmDiscardTitle": "ລົບລາຍການນີ້ຖາວອນບໍ?",
+      "confirmDiscardDescription": "ລາຍການນີ້ຈະຖືກລົບອອກຈາກສຳເນົາໃນເບຣົາເຊີນີ້ຖາວອນ ແລະ ຈະບໍ່ຖືກສົ່ງໄປເຊີບເວີອີກ. ໝາຍເຫດ: ການລົບນີ້ບໍ່ໄດ້ແກ້ໄຂສະຖານະຝັ່ງ Local Printer Agent — ຖ້າ Agent ຍັງລາຍງານວ່າຕິດຢູ່ ຕ້ອງແກ້ທີ່ Agent ໂດຍກົງ.",
+      "confirmDiscardManyTitle": "ລົບ {{count}} ລາຍການທີ່ເລືອກຖາວອນບໍ?",
+      "confirmDiscardManyDescription": "ລາຍການທີ່ເລືອກທັງໝົດຈະຖືກລົບອອກຈາກສຳເນົາໃນເບຣົາເຊີນີ້ຖາວອນ ແລະ ຈະບໍ່ຖືກສົ່ງໄປເຊີບເວີອີກ. ໝາຍເຫດ: ການລົບນີ້ບໍ່ໄດ້ແກ້ໄຂສະຖານະຝັ່ງ Local Printer Agent — ຖ້າ Agent ຍັງລາຍງານວ່າຕິດຢູ່ ຕ້ອງແກ້ທີ່ Agent ໂດຍກົງ.",
+      "selectedCount": "ເລືອກແລ້ວ {{count}} ລາຍການ",
+      "agentMismatchTitle": "Agent ຍັງລາຍງານວ່າມີ {{count}} ລາຍການຕິດຢູ່",
+      "agentMismatchDescription": "ຕົວເລກນີ້ມາຈາກ Local Printer Agent ໂດຍກົງ ອາດບໍ່ຕົງກັບລາຍການລຸ່ມນີ້ (ເຊິ່ງເປັນແຄ່ສຳເນົາໃນເບຣົາເຊີ). ການລອງໃໝ່/ລົບຖິ້ມທີ່ໜ້ານີ້ບໍ່ໄດ້ແກ້ໄຂຂໍ້ມູນຝັ່ງ Agent — ຖ້າຕົວເລກນີ້ບໍ່ຫຼຸດ ໃຫ້ຕິດຕໍ່ທີມທີ່ດູແລ Local Printer Agent.",
+      "empty": {
+        "title": "ບໍ່ມີລາຍການທີ່ຕ້ອງກວດສອບ",
+        "description": "ລາຍການອອບລາຍທັງໝົດຊິງຂໍ້ມູນສຳເລັດແລ້ວ."
+      },
+      "loadFailed": "ໂຫຼດລາຍການບໍ່ສຳເລັດ"
+    },
     "bestSelling": {
       "adjustFilters": "ປັບຊ່ວງວັນທີ, ສາຂາ, ກຸ່ມ ຫຼື ການຈັດລຽງ.",
       "cards": {

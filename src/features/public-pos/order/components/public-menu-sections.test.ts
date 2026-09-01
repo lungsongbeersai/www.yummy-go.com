@@ -10,7 +10,8 @@ vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string, options?: { count?: number }) =>
       key === "pos.itemCount" ? `${options?.count ?? 0} ລາຍການ` : key
-  })
+  }),
+  initReactI18next: { type: "3rdParty", init: () => {} }
 }));
 
 vi.mock("next/dynamic", async () => {

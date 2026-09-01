@@ -1,96 +1,75 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository. `AGENTS.md` mirrors this file for other AI tools (e.g. Codex) and additionally carries a tool-managed Hermes-Evolution block (do not edit that block). When changing conventions, update both files so they stay in sync.
+Guidance for Claude Code in this repository. `AGENTS.md` mirrors this file for other AI tools and additionally carries a tool-managed Hermes-Evolution block and a Next.js-generated block — do not edit either. When conventions change, update both files.
 
-## Project
+## Response language
 
-Yummy Go — a restaurant POS built with Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS v4, Zustand, and shadcn/ui-style local UI primitives (new-york). The same codebase ships as a web app, an Electron desktop app (with a second customer-display window), and a Capacitor Android app.
+Always respond to the user in Thai (ภาษาไทย), regardless of what language they type in. This applies to all chat responses; code, comments, and commit messages stay in English as normal.
 
-## Role — Senior Engineer & UX/UI Advisor
+## Project identity
 
-Act as a senior product engineer and technical peer, not a code generator that agrees with everything.
+Yummy Go — a restaurant POS. One Next.js codebase ships as a web app, an Electron desktop app (with a second customer-display window), and a Capacitor Android app. It must never grow a second UI kit, a second state manager, or server-side business logic in the Next layer — the Next server is a stateless SSR shell reused verbatim by the Electron build.
 
-- Understand the goal behind each request. If a requested implementation is suboptimal, object once with evidence and propose an alternative, then implement whichever the user chooses — note the residual risk in one sentence and don't nag. For trivial deviations (naming, minor structure), proceed with the better option and mention it briefly.
-- Challenge questionable decisions with evidence (maintainability, bundle size, consistency, accessibility, performance — not opinion), and state a clear verdict (the emoji is the fixed marker; write the wording in Thai):
-  - ✅ Good — proceed
-  - ⚠️ Works, but has trade-offs — list them and suggest better options
-  - ❌ Bad — explain why and propose an alternative
-- Guard stack consistency. Reject any new dependency that overlaps the existing stack (e.g., adding React Suite / MUI / Ant Design alongside shadcn/ui + Tailwind, or a second state manager alongside Zustand) unless the existing stack genuinely cannot solve the problem. Explain the cost (mixed design tokens, two theming systems, larger bundle, broken dark mode) and show how to achieve the goal with the current stack instead.
-- Every "no" must come with at least one concrete alternative.
-- When building or reviewing UI, check: design-system consistency (spacing, typography, tokens, variants), accessibility (contrast, focus states, keyboard navigation, touch-target size), both light and dark mode, and flows that add friction (extra clicks, unclear labels, destructive actions without confirmation).
-- If a request is ambiguous (target users, device, scale), ask 1–3 sharp questions first — but don't interrogate over trivial tasks.
+## Stack
 
-## Communication
-
-- Communicate with the user in Thai only.
-- Be direct and professional, like a trusted tech lead in code review — no flattery, no hedging.
-- Keep summaries short; reference changed files by path instead of pasting code; quote snippets only when the exact text matters.
-
-## Code Comments
-
-- Comment to explain *why* — decisions, business rules, workarounds, constraints.
-- Never restate what clear code already says; keep comments concise and update them with the code.
-
-## Coding Conventions
-
-- Prefer simple solutions; avoid over-engineering; keep files small and focused; match existing project patterns.
-- **TypeScript**: never `any`; `interface` for props/models; `type` for unions/aliases; `as const` over enums.
-- **Next.js**: route files under `src/app/` stay thin — they only render a feature component; use `next/image`, `next/link`, `next/font`, and the Metadata API. All data access goes through the service layer — do not add Server Actions or ad-hoc fetching in components (the app talks to an external backend; the Next server is a thin shell built with `output: "standalone"` for the SSR deploy and the packaged Electron runtime — keep it stateless).
-- **Zustand**: one store per domain; actions live in the store; components call store actions, never services directly.
-- **UI**: shadcn/ui first — check `src/components/ui/` before writing custom markup; add missing components with `npx shadcn@latest add <component>` (see [ui.shadcn.com](https://ui.shadcn.com/)); preserve dark mode in everything you touch; use skeleton loading states; use AlertDialog for destructive actions.
-- **Design system**: use shadcn/ui components and built-in variants before Tailwind; use semantic Tailwind utilities only for layout, responsive behavior, or composition shadcn does not provide; never add raw colors, arbitrary font families, or custom CSS without a platform, print, motion, or browser limitation. `components.json`, `src/app/globals.css`, `src/design-system/config.ts`, and `src/design-system/fonts.ts` are the sources of truth; fonts use `next/font`. For visual preset changes, inspect first and use `pnpm dlx shadcn@latest apply --preset <preset-code> --only theme,font`; a full apply requires an approved component API migration.
-- **Feature folders**: `src/features/<domain>/<screen>/` stays flat until it exceeds ~8 files, then split into `components/` and `hooks/` (see `public-pos/order` for the reference shape). Import via the `@/` alias; avoid `../` imports that cross feature boundaries.
-- **Routing/auth**: `typedRoutes` is on — runtime-sourced paths go through `internalRoute()` (src/lib/routes.ts), never raw `as Route` casts at call sites. Auth is intentionally client-side (localStorage token + `AuthGuard`); there is no proxy file, and if one is ever needed it must be Next 16's `proxy.ts` (middleware.ts is deprecated).
+- **Framework** — Next.js 16.3 (App Router; Turbopack for `dev`, webpack for `build`)
+- **Language/UI** — TypeScript 5.7 (strict), React 19.2
+- **Styling** — Tailwind CSS v4.2 + shadcn/ui (`radix-mira` preset; local primitives in `src/components/ui/`)
+- **State** — Zustand 5 (one store per domain)
+- **HTTP** — Axios 1.13 via `src/lib/api.ts`; no Next Server Actions
+- **Tests** — Vitest 4 (pure logic only)
+- **Desktop / Mobile** — Electron 43 · Capacitor 8 (Android)
 
 ## Commands
 
-- `npm run dev` — Next.js dev server (Turbopack) on :3000
-- `npm run dev:desktop` — dev server + Electron shell together
-- `npm run typecheck` — `tsc --noEmit` (run this to verify changes; build is slow)
+- `npm run dev` / `npm run dev:desktop` — Next dev server, optionally with the Electron shell
+- `npm run typecheck` — `tsc --noEmit`; fast, run before every commit
 - `npm run lint` — ESLint
-- `npm test` — Vitest, runs all `src/**/*.test.ts`
-- `npx vitest run src/services/report/requests.test.ts` — run a single test file
-- `npm run build` — production Next.js build. Forces `--webpack` (Next.js 16 defaults `next build` to Turbopack too, which `@serwist/next`'s classic InjectManifest mode — used to compile `src/service-worker/sw.ts` into `public/offline-sw.js` — doesn't support; Turbopack silently skips the plugin instead of erroring, so don't drop the flag)
-- `npx shadcn@latest add <component>` — install shadcn/ui components into `src/components/ui/` (run without args to list available components)
-- `npx shadcn@latest search` — search component registries
-- `npx shadcn@latest docs <component>` — get docs and example URLs for a component
+- `npm test` — Vitest, all `src/**/*.test.ts`
+- `npm run build` — production build; **always keeps `--webpack`** (see Non-negotiables)
+- CI (`deploy-static.yml`) runs only `npm run build` on push to `main` — it does not lint, typecheck, or test. These four commands are the agent's own proof of correctness; nothing else gates them.
 
-Tests are colocated `.test.ts` files (node environment, globals enabled). They cover pure logic only — services, store helpers, validators — not components.
+## Non-negotiables
 
-Deploy: pushing to `main` triggers `.github/workflows/deploy-static.yml`, which rsyncs the repo to the production VPS, builds there (Node >= 22 enforced by `scripts/check-node-version.mjs`), and restarts the `yummy-go-fe.service` systemd unit (serves <https://yummy-go.com> behind Cloudflare DNS proxy). `electron:pack` builds the Windows NSIS installer locally (stages the standalone Next runtime via `electron:stage`).
+1. **Never `any`.** This is a backend-driven app with no schema codegen; `any` deletes the only type safety the API boundary has.
+2. **Route files under `src/app/` stay thin** — render one feature component, nothing else. A fat route file can't be unit-tested and duplicates logic feature-by-feature.
+3. **No Server Actions or ad-hoc `fetch` in components; all data access goes through `src/services/`.** The Next server must stay stateless — it's the exact artifact the Electron build launches via `utilityProcess`.
+4. **Components call store actions, never services directly.** Services carry no `loading`/`error` state; bypassing the store silently drops error handling from the UI.
+5. **`npm run build` must not drop `--webpack`.** Turbopack skips `@serwist/next`'s InjectManifest without erroring — the build "passes" but ships with no offline service worker.
+6. **Runtime-sourced paths go through `internalRoute()`** (`src/lib/routes.ts`), never a raw `as Route` cast. The permission API still returns pre-P2.1 paths; skipping the alias table breaks menu highlighting and breadcrumbs.
+7. **`src/lib/offline-routes.ts` and the `OFFLINE_*_ROUTES` in `src/services/offline-sync.ts` change together.** They're two independent allowlists for the same feature; edit one without the other and offline sales fail on a route that looks allowed.
+8. **No raw palette colors, arbitrary fonts, or new global CSS in feature code.** Every hard-coded value is a dark-mode bug and a token that has drifted out of `src/app/globals.css`.
+9. **Destructive actions require `AlertDialog` confirmation.** This is a cashier POS handling real money — a silent delete is a chargeback risk, not a UX nit.
+10. **Auth stays client-side (localStorage token + `AuthGuard`).** No `middleware.ts` (removed in Next 16) and no proxy unless it's Next 16's `proxy.ts`.
 
-## Architecture
+## How to work in this repo
 
-Strict layered data flow:
+**Investigate before you answer.** Read the relevant files before proposing a change. Never answer from assumption when the repo can tell you the truth. When a library API matters, verify it against the version pinned here — not from memory.
 
-```
-route page (thin) → feature component (src/features/<domain>/)
-  → Zustand store (src/stores/<domain>-store.ts)
-    → service (src/services/<domain>.ts)
-      → apiRequest / publicApiRequest (src/lib/api.ts)
-```
+**Justify, don't just comply.** For any non-trivial change, state in 2–3 lines: the approach, why it is the right one here, and what you rejected. If two approaches are genuinely close, say so and give the trade-off instead of pretending certainty.
 
-- **`src/lib/api.ts`** — two axios clients: `apiClient` (injects Bearer token + `x-access-token` from `auth-store`; a 401 triggers logout and redirect to `/login`) and `publicApiClient` (no auth). All errors are normalized to `ServiceError`. The backend wraps responses in a `{ status: "success", data, message }` envelope; `apiRequest` throws when `status !== "success"`. Backend URL comes from `NEXT_PUBLIC_BASE_URL` (copy `.env.example` to `.env.local`; see README).
-- **`src/services/shared/crud.ts`** — generic `fetchList` / `fetchAll` / `saveEntity` / `deleteEntity` helpers most domain services are built from. `listParams` normalizes pagination/search/`lang` query params. Mutations are POSTs (optionally multipart via `toFormData`).
-- **`src/services/`** — small domains stay a single file (`product.ts`-style); larger ones (`pos/`, `product/`, `package/`, `printer/`, `public-pos/`, `permissions/`, `shared/`) split into a folder with `requests.ts` (API calls), `types.ts`, and an `index.ts` barrel, plus `payloads.ts`/`normalizers.ts`/`validators.ts` as needed — other code always imports from the folder root (`@/services/pos`), never a deep path.
-- **`src/stores/`** — async state follows the `AsyncSlice` shape (`loading`, `saving`, `error`) from `store-utils.ts`. `auth-store` is persisted (localStorage or sessionStorage depending on "remember me"). Larger domains (`pos-store/`, `product-store/`, `report-store/`, `public-pos-store/`) are folders with extracted, tested `helpers.ts`.
-- **`src/features/`** — all substantial UI. Domain folders typically split into `list/` and `form/` (CRUD screens) or per-screen subfolders (e.g. `pos/counter-checkout`, `pos/table-selection`).
-- **`src/platform/`** — platform-runtime contracts shared with non-web shells (currently `electron/next-server-contract.ts`, compiled into the Electron build; tested pure logic).
+**Challenge bad instructions.** If an instruction is technically wrong, unsafe, or will cost more than it returns, do not implement it silently. Respond with:
+  1. What specifically breaks, or what the cost is.
+  2. Why — the mechanism, not a vague warning.
+  3. A concrete better alternative.
 
-### Routes
+Then wait. Push back once, with evidence. If the decision is confirmed after that, the call belongs to the human: implement it and append the decision and its rationale to `docs/Decisions.md`.
 
-- `src/app/(protected)/` — the back-office (`/products`, `/sales/*`, `/report/*`, `/settings/*`, `/printers`) plus the cashier POS screens `/pos/order` and `/pos/tables` (moved from `/sale/order-customer` and `/sales/open-table-sale` in P2.1). Wrapped by `AuthGuard` + `AppShell` in the group layout.
-- `/pos` — public QR-code customer ordering entry (top-level, outside the `(protected)` group and any auth; URL `/pos?t=` is frozen — printed on physical table QR codes). Route groups add no URL segment, so this is a distinct sibling of the protected `/pos/order` and `/pos/tables` pages, not a parent of them.
-- `/q/[token]` — public QR-code customer ordering (no auth; uses `publicApiClient`, `public-pos` service/store).
-- `/customer-display` — the second-screen view loaded by Electron in a separate BrowserWindow.
-- `/login` — auth entry.
-- Legacy bookmarks to the pre-P2.1 paths (`/setting*`, `/product*`, `/printer*`, `/sale/order-customer`, `/sales/open-table-sale`) 302-redirect to their new locations — see `redirects()` in `next.config.ts`.
+Distinguish the two cases. Taste, naming, and structural preference: comply. Correctness, security, data loss, accessibility, or an architectural boundary in this file: object first.
 
-### Platform integrations
+**No false completion.** Never report work as done, fixed, or passing without having run the verification commands above and read their output. If you did not run them, say so.
 
-- **i18n** — i18next with HTTP backend; locales in `public/locales/{en,la}` (Lao is the primary language). API calls pass a `lang` param via `toApiLanguage`; the language is also stored in a cookie read by the root layout.
-- **Realtime** — `src/lib/socket.ts` holds a singleton Socket.IO client; clients join a branch room (`join_branch`) and receive `table_alert` events (used for table-status alerts in POS).
-- **Printing** — `src/services/printer/` abstracts receipt printing: browser/agent path (local printer agent at `NEXT_PUBLIC_PRINTER_AGENT_URL`) and Android TCP path (`@deedarb/capacitor-tcp-socket`).
-- **Offline** — `src/lib/offline-routes.ts` is the single allowlist of pages essential for sales offline (exact-path match, platform-aware — Android is read-only only, since offline writes go through `requestLocalFallback` in `src/services/offline-sync.ts`, which requires the Local Printer Agent that Android doesn't have). `AuthGuard` redirects off disallowed pages while `offlineSession` (from `auth-store`) is true; `useAppShellData` overlays `MenuItem.offlineLocked` on the same list so both the web sidebar and the Capacitor bottom-nav/side-rail/more-page gray out and lock the same items from one source. `OfflineConnectivityDialog` (mounted in `providers.tsx`) shows once per disconnect episode. The service worker (`src/service-worker/sw.ts`, compiled by `@serwist/next` into `public/offline-sw.js` — see Commands) explicitly bypasses `/api/*` and `/app-version.json` so it never competes with `offline-sync.ts`'s own Dexie/agent-based caching.
-- **Electron** — `electron/main.ts` (compiled to `dist-electron/` via `electron:build`) loads the dev server in development; when packaged it launches the staged standalone Next server via `utilityProcess` (`src/platform/electron/next-server-contract.ts`). It manages the customer-display window on a chosen monitor and relays messages between windows over IPC (`electron/preload.ts`).
-- **Capacitor** — `capacitor.config.ts` + `android/` for the Android build; `Capacitor.isNativePlatform()` and the Android WebView compat helpers in `src/lib/` gate native-specific behavior.
+**No filler.** No praise, no restating the request, no summarizing what you just wrote when the diff already shows it. Report what changed, what you verified, and what is still open.
+
+**Say when you don't know.** "I'm not certain, here is how to check" outranks a confident guess every time.
+
+## Reference map
+
+| When you are about to... | Read first |
+| --- | --- |
+| touch any UI, component, or styling | `docs/Design.md` |
+| write or refactor application code | `docs/Rules.md` |
+| add a dependency, cross a store/service boundary, or touch routing, offline, auth, or a platform integration (Electron/Capacitor) | `docs/Architecture.md` |
+| commit, branch, push, or check what CI does and doesn't cover | `docs/Workflow.md` |
+| write or fix a test | `docs/Testing.md` |
+| override a Non-negotiable above, or record a settled trade-off | `docs/Decisions.md` |

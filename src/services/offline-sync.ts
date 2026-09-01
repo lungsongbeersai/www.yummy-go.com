@@ -6,6 +6,7 @@ import type { HttpMethod, RequestOptions } from "@/lib/api";
 import {
   browserSyncQueueHasRetryableWork,
   cacheBrowserApiResponse,
+  discardBrowserSyncEvent,
   getBrowserSyncQueueSummary,
   listBrowserSyncQueue,
   noteBrowserMutation,
@@ -17,6 +18,7 @@ import {
   type BrowserOfflineScope,
   type BrowserOfflineStore,
   type BrowserSyncEventStatus,
+  type BrowserSyncQueueEntry,
   type BrowserSyncQueueSummary,
 } from "@/services/offline-db";
 
@@ -466,6 +468,12 @@ async function waitForLocalBootstrap(timeoutMs = 45000) {
 
 async function warmOfflineRoutes(routes: string[], timeoutMs = 30000) {
   if (!("serviceWorker" in navigator)) return true;
+  // `.ready` only resolves once a registration exists for this scope and becomes active — it hangs
+  // forever if register() was never called (e.g. dev, where offline-app-runtime.tsx intentionally
+  // skips registration). Check for an existing registration first so this returns immediately when
+  // there is nothing to wait for, instead of stalling the whole login flow.
+  const existingRegistration = await navigator.serviceWorker.getRegistration("/");
+  if (!existingRegistration) return true;
   const registration = await navigator.serviceWorker.ready;
   if (!registration.active) return false;
   return new Promise<boolean>((resolve) => {
@@ -762,6 +770,28 @@ export async function reconcileBrowserSyncQueue(
   }
 
   return getBrowserSyncQueueSummary(scope, browserStore);
+}
+
+export async function listBlockedBrowserSyncEvents(
+  scope: BrowserOfflineScope,
+  browserStore?: BrowserOfflineStore,
+): Promise<BrowserSyncQueueEntry[]> {
+  const entries = await listBrowserSyncQueue(scope, browserStore);
+  return entries.filter((entry) => entry.status === "BLOCKED");
+}
+
+export async function retryBlockedBrowserSyncEvent(
+  eventUuid: string,
+  browserStore?: BrowserOfflineStore,
+) {
+  return updateBrowserSyncEvent(eventUuid, { status: "STAGED", lastError: null }, browserStore);
+}
+
+export async function discardBlockedBrowserSyncEvent(
+  eventUuid: string,
+  browserStore?: BrowserOfflineStore,
+) {
+  return discardBrowserSyncEvent(eventUuid, browserStore);
 }
 
 export function browserLocalSyncHasRetryableWork(summary: BrowserSyncQueueSummary) {
