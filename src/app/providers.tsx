@@ -115,6 +115,22 @@ function applyCapacitorPlatformClasses() {
   };
 }
 
+// next.config.ts ปิด SW ใน dev เสมอ (Turbopack ไม่รองรับ InjectManifest) แต่ browser ยังคง SW ที่เคย
+// register ไว้ตอนรัน `npm start` (production) บน origin เดียวกันค้างไว้ได้ — asset hash ของ Turbopack
+// dev กับของ webpack build คนละชุดกัน ทำให้ SW เก่าพยายาม precache ไฟล์ที่ dev server ไม่มีจริง (404
+// รัว ๆ ใน console) หรือแย่กว่านั้นคือ CSP ของ SW เก่าบล็อก fetch ทุกตัวจนแอปดูเหมือนออฟไลน์ทั้งที่เน็ตปกติ
+// ล้าง SW ทิ้งอัตโนมัติเฉพาะ dev เพื่อไม่ให้นักพัฒนาต้องมานั่งไล่ unregister มือเองทุกครั้งที่สลับโหมด
+function unregisterStaleServiceWorkersInDev() {
+  if (process.env.NODE_ENV === "production") return;
+  if (!("serviceWorker" in navigator)) return;
+  void navigator.serviceWorker.getRegistrations().then((registrations) => {
+    if (registrations.length === 0) return;
+    void Promise.all(registrations.map((registration) => registration.unregister())).then(() => {
+      window.location.reload();
+    });
+  });
+}
+
 export function Providers({ children, initialLanguage }: ProvidersProps) {
   const mounted = useIsMounted();
   const appliedThemeRef = useRef(false);
@@ -129,6 +145,10 @@ export function Providers({ children, initialLanguage }: ProvidersProps) {
   if (!mounted && i18n.language !== initialLanguage) {
     void i18n.changeLanguage(initialLanguage);
   }
+
+  useEffect(() => {
+    unregisterStaleServiceWorkersInDev();
+  }, []);
 
   useEffect(() => {
     const cleanupCapacitorPlatformClasses = applyCapacitorPlatformClasses();

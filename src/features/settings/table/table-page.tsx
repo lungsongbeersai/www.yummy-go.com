@@ -14,12 +14,11 @@ import { useOptionRowSelection } from "@/features/settings/shared/use-option-row
 import { useSettingsCrudController } from "@/features/settings/shared/use-settings-crud-controller";
 import { PAGE_LIMIT_OPTIONS } from "@/lib/pagination";
 import type { UrlPaginationState } from "@/lib/url-pagination";
-import { deleteTables } from "@/services/table";
 import type { FetchTablesParams, SaveTableInput, Table as DiningTable, TableListRow } from "@/services/table";
 import type { Zone } from "@/services/zone";
 import { useBranchStore } from "@/stores/branch-store";
 import { useReferenceStore } from "@/stores/reference-store";
-import { useTableStore } from "@/stores/table-store";
+import { removeTables, useTableStore } from "@/stores/table-store";
 import { TableFormDialog } from "./table-form-dialog";
 import { TableListSurface } from "./table-list";
 import {
@@ -288,7 +287,7 @@ export function TableSettingsPage({ initialPagination }: { initialPagination: Ur
     if (!ids.length) return;
     setBulkDeleting(true);
     try {
-      await deleteTables(ids);
+      await removeTables(ids);
       showToast({ title: t("settings.deleted"), tone: "success" });
       setBulkDeleteOpen(false);
       toggleAll(false);

@@ -1,5 +1,7 @@
 import type { NextConfig } from "next";
-import { dirname } from "path";
+import { createHash } from "crypto";
+import { readFileSync, readdirSync, statSync } from "fs";
+import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 import withSerwistInit from "@serwist/next";
 
@@ -46,11 +48,62 @@ const serviceWorkerCsp = [
 // --webpack ตรงๆ (ไม่งั้น InjectManifest ไม่ทำงานเลย แต่ build จะ "ผ่าน" เงียบๆ โดยไม่มี offline-sw.js)
 // ทดสอบ service worker จริงต้อง `npm run build && npm start` เท่านั้น — disable ใน dev เพราะ
 // Turbopack ไม่รองรับ InjectManifest ตามคำแนะนำทางการของ @serwist/next เอง
+// ดีฟอลต์ของ @serwist/next คือ globPublicPatterns: ["**/*"] กวาดทั้ง public/ เข้า precache
+// (บล็อก SW install จนกว่าจะครบ) รวมไดรเวอร์เครื่องพิมพ์/ตัวติดตั้ง/โมเดล 3D/ฟอนต์ที่ไม่ได้ใช้จริง
+// ไป ~64MB — ยิ่งไฟล์เยอะ SW เวอร์ชันใหม่ยิ่ง activate ช้าหลัง deploy ทำให้ refresh ธรรมดา (ผ่าน SW)
+// เจอของเก่าอยู่ ต่างจาก Ctrl+Shift+R ที่ bypass SW ไปเลยจึงดูเหมือน "ใหม่" แต่ไม่ได้ช่วยให้ SW อัปเดตเร็วขึ้น
+// รายการนี้ตัดเหลือเฉพาะไฟล์ที่แอปใช้จริง (เทียบกับ src/design-system/fonts.ts และ grep การอ้างอิงจริง)
+// app-version.json ตัดออกด้วย เพราะ PrecacheRoute ถูก register ก่อน runtimeCaching เสมอ (ดู sw.ts) การ
+// precache มันจะ "ชนะ" NetworkOnly bypass ที่ตั้งใจไว้ ทำให้เวอร์ชันเช็คได้ค่าเก่าที่แช่แข็งไว้ตอน SW install
+//
+// เดิมใช้ `globPublicPatterns` (glob ของ @serwist/next เอง) แต่ package `glob` คืน path เป็น backslash
+// บน Windows แม้ pattern จะเขียนด้วย "/" — ทำให้ manifest URL ผิด (เช่น "/auth\login-hero.png") และ 404
+// ตอน SW install บนเครื่องที่ build ด้วย Windows (รวม `electron:pack` ที่ build installer บน Windows ตรงๆ)
+// เดิน directory เองแล้ว join ด้วย "/" ตรงๆ แทน เลี่ยงปัญหานี้ทั้งหมดไม่ว่าจะ build จากแพลตฟอร์มไหน
+const PRECACHE_PUBLIC_INCLUDES = [
+  "auth",
+  "brand",
+  "fonts/Noto_Sans/NotoSans-VariableFont_wdth,wght.ttf",
+  "fonts/Noto_Sans_Lao/NotoSansLao-VariableFont_wdth,wght.ttf",
+  "fonts/saysettha_ot.ttf",
+  "fonts/times.ttf",
+  "fonts/window-open-fonts.css",
+  "landing",
+  "locales",
+  "manifest.webmanifest",
+  "pos",
+  "sounds",
+];
+
+function collectPublicPrecacheEntries(publicDir: string, includes: string[]) {
+  const entries: { url: string; revision: string }[] = [];
+
+  function addFile(relPath: string) {
+    const revision = createHash("md5")
+      .update(readFileSync(join(publicDir, relPath)))
+      .digest("hex");
+    entries.push({ url: `/${relPath.split(/[\\/]/).join("/")}`, revision });
+  }
+
+  function walk(relPath: string) {
+    const absPath = join(publicDir, relPath);
+    if (statSync(absPath).isDirectory()) {
+      for (const name of readdirSync(absPath)) walk(join(relPath, name));
+    } else {
+      addFile(relPath);
+    }
+  }
+
+  for (const include of includes) walk(include);
+  return entries;
+}
+
 const withSerwist = withSerwistInit({
   swSrc: "src/service-worker/sw.ts",
   swDest: "public/offline-sw.js",
   swUrl: "/offline-sw.js",
   cacheOnNavigation: false,
+  additionalPrecacheEntries: collectPublicPrecacheEntries(join(appDir, "public"), PRECACHE_PUBLIC_INCLUDES),
   // offline-app-runtime.tsx ควบคุมการ register/reload เอง (ต้องจับ controllerchange + postMessage
   // WARM_OFFLINE_ROUTES ตามจังหวะ login ของแอป) — ปล่อยให้ Serwist auto-register จะ register ซ้ำ
   register: false,

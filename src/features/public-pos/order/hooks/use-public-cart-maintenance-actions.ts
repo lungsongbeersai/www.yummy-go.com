@@ -165,7 +165,13 @@ export function usePublicCartMaintenanceActions({
     if (confirming) return;
 
     const payload = getConfirmableOrderPayload(cart, cartStatusRule);
-    if (!payload) return;
+    if (!payload) {
+      // ปุ่มเปิดใช้งานตาม confirmableItems (กรองแค่ isConfirmableCartItem) แต่ payload ต้องมี
+      // order_uuid ด้วย — ถ้า order ไหนยังไม่มี order_uuid (เช่น เพิ่งสร้างตอนออฟไลน์แล้วยัง sync
+      // ไม่เสร็จ) ปุ่มจะกดได้แต่หาอะไรยืนยันไม่เจอ ต้องแจ้งผู้ใช้แทนที่จะเงียบไปเฉยๆ
+      toast({ title: t("pos.orderConfirmFailed"), tone: "error" });
+      return;
+    }
 
     try {
       await confirmKitchen({
