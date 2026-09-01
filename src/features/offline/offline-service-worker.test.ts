@@ -4,8 +4,8 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 const testDir = dirname(fileURLToPath(import.meta.url));
-const serviceWorker = readFileSync(
-  join(testDir, "..", "..", "..", "public", "offline-sw.js"),
+const serviceWorkerSource = readFileSync(
+  join(testDir, "..", "..", "service-worker", "sw.ts"),
   "utf8"
 );
 const offlineRuntime = readFileSync(
@@ -22,14 +22,14 @@ const apiTransport = readFileSync(
 );
 
 describe("offline asset cache", () => {
-  it("keeps the complete Next Image query in the cache identity", () => {
-    expect(serviceWorker).toContain("assets-v2");
-    expect(serviceWorker).toContain(
-      "cache.match(request, { ignoreSearch: false })"
-    );
-    expect(serviceWorker).not.toContain(
-      "cache.match(request, { ignoreSearch: true })"
-    );
+  it("delegates Next Image caching to @serwist/next's defaultCache instead of a hand-rolled entry", () => {
+    // @serwist/next's own /_next/image runtime-caching entry sets no matchOptions, so
+    // caches.match() falls back to the Cache API default (ignoreSearch: false) and keys on
+    // the full query string (?url=...&w=...) — different image sizes can't collide. A custom
+    // /_next/image entry in sw.ts would risk reintroducing that collision.
+    expect(serviceWorkerSource).toContain('from "@serwist/next/worker"');
+    expect(serviceWorkerSource).toContain("...defaultCache");
+    expect(serviceWorkerSource).not.toContain("_next/image");
   });
 
   it("reloads an open customer tab when the corrected worker takes control", () => {
