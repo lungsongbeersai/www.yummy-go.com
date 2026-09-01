@@ -1658,6 +1658,32 @@
     "billsPerPage": "Bills per page",
     "billsPerPageValue": "{{count}} bills/page",
     "branchRequired": "Your login does not include a branch.",
+    "offlineSync": {
+      "title": "Offline items needing review",
+      "description": "Items the server rejected while syncing. Review them before closing the shift.",
+      "columns": {
+        "path": "Endpoint",
+        "method": "Method",
+        "error": "Reason",
+        "updatedAt": "Last updated"
+      },
+      "retry": "Retry",
+      "retrying": "Retrying...",
+      "discard": "Discard",
+      "discarding": "Discarding...",
+      "confirmDiscardTitle": "Discard this item permanently?",
+      "confirmDiscardDescription": "This permanently removes it from this browser's local copy — it will never be sent to the server again. Note: this does not fix the status on the Local Printer Agent — if the Agent still reports it as blocked, that has to be resolved on the Agent directly.",
+      "confirmDiscardManyTitle": "Discard {{count}} selected items permanently?",
+      "confirmDiscardManyDescription": "All selected items will be permanently removed from this browser's local copy — they will never be sent to the server again. Note: this does not fix the status on the Local Printer Agent — if the Agent still reports them as blocked, that has to be resolved on the Agent directly.",
+      "selectedCount": "{{count}} selected",
+      "agentMismatchTitle": "The Agent still reports {{count}} blocked item(s)",
+      "agentMismatchDescription": "This number comes directly from the Local Printer Agent and may not match the list below (which is only this browser's local copy). Retrying or discarding here does not change data on the Agent — if this number doesn't go down, contact whoever maintains the Local Printer Agent.",
+      "empty": {
+        "title": "Nothing needs review",
+        "description": "All offline items have synced successfully."
+      },
+      "loadFailed": "Failed to load the list"
+    },
     "bestSelling": {
       "adjustFilters": "Adjust the date range, branch, group, or sorting.",
       "cards": {

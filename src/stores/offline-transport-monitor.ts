@@ -206,6 +206,10 @@ export function startOfflineTransportMonitor() {
   let reconciling = false;
   let agentConfigured = false;
   let agentUnavailableChecks = 0;
+  // เตือน toast "Agent ไม่ได้เชื่อมต่อ" แค่ครั้งเดียวตอนเข้าสู่สถานะ unavailable — ถ้าไม่มี flag นี้
+  // reconcile loop จะยิง toast ซ้ำทุกรอบ (15s) ตราบใดที่ agentUnavailableChecks ยังคง >= 2 ทำให้
+  // ตอนออฟไลน์จริงเห็น toast ผุดขึ้นใหม่ไม่หยุดเพราะ sonner auto-dismiss (~4s) เร็วกว่ารอบ poll มาก
+  let agentUnavailableNotified = false;
   let reportedBlockedCount = 0;
 
   const schedule = (delayMs: number) => {
@@ -256,7 +260,8 @@ export function startOfflineTransportMonitor() {
                 getBrowserLocalSyncStatus(localScope),
               );
             }
-            if (agentUnavailableChecks >= 2) {
+            if (agentUnavailableChecks >= 2 && !agentUnavailableNotified) {
+              agentUnavailableNotified = true;
               useToastStore.getState().show({
                 id: "offline-agent-unavailable",
                 title: i18n.t("offlineSync.agentUnavailableTitle"),
@@ -266,6 +271,7 @@ export function startOfflineTransportMonitor() {
             }
           } else {
             agentUnavailableChecks = 0;
+            agentUnavailableNotified = false;
           }
           return;
         }
@@ -279,6 +285,7 @@ export function startOfflineTransportMonitor() {
         return;
       }
       agentUnavailableChecks = 0;
+      agentUnavailableNotified = false;
       const browserQueue = await reconcileBrowserSyncQueue(localScope).catch(() =>
         getBrowserLocalSyncStatus(localScope),
       );

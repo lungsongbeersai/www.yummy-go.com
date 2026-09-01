@@ -17,7 +17,13 @@ import {
   type BrowserSyncQueueEntry,
   type BrowserSyncStatusEntry,
 } from "@/services/offline-db";
-import { reconcileBrowserSyncQueue, requestLocalFallback } from "@/services/offline-sync";
+import {
+  discardBlockedBrowserSyncEvent,
+  listBlockedBrowserSyncEvents,
+  reconcileBrowserSyncQueue,
+  requestLocalFallback,
+  retryBlockedBrowserSyncEvent,
+} from "@/services/offline-sync";
 
 class MemoryBrowserOfflineStore implements BrowserOfflineStore {
   readonly apiCache = new Map<string, BrowserApiCacheEntry>();
@@ -46,6 +52,10 @@ class MemoryBrowserOfflineStore implements BrowserOfflineStore {
 
   async putSyncQueue(entry: BrowserSyncQueueEntry) {
     this.syncQueue.set(entry.eventUuid, structuredClone(entry));
+  }
+
+  async deleteSyncQueue(eventUuid: string) {
+    this.syncQueue.delete(eventUuid);
   }
 
   async listSyncQueue(scope: BrowserOfflineScope) {
@@ -333,5 +343,61 @@ describe("Dexie browser offline mirror", () => {
     const summary = await getBrowserSyncQueueSummary(scope, store);
     expect(summary.blocked).toBe(1);
     expect(browserSyncQueueHasRetryableWork(summary)).toBe(false);
+  });
+
+  it("lists only blocked events for the offline sync review screen", async () => {
+    const store = new MemoryBrowserOfflineStore();
+    await stageBrowserSyncRequest({
+      ...scope,
+      eventUuid,
+      method: "post",
+      path: "/api/v1/posAll/payment",
+      data: { sync_event_uuid: eventUuid },
+    }, store);
+    await updateBrowserSyncEvent(eventUuid, { status: "BLOCKED", lastError: "conflict" }, store);
+    await stageBrowserSyncRequest({
+      ...scope,
+      eventUuid: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      method: "post",
+      path: "/api/v1/posAll/create_order",
+      data: {},
+    }, store);
+
+    const blocked = await listBlockedBrowserSyncEvents(scope, store);
+    expect(blocked).toHaveLength(1);
+    expect(blocked[0]).toMatchObject({ eventUuid, status: "BLOCKED", lastError: "conflict" });
+  });
+
+  it("puts a blocked event back in queue for retry", async () => {
+    const store = new MemoryBrowserOfflineStore();
+    await stageBrowserSyncRequest({
+      ...scope,
+      eventUuid,
+      method: "post",
+      path: "/api/v1/posAll/payment",
+      data: { sync_event_uuid: eventUuid },
+    }, store);
+    await updateBrowserSyncEvent(eventUuid, { status: "BLOCKED", lastError: "conflict" }, store);
+
+    await retryBlockedBrowserSyncEvent(eventUuid, store);
+
+    const entry = await store.getSyncQueue(eventUuid);
+    expect(entry).toMatchObject({ status: "STAGED", lastError: null });
+  });
+
+  it("discards a blocked event permanently", async () => {
+    const store = new MemoryBrowserOfflineStore();
+    await stageBrowserSyncRequest({
+      ...scope,
+      eventUuid,
+      method: "post",
+      path: "/api/v1/posAll/payment",
+      data: { sync_event_uuid: eventUuid },
+    }, store);
+    await updateBrowserSyncEvent(eventUuid, { status: "BLOCKED", lastError: "conflict" }, store);
+
+    await discardBlockedBrowserSyncEvent(eventUuid, store);
+
+    expect(await store.getSyncQueue(eventUuid)).toBeUndefined();
   });
 });

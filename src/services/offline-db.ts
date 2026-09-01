@@ -105,6 +105,7 @@ export interface BrowserOfflineStore {
   pruneApiCache: (maxEntries: number) => Promise<void>;
   getSyncQueue: (eventUuid: string) => Promise<BrowserSyncQueueEntry | undefined>;
   putSyncQueue: (entry: BrowserSyncQueueEntry) => Promise<void>;
+  deleteSyncQueue: (eventUuid: string) => Promise<void>;
   listSyncQueue: (scope: BrowserOfflineScope) => Promise<BrowserSyncQueueEntry[]>;
   getSyncStatus: (scopeKey: string) => Promise<BrowserSyncStatusEntry | undefined>;
   putSyncStatus: (entry: BrowserSyncStatusEntry) => Promise<void>;
@@ -176,6 +177,10 @@ class DexieBrowserOfflineStore implements BrowserOfflineStore {
 
   async putSyncQueue(entry: BrowserSyncQueueEntry) {
     await this.database.syncQueue.put(entry);
+  }
+
+  async deleteSyncQueue(eventUuid: string) {
+    await this.database.syncQueue.delete(eventUuid);
   }
 
   async listSyncQueue(scope: BrowserOfflineScope) {
@@ -394,6 +399,16 @@ export async function updateBrowserSyncEvent(
   };
   await store.putSyncQueue(entry);
   return entry;
+}
+
+export async function discardBrowserSyncEvent(
+  eventUuid: string,
+  override?: BrowserOfflineStore,
+) {
+  const store = storeFor(override);
+  if (!store) return false;
+  await store.deleteSyncQueue(eventUuid);
+  return true;
 }
 
 export async function listBrowserSyncQueue(

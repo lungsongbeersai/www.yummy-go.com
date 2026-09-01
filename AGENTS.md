@@ -2,6 +2,10 @@
 
 Guidance for AI coding agents (e.g. Codex) in this repository. Mirrors `CLAUDE.md` (used by Claude Code) plus a tool-managed Hermes-Evolution block and a Next.js-generated block below — do not edit either of those two. When conventions change, update both files.
 
+## Response language
+
+Always respond to the user in Thai (ภาษาไทย), regardless of what language they type in. This applies to all chat responses; code, comments, and commit messages stay in English as normal.
+
 ## Project identity
 
 Yummy Go — a restaurant POS. One Next.js codebase ships as a web app, an Electron desktop app (with a second customer-display window), and a Capacitor Android app. It must never grow a second UI kit, a second state manager, or server-side business logic in the Next layer — the Next server is a stateless SSR shell reused verbatim by the Electron build.

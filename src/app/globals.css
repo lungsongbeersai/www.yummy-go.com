@@ -1916,19 +1916,19 @@ html.theme-transition-active[data-theme-transition-direction="ltr"]::view-transi
   content: "";
   position: absolute;
   inset: 0;
-  transform: translateX(-100%);
+  transform: translateX(-150%);
   background: linear-gradient(
-    90deg,
-    transparent,
-    color-mix(in oklch, var(--background) 62%, transparent),
-    transparent
+    105deg,
+    transparent 35%,
+    color-mix(in oklch, var(--background) 62%, transparent) 50%,
+    transparent 65%
   );
-  animation: skeleton-shimmer 1.35s ease-in-out infinite;
+  animation: skeleton-shimmer 1.6s ease-in-out infinite;
 }
 
 @keyframes skeleton-shimmer {
   100% {
-    transform: translateX(100%);
+    transform: translateX(150%);
   }
 }
 
