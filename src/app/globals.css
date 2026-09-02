@@ -1151,6 +1151,17 @@ body {
     sans-serif;
 }
 
+/* iOS (iPhone/iPad) renders text with subpixel antialiasing, which makes every
+   weight look a step heavier than Android's greyscale AA. `-webkit-touch-callout`
+   is an iOS-only property, so this scopes the lighter rendering to iOS without
+   touching Android or desktop. */
+@supports (-webkit-touch-callout: none) {
+  body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
 .lao-tone-text {
   /* Lao combining tone marks need extra line-box room when text is clamped. */
   line-height: 1.55;
