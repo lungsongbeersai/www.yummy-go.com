@@ -22,7 +22,7 @@ export function CategoryIdentity({ row }: { row: Category }) {
   return (
     <div className="flex min-w-0 items-center gap-3">
       <span className="grid size-10 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
-        <CategoryIcon value={iconValue} />
+        <CategoryIcon allowRemoteFallback={false} value={iconValue} />
       </span>
       <div className="min-w-0">
         <p className="truncate font-black">{categoryName(row)}</p>

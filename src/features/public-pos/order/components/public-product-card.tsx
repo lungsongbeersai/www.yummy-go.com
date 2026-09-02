@@ -39,6 +39,13 @@ const CARD_SURFACE_CLASS =
 const CARD_INTERACTIVE_CLASS =
   "hover:-translate-y-1 hover:border-yg-accent-line hover:shadow-[0_26px_54px_-26px_rgb(0_0_0/0.55)] active:translate-y-0 dark:hover:shadow-[0_26px_54px_-26px_rgb(0_0_0/0.9)] motion-reduce:transform-none";
 
+// เมนูร้านที่มีสินค้าเยอะ การ์ดนอกจอต้อง skip layout/paint ไปเลยไม่งั้นเลื่อน/แตะช้าลง
+// เรื่อยๆ ตามจำนวนสินค้า — "auto 360px" ให้เบราว์เซอร์จำขนาดจริงหลัง render ครั้งแรก
+// ใช้แค่กับการ์ดกริด/rail (สูงใกล้เคียงกัน) ไม่ใช้กับ variant list ที่เตี้ยกว่ามาก
+// (เทียบ order-customer-product-card.tsx ฝั่งแคชเชียร์ที่มี optimization นี้อยู่แล้ว)
+const CARD_LAZY_RENDER_CLASS =
+  "[content-visibility:auto] [contain-intrinsic-size:auto_360px]";
+
 export const ProductCard = memo(function ProductCard({
   product,
   cateUuid,
@@ -191,6 +198,7 @@ export const ProductCard = memo(function ProductCard({
     <Card
       className={cn(
         CARD_SURFACE_CLASS,
+        CARD_LAZY_RENDER_CLASS,
         variant === "rail"
           ? "w-44 flex-none snap-start"
           : variant === "railGrid"
@@ -312,6 +320,7 @@ export const SetProductCard = memo(function SetProductCard({
     <Card
       className={cn(
         CARD_SURFACE_CLASS,
+        CARD_LAZY_RENDER_CLASS,
         variant === "rail" ? "w-44 flex-none snap-start" : "w-44 flex-none snap-start sm:w-auto",
         blocked ? "" : CARD_INTERACTIVE_CLASS,
       )}

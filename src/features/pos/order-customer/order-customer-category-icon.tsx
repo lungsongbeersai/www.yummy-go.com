@@ -13,5 +13,5 @@ export function CategoryIconView({
   const iconName = optionalString(icon);
   if (!iconName) return null;
 
-  return <CategoryIcon value={iconName} className={className} />;
+  return <CategoryIcon allowRemoteFallback={false} value={iconName} className={className} />;
 }

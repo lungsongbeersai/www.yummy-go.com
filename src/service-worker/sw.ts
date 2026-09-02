@@ -30,6 +30,10 @@ const bypassBackendAndVersionCheck: RuntimeCaching = {
   handler: new NetworkOnly(),
 };
 
+// เน็ตร้าน/เน็ตมือถือลูกค้าช้าได้บ่อย — รอนานกว่านี้เท่ากับ "กดแล้วค้าง" ในสายตาคนใช้แล้ว
+// NetworkFirst พอครบเวลานี้จะ fallback ไปแคชเก่าทันที แล้วอัปเดตแคชต่อเบื้องหลังเมื่อเน็ตกลับมา
+const SLOW_NETWORK_TIMEOUT_SECONDS = 4;
+
 // เอกสาร (navigation) เท่านั้น — RSC/prefetch แยกออกไปให้ defaultCache ของ @serwist/next จัดการ
 // (แยกแคช rsc/rscPrefetch/html ให้อยู่แล้ว ละเอียดกว่าที่เขียนเองเดิม) ส่วนอันนี้ต้อง fallback ไป
 // /login เสมอเมื่อออฟไลน์และไม่เคยเปิดหน้านั้นมาก่อน กัน browser error page เปล่า ๆ
@@ -42,7 +46,7 @@ const loginFallbackPlugin: SerwistPlugin = {
 
 const documentStrategy = new NetworkFirst({
   cacheName: PAGES_CACHE_NAME.html,
-  networkTimeoutSeconds: 10,
+  networkTimeoutSeconds: SLOW_NETWORK_TIMEOUT_SECONDS,
   plugins: [loginFallbackPlugin],
 });
 
@@ -51,12 +55,35 @@ const navigationCaching: RuntimeCaching = {
   handler: documentStrategy,
 };
 
+// RSC payload คือ request ที่เกิดทุกครั้งที่กด <Link>/router.push ในแอป (การเปลี่ยนหน้า
+// แบบ client-side ทั้งหมด — กดเลือกโต๊ะ กดเข้าเมนู ฯลฯ) ของเดิมจาก defaultCache ไม่ตั้ง
+// timeout เลย ถ้าเน็ตแค่ "ช้า" (ไม่ถึงกับขาด) จะรอ network ไม่มีกำหนดก่อนยอม fallback
+// ไปแคช — override เฉพาะจุดนี้ด้วย timeout สั้นๆ ต้องอยู่ก่อน ...defaultCache ใน array
+// (Serwist ใช้ตัวจับคู่แรกที่ match) prefetch (Next-Router-Prefetch) ปล่อยให้ defaultCache
+// จัดการตามเดิมเพราะเป็นงานเบื้องหลัง ผู้ใช้ไม่ได้รอมันตรงๆ
+const rscNavigationCaching: RuntimeCaching = {
+  matcher: ({ request, url, sameOrigin }) =>
+    sameOrigin &&
+    !url.pathname.startsWith("/api/") &&
+    request.headers.get("RSC") === "1" &&
+    request.headers.get("Next-Router-Prefetch") !== "1",
+  handler: new NetworkFirst({
+    cacheName: PAGES_CACHE_NAME.rsc,
+    networkTimeoutSeconds: SLOW_NETWORK_TIMEOUT_SECONDS,
+  }),
+};
+
 const serwist = new Serwist({
   precacheEntries: self.__SW_MANIFEST,
   skipWaiting: true,
   clientsClaim: true,
   navigationPreload: false,
-  runtimeCaching: [bypassBackendAndVersionCheck, navigationCaching, ...defaultCache],
+  runtimeCaching: [
+    bypassBackendAndVersionCheck,
+    navigationCaching,
+    rscNavigationCaching,
+    ...defaultCache,
+  ],
 });
 
 serwist.addEventListeners();

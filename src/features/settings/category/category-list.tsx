@@ -157,7 +157,7 @@ export function CategoryListSurface({
           </div>
         </>
       ) : (
-        <SettingsEmptyRecords icon={<CategoryIcon value="" />} title={title.toLowerCase()} />
+        <SettingsEmptyRecords icon={<CategoryIcon allowRemoteFallback={false} value="" />} title={title.toLowerCase()} />
       )}
     </div>
   );
@@ -312,7 +312,7 @@ function CategoryMobileList({
             checked={selected}
             leading={
               <span className="grid size-10 place-items-center rounded-md bg-primary/10 text-primary">
-                <CategoryIcon value={iconValue} />
+                <CategoryIcon allowRemoteFallback={false} value={iconValue} />
               </span>
             }
             selectLabel={t("common.selectRow", { name })}

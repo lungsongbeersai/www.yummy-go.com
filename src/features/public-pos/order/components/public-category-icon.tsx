@@ -8,5 +8,11 @@ export function PublicCategoryIcon({ className, icon }: { className?: string; ic
   const iconName = publicCategoryIconName(icon);
   if (!iconName) return null;
 
-  return <CategoryIcon value={iconName} className={cn("size-4 shrink-0 text-current", className)} />;
+  return (
+    <CategoryIcon
+      allowRemoteFallback={false}
+      value={iconName}
+      className={cn("size-4 shrink-0 text-current", className)}
+    />
+  );
 }
