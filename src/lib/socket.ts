@@ -6,6 +6,8 @@ const socketEvents = {
   joinBranch: "join_branch",
   tableAlert: "table_alert",
   printJobQueued: "print_job_queued",
+  tableStatusChanged: "table_status_changed",
+  orderQueueChanged: "order_queue_changed",
 } as const;
 
 let socket: Socket | null = null;
@@ -33,8 +35,19 @@ export interface PrintJobQueuedPayload {
 
 type PrintJobQueuedHandler = (payload: PrintJobQueuedPayload) => void;
 
+export interface BranchRealtimePayload {
+  branch_uuid_fk?: string;
+  [key: string]: unknown;
+}
+
+type BranchRealtimeHandler = (payload: BranchRealtimePayload) => void;
+
 export function isTableAlertForBranch(payload: TableAlertPayload, branchUuid: string) {
   return Boolean(payload.table_uuid) && (!payload.branch_uuid_fk || payload.branch_uuid_fk === branchUuid);
+}
+
+export function isBranchRealtimeEvent(payload: BranchRealtimePayload, branchUuid: string) {
+  return !payload.branch_uuid_fk || payload.branch_uuid_fk === branchUuid;
 }
 
 function socketUrl() {
@@ -98,6 +111,23 @@ export function subscribePrintJobs(branchUuid: string, handler: PrintJobQueuedHa
   active.on(socketEvents.printJobQueued, handler);
   return () => {
     active.off(socketEvents.printJobQueued, handler);
+  };
+}
+
+// Fires when a table changes occupancy/status or an order is added/sent to the
+// kitchen anywhere in the branch — used to keep the table grid live across
+// devices (e.g. another cashier opens a table).
+export function subscribeBranchTableRealtime(
+  branchUuid: string,
+  handler: BranchRealtimeHandler,
+) {
+  if (typeof window === "undefined" || !branchUuid) return () => {};
+  const active = getSocket(branchUuid);
+  active.on(socketEvents.tableStatusChanged, handler);
+  active.on(socketEvents.orderQueueChanged, handler);
+  return () => {
+    active.off(socketEvents.tableStatusChanged, handler);
+    active.off(socketEvents.orderQueueChanged, handler);
   };
 }
 

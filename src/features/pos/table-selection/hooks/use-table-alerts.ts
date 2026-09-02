@@ -1,7 +1,14 @@
 "use client";
 
-import { useCallback, useEffect } from "react";
-import { isTableAlertForBranch, subscribeTableAlerts, type TableAlertPayload } from "@/lib/socket";
+import { useCallback, useEffect, useRef } from "react";
+import {
+  isBranchRealtimeEvent,
+  isTableAlertForBranch,
+  subscribeBranchTableRealtime,
+  subscribeTableAlerts,
+  type BranchRealtimePayload,
+  type TableAlertPayload,
+} from "@/lib/socket";
 import type { FetchPosParams, PosZone } from "@/services/pos";
 
 interface UseTableAlertsParams {
@@ -26,6 +33,24 @@ export function useTableAlerts({ branchUuid, language, refreshTables }: UseTable
     });
   }, [branchUuid, language, refreshTables]);
 
+  // A single POS action can emit several events (table_status_changed +
+  // order_queue_changed). Coalesce them into one table refetch.
+  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scheduleRefresh = useCallback(() => {
+    if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+    refreshTimerRef.current = setTimeout(() => {
+      refreshTimerRef.current = null;
+      void refreshAllTables().catch(() => undefined);
+    }, 250);
+  }, [refreshAllTables]);
+
+  useEffect(
+    () => () => {
+      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+    },
+    [],
+  );
+
   useEffect(() => {
     if (!branchUuid) return;
 
@@ -43,9 +68,23 @@ export function useTableAlerts({ branchUuid, language, refreshTables }: UseTable
 
     function handleTableAlert(payload: TableAlertPayload) {
       if (!isTableAlertForBranch(payload, activeBranchUuid)) return;
-      void refreshAllTables().catch(() => undefined);
+      scheduleRefresh();
     }
 
     return subscribeTableAlerts(activeBranchUuid, handleTableAlert);
-  }, [branchUuid, refreshAllTables]);
+  }, [branchUuid, scheduleRefresh]);
+
+  // Keep the table grid live when another device opens a table, adds an order,
+  // or sends items to the kitchen.
+  useEffect(() => {
+    if (!branchUuid) return;
+    const activeBranchUuid = branchUuid;
+
+    function handleBranchRealtime(payload: BranchRealtimePayload) {
+      if (!isBranchRealtimeEvent(payload, activeBranchUuid)) return;
+      scheduleRefresh();
+    }
+
+    return subscribeBranchTableRealtime(activeBranchUuid, handleBranchRealtime);
+  }, [branchUuid, scheduleRefresh]);
 }
