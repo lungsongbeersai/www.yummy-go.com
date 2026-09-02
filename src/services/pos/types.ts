@@ -889,6 +889,35 @@ export interface SendToKitchenResponse extends ApiEntity {
   pending_queries?: ConfirmToKitchenPendingQuery[];
 
   print_queue_errors?: PrintQueueError[];
+
+  // Batch send-to-kitchen mirrors the /posAll/confirm_to_kitchen envelope.
+  // The print_jobs[] / pending_queries[] arrays above stay authoritative for a
+  // batch that spans several orders.
+  mode?: string;
+
+  order_uuid?: string | null;
+
+  printer_config_state?: ApiEntity | null;
+
+  next_action?: ConfirmToKitchenNextAction | null;
+
+  ack_template?: ConfirmToKitchenAckTemplate | null;
+
+  print_progress?: ApiEntity;
+
+  confirm_summary?: ConfirmSummary;
+
+  partial_items?: ConfirmPartialItem[];
+
+  confirmed_items?: ApiEntity[];
+
+  skipped_items?: ApiEntity[];
+
+  apply_failed_items?: ApiEntity[];
+
+  no_printer_confirm_items?: ApiEntity[];
+
+  print_queue_error?: PrintQueueError | null;
 }
 
 export interface ConfirmOrderItemsServedInput {
