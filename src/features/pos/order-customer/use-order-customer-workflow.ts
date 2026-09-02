@@ -39,6 +39,7 @@ import {
   type SelectedTopping,
 } from "./order-customer-utils";
 import { cartForTable, cartQuantityCount } from "../table-selection/utils";
+import { useOrderCustomerRealtime } from "./use-order-customer-realtime";
 
 export type OrderCustomerWorkflowInput = {
   initialTableUuid: string;
@@ -476,6 +477,8 @@ export function useOrderCustomerWorkflow({
   useEffect(() => {
     void loadCart();
   }, [loadCart]);
+
+  useOrderCustomerRealtime({ branchUuid, refresh: loadCart });
 
   useEffect(() => {
     void loadMenu({ refreshCategories: true });
