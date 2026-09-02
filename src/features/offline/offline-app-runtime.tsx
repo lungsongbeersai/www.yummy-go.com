@@ -43,6 +43,7 @@ export function OfflineAppRuntime() {
     if (process.env.NODE_ENV !== "production") return;
     let active = true;
     let reloadingForNewWorker = false;
+    let stopUpdateChecks: (() => void) | undefined;
 
     const handleControllerChange = () => {
       if (reloadingForNewWorker) return;
@@ -52,8 +53,8 @@ export function OfflineAppRuntime() {
 
     navigator.serviceWorker.addEventListener("controllerchange", handleControllerChange);
 
-    void navigator.serviceWorker.register("/offline-sw.js", { scope: "/" }).then(async () => {
-      const registration = await navigator.serviceWorker.ready;
+    void navigator.serviceWorker.register("/offline-sw.js", { scope: "/" }).then(async (registration) => {
+      await navigator.serviceWorker.ready;
       if (!active) return;
       registration.active?.postMessage({ type: "WARM_OFFLINE_ROUTES", routes: OFFLINE_ROUTES });
       if (isLoggedIn && navigator.onLine) {
@@ -63,10 +64,26 @@ export function OfflineAppRuntime() {
           import("@/features/pos/order-customer/order-customer-category-icon"),
         ]).catch(() => undefined);
       }
+
+      // Without this a tab left open across a deploy keeps running the old
+      // bundle until the browser's own ~24h check. Re-check for a new worker
+      // whenever the tab refocuses or the network returns; serwist's
+      // skipWaiting + clientsClaim then triggers controllerchange -> reload.
+      const checkForUpdate = () => {
+        if (document.visibilityState === "hidden") return;
+        void registration.update().catch(() => undefined);
+      };
+      document.addEventListener("visibilitychange", checkForUpdate);
+      window.addEventListener("online", checkForUpdate);
+      stopUpdateChecks = () => {
+        document.removeEventListener("visibilitychange", checkForUpdate);
+        window.removeEventListener("online", checkForUpdate);
+      };
     }).catch(() => undefined);
 
     return () => {
       active = false;
+      stopUpdateChecks?.();
       navigator.serviceWorker.removeEventListener("controllerchange", handleControllerChange);
     };
   }, [isLoggedIn, router]);
