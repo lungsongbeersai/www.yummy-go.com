@@ -34,10 +34,14 @@ import { ProductMedia } from "./public-product-media";
 // region ของตัวเอง เปลืองแรง GPU ตอนเลื่อนหน้ามาก แลกกับเอฟเฟกต์กระจกฝ้าโหมดมืด
 // ที่บางลง (ยังมี border/shadow กำหนดขอบการ์ดชัดอยู่)
 const CARD_SURFACE_CLASS =
-  "h-full gap-0 overflow-hidden rounded-[20px] border-yg-line bg-yg-panel py-0 shadow-[0_18px_40px_-26px_rgb(0_0_0/0.45)] transition-[border-color,box-shadow,transform] dark:shadow-[0_18px_40px_-26px_rgb(0_0_0/0.8)] motion-reduce:transition-none";
+  "h-full gap-0 overflow-hidden rounded-[20px] border-yg-line bg-yg-panel py-0 shadow-[0_18px_40px_-26px_rgb(0_0_0/0.45)] transition-[border-color,box-shadow,transform] duration-150 ease-out dark:shadow-[0_18px_40px_-26px_rgb(0_0_0/0.8)] motion-reduce:transition-none";
 
+// hover:-translate-y-1 ใช้ไม่ได้บนมือถือ (แตะไม่มี :hover) — active:scale ทำงาน
+// ทันทีที่นิ้วแตะจอไม่ว่าจะ hover มาก่อนหรือไม่ ให้ความรู้สึกกดแล้ว "ตอบสนองทันที"
+// active:duration-75 ให้กดยุบเร็วกว่าคืนตัว (ปล่อยกลับใช้ duration ปกติจาก CARD_SURFACE_CLASS)
+// เลียนแบบ tap feedback ของแอปมือถือทั่วไป
 const CARD_INTERACTIVE_CLASS =
-  "hover:-translate-y-1 hover:border-yg-accent-line hover:shadow-[0_26px_54px_-26px_rgb(0_0_0/0.55)] active:translate-y-0 dark:hover:shadow-[0_26px_54px_-26px_rgb(0_0_0/0.9)] motion-reduce:transform-none";
+  "hover:-translate-y-1 hover:border-yg-accent-line hover:shadow-[0_26px_54px_-26px_rgb(0_0_0/0.55)] active:translate-y-0 active:scale-[0.97] active:duration-75 dark:hover:shadow-[0_26px_54px_-26px_rgb(0_0_0/0.9)] motion-reduce:transform-none";
 
 // เมนูร้านที่มีสินค้าเยอะ การ์ดนอกจอต้อง skip layout/paint ไปเลยไม่งั้นเลื่อน/แตะช้าลง
 // เรื่อยๆ ตามจำนวนสินค้า — "auto 360px" ให้เบราว์เซอร์จำขนาดจริงหลัง render ครั้งแรก
@@ -508,7 +512,7 @@ function ProductActionPill({
   return (
     <span
       className={cn(
-        "flex h-11 min-w-0 shrink-0 items-center justify-center gap-1.5 rounded-2xl border text-xs font-extrabold leading-none transition-[filter,transform] motion-reduce:transition-none",
+        "flex h-11 min-w-0 shrink-0 items-center justify-center gap-1.5 rounded-2xl border text-xs font-extrabold leading-none transition-[filter,transform] duration-150 ease-out active:scale-90 active:duration-75 motion-reduce:transition-none motion-reduce:active:scale-100",
         iconOnly ? "w-11 px-0" : "px-3.5",
         compact ? "max-w-32" : "",
         blocked
