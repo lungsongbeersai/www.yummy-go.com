@@ -35,9 +35,11 @@ export function ProductMedia({
     isHexColor(colorCandidate)
       ? colorCandidate
       : "";
-  // รูปสินค้าในระบบมีสัดส่วนปนกันตั้งแต่แนวตั้งถึง 16:9 เพราะมาจาก 2 เส้นทาง
-  // (ผ่านเครื่องมือตัดรูป กับอัปตรงโดยไม่ตัด) จึงใช้ object-contain ให้เห็นรูปครบตามที่ตัดไว้จริง
-  // กล่องยังคงสัดส่วนมาตรฐานไว้ให้กริดเรียงสวย รูปที่ตัดมาตรงสัดส่วนแล้วจะเต็มกล่องพอดีไม่มีขอบ
+  // object-cover: การ์ดทุกใบเต็มกรอบเสมอ ไม่มีแถบว่าง/สัดส่วนไม่เท่ากันในกริด
+  // เดียวกัน — ปลอดภัยกับรูปที่ผ่านเครื่องมือตัดรูป (ตัดมาเป็น 4:3 ตรงกับกล่อง
+  // แสดงผลใน image-crop.ts พอดีอยู่แล้ว cover เท่ากับ contain ในเคสนั้น ไม่มีการ
+  // ครอปซ้ำ) ส่วนรูปเก่าที่อัปตรงแบบไม่ผ่านตัด (สัดส่วนไม่ตรง 4:3) จะถูกครอปขอบ
+  // เพื่อเติมเต็มกล่อง — เป็น trade-off ที่ตั้งใจเลือกเพื่อความเรียบร้อยของกริดโดยรวม
   // variant sheet = แบนเนอร์เต็มความกว้างหัวโมดัล ความสูงคุมจากกล่องภายนอก
   const fillsParent = variant === "listThumb" || variant === "sheet";
   const mediaClass = fillsParent ? "h-full" : IMAGE_CROP_ASPECT_CLASS;
@@ -67,8 +69,7 @@ export function ProductMedia({
           quality={60}
           sizes={imageSizes}
           className={cn(
-            "object-contain",
-            variant === "listThumb" ? "p-1.5" : "",
+            "object-cover",
             blockedState ? "saturate-[0.55]" : "",
           )}
         />

@@ -119,7 +119,7 @@ function FlyProductMedia({ product }: { product: CateProductItem | ProdItem }) {
           loading="eager"
           quality={55}
           sizes="120px"
-          className="object-contain"
+          className="object-cover"
         />
       </div>
     );
