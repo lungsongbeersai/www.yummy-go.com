@@ -56,7 +56,6 @@ describe("offline asset cache", () => {
     expect(offlineTransportMonitor).toContain("restoreOnlineLogin(current.token)");
     expect(offlineTransportMonitor).toContain("resumeOnlineSession(restored.token, restored.user)");
     expect(offlineTransportMonitor).toContain("offlineSync.blockedTitle");
-    expect(offlineTransportMonitor).toContain("offlineSync.agentUnavailableTitle");
     expect(offlineTransportMonitor).toContain("auth.setOfflineSession(false)");
     expect(offlineRuntime).toContain('\"/pos\"');
   });

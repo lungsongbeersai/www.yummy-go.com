@@ -216,7 +216,6 @@ export function startOfflineTransportMonitor() {
   let reconciling = false;
   let agentConfigured = false;
   let agentUnavailableChecks = 0;
-  let agentUnavailableNotified = false;
   let reportedBlockedCount = 0;
 
   const schedule = (delayMs: number) => {
@@ -253,18 +252,8 @@ export function startOfflineTransportMonitor() {
               localScope,
               networkState === BACKEND_NETWORK_STATE.OFFLINE,
             ).catch(() => undefined);
-            if (agentUnavailableChecks >= 2 && !agentUnavailableNotified) {
-              agentUnavailableNotified = true;
-              useToastStore.getState().show({
-                id: "offline-agent-unavailable",
-                title: i18n.t("offlineSync.agentUnavailableTitle"),
-                description: i18n.t("offlineSync.agentUnavailableDescription"),
-                tone: "error",
-              });
-            }
           } else {
             agentUnavailableChecks = 0;
-            agentUnavailableNotified = false;
           }
           return;
         }
@@ -282,7 +271,6 @@ export function startOfflineTransportMonitor() {
       }
 
       agentUnavailableChecks = 0;
-      agentUnavailableNotified = false;
       const browserQueue = await reconcileBrowserSyncQueue(localScope).catch(() =>
         getBrowserLocalSyncStatus(localScope),
       );
