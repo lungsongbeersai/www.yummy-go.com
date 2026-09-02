@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useShallow } from "zustand/react/shallow";
 import { usePublicPosStore } from "@/stores/public-pos-store";
@@ -8,6 +8,7 @@ import { useToastStore } from "@/stores/toast-store";
 import { useCartFlyAnimation } from "./use-cart-fly-animation";
 import { usePublicCartOrderActions } from "./use-public-cart-order-actions";
 import { usePublicMenuBrowse } from "./use-public-menu-browse";
+import { usePublicOrderRealtime } from "./use-public-order-realtime";
 import { usePublicQrDialog } from "./use-public-qr-dialog";
 import { usePublicSearch } from "./use-public-search";
 import { totalCartQty } from "../utils";
@@ -104,6 +105,14 @@ export function usePublicBrowseWorkflow({
     t,
     toast,
     token,
+  });
+  const refreshCartRealtime = useCallback(
+    () => loadCart({ t: token, lang }).then(() => undefined),
+    [loadCart, token, lang],
+  );
+  usePublicOrderRealtime({
+    branchUuid: table?.branch_uuid_fk,
+    refresh: refreshCartRealtime,
   });
   const qr = usePublicQrDialog({ table, t, toast });
   const cartActions = usePublicCartOrderActions({
