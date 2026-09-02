@@ -460,6 +460,16 @@
       "title": "New order received",
       "description": "Table {{table}} in {{zone}} placed a new order."
     },
+    "orderStatusToast": {
+      "kitchenConfirmed": {
+        "title": "Order confirmed",
+        "description": "The kitchen has received your order and is preparing it."
+      },
+      "served": {
+        "title": "Order served",
+        "description": "Your food is on its way to the table."
+      }
+    },
     "title": "Notifications"
   },
   "orderQueue": {

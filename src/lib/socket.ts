@@ -42,6 +42,16 @@ export interface BranchRealtimePayload {
 
 type BranchRealtimeHandler = (payload: BranchRealtimePayload) => void;
 
+export interface OrderQueueChangedPayload {
+  branch_uuid_fk?: string;
+  order_uuids?: string[];
+  order_item_uuids?: string[];
+  reason?: string;
+  [key: string]: unknown;
+}
+
+type OrderQueueChangedHandler = (payload: OrderQueueChangedPayload) => void;
+
 export function isTableAlertForBranch(payload: TableAlertPayload, branchUuid: string) {
   return Boolean(payload.table_uuid) && (!payload.branch_uuid_fk || payload.branch_uuid_fk === branchUuid);
 }
@@ -127,6 +137,19 @@ export function subscribeBranchTableRealtime(
   active.on(socketEvents.orderQueueChanged, handler);
   return () => {
     active.off(socketEvents.tableStatusChanged, handler);
+    active.off(socketEvents.orderQueueChanged, handler);
+  };
+}
+
+// Same wire event as subscribeBranchTableRealtime, but keeps the full
+// order_uuids/reason payload instead of collapsing it into "something
+// changed, refetch" — needed to tell one order's own status transition
+// apart from another table's, e.g. for a customer-facing status toast.
+export function subscribeOrderQueueChanged(branchUuid: string, handler: OrderQueueChangedHandler) {
+  if (typeof window === "undefined" || !branchUuid) return () => {};
+  const active = getSocket(branchUuid);
+  active.on(socketEvents.orderQueueChanged, handler);
+  return () => {
     active.off(socketEvents.orderQueueChanged, handler);
   };
 }

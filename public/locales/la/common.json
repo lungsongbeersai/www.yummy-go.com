@@ -461,6 +461,16 @@
       "title": "ມີອໍເດີໃໝ່",
       "description": "ໂຕະ {{table}} ({{zone}}) ສັ່ງອາຫານໃໝ່."
     },
+    "orderStatusToast": {
+      "kitchenConfirmed": {
+        "title": "ຮ້ານຮັບອໍເດີແລ້ວ",
+        "description": "ຄົວກຳລັງກຽມອາຫານຂອງທ່ານ."
+      },
+      "served": {
+        "title": "ເສີບອາຫານແລ້ວ",
+        "description": "ອາຫານຂອງທ່ານກຳລັງນຳໄປໂຕະ."
+      }
+    },
     "title": "ການແຈ້ງເຕືອນ"
   },
   "orderQueue": {

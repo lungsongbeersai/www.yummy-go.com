@@ -9,6 +9,7 @@ import { useCartFlyAnimation } from "./use-cart-fly-animation";
 import { usePublicCartOrderActions } from "./use-public-cart-order-actions";
 import { usePublicMenuBrowse } from "./use-public-menu-browse";
 import { usePublicOrderRealtime } from "./use-public-order-realtime";
+import { usePublicOrderStatusNotifications } from "./use-public-order-status-notifications";
 import { usePublicQrDialog } from "./use-public-qr-dialog";
 import { usePublicSearch } from "./use-public-search";
 import { totalCartQty } from "../utils";
@@ -113,6 +114,14 @@ export function usePublicBrowseWorkflow({
   usePublicOrderRealtime({
     branchUuid: table?.branch_uuid_fk,
     refresh: refreshCartRealtime,
+  });
+  const cartOrderUuids = useMemo(
+    () => Array.from(new Set(cart.map((order) => order.order_uuid).filter(Boolean))),
+    [cart],
+  );
+  usePublicOrderStatusNotifications({
+    branchUuid: table?.branch_uuid_fk,
+    orderUuids: cartOrderUuids,
   });
   const qr = usePublicQrDialog({ table, t, toast });
   const cartActions = usePublicCartOrderActions({
