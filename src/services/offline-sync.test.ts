@@ -1,5 +1,6 @@
 import axios from "axios";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { BACKEND_NETWORK_STATE } from "@/lib/network-state";
 import {
   configureLocalSync,
   getLocalSyncStatus,
@@ -23,10 +24,10 @@ afterEach(() => {
 
 describe("offline sync transport", () => {
   it("prefers Backend for a normal token whenever the browser is online", () => {
-    expect(shouldPreferOnlineTransport("backend-token", true)).toBe(true);
-    expect(shouldPreferOnlineTransport("backend-token", undefined)).toBe(true);
-    expect(shouldPreferOnlineTransport("backend-token", false)).toBe(false);
-    expect(shouldPreferOnlineTransport("local.session-token", true)).toBe(false);
+    expect(shouldPreferOnlineTransport("backend-token", BACKEND_NETWORK_STATE.CHECKING)).toBe(true);
+    expect(shouldPreferOnlineTransport("backend-token", BACKEND_NETWORK_STATE.ONLINE)).toBe(true);
+    expect(shouldPreferOnlineTransport("backend-token", BACKEND_NETWORK_STATE.OFFLINE)).toBe(false);
+    expect(shouldPreferOnlineTransport("local.session-token", BACKEND_NETWORK_STATE.ONLINE)).toBe(false);
   });
 
   it("keeps unsupported mutations on the existing online-only flow", () => {
@@ -91,37 +92,38 @@ describe("offline sync transport", () => {
     expect(supportsOfflineRoute("patch", "/api/v1/posAll/customer_order_queue/send_to_kitchen")).toBe(true);
   });
 
-  it("routes supported requests to the Agent immediately when the browser is offline", () => {
+  it("routes only after NetworkManager confirms OFFLINE and ignores Agent sync state", () => {
     expect(
-      shouldRouteToLocal(false, false, "get", "/api/v1/posAll/fetch_table"),
-    ).toBe(true);
-    expect(
-      shouldRouteToLocal(false, true, "get", "/api/v1/posAll/fetch_table"),
-    ).toBe(false);
-    expect(
-      shouldRouteToLocal(false, true, "get", "/api/v1/posAll/fetch_table", {
-        bootstrap_complete: true,
-        connection_state: "DEGRADED",
-        consecutive_failures: 1,
-      }),
+      shouldRouteToLocal(
+        false,
+        BACKEND_NETWORK_STATE.OFFLINE,
+        "get",
+        "/api/v1/posAll/fetch_table",
+      ),
     ).toBe(true);
     expect(
       shouldRouteToLocal(
         false,
-        true,
+        BACKEND_NETWORK_STATE.CHECKING,
         "get",
         "/api/v1/posAll/fetch_table",
-        {
-          bootstrap_complete: true,
-          connection_state: "OFFLINE",
-          store_uuid: "store-1",
-          branch_uuid: "branch-1",
-        },
-        { storeUuid: "store-2", branchUuid: "branch-2" },
       ),
     ).toBe(false);
     expect(
-      shouldRouteToLocal(false, false, "post", "/api/v1/product/create"),
+      shouldRouteToLocal(
+        false,
+        BACKEND_NETWORK_STATE.ONLINE,
+        "get",
+        "/api/v1/posAll/fetch_table",
+      ),
+    ).toBe(false);
+    expect(
+      shouldRouteToLocal(
+        false,
+        BACKEND_NETWORK_STATE.OFFLINE,
+        "post",
+        "/api/v1/product/create",
+      ),
     ).toBe(false);
   });
 

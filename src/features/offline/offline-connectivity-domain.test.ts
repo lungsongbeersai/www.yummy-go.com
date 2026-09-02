@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   applyConnectivityProbeResult,
-  applyOfflineSessionChange,
+  applyBackendOfflineChange,
   applyUserDismiss,
   initialOfflineDialogState,
 } from "@/features/offline/offline-connectivity-domain";
@@ -17,7 +17,7 @@ describe("offline connectivity dialog domain", () => {
     state = applyUserDismiss();
     expect(state).toEqual({ open: false, dismissedForThisOutage: true });
 
-    // A page navigation re-flips offlineSession false->true, api.ts fails again, another
+    // A later transport probe fails again during the same confirmed outage; another
     // probe runs while still genuinely offline — this must NOT reopen the dialog.
     state = applyConnectivityProbeResult(state, false);
     expect(state).toEqual({ open: false, dismissedForThisOutage: true });
@@ -34,28 +34,28 @@ describe("offline connectivity dialog domain", () => {
     expect(state.open).toBe(false);
   });
 
-  it("resets dismissal once offlineSession genuinely resolves back to false", () => {
+  it("resets dismissal once Backend becomes reachable", () => {
     let state = applyConnectivityProbeResult(initialOfflineDialogState, false);
     state = applyUserDismiss();
 
-    state = applyOfflineSessionChange(state, false);
+    state = applyBackendOfflineChange(state, false);
     expect(state).toEqual(initialOfflineDialogState);
   });
 
   it("re-opens for a brand new outage after a prior one was dismissed and resolved", () => {
     let state = applyConnectivityProbeResult(initialOfflineDialogState, false);
     state = applyUserDismiss();
-    state = applyOfflineSessionChange(state, false);
+    state = applyBackendOfflineChange(state, false);
 
-    // offlineSession flips true again for a second, unrelated outage.
-    state = applyOfflineSessionChange(state, true);
+    // Backend NetworkManager confirms a second, unrelated outage.
+    state = applyBackendOfflineChange(state, true);
     state = applyConnectivityProbeResult(state, false);
     expect(state.open).toBe(true);
   });
 
-  it("leaves state untouched while offlineSession stays true", () => {
+  it("leaves state untouched while Backend stays offline", () => {
     const dismissed = applyUserDismiss();
-    const state = applyOfflineSessionChange(dismissed, true);
+    const state = applyBackendOfflineChange(dismissed, true);
     expect(state).toBe(dismissed);
   });
 });

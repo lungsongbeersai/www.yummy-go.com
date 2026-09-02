@@ -1,6 +1,10 @@
 "use client";
 
 import axios from "axios";
+import {
+  BACKEND_NETWORK_STATE,
+  type BackendNetworkState,
+} from "@/lib/network-state";
 import { AGENT_URL } from "@/config/printer-agent";
 import type { HttpMethod, RequestOptions } from "@/lib/api";
 import {
@@ -210,31 +214,20 @@ export function supportsOfflineRoute(method: HttpMethod, url: string) {
 
 export function shouldPreferOnlineTransport(
   token: string | null | undefined,
-  browserOnline: boolean | undefined,
+  networkState: BackendNetworkState,
 ) {
-  return browserOnline !== false && !token?.startsWith("local.");
+  return networkState !== BACKEND_NETWORK_STATE.OFFLINE &&
+    !token?.startsWith("local.");
 }
 
 export function shouldRouteToLocal(
   offlineSession: boolean,
-  browserOnline: boolean | undefined,
+  networkState: BackendNetworkState,
   method: HttpMethod,
   url: string,
-  localStatus: LocalSyncStatus | null | undefined = undefined,
-  expectedScope?: BrowserOfflineScope,
 ) {
-  const effectiveStatus = localStatus === undefined ? localStatusCache?.status : localStatus;
-  const statusMatchesScope = !expectedScope || (
-    effectiveStatus?.store_uuid === expectedScope.storeUuid &&
-    effectiveStatus?.branch_uuid === expectedScope.branchUuid
-  );
-  const backendUnavailable = statusMatchesScope && (
-    effectiveStatus?.connection_state === "OFFLINE" ||
-    (effectiveStatus?.connection_state === "DEGRADED" &&
-      Number(effectiveStatus.consecutive_failures || 0) > 0)
-  );
   return supportsOfflineRoute(method, url) &&
-    (offlineSession || browserOnline === false || backendUnavailable);
+    (offlineSession || networkState === BACKEND_NETWORK_STATE.OFFLINE);
 }
 
 export function needsLocalPrintOwnership(method: HttpMethod, url: string) {

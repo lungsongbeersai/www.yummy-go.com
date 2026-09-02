@@ -1,6 +1,11 @@
 "use client";
 
-import axios from "axios";
+import {
+  BACKEND_NETWORK_STATE,
+  classifyBackendError,
+  type BackendErrorClassification,
+  type BackendNetworkState,
+} from "@/lib/network-state";
 import {
   browserLocalSyncHasRetryableWork,
   configureLocalSync,
@@ -14,30 +19,21 @@ import {
 import { restoreOnlineLogin } from "@/services/login";
 import i18n from "@/lib/i18n";
 import { useAuthStore } from "@/stores/auth-store";
+import { backendNetworkManager, useNetworkStore } from "@/stores/network-store";
 import { useToastStore } from "@/stores/toast-store";
 
-interface AndroidBackendScope {
-  token: string;
-  storeUuid: string;
-  branchUuid: string;
+export interface BackendProbeResult {
+  reachable: boolean;
+  httpStatus: number | null;
+  classification: BackendErrorClassification;
+  reason: string;
 }
 
-interface AndroidBackendHealthResponse {
-  status?: string;
-  data?: {
-    online?: boolean;
-    store_uuid_fk?: string;
-    branch_uuid_fk?: string;
-  };
-}
-
-type AndroidBackendProbe = (scope: AndroidBackendScope) => Promise<boolean>;
-
-interface AndroidOnlineRecoveryOptions {
-  probeBackend?: AndroidBackendProbe;
+interface BackendNetworkMonitorOptions {
+  probeBackend?: () => Promise<BackendProbeResult>;
   onlinePollMs?: number;
-  recoveryPollMs?: number;
-  failuresBeforeOffline?: number;
+  checkingPollMs?: number;
+  offlinePollMs?: number;
 }
 
 const RECONCILE_NOW_EVENT = "yummy-go:offline-reconcile-now";
@@ -47,156 +43,162 @@ export function requestImmediateReconcile() {
   window.dispatchEvent(new Event(RECONCILE_NOW_EVENT));
 }
 
-export async function probeConnectivity(): Promise<boolean> {
-  if (typeof navigator !== "undefined" && navigator.onLine === false) return false;
-  if (typeof window === "undefined") return false;
+function backendBaseUrl() {
+  return process.env.NEXT_PUBLIC_BASE_URL ??
+    (typeof window !== "undefined" ? window.location.origin : "");
+}
+
+export async function probeBackendReachability(
+  timeoutMs = 4000,
+): Promise<BackendProbeResult> {
+  if (typeof window === "undefined") {
+    return {
+      reachable: false,
+      httpStatus: null,
+      classification: "NON_NETWORK",
+      reason: "backend_probe_no_window",
+    };
+  }
 
   const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), 5000);
+  const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
+  const auth = useAuthStore.getState();
+  const headers: Record<string, string> = { Accept: "application/json" };
+  if (auth.token) {
+    headers.Authorization = `Bearer ${auth.token}`;
+    headers["x-access-token"] = auth.token;
+  }
+
   try {
-    const target = new URL("/app-version.json", window.location.origin);
-    target.searchParams.set("connectivity", String(Date.now()));
+    const target = new URL("/api/v1/sync/health", backendBaseUrl());
+    target.searchParams.set("network_probe", String(Date.now()));
     const response = await fetch(target, {
       cache: "no-store",
       credentials: "same-origin",
+      headers,
       signal: controller.signal,
     });
-    return response.ok;
-  } catch {
-    return false;
+    return {
+      reachable: true,
+      httpStatus: response.status,
+      classification: "HTTP_RESPONSE",
+      reason:
+        response.ok
+          ? "backend_health_success"
+          : `http_${response.status}_backend_reachable`,
+    };
+  } catch (error) {
+    const classification = classifyBackendError(error);
+    return {
+      reachable: false,
+      httpStatus: null,
+      classification: classification.classification,
+      reason: classification.reason,
+    };
   } finally {
     window.clearTimeout(timeout);
   }
 }
 
-function browserIsOffline() {
-  return navigator.onLine === false;
-}
-
-export async function probeAndroidBackend(scope: AndroidBackendScope) {
-  try {
-    const baseURL = process.env.NEXT_PUBLIC_BASE_URL ??
-      (typeof window !== "undefined" ? window.location?.origin : undefined);
-    const response = await axios.get<AndroidBackendHealthResponse>(
-      "/api/v1/sync/health",
-      {
-        baseURL,
-        timeout: 5000,
-        headers: {
-          Authorization: `Bearer ${scope.token}`,
-          "x-access-token": scope.token,
-        },
-      },
-    );
-    const health = response.data?.data;
-    return response.data?.status === "success" &&
-      health?.online === true &&
-      String(health.store_uuid_fk || "") === scope.storeUuid &&
-      String(health.branch_uuid_fk || "") === scope.branchUuid;
-  } catch {
-    return false;
+function synchronizeAuthTransport(networkState: BackendNetworkState) {
+  const auth = useAuthStore.getState();
+  if (!auth.isLoggedIn || !auth.token) return;
+  if (networkState === BACKEND_NETWORK_STATE.OFFLINE) {
+    if (!auth.offlineSession) auth.setOfflineSession(true);
+    return;
+  }
+  if (
+    networkState === BACKEND_NETWORK_STATE.ONLINE &&
+    !auth.token.startsWith("local.") &&
+    auth.offlineSession
+  ) {
+    auth.setOfflineSession(false);
   }
 }
 
-export function startAndroidOnlineRecoveryMonitor(
-  options: AndroidOnlineRecoveryOptions = {},
+function applyProbeResult(result: BackendProbeResult) {
+  const snapshot = result.reachable
+    ? backendNetworkManager.reportReachable(result.httpStatus, result.reason)
+    : result.classification === "NETWORK_TRANSPORT"
+      ? backendNetworkManager.reportTransportFailure(result.reason)
+      : backendNetworkManager.reportNonNetwork(result.reason);
+  synchronizeAuthTransport(snapshot.state);
+  if (snapshot.state === BACKEND_NETWORK_STATE.ONLINE) requestImmediateReconcile();
+  return snapshot;
+}
+
+export async function probeBackendNow() {
+  return applyProbeResult(await probeBackendReachability());
+}
+
+export function startBackendNetworkMonitor(
+  options: BackendNetworkMonitorOptions = {},
 ) {
-  const probeBackend = options.probeBackend ?? probeAndroidBackend;
-  const onlinePollMs = Math.max(2000, options.onlinePollMs ?? 10000);
-  const recoveryPollMs = Math.max(500, options.recoveryPollMs ?? 1500);
-  const failuresBeforeOffline = Math.max(1, options.failuresBeforeOffline ?? 2);
+  const probeBackend = options.probeBackend ?? probeBackendReachability;
+  const onlinePollMs = Math.max(5000, options.onlinePollMs ?? 15000);
+  const checkingPollMs = Math.max(500, options.checkingPollMs ?? 2000);
+  const offlinePollMs = Math.max(1000, options.offlinePollMs ?? 5000);
   let active = true;
+  let probing = false;
+  let probeRequested = false;
   let timer: number | null = null;
-  let reconciling = false;
-  let consecutiveFailures = 0;
+
+  backendNetworkManager.resetChecking("app_start_backend_probe");
 
   const schedule = (delayMs: number) => {
     if (!active) return;
     if (timer !== null) window.clearTimeout(timer);
-    timer = window.setTimeout(() => void reconcile(), delayMs);
+    timer = window.setTimeout(() => void probe(), delayMs);
   };
 
-  const reconcile = async () => {
-    if (!active || reconciling) return;
-    const auth = useAuthStore.getState();
-    if (!auth.isLoggedIn || !auth.token || !auth.user) return;
+  const nextDelay = () => {
+    const state = useNetworkStore.getState().state;
+    if (state === BACKEND_NETWORK_STATE.OFFLINE) return offlinePollMs;
+    if (state === BACKEND_NETWORK_STATE.CHECKING) return checkingPollMs;
+    return onlinePollMs;
+  };
 
-    if (browserIsOffline()) {
-      consecutiveFailures = failuresBeforeOffline;
-      auth.setOfflineSession(true);
-      schedule(recoveryPollMs);
+  const probe = async () => {
+    if (!active || probing) return;
+    probing = true;
+    try {
+      const result = await probeBackend();
+      if (active) applyProbeResult(result);
+    } catch (error) {
+      if (!active) return;
+      const classification = classifyBackendError(error);
+      applyProbeResult({
+        reachable: false,
+        httpStatus: null,
+        classification: classification.classification,
+        reason: classification.reason,
+      });
+    } finally {
+      probing = false;
+      const delay = probeRequested ? 0 : nextDelay();
+      probeRequested = false;
+      schedule(delay);
+    }
+  };
+
+  // Browser/Electron events are hints. Both trigger a real Backend probe and
+  // never mutate the network state directly.
+  const handleNetworkHint = () => {
+    if (probing) {
+      probeRequested = true;
       return;
     }
-
-    const requestIdentity = {
-      token: auth.token,
-      loginUuid: auth.user.uuid,
-    };
-    const scope = {
-      token: auth.token,
-      storeUuid: auth.user.store_uuid || auth.user.store_uuid_fk || "",
-      branchUuid: auth.user.branch_uuid || "",
-    };
-    reconciling = true;
-    let backendOnline = false;
-    try {
-      backendOnline = await probeBackend(scope);
-      if (!active) return;
-
-      const current = useAuthStore.getState();
-      if (
-        !current.isLoggedIn ||
-        current.token !== requestIdentity.token ||
-        current.user?.uuid !== requestIdentity.loginUuid
-      ) {
-        return;
-      }
-
-      if (browserIsOffline()) {
-        consecutiveFailures = failuresBeforeOffline;
-        current.setOfflineSession(true);
-        return;
-      }
-
-      if (backendOnline) {
-        consecutiveFailures = 0;
-        // Android has no Desktop Printer Agent. A normal JWT can therefore
-        // resume online directly after the authenticated Backend probe succeeds.
-        // A local.* token still needs its original Agent-backed restore flow.
-        if (!current.token?.startsWith("local.")) current.setOfflineSession(false);
-        return;
-      }
-
-      consecutiveFailures += 1;
-      if (consecutiveFailures >= failuresBeforeOffline) {
-        current.setOfflineSession(true);
-      }
-    } catch {
-      consecutiveFailures += 1;
-      if (consecutiveFailures >= failuresBeforeOffline) {
-        useAuthStore.getState().setOfflineSession(true);
-      }
-    } finally {
-      reconciling = false;
-      schedule(backendOnline ? onlinePollMs : recoveryPollMs);
-    }
-  };
-
-  const handleOffline = () => {
-    consecutiveFailures = failuresBeforeOffline;
-    useAuthStore.getState().setOfflineSession(true);
     schedule(0);
   };
-  const handleOnline = () => schedule(0);
-  window.addEventListener("offline", handleOffline);
-  window.addEventListener("online", handleOnline);
-  void reconcile();
+  window.addEventListener("offline", handleNetworkHint);
+  window.addEventListener("online", handleNetworkHint);
+  void probe();
 
   return () => {
     active = false;
     if (timer !== null) window.clearTimeout(timer);
-    window.removeEventListener("offline", handleOffline);
-    window.removeEventListener("online", handleOnline);
+    window.removeEventListener("offline", handleNetworkHint);
+    window.removeEventListener("online", handleNetworkHint);
   };
 }
 
@@ -206,9 +208,6 @@ export function startOfflineTransportMonitor() {
   let reconciling = false;
   let agentConfigured = false;
   let agentUnavailableChecks = 0;
-  // เตือน toast "Agent ไม่ได้เชื่อมต่อ" แค่ครั้งเดียวตอนเข้าสู่สถานะ unavailable — ถ้าไม่มี flag นี้
-  // reconcile loop จะยิง toast ซ้ำทุกรอบ (15s) ตราบใดที่ agentUnavailableChecks ยังคง >= 2 ทำให้
-  // ตอนออฟไลน์จริงเห็น toast ผุดขึ้นใหม่ไม่หยุดเพราะ sonner auto-dismiss (~4s) เร็วกว่ารอบ poll มาก
   let agentUnavailableNotified = false;
   let reportedBlockedCount = 0;
 
@@ -221,45 +220,31 @@ export function startOfflineTransportMonitor() {
   const reconcile = async () => {
     if (!active || reconciling) return;
     const auth = useAuthStore.getState();
-    if (!auth.isLoggedIn) return;
+    if (!auth.isLoggedIn || !auth.token || !auth.user) return;
     const localScope = {
-      storeUuid: auth.user?.store_uuid || auth.user?.store_uuid_fk || "",
-      branchUuid: auth.user?.branch_uuid || "",
-      actorLoginUuid: auth.user?.uuid || "",
+      storeUuid: auth.user.store_uuid || auth.user.store_uuid_fk || "",
+      branchUuid: auth.user.branch_uuid || "",
+      actorLoginUuid: auth.user.uuid || "",
     };
-    const browserOffline = navigator.onLine === false;
-    if (browserOffline) {
-      auth.setOfflineSession(true);
-    }
+    const networkState = useNetworkStore.getState().state;
 
     reconciling = true;
     try {
       if (!agentConfigured) {
-        if (!auth.token || !auth.user) return;
         agentConfigured = await configureLocalSync({
           token: auth.token,
           actorLoginUuid: auth.user.uuid,
-          storeUuid: auth.user.store_uuid || auth.user.store_uuid_fk || "",
-          branchUuid: auth.user.branch_uuid,
+          storeUuid: localScope.storeUuid,
+          branchUuid: localScope.branchUuid,
         });
         if (!agentConfigured) {
           const status = await getLocalSyncStatus({ force: true, timeoutMs: 750 });
           if (!status) {
             agentUnavailableChecks += 1;
-            void persistBrowserAgentUnavailable(localScope, browserOffline).catch(() => undefined);
-            if (!browserOffline && useAuthStore.getState().offlineSession) {
-              const online = !auth.token.startsWith("local.") && await probeAndroidBackend({
-                token: auth.token,
-                storeUuid: localScope.storeUuid,
-                branchUuid: localScope.branchUuid,
-              });
-              if (online) {
-                useAuthStore.getState().setOfflineSession(false);
-              }
-              await reconcileBrowserSyncQueue(localScope).catch(() =>
-                getBrowserLocalSyncStatus(localScope),
-              );
-            }
+            void persistBrowserAgentUnavailable(
+              localScope,
+              networkState === BACKEND_NETWORK_STATE.OFFLINE,
+            ).catch(() => undefined);
             if (agentUnavailableChecks >= 2 && !agentUnavailableNotified) {
               agentUnavailableNotified = true;
               useToastStore.getState().show({
@@ -281,15 +266,18 @@ export function startOfflineTransportMonitor() {
       if (!status) {
         agentConfigured = false;
         agentUnavailableChecks += 1;
-        void persistBrowserAgentUnavailable(localScope, browserOffline).catch(() => undefined);
+        void persistBrowserAgentUnavailable(
+          localScope,
+          networkState === BACKEND_NETWORK_STATE.OFFLINE,
+        ).catch(() => undefined);
         return;
       }
+
       agentUnavailableChecks = 0;
       agentUnavailableNotified = false;
       const browserQueue = await reconcileBrowserSyncQueue(localScope).catch(() =>
         getBrowserLocalSyncStatus(localScope),
       );
-      if (browserOffline) return;
       const blockedCount = Number(status.pending?.blocked || 0);
       if (blockedCount > 0 && blockedCount !== reportedBlockedCount) {
         reportedBlockedCount = blockedCount;
@@ -301,72 +289,55 @@ export function startOfflineTransportMonitor() {
       } else if (blockedCount === 0) {
         reportedBlockedCount = 0;
       }
-      const hasConnectionFailure = Number(status.consecutive_failures || 0) > 0;
-      if (status.connection_state === "OFFLINE" ||
-        (status.connection_state === "DEGRADED" && hasConnectionFailure)) {
-        const current = useAuthStore.getState();
-        if (current.token && !current.token.startsWith("local.") && current.user) {
-          const backendOnline = await probeAndroidBackend({
-            token: current.token,
-            storeUuid: current.user.store_uuid || current.user.store_uuid_fk || "",
-            branchUuid: current.user.branch_uuid || "",
-          });
-          if (backendOnline) {
-            current.setOfflineSession(false);
-            return;
-          }
-        }
-        useAuthStore.getState().setOfflineSession(true);
-        return;
-      }
+
+      // Agent/printer status is an independent domain. It may delay sync or
+      // printing, but only the Backend NetworkManager can put POS in Offline.
+      if (networkState !== BACKEND_NETWORK_STATE.ONLINE) return;
 
       const shouldRunPendingSync =
-        useAuthStore.getState().offlineSession ||
+        status.connection_state !== "ONLINE" ||
         localSyncHasRetryableWork(status) ||
         browserLocalSyncHasRetryableWork(browserQueue);
-      if (shouldRunPendingSync) {
-        if (status.connection_state === "SYNCING") return;
-        const syncedStatus = await runLocalSyncNow();
-        const reconciledBrowserQueue = await reconcileBrowserSyncQueue(localScope).catch(() => browserQueue);
-        if (
-          syncedStatus?.connection_state === "ONLINE" &&
-          !localSyncHasRetryableWork(syncedStatus) &&
-          !browserLocalSyncHasRetryableWork(reconciledBrowserQueue)
-        ) {
-          const current = useAuthStore.getState();
-          if (current.token?.startsWith("local.")) {
-            const restored = await restoreOnlineLogin(current.token);
-            if (!useAuthStore.getState().resumeOnlineSession(restored.token, restored.user)) return;
-          } else if (current.offlineSession) {
-            current.setOfflineSession(false);
-          }
+      if (!shouldRunPendingSync || status.connection_state === "SYNCING") return;
+
+      const syncedStatus = await runLocalSyncNow();
+      const reconciledBrowserQueue = await reconcileBrowserSyncQueue(localScope)
+        .catch(() => browserQueue);
+      if (
+        syncedStatus?.connection_state === "ONLINE" &&
+        !localSyncHasRetryableWork(syncedStatus) &&
+        !browserLocalSyncHasRetryableWork(reconciledBrowserQueue)
+      ) {
+        const current = useAuthStore.getState();
+        if (current.token?.startsWith("local.")) {
+          const restored = await restoreOnlineLogin(current.token);
+          useAuthStore.getState().resumeOnlineSession(restored.token, restored.user);
         }
       }
     } catch {
-      // Keep local transport active until both sync and Backend session restore succeed.
+      // Sync and printer failures remain in their own retry state. They do not
+      // change Backend reachability or route a business mutation to SQLite.
     } finally {
       reconciling = false;
-      schedule(agentConfigured
-        ? (useAuthStore.getState().offlineSession ? 1000 : 2000)
-        : (agentUnavailableChecks < 2 ? 2000 : 15000));
+      schedule(
+        agentConfigured
+          ? (useNetworkStore.getState().state === BACKEND_NETWORK_STATE.ONLINE ? 2000 : 5000)
+          : (agentUnavailableChecks < 2 ? 2000 : 15000),
+      );
     }
   };
 
-  const handleOffline = () => {
-    useAuthStore.getState().setOfflineSession(true);
-    schedule(0);
-  };
-  const handleOnline = () => schedule(0);
-  window.addEventListener("offline", handleOffline);
-  window.addEventListener("online", handleOnline);
-  window.addEventListener(RECONCILE_NOW_EVENT, handleOnline);
+  const handleWake = () => schedule(0);
+  window.addEventListener("offline", handleWake);
+  window.addEventListener("online", handleWake);
+  window.addEventListener(RECONCILE_NOW_EVENT, handleWake);
   void reconcile();
 
   return () => {
     active = false;
     if (timer !== null) window.clearTimeout(timer);
-    window.removeEventListener("offline", handleOffline);
-    window.removeEventListener("online", handleOnline);
-    window.removeEventListener(RECONCILE_NOW_EVENT, handleOnline);
+    window.removeEventListener("offline", handleWake);
+    window.removeEventListener("online", handleWake);
+    window.removeEventListener(RECONCILE_NOW_EVENT, handleWake);
   };
 }

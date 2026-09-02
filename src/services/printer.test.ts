@@ -189,7 +189,8 @@ describe("printer service dispatch", () => {
     );
   });
 
-  it("prints browser device jobs through the backend mobile render endpoint", async () => {
+  it("renders and physically sends browser-device jobs from the native app", async () => {
+    capacitorMocks.isNativePlatform.mockReturnValue(true);
     const job = printJob({
       agent_id: BROWSER_PRINTER_AGENT_ID,
       device_code: "android-phone-web-device-1"
@@ -203,23 +204,26 @@ describe("printer service dispatch", () => {
       "/api/v1/printer/mobile/render-escpos",
       { data: job }
     );
+    expect(mobileTcpMocks.printMobileEscposOverTcp).toHaveBeenCalledWith({
+      interface_value: "tcp://192.168.1.20:9100",
+      escpos_base64: "BASE64",
+      require_completion_confirmation: true
+    });
     expect(axiosMocks.get).not.toHaveBeenCalled();
     expect(axiosMocks.post).not.toHaveBeenCalled();
   });
 
-  it("trusts backend mobile print success even without escpos_base64", async () => {
+  it("refuses to report physical success from a non-native browser render", async () => {
     const job = printJob({
       agent_id: BROWSER_PRINTER_AGENT_ID,
       device_code: "android-phone-web-device-1"
     });
-    apiMocks.apiRequest.mockResolvedValue({ status: "success", message: "success", data: {} });
 
-    await expect(dispatchPrintJob(job)).resolves.toBeUndefined();
-    expect(apiMocks.apiRequest).toHaveBeenCalledWith(
-      "post",
-      "/api/v1/printer/mobile/render-escpos",
-      { data: job }
+    await expect(dispatchPrintJob(job)).rejects.toThrow(
+      "Physical printing requires the mobile app or a running Printer Agent"
     );
+    expect(apiMocks.apiRequest).not.toHaveBeenCalled();
+    expect(mobileTcpMocks.printMobileEscposOverTcp).not.toHaveBeenCalled();
     expect(axiosMocks.get).not.toHaveBeenCalled();
     expect(axiosMocks.post).not.toHaveBeenCalled();
   });
@@ -334,8 +338,26 @@ describe("printer service dispatch", () => {
       expect.objectContaining({ timeout: 75000 })
     );
     expect(ackPayloads).toEqual([
-      { ...successAck, login_uuid_fk: "login-1" },
-      { ...successAck2, login_uuid_fk: "login-1" }
+      {
+        ...successAck,
+        login_uuid_fk: "login-1",
+        results: [{
+          print_job_item_uuid: "item-1",
+          status: "success",
+          print_config_uuid: "51a34c43-f256-4074-84eb-44c9d7668a47",
+          delivery_state: "printed"
+        }]
+      },
+      {
+        ...successAck2,
+        login_uuid_fk: "login-1",
+        results: [{
+          print_job_item_uuid: "item-2",
+          status: "success",
+          print_config_uuid: "51a34c43-f256-4074-84eb-44c9d7668a47",
+          delivery_state: "printed"
+        }]
+      }
     ]);
     expect(apiMocks.apiRequest).toHaveBeenCalledWith("get", "/api/v1/printer/jobs/pending", {
       params: {
@@ -466,7 +488,15 @@ describe("printer service dispatch", () => {
       expect.objectContaining({ timeout: 75000 })
     );
     expect(ackPayloads).toEqual([
-      { ...successAck, login_uuid_fk: "login-1" }
+      {
+        ...successAck,
+        login_uuid_fk: "login-1",
+        results: [{
+          print_job_item_uuid: "item-1",
+          status: "success",
+          delivery_state: "printed"
+        }]
+      }
     ]);
   });
 
@@ -687,10 +717,18 @@ describe("printer service dispatch", () => {
       require_completion_confirmation: true
     });
     expect(axiosMocks.post).not.toHaveBeenCalled();
-    expect(ackPayloads).toEqual([{ ...successAck, login_uuid_fk: "login-1" }]);
+    expect(ackPayloads).toEqual([{
+      ...successAck,
+      login_uuid_fk: "login-1",
+      results: [{
+        print_job_item_uuid: "item-1",
+        status: "success",
+        delivery_state: "printed"
+      }]
+    }]);
   });
 
-  it("ACKs successful mobile printer batches when a later printer is unreachable", async () => {
+  it("ACKs each printer independently when the same item succeeds on A and fails on B", async () => {
     capacitorMocks.isNativePlatform.mockReturnValue(true);
     const ackPayloads: AckPayload[] = [];
 
@@ -726,7 +764,7 @@ describe("printer service dispatch", () => {
               job_total: 1,
               jobs: [],
               print_client: "mobile_wifi",
-              print_job_item_uuids: ["item-2"],
+              print_job_item_uuids: ["item-1"],
               print_mode: "mobile_wifi",
               mobile_escpos: {
                 escpos_base64: "SECOND",
@@ -738,14 +776,12 @@ describe("printer service dispatch", () => {
             print_job_uuid: "job-1",
             results: [
               { print_job_item_uuid: "item-1", status: "success" },
-              { print_job_item_uuid: "item-2", status: "success" },
             ],
           },
           ack_failed_payload: {
             print_job_uuid: "job-1",
             results: [
               { print_job_item_uuid: "item-1", status: "failed" },
-              { print_job_item_uuid: "item-2", status: "failed" },
             ],
           },
         };
@@ -787,7 +823,7 @@ describe("printer service dispatch", () => {
             delivery_state: "printed",
           },
           {
-            print_job_item_uuid: "item-2",
+            print_job_item_uuid: "item-1",
             status: "failed",
             reason: "connect EHOSTUNREACH 192.168.100.103:9100",
             print_config_uuid: "printer-b",
@@ -1190,11 +1226,13 @@ describe("printer service dispatch", () => {
     expect(apiMocks.apiRequest).toHaveBeenCalledTimes(1);
   });
 
-  it("keeps an interrupted Agent batch pending without a false failed ACK", async () => {
+  it("records an interrupted Agent batch as per-printer UNKNOWN without retrying", async () => {
     const ackPayloads: AckPayload[] = [];
-    const job = printJob({ cut_mode: "end" });
-    const secondJob = printJob({
+    const job = windowsPrintJob({ cut_mode: "end", print_job_item_uuid: "item-1" });
+    const secondJob = windowsPrintJob({
       cut_mode: "end",
+      job_id: "kitchen-order-1-item-2",
+      print_job_item_uuid: "item-2",
       ops: [{ type: "text", text: "Second" }],
     });
     axiosMocks.get.mockResolvedValue({
@@ -1253,7 +1291,30 @@ describe("printer service dispatch", () => {
       { cut_mode: "end", jobs: [job, secondJob] },
       expect.objectContaining({ timeout: 75000 })
     );
-    expect(ackPayloads).toEqual([]);
+    expect(ackPayloads).toEqual([
+      {
+        ...failedAck,
+        login_uuid_fk: "login-1",
+        results: [{
+          print_job_item_uuid: "item-1",
+          status: "failed",
+          reason: "batch failed",
+          delivery_state: "unknown",
+          print_config_uuid: "51a34c43-f256-4074-84eb-44c9d7668a47"
+        }]
+      },
+      {
+        ...failedAck2,
+        login_uuid_fk: "login-1",
+        results: [{
+          print_job_item_uuid: "item-2",
+          status: "failed",
+          reason: "batch failed",
+          delivery_state: "unknown",
+          print_config_uuid: "51a34c43-f256-4074-84eb-44c9d7668a47"
+        }]
+      }
+    ]);
   });
 
   it("splits local kitchen batches by agent URL", async () => {
@@ -1318,12 +1379,31 @@ describe("printer service dispatch", () => {
       expect.objectContaining({ timeout: 75000 })
     );
     expect(ackPayloads).toEqual([
-      { ...successAck, login_uuid_fk: "login-1" },
-      { ...successAck2, login_uuid_fk: "login-1" }
+      {
+        ...successAck,
+        login_uuid_fk: "login-1",
+        results: [{
+          print_job_item_uuid: "item-1",
+          status: "success",
+          print_config_uuid: "51a34c43-f256-4074-84eb-44c9d7668a47",
+          delivery_state: "printed"
+        }]
+      },
+      {
+        ...successAck2,
+        login_uuid_fk: "login-1",
+        results: [{
+          print_job_item_uuid: "item-2",
+          status: "success",
+          print_config_uuid: "51a34c43-f256-4074-84eb-44c9d7668a47",
+          delivery_state: "printed"
+        }]
+      }
     ]);
   });
 
-  it("routes browser print jobs through the backend mobile render endpoint", async () => {
+  it("routes native browser-device jobs through render and physical TCP", async () => {
+    capacitorMocks.isNativePlatform.mockReturnValue(true);
     const job = printJob({
       agent_id: BROWSER_PRINTER_AGENT_ID,
       device_code: "android-phone-web-device-1",
@@ -1337,15 +1417,23 @@ describe("printer service dispatch", () => {
       "/api/v1/printer/mobile/render-escpos",
       { data: job }
     );
+    expect(mobileTcpMocks.printMobileEscposOverTcp).toHaveBeenCalledWith({
+      interface_value: "tcp://192.168.1.20:9100",
+      escpos_base64: "BASE64",
+      require_completion_confirmation: true
+    });
     expect(axiosMocks.get).not.toHaveBeenCalled();
     expect(axiosMocks.post).not.toHaveBeenCalled();
   });
 
   it("acks browser kitchen jobs after resolving printer context", async () => {
+    capacitorMocks.isNativePlatform.mockReturnValue(true);
     const ackPayloads: unknown[] = [];
     const job = printJob({
       agent_id: BROWSER_PRINTER_AGENT_ID,
-      device_code: "android-phone-web-device-1"
+      device_code: "android-phone-web-device-1",
+      print_config_uuid: "mobile-printer-1",
+      print_job_item_uuid: "item-1"
     });
     axiosMocks.get.mockResolvedValue({
       data: { agent_id: "include-f8e4f9", agent_name: "InClude", device_code: "INCLUDE" }
@@ -1393,14 +1481,31 @@ describe("printer service dispatch", () => {
     ).resolves.toEqual({ successCount: 1, failedCount: 0, total: 1 });
 
     expect(axiosMocks.get).toHaveBeenCalledTimes(1);
-    expect(ackPayloads).toEqual([{ ...successAck, login_uuid_fk: "login-1" }]);
+    expect(mobileTcpMocks.printMobileEscposOverTcp).toHaveBeenCalledWith({
+      interface_value: "tcp://192.168.1.20:9100",
+      escpos_base64: "BASE64",
+      require_completion_confirmation: true
+    });
+    expect(ackPayloads).toEqual([{
+      ...successAck,
+      login_uuid_fk: "login-1",
+      results: [{
+        print_job_item_uuid: "item-1",
+        status: "success",
+        print_config_uuid: "mobile-printer-1",
+        delivery_state: "printed"
+      }]
+    }]);
   });
 
   it("acks failed browser kitchen jobs when backend render fails", async () => {
+    capacitorMocks.isNativePlatform.mockReturnValue(true);
     const ackPayloads: AckPayload[] = [];
     const job = printJob({
       agent_id: BROWSER_PRINTER_AGENT_ID,
-      device_code: "android-phone-web-device-1"
+      device_code: "android-phone-web-device-1",
+      print_config_uuid: "mobile-printer-1",
+      print_job_item_uuid: "item-1"
     });
     axiosMocks.get.mockResolvedValue({
       data: { agent_id: "include-f8e4f9", agent_name: "InClude", device_code: "INCLUDE" }
@@ -1457,18 +1562,31 @@ describe("printer service dispatch", () => {
       {
         print_job_uuid: "job-1",
         login_uuid_fk: "login-1",
-        results: [{ print_job_item_uuid: "item-1", status: "failed", reason: "render failed", delivery_state: "not_sent" }]
+        results: [{
+          print_job_item_uuid: "item-1",
+          status: "failed",
+          reason: "render failed",
+          delivery_state: "not_sent",
+          print_config_uuid: "mobile-printer-1"
+        }]
       }
     ]);
   });
 
   it("prints mixed browser and local kitchen jobs through their own paths", async () => {
+    capacitorMocks.isNativePlatform.mockReturnValue(true);
     const ackPayloads: unknown[] = [];
     const browserJob = printJob({
       agent_id: BROWSER_PRINTER_AGENT_ID,
-      device_code: "android-phone-web-device-1"
+      device_code: "android-phone-web-device-1",
+      print_config_uuid: "browser-printer",
+      print_job_item_uuid: "item-1"
     });
-    const localJob = printJob({ ops: [{ type: "text", text: "Local" }] });
+    const localJob = windowsPrintJob({
+      print_config_uuid: "local-printer",
+      print_job_item_uuid: "item-2",
+      ops: [{ type: "text", text: "Local" }]
+    });
     const localSuccessAck: AckPayload = {
       print_job_uuid: "job-1",
       results: [{ print_job_item_uuid: "item-2", status: "success" }]
@@ -1537,8 +1655,26 @@ describe("printer service dispatch", () => {
       expect.objectContaining({ timeout: 75000 })
     );
     expect(ackPayloads).toEqual([
-      { ...successAck, login_uuid_fk: "login-1" },
-      { ...localSuccessAck, login_uuid_fk: "login-1" }
+      {
+        ...successAck,
+        login_uuid_fk: "login-1",
+        results: [{
+          print_job_item_uuid: "item-1",
+          status: "success",
+          print_config_uuid: "browser-printer",
+          delivery_state: "printed"
+        }]
+      },
+      {
+        ...localSuccessAck,
+        login_uuid_fk: "login-1",
+        results: [{
+          print_job_item_uuid: "item-2",
+          status: "success",
+          print_config_uuid: "local-printer",
+          delivery_state: "printed"
+        }]
+      }
     ]);
   });
 });

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { isCapacitorAndroidApp } from "@/lib/capacitor-platform";
 import { useAuthStore } from "@/stores/auth-store";
 import {
-  startAndroidOnlineRecoveryMonitor,
+  startBackendNetworkMonitor,
   startOfflineTransportMonitor,
 } from "@/stores/offline-transport-monitor";
 
@@ -21,15 +21,14 @@ export function OfflineAppRuntime() {
   const router = useRouter();
   const isLoggedIn = useAuthStore((state) => state.isLoggedIn);
 
+  useEffect(() => startBackendNetworkMonitor(), []);
+
   useEffect(() => {
     if (!isLoggedIn) return;
 
-    // Android พิมพ์ผ่าน Native TCP โดยตรงและไม่มี Desktop Printer Agent
-    // ที่ 127.0.0.1:7777 จึงตรวจ Backend โดยตรงเพื่อออกจาก offlineSession
-    // โดยไม่เริ่ม Agent monitor ของ Desktop
-    if (isCapacitorAndroidApp()) {
-      return startAndroidOnlineRecoveryMonitor();
-    }
+    // Android prints through Native TCP and has no Desktop Local Agent. Backend
+    // reachability is already owned by startBackendNetworkMonitor above.
+    if (isCapacitorAndroidApp()) return;
 
     return startOfflineTransportMonitor();
   }, [isLoggedIn]);

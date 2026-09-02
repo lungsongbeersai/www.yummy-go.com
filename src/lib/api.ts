@@ -3,6 +3,11 @@
 import axios, { AxiosError, type AxiosInstance } from "axios";
 import i18n from "@/lib/i18n";
 import { isCapacitorAndroidApp } from "@/lib/capacitor-platform";
+import {
+  BACKEND_NETWORK_STATE,
+  classifyBackendError,
+  shouldUseConfirmedOfflineFallback,
+} from "@/lib/network-state";
 import { shouldLogoutForUnauthorized } from "@/lib/unauthorized-session";
 import {
   cacheOnlineResponse,
@@ -17,6 +22,7 @@ import {
   withLocalPrintOwnership,
 } from "@/services/offline-sync";
 import { useAuthStore } from "@/stores/auth-store";
+import { backendNetworkManager } from "@/stores/network-store";
 
 const baseURL =
   process.env.NEXT_PUBLIC_BASE_URL ??
@@ -71,9 +77,9 @@ function createClient(authenticated: boolean): AxiosInstance {
         const requestToken = String(
           error.config?.headers.get("x-access-token") ?? "",
         );
-        const { isLoggedIn, logout, offlineSession, token } = useAuthStore.getState();
+        const { isLoggedIn, logout, token } = useAuthStore.getState();
         if (
-          !offlineSession &&
+          !token?.startsWith("local.") &&
           shouldLogoutForUnauthorized({
             currentToken: token,
             isLoggedIn,
@@ -94,6 +100,21 @@ function createClient(authenticated: boolean): AxiosInstance {
 
 export const apiClient = createClient(true);
 export const publicApiClient = createClient(false);
+
+function synchronizeOfflineSessionWithBackend() {
+  const networkState = backendNetworkManager.getSnapshot().state;
+  const auth = useAuthStore.getState();
+  if (!auth.isLoggedIn || !auth.token) return;
+  if (networkState === BACKEND_NETWORK_STATE.OFFLINE) {
+    if (!auth.offlineSession) auth.setOfflineSession(true);
+  } else if (
+    networkState === BACKEND_NETWORK_STATE.ONLINE &&
+    !auth.token.startsWith("local.") &&
+    auth.offlineSession
+  ) {
+    auth.setOfflineSession(false);
+  }
+}
 
 async function send<T>(
   client: AxiosInstance,
@@ -172,20 +193,17 @@ export async function apiRequest<T>(
     branchUuid: auth.user?.branch_uuid || "",
     actorLoginUuid: auth.user?.uuid || "",
   };
-  const browserOnline = typeof navigator === "undefined" ? undefined : navigator.onLine;
+  const networkState = backendNetworkManager.getSnapshot().state;
   const localAgentAvailable = !isCapacitorAndroidApp();
-  // A persisted offlineSession or stale Agent status must not permanently pin a
-  // normal Backend JWT to local transport. When the browser has connectivity,
-  // try Backend first and use the existing catch path as the offline fallback.
-  const preferOnlineTransport = shouldPreferOnlineTransport(auth.token, browserOnline);
+  // CHECKING and ONLINE always try Backend for a normal JWT. Neither a persisted
+  // session flag, navigator hint, nor stale Agent sync status can select SQLite.
+  const preferOnlineTransport = shouldPreferOnlineTransport(auth.token, networkState);
   const routeToLocal = localAgentAvailable && !preferOnlineTransport &&
     shouldRouteToLocal(
       auth.offlineSession,
-      browserOnline,
+      networkState,
       method,
       url,
-      undefined,
-      localScope,
     );
   if (routeToLocal && !auth.offlineSession) {
     useAuthStore.getState().setOfflineSession(true);
@@ -226,6 +244,8 @@ export async function apiRequest<T>(
   }
   try {
     const response = await send<T>(apiClient, method, url, requestOptions);
+    backendNetworkManager.reportReachable(response.status, "backend_api_success");
+    synchronizeOfflineSessionWithBackend();
     const data = assertApiSuccess(response.data);
     const currentAuth = useAuthStore.getState();
     if (
@@ -279,9 +299,21 @@ export async function apiRequest<T>(
     }
     return data;
   } catch (error) {
+    const classification = classifyBackendError(error);
+    if (classification.classification === "HTTP_RESPONSE") {
+      backendNetworkManager.reportReachable(
+        classification.httpStatus,
+        classification.reason,
+      );
+    } else if (classification.classification === "NETWORK_TRANSPORT") {
+      backendNetworkManager.reportTransportFailure(classification.reason);
+    }
+    synchronizeOfflineSessionWithBackend();
     const normalized = normalizeError(error, fallback);
-    const isNetworkFailure = normalized.statusCode === 0 || normalized.statusCode === 408;
-    const canContinueOffline = isNetworkFailure || (normalized.statusCode === 401 && auth.offlineSession);
+    const canContinueOffline = shouldUseConfirmedOfflineFallback(
+      classification,
+      backendNetworkManager.getSnapshot().state,
+    );
     if (
       localAgentAvailable &&
       canContinueOffline &&
@@ -322,8 +354,20 @@ export async function publicApiRequest<T>(
 ) {
   try {
     const response = await send<T>(publicApiClient, method, url, options);
+    backendNetworkManager.reportReachable(response.status, "backend_public_api_success");
+    synchronizeOfflineSessionWithBackend();
     return assertApiSuccess(response.data);
   } catch (error) {
+    const classification = classifyBackendError(error);
+    if (classification.classification === "HTTP_RESPONSE") {
+      backendNetworkManager.reportReachable(
+        classification.httpStatus,
+        classification.reason,
+      );
+    } else if (classification.classification === "NETWORK_TRANSPORT") {
+      backendNetworkManager.reportTransportFailure(classification.reason);
+    }
+    synchronizeOfflineSessionWithBackend();
     throw normalizeError(error, fallback);
   }
 }

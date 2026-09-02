@@ -1,5 +1,6 @@
 import axios from "axios";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { backendNetworkManager } from "@/stores/network-store";
 
 const apiMocks = vi.hoisted(() => ({
   post: vi.fn()
@@ -42,6 +43,8 @@ function loginResponse(overrides: Record<string, unknown> = {}) {
 describe("login service", () => {
   beforeEach(() => {
     apiMocks.post.mockReset();
+    vi.spyOn(console, "info").mockImplementation(() => undefined);
+    backendNetworkManager.resetChecking("login_test");
   });
 
   afterEach(() => {
@@ -50,7 +53,7 @@ describe("login service", () => {
   });
 
   it("maps store table status from the login response", async () => {
-    apiMocks.post.mockResolvedValue({ data: loginResponse({ store_table_status: 2 }) });
+    apiMocks.post.mockResolvedValue({ status: 200, data: loginResponse({ store_table_status: 2 }) });
 
     await expect(checkLogin("cashier@example.com", "password")).resolves.toMatchObject({
       user: { store_table_status: 2 }
@@ -58,7 +61,7 @@ describe("login service", () => {
   });
 
   it("defaults a legacy login response to a store with tables", async () => {
-    apiMocks.post.mockResolvedValue({ data: loginResponse() });
+    apiMocks.post.mockResolvedValue({ status: 200, data: loginResponse() });
 
     await expect(checkLogin("cashier@example.com", "password")).resolves.toMatchObject({
       user: { store_table_status: 1 }
@@ -66,7 +69,9 @@ describe("login service", () => {
   });
 
   it("uses the verified Local Agent credential when the device is offline", async () => {
-    vi.stubGlobal("navigator", { onLine: false });
+    backendNetworkManager.reportTransportFailure("network_failure");
+    backendNetworkManager.reportTransportFailure("network_failure");
+    backendNetworkManager.reportTransportFailure("network_failure");
     const localPost = vi.spyOn(axios, "post").mockResolvedValue({
       data: { ok: true, data: { ...loginResponse(), offline: true } }
     });
@@ -84,13 +89,27 @@ describe("login service", () => {
     );
   });
 
-  it("falls back to Local Agent when the Backend gateway is unavailable", async () => {
-    vi.stubGlobal("navigator", { onLine: true });
+  it("does not fall back to Local Agent for an HTTP 503 response", async () => {
     apiMocks.post.mockRejectedValue({
       isAxiosError: true,
       message: "Service unavailable",
       response: { status: 503 },
     });
+    const localPost = vi.spyOn(axios, "post").mockResolvedValue({
+      data: { ok: true, data: { ...loginResponse(), offline: true } }
+    });
+
+    await expect(checkLogin("cashier@example.com", "password")).rejects.toMatchObject({
+      response: { status: 503 },
+    });
+    expect(localPost).not.toHaveBeenCalled();
+    expect(backendNetworkManager.isOffline()).toBe(false);
+  });
+
+  it("falls back only when a response-less failure confirms the Offline threshold", async () => {
+    backendNetworkManager.reportTransportFailure("network_failure");
+    backendNetworkManager.reportTransportFailure("network_failure");
+    apiMocks.post.mockRejectedValue(new axios.AxiosError("Network Error", "ERR_NETWORK"));
     vi.spyOn(axios, "post").mockResolvedValue({
       data: { ok: true, data: { ...loginResponse(), offline: true } }
     });

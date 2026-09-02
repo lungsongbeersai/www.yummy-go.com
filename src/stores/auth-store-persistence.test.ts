@@ -44,6 +44,7 @@ interface PersistedAuthUser {
 interface PersistedAuthSnapshot {
   state?: {
     user?: PersistedAuthUser | null;
+    offlineSession?: boolean;
   };
   version?: number;
 }
@@ -73,7 +74,8 @@ describe("auth store persistence", () => {
           store_logo: ""
         },
         isLoggedIn: true,
-        rememberMe: true
+        rememberMe: true,
+        offlineSession: true,
       },
       version: 0
     };
@@ -88,7 +90,9 @@ describe("auth store persistence", () => {
     const storedSnapshot = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}") as PersistedAuthSnapshot;
 
     expect(useAuthStore.getState().user?.store_table_status).toBe(1);
+    expect(useAuthStore.getState().offlineSession).toBe(false);
     expect(storedSnapshot.state?.user?.store_table_status).toBe(1);
-    expect(storedSnapshot.version).toBe(1);
+    expect(storedSnapshot.state).not.toHaveProperty("offlineSession");
+    expect(storedSnapshot.version).toBe(2);
   });
 });

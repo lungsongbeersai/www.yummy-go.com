@@ -1,8 +1,9 @@
 // Local printer-agent identity cache + transport (P3.4 split of printer.ts):
 // checking/connecting to the agent, dispatching a single job or a batch to it,
-// and routing browser-device jobs to the backend instead. Depends on
-// config-api.ts (getPrinters, sendMobileBackendPrintJob) — not vice versa.
+// and rendering/sending native mobile jobs over physical TCP. Depends on
+// config-api.ts (getPrinters, renderMobileEscpos) — not vice versa.
 import axios from "axios";
+import { Capacitor } from "@capacitor/core";
 import { ServiceError } from "@/lib/api";
 import { AGENT_URL } from "@/config/printer-agent";
 import {
@@ -14,7 +15,8 @@ import {
   textValue
 } from "@/services/printer/helpers";
 import { getBrowserPrinterIdentity, isBrowserPrinterAgentId } from "@/services/printer/browser-device";
-import { getPrinters, sendMobileBackendPrintJob } from "@/services/printer/config-api";
+import { getPrinters, renderMobileEscpos } from "@/services/printer/config-api";
+import { printMobileEscposOverTcp } from "@/services/printer/mobile-tcp";
 import type {
   AgentInfo,
   AgentInfoResponse,
@@ -255,7 +257,35 @@ export async function dispatchPrintJob(
   localAgent?: AgentInfo,
 ) {
   if (isBrowserDevicePrintJob(job)) {
-    await sendMobileBackendPrintJob(job);
+    if (!Capacitor.isNativePlatform()) {
+      throw new ServiceError(
+        "Physical printing requires the mobile app or a running Printer Agent",
+        501,
+      );
+    }
+    const interfaceValue = textValue(job.interface_value);
+    if (!interfaceValue) {
+      throw new ServiceError("Mobile printer interface_value missing", 400);
+    }
+    let escposBase64: string;
+    try {
+      escposBase64 = await renderMobileEscpos(job);
+    } catch (error) {
+      // Rendering happens before any bytes are written to the printer. Preserve
+      // that fact so a safe retry cannot be mistaken for an uncertain delivery.
+      if (error && typeof error === "object") {
+        (error as { delivery_state?: string }).delivery_state = "not_sent";
+        throw error;
+      }
+      const wrapped = new ServiceError(getPrinterErrorMessage(error), 500);
+      (wrapped as ServiceError & { delivery_state?: string }).delivery_state = "not_sent";
+      throw wrapped;
+    }
+    await printMobileEscposOverTcp({
+      interface_value: interfaceValue,
+      escpos_base64: escposBase64,
+      require_completion_confirmation: true,
+    });
     return;
   }
 

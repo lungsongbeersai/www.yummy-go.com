@@ -8,17 +8,17 @@ export const initialOfflineDialogState: OfflineDialogState = {
   dismissedForThisOutage: false,
 };
 
-// เรียกทุกครั้งที่ offlineSession เปลี่ยนค่า — ปิด popup และ reset การ dismiss ทันทีที่กลับมา
-// ออนไลน์จริง (offlineSession -> false) เพื่อให้รอบออฟไลน์ครั้งถัดไปเตือนใหม่ได้ปกติ
-export function applyOfflineSessionChange(
+// The dialog follows confirmed Backend reachability, not auth, printer, Agent,
+// or sync state. Reset its dismissal only after Backend is reachable again.
+export function applyBackendOfflineChange(
   state: OfflineDialogState,
-  offlineSession: boolean,
+  backendOffline: boolean,
 ): OfflineDialogState {
-  if (offlineSession) return state;
+  if (backendOffline) return state;
   return initialOfflineDialogState;
 }
 
-// เรียกหลัง probe เชื่อมต่อจริงเสร็จระหว่างที่ offlineSession ยัง true อยู่ — ถ้าผู้ใช้กด
+// เรียกหลัง probe เชื่อมต่อจริงเสร็จระหว่างที่ Backend ยัง unreachable — ถ้าผู้ใช้กด
 // "ใช้งานโหมดออฟไลน์" ไปแล้วสำหรับรอบนี้ ต้องไม่เปิด popup ซ้ำแม้ probe จะยังล้มเหลวต่อเนื่อง
 export function applyConnectivityProbeResult(
   state: OfflineDialogState,

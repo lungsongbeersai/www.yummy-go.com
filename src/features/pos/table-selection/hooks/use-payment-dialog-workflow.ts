@@ -13,6 +13,10 @@ import { useTranslation } from "react-i18next";
 import { canUseWindowOpen } from "@/lib/capacitor-platform";
 import { money } from "@/lib/format";
 import {
+  createMutationUuid,
+  ensureSplitItemUuidMap,
+} from "@/lib/pos/mutation-identity";
+import {
   canMoveCaretWithoutOpeningKeyboard,
   canProgrammaticallyFocusTextInput,
 } from "@/lib/input-focus";
@@ -99,6 +103,11 @@ export function usePaymentDialogWorkflow({
   const executeInvoice = usePrinterStore((state) => state.executeInvoice);
   const showToast = useToastStore((state) => state.show);
   const activeAmountInputRef = useRef<HTMLInputElement>(null);
+  const paymentUuidRef = useRef("");
+  const splitOperationUuidRef = useRef("");
+  const splitNewOrderUuidRef = useRef("");
+  const splitPaymentUuidRef = useRef("");
+  const splitItemUuidMapRef = useRef<Record<string, string>>({});
   const customers = usePaymentCustomers({ language, open, user });
   const [activeTab, setActiveTab] = useState<PaymentTab>("cash");
   const [activeSplitField, setActiveSplitField] =
@@ -255,6 +264,11 @@ export function usePaymentDialogWorkflow({
     setDueDate("");
     setNote("");
     setConfirmOpen(false);
+    paymentUuidRef.current = createMutationUuid();
+    splitOperationUuidRef.current = createMutationUuid();
+    splitNewOrderUuidRef.current = createMutationUuid();
+    splitPaymentUuidRef.current = createMutationUuid();
+    splitItemUuidMapRef.current = {};
   }, { runOnMount: true });
 
   useEffect(() => {
@@ -490,6 +504,10 @@ export function usePaymentDialogWorkflow({
 
     setProcessing(true);
     try {
+      if (!paymentUuidRef.current) paymentUuidRef.current = createMutationUuid();
+      if (!splitOperationUuidRef.current) splitOperationUuidRef.current = createMutationUuid();
+      if (!splitNewOrderUuidRef.current) splitNewOrderUuidRef.current = createMutationUuid();
+      if (!splitPaymentUuidRef.current) splitPaymentUuidRef.current = createMutationUuid();
       const paymentPayload = {
         order_uuid: orderUuid,
         ...(hasRealTable ? { table_uuid: table.table_uuid } : {}),
@@ -520,6 +538,14 @@ export function usePaymentDialogWorkflow({
       const response = isSplitPayment
         ? await splitBill({
             ...paymentPayload,
+            sync_event_uuid: splitOperationUuidRef.current,
+            new_order_uuid: splitNewOrderUuidRef.current,
+            payment_uuid: splitPaymentUuidRef.current,
+            split_item_uuid_map: (splitItemUuidMapRef.current =
+              ensureSplitItemUuidMap(
+                splitBillItemUuids,
+                splitItemUuidMapRef.current,
+              )),
             order_item_uuids: splitBillItemUuids,
             document_type: "receipt",
             order_channel: orderChannel,
@@ -527,6 +553,7 @@ export function usePaymentDialogWorkflow({
           })
         : await createPayment({
             ...paymentPayload,
+            payment_uuid: paymentUuidRef.current,
             order_channel: orderChannel,
             paid_at: null,
             lang: toApiLanguage(language),

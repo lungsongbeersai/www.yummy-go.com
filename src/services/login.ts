@@ -1,7 +1,9 @@
 import axios from "axios";
 import { AGENT_URL } from "@/config/printer-agent";
 import { publicApiClient, ServiceError } from "@/lib/api";
+import { classifyBackendError } from "@/lib/network-state";
 import type { AuthUser } from "@/stores/auth-store";
+import { backendNetworkManager } from "@/stores/network-store";
 
 interface LoginApiResponse {
   status: string;
@@ -72,14 +74,6 @@ async function loginFromLocalAgent(login_email: string, login_password: string) 
   }
 }
 
-function shouldFallbackToLocalLogin(error: unknown) {
-  if (!axios.isAxiosError(error)) return false;
-  if (!error.response || error.code === "ECONNABORTED") return true;
-  const status = Number(error.response.status || 0);
-  return status === 408 || status === 502 || status === 503 || status === 504 ||
-    (status >= 521 && status <= 524) || status === 530;
-}
-
 export async function restoreOnlineLogin(localToken: string): Promise<LoginResult> {
   if (!localToken.startsWith("local.")) {
     throw new ServiceError("Local session token is required", 400);
@@ -112,19 +106,34 @@ export async function checkLogin(login_email: string, login_password: string): P
   if (!login_password.trim()) throw new ServiceError("Password is required", 400);
   if (!EMAIL_RE.test(login_email)) throw new ServiceError("Invalid email", 400);
 
-  if (typeof navigator !== "undefined" && navigator.onLine === false) {
+  if (backendNetworkManager.isOffline()) {
     return loginFromLocalAgent(login_email, login_password);
   }
 
   try {
-    const { data } = await publicApiClient.post<LoginApiResponse>(
+    const response = await publicApiClient.post<LoginApiResponse>(
       "/api/v1/login/check_login",
       { login_email, login_password },
       { timeout: 5000 },
     );
-    return mapLoginResponse(data);
+    backendNetworkManager.reportReachable(response.status, "backend_login_response");
+    return mapLoginResponse(response.data);
   } catch (error) {
-    if (shouldFallbackToLocalLogin(error)) {
+    const classification = classifyBackendError(error);
+    if (classification.classification === "HTTP_RESPONSE") {
+      backendNetworkManager.reportReachable(
+        classification.httpStatus,
+        classification.reason,
+      );
+      throw error;
+    }
+    if (classification.classification === "NETWORK_TRANSPORT") {
+      backendNetworkManager.reportTransportFailure(classification.reason);
+    }
+    if (
+      classification.classification === "NETWORK_TRANSPORT" &&
+      backendNetworkManager.isOffline()
+    ) {
       return loginFromLocalAgent(login_email, login_password);
     }
     throw error;

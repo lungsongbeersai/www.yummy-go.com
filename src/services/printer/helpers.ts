@@ -185,3 +185,21 @@ export function failPayload(
     )
   };
 }
+
+export function deliveredPayload(
+  payload: AckPayload,
+  printConfigUuid?: string,
+): AckPayload {
+  return {
+    ...payload,
+    results: payload.results.map((item) =>
+      item.status === "success"
+        ? {
+          ...item,
+          ...(printConfigUuid ? { print_config_uuid: printConfigUuid } : {}),
+          delivery_state: "printed",
+        }
+        : item
+    ),
+  };
+}

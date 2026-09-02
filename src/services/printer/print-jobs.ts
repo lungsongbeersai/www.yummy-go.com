@@ -4,6 +4,7 @@
 import { apiRequest, ServiceError } from "@/lib/api";
 import { Capacitor } from "@capacitor/core";
 import {
+  deliveredPayload,
   failPayload,
   getPrinterDeliveryState,
   getPrinterErrorMessage,
@@ -373,7 +374,10 @@ function batchAckPayload({
         )
         : null;
     }
-    return successPayload;
+    // Every physical batch succeeded, so the legacy item-only ACK can safely
+    // state that delivery was printed. Backend expands it across the required
+    // printer snapshot only in this all-success compatibility path.
+    return successPayload ? deliveredPayload(successPayload) : null;
   }
 
   const successByItem = new Map(
@@ -658,7 +662,10 @@ async function executePrintJobs(
               storeDelivery(ledgerKey, { deliveryState, errorMessage });
             }
             return {
-              acknowledge: deliveryState !== "unknown" || mobileBatch,
+              // UNKNOWN is a real terminal delivery result, not an absent ACK.
+              // Persist it per printer so a later poll cannot resend bytes to a
+              // printer that may already have produced paper.
+              acknowledge: true,
               deliveryState,
               errorMessage,
               itemUuids: batchPrintJobItemUuids(batch),
@@ -710,7 +717,7 @@ async function executePrintJobs(
       try {
         await ackPrintJob(ackPayloadWithLogin(ackPayload, loginUuid));
         for (const outcome of outcomes) {
-          if (options.idempotent && outcome.deliveryState === "printed") {
+          if (options.idempotent && outcome.acknowledge) {
             clearStoredDelivery(outcome.ledgerKey);
           }
         }
@@ -820,7 +827,13 @@ async function executePrintJobs(
 
       if (options.ack && item.ack_success_payload) {
         await ackPrintJob(
-          ackPayloadWithLogin(item.ack_success_payload, loginUuid)
+          ackPayloadWithLogin(
+            deliveredPayload(
+              item.ack_success_payload,
+              textValue(item.job?.print_config_uuid),
+            ),
+            loginUuid,
+          )
         );
       }
 
@@ -832,9 +845,7 @@ async function executePrintJobs(
         continue;
       }
 
-      const deliveryState = item.job && isBrowserDevicePrintJob(item.job)
-        ? "not_sent"
-        : getPrinterDeliveryState(error);
+      const deliveryState = getPrinterDeliveryState(error);
       await ackPrintJob(
         ackPayloadWithLogin(
           failPayload(
@@ -873,7 +884,13 @@ async function executePrintJobs(
           if (!item.ack_success_payload) continue;
 
           await ackPrintJob(
-            ackPayloadWithLogin(item.ack_success_payload, loginUuid)
+            ackPayloadWithLogin(
+              deliveredPayload(
+                item.ack_success_payload,
+                textValue(item.job?.print_config_uuid),
+              ),
+              loginUuid,
+            )
           );
 
           successCount++;
@@ -892,8 +909,19 @@ async function executePrintJobs(
         }
 
         if (deliveryState === "unknown") {
-          // Agent จะยืนยัน replay ด้วย job_id เดิมในรอบถัดไป จึงยังไม่บันทึก
-          // failed/unknown ทับ queue ฝั่ง backend ในจังหวะที่ผลจริงยังไม่กลับมา
+          // บันทึก UNKNOWN รายเครื่องเป็น terminal เพื่อให้ Backend รู้ว่า
+          // ห้าม auto retry เครื่องนี้ แม้กระดาษอาจออกแล้วก็ตาม
+          await ackPrintJob(
+            ackPayloadWithLogin(
+              failPayload(
+                item.ack_failed_payload,
+                lastErrorMessage,
+                deliveryState,
+                textValue(item.job?.print_config_uuid),
+              ),
+              loginUuid,
+            )
+          );
           hasPendingDelivery = true;
           continue;
         }

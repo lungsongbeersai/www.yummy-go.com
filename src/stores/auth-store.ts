@@ -56,7 +56,10 @@ function normalizePersistedAuthState(persistedState: unknown): PersistedAuthStat
   const state = persistedState as PersistedAuthState;
   return {
     ...state,
-    user: isRecord(state.user) ? normalizeAuthUser(state.user as NormalizableAuthUser) : null
+    user: isRecord(state.user) ? normalizeAuthUser(state.user as NormalizableAuthUser) : null,
+    // Persisted connectivity is never authoritative after restart. A local
+    // token remains an offline-auth session, while normal JWTs start CHECKING.
+    offlineSession: Boolean(state.token?.startsWith("local.")),
   };
 }
 
@@ -216,17 +219,17 @@ export const useAuthStore = create<AuthState>()(
     {
       name: STORAGE_KEY,
       storage: createJSONStorage(() => dualStorage),
-      version: 1,
+      version: 2,
       migrate: (persistedState) => normalizePersistedAuthState(persistedState),
-      partialize: ({ token, user, isLoggedIn, rememberMe, offlineSession }) => ({
+      partialize: ({ token, user, isLoggedIn, rememberMe }) => ({
         token,
         user,
         isLoggedIn,
         rememberMe,
-        offlineSession
       }),
       onRehydrateStorage: () => (state) => {
         if (state?.user) state.updateUser(state.user);
+        if (state) state.setOfflineSession(Boolean(state.token?.startsWith("local.")));
         state?.setHydrated(true);
       }
     }

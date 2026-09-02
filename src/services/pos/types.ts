@@ -541,6 +541,7 @@ export interface UpdateOrderNoteInput {
 export interface UpdateOrderNoteResponse extends ApiEntity {}
 
 export interface PaymentInput extends ApiEntity {
+  payment_uuid?: string;
   order_uuid: string;
   table_uuid?: string;
   customer_uuid_fk?: string;
@@ -614,6 +615,10 @@ export interface PaymentResponse extends ApiEntity {
 export type SplitBillItemQuantity = Record<string, number>;
 
 export interface SplitBillInput extends ApiEntity {
+  sync_event_uuid?: string;
+  new_order_uuid?: string;
+  payment_uuid?: string;
+  split_item_uuid_map?: Record<string, string>;
   order_uuid: string;
   table_uuid?: string;
   order_item_uuids: SplitBillItemQuantity[];
