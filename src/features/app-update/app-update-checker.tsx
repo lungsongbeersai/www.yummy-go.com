@@ -76,18 +76,33 @@ export function AppUpdateChecker() {
   const storeName = platform === "android" ? "Google Play" : "App Store";
 
   async function openStore() {
+    // Try native store schemes first (market:// , itms-apps://). On a device
+    // with no handler for them — no Play Store, an old iOS, or an old APK
+    // without AppLauncher — they resolve to nothing. Always finish on the
+    // https store URL: every WebView can open it and the OS hands off to the
+    // store app from there. Falling back to the native scheme again (the old
+    // bug) left those devices unable to update.
+    const candidates = [
+      config.nativeStoreUrl,
+      config.storeUrl,
+    ].filter((url): url is string => typeof url === "string" && url.length > 0);
+
     if (Capacitor.isPluginAvailable("AppLauncher")) {
-      try {
-        const result = await AppLauncher.openUrl({
-          url: config.nativeStoreUrl ?? config.storeUrl,
-        });
-        if (result.completed) return;
-      } catch {
-        // APK เก่ายังไม่มี AppLauncher; Capacitor จะส่ง market URL ไปให้ Android จัดการต่อ
+      for (const url of candidates) {
+        try {
+          const result = await AppLauncher.openUrl({ url });
+          if (result.completed) return;
+        } catch {
+          // try the next candidate
+        }
       }
     }
 
-    window.location.assign(config.nativeStoreUrl ?? config.storeUrl);
+    const httpsUrl =
+      config.storeUrl && /^https:\/\//i.test(config.storeUrl)
+        ? config.storeUrl
+        : (config.nativeStoreUrl ?? config.storeUrl);
+    window.location.assign(httpsUrl);
   }
 
   return (
