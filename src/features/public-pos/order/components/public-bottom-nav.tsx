@@ -102,9 +102,10 @@ function NavButton({
       size="icon-lg"
       ref={buttonRef}
       className={cn(
-        "relative h-13 w-full flex-col gap-1 rounded-2xl px-1 text-[10.5px] font-bold leading-none motion-reduce:transition-none",
+        "relative h-13 w-full flex-col gap-1 rounded-2xl px-1 text-[10.5px] font-bold leading-none duration-150 ease-out active:scale-90 active:duration-75 motion-reduce:transition-none",
         active ? "text-yg-accent" : "text-yg-muted",
         // ดีไซน์ใช้ opacity .5 ของ Button เริ่มต้น ซึ่งรวมกับสี muted แล้วอ่านไม่ออก ยกเป็น .55
+        // disabled ปิด pointer-events ไว้แล้วจาก Button พื้นฐาน :active จึงไม่มีวันติด
         disabled
           ? "opacity-55 hover:bg-transparent hover:text-yg-muted"
           : "hover:bg-yg-panel-hover hover:text-yg-ink",

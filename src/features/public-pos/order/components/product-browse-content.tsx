@@ -204,7 +204,7 @@ export function ProductBrowseContent({
                           ref={(element) => {
                             categoryTabRefs.current[category.cateUuid] = element;
                           }}
-                          className="h-11 flex-none gap-2 rounded-full border border-yg-line bg-yg-panel px-4 text-sm font-bold text-yg-muted shadow-none backdrop-blur-md data-[state=active]:border-yg-accent data-[state=active]:bg-yg-accent data-[state=active]:text-yg-on-accent data-[state=active]:shadow-[0_8px_20px_-8px_var(--yg-accent)]"
+                          className="h-11 flex-none gap-2 rounded-full border border-yg-line bg-yg-panel px-4 text-sm font-bold text-yg-muted shadow-none backdrop-blur-md duration-150 ease-out active:scale-[0.95] active:duration-75 motion-reduce:transition-none data-[state=active]:border-yg-accent data-[state=active]:bg-yg-accent data-[state=active]:text-yg-on-accent data-[state=active]:shadow-[0_8px_20px_-8px_var(--yg-accent)]"
                         >
                           {jumpingCateUuid === category.cateUuid ? (
                             <Loader2 className="size-4 shrink-0 animate-spin" />
