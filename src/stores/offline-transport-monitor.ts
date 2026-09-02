@@ -120,7 +120,9 @@ function applyProbeResult(result: BackendProbeResult) {
   const snapshot = result.reachable
     ? backendNetworkManager.reportReachable(result.httpStatus, result.reason)
     : result.classification === "NETWORK_TRANSPORT"
-      ? backendNetworkManager.reportTransportFailure(result.reason)
+      // This is the dedicated /sync/health probe — a confirmed connectivity
+      // verdict, the only source allowed to move POS to OFFLINE.
+      ? backendNetworkManager.reportTransportFailure(result.reason, { confirmed: true })
       : backendNetworkManager.reportNonNetwork(result.reason);
   synchronizeAuthTransport(snapshot.state);
   if (snapshot.state === BACKEND_NETWORK_STATE.ONLINE) requestImmediateReconcile();

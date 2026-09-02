@@ -128,7 +128,12 @@ export async function checkLogin(login_email: string, login_password: string): P
       throw error;
     }
     if (classification.classification === "NETWORK_TRANSPORT") {
-      backendNetworkManager.reportTransportFailure(classification.reason);
+      // The login request is itself a real backend round-trip, so a
+      // response-less failure here is a confirmed connectivity verdict — the
+      // same weight as the /sync/health probe.
+      backendNetworkManager.reportTransportFailure(classification.reason, {
+        confirmed: true,
+      });
     }
     if (
       classification.classification === "NETWORK_TRANSPORT" &&

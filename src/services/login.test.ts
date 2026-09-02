@@ -69,9 +69,9 @@ describe("login service", () => {
   });
 
   it("uses the verified Local Agent credential when the device is offline", async () => {
-    backendNetworkManager.reportTransportFailure("network_failure");
-    backendNetworkManager.reportTransportFailure("network_failure");
-    backendNetworkManager.reportTransportFailure("network_failure");
+    backendNetworkManager.reportTransportFailure("network_failure", { confirmed: true });
+    backendNetworkManager.reportTransportFailure("network_failure", { confirmed: true });
+    backendNetworkManager.reportTransportFailure("network_failure", { confirmed: true });
     const localPost = vi.spyOn(axios, "post").mockResolvedValue({
       data: { ok: true, data: { ...loginResponse(), offline: true } }
     });
@@ -107,8 +107,8 @@ describe("login service", () => {
   });
 
   it("falls back only when a response-less failure confirms the Offline threshold", async () => {
-    backendNetworkManager.reportTransportFailure("network_failure");
-    backendNetworkManager.reportTransportFailure("network_failure");
+    backendNetworkManager.reportTransportFailure("network_failure", { confirmed: true });
+    backendNetworkManager.reportTransportFailure("network_failure", { confirmed: true });
     apiMocks.post.mockRejectedValue(new axios.AxiosError("Network Error", "ERR_NETWORK"));
     vi.spyOn(axios, "post").mockResolvedValue({
       data: { ok: true, data: { ...loginResponse(), offline: true } }

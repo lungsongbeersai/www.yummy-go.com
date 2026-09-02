@@ -62,9 +62,12 @@ export const backendNetworkManager = {
       "HTTP_RESPONSE",
     );
   },
-  reportTransportFailure(reason = "backend_transport_failure") {
+  reportTransportFailure(
+    reason = "backend_transport_failure",
+    { confirmed = false }: { confirmed?: boolean } = {},
+  ) {
     return commit(
-      applyBackendTransportFailure(this.getSnapshot(), { reason }),
+      applyBackendTransportFailure(this.getSnapshot(), { reason, confirmed }),
       "NETWORK_TRANSPORT",
     );
   },

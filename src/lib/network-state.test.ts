@@ -10,11 +10,11 @@ import {
 } from "@/lib/network-state";
 
 describe("Backend network state", () => {
-  it("starts CHECKING and requires three transport failures before OFFLINE", () => {
+  it("requires three CONFIRMED probe failures before OFFLINE", () => {
     const initial = initialBackendNetworkSnapshot();
-    const first = applyBackendTransportFailure(initial);
-    const second = applyBackendTransportFailure(first);
-    const third = applyBackendTransportFailure(second);
+    const first = applyBackendTransportFailure(initial, { confirmed: true });
+    const second = applyBackendTransportFailure(first, { confirmed: true });
+    const third = applyBackendTransportFailure(second, { confirmed: true });
 
     expect(initial.state).toBe(BACKEND_NETWORK_STATE.CHECKING);
     expect(first.state).toBe(BACKEND_NETWORK_STATE.CHECKING);
@@ -22,11 +22,29 @@ describe("Backend network state", () => {
     expect(third.state).toBe(BACKEND_NETWORK_STATE.OFFLINE);
   });
 
+  it("never goes OFFLINE from unconfirmed (regular API) request failures", () => {
+    let snapshot = applyBackendReachable(initialBackendNetworkSnapshot(), {
+      httpStatus: 200,
+    });
+    expect(snapshot.state).toBe(BACKEND_NETWORK_STATE.ONLINE);
+
+    for (let i = 0; i < 8; i += 1) {
+      snapshot = applyBackendTransportFailure(snapshot, { reason: "api_blip" });
+    }
+    // A failed app request only asks the probe to re-verify.
+    expect(snapshot.state).toBe(BACKEND_NETWORK_STATE.CHECKING);
+    expect(snapshot.consecutiveFailures).toBe(0);
+  });
+
   it("recovers ONLINE after one Backend response and resets failures", () => {
     const offline = applyBackendTransportFailure(
       applyBackendTransportFailure(
-        applyBackendTransportFailure(initialBackendNetworkSnapshot()),
+        applyBackendTransportFailure(initialBackendNetworkSnapshot(), {
+          confirmed: true,
+        }),
+        { confirmed: true },
       ),
+      { confirmed: true },
     );
     const online = applyBackendReachable(offline, {
       httpStatus: 200,

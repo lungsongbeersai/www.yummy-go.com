@@ -83,20 +83,39 @@ export function applyBackendTransportFailure(
   {
     reason = "backend_transport_failure",
     failureThreshold = 3,
+    // A regular API request that failed is NOT a verdict on connectivity — one
+    // slow/reset/aborted call happens on a healthy network. Only the dedicated
+    // /sync/health probe (confirmed: true) is allowed to move POS to OFFLINE.
+    confirmed = false,
     now = Date.now(),
   }: {
     reason?: string;
     failureThreshold?: number;
+    confirmed?: boolean;
     now?: number;
   } = {},
 ): BackendNetworkSnapshot {
+  if (!confirmed) {
+    // Nudge a healthy state down to CHECKING so the probe verifies it now.
+    // Never touch the failure/success counters or declare OFFLINE from here.
+    return {
+      ...snapshot,
+      state:
+        snapshot.state === BACKEND_NETWORK_STATE.ONLINE
+          ? BACKEND_NETWORK_STATE.CHECKING
+          : snapshot.state,
+      lastReason: reason,
+      lastCheckedAt: now,
+    };
+  }
+
   const failures = snapshot.consecutiveFailures + 1;
   return {
     ...snapshot,
     state:
       failures >= Math.max(2, failureThreshold)
         ? BACKEND_NETWORK_STATE.OFFLINE
-        : snapshot.state,
+        : BACKEND_NETWORK_STATE.CHECKING,
     consecutiveFailures: failures,
     consecutiveSuccesses: 0,
     lastHttpStatus: null,
