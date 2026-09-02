@@ -9,6 +9,7 @@ import { NotificationMenu } from "@/components/layout/notification-menu";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { useIsCapacitorNativeApp } from "@/hooks/use-capacitor-native-app";
+import { useOfflineRefetchEpoch } from "@/hooks/use-offline-refetch";
 import { cn } from "@/lib/utils";
 import type { PosTable } from "@/services/pos";
 import { useAppStore } from "@/stores/app-store";
@@ -42,6 +43,9 @@ export function TableSelectionPage() {
 
   const branchUuid = user?.branch_uuid ?? "";
   const skipTableSelection = user?.store_table_status === 2;
+  // Refetch once when the backend transport verdict flips (net dropped or came
+  // back) so the grid switches between Local Agent and backend data on its own.
+  const refetchEpoch = useOfflineRefetchEpoch();
 
   // ไม่ส่ง zone_uuid เลย — โหลดทุกโซนมาแสดงพร้อมกันเสมอ การ "เลือกโซน" ที่หน้า
   // จอเป็นแค่การเลื่อนไปยัง section นั้น (ดู scrollToZone ใน table-list-section.tsx)
@@ -71,7 +75,7 @@ export function TableSelectionPage() {
   useEffect(() => {
     if (skipTableSelection) return;
     void load();
-  }, [load, skipTableSelection]);
+  }, [load, skipTableSelection, refetchEpoch]);
 
   // นาฬิกาในหัวข้อสีเขียวมีแค่ฝั่งเว็บ (ดูเหตุผลเรื่อง header ด้านล่าง) — ไม่ต้องนับ
   // ทุกวินาทีทิ้งเปล่า ๆ บน Capacitor ที่ไม่ได้เรนเดอร์มันอยู่แล้ว

@@ -64,10 +64,17 @@ export const backendNetworkManager = {
   },
   reportTransportFailure(
     reason = "backend_transport_failure",
-    { confirmed = false }: { confirmed?: boolean } = {},
+    {
+      confirmed = false,
+      failureThreshold,
+    }: { confirmed?: boolean; failureThreshold?: number } = {},
   ) {
     return commit(
-      applyBackendTransportFailure(this.getSnapshot(), { reason, confirmed }),
+      applyBackendTransportFailure(this.getSnapshot(), {
+        reason,
+        confirmed,
+        ...(failureThreshold ? { failureThreshold } : {}),
+      }),
       "NETWORK_TRANSPORT",
     );
   },

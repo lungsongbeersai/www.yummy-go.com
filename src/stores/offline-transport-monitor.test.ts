@@ -98,8 +98,8 @@ describe("Backend NetworkManager", () => {
     },
   );
 
-  it("starts CHECKING, requires three probe failures, and ignores offline event as authority", async () => {
-    const browser = installBrowser(true);
+  it("needs three probe failures while the browser reports online", async () => {
+    installBrowser(true);
     const probeBackend = vi.fn().mockResolvedValue(unreachable());
     const stop = startBackendNetworkMonitor({
       probeBackend,
@@ -110,13 +110,33 @@ describe("Backend NetworkManager", () => {
     expect(useNetworkStore.getState().state).toBe(BACKEND_NETWORK_STATE.CHECKING);
     await flushPromises();
     expect(useNetworkStore.getState().state).toBe(BACKEND_NETWORK_STATE.CHECKING);
+    await vi.advanceTimersByTimeAsync(500);
+    expect(useNetworkStore.getState().state).toBe(BACKEND_NETWORK_STATE.CHECKING);
+    await vi.advanceTimersByTimeAsync(500);
+    expect(useNetworkStore.getState().state).toBe(BACKEND_NETWORK_STATE.OFFLINE);
+    stop();
+  });
 
+  it("goes OFFLINE on the first failed probe once the browser itself reports no network", async () => {
+    const browser = installBrowser(true);
+    const probeBackend = vi.fn().mockResolvedValue(unreachable());
+    const stop = startBackendNetworkMonitor({
+      probeBackend,
+      checkingPollMs: 500,
+      offlinePollMs: 1000,
+    });
+
+    await flushPromises();
+    // navigator still online -> one confirmed failure is not a verdict yet.
+    expect(useNetworkStore.getState().state).toBe(BACKEND_NETWORK_STATE.CHECKING);
+
+    // The offline DOM event alone only schedules a probe, it is not authority.
     browser.setOnline(false);
     expect(useNetworkStore.getState().state).toBe(BACKEND_NETWORK_STATE.CHECKING);
-    await vi.advanceTimersByTimeAsync(0);
-    expect(useNetworkStore.getState().state).toBe(BACKEND_NETWORK_STATE.CHECKING);
 
-    await vi.advanceTimersByTimeAsync(500);
+    // The probe it schedules then fails while navigator.onLine === false, which
+    // is an immediate offline verdict — no 3-strike wait.
+    await vi.advanceTimersByTimeAsync(0);
     expect(useNetworkStore.getState().state).toBe(BACKEND_NETWORK_STATE.OFFLINE);
     expect(useAuthStore.getState().offlineSession).toBe(true);
     stop();
@@ -159,8 +179,6 @@ describe("Backend NetworkManager", () => {
     const browser = installBrowser(false);
     const probeBackend = vi.fn()
       .mockResolvedValueOnce(unreachable())
-      .mockResolvedValueOnce(unreachable())
-      .mockResolvedValueOnce(unreachable())
       .mockResolvedValue(reachable());
     const stop = startBackendNetworkMonitor({
       probeBackend,
@@ -169,7 +187,7 @@ describe("Backend NetworkManager", () => {
     });
 
     await flushPromises();
-    await vi.advanceTimersByTimeAsync(1000);
+    // navigator offline + a failed probe -> OFFLINE on the first strike.
     expect(useNetworkStore.getState().state).toBe(BACKEND_NETWORK_STATE.OFFLINE);
 
     browser.setOnline(true);

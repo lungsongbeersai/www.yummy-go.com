@@ -1,15 +1,33 @@
 import { AxiosError, AxiosHeaders } from "axios";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   applyBackendReachable,
   applyBackendTransportFailure,
   BACKEND_NETWORK_STATE,
   classifyBackendError,
   initialBackendNetworkSnapshot,
+  navigatorReportsOffline,
   shouldUseConfirmedOfflineFallback,
 } from "@/lib/network-state";
 
 describe("Backend network state", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("seeds OFFLINE at cold start only when the browser itself reports no network", () => {
+    vi.stubGlobal("navigator", { onLine: false });
+    const offlineHint = initialBackendNetworkSnapshot();
+    expect(navigatorReportsOffline()).toBe(true);
+    expect(offlineHint.state).toBe(BACKEND_NETWORK_STATE.OFFLINE);
+    // A single continued confirmed failure must keep it pinned, not drop to CHECKING.
+    expect(applyBackendTransportFailure(offlineHint, { confirmed: true }).state)
+      .toBe(BACKEND_NETWORK_STATE.OFFLINE);
+
+    vi.stubGlobal("navigator", { onLine: true });
+    expect(initialBackendNetworkSnapshot().state).toBe(BACKEND_NETWORK_STATE.CHECKING);
+  });
+
   it("requires three CONFIRMED probe failures before OFFLINE", () => {
     const initial = initialBackendNetworkSnapshot();
     const first = applyBackendTransportFailure(initial, { confirmed: true });

@@ -1,7 +1,7 @@
 import axios from "axios";
 import { AGENT_URL } from "@/config/printer-agent";
 import { publicApiClient, ServiceError } from "@/lib/api";
-import { classifyBackendError } from "@/lib/network-state";
+import { classifyBackendError, navigatorReportsOffline } from "@/lib/network-state";
 import type { AuthUser } from "@/stores/auth-store";
 import { backendNetworkManager } from "@/stores/network-store";
 
@@ -106,8 +106,18 @@ export async function checkLogin(login_email: string, login_password: string): P
   if (!login_password.trim()) throw new ServiceError("Password is required", 400);
   if (!EMAIL_RE.test(login_email)) throw new ServiceError("Invalid email", 400);
 
-  if (backendNetworkManager.isOffline()) {
-    return loginFromLocalAgent(login_email, login_password);
+  // Cold start with no network: the NetworkManager may still read CHECKING
+  // because no probe has completed yet. Trust the browser's own offline report
+  // and go straight to the Agent so the first attempt succeeds without retries.
+  if (backendNetworkManager.isOffline() || navigatorReportsOffline()) {
+    try {
+      return await loginFromLocalAgent(login_email, login_password);
+    } catch (agentError) {
+      // Truly offline and the Agent could not authenticate — nothing else to try.
+      if (navigatorReportsOffline()) throw agentError;
+      // The offline verdict may be stale (Agent down while the network is up).
+      // Fall through to the real backend below.
+    }
   }
 
   try {
@@ -137,7 +147,7 @@ export async function checkLogin(login_email: string, login_password: string): P
     }
     if (
       classification.classification === "NETWORK_TRANSPORT" &&
-      backendNetworkManager.isOffline()
+      (backendNetworkManager.isOffline() || navigatorReportsOffline())
     ) {
       return loginFromLocalAgent(login_email, login_password);
     }

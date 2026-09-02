@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useOfflineRefetchEpoch } from "@/hooks/use-offline-refetch";
 import { useResetOnDeps } from "@/hooks/use-reset-on-change";
 import { OrderChannelEnum, OrderSourceEnum } from "@/config/pos-constants";
 import { optionalString } from "@/lib/values";
@@ -53,6 +54,10 @@ export function useOrderCustomerWorkflow({
   const { t } = useTranslation();
   const router = useRouter();
   const isMobile = useIsMobile();
+  // Reload once when the backend transport verdict flips (net dropped or came
+  // back) so cart/menu/tables swap between Local Agent and backend data on their
+  // own.
+  const refetchEpoch = useOfflineRefetchEpoch();
   const user = useAuthStore((state) => state.user);
   const branchUuid = user?.branch_uuid ?? "";
   const isNoTableStore = user?.store_table_status === 2;
@@ -472,17 +477,17 @@ export function useOrderCustomerWorkflow({
 
   useEffect(() => {
     void loadTablesForBranch();
-  }, [loadTablesForBranch]);
+  }, [loadTablesForBranch, refetchEpoch]);
 
   useEffect(() => {
     void loadCart();
-  }, [loadCart]);
+  }, [loadCart, refetchEpoch]);
 
   useOrderCustomerRealtime({ branchUuid, refresh: loadCart });
 
   useEffect(() => {
     void loadMenu({ refreshCategories: true });
-  }, [loadMenu]);
+  }, [loadMenu, refetchEpoch]);
 
   useEffect(() => {
     if (!user?.uuid) return;

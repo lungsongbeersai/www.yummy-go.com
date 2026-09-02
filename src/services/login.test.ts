@@ -89,6 +89,35 @@ describe("login service", () => {
     );
   });
 
+  it("logs in through the Local Agent on the first try when the browser reports no network", async () => {
+    // Cold start: no probe has run yet, so the NetworkManager is still CHECKING.
+    vi.stubGlobal("navigator", { onLine: false });
+    const localPost = vi.spyOn(axios, "post").mockResolvedValue({
+      data: { ok: true, data: { ...loginResponse(), offline: true } }
+    });
+
+    await expect(checkLogin("cashier@example.com", "password")).resolves.toMatchObject({
+      source: "offline",
+    });
+    expect(apiMocks.post).not.toHaveBeenCalled();
+    expect(localPost).toHaveBeenCalledWith(
+      expect.stringContaining("/local/auth/login"),
+      { login_email: "cashier@example.com", login_password: "password" },
+      { timeout: 5000 }
+    );
+  });
+
+  it("does not touch the Local Agent when the browser reports it is online", async () => {
+    vi.stubGlobal("navigator", { onLine: true });
+    apiMocks.post.mockResolvedValue({ status: 200, data: loginResponse() });
+    const localPost = vi.spyOn(axios, "post");
+
+    await expect(checkLogin("cashier@example.com", "password")).resolves.toMatchObject({
+      source: "online",
+    });
+    expect(localPost).not.toHaveBeenCalled();
+  });
+
   it("does not fall back to Local Agent for an HTTP 503 response", async () => {
     apiMocks.post.mockRejectedValue({
       isAxiosError: true,

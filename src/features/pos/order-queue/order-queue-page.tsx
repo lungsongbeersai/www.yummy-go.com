@@ -25,6 +25,7 @@ import { HorizontalScrollArrows } from "@/components/common/horizontal-scroll-ar
 import { LoadingState } from "@/components/common/loading-state";
 import { useIsCapacitorNativeApp } from "@/hooks/use-capacitor-native-app";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useOfflineRefetchEpoch } from "@/hooks/use-offline-refetch";
 import { cn } from "@/lib/utils";
 import { useNativeHeaderStore } from "@/stores/native-header-store";
 import { useOrderQueueAlerts } from "@/features/pos/order-queue/use-order-queue-alerts";
@@ -157,9 +158,13 @@ export function OrderQueuePage() {
     }
   }, [branchUuid, language, load, showToast, t]);
 
+  // Reload once when the backend transport verdict flips (net dropped or came
+  // back) so the queue swaps between Local Agent and backend data on its own.
+  const refetchEpoch = useOfflineRefetchEpoch();
+
   useEffect(() => {
     void refresh();
-  }, [refresh]);
+  }, [refresh, refetchEpoch]);
 
   // ปุ่มรีเฟรชในหัวข้อหน้าซ้ำกับที่ลงทะเบียนเข้า NativeTopBar ได้แล้วบน Capacitor
   // (ตามแพทเทิร์นเดียวกับหน้า table-selection/order-customer) — เว็บยังใช้ปุ่มในหน้าเดิม

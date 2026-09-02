@@ -3,6 +3,7 @@
 import {
   BACKEND_NETWORK_STATE,
   classifyBackendError,
+  navigatorReportsOffline,
   type BackendErrorClassification,
   type BackendNetworkState,
 } from "@/lib/network-state";
@@ -121,8 +122,13 @@ function applyProbeResult(result: BackendProbeResult) {
     ? backendNetworkManager.reportReachable(result.httpStatus, result.reason)
     : result.classification === "NETWORK_TRANSPORT"
       // This is the dedicated /sync/health probe — a confirmed connectivity
-      // verdict, the only source allowed to move POS to OFFLINE.
-      ? backendNetworkManager.reportTransportFailure(result.reason, { confirmed: true })
+      // verdict, the only source allowed to move POS to OFFLINE. When the browser
+      // itself also reports no network, a single failed probe is enough — skip
+      // the 3-strike wait. A later HTTP response still restores ONLINE.
+      ? backendNetworkManager.reportTransportFailure(result.reason, {
+          confirmed: true,
+          ...(navigatorReportsOffline() ? { failureThreshold: 1 } : {}),
+        })
       : backendNetworkManager.reportNonNetwork(result.reason);
   synchronizeAuthTransport(snapshot.state);
   if (snapshot.state === BACKEND_NETWORK_STATE.ONLINE) requestImmediateReconcile();
