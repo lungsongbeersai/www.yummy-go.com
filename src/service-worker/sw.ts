@@ -1,5 +1,5 @@
 import { defaultCache, PAGES_CACHE_NAME } from "@serwist/next/worker";
-import { NetworkFirst, NetworkOnly, Serwist } from "serwist";
+import { CacheFirst, ExpirationPlugin, NetworkFirst, NetworkOnly, Serwist } from "serwist";
 import type { PrecacheEntry, RuntimeCaching, SerwistGlobalConfig, SerwistPlugin } from "serwist";
 
 declare const process: {
@@ -79,6 +79,24 @@ const rscNavigationCaching: RuntimeCaching = {
   }),
 };
 
+// รูปสินค้า/โลโก้ร้าน เสิร์ฟจาก ${NEXT_PUBLIC_BASE_URL}/uploaded/... บน origin ของ backend
+// (คนละ origin, opaque) — CacheFirst เก็บไว้ตอนออนไลน์ ครั้งถัดไปดึงจากแคชเลย เพื่อให้เมนู POS
+// ตอนออฟไลน์ยังมีรูป จำกัดจำนวน/อายุกันแคชบวมด้วย ExpirationPlugin
+const uploadedImageCaching: RuntimeCaching = {
+  matcher: ({ url, request }) =>
+    request.destination === "image" && url.pathname.includes("/uploaded/"),
+  handler: new CacheFirst({
+    cacheName: "yummy-uploaded-images",
+    plugins: [
+      new ExpirationPlugin({
+        maxEntries: 300,
+        maxAgeSeconds: 30 * 24 * 60 * 60,
+        purgeOnQuotaError: true,
+      }),
+    ],
+  }),
+};
+
 const serwist = new Serwist({
   precacheEntries: self.__SW_MANIFEST,
   skipWaiting: true,
@@ -88,6 +106,7 @@ const serwist = new Serwist({
     bypassBackendAndVersionCheck,
     navigationCaching,
     rscNavigationCaching,
+    uploadedImageCaching,
     ...defaultCache,
   ],
 });
