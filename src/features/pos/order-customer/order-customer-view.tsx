@@ -251,16 +251,20 @@ export function OrderCustomerView({
           </div>
 
           <div className="relative hidden min-w-0 items-center gap-2 lg:flex lg:h-11">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              aria-label={t("actions.back")}
-              className={headerIconButtonClass(isCapacitorNativeApp)}
-              onClick={openTablesPage}
-            >
-              <ArrowLeft data-icon="inline-start" />
-            </Button>
+            {/* Capacitor's NativeTopBar already carries back / refresh / notif —
+                on native, only the sort tabs + search belong in this row. */}
+            {!isCapacitorNativeApp ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                aria-label={t("actions.back")}
+                className={headerIconButtonClass(isCapacitorNativeApp)}
+                onClick={openTablesPage}
+              >
+                <ArrowLeft data-icon="inline-start" />
+              </Button>
+            ) : null}
 
             <div className="grid min-w-0 flex-1 grid-cols-[17rem_minmax(14rem,1fr)] gap-2">
               <EmployeeSortTabs
@@ -280,30 +284,32 @@ export function OrderCustomerView({
               />
             </div>
 
-            <div className="ml-auto flex shrink-0 items-center gap-2">
-              <LanguageSwitch
-                className={headerIconButtonClass(isCapacitorNativeApp)}
-                compact
-                size="icon"
-                variant="ghost"
-              />
-              <ThemeToggle
-                className={headerIconButtonClass(isCapacitorNativeApp)}
-                size="icon"
-                variant="ghost"
-              />
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                aria-label={t("actions.refresh")}
-                className={headerIconButtonClass(isCapacitorNativeApp)}
-                disabled={loadingTables || loadingMenu}
-                onClick={() => void refreshAll()}
-              >
-                {loadingTables || loadingMenu ? <Spinner /> : <RefreshCcw />}
-              </Button>
-            </div>
+            {!isCapacitorNativeApp ? (
+              <div className="ml-auto flex shrink-0 items-center gap-2">
+                <LanguageSwitch
+                  className={headerIconButtonClass(isCapacitorNativeApp)}
+                  compact
+                  size="icon"
+                  variant="ghost"
+                />
+                <ThemeToggle
+                  className={headerIconButtonClass(isCapacitorNativeApp)}
+                  size="icon"
+                  variant="ghost"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  aria-label={t("actions.refresh")}
+                  className={headerIconButtonClass(isCapacitorNativeApp)}
+                  disabled={loadingTables || loadingMenu}
+                  onClick={() => void refreshAll()}
+                >
+                  {loadingTables || loadingMenu ? <Spinner /> : <RefreshCcw />}
+                </Button>
+              </div>
+            ) : null}
           </div>
         </header>
 

@@ -1151,14 +1151,21 @@ body {
     sans-serif;
 }
 
-/* iOS (iPhone/iPad) renders text with subpixel antialiasing, which makes every
-   weight look a step heavier than Android's greyscale AA. `-webkit-touch-callout`
-   is an iOS-only property, so this scopes the lighter rendering to iOS without
-   touching Android or desktop. */
+/* iOS (iPhone/iPad, incl. the Capacitor WKWebView) renders text with subpixel
+   antialiasing and no true black cut, so every weight looks a step heavier than
+   Android's greyscale AA. `-webkit-touch-callout` is an iOS-only property, so
+   this scopes the lighter rendering to iOS without touching Android or desktop.
+   The two heaviest utility weights are also pulled back to plain bold — the
+   rules are unlayered so they win over Tailwind's @layer utilities. */
 @supports (-webkit-touch-callout: none) {
   body {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+
+  .font-black,
+  .font-extrabold {
+    font-weight: 700;
   }
 }
 
