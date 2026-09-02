@@ -3,6 +3,7 @@
 import axios from "axios";
 import {
   BACKEND_NETWORK_STATE,
+  navigatorReportsOffline,
   type BackendNetworkState,
 } from "@/lib/network-state";
 import { AGENT_URL } from "@/config/printer-agent";
@@ -215,9 +216,11 @@ export function supportsOfflineRoute(method: HttpMethod, url: string) {
 export function shouldPreferOnlineTransport(
   token: string | null | undefined,
   networkState: BackendNetworkState,
+  navigatorOffline: boolean = navigatorReportsOffline(),
 ) {
   return networkState !== BACKEND_NETWORK_STATE.OFFLINE &&
-    !token?.startsWith("local.");
+    !token?.startsWith("local.") &&
+    !navigatorOffline;
 }
 
 export function shouldRouteToLocal(
@@ -225,9 +228,12 @@ export function shouldRouteToLocal(
   networkState: BackendNetworkState,
   method: HttpMethod,
   url: string,
+  navigatorOffline: boolean = navigatorReportsOffline(),
 ) {
   return supportsOfflineRoute(method, url) &&
-    (offlineSession || networkState === BACKEND_NETWORK_STATE.OFFLINE);
+    (offlineSession ||
+      navigatorOffline ||
+      networkState === BACKEND_NETWORK_STATE.OFFLINE);
 }
 
 export function needsLocalPrintOwnership(method: HttpMethod, url: string) {

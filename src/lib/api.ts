@@ -6,6 +6,7 @@ import { isCapacitorAndroidApp } from "@/lib/capacitor-platform";
 import {
   BACKEND_NETWORK_STATE,
   classifyBackendError,
+  navigatorReportsOffline,
   shouldUseConfirmedOfflineFallback,
 } from "@/lib/network-state";
 import { shouldLogoutForUnauthorized } from "@/lib/unauthorized-session";
@@ -310,10 +311,16 @@ export async function apiRequest<T>(
     }
     synchronizeOfflineSessionWithBackend();
     const normalized = normalizeError(error, fallback);
-    const canContinueOffline = shouldUseConfirmedOfflineFallback(
-      classification,
-      backendNetworkManager.getSnapshot().state,
-    );
+    const canContinueOffline =
+      shouldUseConfirmedOfflineFallback(
+        classification,
+        backendNetworkManager.getSnapshot().state,
+      ) ||
+      // The NetworkManager may not have latched OFFLINE yet (first probe still
+      // pending), but a real transport failure while the browser itself reports
+      // no network is enough to serve this read from the Local Agent now.
+      (classification.classification === "NETWORK_TRANSPORT" &&
+        navigatorReportsOffline());
     if (
       localAgentAvailable &&
       canContinueOffline &&

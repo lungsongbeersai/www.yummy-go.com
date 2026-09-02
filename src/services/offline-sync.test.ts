@@ -24,10 +24,37 @@ afterEach(() => {
 
 describe("offline sync transport", () => {
   it("prefers Backend for a normal token whenever the browser is online", () => {
-    expect(shouldPreferOnlineTransport("backend-token", BACKEND_NETWORK_STATE.CHECKING)).toBe(true);
-    expect(shouldPreferOnlineTransport("backend-token", BACKEND_NETWORK_STATE.ONLINE)).toBe(true);
-    expect(shouldPreferOnlineTransport("backend-token", BACKEND_NETWORK_STATE.OFFLINE)).toBe(false);
-    expect(shouldPreferOnlineTransport("local.session-token", BACKEND_NETWORK_STATE.ONLINE)).toBe(false);
+    expect(shouldPreferOnlineTransport("backend-token", BACKEND_NETWORK_STATE.CHECKING, false)).toBe(true);
+    expect(shouldPreferOnlineTransport("backend-token", BACKEND_NETWORK_STATE.ONLINE, false)).toBe(true);
+    expect(shouldPreferOnlineTransport("backend-token", BACKEND_NETWORK_STATE.OFFLINE, false)).toBe(false);
+    expect(shouldPreferOnlineTransport("local.session-token", BACKEND_NETWORK_STATE.ONLINE, false)).toBe(false);
+  });
+
+  it("stops preferring Backend once the browser itself reports no network", () => {
+    expect(shouldPreferOnlineTransport("backend-token", BACKEND_NETWORK_STATE.CHECKING, true)).toBe(false);
+    expect(shouldPreferOnlineTransport("backend-token", BACKEND_NETWORK_STATE.ONLINE, true)).toBe(false);
+  });
+
+  it("routes a supported read to the Agent when the browser reports no network", () => {
+    expect(
+      shouldRouteToLocal(
+        false,
+        BACKEND_NETWORK_STATE.CHECKING,
+        "get",
+        "/api/v1/posAll/fetch_cate_products",
+        true,
+      ),
+    ).toBe(true);
+    // navigator offline still cannot route an endpoint that has no offline path.
+    expect(
+      shouldRouteToLocal(
+        false,
+        BACKEND_NETWORK_STATE.CHECKING,
+        "post",
+        "/api/v1/product/create",
+        true,
+      ),
+    ).toBe(false);
   });
 
   it("keeps unsupported mutations on the existing online-only flow", () => {
