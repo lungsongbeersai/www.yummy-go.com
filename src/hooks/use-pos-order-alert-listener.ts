@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { collectOrderAlerts } from "@/lib/pos/order-alerts";
@@ -78,6 +79,18 @@ export function usePosOrderAlertListener({ branchUuid, language }: UsePosOrderAl
   const playAlertSound = useAlertSoundPlayer();
   const lastAlertAtRef = useRef<Map<string, number>>(new Map());
 
+  // แคชเชียร์เปิดหน้าตะกร้าโต๊ะนี้ค้างอยู่แล้ว (/pos/order?table_uuid=...) ก็เห็น
+  // อัปเดตสดผ่าน use-order-customer-realtime.ts อยู่แล้ว เสียงแจ้งเตือนซ้ำจึงไม่
+  // จำเป็น — เก็บเป็น ref (ไม่ผูกกับ effect ที่ subscribe socket) กันไม่ให้
+  // เปลี่ยนหน้าแล้วต้อง resubscribe ใหม่ทุกครั้ง
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const activeOrderTableUuidRef = useRef("");
+  useEffect(() => {
+    activeOrderTableUuidRef.current =
+      pathname === "/pos/order" ? searchParams.get("table_uuid") ?? "" : "";
+  }, [pathname, searchParams]);
+
   useEffect(() => {
     if (!branchUuid) return;
     if (usePosStore.getState().zoneOptions.length > 0) return;
@@ -106,7 +119,10 @@ export function usePosOrderAlertListener({ branchUuid, language }: UsePosOrderAl
       if (now - lastAlertAt < newOrderAlertCooldownMs) return;
       lastAlertAtRef.current.set(payload.table_uuid, now);
 
-      playAlertSound();
+      const isViewingThisTable = payload.table_uuid === activeOrderTableUuidRef.current;
+      if (!isViewingThisTable) {
+        playAlertSound();
+      }
 
       const alert = collectOrderAlerts(usePosStore.getState().zoneOptions).find(
         (entry) => entry.tableUuid === payload.table_uuid
