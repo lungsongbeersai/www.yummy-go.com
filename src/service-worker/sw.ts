@@ -47,6 +47,12 @@ const loginFallbackPlugin: SerwistPlugin = {
 const documentStrategy = new NetworkFirst({
   cacheName: PAGES_CACHE_NAME.html,
   networkTimeoutSeconds: SLOW_NETWORK_TIMEOUT_SECONDS,
+  // Offline, /pos/order?table_uuid=... must resolve to the one warmed /pos/order
+  // shell (the page reads the table from the query client-side). Without this the
+  // per-table URL misses the cache and loginFallbackPlugin bounces to /login.
+  // NetworkFirst still fetches fresh first when online, so this only affects the
+  // offline cache lookup.
+  matchOptions: { ignoreSearch: true },
   plugins: [loginFallbackPlugin],
 });
 
