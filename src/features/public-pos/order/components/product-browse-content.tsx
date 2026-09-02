@@ -66,6 +66,7 @@ export function ProductBrowseContent({
     cart,
     cartActions,
     cartFlyAnimations,
+    cartHydrated,
     cartOpen,
     cartQty,
     cartStatusRule,
@@ -370,7 +371,10 @@ export function ProductBrowseContent({
         cart={cart}
         statusRule={cartStatusRule}
         lang={lang}
-        loading={loadingCart}
+        // สคีเลตันเต็มจอควรขึ้นแค่ครั้งแรกที่ยังไม่มีข้อมูลเลย — รีเฟรชรอบถัดๆไป
+        // (หลังแก้จำนวน/ลบ/socket sync) ให้ตะกร้าเดิมค้างอยู่แล้วสลับข้อมูลใหม่
+        // ในที่เดิมแบบ stale-while-revalidate ไม่กะพริบทั้งจอ
+        loading={loadingCart && !cartHydrated}
         saving={saving}
         confirming={confirming}
         onUpdateQty={cartActions.handleUpdateItemQty}
