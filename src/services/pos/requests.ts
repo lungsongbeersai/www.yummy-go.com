@@ -12,6 +12,7 @@ import { requiredItems, requiredText } from "@/services/shared/validators";
 import type {
   BillDiscountInput,
   BillDiscountResponse,
+  BranchMenuQRResponse,
   CancelOrderItemInput,
   CancelOrderItemResponse,
   CartOrder,
@@ -187,6 +188,13 @@ export const createTableQR = (params: CreateTableQRRequest) =>
       agent_id: params.agent_id,
       print_mode: params.print_mode
     }
+  });
+
+// สาขาเดียวมี "QR เมนู" ได้ token เดียวเสมอ (ไม่มี qr_ver ให้ regenerate) จึง
+// ไม่ต้องรับ params ใดๆ นอกจาก lang — backend อ่าน branch จาก jwtVerify เอง
+export const createBranchMenuQR = (params: { lang?: string }) =>
+  apiRequest<BranchMenuQRResponse>("get", "/api/v1/posAll/branch_menu_qr/create", {
+    params: { lang: toApiLanguage(params.lang) }
   });
 
 export const printInvoice = (params: PrintInvoiceRequest) =>

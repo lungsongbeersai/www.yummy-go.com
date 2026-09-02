@@ -326,6 +326,7 @@ export function ProductBrowseContent({
       <BottomNav
         cartQty={cartQty}
         cartTargetRef={cartTargetRef}
+        hideCart={table?.view_only}
         onMenu={handleScrollToTop}
         onCart={() => onCartOpenChange(true)}
         onShare={qr.handleOpenQrDialog}

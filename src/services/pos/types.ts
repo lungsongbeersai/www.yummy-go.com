@@ -531,6 +531,15 @@ export interface CreateTableQRRequest {
 // QR โต๊ะทั้งคู่) แยกชื่อไว้เพราะฝั่ง caller ต้องแยกแยะว่ามาจาก action ไหน
 export type CreateTableQRResponse = TableQRResponse;
 
+// QR เมนูอย่างเดียว (ສ້າງ QR ເມນູອາຫານ) — ระดับสาขา ไม่ผูกโต๊ะ ไม่มี qr_ver/
+// qr_enabled ให้ revoke จึงมี shape เล็กกว่า TableQRResponse มาก
+export interface BranchMenuQRResponse extends ApiEntity {
+  branch_uuid_fk?: string;
+  branch_name?: string;
+  token?: string;
+  qr_url?: string;
+}
+
 export interface DeleteOrderItemResponse extends ApiEntity {}
 
 export interface UpdateOrderNoteInput {

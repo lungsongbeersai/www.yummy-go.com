@@ -6,6 +6,7 @@ import * as posService from "@/services/pos";
 import { ProductSortStatus } from "@/services/pos";
 import type {
   BillDiscountInput,
+  BranchMenuQRResponse,
   CancelOrderItemInput,
   CancelOrderItemResponse,
   CartOrder,
@@ -157,6 +158,9 @@ interface PosState {
   splitBill: (input: SplitBillInput) => Promise<SplitBillResponse>;
   // action นี้สั่งพิมพ์ QR ด้วย จึงบังคับ login_uuid_fk ที่ระดับ store (request type เป็น optional)
   createTableQr: (params: CreateTableQRRequest & { login_uuid_fk: string }) => Promise<CreateTableQRResponse>;
+  // QR เมนูอย่างเดียว (ระดับสาขา) — ไม่ผ่านคิวเครื่องพิมพ์จริงเหมือน createTableQr
+  // จึงไม่ต้อง resolvePosPrinterContext และไม่มี state ให้ set ต่อ
+  createBranchMenuQr: (params: { lang?: string }) => Promise<BranchMenuQRResponse>;
   printInvoice: (params: PrintInvoiceRequest) => Promise<PrintInvoiceResponse>;
   reprintReceipt: (params: ReprintReceiptRequest) => Promise<ConfirmToKitchenPendingQuery | null>;
   setOrderHistory: (orders: CartOrder[]) => void;
@@ -500,6 +504,7 @@ export const usePosStore = create<PosState>((set, get) => ({
     if (isCurrentSession()) set({ tableQr });
     return tableQr;
   },
+  createBranchMenuQr: (params) => posService.createBranchMenuQR(params),
   printInvoice: async (params) => {
     const isCurrentSession = createSessionGuard();
     const printer = await resolvePosPrinterContext(params);

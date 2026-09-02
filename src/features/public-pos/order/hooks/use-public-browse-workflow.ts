@@ -107,12 +107,14 @@ export function usePublicBrowseWorkflow({
     toast,
     token,
   });
+  // QR เมนูอย่างเดียว (ສ້າງ QR ເມນູອາຫານ) — ไม่มีตะกร้าให้ sync/แจ้งเตือนเลย
+  const viewOnly = Boolean(table?.view_only);
   const refreshCartRealtime = useCallback(
     () => loadCart({ t: token, lang }).then(() => undefined),
     [loadCart, token, lang],
   );
   usePublicOrderRealtime({
-    branchUuid: table?.branch_uuid_fk,
+    branchUuid: viewOnly ? undefined : table?.branch_uuid_fk,
     refresh: refreshCartRealtime,
   });
   const cartOrderUuids = useMemo(
@@ -120,11 +122,11 @@ export function usePublicBrowseWorkflow({
     [cart],
   );
   usePublicOrderStatusNotifications({
-    branchUuid: table?.branch_uuid_fk,
+    branchUuid: viewOnly ? undefined : table?.branch_uuid_fk,
     orderUuids: cartOrderUuids,
   });
   const qr = usePublicQrDialog({ table, t, toast });
-  const cartActions = usePublicCartOrderActions({
+  const orderCartActions = usePublicCartOrderActions({
     cart,
     cartOpen,
     cartStatusRule,
@@ -147,6 +149,14 @@ export function usePublicBrowseWorkflow({
     updateNote,
     updateQty,
   });
+  // ดูเมนูได้อย่างเดียว — แตะสินค้าแล้วบอกตรงๆ แทนที่จะเปิด flow เพิ่มลงตะกร้า
+  const notifyViewOnly = useCallback(
+    () => toast({ title: t("pos.viewOnlyMenuNotice"), tone: "info" }),
+    [toast, t],
+  );
+  const cartActions = viewOnly
+    ? { ...orderCartActions, handleProductClick: notifyViewOnly }
+    : orderCartActions;
 
   return {
     cart,

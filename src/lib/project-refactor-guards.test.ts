@@ -337,7 +337,8 @@ describe("project refactor guards", () => {
   it("keeps raw image tags limited to generated print templates", () => {
     const allowedRawImageFiles = new Set([
       "services/printer/invoice-print-window.ts",
-      "features/pos/table-selection/table-qr-dialog.tsx"
+      "features/pos/table-selection/table-qr-dialog.tsx",
+      "features/pos/table-selection/branch-menu-qr-dialog.tsx"
     ]);
     const disallowedRawImages = matchesInFiles(srcDir, rawImageTagPattern)
       .filter((match) => !allowedRawImageFiles.has(match.file));

@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import type { PosZone } from "@/services/pos";
 import { useAuthStore } from "@/stores/auth-store";
+import { BranchMenuQrDialog } from "./branch-menu-qr-dialog";
 import {
   CartDiscountDialog,
   CartNoteDialog,
@@ -287,6 +288,7 @@ export function SelectedTableCartPanelContent({
                 : undefined
             }
             onCreateTableQr={showTableFeatures ? workflow.openTableQr : undefined}
+            onCreateBranchMenuQr={workflow.openBranchMenuQr}
             onCustomerDisplay={() =>
               void customerDisplay.openCustomerDisplayScreen()
             }
@@ -315,6 +317,10 @@ export function SelectedTableCartPanelContent({
           onOpenChange={workflow.setTableQrOpen}
         />
       ) : null}
+      <BranchMenuQrDialog
+        open={workflow.branchMenuQrOpen}
+        onOpenChange={workflow.setBranchMenuQrOpen}
+      />
       <CustomerDisplayPickerDialog
         canCloseCustomerDisplay={customerDisplay.canCloseCustomerDisplay}
         browserDisplayInfo={customerDisplay.browserDisplayInfo}

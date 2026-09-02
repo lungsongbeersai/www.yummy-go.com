@@ -19,6 +19,20 @@ export interface QRScanResponse {
   qr_enabled: boolean;
   branch_uuid_fk: string;
   login_uuid_fk?: string;
+  // true เฉพาะ QR เมนูอย่างเดียว (ສ້າງ QR ເມນູອາຫານ) — ไม่มี table_uuid จริง
+  // (เป็น "" เสมอ) ดูเมนูได้ สั่งไม่ได้ — ทุกจุดที่โชว์ปุ่มสั่ง/ตะกร้าต้องเช็คค่านี้ก่อน
+  view_only?: boolean;
+}
+
+// shape ดิบที่ /posAll/customer/menu_qrscan คืนมา — เล็กกว่า QRScanResponse
+// เพราะไม่มีโต๊ะ scanTableQR() แปลงร่างเป็น QRScanResponse ให้ก่อนคืนออกไป
+export interface BranchMenuQRScanResponse {
+  status: string;
+  message: string;
+  lang: string;
+  view_only: boolean;
+  branch_uuid_fk: string;
+  branch_name: string;
 }
 
 export interface PublicStatusSort {

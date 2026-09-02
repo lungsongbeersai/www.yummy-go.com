@@ -1,6 +1,6 @@
 "use client";
 
-import { BadgePercent, Check, CreditCard, Monitor, MoreHorizontal, QrCode, ShoppingCart, Shuffle, SplitSquareHorizontal } from "lucide-react";
+import { BadgePercent, BookOpen, Check, CreditCard, Monitor, MoreHorizontal, QrCode, ShoppingCart, Shuffle, SplitSquareHorizontal } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -32,6 +32,7 @@ export function CartSummaryDock({
   onBillDiscount,
   onConfirm,
   onCreateTableQr,
+  onCreateBranchMenuQr,
   onCreateEmployeeOrder,
   onCustomerDisplay,
   onPayBill,
@@ -57,6 +58,7 @@ export function CartSummaryDock({
   onBillDiscount: () => void;
   onConfirm: () => void;
   onCreateTableQr?: () => void;
+  onCreateBranchMenuQr?: () => void;
   onCreateEmployeeOrder?: () => void;
   onCustomerDisplay: () => void;
   onPayBill: () => void;
@@ -206,7 +208,17 @@ export function CartSummaryDock({
                   <span>{t("pos.createTableQr")}</span>
                 </DropdownMenuItem>
               ) : null}
-              {onTableActions || onCreateTableQr ? <DropdownMenuSeparator /> : null}
+              {onCreateBranchMenuQr ? (
+                // ระดับสาขา ไม่ผูกกับโต๊ะที่เลือกอยู่ — ไม่ใช้ actionsDisabled
+                // (ซึ่งอิงจาก hasSelectedTable) กันปุ่มนี้พลอยโดนปิดไปด้วย
+                <DropdownMenuItem onSelect={onCreateBranchMenuQr}>
+                  <BookOpen data-icon="inline-start" />
+                  <span>{t("pos.createBranchMenuQr")}</span>
+                </DropdownMenuItem>
+              ) : null}
+              {onTableActions || onCreateTableQr || onCreateBranchMenuQr ? (
+                <DropdownMenuSeparator />
+              ) : null}
               <DropdownMenuItem disabled={actionsDisabled} onSelect={onCustomerDisplay}>
                 <Monitor data-icon="inline-start" />
                 <span>{t("pos.customerDisplayScreen")}</span>

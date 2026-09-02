@@ -186,6 +186,9 @@ export function useSelectedTableCartPanelWorkflow({
   const [billDiscountPending, setBillDiscountPending] = useState(false);
   const [tableActionsOpen, setTableActionsOpen] = useState(false);
   const [tableQrOpen, setTableQrOpen] = useState(false);
+  // ไม่ผูกกับ selectedTable — QR เมนูอย่างเดียวเป็นระดับสาขา ใช้ได้แม้ไม่มีโต๊ะ
+  // เลือกอยู่ หรือร้านไม่มีโต๊ะ (store_table_status === 2)
+  const [branchMenuQrOpen, setBranchMenuQrOpen] = useState(false);
   const [paymentContext, setPaymentContext] = useState<PaymentContext | null>(
     null,
   );
@@ -363,6 +366,7 @@ export function useSelectedTableCartPanelWorkflow({
     setBillDiscountPending(false);
     setTableActionsOpen(false);
     setTableQrOpen(false);
+    setBranchMenuQrOpen(false);
     setPaymentContext(null);
     setSplitSelectedItemUuids(new Map());
     setConfirmAllProgress(null);
@@ -1025,6 +1029,10 @@ export function useSelectedTableCartPanelWorkflow({
     setTableQrOpen(true);
   }
 
+  function openBranchMenuQr() {
+    setBranchMenuQrOpen(true);
+  }
+
   async function handlePaymentCompleted() {
     if (paymentContext?.kind === "split") {
       setSplitSelectedItemUuids(new Map());
@@ -1092,12 +1100,14 @@ export function useSelectedTableCartPanelWorkflow({
     itemDiscountTarget,
     itemDiscountValue,
     language,
+    branchMenuQrOpen,
     markItemServed,
     newOrderDisplayItems,
     newOrderItems,
     noteDraft,
     noteTarget,
     openBillDiscountDialog,
+    openBranchMenuQr,
     openEmployeeOrderPage,
     openFullPayment,
     openItemAction,
@@ -1117,6 +1127,7 @@ export function useSelectedTableCartPanelWorkflow({
     serviceLabel,
     setBillDiscountDraft,
     setBillDiscountOpen,
+    setBranchMenuQrOpen,
     setItemActionTarget,
     setItemDiscountDraft,
     setItemDiscountTarget,

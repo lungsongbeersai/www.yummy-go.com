@@ -1,5 +1,6 @@
 import { publicApiClient, publicApiRequest, ServiceError } from "@/lib/api";
 import { toApiLanguage } from "@/lib/language";
+import { isBranchMenuQrToken } from "@/services/public-pos/qr-token";
 import type {
   ApiFetchCateProductsResponse,
   ApiProdItemResponse,
@@ -11,6 +12,7 @@ import {
 import { requiredItems, requiredToken } from "@/services/shared/validators";
 import type { EmitTableStatusResponse } from "@/services/pos";
 import type {
+  BranchMenuQRScanResponse,
   CustomerConfirmKitchenInput,
   CustomerCreateOrderInput,
   CustomerDeleteOrderItemParams,
@@ -58,9 +60,33 @@ function buildCustomerProductBody(params: CustomerGetProdItemParams) {
   };
 }
 
-export function scanTableQR(t: string, lang = "la") {
+export async function scanTableQR(t: string, lang = "la") {
+  const token = requiredToken(t);
+
+  // QR เมนูอย่างเดียว (ສ້າງ QR ເມນູອາຫານ) ไม่มีโต๊ะ ผูก endpoint/middleware
+  // คนละชุดกับ QR โต๊ะ — ดู token prefix ก็รู้แล้วว่าเป็นแบบไหน แล้วแปลงร่างให้
+  // เป็น QRScanResponse shape เดียวกัน ที่เหลือของแอปจะได้ไม่ต้องรู้ว่ามี 2 แบบ
+  if (isBranchMenuQrToken(token)) {
+    const result = await publicApiRequest<BranchMenuQRScanResponse>(
+      "get",
+      "/api/v1/posAll/customer/menu_qrscan",
+      { params: { t: token, lang: toApiLanguage(lang) } },
+    );
+    return {
+      status: result.status,
+      message: result.message,
+      lang: result.lang,
+      table_uuid: "",
+      table_name: result.branch_name,
+      table_status: 0,
+      qr_enabled: true,
+      branch_uuid_fk: result.branch_uuid_fk,
+      view_only: true,
+    };
+  }
+
   return publicApiRequest<QRScanResponse>("get", "/api/v1/posAll/customer/qrscan", {
-    params: { t: requiredToken(t), lang: toApiLanguage(lang) }
+    params: { t: token, lang: toApiLanguage(lang) }
   });
 }
 
@@ -78,9 +104,13 @@ export function fetchCustomerCart(params: CustomerFetchCartParams) {
 }
 
 export async function customerFetchCateProducts(params: CustomerFetchCateProductsParams) {
+  const endpoint = isBranchMenuQrToken(params.token)
+    ? "/api/v1/posAll/customer/menu/fetch_cate_products"
+    : "/api/v1/posAll/customer/fetch_cate_products";
+
   const response = await publicApiRequest<ApiFetchCateProductsResponse>(
     "get",
-    "/api/v1/posAll/customer/fetch_cate_products",
+    endpoint,
     {
       params: buildCustomerCatalogQuery(params),
     },
@@ -89,9 +119,14 @@ export async function customerFetchCateProducts(params: CustomerFetchCateProduct
 }
 
 export async function customerGetProdItem(params: CustomerGetProdItemParams) {
+  const token = requiredToken(params.token);
+  const path = isBranchMenuQrToken(token)
+    ? "/api/v1/posAll/customer/menu/get_prod_item"
+    : "/api/v1/posAll/customer/get_prod_item";
+
   const result = await publicApiRequest<ApiProdItemResponse>(
     "post",
-    `/api/v1/posAll/customer/get_prod_item?t=${encodeURIComponent(requiredToken(params.token))}`,
+    `${path}?t=${encodeURIComponent(token)}`,
     {
       data: buildCustomerProductBody(params),
     },

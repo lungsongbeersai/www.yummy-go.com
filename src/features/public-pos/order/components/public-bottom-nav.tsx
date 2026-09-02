@@ -14,12 +14,15 @@ import { cn } from "@/lib/utils";
 export function BottomNav({
   cartQty,
   cartTargetRef,
+  hideCart = false,
   onMenu,
   onCart,
   onShare,
 }: {
   cartQty: number;
   cartTargetRef: RefObject<HTMLButtonElement | null>;
+  // true เฉพาะ QR เมนูอย่างเดียว (view_only) — ไม่มีตะกร้าให้เปิดจริง
+  hideCart?: boolean;
   onMenu: () => void;
   onCart: () => void;
   onShare: () => void;
@@ -28,7 +31,12 @@ export function BottomNav({
   const staffComingSoon = t("pos.comingSoon");
 
   return (
-    <nav className="fixed bottom-[max(clamp(14px,3vw,22px),env(safe-area-inset-bottom))] left-1/2 z-50 grid w-[min(92vw,420px)] -translate-x-1/2 grid-cols-4 gap-1 rounded-[26px] border border-yg-line bg-yg-bg2/85 p-2 shadow-[0_20px_50px_-18px_rgb(0_0_0/0.45)] backdrop-blur-xl backdrop-saturate-150 dark:shadow-[0_20px_50px_-18px_rgb(0_0_0/0.85)]">
+    <nav
+      className={cn(
+        "fixed bottom-[max(clamp(14px,3vw,22px),env(safe-area-inset-bottom))] left-1/2 z-50 grid w-[min(92vw,420px)] -translate-x-1/2 gap-1 rounded-[26px] border border-yg-line bg-yg-bg2/85 p-2 shadow-[0_20px_50px_-18px_rgb(0_0_0/0.45)] backdrop-blur-xl backdrop-saturate-150 dark:shadow-[0_20px_50px_-18px_rgb(0_0_0/0.85)]",
+        hideCart ? "grid-cols-3" : "grid-cols-4",
+      )}
+    >
       <NavButton
         icon={<Utensils />}
         label={t("pos.navMenu")}
@@ -36,14 +44,16 @@ export function BottomNav({
         onClick={onMenu}
         active
       />
-      <NavButton
-        icon={<ShoppingBag />}
-        label={t("pos.navCart")}
-        ariaLabel={t("pos.basket")}
-        onClick={onCart}
-        badge={cartQty}
-        buttonRef={cartTargetRef}
-      />
+      {hideCart ? null : (
+        <NavButton
+          icon={<ShoppingBag />}
+          label={t("pos.navCart")}
+          ariaLabel={t("pos.basket")}
+          onClick={onCart}
+          badge={cartQty}
+          buttonRef={cartTargetRef}
+        />
+      )}
       <NavButton
         icon={<Share2 />}
         label={t("pos.navQr")}
