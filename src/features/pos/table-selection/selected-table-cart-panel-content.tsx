@@ -102,7 +102,11 @@ export function SelectedTableCartPanelContent({
       <Tabs
         value={workflow.activeTab}
         onValueChange={workflow.handleTabChange}
-        className="contents"
+        // A real flex column, not `display: contents`. Older iOS Safari/WKWebView
+        // mishandles a display:contents flex item, so the middle list never got a
+        // bounded height and the header/footer scrolled with it instead of
+        // staying pinned. `gap-0` keeps the previous spacing.
+        className="flex min-h-0 flex-1 flex-col gap-0"
       >
         <CardHeader
           className={cn(
