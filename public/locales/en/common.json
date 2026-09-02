@@ -32,6 +32,7 @@
     "useOfflineMode": "Use Offline Mode",
     "reconnect": "Reconnect",
     "reconnecting": "Checking...",
+    "backOnline": "Back online",
     "lockedMenuTooltip": "Needs an internet connection"
   },
   "app": {

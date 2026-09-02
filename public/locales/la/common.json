@@ -32,6 +32,7 @@
     "useOfflineMode": "ໃຊ້ງານໂໝດອອບລາຍ",
     "reconnect": "ເຊື່ອມຕໍ່ໃໝ່",
     "reconnecting": "ກຳລັງກວດສອບ...",
+    "backOnline": "ເຊື່ອມຕໍ່ຄືນແລ້ວ",
     "lockedMenuTooltip": "ຕ້ອງມີການເຊື່ອມຕໍ່ອິນເຕີເນັດ"
   },
   "app": {
