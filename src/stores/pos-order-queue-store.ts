@@ -30,6 +30,9 @@ import {
 interface LoadParams {
   branch_uuid_fk: string;
   lang?: string;
+  // Silent refresh: keep the current queue on screen instead of flashing the
+  // loading state. Used when the transport verdict flips online<->offline.
+  background?: boolean;
 }
 
 interface SendToKitchenParams {
@@ -183,10 +186,12 @@ export const usePosOrderQueueStore =
       const isCurrentSession =
         createSessionGuard();
 
-      set({
-        loading: true,
-        error: null
-      });
+      if (!params.background) {
+        set({
+          loading: true,
+          error: null
+        });
+      }
 
       try {
         const status = get().status;

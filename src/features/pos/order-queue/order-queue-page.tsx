@@ -158,13 +158,19 @@ export function OrderQueuePage() {
     }
   }, [branchUuid, language, load, showToast, t]);
 
-  // Reload once when the backend transport verdict flips (net dropped or came
-  // back) so the queue swaps between Local Agent and backend data on its own.
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  // On an online<->offline flip, reload the queue silently (background: no
+  // loading flash) so it swaps between Local Agent and backend data on its own.
   const refetchEpoch = useOfflineRefetchEpoch();
 
   useEffect(() => {
-    void refresh();
-  }, [refresh, refetchEpoch]);
+    if (!branchUuid || refetchEpoch === 0) return;
+    void load({ branch_uuid_fk: branchUuid, lang: language, background: true })
+      .catch(() => undefined);
+  }, [branchUuid, language, load, refetchEpoch]);
 
   // ปุ่มรีเฟรชในหัวข้อหน้าซ้ำกับที่ลงทะเบียนเข้า NativeTopBar ได้แล้วบน Capacitor
   // (ตามแพทเทิร์นเดียวกับหน้า table-selection/order-customer) — เว็บยังใช้ปุ่มในหน้าเดิม

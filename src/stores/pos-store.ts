@@ -136,10 +136,16 @@ interface PosState {
     cateUuid?: string;
     query?: string;
     refreshCategories?: boolean;
+    // Silent refresh: keep the current menu on screen instead of flashing the
+    // loading skeleton. Used when the transport verdict flips online<->offline.
+    background?: boolean;
   }) => Promise<PosMenuBySort>;
   loadProducts: (params: FetchCateProductsParams) => Promise<CateProductItem[]>;
   loadProductItem: (params: GetProdItemParams) => Promise<ProdItem>;
-  loadCart: (params: FetchCartParams) => Promise<CartOrder | CartOrder[] | null>;
+  loadCart: (
+    params: FetchCartParams,
+    options?: { background?: boolean },
+  ) => Promise<CartOrder | CartOrder[] | null>;
   createOrder: (input: CreateOrderInput) => Promise<CreateOrderResponse>;
   initOrderWithoutTable: (input: InitOrderWithoutTableInput) => Promise<InitOrderWithoutTableResponse>;
   updateQty: (input: UpdateQtyInput) => ReturnType<typeof posService.updateOrderItemQty>;
@@ -262,7 +268,8 @@ export const usePosStore = create<PosState>((set, get) => ({
     language,
     cateUuid = "",
     query = "",
-    refreshCategories = false
+    refreshCategories = false,
+    background = false
   }) => {
     const isCurrentSession = createSessionGuard();
     const menuLifecycleVersion = posMenuLifecycleVersion;
@@ -274,7 +281,7 @@ export const usePosStore = create<PosState>((set, get) => ({
       return emptyPosMenuBySort();
     }
 
-    set({ loadingMenu: true, error: null });
+    if (!background) set({ loadingMenu: true, error: null });
     try {
       let nextCateUuid = textValue(cateUuid);
       const nextQuery = query ?? "";
@@ -357,12 +364,12 @@ export const usePosStore = create<PosState>((set, get) => ({
     if (isCurrentSession()) set({ selectedProduct });
     return selectedProduct;
   },
-  loadCart: async (params) => {
+  loadCart: async (params, options) => {
     const isCurrentSession = createSessionGuard();
     const requestVersion = ++posCartFetchVersion;
     const isCurrentCartRequest = () =>
       isCurrentSession() && requestVersion === posCartFetchVersion;
-    set({ loadingCart: true, error: null });
+    if (!options?.background) set({ loadingCart: true, error: null });
     try {
       const result = await posService.fetchCart(params);
       const cart = result.orders ?? result.data ?? null;

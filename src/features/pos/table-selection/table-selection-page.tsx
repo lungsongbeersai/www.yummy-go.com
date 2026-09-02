@@ -75,7 +75,15 @@ export function TableSelectionPage() {
   useEffect(() => {
     if (skipTableSelection) return;
     void load();
-  }, [load, skipTableSelection, refetchEpoch]);
+  }, [load, skipTableSelection]);
+
+  // On an online<->offline flip, refresh silently (refreshTables carries no
+  // loading flag) so the grid swaps its data source without a visible reload.
+  useEffect(() => {
+    if (skipTableSelection || !branchUuid || refetchEpoch === 0) return;
+    void refreshTables({ branch_uuid_fk: branchUuid, zone_uuid: "", lang: language })
+      .catch(() => undefined);
+  }, [branchUuid, language, refetchEpoch, refreshTables, skipTableSelection]);
 
   // นาฬิกาในหัวข้อสีเขียวมีแค่ฝั่งเว็บ (ดูเหตุผลเรื่อง header ด้านล่าง) — ไม่ต้องนับ
   // ทุกวินาทีทิ้งเปล่า ๆ บน Capacitor ที่ไม่ได้เรนเดอร์มันอยู่แล้ว

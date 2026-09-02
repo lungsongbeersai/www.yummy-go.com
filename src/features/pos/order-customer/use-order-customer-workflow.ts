@@ -75,6 +75,7 @@ export function useOrderCustomerWorkflow({
   const loadingMenu = usePosStore((state) => state.loadingMenu);
   const submittedSearch = usePosStore((state) => state.submittedSearch);
   const loadTables = usePosStore((state) => state.loadTables);
+  const refreshTablesStore = usePosStore((state) => state.refreshTables);
   const loadCartStore = usePosStore((state) => state.loadCart);
   const loadMenuStore = usePosStore((state) => state.loadMenu);
   const resetMenu = usePosStore((state) => state.resetMenu);
@@ -169,18 +170,18 @@ export function useOrderCustomerWorkflow({
     [productMode, selectedDetail, selectedProduct, selectedToppings],
   );
 
-  const loadCart = useCallback(async () => {
+  const loadCart = useCallback(async (options?: { background?: boolean }) => {
     if (!initialTableUuid && !counterOrderUuid) return;
 
     try {
       if (initialTableUuid) {
-        await loadCartStore({ table_uuid: initialTableUuid, lang: language });
+        await loadCartStore({ table_uuid: initialTableUuid, lang: language }, options);
       } else if (branchUuid) {
         await loadCartStore({
           branch_uuid_fk: branchUuid,
           order_uuid: counterOrderUuid,
           lang: language,
-        });
+        }, options);
       }
     } catch (error) {
       showToast({
@@ -222,10 +223,12 @@ export function useOrderCustomerWorkflow({
       cateUuid = "",
       query = "",
       refreshCategories = false,
+      background = false,
     }: {
       cateUuid?: string;
       query?: string;
       refreshCategories?: boolean;
+      background?: boolean;
     } = {}) => {
       try {
         await loadMenuStore({
@@ -234,6 +237,7 @@ export function useOrderCustomerWorkflow({
           cateUuid,
           query,
           refreshCategories,
+          background,
         });
       } catch (error) {
         showToast({
@@ -477,17 +481,29 @@ export function useOrderCustomerWorkflow({
 
   useEffect(() => {
     void loadTablesForBranch();
-  }, [loadTablesForBranch, refetchEpoch]);
+  }, [loadTablesForBranch]);
 
   useEffect(() => {
     void loadCart();
-  }, [loadCart, refetchEpoch]);
+  }, [loadCart]);
 
   useOrderCustomerRealtime({ branchUuid, refresh: loadCart });
 
   useEffect(() => {
     void loadMenu({ refreshCategories: true });
-  }, [loadMenu, refetchEpoch]);
+  }, [loadMenu]);
+
+  // On an online<->offline flip, refresh cart + menu + tables silently (no
+  // loading flash) so the screen swaps its data source without a visible reload.
+  useEffect(() => {
+    if (refetchEpoch === 0) return;
+    void loadCart({ background: true }).catch(() => undefined);
+    void loadMenu({ refreshCategories: true, background: true }).catch(() => undefined);
+    if (branchUuid) {
+      void refreshTablesStore({ branch_uuid_fk: branchUuid, lang: language })
+        .catch(() => undefined);
+    }
+  }, [branchUuid, language, loadCart, loadMenu, refetchEpoch, refreshTablesStore]);
 
   useEffect(() => {
     if (!user?.uuid) return;
