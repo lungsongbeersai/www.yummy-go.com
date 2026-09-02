@@ -22,7 +22,7 @@ export type ProductSortStatus = ProductSortStatusType;
 
 export const MAX_ORDER_QTY = 99;
 export const PRODUCT_GRID_CLASS =
-  "grid grid-cols-2 gap-2.5 md:grid-cols-[repeat(auto-fill,minmax(190px,1fr))]";
+  "grid grid-cols-2 gap-2.5 md:grid-cols-[repeat(auto-fill,minmax(160px,1fr))]";
 // md ขึ้นไป grid เป็น auto-fill (จำนวนคอลัมน์จริงขึ้นกับความกว้างของกล่อง วัดได้แค่ฝั่งเบราว์เซอร์
 // หลัง layout เท่านั้น) แต่ preload ต้องถูกตั้งแต่ HTML ที่ SSR ออกมาให้ทัน paint แรกสุด — วัดความกว้าง
 // จริงด้วย JS ตอน mount แล้วช่วยไม่ได้ เพราะรูปมักโหลดเสร็จเร็วกว่าที่ React จะ re-render ทัน
