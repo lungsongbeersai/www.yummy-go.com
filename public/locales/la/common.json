@@ -948,7 +948,7 @@
     "tables": "ໂຕະ",
     "title": "ອໍເດີ",
     "unableToLoadMenu": "ໂຫຼດເມນູບໍ່ໄດ້",
-    "taxIncludedWithPercent": "ພາສີລວມໃນລາຄາ ({{percent}}%)"
+    "taxIncludedWithPercent": "Vat ({{percent}}%)"
   },
   "category": {
     "sorted": "ບັນທຶກລຳດັບແລ້ວ",
