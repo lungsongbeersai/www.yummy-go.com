@@ -50,6 +50,7 @@ export interface ApiProdItem extends ApiEntity {
   unite_name?: string;
   prod_set_price?: number | string | null;
   pro_detail_sprice?: number | string;
+  prod_topping_max_select?: number | string;
   // ไม่ใช่ทุก endpoint ที่ส่ง status_sort_fk มากับ prod item เดี่ยว (ต่างจาก
   // ApiPosProduct ที่มาจาก listing) — staff POS ใช้ optionalNumber(...) ??
   // activeSort คุมค่า fallback เองอยู่แล้ว เห็น src/features/pos/order-customer/product-classification.ts

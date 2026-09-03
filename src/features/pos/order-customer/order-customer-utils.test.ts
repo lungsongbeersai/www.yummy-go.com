@@ -18,6 +18,7 @@ import {
   getProductActionState,
   getProductBlockedState,
   getProductModalMode,
+  MAX_ORDER_QTY,
   nextMenuCategoryUuid,
   normalizeProdItem,
   orderCustomerUrl,
@@ -30,6 +31,7 @@ import {
   selectedOrderTable,
   selectedToppingsFromQtyMap,
   toggleToppingQty,
+  toppingQtyCap,
 } from "@/features/pos/order-customer/order-customer-utils";
 import {
   OrderChannelEnum,
@@ -678,6 +680,12 @@ describe("order customer helpers", () => {
     expect(changeToppingQty({ "top-1": 2, "top-2": 1 }, "top-1", 0)).toEqual({
       "top-2": 1,
     });
+    expect(toppingQtyCap(0)).toBe(MAX_ORDER_QTY);
+    expect(toppingQtyCap(undefined)).toBe(MAX_ORDER_QTY);
+    expect(toppingQtyCap(3)).toBe(3);
+    expect(toppingQtyCap("2")).toBe(2);
+    expect(changeToppingQty({}, "top-1", 5, 2)).toEqual({ "top-1": 2 });
+    expect(toggleToppingQty({}, "top-1", 5, 2)).toEqual({ "top-1": 2 });
     expect(
       countSelectedToppings([
         { topping: topping(), qty: 2 },

@@ -21,7 +21,10 @@ const config: CapacitorConfig = {
   android: {
     appendUserAgent: "YummyGoCapacitorAndroid",
     backgroundColor: "#16a34a",
-    webContentsDebuggingEnabled: false,
+    // เปิดเฉพาะตอนทดสอบเครื่องจริงผ่าน USB (มี CAPACITOR_SERVER_URL เท่านั้น) — ให้ต่อ
+    // chrome://inspect ดู console/network ของ WebView ได้ ส่วน production build (ไม่มี
+    // env นี้) ปิดไว้เหมือนเดิมเพราะเปิดทิ้งไว้เท่ากับให้เครื่องที่ต่อ USB inspect แอปจริงได้
+    webContentsDebuggingEnabled: Boolean(localServerUrl),
   },
 
   ios: {

@@ -2,7 +2,13 @@ import type { MenuItem } from "@/config/menu";
 import { routeIsActive } from "./shell-menu-helpers";
 
 // iOS HIG และ Material แนะนำ 3-5 ปลายทาง; 3 ทำให้ label ภาษาลาวยาว ๆ ไม่ถูกบีบบนจอแคบ
+// (bottom nav แนวนอนของมือถือ ความกว้างจำกัด)
 export const NATIVE_DIRECT_DESTINATION_COUNT = 3;
+
+// side rail (iPad/tablet, md: ขึ้นไป) เป็นคอลัมน์แนวตั้งที่เลื่อนได้และมีที่ว่างเหลือเฟือ
+// ต่างจาก bottom nav แนวนอน — จำกัดแค่ 3 เหมือนมือถือทำให้เมนูส่วนใหญ่ต้องกดผ่าน "เพิ่มเติม"
+// ทั้งที่จอกว้างพอจะโชว์ตรง ๆ ได้มากกว่านั้น
+export const NATIVE_RAIL_DIRECT_DESTINATION_COUNT = 6;
 
 // หน้าที่เข้าถึงได้จาก deep link ต้องมี parent ที่แน่นอน ไม่พึ่ง history อย่างเดียว
 const BACK_FALLBACK_PATHS: Record<string, string> = {
@@ -59,6 +65,7 @@ const NATIVE_INJECTED_SALES_LIST_ITEM: MenuItem = {
 
 export function buildNativeNavigationModel(
   items: MenuItem[],
+  directCount: number = NATIVE_DIRECT_DESTINATION_COUNT,
 ): NativeNavigationModel {
   const direct: NativeDestination[] = [];
   const more: MenuItem[] = [];
@@ -67,7 +74,7 @@ export function buildNativeNavigationModel(
     if (item.is_header) continue;
     const path = destinationPath(item);
     // ไม่เลื่อนรายการที่กดไม่ได้ขึ้นมากินช่อง และไม่โชว์ placeholder ที่ disabled
-    if (path && direct.length < NATIVE_DIRECT_DESTINATION_COUNT) {
+    if (path && direct.length < directCount) {
       direct.push({ item, path });
       continue;
     }

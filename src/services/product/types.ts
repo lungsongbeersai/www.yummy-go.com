@@ -57,6 +57,7 @@ export interface Product extends ApiEntity {
   prod_set_price?: number | string | null;
   prod_status_imge?: number | string;
   prod_topping_status?: number | string;
+  prod_topping_max_select?: number | string;
   prod_image?: string;
   prod_image_raw?: string;
   branch_uuid_fk?: string;
@@ -114,6 +115,8 @@ export interface SaveProductInput extends ApiEntity {
   details?: SaveProductDetailInput[];
   prod_topping_status?: number;
   toppings?: SaveProductToppingInput[];
+  /** Max quantity of any single topping the customer can add; 0 = unlimited. Named prod_topping_max_select, not _max_qty, to match the backend's field name. */
+  prod_topping_max_select?: number;
 }
 
 export interface ProductEnabledPatch {

@@ -117,6 +117,7 @@ export interface ProdItem {
   uniteName?: string;
   prodSetPrice?: number | string | null;
   proDetailSprice?: number | string;
+  prodToppingMaxSelect?: number | string;
   statusSortFk?: ProductSortStatus;
   details: ProdDetail[];
   toppings: ProdTopping[];

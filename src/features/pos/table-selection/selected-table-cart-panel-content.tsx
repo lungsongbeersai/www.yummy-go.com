@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/compone
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsContent, TabsList } from "@/components/ui/tabs";
+import { useIsCapacitorNativeApp } from "@/hooks/use-capacitor-native-app";
 import { cn } from "@/lib/utils";
 import type { PosZone } from "@/services/pos";
 import { useAuthStore } from "@/stores/auth-store";
@@ -77,6 +78,15 @@ export function SelectedTableCartPanelContent({
   const { t } = useTranslation();
   const selectedTable = workflow.selectedTable;
   const customerDisplay = workflow.customerDisplay;
+  const isCapacitorNativeApp = useIsCapacitorNativeApp();
+  // header/footer นี้ออกแบบเป็นตัวอักษรขาวสำหรับวางทับรูปพื้นหลังเข้ม (background_wide.webp) —
+  // ใช้ได้เฉพาะตอนพื้นหลังนั้นยังอยู่จริงเท่านั้น: variant="sheet" (มือถือ/แท็บเล็ตแนวตั้งความกว้าง
+  // ต่ำกว่า lg) ยังคง data-pos-pattern ไว้ทุกแพลตฟอร์มรวม Capacitor (ดู order-customer-view.tsx
+  // SheetContent) รูปพื้นหลังเลยยังอยู่ ตัวอักษรขาวยังถูกต้อง — แต่ variant="side" (แผงค้างขวา,
+  // ความกว้าง >= lg เช่น iPad แนวนอน) container ห่อชั้นนอกตัด data-pos-pattern ออกทั้งรูปและ
+  // primary tint ทิ้งไว้แค่ bg-background เรียบ ๆ บน Capacitor (ดู order-customer-view.tsx
+  // isCapacitorNativeApp ? "bg-background" : ...) ตัวอักษรขาวเดิมเลยกลายเป็นขาวบนขาว มองไม่เห็น
+  const neutral = isCapacitorNativeApp && variant === "side";
   const isNoTableStore = useAuthStore((state) => state.user?.store_table_status === 2);
   // ร้านไม่มีโต๊ะ: create_order สร้างรายการด้วยสถานะยืนยันแล้วเสมอ (ไม่ผ่าน
   // สถานะ "ใหม่/รอยืนยัน") จึงไม่มี tab ให้แยก — รวมเป็นลิสต์เดียว
@@ -110,7 +120,10 @@ export function SelectedTableCartPanelContent({
       >
         <CardHeader
           className={cn(
-            "relative block shrink-0 overflow-hidden border-b border-white/10 text-white dark:bg-black/25",
+            "relative block shrink-0 overflow-hidden border-b",
+            neutral
+              ? "border-border bg-card text-foreground"
+              : "border-white/10 text-white dark:bg-black/25",
             variant === "side"
               ? "px-3 pb-2 pt-2.5"
               : "px-4 pb-2.5 pt-3 pr-12",
@@ -120,7 +133,12 @@ export function SelectedTableCartPanelContent({
               ที่ยึดความสูงจากปุ่มไอคอน size-11 — ให้ตรงกับ md:h-11 ของ header ฝั่งนั้น) */}
           <div className="relative flex min-h-9.5 min-w-0 items-center justify-between gap-3">
             <div className="flex min-w-0 flex-col gap-0.5">
-              <p className="flex min-w-0 items-center gap-2 truncate text-base font-black leading-5 text-white">
+              <p
+                className={cn(
+                  "flex min-w-0 items-center gap-2 truncate text-base font-black leading-5",
+                  neutral ? "text-foreground" : "text-white",
+                )}
+              >
                 <ReceiptText className="size-5 shrink-0" />
                 <span className="truncate">
                   {selectedTable
@@ -133,14 +151,22 @@ export function SelectedTableCartPanelContent({
                 </span>
               </p>
               {workflow.invoice ? (
-                <p className="truncate text-2xs font-bold leading-4 text-white/75">
+                <p
+                  className={cn(
+                    "truncate text-2xs font-bold leading-4",
+                    neutral ? "text-muted-foreground" : "text-white/75",
+                  )}
+                >
                   {t("pos.invoice")}: {workflow.invoice}
                 </p>
               ) : null}
             </div>
             <Badge
               className={cn(
-                "shrink-0 rounded-full border-white/20 bg-white/15 font-black text-white shadow-none",
+                "shrink-0 rounded-full font-black shadow-none",
+                neutral
+                  ? "border-primary/20 bg-primary text-primary-foreground"
+                  : "border-white/20 bg-white/15 text-white",
                 variant === "side"
                   ? "h-7 px-2.5 text-2xs"
                   : "h-8 px-3 text-xs",
@@ -159,7 +185,18 @@ export function SelectedTableCartPanelContent({
                 // เดิม) เป็นสีดำมองไม่เห็นบนพื้นเข้ม — จุดนี้เคยตกหล่นไปตอนก๊อปคลาสมา
                 // overflow-hidden กัน focus ring/box-shadow ของ trigger แต่ละอันทะลุออกนอก
                 // มุมโค้ง rounded-xl ของแถบทั้งก้อน (trigger เองโค้งแค่ rounded-lg เล็กกว่า)
-                "pos-soft-light-zone pos-dark-zone grid w-full grid-cols-2 overflow-hidden rounded-xl bg-white/15 p-1 text-white shadow-inner backdrop-blur-sm",
+                //
+                // neutral (Capacitor variant="side"): ไม่มีรูปพื้นหลังเข้มให้ตัดกันแล้ว ไม่ต้องพึ่ง
+                // zone-class บังคับ --foreground เข้ม เปลี่ยนไปใช้ bg-muted ทึบธรรมดาแทน bg-white/15
+                // โปร่งแสง (ซึ่งบนพื้นขาวของ Capacitor จะจางจนแทบไม่เห็นกรอบ pill)
+                // gap-1 — TabsTrigger ฐานปัดมุมโค้งครบ 4 มุมทุกด้าน (rounded-lg) ไม่ใช่แค่มุมนอก
+                // เดิมไม่มี gap คั่นระหว่าง 2 เซลล์ grid เลย แท็บทั้งสองเลยชนกันสนิท ตรงรอยต่อ
+                // มุมโค้งของทั้งคู่หันเข้าหากันจึงเผยพื้นหลังแทร็ก (bg-muted) เป็นรอยบากรูปโบว์ไท
+                // เล็ก ๆ แทรกอยู่ตรงกลาง เห็นชัดเป็นพิเศษตอนแท็บ active ทึบสีเขียว — ดูเหมือนมีอะไร
+                // มาบัง/กัดขอบปุ่ม ใส่ gap คั่นแยกให้แต่ละแท็บเป็นก้อนอิสระ ตัดปัญหาที่ต้นตอ
+                neutral
+                  ? "grid w-full grid-cols-2 gap-1 overflow-hidden rounded-xl bg-muted p-1 text-foreground shadow-inner"
+                  : "pos-soft-light-zone pos-dark-zone grid w-full grid-cols-2 gap-1 overflow-hidden rounded-xl bg-white/15 p-1 text-white shadow-inner backdrop-blur-sm",
                 variant === "side"
                   ? "mt-2 h-10 group-data-horizontal/tabs:h-10"
                   : "mt-2.5 h-11 group-data-horizontal/tabs:h-11",
@@ -170,6 +207,7 @@ export function SelectedTableCartPanelContent({
                 count={workflow.newOrderDisplayItems.length}
                 disabled={!workflow.hasSelectedTable}
                 label={t("pos.newOrder")}
+                neutral={neutral}
                 shortLabel={t("pos.newOrderShort")}
                 value="new"
               />
@@ -178,6 +216,7 @@ export function SelectedTableCartPanelContent({
                 count={workflow.historyItems.length}
                 disabled={!workflow.hasSelectedTable}
                 label={t("pos.orderHistory")}
+                neutral={neutral}
                 shortLabel={t("pos.orderHistoryShort")}
                 value="history"
               />
@@ -261,12 +300,16 @@ export function SelectedTableCartPanelContent({
 
         <CardFooter
           className={cn(
-            "pos-safe-bottom-padding block shrink-0 border-t border-white/15 bg-transparent text-white dark:bg-black/25",
+            "pos-safe-bottom-padding block shrink-0 border-t",
+            neutral
+              ? "border-border bg-card text-foreground"
+              : "border-white/15 bg-transparent text-white dark:bg-black/25",
             variant === "side" ? "px-2.5 pt-1.5" : "px-3 pt-2",
           )}
         >
           <CartSummaryDock
             actionsDisabled={!workflow.hasSelectedTable}
+            neutral={neutral}
             billDiscountValueLabel={workflow.billDiscountValueLabel}
             canConfirm={workflow.canConfirm}
             canApplyBillDiscount={

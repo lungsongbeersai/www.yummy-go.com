@@ -1414,7 +1414,9 @@
     "searchProducts": "Search products",
     "searchToppings": "Search toppings",
     "setPrice": "Set price",
-    "sortHint": "To reorder, select a category, clear the search, and show all rows on one page.",
+    "sortOldest": "Oldest",
+    "sortNewest": "Newest",
+    "sortHint": "To reorder, select a category, clear the search, use ascending order, and show all rows on one page.",
     "sortUnavailable": "Can't reorder yet",
     "searchSetProductOptions": "Search set products",
     "setProductOptions": "Set products",
@@ -1527,6 +1529,9 @@
       "no": "No toppings"
     },
     "toppingMode": "Topping mode",
+    "toppingMaxSelect": "Max quantity per topping",
+    "toppingMaxSelectHint": "The most of any single topping a customer can add. 0 = unlimited.",
+    "unlimited": "Unlimited",
     "type": "Type"
   },
   "stock": {

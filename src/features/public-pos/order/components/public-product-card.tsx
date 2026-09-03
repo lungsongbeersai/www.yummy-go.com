@@ -33,15 +33,28 @@ import { ProductMedia } from "./public-product-media";
 // ตัด backdrop-blur-md ออก — การ์ดมีหลายสิบใบต่อหน้าจอ แต่ละใบเป็น backdrop-filter
 // region ของตัวเอง เปลืองแรง GPU ตอนเลื่อนหน้ามาก แลกกับเอฟเฟกต์กระจกฝ้าโหมดมืด
 // ที่บางลง (ยังมี border/shadow กำหนดขอบการ์ดชัดอยู่)
+//
+// alpha ต่ำกว่าเดิมมาก (0.45/0.8 -> 0.14/0.35) — การ์ดในกริดเมนูปกติเรียงชิดกันเป็นแถว
+// เงาที่เลยขอบล่างการ์ดถูกการ์ดแถวถัดไปทับบังไว้จึงไม่เห็น แต่การ์ดโปรโมชั่น/ชุด
+// เรียงแถวเดียวแนวนอน (StatusRailSection) ไม่มีอะไรมาบังเงาส่วนเกิน เงาเข้มเดิมเลย
+// ลอยเป็นก้อนดำแปลกๆ ใต้การ์ดบนพื้นหลังโล่งๆ ของหน้า
+// overflow-hidden ไม่อยู่ตรงนี้แล้วโดยตั้งใจ — ดูคอมเมนต์ที่ CARD_CLIP_CLASS ด้านล่าง
 const CARD_SURFACE_CLASS =
-  "h-full gap-0 overflow-hidden rounded-[20px] border-yg-line bg-yg-panel py-0 shadow-[0_18px_40px_-26px_rgb(0_0_0/0.45)] transition-[border-color,box-shadow,transform] duration-150 ease-out dark:shadow-[0_18px_40px_-26px_rgb(0_0_0/0.8)] motion-reduce:transition-none";
+  "h-full gap-0 rounded-[20px] border-yg-line bg-yg-panel py-0 shadow-[0_18px_40px_-26px_rgb(0_0_0/0.14)] transition-[border-color,box-shadow,transform] duration-150 ease-out dark:shadow-[0_18px_40px_-26px_rgb(0_0_0/0.35)] motion-reduce:transition-none";
+
+// Chrome มีบั๊กที่รู้จักกันดี: element ที่มีทั้ง overflow:hidden + border-radius + transition/transform
+// (เช่น hover:-translate-y-1 ของ CARD_INTERACTIVE_CLASS) อยู่บนตัวเดียวกัน บางครั้งไม่ clip ลูกที่เป็น
+// สี่เหลี่ยมมุมฉาก (รูปสินค้า/พื้นสี) ให้สนิทกับมุมโค้ง โผล่เป็นมุมเหลี่ยมแทรกออกมานอกเส้นขอบโค้ง —
+// แยก overflow-hidden มาไว้ที่ wrapper ชั้นในที่ไม่มี transform ของตัวเอง ส่วน transform ยกการ์ดตอน
+// hover ยังอยู่ที่ Card ชั้นนอกเหมือนเดิม (transform ของ ancestor ไม่ทำให้ลูกที่ถูก clip ไปแล้วหลุดออกมา)
+const CARD_CLIP_CLASS = "h-full overflow-hidden rounded-[20px]";
 
 // hover:-translate-y-1 ใช้ไม่ได้บนมือถือ (แตะไม่มี :hover) — active:scale ทำงาน
 // ทันทีที่นิ้วแตะจอไม่ว่าจะ hover มาก่อนหรือไม่ ให้ความรู้สึกกดแล้ว "ตอบสนองทันที"
 // active:duration-75 ให้กดยุบเร็วกว่าคืนตัว (ปล่อยกลับใช้ duration ปกติจาก CARD_SURFACE_CLASS)
 // เลียนแบบ tap feedback ของแอปมือถือทั่วไป
 const CARD_INTERACTIVE_CLASS =
-  "hover:-translate-y-1 hover:border-yg-accent-line hover:shadow-[0_26px_54px_-26px_rgb(0_0_0/0.55)] active:translate-y-0 active:scale-[0.97] active:duration-75 dark:hover:shadow-[0_26px_54px_-26px_rgb(0_0_0/0.9)] motion-reduce:transform-none";
+  "hover:-translate-y-1 hover:border-yg-accent-line hover:shadow-[0_26px_54px_-26px_rgb(0_0_0/0.22)] active:translate-y-0 active:scale-[0.97] active:duration-75 dark:hover:shadow-[0_26px_54px_-26px_rgb(0_0_0/0.45)] motion-reduce:transform-none";
 
 // เมนูร้านที่มีสินค้าเยอะ การ์ดนอกจอต้อง skip layout/paint ไปเลยไม่งั้นเลื่อน/แตะช้าลง
 // เรื่อยๆ ตามจำนวนสินค้า — "auto 360px" ให้เบราว์เซอร์จำขนาดจริงหลัง render ครั้งแรก
@@ -137,63 +150,65 @@ export const ProductCard = memo(function ProductCard({
           isBlocked ? "" : CARD_INTERACTIVE_CLASS,
         )}
       >
-        <Button
-          type="button"
-          variant="ghost"
-          className="flex min-h-28 w-full items-stretch gap-3 rounded-none p-2.5 text-left hover:bg-yg-panel-hover focus-visible:ring-inset aria-disabled:cursor-not-allowed aria-disabled:hover:bg-transparent disabled:opacity-100"
-          onClick={handleClick}
-          disabled={loading}
-          aria-busy={loading || undefined}
-          aria-disabled={isBlocked || undefined}
-          aria-label={accessibleLabel}
-        >
-          <div
-            ref={mediaRef}
-            className="relative size-24 shrink-0 overflow-hidden rounded-2xl border border-yg-line"
+        <div className={CARD_CLIP_CLASS}>
+          <Button
+            type="button"
+            variant="ghost"
+            className="flex min-h-28 w-full items-stretch gap-3 rounded-none p-2.5 text-left hover:bg-yg-panel-hover focus-visible:ring-inset aria-disabled:cursor-not-allowed aria-disabled:hover:bg-transparent disabled:opacity-100"
+            onClick={handleClick}
+            disabled={loading}
+            aria-busy={loading || undefined}
+            aria-disabled={isBlocked || undefined}
+            aria-label={accessibleLabel}
           >
-            <ProductMedia
-              product={product}
-              variant="listThumb"
-              blockedState={blockedState}
-              blockedLabel={blockedLabel}
-              preload={imagePreload}
-            />
-          </div>
-
-          <CardContent className="flex min-w-0 flex-1 gap-3 p-0">
-            <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-              <p className="lao-tone-text line-clamp-2 font-yg-serif text-base font-semibold leading-snug text-yg-ink">
-                {product.prodName}
-              </p>
-
-              <ProductPriceLabel
-                price={price}
-                lang={lang}
-                blocked={isBlocked}
-                compact
+            <div
+              ref={mediaRef}
+              className="relative size-24 shrink-0 overflow-hidden rounded-2xl border border-yg-line"
+            >
+              <ProductMedia
+                product={product}
+                variant="listThumb"
+                blockedState={blockedState}
+                blockedLabel={blockedLabel}
+                preload={imagePreload}
               />
-
-              <div className="flex min-h-5 min-w-0 flex-wrap items-center gap-1.5">
-                {!isBlocked && promoLabel ? (
-                  <ProductPromoBadge label={promoLabel} compact />
-                ) : null}
-                {choiceMeta ? <ProductChoiceMeta label={choiceMeta} /> : null}
-              </div>
             </div>
 
-            {isBlocked ? null : (
-              <div className="flex shrink-0 items-end justify-end">
-                <ProductActionPill
-                  actionState={actionState}
-                  hasActualChoices={hasActualChoices}
-                  label={actionLabel}
-                  loading={loading}
+            <CardContent className="flex min-w-0 flex-1 gap-3 p-0">
+              <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                <p className="lao-tone-text line-clamp-2 font-yg-serif text-base font-semibold leading-snug text-yg-ink">
+                  {product.prodName}
+                </p>
+
+                <ProductPriceLabel
+                  price={price}
+                  lang={lang}
+                  blocked={isBlocked}
                   compact
                 />
+
+                <div className="flex min-h-5 min-w-0 flex-wrap items-center gap-1.5">
+                  {!isBlocked && promoLabel ? (
+                    <ProductPromoBadge label={promoLabel} compact />
+                  ) : null}
+                  {choiceMeta ? <ProductChoiceMeta label={choiceMeta} /> : null}
+                </div>
               </div>
-            )}
-          </CardContent>
-        </Button>
+
+              {isBlocked ? null : (
+                <div className="flex shrink-0 items-end justify-end">
+                  <ProductActionPill
+                    actionState={actionState}
+                    hasActualChoices={hasActualChoices}
+                    label={actionLabel}
+                    loading={loading}
+                    compact
+                  />
+                </div>
+              )}
+            </CardContent>
+          </Button>
+        </div>
       </Card>
     );
   }
@@ -202,7 +217,6 @@ export const ProductCard = memo(function ProductCard({
     <Card
       className={cn(
         CARD_SURFACE_CLASS,
-        CARD_LAZY_RENDER_CLASS,
         variant === "rail"
           ? "w-44 flex-none snap-start"
           : variant === "railGrid"
@@ -211,58 +225,63 @@ export const ProductCard = memo(function ProductCard({
         isBlocked ? "" : CARD_INTERACTIVE_CLASS,
       )}
     >
-      <Button
-        type="button"
-        variant="ghost"
-        className="flex h-full w-full flex-col items-stretch justify-start rounded-none p-0 text-left hover:bg-transparent focus-visible:ring-inset aria-disabled:cursor-not-allowed disabled:opacity-100"
-        onClick={handleClick}
-        disabled={loading}
-        aria-busy={loading || undefined}
-        aria-disabled={isBlocked || undefined}
-        aria-label={accessibleLabel}
-      >
-        <div ref={mediaRef} className="relative w-full">
-          <ProductMedia
-            product={product}
-            blockedState={blockedState}
-            blockedLabel={blockedLabel}
-            preload={imagePreload}
-          />
-          {!isBlocked && promoLabel ? (
-            <ProductPromoBadge label={promoLabel} overlay />
-          ) : null}
-        </div>
-
-        <CardContent className="flex min-h-36 flex-1 flex-col gap-2 p-3.5 max-[419px]:gap-1 max-[419px]:py-3">
-          <p className="lao-tone-text line-clamp-2 min-h-10 font-yg-serif text-base font-semibold leading-snug text-yg-ink">
-            {product.prodName}
-          </p>
-
-          {/* การ์ดสองคอลัมน์บนมือถือเหลือพื้นที่ราคาไม่พอเมื่อปุ่ม 44px อยู่แถวเดียวกัน
-              ให้ราคาเต็มแถว แล้วใช้ metadata กับปุ่มร่วมแถวล่างเพื่อคงความสูงเดิม */}
-          <div className="mt-auto flex items-end justify-between gap-2 max-[419px]:grid max-[419px]:grid-cols-[minmax(0,1fr)_auto] max-[419px]:gap-x-2 max-[419px]:gap-y-1">
-            <div className="min-w-0 flex-1 max-[419px]:contents">
-              <ProductPriceLabel
-                price={price}
-                lang={lang}
-                blocked={isBlocked}
-              />
-              {choiceMeta ? <ProductChoiceMeta label={choiceMeta} /> : null}
-            </div>
-
-            {isBlocked ? null : (
-              <div className="shrink-0 max-[419px]:col-start-2 max-[419px]:row-start-2">
-                <ProductActionPill
-                  actionState={actionState}
-                  hasActualChoices={hasActualChoices}
-                  label={actionLabel}
-                  loading={loading}
-                />
-              </div>
-            )}
+      {/* content-visibility:auto ก็ทำตัวเหมือน overflow:hidden ทางการ paint (contain: paint โดยนัย)
+          จึงต้องอยู่ในชั้นเดียวกับ CARD_CLIP_CLASS ที่ไม่มี transform เหตุผลเดียวกับด้านบน ไม่งั้นก็เจอ
+          บั๊ก clip มุมโค้งแบบเดียวกันได้อีก แม้จะย้าย overflow-hidden ออกไปแล้วก็ตาม */}
+      <div className={cn(CARD_CLIP_CLASS, CARD_LAZY_RENDER_CLASS)}>
+        <Button
+          type="button"
+          variant="ghost"
+          className="flex h-full w-full flex-col items-stretch justify-start rounded-none p-0 text-left hover:bg-transparent focus-visible:ring-inset aria-disabled:cursor-not-allowed disabled:opacity-100"
+          onClick={handleClick}
+          disabled={loading}
+          aria-busy={loading || undefined}
+          aria-disabled={isBlocked || undefined}
+          aria-label={accessibleLabel}
+        >
+          <div ref={mediaRef} className="relative w-full">
+            <ProductMedia
+              product={product}
+              blockedState={blockedState}
+              blockedLabel={blockedLabel}
+              preload={imagePreload}
+            />
+            {!isBlocked && promoLabel ? (
+              <ProductPromoBadge label={promoLabel} overlay />
+            ) : null}
           </div>
-        </CardContent>
-      </Button>
+
+          <CardContent className="flex min-h-36 flex-1 flex-col gap-2 p-3.5 max-[419px]:gap-1 max-[419px]:py-3">
+            <p className="lao-tone-text line-clamp-2 min-h-10 font-yg-serif text-base font-semibold leading-snug text-yg-ink">
+              {product.prodName}
+            </p>
+
+            {/* การ์ดสองคอลัมน์บนมือถือเหลือพื้นที่ราคาไม่พอเมื่อปุ่ม 44px อยู่แถวเดียวกัน
+                ให้ราคาเต็มแถว แล้วใช้ metadata กับปุ่มร่วมแถวล่างเพื่อคงความสูงเดิม */}
+            <div className="mt-auto flex items-end justify-between gap-2 max-[419px]:grid max-[419px]:grid-cols-[minmax(0,1fr)_auto] max-[419px]:gap-x-2 max-[419px]:gap-y-1">
+              <div className="min-w-0 flex-1 max-[419px]:contents">
+                <ProductPriceLabel
+                  price={price}
+                  lang={lang}
+                  blocked={isBlocked}
+                />
+                {choiceMeta ? <ProductChoiceMeta label={choiceMeta} /> : null}
+              </div>
+
+              {isBlocked ? null : (
+                <div className="shrink-0 max-[419px]:col-start-2 max-[419px]:row-start-2">
+                  <ProductActionPill
+                    actionState={actionState}
+                    hasActualChoices={hasActualChoices}
+                    label={actionLabel}
+                    loading={loading}
+                  />
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Button>
+      </div>
     </Card>
   );
 });
@@ -324,60 +343,61 @@ export const SetProductCard = memo(function SetProductCard({
     <Card
       className={cn(
         CARD_SURFACE_CLASS,
-        CARD_LAZY_RENDER_CLASS,
         variant === "rail" ? "w-44 flex-none snap-start" : "w-44 flex-none snap-start sm:w-auto",
         blocked ? "" : CARD_INTERACTIVE_CLASS,
       )}
     >
-      <Button
-        type="button"
-        variant="ghost"
-        className="flex h-full w-full flex-col items-stretch justify-start rounded-none p-0 text-left hover:bg-transparent focus-visible:ring-inset aria-disabled:cursor-not-allowed disabled:opacity-100"
-        onClick={handleClick}
-        disabled={loading}
-        aria-busy={loading || undefined}
-        aria-disabled={blocked || undefined}
-        aria-label={accessibleLabel}
-      >
-        <div ref={mediaRef} className="relative w-full">
-          <ProductMedia
-            product={product}
-            blockedState={blockedState}
-            blockedLabel={blockedLabel}
-            preload={imagePreload}
-          />
-        </div>
+      <div className={cn(CARD_CLIP_CLASS, CARD_LAZY_RENDER_CLASS)}>
+        <Button
+          type="button"
+          variant="ghost"
+          className="flex h-full w-full flex-col items-stretch justify-start rounded-none p-0 text-left hover:bg-transparent focus-visible:ring-inset aria-disabled:cursor-not-allowed disabled:opacity-100"
+          onClick={handleClick}
+          disabled={loading}
+          aria-busy={loading || undefined}
+          aria-disabled={blocked || undefined}
+          aria-label={accessibleLabel}
+        >
+          <div ref={mediaRef} className="relative w-full">
+            <ProductMedia
+              product={product}
+              blockedState={blockedState}
+              blockedLabel={blockedLabel}
+              preload={imagePreload}
+            />
+          </div>
 
-        <CardContent className="flex flex-col gap-1.5 p-3">
-          <p className="lao-tone-text truncate font-yg-serif text-sm font-semibold leading-snug text-yg-ink">
-            {product.prodName}
-          </p>
+          <CardContent className="flex flex-col gap-1.5 p-3">
+            <p className="lao-tone-text truncate font-yg-serif text-sm font-semibold leading-snug text-yg-ink">
+              {product.prodName}
+            </p>
 
-          {/* จองพื้นที่ราคา/ปุ่มไว้เสมอ (ว่างเปล่าเมื่อไม่มีข้อมูล) ไม่งั้นการ์ดที่หมด
-              (ไม่มีราคา/ไม่มีปุ่ม) จะเตี้ยกว่าใบข้างๆ ในแถวเดียวกัน */}
-          <p
-            className={cn(
-              "min-h-5 font-yg-number text-sm font-semibold tabular-nums",
-              blocked ? "text-yg-muted" : "text-yg-accent-strong",
-            )}
-          >
-            {priceValue !== null ? formatMoney(priceValue, lang) : ""}
-          </p>
-
-          {blocked ? (
-            <span className="h-8" aria-hidden="true" />
-          ) : (
-            <span className="flex h-8 items-center justify-center gap-1 rounded-xl border border-yg-accent-line bg-yg-accent-soft text-2xs font-extrabold text-yg-accent-strong">
-              {loading ? (
-                <Spinner />
-              ) : (
-                <ChevronRight className="size-3.5 shrink-0" aria-hidden="true" />
+            {/* จองพื้นที่ราคา/ปุ่มไว้เสมอ (ว่างเปล่าเมื่อไม่มีข้อมูล) ไม่งั้นการ์ดที่หมด
+                (ไม่มีราคา/ไม่มีปุ่ม) จะเตี้ยกว่าใบข้างๆ ในแถวเดียวกัน */}
+            <p
+              className={cn(
+                "min-h-5 font-yg-number text-sm font-semibold tabular-nums",
+                blocked ? "text-yg-muted" : "text-yg-accent-strong",
               )}
-              <span className="lao-tone-text truncate">{viewLabel}</span>
-            </span>
-          )}
-        </CardContent>
-      </Button>
+            >
+              {priceValue !== null ? formatMoney(priceValue, lang) : ""}
+            </p>
+
+            {blocked ? (
+              <span className="h-8" aria-hidden="true" />
+            ) : (
+              <span className="flex h-8 items-center justify-center gap-1 rounded-xl border border-yg-accent-line bg-yg-accent-soft text-2xs font-extrabold text-yg-accent-strong">
+                {loading ? (
+                  <Spinner />
+                ) : (
+                  <ChevronRight className="size-3.5 shrink-0" aria-hidden="true" />
+                )}
+                <span className="lao-tone-text truncate">{viewLabel}</span>
+              </span>
+            )}
+          </CardContent>
+        </Button>
+      </div>
     </Card>
   );
 });

@@ -451,12 +451,37 @@ describe("product form validation and payload helpers", () => {
       prodImage: "#10b981",
       details: [detail({ pro_detail_bprice: "10,000" })],
       prodToppingStatus: TOPPING_HAS,
+      prodToppingMaxSelect: "2",
       selectedToppings: [{ topping_uuid_fk: "top-1", topping_price: "5,500" }],
     });
 
     expect(payload.prod_set_price).toBe(99000);
     expect(payload.toppings?.[0]?.topping_price).toBe(5500);
     expect(payload.details?.[0]?.pro_detail_bprice).toBe(10000);
+    expect(payload.prod_topping_max_select).toBe(2);
+  });
+
+  it("sends prod_topping_max_select as 0 when topping status is not HAS", () => {
+    const payload = buildSaveProductPayload({
+      branchUuid: "branch-1",
+      prodCode: "P-1",
+      prodNameLa: "ເຝີ",
+      prodNameEng: "",
+      cateUuidFk: "cate-1",
+      uniteUuidFk: "unit-1",
+      prodOrderPoint: "5",
+      prodNotification: "2",
+      statusSortFk: "1",
+      prodSetPrice: "0",
+      prodStatusImge: "2",
+      prodImage: "#10b981",
+      details: [detail()],
+      prodToppingStatus: TOPPING_NONE,
+      prodToppingMaxSelect: "3",
+      selectedToppings: [],
+    });
+
+    expect(payload.prod_topping_max_select).toBe(0);
   });
 
   it("matches saved toppings by localized names", () => {

@@ -48,7 +48,6 @@ import {
   getOrderSelectionIssue,
   getPromoLabel,
   isToppingAvailable,
-  MAX_ORDER_QTY,
   orderQuantityRules,
   orderSelectionIssueLabel,
   productMedia,
@@ -56,6 +55,7 @@ import {
   productPriceFromDetail,
   toppingDisplayName,
   toppingPrice,
+  toppingQtyCap,
   toppingUuid,
   type OrderQuantityRules,
   type ProductMedia,
@@ -324,6 +324,7 @@ export function ProductOptionsForm({
                       return (
                         <ToppingOptionRow
                           key={uuid}
+                          productMaxSelect={product.prodToppingMaxSelect}
                           qty={toppingQtyByUuid[uuid] ?? 0}
                           topping={topping}
                           onChangeQty={(nextQty) =>
@@ -476,11 +477,13 @@ function SetProductRow({ label, price }: { label: string; price: string }) {
 }
 
 function ToppingOptionRow({
+  productMaxSelect,
   qty,
   topping,
   onChangeQty,
   onToggle,
 }: {
+  productMaxSelect?: number | string;
   qty: number;
   topping: ProdTopping;
   onChangeQty: (qty: number) => void;
@@ -543,7 +546,7 @@ function ToppingOptionRow({
               variant="ghost"
               aria-label={t("pos.increaseTopping", { name: label })}
               className="size-11 rounded-full text-primary hover:bg-primary/10"
-              disabled={qty >= MAX_ORDER_QTY}
+              disabled={qty >= toppingQtyCap(productMaxSelect)}
               onClick={() => onChangeQty(qty + 1)}
             >
               <Plus aria-hidden="true" />

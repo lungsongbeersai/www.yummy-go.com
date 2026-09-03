@@ -60,7 +60,7 @@ export function ProductPage({ initialPagination }: { initialPagination: UrlPagin
       <Card className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-none border-x-0 border-b-0 py-0">
         <CardHeader className="shrink-0 border-t border-border/70 bg-muted/10 px-4 py-2 lg:px-5 lg:py-3">
           <div className="grid w-full gap-2 lg:gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(22rem,30rem)] xl:items-end">
-            <section className="grid min-w-0 grid-cols-2 gap-2 md:grid-cols-[minmax(18rem,1fr)_minmax(12rem,18rem)_minmax(7rem,9rem)]">
+            <section className="grid min-w-0 grid-cols-2 gap-2 md:grid-cols-[minmax(18rem,1fr)_minmax(12rem,18rem)_minmax(7rem,9rem)_minmax(9rem,11rem)]">
               <Field className="col-span-2 gap-1 md:col-span-1">
                 <FieldLabel htmlFor="product-search-filter" className="sr-only text-xs font-bold text-muted-foreground md:not-sr-only">
                   {t("actions.search")}
@@ -156,6 +156,25 @@ export function ProductPage({ initialPagination }: { initialPagination: UrlPagin
                   </SelectContent>
                 </Select>
               </Field>
+              <Field className="col-span-2 gap-1 md:col-span-1">
+                <FieldLabel htmlFor="product-order-filter" className="sr-only text-xs font-bold text-muted-foreground md:not-sr-only">
+                  {t("common.order")}
+                </FieldLabel>
+                <Select value={product.orderBy} onValueChange={product.changeOrderBy}>
+                  <SelectTrigger
+                    id="product-order-filter"
+                    className="h-9 w-full bg-background data-[size=default]:h-9 md:h-10 md:data-[size=default]:h-10"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent position="popper" align="end">
+                    <SelectGroup>
+                      <SelectItem value="ASC">{t("product.sortOldest")}</SelectItem>
+                      <SelectItem value="DESC">{t("product.sortNewest")}</SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </Field>
             </section>
             <section className="flex w-full min-w-0 justify-start xl:justify-end">
               <Field className="w-full min-w-0 gap-1">
@@ -230,7 +249,7 @@ export function ProductPage({ initialPagination }: { initialPagination: UrlPagin
               </div>
               <ProductListTable workflow={product} />
               <ProductListMobile workflow={product} />
-              <div className="shrink-0 border-t border-border px-4 py-3 pb-[calc(0.75rem+max(env(safe-area-inset-bottom),var(--app-shell-bottom-nav-height,0px)))] text-sm text-muted-foreground">
+              <div className="shrink-0 border-t border-border px-4 py-3 pb-[calc(0.75rem+max(var(--pos-system-bottom-safe-area,0px),var(--app-shell-bottom-nav-height,0px)))] text-sm text-muted-foreground">
                 <AppPagination
                   page={product.page}
                   rangeLabel={t("common.showingRange", {

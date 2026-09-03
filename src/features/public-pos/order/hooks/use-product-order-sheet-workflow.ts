@@ -181,7 +181,7 @@ export function useProductOrderSheetWorkflow({
         current,
         toppingUuid,
         rememberedToppingQtyByUuid[toppingUuid] ?? 1,
-        toppingMaxQty(topping),
+        toppingMaxQty(topping, product?.prodToppingMaxSelect),
       ),
     );
   };
@@ -193,7 +193,12 @@ export function useProductOrderSheetWorkflow({
     if (!isToppingAvailable(topping)) return;
 
     setToppingQtyByUuid((current) =>
-      changePublicToppingQty(current, toppingUuid, nextQty, toppingMaxQty(topping)),
+      changePublicToppingQty(
+        current,
+        toppingUuid,
+        nextQty,
+        toppingMaxQty(topping, product?.prodToppingMaxSelect),
+      ),
     );
   };
 
@@ -236,6 +241,7 @@ export function useProductOrderSheetWorkflow({
     onOpenChange,
     open,
     product,
+    productMaxSelect: product?.prodToppingMaxSelect,
     productSubtotal,
     qty,
     qtyStep,

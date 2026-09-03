@@ -284,10 +284,18 @@ export const EmployeeCategorySidebar = memo(function EmployeeCategorySidebar({
                         className={cn(
                           "h-auto min-h-[5.625rem] w-full shrink-0 flex-col gap-1 rounded-lg border px-2 py-2 shadow-sm",
                           neutral
-                            ? "border-border bg-card text-foreground/90 hover:border-primary/40 hover:bg-accent hover:text-foreground focus-visible:ring-ring/60"
+                            // bg-card ใช้ไม่ได้ผลตรงนี้ — --card เท่ากับ --background เป๊ะในโหมดสว่าง
+                            // (ทั้งคู่ oklch(1 0 0) ขาวล้วน) การ์ดที่ "ทึบ" ตามทฤษฎีเลยกลืนหายไปกับพื้น
+                            // หน้าเพจ Capacitor ที่ไม่มีรูปพื้นหลังให้ตัดกันแบบเว็บ เหลือแค่เส้นขอบจาง ๆ
+                            // เป็นตัวบอกว่ากดได้ ใช้ bg-muted แทน (ต่างจาก background จริงในทั้ง 2 โหมด)
+                            ? "border-border bg-muted text-foreground/90 hover:border-primary/40 hover:bg-accent hover:text-foreground focus-visible:ring-ring/60"
                             : "border-white/20 bg-white/10 text-white/90 shadow-black/5 hover:border-white/45 hover:bg-white/20 hover:text-white focus-visible:ring-white/60 dark:border-border dark:bg-card dark:text-foreground/90 dark:shadow-black/20 dark:hover:border-primary/40 dark:hover:bg-accent dark:hover:text-foreground dark:focus-visible:ring-ring/60",
+                          // dark: มี selector &:is(.dark *) ซึ่ง specificity สูงกว่า utility เฉย ๆ (ดู
+                          // @custom-variant dark ใน globals.css) — ต้องใส่ dark: ให้ active ด้วย ไม่งั้น
+                          // dark:bg-card/dark:hover:bg-accent ด้านบนจะชนะ bg-primary เสมอในโหมดมืด ทำให้
+                          // ปุ่มที่เลือกอยู่ไม่เปลี่ยนสีเลย
                           active &&
-                            "border-primary/20 bg-primary text-primary-foreground shadow-primary/20 hover:bg-primary/90 hover:text-primary-foreground"
+                            "border-primary/20 bg-primary text-primary-foreground shadow-primary/20 hover:bg-primary/90 hover:text-primary-foreground dark:border-primary/20 dark:bg-primary dark:text-primary-foreground dark:hover:bg-primary/90 dark:hover:text-primary-foreground"
                         )}
                         onClick={() => onSelectCategory(category.cateUuid)}
                       >
@@ -295,7 +303,7 @@ export const EmployeeCategorySidebar = memo(function EmployeeCategorySidebar({
                           icon={category.cateIcon}
                           className="size-6 shrink-0"
                         />
-                        <span className="block w-full shrink-0 whitespace-normal break-words text-center text-xs font-black leading-4">
+                        <span className="block w-full shrink-0 whitespace-normal break-words text-center text-xs font-semibold leading-4">
                           {categoryLabel}
                         </span>
                       </Button>
@@ -353,8 +361,9 @@ export const EmployeeCategoryRail = memo(function EmployeeCategoryRail({
                   neutral
                     ? "border-border bg-muted text-foreground hover:border-primary/40 hover:bg-accent hover:text-foreground"
                     : "border-white/15 bg-black/20 text-white hover:border-white/45 hover:bg-white/10 hover:text-white dark:border-border dark:bg-card dark:text-foreground dark:hover:border-primary/40 dark:hover:bg-accent dark:hover:text-foreground",
+                  // เหตุผลเดียวกับ EmployeeCategorySidebar ด้านบน — dark: ต้องมี selector เฉพาะให้ active ด้วย
                   active &&
-                    "border-primary/20 bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+                    "border-primary/20 bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground dark:border-primary/20 dark:bg-primary dark:text-primary-foreground dark:hover:bg-primary/90 dark:hover:text-primary-foreground"
                 )}
                 onClick={() => onSelectCategory(category.cateUuid)}
               >

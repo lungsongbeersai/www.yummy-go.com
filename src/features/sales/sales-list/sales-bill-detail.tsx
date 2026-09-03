@@ -88,7 +88,7 @@ export function SalesBillDetailPanel({
             </div>
           </div>
           <SelectedBillSummary bill={bill} />
-          <div className="shrink-0 border-t border-border bg-card px-3 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+          <div className="shrink-0 border-t border-border bg-card px-3 py-3 pb-[calc(0.75rem+var(--pos-system-bottom-safe-area,0px))]">
             {actions}
           </div>
         </CardContent>

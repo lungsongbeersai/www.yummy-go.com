@@ -10,7 +10,7 @@ import {
   sortProductsByCategoryPayload,
   stockModePatch
 } from "@/services/product/validators";
-import type { ApiDataResponse, ApiMessageResponse } from "@/services/shared/types";
+import type { ApiDataResponse, ApiMessageResponse, SortOrder } from "@/services/shared/types";
 import type {
   FetchProductsParams,
   Product,
@@ -33,21 +33,26 @@ function sortOrder(value: unknown) {
   return Number.isFinite(order) && order > 0 ? order : null;
 }
 
-function sortProductsByApiOrder(rows: Product[]) {
+// prod_sort คือลำดับที่แอดมินจัดเรียงเอง (ลาก-วางใน ProductOrderDialog) — orderBy จากคำขอ
+// สลับทิศทางของลำดับนี้เท่านั้น แถวที่ไม่มี prod_sort (ยังไม่เคยจัดลำดับ) อยู่ท้ายสุดเสมอทั้งสองทิศทาง
+function sortProductsByApiOrder(rows: Product[], orderBy: SortOrder = "ASC") {
+  const descending = String(orderBy).toUpperCase() === "DESC";
   return [...rows].sort((left, right) => {
     const leftOrder = sortOrder(left.prod_sort);
     const rightOrder = sortOrder(right.prod_sort);
     if (leftOrder === null && rightOrder === null) return 0;
     if (leftOrder === null) return 1;
     if (rightOrder === null) return -1;
-    return leftOrder - rightOrder;
+    return descending ? rightOrder - leftOrder : leftOrder - rightOrder;
   });
 }
 
 export async function getProducts(params: FetchProductsParams = {}) {
+  const orderBy = params.orderBy ?? "ASC";
   const query: Record<string, unknown> = {
     search: params.search ?? "",
     page: params.page ?? 1,
+    orderBy,
     lang: toApiLanguage(params.lang)
   };
   if (params.limit === "All") query.limit = "All";
@@ -57,7 +62,7 @@ export async function getProducts(params: FetchProductsParams = {}) {
   if (params.status_sort_fk !== undefined) query.status_sort_fk = params.status_sort_fk;
 
   const result = await apiRequest<ProductResponse>("get", "/api/v1/product/fetch_limit", { params: query });
-  return { ...result, data: sortProductsByApiOrder(result.data ?? []) };
+  return { ...result, data: sortProductsByApiOrder(result.data ?? [], orderBy) };
 }
 
 export async function getStatusSorts(lang = "la") {

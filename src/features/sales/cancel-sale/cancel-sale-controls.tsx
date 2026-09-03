@@ -182,7 +182,7 @@ export function SalesListToolbar({
               {renderOrderSelect("cancel-sale-mobile-order", "h-11")}
             </Field>
           </div>
-          <SheetFooter className="border-t border-border px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+          <SheetFooter className="border-t border-border px-4 py-3 pb-[calc(0.75rem+var(--pos-system-bottom-safe-area,0px))]">
             <SheetClose asChild>
               <Button type="button" variant="outline">
                 {t("actions.close")}
@@ -215,7 +215,7 @@ export function SalesListPaginationFooter({
   const { t } = useTranslation();
 
   return (
-    <div className="shrink-0 border-t border-border bg-muted/20 px-3 py-2.5 pb-[calc(0.625rem+max(env(safe-area-inset-bottom),var(--app-shell-bottom-nav-height,0px)))] text-sm text-muted-foreground sm:px-4 sm:py-3">
+    <div className="shrink-0 border-t border-border bg-muted/20 px-3 py-2.5 pb-[calc(0.625rem+max(var(--pos-system-bottom-safe-area,0px),var(--app-shell-bottom-nav-height,0px)))] text-sm text-muted-foreground sm:px-4 sm:py-3">
       <AppPagination
         disabled={loading}
         page={page}

@@ -526,7 +526,7 @@ export function PackageFormDialog({
               </FieldGroup>
             </SettingsDialogBody>
 
-            <SettingsDialogFooter className="pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+            <SettingsDialogFooter className="pb-[calc(0.75rem+var(--pos-system-bottom-safe-area,0px))]">
               <Button
                 type="button"
                 variant="outline"

@@ -268,7 +268,7 @@ function PrinterCard({
 export function PrinterListCards(props: PrinterListCardsProps) {
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2 pb-[calc(0.5rem+max(env(safe-area-inset-bottom),var(--app-shell-bottom-nav-height,0px)))] sm:p-3">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2 pb-[calc(0.5rem+max(var(--pos-system-bottom-safe-area,0px),var(--app-shell-bottom-nav-height,0px)))] sm:p-3">
         <div className="grid gap-2 sm:gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {props.filteredRows.map((row) => (
             <PrinterCard key={row.print_config_uuid} row={row} {...props} />
