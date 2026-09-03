@@ -628,6 +628,10 @@ export function cacheOnlineResponse(
   response: unknown,
   branchUuid: string | undefined,
   storeUuid: string | undefined,
+  // Android has no Local Printer Agent. It still needs the Dexie mirror written,
+  // because that mirror is the only offline source it has — but the two Agent
+  // posts below would just be failed localhost requests on every response.
+  agentAvailable: boolean = true,
 ) {
   if (typeof window === "undefined") return;
   const scope = { storeUuid: storeUuid || "", branchUuid: branchUuid || "" };
@@ -644,6 +648,7 @@ export function cacheOnlineResponse(
   } else if (OFFLINE_ROUTES.has(routeKey(method, url))) {
     void noteBrowserMutation(scope).catch(() => undefined);
   }
+  if (!agentAvailable) return;
   if (method === "get" && OFFLINE_GET_ROUTES.has(url.split("?")[0])) {
     void axios.post(
       `${AGENT_URL}/local/cache/record`,
@@ -670,6 +675,31 @@ export function cacheOnlineResponse(
     },
     { timeout: 3000 },
   ).catch(() => undefined);
+}
+
+/**
+ * Reads a cacheable GET straight from the Dexie mirror, with no Local Agent in
+ * the path. This is the offline read source for Android, which cannot reach an
+ * Agent at all; every other platform keeps going through requestLocalFallback so
+ * the Agent's SQLite stays authoritative. Returns null when nothing usable is
+ * cached, so the caller can surface the original network error.
+ */
+export async function readBrowserOfflineCache<T>(
+  method: HttpMethod,
+  url: string,
+  options: RequestOptions | undefined,
+  scope: BrowserOfflineScope,
+  browserStore?: BrowserOfflineStore,
+): Promise<T | null> {
+  if (typeof window === "undefined") return null;
+  if (!isBrowserCacheableRead(method, url)) return null;
+  return readBrowserApiFallback<T>({
+    ...scope,
+    method,
+    path: url.split("?")[0],
+    params: requestParams(url, options?.params),
+    data: options?.data ?? {},
+  }, browserStore).catch(() => null);
 }
 
 export async function mirrorOnlineResponse(

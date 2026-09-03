@@ -20,6 +20,10 @@ const apiTransport = readFileSync(
   join(testDir, "..", "..", "lib", "api.ts"),
   "utf8"
 );
+const offlineSync = readFileSync(
+  join(testDir, "..", "..", "services", "offline-sync.ts"),
+  "utf8"
+);
 
 describe("offline asset cache", () => {
   it("keys the Next Image cache on the full query string so sizes cannot collide", () => {
@@ -77,6 +81,25 @@ describe("offline asset cache", () => {
   it("never routes the Capacitor Android app to the Desktop Printer Agent", () => {
     expect(apiTransport).toContain("const localAgentAvailable = !isCapacitorAndroidApp()");
     expect(apiTransport).toContain("localAgentAvailable &&");
-    expect(apiTransport).toContain("else if (localAgentAvailable)");
+    // Android may write and read the Dexie mirror — that is its only offline
+    // source — but the two AGENT_URL posts inside cacheOnlineResponse stay behind
+    // the same flag, so no request is ever aimed at 127.0.0.1:7777.
+    expect(apiTransport).toContain("localScope.storeUuid,\n          localAgentAvailable,");
+    expect(apiTransport).toContain("localScope.storeUuid,\n        localAgentAvailable,");
+    expect(offlineSync).toContain("if (!agentAvailable) return;");
+  });
+
+  it("gives the Capacitor Android app an offline read path that needs no Agent", () => {
+    // Reads only. prepared.eventUuid is set exactly for the mutations that need a
+    // durable outbox, and Android has none, so those must keep failing.
+    expect(apiTransport).toContain("!localAgentAvailable &&");
+    expect(apiTransport).toContain("!prepared.eventUuid &&");
+    expect(apiTransport).toContain("readBrowserOfflineCache<T>(");
+    // The helper reads Dexie directly; requestLocalFallback (the Agent path) is
+    // not part of its body.
+    const helper = offlineSync.slice(offlineSync.indexOf("export async function readBrowserOfflineCache<T>("));
+    expect(helper.slice(0, helper.indexOf("\n}")))
+      .toContain("readBrowserApiFallback<T>(");
+    expect(helper.slice(0, helper.indexOf("\n}"))).not.toContain("AGENT_URL");
   });
 });

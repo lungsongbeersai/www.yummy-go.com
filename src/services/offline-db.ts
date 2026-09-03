@@ -47,6 +47,9 @@ const SAFE_BROWSER_FALLBACK_PATHS = new Set([
   "/api/v1/report_all/group_list",
   "/api/v1/report_all/daily_closing",
   "/api/v1/best_selling/best_selling_products",
+  // "/" is always offline-allowed (OFFLINE_INFRA_PATHS) and is the landing screen
+  // on Android, so its dashboard needs the same treatment as the report pages.
+  "/api/v1/dashboard/executive",
 ]);
 
 export type BrowserSyncEventStatus =

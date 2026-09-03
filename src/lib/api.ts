@@ -12,6 +12,7 @@ import {
 import { shouldLogoutForUnauthorized } from "@/lib/unauthorized-session";
 import {
   cacheOnlineResponse,
+  readBrowserOfflineCache,
   configureLocalSync,
   mirrorOnlineResponse,
   prepareOfflineRequest,
@@ -286,9 +287,10 @@ export async function apiRequest<T>(
           data,
           auth.user?.branch_uuid,
           localScope.storeUuid,
+          localAgentAvailable,
         );
       });
-    } else if (localAgentAvailable) {
+    } else {
       cacheOnlineResponse(
         method,
         url,
@@ -296,6 +298,7 @@ export async function apiRequest<T>(
         data,
         auth.user?.branch_uuid,
         localScope.storeUuid,
+        localAgentAvailable,
       );
     }
     return data;
@@ -347,6 +350,26 @@ export async function apiRequest<T>(
           onlineError: normalized,
           localError,
         });
+      }
+    }
+    // Android reaches no Agent, so the Dexie mirror is its only offline source.
+    // Reads only: prepared.eventUuid is set exactly for the mutations that need a
+    // durable outbox, and Android has none, so those must keep failing.
+    if (
+      !localAgentAvailable &&
+      canContinueOffline &&
+      !prepared.eventUuid &&
+      typeof window !== "undefined"
+    ) {
+      const cached = await readBrowserOfflineCache<T>(
+        method,
+        url,
+        requestOptions,
+        localScope,
+      );
+      if (cached !== null) {
+        useAuthStore.getState().setOfflineSession(true);
+        return assertApiSuccess(cached);
       }
     }
     throw normalized;

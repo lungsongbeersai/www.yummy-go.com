@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import axios from "axios";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   browserRequestFingerprint,
   browserSyncQueueHasRetryableWork,
@@ -24,6 +24,7 @@ import {
   discardBlockedBrowserSyncEvent,
   listBlockedBrowserSyncEvents,
   reconcileBrowserSyncQueue,
+  readBrowserOfflineCache,
   requestLocalFallback,
   retryBlockedBrowserSyncEvent,
 } from "@/services/offline-sync";
@@ -548,5 +549,49 @@ describe("offline read-only pages can read their own cache back", () => {
     const request = { ...scope, method: "get", path: "/api/v1/posAll/fetch_table", params: {} };
     await cacheBrowserApiResponse({ ...request, response: { tables: [] }, source: "ONLINE" }, store);
     expect(await readBrowserApiFallback(request, store)).toBeNull();
+  });
+});
+
+// Android has no Local Agent, so apiRequest reads its offline data straight from
+// the Dexie mirror instead of going through requestLocalFallback.
+describe("agent-free offline reads", () => {
+  // readBrowserOfflineCache is client-only and bails out without `window`.
+  beforeEach(() => vi.stubGlobal("window", {}));
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("serves a cached report read with no Local Agent in the path", async () => {
+    const store = new MemoryBrowserOfflineStore();
+    const request = {
+      ...scope,
+      method: "get",
+      path: "/api/v1/report_all/sale_list",
+      params: { date_from: "2026-09-01", date_to: "2026-09-04" },
+    };
+    await cacheBrowserApiResponse({ ...request, response: { bills: [{ total: 90 }] }, source: "ONLINE" }, store);
+
+    const agentCalls: unknown[] = [];
+    vi.spyOn(axios, "post").mockImplementation(async (...args) => {
+      agentCalls.push(args);
+      throw new Error("Local Agent must not be contacted");
+    });
+
+    await expect(
+      readBrowserOfflineCache("get", "/api/v1/report_all/sale_list?date_from=2026-09-01&date_to=2026-09-04", undefined, scope, store),
+    ).resolves.toEqual({ bills: [{ total: 90 }] });
+    expect(agentCalls).toHaveLength(0);
+  });
+
+  it("returns null when nothing is cached, so the network error surfaces", async () => {
+    const store = new MemoryBrowserOfflineStore();
+    await expect(
+      readBrowserOfflineCache("get", "/api/v1/report_all/daily_closing", undefined, scope, store),
+    ).resolves.toBeNull();
+  });
+
+  it("never serves a route that is not a cacheable read", async () => {
+    const store = new MemoryBrowserOfflineStore();
+    await expect(
+      readBrowserOfflineCache("post", "/api/v1/posAll/create_order", { data: { a: 1 } }, scope, store),
+    ).resolves.toBeNull();
   });
 });
