@@ -38,6 +38,49 @@ interface BackendNetworkMonitorOptions {
 }
 
 const RECONCILE_NOW_EVENT = "yummy-go:offline-reconcile-now";
+const SYNC_WORKER_LOCK = "yummy-go:offline-sync-worker";
+
+/**
+ * Runs `task` only when this tab can take the sync-worker lock for `scopeKey`
+ * right now. Every tab keeps its own timer, and whichever one wins a given tick
+ * drains the queue while the rest return immediately — so one store/branch/login
+ * scope has exactly one sync worker at a time without electing a leader that
+ * could stall sync when its tab is closed or throttled in the background.
+ * Failover is the next tick.
+ *
+ * The lock is named per scope, not per browser: `auth-store` persists to
+ * sessionStorage when "remember me" is off, so two tabs can legitimately hold
+ * different branch logins at once and each still needs its own worker.
+ * Browsers without Web Locks keep the previous every-tab behaviour.
+ *
+ * Returns whether `task` actually ran.
+ */
+export async function withSyncWorkerLock(
+  scopeKey: string,
+  task: () => Promise<void>,
+  locks: LockManager | undefined =
+    typeof navigator === "undefined" ? undefined : navigator.locks,
+): Promise<boolean> {
+  if (typeof locks?.request !== "function") {
+    await task();
+    return true;
+  }
+  let ran = false;
+  await locks.request(`${SYNC_WORKER_LOCK}:${scopeKey}`, { ifAvailable: true }, async (lock) => {
+    if (!lock) return;
+    ran = true;
+    await task();
+  });
+  return ran;
+}
+
+export function offlineWorkerScopeKey(scope: {
+  storeUuid: string;
+  branchUuid: string;
+  actorLoginUuid: string;
+}) {
+  return `${scope.storeUuid}:${scope.branchUuid}:${scope.actorLoginUuid}`;
+}
 
 export function requestImmediateReconcile() {
   if (typeof window === "undefined") return;
@@ -217,6 +260,7 @@ export function startOfflineTransportMonitor() {
   let agentConfigured = false;
   let agentUnavailableChecks = 0;
   let reportedBlockedCount = 0;
+  let workerScopeKey = "";
 
   const schedule = (delayMs: number) => {
     if (!active) return;
@@ -227,20 +271,32 @@ export function startOfflineTransportMonitor() {
   const reconcile = async () => {
     if (!active || reconciling) return;
     const auth = useAuthStore.getState();
-    if (!auth.isLoggedIn || !auth.token || !auth.user) return;
+    const { token, user } = auth;
+    if (!auth.isLoggedIn || !token || !user) return;
     const localScope = {
-      storeUuid: auth.user.store_uuid || auth.user.store_uuid_fk || "",
-      branchUuid: auth.user.branch_uuid || "",
-      actorLoginUuid: auth.user.uuid || "",
+      storeUuid: user.store_uuid || user.store_uuid_fk || "",
+      branchUuid: user.branch_uuid || "",
+      actorLoginUuid: user.uuid || "",
     };
     const networkState = useNetworkStore.getState().state;
+    const scopeKey = offlineWorkerScopeKey(localScope);
+    if (scopeKey !== workerScopeKey) {
+      // Store/branch/login changed under this tab. Retire the previous scope's
+      // worker state so it cannot keep configuring the Agent, counting blocked
+      // events or draining a queue this tab has left. Nothing is deleted — the
+      // previous scope's pending queue stays on disk for whoever returns to it.
+      workerScopeKey = scopeKey;
+      agentConfigured = false;
+      agentUnavailableChecks = 0;
+      reportedBlockedCount = 0;
+    }
 
     reconciling = true;
-    try {
+    const drainQueue = async () => {
       if (!agentConfigured) {
         agentConfigured = await configureLocalSync({
-          token: auth.token,
-          actorLoginUuid: auth.user.uuid,
+          token,
+          actorLoginUuid: user.uuid,
           storeUuid: localScope.storeUuid,
           branchUuid: localScope.branchUuid,
         });
@@ -310,6 +366,10 @@ export function startOfflineTransportMonitor() {
           useAuthStore.getState().resumeOnlineSession(restored.token, restored.user);
         }
       }
+    };
+
+    try {
+      await withSyncWorkerLock(scopeKey, drainQueue);
     } catch {
       // Sync and printer failures remain in their own retry state. They do not
       // change Backend reachability or route a business mutation to SQLite.

@@ -8,6 +8,8 @@ import {
   browserSyncQueueHasRetryableWork,
   cacheBrowserApiResponse,
   getBrowserSyncQueueSummary,
+  isSafeBrowserCacheFallback,
+  listBrowserSyncQueue,
   readBrowserApiFallback,
   stageBrowserSyncRequest,
   updateBrowserSyncEvent,
@@ -17,6 +19,7 @@ import {
   type BrowserSyncQueueEntry,
   type BrowserSyncStatusEntry,
 } from "@/services/offline-db";
+import { OFFLINE_READ_ONLY_PATHS } from "@/lib/offline-routes";
 import {
   discardBlockedBrowserSyncEvent,
   listBlockedBrowserSyncEvents,
@@ -38,8 +41,10 @@ class MemoryBrowserOfflineStore implements BrowserOfflineStore {
     this.apiCache.set(entry.key, structuredClone(entry));
   }
 
-  async pruneApiCache(maxEntries: number) {
-    const oldest = [...this.apiCache.values()].sort((left, right) => left.cachedAt - right.cachedAt);
+  async pruneApiCache(scope: BrowserOfflineScope, maxEntries: number) {
+    const oldest = [...this.apiCache.values()]
+      .filter((entry) => entry.storeUuid === scope.storeUuid && entry.branchUuid === scope.branchUuid)
+      .sort((left, right) => left.cachedAt - right.cachedAt);
     for (const entry of oldest.slice(0, Math.max(0, oldest.length - maxEntries))) {
       this.apiCache.delete(entry.key);
     }
@@ -74,9 +79,14 @@ class MemoryBrowserOfflineStore implements BrowserOfflineStore {
     this.syncStatus.set(entry.scopeKey, structuredClone(entry));
   }
 
-  async pruneSyncedQueue(updatedBefore: number) {
+  async pruneSyncedQueue(scope: BrowserOfflineScope, updatedBefore: number) {
     for (const entry of this.syncQueue.values()) {
-      if (entry.status === "SYNCED" && entry.updatedAt < updatedBefore) {
+      if (
+        entry.storeUuid === scope.storeUuid &&
+        entry.branchUuid === scope.branchUuid &&
+        entry.status === "SYNCED" &&
+        entry.updatedAt < updatedBefore
+      ) {
         this.syncQueue.delete(entry.eventUuid);
       }
     }
@@ -84,6 +94,7 @@ class MemoryBrowserOfflineStore implements BrowserOfflineStore {
 }
 
 const scope = { storeUuid: "store-1", branchUuid: "branch-1", actorLoginUuid: "login-1" };
+const otherBranchScope = { storeUuid: "store-1", branchUuid: "branch-2", actorLoginUuid: "login-2" };
 const eventUuid = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 
 describe("Dexie browser offline mirror", () => {
@@ -399,5 +410,143 @@ describe("Dexie browser offline mirror", () => {
     await discardBlockedBrowserSyncEvent(eventUuid, store);
 
     expect(await store.getSyncQueue(eventUuid)).toBeUndefined();
+  });
+});
+
+describe("queue scope isolation", () => {
+  const DAY_MS = 24 * 60 * 60 * 1000;
+
+  async function stage(
+    store: MemoryBrowserOfflineStore,
+    target: typeof scope,
+    uuid: string,
+    status: BrowserSyncQueueEntry["status"],
+    updatedAt: number,
+  ) {
+    await stageBrowserSyncRequest({
+      ...target,
+      eventUuid: uuid,
+      method: "post",
+      path: "/api/v1/posAll/create_order",
+      data: { order: uuid },
+    }, store);
+    const entry = await store.getSyncQueue(uuid);
+    await store.putSyncQueue({ ...entry!, status, updatedAt });
+  }
+
+  it("retention for one branch never deletes another branch's synced queue", async () => {
+    const store = new MemoryBrowserOfflineStore();
+    const expired = Date.now() - 30 * DAY_MS;
+    await stage(store, scope, "11111111-1111-4111-8111-111111111111", "SYNCED", expired);
+    await stage(store, otherBranchScope, "22222222-2222-4222-8222-222222222222", "SYNCED", expired);
+
+    // Branch 1 lists (and therefore prunes) its own queue.
+    const remaining = await listBrowserSyncQueue(scope, store);
+
+    expect(remaining).toHaveLength(0);
+    expect(store.syncQueue.has("22222222-2222-4222-8222-222222222222")).toBe(true);
+  });
+
+  it("keeps another branch's pending queue when this branch drains", async () => {
+    const store = new MemoryBrowserOfflineStore();
+    await stage(store, scope, "33333333-3333-4333-8333-333333333333", "SYNCED", Date.now() - 30 * DAY_MS);
+    await stage(store, otherBranchScope, "44444444-4444-4444-8444-444444444444", "PENDING", Date.now());
+
+    await listBrowserSyncQueue(scope, store);
+    const other = await listBrowserSyncQueue(otherBranchScope, store);
+
+    expect(other.map((entry) => entry.eventUuid)).toEqual(["44444444-4444-4444-8444-444444444444"]);
+    expect(other[0].status).toBe("PENDING");
+  });
+
+  it("one branch's API cache overflow never evicts another branch's cache", async () => {
+    const store = new MemoryBrowserOfflineStore();
+    await cacheBrowserApiResponse({
+      ...otherBranchScope,
+      method: "get",
+      path: "/api/v1/posAll/fetch_cate_products",
+      response: { keep: true },
+      source: "ONLINE",
+    }, store);
+    const otherKeys = [...store.apiCache.keys()];
+
+    for (let index = 0; index < 40; index += 1) {
+      await cacheBrowserApiResponse({
+        ...scope,
+        method: "get",
+        path: "/api/v1/posAll/fetch_cate_products",
+        params: { page: index },
+        response: { index },
+        source: "ONLINE",
+      }, store);
+    }
+
+    for (const key of otherKeys) expect(store.apiCache.has(key)).toBe(true);
+  });
+
+  it("summaries and blocked reviews only ever see this branch", async () => {
+    const store = new MemoryBrowserOfflineStore();
+    await stage(store, scope, "55555555-5555-4555-8555-555555555555", "PENDING", Date.now());
+    await stage(store, otherBranchScope, "66666666-6666-4666-8666-666666666666", "BLOCKED", Date.now());
+
+    expect(await getBrowserSyncQueueSummary(scope, store)).toMatchObject({ pending: 1, blocked: 0 });
+    expect(await listBlockedBrowserSyncEvents(scope, store)).toHaveLength(0);
+    expect(await listBlockedBrowserSyncEvents(otherBranchScope, store)).toHaveLength(1);
+  });
+});
+
+// Android has no Local Printer Agent, so for the pages it is allowed to open
+// offline the Dexie mirror is the only data source left. Every one of those
+// pages must be able to read back what it cached, or it renders empty.
+describe("offline read-only pages can read their own cache back", () => {
+  const READ_ONLY_PAGE_APIS: Record<string, readonly string[]> = {
+    "/sales/sales-list": [
+      "/api/v1/report_all/sale_list",
+      "/api/v1/report_all/sale_report_list",
+      "/api/v1/report_all/sale_report_bill",
+    ],
+    "/report/daily-closing": ["/api/v1/report_all/daily_closing"],
+    "/report/daily-sales": ["/api/v1/report/sale_report"],
+    "/report/best-selling-products": ["/api/v1/best_selling/best_selling_products"],
+    "/report/payment-methods": ["/api/v1/report_all/payment_summary_by_method"],
+    "/report/category-sales": ["/api/v1/report_all/group_list"],
+  };
+
+  it("covers every page in OFFLINE_READ_ONLY_PATHS", () => {
+    expect(Object.keys(READ_ONLY_PAGE_APIS).sort()).toEqual([...OFFLINE_READ_ONLY_PATHS].sort());
+  });
+
+  it.each(Object.entries(READ_ONLY_PAGE_APIS))("%s reads from the browser mirror", (_page, apis) => {
+    for (const api of apis) expect(isSafeBrowserCacheFallback(api)).toBe(true);
+  });
+
+  it("round-trips a cached report response for a page Android is allowed to open", async () => {
+    const store = new MemoryBrowserOfflineStore();
+    const request = {
+      ...scope,
+      method: "get",
+      path: "/api/v1/report_all/daily_closing",
+      params: { date_from: "2026-09-01", date_to: "2026-09-01" },
+    };
+    await cacheBrowserApiResponse({ ...request, response: { total: 4200 }, source: "ONLINE" }, store);
+
+    expect(await readBrowserApiFallback(request, store)).toEqual({ total: 4200 });
+  });
+
+  it("still refuses POS pages Android cannot use offline", async () => {
+    // /pos/tables and /pos/order are blocked on Android because their writes need
+    // the Local Agent; serving their reads from cache would only look usable.
+    for (const api of [
+      "/api/v1/posAll/fetch_table",
+      "/api/v1/posAll/fetch_cart",
+      "/api/v1/posAll/customer_order_queue",
+    ]) {
+      expect(isSafeBrowserCacheFallback(api)).toBe(false);
+    }
+
+    const store = new MemoryBrowserOfflineStore();
+    const request = { ...scope, method: "get", path: "/api/v1/posAll/fetch_table", params: {} };
+    await cacheBrowserApiResponse({ ...request, response: { tables: [] }, source: "ONLINE" }, store);
+    expect(await readBrowserApiFallback(request, store)).toBeNull();
   });
 });
