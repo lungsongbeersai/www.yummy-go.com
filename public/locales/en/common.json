@@ -947,7 +947,8 @@
     "tableOrder": "Table order",
     "tables": "Tables",
     "title": "Order",
-    "unableToLoadMenu": "Unable to load menu"
+    "unableToLoadMenu": "Unable to load menu",
+    "taxIncludedWithPercent": "VAT included ({{percent}}%)"
   },
   "category": {
     "sorted": "Order saved",
@@ -2485,7 +2486,11 @@
       "vertical": "Vertical",
       "vat": "VAT",
       "vatPercent": "VAT %",
-      "zoom": "Zoom"
+      "zoom": "Zoom",
+      "vatType": "VAT type",
+      "vatExempt": "No VAT",
+      "vatIncluded": "VAT included",
+      "vatExcluded": "VAT excluded"
     },
     "modules": {
       "branch": {

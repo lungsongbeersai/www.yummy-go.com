@@ -8,6 +8,7 @@ import {
   withCustomerDisplayPaymentMode,
 } from "@/features/customer-display/shared/customer-display-sync";
 import { getBranchQrUrl } from "@/lib/image";
+import { isBranchRealtimeEvent, subscribeBranchVatUpdated, type BranchVatUpdatedPayload } from "@/lib/socket";
 import type {
   CartItem,
   CartOrder,
@@ -195,13 +196,31 @@ export function useSelectedTableCartPanelWorkflow({
   const [splitSelectedItemUuids, setSplitSelectedItemUuids] =
     useState<SplitItemQuantities>(() => new Map());
   const taxRate = formatRate(summary.taxRate);
+  // VAT_INCLUDED ต้องบอกว่าภาษีรวมอยู่ในราคาแล้ว ยอดชำระจึงไม่บวกซ้ำ
+  const taxIncluded = summary.taxStatus === 2;
   const taxLabel = taxRate
-    ? t("pos.taxWithPercent", { percent: taxRate })
+    ? t(taxIncluded ? "pos.taxIncludedWithPercent" : "pos.taxWithPercent", {
+        percent: taxRate,
+      })
     : t("pos.taxPercent");
   const serviceRate = formatRate(summary.serviceRate);
   const serviceLabel = serviceRate
     ? t("pos.serviceWithPercent", { percent: serviceRate })
     : t("pos.serviceTotal");
+  const branchUuid = user?.branch_uuid ?? "";
+
+  // สาขาแก้ VAT config -> ดึงยอดใหม่จาก Backend เสมอ (socket เป็นแค่สัญญาณ)
+  useEffect(() => {
+    if (!branchUuid) return;
+
+    function handleVatUpdated(payload: BranchVatUpdatedPayload) {
+      if (!isBranchRealtimeEvent(payload, branchUuid)) return;
+      void onCartRefresh().catch(() => undefined);
+    }
+
+    return subscribeBranchVatUpdated(branchUuid, handleVatUpdated);
+  }, [branchUuid, onCartRefresh]);
+
   const invoice = cartOrderInvoice(orders);
   const branchQrUrl = useMemo(() => {
     const branchQr = optionalString(...orders.map((order) => order.branch_qr));

@@ -329,6 +329,8 @@ export interface CartTotals extends ApiEntity {
   order_discount_amount?: number;
   order_item_discount_amount?: number;
   order_service_amount?: number;
+  order_vat_status?: number;
+  order_amount_before_vat?: number;
   order_vat_amount?: number;
   order_grand_total?: number;
 }
@@ -408,8 +410,11 @@ export interface CartOrder extends ApiEntity {
   sum_vat_total?: number;
   sum_grand_total?: number;
   service_charge_amount?: number;
+  amount_before_vat?: number;
+  grand_total?: number;
   vat_amount?: number;
   vat_rate?: number;
+  vat_status?: number;
   service_charge_rate?: number;
 }
 

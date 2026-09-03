@@ -18,6 +18,7 @@ import {
 } from "@/features/settings/shared/settings-shell";
 import { cn } from "@/lib/utils";
 import {
+  VAT_INCLUDED,
   branchChargeSummary,
   branchVatSummary,
   isStoreActive,
@@ -302,7 +303,7 @@ function StoreBranchMobileList({
                   <SettingsMobileMeta label={labels.address} value={storeBranchValue(row, "branch_address", "-")} />
                   <SettingsMobileMeta
                     label={labels.vat}
-                    value={`${branchVatSummary(row).active ? labels.active : labels.inactive} / ${branchVatSummary(row).percentLabel}`}
+                    value={`${branchVatModeLabel(row, labels)} / ${branchVatSummary(row).percentLabel}`}
                   />
                   <SettingsMobileMeta
                     label={labels.charge}
@@ -316,6 +317,13 @@ function StoreBranchMobileList({
       })}
     </SettingsMobileList>
   );
+}
+
+// VAT มี 3 แบบ ป้ายจึงบอกชนิดแทนที่จะบอกแค่เปิด/ปิด
+function branchVatModeLabel(row: StoreBranchSettingsRow, labels: StoreBranchLabels) {
+  const { status } = branchVatSummary(row);
+  if (!status || status === 1) return labels.vatExempt;
+  return status === VAT_INCLUDED ? labels.vatIncluded : labels.vatExcluded;
 }
 
 function StatusBadge({ active, labels }: { active: boolean; labels: StoreBranchLabels }) {
@@ -359,7 +367,13 @@ function BranchTaxBadges({ labels, row }: { labels: StoreBranchLabels; row: Stor
 
   return (
     <div className="flex min-w-0 flex-col items-start gap-1">
-      <SummaryBadge active={vat.active} activeLabel={labels.active} inactiveLabel={labels.inactive} label={labels.vat} percentLabel={vat.percentLabel} />
+      <SummaryBadge
+        active={vat.active}
+        activeLabel={branchVatModeLabel(row, labels)}
+        inactiveLabel={labels.vatExempt}
+        label={labels.vat}
+        percentLabel={vat.percentLabel}
+      />
       <SummaryBadge
         active={charge.active}
         activeLabel={labels.active}

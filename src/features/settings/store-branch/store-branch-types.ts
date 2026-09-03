@@ -70,5 +70,9 @@ export interface StoreBranchLabels {
   vertical: string;
   vat: string;
   vatPercent: string;
+  vatType: string;
+  vatExempt: string;
+  vatIncluded: string;
+  vatExcluded: string;
   zoom: string;
 }

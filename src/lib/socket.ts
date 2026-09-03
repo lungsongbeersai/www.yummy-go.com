@@ -8,6 +8,7 @@ const socketEvents = {
   printJobQueued: "print_job_queued",
   tableStatusChanged: "table_status_changed",
   orderQueueChanged: "order_queue_changed",
+  branchVatUpdated: "branch:vat-updated",
 } as const;
 
 let socket: Socket | null = null;
@@ -41,6 +42,16 @@ export interface BranchRealtimePayload {
 }
 
 type BranchRealtimeHandler = (payload: BranchRealtimePayload) => void;
+
+export interface BranchVatUpdatedPayload {
+  branch_uuid_fk?: string;
+  vat_status?: number;
+  vat_rate?: number;
+  updated_at?: string;
+  [key: string]: unknown;
+}
+
+type BranchVatUpdatedHandler = (payload: BranchVatUpdatedPayload) => void;
 
 export interface OrderQueueChangedPayload {
   branch_uuid_fk?: string;
@@ -151,6 +162,17 @@ export function subscribeOrderQueueChanged(branchUuid: string, handler: OrderQue
   active.on(socketEvents.orderQueueChanged, handler);
   return () => {
     active.off(socketEvents.orderQueueChanged, handler);
+  };
+}
+
+// VAT config ของสาขาถูกแก้ — socket เป็นแค่ notification layer
+// ผู้ฟังต้อง refetch ยอดจาก Backend ใหม่เสมอ ห้ามคำนวณ VAT เองจาก payload
+export function subscribeBranchVatUpdated(branchUuid: string, handler: BranchVatUpdatedHandler) {
+  if (typeof window === "undefined" || !branchUuid) return () => {};
+  const active = getSocket(branchUuid);
+  active.on(socketEvents.branchVatUpdated, handler);
+  return () => {
+    active.off(socketEvents.branchVatUpdated, handler);
   };
 }
 

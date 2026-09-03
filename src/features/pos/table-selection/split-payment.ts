@@ -1,5 +1,6 @@
 import { optionalBoolean, optionalNumber, optionalString } from "@/lib/values";
 import { roundLak } from "@/lib/pos/lak-money";
+import { calculateVat, normalizeVatStatus } from "@/lib/pos/vat";
 import type { CartItem, CartOrder, SplitBillItemQuantity } from "@/services/pos";
 import {
   cartItemActionUuid,
@@ -168,8 +169,15 @@ export function splitPaymentSelection(
       configuredRate: order.vat_name,
     });
     const serviceTotal = roundLak(netTotal * (serviceRate / 100));
-    const tax = roundLak((netTotal + serviceTotal) * (taxRate / 100));
-    const grandTotal = roundLak(netTotal + serviceTotal + tax);
+    // VAT ใช้สูตรชุดเดียวกับ Backend ตาม snapshot ของบิล
+    const taxStatus = normalizeVatStatus(order.vat_status);
+    const vat = calculateVat({
+      taxableAmount: netTotal + serviceTotal,
+      vatStatus: taxStatus,
+      vatRate: taxRate,
+    });
+    const tax = vat.vatAmount;
+    const grandTotal = vat.totalAfterVat;
     const orderQty = selectedItems.reduce(
       (sum, item) => sum + cartItemQty(item),
       0,
@@ -200,6 +208,8 @@ export function splitPaymentSelection(
         order_service_amount: serviceTotal,
         order_subtotal: subtotal,
         order_total: subtotal,
+        order_amount_before_vat: vat.amountBeforeVat,
+        order_vat_status: taxStatus,
         order_vat_amount: tax,
       },
     };
@@ -220,6 +230,7 @@ export function splitPaymentSelection(
       sumGrandTotal: grandTotal,
       tax,
       taxRate,
+      taxStatus,
       toppingTotal: null,
       vatTotal: tax,
     };

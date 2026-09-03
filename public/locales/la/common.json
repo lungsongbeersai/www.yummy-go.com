@@ -818,9 +818,9 @@
     "receiptPrintFailed": "ພິມໃບບິນບໍ່ສຳເລັດ",
     "printInvoice": "ພິມໃບຮຽກເກັບເງິນ",
     "invoicePrintTitle": "ໃບຮຽກເກັບເງິນ",
-    "receiptPrintTitle": "\u0ec3\u0e9a\u0eae\u0eb1\u0e9a\u0ec0\u0e87\u0eb4\u0e99",
+    "receiptPrintTitle": "ໃບຮັບເງິນ",
     "invoicePrintNumber": "ເລກທີບິນ",
-    "receiptPrintNumber": "\u0ec0\u0ea5\u0e81\u0e97\u0eb5\u0ec3\u0e9a\u0eae\u0eb1\u0e9a\u0ec0\u0e87\u0eb4\u0e99",
+    "receiptPrintNumber": "ເລກທີໃບຮັບເງິນ",
     "invoicePrintDate": "ວັນທີ່ຂາຍ",
     "invoicePrintTable": "ເບີໂຕະ",
     "invoicePrintStaff": "ພະນັກງານຂາຍ",
@@ -947,7 +947,8 @@
     "tableOrder": "ອໍເດີໂຕະ",
     "tables": "ໂຕະ",
     "title": "ອໍເດີ",
-    "unableToLoadMenu": "ໂຫຼດເມນູບໍ່ໄດ້"
+    "unableToLoadMenu": "ໂຫຼດເມນູບໍ່ໄດ້",
+    "taxIncludedWithPercent": "ພາສີລວມໃນລາຄາ ({{percent}}%)"
   },
   "category": {
     "sorted": "ບັນທຶກລຳດັບແລ້ວ",
@@ -2492,7 +2493,11 @@
       "vertical": "ແນວຕັ້ງ",
       "vat": "VAT",
       "vatPercent": "VAT %",
-      "zoom": "ຂະຫຍາຍ"
+      "zoom": "ຂະຫຍາຍ",
+      "vatType": "ປະເພດ VAT",
+      "vatExempt": "ບໍ່ຄິດ VAT",
+      "vatIncluded": "ລວມ VAT ໃນລາຄາ",
+      "vatExcluded": "ບວກ VAT ເພີ່ມ"
     },
     "modules": {
       "branch": {

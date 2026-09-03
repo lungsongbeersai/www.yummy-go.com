@@ -27,7 +27,11 @@ import {
   SettingsDialogHeader
 } from "@/features/settings/shared/settings-shell";
 import {
+  VAT_EXEMPT,
+  VAT_EXCLUDED,
+  VAT_INCLUDED,
   missingBranchField,
+  resolveBranchVatStatus,
   missingStoreField,
   storeBranchId,
   storeBranchNumber,
@@ -186,7 +190,7 @@ function EntityForm({
   const [storeStatus, setStoreStatus] = useState("2");
   const [storeActive, setStoreActive] = useState("1");
   const [storeTableStatus, setStoreTableStatus] = useState("1");
-  const [vatStatus, setVatStatus] = useState("2");
+  const [vatStatus, setVatStatus] = useState(String(VAT_EXEMPT));
   const [vatPercent, setVatPercent] = useState("0");
   const [chargeStatus, setChargeStatus] = useState("2");
   const [chargePercent, setChargePercent] = useState("0");
@@ -212,7 +216,14 @@ function EntityForm({
     setStoreStatus(String(storeBranchNumber(editing, "store_status", 2)));
     setStoreActive(String(storeBranchNumber(editing, "store_active", 1)));
     setStoreTableStatus(String(storeTableStatusValue(storeBranchValue(editing, "store_table_status", "1"))));
-    setVatStatus(String(storeBranchNumber(editing, "vat_status", 2)));
+    setVatStatus(
+      String(
+        resolveBranchVatStatus(
+          storeBranchNumber(editing, "vat_status", VAT_EXEMPT),
+          storeBranchNumber(editing, "vat_name", 0)
+        )
+      )
+    );
     setVatPercent(String(storeBranchNumber(editing, "vat_name", 0)));
     setChargeStatus(String(storeBranchNumber(editing, "charge_status", 2)));
     setChargePercent(String(storeBranchNumber(editing, "charge_name", 0)));
@@ -440,13 +451,14 @@ function EntityForm({
                     <FormSelectField
                       disabled={disabled}
                       id={`${recordKey}-vat-status`}
-                      label={labels.vat}
+                      label={labels.vatType}
                       name="vat_status"
                       value={vatStatus}
                       onValueChange={setVatStatus}
                       options={[
-                        { label: labels.active, value: "1" },
-                        { label: labels.inactive, value: "2" }
+                        { label: labels.vatExempt, value: String(VAT_EXEMPT) },
+                        { label: labels.vatIncluded, value: String(VAT_INCLUDED) },
+                        { label: labels.vatExcluded, value: String(VAT_EXCLUDED) }
                       ]}
                     />
                     <Field>
@@ -456,11 +468,11 @@ function EntityForm({
                         id={`${recordKey}-vat-percent`}
                         name="vat_name"
                         autoComplete="off"
-                        disabled={disabled}
+                        disabled={disabled || Number(vatStatus) === VAT_EXEMPT}
                         min="0"
                         step="0.01"
                         translate="no"
-                        value={vatPercent}
+                        value={Number(vatStatus) === VAT_EXEMPT ? "0" : vatPercent}
                         onValueChange={setVatPercent}
                       />
                     </Field>

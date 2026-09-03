@@ -76,6 +76,10 @@ export function useStoreBranchLabels(): StoreBranchLabels {
     vertical: t("settings.storeBranch.vertical"),
     vat: t("settings.storeBranch.vat"),
     vatPercent: t("settings.storeBranch.vatPercent"),
+    vatType: t("settings.storeBranch.vatType"),
+    vatExempt: t("settings.storeBranch.vatExempt"),
+    vatIncluded: t("settings.storeBranch.vatIncluded"),
+    vatExcluded: t("settings.storeBranch.vatExcluded"),
     zoom: t("settings.storeBranch.zoom")
   };
 }

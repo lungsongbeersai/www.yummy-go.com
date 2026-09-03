@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  VAT_EXCLUDED,
+  VAT_EXEMPT,
+  VAT_INCLUDED,
   branchChargeSummary,
+  branchVatStatusValue,
   branchVatSummary,
   buildBranchPayload,
   buildStorePayload,
@@ -169,5 +173,48 @@ describe("store branch utils", () => {
     expect(isStoreActive({ store_active: 2 })).toBe(false);
     expect(branchVatSummary({ vat_status: 1, vat_name: 7 }).percentLabel).toBe("7%");
     expect(branchChargeSummary({ charge_status: 1, charge_name: 2.5 }).percentLabel).toBe("2.5%");
+  });
+
+  it("keeps the three VAT types apart", () => {
+    expect(branchVatStatusValue("2")).toBe(VAT_INCLUDED);
+    expect(branchVatStatusValue("3")).toBe(VAT_EXCLUDED);
+    expect(branchVatStatusValue("9")).toBe(VAT_EXEMPT);
+    expect(branchVatStatusValue(undefined)).toBe(VAT_EXEMPT);
+
+    expect(branchVatSummary({ vat_status: VAT_EXEMPT, vat_name: 0 })).toMatchObject({
+      active: false,
+      status: VAT_EXEMPT
+    });
+    expect(branchVatSummary({ vat_status: VAT_INCLUDED, vat_name: 10 })).toMatchObject({
+      active: true,
+      status: VAT_INCLUDED
+    });
+    expect(branchVatSummary({ vat_status: VAT_EXCLUDED, vat_name: 10 })).toMatchObject({
+      active: true,
+      status: VAT_EXCLUDED
+    });
+  });
+
+  it("sends the selected VAT type to the branch API", () => {
+    const branchPayload = {
+      address: "",
+      chargePercent: "0",
+      chargeStatus: "2",
+      editing: null,
+      email: "branch@example.com",
+      name: "T01",
+      storeUuid: "store-1",
+      tel: ""
+    };
+
+    expect(
+      buildBranchPayload({ ...branchPayload, vatPercent: "10", vatStatus: "2" })
+    ).toMatchObject({ vat_status: VAT_INCLUDED, vat_name: 10 });
+    expect(
+      buildBranchPayload({ ...branchPayload, vatPercent: "10", vatStatus: "3" })
+    ).toMatchObject({ vat_status: VAT_EXCLUDED, vat_name: 10 });
+    expect(
+      buildBranchPayload({ ...branchPayload, vatPercent: "0", vatStatus: "1" })
+    ).toMatchObject({ vat_status: VAT_EXEMPT, vat_name: 0 });
   });
 });

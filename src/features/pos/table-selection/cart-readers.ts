@@ -426,6 +426,10 @@ export function cartSummary(cart: CartOrder | CartOrder[] | null) {
   const taxRate = firstOrderValue(orders, (order) =>
     optionalNumber(order.vat_rate, order.totals?.vat_rate, order.vat_name),
   );
+  // VAT snapshot ของบิล (1 = ไม่คิด, 2 = รวมในราคา, 3 = บวกเพิ่ม)
+  const taxStatus = firstOrderValue(orders, (order) =>
+    optionalNumber(order.vat_status, order.totals?.order_vat_status),
+  );
   const serviceRate = firstOrderValue(orders, (order) =>
     optionalNumber(order.service_charge_rate, order.charge_name),
   );
@@ -447,6 +451,7 @@ export function cartSummary(cart: CartOrder | CartOrder[] | null) {
     sumGrandTotal,
     tax,
     taxRate,
+    taxStatus,
     toppingTotal,
     vatTotal,
   };

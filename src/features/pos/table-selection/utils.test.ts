@@ -491,6 +491,59 @@ describe("table selection utils", () => {
     });
   });
 
+  it("splits a VAT-included bill without adding VAT on top", () => {
+    const cart = cartOrder({
+      vat_rate: 10,
+      vat_status: 2,
+      items: [
+        {
+          order_it_uuid: "item-1",
+          detail: {
+            order_it_qty: 1,
+            order_it_status: 2,
+            gross_total: 395000,
+            order_it_discount_amount: 0,
+          },
+        },
+      ],
+    });
+
+    const selection = splitPaymentSelection([cart], new Map([["item-1", 1]]));
+
+    expect(selection?.summary).toMatchObject({
+      subtotal: 395000,
+      tax: 36000,
+      grandTotal: 395000,
+      taxStatus: 2,
+    });
+  });
+
+  it("splits a VAT-exempt bill without any tax", () => {
+    const cart = cartOrder({
+      vat_rate: 10,
+      vat_status: 1,
+      items: [
+        {
+          order_it_uuid: "item-1",
+          detail: {
+            order_it_qty: 1,
+            order_it_status: 2,
+            gross_total: 100000,
+            order_it_discount_amount: 0,
+          },
+        },
+      ],
+    });
+
+    const selection = splitPaymentSelection([cart], new Map([["item-1", 1]]));
+
+    expect(selection?.summary).toMatchObject({
+      subtotal: 100000,
+      tax: 0,
+      grandTotal: 100000,
+    });
+  });
+
   it("rounds the split payment example to whole thousands of kip", () => {
     const cart = cartOrder({
       service_charge_rate: 7,

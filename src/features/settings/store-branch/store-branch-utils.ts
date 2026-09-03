@@ -59,10 +59,37 @@ export function formatPercent(value: number) {
   return Number.isInteger(value) ? String(value) : value.toFixed(2).replace(/0+$/, "").replace(/\.$/, "");
 }
 
+// VAT 3 แบบ ต้องตรงกับ back-end/api/v1/shared/vat-calculation.js
+export const VAT_EXEMPT = 1;
+export const VAT_INCLUDED = 2;
+export const VAT_EXCLUDED = 3;
+
+export function branchVatStatusValue(value: unknown) {
+  const status = Number(value);
+  return status === VAT_INCLUDED || status === VAT_EXCLUDED ? status : VAT_EXEMPT;
+}
+
+// สาขาที่ยังไม่ถูก remap ยังเก็บความหมายเดิม (1 = เปิด VAT, 2 = ปิด VAT)
+// แยกออกจากความหมายใหม่ได้ด้วย vat_name เหมือนที่ Backend ทำใน
+// resolveBranchVatStatus() — ต้องให้ผลตรงกันเสมอ
+export function resolveBranchVatStatus(vatStatus: unknown, vatRate: unknown) {
+  const status = Number(vatStatus);
+  const hasRate = Number(vatRate) > 0;
+
+  if (status === VAT_EXCLUDED) return VAT_EXCLUDED;
+  if (status === VAT_INCLUDED) return hasRate ? VAT_INCLUDED : VAT_EXEMPT;
+  if (status === VAT_EXEMPT) return hasRate ? VAT_EXCLUDED : VAT_EXEMPT;
+  return VAT_EXEMPT;
+}
+
 export function branchVatSummary(row: StoreBranchRow) {
-  const active = storeBranchNumber(row, "vat_status", 2) === 1;
   const percent = Math.max(0, storeBranchNumber(row, "vat_name", 0));
-  return { active, percent, percentLabel: `${formatPercent(percent)}%` };
+  const status = resolveBranchVatStatus(
+    storeBranchNumber(row, "vat_status", VAT_EXEMPT),
+    percent
+  );
+  const active = status !== VAT_EXEMPT;
+  return { active, percent, percentLabel: `${formatPercent(percent)}%`, status };
 }
 
 export function branchChargeSummary(row: StoreBranchRow) {
@@ -148,7 +175,7 @@ export function buildBranchPayload({
     branch_email: email.trim(),
     branch_address: address.trim(),
     store_uuid_fk: storeUuid.trim(),
-    vat_status: Number(vatStatus || 2),
+    vat_status: branchVatStatusValue(vatStatus),
     vat_name: Number(percentOrZero(vatPercent)),
     charge_status: Number(chargeStatus || 2),
     charge_name: Number(percentOrZero(chargePercent))
