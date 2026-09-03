@@ -353,11 +353,23 @@ export async function apiRequest<T>(
       }
     }
     // Android reaches no Agent, so the Dexie mirror is its only offline source.
-    // Reads only: prepared.eventUuid is set exactly for the mutations that need a
-    // durable outbox, and Android has none, so those must keep failing.
+    //
+    // This deliberately does NOT wait for `canContinueOffline`. That gate needs
+    // either a latched OFFLINE verdict (three confirmed probe failures) or
+    // `navigator.onLine === false` — and the Android WebView reports `true` even
+    // with Wi-Fi and mobile data switched off, so the second branch never fires
+    // there and every read spends the whole probe cycle showing a network error.
+    //
+    // Serving a cached read once the request has already failed at the transport
+    // layer risks nothing the gate protects: the online attempt is spent, so this
+    // cannot pre-empt a live response, and it cannot mis-route a write because
+    // prepared.eventUuid is set exactly for the mutations that need a durable
+    // outbox — Android has none, so those keep failing. The offline *verdict*
+    // stays with the /sync/health probe: this path never sets offlineSession, so
+    // one blip on a healthy network cannot flip the app into offline mode.
     if (
       !localAgentAvailable &&
-      canContinueOffline &&
+      classification.classification === "NETWORK_TRANSPORT" &&
       !prepared.eventUuid &&
       typeof window !== "undefined"
     ) {
@@ -367,10 +379,7 @@ export async function apiRequest<T>(
         requestOptions,
         localScope,
       );
-      if (cached !== null) {
-        useAuthStore.getState().setOfflineSession(true);
-        return assertApiSuccess(cached);
-      }
+      if (cached !== null) return assertApiSuccess(cached);
     }
     throw normalized;
   }

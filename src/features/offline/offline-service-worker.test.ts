@@ -94,6 +94,18 @@ describe("offline asset cache", () => {
     // durable outbox, and Android has none, so those must keep failing.
     expect(apiTransport).toContain("!localAgentAvailable &&");
     expect(apiTransport).toContain("!prepared.eventUuid &&");
+    // The Android WebView reports navigator.onLine === true with the radios off,
+    // so this read path must not wait for the OFFLINE latch or for that hint.
+    expect(apiTransport).toContain(
+      '!localAgentAvailable &&\n      classification.classification === "NETWORK_TRANSPORT" &&',
+    );
+    // The offline verdict stays with the probe: a blip must not flip the app into
+    // offline mode just because one read fell back to cache.
+    const androidBranch = apiTransport.slice(
+      apiTransport.indexOf("!localAgentAvailable &&\n      classification.classification"),
+    );
+    expect(androidBranch.slice(0, androidBranch.indexOf("throw normalized")))
+      .not.toContain("setOfflineSession");
     expect(apiTransport).toContain("readBrowserOfflineCache<T>(");
     // The helper reads Dexie directly; requestLocalFallback (the Agent path) is
     // not part of its body.
