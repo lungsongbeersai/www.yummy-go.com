@@ -1,5 +1,6 @@
 "use client";
 
+import { WifiOffIcon } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -10,8 +11,9 @@ const OFFLINE_TOAST_ID = "offline-connectivity";
 const BACK_ONLINE_TOAST_ID = "offline-connectivity-back";
 const NOTICE_DURATION_MS = 3000;
 
-// เน็ตหลุด/กลับมา แจ้งเป็น toast เล็ก ๆ หายเองใน 3 วิ — ออฟไลน์พื้นเข้ม (สลับสี foreground/
-// background), ออนไลน์สีเขียว ไม่บล็อกจอ ไม่มีปุ่ม ผู้ใช้ทำงานต่อได้ทันที
+// เน็ตหลุด/กลับมา แจ้งเป็น toast ด้านล่างจอ หายเองใน 3 วิ ไม่บล็อกจอ ไม่มีปุ่ม ผู้ใช้ทำงานต่อ
+// ได้ทันที — ออฟไลน์ใช้โทน warning + ไอคอน WifiOff ผูกกับ design token ผ่าน sonner (richColors),
+// กลับมาออนไลน์ใช้ toast สีเขียวเดิม
 export function OfflineConnectivityDialog() {
   const { t } = useTranslation();
   const backendOffline =
@@ -21,15 +23,12 @@ export function OfflineConnectivityDialog() {
   useEffect(() => {
     if (backendOffline) {
       wasOfflineRef.current = true;
-      toast(t("offlineMode.dialogTitle"), {
+      toast.warning(t("offlineMode.dialogTitle"), {
         id: OFFLINE_TOAST_ID,
+        description: t("offlineMode.toastDescription"),
+        icon: <WifiOffIcon className="size-4" />,
         duration: NOTICE_DURATION_MS,
         position: "bottom-center",
-        style: {
-          background: "var(--foreground)",
-          color: "var(--background)",
-          border: "none",
-        },
       });
       return;
     }

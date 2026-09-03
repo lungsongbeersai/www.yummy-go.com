@@ -22,14 +22,28 @@ const apiTransport = readFileSync(
 );
 
 describe("offline asset cache", () => {
-  it("delegates Next Image caching to @serwist/next's defaultCache instead of a hand-rolled entry", () => {
-    // @serwist/next's own /_next/image runtime-caching entry sets no matchOptions, so
-    // caches.match() falls back to the Cache API default (ignoreSearch: false) and keys on
-    // the full query string (?url=...&w=...) — different image sizes can't collide. A custom
-    // /_next/image entry in sw.ts would risk reintroducing that collision.
+  it("keys the Next Image cache on the full query string so sizes cannot collide", () => {
+    // The uploaded-image entry has to claim /_next/image: <Image> never requests the
+    // product URL directly, so a matcher reading only url.pathname sees "/_next/image"
+    // and never "/uploaded/", and no product image is ever cached. defaultCache still
+    // handles every other Next Image request, but its 64-entry / 24h window is far too
+    // small to hold a POS menu for a shift offline.
+    //
+    // What must not come back is the collision: caches.match() defaults to
+    // ignoreSearch: false, which keys on ?url=...&w=... so each rendered width is its
+    // own entry. Setting matchOptions on this strategy would make one width answer for
+    // all of them.
     expect(serviceWorkerSource).toContain('from "@serwist/next/worker"');
     expect(serviceWorkerSource).toContain("...defaultCache");
-    expect(serviceWorkerSource).not.toContain("_next/image");
+    expect(serviceWorkerSource).toContain('url.pathname !== "/_next/image"');
+
+    const imageEntry = serviceWorkerSource.slice(
+      serviceWorkerSource.indexOf("const uploadedImageCaching"),
+      serviceWorkerSource.indexOf("const serwist = new Serwist")
+    );
+    expect(imageEntry).not.toBe("");
+    expect(imageEntry).not.toContain("matchOptions");
+    expect(imageEntry).not.toContain("ignoreSearch");
   });
 
   it("reloads an open customer tab when the corrected worker takes control", () => {

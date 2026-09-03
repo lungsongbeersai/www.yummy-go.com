@@ -29,6 +29,7 @@
   "offlineMode": {
     "dialogTitle": "Connection to Yummy Go was interrupted",
     "dialogDescription": "The server or local sync service is temporarily unavailable. You can keep working offline or try reconnecting.",
+    "toastDescription": "Working in offline mode — your data syncs automatically when you're back online",
     "useOfflineMode": "Use Offline Mode",
     "reconnect": "Reconnect",
     "reconnecting": "Checking...",

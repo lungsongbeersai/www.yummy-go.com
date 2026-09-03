@@ -82,9 +82,24 @@ const rscNavigationCaching: RuntimeCaching = {
 // รูปสินค้า/โลโก้ร้าน เสิร์ฟจาก ${NEXT_PUBLIC_BASE_URL}/uploaded/... บน origin ของ backend
 // (คนละ origin, opaque) — CacheFirst เก็บไว้ตอนออนไลน์ ครั้งถัดไปดึงจากแคชเลย เพื่อให้เมนู POS
 // ตอนออฟไลน์ยังมีรูป จำกัดจำนวน/อายุกันแคชบวมด้วย ExpirationPlugin
+// ครอบทั้ง /uploaded/ (เส้นทางเดิม), /uploads/ และ /products/ ตาม images.remotePatterns
+// ใน next.config.ts — ทั้งสามชื่อโฟลเดอร์ถูกใช้จริงกับรูปสินค้า
+const UPLOADED_IMAGE_PATH = /\/(?:uploaded|uploads|products)\//;
+
+// <Image> ของ next/image ไม่ได้ขอ URL ปลายทางตรง ๆ แต่ขอผ่าน optimizer เป็น
+// /_next/image?url=<ต้นทาง>&w=..&q=.. บน origin ของแอปเอง — matcher เดิมเช็ค
+// url.pathname จึงไม่เคยเจอ "/uploaded/" เลยสักครั้ง รูปสินค้าไม่เคยถูกแคช
+// เมนู POS ตอนออฟไลน์จึงขึ้นเป็นไอคอนรูปเปล่าทั้งหน้า
+function isUploadedImageRequest(url: URL) {
+  if (UPLOADED_IMAGE_PATH.test(url.pathname)) return true;
+  if (url.pathname !== "/_next/image") return false;
+  const source = url.searchParams.get("url");
+  return Boolean(source) && UPLOADED_IMAGE_PATH.test(source as string);
+}
+
 const uploadedImageCaching: RuntimeCaching = {
   matcher: ({ url, request }) =>
-    request.destination === "image" && url.pathname.includes("/uploaded/"),
+    request.destination === "image" && isUploadedImageRequest(url),
   handler: new CacheFirst({
     cacheName: "yummy-uploaded-images",
     plugins: [

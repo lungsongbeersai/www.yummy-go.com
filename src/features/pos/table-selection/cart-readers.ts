@@ -157,6 +157,12 @@ export function cartItemMedia(item: CartItem): CartItemMedia {
       : { type: "empty" };
   }
 
+  // next/image throws on a src that is neither absolute nor root-relative. An Agent
+  // that has not re-pulled products since the sync payload started resolving
+  // prod_image still serves a bare object key — render the placeholder instead of
+  // crashing the cart. Same rule publicProductImageUrl applies to the menu.
+  if (!mediaValue.startsWith("http")) return { type: "empty" };
+
   return { type: "image", src: mediaValue };
 }
 

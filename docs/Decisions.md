@@ -57,3 +57,21 @@ Entries below dated from git history are backfilled from existing code comments 
 - **Alternatives rejected:** `TODO(owner): confirm` — no note in the repo on why these weren't unified into one source of truth (e.g. a page manifest that declares its own required endpoints).
 - **Reason (as documented in-repo):** They describe the same feature from two different layers (route allowlist vs. endpoint allowlist) and must be updated together — this is now `CLAUDE.md` Non-negotiable #7.
 - **Approved by:** `TODO(owner): confirm`.
+
+## `sw.ts` owns a `/_next/image` runtime-caching entry for product images
+
+- **Date:** 2026-09-03 (`src/service-worker/sw.ts`).
+- **Decision:** `uploadedImageCaching` matches `/_next/image?url=…` when the decoded `url` parameter points at `/uploaded/`, `/uploads/` or `/products/`, and caches it `CacheFirst` (300 entries, 30 days). Every other Next Image request still falls through to `@serwist/next`'s `defaultCache`.
+- **Alternatives rejected:** Leaving all Next Image caching to `defaultCache` (the previous rule, guarded by a test asserting `sw.ts` contained no `_next/image`); marking the product `<Image>` components `unoptimized` so the browser requests the backend URL directly.
+- **Reason:** The old matcher tested `url.pathname.includes("/uploaded/")`, but `next/image` never requests the product URL — it requests `/_next/image?url=<encoded>&w=…&q=…` on the app's own origin, so the pathname is always `/_next/image` and **no product image was ever cached**. Offline POS menus and carts rendered placeholders. `defaultCache` does cover `/_next/image`, but at 64 entries / 24h `StaleWhileRevalidate` — too small to hold a menu and expiring overnight, so it cannot carry a shift offline. `unoptimized` would fix caching too, but gives up AVIF/WebP and resizing on the most image-heavy screen in the app.
+- **Constraint this entry must keep:** no `matchOptions` on the strategy. `caches.match()` defaults to `ignoreSearch: false`, so `?url=…&w=…` stays part of the key and each rendered width is its own entry; setting `matchOptions` would let one width answer for every size. `offline-service-worker.test.ts` guards this.
+- **Approved by:** `TODO(owner): confirm`.
+
+## Product image URLs are resolved in the sync payload, not on the Agent
+
+- **Date:** 2026-09-03 (`back-end/api/v1/sync/registry.js`).
+- **Decision:** `enrichSyncPayload` resolves `products.prod_image` to a full URL with the same `buildImageUrl` helper the REST readers use, and keeps the stored object key in `prod_image_raw`. The Printer Agent passes both through unchanged.
+- **Alternatives rejected:** Teaching the Agent the object-storage host and prefix so it could build the URL itself; loosening the POS to accept scheme-less object keys.
+- **Reason:** `tb_product_list.prod_image` holds an object key, not a URL. Every REST reader resolved it before answering, so the Agent was the one consumer receiving the raw key — and `publicProductImageUrl` / `cartItemMedia` drop any value that does not start with `http`, so offline menus and carts showed placeholders while online showed images. Resolving at the sync boundary keeps online and offline byte-identical and leaves the Agent with no knowledge of object storage. `prod_image_raw` follows the split the product REST API already uses for edit forms.
+- **Migration note:** Agents keep pulled rows until the next delta, so existing installs serve the old raw key until products are re-pulled. `cartItemMedia` treats a non-`http` value as "no image" so those rows render a placeholder rather than crashing `next/image`.
+- **Approved by:** `TODO(owner): confirm`.
