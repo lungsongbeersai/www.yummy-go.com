@@ -12,6 +12,7 @@ import { requiredItems, requiredText } from "@/services/shared/validators";
 import type {
   BillDiscountInput,
   BillDiscountResponse,
+  BranchMenuQRRequest,
   BranchMenuQRResponse,
   CancelOrderItemInput,
   CancelOrderItemResponse,
@@ -190,11 +191,18 @@ export const createTableQR = (params: CreateTableQRRequest) =>
     }
   });
 
-// สาขาเดียวมี "QR เมนู" ได้ token เดียวเสมอ (ไม่มี qr_ver ให้ regenerate) จึง
-// ไม่ต้องรับ params ใดๆ นอกจาก lang — backend อ่าน branch จาก jwtVerify เอง
-export const createBranchMenuQR = (params: { lang?: string }) =>
+// สาขาเดียวมี "QR เมนู" ได้ token เดียวเสมอ (ไม่มี qr_ver ให้ regenerate) — backend
+// อ่าน branch จาก jwtVerify เอง ส่วน device/agent ส่งไปเพื่อให้ backend สร้างคิว
+// เครื่องพิมพ์จริงได้เหมือน QR โต๊ะ ไม่งั้นจะคืน browser fallback ทั้งที่มี Auto Print
+export const createBranchMenuQR = (params: BranchMenuQRRequest) =>
   apiRequest<BranchMenuQRResponse>("get", "/api/v1/posAll/branch_menu_qr/create", {
-    params: { lang: toApiLanguage(params.lang) }
+    params: {
+      lang: toApiLanguage(params.lang),
+      login_uuid_fk: params.login_uuid_fk,
+      device_code: params.device_code,
+      agent_id: params.agent_id,
+      print_mode: params.print_mode
+    }
   });
 
 export const printInvoice = (params: PrintInvoiceRequest) =>

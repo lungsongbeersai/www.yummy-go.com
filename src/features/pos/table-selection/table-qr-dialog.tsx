@@ -29,6 +29,7 @@ import { usePrinterStore } from "@/stores/printer-store";
 import { useToastStore } from "@/stores/toast-store";
 import {
   resolveTableQrPrinterContext,
+  tableQrPendingJobUuid,
   tableQrPrintOutcome,
 } from "./table-qr-printing";
 import { optionalString } from "./utils";
@@ -428,14 +429,6 @@ function tableQrImageUrl(response: CreateTableQRResponse | null) {
   if (qrUrl && looksLikeImageUrl(qrUrl)) return normalizePublicUrl(qrUrl);
 
   return null;
-}
-
-function tableQrPendingJobUuid(response: CreateTableQRResponse | null) {
-  return (
-    optionalString(response?.pending_query?.print_job_uuid) ??
-    optionalString(response?.print_job?.print_job_uuid) ??
-    ""
-  );
 }
 
 function tableQrTargetBaseUrl() {

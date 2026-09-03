@@ -538,6 +538,21 @@ export interface BranchMenuQRResponse extends ApiEntity {
   branch_name?: string;
   token?: string;
   qr_url?: string;
+  // Printing goes through the same q-001 queue as the table QR, so the response
+  // carries the same job/pending fields the printer store already knows how to run.
+  role_code?: string;
+  print_job?: ConfirmToKitchenPrintJob;
+  pending_query?: ConfirmToKitchenPendingQuery;
+  ack_template?: ConfirmToKitchenAckTemplate;
+  fallback_print?: unknown;
+}
+
+export interface BranchMenuQRRequest {
+  lang?: string;
+  login_uuid_fk?: string;
+  device_code?: string;
+  agent_id?: string;
+  print_mode?: string;
 }
 
 export interface DeleteOrderItemResponse extends ApiEntity {}

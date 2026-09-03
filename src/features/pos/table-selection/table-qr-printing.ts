@@ -1,3 +1,5 @@
+import { optionalString } from "./utils";
+
 type DeviceIdentity = {
   agent_id: string;
   device_code?: string | null;
@@ -44,4 +46,17 @@ export function tableQrPrintOutcome(result: {
   if (result.pending) return "pending" as const;
   if (result.successCount > 0 && result.failedCount === 0) return "success" as const;
   return "fallback" as const;
+}
+
+// Both QR dialogs read the queued job the same way: a print_job_uuid means Backend
+// put a real job on the printer queue, so the browser print window is the fallback
+// rather than the first choice.
+export function tableQrPendingJobUuid(
+  response: { pending_query?: { print_job_uuid?: string }; print_job?: { print_job_uuid?: string } } | null,
+) {
+  return (
+    optionalString(response?.pending_query?.print_job_uuid) ??
+    optionalString(response?.print_job?.print_job_uuid) ??
+    ""
+  );
 }

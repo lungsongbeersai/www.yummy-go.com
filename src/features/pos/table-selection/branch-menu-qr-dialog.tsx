@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import QRCode from "qrcode";
 import { Copy, Download, ExternalLink, Printer, QrCode as QrCodeIcon } from "lucide-react";
@@ -23,11 +23,18 @@ import {
 import type { BranchMenuQRResponse } from "@/services/pos";
 import { useAppStore } from "@/stores/app-store";
 import { usePosStore } from "@/stores/pos-store";
+import { usePrinterStore } from "@/stores/printer-store";
+import { useAuthStore } from "@/stores/auth-store";
+import {
+  resolveTableQrPrinterContext,
+  tableQrPendingJobUuid,
+  tableQrPrintOutcome,
+} from "./table-qr-printing";
 import { useToastStore } from "@/stores/toast-store";
 
-// ระดับสาขา ไม่ผูกโต๊ะ — ต่าง TableQrDialog ตรงที่ไม่มีคิวเครื่องพิมพ์จริง (ไม่มี
-// pending_query/print_job) และไม่มี qr_ver ให้ revoke จึงไม่มี regenerate ทุกครั้ง
-// ที่เปิด แค่ขอ token เดิมซ้ำก็ยังใช้ได้ ฉีก QR ออกมาเป็น data URL ฝั่ง client ล้วนๆ
+// ระดับสาขา ไม่ผูกโต๊ะ — พิมพ์ผ่านคิวเครื่องพิมพ์ role q-001 เดียวกับ TableQrDialog
+// (document_type qr_table ตัวเดียวกัน ใบที่ออกมาจึงหน้าตาเหมือนกัน ต่างแค่ footer)
+// ไม่มี qr_ver ให้ revoke จึงไม่มี regenerate ทุกครั้งที่เปิด แค่ขอ token เดิมซ้ำก็ยังใช้ได้
 export function BranchMenuQrDialog({
   onOpenChange,
   open,
@@ -38,6 +45,10 @@ export function BranchMenuQrDialog({
   const { t } = useTranslation();
   const language = useAppStore((state) => state.language);
   const createBranchMenuQr = usePosStore((state) => state.createBranchMenuQr);
+  const loginUuid = useAuthStore((state) => state.user?.uuid);
+  const executeInvoice = usePrinterStore((state) => state.executeInvoice);
+  const resolveDeviceContext = usePrinterStore((state) => state.resolveDeviceContext);
+  const resolveDeviceIdentity = usePrinterStore((state) => state.resolveDeviceIdentity);
   const showToast = useToastStore((state) => state.show);
   const nativeApp = useIsCapacitorNativeApp();
   const [pending, setPending] = useState(false);
@@ -47,7 +58,9 @@ export function BranchMenuQrDialog({
   const targetUrl = response?.qr_url ?? null;
   const canOpenBrowserWindow = !nativeApp;
   const canDownload = Boolean(qrDataUrl);
-  const canPrint = Boolean(qrDataUrl && canOpenBrowserWindow);
+  const pendingJobUuid = useMemo(() => tableQrPendingJobUuid(response), [response]);
+  // A queued job prints without a browser window, so a native app can still print.
+  const canPrint = Boolean(pendingJobUuid || (qrDataUrl && canOpenBrowserWindow));
 
   // เปิด dialog = ล้างผลเดิม แล้วค่อยขอ token ใหม่ (ไม่มี qr_ver ให้ revoke จึง
   // ไม่จำเป็นต้อง regenerate ทุกครั้ง แต่ขอซ้ำเพื่อความสด/ง่ายต่อการดีบัก)
@@ -61,9 +74,34 @@ export function BranchMenuQrDialog({
   useEffect(() => {
     if (!open) return;
 
+    if (!loginUuid) {
+      showToast({ title: t("pos.qrCreateFailed"), description: "login_uuid_fk is required", tone: "error" });
+      return;
+    }
+
+    const activeLoginUuid = loginUuid;
     let ignore = false;
 
-    createBranchMenuQr({ lang: language })
+    // Backend has to know the device/agent of whoever pressed print before it can
+    // queue the job; without it the menu QR comes back as a browser fallback even
+    // where Auto Print is set up.
+    async function createMenuQrWithPrinterContext() {
+      const printerContext = await resolveTableQrPrinterContext({
+        loginUuid: activeLoginUuid,
+        resolveDeviceContext,
+        resolveDeviceIdentity,
+      });
+
+      return createBranchMenuQr({
+        lang: language,
+        login_uuid_fk: activeLoginUuid,
+        device_code: printerContext?.device_code,
+        agent_id: printerContext?.agent_id,
+        print_mode: printerContext?.print_mode,
+      });
+    }
+
+    createMenuQrWithPrinterContext()
       .then((result) => {
         if (ignore) return;
         setResponse(result);
@@ -83,7 +121,16 @@ export function BranchMenuQrDialog({
     return () => {
       ignore = true;
     };
-  }, [createBranchMenuQr, language, open, showToast, t]);
+  }, [
+    createBranchMenuQr,
+    language,
+    loginUuid,
+    open,
+    resolveDeviceContext,
+    resolveDeviceIdentity,
+    showToast,
+    t,
+  ]);
 
   // targetUrl หายไป (ยังไม่มี/สร้างไม่สำเร็จ) = เคลียร์ QR เก่าทิ้งก่อน
   useResetOnDeps([targetUrl], () => {
@@ -134,11 +181,54 @@ export function BranchMenuQrDialog({
     }
   }
 
-  function printQr() {
+  // Same contract as TableQrDialog: when Backend queued a real job, run it through
+  // the printer store and only fall back to the browser window if that job cannot
+  // reach a printer. Falling straight to the window would ignore an Auto Print
+  // printer the branch already has mapped for its table QR.
+  async function printQr() {
     if (!canPrint || printing) return;
 
     setPrinting(true);
     try {
+      if (pendingJobUuid) {
+        try {
+          const printResult = await executeInvoice({
+            print_job: response?.print_job,
+            pending_query: response?.pending_query,
+            login_uuid_fk: loginUuid,
+          });
+
+          const printOutcome = tableQrPrintOutcome(printResult);
+          if (printOutcome === "pending") {
+            showToast({
+              title: t("pos.printQr"),
+              description: t("orderQueue.kitchenPrintQueued"),
+              tone: "info",
+            });
+            return;
+          }
+          if (printOutcome !== "fallback") {
+            showToast({ title: t("pos.printQr"), tone: "success" });
+            return;
+          }
+        } catch (error) {
+          showToast({
+            title: t("pos.printQr"),
+            description: error instanceof Error ? error.message : "",
+            tone: "info",
+          });
+        }
+      }
+
+      if (!canOpenBrowserWindow) {
+        showToast({
+          title: t("pos.printQr"),
+          description: t("pos.invoicePrintPopupBlocked"),
+          tone: "error",
+        });
+        return;
+      }
+
       const printWindow = openWindowOutsideNativeApp("", "_blank", fullscreenPrintWindowFeatures());
       if (!printWindow) {
         showToast({
