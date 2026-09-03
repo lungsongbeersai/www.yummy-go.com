@@ -220,12 +220,17 @@ export function usePrinterPage() {
     if (!user?.uuid || !row.print_config_uuid || testingUuid) return;
     setTestingUuid(row.print_config_uuid);
     try {
-      await testPrinterAction({
+      const routingWarning = await testPrinterAction({
         login_uuid_fk: user.uuid,
         print_config_uuid: row.print_config_uuid,
         lang: language,
       });
-      showToast({ title: t("printer.testSent"), tone: "success" });
+      showToast({
+        title: t("printer.testSent"),
+        // The page printed, but real orders may still route elsewhere.
+        description: routingWarning || "",
+        tone: routingWarning ? "warning" : "success",
+      });
     } catch (error) {
       showToast({
         title: t("printer.testFailed"),

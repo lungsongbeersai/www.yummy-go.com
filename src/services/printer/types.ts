@@ -270,7 +270,7 @@ export interface PrintOpsBatchAgentResponse extends ApiEntity {
   error?: string;
   message?: string;
 }
-export interface BuildTestJobResponse extends ApiEntity { data: { printer: ApiEntity; job: PrintJob } }
+export interface BuildTestJobResponse extends ApiEntity { data: { printer: ApiEntity; job: PrintJob; routing_warning?: string | null } }
 export interface MobileEscposRenderResponse extends ApiEntity {
   data?: {
     escpos_base64?: string | null;

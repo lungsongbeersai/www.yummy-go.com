@@ -93,7 +93,7 @@ interface PrinterState {
   remove: (printConfigUuid: string) => Promise<void>;
   toggleActive: (printConfigUuid: string) => Promise<void>;
   buildTest: (data: BuildTestJobRequest) => ReturnType<typeof buildTestJob>;
-  test: (data: BuildTestJobRequest) => Promise<void>;
+  test: (data: BuildTestJobRequest) => Promise<string | null>;
   loadCategoryRoles: (loginUuid: string) => Promise<CategoryRole[]>;
   saveCategoryRole: (input: SaveCategoryRoleInput) => Promise<void>;
   loadPrinterCategoryRole: (loginUuid: string, printerUuid: string, lang?: string) => Promise<PrinterCategoryRole | null>;
@@ -344,7 +344,7 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
           connect_type: selectedPrinter?.connect_type,
         }
         : await resolvePrinterDeviceContext(input);
-      if (!isCurrentSession()) return;
+      if (!isCurrentSession()) return null;
 
       console.log("[printer-test] printer", printer);
 
@@ -359,9 +359,12 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
         agent_name: selectedPrinter?.agent_name || printer.agent_name,
         print_mode: selectedPrinter?.print_mode || printer.print_mode,
       });
-      if (!isCurrentSession()) return;
+      if (!isCurrentSession()) return null;
 
       const job = result.data.job;
+      // The API prints the selected row even when routing sends real orders to
+      // another config at the same address, and says so here.
+      const routingWarning = result.data.routing_warning?.trim() || null;
       console.log("[printer-test] job", job);
 
       const printerConnectType = textValue(
@@ -400,7 +403,7 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
       if (isMobileWifi) {
         phase = "renderMobileEscpos";
         const escposBase64 = await renderMobileEscpos(job);
-        if (!isCurrentSession()) return;
+        if (!isCurrentSession()) return null;
 
         console.log("[printer-test] escposBase64 length", escposBase64.length);
 
@@ -416,6 +419,7 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
 
       phase = "done";
       if (isCurrentSession()) set({ printing: false });
+      return routingWarning;
     } catch (error) {
       const message = getPrinterErrorMessage(error);
       const finalMessage = `[${phase}] ${message}`;

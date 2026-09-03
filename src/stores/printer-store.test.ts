@@ -260,7 +260,7 @@ describe("printer store", () => {
     resetSessionStores();
     result.resolve({ data: { job, printer: {} } } as BuildTestJobResponse);
 
-    await expect(test).resolves.toBeUndefined();
+    await expect(test).resolves.toBeNull();
     expect(dispatchPrintJobMock).not.toHaveBeenCalled();
   });
 });
