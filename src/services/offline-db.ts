@@ -6,7 +6,13 @@ export const OFFLINE_BROWSER_DB_NAME = "yummy-go-browser-offline-v1";
 
 const MAX_API_CACHE_ENTRIES = 300;
 const MAX_API_CACHE_RESPONSE_BYTES = 4 * 1024 * 1024;
-const MAX_API_CACHE_AGE_MS = 31 * 24 * 60 * 60 * 1000;
+// Read-back window for the browser mirror. Deliberately short: these responses
+// include takings, daily closing and payment summaries, and a month-old figure
+// rendered with no "as of" marker reads as today's money. Past this age the page
+// surfaces its load error instead, which is the honest answer. Only affects the
+// degraded path — Desktop serves these from the Agent's SQLite first, and this
+// runs when the Agent is down or (on Android) absent.
+const MAX_API_CACHE_AGE_MS = 48 * 60 * 60 * 1000;
 const SYNCED_QUEUE_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 
 const SAFE_BROWSER_FALLBACK_PATHS = new Set([

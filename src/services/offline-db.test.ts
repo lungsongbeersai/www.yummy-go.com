@@ -595,3 +595,31 @@ describe("agent-free offline reads", () => {
     ).resolves.toBeNull();
   });
 });
+
+describe("browser mirror read-back window", () => {
+  const HOUR_MS = 60 * 60 * 1000;
+
+  async function readAfter(ageHours: number) {
+    const store = new MemoryBrowserOfflineStore();
+    const request = {
+      ...scope,
+      method: "get",
+      path: "/api/v1/report_all/daily_closing",
+      params: { date: "2026-09-04" },
+    };
+    await cacheBrowserApiResponse({ ...request, response: { total: 4495000 }, source: "ONLINE" }, store);
+    for (const entry of store.apiCache.values()) {
+      store.apiCache.set(entry.key, { ...entry, cachedAt: Date.now() - ageHours * HOUR_MS });
+    }
+    return readBrowserApiFallback(request, store);
+  }
+
+  it("serves takings cached within the window", async () => {
+    await expect(readAfter(47)).resolves.toEqual({ total: 4495000 });
+  });
+
+  it("refuses takings older than the window rather than showing them as current", async () => {
+    await expect(readAfter(49)).resolves.toBeNull();
+    await expect(readAfter(24 * 30)).resolves.toBeNull();
+  });
+});
