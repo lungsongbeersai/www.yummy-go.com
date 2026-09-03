@@ -1308,6 +1308,7 @@
     "noPrinters": "No printers",
     "noPrintersDescription": "Add a printer or search local devices.",
     "noRoles": "No roles",
+    "duplicateAddress": "Duplicate address",
     "noUsbPrinters": "No USB printers were found.",
     "printerSearchComplete": "Printer search complete",
     "selectedCount": "{{selected}}/{{total}} selected",

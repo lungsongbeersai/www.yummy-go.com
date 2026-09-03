@@ -87,6 +87,10 @@ export interface Printer extends ApiEntity {
   // เครื่องพิมพ์ที่บันทึกไว้ก่อน backend เพิ่ม sharing_mode จะไม่มีฟิลด์นี้มา — ถือว่าเป็น
   // DEDICATED (พฤติกรรมเดิมก่อนมีการแชร์เครื่องพิมพ์) ดู sharingModeOf() ใน printer-form-utils.ts
   sharing_mode?: PrinterSharingMode;
+  // ตั้งโดย backend เมื่อเครื่องนี้ใช้ address เดียวกับ config SHARED ตัวอื่นในสาขา
+  // งานจริงจะไปออกที่ตัวนั้น ตัวนี้จึงแสดงไว้เพื่อให้แก้ address หรือลบทิ้งได้
+  endpoint_duplicate?: boolean;
+  endpoint_duplicate_of?: string | null;
   categories?: PrinterCategory[];
   // มีความหมายทั้งสอง mapping_type: CATEGORY ใช้เป็นหมวดหมู่หลัก, ZONE ใช้เป็นหมวดหมู่ที่บังคับ
   // เลือกคู่กับโซน (ดู zone_uuid_fk ด้านล่าง)

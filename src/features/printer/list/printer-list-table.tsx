@@ -137,8 +137,18 @@ export function PrinterListTable({
           {
             key: "interface_value",
             label: t("fields.interfaceValue"),
-            className: "max-w-64 truncate whitespace-nowrap text-xs",
+            className: "max-w-64 whitespace-nowrap text-xs",
             headClassName: "whitespace-nowrap",
+            render: (row) => (
+              <div className="flex flex-col gap-1">
+                <span className="truncate">{row.interface_value}</span>
+                {row.endpoint_duplicate ? (
+                  <Badge className="whitespace-nowrap bg-amber-100 text-amber-900">
+                    {t("printer.duplicateAddress")}
+                  </Badge>
+                ) : null}
+              </div>
+            ),
           },
           {
             key: "role_codes",

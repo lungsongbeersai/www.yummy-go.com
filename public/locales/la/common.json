@@ -1308,6 +1308,7 @@
     "noPrinters": "ບໍ່ມີເຄື່ອງພິມ",
     "noPrintersDescription": "ເພີ່ມເຄື່ອງພິມ ຫຼື ຄົ້ນຫາອຸປະກອນ.",
     "noRoles": "ບໍ່ມີບົດບາດ",
+    "duplicateAddress": "ທີ່ຢູ່ຊ້ຳກັນ",
     "noUsbPrinters": "ບໍ່ພົບເຄື່ອງພິມ USB.",
     "printerSearchComplete": "ຄົ້ນຫາເຄື່ອງພິມສຳເລັດ",
     "selectedCount": "ເລືອກແລ້ວ {{selected}}/{{total}}",
