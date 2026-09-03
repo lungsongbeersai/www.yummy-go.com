@@ -34,6 +34,19 @@ const SAFE_BROWSER_FALLBACK_PATHS = new Set([
   "/api/v1/product/fetch_limit",
   "/api/v1/product/stock_qty",
   "/api/v1/register/fetch_limit",
+  // เพจใน OFFLINE_READ_ONLY_PATHS (lib/offline-routes.ts) คือเพจเดียวที่ Android เปิดได้ตอน
+  // ออฟไลน์ และ Android ไม่มี Local Printer Agent — Dexie จึงเป็นแหล่งข้อมูลเดียวที่เหลือ
+  // เส้นเหล่านี้ถูกแคชลง Dexie อยู่แล้วผ่าน OFFLINE_GET_ROUTES แต่เดิมอ่านกลับไม่ได้ ทำให้ทั้ง 6
+  // เพจว่างเปล่าบน Android ส่วน Desktop ไม่กระทบ: Agent เสิร์ฟจาก SQLite ก่อนเสมอ เส้นทางนี้
+  // ทำงานเฉพาะตอน Agent ล่มด้วยเท่านั้น
+  "/api/v1/report/sale_report",
+  "/api/v1/report_all/sale_report_bill",
+  "/api/v1/report_all/sale_report_list",
+  "/api/v1/report_all/sale_list",
+  "/api/v1/report_all/payment_summary_by_method",
+  "/api/v1/report_all/group_list",
+  "/api/v1/report_all/daily_closing",
+  "/api/v1/best_selling/best_selling_products",
 ]);
 
 export type BrowserSyncEventStatus =
@@ -102,14 +115,14 @@ export interface BrowserSyncQueueSummary {
 export interface BrowserOfflineStore {
   getApiCache: (key: string) => Promise<BrowserApiCacheEntry | undefined>;
   putApiCache: (entry: BrowserApiCacheEntry) => Promise<void>;
-  pruneApiCache: (maxEntries: number) => Promise<void>;
+  pruneApiCache: (scope: BrowserOfflineScope, maxEntries: number) => Promise<void>;
   getSyncQueue: (eventUuid: string) => Promise<BrowserSyncQueueEntry | undefined>;
   putSyncQueue: (entry: BrowserSyncQueueEntry) => Promise<void>;
   deleteSyncQueue: (eventUuid: string) => Promise<void>;
   listSyncQueue: (scope: BrowserOfflineScope) => Promise<BrowserSyncQueueEntry[]>;
   getSyncStatus: (scopeKey: string) => Promise<BrowserSyncStatusEntry | undefined>;
   putSyncStatus: (entry: BrowserSyncStatusEntry) => Promise<void>;
-  pruneSyncedQueue: (updatedBefore: number) => Promise<void>;
+  pruneSyncedQueue: (scope: BrowserOfflineScope, updatedBefore: number) => Promise<void>;
 }
 
 interface CacheRequest extends BrowserOfflineScope {
@@ -164,11 +177,17 @@ class DexieBrowserOfflineStore implements BrowserOfflineStore {
     await this.database.apiCache.put(entry);
   }
 
-  async pruneApiCache(maxEntries: number) {
-    const overflow = Math.max(0, await this.database.apiCache.count() - maxEntries);
+  // Scoped: one store/branch's traffic must never evict another's offline cache.
+  async pruneApiCache(scope: BrowserOfflineScope, maxEntries: number) {
+    const key = [scope.storeUuid, scope.branchUuid];
+    const total = await this.database.apiCache.where("[storeUuid+branchUuid]").equals(key).count();
+    const overflow = Math.max(0, total - maxEntries);
     if (!overflow) return;
-    const keys = await this.database.apiCache.orderBy("cachedAt").limit(overflow).primaryKeys();
-    await this.database.apiCache.bulkDelete(keys);
+    const entries = await this.database.apiCache
+      .where("[storeUuid+branchUuid]")
+      .equals(key)
+      .sortBy("cachedAt");
+    await this.database.apiCache.bulkDelete(entries.slice(0, overflow).map((entry) => entry.key));
   }
 
   async getSyncQueue(eventUuid: string) {
@@ -198,11 +217,12 @@ class DexieBrowserOfflineStore implements BrowserOfflineStore {
     await this.database.syncStatus.put(entry);
   }
 
-  async pruneSyncedQueue(updatedBefore: number) {
+  // Scoped: retention for this store/branch never deletes another scope's queue.
+  async pruneSyncedQueue(scope: BrowserOfflineScope, updatedBefore: number) {
     const keys = await this.database.syncQueue
-      .where("updatedAt")
-      .below(updatedBefore)
-      .and((entry) => entry.status === "SYNCED")
+      .where("[storeUuid+branchUuid]")
+      .equals([scope.storeUuid, scope.branchUuid])
+      .and((entry) => entry.status === "SYNCED" && entry.updatedAt < updatedBefore)
       .primaryKeys();
     await this.database.syncQueue.bulkDelete(keys);
   }
@@ -287,7 +307,7 @@ export async function cacheBrowserApiResponse(
     source: input.source,
     cachedAt,
   });
-  await store.pruneApiCache(MAX_API_CACHE_ENTRIES);
+  await store.pruneApiCache(input, MAX_API_CACHE_ENTRIES);
   return true;
 }
 
@@ -411,13 +431,29 @@ export async function discardBrowserSyncEvent(
   return true;
 }
 
+// Retention is maintenance, not part of reading the queue. The reconcile loop
+// lists the queue every couple of seconds; pruning on every one of those reads
+// puts a delete scan on a hot path for rows that only expire once a week.
+const SYNCED_QUEUE_PRUNE_INTERVAL_MS = 60 * 60 * 1000;
+const lastSyncedQueuePruneAt = new WeakMap<BrowserOfflineStore, Map<string, number>>();
+
 export async function listBrowserSyncQueue(
   scope: BrowserOfflineScope,
   override?: BrowserOfflineStore,
 ) {
   const store = storeFor(override);
   if (!store) return [];
-  await store.pruneSyncedQueue(Date.now() - SYNCED_QUEUE_RETENTION_MS);
+  const now = Date.now();
+  let prunedAtByScope = lastSyncedQueuePruneAt.get(store);
+  if (!prunedAtByScope) {
+    prunedAtByScope = new Map<string, number>();
+    lastSyncedQueuePruneAt.set(store, prunedAtByScope);
+  }
+  const scopeKey = browserOfflineScopeKey(scope);
+  if (now - (prunedAtByScope.get(scopeKey) ?? 0) >= SYNCED_QUEUE_PRUNE_INTERVAL_MS) {
+    prunedAtByScope.set(scopeKey, now);
+    await store.pruneSyncedQueue(scope, now - SYNCED_QUEUE_RETENTION_MS);
+  }
   return store.listSyncQueue(scope);
 }
 

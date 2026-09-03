@@ -6,7 +6,9 @@ import { useAuthStore, type AuthUser } from "@/stores/auth-store";
 import {
   probeBackendReachability,
   startBackendNetworkMonitor,
+  offlineWorkerScopeKey,
   startOfflineTransportMonitor,
+  withSyncWorkerLock,
   type BackendProbeResult,
 } from "@/stores/offline-transport-monitor";
 import { backendNetworkManager, useNetworkStore } from "@/stores/network-store";
@@ -223,5 +225,106 @@ describe("Backend NetworkManager", () => {
       state: BACKEND_NETWORK_STATE.ONLINE,
       consecutiveFailures: 0,
     });
+  });
+});
+
+describe("multi-tab sync worker lock", () => {
+  // Exclusive per lock name, exactly like the Web Locks API.
+  function locksWithOneHolder(): LockManager {
+    const held = new Set<string>();
+    return {
+      async request(
+        name: string,
+        _options: LockOptions,
+        callback: (lock: Lock | null) => Promise<void>,
+      ) {
+        if (held.has(name)) return callback(null);
+        held.add(name);
+        try {
+          await callback({ name, mode: "exclusive" });
+        } finally {
+          held.delete(name);
+        }
+      },
+    } as unknown as LockManager;
+  }
+
+  const branchA = offlineWorkerScopeKey({
+    storeUuid: "store-1",
+    branchUuid: "branch-a",
+    actorLoginUuid: "login-1",
+  });
+  const branchB = offlineWorkerScopeKey({
+    storeUuid: "store-1",
+    branchUuid: "branch-b",
+    actorLoginUuid: "login-2",
+  });
+
+  it("lets only one tab drain the queue while a tab already holds the lock", async () => {
+    const locks = locksWithOneHolder();
+    const order: string[] = [];
+    let releaseFirst = () => {};
+    const firstHolderDone = new Promise<void>((resolve) => {
+      releaseFirst = resolve;
+    });
+    const firstTab = withSyncWorkerLock(branchA, async () => {
+      order.push("first");
+      await firstHolderDone;
+    }, locks);
+
+    await Promise.resolve();
+    const secondTab = await withSyncWorkerLock(branchA, async () => {
+      order.push("second");
+    }, locks);
+
+    expect(secondTab).toBe(false);
+    expect(order).toEqual(["first"]);
+
+    releaseFirst();
+    expect(await firstTab).toBe(true);
+  });
+
+  it("hands the work to the next tab once the lock is free", async () => {
+    const locks = locksWithOneHolder();
+    expect(await withSyncWorkerLock(branchA, async () => undefined, locks)).toBe(true);
+    expect(await withSyncWorkerLock(branchA, async () => undefined, locks)).toBe(true);
+  });
+
+  it("does not let one branch's worker block another branch's tab", async () => {
+    const locks = locksWithOneHolder();
+    const drained: string[] = [];
+    let releaseA = () => {};
+    const branchAHolding = new Promise<void>((resolve) => {
+      releaseA = resolve;
+    });
+
+    const tabA = withSyncWorkerLock(branchA, async () => {
+      drained.push("branch-a");
+      await branchAHolding;
+    }, locks);
+    await Promise.resolve();
+
+    // Branch B is a different scope, so it must get its own worker immediately.
+    expect(await withSyncWorkerLock(branchB, async () => {
+      drained.push("branch-b");
+    }, locks)).toBe(true);
+    // ...while a second branch A tab still has to wait.
+    expect(await withSyncWorkerLock(branchA, async () => {
+      drained.push("branch-a-second");
+    }, locks)).toBe(false);
+
+    releaseA();
+    await tabA;
+    expect(drained).toEqual(["branch-a", "branch-b"]);
+  });
+
+  it("keeps working on browsers without Web Locks", async () => {
+    let ran = false;
+    // A LockManager-shaped value with no request(): the pre-Web-Locks fallback.
+    const result = await withSyncWorkerLock(branchA, async () => {
+      ran = true;
+    }, {} as LockManager);
+    expect(result).toBe(true);
+    expect(ran).toBe(true);
   });
 });
