@@ -49,6 +49,17 @@ function applyEvent(state: OfflineOrderState, event: OfflineOrderEvent, sequence
       } else if (existing.checkBill !== 1) {
         // The bill was already paid; a replayed create must not reopen it.
         return;
+      } else {
+        // A bill seeded from a cached cart may predate the rates the Backend now
+        // returns. The next round carries them, so adopt them rather than pricing
+        // later items with no VAT or service charge.
+        state.orders.set(existing.orderUuid, {
+          ...existing,
+          serviceRate: existing.serviceRate || event.serviceRate,
+          vatRate: existing.vatRate || event.vatRate,
+          vatStatus: existing.vatStatus ?? event.vatStatus,
+          tableUuid: existing.tableUuid ?? event.tableUuid,
+        });
       }
       event.items.forEach((item, index) => {
         if (state.items.has(item.orderItemUuid)) return;
@@ -157,8 +168,25 @@ function applyEvent(state: OfflineOrderState, event: OfflineOrderEvent, sequence
 
     case "PAYMENT": {
       const order = openOrder(state, event.orderUuid);
-      if (!order) return;
-      state.orders.set(order.orderUuid, { ...order, checkBill: 2 });
+      if (order) {
+        state.orders.set(order.orderUuid, { ...order, checkBill: 2 });
+        return;
+      }
+      // Paying a bill this device never saw opened: record the closure anyway so
+      // the table stops reading as occupied in the offline grid.
+      if (state.orders.has(event.orderUuid) || !event.tableUuid) return;
+      state.orders.set(event.orderUuid, {
+        orderUuid: event.orderUuid,
+        tableUuid: event.tableUuid,
+        branchUuid: "",
+        checkBill: 2,
+        discountType: "",
+        discountValue: 0,
+        serviceRate: 0,
+        vatRate: 0,
+        vatStatus: null,
+        sequence,
+      });
     }
   }
 }

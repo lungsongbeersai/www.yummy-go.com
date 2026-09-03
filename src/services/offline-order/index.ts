@@ -13,7 +13,9 @@ export {
   type OfflineMasterIndex,
   type OfflineProductDetail,
 } from "./master-index";
+export { seedOfflineStateFromCart } from "./cart-seed";
 export { decodeOfflineOrderEvent, decodeOfflineOrderEvents } from "./order-events";
+export { projectOfflineTables } from "./table-projection";
 export {
   emptyOfflineOrderState,
   openOrderForTable,

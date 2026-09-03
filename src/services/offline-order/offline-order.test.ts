@@ -6,7 +6,9 @@ import {
   decodeOfflineOrderEvents,
   openOrderForTable,
   projectOfflineCart,
+  projectOfflineTables,
   reduceOfflineOrderEvents,
+  seedOfflineStateFromCart,
   visibleItemsForOrder,
 } from "@/services/offline-order";
 
@@ -302,5 +304,154 @@ describe("offline cart money", () => {
   it("returns an empty cart for a table with no open bill", () => {
     const cart = projectOfflineCart(stateFrom([]), { table_uuid: TABLE }, master);
     expect(cart).toMatchObject({ status: "success", offline: true, orders: [], data: [] });
+  });
+});
+
+const CACHED_CART = {
+  status: "success",
+  orders: [{
+    order_uuid: "20000000-0000-4000-8000-000000000002",
+    table_uuid_fk: TABLE,
+    order_discount_type: "",
+    order_discount_value: 0,
+    order_service_rate: 10,
+    order_vat_rate: 10,
+    order_vat_status: 3,
+    items: [{
+      order_it_uuid: "online-item-1",
+      pro_detail_uuid: DETAIL,
+      detail: { order_it_qty: 1, order_it_status: OFFLINE_ITEM_STATUS.SENT_TO_KITCHEN, order_it_note: "" },
+      toppings: [],
+    }],
+  }],
+};
+
+describe("merging a bill opened online with offline edits", () => {
+  const SEEDED = "20000000-0000-4000-8000-000000000002";
+
+  function merged(entries: BrowserSyncQueueEntry[]) {
+    return reduceOfflineOrderEvents(
+      decodeOfflineOrderEvents(entries),
+      seedOfflineStateFromCart(CACHED_CART),
+    );
+  }
+
+  it("keeps the online bill and adds the offline round to it", () => {
+    const state = merged([
+      queued("post", "/api/v1/posAll/create_order", {
+        order_uuid: SEEDED, table_uuid_fk: TABLE, branch_uuid_fk: "branch-1",
+        order_service_rate: 10, order_vat_rate: 10, order_vat_status: 3,
+        items: [item("offline-item-1", 2)],
+      }),
+    ]);
+
+    expect(state.orders.size).toBe(1);
+    expect(visibleItemsForOrder(state, SEEDED).map((line) => line.orderItemUuid))
+      .toEqual(["online-item-1", "offline-item-1"]);
+    const cart = projectOfflineCart(state, { table_uuid: TABLE }, master);
+    // 3 x 20,000 = 60,000; +10% service = 66,000; 10% VAT = 6,600 -> 7,000
+    expect(cart.orders[0].totals.order_grand_total).toBe(73000);
+  });
+
+  it("lets an offline edit change an item the server sent", () => {
+    const state = merged([
+      queued("patch", "/api/v1/posAll/order_item/update_qty", {
+        order_item_uuid: "online-item-1", change_type: "INCREASE", change_qty: 4,
+      }),
+    ]);
+    expect(state.items.get("online-item-1")?.quantity).toBe(5);
+    // The server's status is preserved; the edit only changed quantity.
+    expect(state.items.get("online-item-1")?.status).toBe(OFFLINE_ITEM_STATUS.SENT_TO_KITCHEN);
+  });
+
+  it("closes an online bill that was paid offline", () => {
+    const state = merged([
+      queued("post", "/api/v1/posAll/payment", { order_uuid: SEEDED, table_uuid: TABLE }),
+    ]);
+    expect(state.orders.get(SEEDED)?.checkBill).toBe(2);
+    expect(openOrderForTable(state, TABLE)).toBeNull();
+  });
+
+  it("adopts rates from a later round when the cached bill had none", () => {
+    const state = reduceOfflineOrderEvents(
+      decodeOfflineOrderEvents([
+        queued("post", "/api/v1/posAll/create_order", {
+          order_uuid: SEEDED, table_uuid_fk: TABLE, branch_uuid_fk: "branch-1",
+          order_service_rate: 10, order_vat_rate: 7, order_vat_status: 3,
+          items: [item("offline-item-2", 1)],
+        }),
+      ]),
+      seedOfflineStateFromCart({
+        orders: [{ order_uuid: SEEDED, table_uuid_fk: TABLE, items: [] }],
+      }),
+    );
+    expect(state.orders.get(SEEDED)).toMatchObject({ serviceRate: 10, vatRate: 7, vatStatus: 3 });
+  });
+});
+
+describe("offline table grid", () => {
+  const CACHED_TABLES = {
+    status: "success",
+    lang: "la",
+    data: [{
+      zone_uuid: "zone-1",
+      zone_name: "ຫ້ອງ A",
+      tables: [
+        { table_uuid: TABLE, table_name: "T01", number_of_seats: 4, table_status: 1, bg_color: "#ffffff", text_color: "black" },
+        { table_uuid: "other-table", table_name: "T02", number_of_seats: 2, table_status: 1, bg_color: "#ffffff", text_color: "black" },
+      ],
+    }],
+  };
+
+  function tablesFor(state: ReturnType<typeof stateFrom>) {
+    const projected = projectOfflineTables(CACHED_TABLES, state) as {
+      data: Array<{ zone_name: string; tables: Array<Record<string, unknown>> }>;
+    };
+    return projected.data[0];
+  }
+
+  it("marks a table occupied once a bill is opened offline", () => {
+    const zone = tablesFor(stateFrom([createOrder([item("item-1", 1)])]));
+
+    expect(zone.zone_name).toBe("ຫ້ອງ A");
+    expect(zone.tables[0]).toMatchObject({
+      table_uuid: TABLE, table_name: "T01", number_of_seats: 4,
+      table_status: 2, customer_order_state: true, bg_color: "#fdebd0",
+    });
+    // Untouched tables keep exactly what the server sent.
+    expect(zone.tables[1]).toEqual(CACHED_TABLES.data[0].tables[1]);
+  });
+
+  it("clears customer_order_state once everything is sent to the kitchen", () => {
+    const zone = tablesFor(stateFrom([
+      createOrder([item("item-1", 1)]),
+      queued("patch", "/api/v1/posAll/confirm_to_kitchen", { order_uuid: ORDER, order_item_uuids: ["item-1"] }),
+    ]));
+    expect(zone.tables[0]).toMatchObject({ table_status: 2, customer_order_state: false });
+  });
+
+  it("frees a table whose bill was paid offline", () => {
+    const occupied = {
+      ...CACHED_TABLES,
+      data: [{
+        ...CACHED_TABLES.data[0],
+        tables: [{ ...CACHED_TABLES.data[0].tables[0], table_status: 2, table_date_in: "2026-09-04" }],
+      }],
+    };
+    const state = stateFrom([
+      createOrder([item("item-1", 1)]),
+      queued("post", "/api/v1/posAll/payment", { order_uuid: ORDER, table_uuid: TABLE }),
+    ]);
+    const projected = projectOfflineTables(occupied, state) as {
+      data: Array<{ tables: Array<Record<string, unknown>> }>;
+    };
+    expect(projected.data[0].tables[0]).toMatchObject({
+      table_status: 1, table_date_in: null, customer_order_state: false, bg_color: "#ffffff",
+    });
+  });
+
+  it("returns a store with no tables untouched", () => {
+    const noTables = { status: "success", store_table_status: 2, data: [] };
+    expect(projectOfflineTables(noTables, stateFrom([]))).toBe(noTables);
   });
 });

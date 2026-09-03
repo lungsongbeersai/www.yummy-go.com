@@ -156,7 +156,11 @@ export function decodeOfflineOrderEvent(
     case "POST /api/v1/posAll/payment": {
       const orderUuid = text(data.order_uuid);
       if (!orderUuid) return null;
-      return { kind: "PAYMENT", orderUuid };
+      return {
+        kind: "PAYMENT",
+        orderUuid,
+        tableUuid: text(data.table_uuid) || text(data.table_uuid_fk) || null,
+      };
     }
 
     default:

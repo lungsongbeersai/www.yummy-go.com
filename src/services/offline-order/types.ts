@@ -64,4 +64,4 @@ export type OfflineOrderEvent =
   | { kind: "ITEM_CANCEL"; orderItemUuid: string; quantity: number | null }
   | { kind: "KITCHEN_CONFIRM"; orderUuid: string; orderItemUuids: string[] }
   | { kind: "ITEM_SERVED"; orderItemUuids: string[] }
-  | { kind: "PAYMENT"; orderUuid: string };
+  | { kind: "PAYMENT"; orderUuid: string; tableUuid: string | null };
