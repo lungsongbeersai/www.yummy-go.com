@@ -11,7 +11,7 @@ import {
 
 const OFFLINE_ROUTES = [
   "/", "/login", "/pos", "/pos/tables", "/pos/order", "/order_manage",
-  "/products", "/stock", "/sales/sales-list", "/report/daily-closing",
+  "/products", "/stock", "/printers", "/sales/sales-list", "/report/daily-closing",
   "/report/daily-sales", "/report/best-selling-products",
   "/report/payment-methods", "/report/category-sales",
   "/settings/user", "/settings/branch",

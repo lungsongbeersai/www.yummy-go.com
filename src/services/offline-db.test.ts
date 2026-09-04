@@ -513,6 +513,12 @@ describe("offline read-only pages can read their own cache back", () => {
     "/report/category-sales": ["/api/v1/report_all/group_list"],
     "/products": ["/api/v1/product/fetch_limit"],
     "/stock": ["/api/v1/product/stock_qty"],
+    "/printers": [
+      "/api/v1/printer/fetch",
+      "/api/v1/printer/roles",
+      "/api/v1/zone/fetch_all",
+      "/api/v1/category/fetch_limit",
+    ],
     "/settings/user": ["/api/v1/register/fetch_limit"],
     "/settings/branch": ["/api/v1/branch/fetch_all"],
   };

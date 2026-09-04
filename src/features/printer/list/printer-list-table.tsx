@@ -10,6 +10,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Spinner } from "@/components/ui/spinner";
 import { DataTable } from "@/components/common/data-table";
+import { useOfflineReadOnly } from "@/hooks/use-offline-read-only";
 import type { Category } from "@/services/category";
 import type { Printer } from "@/services/printer";
 import type { Zone } from "@/services/zone";
@@ -63,6 +64,9 @@ export function PrinterListTable({
 }: PrinterListTableProps) {
   const { t } = useTranslation();
   const router = useRouter();
+  // ตอนออฟไลน์เพจนี้เปิดอ่านได้ แต่ทุกปุ่มด้านล่างเรียก backend (create/set-active/delete และ
+  // build-test-job) ซึ่งไม่อยู่ใน OFFLINE_ROUTES — โชว์ไว้แบบ disabled ตามแนวของ DataTable
+  const readOnly = useOfflineReadOnly();
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
@@ -235,6 +239,7 @@ export function PrinterListTable({
                 <PrinterIcon />
               ),
             disabled: (row) =>
+              readOnly ||
               printing ||
               Boolean(testingUuid) ||
               Boolean(togglingUuid) ||
@@ -258,6 +263,7 @@ export function PrinterListTable({
                 <Power />
               ),
             disabled: (row) =>
+              readOnly ||
               Boolean(togglingUuid) ||
               !row.print_config_uuid ||
               !canEditPrinter(row),
@@ -274,8 +280,8 @@ export function PrinterListTable({
           )
         }
         onDelete={(row) => onDelete(row)}
-        editable={canEditPrinter}
-        deletable={canDeletePrinter}
+        editable={(row) => !readOnly && canEditPrinter(row)}
+        deletable={(row) => !readOnly && canDeletePrinter(row)}
         editVisible={canEditPrinter}
         deleteVisible={canDeletePrinter}
       />

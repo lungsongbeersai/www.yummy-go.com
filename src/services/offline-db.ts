@@ -24,6 +24,8 @@ const SAFE_BROWSER_FALLBACK_PATHS = new Set([
   "/api/v1/customer/list",
   "/api/v1/printer/fetch",
   "/api/v1/printer/fetch_all",
+  "/api/v1/printer/roles",
+  "/api/v1/zone/fetch_all",
   "/api/v1/branch/fetch_limit",
   "/api/v1/branch/fetch_all",
   "/api/v1/groups/fetch_limit",

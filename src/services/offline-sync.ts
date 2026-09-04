@@ -59,6 +59,11 @@ const OFFLINE_GET_ROUTES = new Set([
   "/api/v1/customer/list",
   "/api/v1/printer/fetch",
   "/api/v1/printer/fetch_all",
+  // ป้ายชื่อ role และชื่อโซนของเพจ /printers — ไม่มี projection เฉพาะทางใน Agent แต่แคช GET
+  // ทั่วไป (local_api_cache / Dexie) เก็บคำตอบตอนออนไลน์ไว้เล่นซ้ำได้ ถ้าไม่ใส่ไว้ เพจจะเปิดได้
+  // แต่เด้ง toast "โหลดข้อมูลเครื่องพิมพ์ไม่สำเร็จ" ทุกครั้งเพราะ Promise.all มีตัวที่ reject
+  "/api/v1/printer/roles",
+  "/api/v1/zone/fetch_all",
   "/api/v1/branch/fetch_limit",
   "/api/v1/branch/fetch_all",
   "/api/v1/groups/fetch_limit",
@@ -524,7 +529,7 @@ export async function prepareOfflineSession(input: OfflineSessionInput) {
   try {
     await warmOfflineRoutes([
       "/", "/login", "/pos/tables", "/pos/order", "/order_manage",
-      "/products", "/stock", "/sales/sales-list", "/report/daily-closing",
+      "/products", "/stock", "/printers", "/sales/sales-list", "/report/daily-closing",
       "/report/daily-sales", "/report/best-selling-products",
       "/report/payment-methods", "/report/category-sales",
       "/settings/user", "/settings/branch",

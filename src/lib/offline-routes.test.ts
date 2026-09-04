@@ -40,6 +40,22 @@ describe("isOfflineAllowedPath", () => {
     }
   });
 
+  it("opens the printer page on every platform — the net dropping is when it gets checked", () => {
+    expect(isOfflineAllowedPath("/printers", false)).toBe(true);
+    expect(isOfflineAllowedPath("/printers", true)).toBe(true);
+    // Reading the list is offline-capable; its form writes printer config, which is not.
+    expect(supportsOfflineRoute("get", "/api/v1/printer/fetch")).toBe(true);
+    expect(isOfflineAllowedPath("/printers/form", false)).toBe(false);
+    for (const route of [
+      ["post", "/api/v1/printer/create"],
+      ["post", "/api/v1/printer/set-active"],
+      ["delete", "/api/v1/printer/delete"],
+      ["post", "/api/v1/printer/build-test-job"],
+    ] as const) {
+      expect(supportsOfflineRoute(route[0], route[1])).toBe(false);
+    }
+  });
+
   it("still keeps master-data writes off the offline transport", () => {
     for (const route of [
       ["post", "/api/v1/product/create"],

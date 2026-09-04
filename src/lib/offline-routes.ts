@@ -7,6 +7,11 @@ export const OFFLINE_READ_ONLY_PATHS = [
   // ไม่ได้อยู่ใน OFFLINE_ROUTES และไม่มี conflict policy รองรับการแก้ตอนออฟไลน์
   "/products",
   "/stock",
+  // เพจเครื่องพิมพ์: /api/v1/printer/fetch อยู่ใน OFFLINE_GET_ROUTES อยู่แล้ว (Agent ตอบจาก
+  // localPrintersResponse, Android อ่านจาก Dexie mirror) — ตอนเน็ตหลุดคือตอนที่หน้าร้านต้องเปิดดู
+  // ว่าเครื่องพิมพ์ตัวไหนเปิด/ปิดอยู่มากที่สุด จึงไม่ล็อกเมนูนี้ ส่วนปุ่มเพิ่ม/แก้/ลบ/เปิด-ปิด/ทดสอบพิมพ์
+  // ถูกปิดด้วย useOfflineReadOnly เพราะทั้ง route เขียนและ build-test-job ต้องใช้ backend
+  "/printers",
   "/settings/user",
   "/settings/branch",
   "/sales/sales-list",
