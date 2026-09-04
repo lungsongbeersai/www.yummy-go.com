@@ -771,6 +771,32 @@ export async function reconcileBrowserSyncQueue(
       if (!axios.isAxiosError(error) || error.response?.status !== 404) break;
     }
 
+    // The Agent does not have this event. That reads two ways, and only one of
+    // them is safe to recover from by re-sending.
+    //
+    // STAGED means the Agent never acknowledged it — the mutation was written to
+    // this mirror and the Agent call failed without a reply — so the id has never
+    // been used anywhere and re-sending is the recovery it was written for.
+    //
+    // Any other status means the Agent did accept it, which means it may already
+    // sit on Backend under this id. Re-sending would not replay the original: the
+    // Agent allocates a fresh invoice number, stock event and sequence, so the
+    // payload hashes differently and Backend rejects it forever as
+    // SYNC_EVENT_PAYLOAD_MISMATCH — taking every dependent event down with it.
+    // That is exactly how a promotion-expired conflict turned into eight blocked
+    // events and five items that never reached the server.
+    //
+    // Nothing is discarded and no new id is minted to slip past the conflict:
+    // the event goes to the same review flow that already handles blocked work,
+    // for a person to decide.
+    if (entry.status !== "STAGED") {
+      await updateBrowserSyncEvent(entry.eventUuid, {
+        status: "BLOCKED",
+        lastError: "BROWSER_SYNC_EVENT_MISSING_ON_AGENT",
+      }, browserStore);
+      continue;
+    }
+
     try {
       const response = await axios.post<LocalAgentResponse<unknown>>(
         `${AGENT_URL}/local/api`,

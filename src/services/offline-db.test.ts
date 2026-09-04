@@ -627,3 +627,140 @@ describe("browser mirror read-back window", () => {
     await expect(readAfter(24 * 30)).resolves.toBeNull();
   });
 });
+
+// A 404 from the Agent has two meanings, and only one of them is safe to
+// recover by re-sending. Getting this wrong is what turned one promotion
+// conflict into eight blocked events and five items the server never saw.
+describe("an event the Agent no longer has", () => {
+  // This block needs its own cleanup: the afterEach above is scoped to the first
+  // describe, so without this a spy stays installed and carries its call history
+  // into the next case.
+  afterEach(() => vi.restoreAllMocks());
+
+  const ORDER_UUID = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+
+  async function stageOrderCreate(store: MemoryBrowserOfflineStore, uuid: string) {
+    await stageBrowserSyncRequest({
+      ...scope,
+      eventUuid: uuid,
+      method: "post",
+      path: "/api/v1/posAll/create_order",
+      data: { sync_event_uuid: uuid, order_uuid: ORDER_UUID },
+    }, store);
+  }
+
+  function agentMissing() {
+    return vi.spyOn(axios, "get").mockRejectedValue({
+      isAxiosError: true,
+      response: { status: 404 },
+    });
+  }
+
+  it("re-sends one the Agent never acknowledged", async () => {
+    const store = new MemoryBrowserOfflineStore();
+    await stageOrderCreate(store, eventUuid);
+    // stageBrowserSyncRequest leaves STAGED: the Agent never replied, so this id
+    // has never been used anywhere and re-sending is the recovery it exists for.
+    expect((await store.getSyncQueue(eventUuid))?.status).toBe("STAGED");
+    agentMissing();
+    const post = vi.spyOn(axios, "post").mockResolvedValue({ data: { ok: true, data: {} } });
+
+    await reconcileBrowserSyncQueue(scope, store);
+
+    expect(post).toHaveBeenCalledWith(
+      expect.stringContaining("/local/api"),
+      expect.objectContaining({ event_uuid: eventUuid }),
+      { timeout: 10000 },
+    );
+    expect((await store.getSyncQueue(eventUuid))?.status).toBe("PENDING");
+  });
+
+  it("never re-sends one the Agent already accepted", async () => {
+    const store = new MemoryBrowserOfflineStore();
+    await stageOrderCreate(store, eventUuid);
+    // PENDING means the Agent took it and may already have pushed it to Backend.
+    await updateBrowserSyncEvent(eventUuid, { status: "PENDING" }, store);
+    agentMissing();
+    const post = vi.spyOn(axios, "post").mockResolvedValue({ data: { ok: true, data: {} } });
+
+    await reconcileBrowserSyncQueue(scope, store);
+
+    // Re-sending would mint a fresh invoice, stock event and sequence under an id
+    // Backend already holds, which it rejects forever as a payload mismatch.
+    expect(post).not.toHaveBeenCalled();
+    const entry = await store.getSyncQueue(eventUuid);
+    expect(entry?.status).toBe("BLOCKED");
+    expect(entry?.lastError).toBe("BROWSER_SYNC_EVENT_MISSING_ON_AGENT");
+    // The order is kept, not discarded, and no replacement id is minted.
+    expect((entry?.data as { order_uuid?: string })?.order_uuid).toBe(ORDER_UUID);
+    expect(entry?.eventUuid).toBe(eventUuid);
+  });
+
+  it.each(["PROCESSING", "FAILED"] as const)(
+    "never re-sends one last seen as %s either",
+    async (status) => {
+      const store = new MemoryBrowserOfflineStore();
+      await stageOrderCreate(store, eventUuid);
+      await updateBrowserSyncEvent(eventUuid, { status }, store);
+      agentMissing();
+      const post = vi.spyOn(axios, "post").mockResolvedValue({ data: { ok: true, data: {} } });
+
+      await reconcileBrowserSyncQueue(scope, store);
+
+      expect(post).not.toHaveBeenCalled();
+      expect((await store.getSyncQueue(eventUuid))?.status).toBe("BLOCKED");
+    },
+  );
+
+  it("keeps a business conflict a business conflict across a reconcile", async () => {
+    const store = new MemoryBrowserOfflineStore();
+    await stageOrderCreate(store, eventUuid);
+    // Backend rejected this on its merits — an expired promotion — and the Agent
+    // recorded that verdict. It must not come back as a payload mismatch.
+    await updateBrowserSyncEvent(eventUuid, {
+      status: "BLOCKED",
+      lastError: "ໂປຣໝົດອາຍຸ/ບໍ່ຢູ່ໃນເວລາ",
+    }, store);
+    const get = agentMissing();
+    const post = vi.spyOn(axios, "post").mockResolvedValue({ data: { ok: true, data: {} } });
+
+    await reconcileBrowserSyncQueue(scope, store);
+
+    expect(post).not.toHaveBeenCalled();
+    expect(get).not.toHaveBeenCalled();
+    const entry = await store.getSyncQueue(eventUuid);
+    expect(entry?.status).toBe("BLOCKED");
+    expect(entry?.lastError).toBe("ໂປຣໝົດອາຍຸ/ບໍ່ຢູ່ໃນເວລາ");
+  });
+
+  it("does not drag the rest of the bill down with it", async () => {
+    const store = new MemoryBrowserOfflineStore();
+    const parent = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
+    const child = "ffffffff-ffff-4fff-8fff-ffffffffffff";
+    await stageOrderCreate(store, parent);
+    await updateBrowserSyncEvent(parent, { status: "PENDING" }, store);
+    await stageBrowserSyncRequest({
+      ...scope,
+      eventUuid: child,
+      method: "patch",
+      path: "/api/v1/posAll/confirm_to_kitchen",
+      data: { sync_event_uuid: child, order_uuid: ORDER_UUID },
+    }, store);
+
+    agentMissing();
+    const post = vi.spyOn(axios, "post").mockResolvedValue({ data: { ok: true, data: {} } });
+
+    await reconcileBrowserSyncQueue(scope, store);
+
+    // The parent is held for review; the child, which the Agent never took, is
+    // still recoverable on its own id rather than blocked by association.
+    expect((await store.getSyncQueue(parent))?.status).toBe("BLOCKED");
+    expect((await store.getSyncQueue(child))?.status).toBe("PENDING");
+    expect(post).toHaveBeenCalledTimes(1);
+    expect(post).toHaveBeenCalledWith(
+      expect.stringContaining("/local/api"),
+      expect.objectContaining({ event_uuid: child }),
+      { timeout: 10000 },
+    );
+  });
+});
