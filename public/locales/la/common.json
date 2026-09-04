@@ -24,7 +24,13 @@
     "blockedTitle": "ມີລາຍການອອບລາຍທີ່ຕ້ອງກວດສອບ",
     "blockedDescription": "ມີ {{count}} ລາຍການທີ່ເຊີບເວີປະຕິເສດ. ລະບົບກັບມາອອນລາຍແລ້ວ ແຕ່ຕ້ອງກວດສອບກ່ອນປິດກະ.",
     "agentUnavailableTitle": "Printer Agent ບໍ່ໄດ້ເຮັດວຽກ",
-    "agentUnavailableDescription": "ເປີດ ຫຼື ຕິດຕັ້ງ Yummy-Go Printer Agent ໃໝ່ ແລ້ວລອງອີກຄັ້ງ."
+    "agentUnavailableDescription": "ເປີດ ຫຼື ຕິດຕັ້ງ Yummy-Go Printer Agent ໃໝ່ ແລ້ວລອງອີກຄັ້ງ.",
+    "queueBlocked": "ຍັງບໍ່ສົ່ງ · {{count}}",
+    "queueFailed": "ກຳລັງລອງໃໝ່ · {{count}}",
+    "queuePending": "ກຳລັງຊິງ · {{count}}",
+    "queueBlockedHint": "ມີ {{count}} ລາຍການສົ່ງໄປເຊີບເວີບໍ່ໄດ້ ຕ້ອງໃຫ້ຜູ້ຈັດການກວດ.",
+    "queueFailedHint": "ມີ {{count}} ລາຍການຍັງບໍ່ເຖິງເຊີບເວີ ກຳລັງລອງໃໝ່.",
+    "queuePendingHint": "ມີ {{count}} ລາຍການລໍຖ້າສົ່ງໄປເຊີບເວີ."
   },
   "offlineMode": {
     "dialogTitle": "ການເຊື່ອມຕໍ່ Yummy Go ຂັດຂ້ອງ",

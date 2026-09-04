@@ -1,10 +1,11 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { ReceiptText } from "lucide-react";
+import { CloudOff, ReceiptText } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { Badge } from "@/components/ui/badge";
+import { useLocalSyncBadge } from "@/hooks/use-local-sync-badge";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -75,6 +76,10 @@ export function SelectedTableCartPanelContent({
   workflow: SelectedTableCartPanelWorkflow;
 }) {
   const { t } = useTranslation();
+  const syncBadge = useLocalSyncBadge();
+  const syncBadgeKey = syncBadge
+    ? `${syncBadge.tone[0].toUpperCase()}${syncBadge.tone.slice(1)}`
+    : "";
   const selectedTable = workflow.selectedTable;
   const customerDisplay = workflow.customerDisplay;
   const isNoTableStore = useAuthStore((state) => state.user?.store_table_status === 2);
@@ -136,6 +141,23 @@ export function SelectedTableCartPanelContent({
                 <p className="truncate text-2xs font-bold leading-4 text-white/75">
                   {t("pos.invoice")}: {workflow.invoice}
                 </p>
+              ) : null}
+              {/* Everything else on this panel is read from the local queue, so
+                  without this the screen looks identical whether a sale reached
+                  the server or has been stuck for a day. */}
+              {syncBadge ? (
+                <span
+                  title={t(`offlineSync.queue${syncBadgeKey}Hint`, { count: syncBadge.count })}
+                  className={cn(
+                    "mt-0.5 inline-flex w-fit items-center gap-1 rounded-full px-2 py-0.5 text-2xs font-black leading-4",
+                    syncBadge.tone === "blocked"
+                      ? "bg-destructive text-destructive-foreground"
+                      : "bg-white/20 text-white",
+                  )}
+                >
+                  <CloudOff className="size-3 shrink-0" aria-hidden />
+                  {t(`offlineSync.queue${syncBadgeKey}`, { count: syncBadge.count })}
+                </span>
               ) : null}
             </div>
             <Badge

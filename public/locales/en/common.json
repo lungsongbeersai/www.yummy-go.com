@@ -24,7 +24,13 @@
     "blockedTitle": "Offline sync needs review",
     "blockedDescription": "{{count}} offline transaction(s) were rejected by the server. Online mode is available, but review them before closing the shift.",
     "agentUnavailableTitle": "Printer Agent is not running",
-    "agentUnavailableDescription": "Open or reinstall Yummy-Go Printer Agent, then try again."
+    "agentUnavailableDescription": "Open or reinstall Yummy-Go Printer Agent, then try again.",
+    "queueBlocked": "Not sent · {{count}}",
+    "queueFailed": "Retrying · {{count}}",
+    "queuePending": "Syncing · {{count}}",
+    "queueBlockedHint": "{{count}} change(s) could not reach the server and need a manager.",
+    "queueFailedHint": "{{count}} change(s) have not reached the server yet and are being retried.",
+    "queuePendingHint": "{{count}} change(s) are waiting to reach the server."
   },
   "offlineMode": {
     "dialogTitle": "Connection to Yummy Go was interrupted",
