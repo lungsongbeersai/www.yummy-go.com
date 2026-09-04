@@ -27,6 +27,9 @@ export const OFFLINE_WRITE_CAPABLE_PATHS = [
   "/pos/order",
   "/order_manage",
   "/report/offline-sync",
+  // ອໍເດີຄ້າງສົ່ງ: คุยกับ Local Agent ที่ 127.0.0.1:7777 อย่างเดียว ไม่แตะ backend เลย
+  // จึงใช้ได้ทั้งตอนออนไลน์และออฟไลน์ — แต่ไม่รวม Android เพราะไม่มี Agent ให้ถาม
+  "/sales/stuck-orders",
 ] as const;
 
 // เพจ infra ที่ต้องใช้งานได้เสมอไม่ว่าสถานะออฟไลน์จะเป็นอย่างไร (ไม่ใช่ส่วนหนึ่งของฟีเจอร์

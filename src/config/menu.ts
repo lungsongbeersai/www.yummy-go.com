@@ -51,6 +51,7 @@ const Menu: MenuItem[] = [
     children: [
       { path: "/pos/tables", title: "open_table_sale" },
       { path: "/order_manage", title: "order_queue" },
+      { path: "/sales/stuck-orders", title: "stuck_orders" },
       { path: "/sales/sales-list", title: "sales_list" },
       { path: "/sales/cancel-sale", title: "cancel_sale" },
       { path: "/sales/cancel-history", title: "cancel_history" }

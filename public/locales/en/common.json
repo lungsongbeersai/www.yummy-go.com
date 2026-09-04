@@ -452,7 +452,8 @@
     "unit": "Unit",
     "user": "User",
     "vat_summary": "VAT summary",
-    "zone": "Zone"
+    "zone": "Zone",
+    "stuck_orders": "Stuck orders"
   },
   "notFound": {
     "backHome": "Back home",
@@ -2067,6 +2068,45 @@
       "orderBy": "Sort",
       "paymentMethod": "Payment method",
       "typePage": "Report type"
+    },
+    "stuckOrders": {
+      "title": "Stuck orders",
+      "description": "Orders this device recorded but could not send to the server, and will not retry on their own.",
+      "summary": "{{orders}} orders · {{events}} queued rows",
+      "cancelAll": "Cancel all",
+      "cancelOrder": "Cancel this order",
+      "cancelEvent": "Cancel this row",
+      "expand": "Show rows",
+      "collapse": "Hide rows",
+      "tableLabel": "Table {{name}}",
+      "waitingOnPrint": "Waiting on kitchen ticket",
+      "waitingOnPrintCount": "{{count}} held at the printer",
+      "waitingOnDependency": "Waiting on an earlier row",
+      "financial": "Money",
+      "financialCount": "{{count}} carry a payment",
+      "columns": {
+        "order": "Order",
+        "total": "Total",
+        "events": "Queued rows",
+        "stuckSince": "Stuck since",
+        "reason": "Reason"
+      },
+      "stockSafeTitle": "Cancelling here never moves stock",
+      "stockSafeDescription": "This removes only the queued intent to tell the server. The bill, its items and the local stock ledger stay exactly as recorded — no quantity is added back or taken away. Cancelled rows are archived so they can still be reviewed.",
+      "loadFailed": "Could not read the stuck queue",
+      "confirmTitle": "Cancel this order out of the queue?",
+      "confirmAllTitle": "Cancel all {{count}} stuck orders?",
+      "confirmDescription": "It stops trying to reach the server for good, and the server will never receive it. The bill and stock on this device do not change.",
+      "financialWarningTitle": "This includes money",
+      "financialWarningDescription": "Cancelling a payment or split bill leaves the server with no record of that amount. It has to be reconciled by hand.",
+      "includeFinancial": "I understand — cancel the payment rows too",
+      "resultTitle": "Cancelled {{count}} rows",
+      "resultDescription": "Stock and the local bills were not modified.",
+      "resultSkippedFinancial": "{{count}} rows were kept because they carry money — confirm the payment option to cancel them.",
+      "empty": {
+        "title": "Nothing is stuck",
+        "description": "Every order has reached the server, or is still retrying normally."
+      }
     }
   },
   "cancelSale": {

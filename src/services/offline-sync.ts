@@ -866,6 +866,113 @@ export async function discardBlockedBrowserSyncEvent(
   return discardBrowserSyncEvent(eventUuid, browserStore);
 }
 
+/** A bill as the till last recorded it, for a queue row that cannot clear itself. */
+export interface StuckSyncOrder {
+  order_uuid: string;
+  order_invoice: string;
+  table_uuid: string;
+  table_name: string;
+  order_status?: number;
+  order_check_bill?: number;
+  order_qty?: number;
+  order_grand_total?: number;
+  order_created_at?: number;
+}
+
+export interface StuckSyncEvent {
+  event_uuid: string;
+  operation: string;
+  entity_type: string;
+  entity_uuid: string | null;
+  sync_status: "BLOCKED" | "FAILED" | "PENDING";
+  retry_count: number;
+  sequence_no: number;
+  /** Event uuids this row waits for — the edges the cancel closure walks. */
+  dependencies: string[];
+  last_error: string | null;
+  created_at: number;
+  updated_at: number;
+  next_attempt_at: number;
+  stuck_for_ms: number;
+  /** Held because its kitchen ticket is FAILED/UNCERTAIN — fixed at the printer. */
+  waiting_on_print: boolean;
+  /** Held because a parent event is itself stuck. */
+  waiting_on_dependency: boolean;
+  /** PAYMENT or BILL_SPLIT: needs an explicit opt-in before it can be discarded. */
+  is_financial: boolean;
+  order: StuckSyncOrder | null;
+}
+
+export interface StuckSyncDiscardResult {
+  discarded: string[];
+  cascaded: string[];
+  skipped: { event_uuid: string; reason: string }[];
+}
+
+export interface StuckSyncDiscardOptions {
+  includeFinancial?: boolean;
+  reason?: string;
+  actor?: string;
+}
+
+/**
+ * Queue rows the Agent will never clear on its own.
+ *
+ * This is the Agent's own SQLite outbox, not the browser mirror the offline-sync
+ * review page reads — the mirror can only forget its copy, while these are the
+ * rows that actually hold a bill back from Backend.
+ */
+export async function listStuckLocalSyncEvents(): Promise<StuckSyncEvent[]> {
+  if (typeof window === "undefined") return [];
+  try {
+    const response = await axios.get<LocalAgentResponse<{ events: StuckSyncEvent[] }>>(
+      `${AGENT_URL}/local/sync/stuck`,
+      { timeout: 5000 },
+    );
+    if (!response.data.ok) throw new Error(response.data.error || "stuck list failed");
+    return response.data.data?.events ?? [];
+  } catch (error) {
+    throw agentResponseError(error);
+  }
+}
+
+export async function discardStuckLocalSyncEvents(
+  eventUuids: string[],
+  options: StuckSyncDiscardOptions = {},
+): Promise<StuckSyncDiscardResult> {
+  return postDiscard("/local/sync/discard", { event_uuids: eventUuids }, options);
+}
+
+export async function discardAllStuckLocalSyncEvents(
+  options: StuckSyncDiscardOptions = {},
+): Promise<StuckSyncDiscardResult> {
+  return postDiscard("/local/sync/discard-all", {}, options);
+}
+
+async function postDiscard(
+  path: string,
+  body: Record<string, unknown>,
+  options: StuckSyncDiscardOptions,
+): Promise<StuckSyncDiscardResult> {
+  try {
+    const response = await axios.post<LocalAgentResponse<StuckSyncDiscardResult>>(
+      `${AGENT_URL}${path}`,
+      {
+        ...body,
+        include_financial: options.includeFinancial === true,
+        ...(options.reason ? { reason: options.reason } : {}),
+        ...(options.actor ? { actor: options.actor } : {}),
+      },
+      { timeout: 15000 },
+    );
+    if (!response.data.ok) throw new Error(response.data.error || "discard failed");
+    localStatusCache = null;
+    return response.data.data ?? { discarded: [], cascaded: [], skipped: [] };
+  } catch (error) {
+    throw agentResponseError(error);
+  }
+}
+
 export function browserLocalSyncHasRetryableWork(summary: BrowserSyncQueueSummary) {
   return browserSyncQueueHasRetryableWork(summary);
 }
