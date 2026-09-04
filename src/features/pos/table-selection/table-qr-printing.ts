@@ -52,7 +52,10 @@ export function tableQrPrintOutcome(result: {
 // put a real job on the printer queue, so the browser print window is the fallback
 // rather than the first choice.
 export function tableQrPendingJobUuid(
-  response: { pending_query?: { print_job_uuid?: string }; print_job?: { print_job_uuid?: string } } | null,
+  response: {
+    pending_query?: { print_job_uuid?: string } | null;
+    print_job?: { print_job_uuid?: string } | null;
+  } | null,
 ) {
   return (
     optionalString(response?.pending_query?.print_job_uuid) ??
