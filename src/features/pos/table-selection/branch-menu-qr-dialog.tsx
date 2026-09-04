@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import QRCode from "qrcode";
 import { Copy, Download, ExternalLink, Minus, Plus, Printer, QrCode as QrCodeIcon } from "lucide-react";
@@ -27,23 +27,9 @@ import { useAppStore } from "@/stores/app-store";
 import { useAuthStore } from "@/stores/auth-store";
 import { usePosStore } from "@/stores/pos-store";
 import { usePrinterStore } from "@/stores/printer-store";
-<<<<<<< HEAD
-import { useAuthStore } from "@/stores/auth-store";
-import {
-  resolveTableQrPrinterContext,
-  tableQrPendingJobUuid,
-  tableQrPrintOutcome,
-} from "./table-qr-printing";
-=======
->>>>>>> feature-73
 import { useToastStore } from "@/stores/toast-store";
 import { resolveTableQrPrinterContext, tableQrPrintOutcome } from "./table-qr-printing";
 
-<<<<<<< HEAD
-// ระดับสาขา ไม่ผูกโต๊ะ — พิมพ์ผ่านคิวเครื่องพิมพ์ role q-001 เดียวกับ TableQrDialog
-// (document_type qr_table ตัวเดียวกัน ใบที่ออกมาจึงหน้าตาเหมือนกัน ต่างแค่ footer)
-// ไม่มี qr_ver ให้ revoke จึงไม่มี regenerate ทุกครั้งที่เปิด แค่ขอ token เดิมซ้ำก็ยังใช้ได้
-=======
 const MIN_PRINT_COPIES = 1;
 const MAX_PRINT_COPIES = 20;
 
@@ -51,7 +37,6 @@ const MAX_PRINT_COPIES = 20;
 // ที่เปิด (แค่ขอ token เดิมซ้ำก็ยังใช้ได้) แต่คิวพิมพ์จริง (print_job/pending_query)
 // ใช้ pattern เดียวกับ TableQrDialog ทุกอย่าง (P-72) — ต้องมี device_code/agent_id
 // ไปด้วย ไม่งั้น backend คืน print_job: null พร้อม fallback_print แทน
->>>>>>> feature-73
 export function BranchMenuQrDialog({
   onOpenChange,
   open,
@@ -63,10 +48,6 @@ export function BranchMenuQrDialog({
   const language = useAppStore((state) => state.language);
   const loginUuid = useAuthStore((state) => state.user?.uuid);
   const createBranchMenuQr = usePosStore((state) => state.createBranchMenuQr);
-<<<<<<< HEAD
-  const loginUuid = useAuthStore((state) => state.user?.uuid);
-=======
->>>>>>> feature-73
   const executeInvoice = usePrinterStore((state) => state.executeInvoice);
   const resolveDeviceContext = usePrinterStore((state) => state.resolveDeviceContext);
   const resolveDeviceIdentity = usePrinterStore((state) => state.resolveDeviceIdentity);
@@ -81,11 +62,6 @@ export function BranchMenuQrDialog({
   const pendingJobUuid = branchMenuQrPendingJobUuid(response);
   const canOpenBrowserWindow = !nativeApp;
   const canDownload = Boolean(qrDataUrl);
-<<<<<<< HEAD
-  const pendingJobUuid = useMemo(() => tableQrPendingJobUuid(response), [response]);
-  // A queued job prints without a browser window, so a native app can still print.
-=======
->>>>>>> feature-73
   const canPrint = Boolean(pendingJobUuid || (qrDataUrl && canOpenBrowserWindow));
 
   // เปิด dialog = ล้างผลเดิม แล้วค่อยขอ token ใหม่ (ไม่มี qr_ver ให้ revoke จึง
@@ -109,16 +85,9 @@ export function BranchMenuQrDialog({
     const activeLoginUuid = loginUuid;
     let ignore = false;
 
-<<<<<<< HEAD
-    // Backend has to know the device/agent of whoever pressed print before it can
-    // queue the job; without it the menu QR comes back as a browser fallback even
-    // where Auto Print is set up.
-    async function createMenuQrWithPrinterContext() {
-=======
     async function createQrWithPrinterContext() {
       // เหตุผลเดียวกับ TableQrDialog — backend ต้องรู้ device/agent ของผู้กดพิมพ์
       // ก่อนสร้างคิว มิฉะนั้นจะคืน browser fallback แม้มี Auto Print อยู่จริง
->>>>>>> feature-73
       const printerContext = await resolveTableQrPrinterContext({
         loginUuid: activeLoginUuid,
         resolveDeviceContext,
@@ -131,18 +100,11 @@ export function BranchMenuQrDialog({
         device_code: printerContext?.device_code,
         agent_id: printerContext?.agent_id,
         print_mode: printerContext?.print_mode,
-<<<<<<< HEAD
-      });
-    }
-
-    createMenuQrWithPrinterContext()
-=======
         print: printCopies,
       });
     }
 
     createQrWithPrinterContext()
->>>>>>> feature-73
       .then((result) => {
         if (ignore) return;
         setResponse(result);
@@ -167,10 +129,7 @@ export function BranchMenuQrDialog({
     language,
     loginUuid,
     open,
-<<<<<<< HEAD
-=======
     printCopies,
->>>>>>> feature-73
     resolveDeviceContext,
     resolveDeviceIdentity,
     showToast,
@@ -226,70 +185,6 @@ export function BranchMenuQrDialog({
     }
   }
 
-<<<<<<< HEAD
-  // Same contract as TableQrDialog: when Backend queued a real job, run it through
-  // the printer store and only fall back to the browser window if that job cannot
-  // reach a printer. Falling straight to the window would ignore an Auto Print
-  // printer the branch already has mapped for its table QR.
-  async function printQr() {
-    if (!canPrint || printing) return;
-
-    setPrinting(true);
-    try {
-      if (pendingJobUuid) {
-        try {
-          const printResult = await executeInvoice({
-            print_job: response?.print_job,
-            pending_query: response?.pending_query,
-            login_uuid_fk: loginUuid,
-          });
-
-          const printOutcome = tableQrPrintOutcome(printResult);
-          if (printOutcome === "pending") {
-            showToast({
-              title: t("pos.printQr"),
-              description: t("orderQueue.kitchenPrintQueued"),
-              tone: "info",
-            });
-            return;
-          }
-          if (printOutcome !== "fallback") {
-            showToast({ title: t("pos.printQr"), tone: "success" });
-            return;
-          }
-        } catch (error) {
-          showToast({
-            title: t("pos.printQr"),
-            description: error instanceof Error ? error.message : "",
-            tone: "info",
-          });
-        }
-      }
-
-      if (!canOpenBrowserWindow) {
-        showToast({
-          title: t("pos.printQr"),
-          description: t("pos.invoicePrintPopupBlocked"),
-          tone: "error",
-        });
-        return;
-      }
-
-      const printWindow = openWindowOutsideNativeApp("", "_blank", fullscreenPrintWindowFeatures());
-      if (!printWindow) {
-        showToast({
-          title: t("pos.printQr"),
-          description: t("pos.invoicePrintPopupBlocked"),
-          tone: "error",
-        });
-        return;
-      }
-      maximizePrintWindow(printWindow);
-
-      const safeTitle = escapeHtml(response?.branch_name || t("pos.createBranchMenuQr"));
-      const safeImage = escapeHtml(qrDataUrl);
-      printWindow.document.write(`<!doctype html>
-=======
   function openFallbackPrintWindow() {
     if (!qrDataUrl) return;
     const printWindow = openWindowOutsideNativeApp("", "_blank", fullscreenPrintWindowFeatures());
@@ -306,7 +201,6 @@ export function BranchMenuQrDialog({
     const safeTitle = escapeHtml(response?.branch_name || t("pos.createBranchMenuQr"));
     const safeImage = escapeHtml(qrDataUrl);
     printWindow.document.write(`<!doctype html>
->>>>>>> feature-73
 <html>
   <head>
     ${WINDOW_OPEN_FONT_STYLESHEET_LINK}
