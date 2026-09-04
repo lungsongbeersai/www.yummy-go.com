@@ -87,7 +87,7 @@ export function SettingsDialogContent({ className, ...props }: ComponentProps<ty
   return (
     <DialogContent
       className={cn(
-        "max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] overflow-hidden p-0 sm:max-h-[calc(100dvh-2rem)] sm:max-w-xl",
+        "max-h-[calc(100dvh-1rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))] w-[calc(100vw-1rem)] overflow-hidden p-0 sm:max-h-[calc(100dvh-2rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))] sm:max-w-xl",
         className
       )}
       {...props}
@@ -96,7 +96,7 @@ export function SettingsDialogContent({ className, ...props }: ComponentProps<ty
 }
 
 export function SettingsDialogForm({ className, ...props }: ComponentProps<"form">) {
-  return <form className={cn("flex max-h-[calc(100dvh-1rem)] min-h-0 flex-col sm:max-h-[calc(100dvh-2rem)]", className)} {...props} />;
+  return <form className={cn("flex max-h-[calc(100dvh-1rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))] min-h-0 flex-col sm:max-h-[calc(100dvh-2rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))]", className)} {...props} />;
 }
 
 export function SettingsDialogHeader({ className, ...props }: ComponentProps<typeof DialogHeader>) {

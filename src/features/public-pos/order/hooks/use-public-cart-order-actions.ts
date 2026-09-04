@@ -46,6 +46,7 @@ interface UsePublicCartOrderActionsParams {
   updateNote: PublicPosState["updateNote"];
   updateQty: PublicPosState["updateQty"];
   confirmKitchen: PublicPosState["confirmKitchen"];
+  viewOnly: boolean;
 }
 
 export function usePublicCartOrderActions({
@@ -70,6 +71,7 @@ export function usePublicCartOrderActions({
   updateNote,
   updateQty,
   confirmKitchen,
+  viewOnly,
 }: UsePublicCartOrderActionsParams) {
   const [productSheetOpen, setProductSheetOpen] = useState(false);
   const [selectedProductStatusKind, setSelectedProductStatusKind] =
@@ -105,6 +107,7 @@ export function usePublicCartOrderActions({
     t,
     toast,
     token,
+    viewOnly,
   });
   const {
     handleConfirmKitchen,

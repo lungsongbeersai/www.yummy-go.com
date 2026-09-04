@@ -63,6 +63,17 @@ const CARD_INTERACTIVE_CLASS =
 const CARD_LAZY_RENDER_CLASS =
   "[content-visibility:auto] [contain-intrinsic-size:auto_360px]";
 
+// โปรโมชั่น/เซ็ต มีจำนวนรายการน้อยอยู่แล้ว (ไม่ต้องพึ่ง optimization นี้) และสูงไม่นิ่ง
+// เท่าการ์ดสินค้าปกติ (โปรโมชั่นไม่มีแถวราคา/ปุ่มเลือกจำนวน, เซ็ตบางใบมีปุ่ม "เบิ่ง" บางใบไม่มี)
+// การ์ดที่ยังไม่เคย render (เลื่อนออกนอกจอ) เลยค้าง placeholder "auto 360px" ที่สูงเกินจริงไว้
+// ทำให้ทั้งแถวสูงเกิน เหลือช่องว่างใต้การ์ดที่มองเห็นจริง (P-72) — ปิด lazy-render สำหรับสองประเภทนี้
+function canLazyRenderCard(statusKind: PublicMenuKind) {
+  return (
+    statusKind !== PUBLIC_MENU_KIND.PROMOTION &&
+    statusKind !== PUBLIC_MENU_KIND.SET
+  );
+}
+
 export const ProductCard = memo(function ProductCard({
   product,
   cateUuid,
@@ -227,8 +238,14 @@ export const ProductCard = memo(function ProductCard({
     >
       {/* content-visibility:auto ก็ทำตัวเหมือน overflow:hidden ทางการ paint (contain: paint โดยนัย)
           จึงต้องอยู่ในชั้นเดียวกับ CARD_CLIP_CLASS ที่ไม่มี transform เหตุผลเดียวกับด้านบน ไม่งั้นก็เจอ
-          บั๊ก clip มุมโค้งแบบเดียวกันได้อีก แม้จะย้าย overflow-hidden ออกไปแล้วก็ตาม */}
-      <div className={cn(CARD_CLIP_CLASS, CARD_LAZY_RENDER_CLASS)}>
+          บั๊ก clip มุมโค้งแบบเดียวกันได้อีก แม้จะย้าย overflow-hidden ออกไปแล้วก็ตาม — ดู
+          canLazyRenderCard ด้านบนสำหรับเหตุผลที่ตัดออกสำหรับโปรโมชั่น/เซ็ต */}
+      <div
+        className={cn(
+          CARD_CLIP_CLASS,
+          canLazyRenderCard(statusKind) ? CARD_LAZY_RENDER_CLASS : "",
+        )}
+      >
         <Button
           type="button"
           variant="ghost"
@@ -347,7 +364,9 @@ export const SetProductCard = memo(function SetProductCard({
         blocked ? "" : CARD_INTERACTIVE_CLASS,
       )}
     >
-      <div className={cn(CARD_CLIP_CLASS, CARD_LAZY_RENDER_CLASS)}>
+      {/* canLazyRenderCard(statusKind) เป็น false เสมอที่นี่ (statusKind ล็อกเป็น SET) —
+          ดูเหตุผลที่ canLazyRenderCard ด้านบน */}
+      <div className={cn(CARD_CLIP_CLASS, canLazyRenderCard(statusKind) ? CARD_LAZY_RENDER_CLASS : "")}>
         <Button
           type="button"
           variant="ghost"

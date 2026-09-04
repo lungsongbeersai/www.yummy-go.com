@@ -136,7 +136,9 @@ export function PermissionMenuBuilder({
           ) : null}
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto p-2">
+        {/* settings-table-scroll กันพื้นที่ safe-area ล่างให้แล้ว (ดู globals.css) — หน้านี้
+            ไม่มี pagination/footer แบบ AppPagination (settings-shell.tsx) ที่กันไว้ให้เอง */}
+        <div className="settings-table-scroll min-h-0 flex-1 overflow-y-auto p-2">
           {!menus.length ? (
             <PermissionMenuEmpty
               description={t("permissionMenu.emptyDescription")}
@@ -291,7 +293,8 @@ function SelectedMenuPanel({
             <p className="mt-0.5 text-xs text-muted-foreground">{t("permissionMenu.submenuListHint")}</p>
           </div>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto p-3 lg:p-4">
+        {/* เหตุผลเดียวกับ panel เมนูหลักด้านซ้าย — settings-table-scroll กันพื้นที่ safe-area ล่างให้แล้ว */}
+        <div className="settings-table-scroll min-h-0 flex-1 overflow-y-auto p-3 lg:p-4">
           {submenus.length ? (
             <DndContext
               collisionDetection={closestCenter}

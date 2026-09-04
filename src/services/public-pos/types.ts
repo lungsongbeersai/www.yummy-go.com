@@ -24,6 +24,18 @@ export interface QRScanResponse {
   view_only?: boolean;
 }
 
+// QR โต๊ะหมดอายุ/ลูกค้า checkout ไปแล้ว → qrscan ตอบ status !== "success" (ยืนยันจาก
+// backend จริง — HTTP 200 ด้วยซ้ำ, body {"status":"error","message":"invalid/expired
+// token"}) ซึ่ง assertApiSuccess() ใน lib/api.ts โยน ServiceError ทันที ไม่เคยกลาย
+// เป็น QRScanResponse เลย — จึง fallback_view_only_url ไม่มีทางอยู่บน QRScanResponse
+// ได้ (นั่นคือ bug ในดีไซน์รอบก่อน) ต้องอยู่บน error body แทน อ่านผ่าน
+// ServiceError.payload (ดู use-public-pos-bootstrap.ts) — ยังไม่มีจาก backend จริง (P-72)
+export interface QRScanErrorPayload {
+  status: string;
+  message: string;
+  fallback_view_only_url?: string;
+}
+
 // shape ดิบที่ /posAll/customer/menu_qrscan คืนมา — เล็กกว่า QRScanResponse
 // เพราะไม่มีโต๊ะ scanTableQR() แปลงร่างเป็น QRScanResponse ให้ก่อนคืนออกไป
 export interface BranchMenuQRScanResponse {

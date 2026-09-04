@@ -8,7 +8,7 @@ import { LanguageSwitch } from "@/components/layout/language-switch";
 import { NotificationMenu } from "@/components/layout/notification-menu";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { Button } from "@/components/ui/button";
-import { useIsCapacitorNativeApp } from "@/hooks/use-capacitor-native-app";
+import { useIsNativeShellActive } from "@/hooks/use-native-shell-active";
 import { useOfflineRefetchEpoch } from "@/hooks/use-offline-refetch";
 import { cn } from "@/lib/utils";
 import type { PosTable } from "@/services/pos";
@@ -35,7 +35,7 @@ export function TableSelectionPage() {
   const loadTables = usePosStore((state) => state.loadTables);
   const refreshTables = usePosStore((state) => state.refreshTables);
   const showToast = useToastStore((state) => state.show);
-  const isCapacitorNativeApp = useIsCapacitorNativeApp();
+  const nativeShellActive = useIsNativeShellActive();
   const setHeaderRefreshAction = useNativeHeaderStore((state) => state.setRefreshAction);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<TableStatusFilter>("all");
@@ -88,20 +88,20 @@ export function TableSelectionPage() {
   // นาฬิกาในหัวข้อสีเขียวมีแค่ฝั่งเว็บ (ดูเหตุผลเรื่อง header ด้านล่าง) — ไม่ต้องนับ
   // ทุกวินาทีทิ้งเปล่า ๆ บน Capacitor ที่ไม่ได้เรนเดอร์มันอยู่แล้ว
   useEffect(() => {
-    if (isCapacitorNativeApp) return;
+    if (nativeShellActive) return;
     const interval = window.setInterval(() => setNow(new Date()), 1000);
     return () => window.clearInterval(interval);
-  }, [isCapacitorNativeApp]);
+  }, [nativeShellActive]);
 
   // ปุ่มรีเฟรชย้ายเข้า NativeTopBar (capacitor/top-bar.tsx) แทนแถวโซนในตัวหน้า —
   // ลงทะเบียน action ผ่าน store กลางเพราะ top bar เรนเดอร์อยู่คนละต้นไม้กับหน้านี้
   // (ดู native-header-store.ts) ต้องเคลียร์ตอน unmount ไม่งั้นปุ่มจะค้างอยู่ในหน้าอื่น
   // ที่ไม่มีอะไรให้รีเฟรช ชี้ closure ของ load() เก่าของหน้านี้
   useEffect(() => {
-    if (!isCapacitorNativeApp) return;
+    if (!nativeShellActive) return;
     setHeaderRefreshAction({ loading, onClick: () => void load() });
     return () => setHeaderRefreshAction(null);
-  }, [isCapacitorNativeApp, loading, load, setHeaderRefreshAction]);
+  }, [nativeShellActive, loading, load, setHeaderRefreshAction]);
 
   function selectTable(table: PosTable) {
     const params = new URLSearchParams({ table_uuid: table.table_uuid });
@@ -118,11 +118,12 @@ export function TableSelectionPage() {
 
   if (skipTableSelection) return null;
 
-  // ฝั่งเว็บ (web/app-shell.tsx) ซ่อน AppHeader ทั้งก้อนบนหน้า immersive แบบนี้ (ดู
-  // !immersiveScreen ใน app-shell.tsx) หน้านี้จึงไม่มี header ของ shell ให้เลย ต้องมี
-  // header สีเขียว + พื้นหลังลายของตัวเองไว้ — ต่างจาก Capacitor ที่ NativeTopBar โชว์
-  // อยู่แล้วทุกหน้ารวมหน้านี้ด้วย (ตามที่ตกลงกันไว้) ใส่ซ้ำจะกลายเป็น header 2 ชั้น
-  if (isCapacitorNativeApp) {
+  // ทั้งเว็บและ AppShell บน Capacitor (จอกว้าง/แนวนอน) ซ่อน AppHeader ทั้งก้อนบนหน้า
+  // immersive แบบนี้ (ดู !immersiveScreen ใน app-shell.tsx) หน้านี้จึงไม่มี header ของ
+  // shell ให้เลย ต้องมี header สีเขียว + พื้นหลังลายของตัวเองไว้ — ต่างจากตอน NativeAppShell
+  // ทำงานจริง (nativeShellActive) ที่ NativeTopBar โชว์อยู่แล้วทุกหน้ารวมหน้านี้ด้วย
+  // (ตามที่ตกลงกันไว้) ใส่ซ้ำจะกลายเป็น header 2 ชั้น
+  if (nativeShellActive) {
     return (
       <div className="flex h-full min-h-0 flex-col overflow-hidden">
         <TableListSection
@@ -144,7 +145,12 @@ export function TableSelectionPage() {
     <div data-pos-pattern="true" className="relative h-full min-h-0 overflow-hidden bg-[url('/pos/background_wide.webp')] bg-cover bg-top dark:bg-none dark:bg-background">
       <div aria-hidden="true" data-pos-pattern-overlay="true" className="pointer-events-none absolute inset-0 bg-primary/45 dark:hidden" />
       <div className="relative flex h-full min-h-0 flex-col overflow-hidden">
-        <header className="relative flex h-18 shrink-0 items-center justify-between overflow-hidden px-3 text-primary-foreground shadow-sm sm:h-20 sm:px-4">
+        {/* min-h ไม่ใช่ h คงที่ + pt safe-area — header นี้เป็น header บนสุดของหน้าจริง ๆ เสมอ
+            (ไม่มี NativeTopBar/AppHeader ด้านบนให้บนหน้า immersive แบบนี้) ต้องกันพื้นที่
+            status bar เองตอนรันบน Capacitor จอกว้าง/แนวนอน — env() เป็น 0 อยู่แล้วบนจอที่ไม่มี
+            notch/status bar (เว็บเดสก์ท็อป) จึงไม่ต้องเช็ค platform เพิ่ม ปุ่ม/นาฬิกาที่ centered
+            ด้วย items-center/top-1/2 ยังอยู่กึ่งกลางของกล่องใหม่ที่สูงขึ้นให้เองอัตโนมัติ */}
+        <header className="relative flex min-h-18 shrink-0 items-center justify-between overflow-hidden px-3 pt-[env(safe-area-inset-top,0px)] text-primary-foreground shadow-sm sm:min-h-20 sm:px-4">
           <Button aria-label={t("actions.back")} className={headerIconButtonClass} size="icon" type="button" variant="ghost" onClick={() => router.replace("/")}>
             <ChevronLeft />
           </Button>

@@ -131,7 +131,7 @@ export function CustomerDisplayPickerDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-hidden p-0 duration-200 sm:max-w-2xl">
+      <DialogContent className="max-h-[calc(100dvh-2rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))] overflow-hidden p-0 duration-200 sm:max-w-2xl">
         <DialogHeader className="border-b border-border px-4 py-4 pr-12 text-left sm:px-6">
           <DialogTitle className="flex items-center gap-2 text-base font-black">
             <Monitor />

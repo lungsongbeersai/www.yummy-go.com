@@ -469,7 +469,9 @@ function PermissionTable({
   const { t } = useTranslation();
 
   return (
-    <div className="min-h-0 flex-1 overflow-auto">
+    // settings-table-scroll กันพื้นที่ safe-area ล่างให้แล้ว (ดู globals.css) — หน้านี้ไม่มี
+    // pagination/footer แบบ AppPagination (settings-shell.tsx) ที่กันไว้ให้เอง
+    <div className="settings-table-scroll min-h-0 flex-1 overflow-auto">
       <Table className="min-w-[820px]">
         <TableHeader className="sticky top-0 z-10 bg-muted/95 backdrop-blur">
           <TableRow>

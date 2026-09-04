@@ -185,6 +185,18 @@ function runtimeImportNames(importClause: ts.ImportClause | undefined) {
 // it does no apiRequest data access, so it's exempt from the service-layer-isolation guard.
 const printRenderingServiceSpecifier = "@/services/printer/invoice-print-window";
 
+// qr-token lives under services/public-pos for co-location with the rest of the public
+// customer API layer, but isBranchMenuQrToken() is a pure client-side string-prefix
+// check (no apiRequest, no loading/error state) — features need it to classify a
+// freshly-scanned QR token before deciding whether to navigate (P-72), so it's exempt
+// from the service-layer-isolation guard for the same reason as invoice-print-window.
+const qrTokenServiceSpecifier = "@/services/public-pos/qr-token";
+
+const serviceIsolationExemptSpecifiers = new Set([
+  printRenderingServiceSpecifier,
+  qrTokenServiceSpecifier
+]);
+
 function runtimeServiceImports(directory: string): TextMatch[] {
   return sourceFiles(directory).flatMap((path) => {
     const content = readFileSync(path, "utf8");
@@ -196,7 +208,7 @@ function runtimeServiceImports(directory: string): TextMatch[] {
       if (
         !ts.isStringLiteral(specifier) ||
         !specifier.text.startsWith("@/services/") ||
-        specifier.text === printRenderingServiceSpecifier
+        serviceIsolationExemptSpecifiers.has(specifier.text)
       )
         return [];
 

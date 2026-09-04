@@ -97,6 +97,7 @@ export function useSelectedTableCartPanelWorkflow({
   const language = useAppStore((state) => state.language);
   const updateQty = usePosStore((state) => state.updateQty);
   const confirmKitchen = usePosStore((state) => state.confirmKitchen);
+  const reconfirmKitchen = usePosStore((state) => state.reconfirmKitchen);
   const deleteItem = usePosStore((state) => state.deleteItem);
   const cancelItem = usePosStore((state) => state.cancelItem);
   const confirmServed = usePosStore((state) => state.confirmServed);
@@ -722,6 +723,118 @@ export function useSelectedTableCartPanelWorkflow({
     }
   }
 
+  // ปริ้นครัวซ้ำ — คนละ endpoint/response shape จาก confirmKitchen (ดู
+  // ReconfirmToKitchenResponse) แต่ print_job/pending_query/print_queue_error
+  // เป็น pattern เดียวกัน จึงยิงผ่าน executeKitchen (document executor เดิม) ได้เลย
+  async function executeReconfirmAck(
+    response: Awaited<ReturnType<typeof reconfirmKitchen>>,
+    fallbackLoginUuid: string,
+    printerCtx?: PrinterDeviceContext | null,
+  ) {
+    const printJob = response.print_job ?? undefined;
+    const printJobUuid = optionalString(
+      printJob?.print_job_uuid,
+      response.pending_query?.print_job_uuid,
+    );
+    if (!printJobUuid) {
+      return response.print_queue_error?.message
+        ? {
+            successCount: 0,
+            failedCount: 1,
+            total: 1,
+            errorMessage: response.print_queue_error.message,
+          }
+        : { successCount: 0, failedCount: 0, total: 0 };
+    }
+
+    const loginUuid = optionalString(
+      response.pending_query?.login_uuid_fk,
+      response.login_uuid_fk,
+      fallbackLoginUuid,
+    );
+    if (!loginUuid) throw new Error("login_uuid_fk is required");
+
+    return executeKitchen({
+      print_job: printJob,
+      pending_query: response.pending_query ?? undefined,
+      login_uuid_fk: loginUuid,
+      device_code: printerCtx?.device_code,
+      agent_id: printerCtx?.agent_id,
+      print_mode: printerCtx?.print_mode,
+    });
+  }
+
+  function showReprintKitchenResult(
+    response: Awaited<ReturnType<typeof reconfirmKitchen>>,
+    result: {
+      successCount: number;
+      failedCount: number;
+      total: number;
+      errorMessage?: string;
+      pending?: boolean;
+    },
+  ) {
+    if (result.failedCount > 0) {
+      showToast({
+        title: t("pos.reprintKitchen"),
+        description: [
+          `${t("report.printFailed")} ${result.failedCount}/${result.total || result.failedCount}`,
+          result.errorMessage,
+        ]
+          .filter(Boolean)
+          .join(" — "),
+        tone: "warning",
+      });
+      return;
+    }
+
+    if (result.pending) {
+      showToast({ title: t("orderQueue.kitchenPrintQueued"), tone: "info" });
+      return;
+    }
+
+    // backend ตอบ success แต่ไม่มีเครื่องพิมพ์ map ไว้เลย (no_printer_total > 0) —
+    // ไม่ใช่ error ทางเทคนิค แต่ก็ไม่ได้พิมพ์อะไรจริง ใช้ message ของ backend เอง
+    if ((response.reprint_summary?.no_printer_total ?? 0) > 0) {
+      showToast({
+        title: t("pos.reprintKitchen"),
+        description: response.message,
+        tone: "warning",
+      });
+      return;
+    }
+
+    showToast({ title: t("pos.reprintKitchen"), tone: "success" });
+  }
+
+  async function reprintSingleItemToKitchen(item: CartItem) {
+    const itemUuid = cartItemActionUuid(item);
+    const orderUuid = cartOrderUuidForItem(orders, item);
+    if (!user?.uuid || !orderUuid || !itemUuid || cartActionsLocked) return;
+
+    setActingItemUuid(itemUuid);
+    try {
+      const response = await reconfirmKitchen({
+        order_uuid: orderUuid,
+        login_uuid_fk: user.uuid,
+        order_item_uuids: [itemUuid],
+        device_code: activePrinterContext?.device_code,
+        agent_id: activePrinterContext?.agent_id,
+        print_mode: activePrinterContext?.print_mode,
+      });
+      const result = await executeReconfirmAck(response, user.uuid, activePrinterContext);
+      showReprintKitchenResult(response, result);
+    } catch (error) {
+      showToast({
+        title: t("pos.reprintKitchenFailed"),
+        description: error instanceof Error ? error.message : "",
+        tone: "error",
+      });
+    } finally {
+      setActingItemUuid(null);
+    }
+  }
+
   async function confirmItemAction(cancelQuantity?: number) {
     if (!itemActionTarget || !actionTargetUuid || actingItemUuid) return;
 
@@ -1086,6 +1199,7 @@ export function useSelectedTableCartPanelWorkflow({
     confirmItemAction,
     confirmNewOrder,
     confirmSingleItemToKitchen,
+    reprintSingleItemToKitchen,
     currentOrderUuid,
     customerDisplay,
     displaySummary,

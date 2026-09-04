@@ -94,7 +94,9 @@ export const StatusRailSection = memo(function StatusRailSection({
   if (!visibleProducts.length && !loading) return null;
 
   return (
-    <section className="[contain-intrinsic-size:320px] [content-visibility:auto]">
+    // เหตุผลเดียวกับ ProductCategorySection — content-visibility:auto ชนกับรูปสินค้าที่
+    // โหลด async ทำให้บาง section ค้าง placeholder ว่างไว้ไม่ยอม paint เนื้อหาจริงตามจริง
+    <section>
       <PublicSectionHeading
         title={title}
         icon={<Sparkles className="size-4" aria-hidden="true" />}
@@ -105,7 +107,7 @@ export const StatusRailSection = memo(function StatusRailSection({
           <div
             ref={railRef}
             className={cn(
-              "yg-rail -mx-(--yg-gutter) overflow-x-auto overscroll-x-contain px-(--yg-gutter) pb-2",
+              "yg-rail -mx-(--yg-gutter) overflow-x-auto overflow-y-hidden overscroll-x-contain px-(--yg-gutter) pb-2",
               useDesktopGrid
                 ? "sm:mx-0 sm:overflow-visible sm:px-0"
                 : "",

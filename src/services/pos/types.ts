@@ -512,11 +512,15 @@ export interface TableQRResponse extends ApiEntity {
   print_endpoint?: string;
   role_code?: string;
   print_mode?: string;
-  print_job?: ConfirmToKitchenPrintJob;
-  pending_query?: ConfirmToKitchenPendingQuery;
-  ack_template?: ConfirmToKitchenAckTemplate;
+  login_uuid_fk?: string;
+  // ทุกฟิลด์คิวพิมพ์เป็น null ได้จริงเวลาไม่มี device_code (ดูตัวอย่างจริงใน
+  // branch-menu-qr-dialog.tsx comment ข้างบน — endpoint ตระกูลเดียวกัน)
+  print_job?: ConfirmToKitchenPrintJob | null;
+  pending_query?: ConfirmToKitchenPendingQuery | null;
+  ack_template?: ConfirmToKitchenAckTemplate | null;
   fallback_print?: unknown;
   reason?: string | null;
+  debug_queue?: unknown;
 }
 
 export interface CreateTableQRRequest {
@@ -532,13 +536,58 @@ export interface CreateTableQRRequest {
 // QR โต๊ะทั้งคู่) แยกชื่อไว้เพราะฝั่ง caller ต้องแยกแยะว่ามาจาก action ไหน
 export type CreateTableQRResponse = TableQRResponse;
 
+export interface CreateBranchMenuQRRequest {
+  lang?: string;
+  login_uuid_fk?: string;
+  device_code?: string;
+  agent_id?: string;
+  print_mode?: string;
+  // จำนวนชุดที่ต้องการพิมพ์ — backend ฝังไว้ใน print_job/fallback_print ที่คืนกลับมา
+  print?: number;
+}
+
+export interface BranchMenuQRJob extends ApiEntity {
+  type?: string;
+  document_type?: string;
+  role_code?: string;
+  lang?: string;
+  qr_url?: string;
+  branch_name?: string;
+  branch_uuid?: string;
+}
+
+export interface BranchMenuQRFallbackPrint extends ApiEntity {
+  mode?: string;
+  role_code?: string;
+  printer?: string | null;
+  payload?: BranchMenuQRJob;
+  reason?: string | null;
+}
+
+export interface BranchMenuQRPrintPolicy extends ApiEntity {
+  role_code?: string;
+  print_mode?: string;
+  can_mobile_print?: boolean;
+  can_agent_print?: boolean;
+  can_windows_print?: boolean;
+  reason?: string | null;
+}
+
 // QR เมนูอย่างเดียว (ສ້າງ QR ເມນູອາຫານ) — ระดับสาขา ไม่ผูกโต๊ะ ไม่มี qr_ver/
-// qr_enabled ให้ revoke จึงมี shape เล็กกว่า TableQRResponse มาก
+// qr_enabled ให้ revoke — แต่มีคิวพิมพ์แบบเดียวกับ TableQRResponse (job/print_job/
+// fallback_print/print_policy) เมื่อส่ง device_code/agent_id ไปด้วย ไม่งั้น backend
+// คืน print_job: null พร้อม fallback_print (ดู table-qr-printing.ts สำหรับ pattern เดียวกัน)
 export interface BranchMenuQRResponse extends ApiEntity {
   branch_uuid_fk?: string;
   branch_name?: string;
   token?: string;
   qr_url?: string;
+  role_code?: string;
+  job?: BranchMenuQRJob;
+  print_job?: ConfirmToKitchenPrintJob | null;
+  pending_query?: ConfirmToKitchenPendingQuery;
+  fallback_print?: BranchMenuQRFallbackPrint | null;
+  print_policy?: BranchMenuQRPrintPolicy;
 }
 
 export interface DeleteOrderItemResponse extends ApiEntity {}
@@ -761,6 +810,81 @@ export interface ConfirmToKitchenResponse extends ApiEntity {
   ack_failed_payload?: ApiEntity;
   print_job?: ConfirmToKitchenPrintJob;
   pending_query?: ConfirmToKitchenPendingQuery;
+  print_queue_error?: PrintQueueError | null;
+}
+
+// เอกสารพิมพ์ครัวซ้ำ (เครื่องพิมพ์ครัวหาย/กระดาษหมดตอนพิมพ์รอบแรก) — คนละ endpoint
+// จาก confirm_to_kitchen เพราะรับเฉพาะ order_item_uuids ที่ "ยืนยันแล้ว" อยู่ก่อน
+// ไม่ apply สถานะ/ตัด stock ซ้ำ แค่ยิงเข้าคิวเครื่องพิมพ์ใหม่เท่านั้น
+export interface ReconfirmToKitchenInput {
+  order_uuid: string;
+  order_item_uuids: string[];
+  login_uuid_fk: string;
+  lang?: string;
+  device_code?: string;
+  agent_id?: string;
+  print_mode?: string;
+}
+
+export interface ReconfirmPrinterConfigState extends ApiEntity {
+  has_any_kitchen_bar_config?: boolean;
+  any_config_category_total?: number;
+  device_mapped_category_total?: number;
+}
+
+export interface ReconfirmPrintProgress extends ApiEntity {
+  total?: number;
+  completed?: number;
+  successCount?: number;
+  failedCount?: number;
+  phase?: string;
+  message?: string;
+}
+
+export interface ReconfirmSummary extends ApiEntity {
+  requested_total?: number;
+  reprint_total?: number;
+  queued_total?: number;
+  no_printer_total?: number;
+  not_reprintable_total?: number;
+}
+
+export interface ReconfirmReprintItem extends ApiEntity {
+  order_item_uuid?: string;
+  confirmed_qty?: number;
+  stock_cut_qty?: number;
+}
+
+export interface ReconfirmNoPrinterItem extends ApiEntity {
+  order_item_uuid?: string;
+  cate_uuid_fk?: string;
+  reason?: string;
+}
+
+// print_job/pending_query เป็น pattern เดียวกับ ConfirmToKitchenResponse — ถ้ามี
+// device_code/agent_id ที่ map เครื่องพิมพ์ได้จริง backend จะคืนคิวจริงให้ยิงผ่าน
+// executeInvoice ต่อ (ดู use-selected-table-cart-panel-workflow.ts) ถ้าไม่มีเครื่องพิมพ์
+// map ไว้เลย (ตัวอย่างจริงที่ได้มา) จะได้ print_job.print_job_uuid: null แทน
+export interface ReconfirmToKitchenResponse extends ApiEntity {
+  status: string;
+  message: string;
+  mode?: string;
+  lang?: string;
+  order_uuid?: string;
+  login_uuid_fk?: string;
+  branch_uuid_fk?: string;
+  table_uuid?: string;
+  zone_uuid?: string;
+  printer_config_state?: ReconfirmPrinterConfigState;
+  print_job?: ConfirmToKitchenPrintJob | null;
+  next_action?: ConfirmToKitchenNextAction | null;
+  pending_query?: ConfirmToKitchenPendingQuery | null;
+  ack_template?: ConfirmToKitchenAckTemplate | null;
+  print_progress?: ReconfirmPrintProgress;
+  reprint_summary?: ReconfirmSummary;
+  reprint_items?: ReconfirmReprintItem[];
+  not_reprintable_item_uuids?: string[];
+  no_printer_items?: ReconfirmNoPrinterItem[];
   print_queue_error?: PrintQueueError | null;
 }
 

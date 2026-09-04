@@ -55,6 +55,9 @@ export function PublicPosClient({
   const errorTitle =
     table && !qrDisabled ? t("pos.productLoadFailed") : t("pos.qrScanFailed");
   const canOrder = Boolean(table && !qrDisabled && !isPublicLoading);
+  // QR เมนูอย่างเดียว (view_only) — เมนูโชว์ได้ (canOrder) แต่ปุ่มตะกร้าบน header ต้องปิด
+  // ด้วย ไม่งั้นเปิด CartSheet ได้ทั้งที่ BottomNav ซ่อนทางเข้าไปแล้ว
+  const canOpenCart = canOrder && !table?.view_only;
   usePublicPosThemeScope(fontClassName, accent);
 
   return (
@@ -76,7 +79,7 @@ export function PublicPosClient({
           theme={theme}
           accent={accent}
           cartQty={cartQty}
-          canOpenCart={canOrder}
+          canOpenCart={canOpenCart}
           onAccentChange={writePublicPosAccent}
           onToggleTheme={toggleTheme}
           onOpenCart={() => setCartOpen(true)}

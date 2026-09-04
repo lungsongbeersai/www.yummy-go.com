@@ -5,7 +5,9 @@ import type { Route } from "next";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useResetOnDeps } from "@/hooks/use-reset-on-change";
+import { ServiceError } from "@/lib/api";
 import { toApiLanguage, toLanguage, type Language } from "@/lib/language";
+import type { QRScanErrorPayload } from "@/services/public-pos";
 import { useAppStore } from "@/stores/app-store";
 import { usePublicPosStore } from "@/stores/public-pos-store";
 import { PUBLIC_LOADING_MIN_MS } from "@/features/public-pos/order/constants";
@@ -137,6 +139,40 @@ export function usePublicPosBootstrap({
     });
   }, [activeLanguage, languageReady, pathname, router, searchParamsString]);
 
+  // QR โต๊ะหมดอายุ/ถูก revoke แล้ว (ปิดบิล/เคลียร์โต๊ะ) แต่ backend แนบลิงก์เมนู
+  // อย่างเดียวของสาขามาบน error body (P-72 fallback contract) — สลับไปโหมดดูเมนู
+  // อย่างเดียวแทนที่จะค้างที่หน้า error เดิม คืน true เมื่อ redirect จริง (ผู้เรียก
+  // จะได้ไม่ setError ทับ)
+  const redirectToFallbackViewOnlyMenu = useCallback(
+    (error: unknown) => {
+      if (!(error instanceof ServiceError)) return false;
+
+      const payload = error.payload as QRScanErrorPayload | undefined;
+      const rawFallbackUrl = payload?.fallback_view_only_url;
+      if (typeof rawFallbackUrl !== "string" || !rawFallbackUrl.trim()) return false;
+
+      let fallbackUrl: URL;
+      try {
+        fallbackUrl = new URL(rawFallbackUrl, window.location.origin);
+      } catch {
+        return false;
+      }
+      if (fallbackUrl.origin !== window.location.origin) return false;
+
+      const fallbackToken = fallbackUrl.searchParams.get("t");
+      if (!fallbackToken || fallbackToken === token) return false;
+
+      const params = new URLSearchParams(searchParamsString);
+      params.set("t", fallbackToken);
+      const fallbackLang = fallbackUrl.searchParams.get("lang");
+      if (fallbackLang) params.set("lang", fallbackLang);
+
+      router.replace(`${pathname}?${params.toString()}` as Route, { scroll: false });
+      return true;
+    },
+    [pathname, router, searchParamsString, token],
+  );
+
   useEffect(() => {
     if (!hasToken) {
       reset();
@@ -169,6 +205,13 @@ export function usePublicPosBootstrap({
           requestKey: scanKey,
           status: PUBLIC_QR_SCAN_STATUS.ERROR,
         });
+
+        // QR โต๊ะหมดอายุ/ลูกค้า checkout ไปแล้ว → backend ตอบ status !== "success"
+        // (ยืนยันจากของจริง: HTTP 200, {"status":"error","message":"invalid/expired
+        // token"}) แปลว่าไม่มีทาง set `table` ได้เลย ต้องอ่าน fallback URL จาก error
+        // payload ตรงนี้แทน (P-72 — ยังไม่มีจริงจนกว่า backend จะเพิ่ม field)
+        if (redirectToFallbackViewOnlyMenu(error)) return;
+
         setError(
           error instanceof Error ? error.message : t("pos.qrScanFailed"),
         );
@@ -177,6 +220,7 @@ export function usePublicPosBootstrap({
     activeLanguage,
     hasToken,
     languageReady,
+    redirectToFallbackViewOnlyMenu,
     reset,
     scanKey,
     scanTable,

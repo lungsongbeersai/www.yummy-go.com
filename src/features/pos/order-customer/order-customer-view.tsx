@@ -16,7 +16,7 @@ import { LanguageSwitch } from "@/components/layout/language-switch";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Spinner } from "@/components/ui/spinner";
-import { useIsCapacitorNativeApp } from "@/hooks/use-capacitor-native-app";
+import { useIsNativeShellActive } from "@/hooks/use-native-shell-active";
 import { cn } from "@/lib/utils";
 import { optionalString } from "@/lib/values";
 import { useNativeHeaderStore } from "@/stores/native-header-store";
@@ -48,7 +48,7 @@ import type { OrderCustomerWorkflow } from "./use-order-customer-workflow";
 // โหมดมืดไม่มีรูปพื้นหลัง (dark:bg-none dark:bg-background) เลยเหลือแต่กระจกใสซ้อนพื้นเข้ม
 // เกือบดำ มองแทบไม่เห็นขอบ/พื้นปุ่ม จึงต้องมี dark: ทับด้วย token การ์ดปกติของแอป
 // Capacitor (neutral) ใช้ token การ์ดแบบเดียวกันนี้ตรง ๆ เสมอ ไม่ผูกกับ dark: เพราะพื้นหลัง
-// เป็น bg-background ธรรมดา (ไม่มีรูป) ทั้งสองโหมดอยู่แล้ว — ดู isCapacitorNativeApp ด้านล่าง
+// เป็น bg-background ธรรมดา (ไม่มีรูป) ทั้งสองโหมดอยู่แล้ว — ดู nativeShellActive ด้านล่าง
 function headerIconButtonClass(neutral: boolean) {
   return cn(
     "size-11 shrink-0 rounded-full border shadow-sm",
@@ -113,7 +113,7 @@ export function OrderCustomerView({
     zones,
   } = workflow;
 
-  const isCapacitorNativeApp = useIsCapacitorNativeApp();
+  const nativeShellActive = useIsNativeShellActive();
   const setHeaderRefreshAction = useNativeHeaderStore((state) => state.setRefreshAction);
   const setHeaderTitle = useNativeHeaderStore((state) => state.setTitle);
   // refreshAll ไม่ได้ห่อ useCallback ในตัว workflow เอง (ได้ reference ใหม่ทุก render) —
@@ -129,21 +129,21 @@ export function OrderCustomerView({
   // มีให้อยู่แล้วบน Capacitor (ตามที่ตกลงไว้) — ลงทะเบียนปุ่มรีเฟรชเข้า top bar แทน
   // ผ่าน store กลาง (เหมือนที่ทำไว้กับหน้า table-selection)
   useEffect(() => {
-    if (!isCapacitorNativeApp) return;
+    if (!nativeShellActive) return;
     setHeaderRefreshAction({
       loading: loadingTables || loadingMenu,
       onClick: () => void refreshAllRef.current(),
     });
     return () => setHeaderRefreshAction(null);
-  }, [isCapacitorNativeApp, loadingTables, loadingMenu, setHeaderRefreshAction]);
+  }, [nativeShellActive, loadingTables, loadingMenu, setHeaderRefreshAction]);
 
   // โชว์ชื่อโต๊ะ (เช่น "T01") ใน top bar แทนหัวข้อ static "ອໍເດີລູກຄ້າ" ของ route —
   // ผู้ใช้ต้องดูออกไวว่ากำลังสั่งให้โต๊ะไหนอยู่ ไม่ใช่แค่ชื่อหน้าเฉย ๆ
   useEffect(() => {
-    if (!isCapacitorNativeApp) return;
+    if (!nativeShellActive) return;
     setHeaderTitle(selectedTable?.table_name || null);
     return () => setHeaderTitle(null);
-  }, [isCapacitorNativeApp, selectedTable, setHeaderTitle]);
+  }, [nativeShellActive, selectedTable, setHeaderTitle]);
 
   // การ์ดแถวแรกคือ LCP ของหน้านี้ ปล่อยให้ lazy จะดีเลย์ LCP และ Next เตือนตอน dev
   // เคยลองวัดความกว้างกล่องจริงด้วย ResizeObserver มาก่อน แต่ใช้ไม่ได้จริง — หน้านี้ SSR ตอนโหลดครั้งแรก
@@ -163,10 +163,10 @@ export function OrderCustomerView({
       // ไม่ใส่ attribute data-pos-pattern เลยบน Capacitor (ไม่ใช่แค่เปลี่ยน class) เพราะ
       // .android-webview-compat [data-pos-pattern] ใน globals.css บังคับรูปพื้นหลังกลับมา
       // ด้วย !important จาก attribute selector ตัวนี้โดยตรง ต่อให้ class ไม่มีรูปแล้วก็ตาม
-      {...(!isCapacitorNativeApp ? { "data-pos-pattern": "true" } : {})}
+      {...(!nativeShellActive ? { "data-pos-pattern": "true" } : {})}
       className={cn(
         "relative h-full min-h-0 overflow-hidden text-foreground",
-        isCapacitorNativeApp
+        nativeShellActive
           // Capacitor ใช้พื้นหลังปกติของแอป (ขาว/การ์ดตามธีม) ไม่ใช่สี primary อีกต่อไป —
           // header/sort-tabs/search ผ่าน prop neutral ให้ใช้ text/สีแบบเดียวกับ dark: token
           // เดิมตรง ๆ (อ่านออกชัวร์บนพื้นขาวอยู่แล้ว) แทนสีขาวที่ออกแบบไว้สำหรับพื้นเข้ม/รูปภาพ
@@ -174,7 +174,7 @@ export function OrderCustomerView({
           : "bg-[url('/pos/background_wide.webp')] bg-cover bg-top dark:bg-none dark:bg-background",
       )}
     >
-      {!isCapacitorNativeApp ? (
+      {!nativeShellActive ? (
         <div
           aria-hidden="true"
           data-pos-pattern-overlay="true"
@@ -185,12 +185,16 @@ export function OrderCustomerView({
         <header
           className={cn(
             "relative shrink-0 overflow-hidden border-b px-3 sm:px-3.5 lg:col-span-2",
-            isCapacitorNativeApp
+            nativeShellActive
               ? "border-border py-1 text-foreground"
-              : "border-white/15 bg-transparent py-2 text-white shadow-[0_1px_0_rgb(255_255_255/0.08)] lg:py-1.5"
+              // ตอน nativeShellActive=false นี่คือ header บนสุดของหน้าจริง ๆ (ไม่มี NativeTopBar
+              // ให้ด้านบนแล้ว — AppShell ก็ซ่อน header ตัวเองบน immersive screen เหมือนกัน) ต้อง
+              // กันพื้นที่ status bar เองด้วย pt เพิ่มจาก env(safe-area-inset-top) ไม่งั้น
+              // sort-tabs/search แถวบนโดน status bar ทับตอนรันบน Capacitor จอกว้าง/แนวนอน
+              : "border-white/15 bg-transparent py-2 pt-[calc(0.5rem+env(safe-area-inset-top,0px))] text-white shadow-[0_1px_0_rgb(255_255_255/0.08)] lg:py-1.5 lg:pt-[calc(0.375rem+env(safe-area-inset-top,0px))]"
           )}
         >
-          {!isCapacitorNativeApp ? (
+          {!nativeShellActive ? (
             <div
               aria-hidden="true"
               className="pointer-events-none absolute inset-0 bg-black/10"
@@ -199,12 +203,12 @@ export function OrderCustomerView({
           <div
             className={cn(
               "relative flex min-w-0 flex-col lg:hidden",
-              isCapacitorNativeApp ? "gap-1.5" : "gap-2"
+              nativeShellActive ? "gap-1.5" : "gap-2"
             )}
           >
             <EmployeeSortTabs
               activeSort={activeSort}
-              neutral={isCapacitorNativeApp}
+              neutral={nativeShellActive}
               onSortChange={(status) => setActiveSort(status)}
             />
             {/* ปุ่มย้อนกลับ + เมนู "..." (ภาษา/ธีม/รีเฟรช) ซ้ำกับ NativeTopBar บน
@@ -212,7 +216,7 @@ export function OrderCustomerView({
                 screen) จึงต้องเก็บไว้เหมือนเดิม (ปุ่มรีเฟรชย้ายไปลงทะเบียนเข้า top bar
                 แทนแล้วด้านบน) */}
             <div className="flex min-w-0 items-center gap-2">
-              {!isCapacitorNativeApp ? (
+              {!nativeShellActive ? (
                 <Button
                   type="button"
                   variant="ghost"
@@ -228,13 +232,13 @@ export function OrderCustomerView({
               <EmployeeSearchForm
                 className="flex-1"
                 loading={loadingMenu}
-                neutral={isCapacitorNativeApp}
+                neutral={nativeShellActive}
                 search={search}
                 onSearchChange={setSearch}
                 onSearchSubmit={() => void submitSearch()}
               />
 
-              {!isCapacitorNativeApp ? (
+              {!nativeShellActive ? (
                 <EmployeeMobileHeaderActions
                   loading={loadingTables || loadingMenu}
                   onRefresh={() => void refreshAll()}
@@ -244,7 +248,7 @@ export function OrderCustomerView({
 
             <EmployeeCategoryRail
               categories={categories}
-              neutral={isCapacitorNativeApp}
+              neutral={nativeShellActive}
               selectedCateUuid={selectedCateUuid}
               onSelectCategory={(cateUuid) => void selectCategory(cateUuid)}
             />
@@ -253,13 +257,13 @@ export function OrderCustomerView({
           <div className="relative hidden min-w-0 items-center gap-2 lg:flex lg:h-11">
             {/* Capacitor's NativeTopBar already carries back / refresh / notif —
                 on native, only the sort tabs + search belong in this row. */}
-            {!isCapacitorNativeApp ? (
+            {!nativeShellActive ? (
               <Button
                 type="button"
                 variant="ghost"
                 size="icon"
                 aria-label={t("actions.back")}
-                className={headerIconButtonClass(isCapacitorNativeApp)}
+                className={headerIconButtonClass(nativeShellActive)}
                 onClick={openTablesPage}
               >
                 <ArrowLeft data-icon="inline-start" />
@@ -270,13 +274,13 @@ export function OrderCustomerView({
               <EmployeeSortTabs
                 activeSort={activeSort}
                 className="w-full"
-                neutral={isCapacitorNativeApp}
+                neutral={nativeShellActive}
                 onSortChange={(status) => setActiveSort(status)}
               />
               <EmployeeSearchForm
                 className="w-full lg:max-w-xl"
                 loading={loadingMenu}
-                neutral={isCapacitorNativeApp}
+                neutral={nativeShellActive}
                 search={search}
                 showSearchLabel
                 onSearchChange={setSearch}
@@ -284,7 +288,7 @@ export function OrderCustomerView({
               />
             </div>
 
-            {!isCapacitorNativeApp ? (
+            {!nativeShellActive ? (
               <div className="ml-auto flex shrink-0 items-center gap-2">
                 {/* lg–xl (ประมาณ iPad landscape) แถวนี้ไม่พอที่ใส่ปุ่มภาษา/ธีม/รีเฟรช
                     แยก 3 ปุ่มพร้อมกับ sort tabs + search ที่กว้างคงที่ — คำนวณแล้ว
@@ -293,13 +297,13 @@ export function OrderCustomerView({
                     ที่ว่างพอ */}
                 <div className="hidden items-center gap-2 xl:flex">
                   <LanguageSwitch
-                    className={headerIconButtonClass(isCapacitorNativeApp)}
+                    className={headerIconButtonClass(nativeShellActive)}
                     compact
                     size="icon"
                     variant="ghost"
                   />
                   <ThemeToggle
-                    className={headerIconButtonClass(isCapacitorNativeApp)}
+                    className={headerIconButtonClass(nativeShellActive)}
                     size="icon"
                     variant="ghost"
                   />
@@ -308,7 +312,7 @@ export function OrderCustomerView({
                     variant="ghost"
                     size="icon"
                     aria-label={t("actions.refresh")}
-                    className={headerIconButtonClass(isCapacitorNativeApp)}
+                    className={headerIconButtonClass(nativeShellActive)}
                     disabled={loadingTables || loadingMenu}
                     onClick={() => void refreshAll()}
                   >
@@ -318,7 +322,7 @@ export function OrderCustomerView({
                 <div className="xl:hidden">
                   <EmployeeMobileHeaderActions
                     loading={loadingTables || loadingMenu}
-                    neutral={isCapacitorNativeApp}
+                    neutral={nativeShellActive}
                     onRefresh={() => void refreshAll()}
                   />
                 </div>
@@ -331,7 +335,7 @@ export function OrderCustomerView({
           <EmployeeCategorySidebar
             categories={categories}
             loading={loadingMenu && !categories.length}
-            neutral={isCapacitorNativeApp}
+            neutral={nativeShellActive}
             selectedCateUuid={selectedCateUuid}
             onSelectCategory={(cateUuid) => void selectCategory(cateUuid)}
           />
@@ -344,7 +348,10 @@ export function OrderCustomerView({
               {loadingMenu ? (
                 <ProductGridSkeleton />
               ) : activeProducts.length ? (
-                <div className={cn(PRODUCT_GRID_CLASS, "pb-24 lg:pb-4")}>
+                // lg: (แนวนอน/แท็บเล็ต — ไม่มีปุ่มตะกร้าลอย/แถบล่างมาบัง) ต้องกันแถบ gesture ของ
+                // ระบบเองด้วย safe-area-inset-bottom โดยเฉพาะตอนรันบน Capacitor ผ่าน AppShell
+                // ที่ไม่มี bottom nav มาช่วยกันให้แล้วเหมือน NativeAppShell
+                <div className={cn(PRODUCT_GRID_CLASS, "pb-24 lg:pb-[calc(1rem+var(--pos-system-bottom-safe-area))]")}>
                   {activeProducts.map((entry, index) => (
                     <EmployeeProductCard
                       key={`${entry.cateUuid}-${entry.product.prodUuid}-${

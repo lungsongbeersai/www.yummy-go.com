@@ -30,6 +30,8 @@ import { CartSheet } from "./cart-sheet";
 import { PublicCategoryMenu } from "./public-category-menu";
 import { PublicMenuHero } from "./public-menu-hero";
 import { PublicQrDialog } from "./public-qr-dialog";
+import { PublicQrOrderScanDialog } from "./public-qr-order-scan-dialog";
+import { PublicViewOnlyOrderBanner } from "./public-view-only-order-banner";
 import {
   MenuEmptyState,
   ProductsSkeleton,
@@ -62,6 +64,8 @@ export function ProductBrowseContent({
     (): boolean => DEFAULT_PUBLIC_POS_HERO_VISIBLE,
   );
   const categoryRailRef = useRef<HTMLDivElement | null>(null);
+  const viewOnlyScanButtonRef = useRef<HTMLButtonElement | null>(null);
+  const pendingScanFocusRef = useRef(false);
   const {
     cart,
     cartActions,
@@ -80,10 +84,12 @@ export function ProductBrowseContent({
     loadingMenu,
     onCartOpenChange,
     qr,
+    qrOrderScanner,
     saving,
     search,
     selectedProduct,
     table,
+    viewOnly,
   } = workflow;
   const {
     activeValue,
@@ -122,8 +128,33 @@ export function ProductBrowseContent({
     writePublicProductLayoutMode(mode);
   }
 
+  // ปุ่ม "ສະແກນ QR ເພື່ອສັ່ງອາຫານ" ใน modal รายละเอียดสินค้า (โหมดดูอย่างเดียว) —
+  // ปิด modal แล้วพา user กลับไปที่ปุ่มเดิมบนแบนเนอร์แทนที่จะเปิด scanner ซ้อนจาก
+  // ในมัด modal เอง
+  function handleScanQrFromModal() {
+    pendingScanFocusRef.current = true;
+    cartActions.setProductSheetOpen(false);
+  }
+
+  // Radix คืนโฟกัสให้ trigger เดิม (การ์ดสินค้า) เป็นค่าเริ่มต้นตอน modal ปิด — ที่นี่
+  // ต้องการโฟกัสปุ่มสแกน QR แทน จึง preventDefault แล้วจัดการเองหลังภาพเคลื่อนไหวปิดจบ
+  function handleProductSheetCloseAutoFocus(event: Event) {
+    if (!pendingScanFocusRef.current) return;
+    pendingScanFocusRef.current = false;
+    event.preventDefault();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    viewOnlyScanButtonRef.current?.focus({ preventScroll: true });
+  }
+
   return (
     <div className="flex flex-col gap-3">
+      {viewOnly ? (
+        <PublicViewOnlyOrderBanner
+          onScan={qrOrderScanner.openQrOrderScanner}
+          triggerRef={viewOnlyScanButtonRef}
+        />
+      ) : null}
+
       {heroVisible ? (
         <PublicMenuHero onSearch={search.openSearchSheet} />
       ) : null}
@@ -195,8 +226,8 @@ export function ProductBrowseContent({
             >
               <div className="flex items-center gap-2">
                 <div className="relative min-w-0 flex-1">
-                  <div ref={categoryRailRef} className="yg-rail overflow-x-auto">
-                    <TabsList className="h-11 w-max justify-start gap-2 bg-transparent p-0 group-data-horizontal/tabs:h-11">
+                  <div ref={categoryRailRef} className="yg-rail overflow-x-auto overflow-y-hidden">
+                    <TabsList className="h-11 w-max justify-start gap-1.5 bg-transparent p-0 group-data-horizontal/tabs:h-11">
                       {visibleCategoryTabs.map((category) => (
                         <TabsTrigger
                           key={category.cateUuid}
@@ -204,7 +235,7 @@ export function ProductBrowseContent({
                           ref={(element) => {
                             categoryTabRefs.current[category.cateUuid] = element;
                           }}
-                          className="h-11 flex-none gap-2 rounded-full border border-yg-line bg-yg-panel px-4 text-sm font-bold text-yg-muted shadow-none backdrop-blur-md duration-150 ease-out active:scale-[0.95] active:duration-75 motion-reduce:transition-none data-[state=active]:border-yg-accent data-[state=active]:bg-yg-accent data-[state=active]:text-yg-on-accent data-[state=active]:shadow-[0_8px_20px_-8px_var(--yg-accent)]"
+                          className="h-11 flex-none gap-1.5 rounded-full border border-yg-line bg-yg-panel px-3 text-sm font-bold text-yg-muted shadow-none backdrop-blur-md duration-150 ease-out active:scale-[0.95] active:duration-75 motion-reduce:transition-none data-[state=active]:border-yg-accent data-[state=active]:bg-yg-accent data-[state=active]:text-yg-on-accent data-[state=active]:shadow-[0_8px_20px_-8px_var(--yg-accent)]"
                         >
                           {jumpingCateUuid === category.cateUuid ? (
                             <Loader2 className="size-4 shrink-0 animate-spin" />
@@ -347,6 +378,15 @@ export function ProductBrowseContent({
         onShare={qr.handleShareQr}
       />
 
+      <PublicQrOrderScanDialog
+        open={qrOrderScanner.qrOrderScannerOpen}
+        status={qrOrderScanner.qrOrderScannerStatus}
+        videoRef={qrOrderScanner.qrOrderScannerVideoRef}
+        onOpenChange={(next) =>
+          next ? qrOrderScanner.openQrOrderScanner() : qrOrderScanner.closeQrOrderScanner()
+        }
+      />
+
       <ProductOrderSheet
         open={cartActions.productSheetOpen}
         onOpenChange={cartActions.setProductSheetOpen}
@@ -356,6 +396,9 @@ export function ProductBrowseContent({
         lang={lang}
         loading={loadingItem}
         saving={saving}
+        viewOnly={viewOnly}
+        onScanQr={handleScanQrFromModal}
+        onCloseAutoFocus={handleProductSheetCloseAutoFocus}
         onAdd={(payload, sourceRect) => {
           if (selectedProduct)
             void cartActions.handleAddToCart(

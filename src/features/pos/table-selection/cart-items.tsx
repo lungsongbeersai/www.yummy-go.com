@@ -2,7 +2,7 @@
 
 import type { CSSProperties, ReactNode } from "react";
 import Image from "next/image";
-import { Ban, BadgePercent, ChefHat, ClipboardCheck, Gift, Minus, MoreVertical, Pencil, Plus, ShoppingBag, StickyNote, Tag, Trash2, Utensils } from "lucide-react";
+import { Ban, BadgePercent, ChefHat, ClipboardCheck, Gift, Minus, MoreVertical, Pencil, Plus, Printer, ShoppingBag, StickyNote, Tag, Trash2, Utensils } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -89,6 +89,7 @@ export function CartTabItems({
   onItemDiscount,
   onOpenItemAction,
   onOpenQuantityDialog,
+  onReprintKitchen,
   onSetSplitItemQuantity,
   onToggleSplitItem,
   splitSelectionDisabled = false,
@@ -109,6 +110,7 @@ export function CartTabItems({
   onItemDiscount: (item: CartItem) => void;
   onOpenItemAction: (action: CartItemAction, item: CartItem) => void;
   onOpenQuantityDialog: (item: CartItem) => void;
+  onReprintKitchen: (item: CartItem) => void;
   onSetSplitItemQuantity?: (item: CartItem, quantity: number) => void;
   onToggleSplitItem?: (item: CartItem) => void;
   splitSelectionDisabled?: boolean;
@@ -147,6 +149,7 @@ export function CartTabItems({
             onItemDiscount={onItemDiscount}
             onOpenItemAction={onOpenItemAction}
             onOpenQuantityDialog={onOpenQuantityDialog}
+            onReprintKitchen={onReprintKitchen}
             onSetSplitItemQuantity={onSetSplitItemQuantity}
             onToggleSplitItem={onToggleSplitItem}
           />
@@ -185,6 +188,7 @@ function CartItemRow({
   onItemDiscount,
   onOpenItemAction,
   onOpenQuantityDialog,
+  onReprintKitchen,
   onSetSplitItemQuantity,
   onToggleSplitItem,
   splitEligible,
@@ -206,6 +210,7 @@ function CartItemRow({
   onItemDiscount: (item: CartItem) => void;
   onOpenItemAction: (action: CartItemAction, item: CartItem) => void;
   onOpenQuantityDialog: (item: CartItem) => void;
+  onReprintKitchen: (item: CartItem) => void;
   onSetSplitItemQuantity?: (item: CartItem, quantity: number) => void;
   onToggleSplitItem?: (item: CartItem) => void;
   splitEligible: boolean;
@@ -271,6 +276,9 @@ function CartItemRow({
   const canDelete = statusValue === 0 || statusValue === 1;
   const canCancel = !editable && statusValue !== 0 && statusValue !== 1 && !isCanceled && !isServedCartItem(item);
   const canConfirmServed = !editable && statusValue !== 0 && statusValue !== 1 && !isCanceled && !isServedCartItem(item);
+  // ปริ้นครัวซ้ำได้เฉพาะรายการที่ยืนยันแล้ว (เดียวกับ bucket ของ canCancel/canConfirmServed)
+  // — ยังไม่ยืนยัน (0/1) หรือถูกยกเลิก/เสิร์ฟแล้วไม่มีอะไรให้พิมพ์ซ้ำ
+  const canReprintKitchen = !editable && statusValue !== 0 && statusValue !== 1 && !isCanceled && !isServedCartItem(item);
   const splitSelectable = Boolean(splitEligible && itemUuid && onToggleSplitItem);
   const splitEnabled = splitSelectable && !splitSelectionDisabled;
   const isWaitingConfirm = statusValue === 0;
@@ -386,6 +394,8 @@ function CartItemRow({
               canConfirmKitchen={editable && statusValue === 1}
               confirmKitchenDisabled={!canConfirmKitchen || actionDisabled}
               canConfirmServed={canConfirmServed}
+              canReprintKitchen={canReprintKitchen}
+              reprintKitchenDisabled={!canConfirmKitchen || actionDisabled}
               disabled={actionDisabled}
               itemUuid={itemUuid}
               pending={acting}
@@ -395,6 +405,7 @@ function CartItemRow({
               onDelete={() => onOpenItemAction("delete", item)}
               onEditNote={() => onEditNote(item)}
               onItemDiscount={() => onItemDiscount(item)}
+              onReprintKitchen={() => onReprintKitchen(item)}
             />
             </div>
           </div>
@@ -538,6 +549,7 @@ function CartItemActionMenu({
   canConfirmKitchen,
   canConfirmServed,
   canDelete,
+  canReprintKitchen,
   confirmKitchenDisabled,
   disabled,
   itemUuid,
@@ -547,12 +559,15 @@ function CartItemActionMenu({
   onDelete,
   onEditNote,
   onItemDiscount,
-  pending
+  onReprintKitchen,
+  pending,
+  reprintKitchenDisabled
 }: {
   canCancel: boolean;
   canConfirmKitchen: boolean;
   canConfirmServed: boolean;
   canDelete: boolean;
+  canReprintKitchen: boolean;
   confirmKitchenDisabled: boolean;
   disabled: boolean;
   itemUuid: string | null;
@@ -562,7 +577,9 @@ function CartItemActionMenu({
   onDelete: () => void;
   onEditNote: () => void;
   onItemDiscount: () => void;
+  onReprintKitchen: () => void;
   pending: boolean;
+  reprintKitchenDisabled: boolean;
 }) {
   const { t } = useTranslation();
   const actionDisabled = disabled || !itemUuid;
@@ -601,6 +618,12 @@ function CartItemActionMenu({
             <DropdownMenuItem disabled={actionDisabled} onSelect={onConfirmServed}>
               <ClipboardCheck />
               {t("pos.confirmServed")}
+            </DropdownMenuItem>
+          ) : null}
+          {canReprintKitchen ? (
+            <DropdownMenuItem disabled={reprintKitchenDisabled} onSelect={onReprintKitchen}>
+              <Printer />
+              {t("pos.reprintKitchen")}
             </DropdownMenuItem>
           ) : null}
           {(canDelete || canCancel) ? <DropdownMenuSeparator /> : null}
