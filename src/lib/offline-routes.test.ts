@@ -4,6 +4,7 @@ import {
   getOfflineRedirectPath,
   isOfflineAllowedPath,
 } from "./offline-routes";
+import { supportsOfflineRoute } from "@/services/offline-sync";
 
 describe("getOfflineAllowedPaths", () => {
   it("includes order-taking pages for web/electron", () => {
@@ -31,10 +32,32 @@ describe("isOfflineAllowedPath", () => {
     expect(isOfflineAllowedPath("/sales/cancel-history", false)).toBe(false);
   });
 
-  it("keeps settings, product, and stock CRUD blocked on every platform", () => {
-    expect(isOfflineAllowedPath("/settings/user", false)).toBe(false);
-    expect(isOfflineAllowedPath("/products", false)).toBe(false);
-    expect(isOfflineAllowedPath("/stock", false)).toBe(false);
+  it("opens master-data pages for reading, since the Agent projects them locally", () => {
+    // Readable, not editable: the create/update/delete routes for these pages are
+    // absent from OFFLINE_ROUTES, and useOfflineReadOnly takes their controls away.
+    for (const path of ["/settings/user", "/settings/branch", "/products", "/stock"]) {
+      expect(isOfflineAllowedPath(path, false)).toBe(true);
+    }
+  });
+
+  it("still keeps master-data writes off the offline transport", () => {
+    for (const route of [
+      ["post", "/api/v1/product/create"],
+      ["post", "/api/v1/product/delete"],
+      ["post", "/api/v1/register/create"],
+      ["post", "/api/v1/branch/delete"],
+    ] as const) {
+      expect(supportsOfflineRoute(route[0], route[1])).toBe(false);
+    }
+    // The reads those pages need are offline-capable, which is why they can open.
+    for (const path of [
+      "/api/v1/product/fetch_limit",
+      "/api/v1/product/stock_qty",
+      "/api/v1/register/fetch_limit",
+      "/api/v1/branch/fetch_all",
+    ]) {
+      expect(supportsOfflineRoute("get", path)).toBe(true);
+    }
   });
 
   it("always allows infra pages regardless of platform or the essential-page list", () => {

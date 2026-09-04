@@ -11,6 +11,7 @@ import {
 } from "@/features/settings/shared/settings-shell";
 import { optionPageRange, optionPageSize } from "@/features/settings/shared/option-settings-utils";
 import { useOptionRowSelection } from "@/features/settings/shared/use-option-row-selection";
+import { useOfflineReadOnly } from "@/hooks/use-offline-read-only";
 import { useSettingsCrudController } from "@/features/settings/shared/use-settings-crud-controller";
 import { PAGE_LIMIT_OPTIONS } from "@/lib/pagination";
 import { canCreateStoreBranch, canDeleteStoreBranch, canEditStoreBranch } from "@/lib/permissions";
@@ -49,6 +50,9 @@ export function StoreBranchSettingsPage({ initialPagination, kind }: { initialPa
 }
 
 function StoreSettingsPage({ initialPagination }: { initialPagination: UrlPaginationState }) {
+  // Master data is read-only offline; its write routes are not on the offline
+  // transport, so the controls go away instead of failing when pressed.
+  const readOnly = useOfflineReadOnly();
   const { t } = useTranslation();
   const labels = useStoreBranchLabels();
   const updateUser = useAuthStore((state) => state.updateUser);
@@ -242,8 +246,8 @@ function StoreSettingsPage({ initialPagination }: { initialPagination: UrlPagina
     return (
       <SettingsRowActions
         row={row}
-        editDisabled={!canEdit || saving}
-        deleteDisabled={!canDelete || isCurrent || saving}
+        editDisabled={!canEdit || saving || readOnly}
+        deleteDisabled={!canDelete || isCurrent || saving || readOnly}
         actions={[
           {
             label: labels.resetPassword,
@@ -319,7 +323,7 @@ function StoreSettingsPage({ initialPagination }: { initialPagination: UrlPagina
         loadingLabel={t("settings.loading", { title })}
         table={listSurface}
         title={title}
-        onAdd={canCreate ? openCreate : undefined}
+        onAdd={canCreate && !readOnly ? openCreate : undefined}
       />
       <StoreBranchFormDialog
         activeStoreUuid={storeUuid}
@@ -352,6 +356,9 @@ function StoreSettingsPage({ initialPagination }: { initialPagination: UrlPagina
 }
 
 function BranchSettingsPage({ initialPagination }: { initialPagination: UrlPaginationState }) {
+  // Master data is read-only offline; its write routes are not on the offline
+  // transport, so the controls go away instead of failing when pressed.
+  const readOnly = useOfflineReadOnly();
   const { t } = useTranslation();
   const labels = useStoreBranchLabels();
   const updateUser = useAuthStore((state) => state.updateUser);
@@ -539,8 +546,8 @@ function BranchSettingsPage({ initialPagination }: { initialPagination: UrlPagin
     return (
       <SettingsRowActions
         row={row}
-        editDisabled={!canEdit || saving}
-        deleteDisabled={!canDelete || isCurrent || saving}
+        editDisabled={!canEdit || saving || readOnly}
+        deleteDisabled={!canDelete || isCurrent || saving || readOnly}
         onEdit={(nextRow) => openEdit(nextRow as Branch)}
         onDelete={(nextRow) => setDeleteTarget(nextRow as Branch)}
       />
@@ -608,7 +615,7 @@ function BranchSettingsPage({ initialPagination }: { initialPagination: UrlPagin
         loadingLabel={t("settings.loading", { title })}
         table={listSurface}
         title={title}
-        onAdd={canCreate ? openCreate : undefined}
+        onAdd={canCreate && !readOnly ? openCreate : undefined}
       />
       <StoreBranchFormDialog
         activeStoreUuid={storeUuid}

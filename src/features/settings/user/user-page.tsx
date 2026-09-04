@@ -24,6 +24,7 @@ import type { SortOrder } from "@/services/shared/types";
 import { useReferenceStore } from "@/stores/reference-store";
 import { useUserStore } from "@/stores/user-store";
 import { UserFormDialog } from "./user-form-dialog";
+import { useOfflineReadOnly } from "@/hooks/use-offline-read-only";
 import { UserListSurface } from "./user-list";
 import { UserPasswordDialog } from "./user-password-dialog";
 import {
@@ -42,6 +43,9 @@ const EMPTY_ROLES: Role[] = [];
 
 export function UserSettingsPage({ initialPagination }: { initialPagination: UrlPaginationState }) {
   const { t } = useTranslation();
+  // Master data is read-only offline: the create/update/delete routes are not on
+  // the offline transport, so the Add button goes away rather than failing.
+  const readOnly = useOfflineReadOnly();
   const loadRoles = useReferenceStore((state) => state.loadRoles);
   const userProfileUrl = useReferenceStore((state) => state.userProfileUrl);
   const changePassword = useReferenceStore((state) => state.changePassword);
@@ -272,7 +276,7 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
         loadingLabel={t("settings.loading", { title })}
         table={listSurface}
         title={title}
-        onAdd={openCreate}
+        onAdd={readOnly ? undefined : openCreate}
       />
       <UserFormDialog
         crop={crop}

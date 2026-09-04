@@ -1,6 +1,14 @@
 // เพจที่จำเป็นสำหรับงานขายตอนออฟไลน์ — อ้างอิงจาก OFFLINE_ROUTES/OFFLINE_GET_ROUTES ใน
 // services/offline-sync.ts (API endpoint ที่รองรับ offline จริง) ต้องแก้คู่กันเสมอถ้าเพิ่ม/ลด endpoint
 export const OFFLINE_READ_ONLY_PATHS = [
+  // Master data ที่ Local Agent มี projection ให้อยู่แล้ว (localProductManagementResponse /
+  // localStockResponse / register/fetch_limit / branch/fetch_all) — เปิดให้ "อ่าน" ตอนออฟไลน์
+  // เท่านั้น ปุ่มเพิ่ม/แก้/ลบถูกปิดด้วย useOfflineReadOnly เพราะ route เขียนของ master data
+  // ไม่ได้อยู่ใน OFFLINE_ROUTES และไม่มี conflict policy รองรับการแก้ตอนออฟไลน์
+  "/products",
+  "/stock",
+  "/settings/user",
+  "/settings/branch",
   "/sales/sales-list",
   "/report/daily-closing",
   "/report/daily-sales",
@@ -37,5 +45,7 @@ export function isOfflineAllowedPath(pathname: string, isAndroidNative: boolean)
 }
 
 export function getOfflineRedirectPath(isAndroidNative: boolean): string {
-  return isAndroidNative ? OFFLINE_READ_ONLY_PATHS[0] : "/pos/tables";
+  // Named, not OFFLINE_READ_ONLY_PATHS[0]: adding a page to that list must never
+  // silently move where an offline device lands.
+  return isAndroidNative ? "/sales/sales-list" : "/pos/tables";
 }

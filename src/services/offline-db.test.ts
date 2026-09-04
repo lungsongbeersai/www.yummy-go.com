@@ -511,6 +511,10 @@ describe("offline read-only pages can read their own cache back", () => {
     "/report/best-selling-products": ["/api/v1/best_selling/best_selling_products"],
     "/report/payment-methods": ["/api/v1/report_all/payment_summary_by_method"],
     "/report/category-sales": ["/api/v1/report_all/group_list"],
+    "/products": ["/api/v1/product/fetch_limit"],
+    "/stock": ["/api/v1/product/stock_qty"],
+    "/settings/user": ["/api/v1/register/fetch_limit"],
+    "/settings/branch": ["/api/v1/branch/fetch_all"],
   };
 
   it("covers every page in OFFLINE_READ_ONLY_PATHS", () => {

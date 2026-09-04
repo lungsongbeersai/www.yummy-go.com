@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { KeyRound, UsersRound } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { useOfflineReadOnly } from "@/hooks/use-offline-read-only";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Spinner } from "@/components/ui/spinner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -128,18 +129,22 @@ function UserRowActions({
   row: User;
 }) {
   const { t } = useTranslation();
+  // Read here rather than threaded from the page: this is the only node that
+  // renders the write controls, so the flag has nowhere else to go.
+  const readOnly = useOfflineReadOnly();
 
   return (
     <SettingsRowActions
       row={row}
-      editDisabled={protectedRow}
-      deleteDisabled={protectedRow}
+      editDisabled={protectedRow || readOnly}
+      deleteDisabled={protectedRow || readOnly}
       actions={
         currentRow
           ? [
               {
                 label: t("settings.changePassword"),
                 icon: <KeyRound aria-hidden />,
+                disabled: readOnly,
                 onSelect: onChangePassword
               }
             ]

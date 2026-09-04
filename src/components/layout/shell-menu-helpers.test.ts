@@ -114,6 +114,7 @@ describe("applyOfflineLock", () => {
       ],
     },
     { path: "/settings/user", title: "user_management" },
+    { path: "/settings/topping", title: "topping" },
   ];
 
   it("returns items unchanged while online", () => {
@@ -122,11 +123,14 @@ describe("applyOfflineLock", () => {
   });
 
   it("locks only paths outside the essential allowlist, recursively", () => {
-    const [openTable, sales, settings] = applyOfflineLock(menu, true, false);
+    const [openTable, sales, users, topping] = applyOfflineLock(menu, true, false);
     expect(openTable.offlineLocked).toBe(false);
     expect(sales.children?.[0].offlineLocked).toBe(false);
     expect(sales.children?.[1].offlineLocked).toBe(true);
-    expect(settings.offlineLocked).toBe(true);
+    // Master data the Agent projects locally stays reachable, read-only.
+    expect(users.offlineLocked).toBe(false);
+    // Settings with no local projection stay locked.
+    expect(topping.offlineLocked).toBe(true);
   });
 
   it("locks write-capable pages too when the platform is Android", () => {

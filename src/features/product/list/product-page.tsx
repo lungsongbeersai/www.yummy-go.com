@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/common/empty-state";
 import { LoadingState } from "@/components/common/loading-state";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { useOfflineReadOnly } from "@/hooks/use-offline-read-only";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldLabel } from "@/components/ui/field";
@@ -36,6 +37,8 @@ import { ProductBulkEditDialog } from "./product-bulk-edit-dialog";
 
 export function ProductPage({ initialPagination }: { initialPagination: UrlPaginationState }) {
   const product = useProductListWorkflow(initialPagination);
+  // Master data is read-only offline; its write routes are not offline-capable.
+  const readOnly = useOfflineReadOnly();
   const { t } = product;
 
   return (
@@ -44,16 +47,21 @@ export function ProductPage({ initialPagination }: { initialPagination: UrlPagin
         <div className="min-w-0">
           <p className="text-base font-black text-primary">{t("product.title")}</p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button type="button" size="lg" variant="outline" className="shadow-sm" onClick={() => product.setImportDialogOpen(true)}>
-            <Upload data-icon="inline-start" />
-            {t("product.import.button")}
-          </Button>
-          <Link className={cn(buttonVariants({ size: "lg" }), "shadow-sm")} href="/products/form">
-            <Plus data-icon="inline-start" />
-            {t("product.newProduct")}
-          </Link>
-        </div>
+        {/* Import and New both write master data, which has no offline transport.
+            Hidden rather than disabled: neither is recoverable offline, so an
+            inert button would only invite a press. */}
+        {readOnly ? null : (
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" size="lg" variant="outline" className="shadow-sm" onClick={() => product.setImportDialogOpen(true)}>
+              <Upload data-icon="inline-start" />
+              {t("product.import.button")}
+            </Button>
+            <Link className={cn(buttonVariants({ size: "lg" }), "shadow-sm")} href="/products/form">
+              <Plus data-icon="inline-start" />
+              {t("product.newProduct")}
+            </Link>
+          </div>
+        )}
       </div>
 
       {/* py-0 กัน py ฐานของ Card (16px) บวกซ้อนกับ py ของ CardHeader ด้านล่าง — ดูคำอธิบายเดียวกันใน sales-list-filters.tsx */}
@@ -197,7 +205,7 @@ export function ProductPage({ initialPagination }: { initialPagination: UrlPagin
                     {t("common.selectedCount", { count: product.selectedRows.size })}
                   </Badge>
                   <div className="flex flex-wrap items-center gap-2">
-                    <Button type="button" size="xs" variant="outline" disabled={product.bulkEditing || product.bulkDeleting} onClick={() => product.setBulkEditOpen(true)}>
+                    <Button type="button" size="xs" variant="outline" disabled={product.bulkEditing || product.bulkDeleting || readOnly} onClick={() => product.setBulkEditOpen(true)}>
                       <PencilLine data-icon="inline-start" />
                       {t("actions.edit")}
                     </Button>
@@ -206,7 +214,7 @@ export function ProductPage({ initialPagination }: { initialPagination: UrlPagin
                       size="xs"
                       variant="outline"
                       className="text-destructive hover:text-destructive"
-                      disabled={product.bulkEditing || product.bulkDeleting}
+                      disabled={product.bulkEditing || product.bulkDeleting || readOnly}
                       onClick={() => product.setBulkDeleteOpen(true)}
                     >
                       <Trash2 data-icon="inline-start" />
