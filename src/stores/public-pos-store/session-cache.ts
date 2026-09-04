@@ -85,7 +85,8 @@ export function emptyPublicPosSessionState() {
     cart: [],
     cartStatusRule: null,
     cartHydrated: false,
-    error: null
+    error: null,
+    qrRevoked: false
   };
 }
 

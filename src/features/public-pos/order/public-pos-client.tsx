@@ -92,7 +92,8 @@ export function PublicPosClient({
         >
           {isPublicLoading ? <PublicPosLoadingScreen /> : null}
 
-          {languageReady && !isPublicLoading && error ? (
+          {/* QR ถูก revoke ไปแล้วมีจอของตัวเองข้างล่าง — ไม่ต้องโชว์ error ซ้อน */}
+          {languageReady && !isPublicLoading && error && !qrDisabled ? (
             <PublicPosAlert
               title={errorTitle}
               description={error}

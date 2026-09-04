@@ -40,6 +40,7 @@ export function usePublicPosBootstrap({
   const cart = usePublicPosStore((state) => state.cart);
   const loading = usePublicPosStore((state) => state.loading);
   const error = usePublicPosStore((state) => state.error);
+  const qrRevoked = usePublicPosStore((state) => state.qrRevoked);
   const setError = usePublicPosStore((state) => state.setError);
   const scanTable = usePublicPosStore((state) => state.scanTable);
   const reset = usePublicPosStore((state) => state.reset);
@@ -64,7 +65,6 @@ export function usePublicPosBootstrap({
   const activeLanguage = appLanguage;
   const languageReady = hydrated && initialQueryLanguageApplied;
   const hasToken = Boolean(token.trim());
-  const qrDisabled = Boolean(table && !table.qr_enabled);
   const scanKey =
     hasToken && languageReady
       ? publicQrScanRequestKey(token, activeLanguage, scanAttempt)
@@ -72,15 +72,24 @@ export function usePublicPosBootstrap({
   const lastStartedScanKey = useRef("");
   const cartQty = useMemo(() => totalCartQty(cart), [cart]);
   const scanStatus = currentPublicQrScanStatus(scanRequest, scanKey, hasToken);
+  /*
+    qr_enabled=false ถูก tableTokenVerifyDb ปัดตกก่อนถึง route จึงไม่มี table ให้
+    อ่าน flag — qrRevoked (code 410 จาก backend) คือทางเดียวที่รู้ได้จริง ครอบทั้ง
+    กรณีสแกน QR เก่าที่ปิดบิลไปแล้ว และกรณีแคชเชียร์เก็บเงินระหว่างที่ลูกค้าเปิด
+    หน้าค้างไว้ ซึ่ง request ถัดไปของหน้านั้นจะโดนปฏิเสธ
+  */
+  const qrDisabled = Boolean(table && !table.qr_enabled) || qrRevoked;
   const publicLoadingActive = isPublicQrScanLoading({
     hasToken,
     languageReady,
     storeLoading: loading,
     status: scanStatus,
   });
+  // QR ที่ถูก revoke ไม่มีวันกลับมาใช้ได้ ปุ่มลองใหม่จึงต้องหายไป
   const canRetryScan = Boolean(
     hasToken &&
       languageReady &&
+      !qrDisabled &&
       scanStatus === PUBLIC_QR_SCAN_STATUS.ERROR,
   );
   const isPublicLoading = useMinimumVisibleLoading(

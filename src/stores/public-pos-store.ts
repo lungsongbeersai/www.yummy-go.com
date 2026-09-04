@@ -9,6 +9,7 @@ import {
   type ProdItem
 } from "@/services/pos";
 import * as publicPosService from "@/services/public-pos";
+import { isPublicQrRevokedError } from "@/services/public-pos/qr-token";
 import type {
   CustomerCreateOrderInput,
   CustomerConfirmKitchenInput,
@@ -53,6 +54,19 @@ import { errorMessage } from "@/stores/store-utils";
 export { PUBLIC_MENU_KIND, publicMenuKindToStatusSortFk };
 export type { PublicMenuByKind, PublicMenuKind, PublicPosCategoryTab, PublicStatusMenu };
 
+/*
+  QR ที่ถูก revoke พังทั้ง session ไม่ใช่แค่ request ที่ล้มเหลว — endpoint ฝั่ง
+  ลูกค้าทุกตัวผ่าน tableTokenVerifyDb ตัวเดียวกัน ตัวที่ยิงถัดไปก็ 410 เหมือนกัน
+  ตั้งธงไว้ครั้งเดียวให้หน้าเว็บสลับไปจอ "QR ปิดใช้งานแล้ว" แทนการโชว์ error
+  รายคำขอ ซึ่งลูกค้ากดลองใหม่ได้เรื่อยๆ ทั้งที่ไม่มีวันสำเร็จ
+*/
+function publicPosErrorState(error: unknown) {
+  return {
+    error: errorMessage(error),
+    ...(isPublicQrRevokedError(error) ? { qrRevoked: true } : {})
+  };
+}
+
 function emitCustomerTableAlert(params: CustomerEmitTableStatusParams) {
   emitTableAlert({
     branch_uuid_fk: params.branch_uuid_fk,
@@ -85,6 +99,7 @@ interface PublicPosState {
   saving: boolean;
   confirming: boolean;
   error: string | null;
+  qrRevoked: boolean;
   setToken: (token: string) => void;
   setTableName: (tableName: string) => void;
   setSelectedCateUuid: (cateUuid: string) => void;
@@ -141,7 +156,7 @@ async function runSavingCartMutation<TResult>({
     return result;
   } catch (error) {
     if (sessionCache.isCurrentSession(sessionVersion)) {
-      set({ error: errorMessage(error), saving: false });
+      set({ ...publicPosErrorState(error), saving: false });
     }
     throw error;
   }
@@ -192,7 +207,7 @@ export const usePublicPosStore = create<PublicPosState>((set, get) => ({
         sessionCache.isCurrentSession(sessionVersion)
       ) {
         set({
-          error: errorMessage(error),
+          ...publicPosErrorState(error),
           loading: false,
           scan: null,
           tableName: ""
@@ -228,7 +243,7 @@ export const usePublicPosStore = create<PublicPosState>((set, get) => ({
         sessionCache.cartRequest.isCurrent(requestVersion)
       ) {
         set({
-          error: errorMessage(error),
+          ...publicPosErrorState(error),
           cartStatusRule: null,
           loadingCart: false,
           cartHydrated: false
@@ -334,15 +349,15 @@ export const usePublicPosStore = create<PublicPosState>((set, get) => ({
 
       return get().menuByKind;
     } catch (error) {
-      const message = errorMessage(error);
+      const errorState = publicPosErrorState(error);
       if (
         sessionCache.isCurrentSession(sessionVersion) &&
         get().menuRequestKey === sequenceKey
       ) {
         set({
+          ...errorState,
           menuByKind: emptyMenuByKind(),
-          loadingMenu: false,
-          error: message
+          loadingMenu: false
         });
       }
       throw error;
@@ -425,7 +440,7 @@ export const usePublicPosStore = create<PublicPosState>((set, get) => ({
         };
       });
     } catch (error) {
-      const message = errorMessage(error);
+      const errorState = publicPosErrorState(error);
       if (sessionCache.isCurrentSession(sessionVersion)) {
         set((current) => ({
           menuByKind: {
@@ -435,10 +450,10 @@ export const usePublicPosStore = create<PublicPosState>((set, get) => ({
               loadingCateUuids: current.menuByKind[PUBLIC_MENU_KIND.NORMAL].loadingCateUuids.filter(
                 (uuid) => uuid !== cateUuid
               ),
-              error: message
+              error: errorState.error
             }
           },
-          error: message
+          ...errorState
         }));
       }
       throw error;
@@ -471,7 +486,7 @@ export const usePublicPosStore = create<PublicPosState>((set, get) => ({
         sessionCache.isCurrentSession(sessionVersion) &&
         sessionCache.productItemRequest.isCurrent(requestVersion)
       ) {
-        set({ error: errorMessage(error), loadingItem: false });
+        set({ ...publicPosErrorState(error), loadingItem: false });
       }
       throw error;
     }
@@ -544,7 +559,7 @@ export const usePublicPosStore = create<PublicPosState>((set, get) => ({
       return result;
     } catch (error) {
       if (sessionCache.isCurrentSession(sessionVersion)) {
-        set({ error: errorMessage(error), confirming: false });
+        set({ ...publicPosErrorState(error), confirming: false });
       }
       throw error;
     }

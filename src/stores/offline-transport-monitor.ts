@@ -253,13 +253,40 @@ export function startBackendNetworkMonitor(
   };
 }
 
+// Blocked events survive a reload; the toast announcing them used to live only
+// in this closure, so every refresh read its counter back as 0 and warned about
+// the same backlog again. Remembering the last count the cashier was shown, per
+// scope, turns it back into what it is meant to be: a notice that something new
+// has been blocked, not a greeting on every page load.
+const BLOCKED_NOTICE_STORAGE_PREFIX = "yummy-go-blocked-notice:";
+
+function readAcknowledgedBlockedCount(scopeKey: string) {
+  if (typeof window === "undefined" || !scopeKey) return 0;
+  try {
+    const raw = window.localStorage.getItem(`${BLOCKED_NOTICE_STORAGE_PREFIX}${scopeKey}`);
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function writeAcknowledgedBlockedCount(scopeKey: string, count: number) {
+  if (typeof window === "undefined" || !scopeKey) return;
+  try {
+    window.localStorage.setItem(`${BLOCKED_NOTICE_STORAGE_PREFIX}${scopeKey}`, String(count));
+  } catch {
+    // A browser with site data blocked simply keeps the old per-session behaviour.
+  }
+}
+
 export function startOfflineTransportMonitor() {
   let active = true;
   let timer: number | null = null;
   let reconciling = false;
   let agentConfigured = false;
   let agentUnavailableChecks = 0;
-  let reportedBlockedCount = 0;
+  let reportedBlockedCount: number | null = null;
   let workerScopeKey = "";
 
   const schedule = (delayMs: number) => {
@@ -288,7 +315,7 @@ export function startOfflineTransportMonitor() {
       workerScopeKey = scopeKey;
       agentConfigured = false;
       agentUnavailableChecks = 0;
-      reportedBlockedCount = 0;
+      reportedBlockedCount = readAcknowledgedBlockedCount(scopeKey);
     }
 
     reconciling = true;
@@ -331,15 +358,21 @@ export function startOfflineTransportMonitor() {
         getBrowserLocalSyncStatus(localScope),
       );
       const blockedCount = Number(status.pending?.blocked || 0);
-      if (blockedCount > 0 && blockedCount !== reportedBlockedCount) {
-        reportedBlockedCount = blockedCount;
+      const alreadyReported = reportedBlockedCount ?? readAcknowledgedBlockedCount(workerScopeKey);
+      // Only a backlog that has grown is news. A count that is unchanged has
+      // already been shown, and one that has fallen is progress, not a warning.
+      if (blockedCount > alreadyReported) {
         useToastStore.getState().show({
           title: i18n.t("offlineSync.blockedTitle"),
           description: i18n.t("offlineSync.blockedDescription", { count: blockedCount }),
           tone: "warning",
         });
-      } else if (blockedCount === 0) {
-        reportedBlockedCount = 0;
+      }
+      if (blockedCount !== alreadyReported) {
+        reportedBlockedCount = blockedCount;
+        writeAcknowledgedBlockedCount(workerScopeKey, blockedCount);
+      } else {
+        reportedBlockedCount = alreadyReported;
       }
 
       // Agent/printer status is an independent domain. It may delay sync or
