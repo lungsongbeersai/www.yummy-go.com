@@ -34,7 +34,12 @@ export class ServiceError extends Error {
   constructor(
     message: string,
     public statusCode = 500,
-    public originalError?: unknown
+    public originalError?: unknown,
+    // body ดิบของ response ที่ไม่ success (HTTP 200 แต่ status !== "success" ก็นับ) —
+    // assertApiSuccess() เดิมทิ้งทุก field ยกเว้น status/message/code ไป ทำให้ฟิลด์
+    // เสริมที่ backend แนบมากับ error response (เช่น fallback_view_only_url ของ P-72)
+    // ไปไม่ถึงผู้เรียกเลย เก็บ body เต็มไว้ตรงนี้ให้ caller อ่านเองได้ตามต้องการ
+    public payload?: unknown
   ) {
     super(message);
     this.name = "ServiceError";
@@ -145,7 +150,7 @@ async function send<T>(
 function assertApiSuccess<T>(data: T): T {
   const maybe = data as { status?: string; message?: string; code?: number };
   if (maybe?.status && maybe.status !== "success") {
-    throw new ServiceError(maybe.message ?? "Request failed", maybe.code ?? 400);
+    throw new ServiceError(maybe.message ?? "Request failed", maybe.code ?? 400, undefined, data);
   }
   return data;
 }

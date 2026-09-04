@@ -30,20 +30,15 @@ export function DestinationIcon({
   return null;
 }
 
-// ปุ่มเดียวใช้ทั้ง bottom bar และ side rail — label อยู่ใต้ไอคอนเหมือนกันทั้งคู่ แต่ style
-// ต่างกัน: bar แนวนอนของมือถือใช้ text-only (สีบอกสถานะพอ) โอเคอยู่แล้ว ไม่แตะ — ส่วน rail
-// แนวตั้งของ iPad/tablet วางเป็นคอลัมน์ล้วน ๆ ไม่มีอะไรช่วยบอกขอบเขตปุ่มแต่ละอันเลยนอกจาก
-// สีตัวอักษร ตอนพัก (ไม่ active/focus) เลยดูเหมือนตัวอักษรลอยเฉย ๆ ไม่รู้ว่ากดได้ — เพิ่ม
-// border+bg ให้ตอนเป็น rail โดยเฉพาะ (bg-card ใช้ไม่ได้ผลเพราะ --card ชนกับ --background
-// พอดีในโหมดสว่าง ใช้ bg-muted แทนเหมือนที่แก้ EmployeeCategorySidebar)
+// ปุ่มนี้ใช้กับ bottom bar ของมือถือเท่านั้นแล้ว (side rail แท็บเล็ต/แนวนอน เปลี่ยนไปใช้
+// AppSidebar ตัวเดียวกับเว็บเดสก์ท็อป — ดู capacitor/side-rail.tsx) label อยู่ใต้ไอคอน
+// text-only (สีบอกสถานะพอ)
 export function NavDestinationButton({
   active,
   destination,
-  layout = "bar",
 }: {
   active: boolean;
   destination: NativeDestination;
-  layout?: "bar" | "rail";
 }) {
   const { t } = useTranslation();
   const label = menuItemLabel(destination.item, t);
@@ -54,16 +49,7 @@ export function NavDestinationButton({
       aria-current={active ? "page" : undefined}
       className={cn(
         "relative flex min-h-12 min-w-0 flex-none flex-col items-center justify-center gap-1 rounded-md px-1 py-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-        layout === "rail"
-          ? cn(
-              "border",
-              active
-                ? "border-primary/20 bg-primary text-primary-foreground shadow-sm"
-                : "border-border bg-muted/60 text-foreground/80 hover:border-primary/40 hover:bg-accent hover:text-foreground",
-            )
-          : active
-            ? "text-primary"
-            : "text-muted-foreground hover:text-foreground",
+        active ? "text-primary" : "text-muted-foreground hover:text-foreground",
       )}
     >
       <DestinationIcon item={destination.item} />
@@ -79,12 +65,10 @@ export function NavMoreButton({
   active,
   icon,
   label,
-  layout = "bar",
 }: {
   active: boolean;
   icon: React.ReactNode;
   label: string;
-  layout?: "bar" | "rail";
 }) {
   return (
     <Link
@@ -92,16 +76,7 @@ export function NavMoreButton({
       aria-current={active ? "page" : undefined}
       className={cn(
         "relative flex min-h-12 min-w-0 flex-none flex-col items-center justify-center gap-1 rounded-md px-1 py-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-        layout === "rail"
-          ? cn(
-              "border",
-              active
-                ? "border-primary/20 bg-primary text-primary-foreground shadow-sm"
-                : "border-border bg-muted/60 text-foreground/80 hover:border-primary/40 hover:bg-accent hover:text-foreground",
-            )
-          : active
-            ? "text-primary"
-            : "text-muted-foreground hover:text-foreground",
+        active ? "text-primary" : "text-muted-foreground hover:text-foreground",
       )}
     >
       {icon}
@@ -113,17 +88,15 @@ export function NavMoreButton({
   );
 }
 
-// รายการปุ่ม nav ที่ใช้ร่วมกันทั้ง bottom bar และ side rail — เหลือแค่ <nav> wrapper ที่ต่างกันใน caller แต่ละตัว
+// รายการปุ่ม nav ของ bottom bar มือถือ
 export function NativeNavItems({
   error,
-  layout = "bar",
   loading,
   model,
   onRetry,
   pathname,
 }: {
   error: string | null;
-  layout?: "bar" | "rail";
   loading: boolean;
   model: NativeNavigationModel;
   onRetry: () => void;
@@ -180,7 +153,6 @@ export function NativeNavItems({
           key={destination.path}
           active={isDestinationActive(destination, pathname)}
           destination={destination}
-          layout={layout}
         />
       ))}
       {model.more.length ? (
@@ -188,7 +160,6 @@ export function NativeNavItems({
           active={!anyDirectActive}
           icon={<MoreHorizontal className="size-5 shrink-0" />}
           label={t("app.more")}
-          layout={layout}
         />
       ) : null}
     </>

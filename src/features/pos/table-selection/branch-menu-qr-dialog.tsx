@@ -3,18 +3,20 @@
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import QRCode from "qrcode";
-import { Copy, Download, ExternalLink, Printer, QrCode as QrCodeIcon } from "lucide-react";
+import { Copy, Download, ExternalLink, Minus, Plus, Printer, QrCode as QrCodeIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { fullscreenPrintWindowFeatures, maximizePrintWindow } from "@/services/printer/invoice-print-window";
 import { useIsCapacitorNativeApp } from "@/hooks/use-capacitor-native-app";
 import { useResetOnChange, useResetOnDeps } from "@/hooks/use-reset-on-change";
 import { openWindowOutsideNativeApp } from "@/lib/capacitor-platform";
+import { optionalString } from "@/lib/values";
 import {
   WINDOW_OPEN_FONT_CLASS_NAME,
   WINDOW_OPEN_FONT_STYLESHEET_LINK,
@@ -22,19 +24,34 @@ import {
 } from "@/lib/window-open-fonts";
 import type { BranchMenuQRResponse } from "@/services/pos";
 import { useAppStore } from "@/stores/app-store";
+import { useAuthStore } from "@/stores/auth-store";
 import { usePosStore } from "@/stores/pos-store";
 import { usePrinterStore } from "@/stores/printer-store";
+<<<<<<< HEAD
 import { useAuthStore } from "@/stores/auth-store";
 import {
   resolveTableQrPrinterContext,
   tableQrPendingJobUuid,
   tableQrPrintOutcome,
 } from "./table-qr-printing";
+=======
+>>>>>>> feature-73
 import { useToastStore } from "@/stores/toast-store";
+import { resolveTableQrPrinterContext, tableQrPrintOutcome } from "./table-qr-printing";
 
+<<<<<<< HEAD
 // ระดับสาขา ไม่ผูกโต๊ะ — พิมพ์ผ่านคิวเครื่องพิมพ์ role q-001 เดียวกับ TableQrDialog
 // (document_type qr_table ตัวเดียวกัน ใบที่ออกมาจึงหน้าตาเหมือนกัน ต่างแค่ footer)
 // ไม่มี qr_ver ให้ revoke จึงไม่มี regenerate ทุกครั้งที่เปิด แค่ขอ token เดิมซ้ำก็ยังใช้ได้
+=======
+const MIN_PRINT_COPIES = 1;
+const MAX_PRINT_COPIES = 20;
+
+// ระดับสาขา ไม่ผูกโต๊ะ ไม่มี qr_ver ให้ revoke จึงไม่ต้อง regenerate token ทุกครั้ง
+// ที่เปิด (แค่ขอ token เดิมซ้ำก็ยังใช้ได้) แต่คิวพิมพ์จริง (print_job/pending_query)
+// ใช้ pattern เดียวกับ TableQrDialog ทุกอย่าง (P-72) — ต้องมี device_code/agent_id
+// ไปด้วย ไม่งั้น backend คืน print_job: null พร้อม fallback_print แทน
+>>>>>>> feature-73
 export function BranchMenuQrDialog({
   onOpenChange,
   open,
@@ -44,8 +61,12 @@ export function BranchMenuQrDialog({
 }) {
   const { t } = useTranslation();
   const language = useAppStore((state) => state.language);
-  const createBranchMenuQr = usePosStore((state) => state.createBranchMenuQr);
   const loginUuid = useAuthStore((state) => state.user?.uuid);
+  const createBranchMenuQr = usePosStore((state) => state.createBranchMenuQr);
+<<<<<<< HEAD
+  const loginUuid = useAuthStore((state) => state.user?.uuid);
+=======
+>>>>>>> feature-73
   const executeInvoice = usePrinterStore((state) => state.executeInvoice);
   const resolveDeviceContext = usePrinterStore((state) => state.resolveDeviceContext);
   const resolveDeviceIdentity = usePrinterStore((state) => state.resolveDeviceIdentity);
@@ -55,11 +76,16 @@ export function BranchMenuQrDialog({
   const [response, setResponse] = useState<BranchMenuQRResponse | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState("");
   const [printing, setPrinting] = useState(false);
+  const [printCopies, setPrintCopies] = useState(MIN_PRINT_COPIES);
   const targetUrl = response?.qr_url ?? null;
+  const pendingJobUuid = branchMenuQrPendingJobUuid(response);
   const canOpenBrowserWindow = !nativeApp;
   const canDownload = Boolean(qrDataUrl);
+<<<<<<< HEAD
   const pendingJobUuid = useMemo(() => tableQrPendingJobUuid(response), [response]);
   // A queued job prints without a browser window, so a native app can still print.
+=======
+>>>>>>> feature-73
   const canPrint = Boolean(pendingJobUuid || (qrDataUrl && canOpenBrowserWindow));
 
   // เปิด dialog = ล้างผลเดิม แล้วค่อยขอ token ใหม่ (ไม่มี qr_ver ให้ revoke จึง
@@ -68,7 +94,8 @@ export function BranchMenuQrDialog({
     if (!open) return;
     setResponse(null);
     setQrDataUrl("");
-    setPending(true);
+    setPrintCopies(MIN_PRINT_COPIES);
+    setPending(Boolean(loginUuid));
   });
 
   useEffect(() => {
@@ -82,10 +109,16 @@ export function BranchMenuQrDialog({
     const activeLoginUuid = loginUuid;
     let ignore = false;
 
+<<<<<<< HEAD
     // Backend has to know the device/agent of whoever pressed print before it can
     // queue the job; without it the menu QR comes back as a browser fallback even
     // where Auto Print is set up.
     async function createMenuQrWithPrinterContext() {
+=======
+    async function createQrWithPrinterContext() {
+      // เหตุผลเดียวกับ TableQrDialog — backend ต้องรู้ device/agent ของผู้กดพิมพ์
+      // ก่อนสร้างคิว มิฉะนั้นจะคืน browser fallback แม้มี Auto Print อยู่จริง
+>>>>>>> feature-73
       const printerContext = await resolveTableQrPrinterContext({
         loginUuid: activeLoginUuid,
         resolveDeviceContext,
@@ -98,10 +131,18 @@ export function BranchMenuQrDialog({
         device_code: printerContext?.device_code,
         agent_id: printerContext?.agent_id,
         print_mode: printerContext?.print_mode,
+<<<<<<< HEAD
       });
     }
 
     createMenuQrWithPrinterContext()
+=======
+        print: printCopies,
+      });
+    }
+
+    createQrWithPrinterContext()
+>>>>>>> feature-73
       .then((result) => {
         if (ignore) return;
         setResponse(result);
@@ -126,6 +167,10 @@ export function BranchMenuQrDialog({
     language,
     loginUuid,
     open,
+<<<<<<< HEAD
+=======
+    printCopies,
+>>>>>>> feature-73
     resolveDeviceContext,
     resolveDeviceIdentity,
     showToast,
@@ -181,6 +226,7 @@ export function BranchMenuQrDialog({
     }
   }
 
+<<<<<<< HEAD
   // Same contract as TableQrDialog: when Backend queued a real job, run it through
   // the printer store and only fall back to the browser window if that job cannot
   // reach a printer. Falling straight to the window would ignore an Auto Print
@@ -243,6 +289,24 @@ export function BranchMenuQrDialog({
       const safeTitle = escapeHtml(response?.branch_name || t("pos.createBranchMenuQr"));
       const safeImage = escapeHtml(qrDataUrl);
       printWindow.document.write(`<!doctype html>
+=======
+  function openFallbackPrintWindow() {
+    if (!qrDataUrl) return;
+    const printWindow = openWindowOutsideNativeApp("", "_blank", fullscreenPrintWindowFeatures());
+    if (!printWindow) {
+      showToast({
+        title: t("pos.printQr"),
+        description: t("pos.invoicePrintPopupBlocked"),
+        tone: "error",
+      });
+      return;
+    }
+    maximizePrintWindow(printWindow);
+
+    const safeTitle = escapeHtml(response?.branch_name || t("pos.createBranchMenuQr"));
+    const safeImage = escapeHtml(qrDataUrl);
+    printWindow.document.write(`<!doctype html>
+>>>>>>> feature-73
 <html>
   <head>
     ${WINDOW_OPEN_FONT_STYLESHEET_LINK}
@@ -261,7 +325,69 @@ export function BranchMenuQrDialog({
     <script>${WINDOW_OPEN_PRINT_ON_LOAD_SCRIPT}</script>
   </body>
 </html>`);
-      printWindow.document.close();
+    printWindow.document.close();
+  }
+
+  // เหมือน TableQrDialog.printQr() ทุกอย่าง — มี pendingJobUuid = ยิงเข้าคิวเครื่องพิมพ์
+  // จริงผ่าน executeInvoice, ไม่มี (หรือคิวล้มเหลว) = fallback เป็นหน้าต่างพิมพ์จาก browser
+  async function printQr() {
+    if (!canPrint || printing) return;
+
+    setPrinting(true);
+    try {
+      if (pendingJobUuid) {
+        try {
+          const printResult = await executeInvoice({
+            print_job: response?.print_job ?? undefined,
+            pending_query: response?.pending_query,
+            login_uuid_fk: loginUuid,
+          });
+
+          const printOutcome = tableQrPrintOutcome(printResult);
+          if (printOutcome === "pending") {
+            showToast({
+              title: t("pos.printQr"),
+              description: t("orderQueue.kitchenPrintQueued"),
+              tone: "info",
+            });
+            return;
+          }
+
+          if (printOutcome === "fallback") {
+            if (canOpenBrowserWindow) {
+              openFallbackPrintWindow();
+              showToast({ title: t("pos.printQr"), tone: "info" });
+            } else {
+              showToast({
+                title: t("pos.printQr"),
+                description: t("pos.invoicePrintPopupBlocked"),
+                tone: "error",
+              });
+            }
+            return;
+          }
+
+          showToast({ title: t("pos.printQr"), tone: "success" });
+        } catch (error) {
+          if (canOpenBrowserWindow) {
+            openFallbackPrintWindow();
+            showToast({
+              title: t("pos.printQr"),
+              description: error instanceof Error ? error.message : "",
+              tone: "info",
+            });
+          } else {
+            showToast({
+              title: t("pos.printQr"),
+              description: error instanceof Error ? error.message : t("pos.invoicePrintPopupBlocked"),
+              tone: "error",
+            });
+          }
+        }
+        return;
+      }
+
+      if (canOpenBrowserWindow) openFallbackPrintWindow();
     } finally {
       setPrinting(false);
     }
@@ -269,7 +395,7 @@ export function BranchMenuQrDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[calc(100dvh-2rem)] gap-0 overflow-hidden p-0 duration-200 sm:max-w-130">
+      <DialogContent className="max-h-[calc(100dvh-2rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))] gap-0 overflow-hidden p-0 duration-200 sm:max-w-130">
         <DialogHeader className="px-5 pb-3 pt-5 pr-12">
           <DialogTitle className="text-xl font-black leading-6">{t("pos.createBranchMenuQr")}</DialogTitle>
           <DialogDescription>{t("pos.branchMenuQrDescription")}</DialogDescription>
@@ -301,6 +427,42 @@ export function BranchMenuQrDialog({
               </TooltipProvider>
             </div>
           </div>
+
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-border p-3">
+            <Label htmlFor="branch-menu-qr-print-copies" className="text-sm font-black text-foreground">
+              {t("pos.printCopies")}
+            </Label>
+            <div
+              id="branch-menu-qr-print-copies"
+              className="flex h-10 items-center overflow-hidden rounded-full border border-primary/50 bg-primary/5"
+            >
+              <Button
+                type="button"
+                aria-label={`${t("pos.printCopies")} -`}
+                size="icon-sm"
+                variant="ghost"
+                className="size-9 rounded-full bg-primary/10 text-primary hover:bg-primary/20"
+                disabled={pending || printCopies <= MIN_PRINT_COPIES}
+                onClick={() => setPrintCopies((copies) => Math.max(MIN_PRINT_COPIES, copies - 1))}
+              >
+                <Minus className="size-3.5" />
+              </Button>
+              <span className="min-w-8 text-center text-sm font-black text-primary tabular-nums">
+                {printCopies}
+              </span>
+              <Button
+                type="button"
+                aria-label={`${t("pos.printCopies")} +`}
+                size="icon-sm"
+                variant="ghost"
+                className="size-9 rounded-full bg-primary/10 text-primary hover:bg-primary/20"
+                disabled={pending || printCopies >= MAX_PRINT_COPIES}
+                onClick={() => setPrintCopies((copies) => Math.min(MAX_PRINT_COPIES, copies + 1))}
+              >
+                <Plus className="size-3.5" />
+              </Button>
+            </div>
+          </div>
         </div>
 
         <DialogFooter className="border-t border-border bg-muted/30 p-3 sm:p-4">
@@ -309,8 +471,8 @@ export function BranchMenuQrDialog({
               <IconActionButton label={t("pos.downloadQr")} disabled={!canDownload || pending} onClick={downloadQr}>
                 <Download />
               </IconActionButton>
-              <IconActionButton label={t("pos.printQr")} disabled={!canPrint || pending || printing} onClick={printQr}>
-                <Printer />
+              <IconActionButton label={t("pos.printQr")} disabled={!canPrint || pending || printing} onClick={() => void printQr()}>
+                {printing ? <Spinner /> : <Printer />}
               </IconActionButton>
               <Button type="button" className="h-11 min-w-0 rounded-xl px-4 font-black" disabled={!targetUrl || pending || nativeApp} onClick={openMenu}>
                 <ExternalLink data-icon="inline-start" />
@@ -346,6 +508,14 @@ function IconActionButton({
         {label}
       </TooltipContent>
     </Tooltip>
+  );
+}
+
+function branchMenuQrPendingJobUuid(response: BranchMenuQRResponse | null) {
+  return (
+    optionalString(response?.pending_query?.print_job_uuid) ??
+    optionalString(response?.print_job?.print_job_uuid) ??
+    ""
   );
 }
 

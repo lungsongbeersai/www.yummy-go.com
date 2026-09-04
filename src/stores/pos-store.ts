@@ -19,6 +19,7 @@ import type {
   ConfirmToKitchenResponse,
   CreateOrderInput,
   CreateOrderResponse,
+  CreateBranchMenuQRRequest,
   CreateTableQRRequest,
   CreateTableQRResponse,
   FetchCartParams,
@@ -40,6 +41,8 @@ import type {
   PrintInvoiceRequest,
   PrintInvoiceResponse,
   ProdItem,
+  ReconfirmToKitchenInput,
+  ReconfirmToKitchenResponse,
   ReprintReceiptRequest,
   SplitBillInput,
   SplitBillResponse,
@@ -109,6 +112,7 @@ interface PosState {
   lastPayment: PaymentResponse | null;
   lastSplitBill: SplitBillResponse | null;
   lastKitchenConfirm: ConfirmToKitchenResponse | null;
+  lastKitchenReconfirm: ReconfirmToKitchenResponse | null;
   lastInvoice: PrintInvoiceResponse | null;
   tableUuid: string;
   tableName: string;
@@ -158,6 +162,9 @@ interface PosState {
   joinTables: (input: JoinTableMultiInput) => ReturnType<typeof posService.joinTableMulti>;
   loadTableQr: (tableUuid: string) => Promise<TableQRResponse>;
   confirmKitchen: (input: ConfirmToKitchenInput) => Promise<ConfirmToKitchenResponse>;
+  // เอกสารพิมพ์ครัวซ้ำ — ต่างจาก confirmKitchen ตรงที่รับเฉพาะ item ที่ยืนยันแล้ว
+  // ไม่ apply สถานะ/ตัด stock ซ้ำ
+  reconfirmKitchen: (input: ReconfirmToKitchenInput) => Promise<ReconfirmToKitchenResponse>;
   confirmServed: (input: ConfirmOrderItemServedInput) => ReturnType<typeof posService.confirmOrderItemServed>;
   cancelItem: (input: CancelOrderItemInput) => Promise<CancelOrderItemResponse>;
   updateNote: (input: UpdateOrderNoteInput) => ReturnType<typeof posService.updateOrderNote>;
@@ -165,9 +172,17 @@ interface PosState {
   splitBill: (input: SplitBillInput) => Promise<SplitBillResponse>;
   // action นี้สั่งพิมพ์ QR ด้วย จึงบังคับ login_uuid_fk ที่ระดับ store (request type เป็น optional)
   createTableQr: (params: CreateTableQRRequest & { login_uuid_fk: string }) => Promise<CreateTableQRResponse>;
+<<<<<<< HEAD
   // QR เมนูอย่างเดียว (ระดับสาขา) — ผ่านคิวเครื่องพิมพ์ role q-001 เดียวกับ createTableQr
   // จึงต้องส่ง device/agent ของผู้กดพิมพ์ไปด้วย ไม่มี state ให้ set ต่อ
   createBranchMenuQr: (params: BranchMenuQRRequest & { login_uuid_fk: string }) => Promise<BranchMenuQRResponse>;
+=======
+  // QR เมนูอย่างเดียว (ระดับสาขา) — มีคิวเครื่องพิมพ์จริงแบบเดียวกับ createTableQr แล้ว
+  // (P-72) จึงบังคับ login_uuid_fk ที่ระดับ store เหมือนกัน
+  createBranchMenuQr: (
+    params: CreateBranchMenuQRRequest & { login_uuid_fk: string },
+  ) => Promise<BranchMenuQRResponse>;
+>>>>>>> feature-73
   printInvoice: (params: PrintInvoiceRequest) => Promise<PrintInvoiceResponse>;
   reprintReceipt: (params: ReprintReceiptRequest) => Promise<ConfirmToKitchenPendingQuery | null>;
   setOrderHistory: (orders: CartOrder[]) => void;
@@ -187,6 +202,7 @@ export const usePosStore = create<PosState>((set, get) => ({
   lastPayment: null,
   lastSplitBill: null,
   lastKitchenConfirm: null,
+  lastKitchenReconfirm: null,
   lastInvoice: null,
   tableUuid: "",
   tableName: "",
@@ -452,6 +468,32 @@ export const usePosStore = create<PosState>((set, get) => ({
     }
 
   },
+  reconfirmKitchen: async (input) => {
+    const isCurrentSession = createSessionGuard();
+    try {
+      const printer = await resolvePosPrinterContext(input);
+      assertCurrentSession(isCurrentSession);
+
+      const payload = {
+        order_uuid: input.order_uuid,
+        order_item_uuids: input.order_item_uuids,
+        login_uuid_fk: input.login_uuid_fk,
+        lang: input.lang,
+        device_code: printer.device_code,
+        agent_id: printer.agent_id,
+        print_mode: printer.print_mode,
+      };
+
+      const lastKitchenReconfirm = await posService.reconfirmToKitchen(payload);
+
+      // เหตุผลเดียวกับ confirmKitchen — การพิมพ์เป็นหน้าที่ของ workflow ฝั่ง UI เท่านั้น
+      if (isCurrentSession()) set({ lastKitchenReconfirm });
+      return lastKitchenReconfirm;
+    } catch (error) {
+      if (isCurrentSession()) set({ error: errorMessage(error) });
+      throw error;
+    }
+  },
   confirmServed: (input) => posService.confirmOrderItemServed(input),
   cancelItem: async (input) => {
     const isCurrentSession = createSessionGuard();
@@ -572,6 +614,7 @@ export const usePosStore = create<PosState>((set, get) => ({
       lastPayment: null,
       lastSplitBill: null,
       lastKitchenConfirm: null,
+      lastKitchenReconfirm: null,
       lastInvoice: null,
       tableUuid: "",
       tableName: "",

@@ -37,6 +37,13 @@ export interface ProductOrderSheetProps {
   loading: boolean;
   saving: boolean;
   onAdd: (payload: PublicAddToCartPayload, sourceRect?: DOMRect | null) => void;
+  // ดูเมนูได้อย่างเดียว — เปิด modal เพื่อดูรายละเอียดสินค้าได้ตามปกติ แต่ซ่อนปุ่มสั่งของ
+  viewOnly?: boolean;
+  // ปุ่ม "สแกน QR เพื่อสั่งอาหาร" ในท้าย modal โหมดดูอย่างเดียว
+  onScanQr?: () => void;
+  // ปิดการคืนโฟกัสอัตโนมัติของ Radix ตอน modal ปิด — ผู้เรียกจัดการโฟกัสเองหลังปิด
+  // (ใช้ตอนกดปุ่มสแกน QR เพื่อโฟกัสไปที่ปุ่มสแกนนอก modal แทนที่จะกลับไปที่การ์ดสินค้าเดิม)
+  onCloseAutoFocus?: (event: Event) => void;
 }
 
 export type PublicProductSelectionIssue =
@@ -55,6 +62,9 @@ export function useProductOrderSheetWorkflow({
   loading,
   saving,
   onAdd,
+  viewOnly = false,
+  onScanQr,
+  onCloseAutoFocus,
 }: ProductOrderSheetProps) {
   const mediaRef = useRef<HTMLDivElement | null>(null);
   const details = useMemo(() => product?.details ?? [], [product]);
@@ -137,7 +147,7 @@ export function useProductOrderSheetWorkflow({
   ) {
     selectionIssue = "invalidQuantity";
   }
-  const canSubmit = selectionIssue === null && !saving;
+  const canSubmit = !viewOnly && selectionIssue === null && !saving;
   const modeLabel = product ? productModeLabel(mode, product, lang) : "";
   const hasSelectableDetails = mode !== "set" && details.length > 1;
 
@@ -253,6 +263,9 @@ export function useProductOrderSheetWorkflow({
     toppingQtyByUuid,
     toppingTotal,
     toppings,
+    viewOnly,
+    onScanQr,
+    onCloseAutoFocus,
   };
 }
 

@@ -23,7 +23,7 @@ import { BlockingLoadingDialog } from "@/components/common/blocking-loading-dial
 import { EmptyState } from "@/components/common/empty-state";
 import { HorizontalScrollArrows } from "@/components/common/horizontal-scroll-arrows";
 import { LoadingState } from "@/components/common/loading-state";
-import { useIsCapacitorNativeApp } from "@/hooks/use-capacitor-native-app";
+import { useIsNativeShellActive } from "@/hooks/use-native-shell-active";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useOfflineRefetchEpoch } from "@/hooks/use-offline-refetch";
 import { cn } from "@/lib/utils";
@@ -75,7 +75,7 @@ export function OrderQueuePage() {
   const language = useAppStore((state) => state.language);
   const showToast = useToastStore((state) => state.show);
   const isMobile = useIsMobile();
-  const isCapacitorNativeApp = useIsCapacitorNativeApp();
+  const nativeShellActive = useIsNativeShellActive();
   const setHeaderRefreshAction = useNativeHeaderStore((state) => state.setRefreshAction);
 
   const status = usePosOrderQueueStore((state) => state.status);
@@ -175,10 +175,10 @@ export function OrderQueuePage() {
   // ปุ่มรีเฟรชในหัวข้อหน้าซ้ำกับที่ลงทะเบียนเข้า NativeTopBar ได้แล้วบน Capacitor
   // (ตามแพทเทิร์นเดียวกับหน้า table-selection/order-customer) — เว็บยังใช้ปุ่มในหน้าเดิม
   useEffect(() => {
-    if (!isCapacitorNativeApp) return;
+    if (!nativeShellActive) return;
     setHeaderRefreshAction({ loading, onClick: () => void refresh() });
     return () => setHeaderRefreshAction(null);
-  }, [isCapacitorNativeApp, loading, refresh, setHeaderRefreshAction]);
+  }, [nativeShellActive, loading, refresh, setHeaderRefreshAction]);
 
   useOrderQueueAlerts({
     branchUuid,
@@ -468,7 +468,7 @@ export function OrderQueuePage() {
 
   return (
     <div className="flex flex-col gap-4 pb-24">
-      {isCapacitorNativeApp ? (
+      {nativeShellActive ? (
         // Capacitor: ตัด h1/ตัวสลับมุมมองตาราง-การ์ด/ปุ่มรีเฟรชในหน้าออกทั้งหมด
         // — ชื่อหน้าซ้ำกับ NativeTopBar อยู่แล้ว, มุมมองตารางใช้งานจริงไม่ได้บนจอแคบขนาด
         // นี้เลย (isMobile บังคับ view เป็น "card" อยู่แล้วเสมอ ปุ่มสลับเลยไม่มีประโยชน์

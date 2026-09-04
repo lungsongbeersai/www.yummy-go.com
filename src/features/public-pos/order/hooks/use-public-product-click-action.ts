@@ -40,6 +40,9 @@ interface UsePublicProductClickActionParams {
   t: TFunction;
   toast: (toast: ToastInput) => void;
   token: string;
+  // ดูเมนูได้อย่างเดียว — ห้ามเพิ่มลงตะกร้าไม่ว่าทางไหน จึงตัดเส้นทาง direct-add
+  // ออกเลย เปิด modal รายละเอียดเสมอแทน (ปุ่มสั่งซื้อใน modal จะถูกซ่อน)
+  viewOnly: boolean;
 }
 
 export function usePublicProductClickAction({
@@ -56,6 +59,7 @@ export function usePublicProductClickAction({
   t,
   toast,
   token,
+  viewOnly,
 }: UsePublicProductClickActionParams) {
   return useCallback(
     (
@@ -81,6 +85,19 @@ export function usePublicProductClickAction({
 
       void (async () => {
         try {
+          if (viewOnly) {
+            await loadProductItem({
+              token,
+              lang,
+              prodUuid: product.prodUuid,
+              cateUuid: cateUuid || undefined,
+              search: submittedSearch,
+              statusSortFk,
+            });
+            setProductSheetOpen(true);
+            return;
+          }
+
           const directAdd = getDirectAddListPayload(
             product,
             statusSortFk,
@@ -162,6 +179,7 @@ export function usePublicProductClickAction({
       t,
       toast,
       token,
+      viewOnly,
     ],
   );
 }

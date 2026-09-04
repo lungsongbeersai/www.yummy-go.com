@@ -124,9 +124,13 @@ export function ProductOptionsOverlay({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
+      {/* max-h เดิม (100dvh-2rem) ไม่เคยเผื่อ safe-area บน/ล่างเลย — ตอนรันบน Capacitor
+          จอกว้าง/แนวนอน (isMobile=false ที่ path นี้ถึงจะเจอ Dialog แทน Sheet) กล่อง modal ที่
+          จัดกึ่งกลางด้วย top-1/2 อาจสูงล้นไปทับ status bar ด้านบน หรือ gesture bar ด้านล่างได้
+          ลบ safe-area ทั้งสองด้านออกจาก max-height เพิ่ม — env() เป็น 0 อยู่แล้วบนจอที่ไม่มี inset */}
       <DialogContent
         showCloseButton={false}
-        className="pos-soft-light-zone pos-dark-zone flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden border-border bg-background p-0 text-foreground motion-reduce:transition-none motion-reduce:data-[state=closed]:animate-none motion-reduce:data-[state=open]:animate-none sm:max-w-180"
+        className="pos-soft-light-zone pos-dark-zone flex max-h-[calc(100dvh-2rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))] flex-col gap-0 overflow-hidden border-border bg-background p-0 text-foreground motion-reduce:transition-none motion-reduce:data-[state=closed]:animate-none motion-reduce:data-[state=open]:animate-none sm:max-w-180"
       >
         <DialogHeader className="shrink-0 flex-row items-start justify-between gap-3 border-b border-border px-5 py-3 text-left">
           <div className="min-w-0">

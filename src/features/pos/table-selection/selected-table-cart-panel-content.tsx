@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/compone
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsContent, TabsList } from "@/components/ui/tabs";
-import { useIsCapacitorNativeApp } from "@/hooks/use-capacitor-native-app";
+import { useIsNativeShellActive } from "@/hooks/use-native-shell-active";
 import { cn } from "@/lib/utils";
 import type { PosZone } from "@/services/pos";
 import { useAuthStore } from "@/stores/auth-store";
@@ -83,15 +83,17 @@ export function SelectedTableCartPanelContent({
     : "";
   const selectedTable = workflow.selectedTable;
   const customerDisplay = workflow.customerDisplay;
-  const isCapacitorNativeApp = useIsCapacitorNativeApp();
+  const nativeShellActive = useIsNativeShellActive();
   // header/footer นี้ออกแบบเป็นตัวอักษรขาวสำหรับวางทับรูปพื้นหลังเข้ม (background_wide.webp) —
   // ใช้ได้เฉพาะตอนพื้นหลังนั้นยังอยู่จริงเท่านั้น: variant="sheet" (มือถือ/แท็บเล็ตแนวตั้งความกว้าง
   // ต่ำกว่า lg) ยังคง data-pos-pattern ไว้ทุกแพลตฟอร์มรวม Capacitor (ดู order-customer-view.tsx
   // SheetContent) รูปพื้นหลังเลยยังอยู่ ตัวอักษรขาวยังถูกต้อง — แต่ variant="side" (แผงค้างขวา,
   // ความกว้าง >= lg เช่น iPad แนวนอน) container ห่อชั้นนอกตัด data-pos-pattern ออกทั้งรูปและ
-  // primary tint ทิ้งไว้แค่ bg-background เรียบ ๆ บน Capacitor (ดู order-customer-view.tsx
-  // isCapacitorNativeApp ? "bg-background" : ...) ตัวอักษรขาวเดิมเลยกลายเป็นขาวบนขาว มองไม่เห็น
-  const neutral = isCapacitorNativeApp && variant === "side";
+  // primary tint ทิ้งไว้แค่ bg-background เรียบ ๆ ตอน native shell ทำงานจริง (ดู order-customer-view.tsx
+  // nativeShellActive ? "bg-background" : ...) ตัวอักษรขาวเดิมเลยกลายเป็นขาวบนขาว มองไม่เห็น —
+  // ใช้ useIsNativeShellActive ไม่ใช่ isCapacitorNativeApp ตรงๆ เพราะ Capacitor จอกว้าง/แนวนอน
+  // ตอนนี้ใช้ AppShell (มีพื้นหลังรูปเหมือนเว็บ) แทน NativeAppShell แล้ว (ดู protected-shell.tsx)
+  const neutral = nativeShellActive && variant === "side";
   const isNoTableStore = useAuthStore((state) => state.user?.store_table_status === 2);
   // ร้านไม่มีโต๊ะ: create_order สร้างรายการด้วยสถานะยืนยันแล้วเสมอ (ไม่ผ่าน
   // สถานะ "ใหม่/รอยืนยัน") จึงไม่มี tab ให้แยก — รวมเป็นลิสต์เดียว
@@ -269,6 +271,7 @@ export function SelectedTableCartPanelContent({
                   onItemDiscount={workflow.openItemDiscountDialog}
                   onOpenItemAction={workflow.openItemAction}
                   onOpenQuantityDialog={workflow.openQuantityDialog}
+                  onReprintKitchen={workflow.reprintSingleItemToKitchen}
                   onSetSplitItemQuantity={workflow.setSplitItemQuantity}
                   onToggleSplitItem={workflow.toggleSplitItem}
                 />
@@ -290,6 +293,7 @@ export function SelectedTableCartPanelContent({
                       onItemDiscount={workflow.openItemDiscountDialog}
                       onOpenItemAction={workflow.openItemAction}
                       onOpenQuantityDialog={workflow.openQuantityDialog}
+                      onReprintKitchen={workflow.reprintSingleItemToKitchen}
                     />
                   </TabsContent>
                   <TabsContent value="history">
@@ -310,6 +314,7 @@ export function SelectedTableCartPanelContent({
                       onItemDiscount={workflow.openItemDiscountDialog}
                       onOpenItemAction={workflow.openItemAction}
                       onOpenQuantityDialog={workflow.openQuantityDialog}
+                      onReprintKitchen={workflow.reprintSingleItemToKitchen}
                       onSetSplitItemQuantity={workflow.setSplitItemQuantity}
                       onToggleSplitItem={workflow.toggleSplitItem}
                     />

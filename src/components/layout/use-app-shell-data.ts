@@ -1,13 +1,15 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import {
+  activeMenuTitles,
   applyOfflineLock,
   isFixedDataScreen,
   isImmersiveScreen,
 } from "@/components/layout/shell-menu-helpers";
+import { useResetOnDeps } from "@/hooks/use-reset-on-change";
 import { useIsAndroidNativeApp } from "@/hooks/use-android-native-app";
 import {
   resolveShellBreadcrumbs,
@@ -113,6 +115,35 @@ export function useAppShellData() {
   const fixedDataScreen = isFixedDataScreen(pathname);
   const immersiveScreen = isImmersiveScreen(pathname);
 
+  // สถานะกลุ่มเมนูหด/กาง — ย้ายมาไว้ที่นี่จากเดิมที่ web/app-shell.tsx จัดการเองสด ๆ
+  // เพื่อให้ NativeSideRail (Capacitor แท็บเล็ต/แนวนอน) ที่ตอนนี้เรนเดอร์เมนูเต็มรูปแบบ
+  // เหมือนเดสก์ท็อป ได้พฤติกรรมกลุ่มเปิด/ปิดชุดเดียวกันโดยไม่ต้องคัดลอกโค้ด
+  const [openMenus, setOpenMenus] = useState<Set<string>>(
+    () => new Set(activeMenuTitles(menuItems, pathname)),
+  );
+
+  useResetOnDeps([menuItems, pathname], () => {
+    const activeTitles = activeMenuTitles(menuItems, pathname);
+    if (!activeTitles.length) return;
+    setOpenMenus((current) => {
+      const next = new Set(current);
+      activeTitles.forEach((title) => next.add(title));
+      return next;
+    });
+  });
+
+  function toggleMenu(title: string) {
+    setOpenMenus((current) => {
+      const next = new Set(current);
+      if (next.has(title)) {
+        next.delete(title);
+      } else {
+        next.add(title);
+      }
+      return next;
+    });
+  }
+
   // หน้าที่มี scroll ภายในของตัวเองต้องล็อก document ไม่งั้นเลื่อนสองชั้น
   useDocumentClass(DATA_SCREEN_SCROLL_LOCK_CLASS, fixedDataScreen);
   // หน้า POS แบบเต็มจอบน Android ต้องกันพื้นที่ให้ system bar — globals.css ใช้ class นี้
@@ -130,7 +161,9 @@ export function useAppShellData() {
     menuError,
     menuItems,
     menuLoading,
+    openMenus,
     pathname,
     retrySidebarMenu,
+    toggleMenu,
   };
 }

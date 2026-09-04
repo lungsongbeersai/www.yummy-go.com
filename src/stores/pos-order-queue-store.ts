@@ -326,11 +326,15 @@ export const usePosOrderQueueStore =
           });
         }
 
+        // background: true — ไม่งั้น loading:true จะเด้งเข้ามาแทนที่ตาราง/การ์ดทั้งหน้าด้วย
+        // skeleton ทุกครั้งหลังกดปุ่ม (เห็นเป็นจอกระพริบ) ทั้งที่ข้อมูลเดิมยังใช้ได้ระหว่างรอโหลดใหม่
         await get().load({
           branch_uuid_fk:
             params.branch_uuid_fk,
 
-          lang: params.lang
+          lang: params.lang,
+
+          background: true
         });
 
         return printResult;
@@ -373,11 +377,14 @@ export const usePosOrderQueueStore =
           });
         }
 
+        // background: true — เหตุผลเดียวกับใน sendToKitchen ด้านบน กันจอกระพริบหลังกดปุ่ม
         await get().load({
           branch_uuid_fk:
             params.branch_uuid_fk,
 
-          lang: params.lang
+          lang: params.lang,
+
+          background: true
         });
       } catch (error) {
         if (isCurrentSession()) {
@@ -519,11 +526,14 @@ export const usePosOrderQueueStore =
           });
         }
 
+        // background: true — เหตุผลเดียวกับใน sendToKitchen ด้านบน กันจอกระพริบหลังกดปุ่ม
         await get().load({
           branch_uuid_fk:
             params.branch_uuid_fk,
 
-          lang: params.lang
+          lang: params.lang,
+
+          background: true
         });
       } catch (error) {
         if (isCurrentSession()) {

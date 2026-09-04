@@ -1286,8 +1286,12 @@ html.theme-transition-active[data-theme-transition-direction="ltr"]::view-transi
   -webkit-overflow-scrolling: touch;
   /* บนหน้าที่ไม่มี footer ตามหลัง (loading/ไม่มีข้อมูล) ตัวสกรอลนี้เป็น flex child ตัวสุดท้าย
      เนื้อหาแถวล่างสุดจึงเลื่อนไปโผล่ใต้ NativeBottomNav ที่ fixed ทับอยู่ได้ — ดูที่มาเดียวกับ
-     order-queue-page.tsx (การ์ด fixed โดนบังเพราะลืมบวกความสูงแถบ ไม่ใช่แค่ safe-area-inset) */
-  padding-bottom: var(--app-shell-bottom-nav-height, 0px);
+     order-queue-page.tsx (การ์ด fixed โดนบังเพราะลืมบวกความสูงแถบ ไม่ใช่แค่ safe-area-inset)
+     max(...) เพราะ --app-shell-bottom-nav-height กลายเป็น 0 ตอนจอกว้าง/แนวนอน (สลับไปใช้
+     side rail แทน bottom nav — ดู globals.css [data-platform=capacitor] @media(min-width:768px))
+     เหลือแค่ --pos-system-bottom-safe-area (gesture bar ของระบบ) ที่ยังต้องกันไว้อยู่ดี —
+     รวมไว้จุดเดียวตรงนี้แทนให้แต่ละหน้าที่มี scroll ของตัวเองไปเติม padding-bottom เองซ้ำๆ */
+  padding-bottom: max(var(--app-shell-bottom-nav-height, 0px), var(--pos-system-bottom-safe-area, 0px));
 }
 
 @media (max-width: 767px) {
@@ -1354,7 +1358,6 @@ html.theme-transition-active[data-theme-transition-direction="ltr"]::view-transi
 .app-shell[data-platform="capacitor"] {
   --app-shell-header-height: 88px;
   --app-shell-bottom-nav-height: calc(64px + env(safe-area-inset-bottom, 0px));
-  --app-shell-side-rail-width: 0px;
 }
 
 /* คีย์บอร์ด Android ดัน bottom bar ขึ้นมาทับช่องกรอก — ยุบความสูงทิ้งระหว่างพิมพ์ */
@@ -1365,7 +1368,6 @@ html.theme-transition-active[data-theme-transition-direction="ltr"]::view-transi
 @media (min-width: 768px) {
   .app-shell[data-platform="capacitor"] {
     --app-shell-bottom-nav-height: 0px;
-    --app-shell-side-rail-width: 88px;
   }
 }
 
@@ -1374,6 +1376,7 @@ html.theme-transition-active[data-theme-transition-direction="ltr"]::view-transi
 .native-top-bar {
   background: var(--background);
   padding-top: env(safe-area-inset-top, 0px);
+  border-bottom: 1px solid var(--border);
 }
 
 @keyframes native-route-progress {

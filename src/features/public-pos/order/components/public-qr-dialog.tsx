@@ -43,7 +43,7 @@ export function PublicQrDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[calc(100dvh-2rem)] gap-0 overflow-hidden rounded-[26px] border-yg-line bg-linear-to-b from-yg-bg2 to-yg-bg p-0 font-yg-sans text-yg-ink sm:max-w-105">
+      <DialogContent className="max-h-[calc(100dvh-2rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))] gap-0 overflow-hidden rounded-[26px] border-yg-line bg-linear-to-b from-yg-bg2 to-yg-bg p-0 font-yg-sans text-yg-ink sm:max-w-105">
         <DialogHeader className="px-5 pb-3 pt-5 pr-12 text-left">
           <DialogTitle className="lao-tone-text font-yg-sans text-xl font-semibold leading-snug text-yg-ink">
             {t("pos.qrCode")}

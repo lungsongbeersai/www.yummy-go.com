@@ -35,7 +35,7 @@ export function OrderQueueCancelDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-hidden p-0 sm:max-w-lg">
+      <DialogContent className="max-h-[calc(100dvh-2rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))] overflow-hidden p-0 sm:max-w-lg">
         <form
           className="flex min-h-0 flex-col"
           onSubmit={(event) => {

@@ -11,6 +11,7 @@ import { usePublicMenuBrowse } from "./use-public-menu-browse";
 import { usePublicOrderRealtime } from "./use-public-order-realtime";
 import { usePublicOrderStatusNotifications } from "./use-public-order-status-notifications";
 import { usePublicQrDialog } from "./use-public-qr-dialog";
+import { usePublicQrOrderScanner } from "./use-public-qr-order-scanner";
 import { usePublicSearch } from "./use-public-search";
 import { totalCartQty } from "../utils";
 
@@ -126,7 +127,8 @@ export function usePublicBrowseWorkflow({
     orderUuids: cartOrderUuids,
   });
   const qr = usePublicQrDialog({ table, t, toast });
-  const orderCartActions = usePublicCartOrderActions({
+  const qrOrderScanner = usePublicQrOrderScanner({ currentToken: token, t, toast });
+  const cartActions = usePublicCartOrderActions({
     cart,
     cartOpen,
     cartStatusRule,
@@ -148,15 +150,8 @@ export function usePublicBrowseWorkflow({
     token,
     updateNote,
     updateQty,
+    viewOnly,
   });
-  // ดูเมนูได้อย่างเดียว — แตะสินค้าแล้วบอกตรงๆ แทนที่จะเปิด flow เพิ่มลงตะกร้า
-  const notifyViewOnly = useCallback(
-    () => toast({ title: t("pos.viewOnlyMenuNotice"), tone: "info" }),
-    [toast, t],
-  );
-  const cartActions = viewOnly
-    ? { ...orderCartActions, handleProductClick: notifyViewOnly }
-    : orderCartActions;
 
   return {
     cart,
@@ -176,10 +171,12 @@ export function usePublicBrowseWorkflow({
     loadingMenu,
     onCartOpenChange,
     qr,
+    qrOrderScanner,
     saving,
     search,
     selectedProduct,
     table,
+    viewOnly,
   };
 }
 

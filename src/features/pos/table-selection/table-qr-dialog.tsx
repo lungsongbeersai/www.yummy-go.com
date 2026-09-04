@@ -202,8 +202,8 @@ export function TableQrDialog({
       if (pendingJobUuid) {
         try {
           const printResult = await executeInvoice({
-            print_job: response?.print_job,
-            pending_query: response?.pending_query,
+            print_job: response?.print_job ?? undefined,
+            pending_query: response?.pending_query ?? undefined,
             login_uuid_fk: loginUuid,
           });
 
@@ -315,7 +315,7 @@ export function TableQrDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[calc(100dvh-2rem)] gap-0 overflow-hidden p-0 duration-200 sm:max-w-130">
+      <DialogContent className="max-h-[calc(100dvh-2rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))] gap-0 overflow-hidden p-0 duration-200 sm:max-w-130">
         <DialogHeader className="px-5 pb-3 pt-5 pr-12">
           <DialogTitle className="text-xl font-black leading-6">{t("pos.createTableQr")}</DialogTitle>
           <DialogDescription>{t("pos.tableQrDescription", { table: table.table_name })}</DialogDescription>

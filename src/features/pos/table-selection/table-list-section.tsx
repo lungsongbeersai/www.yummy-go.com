@@ -202,11 +202,13 @@ export function TableListSection({
           </div>
         </div>
       </div>
-      <div ref={scrollContainerRef} className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 xl:p-5">
+      {/* settings-table-scroll กันพื้นที่ safe-area ล่างให้แล้ว (ดู globals.css) — หน้านี้
+          (immersive /pos/tables) จัดการ scroll เอง ไม่มี padding-bottom จาก AppShell ให้ */}
+      <div ref={scrollContainerRef} className="settings-table-scroll min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 xl:p-5">
         {loading ? (
           <LoadingState label={t("pos.loadingTables")} variant="posGrid" />
         ) : hasVisibleTables ? (
-          <div className="flex min-w-0 flex-col gap-4 pb-4">
+          <div className="flex min-w-0 flex-col gap-4">
             {visibleZones.map((zone) => (
               <section
                 key={zone.zone_uuid}
@@ -437,7 +439,10 @@ function StatusLegend() {
   const { t } = useTranslation();
 
   return (
-    <div className="grid shrink-0 grid-cols-2 gap-x-3 gap-y-1.5 border-t border-border bg-background/95 px-4 py-2.5 text-xs text-muted-foreground backdrop-blur-sm sm:flex sm:flex-wrap sm:items-center sm:gap-x-4 sm:gap-y-1.5 xl:px-5">
+    // pb เพิ่ม safe-area ล่าง (pattern เดียวกับ footer แบ่งหน้าใน settings-shell.tsx) — legend
+    // นี้เป็น shrink-0 sibling อยู่นอก settings-table-scroll (ซึ่งกันแค่พื้นที่สกรอลด้านบนเอง)
+    // เลยยังโดนแถบ gesture ของระบบบังตอนไม่มี bottom nav มาช่วยกันให้ (จอกว้าง/แนวนอน)
+    <div className="grid shrink-0 grid-cols-2 gap-x-3 gap-y-1.5 border-t border-border bg-background/95 px-4 py-2.5 pb-[calc(0.625rem+max(var(--pos-system-bottom-safe-area,0px),var(--app-shell-bottom-nav-height,0px)))] text-xs text-muted-foreground backdrop-blur-sm sm:flex sm:flex-wrap sm:items-center sm:gap-x-4 sm:gap-y-1.5 xl:px-5">
       {STATUS_LEGEND_ORDER.map((status) => (
         <span key={status} className="flex min-w-0 items-center gap-1.5">
           <span aria-hidden="true" className={cn("size-2.5 shrink-0 rounded-full", STATUS_STYLE[status].dot)} />

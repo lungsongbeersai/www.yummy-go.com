@@ -243,7 +243,7 @@ function EntityForm({
   }
 
   return (
-    <SettingsDialogForm key={recordKey} action={handleSubmit} className="sm:max-h-[calc(100dvh-2rem)]">
+    <SettingsDialogForm key={recordKey} action={handleSubmit} className="sm:max-h-[calc(100dvh-2rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))]">
       <SettingsDialogHeader>
         <DialogTitle className="flex items-center gap-2">
           <span className="grid size-8 place-items-center rounded-md bg-primary/10 text-primary">

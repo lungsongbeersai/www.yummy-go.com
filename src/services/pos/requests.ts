@@ -20,6 +20,7 @@ import type {
   ConfirmOrderItemServedInput,
   ConfirmToKitchenInput,
   ConfirmToKitchenResponse,
+  CreateBranchMenuQRRequest,
   CreateOrderInput,
   CreateOrderResponse,
   CreateTableQRRequest,
@@ -47,6 +48,8 @@ import type {
   PosResponse,
   PrintInvoiceRequest,
   PrintInvoiceResponse,
+  ReconfirmToKitchenInput,
+  ReconfirmToKitchenResponse,
   ReprintReceiptRequest,
   ReprintReceiptResponse,
   SplitBillInput,
@@ -160,6 +163,21 @@ export const confirmToKitchen = (input: ConfirmToKitchenInput) =>
     }
   });
 
+// เอกสารพิมพ์ครัวซ้ำ — คนละ endpoint/method จาก confirm_to_kitchen (POST ไม่ใช่
+// PATCH) เพราะไม่ apply สถานะ/ตัด stock ซ้ำ แค่ยิงรายการที่ยืนยันแล้วเข้าคิวพิมพ์ใหม่
+export const reconfirmToKitchen = (input: ReconfirmToKitchenInput) =>
+  apiRequest<ReconfirmToKitchenResponse>("post", "/api/v1/posAll/reconfirm_to_kitchen", {
+    data: {
+      order_uuid: input.order_uuid,
+      order_item_uuids: input.order_item_uuids,
+      login_uuid_fk: input.login_uuid_fk,
+      lang: toApiLanguage(input.lang),
+      device_code: input.device_code,
+      agent_id: input.agent_id,
+      print_mode: input.print_mode
+    }
+  });
+
 export const confirmOrderItemServed = (input: ConfirmOrderItemServedInput) =>
   apiRequest<{ status: string; message: string }>("patch", "/api/v1/posAll/confirm_order_item_served", {
     data: input
@@ -191,17 +209,29 @@ export const createTableQR = (params: CreateTableQRRequest) =>
     }
   });
 
+<<<<<<< HEAD
 // สาขาเดียวมี "QR เมนู" ได้ token เดียวเสมอ (ไม่มี qr_ver ให้ regenerate) — backend
 // อ่าน branch จาก jwtVerify เอง ส่วน device/agent ส่งไปเพื่อให้ backend สร้างคิว
 // เครื่องพิมพ์จริงได้เหมือน QR โต๊ะ ไม่งั้นจะคืน browser fallback ทั้งที่มี Auto Print
 export const createBranchMenuQR = (params: BranchMenuQRRequest) =>
+=======
+// สาขาเดียวมี "QR เมนู" ได้ token เดียวเสมอ (ไม่มี qr_ver ให้ regenerate) แต่คิวพิมพ์
+// (print_job) ต้องมี device_code/agent_id เหมือน create_table_qr — ไม่งั้น backend
+// คืน print_job: null พร้อม fallback_print แทน (ดู CreateBranchMenuQRRequest)
+export const createBranchMenuQR = (params: CreateBranchMenuQRRequest) =>
+>>>>>>> feature-73
   apiRequest<BranchMenuQRResponse>("get", "/api/v1/posAll/branch_menu_qr/create", {
     params: {
       lang: toApiLanguage(params.lang),
       login_uuid_fk: params.login_uuid_fk,
       device_code: params.device_code,
       agent_id: params.agent_id,
+<<<<<<< HEAD
       print_mode: params.print_mode
+=======
+      print_mode: params.print_mode,
+      print: params.print
+>>>>>>> feature-73
     }
   });
 

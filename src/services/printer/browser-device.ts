@@ -27,9 +27,20 @@ export interface BrowserPrinterIdentity extends ApiEntity {
 interface BrowserUserAgentData {
   mobile?: boolean;
   platform?: string;
+  // ครบตามสเปก UA-CH (User-Agent Client Hints) จริง ไม่ใช่แค่ model/platform ที่ไฟล์นี้ใช้
+  // — ต้องกว้างขนาดนี้เพราะ qr-scanner ก็ประกาศ global Navigator.userAgentData ของตัวเอง
+  // (แคบกว่า มีแค่ architecture/platformVersion) พอ TS merge สอง global interface เข้าด้วยกัน
+  // ถ้า return type ของฝั่งนี้แคบเกินจะไม่มี property ร่วมกับของ qr-scanner เลย (weak-type error)
   getHighEntropyValues?: (hints: string[]) => Promise<{
+    architecture?: string;
+    bitness?: string;
+    formFactors?: string[];
+    fullVersionList?: { brand: string; version: string }[];
     model?: string;
     platform?: string;
+    platformVersion?: string;
+    uaFullVersion?: string;
+    wow64?: boolean;
   }>;
 }
 

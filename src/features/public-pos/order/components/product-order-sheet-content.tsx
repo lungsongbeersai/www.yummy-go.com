@@ -1,7 +1,15 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { AlertCircle, Check, Minus, Plus, ShoppingBag, X } from "lucide-react";
+import {
+  AlertCircle,
+  Check,
+  Minus,
+  Plus,
+  ScanLine,
+  ShoppingBag,
+  X,
+} from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -60,7 +68,15 @@ export function ProductOrderSheetContent({
 }) {
   const { t } = useTranslation();
   const isMobile = useIsMobile();
-  const { loading, modeLabel, onOpenChange, open, product, saving } = workflow;
+  const {
+    loading,
+    modeLabel,
+    onCloseAutoFocus,
+    onOpenChange,
+    open,
+    product,
+    saving,
+  } = workflow;
   const description =
     [modeLabel, product?.uniteName].filter(Boolean).join(" · ") ||
     t("pos.product");
@@ -108,6 +124,7 @@ export function ProductOrderSheetContent({
           onPointerDownOutside={(event) => {
             if (saving) event.preventDefault();
           }}
+          onCloseAutoFocus={onCloseAutoFocus}
         >
           <SheetDescription className="sr-only">{description}</SheetDescription>
           <SheetClose asChild>{closeButton}</SheetClose>
@@ -132,6 +149,7 @@ export function ProductOrderSheetContent({
         onPointerDownOutside={(event) => {
           if (saving) event.preventDefault();
         }}
+        onCloseAutoFocus={onCloseAutoFocus}
       >
         <DialogDescription className="sr-only">{description}</DialogDescription>
         <DialogClose asChild>{closeButton}</DialogClose>
@@ -725,12 +743,35 @@ function ProductOrderFooter({
   workflow: ProductOrderSheetWorkflow;
 }) {
   const { t } = useTranslation();
-  const { canSubmit, lang, lineTotal, loading, product, saving } = workflow;
+  const {
+    canSubmit,
+    lang,
+    lineTotal,
+    loading,
+    onScanQr,
+    product,
+    saving,
+    viewOnly,
+  } = workflow;
 
   return (
     <div className="shrink-0 border-t border-yg-line bg-yg-bg/45 px-5 pt-3.5 pb-[calc(1rem+env(safe-area-inset-bottom))] backdrop-blur-md">
       {loading && !product ? (
         <Skeleton className="h-13.5 w-full rounded-2xl" />
+      ) : viewOnly ? (
+        <div className="flex flex-col gap-2">
+          <p className="text-center text-sm font-semibold text-yg-muted">
+            {t("pos.viewOnlyMenuNotice")}
+          </p>
+          <Button
+            type="button"
+            className="h-13.5 w-full rounded-2xl bg-yg-accent text-base font-extrabold text-yg-on-accent shadow-[0_12px_30px_-12px_var(--yg-accent)] hover:bg-yg-accent hover:brightness-105"
+            onClick={onScanQr}
+          >
+            <ScanLine aria-hidden="true" data-icon="inline-start" />
+            {t("pos.viewOnlyOrderBannerCta")}
+          </Button>
+        </div>
       ) : (
         <Button
           type="submit"

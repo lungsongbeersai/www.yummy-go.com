@@ -336,7 +336,7 @@ export const EmployeeCategoryRail = memo(function EmployeeCategoryRail({
   if (!categories.length) return null;
 
   return (
-    <div className="-mx-3 overflow-x-auto px-3 pb-1 md:hidden">
+    <div className="-mx-3 overflow-x-auto overflow-y-hidden px-3 pb-1 md:hidden">
       <div
         className={cn(
           "w-max min-w-full overflow-hidden rounded-2xl border p-1.5 shadow-sm",

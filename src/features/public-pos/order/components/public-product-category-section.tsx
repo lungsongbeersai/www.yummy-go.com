@@ -140,7 +140,12 @@ export const ProductCategorySection = memo(function ProductCategorySection({
       ref={setSectionRef}
       id={`public-pos-cate-${category.cateUuid}`}
       data-cate-uuid={category.cateUuid}
-      className="mt-7 scroll-mt-36 first:mt-0 sm:mt-8 [contain-intrinsic-size:720px] [content-visibility:auto]"
+      // เดิมมี content-visibility:auto ด้วย แต่ section นี้มี IntersectionObserver
+      // ของตัวเองอยู่แล้ว (onEnsureLoad, ดูด้านล่าง) ที่ lazy-load สินค้าเมื่อเลื่อนเข้าใกล้
+      // จอ — สอง mechanism ตรวจ "มองเห็นหรือยัง" ชนกัน ทำให้บาง section เว้นที่ว่างขนาด
+      // ใหญ่ค้างไว้ (จอง contain-intrinsic-size แต่ยังไม่ยอม paint เนื้อหาจริง) ตัด
+      // content-visibility ออก ปล่อยให้ IntersectionObserver ที่มีอยู่แล้วจัดการคนเดียวพอ
+      className="mt-7 scroll-mt-36 first:mt-0 sm:mt-8"
     >
       <PublicSectionHeading
         title={category.cateName}

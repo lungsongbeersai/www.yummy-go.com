@@ -9,9 +9,7 @@ import { useAppShellData } from "@/components/layout/use-app-shell-data";
 import {
   buildNativeNavigationModel,
   NATIVE_DIRECT_DESTINATION_COUNT,
-  NATIVE_RAIL_DIRECT_DESTINATION_COUNT,
 } from "@/components/layout/native-navigation-model";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { useAndroidBackButton } from "@/components/layout/capacitor/use-android-back-button";
 import { useKeyboardVisible } from "@/components/layout/capacitor/use-keyboard-visible";
 import { NativeTopBar } from "@/components/layout/capacitor/top-bar";
@@ -30,8 +28,10 @@ export function NativeAppShell({ children }: { children: React.ReactNode }) {
     menuError,
     menuItems,
     menuLoading,
+    openMenus,
     pathname,
     retrySidebarMenu,
+    toggleMenu,
   } = useAppShellData();
   usePosOrderAlertListener({
     branchUuid: user?.branch_uuid,
@@ -39,20 +39,12 @@ export function NativeAppShell({ children }: { children: React.ReactNode }) {
   });
   useSharedPrinterQueue();
 
-  // side rail (md: ขึ้นไป, เช่น iPad) เป็นคอลัมน์แนวตั้งเลื่อนได้ มีที่ว่างพอโชว์ปลายทางตรง
-  // ได้มากกว่า bottom nav แนวนอนของมือถือ — ใช้ breakpoint เดียวกับที่ side-rail.tsx /
-  // bottom-nav.tsx สลับกัน (md:flex / md:hidden) ผ่าน useIsMobile ตัวเดียวกันนี้ จึงมีแค่
-  // นำทางแบบเดียวที่มองเห็นจริงต่อครั้ง ไม่มี model ขัดกันเอง
-  const isMobile = useIsMobile();
+  // model นี้ตอนนี้ใช้แค่กับ NativeTopBar (เช็คว่าควรโชว์ปุ่ม back ไหม) กับ NativeBottomNav
+  // (แถบล่างมือถือ ปลายทางจำกัดจำนวน) เท่านั้น — NativeSideRail (แท็บเล็ต/แนวนอน) เปลี่ยนไปใช้
+  // AppSidebar ตัวเดียวกับเว็บที่โชว์ menuItems เต็มต้นไม้แล้ว ไม่ต้องมี count จำกัดแบบ rail อีก
   const model = useMemo(
-    () =>
-      buildNativeNavigationModel(
-        menuItems,
-        isMobile
-          ? NATIVE_DIRECT_DESTINATION_COUNT
-          : NATIVE_RAIL_DIRECT_DESTINATION_COUNT,
-      ),
-    [isMobile, menuItems],
+    () => buildNativeNavigationModel(menuItems, NATIVE_DIRECT_DESTINATION_COUNT),
+    [menuItems],
   );
   const keyboardVisible = useKeyboardVisible();
   // ปิดบนหน้า fixedDataScreen (เช่น POS order/table) เพราะหน้าเหล่านี้มี scroll area
@@ -101,9 +93,11 @@ export function NativeAppShell({ children }: { children: React.ReactNode }) {
         <NativeSideRail
           error={menuError}
           loading={menuLoading}
-          model={model}
+          menuItems={menuItems}
           onRetry={retrySidebarMenu}
+          openMenus={openMenus}
           pathname={pathname}
+          toggleMenu={toggleMenu}
         />
         <main
           id="app-main-content"

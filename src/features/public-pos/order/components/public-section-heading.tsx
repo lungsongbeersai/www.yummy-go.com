@@ -24,7 +24,7 @@ export function PublicSectionHeading({
   return (
     <div
       className={cn(
-        "mb-4 flex min-w-0 items-end justify-between gap-3",
+        "mb-2.5 flex min-w-0 items-end justify-between gap-3",
         className,
       )}
     >
