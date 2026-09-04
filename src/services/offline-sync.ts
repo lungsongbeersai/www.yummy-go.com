@@ -135,6 +135,8 @@ export interface LocalSyncStatus {
     processing?: number;
     failed?: number;
     blocked?: number;
+    /** Kitchen confirmations held back by a ticket that failed to print. */
+    waiting_on_print?: number;
   };
 }
 

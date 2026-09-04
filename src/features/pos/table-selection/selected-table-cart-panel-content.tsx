@@ -150,7 +150,7 @@ export function SelectedTableCartPanelContent({
                   title={t(`offlineSync.queue${syncBadgeKey}Hint`, { count: syncBadge.count })}
                   className={cn(
                     "mt-0.5 inline-flex w-fit items-center gap-1 rounded-full px-2 py-0.5 text-2xs font-black leading-4",
-                    syncBadge.tone === "blocked"
+                    syncBadge.tone === "blocked" || syncBadge.tone === "print"
                       ? "bg-destructive text-destructive-foreground"
                       : "bg-white/20 text-white",
                   )}

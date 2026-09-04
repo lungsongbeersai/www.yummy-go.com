@@ -11,7 +11,7 @@ import { getLocalSyncStatus } from "@/services/offline-sync";
 // Same source as the sync review page (`GET /local/sync/status`), no new
 // endpoint and no new polling loop of its own beyond this one interval.
 
-export type LocalSyncBadgeTone = "blocked" | "failed" | "pending";
+export type LocalSyncBadgeTone = "blocked" | "print" | "failed" | "pending";
 
 export interface LocalSyncBadgeState {
   tone: LocalSyncBadgeTone;
@@ -25,10 +25,17 @@ export function localSyncBadgeState(pending: {
   pending?: number;
   failed?: number;
   blocked?: number;
+  waiting_on_print?: number;
 } | undefined): LocalSyncBadgeState | null {
   const blocked = Number(pending?.blocked || 0);
   // Blocked first: it will never clear on its own and needs a manager.
   if (blocked > 0) return { tone: "blocked", count: blocked };
+  // Then a kitchen confirmation whose ticket failed to print. It reports itself
+  // as pending, but proof of print is required before it may sync and a failed
+  // ticket never retries on its own — so it waits forever unless someone fixes
+  // the printer. Saying "syncing" would be a lie.
+  const waitingOnPrint = Number(pending?.waiting_on_print || 0);
+  if (waitingOnPrint > 0) return { tone: "print", count: waitingOnPrint };
   const failed = Number(pending?.failed || 0);
   if (failed > 0) return { tone: "failed", count: failed };
   const waiting = Number(pending?.pending || 0);

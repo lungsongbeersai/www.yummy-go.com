@@ -30,7 +30,9 @@
     "queuePending": "Syncing · {{count}}",
     "queueBlockedHint": "{{count}} change(s) could not reach the server and need a manager.",
     "queueFailedHint": "{{count}} change(s) have not reached the server yet and are being retried.",
-    "queuePendingHint": "{{count}} change(s) are waiting to reach the server."
+    "queuePendingHint": "{{count}} change(s) are waiting to reach the server.",
+    "queuePrint": "Printer · {{count}}",
+    "queuePrintHint": "{{count}} kitchen ticket(s) could not print, so the order has not reached the server. Check the printer."
   },
   "offlineMode": {
     "dialogTitle": "Connection to Yummy Go was interrupted",

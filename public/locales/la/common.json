@@ -30,7 +30,9 @@
     "queuePending": "ກຳລັງຊິງ · {{count}}",
     "queueBlockedHint": "ມີ {{count}} ລາຍການສົ່ງໄປເຊີບເວີບໍ່ໄດ້ ຕ້ອງໃຫ້ຜູ້ຈັດການກວດ.",
     "queueFailedHint": "ມີ {{count}} ລາຍການຍັງບໍ່ເຖິງເຊີບເວີ ກຳລັງລອງໃໝ່.",
-    "queuePendingHint": "ມີ {{count}} ລາຍການລໍຖ້າສົ່ງໄປເຊີບເວີ."
+    "queuePendingHint": "ມີ {{count}} ລາຍການລໍຖ້າສົ່ງໄປເຊີບເວີ.",
+    "queuePrint": "ເຄື່ອງພິມ · {{count}}",
+    "queuePrintHint": "ມີ {{count}} ໃບຄົວພິມບໍ່ໄດ້ ອໍເດີຈຶ່ງຍັງບໍ່ເຖິງເຊີບເວີ ກະລຸນາກວດເຄື່ອງພິມ."
   },
   "offlineMode": {
     "dialogTitle": "ການເຊື່ອມຕໍ່ Yummy Go ຂັດຂ້ອງ",
