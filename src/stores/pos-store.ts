@@ -172,17 +172,11 @@ interface PosState {
   splitBill: (input: SplitBillInput) => Promise<SplitBillResponse>;
   // action นี้สั่งพิมพ์ QR ด้วย จึงบังคับ login_uuid_fk ที่ระดับ store (request type เป็น optional)
   createTableQr: (params: CreateTableQRRequest & { login_uuid_fk: string }) => Promise<CreateTableQRResponse>;
-<<<<<<< HEAD
-  // QR เมนูอย่างเดียว (ระดับสาขา) — ผ่านคิวเครื่องพิมพ์ role q-001 เดียวกับ createTableQr
-  // จึงต้องส่ง device/agent ของผู้กดพิมพ์ไปด้วย ไม่มี state ให้ set ต่อ
-  createBranchMenuQr: (params: BranchMenuQRRequest & { login_uuid_fk: string }) => Promise<BranchMenuQRResponse>;
-=======
   // QR เมนูอย่างเดียว (ระดับสาขา) — มีคิวเครื่องพิมพ์จริงแบบเดียวกับ createTableQr แล้ว
   // (P-72) จึงบังคับ login_uuid_fk ที่ระดับ store เหมือนกัน
   createBranchMenuQr: (
     params: CreateBranchMenuQRRequest & { login_uuid_fk: string },
   ) => Promise<BranchMenuQRResponse>;
->>>>>>> feature-73
   printInvoice: (params: PrintInvoiceRequest) => Promise<PrintInvoiceResponse>;
   reprintReceipt: (params: ReprintReceiptRequest) => Promise<ConfirmToKitchenPendingQuery | null>;
   setOrderHistory: (orders: CartOrder[]) => void;
