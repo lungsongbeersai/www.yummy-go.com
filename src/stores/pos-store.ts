@@ -6,7 +6,6 @@ import * as posService from "@/services/pos";
 import { ProductSortStatus } from "@/services/pos";
 import type {
   BillDiscountInput,
-  BranchMenuQRRequest,
   BranchMenuQRResponse,
   CancelOrderItemInput,
   CancelOrderItemResponse,
