@@ -15,5 +15,6 @@ export {
   AgentRequestError,
   agentRejected,
   agentRequest,
+  agentResponseError,
   type AgentResponse,
 } from "./transport";

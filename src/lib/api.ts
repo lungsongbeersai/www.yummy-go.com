@@ -3,6 +3,7 @@
 import axios, { AxiosError, type AxiosInstance } from "axios";
 import i18n from "@/lib/i18n";
 import { isCapacitorAndroidApp } from "@/lib/capacitor-platform";
+import { AgentRequestError } from "@/services/agent-link";
 import {
   BACKEND_NETWORK_STATE,
   classifyBackendError,
@@ -172,17 +173,26 @@ function normalizeError(error: unknown, fallback = "Request failed"): ServiceErr
   return new ServiceError(error instanceof Error ? error.message : fallback, 500, error);
 }
 
+// Only a request that never got an answer is an unreachable Agent. An Agent that
+// answered has a reason, and that reason is the message — never the transport's
+// "Request failed with status code 409", which tells the cashier nothing.
+function localAgentUnreachable(error: unknown) {
+  if (error instanceof AgentRequestError) return !error.responded;
+  return axios.isAxiosError(error) && !error.response;
+}
+
 function normalizeLocalError(error: unknown): ServiceError {
-  if (axios.isAxiosError(error) && !error.response) {
+  if (localAgentUnreachable(error)) {
     return new ServiceError(
       i18n.t("offlineSync.agentUnavailableDescription"),
       503,
       error,
     );
   }
+  const status = error instanceof AgentRequestError ? error.status ?? 503 : 503;
   return new ServiceError(
     error instanceof Error ? error.message : "Local Agent request failed",
-    503,
+    status,
     error,
   );
 }

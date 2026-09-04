@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   AgentRequestError,
   agentRejected,
+  agentResponseError,
   isUsableLanAgentUrl,
   parsePairedAgent,
   resolveAgentLink,
@@ -128,5 +129,42 @@ describe("native transport", () => {
 
     await expect(call(LAN, { method: "POST", path: "/local/api" }))
       .rejects.toMatchObject({ responded: false });
+  });
+});
+
+describe("reading the Agent's own reason out of a rejection", () => {
+  function axiosRejection(status: number, data: unknown) {
+    return Object.assign(new Error(`Request failed with status code ${status}`), {
+      isAxiosError: true,
+      response: { status, data },
+    });
+  }
+
+  it("keeps the Agent's sentence instead of axios's status line", () => {
+    const error = agentResponseError(axiosRejection(409, { ok: false, error: "LOCAL_MASTER_NOT_READY" }));
+
+    expect(error.message).toBe("LOCAL_MASTER_NOT_READY");
+    expect(error).toMatchObject({ responded: true, status: 409 });
+    expect(agentRejected(error)).toBe(true);
+  });
+
+  it("falls back to the transport message when the body carries no reason", () => {
+    expect(agentResponseError(axiosRejection(409, { ok: false })).message)
+      .toBe("Request failed with status code 409");
+  });
+
+  it("reads a request that never got an answer as unreachable, not rejected", () => {
+    const error = agentResponseError(
+      Object.assign(new Error("Network Error"), { isAxiosError: true }),
+    );
+
+    expect(error).toMatchObject({ responded: false, status: null });
+    expect(agentRejected(error)).toBe(false);
+  });
+
+  it("leaves an AgentRequestError exactly as the transport built it", () => {
+    const original = new AgentRequestError("Local Agent responded 401", { responded: true, status: 401 });
+
+    expect(agentResponseError(original)).toBe(original);
   });
 });

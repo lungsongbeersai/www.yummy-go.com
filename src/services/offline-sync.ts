@@ -7,6 +7,7 @@ import {
   type BackendNetworkState,
 } from "@/lib/network-state";
 import { AGENT_URL } from "@/config/printer-agent";
+import { agentRejected, agentResponseError } from "@/services/agent-link";
 import type { HttpMethod, RequestOptions } from "@/lib/api";
 import {
   browserSyncQueueHasRetryableWork,
@@ -608,13 +609,17 @@ export async function requestLocalFallback<T>(
     }
     return response.data.data;
   } catch (error) {
+    // The Agent states why it refused in the body of its 4xx. Carry that
+    // sentence out of here, or the till only ever sees axios's "Request failed
+    // with status code 409" and the cashier cannot tell a closed bill from an
+    // unconfigured device.
+    const agentError = agentResponseError(error);
     if (eventUuid) {
-      const rejectedByAgent = axios.isAxiosError(error) && Boolean(error.response);
       await updateBrowserSyncEvent(eventUuid, {
-        status: rejectedByAgent ? "BLOCKED" : "STAGED",
-        lastError: error instanceof Error ? error.message : "Local Agent request failed",
+        status: agentRejected(agentError) ? "BLOCKED" : "STAGED",
+        lastError: agentError.message,
       }, browserStore).catch(() => undefined);
-      throw error;
+      throw agentError;
     }
     const cached = await readBrowserApiFallback<T>({
       ...scope,
@@ -624,7 +629,7 @@ export async function requestLocalFallback<T>(
       data,
     }, browserStore).catch(() => null);
     if (cached !== null) return cached;
-    throw error;
+    throw agentError;
   }
 }
 
@@ -717,17 +722,21 @@ export async function mirrorOnlineResponse(
   scope: BrowserOfflineScope = { storeUuid: "", branchUuid: "" },
 ) {
   await noteBrowserMutation(scope).catch(() => undefined);
-  await axios.post(
-    `${AGENT_URL}/local/mirror`,
-    {
-      method: method.toUpperCase(),
-      path: url.split("?")[0],
-      params: requestParams(url, options?.params),
-      data: options?.data ?? {},
-      response,
-    },
-    { timeout: 10000 },
-  );
+  try {
+    await axios.post(
+      `${AGENT_URL}/local/mirror`,
+      {
+        method: method.toUpperCase(),
+        path: url.split("?")[0],
+        params: requestParams(url, options?.params),
+        data: options?.data ?? {},
+        response,
+      },
+      { timeout: 10000 },
+    );
+  } catch (error) {
+    throw agentResponseError(error, "Local Agent mirror failed");
+  }
 }
 
 async function mirrorBrowserSyncStatus(status: LocalSyncStatus) {
@@ -822,10 +831,11 @@ export async function reconcileBrowserSyncQueue(
         lastError: null,
       }, browserStore);
     } catch (error) {
-      const rejectedByAgent = axios.isAxiosError(error) && Boolean(error.response);
+      const agentError = agentResponseError(error);
+      const rejectedByAgent = agentRejected(agentError);
       await updateBrowserSyncEvent(entry.eventUuid, {
         status: rejectedByAgent ? "BLOCKED" : "STAGED",
-        lastError: error instanceof Error ? error.message : "Local Agent request failed",
+        lastError: agentError.message,
       }, browserStore).catch(() => undefined);
       if (!rejectedByAgent) break;
     }

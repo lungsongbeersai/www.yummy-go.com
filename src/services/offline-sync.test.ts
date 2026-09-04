@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { BACKEND_NETWORK_STATE } from "@/lib/network-state";
 import {
   configureLocalSync,
+  requestLocalFallback,
   getLocalSyncStatus,
   localSyncHasRetryableWork,
   needsLocalPrintOwnership,
@@ -303,5 +304,35 @@ describe("offline sync transport", () => {
       { timeout: 40000 },
     );
     expect(get).toHaveBeenCalledOnce();
+  });
+});
+
+describe("what a refused Agent read tells the cashier", () => {
+  it("surfaces the Agent's reason rather than the bare status code", async () => {
+    // The Agent answers a refusal with `{ ok: false, error }`, but axios rejects
+    // with nothing but "Request failed with status code 409". That string reached
+    // the till on every offline conflict and named none of them.
+    vi.stubGlobal("window", { location: { origin: "https://pos.example.test" } });
+    vi.spyOn(axios, "post").mockRejectedValue(
+      Object.assign(new Error("Request failed with status code 409"), {
+        isAxiosError: true,
+        response: { status: 409, data: { ok: false, error: "LOCAL_MASTER_NOT_READY" } },
+      }),
+    );
+
+    await expect(
+      requestLocalFallback("get", "/api/v1/posAll/fetch_table", { params: { branch_uuid_fk: "branch-1" } }, null),
+    ).rejects.toMatchObject({ message: "LOCAL_MASTER_NOT_READY", responded: true, status: 409 });
+  });
+
+  it("still reads an unreachable Agent as unreachable, so a write stays staged", async () => {
+    vi.stubGlobal("window", { location: { origin: "https://pos.example.test" } });
+    vi.spyOn(axios, "post").mockRejectedValue(
+      Object.assign(new Error("Network Error"), { isAxiosError: true }),
+    );
+
+    await expect(
+      requestLocalFallback("get", "/api/v1/posAll/fetch_table", { params: { branch_uuid_fk: "branch-1" } }, null),
+    ).rejects.toMatchObject({ message: "Network Error", responded: false });
   });
 });

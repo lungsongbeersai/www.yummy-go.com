@@ -43,6 +43,48 @@ export function agentRejected(error: unknown): boolean {
   return axios.isAxiosError(error) && Boolean(error.response);
 }
 
+function bodyMessage(body: unknown): string {
+  if (typeof body === "string") return body.trim();
+  if (!body || typeof body !== "object") return "";
+  const record = body as Record<string, unknown>;
+  for (const key of ["error", "message"]) {
+    const value = record[key];
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return "";
+}
+
+/**
+ * The Agent's own reason for a rejection, which axios otherwise throws away.
+ *
+ * A rejected Agent call answers with `{ ok: false, error }`, but axios rejects
+ * with nothing but "Request failed with status code 409" and the body never
+ * reaches the till — so every offline conflict, from an unsupported route to a
+ * closed bill, arrived at the cashier as the same bare status code. Keep the
+ * status for the callers that branch on it, and put the Agent's sentence in the
+ * message where a person reads it.
+ */
+export function agentResponseError(
+  error: unknown,
+  fallback = "Local Agent request failed",
+): AgentRequestError {
+  if (error instanceof AgentRequestError) return error;
+  if (axios.isAxiosError(error)) {
+    const response = error.response;
+    if (!response) {
+      return new AgentRequestError(error.message || fallback, { responded: false });
+    }
+    return new AgentRequestError(
+      bodyMessage(response.data) || error.message || fallback,
+      { responded: true, status: response.status },
+    );
+  }
+  return new AgentRequestError(
+    error instanceof Error && error.message ? error.message : fallback,
+    { responded: false },
+  );
+}
+
 function headersFor(link: AgentLink) {
   return {
     "Content-Type": "application/json",
