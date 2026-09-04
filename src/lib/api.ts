@@ -367,6 +367,42 @@ export async function apiRequest<T>(
         });
       }
     }
+    // Desktop/Electron with the Agent installed needs the same escape hatch the
+    // Android branch below spells out. `canContinueOffline` waits for either the
+    // latched OFFLINE verdict — three confirmed probes, so up to ~18s at a 4s
+    // probe timeout and a 2s CHECKING poll — or `navigator.onLine === false`. A
+    // shop whose LAN is still up while its internet is down reports `true`, so
+    // for that whole window every read threw axios's raw "Network Error" at the
+    // cashier instead of serving the Agent's copy.
+    //
+    // Reads only, and the online attempt is already spent: this cannot pre-empt a
+    // live response, and it cannot duplicate a write because prepared.eventUuid
+    // marks exactly the mutations that need the durable outbox and those still
+    // wait for the verdict. Like the Android path it never sets offlineSession —
+    // the probe stays the only authority on whether POS is offline, so one blip
+    // cannot flip the app into offline mode.
+    if (
+      localAgentAvailable &&
+      classification.classification === "NETWORK_TRANSPORT" &&
+      !prepared.eventUuid &&
+      supportsOfflineRoute(method, url) &&
+      typeof window !== "undefined"
+    ) {
+      try {
+        if (localConfiguration) await localConfiguration;
+        const local = await requestLocalFallback<T>(
+          method,
+          url,
+          requestOptions,
+          prepared.eventUuid,
+          localScope,
+        );
+        return assertApiSuccess(local);
+      } catch {
+        // The Agent is unreachable too. Fall through to the Backend error below
+        // rather than replacing it with a less accurate Agent message.
+      }
+    }
     // Android reaches no Agent, so the Dexie mirror is its only offline source.
     //
     // This deliberately does NOT wait for `canContinueOffline`. That gate needs

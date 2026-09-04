@@ -114,4 +114,25 @@ describe("offline asset cache", () => {
       .toContain("readBrowserApiFallback<T>(");
     expect(helper.slice(0, helper.indexOf("\n}"))).not.toContain("AGENT_URL");
   });
+
+  it("lets the Desktop Agent serve a read before the OFFLINE latch", () => {
+    // A shop with its LAN up and its internet down reports navigator.onLine ===
+    // true, so canContinueOffline waits out three confirmed probes (~18s) and
+    // every read on pos/tables surfaced axios's raw "Network Error" meanwhile.
+    // Reads only, and the online attempt is already spent when this runs.
+    const desktopBranch = apiTransport.slice(
+      apiTransport.indexOf(
+        'localAgentAvailable &&\n      classification.classification === "NETWORK_TRANSPORT" &&',
+      ),
+    );
+    const body = desktopBranch.slice(0, desktopBranch.indexOf("// Android reaches no Agent"));
+    expect(body).toContain("!prepared.eventUuid &&");
+    expect(body).toContain("supportsOfflineRoute(method, url) &&");
+    expect(body).toContain("requestLocalFallback<T>(");
+    // The probe stays the only authority on the offline verdict: falling back for
+    // one read must not flip the app into offline mode.
+    expect(body).not.toContain("setOfflineSession");
+    // A dead Agent must leave the Backend error intact rather than replace it.
+    expect(body).not.toContain("throw new ServiceError");
+  });
 });
