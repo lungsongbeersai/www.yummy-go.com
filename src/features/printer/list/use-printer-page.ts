@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useOfflineRefetchEpoch } from "@/hooks/use-offline-refetch";
 import type { Category } from "@/services/category";
 import type { Printer } from "@/services/printer";
 import type { Zone } from "@/services/zone";
@@ -140,6 +141,7 @@ export function usePrinterPage() {
   const agentStatusLabel = agentError ?? t(`printer.status.${agentStatus}`);
 
   const loginUuid = user?.uuid ?? "";
+  const refetchEpoch = useOfflineRefetchEpoch();
 
   const load = useCallback(async () => {
     if (!loginUuid) return;
@@ -173,6 +175,17 @@ export function usePrinterPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // The page loaded once and never asked again, so a read served by the Agent
+  // left offlineSession latched with nothing to clear it: only a successful
+  // Backend response does that, and none was ever sent. The toolbar stayed
+  // hidden and the list stayed local long after the connection returned.
+  // Refetch when the transport verdict settles the other way, as the tables and
+  // order screens already do.
+  useEffect(() => {
+    if (refetchEpoch === 0) return;
+    void load();
+  }, [load, refetchEpoch]);
 
   const loadAgentFilesOnOpen = useCallback(
     (open: boolean) => {

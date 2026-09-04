@@ -56,8 +56,10 @@ import { usePrinterPage } from "./use-printer-page";
 
 export function PrinterPage() {
   const printer = usePrinterPage();
-  // ดาวน์โหลด Agent/ไดรเวอร์ และเพิ่มเครื่องพิมพ์ ต้องใช้ backend ทั้งคู่ — เพจเปิดอ่านได้ตอนออฟไลน์
-  // แต่ปุ่มกลุ่มนี้ทำงานไม่ได้จริง จึงซ่อนไว้แทนที่จะปล่อยให้กดแล้วเจอ error
+  // มีแค่ "เพิ่มเครื่องพิมพ์" ที่ต้องใช้ backend จริง — ตัวดาวน์โหลดเป็นไฟล์ static ของเว็บเอง
+  // (/downloads/...) กับลิงก์ภายนอก และเมนู Agent มีสถานะโหลดไม่สำเร็จของตัวเองอยู่แล้ว
+  // เดิมซ่อนทั้งแถว ทำให้ตอนออฟไลน์ซึ่งเป็นตอนที่ต้องติดตั้ง Driver/Agent มากที่สุด
+  // กลับหาไฟล์ไม่เจอเลย
   const readOnly = useOfflineReadOnly();
   const { t } = printer;
   const [viewMode, setViewMode] = useState<"table" | "cards">("table");
@@ -99,139 +101,139 @@ export function PrinterPage() {
           </Badge>
         </div>
 
-        {readOnly ? null : (
-          <div className="flex shrink-0 items-center gap-2">
-            <div className="lg:hidden">
-              <PrinterDownloadsMenu
-                activeAgentFiles={printer.activeAgentFiles}
-                agentFilesFailed={printer.agentFilesFailed}
-                loadingAgentFiles={printer.loadingAgentFiles}
-                onAgentOpenChange={printer.loadAgentFilesOnOpen}
-                onDriverDownload={printer.showDriverDownloadToast}
-                onLaoFontDownload={printer.showLaoFontDownloadToast}
-                onPrinterSetupDownload={printer.showPrinterSetupDownloadToast}
-              />
-            </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <div className="lg:hidden">
+            <PrinterDownloadsMenu
+              activeAgentFiles={printer.activeAgentFiles}
+              agentFilesFailed={printer.agentFilesFailed}
+              loadingAgentFiles={printer.loadingAgentFiles}
+              onAgentOpenChange={printer.loadAgentFilesOnOpen}
+              onDriverDownload={printer.showDriverDownloadToast}
+              onLaoFontDownload={printer.showLaoFontDownloadToast}
+              onPrinterSetupDownload={printer.showPrinterSetupDownloadToast}
+            />
+          </div>
 
-            <div className="hidden items-center gap-2 lg:flex">
-              <Button
-                asChild
-                className="shadow-sm"
-                size="lg"
-                type="button"
-                variant="outline"
+          <div className="hidden items-center gap-2 lg:flex">
+            <Button
+              asChild
+              className="shadow-sm"
+              size="lg"
+              type="button"
+              variant="outline"
+            >
+              <a
+                href={XPRINTER_DRIVER_URL}
+                download={XPRINTER_DRIVER_FILE_NAME}
+                onClick={printer.showDriverDownloadToast}
               >
-                <a
-                  href={XPRINTER_DRIVER_URL}
-                  download={XPRINTER_DRIVER_FILE_NAME}
-                  onClick={printer.showDriverDownloadToast}
+                <Download data-icon="inline-start" />
+                {t("printer.installDriver")}
+              </a>
+            </Button>
+
+            <DropdownMenu onOpenChange={printer.loadAgentFilesOnOpen}>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  className="shadow-sm"
+                  size="lg"
+                  type="button"
+                  variant="outline"
                 >
-                  <Download data-icon="inline-start" />
-                  {t("printer.installDriver")}
-                </a>
-              </Button>
+                  {printer.loadingAgentFiles ? (
+                    <Spinner data-icon="inline-start" />
+                  ) : (
+                    <Download data-icon="inline-start" />
+                  )}
+                  {t("printer.downloadAgent")}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-80">
+                <DropdownMenuGroup>
+                  {printer.loadingAgentFiles ? (
+                    <DropdownMenuItem disabled>
+                      <Spinner />
+                      {t("printer.loadingAgentFiles")}
+                    </DropdownMenuItem>
+                  ) : printer.agentFilesFailed ? (
+                    <DropdownMenuItem disabled>
+                      {t("printer.agentFilesLoadFailed")}
+                    </DropdownMenuItem>
+                  ) : printer.activeAgentFiles.length ? (
+                    printer.activeAgentFiles.map((file) => {
+                      const platformKey = file.file_platform
+                        .trim()
+                        .toLowerCase();
+                      const platformLabel = t(
+                        `printer.agentPlatform.${platformKey}`,
+                        {
+                          defaultValue:
+                            file.file_platform || t("printer.agent"),
+                        },
+                      );
+                      const url = agentDownloadUrl(file);
 
-              <DropdownMenu onOpenChange={printer.loadAgentFilesOnOpen}>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    className="shadow-sm"
-                    size="lg"
-                    type="button"
-                    variant="outline"
-                  >
-                    {printer.loadingAgentFiles ? (
-                      <Spinner data-icon="inline-start" />
-                    ) : (
-                      <Download data-icon="inline-start" />
-                    )}
-                    {t("printer.downloadAgent")}
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-80">
-                  <DropdownMenuGroup>
-                    {printer.loadingAgentFiles ? (
-                      <DropdownMenuItem disabled>
-                        <Spinner />
-                        {t("printer.loadingAgentFiles")}
-                      </DropdownMenuItem>
-                    ) : printer.agentFilesFailed ? (
-                      <DropdownMenuItem disabled>
-                        {t("printer.agentFilesLoadFailed")}
-                      </DropdownMenuItem>
-                    ) : printer.activeAgentFiles.length ? (
-                      printer.activeAgentFiles.map((file) => {
-                        const platformKey = file.file_platform
-                          .trim()
-                          .toLowerCase();
-                        const platformLabel = t(
-                          `printer.agentPlatform.${platformKey}`,
-                          {
-                            defaultValue:
-                              file.file_platform || t("printer.agent"),
-                          },
-                        );
-                        const url = agentDownloadUrl(file);
-
-                        return (
-                          <DropdownMenuItem key={file.agent_file_uuid} asChild>
-                            <a
-                              href={url}
-                              target="_blank"
-                              rel="noreferrer"
-                              download={file.file_name}
-                              onClick={(event) => {
-                                event.currentTarget.href = agentDownloadUrl(
-                                  file,
-                                  Date.now(),
-                                );
-                              }}
-                            >
-                              <AgentPlatformIcon platform={file.file_platform} />
-                              <span className="flex min-w-0 flex-col">
-                                <span className="truncate font-semibold">
-                                  {platformLabel}
-                                </span>
-                                <span className="truncate text-xs text-muted-foreground">
-                                  {file.file_name}
-                                </span>
+                      return (
+                        <DropdownMenuItem key={file.agent_file_uuid} asChild>
+                          <a
+                            href={url}
+                            target="_blank"
+                            rel="noreferrer"
+                            download={file.file_name}
+                            onClick={(event) => {
+                              event.currentTarget.href = agentDownloadUrl(
+                                file,
+                                Date.now(),
+                              );
+                            }}
+                          >
+                            <AgentPlatformIcon platform={file.file_platform} />
+                            <span className="flex min-w-0 flex-col">
+                              <span className="truncate font-semibold">
+                                {platformLabel}
                               </span>
-                            </a>
-                          </DropdownMenuItem>
-                        );
-                      })
-                    ) : (
-                      <DropdownMenuItem disabled>
-                        {t("printer.noAgentFiles")}
-                      </DropdownMenuItem>
-                    )}
-                  </DropdownMenuGroup>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                              <span className="truncate text-xs text-muted-foreground">
+                                {file.file_name}
+                              </span>
+                            </span>
+                          </a>
+                        </DropdownMenuItem>
+                      );
+                    })
+                  ) : (
+                    <DropdownMenuItem disabled>
+                      {t("printer.noAgentFiles")}
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
-              <Button asChild className="shadow-sm" size="lg" variant="outline">
-                <a
-                  href="/downloads/laoscript8.msi"
-                  download
-                  onClick={printer.showLaoFontDownloadToast}
-                >
-                  <Download data-icon="inline-start" />
-                  {t("printer.downloadLaoFont")}
-                </a>
-              </Button>
+            <Button asChild className="shadow-sm" size="lg" variant="outline">
+              <a
+                href="/downloads/laoscript8.msi"
+                download
+                onClick={printer.showLaoFontDownloadToast}
+              >
+                <Download data-icon="inline-start" />
+                {t("printer.downloadLaoFont")}
+              </a>
+            </Button>
 
-              <Button asChild className="shadow-sm" size="lg" variant="outline">
-                <a
-                  href={PRINTER_SETUP_DOWNLOAD_URL}
-                  target="_blank"
-                  rel="noreferrer"
-                  onClick={printer.showPrinterSetupDownloadToast}
-                >
-                  <Download data-icon="inline-start" />
-                  {t("printer.downloadPrinterSetup")}
-                </a>
-              </Button>
-            </div>
+            <Button asChild className="shadow-sm" size="lg" variant="outline">
+              <a
+                href={PRINTER_SETUP_DOWNLOAD_URL}
+                target="_blank"
+                rel="noreferrer"
+                onClick={printer.showPrinterSetupDownloadToast}
+              >
+                <Download data-icon="inline-start" />
+                {t("printer.downloadPrinterSetup")}
+              </a>
+            </Button>
+          </div>
 
+          {readOnly ? null : (
             <Link
               className={cn(buttonVariants({ size: "lg" }), "shadow-sm")}
               href="/printers/form"
@@ -242,8 +244,8 @@ export function PrinterPage() {
               </span>
               <span className="sm:hidden">{t("actions.add")}</span>
             </Link>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       <Card className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-none border-x-0 border-b-0">

@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import type { Printer } from "@/services/printer";
 import {
@@ -97,5 +100,42 @@ describe("printerZones / printerCategories", () => {
       "cate-a",
       "cate-b",
     ]);
+  });
+});
+
+describe("what the printers page keeps working while offline", () => {
+  const testDir = dirname(fileURLToPath(import.meta.url));
+  const pageSource = readFileSync(join(testDir, "printer-page.tsx"), "utf8");
+  const hookSource = readFileSync(join(testDir, "use-printer-page.ts"), "utf8");
+
+  it("gates only the Backend-backed action on the offline verdict", () => {
+    // Losing Backend is exactly when someone is installing a Driver or the Agent,
+    // and those are static files this app serves itself. Hiding the whole row
+    // took them away at the one moment they are needed.
+    const toolbar = pageSource.slice(
+      pageSource.indexOf('<div className="flex shrink-0 items-center gap-2">'),
+    );
+    const gated = toolbar.split("readOnly ? null : (");
+    expect(gated).toHaveLength(2);
+    expect(gated[1]).toContain('href="/printers/form"');
+    for (const download of [
+      "XPRINTER_DRIVER_URL",
+      "/downloads/laoscript8.msi",
+      "PRINTER_SETUP_DOWNLOAD_URL",
+      "printer.downloadAgent",
+    ]) {
+      expect(gated[0]).toContain(download);
+    }
+  });
+
+  it("refetches when the transport verdict settles, so it can leave offline again", () => {
+    // The mount load is the only request this page makes. A read the Agent
+    // served latches offlineSession, and only a successful Backend response
+    // clears it — so without this the page never asked again and stayed
+    // read-only after the connection came back.
+    expect(hookSource).toContain("useOfflineRefetchEpoch()");
+    const effect = hookSource.slice(hookSource.indexOf("if (refetchEpoch === 0) return;"));
+    expect(effect.slice(0, effect.indexOf("}, ["))).toContain("void load();");
+    expect(effect).toContain("}, [load, refetchEpoch]);");
   });
 });
