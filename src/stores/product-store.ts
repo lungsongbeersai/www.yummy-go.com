@@ -23,7 +23,7 @@ import {
   type StatusSort
 } from "@/services/product";
 import { deleteSize, saveSizeForStatus, type SaveSizeForStatusInput } from "@/services/size";
-import type { PageLimit } from "@/services/shared/types";
+import type { PageLimit, SortOrder } from "@/services/shared/types";
 import { createSessionGuard, registerSessionStoreReset } from "@/stores/session-store-registry";
 import { errorMessage } from "@/stores/store-utils";
 import {
@@ -53,12 +53,14 @@ interface ProductState {
   totalPages: number;
   search: string;
   cateUuidFk: string;
+  orderBy: SortOrder;
   pageLimit: PageLimit;
   loading: boolean;
   saving: boolean;
   error: string | null;
   setSearch: (search: string) => void;
   setCateUuidFk: (cateUuidFk: string) => void;
+  setOrderBy: (orderBy: SortOrder) => void;
   setPageLimit: (pageLimit: PageLimit) => void;
   load: (params?: FetchProductsParams) => Promise<Product[]>;
   loadAllForImport: (params: FetchProductsParams) => Promise<Product[]>;
@@ -96,12 +98,14 @@ export const useProductStore = create<ProductState>((set, get) => ({
   totalPages: 0,
   search: "",
   cateUuidFk: "",
+  orderBy: "ASC",
   pageLimit: DEFAULT_PAGE_LIMIT,
   loading: false,
   saving: false,
   error: null,
   setSearch: (search) => set({ search }),
   setCateUuidFk: (cateUuidFk) => set({ cateUuidFk }),
+  setOrderBy: (orderBy) => set({ orderBy }),
   setPageLimit: (pageLimit) => set({ pageLimit }),
   load: async (params = {}) => {
     const requestId = ++productLoadRequestId;
@@ -113,6 +117,7 @@ export const useProductStore = create<ProductState>((set, get) => ({
         ...params,
         search: params.search ?? get().search,
         cate_uuid_fk: params.cate_uuid_fk ?? get().cateUuidFk,
+        orderBy: params.orderBy ?? get().orderBy,
         limit: pageLimit
       });
       const rows = result.data ?? [];
@@ -359,6 +364,7 @@ export const useProductStore = create<ProductState>((set, get) => ({
       totalPages: 0,
       search: "",
       cateUuidFk: "",
+      orderBy: "ASC",
       pageLimit: DEFAULT_PAGE_LIMIT,
       loading: false,
       saving: false,

@@ -580,12 +580,15 @@ export function useOrderCustomerWorkflow({
         current,
         uuid,
         rememberedToppingQtyByUuid[uuid] ?? 1,
+        selectedProduct?.prodToppingMaxSelect,
       ),
     );
   }
 
   function changeSelectedToppingQty(uuid: string, nextQty: number) {
-    setToppingQtyByUuid((current) => changeToppingQty(current, uuid, nextQty));
+    setToppingQtyByUuid((current) =>
+      changeToppingQty(current, uuid, nextQty, selectedProduct?.prodToppingMaxSelect),
+    );
   }
 
   async function submitSelectedProduct() {

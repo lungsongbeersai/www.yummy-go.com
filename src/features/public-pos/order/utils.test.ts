@@ -576,6 +576,17 @@ describe("public POS order payload helper", () => {
     ).toEqual({ "top-1": 1 });
   });
 
+  it("caps topping qty at the product's prod_topping_max_select when set", () => {
+    const freeTopping = { toppingPrice: 0 } as ProdTopping;
+    const paidTopping = { toppingPrice: 5000 } as ProdTopping;
+
+    expect(toppingMaxQty(paidTopping, 3)).toBe(3);
+    expect(toppingMaxQty(paidTopping, 0)).toBe(99);
+    expect(toppingMaxQty(paidTopping, "2")).toBe(2);
+    // ทอปปิ้งฟรียังถูกล็อกที่ 1 เสมอ ไม่ว่าร้านจะตั้ง max ไว้สูงแค่ไหน
+    expect(toppingMaxQty(freeTopping, 5)).toBe(1);
+  });
+
   it("builds the public QR create-order contract", () => {
     expect(
       buildPublicOrderInput({

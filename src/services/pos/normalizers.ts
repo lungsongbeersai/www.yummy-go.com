@@ -68,6 +68,7 @@ export function mapApiProdItem(product: ApiProdItem): ProdItem {
     uniteName: product.unite_name,
     prodSetPrice: product.prod_set_price,
     proDetailSprice: product.pro_detail_sprice,
+    prodToppingMaxSelect: product.prod_topping_max_select,
     statusSortFk: product.status_sort_fk,
     details: (product.details ?? []).map(mapApiProdDetail),
     toppings: (product.toppings ?? []).map(mapApiProdTopping),

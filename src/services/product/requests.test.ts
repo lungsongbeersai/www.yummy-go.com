@@ -19,7 +19,7 @@ describe("product requests", () => {
     apiMocks.apiRequest.mockReset();
   });
 
-  it("sorts fetched product rows by prod_sort", async () => {
+  it("sorts fetched product rows by prod_sort ascending by default", async () => {
     apiMocks.apiRequest.mockResolvedValue({
       status: "success",
       message: "success",
@@ -39,6 +39,39 @@ describe("product requests", () => {
       "prod-3",
       "prod-unsorted"
     ]);
+    expect(apiMocks.apiRequest).toHaveBeenCalledWith(
+      "get",
+      "/api/v1/product/fetch_limit",
+      { params: expect.objectContaining({ orderBy: "ASC" }) }
+    );
+  });
+
+  it("reverses prod_sort order and forwards orderBy=DESC to the API", async () => {
+    apiMocks.apiRequest.mockResolvedValue({
+      status: "success",
+      message: "success",
+      data: [
+        { prod_uuid: "prod-3", prod_sort: 3 },
+        { prod_uuid: "prod-unsorted" },
+        { prod_uuid: "prod-1", prod_sort: 1 },
+        { prod_uuid: "prod-2", prod_sort: "2" }
+      ]
+    });
+
+    const result = await getProducts({ branch_uuid_fk: "branch-1", lang: "la", orderBy: "DESC" });
+
+    // แถวที่ยังไม่มี prod_sort อยู่ท้ายสุดเสมอ ไม่ว่าจะ ASC หรือ DESC
+    expect(result.data.map((row) => row.prod_uuid)).toEqual([
+      "prod-3",
+      "prod-2",
+      "prod-1",
+      "prod-unsorted"
+    ]);
+    expect(apiMocks.apiRequest).toHaveBeenCalledWith(
+      "get",
+      "/api/v1/product/fetch_limit",
+      { params: expect.objectContaining({ orderBy: "DESC" }) }
+    );
   });
 
   it("posts product category sort payloads", async () => {

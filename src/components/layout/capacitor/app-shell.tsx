@@ -6,7 +6,12 @@ import { usePosOrderAlertListener } from "@/hooks/use-pos-order-alert-listener";
 import { useSharedPrinterQueue } from "@/hooks/use-shared-printer-queue";
 import { cn } from "@/lib/utils";
 import { useAppShellData } from "@/components/layout/use-app-shell-data";
-import { buildNativeNavigationModel } from "@/components/layout/native-navigation-model";
+import {
+  buildNativeNavigationModel,
+  NATIVE_DIRECT_DESTINATION_COUNT,
+  NATIVE_RAIL_DIRECT_DESTINATION_COUNT,
+} from "@/components/layout/native-navigation-model";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useAndroidBackButton } from "@/components/layout/capacitor/use-android-back-button";
 import { useKeyboardVisible } from "@/components/layout/capacitor/use-keyboard-visible";
 import { NativeTopBar } from "@/components/layout/capacitor/top-bar";
@@ -34,9 +39,20 @@ export function NativeAppShell({ children }: { children: React.ReactNode }) {
   });
   useSharedPrinterQueue();
 
+  // side rail (md: ขึ้นไป, เช่น iPad) เป็นคอลัมน์แนวตั้งเลื่อนได้ มีที่ว่างพอโชว์ปลายทางตรง
+  // ได้มากกว่า bottom nav แนวนอนของมือถือ — ใช้ breakpoint เดียวกับที่ side-rail.tsx /
+  // bottom-nav.tsx สลับกัน (md:flex / md:hidden) ผ่าน useIsMobile ตัวเดียวกันนี้ จึงมีแค่
+  // นำทางแบบเดียวที่มองเห็นจริงต่อครั้ง ไม่มี model ขัดกันเอง
+  const isMobile = useIsMobile();
   const model = useMemo(
-    () => buildNativeNavigationModel(menuItems),
-    [menuItems],
+    () =>
+      buildNativeNavigationModel(
+        menuItems,
+        isMobile
+          ? NATIVE_DIRECT_DESTINATION_COUNT
+          : NATIVE_RAIL_DIRECT_DESTINATION_COUNT,
+      ),
+    [isMobile, menuItems],
   );
   const keyboardVisible = useKeyboardVisible();
   // ปิดบนหน้า fixedDataScreen (เช่น POS order/table) เพราะหน้าเหล่านี้มี scroll area
@@ -109,9 +125,17 @@ export function NativeAppShell({ children }: { children: React.ReactNode }) {
             // ทุกหน้ามี footer/pagination ของตัวเองที่กันความสูงแถบ nav ไว้แล้ว (ดู stock-page.tsx,
             // report-table-card.tsx, settings-shell.tsx ฯลฯ) ถ้า main ชั้นนอกกันซ้ำอีกชั้นจะกลาย
             // เป็นจองพื้นที่ว่างสองรอบซ้อนกัน (~150px) ทำให้ footer ข้างในดูสูงเกินจริงตามที่รายงานมา
+            //
+            // max(...) ไม่ใช่แค่ตัวแปรเดียว — บนมือถือ bottom nav ทำหน้าที่เป็น safe-area
+            // footer อยู่แล้วในตัว (--app-shell-bottom-nav-height รวม safe-area-inset-bottom
+            // ไว้ใน globals.css แล้ว) แต่บน iPad/tablet (md:) แถบนี้เปลี่ยนไปเป็น side rail
+            // แนวตั้งแทน ไม่ได้กินพื้นที่ล่างจอเลย --app-shell-bottom-nav-height เลยกลายเป็น 0
+            // และไม่มีอะไรกันโซน safe-area (home indicator/gesture bar) ด้านล่างให้เนื้อหาอีก —
+            // max() เลือกใช้ --pos-system-bottom-safe-area (โทเคน safe-area กลางของแอป) แทน
+            // เมื่อ bottom-nav-height เป็น 0
             fixedDataScreen
               ? "min-h-0 overflow-hidden"
-              : "overflow-visible pb-(--app-shell-bottom-nav-height) pt-3 px-3",
+              : "overflow-visible pb-[max(var(--app-shell-bottom-nav-height,0px),var(--pos-system-bottom-safe-area,0px))] pt-3 px-3",
           )}
         >
           {children}

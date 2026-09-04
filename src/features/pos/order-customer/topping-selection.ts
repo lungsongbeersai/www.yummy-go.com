@@ -23,30 +23,44 @@ export function selectedToppingsFromQtyMap(
     );
 }
 
+// productMaxSelect มาจาก prod_topping_max_select ที่ร้านตั้งไว้ต่อสินค้า — 0/ไม่ระบุ = ไม่จำกัด (ใช้เพดาน MAX_ORDER_QTY เดิม)
 export function toggleToppingQty(
   current: Record<string, number>,
   uuid: string,
   rememberedQty = 1,
+  productMaxSelect?: number | string,
 ) {
   if (current[uuid]) {
     const next = { ...current };
     delete next[uuid];
     return next;
   }
-  return { ...current, [uuid]: clampQty(rememberedQty) };
+  return {
+    ...current,
+    [uuid]: Math.min(clampQty(rememberedQty), toppingQtyCap(productMaxSelect)),
+  };
 }
 
 export function changeToppingQty(
   current: Record<string, number>,
   uuid: string,
   qty: number,
+  productMaxSelect?: number | string,
 ) {
   if (qty < 1) {
     const next = { ...current };
     delete next[uuid];
     return next;
   }
-  return { ...current, [uuid]: clampQty(qty) };
+  return {
+    ...current,
+    [uuid]: Math.min(clampQty(qty), toppingQtyCap(productMaxSelect)),
+  };
+}
+
+export function toppingQtyCap(productMaxSelect?: number | string) {
+  const configuredMax = optionalNumber(productMaxSelect) ?? 0;
+  return configuredMax > 0 ? Math.min(MAX_ORDER_QTY, configuredMax) : MAX_ORDER_QTY;
 }
 
 export function countSelectedToppings(toppings: SelectedTopping[]) {

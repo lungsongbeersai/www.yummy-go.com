@@ -194,6 +194,7 @@ function ProductOrderForm({
     note,
     onNoteChange,
     product,
+    productMaxSelect,
     qty,
     quantityMeta,
     saving,
@@ -272,6 +273,7 @@ function ProductOrderForm({
             {toppings.length ? (
               <ProductToppingFieldset
                 lang={lang}
+                productMaxSelect={productMaxSelect}
                 saving={saving}
                 selectedCount={selectedToppings.length}
                 toppingQtyByUuid={toppingQtyByUuid}
@@ -471,6 +473,7 @@ function SetProductFieldset({ details }: { details: ProdDetail[] }) {
 
 function ProductToppingFieldset({
   lang,
+  productMaxSelect,
   saving,
   selectedCount,
   toppingQtyByUuid,
@@ -479,6 +482,7 @@ function ProductToppingFieldset({
   onToggle,
 }: {
   lang: string;
+  productMaxSelect?: number | string;
   saving: boolean;
   selectedCount: number;
   toppingQtyByUuid: Record<string, number>;
@@ -505,6 +509,7 @@ function ProductToppingFieldset({
             <ProductToppingRow
               key={uuid}
               lang={lang}
+              productMaxSelect={productMaxSelect}
               qty={qty}
               saving={saving}
               topping={topping}
@@ -520,6 +525,7 @@ function ProductToppingFieldset({
 
 function ProductToppingRow({
   lang,
+  productMaxSelect,
   qty,
   saving,
   topping,
@@ -527,6 +533,7 @@ function ProductToppingRow({
   onToggle,
 }: {
   lang: string;
+  productMaxSelect?: number | string;
   qty: number;
   saving: boolean;
   topping: ProdTopping;
@@ -615,7 +622,7 @@ function ProductToppingRow({
               variant="ghost"
               aria-label={t("pos.increaseTopping", { name: label })}
               className="size-9 rounded-lg bg-yg-accent-soft text-yg-accent-strong hover:bg-yg-accent-line"
-              disabled={saving || qty >= toppingMaxQty(topping)}
+              disabled={saving || qty >= toppingMaxQty(topping, productMaxSelect)}
               onClick={() => onChangeQty(qty + 1)}
             >
               <Plus aria-hidden="true" />

@@ -371,7 +371,7 @@ export function SettingsToolbar({ state }: { state: SettingsToolbarState }) {
                 {renderOrderSelect("settings-mobile-order", "h-11")}
               </Field>
             </div>
-            <SheetFooter className="border-t border-border px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:flex-row">
+            <SheetFooter className="border-t border-border px-4 py-3 pb-[calc(0.75rem+var(--pos-system-bottom-safe-area,0px))] sm:flex-row">
               <SheetClose asChild>
                 <Button type="button" variant="outline">
                   {t("actions.cancel")}
@@ -410,7 +410,7 @@ export function SettingsMobileList({ children, className }: { children: ReactNod
   return (
     <div
       className={cn(
-        "flex min-h-full flex-col gap-2 p-3 pb-[calc(0.75rem+max(env(safe-area-inset-bottom),var(--app-shell-bottom-nav-height,0px)))]",
+        "flex min-h-full flex-col gap-2 p-3 pb-[calc(0.75rem+max(var(--pos-system-bottom-safe-area,0px),var(--app-shell-bottom-nav-height,0px)))]",
         className
       )}
     >
@@ -519,7 +519,7 @@ export function SettingsPaginationFooter({
   const { t } = useTranslation();
 
   return (
-    <div className="shrink-0 border-t border-border px-4 py-3 pb-[calc(0.75rem+max(env(safe-area-inset-bottom),var(--app-shell-bottom-nav-height,0px)))] text-sm text-muted-foreground">
+    <div className="shrink-0 border-t border-border px-4 py-3 pb-[calc(0.75rem+max(var(--pos-system-bottom-safe-area,0px),var(--app-shell-bottom-nav-height,0px)))] text-sm text-muted-foreground">
       <AppPagination
         page={page}
         rangeLabel={t("common.showingRange", { start: pageStart, end: pageEnd, total })}

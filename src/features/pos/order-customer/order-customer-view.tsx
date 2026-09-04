@@ -286,28 +286,42 @@ export function OrderCustomerView({
 
             {!isCapacitorNativeApp ? (
               <div className="ml-auto flex shrink-0 items-center gap-2">
-                <LanguageSwitch
-                  className={headerIconButtonClass(isCapacitorNativeApp)}
-                  compact
-                  size="icon"
-                  variant="ghost"
-                />
-                <ThemeToggle
-                  className={headerIconButtonClass(isCapacitorNativeApp)}
-                  size="icon"
-                  variant="ghost"
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  aria-label={t("actions.refresh")}
-                  className={headerIconButtonClass(isCapacitorNativeApp)}
-                  disabled={loadingTables || loadingMenu}
-                  onClick={() => void refreshAll()}
-                >
-                  {loadingTables || loadingMenu ? <Spinner /> : <RefreshCcw />}
-                </Button>
+                {/* lg–xl (ประมาณ iPad landscape) แถวนี้ไม่พอที่ใส่ปุ่มภาษา/ธีม/รีเฟรช
+                    แยก 3 ปุ่มพร้อมกับ sort tabs + search ที่กว้างคงที่ — คำนวณแล้ว
+                    ล้นแน่นอนที่ 1024px (เห็นเป็นแถวปุ่มบีบ/ตกบรรทัดในภาพจริงบน iPad)
+                    จึงยุบเป็นเมนู "..." เดียวกับแถวมือถือจนกว่าจะถึง xl (1280px) ที่มี
+                    ที่ว่างพอ */}
+                <div className="hidden items-center gap-2 xl:flex">
+                  <LanguageSwitch
+                    className={headerIconButtonClass(isCapacitorNativeApp)}
+                    compact
+                    size="icon"
+                    variant="ghost"
+                  />
+                  <ThemeToggle
+                    className={headerIconButtonClass(isCapacitorNativeApp)}
+                    size="icon"
+                    variant="ghost"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    aria-label={t("actions.refresh")}
+                    className={headerIconButtonClass(isCapacitorNativeApp)}
+                    disabled={loadingTables || loadingMenu}
+                    onClick={() => void refreshAll()}
+                  >
+                    {loadingTables || loadingMenu ? <Spinner /> : <RefreshCcw />}
+                  </Button>
+                </div>
+                <div className="xl:hidden">
+                  <EmployeeMobileHeaderActions
+                    loading={loadingTables || loadingMenu}
+                    neutral={isCapacitorNativeApp}
+                    onRefresh={() => void refreshAll()}
+                  />
+                </div>
               </div>
             ) : null}
           </div>

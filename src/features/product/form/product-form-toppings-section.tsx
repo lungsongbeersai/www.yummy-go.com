@@ -25,11 +25,21 @@ import {
   FieldSet,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 import type { BinaryFlag } from "./product-form-types";
 import {
   TOPPING_HAS,
+  TOPPING_MAX_SELECT_OPTIONS,
+  TOPPING_MAX_SELECT_UNLIMITED,
   choiceCardClass,
   choiceMarkClass,
   entityLabel,
@@ -48,6 +58,8 @@ export function ProductFormToppingsSection({ form }: { form: ProductFormWorkflow
     setToppingDialogOpen,
     toppingModeChoices,
     prodToppingStatus,
+    prodToppingMaxSelect,
+    setProdToppingMaxSelect,
     selectedToppingBadges,
     toppingOptions,
     filteredToppingOptions,
@@ -125,6 +137,30 @@ export function ProductFormToppingsSection({ form }: { form: ProductFormWorkflow
                 })}
               </div>
             </Field>
+            {prodToppingStatus === TOPPING_HAS ? (
+              <Field>
+                <FieldLabel htmlFor="prod-topping-max-select">{t("product.toppingMaxSelect")}</FieldLabel>
+                <Select
+                  value={prodToppingMaxSelect || TOPPING_MAX_SELECT_UNLIMITED}
+                  onValueChange={setProdToppingMaxSelect}
+                >
+                  <SelectTrigger id="prod-topping-max-select" className="w-full max-w-52">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent position="popper">
+                    <SelectGroup>
+                      <SelectItem value={TOPPING_MAX_SELECT_UNLIMITED}>{t("product.unlimited")}</SelectItem>
+                      {TOPPING_MAX_SELECT_OPTIONS.map((value) => (
+                        <SelectItem key={value} value={String(value)}>
+                          {value}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+                <FieldDescription>{t("product.toppingMaxSelectHint")}</FieldDescription>
+              </Field>
+            ) : null}
             {prodToppingStatus === TOPPING_HAS && selectedToppingBadges.length ? (
               <div className="flex flex-wrap gap-2">
                 {selectedToppingBadges.map((item) => (

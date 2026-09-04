@@ -26,6 +26,11 @@ export const ORDER_POINT_OPTIONS = Array.from(
   { length: 30 },
   (_, index) => index + 1,
 );
+export const TOPPING_MAX_SELECT_OPTIONS = Array.from(
+  { length: 20 },
+  (_, index) => index + 1,
+);
+export const TOPPING_MAX_SELECT_UNLIMITED = "0";
 export const DEFAULT_COLOR = "#10b981";
 export const CUSTOM_COLOR_VALUE = "__custom__";
 export const TOPPING_NONE = "1";
@@ -896,6 +901,10 @@ export function buildSaveProductPayload(
             topping_price: numberFromFormatted(row.topping_price),
           }))
         : [],
+    prod_topping_max_select:
+      state.prodToppingStatus === TOPPING_HAS
+        ? Number(state.prodToppingMaxSelect) || 0
+        : 0,
   };
 }
 

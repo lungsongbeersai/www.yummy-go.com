@@ -220,6 +220,8 @@ export function useProductFormWorkflow() {
     newToppingNameLa,
     newToppingPrice,
     prodToppingStatus,
+    prodToppingMaxSelect,
+    setProdToppingMaxSelect,
     selectedToppingBadges,
     selectedToppingMap,
     selectedToppings,
@@ -549,6 +551,7 @@ export function useProductFormWorkflow() {
         prodImage: await productImagePayload(),
         details,
         prodToppingStatus,
+        prodToppingMaxSelect,
         selectedToppings
       });
       const updateProdUuid = editing?.prod_uuid ?? prodUuid;
@@ -864,6 +867,8 @@ export function useProductFormWorkflow() {
     bulkStockSaving,
     prodToppingStatus,
     setProdToppingStatus,
+    prodToppingMaxSelect,
+    setProdToppingMaxSelect,
     categoryDialogOpen,
     setCategoryDialogOpen,
     unitDialogOpen,

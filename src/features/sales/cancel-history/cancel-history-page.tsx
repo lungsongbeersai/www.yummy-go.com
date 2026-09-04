@@ -294,7 +294,7 @@ function CancelHistoryFilterSheet({
             />
           </div>
         </div>
-        <SheetFooter className="grid grid-cols-2 gap-2 border-t border-border bg-card/95 px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur">
+        <SheetFooter className="grid grid-cols-2 gap-2 border-t border-border bg-card/95 px-4 py-3 pb-[calc(0.75rem+var(--pos-system-bottom-safe-area,0px))] backdrop-blur">
           <SheetClose asChild>
             <Button type="button" variant="outline">
               {t("actions.close")}

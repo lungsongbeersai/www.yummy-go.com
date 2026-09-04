@@ -51,6 +51,7 @@ export function useProductToppingsWorkflow({
   toppings
 }: ProductToppingsWorkflowOptions) {
   const [prodToppingStatus, setProdToppingStatus] = useState<BinaryFlag>(TOPPING_NONE);
+  const [prodToppingMaxSelect, setProdToppingMaxSelect] = useState("0");
   const [selectedToppings, setSelectedToppings] = useState<ToppingSelection[]>([]);
   const [toppingDialogOpen, setToppingDialogOpen] = useState(false);
   const [newToppingNameLa, setNewToppingNameLa] = useState("");
@@ -96,6 +97,7 @@ export function useProductToppingsWorkflow({
   useResetOnDeps([editing, editingHydrationKey, toppings], () => {
     if (!editing) return;
     setProdToppingStatus(productHasToppings(editing) ? TOPPING_HAS : TOPPING_NONE);
+    setProdToppingMaxSelect(String(editing.prod_topping_max_select ?? 0));
     setSelectedToppings(productToppingsFromRows(editing.toppings, toppings));
   }, { runOnMount: true });
 
@@ -154,6 +156,7 @@ export function useProductToppingsWorkflow({
 
   function resetToppingSelection() {
     setProdToppingStatus(TOPPING_NONE);
+    setProdToppingMaxSelect("0");
     setSelectedToppings([]);
     setToppingSearch("");
     setToppingDialogOpen(false);
@@ -252,6 +255,8 @@ export function useProductToppingsWorkflow({
     newToppingNameLa,
     newToppingPrice,
     prodToppingStatus,
+    prodToppingMaxSelect,
+    setProdToppingMaxSelect,
     selectedToppingBadges,
     selectedToppingMap,
     selectedToppings,

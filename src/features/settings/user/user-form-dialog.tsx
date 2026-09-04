@@ -201,7 +201,7 @@ export function UserFormDialog({
               </FieldGroup>
             </div>
           </div>
-          <DialogFooter className="shrink-0 border-t border-border bg-card/95 px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur [&>button]:w-full sm:[&>button]:w-auto">
+          <DialogFooter className="shrink-0 border-t border-border bg-card/95 px-4 py-3 pb-[calc(0.75rem+var(--pos-system-bottom-safe-area,0px))] backdrop-blur [&>button]:w-full sm:[&>button]:w-auto">
             <Button disabled={saving} type="button" variant="outline" onClick={() => onOpenChange(false)}>
               {t("actions.cancel")}
             </Button>

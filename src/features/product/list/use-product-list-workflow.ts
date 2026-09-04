@@ -106,11 +106,13 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
   const statusSorts = useProductStore((state) => state.statusSorts);
   const search = useProductStore((state) => state.search);
   const cateUuidFk = useProductStore((state) => state.cateUuidFk);
+  const orderBy = useProductStore((state) => state.orderBy);
   const storePageLimit = useProductStore((state) => state.pageLimit);
   const loading = useProductStore((state) => state.loading);
   const saving = useProductStore((state) => state.saving);
   const setSearch = useProductStore((state) => state.setSearch);
   const setCateUuidFk = useProductStore((state) => state.setCateUuidFk);
+  const setOrderBy = useProductStore((state) => state.setOrderBy);
   const setPageLimit = useProductStore((state) => state.setPageLimit);
   const loadProducts = useProductStore((state) => state.load);
   const loadAllProductsForImport = useProductStore(
@@ -238,9 +240,13 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
   const allDetailsExpanded = detailProductIds.length > 0 && detailProductIds.every((id) => !collapsedProducts.has(id));
   const canGoBack = page > 1 && !loading;
   const canGoNext = page < Math.max(1, totalPages) && !loading;
+  // ลาก-วางเขียน prod_sort = ลำดับ index ในอาเรย์ที่เห็นอยู่เสมอ (ดู withProductSort) — ถ้าอยู่ใน
+  // มุมมอง DESC ตำแหน่งบนสุดที่ลากไปวางจะกลายเป็น prod_sort ต่ำสุด ซึ่งพอสลับกลับมา ASC จะโผล่ล่างสุด
+  // สวนทางกับที่ลากไว้ จึงเปิดลาก-วางเฉพาะตอนดู ASC เท่านั้น
   const canSortProducts =
     Boolean(cateUuidFk) &&
     !appliedSearch.trim() &&
+    orderBy === "ASC" &&
     (pageLimit === "All" || totalPages <= 1) &&
     filteredRows.length > 1 &&
     !loading &&
@@ -260,6 +266,7 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
         lang: language,
         branch_uuid_fk: branchUuid,
         cate_uuid_fk: cateUuidFk,
+        orderBy,
         status_sort_fk: Number(statusSortFk)
       });
     } catch (error) {
@@ -269,7 +276,7 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
         tone: "error"
       });
     }
-  }, [appliedSearch, branchUuid, cateUuidFk, language, loadProducts, page, pageLimit, showToast, statusSortFk, t]);
+  }, [appliedSearch, branchUuid, cateUuidFk, language, loadProducts, orderBy, page, pageLimit, showToast, statusSortFk, t]);
 
   useEffect(() => {
     loadStatusSorts(language).catch((error) => {
@@ -345,6 +352,13 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
     const nextCategory = value === ALL_CATEGORIES_VALUE ? "" : value;
     if (nextCategory === cateUuidFk) return;
     setCateUuidFk(nextCategory);
+    resetPage();
+  }
+
+  function changeOrderBy(value: string) {
+    if (value !== "ASC" && value !== "DESC") return;
+    if (value === orderBy) return;
+    setOrderBy(value);
     resetPage();
   }
 
@@ -1041,6 +1055,7 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
     search,
     setSearch,
     cateUuidFk,
+    orderBy,
     categoryLoading,
     categoryOptions,
     pageLimit,
@@ -1094,6 +1109,7 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
     applyFilters,
     changeStatusSort,
     changeCategory,
+    changeOrderBy,
     changePageLimit,
     toggleProductDetails,
     toggleAllDetails,

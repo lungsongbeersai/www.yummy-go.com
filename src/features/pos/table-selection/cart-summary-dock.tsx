@@ -28,6 +28,7 @@ export function CartSummaryDock({
   compact = false,
   confirming,
   discountPending,
+  neutral = false,
   newOrderCount,
   onBillDiscount,
   onConfirm,
@@ -54,6 +55,7 @@ export function CartSummaryDock({
   compact?: boolean;
   confirming: boolean;
   discountPending: boolean;
+  neutral?: boolean;
   newOrderCount: number;
   onBillDiscount: () => void;
   onConfirm: () => void;
@@ -106,7 +108,16 @@ export function CartSummaryDock({
     >
       <div
         className={cn(
-          "min-w-0 text-white",
+          // เดิม text-white เฉย ๆ ไม่มีพื้นหลังของตัวเอง ตั้งใจให้อ่านได้บนรูปพื้นหลังเข้ม
+          // (background_wide.webp) ที่ container ชั้นบนวางไว้ — แต่ variant="side" บน Capacitor
+          // (neutral) container นั้นตัดรูปออกเหลือ bg-background เรียบ ๆ ตัวอักษรขาวเลยกลายเป็น
+          // ขาวบนขาว มองไม่เห็นยอดรวม/ยอดชำระเลย ให้บล็อกนี้มีพื้นทึบของตัวเอง (bg-primary) แทน
+          // การพึ่งพารูปพื้นหลังของ ancestor เมื่อ neutral ตัดปัญหาที่ต้นตอ ไม่ต้องรู้ว่า ancestor
+          // จริง ๆ วาดอะไรอยู่หลังบล็อกนี้
+          "min-w-0",
+          neutral
+            ? "rounded-lg bg-primary text-primary-foreground"
+            : "text-white",
           compact ? "px-2.5 py-2" : "px-3 py-3",
         )}
       >
@@ -114,9 +125,13 @@ export function CartSummaryDock({
           <span
             className={cn(
               "shrink-0 leading-5",
-              compact
-                ? "text-sm font-black text-white/85"
-                : "text-xs font-bold text-white/75",
+              neutral
+                ? compact
+                  ? "text-sm font-black text-primary-foreground/85"
+                  : "text-xs font-bold text-primary-foreground/75"
+                : compact
+                  ? "text-sm font-black text-white/85"
+                  : "text-xs font-bold text-white/75",
             )}
           >
             {summaryTitle}
@@ -130,9 +145,15 @@ export function CartSummaryDock({
         {summaryDetailRows.length > 0 ? (
           <div
             className={cn(
-              "flex flex-col border-t border-white/20 font-bold text-white/75",
+              "flex flex-col border-t font-bold",
+              neutral
+                ? "border-primary-foreground/20 text-primary-foreground/75"
+                : "border-white/20 text-white/75",
               compact
-                ? "mt-1.5 gap-1 pt-1.5 text-sm font-black leading-5 text-white/85"
+                ? cn(
+                    "mt-1.5 gap-1 pt-1.5 text-sm font-black leading-5",
+                    neutral ? "text-primary-foreground/85" : "text-white/85",
+                  )
                 : "mt-2 gap-1.5 pt-2 text-sm leading-5",
             )}
           >
@@ -142,7 +163,13 @@ export function CartSummaryDock({
                 <span
                   className={cn(
                     "shrink-0 text-right tabular-nums",
-                    compact ? "text-white" : "text-white/90",
+                    neutral
+                      ? compact
+                        ? "text-primary-foreground"
+                        : "text-primary-foreground/90"
+                      : compact
+                        ? "text-white"
+                        : "text-white/90",
                   )}
                 >
                   {item.value}

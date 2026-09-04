@@ -52,4 +52,5 @@ export interface ProductSavePayloadState extends RequiredProductFormState {
   prodSetPrice: string;
   prodStatusImge: BinaryFlag;
   prodImage?: File | string;
+  prodToppingMaxSelect?: string;
 }

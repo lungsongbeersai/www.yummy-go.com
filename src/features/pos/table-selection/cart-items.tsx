@@ -24,6 +24,7 @@ export function CartTabTrigger({
   count,
   disabled = false,
   label,
+  neutral = false,
   shortLabel,
   value
 }: {
@@ -31,6 +32,7 @@ export function CartTabTrigger({
   count: number;
   disabled?: boolean;
   label: string;
+  neutral?: boolean;
   shortLabel?: string;
   value: CartTab;
 }) {
@@ -43,14 +45,27 @@ export function CartTabTrigger({
       // data-active: (ตัว variant เดียวกับที่ TabsTrigger ฐานใช้เอง) แทน data-[state=active]:
       // ของเดิม — สอง syntax นี้ต่างกันเป็นคนละ utility ในสาย twMerge ทำให้ merge ไม่ชนกันจริง
       // ผลลัพธ์เลยเดายากว่าใครชนะ ใช้ variant เดียวกันเพื่อให้ค่านี้ override ฐานได้ชัวร์เสมอ
-      className="h-full min-w-0 gap-1.5 rounded-lg px-2.5 text-sm font-black text-white/80 transition-colors hover:text-white data-active:bg-primary data-active:text-primary-foreground data-active:shadow-sm dark:data-active:bg-primary dark:data-active:text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60"
+      //
+      // text-white/80 (inactive) ออกแบบไว้สำหรับ track โปร่งแสงบนรูปพื้นหลังเข้ม — บน Capacitor
+      // (neutral) track เปลี่ยนเป็น bg-muted ทึบสีอ่อนไปแล้ว (ดู selected-table-cart-panel-content.tsx)
+      // ตัวอักษรขาวจางเลยแทบมองไม่เห็นทั้งแท็บที่ยังไม่ active ต้องสลับเป็น text-muted-foreground แทน
+      className={cn(
+        "h-full min-w-0 gap-1.5 rounded-lg px-2.5 text-sm font-black transition-colors data-active:bg-primary data-active:text-primary-foreground data-active:shadow-sm dark:data-active:bg-primary dark:data-active:text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60",
+        neutral
+          ? "text-muted-foreground hover:text-foreground"
+          : "text-white/80 hover:text-white",
+      )}
     >
       <span className="min-w-0 truncate sm:hidden">{shortLabel ?? label}</span>
       <span className="hidden min-w-0 truncate sm:inline">{label}</span>
       <Badge
         className={cn(
           "h-6 shrink-0 rounded-full border-transparent px-2 text-xs font-black",
-          active ? "bg-primary-foreground/20 text-primary-foreground" : "bg-white/15 text-white"
+          active
+            ? "bg-primary-foreground/20 text-primary-foreground"
+            : neutral
+              ? "bg-background text-muted-foreground"
+              : "bg-white/15 text-white"
         )}
       >
         {count}
@@ -560,7 +575,7 @@ function CartItemActionMenu({
           type="button"
           size="icon-sm"
           variant="ghost"
-          className="size-8 shrink-0 rounded-full text-muted-foreground hover:bg-muted"
+          className="size-8 shrink-0 rounded-full bg-muted/40 text-muted-foreground hover:bg-muted"
           disabled={disabled || pending}
         >
           {pending ? <Spinner data-icon="inline-start" /> : <MoreVertical data-icon="inline-start" />}
@@ -744,7 +759,8 @@ function SplitQuantityStepper({
   return (
     <div
       className={cn(
-        "flex shrink-0 items-center rounded-full border border-primary/50 bg-primary/5 shadow-sm",
+        // overflow-hidden — เหตุผลเดียวกับ CartQuantityStepper ด้านบน
+        "flex shrink-0 items-center overflow-hidden rounded-full border border-primary/50 bg-primary/5 shadow-sm",
         compact ? "h-9" : "h-11",
       )}
     >
@@ -754,7 +770,7 @@ function SplitQuantityStepper({
         size="icon-sm"
         variant="ghost"
         className={cn(
-          "rounded-full text-primary hover:bg-primary/10",
+          "rounded-full bg-primary/10 text-primary hover:bg-primary/20",
           compact ? "size-8" : "size-10",
         )}
         disabled={disabled || qty <= 1}
@@ -776,7 +792,7 @@ function SplitQuantityStepper({
         size="icon-sm"
         variant="ghost"
         className={cn(
-          "rounded-full text-primary hover:bg-primary/10",
+          "rounded-full bg-primary/10 text-primary hover:bg-primary/20",
           compact ? "size-8" : "size-10",
         )}
         disabled={disabled || qty >= maxQty}
@@ -811,7 +827,12 @@ function CartQuantityStepper({
   return (
     <div
       className={cn(
-        "flex shrink-0 items-center rounded-full border border-border bg-background shadow-sm",
+        // overflow-hidden กันมุมโค้ง rounded-full ของปุ่มลูกแต่ละอัน (ที่ตอนนี้มี bg-muted/40
+        // ตอนพักด้วยแล้ว) โผล่พ้นขอบเนียน ๆ ของแคปซูลแม่ — ปัญหาเดียวกับที่ TabsList เจอมาก่อน
+        // (ดูคอมเมนต์ที่ selected-table-cart-panel-content.tsx) ตอนที่ยังไม่มีพื้นหลังให้ปุ่มลูก
+        // มองไม่เห็นปัญหานี้เลย พอเพิ่มพื้นหลังเข้าไปทำให้ปุ่มมีรูปทรงจริงที่มองเห็นได้ ปัญหาที่ซ่อนอยู่
+        // เดิมเลยโผล่ออกมา (ขอบล่างแบนดูเหมือนโดนตัด)
+        "flex shrink-0 items-center overflow-hidden rounded-full border border-border bg-background shadow-sm",
         compact ? "h-9" : "h-11",
       )}
     >
@@ -821,7 +842,7 @@ function CartQuantityStepper({
         size="icon-sm"
         variant="ghost"
         className={cn(
-          "rounded-full text-muted-foreground hover:bg-muted",
+          "rounded-full bg-muted/40 text-muted-foreground hover:bg-muted",
           compact ? "size-8" : "size-10",
         )}
         disabled={locked || qty <= qtyStep}
@@ -835,7 +856,7 @@ function CartQuantityStepper({
         size="icon-sm"
         variant="ghost"
         className={cn(
-          "min-w-7 rounded-full px-1 text-center font-black text-foreground tabular-nums hover:bg-muted",
+          "min-w-7 rounded-full bg-muted/40 px-1 text-center font-black text-foreground tabular-nums hover:bg-muted",
           compact ? "h-8 text-sm" : "h-10 text-sm",
         )}
         disabled={locked}
@@ -849,7 +870,7 @@ function CartQuantityStepper({
         size="icon-sm"
         variant="ghost"
         className={cn(
-          "rounded-full text-muted-foreground hover:bg-muted",
+          "rounded-full bg-muted/40 text-muted-foreground hover:bg-muted",
           compact ? "size-8" : "size-10",
         )}
         disabled={locked}
