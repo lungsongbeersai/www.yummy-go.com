@@ -79,9 +79,12 @@ describe("appendCartQuantityDigit", () => {
     expect(appendCartQuantityDigit("", "delete")).toBe("");
   });
 
-  it("blocks a digit that would push the value past max", () => {
-    expect(appendCartQuantityDigit("9", "9", 99)).toBe("99");
-    expect(appendCartQuantityDigit("99", "9", 99)).toBe("99");
-    expect(appendCartQuantityDigit("10", "0", 99)).toBe("10");
+  it("keeps appending past max instead of silently swallowing the keystroke", () => {
+    // checkCartQuantity is what flags this as an error for the caller to
+    // show a warning — appendCartQuantityDigit no longer decides that itself.
+    // A silent block here left the keypad looking dead whenever the dialog's
+    // pre-filled default already sat at max (e.g. cancelling all 4 of 4).
+    expect(appendCartQuantityDigit("9", "9")).toBe("99");
+    expect(appendCartQuantityDigit("99", "9")).toBe("999");
   });
 });

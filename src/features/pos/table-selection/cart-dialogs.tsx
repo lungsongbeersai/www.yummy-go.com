@@ -233,6 +233,14 @@ function CartQuantityDialogBody({
   const qty = cartItemQty(item);
   const promotion = promotionQuantity(item.detail, qty);
   const [draft, setDraft] = useState(String(qty));
+  // The field opens pre-filled with the current/full quantity (e.g. purpose
+  // "cancel" defaults to cancelling all of it) — appendCartQuantityDigit only
+  // ever appends, so the first digit press must replace that default instead
+  // of appending to it. Without this, cancelling less than the full amount is
+  // impossible whenever the default already sits at max: every appended
+  // digit computes past max and needs the (now-removed) silent block below,
+  // which left the keypad looking dead with no explanation.
+  const [hasEdited, setHasEdited] = useState(false);
   const maximumQty = purpose === "cancel" ? qty : MAX_CART_ITEM_QTY;
   const quantityStep = purpose === "cancel" ? 1 : promotion.qtyStep;
   const check = checkCartQuantity(draft, quantityStep, maximumQty);
@@ -255,7 +263,18 @@ function CartQuantityDialogBody({
 
   function pressKey(key: CartQuantityKeypadKey) {
     if (pending) return;
-    setDraft((current) => appendCartQuantityDigit(current, key, maximumQty));
+    if (key === "clear") {
+      setDraft("");
+      setHasEdited(true);
+      return;
+    }
+    if (key === "delete") {
+      setDraft((current) => appendCartQuantityDigit(current, key));
+      setHasEdited(true);
+      return;
+    }
+    setDraft((current) => appendCartQuantityDigit(hasEdited ? current : "", key));
+    setHasEdited(true);
   }
 
   return (
@@ -356,14 +375,21 @@ function CartQuantityDialogBody({
       </div>
 
       <Separator />
-      <DialogFooter className="grid shrink-0 grid-cols-2 bg-muted/20 p-4 sm:grid-cols-2 sm:px-5">
-        <Button type="button" size="lg" variant="outline" className="w-full touch-manipulation" disabled={pending} onClick={onCancel}>
+      <DialogFooter className="grid shrink-0 grid-cols-2 gap-2 bg-muted/20 p-4 sm:grid-cols-2 sm:px-5">
+        <Button
+          type="button"
+          size="lg"
+          variant="outline"
+          className="h-14 w-full touch-manipulation rounded-xl text-base font-black"
+          disabled={pending}
+          onClick={onCancel}
+        >
           {t("actions.cancel")}
         </Button>
         <Button
           type="button"
           size="lg"
-          className="w-full touch-manipulation"
+          className="h-14 w-full touch-manipulation rounded-xl text-base font-black"
           variant={purpose === "cancel" ? "destructive" : "default"}
           disabled={pending || invalid}
           onClick={() => {

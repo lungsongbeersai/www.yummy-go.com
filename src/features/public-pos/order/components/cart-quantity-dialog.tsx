@@ -76,6 +76,11 @@ function CartQuantityDialogBody({
   const qty = getCartItemQty(item);
   const promotion = promotionQuantity(item.detail, qty);
   const [draft, setDraft] = useState(String(qty));
+  // The field opens pre-filled with the current quantity — appendCartQuantityDigit
+  // only ever appends, so the first digit press must replace that default
+  // instead of appending to it (typing "1" after a current qty of "2" should
+  // become "1", not silently become "21").
+  const [hasEdited, setHasEdited] = useState(false);
   const check = checkCartQuantity(draft, promotion.qtyStep, MAX_CART_ITEM_QTY);
   const invalid = check.error !== null;
   const helpText = promotion.hasPromotion
@@ -94,7 +99,18 @@ function CartQuantityDialogBody({
 
   function pressKey(key: CartQuantityKeypadKey) {
     if (pending) return;
-    setDraft((current) => appendCartQuantityDigit(current, key, MAX_CART_ITEM_QTY));
+    if (key === "clear") {
+      setDraft("");
+      setHasEdited(true);
+      return;
+    }
+    if (key === "delete") {
+      setDraft((current) => appendCartQuantityDigit(current, key));
+      setHasEdited(true);
+      return;
+    }
+    setDraft((current) => appendCartQuantityDigit(hasEdited ? current : "", key));
+    setHasEdited(true);
   }
 
   return (

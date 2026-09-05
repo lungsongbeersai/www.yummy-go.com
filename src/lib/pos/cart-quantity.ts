@@ -89,18 +89,15 @@ export type CartQuantityKeypadKey =
   | "delete"
   | "clear";
 
-// สะสมตัวเลขจากปุ่มกด numpad — บล็อกไม่ให้พิมพ์เกิน max ไปเลย (เหมือน appendDiscountCalculatorInput
-// ที่กันเปอร์เซ็นต์เกิน 100) ผู้ใช้จึงไม่ต้องกด backspace ไล่ลบเลขที่พิมพ์เกินทีหลัง
-export function appendCartQuantityDigit(
-  draft: string,
-  key: CartQuantityKeypadKey,
-  max: number = MAX_CART_ITEM_QTY,
-) {
+// สะสมตัวเลขจากปุ่มกด numpad — ไม่บล็อกเลขที่เกิน max เงียบ ๆ อีกต่อไป (เดิมทำแบบ
+// appendDiscountCalculatorInput ที่กันเปอร์เซ็นต์เกิน 100 ไปเลย) เพราะเมื่อค่าเริ่มต้น
+// ที่พรีฟิลไว้ชนขอบ max พอดี (เช่น ยกเลิกทั้งหมด 4 ชิ้น ค่าเริ่มต้น = 4 = max) ตัวเลขที่
+// พิมพ์ต่อจะเกิน max เสมอ กลายเป็นกดปุ่มแล้วไม่มีอะไรเกิดขึ้นเลยแบบไม่มีคำอธิบาย —
+// ปล่อยให้ค่าที่พิมพ์เกินผ่านไปได้ แล้วให้ checkCartQuantity/errorText (ผู้เรียกอยู่แล้ว)
+// เป็นคนแจ้งเตือนแทน
+export function appendCartQuantityDigit(draft: string, key: CartQuantityKeypadKey) {
   if (key === "clear") return "";
   if (key === "delete") return draft.slice(0, -1);
 
-  const next = `${draft}${key}`.replace(/^0+(?=\d)/, "");
-  const numeric = Number(next);
-  if (Number.isFinite(numeric) && numeric > max) return draft;
-  return next;
+  return `${draft}${key}`.replace(/^0+(?=\d)/, "");
 }

@@ -84,6 +84,12 @@ function ProductQuantityDialogBody({
 }) {
   const { t } = useTranslation();
   const [draft, setDraft] = useState(String(qty));
+  // The field opens pre-filled with the current quantity — appendCartQuantityDigit
+  // only ever appends, so the first digit press must replace that default
+  // instead of appending to it. This matters especially here since maxQty is
+  // real stock on hand: a product with only 3 left opens pre-filled at "3" =
+  // max, and every appended digit would compute past max.
+  const [hasEdited, setHasEdited] = useState(false);
   const check = checkCartQuantity(draft, quantityMeta.qtyStep, maxQty);
   const invalid = check.error !== null;
   const helpText = quantityMeta.hasPromotion
@@ -101,7 +107,18 @@ function ProductQuantityDialogBody({
         : t("pos.editQuantityInvalid");
 
   function pressKey(key: CartQuantityKeypadKey) {
-    setDraft((current) => appendCartQuantityDigit(current, key, maxQty));
+    if (key === "clear") {
+      setDraft("");
+      setHasEdited(true);
+      return;
+    }
+    if (key === "delete") {
+      setDraft((current) => appendCartQuantityDigit(current, key));
+      setHasEdited(true);
+      return;
+    }
+    setDraft((current) => appendCartQuantityDigit(hasEdited ? current : "", key));
+    setHasEdited(true);
   }
 
   return (
