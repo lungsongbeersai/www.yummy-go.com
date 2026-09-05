@@ -25,9 +25,6 @@ export const OFFLINE_READ_ONLY_PATHS = [
   // does) — the grid itself was reachable offline before this, only the route
   // guard (isOfflineAllowedPath) bounced Android away from it because the
   // page also lives in OFFLINE_WRITE_CAPABLE_PATHS below for opening a table.
-  // Listed in both: table-selection-page.tsx itself blocks the actual
-  // open-table tap on Android while offline (see androidOfflineWriteBlocked)
-  // — no local Agent there to create the order against.
   "/pos/tables",
 ] as const;
 
@@ -41,16 +38,19 @@ export const OFFLINE_WRITE_CAPABLE_PATHS = [
   "/sales/stuck-orders",
 ] as const;
 
+// เขียนออฟไลน์บน Android ไม่ผ่าน Local Agent อีกต่อไป (write-fallback.ts สังเคราะห์
+// คำตอบจาก Dexie outbox แทน) แต่ยังจำกัดแค่วงจรออเดอร์เดิม (เปิดโต๊ะ/สั่ง/ยืนยันครัว/เสิร์ฟ/
+// จ่ายเงิน) — ย้ายโต๊ะ/รวมบิล/แยกบิล/พิมพ์ยังต้องมี Agent เท่านั้น จึงยังไม่รวม
+// /order_manage หรือ /sales/stuck-orders ให้ Android
+const ANDROID_OFFLINE_WRITE_CAPABLE_PATHS = ["/pos/tables", "/pos/order"] as const;
+
 // เพจ infra ที่ต้องใช้งานได้เสมอไม่ว่าสถานะออฟไลน์จะเป็นอย่างไร (ไม่ใช่ส่วนหนึ่งของฟีเจอร์
 // "sales-essential" — เป็นทางเข้า/ทางออกของแอปเอง)
 export const OFFLINE_INFRA_PATHS = ["/", "/login", "/pos"] as const;
 
-// เขียนข้อมูลตอนออฟไลน์ (requestLocalFallback ใน offline-sync.ts) ต้องพึ่ง Local Printer Agent
-// ที่ 127.0.0.1:7777 เสมอ — Android ไม่มี agent ตัวนี้ (ใช้ native TCP printing แยกต่างหาก) เขียน
-// ออฟไลน์บน Android จึง fail จริงทุกครั้ง ไม่ใช่แค่รอ sync จึงเหลือให้ใช้ได้แค่เพจอ่านอย่างเดียว
 export function getOfflineAllowedPaths(isAndroidNative: boolean): readonly string[] {
   return isAndroidNative
-    ? OFFLINE_READ_ONLY_PATHS
+    ? [...OFFLINE_READ_ONLY_PATHS, ...ANDROID_OFFLINE_WRITE_CAPABLE_PATHS]
     : [...OFFLINE_READ_ONLY_PATHS, ...OFFLINE_WRITE_CAPABLE_PATHS];
 }
 

@@ -27,6 +27,14 @@ import {
   type BrowserSyncQueueEntry,
   type BrowserSyncQueueSummary,
 } from "@/services/offline-db";
+import {
+  getOfflineSyncDeviceAuth,
+  loadOfflineMasterIndex,
+  loadOfflineOrderState,
+  projectOfflineCart,
+  projectOfflineTables,
+  synthesizeOfflineWrite,
+} from "@/services/offline-order";
 
 const OFFLINE_ROUTES = new Set([
   "POST /api/v1/posAll/create_order",
@@ -47,6 +55,23 @@ const OFFLINE_ROUTES = new Set([
   "POST /api/v1/posAll/payment",
   "GET /api/v1/posAll/admin/create_table_qr",
 ]);
+
+// Maps a route to the `operation` name Backend's /api/v1/sync/push expects
+// (see SYNC_PUSH_ROUTES in back-end/api/v1/sync/registry.js) — exactly the
+// routes `decodeOfflineOrderEvent` (offline-order/order-events.ts) knows how
+// to replay locally on Android, so the two lists must stay in step.
+const OFFLINE_ORDER_PUSH_OPERATIONS: Record<string, string> = {
+  "POST /api/v1/posAll/create_order": "ORDER_CREATE",
+  "PATCH /api/v1/posAll/order_item/update_qty": "ORDER_ITEM_QTY",
+  "PATCH /api/v1/posAll/update_note": "ORDER_NOTE",
+  "PATCH /api/v1/posAll/item_discount": "ORDER_ITEM_DISCOUNT",
+  "PATCH /api/v1/posAll/bill_discount": "ORDER_DISCOUNT",
+  "DELETE /api/v1/posAll/delete_order_item": "ORDER_ITEM_DELETE",
+  "PATCH /api/v1/posAll/cancel_order_item": "ORDER_ITEM_CANCEL",
+  "PATCH /api/v1/posAll/confirm_to_kitchen": "KITCHEN_CONFIRM",
+  "PATCH /api/v1/posAll/confirm_order_item_served": "ORDER_ITEM_SERVED",
+  "POST /api/v1/posAll/payment": "PAYMENT",
+};
 
 const OFFLINE_GET_ROUTES = new Set([
   "/api/v1/posAll/fetch_table",
@@ -689,6 +714,43 @@ export function cacheOnlineResponse(
   ).catch(() => undefined);
 }
 
+const OVERLAY_PATHS = new Set([
+  "/api/v1/posAll/fetch_cart",
+  "/api/v1/posAll/fetch_table",
+]);
+
+/**
+ * Folds every staged offline mutation on top of a cached fetch_cart/
+ * fetch_table response, so a table opened or an item added while offline
+ * shows up on the very next read of it — not just in the one synthesized
+ * response `synthesizeOfflineWrite` returned at write time. A cache miss or a
+ * path this doesn't project onto returns the cached value untouched.
+ */
+async function overlayOfflineOrderState(
+  path: string,
+  cached: unknown,
+  scope: BrowserOfflineScope,
+  browserStore?: BrowserOfflineStore,
+): Promise<unknown> {
+  if (cached === null || !OVERLAY_PATHS.has(path)) return cached;
+  try {
+    const state = await loadOfflineOrderState(scope, browserStore);
+    if (path === "/api/v1/posAll/fetch_table") return projectOfflineTables(cached, state);
+    const master = await loadOfflineMasterIndex(scope, browserStore);
+    const body = cached as { order_uuid?: string; table_uuid?: string };
+    return projectOfflineCart(
+      state,
+      { order_uuid: body?.order_uuid, table_uuid: body?.table_uuid },
+      master,
+    );
+  } catch {
+    // Overlay is a best-effort enhancement on top of an already-successful
+    // cache read; a bug here must not turn a working cached response into no
+    // response at all.
+    return cached;
+  }
+}
+
 /**
  * Reads a cacheable GET straight from the Dexie mirror, with no Local Agent in
  * the path. This is the offline read source for Android, which cannot reach an
@@ -705,13 +767,34 @@ export async function readBrowserOfflineCache<T>(
 ): Promise<T | null> {
   if (typeof window === "undefined") return null;
   if (!isBrowserCacheableRead(method, url)) return null;
-  return readBrowserApiFallback<T>({
+  const path = url.split("?")[0];
+  const cached = await readBrowserApiFallback<T>({
     ...scope,
     method,
-    path: url.split("?")[0],
+    path,
     params: requestParams(url, options?.params),
     data: options?.data ?? {},
   }, browserStore).catch(() => null);
+  return overlayOfflineOrderState(path, cached, scope, browserStore) as Promise<T | null>;
+}
+
+/**
+ * The Android equivalent of `requestLocalFallback`: no Agent process to hand
+ * the write to, so the response is synthesized in-browser from the Dexie
+ * outbox. Returns null for a route `offline-order` does not decode (table
+ * move/join/split, printing) — those stay Agent-only and the caller falls
+ * through to the original network error, same as before this existed.
+ */
+export async function requestBrowserWriteFallback<T>(
+  method: HttpMethod,
+  url: string,
+  options: RequestOptions | undefined,
+  eventUuid: string,
+  scope: BrowserOfflineIdentity,
+  browserStore?: BrowserOfflineStore,
+): Promise<T | null> {
+  if (typeof window === "undefined") return null;
+  return synthesizeOfflineWrite(method, url, options, eventUuid, scope, browserStore) as Promise<T | null>;
 }
 
 export async function mirrorOnlineResponse(
@@ -841,6 +924,71 @@ export async function reconcileBrowserSyncQueue(
     }
   }
 
+  return getBrowserSyncQueueSummary(scope, browserStore);
+}
+
+/**
+ * Android's push loop: there is no Local Agent to reconcile against, so
+ * staged mutations go straight to Backend's `/api/v1/sync/push` using this
+ * device's own registered identity. Same recovery contract as
+ * `reconcileBrowserSyncQueue` — SYNCED/BLOCKED are terminal, anything else is
+ * left for the next reachable tick to retry, and a rejection is never worked
+ * around by minting a new event id.
+ */
+export async function pushBrowserSyncQueue(
+  scope: BrowserOfflineIdentity,
+  browserStore?: BrowserOfflineStore,
+): Promise<BrowserSyncQueueSummary | null> {
+  const device = getOfflineSyncDeviceAuth();
+  if (!device) return null;
+  const entries = (await listBrowserSyncQueue(scope, browserStore))
+    .filter((entry) => !["SYNCED", "BLOCKED"].includes(entry.status))
+    .filter((entry) => `${entry.method} ${entry.path}` in OFFLINE_ORDER_PUSH_OPERATIONS)
+    .slice(0, 50);
+  if (!entries.length) return getBrowserSyncQueueSummary(scope, browserStore);
+
+  try {
+    const response = await axios.post<{
+      data?: { results?: Array<{ event_uuid: string; status: string; error?: string }> };
+    }>(
+      `${onlineApiBase()}/api/v1/sync/push`,
+      {
+        events: entries.map((entry) => ({
+          event_uuid: entry.eventUuid,
+          operation: OFFLINE_ORDER_PUSH_OPERATIONS[`${entry.method} ${entry.path}`],
+          branch_uuid: entry.branchUuid,
+          store_uuid: entry.storeUuid,
+          device_code: device.deviceCode,
+          actor_login_uuid: entry.actorLoginUuid,
+          sequence: entry.createdAt,
+          dependencies: entry.dependencies,
+          payload: { request: { params: entry.params, data: entry.data } },
+        })),
+      },
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-sync-branch-uuid": scope.branchUuid,
+          "x-sync-device-code": device.deviceCode,
+          "x-sync-agent-secret": device.agentSecret,
+        },
+        timeout: 15000,
+      },
+    );
+    const rows = response.data?.data?.results ?? [];
+    const byUuid = new Map(rows.map((row) => [String(row.event_uuid), row]));
+    for (const entry of entries) {
+      const row = byUuid.get(entry.eventUuid);
+      const status = row?.status === "SYNCED" || row?.status === "BLOCKED" ? row.status : "FAILED";
+      await updateBrowserSyncEvent(entry.eventUuid, {
+        status,
+        lastError: status === "SYNCED" ? null : row?.error ?? "sync push result missing",
+      }, browserStore).catch(() => undefined);
+    }
+  } catch {
+    // Transport failure: every entry stays exactly as it was (STAGED/PENDING/
+    // FAILED) for the next reachable tick to retry.
+  }
   return getBrowserSyncQueueSummary(scope, browserStore);
 }
 

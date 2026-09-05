@@ -15,15 +15,14 @@ describe("getOfflineAllowedPaths", () => {
     expect(paths).toContain("/sales/sales-list");
   });
 
-  it("drops write-capable pages on Android — no Local Printer Agent to sync writes through", () => {
+  it("keeps the order-taking flow but not table-move/join/split pages on Android", () => {
     const paths = getOfflineAllowedPaths(true);
-    // /pos/tables is the one exception: it's reachable (read-only, from the
-    // Dexie mirror — same as /sales/sales-list) so the grid itself doesn't
-    // vanish offline; table-selection-page.tsx blocks the actual open-table
-    // tap on Android while offline instead of the route guard bouncing the
-    // whole page away.
+    // Android now stages create/qty/note/discount/delete/cancel/kitchen-confirm/
+    // served/payment offline (write-fallback.ts synthesizes the response from
+    // the Dexie outbox, no Local Agent needed) — but /order_manage (table
+    // move/join/split) still requires the Agent Android doesn't have.
     expect(paths).toContain("/pos/tables");
-    expect(paths).not.toContain("/pos/order");
+    expect(paths).toContain("/pos/order");
     expect(paths).not.toContain("/order_manage");
     expect(paths).toContain("/sales/sales-list");
     expect(paths).toContain("/report/daily-closing");
@@ -87,9 +86,11 @@ describe("isOfflineAllowedPath", () => {
     expect(isOfflineAllowedPath("/pos", true)).toBe(true);
   });
 
-  it("blocks order-taking pages on Android specifically", () => {
+  it("allows order-taking on Android, but not table move/join/split", () => {
     expect(isOfflineAllowedPath("/pos/order", false)).toBe(true);
-    expect(isOfflineAllowedPath("/pos/order", true)).toBe(false);
+    expect(isOfflineAllowedPath("/pos/order", true)).toBe(true);
+    expect(isOfflineAllowedPath("/order_manage", false)).toBe(true);
+    expect(isOfflineAllowedPath("/order_manage", true)).toBe(false);
   });
 });
 

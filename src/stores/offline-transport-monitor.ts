@@ -14,14 +14,49 @@ import {
   getLocalSyncStatus,
   localSyncHasRetryableWork,
   persistBrowserAgentUnavailable,
+  pushBrowserSyncQueue,
   reconcileBrowserSyncQueue,
   runLocalSyncNow,
 } from "@/services/offline-sync";
+import { ensureOfflineSyncDevice } from "@/services/offline-order";
 import { restoreOnlineLogin } from "@/services/login";
+import { apiRequest } from "@/lib/api";
+import { isCapacitorAndroidApp } from "@/lib/capacitor-platform";
 import i18n from "@/lib/i18n";
 import { useAuthStore } from "@/stores/auth-store";
 import { backendNetworkManager, useNetworkStore } from "@/stores/network-store";
 import { useToastStore } from "@/stores/toast-store";
+
+// Registering more than once per branch is harmless (Backend upserts), but
+// pointless network chatter — remembered per module instance, reset by a
+// full app reload same as every other in-memory sync state here.
+const androidDeviceRegisteredBranches = new Set<string>();
+
+/**
+ * Android has no Local Agent, so it skips `configureLocalSync`/
+ * `getLocalSyncStatus` entirely (see the Android branch in `reconcile()`
+ * below) — this is its one-time prerequisite instead, run right before the
+ * first push attempt for a branch. Registration failing is not fatal: the
+ * device still works offline and stages mutations locally either way, it
+ * just cannot push until a later tick registers successfully.
+ */
+async function ensureAndroidDeviceRegistered(branchUuid: string) {
+  if (!branchUuid || androidDeviceRegisteredBranches.has(branchUuid)) return;
+  const device = ensureOfflineSyncDevice();
+  try {
+    await apiRequest("post", "/api/v1/sync/device/register", {
+      data: {
+        device_code: device.deviceCode,
+        agent_secret: device.agentSecret,
+        agent_name: "Android POS",
+        platform: "android",
+      },
+    });
+    androidDeviceRegisteredBranches.add(branchUuid);
+  } catch (error) {
+    console.error("[SYNC] Android device registration failed", error);
+  }
+}
 
 export interface BackendProbeResult {
   reachable: boolean;
@@ -316,6 +351,23 @@ export function startOfflineTransportMonitor() {
       agentConfigured = false;
       agentUnavailableChecks = 0;
       reportedBlockedCount = readAcknowledgedBlockedCount(scopeKey);
+    }
+
+    // Android has no Local Agent at all, so none of the Agent-configuration
+    // machinery below applies to it — configureLocalSync would just fail on
+    // every tick forever. Its offline sync is push-only, straight to Backend.
+    if (isCapacitorAndroidApp()) {
+      reconciling = true;
+      try {
+        if (networkState === BACKEND_NETWORK_STATE.ONLINE) {
+          await ensureAndroidDeviceRegistered(localScope.branchUuid);
+          await pushBrowserSyncQueue(localScope).catch(() => undefined);
+        }
+      } finally {
+        reconciling = false;
+        schedule(networkState === BACKEND_NETWORK_STATE.ONLINE ? 5000 : 8000);
+      }
+      return;
     }
 
     reconciling = true;

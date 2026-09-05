@@ -17,6 +17,7 @@ import {
   configureLocalSync,
   mirrorOnlineResponse,
   prepareOfflineRequest,
+  requestBrowserWriteFallback,
   requestLocalFallback,
   shouldPreferOnlineTransport,
   shouldRouteToLocal,
@@ -431,6 +432,39 @@ export async function apiRequest<T>(
         localScope,
       );
       if (cached !== null) return assertApiSuccess(cached);
+    }
+    // Android write path: no Agent to hand the mutation to, so it is staged
+    // into the same Dexie outbox the read branch above already replays, and
+    // the response is synthesized from that state instead of thrown as a raw
+    // network error. Only the 10 order-lifecycle routes `offline-order`
+    // decodes (create/qty/note/discount/delete/cancel/kitchen-confirm/served/
+    // payment) resolve here — requestBrowserWriteFallback returns null for
+    // anything else (table move/join/split, printing), which falls through
+    // to the original error unchanged, same as before this branch existed.
+    // Like the read branch above, this never sets offlineSession — the
+    // /sync/health probe stays the only authority on that.
+    if (
+      !localAgentAvailable &&
+      classification.classification === "NETWORK_TRANSPORT" &&
+      prepared.eventUuid &&
+      typeof window !== "undefined"
+    ) {
+      try {
+        const synthesized = await requestBrowserWriteFallback<T>(
+          method,
+          url,
+          requestOptions,
+          prepared.eventUuid,
+          localScope,
+        );
+        if (synthesized !== null) return assertApiSuccess(synthesized);
+      } catch (writeError) {
+        throw new ServiceError(
+          writeError instanceof Error ? writeError.message : "Offline write failed",
+          503,
+          writeError,
+        );
+      }
     }
     throw normalized;
   }

@@ -39,13 +39,6 @@ export function TableSelectionPage() {
   const showToast = useToastStore((state) => state.show);
   const nativeShellActive = useIsNativeShellActive();
   const isAndroidNative = useIsAndroidNativeApp();
-  const offlineSession = useAuthStore((state) => state.offlineSession);
-  // Not useOfflineReadOnly(): that hook means "offline, full stop" and would
-  // wrongly lock this out on web/Electron too, where opening a table while
-  // offline works fine through the Local Agent. Only Android has no Agent to
-  // create the order against — see the /pos/tables comment in offline-routes.ts
-  // for why the page itself still stays visible (read-only) on Android offline.
-  const androidOfflineWriteBlocked = isAndroidNative && offlineSession;
   const setHeaderRefreshAction = useNativeHeaderStore((state) => state.setRefreshAction);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<TableStatusFilter>("all");
@@ -114,27 +107,23 @@ export function TableSelectionPage() {
   }, [nativeShellActive, loading, load, setHeaderRefreshAction]);
 
   async function selectTable(table: PosTable) {
-    if (androidOfflineWriteBlocked) {
-      showToast({ title: t("pos.tableOpenUnavailableOffline"), tone: "info" });
-      return;
-    }
     const params = new URLSearchParams({ table_uuid: table.table_uuid });
     if (table.table_name) params.set("table_name", table.table_name);
     const target = `/pos/order?${params.toString()}` as const;
-    // androidOfflineWriteBlocked only trips once offlineSession is confirmed
-    // (3 failed health probes), so a connection that drops right at tap time
-    // slips through to router.push below on Android. navigator.onLine can't
-    // catch that window itself — Android WebView reports `true` even with
-    // Wi-Fi and mobile data off (see the comment in api.ts) — so router.push
-    // would try an RSC fetch over a dead connection, which Next.js recovers
-    // from with its own hard-reload fallback: a jarring full-app flash before
-    // loadCart's offline redirect (use-order-customer-workflow.ts) lands back
-    // here. A quick real probe closes most of that window without waiting for
-    // the confirmed verdict.
+    // Android can now open a table and take an order fully offline (staged
+    // into the Dexie outbox, synced once reachable — see write-fallback.ts),
+    // so this no longer blocks the tap. What's left is purely a navigation
+    // concern: `offlineSession` only trips once confirmed (3 failed health
+    // probes), so a connection dropping right at tap time can slip past it
+    // into router.push, whose RSC fetch then fails over the now-dead
+    // connection — Next.js recovers with its own hard-reload fallback, a
+    // jarring full-app flash. A quick real probe routes straight to the same
+    // resilient hard-navigation path the navigator.onLine branch below
+    // already uses, instead of waiting for the confirmed verdict.
     if (isAndroidNative) {
       const probe = await probeBackendReachability(1200);
       if (!probe.reachable && probe.classification === "NETWORK_TRANSPORT") {
-        showToast({ title: t("pos.tableOpenUnavailableOffline"), tone: "info" });
+        window.location.assign(target);
         return;
       }
     }

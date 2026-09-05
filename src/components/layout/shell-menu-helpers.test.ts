@@ -135,13 +135,11 @@ describe("applyOfflineLock", () => {
     expect(topping.offlineLocked).toBe(true);
   });
 
-  it("locks write-only pages on Android, but leaves Open Table reachable read-only", () => {
+  it("leaves the order-taking flow reachable on Android, unlike table move/join/split", () => {
     const [openTable, order] = applyOfflineLock(menu, true, true);
-    // /pos/tables reads from the Dexie mirror on Android same as sales-list —
-    // the page itself isn't locked, table-selection-page.tsx blocks the
-    // actual open-table tap instead (no Local Agent to create the order).
+    // Both stage offline now — write-fallback.ts synthesizes a response from
+    // the Dexie outbox instead of needing a Local Agent Android doesn't have.
     expect(openTable.offlineLocked).toBe(false);
-    // /pos/order has no such read-only fallback: it's genuinely locked.
-    expect(order.offlineLocked).toBe(true);
+    expect(order.offlineLocked).toBe(false);
   });
 });

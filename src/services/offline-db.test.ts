@@ -51,6 +51,11 @@ class MemoryBrowserOfflineStore implements BrowserOfflineStore {
     }
   }
 
+  async listApiCacheByPath(scope: BrowserOfflineScope, path: string) {
+    return [...this.apiCache.values()].filter((entry) =>
+      entry.storeUuid === scope.storeUuid && entry.branchUuid === scope.branchUuid && entry.path === path);
+  }
+
   async getSyncQueue(eventUuid: string) {
     const entry = this.syncQueue.get(eventUuid);
     return entry ? structuredClone(entry) : undefined;

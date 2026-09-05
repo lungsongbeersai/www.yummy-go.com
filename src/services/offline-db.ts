@@ -132,6 +132,7 @@ export interface BrowserOfflineStore {
   getApiCache: (key: string) => Promise<BrowserApiCacheEntry | undefined>;
   putApiCache: (entry: BrowserApiCacheEntry) => Promise<void>;
   pruneApiCache: (scope: BrowserOfflineScope, maxEntries: number) => Promise<void>;
+  listApiCacheByPath: (scope: BrowserOfflineScope, path: string) => Promise<BrowserApiCacheEntry[]>;
   getSyncQueue: (eventUuid: string) => Promise<BrowserSyncQueueEntry | undefined>;
   putSyncQueue: (entry: BrowserSyncQueueEntry) => Promise<void>;
   deleteSyncQueue: (eventUuid: string) => Promise<void>;
@@ -204,6 +205,16 @@ class DexieBrowserOfflineStore implements BrowserOfflineStore {
       .equals(key)
       .sortBy("cachedAt");
     await this.database.apiCache.bulkDelete(entries.slice(0, overflow).map((entry) => entry.key));
+  }
+
+  // Any cached response for this path/scope, regardless of which params/data
+  // produced it — used to seed offline order state from whichever fetch_cart
+  // calls happen to be cached (see write-fallback.ts), since a mutation's own
+  // payload rarely carries every param the original GET was fetched with.
+  async listApiCacheByPath(scope: BrowserOfflineScope, path: string) {
+    const key = [scope.storeUuid, scope.branchUuid];
+    const entries = await this.database.apiCache.where("[storeUuid+branchUuid]").equals(key).toArray();
+    return entries.filter((entry) => entry.path === path);
   }
 
   async getSyncQueue(eventUuid: string) {
@@ -336,6 +347,26 @@ export async function readBrowserApiFallback<T>(
   const cached = await store.getApiCache(browserApiCacheKey(input));
   if (!cached || Date.now() - cached.cachedAt > MAX_API_CACHE_AGE_MS) return null;
   return cached.response as T;
+}
+
+/**
+ * Every cached response for one path/scope, regardless of the exact
+ * params/data that produced it — a mutation's own payload rarely carries
+ * every param the original GET was fetched with, so an exact-key lookup
+ * (`readBrowserApiFallback`) cannot find "the cart this order was in".
+ */
+export async function listBrowserApiCacheResponses(
+  scope: BrowserOfflineScope,
+  path: string,
+  override?: BrowserOfflineStore,
+): Promise<unknown[]> {
+  const store = storeFor(override);
+  if (!store) return [];
+  const entries = await store.listApiCacheByPath(scope, normalizedPath(path));
+  return entries
+    .filter((entry) => Date.now() - entry.cachedAt <= MAX_API_CACHE_AGE_MS)
+    .sort((left, right) => left.cachedAt - right.cachedAt)
+    .map((entry) => entry.response);
 }
 
 async function updateMutationTimestamp(
