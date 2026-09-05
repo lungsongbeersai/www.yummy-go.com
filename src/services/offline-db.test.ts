@@ -521,6 +521,7 @@ describe("offline read-only pages can read their own cache back", () => {
     ],
     "/settings/user": ["/api/v1/register/fetch_limit"],
     "/settings/branch": ["/api/v1/branch/fetch_all"],
+    "/pos/tables": ["/api/v1/posAll/fetch_table"],
   };
 
   it("covers every page in OFFLINE_READ_ONLY_PATHS", () => {
@@ -544,20 +545,27 @@ describe("offline read-only pages can read their own cache back", () => {
     expect(await readBrowserApiFallback(request, store)).toEqual({ total: 4200 });
   });
 
-  it("still refuses POS pages Android cannot use offline", async () => {
-    // /pos/tables and /pos/order are blocked on Android because their writes need
-    // the Local Agent; serving their reads from cache would only look usable.
-    for (const api of [
-      "/api/v1/posAll/fetch_table",
-      "/api/v1/posAll/fetch_cart",
-      "/api/v1/posAll/customer_order_queue",
-    ]) {
+  it("round-trips a cached table grid for Android — the page it backs is now read-only reachable", async () => {
+    const store = new MemoryBrowserOfflineStore();
+    const request = {
+      ...scope,
+      method: "get",
+      path: "/api/v1/posAll/fetch_table",
+      params: { branch_uuid_fk: scope.branchUuid, zone_uuid: "", lang: "la" },
+    };
+    await cacheBrowserApiResponse({ ...request, response: { tables: [] }, source: "ONLINE" }, store);
+
+    expect(await readBrowserApiFallback(request, store)).toEqual({ tables: [] });
+  });
+
+  it("still refuses /pos/order reads — it stays locked on Android, nothing needs them cached", async () => {
+    for (const api of ["/api/v1/posAll/fetch_cart", "/api/v1/posAll/customer_order_queue"]) {
       expect(isSafeBrowserCacheFallback(api)).toBe(false);
     }
 
     const store = new MemoryBrowserOfflineStore();
-    const request = { ...scope, method: "get", path: "/api/v1/posAll/fetch_table", params: {} };
-    await cacheBrowserApiResponse({ ...request, response: { tables: [] }, source: "ONLINE" }, store);
+    const request = { ...scope, method: "get", path: "/api/v1/posAll/fetch_cart", params: {} };
+    await cacheBrowserApiResponse({ ...request, response: { orders: [] }, source: "ONLINE" }, store);
     expect(await readBrowserApiFallback(request, store)).toBeNull();
   });
 });

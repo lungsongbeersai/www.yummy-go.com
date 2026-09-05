@@ -20,6 +20,15 @@ export const OFFLINE_READ_ONLY_PATHS = [
   "/report/best-selling-products",
   "/report/payment-methods",
   "/report/category-sales",
+  // fetch_table is in OFFLINE_GET_ROUTES already (Agent answers from its own
+  // SQLite; Android reads the Dexie mirror the same way /sales/sales-list
+  // does) — the grid itself was reachable offline before this, only the route
+  // guard (isOfflineAllowedPath) bounced Android away from it because the
+  // page also lives in OFFLINE_WRITE_CAPABLE_PATHS below for opening a table.
+  // Listed in both: table-selection-page.tsx itself blocks the actual
+  // open-table tap on Android while offline (see androidOfflineWriteBlocked)
+  // — no local Agent there to create the order against.
+  "/pos/tables",
 ] as const;
 
 export const OFFLINE_WRITE_CAPABLE_PATHS = [

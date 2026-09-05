@@ -106,6 +106,7 @@ describe("isFixedDataScreen", () => {
 describe("applyOfflineLock", () => {
   const menu: MenuItem[] = [
     { path: "/pos/tables", title: "open_table_sale" },
+    { path: "/pos/order", title: "order" },
     {
       title: "sales",
       children: [
@@ -123,8 +124,9 @@ describe("applyOfflineLock", () => {
   });
 
   it("locks only paths outside the essential allowlist, recursively", () => {
-    const [openTable, sales, users, topping] = applyOfflineLock(menu, true, false);
+    const [openTable, order, sales, users, topping] = applyOfflineLock(menu, true, false);
     expect(openTable.offlineLocked).toBe(false);
+    expect(order.offlineLocked).toBe(false);
     expect(sales.children?.[0].offlineLocked).toBe(false);
     expect(sales.children?.[1].offlineLocked).toBe(true);
     // Master data the Agent projects locally stays reachable, read-only.
@@ -133,8 +135,13 @@ describe("applyOfflineLock", () => {
     expect(topping.offlineLocked).toBe(true);
   });
 
-  it("locks write-capable pages too when the platform is Android", () => {
-    const [openTable] = applyOfflineLock(menu, true, true);
-    expect(openTable.offlineLocked).toBe(true);
+  it("locks write-only pages on Android, but leaves Open Table reachable read-only", () => {
+    const [openTable, order] = applyOfflineLock(menu, true, true);
+    // /pos/tables reads from the Dexie mirror on Android same as sales-list —
+    // the page itself isn't locked, table-selection-page.tsx blocks the
+    // actual open-table tap instead (no Local Agent to create the order).
+    expect(openTable.offlineLocked).toBe(false);
+    // /pos/order has no such read-only fallback: it's genuinely locked.
+    expect(order.offlineLocked).toBe(true);
   });
 });

@@ -8,6 +8,7 @@ import { LanguageSwitch } from "@/components/layout/language-switch";
 import { NotificationMenu } from "@/components/layout/notification-menu";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { Button } from "@/components/ui/button";
+import { useIsAndroidNativeApp } from "@/hooks/use-android-native-app";
 import { useIsNativeShellActive } from "@/hooks/use-native-shell-active";
 import { useOfflineRefetchEpoch } from "@/hooks/use-offline-refetch";
 import { cn } from "@/lib/utils";
@@ -36,6 +37,14 @@ export function TableSelectionPage() {
   const refreshTables = usePosStore((state) => state.refreshTables);
   const showToast = useToastStore((state) => state.show);
   const nativeShellActive = useIsNativeShellActive();
+  const isAndroidNative = useIsAndroidNativeApp();
+  const offlineSession = useAuthStore((state) => state.offlineSession);
+  // Not useOfflineReadOnly(): that hook means "offline, full stop" and would
+  // wrongly lock this out on web/Electron too, where opening a table while
+  // offline works fine through the Local Agent. Only Android has no Agent to
+  // create the order against — see the /pos/tables comment in offline-routes.ts
+  // for why the page itself still stays visible (read-only) on Android offline.
+  const androidOfflineWriteBlocked = isAndroidNative && offlineSession;
   const setHeaderRefreshAction = useNativeHeaderStore((state) => state.setRefreshAction);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<TableStatusFilter>("all");
@@ -104,6 +113,10 @@ export function TableSelectionPage() {
   }, [nativeShellActive, loading, load, setHeaderRefreshAction]);
 
   function selectTable(table: PosTable) {
+    if (androidOfflineWriteBlocked) {
+      showToast({ title: t("pos.tableOpenUnavailableOffline"), tone: "info" });
+      return;
+    }
     const params = new URLSearchParams({ table_uuid: table.table_uuid });
     if (table.table_name) params.set("table_name", table.table_name);
     const target = `/pos/order?${params.toString()}` as const;

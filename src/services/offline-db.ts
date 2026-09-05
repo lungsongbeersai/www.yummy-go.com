@@ -58,6 +58,11 @@ const SAFE_BROWSER_FALLBACK_PATHS = new Set([
   // "/" is always offline-allowed (OFFLINE_INFRA_PATHS) and is the landing screen
   // on Android, so its dashboard needs the same treatment as the report pages.
   "/api/v1/dashboard/executive",
+  // /pos/tables joined OFFLINE_READ_ONLY_PATHS so the grid stays visible
+  // (read-only) instead of Android bouncing off it entirely — same fix as the
+  // six report routes above. fetch_cart and customer_order_queue stay refused:
+  // /pos/order itself is still locked on Android, so nothing reads them.
+  "/api/v1/posAll/fetch_table",
 ]);
 
 export type BrowserSyncEventStatus =

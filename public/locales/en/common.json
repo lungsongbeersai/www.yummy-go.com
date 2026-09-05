@@ -725,6 +725,7 @@
     "yes": "Yes",
     "failedProducts": "Failed to load menu",
     "failedTables": "Failed to load tables",
+    "tableOpenUnavailableOffline": "Can't open a table while offline — an internet connection is required",
     "language": "Language",
     "loadingCategory": "Loading category",
     "loadingProducts": "Loading menu",

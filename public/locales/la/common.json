@@ -740,6 +740,7 @@
     "yes": "ແມ່ນ",
     "failedProducts": "ໂຫຼດເມນູບໍ່ສຳເລັດ",
     "failedTables": "ໂຫຼດໂຕະບໍ່ສຳເລັດ",
+    "tableOpenUnavailableOffline": "ເປີດໂຕະບໍ່ໄດ້ຕອນອອບລາຍ — ຕ້ອງມີການເຊື່ອມຕໍ່ອິນເຕີເນັດ",
     "language": "ພາສາ",
     "loadingCategory": "ກຳລັງໂຫຼດໝວດ",
     "loadingProducts": "ກຳລັງໂຫຼດເມນູ",

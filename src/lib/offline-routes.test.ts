@@ -17,7 +17,12 @@ describe("getOfflineAllowedPaths", () => {
 
   it("drops write-capable pages on Android — no Local Printer Agent to sync writes through", () => {
     const paths = getOfflineAllowedPaths(true);
-    expect(paths).not.toContain("/pos/tables");
+    // /pos/tables is the one exception: it's reachable (read-only, from the
+    // Dexie mirror — same as /sales/sales-list) so the grid itself doesn't
+    // vanish offline; table-selection-page.tsx blocks the actual open-table
+    // tap on Android while offline instead of the route guard bouncing the
+    // whole page away.
+    expect(paths).toContain("/pos/tables");
     expect(paths).not.toContain("/pos/order");
     expect(paths).not.toContain("/order_manage");
     expect(paths).toContain("/sales/sales-list");
