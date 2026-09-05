@@ -7,6 +7,9 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useOfflineRefetchEpoch } from "@/hooks/use-offline-refetch";
 import { useResetOnDeps } from "@/hooks/use-reset-on-change";
 import { OrderChannelEnum, OrderSourceEnum } from "@/config/pos-constants";
+import { isCapacitorAndroidApp } from "@/lib/capacitor-platform";
+import { ServiceError } from "@/lib/api";
+import { classifyBackendError } from "@/lib/network-state";
 import { optionalString } from "@/lib/values";
 import type { ProdDetail, ProdItem } from "@/services/pos";
 import type { PrinterDeviceContext } from "@/services/printer";
@@ -184,6 +187,25 @@ export function useOrderCustomerWorkflow({
         }, options);
       }
     } catch (error) {
+      // Android has no Local Agent, so fetch_cart has nowhere offline to fall
+      // back to (see SAFE_BROWSER_FALLBACK_PATHS in offline-db.ts) — a real
+      // network failure here surfaced as a raw "Network Error" toast on a
+      // half-loaded page the cashier can't do anything with, well before the
+      // separate /sync/health probe confirms OFFLINE (3 confirmed failures,
+      // deliberately decoupled from this one request — see
+      // applyBackendTransportFailure in network-state.ts). Foreground loads
+      // only: a background refetch failing here should stay silent as before.
+      const isForegroundLoad = !options?.background;
+      if (
+        isForegroundLoad &&
+        isCapacitorAndroidApp() &&
+        classifyBackendError(error instanceof ServiceError ? error.originalError : error)
+          .classification === "NETWORK_TRANSPORT"
+      ) {
+        showToast({ title: t("pos.tableOpenUnavailableOffline"), tone: "info" });
+        router.replace("/pos/tables");
+        return;
+      }
       showToast({
         title: t("pos.orderFailed"),
         description: error instanceof Error ? error.message : "",
@@ -196,6 +218,7 @@ export function useOrderCustomerWorkflow({
     initialTableUuid,
     language,
     loadCartStore,
+    router,
     showToast,
     t,
   ]);
