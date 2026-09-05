@@ -35,6 +35,7 @@ import {
   projectOfflineCart,
   projectOfflineProdItem,
   projectOfflineTables,
+  resolveOrderUuid,
   synthesizeOfflineWrite,
 } from "@/services/offline-order";
 
@@ -979,6 +980,24 @@ export async function reconcileBrowserSyncQueue(
  * left for the next reachable tick to retry, and a rejection is never worked
  * around by minting a new event id.
  */
+// prepareOfflineRequest stamps every create_order call with a fresh random
+// order_uuid purely so the local reducer has a stable id to key on — the
+// real online flow (staff-order-payload.ts's buildStaffOrderInput) never
+// sends order_uuid for a table order at all, since the Backend finds-or-
+// creates the table's open order itself. order-state.ts's ORDER_CREATE
+// handler already retargets a create onto a table's already-open order
+// locally; pushing the event's *original* stamped order_uuid unchanged once
+// that has happened tells the Backend's offline-sync path (api/v1/posAll/
+// create.js) this create belongs to an order that does not match the
+// table's real open one, and it rejects the whole event
+// (SYNC_OPEN_ORDER_CONFLICT) rather than adding the items to it — the sync
+// entry then dead-ends in BLOCKED, and the items are gone the moment the
+// device reconnects and reads the real (unchanged) cart back. Resolving
+// against the same fully-reduced local state the reducer itself produced,
+// and rewriting the pushed order_uuid to match, is a no-op for a genuinely
+// new order (nothing to retarget onto) and the fix for a retargeted one.
+const CREATE_ORDER_ROUTE = "POST /api/v1/posAll/create_order";
+
 export async function pushBrowserSyncQueue(
   scope: BrowserOfflineIdentity,
   browserStore?: BrowserOfflineStore,
@@ -990,6 +1009,22 @@ export async function pushBrowserSyncQueue(
     .filter((entry) => `${entry.method} ${entry.path}` in OFFLINE_ORDER_PUSH_OPERATIONS)
     .slice(0, 50);
   if (!entries.length) return getBrowserSyncQueueSummary(scope, browserStore);
+
+  const needsOrderUuidResolution = entries.some(
+    (entry) => `${entry.method} ${entry.path}` === CREATE_ORDER_ROUTE,
+  );
+  const resolvedState = needsOrderUuidResolution
+    ? await loadOfflineOrderState(scope, browserStore)
+    : null;
+
+  function pushDataFor(entry: BrowserSyncQueueEntry) {
+    if (!resolvedState || `${entry.method} ${entry.path}` !== CREATE_ORDER_ROUTE) {
+      return entry.data;
+    }
+    const data = record(entry.data);
+    const resolved = resolveOrderUuid(resolvedState, data);
+    return resolved && resolved !== data.order_uuid ? { ...data, order_uuid: resolved } : entry.data;
+  }
 
   try {
     const response = await axios.post<{
@@ -1006,7 +1041,7 @@ export async function pushBrowserSyncQueue(
           actor_login_uuid: entry.actorLoginUuid,
           sequence: entry.createdAt,
           dependencies: entry.dependencies,
-          payload: { request: { params: entry.params, data: entry.data } },
+          payload: { request: { params: entry.params, data: pushDataFor(entry) } },
         })),
       },
       {

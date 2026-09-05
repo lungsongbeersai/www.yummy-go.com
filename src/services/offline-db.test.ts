@@ -23,6 +23,7 @@ import { OFFLINE_READ_ONLY_PATHS } from "@/lib/offline-routes";
 import {
   discardBlockedBrowserSyncEvent,
   listBlockedBrowserSyncEvents,
+  pushBrowserSyncQueue,
   reconcileBrowserSyncQueue,
   readBrowserOfflineCache,
   requestLocalFallback,
@@ -902,5 +903,122 @@ describe("an event the Agent no longer has", () => {
       expect.objectContaining({ event_uuid: child }),
       { timeout: 10000 },
     );
+  });
+});
+
+describe("pushing a staged create_order to Backend never sends a discarded order_uuid", () => {
+  // pushBrowserSyncQueue needs a registered device identity, read from
+  // window.localStorage (device-registration.ts) — no jsdom in this project,
+  // so a minimal stand-in is enough for that one call.
+  class MemoryLocalStorage {
+    private readonly data = new Map<string, string>();
+    getItem(key: string) {
+      return this.data.has(key) ? this.data.get(key)! : null;
+    }
+    setItem(key: string, value: string) {
+      this.data.set(key, value);
+    }
+  }
+
+  beforeEach(() => {
+    const storage = new MemoryLocalStorage();
+    storage.setItem(
+      "yummy-go:offline-sync-device",
+      JSON.stringify({ deviceCode: "android-test", agentSecret: "a".repeat(32) }),
+    );
+    // onlineApiBase() (offline-sync.ts) falls back to window.location.origin
+    // when NEXT_PUBLIC_BASE_URL isn't set — needs more than bare localStorage.
+    vi.stubGlobal("window", { localStorage: storage, location: { origin: "https://yummy-go.com" } });
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("rewrites a retargeted create_order's order_uuid to the table's real open order before pushing", async () => {
+    // Mirrors the real scenario: the table already had a real online order,
+    // then one item was added offline — order-state.ts's ORDER_CREATE handler
+    // retargets it locally onto the real order, but prepareOfflineRequest's
+    // own stamped order_uuid ("order-tap-offline", never real) is still what
+    // sits in the Dexie-staged payload. Backend's offline-sync path rejects a
+    // create whose order_uuid disagrees with the table's actual open order
+    // (SYNC_OPEN_ORDER_CONFLICT) — sending the stamped value unchanged would
+    // silently drop this item the moment the device reconnects.
+    const store = new MemoryBrowserOfflineStore();
+    await cacheBrowserApiResponse({
+      ...scope,
+      method: "get",
+      path: "/api/v1/posAll/fetch_cart",
+      params: { table_uuid: "table-1" },
+      response: {
+        status: "success",
+        orders: [{
+          order_uuid: "order-online",
+          table_uuid_fk: "table-1",
+          items: [{
+            order_item_uuid: "item-online",
+            order_it_uuid: "item-online",
+            pro_detail_uuid: "detail-1",
+            detail: { order_it_qty: 1, order_it_status: 1 },
+          }],
+        }],
+      },
+      source: "ONLINE",
+    }, store);
+    await stageBrowserSyncRequest({
+      eventUuid: "evt-push-retarget",
+      ...scope,
+      method: "post",
+      path: "/api/v1/posAll/create_order",
+      params: {},
+      data: {
+        order_uuid: "order-tap-offline",
+        table_uuid_fk: "table-1",
+        branch_uuid_fk: scope.branchUuid,
+        order_service_rate: 0,
+        order_vat_rate: 0,
+        order_vat_status: 1,
+        items: [{ order_it_uuid: "item-offline", prod_detail_uuid_fk: "detail-1", order_it_qty: 1, order_it_status: 1 }],
+      },
+    }, store);
+
+    const post = vi.spyOn(axios, "post").mockResolvedValue({
+      data: { data: { results: [{ event_uuid: "evt-push-retarget", status: "SYNCED" }] } },
+    });
+
+    await pushBrowserSyncQueue(scope, store);
+
+    expect(post).toHaveBeenCalledTimes(1);
+    const body = post.mock.calls[0][1] as { events: Array<{ payload: { request: { data: Record<string, unknown> } } }> };
+    expect(body.events[0].payload.request.data.order_uuid).toBe("order-online");
+  });
+
+  it("leaves a genuinely new order's order_uuid untouched", async () => {
+    const store = new MemoryBrowserOfflineStore();
+    await stageBrowserSyncRequest({
+      eventUuid: "evt-push-new",
+      ...scope,
+      method: "post",
+      path: "/api/v1/posAll/create_order",
+      params: {},
+      data: {
+        order_uuid: "order-brand-new",
+        table_uuid_fk: "table-2",
+        branch_uuid_fk: scope.branchUuid,
+        order_service_rate: 0,
+        order_vat_rate: 0,
+        order_vat_status: 1,
+        items: [{ order_it_uuid: "item-first", prod_detail_uuid_fk: "detail-1", order_it_qty: 1, order_it_status: 1 }],
+      },
+    }, store);
+
+    const post = vi.spyOn(axios, "post").mockResolvedValue({
+      data: { data: { results: [{ event_uuid: "evt-push-new", status: "SYNCED" }] } },
+    });
+
+    await pushBrowserSyncQueue(scope, store);
+
+    const body = post.mock.calls[0][1] as { events: Array<{ payload: { request: { data: Record<string, unknown> } } }> };
+    expect(body.events[0].payload.request.data.order_uuid).toBe("order-brand-new");
   });
 });

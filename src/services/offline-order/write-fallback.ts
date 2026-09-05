@@ -94,8 +94,15 @@ export async function loadOfflineMasterIndex(scope: BrowserOfflineScope, store?:
  * `order_uuid` is one the UI already read back from a real prior state, so
  * it stays a valid answer whenever no item resolves (e.g. bill_discount,
  * which carries no item reference at all).
+ *
+ * Exported because `pushBrowserSyncQueue` (offline-sync.ts) needs the exact
+ * same resolution for the opposite reason: a create_order event's *own*
+ * stamped order_uuid is exactly what must NOT be sent to the Backend as-is
+ * once it has been retargeted onto a table's already-open order — the
+ * Backend's offline-sync path (api/v1/posAll/create.js) rejects a create
+ * whose order_uuid disagrees with the table's real open order.
  */
-function resolveOrderUuid(
+export function resolveOrderUuid(
   state: OfflineOrderState,
   data: Record<string, unknown>,
 ): string | null {
