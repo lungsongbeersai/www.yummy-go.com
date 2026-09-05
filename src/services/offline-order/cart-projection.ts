@@ -67,6 +67,18 @@ function discountAmount(base: number, type: string, value: number) {
 
 function lineFor(item: OfflineOrderItem, master: OfflineMasterIndex) {
   const detail = master.details.get(item.prodDetailUuid);
+  if (!detail && typeof console !== "undefined") {
+    // Every other field on this line defaults silently (blank name/photo, 0
+    // price) rather than breaking the cart, so a genuine gap here has no
+    // other signal — this is the one place that can say which prodDetailUuid
+    // the master index (fetch_cate_products/get_prod_item/fetch_cart —
+    // master-index.ts) never got a chance to index for.
+    console.error("[SYNC] offline cart line has no master-index detail", {
+      prodDetailUuid: item.prodDetailUuid,
+      orderItemUuid: item.orderItemUuid,
+      indexedDetails: master.details.size,
+    });
+  }
   const toppingUnitTotal = item.toppings.reduce((sum, topping) => {
     const price = topping.topping_price ||
       master.toppingPrices.get(topping.prod_topping_uuid_fk) || 0;
