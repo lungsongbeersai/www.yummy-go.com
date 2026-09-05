@@ -466,14 +466,24 @@ export async function apiRequest<T>(
           prepared.eventUuid,
           localScope,
         );
+        console.error("[SYNC] android offline write", { method, url, synthesizedIsNull: synthesized === null });
         if (synthesized !== null) return assertApiSuccess(synthesized);
       } catch (writeError) {
+        console.error("[SYNC] android offline write threw", { method, url, writeError });
         throw new ServiceError(
           writeError instanceof Error ? writeError.message : "Offline write failed",
           503,
           writeError,
         );
       }
+    } else {
+      console.error("[SYNC] android offline write branch skipped", {
+        method,
+        url,
+        localAgentAvailable,
+        classification: classification.classification,
+        eventUuid: prepared.eventUuid,
+      });
     }
     throw normalized;
   }

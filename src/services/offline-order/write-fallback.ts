@@ -112,7 +112,10 @@ export async function synthesizeOfflineWrite(
   const path = url.split("?")[0];
   const data = record(options?.data);
   const event = decodeOfflineOrderEvent({ method, path, data });
-  if (!event) return null;
+  if (!event) {
+    console.error("[SYNC] synthesizeOfflineWrite: route not decoded", { method, path, data });
+    return null;
+  }
 
   await stageBrowserSyncRequest(
     {
