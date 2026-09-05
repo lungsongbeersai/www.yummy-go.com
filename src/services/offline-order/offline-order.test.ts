@@ -4,8 +4,10 @@ import {
   OFFLINE_ITEM_STATUS,
   buildOfflineMasterIndex,
   decodeOfflineOrderEvents,
+  findDetailByProdUuid,
   openOrderForTable,
   projectOfflineCart,
+  projectOfflineProdItem,
   projectOfflineTables,
   reduceOfflineOrderEvents,
   seedOfflineStateFromCart,
@@ -453,5 +455,36 @@ describe("offline table grid", () => {
   it("returns a store with no tables untouched", () => {
     const noTables = { status: "success", store_table_status: 2, data: [] };
     expect(projectOfflineTables(noTables, stateFrom([]))).toBe(noTables);
+  });
+});
+
+describe("synthesizing get_prod_item from category-listing data alone", () => {
+  it("finds the product's default detail by prod_uuid, not pro_detail_uuid", () => {
+    const detail = findDetailByProdUuid(master, PRODUCT);
+    expect(detail).toMatchObject({ prodDetailUuid: DETAIL, prodUuid: PRODUCT, price: 20000 });
+  });
+
+  it("returns null for a product no cached category listing has ever mentioned", () => {
+    expect(findDetailByProdUuid(master, "unknown-prod-uuid")).toBeNull();
+  });
+
+  it("projects a get_prod_item-shaped response a cashier never individually opened online", () => {
+    const detail = findDetailByProdUuid(master, PRODUCT)!;
+    const response = projectOfflineProdItem(detail);
+
+    expect(response).toMatchObject({ status: "success", offline: true });
+    expect(response.data).toMatchObject({
+      prod_uuid: PRODUCT,
+      prod_name: "ເຂົ້າຜັດ",
+      prod_price: 20000,
+    });
+    // Exactly one detail, no toppings — canDirectAddFromList already decided
+    // (from the same category data) that this product needs no options
+    // modal, so this response must not accidentally introduce one.
+    expect(response.data.details).toHaveLength(1);
+    expect(response.data.toppings).toHaveLength(0);
+    // cut_stock: 2 skips the stock check (isDetailAvailable,
+    // product-availability.ts) — v1 does not guard offline stock.
+    expect(response.data.details[0]).toMatchObject({ pro_detail_uuid: DETAIL, price: 20000, cut_stock: 2 });
   });
 });

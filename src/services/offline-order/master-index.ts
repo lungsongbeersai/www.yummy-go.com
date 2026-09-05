@@ -115,3 +115,59 @@ export function buildOfflineMasterIndex(
   }
   return index;
 }
+
+/**
+ * The one detail a category listing carries for a product (its default
+ * size, no toppings) — enough to find it by `prod_uuid` even when this
+ * device has never cached a `get_prod_item` response for it specifically.
+ */
+export function findDetailByProdUuid(
+  index: OfflineMasterIndex,
+  prodUuid: string,
+): OfflineProductDetail | null {
+  if (!prodUuid) return null;
+  for (const detail of index.details.values()) {
+    if (detail.prodUuid === prodUuid) return detail;
+  }
+  return null;
+}
+
+/**
+ * A `get_prod_item`-shaped response built from category-listing data alone,
+ * for a device that opened the menu (caching `fetch_cate_products` for every
+ * product in view) but never individually tapped this one product while
+ * online. Without this, offline order-taking would require a cashier to have
+ * pre-viewed every one of a menu's 200-300 items before an outage — instead
+ * this covers any product simple enough to need no options/toppings modal,
+ * which `canDirectAddFromList` (product-classification.ts) already decides
+ * from the same category data, independent of what this returns.
+ *
+ * The single synthesized detail is always treated as available (`cut_stock:
+ * 2` mirrors normalizeProdItem's own online fallback, product-availability.ts)
+ * — offline stock guarding is out of v1 scope (docs/Decisions.md).
+ */
+export function projectOfflineProdItem(detail: OfflineProductDetail) {
+  return {
+    status: "success",
+    message: "ok",
+    offline: true,
+    data: {
+      prod_uuid: detail.prodUuid,
+      prod_name: detail.productName,
+      prod_status_imge: detail.productHasImage,
+      prod_image: detail.productImage,
+      prod_price: detail.price,
+      pro_detail_sprice: detail.price,
+      details: [
+        {
+          pro_detail_uuid: detail.prodDetailUuid,
+          price: detail.price,
+          pro_detail_sprice: detail.price,
+          pro_detail_enabled: 1,
+          cut_stock: 2,
+        },
+      ],
+      toppings: [],
+    },
+  };
+}

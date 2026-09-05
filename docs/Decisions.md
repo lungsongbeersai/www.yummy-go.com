@@ -6,6 +6,14 @@ Entries below dated from git history are backfilled from existing code comments 
 
 ---
 
+## `uploadedImageCaching` now answers any cached width for a product image (reverses the per-width-entry decision below)
+
+- **Date:** 2026-09-06 (`src/service-worker/sw.ts`).
+- **Decision:** `uploadedImageCaching`'s `CacheFirst` strategy now sets `matchOptions: { ignoreSearch: true }`, so any previously-cached width/quality variant of a product's image answers a request for a different width of the same URL. This reverses the "Constraint this entry must keep: no `matchOptions`" line in the entry below.
+- **Alternatives rejected:** Proactively warming every rendered width (grid card, cart-line thumbnail, product-options modal) for every product the moment `fetch_cate_products` is cached — would keep per-width precision but needs a new warm-up pass to maintain alongside `WARM_OFFLINE_ROUTES` for comparatively little benefit on a POS UI where product photos are identification aids, not pixel-critical. Forcing every `<Image>` call site to share one fixed `sizes` value — would also fix the collision but constrains layout decisions across every product-photo surface in the app for the same underlying goal.
+- **Reason:** `next/image` requests a different `w=` for the same product depending on where it renders — a wide grid card (`order-customer-product-card.tsx`, `deviceSizes`-scale) vs. a ~40-44px cart-line thumbnail (`cart-items.tsx`, `imageSizes`-scale) are genuinely different cache keys under exact `ignoreSearch: false` matching. Opening a menu online only ever warms the grid's width for every product in view — it does not warm the cart-line width for a product that has never actually been added to an order online. Android offline order-taking (this session) makes that combination common: a cashier can now open a table and add any simple menu item offline even if it was never ordered before, and its cart line then requests a width that was never fetched, with no network to get it — a broken image where a same-size-answers-close-enough one is a clearly smaller UX cost.
+- **Approved by:** repo owner (2026-09-06, in-conversation — asked for offline product images to keep working right after the offline order-taking fix landed).
+
 ## `navigator.onLine === false` may seed and shorten the OFFLINE verdict
 
 - **Date:** 2026-09-03.

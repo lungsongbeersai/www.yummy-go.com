@@ -8,8 +8,10 @@ export {
 export {
   buildOfflineMasterIndex,
   emptyOfflineMasterIndex,
+  findDetailByProdUuid,
   indexCategoryProducts,
   indexProductItem,
+  projectOfflineProdItem,
   type OfflineMasterIndex,
   type OfflineProductDetail,
 } from "./master-index";

@@ -97,11 +97,22 @@ function isUploadedImageRequest(url: URL) {
   return Boolean(source) && UPLOADED_IMAGE_PATH.test(source as string);
 }
 
+// matchOptions: { ignoreSearch: true } — reverses the earlier "each rendered
+// width is its own entry" call (docs/Decisions.md). next/image requests a
+// different w= for the same product depending on where it renders (grid
+// card vs. a 40-44px cart-line thumbnail, see order-customer-product-card.tsx
+// vs. cart-items.tsx) — opening the menu online only ever warms the grid's
+// width. An order taken offline for a product that had never been *ordered*
+// online before (Android offline order-taking) hits the cart-line width for
+// the first time with no network to fetch it, rendering a broken image
+// instead of a slightly-off-resolution one. One cached width answering for
+// every size is a smaller cost here than a POS screen with missing photos.
 const uploadedImageCaching: RuntimeCaching = {
   matcher: ({ url, request }) =>
     request.destination === "image" && isUploadedImageRequest(url),
   handler: new CacheFirst({
     cacheName: "yummy-uploaded-images",
+    matchOptions: { ignoreSearch: true },
     plugins: [
       new ExpirationPlugin({
         maxEntries: 300,

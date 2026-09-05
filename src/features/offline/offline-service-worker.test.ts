@@ -26,17 +26,20 @@ const offlineSync = readFileSync(
 );
 
 describe("offline asset cache", () => {
-  it("keys the Next Image cache on the full query string so sizes cannot collide", () => {
+  it("answers any cached width for a product image so offline never shows a broken photo", () => {
     // The uploaded-image entry has to claim /_next/image: <Image> never requests the
     // product URL directly, so a matcher reading only url.pathname sees "/_next/image"
     // and never "/uploaded/", and no product image is ever cached. defaultCache still
     // handles every other Next Image request, but its 64-entry / 24h window is far too
     // small to hold a POS menu for a shift offline.
     //
-    // What must not come back is the collision: caches.match() defaults to
-    // ignoreSearch: false, which keys on ?url=...&w=... so each rendered width is its
-    // own entry. Setting matchOptions on this strategy would make one width answer for
-    // all of them.
+    // ignoreSearch: true is required here (reversing the earlier per-width-entry
+    // decision, docs/Decisions.md): next/image requests a different w= for the same
+    // product depending on where it renders (a wide grid card vs. a ~40px cart-line
+    // thumbnail), and opening the menu online only ever warms the grid's width. Without
+    // this, a product added to an order for the first time while offline — the whole
+    // point of Android offline order-taking — hits the cart-line width with no cached
+    // answer and no network, rendering a broken image.
     expect(serviceWorkerSource).toContain('from "@serwist/next/worker"');
     expect(serviceWorkerSource).toContain("...defaultCache");
     expect(serviceWorkerSource).toContain('url.pathname !== "/_next/image"');
@@ -46,8 +49,8 @@ describe("offline asset cache", () => {
       serviceWorkerSource.indexOf("const serwist = new Serwist")
     );
     expect(imageEntry).not.toBe("");
-    expect(imageEntry).not.toContain("matchOptions");
-    expect(imageEntry).not.toContain("ignoreSearch");
+    expect(imageEntry).toContain("matchOptions");
+    expect(imageEntry).toContain("ignoreSearch: true");
   });
 
   it("reloads an open customer tab when the corrected worker takes control", () => {

@@ -28,10 +28,12 @@ import {
   type BrowserSyncQueueSummary,
 } from "@/services/offline-db";
 import {
+  findDetailByProdUuid,
   getOfflineSyncDeviceAuth,
   loadOfflineMasterIndex,
   loadOfflineOrderState,
   projectOfflineCart,
+  projectOfflineProdItem,
   projectOfflineTables,
   synthesizeOfflineWrite,
 } from "@/services/offline-order";
@@ -719,6 +721,8 @@ const OVERLAY_PATHS = new Set([
   "/api/v1/posAll/fetch_table",
 ]);
 
+const GET_PROD_ITEM_PATH = "/api/v1/posAll/get_prod_item";
+
 /**
  * Folds every staged offline mutation on top of a cached fetch_cart/
  * fetch_table response, so a table opened or an item added while offline
@@ -735,6 +739,12 @@ const OVERLAY_PATHS = new Set([
  * and falling through to the original network error. fetch_table has no
  * such fallback: without at least one prior cached grid there is no
  * zone/table data to reconstruct from, so a miss there stays a miss.
+ *
+ * get_prod_item gets the same "miss is not a dead end" treatment, but from
+ * a different source: `fetch_cate_products` (cached just by opening the
+ * menu, for every product in it) already carries a default price/detail per
+ * product, so a cache miss there is synthesized from that instead of from
+ * staged order events. See `projectOfflineProdItem`.
  */
 async function overlayOfflineOrderState(
   path: string,
@@ -742,7 +752,21 @@ async function overlayOfflineOrderState(
   requestParamsForPath: Record<string, unknown>,
   scope: BrowserOfflineScope,
   browserStore?: BrowserOfflineStore,
+  requestData?: Record<string, unknown>,
 ): Promise<unknown> {
+  if (path === GET_PROD_ITEM_PATH) {
+    if (cached !== null) return cached;
+    const prodUuid = typeof requestData?.prod_uuid === "string" ? requestData.prod_uuid : "";
+    if (!prodUuid) return cached;
+    try {
+      const master = await loadOfflineMasterIndex(scope, browserStore);
+      const detail = findDetailByProdUuid(master, prodUuid);
+      return detail ? projectOfflineProdItem(detail) : cached;
+    } catch (error) {
+      console.error("[SYNC] offline product item synthesis failed", { path, error });
+      return cached;
+    }
+  }
   if (!OVERLAY_PATHS.has(path)) return cached;
   if (cached === null && path !== "/api/v1/posAll/fetch_cart") return cached;
   try {
@@ -787,14 +811,15 @@ export async function readBrowserOfflineCache<T>(
   if (!isBrowserCacheableRead(method, url)) return null;
   const path = url.split("?")[0];
   const params = requestParams(url, options?.params);
+  const data = record(options?.data);
   const cached = await readBrowserApiFallback<T>({
     ...scope,
     method,
     path,
     params,
-    data: options?.data ?? {},
+    data,
   }, browserStore).catch(() => null);
-  return overlayOfflineOrderState(path, cached, params, scope, browserStore) as Promise<T | null>;
+  return overlayOfflineOrderState(path, cached, params, scope, browserStore, data) as Promise<T | null>;
 }
 
 /**

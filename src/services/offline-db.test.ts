@@ -685,6 +685,59 @@ describe("agent-free offline reads", () => {
     expect(response.orders[0]?.order_uuid).toBe("order-new");
     expect(response.orders[0]?.items).toHaveLength(1);
   });
+
+  it("synthesizes get_prod_item from cached category-listing data when this exact product was never individually opened online", async () => {
+    // Opening any table's menu already caches fetch_cate_products for every
+    // product in it — a cashier should not have to have also tapped this
+    // specific product online once before an outage for a plain, no-options
+    // item to still be addable offline.
+    const store = new MemoryBrowserOfflineStore();
+    await cacheBrowserApiResponse({
+      ...scope,
+      method: "get",
+      path: "/api/v1/posAll/fetch_cate_products",
+      params: {},
+      response: {
+        data: [{
+          cate_uuid: "cate-1",
+          products: [{
+            prod_uuid: "prod-1",
+            prod_name: "Fried rice",
+            prod_image: "rice.png",
+            prod_status_imge: 1,
+            pro_detail_uuid: "detail-1",
+            pro_detail_sprice: 15000,
+          }],
+        }],
+      },
+      source: "ONLINE",
+    }, store);
+
+    const response = await readBrowserOfflineCache(
+      "post",
+      "/api/v1/posAll/get_prod_item",
+      { data: { prod_uuid: "prod-1", lang: "en" } },
+      scope,
+      store,
+    ) as { status: string; data: { prod_uuid: string; details: Array<{ pro_detail_uuid: string }> } };
+
+    expect(response.status).toBe("success");
+    expect(response.data.prod_uuid).toBe("prod-1");
+    expect(response.data.details).toEqual([expect.objectContaining({ pro_detail_uuid: "detail-1" })]);
+  });
+
+  it("still returns null for get_prod_item when no cached category listing ever mentioned this product", async () => {
+    const store = new MemoryBrowserOfflineStore();
+    await expect(
+      readBrowserOfflineCache(
+        "post",
+        "/api/v1/posAll/get_prod_item",
+        { data: { prod_uuid: "never-seen", lang: "en" } },
+        scope,
+        store,
+      ),
+    ).resolves.toBeNull();
+  });
 });
 
 describe("browser mirror read-back window", () => {
