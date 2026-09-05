@@ -30,9 +30,10 @@ const Toaster = ({ ...props }: ToasterProps) => {
       // padding-top ของ .native-top-bar ที่เป็น in-flow block ธรรมดา (ดูคอมเมนต์
       // ~24-32px ใน globals.css) — toast เลยไปทับแถบสถานะเงียบ ๆ โดยไม่มี error ให้เห็น
       // ใช้ max() ตั้งพื้นกันเหมือน --pos-system-bottom-safe-area (globals.css) แทนการ
-      // เชื่อ env() เพียวๆ
-      offset={{ top: "calc(max(env(safe-area-inset-top, 0px), 2.5rem) + 16px)" }}
-      mobileOffset={{ top: "calc(max(env(safe-area-inset-top, 0px), 2.5rem) + 16px)" }}
+      // เชื่อ env() เพียวๆ — ค่าพื้น 2.5rem แรกยังชิดไปสำหรับเครื่องจอ punch-hole/notch สูง
+      // ที่ผู้ใช้ทดสอบจริง จึงขยับพื้นขึ้นเป็น 3.5rem ให้เผื่อระยะมากขึ้นชัดเจน
+      offset={{ top: "calc(max(env(safe-area-inset-top, 0px), 3.5rem) + 16px)" }}
+      mobileOffset={{ top: "calc(max(env(safe-area-inset-top, 0px), 3.5rem) + 16px)" }}
       icons={{
         success: (
           <CircleCheckIcon className="size-4" />
