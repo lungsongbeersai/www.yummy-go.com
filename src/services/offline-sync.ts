@@ -757,10 +757,14 @@ async function overlayOfflineOrderState(
       },
       master,
     );
-  } catch {
+  } catch (error) {
     // Overlay is a best-effort enhancement on top of an already-successful
     // cache read; a bug here must not turn a working cached response into no
-    // response at all.
+    // response at all. Logged (not swallowed silently) because on the
+    // fetch_cart cache-miss path above, this is the ONLY answer this request
+    // can get — if this throws, the caller sees a raw network error instead
+    // of the empty-cart fallback that path exists to provide.
+    console.error("[SYNC] offline order state overlay failed", { path, error });
     return cached;
   }
 }
