@@ -16,6 +16,7 @@ import type { PosTable } from "@/services/pos";
 import { useAppStore } from "@/stores/app-store";
 import { useAuthStore } from "@/stores/auth-store";
 import { useNativeHeaderStore } from "@/stores/native-header-store";
+import { probeBackendReachability } from "@/stores/offline-transport-monitor";
 import { usePosStore } from "@/stores/pos-store";
 import { useToastStore } from "@/stores/toast-store";
 import { TableListSection } from "./table-list-section";
@@ -112,7 +113,7 @@ export function TableSelectionPage() {
     return () => setHeaderRefreshAction(null);
   }, [nativeShellActive, loading, load, setHeaderRefreshAction]);
 
-  function selectTable(table: PosTable) {
+  async function selectTable(table: PosTable) {
     if (androidOfflineWriteBlocked) {
       showToast({ title: t("pos.tableOpenUnavailableOffline"), tone: "info" });
       return;
@@ -120,6 +121,23 @@ export function TableSelectionPage() {
     const params = new URLSearchParams({ table_uuid: table.table_uuid });
     if (table.table_name) params.set("table_name", table.table_name);
     const target = `/pos/order?${params.toString()}` as const;
+    // androidOfflineWriteBlocked only trips once offlineSession is confirmed
+    // (3 failed health probes), so a connection that drops right at tap time
+    // slips through to router.push below on Android. navigator.onLine can't
+    // catch that window itself — Android WebView reports `true` even with
+    // Wi-Fi and mobile data off (see the comment in api.ts) — so router.push
+    // would try an RSC fetch over a dead connection, which Next.js recovers
+    // from with its own hard-reload fallback: a jarring full-app flash before
+    // loadCart's offline redirect (use-order-customer-workflow.ts) lands back
+    // here. A quick real probe closes most of that window without waiting for
+    // the confirmed verdict.
+    if (isAndroidNative) {
+      const probe = await probeBackendReachability(1200);
+      if (!probe.reachable && probe.classification === "NETWORK_TRANSPORT") {
+        showToast({ title: t("pos.tableOpenUnavailableOffline"), tone: "info" });
+        return;
+      }
+    }
     // A document navigation lets the service worker use the warmed /pos/order
     // shell even when a Next.js RSC prefetch was not completed before Wi-Fi drops.
     if (navigator.onLine === false) {
