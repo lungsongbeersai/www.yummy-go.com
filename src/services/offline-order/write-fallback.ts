@@ -113,7 +113,7 @@ export async function synthesizeOfflineWrite(
   const data = record(options?.data);
   const event = decodeOfflineOrderEvent({ method, path, data });
   if (!event) {
-    console.error("[SYNC] synthesizeOfflineWrite: route not decoded", { method, path, data });
+    console.error("[SYNC] synthesizeOfflineWrite: route not decoded " + JSON.stringify({ method, path, data }));
     return null;
   }
 

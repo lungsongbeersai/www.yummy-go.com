@@ -431,16 +431,16 @@ export async function apiRequest<T>(
         requestOptions,
         localScope,
       );
-      console.error("[SYNC] android offline read", { method, url, cachedIsNull: cached === null });
+      console.error("[SYNC] android offline read " + JSON.stringify({ method, url, cachedIsNull: cached === null }));
       if (cached !== null) return assertApiSuccess(cached);
-    } else {
-      console.error("[SYNC] android offline read branch skipped", {
+    } else if (!prepared.eventUuid) {
+      console.error("[SYNC] android offline read branch skipped " + JSON.stringify({
         method,
         url,
         localAgentAvailable,
         classification: classification.classification,
-        eventUuid: prepared.eventUuid,
-      });
+        reason: classification.reason,
+      }));
     }
     // Android write path: no Agent to hand the mutation to, so it is staged
     // into the same Dexie outbox the read branch above already replays, and
@@ -466,24 +466,29 @@ export async function apiRequest<T>(
           prepared.eventUuid,
           localScope,
         );
-        console.error("[SYNC] android offline write", { method, url, synthesizedIsNull: synthesized === null });
+        console.error("[SYNC] android offline write " + JSON.stringify({ method, url, synthesizedIsNull: synthesized === null }));
         if (synthesized !== null) return assertApiSuccess(synthesized);
       } catch (writeError) {
-        console.error("[SYNC] android offline write threw", { method, url, writeError });
+        console.error("[SYNC] android offline write threw " + JSON.stringify({
+          method,
+          url,
+          message: writeError instanceof Error ? writeError.message : String(writeError),
+          stack: writeError instanceof Error ? writeError.stack : undefined,
+        }));
         throw new ServiceError(
           writeError instanceof Error ? writeError.message : "Offline write failed",
           503,
           writeError,
         );
       }
-    } else {
-      console.error("[SYNC] android offline write branch skipped", {
+    } else if (prepared.eventUuid) {
+      console.error("[SYNC] android offline write branch skipped " + JSON.stringify({
         method,
         url,
         localAgentAvailable,
         classification: classification.classification,
-        eventUuid: prepared.eventUuid,
-      });
+        reason: classification.reason,
+      }));
     }
     throw normalized;
   }
