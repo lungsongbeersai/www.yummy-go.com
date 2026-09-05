@@ -26,20 +26,26 @@ const offlineSync = readFileSync(
 );
 
 describe("offline asset cache", () => {
-  it("answers any cached width for a product image so offline never shows a broken photo", () => {
+  it("answers any cached width for a product image, keyed on which product it is, so offline never shows a broken or a wrong photo", () => {
     // The uploaded-image entry has to claim /_next/image: <Image> never requests the
     // product URL directly, so a matcher reading only url.pathname sees "/_next/image"
     // and never "/uploaded/", and no product image is ever cached. defaultCache still
     // handles every other Next Image request, but its 64-entry / 24h window is far too
     // small to hold a POS menu for a shift offline.
     //
-    // ignoreSearch: true is required here (reversing the earlier per-width-entry
-    // decision, docs/Decisions.md): next/image requests a different w= for the same
-    // product depending on where it renders (a wide grid card vs. a ~40px cart-line
-    // thumbnail), and opening the menu online only ever warms the grid's width. Without
-    // this, a product added to an order for the first time while offline — the whole
-    // point of Android offline order-taking — hits the cart-line width with no cached
-    // answer and no network, rendering a broken image.
+    // next/image requests a different w= for the same product depending on where it
+    // renders (a wide grid card vs. a ~40px cart-line thumbnail), and opening the menu
+    // online only ever warms the grid's width — without normalizing that away, a product
+    // added to an order for the first time while offline (the whole point of Android
+    // offline order-taking) hits the cart-line width with no cached answer and no
+    // network, rendering a broken image.
+    //
+    // matchOptions: { ignoreSearch: true } was tried and reverted: Cache API
+    // ignoreSearch drops the WHOLE query string, including url= — the part that says
+    // which product this is — so every /_next/image entry collapsed into one shared
+    // bucket and any product could answer any other's request (some photos missing,
+    // others showing the wrong item). A cacheKeyWillBeUsed plugin is required instead,
+    // so only w=/q= are dropped from the key and url= is kept.
     expect(serviceWorkerSource).toContain('from "@serwist/next/worker"');
     expect(serviceWorkerSource).toContain("...defaultCache");
     expect(serviceWorkerSource).toContain('url.pathname !== "/_next/image"');
@@ -49,8 +55,15 @@ describe("offline asset cache", () => {
       serviceWorkerSource.indexOf("const serwist = new Serwist")
     );
     expect(imageEntry).not.toBe("");
-    expect(imageEntry).toContain("matchOptions");
-    expect(imageEntry).toContain("ignoreSearch: true");
+    expect(imageEntry).not.toContain("ignoreSearch");
+    expect(imageEntry).toContain("imageCacheKeyPlugin");
+
+    const keyPlugin = serviceWorkerSource.slice(
+      serviceWorkerSource.indexOf("const imageCacheKeyPlugin"),
+      serviceWorkerSource.indexOf("const uploadedImageCaching")
+    );
+    expect(keyPlugin).toContain("cacheKeyWillBeUsed");
+    expect(keyPlugin).toContain('searchParams.get("url")');
   });
 
   it("reloads an open customer tab when the corrected worker takes control", () => {

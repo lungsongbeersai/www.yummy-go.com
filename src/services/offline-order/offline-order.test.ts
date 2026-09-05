@@ -124,6 +124,58 @@ describe("offline order state", () => {
       .toEqual(["item-1", "item-2"]);
   });
 
+  it("merges two adds with different order_uuids into one bill for the table, instead of hiding the first behind the second", () => {
+    // staff-order-payload.ts's buildStaffOrderInput never sends order_uuid for a
+    // table order (the Backend finds-or-creates the table's open order itself) —
+    // prepareOfflineRequest stamps a *fresh random one* on every single call, so
+    // two real "+เพิ่ม" taps decode as two genuinely different order_uuids, not
+    // the same one repeated (unlike the fixture above). Before the fix, each
+    // decoded as its own brand-new order and openOrderForTable (most recent
+    // wins) showed only the second tap's item — the first item silently
+    // vanished from the cart.
+    const state = stateFrom([
+      createOrder([item("item-1", 1)], { order_uuid: "order-tap-1" }),
+      createOrder([item("item-2", 1)], { order_uuid: "order-tap-2" }),
+    ]);
+
+    expect(state.orders.size).toBe(1);
+    const order = openOrderForTable(state, TABLE);
+    expect(order?.orderUuid).toBe("order-tap-1");
+    expect(visibleItemsForOrder(state, order!.orderUuid).map((line) => line.orderItemUuid))
+      .toEqual(["item-1", "item-2"]);
+  });
+
+  it("merges an offline add into a bill the table already had open online, instead of replacing it", () => {
+    const onlineCart = {
+      status: "success",
+      orders: [{
+        order_uuid: "order-online",
+        table_uuid_fk: TABLE,
+        order_discount_type: "",
+        order_discount_value: 0,
+        items: [{
+          order_item_uuid: "item-online",
+          order_it_uuid: "item-online",
+          pro_detail_uuid: DETAIL,
+          qty: 1,
+          detail: { order_it_qty: 1, order_it_status: OFFLINE_ITEM_STATUS.WAITING, order_it_note: "" },
+          toppings: [],
+        }],
+      }],
+    };
+    const seeded = seedOfflineStateFromCart(onlineCart);
+    const state = reduceOfflineOrderEvents(
+      decodeOfflineOrderEvents([createOrder([item("item-offline", 1)], { order_uuid: "order-tap-offline" })]),
+      seeded,
+    );
+
+    expect(state.orders.size).toBe(1);
+    const order = openOrderForTable(state, TABLE);
+    expect(order?.orderUuid).toBe("order-online");
+    expect(visibleItemsForOrder(state, order!.orderUuid).map((line) => line.orderItemUuid))
+      .toEqual(["item-online", "item-offline"]);
+  });
+
   it("applies a quantity change as a delta, never below zero", () => {
     const cart = cartFrom([
       createOrder([item("item-1", 2)]),

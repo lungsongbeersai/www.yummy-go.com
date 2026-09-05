@@ -31,10 +31,26 @@ function itemFor(state: OfflineOrderState, orderItemUuid: string) {
 function applyEvent(state: OfflineOrderState, event: OfflineOrderEvent, sequence: number) {
   switch (event.kind) {
     case "ORDER_CREATE": {
-      const existing = state.orders.get(event.orderUuid);
+      // The real create_order payload never carries order_uuid for a table
+      // order (staff-order-payload.ts's buildStaffOrderInput omits it on
+      // purpose — the Backend finds-or-creates the table's open order
+      // itself); prepareOfflineRequest stamps a fresh random one purely so
+      // the staged event has a stable id. Left as event.orderUuid, every
+      // "add item" call would decode as its own brand-new order, and
+      // openOrderForTable (one order per table, most recent wins) would
+      // show only the latest item — hiding a table's existing items,
+      // online-seeded or already added offline, behind it. Reuse the
+      // table's already-open order instead, exactly like the Backend does.
+      const openForTable = event.tableUuid
+        ? [...state.orders.values()].find(
+            (order) => order.checkBill === 1 && order.tableUuid === event.tableUuid,
+          )
+        : undefined;
+      const orderUuid = openForTable?.orderUuid ?? event.orderUuid;
+      const existing = state.orders.get(orderUuid);
       if (!existing) {
         const order: OfflineOrder = {
-          orderUuid: event.orderUuid,
+          orderUuid,
           tableUuid: event.tableUuid,
           branchUuid: event.branchUuid,
           checkBill: 1,
@@ -65,7 +81,7 @@ function applyEvent(state: OfflineOrderState, event: OfflineOrderEvent, sequence
         if (state.items.has(item.orderItemUuid)) return;
         state.items.set(item.orderItemUuid, {
           orderItemUuid: item.orderItemUuid,
-          orderUuid: event.orderUuid,
+          orderUuid,
           prodDetailUuid: item.prodDetailUuid,
           quantity: item.quantity,
           status: item.status,

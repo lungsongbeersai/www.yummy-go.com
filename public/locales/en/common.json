@@ -932,6 +932,7 @@
     "increaseTopping": "Increase {{name}}",
     "noAvailableOptions": "No available options",
     "checkProductAvailability": "Check option status or stock before ordering.",
+    "productOptionsNeedOnline": "This item has options that haven't loaded yet — connect to the internet once to view them, then it works offline too.",
     "invalidProductPrice": "Set a valid product price before ordering.",
     "insufficientStock": "There is not enough stock for this quantity.",
     "insufficientStockMax": "Only {{max}} left in stock — please lower the quantity.",

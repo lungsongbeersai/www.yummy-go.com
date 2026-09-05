@@ -371,10 +371,29 @@ export function useOrderCustomerWorkflow({
 
       setLoadingProductUuid(entry.product.prodUuid);
       try {
-        const item = await loadProductItem({
-          lang: language,
-          prodUuid: entry.product.prodUuid,
-        });
+        let item: ProdItem | null = null;
+        try {
+          item = await loadProductItem({
+            lang: language,
+            prodUuid: entry.product.prodUuid,
+          });
+        } catch (error) {
+          if (classifyBackendError(error).classification !== "NETWORK_TRANSPORT") {
+            throw error;
+          }
+          // Offline: get_prod_item's own offline fallback (offline-sync.ts) already
+          // answers from cached fetch_cate_products data whenever a product has no
+          // real size/topping options to choose — this only still throws for a
+          // product that genuinely needs the options modal and was never opened
+          // online, so there is no size/topping list to show at all. That is a
+          // real v1 boundary the cashier can act on, not a bug — say so plainly
+          // instead of a generic "Network Error".
+          showToast({
+            title: t("pos.productOptionsNeedOnline"),
+            tone: "error",
+          });
+          return;
+        }
         const productItem = normalizeProdItem(item, entry.product);
         const mode = getProductModalMode(activeSort, productItem);
         const detail = firstAvailableDetail(productItem, mode);

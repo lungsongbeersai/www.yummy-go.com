@@ -6,6 +6,14 @@ Entries below dated from git history are backfilled from existing code comments 
 
 ---
 
+## `uploadedImageCaching` keys on the decoded source image, not `matchOptions: { ignoreSearch: true }` (corrects the entry below)
+
+- **Date:** 2026-09-06 (`src/service-worker/sw.ts`), same day as the entry below.
+- **Decision:** Replace `matchOptions: { ignoreSearch: true }` with a `cacheKeyWillBeUsed` plugin (`imageCacheKeyPlugin`) that rewrites a `/_next/image?url=<source>&w=..&q=..` request's cache key to `/_next/image?url=<source>` — dropping only `w=`/`q=`, keeping `url=`.
+- **Alternatives rejected:** Keeping `matchOptions: { ignoreSearch: true }` (the entry below, shipped and reverted the same day) — Cache API's `ignoreSearch` drops the *entire* query string during `cache.match()`, not just the part that varies per render. Since `url=` (which image) and `w=`/`q=` (which size) are both query parameters on the same `/_next/image` path, ignoring "the query string" ignored `url=` too: every product's `/_next/image` request collapsed onto whichever entry the cache happened to return first, so products showed no photo, or another product's photo, at random. This was caught from real-device testing ("some photos show, some don't") within hours of the previous entry shipping.
+- **Reason:** The actual need was narrower than `ignoreSearch` can express: ignore `w=`/`q=`, keep `url=`. Only a custom cache key (via `cacheKeyWillBeUsed`, applied on both the read and write side of `CacheFirst`) can express "ignore some query parameters but not others" — there is no built-in `matchOptions` for it.
+- **Approved by:** repo owner (2026-09-06, in-conversation — reported the wrong-photo/missing-photo symptom from real-device testing right after the previous entry deployed).
+
 ## `uploadedImageCaching` now answers any cached width for a product image (reverses the per-width-entry decision below)
 
 - **Date:** 2026-09-06 (`src/service-worker/sw.ts`).

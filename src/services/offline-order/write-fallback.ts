@@ -73,20 +73,45 @@ export async function loadOfflineMasterIndex(scope: BrowserOfflineScope, store?:
   ]);
 }
 
-/** Which order this mutation affects, once its own event is folded into state. */
+/**
+ * Which order this mutation affects, once its own event is folded into state.
+ *
+ * Item lookups are checked before `data.order_uuid` on purpose: create_order
+ * never carries a real order_uuid for a table order (the Backend finds-or-
+ * creates by table_uuid_fk), so prepareOfflineRequest stamps a fresh random
+ * one just to give the event a stable id. order-state.ts's ORDER_CREATE
+ * handler already retargets that event's items onto a table's already-open
+ * order when one exists — so for create_order specifically, `data.order_uuid`
+ * itself can be a discarded, never-used uuid, and only the items it carries
+ * point at where they actually landed. Every other mutation kind's
+ * `order_uuid` is one the UI already read back from a real prior state, so
+ * it stays a valid answer whenever no item resolves (e.g. bill_discount,
+ * which carries no item reference at all).
+ */
 function resolveOrderUuid(
   state: OfflineOrderState,
   data: Record<string, unknown>,
 ): string | null {
-  const direct = data.order_uuid;
-  if (typeof direct === "string" && direct) return direct;
+  const items = Array.isArray(data.items) ? data.items : [];
+  for (const raw of items) {
+    const item = record(raw);
+    const uuid = String(item.order_it_uuid || item.order_item_uuid || "");
+    if (!uuid) continue;
+    const found = state.items.get(uuid)?.orderUuid;
+    if (found) return found;
+  }
   const itemUuid = String(data.order_item_uuid || data.order_it_uuid || "");
-  if (itemUuid) return state.items.get(itemUuid)?.orderUuid ?? null;
+  if (itemUuid) {
+    const found = state.items.get(itemUuid)?.orderUuid;
+    if (found) return found;
+  }
   const itemUuids = Array.isArray(data.order_item_uuids) ? data.order_item_uuids : [];
   for (const raw of itemUuids) {
     const found = state.items.get(String(raw))?.orderUuid;
     if (found) return found;
   }
+  const direct = data.order_uuid;
+  if (typeof direct === "string" && direct) return direct;
   return null;
 }
 
