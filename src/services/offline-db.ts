@@ -60,9 +60,16 @@ const SAFE_BROWSER_FALLBACK_PATHS = new Set([
   "/api/v1/dashboard/executive",
   // /pos/tables joined OFFLINE_READ_ONLY_PATHS so the grid stays visible
   // (read-only) instead of Android bouncing off it entirely — same fix as the
-  // six report routes above. fetch_cart and customer_order_queue stay refused:
-  // /pos/order itself is still locked on Android, so nothing reads them.
+  // six report routes above.
   "/api/v1/posAll/fetch_table",
+  // /pos/order can now stage real writes offline on Android too (see
+  // write-fallback.ts) — loadCart's first read on that page needs this to
+  // come back as an empty cart instead of a thrown error for a table that
+  // has never been opened before (nothing to have cached yet). Once there is
+  // something cached or staged, readBrowserOfflineCache's overlay projects
+  // the real state on top; customer_order_queue stays refused — it belongs
+  // to the public QR ordering flow, not this one.
+  "/api/v1/posAll/fetch_cart",
 ]);
 
 export type BrowserSyncEventStatus =

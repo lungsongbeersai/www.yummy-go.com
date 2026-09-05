@@ -141,7 +141,7 @@ describe("Dexie browser offline mirror", () => {
     await expect(readBrowserApiFallback({ ...request, branchUuid: "branch-2" }, store)).resolves.toBeNull();
   });
 
-  it("never serves a stale browser snapshot as a current transaction", async () => {
+  it("serves a cached fetch_cart snapshot at this raw layer — readBrowserOfflineCache's overlay is what reconstructs it from real state, not this cache read", async () => {
     const store = new MemoryBrowserOfflineStore();
     const request = {
       ...scope,
@@ -155,7 +155,10 @@ describe("Dexie browser offline mirror", () => {
       source: "AGENT",
     }, store);
 
-    await expect(readBrowserApiFallback(request, store)).resolves.toBeNull();
+    await expect(readBrowserApiFallback(request, store)).resolves.toEqual({
+      status: "success",
+      orders: [{ order_uuid: "order-1" }],
+    });
   });
 
   it("persists one stable payment event across a logical Chrome restart", async () => {
@@ -563,15 +566,15 @@ describe("offline read-only pages can read their own cache back", () => {
     expect(await readBrowserApiFallback(request, store)).toEqual({ tables: [] });
   });
 
-  it("still refuses /pos/order reads — it stays locked on Android, nothing needs them cached", async () => {
-    for (const api of ["/api/v1/posAll/fetch_cart", "/api/v1/posAll/customer_order_queue"]) {
-      expect(isSafeBrowserCacheFallback(api)).toBe(false);
-    }
+  it("serves fetch_cart now that /pos/order can stage real writes on Android, but still refuses the public QR queue", async () => {
+    expect(isSafeBrowserCacheFallback("/api/v1/posAll/fetch_cart")).toBe(true);
+    // customer_order_queue belongs to the public QR ordering flow, not this one.
+    expect(isSafeBrowserCacheFallback("/api/v1/posAll/customer_order_queue")).toBe(false);
 
     const store = new MemoryBrowserOfflineStore();
     const request = { ...scope, method: "get", path: "/api/v1/posAll/fetch_cart", params: {} };
     await cacheBrowserApiResponse({ ...request, response: { orders: [] }, source: "ONLINE" }, store);
-    expect(await readBrowserApiFallback(request, store)).toBeNull();
+    expect(await readBrowserApiFallback(request, store)).toEqual({ orders: [] });
   });
 });
 
@@ -616,6 +619,71 @@ describe("agent-free offline reads", () => {
     await expect(
       readBrowserOfflineCache("post", "/api/v1/posAll/create_order", { data: { a: 1 } }, scope, store),
     ).resolves.toBeNull();
+  });
+
+  it("answers an empty cart for a table that has never been opened, instead of surfacing an error", async () => {
+    // Online, opening a fresh table is just an empty cart — nothing has ever
+    // been cached for it offline either, so this must not fall through to
+    // the raw network error the way every other cacheable GET does on a miss.
+    const store = new MemoryBrowserOfflineStore();
+    const response = await readBrowserOfflineCache(
+      "get",
+      "/api/v1/posAll/fetch_cart",
+      { params: { table_uuid: "table-never-opened" } },
+      scope,
+      store,
+    ) as { status: string; orders: unknown[] };
+    expect(response.status).toBe("success");
+    expect(response.orders).toEqual([]);
+  });
+
+  it("overlays a staged offline order on top of an empty cached cart", async () => {
+    const store = new MemoryBrowserOfflineStore();
+    await cacheBrowserApiResponse({
+      ...scope,
+      method: "get",
+      path: "/api/v1/posAll/fetch_cate_products",
+      params: {},
+      response: {
+        data: [{
+          cate_uuid: "cate-1",
+          products: [{
+            prod_uuid: "prod-1",
+            prod_name: "Fried rice",
+            pro_detail_uuid: "detail-1",
+            pro_detail_sprice: 15000,
+          }],
+        }],
+      },
+      source: "ONLINE",
+    }, store);
+    await stageBrowserSyncRequest({
+      eventUuid: "evt-cart-overlay",
+      ...scope,
+      actorLoginUuid: "login-1",
+      method: "post",
+      path: "/api/v1/posAll/create_order",
+      params: {},
+      data: {
+        order_uuid: "order-new",
+        table_uuid_fk: "table-1",
+        branch_uuid_fk: scope.branchUuid,
+        order_service_rate: 0,
+        order_vat_rate: 0,
+        order_vat_status: 1,
+        items: [{ order_it_uuid: "item-1", prod_detail_uuid_fk: "detail-1", order_it_qty: 1, order_it_status: 1 }],
+      },
+    }, store);
+
+    const response = await readBrowserOfflineCache(
+      "get",
+      "/api/v1/posAll/fetch_cart",
+      { params: { table_uuid: "table-1" } },
+      scope,
+      store,
+    ) as { orders: Array<{ order_uuid: string; items: unknown[] }> };
+    expect(response.orders[0]?.order_uuid).toBe("order-new");
+    expect(response.orders[0]?.items).toHaveLength(1);
   });
 });
 

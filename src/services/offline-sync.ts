@@ -723,24 +723,38 @@ const OVERLAY_PATHS = new Set([
  * Folds every staged offline mutation on top of a cached fetch_cart/
  * fetch_table response, so a table opened or an item added while offline
  * shows up on the very next read of it — not just in the one synthesized
- * response `synthesizeOfflineWrite` returned at write time. A cache miss or a
- * path this doesn't project onto returns the cached value untouched.
+ * response `synthesizeOfflineWrite` returned at write time. `order_uuid`/
+ * `table_uuid` come from the request that was actually made, not the cached
+ * body — the real fetch_cart response nests those per-order, it never has
+ * them at the top level.
+ *
+ * A table that has never been opened before has no cached fetch_cart at
+ * all (there is nothing to have cached), which online is simply an empty
+ * cart, not an error — so a cache miss on fetch_cart still projects an
+ * answer from local state alone rather than surfacing as "nothing found"
+ * and falling through to the original network error. fetch_table has no
+ * such fallback: without at least one prior cached grid there is no
+ * zone/table data to reconstruct from, so a miss there stays a miss.
  */
 async function overlayOfflineOrderState(
   path: string,
   cached: unknown,
+  requestParamsForPath: Record<string, unknown>,
   scope: BrowserOfflineScope,
   browserStore?: BrowserOfflineStore,
 ): Promise<unknown> {
-  if (cached === null || !OVERLAY_PATHS.has(path)) return cached;
+  if (!OVERLAY_PATHS.has(path)) return cached;
+  if (cached === null && path !== "/api/v1/posAll/fetch_cart") return cached;
   try {
     const state = await loadOfflineOrderState(scope, browserStore);
     if (path === "/api/v1/posAll/fetch_table") return projectOfflineTables(cached, state);
     const master = await loadOfflineMasterIndex(scope, browserStore);
-    const body = cached as { order_uuid?: string; table_uuid?: string };
     return projectOfflineCart(
       state,
-      { order_uuid: body?.order_uuid, table_uuid: body?.table_uuid },
+      {
+        order_uuid: typeof requestParamsForPath.order_uuid === "string" ? requestParamsForPath.order_uuid : undefined,
+        table_uuid: typeof requestParamsForPath.table_uuid === "string" ? requestParamsForPath.table_uuid : undefined,
+      },
       master,
     );
   } catch {
@@ -768,14 +782,15 @@ export async function readBrowserOfflineCache<T>(
   if (typeof window === "undefined") return null;
   if (!isBrowserCacheableRead(method, url)) return null;
   const path = url.split("?")[0];
+  const params = requestParams(url, options?.params);
   const cached = await readBrowserApiFallback<T>({
     ...scope,
     method,
     path,
-    params: requestParams(url, options?.params),
+    params,
     data: options?.data ?? {},
   }, browserStore).catch(() => null);
-  return overlayOfflineOrderState(path, cached, scope, browserStore) as Promise<T | null>;
+  return overlayOfflineOrderState(path, cached, params, scope, browserStore) as Promise<T | null>;
 }
 
 /**
