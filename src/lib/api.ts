@@ -431,7 +431,16 @@ export async function apiRequest<T>(
         requestOptions,
         localScope,
       );
+      console.error("[SYNC] android offline read", { method, url, cachedIsNull: cached === null });
       if (cached !== null) return assertApiSuccess(cached);
+    } else {
+      console.error("[SYNC] android offline read branch skipped", {
+        method,
+        url,
+        localAgentAvailable,
+        classification: classification.classification,
+        eventUuid: prepared.eventUuid,
+      });
     }
     // Android write path: no Agent to hand the mutation to, so it is staged
     // into the same Dexie outbox the read branch above already replays, and
