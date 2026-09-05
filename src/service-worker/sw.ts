@@ -37,10 +37,36 @@ const SLOW_NETWORK_TIMEOUT_SECONDS = 4;
 // เอกสาร (navigation) เท่านั้น — RSC/prefetch แยกออกไปให้ defaultCache ของ @serwist/next จัดการ
 // (แยกแคช rsc/rscPrefetch/html ให้อยู่แล้ว ละเอียดกว่าที่เขียนเองเดิม) ส่วนอันนี้ต้อง fallback ไป
 // /login เสมอเมื่อออฟไลน์และไม่เคยเปิดหน้านั้นมาก่อน กัน browser error page เปล่า ๆ
+//
+// If /login itself is not cached either — e.g. a brand new SW version just
+// activated (this app deploys and updates its SW often) and the device went
+// offline again before it got a chance to re-warm /login's entry under the
+// new build's cache name — handlerDidError returning undefined here used to
+// let the "no-response" WorkboxError propagate out of the fetch handler as a
+// REJECTED promise, which Android's WebView shows as its own native
+// "net::ERR_FAILED" page instead of anything this app controls. A tiny
+// self-contained HTML response (no cache, no chunks, nothing that can itself
+// be missing) guarantees a navigation never falls through to that.
+function offlineFallbackResponse(): Response {
+  return new Response(
+    `<!doctype html><html lang="lo"><head><meta charset="utf-8">` +
+      `<meta name="viewport" content="width=device-width, initial-scale=1">` +
+      `<title>Yummy Go</title><style>` +
+      `body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;` +
+      `background:#16a34a;color:#fff;font-family:system-ui,-apple-system,sans-serif;text-align:center;padding:24px;box-sizing:border-box}` +
+      `p{font-size:1.05rem;line-height:1.6;max-width:28rem}` +
+      `button{margin-top:1rem;padding:.6rem 1.75rem;border-radius:.5rem;border:none;background:#fff;color:#16a34a;font-weight:600;font-size:1rem}` +
+      `</style></head><body><div><p>ອອບລາຍຢູ່ ແລະ ຍັງບໍ່ມີໜ້ານີ້ຢູ່ໃນເຄື່ອງ — ກະລຸນາເຊື່ອມຕໍ່ອິນເຕີເນັດ ແລ້ວລອງໃໝ່</p>` +
+      `<button onclick="location.reload()">ລອງໃໝ່</button></div>` +
+      `<script>addEventListener("online", () => location.reload());</script></body></html>`,
+    { status: 200, headers: { "Content-Type": "text/html; charset=utf-8" } },
+  );
+}
+
 const loginFallbackPlugin: SerwistPlugin = {
   handlerDidError: async () => {
     const cache = await caches.open(PAGES_CACHE_NAME.html);
-    return (await cache.match(LOGIN_PATH, { ignoreSearch: true })) ?? undefined;
+    return (await cache.match(LOGIN_PATH, { ignoreSearch: true })) ?? offlineFallbackResponse();
   },
 };
 

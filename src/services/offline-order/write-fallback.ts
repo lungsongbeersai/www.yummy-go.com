@@ -63,13 +63,20 @@ export async function loadOfflineOrderState(
 }
 
 export async function loadOfflineMasterIndex(scope: BrowserOfflineScope, store?: BrowserOfflineStore) {
-  const [categoryResponses, productItemResponses] = await Promise.all([
+  const [categoryResponses, productItemResponses, cartResponses] = await Promise.all([
     listBrowserApiCacheResponses(scope, FETCH_CATE_PRODUCTS_PATH, store),
     listBrowserApiCacheResponses(scope, GET_PROD_ITEM_PATH, store),
+    listBrowserApiCacheResponses(scope, FETCH_CART_PATH, store),
   ]);
   return buildOfflineMasterIndex([
     ...categoryResponses.map((response) => ({ path: FETCH_CATE_PRODUCTS_PATH, response })),
     ...productItemResponses.map((response) => ({ path: GET_PROD_ITEM_PATH, response })),
+    // Last on purpose: a long-open table's history can include products whose
+    // fetch_cate_products entry has since aged out of the cache, or that were
+    // never re-viewed this session — a real order line's own name/image/price
+    // (indexCartItems, master-index.ts) is the only remaining source for those,
+    // and must not be left blank just because the menu cache moved on.
+    ...cartResponses.map((response) => ({ path: FETCH_CART_PATH, response })),
   ]);
 }
 

@@ -66,6 +66,28 @@ describe("offline asset cache", () => {
     expect(keyPlugin).toContain('searchParams.get("url")');
   });
 
+  it("never lets a navigation reject into Android's native net::ERR_FAILED page, even when /login itself isn't cached yet", () => {
+    // loginFallbackPlugin's handlerDidError used to return `undefined` when
+    // /login had no cached entry (e.g. a brand new SW version just activated
+    // — this app deploys its SW often — and the device went offline again
+    // before /login got a chance to re-warm under the new build's cache
+    // name). Returning undefined from handlerDidError means "could not
+    // recover", so the underlying no-response WorkboxError kept propagating
+    // out of the fetch handler as a REJECTED promise — which Android's
+    // WebView renders as its own native "net::ERR_FAILED" page, confirmed
+    // from a real device's logcat ("Uncaught (in promise) no-response" for
+    // a plain navigation to "/"). A same-origin fallback Response, built
+    // inline with no cache/chunk dependency of its own, must be the very
+    // last resort so handlerDidError can never resolve to nothing.
+    const pluginEntry = serviceWorkerSource.slice(
+      serviceWorkerSource.indexOf("function offlineFallbackResponse"),
+      serviceWorkerSource.indexOf("const documentStrategy")
+    );
+    expect(pluginEntry).not.toBe("");
+    expect(pluginEntry).toContain("new Response(");
+    expect(pluginEntry).not.toContain("?? undefined");
+  });
+
   it("reloads an open customer tab when the corrected worker takes control", () => {
     expect(offlineRuntime).toContain(
       'navigator.serviceWorker.addEventListener("controllerchange", handleControllerChange)'

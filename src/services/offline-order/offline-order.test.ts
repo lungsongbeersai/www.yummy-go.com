@@ -4,7 +4,9 @@ import {
   OFFLINE_ITEM_STATUS,
   buildOfflineMasterIndex,
   decodeOfflineOrderEvents,
+  emptyOfflineMasterIndex,
   findDetailByProdUuid,
+  indexCartItems,
   openOrderForTable,
   projectOfflineCart,
   projectOfflineProdItem,
@@ -538,5 +540,51 @@ describe("synthesizing get_prod_item from category-listing data alone", () => {
     // cut_stock: 2 skips the stock check (isDetailAvailable,
     // product-availability.ts) — v1 does not guard offline stock.
     expect(response.data.details[0]).toMatchObject({ pro_detail_uuid: DETAIL, price: 20000, cut_stock: 2 });
+  });
+});
+
+describe("indexing a cached fetch_cart response so old order lines never render blank", () => {
+  const AGED_OUT_DETAIL = "66666666-6666-4666-8666-666666666666";
+  const cachedCart = {
+    status: "success",
+    orders: [{
+      order_uuid: ORDER,
+      table_uuid_fk: TABLE,
+      items: [{
+        order_it_uuid: "item-history-1",
+        pro_detail_uuid: AGED_OUT_DETAIL,
+        prod_uuid: "prod-history-1",
+        prod_name: "BIOS",
+        prod_image: "bios.png",
+        prod_status_imge: 1,
+        detail: { order_it_qty: 1, unit_price: 150000, order_it_status: OFFLINE_ITEM_STATUS.SENT_TO_KITCHEN, order_it_note: "" },
+        toppings: [],
+      }],
+    }],
+  };
+
+  it("recovers a line's name/image/price from the cart response itself, not just fetch_cate_products", () => {
+    // A table open long enough accumulates history across more categories, and
+    // more time, than fetch_cate_products' cache window holds — this is that
+    // gap: no category data mentions AGED_OUT_DETAIL at all.
+    const index = indexCartItems(cachedCart, emptyOfflineMasterIndex());
+    expect(index.details.get(AGED_OUT_DETAIL)).toMatchObject({
+      prodUuid: "prod-history-1",
+      productName: "BIOS",
+      productImage: "bios.png",
+      price: 150000,
+    });
+  });
+
+  it("renders a real, already-confirmed order line correctly end to end even with an empty menu cache", () => {
+    const state = seedOfflineStateFromCart(cachedCart);
+    const index = buildOfflineMasterIndex([{ path: "/api/v1/posAll/fetch_cart", response: cachedCart }]);
+    const cart = projectOfflineCart(state, { table_uuid: TABLE }, index);
+
+    expect(cart.orders[0].items[0]).toMatchObject({
+      prod_name: "BIOS",
+      prod_image: "bios.png",
+      total: 150000,
+    });
   });
 });

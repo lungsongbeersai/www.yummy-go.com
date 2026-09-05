@@ -105,6 +105,40 @@ export function indexProductItem(response: unknown, index: OfflineMasterIndex) {
   return index;
 }
 
+/**
+ * Index a cached `GET /api/v1/posAll/fetch_cart` response. A real, already-
+ * confirmed order line carries its own name/image/price straight from the
+ * Backend — the same fields `cart-projection.ts`'s own synthesized lines
+ * carry, so a real response and our synthesized one index identically. This
+ * is what lets an order line the cashier already sent to the kitchen still
+ * show its name/photo/price offline even once the product has scrolled out
+ * of `fetch_cate_products`' cache window (a long-running table's history can
+ * span more categories, and more time, than the menu cache retains) —
+ * without this, projectOfflineCartOrder's `master.details.get(...)` lookup
+ * for that line comes back empty and the whole row renders blank.
+ */
+export function indexCartItems(response: unknown, index: OfflineMasterIndex) {
+  const body = record(response);
+  const orders = list(body.orders).length ? list(body.orders) : list(body.data);
+  for (const rawOrder of orders) {
+    for (const rawItem of list(record(rawOrder).items)) {
+      const item = record(rawItem);
+      const prodDetailUuid = text(item.pro_detail_uuid) || text(item.prod_detail_uuid);
+      if (!prodDetailUuid) continue;
+      const detail = record(item.detail);
+      addDetail(index, {
+        prodDetailUuid,
+        prodUuid: text(item.prod_uuid),
+        price: count(detail.unit_price, count(item.price)),
+        productName: text(item.prod_name),
+        productImage: text(item.prod_image),
+        productHasImage: count(item.prod_status_imge),
+      });
+    }
+  }
+  return index;
+}
+
 export function buildOfflineMasterIndex(
   cached: Array<{ path: string; response: unknown }>,
 ): OfflineMasterIndex {
@@ -112,6 +146,7 @@ export function buildOfflineMasterIndex(
   for (const entry of cached) {
     if (entry.path === "/api/v1/posAll/fetch_cate_products") indexCategoryProducts(entry.response, index);
     else if (entry.path === "/api/v1/posAll/get_prod_item") indexProductItem(entry.response, index);
+    else if (entry.path === "/api/v1/posAll/fetch_cart") indexCartItems(entry.response, index);
   }
   return index;
 }

@@ -9,6 +9,7 @@ export {
   buildOfflineMasterIndex,
   emptyOfflineMasterIndex,
   findDetailByProdUuid,
+  indexCartItems,
   indexCategoryProducts,
   indexProductItem,
   projectOfflineProdItem,
