@@ -24,8 +24,15 @@ const Toaster = ({ ...props }: ToasterProps) => {
       // (ดู sonner base CSS: @media max-width:600px บังคับ top ตัวนี้) ต้องเซ็ตทั้งคู่ ไม่งั้น
       // บนแอป native ที่จอแคบเสมอ ตัว toast จะไปทับแถบสถานะ (นาฬิกา/แบตเตอรี่/สัญญาณ) แทนที่จะ
       // เว้นพื้นที่ตาม safe-area-inset-top ให้จริง
-      offset={{ top: "calc(env(safe-area-inset-top, 0px) + 16px)" }}
-      mobileOffset={{ top: "calc(env(safe-area-inset-top, 0px) + 16px)" }}
+      //
+      // env(safe-area-inset-top) ล้วน ๆ ไม่พอ: บนอิลิเมนต์ position:fixed ของ sonner เอง
+      // (ทดสอบจริงบน Galaxy S24 FE/Android 15) มันไม่ได้ค่า inset จริงกลับมาเหมือน
+      // padding-top ของ .native-top-bar ที่เป็น in-flow block ธรรมดา (ดูคอมเมนต์
+      // ~24-32px ใน globals.css) — toast เลยไปทับแถบสถานะเงียบ ๆ โดยไม่มี error ให้เห็น
+      // ใช้ max() ตั้งพื้นกันเหมือน --pos-system-bottom-safe-area (globals.css) แทนการ
+      // เชื่อ env() เพียวๆ
+      offset={{ top: "calc(max(env(safe-area-inset-top, 0px), 2.5rem) + 16px)" }}
+      mobileOffset={{ top: "calc(max(env(safe-area-inset-top, 0px), 2.5rem) + 16px)" }}
       icons={{
         success: (
           <CircleCheckIcon className="size-4" />
