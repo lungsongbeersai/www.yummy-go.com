@@ -6,6 +6,7 @@ import {
   type ReportBranchOption,
 } from "@/features/report/shared/report-branch-options";
 import { pageLimitNumber } from "@/lib/pagination";
+import { VAT_EXEMPT, VAT_EXCLUDED, VAT_INCLUDED } from "@/lib/pos/vat";
 import type { DailySaleItemsOrder } from "@/services/report";
 import type { ApiEntity, PageLimit } from "@/services/shared/types";
 import type { DailySaleItemsBillGroup } from "@/stores/report-store";
@@ -139,6 +140,22 @@ export function summaryMetricLabel(label: string, rate: string) {
   return rate ? `${label} (${rate})` : label;
 }
 
+export function salesListVatSummary(source: ApiEntity) {
+  const summary = recordValue(source.summary) ?? {};
+  const status = Number(readValue(source, ["order_vat_status", "vat_status"]) ?? readValue(summary, ["order_vat_status", "vat_status"]));
+  // A missing historical snapshot is unknown, not the branch's current mode.
+  const labelKey = status === VAT_EXEMPT ? "salesList.vatExempt"
+    : status === VAT_INCLUDED ? "salesList.vatIncluded"
+      : status === VAT_EXCLUDED ? "salesList.vatExcluded"
+        : "salesList.vatUnspecified";
+
+  return {
+    labelKey,
+    // Rounded money cannot reliably recover the rate that was charged.
+    rate: readRateLabel(source, ["vat_rate", "tax_rate", "order_vat_rate", "vat_name"], "vat")
+  };
+}
+
 // สีสถานะแยกจาก --primary (สีธีมที่ผู้ใช้ปรับเองได้ 5 แบบ) เสมอ — ถ้าใช้ primary แทนความหมาย
 // "สำเร็จ" ป้ายจะเปลี่ยนสีตามธีมที่เลือกไปด้วย (เช่น กลายเป็นสีชมพู) ซึ่งสื่อความหมายผิด
 export function statusBadgeClass(value: unknown) {
@@ -171,6 +188,29 @@ export function billNeedsPaymentAttention(bill: DailySaleItemsBillGroup) {
 
 export function itemProductName(item: ApiEntity) {
   return textValue(readValue(item, ["product_full_name", "product_name", "prod_name", "name", "item_name"]));
+}
+
+export function itemAmounts(item: ApiEntity) {
+  const qty = firstNumber(item, ["qty", "quantity"]);
+  const amountValue = readValue(item, ["amount", "line_amount"]);
+  const productAmount = readValue(item, ["product_price_total"]);
+  const savedPrice = readValue(item, ["product_price", "sale_price", "price", "unit_price"]);
+  let unitPrice: number | null = isPresent(savedPrice) ? numberValue(savedPrice) : null;
+
+  // Net totals already have discounts applied and may include toppings, which
+  // are shown separately. Only reconstruct a price from a known gross amount.
+  if (unitPrice === null && qty > 0) {
+    if (isPresent(productAmount)) unitPrice = numberValue(productAmount) / qty;
+    else if (isPresent(amountValue)) unitPrice = Math.max(0, numberValue(amountValue) - itemToppingTotal(item)) / qty;
+  }
+
+  return {
+    amount: numberValue(amountValue ?? productAmount),
+    discount: firstNumber(item, ["discount_total", "discount_amount", "item_discount_amount", "discount_item_amount"]),
+    qty,
+    total: firstNumber(item, ["total", "line_total", "net_total"]),
+    unitPrice
+  };
 }
 
 export interface SalesListItemTopping {

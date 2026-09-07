@@ -24,6 +24,18 @@ describe("shared translation resources", () => {
   });
 
   it.each([
+    "beforeDiscount",
+    "afterDiscount",
+    "vatIncluded",
+    "vatExcluded",
+    "vatExempt",
+    "vatUnspecified"
+  ] as const)("defines sales bill amount copy for %s in both languages", (key) => {
+    expect(enCommon.salesList[key]).toBeTruthy();
+    expect(laCommon.salesList[key]).toBeTruthy();
+  });
+
+  it.each([
     "planDialogDescription",
     "packageDialogDescription",
     "packageDetailsDescription",

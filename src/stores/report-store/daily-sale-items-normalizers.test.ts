@@ -134,6 +134,7 @@ describe("normalizeDailySaleItemsResponse", () => {
               sum_discount: 129000,
               service_rate: 14,
               sum_servicecharge: 18060,
+              order_vat_status: 3,
               vat_rate: 12,
               sum_vate: 17647,
               sum_total: 164707
@@ -169,6 +170,7 @@ describe("normalizeDailySaleItemsResponse", () => {
     });
     expect(normalized.bills[0].raw).toMatchObject({
       service_rate: 14,
+      order_vat_status: 3,
       vat_rate: 12
     });
     expect(normalized.rows[0]).toMatchObject({

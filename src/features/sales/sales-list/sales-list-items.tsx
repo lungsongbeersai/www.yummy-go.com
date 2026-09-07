@@ -8,7 +8,7 @@ import { EmptyState } from "@/components/common/empty-state";
 import { cn } from "@/lib/utils";
 import type { ApiEntity } from "@/services/shared/types";
 import {
-  firstNumber,
+  itemAmounts,
   itemMedia,
   itemNote,
   itemProductName,
@@ -42,11 +42,7 @@ function SalesListItemCard({ item }: { item: ApiEntity }) {
   const { t } = useTranslation();
   const media = itemMedia(item);
   const note = itemNote(item);
-  const discount = firstNumber(item, ["discount_total", "discount_amount", "item_discount_amount", "discount_item_amount"]);
-  const qty = firstNumber(item, ["qty", "quantity"]);
-  const total = firstNumber(item, ["total", "line_total", "net_total"]);
-  const amount = firstNumber(item, ["amount", "line_amount", "product_price_total"]);
-  const unitPrice = qty > 0 && total > 0 ? total / qty : firstNumber(item, ["sale_price", "price", "unit_price", "product_price"]);
+  const { amount, discount, qty, total, unitPrice } = itemAmounts(item);
 
   return (
     <div className="border-b border-border/80 bg-background px-3 py-2.5 last:border-b-0 hover:bg-muted/20 sm:px-4">
@@ -58,20 +54,23 @@ function SalesListItemCard({ item }: { item: ApiEntity }) {
             <p className="min-w-0 wrap-break-word text-base leading-6 font-semibold text-foreground sm:text-sm">
               {itemProductName(item)}
             </p>
-            <p className="max-w-32 shrink-0 truncate text-right text-base leading-6 font-semibold text-foreground tabular-nums sm:text-sm">
-              {moneyValue(total)}
-            </p>
+            <div className="max-w-32 shrink-0 text-right">
+              {discount > 0 ? (
+                <p className="text-xs leading-5 text-muted-foreground">{t("salesList.afterDiscount")}</p>
+              ) : null}
+              <p className="text-base leading-6 font-semibold text-foreground tabular-nums sm:text-sm">{moneyValue(total)}</p>
+            </div>
           </div>
 
           <div className="mt-1 grid grid-cols-[max-content_auto_1fr] items-start gap-x-2 gap-y-0.5">
             <SalesListItemDetailRow icon={<Tag />} tone="price">
               <span className="tabular-nums">
-                {qty.toLocaleString("en-US")} x {moneyValue(unitPrice)}
+                {qty.toLocaleString("en-US")} x {unitPrice === null ? "-" : moneyValue(unitPrice)}
               </span>
             </SalesListItemDetailRow>
             {amount > 0 && amount !== total ? (
               <SalesListItemDetailRow tone="muted" right={moneyValue(amount)}>
-                {t("salesList.amount")}
+                {t("salesList.beforeDiscount")}
               </SalesListItemDetailRow>
             ) : null}
             <SalesListItemToppings item={item} />

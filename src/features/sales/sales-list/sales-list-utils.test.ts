@@ -4,6 +4,7 @@ import {
   billMetaText,
   billNeedsPaymentAttention,
   calculatedRateLabel,
+  itemAmounts,
   itemToppingNames,
   itemToppingTotal,
   paymentMethodLabel,
@@ -11,6 +12,7 @@ import {
   readRateLabel,
   realMetaText,
   saleListPrintBillSource,
+  salesListVatSummary,
   summaryMetricLabel
 } from "./sales-list-utils";
 
@@ -44,6 +46,48 @@ function bill(overrides: Partial<DailySaleItemsBillGroup> = {}): DailySaleItemsB
 }
 
 describe("sales list utils", () => {
+  it("shows the saved price before discount instead of the net unit price", () => {
+    expect(itemAmounts({ qty: 1, product_price: 40000, amount: 40000, discount_item_amount: 16000, total: 24000 }))
+      .toEqual({ qty: 1, unitPrice: 40000, amount: 40000, discount: 16000, total: 24000 });
+  });
+
+  it("does not fold separately displayed toppings into the product unit price", () => {
+    expect(itemAmounts({ qty: 3, product_price: 65000, amount: 240000, topping_total: 45000, total: 240000 }).unitPrice).toBe(65000);
+    expect(itemAmounts({ qty: 3, product_price_total: 195000, amount: 240000, topping_total: 45000, total: 235000 }).unitPrice).toBe(65000);
+    expect(itemAmounts({ qty: 3, amount: 240000, topping_total: 45000, total: 235000 }).unitPrice).toBe(65000);
+  });
+
+  it("preserves free products, fully discounted totals, and price aliases", () => {
+    expect(itemAmounts({ qty: 1, product_price: 0, price: 40000, amount: 0, total: 0 }).unitPrice).toBe(0);
+    expect(itemAmounts({ qty: 1, sale_price: 40000, amount: 40000, discount_amount: 40000, total: 0 }))
+      .toMatchObject({ unitPrice: 40000, discount: 40000, total: 0 });
+  });
+
+  it("does not invent an original price from a net total or divide by zero", () => {
+    expect(itemAmounts({ qty: 1, total: 24000 }).unitPrice).toBeNull();
+    expect(itemAmounts({ qty: 0, amount: 40000, total: 24000 }).unitPrice).toBeNull();
+  });
+
+  it.each([
+    [1, "salesList.vatExempt"],
+    [2, "salesList.vatIncluded"],
+    [3, "salesList.vatExcluded"],
+    [null, "salesList.vatUnspecified"],
+    [undefined, "salesList.vatUnspecified"],
+    [0, "salesList.vatUnspecified"],
+    [99, "salesList.vatUnspecified"]
+  ])("labels VAT from the saved mode %s without guessing from the amounts", (status, labelKey) => {
+    expect(salesListVatSummary({ order_vat_status: status, vat_rate: 10, sum_vate: 4000, sum_total: 48000 }))
+      .toEqual({ labelKey, rate: "10%" });
+  });
+
+  it("supports VAT snapshot aliases but never infers a rate from rounded money", () => {
+    expect(salesListVatSummary({ summary: { vat_status: "2", vat_rate: 10 } }))
+      .toEqual({ labelKey: "salesList.vatIncluded", rate: "10%" });
+    expect(salesListVatSummary({ order_vat_status: 3, summary: { vat_status: 2 } }).labelKey).toBe("salesList.vatExcluded");
+    expect(salesListVatSummary({ order_vat_status: 2, sum_vate: 4000, sum_total: 48000 }).rate).toBe("");
+  });
+
   it("marks unpaid and debt bills for attention", () => {
     expect(billNeedsPaymentAttention(bill({ debtAmount: 25000 }))).toBe(true);
     expect(billNeedsPaymentAttention(bill({ paymentMethodCode: "debt" }))).toBe(true);

@@ -17,6 +17,7 @@ import {
   readRateLabel,
   readValue,
   realMetaText,
+  salesListVatSummary,
   summaryMetricLabel,
   textValue
 } from "./sales-list-utils";
@@ -275,18 +276,15 @@ interface SummaryMetric {
 function SelectedBillSummary({ bill }: { bill: DailySaleItemsBillGroup }) {
   const { t } = useTranslation();
   const serviceBase = bill.amountTotal + bill.toppingTotal - bill.discountTotal;
-  const vatBase = serviceBase + bill.serviceChargeAmount;
   const serviceRate =
     readRateLabel(bill.raw, ["service_charge_rate", "service_rate", "order_service_rate", "charge_name", "rate"], "service_charge") ||
     calculatedRateLabel(bill.serviceChargeAmount, serviceBase);
-  const vatRate =
-    readRateLabel(bill.raw, ["vat_rate", "tax_rate", "order_vat_rate", "vat_name", "rate"], "vat") ||
-    calculatedRateLabel(bill.vatAmount, vatBase);
+  const vat = salesListVatSummary(bill.raw);
   const allMetrics: SummaryMetric[] = [
-    { label: t("salesList.amount"), tone: "amount", value: bill.amountTotal },
+    { label: t("salesList.beforeDiscount"), tone: "amount", value: bill.amountTotal },
     { label: t("salesList.discount"), tone: "discount", value: bill.discountTotal },
     { label: summaryMetricLabel(t("salesList.serviceCharge"), serviceRate), tone: "service", value: bill.serviceChargeAmount },
-    { label: summaryMetricLabel(t("salesList.vat"), vatRate), tone: "vat", value: bill.vatAmount },
+    { label: summaryMetricLabel(t(vat.labelKey), vat.rate), tone: "vat", value: bill.vatAmount },
     { label: t("salesList.total"), tone: "total", value: bill.lineTotal }
   ];
   const metrics = allMetrics.filter((metric) => metric.tone === "amount" || metric.tone === "total" || metric.value > 0);
@@ -302,7 +300,7 @@ function SelectedBillSummary({ bill }: { bill: DailySaleItemsBillGroup }) {
         <div className="flex flex-col divide-y divide-border">
           {lineItems.map((metric) => (
             <div key={metric.label} className="flex min-w-0 items-center justify-between gap-3 px-3 py-2">
-              <p className="truncate text-xs leading-5 text-muted-foreground">{metric.label}</p>
+              <p className="min-w-0 wrap-break-word text-xs leading-5 text-muted-foreground">{metric.label}</p>
               <p
                 className={cn(
                   "shrink-0 text-sm leading-5 tabular-nums",

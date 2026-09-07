@@ -2279,7 +2279,13 @@
     "total": "ລວມ",
     "toppings": "ທັອບປິ້ງ",
     "transferReceived": "ຮັບເງິນໂອນ",
-    "vat": "VAT"
+    "vat": "VAT",
+    "beforeDiscount": "ຍອດກ່ອນຫຼຸດ",
+    "afterDiscount": "ຍອດຫຼັງຫຼຸດ",
+    "vatIncluded": "VAT ລວມໃນຍອດສຸດທິແລ້ວ",
+    "vatExcluded": "VAT ບວກເພີ່ມ",
+    "vatExempt": "ບໍ່ຄິດ VAT",
+    "vatUnspecified": "VAT (ບິນບໍ່ໄດ້ລະບຸປະເພດ)"
   },
   "cancelHistory": {
     "adjustFilters": "ປັບຊ່ວງວັນທີ, ຈຳນວນແຖວ ຫຼື ການຈັດລຽງ.",
