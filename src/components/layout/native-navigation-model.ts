@@ -9,6 +9,7 @@ export const NATIVE_DIRECT_DESTINATION_COUNT = 3;
 // หน้าที่เข้าถึงได้จาก deep link ต้องมี parent ที่แน่นอน ไม่พึ่ง history อย่างเดียว
 const BACK_FALLBACK_PATHS: Record<string, string> = {
   "/pos/order": "/pos/tables",
+  "/pos/tables": "/",
   "/printers/form": "/printers",
   "/products/form": "/products",
 };
