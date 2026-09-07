@@ -6,6 +6,15 @@ Entries below dated from git history are backfilled from existing code comments 
 
 ---
 
+## Retain local order ownership while reconnect is draining durable work
+
+- **Date:** 2026-09-07.
+- **Context:** Owner requested usable Windows/Mac + Printer Agent offline-to-online POS parity. Reachable Backend does not imply that an offline order exists there yet.
+- **Implementation:** `apiRequest` checks branch/store-scoped Agent and browser outboxes for routes already in the offline allowlist. Pending/processing/failed work and Agent-blocked conflicts keep these routes on the Agent. An in-flight local write and a small persistent recovery marker protect the handoff across reload and ambiguous local responses. An unavailable Agent without local work does not select SQLite; unsupported routes keep their online behavior. No page/API allowlists or UI layouts change.
+- **Network boundary:** Backend NetworkManager remains the sole reachability authority. Retaining business ownership never sets `OFFLINE`, logs out the cashier, or treats an HTTP business rejection as a network failure.
+- **Trade-off:** Recovery is scoped to the whole local branch rather than individual orders: table joins/splits, queues, stock and receipts share state. While unresolved work remains, the till uses cached master data; blocked conflicts require review. Switching each call back online immediately would permit payment before order replay, whereas forcing all online sales through the Agent would unnecessarily make healthy online operation depend on it.
+- **Rollout:** Backend and Agent also change. Update both plus the frontend, retain SQLite/device identity, and complete online bootstrap (`order_snapshot_version: 1`) before testing offline. Physical printer acceptance is required separately; automated checks are not a Windows/USB/Wi-Fi device certification.
+
 ## `uploadedImageCaching` keys on the decoded source image, not `matchOptions: { ignoreSearch: true }` (corrects the entry below)
 
 - **Date:** 2026-09-06 (`src/service-worker/sw.ts`), same day as the entry below.

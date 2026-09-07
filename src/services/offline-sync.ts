@@ -377,6 +377,78 @@ let configureKey = "";
 let configurePromise: Promise<boolean> | null = null;
 let localStatusCache: { checkedAt: number; status: LocalSyncStatus } | null = null;
 let localStatusPromise: Promise<LocalSyncStatus | null> | null = null;
+const localRecoveryScopes = new Set<string>();
+const localWritesInFlight = new Map<string, number>();
+const localWriteVersions = new Map<string, number>();
+
+function recoveryKey(scope: BrowserOfflineScope) {
+  return `yummy-go-local-recovery:${JSON.stringify([scope.storeUuid, scope.branchUuid])}`;
+}
+
+function remembersLocalRecovery(scope: BrowserOfflineScope) {
+  const key = recoveryKey(scope);
+  try {
+    return localRecoveryScopes.has(key) || window.localStorage.getItem(key) === "1";
+  } catch {
+    return localRecoveryScopes.has(key);
+  }
+}
+
+function rememberLocalRecovery(scope: BrowserOfflineScope, required: boolean) {
+  const key = recoveryKey(scope);
+  if (required) localRecoveryScopes.add(key);
+  else localRecoveryScopes.delete(key);
+  try {
+    if (required) window.localStorage.setItem(key, "1");
+    else window.localStorage.removeItem(key);
+  } catch {
+    // SQLite and the browser outbox still hold the transactions.
+  }
+}
+
+function beginLocalWrite(scope: BrowserOfflineScope) {
+  const key = recoveryKey(scope);
+  localWriteVersions.set(key, (localWriteVersions.get(key) || 0) + 1);
+  localWritesInFlight.set(key, (localWritesInFlight.get(key) || 0) + 1);
+  rememberLocalRecovery(scope, true);
+  localStatusCache = null;
+  return () => {
+    localWriteVersions.set(key, (localWriteVersions.get(key) || 0) + 1);
+    localWritesInFlight.set(key, Math.max(0, (localWritesInFlight.get(key) || 1) - 1));
+    localStatusCache = null;
+  };
+}
+
+/** Business ownership during reconnect; this never changes Backend reachability.
+ * An unavailable Agent alone is not a reason to send an online sale to SQLite.
+ * Only durable local work (or an in-flight write) retains local ownership.
+ */
+export async function shouldKeepLocalOrderOwnership(
+  scope: BrowserOfflineScope,
+  browserStore?: BrowserOfflineStore,
+) {
+  if (typeof window === "undefined" || !scope.storeUuid || !scope.branchUuid) return false;
+  const key = recoveryKey(scope);
+  const version = localWriteVersions.get(key) || 0;
+  const remembered = remembersLocalRecovery(scope);
+  const [status, browserQueue] = await Promise.all([
+    getLocalSyncStatus({ force: remembered }),
+    getBrowserSyncQueueSummary(scope, browserStore).catch(() => null),
+  ]);
+  const browserPending = browserQueue !== null && browserSyncQueueHasRetryableWork(browserQueue);
+  const matching = status?.configured &&
+    status.store_uuid === scope.storeUuid && status.branch_uuid === scope.branchUuid;
+  let required = remembered || browserPending;
+  if (matching) {
+    required = localSyncHasRetryableWork(status) || Number(status.pending?.blocked || 0) > 0 ||
+      browserPending || (remembered && (!status.pending || !status.bootstrap_complete || status.connection_state === "SYNCING"));
+  }
+  if (version !== (localWriteVersions.get(key) || 0) || (localWritesInFlight.get(key) || 0) > 0) {
+    required = true;
+  }
+  rememberLocalRecovery(scope, required);
+  return required;
+}
 
 function clearFailedConfiguration(expectedKey: string) {
   if (configureKey !== expectedKey) return;
@@ -586,6 +658,7 @@ export async function requestLocalFallback<T>(
   const path = url.split("?")[0];
   const params = requestParams(url, options?.params);
   const data = options?.data ?? {};
+  const finishLocalWrite = eventUuid ? beginLocalWrite(scope) : () => undefined;
   if (eventUuid) {
     try {
       await stageBrowserSyncRequest({
@@ -598,6 +671,7 @@ export async function requestLocalFallback<T>(
       }, browserStore);
     } catch (error) {
       if (error instanceof Error && error.message === "BROWSER_SYNC_EVENT_PAYLOAD_MISMATCH") {
+        finishLocalWrite();
         throw error;
       }
       // IndexedDB is a resilience mirror. Agent SQLite remains authoritative
@@ -613,6 +687,7 @@ export async function requestLocalFallback<T>(
         params,
         data,
         event_uuid: eventUuid,
+        ...(scope.storeUuid && scope.branchUuid && scope.actorLoginUuid ? { scope } : {}),
       },
       { timeout: 10000 },
     );
@@ -658,6 +733,8 @@ export async function requestLocalFallback<T>(
     }, browserStore).catch(() => null);
     if (cached !== null) return cached;
     throw agentError;
+  } finally {
+    finishLocalWrite();
   }
 }
 
@@ -950,6 +1027,7 @@ export async function reconcileBrowserSyncQueue(
           params: entry.params,
           data: entry.data,
           event_uuid: entry.eventUuid,
+          scope: { storeUuid: entry.storeUuid, branchUuid: entry.branchUuid, actorLoginUuid: entry.actorLoginUuid },
         },
         { timeout: 10000 },
       );
@@ -1228,4 +1306,5 @@ export function resetLocalSyncConfiguration() {
   configurePromise = null;
   localStatusCache = null;
   localStatusPromise = null;
+  localRecoveryScopes.clear();
 }

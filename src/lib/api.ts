@@ -20,6 +20,7 @@ import {
   requestBrowserWriteFallback,
   requestLocalFallback,
   shouldPreferOnlineTransport,
+  shouldKeepLocalOrderOwnership,
   shouldRouteToLocal,
   shouldUseLocalPrintOwnership,
   supportsOfflineRoute,
@@ -213,17 +214,19 @@ export async function apiRequest<T>(
   };
   const networkState = backendNetworkManager.getSnapshot().state;
   const localAgentAvailable = !isCapacitorAndroidApp();
-  // CHECKING and ONLINE always try Backend for a normal JWT. Neither a persisted
-  // session flag, navigator hint, nor stale Agent sync status can select SQLite.
+  // Reachability and ownership differ during reconnect: Backend may be healthy
+  // while this branch's order/payment events still exist only on the Agent.
   const preferOnlineTransport = shouldPreferOnlineTransport(auth.token, networkState);
-  const routeToLocal = localAgentAvailable && !preferOnlineTransport &&
+  const recoveringLocalOrders = localAgentAvailable && preferOnlineTransport &&
+    supportsOfflineRoute(method, url) && await shouldKeepLocalOrderOwnership(localScope);
+  const routeToLocal = recoveringLocalOrders || (localAgentAvailable && !preferOnlineTransport &&
     shouldRouteToLocal(
       auth.offlineSession,
       networkState,
       method,
       url,
-    );
-  if (routeToLocal && !auth.offlineSession) {
+    ));
+  if (routeToLocal && !recoveringLocalOrders && !auth.offlineSession) {
     useAuthStore.getState().setOfflineSession(true);
   }
   let localConfiguration: Promise<boolean> | null = null;
