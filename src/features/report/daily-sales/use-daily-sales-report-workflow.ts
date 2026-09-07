@@ -194,7 +194,7 @@ export function useDailySalesReportWorkflow(
   const pageStart = visibleCount ? (page - 1) * activePageLimit + 1 : 0;
   const pageEnd = visibleCount ? pageStart + visibleCount - 1 : 0;
   const exportDisabled =
-    loading || Boolean(exporting) || !branchUuid || !rows.length;
+    loading || Boolean(exporting) || !branchUuid || !visibleCount;
   const exportSurfaceReady = Boolean(exportData);
   const renderedExportData = exportData ?? {
     billGroups: [],

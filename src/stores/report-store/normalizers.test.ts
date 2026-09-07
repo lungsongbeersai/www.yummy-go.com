@@ -580,4 +580,31 @@ describe("daily sales report normalizers", () => {
       line_total: 100000
     });
   });
+
+  it("preserves a financial bill without details so the UI can flag it instead of hiding sales", () => {
+    const normalized = normalizeDailySalesOrderReportResponse({
+      status: "success",
+      message: "success",
+      total: 1,
+      summary: { bill_count: 1, sum_total: 100_000 },
+      orders: [{
+        order_uuid: "missing-details",
+        order_invoice: "INV-MISSING",
+        amount: 100_000,
+        sum_total: 100_000,
+        items: [],
+      }],
+    }, { limit: 10, page: 1 });
+
+    expect(normalized.billGroups).toHaveLength(1);
+    expect(normalized.billGroups[0]).toMatchObject({
+      id: "missing-details",
+      invoiceNumber: "INV-MISSING",
+      lineTotal: 100_000,
+      items: [],
+    });
+    expect(normalized.rows).toHaveLength(0);
+    expect(normalized.reportTotal.sum_total).toBe(100_000);
+    expect(normalized.pagination.total).toBe(1);
+  });
 });

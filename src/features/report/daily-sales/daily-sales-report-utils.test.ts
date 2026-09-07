@@ -228,6 +228,34 @@ describe("daily sales report basic helpers", () => {
 });
 
 describe("daily sales report totals and selection", () => {
+  it("keeps item discounts when exporting selected bills from an older API", () => {
+    const total = reportTotalFromRows([{
+      amount: 200_000,
+      before_bill_discount: 190_000,
+      discount_bill: 5_000,
+      after_discount: 185_000,
+      sum_total: 185_000,
+    }], "bill");
+
+    expect(total.sum_discount).toBe(15_000);
+    expect(total.sum_total).toBe(185_000);
+  });
+
+  it("prefers explicit discount totals, including zero, without counting them twice", () => {
+    const total = reportTotalFromRows([
+      { sum_discount: 15_000, discount_item: 10_000, discount_bill: 5_000 },
+      { sum_discount: 0, discount_item: 10_000, discount_bill: 5_000 },
+      { discount_item: 2_000, discount_bill: 3_000 },
+    ], "bill");
+    expect(total.sum_discount).toBe(20_000);
+  });
+
+  it("uses the API summary keys for selected detail-bill exports", () => {
+    const total = reportTotalFromBillGroups([billGroup()]);
+    expect(cardSummaryConfigs(t).map((card) => summaryCardValue(total, total, card.keys)))
+      .toEqual([1, 3, 100_000, 5_000, 7_000, 0, 0, 100_000]);
+  });
+
   it("calculates summary and detail totals from rows", () => {
     const summaryTotal = reportTotalFromRows(
       [

@@ -562,13 +562,29 @@ export function reportTotalFromRows(
       "service_charge_amount",
       "service_total",
     ]),
-    sum_discount: sumRows(rows, ["sum_discount", "discount_bill"]),
+    sum_discount: rows.reduce((total, row) => total + billDiscountTotal(row), 0),
     sum_servicecharge: sumRows(rows, ["sum_servicecharge", "service_charge"]),
     sum_total: sumRows(rows, ["sum_total", "total", "net_total"]),
     sum_vate: sumRows(rows, ["sum_vate", "vat", "vat_amount"]),
     total_qty: sumRows(rows, ["total_qty", "qty_total", "qty", "quantity"]),
     vat_amount: sumRows(rows, ["vat", "vat_amount", "vat_total"]),
   };
+}
+
+function billDiscountTotal(row: ApiEntity) {
+  const explicitTotal = firstOptionalNumber(row.sum_discount);
+  if (explicitTotal !== null) return explicitTotal;
+
+  // Older bill-report responses expose gross and net-before-bill-discount,
+  // but omit the item discount. Keep selected exports compatible with them.
+  const gross = firstOptionalNumber(row.amount);
+  const beforeBillDiscount = firstOptionalNumber(row.before_bill_discount);
+  const itemDiscount = firstOptionalNumber(
+    readValue(row, ["discount_item", "item_discount_amount", "item_discount"]),
+  ) ?? (gross !== null && beforeBillDiscount !== null
+    ? Math.max(gross - beforeBillDiscount, 0)
+    : 0);
+  return itemDiscount + firstNumber(row.discount_bill);
 }
 
 export function reportTotalFromBillGroups(
@@ -583,6 +599,7 @@ export function reportTotalFromBillGroups(
     active_lines_count: Math.max(0, rows.length - cancelledLines),
     amount: groups.reduce((total, group) => total + group.amountTotal, 0),
     base_total: groups.reduce((total, group) => total + group.baseTotal, 0),
+    bill_count: groups.length,
     bills_count: groups.length,
     cancelled_count: cancelledBills,
     cancelled_lines_count: cancelledLines,
@@ -623,6 +640,14 @@ export function reportTotalFromBillGroups(
       0,
     ),
     total: groups.reduce((total, group) => total + group.lineTotal, 0),
+    total_qty: groups.reduce((total, group) => total + group.qtyTotal, 0),
+    sum_discount: groups.reduce(
+      (total, group) => total + group.itemDiscountAmount + group.discountBillAmount,
+      0,
+    ),
+    sum_servicecharge: groups.reduce((total, group) => total + group.serviceChargeAmount, 0),
+    sum_total: groups.reduce((total, group) => total + group.lineTotal, 0),
+    sum_vate: groups.reduce((total, group) => total + group.vatAmount, 0),
     vat: groups.reduce((total, group) => total + group.vatAmount, 0),
   };
 }

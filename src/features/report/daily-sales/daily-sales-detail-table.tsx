@@ -4,6 +4,7 @@ import { Fragment, useCallback, useMemo } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -307,6 +308,7 @@ export function DetailBillTable({
                         name: group.invoiceNumber,
                       })}
                       checked={groupSelected}
+                      disabled={group.items.length === 0}
                       indeterminate={groupPartiallySelected}
                       onCheckedChange={(checked) => onToggleRows(group.items, checked as boolean)}
                     />
@@ -386,6 +388,15 @@ export function DetailBillTable({
 
                 {expanded ? (
                   <>
+                    {group.items.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={hasStatusData ? 13 : 12}>
+                          <Alert>
+                            <AlertDescription>{t("report.billItemsMissing")}</AlertDescription>
+                          </Alert>
+                        </TableCell>
+                      </TableRow>
+                    ) : null}
                     {group.items.map((item, itemIndex) => {
                       const recordId = reportRecordId(item);
                       const selected = selectedRecordIds.has(recordId);
@@ -778,4 +789,3 @@ function dailySalesBillSortValue(
       return groupMoney(group, ["vat"]) ?? 0;
   }
 }
-

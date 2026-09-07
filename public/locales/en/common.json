@@ -1911,6 +1911,7 @@
     "detailTable": "Order item detail",
     "dateTotals": "Date totals",
     "expandBill": "Expand bill",
+    "billItemsMissing": "No item details were returned for this bill. Its recorded sales amount is still included; check the original bill or synchronization status.",
     "exportExcel": "Export Excel",
     "exportFailed": "Export failed",
     "exportPdf": "Export PDF",

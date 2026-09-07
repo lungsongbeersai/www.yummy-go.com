@@ -187,7 +187,9 @@ export function DailySalesReportPage({
               />
             }
             loading={report.loading}
-            rowsLength={report.rows.length}
+            rowsLength={report.appliedFilters.typePage === "detail"
+              ? report.billGroups.length
+              : report.rows.length}
           >
             {report.appliedFilters.typePage === "detail" ? (
               <DetailBillTable
