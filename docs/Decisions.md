@@ -6,6 +6,15 @@ Entries below dated from git history are backfilled from existing code comments 
 
 ---
 
+## Prepare mobile menu options and share direct product-image caches
+
+- **Date:** 2026-09-08.
+- **Evidence:** Category responses contain product rows only for the selected category/sort, and option products omit the default detail id/price. Native sync previously pushed bills but never prepared the full menu. The menu renders remote images unoptimized, while cart thumbnails used Next's optimizer; additionally Serwist CacheFirst drops opaque CDN responses unless `cacheWillUpdate` accepts them.
+- **Decision:** While Backend is confirmed online, the native monitor starts a separate, single-flight, branch/cashier/language-scoped menu preparer. It reads the initial catalog, every category in all three sorts, then each product's real option/topping response through `apiRequest` (two concurrent requests). It validates persisted Dexie responses before reporting internal preparation completion, pauses new work on disconnect/session change, reuses fresh results for five minutes, and retries partial preparation after 30 seconds. It does not wait for device registration or drain/alter the bill queue. No new offline notices or UI layout changes.
+- **Retention and sale snapshots:** Fresh native menu entries are retained separately from the general 300-response cap, with the existing 48-hour age policy and device quota still in force. New local creates persist item display/base/topping prices as metadata outside the frozen Backend payload. Existing resolvable legacy drafts receive the same metadata before background refresh, without changing event ids, requests, statuses or timestamps. Unknown historical prices remain unknown rather than being guessed. Normal option size/topping labels survive cart reconstruction; an option product never falls back to one fabricated default size.
+- **Images:** Cart remote images now use the same direct URL as menu cards. A shared cache helper accepts actual image responses and opaque no-cors CDN images, retaining signed source parameters. Background preparation fetches product images without credentials and awaits cache writes. Image-cache matches ignore `Vary`, not the source query; Next optimized variants for other surfaces still retain their source identity. Runtime image expiration/quota policy remains in place. Opaque responses cannot prove HTTP success or image decoding, so physical-device image acceptance remains required.
+- **Boundary:** Menu preparation is not a complete offline-checkout readiness signal. Full native app cold start, stock/promotion/set and tax/service parity, durable kitchen/receipt printing, payment proofs and physical Android/iOS acceptance remain open. No SQL/Dexie schema bump, database wipe, dependency installation, commit, push or deployment is included.
+
 ## Mobile menu reads recover online independently of pending bills
 
 - **Date:** 2026-09-08.

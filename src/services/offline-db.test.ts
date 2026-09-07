@@ -5,6 +5,7 @@ import axios from "axios";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   browserRequestFingerprint,
+  browserApiCacheEvictionKeys,
   browserSyncQueueHasRetryableWork,
   cacheBrowserApiResponse,
   getBrowserSyncQueueSummary,
@@ -48,9 +49,7 @@ class MemoryBrowserOfflineStore implements BrowserOfflineStore {
     const oldest = [...this.apiCache.values()]
       .filter((entry) => entry.storeUuid === scope.storeUuid && entry.branchUuid === scope.branchUuid)
       .sort((left, right) => left.cachedAt - right.cachedAt);
-    for (const entry of oldest.slice(0, Math.max(0, oldest.length - maxEntries))) {
-      this.apiCache.delete(entry.key);
-    }
+    for (const key of browserApiCacheEvictionKeys(oldest, maxEntries)) this.apiCache.delete(key);
   }
 
   async listApiCacheByPath(scope: BrowserOfflineScope, path: string) {
@@ -1112,6 +1111,19 @@ describe("pushing a staged create_order to Backend never sends a discarded order
 
 describe("native cache and durable write boundaries", () => {
   afterEach(() => { vi.restoreAllMocks(); });
+
+  it("retains a fresh 350-product native menu independently of the general response limit", async () => {
+    const store = new MemoryBrowserOfflineStore();
+    await cacheBrowserApiResponse({ ...scope, method: "get", path: "/api/v1/posAll/fetch_cart", response: { orders: [] }, source: "ONLINE" }, store);
+    for (let index = 0; index < 350; index++) {
+      await cacheBrowserApiResponse({ ...scope, method: "post", path: "/api/v1/posAll/get_prod_item", data: { prod_uuid: index },
+        response: { data: { prod_uuid: index } }, source: "ONLINE", retainForOfflineMenu: true }, store);
+    }
+    expect(store.apiCache.size).toBe(351);
+    expect(await store.listApiCacheByPath(scope, "/api/v1/posAll/fetch_cart")).toHaveLength(1);
+    const expiredKeys = browserApiCacheEvictionKeys([...store.apiCache.values()], 300, Date.now() + 49 * 60 * 60_000);
+    expect(expiredKeys).toHaveLength(51);
+  });
 
   it.each(["PENDING", "BLOCKED"] as const)("refreshes menu without evicting the cart base for a %s bill", async (status) => {
     const store = new MemoryBrowserOfflineStore();

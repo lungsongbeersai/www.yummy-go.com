@@ -806,6 +806,7 @@ export function cacheOnlineResponse(
       source: "ONLINE",
       preservePendingOrders: !agentAvailable && !isBrowserMenuRead(method, url),
       preservePendingOrderCache: !agentAvailable,
+      retainForOfflineMenu: !agentAvailable && isBrowserMenuRead(method, url),
       requestStartedAt,
     }).catch(() => false);
   } else if (OFFLINE_ROUTES.has(routeKey(method, url))) {

@@ -18,6 +18,7 @@ export interface OfflineTopping {
   prod_topping_uuid_fk: string;
   topping_qty: number;
   topping_price?: number;
+  topping_name?: string;
 }
 
 export interface OfflineOrderItem {

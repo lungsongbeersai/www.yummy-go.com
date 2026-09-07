@@ -19,7 +19,7 @@ export {
 } from "./master-index";
 export { seedOfflineStateFromCart } from "./cart-seed";
 export { ensureOfflineSyncDevice, getOfflineSyncDeviceAuth, type OfflineSyncDevice } from "./device-registration";
-export { loadOfflineMasterIndex, loadOfflineOrderState, resolveOrderUuid, synthesizeOfflineWrite } from "./write-fallback";
+export { loadOfflineMasterIndex, loadOfflineOrderState, retainPendingBrowserItemSnapshots, resolveOrderUuid, synthesizeOfflineWrite } from "./write-fallback";
 export { decodeOfflineOrderEvent, decodeOfflineOrderEvents } from "./order-events";
 export { projectOfflineTables } from "./table-projection";
 export {

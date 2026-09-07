@@ -2,6 +2,7 @@ import axios from "axios";
 import { Capacitor } from "@capacitor/core";
 import { apiClient } from "@/lib/api";
 import * as offlineSync from "@/services/offline-sync";
+import * as offlineMenu from "@/services/offline-menu";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { BACKEND_NETWORK_STATE } from "@/lib/network-state";
 import { resetLocalSyncConfiguration } from "@/services/offline-sync";
@@ -78,6 +79,7 @@ const unreachable = (): BackendProbeResult => ({
 
 describe.each(["android", "ios"])("%s Dexie sync worker", (platform) => {
   beforeEach(() => {
+    vi.spyOn(offlineMenu, "prepareMobileOfflineMenu").mockResolvedValue({ complete: true, products: 1, failedRequests: 0, failedImages: 0 });
     vi.useFakeTimers();
     installBrowser(true);
     const storage = new Map<string, string>();
@@ -110,6 +112,8 @@ describe.each(["android", "ios"])("%s Dexie sync worker", (platform) => {
     await vi.advanceTimersByTimeAsync(1);
     expect(register).toHaveBeenCalledWith("/api/v1/sync/device/register", expect.objectContaining({ platform }), expect.anything());
     expect(push).toHaveBeenCalledWith({ storeUuid: "store-1", branchUuid: "branch-1", actorLoginUuid: `login-${platform}` }, undefined, expect.any(Function));
+    expect(offlineMenu.prepareMobileOfflineMenu).toHaveBeenCalledWith(
+      { storeUuid: "store-1", branchUuid: "branch-1", actorLoginUuid: `login-${platform}` }, expect.any(String), expect.any(Function));
     expect(agentGet).not.toHaveBeenCalled();
     expect(agentPost).not.toHaveBeenCalled();
     stop();
@@ -122,9 +126,18 @@ describe.each(["android", "ios"])("%s Dexie sync worker", (platform) => {
     const stop = startOfflineTransportMonitor();
     await vi.advanceTimersByTimeAsync(1);
     expect(push).not.toHaveBeenCalled();
+    expect(offlineMenu.prepareMobileOfflineMenu).toHaveBeenCalled();
     register.mockResolvedValue({ status: 200, data: { status: "success" } });
     await vi.advanceTimersByTimeAsync(5000);
     expect(push).toHaveBeenCalledOnce();
+    stop();
+  });
+
+  it("does not prepare the menu until Backend is actually reachable", async () => {
+    backendNetworkManager.reportTransportFailure("offline", { confirmed: true, failureThreshold: 1 });
+    const stop = startOfflineTransportMonitor();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(offlineMenu.prepareMobileOfflineMenu).not.toHaveBeenCalled();
     stop();
   });
 });

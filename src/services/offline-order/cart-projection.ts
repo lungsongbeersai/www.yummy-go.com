@@ -25,6 +25,7 @@ export interface OfflineCartLine {
   qty: number;
   total: number;
   detail: {
+    size_name: string;
     order_it_qty: number;
     unit_price: number;
     base_line_total: number;
@@ -113,6 +114,7 @@ function lineFor(item: OfflineOrderItem, master: OfflineMasterIndex) {
     productName,
     productImage: String(snapshot.prod_image ?? menu?.productImage ?? ""),
     productHasImage: Number(snapshot.prod_status_imge ?? menu?.productHasImage ?? 0),
+    sizeName: String(savedDetail.size_name || menu?.sizeName || ""),
   };
   const toppingUnitTotal = item.toppings.reduce((sum, topping) => {
     const price = topping.topping_price ?? master.toppingPrices.get(topping.prod_topping_uuid_fk);
@@ -169,6 +171,7 @@ export function projectOfflineCartOrder(
       total: line.total,
       detail: {
         ...line.savedDetail,
+        size_name: line.detail.sizeName,
         order_it_qty: item.quantity,
         unit_price: line.unitPrice,
         base_line_total: line.baseTotal,
@@ -185,6 +188,8 @@ export function projectOfflineCartOrder(
       },
       toppings: item.toppings.map((topping) => ({
         ...topping,
+        topping_name: topping.topping_name || master.toppingNames.get(topping.prod_topping_uuid_fk) || "",
+        topping_price: topping.topping_price ?? master.toppingPrices.get(topping.prod_topping_uuid_fk),
         topping_qty_per_unit: topping.topping_qty,
         topping_total_qty: topping.topping_qty * item.quantity,
         topping_line_total: money((topping.topping_price ?? master.toppingPrices.get(topping.prod_topping_uuid_fk) ?? 0) * topping.topping_qty * item.quantity),

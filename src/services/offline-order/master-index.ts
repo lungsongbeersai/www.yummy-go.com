@@ -11,11 +11,14 @@ export interface OfflineProductDetail {
   productName: string;
   productImage: string;
   productHasImage: number;
+  sizeName?: string;
 }
 
 export interface OfflineMasterIndex {
   details: Map<string, OfflineProductDetail>;
   toppingPrices: Map<string, number>;
+  toppingNames: Map<string, string>;
+  simpleProducts: Set<string>;
 }
 
 function record(value: unknown): Record<string, unknown> {
@@ -38,7 +41,7 @@ function count(value: unknown, fallback = 0) {
 }
 
 export function emptyOfflineMasterIndex(): OfflineMasterIndex {
-  return { details: new Map(), toppingPrices: new Map() };
+  return { details: new Map(), toppingPrices: new Map(), toppingNames: new Map(), simpleProducts: new Set() };
 }
 
 function price(value: unknown): number | null {
@@ -53,7 +56,7 @@ function addDetail(index: OfflineMasterIndex, detail: Omit<OfflineProductDetail,
   index.details.set(detail.prodDetailUuid, { ...detail, price: detail.price });
 }
 
-/** Index a cached `POST /api/v1/posAll/fetch_cate_products` response. */
+/** Index a cached `GET /api/v1/posAll/fetch_cate_products` response. */
 export function indexCategoryProducts(response: unknown, index: OfflineMasterIndex) {
   const body = record(response);
   const products = [
@@ -62,6 +65,12 @@ export function indexCategoryProducts(response: unknown, index: OfflineMasterInd
   ];
   for (const rawProduct of products) {
     const product = record(rawProduct);
+    const prodUuid = text(product.prod_uuid);
+    const needsOptions = product.has_options === true || count(product.count_option_all) > 1 ||
+      count(product.count_option_enabled) > 1 || count(product.count_topping_enabled) > 0 ||
+      [2, 3].includes(count(product.status_sort_fk));
+    if (needsOptions) index.simpleProducts.delete(prodUuid);
+    else if (text(product.pro_detail_uuid)) index.simpleProducts.add(prodUuid);
     addDetail(index, {
       prodDetailUuid: text(product.pro_detail_uuid),
       prodUuid: text(product.prod_uuid),
@@ -93,6 +102,7 @@ export function indexProductItem(response: unknown, index: OfflineMasterIndex) {
         productName,
         productImage,
         productHasImage,
+        sizeName: text(detail.size_name),
       });
     }
   }
@@ -104,6 +114,7 @@ export function indexProductItem(response: unknown, index: OfflineMasterIndex) {
       if (!uuid) continue;
       const toppingPrice = price(topping.topping_price ?? topping.prod_topping_price);
       if (toppingPrice !== null) index.toppingPrices.set(uuid, toppingPrice);
+      index.toppingNames.set(uuid, text(topping.topping_name) || text(topping.topping_name_la));
     }
   }
   return index;
@@ -164,7 +175,8 @@ export function findDetailByProdUuid(
   index: OfflineMasterIndex,
   prodUuid: string,
 ): OfflineProductDetail | null {
-  if (!prodUuid) return null;
+  // A cart line or one cached size cannot stand in for the full option modal.
+  if (!prodUuid || !index.simpleProducts.has(prodUuid)) return null;
   for (const detail of index.details.values()) {
     if (detail.prodUuid === prodUuid) return detail;
   }

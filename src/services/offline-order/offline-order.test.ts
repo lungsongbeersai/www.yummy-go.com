@@ -514,6 +514,16 @@ describe("offline table grid", () => {
 });
 
 describe("synthesizing get_prod_item from category-listing data alone", () => {
+  it("never substitutes a single historical size for a product needing options/toppings", () => {
+    const index = buildOfflineMasterIndex([
+      { path: "/api/v1/posAll/fetch_cate_products", response: { data: [{ products: [{ prod_uuid: PRODUCT,
+        pro_detail_uuid: DETAIL, pro_detail_sprice: 20000, has_options: true, count_option_all: 3, count_topping_enabled: 3 }] }] } },
+      { path: "/api/v1/posAll/fetch_cart", response: { orders: [{ items: [{ prod_uuid: PRODUCT, pro_detail_uuid: DETAIL,
+        title: "Rice", detail: { unit_price: 20000 } }] }] } },
+    ]);
+    expect(findDetailByProdUuid(index, PRODUCT)).toBeNull();
+  });
+
   it("finds the product's default detail by prod_uuid, not pro_detail_uuid", () => {
     const detail = findDetailByProdUuid(master, PRODUCT);
     expect(detail).toMatchObject({ prodDetailUuid: DETAIL, prodUuid: PRODUCT, price: 20000 });

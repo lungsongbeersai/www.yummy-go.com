@@ -49,7 +49,7 @@ describe("offline asset cache", () => {
     // so only w=/q= are dropped from the key and url= is kept.
     expect(serviceWorkerSource).toContain('from "@serwist/next/worker"');
     expect(serviceWorkerSource).toContain("...defaultCache");
-    expect(serviceWorkerSource).toContain('url.pathname !== "/_next/image"');
+    expect(serviceWorkerSource).toContain('from "../lib/offline-product-images"');
 
     const imageEntry = serviceWorkerSource.slice(
       serviceWorkerSource.indexOf("const uploadedImageCaching"),
@@ -64,7 +64,13 @@ describe("offline asset cache", () => {
       serviceWorkerSource.indexOf("const uploadedImageCaching")
     );
     expect(keyPlugin).toContain("cacheKeyWillBeUsed");
-    expect(keyPlugin).toContain('searchParams.get("url")');
+    expect(keyPlugin).toContain("offlineProductImageKey(request)");
+    expect(keyPlugin).toContain("isCacheableProductImage(response)");
+    expect(imageEntry).toContain("ignoreVary: true");
+    const cart = readFileSync(join(testDir, "..", "pos", "table-selection", "cart-items.tsx"), "utf8");
+    const menu = readFileSync(join(testDir, "..", "pos", "order-customer", "order-customer-product-card.tsx"), "utf8");
+    expect(cart).toContain("unoptimized={isRemoteUrl(media.src)}");
+    expect(menu).toContain("unoptimized={isRemoteUrl(media.src)}");
   });
 
   it("never lets a navigation reject into Android's native net::ERR_FAILED page, even when /login itself isn't cached yet", () => {

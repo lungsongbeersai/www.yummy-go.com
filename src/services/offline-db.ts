@@ -98,6 +98,7 @@ export interface BrowserApiCacheEntry extends BrowserOfflineScope {
   source: "AGENT" | "ONLINE";
   cachedAt: number;
   syncedThrough?: number;
+  retainForOfflineMenu?: boolean;
 }
 
 export interface BrowserSyncQueueEntry extends BrowserOfflineIdentity {
@@ -114,6 +115,8 @@ export interface BrowserSyncQueueEntry extends BrowserOfflineIdentity {
   updatedAt: number;
   /** Frozen before the first native push; retries must send byte-equivalent data. */
   wireEvent?: BrowserSyncWireEvent;
+  /** Display/pricing snapshot only; never included in the frozen Backend request. */
+  localItemSnapshots?: Record<string, Record<string, unknown>>;
 }
 
 export interface BrowserSyncWireEvent {
@@ -180,12 +183,14 @@ interface CacheWriteInput extends CacheRequest {
   preservePendingOrders?: boolean;
   /** Allow master-data refresh without evicting snapshots needed by the outbox. */
   preservePendingOrderCache?: boolean;
+  retainForOfflineMenu?: boolean;
   requestStartedAt?: number;
 }
 
 interface StageSyncRequestInput extends CacheRequest, BrowserOfflineIdentity {
   eventUuid: string;
   requireExclusiveActor?: boolean;
+  localItemSnapshots?: Record<string, Record<string, unknown>>;
 }
 
 interface BrowserStatusInput extends BrowserOfflineScope {
@@ -231,14 +236,11 @@ class DexieBrowserOfflineStore implements BrowserOfflineStore {
   // Scoped: one store/branch's traffic must never evict another's offline cache.
   async pruneApiCache(scope: BrowserOfflineScope, maxEntries: number) {
     const key = [scope.storeUuid, scope.branchUuid];
-    const total = await this.database.apiCache.where("[storeUuid+branchUuid]").equals(key).count();
-    const overflow = Math.max(0, total - maxEntries);
-    if (!overflow) return;
     const entries = await this.database.apiCache
       .where("[storeUuid+branchUuid]")
       .equals(key)
       .sortBy("cachedAt");
-    await this.database.apiCache.bulkDelete(entries.slice(0, overflow).map((entry) => entry.key));
+    await this.database.apiCache.bulkDelete(browserApiCacheEvictionKeys(entries, maxEntries));
   }
 
   // Any cached response for this path/scope, regardless of which params/data
@@ -341,6 +343,18 @@ export function isSafeBrowserCacheFallback(path: string) {
   return SAFE_BROWSER_FALLBACK_PATHS.has(normalizedPath(path));
 }
 
+export function browserApiCacheEvictionKeys(entries: BrowserApiCacheEntry[], maxEntries: number, now = Date.now()) {
+  // A full mobile catalog can exceed 300 products. Its fresh detail records
+  // must not evict each other (or carts) halfway through preparation.
+  const evictable = entries.filter((entry) => !entry.retainForOfflineMenu || now - entry.cachedAt > MAX_API_CACHE_AGE_MS)
+    .sort((a, b) => a.cachedAt - b.cachedAt);
+  return evictable.slice(0, Math.max(0, evictable.length - maxEntries)).map((entry) => entry.key);
+}
+
+export async function readBrowserApiCacheEntry(input: CacheRequest, override?: BrowserOfflineStore) {
+  return storeFor(override)?.getApiCache(browserApiCacheKey(input));
+}
+
 function serializedSize(value: unknown) {
   try {
     return new TextEncoder().encode(JSON.stringify(value)).byteLength;
@@ -374,6 +388,7 @@ export async function cacheBrowserApiResponse(
       response: input.response,
       source: input.source,
       cachedAt,
+      ...(input.retainForOfflineMenu ? { retainForOfflineMenu: true } : {}),
       ...(input.preservePendingOrders ? { syncedThrough: queued.reduce((latest, entry) => Math.max(latest, entry.createdAt), 0) } : {}),
     });
     // Browsing new categories during recovery must not evict the old cart base
@@ -503,6 +518,7 @@ export async function stageBrowserSyncRequest(
       lastError: null,
       createdAt,
       updatedAt: now,
+      ...(input.localItemSnapshots ? { localItemSnapshots: input.localItemSnapshots } : {}),
     };
     await store.putSyncQueue({ ...entry, updatedAt: now });
     await updateMutationTimestamp(input, now, store);
@@ -512,6 +528,23 @@ export async function stageBrowserSyncRequest(
 }
 
 const storeWrites = new WeakMap<BrowserOfflineStore, Promise<unknown>>();
+
+export async function retainBrowserItemSnapshots(
+  eventUuid: string,
+  scope: BrowserOfflineScope,
+  snapshots: Record<string, Record<string, unknown>>,
+  override?: BrowserOfflineStore,
+) {
+  const store = storeFor(override);
+  if (!store) return;
+  const retain = async () => {
+    const entry = await store.getSyncQueue(eventUuid);
+    if (!entry || entry.storeUuid !== scope.storeUuid || entry.branchUuid !== scope.branchUuid || entry.localItemSnapshots) return;
+    // Do not alter identity, status, payload, sequence or acknowledgement time.
+    await store.putSyncQueue({ ...entry, localItemSnapshots: snapshots });
+  };
+  return store.transaction ? store.transaction(retain) : serializeStoreWrite(store, retain);
+}
 
 function serializeStoreWrite<T>(store: BrowserOfflineStore, task: () => Promise<T>): Promise<T> {
   const previous = storeWrites.get(store) ?? Promise.resolve();

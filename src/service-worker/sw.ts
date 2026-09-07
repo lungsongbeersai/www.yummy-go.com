@@ -3,6 +3,7 @@ import { CacheFirst, ExpirationPlugin, NetworkFirst, NetworkOnly, Serwist } from
 import type { PrecacheEntry, RuntimeCaching, SerwistGlobalConfig, SerwistPlugin } from "serwist";
 import { CORE_OFFLINE_SHELL_ROUTES } from "../lib/offline-shell";
 import { cachedDocumentFallback, documentCacheKey, isUsableDocument, warmOfflineDocuments } from "./document-cache";
+import { OFFLINE_PRODUCT_IMAGE_CACHE, isCacheableProductImage, isOfflineProductImage, offlineProductImageKey } from "../lib/offline-product-images";
 
 declare const process: {
   env: { NEXT_PUBLIC_PRINTER_AGENT_URL?: string };
@@ -117,17 +118,13 @@ const rscNavigationCaching: RuntimeCaching = {
 // ตอนออฟไลน์ยังมีรูป จำกัดจำนวน/อายุกันแคชบวมด้วย ExpirationPlugin
 // ครอบทั้ง /uploaded/ (เส้นทางเดิม), /uploads/ และ /products/ ตาม images.remotePatterns
 // ใน next.config.ts — ทั้งสามชื่อโฟลเดอร์ถูกใช้จริงกับรูปสินค้า
-const UPLOADED_IMAGE_PATH = /\/(?:uploaded|uploads|products)\//;
 
 // <Image> ของ next/image ไม่ได้ขอ URL ปลายทางตรง ๆ แต่ขอผ่าน optimizer เป็น
 // /_next/image?url=<ต้นทาง>&w=..&q=.. บน origin ของแอปเอง — matcher เดิมเช็ค
 // url.pathname จึงไม่เคยเจอ "/uploaded/" เลยสักครั้ง รูปสินค้าไม่เคยถูกแคช
 // เมนู POS ตอนออฟไลน์จึงขึ้นเป็นไอคอนรูปเปล่าทั้งหน้า
 function isUploadedImageRequest(url: URL) {
-  if (UPLOADED_IMAGE_PATH.test(url.pathname)) return true;
-  if (url.pathname !== "/_next/image") return false;
-  const source = url.searchParams.get("url");
-  return Boolean(source) && UPLOADED_IMAGE_PATH.test(source as string);
+  return isOfflineProductImage(url);
 }
 
 // next/image requests a different w= for the same product depending on
@@ -148,20 +145,16 @@ function isUploadedImageRequest(url: URL) {
 // express that split, so a cacheKeyWillBeUsed plugin rewrites the key to
 // just the decoded source URL, for both the read and the write side.
 const imageCacheKeyPlugin: SerwistPlugin = {
-  cacheKeyWillBeUsed: async ({ request }) => {
-    const url = new URL(request.url);
-    if (url.pathname !== "/_next/image") return request;
-    const source = url.searchParams.get("url");
-    if (!source || !UPLOADED_IMAGE_PATH.test(source)) return request;
-    return `${url.origin}/_next/image?url=${encodeURIComponent(source)}`;
-  },
+  cacheKeyWillBeUsed: async ({ request }) => offlineProductImageKey(request),
+  cacheWillUpdate: async ({ response }) => isCacheableProductImage(response) ? response : null,
 };
 
 const uploadedImageCaching: RuntimeCaching = {
   matcher: ({ url, request }) =>
     request.destination === "image" && isUploadedImageRequest(url),
   handler: new CacheFirst({
-    cacheName: "yummy-uploaded-images",
+    cacheName: OFFLINE_PRODUCT_IMAGE_CACHE,
+    matchOptions: { ignoreVary: true },
     plugins: [
       imageCacheKeyPlugin,
       new ExpirationPlugin({

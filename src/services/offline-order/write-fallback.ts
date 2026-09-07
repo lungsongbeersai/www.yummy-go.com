@@ -5,6 +5,7 @@ import {
   listBrowserApiCacheEntries,
   listBrowserSyncQueue,
   stageBrowserSyncRequest,
+  retainBrowserItemSnapshots,
   type BrowserOfflineIdentity,
   type BrowserOfflineScope,
   type BrowserOfflineStore,
@@ -72,7 +73,44 @@ export async function loadOfflineOrderState(
     return entry.status !== "SYNCED" || entry.createdAt > (watermarks.get(orderUuid ?? "") ?? 0);
   }).map((entry) => ({ ...entry, data: entry.wireEvent?.payload.request.data ?? entry.data }));
   state = reduceOfflineOrderEvents(decodeOfflineOrderEvents(remaining), state);
+  for (const entry of remaining) {
+    for (const [uuid, snapshot] of Object.entries(entry.localItemSnapshots ?? {})) {
+      const item = state.items.get(uuid);
+      if (!item || item.snapshot) continue;
+      const toppings = Array.isArray(snapshot.toppings) ? snapshot.toppings.map(record) : [];
+      state.items.set(uuid, { ...item, snapshot, toppings: item.toppings.map((topping) => {
+        const saved = toppings.find((candidate) => candidate.prod_topping_uuid_fk === topping.prod_topping_uuid_fk);
+        return { ...topping,
+          ...(typeof saved?.topping_price === "number" ? { topping_price: saved.topping_price } : {}),
+          ...(typeof saved?.topping_name === "string" ? { topping_name: saved.topping_name } : {}),
+        };
+      }) });
+    }
+  }
   return state;
+}
+
+/** Preserve display data for pre-snapshot drafts before a background menu refresh. */
+export async function retainPendingBrowserItemSnapshots(scope: BrowserOfflineScope, store?: BrowserOfflineStore) {
+  const queue = (await listBrowserSyncQueue(scope, store)).filter((entry) =>
+    entry.status !== "SYNCED" && entry.path === "/api/v1/posAll/create_order" && !entry.localItemSnapshots);
+  if (!queue.length) return;
+  const [state, master] = await Promise.all([loadOfflineOrderState(scope, store), loadOfflineMasterIndex(scope, store)]);
+  for (const entry of queue) {
+    const data = record(entry.wireEvent?.payload.request.data ?? entry.data);
+    const uuid = resolveOrderUuid(state, data);
+    if (!uuid) continue;
+    try {
+      const ids = new Set((Array.isArray(data.items) ? data.items : []).map((item) => String(record(item).order_it_uuid || record(item).order_item_uuid || "")));
+      const cart = projectOfflineCart(state, { order_uuid: uuid }, master);
+      const snapshots = Object.fromEntries(cart.orders.flatMap((order) => order.items)
+        .filter((item) => ids.has(item.order_it_uuid)).map((item) => [item.order_it_uuid, { ...item }]));
+      if (Object.keys(snapshots).length) await retainBrowserItemSnapshots(entry.eventUuid, scope, snapshots, store);
+    } catch {
+      // Unknown legacy data may be repaired by the incoming catalog. Never
+      // invent a price or block all menu downloads because one old line is missing.
+    }
+  }
 }
 
 export async function loadOfflineMasterIndex(scope: BrowserOfflineScope, store?: BrowserOfflineStore) {
@@ -184,7 +222,10 @@ export async function synthesizeOfflineWrite(
   ]);
   const preview = reduceOfflineOrderEvents([event], base);
   const previewOrder = resolveOrderUuid(preview, data);
-  if (previewOrder) projectOfflineCart(preview, { order_uuid: previewOrder }, master);
+  const cartPreview = previewOrder ? projectOfflineCart(preview, { order_uuid: previewOrder }, master) : null;
+  const createdIds = new Set(event.kind === "ORDER_CREATE" ? event.items.map((item) => item.orderItemUuid) : []);
+  const localItemSnapshots = Object.fromEntries((cartPreview?.orders ?? []).flatMap((order) => order.items)
+    .filter((item) => createdIds.has(item.order_it_uuid)).map((item) => [item.order_it_uuid, { ...item }]));
 
   const staged = await stageBrowserSyncRequest(
     {
@@ -197,6 +238,7 @@ export async function synthesizeOfflineWrite(
       path,
       params: options?.params ?? {},
       data,
+      ...(createdIds.size ? { localItemSnapshots } : {}),
     },
     store,
   );

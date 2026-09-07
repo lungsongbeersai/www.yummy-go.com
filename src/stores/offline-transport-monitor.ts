@@ -18,6 +18,7 @@ import {
   runLocalSyncNow,
 } from "@/services/offline-sync";
 import { ensureOfflineSyncDevice } from "@/services/offline-order";
+import { prepareMobileOfflineMenu } from "@/services/offline-menu";
 import { restoreOnlineLogin } from "@/services/login";
 import { apiRequest } from "@/lib/api";
 import { capacitorMobilePlatform, isCapacitorMobileApp } from "@/lib/capacitor-platform";
@@ -397,6 +398,11 @@ export function startOfflineTransportMonitor() {
               current.user.branch_uuid === localScope.branchUuid &&
               (current.user.store_uuid || current.user.store_uuid_fk) === localScope.storeUuid;
           };
+          // Prepare every category/option in the background, independently of
+          // bill recovery. A blocked order must not block offline menu setup.
+          void prepareMobileOfflineMenu(localScope, i18n.language, () =>
+            isCurrent() && useNetworkStore.getState().state === BACKEND_NETWORK_STATE.ONLINE,
+          ).catch(() => undefined);
           await withSyncWorkerLock(`mobile:${localScope.storeUuid}:${localScope.branchUuid}`, async () => {
             if (!isCurrent() || !await ensureMobileDeviceRegistered(localScope, token) || !isCurrent()) return;
             const queue = await pushBrowserSyncQueue(localScope, undefined, isCurrent);
