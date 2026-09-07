@@ -500,6 +500,72 @@ describe("printer service dispatch", () => {
     ]);
   });
 
+  it("checks the local Agent only once for several physical printer batches", async () => {
+    const firstJob = windowsPrintJob({
+      job_id: "multi-printer-item-1",
+      print_job_item_uuid: "multi-printer-item-1",
+      print_config_uuid: "multi-printer-a",
+      interface_value: "win:KITCHEN",
+    });
+    const secondJob = windowsPrintJob({
+      job_id: "multi-printer-item-2",
+      print_job_item_uuid: "multi-printer-item-2",
+      print_config_uuid: "multi-printer-b",
+      interface_value: "win:BAR",
+    });
+
+    axiosMocks.get.mockResolvedValue({
+      data: { agent_id: "agent-1", agent_name: "Local", device_code: "device-1" }
+    });
+    axiosMocks.post.mockResolvedValue({ data: { ok: true } });
+    apiMocks.apiRequest.mockImplementation(async (method, url) => {
+      if (method === "get" && url === "/api/v1/printer/jobs/pending") {
+        return {
+          print_batch_payloads: [
+            {
+              cut_mode: "per_ticket",
+              print_config_uuid: firstJob.print_config_uuid,
+              interface_value: firstJob.interface_value,
+              print_job_item_uuids: ["multi-printer-item-1"],
+              jobs: [firstJob],
+            },
+            {
+              cut_mode: "per_ticket",
+              print_config_uuid: secondJob.print_config_uuid,
+              interface_value: secondJob.interface_value,
+              print_job_item_uuids: ["multi-printer-item-2"],
+              jobs: [secondJob],
+            },
+          ],
+          ack_success_payload: {
+            print_job_uuid: "multi-printer-job",
+            results: [
+              { print_job_item_uuid: "multi-printer-item-1", status: "success" },
+              { print_job_item_uuid: "multi-printer-item-2", status: "success" },
+            ],
+          },
+        };
+      }
+      if (method === "post" && url === "/api/v1/printer/jobs/ack") return {};
+      throw new Error(`Unexpected request ${method} ${url}`);
+    });
+
+    await expect(
+      executeInvoicePrintJobs({
+        pending_query: {
+          print_job_uuid: "multi-printer-job",
+          login_uuid_fk: "login-1",
+          device_code: "device-1",
+          agent_id: "agent-1",
+          print_mode: "windows_agent",
+        },
+      })
+    ).resolves.toEqual({ successCount: 2, failedCount: 0, total: 2 });
+
+    expect(axiosMocks.get).toHaveBeenCalledTimes(1);
+    expect(axiosMocks.post).toHaveBeenCalledTimes(2);
+  });
+
   it("coalesces concurrent invoice execution for the same document job", async () => {
     const job = windowsPrintJob({ job_id: "invoice-idempotent-item" });
     const ackPayloads: AckPayload[] = [];

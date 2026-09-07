@@ -12,6 +12,7 @@ import {
 } from "@/services/printer/helpers";
 import {
   dispatchPrintJob,
+  getLocalAgentInfo,
   isBrowserDevicePrintJob,
   printBatchWithLocalAgent,
   printJobAgentBase,
@@ -22,6 +23,7 @@ import { printMobileEscposOverTcp } from "@/services/printer/mobile-tcp";
 import type {
   AckPayload,
   AckResponse,
+  AgentInfo,
   ExecuteInvoicePrintInput,
   ExecuteKitchenPrintInput,
   ExecuteReportPrintInput,
@@ -478,11 +480,14 @@ function pendingFailedBeforePrintReason(result: PendingPrintJobsResult) {
   return result.ackFailed?.results?.find((item) => item.status === "failed")?.reason || undefined;
 }
 
-async function printKitchenBatchJob(batch: PrintOpsBatchPayload) {
+async function printKitchenBatchJob(
+  batch: PrintOpsBatchPayload,
+  localAgent: AgentInfo,
+) {
   if (!batch.jobs.length) return;
   await printBatchWithLocalAgent(
     batch.jobs,
-    undefined,
+    localAgent,
     textValue(batch.cut_mode) || "per_ticket"
   );
 }
@@ -587,6 +592,14 @@ async function executePrintJobs(
     let failedCount = 0;
     let hasPendingDelivery = false;
     let lastErrorMessage: string | undefined;
+    let localAgentPromise: Promise<AgentInfo> | null = null;
+    const sharedLocalAgent = () => {
+      // One pending response can contain several physical USB/TCP printers.
+      // They all go through the same local Agent, so resolve its identity once
+      // while still allowing different printers to run concurrently.
+      localAgentPromise ??= getLocalAgentInfo();
+      return localAgentPromise;
+    };
 
     input.onProgress?.({
       total,
@@ -641,7 +654,7 @@ async function executePrintJobs(
                 options.requireCompletionConfirmation === true,
               );
             } else {
-              await printKitchenBatchJob(batch);
+              await printKitchenBatchJob(batch, await sharedLocalAgent());
             }
 
             if (options.idempotent) {
