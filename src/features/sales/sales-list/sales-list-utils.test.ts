@@ -5,6 +5,7 @@ import {
   billNeedsPaymentAttention,
   calculatedRateLabel,
   itemAmounts,
+  itemDiscountLabel,
   itemToppingNames,
   itemToppingTotal,
   paymentMethodLabel,
@@ -46,6 +47,43 @@ function bill(overrides: Partial<DailySaleItemsBillGroup> = {}): DailySaleItemsB
 }
 
 describe("sales list utils", () => {
+  it("explains the saved 40 percent item discount without changing the amounts", () => {
+    const item = Object.freeze({
+      qty: 1, product_price: 40000, amount: 40000, total: 24000,
+      discount_item_type: "PCT", discount_item_value: 40, discount_item_amount: 16000
+    });
+
+    expect(itemDiscountLabel(item, "ສ່ວນຫຼຸດ")).toBe("ສ່ວນຫຼຸດ 40%");
+    expect(itemAmounts(item)).toEqual({ qty: 1, unitPrice: 40000, amount: 40000, discount: 16000, total: 24000 });
+  });
+
+  it.each(["PCT", " pct ", "PERCENT", "PERCENTAGE", "%", 1, "1"])(
+    "recognizes percentage discount type %s",
+    (type) => {
+      expect(itemDiscountLabel({ discount_item_type: type, discount_item_value: "40" }, "Discount")).toBe("Discount 40%");
+    }
+  );
+
+  it("uses percentage points as saved, including rates at or below one percent", () => {
+    expect(itemDiscountLabel({ discount_item_type: "PCT", discount_item_value: 0.5 }, "Discount")).toBe("Discount 0,5%");
+    expect(itemDiscountLabel({ discount_item_type: "PCT", discount_item_value: 1 }, "Discount")).toBe("Discount 1%");
+    expect(itemDiscountLabel({ order_it_discount_type: "PCT", order_it_discount_value: 100 }, "Discount")).toBe("Discount 100%");
+  });
+
+  it.each(["AMT", "AMOUNT", 2, "2", "", undefined, "UNKNOWN"])(
+    "does not invent a percentage for fixed or unknown discount type %s",
+    (type) => {
+      expect(itemDiscountLabel({ discount_item_type: type, discount_item_value: 14000, discount_item_amount: 14000, amount: 40000 }, "Discount")).toBe("Discount");
+    }
+  );
+
+  it.each([undefined, null, "", "invalid", -1, 0, 101, Infinity])(
+    "does not display an invalid or missing percentage %s",
+    (value) => {
+      expect(itemDiscountLabel({ discount_item_type: "PCT", discount_item_value: value }, "Discount")).toBe("Discount");
+    }
+  );
+
   it("shows the saved price before discount instead of the net unit price", () => {
     expect(itemAmounts({ qty: 1, product_price: 40000, amount: 40000, discount_item_amount: 16000, total: 24000 }))
       .toEqual({ qty: 1, unitPrice: 40000, amount: 40000, discount: 16000, total: 24000 });

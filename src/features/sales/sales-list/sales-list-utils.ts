@@ -213,6 +213,18 @@ export function itemAmounts(item: ApiEntity) {
   };
 }
 
+export function itemDiscountLabel(item: ApiEntity, label: string) {
+  const type = textValue(readValue(item, ["discount_item_type", "order_it_discount_type", "item_discount_type", "discount_type"]), "").trim().toUpperCase();
+  const value = Number(readValue(item, ["discount_item_value", "order_it_discount_value", "item_discount_value", "discount_value"]));
+  if (!["PCT", "PERCENT", "PERCENTAGE", "%", "1"].includes(type) || !Number.isFinite(value) || value <= 0 || value > 100) {
+    return label;
+  }
+
+  // Discount values are saved in percentage points: 0.5 means 0.5%, not 50%.
+  // Only label the saved rate; never derive it from rounded monetary amounts.
+  return `${label} ${value.toLocaleString("lo-LA", { maximumFractionDigits: 2 })}%`;
+}
+
 export interface SalesListItemTopping {
   name: string;
   qty: number;

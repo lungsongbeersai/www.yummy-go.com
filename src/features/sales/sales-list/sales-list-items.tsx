@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import type { ApiEntity } from "@/services/shared/types";
 import {
   itemAmounts,
+  itemDiscountLabel,
   itemMedia,
   itemNote,
   itemProductName,
@@ -76,7 +77,7 @@ function SalesListItemCard({ item }: { item: ApiEntity }) {
             <SalesListItemToppings item={item} />
             {discount > 0 ? (
               <SalesListItemDetailRow icon={<BadgePercent />} tone="discount" right={`-${moneyValue(discount)}`}>
-                {t("salesList.discount")}
+                {itemDiscountLabel(item, t("salesList.discount"))}
               </SalesListItemDetailRow>
             ) : null}
             {note ? (
