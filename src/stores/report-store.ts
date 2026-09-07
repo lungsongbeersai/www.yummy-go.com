@@ -13,6 +13,7 @@ export { useBestSellingProductsReportStore } from "@/stores/report-store/best-se
 export { usePaymentMethodsReportStore } from "@/stores/report-store/payment-methods";
 export { useCategorySalesReportStore } from "@/stores/report-store/category-sales";
 export { useDailyStoreClosingReportStore } from "@/stores/report-store/daily-store-closing";
+export { useOrderAuditReportStore } from "@/stores/report-store/order-audit";
 
 export {
   mergeBestSellingProductGroups,
