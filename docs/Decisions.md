@@ -6,6 +6,28 @@ Entries below dated from git history are backfilled from existing code comments 
 
 ---
 
+## New-order rows do not expose destructive actions
+
+- **Date:** 2026-09-08.
+- **Context:** The table cart's New tab showed both hard delete and audited cancel for status 0/1. On Mobile Offline, hard delete also failed because its item UUID existed only in the query while the durable reducer reads mutation bodies.
+- **Decision:** The table New tab exposes neither Delete Item nor Cancel Item. Confirmed active items in History use the audited cancel flow only at status 2/3. Status 4 is already served and remains protected; status 9 is already cancelled. No-table status 0/1 rows retain hard delete because they do not have a separate New tab. The delete request mirrors its UUID into the body while retaining the online query parameter, allowing Dexie to decode and stage legitimate hard deletes.
+- **Reason:** Backend hard delete is intentionally limited to status 0/1. Status 2/3 must become status 9 through `cancel_order_item` so stock restoration, cancellation printing and audit history remain correct. Backend explicitly rejects cancellation after status 4; changing that inventory/accounting rule is outside a menu-visibility fix.
+
+## Public landing pages are installed offline on one canonical origin
+
+- **Date:** 2026-09-08.
+- **Context:** Opening `yummy-go.com` without Internet fell through to Chrome's `ERR_INTERNET_DISCONNECTED` page even though the authenticated POS shells had an offline path. The public landing redirects through `/home`, and both `www.yummy-go.com` and `yummy-go.com` were serving independent successful responses even though service-worker state is origin-scoped.
+- **Decision:** `/`, `/home`, `/policy`, and `/login` are offline infrastructure routes and are warmed during service-worker installation, before authentication. `www.yummy-go.com` permanently redirects to the canonical `https://yummy-go.com` origin while online so both entry hostnames establish the same future offline installation. Public fallback never redirects `/policy` into protected POS.
+- **Boundary:** A browser must complete one online visit and service-worker installation on the canonical origin before any website can open without a network. Clearing site data, using a new browser/device, private browsing, or attempting the first visit offline still cannot load the remote site. This document-shell work does not make public QR API calls or Socket.IO operate without Backend connectivity.
+
+## Every established menu destination is viewable offline on desktop and Capacitor
+
+- **Date:** 2026-09-08.
+- **Context:** The owner explicitly requested that destinations showing the temporary offline lock open on web/desktop and mobile, including package, cancellation and settings screens.
+- **Decision:** Desktop and Capacitor now share one protected-page allowlist. The service worker warms every corresponding HTML shell after registration/login. Each GET used by the newly opened read-only screens is admitted by both the Agent/Dexie cache-write policy and the scoped browser fallback policy, with tests requiring page, API and fallback lists to remain aligned.
+- **Safety boundary:** This is offline *view* access, not blanket offline mutation support. Existing reviewed POS mutations keep their durable outbox behavior; package, cancellation, master-data and permission writes remain online-only until each domain has an idempotency, dependency and conflict policy. Mobile-only Agent screens may open but still report unavailable operations when no native implementation exists.
+- **Trade-off:** Generic responses use the existing exact-request, store/branch-scoped cache with its 48-hour browser age limit. A filter/page request that has never succeeded online can still report a cache miss; serving a different branch, filter or page as if it matched was rejected. No database schema change, cache wipe, deployment or claim of physical-device acceptance is included.
+
 ## Prepare mobile menu options and share direct product-image caches
 
 - **Date:** 2026-09-08.

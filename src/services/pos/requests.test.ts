@@ -13,6 +13,7 @@ import {
   confirmToKitchen,
   createPayment,
   createTableQR,
+  deleteOrderItem,
   fetchCateProducts,
   getProdItem,
   printInvoice,
@@ -593,6 +594,21 @@ describe("pos requests", () => {
         print_mode: "mobile_wifi"
       }
     });
+  });
+
+  it("sends the delete item UUID in query and body for online and Mobile Offline", async () => {
+    apiMocks.apiRequest.mockResolvedValue({ status: "success" });
+
+    await deleteOrderItem("item-1");
+
+    expect(apiMocks.apiRequest).toHaveBeenCalledWith(
+      "delete",
+      "/api/v1/posAll/delete_order_item",
+      {
+        params: { order_it_uuid: "item-1" },
+        data: { order_it_uuid: "item-1" },
+      },
+    );
   });
 
   it("posts payment with mobile wifi printer identity fields", async () => {

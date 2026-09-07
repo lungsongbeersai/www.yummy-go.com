@@ -42,11 +42,9 @@ const SAFE_BROWSER_FALLBACK_PATHS = new Set([
   "/api/v1/product/fetch_limit",
   "/api/v1/product/stock_qty",
   "/api/v1/register/fetch_limit",
-  // เพจใน OFFLINE_READ_ONLY_PATHS (lib/offline-routes.ts) คือเพจเดียวที่ Android เปิดได้ตอน
-  // ออฟไลน์ และ Android ไม่มี Local Printer Agent — Dexie จึงเป็นแหล่งข้อมูลเดียวที่เหลือ
-  // เส้นเหล่านี้ถูกแคชลง Dexie อยู่แล้วผ่าน OFFLINE_GET_ROUTES แต่เดิมอ่านกลับไม่ได้ ทำให้ทั้ง 6
-  // เพจว่างเปล่าบน Android ส่วน Desktop ไม่กระทบ: Agent เสิร์ฟจาก SQLite ก่อนเสมอ เส้นทางนี้
-  // ทำงานเฉพาะตอน Agent ล่มด้วยเท่านั้น
+  // Capacitor has no Local Printer Agent, so every offline-viewable page must
+  // be able to read its scoped online response back from Dexie. Desktop uses
+  // the Agent first and reaches this mirror only when that process is absent.
   "/api/v1/report/sale_report",
   "/api/v1/report_all/sale_report_bill",
   "/api/v1/report_all/sale_report_list",
@@ -58,9 +56,7 @@ const SAFE_BROWSER_FALLBACK_PATHS = new Set([
   // "/" is always offline-allowed (OFFLINE_INFRA_PATHS) and is the landing screen
   // on Android, so its dashboard needs the same treatment as the report pages.
   "/api/v1/dashboard/executive",
-  // /pos/tables joined OFFLINE_READ_ONLY_PATHS so the grid stays visible
-  // (read-only) instead of Android bouncing off it entirely — same fix as the
-  // six report routes above.
+  // The table grid also backs the offline order-entry route.
   "/api/v1/posAll/fetch_table",
   // /pos/order can now stage real writes offline on Android too (see
   // write-fallback.ts) — loadCart's first read on that page needs this to
@@ -70,6 +66,30 @@ const SAFE_BROWSER_FALLBACK_PATHS = new Set([
   // the real state on top; customer_order_queue stays refused — it belongs
   // to the public QR ordering flow, not this one.
   "/api/v1/posAll/fetch_cart",
+  "/api/v1/posAll/fetch_join_move_table",
+  "/api/v1/cancel/fetch_cancelable_bills",
+  "/api/v1/cancel/fetch_cancel_bills",
+  "/api/v1/posAll/credit/payment-selection",
+  "/api/v1/report_all/order_audit_log",
+  "/api/v1/packages/billing_cycles",
+  "/api/v1/packages/methods",
+  "/api/v1/packages/plans/fetch",
+  "/api/v1/packages/fetch_limit",
+  "/api/v1/store/fetch_limit",
+  "/api/v1/store/fetch_all",
+  "/api/v1/province/fetch_limit",
+  "/api/v1/province/fetch_all",
+  "/api/v1/district/fetch_limit",
+  "/api/v1/exchange/fetch_limit",
+  "/api/v1/zone/fetch_limit",
+  "/api/v1/table/fetch_limit",
+  "/api/v1/table/fetch_all",
+  "/api/v1/permission/menu",
+  "/api/v1/permission/fetch",
+  "/api/v1/permission/stores",
+  "/api/v1/permission/tree",
+  "/api/v1/sub_menu/fetch_all",
+  "/api/v1/register/get_id",
 ]);
 
 export type BrowserSyncEventStatus =

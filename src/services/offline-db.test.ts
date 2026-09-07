@@ -30,6 +30,7 @@ import {
   readBrowserOfflineCache,
   requestLocalFallback,
   retryBlockedBrowserSyncEvent,
+  supportsOfflineRoute,
 } from "@/services/offline-sync";
 
 class MemoryBrowserOfflineStore implements BrowserOfflineStore {
@@ -510,16 +511,12 @@ describe("queue scope isolation", () => {
 // pages must be able to read back what it cached, or it renders empty.
 describe("offline read-only pages can read their own cache back", () => {
   const READ_ONLY_PAGE_APIS: Record<string, readonly string[]> = {
-    "/sales/sales-list": [
-      "/api/v1/report_all/sale_list",
-      "/api/v1/report_all/sale_report_list",
-      "/api/v1/report_all/sale_report_bill",
+    "/package": [
+      "/api/v1/packages/billing_cycles",
+      "/api/v1/packages/methods",
+      "/api/v1/packages/plans/fetch",
+      "/api/v1/packages/fetch_limit",
     ],
-    "/report/daily-closing": ["/api/v1/report_all/daily_closing"],
-    "/report/daily-sales": ["/api/v1/report/sale_report"],
-    "/report/best-selling-products": ["/api/v1/best_selling/best_selling_products"],
-    "/report/payment-methods": ["/api/v1/report_all/payment_summary_by_method"],
-    "/report/category-sales": ["/api/v1/report_all/group_list"],
     "/products": ["/api/v1/product/fetch_limit"],
     "/stock": ["/api/v1/product/stock_qty"],
     "/printers": [
@@ -528,9 +525,46 @@ describe("offline read-only pages can read their own cache back", () => {
       "/api/v1/zone/fetch_all",
       "/api/v1/category/fetch_limit",
     ],
-    "/settings/user": ["/api/v1/register/fetch_limit"],
+    "/sales/sales-list": [
+      "/api/v1/report_all/sale_list",
+      "/api/v1/report_all/sale_report_list",
+      "/api/v1/report_all/sale_report_bill",
+    ],
+    "/sales/cancel-sale": ["/api/v1/cancel/fetch_cancelable_bills"],
+    "/sales/cancel-history": ["/api/v1/cancel/fetch_cancel_bills"],
+    "/sales/credit": ["/api/v1/posAll/credit/payment-selection"],
+    "/report/daily-closing": ["/api/v1/report_all/daily_closing"],
+    "/report/daily-sales": ["/api/v1/report/sale_report"],
+    "/report/best-selling-products": ["/api/v1/best_selling/best_selling_products"],
+    "/report/payment-methods": ["/api/v1/report_all/payment_summary_by_method"],
+    "/report/category-sales": ["/api/v1/report_all/group_list"],
+    "/report/order-audit": ["/api/v1/report_all/order_audit_log"],
+    "/settings/store": ["/api/v1/store/fetch_limit"],
     "/settings/branch": ["/api/v1/branch/fetch_all"],
-    "/pos/tables": ["/api/v1/posAll/fetch_table"],
+    "/settings/province": ["/api/v1/province/fetch_limit"],
+    "/settings/district": ["/api/v1/district/fetch_limit", "/api/v1/province/fetch_limit"],
+    "/settings/topping": ["/api/v1/topping/fetch_limit"],
+    "/settings/group": ["/api/v1/groups/fetch_limit"],
+    "/settings/category": ["/api/v1/category/fetch_limit", "/api/v1/groups/fetch_all"],
+    "/settings/unit": ["/api/v1/unite/fetch_limit"],
+    "/settings/size": ["/api/v1/sizes/fetch_limit"],
+    "/settings/color": ["/api/v1/colors/fetch_limit"],
+    "/settings/zone": ["/api/v1/zone/fetch_limit"],
+    "/settings/table": [
+      "/api/v1/table/fetch_limit",
+      "/api/v1/branch/fetch_all",
+      "/api/v1/zone/fetch_all",
+    ],
+    "/settings/currency": ["/api/v1/currency/fetch_all"],
+    "/settings/exchange": ["/api/v1/exchange/fetch_limit", "/api/v1/currency/fetch_all"],
+    "/settings/customer": ["/api/v1/customer/list"],
+    "/settings/user": ["/api/v1/register/fetch_limit"],
+    "/settings/manage-menu": ["/api/v1/sub_menu/fetch_all"],
+    "/settings/manage-access-permissions": [
+      "/api/v1/permission/stores",
+      "/api/v1/permission/tree",
+      "/api/v1/permission/fetch",
+    ],
   };
 
   it("covers every page in OFFLINE_READ_ONLY_PATHS", () => {
@@ -538,7 +572,10 @@ describe("offline read-only pages can read their own cache back", () => {
   });
 
   it.each(Object.entries(READ_ONLY_PAGE_APIS))("%s reads from the browser mirror", (_page, apis) => {
-    for (const api of apis) expect(isSafeBrowserCacheFallback(api)).toBe(true);
+    for (const api of apis) {
+      expect(supportsOfflineRoute("get", api)).toBe(true);
+      expect(isSafeBrowserCacheFallback(api)).toBe(true);
+    }
   });
 
   it("round-trips a cached report response for a page Android is allowed to open", async () => {

@@ -1,55 +1,74 @@
-// เพจที่จำเป็นสำหรับงานขายตอนออฟไลน์ — อ้างอิงจาก OFFLINE_ROUTES/OFFLINE_GET_ROUTES ใน
-// services/offline-sync.ts (API endpoint ที่รองรับ offline จริง) ต้องแก้คู่กันเสมอถ้าเพิ่ม/ลด endpoint
+// Every protected menu destination is viewable while offline on every platform.
+// Data comes from Agent SQLite on desktop or the scoped Dexie response mirror on
+// Capacitor. Mutations remain governed separately by OFFLINE_ROUTES in
+// services/offline-sync.ts; opening a page never implies that its writes are safe.
 export const OFFLINE_READ_ONLY_PATHS = [
-  // Master data ที่ Local Agent มี projection ให้อยู่แล้ว (localProductManagementResponse /
-  // localStockResponse / register/fetch_limit / branch/fetch_all) — เปิดให้ "อ่าน" ตอนออฟไลน์
-  // เท่านั้น ปุ่มเพิ่ม/แก้/ลบถูกปิดด้วย useOfflineReadOnly เพราะ route เขียนของ master data
-  // ไม่ได้อยู่ใน OFFLINE_ROUTES และไม่มี conflict policy รองรับการแก้ตอนออฟไลน์
+  "/package",
   "/products",
   "/stock",
-  // เพจเครื่องพิมพ์: /api/v1/printer/fetch อยู่ใน OFFLINE_GET_ROUTES อยู่แล้ว (Agent ตอบจาก
-  // localPrintersResponse, Android อ่านจาก Dexie mirror) — ตอนเน็ตหลุดคือตอนที่หน้าร้านต้องเปิดดู
-  // ว่าเครื่องพิมพ์ตัวไหนเปิด/ปิดอยู่มากที่สุด จึงไม่ล็อกเมนูนี้ ส่วนปุ่มเพิ่ม/แก้/ลบ/เปิด-ปิด/ทดสอบพิมพ์
-  // ถูกปิดด้วย useOfflineReadOnly เพราะทั้ง route เขียนและ build-test-job ต้องใช้ backend
   "/printers",
-  "/settings/user",
-  "/settings/branch",
   "/sales/sales-list",
+  "/sales/cancel-sale",
+  "/sales/cancel-history",
+  "/sales/credit",
   "/report/daily-closing",
   "/report/daily-sales",
   "/report/best-selling-products",
   "/report/payment-methods",
   "/report/category-sales",
-  // fetch_table is in OFFLINE_GET_ROUTES already (Agent answers from its own
-  // SQLite; Android reads the Dexie mirror the same way /sales/sales-list
-  // does) — the grid itself was reachable offline before this, only the route
-  // guard (isOfflineAllowedPath) bounced Android away from it because the
-  // page also lives in OFFLINE_WRITE_CAPABLE_PATHS below for opening a table.
-  "/pos/tables",
+  "/report/order-audit",
+  "/settings/store",
+  "/settings/branch",
+  "/settings/province",
+  "/settings/district",
+  "/settings/topping",
+  "/settings/group",
+  "/settings/category",
+  "/settings/unit",
+  "/settings/size",
+  "/settings/color",
+  "/settings/zone",
+  "/settings/table",
+  "/settings/currency",
+  "/settings/exchange",
+  "/settings/customer",
+  "/settings/user",
+  "/settings/manage-menu",
+  "/settings/manage-access-permissions",
 ] as const;
 
+// These screens have an established durable offline workflow in addition to
+// being viewable. Some operations inside them remain platform-specific; the API
+// transport rejects unsupported mobile operations instead of staging unsafe work.
 export const OFFLINE_WRITE_CAPABLE_PATHS = [
   "/pos/tables",
   "/pos/order",
   "/order_manage",
   "/report/offline-sync",
-  // ອໍເດີຄ້າງສົ່ງ: คุยกับ Local Agent ที่ 127.0.0.1:7777 อย่างเดียว ไม่แตะ backend เลย
-  // จึงใช้ได้ทั้งตอนออนไลน์และออฟไลน์ — แต่ไม่รวม Android เพราะไม่มี Agent ให้ถาม
   "/sales/stuck-orders",
 ] as const;
 
-// Android and iOS use Dexie, not an Agent. These pages allow order entry;
-// unsupported native print/payment completion is rejected before staging.
-const MOBILE_OFFLINE_WRITE_CAPABLE_PATHS = ["/pos/tables", "/pos/order"] as const;
+// App-entry and account/navigation shells contain no page-level business write.
+export const OFFLINE_INFRA_PATHS = [
+  "/",
+  "/home",
+  "/policy",
+  "/login",
+  "/pos",
+  "/more",
+  "/profile",
+] as const;
 
-// เพจ infra ที่ต้องใช้งานได้เสมอไม่ว่าสถานะออฟไลน์จะเป็นอย่างไร (ไม่ใช่ส่วนหนึ่งของฟีเจอร์
-// "sales-essential" — เป็นทางเข้า/ทางออกของแอปเอง)
-export const OFFLINE_INFRA_PATHS = ["/", "/login", "/pos"] as const;
+export const OFFLINE_PROTECTED_PATHS = [
+  ...OFFLINE_READ_ONLY_PATHS,
+  ...OFFLINE_WRITE_CAPABLE_PATHS,
+] as const;
 
 export function getOfflineAllowedPaths(isMobileNative: boolean): readonly string[] {
-  return isMobileNative
-    ? [...OFFLINE_READ_ONLY_PATHS, ...MOBILE_OFFLINE_WRITE_CAPABLE_PATHS]
-    : [...OFFLINE_READ_ONLY_PATHS, ...OFFLINE_WRITE_CAPABLE_PATHS];
+  // Route access is intentionally identical on desktop and Capacitor. Transport
+  // capabilities still differ and are enforced per endpoint in offline-sync.ts.
+  void isMobileNative;
+  return OFFLINE_PROTECTED_PATHS;
 }
 
 export function isOfflineAllowedPath(pathname: string, isMobileNative: boolean): boolean {
@@ -60,7 +79,5 @@ export function isOfflineAllowedPath(pathname: string, isMobileNative: boolean):
 }
 
 export function getOfflineRedirectPath(isMobileNative: boolean): string {
-  // Named, not OFFLINE_READ_ONLY_PATHS[0]: adding a page to that list must never
-  // silently move where an offline device lands.
   return isMobileNative ? "/sales/sales-list" : "/pos/tables";
 }

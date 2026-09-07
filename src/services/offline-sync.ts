@@ -8,6 +8,7 @@ import {
 } from "@/lib/network-state";
 import { AGENT_URL } from "@/config/printer-agent";
 import { isCapacitorMobileApp } from "@/lib/capacitor-platform";
+import { OFFLINE_SHELL_ROUTES } from "@/lib/offline-shell";
 import { agentRejected, agentResponseError } from "@/services/agent-link";
 import type { HttpMethod, RequestOptions } from "@/lib/api";
 import {
@@ -140,6 +141,32 @@ const OFFLINE_GET_ROUTES = new Set([
   "/api/v1/report_all/daily_closing",
   "/api/v1/best_selling/best_selling_products",
   "/api/v1/dashboard/executive",
+  // Formerly locked menu destinations are viewable offline. Their successful
+  // GET responses are mirrored into Agent SQLite and scoped Dexie; mutations
+  // remain online-only unless OFFLINE_ROUTES explicitly defines their replay.
+  "/api/v1/cancel/fetch_cancelable_bills",
+  "/api/v1/cancel/fetch_cancel_bills",
+  "/api/v1/posAll/credit/payment-selection",
+  "/api/v1/report_all/order_audit_log",
+  "/api/v1/packages/billing_cycles",
+  "/api/v1/packages/methods",
+  "/api/v1/packages/plans/fetch",
+  "/api/v1/packages/fetch_limit",
+  "/api/v1/store/fetch_limit",
+  "/api/v1/store/fetch_all",
+  "/api/v1/province/fetch_limit",
+  "/api/v1/province/fetch_all",
+  "/api/v1/district/fetch_limit",
+  "/api/v1/exchange/fetch_limit",
+  "/api/v1/zone/fetch_limit",
+  "/api/v1/table/fetch_limit",
+  "/api/v1/table/fetch_all",
+  "/api/v1/permission/menu",
+  "/api/v1/permission/fetch",
+  "/api/v1/permission/stores",
+  "/api/v1/permission/tree",
+  "/api/v1/sub_menu/fetch_all",
+  "/api/v1/register/get_id",
 ]);
 
 const LOCAL_READ_ROUTES = new Set([
@@ -669,13 +696,7 @@ export async function prepareOfflineSession(input: OfflineSessionInput) {
   );
   if (!response.data.ok) return false;
   try {
-    await warmOfflineRoutes([
-      "/", "/login", "/pos/tables", "/pos/order", "/order_manage",
-      "/products", "/stock", "/printers", "/sales/sales-list", "/report/daily-closing",
-      "/report/daily-sales", "/report/best-selling-products",
-      "/report/payment-methods", "/report/category-sales",
-      "/settings/user", "/settings/branch",
-    ]);
+    await warmOfflineRoutes([...OFFLINE_SHELL_ROUTES]);
   } catch {
     // Local data/auth is already ready even when this browser cannot use a service worker.
   }

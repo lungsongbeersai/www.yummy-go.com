@@ -1,4 +1,4 @@
-import { CORE_OFFLINE_SHELL_ROUTES, isOfflineShellRoute } from "../lib/offline-shell";
+import { isOfflineShellRoute } from "../lib/offline-shell";
 
 type DocumentCache = Pick<Cache, "match" | "put">;
 
@@ -18,13 +18,20 @@ export function isUsableDocument(response: Response | undefined): response is Re
 
 export async function cachedDocumentFallback(request: Request, cache: DocumentCache) {
   const url = new URL(request.url);
-  const staffShell = isOfflineShellRoute(url.pathname) && url.pathname !== "/pos";
+  const publicShell = ["/home", "/policy"].includes(url.pathname);
+  const staffShell = isOfflineShellRoute(url.pathname) && url.pathname !== "/pos" && !publicShell;
   // This cache contains only HTML. Next's RSC/prefetch Vary headers must not
   // prevent a warmed HTML document from answering a normal WebView navigation.
   const current = await cache.match(request, { ignoreSearch: staffShell, ignoreVary: true });
   if (isUsableDocument(current)) return current;
 
-  const fallbackPaths = url.pathname === "/login" ? [] : staffShell ? ["/pos/tables", "/login"] : ["/login"];
+  const fallbackPaths = url.pathname === "/login"
+    ? []
+    : url.pathname === "/policy"
+      ? ["/home", "/login"]
+      : staffShell
+        ? ["/pos/tables", "/login"]
+        : ["/login"];
   for (const path of fallbackPaths) {
     if (path === url.pathname) continue;
     const target = new URL(path, url.origin);
@@ -66,7 +73,7 @@ export async function warmOfflineDocuments(
     }
   }));
   return {
-    ok: CORE_OFFLINE_SHELL_ROUTES.every((path) => warmed.includes(path)),
+    ok: [...paths].every((path) => warmed.includes(path)),
     warmed: warmed.filter((path): path is string => path !== null),
   };
 }

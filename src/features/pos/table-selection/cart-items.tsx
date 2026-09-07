@@ -18,7 +18,7 @@ import { isRemoteUrl } from "@/lib/pos/product-media";
 import { cn } from "@/lib/utils";
 import type { CartItem } from "@/services/pos";
 import type { CartItemAction, CartTab } from "./types";
-import { cartItemActionUuid, cartItemBaseUnitPrice, cartItemDisplayName, cartItemMedia, cartItemName, cartItemQty, cartItemStatus, cartItemTotal, cartItemUuid, cartToppingDisplay, formatPlainValue, formatPositiveMoneyValue, formatQuantityValue, formatRate, isCanceledCartItem, isServedCartItem, optionalBoolean, optionalNumber, optionalString, positiveNumber, type CartItemMedia } from "./utils";
+import { cartItemActionUuid, cartItemBaseUnitPrice, cartItemDisplayName, cartItemMedia, cartItemName, cartItemQty, cartItemRemovalActions, cartItemStatus, cartItemTotal, cartItemUuid, cartToppingDisplay, formatPlainValue, formatPositiveMoneyValue, formatQuantityValue, formatRate, isCanceledCartItem, isServedCartItem, optionalBoolean, optionalNumber, optionalString, positiveNumber, type CartItemMedia } from "./utils";
 
 export function CartTabTrigger({
   active,
@@ -274,17 +274,7 @@ function CartItemRow({
     note
   );
   const isCanceled = isCanceledCartItem(item);
-  const canDelete = statusValue === 0 || statusValue === 1;
-  // ยกเลิกบางส่วนได้ทุกสถานะที่ยัง active (0/1 ยังไม่ยืนยัน, 2/3 ยืนยันแล้ว) — ตรงกับ
-  // ช่วงสถานะที่ cancel_order_item ฝั่ง backend/offline agent ยอมรับจริง (ดู
-  // LOCAL_ORDER_ITEM_NOT_CANCELLABLE ใน printer-agent/src/local-sync/operations.js)
-  // เดิมจำกัดไว้แค่ !editable (สถานะ 2/3 เท่านั้น) ทำให้รายการที่ยังไม่ยืนยันเลือก
-  // ยกเลิกได้แค่ทั้งเส้น (canDelete) ไม่มีให้เลือกจำนวนบางส่วนเลย
-  const canCancel =
-    statusValue !== null &&
-    [0, 1, 2, 3].includes(statusValue) &&
-    !isCanceled &&
-    !isServedCartItem(item);
+  const { canCancel, canDelete } = cartItemRemovalActions(item, editable);
   const canConfirmServed = !editable && statusValue !== 0 && statusValue !== 1 && !isCanceled && !isServedCartItem(item);
   // ปริ้นครัวซ้ำได้เฉพาะรายการที่ยืนยันแล้ว (เดียวกับ bucket ของ canCancel/canConfirmServed)
   // — ยังไม่ยืนยัน (0/1) หรือถูกยกเลิก/เสิร์ฟแล้วไม่มีอะไรให้พิมพ์ซ้ำ

@@ -120,7 +120,7 @@ describe("offline sync transport", () => {
     expect(supportsOfflineRoute("get", "/api/v1/register/fetch_limit")).toBe(true);
     expect(supportsOfflineRoute("post", "/api/v1/status/fetch_size")).toBe(true);
     expect(supportsOfflineRoute("get", "/api/v1/dashboard/executive")).toBe(true);
-    expect(supportsOfflineRoute("get", "/api/v1/permission/menu")).toBe(false);
+    expect(supportsOfflineRoute("get", "/api/v1/permission/menu")).toBe(true);
     expect(supportsOfflineRoute("post", "/api/v1/posAll/get_prod_item")).toBe(true);
     expect(supportsOfflineRoute("post", "/api/v1/posAll/init_order_without_table")).toBe(true);
     expect(supportsOfflineRoute("get", "/api/v1/posAll/fetch_join_move_table")).toBe(true);

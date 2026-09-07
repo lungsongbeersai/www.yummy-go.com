@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { cachedDocumentFallback, documentCacheKey, isUsableDocument, warmOfflineDocuments } from "./document-cache";
-import { CORE_OFFLINE_SHELL_ROUTES } from "../lib/offline-shell";
+import { CORE_OFFLINE_SHELL_ROUTES, OFFLINE_SHELL_ROUTES } from "../lib/offline-shell";
 
 const ORIGIN = "https://pos.test";
 const html = () => new Response("<!doctype html><html>POS</html>", { headers: { "Content-Type": "text/html", Vary: "RSC, Next-Router-Prefetch" } });
@@ -48,6 +48,18 @@ describe("offline HTML documents", () => {
     expect(result?.headers.get("location")).toBe(`${ORIGIN}/pos/tables`);
   });
 
+  it("opens the cached public landing and policy pages without redirecting into protected POS", async () => {
+    const { cache, entries } = memoryCache();
+    entries.set(`${ORIGIN}/home`, html());
+
+    const home = await cachedDocumentFallback(new Request(`${ORIGIN}/home`), cache);
+    expect(home?.status).toBe(200);
+
+    const policy = await cachedDocumentFallback(new Request(`${ORIGIN}/policy`), cache);
+    expect(policy?.status).toBe(302);
+    expect(policy?.headers.get("location")).toBe(`${ORIGIN}/home`);
+  });
+
   it("does not bounce an uncached login back to the protected POS in a redirect loop", async () => {
     const { cache, entries } = memoryCache();
     entries.set(`${ORIGIN}/pos/tables`, html());
@@ -66,8 +78,20 @@ describe("offline HTML documents", () => {
     const fetcher = vi.fn().mockImplementation(async () => html());
     const result = await warmOfflineDocuments(ORIGIN, [...CORE_OFFLINE_SHELL_ROUTES], cache, fetcher);
     expect(result.ok).toBe(true);
-    expect(entries.size).toBe(3);
+    expect(result.warmed).toEqual(expect.arrayContaining(["/", "/home", "/policy", "/login"]));
+    expect(entries.size).toBe(CORE_OFFLINE_SHELL_ROUTES.length);
     expect(fetcher.mock.calls[0][0].headers.get("Accept")).toBe("text/html");
+  });
+
+  it("accepts and warms every protected menu shell, including mobile settings", async () => {
+    const { cache, entries } = memoryCache();
+    const result = await warmOfflineDocuments(ORIGIN, [...OFFLINE_SHELL_ROUTES], cache, vi.fn().mockImplementation(async () => html()));
+    expect(result.ok).toBe(true);
+    expect(result.warmed).toContain("/package");
+    expect(result.warmed).toContain("/sales/cancel-sale");
+    expect(result.warmed).toContain("/settings/topping");
+    expect(result.warmed).toContain("/settings/manage-access-permissions");
+    expect(entries.size).toBe(OFFLINE_SHELL_ROUTES.length);
   });
 
   it.each([

@@ -43,8 +43,9 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     }
   }, [hydrated, isLoggedIn, pathname, router]);
 
-  // เน็ตหลุดกลางหน้าที่ไม่รองรับออฟไลน์ (เช่น /settings/user) หรือพิมพ์ URL ตรง ๆ ตอนออฟไลน์
-  // ต้องเด้งไปเพจที่จำเป็นสำหรับงานขายทันที — Android เหลือแค่หน้าที่อ่านอย่างเดียวได้ (ดู offline-routes.ts)
+  // Unknown/non-warmed routes still redirect to a dependable offline landing
+  // page. Established menu destinations are admitted on every platform; their
+  // per-endpoint transport remains responsible for read/write capability.
   useEffect(() => {
     if (!hydrated || !isLoggedIn || !offlineSession) return;
     if (isOfflineAllowedPath(pathname, isNativeApp)) return;

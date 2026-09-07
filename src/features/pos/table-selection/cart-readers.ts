@@ -294,6 +294,27 @@ export function isCanceledCartItem(item: CartItem) {
   return isCanceledCartStatus(cartItemStatus(item), statusText);
 }
 
+/**
+ * Destructive row actions follow the Backend contract:
+ * - the table's New tab (`editable`) never offers delete/cancel;
+ * - an unsent 0/1 line can still be hard-deleted on the no-table counter;
+ * - a kitchen-confirmed 2/3 line is cancelled (status 9), preserving its audit
+ *   trail and allowing the Backend to return stock;
+ * - served (4), cancelled (9), and unknown statuses have no destructive action.
+ */
+export function cartItemRemovalActions(item: CartItem, editable: boolean) {
+  const status = cartItemStatus(item);
+
+  if (editable || isCanceledCartItem(item) || isServedCartItem(item)) {
+    return { canCancel: false, canDelete: false };
+  }
+
+  return {
+    canCancel: status === 2 || status === 3,
+    canDelete: status === 0 || status === 1,
+  };
+}
+
 export function cartItems(cart: CartOrder | CartOrder[] | null) {
   return cartOrders(cart).flatMap((order) => order.items ?? []);
 }

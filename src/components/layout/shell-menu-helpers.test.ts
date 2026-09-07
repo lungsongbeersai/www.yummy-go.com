@@ -123,19 +123,17 @@ describe("applyOfflineLock", () => {
     expect(result.every((item) => !item.offlineLocked)).toBe(true);
   });
 
-  it("locks only paths outside the essential allowlist, recursively", () => {
+  it("leaves every established menu destination unlocked offline, recursively", () => {
     const [openTable, order, sales, users, topping] = applyOfflineLock(menu, true, false);
     expect(openTable.offlineLocked).toBe(false);
     expect(order.offlineLocked).toBe(false);
     expect(sales.children?.[0].offlineLocked).toBe(false);
-    expect(sales.children?.[1].offlineLocked).toBe(true);
-    // Master data the Agent projects locally stays reachable, read-only.
+    expect(sales.children?.[1].offlineLocked).toBe(false);
     expect(users.offlineLocked).toBe(false);
-    // Settings with no local projection stay locked.
-    expect(topping.offlineLocked).toBe(true);
+    expect(topping.offlineLocked).toBe(false);
   });
 
-  it("leaves the order-taking flow reachable on Android, unlike table move/join/split", () => {
+  it("leaves the order-taking flow reachable on Android", () => {
     const [openTable, order] = applyOfflineLock(menu, true, true);
     // Both stage offline now — write-fallback.ts synthesizes a response from
     // the Dexie outbox instead of needing a Local Agent Android doesn't have.

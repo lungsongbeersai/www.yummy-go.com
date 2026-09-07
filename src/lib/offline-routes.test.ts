@@ -15,25 +15,27 @@ describe("getOfflineAllowedPaths", () => {
     expect(paths).toContain("/sales/sales-list");
   });
 
-  it("keeps the order-taking flow but not table-move/join/split pages on Android", () => {
+  it("exposes the same menu destinations on Capacitor and desktop", () => {
     const paths = getOfflineAllowedPaths(true);
-    // Android now stages create/qty/note/discount/delete/cancel/kitchen-confirm/
-    // served/payment offline (write-fallback.ts synthesizes the response from
-    // the Dexie outbox, no Local Agent needed) — but /order_manage (table
-    // move/join/split) still requires the Agent Android doesn't have.
     expect(paths).toContain("/pos/tables");
     expect(paths).toContain("/pos/order");
-    expect(paths).not.toContain("/order_manage");
+    expect(paths).toContain("/order_manage");
+    expect(paths).toContain("/package");
+    expect(paths).toContain("/sales/cancel-sale");
+    expect(paths).toContain("/settings/topping");
+    expect(paths).toContain("/settings/manage-access-permissions");
     expect(paths).toContain("/sales/sales-list");
     expect(paths).toContain("/report/daily-closing");
+    expect(paths).toEqual(getOfflineAllowedPaths(false));
   });
 });
 
 describe("isOfflineAllowedPath", () => {
   it("allows exact matches only, never a prefix", () => {
     expect(isOfflineAllowedPath("/sales/sales-list", false)).toBe(true);
-    expect(isOfflineAllowedPath("/sales/cancel-sale", false)).toBe(false);
-    expect(isOfflineAllowedPath("/sales/cancel-history", false)).toBe(false);
+    expect(isOfflineAllowedPath("/sales/cancel-sale", false)).toBe(true);
+    expect(isOfflineAllowedPath("/sales/cancel-history", true)).toBe(true);
+    expect(isOfflineAllowedPath("/sales/cancel-sale/detail", false)).toBe(false);
   });
 
   it("opens master-data pages for reading, since the Agent projects them locally", () => {
@@ -81,16 +83,20 @@ describe("isOfflineAllowedPath", () => {
   });
 
   it("always allows infra pages regardless of platform or the essential-page list", () => {
+    expect(isOfflineAllowedPath("/", false)).toBe(true);
+    expect(isOfflineAllowedPath("/home", false)).toBe(true);
+    expect(isOfflineAllowedPath("/policy", true)).toBe(true);
     expect(isOfflineAllowedPath("/login", false)).toBe(true);
     expect(isOfflineAllowedPath("/login", true)).toBe(true);
     expect(isOfflineAllowedPath("/pos", true)).toBe(true);
   });
 
-  it("allows order-taking on Android, but not table move/join/split", () => {
+  it("allows every established sales screen on Android while transport still gates its operations", () => {
     expect(isOfflineAllowedPath("/pos/order", false)).toBe(true);
     expect(isOfflineAllowedPath("/pos/order", true)).toBe(true);
     expect(isOfflineAllowedPath("/order_manage", false)).toBe(true);
-    expect(isOfflineAllowedPath("/order_manage", true)).toBe(false);
+    expect(isOfflineAllowedPath("/order_manage", true)).toBe(true);
+    expect(isOfflineAllowedPath("/sales/stuck-orders", true)).toBe(true);
   });
 });
 

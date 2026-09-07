@@ -208,6 +208,61 @@ describe("synthesizeOfflineWrite", () => {
     expect(response.orders[0].items[0].qty).toBe(3);
   });
 
+  it("stages a Mobile Offline delete when its item UUID is mirrored in the request body", async () => {
+    const store = new MemoryBrowserOfflineStore();
+    await store.putApiCache({
+      key: "cart-delete",
+      storeUuid: SCOPE.storeUuid,
+      branchUuid: SCOPE.branchUuid,
+      method: "GET",
+      path: "/api/v1/posAll/fetch_cart",
+      requestFingerprint: "",
+      source: "ONLINE",
+      cachedAt: Date.now(),
+      response: {
+        orders: [{
+          order_uuid: ORDER,
+          table_uuid_fk: TABLE,
+          order_service_rate: 0,
+          order_vat_rate: 0,
+          order_vat_status: 1,
+          items: [{
+            order_it_uuid: "item-delete",
+            prod_name: "Noodle",
+            pro_detail_uuid: DETAIL,
+            detail: {
+              order_it_qty: 1,
+              order_it_status: 1,
+              unit_price: 20_000,
+              gross_total: 20_000,
+            },
+          }],
+        }],
+      },
+    });
+
+    const response = await synthesizeOfflineWrite(
+      "delete",
+      "/api/v1/posAll/delete_order_item",
+      {
+        params: { order_it_uuid: "item-delete" },
+        data: { order_it_uuid: "item-delete" },
+      },
+      "evt-delete",
+      SCOPE,
+      store,
+    ) as OfflineCartResponse;
+
+    expect(response.orders[0].items).toEqual([]);
+    expect(await store.getSyncQueue("evt-delete")).toMatchObject({
+      method: "DELETE",
+      path: "/api/v1/posAll/delete_order_item",
+      params: { order_it_uuid: "item-delete" },
+      data: { order_it_uuid: "item-delete" },
+      status: "STAGED",
+    });
+  });
+
   it("returns null for a route offline-order does not decode (table move stays Agent-only)", async () => {
     const store = new MemoryBrowserOfflineStore();
     const response = await synthesizeOfflineWrite(

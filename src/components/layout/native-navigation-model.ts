@@ -125,6 +125,9 @@ export function shouldShowBackButton(
   model: NativeNavigationModel,
   pathname: string,
 ): boolean {
+  // A direct destination stays a root screen even when it also has a fallback
+  // for the Android hardware-back action (notably tables -> dashboard).
+  if (model.direct.some((destination) => destination.path === pathname)) return false;
   if (backFallbackPath(pathname)) return true;
   return !model.direct.some((destination) =>
     isDestinationActive(destination, pathname),
