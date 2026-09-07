@@ -30,6 +30,8 @@ export interface OfflineOrderItem {
   discountType: string;
   discountValue: number;
   toppings: OfflineTopping[];
+  /** Sale-time Backend line, keyed by order item, never by the current menu price. */
+  snapshot?: Record<string, unknown>;
   /** Order in which the item entered the local queue; keeps the cart stable. */
   sequence: number;
 }
@@ -46,6 +48,7 @@ export interface OfflineOrder {
   vatRate: number;
   vatStatus: number | null;
   sequence: number;
+  snapshot?: Record<string, unknown>;
 }
 
 export interface OfflineOrderState {

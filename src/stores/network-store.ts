@@ -18,6 +18,10 @@ export const useNetworkStore = create<BackendNetworkStore>()((set) => ({
   replaceSnapshot: (snapshot) => set(snapshot),
 }));
 
+// A counter, not a timestamp: an API response may arrive in the same millisecond
+// as a failed health probe. That newer HTTP evidence must win in either case.
+let reachabilityRevision = 0;
+
 function navigatorHint() {
   return typeof navigator === "undefined" ? "unknown" : String(navigator.onLine);
 }
@@ -42,6 +46,9 @@ function commit(
 }
 
 export const backendNetworkManager = {
+  getReachabilityRevision() {
+    return reachabilityRevision;
+  },
   getSnapshot() {
     const snapshot = useNetworkStore.getState();
     return {
@@ -54,9 +61,11 @@ export const backendNetworkManager = {
     };
   },
   resetChecking(reason = "app_start") {
+    reachabilityRevision += 1;
     return commit(initialBackendNetworkSnapshot(reason), "CHECKING");
   },
   reportReachable(httpStatus: number | null, reason = "backend_http_response") {
+    reachabilityRevision += 1;
     return commit(
       applyBackendReachable(this.getSnapshot(), { httpStatus, reason }),
       "HTTP_RESPONSE",

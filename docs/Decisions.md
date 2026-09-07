@@ -6,6 +6,31 @@ Entries below dated from git history are backfilled from existing code comments 
 
 ---
 
+## Mobile menu reads recover online independently of pending bills
+
+- **Date:** 2026-09-08.
+- **Evidence:** After reconnect, a pending or blocked Dexie event routed category and product-detail requests into the exact offline cache even with a reachable Backend. A category/product not previously cached then raised `mobileCacheUnavailable`; native cache protection also rejected fresh master data while any bill was pending.
+- **Decision:** Exempt only `GET fetch_cate_products`, `POST get_prod_item` and `POST status/fetch_size` from native pending-order ownership and the late-order-version guard. Confirmed `OFFLINE` still reads Dexie; `CHECKING`/`ONLINE` may load those reads from Backend. Keep cart/table snapshots, bill initialization, edits, kitchen/payment and unsupported mutations on their existing ownership/safety rules. Desktop Agent routing and UI are unchanged.
+- **Persistence:** Native menu responses await their scoped cache write before immediate add-to-cart can use them. A local storage failure does not turn a successful Backend read into an offline verdict; local writes retain their validation. Menu cache refresh is allowed while cart replacement remains guarded. Native pruning pauses while this branch has pending/blocked work, within the same cache transaction, so browsing new categories cannot evict its recovery base; the normal cap resumes on a cache write after acknowledgement.
+- **Trade-off:** Pending/blocked bills and event payloads are neither cleared nor marked synced to unlock the menu. Temporarily retaining more than 300 cached responses protects recovery data, but does not remove the device storage quota or provide complete mobile pricing/bootstrap/printing parity. Tests use mocked transports/in-memory storage, not physical Android/iOS acceptance. No push, deployment or installer is included.
+
+## Mobile offline cart reads the real Backend line contract; warm actual HTML shells
+
+- **Date:** 2026-09-08.
+- **Evidence:** Owner reproduced a green fallback page and unnamed zero-valued cart rows with Internet disabled on Android. `fetchCartShared` sends `title` and `detail.unit_price` without a product-detail id. Previous offline tests invented `prod_name`/`pro_detail_uuid`, so the reducer's master-index lookup lost real cached lines.
+- **Decision:** Retain each original order/item snapshot in reconstructed local state, preferring that line's display/price over the menu or another bill. Read actual service/VAT aliases and numeric discounts, preserve receipt metadata, and normalize topping quantities per unit. Keep base and topping prices separate as Backend does. Missing product/price data raises an explicit error instead of a successful blank/zero cart; validate before staging new work. Original Dexie cache/outbox records are not rewritten or deleted.
+- **HTML recovery:** Install warms login, tables and order HTML, not just login. Warm requests accept only real successful HTML and acknowledge after cache writes; foreground/reconnect retries warming. Error fallback can read the HTML-only cache despite Next RSC Vary headers, or redirect a missing staff route to cached tables. It does not substitute staff pages for QR tokens or loop a missing login back to protected pages. AuthGuard is unchanged.
+- **Boundary:** This repairs cached mobile carts and shell recovery, not a bundled native app. First launch without a prepared shell, cache eviction/version coherence, iOS WebView support and real-device force-close acceptance remain unverified. Native offline print/payment guards remain in place; no claim of complete offline checkout, database migration, push or deployment.
+
+## Offline notices require confirmed Backend failures, never browser hints
+
+- **Date:** 2026-09-08.
+- **Context:** Owner explicitly requested no offline notification unless connectivity is actually lost, on desktop and Capacitor Android/iOS.
+- **Decision:** Supersedes cases 1 and 2 of the 2026-09-03 navigator exception below. Startup is always `CHECKING` with zero failures. Only three consecutive response-less health-probe failures declare `OFFLINE`; browser events and login/API failures do not count as confirmation. Existing local routing hints, Agent/Dexie ownership and print safeguards remain unchanged.
+- **Ordering:** A probe failure is ignored when an HTTP response or monitor reset occurred after that probe started. Health success wakes only the sync worker, not another health probe; external resume/retry events may wake both.
+- **Notification:** One warning per confirmed outage. `CHECKING` never produces an offline or back-online notice, and recovery requires an actual HTTP response. Printer/Agent availability, queued work and local authentication are not connectivity evidence.
+- **Trade-off:** The warning waits for confirmation even if the browser immediately reports offline. Backend unreachability is not a claim that every Internet service is down; the existing notice identifies the Yummy Go connection. No installer, deployment or mobile offline-checkout readiness is implied.
+
 ## Capacitor mobile uses Dexie, never the desktop Agent
 
 - **Date:** 2026-09-08.

@@ -1,6 +1,8 @@
 import { defaultCache, PAGES_CACHE_NAME } from "@serwist/next/worker";
 import { CacheFirst, ExpirationPlugin, NetworkFirst, NetworkOnly, Serwist } from "serwist";
 import type { PrecacheEntry, RuntimeCaching, SerwistGlobalConfig, SerwistPlugin } from "serwist";
+import { CORE_OFFLINE_SHELL_ROUTES } from "../lib/offline-shell";
+import { cachedDocumentFallback, documentCacheKey, isUsableDocument, warmOfflineDocuments } from "./document-cache";
 
 declare const process: {
   env: { NEXT_PUBLIC_PRINTER_AGENT_URL?: string };
@@ -14,7 +16,6 @@ declare global {
 
 declare const self: ServiceWorkerGlobalScope;
 
-const LOGIN_PATH = "/login";
 const LOCAL_AGENT_ORIGIN = new URL(
   process.env.NEXT_PUBLIC_PRINTER_AGENT_URL ?? "http://127.0.0.1:7777",
 ).origin;
@@ -56,17 +57,23 @@ function offlineFallbackResponse(): Response {
       `background:#16a34a;color:#fff;font-family:system-ui,-apple-system,sans-serif;text-align:center;padding:24px;box-sizing:border-box}` +
       `p{font-size:1.05rem;line-height:1.6;max-width:28rem}` +
       `button{margin-top:1rem;padding:.6rem 1.75rem;border-radius:.5rem;border:none;background:#fff;color:#16a34a;font-weight:600;font-size:1rem}` +
-      `</style></head><body><div><p>ອອບລາຍຢູ່ ແລະ ຍັງບໍ່ມີໜ້ານີ້ຢູ່ໃນເຄື່ອງ — ກະລຸນາເຊື່ອມຕໍ່ອິນເຕີເນັດ ແລ້ວລອງໃໝ່</p>` +
+      `</style></head><body><div><p>ໂຫຼດໜ້ານີ້ບໍ່ໄດ້ ແລະ ຍັງບໍ່ມີສຳເນົາໃນເຄື່ອງ — ກະລຸນາເຊື່ອມຕໍ່ ແລ້ວລອງໃໝ່. ບິນທີ່ບັນທຶກໄວ້ບໍ່ໄດ້ຖືກລຶບ.</p>` +
       `<button onclick="location.reload()">ລອງໃໝ່</button></div>` +
       `<script>addEventListener("online", () => location.reload());</script></body></html>`,
-    { status: 200, headers: { "Content-Type": "text/html; charset=utf-8" } },
+    { status: 200, headers: { "Content-Type": "text/html; charset=utf-8", "x-yummy-offline-fallback": "1", "Cache-Control": "no-store" } },
   );
 }
 
 const loginFallbackPlugin: SerwistPlugin = {
-  handlerDidError: async () => {
-    const cache = await caches.open(PAGES_CACHE_NAME.html);
-    return (await cache.match(LOGIN_PATH, { ignoreSearch: true })) ?? offlineFallbackResponse();
+  cacheKeyWillBeUsed: async ({ request }) => documentCacheKey(request),
+  cacheWillUpdate: async ({ response }) => isUsableDocument(response) ? response : null,
+  handlerDidError: async ({ request }) => {
+    try {
+      const cache = await caches.open(PAGES_CACHE_NAME.html);
+      return (await cachedDocumentFallback(request, cache)) ?? offlineFallbackResponse();
+    } catch {
+      return offlineFallbackResponse();
+    }
   },
 };
 
@@ -78,7 +85,7 @@ const documentStrategy = new NetworkFirst({
   // per-table URL misses the cache and loginFallbackPlugin bounces to /login.
   // NetworkFirst still fetches fresh first when online, so this only affects the
   // offline cache lookup.
-  matchOptions: { ignoreSearch: true },
+  matchOptions: { ignoreVary: true },
   plugins: [loginFallbackPlugin],
 });
 
@@ -182,12 +189,12 @@ const serwist = new Serwist({
 
 serwist.addEventListeners();
 
-// เข้าแคช /login ไว้ล่วงหน้าตั้งแต่ install เพื่อให้ loginFallbackPlugin มีอะไรให้ fallback ตั้งแต่
-// ครั้งแรกที่ใช้งาน — เรียกผ่าน strategy.handle() แทน fetch() ตรง ๆ เพราะ fetch จากใน SW เองไม่วิ่ง
-// เข้า fetch listener ของตัวเอง ต้องเรียก strategy ตรง ๆ ถึงจะเขียนแคชให้จริง
+// Prepare login AND the real cashier shells before install completes. API data
+// remains in Dexie; a cached JSON response alone cannot reopen a WebView page.
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    documentStrategy.handle({ event, request: LOGIN_PATH }).catch(() => undefined),
+    caches.open(PAGES_CACHE_NAME.html).then((cache) =>
+      warmOfflineDocuments(self.location.origin, [...CORE_OFFLINE_SHELL_ROUTES], cache)),
   );
 });
 
@@ -197,14 +204,9 @@ self.addEventListener("message", (event) => {
   if (event.data?.type !== "WARM_OFFLINE_ROUTES") return;
   const routes: string[] = Array.isArray(event.data.routes) ? event.data.routes.map(String) : [];
   event.waitUntil(
-    Promise.all(
-      routes.map((route) => {
-        const url = new URL(route, self.location.origin);
-        if (url.origin !== self.location.origin) return Promise.resolve();
-        return documentStrategy.handle({ event, request: url.pathname }).catch(() => undefined);
-      }),
-    ).then(
-      () => event.ports[0]?.postMessage({ ok: true }),
+    caches.open(PAGES_CACHE_NAME.html).then((cache) =>
+      warmOfflineDocuments(self.location.origin, routes, cache)).then(
+      (result) => event.ports[0]?.postMessage(result),
       () => event.ports[0]?.postMessage({ ok: false }),
     ),
   );

@@ -337,12 +337,13 @@ describe("offline cart money", () => {
     expect(totals.order_grand_total).toBe(36000);
   });
 
-  it("prices a topping into the unit price", () => {
+  it("keeps base and topping unit prices separate, matching Backend fetch_cart", () => {
     const cart = cartFrom([createOrder([item("item-1", 2, {
       toppings: [{ prod_topping_uuid_fk: "top-1", topping_qty: 1, topping_price: 5000 }],
     })])]);
 
-    expect(cart.orders[0].items[0].detail.unit_price).toBe(25000);
+    expect(cart.orders[0].items[0].detail.unit_price).toBe(20000);
+    expect(cart.orders[0].items[0].detail.topping_unit_total).toBe(5000);
     expect(cart.orders[0].totals.order_grand_total).toBe(50000);
   });
 

@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { BACKEND_NETWORK_STATE } from "@/lib/network-state";
 import { useNetworkStore } from "@/stores/network-store";
+import { connectivityNoticeForState } from "./connectivity-notice";
 
 const OFFLINE_TOAST_ID = "offline-connectivity";
 const BACK_ONLINE_TOAST_ID = "offline-connectivity-back";
@@ -16,13 +17,15 @@ const NOTICE_DURATION_MS = 3000;
 // กลับมาออนไลน์ใช้ toast สีเขียวเดิม
 export function OfflineConnectivityDialog() {
   const { t } = useTranslation();
-  const backendOffline =
-    useNetworkStore((state) => state.state) === BACKEND_NETWORK_STATE.OFFLINE;
+  const networkState = useNetworkStore((state) => state.state);
   const wasOfflineRef = useRef(false);
 
   useEffect(() => {
-    if (backendOffline) {
+    const notice = connectivityNoticeForState(networkState, wasOfflineRef.current);
+    if (networkState !== BACKEND_NETWORK_STATE.OFFLINE) toast.dismiss(OFFLINE_TOAST_ID);
+    if (notice === "offline") {
       wasOfflineRef.current = true;
+      toast.dismiss(BACK_ONLINE_TOAST_ID);
       toast.warning(t("offlineMode.dialogTitle"), {
         id: OFFLINE_TOAST_ID,
         description: t("offlineMode.toastDescription"),
@@ -32,7 +35,7 @@ export function OfflineConnectivityDialog() {
       });
       return;
     }
-    if (!wasOfflineRef.current) return;
+    if (notice !== "online") return;
     wasOfflineRef.current = false;
     toast.dismiss(OFFLINE_TOAST_ID);
     toast.success(t("offlineMode.backOnline"), {
@@ -40,11 +43,12 @@ export function OfflineConnectivityDialog() {
       duration: NOTICE_DURATION_MS,
       position: "bottom-center",
     });
-  }, [backendOffline, t]);
+  }, [networkState, t]);
 
   useEffect(
     () => () => {
       toast.dismiss(OFFLINE_TOAST_ID);
+      toast.dismiss(BACK_ONLINE_TOAST_ID);
     },
     [],
   );

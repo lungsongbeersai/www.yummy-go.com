@@ -3,7 +3,6 @@
 import {
   BACKEND_NETWORK_STATE,
   classifyBackendError,
-  navigatorReportsOffline,
   type BackendErrorClassification,
   type BackendNetworkState,
 } from "@/lib/network-state";
@@ -92,6 +91,7 @@ interface BackendNetworkMonitorOptions {
 }
 
 const RECONCILE_NOW_EVENT = "yummy-go:offline-reconcile-now";
+const BACKEND_PROBE_NOW_EVENT = "yummy-go:backend-probe-now";
 const SYNC_WORKER_LOCK = "yummy-go:offline-sync-worker";
 
 /**
@@ -138,6 +138,7 @@ export function offlineWorkerScopeKey(scope: {
 
 export function requestImmediateReconcile() {
   if (typeof window === "undefined") return;
+  window.dispatchEvent(new Event(BACKEND_PROBE_NOW_EVENT));
   window.dispatchEvent(new Event(RECONCILE_NOW_EVENT));
 }
 
@@ -214,26 +215,33 @@ function synchronizeAuthTransport(networkState: BackendNetworkState) {
   }
 }
 
-function applyProbeResult(result: BackendProbeResult) {
+function applyProbeResult(result: BackendProbeResult, startedAtRevision: number) {
+  // A normal API response (including HTTP errors) proves reachability even if
+  // an earlier health request subsequently times out. Do not overwrite it.
+  if (!result.reachable && startedAtRevision !== backendNetworkManager.getReachabilityRevision()) {
+    return backendNetworkManager.getSnapshot();
+  }
   const snapshot = result.reachable
     ? backendNetworkManager.reportReachable(result.httpStatus, result.reason)
     : result.classification === "NETWORK_TRANSPORT"
-      // This is the dedicated /sync/health probe — a confirmed connectivity
-      // verdict, the only source allowed to move POS to OFFLINE. When the browser
-      // itself also reports no network, a single failed probe is enough — skip
-      // the 3-strike wait. A later HTTP response still restores ONLINE.
+      // Only consecutive health-probe failures can declare OFFLINE. Browser
+      // hints and ordinary request failures cannot bypass the debounce.
       ? backendNetworkManager.reportTransportFailure(result.reason, {
           confirmed: true,
-          ...(navigatorReportsOffline() ? { failureThreshold: 1 } : {}),
         })
       : backendNetworkManager.reportNonNetwork(result.reason);
   synchronizeAuthTransport(snapshot.state);
-  if (snapshot.state === BACKEND_NETWORK_STATE.ONLINE) requestImmediateReconcile();
+  if (snapshot.state === BACKEND_NETWORK_STATE.ONLINE && typeof window !== "undefined") {
+    // Wake sync only. Asking for another probe here would create a zero-delay
+    // feedback loop on every successful health response.
+    window.dispatchEvent(new Event(RECONCILE_NOW_EVENT));
+  }
   return snapshot;
 }
 
 export async function probeBackendNow() {
-  return applyProbeResult(await probeBackendReachability());
+  const revision = backendNetworkManager.getReachabilityRevision();
+  return applyProbeResult(await probeBackendReachability(), revision);
 }
 
 export function startBackendNetworkMonitor(
@@ -266,9 +274,10 @@ export function startBackendNetworkMonitor(
   const probe = async () => {
     if (!active || probing) return;
     probing = true;
+    const revision = backendNetworkManager.getReachabilityRevision();
     try {
       const result = await probeBackend();
-      if (active) applyProbeResult(result);
+      if (active) applyProbeResult(result, revision);
     } catch (error) {
       if (!active) return;
       const classification = classifyBackendError(error);
@@ -277,7 +286,7 @@ export function startBackendNetworkMonitor(
         httpStatus: null,
         classification: classification.classification,
         reason: classification.reason,
-      });
+      }, revision);
     } finally {
       probing = false;
       const delay = probeRequested ? 0 : nextDelay();
@@ -297,7 +306,7 @@ export function startBackendNetworkMonitor(
   };
   window.addEventListener("offline", handleNetworkHint);
   window.addEventListener("online", handleNetworkHint);
-  window.addEventListener(RECONCILE_NOW_EVENT, handleNetworkHint);
+  window.addEventListener(BACKEND_PROBE_NOW_EVENT, handleNetworkHint);
   void probe();
 
   return () => {
@@ -305,7 +314,7 @@ export function startBackendNetworkMonitor(
     if (timer !== null) window.clearTimeout(timer);
     window.removeEventListener("offline", handleNetworkHint);
     window.removeEventListener("online", handleNetworkHint);
-    window.removeEventListener(RECONCILE_NOW_EVENT, handleNetworkHint);
+    window.removeEventListener(BACKEND_PROBE_NOW_EVENT, handleNetworkHint);
   };
 }
 

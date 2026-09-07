@@ -20,7 +20,7 @@ function list(value: unknown): unknown[] {
 }
 
 function text(value: unknown, fallback = "") {
-  return typeof value === "string" && value ? value : fallback;
+  return (typeof value === "string" || typeof value === "number") && String(value) ? String(value) : fallback;
 }
 
 function count(value: unknown, fallback = 0) {
@@ -28,13 +28,17 @@ function count(value: unknown, fallback = 0) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-function seedToppings(value: unknown): OfflineTopping[] {
+function seedToppings(value: unknown, quantity: number): OfflineTopping[] {
   return list(value).map((raw) => {
     const topping = record(raw);
     return {
+      ...topping,
       prod_topping_uuid_fk:
         text(topping.prod_topping_uuid_fk) || text(topping.prod_topping_uuid),
-      topping_qty: count(topping.topping_total_qty, count(topping.topping_qty, 1)),
+      topping_qty: count(topping.topping_qty_per_unit,
+        topping.topping_total_qty !== undefined && quantity > 0
+          ? count(topping.topping_total_qty) / quantity
+          : count(topping.topping_qty, 1)),
       topping_price: count(topping.topping_price),
     };
   });
@@ -56,14 +60,16 @@ export function seedOfflineStateFromCart(response: unknown): OfflineOrderState {
     if (!orderUuid) return;
     state.orders.set(orderUuid, {
       orderUuid,
+      snapshot: order,
       tableUuid: text(order.table_uuid_fk) || text(order.table_uuid) || null,
       branchUuid: text(order.branch_uuid_fk) || text(body.branch_uuid_fk),
       checkBill: 1,
       discountType: text(order.order_discount_type).toUpperCase(),
       discountValue: count(order.order_discount_value),
-      serviceRate: count(order.order_service_rate),
-      vatRate: count(order.order_vat_rate),
-      vatStatus: order.order_vat_status === undefined ? null : count(order.order_vat_status),
+      serviceRate: count(order.order_service_rate ?? order.service_charge_rate),
+      vatRate: count(order.order_vat_rate ?? order.vat_rate),
+      vatStatus: (order.order_vat_status ?? order.vat_status) == null
+        ? null : count(order.order_vat_status ?? order.vat_status),
       // Seeded orders sort before anything opened offline afterwards.
       sequence: -1_000_000 + orderIndex,
     });
@@ -77,6 +83,7 @@ export function seedOfflineStateFromCart(response: unknown): OfflineOrderState {
       const status = count(detail.order_it_status, OFFLINE_ITEM_STATUS.WAITING);
       if (status === OFFLINE_ITEM_STATUS.CANCELLED) return;
       state.items.set(orderItemUuid, {
+        snapshot: item,
         orderItemUuid,
         orderUuid,
         prodDetailUuid,
@@ -85,7 +92,7 @@ export function seedOfflineStateFromCart(response: unknown): OfflineOrderState {
         note: text(detail.order_it_note),
         discountType: text(detail.order_it_discount_type).toUpperCase(),
         discountValue: count(detail.order_it_discount_value),
-        toppings: seedToppings(item.toppings),
+        toppings: seedToppings(item.toppings, count(detail.order_it_qty, count(item.qty))),
         sequence: -1_000_000 + orderIndex * 1000 + itemIndex,
       });
     });

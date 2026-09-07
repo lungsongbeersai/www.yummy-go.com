@@ -3,18 +3,11 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/stores/auth-store";
+import { OFFLINE_SHELL_ROUTES as OFFLINE_ROUTES } from "@/lib/offline-shell";
 import {
   startBackendNetworkMonitor,
   startOfflineTransportMonitor,
 } from "@/stores/offline-transport-monitor";
-
-const OFFLINE_ROUTES = [
-  "/", "/login", "/pos", "/pos/tables", "/pos/order", "/order_manage",
-  "/products", "/stock", "/printers", "/sales/sales-list", "/report/daily-closing",
-  "/report/daily-sales", "/report/best-selling-products",
-  "/report/payment-methods", "/report/category-sales",
-  "/settings/user", "/settings/branch",
-] as const;
 
 export function OfflineAppRuntime() {
   const router = useRouter();
@@ -68,6 +61,9 @@ export function OfflineAppRuntime() {
       // skipWaiting + clientsClaim then triggers controllerchange -> reload.
       const checkForUpdate = () => {
         if (document.visibilityState === "hidden") return;
+        // A previous warm can fail during a brief connection loss. Retry the
+        // real HTML shells when the app returns, not only on its first mount.
+        registration.active?.postMessage({ type: "WARM_OFFLINE_ROUTES", routes: OFFLINE_ROUTES });
         void registration.update().catch(() => undefined);
       };
       document.addEventListener("visibilitychange", checkForUpdate);

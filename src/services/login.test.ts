@@ -135,18 +135,20 @@ describe("login service", () => {
     expect(backendNetworkManager.isOffline()).toBe(false);
   });
 
-  it("falls back only when a response-less failure confirms the Offline threshold", async () => {
+  it("does not let repeated login timeouts complete the health-probe failure threshold", async () => {
     backendNetworkManager.reportTransportFailure("network_failure", { confirmed: true });
     backendNetworkManager.reportTransportFailure("network_failure", { confirmed: true });
     apiMocks.post.mockRejectedValue(new axios.AxiosError("Network Error", "ERR_NETWORK"));
-    vi.spyOn(axios, "post").mockResolvedValue({
+    const localPost = vi.spyOn(axios, "post").mockResolvedValue({
       data: { ok: true, data: { ...loginResponse(), offline: true } }
     });
 
-    await expect(checkLogin("cashier@example.com", "password")).resolves.toMatchObject({
-      source: "offline",
-      token: "token-1",
-    });
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      await expect(checkLogin("cashier@example.com", "password")).rejects.toMatchObject({ code: "ERR_NETWORK" });
+    }
+    expect(backendNetworkManager.isOffline()).toBe(false);
+    expect(backendNetworkManager.getSnapshot().consecutiveFailures).toBe(2);
+    expect(localPost).not.toHaveBeenCalled();
   });
 
   it("restores a Backend JWT through the authenticated Local Agent session", async () => {

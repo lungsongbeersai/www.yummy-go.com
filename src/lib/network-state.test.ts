@@ -15,14 +15,17 @@ describe("Backend network state", () => {
     vi.unstubAllGlobals();
   });
 
-  it("seeds OFFLINE at cold start only when the browser itself reports no network", () => {
+  it("keeps cold start CHECKING even when the browser reports no network", () => {
     vi.stubGlobal("navigator", { onLine: false });
     const offlineHint = initialBackendNetworkSnapshot();
     expect(navigatorReportsOffline()).toBe(true);
-    expect(offlineHint.state).toBe(BACKEND_NETWORK_STATE.OFFLINE);
-    // A single continued confirmed failure must keep it pinned, not drop to CHECKING.
+    expect(offlineHint).toMatchObject({
+      state: BACKEND_NETWORK_STATE.CHECKING,
+      consecutiveFailures: 0,
+      lastCheckedAt: null,
+    });
     expect(applyBackendTransportFailure(offlineHint, { confirmed: true }).state)
-      .toBe(BACKEND_NETWORK_STATE.OFFLINE);
+      .toBe(BACKEND_NETWORK_STATE.CHECKING);
 
     vi.stubGlobal("navigator", { onLine: true });
     expect(initialBackendNetworkSnapshot().state).toBe(BACKEND_NETWORK_STATE.CHECKING);

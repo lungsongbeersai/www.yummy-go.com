@@ -178,6 +178,8 @@ interface CacheWriteInput extends CacheRequest {
   response: unknown;
   source: "AGENT" | "ONLINE";
   preservePendingOrders?: boolean;
+  /** Allow master-data refresh without evicting snapshots needed by the outbox. */
+  preservePendingOrderCache?: boolean;
   requestStartedAt?: number;
 }
 
@@ -355,10 +357,11 @@ export async function cacheBrowserApiResponse(
   if (!store || !input.storeUuid || !input.branchUuid) return false;
   if (serializedSize(input.response) > MAX_API_CACHE_RESPONSE_BYTES) return false;
   const cache = async () => {
-    const queued = input.preservePendingOrders ? await store.listSyncQueue(input) : [];
+    const queued = input.preservePendingOrders || input.preservePendingOrderCache
+      ? await store.listSyncQueue(input) : [];
     // A response started online can arrive after the cashier wrote locally.
     // Keep the old base until all local mutations have been acknowledged.
-    if (queued.some((entry) => entry.status !== "SYNCED" ||
+    if (input.preservePendingOrders && queued.some((entry) => entry.status !== "SYNCED" ||
       (input.requestStartedAt !== undefined && entry.updatedAt >= input.requestStartedAt))) return false;
     const cachedAt = Date.now();
     await store.putApiCache({
@@ -373,10 +376,15 @@ export async function cacheBrowserApiResponse(
       cachedAt,
       ...(input.preservePendingOrders ? { syncedThrough: queued.reduce((latest, entry) => Math.max(latest, entry.createdAt), 0) } : {}),
     });
-    await store.pruneApiCache(input, MAX_API_CACHE_ENTRIES);
+    // Browsing new categories during recovery must not evict the old cart base
+    // (or product data) needed to replay a pending/blocked bill. Resume the cap
+    // on the next successful cache write after acknowledgement.
+    if (!input.preservePendingOrderCache || !queued.some((entry) => entry.status !== "SYNCED")) {
+      await store.pruneApiCache(input, MAX_API_CACHE_ENTRIES);
+    }
     return true;
   };
-  if (!input.preservePendingOrders) return cache();
+  if (!input.preservePendingOrders && !input.preservePendingOrderCache) return cache();
   return store.transaction ? store.transaction(cache) : serializeStoreWrite(store, cache);
 }
 

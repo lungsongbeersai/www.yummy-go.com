@@ -2,16 +2,17 @@ import axios from "axios";
 import { Capacitor } from "@capacitor/core";
 import * as offlineSync from "@/services/offline-sync";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { apiClient, apiRequest } from "@/lib/api";
+import { apiClient, apiRequest, type HttpMethod } from "@/lib/api";
 import { BACKEND_NETWORK_STATE } from "@/lib/network-state";
 import { requestLocalFallback, resetLocalSyncConfiguration, runLocalSyncNow, shouldKeepLocalOrderOwnership } from "@/services/offline-sync";
-import { getBrowserSyncQueueSummary } from "@/services/offline-db";
+import { cacheBrowserApiResponse, getBrowserSyncQueueSummary } from "@/services/offline-db";
 import { useAuthStore, type AuthUser } from "@/stores/auth-store";
 import { backendNetworkManager } from "@/stores/network-store";
 
 vi.mock("@/services/offline-db", async (importOriginal) => ({
   ...await importOriginal<typeof import("@/services/offline-db")>(),
   getBrowserSyncQueueSummary: vi.fn(),
+  cacheBrowserApiResponse: vi.fn().mockResolvedValue(true),
 }));
 
 const user: AuthUser = {
@@ -22,6 +23,11 @@ const user: AuthUser = {
 };
 const emptyQueue = { staged: 0, pending: 0, processing: 0, failed: 0, blocked: 0, synced: 0 };
 const cartPath = "/api/v1/posAll/fetch_cart";
+const menuReads: Array<{ method: HttpMethod; path: string }> = [
+  { method: "get", path: "/api/v1/posAll/fetch_cate_products" },
+  { method: "post", path: "/api/v1/posAll/get_prod_item" },
+  { method: "post", path: "/api/v1/status/fetch_size" },
+];
 
 function status(pending = 0, blocked = 0, branch = user.branch_uuid) {
   return { data: { ok: true, data: {
@@ -148,6 +154,7 @@ describe("POS ownership across desktop reconnect", () => {
 
 describe.each(["android", "ios"])("Capacitor %s uses Dexie, never localhost Agent", (platform) => {
   beforeEach(() => {
+    vi.mocked(cacheBrowserApiResponse).mockClear().mockResolvedValue(true);
     const storage = new Map<string, string>();
     vi.stubGlobal("navigator", { onLine: true, userAgent: "" });
     vi.stubGlobal("window", { location: { origin: "https://pos.example.test" }, localStorage: {
@@ -165,6 +172,130 @@ describe.each(["android", "ios"])("Capacitor %s uses Dexie, never localhost Agen
     vi.spyOn(axios, "post");
   });
   afterEach(() => { useAuthStore.getState().logout(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+
+  describe.each(["pending", "blocked"] as const)("reconnect with %s bills", (queueStatus) => {
+    it.each(menuReads)("loads and caches $method $path online without releasing local bills", async ({ method, path }) => {
+      vi.mocked(getBrowserSyncQueueSummary).mockResolvedValue({ ...emptyQueue, [queueStatus]: 1 });
+      useAuthStore.getState().setOfflineSession(true);
+      const online = vi.spyOn(apiClient, method).mockResolvedValue({ status: 200, data: { status: "success", source: "online" } });
+      const local = vi.spyOn(offlineSync, "readBrowserOfflineCache").mockResolvedValue(null);
+      const options = method === "get" ? { params: { cate_uuid: "new-category" } } : { data: { prod_uuid: "new-product" } };
+
+      await expect(apiRequest(method, path, options)).resolves.toMatchObject({ source: "online" });
+      expect(online).toHaveBeenCalledOnce();
+      expect(local).not.toHaveBeenCalled();
+      expect(cacheBrowserApiResponse).toHaveBeenCalledWith(expect.objectContaining({
+        storeUuid: user.store_uuid, branchUuid: user.branch_uuid, method, path,
+        source: "ONLINE", preservePendingOrders: false,
+      }));
+      expect(useAuthStore.getState().offlineSession).toBe(false);
+      expect(backendNetworkManager.getSnapshot().state).toBe(BACKEND_NETWORK_STATE.ONLINE);
+
+      local.mockResolvedValue({ status: "success", source: "dexie" });
+      const get = vi.spyOn(apiClient, "get");
+      get.mockClear();
+      await expect(apiRequest("get", cartPath)).resolves.toMatchObject({ source: "dexie" });
+      expect(get).not.toHaveBeenCalled();
+      expect(axios.get).not.toHaveBeenCalled();
+      expect(axios.post).not.toHaveBeenCalled();
+    });
+  });
+
+  it("persists product details before returning them to the immediate add-to-cart flow", async () => {
+    const gate = Promise.withResolvers<boolean>();
+    vi.mocked(cacheBrowserApiResponse).mockReturnValueOnce(gate.promise);
+    vi.spyOn(apiClient, "post").mockResolvedValue({ status: 200, data: { status: "success" } });
+    let returned = false;
+    const request = apiRequest("post", "/api/v1/posAll/get_prod_item", { data: { prod_uuid: "new-product" } })
+      .then((response) => { returned = true; return response; });
+    await vi.waitFor(() => expect(cacheBrowserApiResponse).toHaveBeenCalledOnce());
+    try {
+      expect(returned).toBe(false);
+    } finally {
+      gate.resolve(true);
+      await request;
+    }
+    expect(returned).toBe(true);
+  });
+
+  it("keeps a successful menu read online even if local storage is unavailable", async () => {
+    vi.mocked(cacheBrowserApiResponse).mockRejectedValueOnce(new Error("QuotaExceededError"));
+    vi.spyOn(apiClient, "get").mockResolvedValue({ status: 200, data: { status: "success", source: "online" } });
+    await expect(apiRequest("get", menuReads[0].path)).resolves.toMatchObject({ source: "online" });
+    expect(backendNetworkManager.getSnapshot().state).toBe(BACKEND_NETWORK_STATE.ONLINE);
+    expect(useAuthStore.getState().offlineSession).toBe(false);
+  });
+
+  it("falls back to cached menu after a real transport failure without declaring offline", async () => {
+    vi.mocked(getBrowserSyncQueueSummary).mockResolvedValue({ ...emptyQueue, pending: 1 });
+    vi.spyOn(apiClient, "get").mockRejectedValue({ isAxiosError: true, code: "ERR_NETWORK", message: "Network Error" });
+    vi.spyOn(offlineSync, "readBrowserOfflineCache").mockResolvedValue({ status: "success", source: "dexie" });
+    await expect(apiRequest("get", menuReads[0].path)).resolves.toMatchObject({ source: "dexie" });
+    expect(backendNetworkManager.getSnapshot().state).not.toBe(BACKEND_NETWORK_STATE.OFFLINE);
+    expect(useAuthStore.getState().offlineSession).toBe(false);
+  });
+
+  it("surfaces a menu HTTP rejection instead of claiming its offline cache is missing", async () => {
+    vi.mocked(getBrowserSyncQueueSummary).mockResolvedValue({ ...emptyQueue, blocked: 1 });
+    vi.spyOn(apiClient, "post").mockRejectedValue({ isAxiosError: true, response: { status: 404, data: { message: "Product unavailable" } } });
+    const local = vi.spyOn(offlineSync, "readBrowserOfflineCache").mockResolvedValue(null);
+    await expect(apiRequest("post", "/api/v1/posAll/get_prod_item")).rejects.toThrow("Product unavailable");
+    expect(local).not.toHaveBeenCalled();
+    expect(backendNetworkManager.getSnapshot().state).toBe(BACKEND_NETWORK_STATE.ONLINE);
+  });
+
+  it("does not discard online product details when a local order changes during the read", async () => {
+    vi.spyOn(offlineSync, "browserOrderVersion").mockReturnValueOnce(0).mockReturnValue(1);
+    vi.spyOn(apiClient, "post").mockResolvedValue({ status: 200, data: { status: "success", source: "online" } });
+    const local = vi.spyOn(offlineSync, "readBrowserOfflineCache").mockResolvedValue(null);
+    await expect(apiRequest("post", "/api/v1/posAll/get_prod_item"))
+      .resolves.toMatchObject({ source: "online" });
+    expect(local).not.toHaveBeenCalled();
+  });
+
+  it("still rejects a late online cart when a local order changes during the read", async () => {
+    vi.spyOn(offlineSync, "browserOrderVersion").mockReturnValueOnce(0).mockReturnValue(1);
+    vi.spyOn(apiClient, "get").mockResolvedValue({ status: 200, data: { status: "success", source: "stale-online" } });
+    vi.spyOn(offlineSync, "readBrowserOfflineCache").mockResolvedValue({ status: "success", source: "dexie" });
+    await expect(apiRequest("get", cartPath)).resolves.toMatchObject({ source: "dexie" });
+    expect(cacheBrowserApiResponse).not.toHaveBeenCalled();
+  });
+
+  it("uses the online menu while reachability is being checked and bills are pending", async () => {
+    backendNetworkManager.resetChecking("reconnect");
+    vi.mocked(getBrowserSyncQueueSummary).mockResolvedValue({ ...emptyQueue, pending: 1 });
+    vi.spyOn(apiClient, "get").mockResolvedValue({ status: 200, data: { status: "success", source: "online" } });
+    vi.spyOn(offlineSync, "readBrowserOfflineCache").mockResolvedValue(null);
+    await expect(apiRequest("get", menuReads[0].path)).resolves.toMatchObject({ source: "online" });
+    expect(backendNetworkManager.getSnapshot().state).toBe(BACKEND_NETWORK_STATE.ONLINE);
+  });
+
+  it.each(menuReads)("keeps $method $path in Dexie while truly offline", async ({ method, path }) => {
+    backendNetworkManager.reportTransportFailure("test", { confirmed: true, failureThreshold: 1 });
+    const online = vi.spyOn(apiClient, method);
+    vi.spyOn(offlineSync, "readBrowserOfflineCache").mockResolvedValue({ status: "success", source: "dexie" });
+    await expect(apiRequest(method, path)).resolves.toMatchObject({ source: "dexie" });
+    expect(online).not.toHaveBeenCalled();
+    expect(cacheBrowserApiResponse).not.toHaveBeenCalled();
+  });
+
+  it("does not mistake counter-bill initialization for a harmless menu read", async () => {
+    vi.mocked(getBrowserSyncQueueSummary).mockResolvedValue({ ...emptyQueue, pending: 1 });
+    const online = vi.spyOn(apiClient, "post");
+    vi.spyOn(offlineSync, "readBrowserOfflineCache").mockResolvedValue(null);
+    await expect(apiRequest("post", "/api/v1/posAll/init_order_without_table"))
+      .rejects.toMatchObject({ statusCode: 503 });
+    expect(online).not.toHaveBeenCalled();
+  });
+
+  it("never sends a payment ahead of a pending local bill after reconnect", async () => {
+    vi.mocked(getBrowserSyncQueueSummary).mockResolvedValue({ ...emptyQueue, pending: 1 });
+    const online = vi.spyOn(apiClient, "post");
+    await expect(apiRequest("post", "/api/v1/posAll/payment", { data: { order_uuid: "order-1" } }))
+      .rejects.toMatchObject({ statusCode: 503 });
+    expect(online).not.toHaveBeenCalled();
+    expect(axios.post).not.toHaveBeenCalled();
+  });
 
   it("serves a confirmed-offline read immediately even when native navigator says online", async () => {
     backendNetworkManager.reportTransportFailure("test", { confirmed: true, failureThreshold: 1 });
@@ -185,6 +316,9 @@ describe.each(["android", "ios"])("Capacitor %s uses Dexie, never localhost Agen
     expect(backendNetworkManager.getSnapshot().state).toBe(BACKEND_NETWORK_STATE.ONLINE);
     vi.mocked(getBrowserSyncQueueSummary).mockResolvedValue({ ...emptyQueue });
     await expect(apiRequest("get", cartPath)).resolves.toMatchObject({ source: "online" });
+    expect(cacheBrowserApiResponse).toHaveBeenCalledWith(expect.objectContaining({
+      path: cartPath, preservePendingOrders: true,
+    }));
     expect(axios.get).not.toHaveBeenCalled();
     expect(axios.post).not.toHaveBeenCalled();
   });

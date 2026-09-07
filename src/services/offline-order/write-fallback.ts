@@ -176,6 +176,16 @@ export async function synthesizeOfflineWrite(
     throw new Error(i18n.t("offlineSync.mobilePreviousCashierPending"));
   }
 
+  // Validate the resulting cart before accepting a durable mutation. Missing
+  // product data must not create an unnamed/free line that syncs later.
+  const [base, master] = await Promise.all([
+    loadOfflineOrderState(scope, store),
+    loadOfflineMasterIndex(scope, store),
+  ]);
+  const preview = reduceOfflineOrderEvents([event], base);
+  const previewOrder = resolveOrderUuid(preview, data);
+  if (previewOrder) projectOfflineCart(preview, { order_uuid: previewOrder }, master);
+
   const staged = await stageBrowserSyncRequest(
     {
       eventUuid,
@@ -192,10 +202,7 @@ export async function synthesizeOfflineWrite(
   );
   if (!staged) throw new Error(i18n.t("offlineSync.mobileStorageUnavailable"));
 
-  const [state, master] = await Promise.all([
-    loadOfflineOrderState(scope, store),
-    loadOfflineMasterIndex(scope, store),
-  ]);
+  const state = await loadOfflineOrderState(scope, store);
 
   const orderUuid = resolveOrderUuid(state, data);
   return projectOfflineCart(state, orderUuid ? { order_uuid: orderUuid } : {}, master);

@@ -139,12 +139,9 @@ export async function checkLogin(login_email: string, login_password: string): P
       throw error;
     }
     if (classification.classification === "NETWORK_TRANSPORT") {
-      // The login request is itself a real backend round-trip, so a
-      // response-less failure here is a confirmed connectivity verdict — the
-      // same weight as the /sync/health probe.
-      backendNetworkManager.reportTransportFailure(classification.reason, {
-        confirmed: true,
-      });
+      // A slow login endpoint is not a connectivity verdict. Leave confirmation
+      // to the health monitor, just like ordinary authenticated API requests.
+      backendNetworkManager.reportTransportFailure(classification.reason);
     }
     if (
       !isCapacitorMobileApp() &&

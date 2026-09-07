@@ -1,4 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import * as offlineDb from "@/services/offline-db";
+import { cacheOnlineResponse } from "@/services/offline-sync";
 import type {
   BrowserApiCacheEntry,
   BrowserOfflineScope,
@@ -6,8 +8,8 @@ import type {
   BrowserSyncQueueEntry,
   BrowserSyncStatusEntry,
 } from "@/services/offline-db";
-import { loadOfflineOrderState, synthesizeOfflineWrite } from "./write-fallback";
-import type { OfflineCartResponse } from "./cart-projection";
+import { loadOfflineMasterIndex, loadOfflineOrderState, synthesizeOfflineWrite } from "./write-fallback";
+import { projectOfflineCart, type OfflineCartResponse } from "./cart-projection";
 
 const SCOPE = { storeUuid: "store-1", branchUuid: "branch-1", actorLoginUuid: "login-1" };
 const TABLE = "77777777-7777-4777-8777-777777777777";
@@ -91,6 +93,15 @@ function seedCategoryCache(store: MemoryBrowserOfflineStore) {
 }
 
 describe("synthesizeOfflineWrite", () => {
+  it("does not stage an unpriced or unnamed create when its product cache is missing", async () => {
+    const store = new MemoryBrowserOfflineStore();
+    await expect(synthesizeOfflineWrite("post", "/api/v1/posAll/create_order", {
+      data: { order_uuid: ORDER, table_uuid_fk: TABLE, branch_uuid_fk: SCOPE.branchUuid,
+        items: [{ order_it_uuid: "missing", prod_detail_uuid_fk: DETAIL, order_it_qty: 1 }] },
+    }, "missing-master", SCOPE, store)).rejects.toThrow();
+    expect(store.syncQueue.size).toBe(0);
+  });
+
   it("never returns success when IndexedDB and its durable outbox are unavailable", async () => {
     await expect(synthesizeOfflineWrite("patch", "/api/v1/posAll/update_note",
       { data: { order_item_uuid: "item-1", order_it_note: "test" } }, "no-database", SCOPE)).rejects.toThrow();
@@ -237,5 +248,47 @@ describe("loadOfflineOrderState", () => {
     const state = await loadOfflineOrderState(SCOPE, store);
     expect(state.orders.size).toBe(0);
     expect(state.items.size).toBe(0);
+  });
+});
+
+describe("mobile menu refresh followed by local add", () => {
+  afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+
+  it.each(["PENDING", "BLOCKED"] as const)("warms a new product and preserves the original %s bill", async (status) => {
+    const store = new MemoryBrowserOfflineStore();
+    const cache = offlineDb.cacheBrowserApiResponse;
+    await cache({ ...SCOPE, method: "get", path: "/api/v1/posAll/fetch_cart", source: "ONLINE",
+      response: { orders: [{ order_uuid: ORDER, table_uuid_fk: TABLE, items: [{
+        order_it_uuid: "original-item", title: "Original item", detail: { order_it_qty: 1, unit_price: 40000, order_it_status: 1 },
+      }] }] },
+    }, store);
+    await synthesizeOfflineWrite("patch", "/api/v1/posAll/update_note", {
+      data: { order_item_uuid: "original-item", order_it_note: "keep this" },
+    }, "original-event", SCOPE, store);
+    await offlineDb.updateBrowserSyncEvent("original-event", { status }, store);
+    const originalEvent = structuredClone(await store.getSyncQueue("original-event"));
+
+    vi.stubGlobal("window", {});
+    vi.spyOn(offlineDb, "cacheBrowserApiResponse").mockImplementation((input) => cache(input, store));
+    await cacheOnlineResponse("post", "/api/v1/posAll/get_prod_item", { data: { prod_uuid: PRODUCT } }, {
+      status: "success", data: { prod_uuid: PRODUCT, prod_name: "New product",
+        details: [{ pro_detail_uuid: DETAIL, price: 24000 }], toppings: [] },
+    }, SCOPE.branchUuid, SCOPE.storeUuid, false, Date.now());
+
+    const data = { order_uuid: "next-create", table_uuid_fk: TABLE, branch_uuid_fk: SCOPE.branchUuid,
+      items: [{ order_it_uuid: "new-item", prod_detail_uuid_fk: DETAIL, order_it_qty: 1 }] };
+    const added = await synthesizeOfflineWrite("post", "/api/v1/posAll/create_order", { data }, "new-event", SCOPE, store) as OfflineCartResponse;
+    expect(added.orders[0]).toMatchObject({ order_uuid: ORDER, sum_grand_total: 64000 });
+    expect(added.orders[0].items).toEqual(expect.arrayContaining([
+      expect.objectContaining({ order_it_uuid: "original-item", title: "Original item", detail: expect.objectContaining({ unit_price: 40000, order_it_note: "keep this" }) }),
+      expect.objectContaining({ order_it_uuid: "new-item", title: "New product", detail: expect.objectContaining({ unit_price: 24000 }) }),
+    ]));
+    expect(await store.getSyncQueue("original-event")).toEqual(originalEvent);
+    expect(await store.getSyncQueue("new-event")).toMatchObject({ data, status: "STAGED" });
+
+    // Rebuild from durable records, not the single response returned by add.
+    const restored = projectOfflineCart(await loadOfflineOrderState(SCOPE, store), { table_uuid: TABLE }, await loadOfflineMasterIndex(SCOPE, store));
+    expect(restored.orders[0].items).toHaveLength(2);
+    expect(restored.orders[0].sum_grand_total).toBe(64000);
   });
 });

@@ -14,6 +14,7 @@ import { shouldLogoutForUnauthorized } from "@/lib/unauthorized-session";
 import {
   cacheOnlineResponse,
   browserOrderVersion,
+  isBrowserMenuRead,
   readBrowserOfflineCache,
   configureLocalSync,
   mirrorOnlineResponse,
@@ -218,9 +219,11 @@ export async function apiRequest<T>(
   };
   const networkState = backendNetworkManager.getSnapshot().state;
   const localAgentAvailable = !isCapacitorMobileApp();
+  const browserMenuRead = !localAgentAvailable && isBrowserMenuRead(method, url);
   const browserVersionAtStart = browserOrderVersion(localScope);
   const browserOwnsOrders = !localAgentAvailable && supportsOfflineRoute(method, url) &&
-    (networkState === BACKEND_NETWORK_STATE.OFFLINE || await shouldKeepBrowserOrderOwnership(localScope));
+    (networkState === BACKEND_NETWORK_STATE.OFFLINE ||
+      (!browserMenuRead && await shouldKeepBrowserOrderOwnership(localScope)));
   if (browserOwnsOrders) {
     // A reachable server may not know this bill yet. Never let a cache miss or
     // unsupported mobile mutation fall through and overtake its queued create.
@@ -292,7 +295,7 @@ export async function apiRequest<T>(
     backendNetworkManager.reportReachable(response.status, "backend_api_success");
     synchronizeOfflineSessionWithBackend();
     const data = assertApiSuccess(response.data);
-    if (!localAgentAvailable && !prepared.eventUuid && supportsBrowserOfflineRoute(method, url) &&
+    if (!localAgentAvailable && !browserMenuRead && !prepared.eventUuid && supportsBrowserOfflineRoute(method, url) &&
         browserOrderVersion(localScope) !== browserVersionAtStart) {
       const local = await readBrowserOfflineCache<T>(method, url, requestOptions, localScope);
       if (local !== null) return assertApiSuccess(local);
@@ -341,7 +344,7 @@ export async function apiRequest<T>(
         );
       });
     } else {
-      cacheOnlineResponse(
+      const cached = cacheOnlineResponse(
         method,
         url,
         requestOptions,
@@ -351,6 +354,9 @@ export async function apiRequest<T>(
         localAgentAvailable,
         requestStartedAt,
       );
+      // openOrAddProduct can immediately stage a local create while older bills
+      // sync. Its price/name must already be available in Dexie at that point.
+      if (browserMenuRead) await cached;
     }
     return data;
   } catch (error) {

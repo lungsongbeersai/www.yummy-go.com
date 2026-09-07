@@ -144,6 +144,7 @@
     "tryAgain": "Try again"
   },
   "offlineSync": {
+    "mobileCartDataUnavailable": "This device does not have complete item names or prices for this bill. The bill is retained. Reconnect to load it before continuing; missing prices are not zero.",
     "blockedTitle": "Offline sync needs review",
     "blockedDescription": "{{count}} offline transaction(s) were rejected by the server. Online mode is available, but review them before closing the shift.",
     "mobileOperationUnavailable": "This action is not available offline on mobile. Keep the saved bill and reconnect before retrying.",

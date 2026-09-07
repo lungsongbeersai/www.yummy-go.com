@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { OFFLINE_SHELL_ROUTES } from "@/lib/offline-shell";
 
 const testDir = dirname(fileURLToPath(import.meta.url));
 const serviceWorkerSource = readFileSync(
@@ -114,7 +115,7 @@ describe("offline asset cache", () => {
     expect(offlineTransportMonitor).toContain("resumeOnlineSession(restored.token, restored.user)");
     expect(offlineTransportMonitor).toContain("offlineSync.blockedTitle");
     expect(offlineTransportMonitor).toContain("auth.setOfflineSession(false)");
-    expect(offlineRuntime).toContain('\"/pos\"');
+    expect(OFFLINE_SHELL_ROUTES).toContain("/pos");
   });
 
   it("never routes either Capacitor mobile app to the Desktop Printer Agent", () => {
@@ -125,7 +126,7 @@ describe("offline asset cache", () => {
     // the same flag, so no request is ever aimed at 127.0.0.1:7777.
     expect(apiTransport).toContain("localScope.storeUuid,\n          localAgentAvailable,");
     expect(apiTransport).toContain("localScope.storeUuid,\n        localAgentAvailable,");
-    expect(offlineSync).toContain("if (!agentAvailable) return;");
+    expect(offlineSync).toContain("if (!agentAvailable) return browserCache;");
   });
 
   it("gives the Capacitor Android app an offline read path that needs no Agent", () => {

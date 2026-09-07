@@ -31,7 +31,9 @@ function toppings(value: unknown): OfflineTopping[] {
     return {
       prod_topping_uuid_fk: text(topping.prod_topping_uuid_fk),
       topping_qty: count(topping.topping_qty, 1),
-      topping_price: count(topping.topping_price, 0),
+      // Staff create payloads omit prices; look them up in cached product data.
+      // An omitted price is not an explicitly free topping.
+      ...(topping.topping_price == null ? {} : { topping_price: count(topping.topping_price) }),
     };
   });
 }

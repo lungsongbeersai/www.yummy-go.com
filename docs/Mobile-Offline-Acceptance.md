@@ -6,12 +6,15 @@ Status: transport and durability hardening only. **Do not release as complete of
 
 - Android and iOS Capacitor apps use Dexie for local reads and staged order edits. No local Agent configuration, login cache, health request, or mirror write is sent by this transport.
 - Printer identity resolution bypasses the five-second localhost Agent probe on mobile, retaining the existing browser-device id. The cashier sync badge reads Dexie on mobile instead of polling Agent status.
-- Confirmed-offline supported reads/edits do not first wait for the Backend timeout. On reconnect the branch stays locally owned until its queue is empty, including blocked work.
+- Confirmed-offline supported reads/edits do not first wait for the Backend timeout. On reconnect bill operations stay locally owned until the branch queue is empty, including blocked work. Category/product-detail/size reads may load online immediately; their scoped cache writes complete before the immediate add flow uses them.
 - Backend registration must succeed before the worker pushes. Store, branch and cashier remain fixed for a worker cycle; a logout/switch stops further sends while an in-flight acknowledgement can still update its original record.
 - Native foreground wake triggers a Backend reachability probe and reconciliation. This does not promise background sync while the OS has suspended the app.
 - Retry uses the frozen request and original event id. An earlier failure holds later operations; no priority-ordered batch can send payment before creation.
 - Late online cache writes cannot overwrite pending local work. A fresh acknowledged server cart carries a replay watermark so quantities are not added twice.
+- Native menu cache refresh does not prune the branch's recovery cache while events are pending or blocked. The normal cache cap resumes after acknowledgement; device storage limits still apply.
 - No schema version bump, SQL table, database wipe, dependency installation or native installer is included.
+- Cached cart rows now retain the actual Backend `title`/`detail.unit_price` snapshot per order item, even without product-detail ids. Tax/service aliases and topping quantities are read from that same response. Missing names/prices stop projection and new staging instead of becoming blank/free items.
+- The service worker warms login/tables/order HTML during install and retries route warming on foreground/reconnect. Its error fallback may reopen a cached staff shell despite Next's RSC Vary headers. This is cache recovery, not an embedded native offline bundle or physical-device cold-start certification.
 
 ## Required implementation before mobile checkout release
 
@@ -31,6 +34,7 @@ Use a test branch and test printers, not production takings. Keep the router/LAN
 | View cached menu/cart; disconnect WAN while native navigator still says online | Probe confirms offline; subsequent supported requests read Dexie without Backend/Agent timeouts |
 | Add order, change quantity/note, kill and reopen | Same order/item/event ids and amounts survive; no lost edits |
 | Reconnect during an order edit | Cart remains local until acknowledgements; late online response does not erase it |
+| Reconnect with pending/blocked bills, select an uncached category/product, immediately add | Menu/options load online; the new local item has its name/price; earlier events and cached bill lines remain intact; no Agent request or false offline notice |
 | Drop the push response after Backend commit | Retry sends the identical event and payload; one server mutation |
 | Fail an earlier event | No later payment/edit overtakes it; record stays inspectable |
 | Switch cashier/store/branch | No events are replayed as the new cashier or copied across branches |

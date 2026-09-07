@@ -1113,6 +1113,36 @@ describe("pushing a staged create_order to Backend never sends a discarded order
 describe("native cache and durable write boundaries", () => {
   afterEach(() => { vi.restoreAllMocks(); });
 
+  it.each(["PENDING", "BLOCKED"] as const)("refreshes menu without evicting the cart base for a %s bill", async (status) => {
+    const store = new MemoryBrowserOfflineStore();
+    const cartRequest = { ...scope, method: "get", path: "/api/v1/posAll/fetch_cart" };
+    const cart = { orders: [{ order_uuid: "order-1", items: [{ order_it_uuid: "item-1", title: "Original item",
+      detail: { order_it_qty: 1, unit_price: 40000, order_it_status: 1 } }] }] };
+    await cacheBrowserApiResponse({ ...cartRequest, response: cart, source: "ONLINE" }, store);
+    for (const entry of store.apiCache.values()) entry.cachedAt = 1;
+    await stageBrowserSyncRequest({ ...scope, eventUuid: "pending-menu", method: "patch",
+      path: "/api/v1/posAll/update_note", data: { order_item_uuid: "item-1", order_it_note: "keep" } }, store);
+    await updateBrowserSyncEvent("pending-menu", { status }, store);
+    const originalEvent = await store.getSyncQueue("pending-menu");
+    const menuRequest = { ...scope, method: "get", path: "/api/v1/posAll/fetch_cate_products", source: "ONLINE" as const,
+      preservePendingOrders: false, preservePendingOrderCache: true };
+    for (let category = 0; category < 301; category++) {
+      await cacheBrowserApiResponse({ ...menuRequest, params: { cate_uuid: category }, response: { data: [{ cate_uuid: category }] } }, store);
+    }
+    expect(await store.listApiCacheByPath(scope, cartRequest.path)).toHaveLength(1);
+    expect(await store.getSyncQueue("pending-menu")).toEqual(originalEvent);
+    expect(store.apiCache.size).toBe(302);
+    const state = await loadOfflineOrderState(scope, store);
+    expect(state.items.get("item-1")).toMatchObject({ note: "keep", snapshot: { title: "Original item", detail: { unit_price: 40000 } } });
+    await expect(readBrowserApiFallback({ ...menuRequest, params: { cate_uuid: 300 } }, store))
+      .resolves.toMatchObject({ data: [{ cate_uuid: 300 }] });
+    await expect(readBrowserApiFallback({ ...menuRequest, branchUuid: "other-branch", params: { cate_uuid: 300 } }, store)).resolves.toBeNull();
+
+    await updateBrowserSyncEvent("pending-menu", { status: "SYNCED" }, store);
+    await cacheBrowserApiResponse({ ...menuRequest, response: { data: [] } }, store);
+    expect(store.apiCache.size).toBe(300);
+  });
+
   it("allocates unique increasing sequence values for simultaneous staged writes", async () => {
     const store = new MemoryBrowserOfflineStore();
     const entries = await Promise.all(Array.from({ length: 20 }, (_, index) => stageBrowserSyncRequest({

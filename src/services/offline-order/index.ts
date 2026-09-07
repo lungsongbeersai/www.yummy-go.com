@@ -5,6 +5,7 @@ export {
   type OfflineCartOrder,
   type OfflineCartResponse,
 } from "./cart-projection";
+export { OfflineCartDataUnavailableError } from "./cart-data-error";
 export {
   buildOfflineMasterIndex,
   emptyOfflineMasterIndex,

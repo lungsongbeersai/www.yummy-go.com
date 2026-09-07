@@ -8,6 +8,8 @@ import { resetLocalSyncConfiguration } from "@/services/offline-sync";
 import { useAuthStore, type AuthUser } from "@/stores/auth-store";
 import {
   probeBackendReachability,
+  probeBackendNow,
+  requestImmediateReconcile,
   getCurrentSyncPending,
   startBackendNetworkMonitor,
   offlineWorkerScopeKey,
@@ -176,7 +178,7 @@ describe("Backend NetworkManager", () => {
     stop();
   });
 
-  it("goes OFFLINE on the first failed probe once the browser itself reports no network", async () => {
+  it("still requires three failed probes when the browser starts reporting no network", async () => {
     const browser = installBrowser(true);
     const probeBackend = vi.fn().mockResolvedValue(unreachable());
     const stop = startBackendNetworkMonitor({
@@ -193,9 +195,11 @@ describe("Backend NetworkManager", () => {
     browser.setOnline(false);
     expect(useNetworkStore.getState().state).toBe(BACKEND_NETWORK_STATE.CHECKING);
 
-    // The probe it schedules then fails while navigator.onLine === false, which
-    // is an immediate offline verdict — no 3-strike wait.
+    // The hint cannot shorten confirmation, even when the next probe fails.
     await vi.advanceTimersByTimeAsync(0);
+    expect(useNetworkStore.getState().state).toBe(BACKEND_NETWORK_STATE.CHECKING);
+    expect(useAuthStore.getState().offlineSession).toBe(false);
+    await vi.advanceTimersByTimeAsync(500);
     expect(useNetworkStore.getState().state).toBe(BACKEND_NETWORK_STATE.OFFLINE);
     expect(useAuthStore.getState().offlineSession).toBe(true);
     stop();
@@ -206,6 +210,8 @@ describe("Backend NetworkManager", () => {
     const stop = startBackendNetworkMonitor({
       probeBackend: vi.fn().mockResolvedValue(reachable()),
     });
+    expect(useNetworkStore.getState().state).toBe(BACKEND_NETWORK_STATE.CHECKING);
+    expect(useAuthStore.getState().offlineSession).toBe(false);
     await flushPromises();
 
     expect(useNetworkStore.getState().state).toBe(BACKEND_NETWORK_STATE.ONLINE);
@@ -238,6 +244,8 @@ describe("Backend NetworkManager", () => {
     const browser = installBrowser(false);
     const probeBackend = vi.fn()
       .mockResolvedValueOnce(unreachable())
+      .mockResolvedValueOnce(unreachable())
+      .mockResolvedValueOnce(unreachable())
       .mockResolvedValue(reachable());
     const stop = startBackendNetworkMonitor({
       probeBackend,
@@ -246,7 +254,8 @@ describe("Backend NetworkManager", () => {
     });
 
     await flushPromises();
-    // navigator offline + a failed probe -> OFFLINE on the first strike.
+    expect(useNetworkStore.getState().state).toBe(BACKEND_NETWORK_STATE.CHECKING);
+    await vi.advanceTimersByTimeAsync(1000);
     expect(useNetworkStore.getState().state).toBe(BACKEND_NETWORK_STATE.OFFLINE);
 
     browser.setOnline(true);
@@ -254,6 +263,112 @@ describe("Backend NetworkManager", () => {
     expect(useNetworkStore.getState().state).toBe(BACKEND_NETWORK_STATE.ONLINE);
     expect(useAuthStore.getState().offlineSession).toBe(false);
     stop();
+  });
+
+  it("does not re-probe in a feedback loop after a successful health response", async () => {
+    installBrowser(true);
+    const probeBackend = vi.fn().mockResolvedValue(reachable());
+    const stop = startBackendNetworkMonitor({ probeBackend, onlinePollMs: 5000 });
+    try {
+      await flushPromises();
+      expect(probeBackend).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(4999);
+      expect(probeBackend).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(probeBackend).toHaveBeenCalledTimes(2);
+
+      requestImmediateReconcile();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(probeBackend).toHaveBeenCalledTimes(3);
+    } finally { stop(); }
+  });
+
+  it("does not announce an outage for a transient timeout and stale browser hint", async () => {
+    installBrowser(false);
+    const probeBackend = vi.fn().mockResolvedValueOnce(unreachable()).mockResolvedValue(reachable());
+    const stop = startBackendNetworkMonitor({ probeBackend, checkingPollMs: 500 });
+    try {
+      await flushPromises();
+      expect(backendNetworkManager.isOffline()).toBe(false);
+      expect(useAuthStore.getState().offlineSession).toBe(false);
+      await vi.advanceTimersByTimeAsync(500);
+      expect(useNetworkStore.getState().state).toBe(BACKEND_NETWORK_STATE.ONLINE);
+      expect(useAuthStore.getState().offlineSession).toBe(false);
+    } finally { stop(); }
+  });
+
+  it.each([200, 401, 500, 503])("ignores a stale probe failure after a newer HTTP %s response", async (status) => {
+    installBrowser(false);
+    let finishProbe: (result: BackendProbeResult) => void = () => {};
+    const delayed = new Promise<BackendProbeResult>((resolve) => { finishProbe = resolve; });
+    const probeBackend = vi.fn()
+      .mockResolvedValueOnce(unreachable())
+      .mockResolvedValueOnce(unreachable())
+      .mockReturnValueOnce(delayed);
+    const stop = startBackendNetworkMonitor({ probeBackend, checkingPollMs: 500 });
+    try {
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(useNetworkStore.getState().consecutiveFailures).toBe(2);
+      // Both occur at the same fake time: ordering must not rely on timestamps.
+      backendNetworkManager.reportReachable(status, "new_api_response");
+      finishProbe(unreachable());
+      await flushPromises();
+      expect(useNetworkStore.getState()).toMatchObject({
+        state: BACKEND_NETWORK_STATE.ONLINE,
+        consecutiveFailures: 0,
+        lastHttpStatus: status,
+        lastReason: "new_api_response",
+      });
+      expect(useAuthStore.getState().offlineSession).toBe(false);
+    } finally { stop(); }
+  });
+
+  it("ignores a late rejected probe after a newer HTTP response", async () => {
+    installBrowser(true);
+    let rejectProbe: (error: Error) => void = () => {};
+    const delayed = new Promise<BackendProbeResult>((_resolve, reject) => { rejectProbe = reject; });
+    const stop = startBackendNetworkMonitor({ probeBackend: () => delayed });
+    try {
+      backendNetworkManager.reportReachable(200);
+      rejectProbe(new TypeError("Failed to fetch"));
+      await flushPromises();
+      expect(useNetworkStore.getState().state).toBe(BACKEND_NETWORK_STATE.ONLINE);
+      expect(useNetworkStore.getState().consecutiveFailures).toBe(0);
+    } finally { stop(); }
+  });
+
+  it("also ignores stale failures from a one-shot probe", async () => {
+    installBrowser(true);
+    let rejectFetch: (error: Error) => void = () => {};
+    vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>((_resolve, reject) => { rejectFetch = reject; })));
+    const pending = probeBackendNow();
+    backendNetworkManager.reportReachable(200);
+    rejectFetch(new TypeError("Failed to fetch"));
+    await expect(pending).resolves.toMatchObject({ state: BACKEND_NETWORK_STATE.ONLINE, consecutiveFailures: 0 });
+  });
+
+  it("does not apply a pending failure after its monitor stops", async () => {
+    installBrowser(true);
+    let finishProbe: (result: BackendProbeResult) => void = () => {};
+    const delayed = new Promise<BackendProbeResult>((resolve) => { finishProbe = resolve; });
+    const stop = startBackendNetworkMonitor({ probeBackend: () => delayed });
+    stop();
+    finishProbe(unreachable());
+    await flushPromises();
+    expect(useNetworkStore.getState().consecutiveFailures).toBe(0);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("does not turn a local login token and offline auth flag into an outage", async () => {
+    installBrowser(true);
+    useAuthStore.getState().login("local.session", authUser());
+    useAuthStore.getState().setOfflineSession(true);
+    const stop = startBackendNetworkMonitor({ probeBackend: vi.fn().mockResolvedValue(reachable()) });
+    try {
+      await flushPromises();
+      expect(useAuthStore.getState().offlineSession).toBe(true);
+      expect(useNetworkStore.getState().state).toBe(BACKEND_NETWORK_STATE.ONLINE);
+    } finally { stop(); }
   });
 
   it("keeps POS ONLINE when the Local Agent is unavailable", async () => {

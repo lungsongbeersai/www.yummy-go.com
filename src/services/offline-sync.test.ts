@@ -6,6 +6,7 @@ import {
   requestLocalFallback,
   getLocalSyncStatus,
   localSyncHasRetryableWork,
+  isBrowserMenuRead,
   needsLocalPrintOwnership,
   prepareOfflineRequest,
   resetLocalSyncConfiguration,
@@ -24,6 +25,18 @@ afterEach(() => {
 });
 
 describe("offline sync transport", () => {
+  it("only exempts explicit menu reads from native pending-order ownership", () => {
+    expect(isBrowserMenuRead("get", "/api/v1/posAll/fetch_cate_products?cate_uuid=1")).toBe(true);
+    expect(isBrowserMenuRead("post", "/api/v1/posAll/get_prod_item")).toBe(true);
+    expect(isBrowserMenuRead("post", "/api/v1/status/fetch_size")).toBe(true);
+    for (const path of ["fetch_cart", "fetch_table", "init_order_without_table", "create_order", "payment", "print_invoice", "split_bill", "customer_order_queue"]) {
+      expect(isBrowserMenuRead("get", `/api/v1/posAll/${path}`)).toBe(false);
+      expect(isBrowserMenuRead("post", `/api/v1/posAll/${path}`)).toBe(false);
+    }
+    expect(isBrowserMenuRead("post", "/api/v1/posAll/fetch_cate_products")).toBe(false);
+    expect(isBrowserMenuRead("patch", "/api/v1/posAll/get_prod_item")).toBe(false);
+  });
+
   it("prefers Backend for a normal token whenever the browser is online", () => {
     expect(shouldPreferOnlineTransport("backend-token", BACKEND_NETWORK_STATE.CHECKING, false)).toBe(true);
     expect(shouldPreferOnlineTransport("backend-token", BACKEND_NETWORK_STATE.ONLINE, false)).toBe(true);

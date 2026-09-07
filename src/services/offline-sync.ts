@@ -34,6 +34,7 @@ import {
   loadOfflineMasterIndex,
   loadOfflineOrderState,
   projectOfflineCart,
+  OfflineCartDataUnavailableError,
   projectOfflineProdItem,
   projectOfflineTables,
   resolveOrderUuid,
@@ -254,6 +255,19 @@ function isLocalOnlyPrintRoute(method: string, url: string) {
 function isBrowserCacheableRead(method: HttpMethod, url: string) {
   return (method === "get" && OFFLINE_GET_ROUTES.has(url.split("?")[0])) ||
     LOCAL_READ_ROUTES.has(routeKey(method, url));
+}
+
+// These reads cannot overwrite an order or overtake its queued create. Keep
+// this explicit: init_order_without_table is also in LOCAL_READ_ROUTES, but
+// creates/reuses a bill and must NOT bypass local order ownership on reconnect.
+const BROWSER_MENU_READ_ROUTES = new Set([
+  "GET /api/v1/posAll/fetch_cate_products",
+  "POST /api/v1/posAll/get_prod_item",
+  "POST /api/v1/status/fetch_size",
+]);
+
+export function isBrowserMenuRead(method: HttpMethod, url: string) {
+  return BROWSER_MENU_READ_ROUTES.has(routeKey(method, url));
 }
 
 function localEventStatus(value: unknown): Exclude<BrowserSyncEventStatus, "STAGED"> {
@@ -780,8 +794,9 @@ export function cacheOnlineResponse(
 ) {
   if (typeof window === "undefined") return;
   const scope = { storeUuid: storeUuid || "", branchUuid: branchUuid || "" };
+  let browserCache: Promise<boolean> | undefined;
   if (isBrowserCacheableRead(method, url)) {
-    void cacheBrowserApiResponse({
+    browserCache = cacheBrowserApiResponse({
       ...scope,
       method,
       path: url.split("?")[0],
@@ -789,13 +804,17 @@ export function cacheOnlineResponse(
       data: options?.data ?? {},
       response,
       source: "ONLINE",
-      preservePendingOrders: !agentAvailable,
+      preservePendingOrders: !agentAvailable && !isBrowserMenuRead(method, url),
+      preservePendingOrderCache: !agentAvailable,
       requestStartedAt,
     }).catch(() => false);
   } else if (OFFLINE_ROUTES.has(routeKey(method, url))) {
     void noteBrowserMutation(scope).catch(() => undefined);
   }
-  if (!agentAvailable) return;
+  // Native callers await menu persistence before using that product in a local
+  // order. Storage failure must not turn a successful Backend read into a
+  // failed request; local writes independently validate their cached input.
+  if (!agentAvailable) return browserCache;
   if (method === "get" && OFFLINE_GET_ROUTES.has(url.split("?")[0])) {
     void axios.post(
       `${AGENT_URL}/local/cache/record`,
@@ -896,6 +915,7 @@ async function overlayOfflineOrderState(
     // fetch_cart cache-miss path above, this is the ONLY answer this request
     // can get — if this throws, the caller sees a raw network error instead
     // of the empty-cart fallback that path exists to provide.
+    if (error instanceof OfflineCartDataUnavailableError) throw error;
     console.error("[SYNC] offline order state overlay failed", { path, error });
     return cached;
   }

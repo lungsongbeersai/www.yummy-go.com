@@ -23,15 +23,11 @@ export type BackendErrorClassification =
   | "NETWORK_TRANSPORT"
   | "NON_NETWORK";
 
-// Consecutive confirmed transport failures before POS is declared OFFLINE. Kept
-// here so the cold-start seed below and applyBackendTransportFailure agree.
+// Consecutive confirmed health-probe failures before POS is declared OFFLINE.
 export const BACKEND_OFFLINE_FAILURE_THRESHOLD = 3;
 
-// `navigator.onLine === false` is a reliable *negative* on desktop browsers: it
-// is never false while a working connection exists (only the `true` value is
-// unreliable). It is still only a hint — every use pairs it with a real probe or
-// lets the /sync/health probe correct it — so it must not be read as a transport
-// authority on its own.
+// Browser/native network hints can be stale. They may select an existing local
+// read path, but must never seed or shorten the Backend connectivity verdict.
 export function navigatorReportsOffline(): boolean {
   return typeof navigator !== "undefined" && navigator.onLine === false;
 }
@@ -53,21 +49,14 @@ export function shouldUseConfirmedOfflineFallback(
 export function initialBackendNetworkSnapshot(
   reason = "app_start",
 ): BackendNetworkSnapshot {
-  // Cold start with the browser itself reporting no network: begin in OFFLINE so
-  // the first login/read goes straight to the Local Agent instead of a doomed
-  // backend round-trip. Seed the failure counter at the threshold so a following
-  // confirmed probe failure keeps it pinned; a single HTTP response from the
-  // /sync/health probe still flips it back to ONLINE, so a wrong hint self-heals
-  // within one poll. `navigator.onLine === true` (the normal case) is unchanged.
-  const offlineHint = navigatorReportsOffline();
+  // No request has completed yet. Local routing can still use its own hints,
+  // without announcing an outage before the health probes confirm one.
   return {
-    state: offlineHint
-      ? BACKEND_NETWORK_STATE.OFFLINE
-      : BACKEND_NETWORK_STATE.CHECKING,
-    consecutiveFailures: offlineHint ? BACKEND_OFFLINE_FAILURE_THRESHOLD : 0,
+    state: BACKEND_NETWORK_STATE.CHECKING,
+    consecutiveFailures: 0,
     consecutiveSuccesses: 0,
     lastHttpStatus: null,
-    lastReason: offlineHint ? `${reason}_navigator_offline` : reason,
+    lastReason: reason,
     lastCheckedAt: null,
   };
 }

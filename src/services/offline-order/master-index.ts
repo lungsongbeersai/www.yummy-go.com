@@ -41,29 +41,35 @@ export function emptyOfflineMasterIndex(): OfflineMasterIndex {
   return { details: new Map(), toppingPrices: new Map() };
 }
 
-function addDetail(index: OfflineMasterIndex, detail: OfflineProductDetail) {
-  if (!detail.prodDetailUuid) return;
-  const existing = index.details.get(detail.prodDetailUuid);
-  // get_prod_item carries the authoritative per-detail price, so it wins over the
-  // default detail summarised in the category listing.
-  if (existing && existing.price > 0 && detail.price <= 0) return;
-  index.details.set(detail.prodDetailUuid, detail);
+function price(value: unknown): number | null {
+  if (value === null || value === undefined || value === "" || typeof value === "boolean") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+}
+
+function addDetail(index: OfflineMasterIndex, detail: Omit<OfflineProductDetail, "price"> & { price: number | null }) {
+  if (!detail.prodDetailUuid || detail.price === null) return;
+  // Unknown prices are excluded above; an explicit zero is a legitimate price.
+  index.details.set(detail.prodDetailUuid, { ...detail, price: detail.price });
 }
 
 /** Index a cached `POST /api/v1/posAll/fetch_cate_products` response. */
 export function indexCategoryProducts(response: unknown, index: OfflineMasterIndex) {
-  for (const rawCategory of list(record(response).data)) {
-    for (const rawProduct of list(record(rawCategory).products)) {
-      const product = record(rawProduct);
-      addDetail(index, {
-        prodDetailUuid: text(product.pro_detail_uuid),
-        prodUuid: text(product.prod_uuid),
-        price: count(product.pro_detail_sprice),
-        productName: text(product.prod_name),
-        productImage: text(product.prod_image),
-        productHasImage: count(product.prod_status_imge),
-      });
-    }
+  const body = record(response);
+  const products = [
+    ...list(body.data).flatMap((category) => list(record(category).products)),
+    ...list(body.special_products),
+  ];
+  for (const rawProduct of products) {
+    const product = record(rawProduct);
+    addDetail(index, {
+      prodDetailUuid: text(product.pro_detail_uuid),
+      prodUuid: text(product.prod_uuid),
+      price: price(product.pro_detail_sprice),
+      productName: text(product.prod_name),
+      productImage: text(product.prod_image),
+      productHasImage: count(product.prod_status_imge),
+    });
   }
   return index;
 }
@@ -83,7 +89,7 @@ export function indexProductItem(response: unknown, index: OfflineMasterIndex) {
       addDetail(index, {
         prodDetailUuid: text(detail.pro_detail_uuid) || text(detail.prod_detail_uuid),
         prodUuid: text(detail.prod_uuid_fk) || prodUuid,
-        price: count(detail.pro_detail_sprice, count(detail.price)),
+        price: price(detail.pro_detail_sprice ?? detail.price),
         productName,
         productImage,
         productHasImage,
@@ -96,10 +102,8 @@ export function indexProductItem(response: unknown, index: OfflineMasterIndex) {
       const topping = record(rawTopping);
       const uuid = text(topping.prod_topping_uuid) || text(topping.prod_topping_uuid_fk);
       if (!uuid) continue;
-      index.toppingPrices.set(
-        uuid,
-        count(topping.topping_price, count(topping.prod_topping_price)),
-      );
+      const toppingPrice = price(topping.topping_price ?? topping.prod_topping_price);
+      if (toppingPrice !== null) index.toppingPrices.set(uuid, toppingPrice);
     }
   }
   return index;
@@ -124,13 +128,13 @@ export function indexCartItems(response: unknown, index: OfflineMasterIndex) {
     for (const rawItem of list(record(rawOrder).items)) {
       const item = record(rawItem);
       const prodDetailUuid = text(item.pro_detail_uuid) || text(item.prod_detail_uuid);
-      if (!prodDetailUuid) continue;
+      if (!prodDetailUuid || index.details.has(prodDetailUuid)) continue;
       const detail = record(item.detail);
       addDetail(index, {
         prodDetailUuid,
         prodUuid: text(item.prod_uuid),
-        price: count(detail.unit_price, count(item.price)),
-        productName: text(item.prod_name),
+        price: price(detail.unit_price ?? item.price),
+        productName: text(item.prod_name) || text(item.title),
         productImage: text(item.prod_image),
         productHasImage: count(item.prod_status_imge),
       });
