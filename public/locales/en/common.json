@@ -146,6 +146,11 @@
   "offlineSync": {
     "blockedTitle": "Offline sync needs review",
     "blockedDescription": "{{count}} offline transaction(s) were rejected by the server. Online mode is available, but review them before closing the shift.",
+    "mobileOperationUnavailable": "This action is not available offline on mobile. Keep the saved bill and reconnect before retrying.",
+    "mobilePrintUnavailable": "Offline kitchen confirmation and payment are not ready on mobile: a durable local print queue is required. Your order is saved; reconnect and finish syncing before confirming or accepting payment.",
+    "mobilePreviousCashierPending": "This device still has unsynced work from another cashier. Sign in as that cashier and finish syncing before continuing.",
+    "mobileStorageUnavailable": "Unable to save the order on this device. Do not accept payment; check device storage and try again.",
+    "mobileCacheUnavailable": "Offline data is not ready on this device. Connect once to load the menu and tables; saved bills have not been deleted.",
     "agentUnavailableTitle": "Printer Agent is not running",
     "agentUnavailableDescription": "Open or reinstall Yummy-Go Printer Agent, then try again.",
     "queueBlocked": "Not sent · {{count}}",

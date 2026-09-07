@@ -7,6 +7,7 @@ import {
   type BackendNetworkState,
 } from "@/lib/network-state";
 import { AGENT_URL } from "@/config/printer-agent";
+import { isCapacitorMobileApp } from "@/lib/capacitor-platform";
 import { agentRejected, agentResponseError } from "@/services/agent-link";
 import type { HttpMethod, RequestOptions } from "@/lib/api";
 import {
@@ -75,6 +76,26 @@ const OFFLINE_ORDER_PUSH_OPERATIONS: Record<string, string> = {
   "PATCH /api/v1/posAll/confirm_order_item_served": "ORDER_ITEM_SERVED",
   "POST /api/v1/posAll/payment": "PAYMENT",
 };
+
+// Mobile shares the sales pages, not the Agent's move/join/split/print APIs.
+// Keep this paired with the mobile page allowlist in lib/offline-routes.ts.
+export function supportsBrowserOfflineRoute(method: HttpMethod, url: string) {
+  return routeKey(method, url) in OFFLINE_ORDER_PUSH_OPERATIONS || isBrowserCacheableRead(method, url);
+}
+
+const browserWritesInFlight = new Map<string, number>();
+const browserWriteVersions = new Map<string, number>();
+
+export function browserOrderVersion(scope: BrowserOfflineScope) {
+  return browserWriteVersions.get(recoveryKey(scope)) ?? 0;
+}
+
+export async function shouldKeepBrowserOrderOwnership(scope: BrowserOfflineScope, store?: BrowserOfflineStore) {
+  const key = recoveryKey(scope);
+  if (browserWritesInFlight.has(key)) return true;
+  const summary = await getBrowserSyncQueueSummary(scope, store);
+  return browserWritesInFlight.has(key) || browserSyncQueueHasRetryableWork(summary) || summary.blocked > 0;
+}
 
 const OFFLINE_GET_ROUTES = new Set([
   "/api/v1/posAll/fetch_table",
@@ -457,7 +478,7 @@ function clearFailedConfiguration(expectedKey: string) {
 }
 
 export function configureLocalSync(identity: LocalSyncIdentity): Promise<boolean> {
-  if (typeof window === "undefined" || !identity.token || !identity.actorLoginUuid) return Promise.resolve(false);
+  if (typeof window === "undefined" || isCapacitorMobileApp() || !identity.token || !identity.actorLoginUuid) return Promise.resolve(false);
   const nextKey = `${identity.branchUuid}:${identity.actorLoginUuid}:${identity.token.slice(-12)}`;
   if (configureKey === nextKey && configurePromise) return configurePromise;
   configureKey = nextKey;
@@ -514,7 +535,7 @@ export async function getLocalSyncStatus({
   maxAgeMs?: number;
   timeoutMs?: number;
 } = {}): Promise<LocalSyncStatus | null> {
-  if (typeof window === "undefined") return null;
+  if (typeof window === "undefined" || isCapacitorMobileApp()) return null;
   if (!force && localStatusCache && Date.now() - localStatusCache.checkedAt <= maxAgeMs) {
     return localStatusCache.status;
   }
@@ -541,7 +562,7 @@ export function localSyncHasRetryableWork(status: LocalSyncStatus | null) {
 }
 
 export async function runLocalSyncNow(): Promise<LocalSyncStatus | null> {
-  if (typeof window === "undefined") return null;
+  if (typeof window === "undefined" || isCapacitorMobileApp()) return null;
   localStatusCache = null;
   try {
     const response = await axios.post<LocalAgentResponse<unknown>>(
@@ -599,6 +620,12 @@ async function warmOfflineRoutes(routes: string[], timeoutMs = 30000) {
 
 export async function prepareOfflineSession(input: OfflineSessionInput) {
   if (typeof window === "undefined") return false;
+  if (isCapacitorMobileApp()) {
+    // Native sessions use Dexie and the existing persisted JWT. Never send a
+    // mobile cashier's password to a nonexistent localhost Agent.
+    await navigator.storage?.persist?.().catch(() => false);
+    return false;
+  }
   const configured = await configureLocalSync(input);
   if (!configured || !(await waitForLocalBootstrap())) return false;
   const response = await axios.post<LocalAgentResponse<unknown>>(
@@ -749,6 +776,7 @@ export function cacheOnlineResponse(
   // because that mirror is the only offline source it has — but the two Agent
   // posts below would just be failed localhost requests on every response.
   agentAvailable: boolean = true,
+  requestStartedAt?: number,
 ) {
   if (typeof window === "undefined") return;
   const scope = { storeUuid: storeUuid || "", branchUuid: branchUuid || "" };
@@ -761,6 +789,8 @@ export function cacheOnlineResponse(
       data: options?.data ?? {},
       response,
       source: "ONLINE",
+      preservePendingOrders: !agentAvailable,
+      requestStartedAt,
     }).catch(() => false);
   } else if (OFFLINE_ROUTES.has(routeKey(method, url))) {
     void noteBrowserMutation(scope).catch(() => undefined);
@@ -916,7 +946,17 @@ export async function requestBrowserWriteFallback<T>(
   browserStore?: BrowserOfflineStore,
 ): Promise<T | null> {
   if (typeof window === "undefined") return null;
-  return synthesizeOfflineWrite(method, url, options, eventUuid, scope, browserStore) as Promise<T | null>;
+  const key = recoveryKey(scope);
+  browserWritesInFlight.set(key, (browserWritesInFlight.get(key) ?? 0) + 1);
+  browserWriteVersions.set(key, browserOrderVersion(scope) + 1);
+  try {
+    return await synthesizeOfflineWrite(method, url, options, eventUuid, scope, browserStore) as T | null;
+  } finally {
+    const count = (browserWritesInFlight.get(key) ?? 1) - 1;
+    if (count) browserWritesInFlight.set(key, count);
+    else browserWritesInFlight.delete(key);
+    browserWriteVersions.set(key, browserOrderVersion(scope) + 1);
+  }
 }
 
 export async function mirrorOnlineResponse(
@@ -1075,54 +1115,80 @@ export async function reconcileBrowserSyncQueue(
 // and rewriting the pushed order_uuid to match, is a no-op for a genuinely
 // new order (nothing to retarget onto) and the fix for a retargeted one.
 const CREATE_ORDER_ROUTE = "POST /api/v1/posAll/create_order";
+const browserPushes = new Map<string, Promise<BrowserSyncQueueSummary | null>>();
 
-export async function pushBrowserSyncQueue(
+export function pushBrowserSyncQueue(
   scope: BrowserOfflineIdentity,
   browserStore?: BrowserOfflineStore,
+  isCurrent: () => boolean = () => true,
 ): Promise<BrowserSyncQueueSummary | null> {
+  const key = recoveryKey(scope);
+  const running = browserPushes.get(key);
+  if (running) return running;
+  const push = pushBrowserSyncQueueNow(scope, browserStore, isCurrent);
+  browserPushes.set(key, push);
+  void push.finally(() => { if (browserPushes.get(key) === push) browserPushes.delete(key); }).catch(() => undefined);
+  return push;
+}
+
+async function pushBrowserSyncQueueNow(
+  scope: BrowserOfflineIdentity,
+  browserStore: BrowserOfflineStore | undefined,
+  isCurrent: () => boolean,
+): Promise<BrowserSyncQueueSummary | null> {
+  if (!scope.storeUuid || !scope.branchUuid || !scope.actorLoginUuid || !isCurrent()) return null;
   const device = getOfflineSyncDeviceAuth();
   if (!device) return null;
-  const entries = (await listBrowserSyncQueue(scope, browserStore))
-    .filter((entry) => !["SYNCED", "BLOCKED"].includes(entry.status))
-    .filter((entry) => `${entry.method} ${entry.path}` in OFFLINE_ORDER_PUSH_OPERATIONS)
-    .slice(0, 50);
-  if (!entries.length) return getBrowserSyncQueueSummary(scope, browserStore);
-
-  const needsOrderUuidResolution = entries.some(
-    (entry) => `${entry.method} ${entry.path}` === CREATE_ORDER_ROUTE,
-  );
-  const resolvedState = needsOrderUuidResolution
-    ? await loadOfflineOrderState(scope, browserStore)
-    : null;
-
-  function pushDataFor(entry: BrowserSyncQueueEntry) {
-    if (!resolvedState || `${entry.method} ${entry.path}` !== CREATE_ORDER_ROUTE) {
-      return entry.data;
+  // Backend sorts a batch by operation priority (PAYMENT before CREATE).
+  // Drain the durable sequence one acknowledged event at a time instead.
+  for (let sent = 0; sent < 50 && isCurrent(); sent += 1) {
+    const all = await listBrowserSyncQueue(scope, browserStore);
+    const entry = all.find((row) => row.status !== "SYNCED");
+    if (!entry || entry.status === "BLOCKED" || entry.actorLoginUuid !== scope.actorLoginUuid) break;
+    const operation = OFFLINE_ORDER_PUSH_OPERATIONS[`${entry.method} ${entry.path}`];
+    if (!operation) {
+      await updateBrowserSyncEvent(entry.eventUuid, { status: "BLOCKED", lastError: "MOBILE_OFFLINE_OPERATION_UNSUPPORTED" }, browserStore);
+      break;
     }
-    const data = record(entry.data);
-    const resolved = resolveOrderUuid(resolvedState, data);
-    return resolved && resolved !== data.order_uuid ? { ...data, order_uuid: resolved } : entry.data;
-  }
-
-  try {
-    const response = await axios.post<{
-      data?: { results?: Array<{ event_uuid: string; status: string; error?: string }> };
-    }>(
-      `${onlineApiBase()}/api/v1/sync/push`,
-      {
-        events: entries.map((entry) => ({
-          event_uuid: entry.eventUuid,
-          operation: OFFLINE_ORDER_PUSH_OPERATIONS[`${entry.method} ${entry.path}`],
-          branch_uuid: entry.branchUuid,
-          store_uuid: entry.storeUuid,
-          device_code: device.deviceCode,
-          actor_login_uuid: entry.actorLoginUuid,
-          sequence: entry.createdAt,
-          dependencies: entry.dependencies,
-          payload: { request: { params: entry.params, data: pushDataFor(entry) } },
-        })),
-      },
-      {
+    // Old mobile builds staged these without a printer job/proof. Do not turn
+    // that historical UI success into an unprinted or double-printed receipt.
+    if (["KITCHEN_CONFIRM", "PAYMENT"].includes(operation)) {
+      await updateBrowserSyncEvent(entry.eventUuid, { status: "BLOCKED", lastError: "MOBILE_OFFLINE_PRINT_REVIEW_REQUIRED" }, browserStore);
+      break;
+    }
+    const dependencyStatuses = new Map(all.map((row) => [row.eventUuid, row.status]));
+    if (entry.dependencies.some((id) => dependencyStatuses.get(id) !== "SYNCED")) break;
+    let wire = entry.wireEvent;
+    if (!wire) {
+      const data = record(entry.data);
+      const resolvedState = await loadOfflineOrderState(scope, browserStore);
+      const resolved = resolveOrderUuid(resolvedState, data);
+      const wireData = `${entry.method} ${entry.path}` === CREATE_ORDER_ROUTE && resolved
+        ? { ...data, order_uuid: resolved } : data;
+      wire = {
+        event_uuid: entry.eventUuid,
+        operation,
+        branch_uuid: entry.branchUuid,
+        store_uuid: entry.storeUuid,
+        device_code: device.deviceCode,
+        actor_login_uuid: entry.actorLoginUuid,
+        entity_type: "orders",
+        entity_uuid: resolved,
+        sequence: entry.createdAt,
+        dependencies: entry.dependencies,
+        payload: { request: { params: entry.params, data: wireData } },
+      };
+    }
+    if (wire.device_code !== device.deviceCode) {
+      await updateBrowserSyncEvent(entry.eventUuid, { status: "BLOCKED", lastError: "MOBILE_SYNC_DEVICE_CHANGED" }, browserStore);
+      break;
+    }
+    const claimed = await updateBrowserSyncEvent(entry.eventUuid, { status: "PROCESSING", wireEvent: wire }, browserStore);
+    if (!claimed || !isCurrent()) break;
+    try {
+      const response = await axios.post<{
+        data?: { results?: Array<{ event_uuid: string; status: string; error?: string }> };
+      }>(`${onlineApiBase()}/api/v1/sync/push`, { events: [claimed.wireEvent] }, {
         headers: {
           "Content-Type": "application/json",
           "x-sync-branch-uuid": scope.branchUuid,
@@ -1130,21 +1196,22 @@ export async function pushBrowserSyncQueue(
           "x-sync-agent-secret": device.agentSecret,
         },
         timeout: 15000,
-      },
-    );
-    const rows = response.data?.data?.results ?? [];
-    const byUuid = new Map(rows.map((row) => [String(row.event_uuid), row]));
-    for (const entry of entries) {
-      const row = byUuid.get(entry.eventUuid);
+      });
+      const row = response.data?.data?.results?.find((result) => result.event_uuid === entry.eventUuid);
       const status = row?.status === "SYNCED" || row?.status === "BLOCKED" ? row.status : "FAILED";
       await updateBrowserSyncEvent(entry.eventUuid, {
         status,
         lastError: status === "SYNCED" ? null : row?.error ?? "sync push result missing",
-      }, browserStore).catch(() => undefined);
+      }, browserStore);
+      if (status !== "SYNCED") break;
+    } catch (error) {
+      // PROCESSING survives an app kill. The frozen request and event id are
+      // reused after timeout, including when Backend committed but its reply died.
+      await updateBrowserSyncEvent(entry.eventUuid, {
+        status: "FAILED", lastError: error instanceof Error ? error.message : "Mobile sync push failed",
+      }, browserStore);
+      break;
     }
-  } catch {
-    // Transport failure: every entry stays exactly as it was (STAGED/PENDING/
-    // FAILED) for the next reachable tick to retry.
   }
   return getBrowserSyncQueueSummary(scope, browserStore);
 }

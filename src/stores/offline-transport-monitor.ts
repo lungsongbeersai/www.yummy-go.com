@@ -21,41 +21,60 @@ import {
 import { ensureOfflineSyncDevice } from "@/services/offline-order";
 import { restoreOnlineLogin } from "@/services/login";
 import { apiRequest } from "@/lib/api";
-import { isCapacitorAndroidApp } from "@/lib/capacitor-platform";
+import { capacitorMobilePlatform, isCapacitorMobileApp } from "@/lib/capacitor-platform";
 import i18n from "@/lib/i18n";
 import { useAuthStore } from "@/stores/auth-store";
 import { backendNetworkManager, useNetworkStore } from "@/stores/network-store";
 import { useToastStore } from "@/stores/toast-store";
 
-// Registering more than once per branch is harmless (Backend upserts), but
-// pointless network chatter — remembered per module instance, reset by a
-// full app reload same as every other in-memory sync state here.
-const androidDeviceRegisteredBranches = new Set<string>();
+export async function getCurrentSyncPending() {
+  const { user, isLoggedIn, token } = useAuthStore.getState();
+  if (!isLoggedIn || !user) return undefined;
+  if (!isCapacitorMobileApp()) return (await getLocalSyncStatus({ maxAgeMs: 5000 }))?.pending;
+  const queue = await getBrowserLocalSyncStatus({
+    storeUuid: user.store_uuid || user.store_uuid_fk || "",
+    branchUuid: user.branch_uuid,
+    actorLoginUuid: user.uuid,
+  });
+  const current = useAuthStore.getState();
+  if (!current.isLoggedIn || current.token !== token || current.user?.uuid !== user.uuid ||
+      current.user.branch_uuid !== user.branch_uuid ||
+      (current.user.store_uuid || current.user.store_uuid_fk) !== (user.store_uuid || user.store_uuid_fk)) return undefined;
+  return { pending: queue.staged + queue.pending, processing: queue.processing, failed: queue.failed, blocked: queue.blocked };
+}
+
+// Re-register on a changed login token or scope, not on every timer tick.
+const mobileRegisteredSessions = new Map<string, string>();
 
 /**
- * Android has no Local Agent, so it skips `configureLocalSync`/
- * `getLocalSyncStatus` entirely (see the Android branch in `reconcile()`
+ * Capacitor has no Local Agent, so it skips `configureLocalSync`/
+ * `getLocalSyncStatus` entirely (see the mobile branch in `reconcile()`
  * below) — this is its one-time prerequisite instead, run right before the
  * first push attempt for a branch. Registration failing is not fatal: the
  * device still works offline and stages mutations locally either way, it
  * just cannot push until a later tick registers successfully.
  */
-async function ensureAndroidDeviceRegistered(branchUuid: string) {
-  if (!branchUuid || androidDeviceRegisteredBranches.has(branchUuid)) return;
-  const device = ensureOfflineSyncDevice();
-  try {
-    await apiRequest("post", "/api/v1/sync/device/register", {
-      data: {
-        device_code: device.deviceCode,
-        agent_secret: device.agentSecret,
-        agent_name: "Android POS",
-        platform: "android",
-      },
-    });
-    androidDeviceRegisteredBranches.add(branchUuid);
-  } catch (error) {
-    console.error("[SYNC] Android device registration failed", error);
-  }
+async function ensureMobileDeviceRegistered(scope: { storeUuid: string; branchUuid: string; actorLoginUuid: string }, token: string) {
+  const key = offlineWorkerScopeKey(scope);
+  if (!scope.storeUuid || !scope.branchUuid || !scope.actorLoginUuid) return false;
+  if (mobileRegisteredSessions.get(key) === token) return true;
+  const platform = capacitorMobilePlatform();
+  if (!platform) return false;
+  const device = ensureOfflineSyncDevice(platform);
+  await apiRequest("post", "/api/v1/sync/device/register", {
+    data: {
+      device_code: device.deviceCode,
+      agent_secret: device.agentSecret,
+      agent_name: platform === "ios" ? "iOS POS" : "Android POS",
+      platform,
+    },
+  });
+  const current = useAuthStore.getState();
+  if (current.token !== token || current.user?.uuid !== scope.actorLoginUuid ||
+      current.user.branch_uuid !== scope.branchUuid ||
+      (current.user.store_uuid || current.user.store_uuid_fk) !== scope.storeUuid) return false;
+  mobileRegisteredSessions.set(key, token);
+  return true;
 }
 
 export interface BackendProbeResult {
@@ -278,6 +297,7 @@ export function startBackendNetworkMonitor(
   };
   window.addEventListener("offline", handleNetworkHint);
   window.addEventListener("online", handleNetworkHint);
+  window.addEventListener(RECONCILE_NOW_EVENT, handleNetworkHint);
   void probe();
 
   return () => {
@@ -285,6 +305,7 @@ export function startBackendNetworkMonitor(
     if (timer !== null) window.clearTimeout(timer);
     window.removeEventListener("offline", handleNetworkHint);
     window.removeEventListener("online", handleNetworkHint);
+    window.removeEventListener(RECONCILE_NOW_EVENT, handleNetworkHint);
   };
 }
 
@@ -353,16 +374,39 @@ export function startOfflineTransportMonitor() {
       reportedBlockedCount = readAcknowledgedBlockedCount(scopeKey);
     }
 
-    // Android has no Local Agent at all, so none of the Agent-configuration
+    // Capacitor has no Local Agent at all, so none of the Agent-configuration
     // machinery below applies to it — configureLocalSync would just fail on
     // every tick forever. Its offline sync is push-only, straight to Backend.
-    if (isCapacitorAndroidApp()) {
+    if (isCapacitorMobileApp()) {
       reconciling = true;
       try {
         if (networkState === BACKEND_NETWORK_STATE.ONLINE) {
-          await ensureAndroidDeviceRegistered(localScope.branchUuid);
-          await pushBrowserSyncQueue(localScope).catch(() => undefined);
+          const isCurrent = () => {
+            const current = useAuthStore.getState();
+            return active && current.isLoggedIn && current.token === token &&
+              current.user?.uuid === localScope.actorLoginUuid &&
+              current.user.branch_uuid === localScope.branchUuid &&
+              (current.user.store_uuid || current.user.store_uuid_fk) === localScope.storeUuid;
+          };
+          await withSyncWorkerLock(`mobile:${localScope.storeUuid}:${localScope.branchUuid}`, async () => {
+            if (!isCurrent() || !await ensureMobileDeviceRegistered(localScope, token) || !isCurrent()) return;
+            const queue = await pushBrowserSyncQueue(localScope, undefined, isCurrent);
+            if (queue && isCurrent()) {
+              const acknowledged = reportedBlockedCount ?? 0;
+              if (queue.blocked > acknowledged) {
+                useToastStore.getState().show({
+                  title: i18n.t("offlineSync.blockedTitle"),
+                  description: i18n.t("offlineSync.blockedDescription", { count: queue.blocked }),
+                  tone: "warning",
+                });
+              }
+              reportedBlockedCount = queue.blocked;
+              writeAcknowledgedBlockedCount(scopeKey, queue.blocked);
+            }
+          });
         }
+      } catch {
+        // Registration/storage failures keep the durable queue for the next wake.
       } finally {
         reconciling = false;
         schedule(networkState === BACKEND_NETWORK_STATE.ONLINE ? 5000 : 8000);
@@ -472,6 +516,13 @@ export function startOfflineTransportMonitor() {
   window.addEventListener("offline", handleWake);
   window.addEventListener("online", handleWake);
   window.addEventListener(RECONCILE_NOW_EVENT, handleWake);
+  window.addEventListener("focus", handleWake);
+  if (typeof document !== "undefined") document.addEventListener("visibilitychange", handleWake);
+  const nativeWake = isCapacitorMobileApp()
+    ? import("@capacitor/app").then(({ App }) => App.addListener("appStateChange", ({ isActive }) => {
+        if (active && isActive) requestImmediateReconcile();
+      })).catch(() => null)
+    : null;
   void reconcile();
 
   return () => {
@@ -480,5 +531,8 @@ export function startOfflineTransportMonitor() {
     window.removeEventListener("offline", handleWake);
     window.removeEventListener("online", handleWake);
     window.removeEventListener(RECONCILE_NOW_EVENT, handleWake);
+    window.removeEventListener("focus", handleWake);
+    if (typeof document !== "undefined") document.removeEventListener("visibilitychange", handleWake);
+    void nativeWake?.then((listener) => listener?.remove()).catch(() => undefined);
   };
 }

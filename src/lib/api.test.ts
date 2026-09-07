@@ -1,4 +1,6 @@
 import axios from "axios";
+import { Capacitor } from "@capacitor/core";
+import * as offlineSync from "@/services/offline-sync";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { apiClient, apiRequest } from "@/lib/api";
 import { BACKEND_NETWORK_STATE } from "@/lib/network-state";
@@ -141,5 +143,82 @@ describe("POS ownership across desktop reconnect", () => {
       .rejects.toThrow("Bill already paid");
     expect(vi.mocked(axios.post).mock.calls.some(([url]) => String(url).endsWith("/local/api"))).toBe(false);
     expect(backendNetworkManager.getSnapshot().state).toBe(BACKEND_NETWORK_STATE.ONLINE);
+  });
+});
+
+describe.each(["android", "ios"])("Capacitor %s uses Dexie, never localhost Agent", (platform) => {
+  beforeEach(() => {
+    const storage = new Map<string, string>();
+    vi.stubGlobal("navigator", { onLine: true, userAgent: "" });
+    vi.stubGlobal("window", { location: { origin: "https://pos.example.test" }, localStorage: {
+      getItem: (key: string) => storage.get(key) ?? null,
+      setItem: (key: string, value: string) => storage.set(key, value),
+      removeItem: (key: string) => storage.delete(key),
+    } });
+    vi.spyOn(Capacitor, "isNativePlatform").mockReturnValue(true);
+    vi.spyOn(Capacitor, "getPlatform").mockReturnValue(platform);
+    vi.spyOn(console, "info").mockImplementation(() => undefined);
+    vi.mocked(getBrowserSyncQueueSummary).mockResolvedValue({ ...emptyQueue });
+    useAuthStore.getState().login("native-token", user);
+    backendNetworkManager.reportReachable(200);
+    vi.spyOn(axios, "get");
+    vi.spyOn(axios, "post");
+  });
+  afterEach(() => { useAuthStore.getState().logout(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+
+  it("serves a confirmed-offline read immediately even when native navigator says online", async () => {
+    backendNetworkManager.reportTransportFailure("test", { confirmed: true, failureThreshold: 1 });
+    const online = vi.spyOn(apiClient, "get");
+    vi.spyOn(offlineSync, "readBrowserOfflineCache").mockResolvedValue({ status: "success", source: "dexie" });
+    await expect(apiRequest("get", cartPath)).resolves.toMatchObject({ source: "dexie" });
+    expect(online).not.toHaveBeenCalled();
+    expect(axios.get).not.toHaveBeenCalled();
+    expect(axios.post).not.toHaveBeenCalled();
+  });
+
+  it("holds reads in Dexie during reconnect and releases them only after all acknowledgements", async () => {
+    const online = vi.spyOn(apiClient, "get").mockResolvedValue({ status: 200, data: { status: "success", source: "online" } });
+    vi.spyOn(offlineSync, "readBrowserOfflineCache").mockResolvedValue({ status: "success", source: "dexie" });
+    vi.mocked(getBrowserSyncQueueSummary).mockResolvedValue({ ...emptyQueue, pending: 1 });
+    await expect(apiRequest("get", cartPath)).resolves.toMatchObject({ source: "dexie" });
+    expect(online).not.toHaveBeenCalled();
+    expect(backendNetworkManager.getSnapshot().state).toBe(BACKEND_NETWORK_STATE.ONLINE);
+    vi.mocked(getBrowserSyncQueueSummary).mockResolvedValue({ ...emptyQueue });
+    await expect(apiRequest("get", cartPath)).resolves.toMatchObject({ source: "online" });
+    expect(axios.get).not.toHaveBeenCalled();
+    expect(axios.post).not.toHaveBeenCalled();
+  });
+
+  it("never falls through to Backend when the local bill is blocked or its cache is missing", async () => {
+    const online = vi.spyOn(apiClient, "get");
+    vi.mocked(getBrowserSyncQueueSummary).mockResolvedValue({ ...emptyQueue, blocked: 1 });
+    vi.spyOn(offlineSync, "readBrowserOfflineCache").mockResolvedValue(null);
+    await expect(apiRequest("get", cartPath)).rejects.toMatchObject({ statusCode: 503 });
+    expect(online).not.toHaveBeenCalled();
+  });
+
+  it("does not send an unsupported split ahead of a pending local create", async () => {
+    vi.mocked(getBrowserSyncQueueSummary).mockResolvedValue({ ...emptyQueue, staged: 1 });
+    const online = vi.spyOn(apiClient, "post");
+    await expect(apiRequest("post", "/api/v1/posAll/split_bill", { data: { order_uuid: "order-1" } }))
+      .rejects.toMatchObject({ statusCode: 503 });
+    expect(online).not.toHaveBeenCalled();
+  });
+
+  it("does not manufacture an offline write after an HTTP business rejection", async () => {
+    vi.spyOn(apiClient, "post").mockRejectedValue({ isAxiosError: true, response: { status: 409, data: { message: "Bill already paid" } } });
+    const local = vi.spyOn(offlineSync, "requestBrowserWriteFallback");
+    await expect(apiRequest("post", "/api/v1/posAll/payment", { data: { order_uuid: "order-1" } })).rejects.toThrow("Bill already paid");
+    expect(local).not.toHaveBeenCalled();
+    expect(axios.post).not.toHaveBeenCalled();
+  });
+
+  it("never sends native login credentials to the Agent cache", async () => {
+    await expect(offlineSync.prepareOfflineSession({
+      token: "native-token", actorLoginUuid: user.uuid, storeUuid: user.store_uuid || "", branchUuid: user.branch_uuid,
+      loginEmail: "cashier@example.test", loginPassword: "test-only",
+      loginResponse: { loginEmail: "cashier@example.test", loginStatus: 1, loginProfile: "", branchName: "Test", branchTel: "", branchAddress: "", storeName: "Test", storeLogo: "", storeTableStatus: 1 },
+    })).resolves.toBe(false);
+    expect(axios.post).not.toHaveBeenCalled();
   });
 });

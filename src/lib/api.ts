@@ -2,7 +2,7 @@
 
 import axios, { AxiosError, type AxiosInstance } from "axios";
 import i18n from "@/lib/i18n";
-import { isCapacitorAndroidApp } from "@/lib/capacitor-platform";
+import { isCapacitorMobileApp } from "@/lib/capacitor-platform";
 import { AgentRequestError } from "@/services/agent-link";
 import {
   BACKEND_NETWORK_STATE,
@@ -13,6 +13,7 @@ import {
 import { shouldLogoutForUnauthorized } from "@/lib/unauthorized-session";
 import {
   cacheOnlineResponse,
+  browserOrderVersion,
   readBrowserOfflineCache,
   configureLocalSync,
   mirrorOnlineResponse,
@@ -21,9 +22,11 @@ import {
   requestLocalFallback,
   shouldPreferOnlineTransport,
   shouldKeepLocalOrderOwnership,
+  shouldKeepBrowserOrderOwnership,
   shouldRouteToLocal,
   shouldUseLocalPrintOwnership,
   supportsOfflineRoute,
+  supportsBrowserOfflineRoute,
   withLocalPrintOwnership,
 } from "@/services/offline-sync";
 import { useAuthStore } from "@/stores/auth-store";
@@ -205,6 +208,7 @@ export async function apiRequest<T>(
   options?: RequestOptions,
   fallback?: string
 ) {
+  const requestStartedAt = Date.now();
   const prepared = prepareOfflineRequest(method, url, options);
   const auth = useAuthStore.getState();
   const localScope = {
@@ -213,7 +217,27 @@ export async function apiRequest<T>(
     actorLoginUuid: auth.user?.uuid || "",
   };
   const networkState = backendNetworkManager.getSnapshot().state;
-  const localAgentAvailable = !isCapacitorAndroidApp();
+  const localAgentAvailable = !isCapacitorMobileApp();
+  const browserVersionAtStart = browserOrderVersion(localScope);
+  const browserOwnsOrders = !localAgentAvailable && supportsOfflineRoute(method, url) &&
+    (networkState === BACKEND_NETWORK_STATE.OFFLINE || await shouldKeepBrowserOrderOwnership(localScope));
+  if (browserOwnsOrders) {
+    // A reachable server may not know this bill yet. Never let a cache miss or
+    // unsupported mobile mutation fall through and overtake its queued create.
+    if (!supportsBrowserOfflineRoute(method, url)) {
+      throw new ServiceError(i18n.t("offlineSync.mobileOperationUnavailable"), 503);
+    }
+    try {
+      const local = prepared.eventUuid
+        ? await requestBrowserWriteFallback<T>(method, url, prepared.options, prepared.eventUuid, localScope)
+        : await readBrowserOfflineCache<T>(method, url, prepared.options, localScope);
+      if (local === null) throw new ServiceError(i18n.t("offlineSync.mobileCacheUnavailable"), 503);
+      return assertApiSuccess(local);
+    } catch (error) {
+      if (error instanceof ServiceError) throw error;
+      throw new ServiceError(error instanceof Error ? error.message : "Offline storage failed", 503, error);
+    }
+  }
   // Reachability and ownership differ during reconnect: Backend may be healthy
   // while this branch's order/payment events still exist only on the Agent.
   const preferOnlineTransport = shouldPreferOnlineTransport(auth.token, networkState);
@@ -268,6 +292,12 @@ export async function apiRequest<T>(
     backendNetworkManager.reportReachable(response.status, "backend_api_success");
     synchronizeOfflineSessionWithBackend();
     const data = assertApiSuccess(response.data);
+    if (!localAgentAvailable && !prepared.eventUuid && supportsBrowserOfflineRoute(method, url) &&
+        browserOrderVersion(localScope) !== browserVersionAtStart) {
+      const local = await readBrowserOfflineCache<T>(method, url, requestOptions, localScope);
+      if (local !== null) return assertApiSuccess(local);
+      throw new ServiceError(i18n.t("offlineSync.mobileCacheUnavailable"), 503);
+    }
     const currentAuth = useAuthStore.getState();
     if (
       preferOnlineTransport &&
@@ -307,6 +337,7 @@ export async function apiRequest<T>(
           auth.user?.branch_uuid,
           localScope.storeUuid,
           localAgentAvailable,
+          requestStartedAt,
         );
       });
     } else {
@@ -318,6 +349,7 @@ export async function apiRequest<T>(
         auth.user?.branch_uuid,
         localScope.storeUuid,
         localAgentAvailable,
+        requestStartedAt,
       );
     }
     return data;
@@ -462,7 +494,7 @@ export async function apiRequest<T>(
         );
         if (synthesized !== null) return assertApiSuccess(synthesized);
       } catch (writeError) {
-        console.error("[SYNC] android offline write failed", { method, url, writeError });
+        console.error("[SYNC] mobile offline write failed", { method, url, writeError });
         throw new ServiceError(
           writeError instanceof Error ? writeError.message : "Offline write failed",
           503,

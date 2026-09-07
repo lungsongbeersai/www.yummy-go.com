@@ -15,13 +15,10 @@ export interface OfflineSyncDevice {
 
 function randomHex(byteLength: number): string {
   const bytes = new Uint8Array(byteLength);
-  if (typeof crypto !== "undefined" && typeof crypto.getRandomValues === "function") {
-    crypto.getRandomValues(bytes);
-  } else {
-    for (let index = 0; index < bytes.length; index += 1) {
-      bytes[index] = Math.floor(Math.random() * 256);
-    }
+  if (typeof crypto === "undefined" || typeof crypto.getRandomValues !== "function") {
+    throw new Error("OFFLINE_SECURE_RANDOM_UNAVAILABLE");
   }
+  crypto.getRandomValues(bytes);
   return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
@@ -45,12 +42,14 @@ export function getOfflineSyncDeviceAuth(): OfflineSyncDevice | null {
 }
 
 function persistDevice(device: OfflineSyncDevice) {
-  if (typeof window === "undefined") return;
+  if (typeof window === "undefined") throw new Error("OFFLINE_DEVICE_STORAGE_UNAVAILABLE");
   try {
     window.localStorage.setItem(DEVICE_STORAGE_KEY, JSON.stringify(device));
   } catch {
-    // Storage full/unavailable — the caller still has the value in memory for
-    // this session; the next app start mints a fresh one if it never landed.
+    throw new Error("OFFLINE_DEVICE_STORAGE_UNAVAILABLE");
+  }
+  if (getOfflineSyncDeviceAuth()?.agentSecret !== device.agentSecret) {
+    throw new Error("OFFLINE_DEVICE_STORAGE_UNAVAILABLE");
   }
 }
 
@@ -60,11 +59,11 @@ function persistDevice(device: OfflineSyncDevice) {
  * `offline-transport-monitor.ts`) still happens per login, since Backend
  * ties the row to a branch — this only owns "does a local identity exist".
  */
-export function ensureOfflineSyncDevice(): OfflineSyncDevice {
+export function ensureOfflineSyncDevice(platform: "android" | "ios" = "android"): OfflineSyncDevice {
   const existing = getOfflineSyncDeviceAuth();
   if (existing) return existing;
   const created: OfflineSyncDevice = {
-    deviceCode: `android-${randomHex(6)}`,
+    deviceCode: `${platform}-${randomHex(6)}`,
     agentSecret: randomHex(SECRET_BYTE_LENGTH),
   };
   persistDevice(created);

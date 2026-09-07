@@ -91,6 +91,26 @@ function seedCategoryCache(store: MemoryBrowserOfflineStore) {
 }
 
 describe("synthesizeOfflineWrite", () => {
+  it("never returns success when IndexedDB and its durable outbox are unavailable", async () => {
+    await expect(synthesizeOfflineWrite("patch", "/api/v1/posAll/update_note",
+      { data: { order_item_uuid: "item-1", order_it_note: "test" } }, "no-database", SCOPE)).rejects.toThrow();
+  });
+
+  it.each(["payment", "confirm_to_kitchen"])("does not stage %s without a native durable print implementation", async (route) => {
+    const store = new MemoryBrowserOfflineStore();
+    await expect(synthesizeOfflineWrite(route === "payment" ? "post" : "patch", `/api/v1/posAll/${route}`,
+      { data: { order_uuid: ORDER } }, "not-printed", SCOPE, store)).rejects.toThrow();
+    expect(store.syncQueue.size).toBe(0);
+  });
+
+  it("preserves another cashier's queue and refuses to mix new writes into it", async () => {
+    const store = new MemoryBrowserOfflineStore();
+    await synthesizeOfflineWrite("patch", "/api/v1/posAll/update_note",
+      { data: { order_item_uuid: "item-1", order_it_note: "test" } }, "previous", SCOPE, store);
+    await expect(synthesizeOfflineWrite("patch", "/api/v1/posAll/update_note",
+      { data: { order_item_uuid: "item-1", order_it_note: "other" } }, "other", { ...SCOPE, actorLoginUuid: "other" }, store)).rejects.toThrow();
+    expect(store.syncQueue.size).toBe(1);
+  });
   it("stages a fresh create_order and returns a fetch_cart-shaped response with the new item priced", async () => {
     const store = new MemoryBrowserOfflineStore();
     seedCategoryCache(store);

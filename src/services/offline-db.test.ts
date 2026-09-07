@@ -20,6 +20,7 @@ import {
   type BrowserSyncStatusEntry,
 } from "@/services/offline-db";
 import { OFFLINE_READ_ONLY_PATHS } from "@/lib/offline-routes";
+import { loadOfflineOrderState } from "@/services/offline-order";
 import {
   discardBlockedBrowserSyncEvent,
   listBlockedBrowserSyncEvents,
@@ -935,6 +936,92 @@ describe("pushing a staged create_order to Backend never sends a discarded order
     vi.restoreAllMocks();
   });
 
+  async function stageNote(store: MemoryBrowserOfflineStore, eventUuid: string, note: string, actorLoginUuid = scope.actorLoginUuid) {
+    return stageBrowserSyncRequest({ ...scope, actorLoginUuid, eventUuid, method: "patch",
+      path: "/api/v1/posAll/update_note", data: { order_uuid: "order-1", order_item_uuid: "item-1", order_it_note: note } }, store);
+  }
+
+  it("drains in durable sequence, stopping at a failed parent instead of sending later mutations", async () => {
+    const store = new MemoryBrowserOfflineStore();
+    await stageNote(store, "first", "one");
+    await stageNote(store, "second", "two");
+    const post = vi.spyOn(axios, "post").mockResolvedValue({ data: { data: { results: [{ event_uuid: "first", status: "FAILED", error: "retry" }] } } });
+    await pushBrowserSyncQueue(scope, store);
+    expect(post).toHaveBeenCalledOnce();
+    expect((await store.getSyncQueue("second"))?.status).toBe("STAGED");
+    post.mockImplementation(async (_url, body: unknown) => {
+      const eventUuid = (body as { events: Array<{ event_uuid: string }> }).events[0].event_uuid;
+      return { data: { data: { results: [{ event_uuid: eventUuid, status: "SYNCED" }] } } };
+    });
+    await pushBrowserSyncQueue(scope, store);
+    expect((await store.getSyncQueue("second"))?.status).toBe("SYNCED");
+    expect(post.mock.calls).toHaveLength(3);
+  });
+
+  it("uses one worker even when two foreground/wake events race", async () => {
+    const store = new MemoryBrowserOfflineStore();
+    await stageNote(store, "first", "one");
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    const post = vi.spyOn(axios, "post").mockImplementation(async () => {
+      await gate;
+      return { data: { data: { results: [{ event_uuid: "first", status: "SYNCED" }] } } };
+    });
+    const one = pushBrowserSyncQueue(scope, store);
+    const two = pushBrowserSyncQueue(scope, store);
+    expect(one).toBe(two);
+    release();
+    await Promise.all([one, two]);
+    expect(post).toHaveBeenCalledOnce();
+  });
+
+  it("freezes the wire payload on a lost response and reuses it on the next push", async () => {
+    const store = new MemoryBrowserOfflineStore();
+    await stageNote(store, "first", "one");
+    const post = vi.spyOn(axios, "post").mockRejectedValue(new Error("lost reply"));
+    await pushBrowserSyncQueue(scope, store);
+    const firstBody: unknown = structuredClone(post.mock.calls[0][1]);
+    expect((await store.getSyncQueue("first"))?.wireEvent).toBeDefined();
+    post.mockResolvedValue({ data: { data: { results: [{ event_uuid: "first", status: "SYNCED" }] } } });
+    await pushBrowserSyncQueue(scope, store);
+    expect(post.mock.calls[1][1]).toEqual(firstBody);
+    expect((await store.getSyncQueue("first"))?.status).toBe("SYNCED");
+  });
+
+  it("does not push another cashier's events, even on the same branch", async () => {
+    const store = new MemoryBrowserOfflineStore();
+    await stageNote(store, "other", "one", "other-cashier");
+    const post = vi.spyOn(axios, "post");
+    await pushBrowserSyncQueue(scope, store);
+    expect(post).not.toHaveBeenCalled();
+    expect((await store.getSyncQueue("other"))?.status).toBe("STAGED");
+  });
+
+  it("acknowledges an in-flight response but sends no more work after logout", async () => {
+    const store = new MemoryBrowserOfflineStore();
+    await stageNote(store, "first", "one");
+    await stageNote(store, "second", "two");
+    let active = true;
+    const post = vi.spyOn(axios, "post").mockImplementation(async () => {
+      active = false;
+      return { data: { data: { results: [{ event_uuid: "first", status: "SYNCED" }] } } };
+    });
+    await pushBrowserSyncQueue(scope, store, () => active);
+    expect((await store.getSyncQueue("first"))?.status).toBe("SYNCED");
+    expect((await store.getSyncQueue("second"))?.status).toBe("STAGED");
+    expect(post).toHaveBeenCalledOnce();
+  });
+
+  it.each(["payment", "confirm_to_kitchen"])("holds legacy %s without deleting a bill or inventing printer evidence", async (route) => {
+    const store = new MemoryBrowserOfflineStore();
+    await stageBrowserSyncRequest({ ...scope, eventUuid: "legacy-print", method: route === "payment" ? "post" : "patch",
+      path: `/api/v1/posAll/${route}`, data: { order_uuid: "order-1" } }, store);
+    const post = vi.spyOn(axios, "post");
+    await pushBrowserSyncQueue(scope, store);
+    expect(post).not.toHaveBeenCalled();
+    expect(await store.getSyncQueue("legacy-print")).toMatchObject({ status: "BLOCKED", lastError: "MOBILE_OFFLINE_PRINT_REVIEW_REQUIRED" });
+  });
+
   it("rewrites a retargeted create_order's order_uuid to the table's real open order before pushing", async () => {
     // Mirrors the real scenario: the table already had a real online order,
     // then one item was added offline — order-state.ts's ORDER_CREATE handler
@@ -1020,5 +1107,56 @@ describe("pushing a staged create_order to Backend never sends a discarded order
 
     const body = post.mock.calls[0][1] as { events: Array<{ payload: { request: { data: Record<string, unknown> } } }> };
     expect(body.events[0].payload.request.data.order_uuid).toBe("order-brand-new");
+  });
+});
+
+describe("native cache and durable write boundaries", () => {
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  it("allocates unique increasing sequence values for simultaneous staged writes", async () => {
+    const store = new MemoryBrowserOfflineStore();
+    const entries = await Promise.all(Array.from({ length: 20 }, (_, index) => stageBrowserSyncRequest({
+      ...scope, eventUuid: `event-${index}`, method: "patch", path: "/api/v1/posAll/update_note", data: { order_it_note: index },
+    }, store)));
+    expect(new Set(entries.map((entry) => entry?.createdAt)).size).toBe(20);
+  });
+
+  it("checks cashier isolation inside the same atomic stage, including simultaneous requests", async () => {
+    const store = new MemoryBrowserOfflineStore();
+    const results = await Promise.allSettled(["cashier-a", "cashier-b"].map((actorLoginUuid) =>
+      stageBrowserSyncRequest({ ...scope, actorLoginUuid, eventUuid: actorLoginUuid,
+        method: "patch", path: "/api/v1/posAll/update_note", data: {}, requireExclusiveActor: true }, store)));
+    expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+    expect(results.filter((result) => result.status === "rejected")).toHaveLength(1);
+    expect(store.syncQueue.size).toBe(1);
+  });
+
+  it("rejects reusing an event id from another store/branch even with identical content", async () => {
+    const store = new MemoryBrowserOfflineStore();
+    const input = { ...scope, eventUuid: "event", method: "patch", path: "/api/v1/posAll/update_note", data: {} };
+    await stageBrowserSyncRequest(input, store);
+    await expect(stageBrowserSyncRequest({ ...input, storeUuid: "different-store" }, store)).rejects.toThrow("BROWSER_SYNC_EVENT_PAYLOAD_MISMATCH");
+  });
+
+  it("rejects a stale online response both before and just after the pending mutation syncs", async () => {
+    const store = new MemoryBrowserOfflineStore();
+    const input = { ...scope, method: "get", path: "/api/v1/posAll/fetch_cart", response: { orders: [] }, source: "ONLINE" as const, preservePendingOrders: true };
+    const requestStartedAt = Date.now();
+    await stageBrowserSyncRequest({ ...scope, eventUuid: "event", method: "patch", path: "/api/v1/posAll/update_note", data: {} }, store);
+    await expect(cacheBrowserApiResponse(input, store)).resolves.toBe(false);
+    await updateBrowserSyncEvent("event", { status: "SYNCED" }, store);
+    await expect(cacheBrowserApiResponse({ ...input, requestStartedAt }, store)).resolves.toBe(false);
+    await expect(cacheBrowserApiResponse(input, store)).resolves.toBe(true);
+  });
+
+  it("does not apply a synced quantity change twice after refreshing the server cart", async () => {
+    const store = new MemoryBrowserOfflineStore();
+    await stageBrowserSyncRequest({ ...scope, eventUuid: "qty", method: "patch", path: "/api/v1/posAll/order_item/update_qty",
+      data: { order_item_uuid: "item-1", change_type: "INCREASE", change_qty: 1 } }, store);
+    await updateBrowserSyncEvent("qty", { status: "SYNCED" }, store);
+    await cacheBrowserApiResponse({ ...scope, method: "get", path: "/api/v1/posAll/fetch_cart", source: "ONLINE", preservePendingOrders: true,
+      response: { orders: [{ order_uuid: "order-1", items: [{ order_item_uuid: "item-1", pro_detail_uuid: "detail-1", detail: { order_it_qty: 2, order_it_status: 1 } }] }] } }, store);
+    const state = await loadOfflineOrderState(scope, store);
+    expect(state.items.get("item-1")?.quantity).toBe(2);
   });
 });

@@ -1,6 +1,8 @@
 import type { HttpMethod, RequestOptions } from "@/lib/api";
+import i18n from "@/lib/i18n";
 import {
   listBrowserApiCacheResponses,
+  listBrowserApiCacheEntries,
   listBrowserSyncQueue,
   stageBrowserSyncRequest,
   type BrowserOfflineIdentity,
@@ -14,10 +16,12 @@ import { projectOfflineCart } from "./cart-projection";
 import { seedOfflineStateFromCart } from "./cart-seed";
 import type { OfflineOrderState } from "./types";
 
-// Android has no Local Agent to hand a write to, so this is what
+// Capacitor has no Local Agent to hand a write to, so this is what
 // `requestLocalFallback` is for every other platform: the thing `apiRequest`
 // (src/lib/api.ts) calls instead of throwing when a mutation on one of the 10
-// order-lifecycle routes fails at the transport layer. Unlike the Agent, there
+// order-lifecycle routes fails at the transport layer. Print-dependent
+// completion is guarded below until a durable native print engine exists.
+// Unlike the Agent, there
 // is no separate process with its own database to ask — the "response" is
 // computed inline, in the browser, from the same Dexie outbox the read side
 // (readBrowserOfflineCache) already replays.
@@ -48,17 +52,26 @@ export async function loadOfflineOrderState(
   // it is the same merge cart-seed.ts already does for one response, just
   // over every cached order/table instead of guessing which one this
   // mutation's own payload belongs to (most only carry order_item_uuid).
-  const cachedCarts = await listBrowserApiCacheResponses(scope, FETCH_CART_PATH, store);
+  const cachedCarts = await listBrowserApiCacheEntries(scope, FETCH_CART_PATH, store);
+  const watermarks = new Map<string, number>();
   let state = cachedCarts.reduce<OfflineOrderState>((base, cached) => {
-    const seeded = seedOfflineStateFromCart(cached);
+    const seeded = seedOfflineStateFromCart(cached.response);
+    for (const orderUuid of seeded.orders.keys()) watermarks.set(orderUuid, cached.syncedThrough ?? 0);
+    // Replacing a cart must also remove lines absent from its new snapshot.
+    const retained = [...base.items].filter(([, item]) => !seeded.orders.has(item.orderUuid));
     return {
       orders: new Map([...base.orders, ...seeded.orders]),
-      items: new Map([...base.items, ...seeded.items]),
+      items: new Map([...retained, ...seeded.items]),
     };
   }, emptyOfflineOrderState());
 
   const queued = await listBrowserSyncQueue(scope, store);
-  state = reduceOfflineOrderEvents(decodeOfflineOrderEvents(queued), state);
+  const remaining = queued.filter((entry) => {
+    const data = record(entry.wireEvent?.payload.request.data ?? entry.data);
+    const orderUuid = resolveOrderUuid(state, data);
+    return entry.status !== "SYNCED" || entry.createdAt > (watermarks.get(orderUuid ?? "") ?? 0);
+  }).map((entry) => ({ ...entry, data: entry.wireEvent?.payload.request.data ?? entry.data }));
+  state = reduceOfflineOrderEvents(decodeOfflineOrderEvents(remaining), state);
   return state;
 }
 
@@ -153,12 +166,23 @@ export async function synthesizeOfflineWrite(
   const event = decodeOfflineOrderEvent({ method, path, data });
   if (!event) return null;
 
-  await stageBrowserSyncRequest(
+  // The legacy reducer can replay historical records, but it is not a native
+  // print queue or proof of delivery. Do not accept more fictitious completions.
+  if (event.kind === "KITCHEN_CONFIRM" || event.kind === "PAYMENT") {
+    throw new Error(i18n.t("offlineSync.mobilePrintUnavailable"));
+  }
+  const queued = await listBrowserSyncQueue(scope, store);
+  if (queued.some((entry) => entry.status !== "SYNCED" && entry.actorLoginUuid !== scope.actorLoginUuid)) {
+    throw new Error(i18n.t("offlineSync.mobilePreviousCashierPending"));
+  }
+
+  const staged = await stageBrowserSyncRequest(
     {
       eventUuid,
       storeUuid: scope.storeUuid,
       branchUuid: scope.branchUuid,
       actorLoginUuid: scope.actorLoginUuid,
+      requireExclusiveActor: true,
       method,
       path,
       params: options?.params ?? {},
@@ -166,6 +190,7 @@ export async function synthesizeOfflineWrite(
     },
     store,
   );
+  if (!staged) throw new Error(i18n.t("offlineSync.mobileStorageUnavailable"));
 
   const [state, master] = await Promise.all([
     loadOfflineOrderState(scope, store),

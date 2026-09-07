@@ -1,5 +1,6 @@
 import axios from "axios";
 import { AGENT_URL } from "@/config/printer-agent";
+import { isCapacitorMobileApp } from "@/lib/capacitor-platform";
 import { publicApiClient, ServiceError } from "@/lib/api";
 import { classifyBackendError, navigatorReportsOffline } from "@/lib/network-state";
 import type { AuthUser } from "@/stores/auth-store";
@@ -109,7 +110,7 @@ export async function checkLogin(login_email: string, login_password: string): P
   // Cold start with no network: the NetworkManager may still read CHECKING
   // because no probe has completed yet. Trust the browser's own offline report
   // and go straight to the Agent so the first attempt succeeds without retries.
-  if (backendNetworkManager.isOffline() || navigatorReportsOffline()) {
+  if (!isCapacitorMobileApp() && (backendNetworkManager.isOffline() || navigatorReportsOffline())) {
     try {
       return await loginFromLocalAgent(login_email, login_password);
     } catch (agentError) {
@@ -146,6 +147,7 @@ export async function checkLogin(login_email: string, login_password: string): P
       });
     }
     if (
+      !isCapacitorMobileApp() &&
       classification.classification === "NETWORK_TRANSPORT" &&
       (backendNetworkManager.isOffline() || navigatorReportsOffline())
     ) {

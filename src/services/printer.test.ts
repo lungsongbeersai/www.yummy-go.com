@@ -11,7 +11,8 @@ const axiosMocks = vi.hoisted(() => ({
 }));
 
 const capacitorMocks = vi.hoisted(() => ({
-  isNativePlatform: vi.fn()
+  isNativePlatform: vi.fn(),
+  getPlatform: vi.fn().mockReturnValue("android")
 }));
 
 const mobileTcpMocks = vi.hoisted(() => ({
@@ -1863,6 +1864,17 @@ describe("printer device identity", () => {
     apiMocks.apiRequest.mockReset();
     axiosMocks.get.mockReset();
     axiosMocks.post.mockReset();
+    capacitorMocks.isNativePlatform.mockReset().mockReturnValue(false);
+  });
+
+  it.each(["android", "ios"])("resolves %s printer identity without trying a localhost Agent", async (platform) => {
+    mockLocalStorage();
+    capacitorMocks.isNativePlatform.mockReturnValue(true);
+    capacitorMocks.getPlatform.mockReturnValue(platform);
+    const result = await resolvePrinterDeviceIdentity();
+    expect(result.ok).toBe(true);
+    expect(axiosMocks.get).not.toHaveBeenCalled();
+    expect(axiosMocks.post).not.toHaveBeenCalled();
   });
 
   it("uses desktop local agent info when the agent is available", async () => {

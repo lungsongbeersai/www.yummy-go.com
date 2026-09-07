@@ -101,7 +101,8 @@ describe("offline asset cache", () => {
   it("switches transport on network events and flushes local work before resuming online", () => {
     expect(offlineRuntime).toContain("startOfflineTransportMonitor()");
     expect(offlineRuntime).toContain("startBackendNetworkMonitor()");
-    expect(offlineRuntime).toContain("isCapacitorAndroidApp()");
+    expect(offlineRuntime).not.toContain("if (isCapacitorAndroidApp()) return");
+    expect(offlineTransportMonitor).toContain("if (isCapacitorMobileApp())");
     expect(offlineTransportMonitor).toContain('"/api/v1/sync/health"');
     expect(offlineTransportMonitor).toContain('window.addEventListener("offline", handleNetworkHint)');
     expect(offlineTransportMonitor).toContain('window.addEventListener("online", handleNetworkHint)');
@@ -116,8 +117,8 @@ describe("offline asset cache", () => {
     expect(offlineRuntime).toContain('\"/pos\"');
   });
 
-  it("never routes the Capacitor Android app to the Desktop Printer Agent", () => {
-    expect(apiTransport).toContain("const localAgentAvailable = !isCapacitorAndroidApp()");
+  it("never routes either Capacitor mobile app to the Desktop Printer Agent", () => {
+    expect(apiTransport).toContain("const localAgentAvailable = !isCapacitorMobileApp()");
     expect(apiTransport).toContain("localAgentAvailable &&");
     // Android may write and read the Dexie mirror — that is its only offline
     // source — but the two AGENT_URL posts inside cacheOnlineResponse stay behind

@@ -97,6 +97,7 @@ export interface BrowserApiCacheEntry extends BrowserOfflineScope {
   response: unknown;
   source: "AGENT" | "ONLINE";
   cachedAt: number;
+  syncedThrough?: number;
 }
 
 export interface BrowserSyncQueueEntry extends BrowserOfflineIdentity {
@@ -111,6 +112,22 @@ export interface BrowserSyncQueueEntry extends BrowserOfflineIdentity {
   lastError: string | null;
   createdAt: number;
   updatedAt: number;
+  /** Frozen before the first native push; retries must send byte-equivalent data. */
+  wireEvent?: BrowserSyncWireEvent;
+}
+
+export interface BrowserSyncWireEvent {
+  event_uuid: string;
+  operation: string;
+  branch_uuid: string;
+  store_uuid: string;
+  device_code: string;
+  actor_login_uuid: string;
+  entity_type: string;
+  entity_uuid: string | null;
+  sequence: number;
+  dependencies: string[];
+  payload: { request: { params: Record<string, unknown>; data: unknown } };
 }
 
 export interface BrowserSyncStatusEntry extends BrowserOfflineScope {
@@ -136,6 +153,7 @@ export interface BrowserSyncQueueSummary {
 }
 
 export interface BrowserOfflineStore {
+  transaction?: <T>(task: () => Promise<T>) => Promise<T>;
   getApiCache: (key: string) => Promise<BrowserApiCacheEntry | undefined>;
   putApiCache: (entry: BrowserApiCacheEntry) => Promise<void>;
   pruneApiCache: (scope: BrowserOfflineScope, maxEntries: number) => Promise<void>;
@@ -159,10 +177,13 @@ interface CacheRequest extends BrowserOfflineScope {
 interface CacheWriteInput extends CacheRequest {
   response: unknown;
   source: "AGENT" | "ONLINE";
+  preservePendingOrders?: boolean;
+  requestStartedAt?: number;
 }
 
 interface StageSyncRequestInput extends CacheRequest, BrowserOfflineIdentity {
   eventUuid: string;
+  requireExclusiveActor?: boolean;
 }
 
 interface BrowserStatusInput extends BrowserOfflineScope {
@@ -192,6 +213,10 @@ class YummyGoBrowserDatabase extends Dexie {
 
 class DexieBrowserOfflineStore implements BrowserOfflineStore {
   constructor(private readonly database: YummyGoBrowserDatabase) {}
+
+  transaction<T>(task: () => Promise<T>) {
+    return this.database.transaction("rw", this.database.apiCache, this.database.syncQueue, this.database.syncStatus, task);
+  }
 
   async getApiCache(key: string) {
     return this.database.apiCache.get(key);
@@ -329,20 +354,30 @@ export async function cacheBrowserApiResponse(
   const store = storeFor(override);
   if (!store || !input.storeUuid || !input.branchUuid) return false;
   if (serializedSize(input.response) > MAX_API_CACHE_RESPONSE_BYTES) return false;
-  const cachedAt = Date.now();
-  await store.putApiCache({
-    key: browserApiCacheKey(input),
-    storeUuid: input.storeUuid,
-    branchUuid: input.branchUuid,
-    method: input.method.toUpperCase(),
-    path: normalizedPath(input.path),
-    requestFingerprint: browserRequestFingerprint(input),
-    response: input.response,
-    source: input.source,
-    cachedAt,
-  });
-  await store.pruneApiCache(input, MAX_API_CACHE_ENTRIES);
-  return true;
+  const cache = async () => {
+    const queued = input.preservePendingOrders ? await store.listSyncQueue(input) : [];
+    // A response started online can arrive after the cashier wrote locally.
+    // Keep the old base until all local mutations have been acknowledged.
+    if (queued.some((entry) => entry.status !== "SYNCED" ||
+      (input.requestStartedAt !== undefined && entry.updatedAt >= input.requestStartedAt))) return false;
+    const cachedAt = Date.now();
+    await store.putApiCache({
+      key: browserApiCacheKey(input),
+      storeUuid: input.storeUuid,
+      branchUuid: input.branchUuid,
+      method: input.method.toUpperCase(),
+      path: normalizedPath(input.path),
+      requestFingerprint: browserRequestFingerprint(input),
+      response: input.response,
+      source: input.source,
+      cachedAt,
+      ...(input.preservePendingOrders ? { syncedThrough: queued.reduce((latest, entry) => Math.max(latest, entry.createdAt), 0) } : {}),
+    });
+    await store.pruneApiCache(input, MAX_API_CACHE_ENTRIES);
+    return true;
+  };
+  if (!input.preservePendingOrders) return cache();
+  return store.transaction ? store.transaction(cache) : serializeStoreWrite(store, cache);
 }
 
 export async function readBrowserApiFallback<T>(
@@ -367,13 +402,22 @@ export async function listBrowserApiCacheResponses(
   path: string,
   override?: BrowserOfflineStore,
 ): Promise<unknown[]> {
+  return (await listBrowserApiCacheEntries(scope, path, override)).map((entry) => entry.response);
+}
+
+export async function listBrowserApiCacheEntries(
+  scope: BrowserOfflineScope,
+  path: string,
+  override?: BrowserOfflineStore,
+): Promise<BrowserApiCacheEntry[]> {
   const store = storeFor(override);
   if (!store) return [];
   const entries = await store.listApiCacheByPath(scope, normalizedPath(path));
+  const operational = path.startsWith("/api/v1/posAll/");
+  const pending = operational && (await store.listSyncQueue(scope)).some((entry) => entry.status !== "SYNCED");
   return entries
-    .filter((entry) => Date.now() - entry.cachedAt <= MAX_API_CACHE_AGE_MS)
-    .sort((left, right) => left.cachedAt - right.cachedAt)
-    .map((entry) => entry.response);
+    .filter((entry) => pending || Date.now() - entry.cachedAt <= MAX_API_CACHE_AGE_MS)
+    .sort((left, right) => left.cachedAt - right.cachedAt);
 }
 
 async function updateMutationTimestamp(
@@ -415,40 +459,59 @@ export async function stageBrowserSyncRequest(
 ) {
   const store = storeFor(override);
   if (!store || !input.eventUuid || !input.storeUuid || !input.branchUuid || !input.actorLoginUuid) return null;
-  const fingerprint = browserRequestFingerprint(input);
-  const existing = await store.getSyncQueue(input.eventUuid);
-  if (existing && (
-    existing.requestFingerprint !== fingerprint ||
-    existing.actorLoginUuid !== input.actorLoginUuid
-  )) {
-    throw new Error("BROWSER_SYNC_EVENT_PAYLOAD_MISMATCH");
-  }
-  const now = Date.now();
-  const existingScopeEntries = existing ? [] : await store.listSyncQueue(input);
-  const latestCreatedAt = existingScopeEntries.reduce(
-    (latest, entry) => Math.max(latest, entry.createdAt),
-    0,
-  );
-  const createdAt = existing?.createdAt ?? Math.max(now, latestCreatedAt + 1);
-  const entry: BrowserSyncQueueEntry = existing ?? {
-    eventUuid: input.eventUuid,
-    storeUuid: input.storeUuid,
-    branchUuid: input.branchUuid,
-    actorLoginUuid: input.actorLoginUuid,
-    method: input.method.toUpperCase(),
-    path: normalizedPath(input.path),
-    params: input.params ?? {},
-    data: input.data ?? {},
-    requestFingerprint: fingerprint,
-    dependencies: [],
-    status: "STAGED",
-    lastError: null,
-    createdAt,
-    updatedAt: now,
+  const stage = async () => {
+    const fingerprint = browserRequestFingerprint(input);
+    const existing = await store.getSyncQueue(input.eventUuid);
+    if (existing && (
+      existing.requestFingerprint !== fingerprint ||
+      existing.actorLoginUuid !== input.actorLoginUuid ||
+      existing.storeUuid !== input.storeUuid || existing.branchUuid !== input.branchUuid
+    )) {
+      throw new Error("BROWSER_SYNC_EVENT_PAYLOAD_MISMATCH");
+    }
+    const now = Date.now();
+    const existingScopeEntries = existing ? [] : await store.listSyncQueue(input);
+    if (input.requireExclusiveActor && existingScopeEntries.some((entry) =>
+      entry.status !== "SYNCED" && entry.actorLoginUuid !== input.actorLoginUuid)) {
+      throw new Error("MOBILE_PREVIOUS_CASHIER_PENDING");
+    }
+    const latestCreatedAt = existingScopeEntries.reduce(
+      (latest, entry) => Math.max(latest, entry.createdAt),
+      0,
+    );
+    const createdAt = existing?.createdAt ?? Math.max(now, latestCreatedAt + 1);
+    const entry: BrowserSyncQueueEntry = existing ?? {
+      eventUuid: input.eventUuid,
+      storeUuid: input.storeUuid,
+      branchUuid: input.branchUuid,
+      actorLoginUuid: input.actorLoginUuid,
+      method: input.method.toUpperCase(),
+      path: normalizedPath(input.path),
+      params: input.params ?? {},
+      data: input.data ?? {},
+      requestFingerprint: fingerprint,
+      dependencies: [],
+      status: "STAGED",
+      lastError: null,
+      createdAt,
+      updatedAt: now,
+    };
+    await store.putSyncQueue({ ...entry, updatedAt: now });
+    await updateMutationTimestamp(input, now, store);
+    return entry;
   };
-  await store.putSyncQueue({ ...entry, updatedAt: now });
-  await updateMutationTimestamp(input, now, store);
-  return entry;
+  return store.transaction ? store.transaction(stage) : serializeStoreWrite(store, stage);
+}
+
+const storeWrites = new WeakMap<BrowserOfflineStore, Promise<unknown>>();
+
+function serializeStoreWrite<T>(store: BrowserOfflineStore, task: () => Promise<T>): Promise<T> {
+  const previous = storeWrites.get(store) ?? Promise.resolve();
+  const current = previous.then(task, task);
+  const tail = current.then(() => undefined, () => undefined);
+  storeWrites.set(store, tail);
+  void tail.then(() => { if (storeWrites.get(store) === tail) storeWrites.delete(store); });
+  return current;
 }
 
 export async function updateBrowserSyncEvent(
@@ -457,22 +520,27 @@ export async function updateBrowserSyncEvent(
     status: BrowserSyncEventStatus;
     dependencies?: string[];
     lastError?: string | null;
+    wireEvent?: BrowserSyncWireEvent;
   },
   override?: BrowserOfflineStore,
 ) {
   const store = storeFor(override);
   if (!store) return null;
-  const current = await store.getSyncQueue(eventUuid);
-  if (!current) return null;
-  const entry: BrowserSyncQueueEntry = {
-    ...current,
-    status: update.status,
-    dependencies: update.dependencies ?? current.dependencies,
-    lastError: update.lastError === undefined ? current.lastError : update.lastError,
-    updatedAt: Date.now(),
+  const apply = async () => {
+    const current = await store.getSyncQueue(eventUuid);
+    if (!current) return null;
+    const entry: BrowserSyncQueueEntry = {
+      ...current,
+      status: update.status,
+      dependencies: update.dependencies ?? current.dependencies,
+      lastError: update.lastError === undefined ? current.lastError : update.lastError,
+      wireEvent: current.wireEvent ?? update.wireEvent,
+      updatedAt: Date.now(),
+    };
+    await store.putSyncQueue(entry);
+    return entry;
   };
-  await store.putSyncQueue(entry);
-  return entry;
+  return store.transaction ? store.transaction(apply) : serializeStoreWrite(store, apply);
 }
 
 export async function discardBrowserSyncEvent(
@@ -506,7 +574,12 @@ export async function listBrowserSyncQueue(
   const scopeKey = browserOfflineScopeKey(scope);
   if (now - (prunedAtByScope.get(scopeKey) ?? 0) >= SYNCED_QUEUE_PRUNE_INTERVAL_MS) {
     prunedAtByScope.set(scopeKey, now);
-    await store.pruneSyncedQueue(scope, now - SYNCED_QUEUE_RETENTION_MS);
+    // A still-open recovery chain may need its acknowledged parents to rebuild
+    // the cart or satisfy dependencies. Never prune them out from under it.
+    const entries = await store.listSyncQueue(scope);
+    if (!entries.some((entry) => entry.status !== "SYNCED")) {
+      await store.pruneSyncedQueue(scope, now - SYNCED_QUEUE_RETENTION_MS);
+    }
   }
   return store.listSyncQueue(scope);
 }

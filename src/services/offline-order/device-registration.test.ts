@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ensureOfflineSyncDevice, getOfflineSyncDeviceAuth } from "./device-registration";
 
 const STORAGE_KEY = "yummy-go:offline-sync-device";
@@ -21,7 +21,23 @@ class MemoryLocalStorage {
 
 describe("ensureOfflineSyncDevice", () => {
   beforeEach(() => {
-    (globalThis as { window?: unknown }).window = { localStorage: new MemoryLocalStorage() };
+    vi.stubGlobal("window", { localStorage: new MemoryLocalStorage() });
+  });
+  afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+
+  it("uses an iOS device identity without rotating an existing Android identity", () => {
+    expect(ensureOfflineSyncDevice("ios").deviceCode).toMatch(/^ios-/);
+    expect(ensureOfflineSyncDevice("android")).toEqual(getOfflineSyncDeviceAuth());
+  });
+
+  it("does not claim registration readiness when the secret cannot be persisted", () => {
+    vi.spyOn(window.localStorage, "setItem").mockImplementation(() => { throw new Error("full"); });
+    expect(() => ensureOfflineSyncDevice()).toThrow("OFFLINE_DEVICE_STORAGE_UNAVAILABLE");
+  });
+
+  it("never generates a device secret with Math.random", () => {
+    vi.stubGlobal("crypto", undefined);
+    expect(() => ensureOfflineSyncDevice()).toThrow("OFFLINE_SECURE_RANDOM_UNAVAILABLE");
   });
 
   it("mints a device identity that satisfies Backend's minimums", () => {

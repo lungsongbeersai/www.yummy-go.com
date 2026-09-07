@@ -1,10 +1,14 @@
 import axios from "axios";
+import { Capacitor } from "@capacitor/core";
+import { apiClient } from "@/lib/api";
+import * as offlineSync from "@/services/offline-sync";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { BACKEND_NETWORK_STATE } from "@/lib/network-state";
 import { resetLocalSyncConfiguration } from "@/services/offline-sync";
 import { useAuthStore, type AuthUser } from "@/stores/auth-store";
 import {
   probeBackendReachability,
+  getCurrentSyncPending,
   startBackendNetworkMonitor,
   offlineWorkerScopeKey,
   startOfflineTransportMonitor,
@@ -68,6 +72,59 @@ const unreachable = (): BackendProbeResult => ({
   httpStatus: null,
   classification: "NETWORK_TRANSPORT",
   reason: "backend_fetch_network_error",
+});
+
+describe.each(["android", "ios"])("%s Dexie sync worker", (platform) => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    installBrowser(true);
+    const storage = new Map<string, string>();
+    vi.stubGlobal("window", { ...window, localStorage: {
+      getItem: (key: string) => storage.get(key) ?? null,
+      setItem: (key: string, value: string) => storage.set(key, value),
+      removeItem: (key: string) => storage.delete(key),
+    } });
+    vi.spyOn(Capacitor, "isNativePlatform").mockReturnValue(true);
+    vi.spyOn(Capacitor, "getPlatform").mockReturnValue(platform);
+    vi.spyOn(console, "info").mockImplementation(() => undefined);
+    useAuthStore.getState().login(`native-${platform}`, authUser(`login-${platform}`));
+    backendNetworkManager.reportReachable(200);
+  });
+  afterEach(() => { useAuthStore.getState().logout(); vi.restoreAllMocks(); vi.unstubAllGlobals(); vi.useRealTimers(); });
+
+  it("reads the cashier badge from the branch's Dexie queue, not Agent status", async () => {
+    vi.spyOn(offlineSync, "getBrowserLocalSyncStatus").mockResolvedValue({ staged: 2, pending: 1, processing: 1, failed: 0, blocked: 3, synced: 5 });
+    const agent = vi.spyOn(offlineSync, "getLocalSyncStatus");
+    await expect(getCurrentSyncPending()).resolves.toEqual({ pending: 3, processing: 1, failed: 0, blocked: 3 });
+    expect(agent).not.toHaveBeenCalled();
+  });
+
+  it("registers with Backend then starts direct push, without configuring or probing an Agent", async () => {
+    const register = vi.spyOn(apiClient, "post").mockResolvedValue({ status: 200, data: { status: "success" } });
+    const push = vi.spyOn(offlineSync, "pushBrowserSyncQueue").mockResolvedValue({ staged: 0, pending: 0, processing: 0, blocked: 0, failed: 0, synced: 1 });
+    const agentGet = vi.spyOn(axios, "get");
+    const agentPost = vi.spyOn(axios, "post");
+    const stop = startOfflineTransportMonitor();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(register).toHaveBeenCalledWith("/api/v1/sync/device/register", expect.objectContaining({ platform }), expect.anything());
+    expect(push).toHaveBeenCalledWith({ storeUuid: "store-1", branchUuid: "branch-1", actorLoginUuid: `login-${platform}` }, undefined, expect.any(Function));
+    expect(agentGet).not.toHaveBeenCalled();
+    expect(agentPost).not.toHaveBeenCalled();
+    stop();
+  });
+
+  it("does not push when registration fails and retries on a later tick", async () => {
+    useAuthStore.getState().login(`native-failed-${platform}`, authUser(`failed-${platform}`));
+    const register = vi.spyOn(apiClient, "post").mockRejectedValue(new Error("registration failed"));
+    const push = vi.spyOn(offlineSync, "pushBrowserSyncQueue").mockResolvedValue(null);
+    const stop = startOfflineTransportMonitor();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(push).not.toHaveBeenCalled();
+    register.mockResolvedValue({ status: 200, data: { status: "success" } });
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(push).toHaveBeenCalledOnce();
+    stop();
+  });
 });
 
 describe("Backend NetworkManager", () => {

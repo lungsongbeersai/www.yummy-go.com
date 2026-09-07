@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getLocalSyncStatus } from "@/services/offline-sync";
+import { getCurrentSyncPending } from "@/stores/offline-transport-monitor";
 
 // What the cashier standing at the till needs to know: whether the sale they
 // just took has reached the server. A bill can read seven items on the POS and
@@ -55,12 +55,10 @@ export function useLocalSyncBadge(): LocalSyncBadgeState | null {
     let timer: number | null = null;
 
     const check = async () => {
-      // maxAgeMs lets this share the status the transport monitor already
-      // fetched instead of adding a second request on the same interval.
-      const status = await getLocalSyncStatus({ maxAgeMs: POLL_INTERVAL_MS })
-        .catch(() => null);
+      // The store selects Dexie on mobile and the shared Agent cache on desktop.
+      const pending = await getCurrentSyncPending().catch(() => undefined);
       if (!active) return;
-      setState(localSyncBadgeState(status?.pending));
+      setState(localSyncBadgeState(pending));
       timer = window.setTimeout(() => void check(), POLL_INTERVAL_MS);
     };
 

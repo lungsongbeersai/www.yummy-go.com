@@ -2,7 +2,6 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { isCapacitorAndroidApp } from "@/lib/capacitor-platform";
 import { useAuthStore } from "@/stores/auth-store";
 import {
   startBackendNetworkMonitor,
@@ -26,10 +25,8 @@ export function OfflineAppRuntime() {
   useEffect(() => {
     if (!isLoggedIn) return;
 
-    // Android prints through Native TCP and has no Desktop Local Agent. Backend
-    // reachability is already owned by startBackendNetworkMonitor above.
-    if (isCapacitorAndroidApp()) return;
-
+    // The monitor chooses Dexie on Capacitor and the Local Agent on desktop.
+    // Skipping it on mobile leaves durable sales permanently unsent.
     return startOfflineTransportMonitor();
   }, [isLoggedIn]);
 

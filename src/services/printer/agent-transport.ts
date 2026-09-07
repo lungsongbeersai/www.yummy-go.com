@@ -4,6 +4,7 @@
 // config-api.ts (getPrinters, renderMobileEscpos) — not vice versa.
 import axios from "axios";
 import { Capacitor } from "@capacitor/core";
+import { isCapacitorMobileApp } from "@/lib/capacitor-platform";
 import { ServiceError } from "@/lib/api";
 import { AGENT_URL } from "@/config/printer-agent";
 import {
@@ -95,6 +96,7 @@ function getAgentFromPayload(payload: AgentInfoResponse | AgentInfo | null | und
 }
 
 export async function getLocalAgentInfo(agentUrl = AGENT_URL) {
+  if (isCapacitorMobileApp()) throw new ServiceError("Capacitor uses native printing, not a Local Agent", 503);
   const { data } = await axios.get<AgentInfoResponse | AgentInfo>(`${printerAgentBase(AGENT_URL, agentUrl)}/agent/info`, {
     headers: { "x-agent-secret": AGENT_SECRET },
     timeout: 5000
@@ -152,6 +154,7 @@ export function isBrowserDevicePrintJob(job: PrintJob | null | undefined) {
 }
 
 export async function checkPrinterAgentConnection(agentUrl = AGENT_URL): Promise<CheckPrinterAgentConnectionResult> {
+  if (isCapacitorMobileApp()) return { ok: false, error: "Capacitor uses native printing, not a Local Agent" };
   try {
     const { data } = await axios.get<AgentInfoResponse | AgentInfo>(`${printerAgentBase(AGENT_URL, agentUrl)}/agent/info`, {
       headers: { "x-agent-secret": AGENT_SECRET },
@@ -173,6 +176,9 @@ function hasPrinterDeviceIdentity(agent: AgentInfo | null | undefined) {
 
 export async function resolvePrinterDeviceIdentity(agentUrl = AGENT_URL): Promise<CheckPrinterAgentConnectionResult> {
   try {
+    // Do not wait five seconds for a localhost Agent that cannot exist here.
+    // Keep the existing browser-device id so printer ownership is not rotated.
+    if (isCapacitorMobileApp()) return { ok: true, agent: await getBrowserPrinterIdentity() };
     const result = await checkPrinterAgentConnection(agentUrl);
     if (!result.ok) {
       return { ok: true, agent: await getBrowserPrinterIdentity() };
@@ -299,7 +305,9 @@ export async function dispatchPrintJob(
 export async function resolvePrinterDeviceContext(params: PrinterDeviceContextParams): Promise<PrinterDeviceContext> {
   const inputDeviceCode = textValue(params.device_code);
   let agent: AgentInfo | null = null;
-  if (!inputDeviceCode) {
+  if (!inputDeviceCode && isCapacitorMobileApp()) {
+    agent = await getBrowserPrinterIdentity();
+  } else if (!inputDeviceCode) {
     try {
       agent = await getLocalAgentInfo();
     } catch (error) {

@@ -10,7 +10,7 @@ import {
   isImmersiveScreen,
 } from "@/components/layout/shell-menu-helpers";
 import { useResetOnDeps } from "@/hooks/use-reset-on-change";
-import { useIsAndroidNativeApp } from "@/hooks/use-android-native-app";
+import { useIsCapacitorNativeApp } from "@/hooks/use-capacitor-native-app";
 import {
   resolveShellBreadcrumbs,
   type BreadcrumbTrailItem,
@@ -46,7 +46,7 @@ export function useAppShellData() {
   const { i18n } = useTranslation();
   const user = useAuthStore((state) => state.user);
   const offlineSession = useAuthStore((state) => state.offlineSession);
-  const isAndroidNative = useIsAndroidNativeApp();
+  const isNativeApp = useIsCapacitorNativeApp();
   const sidebarItems = usePermissionsSidebarStore((state) => state.items);
   const sidebarError = usePermissionsSidebarStore((state) => state.error);
   const sidebarLoading = usePermissionsSidebarStore((state) => state.loading);
@@ -74,9 +74,9 @@ export function useAppShellData() {
           sidebarKeyMatches ? sidebarItems : [],
         ),
         offlineSession,
-        isAndroidNative,
+        isNativeApp,
       ),
-    [isAndroidNative, offlineSession, sidebarItems, sidebarKeyMatches],
+    [isNativeApp, offlineSession, sidebarItems, sidebarKeyMatches],
   );
 
   const menuLoading =

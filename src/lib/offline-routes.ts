@@ -38,31 +38,29 @@ export const OFFLINE_WRITE_CAPABLE_PATHS = [
   "/sales/stuck-orders",
 ] as const;
 
-// เขียนออฟไลน์บน Android ไม่ผ่าน Local Agent อีกต่อไป (write-fallback.ts สังเคราะห์
-// คำตอบจาก Dexie outbox แทน) แต่ยังจำกัดแค่วงจรออเดอร์เดิม (เปิดโต๊ะ/สั่ง/ยืนยันครัว/เสิร์ฟ/
-// จ่ายเงิน) — ย้ายโต๊ะ/รวมบิล/แยกบิล/พิมพ์ยังต้องมี Agent เท่านั้น จึงยังไม่รวม
-// /order_manage หรือ /sales/stuck-orders ให้ Android
-const ANDROID_OFFLINE_WRITE_CAPABLE_PATHS = ["/pos/tables", "/pos/order"] as const;
+// Android and iOS use Dexie, not an Agent. These pages allow order entry;
+// unsupported native print/payment completion is rejected before staging.
+const MOBILE_OFFLINE_WRITE_CAPABLE_PATHS = ["/pos/tables", "/pos/order"] as const;
 
 // เพจ infra ที่ต้องใช้งานได้เสมอไม่ว่าสถานะออฟไลน์จะเป็นอย่างไร (ไม่ใช่ส่วนหนึ่งของฟีเจอร์
 // "sales-essential" — เป็นทางเข้า/ทางออกของแอปเอง)
 export const OFFLINE_INFRA_PATHS = ["/", "/login", "/pos"] as const;
 
-export function getOfflineAllowedPaths(isAndroidNative: boolean): readonly string[] {
-  return isAndroidNative
-    ? [...OFFLINE_READ_ONLY_PATHS, ...ANDROID_OFFLINE_WRITE_CAPABLE_PATHS]
+export function getOfflineAllowedPaths(isMobileNative: boolean): readonly string[] {
+  return isMobileNative
+    ? [...OFFLINE_READ_ONLY_PATHS, ...MOBILE_OFFLINE_WRITE_CAPABLE_PATHS]
     : [...OFFLINE_READ_ONLY_PATHS, ...OFFLINE_WRITE_CAPABLE_PATHS];
 }
 
-export function isOfflineAllowedPath(pathname: string, isAndroidNative: boolean): boolean {
+export function isOfflineAllowedPath(pathname: string, isMobileNative: boolean): boolean {
   return (
     (OFFLINE_INFRA_PATHS as readonly string[]).includes(pathname) ||
-    getOfflineAllowedPaths(isAndroidNative).includes(pathname)
+    getOfflineAllowedPaths(isMobileNative).includes(pathname)
   );
 }
 
-export function getOfflineRedirectPath(isAndroidNative: boolean): string {
+export function getOfflineRedirectPath(isMobileNative: boolean): string {
   // Named, not OFFLINE_READ_ONLY_PATHS[0]: adding a page to that list must never
   // silently move where an offline device lands.
-  return isAndroidNative ? "/sales/sales-list" : "/pos/tables";
+  return isMobileNative ? "/sales/sales-list" : "/pos/tables";
 }

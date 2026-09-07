@@ -8,7 +8,6 @@ import { NativeLoadingScreen } from "@/components/layout/capacitor/native-loadin
 import { isCapacitorNativeApp } from "@/lib/capacitor-platform";
 import { getOfflineRedirectPath, isOfflineAllowedPath } from "@/lib/offline-routes";
 import { internalRoute } from "@/lib/routes";
-import { useIsAndroidNativeApp } from "@/hooks/use-android-native-app";
 import { useIsCapacitorNativeApp } from "@/hooks/use-capacitor-native-app";
 import { useAuthStore } from "@/stores/auth-store";
 
@@ -29,7 +28,6 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   const isLoggedIn = useAuthStore((state) => state.isLoggedIn);
   const offlineSession = useAuthStore((state) => state.offlineSession);
   const isNativeApp = useIsCapacitorNativeApp();
-  const isAndroidNative = useIsAndroidNativeApp();
   const [minSplashElapsed, setMinSplashElapsed] = useState(false);
 
   useEffect(() => {
@@ -49,9 +47,9 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   // ต้องเด้งไปเพจที่จำเป็นสำหรับงานขายทันที — Android เหลือแค่หน้าที่อ่านอย่างเดียวได้ (ดู offline-routes.ts)
   useEffect(() => {
     if (!hydrated || !isLoggedIn || !offlineSession) return;
-    if (isOfflineAllowedPath(pathname, isAndroidNative)) return;
-    router.replace(internalRoute(getOfflineRedirectPath(isAndroidNative)));
-  }, [hydrated, isAndroidNative, isLoggedIn, offlineSession, pathname, router]);
+    if (isOfflineAllowedPath(pathname, isNativeApp)) return;
+    router.replace(internalRoute(getOfflineRedirectPath(isNativeApp)));
+  }, [hydrated, isNativeApp, isLoggedIn, offlineSession, pathname, router]);
 
   const showNativeSplash = isNativeApp && !minSplashElapsed;
 

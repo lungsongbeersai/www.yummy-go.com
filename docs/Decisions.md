@@ -6,6 +6,15 @@ Entries below dated from git history are backfilled from existing code comments 
 
 ---
 
+## Capacitor mobile uses Dexie, never the desktop Agent
+
+- **Date:** 2026-09-08.
+- **Context:** Owner explicitly confirmed that both Android and iOS use Dexie + Capacitor and do not use a Printer Agent. This corrects the Android-only platform assumptions in `Architecture.md`; desktop transport is retained.
+- **Implementation:** Native platform detection also recognizes the configured app user-agent markers. Both platforms start the direct sync worker, register with their own platform name, and wake on native foreground events. POS reads stay local while the branch has pending or blocked events. A confirmed offline verdict goes straight to Dexie. Native login preparation never sends credentials to localhost.
+- **Durability:** Event staging, acknowledgement, and native cache guards use Dexie transactions. The worker sends one acknowledged event at a time because Backend prioritizes payments ahead of creates within a batch. Wire data is frozen before sending, retained across response loss, and never silently retargeted on retry. Store/branch/actor checks and single-flight workers prevent cross-session replay. Cache watermarks prevent an acknowledged quantity change being applied twice after a server refresh. Synced parents are retained while recovery work remains.
+- **Safety boundary / not feature-complete:** Existing mobile reducers can synthesize kitchen/payment success but have no native durable print jobs, routing proof, or offline receipt renderer. New offline kitchen confirmations and payments are therefore rejected before staging. Historical records of these operations are preserved as `BLOCKED` with `MOBILE_OFFLINE_PRINT_REVIEW_REQUIRED`; they must not be deleted or replaced with a new event id. This is intentionally a transport/durability hardening checkpoint, **not approval to deploy mobile offline checkout**.
+- **Trade-off:** Branch-wide sequential recovery is conservative: an unresolved earlier event or another cashier's queue holds later work. Independent-order batching can be added only after durable dependency extraction and native printer evidence are implemented. The current remote-URL Capacitor shell, sale-time VAT/service/pricing snapshots, native print planning/renderer/outbox, and offline cold-start acceptance remain open. See `Mobile-Offline-Acceptance.md`.
+
 ## Retain local order ownership while reconnect is draining durable work
 
 - **Date:** 2026-09-07.
