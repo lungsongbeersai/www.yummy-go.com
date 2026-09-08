@@ -1,7 +1,12 @@
-import { Capacitor } from "@capacitor/core";
+import { isCapacitorMobileApp } from "@/lib/capacitor-platform";
 import { printerPrintModeForPlatform } from "@/lib/printer-platform";
-import { resolvePrinterDeviceIdentity, type PrinterDeviceContextParams } from "@/services/printer";
-import { getBrowserPrinterIdentity } from "@/services/printer/browser-device";
+import {
+  getBrowserPrinterIdentity,
+  migrateMobilePrinterDevice,
+  rememberNativePrinterDeviceCode,
+  resolvePrinterDeviceIdentity,
+  type PrinterDeviceContextParams,
+} from "@/services/printer";
 
 function textValue(value: unknown) {
   return String(value ?? "").trim();
@@ -16,7 +21,7 @@ export async function resolvePosPrinterContext(
     lang?: string;
   }
 ) {
-  const native = Capacitor.isNativePlatform();
+  const native = isCapacitorMobileApp();
   const identity = native
     ? await getBrowserPrinterIdentity()
     : await resolvePrinterDeviceIdentity().then((result) => {
@@ -28,6 +33,16 @@ export async function resolvePosPrinterContext(
 
   if (!deviceCode || !agentId) {
     throw new Error("Printer device identity missing");
+  }
+
+  const previousDeviceCode = textValue(identity.previous_device_code);
+  if (native && previousDeviceCode && previousDeviceCode !== deviceCode) {
+    await migrateMobilePrinterDevice({
+      login_uuid_fk: input.login_uuid_fk,
+      from_device_code: previousDeviceCode,
+      to_device_code: deviceCode,
+    });
+    rememberNativePrinterDeviceCode(deviceCode);
   }
 
   const suppliedIdentityMatches =

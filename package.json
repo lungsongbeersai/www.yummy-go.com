@@ -32,6 +32,7 @@
     "@capacitor/app-launcher": "^8.0.1",
     "@capacitor/camera": "^8.2.4",
     "@capacitor/core": "^8.4.0",
+    "@capacitor/device": "^8.0.3",
     "@capacitor/ios": "^8.4.2",
     "@capacitor/status-bar": "^8.0.2",
     "@deedarb/capacitor-tcp-socket": "^7.2.1",

@@ -17,6 +17,7 @@ import {
   tcpInterfaceValue,
 } from "@/config/printer-agent";
 import { printerPrintModeForPlatform } from "@/lib/printer-platform";
+import { isCapacitorMobileApp } from "@/lib/capacitor-platform";
 import type {
   AgentInfo,
   DefaultCategoryCategoryDetail,
@@ -537,7 +538,10 @@ export function usePrinterForm() {
         device_code: nextDeviceCode,
         // ชื่อ agent เป็นชื่อที่ผู้ใช้ตั้งเอง จึงเดา OS จาก agent_id ไม่ได้
         // ใช้ platform ที่ Agent รายงานมาเพื่อไม่ให้ Windows TCP ถูกบันทึกเป็น mobile_wifi
-        print_mode: printerPrintModeForPlatform(identity.platform),
+        print_mode: printerPrintModeForPlatform(
+          identity.platform,
+          isCapacitorMobileApp(),
+        ),
       });
       showToast({ title: t("printer.saved"), tone: "success" });
       router.push("/printers");

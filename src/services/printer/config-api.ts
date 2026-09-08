@@ -24,6 +24,8 @@ import type {
   FetchPrinterResponse,
   FetchPrintersParams,
   MobileEscposRenderResponse,
+  MigrateMobilePrinterDeviceInput,
+  MigrateMobilePrinterDeviceResponse,
   PrintJob,
   Printer,
   PrinterCategoryRole,
@@ -131,6 +133,17 @@ export async function savePrinter(input: SavePrinterInput) {
       : { ...base, interface_value: interfaceValue };
   const result = await apiRequest<SavePrinterResponse>("post", "/api/v1/printer/create", { data });
   return mapPrinter(result.data);
+}
+
+export async function migrateMobilePrinterDevice(
+  input: MigrateMobilePrinterDeviceInput,
+) {
+  const result = await apiRequest<MigrateMobilePrinterDeviceResponse>(
+    "post",
+    "/api/v1/printer/device/migrate-mobile",
+    { data: input },
+  );
+  return result.data;
 }
 
 export const togglePrinterActive = (print_config_uuid: string, device_code?: string) =>

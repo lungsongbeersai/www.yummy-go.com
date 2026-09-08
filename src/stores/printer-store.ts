@@ -14,6 +14,8 @@ import {
   getCategoryRoles,
   getDefaultCategoryByRole,
   getPrinterErrorMessage,
+  rememberNativePrinterDeviceCode,
+  migrateMobilePrinterDevice,
   getPendingPrintJobs,
   getPrinterOptions,
   getPrinterRoles,
@@ -54,6 +56,7 @@ import { createSessionGuard, registerSessionStoreReset } from "@/stores/session-
 import { errorMessage } from "@/stores/store-utils";
 import { printMobileEscposOverTcp } from "@/services/printer/mobile-tcp";
 import { Capacitor } from "@capacitor/core";
+import { isCapacitorMobileApp } from "@/lib/capacitor-platform";
 import { printReport, type ReportPrintInput, type ReportPrintResponse } from "@/services/report";
 
 type AgentStatus = "unchecked" | "connected" | "offline";
@@ -170,6 +173,16 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
     if (isCurrentSession()) set({ agent, agentStatus: "connected", agentError: null });
 
     try {
+      const previousDeviceCode = textValue(agent?.previous_device_code);
+      if (isCapacitorMobileApp() && previousDeviceCode && previousDeviceCode !== deviceCode) {
+        await migrateMobilePrinterDevice({
+          login_uuid_fk: params.login_uuid_fk,
+          from_device_code: previousDeviceCode,
+          to_device_code: deviceCode,
+        });
+        rememberNativePrinterDeviceCode(deviceCode);
+      }
+
       const printers = await getPrinters({
         ...params,
         agent_id: agentId,

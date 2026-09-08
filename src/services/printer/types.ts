@@ -15,6 +15,7 @@ export interface AgentInfo extends ApiEntity {
   store_code?: string | null;
   branch_code?: string | null;
   device_code?: string | null;
+  previous_device_code?: string | null;
   hostname?: string;
   platform?: string;
   host?: string;
@@ -172,6 +173,16 @@ export interface SavePrinterInput extends ApiEntity {
   font_size?: number;
 }
 export type SavePrinterResponse = ApiDataResponse<Printer>;
+export interface MigrateMobilePrinterDeviceInput {
+  login_uuid_fk: string;
+  from_device_code: string;
+  to_device_code: string;
+}
+export interface MigrateMobilePrinterDeviceResult extends ApiEntity {
+  migrated_total?: number;
+}
+export type MigrateMobilePrinterDeviceResponse =
+  ApiDataResponse<MigrateMobilePrinterDeviceResult>;
 export interface BuildTestJobRequest extends ApiEntity {
   login_uuid_fk: string;
   print_config_uuid?: string;

@@ -6,9 +6,28 @@ import {
   getBrowserAgentName,
   getBrowserDeviceCode,
   getBrowserPrinterIdentity,
+  nativePrinterDeviceCode,
+  rememberNativePrinterDeviceCode,
   isBrowserPrinterAgentId
 } from "@/services/printer/browser-device";
 import { printerPrintModeForPlatform } from "@/lib/printer-platform";
+
+const nativeMocks = vi.hoisted(() => ({
+  isCapacitorMobileApp: vi.fn(() => false),
+  getId: vi.fn(),
+  getInfo: vi.fn(),
+}));
+
+vi.mock("@/lib/capacitor-platform", () => ({
+  isCapacitorMobileApp: nativeMocks.isCapacitorMobileApp,
+}));
+
+vi.mock("@capacitor/device", () => ({
+  Device: {
+    getId: nativeMocks.getId,
+    getInfo: nativeMocks.getInfo,
+  },
+}));
 
 function storageMock() {
   const values = new Map<string, string>();
@@ -22,6 +41,9 @@ function storageMock() {
 
 describe("browser printer device identity", () => {
   beforeEach(() => {
+    nativeMocks.isCapacitorMobileApp.mockReturnValue(false);
+    nativeMocks.getId.mockReset();
+    nativeMocks.getInfo.mockReset();
     vi.stubGlobal("crypto", { randomUUID: vi.fn(() => "device-1") });
   });
 
@@ -106,6 +128,64 @@ describe("browser printer device identity", () => {
       agent_name: "Windows Laptop",
       device_code: "windows-laptop-web-device-1",
       platform: "browser"
+    });
+  });
+
+  it("uses the native device id and retains the old web id for migration", async () => {
+    const localStorage = storageMock();
+    localStorage.setItem(BROWSER_DEVICE_CODE_KEY, "android-phone-web-old-id");
+    vi.stubGlobal("window", { localStorage });
+    nativeMocks.isCapacitorMobileApp.mockReturnValue(true);
+    nativeMocks.getId.mockResolvedValue({ identifier: "ABCDEF0123456789" });
+    nativeMocks.getInfo.mockResolvedValue({
+      name: "Galaxy S24 FE",
+      model: "SM-S721B",
+      platform: "android",
+    });
+
+    await expect(getBrowserPrinterIdentity()).resolves.toEqual({
+      agent_id: BROWSER_MOBILE_AGENT_ID,
+      agent_name: "Galaxy S24 FE",
+      device_code: "android-native-abcdef0123456789",
+      platform: "android",
+      previous_device_code: "android-phone-web-old-id",
+    });
+  });
+
+  it("normalizes native ids without generating a random code", () => {
+    expect(nativePrinterDeviceCode("iOS", "A1B2-C3D4")).toBe(
+      "ios-native-a1b2-c3d4",
+    );
+    expect(nativePrinterDeviceCode("android", "")).toBe("");
+  });
+
+  it("persists the native id after the server migration succeeds", () => {
+    const localStorage = storageMock();
+    vi.stubGlobal("window", { localStorage });
+
+    rememberNativePrinterDeviceCode("android-native-abcdef0123456789");
+
+    expect(localStorage.setItem).toHaveBeenCalledWith(
+      BROWSER_DEVICE_CODE_KEY,
+      "android-native-abcdef0123456789",
+    );
+  });
+
+  it("keeps the web id while an older native shell lacks the Device plugin", async () => {
+    const localStorage = storageMock();
+    vi.stubGlobal("window", { localStorage });
+    vi.stubGlobal("navigator", {
+      userAgent: "Mozilla/5.0 Android YummyGoCapacitorAndroid",
+      userAgentData: { mobile: true, platform: "Android" },
+    });
+    nativeMocks.isCapacitorMobileApp.mockReturnValue(true);
+    nativeMocks.getId.mockRejectedValue(new Error("not implemented"));
+    nativeMocks.getInfo.mockRejectedValue(new Error("not implemented"));
+
+    await expect(getBrowserPrinterIdentity()).resolves.toMatchObject({
+      agent_id: BROWSER_MOBILE_AGENT_ID,
+      device_code: "android-phone-web-device-1",
+      platform: "browser",
     });
   });
 

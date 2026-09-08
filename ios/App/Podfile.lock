@@ -6,24 +6,33 @@ PODS:
     - Capacitor
   - CapacitorAppLauncher (8.0.1):
     - Capacitor
+  - CapacitorCamera (8.2.4):
+    - Capacitor
+    - IONCameraLib (~> 2.0.0)
   - CapacitorCordova (8.4.2)
+  - CapacitorDevice (8.0.3):
+    - Capacitor
   - CapacitorStatusBar (8.0.2):
     - Capacitor
   - DeedarbCapacitorTcpSocket (7.2.1):
     - BlueSocket
     - Capacitor
+  - IONCameraLib (2.0.0)
 
 DEPENDENCIES:
   - "Capacitor (from `../../node_modules/@capacitor/ios`)"
   - "CapacitorApp (from `../../node_modules/@capacitor/app`)"
   - "CapacitorAppLauncher (from `../../node_modules/@capacitor/app-launcher`)"
+  - "CapacitorCamera (from `../../node_modules/@capacitor/camera`)"
   - "CapacitorCordova (from `../../node_modules/@capacitor/ios`)"
+  - "CapacitorDevice (from `../../node_modules/@capacitor/device`)"
   - "CapacitorStatusBar (from `../../node_modules/@capacitor/status-bar`)"
   - "DeedarbCapacitorTcpSocket (from `../../node_modules/@deedarb/capacitor-tcp-socket`)"
 
 SPEC REPOS:
   trunk:
     - BlueSocket
+    - IONCameraLib
 
 EXTERNAL SOURCES:
   Capacitor:
@@ -32,8 +41,12 @@ EXTERNAL SOURCES:
     :path: "../../node_modules/@capacitor/app"
   CapacitorAppLauncher:
     :path: "../../node_modules/@capacitor/app-launcher"
+  CapacitorCamera:
+    :path: "../../node_modules/@capacitor/camera"
   CapacitorCordova:
     :path: "../../node_modules/@capacitor/ios"
+  CapacitorDevice:
+    :path: "../../node_modules/@capacitor/device"
   CapacitorStatusBar:
     :path: "../../node_modules/@capacitor/status-bar"
   DeedarbCapacitorTcpSocket:
@@ -44,10 +57,13 @@ SPEC CHECKSUMS:
   Capacitor: 52f999235b8bd6a7d01694753f4f4d54d182e3a3
   CapacitorApp: 305bd13c44f6f9d164e2ee66a4faa956ed8c0e06
   CapacitorAppLauncher: 43949ccc5aaa5139a1ebe27a98c0a4d76c883fa7
+  CapacitorCamera: 4299fe8cf9b2b15e6ad602bce68d063b2008e8be
   CapacitorCordova: 345eacdc4c8282415446aea4acd8c77d82480bd4
+  CapacitorDevice: 708e742b60a61572cd593e44c809592e8f31da14
   CapacitorStatusBar: 01d5763b4ed720de5ce2edbc938de6a98f4c8f32
   DeedarbCapacitorTcpSocket: 1b964dc4e5585f4329158dc57b725948c39ff314
+  IONCameraLib: 729cae576e1a952602ce750a9790b6dc7d7e2e95
 
-PODFILE CHECKSUM: ad0cfa8fc8fabd93d4c8cbe697348f2a8f6becde
+PODFILE CHECKSUM: b35d09a3441a1bac7c2b5448731200738a72881a
 
 COCOAPODS: 1.16.2

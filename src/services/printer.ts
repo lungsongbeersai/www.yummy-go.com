@@ -11,6 +11,8 @@ export {
 export {
   BROWSER_PRINTER_AGENT_ID,
   BROWSER_PRINTER_AGENT_URL,
+  getBrowserPrinterIdentity,
+  rememberNativePrinterDeviceCode,
   isBrowserPrinterAgentId
 } from "@/services/printer/browser-device";
 
@@ -41,6 +43,9 @@ export type {
   FetchPrintersParams,
   KitchenPrintResult,
   MobileEscposPayload,
+  MigrateMobilePrinterDeviceInput,
+  MigrateMobilePrinterDeviceResult,
+  MigrateMobilePrinterDeviceResponse,
   PendingPrintItem,
   PendingPrintJobData,
   PendingPrintJobRef,
@@ -84,6 +89,7 @@ export {
   getPrinterOptions,
   getPrinterRoles,
   getPrinters,
+  migrateMobilePrinterDevice,
   renderMobileEscpos,
   resolvePrintersByCategory,
   saveCategoryPrinter,

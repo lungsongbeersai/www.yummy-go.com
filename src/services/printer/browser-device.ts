@@ -6,6 +6,8 @@ import {
   BROWSER_PRINTER_AGENT_URL,
   isBrowserPrinterAgentId,
 } from "@/config/printer-agent";
+import { Device } from "@capacitor/device";
+import { isCapacitorMobileApp } from "@/lib/capacitor-platform";
 import type { ApiEntity } from "@/services/shared/types";
 
 export {
@@ -22,6 +24,7 @@ export interface BrowserPrinterIdentity extends ApiEntity {
   agent_name: string;
   device_code: string;
   platform: string;
+  previous_device_code?: string | null;
 }
 
 interface BrowserUserAgentData {
@@ -94,6 +97,12 @@ function slugValue(value: string) {
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-+|-+$/g, "") || "device"
   );
+}
+
+export function nativePrinterDeviceCode(platform: unknown, identifier: unknown) {
+  const cleanIdentifier = slugValue(textValue(identifier));
+  if (!textValue(identifier)) return "";
+  return `${slugValue(textValue(platform) || "mobile")}-native-${cleanIdentifier}`;
 }
 
 function isIpadLike(userAgent: string) {
@@ -176,7 +185,51 @@ export function getBrowserDeviceCode(deviceName = getBrowserAgentName()) {
   return code;
 }
 
+export function rememberNativePrinterDeviceCode(deviceCode: string) {
+  const value = textValue(deviceCode);
+  if (!value) return;
+  memoryDeviceCode = value;
+  storage()?.setItem(BROWSER_DEVICE_CODE_KEY, value);
+}
+
 export async function getBrowserPrinterIdentity(): Promise<BrowserPrinterIdentity> {
+  if (isCapacitorMobileApp()) {
+    try {
+      const [deviceId, deviceInfo] = await Promise.all([
+        Device.getId(),
+        Device.getInfo(),
+      ]);
+      const deviceCode = nativePrinterDeviceCode(
+        deviceInfo.platform,
+        deviceId.identifier,
+      );
+
+      if (deviceCode) {
+        const previousDeviceCode = textValue(
+          storage()?.getItem(BROWSER_DEVICE_CODE_KEY),
+        );
+        const agentName =
+          textValue(deviceInfo.name) ||
+          textValue(deviceInfo.model) ||
+          fallbackDeviceName(currentUserAgent(), deviceInfo.platform, true);
+
+        return {
+          agent_id: BROWSER_MOBILE_AGENT_ID,
+          agent_name: agentName,
+          device_code: deviceCode,
+          platform: deviceInfo.platform,
+          previous_device_code:
+            previousDeviceCode && previousDeviceCode !== deviceCode
+              ? previousDeviceCode
+              : null,
+        };
+      }
+    } catch {
+      // The web bundle can deploy before a new native shell is installed.
+      // Keep the existing identity until the official Device plugin is present.
+    }
+  }
+
   const userAgent = currentUserAgent();
   const hints = await getDeviceHints();
   const agentName = getBrowserAgentName(userAgent, hints);
