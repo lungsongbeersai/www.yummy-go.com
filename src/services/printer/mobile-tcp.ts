@@ -40,20 +40,29 @@ type TcpSocketApi = {
     disconnect: (payload: TcpSocketDisconnectPayload) => Promise<unknown>;
 };
 
-const MOBILE_TCP_CHUNK_SIZE = 2732;
-const MOBILE_TCP_CHUNK_DELAY_MS = 40;
+// 1,364 base64 characters decode to 1,023 bytes. Keeping the wire rate near
+// 15 KB/s prevents small Wi-Fi print servers from acknowledging data faster
+// than the printer can remove it from their limited input buffer.
+const MOBILE_TCP_CHUNK_SIZE = 1364;
+const MOBILE_TCP_CHUNK_DELAY_MS = 60;
 const MOBILE_TCP_SEND_TIMEOUT_MS = 15000;
 const MOBILE_TCP_STATUS_TIMEOUT_MS = 4000;
-const MOBILE_TCP_MEDIUM_BYTES = 256 * 1024;
-const MOBILE_TCP_LONG_BYTES = 1024 * 1024;
+const MOBILE_TCP_COOLDOWN_EVERY_BYTES = 16 * 1024;
+const MOBILE_TCP_COOLDOWN_MS = 180;
 // เครื่องพิมพ์ราคาประหยัดบางรุ่นปิด TCP session ที่รับ raster ต่อเนื่องนาน
-// ประมาณ 10 วินาที แบ่งที่ขอบคำสั่ง GS v 0 เพื่อให้ต่อ session ใหม่ได้โดย
-// ไม่ตัดกลาง raster band และไม่เพิ่มคำสั่งตัดกระดาษระหว่างใบ
-const MOBILE_TCP_SEGMENT_MAX_BYTES = 128 * 1024;
-const MOBILE_TCP_SEGMENT_DRAIN_MS = 900;
-const MOBILE_TCP_RECONNECT_DELAY_MS = 150;
-// GS r 1 is processed in stream order. A response therefore acts as a barrier
-// after the print/cut commands, unlike socket.flush() which only reaches the OS.
+// ประมาณ 10 วินาที แบ่งก้อนให้เวลาส่งและระบาย raster ของแต่ละ session อยู่
+// ต่ำกว่าขีดจำกัด โดยแบ่งเฉพาะที่ขอบคำสั่ง GS v 0 เท่านั้น
+const MOBILE_TCP_SEGMENT_MAX_BYTES = 48 * 1024;
+const MOBILE_TCP_RECONNECT_DELAY_MS = 300;
+// Use a deliberately conservative 31 mm/s (250 rows/s at 203 dpi) when
+// estimating how long raster output may still be moving. The send promise and
+// GS r reply only prove that the socket/adapter accepted bytes; neither proves
+// the thermal head or cutter has physically finished.
+const MOBILE_TCP_RASTER_ROWS_PER_SECOND = 250;
+const MOBILE_TCP_MIN_DRAIN_MS = 1500;
+const MOBILE_TCP_MAX_DRAIN_MS = 6000;
+const MOBILE_TCP_DRAIN_SETTLE_MS = 400;
+const MOBILE_TCP_CUT_SETTLE_MS = 1500;
 const ESC_POS_PAPER_STATUS_COMMAND = new Uint8Array([0x1d, 0x72, 0x01]);
 const mobileTcpQueues = new Map<string, Promise<void>>();
 
@@ -197,6 +206,91 @@ function splitEscposBase64ForTransport(
     return segments;
 }
 
+interface EscposPayloadAnalysis {
+    byteLength: number;
+    cutCommands: number;
+    fullyParsed: boolean;
+    rasterBands: number;
+    rasterRows: number;
+}
+
+function analyzeEscposPayload(base64: string): EscposPayloadAnalysis {
+    const cleanBase64 = normalizeBase64(base64);
+    if (!cleanBase64) {
+        return {
+            byteLength: 0,
+            cutCommands: 0,
+            fullyParsed: true,
+            rasterBands: 0,
+            rasterRows: 0,
+        };
+    }
+
+    const bytes = base64ToBytes(cleanBase64);
+    let cutCommands = 0;
+    let rasterBands = 0;
+    let rasterRows = 0;
+
+    for (let offset = 0; offset < bytes.length;) {
+        const commandLength = escposCommandLength(bytes, offset);
+        if (!commandLength) {
+            return {
+                byteLength: bytes.length,
+                cutCommands,
+                fullyParsed: false,
+                rasterBands,
+                rasterRows,
+            };
+        }
+
+        if (
+            bytes[offset] === 0x1d &&
+            bytes[offset + 1] === 0x76 &&
+            bytes[offset + 2] === 0x30
+        ) {
+            rasterBands += 1;
+            rasterRows += bytes[offset + 6] | (bytes[offset + 7] << 8);
+        } else if (bytes[offset] === 0x1d && bytes[offset + 1] === 0x56) {
+            cutCommands += 1;
+        }
+
+        offset += commandLength;
+    }
+
+    return {
+        byteLength: bytes.length,
+        cutCommands,
+        fullyParsed: true,
+        rasterBands,
+        rasterRows,
+    };
+}
+
+function splitTrailingEscposCutCommand(base64: string) {
+    const cleanBase64 = normalizeBase64(base64);
+    if (!cleanBase64) return { bodyBase64: "", cutBase64: "" };
+
+    const bytes = base64ToBytes(cleanBase64);
+    const threeByteCut =
+        bytes.length >= 3 &&
+        bytes[bytes.length - 3] === 0x1d &&
+        bytes[bytes.length - 2] === 0x56 &&
+        (bytes[bytes.length - 1] === 0x00 || bytes[bytes.length - 1] === 0x01);
+    const fourByteCut =
+        bytes.length >= 4 &&
+        bytes[bytes.length - 4] === 0x1d &&
+        bytes[bytes.length - 3] === 0x56 &&
+        (bytes[bytes.length - 2] === 0x41 || bytes[bytes.length - 2] === 0x42);
+    const cutLength = fourByteCut ? 4 : threeByteCut ? 3 : 0;
+
+    if (!cutLength) return { bodyBase64: cleanBase64, cutBase64: "" };
+
+    return {
+        bodyBase64: bytesToBase64(bytes.subarray(0, bytes.length - cutLength)),
+        cutBase64: bytesToBase64(bytes.subarray(bytes.length - cutLength)),
+    };
+}
+
 async function sleep(ms: number) {
     await new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -219,42 +313,29 @@ function runOnMobileTcpQueue<T>(queueKey: string, task: () => Promise<T>) {
     return execution;
 }
 
-function mobileTcpFinalDrainMs(base64Length: number) {
-    const estimatedBytes = Math.floor((Math.max(0, base64Length) * 3) / 4);
-    if (estimatedBytes > MOBILE_TCP_LONG_BYTES) return 3000;
-    if (estimatedBytes > MOBILE_TCP_MEDIUM_BYTES) return 1500;
-    return 500;
+function mobileTcpRasterDrainMs(base64: string) {
+    const analysis = analyzeEscposPayload(base64);
+    const workMs = analysis.fullyParsed && analysis.rasterRows > 0
+        ? Math.ceil(
+            (analysis.rasterRows / MOBILE_TCP_RASTER_ROWS_PER_SECOND) * 1000,
+        )
+        : Math.ceil(
+            (analysis.byteLength / (MOBILE_TCP_CHUNK_SIZE * 16)) * 1000,
+        );
+
+    return Math.max(
+        MOBILE_TCP_MIN_DRAIN_MS,
+        Math.min(MOBILE_TCP_MAX_DRAIN_MS, workMs + MOBILE_TCP_DRAIN_SETTLE_MS),
+    );
 }
 
-function mobileTcpSendProfile(base64Length: number) {
-    const estimatedBytes = Math.floor((Math.max(0, base64Length) * 3) / 4);
-
-    if (estimatedBytes > MOBILE_TCP_LONG_BYTES) {
-        return {
-            chunkSize: MOBILE_TCP_CHUNK_SIZE,
-            cooldownEveryBytes: 64 * 1024,
-            cooldownMs: 250,
-            delayMs: 60,
-            profile: "long" as const,
-        };
-    }
-
-    if (estimatedBytes > MOBILE_TCP_MEDIUM_BYTES) {
-        return {
-            chunkSize: MOBILE_TCP_CHUNK_SIZE,
-            cooldownEveryBytes: 128 * 1024,
-            cooldownMs: 200,
-            delayMs: 50,
-            profile: "medium" as const,
-        };
-    }
-
+function mobileTcpSendProfile() {
     return {
         chunkSize: MOBILE_TCP_CHUNK_SIZE,
-        cooldownEveryBytes: 0,
-        cooldownMs: 0,
+        cooldownEveryBytes: MOBILE_TCP_COOLDOWN_EVERY_BYTES,
+        cooldownMs: MOBILE_TCP_COOLDOWN_MS,
         delayMs: MOBILE_TCP_CHUNK_DELAY_MS,
-        profile: "short" as const,
+        profile: "buffer_safe" as const,
     };
 }
 
@@ -310,7 +391,7 @@ function printerStatusByte(result?: string) {
     return value.charCodeAt(0) & 0xff;
 }
 
-async function confirmMobilePrinterCompleted({
+async function checkMobilePrinterPaperStatus({
     TcpSocket,
     client,
 }: {
@@ -344,7 +425,7 @@ async function confirmMobilePrinterCompleted({
             throw new Error("Printer reported paper out before completion");
         }
 
-        console.log("[mobile-tcp] printer completion confirmed", { status });
+        console.log("[mobile-tcp] printer paper status received", { status });
     } catch (error) {
         throw deliveryError(error, "unknown");
     }
@@ -474,7 +555,11 @@ async function printMobileEscposOverTcpNow({
 
     for (let segmentIndex = 0; segmentIndex < segments.length; segmentIndex++) {
         const segment = segments[segmentIndex];
-        const sendProfile = mobileTcpSendProfile(segment.length);
+        const isFinalSegment = segmentIndex === segments.length - 1;
+        const trailing = isFinalSegment
+            ? splitTrailingEscposCutCommand(segment)
+            : { bodyBase64: segment, cutBase64: "" };
+        const sendProfile = mobileTcpSendProfile();
         let connected: TcpSocketConnectResult;
 
         console.log("[mobile-tcp] connect start", {
@@ -505,38 +590,61 @@ async function printMobileEscposOverTcpNow({
                 mode: "base64-chunks",
                 segment: segmentIndex + 1,
                 segments: segments.length,
-                base64Length: segment.length,
-                byteEstimate: Math.floor((segment.length * 3) / 4),
+                base64Length: trailing.bodyBase64.length,
+                byteEstimate: Math.floor((trailing.bodyBase64.length * 3) / 4),
+                cutIsolated: Boolean(trailing.cutBase64),
                 profile: sendProfile.profile,
             });
 
-            await sendBase64InChunks({
-                TcpSocket,
-                client,
-                base64: segment,
-                ...sendProfile,
-            });
+            if (trailing.bodyBase64) {
+                await sendBase64InChunks({
+                    TcpSocket,
+                    client,
+                    base64: trailing.bodyBase64,
+                    ...sendProfile,
+                });
+
+                const analysis = analyzeEscposPayload(trailing.bodyBase64);
+                const drainMs = mobileTcpRasterDrainMs(trailing.bodyBase64);
+
+                console.log("[mobile-tcp] raster sent; waiting for physical drain", {
+                    segment: segmentIndex + 1,
+                    segments: segments.length,
+                    drainMs,
+                    rasterBands: analysis.rasterBands,
+                    rasterRows: analysis.rasterRows,
+                });
+
+                await sleep(drainMs);
+            }
+
+            // Keep the final cut out of the raster burst. Some Wi-Fi adapters
+            // ACK the socket while their downstream printer buffer is still
+            // full; sending GS V only after the paper has advanced prevents
+            // that last command from being discarded with the raster tail.
+            if (trailing.cutBase64) {
+                await withSendTimeout(
+                    TcpSocket.send({
+                        client,
+                        data: trailing.cutBase64,
+                        encoding: "base64",
+                    }),
+                );
+                await sleep(MOBILE_TCP_CUT_SETTLE_MS);
+            }
+
+            if (
+                require_completion_confirmation &&
+                isFinalSegment
+            ) {
+                await checkMobilePrinterPaperStatus({ TcpSocket, client });
+            }
 
             sendSucceeded = true;
             console.log("[mobile-tcp] send success", {
                 segment: segmentIndex + 1,
                 segments: segments.length,
             });
-
-            // send() ยืนยันแค่ native socket รับข้อมูลแล้ว จึงเว้นให้ printer
-            // ระบาย raster ก่อนปิด session และเริ่มช่วงถัดไป
-            await sleep(
-                segmentIndex === segments.length - 1
-                    ? mobileTcpFinalDrainMs(cleanBase64.length)
-                    : MOBILE_TCP_SEGMENT_DRAIN_MS,
-            );
-
-            if (
-                require_completion_confirmation &&
-                segmentIndex === segments.length - 1
-            ) {
-                await confirmMobilePrinterCompleted({ TcpSocket, client });
-            }
         } catch (error) {
             console.warn(
                 "[mobile-tcp] send failed:",
@@ -580,11 +688,13 @@ export function printMobileEscposOverTcp(input: {
 
 export const __mobileTcpInternals = {
     MOBILE_TCP_SEGMENT_MAX_BYTES,
-    confirmMobilePrinterCompleted,
-    mobileTcpFinalDrainMs,
+    analyzeEscposPayload,
+    checkMobilePrinterPaperStatus,
+    mobileTcpRasterDrainMs,
     mobileTcpSendProfile,
     printerStatusByte,
     runOnMobileTcpQueue,
     sendBase64InChunks,
     splitEscposBase64ForTransport,
+    splitTrailingEscposCutCommand,
 };

@@ -71,25 +71,30 @@ describe("mobile TCP printer queue", () => {
     await Promise.all([kitchen, bar]);
   });
 
-  it("keeps a longer final drain for large receipts", () => {
-    expect(__mobileTcpInternals.mobileTcpFinalDrainMs(4096)).toBe(500);
-    expect(__mobileTcpInternals.mobileTcpFinalDrainMs(1024 * 1024)).toBe(1500);
-    expect(__mobileTcpInternals.mobileTcpFinalDrainMs(2 * 1024 * 1024)).toBe(3000);
+  it("estimates physical drain time from raster rows", () => {
+    const raster = Buffer.concat([
+      Buffer.from([0x1d, 0x76, 0x30, 0x00, 72, 0x00, 0xf4, 0x01]),
+      Buffer.alloc(72 * 500),
+    ]);
+
+    expect(
+      __mobileTcpInternals.mobileTcpRasterDrainMs(raster.toString("base64")),
+    ).toBe(2400);
+    expect(
+      __mobileTcpInternals.mobileTcpRasterDrainMs(Buffer.alloc(1024).toString("base64")),
+    ).toBe(1500);
+    expect(
+      __mobileTcpInternals.mobileTcpRasterDrainMs(Buffer.alloc(256 * 1024).toString("base64")),
+    ).toBe(6000);
   });
 
-  it("slows and periodically cools only medium and long raster receipts", () => {
-    expect(__mobileTcpInternals.mobileTcpSendProfile(128 * 1024).profile).toBe("short");
-    expect(__mobileTcpInternals.mobileTcpSendProfile(512 * 1024)).toMatchObject({
-      cooldownEveryBytes: 128 * 1024,
-      cooldownMs: 200,
-      delayMs: 50,
-      profile: "medium",
-    });
-    expect(__mobileTcpInternals.mobileTcpSendProfile(2 * 1024 * 1024)).toMatchObject({
-      cooldownEveryBytes: 64 * 1024,
-      cooldownMs: 250,
+  it("uses the buffer-safe profile for every receipt size", () => {
+    expect(__mobileTcpInternals.mobileTcpSendProfile()).toMatchObject({
+      chunkSize: 1364,
+      cooldownEveryBytes: 16 * 1024,
+      cooldownMs: 180,
       delayMs: 60,
-      profile: "long",
+      profile: "buffer_safe",
     });
   });
 
@@ -163,6 +168,43 @@ describe("mobile TCP printer queue", () => {
     expect(segments).toEqual([source.toString("base64")]);
   });
 
+  it("counts raster work and cut commands in renderer payloads", () => {
+    const source = Buffer.concat([
+      Buffer.from([0x1b, 0x40]),
+      Buffer.from([0x1d, 0x76, 0x30, 0x00, 2, 0x00, 24, 0x00]),
+      Buffer.alloc(2 * 24),
+      Buffer.from([0x1d, 0x76, 0x30, 0x00, 2, 0x00, 8, 0x00]),
+      Buffer.alloc(2 * 8),
+      Buffer.from([0x1d, 0x56, 0x01]),
+    ]);
+
+    expect(
+      __mobileTcpInternals.analyzeEscposPayload(source.toString("base64")),
+    ).toEqual({
+      byteLength: source.length,
+      cutCommands: 1,
+      fullyParsed: true,
+      rasterBands: 2,
+      rasterRows: 32,
+    });
+  });
+
+  it("isolates a trailing cut until raster output has drained", () => {
+    const body = Buffer.concat([
+      Buffer.from([0x1b, 0x40]),
+      Buffer.from([0x1d, 0x76, 0x30, 0x00, 1, 0x00, 1, 0x00, 0xff]),
+    ]);
+    const cut = Buffer.from([0x1d, 0x56, 0x01]);
+    const source = Buffer.concat([body, cut]);
+
+    const result = __mobileTcpInternals.splitTrailingEscposCutCommand(
+      source.toString("base64"),
+    );
+
+    expect(Buffer.from(result.bodyBase64, "base64")).toEqual(body);
+    expect(Buffer.from(result.cutBase64, "base64")).toEqual(cut);
+  });
+
   it("decodes native printer status bytes consistently", () => {
     expect(__mobileTcpInternals.printerStatusByte("AA==")).toBe(0);
     expect(__mobileTcpInternals.printerStatusByte("YA==")).toBe(0x60);
@@ -170,7 +212,7 @@ describe("mobile TCP printer queue", () => {
     expect(__mobileTcpInternals.printerStatusByte("")).toBeNull();
   });
 
-  it("confirms completion only after the printer answers the paper-status command", async () => {
+  it("checks paper status after the physical drain and cut phases", async () => {
     const TcpSocket = {
       connect: vi.fn(),
       disconnect: vi.fn(),
@@ -179,7 +221,7 @@ describe("mobile TCP printer queue", () => {
     };
 
     await expect(
-      __mobileTcpInternals.confirmMobilePrinterCompleted({
+      __mobileTcpInternals.checkMobilePrinterPaperStatus({
         TcpSocket,
         client: "printer-client",
       }),
@@ -206,7 +248,7 @@ describe("mobile TCP printer queue", () => {
     };
 
     await expect(
-      __mobileTcpInternals.confirmMobilePrinterCompleted({
+      __mobileTcpInternals.checkMobilePrinterPaperStatus({
         TcpSocket,
         client: "printer-client",
       }),
