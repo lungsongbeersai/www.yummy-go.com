@@ -77,6 +77,7 @@ export function CartTabTrigger({
 export function CartTabItems({
   actingItemUuid,
   actionDisabled,
+  canItemDiscount = true,
   canSplitItem,
   canConfirmKitchenItem,
   compact = false,
@@ -98,6 +99,7 @@ export function CartTabItems({
 }: {
   actingItemUuid: string | null;
   actionDisabled: boolean;
+  canItemDiscount?: boolean;
   canSplitItem?: (item: CartItem) => boolean;
   canConfirmKitchenItem: (item: CartItem) => boolean;
   compact?: boolean;
@@ -136,6 +138,7 @@ export function CartTabItems({
             actionDisabled={actionDisabled}
             acting={itemUuid === actingItemUuid}
             canConfirmKitchen={canConfirmKitchenItem(item)}
+            canItemDiscount={canItemDiscount}
             compact={compact}
             splitEligible={splitEligible}
             splitSelectionDisabled={splitSelectionDisabled}
@@ -178,6 +181,7 @@ function CartItemRow({
   acting,
   actionDisabled,
   canConfirmKitchen,
+  canItemDiscount,
   compact,
   editable,
   item,
@@ -200,6 +204,7 @@ function CartItemRow({
   acting: boolean;
   actionDisabled: boolean;
   canConfirmKitchen: boolean;
+  canItemDiscount: boolean;
   compact: boolean;
   editable: boolean;
   item: CartItem;
@@ -403,6 +408,7 @@ function CartItemRow({
               canConfirmKitchen={editable && statusValue === 1}
               confirmKitchenDisabled={!canConfirmKitchen || actionDisabled}
               canConfirmServed={canConfirmServed}
+              canItemDiscount={canItemDiscount}
               canReprintKitchen={canReprintKitchen}
               reprintKitchenDisabled={!canConfirmKitchen || actionDisabled}
               disabled={actionDisabled}
@@ -558,6 +564,7 @@ function CartItemActionMenu({
   canConfirmKitchen,
   canConfirmServed,
   canDelete,
+  canItemDiscount,
   canReprintKitchen,
   confirmKitchenDisabled,
   disabled,
@@ -576,6 +583,7 @@ function CartItemActionMenu({
   canConfirmKitchen: boolean;
   canConfirmServed: boolean;
   canDelete: boolean;
+  canItemDiscount: boolean;
   canReprintKitchen: boolean;
   confirmKitchenDisabled: boolean;
   disabled: boolean;
@@ -619,10 +627,12 @@ function CartItemActionMenu({
             <Pencil />
             {t("pos.editNote")}
           </DropdownMenuItem>
-          <DropdownMenuItem disabled={actionDisabled} onSelect={onItemDiscount}>
-            <BadgePercent />
-            {t("pos.itemDiscount")}
-          </DropdownMenuItem>
+          {canItemDiscount ? (
+            <DropdownMenuItem disabled={actionDisabled} onSelect={onItemDiscount}>
+              <BadgePercent />
+              {t("pos.itemDiscount")}
+            </DropdownMenuItem>
+          ) : null}
           {canConfirmServed ? (
             <DropdownMenuItem disabled={actionDisabled} onSelect={onConfirmServed}>
               <ClipboardCheck />

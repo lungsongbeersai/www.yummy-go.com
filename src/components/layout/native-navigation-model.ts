@@ -45,61 +45,51 @@ export function destinationPath(item: MenuItem): string | undefined {
   return item.path;
 }
 
-// เมนู "เปิดขาย" (/sale) เป็น dropdown ที่ direct ไปหาลูกตัวแรก (/sales/open-table-sale)
-// เท่านั้นตาม destinationPath ด้านบน — ลูกตัวอื่น (/sales/sales-list) เลยเข้าไม่ถึงเลย
-// ทั้งไม่มี dropdown UI ให้กด (bypass ไปแล้ว) และไม่ติดไป more เพราะทั้งก้อนกลายเป็น
-// direct item เดียวไปแล้ว inject รายการนี้กลับเข้า more เอง ต่อท้าย "ยกเลิกบิลขาย"
-// (/sales/cancel-sale) ตามที่ตกลงไว้ — เฉพาะ native model นี้ (ใช้แค่ฝั่ง Capacitor
-// เท่านั้น เว็บยังกาง dropdown ปกติผ่าน AppSidebar ไม่ได้ bypass แบบนี้)
-const NATIVE_INJECTED_SALES_LIST_PATH = "/sales/sales-list";
-const NATIVE_INJECTED_SALES_LIST_ANCHOR_PATH = "/sales/cancel-sale";
-const NATIVE_INJECTED_SALES_LIST_ITEM: MenuItem = {
-  iconName: "clipboard-list",
-  label: "ລາຍການຂາຍ",
-  path: NATIVE_INJECTED_SALES_LIST_PATH,
-  title: "native-injected-sales-list",
-};
-
 export function buildNativeNavigationModel(
   items: MenuItem[],
   directCount: number = NATIVE_DIRECT_DESTINATION_COUNT,
 ): NativeNavigationModel {
   const direct: NativeDestination[] = [];
   const more: MenuItem[] = [];
+  const usedMorePaths = new Set<string>();
+
+  // path ที่เคยโผล่ใน more ไปแล้ว (ตัว item เองหรือลูกที่ดันเข้ามาแทนกลุ่มพ่อ) ข้ามไม่ให้ซ้ำ
+  // — เฉพาะฝั่ง more เท่านั้น: direct ปล่อยให้ path ซ้ำกับตัวอื่นได้ตามจริง (ดูเหตุผลด้านล่าง)
+  function pushToMore(candidate: MenuItem) {
+    if (candidate.path && usedMorePaths.has(candidate.path)) return;
+    if (candidate.path) usedMorePaths.add(candidate.path);
+    more.push(candidate);
+  }
 
   for (const item of items) {
     if (item.is_header) continue;
     const path = destinationPath(item);
-    // ไม่เลื่อนรายการที่กดไม่ได้ขึ้นมากินช่อง และไม่โชว์ placeholder ที่ disabled
     if (path && direct.length < directCount) {
       direct.push({ item, path });
+      // เมนูจริงจาก backend ตั้งใจวางลิงก์ลัด (เช่น "ຂາຍ" → /pos/tables) คู่กับ dropdown
+      // เต็มรูปแบบ (เช่น "ເປີດຂາຍ" ที่ children ตัวแรก resolve ไปหน้าเดียวกัน) ติดกันเป็น
+      // รายการที่ 2-3 จริง — ไม่ใช่ข้อมูลซ้ำโดยไม่ตั้งใจ เดิมเคยกันด้วยการข้าม path ที่ใช้ไป
+      // แล้วลง more แทน แต่นั่นไปเบียดลำดับ direct ให้ไม่ตรงกับ 3 อันดับแรกจริงของ backend/
+      // desktop อีกที (อาการที่รายงานมา) ปล่อยให้ path ซ้ำกันได้ตามจริง แก้ปัญหา React key
+      // ชนกันที่ต้นเหตุแทน (ใช้ item.title/menu_id เป็น key ใน nav-destination-button.tsx
+      // ไม่ใช้ destination.path) โดยไม่ต้องเสียลำดับ
+      //
+      // path นี้อาจมาจาก bypass ไปหาลูกตัวแรก (ไม่ใช่ item.path เอง) แปลว่ากลุ่มทั้งก้อนถูก
+      // เบียดไปเป็นไอคอน direct ตัวเดียว ลูกที่เหลือ (เช่น "รายการขาย" ใต้กลุ่ม "ขาย") จะ
+      // เข้าไม่ถึงเลยถ้าปล่อยทิ้ง — ดันลูกที่เหลือ (ยกเว้นตัวที่กลายเป็น direct ไปแล้ว) เข้า
+      // more ตรงตำแหน่งเดิมของกลุ่มแทน รักษาลำดับสัมพัทธ์เดิมไว้
+      const isChildBypass = item.children?.some(
+        (child) => destinationPath(child) === path,
+      );
+      if (isChildBypass) {
+        const remainingChildren = item.children?.filter(
+          (child) => destinationPath(child) !== path,
+        );
+        remainingChildren?.forEach(pushToMore);
+      }
       continue;
     }
-    more.push(item);
-  }
-
-  // เมนูจริงจาก permission API มีกลุ่ม "/cancel" (ยกเลิกบิลขาย) แยกเป็นของตัวเอง —
-  // /sales/cancel-sale เลยเป็นลูกอยู่ใน children ของกลุ่มนั้น ไม่ใช่ top-level item ตรง ๆ
-  // ใน more ต้องเช็คทั้งสองแบบ ไม่งั้น anchorIndex หาไม่เจอเลยและ inject ไม่ทำงานจริง
-  const matchesAnchor = (item: MenuItem) =>
-    item.path === NATIVE_INJECTED_SALES_LIST_ANCHOR_PATH ||
-    Boolean(
-      item.children?.some(
-        (child) => child.path === NATIVE_INJECTED_SALES_LIST_ANCHOR_PATH,
-      ),
-    );
-  const matchesInjectedPath = (item: MenuItem) =>
-    item.path === NATIVE_INJECTED_SALES_LIST_PATH ||
-    Boolean(
-      item.children?.some(
-        (child) => child.path === NATIVE_INJECTED_SALES_LIST_PATH,
-      ),
-    );
-
-  const anchorIndex = more.findIndex(matchesAnchor);
-  const alreadyReachable = more.some(matchesInjectedPath);
-  if (anchorIndex !== -1 && !alreadyReachable) {
-    more.splice(anchorIndex + 1, 0, NATIVE_INJECTED_SALES_LIST_ITEM);
+    pushToMore(item);
   }
 
   return { direct, more };

@@ -150,7 +150,11 @@ export function NativeNavItems({
     <>
       {model.direct.map((destination) => (
         <NavDestinationButton
-          key={destination.path}
+          // เมนูจริงจาก backend มีทั้งลิงก์ลัด (เช่น "ຂາຍ") กับ dropdown ที่ children ตัวแรก
+          // resolve ไปหน้าเดียวกัน (เช่น "ເປີດຂາຍ") วางคู่กันโดยตั้งใจ (ดู native-navigation-
+          // model.ts) — destination.path เลยซ้ำกันได้จริงโดยไม่ใช่บั๊ก ต้องใช้ title (menu_id
+          // จริงจาก backend การันตีไม่ซ้ำ) เป็น key แทน ไม่งั้น React เจอ key ซ้ำ
+          key={destination.item.title}
           active={isDestinationActive(destination, pathname)}
           destination={destination}
         />

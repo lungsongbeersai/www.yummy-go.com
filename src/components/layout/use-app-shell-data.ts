@@ -11,16 +11,13 @@ import {
 } from "@/components/layout/shell-menu-helpers";
 import { useResetOnDeps } from "@/hooks/use-reset-on-change";
 import { useIsAndroidNativeApp } from "@/hooks/use-android-native-app";
+import { useSidebarPermissionAccess } from "@/hooks/use-sidebar-permission-access";
 import {
   resolveShellBreadcrumbs,
   type BreadcrumbTrailItem,
 } from "@/components/layout/shell-breadcrumbs";
-import { sidebarPermissionMenuItemsToMenuItems } from "@/config/sidebar-permission-menu";
 import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
-import {
-  sidebarMenuCacheKey,
-  usePermissionsSidebarStore,
-} from "@/stores/permissions-sidebar-store";
+import { usePermissionsSidebarStore } from "@/stores/permissions-sidebar-store";
 
 const DATA_SCREEN_SCROLL_LOCK_CLASS = "data-screen-scroll-lock";
 const POS_ANDROID_SYSTEM_SCREEN_CLASS = "pos-android-system-screen";
@@ -47,42 +44,25 @@ export function useAppShellData() {
   const user = useAuthStore((state) => state.user);
   const offlineSession = useAuthStore((state) => state.offlineSession);
   const isAndroidNative = useIsAndroidNativeApp();
-  const sidebarItems = usePermissionsSidebarStore((state) => state.items);
   const sidebarError = usePermissionsSidebarStore((state) => state.error);
-  const sidebarLoading = usePermissionsSidebarStore((state) => state.loading);
-  const sidebarRequestKey = usePermissionsSidebarStore(
-    (state) => state.requestKey,
-  );
   const clearSidebarMenu = usePermissionsSidebarStore(
     (state) => state.clearActive,
   );
   const loadSidebarMenu = usePermissionsSidebarStore((state) => state.load);
+  const {
+    keyMatches: sidebarKeyMatches,
+    loading: sidebarPending,
+    menuItems: rawMenuItems,
+  } = useSidebarPermissionAccess();
 
   const storeUuid = authStoreUuid(user);
-  const targetSidebarRequestKey =
-    storeUuid && typeof user?.status === "number"
-      ? sidebarMenuCacheKey(storeUuid, user.status, i18n.language)
-      : "";
-  const sidebarKeyMatches =
-    Boolean(targetSidebarRequestKey) &&
-    sidebarRequestKey === targetSidebarRequestKey;
 
   const menuItems = useMemo(
-    () =>
-      applyOfflineLock(
-        sidebarPermissionMenuItemsToMenuItems(
-          sidebarKeyMatches ? sidebarItems : [],
-        ),
-        offlineSession,
-        isAndroidNative,
-      ),
-    [isAndroidNative, offlineSession, sidebarItems, sidebarKeyMatches],
+    () => applyOfflineLock(rawMenuItems, offlineSession, isAndroidNative),
+    [isAndroidNative, offlineSession, rawMenuItems],
   );
 
-  const menuLoading =
-    Boolean(targetSidebarRequestKey) &&
-    (!sidebarKeyMatches || sidebarLoading) &&
-    menuItems.length === 0;
+  const menuLoading = sidebarPending && menuItems.length === 0;
   const menuError = sidebarKeyMatches ? sidebarError : null;
 
   const breadcrumbs = useMemo(() => {

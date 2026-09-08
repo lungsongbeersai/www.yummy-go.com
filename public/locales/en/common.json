@@ -163,6 +163,8 @@
     "waiting": "Waiting for POS data"
   },
   "dashboard": {
+    "accessRestrictedDescription": "Contact an administrator or store owner to request access to this page.",
+    "accessRestrictedTitle": "You do not have permission to access this data",
     "accounting": "Accounting",
     "activeQuery": "Active query",
     "amount": "Amount",

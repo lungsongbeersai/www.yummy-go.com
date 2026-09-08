@@ -4,7 +4,8 @@ export const ROLE_STATUS = {
   BRANCH_ADMIN: 3,
   SALES_STAFF: 4,
   ACCOUNTING_STAFF: 5,
-  WAREHOUSE_STAFF: 6
+  WAREHOUSE_STAFF: 6,
+  WAITER: 7
 } as const;
 
 export const STORE_BRANCH_VIEW_STATUSES: number[] = [
@@ -48,4 +49,14 @@ export function canManageStorePermissions(status: number | null | undefined) {
 export function canViewSettingModule(slug: string, status: number | null | undefined) {
   if (slug === "store" || slug === "branch") return canViewStoreBranch(status);
   return true;
+}
+
+// Waiter (status 7) takes orders only — payment collection and discounting stay
+// with roles that are accountable for the till.
+export function canManagePayments(status: number | null | undefined) {
+  return roleStatus(status) !== ROLE_STATUS.WAITER;
+}
+
+export function canManageDiscounts(status: number | null | undefined) {
+  return roleStatus(status) !== ROLE_STATUS.WAITER;
 }

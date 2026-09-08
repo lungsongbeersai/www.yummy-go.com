@@ -259,6 +259,7 @@ export function SelectedTableCartPanelContent({
                   actingItemUuid={workflow.actingItemUuid}
                   actionDisabled={workflow.cartActionsLocked}
                   canConfirmKitchenItem={workflow.canConfirmKitchenItem}
+                  canItemDiscount={workflow.canManageDiscounts}
                   items={counterCartItems}
                   canSplitItem={workflow.canSplitItem}
                   splitSelectionDisabled={!workflow.canSelectSplitItems}
@@ -284,6 +285,7 @@ export function SelectedTableCartPanelContent({
                       actingItemUuid={workflow.actingItemUuid}
                       actionDisabled={workflow.cartActionsLocked}
                       canConfirmKitchenItem={workflow.canConfirmKitchenItem}
+                      canItemDiscount={workflow.canManageDiscounts}
                       items={workflow.newOrderDisplayItems}
                       updatingItemUuid={workflow.updatingItemUuid}
                       onChangeQty={workflow.changeCartItemQty}
@@ -302,6 +304,7 @@ export function SelectedTableCartPanelContent({
                       actingItemUuid={workflow.actingItemUuid}
                       actionDisabled={workflow.cartActionsLocked}
                       canConfirmKitchenItem={workflow.canConfirmKitchenItem}
+                      canItemDiscount={workflow.canManageDiscounts}
                       items={workflow.historyItems}
                       canSplitItem={workflow.canSplitItem}
                       splitSelectionDisabled={!workflow.canSelectSplitItems}
@@ -340,7 +343,9 @@ export function SelectedTableCartPanelContent({
             billDiscountValueLabel={workflow.billDiscountValueLabel}
             canConfirm={workflow.canConfirm}
             canApplyBillDiscount={
-              Boolean(workflow.currentOrderUuid) && !workflow.cartActionsLocked
+              Boolean(workflow.currentOrderUuid) &&
+              !workflow.cartActionsLocked &&
+              workflow.canManageDiscounts
             }
             canPay={workflow.canPayBill}
             canPaySplitSelection={workflow.canPaySplitSelection}
