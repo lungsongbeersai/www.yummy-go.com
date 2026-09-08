@@ -994,6 +994,71 @@ describe("pushing a staged create_order to Backend never sends a discarded order
     expect(post.mock.calls).toHaveLength(3);
   });
 
+  it("continues with independent sales after an earlier event is quarantined", async () => {
+    const store = new MemoryBrowserOfflineStore();
+    await stageNote(store, "blocked-cancel", "old table");
+    await updateBrowserSyncEvent("blocked-cancel", {
+      status: "BLOCKED",
+      lastError: "SYNC_TARGET_REJECTED",
+    }, store);
+    await stageNote(store, "next-table", "independent table");
+    const post = vi.spyOn(axios, "post").mockResolvedValue({
+      data: { data: { results: [{ event_uuid: "next-table", status: "SYNCED" }] } },
+    });
+
+    await pushBrowserSyncQueue(scope, store);
+
+    expect(post).toHaveBeenCalledOnce();
+    expect((post.mock.calls[0][1] as { events: Array<{ event_uuid: string }> }).events[0].event_uuid)
+      .toBe("next-table");
+    expect((await store.getSyncQueue("blocked-cancel"))?.status).toBe("BLOCKED");
+    expect((await store.getSyncQueue("next-table"))?.status).toBe("SYNCED");
+  });
+
+  it("quarantines a blocked dependency while still draining unrelated work", async () => {
+    const store = new MemoryBrowserOfflineStore();
+    await stageNote(store, "blocked-parent", "parent");
+    await updateBrowserSyncEvent("blocked-parent", { status: "BLOCKED" }, store);
+    await stageNote(store, "dependent-child", "child");
+    await updateBrowserSyncEvent("dependent-child", {
+      status: "STAGED",
+      dependencies: ["blocked-parent"],
+    }, store);
+    await stageNote(store, "independent", "other table");
+    const post = vi.spyOn(axios, "post").mockResolvedValue({
+      data: { data: { results: [{ event_uuid: "independent", status: "SYNCED" }] } },
+    });
+
+    await pushBrowserSyncQueue(scope, store);
+
+    expect(await store.getSyncQueue("dependent-child")).toMatchObject({
+      status: "BLOCKED",
+      lastError: "MOBILE_SYNC_DEPENDENCY_BLOCKED:blocked-parent",
+    });
+    expect((await store.getSyncQueue("independent"))?.status).toBe("SYNCED");
+    expect(post).toHaveBeenCalledOnce();
+  });
+
+  it("continues after Backend rejects one event as terminal", async () => {
+    const store = new MemoryBrowserOfflineStore();
+    await stageNote(store, "rejected", "missing item");
+    await stageNote(store, "after-rejection", "another table");
+    const post = vi.spyOn(axios, "post").mockImplementation(async (_url, body: unknown) => {
+      const eventUuid = (body as { events: Array<{ event_uuid: string }> }).events[0].event_uuid;
+      return { data: { data: { results: [{
+        event_uuid: eventUuid,
+        status: eventUuid === "rejected" ? "BLOCKED" : "SYNCED",
+        ...(eventUuid === "rejected" ? { error: "SYNC_TARGET_REJECTED" } : {}),
+      }] } } };
+    });
+
+    await pushBrowserSyncQueue(scope, store);
+
+    expect((await store.getSyncQueue("rejected"))?.status).toBe("BLOCKED");
+    expect((await store.getSyncQueue("after-rejection"))?.status).toBe("SYNCED");
+    expect(post).toHaveBeenCalledTimes(2);
+  });
+
   it("uses one worker even when two foreground/wake events race", async () => {
     const store = new MemoryBrowserOfflineStore();
     await stageNote(store, "first", "one");

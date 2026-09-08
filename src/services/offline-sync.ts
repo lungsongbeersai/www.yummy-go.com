@@ -1201,23 +1201,33 @@ async function pushBrowserSyncQueueNow(
   const device = getOfflineSyncDeviceAuth();
   if (!device) return null;
   // Backend sorts a batch by operation priority (PAYMENT before CREATE).
-  // Drain the durable sequence one acknowledged event at a time instead.
+  // Drain retryable work in durable sequence one acknowledged event at a time.
+  // A BLOCKED row is already terminal and kept for manager review; quarantining
+  // it must not strand independent sales from other tables behind it forever.
   for (let sent = 0; sent < 50 && isCurrent(); sent += 1) {
     const all = await listBrowserSyncQueue(scope, browserStore);
-    const entry = all.find((row) => row.status !== "SYNCED");
-    if (!entry || entry.status === "BLOCKED" || entry.actorLoginUuid !== scope.actorLoginUuid) break;
+    const entry = all.find((row) => row.status !== "SYNCED" && row.status !== "BLOCKED");
+    if (!entry || entry.actorLoginUuid !== scope.actorLoginUuid) break;
     const operation = OFFLINE_ORDER_PUSH_OPERATIONS[`${entry.method} ${entry.path}`];
     if (!operation) {
       await updateBrowserSyncEvent(entry.eventUuid, { status: "BLOCKED", lastError: "MOBILE_OFFLINE_OPERATION_UNSUPPORTED" }, browserStore);
-      break;
+      continue;
     }
     // Old mobile builds staged these without a printer job/proof. Do not turn
     // that historical UI success into an unprinted or double-printed receipt.
     if (["KITCHEN_CONFIRM", "PAYMENT"].includes(operation)) {
       await updateBrowserSyncEvent(entry.eventUuid, { status: "BLOCKED", lastError: "MOBILE_OFFLINE_PRINT_REVIEW_REQUIRED" }, browserStore);
-      break;
+      continue;
     }
     const dependencyStatuses = new Map(all.map((row) => [row.eventUuid, row.status]));
+    const blockedDependency = entry.dependencies.find((id) => dependencyStatuses.get(id) === "BLOCKED");
+    if (blockedDependency) {
+      await updateBrowserSyncEvent(entry.eventUuid, {
+        status: "BLOCKED",
+        lastError: `MOBILE_SYNC_DEPENDENCY_BLOCKED:${blockedDependency}`,
+      }, browserStore);
+      continue;
+    }
     if (entry.dependencies.some((id) => dependencyStatuses.get(id) !== "SYNCED")) break;
     let wire = entry.wireEvent;
     if (!wire) {
@@ -1242,7 +1252,7 @@ async function pushBrowserSyncQueueNow(
     }
     if (wire.device_code !== device.deviceCode) {
       await updateBrowserSyncEvent(entry.eventUuid, { status: "BLOCKED", lastError: "MOBILE_SYNC_DEVICE_CHANGED" }, browserStore);
-      break;
+      continue;
     }
     const claimed = await updateBrowserSyncEvent(entry.eventUuid, { status: "PROCESSING", wireEvent: wire }, browserStore);
     if (!claimed || !isCurrent()) break;
@@ -1264,6 +1274,7 @@ async function pushBrowserSyncQueueNow(
         status,
         lastError: status === "SYNCED" ? null : row?.error ?? "sync push result missing",
       }, browserStore);
+      if (status === "BLOCKED") continue;
       if (status !== "SYNCED") break;
     } catch (error) {
       // PROCESSING survives an app kill. The frozen request and event id are
