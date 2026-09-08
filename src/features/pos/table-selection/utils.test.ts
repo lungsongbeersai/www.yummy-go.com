@@ -325,16 +325,20 @@ describe("table selection utils", () => {
     expect(isServedCartItem({ detail: { order_it_status_text: "ເສີບ" } } as CartItem)).toBe(false);
   });
 
-  it("hides destructive actions in New and only cancels kitchen-confirmed active items", () => {
+  it("deletes unsent New items and only cancels kitchen-confirmed History items", () => {
     const itemWithStatus = (status: number) => ({
       detail: { order_it_status: status },
     } as CartItem);
 
     expect(cartItemRemovalActions(itemWithStatus(0), true)).toEqual({
       canCancel: false,
-      canDelete: false,
+      canDelete: true,
     });
     expect(cartItemRemovalActions(itemWithStatus(1), true)).toEqual({
+      canCancel: false,
+      canDelete: true,
+    });
+    expect(cartItemRemovalActions(itemWithStatus(2), true)).toEqual({
       canCancel: false,
       canDelete: false,
     });

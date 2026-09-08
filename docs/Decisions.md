@@ -6,6 +6,13 @@ Entries below dated from git history are backfilled from existing code comments 
 
 ---
 
+## New-order rows restore hard delete
+
+- **Date:** 2026-09-08.
+- **Context:** The owner requested the previous Delete Item action back after adding an item. The prior same-day decision hid every destructive action in the table's New tab, even though the Backend delete contract and Mobile Offline payload already support status 0/1 rows.
+- **Decision:** The table New tab exposes Delete Item for status 0/1 again, using the existing confirmation dialog and `delete_order_item` flow. It does not expose Cancel Item there. History keeps audited cancellation for status 2/3, while served, cancelled, and unknown statuses remain protected.
+- **Reason:** This restores the cashier's requested pre-confirmation correction flow without replacing the inventory/audit-safe cancellation path required after an item reaches the kitchen.
+
 ## New-order rows do not expose destructive actions
 
 - **Date:** 2026-09-08.
