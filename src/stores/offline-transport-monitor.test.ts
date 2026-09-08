@@ -5,6 +5,7 @@ import * as offlineSync from "@/services/offline-sync";
 import * as offlineMenu from "@/services/offline-menu";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { BACKEND_NETWORK_STATE } from "@/lib/network-state";
+import { OFFLINE_DATA_REFRESH_EVENT } from "@/lib/offline-data-refresh";
 import { resetLocalSyncConfiguration } from "@/services/offline-sync";
 import { useAuthStore, type AuthUser } from "@/stores/auth-store";
 import {
@@ -116,6 +117,25 @@ describe.each(["android", "ios"])("%s Dexie sync worker", (platform) => {
       { storeUuid: "store-1", branchUuid: "branch-1", actorLoginUuid: `login-${platform}` }, expect.any(String), expect.any(Function));
     expect(agentGet).not.toHaveBeenCalled();
     expect(agentPost).not.toHaveBeenCalled();
+    stop();
+  });
+
+  it("notifies mounted screens after the native queue is acknowledged", async () => {
+    useAuthStore.getState().login(`native-ack-${platform}`, authUser(`login-ack-${platform}`));
+    vi.spyOn(apiClient, "post").mockResolvedValue({ status: 200, data: { status: "success" } });
+    vi.spyOn(offlineSync, "getBrowserLocalSyncStatus").mockResolvedValue({
+      staged: 0, pending: 1, processing: 0, blocked: 0, failed: 0, synced: 0,
+    });
+    vi.spyOn(offlineSync, "pushBrowserSyncQueue").mockResolvedValue({
+      staged: 0, pending: 0, processing: 0, blocked: 0, failed: 0, synced: 1,
+    });
+    const refresh = vi.fn();
+    window.addEventListener(OFFLINE_DATA_REFRESH_EVENT, refresh);
+
+    const stop = startOfflineTransportMonitor();
+    await vi.advanceTimersByTimeAsync(1);
+
+    expect(refresh).toHaveBeenCalledOnce();
     stop();
   });
 

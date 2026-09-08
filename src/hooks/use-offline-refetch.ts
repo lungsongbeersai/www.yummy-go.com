@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { OFFLINE_DATA_REFRESH_EVENT } from "@/lib/offline-data-refresh";
 import { BACKEND_NETWORK_STATE, type BackendNetworkState } from "@/lib/network-state";
 import { useNetworkStore } from "@/stores/network-store";
 
@@ -45,10 +46,12 @@ export function shouldRefetchOnTransport(
  * ONLINE<->OFFLINE flip, or the first OFFLINE/ONLINE verdict after the screen
  * mounted mid-transition (CHECKING). Add it to a data-loading effect's deps so
  * the screen currently on display refetches exactly once: offline it repopulates
- * from the Local Agent, online it refreshes from the backend.
+ * from the Local Agent, online it refreshes from the backend. The counter also
+ * bumps after the mobile browser outbox receives a new sync acknowledgement so
+ * a reconnect cannot leave the last offline projection on screen.
  *
- * Only the mounted screen reacts and only on a genuine edge, so the cost is one
- * request per transition regardless of how many offline-capable pages exist.
+ * Only mounted screens react, so the cost is one request per transition or
+ * acknowledged sync for each visible offline-capable screen.
  */
 export function useOfflineRefetchEpoch(): number {
   const state = useNetworkStore((snapshot) => snapshot.state);
@@ -71,6 +74,12 @@ export function useOfflineRefetchEpoch(): number {
     }
     settledRef.current = nextSettled;
   }, [state]);
+
+  useEffect(() => {
+    const handleOfflineDataRefresh = () => setEpoch((value) => value + 1);
+    window.addEventListener(OFFLINE_DATA_REFRESH_EVENT, handleOfflineDataRefresh);
+    return () => window.removeEventListener(OFFLINE_DATA_REFRESH_EVENT, handleOfflineDataRefresh);
+  }, []);
 
   return epoch;
 }

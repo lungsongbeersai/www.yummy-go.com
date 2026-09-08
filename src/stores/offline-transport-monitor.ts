@@ -6,6 +6,7 @@ import {
   type BackendErrorClassification,
   type BackendNetworkState,
 } from "@/lib/network-state";
+import { requestOfflineDataRefresh } from "@/lib/offline-data-refresh";
 import {
   browserLocalSyncHasRetryableWork,
   configureLocalSync,
@@ -405,8 +406,16 @@ export function startOfflineTransportMonitor() {
           ).catch(() => undefined);
           await withSyncWorkerLock(`mobile:${localScope.storeUuid}:${localScope.branchUuid}`, async () => {
             if (!isCurrent() || !await ensureMobileDeviceRegistered(localScope, token) || !isCurrent()) return;
+            const queueBeforePush = await getBrowserLocalSyncStatus(localScope);
             const queue = await pushBrowserSyncQueue(localScope, undefined, isCurrent);
             if (queue && isCurrent()) {
+              // The ONLINE edge can happen before the native outbox has been
+              // acknowledged. Refetch again after acknowledgement so a mounted
+              // table/cart screen hands ownership back to Backend instead of
+              // keeping its last projected offline status until navigation.
+              if (queue.synced > queueBeforePush.synced) {
+                requestOfflineDataRefresh();
+              }
               const acknowledged = reportedBlockedCount ?? 0;
               if (queue.blocked > acknowledged) {
                 useToastStore.getState().show({

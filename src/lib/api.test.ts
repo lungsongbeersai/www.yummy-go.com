@@ -237,6 +237,26 @@ describe.each(["android", "ios"])("Capacitor %s uses Dexie, never localhost Agen
     expect(returned).toBe(true);
   });
 
+  it("persists a dashboard snapshot before returning it to the native UI", async () => {
+    const gate = Promise.withResolvers<boolean>();
+    vi.mocked(cacheBrowserApiResponse).mockReturnValueOnce(gate.promise);
+    vi.spyOn(apiClient, "get").mockResolvedValue({
+      status: 200,
+      data: { status: "success", source: "online-dashboard" },
+    });
+    let returned = false;
+    const request = apiRequest("get", "/api/v1/dashboard/executive")
+      .then((response) => { returned = true; return response; });
+    await vi.waitFor(() => expect(cacheBrowserApiResponse).toHaveBeenCalledOnce());
+    try {
+      expect(returned).toBe(false);
+    } finally {
+      gate.resolve(true);
+      await request;
+    }
+    expect(returned).toBe(true);
+  });
+
   it("keeps a successful menu read online even if local storage is unavailable", async () => {
     vi.mocked(cacheBrowserApiResponse).mockRejectedValueOnce(new Error("QuotaExceededError"));
     vi.spyOn(apiClient, "get").mockResolvedValue({ status: 200, data: { status: "success", source: "online" } });
@@ -281,6 +301,20 @@ describe.each(["android", "ios"])("Capacitor %s uses Dexie, never localhost Agen
     await expect(apiRequest("get", menuReads[0].path)).resolves.toMatchObject({ source: "dexie" });
     expect(backendNetworkManager.getSnapshot().state).not.toBe(BACKEND_NETWORK_STATE.OFFLINE);
     expect(useAuthStore.getState().offlineSession).toBe(false);
+  });
+
+  it("uses the localized offline-cache error instead of raw Network Error on a cache miss", async () => {
+    vi.spyOn(apiClient, "get").mockRejectedValue({
+      isAxiosError: true,
+      code: "ERR_NETWORK",
+      message: "Network Error",
+    });
+    vi.spyOn(offlineSync, "readBrowserOfflineCache").mockResolvedValue(null);
+
+    await expect(apiRequest("get", "/api/v1/dashboard/executive")).rejects.toMatchObject({
+      statusCode: 503,
+      message: expect.not.stringContaining("Network Error"),
+    });
   });
 
   it("surfaces a menu HTTP rejection instead of claiming its offline cache is missing", async () => {

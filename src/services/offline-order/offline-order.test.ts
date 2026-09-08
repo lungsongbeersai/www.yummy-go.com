@@ -467,24 +467,60 @@ describe("offline table grid", () => {
     return projected.data[0];
   }
 
-  it("marks a table occupied once a bill is opened offline", () => {
+  it("uses the same cashier-creating status online and offline without a false customer alert", () => {
     const zone = tablesFor(stateFrom([createOrder([item("item-1", 1)])]));
 
     expect(zone.zone_name).toBe("ຫ້ອງ A");
     expect(zone.tables[0]).toMatchObject({
       table_uuid: TABLE, table_name: "T01", number_of_seats: 4,
-      table_status: 2, customer_order_state: true, bg_color: "#fdebd0",
+      table_status: 3, customer_order_state: false, bg_color: "#ffd1d1",
     });
     // Untouched tables keep exactly what the server sent.
     expect(zone.tables[1]).toEqual(CACHED_TABLES.data[0].tables[1]);
   });
 
-  it("clears customer_order_state once everything is sent to the kitchen", () => {
+  it("moves the table to occupied once everything is sent to the kitchen", () => {
     const zone = tablesFor(stateFrom([
       createOrder([item("item-1", 1)]),
       queued("patch", "/api/v1/posAll/confirm_to_kitchen", { order_uuid: ORDER, order_item_uuids: ["item-1"] }),
     ]));
     expect(zone.tables[0]).toMatchObject({ table_status: 2, customer_order_state: false });
+  });
+
+  it("maps an unconfirmed customer cart to awaiting-confirm", () => {
+    const zone = tablesFor(stateFrom([
+      createOrder([item("customer-item", 1, { order_it_status: 0 })]),
+    ]));
+    expect(zone.tables[0]).toMatchObject({ table_status: 4, customer_order_state: false });
+  });
+
+  it("preserves call-staff and awaiting-payment alerts across an offline projection", () => {
+    const state = stateFrom([createOrder([item("item-1", 1)])]);
+    for (const tableStatus of [5, 6]) {
+      const cached = {
+        ...CACHED_TABLES,
+        data: [{
+          ...CACHED_TABLES.data[0],
+          tables: [{ ...CACHED_TABLES.data[0].tables[0], table_status: tableStatus }],
+        }],
+      };
+      const projected = projectOfflineTables(cached, state) as {
+        data: Array<{ tables: Array<Record<string, unknown>> }>;
+      };
+      expect(projected.data[0].tables[0].table_status).toBe(tableStatus);
+    }
+  });
+
+  it("frees a table when its last unsent item is deleted offline", () => {
+    const zone = tablesFor(stateFrom([
+      createOrder([item("item-1", 1)]),
+      queued("delete", "/api/v1/posAll/delete_order_item", { order_it_uuid: "item-1" }),
+    ]));
+    expect(zone.tables[0]).toMatchObject({
+      table_status: 1,
+      customer_order_state: false,
+      table_date_in: null,
+    });
   });
 
   it("frees a table whose bill was paid offline", () => {

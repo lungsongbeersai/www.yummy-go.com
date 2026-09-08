@@ -14,7 +14,6 @@ import { shouldLogoutForUnauthorized } from "@/lib/unauthorized-session";
 import {
   cacheOnlineResponse,
   browserOrderVersion,
-  isBrowserMenuRead,
   readBrowserOfflineCache,
   configureLocalSync,
   mirrorOnlineResponse,
@@ -220,7 +219,6 @@ export async function apiRequest<T>(
   };
   const networkState = backendNetworkManager.getSnapshot().state;
   const localAgentAvailable = !isCapacitorMobileApp();
-  const browserMenuRead = !localAgentAvailable && isBrowserMenuRead(method, url);
   const orderOwnershipRequired = requiresLocalOrderOwnership(method, url);
   const browserVersionAtStart = browserOrderVersion(localScope);
   const browserOwnsOrders = !localAgentAvailable && supportsOfflineRoute(method, url) &&
@@ -356,9 +354,11 @@ export async function apiRequest<T>(
         localAgentAvailable,
         requestStartedAt,
       );
-      // openOrAddProduct can immediately stage a local create while older bills
-      // sync. Its price/name must already be available in Dexie at that point.
-      if (browserMenuRead) await cached;
+      // Capacitor's Dexie mirror is its only offline source. Finish every native
+      // cache write before exposing the online response, so a transport flip
+      // immediately after render cannot read the previous dashboard/table
+      // snapshot. Cache failures resolve false and never fail the online call.
+      if (!localAgentAvailable) await cached;
     }
     return data;
   } catch (error) {
@@ -466,6 +466,7 @@ export async function apiRequest<T>(
       !localAgentAvailable &&
       classification.classification === "NETWORK_TRANSPORT" &&
       !prepared.eventUuid &&
+      supportsBrowserOfflineRoute(method, url) &&
       typeof window !== "undefined"
     ) {
       const cached = await readBrowserOfflineCache<T>(
@@ -475,6 +476,7 @@ export async function apiRequest<T>(
         localScope,
       );
       if (cached !== null) return assertApiSuccess(cached);
+      throw new ServiceError(i18n.t("offlineSync.mobileCacheUnavailable"), 503, normalized);
     }
     // Android write path: no Agent to hand the mutation to, so it is staged
     // into the same Dexie outbox the read branch above already replays, and
