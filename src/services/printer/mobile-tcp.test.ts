@@ -1,7 +1,37 @@
+import { readdirSync, readFileSync } from "node:fs";
+import { join, relative } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { __mobileTcpInternals } from "@/services/printer/mobile-tcp";
 
+function productionSourceFiles(directory: string): string[] {
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const path = join(directory, entry.name);
+    if (entry.isDirectory()) return productionSourceFiles(path);
+    if (!/\.tsx?$/.test(entry.name) || /\.test\.tsx?$/.test(entry.name)) return [];
+    return [path];
+  });
+}
+
 describe("mobile TCP printer queue", () => {
+  it("keeps every native TCP print path behind the shared transport", () => {
+    const sourceRoot = join(process.cwd(), "src");
+    const sources = productionSourceFiles(sourceRoot);
+    const relativeFilesContaining = (value: string) => sources
+      .filter((path) => readFileSync(path, "utf8").includes(value))
+      .map((path) => relative(sourceRoot, path))
+      .sort();
+
+    expect(
+      relativeFilesContaining("@deedarb/capacitor-tcp-socket"),
+    ).toEqual(["services/printer/mobile-tcp.ts"]);
+    expect(relativeFilesContaining("printMobileEscposOverTcp")).toEqual([
+      "services/printer/agent-transport.ts",
+      "services/printer/mobile-tcp.ts",
+      "services/printer/print-jobs.ts",
+      "stores/printer-store.ts",
+    ]);
+  });
+
   it("serializes jobs sent to the same physical printer", async () => {
     const events: string[] = [];
     let releaseFirst: (() => void) | undefined;
@@ -79,22 +109,28 @@ describe("mobile TCP printer queue", () => {
 
     expect(
       __mobileTcpInternals.mobileTcpRasterDrainMs(raster.toString("base64")),
-    ).toBe(2400);
+    ).toBe(1650);
+    expect(
+      __mobileTcpInternals.mobileTcpRasterDrainMs(
+        raster.toString("base64"),
+        1000,
+      ),
+    ).toBe(650);
     expect(
       __mobileTcpInternals.mobileTcpRasterDrainMs(Buffer.alloc(1024).toString("base64")),
-    ).toBe(1500);
+    ).toBe(500);
     expect(
       __mobileTcpInternals.mobileTcpRasterDrainMs(Buffer.alloc(256 * 1024).toString("base64")),
-    ).toBe(6000);
+    ).toBe(4000);
   });
 
-  it("uses the buffer-safe profile for every receipt size", () => {
+  it("uses one native write and TCP backpressure for renderer segments", () => {
     expect(__mobileTcpInternals.mobileTcpSendProfile()).toMatchObject({
-      chunkSize: 1364,
-      cooldownEveryBytes: 16 * 1024,
-      cooldownMs: 180,
-      delayMs: 60,
-      profile: "buffer_safe",
+      chunkSize: 256 * 1024,
+      cooldownEveryBytes: 0,
+      cooldownMs: 0,
+      delayMs: 0,
+      profile: "tcp_backpressure",
     });
   });
 
@@ -122,6 +158,29 @@ describe("mobile TCP printer queue", () => {
 
     expect(Buffer.concat(sent)).toEqual(source);
     expect(TcpSocket.send).toHaveBeenCalledTimes(Math.ceil(source.toString("base64").length / 2732));
+  });
+
+  it("sends a maximum renderer segment across the native bridge once", async () => {
+    const source = Buffer.alloc(160 * 1024, 0x55);
+    const sent: Buffer[] = [];
+    const TcpSocket = {
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+      read: vi.fn(),
+      send: vi.fn(async ({ data }: { data: string }) => {
+        sent.push(Buffer.from(data, "base64"));
+      }),
+    };
+
+    await __mobileTcpInternals.sendBase64InChunks({
+      TcpSocket,
+      client: "test-client",
+      base64: source.toString("base64"),
+      ...__mobileTcpInternals.mobileTcpSendProfile(),
+    });
+
+    expect(TcpSocket.send).toHaveBeenCalledTimes(1);
+    expect(Buffer.concat(sent)).toEqual(source);
   });
 
   it("splits long renderer payloads only between complete raster commands", () => {
@@ -168,6 +227,27 @@ describe("mobile TCP printer queue", () => {
     expect(segments).toEqual([source.toString("base64")]);
   });
 
+  it("keeps a normal payment invoice in one continuous TCP session", () => {
+    const header = Buffer.from([0x1b, 0x40]);
+    const rasterBand = Buffer.concat([
+      Buffer.from([0x1d, 0x76, 0x30, 0x00, 72, 0x00, 24, 0x00]),
+      Buffer.alloc(72 * 24, 0x55),
+    ]);
+    const source = Buffer.concat([
+      header,
+      ...Array.from({ length: 75 }, () => rasterBand),
+      Buffer.from([0x1d, 0x56, 0x01]),
+    ]);
+
+    expect(source.length).toBeGreaterThan(48 * 1024);
+    expect(source.length).toBeLessThan(160 * 1024);
+    expect(
+      __mobileTcpInternals.splitEscposBase64ForTransport(
+        source.toString("base64"),
+      ),
+    ).toHaveLength(1);
+  });
+
   it("counts raster work and cut commands in renderer payloads", () => {
     const source = Buffer.concat([
       Buffer.from([0x1b, 0x40]),
@@ -187,22 +267,6 @@ describe("mobile TCP printer queue", () => {
       rasterBands: 2,
       rasterRows: 32,
     });
-  });
-
-  it("isolates a trailing cut until raster output has drained", () => {
-    const body = Buffer.concat([
-      Buffer.from([0x1b, 0x40]),
-      Buffer.from([0x1d, 0x76, 0x30, 0x00, 1, 0x00, 1, 0x00, 0xff]),
-    ]);
-    const cut = Buffer.from([0x1d, 0x56, 0x01]);
-    const source = Buffer.concat([body, cut]);
-
-    const result = __mobileTcpInternals.splitTrailingEscposCutCommand(
-      source.toString("base64"),
-    );
-
-    expect(Buffer.from(result.bodyBase64, "base64")).toEqual(body);
-    expect(Buffer.from(result.cutBase64, "base64")).toEqual(cut);
   });
 
   it("decodes native printer status bytes consistently", () => {
