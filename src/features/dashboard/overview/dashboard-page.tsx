@@ -3,10 +3,13 @@
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Lock } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 import { Card, CardContent } from "@/components/ui/card";
 import { LoadingState } from "@/components/common/loading-state";
 import { Spinner } from "@/components/ui/spinner";
+import { menuGrantsPath } from "@/components/layout/shell-menu-helpers";
+import { useSidebarPermissionAccess } from "@/hooks/use-sidebar-permission-access";
 import { cn } from "@/lib/utils";
 import {
   DashboardChartGridFallback,
@@ -39,6 +42,7 @@ import { useAppStore } from "@/stores/app-store";
 import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
 import { useBranchStore } from "@/stores/branch-store";
 import { useDashboardStore } from "@/stores/dashboard-store";
+import { usePermissionsSidebarStore } from "@/stores/permissions-sidebar-store";
 import { useOfflineRefetchEpoch } from "@/hooks/use-offline-refetch";
 import { useResetOnDeps } from "@/hooks/use-reset-on-change";
 
@@ -180,7 +184,54 @@ const DashboardProductsParetoGrid = dynamic(
   },
 );
 
+// Dashboard ("/") ก็เป็นแค่ MenuItem ตัวหนึ่งที่แอดมินให้สิทธิ์ได้เหมือนเมนูอื่น (ผ่านจัดการเมนู/
+// จัดการสิทธิ์เข้าถึง) ไม่ใช่หน้าที่เข้าได้เสมอ — ถ้า role ปัจจุบันไม่ถูกให้สิทธิ์ ต้องไม่ยิง
+// loadDashboard/loadBranches เลย (ข้อมูลยอดขายจริงรั่วออกไปทาง network response ได้แม้จะเบลอ
+// ด้วย CSS ก็ตาม) จึงกันไว้ตั้งแต่ระดับ mount component ไม่ใช่แค่ conditional ใน effect
 export function DashboardPage() {
+  const { t } = useTranslation();
+  const sidebarError = usePermissionsSidebarStore((state) => state.error);
+  const { keyMatches, loading: permissionLoading, menuItems } = useSidebarPermissionAccess();
+
+  if (permissionLoading) {
+    return <LoadingState label={t("common.loading")} variant="dashboard" />;
+  }
+
+  const permissionError = keyMatches ? sidebarError : null;
+  const hasAccess = !permissionError && menuGrantsPath(menuItems, "/");
+
+  if (!hasAccess) return <DashboardAccessRestricted />;
+
+  return <DashboardPageContent />;
+}
+
+// เลี่ยง scroll เพิ่ม: /  (dashboardScreen) ไม่ได้ตัด overflow ไว้ให้แบบหน้าอื่น (ปกติ Dashboard
+// จริงยาวเกินจอได้ตามดีไซน์) ส่วนนี้เนื้อหามีแค่การ์ดข้อความสั้น ๆ จึงต้องกำหนดความสูงให้พอดี
+// กับพื้นที่ที่เหลือใต้ header เอง (คำนวณจาก --app-shell-header-height เดียวกับที่ AppShell ใช้)
+// ไม่ใช้ skeleton เต็มหน้าแบบ LoadingState variant="dashboard" เพราะสูงเกินพื้นที่ที่มีจริง
+function DashboardAccessRestricted() {
+  const { t } = useTranslation();
+
+  return (
+    <div className="mx-auto flex h-[calc(100dvh-var(--app-shell-header-height)-2rem)] w-full max-w-3xl items-center justify-center overflow-hidden lg:h-[calc(100dvh-var(--app-shell-header-height)-3rem)]">
+      <Card className="w-full max-w-sm border-border/80 text-center shadow-lg">
+        <CardContent className="flex flex-col items-center gap-3 p-8">
+          <div className="flex size-14 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+            <Lock aria-hidden="true" className="size-7" />
+          </div>
+          <p className="text-base font-bold text-foreground">
+            {t("dashboard.accessRestrictedTitle")}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            {t("dashboard.accessRestrictedDescription")}
+          </p>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function DashboardPageContent() {
   const { t } = useTranslation();
   const user = useAuthStore((state) => state.user);
   const language = useAppStore((state) => state.language);
@@ -403,7 +454,7 @@ export function DashboardPage() {
       {branchError ? <ErrorBanner message={branchError} /> : null}
       {error && error !== branchError ? <ErrorBanner message={error} /> : null}
 
-      {!data && !loading && !error && !branchError ? (
+      {!data && !loading ? (
         <Card>
           <CardContent className="p-6 text-center text-sm text-muted-foreground">
             {copy.noData}
@@ -411,71 +462,67 @@ export function DashboardPage() {
         </Card>
       ) : null}
 
-      {data ? (
-        <>
-          <div
-            aria-busy={loading}
-            className={cn(
-              "relative flex flex-col gap-4 transition-opacity",
-              loading && "pointer-events-none opacity-60",
-            )}
-          >
-            {loading ? (
-              <div className="pointer-events-none absolute inset-x-0 top-2 z-10 flex justify-center">
-                <span className="flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground shadow-sm">
-                  <Spinner className="size-3.5" />
-                  {t("common.loading")}
-                </span>
-              </div>
-            ) : null}
-            <DashboardPaymentSummaryStrip
-              cards={model.paymentSummaryCards}
-              copy={copy}
-              paymentSummary={model.paymentSummary}
-              warnings={model.warnings}
-            />
-            {/* <DashboardQueryBar activeBranchUuid={activeBranchUuid} copy={copy} requestParams={model.requestParams} /> */}
-            <DashboardHeroStrip
-              copy={copy}
-              kpis={model.kpis}
-              periodLabel={periodLabel}
-              section={model.section}
-              trendRows={model.trendRows}
-            />
-            <DashboardRevenueAccountingGrid
-              accountingRows={model.accountingRows}
-              copy={copy}
-              paymentRows={model.paymentRows}
-              paymentTrendRows={model.paymentTrendRows}
-              peakRevenueDay={model.peakRevenueDay}
-              trendRows={model.trendRows}
-            />
-            <DashboardOperationsGrid
-              channelRows={model.channelRows}
-              copy={copy}
-              highestRevenueProduct={model.highestRevenueProduct}
-              insights={model.insights}
-              mainOrderChannel={model.mainOrderChannel}
-              productSummary={productSummary}
-              tableSummary={model.tableSummary}
-            />
-            <DashboardProductsParetoGrid
-              copy={copy}
-              loading={loading}
-              products={model.productRows}
-              top={top}
-              topOptions={topOptions}
-              onTopChange={handleTopChange}
-            />
+      <div
+        aria-busy={loading}
+        className={cn(
+          "relative flex flex-col gap-4 transition-opacity",
+          loading && "pointer-events-none opacity-60",
+        )}
+      >
+        {loading ? (
+          <div className="pointer-events-none absolute inset-x-0 top-2 z-10 flex justify-center">
+            <span className="flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground shadow-sm">
+              <Spinner className="size-3.5" />
+              {t("common.loading")}
+            </span>
           </div>
-          <DashboardFooter
-            activeBranchUuid={activeBranchUuid}
-            copy={copy}
-            filtersMeta={model.filters}
-            requestParams={model.requestParams}
-          />
-        </>
-      ) : null}
+        ) : null}
+        <DashboardPaymentSummaryStrip
+          cards={model.paymentSummaryCards}
+          copy={copy}
+          paymentSummary={model.paymentSummary}
+          warnings={model.warnings}
+        />
+        {/* <DashboardQueryBar activeBranchUuid={activeBranchUuid} copy={copy} requestParams={model.requestParams} /> */}
+        <DashboardHeroStrip
+          copy={copy}
+          kpis={model.kpis}
+          periodLabel={periodLabel}
+          section={model.section}
+          trendRows={model.trendRows}
+        />
+        <DashboardRevenueAccountingGrid
+          accountingRows={model.accountingRows}
+          copy={copy}
+          paymentRows={model.paymentRows}
+          paymentTrendRows={model.paymentTrendRows}
+          peakRevenueDay={model.peakRevenueDay}
+          trendRows={model.trendRows}
+        />
+        <DashboardOperationsGrid
+          channelRows={model.channelRows}
+          copy={copy}
+          highestRevenueProduct={model.highestRevenueProduct}
+          insights={model.insights}
+          mainOrderChannel={model.mainOrderChannel}
+          productSummary={productSummary}
+          tableSummary={model.tableSummary}
+        />
+        <DashboardProductsParetoGrid
+          copy={copy}
+          loading={loading}
+          products={model.productRows}
+          top={top}
+          topOptions={topOptions}
+          onTopChange={handleTopChange}
+        />
+      </div>
+      <DashboardFooter
+        activeBranchUuid={activeBranchUuid}
+        copy={copy}
+        filtersMeta={model.filters}
+        requestParams={model.requestParams}
+      />
     </div>
   );
 }

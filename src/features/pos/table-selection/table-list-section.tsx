@@ -12,6 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { menuGrantsPath } from "@/components/layout/shell-menu-helpers";
+import { useSidebarPermissionAccess } from "@/hooks/use-sidebar-permission-access";
 import { cn } from "@/lib/utils";
 import { zoneOrderAlertCount } from "@/lib/pos/order-alerts";
 import type { PosTable, PosZone } from "@/services/pos";
@@ -56,6 +58,12 @@ export function TableListSection({
   zones
 }: TableListSectionProps) {
   const { t } = useTranslation();
+  // ปุ่ม "เพิ่มโซน/เพิ่มโต๊ะ" ลิงก์ตรงไปหน้า /settings/zone, /settings/table — ต้องเช็คสิทธิ์เมนู
+  // ก่อนโชว์ ไม่งั้น role ที่ได้สิทธิ์แค่ "ขาย" (เช่นพนักงานเสิร์ฟ) จะเห็นปุ่มพาไปหน้าตั้งค่าที่
+  // ตัวเองไม่มีสิทธิ์เข้าเลย
+  const { menuItems } = useSidebarPermissionAccess();
+  const canAddZone = menuGrantsPath(menuItems, "/settings/zone");
+  const canAddTable = menuGrantsPath(menuItems, "/settings/table");
   // ทุกโซนแสดงพร้อมกันเสมอ (ไม่ยิง fetch ซ้ำตอนเปลี่ยนโซน) — คลิกชิปแค่เลื่อน
   // จอไปยัง section ของโซนนั้น ค่านี้จึงเป็นแค่ state ไว้ไฮไลต์ชิปที่กดล่าสุด
   const [selectedZoneUuid, setSelectedZoneUuid] = useState("");
@@ -142,22 +150,28 @@ export function TableListSection({
               onOverflowChange={setZoneRailOverflowing}
             />
           </div>
-          <div className="flex shrink-0 gap-2">
-            {/* ซ่อนทั้งปุ่มบนจอเล็ก (ไม่ใช่แค่ label) — งานเพิ่มโซน/โต๊ะเป็นงานตั้งค่าที่ไม่ได้ทำ
-                บ่อยระหว่างขาย บนจอมือถือแถวนี้แน่นเกินไปแล้วจากแถบเลื่อนโซน */}
-            <Button asChild aria-label={t("pos.addZone")} className="hidden h-10 rounded-full px-3.5 font-black shadow-sm sm:inline-flex" size="sm" type="button" variant="outline">
-              <Link href="/settings/zone">
-                <MapPinPlus aria-hidden="true" data-icon="inline-start" />
-                <span aria-hidden="true">{t("pos.addZone")}</span>
-              </Link>
-            </Button>
-            <Button asChild aria-label={t("pos.addTable")} className="hidden h-10 rounded-full px-3.5 font-black shadow-sm sm:inline-flex" size="sm" type="button" variant="outline">
-              <Link href="/settings/table">
-                <Plus aria-hidden="true" data-icon="inline-start" />
-                <span aria-hidden="true">{t("pos.addTable")}</span>
-              </Link>
-            </Button>
-          </div>
+          {canAddZone || canAddTable ? (
+            <div className="flex shrink-0 gap-2">
+              {/* ซ่อนทั้งปุ่มบนจอเล็ก (ไม่ใช่แค่ label) — งานเพิ่มโซน/โต๊ะเป็นงานตั้งค่าที่ไม่ได้ทำ
+                  บ่อยระหว่างขาย บนจอมือถือแถวนี้แน่นเกินไปแล้วจากแถบเลื่อนโซน */}
+              {canAddZone ? (
+                <Button asChild aria-label={t("pos.addZone")} className="hidden h-10 rounded-full px-3.5 font-black shadow-sm sm:inline-flex" size="sm" type="button" variant="outline">
+                  <Link href="/settings/zone">
+                    <MapPinPlus aria-hidden="true" data-icon="inline-start" />
+                    <span aria-hidden="true">{t("pos.addZone")}</span>
+                  </Link>
+                </Button>
+              ) : null}
+              {canAddTable ? (
+                <Button asChild aria-label={t("pos.addTable")} className="hidden h-10 rounded-full px-3.5 font-black shadow-sm sm:inline-flex" size="sm" type="button" variant="outline">
+                  <Link href="/settings/table">
+                    <Plus aria-hidden="true" data-icon="inline-start" />
+                    <span aria-hidden="true">{t("pos.addTable")}</span>
+                  </Link>
+                </Button>
+              ) : null}
+            </div>
+          ) : null}
         </div>
         <div className="flex flex-col gap-1.5 xl:flex-row xl:items-center xl:justify-between">
           <div className="relative min-w-0">

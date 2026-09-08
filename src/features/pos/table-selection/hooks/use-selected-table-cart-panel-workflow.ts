@@ -8,6 +8,7 @@ import {
   withCustomerDisplayPaymentMode,
 } from "@/features/customer-display/shared/customer-display-sync";
 import { getBranchQrUrl } from "@/lib/image";
+import { canManageDiscounts, canManagePayments } from "@/lib/permissions";
 import { isBranchRealtimeEvent, subscribeBranchVatUpdated, type BranchVatUpdatedPayload } from "@/lib/socket";
 import type {
   CartItem,
@@ -267,8 +268,13 @@ export function useSelectedTableCartPanelWorkflow({
   );
   const canConfirm =
     Boolean(user?.uuid) && confirmGroups.length > 0 && !cartActionsLocked;
+  // Waiter (status 7) takes orders only — collecting payment and applying
+  // discounts stay with roles accountable for the till (lib/permissions.ts).
+  const userCanManagePayments = canManagePayments(user?.status);
+  const userCanManageDiscounts = canManageDiscounts(user?.status);
   const canPayBill = Boolean(
     user?.uuid &&
+    userCanManagePayments &&
     canPayFullBill({
       currentOrderUuid,
       grandTotal: summary.grandTotal,
@@ -286,6 +292,7 @@ export function useSelectedTableCartPanelWorkflow({
   );
   const canPaySplitSelection = Boolean(
     user?.uuid &&
+    userCanManagePayments &&
     splitSelection &&
     splitSelectedCount > 0 &&
     !cartActionsLocked,
@@ -913,6 +920,8 @@ export function useSelectedTableCartPanelWorkflow({
   }
 
   function openItemDiscountDialog(item: CartItem) {
+    if (!userCanManageDiscounts) return;
+
     const value = optionalNumber(item.detail?.order_it_discount_value);
     setItemDiscountTarget(item);
     setItemDiscountDraft({
@@ -922,7 +931,7 @@ export function useSelectedTableCartPanelWorkflow({
   }
 
   function openBillDiscountDialog() {
-    if (!hasSelectedTable) return;
+    if (!hasSelectedTable || !userCanManageDiscounts) return;
 
     const order = orders.find((entry) => optionalString(entry.order_uuid));
     const value = optionalNumber(order?.order_discount_value);
@@ -959,7 +968,8 @@ export function useSelectedTableCartPanelWorkflow({
     const itemUuid = itemDiscountTarget
       ? cartItemActionUuid(itemDiscountTarget)
       : null;
-    if (!itemUuid || itemDiscountValue === null || actingItemUuid) return;
+    if (!itemUuid || itemDiscountValue === null || actingItemUuid || !userCanManageDiscounts)
+      return;
 
     setActingItemUuid(itemUuid);
     try {
@@ -988,7 +998,8 @@ export function useSelectedTableCartPanelWorkflow({
       !hasSelectedTable ||
       !currentOrderUuid ||
       billDiscountValue === null ||
-      billDiscountPending
+      billDiscountPending ||
+      !userCanManageDiscounts
     )
       return;
 
@@ -1035,7 +1046,7 @@ export function useSelectedTableCartPanelWorkflow({
   }
 
   function openFullPayment() {
-    if (!selectedTable) return;
+    if (!selectedTable || !userCanManagePayments) return;
 
     if (!cartOrdersBelongToTable(orders, selectedTable)) {
       showToast({ title: t("pos.paymentMissingOrder"), tone: "error" });
@@ -1207,6 +1218,7 @@ export function useSelectedTableCartPanelWorkflow({
     billDiscountValueLabel,
     canConfirm,
     canConfirmKitchenItem,
+    canManageDiscounts: userCanManageDiscounts,
     canPayBill,
     canPaySplitSelection,
     canSelectSplitItems,

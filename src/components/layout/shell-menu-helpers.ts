@@ -81,6 +81,32 @@ export function applyOfflineLock(
   }));
 }
 
+// หา path หน้าแรกที่ผู้ใช้เข้าได้จริงตามลำดับเมนู (บวก children ก่อน ไม่ใช้ path ของกลุ่ม dropdown เอง
+// เพราะ shell-sidebar-menu.tsx เองก็ไม่ปล่อยให้กดกลุ่มนั้นตรง ๆ) — ใช้เลือกปลายทาง login แทนค่า "/" ตายตัว
+export function firstNavigablePath(items: MenuItem[]): string | undefined {
+  for (const item of items) {
+    if (item.disabled) continue;
+    if (item.children?.length) {
+      const childPath = firstNavigablePath(item.children);
+      if (childPath) return childPath;
+      continue;
+    }
+    if (item.path) return item.path;
+  }
+  return undefined;
+}
+
+// เช็คว่าเมนูที่สิทธิ์ผู้ใช้เปิดจริง (จาก permission API) มี path ตรงกับ targetPath ไหม (exact match
+// เท่านั้น ไม่ใช่ prefix แบบ routeIsActive) — ใช้เฉพาะ "/" ตอนนี้ เพื่อให้ Dashboard เช็คตัวเองได้ว่า
+// ถูกตั้งสิทธิ์ให้เข้าดูจริงไหม (Dashboard ก็เป็นแค่ MenuItem ตัวหนึ่งที่แอดมินเลือกให้สิทธิ์ได้เหมือนเมนูอื่น)
+export function menuGrantsPath(items: MenuItem[], targetPath: string): boolean {
+  return items.some(
+    (item) =>
+      item.path === targetPath ||
+      (item.children?.length ? menuGrantsPath(item.children, targetPath) : false),
+  );
+}
+
 export function isFixedDataScreen(pathname: string) {
   return (
     isImmersiveScreen(pathname) ||
