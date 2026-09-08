@@ -39,6 +39,7 @@ import { useAppStore } from "@/stores/app-store";
 import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
 import { useBranchStore } from "@/stores/branch-store";
 import { useDashboardStore } from "@/stores/dashboard-store";
+import { useOfflineRefetchEpoch } from "@/hooks/use-offline-refetch";
 import { useResetOnDeps } from "@/hooks/use-reset-on-change";
 
 const dashboardCopyKeys = [
@@ -218,6 +219,7 @@ export function DashboardPage() {
     createDefaultFilters(),
   );
   const [top, setTop] = useState("10");
+  const refetchEpoch = useOfflineRefetchEpoch();
   const storeUuid = authStoreUuid(user);
 
   const model = useMemo(
@@ -353,7 +355,7 @@ export function DashboardPage() {
 
   useEffect(() => {
     void load(appliedFilters, top);
-  }, [appliedFilters, load, top]);
+  }, [appliedFilters, load, refetchEpoch, top]);
 
   // ซิงก์ช่องกรองในฟอร์มกลับมาตรงกับช่วงวันที่ที่ backend ใช้จริง (request_params)
   // ทำระหว่าง render แทน effect เพื่อไม่ให้ผู้ใช้เห็นวันที่เดิมแวบหนึ่งก่อนถูกแก้

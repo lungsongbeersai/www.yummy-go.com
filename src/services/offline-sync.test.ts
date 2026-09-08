@@ -9,6 +9,7 @@ import {
   isBrowserMenuRead,
   needsLocalPrintOwnership,
   prepareOfflineRequest,
+  requiresLocalOrderOwnership,
   resetLocalSyncConfiguration,
   runLocalSyncNow,
   shouldPreferOnlineTransport,
@@ -25,6 +26,31 @@ afterEach(() => {
 });
 
 describe("offline sync transport", () => {
+  it("retains local ownership only for order state during reconnect", () => {
+    for (const [method, path] of [
+      ["get", "/api/v1/posAll/fetch_table"],
+      ["get", "/api/v1/posAll/fetch_cart"],
+      ["get", "/api/v1/posAll/fetch_join_move_table"],
+      ["get", "/api/v1/posAll/customer_order_queue"],
+      ["post", "/api/v1/posAll/init_order_without_table"],
+      ["post", "/api/v1/posAll/payment"],
+    ] as const) {
+      expect(requiresLocalOrderOwnership(method, path)).toBe(true);
+    }
+
+    for (const [method, path] of [
+      ["get", "/api/v1/dashboard/executive"],
+      ["get", "/api/v1/printer/fetch"],
+      ["get", "/api/v1/printer/roles"],
+      ["get", "/api/v1/report_all/sale_list"],
+      ["get", "/api/v1/product/fetch_limit"],
+      ["get", "/api/v1/posAll/fetch_cate_products"],
+      ["post", "/api/v1/posAll/get_prod_item"],
+    ] as const) {
+      expect(requiresLocalOrderOwnership(method, path)).toBe(false);
+    }
+  });
+
   it("only exempts explicit menu reads from native pending-order ownership", () => {
     expect(isBrowserMenuRead("get", "/api/v1/posAll/fetch_cate_products?cate_uuid=1")).toBe(true);
     expect(isBrowserMenuRead("post", "/api/v1/posAll/get_prod_item")).toBe(true);

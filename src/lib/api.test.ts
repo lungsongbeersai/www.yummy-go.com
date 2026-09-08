@@ -91,6 +91,25 @@ describe("POS ownership across desktop reconnect", () => {
       expect.anything());
   });
 
+  it("keeps unrelated dashboard and printer reads online while orders recover", async () => {
+    const get = vi.spyOn(axios, "get").mockResolvedValue(status(2));
+    const online = vi.spyOn(apiClient, "get").mockResolvedValue({
+      status: 200,
+      data: { status: "success", source: "online" },
+    });
+
+    await expect(apiRequest("get", "/api/v1/dashboard/executive"))
+      .resolves.toMatchObject({ source: "online" });
+    await expect(apiRequest("get", "/api/v1/printer/roles"))
+      .resolves.toMatchObject({ source: "online" });
+
+    expect(online).toHaveBeenCalledTimes(2);
+    expect(get).not.toHaveBeenCalled();
+    expect(vi.mocked(axios.post).mock.calls.some(([url]) =>
+      String(url).endsWith("/local/api"),
+    )).toBe(false);
+  });
+
   it("remembers local ownership over reload when the Agent becomes unavailable", async () => {
     const get = vi.spyOn(axios, "get").mockResolvedValue(status(1));
     const online = vi.spyOn(apiClient, "get");
@@ -224,6 +243,35 @@ describe.each(["android", "ios"])("Capacitor %s uses Dexie, never localhost Agen
     await expect(apiRequest("get", menuReads[0].path)).resolves.toMatchObject({ source: "online" });
     expect(backendNetworkManager.getSnapshot().state).toBe(BACKEND_NETWORK_STATE.ONLINE);
     expect(useAuthStore.getState().offlineSession).toBe(false);
+  });
+
+  it("keeps dashboard reads online while native orders are pending", async () => {
+    vi.mocked(getBrowserSyncQueueSummary).mockResolvedValue({ ...emptyQueue, pending: 1 });
+    const online = vi.spyOn(apiClient, "get").mockResolvedValue({
+      status: 200,
+      data: { status: "success", source: "online" },
+    });
+    const local = vi.spyOn(offlineSync, "readBrowserOfflineCache").mockResolvedValue(null);
+
+    await expect(apiRequest("get", "/api/v1/dashboard/executive"))
+      .resolves.toMatchObject({ source: "online" });
+
+    expect(online).toHaveBeenCalledOnce();
+    expect(local).not.toHaveBeenCalled();
+  });
+
+  it("does not discard an online dashboard when a native order changes mid-request", async () => {
+    vi.spyOn(offlineSync, "browserOrderVersion").mockReturnValueOnce(0).mockReturnValue(1);
+    vi.spyOn(apiClient, "get").mockResolvedValue({
+      status: 200,
+      data: { status: "success", source: "online" },
+    });
+    const local = vi.spyOn(offlineSync, "readBrowserOfflineCache").mockResolvedValue(null);
+
+    await expect(apiRequest("get", "/api/v1/dashboard/executive"))
+      .resolves.toMatchObject({ source: "online" });
+
+    expect(local).not.toHaveBeenCalled();
   });
 
   it("falls back to cached menu after a real transport failure without declaring offline", async () => {

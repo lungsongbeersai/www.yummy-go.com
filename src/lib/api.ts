@@ -19,6 +19,7 @@ import {
   configureLocalSync,
   mirrorOnlineResponse,
   prepareOfflineRequest,
+  requiresLocalOrderOwnership,
   requestBrowserWriteFallback,
   requestLocalFallback,
   shouldPreferOnlineTransport,
@@ -220,10 +221,11 @@ export async function apiRequest<T>(
   const networkState = backendNetworkManager.getSnapshot().state;
   const localAgentAvailable = !isCapacitorMobileApp();
   const browserMenuRead = !localAgentAvailable && isBrowserMenuRead(method, url);
+  const orderOwnershipRequired = requiresLocalOrderOwnership(method, url);
   const browserVersionAtStart = browserOrderVersion(localScope);
   const browserOwnsOrders = !localAgentAvailable && supportsOfflineRoute(method, url) &&
     (networkState === BACKEND_NETWORK_STATE.OFFLINE ||
-      (!browserMenuRead && await shouldKeepBrowserOrderOwnership(localScope)));
+      (orderOwnershipRequired && await shouldKeepBrowserOrderOwnership(localScope)));
   if (browserOwnsOrders) {
     // A reachable server may not know this bill yet. Never let a cache miss or
     // unsupported mobile mutation fall through and overtake its queued create.
@@ -245,7 +247,7 @@ export async function apiRequest<T>(
   // while this branch's order/payment events still exist only on the Agent.
   const preferOnlineTransport = shouldPreferOnlineTransport(auth.token, networkState);
   const recoveringLocalOrders = localAgentAvailable && preferOnlineTransport &&
-    supportsOfflineRoute(method, url) && await shouldKeepLocalOrderOwnership(localScope);
+    orderOwnershipRequired && await shouldKeepLocalOrderOwnership(localScope);
   const routeToLocal = recoveringLocalOrders || (localAgentAvailable && !preferOnlineTransport &&
     shouldRouteToLocal(
       auth.offlineSession,
@@ -295,7 +297,7 @@ export async function apiRequest<T>(
     backendNetworkManager.reportReachable(response.status, "backend_api_success");
     synchronizeOfflineSessionWithBackend();
     const data = assertApiSuccess(response.data);
-    if (!localAgentAvailable && !browserMenuRead && !prepared.eventUuid && supportsBrowserOfflineRoute(method, url) &&
+    if (!localAgentAvailable && orderOwnershipRequired && !prepared.eventUuid && supportsBrowserOfflineRoute(method, url) &&
         browserOrderVersion(localScope) !== browserVersionAtStart) {
       const local = await readBrowserOfflineCache<T>(method, url, requestOptions, localScope);
       if (local !== null) return assertApiSuccess(local);

@@ -297,6 +297,25 @@ export function isBrowserMenuRead(method: HttpMethod, url: string) {
   return BROWSER_MENU_READ_ROUTES.has(routeKey(method, url));
 }
 
+const ORDER_OWNERSHIP_READ_ROUTES = new Set([
+  "GET /api/v1/posAll/fetch_table",
+  "GET /api/v1/posAll/fetch_cart",
+  "GET /api/v1/posAll/fetch_join_move_table",
+  "GET /api/v1/posAll/customer_order_queue",
+  "POST /api/v1/posAll/init_order_without_table",
+]);
+
+/**
+ * Whether an online response can overtake order state that still exists only
+ * on this device. Reports, printer configuration, and other master-data reads
+ * remain Backend-owned during reconnect even though they also have an offline
+ * cache for a real outage.
+ */
+export function requiresLocalOrderOwnership(method: HttpMethod, url: string) {
+  const key = routeKey(method, url);
+  return OFFLINE_ROUTES.has(key) || ORDER_OWNERSHIP_READ_ROUTES.has(key);
+}
+
 function localEventStatus(value: unknown): Exclude<BrowserSyncEventStatus, "STAGED"> {
   const status = String(value || "").toUpperCase();
   if (["PENDING", "PROCESSING", "FAILED", "BLOCKED", "SYNCED"].includes(status)) {
