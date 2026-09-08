@@ -241,9 +241,10 @@ export function OrderQueuePage() {
 
       const printFailed = Number(printResult?.failedCount || 0) > 0;
       const printPending = printResult?.pending === true;
-      if (!printFailed && !printPending) {
-        clearSelection();
-      }
+      // Backend has already committed status 1 -> 2 after creating the durable
+      // print job. A SHARED printer can still be pending on its owner device,
+      // but these rows no longer belong to the status-1 selection.
+      clearSelection();
       showToast({
         title: printFailed
           ? t("orderQueue.confirmError")
