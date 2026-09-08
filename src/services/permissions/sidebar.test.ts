@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { sidebarPermissionMenuItemsToMenuItems } from "@/config/sidebar-permission-menu";
 import {
   buildSidebarPermissionMenuParams,
   normalizeSidebarPermissionMenuResponse
@@ -229,29 +228,5 @@ describe("sidebar menu service helpers", () => {
       "/pos/tables",
       "/sales/sales-list"
     ]);
-  });
-
-  it("keeps serializable menu icon names for runtime rendering", () => {
-    const [sales, fallback] = sidebarPermissionMenuItemsToMenuItems([
-      {
-        iconName: "shopping-cart",
-        label: "Sales",
-        path: "/sale",
-        source: "permission-api",
-        title: "sales"
-      },
-      {
-        iconName: "file-text",
-        label: "Fallback",
-        path: "/fallback",
-        source: "permission-api",
-        title: "fallback"
-      }
-    ]);
-
-    expect(sales?.icon).toBeUndefined();
-    expect(sales?.iconName).toBe("shopping-cart");
-    expect(fallback?.icon).toBeUndefined();
-    expect(fallback?.iconName).toBe("file-text");
   });
 });

@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { Route } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { Eye, EyeOff } from "lucide-react";
+import { firstNavigablePath } from "@/components/layout/shell-menu-helpers";
 import { LanguageSwitch } from "@/components/layout/language-switch";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -16,18 +18,55 @@ import {
   getDisplayedAppVersion,
   WEB_APP_VERSION,
 } from "@/lib/installed-app-version";
+import { internalRoute } from "@/lib/routes";
 import { safeInternalRedirect } from "@/lib/safe-internal-redirect";
-import { useAuthStore } from "@/stores/auth-store";
+import { authStoreUuid, type AuthUser, useAuthStore } from "@/stores/auth-store";
+import { usePermissionsSidebarStore } from "@/stores/permissions-sidebar-store";
 import { useToastStore } from "@/stores/toast-store";
 
+// ไม่มี redirect param ชัดเจน (เช่น เข้า /login ตรง ๆ) — ปลายทางต้องมาจากเมนูที่สิทธิ์ผู้ใช้เปิดจริง
+// ไม่ใช่ "/" ตายตัว เพราะ Dashboard ไม่เคยอยู่ใน permission tree ที่ backend ส่งมาเลย เรียกผ่าน
+// usePermissionsSidebarStore.load() (store action) ไม่ใช่ service ตรง ๆ — component ต้องเรียกผ่าน
+// store เท่านั้น (บังคับด้วย project-refactor-guards.test.ts, ไม่ใช่แค่ convention ใน docs)
+// การเรียกซ้ำสองรอบ (เช่น React Strict Mode mount-cleanup-mount) ปลอดภัยเพราะ requestId ของ
+// store เพิ่มขึ้นทุก call แบบ monotonic — รอบล่าสุดเสมอที่เป็นคน apply state ตอน fetch ของมันเองเสร็จ
+// จึงห้ามมีจุดเรียกที่สองแยกต่างหาก (เช่นใน onSubmit) เพราะจะทำให้ "รอบล่าสุด" ไม่แน่นอนอีกต่อไป
+async function resolveLandingPath(
+  redirectParam: string | null,
+  user: AuthUser | null,
+  lang: string
+): Promise<Route> {
+  // AuthGuard เติม ?redirect=<pathname เดิม> ให้เองทุกครั้งที่เตะคนออกจากหน้าที่ต้อง login
+  // (ดู unauthenticatedEntryPath ใน auth-guard.tsx) รวมถึงตอน logout จากหน้า "/" ก็เด้งมาเป็น
+  // /login?redirect=%2F ด้วย — ถ้า honor ค่านี้ตรง ๆ จะวนกลับไป Dashboard ทุกครั้งไม่ต่างจากเดิม
+  // เพราะ "/" ไม่เคยเป็น deep link ที่ผู้ใช้ตั้งใจไปจริง ๆ จึงต้องข้ามค่านี้แล้วคำนวณจากสิทธิ์แทน
+  const explicitRedirect = redirectParam ? safeInternalRedirect(redirectParam) : null;
+  if (explicitRedirect && explicitRedirect !== "/") return explicitRedirect;
+  if (!user) return "/";
+
+  const storeUuid = authStoreUuid(user);
+  if (!storeUuid) return "/";
+
+  try {
+    await usePermissionsSidebarStore.getState().load(storeUuid, user.status, lang);
+  } catch {
+    return "/";
+  }
+
+  const items = usePermissionsSidebarStore.getState().items;
+  const path = firstNavigablePath(items);
+  return path ? internalRoute(path) : "/";
+}
+
 export function LoginClient() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const router = useRouter();
   const searchParams = useSearchParams();
   const showToast = useToastStore((state) => state.show);
   const loginWithPassword = useAuthStore((state) => state.loginWithPassword);
   const loading = useAuthStore((state) => state.loading);
   const isLoggedIn = useAuthStore((state) => state.isLoggedIn);
+  const user = useAuthStore((state) => state.user);
   const offlineSession = useAuthStore((state) => state.offlineSession);
   const hydrated = useAuthStore((state) => state.hydrated);
 
@@ -37,13 +76,22 @@ export function LoginClient() {
   const [showPassword, setShowPassword] = useState(false);
   const [displayedVersion, setDisplayedVersion] = useState(WEB_APP_VERSION);
 
-  const redirect = safeInternalRedirect(searchParams.get("redirect"));
+  const redirectParam = searchParams.get("redirect");
 
   useEffect(() => {
     if (!hydrated || !isLoggedIn) return;
-    if (offlineSession) window.location.replace(redirect);
-    else router.replace(redirect);
-  }, [hydrated, isLoggedIn, offlineSession, redirect, router]);
+    let cancelled = false;
+
+    void resolveLandingPath(redirectParam, user, i18n.language).then((target) => {
+      if (cancelled) return;
+      if (offlineSession) window.location.replace(target);
+      else router.replace(target);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hydrated, isLoggedIn, offlineSession, redirectParam, user, i18n.language, router]);
 
   useEffect(() => {
     let active = true;
@@ -61,12 +109,14 @@ export function LoginClient() {
     event.preventDefault();
 
     try {
-      const user = await loginWithPassword(email, password, remember);
-      if (!user) return;
+      const loggedInUser = await loginWithPassword(email, password, remember);
+      if (!loggedInUser) return;
 
+      // เด้งหน้าจริงปล่อยให้ effect ด้านบนทำ (มันฟัง isLoggedIn/user อยู่แล้ว) —
+      // ถ้าเรียก resolveLandingPath ซ้ำที่นี่ด้วยจะยิง sidebar menu โหลดพร้อมกัน 2 รอบ
+      // แล้วชนกันเอง (requestId guard ใน permissions-sidebar-store ทิ้งผลของรอบที่มาก่อน
+      // ถ้ามันเสร็จก่อนอีกรอบ) ทำให้บางครั้งอ่าน items ว่างแล้ว fallback ไป "/" ทั้งที่มีสิทธิ์จริง
       showToast({ title: t("auth.welcomeBack"), tone: "success" });
-      if (useAuthStore.getState().offlineSession) window.location.replace(redirect);
-      else router.replace(redirect);
     } catch (error) {
       showToast({
         title: t("auth.loginFailed"),
