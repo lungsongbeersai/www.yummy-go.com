@@ -9,12 +9,9 @@ export function useEmployeeOptions(branchUuid: string) {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!branchUuid) {
-      setOptions([]);
-      return;
-    }
+    if (!branchUuid) return;
     let active = true;
-    setLoading(true);
+    queueMicrotask(() => { if (active) setLoading(true); });
     getEmployeeOptions(branchUuid, EMPLOYEE_SALES_ROLE_ID)
       .then(rows => { if (active) setOptions(rows); })
       .catch(() => { if (active) setOptions([]); })
@@ -22,5 +19,5 @@ export function useEmployeeOptions(branchUuid: string) {
     return () => { active = false; };
   }, [branchUuid]);
 
-  return { options, loading };
+  return { options: branchUuid ? options : [], loading };
 }
