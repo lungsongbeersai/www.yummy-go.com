@@ -139,6 +139,24 @@ describe("POS ownership across desktop reconnect", () => {
     expect(online).toHaveBeenCalledOnce();
   });
 
+  it("loads the online table directory when a terminal block left Agent bootstrap stuck", async () => {
+    const stuck = status(0, 1);
+    stuck.data.data.bootstrap_complete = false;
+    stuck.data.data.connection_state = "SYNCING";
+    vi.spyOn(axios, "get").mockResolvedValue(stuck);
+    const online = vi.spyOn(apiClient, "get").mockResolvedValue({
+      status: 200,
+      data: { status: "success", source: "online" },
+    });
+
+    await expect(apiRequest("get", "/api/v1/posAll/fetch_table"))
+      .resolves.toMatchObject({ source: "online" });
+    expect(online).toHaveBeenCalledOnce();
+    expect(vi.mocked(axios.post).mock.calls.some(([url]) =>
+      String(url).endsWith("/local/api"),
+    )).toBe(false);
+  });
+
   it("keeps staged browser writes local even before the Agent acknowledges them", async () => {
     vi.spyOn(axios, "get").mockResolvedValue(status());
     vi.mocked(getBrowserSyncQueueSummary).mockResolvedValue({ ...emptyQueue, staged: 1 });

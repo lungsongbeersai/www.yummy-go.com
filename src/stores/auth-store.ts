@@ -143,8 +143,15 @@ export const useAuthStore = create<AuthState>()(
           const result = await checkLogin(email, password);
           if (requestId !== loginRequestId) return null;
 
+          resetSessionStores();
+          set(authenticatedState(result.token, result.user, rememberMe, result.source === "offline"));
+
           if (result.source === "online") {
-            await prepareOfflineSession({
+            // Online authentication is already complete. Preparing the Local
+            // Agent is resilience work and can take up to 45 seconds while a
+            // stale/blocked bootstrap is being repaired; never hold the login
+            // screen hostage to it. Agent failures remain non-fatal, as before.
+            void prepareOfflineSession({
               token: result.token,
               actorLoginUuid: result.user.uuid,
               storeUuid: authStoreUuid(result.user),
@@ -164,10 +171,6 @@ export const useAuthStore = create<AuthState>()(
               },
             }).catch(() => false);
           }
-          if (requestId !== loginRequestId) return null;
-
-          resetSessionStores();
-          set(authenticatedState(result.token, result.user, rememberMe, result.source === "offline"));
           return result.user;
         } catch (error) {
           if (requestId !== loginRequestId) return null;

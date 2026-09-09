@@ -528,13 +528,17 @@ export async function shouldKeepLocalOrderOwnership(
   let required = remembered || browserPending;
   let retryableRequired = required;
   let hasTerminalBlocked = false;
+  let localRetryable = false;
   if (matching) {
-    retryableRequired = localSyncHasRetryableWork(status) || browserPending ||
+    localRetryable = localSyncHasRetryableWork(status);
+    retryableRequired = localRetryable || browserPending ||
       (remembered && (!status.pending || !status.bootstrap_complete || status.connection_state === "SYNCING"));
     hasTerminalBlocked = Number(status.pending?.blocked || 0) > 0;
     required = retryableRequired || hasTerminalBlocked;
   }
-  if (version !== (localWriteVersions.get(key) || 0) || (localWritesInFlight.get(key) || 0) > 0) {
+  const writeChangedOrInFlight = version !== (localWriteVersions.get(key) || 0) ||
+    (localWritesInFlight.get(key) || 0) > 0;
+  if (writeChangedOrInFlight) {
     required = true;
     retryableRequired = true;
   }
@@ -543,9 +547,21 @@ export async function shouldKeepLocalOrderOwnership(
   // quarantined event from a paid bill must not make every table display an old
   // Agent snapshot. Cart/payment routes keep the default and retain local
   // ownership, so unresolved business data is never silently sent around.
-  return options.keepTerminalBlocked === false && matching && hasTerminalBlocked
-    ? retryableRequired
-    : required;
+  if (
+    options.keepTerminalBlocked === false &&
+    matching &&
+    hasTerminalBlocked &&
+    !localRetryable &&
+    !browserPending &&
+    !writeChangedOrInFlight
+  ) {
+    // Agent 1.0.2 can leave bootstrap_complete=false/SYNCING forever when its
+    // only outbox row is terminal BLOCKED. That stale bootstrap marker is not
+    // unsent business work and must not make an ONLINE fetch_table read the
+    // Agent's table snapshot from yesterday.
+    return false;
+  }
+  return required;
 }
 
 function clearFailedConfiguration(expectedKey: string) {

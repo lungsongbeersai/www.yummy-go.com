@@ -11,6 +11,7 @@ import { useProductStore } from "@/stores/product-store";
 import { useReferenceStore } from "@/stores/reference-store";
 import { usePermissionsSidebarStore } from "@/stores/permissions-sidebar-store";
 import { usePermissionsAccessStore } from "@/stores/permissions-access-store";
+import { prepareOfflineSession } from "@/services/offline-sync";
 
 vi.mock("@/lib/socket", () => ({
   disconnectSocket: vi.fn()
@@ -18,6 +19,10 @@ vi.mock("@/lib/socket", () => ({
 
 vi.mock("@/services/login", () => ({
   checkLogin: vi.fn()
+}));
+
+vi.mock("@/services/offline-sync", () => ({
+  prepareOfflineSession: vi.fn()
 }));
 
 vi.mock("@/services/branch", async (importOriginal) => {
@@ -45,6 +50,7 @@ vi.mock("@/services/product", async (importOriginal) => {
 });
 
 const checkLoginMock = vi.mocked(checkLogin);
+const prepareOfflineSessionMock = vi.mocked(prepareOfflineSession);
 const disconnectSocketMock = vi.mocked(disconnectSocket);
 const getBranchOptionsMock = vi.mocked(getBranchOptions);
 const getExecutiveDashboardMock = vi.mocked(getExecutiveDashboard);
@@ -81,6 +87,28 @@ describe("auth store session isolation", () => {
   beforeEach(() => {
     useAuthStore.getState().logout();
     vi.clearAllMocks();
+    prepareOfflineSessionMock.mockResolvedValue(false);
+  });
+
+  it("does not delay an online login while the Local Agent bootstraps", async () => {
+    const preparation = deferred<boolean>();
+    const user = authUser("cashier");
+    checkLoginMock.mockResolvedValue({ token: "online-token", user, source: "online" });
+    prepareOfflineSessionMock.mockReturnValueOnce(preparation.promise);
+
+    await expect(useAuthStore.getState().loginWithPassword("cashier@example.com", "password"))
+      .resolves.toEqual(user);
+    expect(useAuthStore.getState()).toMatchObject({
+      token: "online-token",
+      user,
+      isLoggedIn: true,
+      loading: false,
+      offlineSession: false,
+    });
+    expect(prepareOfflineSessionMock).toHaveBeenCalledOnce();
+
+    preparation.resolve(false);
+    await preparation.promise;
   });
 
   it("resets loaded user-scoped stores on logout", () => {
