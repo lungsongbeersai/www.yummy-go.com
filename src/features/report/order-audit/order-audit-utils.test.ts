@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import en from "../../../../public/locales/en/common.json";
 import la from "../../../../public/locales/la/common.json";
-import { auditChanges, auditDateTime, auditToday, auditValue, validAuditDateRange } from "./order-audit-utils";
+import { activeAuditFilterCount, auditChanges, auditDateTime, auditToday, auditValue, validAuditDateRange } from "./order-audit-utils";
 
 const t = (key: string) => key;
 
@@ -62,5 +62,14 @@ describe("order audit presentation", () => {
       "order_it_prod_price", "order_it_qty", "order_it_discount_type", "order_it_discount_value", "order_it_discount_amount",
     ]);
     expect(fields[0]).toBe("order_it_discount_amount");
+  });
+
+  it("counts only non-default filters, not the always-required branch/date fields", () => {
+    const today = "2026-09-09";
+    expect(activeAuditFilterCount({ dateFrom: today, dateTo: today, action: "all", entity: "all" }, today)).toBe(0);
+    expect(activeAuditFilterCount({ dateFrom: "2026-09-01", dateTo: today, action: "all", entity: "all" }, today)).toBe(1);
+    expect(activeAuditFilterCount({ dateFrom: today, dateTo: today, action: "CANCEL", entity: "all" }, today)).toBe(1);
+    expect(activeAuditFilterCount({ dateFrom: today, dateTo: today, action: "all", entity: "ITEM" }, today)).toBe(1);
+    expect(activeAuditFilterCount({ dateFrom: "2026-09-01", dateTo: "2026-09-05", action: "CANCEL", entity: "ITEM" }, today)).toBe(3);
   });
 });
