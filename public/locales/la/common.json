@@ -981,6 +981,7 @@
     "invoicePrintFallback": "ບໍ່ພົບ agent ເຄື່ອງພິມ, ເປີດໜ້າພິມແທນແລ້ວ",
     "invoicePrintMissingJob": "API ບໍ່ໄດ້ສົ່ງ print job ກັບມາ",
     "invoicePrintPopupBlocked": "ກະລຸນາອະນຸຍາດ popup ເພື່ອເປີດໜ້າພິມ",
+    "systemPrinterUnavailable": "Printer Agent ບໍ່ພ້ອມ ຫຼື ບໍ່ໄດ້ເຊື່ອມຕໍ່ເຄື່ອງພິມ. ບໍ່ໄດ້ເປີດໜ້າພິມຂອງລະບົບ.",
     "confirmPayment": "ຢືນຢັນ",
     "confirmPaymentDescription": "ຢືນຢັນ {{amount}}?",
     "amountDue": "ຍອດຕ້ອງຊຳລະ",
