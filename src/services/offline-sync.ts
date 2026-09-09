@@ -229,6 +229,14 @@ export interface LocalSyncStatus {
   };
 }
 
+export interface LocalServerClosedRecoveryResult {
+  reconciled_orders: string[];
+  discarded_events: number;
+  suppressed_print_jobs: number;
+  deferred_processing_orders: string[];
+  status: LocalSyncStatus;
+}
+
 interface LocalAgentResponse<T> {
   ok: boolean;
   data?: T;
@@ -704,6 +712,39 @@ export async function rebuildLocalMaster(): Promise<LocalSyncStatus | null> {
     return null;
   }
   return getLocalSyncStatus({ force: true, timeoutMs: 3000 });
+}
+
+/**
+ * Reconciles only local orders for which this Agent already has authoritative
+ * Backend proof that the bill is paid. The Agent endpoint does not invoke a
+ * printer transport and rejects a store/branch/device scope mismatch.
+ */
+export async function reconcileServerClosedLocalOrders(scope: {
+  storeUuid: string;
+  branchUuid: string;
+  deviceCode: string;
+}): Promise<LocalServerClosedRecoveryResult> {
+  if (typeof window === "undefined" || isCapacitorMobileApp()) {
+    throw new Error("LOCAL_RECOVERY_UNAVAILABLE");
+  }
+  try {
+    const response = await axios.post<LocalAgentResponse<LocalServerClosedRecoveryResult>>(
+      `${AGENT_URL}/local/recovery/reconcile-server-closed`,
+      {
+        store_uuid: scope.storeUuid,
+        branch_uuid: scope.branchUuid,
+        device_code: scope.deviceCode,
+      },
+      { timeout: 120000 },
+    );
+    if (!response.data.ok || !response.data.data) {
+      throw new Error(response.data.error || "local recovery failed");
+    }
+    localStatusCache = null;
+    return response.data.data;
+  } catch (error) {
+    throw agentResponseError(error);
+  }
 }
 
 async function waitForLocalBootstrap(timeoutMs = 45000) {

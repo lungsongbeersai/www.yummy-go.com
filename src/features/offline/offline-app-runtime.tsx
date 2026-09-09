@@ -39,7 +39,7 @@ export function OfflineAppRuntime() {
       attempts += 1;
       try {
         const result = await repairFumunIncident(user);
-        if (["REPAIRED", "ALREADY_REPAIRED", "EVENT_MISMATCH", "UNSAFE_DEPENDENT"].includes(result)) {
+        if (["REPAIRED", "ALREADY_REPAIRED"].includes(result)) {
           return;
         }
       } catch {

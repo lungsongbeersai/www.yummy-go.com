@@ -1,12 +1,13 @@
 import type { AuthUser } from "@/stores/auth-store";
 import type { AgentInfo } from "@/services/printer/types";
-import type { LocalSyncStatus, StuckSyncDiscardResult, StuckSyncEvent } from "@/services/offline-sync";
+import type {
+  LocalServerClosedRecoveryResult,
+  LocalSyncStatus,
+} from "@/services/offline-sync";
 import { getLocalAgentInfo } from "@/services/printer/agent-transport";
 import {
-  discardStuckLocalSyncEvents,
   getLocalSyncStatus,
-  listStuckLocalSyncEvents,
-  rebuildLocalMaster,
+  reconcileServerClosedLocalOrders,
 } from "@/services/offline-sync";
 import { requestOfflineDataRefresh } from "@/lib/offline-data-refresh";
 import {
@@ -16,26 +17,22 @@ import {
 } from "@/lib/fumun-incident";
 
 // One-time production recovery for the Fumun incident reported on 2026-09-09.
-// Every identifier is fixed so this code is inert for all other stores,
-// branches, devices, bills, orders, items and outbox events.
+// Store, branch and device must all match before the Agent can change a row.
 export type FumunRepairResult =
   | "NOT_TARGET"
   | "ALREADY_REPAIRED"
   | "AGENT_SCOPE_MISMATCH"
-  | "EVENT_MISMATCH"
-  | "UNSAFE_DEPENDENT"
   | "SYNC_INCOMPLETE"
   | "REPAIRED";
 
 interface FumunRepairDependencies {
   getAgentInfo: () => Promise<AgentInfo>;
   getSyncStatus: () => Promise<LocalSyncStatus | null>;
-  listStuckEvents: () => Promise<StuckSyncEvent[]>;
-  discardEvent: (
-    eventUuids: string[],
-    options: { includeFinancial: boolean; reason: string; actor: string },
-  ) => Promise<StuckSyncDiscardResult>;
-  rebuildMaster: () => Promise<LocalSyncStatus | null>;
+  reconcileClosedOrders: (scope: {
+    storeUuid: string;
+    branchUuid: string;
+    deviceCode: string;
+  }) => Promise<LocalServerClosedRecoveryResult>;
   refreshUi: () => void;
   isCompleted: () => boolean;
   markCompleted: () => void;
@@ -44,9 +41,7 @@ interface FumunRepairDependencies {
 const defaultDependencies: FumunRepairDependencies = {
   getAgentInfo: () => getLocalAgentInfo(),
   getSyncStatus: () => getLocalSyncStatus({ force: true, timeoutMs: 3000 }),
-  listStuckEvents: listStuckLocalSyncEvents,
-  discardEvent: discardStuckLocalSyncEvents,
-  rebuildMaster: rebuildLocalMaster,
+  reconcileClosedOrders: reconcileServerClosedLocalOrders,
   refreshUi: requestOfflineDataRefresh,
   isCompleted: () => typeof window !== "undefined" &&
     window.localStorage.getItem(FUMUN_INCIDENT_COMPLETED_KEY) === "1",
@@ -62,21 +57,30 @@ export function isFumunIncidentUser(user: Pick<AuthUser, "store_uuid" | "branch_
 
 export { FUMUN_INCIDENT } from "@/lib/fumun-incident";
 
-function isExactIncidentEvent(event: StuckSyncEvent) {
-  return event.event_uuid === FUMUN_INCIDENT.eventUuid &&
-    event.operation === "ORDER_ITEM_DELETE" &&
-    event.entity_type === "ORDER_ITEM" &&
-    event.entity_uuid === FUMUN_INCIDENT.itemUuid &&
-    event.sync_status === "BLOCKED" &&
-    event.is_financial === false &&
-    event.waiting_on_print === false &&
-    event.order?.order_uuid === FUMUN_INCIDENT.orderUuid &&
-    event.order.order_invoice === FUMUN_INCIDENT.invoice;
+function matchesIncidentAgent(agent: AgentInfo, status: LocalSyncStatus | null) {
+  return agent.device_code === FUMUN_INCIDENT.deviceCode &&
+    status?.device_code === FUMUN_INCIDENT.deviceCode &&
+    status.store_uuid === FUMUN_INCIDENT.storeUuid &&
+    status.branch_uuid === FUMUN_INCIDENT.branchUuid;
+}
+
+function recoveryCompleted(result: LocalServerClosedRecoveryResult) {
+  const pending = result.status?.pending;
+  return result.deferred_processing_orders.length === 0 &&
+    result.status?.bootstrap_complete === true &&
+    result.status.store_uuid === FUMUN_INCIDENT.storeUuid &&
+    result.status.branch_uuid === FUMUN_INCIDENT.branchUuid &&
+    result.status.device_code === FUMUN_INCIDENT.deviceCode &&
+    Number(pending?.pending || 0) === 0 &&
+    Number(pending?.processing || 0) === 0 &&
+    Number(pending?.failed || 0) === 0 &&
+    Number(pending?.blocked || 0) === 0;
 }
 
 /**
- * Discards one rejected delete, then rebuilds this Agent's Fumun-only snapshot.
- * There is deliberately no print API and no "discard all" path here.
+ * Reconciles every local Fumun order that Backend proves was already paid.
+ * The Agent owns the transaction and suppresses old queued tickets; this
+ * browser code has deliberately no print or broad discard operation.
  */
 export async function repairFumunIncident(
   user: Pick<AuthUser, "uuid" | "store_uuid" | "branch_uuid"> | null,
@@ -89,43 +93,16 @@ export async function repairFumunIncident(
     dependencies.getAgentInfo(),
     dependencies.getSyncStatus(),
   ]);
-  if (agent.device_code !== FUMUN_INCIDENT.deviceCode ||
-    syncStatus?.device_code !== FUMUN_INCIDENT.deviceCode ||
-    syncStatus.store_uuid !== FUMUN_INCIDENT.storeUuid ||
-    syncStatus.branch_uuid !== FUMUN_INCIDENT.branchUuid) {
-    return "AGENT_SCOPE_MISMATCH";
-  }
+  if (!matchesIncidentAgent(agent, syncStatus)) return "AGENT_SCOPE_MISMATCH";
 
-  const events = await dependencies.listStuckEvents();
-  const incident = events.find((event) => event.event_uuid === FUMUN_INCIDENT.eventUuid);
-  if (incident && !isExactIncidentEvent(incident)) return "EVENT_MISMATCH";
-  if (events.some((event) => event.dependencies.includes(FUMUN_INCIDENT.eventUuid))) {
-    return "UNSAFE_DEPENDENT";
-  }
-
-  if (incident) {
-    const discarded = await dependencies.discardEvent([FUMUN_INCIDENT.eventUuid], {
-      includeFinancial: false,
-      reason: "SYSTEM_RECOVERY_FUMUN_PAID_TABLE_STALE_DELETE_2026-09-09",
-      actor: user?.uuid || "fumun-incident-repair",
-    });
-    if (!discarded.discarded.includes(FUMUN_INCIDENT.eventUuid) ||
-      discarded.cascaded.length > 0 || discarded.skipped.length > 0) {
-      return "EVENT_MISMATCH";
-    }
-  }
-
-  const rebuilt = await dependencies.rebuildMaster();
-  if (!rebuilt?.bootstrap_complete || rebuilt.store_uuid !== FUMUN_INCIDENT.storeUuid ||
-    rebuilt.branch_uuid !== FUMUN_INCIDENT.branchUuid ||
-    Number(rebuilt.pending?.pending || 0) > 0 ||
-    Number(rebuilt.pending?.processing || 0) > 0 ||
-    Number(rebuilt.pending?.failed || 0) > 0 ||
-    Number(rebuilt.pending?.blocked || 0) > 0) {
-    return "SYNC_INCOMPLETE";
-  }
+  const recovery = await dependencies.reconcileClosedOrders({
+    storeUuid: FUMUN_INCIDENT.storeUuid,
+    branchUuid: FUMUN_INCIDENT.branchUuid,
+    deviceCode: FUMUN_INCIDENT.deviceCode,
+  });
+  dependencies.refreshUi();
+  if (!recoveryCompleted(recovery)) return "SYNC_INCOMPLETE";
 
   dependencies.markCompleted();
-  dependencies.refreshUi();
   return "REPAIRED";
 }
