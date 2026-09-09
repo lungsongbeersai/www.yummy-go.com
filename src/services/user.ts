@@ -71,6 +71,16 @@ const crud = createCrud<User>(
 );
 
 export const getUsers = (params: FetchUsersParams = {}) => crud.list(params);
+// Unpaginated employee list for a branch, scoped by role — mirrors getBranchOptions'
+// fetch_all + ApiDataResponse<T[]> shape. roles_id_fk is caller-supplied (not defaulted
+// here) so this service stays generic; the "1" business meaning lives in the caller's config.
+export async function getEmployeeOptions(branch_uuid_fk: string, roles_id_fk: number) {
+  if (!branch_uuid_fk) return [];
+  const result = await apiRequest<ApiDataResponse<User[]>>("get", "/api/v1/register/fetch_all", {
+    params: { branch_uuid_fk, roles_id_fk }
+  });
+  return result.data ?? [];
+}
 export async function getUserById(login_uuid: string) {
   if (!login_uuid.trim()) throw new ServiceError("login_uuid is required", 400);
   const result = await apiRequest<ApiDataResponse<User>>("get", "/api/v1/register/get_id", {

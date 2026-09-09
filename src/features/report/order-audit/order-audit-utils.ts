@@ -38,6 +38,17 @@ export function validAuditDateRange(from: string, to: string) {
   return valid(from) && valid(to) && from <= to && Date.parse(to) - Date.parse(from) <= 92 * 86400000;
 }
 
+export function activeAuditFilterCount(
+  filters: { dateFrom: string; dateTo: string; action: string; entity: string },
+  today: string,
+) {
+  let count = 0;
+  if (filters.dateFrom !== today || filters.dateTo !== today) count += 1;
+  if (filters.action !== "all") count += 1;
+  if (filters.entity !== "all") count += 1;
+  return count;
+}
+
 export function auditValue(field: string, value: AuditValue | undefined,
   snapshot: OrderAuditRow["after_data"], language: string, t: Translate): string {
   if (value === null || value === undefined || value === "") return "—";
