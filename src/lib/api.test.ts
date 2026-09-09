@@ -121,11 +121,22 @@ describe("POS ownership across desktop reconnect", () => {
     expect(online).not.toHaveBeenCalled();
   });
 
-  it("retains local ownership for a blocked event requiring review", async () => {
+  it("retains local cart ownership for a blocked event requiring review", async () => {
     vi.spyOn(axios, "get").mockResolvedValue(status(0, 1));
     const online = vi.spyOn(apiClient, "get");
     await expect(apiRequest("get", cartPath)).resolves.toMatchObject({ source: "local" });
     expect(online).not.toHaveBeenCalled();
+  });
+
+  it("loads the online table directory when only a terminal blocked event remains", async () => {
+    vi.spyOn(axios, "get").mockResolvedValue(status(0, 1));
+    const online = vi.spyOn(apiClient, "get").mockResolvedValue({
+      status: 200,
+      data: { status: "success", source: "online" },
+    });
+    await expect(apiRequest("get", "/api/v1/posAll/fetch_table"))
+      .resolves.toMatchObject({ source: "online" });
+    expect(online).toHaveBeenCalledOnce();
   });
 
   it("keeps staged browser writes local even before the Agent acknowledges them", async () => {
@@ -154,6 +165,9 @@ describe("POS ownership across desktop reconnect", () => {
     const write = requestLocalFallback("post", "/api/v1/posAll/payment", { data: { order_uuid: "order-1" } },
       "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", localScope);
     await expect(shouldKeepLocalOrderOwnership(localScope)).resolves.toBe(true);
+    await expect(shouldKeepLocalOrderOwnership(localScope, undefined, {
+      keepTerminalBlocked: false,
+    })).resolves.toBe(true);
     resetLocalSyncConfiguration();
     get.mockResolvedValue(status(0, 0, "other-branch"));
     await expect(shouldKeepLocalOrderOwnership({ ...localScope, branchUuid: "other-branch" })).resolves.toBe(false);
@@ -218,6 +232,23 @@ describe.each(["android", "ios"])("Capacitor %s uses Dexie, never localhost Agen
       expect(axios.get).not.toHaveBeenCalled();
       expect(axios.post).not.toHaveBeenCalled();
     });
+  });
+
+  it("keeps a blocked mobile event in review while the online table directory returns to Backend", async () => {
+    vi.mocked(getBrowserSyncQueueSummary).mockResolvedValue({ ...emptyQueue, blocked: 1 });
+    useAuthStore.getState().setOfflineSession(true);
+    const online = vi.spyOn(apiClient, "get").mockResolvedValue({
+      status: 200,
+      data: { status: "success", source: "online" },
+    });
+    const local = vi.spyOn(offlineSync, "readBrowserOfflineCache")
+      .mockResolvedValue({ status: "success", source: "dexie" });
+
+    await expect(apiRequest("get", "/api/v1/posAll/fetch_table"))
+      .resolves.toMatchObject({ source: "online" });
+    expect(online).toHaveBeenCalledOnce();
+    expect(local).not.toHaveBeenCalled();
+    expect(useAuthStore.getState().offlineSession).toBe(false);
   });
 
   it("persists product details before returning them to the immediate add-to-cart flow", async () => {
@@ -405,7 +436,7 @@ describe.each(["android", "ios"])("Capacitor %s uses Dexie, never localhost Agen
     expect(axios.post).not.toHaveBeenCalled();
   });
 
-  it("never falls through to Backend when the local bill is blocked or its cache is missing", async () => {
+  it("never falls through to Backend when the local cart is blocked or its cache is missing", async () => {
     const online = vi.spyOn(apiClient, "get");
     vi.mocked(getBrowserSyncQueueSummary).mockResolvedValue({ ...emptyQueue, blocked: 1 });
     vi.spyOn(offlineSync, "readBrowserOfflineCache").mockResolvedValue(null);

@@ -92,11 +92,16 @@ export function browserOrderVersion(scope: BrowserOfflineScope) {
   return browserWriteVersions.get(recoveryKey(scope)) ?? 0;
 }
 
-export async function shouldKeepBrowserOrderOwnership(scope: BrowserOfflineScope, store?: BrowserOfflineStore) {
+export async function shouldKeepBrowserOrderOwnership(
+  scope: BrowserOfflineScope,
+  store?: BrowserOfflineStore,
+  options: { keepTerminalBlocked?: boolean } = {},
+) {
   const key = recoveryKey(scope);
   if (browserWritesInFlight.has(key)) return true;
   const summary = await getBrowserSyncQueueSummary(scope, store);
-  return browserWritesInFlight.has(key) || browserSyncQueueHasRetryableWork(summary) || summary.blocked > 0;
+  return browserWritesInFlight.has(key) || browserSyncQueueHasRetryableWork(summary) ||
+    (options.keepTerminalBlocked !== false && summary.blocked > 0);
 }
 
 const OFFLINE_GET_ROUTES = new Set([
@@ -507,6 +512,7 @@ function beginLocalWrite(scope: BrowserOfflineScope) {
 export async function shouldKeepLocalOrderOwnership(
   scope: BrowserOfflineScope,
   browserStore?: BrowserOfflineStore,
+  options: { keepTerminalBlocked?: boolean } = {},
 ) {
   if (typeof window === "undefined" || !scope.storeUuid || !scope.branchUuid) return false;
   const key = recoveryKey(scope);
@@ -520,15 +526,26 @@ export async function shouldKeepLocalOrderOwnership(
   const matching = status?.configured &&
     status.store_uuid === scope.storeUuid && status.branch_uuid === scope.branchUuid;
   let required = remembered || browserPending;
+  let retryableRequired = required;
+  let hasTerminalBlocked = false;
   if (matching) {
-    required = localSyncHasRetryableWork(status) || Number(status.pending?.blocked || 0) > 0 ||
-      browserPending || (remembered && (!status.pending || !status.bootstrap_complete || status.connection_state === "SYNCING"));
+    retryableRequired = localSyncHasRetryableWork(status) || browserPending ||
+      (remembered && (!status.pending || !status.bootstrap_complete || status.connection_state === "SYNCING"));
+    hasTerminalBlocked = Number(status.pending?.blocked || 0) > 0;
+    required = retryableRequired || hasTerminalBlocked;
   }
   if (version !== (localWriteVersions.get(key) || 0) || (localWritesInFlight.get(key) || 0) > 0) {
     required = true;
+    retryableRequired = true;
   }
   rememberLocalRecovery(scope, required);
-  return required;
+  // The online table directory is a server-authoritative overview: one
+  // quarantined event from a paid bill must not make every table display an old
+  // Agent snapshot. Cart/payment routes keep the default and retain local
+  // ownership, so unresolved business data is never silently sent around.
+  return options.keepTerminalBlocked === false && matching && hasTerminalBlocked
+    ? retryableRequired
+    : required;
 }
 
 function clearFailedConfiguration(expectedKey: string) {

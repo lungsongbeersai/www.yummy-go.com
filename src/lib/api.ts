@@ -220,10 +220,17 @@ export async function apiRequest<T>(
   const networkState = backendNetworkManager.getSnapshot().state;
   const localAgentAvailable = !isCapacitorMobileApp();
   const orderOwnershipRequired = requiresLocalOrderOwnership(method, url);
+  // A terminal BLOCKED event belongs on the review page, but it cannot make the
+  // online table directory display yesterday's snapshot forever. Keep the
+  // stronger local-ownership rule for carts and every mutation.
+  const serverAuthoritativeTableRead = method === "get" &&
+    url.split("?")[0] === "/api/v1/posAll/fetch_table";
   const browserVersionAtStart = browserOrderVersion(localScope);
   const browserOwnsOrders = !localAgentAvailable && supportsOfflineRoute(method, url) &&
     (networkState === BACKEND_NETWORK_STATE.OFFLINE ||
-      (orderOwnershipRequired && await shouldKeepBrowserOrderOwnership(localScope)));
+      (orderOwnershipRequired && await shouldKeepBrowserOrderOwnership(localScope, undefined, {
+        keepTerminalBlocked: !serverAuthoritativeTableRead,
+      })));
   if (browserOwnsOrders) {
     // A reachable server may not know this bill yet. Never let a cache miss or
     // unsupported mobile mutation fall through and overtake its queued create.
@@ -245,7 +252,9 @@ export async function apiRequest<T>(
   // while this branch's order/payment events still exist only on the Agent.
   const preferOnlineTransport = shouldPreferOnlineTransport(auth.token, networkState);
   const recoveringLocalOrders = localAgentAvailable && preferOnlineTransport &&
-    orderOwnershipRequired && await shouldKeepLocalOrderOwnership(localScope);
+    orderOwnershipRequired && await shouldKeepLocalOrderOwnership(localScope, undefined, {
+      keepTerminalBlocked: !serverAuthoritativeTableRead,
+    });
   const routeToLocal = recoveringLocalOrders || (localAgentAvailable && !preferOnlineTransport &&
     shouldRouteToLocal(
       auth.offlineSession,
