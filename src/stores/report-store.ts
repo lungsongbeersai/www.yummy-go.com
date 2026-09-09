@@ -14,6 +14,7 @@ export { usePaymentMethodsReportStore } from "@/stores/report-store/payment-meth
 export { useCategorySalesReportStore } from "@/stores/report-store/category-sales";
 export { useDailyStoreClosingReportStore } from "@/stores/report-store/daily-store-closing";
 export { useOrderAuditReportStore } from "@/stores/report-store/order-audit";
+export { useEmployeeSalesReportStore } from "@/stores/report-store/employee-sales";
 
 export {
   mergeBestSellingProductGroups,
