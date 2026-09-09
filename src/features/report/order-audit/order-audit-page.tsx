@@ -65,7 +65,7 @@ function OrderAuditReport() {
   const filterCount = activeAuditFilterCount(applied, auditToday());
 
   function apply() {
-    if (!valid) return;
+    if (!valid || loading) return;
     setSelectedId(null);
     setApplied({ ...draft, branchUuid: draftBranch });
     setPaging(previous => ({ page: 1, snapshot: "", refresh: previous.refresh + 1, scope: draftBranch }));
@@ -84,6 +84,7 @@ function OrderAuditReport() {
           <h1 className="text-xl font-semibold">{t("orderAudit.title")}</h1>
           <p className="text-sm text-muted-foreground">{scope.branchLabelFor(branchUuid)}</p>
         </div>
+        <p className="text-sm text-muted-foreground">{t("orderAudit.description")}</p>
         <OrderAuditToolbar
           search={draft.search}
           onSearchChange={search => setDraft(previous => ({ ...previous, search }))}
@@ -118,7 +119,10 @@ function OrderAuditReport() {
 
       <OrderAuditFilterSheet
         open={filterSheetOpen}
-        onOpenChange={setFilterSheetOpen}
+        onOpenChange={open => {
+          if (!open) setDraft(applied);
+          setFilterSheetOpen(open);
+        }}
         draft={draft}
         draftBranch={draftBranch}
         onDraftChange={setDraft}

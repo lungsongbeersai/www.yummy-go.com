@@ -111,8 +111,11 @@ components, so table and card views render identical badges from one source.
 - `md` and up: toolbar in one row, `order-audit-table.tsx` renders.
 - Below `md`: toolbar wraps to two rows (search full width, filter+refresh
   second row), `order-audit-row-card.tsx` renders instead of the table.
-- The filter Sheet and detail Sheet both go full-width below `sm` (shadcn
-  `Sheet` supports this via its existing responsive width classes).
+- The filter Sheet and detail Sheet both go full-width below `sm`; because the
+  base `SheetContent` applies `data-[side=right]:w-3/4` and
+  `data-[side=right]:sm:max-w-sm` (higher specificity than a plain override),
+  any width override in a feature component must also carry the
+  `data-[side=right]:` prefix to actually take effect.
 - All interactive targets keep the current `min-h-10` floor; whole-row/card
   click targets make this easier to hit on a tablet, not harder.
 

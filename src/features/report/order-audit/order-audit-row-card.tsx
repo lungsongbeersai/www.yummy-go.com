@@ -24,7 +24,7 @@ export function OrderAuditRowCard({
           key={row.audit_id}
           role="button"
           tabIndex={0}
-          className="min-h-10 gap-2 px-4 py-3"
+          className="min-h-10 gap-2 px-4 py-3 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
           onClick={() => onSelect(row.audit_id)}
           onKeyDown={event => {
             if (event.key !== "Enter" && event.key !== " ") return;

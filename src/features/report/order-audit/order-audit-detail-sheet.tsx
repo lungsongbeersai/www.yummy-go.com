@@ -21,7 +21,7 @@ export function OrderAuditDetailSheet({
 
   return (
     <Sheet open={Boolean(row)} onOpenChange={onOpenChange}>
-      <SheetContent className="flex w-full flex-col gap-4 overflow-y-auto sm:max-w-xl">
+      <SheetContent className="flex flex-col gap-4 overflow-y-auto data-[side=right]:w-full data-[side=right]:sm:max-w-xl">
         <SheetHeader>
           <SheetTitle>{t("orderAudit.compare")} · {row?.order_invoice || "—"}</SheetTitle>
           <SheetDescription>{t("orderAudit.compareNotice")}</SheetDescription>

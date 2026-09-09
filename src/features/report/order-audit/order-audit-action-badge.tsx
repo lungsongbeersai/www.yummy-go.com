@@ -17,8 +17,10 @@ const ACTION_BADGE_CLASSES: Record<OrderAuditAction, string> = {
 };
 
 export function OrderAuditActionBadge({ action, label }: { action: OrderAuditAction; label: string }) {
+  const className = ACTION_BADGE_CLASSES[action];
+  if (!className) return <Badge variant="secondary">{label}</Badge>;
   return (
-    <Badge variant="outline" className={cn(ACTION_BADGE_CLASSES[action])}>
+    <Badge variant="outline" className={cn(className)}>
       {label}
     </Badge>
   );

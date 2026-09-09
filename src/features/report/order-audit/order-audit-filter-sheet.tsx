@@ -47,7 +47,7 @@ export function OrderAuditFilterSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="flex w-full flex-col gap-0 sm:max-w-sm">
+      <SheetContent className="flex flex-col gap-0 data-[side=right]:w-full data-[side=right]:sm:max-w-sm">
         <SheetHeader>
           <SheetTitle>{t("orderAudit.filters")}</SheetTitle>
         </SheetHeader>
