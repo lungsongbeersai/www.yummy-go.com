@@ -513,7 +513,7 @@ function beginLocalWrite(scope: BrowserOfflineScope) {
 export async function shouldKeepLocalOrderOwnership(
   scope: BrowserOfflineScope,
   browserStore?: BrowserOfflineStore,
-  options: { keepTerminalBlocked?: boolean } = {},
+  options: { keepTerminalBlocked?: boolean; yieldToBackendForDevice?: string } = {},
 ) {
   if (typeof window === "undefined" || !scope.storeUuid || !scope.branchUuid) return false;
   const key = recoveryKey(scope);
@@ -542,6 +542,19 @@ export async function shouldKeepLocalOrderOwnership(
   if (writeChangedOrInFlight) {
     required = true;
     retryableRequired = true;
+  }
+  // Incident recovery can temporarily make Backend authoritative for one
+  // explicitly named Agent while it is online. Scope matching above plus the
+  // device check here prevents a store, branch or second till from inheriting
+  // that exception. An in-flight local write always keeps ownership until it
+  // finishes, so this cannot split one mutation between transports.
+  if (
+    options.yieldToBackendForDevice &&
+    matching &&
+    status.device_code === options.yieldToBackendForDevice &&
+    !writeChangedOrInFlight
+  ) {
+    return false;
   }
   rememberLocalRecovery(scope, required);
   // The online table directory is a server-authoritative overview: one

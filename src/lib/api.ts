@@ -32,6 +32,10 @@ import {
 } from "@/services/offline-sync";
 import { useAuthStore } from "@/stores/auth-store";
 import { backendNetworkManager } from "@/stores/network-store";
+import {
+  FUMUN_INCIDENT,
+  isFumunIncidentRecoveryPending,
+} from "@/lib/fumun-incident";
 
 const baseURL =
   process.env.NEXT_PUBLIC_BASE_URL ??
@@ -258,9 +262,12 @@ export async function apiRequest<T>(
   // Reachability and ownership differ during reconnect: Backend may be healthy
   // while this branch's order/payment events still exist only on the Agent.
   const preferOnlineTransport = shouldPreferOnlineTransport(auth.token, networkState);
+  const fumunIncidentRecoveryPending = localAgentAvailable && preferOnlineTransport &&
+    isFumunIncidentRecoveryPending(localScope);
   const recoveringLocalOrders = localAgentAvailable && preferOnlineTransport &&
     !serverAuthoritativeTableRead && orderOwnershipRequired && await shouldKeepLocalOrderOwnership(localScope, undefined, {
       keepTerminalBlocked: !terminalBlockedCanYieldRead,
+      yieldToBackendForDevice: fumunIncidentRecoveryPending ? FUMUN_INCIDENT.deviceCode : undefined,
     });
   const routeToLocal = recoveringLocalOrders || (localAgentAvailable && !preferOnlineTransport &&
     shouldRouteToLocal(

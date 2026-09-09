@@ -8,6 +8,7 @@ import { requestLocalFallback, resetLocalSyncConfiguration, runLocalSyncNow, sho
 import { cacheBrowserApiResponse, getBrowserSyncQueueSummary } from "@/services/offline-db";
 import { useAuthStore, type AuthUser } from "@/stores/auth-store";
 import { backendNetworkManager } from "@/stores/network-store";
+import { FUMUN_INCIDENT, FUMUN_INCIDENT_COMPLETED_KEY } from "@/lib/fumun-incident";
 
 vi.mock("@/services/offline-db", async (importOriginal) => ({
   ...await importOriginal<typeof import("@/services/offline-db")>(),
@@ -79,6 +80,81 @@ describe("POS ownership across desktop reconnect", () => {
     await runLocalSyncNow();
     await expect(apiRequest("get", cartPath)).resolves.toMatchObject({ source: "online" });
     expect(online).toHaveBeenCalledOnce();
+  });
+
+  it("uses Backend for Fumun SERVERPOS3 during the scoped incident recovery", async () => {
+    const fumunUser = {
+      ...user,
+      store_uuid: FUMUN_INCIDENT.storeUuid,
+      store_uuid_fk: FUMUN_INCIDENT.storeUuid,
+      branch_uuid: FUMUN_INCIDENT.branchUuid,
+    };
+    useAuthStore.getState().login("online-token", fumunUser);
+    vi.spyOn(axios, "get").mockResolvedValue({ data: { ok: true, data: {
+      configured: true,
+      bootstrap_complete: true,
+      connection_state: "ONLINE",
+      store_uuid: FUMUN_INCIDENT.storeUuid,
+      branch_uuid: FUMUN_INCIDENT.branchUuid,
+      device_code: FUMUN_INCIDENT.deviceCode,
+      actor_login_uuid: fumunUser.uuid,
+      pending: { pending: 12, processing: 0, failed: 4, blocked: 1 },
+    } } });
+    const onlineGet = vi.spyOn(apiClient, "get").mockResolvedValue({
+      status: 200,
+      data: { status: "success", orders: [] },
+    });
+    const onlinePost = vi.spyOn(apiClient, "post").mockResolvedValue({
+      status: 200,
+      data: { status: "success", order_uuid: "new-online-order" },
+    });
+
+    await expect(apiRequest("get", cartPath)).resolves.toMatchObject({ orders: [] });
+    await expect(apiRequest("post", "/api/v1/posAll/create_order", {
+      data: { items: [{ prod_detail_uuid_fk: "detail-1", order_it_qty: 1 }] },
+    })).resolves.toMatchObject({ order_uuid: "new-online-order" });
+    expect(onlineGet).toHaveBeenCalledOnce();
+    expect(onlinePost).toHaveBeenCalledOnce();
+    expect(vi.mocked(axios.post).mock.calls.some(([url]) => String(url).endsWith("/local/api"))).toBe(false);
+  });
+
+  it("does not apply the Fumun exception to another device or after recovery", async () => {
+    const fumunUser = {
+      ...user,
+      store_uuid: FUMUN_INCIDENT.storeUuid,
+      store_uuid_fk: FUMUN_INCIDENT.storeUuid,
+      branch_uuid: FUMUN_INCIDENT.branchUuid,
+    };
+    useAuthStore.getState().login("online-token", fumunUser);
+    const get = vi.spyOn(axios, "get").mockResolvedValue({ data: { ok: true, data: {
+      configured: true,
+      bootstrap_complete: true,
+      connection_state: "ONLINE",
+      store_uuid: FUMUN_INCIDENT.storeUuid,
+      branch_uuid: FUMUN_INCIDENT.branchUuid,
+      device_code: "ANOTHER-TILL",
+      actor_login_uuid: fumunUser.uuid,
+      pending: { pending: 1, processing: 0, failed: 0, blocked: 0 },
+    } } });
+    const online = vi.spyOn(apiClient, "get");
+
+    await expect(apiRequest("get", cartPath)).resolves.toMatchObject({ source: "local" });
+    expect(online).not.toHaveBeenCalled();
+
+    resetLocalSyncConfiguration();
+    get.mockResolvedValue({ data: { ok: true, data: {
+      configured: true,
+      bootstrap_complete: true,
+      connection_state: "ONLINE",
+      store_uuid: FUMUN_INCIDENT.storeUuid,
+      branch_uuid: FUMUN_INCIDENT.branchUuid,
+      device_code: FUMUN_INCIDENT.deviceCode,
+      actor_login_uuid: fumunUser.uuid,
+      pending: { pending: 1, processing: 0, failed: 0, blocked: 0 },
+    } } });
+    window.localStorage.setItem(FUMUN_INCIDENT_COMPLETED_KEY, "1");
+    await expect(apiRequest("get", cartPath)).resolves.toMatchObject({ source: "local" });
+    expect(online).not.toHaveBeenCalled();
   });
 
   it("does not send a payment ahead of the locally owned bill", async () => {

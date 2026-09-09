@@ -9,22 +9,15 @@ import {
   rebuildLocalMaster,
 } from "@/services/offline-sync";
 import { requestOfflineDataRefresh } from "@/lib/offline-data-refresh";
+import {
+  FUMUN_INCIDENT,
+  FUMUN_INCIDENT_COMPLETED_KEY,
+  isFumunIncidentScope,
+} from "@/lib/fumun-incident";
 
 // One-time production recovery for the Fumun incident reported on 2026-09-09.
 // Every identifier is fixed so this code is inert for all other stores,
 // branches, devices, bills, orders, items and outbox events.
-export const FUMUN_INCIDENT = Object.freeze({
-  storeUuid: "14fa3632-dc9b-4539-a992-54741768bc99",
-  branchUuid: "f562e6be-132e-4fb2-9914-c61d6b9904fd",
-  deviceCode: "SERVERPOS3",
-  eventUuid: "1b147820-1374-49e3-a5f9-f670a1261935",
-  orderUuid: "3211d573-4326-4766-8c3e-5e70ac716315",
-  itemUuid: "395f4bb1-84e1-4426-aef5-d1080120b513",
-  invoice: "080926-0016",
-});
-
-const COMPLETED_KEY = `yummy-go:incident-repaired:${FUMUN_INCIDENT.eventUuid}`;
-
 export type FumunRepairResult =
   | "NOT_TARGET"
   | "ALREADY_REPAIRED"
@@ -55,14 +48,19 @@ const defaultDependencies: FumunRepairDependencies = {
   discardEvent: discardStuckLocalSyncEvents,
   rebuildMaster: rebuildLocalMaster,
   refreshUi: requestOfflineDataRefresh,
-  isCompleted: () => typeof window !== "undefined" && window.localStorage.getItem(COMPLETED_KEY) === "1",
-  markCompleted: () => window.localStorage.setItem(COMPLETED_KEY, "1"),
+  isCompleted: () => typeof window !== "undefined" &&
+    window.localStorage.getItem(FUMUN_INCIDENT_COMPLETED_KEY) === "1",
+  markCompleted: () => window.localStorage.setItem(FUMUN_INCIDENT_COMPLETED_KEY, "1"),
 };
 
 export function isFumunIncidentUser(user: Pick<AuthUser, "store_uuid" | "branch_uuid"> | null) {
-  return user?.store_uuid === FUMUN_INCIDENT.storeUuid &&
-    user.branch_uuid === FUMUN_INCIDENT.branchUuid;
+  return isFumunIncidentScope({
+    storeUuid: user?.store_uuid,
+    branchUuid: user?.branch_uuid,
+  });
 }
+
+export { FUMUN_INCIDENT } from "@/lib/fumun-incident";
 
 function isExactIncidentEvent(event: StuckSyncEvent) {
   return event.event_uuid === FUMUN_INCIDENT.eventUuid &&
