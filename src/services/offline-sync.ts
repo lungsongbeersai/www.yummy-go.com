@@ -217,6 +217,7 @@ export interface LocalSyncStatus {
   consecutive_failures?: number;
   store_uuid?: string | null;
   branch_uuid?: string | null;
+  device_code?: string | null;
   actor_login_uuid?: string | null;
   pending?: {
     pending?: number;
@@ -668,6 +669,28 @@ export async function runLocalSyncNow(): Promise<LocalSyncStatus | null> {
     return null;
   }
   return getLocalSyncStatus({ force: true, timeoutMs: 1500 });
+}
+
+/**
+ * Rebuild the Agent's branch-scoped read model from Backend.
+ *
+ * This endpoint only refreshes local data. It neither creates print jobs nor
+ * sends a mutation to the POS API.
+ */
+export async function rebuildLocalMaster(): Promise<LocalSyncStatus | null> {
+  if (typeof window === "undefined" || isCapacitorMobileApp()) return null;
+  localStatusCache = null;
+  try {
+    const response = await axios.post<LocalAgentResponse<unknown>>(
+      `${AGENT_URL}/local/master/rebuild`,
+      {},
+      { timeout: 120000 },
+    );
+    if (!response.data.ok) return null;
+  } catch {
+    return null;
+  }
+  return getLocalSyncStatus({ force: true, timeoutMs: 3000 });
 }
 
 async function waitForLocalBootstrap(timeoutMs = 45000) {

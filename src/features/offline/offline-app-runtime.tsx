@@ -8,10 +8,16 @@ import {
   startBackendNetworkMonitor,
   startOfflineTransportMonitor,
 } from "@/stores/offline-transport-monitor";
+import { isCapacitorMobileApp } from "@/lib/capacitor-platform";
+import {
+  isFumunIncidentUser,
+  repairFumunIncident,
+} from "@/stores/fumun-incident-repair";
 
 export function OfflineAppRuntime() {
   const router = useRouter();
   const isLoggedIn = useAuthStore((state) => state.isLoggedIn);
+  const user = useAuthStore((state) => state.user);
 
   useEffect(() => startBackendNetworkMonitor(), []);
 
@@ -22,6 +28,33 @@ export function OfflineAppRuntime() {
     // Skipping it on mobile leaves durable sales permanently unsent.
     return startOfflineTransportMonitor();
   }, [isLoggedIn]);
+
+  useEffect(() => {
+    if (!isLoggedIn || !isFumunIncidentUser(user) || isCapacitorMobileApp()) return;
+
+    let active = true;
+    let attempts = 0;
+    let retryTimer: number | undefined;
+    const attemptRepair = async () => {
+      attempts += 1;
+      try {
+        const result = await repairFumunIncident(user);
+        if (["REPAIRED", "ALREADY_REPAIRED", "EVENT_MISMATCH", "UNSAFE_DEPENDENT"].includes(result)) {
+          return;
+        }
+      } catch {
+        // The Agent may be starting or installing. Retry only this exact
+        // store/branch/device incident; all other users skip this effect above.
+      }
+      if (active && attempts < 30) retryTimer = window.setTimeout(attemptRepair, 10000);
+    };
+    void attemptRepair();
+
+    return () => {
+      active = false;
+      if (retryTimer !== undefined) window.clearTimeout(retryTimer);
+    };
+  }, [isLoggedIn, user]);
 
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
