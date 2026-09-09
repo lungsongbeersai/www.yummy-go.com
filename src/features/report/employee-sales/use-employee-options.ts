@@ -1,23 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { EMPLOYEE_SALES_ROLE_ID } from "@/config/employee-sales";
-import { getEmployeeOptions, type User } from "@/services/user";
+import { useEffect } from "react";
+import { useEmployeeOptionsStore } from "@/stores/employee-options-store";
 
 export function useEmployeeOptions(branchUuid: string) {
-  const [options, setOptions] = useState<User[]>([]);
-  const [loading, setLoading] = useState(false);
+  const loadEmployeeOptions = useEmployeeOptionsStore((state) => state.loadEmployeeOptions);
+  const employees = useEmployeeOptionsStore((state) => state.employees);
+  const storeBranchUuid = useEmployeeOptionsStore((state) => state.branchUuid);
+  const loading = useEmployeeOptionsStore((state) => state.loading);
 
   useEffect(() => {
-    if (!branchUuid) return;
-    let active = true;
-    queueMicrotask(() => { if (active) setLoading(true); });
-    getEmployeeOptions(branchUuid, EMPLOYEE_SALES_ROLE_ID)
-      .then(rows => { if (active) setOptions(rows); })
-      .catch(() => { if (active) setOptions([]); })
-      .finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
-  }, [branchUuid]);
+    void loadEmployeeOptions(branchUuid).catch(() => undefined);
+  }, [loadEmployeeOptions, branchUuid]);
 
-  return { options: branchUuid ? options : [], loading };
+  return { options: storeBranchUuid === branchUuid ? employees : [], loading };
 }
