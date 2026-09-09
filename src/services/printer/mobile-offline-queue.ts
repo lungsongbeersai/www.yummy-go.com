@@ -113,6 +113,88 @@ function formatMoney(value: unknown) {
   return `${(Number.isFinite(number) ? number : 0).toLocaleString("en-US")} ₭`;
 }
 
+type MobileReceiptPrintItem = {
+  name: string;
+  qty: number;
+  total: number;
+};
+
+function mobileReceiptNumber(value: unknown) {
+  const number = Number(value);
+  return Number.isFinite(number)
+    ? Math.round(number * 1_000_000) / 1_000_000
+    : 0;
+}
+
+function mobileReceiptPerUnit(value: unknown, qty: number) {
+  const number = mobileReceiptNumber(value);
+  return qty > 0 ? mobileReceiptNumber(number / qty) : number;
+}
+
+function mobileReceiptItemKey(item: OfflineCartOrder["items"][number]) {
+  const qty = mobileReceiptNumber(item.qty);
+  const detail = item.detail;
+  const toppings = item.toppings
+    .map((topping) => {
+      const values = record(topping);
+      return JSON.stringify([
+        text(
+          values.prod_topping_uuid_fk ||
+            values.prod_topping_uuid ||
+            topping.topping_name,
+        ),
+        mobileReceiptNumber(topping.topping_qty),
+        mobileReceiptNumber(topping.topping_price),
+        mobileReceiptPerUnit(
+          values.topping_line_total ?? values.topping_total,
+          qty,
+        ),
+      ]);
+    })
+    .sort();
+
+  return JSON.stringify([
+    text(item.pro_detail_uuid),
+    text(item.prod_uuid),
+    text(item.prod_name),
+    text(detail.size_name),
+    mobileReceiptNumber(detail.unit_price),
+    text(detail.order_it_note),
+    text(detail.order_it_discount_type),
+    mobileReceiptNumber(detail.order_it_discount_value),
+    mobileReceiptPerUnit(detail.order_it_discount_amount, qty),
+    mobileReceiptPerUnit(item.total, qty),
+    toppings,
+  ]);
+}
+
+export function mobileReceiptItemsForPrint(
+  items: OfflineCartOrder["items"],
+): MobileReceiptPrintItem[] {
+  const merged: MobileReceiptPrintItem[] = [];
+  const byKey = new Map<string, MobileReceiptPrintItem>();
+
+  items.forEach((item) => {
+    const key = mobileReceiptItemKey(item);
+    const existing = byKey.get(key);
+    if (existing) {
+      existing.qty = mobileReceiptNumber(existing.qty + item.qty);
+      existing.total = mobileReceiptNumber(existing.total + item.total);
+      return;
+    }
+
+    const printable = {
+      name: item.prod_name,
+      qty: mobileReceiptNumber(item.qty),
+      total: mobileReceiptNumber(item.total),
+    };
+    byKey.set(key, printable);
+    merged.push(printable);
+  });
+
+  return merged;
+}
+
 function kitchenLines(tableName: string, order: OfflineCartOrder, itemUuid: string): BrowserPrintLine[] {
   const item = order.items.find((line) => line.order_it_uuid === itemUuid);
   if (!item) return [];
@@ -141,7 +223,11 @@ function receiptLines(tableName: string, order: OfflineCartOrder, data: Record<s
     { left: `ເລກບິນ: ${order.order_invoice || "-"}`, size: 24 },
     { left: `ໂຕະ: ${tableName}`, size: 24 },
     { left: "----------------------------------------------------------", align: "center", size: 20 },
-    ...order.items.map((item) => ({ left: `${item.prod_name} x ${item.qty}`, right: formatMoney(item.total), size: 24 })),
+    ...mobileReceiptItemsForPrint(order.items).map((item) => ({
+      left: `${item.name} x ${item.qty}`,
+      right: formatMoney(item.total),
+      size: 24,
+    })),
     { left: "----------------------------------------------------------", align: "center", size: 20 },
     { left: "ລວມຕ້ອງຊໍາລະ", right: formatMoney(order.grand_total), size: 28, bold: true },
     ...(cash > 0 ? [{ left: "ຮັບເງິນສົດ", right: formatMoney(cash), size: 24 }] : []),
