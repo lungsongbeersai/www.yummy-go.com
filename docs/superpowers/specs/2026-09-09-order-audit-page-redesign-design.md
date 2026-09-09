@@ -142,5 +142,16 @@ loading skeleton shape, empty state, error state (branch load failure).
 - Any change to filter semantics, API params, pagination/snapshot behavior.
 - Grouping by order or by day (rejected timeline/hybrid approaches — see
   brainstorming discussion; audit logs need scan/filter, not narrative).
-- New i18n keys — all existing `orderAudit.*` keys are reused as-is; no
-  wording changes.
+- Wording changes to any existing `orderAudit.*` key.
+
+## i18n
+
+One new key is required: `orderAudit.filters` ("Filters" / "ໂຕກອງ"), used as
+the filter-sheet's title and the toolbar button label. It must be added to
+both `public/locales/en/common.json` and `public/locales/la/common.json` in
+the same task that introduces `order-audit-filter-sheet.tsx`, so
+`src/lib/i18n-resources.test.ts`'s en/la key-parity check never sees a
+mismatch. Every other label reuses an existing key: the toolbar search input
+reuses `orderAudit.search` as its placeholder, the sheet's apply button reuses
+`actions.search` (already used for this exact purpose in the current page),
+and refresh reuses `actions.refresh`.
