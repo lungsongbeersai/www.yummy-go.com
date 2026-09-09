@@ -228,7 +228,7 @@ export async function apiRequest<T>(
   const browserVersionAtStart = browserOrderVersion(localScope);
   const browserOwnsOrders = !localAgentAvailable && supportsOfflineRoute(method, url) &&
     (networkState === BACKEND_NETWORK_STATE.OFFLINE ||
-      (orderOwnershipRequired && await shouldKeepBrowserOrderOwnership(localScope, undefined, {
+      (!serverAuthoritativeTableRead && orderOwnershipRequired && await shouldKeepBrowserOrderOwnership(localScope, undefined, {
         keepTerminalBlocked: !serverAuthoritativeTableRead,
       })));
   if (browserOwnsOrders) {
@@ -252,7 +252,7 @@ export async function apiRequest<T>(
   // while this branch's order/payment events still exist only on the Agent.
   const preferOnlineTransport = shouldPreferOnlineTransport(auth.token, networkState);
   const recoveringLocalOrders = localAgentAvailable && preferOnlineTransport &&
-    orderOwnershipRequired && await shouldKeepLocalOrderOwnership(localScope, undefined, {
+    !serverAuthoritativeTableRead && orderOwnershipRequired && await shouldKeepLocalOrderOwnership(localScope, undefined, {
       keepTerminalBlocked: !serverAuthoritativeTableRead,
     });
   const routeToLocal = recoveringLocalOrders || (localAgentAvailable && !preferOnlineTransport &&

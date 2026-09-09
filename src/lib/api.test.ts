@@ -157,6 +157,22 @@ describe("POS ownership across desktop reconnect", () => {
     )).toBe(false);
   });
 
+  it("keeps the online table directory server-authoritative while retryable Agent work drains", async () => {
+    const get = vi.spyOn(axios, "get").mockResolvedValue(status(2));
+    const online = vi.spyOn(apiClient, "get").mockResolvedValue({
+      status: 200,
+      data: { status: "success", source: "online" },
+    });
+
+    await expect(apiRequest("get", "/api/v1/posAll/fetch_table"))
+      .resolves.toMatchObject({ source: "online" });
+    expect(online).toHaveBeenCalledOnce();
+    expect(get).not.toHaveBeenCalled();
+    expect(vi.mocked(axios.post).mock.calls.some(([url]) =>
+      String(url).endsWith("/local/api"),
+    )).toBe(false);
+  });
+
   it("keeps staged browser writes local even before the Agent acknowledges them", async () => {
     vi.spyOn(axios, "get").mockResolvedValue(status());
     vi.mocked(getBrowserSyncQueueSummary).mockResolvedValue({ ...emptyQueue, staged: 1 });
@@ -254,6 +270,23 @@ describe.each(["android", "ios"])("Capacitor %s uses Dexie, never localhost Agen
 
   it("keeps a blocked mobile event in review while the online table directory returns to Backend", async () => {
     vi.mocked(getBrowserSyncQueueSummary).mockResolvedValue({ ...emptyQueue, blocked: 1 });
+    useAuthStore.getState().setOfflineSession(true);
+    const online = vi.spyOn(apiClient, "get").mockResolvedValue({
+      status: 200,
+      data: { status: "success", source: "online" },
+    });
+    const local = vi.spyOn(offlineSync, "readBrowserOfflineCache")
+      .mockResolvedValue({ status: "success", source: "dexie" });
+
+    await expect(apiRequest("get", "/api/v1/posAll/fetch_table"))
+      .resolves.toMatchObject({ source: "online" });
+    expect(online).toHaveBeenCalledOnce();
+    expect(local).not.toHaveBeenCalled();
+    expect(useAuthStore.getState().offlineSession).toBe(false);
+  });
+
+  it("keeps the online table directory authoritative while mobile order events drain", async () => {
+    vi.mocked(getBrowserSyncQueueSummary).mockResolvedValue({ ...emptyQueue, pending: 1 });
     useAuthStore.getState().setOfflineSession(true);
     const online = vi.spyOn(apiClient, "get").mockResolvedValue({
       status: 200,
