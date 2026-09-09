@@ -10,8 +10,7 @@ import {
 } from "@/stores/offline-transport-monitor";
 import { isCapacitorMobileApp } from "@/lib/capacitor-platform";
 import {
-  isFumunIncidentUser,
-  repairFumunIncident,
+  repairPriorDayServerClosedOrders,
 } from "@/stores/fumun-incident-repair";
 
 export function OfflineAppRuntime() {
@@ -30,7 +29,7 @@ export function OfflineAppRuntime() {
   }, [isLoggedIn]);
 
   useEffect(() => {
-    if (!isLoggedIn || !isFumunIncidentUser(user) || isCapacitorMobileApp()) return;
+    if (!isLoggedIn || !user || isCapacitorMobileApp()) return;
 
     let active = true;
     let attempts = 0;
@@ -38,13 +37,13 @@ export function OfflineAppRuntime() {
     const attemptRepair = async () => {
       attempts += 1;
       try {
-        const result = await repairFumunIncident(user);
-        if (["REPAIRED", "ALREADY_REPAIRED"].includes(result)) {
+        const result = await repairPriorDayServerClosedOrders(user);
+        if (["REPAIRED", "NOT_TARGET"].includes(result)) {
           return;
         }
       } catch {
-        // The Agent may be starting or installing. Retry only this exact
-        // store/branch/device incident; all other users skip this effect above.
+        // The Agent may be starting or updating. Its version and exact
+        // store/branch/device scope are checked again before every retry.
       }
       if (active && attempts < 30) retryTimer = window.setTimeout(attemptRepair, 10000);
     };

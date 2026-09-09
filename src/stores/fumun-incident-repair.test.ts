@@ -3,6 +3,7 @@ import type { AuthUser } from "@/stores/auth-store";
 import type { LocalSyncStatus } from "@/services/offline-sync";
 import {
   FUMUN_INCIDENT,
+  repairPriorDayServerClosedOrders,
   repairFumunIncident,
 } from "@/stores/fumun-incident-repair";
 
@@ -38,6 +39,7 @@ function status(overrides: Partial<LocalSyncStatus> = {}): LocalSyncStatus {
 function dependencies() {
   return {
     getAgentInfo: vi.fn().mockResolvedValue({
+      version: "1.0.7",
       agent_id: "agent-1",
       agent_name: "SERVERPOS3",
       device_code: FUMUN_INCIDENT.deviceCode,
@@ -97,6 +99,60 @@ describe("Fumun server-closed order recovery", () => {
     });
     await expect(repairFumunIncident(user(), deps)).resolves.toBe("SYNC_INCOMPLETE");
     expect(deps.markCompleted).not.toHaveBeenCalled();
+    expect(deps.refreshUi).toHaveBeenCalledOnce();
+  });
+});
+
+describe("prior-day server-closed order recovery for every store", () => {
+  it("uses the authenticated store, branch and matching Agent device dynamically", async () => {
+    const deps = dependencies();
+    const anotherUser = user({ store_uuid: "another-store", branch_uuid: "another-branch" });
+    deps.getSyncStatus.mockResolvedValue(status({
+      store_uuid: "another-store",
+      branch_uuid: "another-branch",
+    }));
+    deps.reconcileClosedOrders.mockResolvedValue({
+      reconciled_orders: ["old-paid-order"],
+      discarded_events: 2,
+      suppressed_print_jobs: 1,
+      deferred_processing_orders: [],
+      status: status({ store_uuid: "another-store", branch_uuid: "another-branch" }),
+    });
+
+    await expect(repairPriorDayServerClosedOrders(anotherUser, deps)).resolves.toBe("REPAIRED");
+    expect(deps.reconcileClosedOrders).toHaveBeenCalledWith({
+      storeUuid: "another-store",
+      branchUuid: "another-branch",
+      deviceCode: FUMUN_INCIDENT.deviceCode,
+    });
+    expect(deps.markCompleted).not.toHaveBeenCalled();
+  });
+
+  it("will not call broad recovery on an Agent version without today's-work protection", async () => {
+    const deps = dependencies();
+    deps.getAgentInfo.mockResolvedValue({
+      version: "1.0.6",
+      agent_id: "agent-1",
+      agent_name: "SERVERPOS3",
+      device_code: FUMUN_INCIDENT.deviceCode,
+    });
+
+    await expect(repairPriorDayServerClosedOrders(user(), deps))
+      .resolves.toBe("AGENT_UPDATE_REQUIRED");
+    expect(deps.reconcileClosedOrders).not.toHaveBeenCalled();
+  });
+
+  it("does not wait for today's unrelated queue before completing prior-day recovery", async () => {
+    const deps = dependencies();
+    deps.reconcileClosedOrders.mockResolvedValue({
+      reconciled_orders: ["old-paid-order"],
+      discarded_events: 2,
+      suppressed_print_jobs: 1,
+      deferred_processing_orders: [],
+      status: status({ pending: { pending: 4, processing: 0, failed: 1, blocked: 0 } }),
+    });
+
+    await expect(repairPriorDayServerClosedOrders(user(), deps)).resolves.toBe("REPAIRED");
     expect(deps.refreshUi).toHaveBeenCalledOnce();
   });
 });
