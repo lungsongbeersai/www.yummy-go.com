@@ -121,11 +121,29 @@ describe("POS ownership across desktop reconnect", () => {
     expect(online).not.toHaveBeenCalled();
   });
 
-  it("retains local cart ownership for a blocked event requiring review", async () => {
+  it("loads the backend cart when only a terminal blocked event remains", async () => {
     vi.spyOn(axios, "get").mockResolvedValue(status(0, 1));
-    const online = vi.spyOn(apiClient, "get");
-    await expect(apiRequest("get", cartPath)).resolves.toMatchObject({ source: "local" });
+    const online = vi.spyOn(apiClient, "get").mockResolvedValue({
+      status: 200,
+      data: { status: "success", source: "online-cart" },
+    });
+    await expect(apiRequest("get", cartPath)).resolves.toMatchObject({ source: "online-cart" });
+    expect(online).toHaveBeenCalledOnce();
+    expect(vi.mocked(axios.post).mock.calls.some(([url]) =>
+      String(url).endsWith("/local/api"),
+    )).toBe(false);
+  });
+
+  it("retains mutation ownership for a blocked event requiring review", async () => {
+    vi.spyOn(axios, "get").mockResolvedValue(status(0, 1));
+    const online = vi.spyOn(apiClient, "post");
+    await apiRequest("post", "/api/v1/posAll/payment", {
+      data: { order_uuid: "order-1", amount: 40000 },
+    });
     expect(online).not.toHaveBeenCalled();
+    expect(vi.mocked(axios.post).mock.calls.some(([url]) =>
+      String(url).endsWith("/local/api"),
+    )).toBe(true);
   });
 
   it("loads the online table directory when only a terminal blocked event remains", async () => {
@@ -259,10 +277,19 @@ describe.each(["android", "ios"])("Capacitor %s uses Dexie, never localhost Agen
       expect(backendNetworkManager.getSnapshot().state).toBe(BACKEND_NETWORK_STATE.ONLINE);
 
       local.mockResolvedValue({ status: "success", source: "dexie" });
+      local.mockClear();
       const get = vi.spyOn(apiClient, "get");
       get.mockClear();
-      await expect(apiRequest("get", cartPath)).resolves.toMatchObject({ source: "dexie" });
-      expect(get).not.toHaveBeenCalled();
+      if (queueStatus === "blocked") {
+        get.mockResolvedValue({ status: 200, data: { status: "success", source: "online-cart" } });
+        await expect(apiRequest("get", cartPath)).resolves.toMatchObject({ source: "online-cart" });
+        expect(get).toHaveBeenCalledOnce();
+        expect(local).not.toHaveBeenCalled();
+      } else {
+        await expect(apiRequest("get", cartPath)).resolves.toMatchObject({ source: "dexie" });
+        expect(get).not.toHaveBeenCalled();
+        expect(local).toHaveBeenCalledOnce();
+      }
       expect(axios.get).not.toHaveBeenCalled();
       expect(axios.post).not.toHaveBeenCalled();
     });
@@ -280,6 +307,23 @@ describe.each(["android", "ios"])("Capacitor %s uses Dexie, never localhost Agen
 
     await expect(apiRequest("get", "/api/v1/posAll/fetch_table"))
       .resolves.toMatchObject({ source: "online" });
+    expect(online).toHaveBeenCalledOnce();
+    expect(local).not.toHaveBeenCalled();
+    expect(useAuthStore.getState().offlineSession).toBe(false);
+  });
+
+  it("loads the backend cart when mobile has only a terminal blocked event", async () => {
+    vi.mocked(getBrowserSyncQueueSummary).mockResolvedValue({ ...emptyQueue, blocked: 1 });
+    useAuthStore.getState().setOfflineSession(true);
+    const online = vi.spyOn(apiClient, "get").mockResolvedValue({
+      status: 200,
+      data: { status: "success", source: "online-cart" },
+    });
+    const local = vi.spyOn(offlineSync, "readBrowserOfflineCache")
+      .mockResolvedValue({ status: "success", source: "dexie" });
+
+    await expect(apiRequest("get", cartPath))
+      .resolves.toMatchObject({ source: "online-cart" });
     expect(online).toHaveBeenCalledOnce();
     expect(local).not.toHaveBeenCalled();
     expect(useAuthStore.getState().offlineSession).toBe(false);
@@ -487,12 +531,16 @@ describe.each(["android", "ios"])("Capacitor %s uses Dexie, never localhost Agen
     expect(axios.post).not.toHaveBeenCalled();
   });
 
-  it("never falls through to Backend when the local cart is blocked or its cache is missing", async () => {
-    const online = vi.spyOn(apiClient, "get");
+  it("uses Backend when the only blocked local cart has no usable cache", async () => {
+    const online = vi.spyOn(apiClient, "get").mockResolvedValue({
+      status: 200,
+      data: { status: "success", source: "online-cart" },
+    });
     vi.mocked(getBrowserSyncQueueSummary).mockResolvedValue({ ...emptyQueue, blocked: 1 });
-    vi.spyOn(offlineSync, "readBrowserOfflineCache").mockResolvedValue(null);
-    await expect(apiRequest("get", cartPath)).rejects.toMatchObject({ statusCode: 503 });
-    expect(online).not.toHaveBeenCalled();
+    const local = vi.spyOn(offlineSync, "readBrowserOfflineCache").mockResolvedValue(null);
+    await expect(apiRequest("get", cartPath)).resolves.toMatchObject({ source: "online-cart" });
+    expect(online).toHaveBeenCalledOnce();
+    expect(local).not.toHaveBeenCalled();
   });
 
   it("does not send an unsupported split ahead of a pending local create", async () => {

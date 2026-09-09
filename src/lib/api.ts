@@ -220,16 +220,23 @@ export async function apiRequest<T>(
   const networkState = backendNetworkManager.getSnapshot().state;
   const localAgentAvailable = !isCapacitorMobileApp();
   const orderOwnershipRequired = requiresLocalOrderOwnership(method, url);
-  // A terminal BLOCKED event belongs on the review page, but it cannot make the
-  // online table directory display yesterday's snapshot forever. Keep the
-  // stronger local-ownership rule for carts and every mutation.
+  const requestPath = url.split("?")[0];
+  // A terminal BLOCKED event belongs on the review page, but it cannot make an
+  // online table or its cart display yesterday's snapshot forever. Retryable
+  // work still owns fetch_cart, and every mutation keeps the stronger rule.
+  const terminalBlockedCanYieldRead = method === "get" && [
+    "/api/v1/posAll/fetch_table",
+    "/api/v1/posAll/fetch_cart",
+  ].includes(requestPath);
+  // The table directory is only an overview. When Backend is reachable it is
+  // always authoritative, even while real retryable local work drains.
   const serverAuthoritativeTableRead = method === "get" &&
-    url.split("?")[0] === "/api/v1/posAll/fetch_table";
+    requestPath === "/api/v1/posAll/fetch_table";
   const browserVersionAtStart = browserOrderVersion(localScope);
   const browserOwnsOrders = !localAgentAvailable && supportsOfflineRoute(method, url) &&
     (networkState === BACKEND_NETWORK_STATE.OFFLINE ||
       (!serverAuthoritativeTableRead && orderOwnershipRequired && await shouldKeepBrowserOrderOwnership(localScope, undefined, {
-        keepTerminalBlocked: !serverAuthoritativeTableRead,
+        keepTerminalBlocked: !terminalBlockedCanYieldRead,
       })));
   if (browserOwnsOrders) {
     // A reachable server may not know this bill yet. Never let a cache miss or
@@ -253,7 +260,7 @@ export async function apiRequest<T>(
   const preferOnlineTransport = shouldPreferOnlineTransport(auth.token, networkState);
   const recoveringLocalOrders = localAgentAvailable && preferOnlineTransport &&
     !serverAuthoritativeTableRead && orderOwnershipRequired && await shouldKeepLocalOrderOwnership(localScope, undefined, {
-      keepTerminalBlocked: !serverAuthoritativeTableRead,
+      keepTerminalBlocked: !terminalBlockedCanYieldRead,
     });
   const routeToLocal = recoveringLocalOrders || (localAgentAvailable && !preferOnlineTransport &&
     shouldRouteToLocal(
