@@ -66,7 +66,7 @@ Created:
 | `order-audit-filter-sheet.tsx` | `Sheet` wrapping the existing branch/date/action/entity fields, apply button, invalid-date message. |
 | `order-audit-table.tsx` | Desktop table: colored action badges, tabular-nums time column, whole-row click to open detail. |
 | `order-audit-row-card.tsx` | Mobile/`sm`-and-below card representation of one row, same click behavior. |
-| `order-audit-detail-sheet.tsx` | Replaces the compare `Dialog`. Same content (actor/time/action/reason + before/after table + reference id) but changed-only cells are highlighted; unchanged fields render muted. |
+| `order-audit-detail-sheet.tsx` | Replaces the compare `Dialog`. Same content (actor/time/action/reason + before/after table + reference id). `auditChanges()` already returns only the fields that changed (from `changed_fields`) — every row in the table is a real change, so there is no "unchanged field" to mute. Instead each row's "before" cell renders muted (`text-muted-foreground line-through decoration-muted-foreground/50`) and the "after" cell keeps today's `font-medium` plus a `text-foreground` emphasis, so the eye lands on the new value while the old one reads as struck-through history. |
 | `order-audit-action-badge.tsx` | Maps an `ORDER_AUDIT_ACTIONS` value to a semantic badge variant (see Action severity below). |
 | `order-audit-skeleton.tsx` | Table-shaped skeleton (header row + N placeholder rows) instead of one full-width block. |
 
