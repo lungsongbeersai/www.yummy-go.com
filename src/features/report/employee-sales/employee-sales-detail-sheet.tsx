@@ -1,4 +1,3 @@
-// src/features/report/employee-sales/employee-sales-detail-sheet.tsx
 "use client";
 
 import { useTranslation } from "react-i18next";
@@ -129,8 +128,8 @@ export function EmployeeSalesDetailSheet({
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {group.items.map(item => (
-                            <TableRow key={`${item.order_uuid}-${item.prod_uuid}`}>
+                          {group.items.map((item, itemIndex) => (
+                            <TableRow key={`${item.order_uuid}-${item.prod_uuid}-${itemIndex}`}>
                               <TableCell>{item.product_full_name}</TableCell>
                               <TableCell className="tabular-nums">{money(item.unit_price)}</TableCell>
                               <TableCell className="tabular-nums">{item.total_qty}</TableCell>

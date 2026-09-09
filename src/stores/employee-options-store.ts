@@ -29,7 +29,7 @@ export const useEmployeeOptionsStore = create<EmployeeOptionsState>((set) => ({
       set({ employees: [], branchUuid: "", loading: false, error: null });
       return [];
     }
-    set({ branchUuid, loading: true, error: null });
+    set({ loading: true, error: null });
     try {
       const employees = await getEmployeeOptions(branchUuid, EMPLOYEE_SALES_ROLE_ID);
       if (requestId === employeeOptionsRequestId && isCurrentSession()) {
@@ -38,7 +38,7 @@ export const useEmployeeOptionsStore = create<EmployeeOptionsState>((set) => ({
       return employees;
     } catch (error) {
       if (requestId === employeeOptionsRequestId && isCurrentSession()) {
-        set({ error: errorMessage(error), loading: false });
+        set({ employees: [], branchUuid: "", error: errorMessage(error), loading: false });
       }
       throw error;
     }

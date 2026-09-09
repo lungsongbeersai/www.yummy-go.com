@@ -33,7 +33,18 @@ export function EmployeeSalesTable({
         </TableHeader>
         <TableBody>
           {rows.map(row => (
-            <TableRow key={row.login_uuid} className="cursor-pointer hover:bg-muted/50" onClick={() => onSelect(row.login_uuid)}>
+            <TableRow
+              key={row.login_uuid}
+              role="button"
+              tabIndex={0}
+              className="cursor-pointer hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:ring-inset"
+              onClick={() => onSelect(row.login_uuid)}
+              onKeyDown={event => {
+                if (event.key !== "Enter" && event.key !== " ") return;
+                event.preventDefault();
+                onSelect(row.login_uuid);
+              }}
+            >
               <TableCell>
                 <div className="flex min-w-0 items-center gap-3">
                   <Avatar>
