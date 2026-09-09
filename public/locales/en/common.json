@@ -6,6 +6,7 @@
     "search": "Invoice / user / product",
     "action": "Change",
     "entity": "Record",
+    "filters": "Filters",
     "all": "All",
     "time": "Recorded at (UTC+7)",
     "invoice": "Invoice",
