@@ -26,6 +26,7 @@ describe("mobile TCP printer queue", () => {
     ).toEqual(["services/printer/mobile-tcp.ts"]);
     expect(relativeFilesContaining("printMobileEscposOverTcp")).toEqual([
       "services/printer/agent-transport.ts",
+      "services/printer/mobile-offline-queue.ts",
       "services/printer/mobile-tcp.ts",
       "services/printer/print-jobs.ts",
       "stores/printer-store.ts",

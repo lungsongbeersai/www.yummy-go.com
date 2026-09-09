@@ -17,6 +17,7 @@ export interface OfflineCartLine {
   order_item_uuid: string;
   order_it_uuid: string;
   prod_uuid: string;
+  cate_uuid_fk: string;
   pro_detail_uuid: string;
   prod_name: string;
   title: string;
@@ -115,6 +116,7 @@ function lineFor(item: OfflineOrderItem, master: OfflineMasterIndex) {
     productImage: String(snapshot.prod_image ?? menu?.productImage ?? ""),
     productHasImage: Number(snapshot.prod_status_imge ?? menu?.productHasImage ?? 0),
     sizeName: String(savedDetail.size_name || menu?.sizeName || ""),
+    categoryUuid: String(snapshot.cate_uuid_fk || snapshot.category_uuid || menu?.categoryUuid || ""),
   };
   const toppingUnitTotal = item.toppings.reduce((sum, topping) => {
     const price = topping.topping_price ?? master.toppingPrices.get(topping.prod_topping_uuid_fk);
@@ -162,6 +164,7 @@ export function projectOfflineCartOrder(
       order_item_uuid: item.orderItemUuid,
       order_it_uuid: item.orderItemUuid,
       prod_uuid: line.detail?.prodUuid ?? "",
+      cate_uuid_fk: line.detail.categoryUuid,
       pro_detail_uuid: item.prodDetailUuid,
       prod_name: line.detail?.productName ?? "",
       title: line.detail.productName,

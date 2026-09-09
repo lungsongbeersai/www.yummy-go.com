@@ -17,6 +17,7 @@ import {
   type BrowserApiCacheEntry,
   type BrowserOfflineScope,
   type BrowserOfflineStore,
+  type BrowserPrintJobEntry,
   type BrowserSyncQueueEntry,
   type BrowserSyncStatusEntry,
 } from "@/services/offline-db";
@@ -37,6 +38,7 @@ class MemoryBrowserOfflineStore implements BrowserOfflineStore {
   readonly apiCache = new Map<string, BrowserApiCacheEntry>();
   readonly syncQueue = new Map<string, BrowserSyncQueueEntry>();
   readonly syncStatus = new Map<string, BrowserSyncStatusEntry>();
+  readonly printQueue = new Map<string, BrowserPrintJobEntry>();
 
   async getApiCache(key: string) {
     return this.apiCache.get(key);
@@ -98,6 +100,21 @@ class MemoryBrowserOfflineStore implements BrowserOfflineStore {
         this.syncQueue.delete(entry.eventUuid);
       }
     }
+  }
+
+  async getPrintJob(printJobUuid: string) {
+    const entry = this.printQueue.get(printJobUuid);
+    return entry ? structuredClone(entry) : undefined;
+  }
+
+  async putPrintJob(entry: BrowserPrintJobEntry) {
+    this.printQueue.set(entry.printJobUuid, structuredClone(entry));
+  }
+
+  async listPrintJobs(scope: BrowserOfflineScope) {
+    return [...this.printQueue.values()]
+      .filter((entry) => entry.storeUuid === scope.storeUuid && entry.branchUuid === scope.branchUuid)
+      .map((entry) => structuredClone(entry));
   }
 }
 
@@ -1121,6 +1138,89 @@ describe("pushing a staged create_order to Backend never sends a discarded order
     await pushBrowserSyncQueue(scope, store);
     expect(post).not.toHaveBeenCalled();
     expect(await store.getSyncQueue("legacy-print")).toMatchObject({ status: "BLOCKED", lastError: "MOBILE_OFFLINE_PRINT_REVIEW_REQUIRED" });
+  });
+
+  it("pushes a v2 payment with the frozen durable local print proof", async () => {
+    const store = new MemoryBrowserOfflineStore();
+    await stageBrowserSyncRequest({ ...scope,
+      eventUuid: eventUuid,
+      method: "post",
+      path: "/api/v1/posAll/payment",
+      printContractVersion: "offline-first-v2",
+      data: { order_uuid: "cccccccc-cccc-4ccc-8ccc-cccccccccccc", payment_uuid: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb" },
+      printJobs: [{
+        printJobUuid: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+        eventUuid,
+        ...scope,
+        orderUuid: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+        orderItemUuids: [],
+        documentType: "RECEIPT",
+        printConfigUuid: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+        interfaceValue: "tcp://192.168.1.50:9100",
+        printerName: "Receipt",
+        paperWidthMm: 80,
+        openCashDrawer: true,
+        lines: [{ left: "Receipt" }],
+        status: "PENDING",
+        attempts: 0,
+        lastError: null,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      }],
+    }, store);
+    const post = vi.spyOn(axios, "post").mockResolvedValue({
+      data: { data: { results: [{ event_uuid: eventUuid, status: "SYNCED" }] } },
+    });
+
+    await pushBrowserSyncQueue(scope, store);
+
+    const body = post.mock.calls[0][1] as { events: Array<{ payload: { request: { data: Record<string, unknown> } } }> };
+    expect(body.events[0].payload.request.data.offline_print_proof).toEqual({
+      event_uuid: eventUuid,
+      device_code: "android-test",
+      operation: "PAYMENT",
+      routing_decision: "durable_local_queue",
+      jobs: [{
+        print_job_uuid: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+        print_config_uuid: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+        document_type: "RECEIPT",
+      }],
+    });
+  });
+
+  it("never pushes a kitchen confirmation until every required native ticket is printed", async () => {
+    const store = new MemoryBrowserOfflineStore();
+    const kitchenEvent = "11111111-1111-4111-8111-111111111111";
+    const orderUuid = "22222222-2222-4222-8222-222222222222";
+    const itemUuid = "33333333-3333-4333-8333-333333333333";
+    const stockUuid = "44444444-4444-4444-8444-444444444444";
+    const printUuid = "55555555-5555-4555-8555-555555555555";
+    await stageBrowserSyncRequest({ ...scope,
+      eventUuid: kitchenEvent,
+      method: "patch",
+      path: "/api/v1/posAll/confirm_to_kitchen",
+      printContractVersion: "offline-first-v2",
+      data: { order_uuid: orderUuid, order_item_uuids: [itemUuid], stock_event_uuids: { [itemUuid]: stockUuid } },
+      printJobs: [{ printJobUuid: printUuid, eventUuid: kitchenEvent, ...scope, orderUuid,
+        orderItemUuids: [itemUuid], documentType: "KITCHEN",
+        printConfigUuid: "66666666-6666-4666-8666-666666666666",
+        interfaceValue: "tcp://192.168.1.51:9100", printerName: "Kitchen", paperWidthMm: 80,
+        openCashDrawer: false, lines: [{ left: "Kitchen" }], status: "PENDING", attempts: 0,
+        lastError: null, createdAt: Date.now(), updatedAt: Date.now() }],
+    }, store);
+    const post = vi.spyOn(axios, "post").mockResolvedValue({
+      data: { data: { results: [{ event_uuid: kitchenEvent, status: "SYNCED" }] } },
+    });
+
+    await pushBrowserSyncQueue(scope, store);
+    expect(post).not.toHaveBeenCalled();
+    await store.putPrintJob({ ...(await store.getPrintJob(printUuid))!, status: "PRINTED" });
+    await pushBrowserSyncQueue(scope, store);
+
+    const body = post.mock.calls[0][1] as { events: Array<{ payload: { request: { data: Record<string, unknown> } } }> };
+    const proof = body.events[0].payload.request.data.offline_kitchen_proof as { items: Array<Record<string, unknown>> };
+    expect(proof.items).toEqual([{ order_item_uuid: itemUuid, stock_event_uuid: stockUuid,
+      print_job_uuids: [printUuid], routing_decision: "printed" }]);
   });
 
   it("rewrites a retargeted create_order's order_uuid to the table's real open order before pushing", async () => {

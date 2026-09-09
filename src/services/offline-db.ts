@@ -90,6 +90,7 @@ const SAFE_BROWSER_FALLBACK_PATHS = new Set([
   "/api/v1/permission/tree",
   "/api/v1/sub_menu/fetch_all",
   "/api/v1/register/get_id",
+  "/api/v1/sync/runtime-capabilities",
 ]);
 
 export type BrowserSyncEventStatus =
@@ -137,6 +138,8 @@ export interface BrowserSyncQueueEntry extends BrowserOfflineIdentity {
   wireEvent?: BrowserSyncWireEvent;
   /** Display/pricing snapshot only; never included in the frozen Backend request. */
   localItemSnapshots?: Record<string, Record<string, unknown>>;
+  /** Present only when event + native print decision were committed together. */
+  printContractVersion?: "offline-first-v2";
 }
 
 export interface BrowserSyncWireEvent {
@@ -151,6 +154,45 @@ export interface BrowserSyncWireEvent {
   sequence: number;
   dependencies: string[];
   payload: { request: { params: Record<string, unknown>; data: unknown } };
+}
+
+export type BrowserPrintJobStatus =
+  | "PENDING"
+  | "PRINTING"
+  | "PRINTED"
+  | "FAILED"
+  | "UNCERTAIN";
+
+export interface BrowserPrintLine {
+  left: string;
+  right?: string;
+  align?: "left" | "center" | "right";
+  bold?: boolean;
+  size?: number;
+}
+
+/**
+ * Native print work is kept beside the sales outbox, not in localStorage.
+ * PRINTING is deliberately not retried after a process death: paper may have
+ * left the printer even though the app did not receive the socket result.
+ */
+export interface BrowserPrintJobEntry extends BrowserOfflineIdentity {
+  printJobUuid: string;
+  eventUuid: string;
+  orderUuid: string;
+  orderItemUuids: string[];
+  documentType: "KITCHEN" | "RECEIPT";
+  printConfigUuid: string;
+  interfaceValue: string;
+  printerName: string;
+  paperWidthMm: 58 | 80;
+  openCashDrawer: boolean;
+  lines: BrowserPrintLine[];
+  status: BrowserPrintJobStatus;
+  attempts: number;
+  lastError: string | null;
+  createdAt: number;
+  updatedAt: number;
 }
 
 export interface BrowserSyncStatusEntry extends BrowserOfflineScope {
@@ -188,6 +230,10 @@ export interface BrowserOfflineStore {
   getSyncStatus: (scopeKey: string) => Promise<BrowserSyncStatusEntry | undefined>;
   putSyncStatus: (entry: BrowserSyncStatusEntry) => Promise<void>;
   pruneSyncedQueue: (scope: BrowserOfflineScope, updatedBefore: number) => Promise<void>;
+  getPrintJob?: (printJobUuid: string) => Promise<BrowserPrintJobEntry | undefined>;
+  putPrintJob?: (entry: BrowserPrintJobEntry) => Promise<void>;
+  listPrintJobs?: (scope: BrowserOfflineScope) => Promise<BrowserPrintJobEntry[]>;
+  deletePrintJob?: (printJobUuid: string) => Promise<void>;
 }
 
 interface CacheRequest extends BrowserOfflineScope {
@@ -211,6 +257,8 @@ interface StageSyncRequestInput extends CacheRequest, BrowserOfflineIdentity {
   eventUuid: string;
   requireExclusiveActor?: boolean;
   localItemSnapshots?: Record<string, Record<string, unknown>>;
+  printJobs?: BrowserPrintJobEntry[];
+  printContractVersion?: "offline-first-v2";
 }
 
 interface BrowserStatusInput extends BrowserOfflineScope {
@@ -227,6 +275,7 @@ class YummyGoBrowserDatabase extends Dexie {
   apiCache!: Table<BrowserApiCacheEntry, string>;
   syncQueue!: Table<BrowserSyncQueueEntry, string>;
   syncStatus!: Table<BrowserSyncStatusEntry, string>;
+  printQueue!: Table<BrowserPrintJobEntry, string>;
 
   constructor() {
     super(OFFLINE_BROWSER_DB_NAME);
@@ -235,6 +284,13 @@ class YummyGoBrowserDatabase extends Dexie {
       syncQueue: "&eventUuid, [storeUuid+branchUuid], status, createdAt, updatedAt",
       syncStatus: "&scopeKey, [storeUuid+branchUuid], connectionState, updatedAt",
     });
+    // Add-only migration: existing carts/outbox rows stay byte-for-byte intact.
+    this.version(2).stores({
+      apiCache: "&key, [storeUuid+branchUuid], path, cachedAt",
+      syncQueue: "&eventUuid, [storeUuid+branchUuid], status, createdAt, updatedAt",
+      syncStatus: "&scopeKey, [storeUuid+branchUuid], connectionState, updatedAt",
+      printQueue: "&printJobUuid, eventUuid, [storeUuid+branchUuid], status, createdAt, updatedAt",
+    });
   }
 }
 
@@ -242,7 +298,14 @@ class DexieBrowserOfflineStore implements BrowserOfflineStore {
   constructor(private readonly database: YummyGoBrowserDatabase) {}
 
   transaction<T>(task: () => Promise<T>) {
-    return this.database.transaction("rw", this.database.apiCache, this.database.syncQueue, this.database.syncStatus, task);
+    return this.database.transaction(
+      "rw",
+      this.database.apiCache,
+      this.database.syncQueue,
+      this.database.syncStatus,
+      this.database.printQueue,
+      task,
+    );
   }
 
   async getApiCache(key: string) {
@@ -308,6 +371,25 @@ class DexieBrowserOfflineStore implements BrowserOfflineStore {
       .and((entry) => entry.status === "SYNCED" && entry.updatedAt < updatedBefore)
       .primaryKeys();
     await this.database.syncQueue.bulkDelete(keys);
+  }
+
+  async getPrintJob(printJobUuid: string) {
+    return this.database.printQueue.get(printJobUuid);
+  }
+
+  async putPrintJob(entry: BrowserPrintJobEntry) {
+    await this.database.printQueue.put(entry);
+  }
+
+  async listPrintJobs(scope: BrowserOfflineScope) {
+    return this.database.printQueue
+      .where("[storeUuid+branchUuid]")
+      .equals([scope.storeUuid, scope.branchUuid])
+      .sortBy("createdAt");
+  }
+
+  async deletePrintJob(printJobUuid: string) {
+    await this.database.printQueue.delete(printJobUuid);
   }
 }
 
@@ -502,6 +584,9 @@ export async function stageBrowserSyncRequest(
 ) {
   const store = storeFor(override);
   if (!store || !input.eventUuid || !input.storeUuid || !input.branchUuid || !input.actorLoginUuid) return null;
+  if (input.printJobs?.length && (!store.getPrintJob || !store.putPrintJob)) {
+    throw new Error("MOBILE_PRINT_STORAGE_UNAVAILABLE");
+  }
   const stage = async () => {
     const fingerprint = browserRequestFingerprint(input);
     const existing = await store.getSyncQueue(input.eventUuid);
@@ -539,8 +624,22 @@ export async function stageBrowserSyncRequest(
       createdAt,
       updatedAt: now,
       ...(input.localItemSnapshots ? { localItemSnapshots: input.localItemSnapshots } : {}),
+      ...(input.printContractVersion ? { printContractVersion: input.printContractVersion } : {}),
     };
     await store.putSyncQueue({ ...entry, updatedAt: now });
+    for (const printJob of input.printJobs ?? []) {
+      if (
+        printJob.eventUuid !== input.eventUuid ||
+        printJob.storeUuid !== input.storeUuid ||
+        printJob.branchUuid !== input.branchUuid ||
+        printJob.actorLoginUuid !== input.actorLoginUuid
+      ) throw new Error("MOBILE_PRINT_JOB_SCOPE_MISMATCH");
+      const saved = await store.getPrintJob?.(printJob.printJobUuid);
+      if (saved && saved.eventUuid !== input.eventUuid) {
+        throw new Error("MOBILE_PRINT_JOB_IDENTITY_MISMATCH");
+      }
+      if (!saved) await store.putPrintJob?.(printJob);
+    }
     await updateMutationTimestamp(input, now, store);
     return entry;
   };
@@ -612,6 +711,73 @@ export async function discardBrowserSyncEvent(
   if (!store) return false;
   await store.deleteSyncQueue(eventUuid);
   return true;
+}
+
+export async function putBrowserPrintJob(
+  entry: BrowserPrintJobEntry,
+  override?: BrowserOfflineStore,
+) {
+  const store = storeFor(override);
+  if (!store?.putPrintJob) throw new Error("MOBILE_PRINT_STORAGE_UNAVAILABLE");
+  await store.putPrintJob(entry);
+  return entry;
+}
+
+export async function getBrowserPrintJob(
+  printJobUuid: string,
+  override?: BrowserOfflineStore,
+) {
+  return storeFor(override)?.getPrintJob?.(printJobUuid);
+}
+
+export async function listBrowserPrintJobs(
+  scope: BrowserOfflineScope,
+  override?: BrowserOfflineStore,
+) {
+  return (await storeFor(override)?.listPrintJobs?.(scope)) ?? [];
+}
+
+export async function deleteBrowserPrintJob(
+  printJobUuid: string,
+  override?: BrowserOfflineStore,
+) {
+  await storeFor(override)?.deletePrintJob?.(printJobUuid);
+}
+
+export async function listBrowserPrintJobsForEvent(
+  eventUuid: string,
+  scope: BrowserOfflineScope,
+  override?: BrowserOfflineStore,
+) {
+  return (await listBrowserPrintJobs(scope, override)).filter(
+    (entry) => entry.eventUuid === eventUuid,
+  );
+}
+
+export async function updateBrowserPrintJob(
+  printJobUuid: string,
+  update: Pick<BrowserPrintJobEntry, "status"> & {
+    lastError?: string | null;
+    incrementAttempts?: boolean;
+  },
+  override?: BrowserOfflineStore,
+) {
+  const store = storeFor(override);
+  if (!store?.getPrintJob || !store.putPrintJob) return null;
+  const apply = async () => {
+    const current = await store.getPrintJob?.(printJobUuid);
+    if (!current) return null;
+    const next: BrowserPrintJobEntry = {
+      ...current,
+      status: update.status,
+      attempts: current.attempts + (update.incrementAttempts ? 1 : 0),
+      lastError: update.lastError === undefined ? current.lastError : update.lastError,
+      updatedAt: Date.now(),
+    };
+    await store.putPrintJob?.(next);
+    return next;
+  };
+  return store.transaction ? store.transaction(apply) : serializeStoreWrite(store, apply);
 }
 
 // Retention is maintenance, not part of reading the queue. The reconcile loop

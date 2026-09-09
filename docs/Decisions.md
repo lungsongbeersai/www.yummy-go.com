@@ -6,6 +6,16 @@ Entries below dated from git history are backfilled from existing code comments 
 
 ---
 
+## Mobile offline checkout is branch-gated and fails closed
+
+- **Date:** 2026-09-09.
+- **Context:** The owner requested practical offline-to-online operation across Windows, macOS, Android and iOS, then explicitly authorized implementation after being told that zero-error/100% certification is not technically honest and that a direct all-store release could affect tills already trading.
+- **Decision:** Mobile kitchen/payment uses a v2 contract with an add-only Dexie print queue, atomic sale/print staging, stable sync/stock/print identities, local ESC/POS TCP delivery and Backend-verified offline proofs. Backend exposes an authenticated branch-scoped capability contract. Mobile checkout defaults off, can be enabled only through `OFFLINE_FIRST_MOBILE_BRANCHES`, and is overridden by `OFFLINE_FIRST_MOBILE_DISABLED`.
+- **Safety boundary:** Old print-dependent events without the v2 marker remain blocked. Missing/stale capability, sale policy, product price, table policy, device registration or required printer ownership rejects the operation before durable success. Confirmed `not_sent` print work may retry; unknown delivery never automatically reprints. Production deployment and branch enablement remain separate approvals after physical Android/iOS/printer acceptance.
+- **Alternatives rejected:** Enabling every branch in one release; trusting `navigator.onLine`; treating an empty printer cache as no printer; sending the financial event before durable print ownership; auto-reprinting after process death; claiming simulator/unit tests certify real paper or WebView process-kill behavior.
+- **Reason:** These boundaries preserve current shops, make rollout reversible, and keep money, stock and kitchen paper idempotent across reconnects without turning a mobile device into the desktop Agent.
+- **Approved by:** repo owner (2026-09-09, in-conversation).
+
 ## New-order rows restore hard delete
 
 - **Date:** 2026-09-08.

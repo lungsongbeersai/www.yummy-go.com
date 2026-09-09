@@ -17,6 +17,7 @@ import {
   discardBrowserSyncEvent,
   getBrowserSyncQueueSummary,
   listBrowserSyncQueue,
+  listBrowserPrintJobsForEvent,
   noteBrowserMutation,
   persistBrowserSyncStatus,
   readBrowserApiFallback,
@@ -172,6 +173,7 @@ const OFFLINE_GET_ROUTES = new Set([
   "/api/v1/permission/tree",
   "/api/v1/sub_menu/fetch_all",
   "/api/v1/register/get_id",
+  "/api/v1/sync/runtime-capabilities",
 ]);
 
 const LOCAL_READ_ROUTES = new Set([
@@ -423,6 +425,15 @@ export function prepareOfflineRequest(
   }
   if (routeKey(method, url) === "POST /api/v1/posAll/payment") {
     data.payment_uuid = String(data.payment_uuid || uuid());
+  }
+  if (routeKey(method, url) === "PATCH /api/v1/posAll/confirm_to_kitchen") {
+    const itemUuids = Array.isArray(data.order_item_uuids)
+      ? data.order_item_uuids.map(String).filter(Boolean)
+      : [];
+    const existing = record(data.stock_event_uuids);
+    data.stock_event_uuids = Object.fromEntries(
+      itemUuids.map((itemUuid) => [itemUuid, String(existing[itemUuid] || uuid())]),
+    );
   }
   if (routeKey(method, url) === "POST /api/v1/posAll/split_bill") {
     const newOrderUuid = String(data.new_order_uuid || uuid());
@@ -1323,9 +1334,9 @@ async function pushBrowserSyncQueueNow(
       await updateBrowserSyncEvent(entry.eventUuid, { status: "BLOCKED", lastError: "MOBILE_OFFLINE_OPERATION_UNSUPPORTED" }, browserStore);
       continue;
     }
-    // Old mobile builds staged these without a printer job/proof. Do not turn
-    // that historical UI success into an unprinted or double-printed receipt.
-    if (["KITCHEN_CONFIRM", "PAYMENT"].includes(operation)) {
+    // Old mobile builds staged these without an atomic routing decision. Do not
+    // reinterpret an old empty queue as "this branch needs no printer".
+    if (["KITCHEN_CONFIRM", "PAYMENT"].includes(operation) && entry.printContractVersion !== "offline-first-v2") {
       await updateBrowserSyncEvent(entry.eventUuid, { status: "BLOCKED", lastError: "MOBILE_OFFLINE_PRINT_REVIEW_REQUIRED" }, browserStore);
       continue;
     }
@@ -1344,8 +1355,61 @@ async function pushBrowserSyncQueueNow(
       const data = record(entry.data);
       const resolvedState = await loadOfflineOrderState(scope, browserStore);
       const resolved = resolveOrderUuid(resolvedState, data);
-      const wireData = `${entry.method} ${entry.path}` === CREATE_ORDER_ROUTE && resolved
+      let wireData = `${entry.method} ${entry.path}` === CREATE_ORDER_ROUTE && resolved
         ? { ...data, order_uuid: resolved } : data;
+      if (operation === "KITCHEN_CONFIRM") {
+        const jobs = await listBrowserPrintJobsForEvent(entry.eventUuid, scope, browserStore);
+        if (jobs.some((job) => job.status === "UNCERTAIN")) {
+          await updateBrowserSyncEvent(entry.eventUuid, { status: "BLOCKED", lastError: "MOBILE_PRINT_DELIVERY_UNCERTAIN" }, browserStore);
+          continue;
+        }
+        if (jobs.some((job) => job.status !== "PRINTED")) break;
+        const stockEventUuids = record(data.stock_event_uuids);
+        const itemUuids = Array.isArray(data.order_item_uuids)
+          ? data.order_item_uuids.map(String).filter(Boolean)
+          : [];
+        if (!itemUuids.length || itemUuids.some((itemUuid) => !String(stockEventUuids[itemUuid] || ""))) {
+          await updateBrowserSyncEvent(entry.eventUuid, { status: "BLOCKED", lastError: "MOBILE_KITCHEN_STOCK_PROOF_MISSING" }, browserStore);
+          continue;
+        }
+        wireData = {
+          ...data,
+          offline_kitchen_proof: {
+            event_uuid: entry.eventUuid,
+            device_code: device.deviceCode,
+            order_uuid: resolved || String(data.order_uuid || ""),
+            items: itemUuids.map((itemUuid) => {
+              const printJobUuids = jobs
+                .filter((job) => job.orderItemUuids.includes(itemUuid))
+                .map((job) => job.printJobUuid)
+                .sort();
+              return {
+                order_item_uuid: itemUuid,
+                stock_event_uuid: String(stockEventUuids[itemUuid]),
+                print_job_uuids: printJobUuids,
+                routing_decision: printJobUuids.length ? "printed" : "no_required_printer",
+              };
+            }),
+          },
+        };
+      }
+      if (operation === "PAYMENT") {
+        const jobs = await listBrowserPrintJobsForEvent(entry.eventUuid, scope, browserStore);
+        wireData = {
+          ...data,
+          offline_print_proof: {
+            event_uuid: entry.eventUuid,
+            device_code: device.deviceCode,
+            operation,
+            routing_decision: jobs.length ? "durable_local_queue" : "no_required_printer",
+            jobs: jobs.map((job) => ({
+              print_job_uuid: job.printJobUuid,
+              print_config_uuid: job.printConfigUuid,
+              document_type: job.documentType,
+            })),
+          },
+        };
+      }
       wire = {
         event_uuid: entry.eventUuid,
         operation,
