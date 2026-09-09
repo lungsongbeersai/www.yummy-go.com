@@ -41,6 +41,7 @@ function EmployeeSalesReport() {
   const [orderBy, setOrderBy] = useState<"asc" | "desc">("desc");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
+  const [refreshToken, setRefreshToken] = useState(0);
   const branchUuid = scope.normalizeBranchFilters(applied).branchUuid;
   const draftBranch = scope.normalizeBranchFilters(draft).branchUuid;
   const dateRangeValid = isValidDateRange(draft.dateFrom, draft.dateTo);
@@ -53,7 +54,7 @@ function EmployeeSalesReport() {
       date_from: applied.dateFrom, date_to: applied.dateTo, lang: language, orderBy,
     }).catch(() => undefined);
     return reset;
-  }, [load, reset, branchUuid, applied.loginUuid, applied.dateFrom, applied.dateTo, orderBy, language]);
+  }, [load, reset, branchUuid, applied.loginUuid, applied.dateFrom, applied.dateTo, orderBy, language, refreshToken]);
 
   const current = report?.filters.branch_uuid_fk === branchUuid &&
     report.filters.date_from === applied.dateFrom && report.filters.date_to === applied.dateTo ? report : null;
@@ -69,7 +70,7 @@ function EmployeeSalesReport() {
 
   function refresh() {
     setSelectedId(null);
-    setApplied(previous => ({ ...previous }));
+    setRefreshToken(previous => previous + 1);
   }
 
   return (
