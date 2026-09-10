@@ -228,6 +228,11 @@ export interface LocalSyncStatus {
     blocked?: number;
     /** Kitchen confirmations held back by a ticket that failed to print. */
     waiting_on_print?: number;
+    /** Outbox counts split by operation entity_type, e.g. { ORDER: { failed: 1 } }. */
+    per_entity?: Record<
+      string,
+      { pending?: number; processing?: number; failed?: number; blocked?: number; synced?: number }
+    >;
   };
 }
 
@@ -576,19 +581,29 @@ export async function shouldKeepLocalOrderOwnership(
     return false;
   }
   rememberLocalRecovery(scope, required);
-  // An ONLINE fetch_cart / fetch_table read must come from Backend when this
-  // till's Agent has never finished a bootstrap pull: local_orders then holds
-  // only the bills this till opened itself, so a table opened on another till
-  // reads back as an empty cart under the "open" status the server-authoritative
-  // table grid still shows. A branch-level stuck event (e.g. one failed
-  // KITCHEN_CONFIRM for an unrelated bill) must not hand that partial mirror
-  // ownership of the read. An in-flight local write still keeps ownership so one
-  // mutation is never split across transports; writes pass keepTerminalBlocked
-  // !== false and are unaffected.
+  // A Local Agent that has never finished a bootstrap pull holds no master data
+  // (empty local_entity_cache) and only the bills this till opened itself. It
+  // cannot answer a read authoritatively and cannot create_order / confirm /
+  // pay against a table or product it never received. While Backend is
+  // reachable, hand such an Agent nothing at all — reads and writes both go to
+  // Backend, which has the real state — UNLESS this till has its own unsynced
+  // ORDER / ORDER_ITEM / PAYMENT that Backend does not have yet, or a write is
+  // in flight, either of which must keep local ownership so a live bill is
+  // never split across transports.
+  const agentHasUnsyncedBusinessState =
+    matching &&
+    (["ORDER", "ORDER_ITEM", "PAYMENT"] as const).some((entity) => {
+      const counts = status.pending?.per_entity?.[entity];
+      return (
+        Number(counts?.pending || 0) > 0 ||
+        Number(counts?.processing || 0) > 0 ||
+        Number(counts?.failed || 0) > 0
+      );
+    });
   if (
-    options.keepTerminalBlocked === false &&
     matching &&
     status?.bootstrap_complete !== true &&
+    !agentHasUnsyncedBusinessState &&
     !writeChangedOrInFlight
   ) {
     return false;
