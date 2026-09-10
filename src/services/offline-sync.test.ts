@@ -12,6 +12,7 @@ import {
   requiresLocalOrderOwnership,
   resetLocalSyncConfiguration,
   runLocalSyncNow,
+  shouldKeepLocalOrderOwnership,
   shouldPreferOnlineTransport,
   shouldRouteToLocal,
   shouldUseLocalPrintOwnership,
@@ -319,6 +320,61 @@ describe("offline sync transport", () => {
       bootstrap_complete: true,
       pending: { pending: 0, processing: 0, failed: 0, blocked: 1 },
     })).toBe(false);
+  });
+
+  it("hands an ONLINE cart/table read to Backend when the Agent never finished bootstrap", async () => {
+    vi.stubGlobal("window", { location: { origin: "https://pos.example.test" } });
+    vi.stubGlobal("navigator", { onLine: true });
+    vi.spyOn(axios, "get").mockResolvedValue({
+      data: {
+        ok: true,
+        data: {
+          configured: true,
+          bootstrap_complete: false,
+          connection_state: "ONLINE",
+          store_uuid: "store-boot",
+          branch_uuid: "branch-boot",
+          actor_login_uuid: "login-boot",
+          pending: { pending: 0, processing: 0, failed: 1, blocked: 0 },
+        },
+      },
+    });
+    const scope = { storeUuid: "store-boot", branchUuid: "branch-boot", actorLoginUuid: "login-boot" };
+
+    // fetch_cart / fetch_table read (keepTerminalBlocked: false): one unrelated
+    // failed KITCHEN event must not hand the partial local mirror the read.
+    await expect(
+      shouldKeepLocalOrderOwnership(scope, undefined, { keepTerminalBlocked: false }),
+    ).resolves.toBe(false);
+
+    // Write path is unaffected: unsynced local work still retains ownership.
+    await expect(
+      shouldKeepLocalOrderOwnership(scope, undefined, { keepTerminalBlocked: true }),
+    ).resolves.toBe(true);
+  });
+
+  it("keeps a bootstrapped Agent authoritative for reads while it still has unsynced work", async () => {
+    vi.stubGlobal("window", { location: { origin: "https://pos.example.test" } });
+    vi.stubGlobal("navigator", { onLine: true });
+    vi.spyOn(axios, "get").mockResolvedValue({
+      data: {
+        ok: true,
+        data: {
+          configured: true,
+          bootstrap_complete: true,
+          connection_state: "ONLINE",
+          store_uuid: "store-ok",
+          branch_uuid: "branch-ok",
+          actor_login_uuid: "login-ok",
+          pending: { pending: 0, processing: 0, failed: 1, blocked: 0 },
+        },
+      },
+    });
+    const scope = { storeUuid: "store-ok", branchUuid: "branch-ok", actorLoginUuid: "login-ok" };
+
+    await expect(
+      shouldKeepLocalOrderOwnership(scope, undefined, { keepTerminalBlocked: false }),
+    ).resolves.toBe(true);
   });
 
   it("runs an immediate recovery cycle and confirms the Agent is online", async () => {

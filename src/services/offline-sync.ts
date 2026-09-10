@@ -576,6 +576,23 @@ export async function shouldKeepLocalOrderOwnership(
     return false;
   }
   rememberLocalRecovery(scope, required);
+  // An ONLINE fetch_cart / fetch_table read must come from Backend when this
+  // till's Agent has never finished a bootstrap pull: local_orders then holds
+  // only the bills this till opened itself, so a table opened on another till
+  // reads back as an empty cart under the "open" status the server-authoritative
+  // table grid still shows. A branch-level stuck event (e.g. one failed
+  // KITCHEN_CONFIRM for an unrelated bill) must not hand that partial mirror
+  // ownership of the read. An in-flight local write still keeps ownership so one
+  // mutation is never split across transports; writes pass keepTerminalBlocked
+  // !== false and are unaffected.
+  if (
+    options.keepTerminalBlocked === false &&
+    matching &&
+    status?.bootstrap_complete !== true &&
+    !writeChangedOrInFlight
+  ) {
+    return false;
+  }
   // The online table directory is a server-authoritative overview: one
   // quarantined event from a paid bill must not make every table display an old
   // Agent snapshot. Cart/payment routes keep the default and retain local
