@@ -18,8 +18,10 @@ import {
   reconcileBrowserSyncQueue,
   runLocalSyncNow,
 } from "@/services/offline-sync";
-import { ensureOfflineSyncDevice } from "@/services/offline-order";
+import { ensureOfflineSyncDevice, getOfflineSyncDeviceAuth } from "@/services/offline-order";
 import { prepareMobileOfflineMenu } from "@/services/offline-menu";
+import { prepareMobileOfflineOperations } from "@/services/mobile-offline-preparation";
+import { drainBrowserPrintQueue } from "@/services/printer/mobile-offline-queue";
 import { restoreOnlineLogin } from "@/services/login";
 import { apiRequest } from "@/lib/api";
 import { capacitorMobilePlatform, isCapacitorMobileApp } from "@/lib/capacitor-platform";
@@ -391,6 +393,11 @@ export function startOfflineTransportMonitor() {
     if (isCapacitorMobileApp()) {
       reconciling = true;
       try {
+        // TCP printers are on the shop LAN and remain reachable while the
+        // internet is down. Resume durable not-sent work independently of the
+        // Backend probe; an interrupted PRINTING job becomes UNCERTAIN and is
+        // never emitted twice automatically.
+        await drainBrowserPrintQueue(localScope);
         if (networkState === BACKEND_NETWORK_STATE.ONLINE) {
           const isCurrent = () => {
             const current = useAuthStore.getState();
@@ -406,6 +413,8 @@ export function startOfflineTransportMonitor() {
           ).catch(() => undefined);
           await withSyncWorkerLock(`mobile:${localScope.storeUuid}:${localScope.branchUuid}`, async () => {
             if (!isCurrent() || !await ensureMobileDeviceRegistered(localScope, token) || !isCurrent()) return;
+            const device = getOfflineSyncDeviceAuth();
+            if (device) void prepareMobileOfflineOperations(localScope, device.deviceCode).catch(() => false);
             const queueBeforePush = await getBrowserLocalSyncStatus(localScope);
             const queue = await pushBrowserSyncQueue(localScope, undefined, isCurrent);
             if (queue && isCurrent()) {

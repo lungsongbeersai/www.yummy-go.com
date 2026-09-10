@@ -12,6 +12,7 @@ export interface OfflineProductDetail {
   productImage: string;
   productHasImage: number;
   sizeName?: string;
+  categoryUuid?: string;
 }
 
 export interface OfflineMasterIndex {
@@ -60,10 +61,17 @@ function addDetail(index: OfflineMasterIndex, detail: Omit<OfflineProductDetail,
 export function indexCategoryProducts(response: unknown, index: OfflineMasterIndex) {
   const body = record(response);
   const products = [
-    ...list(body.data).flatMap((category) => list(record(category).products)),
-    ...list(body.special_products),
+    ...list(body.data).flatMap((rawCategory) => {
+      const category = record(rawCategory);
+      return list(category.products).map((product) => ({
+        product,
+        categoryUuid: text(category.cate_uuid) || text(category.category_uuid),
+      }));
+    }),
+    ...list(body.special_products).map((product) => ({ product, categoryUuid: "" })),
   ];
-  for (const rawProduct of products) {
+  for (const entry of products) {
+    const rawProduct = entry.product;
     const product = record(rawProduct);
     const prodUuid = text(product.prod_uuid);
     const needsOptions = product.has_options === true || count(product.count_option_all) > 1 ||
@@ -78,6 +86,7 @@ export function indexCategoryProducts(response: unknown, index: OfflineMasterInd
       productName: text(product.prod_name),
       productImage: text(product.prod_image),
       productHasImage: count(product.prod_status_imge),
+      categoryUuid: text(product.cate_uuid_fk) || entry.categoryUuid,
     });
   }
   return index;
@@ -91,6 +100,7 @@ export function indexProductItem(response: unknown, index: OfflineMasterIndex) {
   const productName = text(product.prod_name);
   const productImage = text(product.prod_image);
   const productHasImage = count(product.prod_status_imge);
+  const categoryUuid = text(product.cate_uuid_fk) || text(product.cate_uuid);
 
   for (const key of ["details", "product_details", "prod_details", "sizes", "options"]) {
     for (const rawDetail of list(product[key])) {
@@ -103,6 +113,7 @@ export function indexProductItem(response: unknown, index: OfflineMasterIndex) {
         productImage,
         productHasImage,
         sizeName: text(detail.size_name),
+        categoryUuid: text(detail.cate_uuid_fk) || categoryUuid,
       });
     }
   }
@@ -148,6 +159,7 @@ export function indexCartItems(response: unknown, index: OfflineMasterIndex) {
         productName: text(item.prod_name) || text(item.title),
         productImage: text(item.prod_image),
         productHasImage: count(item.prod_status_imge),
+        categoryUuid: text(item.cate_uuid_fk) || text(item.category_uuid),
       });
     }
   }

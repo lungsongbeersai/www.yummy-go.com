@@ -20,6 +20,7 @@ import {
 } from "@/services/printer/agent-transport";
 import { renderMobileEscpos } from "@/services/printer/config-api";
 import { printMobileEscposOverTcp } from "@/services/printer/mobile-tcp";
+import { executeBrowserPrintJob } from "@/services/printer/mobile-offline-queue";
 import type {
   AckPayload,
   AckResponse,
@@ -510,6 +511,11 @@ async function executePrintJobs(
       failedCount: 0,
       total: 0,
     };
+  }
+
+  if (Capacitor.isNativePlatform()) {
+    const localResult = await executeBrowserPrintJob(jobUuid, input.onProgress);
+    if (localResult) return localResult;
   }
 
   if (

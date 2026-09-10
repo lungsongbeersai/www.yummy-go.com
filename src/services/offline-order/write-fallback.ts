@@ -6,10 +6,14 @@ import {
   listBrowserSyncQueue,
   stageBrowserSyncRequest,
   retainBrowserItemSnapshots,
+  updateBrowserSyncEvent,
   type BrowserOfflineIdentity,
   type BrowserOfflineScope,
   type BrowserOfflineStore,
 } from "@/services/offline-db";
+import { mobileOfflineCheckoutEnabled } from "@/services/mobile-offline-capabilities";
+import { getOfflineSyncDeviceAuth } from "./device-registration";
+import { planMobileOfflinePrintJobs } from "@/services/printer/mobile-offline-queue";
 import { buildOfflineMasterIndex } from "./master-index";
 import { decodeOfflineOrderEvent, decodeOfflineOrderEvents } from "./order-events";
 import { emptyOfflineOrderState, reduceOfflineOrderEvents } from "./order-state";
@@ -30,11 +34,67 @@ import type { OfflineOrderState } from "./types";
 const FETCH_CART_PATH = "/api/v1/posAll/fetch_cart";
 const FETCH_CATE_PRODUCTS_PATH = "/api/v1/posAll/fetch_cate_products";
 const GET_PROD_ITEM_PATH = "/api/v1/posAll/get_prod_item";
+const BRANCH_CONFIG_PATH = "/api/v1/branch/fetch_all";
+const TABLE_CONFIG_PATH = "/api/v1/table/fetch_all";
 
 function record(value: unknown): Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {};
+}
+
+function responseRows(value: unknown) {
+  const rows = record(value).data;
+  return Array.isArray(rows) ? rows.map(record) : [];
+}
+
+function resolvedBranchVatStatus(status: unknown, rate: unknown) {
+  const code = Number(status);
+  const numericRate = Number(rate || 0);
+  const hasRate = Number.isFinite(numericRate) && numericRate > 0;
+  if (code === 3) return 3;
+  if (code === 2) return hasRate ? 2 : 1;
+  if (code === 1) return hasRate ? 3 : 1;
+  return 1;
+}
+
+/**
+ * Staff order payloads deliberately send zero rates because the online
+ * Backend owns pricing. A device without the Local Agent still needs the
+ * latest server snapshot to render and validate a brand-new offline bill.
+ * Missing branch/table policy fails closed instead of producing a zero-tax
+ * receipt that the Backend would later reject.
+ */
+async function withPreparedOfflinePricing(
+  data: Record<string, unknown>,
+  scope: BrowserOfflineScope,
+  store?: BrowserOfflineStore,
+) {
+  const [branchResponses, tableResponses] = await Promise.all([
+    listBrowserApiCacheResponses(scope, BRANCH_CONFIG_PATH, store),
+    listBrowserApiCacheResponses(scope, TABLE_CONFIG_PATH, store),
+  ]);
+  const branch = branchResponses.flatMap(responseRows).find((row) =>
+    String(row.branch_uuid || "") === scope.branchUuid);
+  if (!branch) throw new Error("MOBILE_OFFLINE_PRICING_NOT_PREPARED");
+
+  const tableUuid = String(data.table_uuid_fk || data.table_uuid || "");
+  const table = tableUuid
+    ? tableResponses.flatMap(responseRows).find((row) => String(row.table_uuid || "") === tableUuid)
+    : null;
+  if (tableUuid && !table) throw new Error("MOBILE_OFFLINE_TABLE_POLICY_NOT_PREPARED");
+
+  const vatStatus = resolvedBranchVatStatus(branch.vat_status, branch.vat_name);
+  const branchChargeEnabled = Number(branch.charge_status) === 1;
+  const tableChargeEnabled = !tableUuid || Number(table?.charge_status) === 1;
+  return {
+    ...data,
+    order_vat_status: vatStatus,
+    order_vat_rate: vatStatus === 1 ? 0 : Math.max(0, Number(branch.vat_name || 0)),
+    order_service_rate: tableUuid && branchChargeEnabled && tableChargeEnabled
+      ? Math.max(0, Number(branch.charge_name || 0))
+      : 0,
+  };
 }
 
 /**
@@ -200,13 +260,12 @@ export async function synthesizeOfflineWrite(
   store?: BrowserOfflineStore,
 ): Promise<unknown | null> {
   const path = url.split("?")[0];
-  const data = record(options?.data);
-  const event = decodeOfflineOrderEvent({ method, path, data });
+  let data = record(options?.data);
+  let event = decodeOfflineOrderEvent({ method, path, data });
   if (!event) return null;
 
-  // The legacy reducer can replay historical records, but it is not a native
-  // print queue or proof of delivery. Do not accept more fictitious completions.
-  if (event.kind === "KITCHEN_CONFIRM" || event.kind === "PAYMENT") {
+  const printDependent = event.kind === "KITCHEN_CONFIRM" || event.kind === "PAYMENT";
+  if (printDependent && !await mobileOfflineCheckoutEnabled(scope, store)) {
     throw new Error(i18n.t("offlineSync.mobilePrintUnavailable"));
   }
   const queued = await listBrowserSyncQueue(scope, store);
@@ -220,6 +279,51 @@ export async function synthesizeOfflineWrite(
     loadOfflineOrderState(scope, store),
     loadOfflineMasterIndex(scope, store),
   ]);
+  if (event.kind === "ORDER_CREATE") {
+    const tableUuid = String(data.table_uuid_fk || data.table_uuid || "");
+    const existing = [...base.orders.values()].find((order) =>
+      order.checkBill === 1 && order.tableUuid === tableUuid);
+    data = existing ? {
+      ...data,
+      order_service_rate: existing.serviceRate,
+      order_vat_rate: existing.vatRate,
+      order_vat_status: existing.vatStatus ?? 1,
+    } : await withPreparedOfflinePricing(data, scope, store);
+    event = decodeOfflineOrderEvent({ method, path, data });
+    if (!event) return null;
+  }
+  const orderBefore = resolveOrderUuid(base, data);
+  const cartBefore = orderBefore ? projectOfflineCart(base, { order_uuid: orderBefore }, master).orders[0] : null;
+  if (printDependent && !cartBefore) throw new Error("MOBILE_OFFLINE_ORDER_NOT_PREPARED");
+
+  if (event.kind === "PAYMENT" && cartBefore) {
+    const due = Number(cartBefore.grand_total || 0);
+    const method = Number(data.payment_method || 0);
+    const cash = Number(data.cash_payment_amount || 0);
+    const transfer = Number(data.transfer_payment_amount || 0);
+    if (!Number.isFinite(due) || due <= 0) throw new Error("MOBILE_OFFLINE_PAYMENT_TOTAL_INVALID");
+    if (![1, 2, 3, 4].includes(method)) throw new Error("MOBILE_OFFLINE_PAYMENT_METHOD_INVALID");
+    if (Number(data.amount || 0) !== due) throw new Error("MOBILE_OFFLINE_PAYMENT_AMOUNT_CHANGED");
+    if (method === 1 && (cash < due || transfer !== 0)) throw new Error("MOBILE_OFFLINE_CASH_PAYMENT_INVALID");
+    if (method === 2 && (transfer < due || cash !== 0)) throw new Error("MOBILE_OFFLINE_TRANSFER_PAYMENT_INVALID");
+    if (method === 3 && cash + transfer < due) throw new Error("MOBILE_OFFLINE_MIXED_PAYMENT_INVALID");
+    if (method === 4 && (cash !== 0 || transfer !== 0 || !data.due_date)) throw new Error("MOBILE_OFFLINE_CREDIT_PAYMENT_INVALID");
+  }
+
+  const device = printDependent ? getOfflineSyncDeviceAuth() : null;
+  if (printDependent && !device) throw new Error("MOBILE_OFFLINE_DEVICE_NOT_REGISTERED");
+  const printJobs = printDependent && cartBefore && device &&
+    (event.kind === "KITCHEN_CONFIRM" || event.kind === "PAYMENT")
+    ? await planMobileOfflinePrintJobs({
+      eventUuid,
+      operation: event.kind,
+      scope,
+      data,
+      order: cartBefore,
+      deviceCode: device.deviceCode,
+      store,
+    })
+    : [];
   const preview = reduceOfflineOrderEvents([event], base);
   const previewOrder = resolveOrderUuid(preview, data);
   const cartPreview = previewOrder ? projectOfflineCart(preview, { order_uuid: previewOrder }, master) : null;
@@ -239,13 +343,55 @@ export async function synthesizeOfflineWrite(
       params: options?.params ?? {},
       data,
       ...(createdIds.size ? { localItemSnapshots } : {}),
+      ...(printDependent ? { printJobs } : {}),
+      ...(printDependent ? { printContractVersion: "offline-first-v2" as const } : {}),
     },
     store,
   );
   if (!staged) throw new Error(i18n.t("offlineSync.mobileStorageUnavailable"));
 
+  // Receipt ownership is proven by the durable queue itself. Kitchen work is
+  // held until every required printer reports PRINTED; no-printer routing can
+  // proceed immediately and is proved explicitly during push.
+  if (event.kind === "PAYMENT" || (event.kind === "KITCHEN_CONFIRM" && !printJobs.length)) {
+    await updateBrowserSyncEvent(eventUuid, { status: "PENDING", lastError: null }, store);
+  }
+
   const state = await loadOfflineOrderState(scope, store);
 
   const orderUuid = resolveOrderUuid(state, data);
+  const localPrintJobUuid = printJobs[0]?.printJobUuid;
+  if (event.kind === "KITCHEN_CONFIRM") {
+    return {
+      status: "success",
+      message: "offline kitchen confirmation saved",
+      offline: true,
+      sync_status: printJobs.length ? "WAITING_PRINT" : "PENDING",
+      order_uuid: orderUuid,
+      login_uuid_fk: scope.actorLoginUuid,
+      print_job: localPrintJobUuid ? { print_job_uuid: localPrintJobUuid, job_status: "pending" } : null,
+      pending_query: localPrintJobUuid ? { print_job_uuid: localPrintJobUuid, login_uuid_fk: scope.actorLoginUuid } : null,
+      print_queue_error: null,
+    };
+  }
+  if (event.kind === "PAYMENT") {
+    const paidOrder = orderUuid ? projectOfflineCart(base, { order_uuid: orderUuid }, master).orders[0] : cartBefore;
+    return {
+      status: "success",
+      message: "offline payment saved",
+      offline: true,
+      sync_status: "PENDING",
+      order_uuid: orderUuid,
+      order_invoice: paidOrder?.order_invoice ?? "",
+      payment: { ...data, payment_status: 1 },
+      totals: paidOrder?.totals ?? {},
+      is_fully_paid: true,
+      order_check_bill_after: 2,
+      order_status_after: 2,
+      print_job: localPrintJobUuid ? { print_job_uuid: localPrintJobUuid, job_status: "pending" } : null,
+      pending_query: localPrintJobUuid ? { print_job_uuid: localPrintJobUuid, login_uuid_fk: scope.actorLoginUuid } : null,
+      fallback_print: null,
+    };
+  }
   return projectOfflineCart(state, orderUuid ? { order_uuid: orderUuid } : {}, master);
 }

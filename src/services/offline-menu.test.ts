@@ -35,6 +35,25 @@ function memoryStore() {
 
 function setup() {
   const storage = memoryStore();
+  const preparedAt = Date.now();
+  for (const prepared of [
+    { path: "/api/v1/branch/fetch_all", params: { store_uuid_fk: scope.storeUuid },
+      response: { data: [{ branch_uuid: scope.branchUuid, vat_status: 1, vat_name: 0, charge_status: 2, charge_name: 0 }] } },
+    { path: "/api/v1/table/fetch_all", params: { branch_uuid_fk: scope.branchUuid },
+      response: { data: [{ table_uuid: "T03", charge_status: 1 }] } },
+  ]) {
+    const input = { ...scope, method: "get", path: prepared.path, params: prepared.params };
+    storage.api.set(browserApiCacheKey(input), {
+      key: browserApiCacheKey(input),
+      ...scope,
+      method: "GET",
+      path: prepared.path,
+      requestFingerprint: "prepared-sale-policy",
+      response: prepared.response,
+      source: "ONLINE",
+      cachedAt: preparedAt,
+    });
+  }
   let currentScope = scope;
   const warmImage = vi.fn().mockResolvedValue(true);
   const cached = vi.fn<Parameters<typeof createMobileMenuPreparer>[0]["cached"]>((input) => storage.store.getApiCache(browserApiCacheKey(input)));
@@ -162,7 +181,7 @@ describe("native offline menu preparation", () => {
     const ctx = setup();
     ctx.request.mockResolvedValue({ status: "success", data: [] });
     await expect(ctx.prepare(scope, "la", () => true)).resolves.toMatchObject({ complete: false, failedRequests: 1 });
-    expect(ctx.api.size).toBe(0);
+    expect([...ctx.api.values()].filter((entry) => entry.path === MENU || entry.path === PRODUCT)).toHaveLength(0);
   });
 
   it("retries a failed option read without dropping already prepared products or accepting a fake single option", async () => {

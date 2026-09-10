@@ -1013,6 +1013,7 @@
     "invoicePrintFallback": "Printer agent unavailable. Print window opened.",
     "invoicePrintMissingJob": "No invoice print job was returned.",
     "invoicePrintPopupBlocked": "Allow popups to open the print window.",
+    "systemPrinterUnavailable": "Printer Agent is unavailable or no printer is connected. No system print window was opened.",
     "confirmPayment": "Confirm payment",
     "confirmPaymentDescription": "Confirm payment for {{amount}}?",
     "amountDue": "Amount due",
