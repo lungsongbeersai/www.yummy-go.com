@@ -1,16 +1,17 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { AlertCircle, Printer } from "lucide-react";
+import { AlertCircle, Printer, RefreshCcw, SlidersHorizontal } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { BlockingLoadingDialog } from "@/components/common/blocking-loading-dialog";
 import { EmptyState } from "@/components/common/empty-state";
+import { FilterHeaderToolbar } from "@/components/common/filter-header-toolbar";
 import { LoadingState } from "@/components/common/loading-state";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { DailyClosingPaymentCards } from "./daily-closing-payment-cards";
-import { DailyClosingReportControls } from "./daily-closing-report-controls";
+import { DailyClosingFilterBar, DailyClosingFilterSheet } from "./daily-closing-report-controls";
 import { DailyClosingReceiptPreview } from "./daily-closing-receipt-preview";
 import { useDailyClosingReportWorkflow } from "./use-daily-closing-report-workflow";
 
@@ -18,12 +19,18 @@ export function DailyClosingReportPage() {
   const { t } = useTranslation();
   const closing = useDailyClosingReportWorkflow();
   const showInitialLoading = Boolean(!closing.report && !closing.error && closing.branchUuid);
+  const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const printActionsRef = useRef<HTMLDivElement>(null);
   const [printActionsHidden, setPrintActionsHidden] = useState(false);
+  const controlsDisabled = closing.loading || closing.printing;
+  const dateRangeLabel = closing.appliedFilters.dateFrom === closing.appliedFilters.dateTo
+    ? closing.appliedFilters.dateFrom
+    : `${closing.appliedFilters.dateFrom} - ${closing.appliedFilters.dateTo}`;
 
-  // แสดงปุ่มพิมพ์ลอยเมื่อปุ่ม Print ในหัวข้อถูกเลื่อนพ้นพื้นที่แสดงผลของหน้า
+  // แสดงปุ่มพิมพ์ลอยเมื่อปุ่ม Print ในแถบตัวกรอง (จอ lg) ถูกเลื่อนพ้นพื้นที่แสดงผลของหน้า
+  // จอเล็กที่แถบตัวกรองถูกซ่อนไว้ (ปุ่มไม่เคย intersect) ปุ่มลอยจึงโชว์ตลอดโดยธรรมชาติ
   useEffect(() => {
     const target = printActionsRef.current;
     const root = scrollRef.current;
@@ -39,32 +46,84 @@ export function DailyClosingReportPage() {
 
   const showFloatingPrint = printActionsHidden && Boolean(closing.report);
 
+  const filterFieldProps = {
+    branchLoading: closing.branchLoading,
+    branchLocked: !closing.canSelectBranch,
+    branchOptions: closing.branchOptions,
+    disabled: controlsDisabled,
+    draftFilters: closing.draftFilters,
+    onDraftChange: closing.setDraftFilters,
+  };
+
   return (
     <div
       ref={scrollRef}
-      className="h-full min-h-0 min-w-0 overflow-x-hidden overflow-y-auto"
+      className="flex h-full min-h-0 min-w-0 flex-col overflow-x-hidden overflow-y-auto"
     >
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 p-3 sm:p-4 lg:p-6">
-        <h1 className="sr-only">{t("report.dailyClosing.title")}</h1>
+      <h1 className="sr-only">{t("report.dailyClosing.title")}</h1>
 
-        <DailyClosingReportControls
-          actionsRef={printActionsRef}
-          branchLoading={closing.branchLoading}
-          branchLocked={!closing.canSelectBranch}
-          branchOptions={closing.branchOptions}
-          canApply={closing.canApply}
-          disabled={closing.loading || closing.printing}
-          draftFilters={closing.draftFilters}
-          loading={closing.loading}
-          printDisabled={closing.printDisabled}
-          printing={closing.printing}
-          refreshDisabled={!closing.branchUuid || closing.loading || closing.printing}
-          onApply={closing.applyFilters}
-          onDraftChange={closing.setDraftFilters}
-          onPrint={() => void closing.printReport()}
-          onRefresh={() => void closing.load()}
+      <div className="shrink-0 border-b border-border bg-card px-2 py-2 sm:px-3 lg:hidden">
+        <FilterHeaderToolbar
+          dateRange={{
+            ariaLabel: `${t("report.filters.openFilters")}: ${dateRangeLabel}`,
+            disabled: controlsDisabled,
+            label: dateRangeLabel,
+            onClick: () => setMobileFilterOpen(true),
+          }}
+          filterControl={
+            <Button
+              type="button"
+              variant="outline"
+              size="icon-sm"
+              className="h-9 w-9 shrink-0"
+              aria-label={t("report.filters.openFilters")}
+              disabled={controlsDisabled}
+              onClick={() => setMobileFilterOpen(true)}
+            >
+              <SlidersHorizontal data-icon="inline-start" />
+              <span className="sr-only">{t("report.filters.openFilters")}</span>
+            </Button>
+          }
+          refreshControl={
+            <Button
+              type="button"
+              variant="outline"
+              size="icon-sm"
+              className="h-9 w-9 shrink-0"
+              aria-label={t("actions.refresh")}
+              disabled={!closing.branchUuid || controlsDisabled}
+              onClick={() => void closing.load()}
+            >
+              <RefreshCcw className={closing.loading ? "animate-spin" : undefined} data-icon="inline-start" />
+              <span className="sr-only">{t("actions.refresh")}</span>
+            </Button>
+          }
         />
+      </div>
 
+      <DailyClosingFilterBar
+        actionsRef={printActionsRef}
+        canApply={closing.canApply}
+        printDisabled={closing.printDisabled}
+        printing={closing.printing}
+        refreshDisabled={!closing.branchUuid || controlsDisabled}
+        loading={closing.loading}
+        onApply={closing.applyFilters}
+        onPrint={() => void closing.printReport()}
+        onRefresh={() => void closing.load()}
+        {...filterFieldProps}
+      />
+
+      <DailyClosingFilterSheet
+        canApply={closing.canApply}
+        loading={closing.loading}
+        open={mobileFilterOpen}
+        onApply={() => { closing.applyFilters(); setMobileFilterOpen(false); }}
+        onOpenChange={setMobileFilterOpen}
+        {...filterFieldProps}
+      />
+
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 p-3 sm:p-4 lg:p-6">
         {!closing.branchUuid ? (
           <ReportAlert
             title={t("report.dailyClosing.branchMissingTitle")}

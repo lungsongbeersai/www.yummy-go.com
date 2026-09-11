@@ -11,55 +11,49 @@ import {
   type ReportFieldOption,
 } from "@/features/report/shared/report-filter-fields";
 import { ReportFilterCard, ReportFilterSheet } from "@/features/report/shared/report-filter-shell";
+import { reportOrderOptions } from "@/features/report/shared/report-sort-utils";
+import type { Customer } from "@/services/customer";
+import { CustomerSalesCombobox } from "./customer-sales-combobox";
 
-export interface OrderAuditDraft {
+export interface CustomerSalesDraft {
   branchUuid: string;
+  customerUuid: string;
+  customerLabel: string;
   dateFrom: string;
   dateTo: string;
   search: string;
-  action: string;
-  entity: string;
+  orderBy: "ASC" | "DESC";
 }
 
 interface FieldsProps {
   branchLoading: boolean;
   branchLocked: boolean;
   branchOptions: ReportFieldOption[];
-  actionOptions: ReportFieldOption[];
-  entityOptions: ReportFieldOption[];
-  draft: OrderAuditDraft;
+  draft: CustomerSalesDraft;
   draftBranch: string;
-  onDraftChange: (updater: (previous: OrderAuditDraft) => OrderAuditDraft) => void;
+  language: string;
+  onDraftChange: (updater: (previous: CustomerSalesDraft) => CustomerSalesDraft) => void;
 }
 
-// ค่าค้นหาเป็นตัวกรองปกติ = มีผลตอนกด "ໃຊ້" เหมือนช่องอื่น (เดิมอยู่ toolbar หัวหน้าและกรองทันทีที่กด enter)
-function OrderAuditFilterFields({
+function selectCustomer(customer: Customer | null, previous: CustomerSalesDraft): CustomerSalesDraft {
+  if (!customer) return { ...previous, customerUuid: "", customerLabel: "" };
+  return { ...previous, customerUuid: customer.customer_uuid, customerLabel: customer.customer_name || customer.member_code || customer.customer_uuid };
+}
+
+function CustomerSalesFilterFields({
   branchLoading,
   branchLocked,
   branchOptions,
-  actionOptions,
-  entityOptions,
   draft,
   draftBranch,
   idPrefix,
+  language,
   onDraftChange,
 }: FieldsProps & { idPrefix: string }) {
   const { t } = useTranslation();
 
   return (
     <>
-      <Field className="min-w-48 flex-1 gap-1.5 sm:col-span-2 lg:col-span-1">
-        <FieldLabel htmlFor={`${idPrefix}-search`} className="text-xs font-bold text-muted-foreground">
-          {t("orderAudit.search")}
-        </FieldLabel>
-        <SearchInput
-          id={`${idPrefix}-search`}
-          ariaLabel={t("orderAudit.search")}
-          placeholder={t("orderAudit.search")}
-          value={draft.search}
-          onChange={search => onDraftChange(previous => ({ ...previous, search }))}
-        />
-      </Field>
       <ReportBranchField
         id={`${idPrefix}-branch`}
         branchLoading={branchLoading}
@@ -68,6 +62,18 @@ function OrderAuditFilterFields({
         value={draftBranch}
         onValueChange={branchUuid => onDraftChange(previous => ({ ...previous, branchUuid }))}
       />
+      <div className="flex flex-col gap-1.5">
+        <label className="text-xs font-bold text-muted-foreground" htmlFor={`${idPrefix}-customer`}>
+          {t("report.customerSales.customer")}
+        </label>
+        <CustomerSalesCombobox
+          id={`${idPrefix}-customer`}
+          label={draft.customerLabel}
+          language={language}
+          value={draft.customerUuid}
+          onSelect={customer => onDraftChange(previous => selectCustomer(customer, previous))}
+        />
+      </div>
       <ReportDateRangeFields
         idPrefix={idPrefix}
         dateFrom={draft.dateFrom}
@@ -75,26 +81,31 @@ function OrderAuditFilterFields({
         onDateFromChange={dateFrom => onDraftChange(previous => ({ ...previous, dateFrom }))}
         onDateToChange={dateTo => onDraftChange(previous => ({ ...previous, dateTo }))}
       />
+      <Field className="min-w-0 gap-1.5">
+        <FieldLabel htmlFor={`${idPrefix}-search`} className="text-xs font-bold text-muted-foreground">
+          {t("actions.search")}
+        </FieldLabel>
+        <SearchInput
+          id={`${idPrefix}-search`}
+          ariaLabel={t("actions.search")}
+          placeholder={t("report.customerSales.searchPlaceholder")}
+          value={draft.search}
+          onChange={search => onDraftChange(previous => ({ ...previous, search }))}
+        />
+      </Field>
       <ReportSelectField
-        id={`${idPrefix}-action`}
-        label={t("orderAudit.action")}
-        value={draft.action}
-        options={actionOptions}
-        onValueChange={action => onDraftChange(previous => ({ ...previous, action }))}
-      />
-      <ReportSelectField
-        id={`${idPrefix}-entity`}
-        label={t("orderAudit.entity")}
-        value={draft.entity}
-        options={entityOptions}
-        onValueChange={entity => onDraftChange(previous => ({ ...previous, entity }))}
+        id={`${idPrefix}-order-by`}
+        label={t("report.filters.orderBy")}
+        options={reportOrderOptions(t)}
+        value={draft.orderBy}
+        onValueChange={orderBy => onDraftChange(previous => ({ ...previous, orderBy: orderBy as "ASC" | "DESC" }))}
       />
     </>
   );
 }
 
 // จอ lg ขึ้นไปกรองได้จากหน้าเลย โครงเดียวกับ category-sales/payment-methods
-export function OrderAuditFilterBar({
+export function CustomerSalesFilterBar({
   actions,
   canApply,
   loading,
@@ -110,13 +121,13 @@ export function OrderAuditFilterBar({
       loading={loading}
       onApply={onApply}
     >
-      <OrderAuditFilterFields idPrefix="order-audit" {...fieldProps} />
+      <CustomerSalesFilterFields idPrefix="customer-sales" {...fieldProps} />
     </ReportFilterCard>
   );
 }
 
-// จอเล็ก: modal เดียวกับรายงานอื่น (ReportFilterSheet) แทน Sheet เดิมที่ใช้ทุกขนาดจอ
-export function OrderAuditFilterSheet({
+// จอเล็ก: modal เดียวกับรายงานอื่น (ReportFilterSheet)
+export function CustomerSalesFilterSheet({
   canApply,
   dateRangeInvalid,
   loading,
@@ -137,17 +148,17 @@ export function OrderAuditFilterSheet({
   return (
     <ReportFilterSheet
       canApply={canApply}
-      description={t("orderAudit.title")}
+      description={t("report.customerSales.title")}
       gridClassName="lg:grid-cols-3"
       loading={loading}
       open={open}
       onApply={onApply}
       onOpenChange={onOpenChange}
     >
-      <OrderAuditFilterFields idPrefix="order-audit-mobile" {...fieldProps} />
+      <CustomerSalesFilterFields idPrefix="customer-sales-mobile" {...fieldProps} />
       {dateRangeInvalid ? (
         <p className="text-sm text-destructive sm:col-span-2 lg:col-span-3" role="alert">
-          {t("orderAudit.invalidDates")}
+          {t("report.customerSales.invalidDateRange")}
         </p>
       ) : null}
     </ReportFilterSheet>

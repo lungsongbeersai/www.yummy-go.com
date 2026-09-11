@@ -15,6 +15,9 @@ export { useCategorySalesReportStore } from "@/stores/report-store/category-sale
 export { useDailyStoreClosingReportStore } from "@/stores/report-store/daily-store-closing";
 export { useOrderAuditReportStore } from "@/stores/report-store/order-audit";
 export { useEmployeeSalesReportStore } from "@/stores/report-store/employee-sales";
+export { useVatReportStore } from "@/stores/report-store/vat";
+export { useCustomerSalesReportStore } from "@/stores/report-store/customer-sales";
+export { useZoneSalesReportStore } from "@/stores/report-store/zone-sales";
 
 export {
   mergeBestSellingProductGroups,
