@@ -237,7 +237,7 @@ function AppHeader({
             <TooltipTrigger asChild>
               <SidebarTrigger
                 aria-label={t("app.openMenu")}
-                className="size-11 shrink-0 sm:size-9 md:hidden"
+                className="size-11 shrink-0 rounded-full hover:bg-muted sm:size-9 md:hidden"
               />
             </TooltipTrigger>
             <TooltipContent side="bottom">{t("app.openMenu")}</TooltipContent>
@@ -247,7 +247,7 @@ function AppHeader({
               <Button
                 type="button"
                 variant="ghost"
-                className="size-11 shrink-0 text-primary sm:size-9 md:hidden"
+                className="size-11 shrink-0 rounded-full text-primary hover:bg-muted sm:size-9 md:hidden"
                 aria-label={t("actions.back")}
                 onClick={() => router.back()}
               >
@@ -259,7 +259,7 @@ function AppHeader({
           <Button
             type="button"
             variant="ghost"
-            className="hidden h-10 gap-2 px-2 text-primary md:inline-flex"
+            className="hidden h-10 gap-2 rounded-full px-3 text-primary hover:bg-muted md:inline-flex"
             onClick={() => router.back()}
           >
             <ChevronLeft data-icon="inline-start" />
@@ -366,16 +366,23 @@ function AppBreadcrumb({
 
   function renderItem(item: BreadcrumbTrailItem, current: boolean) {
     const title = menuItemLabel(item, t);
-    if (current || item.disabled || !item.path) {
+    if (current) {
       return (
-        <BreadcrumbPage className="truncate font-semibold">
+        <BreadcrumbPage className="truncate font-semibold text-foreground">
+          {title}
+        </BreadcrumbPage>
+      );
+    }
+    if (item.disabled || !item.path) {
+      return (
+        <BreadcrumbPage className="truncate text-muted-foreground/70">
           {title}
         </BreadcrumbPage>
       );
     }
 
     return (
-      <BreadcrumbLink asChild className="truncate">
+      <BreadcrumbLink asChild className="truncate text-muted-foreground/70">
         <Link href={internalRoute(item.path)}>{title}</Link>
       </BreadcrumbLink>
     );
@@ -394,7 +401,7 @@ function AppBreadcrumb({
         ) : null}
         {overflow ? (
           <>
-            <BreadcrumbSeparator />
+            <BreadcrumbSeparator className="opacity-50" />
             <BreadcrumbItem>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -433,7 +440,7 @@ function AppBreadcrumb({
         ) : (
           middle.map((item) => (
             <Fragment key={item.path ?? item.title}>
-              <BreadcrumbSeparator />
+              <BreadcrumbSeparator className="opacity-50" />
               <BreadcrumbItem className="min-w-0">
                 {renderItem(item, false)}
               </BreadcrumbItem>
@@ -442,7 +449,7 @@ function AppBreadcrumb({
         )}
         {breadcrumbs.length > 1 && last ? (
           <>
-            <BreadcrumbSeparator />
+            <BreadcrumbSeparator className="opacity-50" />
             <BreadcrumbItem className="min-w-0">
               {renderItem(last, true)}
             </BreadcrumbItem>
