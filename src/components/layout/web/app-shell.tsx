@@ -36,7 +36,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Separator } from "@/components/ui/separator";
 import {
   SidebarInset,
   SidebarProvider,
@@ -188,7 +187,7 @@ function AppHeader({
     user?.branch_address || user?.store_name || t("app.posWorkspace");
 
   return (
-    <header className="app-header sticky top-0 z-40 flex h-(--app-shell-header-height) w-full items-center justify-between gap-2 border-b border-border px-2 sm:px-4 lg:gap-4 lg:px-6">
+    <header className="app-header sticky top-0 z-40 flex h-(--app-shell-header-height) w-full items-center justify-between gap-2 bg-background/80 px-2 shadow-sm backdrop-blur-md sm:px-4 lg:gap-4 lg:px-6">
       <div className="flex min-w-0 flex-1 items-center gap-2 md:gap-4">
         <Tooltip>
           <TooltipTrigger asChild>
@@ -196,15 +195,15 @@ function AppHeader({
               href="/"
               title={`${branchTitle} - ${address}`}
               className={cn(
-                "hidden min-w-0 shrink-0 items-center md:flex",
+                "group hidden min-w-0 shrink-0 items-center md:flex",
                 collapsed
                   ? "w-(--sidebar-width-icon) max-w-(--sidebar-width-icon) justify-center"
                   : "w-(--sidebar-width) max-w-(--sidebar-width) gap-3",
               )}
             >
-              <Avatar className="size-12.5 shrink-0 rounded-md">
+              <Avatar className="size-12.5 shrink-0 rounded-xl ring-1 ring-border/50 transition-shadow group-hover:ring-primary/30 group-focus-visible:ring-primary/30">
                 <AvatarImage src={logoSrc} alt={branchTitle} />
-                <AvatarFallback className="rounded-md font-black">
+                <AvatarFallback className="rounded-xl font-black">
                   {userInitials(user)}
                 </AvatarFallback>
               </Avatar>
@@ -214,7 +213,7 @@ function AppHeader({
                   collapsed ? "hidden" : "hidden sm:flex",
                 )}
               >
-                <span className="truncate text-base font-black text-primary">
+                <span className="truncate text-base font-black tracking-tight text-primary">
                   {branchTitle}
                 </span>
                 <span className="truncate text-xs text-muted-foreground">
@@ -233,9 +232,7 @@ function AppHeader({
           </TooltipContent>
         </Tooltip>
 
-        <Separator orientation="vertical" className="hidden h-12 md:block" />
-
-        <div className="flex min-w-0 flex-1 items-center gap-1 md:gap-2">
+        <div className="flex min-w-0 flex-1 items-center gap-1 md:gap-2 md:pl-2">
           <Tooltip>
             <TooltipTrigger asChild>
               <SidebarTrigger
