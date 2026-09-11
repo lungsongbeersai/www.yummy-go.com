@@ -180,6 +180,42 @@ describe("Dexie browser offline mirror", () => {
     });
   });
 
+  it("expires a cached dashboard/executive snapshot in minutes, not the 48h reference-data ceiling", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-10T00:00:00.000Z"));
+    const store = new MemoryBrowserOfflineStore();
+    const dashboardRequest = {
+      ...scope,
+      method: "get",
+      path: "/api/v1/dashboard/executive",
+      params: { start_date: "2026-09-10", end_date: "2026-09-10" },
+    };
+    const otherRequest = {
+      ...scope,
+      method: "get",
+      path: "/api/v1/posAll/fetch_cate_products",
+      params: { lang: "la" },
+    };
+    await cacheBrowserApiResponse({
+      ...dashboardRequest,
+      response: { status: "success", data: { kpis: { revenue_total: 1 } } },
+      source: "ONLINE",
+    }, store);
+    await cacheBrowserApiResponse({
+      ...otherRequest,
+      response: { status: "success", data: [{ prod_uuid: "product-1" }] },
+      source: "ONLINE",
+    }, store);
+
+    // 20 minutes later: the dashboard snapshot is a business-day figure and
+    // must not still be readable, while ordinary reference data still is.
+    vi.setSystemTime(new Date("2026-09-10T00:20:00.000Z"));
+    await expect(readBrowserApiFallback(dashboardRequest, store)).resolves.toBeNull();
+    await expect(readBrowserApiFallback(otherRequest, store)).resolves.toMatchObject({
+      data: [{ prod_uuid: "product-1" }],
+    });
+  });
+
   it("persists one stable payment event across a logical Chrome restart", async () => {
     const store = new MemoryBrowserOfflineStore();
     const paymentRequest = {

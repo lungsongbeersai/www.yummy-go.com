@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Lock } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
@@ -10,6 +10,7 @@ import { LoadingState } from "@/components/common/loading-state";
 import { Spinner } from "@/components/ui/spinner";
 import { menuGrantsPath } from "@/components/layout/shell-menu-helpers";
 import { useSidebarPermissionAccess } from "@/hooks/use-sidebar-permission-access";
+import { businessDateInputValue } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
   DashboardChartGridFallback,
@@ -272,6 +273,13 @@ function DashboardPageContent() {
   const [top, setTop] = useState("10");
   const refetchEpoch = useOfflineRefetchEpoch();
   const storeUuid = authStoreUuid(user);
+  // Tracks whether the filters are still exactly the untouched "today" default
+  // this page creates on mount/reset, vs. a range the user picked by hand (a
+  // specific past day, a month, a custom range). Only the untouched default is
+  // safe for the business-day-rollover effect below to replace on its own —
+  // otherwise it would silently discard a range someone is deliberately
+  // reviewing the moment the calendar day turns over underneath them.
+  const isAutoTodayRef = useRef(true);
 
   const model = useMemo(
     () => createDashboardModel(data, appliedFilters, top),
@@ -370,18 +378,22 @@ function DashboardPageContent() {
   );
 
   const handleFilterChange = useCallback((patch: Partial<DashboardFilters>) => {
+    isAutoTodayRef.current = false;
     setFilters((current) => ({ ...current, ...patch }));
   }, []);
 
   const handlePeriodTypeChange = useCallback((value: string) => {
+    isAutoTodayRef.current = false;
     setFilters((current) => applyPeriodType(current, value as DashboardPeriodType));
   }, []);
 
   const handlePeriodYearChange = useCallback((value: string) => {
+    isAutoTodayRef.current = false;
     setFilters((current) => applyPeriodYear(current, Number(value)));
   }, []);
 
   const handlePeriodMonthChange = useCallback((value: string) => {
+    isAutoTodayRef.current = false;
     setFilters((current) => applyPeriodMonth(current, Number(value)));
   }, []);
 
@@ -390,6 +402,7 @@ function DashboardPageContent() {
   }, [filters]);
 
   const handleReset = useCallback(() => {
+    isAutoTodayRef.current = true;
     const nextFilters = createDefaultFilters();
     setFilters(nextFilters);
     setAppliedFilters(nextFilters);
@@ -407,6 +420,34 @@ function DashboardPageContent() {
   useEffect(() => {
     void load(appliedFilters, top);
   }, [appliedFilters, load, refetchEpoch, top]);
+
+  // A business day rolling over while this page stays open (a kiosk monitor
+  // left running, or a browser tab nobody closes) must not leave "today"
+  // frozen at whatever date it was on mount/reset — the fetch effect above
+  // only re-runs when appliedFilters changes, and nothing else was advancing
+  // it. Recompute on wake (tab regains focus/visibility) and on a slow
+  // interval as a backstop for a display that never loses either. Only ever
+  // replaces the untouched default (isAutoTodayRef) — a range picked by hand
+  // (a specific past day, a month, a custom range) is never overridden.
+  useEffect(() => {
+    const checkBusinessDay = () => {
+      if (!isAutoTodayRef.current) return;
+      const today = businessDateInputValue(new Date());
+      if (appliedFilters.start_date === today && appliedFilters.end_date === today) return;
+      const nextFilters = createDefaultFilters();
+      setFilters(nextFilters);
+      setAppliedFilters(nextFilters);
+    };
+    checkBusinessDay();
+    const intervalId = window.setInterval(checkBusinessDay, 5 * 60 * 1000);
+    window.addEventListener("focus", checkBusinessDay);
+    document.addEventListener("visibilitychange", checkBusinessDay);
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", checkBusinessDay);
+      document.removeEventListener("visibilitychange", checkBusinessDay);
+    };
+  }, [appliedFilters]);
 
   // ซิงก์ช่องกรองในฟอร์มกลับมาตรงกับช่วงวันที่ที่ backend ใช้จริง (request_params)
   // ทำระหว่าง render แทน effect เพื่อไม่ให้ผู้ใช้เห็นวันที่เดิมแวบหนึ่งก่อนถูกแก้

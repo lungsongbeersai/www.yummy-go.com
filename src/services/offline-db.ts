@@ -13,7 +13,18 @@ const MAX_API_CACHE_RESPONSE_BYTES = 4 * 1024 * 1024;
 // degraded path — Desktop serves these from the Agent's SQLite first, and this
 // runs when the Agent is down or (on Android) absent.
 const MAX_API_CACHE_AGE_MS = 48 * 60 * 60 * 1000;
+// dashboard/executive is a single business-day snapshot — 48h means it can
+// still be answering "today" from a cache written the previous business day,
+// which is exactly the stale-money case the comment above warns about. Bound
+// it well below the reference-data ceiling instead of sharing it.
+const SHORT_LIVED_API_CACHE_ROUTES: Record<string, number> = {
+  "/api/v1/dashboard/executive": 15 * 60 * 1000,
+};
 const SYNCED_QUEUE_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
+
+function maxApiCacheAgeMsFor(path: string) {
+  return SHORT_LIVED_API_CACHE_ROUTES[normalizedPath(path)] ?? MAX_API_CACHE_AGE_MS;
+}
 
 const SAFE_BROWSER_FALLBACK_PATHS = new Set([
   "/api/v1/posAll/fetch_cate_products",
@@ -512,7 +523,7 @@ export async function readBrowserApiFallback<T>(
   const store = storeFor(override);
   if (!store || !isSafeBrowserCacheFallback(input.path)) return null;
   const cached = await store.getApiCache(browserApiCacheKey(input));
-  if (!cached || Date.now() - cached.cachedAt > MAX_API_CACHE_AGE_MS) return null;
+  if (!cached || Date.now() - cached.cachedAt > maxApiCacheAgeMsFor(input.path)) return null;
   return cached.response as T;
 }
 
