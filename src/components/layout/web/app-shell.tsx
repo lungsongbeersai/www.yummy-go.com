@@ -276,27 +276,36 @@ function AppHeader({
       </div>
 
       <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-        {isCapacitorNativeApp ? (
-          // Capacitor ไม่มี pull-to-refresh/ปุ่ม reload ของเบราว์เซอร์ให้ผู้ใช้ ต้องมีทางรีโหลด
-          // เอง โดยเฉพาะช่วง dev ที่ server.url ชี้ dev server ในเครื่อง
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                className="size-11 shrink-0 sm:size-9"
-                aria-label={t("app.refreshApp")}
-                onClick={() => window.location.reload()}
-              >
-                <RefreshCw />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">{t("app.refreshApp")}</TooltipContent>
-          </Tooltip>
-        ) : null}
-        <ThemeToggle variant="ghost" className="size-11 sm:size-9" />
-        <NotificationMenu triggerClassName="size-11 sm:size-9" />
-        <LanguageSwitch compact size="icon" className="size-11 sm:size-9" />
+        <div className="flex items-center gap-0.5 rounded-full bg-muted/40 p-1">
+          {isCapacitorNativeApp ? (
+            // Capacitor ไม่มี pull-to-refresh/ปุ่ม reload ของเบราว์เซอร์ให้ผู้ใช้ ต้องมีทางรีโหลด
+            // เอง โดยเฉพาะช่วง dev ที่ server.url ชี้ dev server ในเครื่อง
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="size-11 shrink-0 rounded-full hover:bg-background sm:size-9"
+                  aria-label={t("app.refreshApp")}
+                  onClick={() => window.location.reload()}
+                >
+                  <RefreshCw />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">{t("app.refreshApp")}</TooltipContent>
+            </Tooltip>
+          ) : null}
+          <ThemeToggle
+            variant="ghost"
+            className="size-11 rounded-full hover:bg-background sm:size-9"
+          />
+          <NotificationMenu triggerClassName="size-11 rounded-full hover:bg-background sm:size-9" />
+          <LanguageSwitch
+            compact
+            size="icon"
+            className="size-11 rounded-full hover:bg-background sm:size-9"
+          />
+        </div>
         <DropdownMenu>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -304,7 +313,7 @@ function AppHeader({
                 <Button
                   variant="ghost"
                   aria-label={user?.email ?? t("profile.sections.account")}
-                  className="h-11 min-w-11 gap-2 px-0 sm:h-10 sm:min-w-10 sm:px-2"
+                  className="h-11 min-w-11 gap-2 rounded-full px-0 hover:bg-muted sm:h-10 sm:min-w-10 sm:px-2"
                 >
                   <Avatar className="size-9">
                     {profileSrc ? (
