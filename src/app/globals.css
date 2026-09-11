@@ -1346,6 +1346,7 @@ html.theme-transition-active[data-theme-transition-direction="ltr"]::view-transi
 .dark .app-header {
   background: hsl(var(--app) / 0.85);
   box-shadow: none;
+  border-bottom: 1px solid var(--border);
 }
 
 /* Capacitor shell: มี bottom nav กินพื้นที่ล่างเพิ่ม

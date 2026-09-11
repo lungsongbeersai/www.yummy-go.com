@@ -187,7 +187,7 @@ function AppHeader({
     user?.branch_address || user?.store_name || t("app.posWorkspace");
 
   return (
-    <header className="app-header sticky top-0 z-40 flex h-(--app-shell-header-height) w-full items-center justify-between gap-2 bg-background/80 px-2 shadow-sm backdrop-blur-md sm:px-4 lg:gap-4 lg:px-6">
+    <header className="app-header sticky top-0 z-40 flex h-(--app-shell-header-height) w-full items-center justify-between gap-2 px-2 sm:px-4 lg:gap-4 lg:px-6">
       <div className="flex min-w-0 flex-1 items-center gap-2 md:gap-4">
         <Tooltip>
           <TooltipTrigger asChild>
@@ -384,14 +384,14 @@ function AppBreadcrumb({
     }
     if (item.disabled || !item.path) {
       return (
-        <BreadcrumbPage className="truncate text-muted-foreground/70">
+        <BreadcrumbPage className="truncate text-muted-foreground">
           {title}
         </BreadcrumbPage>
       );
     }
 
     return (
-      <BreadcrumbLink asChild className="truncate text-muted-foreground/70">
+      <BreadcrumbLink asChild className="truncate text-muted-foreground">
         <Link href={internalRoute(item.path)}>{title}</Link>
       </BreadcrumbLink>
     );
