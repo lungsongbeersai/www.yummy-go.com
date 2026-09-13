@@ -6,6 +6,25 @@ Entries below dated from git history are backfilled from existing code comments 
 
 ---
 
+## Mobile offline checkout moves from an env-var allowlist to a per-branch DB toggle, default off (supersedes the wildcard entry below)
+
+- **Date:** 2026-09-13.
+- **Context:** The day after opening `OFFLINE_FIRST_MOBILE_BRANCHES=*` to every branch (entry below), the owner asked for a proper on/off switch on the branch settings screen instead — "ให้ default ที่ปิด offline ก่อน" (default off) — so enabling a branch never again requires an engineer, SSH, or a GitHub Actions run.
+- **Decision:** `tb_branch.offline_mobile_enabled` (migration `20260913_add_branch_offline_mobile_enabled.sql`) is now the source of truth per branch, defaulting to `false` for every branch including new ones. `GET /sync/runtime-capabilities` reads this column instead of the allowlist; `runtimeCapabilities()` takes the resolved boolean directly. `OFFLINE_FIRST_MOBILE_BRANCHES` is no longer read anywhere — a leftover `*` in production `.env` is now inert. `OFFLINE_FIRST_MOBILE_DISABLED` is kept as the only remaining env-based control: a global emergency kill switch independent of any branch's toggle. Settings > Branch exposes the toggle as its own `PATCH /branch/offline_mobile_enabled` endpoint (not folded into the multi-field branch save) so flipping it can never be blocked by unrelated VAT/email/QR validation, and a live-toggle Switch does not wait for the branch form's Save button.
+- **Migration note:** The same migration sets `offline_mobile_enabled = true` specifically for the `inthanin` branch (matched by name) so the incident fix from 2026-09-12 does not silently regress back to disabled the moment every other branch defaults to off; every other existing branch starts off and needs an explicit toggle.
+- **Safety boundary carried over, unchanged by this entry:** the "not feature-complete" caveats from "Capacitor mobile uses Dexie, never the desktop Agent" (no native durable print jobs/routing proof/receipt renderer) still apply to any branch an owner switches on — the toggle controls exposure, not readiness.
+- **Reason:** Restores the original 2026-09-09 decision's intent (opt-in per branch, reversible, no all-store blast radius) while removing the operational bottleneck that made the wildcard tempting in the first place — the owner can now scope this themselves without engineering involvement each time.
+- **Approved by:** repo owner (2026-09-13, in-conversation).
+
+## Mobile offline checkout rollout allowlist opened to all branches (reverses the "enable every branch in one release" rejection below)
+
+- **Date:** 2026-09-12.
+- **Context:** Store "inthanin" went offline on a mobile device and could not confirm kitchen orders or print. Root cause: `OFFLINE_FIRST_MOBILE_BRANCHES` had never been set in production for any branch, so `mobile.offline_checkout_enabled` fails closed by design (see the entry below). Owner was shown that this fails-closed behavior was a deliberate, recent, self-approved decision, and was offered the safer branch-scoped fix (allowlist inthanin's `branch_uuid` only). Owner initially agreed to that scope, then asked for every branch ("ทุกร้านด้วย") after being told this reverses the decision below's explicit "alternatives rejected: enabling every branch in one release."
+- **Decision:** `OFFLINE_FIRST_MOBILE_BRANCHES` is set to `*` in production — the wildcard the allowlist code already supported (previously exercised only by the kill-switch test). No code change; `OFFLINE_FIRST_MOBILE_DISABLED` remains as an immediate full rollback if any branch's mobile checkout misbehaves.
+- **Safety boundary carried over, unchanged by this entry:** no additional physical Android/iOS/printer acceptance was performed for branches beyond whatever had already been piloted. The "not feature-complete" caveats in "Capacitor mobile uses Dexie, never the desktop Agent" (no native durable print jobs/routing proof/receipt renderer, dependency extraction pending) still apply to every branch now covered by the wildcard, not just inthanin.
+- **Reason:** Owner explicitly reconfirmed wanting it for every store after being told this reverses the prior gradual-rollout decision and the specific reason that decision gave for rejecting a one-shot all-branch release.
+- **Approved by:** repo owner (2026-09-12, in-conversation).
+
 ## Mobile offline checkout is branch-gated and fails closed
 
 - **Date:** 2026-09-09.

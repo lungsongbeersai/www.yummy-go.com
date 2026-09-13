@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { KeyRound } from "lucide-react";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
+import { Switch } from "@/components/ui/switch";
 import {
   SettingsModuleShell,
   SettingsPaginationFooter,
@@ -20,7 +22,7 @@ import type { Branch, FetchBranchesParams, SaveBranchInput } from "@/services/br
 import type { SortOrder } from "@/services/shared/types";
 import type { FetchStoresParams, SaveStoreInput, Store } from "@/services/store";
 import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
-import { useBranchSettingsStore } from "@/stores/branch-settings-store";
+import { setBranchOfflineMobileEnabled, useBranchSettingsStore } from "@/stores/branch-settings-store";
 import { useReferenceStore } from "@/stores/reference-store";
 import { useStoreSettingsStore } from "@/stores/store-settings-store";
 import { StoreBranchFormDialog } from "./store-branch-form";
@@ -365,6 +367,7 @@ function BranchSettingsPage({ initialPagination }: { initialPagination: UrlPagin
   const branchQrUrl = useReferenceStore((state) => state.branchQrUrl);
   const saveBranchRow = useBranchSettingsStore((state) => state.save);
   const loadBranchRows = useBranchSettingsStore((state) => state.load);
+  const [offlineMobilePending, setOfflineMobilePending] = useState<Set<string>>(new Set());
   const removeBranchRow = useBranchSettingsStore((state) => state.remove);
 
   const title = labels.branch;
@@ -540,17 +543,44 @@ function BranchSettingsPage({ initialPagination }: { initialPagination: UrlPagin
     }
   }
 
+  async function handleOfflineMobileToggle(row: StoreBranchSettingsRow, nextEnabled: boolean) {
+    const branchUuid = storeBranchId(row, "branch");
+    if (!branchUuid || offlineMobilePending.has(branchUuid)) return;
+    setOfflineMobilePending((prev) => new Set(prev).add(branchUuid));
+    try {
+      await setBranchOfflineMobileEnabled(branchUuid, nextEnabled);
+    } catch {
+      showToast({ title: labels.offlineMobileToggleFailed, tone: "error" });
+    } finally {
+      setOfflineMobilePending((prev) => {
+        const next = new Set(prev);
+        next.delete(branchUuid);
+        return next;
+      });
+    }
+  }
+
   function rowActions(row: StoreBranchSettingsRow) {
     const id = storeBranchId(row, "branch");
     const isCurrent = id === activeId;
+    const offlineMobileEnabled = storeBranchValue(row, "offline_mobile_enabled") === "true";
     return (
-      <SettingsRowActions
-        row={row}
-        editDisabled={!canEdit || saving || readOnly}
-        deleteDisabled={!canDelete || isCurrent || saving || readOnly}
-        onEdit={(nextRow) => openEdit(nextRow as Branch)}
-        onDelete={(nextRow) => setDeleteTarget(nextRow as Branch)}
-      />
+      <div className="flex items-center justify-end gap-3">
+        <Switch
+          aria-label={labels.offlineMobileEnabled}
+          title={labels.offlineMobileEnabledHint}
+          checked={offlineMobileEnabled}
+          disabled={!canEdit || readOnly || offlineMobilePending.has(id)}
+          onCheckedChange={(checked) => void handleOfflineMobileToggle(row, checked)}
+        />
+        <SettingsRowActions
+          row={row}
+          editDisabled={!canEdit || saving || readOnly}
+          deleteDisabled={!canDelete || isCurrent || saving || readOnly}
+          onEdit={(nextRow) => openEdit(nextRow as Branch)}
+          onDelete={(nextRow) => setDeleteTarget(nextRow as Branch)}
+        />
+      </div>
     );
   }
 
