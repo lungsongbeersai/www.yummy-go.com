@@ -5,7 +5,7 @@ import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { BACKEND_NETWORK_STATE } from "@/lib/network-state";
-import { useNetworkStore } from "@/stores/network-store";
+import { mobileOfflineDisabledForCurrentBranch, useNetworkStore } from "@/stores/network-store";
 import { connectivityNoticeForState } from "./connectivity-notice";
 
 const OFFLINE_TOAST_ID = "offline-connectivity";
@@ -26,13 +26,19 @@ export function OfflineConnectivityDialog() {
     if (notice === "offline") {
       wasOfflineRef.current = true;
       toast.dismiss(BACK_ONLINE_TOAST_ID);
-      toast.warning(t("offlineMode.dialogTitle"), {
-        id: OFFLINE_TOAST_ID,
-        description: t("offlineMode.toastDescription"),
-        icon: <WifiOffIcon className="size-4" />,
-        duration: NOTICE_DURATION_MS,
-        position: "bottom-center",
-      });
+      // A branch with mobile offline checkout switched off is not actually
+      // entering any offline mode (api.ts refuses the Dexie fallback too) —
+      // claiming "working in offline mode" here would just be false.
+      void (async () => {
+        if (await mobileOfflineDisabledForCurrentBranch()) return;
+        toast.warning(t("offlineMode.dialogTitle"), {
+          id: OFFLINE_TOAST_ID,
+          description: t("offlineMode.toastDescription"),
+          icon: <WifiOffIcon className="size-4" />,
+          duration: NOTICE_DURATION_MS,
+          position: "bottom-center",
+        });
+      })();
       return;
     }
     if (notice !== "online") return;

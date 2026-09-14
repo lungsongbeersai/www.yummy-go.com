@@ -4,6 +4,7 @@ import axios, { AxiosError, type AxiosInstance } from "axios";
 import i18n from "@/lib/i18n";
 import { isCapacitorMobileApp } from "@/lib/capacitor-platform";
 import { AgentRequestError } from "@/services/agent-link";
+import { mobileOfflineCheckoutEnabled } from "@/services/mobile-offline-capabilities";
 import {
   BACKEND_NETWORK_STATE,
   classifyBackendError,
@@ -247,6 +248,15 @@ export async function apiRequest<T>(
     // unsupported mobile mutation fall through and overtake its queued create.
     if (!supportsBrowserOfflineRoute(method, url)) {
       throw new ServiceError(i18n.t("offlineSync.mobileOperationUnavailable"), 503);
+    }
+    // Settings > Branch's offline toggle is a full write kill switch on
+    // mobile, not just the KITCHEN_CONFIRM/PAYMENT gate in write-fallback.ts —
+    // every durable mutation (including a plain add-item) refuses to stage
+    // while this branch has it off. Reads are unaffected: offline browsing of
+    // cached menus/tables/carts stays available regardless (see Decisions.md
+    // "Every established menu destination is viewable offline").
+    if (prepared.eventUuid && !localAgentAvailable && !(await mobileOfflineCheckoutEnabled(localScope))) {
+      throw new ServiceError(i18n.t("offlineSync.mobileBranchOfflineDisabled"), 503);
     }
     try {
       const local = prepared.eventUuid

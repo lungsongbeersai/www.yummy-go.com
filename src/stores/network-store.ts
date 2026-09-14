@@ -1,6 +1,7 @@
 "use client";
 
 import { create } from "zustand";
+import { isCapacitorMobileApp } from "@/lib/capacitor-platform";
 import {
   applyBackendReachable,
   applyBackendTransportFailure,
@@ -8,6 +9,8 @@ import {
   initialBackendNetworkSnapshot,
   type BackendNetworkSnapshot,
 } from "@/lib/network-state";
+import { mobileOfflineCheckoutEnabled } from "@/services/mobile-offline-capabilities";
+import { useAuthStore } from "@/stores/auth-store";
 
 interface BackendNetworkStore extends BackendNetworkSnapshot {
   replaceSnapshot: (snapshot: BackendNetworkSnapshot) => void;
@@ -17,6 +20,18 @@ export const useNetworkStore = create<BackendNetworkStore>()((set) => ({
   ...initialBackendNetworkSnapshot(),
   replaceSnapshot: (snapshot) => set(snapshot),
 }));
+
+// Desktop always has the Agent's own offline path; only Capacitor mobile is
+// gated by Settings > Branch's per-branch toggle (see api.ts, write-fallback.ts).
+export async function mobileOfflineDisabledForCurrentBranch() {
+  if (!isCapacitorMobileApp()) return false;
+  const user = useAuthStore.getState().user;
+  const allowed = await mobileOfflineCheckoutEnabled({
+    storeUuid: user?.store_uuid || user?.store_uuid_fk || "",
+    branchUuid: user?.branch_uuid || "",
+  });
+  return !allowed;
+}
 
 // A counter, not a timestamp: an API response may arrive in the same millisecond
 // as a failed health probe. That newer HTTP evidence must win in either case.
