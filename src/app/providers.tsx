@@ -23,6 +23,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppUpdateChecker } from "@/features/app-update/app-update-checker";
 import { OfflineAppRuntime } from "@/features/offline/offline-app-runtime";
 import { OfflineConnectivityDialog } from "@/features/offline/offline-connectivity-dialog";
+import { OfflineUnavailableOverlay } from "@/features/offline/offline-unavailable-overlay";
 
 interface ProvidersProps {
   children: React.ReactNode;
@@ -251,6 +252,7 @@ export function Providers({ children, initialLanguage }: ProvidersProps) {
         {children}
         <OfflineAppRuntime />
         <OfflineConnectivityDialog />
+        <OfflineUnavailableOverlay />
         <AppUpdateChecker />
         <Toaster />
       </TooltipProvider>

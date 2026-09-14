@@ -183,6 +183,8 @@
     "blockedDescription": "{{count}} offline transaction(s) were rejected by the server. Online mode is available, but review them before closing the shift.",
     "mobileOperationUnavailable": "This action is not available offline on mobile. Keep the saved bill and reconnect before retrying.",
     "mobileBranchOfflineDisabled": "This branch has not turned on offline checkout for mobile. Reconnect to the internet to continue.",
+    "branchOfflineBlockedTitle": "No internet connection",
+    "branchOfflineBlockedDescription": "This branch has not turned on offline mode, so this device cannot be used without internet. Reconnect to continue — this closes automatically once you're back online.",
     "mobilePrintUnavailable": "Offline kitchen confirmation and payment are not ready on mobile: a durable local print queue is required. Your order is saved; reconnect and finish syncing before confirming or accepting payment.",
     "mobilePreviousCashierPending": "This device still has unsynced work from another cashier. Sign in as that cashier and finish syncing before continuing.",
     "mobileStorageUnavailable": "Unable to save the order on this device. Do not accept payment; check device storage and try again.",
