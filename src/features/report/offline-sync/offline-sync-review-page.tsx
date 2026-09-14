@@ -91,16 +91,30 @@ export function OfflineSyncReviewPage() {
             <h1 className="text-2xl font-bold text-foreground">{t("report.offlineSync.title")}</h1>
             <p className="text-sm text-muted-foreground">{t("report.offlineSync.description")}</p>
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            aria-label={t("actions.refresh")}
-            disabled={busy}
-            onClick={() => void load(scope)}
-          >
-            <RefreshCcw className={loading ? "animate-spin" : undefined} />
-          </Button>
+          <div className="flex items-center gap-2">
+            {entries.length ? (
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                disabled={busy}
+                onClick={() => setDiscardTargetUuids(entries.map((entry) => entry.eventUuid))}
+              >
+                <Trash2 className={bulkDiscarding ? "animate-spin" : undefined} />
+                {t("report.offlineSync.discardAll", { count: entries.length })}
+              </Button>
+            ) : null}
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              aria-label={t("actions.refresh")}
+              disabled={busy}
+              onClick={() => void load(scope)}
+            >
+              <RefreshCcw className={loading ? "animate-spin" : undefined} />
+            </Button>
+          </div>
         </div>
 
         {validSelectedUuids.length ? (
