@@ -63,6 +63,13 @@ const MOBILE_TCP_DRAIN_SETTLE_MS = 400;
 const MOBILE_TCP_CUT_SETTLE_MS = 350;
 const ESC_POS_PAPER_STATUS_COMMAND = new Uint8Array([0x1d, 0x72, 0x01]);
 const mobileTcpQueues = new Map<string, Promise<void>>();
+const MOBILE_TCP_DEBUG = process.env.NEXT_PUBLIC_MOBILE_TCP_DEBUG === "true";
+
+function mobileTcpDebug(message: string, details?: unknown) {
+    if (!MOBILE_TCP_DEBUG) return;
+    if (details === undefined) console.log(message);
+    else console.log(message, details);
+}
 
 function deliveryError(error: unknown, deliveryState: "not_sent" | "unknown") {
     const wrapped = error instanceof Error
@@ -135,13 +142,13 @@ function escposCommandLength(bytes: Uint8Array, offset: number) {
 
     if (first === 0x1b) {
         if (second === 0x40) return 2; // ESC @
-        if (second === 0x61 || second === 0x33) return 3; // align / line spacing
+        if (second === 0x61 || second === 0x33 || second === 0x4a) return 3; // align / line spacing / dot feed
         if (second === 0x70) return 5; // cash drawer pulse
         return null;
     }
 
     if (first !== 0x1d) return null;
-    if (second === 0x4c) return 4; // left margin
+    if (second === 0x4c || second === 0x50) return 4; // left margin / motion units
 
     if (second === 0x56) {
         const mode = bytes[offset + 2];
@@ -248,6 +255,10 @@ function analyzeEscposPayload(base64: string): EscposPayloadAnalysis {
         ) {
             rasterBands += 1;
             rasterRows += bytes[offset + 6] | (bytes[offset + 7] << 8);
+        } else if (bytes[offset] === 0x1b && bytes[offset + 1] === 0x4a) {
+            // ESC J advances by vertical motion units. Count it as physical
+            // work so completion waits remain correct for sparse bills.
+            rasterRows += bytes[offset + 2];
         } else if (bytes[offset] === 0x1d && bytes[offset + 1] === 0x56) {
             cutCommands += 1;
         }
@@ -286,8 +297,12 @@ function runOnMobileTcpQueue<T>(queueKey: string, task: () => Promise<T>) {
     return execution;
 }
 
-function mobileTcpRasterDrainMs(base64: string, sendElapsedMs = 0) {
-    const analysis = analyzeEscposPayload(base64);
+function mobileTcpRasterDrainMs(
+    base64: string,
+    sendElapsedMs = 0,
+    preparedAnalysis?: EscposPayloadAnalysis,
+) {
+    const analysis = preparedAnalysis ?? analyzeEscposPayload(base64);
     const physicalWorkMs = analysis.fullyParsed && analysis.rasterRows > 0
         ? Math.ceil(
             (analysis.rasterRows / MOBILE_TCP_RASTER_ROWS_PER_SECOND) * 1000,
@@ -405,7 +420,7 @@ async function checkMobilePrinterPaperStatus({
             throw new Error("Printer reported paper out before completion");
         }
 
-        console.log("[mobile-tcp] printer paper status received", { status });
+        mobileTcpDebug("[mobile-tcp] printer paper status received", { status });
     } catch (error) {
         throw deliveryError(error, "unknown");
     }
@@ -438,7 +453,7 @@ async function sendBase64InChunks({
     const totalChunks = Math.ceil(cleanBase64.length / safeChunkSize);
     let bytesSinceCooldown = 0;
 
-    console.log("[mobile-tcp] chunk send config", {
+    mobileTcpDebug("[mobile-tcp] chunk send config", {
         base64Length: cleanBase64.length,
         safeChunkSize,
         totalChunks,
@@ -455,7 +470,7 @@ async function sendBase64InChunks({
         // การ log ทุก chunk ทำให้ WebView ของ iOS/Android ช้าหนักเมื่อใบยาว
         // เก็บเฉพาะ progress เป็นช่วง ๆ โดยไม่เปลี่ยนข้อมูลที่ส่งเข้า printer
         if (chunkIndex === 1 || chunkIndex === totalChunks || chunkIndex % 25 === 0) {
-            console.log("[mobile-tcp] send progress", {
+            mobileTcpDebug("[mobile-tcp] send progress", {
                 chunkIndex,
                 totalChunks,
                 chunkLength: chunk.length,
@@ -482,7 +497,7 @@ async function sendBase64InChunks({
         }
     }
 
-    console.log("[mobile-tcp] all chunks sent", {
+    mobileTcpDebug("[mobile-tcp] all chunks sent", {
         totalChunks,
     });
 }
@@ -498,7 +513,7 @@ async function printMobileEscposOverTcpNow({
 }) {
     const cleanBase64 = normalizeBase64(escpos_base64);
 
-    console.log("[mobile-tcp] start", {
+    mobileTcpDebug("[mobile-tcp] start", {
         interface_value,
         base64Length: cleanBase64.length,
     });
@@ -517,18 +532,18 @@ async function printMobileEscposOverTcpNow({
 
     const { host, port } = parseTcpInterface(interface_value);
 
-    console.log("[mobile-tcp] parsed tcp", { host, port });
+    mobileTcpDebug("[mobile-tcp] parsed tcp", { host, port });
 
     const mod = await import("@deedarb/capacitor-tcp-socket");
 
-    console.log("[mobile-tcp] plugin loaded", Object.keys(mod));
+    mobileTcpDebug("[mobile-tcp] plugin loaded", Object.keys(mod));
 
     const TcpSocket = mod.TcpSocket as unknown as TcpSocketApi;
 
     const segments = splitEscposBase64ForTransport(cleanBase64);
     let completedSegments = 0;
 
-    console.log("[mobile-tcp] transport plan", {
+    mobileTcpDebug("[mobile-tcp] transport plan", {
         segments: segments.length,
         byteEstimate: Math.floor((cleanBase64.length * 3) / 4),
     });
@@ -540,7 +555,7 @@ async function printMobileEscposOverTcpNow({
         const sendProfile = mobileTcpSendProfile();
         let connected: TcpSocketConnectResult;
 
-        console.log("[mobile-tcp] connect start", {
+        mobileTcpDebug("[mobile-tcp] connect start", {
             segment: segmentIndex + 1,
             segments: segments.length,
         });
@@ -558,13 +573,13 @@ async function printMobileEscposOverTcpNow({
             );
         }
 
-        console.log("[mobile-tcp] connect success", connected);
+        mobileTcpDebug("[mobile-tcp] connect success", connected);
 
         const client = connected.client;
         let sendSucceeded = false;
 
         try {
-            console.log("[mobile-tcp] send start", {
+            mobileTcpDebug("[mobile-tcp] send start", {
                 mode: "base64-chunks",
                 segment: segmentIndex + 1,
                 segments: segments.length,
@@ -588,10 +603,10 @@ async function printMobileEscposOverTcpNow({
 
             const sendElapsedMs = Date.now() - sendStartedAt;
             const drainMs =
-                mobileTcpRasterDrainMs(segment, sendElapsedMs) +
+                mobileTcpRasterDrainMs(segment, sendElapsedMs, analysis) +
                 (analysis.cutCommands > 0 ? MOBILE_TCP_CUT_SETTLE_MS : 0);
 
-            console.log("[mobile-tcp] document queued; waiting for completion", {
+            mobileTcpDebug("[mobile-tcp] document queued; waiting for completion", {
                 segment: segmentIndex + 1,
                 segments: segments.length,
                 cutCommands: analysis.cutCommands,
@@ -611,7 +626,7 @@ async function printMobileEscposOverTcpNow({
             }
 
             sendSucceeded = true;
-            console.log("[mobile-tcp] send success", {
+            mobileTcpDebug("[mobile-tcp] send success", {
                 segment: segmentIndex + 1,
                 segments: segments.length,
             });
@@ -624,7 +639,7 @@ async function printMobileEscposOverTcpNow({
             // ของใบออกซ้ำเมื่อ native socket รับข้อมูลไปบางส่วนแล้ว
             throw deliveryError(error, "unknown");
         } finally {
-            console.log("[mobile-tcp] disconnect start");
+            mobileTcpDebug("[mobile-tcp] disconnect start");
 
             await TcpSocket.disconnect({ client }).catch((error: unknown) => {
                 console.warn(
@@ -633,7 +648,7 @@ async function printMobileEscposOverTcpNow({
                 );
             });
 
-            console.log("[mobile-tcp] disconnect done");
+            mobileTcpDebug("[mobile-tcp] disconnect done");
         }
 
         if (!sendSucceeded) break;
