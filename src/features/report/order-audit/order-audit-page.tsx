@@ -2,20 +2,22 @@
 
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { AppPagination } from "@/components/common/app-pagination";
 import { EmptyState } from "@/components/common/empty-state";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
 import { ORDER_AUDIT_ACTIONS } from "@/config/order-audit";
 import { OrderAuditDetailSheet } from "@/features/report/order-audit/order-audit-detail-sheet";
-import { OrderAuditFilterSheet, type OrderAuditDraft } from "@/features/report/order-audit/order-audit-filter-sheet";
+import { OrderAuditFilterBar, OrderAuditFilterSheet, type OrderAuditDraft } from "@/features/report/order-audit/order-audit-filter-sheet";
 import { OrderAuditRowCard } from "@/features/report/order-audit/order-audit-row-card";
 import { OrderAuditSkeleton } from "@/features/report/order-audit/order-audit-skeleton";
 import { OrderAuditTable } from "@/features/report/order-audit/order-audit-table";
-import { OrderAuditToolbar } from "@/features/report/order-audit/order-audit-toolbar";
+import { ReportPageShell } from "@/features/report/shared/report-page-shell";
 import { useReportBranchSelection } from "@/features/report/shared/use-report-branch-selection";
 import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
 import { useOrderAuditReportStore } from "@/stores/report-store";
-import { activeAuditFilterCount, auditToday, validAuditDateRange } from "./order-audit-utils";
+import { auditToday, validAuditDateRange } from "./order-audit-utils";
+
+const SUMMARY_ID = "order-audit-summary";
 
 export function OrderAuditPage() {
   const user = useAuthStore(state => state.user);
@@ -35,7 +37,8 @@ function OrderAuditReport() {
   const [applied, setApplied] = useState(draft);
   const [paging, setPaging] = useState({ page: 1, snapshot: "", refresh: 0, scope: scope.defaultBranchUuid });
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [filterSheetOpen, setFilterSheetOpen] = useState(false);
+  const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
+  const [summaryVisible, setSummaryVisible] = useState(true);
   const branchUuid = scope.normalizeBranchFilters(applied).branchUuid;
   const draftBranch = scope.normalizeBranchFilters(draft).branchUuid;
   const dateRangeValid = validAuditDateRange(draft.dateFrom, draft.dateTo);
@@ -62,14 +65,13 @@ function OrderAuditReport() {
     ...ORDER_AUDIT_ACTIONS.map(value => ({ value, label: t(`orderAudit.actions.${value}`) }))];
   const entityOptions = [{ value: "all", label: t("orderAudit.all") },
     ...["ORDER", "ITEM", "TOPPING", "PAYMENT"].map(value => ({ value, label: t(`orderAudit.entities.${value}`) }))];
-  const filterCount = activeAuditFilterCount(applied, auditToday());
 
   function apply() {
     if (!valid || loading) return;
     setSelectedId(null);
     setApplied({ ...draft, branchUuid: draftBranch });
     setPaging(previous => ({ page: 1, snapshot: "", refresh: previous.refresh + 1, scope: draftBranch }));
-    setFilterSheetOpen(false);
+    setMobileFilterOpen(false);
   }
 
   function refresh() {
@@ -77,63 +79,86 @@ function OrderAuditReport() {
     setPaging(previous => ({ ...previous, page: 1, snapshot: "", refresh: previous.refresh + 1, scope: branchUuid }));
   }
 
+  const filterFieldProps = {
+    branchLoading: scope.branchLoading,
+    branchLocked: !scope.canSelectBranch,
+    branchOptions: scope.branchOptions,
+    actionOptions,
+    entityOptions,
+    draft,
+    draftBranch,
+    onDraftChange: setDraft,
+  };
+
   return (
-    <section className="flex h-full min-h-0 flex-col bg-background font-lao">
-      <header className="flex shrink-0 flex-col gap-2 border-b p-3 md:p-4">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h1 className="text-xl font-semibold">{t("orderAudit.title")}</h1>
-          <p className="text-sm text-muted-foreground">{scope.branchLabelFor(branchUuid)}</p>
-        </div>
-        <p className="text-sm text-muted-foreground">{t("orderAudit.description")}</p>
-        <OrderAuditToolbar
-          search={draft.search}
-          onSearchChange={search => setDraft(previous => ({ ...previous, search }))}
-          onSubmit={apply}
-          filterCount={filterCount}
-          onOpenFilters={() => setFilterSheetOpen(true)}
-          onRefresh={refresh}
-          refreshDisabled={loading || !branchUuid}
-        />
-      </header>
-
-      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-auto p-3 md:p-4">
-        <Alert><AlertDescription>{t("orderAudit.historyNotice")}</AlertDescription></Alert>
-        {(error || scope.branchError) && <Alert variant="destructive"><AlertDescription>{error || scope.branchError}</AlertDescription></Alert>}
-        {loading ? <OrderAuditSkeleton /> : current ? <>
-          <p className="text-sm text-muted-foreground">{t("orderAudit.summary", current.summary)}</p>
-          {current.rows.length ? <>
-            <OrderAuditTable rows={current.rows} language={language} onSelect={setSelectedId} />
-            <OrderAuditRowCard rows={current.rows} language={language} onSelect={setSelectedId} />
-          </> : <EmptyState title={t("orderAudit.empty")} description={t("orderAudit.emptyDescription")} />}
-          <div className="flex flex-wrap items-center justify-end gap-3">
-            <span className="text-sm">{t("orderAudit.page", { page: current.pagination.page, total: current.pagination.total_pages })}</span>
-            <Button variant="outline" disabled={current.pagination.page <= 1} onClick={() => {
-              setSelectedId(null); setPaging(previous => ({ ...previous, page: current.pagination.page - 1, snapshot: current.pagination.snapshot_id, scope: branchUuid }));
-            }}>{t("orderAudit.previous")}</Button>
-            <Button variant="outline" disabled={current.pagination.page >= current.pagination.total_pages} onClick={() => {
-              setSelectedId(null); setPaging(previous => ({ ...previous, page: current.pagination.page + 1, snapshot: current.pagination.snapshot_id, scope: branchUuid }));
-            }}>{t("orderAudit.next")}</Button>
+    <>
+      <ReportPageShell
+        accessibleTitle={t("orderAudit.title")}
+        variant="compact"
+        dateFrom={applied.dateFrom}
+        dateTo={applied.dateTo}
+        loading={loading}
+        exporting={false}
+        exportingTitle=""
+        errors={[
+          !branchUuid ? t("report.branchRequired") : null,
+          scope.branchError,
+          error,
+        ]}
+        inlineFilters={actions => (
+          <OrderAuditFilterBar
+            actions={actions}
+            canApply={valid}
+            loading={loading}
+            onApply={apply}
+            {...filterFieldProps}
+          />
+        )}
+        filterSheet={
+          <OrderAuditFilterSheet
+            canApply={valid}
+            dateRangeInvalid={!dateRangeValid}
+            loading={loading}
+            open={mobileFilterOpen}
+            onApply={apply}
+            onOpenChange={open => { if (!open) setDraft(applied); setMobileFilterOpen(open); }}
+            {...filterFieldProps}
+          />
+        }
+        summaryCardsId={SUMMARY_ID}
+        summaryVisible={summaryVisible}
+        onToggleSummary={() => setSummaryVisible(visible => !visible)}
+        summary={
+          <div className="flex flex-col gap-2">
+            <Alert><AlertDescription>{t("orderAudit.historyNotice")}</AlertDescription></Alert>
+            {current ? <p className="text-sm text-muted-foreground">{t("orderAudit.summary", current.summary)}</p> : null}
           </div>
-        </> : null}
-      </div>
-
-      <OrderAuditFilterSheet
-        open={filterSheetOpen}
-        onOpenChange={open => {
-          if (!open) setDraft(applied);
-          setFilterSheetOpen(open);
-        }}
-        draft={draft}
-        draftBranch={draftBranch}
-        onDraftChange={setDraft}
-        branchLoading={scope.branchLoading}
-        branchLocked={!scope.canSelectBranch}
-        branchOptions={scope.branchOptions}
-        actionOptions={actionOptions}
-        entityOptions={entityOptions}
-        valid={valid}
-        dateRangeInvalid={!dateRangeValid}
-        onApply={apply}
+        }
+        onOpenFilters={() => setMobileFilterOpen(true)}
+        onRefresh={refresh}
+        table={
+          <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-auto p-3 md:p-4">
+            {loading ? <OrderAuditSkeleton /> : current ? <>
+              {current.rows.length ? <>
+                <OrderAuditTable rows={current.rows} language={language} onSelect={setSelectedId} />
+                <OrderAuditRowCard rows={current.rows} language={language} onSelect={setSelectedId} />
+              </> : <EmptyState title={t("orderAudit.empty")} description={t("orderAudit.emptyDescription")} />}
+              <AppPagination
+                page={current.pagination.page}
+                totalPages={current.pagination.total_pages}
+                rangeLabel={t("common.showingRange", {
+                  start: (current.pagination.page - 1) * current.pagination.limit + 1,
+                  end: Math.min(current.pagination.page * current.pagination.limit, current.pagination.total),
+                  total: current.pagination.total,
+                })}
+                onPageChange={targetPage => {
+                  setSelectedId(null);
+                  setPaging(previous => ({ ...previous, page: targetPage, snapshot: current.pagination.snapshot_id, scope: branchUuid }));
+                }}
+              />
+            </> : null}
+          </div>
+        }
       />
 
       <OrderAuditDetailSheet
@@ -142,6 +167,6 @@ function OrderAuditReport() {
         branchLabel={scope.branchLabelFor(branchUuid)}
         onOpenChange={open => { if (!open) setSelectedId(null); }}
       />
-    </section>
+    </>
   );
 }

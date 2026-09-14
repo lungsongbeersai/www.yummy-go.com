@@ -1341,6 +1341,7 @@ html.theme-transition-active[data-theme-transition-direction="ltr"]::view-transi
   background: color-mix(in oklch, var(--card) 96%, transparent);
   box-shadow: 0 10px 30px -28px rgb(15 23 42 / 0.45);
   backdrop-filter: blur(24px);
+  border-bottom: 1px solid var(--border);
 }
 
 .dark .app-header {

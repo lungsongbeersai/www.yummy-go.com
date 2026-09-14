@@ -11,34 +11,29 @@ import {
   type ReportFieldOption,
 } from "@/features/report/shared/report-filter-fields";
 import { ReportFilterCard, ReportFilterSheet } from "@/features/report/shared/report-filter-shell";
+import { reportOrderOptions } from "@/features/report/shared/report-sort-utils";
 
-export interface OrderAuditDraft {
+export interface VatReportDraft {
   branchUuid: string;
   dateFrom: string;
   dateTo: string;
   search: string;
-  action: string;
-  entity: string;
+  orderBy: "ASC" | "DESC";
 }
 
 interface FieldsProps {
   branchLoading: boolean;
   branchLocked: boolean;
   branchOptions: ReportFieldOption[];
-  actionOptions: ReportFieldOption[];
-  entityOptions: ReportFieldOption[];
-  draft: OrderAuditDraft;
+  draft: VatReportDraft;
   draftBranch: string;
-  onDraftChange: (updater: (previous: OrderAuditDraft) => OrderAuditDraft) => void;
+  onDraftChange: (updater: (previous: VatReportDraft) => VatReportDraft) => void;
 }
 
-// ค่าค้นหาเป็นตัวกรองปกติ = มีผลตอนกด "ໃຊ້" เหมือนช่องอื่น (เดิมอยู่ toolbar หัวหน้าและกรองทันทีที่กด enter)
-function OrderAuditFilterFields({
+function VatReportFilterFields({
   branchLoading,
   branchLocked,
   branchOptions,
-  actionOptions,
-  entityOptions,
   draft,
   draftBranch,
   idPrefix,
@@ -50,12 +45,12 @@ function OrderAuditFilterFields({
     <>
       <Field className="min-w-48 flex-1 gap-1.5 sm:col-span-2 lg:col-span-1">
         <FieldLabel htmlFor={`${idPrefix}-search`} className="text-xs font-bold text-muted-foreground">
-          {t("orderAudit.search")}
+          {t("actions.search")}
         </FieldLabel>
         <SearchInput
           id={`${idPrefix}-search`}
-          ariaLabel={t("orderAudit.search")}
-          placeholder={t("orderAudit.search")}
+          ariaLabel={t("actions.search")}
+          placeholder={t("report.vat.searchPlaceholder")}
           value={draft.search}
           onChange={search => onDraftChange(previous => ({ ...previous, search }))}
         />
@@ -76,25 +71,18 @@ function OrderAuditFilterFields({
         onDateToChange={dateTo => onDraftChange(previous => ({ ...previous, dateTo }))}
       />
       <ReportSelectField
-        id={`${idPrefix}-action`}
-        label={t("orderAudit.action")}
-        value={draft.action}
-        options={actionOptions}
-        onValueChange={action => onDraftChange(previous => ({ ...previous, action }))}
-      />
-      <ReportSelectField
-        id={`${idPrefix}-entity`}
-        label={t("orderAudit.entity")}
-        value={draft.entity}
-        options={entityOptions}
-        onValueChange={entity => onDraftChange(previous => ({ ...previous, entity }))}
+        id={`${idPrefix}-order-by`}
+        label={t("report.filters.orderBy")}
+        options={reportOrderOptions(t)}
+        value={draft.orderBy}
+        onValueChange={orderBy => onDraftChange(previous => ({ ...previous, orderBy: orderBy as "ASC" | "DESC" }))}
       />
     </>
   );
 }
 
 // จอ lg ขึ้นไปกรองได้จากหน้าเลย โครงเดียวกับ category-sales/payment-methods
-export function OrderAuditFilterBar({
+export function VatReportFilterBar({
   actions,
   canApply,
   loading,
@@ -106,17 +94,17 @@ export function OrderAuditFilterBar({
       actions={actions}
       canApply={canApply}
       className="hidden shrink-0 rounded-none border-x-0 border-t-0 shadow-none lg:block"
-      contentClassName="grid min-w-0 items-end gap-3 px-3 py-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-[repeat(5,minmax(0,1fr))_auto]"
+      contentClassName="grid min-w-0 items-end gap-3 px-3 py-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-[repeat(4,minmax(0,1fr))_auto]"
       loading={loading}
       onApply={onApply}
     >
-      <OrderAuditFilterFields idPrefix="order-audit" {...fieldProps} />
+      <VatReportFilterFields idPrefix="vat-report" {...fieldProps} />
     </ReportFilterCard>
   );
 }
 
-// จอเล็ก: modal เดียวกับรายงานอื่น (ReportFilterSheet) แทน Sheet เดิมที่ใช้ทุกขนาดจอ
-export function OrderAuditFilterSheet({
+// จอเล็ก: modal เดียวกับรายงานอื่น (ReportFilterSheet)
+export function VatReportFilterSheet({
   canApply,
   dateRangeInvalid,
   loading,
@@ -137,17 +125,17 @@ export function OrderAuditFilterSheet({
   return (
     <ReportFilterSheet
       canApply={canApply}
-      description={t("orderAudit.title")}
+      description={t("report.vat.title")}
       gridClassName="lg:grid-cols-3"
       loading={loading}
       open={open}
       onApply={onApply}
       onOpenChange={onOpenChange}
     >
-      <OrderAuditFilterFields idPrefix="order-audit-mobile" {...fieldProps} />
+      <VatReportFilterFields idPrefix="vat-report-mobile" {...fieldProps} />
       {dateRangeInvalid ? (
         <p className="text-sm text-destructive sm:col-span-2 lg:col-span-3" role="alert">
-          {t("orderAudit.invalidDates")}
+          {t("report.vat.invalidDateRange")}
         </p>
       ) : null}
     </ReportFilterSheet>

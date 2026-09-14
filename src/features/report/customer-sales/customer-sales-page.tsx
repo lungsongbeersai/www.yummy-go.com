@@ -6,69 +6,66 @@ import { AppPagination } from "@/components/common/app-pagination";
 import { EmptyState } from "@/components/common/empty-state";
 import { PAGE_LIMIT_OPTIONS, pageLimitSize, pageRange, pageTotalPages } from "@/lib/pagination";
 import { ReportPageShell } from "@/features/report/shared/report-page-shell";
+import { ReportSummaryCardsGrid } from "@/features/report/shared/report-metric-display";
 import { useReportBranchSelection } from "@/features/report/shared/use-report-branch-selection";
-import { businessDateInputValue, money } from "@/lib/format";
 import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
-import { useEmployeeSalesReportStore } from "@/stores/report-store";
-import { EmployeeSalesDetailSheet } from "./employee-sales-detail-sheet";
-import { EmployeeSalesFilterBar, EmployeeSalesFilterSheet, type EmployeeSalesDraft } from "./employee-sales-filter-sheet";
-import { EmployeeSalesRowCard } from "./employee-sales-row-card";
-import { EmployeeSalesSkeleton } from "./employee-sales-skeleton";
-import { EmployeeSalesTable } from "./employee-sales-table";
+import { useCustomerSalesReportStore } from "@/stores/report-store";
+import { CustomerSalesDetailDialog } from "./customer-sales-detail-dialog";
+import { CustomerSalesFilterBar, CustomerSalesFilterSheet, type CustomerSalesDraft } from "./customer-sales-filter";
+import { CustomerSalesRowCard, CustomerSalesTable } from "./customer-sales-table";
+import { customerSalesSummaryMetricConfigs, customerSalesToday, validCustomerSalesDateRange } from "./customer-sales-utils";
 
-const SUMMARY_ID = "employee-sales-summary";
+const SUMMARY_ID = "customer-sales-summary";
 
-export function EmployeeSalesPage() {
+export function CustomerSalesPage() {
   const user = useAuthStore(state => state.user);
-  return <EmployeeSalesReport key={`${authStoreUuid(user)}:${user?.branch_uuid}:${user?.status}`} />;
+  return <CustomerSalesReport key={`${authStoreUuid(user)}:${user?.branch_uuid}:${user?.status}`} />;
 }
 
-function isValidDateRange(from: string, to: string) {
-  const valid = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value) &&
-    Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value;
-  return valid(from) && valid(to) && from <= to;
-}
-
-function EmployeeSalesReport() {
+function CustomerSalesReport() {
   const { t, i18n } = useTranslation();
   const language = i18n.language;
   const scope = useReportBranchSelection();
-  const { load, reset, loading, error, report } = useEmployeeSalesReportStore();
-  const today = businessDateInputValue();
-  const [draft, setDraft] = useState<EmployeeSalesDraft>(() => ({
-    branchUuid: scope.defaultBranchUuid, loginUuid: "", dateFrom: today, dateTo: today,
-    orderBy: "DESC", limit: PAGE_LIMIT_OPTIONS[0],
+  const { load, reset, loading, error, report } = useCustomerSalesReportStore();
+  const today = customerSalesToday();
+  const [draft, setDraft] = useState<CustomerSalesDraft>(() => ({
+    branchUuid: scope.defaultBranchUuid, customerUuid: "", customerLabel: "",
+    dateFrom: today, dateTo: today, search: "", orderBy: "DESC",
   }));
   const [applied, setApplied] = useState(draft);
+  const [selectedLimit] = useState(PAGE_LIMIT_OPTIONS[0]);
+  const [page, setPage] = useState(1);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
   const [summaryVisible, setSummaryVisible] = useState(true);
   const [refreshToken, setRefreshToken] = useState(0);
-  const [page, setPage] = useState(1);
   const branchUuid = scope.normalizeBranchFilters(applied).branchUuid;
   const draftBranch = scope.normalizeBranchFilters(draft).branchUuid;
-  const dateRangeValid = isValidDateRange(draft.dateFrom, draft.dateTo);
+  const dateRangeValid = validCustomerSalesDateRange(draft.dateFrom, draft.dateTo);
   const valid = Boolean(draftBranch) && dateRangeValid;
 
   useEffect(() => {
     if (!branchUuid) return;
     void load({
-      branch_uuid_fk: branchUuid, login_uuid: applied.loginUuid || undefined,
+      branch_uuid_fk: branchUuid, customer_uuid: applied.customerUuid || undefined, search: applied.search,
       date_from: applied.dateFrom, date_to: applied.dateTo, lang: language, orderBy: applied.orderBy,
     }).catch(() => undefined);
     return reset;
-  }, [load, reset, branchUuid, applied.loginUuid, applied.dateFrom, applied.dateTo, applied.orderBy, language, refreshToken]);
+  }, [load, reset, branchUuid, applied.customerUuid, applied.search, applied.dateFrom, applied.dateTo, applied.orderBy, language, refreshToken]);
 
   const current = report?.filters.branch_uuid_fk === branchUuid &&
     report.filters.date_from === applied.dateFrom && report.filters.date_to === applied.dateTo ? report : null;
-  const rows = current?.user_reports ?? [];
-  // จำนวนแถวมาจากการโหลดทั้งหมดในครั้งเดียว (API ไม่รองรับ page/limit) จึงแบ่งหน้าฝั่งเว็บเอง
-  const pageSize = pageLimitSize(applied.limit, rows.length);
+  const rows = current?.customer_reports ?? [];
+  // API ไม่รองรับ page/limit — โหลดทั้งหมดครั้งเดียวแล้วแบ่งหน้าฝั่งเว็บเอง (แบบเดียวกับ employee-sales/vat)
+  const pageSize = pageLimitSize(selectedLimit, rows.length);
   const totalPages = pageTotalPages(0, rows.length, pageSize);
   const pageStart = (page - 1) * pageSize;
   const pagedRows = rows.slice(pageStart, pageStart + pageSize);
   const range = pageRange(pagedRows.length, page, pageSize);
-  const selected = current?.user_reports.find(row => row.login_uuid === selectedId) ?? null;
+  const selected = current?.customer_reports.find(row => row.customer_uuid === selectedId) ?? null;
+  const summaryCards = current ? customerSalesSummaryMetricConfigs(t).map(metric => ({
+    ...metric, value: current.summary[metric.key as keyof typeof current.summary],
+  })) : [];
 
   function apply() {
     if (!valid) return;
@@ -90,13 +87,14 @@ function EmployeeSalesReport() {
     branchOptions: scope.branchOptions,
     draft,
     draftBranch,
+    language,
     onDraftChange: setDraft,
   };
 
   return (
     <>
       <ReportPageShell
-        accessibleTitle={t("employeeSales.title")}
+        accessibleTitle={t("report.customerSales.title")}
         variant="compact"
         dateFrom={applied.dateFrom}
         dateTo={applied.dateTo}
@@ -109,7 +107,7 @@ function EmployeeSalesReport() {
           error,
         ]}
         inlineFilters={actions => (
-          <EmployeeSalesFilterBar
+          <CustomerSalesFilterBar
             actions={actions}
             canApply={valid}
             loading={loading}
@@ -118,7 +116,7 @@ function EmployeeSalesReport() {
           />
         )}
         filterSheet={
-          <EmployeeSalesFilterSheet
+          <CustomerSalesFilterSheet
             canApply={valid}
             dateRangeInvalid={!dateRangeValid}
             loading={loading}
@@ -133,33 +131,36 @@ function EmployeeSalesReport() {
         onToggleSummary={() => setSummaryVisible(visible => !visible)}
         summary={
           current ? (
-            <p className="text-sm text-muted-foreground">
-              {t("employeeSales.summaryLine", { employeeCount: current.summary.employee_count, billCount: current.summary.bill_count })}
-              {" · "}{t("employeeSales.grandTotal")}: {money(current.summary.grand_total)}
-            </p>
+            <ReportSummaryCardsGrid
+              cards={summaryCards}
+              gridClassName="sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6"
+              cardClassName={() => "border-border bg-card"}
+              labelClassName={() => "text-muted-foreground"}
+              valueClassName={() => "font-black text-foreground"}
+            />
           ) : null
         }
         onOpenFilters={() => setMobileFilterOpen(true)}
         onRefresh={refresh}
         table={
           <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-auto p-3 md:p-4">
-            {loading ? <EmployeeSalesSkeleton /> : current ? <>
+            {current ? <>
               {pagedRows.length ? <>
-                <EmployeeSalesTable rows={pagedRows} onSelect={setSelectedId} />
-                <EmployeeSalesRowCard rows={pagedRows} onSelect={setSelectedId} />
+                <CustomerSalesTable rows={pagedRows} onSelect={setSelectedId} />
+                <CustomerSalesRowCard rows={pagedRows} onSelect={setSelectedId} />
                 <AppPagination
                   page={page}
                   totalPages={totalPages}
                   rangeLabel={t("common.showingRange", { start: range.start, end: range.end, total: rows.length })}
                   onPageChange={setPage}
                 />
-              </> : <EmptyState title={t("employeeSales.empty")} description={t("employeeSales.emptyDescription")} />}
+              </> : <EmptyState title={t("report.customerSales.empty")} description={t("report.customerSales.emptyDescription")} />}
             </> : null}
           </div>
         }
       />
 
-      <EmployeeSalesDetailSheet
+      <CustomerSalesDetailDialog
         row={selected}
         language={language}
         onOpenChange={open => { if (!open) setSelectedId(null); }}

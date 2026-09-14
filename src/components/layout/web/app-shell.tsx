@@ -36,7 +36,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Separator } from "@/components/ui/separator";
 import {
   SidebarInset,
   SidebarProvider,
@@ -188,7 +187,7 @@ function AppHeader({
     user?.branch_address || user?.store_name || t("app.posWorkspace");
 
   return (
-    <header className="app-header sticky top-0 z-40 flex h-(--app-shell-header-height) w-full items-center justify-between gap-2 border-b border-border px-2 sm:px-4 lg:gap-4 lg:px-6">
+    <header className="app-header sticky top-0 z-40 flex h-(--app-shell-header-height) w-full items-center justify-between gap-2 px-2 sm:px-4 lg:gap-4 lg:px-6">
       <div className="flex min-w-0 flex-1 items-center gap-2 md:gap-4">
         <Tooltip>
           <TooltipTrigger asChild>
@@ -196,15 +195,15 @@ function AppHeader({
               href="/"
               title={`${branchTitle} - ${address}`}
               className={cn(
-                "hidden min-w-0 shrink-0 items-center md:flex",
+                "group hidden min-w-0 shrink-0 items-center md:flex",
                 collapsed
                   ? "w-(--sidebar-width-icon) max-w-(--sidebar-width-icon) justify-center"
                   : "w-(--sidebar-width) max-w-(--sidebar-width) gap-3",
               )}
             >
-              <Avatar className="size-12.5 shrink-0 rounded-md">
+              <Avatar className="size-12.5 shrink-0 rounded-xl ring-1 ring-border/50 transition-shadow group-hover:ring-primary/30 group-focus-visible:ring-primary/30">
                 <AvatarImage src={logoSrc} alt={branchTitle} />
-                <AvatarFallback className="rounded-md font-black">
+                <AvatarFallback className="rounded-xl font-black">
                   {userInitials(user)}
                 </AvatarFallback>
               </Avatar>
@@ -214,7 +213,7 @@ function AppHeader({
                   collapsed ? "hidden" : "hidden sm:flex",
                 )}
               >
-                <span className="truncate text-base font-black text-primary">
+                <span className="truncate text-base font-black tracking-tight text-primary">
                   {branchTitle}
                 </span>
                 <span className="truncate text-xs text-muted-foreground">
@@ -233,14 +232,12 @@ function AppHeader({
           </TooltipContent>
         </Tooltip>
 
-        <Separator orientation="vertical" className="hidden h-12 md:block" />
-
-        <div className="flex min-w-0 flex-1 items-center gap-1 md:gap-2">
+        <div className="flex min-w-0 flex-1 items-center gap-1 md:gap-2 md:pl-2">
           <Tooltip>
             <TooltipTrigger asChild>
               <SidebarTrigger
                 aria-label={t("app.openMenu")}
-                className="size-11 shrink-0 sm:size-9 md:hidden"
+                className="size-11 shrink-0 rounded-full hover:bg-muted sm:size-9 md:hidden"
               />
             </TooltipTrigger>
             <TooltipContent side="bottom">{t("app.openMenu")}</TooltipContent>
@@ -250,7 +247,7 @@ function AppHeader({
               <Button
                 type="button"
                 variant="ghost"
-                className="size-11 shrink-0 text-primary sm:size-9 md:hidden"
+                className="size-11 shrink-0 rounded-full text-primary hover:bg-muted sm:size-9 md:hidden"
                 aria-label={t("actions.back")}
                 onClick={() => router.back()}
               >
@@ -262,7 +259,7 @@ function AppHeader({
           <Button
             type="button"
             variant="ghost"
-            className="hidden h-10 gap-2 px-2 text-primary md:inline-flex"
+            className="hidden h-10 gap-2 rounded-full px-3 text-primary hover:bg-muted md:inline-flex"
             onClick={() => router.back()}
           >
             <ChevronLeft data-icon="inline-start" />
@@ -279,27 +276,36 @@ function AppHeader({
       </div>
 
       <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-        {isCapacitorNativeApp ? (
-          // Capacitor ไม่มี pull-to-refresh/ปุ่ม reload ของเบราว์เซอร์ให้ผู้ใช้ ต้องมีทางรีโหลด
-          // เอง โดยเฉพาะช่วง dev ที่ server.url ชี้ dev server ในเครื่อง
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                className="size-11 shrink-0 sm:size-9"
-                aria-label={t("app.refreshApp")}
-                onClick={() => window.location.reload()}
-              >
-                <RefreshCw />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">{t("app.refreshApp")}</TooltipContent>
-          </Tooltip>
-        ) : null}
-        <ThemeToggle variant="ghost" className="size-11 sm:size-9" />
-        <NotificationMenu triggerClassName="size-11 sm:size-9" />
-        <LanguageSwitch compact size="icon" className="size-11 sm:size-9" />
+        <div className="flex items-center gap-0.5 rounded-full bg-muted/40 p-1">
+          {isCapacitorNativeApp ? (
+            // Capacitor ไม่มี pull-to-refresh/ปุ่ม reload ของเบราว์เซอร์ให้ผู้ใช้ ต้องมีทางรีโหลด
+            // เอง โดยเฉพาะช่วง dev ที่ server.url ชี้ dev server ในเครื่อง
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="size-11 shrink-0 rounded-full hover:bg-background sm:size-9"
+                  aria-label={t("app.refreshApp")}
+                  onClick={() => window.location.reload()}
+                >
+                  <RefreshCw />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">{t("app.refreshApp")}</TooltipContent>
+            </Tooltip>
+          ) : null}
+          <ThemeToggle
+            variant="ghost"
+            className="size-11 rounded-full hover:bg-background sm:size-9"
+          />
+          <NotificationMenu triggerClassName="size-11 rounded-full hover:bg-background sm:size-9" />
+          <LanguageSwitch
+            compact
+            size="icon"
+            className="size-11 rounded-full hover:bg-background sm:size-9"
+          />
+        </div>
         <DropdownMenu>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -307,7 +313,7 @@ function AppHeader({
                 <Button
                   variant="ghost"
                   aria-label={user?.email ?? t("profile.sections.account")}
-                  className="h-11 min-w-11 gap-2 px-0 sm:h-10 sm:min-w-10 sm:px-2"
+                  className="h-11 min-w-11 gap-2 rounded-full px-0 hover:bg-muted sm:h-10 sm:min-w-10 sm:px-2"
                 >
                   <Avatar className="size-9">
                     {profileSrc ? (
@@ -369,16 +375,23 @@ function AppBreadcrumb({
 
   function renderItem(item: BreadcrumbTrailItem, current: boolean) {
     const title = menuItemLabel(item, t);
-    if (current || item.disabled || !item.path) {
+    if (current) {
       return (
-        <BreadcrumbPage className="truncate font-semibold">
+        <BreadcrumbPage className="truncate font-semibold text-foreground">
+          {title}
+        </BreadcrumbPage>
+      );
+    }
+    if (item.disabled || !item.path) {
+      return (
+        <BreadcrumbPage className="truncate text-muted-foreground">
           {title}
         </BreadcrumbPage>
       );
     }
 
     return (
-      <BreadcrumbLink asChild className="truncate">
+      <BreadcrumbLink asChild className="truncate text-muted-foreground">
         <Link href={internalRoute(item.path)}>{title}</Link>
       </BreadcrumbLink>
     );
@@ -397,7 +410,7 @@ function AppBreadcrumb({
         ) : null}
         {overflow ? (
           <>
-            <BreadcrumbSeparator />
+            <BreadcrumbSeparator className="opacity-50" />
             <BreadcrumbItem>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -436,7 +449,7 @@ function AppBreadcrumb({
         ) : (
           middle.map((item) => (
             <Fragment key={item.path ?? item.title}>
-              <BreadcrumbSeparator />
+              <BreadcrumbSeparator className="opacity-50" />
               <BreadcrumbItem className="min-w-0">
                 {renderItem(item, false)}
               </BreadcrumbItem>
@@ -445,7 +458,7 @@ function AppBreadcrumb({
         )}
         {breadcrumbs.length > 1 && last ? (
           <>
-            <BreadcrumbSeparator />
+            <BreadcrumbSeparator className="opacity-50" />
             <BreadcrumbItem className="min-w-0">
               {renderItem(last, true)}
             </BreadcrumbItem>

@@ -39,7 +39,7 @@ const disabledReportItems: MenuItem[] = [
   { path: "/report/cancel-sales-invoice", title: "cancel_sales_invoice_report", disabled: true },
   { path: "/report/discount", title: "discount_report", disabled: true },
   { path: "/report/service-charge", title: "service_charge_summary", disabled: true },
-  { path: "/report/vat", title: "vat_summary", disabled: true }
+  { path: "/report/vat", title: "vat_summary" }
 ];
 
 const Menu: MenuItem[] = [
