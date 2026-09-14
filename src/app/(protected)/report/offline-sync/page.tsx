@@ -1,10 +1,5 @@
-import type { Metadata } from "next";
-import { OfflineSyncReviewPage } from "@/features/report/offline-sync/offline-sync-review-page";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = {
-  title: "ລາຍການອອບລາຍທີ່ຕ້ອງກວດສອບ",
-};
-
-export default function Page() {
-  return <OfflineSyncReviewPage />;
+export default function Page(): never {
+  redirect("/sales/sales-list");
 }

@@ -211,7 +211,7 @@ describe("Backend NetworkManager", () => {
     stop();
   });
 
-  it("still requires three failed probes when the browser starts reporting no network", async () => {
+  it("still records three failed probes without enabling a retired offline session", async () => {
     const browser = installBrowser(true);
     const probeBackend = vi.fn().mockResolvedValue(unreachable());
     const stop = startBackendNetworkMonitor({
@@ -234,7 +234,7 @@ describe("Backend NetworkManager", () => {
     expect(useAuthStore.getState().offlineSession).toBe(false);
     await vi.advanceTimersByTimeAsync(500);
     expect(useNetworkStore.getState().state).toBe(BACKEND_NETWORK_STATE.OFFLINE);
-    expect(useAuthStore.getState().offlineSession).toBe(true);
+    expect(useAuthStore.getState().offlineSession).toBe(false);
     stop();
   });
 
@@ -392,14 +392,14 @@ describe("Backend NetworkManager", () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
-  it("does not turn a local login token and offline auth flag into an outage", async () => {
+  it("does not reactivate an offline auth flag for a legacy local token", async () => {
     installBrowser(true);
     useAuthStore.getState().login("local.session", authUser());
     useAuthStore.getState().setOfflineSession(true);
     const stop = startBackendNetworkMonitor({ probeBackend: vi.fn().mockResolvedValue(reachable()) });
     try {
       await flushPromises();
-      expect(useAuthStore.getState().offlineSession).toBe(true);
+      expect(useAuthStore.getState().offlineSession).toBe(false);
       expect(useNetworkStore.getState().state).toBe(BACKEND_NETWORK_STATE.ONLINE);
     } finally { stop(); }
   });

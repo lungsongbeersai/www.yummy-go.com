@@ -4,7 +4,6 @@ import { create } from "zustand";
 import { createJSONStorage, persist, type StateStorage } from "zustand/middleware";
 import { disconnectSocket } from "@/lib/socket";
 import { checkLogin } from "@/services/login";
-import { prepareOfflineSession } from "@/services/offline-sync";
 import { resetSessionStores } from "@/stores/session-store-registry";
 import { errorMessage } from "@/stores/store-utils";
 
@@ -54,12 +53,19 @@ function normalizeAuthUser(user: NormalizableAuthUser | null): AuthUser | null {
 function normalizePersistedAuthState(persistedState: unknown): PersistedAuthState {
   if (!isRecord(persistedState)) return {};
   const state = persistedState as PersistedAuthState;
+  if (state.token?.startsWith("local.")) {
+    return {
+      token: null,
+      user: null,
+      isLoggedIn: false,
+      rememberMe: Boolean(state.rememberMe),
+      offlineSession: false,
+    };
+  }
   return {
     ...state,
     user: isRecord(state.user) ? normalizeAuthUser(state.user as NormalizableAuthUser) : null,
-    // Persisted connectivity is never authoritative after restart. A local
-    // token remains an offline-auth session, while normal JWTs start CHECKING.
-    offlineSession: Boolean(state.token?.startsWith("local.")),
+    offlineSession: false,
   };
 }
 
@@ -144,33 +150,7 @@ export const useAuthStore = create<AuthState>()(
           if (requestId !== loginRequestId) return null;
 
           resetSessionStores();
-          set(authenticatedState(result.token, result.user, rememberMe, result.source === "offline"));
-
-          if (result.source === "online") {
-            // Online authentication is already complete. Preparing the Local
-            // Agent is resilience work and can take up to 45 seconds while a
-            // stale/blocked bootstrap is being repaired; never hold the login
-            // screen hostage to it. Agent failures remain non-fatal, as before.
-            void prepareOfflineSession({
-              token: result.token,
-              actorLoginUuid: result.user.uuid,
-              storeUuid: authStoreUuid(result.user),
-              branchUuid: result.user.branch_uuid,
-              loginEmail: email,
-              loginPassword: password,
-              loginResponse: {
-                loginEmail: result.user.email,
-                loginStatus: result.user.status,
-                loginProfile: result.user.profile,
-                branchName: result.user.branch_name,
-                branchTel: result.user.branch_tel,
-                branchAddress: result.user.branch_address,
-                storeName: result.user.store_name,
-                storeLogo: result.user.store_logo,
-                storeTableStatus: result.user.store_table_status,
-              },
-            }).catch(() => false);
-          }
+          set(authenticatedState(result.token, result.user, rememberMe));
           return result.user;
         } catch (error) {
           if (requestId !== loginRequestId) return null;
@@ -216,13 +196,13 @@ export const useAuthStore = create<AuthState>()(
         });
         return true;
       },
-      setOfflineSession: (offlineSession) => set({ offlineSession }),
+      setOfflineSession: () => set({ offlineSession: false }),
       setHydrated: (hydrated) => set({ hydrated })
     }),
     {
       name: STORAGE_KEY,
       storage: createJSONStorage(() => dualStorage),
-      version: 2,
+      version: 3,
       migrate: (persistedState) => normalizePersistedAuthState(persistedState),
       partialize: ({ token, user, isLoggedIn, rememberMe }) => ({
         token,
@@ -232,7 +212,7 @@ export const useAuthStore = create<AuthState>()(
       }),
       onRehydrateStorage: () => (state) => {
         if (state?.user) state.updateUser(state.user);
-        if (state) state.setOfflineSession(Boolean(state.token?.startsWith("local.")));
+        if (state) state.setOfflineSession(false);
         state?.setHydrated(true);
       }
     }

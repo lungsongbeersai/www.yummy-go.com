@@ -21,9 +21,7 @@ import { useAppStore, type FontScale, type ThemeColor, type ThemeMode } from "@/
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppUpdateChecker } from "@/features/app-update/app-update-checker";
-import { OfflineAppRuntime } from "@/features/offline/offline-app-runtime";
-import { OfflineConnectivityDialog } from "@/features/offline/offline-connectivity-dialog";
-import { OfflineUnavailableOverlay } from "@/features/offline/offline-unavailable-overlay";
+import { OnlineOnlyCutoverRuntime } from "@/features/online-only/online-only-cutover-runtime";
 
 interface ProvidersProps {
   children: React.ReactNode;
@@ -116,22 +114,6 @@ function applyCapacitorPlatformClasses() {
   };
 }
 
-// next.config.ts ปิด SW ใน dev เสมอ (Turbopack ไม่รองรับ InjectManifest) แต่ browser ยังคง SW ที่เคย
-// register ไว้ตอนรัน `npm start` (production) บน origin เดียวกันค้างไว้ได้ — asset hash ของ Turbopack
-// dev กับของ webpack build คนละชุดกัน ทำให้ SW เก่าพยายาม precache ไฟล์ที่ dev server ไม่มีจริง (404
-// รัว ๆ ใน console) หรือแย่กว่านั้นคือ CSP ของ SW เก่าบล็อก fetch ทุกตัวจนแอปดูเหมือนออฟไลน์ทั้งที่เน็ตปกติ
-// ล้าง SW ทิ้งอัตโนมัติเฉพาะ dev เพื่อไม่ให้นักพัฒนาต้องมานั่งไล่ unregister มือเองทุกครั้งที่สลับโหมด
-function unregisterStaleServiceWorkersInDev() {
-  if (process.env.NODE_ENV === "production") return;
-  if (!("serviceWorker" in navigator)) return;
-  void navigator.serviceWorker.getRegistrations().then((registrations) => {
-    if (registrations.length === 0) return;
-    void Promise.all(registrations.map((registration) => registration.unregister())).then(() => {
-      window.location.reload();
-    });
-  });
-}
-
 export function Providers({ children, initialLanguage }: ProvidersProps) {
   const mounted = useIsMounted();
   const appliedThemeRef = useRef(false);
@@ -146,10 +128,6 @@ export function Providers({ children, initialLanguage }: ProvidersProps) {
   if (!mounted && i18n.language !== initialLanguage) {
     void i18n.changeLanguage(initialLanguage);
   }
-
-  useEffect(() => {
-    unregisterStaleServiceWorkersInDev();
-  }, []);
 
   useEffect(() => {
     const cleanupCapacitorPlatformClasses = applyCapacitorPlatformClasses();
@@ -250,9 +228,7 @@ export function Providers({ children, initialLanguage }: ProvidersProps) {
     <I18nextProvider i18n={i18n}>
       <TooltipProvider delayDuration={150}>
         {children}
-        <OfflineAppRuntime />
-        <OfflineConnectivityDialog />
-        <OfflineUnavailableOverlay />
+        <OnlineOnlyCutoverRuntime />
         <AppUpdateChecker />
         <Toaster />
       </TooltipProvider>

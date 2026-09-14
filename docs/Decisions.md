@@ -6,6 +6,15 @@ Entries below dated from git history are backfilled from existing code comments 
 
 ---
 
+## All stores use Online-only sales; every old offline queue is retired globally
+
+- **Date:** 2026-09-14.
+- **Context:** Multiple devices at the same table showed different totals, local dependency chains remained blocked, and QR/payment/return printing stopped behind old offline work. The owner explicitly chose not to recover any remaining queued intent and requested a safe all-store removal with no future offline order queue.
+- **Decision:** POS authentication, reads and business mutations now call Backend only. Backend never dispatches a new `/sync/push` mutation; during the compatibility window it authenticates old clients and acknowledges their submitted events as discarded/SYNCED so old outboxes can drain without replaying stale sales. Browser startup removes the retired Dexie database, offline storage markers, Cache Storage and service-worker registrations. A tombstone worker retires already-installed workers. Printer Agent 1.0.11 archives then deletes unfinished local sync/print rows once and no longer starts the local sales-sync or offline-print schedulers; its online `/print-ops` transports remain active.
+- **Global cleanup:** The one-time Backend migration archives every non-SYNCED `tb_sync_event`, deletes those rows from the live sync queue, archives every pre-cutover pending/partial/failed print job with its item snapshots, marks those old jobs skipped, and disables `offline_mobile_enabled` on every branch. Successful orders, payments, successful print history and Agent PRINTED dedupe rows are not deleted.
+- **Trade-off:** A shop cannot login, sell, confirm kitchen work or pay while Backend/internet is unavailable; the action must fail visibly and be retried online. A physical printer that is unavailable can still create a normal Backend print failure, but it cannot create or replay a local order/payment. Reintroducing offline sales requires a new explicit decision and a new contract version.
+- **Approved by:** repo owner (2026-09-14, in-conversation — explicitly requested no recovery, global pending cleanup and complete Offline removal).
+
 ## Retryable mobile print jobs follow an edited TCP endpoint, but uncertain jobs stay frozen
 
 - **Date:** 2026-09-14.

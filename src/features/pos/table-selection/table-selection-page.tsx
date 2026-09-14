@@ -8,15 +8,12 @@ import { LanguageSwitch } from "@/components/layout/language-switch";
 import { NotificationMenu } from "@/components/layout/notification-menu";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { Button } from "@/components/ui/button";
-import { useIsAndroidNativeApp } from "@/hooks/use-android-native-app";
 import { useIsNativeShellActive } from "@/hooks/use-native-shell-active";
-import { useOfflineRefetchEpoch } from "@/hooks/use-offline-refetch";
 import { cn } from "@/lib/utils";
 import type { PosTable } from "@/services/pos";
 import { useAppStore } from "@/stores/app-store";
 import { useAuthStore } from "@/stores/auth-store";
 import { useNativeHeaderStore } from "@/stores/native-header-store";
-import { probeBackendReachability } from "@/stores/offline-transport-monitor";
 import { usePosStore } from "@/stores/pos-store";
 import { useToastStore } from "@/stores/toast-store";
 import { TableListSection } from "./table-list-section";
@@ -38,7 +35,6 @@ export function TableSelectionPage() {
   const refreshTables = usePosStore((state) => state.refreshTables);
   const showToast = useToastStore((state) => state.show);
   const nativeShellActive = useIsNativeShellActive();
-  const isAndroidNative = useIsAndroidNativeApp();
   const setHeaderRefreshAction = useNativeHeaderStore((state) => state.setRefreshAction);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<TableStatusFilter>("all");
@@ -46,9 +42,6 @@ export function TableSelectionPage() {
 
   const branchUuid = user?.branch_uuid ?? "";
   const skipTableSelection = user?.store_table_status === 2;
-  // Refetch once when the backend transport verdict flips (net dropped or came
-  // back) so the grid switches between Local Agent and backend data on its own.
-  const refetchEpoch = useOfflineRefetchEpoch();
 
   // ไม่ส่ง zone_uuid เลย — โหลดทุกโซนมาแสดงพร้อมกันเสมอ การ "เลือกโซน" ที่หน้า
   // จอเป็นแค่การเลื่อนไปยัง section นั้น (ดู scrollToZone ใน table-list-section.tsx)
@@ -80,14 +73,6 @@ export function TableSelectionPage() {
     void load();
   }, [load, skipTableSelection]);
 
-  // On an online<->offline flip, refresh silently (refreshTables carries no
-  // loading flag) so the grid swaps its data source without a visible reload.
-  useEffect(() => {
-    if (skipTableSelection || !branchUuid || refetchEpoch === 0) return;
-    void refreshTables({ branch_uuid_fk: branchUuid, zone_uuid: "", lang: language })
-      .catch(() => undefined);
-  }, [branchUuid, language, refetchEpoch, refreshTables, skipTableSelection]);
-
   // นาฬิกาในหัวข้อสีเขียวมีแค่ฝั่งเว็บ (ดูเหตุผลเรื่อง header ด้านล่าง) — ไม่ต้องนับ
   // ทุกวินาทีทิ้งเปล่า ๆ บน Capacitor ที่ไม่ได้เรนเดอร์มันอยู่แล้ว
   useEffect(() => {
@@ -106,33 +91,10 @@ export function TableSelectionPage() {
     return () => setHeaderRefreshAction(null);
   }, [nativeShellActive, loading, load, setHeaderRefreshAction]);
 
-  async function selectTable(table: PosTable) {
+  function selectTable(table: PosTable) {
     const params = new URLSearchParams({ table_uuid: table.table_uuid });
     if (table.table_name) params.set("table_name", table.table_name);
     const target = `/pos/order?${params.toString()}` as const;
-    // Android can now open a table and take an order fully offline (staged
-    // into the Dexie outbox, synced once reachable — see write-fallback.ts),
-    // so this no longer blocks the tap. What's left is purely a navigation
-    // concern: `offlineSession` only trips once confirmed (3 failed health
-    // probes), so a connection dropping right at tap time can slip past it
-    // into router.push, whose RSC fetch then fails over the now-dead
-    // connection — Next.js recovers with its own hard-reload fallback, a
-    // jarring full-app flash. A quick real probe routes straight to the same
-    // resilient hard-navigation path the navigator.onLine branch below
-    // already uses, instead of waiting for the confirmed verdict.
-    if (isAndroidNative) {
-      const probe = await probeBackendReachability(1200);
-      if (!probe.reachable && probe.classification === "NETWORK_TRANSPORT") {
-        window.location.assign(target);
-        return;
-      }
-    }
-    // A document navigation lets the service worker use the warmed /pos/order
-    // shell even when a Next.js RSC prefetch was not completed before Wi-Fi drops.
-    if (navigator.onLine === false) {
-      window.location.assign(target);
-      return;
-    }
     router.push(target);
   }
 

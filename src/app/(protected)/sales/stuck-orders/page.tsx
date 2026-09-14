@@ -1,10 +1,5 @@
-import type { Metadata } from "next";
-import { StuckOrdersPage } from "@/features/report/stuck-orders/stuck-orders-page";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = {
-  title: "ອໍເດີຄ້າງສົ່ງ",
-};
-
-export default function Page() {
-  return <StuckOrdersPage />;
+export default function Page(): never {
+  redirect("/sales/sales-list");
 }

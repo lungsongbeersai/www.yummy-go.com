@@ -43,6 +43,8 @@ interface PersistedAuthUser {
 
 interface PersistedAuthSnapshot {
   state?: {
+    token?: string | null;
+    isLoggedIn?: boolean;
     user?: PersistedAuthUser | null;
     offlineSession?: boolean;
   };
@@ -93,6 +95,45 @@ describe("auth store persistence", () => {
     expect(useAuthStore.getState().offlineSession).toBe(false);
     expect(storedSnapshot.state?.user?.store_table_status).toBe(1);
     expect(storedSnapshot.state).not.toHaveProperty("offlineSession");
-    expect(storedSnapshot.version).toBe(2);
+    expect(storedSnapshot.version).toBe(3);
+  });
+
+  it("logs out a retired persisted local session", async () => {
+    const localStorage = memoryStorage({
+      [STORAGE_KEY]: JSON.stringify({
+        state: {
+          token: "local.retired-session",
+          user: {
+            uuid: "legacy-user",
+            email: "legacy@example.com",
+            status: 1,
+            profile: "",
+            branch_uuid: "legacy-branch",
+            branch_name: "Branch",
+            branch_tel: "",
+            branch_address: "",
+            store_uuid: "legacy-store",
+            store_name: "Store",
+            store_logo: "",
+          },
+          isLoggedIn: true,
+          rememberMe: true,
+        },
+        version: 2,
+      }),
+    });
+    const sessionStorage = memoryStorage();
+    vi.stubGlobal("localStorage", localStorage);
+    vi.stubGlobal("sessionStorage", sessionStorage);
+    vi.stubGlobal("window", { localStorage, sessionStorage });
+
+    const { useAuthStore } = await import("@/stores/auth-store");
+
+    expect(useAuthStore.getState()).toMatchObject({
+      token: null,
+      user: null,
+      isLoggedIn: false,
+      offlineSession: false,
+    });
   });
 });

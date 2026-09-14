@@ -11,7 +11,6 @@ import { useProductStore } from "@/stores/product-store";
 import { useReferenceStore } from "@/stores/reference-store";
 import { usePermissionsSidebarStore } from "@/stores/permissions-sidebar-store";
 import { usePermissionsAccessStore } from "@/stores/permissions-access-store";
-import { prepareOfflineSession } from "@/services/offline-sync";
 
 vi.mock("@/lib/socket", () => ({
   disconnectSocket: vi.fn()
@@ -19,10 +18,6 @@ vi.mock("@/lib/socket", () => ({
 
 vi.mock("@/services/login", () => ({
   checkLogin: vi.fn()
-}));
-
-vi.mock("@/services/offline-sync", () => ({
-  prepareOfflineSession: vi.fn()
 }));
 
 vi.mock("@/services/branch", async (importOriginal) => {
@@ -50,7 +45,6 @@ vi.mock("@/services/product", async (importOriginal) => {
 });
 
 const checkLoginMock = vi.mocked(checkLogin);
-const prepareOfflineSessionMock = vi.mocked(prepareOfflineSession);
 const disconnectSocketMock = vi.mocked(disconnectSocket);
 const getBranchOptionsMock = vi.mocked(getBranchOptions);
 const getExecutiveDashboardMock = vi.mocked(getExecutiveDashboard);
@@ -87,14 +81,11 @@ describe("auth store session isolation", () => {
   beforeEach(() => {
     useAuthStore.getState().logout();
     vi.clearAllMocks();
-    prepareOfflineSessionMock.mockResolvedValue(false);
   });
 
-  it("does not delay an online login while the Local Agent bootstraps", async () => {
-    const preparation = deferred<boolean>();
+  it("logs in online without preparing an offline Agent session", async () => {
     const user = authUser("cashier");
     checkLoginMock.mockResolvedValue({ token: "online-token", user, source: "online" });
-    prepareOfflineSessionMock.mockReturnValueOnce(preparation.promise);
 
     await expect(useAuthStore.getState().loginWithPassword("cashier@example.com", "password"))
       .resolves.toEqual(user);
@@ -105,10 +96,6 @@ describe("auth store session isolation", () => {
       loading: false,
       offlineSession: false,
     });
-    expect(prepareOfflineSessionMock).toHaveBeenCalledOnce();
-
-    preparation.resolve(false);
-    await preparation.promise;
   });
 
   it("resets loaded user-scoped stores on logout", () => {
@@ -135,13 +122,13 @@ describe("auth store session isolation", () => {
     expect(disconnectSocketMock).toHaveBeenCalledOnce();
   });
 
-  it("switches the active transport without replacing the authenticated user", () => {
+  it("cannot switch an authenticated user into an offline session", () => {
     useAuthStore.getState().login("token-1", authUser("user-1"));
     useAuthStore.getState().setOfflineSession(true);
     expect(useAuthStore.getState()).toMatchObject({
       token: "token-1",
       isLoggedIn: true,
-      offlineSession: true,
+      offlineSession: false,
     });
     useAuthStore.getState().setOfflineSession(false);
     expect(useAuthStore.getState()).toMatchObject({
@@ -151,7 +138,7 @@ describe("auth store session isolation", () => {
     });
   });
 
-  it("replaces a local token with an online JWT only for the same identity", () => {
+  it("can replace a legacy local token with an online JWT only for the same identity", () => {
     const currentUser = authUser("user-1");
     useAuthStore.getState().login("local.session-token", currentUser);
     useAuthStore.getState().setOfflineSession(true);
@@ -164,14 +151,14 @@ describe("auth store session isolation", () => {
     });
   });
 
-  it("rejects an online session restored for another login", () => {
+  it("rejects a legacy session restored for another login without enabling offline mode", () => {
     useAuthStore.getState().login("local.session-token", authUser("user-1"));
     useAuthStore.getState().setOfflineSession(true);
 
     expect(useAuthStore.getState().resumeOnlineSession("other-token", authUser("user-2"))).toBe(false);
     expect(useAuthStore.getState()).toMatchObject({
       token: "local.session-token",
-      offlineSession: true,
+      offlineSession: false,
     });
   });
 
