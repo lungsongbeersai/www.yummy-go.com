@@ -4,6 +4,8 @@ import { apiRequest } from "@/lib/api";
 import { requestOfflineDataRefresh } from "@/lib/offline-data-refresh";
 import type { BrowserOfflineIdentity } from "@/services/offline-db";
 import { applyMobileBlockedQueueReset } from "@/services/mobile-blocked-queue-reset";
+import { rebindRetryableMobilePrintEndpoints } from "@/services/mobile-printer-endpoint-rebind";
+import { drainBrowserPrintQueue } from "@/services/printer/mobile-offline-queue";
 
 const PREPARE_FRESH_MS = 5 * 60 * 1000;
 const preparedUntil = new Map<string, number>();
@@ -49,6 +51,10 @@ export function prepareMobileOfflineOperations(
         agent_id: "browser-mobile",
         print_mode: "mobile_wifi",
       },
+    }).then(async (response) => {
+      const rebound = await rebindRetryableMobilePrintEndpoints(scope, response);
+      if (rebound > 0) await drainBrowserPrintQueue(scope);
+      return response;
     }),
   ]).then(() => {
     preparedUntil.set(key, Date.now() + PREPARE_FRESH_MS);

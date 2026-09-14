@@ -770,6 +770,8 @@ export async function updateBrowserPrintJob(
   update: Pick<BrowserPrintJobEntry, "status"> & {
     lastError?: string | null;
     incrementAttempts?: boolean;
+    interfaceValue?: string;
+    printConfigUuid?: string;
   },
   override?: BrowserOfflineStore,
 ) {
@@ -783,6 +785,8 @@ export async function updateBrowserPrintJob(
       status: update.status,
       attempts: current.attempts + (update.incrementAttempts ? 1 : 0),
       lastError: update.lastError === undefined ? current.lastError : update.lastError,
+      interfaceValue: update.interfaceValue ?? current.interfaceValue,
+      printConfigUuid: update.printConfigUuid ?? current.printConfigUuid,
       updatedAt: Date.now(),
     };
     await store.putPrintJob?.(next);

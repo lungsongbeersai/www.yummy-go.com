@@ -6,6 +6,14 @@ Entries below dated from git history are backfilled from existing code comments 
 
 ---
 
+## Retryable mobile print jobs follow an edited TCP endpoint, but uncertain jobs stay frozen
+
+- **Date:** 2026-09-14.
+- **Context:** Sethathirath Hospital changed one Wi-Fi printer from `192.168.100.52` to `192.168.100.2`. Backend routing immediately used the new config, but an already-durable mobile kitchen job retained the old endpoint snapshot and therefore held `KITCHEN_CONFIRM` locally before Backend could see it.
+- **Decision:** After fetching the current mobile printer configuration, rebind only `PENDING`/`FAILED` local print jobs to the same config UUID. If an older edit recreated the config, allow a fallback only when the printer name uniquely identifies one active TCP config. Rebound `FAILED` work becomes `PENDING` and retries through the durable spooler.
+- **Safety boundary:** Never alter or retry `PRINTING`, `UNCERTAIN`, or `PRINTED` work; those states may already have emitted paper. Never guess between duplicate printer names.
+- **Reason:** A printer IP is operational configuration and can change while safe, not-yet-sent work is durable. Freezing the old address forever blocks the kitchen event; rewriting delivery-uncertain work could print duplicates.
+
 ## Branch queue resets are versioned, device-local, and never delete payments
 
 - **Date:** 2026-09-14.
