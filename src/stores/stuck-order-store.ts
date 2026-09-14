@@ -1,15 +1,32 @@
 "use client";
 
 import { create } from "zustand";
+import { isCapacitorMobileApp } from "@/lib/capacitor-platform";
 import {
+  discardAllStuckBrowserSyncEvents,
   discardAllStuckLocalSyncEvents,
+  discardStuckBrowserSyncEvents,
   discardStuckLocalSyncEvents,
+  listStuckBrowserSyncEvents,
   listStuckLocalSyncEvents,
   type StuckSyncDiscardResult,
   type StuckSyncEvent,
 } from "@/services/offline-sync";
 import { createSessionGuard, registerSessionStoreReset } from "@/stores/session-store-registry";
+import { useAuthStore } from "@/stores/auth-store";
 import { errorMessage } from "@/stores/store-utils";
+
+// The Agent only ever knows its own desktop's SQLite outbox — a Capacitor
+// device's stuck events live in that device's own Dexie instead, so this
+// page must read/discard from whichever store the device it is actually
+// running on can see.
+function browserScope() {
+  const user = useAuthStore.getState().user;
+  return {
+    storeUuid: user?.store_uuid || user?.store_uuid_fk || "",
+    branchUuid: user?.branch_uuid || "",
+  };
+}
 
 interface StuckOrderState {
   events: StuckSyncEvent[];
@@ -42,7 +59,9 @@ export const useStuckOrderStore = create<StuckOrderState>((set, get) => ({
     const isCurrentSession = createSessionGuard();
     set({ loading: true, error: null });
     try {
-      const events = await listStuckLocalSyncEvents();
+      const events = isCapacitorMobileApp()
+        ? await listStuckBrowserSyncEvents(browserScope())
+        : await listStuckLocalSyncEvents();
       if (isCurrentSession()) set({ events, loading: false });
     } catch (error) {
       if (isCurrentSession()) set({ error: errorMessage(error), loading: false, events: [] });
@@ -51,7 +70,9 @@ export const useStuckOrderStore = create<StuckOrderState>((set, get) => ({
   discard: async (key, eventUuids, includeFinancial) => {
     set({ discardingKey: key, error: null, lastResult: null });
     try {
-      const lastResult = await discardStuckLocalSyncEvents(eventUuids, { includeFinancial });
+      const lastResult = isCapacitorMobileApp()
+        ? await discardStuckBrowserSyncEvents(browserScope(), eventUuids, { includeFinancial })
+        : await discardStuckLocalSyncEvents(eventUuids, { includeFinancial });
       set({ lastResult });
       await get().load();
     } catch (error) {
@@ -63,7 +84,9 @@ export const useStuckOrderStore = create<StuckOrderState>((set, get) => ({
   discardAll: async (includeFinancial) => {
     set({ discardingAll: true, error: null, lastResult: null });
     try {
-      const lastResult = await discardAllStuckLocalSyncEvents({ includeFinancial });
+      const lastResult = isCapacitorMobileApp()
+        ? await discardAllStuckBrowserSyncEvents(browserScope(), { includeFinancial })
+        : await discardAllStuckLocalSyncEvents({ includeFinancial });
       set({ lastResult });
       await get().load();
     } catch (error) {

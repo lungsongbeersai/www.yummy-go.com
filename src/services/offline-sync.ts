@@ -1516,6 +1516,84 @@ export async function discardBlockedBrowserSyncEvent(
   return discardBrowserSyncEvent(eventUuid, browserStore);
 }
 
+/**
+ * Maps one Capacitor/Dexie queue row into the same shape the desktop Agent's
+ * `/local/sync/stuck` list uses, so `/sales/stuck-orders` can show and
+ * discard a mobile device's own blocked events too — the Agent only ever
+ * answers with what a desktop's own SQLite outbox holds; it has nothing to
+ * say about a phone's Dexie queue on a different device entirely, so opening
+ * this page on a desktop and clearing "everything" never touched a mobile
+ * device's own stuck rows.
+ */
+function mapBrowserEntryToStuckSyncEvent(entry: BrowserSyncQueueEntry): StuckSyncEvent {
+  const operation = OFFLINE_ORDER_PUSH_OPERATIONS[`${entry.method} ${entry.path}`] ||
+    `${entry.method.toUpperCase()} ${entry.path}`;
+  const data = record(entry.data);
+  const orderUuid = typeof data.order_uuid === "string" ? data.order_uuid : null;
+  return {
+    event_uuid: entry.eventUuid,
+    operation,
+    entity_type: "orders",
+    entity_uuid: orderUuid,
+    sync_status: "BLOCKED",
+    retry_count: 0,
+    sequence_no: entry.createdAt,
+    dependencies: entry.dependencies,
+    last_error: entry.lastError,
+    created_at: entry.createdAt,
+    updated_at: entry.updatedAt,
+    next_attempt_at: entry.updatedAt,
+    stuck_for_ms: Math.max(0, Date.now() - entry.createdAt),
+    waiting_on_print: entry.lastError === "MOBILE_PRINT_DELIVERY_UNCERTAIN",
+    waiting_on_dependency: entry.dependencies.length > 0,
+    // Mobile shares the sales pages, not the Agent's split/print APIs (see
+    // OFFLINE_ORDER_PUSH_OPERATIONS above) — PAYMENT is the only op that ever
+    // moves money here.
+    is_financial: operation === "PAYMENT",
+    order: null,
+  };
+}
+
+export async function listStuckBrowserSyncEvents(
+  scope: BrowserOfflineScope,
+  browserStore?: BrowserOfflineStore,
+): Promise<StuckSyncEvent[]> {
+  const entries = await listBlockedBrowserSyncEvents(scope, browserStore);
+  return entries.map(mapBrowserEntryToStuckSyncEvent);
+}
+
+export async function discardStuckBrowserSyncEvents(
+  scope: BrowserOfflineScope,
+  eventUuids: string[],
+  options: StuckSyncDiscardOptions = {},
+  browserStore?: BrowserOfflineStore,
+): Promise<StuckSyncDiscardResult> {
+  const queue = await listBrowserSyncQueue(scope, browserStore);
+  const byUuid = new Map(queue.map((entry) => [entry.eventUuid, entry]));
+  const result: StuckSyncDiscardResult = { discarded: [], cascaded: [], skipped: [] };
+  for (const eventUuid of eventUuids) {
+    const entry = byUuid.get(eventUuid);
+    if (!entry) continue;
+    const operation = OFFLINE_ORDER_PUSH_OPERATIONS[`${entry.method} ${entry.path}`] || "";
+    if (operation === "PAYMENT" && !options.includeFinancial) {
+      result.skipped.push({ event_uuid: eventUuid, reason: "financial event requires includeFinancial" });
+      continue;
+    }
+    await discardBlockedBrowserSyncEvent(eventUuid, browserStore);
+    result.discarded.push(eventUuid);
+  }
+  return result;
+}
+
+export async function discardAllStuckBrowserSyncEvents(
+  scope: BrowserOfflineScope,
+  options: StuckSyncDiscardOptions = {},
+  browserStore?: BrowserOfflineStore,
+): Promise<StuckSyncDiscardResult> {
+  const blocked = await listBlockedBrowserSyncEvents(scope, browserStore);
+  return discardStuckBrowserSyncEvents(scope, blocked.map((entry) => entry.eventUuid), options, browserStore);
+}
+
 /** A bill as the till last recorded it, for a queue row that cannot clear itself. */
 export interface StuckSyncOrder {
   order_uuid: string;
