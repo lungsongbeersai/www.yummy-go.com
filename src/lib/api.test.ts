@@ -6,6 +6,7 @@ import { apiClient, apiRequest, type HttpMethod } from "@/lib/api";
 import { BACKEND_NETWORK_STATE } from "@/lib/network-state";
 import { requestLocalFallback, resetLocalSyncConfiguration, runLocalSyncNow, shouldKeepLocalOrderOwnership } from "@/services/offline-sync";
 import { cacheBrowserApiResponse, getBrowserSyncQueueSummary } from "@/services/offline-db";
+import { mobileOfflineCheckoutEnabled } from "@/services/mobile-offline-capabilities";
 import { useAuthStore, type AuthUser } from "@/stores/auth-store";
 import { backendNetworkManager } from "@/stores/network-store";
 import { FUMUN_INCIDENT, FUMUN_INCIDENT_COMPLETED_KEY } from "@/lib/fumun-incident";
@@ -14,6 +15,11 @@ vi.mock("@/services/offline-db", async (importOriginal) => ({
   ...await importOriginal<typeof import("@/services/offline-db")>(),
   getBrowserSyncQueueSummary: vi.fn(),
   cacheBrowserApiResponse: vi.fn().mockResolvedValue(true),
+}));
+
+vi.mock("@/services/mobile-offline-capabilities", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/services/mobile-offline-capabilities")>(),
+  mobileOfflineCheckoutEnabled: vi.fn(),
 }));
 
 const user: AuthUser = {
@@ -327,6 +333,7 @@ describe.each(["android", "ios"])("Capacitor %s uses Dexie, never localhost Agen
     vi.spyOn(Capacitor, "getPlatform").mockReturnValue(platform);
     vi.spyOn(console, "info").mockImplementation(() => undefined);
     vi.mocked(getBrowserSyncQueueSummary).mockResolvedValue({ ...emptyQueue });
+    vi.mocked(mobileOfflineCheckoutEnabled).mockResolvedValue(true);
     useAuthStore.getState().login("native-token", user);
     backendNetworkManager.reportReachable(200);
     vi.spyOn(axios, "get");
@@ -561,6 +568,29 @@ describe.each(["android", "ios"])("Capacitor %s uses Dexie, never localhost Agen
     await expect(apiRequest(method, path)).resolves.toMatchObject({ source: "dexie" });
     expect(online).not.toHaveBeenCalled();
     expect(cacheBrowserApiResponse).not.toHaveBeenCalled();
+  });
+
+  // Settings > Branch's offline toggle is the on/off switch for entering
+  // offline mode at all on mobile — a branch with it off must never fall back
+  // to Dexie once genuinely offline, for reads or writes, not just the
+  // KITCHEN_CONFIRM/PAYMENT case write-fallback.ts already covered.
+  it.each(menuReads)("refuses $method $path from Dexie while truly offline and this branch has mobile offline turned off", async ({ method, path }) => {
+    backendNetworkManager.reportTransportFailure("test", { confirmed: true, failureThreshold: 1 });
+    vi.mocked(mobileOfflineCheckoutEnabled).mockResolvedValue(false);
+    const local = vi.spyOn(offlineSync, "readBrowserOfflineCache");
+    await expect(apiRequest(method, path)).rejects.toBeTruthy();
+    expect(local).not.toHaveBeenCalled();
+  });
+
+  it("refuses to stage a write in Dexie while truly offline and this branch has mobile offline turned off", async () => {
+    backendNetworkManager.reportTransportFailure("test", { confirmed: true, failureThreshold: 1 });
+    vi.mocked(mobileOfflineCheckoutEnabled).mockResolvedValue(false);
+    const local = vi.spyOn(offlineSync, "requestBrowserWriteFallback");
+    // Falls through to the ordinary online path instead (which has nothing to
+    // succeed against here) rather than a durable local write — the point is
+    // that Dexie is never touched, not the exact failure shape of "online".
+    await expect(apiRequest("post", "/api/v1/posAll/init_order_without_table")).rejects.toBeTruthy();
+    expect(local).not.toHaveBeenCalled();
   });
 
   it("does not mistake counter-bill initialization for a harmless menu read", async () => {

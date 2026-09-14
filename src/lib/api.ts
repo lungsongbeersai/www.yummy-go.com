@@ -238,8 +238,22 @@ export async function apiRequest<T>(
   const serverAuthoritativeTableRead = method === "get" &&
     requestPath === "/api/v1/posAll/fetch_table";
   const browserVersionAtStart = browserOrderVersion(localScope);
-  const browserOwnsOrders = !localAgentAvailable && supportsOfflineRoute(method, url) &&
-    (networkState === BACKEND_NETWORK_STATE.OFFLINE ||
+  const trulyOffline = networkState === BACKEND_NETWORK_STATE.OFFLINE;
+  // Settings > Branch's offline toggle is the on/off switch for entering
+  // offline mode at all on mobile, not just a KITCHEN_CONFIRM/PAYMENT gate
+  // (write-fallback.ts) — a branch with it off must behave like an ordinary
+  // online-only app the moment it is genuinely disconnected: no cached reads,
+  // no local writes, nothing. Scoped to `trulyOffline` only, so it never
+  // touches the *online* "keep this order's own local ownership while it
+  // finishes draining" mechanism below (see "Retain local order ownership
+  // while reconnect is draining durable work") — that is a data-consistency
+  // rule for an already-locally-touched order and must keep working
+  // regardless of this toggle, for every branch, once back online.
+  const mobileOfflineModeAllowed = localAgentAvailable || !trulyOffline ||
+    await mobileOfflineCheckoutEnabled(localScope);
+  const browserOwnsOrders = !localAgentAvailable && mobileOfflineModeAllowed &&
+    supportsOfflineRoute(method, url) &&
+    (trulyOffline ||
       (!serverAuthoritativeTableRead && orderOwnershipRequired && await shouldKeepBrowserOrderOwnership(localScope, undefined, {
         keepTerminalBlocked: !terminalBlockedCanYieldRead,
       })));
@@ -248,24 +262,6 @@ export async function apiRequest<T>(
     // unsupported mobile mutation fall through and overtake its queued create.
     if (!supportsBrowserOfflineRoute(method, url)) {
       throw new ServiceError(i18n.t("offlineSync.mobileOperationUnavailable"), 503);
-    }
-    // Settings > Branch's offline toggle is a full write kill switch on
-    // mobile while genuinely OFFLINE, not just the KITCHEN_CONFIRM/PAYMENT
-    // gate in write-fallback.ts — a plain add-item also refuses to stage
-    // while this branch has it off. Reads are unaffected: offline browsing of
-    // cached menus/tables/carts stays available regardless (see Decisions.md
-    // "Every established menu destination is viewable offline"). Scoped to
-    // networkState === OFFLINE only — browserOwnsOrders also stays true after
-    // reconnecting while this specific order's own prior local work is still
-    // draining (see "Retain local order ownership while reconnect is draining
-    // durable work"); that data-consistency mechanism is unrelated to this
-    // toggle and must keep working online regardless of it, for every branch.
-    if (
-      prepared.eventUuid && !localAgentAvailable &&
-      networkState === BACKEND_NETWORK_STATE.OFFLINE &&
-      !(await mobileOfflineCheckoutEnabled(localScope))
-    ) {
-      throw new ServiceError(i18n.t("offlineSync.mobileBranchOfflineDisabled"), 503);
     }
     try {
       const local = prepared.eventUuid

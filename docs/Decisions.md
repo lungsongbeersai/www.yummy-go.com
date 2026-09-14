@@ -6,6 +6,15 @@ Entries below dated from git history are backfilled from existing code comments 
 
 ---
 
+## Branch offline toggle gates entering offline mode at all on mobile, not just writes (narrows "every menu destination is viewable offline")
+
+- **Date:** 2026-09-14.
+- **Context:** After the previous entry's toggle shipped as a write-only gate (blocking KITCHEN_CONFIRM/PAYMENT, then broadened same-day to every mutation including add-item), the owner clarified the actual intent twice, in increasingly explicit terms: the switch is "offline to online" itself — off means the device must not be able to enter offline mode at all, on is required first. This is narrower than "Every established menu destination is viewable offline on desktop and Capacitor" (2026-09-08), which made offline reads unconditional for Capacitor.
+- **Decision:** On mobile, while `networkState` is confirmed `OFFLINE`, both the Dexie read fallback and the local write fallback now require the branch's `offline_mobile_enabled` flag; a branch with it off gets neither and simply fails like an ordinary online-only app until reconnected. This does not touch the *online* "keep this order's own local ownership while reconnect finishes draining" mechanism (2026-09-07 entry) — that is a data-consistency rule for an order already touched locally, unrelated to whether the branch permits entering offline mode, and must keep working online regardless of this toggle.
+- **Also fixed the same day:** an intermediate version of this gate checked the toggle without restricting to `networkState === OFFLINE`, so it also fired during the online reconnect-drain window above — every branch except the one already piloted defaulted the toggle off, so add-item broke while genuinely online for any order with unsynced local history. Caught from a live report within the hour.
+- **Boundary:** Desktop (Printer Agent) is unaffected — this flag and this whole code path are Capacitor-only. `OFFLINE_FIRST_MOBILE_DISABLED` remains the separate global kill switch.
+- **Approved by:** repo owner (2026-09-14, in-conversation — corrected twice after the write-only interpretation shipped).
+
 ## Mobile offline checkout moves from an env-var allowlist to a per-branch DB toggle, default off (supersedes the wildcard entry below)
 
 - **Date:** 2026-09-13.
