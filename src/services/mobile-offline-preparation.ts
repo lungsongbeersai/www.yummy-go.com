@@ -1,7 +1,9 @@
 "use client";
 
 import { apiRequest } from "@/lib/api";
+import { requestOfflineDataRefresh } from "@/lib/offline-data-refresh";
 import type { BrowserOfflineIdentity } from "@/services/offline-db";
+import { applyMobileBlockedQueueReset } from "@/services/mobile-blocked-queue-reset";
 
 const PREPARE_FRESH_MS = 5 * 60 * 1000;
 const preparedUntil = new Map<string, number>();
@@ -20,8 +22,14 @@ export function prepareMobileOfflineOperations(
   if ((preparedUntil.get(key) ?? 0) > Date.now()) return Promise.resolve(true);
   const existing = running.get(key);
   if (existing) return existing;
+  const capabilities = apiRequest("get", "/api/v1/sync/runtime-capabilities")
+    .then(async (response) => {
+      const reset = await applyMobileBlockedQueueReset(scope, response);
+      if (reset.discarded > 0) requestOfflineDataRefresh();
+      return response;
+    });
   const task = Promise.all([
-    apiRequest("get", "/api/v1/sync/runtime-capabilities"),
+    capabilities,
     apiRequest("get", "/api/v1/posAll/fetch_table", {
       params: { branch_uuid_fk: scope.branchUuid },
     }),

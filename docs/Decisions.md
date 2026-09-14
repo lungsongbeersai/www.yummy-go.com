@@ -6,6 +6,15 @@ Entries below dated from git history are backfilled from existing code comments 
 
 ---
 
+## Branch queue resets are versioned, device-local, and never delete payments
+
+- **Date:** 2026-09-14.
+- **Context:** Sethathirath Hospital accumulated terminal mobile `BLOCKED` rows against already-closed bills. Those rows live in each phone's Dexie database, so deleting Backend audit rows cannot clear the operational queue remotely.
+- **Decision:** `GET /sync/runtime-capabilities` can carry a branch-scoped reset version. Each Capacitor device applies a version once, discards its currently blocked non-financial rows, records the applied version locally, and immediately refreshes live data from Backend. Repeated capability polling cannot erase a later rejection because the same reset version becomes inert after its first successful application.
+- **Safety boundary:** `PAYMENT` is never eligible for a remote reset. It remains visible for explicit, on-device financial confirmation. Retryable `STAGED`/`PENDING`/`PROCESSING`/`FAILED` work is also retained.
+- **Reason:** A Backend-only delete is ineffective because Backend does not own the mobile outbox; an unversioned "clear blocked" flag would silently delete every future conflict forever. A one-shot device-local command clears this incident without weakening future conflict review.
+- **Approved by:** repo owner (2026-09-14, in-conversation — explicitly requested immediate queue clearing and no recurrence).
+
 ## Branch offline toggle gates entering offline mode at all on mobile, not just writes (narrows "every menu destination is viewable offline")
 
 - **Date:** 2026-09-14.
