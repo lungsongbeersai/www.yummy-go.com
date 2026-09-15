@@ -66,21 +66,38 @@ export function mappingTypeOf(printer: Printer): PrinterMappingType {
   return printer.mapping_type ?? "CATEGORY";
 }
 
-// เครื่องพิมพ์เก่าก่อน backend เพิ่ม can_edit/can_delete จะไม่มีฟิลด์นี้มา — ถือว่าแก้ไข/ลบได้
-// (พฤติกรรมเดิมก่อนมีการแชร์เครื่องพิมพ์ข้ามอุปกรณ์) ต่างจาก false ที่ backend ส่งมาจริงเมื่อเครื่องพิมพ์
-// ถูกแชร์มาจากอุปกรณ์อื่น (ไม่ใช่เจ้าของ) — ห้ามอนุมานจาก is_owner เอง เผื่อ backend มีเงื่อนไขสิทธิ์เพิ่มเติม
+function isSharedPrinter(printer: Printer) {
+  return (
+    printer.is_shared === true ||
+    String(printer.sharing_mode ?? "").trim().toUpperCase() === "SHARED"
+  );
+}
+
+// สิทธิ์จาก Backend เป็นแหล่งจริง เมื่อเป็นข้อมูลจาก Backend รุ่นเก่าที่ยังไม่มี
+// can_edit/can_delete ให้ถือเครื่อง SHARED เป็น read-only เพื่อไม่เปิดทางให้อุปกรณ์
+// อื่นแก้ไขหรือลบโดยอาศัยค่า fallback ฝั่งหน้าเว็บ
 export function canEditPrinter(printer: Printer) {
-  return printer.can_edit ?? true;
+  if (printer.can_edit !== undefined) return printer.can_edit;
+  if (isSharedPrinter(printer)) {
+    return printer.is_owner === true && printer.is_local_device !== false;
+  }
+  return printer.is_owner !== false && printer.is_local_device !== false;
 }
 
 export function canDeletePrinter(printer: Printer) {
-  return printer.can_delete ?? true;
+  if (printer.can_delete !== undefined) return printer.can_delete;
+  if (isSharedPrinter(printer)) {
+    return printer.is_owner === true && printer.is_local_device !== false;
+  }
+  return printer.is_owner !== false && printer.is_local_device !== false;
 }
 
 // เครื่องพิมพ์เก่าก่อน backend เพิ่ม is_owner ถือว่าเป็นเจ้าของ (พฤติกรรมเดิมก่อนมีการแชร์ข้ามอุปกรณ์ —
 // ไม่งั้นเครื่องพิมพ์เก่าทุกเครื่องจะขึ้น badge "แชร์มา" ผิด ๆ)
 export function isOwnedPrinter(printer: Printer) {
-  return printer.is_owner ?? true;
+  if (printer.is_owner !== undefined) return printer.is_owner;
+  if (printer.is_local_device === false || isSharedPrinter(printer)) return false;
+  return true;
 }
 
 export function matchesPrinterOwnership(

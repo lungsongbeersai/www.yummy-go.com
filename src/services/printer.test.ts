@@ -2029,6 +2029,62 @@ describe("printer API payloads", () => {
     );
   });
 
+  it("hides foreign dedicated printers even if an older Backend returns them", async () => {
+    apiMocks.apiRequest.mockResolvedValue({
+      data: {
+        data: [
+          {
+            print_config_uuid: "local-dedicated",
+            printer_name: "Local",
+            connect_type: "usb",
+            interface_value: "win:LOCAL",
+            device_code: "device-1",
+            paper_width_mm: 80,
+            is_active: true,
+            sharing_mode: "DEDICATED",
+          },
+          {
+            print_config_uuid: "foreign-dedicated",
+            printer_name: "Foreign private",
+            connect_type: "usb",
+            interface_value: "win:FOREIGN",
+            device_code: "device-2",
+            paper_width_mm: 80,
+            is_active: true,
+            sharing_mode: "DEDICATED",
+            is_owner: true,
+            is_local_device: false,
+          },
+          {
+            print_config_uuid: "foreign-shared",
+            printer_name: "Foreign shared",
+            connect_type: "usb",
+            interface_value: "win:SHARED",
+            device_code: "device-2",
+            paper_width_mm: 80,
+            is_active: true,
+            sharing_mode: "SHARED",
+            is_shared: true,
+            is_owner: false,
+            can_delete: false,
+          },
+        ],
+      },
+    });
+
+    await expect(
+      getPrinters({
+        login_uuid_fk: "login-1",
+        device_code: "device-1",
+        include_offline_shared: true,
+        management_view: true,
+      }),
+    ).resolves.toEqual([
+      expect.objectContaining({ print_config_uuid: "local-dedicated" }),
+      expect.objectContaining({ print_config_uuid: "foreign-shared" }),
+    ]);
+  });
+
   it("asks the Agent for a fresh USB scan only on explicit refresh", async () => {
     axiosMocks.get.mockResolvedValue({ data: { ok: true, data: [] } });
 

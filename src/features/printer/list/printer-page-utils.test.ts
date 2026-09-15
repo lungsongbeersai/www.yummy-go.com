@@ -5,6 +5,9 @@ import { describe, expect, it } from "vitest";
 import type { Printer } from "@/services/printer";
 import {
   agentDownloadUrl,
+  canDeletePrinter,
+  canEditPrinter,
+  isOwnedPrinter,
   matchesPrinterOwnership,
   OWNER_ALL,
   OWNER_MINE,
@@ -63,6 +66,29 @@ describe("printer ownership filter", () => {
     expect(matchesPrinterOwnership(printer(false), OWNER_MINE)).toBe(false);
     expect(matchesPrinterOwnership(printer(), OWNER_MINE)).toBe(true);
     expect(matchesPrinterOwnership(printer(false), OWNER_ALL)).toBe(true);
+  });
+
+  it("keeps a foreign shared printer read-only when legacy permissions are absent", () => {
+    const shared = {
+      ...printer(),
+      sharing_mode: "SHARED" as const,
+      is_shared: true,
+      is_owner: undefined,
+    };
+
+    expect(isOwnedPrinter(shared)).toBe(false);
+    expect(canEditPrinter(shared)).toBe(false);
+    expect(canDeletePrinter(shared)).toBe(false);
+  });
+
+  it("never edits or deletes a printer marked as belonging to another device", () => {
+    const foreign = {
+      ...printer(true),
+      is_local_device: false,
+    };
+
+    expect(canEditPrinter(foreign)).toBe(false);
+    expect(canDeletePrinter(foreign)).toBe(false);
   });
 });
 

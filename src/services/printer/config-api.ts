@@ -55,6 +55,24 @@ export async function searchPrinters(
   return { agent: data.agent ?? null, printers: data.data ?? [] };
 }
 
+function isPrinterVisibleToDevice(printer: Printer, deviceCode: string) {
+  const isShared =
+    printer.is_shared === true ||
+    textValue(printer.sharing_mode).toUpperCase() === "SHARED";
+
+  // SHARED is the only cross-device visibility mode. A DEDICATED printer from
+  // another terminal must stay hidden even if an older Backend accidentally
+  // returns it to a user who signs in with the same account.
+  if (isShared) return true;
+  if (printer.is_owner === false || printer.is_local_device === false) return false;
+
+  const ownerDeviceCode = textValue(
+    printer.owner_device_code ?? printer.device_code,
+  );
+  if (!ownerDeviceCode) return true;
+  return Boolean(deviceCode) && ownerDeviceCode === deviceCode;
+}
+
 export async function getPrinters(params: FetchPrintersParams) {
   const deviceCode = textValue(params.device_code);
   const result = await apiRequest<FetchPrinterResponse>("get", "/api/v1/printer/fetch", {
@@ -73,6 +91,7 @@ export async function getPrinters(params: FetchPrintersParams) {
   });
   return printerRowsFromFetchResponse(result)
     .map((item) => mapPrinter(item))
+    .filter((printer) => isPrinterVisibleToDevice(printer, deviceCode))
     .filter((printer) => {
       if (
         params.include_offline_shared ||
