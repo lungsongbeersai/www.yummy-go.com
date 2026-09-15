@@ -13,6 +13,7 @@ import {
   itemMedia,
   itemNote,
   itemProductName,
+  itemTastes,
   itemToppings,
   itemToppingTotal,
   moneyValue,
@@ -74,6 +75,7 @@ function SalesListItemCard({ item }: { item: ApiEntity }) {
                 {t("salesList.beforeDiscount")}
               </SalesListItemDetailRow>
             ) : null}
+            <SalesListItemTastes item={item} />
             <SalesListItemToppings item={item} />
             {discount > 0 ? (
               <SalesListItemDetailRow icon={<BadgePercent />} tone="discount" right={`-${moneyValue(discount)}`}>
@@ -127,7 +129,7 @@ function SalesListItemMedia({
   );
 }
 
-type SalesListItemDetailTone = "discount" | "muted" | "note" | "price" | "topping";
+type SalesListItemDetailTone = "discount" | "muted" | "note" | "price" | "taste" | "topping";
 
 function SalesListItemDetailRow({
   children,
@@ -149,7 +151,7 @@ function SalesListItemDetailRow({
         tone === "price" && "text-foreground/75",
         tone === "discount" && "text-destructive",
         tone === "note" && "text-muted-foreground",
-        tone === "topping" && "text-muted-foreground",
+        (tone === "taste" || tone === "topping") && "text-muted-foreground",
         tone === "muted" && "text-muted-foreground"
       )}
     >
@@ -172,6 +174,25 @@ function SalesListItemDetailRow({
         </>
       ) : null}
     </div>
+  );
+}
+
+function SalesListItemTastes({ item }: { item: ApiEntity }) {
+  const tastes = itemTastes(item);
+  if (!tastes.length) return null;
+
+  return (
+    <>
+      {tastes.map((taste, index) => (
+        <SalesListItemDetailRow
+          key={`${taste.name}-${index}`}
+          className="pl-3"
+          tone="taste"
+        >
+          • {taste.name}
+        </SalesListItemDetailRow>
+      ))}
+    </>
   );
 }
 

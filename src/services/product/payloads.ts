@@ -35,6 +35,7 @@ export function saveProductPayload(input: SaveProductInput): Record<string, unkn
 
   if (input.details) payload.details = JSON.stringify(input.details);
   if (input.toppings) payload.toppings = JSON.stringify(input.toppings);
+  if (input.tastes) payload.tastes = JSON.stringify(input.tastes);
 
   if (input.prod_image === undefined || input.prod_image === null) {
     delete payload.prod_image;

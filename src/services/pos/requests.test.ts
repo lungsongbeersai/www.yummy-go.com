@@ -138,6 +138,9 @@ describe("pos requests", () => {
     });
     expect(result).not.toHaveProperty("data");
     expect(result.categories[0]?.products[0]).not.toHaveProperty("prod_uuid");
+    expect(result.categories[0]?.products.at(-1)).not.toHaveProperty("countTasteEnabled");
+    expect(result.categories[0]?.products.at(-1)).not.toHaveProperty("prodTasteMaxSelect");
+    expect(result.categories[0]?.products.at(-1)).not.toHaveProperty("hasTastes");
   });
 
   it("maps camel-case catalog params to the exact API query", async () => {
@@ -181,6 +184,8 @@ describe("pos requests", () => {
         unite_name: "bottle",
         prod_set_price: null,
         pro_detail_sprice: "11000",
+        prod_taste_max_select: 2,
+        has_tastes: true,
         details: [
           {
             pro_detail_uuid: "detail-1",
@@ -202,6 +207,17 @@ describe("pos requests", () => {
             pro_detail_sTime: "09:00",
             pro_detail_eTime: "18:00",
             default_qty: 2
+          }
+        ],
+        tastes: [
+          {
+            taste_uuid: "taste-1",
+            prod_uuid_fk: "prod-1",
+            taste_name: "Spicy",
+            taste_name_la: "ເຜັດ",
+            taste_name_eng: "Spicy",
+            taste_status: 1,
+            taste_sort: 1
           }
         ],
         toppings: [
@@ -246,6 +262,8 @@ describe("pos requests", () => {
       uniteName: "bottle",
       prodSetPrice: null,
       proDetailSprice: "11000",
+      prodTasteMaxSelect: 2,
+      hasTastes: true,
       details: [
         {
           proDetailUuid: "detail-1",
@@ -267,6 +285,17 @@ describe("pos requests", () => {
           proDetailSTime: "09:00",
           proDetailETime: "18:00",
           defaultQty: 2
+        }
+      ],
+      tastes: [
+        {
+          tasteUuid: "taste-1",
+          prodUuidFk: "prod-1",
+          tasteName: "Spicy",
+          tasteNameLa: "ເຜັດ",
+          tasteNameEng: "Spicy",
+          tasteStatus: 1,
+          tasteSort: 1
         }
       ],
       toppings: [

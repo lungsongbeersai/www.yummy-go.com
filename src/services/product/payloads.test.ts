@@ -15,12 +15,14 @@ describe("product payload helpers", () => {
       prod_uuid: " ",
       prod_name_la: "Coffee",
       details: [{ size_uuid_fk: "s1", pro_detail_bprice: 1, pro_detail_qty_stock: 0, pro_detail_stock: 1 }],
+      tastes: [{ taste_uuid: "taste-1", taste_sort: 1 }],
       toppings: [{ topping_uuid_fk: "t1", topping_price: 2 }]
     });
 
     expect(payload.prod_uuid).toBeUndefined();
     expect(payload.details).toBe(JSON.stringify([{ size_uuid_fk: "s1", pro_detail_bprice: 1, pro_detail_qty_stock: 0, pro_detail_stock: 1 }]));
     expect(payload.toppings).toBe(JSON.stringify([{ topping_uuid_fk: "t1", topping_price: 2 }]));
+    expect(payload.tastes).toBe(JSON.stringify([{ taste_uuid: "taste-1", taste_sort: 1 }]));
   });
 
   it("drops empty image strings", () => {

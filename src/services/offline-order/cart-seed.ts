@@ -1,4 +1,4 @@
-import { OFFLINE_ITEM_STATUS, type OfflineOrderState, type OfflineTopping } from "./types";
+import { OFFLINE_ITEM_STATUS, type OfflineOrderState, type OfflineTaste, type OfflineTopping } from "./types";
 import { emptyOfflineOrderState } from "./order-state";
 
 // The last cart the Backend sent for a table is the base the offline outbox is
@@ -41,6 +41,21 @@ function seedToppings(value: unknown, quantity: number): OfflineTopping[] {
           : count(topping.topping_qty, 1)),
       topping_price: count(topping.topping_price),
     };
+  });
+}
+
+function seedTastes(value: unknown): OfflineTaste[] {
+  return list(value).flatMap((raw) => {
+    const taste = record(raw);
+    const tasteUuid = text(taste.taste_uuid_fk) || text(taste.taste_uuid);
+    return tasteUuid
+      ? [{
+          taste_uuid_fk: tasteUuid,
+          taste_name: text(taste.taste_name),
+          taste_name_la: text(taste.taste_name_la),
+          taste_name_eng: text(taste.taste_name_eng),
+        }]
+      : [];
   });
 }
 
@@ -92,6 +107,7 @@ export function seedOfflineStateFromCart(response: unknown): OfflineOrderState {
         note: text(detail.order_it_note),
         discountType: text(detail.order_it_discount_type).toUpperCase(),
         discountValue: count(detail.order_it_discount_value),
+        tastes: seedTastes(item.tastes),
         toppings: seedToppings(item.toppings, count(detail.order_it_qty, count(item.qty))),
         sequence: -1_000_000 + orderIndex * 1000 + itemIndex,
       });

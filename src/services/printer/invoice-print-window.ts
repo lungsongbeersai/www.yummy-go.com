@@ -16,6 +16,7 @@ export type InvoicePrintItem = {
   toppingLabel: string;
   toppingTotal: number | null;
   toppings: InvoicePrintTopping[];
+  tastes?: InvoicePrintTaste[];
   unitPrice: number | null;
 };
 
@@ -23,6 +24,10 @@ export type InvoicePrintTopping = {
   name: string;
   qty: number | null;
   total: number | null;
+};
+
+export type InvoicePrintTaste = {
+  name: string;
 };
 
 export type InvoicePrintExchangeRate = {
@@ -61,6 +66,7 @@ function invoicePrintItemKey(item: InvoicePrintItem) {
     invoicePrintPerUnit(item.displayTotal, item.qty),
     invoicePrintPerUnit(item.originalLineTotal, item.qty),
     item.toppingLabel,
+    (item.tastes ?? []).map((taste) => taste.name.trim()).sort(),
     invoicePrintPerUnit(item.toppingTotal, item.qty),
     item.toppings
       .map((topping) => invoicePrintToppingKey(topping, item.qty))
@@ -79,6 +85,9 @@ export function mergeInvoicePrintItems(items: InvoicePrintItem[]) {
   items.forEach((source) => {
     const item: InvoicePrintItem = {
       ...source,
+      ...(source.tastes
+        ? { tastes: source.tastes.map((taste) => ({ ...taste })) }
+        : {}),
       toppings: source.toppings.map((topping) => ({ ...topping })),
     };
     const key = invoicePrintItemKey(item);
@@ -471,8 +480,17 @@ export function renderInvoiceItem(item: InvoicePrintItem) {
         <span>${escapeHtml(formatInvoiceQty(item.qty))} x ${escapeHtml(item.unitPrice === null ? "-" : money(item.unitPrice))}</span>
         ${renderInvoiceOriginalLineTotal(item)}
       </div>
+      ${renderInvoiceTastes(item)}
       ${renderInvoiceToppings(item)}
     </section>`;
+}
+
+export function renderInvoiceTastes(item: InvoicePrintItem) {
+  const tastes = item.tastes ?? [];
+  if (!tastes.length) return "";
+  return `<div class="toppings">${tastes
+    .map((taste) => `<div class="topping-line"><span>• ${escapeHtml(taste.name)}</span></div>`)
+    .join("")}</div>`;
 }
 
 export function renderInvoiceOriginalLineTotal(item: InvoicePrintItem) {

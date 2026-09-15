@@ -33,6 +33,11 @@ export interface ToppingSelection {
   topping_price: string;
 }
 
+export interface TasteSelection {
+  taste_uuid: string;
+  taste_sort: number;
+}
+
 export interface RequiredProductFormState {
   prodNameLa: string;
   cateUuidFk: string;
@@ -41,6 +46,8 @@ export interface RequiredProductFormState {
   statusSortFk: StatusSortFk;
   prodToppingStatus: BinaryFlag;
   selectedToppings: ToppingSelection[];
+  prodTasteMaxSelect?: string;
+  selectedTastes?: TasteSelection[];
 }
 
 export interface ProductSavePayloadState extends RequiredProductFormState {

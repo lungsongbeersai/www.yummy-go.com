@@ -70,6 +70,7 @@ import { useProductFormDetails } from "./use-product-form-details";
 import { useProductImageWorkflow } from "./use-product-form-image";
 import { useProductFormReferenceData } from "./use-product-form-reference-data";
 import { useProductSetOptionsWorkflow } from "./use-product-set-options-workflow";
+import { useProductTastesWorkflow } from "./use-product-tastes-workflow";
 import { useProductToppingsWorkflow } from "./use-product-toppings-workflow";
 
 type ProductFormSaveNotice = "idle" | "saving" | "saved";
@@ -116,14 +117,17 @@ export function useProductFormWorkflow() {
     categories,
     colors,
     createSizeForStatus,
+    createTasteRow,
     createToppingRow,
     deleteSizeForStatus,
+    deleteTasteRow,
     deleteToppingRow,
     groups,
     loadCategories,
     loadProducts,
     loadSizes,
     loadSizesByStatus,
+    loadTastes,
     loadToppings,
     loadUnits,
     productLoading,
@@ -133,6 +137,8 @@ export function useProductFormWorkflow() {
     saveProduct,
     saving,
     sizes,
+    tasteSaving,
+    tastes,
     toppingSaving,
     toppings,
     units,
@@ -254,6 +260,43 @@ export function useProductFormWorkflow() {
     storeUuid,
     t,
     toppings
+  });
+  const {
+    deletingTasteUuid,
+    editingTasteUuid,
+    editTaste,
+    filteredTasteOptions,
+    newTasteNameEng,
+    newTasteNameLa,
+    prodTasteMaxSelect,
+    resetNewTasteForm,
+    resetTasteSelection,
+    saveTasteFromDialog,
+    selectedTasteBadges,
+    selectedTastes,
+    selectedTasteUuids,
+    setDeletingTasteUuid,
+    setNewTasteNameEng,
+    setNewTasteNameLa,
+    setProdTasteMaxSelect,
+    setTasteDialogOpen,
+    setTasteSearch,
+    tasteDialogOpen,
+    tasteOptions,
+    tasteSearch,
+    toggleTaste,
+    deleteTasteFromDialog,
+  } = useProductTastesWorkflow({
+    createTasteRow,
+    deleteTasteRow,
+    editing,
+    editingHydrationKey,
+    language,
+    loadTastes,
+    showToast,
+    storeUuid,
+    t,
+    tastes,
   });
   const editLoadKeyRef = useRef("");
   const rawExistingImage = rawProductImage(editing);
@@ -393,7 +436,9 @@ export function useProductFormWorkflow() {
         details,
         statusSortFk,
         prodToppingStatus,
-        selectedToppings
+        selectedToppings,
+        prodTasteMaxSelect,
+        selectedTastes,
       },
       t
     );
@@ -552,7 +597,9 @@ export function useProductFormWorkflow() {
         details,
         prodToppingStatus,
         prodToppingMaxSelect,
-        selectedToppings
+        selectedToppings,
+        prodTasteMaxSelect,
+        selectedTastes,
       });
       const updateProdUuid = editing?.prod_uuid ?? prodUuid;
       if (isEditing) payload.prod_uuid = updateProdUuid;
@@ -607,6 +654,7 @@ export function useProductFormWorkflow() {
     setColorValue(DEFAULT_COLOR);
     setDetails([emptyDetail("1")]);
     resetToppingSelection();
+    resetTasteSelection();
     handleSetOptionDialogOpen(false);
     resetSetOptionForm();
     setSetOptionSearch("");
@@ -643,6 +691,7 @@ export function useProductFormWorkflow() {
         : t("product.statusSort.general");
   const imageLabel = prodStatusImge === "1" ? t("product.statusImge.image") : t("product.statusImge.color");
   const toppingCount = prodToppingStatus === TOPPING_HAS ? selectedToppings.length : 0;
+  const tasteCount = Number(prodTasteMaxSelect) > 0 ? selectedTastes.length : 0;
   const validColors = useMemo(() => colors.filter((color) => isHexColor(colorCode(color))), [colors]);
   const categoryOptions = useMemo(
     () => includeSelectedOption(categories, editing, cateUuidFk, categoryUuid),
@@ -752,12 +801,14 @@ export function useProductFormWorkflow() {
     );
   const hasProductMedia = prodStatusImge === "2" ? isHexColor(colorValue) : Boolean(selectedImage || rawExistingImage);
   const hasToppingSetup = prodToppingStatus === TOPPING_NONE || selectedToppings.length > 0;
+  const hasTasteSetup = Number(prodTasteMaxSelect) === 0 || selectedTastes.length >= Number(prodTasteMaxSelect);
   const requiredChecks = [
     { label: t("fields.nameLa"), done: Boolean(prodNameLa.trim()) },
     { label: t("nav.category"), done: Boolean(cateUuidFk) },
     { label: t("nav.unit"), done: Boolean(uniteUuidFk) },
     { label: t("product.sections.image"), done: hasProductMedia },
     { label: t("product.sections.details"), done: hasValidDetails },
+    { label: t("product.sections.tastes"), done: hasTasteSetup },
     { label: t("product.sections.toppings"), done: hasToppingSetup }
   ];
   const completedChecks = requiredChecks.filter((item) => item.done).length;
@@ -813,6 +864,11 @@ export function useProductFormWorkflow() {
     typeLabel,
     imageLabel,
     toppingCount,
+    tasteCount,
+    tasteOptions,
+    filteredTasteOptions,
+    selectedTasteBadges,
+    selectedTasteUuids,
     validColors,
     selectedToppingMap,
     categoryOptions,
@@ -876,6 +932,20 @@ export function useProductFormWorkflow() {
     sizeDialogOpen,
     setSizeDialogOpen,
     selectedToppings,
+    prodTasteMaxSelect,
+    setProdTasteMaxSelect,
+    selectedTastes,
+    tasteDialogOpen,
+    setTasteDialogOpen,
+    tasteSearch,
+    setTasteSearch,
+    newTasteNameLa,
+    setNewTasteNameLa,
+    newTasteNameEng,
+    setNewTasteNameEng,
+    editingTasteUuid,
+    deletingTasteUuid,
+    setDeletingTasteUuid,
     toppingDialogOpen,
     setToppingDialogOpen,
     newToppingNameLa,
@@ -908,6 +978,7 @@ export function useProductFormWorkflow() {
     unitSaving,
     sizeSaving,
     toppingSaving,
+    tasteSaving,
     colors,
     submit,
     addDetail,
@@ -924,6 +995,11 @@ export function useProductFormWorkflow() {
     editTopping,
     saveToppingFromDialog,
     deleteToppingFromDialog,
+    toggleTaste,
+    resetNewTasteForm,
+    editTaste,
+    saveTasteFromDialog,
+    deleteTasteFromDialog,
     resetSetOptionForm,
     editSetOption,
     saveSetOptionFromDialog,

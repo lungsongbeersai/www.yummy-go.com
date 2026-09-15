@@ -21,6 +21,13 @@ export interface OfflineTopping {
   topping_name?: string;
 }
 
+export interface OfflineTaste {
+  taste_uuid_fk: string;
+  taste_name?: string;
+  taste_name_la?: string;
+  taste_name_eng?: string;
+}
+
 export interface OfflineOrderItem {
   orderItemUuid: string;
   orderUuid: string;
@@ -31,6 +38,7 @@ export interface OfflineOrderItem {
   discountType: string;
   discountValue: number;
   toppings: OfflineTopping[];
+  tastes?: OfflineTaste[];
   /** Sale-time Backend line, keyed by order item, never by the current menu price. */
   snapshot?: Record<string, unknown>;
   /** Order in which the item entered the local queue; keeps the cart stable. */
@@ -59,7 +67,7 @@ export interface OfflineOrderState {
 
 /** A queued POS mutation, already decoded from its raw HTTP form. */
 export type OfflineOrderEvent =
-  | { kind: "ORDER_CREATE"; orderUuid: string; tableUuid: string | null; branchUuid: string; serviceRate: number; vatRate: number; vatStatus: number | null; items: Array<{ orderItemUuid: string; prodDetailUuid: string; quantity: number; status: number; note: string; toppings: OfflineTopping[] }> }
+  | { kind: "ORDER_CREATE"; orderUuid: string; tableUuid: string | null; branchUuid: string; serviceRate: number; vatRate: number; vatStatus: number | null; items: Array<{ orderItemUuid: string; prodDetailUuid: string; quantity: number; status: number; note: string; toppings: OfflineTopping[]; tastes: OfflineTaste[] }> }
   | { kind: "ITEM_QTY"; orderItemUuid: string; changeType: string; changeQty: number }
   | { kind: "ITEM_NOTE"; orderItemUuid: string; note: string }
   | { kind: "ITEM_DISCOUNT"; orderItemUuid: string; discountType: string; discountValue: number }

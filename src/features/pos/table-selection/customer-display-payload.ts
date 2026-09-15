@@ -36,12 +36,26 @@ export function buildCustomerDisplayPayload({
       const name = cartItemName(item);
       const sizeName = optionalString(item.detail?.size_name);
       const media = cartItemMedia(item);
+      const tasteOptions = (item.tastes ?? []).map((taste) =>
+        optionalString(
+          taste.taste_name,
+          taste.taste_name_la,
+          taste.taste_name_eng,
+        ) ?? "-",
+      );
+      const toppingOptions = (item.toppings ?? []).map((topping) => {
+        const name = optionalString(topping.topping_name) ?? "-";
+        const qty = optionalNumber(topping.topping_qty);
+        return qty && qty > 1 ? `${name} x${qty}` : name;
+      });
+      const options = [...tasteOptions, ...toppingOptions];
 
       return {
         image: media.type === "image" ? media.src : null,
         imageColor: media.type === "color" ? media.color : null,
         name: cartItemDisplayName(name, sizeName),
         note: optionalString(item.detail?.order_it_note),
+        ...(options.length ? { options } : {}),
         price: optionalNumber(
           item.detail?.unit_price,
           item.price,

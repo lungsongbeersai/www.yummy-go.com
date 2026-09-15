@@ -105,6 +105,16 @@ export interface ProdTopping {
   toppingStatus?: number;
 }
 
+export interface ProdTaste {
+  tasteUuid: string;
+  prodUuidFk?: string;
+  tasteName?: string;
+  tasteNameLa?: string;
+  tasteNameEng?: string;
+  tasteStatus?: number | string;
+  tasteSort?: number | string;
+}
+
 export interface ProdItem {
   prodUuid: string;
   prodCode?: string;
@@ -118,9 +128,12 @@ export interface ProdItem {
   prodSetPrice?: number | string | null;
   proDetailSprice?: number | string;
   prodToppingMaxSelect?: number | string;
+  prodTasteMaxSelect?: number | string;
+  hasTastes?: boolean;
   statusSortFk?: ProductSortStatus;
   details: ProdDetail[];
   toppings: ProdTopping[];
+  tastes?: ProdTaste[];
 }
 
 export interface GetProdItemParams {
@@ -164,6 +177,9 @@ export interface CateProductItem extends PosProduct {
   countOptionAll: number;
   countOptionEnabled: number;
   countToppingEnabled: number;
+  countTasteEnabled?: number;
+  prodTasteMaxSelect?: number | string;
+  hasTastes?: boolean;
   customerBuy?: number;
   customerFree?: number;
   proDetailUuid?: string;
@@ -207,7 +223,7 @@ export interface OrderItemOption {
   label: string;
   qty: number;
   price?: number;
-  type?: "size" | "topping";
+  type?: "size" | "taste" | "topping";
 }
 
 export interface OrderItem extends ApiEntity {
@@ -226,12 +242,17 @@ export interface OrderHistory extends ApiEntity {
 
 export type CreateOrderTopping = CartToppingPayload;
 
+export interface CreateOrderTaste {
+  taste_uuid_fk: string;
+}
+
 export interface CreateOrderItem extends ApiEntity {
   prod_detail_uuid_fk: string;
   order_it_qty: number;
   order_it_status: number;
   order_it_note?: string;
   toppings?: CreateOrderTopping[];
+  tastes?: CreateOrderTaste[];
   prod_uuid_fk?: string;
   pro_detail_uuid_fk?: string;
   qty?: number;
@@ -345,6 +366,14 @@ export interface CartTopping extends ApiEntity {
   topping_line_total?: number;
 }
 
+export interface CartTaste extends ApiEntity {
+  taste_uuid_fk?: string;
+  taste_uuid?: string;
+  taste_name?: string;
+  taste_name_la?: string;
+  taste_name_eng?: string;
+}
+
 export interface CartItemDetail extends ApiEntity {
   size_name?: string;
   order_it_qty?: number;
@@ -383,6 +412,7 @@ export interface CartItem extends ApiEntity {
   total?: number;
   detail?: CartItemDetail;
   toppings?: CartTopping[];
+  tastes?: CartTaste[];
 }
 
 export interface CartOrder extends ApiEntity {

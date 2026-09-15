@@ -642,8 +642,16 @@ function CreditBillDetail({
                   <TableCell className="font-mono text-xs">{item.product_code || "-"}</TableCell>
                   <TableCell className="font-semibold">{item.product_name}</TableCell>
                   <TableCell>
-                    {item.toppings.length ? (
+                    {(item.tastes?.length || item.toppings.length) ? (
                       <div className="flex flex-col gap-1">
+                        {item.tastes?.map((taste, tasteIndex) => (
+                          <div
+                            key={`${item.order_item_uuid}-${taste.taste_uuid_fk || taste.taste_uuid || tasteIndex}`}
+                            className="text-xs text-muted-foreground"
+                          >
+                            • {taste.taste_name || taste.taste_name_la || taste.taste_name_eng || "-"}
+                          </div>
+                        ))}
                         {item.toppings.map((topping) => (
                           <div key={`${item.order_item_uuid}-${topping.topping_uuid}`} className="text-xs">
                             <span className="font-mono text-muted-foreground">{topping.topping_uuid}</span>

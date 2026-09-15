@@ -9,4 +9,5 @@ export * from "./product-classification";
 export * from "./product-media";
 export * from "./quantity-rules";
 export * from "./staff-order-payload";
+export * from "./taste-selection";
 export * from "./topping-selection";

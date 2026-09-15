@@ -128,6 +128,11 @@ export function CustomerDisplayPage() {
                       <CustomerDisplayItemMedia image={item.image} imageColor={item.imageColor} />
                       <div className="min-w-0">
                         <p className="truncate font-bold">{item.name}</p>
+                        {item.options?.length ? (
+                          <p className="mt-1 line-clamp-2 text-xs text-white/75">
+                            {item.options.join(" · ")}
+                          </p>
+                        ) : null}
                         <p className="text-sm text-white/60">
                           {t("pos.qty")}: {item.qty}
                         </p>

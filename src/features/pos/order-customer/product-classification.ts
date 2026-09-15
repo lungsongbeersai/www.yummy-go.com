@@ -12,6 +12,7 @@ import {
 } from "./menu-structure";
 import { isDetailAvailable } from "./product-availability";
 import { isToppingAvailable } from "./topping-selection";
+import { isTasteAvailable } from "./taste-selection";
 
 // Staff POS intentionally skips invalid numeric API values before applying
 // route fallbacks; shared classification receives only these resolved values.
@@ -50,7 +51,8 @@ function isKnownModalProduct(
     enabledOptionCount:
       optionalNumber(product.countOptionEnabled) ?? 1,
     enabledToppingCount:
-      optionalNumber(product.countToppingEnabled) ?? 0,
+      (optionalNumber(product.countToppingEnabled) ?? 0) +
+      (optionalNumber(product.countTasteEnabled) ?? 0),
     hasOptions: product.hasOptions === true,
     hasPromo: hasPromo(product),
     productStatusSort: staffProductStatusSort(product, activeSort),
@@ -75,11 +77,13 @@ export function productNeedsModal(
 ) {
   const enabledDetails = (item.details ?? []).filter(isDetailAvailable);
   const enabledToppings = (item.toppings ?? []).filter(isToppingAvailable);
+  const enabledTastes = (item.tastes ?? []).filter(isTasteAvailable);
   return (
     !canDirectAddFromList(product, activeSort) ||
     isKnownModalProduct(product, activeSort) ||
     enabledDetails.length > 1 ||
-    enabledToppings.length > 0
+    enabledToppings.length > 0 ||
+    enabledTastes.length > 0
   );
 }
 
@@ -102,6 +106,7 @@ export function canDirectAddFromList(
     enabledOptionCount <= 1 &&
     allOptionCount <= 1 &&
     (optionalNumber(product.countToppingEnabled) ?? 0) <= 0 &&
+    (optionalNumber(product.countTasteEnabled) ?? 0) <= 0 &&
     productStatusSort !== ProductSortStatus.SET &&
     productStatusSort !== ProductSortStatus.PROMOTION &&
     !hasPromo(product) &&

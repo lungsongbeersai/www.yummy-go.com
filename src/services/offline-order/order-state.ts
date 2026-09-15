@@ -88,6 +88,7 @@ function applyEvent(state: OfflineOrderState, event: OfflineOrderEvent, sequence
           note: item.note,
           discountType: "",
           discountValue: 0,
+          tastes: item.tastes,
           toppings: item.toppings,
           sequence: sequence * 1000 + index,
         });

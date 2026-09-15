@@ -1,4 +1,4 @@
-import { type ProdDetail, type ProdItem } from "@/services/pos";
+import { type ProdDetail, type ProdItem, type ProdTaste } from "@/services/pos";
 import {
   MAX_ORDER_QTY,
   type OrderSelectionIssue,
@@ -14,18 +14,21 @@ import {
   toppingSelectionLimit,
   type SelectedTopping,
 } from "./topping-selection";
+import { isTasteAvailable, tasteSelectionLimit } from "./taste-selection";
 
 export function getOrderSelectionIssue({
   detail,
   mode,
   product,
   quantity,
+  tastes,
   toppings,
 }: {
   detail: ProdDetail | null | undefined;
   mode: ProductModalMode;
   product?: ProdItem | null;
   quantity: number;
+  tastes?: ProdTaste[];
   toppings: SelectedTopping[];
 }): OrderSelectionIssue | null {
   if (!detail || !isDetailEnabled(detail)) return "detail-unavailable";
@@ -59,6 +62,14 @@ export function getOrderSelectionIssue({
   );
   if (hasInvalidTopping) return "topping-invalid";
 
+  const selectedTastes = tastes ?? [];
+  if (selectedTastes.some((taste) => !isTasteAvailable(taste))) {
+    return "taste-invalid";
+  }
+  if (product && selectedTastes.length > tasteSelectionLimit(product)) {
+    return "taste-limit-exceeded";
+  }
+
   // ตรวจเพดานจำนวนชนิดได้ก็ต่อเมื่อรู้จัก product ที่มีลิสต์ toppings จริงให้อ้างอิง — ผู้เรียกบางจุด
   // (เช่น buildStaffOrderItems ที่ประกอบ payload จาก toppings ที่เลือกไว้แล้วโดยตรง) ไม่ได้ส่ง product
   // มาด้วย หรือส่งมาแบบไม่มี toppings ติดมา จึงไม่มีทางรู้จำนวนท็อปปิ้งที่มีอยู่จริง ต้องข้ามการเช็คนี้ไป
@@ -89,6 +100,8 @@ export function orderSelectionIssueLabel(
   if (issue === "detail-unavailable") return t("pos.noAvailableOptions");
   if (issue === "price-invalid") return t("pos.invalidProductPrice");
   if (issue === "stock-insufficient") return t("pos.outOfStock");
+  if (issue === "taste-invalid") return t("pos.invalidTaste");
+  if (issue === "taste-limit-exceeded") return t("pos.tasteLimitExceeded");
   if (issue === "quantity-exceeds-stock") {
     return rules
       ? t("pos.insufficientStockMax", { max: rules.max })

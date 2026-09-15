@@ -5,10 +5,12 @@ import type { Color } from "@/services/color";
 import type { Group } from "@/services/group";
 import type {
   Product,
+  ProductTaste,
   ProductTopping,
   SaveProductInput,
 } from "@/services/product";
 import type { Size } from "@/services/size";
+import type { Taste } from "@/services/taste";
 import type { Topping } from "@/services/topping";
 import type { Unit } from "@/services/unit";
 import type {
@@ -19,6 +21,7 @@ import type {
   RequiredProductFormState,
   SizeSelectOption,
   StatusSortFk,
+  TasteSelection,
   ToppingSelection,
 } from "./product-form-types";
 
@@ -31,6 +34,7 @@ export const TOPPING_MAX_SELECT_OPTIONS = Array.from(
   (_, index) => index + 1,
 );
 export const TOPPING_MAX_SELECT_UNLIMITED = "0";
+export const TASTE_MAX_SELECT_OPTIONS = ["0", "1", "2"] as const;
 export const DEFAULT_COLOR = "#10b981";
 export const CUSTOM_COLOR_VALUE = "__custom__";
 export const TOPPING_NONE = "1";
@@ -40,6 +44,7 @@ export const EMPTY_CATEGORIES: Category[] = [];
 export const EMPTY_COLORS: Color[] = [];
 export const EMPTY_GROUPS: Group[] = [];
 export const EMPTY_SIZES: Size[] = [];
+export const EMPTY_TASTES: Taste[] = [];
 export const EMPTY_TOPPINGS: Topping[] = [];
 export const EMPTY_UNITS: Unit[] = [];
 export const PRODUCT_FORM_DEFAULTS_STORAGE_PREFIX =
@@ -72,6 +77,11 @@ export const TOPPING_NAME_KEYS = [
   "prod_topping_name",
   "prod_topping_name_la",
   "prod_topping_name_eng",
+];
+export const TASTE_NAME_KEYS = [
+  "taste_name",
+  "taste_name_la",
+  "taste_name_eng",
 ];
 export const SIZE_NAME_KEYS = ["size_name", "size_name_la", "size_name_eng"];
 export const EMPTY_PROMOTION_FIELDS = {
@@ -250,6 +260,12 @@ export function productToppingName(
   return firstText(row, TOPPING_NAME_KEYS);
 }
 
+export function productTasteName(
+  row: { [key: string]: unknown } | null | undefined,
+) {
+  return firstText(row, TASTE_NAME_KEYS);
+}
+
 export function categoryUuid(
   row: { [key: string]: unknown } | null | undefined,
 ) {
@@ -280,6 +296,37 @@ export function toppingUuid(
     "topping_uuid_fk",
     "prod_topping_uuid",
   ]);
+}
+
+export function tasteUuid(
+  row: { [key: string]: unknown } | null | undefined,
+) {
+  return firstText(row, ["taste_uuid", "taste_uuid_fk"]);
+}
+
+export function productTasteUuid(
+  row: { [key: string]: unknown } | null | undefined,
+  rows: Taste[] = [],
+) {
+  return (
+    firstText(row, ["taste_uuid", "taste_uuid_fk"]) ||
+    findOptionByText(rows, row, TASTE_NAME_KEYS, tasteUuid)
+  );
+}
+
+export function findTasteUuidByName(
+  rows: Taste[],
+  nameLa: string,
+  nameEng: string,
+) {
+  const names = new Set(
+    [normalizedText(nameLa), normalizedText(nameEng)].filter(Boolean),
+  );
+  if (!names.size) return "";
+  const match = rows.find((row) =>
+    textValues(row, TASTE_NAME_KEYS).some((value) => names.has(value)),
+  );
+  return tasteUuid(match);
 }
 
 export function productToppingUuid(
@@ -552,6 +599,10 @@ export function productHasToppings(row: Product | null | undefined) {
   return toppings.some((topping) => Boolean(productToppingUuid(topping)));
 }
 
+export function productHasTastes(row: Product | null | undefined) {
+  return Number(row?.prod_taste_max_select ?? 0) > 0;
+}
+
 export function nextProductHydrationPlan({
   editingProductUuid,
   hasEditingProduct,
@@ -597,6 +648,7 @@ export function productHydrationKey(row: Product | null | undefined) {
   if (!row) return "";
   const details = Array.isArray(row.details) ? row.details : [];
   const toppings = Array.isArray(row.toppings) ? row.toppings : [];
+  const tastes = Array.isArray(row.tastes) ? row.tastes : [];
   const detailKey = details
     .map((detail) =>
       [
@@ -624,6 +676,11 @@ export function productHydrationKey(row: Product | null | undefined) {
       ].join(":"),
     )
     .join("|");
+  const tasteKey = tastes
+    .map((taste) =>
+      [productTasteUuid(taste), taste.taste_status, taste.taste_sort].join(":"),
+    )
+    .join("|");
 
   return [
     row.prod_uuid,
@@ -638,9 +695,11 @@ export function productHydrationKey(row: Product | null | undefined) {
     row.prod_set_price,
     row.prod_status_imge,
     row.prod_topping_status,
+    row.prod_taste_max_select,
     rawProductImage(row),
     detailKey,
     toppingKey,
+    tasteKey,
   ].join("::");
 }
 
@@ -861,6 +920,10 @@ export function requiredFieldErrorKeys(state: RequiredProductFormState) {
     state.prodToppingStatus === TOPPING_HAS && !state.selectedToppings.length
       ? "product.sections.toppings"
       : null,
+    Number(state.prodTasteMaxSelect ?? 0) > 0 &&
+    (state.selectedTastes ?? []).length < Number(state.prodTasteMaxSelect ?? 0)
+      ? "product.sections.tastes"
+      : null,
   ].filter(Boolean) as Array<string | string[]>;
 }
 
@@ -905,7 +968,53 @@ export function buildSaveProductPayload(
       state.prodToppingStatus === TOPPING_HAS
         ? Number(state.prodToppingMaxSelect) || 0
         : 0,
+    prod_taste_max_select: Number(state.prodTasteMaxSelect ?? 0) || 0,
+    tastes:
+      Number(state.prodTasteMaxSelect ?? 0) > 0
+        ? (state.selectedTastes ?? []).map((row, index) => ({
+            taste_uuid: row.taste_uuid,
+            taste_sort: index + 1,
+          }))
+        : [],
   };
+}
+
+export function selectedTasteBadges(
+  selectedTastes: TasteSelection[],
+  tasteOptions: Taste[],
+  language: string,
+) {
+  return selectedTastes.map((selected) => {
+    const taste = tasteOptions.find(
+      (row) => tasteUuid(row) === selected.taste_uuid,
+    );
+    return {
+      uuid: selected.taste_uuid,
+      label: taste
+        ? entityLabel(
+            taste,
+            "taste_name_eng",
+            "taste_name_la",
+            language,
+            productTasteName(taste) || selected.taste_uuid,
+          )
+        : selected.taste_uuid,
+    };
+  });
+}
+
+export function productTastesFromRows(
+  rows: ProductTaste[] | undefined,
+  tastes: Taste[],
+) {
+  if (!Array.isArray(rows)) return [];
+  return rows
+    .map((row, index) => ({
+      taste_uuid: productTasteUuid(row, tastes),
+      taste_sort: Number(row.taste_sort) || index + 1,
+    }))
+    .filter((row) => row.taste_uuid)
+    .sort((left, right) => left.taste_sort - right.taste_sort);
 }
 
 export function selectedToppingBadges(

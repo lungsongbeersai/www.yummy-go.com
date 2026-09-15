@@ -51,6 +51,15 @@ describe("mergeInvoicePrintItems", () => {
     expect(mergeInvoicePrintItems(rows)).toHaveLength(4);
   });
 
+  it("keeps different tastes on separate payment lines", () => {
+    expect(
+      mergeInvoicePrintItems([
+        item({ tastes: [{ name: "Spicy" }] }),
+        item({ tastes: [{ name: "Sweet" }] }),
+      ]),
+    ).toHaveLength(2);
+  });
+
   it("adds topping totals while keeping the per-item topping quantity", () => {
     const rows = [
       item({

@@ -231,6 +231,10 @@ export interface SalesListItemTopping {
   total: number;
 }
 
+export interface SalesListItemTaste {
+  name: string;
+}
+
 export type SalesListItemMedia =
   | { type: "color"; color: string }
   | { type: "empty" }
@@ -268,6 +272,21 @@ export function itemToppings(item: ApiEntity): SalesListItemTopping[] {
       name: textValue(readValue(row, ["topping_name", "prod_topping_name", "product_name", "name"]), ""),
       qty: firstNumber(row, ["topping_qty", "qty", "quantity"]),
       total: firstNumber(row, ["topping_total", "total", "line_total", "topping_price"])
+    }))
+    .filter((row) => Boolean(row.name));
+}
+
+export function itemTastes(item: ApiEntity): SalesListItemTaste[] {
+  const rows = readValue(item, ["tastes", "item_tastes", "order_item_tastes"]);
+  if (!Array.isArray(rows)) return [];
+
+  return rows
+    .filter((row): row is ApiEntity => Boolean(row) && typeof row === "object" && !Array.isArray(row))
+    .map((row) => ({
+      name: textValue(
+        readValue(row, ["taste_name", "prod_taste_name", "taste_name_la", "taste_name_eng", "name"]),
+        ""
+      )
     }))
     .filter((row) => Boolean(row.name));
 }

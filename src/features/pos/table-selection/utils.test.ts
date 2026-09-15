@@ -648,7 +648,18 @@ describe("table selection utils", () => {
   });
 
   it("builds customer display payload", () => {
-    const cart = cartOrder();
+    const baseCart = cartOrder();
+    const baseItems = baseCart.items!;
+    const cart = cartOrder({
+      items: [
+        {
+          ...baseItems[0]!,
+          tastes: [{ taste_uuid_fk: "taste-1", taste_name: "Extra Spicy" }],
+          toppings: [{ prod_topping_uuid_fk: "top-1", topping_name: "Egg", topping_qty: 2 }],
+        },
+        baseItems[1]!,
+      ],
+    });
     const payload = buildCustomerDisplayPayload({
       cart,
       now: new Date("2026-05-29T00:00:00.000Z"),
@@ -671,8 +682,10 @@ describe("table selection utils", () => {
       imageColor: "#10b981",
       name: "Noodle (M)",
       note: "less spicy",
+      options: ["Extra Spicy", "Egg x2"],
       qty: 2,
       total: 20000,
     });
+    expect(payload.items[1]).not.toHaveProperty("options");
   });
 });

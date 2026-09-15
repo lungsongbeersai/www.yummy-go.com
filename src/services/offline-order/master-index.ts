@@ -19,6 +19,7 @@ export interface OfflineMasterIndex {
   details: Map<string, OfflineProductDetail>;
   toppingPrices: Map<string, number>;
   toppingNames: Map<string, string>;
+  tasteNames: Map<string, string>;
   simpleProducts: Set<string>;
 }
 
@@ -42,7 +43,13 @@ function count(value: unknown, fallback = 0) {
 }
 
 export function emptyOfflineMasterIndex(): OfflineMasterIndex {
-  return { details: new Map(), toppingPrices: new Map(), toppingNames: new Map(), simpleProducts: new Set() };
+  return {
+    details: new Map(),
+    toppingPrices: new Map(),
+    toppingNames: new Map(),
+    tasteNames: new Map(),
+    simpleProducts: new Set(),
+  };
 }
 
 function price(value: unknown): number | null {
@@ -76,6 +83,7 @@ export function indexCategoryProducts(response: unknown, index: OfflineMasterInd
     const prodUuid = text(product.prod_uuid);
     const needsOptions = product.has_options === true || count(product.count_option_all) > 1 ||
       count(product.count_option_enabled) > 1 || count(product.count_topping_enabled) > 0 ||
+      count(product.count_taste_enabled) > 0 ||
       [2, 3].includes(count(product.status_sort_fk));
     if (needsOptions) index.simpleProducts.delete(prodUuid);
     else if (text(product.pro_detail_uuid)) index.simpleProducts.add(prodUuid);
@@ -126,6 +134,17 @@ export function indexProductItem(response: unknown, index: OfflineMasterIndex) {
       const toppingPrice = price(topping.topping_price ?? topping.prod_topping_price);
       if (toppingPrice !== null) index.toppingPrices.set(uuid, toppingPrice);
       index.toppingNames.set(uuid, text(topping.topping_name) || text(topping.topping_name_la));
+    }
+  }
+  for (const key of ["tastes", "product_tastes"]) {
+    for (const rawTaste of list(product[key])) {
+      const taste = record(rawTaste);
+      const uuid = text(taste.taste_uuid) || text(taste.taste_uuid_fk);
+      if (!uuid) continue;
+      index.tasteNames.set(
+        uuid,
+        text(taste.taste_name) || text(taste.taste_name_la) || text(taste.taste_name_eng),
+      );
     }
   }
   return index;
@@ -231,6 +250,7 @@ export function projectOfflineProdItem(detail: OfflineProductDetail) {
         },
       ],
       toppings: [],
+      tastes: [],
     },
   };
 }

@@ -90,7 +90,7 @@ export function ProductFormToppingsSection({ form }: { form: ProductFormWorkflow
     <>
       <Card>
         <ProductFormSectionHeader
-          number="5"
+          number="6"
           title={t("product.sections.toppings")}
           hint={t("product.sections.toppingsHint")}
           action={

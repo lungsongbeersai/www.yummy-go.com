@@ -2,6 +2,7 @@ import type { BrowserSyncQueueEntry } from "@/services/offline-db";
 import {
   OFFLINE_ITEM_STATUS,
   type OfflineOrderEvent,
+  type OfflineTaste,
   type OfflineTopping,
 } from "./types";
 
@@ -35,6 +36,22 @@ function toppings(value: unknown): OfflineTopping[] {
       // An omitted price is not an explicitly free topping.
       ...(topping.topping_price == null ? {} : { topping_price: count(topping.topping_price) }),
     };
+  });
+}
+
+function tastes(value: unknown): OfflineTaste[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((raw) => {
+    const taste = record(raw);
+    const tasteUuid = text(taste.taste_uuid_fk) || text(taste.taste_uuid);
+    return tasteUuid
+      ? [{
+          taste_uuid_fk: tasteUuid,
+          ...(text(taste.taste_name) ? { taste_name: text(taste.taste_name) } : {}),
+          ...(text(taste.taste_name_la) ? { taste_name_la: text(taste.taste_name_la) } : {}),
+          ...(text(taste.taste_name_eng) ? { taste_name_eng: text(taste.taste_name_eng) } : {}),
+        }]
+      : [];
   });
 }
 
@@ -78,6 +95,7 @@ export function decodeOfflineOrderEvent(
             quantity: count(item.order_it_qty, count(item.qty, 0)),
             status: count(item.order_it_status, OFFLINE_ITEM_STATUS.WAITING),
             note: text(item.order_it_note),
+            tastes: tastes(item.tastes),
             toppings: toppings(item.toppings),
           };
         }).filter((item) => item.orderItemUuid && item.prodDetailUuid),

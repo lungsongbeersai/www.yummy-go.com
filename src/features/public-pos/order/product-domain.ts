@@ -17,6 +17,7 @@ import type {
   CateProductItem,
   ProdDetail,
   ProdItem,
+  ProdTaste,
   ProdTopping,
 } from "@/services/pos";
 import type {
@@ -32,6 +33,7 @@ import type {
   ProductActionState,
   ProductModalMode,
   PublicAddToCartPayload,
+  PublicSelectedTaste,
   PublicSelectedTopping,
 } from "@/features/public-pos/order/types";
 import { getCartItemQty, isOpenCartItemForStock } from "./cart-domain";
@@ -211,6 +213,17 @@ export function isToppingAvailable(topping?: ProdTopping | null) {
   return true;
 }
 
+export function isTasteAvailable(taste?: ProdTaste | null) {
+  return Boolean(taste?.tasteUuid) && Number(taste?.tasteStatus ?? 1) !== 2;
+}
+
+export function tasteDisplayName(taste: ProdTaste, lang: string) {
+  if (lang === "en") {
+    return taste.tasteNameEng || taste.tasteName || taste.tasteNameLa || "";
+  }
+  return taste.tasteNameLa || taste.tasteName || taste.tasteNameEng || "";
+}
+
 export function toppingDisplayName(topping: ProdTopping, lang: string) {
   if (lang === "en") {
     return (
@@ -297,7 +310,9 @@ export function isKnownModalProduct(
   return isKnownModalProductCore({
     allOptionCount: Number(product.countOptionAll ?? 1),
     enabledOptionCount: Number(product.countOptionEnabled ?? 1),
-    enabledToppingCount: Number(product.countToppingEnabled ?? 0),
+    enabledToppingCount:
+      Number(product.countToppingEnabled ?? 0) +
+      Number(product.countTasteEnabled ?? 0),
     hasOptions: product.hasOptions === true,
     hasPromo: hasPromo(product),
     productStatusSort: publicProductStatusSort(
@@ -321,6 +336,7 @@ export function productNeedsModal(
 ) {
   const enabledDetails = (item.details ?? []).filter(isDetailAvailable);
   const enabledToppings = (item.toppings ?? []).filter(isToppingAvailable);
+  const enabledTastes = (item.tastes ?? []).filter(isTasteAvailable);
   const productStatusSort = publicProductStatusSort(
     product,
     activeStatusSortFk,
@@ -328,12 +344,14 @@ export function productNeedsModal(
   return (
     product.hasOptions === true ||
     Number(product.countToppingEnabled ?? 0) > 0 ||
+    Number(product.countTasteEnabled ?? 0) > 0 ||
     productStatusSort === publicMenuKindToStatusSortFk(PUBLIC_MENU_KIND.SET) ||
     productStatusSort ===
       publicMenuKindToStatusSortFk(PUBLIC_MENU_KIND.PROMOTION) ||
     hasPromo(product) ||
     enabledDetails.length > 1 ||
-    enabledToppings.length > 0
+    enabledToppings.length > 0 ||
+    enabledTastes.length > 0
   );
 }
 
@@ -358,6 +376,7 @@ export function canDirectAddFromList(
     product.hasOptions !== true &&
     Number(product.countOptionEnabled ?? 1) <= 1 &&
     Number(product.countToppingEnabled ?? 0) <= 0 &&
+    Number(product.countTasteEnabled ?? 0) <= 0 &&
     productStatusSort !== publicMenuKindToStatusSortFk(PUBLIC_MENU_KIND.SET) &&
     productStatusSort !==
       publicMenuKindToStatusSortFk(PUBLIC_MENU_KIND.PROMOTION) &&
@@ -384,6 +403,7 @@ export function productListItemToProdItem(product: CateProductItem): ProdItem {
       },
     ],
     toppings: [],
+    tastes: [],
   };
 }
 
@@ -470,6 +490,7 @@ export function buildPublicOrderInput({
   table,
   detail,
   qty,
+  tastes = [],
   toppings,
   note,
   lang,
@@ -477,10 +498,15 @@ export function buildPublicOrderInput({
   table: QRScanResponse;
   detail: ProdDetail;
   qty: number;
+  tastes?: PublicSelectedTaste[];
   toppings: PublicSelectedTopping[];
   note: string;
   lang: string;
 }): CustomerCreateOrderInput {
+  const selectedTastes = tastes
+    .map((taste) => ({ taste_uuid_fk: taste.tasteUuid }))
+    .filter((taste) => Boolean(taste.taste_uuid_fk));
+
   return {
     table_uuid_fk: table.table_uuid,
     branch_uuid_fk: "",
@@ -496,6 +522,7 @@ export function buildPublicOrderInput({
         order_it_qty: qty,
         order_it_note: note || "",
         order_it_status: 0,
+        ...(selectedTastes.length ? { tastes: selectedTastes } : {}),
         toppings: toppings.map((selected) => ({
           prod_topping_uuid_fk: selected.topping.prodToppingUuid,
           topping_qty: selected.qty,
@@ -520,6 +547,24 @@ export function toppingSelectionLimit(
 ) {
   const configuredMax = numeric(productMaxSelect);
   return configuredMax > 0 ? Math.min(availableCount, configuredMax) : availableCount;
+}
+
+export function tasteSelectionLimit(product?: ProdItem | null) {
+  const configured = Number(product?.prodTasteMaxSelect ?? 0);
+  const available = (product?.tastes ?? []).filter(isTasteAvailable).length;
+  return configured > 0 ? Math.min(configured, available) : 0;
+}
+
+export function togglePublicTaste(
+  current: PublicSelectedTaste[],
+  taste: ProdTaste,
+  limit: number,
+) {
+  if (current.some((selected) => selected.tasteUuid === taste.tasteUuid)) {
+    return current.filter((selected) => selected.tasteUuid !== taste.tasteUuid);
+  }
+  if (limit <= 0 || current.length >= limit) return current;
+  return [...current, taste];
 }
 
 export function canSelectMoreToppings(
@@ -595,6 +640,6 @@ export function getDirectAddListPayload(
   return {
     ok: true,
     item,
-    payload: { detail, qty, toppings: [], note: "" },
+    payload: { detail, qty, tastes: [], toppings: [], note: "" },
   };
 }

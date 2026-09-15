@@ -94,7 +94,7 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
     <>
       <Card>
         <ProductFormSectionHeader
-          number="3"
+          number="4"
           title={t("product.sections.details")}
           hint={t("product.sections.detailsHint")}
         />
@@ -375,7 +375,7 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
       <Card>
         {/* หัวข้อกับคำอธิบายเคยเป็นคีย์เดียวกัน (stockBulk.label) จึงพิมพ์ข้อความซ้ำสองบรรทัด */}
         <ProductFormSectionHeader
-          number="4"
+          number="5"
           title={t("product.stockBulk.label")}
           hint={t("product.stockBulk.hint")}
         />

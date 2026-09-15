@@ -6,18 +6,21 @@ import type { Category } from "@/services/category";
 import type { Color } from "@/services/color";
 import type { Group } from "@/services/group";
 import type { Size } from "@/services/size";
+import type { Taste } from "@/services/taste";
 import type { Topping } from "@/services/topping";
 import type { Unit } from "@/services/unit";
 import { useProductStore } from "@/stores/product-store";
 import { useReferenceStore } from "@/stores/reference-store";
 import type { ToastInput } from "@/stores/toast-store";
 import { useToppingStore } from "@/stores/topping-store";
+import { useTasteStore } from "@/stores/taste-store";
 import type { StatusSortFk } from "./product-form-types";
 import {
   EMPTY_CATEGORIES,
   EMPTY_COLORS,
   EMPTY_GROUPS,
   EMPTY_SIZES,
+  EMPTY_TASTES,
   EMPTY_TOPPINGS,
   EMPTY_UNITS
 } from "./product-form-utils";
@@ -54,15 +57,20 @@ export function useProductFormReferenceData({
   const units = (useReferenceStore((state) => state.options.units) ?? EMPTY_UNITS) as Unit[];
   const sizes = (useReferenceStore((state) => state.options.sizes) ?? EMPTY_SIZES) as Size[];
   const toppings = (useReferenceStore((state) => state.options.toppings) ?? EMPTY_TOPPINGS) as Topping[];
+  const tastes = (useReferenceStore((state) => state.options.tastes) ?? EMPTY_TASTES) as Taste[];
   const loadCategories = useReferenceStore((state) => state.loadCategories);
   const loadColors = useReferenceStore((state) => state.loadColors);
   const loadGroups = useReferenceStore((state) => state.loadGroups);
   const loadUnits = useReferenceStore((state) => state.loadUnits);
   const loadSizes = useReferenceStore((state) => state.loadSizes);
   const loadToppings = useReferenceStore((state) => state.loadToppings);
+  const loadTastes = useReferenceStore((state) => state.loadTastes);
   const createToppingRow = useToppingStore((state) => state.save);
   const deleteToppingRow = useToppingStore((state) => state.remove);
   const toppingSaving = useToppingStore((state) => state.saving);
+  const createTasteRow = useTasteStore((state) => state.save);
+  const deleteTasteRow = useTasteStore((state) => state.remove);
+  const tasteSaving = useTasteStore((state) => state.saving);
 
   useEffect(() => {
     if (!storeUuid) return;
@@ -72,7 +80,8 @@ export function useProductFormReferenceData({
       loadGroups(language, storeUuid),
       loadUnits(language, storeUuid),
       loadSizes(language, storeUuid),
-      loadToppings(language, storeUuid)
+      loadToppings(language, storeUuid),
+      loadTastes(language, storeUuid),
     ]).catch((error) => {
       showToast({
         title: t("settings.loadFailed", { title: t("product.title") }),
@@ -80,7 +89,7 @@ export function useProductFormReferenceData({
         tone: "error"
       });
     });
-  }, [language, loadCategories, loadColors, loadGroups, loadSizes, loadToppings, loadUnits, showToast, storeUuid, t]);
+  }, [language, loadCategories, loadColors, loadGroups, loadSizes, loadTastes, loadToppings, loadUnits, showToast, storeUuid, t]);
 
   useEffect(() => {
     if (!storeUuid) return;
@@ -111,12 +120,17 @@ export function useProductFormReferenceData({
     units,
     sizes,
     toppings,
+    tastes,
     loadCategories,
     loadUnits,
     loadSizes,
     loadToppings,
+    loadTastes,
     createToppingRow,
     deleteToppingRow,
-    toppingSaving
+    toppingSaving,
+    createTasteRow,
+    deleteTasteRow,
+    tasteSaving,
   };
 }

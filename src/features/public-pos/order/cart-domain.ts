@@ -41,6 +41,11 @@ export function findExistingCartItem(
   statusRule: FetchCartStatusRule | null,
 ) {
   const detailUuid = payload.detail.proDetailUuid;
+  const tasteIds = (payload.tastes ?? []).map((taste) => taste.tasteUuid).filter(Boolean).sort();
+  const tasteNames = (payload.tastes ?? [])
+    .map((taste) => taste.tasteName || taste.tasteNameLa || taste.tasteNameEng || "")
+    .filter(Boolean)
+    .sort();
   const toppingIds = payload.toppings
     .map((selected) =>
       selected.topping.prodToppingUuid
@@ -76,6 +81,29 @@ export function findExistingCartItem(
         cartItemTitle(item).includes(product.prodName);
 
       if (!matchesProduct) continue;
+
+      const existingTasteIds = (item.tastes ?? [])
+        .map((taste) => String(taste.taste_uuid_fk ?? taste.taste_uuid ?? ""))
+        .filter(Boolean)
+        .sort();
+      const existingTasteNames = (item.tastes ?? [])
+        .map((taste) => String(taste.taste_name ?? taste.taste_name_la ?? taste.taste_name_eng ?? ""))
+        .filter(Boolean)
+        .sort();
+      const tasteIdsMatch =
+        existingTasteIds.length === tasteIds.length &&
+        existingTasteIds.every((id, index) => id === tasteIds[index]);
+      const tasteNamesMatch =
+        existingTasteNames.length === tasteNames.length &&
+        existingTasteNames.every((name, index) => name === tasteNames[index]);
+      const tastesMatch =
+        tasteIdsMatch ||
+        tasteNamesMatch ||
+        (!existingTasteIds.length &&
+          !existingTasteNames.length &&
+          !tasteIds.length &&
+          !tasteNames.length);
+      if (!tastesMatch) continue;
 
       const existingIds = (item.toppings ?? [])
         .map((topping) => {

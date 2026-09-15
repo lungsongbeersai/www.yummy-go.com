@@ -609,6 +609,7 @@ describe("public POS order payload helper", () => {
         },
         detail: { proDetailUuid: "detail-1" },
         qty: 2,
+        tastes: [{ tasteUuid: "taste-1", tasteName: "Spicy" }],
         toppings: [{ topping: { prodToppingUuid: "top-1" }, qty: 3 }],
         note: "less spicy",
         lang: "en",
@@ -625,10 +626,31 @@ describe("public POS order payload helper", () => {
           prod_detail_uuid_fk: "detail-1",
           order_it_qty: 2,
           order_it_note: "less spicy",
+          tastes: [{ taste_uuid_fk: "taste-1" }],
           toppings: [{ prod_topping_uuid_fk: "top-1", topping_qty: 3 }],
         },
       ],
     });
+
+    const legacyItem = buildPublicOrderInput({
+      table: {
+        status: "success",
+        message: "",
+        lang: "la",
+        table_uuid: "table-1",
+        table_name: "A1",
+        table_status: 2,
+        qr_enabled: true,
+        branch_uuid_fk: "branch-1",
+      },
+      detail: { proDetailUuid: "detail-1" },
+      qty: 1,
+      toppings: [],
+      note: "",
+      lang: "la",
+    }).items[0];
+
+    expect(legacyItem).not.toHaveProperty("tastes");
   });
 });
 

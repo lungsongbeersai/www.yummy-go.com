@@ -150,7 +150,7 @@ export function usePublicProductClickAction({
 
           await handleAddToCart(
             item,
-            { detail, qty, toppings: [], note: "" },
+            { detail, qty, tastes: [], toppings: [], note: "" },
             sourceRect,
           );
         } catch (error) {

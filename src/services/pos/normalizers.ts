@@ -5,6 +5,7 @@ import type {
   PosProduct,
   ProdDetail,
   ProdItem,
+  ProdTaste,
   ProdTopping,
 } from "@/services/pos/types";
 import type {
@@ -14,6 +15,7 @@ import type {
   ApiPosProduct,
   ApiProdDetail,
   ApiProdItem,
+  ApiProdTaste,
   ApiProdTopping,
 } from "@/services/pos/api-types";
 
@@ -55,6 +57,18 @@ export function mapApiProdTopping(topping: ApiProdTopping): ProdTopping {
   };
 }
 
+export function mapApiProdTaste(taste: ApiProdTaste): ProdTaste {
+  return {
+    tasteUuid: taste.taste_uuid,
+    prodUuidFk: taste.prod_uuid_fk,
+    tasteName: taste.taste_name,
+    tasteNameLa: taste.taste_name_la,
+    tasteNameEng: taste.taste_name_eng,
+    tasteStatus: taste.taste_status,
+    tasteSort: taste.taste_sort,
+  };
+}
+
 export function mapApiProdItem(product: ApiProdItem): ProdItem {
   return {
     prodUuid: product.prod_uuid,
@@ -69,9 +83,16 @@ export function mapApiProdItem(product: ApiProdItem): ProdItem {
     prodSetPrice: product.prod_set_price,
     proDetailSprice: product.pro_detail_sprice,
     prodToppingMaxSelect: product.prod_topping_max_select,
+    ...(product.prod_taste_max_select !== undefined
+      ? { prodTasteMaxSelect: product.prod_taste_max_select }
+      : {}),
+    ...(product.has_tastes !== undefined ? { hasTastes: product.has_tastes } : {}),
     statusSortFk: product.status_sort_fk,
     details: (product.details ?? []).map(mapApiProdDetail),
     toppings: (product.toppings ?? []).map(mapApiProdTopping),
+    ...(product.tastes !== undefined
+      ? { tastes: product.tastes.map(mapApiProdTaste) }
+      : {}),
   };
 }
 
@@ -112,6 +133,13 @@ function mapApiCateProductItem(product: ApiCateProductItem): CateProductItem {
     countOptionAll: product.count_option_all,
     countOptionEnabled: product.count_option_enabled,
     countToppingEnabled: product.count_topping_enabled,
+    ...(product.count_taste_enabled !== undefined
+      ? { countTasteEnabled: product.count_taste_enabled }
+      : {}),
+    ...(product.prod_taste_max_select !== undefined
+      ? { prodTasteMaxSelect: product.prod_taste_max_select }
+      : {}),
+    ...(product.has_tastes !== undefined ? { hasTastes: product.has_tastes } : {}),
     customerBuy: product.customer_buy,
     customerFree: product.customer_free,
     proDetailUuid: product.pro_detail_uuid,

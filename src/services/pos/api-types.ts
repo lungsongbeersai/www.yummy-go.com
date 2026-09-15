@@ -38,6 +38,16 @@ export interface ApiProdTopping extends ApiEntity {
   topping_status?: number;
 }
 
+export interface ApiProdTaste extends ApiEntity {
+  taste_uuid: string;
+  prod_uuid_fk?: string;
+  taste_name?: string;
+  taste_name_la?: string;
+  taste_name_eng?: string;
+  taste_status?: number | string;
+  taste_sort?: number | string;
+}
+
 export interface ApiProdItem extends ApiEntity {
   prod_uuid: string;
   prod_code?: string;
@@ -51,6 +61,8 @@ export interface ApiProdItem extends ApiEntity {
   prod_set_price?: number | string | null;
   pro_detail_sprice?: number | string;
   prod_topping_max_select?: number | string;
+  prod_taste_max_select?: number | string;
+  has_tastes?: boolean;
   // ไม่ใช่ทุก endpoint ที่ส่ง status_sort_fk มากับ prod item เดี่ยว (ต่างจาก
   // ApiPosProduct ที่มาจาก listing) — staff POS ใช้ optionalNumber(...) ??
   // activeSort คุมค่า fallback เองอยู่แล้ว เห็น src/features/pos/order-customer/product-classification.ts
@@ -58,6 +70,7 @@ export interface ApiProdItem extends ApiEntity {
   // backend อาจไม่ส่ง array เหล่านี้มาเลยในบาง response — mapper ต้อง guard
   details?: ApiProdDetail[];
   toppings?: ApiProdTopping[];
+  tastes?: ApiProdTaste[];
 }
 
 export interface ApiPosProduct extends ApiEntity {
@@ -93,6 +106,9 @@ export interface ApiCateProductItem extends ApiPosProduct {
   count_option_all: number;
   count_option_enabled: number;
   count_topping_enabled: number;
+  count_taste_enabled?: number;
+  prod_taste_max_select?: number | string;
+  has_tastes?: boolean;
   customer_buy?: number;
   customer_free?: number;
   pro_detail_uuid?: string;

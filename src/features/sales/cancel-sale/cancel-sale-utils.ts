@@ -1,4 +1,4 @@
-import type { InvoicePrintData, InvoicePrintItem, InvoicePrintTopping } from "@/services/printer/invoice-print-window";
+import type { InvoicePrintData, InvoicePrintItem, InvoicePrintTaste, InvoicePrintTopping } from "@/services/printer/invoice-print-window";
 import { dateTime, money } from "@/lib/format";
 import { pageLimitNumber } from "@/lib/pagination";
 import type { CancelableBill, CancelableBillDetail, CancelableDateOption } from "@/services/cancel";
@@ -248,6 +248,10 @@ export function itemToppings(item: ApiEntity) {
   return asRecords(readValue(item, ["toppings", "item_toppings", "order_item_toppings"]));
 }
 
+export function itemTastes(item: ApiEntity) {
+  return asRecords(readValue(item, ["tastes", "item_tastes", "order_item_tastes"]));
+}
+
 export function itemToppingTotal(item: ApiEntity) {
   const explicit = optionalNumber(readValue(item, ["topping_total", "topping_line_total", "topping_unit_total"]));
   if (explicit !== null) return explicit;
@@ -364,6 +368,11 @@ export function salesListInvoicePrintItems(
     const explicitUnitPrice = optionalNumber(readValue(item, ["price", "unit_price", "base_price", "pro_detail_sprice", "product_price"]));
     const unitPrice = explicitUnitPrice ?? (qty > 0 ? displayTotal / qty : null);
     const size = itemSize(item);
+    const tastes: InvoicePrintTaste[] = itemTastes(item)
+      .map((taste) => ({
+        name: firstText(readValue(taste, ["taste_name", "prod_taste_name", "taste_name_la", "taste_name_eng", "name"]))
+      }))
+      .filter((taste) => Boolean(taste.name));
     const toppings: InvoicePrintTopping[] = itemToppings(item).map((topping) => ({
       name: textValue(readValue(topping, ["topping_name", "prod_topping_name", "product_name", "name"]), translate("salesList.toppings")),
       qty: optionalNumber(readValue(topping, ["topping_qty", "qty", "quantity"])),
@@ -378,6 +387,7 @@ export function salesListInvoicePrintItems(
       qty,
       toppingLabel: translate("pos.toppingTotal"),
       toppingTotal: positiveNumber(itemToppingTotal(item)),
+      ...(tastes.length ? { tastes } : {}),
       toppings,
       unitPrice
     };

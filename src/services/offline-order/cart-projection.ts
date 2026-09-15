@@ -42,6 +42,7 @@ export interface OfflineCartLine {
     affects_total: boolean;
   };
   toppings: OfflineOrderItem["toppings"];
+  tastes?: OfflineOrderItem["tastes"];
 }
 
 export interface OfflineCartOrder {
@@ -189,6 +190,15 @@ export function projectOfflineCartOrder(
         order_it_note: item.note,
         affects_total: line.affectsTotal,
       },
+      tastes: (item.tastes ?? []).map((taste) => ({
+        ...taste,
+        taste_name:
+          taste.taste_name ||
+          taste.taste_name_la ||
+          taste.taste_name_eng ||
+          master.tasteNames.get(taste.taste_uuid_fk) ||
+          taste.taste_uuid_fk,
+      })),
       toppings: item.toppings.map((topping) => ({
         ...topping,
         topping_name: topping.topping_name || master.toppingNames.get(topping.prod_topping_uuid_fk) || "",

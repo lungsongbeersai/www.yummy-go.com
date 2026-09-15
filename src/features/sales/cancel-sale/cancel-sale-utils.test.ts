@@ -25,6 +25,7 @@ import {
   itemQty,
   itemSize,
   itemStatus,
+  itemTastes,
   itemToppingTotal,
   itemToppings,
   itemTotal,
@@ -181,7 +182,7 @@ describe("sales list utils", () => {
     expect(billDateValue(detail).getFullYear()).toBe(2026);
   });
 
-  it("normalizes item labels, toppings, and discounts", () => {
+  it("normalizes item labels, tastes, toppings, and discounts", () => {
     const item = entity({
       cashier: "Alice",
       item_discount: {
@@ -195,6 +196,7 @@ describe("sales list utils", () => {
       qty: "2",
       size_name: "Large",
       status: "served",
+      tastes: [{ taste_name: "Extra Spicy" }],
       toppings: [
         { name: "Egg", qty: "1", topping_price: "200" },
         { prod_topping_name: "Cheese", topping_total: "300" }
@@ -210,6 +212,7 @@ describe("sales list utils", () => {
     expect(itemSize(item)).toBe("Large");
     expect(itemNote(item)).toBe("Less spicy");
     expect(itemCashier(item)).toBe("Alice");
+    expect(itemTastes(item)).toHaveLength(1);
     expect(itemToppings(item)).toHaveLength(2);
     expect(itemToppingTotal(item)).toBe(500);
     expect(itemDiscountAmount(item)).toBe(100);
@@ -231,6 +234,7 @@ describe("sales list utils", () => {
           product_name: "Noodle",
           qty: "2",
           size_name: "Large",
+          tastes: [{ taste_name: "Extra Spicy" }],
           toppings: [{ name: "Egg", qty: "1", topping_price: "200" }],
           unit_price: "1000"
         }
@@ -273,6 +277,7 @@ describe("sales list utils", () => {
       toppingTotal: 200,
       unitPrice: 1000
     });
+    expect(printItem.tastes).toEqual([{ name: "Extra Spicy" }]);
     expect(printItem.toppings).toEqual([{ name: "Egg", qty: 1, total: 200 }]);
     expect(printData).toMatchObject({
       branchAddress: "Bill address",

@@ -112,12 +112,17 @@ export interface CustomerCreateOrderTopping {
   topping_qty: number;
 }
 
+export interface CustomerCreateOrderTaste {
+  taste_uuid_fk: string;
+}
+
 export interface CustomerCreateOrderItem {
   prod_detail_uuid_fk: string;
   order_it_qty: number;
   order_it_status: number;
   order_it_note?: string;
   toppings?: CustomerCreateOrderTopping[];
+  tastes?: CustomerCreateOrderTaste[];
 }
 
 export interface CustomerCreateOrderInput {

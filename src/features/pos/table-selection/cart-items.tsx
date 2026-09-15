@@ -252,6 +252,7 @@ function CartItemRow({
   const sizeName = optionalString(detail?.size_name);
   const title = cartItemDisplayName(rawTitle, sizeName);
   const toppings = item.toppings ?? [];
+  const tastes = item.tastes ?? [];
   const hasPromo = promoSaleQty !== null || promoFreeQty !== null || freeQty !== null;
   const hasDiscount = discountAmount !== null || discountValue !== null || Boolean(optionalString(detail?.order_it_discount_type));
   const baseWithToppingTotal = baseLineTotal !== null || toppingLineTotal !== null ? (baseLineTotal ?? 0) + (toppingLineTotal ?? 0) : null;
@@ -274,6 +275,7 @@ function CartItemRow({
     hasDiscount ||
     affectsTotal === false ||
     toppings.length ||
+    tastes.length ||
     toppingLineTotal !== null ||
     discountAmount !== null ||
     note
@@ -449,6 +451,7 @@ function CartItemRow({
               ) : null}
 
               {affectsTotal === false ? <CartDetailRow tone="muted">{t("pos.affectsTotal")}: {t("pos.no")}</CartDetailRow> : null}
+              {tastes.length ? <CartTastesList tastes={tastes} /> : null}
               {toppings.length || toppingLineTotal !== null ? <CartToppingsList toppingTotal={toppingLineTotal} toppings={toppings} /> : null}
               {note ? <CartNote text={note} /> : null}
             </div>
@@ -504,7 +507,7 @@ function CartItemRow({
   );
 }
 
-type CartDetailTone = "muted" | "price" | "promo" | "discount" | "note" | "topping";
+type CartDetailTone = "muted" | "price" | "promo" | "discount" | "note" | "taste" | "topping";
 
 function CartDetailRow({
   children,
@@ -527,6 +530,7 @@ function CartDetailRow({
         tone === "promo" && "text-primary",
         tone === "discount" && "text-destructive",
         tone === "note" && "text-muted-foreground",
+        tone === "taste" && "text-muted-foreground",
         tone === "topping" && "text-muted-foreground",
         tone === "muted" && "text-muted-foreground",
         className
@@ -764,6 +768,25 @@ function CartToppingsList({
             right={total !== null ? `+${money(total)}` : null}
           >
             + {name}{qty !== null ? ` x${formatQuantityValue(qty)}` : ""}
+          </CartDetailRow>
+        );
+      })}
+    </div>
+  );
+}
+
+function CartTastesList({ tastes }: { tastes: NonNullable<CartItem["tastes"]> }) {
+  return (
+    <div className="grid gap-0.5">
+      {tastes.map((taste, index) => {
+        const name = optionalString(
+          taste.taste_name,
+          taste.taste_name_la,
+          taste.taste_name_eng,
+        ) ?? "-";
+        return (
+          <CartDetailRow key={`${name}-${index}`} className="pl-5" tone="taste">
+            • {name}
           </CartDetailRow>
         );
       })}

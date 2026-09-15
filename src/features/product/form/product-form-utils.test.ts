@@ -476,12 +476,48 @@ describe("product form validation and payload helpers", () => {
       prodStatusImge: "2",
       prodImage: "#10b981",
       details: [detail()],
-      prodToppingStatus: TOPPING_NONE,
+      prodToppingStatus: "1" as const,
       prodToppingMaxSelect: "3",
       selectedToppings: [],
     });
 
     expect(payload.prod_topping_max_select).toBe(0);
+  });
+
+  it("validates and serializes taste selection without changing legacy defaults", () => {
+    const state = {
+      prodNameLa: "Noodle",
+      cateUuidFk: "cate-1",
+      uniteUuidFk: "unit-1",
+      details: [detail()],
+      statusSortFk: "1" as const,
+      prodToppingStatus: "1" as const,
+      selectedToppings: [],
+      prodTasteMaxSelect: "2",
+      selectedTastes: [{ taste_uuid: "taste-1", taste_sort: 1 }],
+    };
+    expect(requiredFieldErrors(state, t)).toContain("product.sections.tastes");
+
+    const payload = buildSaveProductPayload({
+      ...state,
+      branchUuid: "branch-1",
+      prodCode: "P-1",
+      prodNameEng: "Noodle",
+      prodOrderPoint: "5",
+      prodNotification: "2",
+      prodSetPrice: "0",
+      prodStatusImge: "2",
+      prodImage: "#10b981",
+      selectedTastes: [
+        { taste_uuid: "taste-1", taste_sort: 7 },
+        { taste_uuid: "taste-2", taste_sort: 9 },
+      ],
+    });
+    expect(payload.prod_taste_max_select).toBe(2);
+    expect(payload.tastes).toEqual([
+      { taste_uuid: "taste-1", taste_sort: 1 },
+      { taste_uuid: "taste-2", taste_sort: 2 },
+    ]);
   });
 
   it("matches saved toppings by localized names", () => {

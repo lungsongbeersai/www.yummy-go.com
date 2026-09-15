@@ -34,6 +34,7 @@ export function normalizeProdItem(
       ),
       details: item.details?.length ? item.details : fallbackDetails,
       toppings: item.toppings ?? [],
+      tastes: item.tastes ?? [],
     };
   }
 
@@ -46,6 +47,7 @@ export function normalizeProdItem(
     prodStatusImge: productImageStatus(fallback.prodStatusImge),
     details: fallbackDetails,
     toppings: [],
+    tastes: [],
   };
 }
 

@@ -10,6 +10,7 @@ import {
 import { MAX_OPEN_QTY } from "../constants";
 import type {
   PublicAddToCartPayload,
+  PublicSelectedTaste,
   PublicSelectedTopping,
 } from "../types";
 import {
@@ -20,12 +21,15 @@ import {
   getProductModalMode,
   isDetailAvailable,
   isToppingAvailable,
+  isTasteAvailable,
   maxAvailableQty,
   productModeLabel,
   promotionQuantity,
   togglePublicToppingQty,
   toppingMaxQty,
   toppingSelectionLimit,
+  tasteSelectionLimit,
+  togglePublicTaste,
 } from "../utils";
 
 export interface ProductOrderSheetProps {
@@ -70,6 +74,7 @@ export function useProductOrderSheetWorkflow({
   const mediaRef = useRef<HTMLDivElement | null>(null);
   const details = useMemo(() => product?.details ?? [], [product]);
   const toppings = useMemo(() => product?.toppings ?? [], [product]);
+  const tastes = useMemo(() => product?.tastes ?? [], [product]);
   const statusSortFk = publicMenuKindToStatusSortFk(statusKind);
   const mode = useMemo(
     () => getProductModalMode(statusSortFk, product),
@@ -82,6 +87,7 @@ export function useProductOrderSheetWorkflow({
   const [toppingQtyByUuid, setToppingQtyByUuid] = useState<
     Record<string, number>
   >({});
+  const [selectedTastes, setSelectedTastes] = useState<PublicSelectedTaste[]>([]);
   const [rememberedToppingQtyByUuid, setRememberedToppingQtyByUuid] = useState<
     Record<string, number>
   >({});
@@ -95,6 +101,7 @@ export function useProductOrderSheetWorkflow({
     setDetailUuid(nextDetail?.proDetailUuid ?? "");
     setQty(defaultOrderQty(nextDetail));
     setToppingQtyByUuid({});
+    setSelectedTastes([]);
     setRememberedToppingQtyByUuid({});
     setNote("");
   });
@@ -178,6 +185,20 @@ export function useProductOrderSheetWorkflow({
     () => toppings.filter(isToppingAvailable).length,
     [toppings],
   );
+  const availableTastes = useMemo(
+    () => tastes.filter(isTasteAvailable),
+    [tastes],
+  );
+  const tasteSelectionLimitNow = tasteSelectionLimit(product);
+  const canSelectMoreTastesNow = selectedTastes.length < tasteSelectionLimitNow;
+
+  const handleTasteToggle = (tasteUuid: string) => {
+    const taste = availableTastes.find((item) => item.tasteUuid === tasteUuid);
+    if (!taste) return;
+    setSelectedTastes((current) =>
+      togglePublicTaste(current, taste, tasteSelectionLimitNow),
+    );
+  };
   const toppingSelectionLimitNow = toppingSelectionLimit(
     availableToppingCount,
     product?.prodToppingMaxSelect,
@@ -229,6 +250,7 @@ export function useProductOrderSheetWorkflow({
       {
         detail: selectedDetail,
         qty,
+        tastes: selectedTastes,
         toppings: selectedToppings,
         note: note.trim(),
       },
@@ -239,6 +261,7 @@ export function useProductOrderSheetWorkflow({
   return {
     basePrice,
     canSelectMoreToppings: canSelectMoreToppingsNow,
+    canSelectMoreTastes: canSelectMoreTastesNow,
     canSubmit,
     detailUuid,
     details,
@@ -246,6 +269,7 @@ export function useProductOrderSheetWorkflow({
     handleQty,
     handleQtyInput,
     handleSubmit,
+    handleTasteToggle,
     handleToppingQty,
     handleToppingToggle,
     hasSelectableDetails,
@@ -269,12 +293,15 @@ export function useProductOrderSheetWorkflow({
     quantityMeta,
     saving,
     selectedDetail,
+    selectedTastes,
     selectionIssue,
     selectedToppings,
     toppingQtyByUuid,
     toppingSelectionLimit: toppingSelectionLimitNow,
     toppingTotal,
     toppings,
+    tasteSelectionLimit: tasteSelectionLimitNow,
+    tastes: availableTastes,
     viewOnly,
     onScanQr,
     onCloseAutoFocus,

@@ -106,4 +106,13 @@ describe("mobileReceiptItemsForPrint", () => {
       ]),
     ).toHaveLength(6);
   });
+
+  it("does not merge different tastes and keeps their receipt labels", () => {
+    const rows = mobileReceiptItemsForPrint([
+      cartLine({ tastes: [{ taste_uuid_fk: "taste-1", taste_name: "Spicy" }] }),
+      cartLine({ tastes: [{ taste_uuid_fk: "taste-2", taste_name: "Sweet" }] }),
+    ]);
+    expect(rows).toHaveLength(2);
+    expect(rows[0]?.tastes).toEqual(["Spicy"]);
+  });
 });

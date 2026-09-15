@@ -96,6 +96,7 @@ export function OrderCustomerView({
     selectedCateUuid,
     selectedDetail,
     selectedProduct,
+    selectedTastes,
     selectedTable,
     selectedToppings,
     setActiveSort,
@@ -109,6 +110,7 @@ export function OrderCustomerView({
     submitSelectedProduct,
     t,
     toggleSelectedTopping,
+    toggleSelectedTaste,
     toppingQtyByUuid,
     zones,
   } = workflow;
@@ -491,6 +493,7 @@ export function OrderCustomerView({
             qty={qty}
             saving={saving}
             selectedDetail={selectedDetail}
+            selectedTastes={selectedTastes}
             selectedToppings={selectedToppings}
             toppingQtyByUuid={toppingQtyByUuid}
             onChangeToppingQty={changeSelectedToppingQty}
@@ -498,6 +501,7 @@ export function OrderCustomerView({
             onNoteChange={setNote}
             onQtyChange={setQty}
             onSubmit={() => void submitSelectedProduct()}
+            onToggleTaste={toggleSelectedTaste}
             onToggleTopping={toggleSelectedTopping}
           />
         ) : null}

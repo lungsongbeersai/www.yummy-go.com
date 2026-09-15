@@ -11,6 +11,17 @@ export interface ProductTopping extends ApiEntity {
   topping_name_eng?: string;
 }
 
+export interface ProductTaste extends ApiEntity {
+  taste_uuid?: string;
+  taste_uuid_fk?: string;
+  prod_uuid_fk?: string;
+  taste_name?: string;
+  taste_name_la?: string;
+  taste_name_eng?: string;
+  taste_status?: number | string;
+  taste_sort?: number | string;
+}
+
 export interface ProductDetail extends ApiEntity {
   detail_uuid?: string;
   pro_detail_id?: string;
@@ -58,6 +69,7 @@ export interface Product extends ApiEntity {
   prod_status_imge?: number | string;
   prod_topping_status?: number | string;
   prod_topping_max_select?: number | string;
+  prod_taste_max_select?: number | string;
   prod_image?: string;
   prod_image_raw?: string;
   branch_uuid_fk?: string;
@@ -72,6 +84,7 @@ export interface Product extends ApiEntity {
   unite_name_eng?: string;
   details?: ProductDetail[];
   toppings?: ProductTopping[];
+  tastes?: ProductTaste[];
 }
 
 export type ProductResponse = ApiListResponse<Product>;
@@ -98,6 +111,11 @@ export interface SaveProductToppingInput extends ApiEntity {
   topping_price: number;
 }
 
+export interface SaveProductTasteInput extends ApiEntity {
+  taste_uuid: string;
+  taste_sort: number;
+}
+
 export interface SaveProductInput extends ApiEntity {
   prod_uuid?: string;
   cate_uuid_fk?: string;
@@ -117,6 +135,9 @@ export interface SaveProductInput extends ApiEntity {
   toppings?: SaveProductToppingInput[];
   /** Max number of distinct toppings the customer can select; 0 = unlimited (capped by how many toppings the product has). */
   prod_topping_max_select?: number;
+  /** 0 = disabled, 1 = select at most one taste, 2 = select at most two tastes. */
+  prod_taste_max_select?: number;
+  tastes?: SaveProductTasteInput[];
 }
 
 export interface ProductEnabledPatch {

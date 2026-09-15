@@ -270,6 +270,19 @@ function CartItemCard({
               </Badge>
             ) : null}
           </div>
+          {item.tastes?.length ? (
+            <div className="mt-1 flex flex-wrap gap-1">
+              {item.tastes.map((taste, tasteIndex) => (
+                <Badge
+                  key={`${taste.taste_uuid_fk ?? taste.taste_name}-${tasteIndex}`}
+                  variant="secondary"
+                  className="h-auto rounded-full px-1.5 py-0.5 text-2xs font-medium"
+                >
+                  {taste.taste_name || taste.taste_name_la || taste.taste_name_eng || "-"}
+                </Badge>
+              ))}
+            </div>
+          ) : null}
           {item.toppings?.length ? (
             <div className="mt-1 flex flex-wrap gap-1">
               {item.toppings.map((topping, toppingIndex) => {

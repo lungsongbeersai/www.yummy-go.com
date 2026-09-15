@@ -11,7 +11,7 @@ import { isCapacitorAndroidApp } from "@/lib/capacitor-platform";
 import { ServiceError } from "@/lib/api";
 import { classifyBackendError } from "@/lib/network-state";
 import { optionalString } from "@/lib/values";
-import type { ProdDetail, ProdItem } from "@/services/pos";
+import type { ProdDetail, ProdItem, ProdTaste } from "@/services/pos";
 import type { PrinterDeviceContext } from "@/services/printer";
 import { useAppStore } from "@/stores/app-store";
 import { useAuthStore } from "@/stores/auth-store";
@@ -31,6 +31,7 @@ import {
   isDetailAvailable,
   isDetailEnabled,
   isToppingAvailable,
+  isTasteAvailable,
   normalizeProdItem,
   orderCustomerUrl,
   orderQuantityRules,
@@ -38,6 +39,9 @@ import {
   productNeedsModal,
   selectedOrderTable,
   selectedToppingsFromQtyMap,
+  selectedTastesFromUuids,
+  tasteSelectionLimit,
+  toggleTasteUuid,
   toggleToppingQty,
   toppingSelectionLimit,
   type ProductCardEntry,
@@ -105,6 +109,7 @@ export function useOrderCustomerWorkflow({
   const [newOrderFocusKey, setNewOrderFocusKey] = useState(0);
   const [selectedProduct, setSelectedProduct] = useState<ProdItem | null>(null);
   const [detailUuid, setDetailUuid] = useState("");
+  const [selectedTasteUuids, setSelectedTasteUuids] = useState<string[]>([]);
   const [toppingQtyByUuid, setToppingQtyByUuid] = useState<
     Record<string, number>
   >({});
@@ -163,6 +168,10 @@ export function useOrderCustomerWorkflow({
   const selectedToppings = useMemo(
     () => selectedToppingsFromQtyMap(selectedProduct, toppingQtyByUuid),
     [selectedProduct, toppingQtyByUuid],
+  );
+  const selectedTastes = useMemo(
+    () => selectedTastesFromUuids(selectedProduct, selectedTasteUuids),
+    [selectedProduct, selectedTasteUuids],
   );
   const modalUnitPrice = useMemo(
     () =>
@@ -288,6 +297,7 @@ export function useOrderCustomerWorkflow({
       noteText,
       product,
       quantity,
+      tastes,
       toppings,
     }: {
       detail: ProdDetail;
@@ -295,6 +305,7 @@ export function useOrderCustomerWorkflow({
       noteText: string;
       product?: ProdItem | null;
       quantity: number;
+      tastes: ProdTaste[];
       toppings: SelectedTopping[];
     }) => {
       const response = await createOrder(
@@ -307,6 +318,7 @@ export function useOrderCustomerWorkflow({
           product,
           quantity,
           tableUuid: initialTableUuid,
+          tastes,
           toppings,
           userUuid: user?.uuid ?? "",
         }),
@@ -358,6 +370,7 @@ export function useOrderCustomerWorkflow({
       setSelectedProduct(product);
       setDetailUuid(detail.proDetailUuid);
       setQty(orderQuantityRules(detail, mode, product).min);
+      setSelectedTasteUuids([]);
       setToppingQtyByUuid({});
       setRememberedToppingQtyByUuid({});
       setNote("");
@@ -420,6 +433,7 @@ export function useOrderCustomerWorkflow({
           mode,
           product: productItem,
           quantity,
+          tastes: [],
           toppings: [],
         });
         if (selectionIssue) {
@@ -441,6 +455,7 @@ export function useOrderCustomerWorkflow({
           noteText: "",
           product: productItem,
           quantity,
+          tastes: [],
           toppings: [],
         });
       } catch (error) {
@@ -643,6 +658,21 @@ export function useOrderCustomerWorkflow({
     );
   }
 
+  function toggleSelectedTaste(uuid: string) {
+    if (!(selectedProduct?.tastes ?? []).some(
+      (taste) => taste.tasteUuid === uuid && isTasteAvailable(taste),
+    )) return;
+    const limit = tasteSelectionLimit(selectedProduct);
+    if (!selectedTasteUuids.includes(uuid) && selectedTasteUuids.length >= limit) {
+      showToast({
+        title: t("pos.tasteSelectionLimitReached", { count: limit }),
+        tone: "info",
+      });
+      return;
+    }
+    setSelectedTasteUuids((current) => toggleTasteUuid(current, uuid, limit));
+  }
+
   function changeSelectedToppingQty(uuid: string, nextQty: number) {
     setToppingQtyByUuid((current) => changeToppingQty(current, uuid, nextQty));
   }
@@ -658,6 +688,7 @@ export function useOrderCustomerWorkflow({
       mode: productMode,
       product: selectedProduct,
       quantity: qty,
+      tastes: selectedTastes,
       toppings: selectedToppings,
     });
     if (selectionIssue) {
@@ -684,6 +715,7 @@ export function useOrderCustomerWorkflow({
         noteText: note,
         product: selectedProduct,
         quantity: qty,
+        tastes: selectedTastes,
         toppings: selectedToppings,
       });
       setProductSheetOpen(false);
@@ -763,6 +795,8 @@ export function useOrderCustomerWorkflow({
     selectedCateUuid,
     selectedDetail,
     selectedProduct,
+    selectedTastes,
+    selectedTasteUuids,
     selectedTable,
     selectedToppings,
     setActiveSort,
@@ -776,6 +810,7 @@ export function useOrderCustomerWorkflow({
     submitSelectedProduct,
     t,
     toggleSelectedTopping,
+    toggleSelectedTaste,
     toppingQtyByUuid,
     zones,
   };

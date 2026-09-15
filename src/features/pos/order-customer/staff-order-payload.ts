@@ -5,9 +5,11 @@ import {
 import {
   type CreateOrderInput,
   type CreateOrderItem,
+  type CreateOrderTaste,
   type CreateOrderTopping,
   type ProdDetail,
   type ProdItem,
+  type ProdTaste,
 } from "@/services/pos";
 import { optionalString } from "@/lib/values";
 import type { ProductModalMode } from "./menu-structure";
@@ -15,6 +17,16 @@ import { enabledProductDetails } from "./product-availability";
 import { defaultOrderQty } from "./quantity-rules";
 import { getOrderSelectionIssue } from "./order-selection-validation";
 import { toppingUuid, type SelectedTopping } from "./topping-selection";
+import { tasteUuid } from "./taste-selection";
+
+function buildStaffOrderTastes(tastes: ProdTaste[]) {
+  return tastes
+    .map((taste) => {
+      const uuid = tasteUuid(taste);
+      return uuid ? ({ taste_uuid_fk: uuid } satisfies CreateOrderTaste) : null;
+    })
+    .filter((taste): taste is CreateOrderTaste => Boolean(taste));
+}
 
 function buildStaffOrderToppings(toppings: SelectedTopping[]) {
   return toppings
@@ -35,6 +47,7 @@ export function buildStaffOrderItems({
   noteText,
   product,
   quantity,
+  tastes = [],
   toppings,
 }: {
   detail: ProdDetail;
@@ -42,6 +55,7 @@ export function buildStaffOrderItems({
   noteText: string;
   product?: ProdItem | null;
   quantity: number;
+  tastes?: ProdTaste[];
   toppings: SelectedTopping[];
 }) {
   const issue = getOrderSelectionIssue({
@@ -49,6 +63,7 @@ export function buildStaffOrderItems({
     mode,
     product,
     quantity,
+    tastes,
     toppings,
   });
   if (issue) throw new Error(`Invalid order selection: ${issue}`);
@@ -58,6 +73,7 @@ export function buildStaffOrderItems({
 
   const note = noteText.trim() || undefined;
   const orderToppings = buildStaffOrderToppings(toppings);
+  const orderTastes = buildStaffOrderTastes(tastes);
 
   return details.map((itemDetail, index) => {
     const detailId = optionalString(itemDetail.proDetailUuid);
@@ -71,7 +87,10 @@ export function buildStaffOrderItems({
       order_it_note: note,
     };
 
-    if (index === 0) item.toppings = orderToppings;
+    if (index === 0) {
+      if (orderTastes.length) item.tastes = orderTastes;
+      item.toppings = orderToppings;
+    }
     return item;
   });
 }
@@ -85,6 +104,7 @@ export function buildStaffOrderInput({
   product,
   quantity,
   tableUuid,
+  tastes = [],
   toppings,
   userUuid,
 }: {
@@ -96,6 +116,7 @@ export function buildStaffOrderInput({
   product?: ProdItem | null;
   quantity: number;
   tableUuid: string;
+  tastes?: ProdTaste[];
   toppings: SelectedTopping[];
   userUuid: string;
 }): CreateOrderInput {
@@ -117,6 +138,7 @@ export function buildStaffOrderInput({
       noteText,
       product,
       quantity,
+      tastes,
       toppings,
     }),
   };

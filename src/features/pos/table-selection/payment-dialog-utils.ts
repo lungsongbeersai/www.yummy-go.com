@@ -802,6 +802,13 @@ export function buildInvoicePrintData({
         name: optionalString(topping.topping_name) ?? "-",
         ...cartToppingDisplay(topping),
       }));
+      const tastes = (item.tastes ?? []).map((taste) => ({
+        name: optionalString(
+          taste.taste_name,
+          taste.taste_name_la,
+          taste.taste_name_eng,
+        ) ?? "-",
+      }));
 
       return {
         displayTotal,
@@ -813,6 +820,17 @@ export function buildInvoicePrintData({
           optionalString(item.detail?.order_it_note) ?? "",
           optionalString(item.detail?.order_it_discount_type) ?? "",
           optionalNumber(item.detail?.order_it_discount_value) ?? 0,
+          (item.tastes ?? [])
+            .map((taste) =>
+              optionalString(
+                taste.taste_uuid_fk,
+                taste.taste_uuid,
+                taste.taste_name,
+                taste.taste_name_la,
+                taste.taste_name_eng,
+              ) ?? "",
+            )
+            .sort(),
           (item.toppings ?? [])
             .map((topping) =>
               JSON.stringify([
@@ -833,6 +851,7 @@ export function buildInvoicePrintData({
         toppingLabel: translate("pos.toppingTotal"),
         toppingTotal: positiveNumber(toppingLineTotal),
         toppings,
+        tastes,
         unitPrice,
       };
     }),

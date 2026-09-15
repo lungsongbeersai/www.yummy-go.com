@@ -117,6 +117,8 @@ type MobileReceiptPrintItem = {
   name: string;
   qty: number;
   total: number;
+  tastes?: string[];
+  toppings?: string[];
 };
 
 function mobileReceiptNumber(value: unknown) {
@@ -152,6 +154,10 @@ function mobileReceiptItemKey(item: OfflineCartOrder["items"][number]) {
       ]);
     })
     .sort();
+  const tastes = (item.tastes ?? [])
+    .map((taste) => text(taste.taste_uuid_fk || taste.taste_name || taste.taste_name_la || taste.taste_name_eng))
+    .filter(Boolean)
+    .sort();
 
   return JSON.stringify([
     text(item.pro_detail_uuid),
@@ -164,6 +170,7 @@ function mobileReceiptItemKey(item: OfflineCartOrder["items"][number]) {
     mobileReceiptNumber(detail.order_it_discount_value),
     mobileReceiptPerUnit(detail.order_it_discount_amount, qty),
     mobileReceiptPerUnit(item.total, qty),
+    tastes,
     toppings,
   ]);
 }
@@ -183,11 +190,23 @@ export function mobileReceiptItemsForPrint(
       return;
     }
 
-    const printable = {
+    const printable: MobileReceiptPrintItem = {
       name: item.prod_name,
       qty: mobileReceiptNumber(item.qty),
       total: mobileReceiptNumber(item.total),
     };
+    const tasteLabels = (item.tastes ?? [])
+      .map((taste) => text(taste.taste_name || taste.taste_name_la || taste.taste_name_eng || taste.taste_uuid_fk))
+      .filter(Boolean);
+    const toppingLabels = item.toppings
+      .map((topping) => {
+        const name = text(topping.topping_name || topping.prod_topping_uuid_fk);
+        const qty = Number(topping.topping_qty ?? 1);
+        return name ? `${name}${qty > 1 ? ` x ${qty}` : ""}` : "";
+      })
+      .filter(Boolean);
+    if (tasteLabels.length) printable.tastes = tasteLabels;
+    if (toppingLabels.length) printable.toppings = toppingLabels;
     byKey.set(key, printable);
     merged.push(printable);
   });
@@ -204,6 +223,10 @@ function kitchenLines(tableName: string, order: OfflineCartOrder, itemUuid: stri
     { left: `${now.toLocaleDateString("en-GB")} ${now.toLocaleTimeString("en-GB")}`, align: "center", size: 23 },
     { left: "----------------------------------------------------------", align: "center", size: 20 },
     { left: item.prod_name, right: `x ${item.qty}`, size: 34, bold: true },
+    ...(item.tastes ?? []).map((taste) => ({
+      left: `• ${text(taste.taste_name || taste.taste_name_la || taste.taste_name_eng || taste.taste_uuid_fk)}`,
+      size: 26,
+    })),
     ...item.toppings.map((topping) => ({
       left: `- ${text(topping.topping_name)}`,
       right: `x ${Number(record(topping).topping_total_qty ?? topping.topping_qty ?? 1)}`,
@@ -223,11 +246,15 @@ function receiptLines(tableName: string, order: OfflineCartOrder, data: Record<s
     { left: `ເລກບິນ: ${order.order_invoice || "-"}`, size: 24 },
     { left: `ໂຕະ: ${tableName}`, size: 24 },
     { left: "----------------------------------------------------------", align: "center", size: 20 },
-    ...mobileReceiptItemsForPrint(order.items).map((item) => ({
-      left: `${item.name} x ${item.qty}`,
-      right: formatMoney(item.total),
-      size: 24,
-    })),
+    ...mobileReceiptItemsForPrint(order.items).flatMap((item) => [
+      {
+        left: `${item.name} x ${item.qty}`,
+        right: formatMoney(item.total),
+        size: 24,
+      },
+      ...(item.tastes ?? []).map((taste) => ({ left: `  • ${taste}`, size: 21 })),
+      ...(item.toppings ?? []).map((topping) => ({ left: `  + ${topping}`, size: 21 })),
+    ]),
     { left: "----------------------------------------------------------", align: "center", size: 20 },
     { left: "ລວມຕ້ອງຊໍາລະ", right: formatMoney(order.grand_total), size: 28, bold: true },
     ...(cash > 0 ? [{ left: "ຮັບເງິນສົດ", right: formatMoney(cash), size: 24 }] : []),

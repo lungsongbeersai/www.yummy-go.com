@@ -58,6 +58,8 @@ export type OrderSelectionIssue =
   | "quantity-invalid"
   | "quantity-exceeds-stock"
   | "stock-insufficient"
+  | "taste-invalid"
+  | "taste-limit-exceeded"
   | "topping-invalid"
   | "topping-limit-exceeded";
 export type ProductCardPrice =

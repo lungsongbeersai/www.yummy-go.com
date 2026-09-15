@@ -101,6 +101,7 @@ export function usePublicAddToCartAction({
               table,
               detail: payload.detail,
               qty: payload.qty,
+              tastes: payload.tastes ?? [],
               toppings: payload.toppings,
               note: payload.note,
               lang,

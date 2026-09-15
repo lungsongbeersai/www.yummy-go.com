@@ -61,12 +61,21 @@ export interface CreditTopping {
   topping_total: number;
 }
 
+export interface CreditTaste {
+  taste_uuid?: string;
+  taste_uuid_fk?: string;
+  taste_name: string;
+  taste_name_la?: string;
+  taste_name_eng?: string;
+}
+
 export interface CreditOrderItem {
   order_item_uuid: string;
   product_code: string;
   product_name: string;
   qty: number;
   unit_price: number;
+  tastes?: CreditTaste[];
   toppings: CreditTopping[];
   topping_total: number;
   gross_total: number;

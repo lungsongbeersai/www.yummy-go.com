@@ -41,7 +41,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
-import type { ProdDetail, ProdTopping } from "@/services/pos";
+import type { ProdDetail, ProdTaste, ProdTopping } from "@/services/pos";
 import { useToastStore } from "@/stores/toast-store";
 import type { ProductOrderSheetWorkflow } from "../hooks/use-product-order-sheet-workflow";
 import {
@@ -53,6 +53,7 @@ import {
   isToppingAvailable,
   numeric,
   productPriceFromDetail,
+  tasteDisplayName,
   toppingDisplayName,
   toppingMaxQty,
 } from "../utils";
@@ -198,11 +199,13 @@ function ProductOrderForm({
   const { t } = useTranslation();
   const {
     canSelectMoreToppings,
+    canSelectMoreTastes,
     canSubmit,
     detailUuid,
     details,
     handleDetailSelect,
     handleSubmit,
+    handleTasteToggle,
     handleToppingQty,
     handleToppingToggle,
     hasSelectableDetails,
@@ -218,11 +221,14 @@ function ProductOrderForm({
     quantityMeta,
     saving,
     selectedDetail,
+    selectedTastes,
     selectedToppings,
     selectionIssue,
     toppingQtyByUuid,
     toppingSelectionLimit,
     toppings,
+    tasteSelectionLimit,
+    tastes,
   } = workflow;
   const showToast = useToastStore((state) => state.show);
 
@@ -240,6 +246,17 @@ function ProductOrderForm({
       return;
     }
     handleToppingToggle(toppingUuid);
+  };
+  const handleTasteToggleWithLimitToast = (tasteUuid: string) => {
+    const alreadySelected = selectedTastes.some((taste) => taste.tasteUuid === tasteUuid);
+    if (!alreadySelected && !canSelectMoreTastes) {
+      showToast({
+        title: t("pos.tasteSelectionLimitReached", { count: tasteSelectionLimit }),
+        tone: "info",
+      });
+      return;
+    }
+    handleTasteToggle(tasteUuid);
   };
   // "invalidQuantity" ครอบทั้งกรณีพิมพ์เกินสต็อกและพิมพ์ไม่ตรงขั้นของโปรฯ — เลือกข้อความที่เจาะจง
   // กว่าตามสาเหตุจริงแทนข้อความรวมๆ ให้รู้ว่าต้องแก้เป็นเท่าไหร่
@@ -305,6 +322,17 @@ function ProductOrderForm({
                   {getPromoLabel(selectedDetail, t)}
                 </p>
               </div>
+            ) : null}
+
+            {tastes.length && tasteSelectionLimit > 0 ? (
+              <ProductTasteFieldset
+                lang={lang}
+                saving={saving}
+                selectedTastes={selectedTastes}
+                tasteSelectionLimit={tasteSelectionLimit}
+                tastes={tastes}
+                onToggle={handleTasteToggleWithLimitToast}
+              />
             ) : null}
 
             {toppings.length ? (
@@ -373,6 +401,70 @@ function ProductOrderForm({
 
       <ProductOrderFooter workflow={workflow} />
     </form>
+  );
+}
+
+function ProductTasteFieldset({
+  lang,
+  saving,
+  selectedTastes,
+  tasteSelectionLimit,
+  tastes,
+  onToggle,
+}: {
+  lang: string;
+  saving: boolean;
+  selectedTastes: ProdTaste[];
+  tasteSelectionLimit: number;
+  tastes: ProdTaste[];
+  onToggle: (uuid: string) => void;
+}) {
+  const { t } = useTranslation();
+  const selectedUuids = new Set(selectedTastes.map((taste) => taste.tasteUuid));
+  return (
+    <FieldSet className="gap-2.5">
+      <SectionLegend
+        label={t("pos.tastes")}
+        meta={t("pos.selectedOf", {
+          selected: selectedTastes.length,
+          total: tasteSelectionLimit,
+        })}
+        metaEmphasis={selectedTastes.length >= tasteSelectionLimit}
+      />
+      <div className="flex flex-col gap-2">
+        {tastes.map((taste) => {
+          const selected = selectedUuids.has(taste.tasteUuid);
+          const blocked = !selected && selectedTastes.length >= tasteSelectionLimit;
+          const id = `public-product-taste-${taste.tasteUuid}`;
+          return (
+            <Field
+              key={taste.tasteUuid}
+              orientation="horizontal"
+              className={cn(
+                "min-h-14 rounded-[15px] border border-yg-line bg-yg-panel px-4 py-2 shadow-none transition-[border-color,background-color]",
+                selected && "border-yg-accent bg-yg-accent-soft",
+                blocked && "opacity-60",
+              )}
+            >
+              <FieldLabel htmlFor={id} className="w-full cursor-pointer items-center gap-3 text-sm font-bold text-yg-ink">
+                <Checkbox
+                  id={id}
+                  name={`taste-${taste.tasteUuid}`}
+                  checked={selected}
+                  aria-disabled={blocked}
+                  disabled={saving}
+                  onCheckedChange={() => onToggle(taste.tasteUuid)}
+                  className="size-5 border-yg-faint data-[state=checked]:border-yg-accent data-[state=checked]:bg-yg-accent data-[state=checked]:text-yg-on-accent"
+                />
+                <span className="lao-tone-text min-w-0 flex-1 line-clamp-2 wrap-break-word">
+                  {tasteDisplayName(taste, lang) || t("pos.tastes")}
+                </span>
+              </FieldLabel>
+            </Field>
+          );
+        })}
+      </div>
+    </FieldSet>
   );
 }
 

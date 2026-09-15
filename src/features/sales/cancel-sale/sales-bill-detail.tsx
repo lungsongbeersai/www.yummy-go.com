@@ -38,6 +38,7 @@ import {
   itemQty,
   itemSize,
   itemStatus,
+  itemTastes,
   itemToppingTotal,
   itemToppings,
   itemTotal,
@@ -301,6 +302,7 @@ function DetailItemLine({ item, index }: { item: ApiEntity; index: number }) {
   const discountText = discountLabel(discount, t("cancelSale.itemDiscount"));
   const note = itemNote(item);
   const size = itemSize(item);
+  const tastes = itemTastes(item);
   const toppings = itemToppings(item);
   const toppingTotal = itemToppingTotal(item);
 
@@ -319,6 +321,17 @@ function DetailItemLine({ item, index }: { item: ApiEntity; index: number }) {
       </div>
 
       {discountAmount && discountAmount > 0 ? <ReceiptSubRow label={discountText} value={`-${money(discountAmount)}`} tone="destructive" /> : null}
+      {tastes.length ? (
+        <div className="flex flex-col gap-1 rounded-md bg-muted/45 px-2 py-2 text-xs">
+          {tastes.map((taste, tasteIndex) => {
+            const name = textValue(
+              readValue(taste, ["taste_name", "prod_taste_name", "taste_name_la", "taste_name_eng", "name"]),
+              `${t("pos.tastes")} ${tasteIndex + 1}`
+            );
+            return <span key={`${name}-${tasteIndex}`} className="text-muted-foreground">• {name}</span>;
+          })}
+        </div>
+      ) : null}
       {toppingTotal && toppingTotal > 0 ? <ReceiptSubRow label={t("cancelSale.toppings")} value={`+${money(toppingTotal)}`} /> : null}
       {toppings.length ? (
         <div className="flex flex-col gap-1 rounded-md bg-muted/45 px-2 py-2 text-xs">

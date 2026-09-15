@@ -40,7 +40,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { money } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import type { ProdDetail, ProdItem, ProdTopping } from "@/services/pos";
+import type { ProdDetail, ProdItem, ProdTaste, ProdTopping } from "@/services/pos";
 import {
   availableProductDetails,
   clampOrderQuantity,
@@ -48,6 +48,7 @@ import {
   getOrderSelectionIssue,
   getPromoLabel,
   isToppingAvailable,
+  isTasteAvailable,
   orderQuantityRules,
   orderSelectionIssueLabel,
   productMedia,
@@ -58,6 +59,9 @@ import {
   toppingQtyCap,
   toppingSelectionLimit,
   toppingUuid,
+  tasteDisplayName,
+  tasteSelectionLimit,
+  tasteUuid,
   type OrderQuantityRules,
   type ProductMedia,
   type ProductModalMode,
@@ -169,6 +173,7 @@ export function ProductOptionsForm({
   qty,
   saving,
   selectedDetail,
+  selectedTastes,
   selectedToppings,
   toppingQtyByUuid,
   onChangeToppingQty,
@@ -176,6 +181,7 @@ export function ProductOptionsForm({
   onNoteChange,
   onQtyChange,
   onSubmit,
+  onToggleTaste,
   onToggleTopping,
 }: {
   modalUnitPrice: number;
@@ -185,6 +191,7 @@ export function ProductOptionsForm({
   qty: number;
   saving: boolean;
   selectedDetail: ProdDetail;
+  selectedTastes: ProdTaste[];
   selectedToppings: SelectedTopping[];
   toppingQtyByUuid: Record<string, number>;
   onChangeToppingQty: (uuid: string, qty: number) => void;
@@ -192,6 +199,7 @@ export function ProductOptionsForm({
   onNoteChange: (note: string) => void;
   onQtyChange: (qty: number) => void;
   onSubmit: () => void;
+  onToggleTaste: (uuid: string) => void;
   onToggleTopping: (uuid: string) => void;
 }) {
   const { t } = useTranslation();
@@ -201,6 +209,9 @@ export function ProductOptionsForm({
     ? enabledProductDetails(product)
     : availableProductDetails(product);
   const toppings = (product.toppings ?? []).filter(isToppingAvailable);
+  const tastes = (product.tastes ?? []).filter(isTasteAvailable);
+  const tasteLimit = tasteSelectionLimit(product);
+  const selectedTasteUuids = new Set(selectedTastes.map(tasteUuid));
   const toppingLimit = toppingSelectionLimit(
     toppings.length,
     product.prodToppingMaxSelect,
@@ -214,6 +225,7 @@ export function ProductOptionsForm({
     mode,
     product,
     quantity: qty,
+    tastes: selectedTastes,
     toppings: selectedToppings,
   });
   const submitIssue = selectionIssue
@@ -317,6 +329,48 @@ export function ProductOptionsForm({
                     {getPromoLabel(selectedDetail, t)}
                   </Badge>
                 </div>
+              ) : null}
+
+              {tastes.length && tasteLimit > 0 ? (
+                <FieldSet className="gap-2">
+                  <SectionLegend
+                    label={t("pos.tastes")}
+                    meta={t("pos.selectedOf", {
+                      selected: selectedTastes.length,
+                      total: tasteLimit,
+                    })}
+                    metaEmphasis={selectedTastes.length >= tasteLimit}
+                  />
+                  <div className="flex flex-col gap-2">
+                    {tastes.map((taste) => {
+                      const uuid = tasteUuid(taste);
+                      const selected = selectedTasteUuids.has(uuid);
+                      const blocked = !selected && selectedTastes.length >= tasteLimit;
+                      const id = `staff-product-taste-${uuid}`;
+                      return (
+                        <Field
+                          key={uuid}
+                          orientation="horizontal"
+                          className={cn(
+                            "min-h-12 rounded-lg border border-border bg-card px-3 py-2 shadow-xs transition-colors",
+                            selected && "border-primary bg-primary/10 text-primary",
+                            blocked && "opacity-60",
+                          )}
+                        >
+                          <FieldLabel htmlFor={id} className="w-full cursor-pointer items-center gap-3 text-sm font-black">
+                            <Checkbox
+                              id={id}
+                              checked={selected}
+                              aria-disabled={blocked}
+                              onCheckedChange={() => onToggleTaste(uuid)}
+                            />
+                            <span className="min-w-0 flex-1 truncate">{tasteDisplayName(taste)}</span>
+                          </FieldLabel>
+                        </Field>
+                      );
+                    })}
+                  </div>
+                </FieldSet>
               ) : null}
 
               {toppings.length ? (

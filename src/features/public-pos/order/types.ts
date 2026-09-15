@@ -2,6 +2,7 @@ import type {
   CateProductItem,
   ProdDetail,
   ProdItem,
+  ProdTaste,
   ProdTopping,
 } from "@/services/pos";
 import type { PublicMenuKind } from "@/stores/public-pos-store/helpers";
@@ -10,6 +11,7 @@ export interface PublicAddToCartPayload {
   detail: ProdDetail;
   qty: number;
   toppings: PublicSelectedTopping[];
+  tastes?: PublicSelectedTaste[];
   note: string;
 }
 
@@ -17,6 +19,8 @@ export interface PublicSelectedTopping {
   topping: ProdTopping;
   qty: number;
 }
+
+export type PublicSelectedTaste = ProdTaste;
 
 export interface PublicDisplayProduct {
   product: CateProductItem;

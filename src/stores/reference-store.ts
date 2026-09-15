@@ -12,6 +12,7 @@ import { getProvinceOptions, type Province } from "@/services/province";
 import { getSizeOptions, type Size } from "@/services/size";
 import { getStoreOptions, resetStorePassword, type Store } from "@/services/store";
 import { getTableOptions, type ZoneGroup } from "@/services/table";
+import { getTasteOptions, type Taste } from "@/services/taste";
 import { getToppingOptions, type Topping } from "@/services/topping";
 import { getUnitOptions, type Unit } from "@/services/unit";
 import {
@@ -39,6 +40,7 @@ type ReferenceKey =
   | "groups"
   | "categories"
   | "toppings"
+  | "tastes"
   | "colors"
   | "currencies"
   | "exchangeRates"
@@ -73,6 +75,7 @@ interface ReferenceState {
   loadGroups: (lang?: string, storeUuid?: string) => Promise<Group[]>;
   loadCategories: (lang?: string, storeUuid?: string) => Promise<Category[]>;
   loadToppings: (lang?: string, storeUuid?: string) => Promise<Topping[]>;
+  loadTastes: (lang?: string, storeUuid?: string) => Promise<Taste[]>;
   loadColors: () => Promise<Color[]>;
   loadCurrencies: () => Promise<Currency[]>;
   loadExchangeRates: (params: FetchAllExchangesParams) => Promise<Exchange[]>;
@@ -161,6 +164,8 @@ export const useReferenceStore = create<ReferenceState>((set) => {
     loadCategories: (lang, storeUuid) => loadOption("categories", () => getCategoryOptions(lang, storeUuid)),
     loadToppings: (lang, storeUuid) =>
       loadOption("toppings", () => getToppingOptions(lang, storeUuid ?? activeStoreUuid())),
+    loadTastes: (lang, storeUuid) =>
+      loadOption("tastes", () => getTasteOptions(lang, storeUuid ?? activeStoreUuid())),
     loadColors: () => loadOption("colors", getColorOptions),
     loadCurrencies: () => loadOption("currencies", getCurrencyOptions),
     // getAllExchanges returns the raw list envelope (data/total/...), unlike the

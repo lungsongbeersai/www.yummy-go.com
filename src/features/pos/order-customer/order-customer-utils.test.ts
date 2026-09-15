@@ -30,10 +30,13 @@ import {
   productNeedsModal,
   productOptionCount,
   selectedOrderTable,
+  selectedTastesFromUuids,
   selectedToppingsFromQtyMap,
   toggleToppingQty,
   toppingQtyCap,
   toppingSelectionLimit,
+  tasteSelectionLimit,
+  toggleTasteUuid,
 } from "@/features/pos/order-customer/order-customer-utils";
 import {
   OrderChannelEnum,
@@ -44,6 +47,7 @@ import {
   type CateProductItem,
   type ProdDetail,
   type ProdItem,
+  type ProdTaste,
   type ProdTopping,
 } from "@/services/pos";
 
@@ -88,6 +92,15 @@ function topping(overrides: Partial<ProdTopping> = {}): ProdTopping {
     toppingName: "Egg",
     toppingPrice: 2000,
     toppingEnabled: 1,
+    ...overrides,
+  };
+}
+
+function taste(overrides: Partial<ProdTaste> = {}): ProdTaste {
+  return {
+    tasteUuid: "taste-1",
+    tasteName: "Spicy",
+    tasteStatus: 1,
     ...overrides,
   };
 }
@@ -550,6 +563,42 @@ describe("order customer helpers", () => {
         toppings: [],
       }),
     ).toThrow("price-invalid");
+  });
+
+  it("limits tastes and includes them in the staff order payload", () => {
+    const item = {
+      ...normalizeProdItem(null, product()),
+      prodTasteMaxSelect: 1,
+      tastes: [taste(), taste({ tasteUuid: "taste-2" })],
+    };
+    expect(tasteSelectionLimit(item)).toBe(1);
+    expect(toggleTasteUuid([], "taste-1", 1)).toEqual(["taste-1"]);
+    expect(toggleTasteUuid(["taste-1"], "taste-2", 1)).toEqual(["taste-1"]);
+    expect(selectedTastesFromUuids(item, ["taste-2"])).toEqual([
+      taste({ tasteUuid: "taste-2" }),
+    ]);
+    expect(
+      buildStaffOrderItems({
+        detail: detail(),
+        noteText: "",
+        product: item,
+        quantity: 1,
+        tastes: [taste()],
+        toppings: [],
+      }),
+    ).toMatchObject([
+      { tastes: [{ taste_uuid_fk: "taste-1" }] },
+    ]);
+    expect(
+      getOrderSelectionIssue({
+        detail: detail(),
+        mode: "normal",
+        product: item,
+        quantity: 1,
+        tastes: [taste(), taste({ tasteUuid: "taste-2" })],
+        toppings: [],
+      }),
+    ).toBe("taste-limit-exceeded");
   });
 
   it("tells the user the actual stock/step number instead of a generic message", () => {

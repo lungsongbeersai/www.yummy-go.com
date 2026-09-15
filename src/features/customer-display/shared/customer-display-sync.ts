@@ -6,6 +6,7 @@ export interface CustomerDisplayItem {
   imageColor?: string | null;
   name: string;
   note?: string | null;
+  options?: string[];
   price?: number | null;
   qty: number;
   status?: string | null;

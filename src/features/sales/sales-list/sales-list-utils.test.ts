@@ -6,6 +6,7 @@ import {
   calculatedRateLabel,
   itemAmounts,
   itemDiscountLabel,
+  itemTastes,
   itemToppingNames,
   itemToppingTotal,
   paymentMethodLabel,
@@ -163,6 +164,19 @@ describe("sales list utils", () => {
 
     expect(itemToppingNames(item)).toEqual(["Egg", "Meat"]);
     expect(itemToppingTotal(item)).toBe(45000);
+  });
+
+  it("reads tastes from current and historical sale item aliases", () => {
+    expect(itemTastes({
+      order_item_tastes: [
+        { taste_name: "Extra Spicy" },
+        { taste_name_la: "ຫວານນ້ອຍ" }
+      ]
+    })).toEqual([
+      { name: "Extra Spicy" },
+      { name: "ຫວານນ້ອຍ" }
+    ]);
+    expect(itemTastes({ product_name: "Legacy item" })).toEqual([]);
   });
 
   it("keeps sale list print source aligned with the new API price and topping fields", () => {
