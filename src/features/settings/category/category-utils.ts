@@ -16,6 +16,10 @@ export function categoryId(row: Category | null | undefined) {
   return categoryValue(row, "cate_uuid");
 }
 
+export function categoryGroupId(row: Category | null | undefined) {
+  return categoryValue(row, "group_uuid_fk", categoryValue(row, "group_uuid"));
+}
+
 export function categoryName(row: Category | null | undefined) {
   return categoryValue(row, "cate_name", categoryValue(row, "cate_name_la", categoryValue(row, "cate_name_eng", "-")));
 }

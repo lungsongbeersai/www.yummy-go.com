@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { categoryIconName, normalizeCategoryIconValue } from "@/features/settings/category/category-icons";
 import {
   buildCategoryPayload,
+  categoryGroupId,
   categoryId,
   categoryName,
   categoryValue,
@@ -79,6 +80,14 @@ describe("category utils", () => {
     expect(categoryValue({ cate_uuid: "category-1", cate_name: "Name" }, "cate_name", "-")).toBe("Name");
     expect(categoryId({ cate_uuid: "category-1" })).toBe("category-1");
     expect(categoryId(null)).toBe("");
+  });
+
+  it("reads the category group id from canonical and legacy API fields", () => {
+    expect(categoryGroupId({ cate_uuid: "category-1", group_uuid_fk: "group-canonical", group_uuid: "group-legacy" })).toBe(
+      "group-canonical"
+    );
+    expect(categoryGroupId({ cate_uuid: "category-1", group_uuid: "group-legacy" })).toBe("group-legacy");
+    expect(categoryGroupId(null)).toBe("");
   });
 
   it("reads the store uuid from the first row only", () => {

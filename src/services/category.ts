@@ -10,6 +10,7 @@ export interface Category extends ApiEntity {
   cate_icon?: string;
   cate_sort?: string | number;
   group_uuid_fk?: string;
+  group_uuid?: string;
   group_name?: string;
   group_name_la?: string;
   group_name_eng?: string;

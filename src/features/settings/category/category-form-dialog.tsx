@@ -19,6 +19,7 @@ import { useResetOnChange } from "@/hooks/use-reset-on-change";
 import type { Category } from "@/services/category";
 import { CategoryIconPicker } from "./category-icon-picker";
 import {
+  categoryGroupId,
   categoryId,
   categoryValue,
   type GroupOption
@@ -42,7 +43,7 @@ export function CategoryFormDialog({
   title: string;
 }) {
   const { t } = useTranslation();
-  const [groupUuid, setGroupUuid] = useState(() => categoryValue(editing, "group_uuid_fk"));
+  const [groupUuid, setGroupUuid] = useState(() => categoryGroupId(editing));
   const [nameLa, setNameLa] = useState(() =>
     categoryValue(editing, "cate_name_la", categoryValue(editing, "cate_name"))
   );
@@ -51,7 +52,7 @@ export function CategoryFormDialog({
   const canSubmit = Boolean(groupUuid && nameLa.trim()) && !saving;
 
   useResetOnChange(`${formKey}:${open}`, () => {
-    setGroupUuid(categoryValue(editing, "group_uuid_fk"));
+    setGroupUuid(categoryGroupId(editing));
     setNameLa(categoryValue(editing, "cate_name_la", categoryValue(editing, "cate_name")));
     setNameEng(categoryValue(editing, "cate_name_eng"));
   });
