@@ -19,6 +19,7 @@ export interface Branch extends ApiEntity {
   charge_status?: number;
   charge_name?: number;
   store_uuid_fk?: string;
+  offline_mobile_enabled?: boolean;
 }
 export type BranchResponse = ApiListResponse<Branch>;
 export interface SaveBranchInput extends ApiEntity {
@@ -88,3 +89,10 @@ export const saveBranch = (input: SaveBranchInput) => {
   return crud.save(payload);
 };
 export const deleteBranch = (branch_uuid: string) => crud.delete(branch_uuid);
+
+export const setBranchOfflineMobileEnabled = (branch_uuid: string, enabled: boolean) =>
+  apiRequest<ApiDataResponse<{ branch_uuid: string; offline_mobile_enabled: boolean }>>(
+    "patch",
+    "/api/v1/branch/offline_mobile_enabled",
+    { data: { branch_uuid, enabled } }
+  );

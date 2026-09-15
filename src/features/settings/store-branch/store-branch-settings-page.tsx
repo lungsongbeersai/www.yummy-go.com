@@ -544,13 +544,15 @@ function BranchSettingsPage({ initialPagination }: { initialPagination: UrlPagin
     const id = storeBranchId(row, "branch");
     const isCurrent = id === activeId;
     return (
-      <SettingsRowActions
-        row={row}
-        editDisabled={!canEdit || saving || readOnly}
-        deleteDisabled={!canDelete || isCurrent || saving || readOnly}
-        onEdit={(nextRow) => openEdit(nextRow as Branch)}
-        onDelete={(nextRow) => setDeleteTarget(nextRow as Branch)}
-      />
+      <div className="flex items-center justify-end">
+        <SettingsRowActions
+          row={row}
+          editDisabled={!canEdit || saving || readOnly}
+          deleteDisabled={!canDelete || isCurrent || saving || readOnly}
+          onEdit={(nextRow) => openEdit(nextRow as Branch)}
+          onDelete={(nextRow) => setDeleteTarget(nextRow as Branch)}
+        />
+      </div>
     );
   }
 

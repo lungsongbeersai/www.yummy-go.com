@@ -13,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { fullscreenPrintWindowFeatures, maximizePrintWindow } from "@/services/printer/invoice-print-window";
+import { canUseSystemPrintFallback } from "@/lib/system-print-capability";
 import { useIsCapacitorNativeApp } from "@/hooks/use-capacitor-native-app";
 import { useResetOnChange, useResetOnDeps } from "@/hooks/use-reset-on-change";
 import { openWindowOutsideNativeApp } from "@/lib/capacitor-platform";
@@ -185,8 +186,16 @@ export function BranchMenuQrDialog({
     }
   }
 
-  function openFallbackPrintWindow() {
-    if (!qrDataUrl) return;
+  async function openFallbackPrintWindow() {
+    if (!qrDataUrl) return false;
+    if (!canUseSystemPrintFallback()) {
+      showToast({
+        title: t("pos.printQr"),
+        description: t("pos.systemPrinterUnavailable"),
+        tone: "info",
+      });
+      return false;
+    }
     const printWindow = openWindowOutsideNativeApp("", "_blank", fullscreenPrintWindowFeatures());
     if (!printWindow) {
       showToast({
@@ -194,7 +203,7 @@ export function BranchMenuQrDialog({
         description: t("pos.invoicePrintPopupBlocked"),
         tone: "error",
       });
-      return;
+      return false;
     }
     maximizePrintWindow(printWindow);
 
@@ -220,6 +229,7 @@ export function BranchMenuQrDialog({
   </body>
 </html>`);
     printWindow.document.close();
+    return true;
   }
 
   // เหมือน TableQrDialog.printQr() ทุกอย่าง — มี pendingJobUuid = ยิงเข้าคิวเครื่องพิมพ์
@@ -249,8 +259,8 @@ export function BranchMenuQrDialog({
 
           if (printOutcome === "fallback") {
             if (canOpenBrowserWindow) {
-              openFallbackPrintWindow();
-              showToast({ title: t("pos.printQr"), tone: "info" });
+              const opened = await openFallbackPrintWindow();
+              if (opened) showToast({ title: t("pos.printQr"), tone: "info" });
             } else {
               showToast({
                 title: t("pos.printQr"),
@@ -264,12 +274,14 @@ export function BranchMenuQrDialog({
           showToast({ title: t("pos.printQr"), tone: "success" });
         } catch (error) {
           if (canOpenBrowserWindow) {
-            openFallbackPrintWindow();
-            showToast({
-              title: t("pos.printQr"),
-              description: error instanceof Error ? error.message : "",
-              tone: "info",
-            });
+            const opened = await openFallbackPrintWindow();
+            if (opened) {
+              showToast({
+                title: t("pos.printQr"),
+                description: error instanceof Error ? error.message : "",
+                tone: "info",
+              });
+            }
           } else {
             showToast({
               title: t("pos.printQr"),
@@ -281,7 +293,7 @@ export function BranchMenuQrDialog({
         return;
       }
 
-      if (canOpenBrowserWindow) openFallbackPrintWindow();
+      if (canOpenBrowserWindow) await openFallbackPrintWindow();
     } finally {
       setPrinting(false);
     }

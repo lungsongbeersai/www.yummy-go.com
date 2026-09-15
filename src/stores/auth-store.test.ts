@@ -83,6 +83,21 @@ describe("auth store session isolation", () => {
     vi.clearAllMocks();
   });
 
+  it("logs in online without preparing an offline Agent session", async () => {
+    const user = authUser("cashier");
+    checkLoginMock.mockResolvedValue({ token: "online-token", user, source: "online" });
+
+    await expect(useAuthStore.getState().loginWithPassword("cashier@example.com", "password"))
+      .resolves.toEqual(user);
+    expect(useAuthStore.getState()).toMatchObject({
+      token: "online-token",
+      user,
+      isLoggedIn: true,
+      loading: false,
+      offlineSession: false,
+    });
+  });
+
   it("resets loaded user-scoped stores on logout", () => {
     useAuthStore.getState().login("token-1", authUser("user-1"));
     useDashboardStore.setState({ data: { owner: "user-1" } });
@@ -107,13 +122,13 @@ describe("auth store session isolation", () => {
     expect(disconnectSocketMock).toHaveBeenCalledOnce();
   });
 
-  it("switches the active transport without replacing the authenticated user", () => {
+  it("cannot switch an authenticated user into an offline session", () => {
     useAuthStore.getState().login("token-1", authUser("user-1"));
     useAuthStore.getState().setOfflineSession(true);
     expect(useAuthStore.getState()).toMatchObject({
       token: "token-1",
       isLoggedIn: true,
-      offlineSession: true,
+      offlineSession: false,
     });
     useAuthStore.getState().setOfflineSession(false);
     expect(useAuthStore.getState()).toMatchObject({
@@ -123,7 +138,7 @@ describe("auth store session isolation", () => {
     });
   });
 
-  it("replaces a local token with an online JWT only for the same identity", () => {
+  it("can replace a legacy local token with an online JWT only for the same identity", () => {
     const currentUser = authUser("user-1");
     useAuthStore.getState().login("local.session-token", currentUser);
     useAuthStore.getState().setOfflineSession(true);
@@ -136,14 +151,14 @@ describe("auth store session isolation", () => {
     });
   });
 
-  it("rejects an online session restored for another login", () => {
+  it("rejects a legacy session restored for another login without enabling offline mode", () => {
     useAuthStore.getState().login("local.session-token", authUser("user-1"));
     useAuthStore.getState().setOfflineSession(true);
 
     expect(useAuthStore.getState().resumeOnlineSession("other-token", authUser("user-2"))).toBe(false);
     expect(useAuthStore.getState()).toMatchObject({
       token: "local.session-token",
-      offlineSession: true,
+      offlineSession: false,
     });
   });
 

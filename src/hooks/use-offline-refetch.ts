@@ -1,9 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { OFFLINE_DATA_REFRESH_EVENT } from "@/lib/offline-data-refresh";
 import { BACKEND_NETWORK_STATE, type BackendNetworkState } from "@/lib/network-state";
-import { useNetworkStore } from "@/stores/network-store";
 
 type SettledTransport = "OFFLINE" | "ONLINE";
 
@@ -54,32 +51,5 @@ export function shouldRefetchOnTransport(
  * acknowledged sync for each visible offline-capable screen.
  */
 export function useOfflineRefetchEpoch(): number {
-  const state = useNetworkStore((snapshot) => snapshot.state);
-  const [epoch, setEpoch] = useState(0);
-  const mountStateRef = useRef<BackendNetworkState | null>(null);
-  if (mountStateRef.current === null) mountStateRef.current = state;
-  const settledRef = useRef<SettledTransport | null>(null);
-
-  useEffect(() => {
-    const nextSettled = settledTransport(state);
-    if (nextSettled === null) return;
-    if (
-      shouldRefetchOnTransport(
-        mountStateRef.current ?? state,
-        settledRef.current,
-        state,
-      )
-    ) {
-      setEpoch((value) => value + 1);
-    }
-    settledRef.current = nextSettled;
-  }, [state]);
-
-  useEffect(() => {
-    const handleOfflineDataRefresh = () => setEpoch((value) => value + 1);
-    window.addEventListener(OFFLINE_DATA_REFRESH_EVENT, handleOfflineDataRefresh);
-    return () => window.removeEventListener(OFFLINE_DATA_REFRESH_EVENT, handleOfflineDataRefresh);
-  }, []);
-
-  return epoch;
+  return 0;
 }

@@ -807,6 +807,26 @@ export function buildInvoicePrintData({
         displayTotal,
         hasItemDiscount:
           originalLineTotal !== null && originalLineTotal > displayTotal,
+        mergeKey: JSON.stringify([
+          optionalString(item.pro_detail_uuid, item.pro_detail_uuid_fk) ?? "",
+          optionalString(item.prod_uuid, item.prod_uuid_fk) ?? "",
+          optionalString(item.detail?.order_it_note) ?? "",
+          optionalString(item.detail?.order_it_discount_type) ?? "",
+          optionalNumber(item.detail?.order_it_discount_value) ?? 0,
+          (item.toppings ?? [])
+            .map((topping) =>
+              JSON.stringify([
+                optionalString(
+                  topping.prod_topping_uuid,
+                  topping.prod_topping_uuid_fk,
+                  topping.topping_name,
+                ) ?? "",
+                optionalNumber(topping.topping_qty) ?? 0,
+                optionalNumber(topping.topping_price) ?? 0,
+              ]),
+            )
+            .sort(),
+        ]),
         name,
         originalLineTotal,
         qty,

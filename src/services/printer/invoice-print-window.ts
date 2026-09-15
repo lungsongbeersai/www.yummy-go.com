@@ -9,6 +9,7 @@ import {
 export type InvoicePrintItem = {
   displayTotal: number;
   hasItemDiscount: boolean;
+  mergeKey?: string;
   name: string;
   originalLineTotal: number | null;
   qty: number;
@@ -28,6 +29,96 @@ export type InvoicePrintExchangeRate = {
   code: "THB" | "USD" | string;
   rate: number;
 };
+
+function invoicePrintNumber(value: number) {
+  return Math.round(value * 1_000_000) / 1_000_000;
+}
+
+function invoicePrintPerUnit(value: number | null, qty: number) {
+  if (value === null) return null;
+  return qty > 0
+    ? invoicePrintNumber(value / qty)
+    : invoicePrintNumber(value);
+}
+
+function invoicePrintToppingKey(
+  topping: InvoicePrintTopping,
+  itemQty: number,
+) {
+  return JSON.stringify([
+    topping.name.trim(),
+    topping.qty,
+    invoicePrintPerUnit(topping.total, itemQty),
+  ]);
+}
+
+function invoicePrintItemKey(item: InvoicePrintItem) {
+  return JSON.stringify([
+    item.mergeKey ?? "",
+    item.name.trim(),
+    item.unitPrice,
+    item.hasItemDiscount,
+    invoicePrintPerUnit(item.displayTotal, item.qty),
+    invoicePrintPerUnit(item.originalLineTotal, item.qty),
+    item.toppingLabel,
+    invoicePrintPerUnit(item.toppingTotal, item.qty),
+    item.toppings
+      .map((topping) => invoicePrintToppingKey(topping, item.qty))
+      .sort(),
+  ]);
+}
+
+/**
+ * Combine equivalent rows only in the invoice/receipt projection. The cart
+ * keeps its original rows so staff can still see each ordering round.
+ */
+export function mergeInvoicePrintItems(items: InvoicePrintItem[]) {
+  const merged: InvoicePrintItem[] = [];
+  const byKey = new Map<string, InvoicePrintItem>();
+
+  items.forEach((source) => {
+    const item: InvoicePrintItem = {
+      ...source,
+      toppings: source.toppings.map((topping) => ({ ...topping })),
+    };
+    const key = invoicePrintItemKey(item);
+    const existing = byKey.get(key);
+
+    if (!existing) {
+      byKey.set(key, item);
+      merged.push(item);
+      return;
+    }
+
+    const existingQty = existing.qty;
+    item.toppings.forEach((topping) => {
+      const toppingKey = invoicePrintToppingKey(topping, item.qty);
+      const target = existing.toppings.find(
+        (candidate) =>
+          invoicePrintToppingKey(candidate, existingQty) === toppingKey,
+      );
+      if (!target || topping.total === null) return;
+      target.total = invoicePrintNumber((target.total ?? 0) + topping.total);
+    });
+
+    existing.qty = invoicePrintNumber(existing.qty + item.qty);
+    existing.displayTotal = invoicePrintNumber(
+      existing.displayTotal + item.displayTotal,
+    );
+    if (item.originalLineTotal !== null) {
+      existing.originalLineTotal = invoicePrintNumber(
+        (existing.originalLineTotal ?? 0) + item.originalLineTotal,
+      );
+    }
+    if (item.toppingTotal !== null) {
+      existing.toppingTotal = invoicePrintNumber(
+        (existing.toppingTotal ?? 0) + item.toppingTotal,
+      );
+    }
+  });
+
+  return merged;
+}
 
 export type InvoicePrintData = {
   branchAddress: string;
@@ -358,8 +449,9 @@ export function renderInvoiceMeta(data: InvoicePrintData) {
 }
 
 export function renderInvoiceItems(data: InvoicePrintData) {
-  const rows = data.items.length
-    ? data.items.map(renderInvoiceItem).join("")
+  const items = mergeInvoicePrintItems(data.items);
+  const rows = items.length
+    ? items.map(renderInvoiceItem).join("")
     : `<section class="item"><div class="center muted">-</div></section>`;
 
   return `

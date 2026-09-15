@@ -6,6 +6,70 @@ Entries below dated from git history are backfilled from existing code comments 
 
 ---
 
+## All stores use Online-only sales; every old offline queue is retired globally
+
+- **Date:** 2026-09-14.
+- **Context:** Multiple devices at the same table showed different totals, local dependency chains remained blocked, and QR/payment/return printing stopped behind old offline work. The owner explicitly chose not to recover any remaining queued intent and requested a safe all-store removal with no future offline order queue.
+- **Decision:** POS authentication, reads and business mutations now call Backend only. Backend never dispatches a new `/sync/push` mutation; during the compatibility window it authenticates old clients and acknowledges their submitted events as discarded/SYNCED so old outboxes can drain without replaying stale sales. Browser startup removes the retired Dexie database, offline storage markers, Cache Storage and service-worker registrations. A tombstone worker retires already-installed workers. Printer Agent 1.0.11 archives then deletes unfinished local sync/print rows once and no longer starts the local sales-sync or offline-print schedulers; its online `/print-ops` transports remain active.
+- **Global cleanup:** The one-time Backend migration archives every non-SYNCED `tb_sync_event`, deletes those rows from the live sync queue, archives every pre-cutover pending/partial/failed print job with its item snapshots, marks those old jobs skipped, and disables `offline_mobile_enabled` on every branch. Successful orders, payments, successful print history and Agent PRINTED dedupe rows are not deleted.
+- **Trade-off:** A shop cannot login, sell, confirm kitchen work or pay while Backend/internet is unavailable; the action must fail visibly and be retried online. A physical printer that is unavailable can still create a normal Backend print failure, but it cannot create or replay a local order/payment. Reintroducing offline sales requires a new explicit decision and a new contract version.
+- **Approved by:** repo owner (2026-09-14, in-conversation — explicitly requested no recovery, global pending cleanup and complete Offline removal).
+
+## Retryable mobile print jobs follow an edited TCP endpoint, but uncertain jobs stay frozen
+
+- **Date:** 2026-09-14.
+- **Context:** Sethathirath Hospital changed one Wi-Fi printer from `192.168.100.52` to `192.168.100.2`. Backend routing immediately used the new config, but an already-durable mobile kitchen job retained the old endpoint snapshot and therefore held `KITCHEN_CONFIRM` locally before Backend could see it.
+- **Decision:** After fetching the current mobile printer configuration, rebind only `PENDING`/`FAILED` local print jobs to the same config UUID. If an older edit recreated the config, allow a fallback only when the printer name uniquely identifies one active TCP config. Rebound `FAILED` work becomes `PENDING` and retries through the durable spooler.
+- **Safety boundary:** Never alter or retry `PRINTING`, `UNCERTAIN`, or `PRINTED` work; those states may already have emitted paper. Never guess between duplicate printer names.
+- **Reason:** A printer IP is operational configuration and can change while safe, not-yet-sent work is durable. Freezing the old address forever blocks the kitchen event; rewriting delivery-uncertain work could print duplicates.
+
+## Branch queue resets are versioned, device-local, and never delete payments
+
+- **Date:** 2026-09-14.
+- **Context:** Sethathirath Hospital accumulated terminal mobile `BLOCKED` rows against already-closed bills. Those rows live in each phone's Dexie database, so deleting Backend audit rows cannot clear the operational queue remotely.
+- **Decision:** `GET /sync/runtime-capabilities` can carry a branch-scoped reset version. Each Capacitor device applies a version once, discards its currently blocked non-financial rows, records the applied version locally, and immediately refreshes live data from Backend. Repeated capability polling cannot erase a later rejection because the same reset version becomes inert after its first successful application.
+- **Safety boundary:** `PAYMENT` is never eligible for a remote reset. It remains visible for explicit, on-device financial confirmation. Retryable `STAGED`/`PENDING`/`PROCESSING`/`FAILED` work is also retained.
+- **Reason:** A Backend-only delete is ineffective because Backend does not own the mobile outbox; an unversioned "clear blocked" flag would silently delete every future conflict forever. A one-shot device-local command clears this incident without weakening future conflict review.
+- **Approved by:** repo owner (2026-09-14, in-conversation — explicitly requested immediate queue clearing and no recurrence).
+
+## Branch offline toggle gates entering offline mode at all on mobile, not just writes (narrows "every menu destination is viewable offline")
+
+- **Date:** 2026-09-14.
+- **Context:** After the previous entry's toggle shipped as a write-only gate (blocking KITCHEN_CONFIRM/PAYMENT, then broadened same-day to every mutation including add-item), the owner clarified the actual intent twice, in increasingly explicit terms: the switch is "offline to online" itself — off means the device must not be able to enter offline mode at all, on is required first. This is narrower than "Every established menu destination is viewable offline on desktop and Capacitor" (2026-09-08), which made offline reads unconditional for Capacitor.
+- **Decision:** On mobile, while `networkState` is confirmed `OFFLINE`, both the Dexie read fallback and the local write fallback now require the branch's `offline_mobile_enabled` flag; a branch with it off gets neither and simply fails like an ordinary online-only app until reconnected. This does not touch the *online* "keep this order's own local ownership while reconnect finishes draining" mechanism (2026-09-07 entry) — that is a data-consistency rule for an order already touched locally, unrelated to whether the branch permits entering offline mode, and must keep working online regardless of this toggle.
+- **Also fixed the same day:** an intermediate version of this gate checked the toggle without restricting to `networkState === OFFLINE`, so it also fired during the online reconnect-drain window above — every branch except the one already piloted defaulted the toggle off, so add-item broke while genuinely online for any order with unsynced local history. Caught from a live report within the hour.
+- **Boundary:** Desktop (Printer Agent) is unaffected — this flag and this whole code path are Capacitor-only. `OFFLINE_FIRST_MOBILE_DISABLED` remains the separate global kill switch.
+- **Approved by:** repo owner (2026-09-14, in-conversation — corrected twice after the write-only interpretation shipped).
+
+## Mobile offline checkout moves from an env-var allowlist to a per-branch DB toggle, default off (supersedes the wildcard entry below)
+
+- **Date:** 2026-09-13.
+- **Context:** The day after opening `OFFLINE_FIRST_MOBILE_BRANCHES=*` to every branch (entry below), the owner asked for a proper on/off switch on the branch settings screen instead — "ให้ default ที่ปิด offline ก่อน" (default off) — so enabling a branch never again requires an engineer, SSH, or a GitHub Actions run.
+- **Decision:** `tb_branch.offline_mobile_enabled` (migration `20260913_add_branch_offline_mobile_enabled.sql`) is now the source of truth per branch, defaulting to `false` for every branch including new ones. `GET /sync/runtime-capabilities` reads this column instead of the allowlist; `runtimeCapabilities()` takes the resolved boolean directly. `OFFLINE_FIRST_MOBILE_BRANCHES` is no longer read anywhere — a leftover `*` in production `.env` is now inert. `OFFLINE_FIRST_MOBILE_DISABLED` is kept as the only remaining env-based control: a global emergency kill switch independent of any branch's toggle. Settings > Branch exposes the toggle as its own `PATCH /branch/offline_mobile_enabled` endpoint (not folded into the multi-field branch save) so flipping it can never be blocked by unrelated VAT/email/QR validation, and a live-toggle Switch does not wait for the branch form's Save button.
+- **Migration note:** The same migration sets `offline_mobile_enabled = true` specifically for the `inthanin` branch (matched by name) so the incident fix from 2026-09-12 does not silently regress back to disabled the moment every other branch defaults to off; every other existing branch starts off and needs an explicit toggle.
+- **Safety boundary carried over, unchanged by this entry:** the "not feature-complete" caveats from "Capacitor mobile uses Dexie, never the desktop Agent" (no native durable print jobs/routing proof/receipt renderer) still apply to any branch an owner switches on — the toggle controls exposure, not readiness.
+- **Reason:** Restores the original 2026-09-09 decision's intent (opt-in per branch, reversible, no all-store blast radius) while removing the operational bottleneck that made the wildcard tempting in the first place — the owner can now scope this themselves without engineering involvement each time.
+- **Approved by:** repo owner (2026-09-13, in-conversation).
+
+## Mobile offline checkout rollout allowlist opened to all branches (reverses the "enable every branch in one release" rejection below)
+
+- **Date:** 2026-09-12.
+- **Context:** Store "inthanin" went offline on a mobile device and could not confirm kitchen orders or print. Root cause: `OFFLINE_FIRST_MOBILE_BRANCHES` had never been set in production for any branch, so `mobile.offline_checkout_enabled` fails closed by design (see the entry below). Owner was shown that this fails-closed behavior was a deliberate, recent, self-approved decision, and was offered the safer branch-scoped fix (allowlist inthanin's `branch_uuid` only). Owner initially agreed to that scope, then asked for every branch ("ทุกร้านด้วย") after being told this reverses the decision below's explicit "alternatives rejected: enabling every branch in one release."
+- **Decision:** `OFFLINE_FIRST_MOBILE_BRANCHES` is set to `*` in production — the wildcard the allowlist code already supported (previously exercised only by the kill-switch test). No code change; `OFFLINE_FIRST_MOBILE_DISABLED` remains as an immediate full rollback if any branch's mobile checkout misbehaves.
+- **Safety boundary carried over, unchanged by this entry:** no additional physical Android/iOS/printer acceptance was performed for branches beyond whatever had already been piloted. The "not feature-complete" caveats in "Capacitor mobile uses Dexie, never the desktop Agent" (no native durable print jobs/routing proof/receipt renderer, dependency extraction pending) still apply to every branch now covered by the wildcard, not just inthanin.
+- **Reason:** Owner explicitly reconfirmed wanting it for every store after being told this reverses the prior gradual-rollout decision and the specific reason that decision gave for rejecting a one-shot all-branch release.
+- **Approved by:** repo owner (2026-09-12, in-conversation).
+
+## Mobile offline checkout is branch-gated and fails closed
+
+- **Date:** 2026-09-09.
+- **Context:** The owner requested practical offline-to-online operation across Windows, macOS, Android and iOS, then explicitly authorized implementation after being told that zero-error/100% certification is not technically honest and that a direct all-store release could affect tills already trading.
+- **Decision:** Mobile kitchen/payment uses a v2 contract with an add-only Dexie print queue, atomic sale/print staging, stable sync/stock/print identities, local ESC/POS TCP delivery and Backend-verified offline proofs. Backend exposes an authenticated branch-scoped capability contract. Mobile checkout defaults off, can be enabled only through `OFFLINE_FIRST_MOBILE_BRANCHES`, and is overridden by `OFFLINE_FIRST_MOBILE_DISABLED`.
+- **Safety boundary:** Old print-dependent events without the v2 marker remain blocked. Missing/stale capability, sale policy, product price, table policy, device registration or required printer ownership rejects the operation before durable success. Confirmed `not_sent` print work may retry; unknown delivery never automatically reprints. Production deployment and branch enablement remain separate approvals after physical Android/iOS/printer acceptance.
+- **Alternatives rejected:** Enabling every branch in one release; trusting `navigator.onLine`; treating an empty printer cache as no printer; sending the financial event before durable print ownership; auto-reprinting after process death; claiming simulator/unit tests certify real paper or WebView process-kill behavior.
+- **Reason:** These boundaries preserve current shops, make rollout reversible, and keep money, stock and kitchen paper idempotent across reconnects without turning a mobile device into the desktop Agent.
+- **Approved by:** repo owner (2026-09-09, in-conversation).
+
 ## New-order rows restore hard delete
 
 - **Date:** 2026-09-08.

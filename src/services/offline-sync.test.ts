@@ -12,6 +12,7 @@ import {
   requiresLocalOrderOwnership,
   resetLocalSyncConfiguration,
   runLocalSyncNow,
+  shouldKeepLocalOrderOwnership,
   shouldPreferOnlineTransport,
   shouldRouteToLocal,
   shouldUseLocalPrintOwnership,
@@ -319,6 +320,95 @@ describe("offline sync transport", () => {
       bootstrap_complete: true,
       pending: { pending: 0, processing: 0, failed: 0, blocked: 1 },
     })).toBe(false);
+  });
+
+  it("hands an ONLINE till to Backend when its Agent never bootstrapped and holds no unsynced sale", async () => {
+    vi.stubGlobal("window", { location: { origin: "https://pos.example.test" } });
+    vi.stubGlobal("navigator", { onLine: true });
+    vi.spyOn(axios, "get").mockResolvedValue({
+      data: {
+        ok: true,
+        data: {
+          configured: true,
+          bootstrap_complete: false,
+          connection_state: "ONLINE",
+          store_uuid: "store-boot",
+          branch_uuid: "branch-boot",
+          actor_login_uuid: "login-boot",
+          // Only a stuck KITCHEN confirm for an already-synced order; ORDER and
+          // PAYMENT are fully synced. Nothing here Backend does not already have.
+          pending: {
+            pending: 0, processing: 0, failed: 1, blocked: 0,
+            per_entity: { KITCHEN: { failed: 1, synced: 6 }, ORDER: { synced: 10 }, PAYMENT: { synced: 14 } },
+          },
+        },
+      },
+    });
+    const scope = { storeUuid: "store-boot", branchUuid: "branch-boot", actorLoginUuid: "login-boot" };
+
+    // Both reads and writes go to Backend: an unbootstrapped Agent has no master
+    // data and cannot serve fetch_cart or process create_order / payment.
+    await expect(
+      shouldKeepLocalOrderOwnership(scope, undefined, { keepTerminalBlocked: false }),
+    ).resolves.toBe(false);
+    await expect(
+      shouldKeepLocalOrderOwnership(scope, undefined, { keepTerminalBlocked: true }),
+    ).resolves.toBe(false);
+  });
+
+  it("keeps an unbootstrapped Agent authoritative while it still holds an unsynced sale", async () => {
+    vi.stubGlobal("window", { location: { origin: "https://pos.example.test" } });
+    vi.stubGlobal("navigator", { onLine: true });
+    vi.spyOn(axios, "get").mockResolvedValue({
+      data: {
+        ok: true,
+        data: {
+          configured: true,
+          bootstrap_complete: false,
+          connection_state: "ONLINE",
+          store_uuid: "store-sale",
+          branch_uuid: "branch-sale",
+          actor_login_uuid: "login-sale",
+          // A PAYMENT this till took offline has not reached Backend yet.
+          pending: {
+            pending: 1, processing: 0, failed: 0, blocked: 0,
+            per_entity: { PAYMENT: { pending: 1 } },
+          },
+        },
+      },
+    });
+    const scope = { storeUuid: "store-sale", branchUuid: "branch-sale", actorLoginUuid: "login-sale" };
+
+    await expect(
+      shouldKeepLocalOrderOwnership(scope, undefined, { keepTerminalBlocked: false }),
+    ).resolves.toBe(true);
+    await expect(
+      shouldKeepLocalOrderOwnership(scope, undefined, { keepTerminalBlocked: true }),
+    ).resolves.toBe(true);
+  });
+
+  it("keeps a bootstrapped Agent authoritative for reads while it still has unsynced work", async () => {
+    vi.stubGlobal("window", { location: { origin: "https://pos.example.test" } });
+    vi.stubGlobal("navigator", { onLine: true });
+    vi.spyOn(axios, "get").mockResolvedValue({
+      data: {
+        ok: true,
+        data: {
+          configured: true,
+          bootstrap_complete: true,
+          connection_state: "ONLINE",
+          store_uuid: "store-ok",
+          branch_uuid: "branch-ok",
+          actor_login_uuid: "login-ok",
+          pending: { pending: 0, processing: 0, failed: 1, blocked: 0 },
+        },
+      },
+    });
+    const scope = { storeUuid: "store-ok", branchUuid: "branch-ok", actorLoginUuid: "login-ok" };
+
+    await expect(
+      shouldKeepLocalOrderOwnership(scope, undefined, { keepTerminalBlocked: false }),
+    ).resolves.toBe(true);
   });
 
   it("runs an immediate recovery cycle and confirms the Agent is online", async () => {

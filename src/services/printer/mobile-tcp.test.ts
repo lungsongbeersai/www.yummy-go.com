@@ -26,6 +26,7 @@ describe("mobile TCP printer queue", () => {
     ).toEqual(["services/printer/mobile-tcp.ts"]);
     expect(relativeFilesContaining("printMobileEscposOverTcp")).toEqual([
       "services/printer/agent-transport.ts",
+      "services/printer/mobile-offline-queue.ts",
       "services/printer/mobile-tcp.ts",
       "services/printer/print-jobs.ts",
       "stores/printer-store.ts",
@@ -214,6 +215,32 @@ describe("mobile TCP printer queue", () => {
     }
   });
 
+  it("splits sparse renderer payloads without cutting ESC J feed commands", () => {
+    const header = Buffer.from([
+      0x1b, 0x40,
+      0x1d, 0x50, 203, 203,
+    ]);
+    const dotFeed = Buffer.from([0x1b, 0x4a, 0xff]);
+    const rasterBand = Buffer.concat([
+      Buffer.from([0x1d, 0x76, 0x30, 0x00, 72, 0x00, 24, 0x00]),
+      Buffer.alloc(72 * 24, 0x55),
+    ]);
+    const source = Buffer.concat([
+      header,
+      ...Array.from({ length: 20 }, () => Buffer.concat([dotFeed, rasterBand])),
+      Buffer.from([0x1d, 0x56, 0x01]),
+    ]);
+
+    const segments = __mobileTcpInternals.splitEscposBase64ForTransport(
+      source.toString("base64"),
+      12 * 1024,
+    );
+
+    expect(segments.length).toBeGreaterThan(1);
+    expect(Buffer.concat(segments.map((segment) => Buffer.from(segment, "base64"))))
+      .toEqual(source);
+  });
+
   it("keeps unknown ESC/POS payloads intact instead of guessing a split point", () => {
     const source = Buffer.alloc(
       __mobileTcpInternals.MOBILE_TCP_SEGMENT_MAX_BYTES + 1,
@@ -255,6 +282,7 @@ describe("mobile TCP printer queue", () => {
       Buffer.alloc(2 * 24),
       Buffer.from([0x1d, 0x76, 0x30, 0x00, 2, 0x00, 8, 0x00]),
       Buffer.alloc(2 * 8),
+      Buffer.from([0x1b, 0x4a, 16]),
       Buffer.from([0x1d, 0x56, 0x01]),
     ]);
 
@@ -265,7 +293,7 @@ describe("mobile TCP printer queue", () => {
       cutCommands: 1,
       fullyParsed: true,
       rasterBands: 2,
-      rasterRows: 32,
+      rasterRows: 48,
     });
   });
 

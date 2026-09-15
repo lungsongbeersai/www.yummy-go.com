@@ -46,6 +46,7 @@ import {
   openLocalInvoicePrintWindow,
   type InvoicePrintData,
 } from "@/services/printer/invoice-print-window";
+import { canUseSystemPrintFallback } from "@/lib/system-print-capability";
 import {
   activeAmountField,
   activeExactAmountLak,
@@ -761,6 +762,15 @@ export function usePaymentDialogWorkflow({
         title: t("pos.invoicePrintFailed"),
         description: t("pos.invoicePrintPopupBlocked"),
         tone: "error",
+      });
+      return;
+    }
+
+    if (!canUseSystemPrintFallback()) {
+      showToast({
+        title: t("pos.invoicePrintFailed"),
+        description: t("pos.systemPrinterUnavailable"),
+        tone: "info",
       });
       return;
     }

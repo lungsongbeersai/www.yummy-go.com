@@ -14,6 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { fullscreenPrintWindowFeatures, maximizePrintWindow } from "@/services/printer/invoice-print-window";
+import { canUseSystemPrintFallback } from "@/lib/system-print-capability";
 import { useIsCapacitorNativeApp } from "@/hooks/use-capacitor-native-app";
 import { openWindowOutsideNativeApp } from "@/lib/capacitor-platform";
 import {
@@ -220,11 +221,13 @@ export function TableQrDialog({
           if (printOutcome === "fallback") {
             const imageUrl = await fallbackPrintImageUrl();
             if (imageUrl && canOpenBrowserWindow) {
-              openFallbackPrintWindow(imageUrl);
-              showToast({
-                title: t("pos.printQr"),
-                tone: "info",
-              });
+              const opened = await openFallbackPrintWindow(imageUrl);
+              if (opened) {
+                showToast({
+                  title: t("pos.printQr"),
+                  tone: "info",
+                });
+              }
             } else {
               showToast({
                 title: t("pos.printQr"),
@@ -239,12 +242,14 @@ export function TableQrDialog({
         } catch (error) {
           const imageUrl = await fallbackPrintImageUrl();
           if (imageUrl && canOpenBrowserWindow) {
-            openFallbackPrintWindow(imageUrl);
-            showToast({
-              title: t("pos.printQr"),
-              description: error instanceof Error ? error.message : "",
-              tone: "info",
-            });
+            const opened = await openFallbackPrintWindow(imageUrl);
+            if (opened) {
+              showToast({
+                title: t("pos.printQr"),
+                description: error instanceof Error ? error.message : "",
+                tone: "info",
+              });
+            }
           } else {
             showToast({
               title: t("pos.printQr"),
@@ -257,7 +262,7 @@ export function TableQrDialog({
       }
 
       const imageUrl = await fallbackPrintImageUrl();
-      if (imageUrl && canOpenBrowserWindow) openFallbackPrintWindow(imageUrl);
+      if (imageUrl && canOpenBrowserWindow) await openFallbackPrintWindow(imageUrl);
     } finally {
       setPrinting(false);
     }
@@ -276,10 +281,25 @@ export function TableQrDialog({
     }
   }
 
-  function openFallbackPrintWindow(imageUrl = previewUrl) {
-    if (!imageUrl) return;
+  async function openFallbackPrintWindow(imageUrl = previewUrl) {
+    if (!imageUrl) return false;
+    if (!canUseSystemPrintFallback()) {
+      showToast({
+        title: t("pos.printQr"),
+        description: t("pos.systemPrinterUnavailable"),
+        tone: "info",
+      });
+      return false;
+    }
     const printWindow = openWindowOutsideNativeApp("", "_blank", fullscreenPrintWindowFeatures());
-    if (!printWindow) return;
+    if (!printWindow) {
+      showToast({
+        title: t("pos.printQr"),
+        description: t("pos.invoicePrintPopupBlocked"),
+        tone: "error",
+      });
+      return false;
+    }
     maximizePrintWindow(printWindow);
 
     const safeTableName = escapeHtml(table.table_name);
@@ -311,6 +331,7 @@ export function TableQrDialog({
   </body>
 </html>`);
     printWindow.document.close();
+    return true;
   }
 
   return (

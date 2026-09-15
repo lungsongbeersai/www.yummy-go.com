@@ -2,21 +2,16 @@ import axios from "axios";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { backendNetworkManager } from "@/stores/network-store";
 
-const apiMocks = vi.hoisted(() => ({
-  post: vi.fn()
-}));
+const apiMocks = vi.hoisted(() => ({ post: vi.fn() }));
 
 vi.mock("@/lib/api", () => ({
   publicApiClient: { post: apiMocks.post },
   ServiceError: class ServiceError extends Error {
-    statusCode: number;
-
-    constructor(message: string, statusCode = 500) {
+    constructor(message: string, public statusCode = 500) {
       super(message);
       this.name = "ServiceError";
-      this.statusCode = statusCode;
     }
-  }
+  },
 }));
 
 import { checkLogin, restoreOnlineLogin } from "@/services/login";
@@ -36,14 +31,13 @@ function loginResponse(overrides: Record<string, unknown> = {}) {
     branch_address: "Vientiane",
     store_uuid_fk: "store-1",
     store_logo: "store.png",
-    ...overrides
+    ...overrides,
   };
 }
 
-describe("login service", () => {
+describe("online-only login service", () => {
   beforeEach(() => {
     apiMocks.post.mockReset();
-    vi.spyOn(console, "info").mockImplementation(() => undefined);
     backendNetworkManager.resetChecking("login_test");
   });
 
@@ -52,119 +46,36 @@ describe("login service", () => {
     vi.unstubAllGlobals();
   });
 
-  it("maps store table status from the login response", async () => {
+  it("maps the online response and store table status", async () => {
     apiMocks.post.mockResolvedValue({ status: 200, data: loginResponse({ store_table_status: 2 }) });
-
-    await expect(checkLogin("cashier@example.com", "password")).resolves.toMatchObject({
-      user: { store_table_status: 2 }
-    });
-  });
-
-  it("defaults a legacy login response to a store with tables", async () => {
-    apiMocks.post.mockResolvedValue({ status: 200, data: loginResponse() });
-
-    await expect(checkLogin("cashier@example.com", "password")).resolves.toMatchObject({
-      user: { store_table_status: 1 }
-    });
-  });
-
-  it("uses the verified Local Agent credential when the device is offline", async () => {
-    backendNetworkManager.reportTransportFailure("network_failure", { confirmed: true });
-    backendNetworkManager.reportTransportFailure("network_failure", { confirmed: true });
-    backendNetworkManager.reportTransportFailure("network_failure", { confirmed: true });
-    const localPost = vi.spyOn(axios, "post").mockResolvedValue({
-      data: { ok: true, data: { ...loginResponse(), offline: true } }
-    });
-
-    await expect(checkLogin("cashier@example.com", "password")).resolves.toMatchObject({
-      source: "offline",
-      token: "token-1",
-      user: { uuid: "login-1" }
-    });
-    expect(apiMocks.post).not.toHaveBeenCalled();
-    expect(localPost).toHaveBeenCalledWith(
-      expect.stringContaining("/local/auth/login"),
-      { login_email: "cashier@example.com", login_password: "password" },
-      { timeout: 5000 }
-    );
-  });
-
-  it("logs in through the Local Agent on the first try when the browser reports no network", async () => {
-    // Cold start: no probe has run yet, so the NetworkManager is still CHECKING.
-    vi.stubGlobal("navigator", { onLine: false });
-    const localPost = vi.spyOn(axios, "post").mockResolvedValue({
-      data: { ok: true, data: { ...loginResponse(), offline: true } }
-    });
-
-    await expect(checkLogin("cashier@example.com", "password")).resolves.toMatchObject({
-      source: "offline",
-    });
-    expect(apiMocks.post).not.toHaveBeenCalled();
-    expect(localPost).toHaveBeenCalledWith(
-      expect.stringContaining("/local/auth/login"),
-      { login_email: "cashier@example.com", login_password: "password" },
-      { timeout: 5000 }
-    );
-  });
-
-  it("does not touch the Local Agent when the browser reports it is online", async () => {
-    vi.stubGlobal("navigator", { onLine: true });
-    apiMocks.post.mockResolvedValue({ status: 200, data: loginResponse() });
-    const localPost = vi.spyOn(axios, "post");
-
     await expect(checkLogin("cashier@example.com", "password")).resolves.toMatchObject({
       source: "online",
+      user: { store_table_status: 2 },
     });
-    expect(localPost).not.toHaveBeenCalled();
   });
 
-  it("does not fall back to Local Agent for an HTTP 503 response", async () => {
-    apiMocks.post.mockRejectedValue({
-      isAxiosError: true,
-      message: "Service unavailable",
-      response: { status: 503 },
+  it("defaults a legacy response to a store with tables", async () => {
+    apiMocks.post.mockResolvedValue({ status: 200, data: loginResponse() });
+    await expect(checkLogin("cashier@example.com", "password")).resolves.toMatchObject({
+      source: "online",
+      user: { store_table_status: 1 },
     });
-    const localPost = vi.spyOn(axios, "post").mockResolvedValue({
-      data: { ok: true, data: { ...loginResponse(), offline: true } }
-    });
+  });
+
+  it("still calls Backend when the browser reports no network", async () => {
+    vi.stubGlobal("navigator", { onLine: false });
+    apiMocks.post.mockRejectedValue(new axios.AxiosError("Network Error", "ERR_NETWORK"));
 
     await expect(checkLogin("cashier@example.com", "password")).rejects.toMatchObject({
-      response: { status: 503 },
+      code: "ERR_NETWORK",
     });
-    expect(localPost).not.toHaveBeenCalled();
-    expect(backendNetworkManager.isOffline()).toBe(false);
+    expect(apiMocks.post).toHaveBeenCalledOnce();
   });
 
-  it("does not let repeated login timeouts complete the health-probe failure threshold", async () => {
-    backendNetworkManager.reportTransportFailure("network_failure", { confirmed: true });
-    backendNetworkManager.reportTransportFailure("network_failure", { confirmed: true });
-    apiMocks.post.mockRejectedValue(new axios.AxiosError("Network Error", "ERR_NETWORK"));
-    const localPost = vi.spyOn(axios, "post").mockResolvedValue({
-      data: { ok: true, data: { ...loginResponse(), offline: true } }
+  it("never restores a retired local login token", async () => {
+    await expect(restoreOnlineLogin("local.session-token")).rejects.toMatchObject({
+      statusCode: 410,
     });
-
-    for (let attempt = 0; attempt < 3; attempt += 1) {
-      await expect(checkLogin("cashier@example.com", "password")).rejects.toMatchObject({ code: "ERR_NETWORK" });
-    }
-    expect(backendNetworkManager.isOffline()).toBe(false);
-    expect(backendNetworkManager.getSnapshot().consecutiveFailures).toBe(2);
-    expect(localPost).not.toHaveBeenCalled();
-  });
-
-  it("restores a Backend JWT through the authenticated Local Agent session", async () => {
-    const localPost = vi.spyOn(axios, "post").mockResolvedValue({
-      data: { ok: true, data: loginResponse({ token: "online-token" }) }
-    });
-
-    await expect(restoreOnlineLogin("local.session-token")).resolves.toMatchObject({
-      source: "online",
-      token: "online-token",
-      user: { uuid: "login-1" },
-    });
-    expect(localPost).toHaveBeenCalledWith(
-      expect.stringContaining("/local/auth/online"),
-      { local_token: "local.session-token" },
-      { timeout: 10000 },
-    );
+    expect(apiMocks.post).not.toHaveBeenCalled();
   });
 });

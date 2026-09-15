@@ -17,6 +17,7 @@ import {
   discardBrowserSyncEvent,
   getBrowserSyncQueueSummary,
   listBrowserSyncQueue,
+  listBrowserPrintJobsForEvent,
   noteBrowserMutation,
   persistBrowserSyncStatus,
   readBrowserApiFallback,
@@ -92,11 +93,16 @@ export function browserOrderVersion(scope: BrowserOfflineScope) {
   return browserWriteVersions.get(recoveryKey(scope)) ?? 0;
 }
 
-export async function shouldKeepBrowserOrderOwnership(scope: BrowserOfflineScope, store?: BrowserOfflineStore) {
+export async function shouldKeepBrowserOrderOwnership(
+  scope: BrowserOfflineScope,
+  store?: BrowserOfflineStore,
+  options: { keepTerminalBlocked?: boolean } = {},
+) {
   const key = recoveryKey(scope);
   if (browserWritesInFlight.has(key)) return true;
   const summary = await getBrowserSyncQueueSummary(scope, store);
-  return browserWritesInFlight.has(key) || browserSyncQueueHasRetryableWork(summary) || summary.blocked > 0;
+  return browserWritesInFlight.has(key) || browserSyncQueueHasRetryableWork(summary) ||
+    (options.keepTerminalBlocked !== false && summary.blocked > 0);
 }
 
 const OFFLINE_GET_ROUTES = new Set([
@@ -167,6 +173,7 @@ const OFFLINE_GET_ROUTES = new Set([
   "/api/v1/permission/tree",
   "/api/v1/sub_menu/fetch_all",
   "/api/v1/register/get_id",
+  "/api/v1/sync/runtime-capabilities",
 ]);
 
 const LOCAL_READ_ROUTES = new Set([
@@ -212,6 +219,7 @@ export interface LocalSyncStatus {
   consecutive_failures?: number;
   store_uuid?: string | null;
   branch_uuid?: string | null;
+  device_code?: string | null;
   actor_login_uuid?: string | null;
   pending?: {
     pending?: number;
@@ -220,7 +228,20 @@ export interface LocalSyncStatus {
     blocked?: number;
     /** Kitchen confirmations held back by a ticket that failed to print. */
     waiting_on_print?: number;
+    /** Outbox counts split by operation entity_type, e.g. { ORDER: { failed: 1 } }. */
+    per_entity?: Record<
+      string,
+      { pending?: number; processing?: number; failed?: number; blocked?: number; synced?: number }
+    >;
   };
+}
+
+export interface LocalServerClosedRecoveryResult {
+  reconciled_orders: string[];
+  discarded_events: number;
+  suppressed_print_jobs: number;
+  deferred_processing_orders: string[];
+  status: LocalSyncStatus;
 }
 
 interface LocalAgentResponse<T> {
@@ -410,6 +431,15 @@ export function prepareOfflineRequest(
   if (routeKey(method, url) === "POST /api/v1/posAll/payment") {
     data.payment_uuid = String(data.payment_uuid || uuid());
   }
+  if (routeKey(method, url) === "PATCH /api/v1/posAll/confirm_to_kitchen") {
+    const itemUuids = Array.isArray(data.order_item_uuids)
+      ? data.order_item_uuids.map(String).filter(Boolean)
+      : [];
+    const existing = record(data.stock_event_uuids);
+    data.stock_event_uuids = Object.fromEntries(
+      itemUuids.map((itemUuid) => [itemUuid, String(existing[itemUuid] || uuid())]),
+    );
+  }
   if (routeKey(method, url) === "POST /api/v1/posAll/split_bill") {
     const newOrderUuid = String(data.new_order_uuid || uuid());
     data.new_order_uuid = newOrderUuid;
@@ -507,6 +537,7 @@ function beginLocalWrite(scope: BrowserOfflineScope) {
 export async function shouldKeepLocalOrderOwnership(
   scope: BrowserOfflineScope,
   browserStore?: BrowserOfflineStore,
+  options: { keepTerminalBlocked?: boolean; yieldToBackendForDevice?: string } = {},
 ) {
   if (typeof window === "undefined" || !scope.storeUuid || !scope.branchUuid) return false;
   const key = recoveryKey(scope);
@@ -520,14 +551,81 @@ export async function shouldKeepLocalOrderOwnership(
   const matching = status?.configured &&
     status.store_uuid === scope.storeUuid && status.branch_uuid === scope.branchUuid;
   let required = remembered || browserPending;
+  let retryableRequired = required;
+  let hasTerminalBlocked = false;
+  let localRetryable = false;
   if (matching) {
-    required = localSyncHasRetryableWork(status) || Number(status.pending?.blocked || 0) > 0 ||
-      browserPending || (remembered && (!status.pending || !status.bootstrap_complete || status.connection_state === "SYNCING"));
+    localRetryable = localSyncHasRetryableWork(status);
+    retryableRequired = localRetryable || browserPending ||
+      (remembered && (!status.pending || !status.bootstrap_complete || status.connection_state === "SYNCING"));
+    hasTerminalBlocked = Number(status.pending?.blocked || 0) > 0;
+    required = retryableRequired || hasTerminalBlocked;
   }
-  if (version !== (localWriteVersions.get(key) || 0) || (localWritesInFlight.get(key) || 0) > 0) {
+  const writeChangedOrInFlight = version !== (localWriteVersions.get(key) || 0) ||
+    (localWritesInFlight.get(key) || 0) > 0;
+  if (writeChangedOrInFlight) {
     required = true;
+    retryableRequired = true;
+  }
+  // Incident recovery can temporarily make Backend authoritative for one
+  // explicitly named Agent while it is online. Scope matching above plus the
+  // device check here prevents a store, branch or second till from inheriting
+  // that exception. An in-flight local write always keeps ownership until it
+  // finishes, so this cannot split one mutation between transports.
+  if (
+    options.yieldToBackendForDevice &&
+    matching &&
+    status.device_code === options.yieldToBackendForDevice &&
+    !writeChangedOrInFlight
+  ) {
+    return false;
   }
   rememberLocalRecovery(scope, required);
+  // A Local Agent that has never finished a bootstrap pull holds no master data
+  // (empty local_entity_cache) and only the bills this till opened itself. It
+  // cannot answer a read authoritatively and cannot create_order / confirm /
+  // pay against a table or product it never received. While Backend is
+  // reachable, hand such an Agent nothing at all — reads and writes both go to
+  // Backend, which has the real state — UNLESS this till has its own unsynced
+  // ORDER / ORDER_ITEM / PAYMENT that Backend does not have yet, or a write is
+  // in flight, either of which must keep local ownership so a live bill is
+  // never split across transports.
+  const agentHasUnsyncedBusinessState =
+    matching &&
+    (["ORDER", "ORDER_ITEM", "PAYMENT"] as const).some((entity) => {
+      const counts = status.pending?.per_entity?.[entity];
+      return (
+        Number(counts?.pending || 0) > 0 ||
+        Number(counts?.processing || 0) > 0 ||
+        Number(counts?.failed || 0) > 0
+      );
+    });
+  if (
+    matching &&
+    status?.bootstrap_complete !== true &&
+    !agentHasUnsyncedBusinessState &&
+    !writeChangedOrInFlight
+  ) {
+    return false;
+  }
+  // The online table directory is a server-authoritative overview: one
+  // quarantined event from a paid bill must not make every table display an old
+  // Agent snapshot. Cart/payment routes keep the default and retain local
+  // ownership, so unresolved business data is never silently sent around.
+  if (
+    options.keepTerminalBlocked === false &&
+    matching &&
+    hasTerminalBlocked &&
+    !localRetryable &&
+    !browserPending &&
+    !writeChangedOrInFlight
+  ) {
+    // Agent 1.0.2 can leave bootstrap_complete=false/SYNCING forever when its
+    // only outbox row is terminal BLOCKED. That stale bootstrap marker is not
+    // unsent business work and must not make an ONLINE fetch_table read the
+    // Agent's table snapshot from yesterday.
+    return false;
+  }
   return required;
 }
 
@@ -635,6 +733,61 @@ export async function runLocalSyncNow(): Promise<LocalSyncStatus | null> {
     return null;
   }
   return getLocalSyncStatus({ force: true, timeoutMs: 1500 });
+}
+
+/**
+ * Rebuild the Agent's branch-scoped read model from Backend.
+ *
+ * This endpoint only refreshes local data. It neither creates print jobs nor
+ * sends a mutation to the POS API.
+ */
+export async function rebuildLocalMaster(): Promise<LocalSyncStatus | null> {
+  if (typeof window === "undefined" || isCapacitorMobileApp()) return null;
+  localStatusCache = null;
+  try {
+    const response = await axios.post<LocalAgentResponse<unknown>>(
+      `${AGENT_URL}/local/master/rebuild`,
+      {},
+      { timeout: 120000 },
+    );
+    if (!response.data.ok) return null;
+  } catch {
+    return null;
+  }
+  return getLocalSyncStatus({ force: true, timeoutMs: 3000 });
+}
+
+/**
+ * Reconciles only local orders for which this Agent already has authoritative
+ * Backend proof that the bill is paid. The Agent endpoint does not invoke a
+ * printer transport and rejects a store/branch/device scope mismatch.
+ */
+export async function reconcileServerClosedLocalOrders(scope: {
+  storeUuid: string;
+  branchUuid: string;
+  deviceCode: string;
+}): Promise<LocalServerClosedRecoveryResult> {
+  if (typeof window === "undefined" || isCapacitorMobileApp()) {
+    throw new Error("LOCAL_RECOVERY_UNAVAILABLE");
+  }
+  try {
+    const response = await axios.post<LocalAgentResponse<LocalServerClosedRecoveryResult>>(
+      `${AGENT_URL}/local/recovery/reconcile-server-closed`,
+      {
+        store_uuid: scope.storeUuid,
+        branch_uuid: scope.branchUuid,
+        device_code: scope.deviceCode,
+      },
+      { timeout: 120000 },
+    );
+    if (!response.data.ok || !response.data.data) {
+      throw new Error(response.data.error || "local recovery failed");
+    }
+    localStatusCache = null;
+    return response.data.data;
+  } catch (error) {
+    throw agentResponseError(error);
+  }
 }
 
 async function waitForLocalBootstrap(timeoutMs = 45000) {
@@ -1201,31 +1354,94 @@ async function pushBrowserSyncQueueNow(
   const device = getOfflineSyncDeviceAuth();
   if (!device) return null;
   // Backend sorts a batch by operation priority (PAYMENT before CREATE).
-  // Drain the durable sequence one acknowledged event at a time instead.
+  // Drain retryable work in durable sequence one acknowledged event at a time.
+  // A BLOCKED row is already terminal and kept for manager review; quarantining
+  // it must not strand independent sales from other tables behind it forever.
   for (let sent = 0; sent < 50 && isCurrent(); sent += 1) {
     const all = await listBrowserSyncQueue(scope, browserStore);
-    const entry = all.find((row) => row.status !== "SYNCED");
-    if (!entry || entry.status === "BLOCKED" || entry.actorLoginUuid !== scope.actorLoginUuid) break;
+    const entry = all.find((row) => row.status !== "SYNCED" && row.status !== "BLOCKED");
+    if (!entry || entry.actorLoginUuid !== scope.actorLoginUuid) break;
     const operation = OFFLINE_ORDER_PUSH_OPERATIONS[`${entry.method} ${entry.path}`];
     if (!operation) {
       await updateBrowserSyncEvent(entry.eventUuid, { status: "BLOCKED", lastError: "MOBILE_OFFLINE_OPERATION_UNSUPPORTED" }, browserStore);
-      break;
+      continue;
     }
-    // Old mobile builds staged these without a printer job/proof. Do not turn
-    // that historical UI success into an unprinted or double-printed receipt.
-    if (["KITCHEN_CONFIRM", "PAYMENT"].includes(operation)) {
+    // Old mobile builds staged these without an atomic routing decision. Do not
+    // reinterpret an old empty queue as "this branch needs no printer".
+    if (["KITCHEN_CONFIRM", "PAYMENT"].includes(operation) && entry.printContractVersion !== "offline-first-v2") {
       await updateBrowserSyncEvent(entry.eventUuid, { status: "BLOCKED", lastError: "MOBILE_OFFLINE_PRINT_REVIEW_REQUIRED" }, browserStore);
-      break;
+      continue;
     }
     const dependencyStatuses = new Map(all.map((row) => [row.eventUuid, row.status]));
+    const blockedDependency = entry.dependencies.find((id) => dependencyStatuses.get(id) === "BLOCKED");
+    if (blockedDependency) {
+      await updateBrowserSyncEvent(entry.eventUuid, {
+        status: "BLOCKED",
+        lastError: `MOBILE_SYNC_DEPENDENCY_BLOCKED:${blockedDependency}`,
+      }, browserStore);
+      continue;
+    }
     if (entry.dependencies.some((id) => dependencyStatuses.get(id) !== "SYNCED")) break;
     let wire = entry.wireEvent;
     if (!wire) {
       const data = record(entry.data);
       const resolvedState = await loadOfflineOrderState(scope, browserStore);
       const resolved = resolveOrderUuid(resolvedState, data);
-      const wireData = `${entry.method} ${entry.path}` === CREATE_ORDER_ROUTE && resolved
+      let wireData = `${entry.method} ${entry.path}` === CREATE_ORDER_ROUTE && resolved
         ? { ...data, order_uuid: resolved } : data;
+      if (operation === "KITCHEN_CONFIRM") {
+        const jobs = await listBrowserPrintJobsForEvent(entry.eventUuid, scope, browserStore);
+        if (jobs.some((job) => job.status === "UNCERTAIN")) {
+          await updateBrowserSyncEvent(entry.eventUuid, { status: "BLOCKED", lastError: "MOBILE_PRINT_DELIVERY_UNCERTAIN" }, browserStore);
+          continue;
+        }
+        if (jobs.some((job) => job.status !== "PRINTED")) break;
+        const stockEventUuids = record(data.stock_event_uuids);
+        const itemUuids = Array.isArray(data.order_item_uuids)
+          ? data.order_item_uuids.map(String).filter(Boolean)
+          : [];
+        if (!itemUuids.length || itemUuids.some((itemUuid) => !String(stockEventUuids[itemUuid] || ""))) {
+          await updateBrowserSyncEvent(entry.eventUuid, { status: "BLOCKED", lastError: "MOBILE_KITCHEN_STOCK_PROOF_MISSING" }, browserStore);
+          continue;
+        }
+        wireData = {
+          ...data,
+          offline_kitchen_proof: {
+            event_uuid: entry.eventUuid,
+            device_code: device.deviceCode,
+            order_uuid: resolved || String(data.order_uuid || ""),
+            items: itemUuids.map((itemUuid) => {
+              const printJobUuids = jobs
+                .filter((job) => job.orderItemUuids.includes(itemUuid))
+                .map((job) => job.printJobUuid)
+                .sort();
+              return {
+                order_item_uuid: itemUuid,
+                stock_event_uuid: String(stockEventUuids[itemUuid]),
+                print_job_uuids: printJobUuids,
+                routing_decision: printJobUuids.length ? "printed" : "no_required_printer",
+              };
+            }),
+          },
+        };
+      }
+      if (operation === "PAYMENT") {
+        const jobs = await listBrowserPrintJobsForEvent(entry.eventUuid, scope, browserStore);
+        wireData = {
+          ...data,
+          offline_print_proof: {
+            event_uuid: entry.eventUuid,
+            device_code: device.deviceCode,
+            operation,
+            routing_decision: jobs.length ? "durable_local_queue" : "no_required_printer",
+            jobs: jobs.map((job) => ({
+              print_job_uuid: job.printJobUuid,
+              print_config_uuid: job.printConfigUuid,
+              document_type: job.documentType,
+            })),
+          },
+        };
+      }
       wire = {
         event_uuid: entry.eventUuid,
         operation,
@@ -1242,7 +1458,7 @@ async function pushBrowserSyncQueueNow(
     }
     if (wire.device_code !== device.deviceCode) {
       await updateBrowserSyncEvent(entry.eventUuid, { status: "BLOCKED", lastError: "MOBILE_SYNC_DEVICE_CHANGED" }, browserStore);
-      break;
+      continue;
     }
     const claimed = await updateBrowserSyncEvent(entry.eventUuid, { status: "PROCESSING", wireEvent: wire }, browserStore);
     if (!claimed || !isCurrent()) break;
@@ -1264,6 +1480,7 @@ async function pushBrowserSyncQueueNow(
         status,
         lastError: status === "SYNCED" ? null : row?.error ?? "sync push result missing",
       }, browserStore);
+      if (status === "BLOCKED") continue;
       if (status !== "SYNCED") break;
     } catch (error) {
       // PROCESSING survives an app kill. The frozen request and event id are
@@ -1297,6 +1514,84 @@ export async function discardBlockedBrowserSyncEvent(
   browserStore?: BrowserOfflineStore,
 ) {
   return discardBrowserSyncEvent(eventUuid, browserStore);
+}
+
+/**
+ * Maps one Capacitor/Dexie queue row into the same shape the desktop Agent's
+ * `/local/sync/stuck` list uses, so `/sales/stuck-orders` can show and
+ * discard a mobile device's own blocked events too — the Agent only ever
+ * answers with what a desktop's own SQLite outbox holds; it has nothing to
+ * say about a phone's Dexie queue on a different device entirely, so opening
+ * this page on a desktop and clearing "everything" never touched a mobile
+ * device's own stuck rows.
+ */
+function mapBrowserEntryToStuckSyncEvent(entry: BrowserSyncQueueEntry): StuckSyncEvent {
+  const operation = OFFLINE_ORDER_PUSH_OPERATIONS[`${entry.method} ${entry.path}`] ||
+    `${entry.method.toUpperCase()} ${entry.path}`;
+  const data = record(entry.data);
+  const orderUuid = typeof data.order_uuid === "string" ? data.order_uuid : null;
+  return {
+    event_uuid: entry.eventUuid,
+    operation,
+    entity_type: "orders",
+    entity_uuid: orderUuid,
+    sync_status: "BLOCKED",
+    retry_count: 0,
+    sequence_no: entry.createdAt,
+    dependencies: entry.dependencies,
+    last_error: entry.lastError,
+    created_at: entry.createdAt,
+    updated_at: entry.updatedAt,
+    next_attempt_at: entry.updatedAt,
+    stuck_for_ms: Math.max(0, Date.now() - entry.createdAt),
+    waiting_on_print: entry.lastError === "MOBILE_PRINT_DELIVERY_UNCERTAIN",
+    waiting_on_dependency: entry.dependencies.length > 0,
+    // Mobile shares the sales pages, not the Agent's split/print APIs (see
+    // OFFLINE_ORDER_PUSH_OPERATIONS above) — PAYMENT is the only op that ever
+    // moves money here.
+    is_financial: operation === "PAYMENT",
+    order: null,
+  };
+}
+
+export async function listStuckBrowserSyncEvents(
+  scope: BrowserOfflineScope,
+  browserStore?: BrowserOfflineStore,
+): Promise<StuckSyncEvent[]> {
+  const entries = await listBlockedBrowserSyncEvents(scope, browserStore);
+  return entries.map(mapBrowserEntryToStuckSyncEvent);
+}
+
+export async function discardStuckBrowserSyncEvents(
+  scope: BrowserOfflineScope,
+  eventUuids: string[],
+  options: StuckSyncDiscardOptions = {},
+  browserStore?: BrowserOfflineStore,
+): Promise<StuckSyncDiscardResult> {
+  const queue = await listBrowserSyncQueue(scope, browserStore);
+  const byUuid = new Map(queue.map((entry) => [entry.eventUuid, entry]));
+  const result: StuckSyncDiscardResult = { discarded: [], cascaded: [], skipped: [] };
+  for (const eventUuid of eventUuids) {
+    const entry = byUuid.get(eventUuid);
+    if (!entry) continue;
+    const operation = OFFLINE_ORDER_PUSH_OPERATIONS[`${entry.method} ${entry.path}`] || "";
+    if (operation === "PAYMENT" && !options.includeFinancial) {
+      result.skipped.push({ event_uuid: eventUuid, reason: "financial event requires includeFinancial" });
+      continue;
+    }
+    await discardBlockedBrowserSyncEvent(eventUuid, browserStore);
+    result.discarded.push(eventUuid);
+  }
+  return result;
+}
+
+export async function discardAllStuckBrowserSyncEvents(
+  scope: BrowserOfflineScope,
+  options: StuckSyncDiscardOptions = {},
+  browserStore?: BrowserOfflineStore,
+): Promise<StuckSyncDiscardResult> {
+  const blocked = await listBlockedBrowserSyncEvents(scope, browserStore);
+  return discardStuckBrowserSyncEvents(scope, blocked.map((entry) => entry.eventUuid), options, browserStore);
 }
 
 /** A bill as the till last recorded it, for a queue row that cannot clear itself. */

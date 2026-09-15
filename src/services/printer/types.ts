@@ -10,6 +10,7 @@ export interface SearchPrinterResult extends ApiEntity {
   platform: string;
 }
 export interface AgentInfo extends ApiEntity {
+  version?: string;
   agent_id: string;
   agent_name: string;
   store_code?: string | null;

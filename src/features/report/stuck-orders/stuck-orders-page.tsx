@@ -122,7 +122,7 @@ export function StuckOrdersPage() {
               }
             >
               <Trash2 className={discardingAll ? "animate-spin" : undefined} />
-              {t("report.stuckOrders.cancelAll")}
+              {t("report.stuckOrders.cancelAll", { count: eventCount })}
             </Button>
           </div>
         </div>
