@@ -47,6 +47,7 @@ Import via the `@/` alias; do not reach across feature boundaries with `../`.
 
 - `src/app/(protected)/` — back office (`/products`, `/sales/*`, `/report/*`, `/settings/*`, `/printers`) plus cashier POS (`/pos/order`, `/pos/tables`). Wrapped by `AuthGuard` + `AppShell`.
 - `/pos` — public QR-code ordering entry, **top-level**, outside `(protected)` and outside auth. `/pos?t=` is frozen — printed on physical table QR codes. Route groups add no URL segment, so this is a sibling of `/pos/order` and `/pos/tables`, not their parent.
+- The `/pos`, `/pos/order`, and `/pos/tables` names above are Frontend page URLs only. Every active sales API call uses the Backend `/api/v1/posAll/*` namespace; the retired Backend `/api/v1/pos/*` namespace must not be restored.
 - `/q/[token]` — public QR-code ordering, redirects to `/pos?t=:token`. No auth; uses `publicApiClient` and the `public-pos` service/store.
 - `/customer-display` — second-screen view, loaded by Electron in its own `BrowserWindow`.
 - `/login` — auth entry.

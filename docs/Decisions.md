@@ -6,6 +6,16 @@ Entries below dated from git history are backfilled from existing code comments 
 
 ---
 
+## POS All is the only Backend sales API namespace
+
+- **Date:** 2026-09-15.
+- **Context:** The owner confirmed that the old POS implementation is no longer used and directed future work to target POS All only. A repository audit found no Frontend or Printer Agent request to `/api/v1/pos/*`; all current staff, public QR, kitchen, payment, report-print, and credit requests use `/api/v1/posAll/*`.
+- **Decision:** Remove the legacy Backend POS router and its tests, move the remaining credit routes from `/pos/credit/*` to `/posAll/credit/*`, and prohibit restoring or modifying the retired `/api/v1/pos/*` API. The Frontend page URLs `/pos`, `/pos/order`, and `/pos/tables` remain unchanged because printed table QR codes and navigation depend on those browser paths; they call POS All APIs underneath.
+- **Trade-off:** Any untracked old client that still calls `/api/v1/pos/*` now receives `404` and must upgrade. Keeping silent aliases was rejected because it would preserve two production API surfaces and allow routing/payment behavior to drift again.
+- **Approved by:** repository owner (2026-09-15, in conversation).
+
+---
+
 ## All stores use Online-only sales; every old offline queue is retired globally
 
 - **Date:** 2026-09-14.
