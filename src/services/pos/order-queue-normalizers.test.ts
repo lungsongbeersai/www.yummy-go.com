@@ -166,7 +166,7 @@ describe("sortOrderQueueItems", () => {
     ]);
   });
 
-  it("keeps sent items in the order staff confirmed them", () => {
+  it("puts the most recently confirmed sent item first", () => {
     const rows = sortOrderQueueItems([
       item({
         order_item_uuid: "queue-3",
@@ -184,10 +184,42 @@ describe("sortOrderQueueItems", () => {
       })
     ]);
 
-    expect(rows.map((row) => row.order_item_uuid)).toEqual(["queue-4", "queue-3"]);
+    expect(rows.map((row) => row.order_item_uuid)).toEqual(["queue-3", "queue-4"]);
   });
 
-  it("falls back to arrival order for historical sent items without confirmation time", () => {
+  it("uses the waiting FIFO when sent confirmation times are equal", () => {
+    const rows = sortOrderQueueItems([
+      item({
+        order_item_uuid: "later",
+        order_item_status: 2,
+        order_it_q: 1,
+        order_it_date_time: "2026-08-25 11:00:00",
+        kitchen_confirmed_at: "2026-08-25 12:00:00.000000"
+      }),
+      item({
+        order_item_uuid: "earlier-high-q",
+        order_item_status: 3,
+        order_it_q: 9,
+        order_it_date_time: "2026-08-25 10:00:00",
+        kitchen_confirmed_at: "2026-08-25 12:00:00.000000"
+      }),
+      item({
+        order_item_uuid: "earlier-low-q",
+        order_item_status: 2,
+        order_it_q: 2,
+        order_it_date_time: "2026-08-25 10:00:00",
+        kitchen_confirmed_at: "2026-08-25 12:00:00.000000"
+      })
+    ]);
+
+    expect(rows.map((row) => row.order_item_uuid)).toEqual([
+      "earlier-low-q",
+      "earlier-high-q",
+      "later"
+    ]);
+  });
+
+  it("uses arrival time as the confirmation fallback for historical sent items", () => {
     const rows = sortOrderQueueItems([
       item({
         order_item_uuid: "later",
@@ -203,6 +235,6 @@ describe("sortOrderQueueItems", () => {
       })
     ]);
 
-    expect(rows.map((row) => row.order_item_uuid)).toEqual(["earlier", "later"]);
+    expect(rows.map((row) => row.order_item_uuid)).toEqual(["later", "earlier"]);
   });
 });

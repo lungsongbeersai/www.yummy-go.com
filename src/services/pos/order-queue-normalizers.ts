@@ -48,10 +48,10 @@ function isSentToKitchen(item: OrderQueueItem): boolean {
 
 export function sortOrderQueueItems(items: OrderQueueItem[]): OrderQueueItem[] {
   return items.toSorted((left, right) => {
-    // The first item confirmed by staff stays at the top even when it entered
-    // the waiting queue after another item.
+    // Sent items are an activity feed: the latest confirmation stays on top.
+    // Equal confirmation times fall through to the original waiting FIFO.
     if (isSentToKitchen(left) && isSentToKitchen(right)) {
-      const confirmedDiff = kitchenConfirmedAt(left) - kitchenConfirmedAt(right);
+      const confirmedDiff = kitchenConfirmedAt(right) - kitchenConfirmedAt(left);
       if (confirmedDiff !== 0) return confirmedDiff;
     } else {
       // The waiting queue remains FIFO: longest wait first.
