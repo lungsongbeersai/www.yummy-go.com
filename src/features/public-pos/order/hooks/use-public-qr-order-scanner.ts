@@ -69,7 +69,7 @@ export function usePublicQrOrderScanner({
       }
 
       // ตารางจริง (ສ້າງ QR ໂຕະ) เข้ารหัสเป็น /q/<token> (short link, redirect ผ่าน
-      // next.config.ts) ไม่ใช่ /pos?t=... — ต้องรองรับทั้งสองแบบ
+      // next.config.ts) ไม่ใช่ /posAll?t=... — ต้องรองรับทั้งสองแบบ
       const shortLinkMatch = scanned.pathname.match(/^\/q\/([^/]+)\/?$/);
       const scannedToken =
         (shortLinkMatch?.[1] ? decodeURIComponent(shortLinkMatch[1]) : "") ||

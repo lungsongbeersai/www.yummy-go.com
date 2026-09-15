@@ -171,7 +171,7 @@ export function OrderCustomerView({
           // header/sort-tabs/search ผ่าน prop neutral ให้ใช้ text/สีแบบเดียวกับ dark: token
           // เดิมตรง ๆ (อ่านออกชัวร์บนพื้นขาวอยู่แล้ว) แทนสีขาวที่ออกแบบไว้สำหรับพื้นเข้ม/รูปภาพ
           ? "bg-background"
-          : "bg-[url('/pos/background_wide.webp')] bg-cover bg-top dark:bg-none dark:bg-background",
+          : "bg-[url('/posAll/background_wide.webp')] bg-cover bg-top dark:bg-none dark:bg-background",
       )}
     >
       {!nativeShellActive ? (
@@ -447,7 +447,7 @@ export function OrderCustomerView({
           // ไม่ล้ำขึ้นไปในโซน status bar เลย จึงต้องลดความสูงของ sheet เอง ให้ขอบบนสุดหยุด
           // อยู่ที่เส้น safe-area พอดี — CardHeader/ปุ่มปิดข้างในเลยกลับไปใช้ตำแหน่งปกติได้
           // (ไม่ต้อง offset เพิ่มเองแล้ว เพราะกรอบ sheet เริ่มต่ำกว่า status bar อยู่แล้ว)
-          className="h-[calc(100dvh-8px-env(safe-area-inset-top,0px))] max-h-none gap-0 overflow-hidden rounded-t-2xl border-white/20 bg-[image:linear-gradient(color-mix(in_oklch,var(--primary)_45%,transparent),color-mix(in_oklch,var(--primary)_45%,transparent)),url('/pos/background_wide.webp')] bg-cover bg-top p-0 text-white data-[side=bottom]:h-[calc(100dvh-8px-env(safe-area-inset-top,0px))] dark:border-primary/30 dark:bg-none dark:bg-background"
+          className="h-[calc(100dvh-8px-env(safe-area-inset-top,0px))] max-h-none gap-0 overflow-hidden rounded-t-2xl border-white/20 bg-[image:linear-gradient(color-mix(in_oklch,var(--primary)_45%,transparent),color-mix(in_oklch,var(--primary)_45%,transparent)),url('/posAll/background_wide.webp')] bg-cover bg-top p-0 text-white data-[side=bottom]:h-[calc(100dvh-8px-env(safe-area-inset-top,0px))] dark:border-primary/30 dark:bg-none dark:bg-background"
         >
           <SheetTitle className="sr-only">{t("pos.currentCart")}</SheetTitle>
           <SelectedTableCartPanel

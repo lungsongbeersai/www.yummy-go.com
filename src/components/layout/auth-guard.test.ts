@@ -3,8 +3,8 @@ import { unauthenticatedEntryPath } from "@/components/layout/auth-guard";
 
 describe("unauthenticatedEntryPath", () => {
   it("sends native users directly to login with the requested POS route", () => {
-    expect(unauthenticatedEntryPath("/pos/tables", true)).toBe(
-      "/login?redirect=%2Fpos%2Ftables"
+    expect(unauthenticatedEntryPath("/posAll/tables", true)).toBe(
+      "/login?redirect=%2FposAll%2Ftables"
     );
   });
 

@@ -19,8 +19,8 @@ describe("canonicalRoute", () => {
   });
 
   it("maps the POS screens moved out of the sales section", () => {
-    expect(canonicalRoute("/sales/open-table-sale")).toBe("/pos/tables");
-    expect(canonicalRoute("/sale/order-customer")).toBe("/pos/order");
+    expect(canonicalRoute("/sales/open-table-sale")).toBe("/posAll/tables");
+    expect(canonicalRoute("/sale/order-customer")).toBe("/posAll/order");
     expect(canonicalRoute("/sale/counter-checkout")).toBe("/sales/sales-list");
   });
 

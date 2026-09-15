@@ -9,16 +9,16 @@ import { supportsOfflineRoute } from "@/services/offline-sync";
 describe("getOfflineAllowedPaths", () => {
   it("includes order-taking pages for web/electron", () => {
     const paths = getOfflineAllowedPaths(false);
-    expect(paths).toContain("/pos/tables");
-    expect(paths).toContain("/pos/order");
+    expect(paths).toContain("/posAll/tables");
+    expect(paths).toContain("/posAll/order");
     expect(paths).toContain("/order_manage");
     expect(paths).toContain("/sales/sales-list");
   });
 
   it("exposes the same menu destinations on Capacitor and desktop", () => {
     const paths = getOfflineAllowedPaths(true);
-    expect(paths).toContain("/pos/tables");
-    expect(paths).toContain("/pos/order");
+    expect(paths).toContain("/posAll/tables");
+    expect(paths).toContain("/posAll/order");
     expect(paths).toContain("/order_manage");
     expect(paths).toContain("/package");
     expect(paths).toContain("/sales/cancel-sale");
@@ -88,12 +88,12 @@ describe("isOfflineAllowedPath", () => {
     expect(isOfflineAllowedPath("/policy", true)).toBe(true);
     expect(isOfflineAllowedPath("/login", false)).toBe(true);
     expect(isOfflineAllowedPath("/login", true)).toBe(true);
-    expect(isOfflineAllowedPath("/pos", true)).toBe(true);
+    expect(isOfflineAllowedPath("/posAll", true)).toBe(true);
   });
 
   it("allows every established sales screen on Android while transport still gates its operations", () => {
-    expect(isOfflineAllowedPath("/pos/order", false)).toBe(true);
-    expect(isOfflineAllowedPath("/pos/order", true)).toBe(true);
+    expect(isOfflineAllowedPath("/posAll/order", false)).toBe(true);
+    expect(isOfflineAllowedPath("/posAll/order", true)).toBe(true);
     expect(isOfflineAllowedPath("/order_manage", false)).toBe(true);
     expect(isOfflineAllowedPath("/order_manage", true)).toBe(true);
     expect(isOfflineAllowedPath("/sales/stuck-orders", true)).toBe(true);
@@ -102,7 +102,7 @@ describe("isOfflineAllowedPath", () => {
 
 describe("getOfflineRedirectPath", () => {
   it("sends web/electron to Open Table, and Android to a read-only report page", () => {
-    expect(getOfflineRedirectPath(false)).toBe("/pos/tables");
+    expect(getOfflineRedirectPath(false)).toBe("/posAll/tables");
     expect(getOfflineRedirectPath(true)).toBe("/sales/sales-list");
   });
 

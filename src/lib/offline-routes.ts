@@ -41,8 +41,8 @@ export const OFFLINE_READ_ONLY_PATHS = [
 // being viewable. Some operations inside them remain platform-specific; the API
 // transport rejects unsupported mobile operations instead of staging unsafe work.
 export const OFFLINE_WRITE_CAPABLE_PATHS = [
-  "/pos/tables",
-  "/pos/order",
+  "/posAll/tables",
+  "/posAll/order",
   "/order_manage",
   "/report/offline-sync",
   "/sales/stuck-orders",
@@ -54,7 +54,7 @@ export const OFFLINE_INFRA_PATHS = [
   "/home",
   "/policy",
   "/login",
-  "/pos",
+  "/posAll",
   "/more",
   "/profile",
 ] as const;
@@ -79,5 +79,5 @@ export function isOfflineAllowedPath(pathname: string, isMobileNative: boolean):
 }
 
 export function getOfflineRedirectPath(isMobileNative: boolean): string {
-  return isMobileNative ? "/sales/sales-list" : "/pos/tables";
+  return isMobileNative ? "/sales/sales-list" : "/posAll/tables";
 }

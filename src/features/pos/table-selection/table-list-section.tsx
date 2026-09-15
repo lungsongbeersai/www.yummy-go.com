@@ -217,7 +217,7 @@ export function TableListSection({
         </div>
       </div>
       {/* settings-table-scroll กันพื้นที่ safe-area ล่างให้แล้ว (ดู globals.css) — หน้านี้
-          (immersive /pos/tables) จัดการ scroll เอง ไม่มี padding-bottom จาก AppShell ให้ */}
+          (immersive /posAll/tables) จัดการ scroll เอง ไม่มี padding-bottom จาก AppShell ให้ */}
       <div ref={scrollContainerRef} className="settings-table-scroll min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 xl:p-5">
         {loading ? (
           <LoadingState label={t("pos.loadingTables")} variant="posGrid" />

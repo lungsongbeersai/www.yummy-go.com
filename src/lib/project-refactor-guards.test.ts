@@ -468,7 +468,7 @@ describe("project refactor guards", () => {
 
   it("keeps search-param routes behind visible Suspense fallbacks", () => {
     const suspenseRoutes = [
-      "app/pos/page.tsx",
+      "app/posAll/page.tsx",
       "app/home/page.tsx",
       "app/login/page.tsx",
       "app/(protected)/printers/form/page.tsx",

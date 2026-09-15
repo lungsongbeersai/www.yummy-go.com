@@ -49,7 +49,7 @@ const Menu: MenuItem[] = [
     icon: ShoppingCart,
     title: "sales",
     children: [
-      { path: "/pos/tables", title: "open_table_sale" },
+      { path: "/posAll/tables", title: "open_table_sale" },
       { path: "/order_manage", title: "order_queue" },
       { path: "/sales/sales-list", title: "sales_list" },
       { path: "/sales/cancel-sale", title: "cancel_sale" },

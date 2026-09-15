@@ -1,5 +1,5 @@
 @import "tailwindcss";
-/* token ของหน้า /pos ต้อง import เข้า entry เดียวกับ tailwindcss
+/* token ของหน้า /posAll ต้อง import เข้า entry เดียวกับ tailwindcss
    ไม่งั้น Tailwind v4 จะไม่เห็น @theme ในไฟล์นั้นและไม่ generate utility ให้ */
 @import "../features/public-pos/order/nightfall.css";
 @import "tw-animate-css";
@@ -512,7 +512,7 @@ html {
 }
 
 .android-webview-compat [data-pos-pattern] {
-  background-image: url("/pos/background_wide.webp") !important;
+  background-image: url("/posAll/background_wide.webp") !important;
   background-position: top !important;
   background-size: cover !important;
 }

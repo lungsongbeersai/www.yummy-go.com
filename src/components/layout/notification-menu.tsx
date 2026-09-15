@@ -44,7 +44,7 @@ export function NotificationMenu({
 
   function openTableOrder(alert: OrderAlertEntry) {
     const params = new URLSearchParams({ table_uuid: alert.tableUuid, table_name: alert.tableName });
-    router.push(`/pos/order?${params.toString()}`);
+    router.push(`/posAll/order?${params.toString()}`);
   }
 
   return (

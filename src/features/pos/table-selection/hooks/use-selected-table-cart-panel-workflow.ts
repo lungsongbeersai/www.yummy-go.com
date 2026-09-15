@@ -1159,7 +1159,7 @@ export function useSelectedTableCartPanelWorkflow({
       table_name: selectedTable.table_name,
     });
 
-    router.replace(`/pos/order?${params.toString()}`);
+    router.replace(`/posAll/order?${params.toString()}`);
   }
 
   function openTableActions() {

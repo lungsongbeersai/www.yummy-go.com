@@ -225,7 +225,7 @@ describe("sidebar menu service helpers", () => {
 
     expect(menus.map((menu) => menu.path)).toEqual(["/products", "/printers", "/stock", "/sale"]);
     expect(menus[3]?.children?.map((child) => child.path)).toEqual([
-      "/pos/tables",
+      "/posAll/tables",
       "/sales/sales-list"
     ]);
   });

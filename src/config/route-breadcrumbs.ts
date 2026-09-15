@@ -12,7 +12,7 @@ export const routeBreadcrumbs: Record<string, RouteBreadcrumbItem[]> = {
     { path: "/printers", title: "printer_management" },
     { path: "/printers/form", title: "printer_form" }
   ],
-  "/pos/order": [{ path: "/pos/order", title: "customer_order" }],
+  "/posAll/order": [{ path: "/posAll/order", title: "customer_order" }],
   "/sales/cancel-sale": [
     { disabled: true, title: "sales" },
     { path: "/sales/cancel-sale", title: "cancel_sale" }

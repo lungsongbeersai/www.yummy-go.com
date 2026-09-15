@@ -134,7 +134,7 @@ export function orderCustomerUrl({
     table_name: tableName,
   });
   // path เป็น route จริง ส่วน query เป็นค่า runtime — typedRoutes ตรวจ template แบบนี้ไม่ได้
-  return `/pos/order?${params.toString()}` as Route;
+  return `/posAll/order?${params.toString()}` as Route;
 }
 
 // Lives here (rather than with the other quantity-rule helpers) so both

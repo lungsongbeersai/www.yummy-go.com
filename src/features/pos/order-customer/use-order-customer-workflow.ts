@@ -203,7 +203,7 @@ export function useOrderCustomerWorkflow({
           .classification === "NETWORK_TRANSPORT"
       ) {
         showToast({ title: t("pos.tableOpenUnavailableOffline"), tone: "info" });
-        router.replace("/pos/tables");
+        router.replace("/posAll/tables");
         return;
       }
       showToast({
@@ -471,7 +471,7 @@ export function useOrderCustomerWorkflow({
   // เท่านั้น จึงย้ายมาเช็คที่นี่ ร้านไม่มีโต๊ะ (status 2) ปล่อยผ่านแม้ไม่มีโต๊ะ
   useEffect(() => {
     if (!initialTableUuid && user?.store_table_status !== 2) {
-      router.replace("/pos/tables");
+      router.replace("/posAll/tables");
     }
   }, [initialTableUuid, router, user?.store_table_status]);
 
@@ -569,7 +569,7 @@ export function useOrderCustomerWorkflow({
 
   function openTablesPage() {
     // ร้านไม่มีโต๊ะไม่มีหน้าเลือกโต๊ะให้กลับไป — ปุ่ม "ย้อนกลับ" จึงออกไปหน้าแรกแทน
-    router.replace(user?.store_table_status === 2 ? "/" : "/pos/tables");
+    router.replace(user?.store_table_status === 2 ? "/" : "/posAll/tables");
   }
 
   async function refreshAll() {

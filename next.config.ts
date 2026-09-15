@@ -45,7 +45,7 @@ const nextConfig: NextConfig = {
       // QR codes printed for tables link to /q/<token>; the public POS reads it from ?t=
       {
         source: "/q/:token",
-        destination: "/pos?t=:token",
+        destination: "/posAll?t=:token",
         permanent: false
       },
       // legacy typo route inherited from backend field names (unite_*)
@@ -84,12 +84,12 @@ const nextConfig: NextConfig = {
       },
       {
         source: "/sale/order-customer",
-        destination: "/pos/order",
+        destination: "/posAll/order",
         permanent: false
       },
       {
         source: "/sales/open-table-sale",
-        destination: "/pos/tables",
+        destination: "/posAll/tables",
         permanent: false
       }
     ];

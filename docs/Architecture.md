@@ -19,7 +19,7 @@ Each arrow is a one-way dependency. A layer may only call the layer directly bel
 Two Axios clients, both created by `createClient()`:
 
 - **`apiClient`** (authenticated) — injects `Authorization: Bearer` and `x-access-token` from `auth-store`; a response interceptor calls `shouldLogoutForUnauthorized()` and, if true, logs out and redirects to `/login`.
-- **`publicApiClient`** (no auth) — used by `/pos` and `/q/[token]`.
+- **`publicApiClient`** (no auth) — used by `/posAll` and `/q/[token]`.
 
 The backend wraps every response as `{ status, data, message }`. `assertApiSuccess()` throws a `ServiceError` when `status !== "success"`, so callers only ever see a resolved value or a thrown `ServiceError` — never a raw envelope. `NEXT_PUBLIC_BASE_URL` sets the origin (copy `.env.example` → `.env.local`).
 
@@ -45,10 +45,10 @@ Import via the `@/` alias; do not reach across feature boundaries with `../`.
 
 ## Routes
 
-- `src/app/(protected)/` — back office (`/products`, `/sales/*`, `/report/*`, `/settings/*`, `/printers`) plus cashier POS (`/pos/order`, `/pos/tables`). Wrapped by `AuthGuard` + `AppShell`.
-- `/pos` — public QR-code ordering entry, **top-level**, outside `(protected)` and outside auth. `/pos?t=` is frozen — printed on physical table QR codes. Route groups add no URL segment, so this is a sibling of `/pos/order` and `/pos/tables`, not their parent.
-- The `/pos`, `/pos/order`, and `/pos/tables` names above are Frontend page URLs only. Every active sales API call uses the Backend `/api/v1/posAll/*` namespace; the retired Backend `/api/v1/pos/*` namespace must not be restored.
-- `/q/[token]` — public QR-code ordering, redirects to `/pos?t=:token`. No auth; uses `publicApiClient` and the `public-pos` service/store.
+- `src/app/(protected)/` — back office (`/products`, `/sales/*`, `/report/*`, `/settings/*`, `/printers`) plus cashier POS (`/posAll/order`, `/posAll/tables`). Wrapped by `AuthGuard` + `AppShell`.
+- `/posAll` — public QR-code ordering entry, **top-level**, outside `(protected)` and outside auth. `/q/[token]` is the stable URL printed on physical table QR codes and redirects here with `?t=`. Route groups add no URL segment, so this is a sibling of `/posAll/order` and `/posAll/tables`, not their parent.
+- `/posAll`, `/posAll/order`, and `/posAll/tables` are the only active Frontend POS page URLs. Every active sales API call uses the Backend `/api/v1/posAll/*` namespace; the retired Frontend `/pos*` pages and Backend `/api/v1/pos/*` namespace must not be restored.
+- `/q/[token]` — stable public QR-code URL, redirects to `/posAll?t=:token`. No auth; uses `publicApiClient` and the `public-pos` service/store.
 - `/customer-display` — second-screen view, loaded by Electron in its own `BrowserWindow`.
 - `/login` — auth entry.
 - Legacy pre-P2.1 paths (`/setting*`, `/product*`, `/printer*`, `/sale/order-customer`, `/sales/open-table-sale`) redirect via `redirects()` in `next.config.ts`. The permission API still returns these legacy paths at runtime — `src/lib/routes.ts` (`canonicalRoute`, `internalRoute`) is the single place that rewrites them to current paths for menu highlighting; it must stay in sync with `redirects()` by hand (verified last touched together: 2026-07-28 / 2026-08-31 — no automated check links them, see `Decisions.md`).

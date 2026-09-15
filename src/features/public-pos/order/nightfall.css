@@ -1,4 +1,4 @@
-/* Nightfall — design token เฉพาะหน้าสั่งอาหารสาธารณะ /pos
+/* Nightfall — design token เฉพาะหน้าสั่งอาหารสาธารณะ /posAll
    ที่มา: Claude Design project "Yummy Go QR menu redesign"
    ไฟล์ "Yummy Go Menu - Nightfall.dc.html"
 
@@ -10,7 +10,7 @@
 
 [data-yg-menu] {
   /* Daylight — โหมดสว่าง ไม่มีในไฟล์ดีไซน์ (Nightfall เป็นดาร์คล้วน)
-     ใช้ขาว-เขียวชุดเดียวกับหน้า /pos เดิม: พื้น #f3fbf7, การ์ดขาวทึบ,
+     ใช้ขาว-เขียวชุดเดียวกับหน้า /posAll: พื้น #f3fbf7, การ์ดขาวทึบ,
      เส้นขอบ emerald-100, accent = --primary เดิม hsl(160 74% 28%)
      ค่า contrast ในคอมเมนต์วัดบนการ์ดขาว #ffffff ซึ่งเป็นเคสที่หินที่สุด */
   color-scheme: light;
@@ -178,7 +178,7 @@
   --color-yg-media-b: var(--yg-media-b);
   --color-yg-scrim: var(--yg-scrim);
 
-  /* ตัวแปรฟอนต์มาจาก next/font ที่ src/app/pos/page.tsx (route-scoped)
+  /* ตัวแปรฟอนต์มาจาก next/font ที่ src/app/posAll/page.tsx (route-scoped)
      ไม่โหลดที่ root layout จึงไม่เพิ่มน้ำหนักให้หน้าอื่น
      mono ใช้ system stack — ดีไซน์ระบุ JetBrains Mono แต่ใช้แค่ label 8.5-11px
      กับตัวเลขจำนวน ไม่คุ้ม ~20KB + 1 connection บนหน้าที่เปิดผ่านเน็ตร้าน */

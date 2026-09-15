@@ -18,7 +18,7 @@ const items: MenuItem[] = [
   {
     title: "sales",
     children: [
-      { path: "/pos/tables", title: "open_table_sale" },
+      { path: "/posAll/tables", title: "open_table_sale" },
       { path: "/sales/sales-list", title: "sales_list" },
     ],
   },
@@ -86,8 +86,8 @@ describe("userInitials", () => {
 
 describe("isImmersiveScreen", () => {
   it("covers both protected POS screens only", () => {
-    expect(isImmersiveScreen("/pos/tables")).toBe(true);
-    expect(isImmersiveScreen("/pos/order")).toBe(true);
+    expect(isImmersiveScreen("/posAll/tables")).toBe(true);
+    expect(isImmersiveScreen("/posAll/order")).toBe(true);
     expect(isImmersiveScreen("/products")).toBe(false);
   });
 });
@@ -97,7 +97,7 @@ describe("isFixedDataScreen", () => {
     expect(isFixedDataScreen("/products")).toBe(true);
     expect(isFixedDataScreen("/settings/category")).toBe(true);
     expect(isFixedDataScreen("/report/daily-sales")).toBe(true);
-    expect(isFixedDataScreen("/pos/order")).toBe(true);
+    expect(isFixedDataScreen("/posAll/order")).toBe(true);
   });
 
   it("leaves the dashboard scrollable", () => {
@@ -107,8 +107,8 @@ describe("isFixedDataScreen", () => {
 
 describe("applyOfflineLock", () => {
   const menu: MenuItem[] = [
-    { path: "/pos/tables", title: "open_table_sale" },
-    { path: "/pos/order", title: "order" },
+    { path: "/posAll/tables", title: "open_table_sale" },
+    { path: "/posAll/order", title: "order" },
     {
       title: "sales",
       children: [
@@ -152,9 +152,9 @@ describe("firstNavigablePath", () => {
   it("skips a disabled leaf and falls through to the next item", () => {
     const menu: MenuItem[] = [
       { path: "/report/monthly-sales", title: "monthly_sales_report", disabled: true },
-      { path: "/pos/tables", title: "open_table_sale" },
+      { path: "/posAll/tables", title: "open_table_sale" },
     ];
-    expect(firstNavigablePath(menu)).toBe("/pos/tables");
+    expect(firstNavigablePath(menu)).toBe("/posAll/tables");
   });
 
   it("descends into a dropdown group instead of using the group's own path", () => {
@@ -186,7 +186,7 @@ describe("menuGrantsPath", () => {
   });
 
   it("is false for a single-item menu that only grants Sales, not Dashboard", () => {
-    const waiterMenu: MenuItem[] = [{ path: "/pos/tables", title: "sales" }];
+    const waiterMenu: MenuItem[] = [{ path: "/posAll/tables", title: "sales" }];
     expect(menuGrantsPath(waiterMenu, "/")).toBe(false);
   });
 });

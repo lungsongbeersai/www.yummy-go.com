@@ -69,7 +69,7 @@ const SAFE_BROWSER_FALLBACK_PATHS = new Set([
   "/api/v1/dashboard/executive",
   // The table grid also backs the offline order-entry route.
   "/api/v1/posAll/fetch_table",
-  // /pos/order can now stage real writes offline on Android too (see
+  // /posAll/order can now stage real writes offline on Android too (see
   // write-fallback.ts) — loadCart's first read on that page needs this to
   // come back as an empty cart instead of a thrown error for a table that
   // has never been opened before (nothing to have cached yet). Once there is

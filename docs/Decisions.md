@@ -6,11 +6,21 @@ Entries below dated from git history are backfilled from existing code comments 
 
 ---
 
+## Frontend POS pages use the POS All route namespace
+
+- **Date:** 2026-09-15.
+- **Context:** After retiring the Backend `/api/v1/pos/*` namespace, the owner directed the browser page URLs to use the same POS All naming so `/pos`, `/pos/order`, and `/pos/tables` can be removed completely.
+- **Decision:** Move the public page to `/posAll`, the cashier page to `/posAll/order`, and table selection to `/posAll/tables`. Update navigation, offline shells, QR fallbacks, static assets, and tests together. Stable printed `/q/[token]` links now redirect to `/posAll?t=:token`.
+- **Trade-off:** Direct bookmarks to the retired `/pos*` browser paths return `404`; clients must use the POS All routes. Existing printed `/q/[token]` QR codes remain valid.
+- **Approved by:** repository owner (2026-09-15, in conversation).
+
+---
+
 ## POS All is the only Backend sales API namespace
 
 - **Date:** 2026-09-15.
 - **Context:** The owner confirmed that the old POS implementation is no longer used and directed future work to target POS All only. A repository audit found no Frontend or Printer Agent request to `/api/v1/pos/*`; all current staff, public QR, kitchen, payment, report-print, and credit requests use `/api/v1/posAll/*`.
-- **Decision:** Remove the legacy Backend POS router and its tests, move the remaining credit routes from `/pos/credit/*` to `/posAll/credit/*`, and prohibit restoring or modifying the retired `/api/v1/pos/*` API. The Frontend page URLs `/pos`, `/pos/order`, and `/pos/tables` remain unchanged because printed table QR codes and navigation depend on those browser paths; they call POS All APIs underneath.
+- **Decision:** Remove the legacy Backend POS router and its tests, move the remaining credit routes from `/pos/credit/*` to `/posAll/credit/*`, and prohibit restoring or modifying the retired `/api/v1/pos/*` API. Frontend pages were subsequently moved to `/posAll*` by the decision above.
 - **Trade-off:** Any untracked old client that still calls `/api/v1/pos/*` now receives `404` and must upgrade. Keeping silent aliases was rejected because it would preserve two production API surfaces and allow routing/payment behavior to drift again.
 - **Approved by:** repository owner (2026-09-15, in conversation).
 

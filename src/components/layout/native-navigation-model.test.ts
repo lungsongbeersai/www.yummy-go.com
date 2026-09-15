@@ -16,7 +16,7 @@ const menu: MenuItem[] = [
     path: "/sale",
     title: "sales",
     children: [
-      { path: "/pos/tables", title: "open_table_sale" },
+      { path: "/posAll/tables", title: "open_table_sale" },
       { path: "/sales/sales-list", title: "sales_list" },
     ],
   },
@@ -33,7 +33,7 @@ describe("destinationPath", () => {
   });
 
   it("uses the first enabled child for a group", () => {
-    expect(destinationPath(menu[2])).toBe("/pos/tables");
+    expect(destinationPath(menu[2])).toBe("/posAll/tables");
   });
 
   it("skips a disabled first child", () => {
@@ -60,14 +60,14 @@ describe("buildNativeNavigationModel", () => {
     const model = buildNativeNavigationModel(menu);
     expect(model.direct.map((entry) => entry.path)).toEqual([
       "/",
-      "/pos/tables",
+      "/posAll/tables",
       "/products",
     ]);
   });
 
   it("puts every remaining item under more", () => {
     const model = buildNativeNavigationModel(menu);
-    // "sales" ถูกเบียดไปเป็น direct destination ตัวที่ 2 (bypass ไปหา /pos/tables) — ลูกที่
+    // "sales" ถูกเบียดไปเป็น direct destination ตัวที่ 2 (bypass ไปหา /posAll/tables) — ลูกที่
     // เหลือของมัน (sales_list) เลยโผล่ใน more แทนตำแหน่งเดิมของกลุ่ม ก่อน stock/printers
     expect(model.more.map((item) => item.title)).toEqual([
       "sales_list",
@@ -98,18 +98,18 @@ describe("buildNativeNavigationModel", () => {
 
   it("keeps a resolved path that duplicates an earlier direct destination, since backend pairs a shortcut link with its full dropdown on purpose", () => {
     // permission API เจอจริง: มีทั้งเมนูลิงก์ลัด "เปิดขายโต๊ะ" แยกเดี่ยว วางติดกับกลุ่ม "ขาย"
-    // ที่ children ตัวแรกก็ resolve ไปที่ /pos/tables เหมือนกัน (ผ่าน destinationPath bypass)
+    // ที่ children ตัวแรกก็ resolve ไปที่ /posAll/tables เหมือนกัน (ผ่าน destinationPath bypass)
     // เป็นการจัดวางที่ backend ตั้งใจ ไม่ใช่ข้อมูลซ้ำโดยไม่ตั้งใจ — เคยแก้โดยข้าม path ที่ใช้ไป
     // แล้วลง more แต่นั่นไปเบียดลำดับ direct ให้ไม่ตรงกับ backend/desktop อีกที ตอนนี้ปล่อยให้
     // path ซ้ำได้ตามจริง (แก้ React key ชนกันที่จุด render ด้วย item.title แทน)
     const model = buildNativeNavigationModel([
       { path: "/", title: "dashboard" },
-      { path: "/pos/tables", title: "open_table_sale" },
+      { path: "/posAll/tables", title: "open_table_sale" },
       {
         path: "/sale",
         title: "sales",
         children: [
-          { path: "/pos/tables", title: "open_table_sale" },
+          { path: "/posAll/tables", title: "open_table_sale" },
           { path: "/sales/sales-list", title: "sales_list" },
         ],
       },
@@ -117,8 +117,8 @@ describe("buildNativeNavigationModel", () => {
     ]);
     expect(model.direct.map((entry) => entry.path)).toEqual([
       "/",
-      "/pos/tables",
-      "/pos/tables",
+      "/posAll/tables",
+      "/posAll/tables",
     ]);
     expect(model.direct.map((entry) => entry.item.title)).toEqual([
       "dashboard",
@@ -135,17 +135,17 @@ describe("buildNativeNavigationModel", () => {
 
   it("matches the real permission API shape end to end: shortcut + dropdown pair, then everything else in order", () => {
     // สร้างจาก response จริงของ GET /api/v1/permission/menu (role Super Admin) ที่ทำให้เกิด
-    // "React key ซ้ำที่ /pos/tables" ครั้งแรก แล้วต่อมาทำให้ลำดับใน "เพิ่มเติม" ไม่ตรงกับ
+    // "React key ซ้ำที่ /posAll/tables" ครั้งแรก แล้วต่อมาทำให้ลำดับใน "เพิ่มเติม" ไม่ตรงกับ
     // backend/desktop หลังแก้ครั้งก่อนแบบ dedupe-into-more — ยืนยันว่าตอนนี้ direct/more
     // เรียงตรงกับลำดับ menu_sort ของ backend ทุกตัว (ไม่มีการสลับ/เบียดตำแหน่งอีก)
     const model = buildNativeNavigationModel([
       { path: "/", title: "home-id" },
-      { path: "/pos/tables", title: "sell-shortcut-id" },
+      { path: "/posAll/tables", title: "sell-shortcut-id" },
       {
         path: "/sale",
         title: "open-sale-group-id",
         children: [
-          { path: "/pos/tables", title: "open-table-sale-id" },
+          { path: "/posAll/tables", title: "open-table-sale-id" },
           { path: "/sales/sales-list", title: "sales-list-id" },
           { path: "/sales/stuck-orders", title: "stuck-orders-id" },
         ],
@@ -272,7 +272,7 @@ describe("isDestinationActive", () => {
   const sales = model.direct[1];
 
   it("matches the destination's own path", () => {
-    expect(isDestinationActive(sales, "/pos/tables")).toBe(true);
+    expect(isDestinationActive(sales, "/posAll/tables")).toBe(true);
   });
 
   it("stays active on a sibling child of the same group", () => {
@@ -291,15 +291,15 @@ describe("isDestinationActive", () => {
 
 describe("backFallbackPath", () => {
   it("maps every drill-in route to its parent", () => {
-    expect(backFallbackPath("/pos/order")).toBe("/pos/tables");
+    expect(backFallbackPath("/posAll/order")).toBe("/posAll/tables");
     expect(backFallbackPath("/products/form")).toBe("/products");
     expect(backFallbackPath("/printers/form")).toBe("/printers");
   });
 
-  // /pos/tables ซ่อน side rail ของตัวเองไปแล้ว (ดู capacitor/app-shell.tsx) เลยต้องมีปุ่ม
+  // /posAll/tables ซ่อน side rail ของตัวเองไปแล้ว (ดู capacitor/app-shell.tsx) เลยต้องมีปุ่ม
   // Back กลับ dashboard แทนแม้จะเป็น direct destination ในเมนูก็ตาม
   it("maps the table screen back to the dashboard", () => {
-    expect(backFallbackPath("/pos/tables")).toBe("/");
+    expect(backFallbackPath("/posAll/tables")).toBe("/");
   });
 
   it("is undefined for a normal route", () => {
@@ -314,12 +314,12 @@ describe("shouldShowBackButton", () => {
     expect(shouldShowBackButton(model, "/")).toBe(false);
   });
 
-  it("shows back on /pos/tables despite being a direct destination", () => {
-    expect(shouldShowBackButton(model, "/pos/tables")).toBe(true);
+  it("shows back on /posAll/tables despite being a direct destination", () => {
+    expect(shouldShowBackButton(model, "/posAll/tables")).toBe(true);
   });
 
   it("shows back on a drill-in route even inside an active group", () => {
-    expect(shouldShowBackButton(model, "/pos/order")).toBe(true);
+    expect(shouldShowBackButton(model, "/posAll/order")).toBe(true);
   });
 
   it("shows back on a route that only lives under more", () => {

@@ -10,7 +10,7 @@ import {
 import { isCapacitorNativeApp } from "@/lib/capacitor-platform";
 import { internalRoute } from "@/lib/routes";
 
-// Dialog/Sheet/AlertDialog ของ feature (เช่น payment dialog บน /pos/order) shell ไม่รู้จัก
+// Dialog/Sheet/AlertDialog ของ feature (เช่น payment dialog บน /posAll/order) shell ไม่รู้จัก
 // แต่ทุกตัวมี data-slot ของ shadcn เสมอ จึงเช็คจาก DOM แทนการเดินสาย state ทุกหน้าเข้ามาที่ shell
 const OPEN_OVERLAY_SELECTOR =
   '[data-slot="dialog-content"], [data-slot="sheet-content"], [data-slot="alert-dialog-content"]';

@@ -8,8 +8,8 @@ export const NATIVE_DIRECT_DESTINATION_COUNT = 3;
 
 // หน้าที่เข้าถึงได้จาก deep link ต้องมี parent ที่แน่นอน ไม่พึ่ง history อย่างเดียว
 const BACK_FALLBACK_PATHS: Record<string, string> = {
-  "/pos/order": "/pos/tables",
-  "/pos/tables": "/",
+  "/posAll/order": "/posAll/tables",
+  "/posAll/tables": "/",
   "/printers/form": "/printers",
   "/products/form": "/products",
 };
@@ -66,7 +66,7 @@ export function buildNativeNavigationModel(
     const path = destinationPath(item);
     if (path && direct.length < directCount) {
       direct.push({ item, path });
-      // เมนูจริงจาก backend ตั้งใจวางลิงก์ลัด (เช่น "ຂາຍ" → /pos/tables) คู่กับ dropdown
+      // เมนูจริงจาก backend ตั้งใจวางลิงก์ลัด (เช่น "ຂາຍ" → /posAll/tables) คู่กับ dropdown
       // เต็มรูปแบบ (เช่น "ເປີດຂາຍ" ที่ children ตัวแรก resolve ไปหน้าเดียวกัน) ติดกันเป็น
       // รายการที่ 2-3 จริง — ไม่ใช่ข้อมูลซ้ำโดยไม่ตั้งใจ เดิมเคยกันด้วยการข้าม path ที่ใช้ไป
       // แล้วลง more แทน แต่นั่นไปเบียดลำดับ direct ให้ไม่ตรงกับ 3 อันดับแรกจริงของ backend/

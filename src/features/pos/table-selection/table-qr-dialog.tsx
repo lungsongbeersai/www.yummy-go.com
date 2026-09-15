@@ -35,7 +35,7 @@ import {
 } from "./table-qr-printing";
 import { optionalString } from "./utils";
 
-const localQrTargetUrl = "http://localhost:3001/pos/tables";
+const localQrTargetUrl = "http://localhost:3001/posAll/tables";
 const productionQrOrigin = "https://yummy-go.com";
 
 export function TableQrDialog({
@@ -453,7 +453,7 @@ function tableQrImageUrl(response: CreateTableQRResponse | null) {
 }
 
 function tableQrTargetBaseUrl() {
-  return isLocalBrowser() ? localQrTargetUrl : `${productionQrOrigin}/pos`;
+  return isLocalBrowser() ? localQrTargetUrl : `${productionQrOrigin}/posAll`;
 }
 
 function isLocalBrowser() {

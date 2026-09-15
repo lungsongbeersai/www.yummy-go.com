@@ -13,12 +13,12 @@ const startupDeadline = Date.now() + 30_000;
 
 const checks = [
   { path: "/login", status: 200 },
-  { path: "/pos?t=phase-1-smoke", status: 200 },
+  { path: "/posAll?t=phase-1-smoke", status: 200 },
   { path: "/report/daily-sales", status: 200 },
   {
     path: "/q/phase-1-smoke",
     status: 307,
-    location: "/pos?t=phase-1-smoke",
+    location: "/posAll?t=phase-1-smoke",
   },
   { path: "/setting/unite", status: 308, location: "/settings/unit" },
 ];

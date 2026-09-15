@@ -19,8 +19,8 @@ export const CORE_OFFLINE_SHELL_ROUTES = [
   "/home",
   "/policy",
   "/login",
-  "/pos/tables",
-  "/pos/order",
+  "/posAll/tables",
+  "/posAll/order",
 ] as const;
 
 export function isOfflineShellRoute(path: string) {

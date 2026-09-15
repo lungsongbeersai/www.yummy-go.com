@@ -40,7 +40,7 @@ const fontVariables = [
   manrope.variable
 ].join(" ");
 
-export default function PublicPosPage() {
+export default function PublicPosAllPage() {
   return (
     <Suspense fallback={<LoadingState variant="posGrid" />}>
       <PublicPosRoute fontClassName={fontVariables} />

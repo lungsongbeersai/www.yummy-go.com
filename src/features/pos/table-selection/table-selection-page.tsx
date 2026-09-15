@@ -65,7 +65,7 @@ export function TableSelectionPage() {
   // ร้านไม่มีโต๊ะ (store_table_status === 2) ข้ามหน้าเลือกโต๊ะไปเลย —
   // ไม่ยิง loadTables และไม่ render grid ระหว่างรอ redirect
   useEffect(() => {
-    if (skipTableSelection) router.replace("/pos/order");
+    if (skipTableSelection) router.replace("/posAll/order");
   }, [router, skipTableSelection]);
 
   useEffect(() => {
@@ -94,7 +94,7 @@ export function TableSelectionPage() {
   function selectTable(table: PosTable) {
     const params = new URLSearchParams({ table_uuid: table.table_uuid });
     if (table.table_name) params.set("table_name", table.table_name);
-    const target = `/pos/order?${params.toString()}` as const;
+    const target = `/posAll/order?${params.toString()}` as const;
     router.push(target);
   }
 
@@ -124,7 +124,7 @@ export function TableSelectionPage() {
   }
 
   return (
-    <div data-pos-pattern="true" className="relative h-full min-h-0 overflow-hidden bg-[url('/pos/background_wide.webp')] bg-cover bg-top dark:bg-none dark:bg-background">
+    <div data-pos-pattern="true" className="relative h-full min-h-0 overflow-hidden bg-[url('/posAll/background_wide.webp')] bg-cover bg-top dark:bg-none dark:bg-background">
       <div aria-hidden="true" data-pos-pattern-overlay="true" className="pointer-events-none absolute inset-0 bg-primary/45 dark:hidden" />
       <div className="relative flex h-full min-h-0 flex-col overflow-hidden">
         {/* min-h ไม่ใช่ h คงที่ + pt safe-area — header นี้เป็น header บนสุดของหน้าจริง ๆ เสมอ

@@ -7,8 +7,8 @@ import type { Route } from "next";
 // (/q/:token ไม่อยู่ในนี้เพราะ redirect ไปเป็น query string และไม่เคยโผล่ในเมนู)
 const EXACT_ROUTE_ALIASES: Record<string, string> = {
   "/sale/counter-checkout": "/sales/sales-list",
-  "/sale/order-customer": "/pos/order",
-  "/sales/open-table-sale": "/pos/tables",
+  "/sale/order-customer": "/posAll/order",
+  "/sales/open-table-sale": "/posAll/tables",
   // typo ที่ติดมาจากชื่อฟิลด์ฝั่ง backend (unite_*)
   "/setting/unite": "/settings/unit"
 };

@@ -72,7 +72,7 @@ export function NativeAppShell({ children }: { children: React.ReactNode }) {
         {t("app.skipToContent")}
       </a>
 
-      {/* ทุกหน้ารวม /pos/order, /pos/tables ต้องเห็น header/bottom nav ของ native shell เสมอ
+      {/* ทุกหน้ารวม /posAll/order, /posAll/tables ต้องเห็น header/bottom nav ของ native shell เสมอ
           ตามที่ตกลงไว้ — แม้หน้าเหล่านี้จะมี header ของตัวเอง (back button/FAB) อยู่แล้วก็ตาม */}
       <NativeTopBar
         breadcrumbs={breadcrumbs}
@@ -90,10 +90,10 @@ export function NativeAppShell({ children }: { children: React.ReactNode }) {
           flex-1 row occupying the space below the top bar (side rail + content side by
           side), matching how the web shell's .app-shell-body wraps sidebar + main together */}
       <div className="app-shell-body flex min-h-0 w-full flex-1">
-        {/* หน้าเลือกโต๊ะ (/pos/tables) ซ่อน rail — ผังโต๊ะต้องใช้ความกว้างเต็มจอ และมีปุ่ม
+        {/* หน้าเลือกโต๊ะ (/posAll/tables) ซ่อน rail — ผังโต๊ะต้องใช้ความกว้างเต็มจอ และมีปุ่ม
             Back ในหัวข้อแทนแล้ว (ดู BACK_FALLBACK_PATHS ใน native-navigation-model.ts)
             ไม่ต้องพึ่งการนำทางผ่าน rail */}
-        {pathname === "/pos/tables" ? null : (
+        {pathname === "/posAll/tables" ? null : (
           <NativeSideRail
             error={menuError}
             loading={menuLoading}

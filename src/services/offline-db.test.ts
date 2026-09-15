@@ -657,7 +657,7 @@ describe("offline read-only pages can read their own cache back", () => {
     expect(await readBrowserApiFallback(request, store)).toEqual({ tables: [] });
   });
 
-  it("serves fetch_cart now that /pos/order can stage real writes on Android, but still refuses the public QR queue", async () => {
+  it("serves fetch_cart now that /posAll/order can stage real writes on Android, but still refuses the public QR queue", async () => {
     expect(isSafeBrowserCacheFallback("/api/v1/posAll/fetch_cart")).toBe(true);
     // customer_order_queue belongs to the public QR ordering flow, not this one.
     expect(isSafeBrowserCacheFallback("/api/v1/posAll/customer_order_queue")).toBe(false);
