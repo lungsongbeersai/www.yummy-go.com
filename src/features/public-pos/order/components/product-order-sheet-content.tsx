@@ -42,6 +42,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import type { ProdDetail, ProdTopping } from "@/services/pos";
+import { useToastStore } from "@/stores/toast-store";
 import type { ProductOrderSheetWorkflow } from "../hooks/use-product-order-sheet-workflow";
 import {
   defaultOrderQty,
@@ -196,6 +197,7 @@ function ProductOrderForm({
 }) {
   const { t } = useTranslation();
   const {
+    canSelectMoreToppings,
     canSubmit,
     detailUuid,
     details,
@@ -212,7 +214,6 @@ function ProductOrderForm({
     note,
     onNoteChange,
     product,
-    productMaxSelect,
     qty,
     quantityMeta,
     saving,
@@ -220,8 +221,26 @@ function ProductOrderForm({
     selectedToppings,
     selectionIssue,
     toppingQtyByUuid,
+    toppingSelectionLimit,
     toppings,
   } = workflow;
+  const showToast = useToastStore((state) => state.show);
+
+  // ยังไม่ได้เลือกอยู่ตอนนี้ + ครบเพดานจำนวนชนิดแล้ว = แจ้งเตือนเพดานแทนที่จะปล่อยให้เงียบๆ
+  // (checkbox จงใจไม่ใช้ disabled ของจริงตอนครบเพดาน เพื่อให้คลิกทะลุมาถึงจุดนี้ได้เสมอ)
+  const handleToppingToggleWithLimitToast = (toppingUuid: string) => {
+    const alreadySelected = (toppingQtyByUuid[toppingUuid] ?? 0) >= 1;
+    if (!alreadySelected && !canSelectMoreToppings) {
+      showToast({
+        title: t("pos.toppingSelectionLimitReached", {
+          count: toppingSelectionLimit,
+        }),
+        tone: "info",
+      });
+      return;
+    }
+    handleToppingToggle(toppingUuid);
+  };
   // "invalidQuantity" ครอบทั้งกรณีพิมพ์เกินสต็อกและพิมพ์ไม่ตรงขั้นของโปรฯ — เลือกข้อความที่เจาะจง
   // กว่าตามสาเหตุจริงแทนข้อความรวมๆ ให้รู้ว่าต้องแก้เป็นเท่าไหร่
   const issueLabel =
@@ -290,14 +309,15 @@ function ProductOrderForm({
 
             {toppings.length ? (
               <ProductToppingFieldset
+                canSelectMoreToppings={canSelectMoreToppings}
                 lang={lang}
-                productMaxSelect={productMaxSelect}
                 saving={saving}
                 selectedCount={selectedToppings.length}
                 toppingQtyByUuid={toppingQtyByUuid}
+                toppingSelectionLimit={toppingSelectionLimit}
                 toppings={toppings}
                 onChangeQty={handleToppingQty}
-                onToggle={handleToppingToggle}
+                onToggle={handleToppingToggleWithLimitToast}
               />
             ) : null}
 
@@ -490,20 +510,22 @@ function SetProductFieldset({ details }: { details: ProdDetail[] }) {
 }
 
 function ProductToppingFieldset({
+  canSelectMoreToppings,
   lang,
-  productMaxSelect,
   saving,
   selectedCount,
   toppingQtyByUuid,
+  toppingSelectionLimit,
   toppings,
   onChangeQty,
   onToggle,
 }: {
+  canSelectMoreToppings: boolean;
   lang: string;
-  productMaxSelect?: number | string;
   saving: boolean;
   selectedCount: number;
   toppingQtyByUuid: Record<string, number>;
+  toppingSelectionLimit: number;
   toppings: ProdTopping[];
   onChangeQty: (uuid: string, qty: number) => void;
   onToggle: (uuid: string) => void;
@@ -516,8 +538,9 @@ function ProductToppingFieldset({
         label={t("pos.toppings")}
         meta={t("pos.selectedOf", {
           selected: selectedCount,
-          total: toppings.length,
+          total: toppingSelectionLimit,
         })}
+        metaEmphasis={selectedCount >= toppingSelectionLimit}
       />
       <div className="flex flex-col gap-2">
         {toppings.map((topping) => {
@@ -526,8 +549,8 @@ function ProductToppingFieldset({
           return (
             <ProductToppingRow
               key={uuid}
+              canSelectMore={qty >= 1 || canSelectMoreToppings}
               lang={lang}
-              productMaxSelect={productMaxSelect}
               qty={qty}
               saving={saving}
               topping={topping}
@@ -542,16 +565,16 @@ function ProductToppingFieldset({
 }
 
 function ProductToppingRow({
+  canSelectMore,
   lang,
-  productMaxSelect,
   qty,
   saving,
   topping,
   onChangeQty,
   onToggle,
 }: {
+  canSelectMore: boolean;
   lang: string;
-  productMaxSelect?: number | string;
   qty: number;
   saving: boolean;
   topping: ProdTopping;
@@ -561,6 +584,7 @@ function ProductToppingRow({
   const { t } = useTranslation();
   const selected = qty >= 1;
   const enabled = isToppingAvailable(topping);
+  const blocked = enabled && !selected && !canSelectMore;
   const label = toppingDisplayName(topping, lang) || t("pos.toppings");
   const unitPrice = numeric(topping.toppingPrice);
   const id = `public-product-topping-${topping.prodToppingUuid}`;
@@ -573,24 +597,31 @@ function ProductToppingRow({
       className={cn(
         "min-h-16 flex-wrap rounded-[15px] border border-yg-line bg-yg-panel px-4 py-2.5 shadow-none transition-[border-color,background-color] motion-reduce:transition-none",
         selected && "border-yg-accent bg-yg-accent-soft",
-        !enabled && "opacity-60",
+        (!enabled || blocked) && "opacity-60",
       )}
     >
       <FieldLabel
         htmlFor={id}
         className={cn(
           "min-h-11 min-w-40 flex-1 cursor-pointer items-center gap-3 text-sm font-bold text-yg-ink has-data-checked:bg-transparent dark:has-data-checked:bg-transparent",
-          !enabled && "cursor-not-allowed",
+          (!enabled || blocked) && "cursor-not-allowed",
         )}
       >
+        {/* blocked (ครบเพดานจำนวนชนิดแล้ว) จงใจไม่ใช้ disabled ของจริง — ต้องให้คลิกทะลุมาถึง
+            onToggle ได้เสมอ เพื่อขึ้น toast เตือนเพดาน แทนที่จะเงียบๆ ไม่มีอะไรเกิดขึ้น ต่างจาก
+            !enabled (ของหมด/ปิดขาย) ที่ยังคง disabled จริงเหมือนเดิม ไม่มีอะไรให้เตือนเพิ่ม */}
         <Checkbox
           ref={checkboxRef}
           id={id}
+          aria-disabled={blocked}
           name={`topping-${topping.prodToppingUuid}`}
           checked={selected}
           disabled={!enabled || saving}
           onCheckedChange={onToggle}
-          className="size-5 border-yg-faint data-[state=checked]:border-yg-accent data-[state=checked]:bg-yg-accent data-[state=checked]:text-yg-on-accent"
+          className={cn(
+            "size-5 border-yg-faint data-[state=checked]:border-yg-accent data-[state=checked]:bg-yg-accent data-[state=checked]:text-yg-on-accent",
+            blocked && "cursor-not-allowed",
+          )}
         />
         <span className="lao-tone-text line-clamp-2 min-w-0 wrap-break-word">
           {label}
@@ -640,7 +671,7 @@ function ProductToppingRow({
               variant="ghost"
               aria-label={t("pos.increaseTopping", { name: label })}
               className="size-9 rounded-lg bg-yg-accent-soft text-yg-accent-strong hover:bg-yg-accent-line"
-              disabled={saving || qty >= toppingMaxQty(topping, productMaxSelect)}
+              disabled={saving || qty >= toppingMaxQty(topping)}
               onClick={() => onChangeQty(qty + 1)}
             >
               <Plus aria-hidden="true" />
@@ -792,14 +823,27 @@ function ProductOrderFooter({
   );
 }
 
-function SectionLegend({ label, meta }: { label: string; meta: string }) {
+function SectionLegend({
+  label,
+  meta,
+  metaEmphasis = false,
+}: {
+  label: string;
+  meta: string;
+  metaEmphasis?: boolean;
+}) {
   return (
     <FieldLegend
       variant="label"
       className="mb-0 flex min-w-0 items-center justify-between gap-3 text-xs font-extrabold tracking-wide text-yg-faint"
     >
       <span>{label}</span>
-      <span className="shrink-0 font-yg-sans text-2xs font-semibold tabular-nums">
+      <span
+        className={cn(
+          "shrink-0 font-yg-sans text-2xs font-semibold tabular-nums",
+          metaEmphasis && "text-yg-accent-strong",
+        )}
+      >
         {meta}
       </span>
     </FieldLegend>

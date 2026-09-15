@@ -17,6 +17,7 @@ import {
   addPublicSearchHistoryItem,
   buildPublicOrderInput,
   canAddQty,
+  canSelectMoreToppings,
   changePublicToppingQty,
   cartGroupTitle,
   getCategoryPathUuids,
@@ -45,6 +46,7 @@ import {
   totalCartQty,
   togglePublicToppingQty,
   toppingMaxQty,
+  toppingSelectionLimit,
   visibleProductCountForCategory,
   withCategoryPathVisibleCounts,
 } from "@/features/public-pos/order/utils";
@@ -576,15 +578,20 @@ describe("public POS order payload helper", () => {
     ).toEqual({ "top-1": 1 });
   });
 
-  it("caps topping qty at the product's prod_topping_max_select when set", () => {
-    const freeTopping = { toppingPrice: 0 } as ProdTopping;
-    const paidTopping = { toppingPrice: 5000 } as ProdTopping;
+  it("caps the number of distinct toppings selectable via prod_topping_max_select, not the qty of one topping", () => {
+    // 0/ไม่ระบุ = ไม่จำกัด (เพดานตามธรรมชาติคือจำนวนท็อปปิ้งที่มีอยู่จริง)
+    expect(toppingSelectionLimit(5, 0)).toBe(5);
+    expect(toppingSelectionLimit(5, undefined)).toBe(5);
+    // ตั้งเพดานไว้น้อยกว่าจำนวนท็อปปิ้งที่มี
+    expect(toppingSelectionLimit(5, 2)).toBe(2);
+    expect(toppingSelectionLimit(5, "2")).toBe(2);
+    // ตั้งเพดานไว้มากกว่าจำนวนท็อปปิ้งที่มีจริง — ถูก clamp ด้วยจำนวนที่มีจริง
+    expect(toppingSelectionLimit(2, 5)).toBe(2);
 
-    expect(toppingMaxQty(paidTopping, 3)).toBe(3);
-    expect(toppingMaxQty(paidTopping, 0)).toBe(99);
-    expect(toppingMaxQty(paidTopping, "2")).toBe(2);
-    // ทอปปิ้งฟรียังถูกล็อกที่ 1 เสมอ ไม่ว่าร้านจะตั้ง max ไว้สูงแค่ไหน
-    expect(toppingMaxQty(freeTopping, 5)).toBe(1);
+    expect(canSelectMoreToppings(1, 5, 2)).toBe(true);
+    expect(canSelectMoreToppings(2, 5, 2)).toBe(false);
+    expect(canSelectMoreToppings(3, 5, 2)).toBe(false);
+    expect(canSelectMoreToppings(4, 5, 0)).toBe(true);
   });
 
   it("builds the public QR create-order contract", () => {

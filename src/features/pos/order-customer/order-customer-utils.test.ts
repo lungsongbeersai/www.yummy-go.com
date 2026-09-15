@@ -4,6 +4,7 @@ import {
   buildStaffOrderItems,
   buildStaffOrderInput,
   canDirectAddFromList,
+  canSelectMoreToppings,
   clampOrderQuantity,
   changeToppingQty,
   counterOrderTable,
@@ -32,6 +33,7 @@ import {
   selectedToppingsFromQtyMap,
   toggleToppingQty,
   toppingQtyCap,
+  toppingSelectionLimit,
 } from "@/features/pos/order-customer/order-customer-utils";
 import {
   OrderChannelEnum,
@@ -509,6 +511,37 @@ describe("order customer helpers", () => {
         ],
       }),
     ).toBe("topping-invalid");
+    // prodToppingMaxSelect = จำนวนชนิดท็อปปิ้งสูงสุด ไม่ใช่จำนวนชิ้น — เลือก 2 ชนิดทั้งที่
+    // สินค้าตั้งเพดานไว้แค่ 1 ชนิด ต้องเป็น issue นี้แม้แต่ละชนิดจะเลือก qty แค่ 1 ก็ตาม
+    const toppingLimitedProduct = {
+      ...normalizeProdItem(null, product()),
+      prodToppingMaxSelect: 1,
+      toppings: [
+        topping({ prodToppingUuid: "top-1" }),
+        topping({ prodToppingUuid: "top-2" }),
+      ],
+    };
+    expect(
+      getOrderSelectionIssue({
+        detail: detail(),
+        mode: "normal",
+        product: toppingLimitedProduct,
+        quantity: 1,
+        toppings: [
+          { topping: topping({ prodToppingUuid: "top-1" }), qty: 1 },
+          { topping: topping({ prodToppingUuid: "top-2" }), qty: 1 },
+        ],
+      }),
+    ).toBe("topping-limit-exceeded");
+    expect(
+      getOrderSelectionIssue({
+        detail: detail(),
+        mode: "normal",
+        product: toppingLimitedProduct,
+        quantity: 1,
+        toppings: [{ topping: topping({ prodToppingUuid: "top-1" }), qty: 1 }],
+      }),
+    ).toBe(null);
     expect(() =>
       buildStaffOrderItems({
         detail: detail({ price: 0, proDetailSprice: 0 }),
@@ -548,6 +581,9 @@ describe("order customer helpers", () => {
     );
     expect(orderSelectionIssueLabel("stock-insufficient", t)).toBe(
       "pos.outOfStock",
+    );
+    expect(orderSelectionIssueLabel("topping-limit-exceeded", t)).toBe(
+      "pos.toppingLimitExceeded",
     );
   });
 
@@ -680,18 +716,31 @@ describe("order customer helpers", () => {
     expect(changeToppingQty({ "top-1": 2, "top-2": 1 }, "top-1", 0)).toEqual({
       "top-2": 1,
     });
-    expect(toppingQtyCap(0)).toBe(MAX_ORDER_QTY);
-    expect(toppingQtyCap(undefined)).toBe(MAX_ORDER_QTY);
-    expect(toppingQtyCap(3)).toBe(3);
-    expect(toppingQtyCap("2")).toBe(2);
-    expect(changeToppingQty({}, "top-1", 5, 2)).toEqual({ "top-1": 2 });
-    expect(toggleToppingQty({}, "top-1", 5, 2)).toEqual({ "top-1": 2 });
+    expect(toppingQtyCap()).toBe(MAX_ORDER_QTY);
+    expect(changeToppingQty({}, "top-1", 5)).toEqual({ "top-1": 5 });
+    expect(toggleToppingQty({}, "top-1", 5)).toEqual({ "top-1": 5 });
     expect(
       countSelectedToppings([
         { topping: topping(), qty: 2 },
         { topping: topping({ prodToppingUuid: "top-2" }), qty: 1 },
       ]),
     ).toBe(3);
+  });
+
+  it("caps the number of distinct toppings selectable, not the quantity of any one topping", () => {
+    // 0/ไม่ระบุ = ไม่จำกัด (เพดานตามธรรมชาติคือจำนวนท็อปปิ้งที่มีอยู่จริง)
+    expect(toppingSelectionLimit(5, 0)).toBe(5);
+    expect(toppingSelectionLimit(5, undefined)).toBe(5);
+    // ตั้งเพดานไว้น้อยกว่าจำนวนท็อปปิ้งที่มี
+    expect(toppingSelectionLimit(5, 2)).toBe(2);
+    expect(toppingSelectionLimit(5, "2")).toBe(2);
+    // ตั้งเพดานไว้มากกว่าจำนวนท็อปปิ้งที่มีจริง — ถูก clamp ด้วยจำนวนที่มีจริง
+    expect(toppingSelectionLimit(2, 5)).toBe(2);
+
+    expect(canSelectMoreToppings(1, 5, 2)).toBe(true);
+    expect(canSelectMoreToppings(2, 5, 2)).toBe(false);
+    expect(canSelectMoreToppings(3, 5, 2)).toBe(false);
+    expect(canSelectMoreToppings(4, 5, 0)).toBe(true);
   });
 
   it("keeps topping_qty per product without multiplying by product quantity", () => {

@@ -23,12 +23,10 @@ export function selectedToppingsFromQtyMap(
     );
 }
 
-// productMaxSelect มาจาก prod_topping_max_select ที่ร้านตั้งไว้ต่อสินค้า — 0/ไม่ระบุ = ไม่จำกัด (ใช้เพดาน MAX_ORDER_QTY เดิม)
 export function toggleToppingQty(
   current: Record<string, number>,
   uuid: string,
   rememberedQty = 1,
-  productMaxSelect?: number | string,
 ) {
   if (current[uuid]) {
     const next = { ...current };
@@ -37,7 +35,7 @@ export function toggleToppingQty(
   }
   return {
     ...current,
-    [uuid]: Math.min(clampQty(rememberedQty), toppingQtyCap(productMaxSelect)),
+    [uuid]: Math.min(clampQty(rememberedQty), toppingQtyCap()),
   };
 }
 
@@ -45,7 +43,6 @@ export function changeToppingQty(
   current: Record<string, number>,
   uuid: string,
   qty: number,
-  productMaxSelect?: number | string,
 ) {
   if (qty < 1) {
     const next = { ...current };
@@ -54,13 +51,30 @@ export function changeToppingQty(
   }
   return {
     ...current,
-    [uuid]: Math.min(clampQty(qty), toppingQtyCap(productMaxSelect)),
+    [uuid]: Math.min(clampQty(qty), toppingQtyCap()),
   };
 }
 
-export function toppingQtyCap(productMaxSelect?: number | string) {
+export function toppingQtyCap() {
+  return MAX_ORDER_QTY;
+}
+
+// prod_topping_max_select = จำนวน "ชนิด" ท็อปปิ้งที่แตกต่างกันสูงสุดที่เลือกได้ต่อสินค้า
+// (ไม่ใช่จำนวนชิ้นของท็อปปิ้งเดียว) — 0/ไม่ระบุ = ไม่จำกัด (ถูกจำกัดโดยจำนวนท็อปปิ้งที่มีอยู่จริงอยู่แล้ว)
+export function toppingSelectionLimit(
+  availableCount: number,
+  productMaxSelect?: number | string,
+) {
   const configuredMax = optionalNumber(productMaxSelect) ?? 0;
-  return configuredMax > 0 ? Math.min(MAX_ORDER_QTY, configuredMax) : MAX_ORDER_QTY;
+  return configuredMax > 0 ? Math.min(availableCount, configuredMax) : availableCount;
+}
+
+export function canSelectMoreToppings(
+  selectedCount: number,
+  availableCount: number,
+  productMaxSelect?: number | string,
+) {
+  return selectedCount < toppingSelectionLimit(availableCount, productMaxSelect);
 }
 
 export function countSelectedToppings(toppings: SelectedTopping[]) {

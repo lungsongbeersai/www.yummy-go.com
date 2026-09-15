@@ -688,7 +688,6 @@
     "groupSelectAria": "Select all for {{table}}",
     "selectedAcrossTables": "{{count}} items across {{tables}} tables",
     "confirmToKitchen": "Confirm",
-    "cancelDisabledTooltip": "Not available yet",
     "confirmSuccess": "Sent {{count}} order(s) to the kitchen",
     "confirmError": "Failed to send orders to the kitchen",
     "confirmServed": "Mark as served",
@@ -1099,6 +1098,9 @@
     "insufficientStockMax": "Only {{max}} left in stock — please lower the quantity.",
     "invalidQuantity": "Choose a valid quantity.",
     "invalidTopping": "One or more toppings are no longer available.",
+    "toppingLimitExceeded": "You've selected more toppings than this product allows.",
+    "toppingSelectionLimitReached": "This item allows only {{count}} topping.",
+    "toppingSelectionLimitReached_other": "This item allows only {{count}} toppings.",
     "startingAt": "Starting at",
     "includedInSet": "Included in set",
     "promoDeal": "Promotion deal",
@@ -1717,8 +1719,8 @@
       "no": "No toppings"
     },
     "toppingMode": "Topping mode",
-    "toppingMaxSelect": "Max quantity per topping",
-    "toppingMaxSelectHint": "The most of any single topping a customer can add. 0 = unlimited.",
+    "toppingMaxSelect": "Max toppings selectable",
+    "toppingMaxSelectHint": "The most different toppings a customer can pick for this product. 0 = unlimited.",
     "unlimited": "Unlimited",
     "type": "Type"
   },

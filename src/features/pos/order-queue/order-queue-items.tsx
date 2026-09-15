@@ -42,10 +42,12 @@ interface QueueItemViewProps {
   position: number;
   status: OrderItemStatusType;
   selected: boolean;
+  /** true = ยกเลิกได้ด้วย (สถานะรอส่งครัว/ส่งครัวแล้วเท่านั้น — ดู canSelectQueueItem) */
   selectable: boolean;
   acting: boolean;
   onToggle: (checked: boolean) => void;
   onAction: (action: QueueItemAction) => void;
+  onCancel: () => void;
 }
 
 /**
@@ -173,6 +175,31 @@ function QueueActionButton({
   );
 }
 
+function QueueCancelButton({
+  acting,
+  className,
+  onCancel
+}: {
+  acting: boolean;
+  className?: string;
+  onCancel: () => void;
+}) {
+  const { t } = useTranslation();
+
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      className={cn("h-11 px-4 font-black", className)}
+      disabled={acting}
+      onClick={onCancel}
+    >
+      <Ban data-icon="inline-start" />
+      {t("actions.cancel")}
+    </Button>
+  );
+}
+
 function QueueStateBadge({
   item,
   status
@@ -258,7 +285,8 @@ export function OrderQueueCard({
   selectable,
   acting,
   onToggle,
-  onAction
+  onAction,
+  onCancel
 }: QueueItemViewProps) {
   const { t } = useTranslation();
   const action = queueItemAction(item);
@@ -320,14 +348,14 @@ export function OrderQueueCard({
 
       <div className="flex items-center justify-between gap-3 border-t border-border px-3 py-2.5 pl-4">
         <QueueStateBadge item={item} status={status} />
-        {action ? (
-          <QueueActionButton
-            acting={acting}
-            action={action}
-            className="shrink-0"
-            onAction={onAction}
-          />
-        ) : null}
+        <div className="flex shrink-0 items-center gap-2">
+          {selectable ? (
+            <QueueCancelButton acting={acting} onCancel={onCancel} />
+          ) : null}
+          {action ? (
+            <QueueActionButton acting={acting} action={action} onAction={onAction} />
+          ) : null}
+        </div>
       </div>
     </Card>
   );
@@ -343,7 +371,8 @@ export function OrderQueueTableRow({
   selectable,
   acting,
   onToggle,
-  onAction
+  onAction,
+  onCancel
 }: QueueItemViewProps) {
   const { t } = useTranslation();
   const action = queueItemAction(item);
@@ -399,9 +428,14 @@ export function OrderQueueTableRow({
         <QueueStateBadge item={item} status={status} />
       </TableCell>
       <TableCell className="text-right">
-        {action ? (
-          <QueueActionButton acting={acting} action={action} onAction={onAction} />
-        ) : null}
+        <div className="flex shrink-0 items-center justify-end gap-2">
+          {selectable ? (
+            <QueueCancelButton acting={acting} onCancel={onCancel} />
+          ) : null}
+          {action ? (
+            <QueueActionButton acting={acting} action={action} onAction={onAction} />
+          ) : null}
+        </div>
       </TableCell>
     </TableRow>
   );

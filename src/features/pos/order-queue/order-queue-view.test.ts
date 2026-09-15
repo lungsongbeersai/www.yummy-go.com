@@ -102,13 +102,20 @@ describe("canSelectQueueItem", () => {
     expect(canSelectQueueItem(item({ can_confirm_served: true }), 9)).toBe(false);
   });
 
-  it("keeps served tickets selectable so they can still be cancelled", () => {
+  it("never allows selecting served tickets — cancellation is not allowed once served", () => {
     expect(
       canSelectQueueItem(
         item({ can_send_to_kitchen: false, can_confirm_served: false }),
         4
       )
-    ).toBe(true);
+    ).toBe(false);
+    // แม้มี flag ค้างอยู่ (ข้อมูลผิดปกติจาก backend) ก็ยังต้องเลือกไม่ได้ — เสิร์ฟแล้วคือปิดประตูแน่นอน
+    expect(
+      canSelectQueueItem(
+        item({ can_send_to_kitchen: true, can_confirm_served: true }),
+        4
+      )
+    ).toBe(false);
   });
 });
 
