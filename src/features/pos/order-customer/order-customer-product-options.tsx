@@ -56,6 +56,7 @@ import {
   toppingDisplayName,
   toppingPrice,
   toppingQtyCap,
+  toppingSelectionLimit,
   toppingUuid,
   type OrderQuantityRules,
   type ProductMedia,
@@ -200,6 +201,11 @@ export function ProductOptionsForm({
     ? enabledProductDetails(product)
     : availableProductDetails(product);
   const toppings = (product.toppings ?? []).filter(isToppingAvailable);
+  const toppingLimit = toppingSelectionLimit(
+    toppings.length,
+    product.prodToppingMaxSelect,
+  );
+  const toppingLimitReached = selectedToppings.length >= toppingLimit;
   const total = modalUnitPrice * qty;
   const modeLabel = productModeLabel(mode, product, t);
   const quantityRules = orderQuantityRules(selectedDetail, mode, product);
@@ -319,17 +325,20 @@ export function ProductOptionsForm({
                     label={t("pos.toppings")}
                     meta={t("pos.selectedOf", {
                       selected: selectedToppings.length,
-                      total: toppings.length,
+                      total: toppingLimit,
                     })}
+                    metaEmphasis={toppingLimitReached}
                   />
                   <div className="flex flex-col gap-2">
                     {toppings.map((topping) => {
                       const uuid = toppingUuid(topping);
+                      const qty = toppingQtyByUuid[uuid] ?? 0;
+                      const canSelectMore = qty >= 1 || !toppingLimitReached;
                       return (
                         <ToppingOptionRow
                           key={uuid}
-                          productMaxSelect={product.prodToppingMaxSelect}
-                          qty={toppingQtyByUuid[uuid] ?? 0}
+                          canSelectMore={canSelectMore}
+                          qty={qty}
                           topping={topping}
                           onChangeQty={(nextQty) =>
                             onChangeToppingQty(uuid, nextQty)
@@ -452,14 +461,27 @@ function ProductDetailSummary({
   );
 }
 
-function SectionLegend({ label, meta }: { label: string; meta: string }) {
+function SectionLegend({
+  label,
+  meta,
+  metaEmphasis = false,
+}: {
+  label: string;
+  meta: string;
+  metaEmphasis?: boolean;
+}) {
   return (
     <FieldLegend
       variant="label"
       className="mb-0 flex min-w-0 items-center justify-between gap-3 text-sm font-black text-foreground"
     >
       <span>{label}</span>
-      <span className="shrink-0 text-xs font-black text-muted-foreground">
+      <span
+        className={cn(
+          "shrink-0 text-xs font-black",
+          metaEmphasis ? "text-primary" : "text-muted-foreground",
+        )}
+      >
         {meta}
       </span>
     </FieldLegend>
@@ -481,13 +503,13 @@ function SetProductRow({ label, price }: { label: string; price: string }) {
 }
 
 function ToppingOptionRow({
-  productMaxSelect,
+  canSelectMore,
   qty,
   topping,
   onChangeQty,
   onToggle,
 }: {
-  productMaxSelect?: number | string;
+  canSelectMore: boolean;
   qty: number;
   topping: ProdTopping;
   onChangeQty: (qty: number) => void;
@@ -495,6 +517,7 @@ function ToppingOptionRow({
 }) {
   const { t } = useTranslation();
   const selected = qty >= 1;
+  const blocked = !selected && !canSelectMore;
   const uuid = toppingUuid(topping);
   const id = `staff-product-topping-${uuid}`;
   const label = toppingDisplayName(topping);
@@ -506,15 +529,22 @@ function ToppingOptionRow({
       className={cn(
         "min-h-14 flex-wrap rounded-lg border border-border bg-card px-3 py-2 shadow-xs transition-colors",
         selected && "border-primary bg-primary/10 text-primary shadow-sm",
+        blocked && "opacity-50",
       )}
     >
       <FieldLabel
-        className="min-h-11 min-w-18 flex-1 cursor-pointer items-center gap-3 text-sm font-black has-data-checked:bg-transparent dark:has-data-checked:bg-transparent"
+        className={cn(
+          "min-h-11 min-w-18 flex-1 items-center gap-3 text-sm font-black has-data-checked:bg-transparent dark:has-data-checked:bg-transparent",
+          blocked ? "cursor-not-allowed" : "cursor-pointer",
+        )}
       >
+        {/* ไม่ใช้ disabled ของ Radix จริง — ต้องให้คลิกทะลุมาถึง onToggle ได้เสมอ เพื่อขึ้น toast
+            เตือนเพดานเมื่อกดตัวที่ครบโควตาแล้ว ไม่ใช่แค่เงียบๆ ไม่มีอะไรเกิดขึ้นเหมือนปุ่ม disabled จริง */}
         <Checkbox
           id={id}
+          aria-disabled={blocked}
           checked={selected}
-          className="size-5"
+          className={cn("size-5", blocked && "cursor-not-allowed")}
           onCheckedChange={onToggle}
         />
         <span className="truncate">{label}</span>
@@ -550,7 +580,7 @@ function ToppingOptionRow({
               variant="ghost"
               aria-label={t("pos.increaseTopping", { name: label })}
               className="size-11 rounded-full text-primary hover:bg-primary/10"
-              disabled={qty >= toppingQtyCap(productMaxSelect)}
+              disabled={qty >= toppingQtyCap()}
               onClick={() => onChangeQty(qty + 1)}
             >
               <Plus aria-hidden="true" />

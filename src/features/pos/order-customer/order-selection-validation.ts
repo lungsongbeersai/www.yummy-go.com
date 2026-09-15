@@ -8,7 +8,12 @@ import {
 import { isDetailAvailable, isDetailEnabled } from "./product-availability";
 import { getModalBasePrice } from "./pricing";
 import { orderQuantityRules, type OrderQuantityRules } from "./quantity-rules";
-import { isToppingAvailable, toppingPrice, type SelectedTopping } from "./topping-selection";
+import {
+  isToppingAvailable,
+  toppingPrice,
+  toppingSelectionLimit,
+  type SelectedTopping,
+} from "./topping-selection";
 
 export function getOrderSelectionIssue({
   detail,
@@ -52,7 +57,25 @@ export function getOrderSelectionIssue({
       selected.qty > MAX_ORDER_QTY ||
       toppingPrice(selected.topping) < 0,
   );
-  return hasInvalidTopping ? "topping-invalid" : null;
+  if (hasInvalidTopping) return "topping-invalid";
+
+  // ตรวจเพดานจำนวนชนิดได้ก็ต่อเมื่อรู้จัก product ที่มีลิสต์ toppings จริงให้อ้างอิง — ผู้เรียกบางจุด
+  // (เช่น buildStaffOrderItems ที่ประกอบ payload จาก toppings ที่เลือกไว้แล้วโดยตรง) ไม่ได้ส่ง product
+  // มาด้วย หรือส่งมาแบบไม่มี toppings ติดมา จึงไม่มีทางรู้จำนวนท็อปปิ้งที่มีอยู่จริง ต้องข้ามการเช็คนี้ไป
+  // ไม่ใช่ตีความว่า "ไม่รู้ = มี 0 ชนิด" ซึ่งจะ reject ทุกออเดอร์ที่มี topping ไปเสีย
+  if (product?.toppings?.length) {
+    const availableToppingCount = product.toppings.filter(
+      isToppingAvailable,
+    ).length;
+    if (
+      toppings.length >
+      toppingSelectionLimit(availableToppingCount, product.prodToppingMaxSelect)
+    ) {
+      return "topping-limit-exceeded";
+    }
+  }
+
+  return null;
 }
 
 // rules มีให้เฉพาะตอนเรียกจากบริบทที่รู้ min/max/step ของสินค้าตัวนั้น (โมดัลเลือกสินค้า) —
@@ -72,6 +95,7 @@ export function orderSelectionIssueLabel(
       : t("pos.insufficientStock");
   }
   if (issue === "topping-invalid") return t("pos.invalidTopping");
+  if (issue === "topping-limit-exceeded") return t("pos.toppingLimitExceeded");
   if (issue === "quantity-invalid" && rules && rules.step > 1) {
     return t("pos.editQuantityInvalidStep", { step: rules.step });
   }

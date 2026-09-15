@@ -185,12 +185,12 @@ export function canSelectQueueItem(
   item: OrderQueueItem,
   status: number
 ): boolean {
-  // สองคิวนี้เป็นปลายทาง/รอฝั่งลูกค้า พนักงานไม่มี action ให้ทำต่อ
+  // ปลายทาง/รอฝั่งลูกค้า หรือเสิร์ฟแล้ว — ยกเลิกไม่ได้อีกต่อไปตามนโยบาย: ยกเลิกได้เฉพาะ
+  // ออเดอร์ที่ยังรอส่งครัว หรือส่งครัวไปแล้วเท่านั้น พนักงานไม่มี action ให้ทำต่อกับสามคิวนี้
   if (status === OrderItemStatus.ORDERED) return false;
   if (status === OrderItemStatus.CANCELLED) return false;
-  if (queueItemAction(item)) return true;
-  // เสิร์ฟแล้วยังยกเลิกได้ แม้ไม่มี can_* flag เหลือ
-  return status === OrderItemStatus.SERVED;
+  if (status === OrderItemStatus.SERVED) return false;
+  return Boolean(queueItemAction(item));
 }
 
 const HEX_COLOR_PATTERN =

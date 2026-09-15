@@ -30,6 +30,7 @@ import {
   getProductModalMode,
   isDetailAvailable,
   isDetailEnabled,
+  isToppingAvailable,
   normalizeProdItem,
   orderCustomerUrl,
   orderQuantityRules,
@@ -38,6 +39,7 @@ import {
   selectedOrderTable,
   selectedToppingsFromQtyMap,
   toggleToppingQty,
+  toppingSelectionLimit,
   type ProductCardEntry,
   type ProductModalMode,
   type SelectedTopping,
@@ -611,6 +613,25 @@ export function useOrderCustomerWorkflow({
 
   function toggleSelectedTopping(uuid: string) {
     const selectedQty = toppingQtyByUuid[uuid];
+    // ยังไม่ได้เลือกอยู่ตอนนี้ + ครบเพดานจำนวนชนิดแล้ว = ห้ามเลือกเพิ่ม แจ้งเตือนแทนที่จะเงียบๆ
+    // (checkbox ฝั่ง UI จงใจไม่ใช้ disabled ของจริง เพื่อให้คลิกทะลุมาถึงจุดนี้ได้เสมอ)
+    if (!selectedQty) {
+      const availableToppingCount = (selectedProduct?.toppings ?? []).filter(
+        isToppingAvailable,
+      ).length;
+      const limit = toppingSelectionLimit(
+        availableToppingCount,
+        selectedProduct?.prodToppingMaxSelect,
+      );
+      if (selectedToppings.length >= limit) {
+        showToast({
+          title: t("pos.toppingSelectionLimitReached", { count: limit }),
+          tone: "info",
+        });
+        return;
+      }
+    }
+
     if (selectedQty) {
       setRememberedToppingQtyByUuid((remembered) => ({
         ...remembered,
@@ -618,19 +639,12 @@ export function useOrderCustomerWorkflow({
       }));
     }
     setToppingQtyByUuid((current) =>
-      toggleToppingQty(
-        current,
-        uuid,
-        rememberedToppingQtyByUuid[uuid] ?? 1,
-        selectedProduct?.prodToppingMaxSelect,
-      ),
+      toggleToppingQty(current, uuid, rememberedToppingQtyByUuid[uuid] ?? 1),
     );
   }
 
   function changeSelectedToppingQty(uuid: string, nextQty: number) {
-    setToppingQtyByUuid((current) =>
-      changeToppingQty(current, uuid, nextQty, selectedProduct?.prodToppingMaxSelect),
-    );
+    setToppingQtyByUuid((current) => changeToppingQty(current, uuid, nextQty));
   }
 
   async function submitSelectedProduct() {

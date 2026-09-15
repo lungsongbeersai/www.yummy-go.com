@@ -25,6 +25,7 @@ import {
   promotionQuantity,
   togglePublicToppingQty,
   toppingMaxQty,
+  toppingSelectionLimit,
 } from "../utils";
 
 export interface ProductOrderSheetProps {
@@ -173,6 +174,17 @@ export function useProductOrderSheetWorkflow({
     setQty(Number.isFinite(nextQty) ? Math.max(0, Math.floor(nextQty)) : minQty);
   };
 
+  const availableToppingCount = useMemo(
+    () => toppings.filter(isToppingAvailable).length,
+    [toppings],
+  );
+  const toppingSelectionLimitNow = toppingSelectionLimit(
+    availableToppingCount,
+    product?.prodToppingMaxSelect,
+  );
+  const canSelectMoreToppingsNow =
+    selectedToppings.length < toppingSelectionLimitNow;
+
   const handleToppingToggle = (toppingUuid: string) => {
     const topping = toppings.find(
       (item) => item.prodToppingUuid === toppingUuid,
@@ -180,6 +192,10 @@ export function useProductOrderSheetWorkflow({
     if (!isToppingAvailable(topping)) return;
 
     const selectedQty = toppingQtyByUuid[toppingUuid];
+    // ยังไม่ได้เลือกอยู่ตอนนี้ (selectedQty ว่าง) และครบเพดานจำนวนชนิดแล้ว = ห้ามเลือกเพิ่ม
+    // (เช็คซ้ำที่นี่เป็น safety net แม้ checkbox ฝั่ง UI จะ disabled ไว้แล้วก็ตาม)
+    if (!selectedQty && !canSelectMoreToppingsNow) return;
+
     if (selectedQty) {
       setRememberedToppingQtyByUuid((remembered) => ({
         ...remembered,
@@ -191,7 +207,7 @@ export function useProductOrderSheetWorkflow({
         current,
         toppingUuid,
         rememberedToppingQtyByUuid[toppingUuid] ?? 1,
-        toppingMaxQty(topping, product?.prodToppingMaxSelect),
+        toppingMaxQty(topping),
       ),
     );
   };
@@ -203,12 +219,7 @@ export function useProductOrderSheetWorkflow({
     if (!isToppingAvailable(topping)) return;
 
     setToppingQtyByUuid((current) =>
-      changePublicToppingQty(
-        current,
-        toppingUuid,
-        nextQty,
-        toppingMaxQty(topping, product?.prodToppingMaxSelect),
-      ),
+      changePublicToppingQty(current, toppingUuid, nextQty, toppingMaxQty(topping)),
     );
   };
 
@@ -227,6 +238,7 @@ export function useProductOrderSheetWorkflow({
 
   return {
     basePrice,
+    canSelectMoreToppings: canSelectMoreToppingsNow,
     canSubmit,
     detailUuid,
     details,
@@ -251,7 +263,6 @@ export function useProductOrderSheetWorkflow({
     onOpenChange,
     open,
     product,
-    productMaxSelect: product?.prodToppingMaxSelect,
     productSubtotal,
     qty,
     qtyStep,
@@ -261,6 +272,7 @@ export function useProductOrderSheetWorkflow({
     selectionIssue,
     selectedToppings,
     toppingQtyByUuid,
+    toppingSelectionLimit: toppingSelectionLimitNow,
     toppingTotal,
     toppings,
     viewOnly,

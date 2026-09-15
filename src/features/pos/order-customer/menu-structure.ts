@@ -58,7 +58,8 @@ export type OrderSelectionIssue =
   | "quantity-invalid"
   | "quantity-exceeds-stock"
   | "stock-insufficient"
-  | "topping-invalid";
+  | "topping-invalid"
+  | "topping-limit-exceeded";
 export type ProductCardPrice =
   | { kind: "exact" | "starting"; value: number }
   | { kind: "unavailable" | "variable"; value: null };

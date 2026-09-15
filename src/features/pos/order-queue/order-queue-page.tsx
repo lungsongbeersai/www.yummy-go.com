@@ -18,7 +18,6 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { BlockingLoadingDialog } from "@/components/common/blocking-loading-dialog";
 import { EmptyState } from "@/components/common/empty-state";
 import { HorizontalScrollArrows } from "@/components/common/horizontal-scroll-arrows";
@@ -315,6 +314,15 @@ export function OrderQueuePage() {
     setCancelDialogOpen(true);
   }
 
+  // ปุ่ม cancel บนรายการเดียวในลิสต์ — เลือกแค่ใบนี้ใบเดียวแล้วเปิด dialog ทันที ใช้ flow
+  // ขอเหตุผล + cancelOrderItems เดียวกับการยกเลิกแบบติ๊กเลือกหลายใบทุกอย่าง ไม่มี API แยก
+  function openCancelDialogForItem(item: OrderQueueItem) {
+    setSelectedUuids(new Set([item.order_item_uuid]));
+    setCancelReason("");
+    setReasonTouched(false);
+    setCancelDialogOpen(true);
+  }
+
   async function submitCancel() {
     setReasonTouched(true);
     const reason = cancelReason.trim();
@@ -412,6 +420,7 @@ export function OrderQueuePage() {
                 status={status}
                 waitMinutes={row.waitMinutes}
                 onAction={(action) => void handleItemAction(row.item, action)}
+                onCancel={() => openCancelDialogForItem(row.item)}
                 onToggle={(checked) => toggleItem(row.item, checked)}
               />
             ))}
@@ -458,6 +467,7 @@ export function OrderQueuePage() {
                 status={status}
                 waitMinutes={row.waitMinutes}
                 onAction={(action) => void handleItemAction(row.item, action)}
+                onCancel={() => openCancelDialogForItem(row.item)}
                 onToggle={(checked) => toggleItem(row.item, checked)}
               />
             ))}
@@ -687,19 +697,16 @@ export function OrderQueuePage() {
 
             {status === OrderItemStatus.WAITING_CONFIRM ? (
               <>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span>
-                      <Button variant="outline" className="h-11" disabled>
-                        <Ban data-icon="inline-start" />
-                        {t("actions.cancel")}
-                      </Button>
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    {t("orderQueue.cancelDisabledTooltip")}
-                  </TooltipContent>
-                </Tooltip>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-11"
+                  disabled={busy || selectedItems.length === 0}
+                  onClick={openCancelDialog}
+                >
+                  <Ban data-icon="inline-start" />
+                  {t("actions.cancel")}
+                </Button>
                 <Button
                   type="button"
                   className="h-11 font-black"
@@ -717,32 +724,31 @@ export function OrderQueuePage() {
             ) : null}
 
             {status === OrderItemStatus.SENT_TO_KITCHEN ? (
-              <Button
-                type="button"
-                className="h-11 font-black"
-                disabled={busy || selectedItems.length === 0}
-                onClick={() =>
-                  void runConfirmServed(
-                    selectedItems.map((item) => item.order_item_uuid)
-                  )
-                }
-              >
-                {saving ? <Spinner data-icon="inline-start" /> : null}
-                {t("orderQueue.confirmServed")}
-              </Button>
-            ) : null}
-
-            {status === OrderItemStatus.SERVED ? (
-              <Button
-                type="button"
-                variant="destructive"
-                className="h-11 font-black"
-                disabled={busy || selectedItems.length === 0}
-                onClick={openCancelDialog}
-              >
-                <Ban data-icon="inline-start" />
-                {t("actions.cancel")}
-              </Button>
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-11"
+                  disabled={busy || selectedItems.length === 0}
+                  onClick={openCancelDialog}
+                >
+                  <Ban data-icon="inline-start" />
+                  {t("actions.cancel")}
+                </Button>
+                <Button
+                  type="button"
+                  className="h-11 font-black"
+                  disabled={busy || selectedItems.length === 0}
+                  onClick={() =>
+                    void runConfirmServed(
+                      selectedItems.map((item) => item.order_item_uuid)
+                    )
+                  }
+                >
+                  {saving ? <Spinner data-icon="inline-start" /> : null}
+                  {t("orderQueue.confirmServed")}
+                </Button>
+              </>
             ) : null}
           </CardContent>
         </Card>

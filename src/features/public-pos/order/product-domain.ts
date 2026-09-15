@@ -507,15 +507,27 @@ export function buildPublicOrderInput({
 
 // ทอปปิ้งราคา 0 (แถมฟรี ไม่คิดเงินเพิ่ม) เพิ่มได้แค่ 1 ชิ้น — เพิ่มหลายชิ้นไม่ทำให้ราคาต่างกัน
 // แต่ตัวเลขจำนวนที่ขึ้น (เช่น "3 ชิ้น") ทำให้ลูกค้าเข้าใจผิดว่าจะได้ของเพิ่มหรือถูกคิดเงินเพิ่ม
-// prod_topping_max_select (ตั้งค่าต่อสินค้า) เป็นเพดานเพิ่มเติมจากร้าน — 0/ไม่ระบุ = ไม่จำกัด
-export function toppingMaxQty(
-  topping?: ProdTopping | null,
+export function toppingMaxQty(topping?: ProdTopping | null) {
+  if (!topping) return MAX_OPEN_QTY;
+  return numeric(topping.toppingPrice) > 0 ? MAX_OPEN_QTY : 1;
+}
+
+// prod_topping_max_select = จำนวน "ชนิด" ท็อปปิ้งที่แตกต่างกันสูงสุดที่เลือกได้ต่อสินค้า
+// (ไม่ใช่จำนวนชิ้นของท็อปปิ้งเดียว) — 0/ไม่ระบุ = ไม่จำกัด (ถูกจำกัดโดยจำนวนท็อปปิ้งที่มีอยู่จริงอยู่แล้ว)
+export function toppingSelectionLimit(
+  availableCount: number,
   productMaxSelect?: number | string,
 ) {
-  if (!topping) return MAX_OPEN_QTY;
-  const baseMax = numeric(topping.toppingPrice) > 0 ? MAX_OPEN_QTY : 1;
   const configuredMax = numeric(productMaxSelect);
-  return configuredMax > 0 ? Math.min(baseMax, configuredMax) : baseMax;
+  return configuredMax > 0 ? Math.min(availableCount, configuredMax) : availableCount;
+}
+
+export function canSelectMoreToppings(
+  selectedCount: number,
+  availableCount: number,
+  productMaxSelect?: number | string,
+) {
+  return selectedCount < toppingSelectionLimit(availableCount, productMaxSelect);
 }
 
 export function changePublicToppingQty(

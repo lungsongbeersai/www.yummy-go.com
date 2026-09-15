@@ -691,7 +691,6 @@
     "groupSelectAria": "ເລືອກທັງໝົດຂອງ {{table}}",
     "selectedAcrossTables": "ເລືອກ {{count}} ລາຍການ ຈາກ {{tables}} ໂຕະ",
     "confirmToKitchen": "ຢືນຢັນ",
-    "cancelDisabledTooltip": "ຍັງບໍ່ພ້ອມໃຊ້ງານ",
     "confirmSuccess": "ສົ່ງ {{count}} ອໍເດີເຂົ້າຄົວແລ້ວ",
     "confirmError": "ສົ່ງເຂົ້າຄົວບໍ່ສຳເລັດ",
     "confirmServed": "ເສີບແລ້ວ",
@@ -1107,6 +1106,8 @@
     "insufficientStockMax": "ເຫຼືອໃນສະຕັອກພຽງ {{max}} ອັນ — ກະລຸນາຫຼຸດຈຳນວນລົງ",
     "invalidQuantity": "ເລືອກຈຳນວນທີ່ຖືກຕ້ອງ",
     "invalidTopping": "ມີທັອບປິ້ງບາງລາຍການທີ່ບໍ່ສາມາດສັ່ງໄດ້",
+    "toppingLimitExceeded": "ທ່ານເລືອກທັອບປິ້ງເກີນຈຳນວນທີ່ສິນຄ້ານີ້ອະນຸຍາດ",
+    "toppingSelectionLimitReached": "ສິນຄ້ານີ້ອະນຸຍາດໃຫ້ເລືອກທັອບປິ້ງໄດ້ພຽງ {{count}} ຢ່າງເທົ່ານັ້ນ",
     "startingAt": "ເລີ່ມແຕ່",
     "includedInSet": "ລາຍການໃນຊຸດ",
     "promoDeal": "ຂໍ້ສະເໜີໂປຣໂມຊັນ",
@@ -1729,8 +1730,8 @@
       "no": "ບໍ່ມີທ້ອບປິ້ງ"
     },
     "toppingMode": "ຮູບແບບທ້ອບປິ້ງ",
-    "toppingMaxSelect": "ຈຳນວນສູງສຸດຕໍ່ທ້ອບປິ້ງ",
-    "toppingMaxSelectHint": "ຈຳນວນສູງສຸດຂອງທ້ອບປິ້ງແຕ່ລະຢ່າງທີ່ລູກຄ້າເພີ່ມໄດ້. 0 = ບໍ່ຈຳກັດ.",
+    "toppingMaxSelect": "ຈຳນວນຊະນິດທັອບປິ້ງສູງສຸດທີ່ເລືອກໄດ້",
+    "toppingMaxSelectHint": "ຈຳນວນຊະນິດທັອບປິ້ງທີ່ແຕກຕ່າງກັນສູງສຸດທີ່ລູກຄ້າເລືອກໄດ້ສຳລັບສິນຄ້ານີ້. 0 = ບໍ່ຈຳກັດ.",
     "unlimited": "ບໍ່ຈຳກັດ",
     "type": "ປະເພດ"
   },

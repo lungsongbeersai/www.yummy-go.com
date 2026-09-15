@@ -115,7 +115,7 @@ export interface SaveProductInput extends ApiEntity {
   details?: SaveProductDetailInput[];
   prod_topping_status?: number;
   toppings?: SaveProductToppingInput[];
-  /** Max quantity of any single topping the customer can add; 0 = unlimited. Named prod_topping_max_select, not _max_qty, to match the backend's field name. */
+  /** Max number of distinct toppings the customer can select; 0 = unlimited (capped by how many toppings the product has). */
   prod_topping_max_select?: number;
 }
 
