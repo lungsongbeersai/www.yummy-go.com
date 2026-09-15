@@ -166,25 +166,36 @@ describe("sortOrderQueueItems", () => {
     ]);
   });
 
-  it("puts the most recently confirmed sent item first", () => {
+  it("puts the first confirmed sent item first", () => {
     const rows = sortOrderQueueItems([
       item({
-        order_item_uuid: "queue-3",
+        order_item_uuid: "queue-35",
         order_item_status: 2,
-        order_it_q: 3,
+        order_it_q: 35,
         order_it_date_time: "2026-08-25 10:00:00",
+        kitchen_confirmed_at: "2026-08-25 10:07:00.000000"
+      }),
+      item({
+        order_item_uuid: "queue-36",
+        order_item_status: 2,
+        order_it_q: 36,
+        order_it_date_time: "2026-08-25 10:01:00",
         kitchen_confirmed_at: "2026-08-25 10:06:00.000000"
       }),
       item({
-        order_item_uuid: "queue-4",
+        order_item_uuid: "queue-37",
         order_item_status: 2,
-        order_it_q: 4,
-        order_it_date_time: "2026-08-25 10:01:00",
+        order_it_q: 37,
+        order_it_date_time: "2026-08-25 10:02:00",
         kitchen_confirmed_at: "2026-08-25 10:05:00.000000"
       })
     ]);
 
-    expect(rows.map((row) => row.order_item_uuid)).toEqual(["queue-3", "queue-4"]);
+    expect(rows.map((row) => row.order_item_uuid)).toEqual([
+      "queue-37",
+      "queue-36",
+      "queue-35"
+    ]);
   });
 
   it("uses the waiting FIFO when sent confirmation times are equal", () => {
@@ -235,6 +246,6 @@ describe("sortOrderQueueItems", () => {
       })
     ]);
 
-    expect(rows.map((row) => row.order_item_uuid)).toEqual(["later", "earlier"]);
+    expect(rows.map((row) => row.order_item_uuid)).toEqual(["earlier", "later"]);
   });
 });
