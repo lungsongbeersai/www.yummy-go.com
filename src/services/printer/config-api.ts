@@ -39,10 +39,17 @@ import type {
 } from "@/services/printer/types";
 import type { ApiDataResponse } from "@/services/shared/types";
 
-export async function searchPrinters(mode: "usb" | "network" = "usb") {
+export async function searchPrinters(
+  mode: "usb" | "network" = "usb",
+  forceRefresh = false,
+) {
   const { data } = await axios.get<SearchPrintersResponse>(
     `${printerAgentBase(AGENT_URL)}/printer/search-printer`,
-    { params: { mode }, headers: { "x-agent-secret": AGENT_SECRET }, timeout: 5000 }
+    {
+      params: { mode, ...(forceRefresh ? { refresh: "1" } : {}) },
+      headers: { "x-agent-secret": AGENT_SECRET },
+      timeout: 5000,
+    }
   );
   assertAgentOk(data, "Printer search failed");
   return { agent: data.agent ?? null, printers: data.data ?? [] };
@@ -54,13 +61,24 @@ export async function getPrinters(params: FetchPrintersParams) {
     params: {
       login_uuid_fk: params.login_uuid_fk,
       ...(deviceCode ? { device_code: deviceCode } : {}),
+      ...(textValue(params.print_config_uuid)
+        ? { print_config_uuid: textValue(params.print_config_uuid) }
+        : {}),
+      ...(params.include_offline_shared
+        ? { include_offline_shared: "1" }
+        : {}),
+      ...(params.management_view ? { management_view: "1" } : {}),
       lang: toApiLanguage(params.lang)
     }
   });
   return printerRowsFromFetchResponse(result)
     .map((item) => mapPrinter(item))
     .filter((printer) => {
-      if (!printer.is_shared || printer.agent_online !== false) return true;
+      if (
+        params.include_offline_shared ||
+        !printer.is_shared ||
+        printer.agent_online !== false
+      ) return true;
       if (printer.is_owner === true) return true;
 
       // Compatibility fallback for API rows produced before is_owner existed.

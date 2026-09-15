@@ -3,8 +3,11 @@ import {
   buildTestJob,
   deletePrinter,
   dispatchPrintJob,
+  getPrinters,
   getPendingPrintJobs,
   resolvePrinterDeviceContext,
+  resolvePrinterDeviceIdentity,
+  searchPrinters,
   togglePrinterActive,
   type BuildTestJobResponse
 } from "@/services/printer";
@@ -26,6 +29,8 @@ vi.mock("@/services/printer", () => ({
   getPrinterOptions: vi.fn(),
   getPrinterRoles: vi.fn(),
   getPrinters: vi.fn(),
+  isBrowserPrinterAgentId: (agentId: unknown) =>
+    agentId === "desktop" || agentId === "mobile",
   resolvePrinterDeviceContext: vi.fn(),
   resolvePrinterDeviceIdentity: vi.fn(),
   resolvePrintersByCategory: vi.fn(),
@@ -39,8 +44,11 @@ vi.mock("@/services/printer", () => ({
 const buildTestJobMock = vi.mocked(buildTestJob);
 const deletePrinterMock = vi.mocked(deletePrinter);
 const dispatchPrintJobMock = vi.mocked(dispatchPrintJob);
+const getPrintersMock = vi.mocked(getPrinters);
 const getPendingPrintJobsMock = vi.mocked(getPendingPrintJobs);
 const resolvePrinterDeviceContextMock = vi.mocked(resolvePrinterDeviceContext);
+const resolvePrinterDeviceIdentityMock = vi.mocked(resolvePrinterDeviceIdentity);
+const searchPrintersMock = vi.mocked(searchPrinters);
 const togglePrinterActiveMock = vi.mocked(togglePrinterActive);
 
 function deferred<T>() {
@@ -59,8 +67,60 @@ describe("printer store", () => {
       error: null,
       printing: false,
       printers: [],
-      saving: false
+      saving: false,
+      searching: false,
     });
+  });
+
+  it("keeps management printers visible when the desktop Agent is unavailable", async () => {
+    resolvePrinterDeviceIdentityMock.mockResolvedValue({
+      ok: true,
+      agent: {
+        agent_id: "desktop",
+        agent_name: "Browser",
+        device_code: "desktop-web-1",
+      },
+    });
+    getPrintersMock.mockResolvedValue([
+      {
+        print_config_uuid: "shared-offline",
+        printer_name: "Shared Kitchen",
+        connect_type: "usb",
+        interface_value: "win:Kitchen",
+        paper_width_mm: 80,
+        is_active: true,
+        role_codes: ["k-001"],
+        cate_uuid_fk: [],
+        is_shared: true,
+        agent_online: false,
+      },
+    ]);
+
+    await expect(
+      usePrinterStore.getState().loadPrintersForLocalAgent({
+        login_uuid_fk: "login-1",
+        lang: "la",
+      }),
+    ).resolves.toHaveLength(1);
+
+    expect(getPrintersMock).toHaveBeenCalledWith({
+      login_uuid_fk: "login-1",
+      lang: "la",
+      include_offline_shared: true,
+      management_view: true,
+    });
+    expect(usePrinterStore.getState()).toMatchObject({
+      agentStatus: "offline",
+      printers: [expect.objectContaining({ print_config_uuid: "shared-offline" })],
+    });
+  });
+
+  it("forwards explicit USB refresh to Printer Agent discovery", async () => {
+    searchPrintersMock.mockResolvedValue({ agent: null, printers: [] });
+
+    await usePrinterStore.getState().discover("usb", true);
+
+    expect(searchPrintersMock).toHaveBeenCalledWith("usb", true);
   });
 
   it("uses the local Agent device identity for owned shared-printer mutations", async () => {

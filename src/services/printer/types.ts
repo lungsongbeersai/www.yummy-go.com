@@ -104,9 +104,8 @@ export interface Printer extends ApiEntity {
   // (sharing_mode = SHARED ของเจ้าของ) — ทั้ง 6 ฟิลด์นี้ backend เพิ่งเพิ่ม เครื่องพิมพ์เก่าอาจไม่มีมา
   is_owner?: boolean;
   is_shared?: boolean;
-  // Shared rows from other devices are returned only while their owner agent
-  // heartbeat is fresh. The current device may still receive its own offline
-  // SHARED row so the settings page can manage it.
+  // Management keeps SHARED rows visible even while their owner Agent is
+  // offline; routing still excludes them until the heartbeat becomes fresh.
   agent_online?: boolean;
   printer_source?: PrinterSource;
   owner_device_code?: string;
@@ -114,6 +113,7 @@ export interface Printer extends ApiEntity {
   // แทนการอนุมานจาก is_owner เอง เผื่อ backend มีเงื่อนไขสิทธิ์เพิ่มเติมในอนาคต
   can_edit?: boolean;
   can_delete?: boolean;
+  is_local_device?: boolean;
 }
 export interface PrinterRole extends ApiEntity { role_code: string; role_name: string }
 export interface AgentFile extends ApiEntity {
@@ -302,6 +302,9 @@ export interface FetchPrintersParams extends FetchParams {
   login_uuid_fk: string;
   agent_id?: string;
   device_code?: string;
+  print_config_uuid?: string;
+  include_offline_shared?: boolean;
+  management_view?: boolean;
 }
 export interface FetchPrintersForLocalAgentParams extends FetchParams { login_uuid_fk: string }
 export interface AckResultItem {

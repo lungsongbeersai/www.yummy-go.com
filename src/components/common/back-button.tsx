@@ -11,13 +11,18 @@ interface BackButtonProps {
   fallbackHref: Route;
   label?: string;
   className?: string;
+  onClick?: () => void;
 }
 
-export function BackButton({ fallbackHref, label, className }: BackButtonProps) {
+export function BackButton({ fallbackHref, label, className, onClick }: BackButtonProps) {
   const router = useRouter();
   const { t } = useTranslation();
 
   function handleClick() {
+    if (onClick) {
+      onClick();
+      return;
+    }
     if (typeof window !== "undefined" && window.history.length > 1) {
       router.back();
       return;

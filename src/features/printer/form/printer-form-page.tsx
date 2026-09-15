@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Card,
   CardAction,
@@ -76,7 +77,16 @@ export function PrinterFormPage() {
         fallbackHref="/printers"
         label={t("printer.title")}
         className="self-start"
+        onClick={handleCancel}
       />
+      {form.recordMissing ? (
+        <Alert variant="destructive">
+          <AlertTitle>{t("printer.printerNotFound")}</AlertTitle>
+          <AlertDescription>
+            {t("printer.printerNotFoundDescription")}
+          </AlertDescription>
+        </Alert>
+      ) : null}
       <Card>
         <CardHeader>
           <CardTitle>
@@ -166,7 +176,7 @@ export function PrinterFormPage() {
                       </div>
                       <Select
                         value={form.selectedDevice}
-                        disabled={!form.found.length || form.searching || form.saving}
+                        disabled={!form.usbOptions.length || form.searching || form.saving}
                         onValueChange={form.selectDevice}
                       >
                         <SelectTrigger
@@ -183,7 +193,7 @@ export function PrinterFormPage() {
                         </SelectTrigger>
                         <SelectContent position="popper">
                           <SelectGroup>
-                            {form.found.map((printer: SearchPrinterResult) => (
+                            {form.usbOptions.map((printer: SearchPrinterResult) => (
                               <SelectItem
                                 key={printer.interface_value}
                                 value={printer.interface_value}

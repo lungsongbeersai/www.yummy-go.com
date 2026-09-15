@@ -56,6 +56,7 @@ import {
   renderMobileEscpos,
   resolvePrinterDeviceContext,
   resolvePrinterDeviceIdentity,
+  searchPrinters,
   savePrinter,
   sendMobileBackendPrintJob,
   togglePrinterActive,
@@ -1946,6 +1947,65 @@ describe("printer API payloads", () => {
           lang: "eng"
         }
       }
+    );
+  });
+
+  it("keeps offline shared printers in the management list only when requested", async () => {
+    apiMocks.apiRequest.mockResolvedValue({
+      data: {
+        data: [
+          {
+            print_config_uuid: "shared-offline",
+            printer_name: "Shared Offline",
+            connect_type: "usb",
+            interface_value: "win:POS-80",
+            paper_width_mm: 80,
+            is_active: true,
+            is_shared: true,
+            agent_online: false,
+          },
+        ],
+      },
+    });
+
+    await expect(
+      getPrinters({
+        login_uuid_fk: "login-1",
+        include_offline_shared: true,
+        management_view: true,
+      }),
+    ).resolves.toEqual([
+      expect.objectContaining({ print_config_uuid: "shared-offline" }),
+    ]);
+    expect(apiMocks.apiRequest).toHaveBeenCalledWith(
+      "get",
+      "/api/v1/printer/fetch",
+      {
+        params: {
+          login_uuid_fk: "login-1",
+          include_offline_shared: "1",
+          management_view: "1",
+          lang: "la",
+        },
+      },
+    );
+  });
+
+  it("asks the Agent for a fresh USB scan only on explicit refresh", async () => {
+    axiosMocks.get.mockResolvedValue({ data: { ok: true, data: [] } });
+
+    await searchPrinters("usb");
+    await searchPrinters("usb", true);
+
+    expect(axiosMocks.get).toHaveBeenNthCalledWith(
+      1,
+      expect.stringContaining("/printer/search-printer"),
+      expect.objectContaining({ params: { mode: "usb" } }),
+    );
+    expect(axiosMocks.get).toHaveBeenNthCalledWith(
+      2,
+      expect.stringContaining("/printer/search-printer"),
+      expect.objectContaining({ params: { mode: "usb", refresh: "1" } }),
     );
   });
 

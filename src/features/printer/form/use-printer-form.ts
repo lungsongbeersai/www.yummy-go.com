@@ -40,8 +40,10 @@ import {
   initialPrinterFormValues,
   kitchenCutModeOf,
   mappingTypeOf,
+  mergeUsbPrinterOptions,
   printerFormValues,
   requiresZoneMapping,
+  shouldResolveCurrentPrinterIdentity,
   textValue,
   zoneLabel,
   type ConnectType,
@@ -206,12 +208,23 @@ export function usePrinterForm() {
     () => initialForm.connectType === "usb" && found.length > 0,
   );
   const [usbSearchError, setUsbSearchError] = useState("");
+  const [formDataLoaded, setFormDataLoaded] = useState(false);
   const autoUsbSearchDone = useRef(false);
   // เก็บค่าอ้างอิงล่าสุดที่มาจากแหล่งข้อมูลจริง (ไม่ใช่ที่ผู้ใช้พิมพ์/ติ๊ก) ไว้เทียบหา isDirty —
   // ต้องอัปเดตพร้อมกับ reset ด้านล่างเสมอ (เป็น state ไม่ใช่ ref เพราะ react-hooks/refs ห้ามอ่าน
   // ref.current ระหว่าง render) ไม่งั้นตอนข้อมูลเรคคอร์ดเพิ่งโหลดเสร็จ (เช่น reload หน้าแก้ไขตรงๆ)
   // จะเทียบกับ initialForm ที่ยังว่างอยู่ แล้วเข้าใจผิดว่าฟอร์ม dirty ทั้งที่ผู้ใช้ยังไม่ได้แตะอะไรเลย
   const [baseline, setBaseline] = useState(initialForm);
+  const usbOptions = useMemo(
+    () => mergeUsbPrinterOptions(found, interfaceValue, displayName),
+    [displayName, found, interfaceValue],
+  );
+  const savedUsbUnavailable = Boolean(
+    isEditing &&
+    connectType === "usb" &&
+    interfaceValue.trim() &&
+    !found.some((item) => item.interface_value === interfaceValue.trim()),
+  );
 
   // เครื่องพิมพ์ครัว/บาร์มักผูกกับโซน — พอเพิ่งเลือก role พวกนี้ (ตอนยังเป็น "ปิด") แนะนำสลับเป็น ZONE
   // ให้อัตโนมัติ, พอเอา role ครัว/บาร์ออกจนไม่เหลือเลย ก็สลับกลับเป็น "ปิด" ให้เช่นกัน — ทั้งสองทิศทาง
@@ -256,6 +269,8 @@ export function usePrinterForm() {
         description: error instanceof Error ? error.message : "",
         tone: "error",
       });
+    } finally {
+      setFormDataLoaded(true);
     }
   }, [
     branchUuid,
@@ -380,6 +395,7 @@ export function usePrinterForm() {
     Boolean(agentId.trim()) &&
     Boolean(agentName.trim()) &&
     Boolean(deviceCode.trim());
+  const recordMissing = isEditing && formDataLoaded && !loading && !editing;
 
   // ใช้เตือนก่อนออกจากหน้าตอนกด "ยกเลิก" — ไม่รวม agent* / deviceCode เพราะฟิลด์เหล่านั้นถูกเติมเอง
   // จาก agent ที่ตรวจพบอัตโนมัติ (ดู fillAgent/useResetOnDeps ด้านบน) ไม่ใช่สิ่งที่ผู้ใช้แก้ไข
@@ -399,9 +415,19 @@ export function usePrinterForm() {
     !arraysHaveSameValues(selectedRoles, baseline.selectedRoles) ||
     !arraysHaveSameValues(selectedCategories, baseline.selectedCategories) ||
     !arraysHaveSameValues(selectedZones, baseline.selectedZones);
+
+  useEffect(() => {
+    if (!isDirty) return;
+    const warnBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+    };
+    window.addEventListener("beforeunload", warnBeforeUnload);
+    return () => window.removeEventListener("beforeunload", warnBeforeUnload);
+  }, [isDirty]);
   // เก็บเหตุผลที่ยังกดบันทึกไม่ได้ไว้เป็นรายการ แทนที่จะรู้แค่ boolean เดียว — ผู้ใช้ที่เลื่อนหน้าจอ
   // มาเจอปุ่ม Save ที่ถูก disable โดยไม่เห็น badge สีแดงด้านบนแล้ว จะได้รู้ว่าขาดอะไรบ้างจริงๆ
   const missingFields: string[] = [];
+  if (recordMissing) missingFields.push(t("printer.validationRecordMissing"));
   if (!displayName.trim()) missingFields.push(t("printer.validationDisplayName"));
   if (selectedRoles.length === 0) missingFields.push(t("printer.validationRoles"));
   // backend บังคับ: ZONE ต้องเลือกทั้งโซนและหมวดหมู่คู่กัน — CATEGORY (ค่าเริ่มต้น) ปล่อยว่างได้
@@ -425,7 +451,7 @@ export function usePrinterForm() {
       setUsbSearchError("");
       setUsbSearchComplete(false);
       try {
-        const result = await discoverPrinters("usb");
+        const result = await discoverPrinters("usb", showSuccess);
         setUsbSearchComplete(true);
         if (showSuccess) {
           showToast({
@@ -475,19 +501,20 @@ export function usePrinterForm() {
   const usbSelectDescription = (() => {
     if (searching) return t("printer.searchingUsb");
     if (usbSearchError) return usbSearchError;
+    if (savedUsbUnavailable) return t("printer.savedUsbUnavailable");
     if (found.length) return t("printer.deviceCount", { count: found.length });
     if (usbSearchComplete) return t("printer.noUsbPrinters");
     return t("printer.usbSearchPending");
   })();
 
   function selectDevice(interfaceValue: string) {
-    const printer = found.find(
+    const printer = usbOptions.find(
       (item) => item.interface_value === interfaceValue,
     );
     if (!printer) return;
     setSelectedDevice(interfaceValue);
     setConnectType("usb");
-    setDisplayName(textValue(printer.name));
+    setDisplayName((current) => current.trim() || textValue(printer.name));
     setInterfaceValue(textValue(printer.interface_value));
     if (agent) fillAgent(agent, agentUrl.trim() || AGENT_URL);
   }
@@ -497,7 +524,30 @@ export function usePrinterForm() {
     if (!user?.uuid || !canSubmit) return;
 
     try {
-      const identity = await resolveDeviceIdentity(agentUrl.trim() || AGENT_URL);
+      const savedIdentityComplete = Boolean(
+        agentId.trim() && agentName.trim() && deviceCode.trim(),
+      );
+      const shouldResolveCurrentIdentity = shouldResolveCurrentPrinterIdentity({
+        isEditing,
+        savedIdentityComplete,
+        connectType,
+        interfaceValue,
+        savedInterfaceValue: baseline.interfaceValue,
+      });
+      const identity: AgentInfo = shouldResolveCurrentIdentity
+        ? await resolveDeviceIdentity(agentUrl.trim() || AGENT_URL)
+        : {
+            agent_id: agentId.trim(),
+            agent_name: agentName.trim(),
+            device_code: deviceCode.trim(),
+          };
+      if (
+        shouldResolveCurrentIdentity &&
+        isBrowserPrinterAgentId(identity.agent_id) &&
+        !isCapacitorMobileApp()
+      ) {
+        throw new Error(t("printer.validationAgentRequired"));
+      }
       const nextAgentId = textValue(identity.agent_id).trim();
       const nextAgentName = textValue(identity.agent_name).trim();
       const nextDeviceCode = textValue(identity.device_code).trim();
@@ -538,10 +588,12 @@ export function usePrinterForm() {
         device_code: nextDeviceCode,
         // ชื่อ agent เป็นชื่อที่ผู้ใช้ตั้งเอง จึงเดา OS จาก agent_id ไม่ได้
         // ใช้ platform ที่ Agent รายงานมาเพื่อไม่ให้ Windows TCP ถูกบันทึกเป็น mobile_wifi
-        print_mode: printerPrintModeForPlatform(
-          identity.platform,
-          isCapacitorMobileApp(),
-        ),
+        print_mode: shouldResolveCurrentIdentity
+          ? printerPrintModeForPlatform(
+              identity.platform,
+              isCapacitorMobileApp(),
+            )
+          : editing?.print_mode,
       });
       showToast({ title: t("printer.saved"), tone: "success" });
       router.push("/printers");
@@ -562,6 +614,7 @@ export function usePrinterForm() {
     saving,
     searching,
     found,
+    usbOptions,
     roleOptions,
     mappingType,
     setMappingType,
@@ -596,6 +649,7 @@ export function usePrinterForm() {
     usbSelectDescription,
     canSubmit,
     validationMessage,
+    recordMissing,
     selectDevice,
     searchUsbDevices,
     submit,

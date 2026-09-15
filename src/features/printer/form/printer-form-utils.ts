@@ -5,6 +5,7 @@ import type {
   PrinterKitchenCutMode,
   PrinterMappingType,
   PrinterSharingMode,
+  SearchPrinterResult,
 } from "@/services/printer";
 import type { Category } from "@/services/category";
 import type { Zone } from "@/services/zone";
@@ -62,6 +63,46 @@ export function arraysHaveSameValues(a: string[], b: string[]) {
   const sortedA = [...a].sort();
   const sortedB = [...b].sort();
   return sortedA.every((value, index) => value === sortedB[index]);
+}
+
+export function mergeUsbPrinterOptions(
+  discovered: SearchPrinterResult[],
+  currentInterfaceValue: string,
+  currentDisplayName: string,
+) {
+  const currentValue = currentInterfaceValue.trim();
+  if (!currentValue || discovered.some((item) => item.interface_value === currentValue)) {
+    return discovered;
+  }
+
+  return [
+    {
+      name: currentDisplayName.trim() || currentValue.replace(/^cups:|^win:/, ""),
+      interface_value: currentValue,
+      platform: "saved",
+    },
+    ...discovered,
+  ];
+}
+
+export function shouldResolveCurrentPrinterIdentity({
+  isEditing,
+  savedIdentityComplete,
+  connectType,
+  interfaceValue,
+  savedInterfaceValue,
+}: {
+  isEditing: boolean;
+  savedIdentityComplete: boolean;
+  connectType: ConnectType;
+  interfaceValue: string;
+  savedInterfaceValue: string;
+}) {
+  if (!isEditing || !savedIdentityComplete) return true;
+  return (
+    connectType === "usb" &&
+    interfaceValue.trim() !== savedInterfaceValue.trim()
+  );
 }
 
 export function toggleAllValues(
@@ -221,7 +262,8 @@ export function printerFormValues(printer: Printer | null) {
     sharingMode: sharingModeOf(printer),
     selectedCategories: categoryUuids(printer),
     selectedZones: zoneUuids(printer),
-    selectedDevice: "",
+    selectedDevice:
+      connectType === "usb" ? (printer?.interface_value ?? "") : "",
     agentUrl: textValue(printer?.agent_url) || AGENT_URL,
     agentId: printer?.agent_id ?? "",
     agentName: printer?.agent_name ?? "",

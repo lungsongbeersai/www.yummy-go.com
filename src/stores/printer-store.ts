@@ -14,6 +14,7 @@ import {
   getCategoryRoles,
   getDefaultCategoryByRole,
   getPrinterErrorMessage,
+  isBrowserPrinterAgentId,
   rememberNativePrinterDeviceCode,
   migrateMobilePrinterDevice,
   getPendingPrintJobs,
@@ -88,7 +89,7 @@ interface PrinterState {
   loadPrintersForLocalAgent: (params: FetchPrintersForLocalAgentParams) => Promise<Printer[]>;
   loadOptions: (loginUuid: string, lang?: string) => Promise<Printer[]>;
   loadAgentFiles: () => Promise<AgentFile[]>;
-  discover: (mode?: "usb" | "network") => Promise<SearchPrinterResult[]>;
+  discover: (mode?: "usb" | "network", forceRefresh?: boolean) => Promise<SearchPrinterResult[]>;
   checkAgent: (agentUrl?: string) => Promise<boolean>;
   resolveDeviceIdentity: (agentUrl?: string) => Promise<AgentInfo>;
   loadRoles: (lang?: string) => Promise<PrinterRole[]>;
@@ -151,26 +152,25 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
     const result = await resolvePrinterDeviceIdentity();
     if (!isCurrentSession()) return [];
 
-    const agent = result.ok ? result.agent : null;
+    const resolvedAgent = result.ok ? result.agent : null;
+    const browserIdentity = isBrowserPrinterAgentId(resolvedAgent?.agent_id);
+    const localAgentAvailable = Boolean(
+      resolvedAgent &&
+      textValue(resolvedAgent.agent_id) &&
+      textValue(resolvedAgent.device_code) &&
+      (!browserIdentity || isCapacitorMobileApp()),
+    );
+    const agent = localAgentAvailable ? resolvedAgent : null;
     const agentId = textValue(agent?.agent_id);
     const deviceCode = textValue(agent?.device_code);
 
-    if (!result.ok || !agentId || !deviceCode) {
-      const error = result.ok ? "Printer device identity missing" : result.error;
-      if (isCurrentSession()) {
-        set({
-          printers: [],
-          agent,
-          agentStatus: "offline",
-          agentError: error,
-          error,
-          loading: false
-        });
-      }
-      return [];
+    if (isCurrentSession()) {
+      set({
+        agent,
+        agentStatus: localAgentAvailable ? "connected" : "offline",
+        agentError: result.ok ? null : result.error,
+      });
     }
-
-    if (isCurrentSession()) set({ agent, agentStatus: "connected", agentError: null });
 
     try {
       const previousDeviceCode = textValue(agent?.previous_device_code);
@@ -185,8 +185,10 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
 
       const printers = await getPrinters({
         ...params,
-        agent_id: agentId,
-        device_code: deviceCode
+        ...(agentId ? { agent_id: agentId } : {}),
+        ...(deviceCode ? { device_code: deviceCode } : {}),
+        include_offline_shared: true,
+        management_view: true,
       });
       if (isCurrentSession()) set({ printers, loading: false });
       return printers;
@@ -213,11 +215,11 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
       throw error;
     }
   },
-  discover: async (mode = "usb") => {
+  discover: async (mode = "usb", forceRefresh = false) => {
     const isCurrentSession = createSessionGuard();
     set({ searching: true, error: null });
     try {
-      const result = await searchPrinters(mode);
+      const result = await searchPrinters(mode, forceRefresh);
       if (isCurrentSession()) {
         set({
           found: result.printers,
@@ -277,7 +279,20 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
           return {
             printers: exists
               ? state.printers.map((item) =>
-                item.print_config_uuid === printer.print_config_uuid ? printer : item
+                item.print_config_uuid === printer.print_config_uuid
+                  ? {
+                    ...item,
+                    ...printer,
+                    is_owner: printer.is_owner ?? item.is_owner,
+                    is_shared: printer.is_shared ?? item.is_shared,
+                    agent_online: printer.agent_online ?? item.agent_online,
+                    printer_source: printer.printer_source ?? item.printer_source,
+                    owner_device_code: printer.owner_device_code ?? item.owner_device_code,
+                    can_edit: printer.can_edit ?? item.can_edit,
+                    can_delete: printer.can_delete ?? item.can_delete,
+                    is_local_device: printer.is_local_device ?? item.is_local_device,
+                  }
+                  : item
               )
               : printer.print_config_uuid
                 ? [printer, ...state.printers]

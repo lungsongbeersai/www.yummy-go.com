@@ -1,7 +1,7 @@
 "use client";
 
 import { type ReactNode } from "react";
-import { Power, PowerOff, Share2, User } from "lucide-react";
+import { Power, PowerOff, Share2, User, Wifi, WifiOff } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -145,6 +145,32 @@ export function PrinterOwnershipBadge({
     >
       <Share2 className="size-3" />
       {label}
+    </Badge>
+  );
+}
+
+export function PrinterAvailabilityBadge({
+  online,
+  onlineLabel,
+  offlineLabel,
+}: {
+  online: boolean;
+  onlineLabel: string;
+  offlineLabel: string;
+}) {
+  const Icon = online ? Wifi : WifiOff;
+  return (
+    <Badge
+      variant="outline"
+      className={cn(
+        "gap-1 rounded-full font-bold whitespace-nowrap",
+        online
+          ? "border-success/30 bg-success/10 text-success"
+          : "border-warning/30 bg-warning/10 text-warning",
+      )}
+    >
+      <Icon className="size-3" />
+      {online ? onlineLabel : offlineLabel}
     </Badge>
   );
 }

@@ -155,7 +155,8 @@ export function mapPrinter(item: Record<string, unknown>): Printer {
     agent_online: optionalBoolean(item.agent_online),
     owner_device_code: item.owner_device_code === undefined ? undefined : String(item.owner_device_code),
     can_edit: optionalBoolean(item.can_edit),
-    can_delete: optionalBoolean(item.can_delete)
+    can_delete: optionalBoolean(item.can_delete),
+    is_local_device: optionalBoolean(item.is_local_device)
   };
 }
 

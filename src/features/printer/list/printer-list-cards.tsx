@@ -20,6 +20,7 @@ import type { Printer } from "@/services/printer";
 import type { Zone } from "@/services/zone";
 import {
   BadgeList,
+  PrinterAvailabilityBadge,
   PrinterDetailMetric,
   PrinterOwnershipBadge,
   PrinterStatusBadge,
@@ -78,9 +79,17 @@ function PrinterCard({
         "flex h-full flex-col overflow-hidden rounded-lg border bg-card shadow-sm transition-shadow hover:shadow-md",
         !row.is_active && "border-destructive/50 bg-destructive/5",
         row.is_active &&
+          row.is_shared &&
+          row.agent_online === false &&
+          "border-warning/50 bg-warning/5",
+        row.is_active &&
+          !(row.is_shared && row.agent_online === false) &&
           !isOwnedPrinter(row) &&
           "border-info/40 bg-info/5",
-        row.is_active && isOwnedPrinter(row) && "border-border",
+        row.is_active &&
+          !(row.is_shared && row.agent_online === false) &&
+          isOwnedPrinter(row) &&
+          "border-border",
       )}
     >
       <div className="flex min-w-0 items-center gap-3 p-3 sm:p-4">
@@ -102,6 +111,19 @@ function PrinterCard({
               })}
               sharedFallbackLabel={t("printer.sharedBadge")}
             />
+            {row.is_shared ? (
+              <PrinterAvailabilityBadge
+                online={row.agent_online !== false}
+                onlineLabel={t("printer.sharedOnline")}
+                offlineLabel={t("printer.sharedOffline")}
+              />
+            ) : row.is_local_device === false ? (
+              <PrinterAvailabilityBadge
+                online={false}
+                onlineLabel=""
+                offlineLabel={t("printer.notLocalDevice")}
+              />
+            ) : null}
           </div>
           <p className="mt-0.5 truncate text-xs text-muted-foreground">
             {row.device_code || row.agent_name || "-"}
@@ -204,7 +226,9 @@ function PrinterCard({
             Boolean(testingUuid) ||
             Boolean(togglingUuid) ||
             !userUuid ||
-            !row.print_config_uuid
+            !row.print_config_uuid ||
+            (row.is_shared === true && row.agent_online === false) ||
+            (row.is_shared !== true && row.is_local_device === false)
           }
           onClick={() => void onTest(row)}
         >

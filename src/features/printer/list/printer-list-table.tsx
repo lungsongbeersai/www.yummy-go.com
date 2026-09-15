@@ -16,6 +16,7 @@ import type { Printer } from "@/services/printer";
 import type { Zone } from "@/services/zone";
 import {
   BadgeList,
+  PrinterAvailabilityBadge,
   PrinterOwnershipBadge,
   PrinterStatusBadge,
 } from "./printer-list-shared";
@@ -78,6 +79,9 @@ export function PrinterListTable({
           if (!row.is_active) {
             return "border-l-4 border-l-destructive bg-destructive/5 hover:bg-destructive/10";
           }
+          if (row.is_shared && row.agent_online === false) {
+            return "border-l-4 border-l-warning bg-warning/5 hover:bg-warning/10";
+          }
           if (!isOwnedPrinter(row)) {
             return "border-l-4 border-l-info bg-info/5 hover:bg-info/10";
           }
@@ -117,15 +121,30 @@ export function PrinterListTable({
             label: t("printer.ownerColumn"),
             headClassName: "whitespace-nowrap",
             render: (row) => (
-              <PrinterOwnershipBadge
-                isOwner={isOwnedPrinter(row)}
-                ownerDeviceCode={row.owner_device_code}
-                ownerLabel={t("printer.ownerBadge")}
-                sharedLabel={t("printer.sharedBadgeWithDevice", {
-                  device: row.owner_device_code,
-                })}
-                sharedFallbackLabel={t("printer.sharedBadge")}
-              />
+              <div className="flex flex-col items-start gap-1">
+                <PrinterOwnershipBadge
+                  isOwner={isOwnedPrinter(row)}
+                  ownerDeviceCode={row.owner_device_code}
+                  ownerLabel={t("printer.ownerBadge")}
+                  sharedLabel={t("printer.sharedBadgeWithDevice", {
+                    device: row.owner_device_code,
+                  })}
+                  sharedFallbackLabel={t("printer.sharedBadge")}
+                />
+                {row.is_shared ? (
+                  <PrinterAvailabilityBadge
+                    online={row.agent_online !== false}
+                    onlineLabel={t("printer.sharedOnline")}
+                    offlineLabel={t("printer.sharedOffline")}
+                  />
+                ) : row.is_local_device === false ? (
+                  <PrinterAvailabilityBadge
+                    online={false}
+                    onlineLabel=""
+                    offlineLabel={t("printer.notLocalDevice")}
+                  />
+                ) : null}
+              </div>
             ),
           },
           {
@@ -244,7 +263,9 @@ export function PrinterListTable({
               Boolean(testingUuid) ||
               Boolean(togglingUuid) ||
               !userUuid ||
-              !row.print_config_uuid,
+              !row.print_config_uuid ||
+              (row.is_shared === true && row.agent_online === false) ||
+              (row.is_shared !== true && row.is_local_device === false),
             keepOpenOnSelect: true,
             onSelect: (row) => void onTest(row),
           },

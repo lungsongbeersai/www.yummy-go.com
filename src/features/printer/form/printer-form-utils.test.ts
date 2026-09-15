@@ -4,7 +4,10 @@ import {
   cashDrawerEnabledOf,
   formatIpInput,
   kitchenCutModeOf,
+  mergeUsbPrinterOptions,
+  printerFormValues,
   requiresZoneMapping,
+  shouldResolveCurrentPrinterIdentity,
 } from "@/features/printer/form/printer-form-utils";
 
 describe("formatIpInput", () => {
@@ -97,5 +100,109 @@ describe("arraysHaveSameValues", () => {
   it("detects a real difference in the selected set", () => {
     expect(arraysHaveSameValues(["a", "b"], ["a", "c"])).toBe(false);
     expect(arraysHaveSameValues(["a"], ["a", "b"])).toBe(false);
+  });
+});
+
+describe("mergeUsbPrinterOptions", () => {
+  it("keeps a saved USB printer selectable when it is temporarily not discovered", () => {
+    expect(
+      mergeUsbPrinterOptions(
+        [
+          {
+            name: "Counter",
+            interface_value: "win:Counter",
+            platform: "windows",
+          },
+        ],
+        "win:Kitchen",
+        "Kitchen printer",
+      ),
+    ).toEqual([
+      {
+        name: "Kitchen printer",
+        interface_value: "win:Kitchen",
+        platform: "saved",
+      },
+      {
+        name: "Counter",
+        interface_value: "win:Counter",
+        platform: "windows",
+      },
+    ]);
+  });
+
+  it("does not duplicate a saved printer that discovery returned", () => {
+    const discovered = [
+      {
+        name: "Kitchen",
+        interface_value: "win:Kitchen",
+        platform: "windows",
+      },
+    ];
+
+    expect(
+      mergeUsbPrinterOptions(discovered, "win:Kitchen", "Kitchen printer"),
+    ).toBe(discovered);
+  });
+});
+
+describe("printerFormValues", () => {
+  it("restores the saved USB device as the selected option", () => {
+    expect(
+      printerFormValues({
+        print_config_uuid: "printer-1",
+        printer_name: "Kitchen",
+        connect_type: "usb",
+        interface_value: "win:Kitchen",
+        paper_width_mm: 80,
+        is_active: true,
+        role_codes: ["k-001"],
+        cate_uuid_fk: ["category-1"],
+      }).selectedDevice,
+    ).toBe("win:Kitchen");
+  });
+});
+
+describe("shouldResolveCurrentPrinterIdentity", () => {
+  it("preserves the saved owner identity during ordinary edits", () => {
+    expect(
+      shouldResolveCurrentPrinterIdentity({
+        isEditing: true,
+        savedIdentityComplete: true,
+        connectType: "tcp",
+        interfaceValue: "",
+        savedInterfaceValue: "",
+      }),
+    ).toBe(false);
+    expect(
+      shouldResolveCurrentPrinterIdentity({
+        isEditing: true,
+        savedIdentityComplete: true,
+        connectType: "usb",
+        interfaceValue: "win:Kitchen",
+        savedInterfaceValue: "win:Kitchen",
+      }),
+    ).toBe(false);
+  });
+
+  it("resolves the current Agent for a new printer or a changed USB device", () => {
+    expect(
+      shouldResolveCurrentPrinterIdentity({
+        isEditing: false,
+        savedIdentityComplete: false,
+        connectType: "tcp",
+        interfaceValue: "",
+        savedInterfaceValue: "",
+      }),
+    ).toBe(true);
+    expect(
+      shouldResolveCurrentPrinterIdentity({
+        isEditing: true,
+        savedIdentityComplete: true,
+        connectType: "usb",
+        interfaceValue: "win:Counter",
+        savedInterfaceValue: "win:Kitchen",
+      }),
+    ).toBe(true);
   });
 });
