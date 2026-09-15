@@ -979,6 +979,9 @@ export interface OrderQueueItem {
 
   order_it_date_time: string;
 
+  /** Optional during rolling deploys against a backend that predates this field. */
+  kitchen_confirmed_at?: string | null;
+
   open_minutes: number;
 
   order_item_status: number;

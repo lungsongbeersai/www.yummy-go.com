@@ -34,11 +34,30 @@ function itemArrivedAt(item: OrderQueueItem): number {
   return Number.isNaN(parsed) ? 0 : parsed;
 }
 
-// คิวทำงานแบบ FIFO: รอ นานที่สุดอยู่บนสุด ถ้านาทีเท่ากันใช้เวลาเข้ามาก่อน แล้วค่อยเลขคิว
+function kitchenConfirmedAt(item: OrderQueueItem): number {
+  if (!item.kitchen_confirmed_at) return itemArrivedAt(item);
+
+  const parsed = Date.parse(item.kitchen_confirmed_at.replace(" ", "T"));
+  return Number.isNaN(parsed) ? itemArrivedAt(item) : parsed;
+}
+
+function isSentToKitchen(item: OrderQueueItem): boolean {
+  // Backend groups status 3 together with status 2 in the sent-to-kitchen tab.
+  return item.order_item_status === 2 || item.order_item_status === 3;
+}
+
 export function sortOrderQueueItems(items: OrderQueueItem[]): OrderQueueItem[] {
   return items.toSorted((left, right) => {
-    const waitDiff = right.open_minutes - left.open_minutes;
-    if (waitDiff !== 0) return waitDiff;
+    // The first item confirmed by staff stays at the top even when it entered
+    // the waiting queue after another item.
+    if (isSentToKitchen(left) && isSentToKitchen(right)) {
+      const confirmedDiff = kitchenConfirmedAt(left) - kitchenConfirmedAt(right);
+      if (confirmedDiff !== 0) return confirmedDiff;
+    } else {
+      // The waiting queue remains FIFO: longest wait first.
+      const waitDiff = right.open_minutes - left.open_minutes;
+      if (waitDiff !== 0) return waitDiff;
+    }
 
     const arrivedDiff = itemArrivedAt(left) - itemArrivedAt(right);
     if (arrivedDiff !== 0) return arrivedDiff;

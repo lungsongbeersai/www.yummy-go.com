@@ -165,4 +165,44 @@ describe("sortOrderQueueItems", () => {
       "later"
     ]);
   });
+
+  it("keeps sent items in the order staff confirmed them", () => {
+    const rows = sortOrderQueueItems([
+      item({
+        order_item_uuid: "queue-3",
+        order_item_status: 2,
+        order_it_q: 3,
+        order_it_date_time: "2026-08-25 10:00:00",
+        kitchen_confirmed_at: "2026-08-25 10:06:00.000000"
+      }),
+      item({
+        order_item_uuid: "queue-4",
+        order_item_status: 2,
+        order_it_q: 4,
+        order_it_date_time: "2026-08-25 10:01:00",
+        kitchen_confirmed_at: "2026-08-25 10:05:00.000000"
+      })
+    ]);
+
+    expect(rows.map((row) => row.order_item_uuid)).toEqual(["queue-4", "queue-3"]);
+  });
+
+  it("falls back to arrival order for historical sent items without confirmation time", () => {
+    const rows = sortOrderQueueItems([
+      item({
+        order_item_uuid: "later",
+        order_item_status: 3,
+        order_it_q: 2,
+        order_it_date_time: "2026-08-25 10:01:00"
+      }),
+      item({
+        order_item_uuid: "earlier",
+        order_item_status: 2,
+        order_it_q: 1,
+        order_it_date_time: "2026-08-25 10:00:00"
+      })
+    ]);
+
+    expect(rows.map((row) => row.order_item_uuid)).toEqual(["earlier", "later"]);
+  });
 });

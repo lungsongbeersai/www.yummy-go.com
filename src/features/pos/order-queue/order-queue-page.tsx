@@ -131,10 +131,13 @@ export function OrderQueuePage() {
   const allSelectableSelected =
     selectableItems.length > 0 &&
     selectableItems.every((item) => selectedUuids.has(item.order_item_uuid));
-  // items เรียงจากรอนานสุดมาก่อนแล้วตั้งแต่ชั้น service (sortOrderQueueItems)
-  const oldestWait = items.length
-    ? liveWaitMinutes(items[0].open_minutes, minutesSinceLoad)
-    : 0;
+  // แท็บส่งครัวเรียงตามเวลายืนยัน ไม่ได้เรียงตามเวลารอ จึงต้องหาค่าสูงสุดจาก
+  // ทุกรายการแทนการอาศัยแถวแรก เพื่อให้ข้อความ "รอนานสุด" ยังถูกต้องทุกแท็บ
+  const oldestWait = items.reduce(
+    (longest, item) =>
+      Math.max(longest, liveWaitMinutes(item.open_minutes, minutesSinceLoad)),
+    0
+  );
   const activeTab = tabs.find((tab) => tab.status === status);
   const activeTabTitle = activeTab?.title || t(queueTabFallbackKey(status));
   const reasonInvalid = reasonTouched && !cancelReason.trim();
