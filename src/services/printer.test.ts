@@ -1255,6 +1255,44 @@ describe("printer service dispatch", () => {
     expect(axiosMocks.post).not.toHaveBeenCalled();
   });
 
+  it("keeps an uncertain backend delivery pending without sending duplicate bytes", async () => {
+    apiMocks.apiRequest.mockImplementation(async (method, url) => {
+      if (method === "get" && url === "/api/v1/printer/jobs/pending") {
+        return {
+          print_batch_payloads: [],
+          print_summary: {
+            print_batch_total: 0,
+            has_uncertain_delivery: true,
+            uncertain_item_total: 2,
+          },
+        };
+      }
+      throw new Error(`Unexpected request ${method} ${url}`);
+    });
+
+    await expect(
+      executeKitchenPrintJobs({
+        pending_query: {
+          print_job_uuid: "uncertain-kitchen-job",
+          login_uuid_fk: "login-1",
+          device_code: "device-1",
+          agent_id: "agent-1",
+          print_mode: "windows_agent",
+        },
+      })
+    ).resolves.toEqual({
+      successCount: 0,
+      failedCount: 0,
+      total: 2,
+      pending: true,
+      errorMessage:
+        "Printer delivery is uncertain; automatic retry was stopped to prevent a duplicate.",
+    });
+
+    expect(axiosMocks.get).not.toHaveBeenCalled();
+    expect(axiosMocks.post).not.toHaveBeenCalled();
+  });
+
   it("uses confirm pending_query directly without resolving printer context again", async () => {
     apiMocks.apiRequest.mockImplementation(async (method, url, options) => {
       if (method === "get" && url === "/api/v1/printer/jobs/pending") {

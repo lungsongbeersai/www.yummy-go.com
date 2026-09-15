@@ -480,6 +480,12 @@ function pendingFailedBeforePrintReason(result: PendingPrintJobsResult) {
   return result.ackFailed?.results?.find((item) => item.status === "failed")?.reason || undefined;
 }
 
+function pendingUncertainItemTotal(result: PendingPrintJobsResult) {
+  const total = Number(result.printSummary.uncertain_item_total ?? 0);
+  if (Number.isFinite(total) && total > 0) return total;
+  return result.printSummary.has_uncertain_delivery === true ? 1 : 0;
+}
+
 async function printKitchenBatchJob(
   batch: PrintOpsBatchPayload,
   localAgent: AgentInfo,
@@ -558,6 +564,25 @@ async function executePrintJobs(
   const globalAckFailed = pendingResult.ackFailed;
 
   if (pendingResult.hasBatchPayloads && batchPayloads.length === 0) {
+    const uncertainTotal = pendingUncertainItemTotal(pendingResult);
+    if (uncertainTotal > 0) {
+      input.onProgress?.({
+        total: uncertainTotal,
+        completed: 0,
+        successCount: 0,
+        failedCount: 0,
+        phase: "done",
+      });
+      return {
+        successCount: 0,
+        failedCount: 0,
+        total: uncertainTotal,
+        pending: true,
+        errorMessage:
+          "Printer delivery is uncertain; automatic retry was stopped to prevent a duplicate.",
+      };
+    }
+
     // งานครัว: backend/agent จัดการคิวพิมพ์และยืนยันสถานะออเดอร์เองทั้งหมด
     // เมนูที่ไม่มี config เครื่องพิมพ์ backend รายงานเป็น failed_before_print แต่ยังยืนยันออเดอร์ให้ตามปกติ
     // จึงไม่ใช่ความล้มเหลวฝั่ง client ส่วนเอกสารยังต้องแจ้ง cashier ว่าพิมพ์ไม่ออก

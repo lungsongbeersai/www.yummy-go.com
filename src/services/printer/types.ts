@@ -33,10 +33,15 @@ export interface AgentInfoResponse extends ApiEntity {
 export interface PendingPrintJobsFullResponse extends ApiEntity {
   data?: PendingPrintJobData[];
   print_batch_payloads?: PrintOpsBatchPayload[];
-  print_summary?: ApiEntity;
+  print_summary?: PrintSummary;
   ack_success_payload?: AckPayload;
   ack_failed_payload?: AckPayload;
   pending_job_refs?: PendingPrintJobRef[];
+}
+export interface PrintSummary extends ApiEntity {
+  failed_before_print_total?: number;
+  has_uncertain_delivery?: boolean;
+  uncertain_item_total?: number;
 }
 export interface PrinterCategory extends ApiEntity {
   cate_uuid: string;
@@ -356,7 +361,7 @@ export interface PendingPrintJobsResult {
   hasBatchPayloads: boolean;
   ackSuccess: AckPayload | null;
   ackFailed: AckPayload | null;
-  printSummary: ApiEntity;
+  printSummary: PrintSummary;
   pendingJobRefs?: PendingPrintJobRef[];
 }
 export interface PrinterDeviceContextParams {
