@@ -14,6 +14,7 @@ import { useIsNativeShellActive } from "@/hooks/use-native-shell-active";
 import { cn } from "@/lib/utils";
 import type { PosZone } from "@/services/pos";
 import { useAuthStore } from "@/stores/auth-store";
+import { DepositCreateDialog } from "@/features/sales/deposit/deposit-create-dialog";
 import { BranchMenuQrDialog } from "./branch-menu-qr-dialog";
 import {
   CartDiscountDialog,
@@ -346,6 +347,7 @@ export function SelectedTableCartPanelContent({
             }
             onCreateTableQr={showTableFeatures ? workflow.openTableQr : undefined}
             onCreateBranchMenuQr={workflow.openBranchMenuQr}
+            onCreateDeposit={() => workflow.setDepositDialogOpen(true)}
             onCustomerDisplay={() =>
               void customerDisplay.openCustomerDisplayScreen()
             }
@@ -377,6 +379,11 @@ export function SelectedTableCartPanelContent({
       <BranchMenuQrDialog
         open={workflow.branchMenuQrOpen}
         onOpenChange={workflow.setBranchMenuQrOpen}
+      />
+      <DepositCreateDialog
+        branchUuid={workflow.user?.branch_uuid}
+        open={workflow.depositDialogOpen}
+        onOpenChange={workflow.setDepositDialogOpen}
       />
       <CustomerDisplayPickerDialog
         canCloseCustomerDisplay={customerDisplay.canCloseCustomerDisplay}

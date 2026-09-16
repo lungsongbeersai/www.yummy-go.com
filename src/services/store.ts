@@ -13,10 +13,12 @@ export interface Store extends ApiEntity {
   store_status?: number;
   store_active?: number;
   store_table_status?: number;
+  deposit_expire_days?: number | null;
 }
 export type StoreResponse = ApiListResponse<Store>;
 export interface SaveStoreInput extends ApiEntity {
   store_table_status?: number;
+  deposit_expire_days?: number | null;
 }
 export interface FetchStoresParams extends FetchParams {}
 
