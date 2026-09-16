@@ -9,14 +9,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
-import {
-  Table,
-  TableBody,
-  TableHead,
-  TableHeader,
-  TableRow
-} from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { BlockingLoadingDialog } from "@/components/common/blocking-loading-dialog";
 import { EmptyState } from "@/components/common/empty-state";
@@ -33,6 +27,14 @@ import {
   OrderQueueCard,
   OrderQueueTableRow
 } from "@/features/pos/order-queue/order-queue-items";
+import { OrderQueueManagePanel } from "@/features/pos/order-queue/order-queue-manage-panel";
+import {
+  OrderQueueTableBody,
+  OrderQueueTableFoot,
+  OrderQueueTableHead,
+  useOrderQueueTableScrollSync
+} from "@/features/pos/order-queue/order-queue-table-frame";
+import { manageQueueUrgencyTier } from "@/features/pos/order-queue/order-queue-urgency";
 import {
   buildOrderQueueTabs,
   canSelectQueueItem,
@@ -92,6 +94,7 @@ export function OrderQueuePage() {
   const branchUuid = user?.branch_uuid ?? "";
   const isSelectable =
     status !== OrderItemStatus.CANCELLED && status !== OrderItemStatus.ORDERED;
+  const { headRef, footRef, handleBodyScroll } = useOrderQueueTableScrollSync();
 
   // เก็บแค่ uuid แล้ว derive ตัวรายการจาก items ตอน render — รายการที่หลุดจากคิวไปแล้ว
   // (ถูกส่งครัว/ยกเลิก) จะหายจาก selection เองโดยไม่ต้องมี effect คอยไล่ prune
@@ -112,7 +115,11 @@ export function OrderQueuePage() {
   const tabsRailRef = useRef<HTMLDivElement | null>(null);
   const [tabsRailOverflowing, setTabsRailOverflowing] = useState(false);
 
-  const view: QueueListView = viewOverride ?? (isMobile ? "card" : "table");
+  // isMobile ต้องชนะ viewOverride เสมอ ไม่ใช่แค่ค่า fallback — ปุ่มสลับมุมมองถูกซ่อนแล้ว
+  // ตอนจอแคบกว่า md แต่ viewOverride เป็น state ที่ค้างอยู่ได้ (เช่น กดปุ่ม "ตาราง" ไว้ตอน
+  // จอกว้าง แล้วย่อ/หมุนจอแคบลงโดยไม่รีโหลดหน้า) ถ้ายังปล่อยให้ viewOverride ชนะ ตารางคอลัมน์
+  // คงที่ 9 คอลัมน์จะโผล่มาบนจอโทรศัพท์ทั้งที่ควบคุมปิดการเข้าถึงไว้แล้ว
+  const view: QueueListView = isMobile ? "card" : (viewOverride ?? "table");
   const minutesSinceLoad = useMinutesSinceLoad(loadedAt);
 
   const tabs = useMemo(() => buildOrderQueueTabs(sections), [sections]);
@@ -131,13 +138,44 @@ export function OrderQueuePage() {
   const allSelectableSelected =
     selectableItems.length > 0 &&
     selectableItems.every((item) => selectedUuids.has(item.order_item_uuid));
-  // แท็บส่งครัวเรียงตามเวลายืนยัน ไม่ได้เรียงตามเวลารอ จึงต้องหาค่าสูงสุดจาก
-  // ทุกรายการแทนการอาศัยแถวแรก เพื่อให้ข้อความ "รอนานสุด" ยังถูกต้องทุกแท็บ
+  // แสดงในแถบสรุปท้ายตาราง (TableFooter) ไม่ใช่ page header อีกต่อไป — เรียงตามเวลายืนยัน
+  // ไม่ได้เรียงตามเวลารอ จึงต้องหาค่าสูงสุดจากทุกรายการแทนการอาศัยแถวแรก
   const oldestWait = items.reduce(
     (longest, item) =>
       Math.max(longest, liveWaitMinutes(item.open_minutes, minutesSinceLoad)),
     0
   );
+  // แท็บรอยืนยันส่งครัวเท่านั้น — ออเดอร์ที่ค้าง 15+ นาทีล็อกปุ่ม action ของออเดอร์อื่น
+  // ทั้งหมด (รวมปุ่มกลุ่มด้านล่าง) จนกว่าจะกดส่งครัวใบนี้ก่อน
+  const lockedOrderItemUuid =
+    status === OrderItemStatus.WAITING_CONFIRM
+      ? items.reduce<string | null>((lockedUuid, item) => {
+          const wait = liveWaitMinutes(item.open_minutes, minutesSinceLoad);
+          if (wait < 15) return lockedUuid;
+          if (!lockedUuid) return item.order_item_uuid;
+          const lockedWait = liveWaitMinutes(
+            items.find((candidate) => candidate.order_item_uuid === lockedUuid)
+              ?.open_minutes ?? 0,
+            minutesSinceLoad
+          );
+          return wait > lockedWait ? item.order_item_uuid : lockedUuid;
+        }, null)
+      : null;
+  // ยกเลิกไม่ถูกล็อก (ไม่ใช่การส่งออเดอร์ใหม่เข้าครัว) — ล็อกเฉพาะปุ่ม "ยืนยันส่งครัว"
+  // รวมของด้านล่าง เว้นแต่สิ่งที่เลือกไว้คือออเดอร์ที่ค้างอยู่ใบนั้นเป๊ะ ๆ (ใช้ปุ่มนี้เพื่อ
+  // acknowledge มันได้)
+  const lockedItem = lockedOrderItemUuid
+    ? items.find((item) => item.order_item_uuid === lockedOrderItemUuid)
+    : undefined;
+  const bulkSendLocked =
+    Boolean(lockedOrderItemUuid) &&
+    !(selectedItems.length === 1 && selectedItems[0].order_item_uuid === lockedOrderItemUuid);
+  const bulkSendLockedReason = lockedItem
+    ? t("orderQueue.lockedActionDisabled", {
+        table: lockedItem.table_name || t("orderQueue.noTable"),
+        wait: formatQueueWait(liveWaitMinutes(lockedItem.open_minutes, minutesSinceLoad), t)
+      })
+    : undefined;
   const activeTab = tabs.find((tab) => tab.status === status);
   const activeTabTitle = activeTab?.title || t(queueTabFallbackKey(status));
   const reasonInvalid = reasonTouched && !cancelReason.trim();
@@ -401,9 +439,9 @@ export function OrderQueuePage() {
 
     if (view === "card") {
       return (
-        <div className="flex flex-col gap-3">
+        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
           {isSelectable && selectableItems.length > 0 ? (
-            <Label className="flex w-fit items-center gap-2 text-xs font-bold text-muted-foreground">
+            <Label className="flex w-fit shrink-0 items-center gap-2 text-xs font-bold text-muted-foreground">
               <Checkbox
                 checked={headerChecked}
                 onCheckedChange={(checked) => toggleAllItems(checked === true)}
@@ -411,7 +449,7 @@ export function OrderQueuePage() {
               {t("common.selectAll")}
             </Label>
           ) : null}
-          <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
+          <div className="grid min-h-0 flex-1 auto-rows-min gap-3 overflow-y-auto pb-24 md:grid-cols-2 2xl:grid-cols-3">
             {rows.map((row) => (
               <OrderQueueCard
                 key={row.item.order_item_uuid}
@@ -422,6 +460,16 @@ export function OrderQueuePage() {
                 selected={row.selected}
                 status={status}
                 waitMinutes={row.waitMinutes}
+                manageUrgency={
+                  status === OrderItemStatus.WAITING_CONFIRM
+                    ? manageQueueUrgencyTier(row.waitMinutes)
+                    : undefined
+                }
+                lockedReason={
+                  lockedOrderItemUuid && row.item.order_item_uuid !== lockedOrderItemUuid
+                    ? bulkSendLockedReason
+                    : undefined
+                }
                 onAction={(action) => void handleItemAction(row.item, action)}
                 onCancel={() => openCancelDialogForItem(row.item)}
                 onToggle={(checked) => toggleItem(row.item, checked)}
@@ -432,227 +480,204 @@ export function OrderQueuePage() {
       );
     }
 
+    if (status === OrderItemStatus.WAITING_CONFIRM) {
+      return (
+        <OrderQueueManagePanel
+          rows={rows}
+          headerChecked={headerChecked}
+          isSelectable={isSelectable}
+          hasSelectableItems={selectableItems.length > 0}
+          lockedOrderItemUuid={lockedOrderItemUuid}
+          onToggle={(item, checked) => toggleItem(item, checked)}
+          onToggleAll={toggleAllItems}
+          onAction={(item, action) => void handleItemAction(item, action)}
+          onCancel={openCancelDialogForItem}
+        />
+      );
+    }
+
     return (
-      <Card className="overflow-hidden p-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-10">
-                {isSelectable && selectableItems.length > 0 ? (
-                  <Checkbox
-                    aria-label={t("common.selectAll")}
-                    checked={headerChecked}
-                    onCheckedChange={(checked) => toggleAllItems(checked === true)}
-                  />
-                ) : null}
-              </TableHead>
-              <TableHead>{t("orderQueue.wait")}</TableHead>
-              <TableHead>{t("pos.table")}</TableHead>
-              <TableHead>{t("pos.product")}</TableHead>
-              <TableHead>{t("pos.qty")}</TableHead>
-              <TableHead>{t("orderQueue.orderNumber")}</TableHead>
-              <TableHead>{t("orderQueue.arrived")}</TableHead>
-              <TableHead>{t("common.status")}</TableHead>
-              <TableHead className="text-right">
-                {t("orderQueue.actionColumn")}
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((row) => (
-              <OrderQueueTableRow
-                key={row.item.order_item_uuid}
-                acting={row.acting}
-                item={row.item}
-                position={row.position}
-                selectable={row.selectable}
-                selected={row.selected}
-                status={status}
-                waitMinutes={row.waitMinutes}
-                onAction={(action) => void handleItemAction(row.item, action)}
-                onCancel={() => openCancelDialogForItem(row.item)}
-                onToggle={(checked) => toggleItem(row.item, checked)}
-              />
-            ))}
-          </TableBody>
-        </Table>
+      <Card className="flex min-h-0 flex-1 flex-col gap-0 overflow-hidden p-0 py-0">
+        <OrderQueueTableHead
+          headerChecked={headerChecked}
+          showCheckbox={isSelectable && selectableItems.length > 0}
+          onToggleAll={toggleAllItems}
+          scrollContainerRef={headRef}
+        />
+        <OrderQueueTableBody onScroll={handleBodyScroll}>
+          {rows.map((row) => (
+            <OrderQueueTableRow
+              key={row.item.order_item_uuid}
+              acting={row.acting}
+              item={row.item}
+              position={row.position}
+              selectable={row.selectable}
+              selected={row.selected}
+              status={status}
+              waitMinutes={row.waitMinutes}
+              onAction={(action) => void handleItemAction(row.item, action)}
+              onCancel={() => openCancelDialogForItem(row.item)}
+              onToggle={(checked) => toggleItem(row.item, checked)}
+            />
+          ))}
+        </OrderQueueTableBody>
+        <OrderQueueTableFoot
+          count={items.length}
+          oldestWait={oldestWait}
+          scrollContainerRef={footRef}
+        />
       </Card>
     );
   }
 
   return (
-    <div className="flex flex-col gap-4 pb-24">
-      {nativeShellActive ? (
-        // Capacitor: ตัด h1/ตัวสลับมุมมองตาราง-การ์ด/ปุ่มรีเฟรชในหน้าออกทั้งหมด
-        // — ชื่อหน้าซ้ำกับ NativeTopBar อยู่แล้ว, มุมมองตารางใช้งานจริงไม่ได้บนจอแคบขนาด
-        // นี้เลย (isMobile บังคับ view เป็น "card" อยู่แล้วเสมอ ปุ่มสลับเลยไม่มีประโยชน์
-        // แถมกินที่), ปุ่มรีเฟรชย้ายไปลงทะเบียนเข้า top bar แทนแล้วด้านบน — เหลือแค่บรรทัด
-        // สรุปที่มีข้อมูลไม่ซ้ำใคร (จำนวน/เวลารอนานสุด)
-        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-          <span>{activeTabTitle}</span>
-          <span aria-hidden="true">·</span>
-          <span className="tabular-nums">
-            {t("orderQueue.activeOrders", { count: items.length })}
-          </span>
-          {oldestWait > 0 ? (
-            <>
-              <span aria-hidden="true">·</span>
-              <span className="tabular-nums">
-                {t("orderQueue.oldestWait", {
-                  wait: formatQueueWait(oldestWait, t)
-                })}
-              </span>
-            </>
-          ) : null}
-        </p>
-      ) : (
-        <header className="flex flex-wrap items-start justify-between gap-3">
-          <div className="flex min-w-0 flex-col gap-1">
-            <h1 className="text-xl font-black text-foreground">
-              {t("orderQueue.title")}
-            </h1>
-            <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-              <span>{activeTabTitle}</span>
-              <span aria-hidden="true">·</span>
-              <span className="tabular-nums">
-                {t("orderQueue.activeOrders", { count: items.length })}
-              </span>
-              {oldestWait > 0 ? (
-                <>
-                  <span aria-hidden="true">·</span>
-                  <span className="tabular-nums">
-                    {t("orderQueue.oldestWait", {
-                      wait: formatQueueWait(oldestWait, t)
-                    })}
-                  </span>
-                </>
-              ) : null}
-            </p>
-          </div>
-
-          <div className="flex shrink-0 items-center gap-2">
-            {/* pill + ตัวอักษรหนา + shadow ตามแพทเทิร์นเดียวกับ StatusToggleItem ใน
-                table-list-section.tsx — เดิมใช้ ToggleGroup variant="outline" ค่า default
-                (h-7, border บาง) ซึ่งเป็นขนาด/น้ำหนักสำหรับ control ย่อยในฟอร์ม ไม่ใช่ปุ่มระดับ
-                page-level ผลคือดูเป็นกล่องเล็ก ๆ จิ๋วเบียดกัน ไม่ match กับส่วนอื่นของแอป */}
-            <ToggleGroup
-              aria-label={t("orderQueue.viewToggleAria")}
-              type="single"
-              value={view}
-              onValueChange={(value) => {
-                if (value) setViewOverride(value as QueueListView);
-              }}
-              className="gap-1.5"
-            >
-              <ToggleGroupItem
-                value="table"
-                aria-label={t("orderQueue.viewTable")}
-                className="h-10 gap-1.5 rounded-full border border-border bg-card px-3.5 font-black shadow-sm data-[state=on]:border-transparent data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow-primary/20"
-              >
-                <Rows3 data-icon="inline-start" />
-                <span className="hidden sm:inline">{t("orderQueue.viewTable")}</span>
-              </ToggleGroupItem>
-              <ToggleGroupItem
-                value="card"
-                aria-label={t("orderQueue.viewCard")}
-                className="h-10 gap-1.5 rounded-full border border-border bg-card px-3.5 font-black shadow-sm data-[state=on]:border-transparent data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow-primary/20"
-              >
-                <LayoutGrid data-icon="inline-start" />
-                <span className="hidden sm:inline">{t("orderQueue.viewCard")}</span>
-              </ToggleGroupItem>
-            </ToggleGroup>
-
-            <Button
-              type="button"
-              variant="outline"
-              className="h-10 rounded-full px-3.5 font-black shadow-sm"
-              disabled={loading}
-              onClick={() => void refresh()}
-            >
-              {loading ? (
-                <Spinner data-icon="inline-start" />
-              ) : (
-                <RefreshCcw data-icon="inline-start" />
-              )}
-              <span className="hidden sm:inline">{t("actions.refresh")}</span>
-            </Button>
-          </div>
-        </header>
-      )}
-
+    <div className="flex h-full min-h-0 flex-col gap-4 overflow-hidden">
       <Tabs
         value={String(status)}
         onValueChange={(value) => void handleTabChange(value)}
-        className="gap-4"
+        className="min-h-0 flex-1 gap-4"
       >
-        <div className="relative">
-          {/* ใช้ variant ปกติ ไม่ใช่ "line" — variant line บังคับ data-active:bg-transparent
-              ด้วย selector ที่ specificity สูงกว่า (group-data-[variant=line]/tabs-list:)
-              คลาสสีที่ส่งเข้ามาตรงนี้เลยแพ้เสมอ แท็บที่เลือกอยู่จะพื้นใสจนดูไม่ออกว่าอันไหนถูกเลือก */}
-          {/* py-1 ไม่ใช่แค่ pb-1 เดิม — overflow-x ที่ไม่ใช่ visible ทำให้ browser บังคับ
-              overflow-y เป็น auto ไปด้วยตามสเปก (ตั้งใจ visible ไว้ก็ไม่มีผล) เงา/ขอบโฟกัส
-              ของปุ่มที่ไม่มี padding บนกันไว้เลยโดนตัดขอบบนได้ */}
-          {/* pl-8/pr-8 พอดีกับปุ่มลูกศร size-8 เป๊ะ เฉพาะตอนล้นจริง (tabsRailOverflowing)
-              — เผื่อที่ให้แท็บแรก/สุดท้ายไม่โดนปุ่มลูกศรบังจนอ่าน/กดไม่ได้ ตามที่รายงานมา
-              บนมือถือ/Capacitor ไม่ใส่ตลอดเพราะจอกว้างที่ไม่มีลูกศรจะเห็นเป็นที่ว่างเกินจำเป็น
-              (เดิม size-9/pl-10 กินพื้นที่มากไปจนแท็บแรกดูห่างขอบจอเกินจำเป็นบนมือถือ)
-              overflow-y-hidden ตัดเลื่อนแนวตั้งออก — overflow-x ที่ไม่ใช่ visible ทำให้
-              เบราว์เซอร์บังคับ overflow-y เป็น auto ไปด้วยตามสเปก แถวนี้ต้องเลื่อนแนวนอนอย่างเดียว */}
-          <div
-            ref={tabsRailRef}
-            className={cn(
-              "-mx-1 overflow-x-auto overflow-y-hidden px-1 py-1",
-              tabsRailOverflowing && "pl-8 pr-8"
-            )}
-          >
-            {/* group-data-horizontal/tabs:h-auto ไม่ใช่แค่ h-auto เฉย ๆ — TabsList พื้นฐาน
-                มี group-data-horizontal/tabs:h-8 (32px) ที่ใช้ attribute selector ทำให้
-                specificity สูงกว่า .h-auto ธรรมดา ชนะเสมอไม่ว่าจะเขียนลำดับคลาสยังไง (แพทเทิร์น
-                เดียวกับ payment-dialog-content.tsx) ไม่งั้นปุ่มแท็บสูง h-10 (40px) โดนตัดขอบ
-                บน-ล่างเพราะ container ถูกบังคับสูงแค่ 32px */}
-            <TabsList className="h-auto w-full justify-start gap-2 bg-transparent p-0 group-data-horizontal/tabs:h-auto">
-              {visibleTabs.map((tab) => {
-                const active = status === tab.status;
-                return (
-                  <TabsTrigger
-                    key={tab.status}
-                    value={String(tab.status)}
-                    className={cn(
-                      "h-10 flex-none gap-1.5 rounded-full border border-transparent px-3.5 font-black shadow-sm transition",
-                      "data-active:bg-primary data-active:text-primary-foreground data-active:shadow-primary/20",
-                      "dark:data-active:bg-primary dark:data-active:text-primary-foreground",
-                      !active &&
-                        "border-border bg-card text-foreground hover:border-primary/30 hover:bg-primary/5"
-                    )}
-                  >
-                    {tab.title || t(queueTabFallbackKey(tab.status))}
-                    <Badge
+        {/* แท็บ + ปุ่มควบคุม (สลับมุมมอง/รีเฟรช) รวมเป็นแถวเดียวกัน — เดิมแยกเป็น header
+            ลอยแถวบนสุดต่างหาก เหลือแค่ปุ่มไม่กี่ปุ่มชิดขวา ด้านซ้ายว่างเป็นแถบเปล่ายาว
+            ดูเหมือนของหลุดค้าง ทั้งที่ header หลักของแอป (breadcrumb) บอกชื่อหน้าอยู่แล้ว
+            ไม่ต้องมีอะไรค้างไว้ฝั่งซ้ายเลย — รวมเข้าแถวแท็บแทนให้เป็นแถบเครื่องมือเดียว
+            (แท็บชิดซ้าย/เลื่อนได้ในตัวมันเอง, ปุ่มควบคุมชิดขวา, native shell ตัดปุ่มออกเหมือนเดิม
+            เพราะ NativeTopBar มีปุ่มรีเฟรชของตัวเองแล้ว) — border-b/pb-3 ทำให้ทั้งแถบนี้ดูเป็น
+            เครื่องมือชิ้นเดียวที่ตั้งใจวางไว้ ไม่ใช่ปุ่มลอยเดี่ยว ๆ เบียดกันมุมขวาบนจอกว้าง
+            ที่เหลือพื้นที่ว่างตรงกลางเยอะจนดูเหมือนของขาดหาย */}
+        <div className="flex shrink-0 items-center gap-3 border-b border-border pb-3">
+          <div className="relative min-w-0 flex-1">
+            {/* ใช้ variant ปกติ ไม่ใช่ "line" — variant line บังคับ data-active:bg-transparent
+                ด้วย selector ที่ specificity สูงกว่า (group-data-[variant=line]/tabs-list:)
+                คลาสสีที่ส่งเข้ามาตรงนี้เลยแพ้เสมอ แท็บที่เลือกอยู่จะพื้นใสจนดูไม่ออกว่าอันไหนถูกเลือก */}
+            {/* py-1 ไม่ใช่แค่ pb-1 เดิม — overflow-x ที่ไม่ใช่ visible ทำให้ browser บังคับ
+                overflow-y เป็น auto ไปด้วยตามสเปก (ตั้งใจ visible ไว้ก็ไม่มีผล) เงา/ขอบโฟกัส
+                ของปุ่มที่ไม่มี padding บนกันไว้เลยโดนตัดขอบบนได้ */}
+            {/* pl-8/pr-8 พอดีกับปุ่มลูกศร size-8 เป๊ะ เฉพาะตอนล้นจริง (tabsRailOverflowing)
+                — เผื่อที่ให้แท็บแรก/สุดท้ายไม่โดนปุ่มลูกศรบังจนอ่าน/กดไม่ได้ ตามที่รายงานมา
+                บนมือถือ/Capacitor ไม่ใส่ตลอดเพราะจอกว้างที่ไม่มีลูกศรจะเห็นเป็นที่ว่างเกินจำเป็น
+                (เดิม size-9/pl-10 กินพื้นที่มากไปจนแท็บแรกดูห่างขอบจอเกินจำเป็นบนมือถือ)
+                overflow-y-hidden ตัดเลื่อนแนวตั้งออก — overflow-x ที่ไม่ใช่ visible ทำให้
+                เบราว์เซอร์บังคับ overflow-y เป็น auto ไปด้วยตามสเปก แถวนี้ต้องเลื่อนแนวนอนอย่างเดียว */}
+            <div
+              ref={tabsRailRef}
+              className={cn(
+                "-mx-1 overflow-x-auto overflow-y-hidden px-1 py-1",
+                tabsRailOverflowing && "pl-8 pr-8"
+              )}
+            >
+              {/* group-data-horizontal/tabs:h-auto ไม่ใช่แค่ h-auto เฉย ๆ — TabsList พื้นฐาน
+                  มี group-data-horizontal/tabs:h-8 (32px) ที่ใช้ attribute selector ทำให้
+                  specificity สูงกว่า .h-auto ธรรมดา ชนะเสมอไม่ว่าจะเขียนลำดับคลาสยังไง (แพทเทิร์น
+                  เดียวกับ payment-dialog-content.tsx) ไม่งั้นปุ่มแท็บสูง h-10 (40px) โดนตัดขอบ
+                  บน-ล่างเพราะ container ถูกบังคับสูงแค่ 32px */}
+              <TabsList className="h-auto w-full justify-start gap-2 bg-transparent p-0 group-data-horizontal/tabs:h-auto">
+                {visibleTabs.map((tab) => {
+                  const active = status === tab.status;
+                  return (
+                    <TabsTrigger
+                      key={tab.status}
+                      value={String(tab.status)}
                       className={cn(
-                        "border-transparent px-1.5 tabular-nums",
-                        active
-                          ? "bg-primary-foreground/20 text-primary-foreground"
-                          : "bg-muted text-muted-foreground"
+                        "h-10 flex-none gap-1.5 rounded-full border border-transparent px-3.5 font-black shadow-sm transition",
+                        "data-active:bg-primary data-active:text-primary-foreground data-active:shadow-primary/20",
+                        "dark:data-active:bg-primary dark:data-active:text-primary-foreground",
+                        !active &&
+                          "border-border bg-card text-foreground hover:border-primary/30 hover:bg-primary/5"
                       )}
                     >
-                      {tab.total}
-                    </Badge>
-                  </TabsTrigger>
-                );
-              })}
-            </TabsList>
+                      {tab.title || t(queueTabFallbackKey(tab.status))}
+                      <Badge
+                        className={cn(
+                          "border-transparent px-1.5 tabular-nums",
+                          active
+                            ? "bg-primary-foreground/20 text-primary-foreground"
+                            : "bg-muted text-muted-foreground"
+                        )}
+                      >
+                        {tab.total}
+                      </Badge>
+                    </TabsTrigger>
+                  );
+                })}
+              </TabsList>
+            </div>
+            {/* แถวแท็บสถานะ 5 อันกว้างเกินจอมือถือ/แท็บเล็ตแน่นอน — mobile browser ซ่อน
+                scrollbar เป็นค่าเริ่มต้น ไม่มีลูกศรนี้ผู้ใช้จะไม่รู้ว่าต้องเลื่อนดู เข้าใจผิดว่า
+                แท็บท้าย ๆ "หายไป" หรือ "ถูกบัง" (ตามที่รายงานมา) ทั้งที่จริงแค่ล้นขอบจอ */}
+            <HorizontalScrollArrows
+              className="size-8"
+              scrollRef={tabsRailRef}
+              onOverflowChange={setTabsRailOverflowing}
+            />
           </div>
-          {/* แถวแท็บสถานะ 5 อันกว้างเกินจอมือถือ/แท็บเล็ตแน่นอน — mobile browser ซ่อน
-              scrollbar เป็นค่าเริ่มต้น ไม่มีลูกศรนี้ผู้ใช้จะไม่รู้ว่าต้องเลื่อนดู เข้าใจผิดว่า
-              แท็บท้าย ๆ "หายไป" หรือ "ถูกบัง" (ตามที่รายงานมา) ทั้งที่จริงแค่ล้นขอบจอ */}
-          <HorizontalScrollArrows
-            className="size-8"
-            scrollRef={tabsRailRef}
-            onOverflowChange={setTabsRailOverflowing}
-          />
+
+          {nativeShellActive ? null : (
+            // native shell ตัดออกเหมือนเดิม — NativeTopBar มีปุ่มรีเฟรชของตัวเองอยู่แล้ว
+            <div className="flex shrink-0 items-center gap-3">
+              {/* เดิมแยกปุ่ม "ตาราง"/"การ์ด" เป็นคนละกล่อง (มีขอบ+เงาของตัวเอง) ดูเหมือน
+                  3 ปุ่มเดี่ยว ๆ เรียงกันโดยไม่รู้ว่าปุ่มไหนเป็นกลุ่มเดียวกัน — เปลี่ยนเป็น
+                  segmented control จริง: ครอบด้วยรางเดียว (border+bg-muted) แล้วให้แต่ละ
+                  item โปร่งใส เห็นแค่ pill สีทึบตอนถูกเลือกเท่านั้น ตัดปุ่มรีเฟรชออกมาไว้
+                  นอกราง เว้นระยะห่างชัดเจน (gap-3) ให้รู้ทันทีว่าไม่ใช่ตัวเลือกมุมมองที่ 3
+                  — ซ่อนทั้งกลุ่มบนจอแคบกว่า md (isMobile) เพราะมุมมองตารางคอลัมน์คงที่ 9
+                  คอลัมน์ใช้งานจริงไม่ได้บนจอโทรศัพท์อยู่แล้ว (isMobile บังคับ view เป็น
+                  "card" เสมอ) การเปิดปุ่มสลับไว้จะยิ่งชวนกดไปเจอตารางที่ใช้งานไม่ได้ */}
+              {isMobile ? null : (
+                <ToggleGroup
+                  aria-label={t("orderQueue.viewToggleAria")}
+                  type="single"
+                  value={view}
+                  onValueChange={(value) => {
+                    if (value) setViewOverride(value as QueueListView);
+                  }}
+                  className="gap-1 rounded-full border border-border bg-muted p-1"
+                >
+                  <ToggleGroupItem
+                    value="table"
+                    aria-label={t("orderQueue.viewTable")}
+                    className="h-8 gap-1.5 rounded-full px-3.5 font-black data-[state=on]:bg-card data-[state=on]:text-foreground data-[state=on]:shadow-sm"
+                  >
+                    <Rows3 data-icon="inline-start" />
+                    <span className="hidden sm:inline">{t("orderQueue.viewTable")}</span>
+                  </ToggleGroupItem>
+                  <ToggleGroupItem
+                    value="card"
+                    aria-label={t("orderQueue.viewCard")}
+                    className="h-8 gap-1.5 rounded-full px-3.5 font-black data-[state=on]:bg-card data-[state=on]:text-foreground data-[state=on]:shadow-sm"
+                  >
+                    <LayoutGrid data-icon="inline-start" />
+                    <span className="hidden sm:inline">{t("orderQueue.viewCard")}</span>
+                  </ToggleGroupItem>
+                </ToggleGroup>
+              )}
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-lg"
+                    className="rounded-full"
+                    aria-label={t("actions.refresh")}
+                    disabled={loading}
+                    onClick={() => void refresh()}
+                  >
+                    {loading ? <Spinner /> : <RefreshCcw />}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{t("actions.refresh")}</TooltipContent>
+              </Tooltip>
+            </div>
+          )}
         </div>
 
         {visibleTabs.map((tab) => (
-          <TabsContent key={tab.status} value={String(tab.status)}>
+          <TabsContent
+            key={tab.status}
+            value={String(tab.status)}
+            className="flex min-h-0 flex-col overflow-hidden"
+          >
             {renderList()}
           </TabsContent>
         ))}
@@ -702,27 +727,44 @@ export function OrderQueuePage() {
               <>
                 <Button
                   type="button"
-                  variant="outline"
-                  className="h-11"
+                  variant="destructive"
+                  className="h-11 bg-destructive text-destructive-foreground hover:bg-destructive hover:brightness-90 dark:bg-destructive dark:hover:bg-destructive"
                   disabled={busy || selectedItems.length === 0}
                   onClick={openCancelDialog}
                 >
                   <Ban data-icon="inline-start" />
                   {t("actions.cancel")}
                 </Button>
-                <Button
-                  type="button"
-                  className="h-11 font-black"
-                  disabled={busy || selectedItems.length === 0}
-                  onClick={() =>
-                    void runSendToKitchen(
-                      selectedItems.map((item) => item.order_item_uuid)
-                    )
-                  }
-                >
-                  {saving ? <Spinner data-icon="inline-start" /> : null}
-                  {t("orderQueue.confirmToKitchen")}
-                </Button>
+                {(() => {
+                  const confirmButton = (
+                    <Button
+                      type="button"
+                      className="h-11 font-black"
+                      disabled={busy || selectedItems.length === 0 || bulkSendLocked}
+                      onClick={() =>
+                        void runSendToKitchen(
+                          selectedItems.map((item) => item.order_item_uuid)
+                        )
+                      }
+                    >
+                      {saving ? <Spinner data-icon="inline-start" /> : null}
+                      {t("orderQueue.confirmToKitchen")}
+                    </Button>
+                  );
+
+                  if (!bulkSendLocked || !bulkSendLockedReason) return confirmButton;
+
+                  return (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="inline-flex" tabIndex={0}>
+                          {confirmButton}
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>{bulkSendLockedReason}</TooltipContent>
+                    </Tooltip>
+                  );
+                })()}
               </>
             ) : null}
 
@@ -730,8 +772,8 @@ export function OrderQueuePage() {
               <>
                 <Button
                   type="button"
-                  variant="outline"
-                  className="h-11"
+                  variant="destructive"
+                  className="h-11 bg-destructive text-destructive-foreground hover:bg-destructive hover:brightness-90 dark:bg-destructive dark:hover:bg-destructive"
                   disabled={busy || selectedItems.length === 0}
                   onClick={openCancelDialog}
                 >

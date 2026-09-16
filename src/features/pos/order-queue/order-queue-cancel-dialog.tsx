@@ -68,7 +68,12 @@ export function OrderQueueCancelDialog({
             <Button disabled={cancelling} type="button" variant="outline" onClick={() => onOpenChange(false)}>
               {t("actions.cancel")}
             </Button>
-            <Button disabled={cancelling || !reason.trim()} type="submit" variant="destructive">
+            <Button
+              disabled={cancelling || !reason.trim()}
+              type="submit"
+              variant="destructive"
+              className="bg-destructive text-destructive-foreground hover:bg-destructive hover:brightness-90 dark:bg-destructive dark:hover:bg-destructive"
+            >
               {cancelling ? <Spinner data-icon="inline-start" /> : <Ban data-icon="inline-start" />}
               {t("orderQueue.cancelDialogConfirm")}
             </Button>

@@ -34,6 +34,12 @@ function useAlertSoundPlayer() {
     const audio = ensureAudio();
     if (unlockedRef.current) return;
 
+    // ต้องเรียก play() ใน user gesture จริงเพื่อปลดล็อก autoplay policy แต่ต้องปิดเสียงก่อน —
+    // กว่า play() จะ resolve แล้วค่อย pause ใช้เวลาเกินครึ่งวินาที ถ้าไม่ปิดเสียงผู้ใช้จะได้ยิน
+    // เสียงแจ้งเตือนออเดอร์เต็ม ๆ ทุกครั้งที่คลิกแรกของหน้า (เช่นกดเปลี่ยนหน้า pagination)
+    audio.muted = true;
+    audio.volume = 0;
+
     void audio
       .play()
       .then(() => {
@@ -41,7 +47,11 @@ function useAlertSoundPlayer() {
         audio.currentTime = 0;
         unlockedRef.current = true;
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => {
+        audio.muted = false;
+        audio.volume = 1;
+      });
   }, [ensureAudio]);
 
   useEffect(() => {
@@ -62,6 +72,9 @@ function useAlertSoundPlayer() {
 
   return useCallback(() => {
     const audio = ensureAudio();
+    // เผื่อออเดอร์เข้ามาระหว่างที่ unlock ยังปิดเสียงค้างอยู่ — จะได้ไม่เตือนแบบเงียบสนิท
+    audio.muted = false;
+    audio.volume = 1;
     audio.currentTime = 0;
     void audio.play().catch(() => {});
   }, [ensureAudio]);
