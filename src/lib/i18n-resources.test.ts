@@ -3,7 +3,7 @@ import enCommon from "../../public/locales/en/common.json";
 import laCommon from "../../public/locales/la/common.json";
 
 describe("shared translation resources", () => {
-  it.each(["app", "auth", "packageManagement"] as const)(
+  it.each(["app", "auth", "deposit", "packageManagement"] as const)(
     "keeps %s keys aligned between English and Lao",
     (namespace) => {
       expect(Object.keys(laCommon[namespace]).sort()).toEqual(
