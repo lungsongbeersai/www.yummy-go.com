@@ -21,6 +21,7 @@ describe("store branch utils", () => {
     expect(
       buildStorePayload({
         active: "1",
+        depositExpireDays: "",
         editing: null,
         email: " plc@example.com ",
         nameEng: "PLC",
@@ -34,12 +35,14 @@ describe("store branch utils", () => {
       store_email: "plc@example.com",
       store_status: 1,
       store_active: 1,
-      store_table_status: 1
+      store_table_status: 1,
+      deposit_expire_days: null
     });
 
     expect(
       buildStorePayload({
         active: "2",
+        depositExpireDays: "30",
         editing: { store_uuid: "store-1", store_name: "Old" },
         email: "store@example.com",
         nameEng: "",
@@ -54,14 +57,31 @@ describe("store branch utils", () => {
       store_email: "store@example.com",
       store_status: 2,
       store_active: 2,
-      store_table_status: 2
+      store_table_status: 2,
+      deposit_expire_days: 30
     });
+  });
+
+  it("leaves deposit_expire_days unset (keep existing) when left blank", () => {
+    expect(
+      buildStorePayload({
+        active: "1",
+        depositExpireDays: "  ",
+        editing: null,
+        email: "store@example.com",
+        nameEng: "Store",
+        nameLa: "Store",
+        status: "2",
+        tableStatus: "1"
+      })
+    ).toMatchObject({ deposit_expire_days: null });
   });
 
   it("defaults missing store table status to has tables", () => {
     expect(
       buildStorePayload({
         active: "1",
+        depositExpireDays: "",
         editing: null,
         email: "store@example.com",
         nameEng: "Store",
@@ -77,6 +97,7 @@ describe("store branch utils", () => {
       expect(
         buildStorePayload({
           active: "1",
+          depositExpireDays: "",
           editing: null,
           email: "store@example.com",
           nameEng: "Store",
@@ -88,17 +109,19 @@ describe("store branch utils", () => {
     }
   });
 
-  it("builds active store auth updates with table status", () => {
+  it("builds active store auth updates with table status and deposit default", () => {
     expect(
       storeAuthUserUpdate({
         store_logo: "logo.jpg",
         store_name_la: "Store LA",
-        store_table_status: 2
+        store_table_status: 2,
+        deposit_expire_days: 14
       })
     ).toEqual({
       store_logo: "logo.jpg",
       store_name: "Store LA",
-      store_table_status: 2
+      store_table_status: 2,
+      deposit_expire_days: 14
     });
 
     expect(
@@ -107,7 +130,7 @@ describe("store branch utils", () => {
         store_name: "Store",
         store_table_status: 3
       })
-    ).toMatchObject({ store_table_status: 1 });
+    ).toMatchObject({ store_table_status: 1, deposit_expire_days: null });
   });
 
   it("builds create and edit branch payloads", () => {
