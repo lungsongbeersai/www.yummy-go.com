@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import type { PosZone } from "@/services/pos";
 import { useAuthStore } from "@/stores/auth-store";
 import { DepositCreateDialog } from "@/features/sales/deposit/deposit-create-dialog";
+import { DepositWithdrawDialog } from "@/features/sales/deposit/deposit-withdraw-dialog";
 import { BranchMenuQrDialog } from "./branch-menu-qr-dialog";
 import {
   CartDiscountDialog,
@@ -348,6 +349,7 @@ export function SelectedTableCartPanelContent({
             onCreateTableQr={showTableFeatures ? workflow.openTableQr : undefined}
             onCreateBranchMenuQr={workflow.openBranchMenuQr}
             onCreateDeposit={() => workflow.setDepositDialogOpen(true)}
+            onWithdrawDeposit={() => workflow.setDepositWithdrawDialogOpen(true)}
             onCustomerDisplay={() =>
               void customerDisplay.openCustomerDisplayScreen()
             }
@@ -383,7 +385,14 @@ export function SelectedTableCartPanelContent({
       <DepositCreateDialog
         branchUuid={workflow.user?.branch_uuid}
         open={workflow.depositDialogOpen}
+        orderItems={workflow.displayItems}
         onOpenChange={workflow.setDepositDialogOpen}
+      />
+      <DepositWithdrawDialog
+        branchUuid={workflow.user?.branch_uuid}
+        open={workflow.depositWithdrawDialogOpen}
+        orderUuid={workflow.currentOrderUuid ?? undefined}
+        onOpenChange={workflow.setDepositWithdrawDialogOpen}
       />
       <CustomerDisplayPickerDialog
         canCloseCustomerDisplay={customerDisplay.canCloseCustomerDisplay}

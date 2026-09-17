@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { DepositRow } from "@/services/deposit";
 import {
   depositBadgeVariant,
+  expireDateFromToday,
   toDepositQtyInput,
   validateDepositCreate,
   validateDepositWithdraw
@@ -43,12 +44,33 @@ describe("toDepositQtyInput", () => {
 });
 
 describe("validateDepositCreate", () => {
-  const base = { customerUuid: "customer-1", proDetailUuid: "detail-1", depositQty: 1, expireDate: "" };
+  const base = {
+    customerUuid: "customer-1",
+    items: [{ proDetailUuid: "detail-1", qty: 1 }],
+    expireDate: ""
+  };
 
-  it("requires a customer, a product, and a positive quantity", () => {
+  it("requires a customer and at least one item", () => {
     expect(validateDepositCreate({ ...base, customerUuid: "" })).toBe("customerRequired");
-    expect(validateDepositCreate({ ...base, proDetailUuid: "" })).toBe("productRequired");
-    expect(validateDepositCreate({ ...base, depositQty: 0 })).toBe("qtyInvalid");
+    expect(validateDepositCreate({ ...base, items: [] })).toBe("itemsRequired");
+  });
+
+  it("requires every item to have a product and a positive quantity", () => {
+    expect(validateDepositCreate({ ...base, items: [{ proDetailUuid: "", qty: 1 }] })).toBe(
+      "productRequired"
+    );
+    expect(validateDepositCreate({ ...base, items: [{ proDetailUuid: "detail-1", qty: 0 }] })).toBe(
+      "qtyInvalid"
+    );
+    expect(
+      validateDepositCreate({
+        ...base,
+        items: [
+          { proDetailUuid: "detail-1", qty: 1 },
+          { proDetailUuid: "detail-2", qty: 0 }
+        ]
+      })
+    ).toBe("qtyInvalid");
   });
 
   it("accepts an empty expire date (store default applies server-side)", () => {
@@ -62,6 +84,32 @@ describe("validateDepositCreate", () => {
 
   it("accepts a future expire date", () => {
     expect(validateDepositCreate({ ...base, expireDate: "2099-12-31" })).toBeNull();
+  });
+
+  it("accepts multiple items in one deposit", () => {
+    expect(
+      validateDepositCreate({
+        ...base,
+        items: [
+          { proDetailUuid: "detail-1", qty: 1 },
+          { proDetailUuid: "detail-2", qty: 3 }
+        ]
+      })
+    ).toBeNull();
+  });
+});
+
+describe("expireDateFromToday", () => {
+  it("returns an empty string when no store default is configured", () => {
+    expect(expireDateFromToday(null)).toBe("");
+    expect(expireDateFromToday(undefined)).toBe("");
+    expect(expireDateFromToday(0)).toBe("");
+  });
+
+  it("adds the given number of days to today", () => {
+    const expected = new Date();
+    expected.setDate(expected.getDate() + 30);
+    expect(expireDateFromToday(30)).toBe(expected.toISOString().slice(0, 10));
   });
 });
 

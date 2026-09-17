@@ -50,15 +50,17 @@ describe("deposit service", () => {
     });
   });
 
-  it("creates a deposit with the required fields", async () => {
+  it("creates a deposit with one or more items in a single request", async () => {
     await createDeposit({
       request_uuid: "request-1",
       branch_uuid: "branch-1",
       customer_uuid: "customer-1",
-      pro_detail_uuid: "detail-1",
-      deposit_qty: 1,
+      items: [
+        { pro_detail_uuid: "detail-1", deposit_qty: 1 },
+        { pro_detail_uuid: "detail-2", deposit_qty: 2 }
+      ],
       expire_date: "2026-12-31",
-      note: "Johnnie Walker Black",
+      note: "Johnnie Walker Black + Hennessy",
       lang: "la"
     });
 
@@ -67,23 +69,36 @@ describe("deposit service", () => {
         request_uuid: "request-1",
         branch_uuid: "branch-1",
         customer_uuid: "customer-1",
-        pro_detail_uuid: "detail-1",
-        deposit_qty: 1,
+        items: [
+          { pro_detail_uuid: "detail-1", deposit_qty: 1 },
+          { pro_detail_uuid: "detail-2", deposit_qty: 2 }
+        ],
         expire_date: "2026-12-31",
-        note: "Johnnie Walker Black",
+        note: "Johnnie Walker Black + Hennessy",
         lang: "la"
       }
     });
   });
 
-  it("rejects a non-positive deposit_qty before calling the API", () => {
+  it("rejects an empty items list before calling the API", () => {
     expect(() =>
       createDeposit({
         request_uuid: "request-1",
         branch_uuid: "branch-1",
         customer_uuid: "customer-1",
-        pro_detail_uuid: "detail-1",
-        deposit_qty: 0
+        items: []
+      })
+    ).toThrow();
+    expect(apiMocks.apiRequest).not.toHaveBeenCalled();
+  });
+
+  it("rejects a non-positive deposit_qty in any item before calling the API", () => {
+    expect(() =>
+      createDeposit({
+        request_uuid: "request-1",
+        branch_uuid: "branch-1",
+        customer_uuid: "customer-1",
+        items: [{ pro_detail_uuid: "detail-1", deposit_qty: 0 }]
       })
     ).toThrow();
     expect(apiMocks.apiRequest).not.toHaveBeenCalled();

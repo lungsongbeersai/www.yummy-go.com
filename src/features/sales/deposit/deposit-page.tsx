@@ -46,6 +46,7 @@ import { useProductStore } from "@/stores/product-store";
 import { useToastStore } from "@/stores/toast-store";
 import {
   depositBadgeVariant,
+  expireDateFromToday,
   toDepositQtyInput,
   validateDepositCreate,
   validateDepositWithdraw
@@ -153,7 +154,9 @@ export function DepositPage() {
   const [selectedProductOption, setSelectedProductOption] = useState<ProductDetailOption | null>(null);
 
   const [depositQtyInput, setDepositQtyInput] = useState("1");
-  const [expireDate, setExpireDate] = useState("");
+  const [expireDate, setExpireDate] = useState(() =>
+    expireDateFromToday(useAuthStore.getState().user?.deposit_expire_days)
+  );
   const [note, setNote] = useState("");
   const [confirmCreateOpen, setConfirmCreateOpen] = useState(false);
 
@@ -166,8 +169,7 @@ export function DepositPage() {
 
   const createValidationError = validateDepositCreate({
     customerUuid,
-    proDetailUuid,
-    depositQty,
+    items: proDetailUuid ? [{ proDetailUuid, qty: depositQty }] : [],
     expireDate
   });
   const withdrawValidationError = validateDepositWithdraw({ qtyWithdrawn: withdrawQty, deposit: detail });
@@ -182,9 +184,9 @@ export function DepositPage() {
     setSelectedProductOption(null);
     setProductSearch("");
     setDepositQtyInput("1");
-    setExpireDate("");
+    setExpireDate(expireDateFromToday(user?.deposit_expire_days));
     setNote("");
-  }, []);
+  }, [user?.deposit_expire_days]);
 
   const loadRows = useCallback(
     (nextBranchUuid: string, nextStatus: DepositListStatusFilter, nextSearch: string) => {
@@ -270,8 +272,7 @@ export function DepositPage() {
         request_uuid: crypto.randomUUID(),
         branch_uuid: branchUuid,
         customer_uuid: customerUuid,
-        pro_detail_uuid: proDetailUuid,
-        deposit_qty: depositQty,
+        items: [{ pro_detail_uuid: proDetailUuid, deposit_qty: depositQty }],
         expire_date: expireDate || undefined,
         note: note.trim(),
         lang: language

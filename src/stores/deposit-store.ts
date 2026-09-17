@@ -112,7 +112,7 @@ export const useDepositStore = create<DepositState>((set, get) => ({
     try {
       const response = await depositService.createDeposit(input);
       if (isCurrentSession()) {
-        set({ rows: [response.deposit, ...get().rows], saving: false });
+        set({ rows: [...response.deposits, ...get().rows], saving: false });
       }
       return response;
     } catch (error) {

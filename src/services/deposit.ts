@@ -75,12 +75,16 @@ export interface DepositDetailResponse {
   withdrawals: DepositWithdrawal[];
 }
 
+export interface DepositCreateItemInput {
+  pro_detail_uuid: string;
+  deposit_qty: number;
+}
+
 export interface DepositCreateInput {
   request_uuid: string;
   branch_uuid: string;
   customer_uuid: string;
-  pro_detail_uuid: string;
-  deposit_qty: number;
+  items: DepositCreateItemInput[];
   expire_date?: string;
   note?: string;
   lang?: string;
@@ -91,7 +95,7 @@ export interface DepositCreateResponse {
   message: string;
   lang: string;
   idempotent_replay: boolean;
-  deposit: DepositRow;
+  deposits: DepositRow[];
 }
 
 export interface DepositWithdrawInput {
@@ -167,7 +171,15 @@ export function fetchDepositOrderRedemptions(orderUuid: string, lang?: string) {
 }
 
 export function createDeposit(input: DepositCreateInput) {
-  if (input.deposit_qty <= 0) throw new ServiceError("deposit_qty ຕ້ອງ > 0", 400);
+  if (!input.items.length) throw new ServiceError("items is required", 400);
+  input.items.forEach((item, index) => {
+    if (!item.pro_detail_uuid.trim()) {
+      throw new ServiceError(`items[${index}].pro_detail_uuid is required`, 400);
+    }
+    if (item.deposit_qty <= 0) {
+      throw new ServiceError(`items[${index}].deposit_qty ຕ້ອງ > 0`, 400);
+    }
+  });
 
   return apiRequest<DepositCreateResponse>("post", "/api/v1/posAll/deposit/create", {
     data: {
@@ -175,7 +187,6 @@ export function createDeposit(input: DepositCreateInput) {
       request_uuid: required(input.request_uuid, "request_uuid"),
       branch_uuid: required(input.branch_uuid, "branch_uuid"),
       customer_uuid: required(input.customer_uuid, "customer_uuid"),
-      pro_detail_uuid: required(input.pro_detail_uuid, "pro_detail_uuid"),
       lang: toApiLanguage(input.lang)
     }
   });
