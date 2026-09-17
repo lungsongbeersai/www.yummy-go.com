@@ -77,6 +77,8 @@ function depositableItems(orderItems: CartItem[]): DepositableItem[] {
   const items: DepositableItem[] = [];
   for (const item of orderItems) {
     if (isCanceledCartItem(item)) continue;
+    // ฝากได้เฉพาะสินค้าที่ตัดสต๊อกจริง (เช่นขวดเครื่องดื่ม) ไม่ใช่รายการอาหารปรุงสด
+    if (Number(item.pro_detail_stock ?? 1) !== 1) continue;
     const proDetailUuid = optionalString(item.pro_detail_uuid, item.pro_detail_uuid_fk);
     const key = cartItemUuid(item) ?? proDetailUuid;
     if (!proDetailUuid || !key) continue;
@@ -151,6 +153,9 @@ export function DepositCreateForm({
     items: draftItems.map((item) => ({ proDetailUuid: item.proDetailUuid, qty: item.qty })),
     expireDate
   });
+  // ฝากเกินจำนวนที่ลูกค้าสั่งจริงไม่ได้ — validateDepositCreate ใช้ร่วมกับหน้า
+  // back-office ที่ไม่มีแนวคิด "จำนวนที่สั่ง" จึงเช็คส่วนนี้แยกไว้ในฝั่ง POS เท่านั้น
+  const exceedsOrderedQty = draftItems.some((item) => item.qty > item.orderedQty);
 
   // เปิด dialog นี้ใหม่ทุกครั้ง = เคลียร์ฟอร์ม + ตั้ง expire_date เริ่มต้นจาก
   // ค่ามาตรฐานของร้าน (ยังแก้ไขได้ ค่าจริงคำนวณซ้ำที่ backend เสมอ)
@@ -220,11 +225,15 @@ export function DepositCreateForm({
       showToast({ title: t(validationKey(validationError)), tone: "error" });
       return;
     }
+    if (exceedsOrderedQty) {
+      showToast({ title: t("deposit.validation.createQtyExceedsOrdered"), tone: "error" });
+      return;
+    }
     setConfirmOpen(true);
   }
 
   async function submitCreate() {
-    if (validationError || saving) return;
+    if (validationError || exceedsOrderedQty || saving) return;
 
     try {
       await createDepositAction({
@@ -333,34 +342,42 @@ export function DepositCreateForm({
             <div className="flex flex-col gap-2">
               {items.map((item) => {
                 const checked = selectedQty.has(item.key);
+                const qty = toDepositQtyInput(selectedQty.get(item.key));
+                const exceedsOrdered = checked && qty > item.orderedQty;
                 return (
-                  <div
-                    key={item.key}
-                    className="flex items-center gap-3 rounded-md border border-border bg-muted/25 px-3 py-2"
-                  >
-                    <Checkbox
-                      checked={checked}
-                      disabled={saving}
-                      onCheckedChange={(value) => toggleItem(item, value === true)}
-                      aria-label={item.name}
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">{item.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {t("deposit.orderedQty", { qty: item.orderedQty })}
-                      </p>
-                    </div>
-                    {checked ? (
-                      <Input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        inputMode="decimal"
+                  <div key={item.key} className="flex flex-col gap-1">
+                    <div className="flex items-center gap-3 rounded-md border border-border bg-muted/25 px-3 py-2">
+                      <Checkbox
+                        checked={checked}
                         disabled={saving}
-                        className="w-20 shrink-0"
-                        value={selectedQty.get(item.key) ?? ""}
-                        onChange={(event) => setItemQty(item.key, event.target.value)}
+                        onCheckedChange={(value) => toggleItem(item, value === true)}
+                        aria-label={item.name}
                       />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium">{item.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {t("deposit.orderedQty", { qty: item.orderedQty })}
+                        </p>
+                      </div>
+                      {checked ? (
+                        <Input
+                          type="number"
+                          min="0"
+                          max={item.orderedQty}
+                          step="0.01"
+                          inputMode="decimal"
+                          disabled={saving}
+                          aria-invalid={exceedsOrdered}
+                          className="w-20 shrink-0"
+                          value={selectedQty.get(item.key) ?? ""}
+                          onChange={(event) => setItemQty(item.key, event.target.value)}
+                        />
+                      ) : null}
+                    </div>
+                    {exceedsOrdered ? (
+                      <p className="pl-1 text-xs font-medium text-destructive">
+                        {t("deposit.validation.createQtyExceedsOrdered")}
+                      </p>
                     ) : null}
                   </div>
                 );
@@ -412,7 +429,11 @@ export function DepositCreateForm({
         <Button type="button" variant="outline" disabled={saving} onClick={() => onOpenChange(false)}>
           {t("actions.cancel")}
         </Button>
-        <Button type="button" disabled={saving || Boolean(validationError)} onClick={requestConfirmation}>
+        <Button
+          type="button"
+          disabled={saving || Boolean(validationError) || exceedsOrderedQty}
+          onClick={requestConfirmation}
+        >
           {saving
             ? t("deposit.saving")
             : draftItems.length

@@ -2657,6 +2657,7 @@
       "createQtyInvalid": "ຈຳນວນຕ້ອງຫຼາຍກວ່າ 0",
       "createExpireDateInvalid": "ຮູບແບບວັນໝົດກຳນົດບໍ່ຖືກຕ້ອງ",
       "createExpireDatePast": "ວັນໝົດກຳນົດຕ້ອງບໍ່ຢູ່ໃນອະດີດ",
+      "createQtyExceedsOrdered": "ຈຳນວນທີ່ຝາກຕ້ອງບໍ່ເກີນຈຳນວນທີ່ສັ່ງ",
       "withdrawQtyInvalid": "ຈຳນວນຕ້ອງຫຼາຍກວ່າ 0",
       "withdrawQtyExceedsRemaining": "ຈຳນວນເກີນຍອດຄົງເຫຼືອ",
       "withdrawDepositNotActive": "ລາຍການຝາກນີ້ບໍ່ Active ຫຼື ໝົດກຳນົດແລ້ວ"

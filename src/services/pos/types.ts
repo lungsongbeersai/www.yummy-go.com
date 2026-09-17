@@ -404,6 +404,8 @@ export interface CartItem extends ApiEntity {
   prod_uuid_fk?: string;
   pro_detail_uuid?: string;
   pro_detail_uuid_fk?: string;
+  // 1 = สินค้าตัดสต๊อกจริง (เช่นขวดเครื่องดื่ม), 0 = ไม่มีสต๊อกให้นับ (อาหารปรุงสด)
+  pro_detail_stock?: number;
   prod_name?: string;
   title?: string;
   prod_image?: string;
