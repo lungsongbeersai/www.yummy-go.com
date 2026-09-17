@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { UsersRound } from "lucide-react";
 import { useResetOnDeps } from "@/hooks/use-reset-on-change";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
+import { Button } from "@/components/ui/button";
 import { AVATAR_CROP_ASPECT, AVATAR_CROP_OUTPUT_HEIGHT, AVATAR_CROP_OUTPUT_WIDTH } from "@/config/image-crop";
 import {
   DEFAULT_CROP,
@@ -23,6 +25,7 @@ import type { FetchUsersParams, Role, SaveUserInput, User } from "@/services/use
 import type { SortOrder } from "@/services/shared/types";
 import { useReferenceStore } from "@/stores/reference-store";
 import { useUserStore } from "@/stores/user-store";
+import { UserBulkCreateDialog } from "./user-bulk-create-dialog";
 import { UserFormDialog } from "./user-form-dialog";
 import { useOfflineReadOnly } from "@/hooks/use-offline-read-only";
 import { UserListSurface } from "./user-list";
@@ -54,6 +57,7 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
   const [selectedProfileImage, setSelectedProfileImage] = useState<File | null>(null);
   const [crop, setCrop] = useState<CropState>(DEFAULT_CROP);
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
+  const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
 
   const title = t("settings.modules.user.title");
   const description = t("settings.modules.user.description");
@@ -68,6 +72,7 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
     fullLoading,
     language,
     limit,
+    load,
     missingRequiredScope,
     onDialogOpenChange,
     openEdit: controllerOpenEdit,
@@ -177,6 +182,18 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
     controllerOpenEdit(row);
   }
 
+  function openBulkCreate() {
+    if (missingRequiredScope) {
+      showToast({ title: t("settings.saveFailed"), description: requiredScopeDescription, tone: "error" });
+      return;
+    }
+    if (!roles.length) {
+      showToast({ title: t("settings.saveFailed"), description: t("settings.createRoleFirst"), tone: "error" });
+      return;
+    }
+    setBulkDialogOpen(true);
+  }
+
   async function submitUserForm(formData: FormData) {
     if (selectedProfileImage) {
       const croppedFile = await cropImageFile(selectedProfileImage, crop, t("settings.storeBranch.imageLoadFailed"), {
@@ -259,6 +276,14 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
         description={description}
         emptyDescription={t("empty.adjustSearch")}
         emptyTitle={t("settings.noRecords", { title: title.toLowerCase() })}
+        headerActions={
+          readOnly ? undefined : (
+            <Button size="sm" variant="outline" onClick={openBulkCreate}>
+              <UsersRound data-icon="inline-start" />
+              <span className="min-w-0 truncate">{t("settings.userBulkAddLabel")}</span>
+            </Button>
+          )
+        }
         footer={
           rows.length ? (
             <SettingsPaginationFooter
@@ -294,6 +319,14 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
         onFileChange={setSelectedProfileImage}
         onOpenChange={onDialogOpenChange}
         onSubmit={submitUserForm}
+      />
+      <UserBulkCreateDialog
+        branchUuid={branchUuid}
+        loggedRoleId={loggedRoleId}
+        open={bulkDialogOpen}
+        roleOptions={roles}
+        onCreated={() => void load()}
+        onOpenChange={setBulkDialogOpen}
       />
       <UserPasswordDialog
         email={user?.email ?? ""}

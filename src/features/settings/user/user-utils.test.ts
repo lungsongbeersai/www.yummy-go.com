@@ -3,6 +3,7 @@ import {
   branchName,
   buildUserSaveInput,
   isProtectedUser,
+  parseBulkEmails,
   roleId,
   roleName,
   userActiveBadgeClass,
@@ -86,5 +87,16 @@ describe("user settings utils", () => {
 
     expect(editPayload).toMatchObject({ login_uuid: "login-1" });
     expect(editPayload).not.toHaveProperty("login_password");
+  });
+
+  it("parses bulk-pasted emails into valid/invalid/duplicate buckets", () => {
+    expect(
+      parseBulkEmails("happy10005@gmail.com\nnot-an-email\nHAPPY10005@gmail.com\n\nmick10336@gmail.com")
+    ).toEqual({
+      duplicates: ["HAPPY10005@gmail.com"],
+      invalidLines: ["not-an-email"],
+      valid: ["happy10005@gmail.com", "mick10336@gmail.com"]
+    });
+    expect(parseBulkEmails("")).toEqual({ duplicates: [], invalidLines: [], valid: [] });
   });
 });

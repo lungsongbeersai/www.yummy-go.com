@@ -51,6 +51,44 @@ export function userRoleOptions(editing: User | null, roleOptions: Role[]) {
   return [{ roles_id_fk: editingRoleId, roles_name: roleName(editing) }, ...roleOptions] as Role[];
 }
 
+const BULK_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+export interface BulkEmailParseResult {
+  duplicates: string[];
+  invalidLines: string[];
+  valid: string[];
+}
+
+// แยกอีเมวที่วางแบบหลายแถว (1 ແຖວ/ອີເມວ) ອອກເປັນລາຍການທີ່ໃຊ້ໄດ້, ລາຍການບໍ່ຖືກຮູບແບບ,
+// ແລະ ລາຍການທີ່ຊ້ຳກັນ (case-insensitive) — ໃຊ້ກວດກ່ອນສ້າງຜູ້ໃຊ້ຫຼາຍຄົນພ້ອມກັນ
+export function parseBulkEmails(raw: string): BulkEmailParseResult {
+  const lines = raw
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const seen = new Set<string>();
+  const duplicates: string[] = [];
+  const invalidLines: string[] = [];
+  const valid: string[] = [];
+
+  for (const line of lines) {
+    if (!BULK_EMAIL_RE.test(line)) {
+      invalidLines.push(line);
+      continue;
+    }
+    const key = line.toLowerCase();
+    if (seen.has(key)) {
+      if (!duplicates.includes(line)) duplicates.push(line);
+      continue;
+    }
+    seen.add(key);
+    valid.push(line);
+  }
+
+  return { duplicates, invalidLines, valid };
+}
+
 export function buildUserSaveInput({
   active,
   branchUuid,
