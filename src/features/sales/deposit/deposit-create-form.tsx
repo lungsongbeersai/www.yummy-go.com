@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useResetOnChange } from "@/hooks/use-reset-on-change";
-import { Check, ChevronsUpDown, ClipboardList, Info, UserPlus } from "lucide-react";
+import { CalendarClock, Check, ChevronsUpDown, ClipboardList, Info, UserPlus, UserRound } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {
   AlertDialog,
@@ -26,7 +26,6 @@ import {
 } from "@/components/ui/command";
 import { DialogFooter } from "@/components/ui/dialog";
 import { Field, FieldDescription, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
@@ -40,6 +39,7 @@ import {
   isCanceledCartItem,
   optionalString
 } from "@/features/pos/table-selection/utils";
+import { cn } from "@/lib/utils";
 import type { Customer } from "@/services/customer";
 import type { CartItem } from "@/services/pos";
 import { useAppStore } from "@/stores/app-store";
@@ -47,6 +47,7 @@ import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
 import { useCustomerStore } from "@/stores/customer-store";
 import { useDepositStore } from "@/stores/deposit-store";
 import { useToastStore } from "@/stores/toast-store";
+import { DepositQtyStepper } from "./deposit-qty-stepper";
 import {
   expireDateFromToday,
   toDepositQtyInput,
@@ -262,7 +263,10 @@ export function DepositCreateForm({
       <div className="flex flex-col gap-4">
         <FieldSet className="gap-4 rounded-lg border border-border bg-card p-4">
           <Field>
-            <FieldLegend className="flex items-center gap-2 text-sm">{t("deposit.customer")}</FieldLegend>
+            <FieldLegend className="flex items-center gap-2 text-sm">
+              <UserRound className="size-4 text-primary" aria-hidden />
+              {t("deposit.customer")}
+            </FieldLegend>
             <FieldDescription>{t("deposit.customerSectionHint")}</FieldDescription>
           </Field>
           <div className="flex gap-2">
@@ -346,7 +350,14 @@ export function DepositCreateForm({
                 const exceedsOrdered = checked && qty > item.orderedQty;
                 return (
                   <div key={item.key} className="flex flex-col gap-1">
-                    <div className="flex items-center gap-3 rounded-md border border-border bg-muted/25 px-3 py-2">
+                    <div
+                      className={cn(
+                        "flex items-center gap-3 rounded-lg border px-3 py-2.5 transition-colors",
+                        checked
+                          ? "border-primary bg-primary/5"
+                          : "border-border bg-muted/25 hover:bg-muted/40"
+                      )}
+                    >
                       <Checkbox
                         checked={checked}
                         disabled={saving}
@@ -360,17 +371,12 @@ export function DepositCreateForm({
                         </p>
                       </div>
                       {checked ? (
-                        <Input
-                          type="number"
-                          min="0"
-                          max={item.orderedQty}
-                          step="0.01"
-                          inputMode="decimal"
+                        <DepositQtyStepper
+                          qty={qty}
+                          maxQty={item.orderedQty}
                           disabled={saving}
-                          aria-invalid={exceedsOrdered}
-                          className="w-20 shrink-0"
-                          value={selectedQty.get(item.key) ?? ""}
-                          onChange={(event) => setItemQty(item.key, event.target.value)}
+                          invalid={exceedsOrdered}
+                          onChange={(next) => setItemQty(item.key, String(next))}
                         />
                       ) : null}
                     </div>
@@ -393,19 +399,25 @@ export function DepositCreateForm({
 
         <FieldSet className="gap-4 rounded-lg border border-border bg-card p-4">
           <Field>
-            <FieldLegend className="text-sm">{t("deposit.timingAndNote")}</FieldLegend>
+            <FieldLegend className="flex items-center gap-2 text-sm">
+              <CalendarClock className="size-4 text-primary" aria-hidden />
+              {t("deposit.timingAndNote")}
+            </FieldLegend>
           </Field>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field>
-              <FieldLabel htmlFor="pos-deposit-expire-date">{t("deposit.expireDate")}</FieldLabel>
-              <Input
-                id="pos-deposit-expire-date"
-                type="date"
-                disabled={saving}
-                value={expireDate}
-                onChange={(event) => setExpireDate(event.target.value)}
-              />
-              <FieldDescription>{t("deposit.expireDateHelp")}</FieldDescription>
+              <FieldLabel>{t("deposit.expireDate")}</FieldLabel>
+              <div className="flex h-9 items-center gap-2 rounded-md border border-border bg-muted/30 px-3">
+                <CalendarClock className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                <span className="text-sm font-semibold tabular-nums">
+                  {expireDate || t("deposit.expireDateNotSet")}
+                </span>
+              </div>
+              <FieldDescription>
+                {user?.deposit_expire_days
+                  ? t("deposit.expireDateAutoHint", { days: user.deposit_expire_days })
+                  : t("deposit.expireDateNotSetHint")}
+              </FieldDescription>
             </Field>
             <Field>
               <FieldLabel htmlFor="pos-deposit-note">{t("deposit.note")}</FieldLabel>
