@@ -21,6 +21,7 @@ export interface AuthUser {
   store_name: string;
   store_logo: string;
   store_table_status: number;
+  deposit_expire_days?: number | null;
 }
 
 type AuthStoreUuidSource = { store_uuid?: string; store_uuid_fk?: string } | null | undefined;

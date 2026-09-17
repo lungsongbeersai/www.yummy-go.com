@@ -111,14 +111,15 @@ describe("deposit store", () => {
     expect(useDepositStore.getState().detailLoading).toBe(false);
   });
 
-  it("prepends a newly created deposit to rows", async () => {
+  it("prepends every newly created deposit to rows", async () => {
     const created = listResponse("new-deposit").data[0];
+    const createdSecond = listResponse("new-deposit-2").data[0];
     vi.mocked(depositService.createDeposit).mockResolvedValueOnce({
       status: "success",
       message: "success",
       lang: "la",
       idempotent_replay: false,
-      deposit: created
+      deposits: [created, createdSecond]
     });
 
     useDepositStore.setState({ rows: [listResponse("existing").data[0]] });
@@ -127,12 +128,12 @@ describe("deposit store", () => {
       request_uuid: "request-1",
       branch_uuid: "branch-1",
       customer_uuid: "customer-1",
-      pro_detail_uuid: "detail-1",
-      deposit_qty: 1
+      items: [{ pro_detail_uuid: "detail-1", deposit_qty: 1 }]
     });
 
     expect(useDepositStore.getState().rows.map((row) => row.deposit_uuid)).toEqual([
       "new-deposit",
+      "new-deposit-2",
       "existing"
     ]);
     expect(useDepositStore.getState().saving).toBe(false);
