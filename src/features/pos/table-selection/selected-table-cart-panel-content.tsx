@@ -14,8 +14,7 @@ import { useIsNativeShellActive } from "@/hooks/use-native-shell-active";
 import { cn } from "@/lib/utils";
 import type { PosZone } from "@/services/pos";
 import { useAuthStore } from "@/stores/auth-store";
-import { DepositCreateDialog } from "@/features/sales/deposit/deposit-create-dialog";
-import { DepositWithdrawDialog } from "@/features/sales/deposit/deposit-withdraw-dialog";
+import { DepositDialog } from "@/features/sales/deposit/deposit-dialog";
 import { BranchMenuQrDialog } from "./branch-menu-qr-dialog";
 import {
   CartDiscountDialog,
@@ -348,8 +347,14 @@ export function SelectedTableCartPanelContent({
             }
             onCreateTableQr={showTableFeatures ? workflow.openTableQr : undefined}
             onCreateBranchMenuQr={workflow.openBranchMenuQr}
-            onCreateDeposit={() => workflow.setDepositDialogOpen(true)}
-            onWithdrawDeposit={() => workflow.setDepositWithdrawDialogOpen(true)}
+            onCreateDeposit={() => {
+              workflow.setDepositDialogTab("create");
+              workflow.setDepositDialogOpen(true);
+            }}
+            onWithdrawDeposit={() => {
+              workflow.setDepositDialogTab("withdraw");
+              workflow.setDepositDialogOpen(true);
+            }}
             onCustomerDisplay={() =>
               void customerDisplay.openCustomerDisplayScreen()
             }
@@ -382,17 +387,13 @@ export function SelectedTableCartPanelContent({
         open={workflow.branchMenuQrOpen}
         onOpenChange={workflow.setBranchMenuQrOpen}
       />
-      <DepositCreateDialog
+      <DepositDialog
         branchUuid={workflow.user?.branch_uuid}
+        defaultTab={workflow.depositDialogTab}
         open={workflow.depositDialogOpen}
         orderItems={workflow.displayItems}
-        onOpenChange={workflow.setDepositDialogOpen}
-      />
-      <DepositWithdrawDialog
-        branchUuid={workflow.user?.branch_uuid}
-        open={workflow.depositWithdrawDialogOpen}
         orderUuid={workflow.currentOrderUuid ?? undefined}
-        onOpenChange={workflow.setDepositWithdrawDialogOpen}
+        onOpenChange={workflow.setDepositDialogOpen}
       />
       <CustomerDisplayPickerDialog
         canCloseCustomerDisplay={customerDisplay.canCloseCustomerDisplay}

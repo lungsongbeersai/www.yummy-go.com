@@ -2579,6 +2579,7 @@
   },
   "deposit": {
     "title": "Drink deposit",
+    "dialogTitle": "Drink deposit",
     "subtitle": "Track drinks a customer paid for and left to store for later — separate from shop stock, never billed again.",
     "branch": "Branch",
     "statusFilter": "Status",
