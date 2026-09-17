@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useResetOnChange } from "@/hooks/use-reset-on-change";
-import { Check, ChevronsUpDown } from "lucide-react";
+import { Check, ChevronsUpDown, PackageSearch } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {
   AlertDialog,
@@ -28,17 +28,26 @@ import { Field, FieldDescription, FieldLabel, FieldLegend, FieldSet } from "@/co
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Spinner } from "@/components/ui/spinner";
+import type { Customer } from "@/services/customer";
+import type { DepositRow } from "@/services/deposit";
 import { useAppStore } from "@/stores/app-store";
+import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
+import { useCustomerStore } from "@/stores/customer-store";
 import { useDepositStore } from "@/stores/deposit-store";
 import { useToastStore } from "@/stores/toast-store";
-import type { DepositRow } from "@/services/deposit";
 import { toDepositQtyInput, validateDepositWithdraw } from "./deposit-utils";
 
 const SEARCH_DEBOUNCE_MS = 300;
+const PICKER_LIMIT = 20;
 
-function depositOptionLabel(row: DepositRow) {
-  const customer = row.customer_phone ? `${row.customer_name} · ${row.customer_phone}` : row.customer_name;
-  return `${customer} — ${row.product_name} (${row.remaining_qty} ${row.unit_name})`;
+function customerUuidOf(customer: Customer) {
+  return String(customer.customer_uuid ?? "").trim();
+}
+
+function customerLabel(customer: Customer) {
+  return customer.customer_phone
+    ? `${customer.customer_name || "-"} · ${customer.customer_phone}`
+    : customer.customer_name || "-";
 }
 
 function validationKey(error: string | null) {
@@ -58,6 +67,8 @@ export function DepositWithdrawForm({
 }) {
   const { t } = useTranslation();
   const language = useAppStore((state) => state.language);
+  const user = useAuthStore((state) => state.user);
+  const storeUuid = authStoreUuid(user);
 
   const rows = useDepositStore((state) => state.rows);
   const loading = useDepositStore((state) => state.loading);
@@ -66,8 +77,15 @@ export function DepositWithdrawForm({
   const withdrawAction = useDepositStore((state) => state.withdraw);
   const showToast = useToastStore((state) => state.show);
 
-  const [pickerOpen, setPickerOpen] = useState(false);
-  const [search, setSearch] = useState("");
+  const customerRows = useCustomerStore((state) => state.rows);
+  const customerLoading = useCustomerStore((state) => state.loading);
+  const loadCustomers = useCustomerStore((state) => state.load);
+
+  const [customerOpen, setCustomerOpen] = useState(false);
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [customerUuid, setCustomerUuid] = useState("");
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+
   const [selected, setSelected] = useState<DepositRow | null>(null);
   const [qtyInput, setQtyInput] = useState("");
   const [note, setNote] = useState("");
@@ -75,10 +93,13 @@ export function DepositWithdrawForm({
 
   const qty = toDepositQtyInput(qtyInput);
   const validationError = validateDepositWithdraw({ qtyWithdrawn: qty, deposit: selected });
+  const exceedsRemaining = Boolean(selected) && qty > (selected?.remaining_qty ?? 0);
 
   useResetOnChange(open, () => {
-    setPickerOpen(false);
-    setSearch("");
+    setCustomerOpen(false);
+    setCustomerSearch("");
+    setCustomerUuid("");
+    setSelectedCustomer(null);
     setSelected(null);
     setQtyInput("");
     setNote("");
@@ -86,18 +107,32 @@ export function DepositWithdrawForm({
   });
 
   useEffect(() => {
-    if (!branchUuid || !pickerOpen) return;
-    const query = search.trim();
+    if (!storeUuid || !customerOpen) return;
+    const query = customerSearch.trim();
     const timer = window.setTimeout(() => {
-      void loadList({ branchUuid, status: "active", search: query, lang: language });
+      void loadCustomers({ store_uuid_fk: storeUuid, search: query, limit: PICKER_LIMIT, lang: language });
     }, query ? SEARCH_DEBOUNCE_MS : 0);
     return () => window.clearTimeout(timer);
-  }, [branchUuid, language, loadList, pickerOpen, search]);
+  }, [customerOpen, customerSearch, language, loadCustomers, storeUuid]);
+
+  // เลือกลูกค้าแล้ว = โหลดรายการฝากที่ยัง Active ของลูกค้าคนนั้นมาแสดงเป็นลิสต์
+  // ให้เห็นชัดว่ามีอะไรให้เบิกบ้าง ไม่ใช่ให้พิมพ์ค้นหาแบบเดา
+  useEffect(() => {
+    if (!branchUuid || !customerUuid) return;
+    void loadList({ branchUuid, customerUuid, status: "active", lang: language });
+  }, [branchUuid, customerUuid, language, loadList]);
+
+  function selectCustomer(customer: Customer) {
+    setCustomerUuid(customerUuidOf(customer));
+    setSelectedCustomer(customer);
+    setCustomerOpen(false);
+    setSelected(null);
+    setQtyInput("");
+  }
 
   function selectDeposit(row: DepositRow) {
     setSelected(row);
     setQtyInput(String(row.remaining_qty));
-    setPickerOpen(false);
   }
 
   function requestConfirmation() {
@@ -137,45 +172,46 @@ export function DepositWithdrawForm({
       <div className="flex flex-col gap-4">
         <FieldSet className="gap-4 rounded-lg border border-border bg-card p-4">
           <Field>
-            <FieldLegend className="text-sm">{t("deposit.findDeposit")}</FieldLegend>
+            <FieldLegend className="text-sm">{t("deposit.customer")}</FieldLegend>
             <FieldDescription>{t("deposit.findDepositHint")}</FieldDescription>
           </Field>
-          <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
+          <Popover open={customerOpen} onOpenChange={setCustomerOpen}>
             <PopoverTrigger asChild>
               <Button
                 type="button"
                 variant="outline"
                 role="combobox"
-                aria-expanded={pickerOpen}
-                disabled={withdrawing || !branchUuid}
+                aria-expanded={customerOpen}
+                disabled={withdrawing}
                 className="w-full justify-between font-normal"
               >
                 <span className="truncate">
-                  {selected ? depositOptionLabel(selected) : t("deposit.selectDeposit")}
+                  {selectedCustomer ? customerLabel(selectedCustomer) : t("deposit.selectCustomer")}
                 </span>
-                {loading ? <Spinner /> : <ChevronsUpDown className="opacity-50" />}
+                {customerLoading ? <Spinner /> : <ChevronsUpDown className="opacity-50" />}
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-(--radix-popover-trigger-width) p-0">
               <Command shouldFilter={false}>
                 <CommandInput
-                  placeholder={t("deposit.searchPlaceholder")}
-                  value={search}
-                  onValueChange={setSearch}
+                  placeholder={t("deposit.searchCustomer")}
+                  value={customerSearch}
+                  onValueChange={setCustomerSearch}
                 />
                 <CommandList>
-                  <CommandEmpty>{loading ? t("common.loading") : t("deposit.noDeposits")}</CommandEmpty>
+                  <CommandEmpty>
+                    {customerLoading ? t("common.loading") : t("deposit.noCustomerResults")}
+                  </CommandEmpty>
                   <CommandGroup>
-                    {rows.map((row) => (
-                      <CommandItem key={row.deposit_uuid} value={row.deposit_uuid} onSelect={() => selectDeposit(row)}>
-                        {depositOptionLabel(row)}
-                        <Check
-                          className={
-                            selected?.deposit_uuid === row.deposit_uuid ? "ml-auto opacity-100" : "ml-auto opacity-0"
-                          }
-                        />
-                      </CommandItem>
-                    ))}
+                    {customerRows.map((customer) => {
+                      const uuid = customerUuidOf(customer);
+                      return (
+                        <CommandItem key={uuid} value={uuid} onSelect={() => selectCustomer(customer)}>
+                          {customerLabel(customer)}
+                          <Check className={uuid === customerUuid ? "ml-auto opacity-100" : "ml-auto opacity-0"} />
+                        </CommandItem>
+                      );
+                    })}
                   </CommandGroup>
                 </CommandList>
               </Command>
@@ -183,14 +219,54 @@ export function DepositWithdrawForm({
           </Popover>
         </FieldSet>
 
+        {customerUuid ? (
+          <FieldSet className="gap-3 rounded-lg border border-border bg-card p-4">
+            <Field>
+              <FieldLegend className="flex items-center gap-2 text-sm">
+                <PackageSearch className="size-4 text-primary" aria-hidden />
+                {t("deposit.findDeposit")}
+              </FieldLegend>
+            </Field>
+
+            {loading ? (
+              <p className="text-sm text-muted-foreground">{t("common.loading")}</p>
+            ) : rows.length ? (
+              <div className="flex flex-col gap-2">
+                {rows.map((row) => {
+                  const isSelected = selected?.deposit_uuid === row.deposit_uuid;
+                  return (
+                    <button
+                      key={row.deposit_uuid}
+                      type="button"
+                      disabled={withdrawing}
+                      onClick={() => selectDeposit(row)}
+                      className={
+                        "flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-left transition-colors " +
+                        (isSelected ? "border-primary bg-primary/5" : "border-border bg-muted/25 hover:bg-muted/50")
+                      }
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">{row.product_name}</p>
+                        <p className="text-xs text-muted-foreground">{row.deposit_no}</p>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-2">
+                        <Badge variant="outline">
+                          {t("deposit.remaining")}: {row.remaining_qty} {row.unit_name}
+                        </Badge>
+                        <Check className={isSelected ? "size-4 opacity-100" : "size-4 opacity-0"} />
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">{t("deposit.noDeposits")}</p>
+            )}
+          </FieldSet>
+        ) : null}
+
         {selected ? (
           <FieldSet className="gap-4 rounded-lg border border-border bg-muted/25 p-4">
-            <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-              <span className="font-semibold">{selected.deposit_no}</span>
-              <Badge variant="outline">
-                {t("deposit.remaining")}: {selected.remaining_qty} {selected.unit_name}
-              </Badge>
-            </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <Field>
                 <FieldLabel htmlFor="pos-withdraw-qty">{t("deposit.withdrawQty")}</FieldLabel>
@@ -198,9 +274,11 @@ export function DepositWithdrawForm({
                   id="pos-withdraw-qty"
                   type="number"
                   min="0"
+                  max={selected.remaining_qty}
                   step="0.01"
                   inputMode="decimal"
                   disabled={withdrawing}
+                  aria-invalid={exceedsRemaining}
                   value={qtyInput}
                   onChange={(event) => setQtyInput(event.target.value)}
                 />

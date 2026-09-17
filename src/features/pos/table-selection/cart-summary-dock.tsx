@@ -1,6 +1,6 @@
 "use client";
 
-import { BadgePercent, BookOpen, Check, CreditCard, Monitor, MoreHorizontal, PackageOpen, QrCode, ShoppingCart, Shuffle, SplitSquareHorizontal, Wine } from "lucide-react";
+import { BadgePercent, BookOpen, Check, CreditCard, Monitor, MoreHorizontal, QrCode, ShoppingCart, Shuffle, SplitSquareHorizontal, Wine } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -36,7 +36,6 @@ export function CartSummaryDock({
   onCreateBranchMenuQr,
   onCreateEmployeeOrder,
   onCreateDeposit,
-  onWithdrawDeposit,
   onCustomerDisplay,
   onPayBill,
   onPaySplitSelection,
@@ -65,7 +64,6 @@ export function CartSummaryDock({
   onCreateBranchMenuQr?: () => void;
   onCreateEmployeeOrder?: () => void;
   onCreateDeposit?: () => void;
-  onWithdrawDeposit?: () => void;
   onCustomerDisplay: () => void;
   onPayBill: () => void;
   onPaySplitSelection?: () => void;
@@ -254,12 +252,6 @@ export function CartSummaryDock({
                 <DropdownMenuItem onSelect={onCreateDeposit}>
                   <Wine data-icon="inline-start" />
                   <span>{t("deposit.createTitle")}</span>
-                </DropdownMenuItem>
-              ) : null}
-              {onWithdrawDeposit ? (
-                <DropdownMenuItem onSelect={onWithdrawDeposit}>
-                  <PackageOpen data-icon="inline-start" />
-                  <span>{t("deposit.withdrawTitle")}</span>
                 </DropdownMenuItem>
               ) : null}
               <DropdownMenuItem disabled={actionsDisabled} onSelect={onCustomerDisplay}>

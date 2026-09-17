@@ -2652,6 +2652,7 @@
       "createQtyInvalid": "Quantity must be greater than 0",
       "createExpireDateInvalid": "Expire date format is invalid",
       "createExpireDatePast": "Expire date cannot be in the past",
+      "createQtyExceedsOrdered": "Deposit quantity cannot exceed what was ordered",
       "withdrawQtyInvalid": "Quantity must be greater than 0",
       "withdrawQtyExceedsRemaining": "Quantity exceeds what remains",
       "withdrawDepositNotActive": "This deposit is not active or has expired"

@@ -347,14 +347,7 @@ export function SelectedTableCartPanelContent({
             }
             onCreateTableQr={showTableFeatures ? workflow.openTableQr : undefined}
             onCreateBranchMenuQr={workflow.openBranchMenuQr}
-            onCreateDeposit={() => {
-              workflow.setDepositDialogTab("create");
-              workflow.setDepositDialogOpen(true);
-            }}
-            onWithdrawDeposit={() => {
-              workflow.setDepositDialogTab("withdraw");
-              workflow.setDepositDialogOpen(true);
-            }}
+            onCreateDeposit={() => workflow.setDepositDialogOpen(true)}
             onCustomerDisplay={() =>
               void customerDisplay.openCustomerDisplayScreen()
             }
@@ -389,7 +382,7 @@ export function SelectedTableCartPanelContent({
       />
       <DepositDialog
         branchUuid={workflow.user?.branch_uuid}
-        defaultTab={workflow.depositDialogTab}
+        defaultTab="create"
         open={workflow.depositDialogOpen}
         orderItems={workflow.displayItems}
         orderUuid={workflow.currentOrderUuid ?? undefined}
