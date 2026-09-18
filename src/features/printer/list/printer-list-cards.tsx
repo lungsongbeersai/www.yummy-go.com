@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import {
+  Banknote,
   Pencil,
   Power,
   PowerOff,
@@ -46,10 +47,12 @@ interface PrinterListCardsProps {
   roleItemsByPrinter: Map<string, Array<{ label: string; value: string }>>;
   statusLabels: { active: string; inactive: string };
   testingUuid: string;
+  testingDrawerUuid: string;
   togglingUuid: string;
   userUuid?: string;
   onDelete: (row: Printer) => void;
   onTest: (row: Printer) => void;
+  onTestDrawer: (row: Printer) => void;
   onToggle: (row: Printer) => void;
 }
 
@@ -62,10 +65,12 @@ function PrinterCard({
   row,
   statusLabels,
   testingUuid,
+  testingDrawerUuid,
   togglingUuid,
   userUuid,
   onDelete,
   onTest,
+  onTestDrawer,
   onToggle,
 }: Omit<PrinterListCardsProps, "filteredRows"> & { row: PrinterTableRow }) {
   const { t } = useTranslation();
@@ -236,6 +241,30 @@ function PrinterCard({
             <Spinner />
           ) : (
             <PrinterIcon />
+          )}
+        </Button>
+
+        <Button
+          size="icon-sm"
+          variant="outline"
+          aria-label={t("printer.testDrawer")}
+          disabled={
+            readOnly ||
+            printing ||
+            Boolean(testingUuid) ||
+            Boolean(testingDrawerUuid) ||
+            Boolean(togglingUuid) ||
+            !userUuid ||
+            !row.print_config_uuid ||
+            (row.is_shared === true && row.agent_online === false) ||
+            (row.is_shared !== true && row.is_local_device === false)
+          }
+          onClick={() => void onTestDrawer(row)}
+        >
+          {testingDrawerUuid === row.print_config_uuid ? (
+            <Spinner />
+          ) : (
+            <Banknote />
           )}
         </Button>
 

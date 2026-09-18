@@ -318,6 +318,37 @@ export function PrinterFormPage() {
                     { value: "disabled", label: t("printer.cashDrawerDisabled") },
                   ]}
                 />
+                <RadioOptionList
+                  className="md:col-span-2"
+                  legend={t("printer.buzzerOnCutMode")}
+                  description={t("printer.buzzerOnCutModeHint")}
+                  name="printer-buzzer-on-cut"
+                  disabled={form.saving}
+                  value={form.buzzerOnCut ? "enabled" : "disabled"}
+                  onValueChange={(value) => form.setBuzzerOnCut(value === "enabled")}
+                  options={[
+                    { value: "enabled", label: t("printer.buzzerOnCutEnabled") },
+                    { value: "disabled", label: t("printer.buzzerOnCutDisabled") },
+                  ]}
+                />
+                <Field>
+                  <FieldLabel htmlFor="printer-cut-feed-lines">
+                    {t("printer.cutFeedLines")}
+                  </FieldLabel>
+                  <Input
+                    id="printer-cut-feed-lines"
+                    name="printer_cut_feed_lines"
+                    autoComplete="off"
+                    placeholder={t("printer.cutFeedLinesPlaceholder")}
+                    value={form.cutFeedLines}
+                    disabled={form.saving}
+                    type="number"
+                    inputMode="numeric"
+                    min={1}
+                    onChange={(event) => form.setCutFeedLines(event.target.value)}
+                  />
+                  <FieldDescription>{t("printer.cutFeedLinesHint")}</FieldDescription>
+                </Field>
               </FieldGroup>
             </FieldSet>
 

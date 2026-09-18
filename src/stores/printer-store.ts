@@ -98,6 +98,9 @@ interface PrinterState {
   toggleActive: (printConfigUuid: string) => Promise<void>;
   buildTest: (data: BuildTestJobRequest) => ReturnType<typeof buildTestJob>;
   test: (data: BuildTestJobRequest) => Promise<string | null>;
+  testDrawer: (
+    data: BuildTestJobRequest,
+  ) => Promise<{ routingWarning: string | null; cashDrawerEnabled: boolean }>;
   loadCategoryRoles: (loginUuid: string) => Promise<CategoryRole[]>;
   saveCategoryRole: (input: SaveCategoryRoleInput) => Promise<void>;
   loadPrinterCategoryRole: (loginUuid: string, printerUuid: string, lang?: string) => Promise<PrinterCategoryRole | null>;
@@ -461,6 +464,99 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
       throw new Error(finalMessage);
     }
 
+  },
+  testDrawer: async (input) => {
+    const isCurrentSession = createSessionGuard();
+    set({ printing: true, error: null });
+
+    let phase = "start";
+
+    try {
+      const selectedPrinter = get().printers.find(
+        (item) =>
+          input.print_config_uuid &&
+          item.print_config_uuid === input.print_config_uuid,
+      );
+
+      const selectedConnectType = textValue(selectedPrinter?.connect_type).toLowerCase();
+      const nativeTcpPrinter =
+        Capacitor.isNativePlatform() && selectedConnectType === "tcp";
+
+      phase = "resolvePrinterDeviceContext";
+
+      const printer = nativeTcpPrinter
+        ? {
+          device_code: selectedPrinter?.device_code,
+          agent_id: selectedPrinter?.agent_id,
+          agent_name: selectedPrinter?.agent_name,
+          print_mode: selectedPrinter?.print_mode,
+          connect_type: selectedPrinter?.connect_type,
+        }
+        : await resolvePrinterDeviceContext(input);
+      if (!isCurrentSession()) return { routingWarning: null, cashDrawerEnabled: true };
+
+      phase = "buildTestJob";
+
+      const result = await buildTestJob({
+        ...input,
+        open_cash_drawer: true,
+        device_code: selectedPrinter?.device_code || printer.device_code,
+        agent_id: selectedPrinter?.agent_id || printer.agent_id,
+        agent_name: selectedPrinter?.agent_name || printer.agent_name,
+        print_mode: selectedPrinter?.print_mode || printer.print_mode,
+      });
+      if (!isCurrentSession()) return { routingWarning: null, cashDrawerEnabled: true };
+
+      const job = result.data.job;
+      const routingWarning = result.data.routing_warning?.trim() || null;
+      const cashDrawerEnabled = result.data.cash_drawer_enabled !== false;
+
+      const printerConnectType = textValue(
+        (printer as { connect_type?: string | null }).connect_type,
+      ).toLowerCase();
+
+      const jobConnectType = textValue(
+        (job as { connect_type?: string | null }).connect_type,
+      ).toLowerCase();
+
+      const isNativeApp = Capacitor.isNativePlatform();
+
+      const isMobileWifi =
+        isNativeApp &&
+        (
+          textValue(printer.print_mode).toLowerCase() === "mobile_wifi" ||
+          textValue(job.print_mode).toLowerCase() === "mobile_wifi" ||
+          textValue(job.print_client).toLowerCase() === "mobile_wifi" ||
+          nativeTcpPrinter ||
+          printerConnectType === "tcp" ||
+          jobConnectType === "tcp"
+        );
+
+      if (isMobileWifi) {
+        phase = "renderMobileEscpos";
+        const escposBase64 = await renderMobileEscpos(job);
+        if (!isCurrentSession()) return { routingWarning: null, cashDrawerEnabled };
+
+        phase = "printMobileEscposOverTcp";
+        await printMobileEscposOverTcp({
+          interface_value: job.interface_value,
+          escpos_base64: escposBase64,
+        });
+      } else {
+        phase = "dispatchPrintJob";
+        await dispatchPrintJob(job);
+      }
+
+      phase = "done";
+      if (isCurrentSession()) set({ printing: false });
+      return { routingWarning, cashDrawerEnabled };
+    } catch (error) {
+      const message = getPrinterErrorMessage(error);
+      const finalMessage = `[${phase}] ${message}`;
+
+      if (isCurrentSession()) set({ error: finalMessage, printing: false });
+      throw new Error(finalMessage);
+    }
   },
   loadCategoryRoles: async (loginUuid) => {
     const isCurrentSession = createSessionGuard();

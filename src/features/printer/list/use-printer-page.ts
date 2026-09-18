@@ -43,6 +43,7 @@ export function usePrinterPage() {
   const loadAgentFiles = usePrinterStore((state) => state.loadAgentFiles);
   const loadRoles = usePrinterStore((state) => state.loadRoles);
   const testPrinterAction = usePrinterStore((state) => state.test);
+  const testDrawerAction = usePrinterStore((state) => state.testDrawer);
   const toggleActive = usePrinterStore((state) => state.toggleActive);
   const removePrinter = usePrinterStore((state) => state.remove);
   const categories = (useReferenceStore((state) => state.options.categories) ??
@@ -53,6 +54,7 @@ export function usePrinterPage() {
   const loadZones = useReferenceStore((state) => state.loadZones);
   const [deleteTarget, setDeleteTarget] = useState<Printer | null>(null);
   const [testingUuid, setTestingUuid] = useState("");
+  const [testingDrawerUuid, setTestingDrawerUuid] = useState("");
   const [togglingUuid, setTogglingUuid] = useState("");
   const [searchText, setSearchText] = useState("");
   const [typeFilter, setTypeFilter] = useState(TYPE_ALL);
@@ -255,6 +257,38 @@ export function usePrinterPage() {
     }
   }
 
+  async function testDrawer(row: Printer) {
+    if (!user?.uuid || !row.print_config_uuid || testingDrawerUuid) return;
+    setTestingDrawerUuid(row.print_config_uuid);
+    try {
+      const { routingWarning, cashDrawerEnabled } = await testDrawerAction({
+        login_uuid_fk: user.uuid,
+        print_config_uuid: row.print_config_uuid,
+        lang: language,
+      });
+      if (!cashDrawerEnabled) {
+        showToast({
+          title: t("printer.drawerDisabledForPrinter"),
+          tone: "warning",
+        });
+        return;
+      }
+      showToast({
+        title: t("printer.drawerTestSent"),
+        description: routingWarning || "",
+        tone: routingWarning ? "warning" : "success",
+      });
+    } catch (error) {
+      showToast({
+        title: t("printer.drawerTestFailed"),
+        description: error instanceof Error ? error.message : "",
+        tone: "error",
+      });
+    } finally {
+      setTestingDrawerUuid("");
+    }
+  }
+
   async function togglePrinter(row: Printer) {
     if (!row.print_config_uuid || togglingUuid || !user?.uuid) return;
     const wasActive = row.is_active;
@@ -302,6 +336,7 @@ export function usePrinterPage() {
     loading,
     deleteTarget,
     testingUuid,
+    testingDrawerUuid,
     togglingUuid,
     searchText,
     typeFilter,
@@ -319,6 +354,7 @@ export function usePrinterPage() {
     showPrinterSetupDownloadToast,
     remove,
     testPrinter,
+    testDrawer,
     togglePrinter,
   };
 }
