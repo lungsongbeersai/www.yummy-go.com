@@ -1486,7 +1486,7 @@
     "buzzerOnCutDisabled": "Silent",
     "cutFeedLines": "Paper feed before cut",
     "cutFeedLinesPlaceholder": "Default (8 lines, ~24mm)",
-    "cutFeedLinesHint": "How far this printer feeds blank paper before cutting, in lines (~3mm each). Leave blank to use the shared default. A safety floor (~6 lines) always applies so the blade never catches text. Other printers are unaffected.",
+    "cutFeedLinesHint": "How far this printer feeds blank paper before cutting, in lines (~3mm each). Leave blank to use the shared default. A safety floor (~6 lines) always applies so the blade never catches text. Other printers are unaffected — use it to fine-tune this printer's gap so it's neither too long nor too tight.",
     "ownerColumn": "Owner",
     "ownerBadge": "Yours",
     "sharedBadgeWithDevice": "Shared from {{device}}",

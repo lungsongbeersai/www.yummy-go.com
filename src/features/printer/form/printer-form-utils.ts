@@ -226,9 +226,12 @@ export function buzzerOnCutOf(printer: Printer | null) {
   return printer?.buzzer_on_cut === true;
 }
 
-// "" หมายถึงใช้ระยะป้อนกระดาษกลางของระบบ (ไม่ตั้งค่าเฉพาะเครื่องนี้)
+// เครื่องใหม่: ตั้งค่าเริ่มต้นให้เป็นค่าต่ำสุดปลอดภัย (6 แถว) ไปเลย แทนที่จะปล่อยว่างแล้วไปใช้
+// ค่ากลางของระบบ (8 แถว) ซึ่งยาวกว่าที่ต้องการ — เครื่องที่เคยบันทึกไว้แล้วและไม่มีค่านี้ (null)
+// ยังคงว่างเหมือนเดิม เพื่อไม่เปลี่ยนพฤติกรรมของเครื่องพิมพ์ที่ตั้งค่าไว้แล้ว
 export function cutFeedLinesOf(printer: Printer | null) {
-  const value = printer?.cut_feed_lines;
+  if (printer === null) return "6";
+  const value = printer.cut_feed_lines;
   return value === null || value === undefined ? "" : String(value);
 }
 
