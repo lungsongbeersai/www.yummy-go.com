@@ -221,16 +221,17 @@ export function cashDrawerEnabledOf(printer: Printer | null) {
   return printer?.cash_drawer_enabled !== false;
 }
 
-// เครื่องเดิมทั้งหมดไม่มีเสียงเตือนตอนตัด — ค่าเริ่มต้นต้องเป็นปิดเสมอ
+// เครื่องใหม่: ให้ดังสียงตอนตัดเป็นค่าเริ่มต้น — เครื่องที่เคยบันทึกไว้แล้วยังคงใช้ค่าจริงที่
+// บันทึกไว้ (ไม่เปิดสียงย้อนหลังให้เครื่องเก่าที่ไม่เคยตั้งค่านี้)
 export function buzzerOnCutOf(printer: Printer | null) {
-  return printer?.buzzer_on_cut === true;
+  if (printer === null) return true;
+  return printer.buzzer_on_cut === true;
 }
 
-// เครื่องใหม่: ตั้งค่าเริ่มต้นให้เป็นค่าต่ำสุดปลอดภัย (6 แถว) ไปเลย แทนที่จะปล่อยว่างแล้วไปใช้
-// ค่ากลางของระบบ (8 แถว) ซึ่งยาวกว่าที่ต้องการ — เครื่องที่เคยบันทึกไว้แล้วและไม่มีค่านี้ (null)
-// ยังคงว่างเหมือนเดิม เพื่อไม่เปลี่ยนพฤติกรรมของเครื่องพิมพ์ที่ตั้งค่าไว้แล้ว
+// เครื่องใหม่: ตั้งค่าเริ่มต้นเป็น 8 แถว (ค่ากลางของระบบ) — เครื่องที่เคยบันทึกไว้แล้วและไม่มี
+// ค่านี้ (null) ยังคงว่างเหมือนเดิม เพื่อไม่เปลี่ยนพฤติกรรมของเครื่องพิมพ์ที่ตั้งค่าไว้แล้ว
 export function cutFeedLinesOf(printer: Printer | null) {
-  if (printer === null) return "6";
+  if (printer === null) return "8";
   const value = printer.cut_feed_lines;
   return value === null || value === undefined ? "" : String(value);
 }

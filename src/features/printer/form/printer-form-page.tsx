@@ -347,7 +347,6 @@ export function PrinterFormPage() {
                     min={1}
                     onChange={(event) => form.setCutFeedLines(event.target.value)}
                   />
-                  <FieldDescription>{t("printer.cutFeedLinesHint")}</FieldDescription>
                 </Field>
               </FieldGroup>
             </FieldSet>
