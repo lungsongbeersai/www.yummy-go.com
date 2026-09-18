@@ -83,6 +83,7 @@ const Menu: MenuItem[] = [
       { path: "/settings/color", title: "color" },
       { path: "/settings/zone", title: "zone" },
       { path: "/settings/table", title: "table" },
+      { path: "/settings/taste", title: "taste" },
       { path: "/settings/currency", title: "currency" },
       { path: "/settings/exchange", title: "exchange_rate" },
       { path: "/settings/customer", title: "customer" },

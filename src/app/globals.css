@@ -30,6 +30,12 @@
   --info-foreground: hsl(0 0% 100%);
   --pending: hsl(25 90% 45%);
   --pending-foreground: hsl(0 0% 100%);
+  /* คู่ "ข้อความบนพื้น" ของ --info/--warning: เข้มพอผ่าน WCAG AA (>=4.5:1) เมื่อใช้เป็น
+     text บน card/พื้นสว่าง ต่างจากตัว --info/--warning ที่ออกแบบเป็นสี fill (คู่กับ
+     -foreground) ซึ่ง contrast ตกเมื่อเอามาเป็นตัวอักษรบนพื้นขาว ใช้กับยอด service/VAT
+     ในรายงาน (เทียบ sky-700/amber-700 เดิมที่ผ่าน contrast อยู่แล้ว) */
+  --info-text: hsl(201 100% 33%);
+  --warning-text: hsl(25 100% 37%);
   --border: oklch(0.925 0.005 214.3);
   --input: oklch(0.925 0.005 214.3);
   --ring: oklch(0.723 0.014 214.4);
@@ -78,6 +84,9 @@
   --info-foreground: hsl(199 80% 12%);
   --pending: hsl(25 90% 60%);
   --pending-foreground: hsl(25 80% 12%);
+  /* โหมดมืด: ใช้เฉดสว่าง (เทียบ sky-300/amber-300 เดิม) ให้ contrast ผ่านบนพื้น card เข้ม */
+  --info-text: hsl(199 95% 74%);
+  --warning-text: hsl(46 97% 64%);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.56 0.021 213.5);
@@ -235,6 +244,8 @@ html[data-font-scale="xl"] {
   --color-pending-foreground: var(--pending-foreground);
   --color-info: var(--info);
   --color-info-foreground: var(--info-foreground);
+  --color-info-text: var(--info-text);
+  --color-warning-text: var(--warning-text);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -2084,6 +2095,59 @@ html.theme-transition-active[data-theme-transition-direction="ltr"]::view-transi
   --ring-rgb: 251 191 36;
 }
 
+/* คิวออเดอร์ที่รอ 5-10 นาทีในแท็บ "รอยืนยันส่งครัว" — กะพริบพื้นหลังเหลืองอ่อน
+   เตือนก่อนที่จะกลายเป็นระดับวิกฤต (สีแดง) ด้านล่าง ไม่แตะ box-shadow/ring เพราะ
+   แถวตารางเต็มความกว้าง ไม่ใช่การ์ด/ชิปที่มีขอบรอบให้ pulse */
+.order-queue-row-blink-warning {
+  animation: order-queue-row-blink-warning 1.4s ease-in-out infinite;
+  will-change: background-color;
+}
+
+@keyframes order-queue-row-blink-warning {
+  0%,
+  100% {
+    background-color: color-mix(in oklch, var(--warning) 12%, transparent);
+  }
+
+  50% {
+    background-color: color-mix(in oklch, var(--warning) 30%, transparent);
+  }
+}
+
+/* คิวออเดอร์ที่รอ 10 นาทีขึ้นไป (รวมระดับ 15+ ที่ล็อกออเดอร์อื่น) — กะพริบเร็วกว่า
+   และแรงกว่าเวอร์ชันเหลือง เพราะต้องสะดุดตาที่สุดในตาราง */
+.order-queue-row-blink-destructive {
+  animation: order-queue-row-blink-destructive 1s ease-in-out infinite;
+  will-change: background-color;
+}
+
+@keyframes order-queue-row-blink-destructive {
+  0%,
+  100% {
+    background-color: color-mix(in oklch, var(--destructive) 14%, transparent);
+  }
+
+  50% {
+    background-color: color-mix(in oklch, var(--destructive) 34%, transparent);
+  }
+}
+
+/* คิวออเดอร์แยกตารางหัว/เนื้อหา/ท้ายเป็นคนละ <table> (ดูเหตุผลใน order-queue-table-frame.tsx)
+   แล้ว sync ตำแหน่งเลื่อนแนวนอนของตารางหัว/ท้ายตามตารางเนื้อหาด้วย scrollLeft — แต่ scrollbar
+   แนวนอนของตัวเนื้อหา (ตัวเดียวที่ผู้ใช้โต้ตอบได้จริง) กินความกว้าง content area ไปหลายพิกเซล
+   ในเบราว์เซอร์ที่ scrollbar ไม่ใช่ overlay (เช่น Windows) ต่างจากตารางหัว/ท้ายที่ไม่มี
+   scrollbar ของตัวเอง — scrollLeft ค่าเดียวกันเลยตรงกับตำแหน่งคอลัมน์ที่ต่างกันเล็กน้อย
+   ยิ่งเลื่อนไปทางขวายิ่งเพี้ยนสะสม ซ่อน scrollbar นี้ (ยังเลื่อนด้วยนิ้ว/wheel/ลากได้ปกติ)
+   เพื่อให้ content area กว้างเท่ากันทั้ง 3 ตาราง แนวคอลัมน์เลยตรงกันเป๊ะเสมอ */
+.order-queue-table-scroll-hidden {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.order-queue-table-scroll-hidden::-webkit-scrollbar {
+  display: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -2125,6 +2189,18 @@ html.theme-transition-active[data-theme-transition-direction="ltr"]::view-transi
   .pos-status-ring-pulse {
     animation: none;
     box-shadow: 0 0 0 2px rgb(var(--ring-rgb) / 70%);
+    will-change: auto;
+  }
+
+  .order-queue-row-blink-warning {
+    animation: none;
+    background-color: color-mix(in oklch, var(--warning) 20%, transparent);
+    will-change: auto;
+  }
+
+  .order-queue-row-blink-destructive {
+    animation: none;
+    background-color: color-mix(in oklch, var(--destructive) 22%, transparent);
     will-change: auto;
   }
 }
@@ -2173,6 +2249,19 @@ button.scroll-arrow-button:not(:disabled):not([aria-disabled="true"]) {
   -webkit-touch-callout: default;
   -webkit-user-select: text;
   user-select: text;
+}
+
+/* iOS (WKWebView) ซูมเข้าอัตโนมัติทุกครั้งที่โฟกัส input/textarea/select ที่ font-size
+   จริงต่ำกว่า 16px แล้วมี bug ที่รู้จักดีคือไม่ยอมซูมออกคืนให้เองหลัง blur — inputs ของ
+   shadcn ในแอปนี้ใช้ text-sm (14px) เป็นค่าเริ่มต้นจึงโดนทุกจุด ทางแก้คือกันไม่ให้ซูมเกิดขึ้น
+   ตั้งแต่ต้น (บังคับ font-size จริง >= 16px เฉพาะ iOS native shell) แทนการปิด pinch-zoom
+   ทั้งแอปด้วย maximum-scale=1/user-scalable=no ซึ่งขัดกับเกณฑ์ WCAG 1.4.4 (resize text)
+   ที่ตั้งเป็นพื้นฐานของแอปนี้ไว้ (ดู docs/Design.md > Accessibility floor) */
+.capacitor-ios input:not([type="button"]):not([type="submit"]):not([type="reset"]),
+.capacitor-ios textarea,
+.capacitor-ios select,
+.capacitor-ios [contenteditable="true"] {
+  font-size: 16px;
 }
 
 /* กฎ tap-highlight ด้านบนคุมแค่ปุ่ม/ลิงก์ — ช่องพิมพ์ข้อความยังใช้สี default ของเบราว์เซอร์

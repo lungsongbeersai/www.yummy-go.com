@@ -1,7 +1,6 @@
 "use client";
 
-import type { Route } from "next";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { useResetOnDeps } from "@/hooks/use-reset-on-change";
 import { DEFAULT_PAGE_LIMIT, PAGE_LIMIT_OPTIONS } from "@/lib/pagination";
@@ -29,7 +28,6 @@ export function useUrlPagination({
   limitOptions = PAGE_LIMIT_OPTIONS,
 }: UseUrlPaginationOptions) {
   const pathname = usePathname();
-  const router = useRouter();
   const [page, setPageState] = useState(initialPagination.page);
   const [limit, setLimitState] = useState<PageLimit>(initialPagination.limit);
 
@@ -48,10 +46,13 @@ export function useUrlPagination({
       const nextSearch = query ? `?${query}` : "";
       if (window.location.search === nextSearch) return;
 
-      // replace บน pathname ปัจจุบัน (เปลี่ยนเฉพาะ query) — ปลอดภัยเสมอ จึง cast ได้
-      router.replace(`${pathname}${nextSearch}` as Route, { scroll: false });
+      // history.replaceState ตรง ๆ แทน router.replace — pagination เป็น client state ล้วน (โหลดจาก
+      // Zustand store) ไม่มี Server Component ไหนต้องอ่าน searchParams ใหม่ router.replace จึงแค่ทำให้
+      // Next ยิง RSC fetch เต็มหน้าโดยไม่จำเป็น (โหลดรูปสินค้าทุกใบใหม่) ทำให้เกิด reflow/scrollbar
+      // กะพริบตอนคลิกเลขหน้า และบางทีคลิกไม่ติดเพราะปุ่มขยับกลางคลิก
+      window.history.replaceState(null, "", `${pathname}${nextSearch}`);
     },
-    [defaultLimit, pathname, router],
+    [defaultLimit, pathname],
   );
 
   const goToPage = useCallback(

@@ -48,13 +48,16 @@ function sortProductsByApiOrder(rows: Product[], orderBy: SortOrder = "ASC") {
 }
 
 export async function getProducts(params: FetchProductsParams = {}) {
-  const orderBy = params.orderBy ?? "ASC";
+  // ไม่เลือก orderBy (ค่าเริ่มต้น) ไม่ส่ง orderBy ไป Backend เลย — ให้ Backend คืนลำดับ
+  // สินค้าเดียวกับที่ POS ใช้ ส่ง orderBy เฉพาะตอนผู้ใช้เลือก ASC/DESC เองจาก dropdown
+  const orderBy =
+    params.orderBy === "ASC" || params.orderBy === "DESC" ? params.orderBy : null;
   const query: Record<string, unknown> = {
     search: params.search ?? "",
     page: params.page ?? 1,
-    orderBy,
     lang: toApiLanguage(params.lang)
   };
+  if (orderBy !== null) query.orderBy = orderBy;
   if (params.limit === "All") query.limit = "All";
   else if (params.limit !== null) query.limit = params.limit ?? 20;
   if (params.branch_uuid_fk) query.branch_uuid_fk = params.branch_uuid_fk;
@@ -62,7 +65,10 @@ export async function getProducts(params: FetchProductsParams = {}) {
   if (params.status_sort_fk !== undefined) query.status_sort_fk = params.status_sort_fk;
 
   const result = await apiRequest<ProductResponse>("get", "/api/v1/product/fetch_limit", { params: query });
-  return { ...result, data: sortProductsByApiOrder(result.data ?? [], orderBy) };
+  return {
+    ...result,
+    data: orderBy === null ? result.data ?? [] : sortProductsByApiOrder(result.data ?? [], orderBy)
+  };
 }
 
 export async function getStatusSorts(lang = "la") {

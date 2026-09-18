@@ -13,6 +13,7 @@ export const SETTINGS_MODULE_SLUGS = [
   "color",
   "zone",
   "table",
+  "taste",
   "currency",
   "exchange",
   "customer",

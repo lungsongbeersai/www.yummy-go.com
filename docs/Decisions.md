@@ -6,6 +6,16 @@ Entries below dated from git history are backfilled from existing code comments 
 
 ---
 
+## Disable pinch-zoom on staff-only routes (overrides WCAG 1.4.4 resize-text floor)
+
+- **Date:** 2026-09-18.
+- **Context:** On Capacitor iOS, tapping any text input auto-zoomed the WKWebView (WebKit heuristic for `<input>`/`<textarea>` with computed font-size < 16px) and the zoom did not reliably reset after blur — a known WKWebView bug, not something fixable purely by waiting or listening for blur. A first fix (forcing `font-size: 16px` on inputs inside `.capacitor-ios`, see `src/app/globals.css`) removes the *trigger* without touching zoom capability at all, and stays in place. The owner additionally asked to disable pinch-zoom outright rather than rely on that alone. An app-wide version of this (set on the root `src/app/layout.tsx`) shipped first, then was caught by code review: the root layout covers every route including `src/app/posAll` — the public QR-ordering page customers open on their own phones — so it was silently disabling zoom for customers too, which the reasoning below never intended.
+- **Decision:** `src/app/(protected)/layout.tsx` (the authenticated staff route group — `order_manage`, `products`, `settings`, the staff-side `posAll`, etc.) sets its own `viewport` export with `maximumScale: 1, userScalable: false`. Next.js merges nested `viewport` exports per key, so this only adds the zoom lock for that subtree; the root `src/app/layout.tsx` keeps its original `viewportFit: "cover"` with no zoom restriction, so `login`, `customer-display`, `policy`, and the public `src/app/posAll` all stay pinch-zoomable.
+- **Trade-off:** This overrides the WCAG 1.4.4 (resize text, AA) floor recorded in `docs/Design.md` > Accessibility floor, but only for the `(protected)` route group — a staff member who needs to pinch-zoom to read small text there can no longer do so. Accepted because every device reaching those specific routes is a shop-owned tablet/terminal operated by staff, not a personal device (this claim is now actually scoped to routes where it holds); an accidental mid-shift zoom that then gets stuck (the original bug) was judged a worse everyday failure mode than losing pinch-zoom on this device class. If a genuinely low-vision staff member needs larger text, use the in-app font-scale setting (`src/stores/app-store.ts`, `FontScale`) instead of OS-level pinch-zoom. The public ordering page a customer opens on their own phone keeps full pinch-zoom, since the rationale above never applied to it.
+- **Approved by:** repository owner (2026-09-18, in conversation, after this trade-off was raised and pushed back on once; the app-wide scope was further narrowed same-day after code review caught it hitting the public ordering page).
+
+---
+
 ## Frontend POS pages use the POS All route namespace
 
 - **Date:** 2026-09-15.

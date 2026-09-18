@@ -122,13 +122,15 @@ export function ReportFilterSheet({
         <div className="min-h-0 flex-1 overflow-y-auto p-4">
           <div className={cn("grid gap-3", gridClassName)}>{children}</div>
         </div>
+        {/* sheet นี้เป็น path มือถือ/แท็บเล็ต — ปุ่ม footer ใช้ h-11 (44px) ให้พอแตะและสูงเท่า
+            ช่องกรอง (h-11) ในตัว sheet ไม่งั้นปุ่มจะเป็น h-7 (28px) เล็กกว่าช่องด้านบนชัดเจน */}
         <DialogFooter className="grid grid-cols-2 gap-2 border-t border-border bg-card/95 px-4 py-3 backdrop-blur sm:flex">
           <DialogClose asChild>
-            <Button type="button" variant="outline">
+            <Button type="button" variant="outline" className="h-11">
               {t("actions.close")}
             </Button>
           </DialogClose>
-          <ReportApplyButton canApply={canApply} loading={loading} onApply={onApply} />
+          <ReportApplyButton canApply={canApply} className="h-11" loading={loading} onApply={onApply} />
         </DialogFooter>
       </DialogContent>
     </Dialog>

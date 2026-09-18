@@ -98,11 +98,17 @@ export function AppPagination({
           </span>
         </div>
 
+        {/* ห้ามทำ nav เป็น scroll container: overflow-x:auto บังคับ overflow-y เป็น auto ไปด้วย และ
+            เนื้อหากว้างเท่า max-content พอดีบนจอ DPR เศษส่วน (เช่น 125%) จึงเกิดสกรอลบาร์วูบ ๆ จากการ
+            ปัดเศษ พอ nav สกรอลได้ การโฟกัสปุ่มตอน mousedown จะทำให้เบราว์เซอร์เลื่อนปุ่มหนีเมาส์
+            คลิกเลยไม่ติด (mousedown/mouseup คนละ element) — ปุ่มเลขหน้า 28px โดนเต็ม ๆ ส่วนปุ่ม
+            ก่อน/ถัดไปอยู่ริมสุดเลยไม่ขยับ ตรงกับอาการที่เจอ. หน้าจอแคบมีทางลงอยู่แล้ว (เลขหน้า
+            ซ่อนต่ำกว่า sm + มี Select กระโดดหน้า) จึงไม่ต้องสกรอลแนวนอน */}
         <Pagination
           aria-label={t("common.pagination")}
-          className="mx-0 w-auto max-w-full justify-end overflow-x-auto overscroll-x-contain"
+          className="mx-0 w-auto max-w-full justify-end"
         >
-          <PaginationContent className="min-w-max flex-nowrap">
+          <PaginationContent className="flex-wrap justify-end">
             <PaginationItem>
               <PaginationPrevious
                 aria-disabled={!canGoBack}

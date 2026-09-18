@@ -1,6 +1,6 @@
 "use client";
 
-import { Ban, ChefHat, CircleCheck, Clock, StickyNote, Utensils } from "lucide-react";
+import { Ban, ChefHat, CircleCheck, Clock, Lock, StickyNote, Utensils } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Spinner } from "@/components/ui/spinner";
 import { TableCell, TableRow } from "@/components/ui/table";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import {
   formatQueueClock,
@@ -27,6 +28,13 @@ import {
   type OrderItemStatus as OrderItemStatusType
 } from "@/config/pos-constants";
 import type { OrderQueueItem } from "@/services/pos";
+import {
+  manageQueueEdgeClass,
+  manageQueueWaitBadgeBlinkClass,
+  manageQueueWaitBadgeVariant,
+  manageQueueWaitToneClass,
+  type ManageQueueUrgencyTier
+} from "@/features/pos/order-queue/order-queue-urgency";
 
 /** ปุ่ม/ลิงก์/checkbox ในการ์ดมี action ของตัวเองอยู่แล้ว คลิกที่จุดเหล่านี้ต้องไม่ toggle selection ซ้ำ */
 const INTERACTIVE_SELECTOR = 'button, a, [data-slot="checkbox"]';
@@ -45,6 +53,14 @@ interface QueueItemViewProps {
   /** true = ยกเลิกได้ด้วย (สถานะรอส่งครัว/ส่งครัวแล้วเท่านั้น — ดู canSelectQueueItem) */
   selectable: boolean;
   acting: boolean;
+  /** ตารางฝั่ง "Manage" เท่านั้น (แท็บรอยืนยันส่งครัว) — เกณฑ์สี/กะพริบตาม order-queue-urgency.ts */
+  manageUrgency?: ManageQueueUrgencyTier;
+  /**
+   * ข้อความเมื่อมีออเดอร์อื่นค้างรอ 15+ นาที — undefined เมื่อไม่ล็อก มีค่าเมื่อแถวนี้
+   * ต้องรอ ใช้ปิดเฉพาะปุ่ม "ส่งครัว/เสิร์ฟ" เท่านั้น ปุ่มยกเลิกยังกดได้ตามปกติเสมอ
+   * (ยกเลิกไม่ใช่การดันคิวออเดอร์ใหม่เข้าครัว จึงไม่ต้องรอให้ออเดอร์ค้างถูกจัดการก่อน)
+   */
+  lockedReason?: string;
   onToggle: (checked: boolean) => void;
   onAction: (action: QueueItemAction) => void;
   onCancel: () => void;
@@ -84,8 +100,18 @@ function QueueItemMedia({
   );
 }
 
-/** เวลารอคือข้อมูลชิ้นแรกที่พนักงานต้องเห็น จึงเป็นจุดเดียวที่ใช้สีบอกความเร่งด่วน */
-function QueueWaitPill({ waitMinutes }: { waitMinutes: number }) {
+/**
+ * เวลารอคือข้อมูลชิ้นแรกที่พนักงานต้องเห็น จึงเป็นจุดเดียวที่ใช้สีบอกความเร่งด่วน — เดิม
+ * การ์ดทั้งใบกะพริบพื้นหลัง (เหมือนที่เคยแก้ในตารางแล้ว) อ่านของอื่นในการ์ดไม่ออกเพราะพื้นหลัง
+ * กะพริบทับรูป/ชื่อสินค้า/ปุ่ม ตอนนี้กะพริบเฉพาะ badge เวลารอนี้จุดเดียวแทน เหมือนกับตาราง
+ */
+function QueueWaitPill({
+  waitMinutes,
+  manageUrgency
+}: {
+  waitMinutes: number;
+  manageUrgency?: ManageQueueUrgencyTier;
+}) {
   const { t } = useTranslation();
   const urgency = queueWaitUrgency(waitMinutes);
 
@@ -93,7 +119,8 @@ function QueueWaitPill({ waitMinutes }: { waitMinutes: number }) {
     <span
       className={cn(
         "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-sm font-black tabular-nums",
-        queueWaitToneClass(urgency)
+        manageUrgency ? manageQueueWaitToneClass(manageUrgency) : queueWaitToneClass(urgency),
+        manageUrgency && manageQueueWaitBadgeBlinkClass(manageUrgency)
       )}
     >
       <Clock aria-hidden="true" className="size-4 shrink-0" />
@@ -145,11 +172,14 @@ function QueueItemNote({ note }: { note: string }) {
 function QueueActionButton({
   action,
   acting,
+  disabledReason,
   className,
   onAction
 }: {
   action: QueueItemAction;
   acting: boolean;
+  /** มีค่า = ปิดปุ่มนี้ พร้อมข้อความอธิบายเหตุผล (ค้าง 15+ นาทีในแท็บอื่นต้องจัดการก่อน) */
+  disabledReason?: string;
   className?: string;
   onAction: (action: QueueItemAction) => void;
 }) {
@@ -158,20 +188,44 @@ function QueueActionButton({
     action === "send" ? t("orderQueue.sendToKitchen") : t("orderQueue.confirmServed");
   const Icon = action === "send" ? ChefHat : CircleCheck;
 
-  return (
+  // ล็อกด้วย variant="outline" + สีจาง (border-border/text-muted-foreground) แทนปุ่มสีเข้ม
+  // เดิม (disabled:opacity-50 ทับสีทึบ) — โปร่งใส 50% บนปุ่มสีอิ่มตัวยังคงดู "เขียว" อยู่ดี
+  // จนแยกจากปุ่มที่กดได้จริงยาก โดยเฉพาะจอ POS ที่ใช้นิ้วแตะเป็นหลัก ไม่มี hover ให้สังเกต
+  const button = (
     <Button
       type="button"
-      className={cn("h-11 px-4 font-black", className)}
-      disabled={acting}
+      variant={disabledReason ? "outline" : "default"}
+      className={cn(
+        "h-11 px-4 font-black",
+        disabledReason && "text-muted-foreground",
+        className
+      )}
+      disabled={acting || Boolean(disabledReason)}
       onClick={() => onAction(action)}
     >
       {acting ? (
         <Spinner data-icon="inline-start" />
+      ) : disabledReason ? (
+        <Lock data-icon="inline-start" />
       ) : (
         <Icon data-icon="inline-start" />
       )}
       {label}
     </Button>
+  );
+
+  if (!disabledReason) return button;
+
+  // ปุ่ม disabled ไม่รับ pointer event เองโดยปกติ — ครอบด้วย span ให้ tooltip trigger ได้จริง
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="inline-flex" tabIndex={0}>
+          {button}
+        </span>
+      </TooltipTrigger>
+      <TooltipContent>{disabledReason}</TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -189,8 +243,11 @@ function QueueCancelButton({
   return (
     <Button
       type="button"
-      variant="outline"
-      className={cn("h-11 px-4 font-black", className)}
+      variant="destructive"
+      className={cn(
+        "h-11 px-4 font-black bg-destructive text-destructive-foreground hover:bg-destructive hover:brightness-90 dark:bg-destructive dark:hover:bg-destructive",
+        className
+      )}
       disabled={acting}
       onClick={onCancel}
     >
@@ -219,12 +276,7 @@ function QueueStateBadge({
   }
 
   if (status === OrderItemStatus.WAITING_CONFIRM) {
-    return item.can_send_to_kitchen ? (
-      <Badge>
-        <Clock data-icon="inline-start" />
-        {t("orderQueue.readyToSend")}
-      </Badge>
-    ) : (
+    return (
       <Badge variant="secondary">
         <Clock data-icon="inline-start" />
         {t("orderQueue.waiting")}
@@ -284,6 +336,8 @@ export function OrderQueueCard({
   selected,
   selectable,
   acting,
+  manageUrgency,
+  lockedReason,
   onToggle,
   onAction,
   onCancel
@@ -307,7 +361,10 @@ export function OrderQueueCard({
     >
       <span
         aria-hidden="true"
-        className={cn("absolute inset-y-0 left-0 w-1", queueWaitEdgeClass(urgency))}
+        className={cn(
+          "absolute inset-y-0 left-0 w-1",
+          manageUrgency ? manageQueueEdgeClass(manageUrgency) : queueWaitEdgeClass(urgency)
+        )}
       />
 
       <div className="flex items-center justify-between gap-3 border-b border-border py-2.5 pl-4 pr-3">
@@ -319,7 +376,7 @@ export function OrderQueueCard({
               onCheckedChange={(checked) => onToggle(checked === true)}
             />
           ) : null}
-          <QueueWaitPill waitMinutes={waitMinutes} />
+          <QueueWaitPill waitMinutes={waitMinutes} manageUrgency={manageUrgency} />
         </div>
         <QueueTableName item={item} />
       </div>
@@ -353,7 +410,12 @@ export function OrderQueueCard({
             <QueueCancelButton acting={acting} onCancel={onCancel} />
           ) : null}
           {action ? (
-            <QueueActionButton acting={acting} action={action} onAction={onAction} />
+            <QueueActionButton
+              acting={acting}
+              disabledReason={lockedReason}
+              action={action}
+              onAction={onAction}
+            />
           ) : null}
         </div>
       </div>
@@ -370,6 +432,8 @@ export function OrderQueueTableRow({
   selected,
   selectable,
   acting,
+  manageUrgency,
+  lockedReason,
   onToggle,
   onAction,
   onCancel
@@ -397,7 +461,13 @@ export function OrderQueueTableRow({
         ) : null}
       </TableCell>
       <TableCell>
-        <Badge variant={waitBadgeVariant(urgency)} className="tabular-nums">
+        <Badge
+          variant={manageUrgency ? manageQueueWaitBadgeVariant(manageUrgency) : waitBadgeVariant(urgency)}
+          className={cn(
+            "tabular-nums",
+            manageUrgency && manageQueueWaitBadgeBlinkClass(manageUrgency)
+          )}
+        >
           <Clock data-icon="inline-start" />
           {formatQueueWait(waitMinutes, t)}
         </Badge>
@@ -433,7 +503,12 @@ export function OrderQueueTableRow({
             <QueueCancelButton acting={acting} onCancel={onCancel} />
           ) : null}
           {action ? (
-            <QueueActionButton acting={acting} action={action} onAction={onAction} />
+            <QueueActionButton
+              acting={acting}
+              disabledReason={lockedReason}
+              action={action}
+              onAction={onAction}
+            />
           ) : null}
         </div>
       </TableCell>

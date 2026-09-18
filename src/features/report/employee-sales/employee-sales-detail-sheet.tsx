@@ -1,14 +1,14 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
+import { ArrowLeftRight, Banknote, HandCoins, Package, TriangleAlert, Wallet, type LucideIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { userInitials } from "@/features/settings/user/user-utils";
+import { cn } from "@/lib/utils";
 import { formatShortDate, money } from "@/lib/format";
 import type { EmployeeSalesGroupItem, EmployeeSalesRow } from "@/services/report";
 
@@ -47,6 +47,86 @@ function groupBreakdownsByOrder(groups: EmployeeSalesRow["groups"]) {
   return byOrder;
 }
 
+function SectionHeading({ children }: { children: ReactNode }) {
+  return (
+    <h3 className="text-xs font-black uppercase tracking-wide text-muted-foreground">{children}</h3>
+  );
+}
+
+// การ์ดตัวเลขสรุป — โครงเดียวกับ PaymentMethodShareCard/ReportSummaryCardsGrid ให้เข้าชุดทั้งรายงาน
+function StatTile({ emphasis, label, value }: { emphasis?: boolean; label: string; value: string }) {
+  return (
+    <div className={cn("min-w-0 rounded-lg border border-border bg-card p-3", emphasis && "border-primary/30 bg-primary/5")}>
+      <p className="truncate text-xs font-medium text-muted-foreground">{label}</p>
+      <p className={cn("mt-1 truncate text-lg font-semibold tabular-nums", emphasis ? "text-primary" : "text-foreground")}>
+        {value}
+      </p>
+    </div>
+  );
+}
+
+// การ์ดวิธีชำระ: chip สี + ป้าย + ยอด — สีชิปตรงกับรายงานวิธีชำระ (เงินสด=success, โอน=info, เชื่อ=pending)
+function PaymentTile({
+  Icon,
+  chipClass,
+  emphasis,
+  label,
+  value,
+}: {
+  Icon: LucideIcon;
+  chipClass: string;
+  emphasis?: boolean;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className={cn("min-w-0 rounded-lg border border-border bg-card p-3", emphasis && "border-primary/30 bg-primary/5")}>
+      <div className="flex min-w-0 items-center gap-2">
+        <span className={cn("grid size-8 shrink-0 place-items-center rounded-md", chipClass)}>
+          <Icon className="size-4" aria-hidden />
+        </span>
+        <p className="min-w-0 truncate text-xs font-medium text-muted-foreground">{label}</p>
+      </div>
+      <p className={cn("mt-2 truncate text-lg font-semibold tabular-nums", emphasis ? "text-primary" : "text-foreground")}>
+        {value}
+      </p>
+    </div>
+  );
+}
+
+// ตัวเลขระดับบิลในแถบขยาย — service/vat ใช้สีเดียวกับรายงานอื่น (info/warning) เพื่อความสม่ำเสมอ
+function OrderMetric({
+  emphasis,
+  label,
+  tone,
+  value,
+}: {
+  emphasis?: boolean;
+  label: string;
+  tone?: "info" | "warning";
+  value: string;
+}) {
+  return (
+    <div className="min-w-0">
+      <p className="truncate text-xs text-muted-foreground">{label}</p>
+      <p
+        className={cn(
+          "mt-0.5 truncate text-sm font-semibold tabular-nums",
+          emphasis
+            ? "text-primary"
+            : tone === "info"
+              ? "text-info-text"
+              : tone === "warning"
+                ? "text-warning-text"
+                : "text-foreground"
+        )}
+      >
+        {value}
+      </p>
+    </div>
+  );
+}
+
 export function EmployeeSalesDetailSheet({
   row,
   language,
@@ -66,7 +146,7 @@ export function EmployeeSalesDetailSheet({
           <DialogTitle className="flex items-center gap-3">
             {row && (
               <>
-                <Avatar>
+                <Avatar className="size-10 border border-border">
                   {row.login_profile ? <AvatarImage alt={row.login_email} src={row.login_profile} /> : null}
                   <AvatarFallback>{userInitials(row.login_email)}</AvatarFallback>
                 </Avatar>
@@ -77,95 +157,152 @@ export function EmployeeSalesDetailSheet({
           {row && <DialogDescription>{row.roles_name} · {row.branch_name}</DialogDescription>}
         </DialogHeader>
         {row && (
-          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
-            <div className="flex flex-col gap-4">
-              <div>
-                <h3 className="mb-2 text-sm font-medium">{t("employeeSales.paymentSummary")}</h3>
-                <dl className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
-                  <div><dt className="text-muted-foreground">{t("employeeSales.cash")}</dt><dd>{money(row.payment_summary.cash)}</dd></div>
-                  <div><dt className="text-muted-foreground">{t("employeeSales.transfer")}</dt><dd>{money(row.payment_summary.transfer)}</dd></div>
-                  <div><dt className="text-muted-foreground">{t("employeeSales.credit")}</dt><dd>{money(row.payment_summary.credit)}</dd></div>
-                  <div><dt className="text-muted-foreground">{t("employeeSales.paymentTotal")}</dt><dd className="font-medium">{money(row.payment_summary.payment_total)}</dd></div>
-                </dl>
-              </div>
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+            <div className="flex flex-col gap-6">
+              {/* แถบตัวเลขหลักของพนักงาน — ใช้ row.summary ที่เดิม modal ไม่เคยแสดง ให้เห็นภาพรวมทันที */}
+              <section className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+                <StatTile label={t("employeeSales.billCount")} value={String(row.summary.bill_count)} />
+                <StatTile label={t("employeeSales.totalQty")} value={String(row.summary.total_qty)} />
+                <StatTile label={t("employeeSales.netSale")} value={money(row.summary.net_sale)} />
+                <StatTile emphasis label={t("employeeSales.grandTotal")} value={money(row.summary.grand_total)} />
+              </section>
+
+              <section className="flex flex-col gap-2.5">
+                <SectionHeading>{t("employeeSales.paymentSummary")}</SectionHeading>
+                <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+                  <PaymentTile
+                    Icon={Banknote}
+                    chipClass="bg-success/10 text-success"
+                    label={t("employeeSales.cash")}
+                    value={money(row.payment_summary.cash)}
+                  />
+                  <PaymentTile
+                    Icon={ArrowLeftRight}
+                    chipClass="bg-info/10 text-info"
+                    label={t("employeeSales.transfer")}
+                    value={money(row.payment_summary.transfer)}
+                  />
+                  <PaymentTile
+                    Icon={HandCoins}
+                    chipClass="bg-pending/10 text-pending"
+                    label={t("employeeSales.credit")}
+                    value={money(row.payment_summary.credit)}
+                  />
+                  <PaymentTile
+                    Icon={Wallet}
+                    chipClass="bg-primary/10 text-primary"
+                    emphasis
+                    label={t("employeeSales.paymentTotal")}
+                    value={money(row.payment_summary.payment_total)}
+                  />
+                </div>
+              </section>
 
               {row.order_channels.length > 0 && (
-                <div>
-                  <h3 className="mb-2 text-sm font-medium">{t("employeeSales.orderChannels")}</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {row.order_channels.map(channel => (
-                      <Badge key={channel.order_channel} variant="outline">
-                        {channel.order_channel_name} · {channel.bill_count} · {money(channel.grand_total)}
-                      </Badge>
+                <section className="flex flex-col gap-2.5">
+                  <SectionHeading>{t("employeeSales.orderChannels")}</SectionHeading>
+                  <div className="overflow-hidden rounded-lg border border-border">
+                    {row.order_channels.map((channel, index) => (
+                      <div
+                        key={channel.order_channel}
+                        className={cn(
+                          "flex items-center justify-between gap-3 px-3 py-2.5",
+                          index > 0 && "border-t border-border"
+                        )}
+                      >
+                        <span className="min-w-0 truncate text-sm font-medium text-foreground">
+                          {channel.order_channel_name}
+                        </span>
+                        <span className="flex shrink-0 items-center gap-3 text-sm tabular-nums">
+                          <span className="flex items-center gap-1 text-muted-foreground">
+                            <Package className="size-3.5" aria-hidden />
+                            {channel.bill_count}
+                          </span>
+                          <span className="font-semibold text-foreground">{money(channel.grand_total)}</span>
+                        </span>
+                      </div>
                     ))}
                   </div>
-                </div>
+                </section>
               )}
 
               {row.cancel_summary.cancel_bill_count > 0 && (
-                <Alert className="border-warning/45 bg-warning/10 text-warning">
-                  <AlertDescription className="text-warning/90">
+                <div className="flex items-center gap-2.5 rounded-lg border border-warning/40 bg-warning/10 px-4 py-3 text-sm">
+                  <TriangleAlert className="size-4 shrink-0 text-warning-text" aria-hidden />
+                  <span className="min-w-0 font-medium text-warning-text">
                     {t("employeeSales.cancelSummaryDescription", {
                       count: row.cancel_summary.cancel_bill_count,
                       amount: money(row.cancel_summary.cancel_total_amount),
                     })}
-                  </AlertDescription>
-                </Alert>
+                  </span>
+                </div>
               )}
 
-              <div>
-                <h3 className="mb-2 text-sm font-medium">{t("employeeSales.orders")}</h3>
-                <Accordion type="multiple">
+              <section className="flex flex-col gap-2.5">
+                <SectionHeading>{t("employeeSales.orders")}</SectionHeading>
+                <Accordion type="multiple" className="bg-card">
                   {row.orders.map(order => {
                     const breakdowns = Array.from(breakdownsByOrder.get(order.order_uuid)?.values() ?? []);
 
                     return (
                       <AccordionItem key={order.order_uuid} value={order.order_uuid}>
-                        <AccordionTrigger>
-                          <span className="flex flex-1 flex-wrap items-center justify-between gap-2 pr-2 text-left">
+                        <AccordionTrigger className="gap-3 px-3 py-3 hover:no-underline">
+                          <span className="flex min-w-0 flex-1 items-center justify-between gap-3 text-left">
                             <span className="min-w-0">
-                              <span className="block font-medium">{order.order_invoice}</span>
-                              <span className="block text-xs text-muted-foreground">{formatShortDate(order.sale_date, language)}</span>
+                              <span className="block truncate font-semibold text-foreground" translate="no">
+                                {order.order_invoice}
+                              </span>
+                              <span className="block text-xs font-normal text-muted-foreground">
+                                {formatShortDate(order.sale_date, language)}
+                              </span>
                             </span>
-                            <span className="shrink-0 tabular-nums text-muted-foreground">
-                              {order.total_qty} · {money(order.grand_total)}
+                            <span className="flex shrink-0 flex-col items-end gap-0.5">
+                              <span className="font-semibold tabular-nums text-foreground">{money(order.grand_total)}</span>
+                              <span className="flex items-center gap-1 text-xs font-normal tabular-nums text-muted-foreground">
+                                <Package className="size-3" aria-hidden />
+                                {order.total_qty}
+                              </span>
                             </span>
                           </span>
                         </AccordionTrigger>
-                        <AccordionContent>
-                          <dl className="mb-3 grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
-                            <div><dt className="text-muted-foreground">{t("employeeSales.netSale")}</dt><dd className="tabular-nums">{money(order.net_sale)}</dd></div>
-                            <div><dt className="text-muted-foreground">{t("employeeSales.serviceCharge")}</dt><dd className="tabular-nums">{money(order.service_charge)}</dd></div>
-                            <div><dt className="text-muted-foreground">{t("employeeSales.vat")}</dt><dd className="tabular-nums">{money(order.vat)}</dd></div>
-                            <div><dt className="text-muted-foreground">{t("employeeSales.grandTotal")}</dt><dd className="font-medium tabular-nums">{money(order.grand_total)}</dd></div>
-                          </dl>
+                        <AccordionContent className="px-3">
+                          <div className="grid grid-cols-2 gap-3 rounded-md border border-border bg-muted/40 p-3 sm:grid-cols-4">
+                            <OrderMetric label={t("employeeSales.netSale")} value={money(order.net_sale)} />
+                            <OrderMetric label={t("employeeSales.serviceCharge")} tone="info" value={money(order.service_charge)} />
+                            <OrderMetric label={t("employeeSales.vat")} tone="warning" value={money(order.vat)} />
+                            <OrderMetric emphasis label={t("employeeSales.grandTotal")} value={money(order.grand_total)} />
+                          </div>
 
                           {breakdowns.length ? (
-                            <div className="flex flex-col gap-3">
+                            <div className="mt-3 flex flex-col gap-2.5">
                               {breakdowns.map(breakdown => (
                                 <div key={breakdown.groupUuid} className="overflow-hidden rounded-md border border-border">
-                                  <div className="flex items-center justify-between gap-2 bg-muted/40 px-3 py-1.5 text-sm font-medium">
+                                  <div className="flex items-center justify-between gap-2 bg-muted/40 px-3 py-1.5 text-sm font-semibold">
                                     <span className="min-w-0 truncate">{breakdown.groupName}</span>
-                                    <span className="shrink-0 tabular-nums text-muted-foreground">
-                                      {breakdown.totalQty} · {money(breakdown.totalAmount)}
+                                    <span className="flex shrink-0 items-center gap-2 tabular-nums text-muted-foreground">
+                                      <span className="flex items-center gap-1">
+                                        <Package className="size-3.5" aria-hidden />
+                                        {breakdown.totalQty}
+                                      </span>
+                                      <span className="font-semibold text-foreground">{money(breakdown.totalAmount)}</span>
                                     </span>
                                   </div>
                                   <Table>
                                     <TableHeader>
                                       <TableRow>
                                         <TableHead>{t("employeeSales.productName")}</TableHead>
-                                        <TableHead>{t("employeeSales.unitPrice")}</TableHead>
-                                        <TableHead>{t("employeeSales.totalQty")}</TableHead>
-                                        <TableHead>{t("employeeSales.totalAmount")}</TableHead>
+                                        <TableHead className="text-right">{t("employeeSales.unitPrice")}</TableHead>
+                                        <TableHead className="text-right">{t("employeeSales.totalQty")}</TableHead>
+                                        <TableHead className="text-right">{t("employeeSales.totalAmount")}</TableHead>
                                       </TableRow>
                                     </TableHeader>
                                     <TableBody>
                                       {breakdown.items.map((item, itemIndex) => (
                                         <TableRow key={`${item.prod_uuid}-${itemIndex}`}>
-                                          <TableCell>{item.product_full_name}</TableCell>
-                                          <TableCell className="tabular-nums">{money(item.unit_price)}</TableCell>
-                                          <TableCell className="tabular-nums">{item.total_qty}</TableCell>
-                                          <TableCell className="tabular-nums">{money(item.total_amount)}</TableCell>
+                                          <TableCell className="font-medium">{item.product_full_name}</TableCell>
+                                          <TableCell className="text-right tabular-nums text-muted-foreground">{money(item.unit_price)}</TableCell>
+                                          <TableCell className="text-right tabular-nums">{item.total_qty}</TableCell>
+                                          <TableCell className="text-right font-medium tabular-nums">{money(item.total_amount)}</TableCell>
                                         </TableRow>
                                       ))}
                                     </TableBody>
@@ -174,14 +311,14 @@ export function EmployeeSalesDetailSheet({
                               ))}
                             </div>
                           ) : (
-                            <p className="text-sm text-muted-foreground">{t("common.noData")}</p>
+                            <p className="mt-3 text-sm text-muted-foreground">{t("common.noData")}</p>
                           )}
                         </AccordionContent>
                       </AccordionItem>
                     );
                   })}
                 </Accordion>
-              </div>
+              </section>
             </div>
           </div>
         )}

@@ -1,4 +1,4 @@
-import type { ApiEntity, ApiListResponse, FetchParams } from "@/services/shared/types";
+import type { ApiEntity, ApiListResponse, PageLimit, SortOrder } from "@/services/shared/types";
 
 export interface ProductTopping extends ApiEntity {
   prod_topping_uuid?: string;
@@ -210,7 +210,14 @@ export interface UpdateProductEnabledResponse extends ApiEntity {
 
 export interface ProductFormInput extends ApiEntity {}
 
-export interface FetchProductsParams extends FetchParams {
+// ไม่ extends FetchParams ตรงๆ เพราะ FetchParams มี index signature ([key: string]: unknown)
+// ซึ่งทำให้ Omit<FetchParams, "orderBy"> ทับ field type เดิม (search/lang ฯลฯ) กลายเป็น unknown หมด
+export interface FetchProductsParams {
+  search?: string;
+  page?: number;
+  limit?: PageLimit;
+  lang?: string;
+  orderBy?: SortOrder;
   branch_uuid_fk?: string;
   cate_uuid_fk?: string;
   status_sort_fk?: number;
