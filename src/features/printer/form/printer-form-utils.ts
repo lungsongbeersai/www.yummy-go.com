@@ -228,12 +228,11 @@ export function buzzerOnCutOf(printer: Printer | null) {
   return printer.buzzer_on_cut === true;
 }
 
-// เครื่องใหม่: ตั้งค่าเริ่มต้นเป็น 8 แถว (ค่ากลางของระบบ) — เครื่องที่เคยบันทึกไว้แล้วและไม่มี
-// ค่านี้ (null) ยังคงว่างเหมือนเดิม เพื่อไม่เปลี่ยนพฤติกรรมของเครื่องพิมพ์ที่ตั้งค่าไว้แล้ว
+// ไม่มีค่า (เครื่องใหม่ หรือเครื่องเก่าที่ไม่เคยตั้งไว้) ให้ใส่ 8 เป็นค่าจริงในช่องเลย
+// แทนที่จะปล่อยว่างไว้แค่ placeholder
 export function cutFeedLinesOf(printer: Printer | null) {
-  if (printer === null) return "8";
-  const value = printer.cut_feed_lines;
-  return value === null || value === undefined ? "" : String(value);
+  const value = printer?.cut_feed_lines;
+  return value === null || value === undefined ? "8" : String(value);
 }
 
 // cate_uuid_fk มีความหมายทั้งสอง mapping_type แล้ว — ZONE ก็บังคับเลือกหมวดหมู่คู่กับโซนด้วย
