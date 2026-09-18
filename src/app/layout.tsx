@@ -4,6 +4,7 @@ import Script from "next/script";
 import { Providers } from "@/app/providers";
 import { appFontVariables } from "@/design-system/fonts";
 import { DEFAULT_LANGUAGE, LANGUAGE_COOKIE, toLanguage } from "@/lib/language";
+import { themeBootstrapScript } from "@/lib/theme-bootstrap-script";
 import { WINDOW_OPEN_FONT_STYLESHEET_HREF } from "@/lib/window-open-fonts";
 import "./globals.css";
 import { cn } from "@/lib/utils";
@@ -20,43 +21,10 @@ export const metadata: Metadata = {
   }
 };
 
-// ห้ามใส่ maximumScale/userScalable ตรงนี้ — root layout นี้ครอบคลุมทุก route รวมถึง
-// src/app/posAll (หน้าสั่งอาหารสาธารณะที่ลูกค้าสแกน QR เปิดด้วยมือถือส่วนตัว) ปิด pinch-zoom
-// ที่นี่เท่ากับปิดของลูกค้าด้วย ทั้งที่เหตุผลเรื่องปิดซูมใช้ได้กับจอ POS ของพนักงานเท่านั้น
-// ดู src/app/(protected)/layout.tsx ที่ตั้งค่านี้แทน (ครอบเฉพาะ route หลังบ้านที่ต้อง
-// login) และ docs/Decisions.md หัวข้อ "Disable pinch-zoom on staff-only routes"
+// No maximumScale/userScalable here — covers the public posAll page too; see docs/Decisions.md > "Disable pinch-zoom on staff-only routes".
 export const viewport: Viewport = {
   viewportFit: "cover",
 };
-
-const THEME_COLORS = ["emerald", "blue", "amber", "rose", "violet"];
-const FONT_SCALES = ["sm", "md", "lg"];
-
-const themeBootstrapScript = `
-(function () {
-  try {
-    var stored = localStorage.getItem("yummy-go-app");
-    var parsed = stored ? JSON.parse(stored) : null;
-    var state = parsed && parsed.state ? parsed.state : null;
-    var theme = state && state.theme === "dark" ? "dark" : "light";
-    var themeColor = state && ${JSON.stringify(THEME_COLORS)}.indexOf(state.themeColor) !== -1 ? state.themeColor : "emerald";
-    var fontScale = state && ${JSON.stringify(FONT_SCALES)}.indexOf(state.fontScale) !== -1 ? state.fontScale : "md";
-    var root = document.documentElement;
-    root.classList.toggle("dark", theme === "dark");
-    root.dataset.theme = theme;
-    root.dataset.themeColor = themeColor;
-    root.dataset.fontScale = fontScale;
-    root.style.colorScheme = theme;
-  } catch (_) {
-    var fallbackRoot = document.documentElement;
-    fallbackRoot.classList.remove("dark");
-    fallbackRoot.dataset.theme = "light";
-    fallbackRoot.dataset.themeColor = "emerald";
-    fallbackRoot.dataset.fontScale = "md";
-    fallbackRoot.style.colorScheme = "light";
-  }
-})();
-`;
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const cookieStore = await cookies();
