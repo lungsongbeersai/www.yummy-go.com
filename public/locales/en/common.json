@@ -1625,6 +1625,8 @@
     "searchToppings": "Search toppings",
     "searchTastes": "Search tastes",
     "setPrice": "Set price",
+    "setQtyCutStock": "Qty per set",
+    "setQtyCutStockHint": "How many units of this item's stock are deducted each time one set is sold.",
     "sortOldest": "Oldest",
     "sortNewest": "Newest",
     "sortHint": "To reorder, select a category, clear the search, use ascending order, and show all rows on one page.",

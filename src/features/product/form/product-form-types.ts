@@ -18,6 +18,7 @@ export interface DetailRow {
   pro_detail_sprice: string;
   pro_detail_qty_stock: string;
   pro_detail_stock: BinaryFlag;
+  pro_detail_setqty_cut_stock: string;
   pro_detail_enabled: BinaryFlag;
   pro_detail_status: BinaryFlag;
   pro_detail_cus_qtyBuy: string;

@@ -96,6 +96,7 @@ export interface SaveProductDetailInput extends ApiEntity {
   pro_detail_sprice?: number;
   pro_detail_qty_stock: number;
   pro_detail_stock: number;
+  pro_detail_setqty_cut_stock?: number;
   pro_detail_enabled?: number | string;
   pro_detail_status?: number;
   pro_detail_cus_qtyBuy?: number;

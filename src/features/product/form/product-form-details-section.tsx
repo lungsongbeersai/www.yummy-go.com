@@ -248,6 +248,22 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
                       </div>
                     )}
                   </Field>
+                  {statusSortFk === "2" ? (
+                    <Field>
+                      <div className={labelRowClass}>
+                        <FieldLabel>{t("product.setQtyCutStock")}</FieldLabel>
+                      </div>
+                      <FormattedNumberInput
+                        min={1}
+                        disabled={rowStockMode !== "1"}
+                        value={row.pro_detail_setqty_cut_stock}
+                        onValueChange={(value) => updateDetail(row.id, { pro_detail_setqty_cut_stock: value })}
+                      />
+                      <FieldDescription className="text-xs">
+                        {t("product.setQtyCutStockHint")}
+                      </FieldDescription>
+                    </Field>
+                  ) : null}
                   {statusSortFk === "1" ? (
                     <Field>
                       <div className={labelRowClass}>

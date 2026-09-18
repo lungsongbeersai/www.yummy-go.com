@@ -1627,6 +1627,8 @@
     "searchToppings": "ຄົ້ນຫາທ້ອບປິ້ງ",
     "searchTastes": "ຄົ້ນຫາລົດຊາດ",
     "setPrice": "ລາຄາຊຸດ",
+    "setQtyCutStock": "ຈຳນວນຕໍ່ຊຸດ",
+    "setQtyCutStockHint": "ຈຳນວນສະຕັອກທີ່ຈະຖືກຕັດອອກ ເມື່ອຂາຍ 1 ຊຸດ.",
     "searchSetProductOptions": "ຄົ້ນຫາສິນຄ້າໃນຊຸດ",
     "setProductOptions": "ສິນຄ້າໃນຊຸດ",
     "setProductOptionFormHint": "ໃສ່ຊື່ສິນຄ້າທີ່ຈະໃຊ້ເປັນລາຍການໃນຊຸດ.",

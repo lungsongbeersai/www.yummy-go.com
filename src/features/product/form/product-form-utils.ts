@@ -712,6 +712,7 @@ export function emptyDetail(statusSortFk: StatusSortFk = "1"): DetailRow {
     pro_detail_sprice: "0",
     pro_detail_qty_stock: "0",
     pro_detail_stock: DEFAULT_DETAIL_STOCK_MODE,
+    pro_detail_setqty_cut_stock: "1",
     pro_detail_enabled: "1",
     pro_detail_status: statusSortFk === "3" ? "1" : "2",
     ...EMPTY_PROMOTION_FIELDS,
@@ -732,6 +733,7 @@ export function detailFromProduct(
       detail.pro_detail_qty_stock ?? detail.qty_stock ?? 0,
     ),
     pro_detail_stock: binaryFlag(detail.pro_detail_stock, DEFAULT_DETAIL_STOCK_MODE),
+    pro_detail_setqty_cut_stock: String(detail.pro_detail_setqty_cut_stock ?? 1),
     pro_detail_enabled: binaryFlag(detail.pro_detail_enabled, "1"),
     pro_detail_status: binaryFlag(
       detail.pro_detail_status,
@@ -759,6 +761,7 @@ export function normalizeDetailsForStatus(
       size_uuid_fk:
         targetStatus === "2" && sourceStatus !== "2" ? "" : row.size_uuid_fk,
       pro_detail_stock: row.pro_detail_stock || DEFAULT_DETAIL_STOCK_MODE,
+      pro_detail_setqty_cut_stock: row.pro_detail_setqty_cut_stock || "1",
       pro_detail_enabled: row.pro_detail_enabled || "1",
       pro_detail_bprice: row.pro_detail_bprice || "0",
       pro_detail_sprice: row.pro_detail_sprice || "0",
@@ -852,6 +855,7 @@ export function buildDetailPayload(
   if (statusSortFk === "2") {
     return {
       ...base,
+      pro_detail_setqty_cut_stock: numberFromFormatted(row.pro_detail_setqty_cut_stock),
       pro_detail_status: 2,
     };
   }
@@ -904,6 +908,14 @@ export function requiredFieldErrorKeys(state: RequiredProductFormState) {
     state.statusSortFk !== "2" &&
     state.details.some((row) => row.pro_detail_sprice.trim() === "")
       ? "fields.sprice"
+      : null,
+    state.statusSortFk === "2" &&
+    state.details.some(
+      (row) =>
+        row.pro_detail_stock === "1" &&
+        Number(numberFromFormatted(row.pro_detail_setqty_cut_stock)) <= 0,
+    )
+      ? "product.setQtyCutStock"
       : null,
     state.statusSortFk === "3" &&
     state.details.some((row) => !row.pro_detail_sDate || !row.pro_detail_eDate)
