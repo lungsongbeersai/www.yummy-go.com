@@ -38,6 +38,7 @@ import { manageQueueUrgencyTier } from "@/features/pos/order-queue/order-queue-u
 import {
   buildOrderQueueTabs,
   canSelectQueueItem,
+  displayWaitMinutes,
   formatQueueWait,
   liveWaitMinutes,
   queueTabFallbackKey,
@@ -142,7 +143,7 @@ export function OrderQueuePage() {
   // ไม่ได้เรียงตามเวลารอ จึงต้องหาค่าสูงสุดจากทุกรายการแทนการอาศัยแถวแรก
   const oldestWait = items.reduce(
     (longest, item) =>
-      Math.max(longest, liveWaitMinutes(item.open_minutes, minutesSinceLoad)),
+      Math.max(longest, displayWaitMinutes(item.open_minutes, minutesSinceLoad, status)),
     0
   );
   // แท็บรอยืนยันส่งครัวเท่านั้น — ออเดอร์ที่ค้าง 15+ นาทีล็อกปุ่ม action ของออเดอร์อื่น
@@ -431,7 +432,7 @@ export function OrderQueuePage() {
     const rows = items.map((item, index) => ({
       item,
       position: index + 1,
-      waitMinutes: liveWaitMinutes(item.open_minutes, minutesSinceLoad),
+      waitMinutes: displayWaitMinutes(item.open_minutes, minutesSinceLoad, status),
       selected: selectedUuids.has(item.order_item_uuid),
       selectable: isSelectable && canSelectQueueItem(item, status),
       acting: actingUuid === item.order_item_uuid

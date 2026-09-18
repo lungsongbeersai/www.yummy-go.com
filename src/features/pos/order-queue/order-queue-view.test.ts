@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildOrderQueueTabs,
   canSelectQueueItem,
+  displayWaitMinutes,
   formatQueueWait,
   liveWaitMinutes,
   queueItemAction,
@@ -195,6 +196,23 @@ describe("liveWaitMinutes", () => {
 
   it("never rewinds the server value", () => {
     expect(liveWaitMinutes(18, -5)).toBe(18);
+  });
+});
+
+describe("displayWaitMinutes", () => {
+  it("keeps ticking with time-since-load for waiting/sent-to-kitchen tabs", () => {
+    expect(displayWaitMinutes(18, 3, 1)).toBe(21); // WAITING_CONFIRM
+    expect(displayWaitMinutes(18, 3, 2)).toBe(21); // SENT_TO_KITCHEN
+  });
+
+  it("freezes at the server snapshot for served/cancelled tabs, ignoring time since load", () => {
+    expect(displayWaitMinutes(18, 3, 4)).toBe(18); // SERVED
+    expect(displayWaitMinutes(18, 3, 9)).toBe(18); // CANCELLED
+    expect(displayWaitMinutes(18, 999, 4)).toBe(18);
+  });
+
+  it("never rewinds below zero for served/cancelled either", () => {
+    expect(displayWaitMinutes(-10, 3, 4)).toBe(0);
   });
 });
 

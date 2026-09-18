@@ -2251,6 +2251,19 @@ button.scroll-arrow-button:not(:disabled):not([aria-disabled="true"]) {
   user-select: text;
 }
 
+/* iOS (WKWebView) ซูมเข้าอัตโนมัติทุกครั้งที่โฟกัส input/textarea/select ที่ font-size
+   จริงต่ำกว่า 16px แล้วมี bug ที่รู้จักดีคือไม่ยอมซูมออกคืนให้เองหลัง blur — inputs ของ
+   shadcn ในแอปนี้ใช้ text-sm (14px) เป็นค่าเริ่มต้นจึงโดนทุกจุด ทางแก้คือกันไม่ให้ซูมเกิดขึ้น
+   ตั้งแต่ต้น (บังคับ font-size จริง >= 16px เฉพาะ iOS native shell) แทนการปิด pinch-zoom
+   ทั้งแอปด้วย maximum-scale=1/user-scalable=no ซึ่งขัดกับเกณฑ์ WCAG 1.4.4 (resize text)
+   ที่ตั้งเป็นพื้นฐานของแอปนี้ไว้ (ดู docs/Design.md > Accessibility floor) */
+.capacitor-ios input:not([type="button"]):not([type="submit"]):not([type="reset"]),
+.capacitor-ios textarea,
+.capacitor-ios select,
+.capacitor-ios [contenteditable="true"] {
+  font-size: 16px;
+}
+
 /* กฎ tap-highlight ด้านบนคุมแค่ปุ่ม/ลิงก์ — ช่องพิมพ์ข้อความยังใช้สี default ของเบราว์เซอร์
    (ดำโปร่งแสง) อยู่ ทำให้แตะ/ลาก text-cursor handle แล้วเห็นกล่องดำวาบทับ input ทุกครั้ง */
 input:not([type="button"]):not([type="submit"]):not([type="reset"]),

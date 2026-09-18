@@ -20,6 +20,11 @@ export const metadata: Metadata = {
   }
 };
 
+// ห้ามใส่ maximumScale/userScalable ตรงนี้ — root layout นี้ครอบคลุมทุก route รวมถึง
+// src/app/posAll (หน้าสั่งอาหารสาธารณะที่ลูกค้าสแกน QR เปิดด้วยมือถือส่วนตัว) ปิด pinch-zoom
+// ที่นี่เท่ากับปิดของลูกค้าด้วย ทั้งที่เหตุผลเรื่องปิดซูมใช้ได้กับจอ POS ของพนักงานเท่านั้น
+// ดู src/app/(protected)/layout.tsx ที่ตั้งค่านี้แทน (ครอบเฉพาะ route หลังบ้านที่ต้อง
+// login) และ docs/Decisions.md หัวข้อ "Disable pinch-zoom on staff-only routes"
 export const viewport: Viewport = {
   viewportFit: "cover",
 };

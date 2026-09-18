@@ -112,6 +112,23 @@ export function liveWaitMinutes(
   return base + Math.max(0, Math.floor(Number(minutesSinceLoad) || 0));
 }
 
+/**
+ * เสิร์ฟแล้ว/ยกเลิกแล้ว ไม่มี action ให้ทำต่อ (ดู canSelectQueueItem) — เวลาที่โชว์จึงควร
+ * เป็นสถิติตายตัวของออเดอร์นั้น (ค้างไปทั้งหมดกี่นาทีก่อนจบ) ไม่ใช่ตัวกระตุ้นความเร่งด่วน
+ * ที่ยังเดินต่อ ถ้ายังบวก minutesSinceLoad เหมือนสองแท็บที่ยังรอ อยู่ badge จะยิ่งแดงขึ้น
+ * เรื่อย ๆ ตามเวลาที่เปิดหน้าค้างไว้ ทั้งที่งานจบไปแล้ว (false urgency)
+ */
+export function displayWaitMinutes(
+  openMinutes: number,
+  minutesSinceLoad: number,
+  status: number
+): number {
+  if (status === OrderItemStatus.SERVED || status === OrderItemStatus.CANCELLED) {
+    return Math.max(0, Math.floor(Number(openMinutes) || 0));
+  }
+  return liveWaitMinutes(openMinutes, minutesSinceLoad);
+}
+
 export function formatQueueClock(dateTime: string): string {
   if (!dateTime) return "";
 
