@@ -257,10 +257,11 @@ function DailySalesPrimaryFields({
           disabled={branchLoading || branchLocked || branchOptions.length <= 1}
           onValueChange={(value) => patch({ branchUuid: value })}
         >
-          {/* data-[size=default]: ต้องมาคู่กับ h-* เฉยๆ เสมอ — SelectTrigger ฐานมี data-[size=default]:h-7
-              specificity สูงกว่า class เดี่ยว ถ้าไม่ gate แบบนี้ความสูงจริงจะยังเป็น 28px ไม่ขยับตามที่ตั้งใจ
-              (บั๊กเดียวกับที่เจอใน product-page.tsx ทำให้ช่องค้นหากับ select สูงไม่เท่ากัน) */}
-          <SelectTrigger id={`${idPrefix}-branch`} className="h-11 w-full data-[size=default]:h-11 lg:h-9">
+          {/* data-[size=default]: ต้องคุมทั้งสอง breakpoint — SelectTrigger ฐานมี data-[size=default]:h-7
+              เป็น attribute selector (specificity สูงกว่า class เดี่ยว) ถ้า lg ใช้ lg:h-9 เฉยๆ จะแพ้
+              data-[size=default]:h-11 แล้วค้าง 44px บนเดสก์ท็อป (สูงไม่เท่า date/ปุ่มที่ 36px)
+              ต้องใช้ lg:data-[size=default]:h-9 ให้ specificity เท่ากันทั้งคู่ */}
+          <SelectTrigger id={`${idPrefix}-branch`} className="w-full data-[size=default]:h-11 lg:data-[size=default]:h-9">
             <SelectValue placeholder={t("nav.branch")} />
           </SelectTrigger>
           <SelectContent>
@@ -341,7 +342,7 @@ function DailySalesSecondaryFields({
             patch({ paymentMethod: value as ReportFilters["paymentMethod"] })
           }
         >
-          <SelectTrigger id={`${idPrefix}-payment-method`} className="h-11 w-full data-[size=default]:h-11 lg:h-9">
+          <SelectTrigger id={`${idPrefix}-payment-method`} className="w-full data-[size=default]:h-11 lg:data-[size=default]:h-9">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -368,7 +369,7 @@ function DailySalesSecondaryFields({
             patch({ orderBy: value as ReportFilters["orderBy"] })
           }
         >
-          <SelectTrigger id={`${idPrefix}-order-by`} className="h-11 w-full data-[size=default]:h-11 lg:h-9">
+          <SelectTrigger id={`${idPrefix}-order-by`} className="w-full data-[size=default]:h-11 lg:data-[size=default]:h-9">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -399,7 +400,7 @@ function DailySalesSecondaryFields({
             patch({ limit: value === "All" ? "All" : Number(value) })
           }
         >
-          <SelectTrigger id={`${idPrefix}-limit`} className="h-11 w-full data-[size=default]:h-11 lg:h-9">
+          <SelectTrigger id={`${idPrefix}-limit`} className="w-full data-[size=default]:h-11 lg:data-[size=default]:h-9">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

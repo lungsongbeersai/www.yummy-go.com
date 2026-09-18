@@ -20,9 +20,14 @@ export interface ReportFieldOption {
   value: string;
 }
 
-// ค่าเริ่มต้นของทุกช่องคือความสูงมาตรฐานของ Select/Button (h-7) ให้ตรงกันทุกหน้า
-// บางรายงาน (daily-closing, best-selling-products, payment-methods) ตั้งใจใช้สเกล h-10
-// ทั้งฟอร์มแทน จึงยังรับ triggerClassName/inputClassName จากผู้เรียกไว้ให้ override ได้
+// ความสูงมาตรฐานของช่องกรองทุกหน้า = 44px มือถือ/แท็บเล็ต (พอแตะ), 36px เดสก์ท็อป —
+// ตรงกับปุ่ม action (h-9) ในแถวเดียวกัน SelectTrigger ฐานมี data-[size=default]:h-7 ซึ่งเป็น
+// attribute selector (specificity สูงกว่า class เดี่ยว) จึงต้อง override ด้วย data-[size=default]
+// ทั้งสอง breakpoint ไม่งั้น lg:h-9 (class เดี่ยวใน media query) จะแพ้ data-[size=default]:h-11
+// แล้ว Select ค้างที่ 44px บนเดสก์ท็อปทั้งที่ date/ปุ่มเป็น 36px (input สูงไม่เท่ากันในแถว)
+// ยังรับ triggerClassName/inputClassName ไว้ให้ override รายกรณีได้
+const FILTER_TRIGGER_CLASS = "w-full data-[size=default]:h-11 lg:data-[size=default]:h-9";
+const FILTER_INPUT_CLASS = "h-11 lg:h-9";
 interface ReportSelectFieldProps {
   disabled?: boolean;
   fieldClassName?: string;
@@ -48,11 +53,11 @@ export function ReportSelectField({
 }: ReportSelectFieldProps) {
   return (
     <Field className={fieldClassName ?? "gap-1.5"}>
-      <FieldLabel htmlFor={id} className="text-xs font-bold text-muted-foreground">
+      <FieldLabel htmlFor={id} className="text-xs font-medium text-muted-foreground">
         {label}
       </FieldLabel>
       <Select value={value} disabled={disabled} onValueChange={onValueChange}>
-        <SelectTrigger id={id} className={triggerClassName ?? "w-full"}>
+        <SelectTrigger id={id} className={triggerClassName ?? FILTER_TRIGGER_CLASS}>
           <SelectValue placeholder={placeholder} />
         </SelectTrigger>
         <SelectContent>
@@ -128,7 +133,7 @@ export function ReportDateField({
 }: ReportDateFieldProps) {
   return (
     <Field className={fieldClassName ?? "gap-1.5"} data-disabled={disabled}>
-      <FieldLabel htmlFor={id} className="text-xs font-bold text-muted-foreground">
+      <FieldLabel htmlFor={id} className="text-xs font-medium text-muted-foreground">
         {label}
       </FieldLabel>
       <ReportDateInput
@@ -137,7 +142,7 @@ export function ReportDateField({
         label={label}
         value={value}
         autoComplete={name ? "off" : undefined}
-        className={inputClassName}
+        className={inputClassName ?? FILTER_INPUT_CLASS}
         disabled={disabled}
         onValueChange={onChange}
       />

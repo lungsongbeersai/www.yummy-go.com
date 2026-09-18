@@ -64,7 +64,12 @@ export function SalesBillListPanel({
           <>
             {/* ต้องเลื่อนได้ทุกขนาดจอ ไม่ใช่เฉพาะ xl — ตอนนี้การ์ดเป็น flex เต็มความสูงทุกจอแล้ว
                 ถ้าลิสต์ไม่เลื่อนเอง แถวจะทะลุออกไปอยู่ใต้แถบเลื่อนหน้าที่ปักไว้ล่างสุด */}
-            <div className="flex min-h-0 flex-1 flex-col divide-y divide-border overflow-y-auto overscroll-contain">
+            {/* aria-busy = โหลดหน้าใหม่ทับแถวเดิม (ยังโชว์แถวเก่าไว้) — ให้ screen reader รู้ว่ากำลังโหลด
+                ส่วนแถบเลื่อนหน้าจะ dim ผ่าน disabled ตรงกับ stock ที่เป็นลิสต์ดึงข้อมูลแบบแบ่งหน้าเหมือนกัน */}
+            <div
+              aria-busy={loading}
+              className="flex min-h-0 flex-1 flex-col divide-y divide-border overflow-y-auto overscroll-contain"
+            >
               {bills.map((bill) => (
                 <BillListItem
                   key={bill.id}
@@ -74,7 +79,13 @@ export function SalesBillListPanel({
                 />
               ))}
             </div>
-            <SalesListPagination page={page} rangeLabel={rangeLabel} totalPages={totalPages} onPageChange={onPageChange} />
+            <SalesListPagination
+              disabled={loading}
+              page={page}
+              rangeLabel={rangeLabel}
+              totalPages={totalPages}
+              onPageChange={onPageChange}
+            />
           </>
         ) : (
           <div className="flex min-h-80 items-center justify-center p-4">
@@ -171,11 +182,13 @@ function BillListItem({
 }
 
 function SalesListPagination({
+  disabled,
   onPageChange,
   page,
   rangeLabel,
   totalPages
 }: {
+  disabled: boolean;
   onPageChange: (page: number) => void;
   page: number;
   rangeLabel: string;
@@ -183,7 +196,7 @@ function SalesListPagination({
 }) {
   return (
     <div className="shrink-0 border-t border-border bg-muted/20 px-3 py-2.5 pb-[calc(0.625rem+max(var(--pos-system-bottom-safe-area,0px),var(--app-shell-bottom-nav-height,0px)))] text-sm text-muted-foreground sm:px-4 sm:py-3">
-      <AppPagination page={page} rangeLabel={rangeLabel} totalPages={totalPages} onPageChange={onPageChange} />
+      <AppPagination disabled={disabled} page={page} rangeLabel={rangeLabel} totalPages={totalPages} onPageChange={onPageChange} />
     </div>
   );
 }

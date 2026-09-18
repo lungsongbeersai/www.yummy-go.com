@@ -684,8 +684,8 @@ function adjustmentLabelClass(tone: MoneyCellTone) {
   return cn(
     "truncate text-xs font-semibold leading-none",
     tone === "discount" && "text-destructive",
-    tone === "service" && "text-sky-700 dark:text-sky-300",
-    tone === "vat" && "text-amber-700 dark:text-amber-300",
+    tone === "service" && "text-info-text",
+    tone === "vat" && "text-warning-text",
     tone === "total" && "text-primary",
     tone === "default" && "text-muted-foreground",
   );
@@ -698,11 +698,11 @@ function adjustmentValueClass(tone: MoneyCellTone, value: number) {
     tone === "discount" && value === 0 && "opacity-70",
     tone === "service" &&
       value > 0 &&
-      "font-semibold text-sky-700 dark:text-sky-300",
+      "font-semibold text-info-text",
     tone === "total" && "font-semibold text-primary",
     tone === "vat" &&
       value > 0 &&
-      "font-semibold text-amber-700 dark:text-amber-300",
+      "font-semibold text-warning-text",
     tone === "default" && "font-semibold text-foreground",
     value === 0 &&
       tone !== "discount" &&

@@ -1948,10 +1948,10 @@
         "qty": "ຈຳນວນ",
         "discount": "ສ່ວນຫຼຸດ",
         "discountBill": "ສ່ວນຫຼຸດທ້າຍບິນ",
-        "netSale": "Net Sale",
-        "serviceCharge": "Service Charge",
+        "netSale": "ຍອດຂາຍສຸດທິ",
+        "serviceCharge": "ຄ່າບໍລິການ",
         "vat": "VAT",
-        "grandTotal": "Grand Total"
+        "grandTotal": "ຍອດລວມທັງໝົດ"
       }
     },
     "zoneSales": {

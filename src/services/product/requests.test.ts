@@ -12,14 +12,14 @@ import {
   getProducts,
   sortProductDetailsByProduct,
   sortProductsByCategory
-} from "@/services/product/requests";
+} from "@/services/product";
 
 describe("product requests", () => {
   beforeEach(() => {
     apiMocks.apiRequest.mockReset();
   });
 
-  it("sorts fetched product rows by prod_sort ascending by default", async () => {
+  it("does not send orderBy to the API when none is chosen", async () => {
     apiMocks.apiRequest.mockResolvedValue({
       status: "success",
       message: "success",
@@ -33,16 +33,17 @@ describe("product requests", () => {
 
     const result = await getProducts({ branch_uuid_fk: "branch-1", lang: "la" });
 
+    // ไม่เลือก orderBy เอง คงลำดับที่ Backend ส่งมาโดยไม่จัดเรียงใหม่ฝั่ง client
     expect(result.data.map((row) => row.prod_uuid)).toEqual([
-      "prod-1",
-      "prod-2",
       "prod-3",
-      "prod-unsorted"
+      "prod-unsorted",
+      "prod-1",
+      "prod-2"
     ]);
     expect(apiMocks.apiRequest).toHaveBeenCalledWith(
       "get",
       "/api/v1/product/fetch_limit",
-      { params: expect.objectContaining({ orderBy: "ASC" }) }
+      { params: expect.not.objectContaining({ orderBy: expect.anything() }) }
     );
   });
 

@@ -30,6 +30,12 @@
   --info-foreground: hsl(0 0% 100%);
   --pending: hsl(25 90% 45%);
   --pending-foreground: hsl(0 0% 100%);
+  /* คู่ "ข้อความบนพื้น" ของ --info/--warning: เข้มพอผ่าน WCAG AA (>=4.5:1) เมื่อใช้เป็น
+     text บน card/พื้นสว่าง ต่างจากตัว --info/--warning ที่ออกแบบเป็นสี fill (คู่กับ
+     -foreground) ซึ่ง contrast ตกเมื่อเอามาเป็นตัวอักษรบนพื้นขาว ใช้กับยอด service/VAT
+     ในรายงาน (เทียบ sky-700/amber-700 เดิมที่ผ่าน contrast อยู่แล้ว) */
+  --info-text: hsl(201 100% 33%);
+  --warning-text: hsl(25 100% 37%);
   --border: oklch(0.925 0.005 214.3);
   --input: oklch(0.925 0.005 214.3);
   --ring: oklch(0.723 0.014 214.4);
@@ -78,6 +84,9 @@
   --info-foreground: hsl(199 80% 12%);
   --pending: hsl(25 90% 60%);
   --pending-foreground: hsl(25 80% 12%);
+  /* โหมดมืด: ใช้เฉดสว่าง (เทียบ sky-300/amber-300 เดิม) ให้ contrast ผ่านบนพื้น card เข้ม */
+  --info-text: hsl(199 95% 74%);
+  --warning-text: hsl(46 97% 64%);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.56 0.021 213.5);
@@ -235,6 +244,8 @@ html[data-font-scale="xl"] {
   --color-pending-foreground: var(--pending-foreground);
   --color-info: var(--info);
   --color-info-foreground: var(--info-foreground);
+  --color-info-text: var(--info-text);
+  --color-warning-text: var(--warning-text);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);

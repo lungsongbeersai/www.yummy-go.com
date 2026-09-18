@@ -101,7 +101,7 @@ export function ProductOptionsOverlay({
         >
           <SheetHeader className="shrink-0 flex-row items-start justify-between gap-3 border-b border-border px-4 py-3 text-left">
             <div className="min-w-0">
-              <SheetTitle className="lao-tone-text line-clamp-2 break-words text-base leading-6 font-black sm:text-lg">
+              <SheetTitle className="lao-tone-text line-clamp-2 break-words text-base leading-6 font-bold sm:text-lg">
                 {title}
               </SheetTitle>
               <SheetDescription className="sr-only">
@@ -139,7 +139,7 @@ export function ProductOptionsOverlay({
       >
         <DialogHeader className="shrink-0 flex-row items-start justify-between gap-3 border-b border-border px-5 py-3 text-left">
           <div className="min-w-0">
-            <DialogTitle className="lao-tone-text line-clamp-2 break-words text-lg leading-6 font-black">
+            <DialogTitle className="lao-tone-text line-clamp-2 break-words text-lg leading-6 font-bold">
               {title}
             </DialogTitle>
             <DialogDescription className="sr-only">
@@ -300,17 +300,17 @@ export function ProductOptionsForm({
                         <FieldLabel
                           key={detail.proDetailUuid}
                           htmlFor={id}
-                          className="min-h-12 w-full cursor-pointer items-center rounded-lg border border-border bg-card px-3 py-2 text-foreground shadow-xs transition-colors hover:border-primary/40 hover:bg-primary/5 has-data-[state=checked]:border-primary has-data-[state=checked]:bg-primary/10 has-data-[state=checked]:text-primary"
+                          className="min-h-12 w-full cursor-pointer items-center rounded-xl border border-border/70 bg-card px-3.5 py-2.5 text-foreground transition-colors hover:border-primary/40 hover:bg-accent/40 has-data-[state=checked]:border-primary has-data-[state=checked]:bg-primary/5 has-data-[state=checked]:ring-1 has-data-[state=checked]:ring-primary/20"
                         >
                           <RadioGroupItem
                             id={id}
                             value={detail.proDetailUuid}
                             className="size-5"
                           />
-                          <span className="min-w-0 flex-1 truncate text-sm font-black">
+                          <span className="min-w-0 flex-1 truncate text-sm font-semibold">
                             {detail.sizeName || t("pos.size")}
                           </span>
-                          <span className="shrink-0 text-sm font-black tabular-nums">
+                          <span className="shrink-0 text-sm font-bold tabular-nums text-primary">
                             {money(productPriceFromDetail(detail))}
                           </span>
                         </FieldLabel>
@@ -321,8 +321,8 @@ export function ProductOptionsForm({
               ) : null}
 
               {mode === "promotion" ? (
-                <div className="flex min-h-11 items-center justify-between gap-3 rounded-lg border border-primary/20 bg-primary/10 px-3 py-2 text-primary">
-                  <span className="text-sm font-black">
+                <div className="flex min-h-11 items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/10 px-3.5 py-2.5 text-primary">
+                  <span className="text-sm font-semibold">
                     {t("pos.promoDeal")}
                   </span>
                   <Badge className="shrink-0 bg-primary text-primary-foreground">
@@ -341,32 +341,32 @@ export function ProductOptionsForm({
                     })}
                     metaEmphasis={selectedTastes.length >= tasteLimit}
                   />
-                  <div className="flex flex-col gap-2">
+                  {/* รสชาติเป็นแท็ก (ไม่มีราคา/จำนวน) — แสดงเป็น chip แบบ wrap แทนแถวเต็มกว้าง
+                      ที่ปล่อยด้านขวาโล่ง ให้ดูกระชับ สวย และแยกจากขนาด/ท็อปปิ้งที่มีราคาชัดเจน */}
+                  <div className="flex flex-wrap gap-2">
                     {tastes.map((taste) => {
                       const uuid = tasteUuid(taste);
                       const selected = selectedTasteUuids.has(uuid);
                       const blocked = !selected && selectedTastes.length >= tasteLimit;
                       const id = `staff-product-taste-${uuid}`;
                       return (
-                        <Field
+                        <FieldLabel
                           key={uuid}
-                          orientation="horizontal"
+                          htmlFor={id}
                           className={cn(
-                            "min-h-12 rounded-lg border border-border bg-card px-3 py-2 shadow-xs transition-colors",
-                            selected && "border-primary bg-primary/10 text-primary",
-                            blocked && "opacity-60",
+                            "min-h-11 w-fit max-w-full items-center gap-2 rounded-lg border border-border/70 bg-card px-3.5 text-sm font-semibold text-foreground transition-colors hover:border-primary/40 hover:bg-accent/40 has-data-checked:border-primary has-data-checked:bg-primary/10 has-data-checked:text-primary",
+                            blocked ? "cursor-not-allowed opacity-60" : "cursor-pointer",
                           )}
                         >
-                          <FieldLabel htmlFor={id} className="w-full cursor-pointer items-center gap-3 text-sm font-black">
-                            <Checkbox
-                              id={id}
-                              checked={selected}
-                              aria-disabled={blocked}
-                              onCheckedChange={() => onToggleTaste(uuid)}
-                            />
-                            <span className="min-w-0 flex-1 truncate">{tasteDisplayName(taste)}</span>
-                          </FieldLabel>
-                        </Field>
+                          <Checkbox
+                            id={id}
+                            checked={selected}
+                            aria-disabled={blocked}
+                            className="size-4.5"
+                            onCheckedChange={() => onToggleTaste(uuid)}
+                          />
+                          <span className="min-w-0 truncate">{tasteDisplayName(taste)}</span>
+                        </FieldLabel>
                       );
                     })}
                   </div>
@@ -408,7 +408,7 @@ export function ProductOptionsForm({
               <Field>
                 <FieldLabel
                   htmlFor="staff-product-quantity"
-                  className="text-sm font-black text-foreground"
+                  className="text-sm font-semibold text-foreground"
                 >
                   {t("pos.qty")}
                 </FieldLabel>
@@ -427,7 +427,7 @@ export function ProductOptionsForm({
               <Field>
                 <FieldLabel
                   htmlFor="staff-product-note"
-                  className="text-sm font-black text-foreground"
+                  className="text-sm font-semibold text-foreground"
                 >
                   {t("pos.note")}
                 </FieldLabel>
@@ -480,9 +480,9 @@ function ProductDetailSummary({
   const { t } = useTranslation();
 
   return (
-    <section className="rounded-xl border border-primary/15 bg-card p-3 shadow-sm">
-      <div className="grid grid-cols-[64px_minmax(0,1fr)] items-center gap-3 sm:grid-cols-[72px_minmax(0,1fr)]">
-        <div className="relative aspect-square w-full overflow-hidden rounded-lg bg-muted bg-cover bg-center">
+    <section className="rounded-2xl border border-border bg-muted/30 p-3.5">
+      <div className="grid grid-cols-[64px_minmax(0,1fr)] items-center gap-3.5 sm:grid-cols-[72px_minmax(0,1fr)]">
+        <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-muted bg-cover bg-center shadow-sm ring-1 ring-border/60">
           <ProductMediaView
             alt=""
             fallbackIcon="chef"
@@ -492,20 +492,20 @@ function ProductDetailSummary({
         </div>
         <div className="flex min-w-0 items-center justify-between gap-3">
           <div className="flex min-w-0 flex-col gap-1.5">
-            <Badge className="w-fit max-w-full truncate bg-primary text-primary-foreground shadow-sm">
+            <Badge className="w-fit max-w-full truncate border border-primary/20 bg-primary/10 text-primary shadow-none">
               {modeLabel}
             </Badge>
             {detailLabel ? (
-              <p className="truncate text-sm font-bold text-muted-foreground">
+              <p className="truncate text-sm font-medium text-muted-foreground">
                 {detailLabel}
               </p>
             ) : null}
           </div>
           <div className="min-w-0 shrink-0 text-right">
-            <p className="text-xs font-bold leading-4 text-muted-foreground">
+            <p className="text-xs font-medium leading-4 text-muted-foreground">
               {t("pos.unitPrice")}
             </p>
-            <p className="truncate text-xl font-black leading-7 text-primary tabular-nums sm:text-2xl">
+            <p className="truncate text-xl font-bold leading-7 text-primary tabular-nums sm:text-2xl">
               {money(unitPrice)}
             </p>
           </div>
@@ -527,13 +527,13 @@ function SectionLegend({
   return (
     <FieldLegend
       variant="label"
-      className="mb-0 flex min-w-0 items-center justify-between gap-3 text-sm font-black text-foreground"
+      className="mb-0 flex min-w-0 items-center justify-between gap-3 text-xs font-bold uppercase tracking-wide text-muted-foreground"
     >
       <span>{label}</span>
       <span
         className={cn(
-          "shrink-0 text-xs font-black",
-          metaEmphasis ? "text-primary" : "text-muted-foreground",
+          "shrink-0 text-xs font-semibold normal-case tracking-normal",
+          metaEmphasis ? "text-primary" : "text-muted-foreground/80",
         )}
       >
         {meta}
@@ -544,12 +544,12 @@ function SectionLegend({
 
 function SetProductRow({ label, price }: { label: string; price: string }) {
   return (
-    <div className="flex min-h-12 w-full items-center justify-between gap-3 rounded-lg border border-primary/25 bg-primary/5 px-3 py-2 text-foreground">
+    <div className="flex min-h-12 w-full items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/5 px-3.5 py-2.5 text-foreground">
       <span className="flex min-w-0 items-center gap-2">
         <Check aria-hidden="true" className="size-4 shrink-0 text-primary" />
-        <span className="truncate text-sm font-black">{label}</span>
+        <span className="truncate text-sm font-semibold">{label}</span>
       </span>
-      <span className="shrink-0 text-sm font-black text-primary tabular-nums">
+      <span className="shrink-0 text-sm font-bold text-primary tabular-nums">
         {price}
       </span>
     </div>
@@ -581,14 +581,14 @@ function ToppingOptionRow({
     <Field
       orientation="horizontal"
       className={cn(
-        "min-h-14 flex-wrap rounded-lg border border-border bg-card px-3 py-2 shadow-xs transition-colors",
-        selected && "border-primary bg-primary/10 text-primary shadow-sm",
+        "min-h-14 flex-wrap rounded-xl border border-border/70 bg-card px-3.5 py-2.5 transition-colors",
+        selected && "border-primary bg-primary/5 ring-1 ring-primary/20",
         blocked && "opacity-50",
       )}
     >
       <FieldLabel
         className={cn(
-          "min-h-11 min-w-18 flex-1 items-center gap-3 text-sm font-black has-data-checked:bg-transparent dark:has-data-checked:bg-transparent",
+          "min-h-11 min-w-18 flex-1 items-center gap-3 text-sm font-semibold has-data-checked:bg-transparent dark:has-data-checked:bg-transparent",
           blocked ? "cursor-not-allowed" : "cursor-pointer",
         )}
       >
@@ -605,10 +605,10 @@ function ToppingOptionRow({
       </FieldLabel>
       <div className="ml-auto flex shrink-0 items-center gap-2">
         <div className="text-right">
-          <p className="text-sm font-black tabular-nums">
+          <p className={cn("text-sm font-bold tabular-nums", unitPrice > 0 ? "text-primary" : "text-muted-foreground")}>
             +{money(unitPrice * Math.max(1, qty))}
           </p>
-          <p className="text-2xs font-bold text-muted-foreground tabular-nums">
+          <p className="text-2xs font-medium text-muted-foreground tabular-nums">
             {selected && qty > 1 ? `${qty} × ${money(unitPrice)} · ` : ""}
             {t("pos.perItem")}
           </p>
@@ -752,16 +752,16 @@ function ProductOptionsFooter({
   const content = (
     <>
       <div className="min-w-0">
-        <p className="text-xs font-bold leading-4 text-muted-foreground">
+        <p className="text-xs font-medium leading-4 text-muted-foreground">
           {t("common.total")}
         </p>
-        <p className="truncate text-2xl font-black leading-8 text-primary tabular-nums">
+        <p className="truncate text-2xl font-bold leading-8 text-primary tabular-nums">
           {money(total)}
         </p>
       </div>
       <Button
         type="submit"
-        className="h-12 min-w-40 rounded-lg bg-primary text-base font-black text-primary-foreground shadow-sm hover:bg-primary/90"
+        className="h-12 min-w-40 rounded-xl bg-primary text-base font-bold text-primary-foreground shadow-sm hover:bg-primary/90"
         disabled={saving || !canSubmit}
       >
         {saving ? (

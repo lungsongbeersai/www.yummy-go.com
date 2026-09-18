@@ -242,26 +242,28 @@ export function PaymentMethodsFilterFields({
 // จับคู่จาก code ก่อนแล้วค่อยดูชื่อ เพราะ backend อาจส่ง payment_method_code เป็นตัวเลข
 // จับไม่ได้ = คืนโทนกลาง ดีกว่าเดาผิดแล้วติดสีให้วิธีชำระผิดตัว
 //
-// เลือกจากจานสี emerald / sky / violet เพราะทั้งสามมีค่า fallback อยู่ใน .android-webview-compat
-// ของ globals.css แล้ว (teal ที่ Design.md §4 แนะนำไม่มี) จึงเรนเดอร์ได้บน Android WebView รุ่นเก่า
+// ใช้ semantic token success / info / pending (เงินสด=รับแล้ว, โอน=ข้อมูล, เชื่อ/ໜີ້=ค้างจ่าย)
+// แทนสีดิบ — โทนเดียวกับป้าย order-audit/employee-sales ในรายงานอื่น (Design.md §8) และ
+// เป็น hsl() ที่เรนเดอร์บน Android WebView เก่าได้ ส่วน opacity /10 มี fallback ใน
+// .android-webview-compat ของ globals.css ครบแล้ว
 const PAYMENT_METHOD_IDENTITIES = [
   {
     match: /cash|ສົດ|สด/,
     Icon: Banknote,
-    chipClass: "bg-emerald-500/12 text-emerald-600 dark:text-emerald-400",
-    accentClass: "bg-emerald-500"
+    chipClass: "bg-success/10 text-success",
+    accentClass: "bg-success"
   },
   {
     match: /transfer|bank|ໂອນ|โอน/,
     Icon: ArrowLeftRight,
-    chipClass: "bg-sky-500/12 text-sky-600 dark:text-sky-400",
-    accentClass: "bg-sky-500"
+    chipClass: "bg-info/10 text-info",
+    accentClass: "bg-info"
   },
   {
     match: /debt|credit|ໜີ້|ຕິດ|เชื่อ/,
     Icon: HandCoins,
-    chipClass: "bg-violet-500/12 text-violet-600 dark:text-violet-400",
-    accentClass: "bg-violet-500"
+    chipClass: "bg-pending/10 text-pending",
+    accentClass: "bg-pending"
   }
 ] as const;
 
@@ -799,10 +801,10 @@ function metricValueClass(field: keyof PaymentMethodReportRow, value: unknown) {
     isDiscount && number > 0 && "font-black text-destructive",
     field === "serviceCharge" &&
       number > 0 &&
-      "font-black text-sky-700 dark:text-sky-300",
+      "font-black text-info-text",
     field === "vat" &&
       number > 0 &&
-      "font-black text-amber-700 dark:text-amber-300",
+      "font-black text-warning-text",
     !isTotal &&
       !isDiscount &&
       field !== "serviceCharge" &&
