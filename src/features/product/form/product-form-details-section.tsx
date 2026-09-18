@@ -255,7 +255,6 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
                       </div>
                       <FormattedNumberInput
                         min={1}
-                        disabled={rowStockMode !== "1"}
                         value={row.pro_detail_setqty_cut_stock}
                         onValueChange={(value) => updateDetail(row.id, { pro_detail_setqty_cut_stock: value })}
                       />
