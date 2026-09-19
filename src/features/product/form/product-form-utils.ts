@@ -717,7 +717,7 @@ export function emptyDetail(statusSortFk: StatusSortFk = "1"): DetailRow {
     pro_detail_setqty_cut_stock: "1",
     pro_detail_enabled: "1",
     pro_detail_status: statusSortFk === "3" ? "1" : "2",
-    set_choice_group_client_ref: "",
+    set_choice_group_client_refs: [],
     ...EMPTY_PROMOTION_FIELDS,
   };
 }
@@ -760,8 +760,8 @@ export function detailFromProduct(
     pro_detail_sTime: timeInputValue(detail.pro_detail_sTime),
     pro_detail_eTime: timeInputValue(detail.pro_detail_eTime),
     // ค่า uuid จริงจาก backend ใช้แทน client_ref ได้เลย เพราะกลุ่มถูกลบสร้างใหม่ทุกครั้งที่
-    // บันทึกอยู่แล้ว (ดู buildChoiceGroupsPayload) ค่านี้แค่ต้องตรงกับ ChoiceGroupRow ที่คู่กัน
-    set_choice_group_client_ref: String(detail.set_choice_group_uuid_fk ?? ""),
+    // บันทึกอยู่แล้ว (ดู buildChoiceGroupsPayload) ค่าแต่ละตัวแค่ต้องตรงกับ ChoiceGroupRow ที่คู่กัน
+    set_choice_group_client_refs: (detail.set_choice_group_uuid_fks ?? []).map(String),
   };
 }
 
@@ -799,8 +799,8 @@ export function normalizeDetailsForStatus(
       pro_detail_sprice: row.pro_detail_sprice || "0",
       pro_detail_qty_stock: row.pro_detail_qty_stock || "0",
       // กลุ่มตัวเลือกมีความหมายเฉพาะสินค้าแบบ Set — สลับออกจาก Set แล้วต้องล้างทิ้ง
-      set_choice_group_client_ref:
-        targetStatus === "2" ? row.set_choice_group_client_ref || "" : "",
+      set_choice_group_client_refs:
+        targetStatus === "2" ? row.set_choice_group_client_refs ?? [] : [],
     };
 
     if (targetStatus !== "3") {
@@ -892,7 +892,7 @@ export function buildDetailPayload(
       ...base,
       pro_detail_setqty_cut_stock: numberFromFormatted(row.pro_detail_setqty_cut_stock),
       pro_detail_status: 2,
-      set_choice_group_client_ref: row.set_choice_group_client_ref || "",
+      set_choice_group_client_refs: row.set_choice_group_client_refs ?? [],
     };
   }
 
@@ -990,8 +990,8 @@ export function requiredFieldErrorKeys(state: RequiredProductFormState) {
       : null,
     state.statusSortFk === "2" &&
     (state.choiceGroups ?? []).some((group) => {
-      const memberCount = state.details.filter(
-        (row) => row.set_choice_group_client_ref === group.client_ref,
+      const memberCount = state.details.filter((row) =>
+        (row.set_choice_group_client_refs ?? []).includes(group.client_ref),
       ).length;
       return (
         memberCount < 1 || Number(group.max_select) > memberCount

@@ -7,6 +7,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -46,7 +47,6 @@ import { ProductFormSectionHeader } from "./product-form-section-header";
 import type { ProductFormWorkflow } from "./use-product-form-workflow";
 
 const NO_SET_PRODUCT_OPTION_VALUE = "__no-set-products__";
-const NO_CHOICE_GROUP_VALUE = "__no-choice-group__";
 
 export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow }) {
   const {
@@ -342,36 +342,38 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
                       </FieldDescription>
                     </Field>
                   ) : null}
-                  {statusSortFk === "2" ? (
+                  {statusSortFk === "2" && choiceGroups.length ? (
                     <Field>
                       <div className={labelRowClass}>
                         <FieldLabel>{t("product.setChoiceGroupAssign")}</FieldLabel>
                       </div>
-                      <Select
-                        value={row.set_choice_group_client_ref || NO_CHOICE_GROUP_VALUE}
-                        onValueChange={(value) =>
-                          updateDetail(row.id, {
-                            set_choice_group_client_ref:
-                              value === NO_CHOICE_GROUP_VALUE ? "" : value,
-                          })
-                        }
-                      >
-                        <SelectTrigger className="w-full">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent position="popper">
-                          <SelectGroup>
-                            <SelectItem value={NO_CHOICE_GROUP_VALUE}>
-                              {t("product.setChoiceGroupNone")}
-                            </SelectItem>
-                            {choiceGroups.map((group) => (
-                              <SelectItem key={group.id} value={group.client_ref}>
-                                {group.group_name_la || t("product.setChoiceGroupUnnamed")}
-                              </SelectItem>
-                            ))}
-                          </SelectGroup>
-                        </SelectContent>
-                      </Select>
+                      <div className="flex flex-col gap-2 rounded-md border border-border bg-muted/10 p-2.5">
+                        {choiceGroups.map((group) => {
+                          const memberRefs = row.set_choice_group_client_refs ?? [];
+                          const checked = memberRefs.includes(group.client_ref);
+                          const checkboxId = `choice-group-${row.id}-${group.id}`;
+                          return (
+                            <FieldLabel
+                              key={group.id}
+                              htmlFor={checkboxId}
+                              className="min-h-8 cursor-pointer items-center gap-2 text-sm font-normal"
+                            >
+                              <Checkbox
+                                id={checkboxId}
+                                checked={checked}
+                                onCheckedChange={(value) =>
+                                  updateDetail(row.id, {
+                                    set_choice_group_client_refs: value
+                                      ? [...memberRefs, group.client_ref]
+                                      : memberRefs.filter((ref) => ref !== group.client_ref),
+                                  })
+                                }
+                              />
+                              {group.group_name_la || t("product.setChoiceGroupUnnamed")}
+                            </FieldLabel>
+                          );
+                        })}
+                      </div>
                     </Field>
                   ) : null}
                   {statusSortFk === "1" ? (

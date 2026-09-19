@@ -771,32 +771,32 @@ describe("order customer helpers", () => {
           proDetailUuid: "chicken",
           price: 0,
           proDetailSprice: 0,
-          setChoiceGroupUuidFk: "grp-protein",
+          setChoiceGroupUuidFks: ["grp-protein"],
         }),
         detail({
           proDetailUuid: "pork",
           price: 0,
           proDetailSprice: 0,
-          setChoiceGroupUuidFk: "grp-protein",
+          setChoiceGroupUuidFks: ["grp-protein"],
         }),
         detail({
           proDetailUuid: "cake",
           price: 0,
           proDetailSprice: 0,
-          setChoiceGroupUuidFk: "grp-dessert",
+          setChoiceGroupUuidFks: ["grp-dessert"],
         }),
         detail({
           proDetailUuid: "icecream",
           price: 0,
           proDetailSprice: 0,
-          setChoiceGroupUuidFk: "grp-dessert",
+          setChoiceGroupUuidFks: ["grp-dessert"],
         }),
         detail({
           // อ้างกลุ่มที่ไม่มีอยู่จริง (เช่นถูกลบไปแล้ว) — ต้องกลับไปเป็นบังคับรวมเหมือนไม่มีกลุ่ม
           proDetailUuid: "soup",
           price: 0,
           proDetailSprice: 0,
-          setChoiceGroupUuidFk: "grp-deleted",
+          setChoiceGroupUuidFks: ["grp-deleted"],
         }),
       ],
     };
@@ -836,6 +836,52 @@ describe("order customer helpers", () => {
     expect(items.map((item) => item.prod_detail_uuid_fk).sort()).toEqual(
       ["chicken", "rice", "soup"].sort(),
     );
+  });
+
+  it("lets one item belong to more than one choice group and dedupes it in the resolved order", () => {
+    const sauceGroup = choiceGroup({ setChoiceGroupUuid: "grp-sauce", maxSelect: 1 });
+    const spiceGroup = choiceGroup({ setChoiceGroupUuid: "grp-spice", maxSelect: 1 });
+    const setProduct: ProdItem = {
+      ...normalizeProdItem(null, product({ statusSortFk: ProductSortStatus.SET })),
+      setChoiceGroups: [sauceGroup, spiceGroup],
+      details: [
+        // ไก่ทอดชิ้นเดียวกัน เป็นตัวเลือกได้ทั้งกลุ่มน้ำจิ้มและกลุ่มระดับความเผ็ด
+        detail({
+          proDetailUuid: "fried-chicken",
+          price: 0,
+          proDetailSprice: 0,
+          setChoiceGroupUuidFks: ["grp-sauce", "grp-spice"],
+        }),
+        detail({
+          proDetailUuid: "fried-tofu",
+          price: 0,
+          proDetailSprice: 0,
+          setChoiceGroupUuidFks: ["grp-sauce"],
+        }),
+      ],
+    };
+
+    const grouped = groupedSetDetails(setProduct);
+    expect(grouped.groups.find((g) => setChoiceGroupUuid(g.group) === "grp-sauce")?.members
+      .map((d) => d.proDetailUuid)).toEqual(["fried-chicken", "fried-tofu"]);
+    expect(grouped.groups.find((g) => setChoiceGroupUuid(g.group) === "grp-spice")?.members
+      .map((d) => d.proDetailUuid)).toEqual(["fried-chicken"]);
+
+    // เลือก fried-chicken จากกลุ่มเดียว (grp-spice) แต่ไม่ได้เลือกจาก grp-sauce เลย —
+    // ยังต้องได้แค่ 1 ชิ้นในผลลัพธ์สุดท้าย ไม่ใช่ 2 (ไม่ dedupe แล้วจะสั่งซ้ำ)
+    expect(
+      resolveSetOrderDetails(setProduct, { "grp-spice": ["fried-chicken"] }).map(
+        (d) => d.proDetailUuid,
+      ),
+    ).toEqual(["fried-chicken"]);
+
+    // เลือกจากทั้งสองกลุ่มพร้อมกัน — ยังต้อง dedupe เหลือชิ้นเดียว
+    expect(
+      resolveSetOrderDetails(setProduct, {
+        "grp-sauce": ["fried-chicken"],
+        "grp-spice": ["fried-chicken"],
+      }).map((d) => d.proDetailUuid),
+    ).toEqual(["fried-chicken"]);
   });
 
   it("caps set choice selection at max_select without requiring it to be filled", () => {

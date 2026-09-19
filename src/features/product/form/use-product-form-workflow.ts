@@ -1005,8 +1005,13 @@ export function useProductFormWorkflow() {
       removeChoiceGroup(id, (clientRef) => {
         setDetails((current) =>
           current.map((row) =>
-            row.set_choice_group_client_ref === clientRef
-              ? { ...row, set_choice_group_client_ref: "" }
+            (row.set_choice_group_client_refs ?? []).includes(clientRef)
+              ? {
+                  ...row,
+                  set_choice_group_client_refs: row.set_choice_group_client_refs.filter(
+                    (ref) => ref !== clientRef,
+                  ),
+                }
               : row,
           ),
         );

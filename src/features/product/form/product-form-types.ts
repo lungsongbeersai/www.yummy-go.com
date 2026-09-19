@@ -27,9 +27,9 @@ export interface DetailRow {
   pro_detail_eDate: string;
   pro_detail_sTime: string;
   pro_detail_eTime: string;
-  // "" = ไม่มีกลุ่ม (บังคับรวมเหมือนเดิม) — เฉพาะสินค้าแบบ Set (statusSortFk "2")
-  // ค่านี้ตรงกับ ChoiceGroupRow.client_ref ของกลุ่มที่แถวนี้อยู่
-  set_choice_group_client_ref: string;
+  // [] = ไม่มีกลุ่ม (บังคับรวมเหมือนเดิม) — เฉพาะสินค้าแบบ Set (statusSortFk "2")
+  // แถวหนึ่งเป็นสมาชิกได้หลายกลุ่มพร้อมกัน ค่าแต่ละตัวตรงกับ ChoiceGroupRow.client_ref
+  set_choice_group_client_refs: string[];
 }
 
 // กลุ่มตัวเลือกในชุดอาหาร (เช่น "เลือกเนื้อสัตว์": ไก่/หมู) — ขอบเขตอยู่แค่สินค้าตัวนี้
