@@ -16,11 +16,11 @@ import type { Topping } from "@/services/topping";
 import type { Unit } from "@/services/unit";
 import type {
   BinaryFlag,
-  ChoiceGroupRow,
   DetailRow,
   DetailStockSummary,
   ProductSavePayloadState,
   RequiredProductFormState,
+  SetChoiceGroupMode,
   SizeSelectOption,
   StatusSortFk,
   TasteSelection,
@@ -37,6 +37,7 @@ export const TOPPING_MAX_SELECT_OPTIONS = Array.from(
 );
 export const TOPPING_MAX_SELECT_UNLIMITED = "0";
 export const TASTE_MAX_SELECT_OPTIONS = ["0", "1", "2"] as const;
+export const SET_CHOICE_GROUP_MODE_OPTIONS: SetChoiceGroupMode[] = ["none", "one", "many"];
 export const DEFAULT_COLOR = "#10b981";
 export const CUSTOM_COLOR_VALUE = "__custom__";
 export const TOPPING_NONE = "1";
@@ -717,26 +718,30 @@ export function emptyDetail(statusSortFk: StatusSortFk = "1"): DetailRow {
     pro_detail_setqty_cut_stock: "1",
     pro_detail_enabled: "1",
     pro_detail_status: statusSortFk === "3" ? "1" : "2",
-    set_choice_group_client_refs: [],
+    set_choice_group_mode: "none",
+    set_choice_group_name: "",
     ...EMPTY_PROMOTION_FIELDS,
   };
 }
 
-export function emptyChoiceGroup(): ChoiceGroupRow {
-  const ref = rid();
-  return {
-    id: ref,
-    client_ref: ref,
-    group_name_la: "",
-    group_name_eng: "",
-    max_select: "1",
-  };
+// หา group ตัวแรกที่แถวนี้เคยผูกไว้ (จาก uuid ที่ backend ส่งกลับ) เพื่อดึงชื่อ/โหมดของมันมา
+// แสดงในฟอร์ม — ถ้าแถวเคยผูกไว้มากกว่า 1 กลุ่ม (ข้อมูลจากช่วงที่ระบบยังรองรับหลายกลุ่มต่อแถว)
+// ฟอร์มนี้จะโชว์ได้แค่กลุ่มแรกเท่านั้น เพราะ UI ใหม่ให้ 1 แถวอยู่ได้แค่ 1 กลุ่ม
+function firstChoiceGroupFor(
+  detail: NonNullable<Product["details"]>[number],
+  groups: NonNullable<Product["set_choice_groups"]>,
+) {
+  const uuid = (detail.set_choice_group_uuid_fks ?? [])[0];
+  if (!uuid) return null;
+  return groups.find((group) => group.set_choice_group_uuid === uuid) ?? null;
 }
 
 export function detailFromProduct(
   detail: NonNullable<Product["details"]>[number],
   statusSortFk: StatusSortFk,
+  choiceGroups: NonNullable<Product["set_choice_groups"]> = [],
 ): DetailRow {
+  const matchedGroup = firstChoiceGroupFor(detail, choiceGroups);
   return {
     id: rid(),
     pro_detail_uuid: productDetailUuid(detail),
@@ -759,25 +764,15 @@ export function detailFromProduct(
     pro_detail_eDate: dateInputValue(detail.pro_detail_eDate),
     pro_detail_sTime: timeInputValue(detail.pro_detail_sTime),
     pro_detail_eTime: timeInputValue(detail.pro_detail_eTime),
-    // ค่า uuid จริงจาก backend ใช้แทน client_ref ได้เลย เพราะกลุ่มถูกลบสร้างใหม่ทุกครั้งที่
-    // บันทึกอยู่แล้ว (ดู buildChoiceGroupsPayload) ค่าแต่ละตัวแค่ต้องตรงกับ ChoiceGroupRow ที่คู่กัน
-    set_choice_group_client_refs: (detail.set_choice_group_uuid_fks ?? []).map(String),
+    set_choice_group_mode: !matchedGroup
+      ? "none"
+      : Number(matchedGroup.max_select ?? 1) > 1
+        ? "many"
+        : "one",
+    set_choice_group_name: matchedGroup
+      ? String(matchedGroup.group_name_la ?? matchedGroup.group_name ?? "")
+      : "",
   };
-}
-
-export function choiceGroupsFromProduct(
-  product: Product | null,
-): ChoiceGroupRow[] {
-  return (product?.set_choice_groups ?? []).map((group) => {
-    const clientRef = String(group.set_choice_group_uuid ?? "");
-    return {
-      id: clientRef || rid(),
-      client_ref: clientRef,
-      group_name_la: String(group.group_name_la ?? ""),
-      group_name_eng: String(group.group_name_eng ?? ""),
-      max_select: String(group.max_select ?? 1),
-    };
-  });
 }
 
 export function normalizeDetailsForStatus(
@@ -799,8 +794,8 @@ export function normalizeDetailsForStatus(
       pro_detail_sprice: row.pro_detail_sprice || "0",
       pro_detail_qty_stock: row.pro_detail_qty_stock || "0",
       // กลุ่มตัวเลือกมีความหมายเฉพาะสินค้าแบบ Set — สลับออกจาก Set แล้วต้องล้างทิ้ง
-      set_choice_group_client_refs:
-        targetStatus === "2" ? row.set_choice_group_client_refs ?? [] : [],
+      set_choice_group_mode: targetStatus === "2" ? row.set_choice_group_mode : "none",
+      set_choice_group_name: targetStatus === "2" ? row.set_choice_group_name : "",
     };
 
     if (targetStatus !== "3") {
@@ -892,7 +887,7 @@ export function buildDetailPayload(
       ...base,
       pro_detail_setqty_cut_stock: numberFromFormatted(row.pro_detail_setqty_cut_stock),
       pro_detail_status: 2,
-      set_choice_group_client_refs: row.set_choice_group_client_refs ?? [],
+      set_choice_group_client_refs: choiceGroupNameOf(row) ? [choiceGroupNameOf(row)] : [],
     };
   }
 
@@ -909,14 +904,35 @@ export function buildDetailPayload(
   };
 }
 
+// ชื่อกลุ่มมีความหมายเฉพาะตอน mode ไม่ใช่ "none" — แถวที่ปิดตัวเลือกไว้ไม่นับเป็นสมาชิกกลุ่ม
+// แม้จะเคยพิมพ์ชื่อค้างไว้ในช่องก็ตาม
+export function choiceGroupNameOf(row: Pick<DetailRow, "set_choice_group_mode" | "set_choice_group_name">) {
+  return row.set_choice_group_mode === "none" ? "" : row.set_choice_group_name.trim();
+}
+
+// กลุ่มไม่มีหน้าจัดการแยกอีกต่อไป — ได้มาจากการไล่ดูชื่อกลุ่มที่แต่ละแถวประกาศไว้เอง แถวที่ตั้ง
+// ชื่อเดียวกัน (ไม่สนตัวพิมพ์เล็ก/ใหญ่หรือช่องว่างหัวท้าย) ถูกจับเป็นกลุ่มเดียวกันโดยอัตโนมัติ
+// "เลือกได้หลายรายการ" ไม่มีเลขให้กรอกเอง — max_select ถูกตั้งเท่าจำนวนสมาชิกจริงของกลุ่มนั้น
+// (เท่ากับ "เลือกได้ทั้งหมด" ไปในตัว) ส่วน "เลือกได้ 1" ตั้งค่าคงที่เป็น 1 เสมอ ถ้าแถวในกลุ่ม
+// เดียวกันขัดกัน (บางแถวติ๊ก "เลือกได้ 1" บางแถวติ๊ก "หลายรายการ") ให้ "หลายรายการ" ชนะ
 export function buildChoiceGroupsPayload(
-  choiceGroups: ChoiceGroupRow[],
+  details: DetailRow[],
 ): SaveProductSetChoiceGroupInput[] {
-  return choiceGroups.map((group, index) => ({
-    client_ref: group.client_ref,
-    group_name_la: group.group_name_la.trim(),
-    group_name_eng: group.group_name_eng.trim() || undefined,
-    max_select: Math.max(1, Number(group.max_select) || 1),
+  const membersByName = new Map<string, { rows: DetailRow[]; many: boolean }>();
+
+  for (const row of details) {
+    const name = choiceGroupNameOf(row);
+    if (!name) continue;
+    const entry = membersByName.get(name) ?? { rows: [], many: false };
+    entry.rows.push(row);
+    if (row.set_choice_group_mode === "many") entry.many = true;
+    membersByName.set(name, entry);
+  }
+
+  return Array.from(membersByName.entries()).map(([name, entry], index) => ({
+    client_ref: name,
+    group_name_la: name,
+    max_select: entry.many ? entry.rows.length : 1,
     group_sort: index + 1,
   }));
 }
@@ -985,19 +1001,10 @@ export function requiredFieldErrorKeys(state: RequiredProductFormState) {
       ? "product.sections.tastes"
       : null,
     state.statusSortFk === "2" &&
-    (state.choiceGroups ?? []).some((group) => !group.group_name_la.trim())
+    state.details.some(
+      (row) => row.set_choice_group_mode !== "none" && !row.set_choice_group_name.trim(),
+    )
       ? "product.setChoiceGroupName"
-      : null,
-    state.statusSortFk === "2" &&
-    (state.choiceGroups ?? []).some((group) => {
-      const memberCount = state.details.filter((row) =>
-        (row.set_choice_group_client_refs ?? []).includes(group.client_ref),
-      ).length;
-      return (
-        memberCount < 1 || Number(group.max_select) > memberCount
-      );
-    })
-      ? "product.setChoiceGroupMembers"
       : null,
   ].filter(Boolean) as Array<string | string[]>;
 }
@@ -1052,9 +1059,7 @@ export function buildSaveProductPayload(
           }))
         : [],
     set_choice_groups:
-      state.statusSortFk === "2"
-        ? buildChoiceGroupsPayload(state.choiceGroups ?? [])
-        : [],
+      state.statusSortFk === "2" ? buildChoiceGroupsPayload(state.details) : [],
   };
 }
 

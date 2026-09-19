@@ -7,10 +7,8 @@ import {
   buildChoiceGroupsPayload,
   buildDetailPayload,
   buildSaveProductPayload,
-  choiceGroupsFromProduct,
   detailFromProduct,
   detailStockSummary,
-  emptyChoiceGroup,
   emptyDetail,
   filterSizeOptionsByText,
   findSizeUuidByName,
@@ -566,20 +564,35 @@ describe("product form validation and payload helpers", () => {
 });
 
 describe("set choice group helpers", () => {
-  it("builds the save payload from local rows, defaulting max_select to at least 1", () => {
-    const group = { ...emptyChoiceGroup(), group_name_la: "ເລືອກເນື້ອສັດ", max_select: "0" };
-    expect(buildChoiceGroupsPayload([group])).toEqual([
-      {
-        client_ref: group.client_ref,
-        group_name_la: "ເລືອກເນື້ອສັດ",
-        group_name_eng: undefined,
-        max_select: 1,
-        group_sort: 1,
-      },
+  it("groups rows that share a name and derives max_select from their mode", () => {
+    const rows = [
+      detail({ id: "chicken", set_choice_group_mode: "one", set_choice_group_name: "ໄກ່/ໝູ" }),
+      detail({ id: "pork", set_choice_group_mode: "one", set_choice_group_name: "ໄກ່/ໝູ" }),
+      detail({ id: "cake", set_choice_group_mode: "many", set_choice_group_name: "ຂອງຫວານ" }),
+      detail({ id: "icecream", set_choice_group_mode: "many", set_choice_group_name: "ຂອງຫວານ" }),
+    ];
+    expect(buildChoiceGroupsPayload(rows)).toEqual([
+      { client_ref: "ໄກ່/ໝູ", group_name_la: "ໄກ່/ໝູ", max_select: 1, group_sort: 1 },
+      { client_ref: "ຂອງຫວານ", group_name_la: "ຂອງຫວານ", max_select: 2, group_sort: 2 },
     ]);
   });
 
-  it("hydrates local rows from a saved product's set_choice_groups", () => {
+  it("ignores rows left in mode none even if a stale name lingers in the field", () => {
+    const rows = [
+      detail({ set_choice_group_mode: "none", set_choice_group_name: "ໄກ່/ໝູ" }),
+    ];
+    expect(buildChoiceGroupsPayload(rows)).toEqual([]);
+  });
+
+  it("resolves a mixed-mode group to many, since some selection beats forcing exactly one", () => {
+    const rows = [
+      detail({ id: "chicken", set_choice_group_mode: "one", set_choice_group_name: "ໄກ່/ໝູ" }),
+      detail({ id: "pork", set_choice_group_mode: "many", set_choice_group_name: "ໄກ່/ໝູ" }),
+    ];
+    expect(buildChoiceGroupsPayload(rows)[0]).toMatchObject({ max_select: 2 });
+  });
+
+  it("hydrates a row's mode and name from the saved product's set_choice_groups", () => {
     const product = {
       prod_uuid: "prod-1",
       set_choice_groups: [
@@ -587,78 +600,50 @@ describe("set choice group helpers", () => {
       ],
     } as unknown as Product;
 
-    expect(choiceGroupsFromProduct(product)).toEqual([
-      {
-        id: "grp-1",
-        client_ref: "grp-1",
-        group_name_la: "ໄກ່/ໝູ",
-        group_name_eng: "",
-        max_select: "1",
-      },
-    ]);
+    const hydrated = detailFromProduct(
+      { pro_detail_uuid: "d-1", set_choice_group_uuid_fks: ["grp-1"] },
+      "2",
+      product.set_choice_groups,
+    );
+    expect(hydrated.set_choice_group_mode).toBe("one");
+    expect(hydrated.set_choice_group_name).toBe("ໄກ່/ໝູ");
+
+    const ungrouped = detailFromProduct({ pro_detail_uuid: "d-2" }, "2", product.set_choice_groups);
+    expect(ungrouped.set_choice_group_mode).toBe("none");
+    expect(ungrouped.set_choice_group_name).toBe("");
   });
 
-  it("carries the assigned groups through the detail payload only for Set products", () => {
-    const row = detail({ set_choice_group_client_refs: ["grp-1", "grp-2"] });
+  it("carries the group name through the detail payload only for Set products", () => {
+    const row = detail({ set_choice_group_mode: "one", set_choice_group_name: "grp-1" });
     expect(buildDetailPayload(row, "2")).toMatchObject({
-      set_choice_group_client_refs: ["grp-1", "grp-2"],
+      set_choice_group_client_refs: ["grp-1"],
     });
     expect(buildDetailPayload(row, "1")).not.toHaveProperty(
       "set_choice_group_client_refs",
     );
   });
 
-  it("flags an unnamed choice group as a required-field error", () => {
+  it("sends no group ref for a row left in mode none", () => {
+    const row = detail({ set_choice_group_mode: "none", set_choice_group_name: "grp-1" });
+    expect(buildDetailPayload(row, "2")).toMatchObject({
+      set_choice_group_client_refs: [],
+    });
+  });
+
+  it("flags a row with a choice-group mode selected but no name typed yet", () => {
     const state = {
       prodNameLa: "Set",
       cateUuidFk: "cate-1",
       uniteUuidFk: "unit-1",
-      details: [detail({ set_choice_group_client_refs: ["grp-1"] })],
+      details: [detail({ set_choice_group_mode: "one", set_choice_group_name: "" })],
       statusSortFk: "2" as const,
       prodToppingStatus: "1" as const,
       selectedToppings: [],
-      choiceGroups: [{ ...emptyChoiceGroup(), client_ref: "grp-1", group_name_la: "" }],
     };
     expect(requiredFieldErrors(state, t)).toContain("product.setChoiceGroupName");
   });
 
-  it("flags a choice group whose max_select exceeds how many rows are assigned to it", () => {
-    const state = {
-      prodNameLa: "Set",
-      cateUuidFk: "cate-1",
-      uniteUuidFk: "unit-1",
-      details: [detail({ set_choice_group_client_refs: ["grp-1"] })],
-      statusSortFk: "2" as const,
-      prodToppingStatus: "1" as const,
-      selectedToppings: [],
-      choiceGroups: [
-        { ...emptyChoiceGroup(), client_ref: "grp-1", group_name_la: "ໄກ່/ໝູ", max_select: "2" },
-      ],
-    };
-    expect(requiredFieldErrors(state, t)).toContain("product.setChoiceGroupMembers");
-  });
-
-  it("lets one row satisfy the member-count requirement of more than one group at once", () => {
-    const state = {
-      prodNameLa: "Set",
-      cateUuidFk: "cate-1",
-      uniteUuidFk: "unit-1",
-      details: [detail({ set_choice_group_client_refs: ["grp-sauce", "grp-spice"] })],
-      statusSortFk: "2" as const,
-      prodToppingStatus: "1" as const,
-      selectedToppings: [],
-      choiceGroups: [
-        { ...emptyChoiceGroup(), client_ref: "grp-sauce", group_name_la: "ນ້ຳຈິ້ມ" },
-        { ...emptyChoiceGroup(), client_ref: "grp-spice", group_name_la: "ລະດັບເຜັດ" },
-      ],
-    };
-    expect(requiredFieldErrors(state, t)).not.toContain("product.setChoiceGroupMembers");
-  });
-
   it("only sends set_choice_groups for statusSortFk 2", () => {
-    const choiceGroups = [
-      { ...emptyChoiceGroup(), client_ref: "grp-1", group_name_la: "ໄກ່/ໝູ" },
-    ];
     const base = {
       branchUuid: "branch-1",
       prodCode: "P-1",
@@ -671,19 +656,17 @@ describe("set choice group helpers", () => {
       prodSetPrice: "0",
       prodStatusImge: "2" as const,
       prodImage: "#10b981",
-      details: [detail({ set_choice_group_client_refs: ["grp-1"] })],
+      details: [detail({ set_choice_group_mode: "one", set_choice_group_name: "ໄກ່/ໝູ" })],
       prodToppingStatus: "1" as const,
       selectedToppings: [],
-      choiceGroups,
     };
 
     expect(
       buildSaveProductPayload({ ...base, statusSortFk: "2" }).set_choice_groups,
     ).toEqual([
       {
-        client_ref: "grp-1",
+        client_ref: "ໄກ່/ໝູ",
         group_name_la: "ໄກ່/ໝູ",
-        group_name_eng: undefined,
         max_select: 1,
         group_sort: 1,
       },

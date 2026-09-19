@@ -40,7 +40,6 @@ import {
   binaryFlag,
   buildSaveProductPayload,
   categoryUuid,
-  choiceGroupsFromProduct,
   colorCode,
   detailFromProduct,
   emptyDetail,
@@ -67,7 +66,6 @@ import {
   unitUuid,
   writeProductFormDefaults,
 } from "./product-form-utils";
-import { useProductFormChoiceGroups } from "./use-product-form-choice-groups";
 import { useProductFormDetails } from "./use-product-form-details";
 import { useProductImageWorkflow } from "./use-product-form-image";
 import { useProductFormReferenceData } from "./use-product-form-reference-data";
@@ -187,13 +185,6 @@ export function useProductFormWorkflow() {
     updateAllDetailStockModes,
     removeDetail
   } = useProductFormDetails({ isEditing, showToast, statusSortFk, t, updateDetailsStock });
-  const {
-    choiceGroups,
-    setChoiceGroups,
-    addChoiceGroup,
-    updateChoiceGroup,
-    removeChoiceGroup,
-  } = useProductFormChoiceGroups();
   const {
     deletingSetOptionUuid,
     editingSetOptionUuid,
@@ -420,9 +411,11 @@ export function useProductFormWorkflow() {
     setSelectedImage(null);
     setCrop(DEFAULT_CROP);
     if (editing.details?.length) {
-      setDetails(editing.details.map((detail) => detailFromProduct(detail, nextStatus)));
+      const choiceGroups = nextStatus === "2" ? editing.set_choice_groups ?? [] : [];
+      setDetails(
+        editing.details.map((detail) => detailFromProduct(detail, nextStatus, choiceGroups)),
+      );
     }
-    setChoiceGroups(nextStatus === "2" ? choiceGroupsFromProduct(editing) : []);
   }, { runOnMount: true });
 
   function changeStatusSort(value: StatusSortFk) {
@@ -430,7 +423,6 @@ export function useProductFormWorkflow() {
     setStatusSortFk(value);
     if (value !== "2") setProdSetPrice("0");
     if (value !== "2") handleSetOptionDialogOpen(false);
-    if (value !== "2") setChoiceGroups([]);
   }
 
   function showSaveError(description: string) {
@@ -450,7 +442,6 @@ export function useProductFormWorkflow() {
         selectedToppings,
         prodTasteMaxSelect,
         selectedTastes,
-        choiceGroups,
       },
       t
     );
@@ -612,7 +603,6 @@ export function useProductFormWorkflow() {
         selectedToppings,
         prodTasteMaxSelect,
         selectedTastes,
-        choiceGroups,
       });
       const updateProdUuid = editing?.prod_uuid ?? prodUuid;
       if (isEditing) payload.prod_uuid = updateProdUuid;
@@ -934,7 +924,6 @@ export function useProductFormWorkflow() {
     setColorChoice,
     details,
     bulkStockSaving,
-    choiceGroups,
     prodToppingStatus,
     setProdToppingStatus,
     prodToppingMaxSelect,
@@ -999,23 +988,6 @@ export function useProductFormWorkflow() {
     updateDetail,
     updateAllDetailStockModes,
     removeDetail,
-    addChoiceGroup,
-    updateChoiceGroup,
-    removeChoiceGroup: (id: string) =>
-      removeChoiceGroup(id, (clientRef) => {
-        setDetails((current) =>
-          current.map((row) =>
-            (row.set_choice_group_client_refs ?? []).includes(clientRef)
-              ? {
-                  ...row,
-                  set_choice_group_client_refs: row.set_choice_group_client_refs.filter(
-                    (ref) => ref !== clientRef,
-                  ),
-                }
-              : row,
-          ),
-        );
-      }),
     saveCategoryFromDialog,
     saveUnitFromDialog,
     saveSizeFromDialog,
